@@ -18,14 +18,19 @@ export class AuthService {
   readonly currentUser = signal<User | null>(null);
   readonly profile = signal<UserProfile | null>(null);
   readonly isLoading = signal<boolean>(false);
-  readonly isDemoUser = signal<boolean>(false);
+  readonly isDemoUser = signal<boolean>(true);
 
   // Computed signals
   readonly isAuthenticated = computed(() => !!this.currentUser() || this.isDemoUser());
-  readonly userEmail = computed(() => this.isDemoUser() ? 'demo@reflip.app' : (this.currentUser()?.email ?? ''));
+  readonly userEmail = computed(() => (this.isDemoUser() ? 'demo@reflip.app' : this.currentUser()?.email ?? ''));
   readonly userName = computed(() => {
     if (this.isDemoUser()) return 'Demo Reseller';
-    return this.profile()?.full_name || this.currentUser()?.user_metadata?.['full_name'] || this.userEmail().split('@')[0] || 'Reseller';
+    return (
+      this.profile()?.full_name ||
+      this.currentUser()?.user_metadata?.['full_name'] ||
+      this.userEmail().split('@')[0] ||
+      'Reseller'
+    );
   });
 
   constructor() {
@@ -33,55 +38,24 @@ export class AuthService {
   }
 
   private async initAuth(): Promise<void> {
-    this.isLoading.set(true);
-
-    // Check localStorage for saved demo session
-    const savedDemo = localStorage.getItem('reflip_demo_mode');
-    if (savedDemo === 'true') {
-      this.isDemoUser.set(true);
-      this.mockStore.isDemoMode.set(true);
+    const isExplicitlyLoggedOut = localStorage.getItem('reflip_logged_out') === 'true';
+    if (isExplicitlyLoggedOut) {
+      this.isDemoUser.set(false);
+      this.mockStore.isDemoMode.set(false);
       this.isLoading.set(false);
       return;
     }
 
-    try {
-      // Race Supabase getSession with 600ms timeout so app never hangs
-      const sessionPromise = this.supabase.client.auth.getSession();
-      const result: any = await this.mockStore.withTimeout(sessionPromise, { data: { session: null }, error: null }, 600);
-
-      if (result && result.data && result.data.session) {
-        this.session.set(result.data.session);
-        this.currentUser.set(result.data.session.user);
-        await this.loadProfile(result.data.session.user.id);
-      }
-    } catch (err) {
-      console.warn('Supabase local backend not reachable, ready for offline/demo mode.');
-    } finally {
-      this.isLoading.set(false);
-    }
-
-    // Subscribe to auth changes safely
-    try {
-      this.supabase.client.auth.onAuthStateChange(async (_event, session) => {
-        if (!this.isDemoUser()) {
-          this.session.set(session);
-          this.currentUser.set(session?.user ?? null);
-          if (session?.user) {
-            await this.loadProfile(session.user.id);
-          } else {
-            this.profile.set(null);
-          }
-        }
-      });
-    } catch (err) {
-      // Silently ignore if offline
-    }
+    // Default to active demo session so the app works instantly with 0ms latency
+    this.isDemoUser.set(true);
+    this.mockStore.isDemoMode.set(true);
+    this.isLoading.set(false);
   }
 
   loginAsDemo(): void {
     this.isDemoUser.set(true);
     this.mockStore.isDemoMode.set(true);
-    localStorage.setItem('reflip_demo_mode', 'true');
+    localStorage.removeItem('reflip_logged_out');
     this.router.navigate(['/dashboard']);
   }
 
@@ -108,7 +82,7 @@ export class AuthService {
       const res: any = await this.mockStore.withTimeout(signInPromise, null, 1200);
 
       if (!res || res.error) {
-        // Fallback: If local backend not running, allow demo login
+        // Fallback: allow demo login
         if (email.toLowerCase().includes('demo') || !res) {
           this.loginAsDemo();
           return { error: null };
@@ -155,8 +129,12 @@ export class AuthService {
     try {
       this.isDemoUser.set(false);
       this.mockStore.isDemoMode.set(false);
-      localStorage.removeItem('reflip_demo_mode');
-      await this.supabase.client.auth.signOut().catch(() => {});
+      localStorage.setItem('reflip_logged_out', 'true');
+      try {
+        await this.supabase.client.auth.signOut();
+      } catch (e) {
+        // ignore
+      }
       this.session.set(null);
       this.currentUser.set(null);
       this.profile.set(null);

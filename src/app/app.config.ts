@@ -1,8 +1,8 @@
 import { ApplicationConfig, provideZonelessChangeDetection } from '@angular/core';
 import { provideRouter, withComponentInputBinding, withViewTransitions } from '@angular/router';
 import { provideHttpClient, withFetch } from '@angular/common/http';
-import { provideTranslateService } from '@ngx-translate/core';
-import { provideTranslateHttpLoader } from '@ngx-translate/http-loader';
+import { provideTranslateService, TranslateLoader } from '@ngx-translate/core';
+import { SyncTranslateLoader } from './core/i18n/translations';
 
 import { routes } from './app.routes';
 
@@ -14,10 +14,10 @@ export const appConfig: ApplicationConfig = {
     provideTranslateService({
       fallbackLang: 'de',
       lang: 'de',
-      loader: provideTranslateHttpLoader({
-        prefix: './i18n/',
-        suffix: '.json',
-      }),
+      loader: {
+        provide: TranslateLoader,
+        useClass: SyncTranslateLoader,
+      },
     }),
   ],
 };
