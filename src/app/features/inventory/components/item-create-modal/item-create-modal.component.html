@@ -1,0 +1,186 @@
+<div class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in">
+  <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-2xl w-full p-6 md:p-8 border border-slate-200 dark:border-slate-800 my-8">
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <div class="p-2 rounded-2xl bg-indigo-500/10 text-indigo-500">
+          <lucide-icon [img]="boxesIcon" class="w-5 h-5"></lucide-icon>
+        </div>
+        <h2 class="text-xl font-bold text-slate-900 dark:text-white">Neuen Inventar-Artikel anlegen</h2>
+      </div>
+
+      <button
+        type="button"
+        (click)="close.emit()"
+        class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+      >
+        <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+      </button>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="p-3.5 mb-5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+        {{ errorMessage() }}
+      </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+      <div>
+        <label for="itemTitle" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+          Artikelname / Titel
+        </label>
+        <input
+          id="itemTitle"
+          type="text"
+          formControlName="title"
+          placeholder="z.B. Bosch Akku-Bohrschrauber GSR 18V-55"
+          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div>
+          <label for="itemCategory" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+            Kategorie
+          </label>
+          <input
+            id="itemCategory"
+            type="text"
+            formControlName="category"
+            placeholder="z.B. Werkzeug"
+            class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
+          />
+        </div>
+
+        <div>
+          <label for="itemBrand" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+            Marke
+          </label>
+          <input
+            id="itemBrand"
+            type="text"
+            formControlName="brand"
+            placeholder="z.B. Bosch"
+            class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
+          />
+        </div>
+
+        <div>
+          <label for="itemModel" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+            Modell
+          </label>
+          <input
+            id="itemModel"
+            type="text"
+            formControlName="model"
+            placeholder="z.B. GSR 18V-55"
+            class="w-full px-3 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
+          />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label for="itemCondition" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+            Zustand (Kapitel 17)
+          </label>
+          <select
+            id="itemCondition"
+            formControlName="condition"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-emerald-500"
+          >
+            <option value="new">Neu / OVP</option>
+            <option value="like_new">Wie neu</option>
+            <option value="very_good">Sehr gut</option>
+            <option value="used">Gebraucht</option>
+            <option value="heavily_used">Stark gebraucht</option>
+            <option value="defective">Defekt / Ersatzteil</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="itemStatus" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+            Status-Lifecycle (Kapitel 10)
+          </label>
+          <select
+            id="itemStatus"
+            formControlName="status"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs focus:ring-2 focus:ring-emerald-500"
+          >
+            <option value="received">received (Eingetroffen)</option>
+            <option value="needs_review">needs_review (Zu prüfen)</option>
+            <option value="researched">researched (Recherchiert)</option>
+            <option value="ready">ready (Verkaufsbereit)</option>
+            <option value="listed">listed (Gelistet)</option>
+            <option value="reserved">reserved (Reserviert)</option>
+            <option value="sold">sold (Verkauft)</option>
+            <option value="returned">returned (Retourniert)</option>
+            <option value="archived">archived (Archiviert)</option>
+            <option value="defective">defective (Defekt)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label for="itemAllocatedCost" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+            Anschaffungskosten (EK €)
+          </label>
+          <input
+            id="itemAllocatedCost"
+            type="number"
+            formControlName="allocated_purchase_cost"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+
+        <div>
+          <label for="itemExpectedValue" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+            Erwarteter Marktwert (€)
+          </label>
+          <input
+            id="itemExpectedValue"
+            type="number"
+            formControlName="expected_value"
+            placeholder="z.B. 75 €"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label for="itemPurchaseLink" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+          Zugehöriger Einkauf (optional)
+        </label>
+        <select
+          id="itemPurchaseLink"
+          formControlName="purchase_id"
+          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
+        >
+          <option [ngValue]="null">-- Keinem Einkauf zuordnen (Direkterfassung) --</option>
+          @for (p of purchaseService.purchases(); track p.id) {
+            <option [value]="p.id">{{ p.title }} ({{ p.purchase_date }})</option>
+          }
+        </select>
+      </div>
+
+      <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+        <button
+          type="button"
+          (click)="close.emit()"
+          class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+        >
+          Abbrechen
+        </button>
+
+        <button
+          type="submit"
+          [disabled]="form.invalid || isSubmitting()"
+          class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-md disabled:opacity-50 transition flex items-center gap-2 cursor-pointer"
+        >
+          <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
+          <span>{{ isSubmitting() ? 'Speichere...' : 'Artikel anlegen' }}</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

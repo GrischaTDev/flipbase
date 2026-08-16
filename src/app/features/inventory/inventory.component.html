@@ -1,16 +1,18 @@
 <div class="space-y-6">
+  <!-- Header & Action -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <div>
       <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
         {{ 'INVENTORY.TITLE' | translate }}
       </h1>
       <p class="text-sm text-slate-500 mt-1">
-        Übersicht aller Artikel, Zustand, Status-Lifecycle und Gewinnpotenziale.
+        Übersicht aller Artikel, Zustand, Status-Lifecycle und Gewinnpotenziale (Kapitel 23).
       </p>
     </div>
 
     <button
       type="button"
+      (click)="openCreateModal()"
       class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-md transition cursor-pointer"
     >
       <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
@@ -18,66 +20,302 @@
     </button>
   </div>
 
-  <!-- Saved Filter Views (Section 23) -->
-  <div class="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto text-xs font-semibold">
-    <button
-      type="button"
-      (click)="activeFilter.set('all')"
-      class="px-3 py-1.5 rounded-lg transition"
-      [class.bg-slate-900]="activeFilter() === 'all'"
-      [class.text-white]="activeFilter() === 'all'"
-      [class.dark:bg-emerald-600]="activeFilter() === 'all'"
-      [class.text-slate-600]="activeFilter() !== 'all'"
-      [class.dark:text-slate-400]="activeFilter() !== 'all'"
-    >
-      Alle Artikel
-    </button>
-    <button
-      type="button"
-      (click)="activeFilter.set('needs_research')"
-      class="px-3 py-1.5 rounded-lg transition"
-      [class.bg-slate-900]="activeFilter() === 'needs_research'"
-      [class.text-white]="activeFilter() === 'needs_research'"
-      [class.dark:bg-emerald-600]="activeFilter() === 'needs_research'"
-      [class.text-slate-600]="activeFilter() !== 'needs_research'"
-      [class.dark:text-slate-400]="activeFilter() !== 'needs_research'"
-    >
-      Noch recherchieren
-    </button>
-    <button
-      type="button"
-      (click)="activeFilter.set('unlisted')"
-      class="px-3 py-1.5 rounded-lg transition"
-      [class.bg-slate-900]="activeFilter() === 'unlisted'"
-      [class.text-white]="activeFilter() === 'unlisted'"
-      [class.dark:bg-emerald-600]="activeFilter() === 'unlisted'"
-      [class.text-slate-600]="activeFilter() !== 'unlisted'"
-      [class.dark:text-slate-400]="activeFilter() !== 'unlisted'"
-    >
-      Noch nicht gelistet
-    </button>
-    <button
-      type="button"
-      (click)="activeFilter.set('aged')"
-      class="px-3 py-1.5 rounded-lg transition"
-      [class.bg-slate-900]="activeFilter() === 'aged'"
-      [class.text-white]="activeFilter() === 'aged'"
-      [class.dark:bg-emerald-600]="activeFilter() === 'aged'"
-      [class.text-slate-600]="activeFilter() !== 'aged'"
-      [class.dark:text-slate-400]="activeFilter() !== 'aged'"
-    >
-      > 30 Tage im Lager
-    </button>
+  <!-- Live Mini KPIs for Inventory (Kapitel 27 & 31) -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Artikel im Filter</span>
+      <span class="text-xl font-black text-slate-900 dark:text-white mt-1 block">
+        {{ filteredItems().length }}
+      </span>
+    </div>
+
+    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Gebundenes Kapital</span>
+      <span class="text-xl font-black text-amber-500 mt-1 block">
+        {{ totalTiedCapital() | currency:'EUR':'symbol':'1.2-2':'de' }}
+      </span>
+    </div>
+
+    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Geschätzter Inventarwert</span>
+      <span class="text-xl font-black text-slate-900 dark:text-white mt-1 block">
+        {{ totalExpectedValue() | currency:'EUR':'symbol':'1.2-2':'de' }}
+      </span>
+    </div>
+
+    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Gewinnpotenzial</span>
+      <span class="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
+        {{ totalProfitPotential() | currency:'EUR':'symbol':'1.2-2':'de' }}
+      </span>
+    </div>
   </div>
 
-  <!-- Empty state for inventory -->
-  <div class="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
-    <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 mx-auto flex items-center justify-center mb-3">
-      <lucide-icon [img]="boxesIcon" class="w-6 h-6"></lucide-icon>
+  <!-- Search & Filter Controls -->
+  <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-4 md:p-5 shadow-xs space-y-3">
+    <!-- Presets Tabs (Kapitel 23) -->
+    <div class="flex gap-2 overflow-x-auto pb-2 text-xs font-semibold">
+      <button
+        type="button"
+        (click)="activePreset.set('all')"
+        class="px-3 py-1.5 rounded-xl transition cursor-pointer"
+        [class.bg-slate-900]="activePreset() === 'all'"
+        [class.text-white]="activePreset() === 'all'"
+        [class.dark:bg-emerald-600]="activePreset() === 'all'"
+        [class.text-slate-600]="activePreset() !== 'all'"
+        [class.dark:text-slate-400]="activePreset() !== 'all'"
+      >
+        Alle ({{ inventoryService.items().length }})
+      </button>
+
+      <button
+        type="button"
+        (click)="activePreset.set('needs_research')"
+        class="px-3 py-1.5 rounded-xl transition cursor-pointer"
+        [class.bg-slate-900]="activePreset() === 'needs_research'"
+        [class.text-white]="activePreset() === 'needs_research'"
+        [class.dark:bg-emerald-600]="activePreset() === 'needs_research'"
+        [class.text-slate-600]="activePreset() !== 'needs_research'"
+        [class.dark:text-slate-400]="activePreset() !== 'needs_research'"
+      >
+        Noch recherchieren
+      </button>
+
+      <button
+        type="button"
+        (click)="activePreset.set('unlisted')"
+        class="px-3 py-1.5 rounded-xl transition cursor-pointer"
+        [class.bg-slate-900]="activePreset() === 'unlisted'"
+        [class.text-white]="activePreset() === 'unlisted'"
+        [class.dark:bg-emerald-600]="activePreset() === 'unlisted'"
+        [class.text-slate-600]="activePreset() !== 'unlisted'"
+        [class.dark:text-slate-400]="activePreset() !== 'unlisted'"
+      >
+        Noch nicht gelistet
+      </button>
+
+      <button
+        type="button"
+        (click)="activePreset.set('high_margin')"
+        class="px-3 py-1.5 rounded-xl transition cursor-pointer"
+        [class.bg-slate-900]="activePreset() === 'high_margin'"
+        [class.text-white]="activePreset() === 'high_margin'"
+        [class.dark:bg-emerald-600]="activePreset() === 'high_margin'"
+        [class.text-slate-600]="activePreset() !== 'high_margin'"
+        [class.dark:text-slate-400]="activePreset() !== 'high_margin'"
+      >
+        Hohe Marge (≥ 30 €)
+      </button>
+
+      <button
+        type="button"
+        (click)="activePreset.set('defective')"
+        class="px-3 py-1.5 rounded-xl transition cursor-pointer"
+        [class.bg-slate-900]="activePreset() === 'defective'"
+        [class.text-white]="activePreset() === 'defective'"
+        [class.dark:bg-emerald-600]="activePreset() === 'defective'"
+        [class.text-slate-600]="activePreset() !== 'defective'"
+        [class.dark:text-slate-400]="activePreset() !== 'defective'"
+      >
+        Defekt
+      </button>
     </div>
-    <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">Dein Inventar ist leer</h3>
-    <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-5">
-      Sobald du Einkäufe oder Artikel anlegst, erscheinen sie hier in der Inventartabelle.
-    </p>
+
+    <!-- Search & Dropdowns -->
+    <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+      <div class="sm:col-span-6 relative">
+        <lucide-icon [img]="searchIcon" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3"></lucide-icon>
+        <input
+          type="text"
+          [value]="searchQuery()"
+          (input)="searchQuery.set($any($event.target).value)"
+          placeholder="Artikel, Marke, Modell oder Kategorie suchen..."
+          class="w-full pl-10 pr-4 py-2 rounded-xl text-xs border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+        />
+      </div>
+
+      <div class="sm:col-span-3">
+        <select
+          [value]="selectedCondition()"
+          (change)="selectedCondition.set($any($event.target).value)"
+          class="w-full px-3 py-2 rounded-xl text-xs border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+        >
+          <option value="all">Alle Zustände</option>
+          <option value="new">Neu / OVP</option>
+          <option value="like_new">Wie neu</option>
+          <option value="very_good">Sehr gut</option>
+          <option value="used">Gebraucht</option>
+          <option value="heavily_used">Stark gebraucht</option>
+          <option value="defective">Defekt / Ersatzteil</option>
+        </select>
+      </div>
+
+      <div class="sm:col-span-3">
+        <select
+          [value]="selectedStatus()"
+          (change)="selectedStatus.set($any($event.target).value)"
+          class="w-full px-3 py-2 rounded-xl text-xs border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white"
+        >
+          <option value="all">Alle Status</option>
+          <option value="received">received (Eingetroffen)</option>
+          <option value="needs_review">needs_review (Zu prüfen)</option>
+          <option value="researched">researched (Recherchiert)</option>
+          <option value="ready">ready (Verkaufsbereit)</option>
+          <option value="listed">listed (Gelistet)</option>
+          <option value="reserved">reserved (Reserviert)</option>
+          <option value="sold">sold (Verkauft)</option>
+          <option value="returned">returned (Retourniert)</option>
+          <option value="archived">archived (Archiviert)</option>
+          <option value="defective">defective (Defekt)</option>
+        </select>
+      </div>
+    </div>
   </div>
+
+  <!-- Desktop Table View (Kapitel 23) -->
+  @if (filteredItems().length > 0) {
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xs overflow-hidden hidden md:block">
+      <table class="w-full text-left text-xs">
+        <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-400 uppercase font-semibold text-[10px] border-b border-slate-100 dark:border-slate-800">
+          <tr>
+            <th class="py-3 px-4">Produkt</th>
+            <th class="py-3 px-4">Zustand</th>
+            <th class="py-3 px-4">Status</th>
+            <th class="py-3 px-4">Quelle</th>
+            <th class="py-3 px-4 text-right">Gesamtkosten</th>
+            <th class="py-3 px-4 text-right">Marktwert</th>
+            <th class="py-3 px-4 text-right">Gewinnpotenzial</th>
+            <th class="py-3 px-4 text-center">Aktion</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+          @for (item of filteredItems(); track item.id) {
+            <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition">
+              <td class="py-3.5 px-4">
+                <a [routerLink]="['/inventory', item.id]" class="font-bold text-slate-900 dark:text-white hover:text-emerald-500 transition block line-clamp-1">
+                  {{ item.title }}
+                </a>
+                <span class="text-[11px] text-slate-400">
+                  {{ item.brand || item.category || 'Keine Marke' }}
+                </span>
+              </td>
+
+              <td class="py-3.5 px-4">
+                <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 font-semibold text-[10px] text-slate-700 dark:text-slate-300">
+                  {{ item.condition }}
+                </span>
+              </td>
+
+              <td class="py-3.5 px-4">
+                <span class="px-2.5 py-1 rounded-lg font-bold text-[10px]"
+                  [class.bg-emerald-100]="item.status === 'ready' || item.status === 'listed'"
+                  [class.text-emerald-700]="item.status === 'ready' || item.status === 'listed'"
+                  [class.dark:bg-emerald-950/70]="item.status === 'ready' || item.status === 'listed'"
+                  [class.dark:text-emerald-300]="item.status === 'ready' || item.status === 'listed'"
+                  [class.bg-purple-100]="item.status === 'sold'"
+                  [class.text-purple-700]="item.status === 'sold'"
+                  [class.bg-slate-100]="item.status === 'received' || item.status === 'needs_review'"
+                  [class.text-slate-700]="item.status === 'received' || item.status === 'needs_review'"
+                  [class.dark:bg-slate-800]="item.status === 'received' || item.status === 'needs_review'"
+                  [class.dark:text-slate-300]="item.status === 'received' || item.status === 'needs_review'"
+                >
+                  {{ item.status }}
+                </span>
+              </td>
+
+              <td class="py-3.5 px-4 text-slate-500">
+                {{ item.purchase?.source?.name || 'Direktkauf' }}
+              </td>
+
+              <td class="py-3.5 px-4 text-right font-bold text-slate-900 dark:text-white">
+                {{ item.total_item_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
+              </td>
+
+              <td class="py-3.5 px-4 text-right text-slate-600 dark:text-slate-300 font-semibold">
+                {{ item.expected_value ? (item.expected_value | currency:'EUR':'symbol':'1.2-2':'de') : '-' }}
+              </td>
+
+              <td class="py-3.5 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">
+                @if (item.profit_potential !== undefined) {
+                  {{ item.profit_potential | currency:'EUR':'symbol':'1.2-2':'de' }}
+                } @else {
+                  -
+                }
+              </td>
+
+              <td class="py-3.5 px-4 text-center">
+                <a
+                  [routerLink]="['/inventory', item.id]"
+                  class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition inline-block"
+                >
+                  <lucide-icon [img]="arrowRightIcon" class="w-4 h-4"></lucide-icon>
+                </a>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Mobile Card View (Feature-Parität für Smartphone) -->
+    <div class="space-y-3 md:hidden">
+      @for (item of filteredItems(); track item.id) {
+        <a
+          [routerLink]="['/inventory', item.id]"
+          class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs block space-y-3"
+        >
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-white line-clamp-1">{{ item.title }}</h3>
+              <p class="text-xs text-slate-400">{{ item.brand || item.category || 'Keine Kategorie' }}</p>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950 text-emerald-600">
+              {{ item.status }}
+            </span>
+          </div>
+
+          <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-100 dark:border-slate-800">
+            <div>
+              <span class="text-[10px] text-slate-400 block">Kosten</span>
+              <strong class="text-slate-900 dark:text-white">{{ item.total_item_cost | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+            </div>
+
+            <div class="text-right">
+              <span class="text-[10px] text-slate-400 block">Gewinnpotenzial</span>
+              <strong class="text-emerald-600 dark:text-emerald-400">
+                {{ item.profit_potential !== undefined ? (item.profit_potential | currency:'EUR':'symbol':'1.2-2':'de') : '-' }}
+              </strong>
+            </div>
+          </div>
+        </a>
+      }
+    </div>
+  } @else {
+    <!-- Empty State -->
+    <div class="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
+      <div class="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 mx-auto flex items-center justify-center mb-3">
+        <lucide-icon [img]="boxesIcon" class="w-6 h-6"></lucide-icon>
+      </div>
+      <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">Keine Artikel gefunden</h3>
+      <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-5">
+        Passe deine Filter an oder lege einen neuen Artikel direkt in deinem Inventar an.
+      </p>
+      <button
+        type="button"
+        (click)="openCreateModal()"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer"
+      >
+        <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
+        <span>Artikel anlegen</span>
+      </button>
+    </div>
+  }
+
+  <!-- Create Modal -->
+  @if (isCreateModalOpen()) {
+    <app-item-create-modal
+      (close)="closeCreateModal()"
+      (created)="closeCreateModal()"
+    ></app-item-create-modal>
+  }
 </div>

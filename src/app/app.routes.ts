@@ -49,6 +49,13 @@ export const routes: Routes = [
           import('./features/inventory/inventory.component').then((m) => m.InventoryComponent),
       },
       {
+        path: 'inventory/:id',
+        loadComponent: () =>
+          import('./features/inventory/pages/item-detail/item-detail.component').then(
+            (m) => m.ItemDetailComponent
+          ),
+      },
+      {
         path: 'research',
         loadComponent: () =>
           import('./features/research/research.component').then((m) => m.ResearchComponent),
