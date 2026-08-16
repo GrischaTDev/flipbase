@@ -1,0 +1,394 @@
+<div class="space-y-6">
+  <!-- Back Button & Action Bar -->
+  <div class="flex items-center justify-between">
+    <a
+      routerLink="/purchases"
+      class="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-900 dark:hover:text-white transition"
+    >
+      <lucide-icon [img]="arrowLeftIcon" class="w-4 h-4"></lucide-icon>
+      <span>Zurück zur Einkaufsübersicht</span>
+    </a>
+
+    <button
+      type="button"
+      (click)="onDeletePurchase()"
+      class="p-2 rounded-xl text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+    >
+      <lucide-icon [img]="trashIcon" class="w-4 h-4"></lucide-icon>
+      <span class="hidden sm:inline">Einkauf löschen</span>
+    </button>
+  </div>
+
+  @if (purchaseService.selectedPurchase(); as p) {
+    <!-- Purchase Header Banner -->
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-3">
+          <div class="p-3 rounded-2xl bg-emerald-500/10 text-emerald-500">
+            @switch (p.type) {
+              @case ('single') { <lucide-icon [img]="bagIcon" class="w-6 h-6"></lucide-icon> }
+              @case ('mystery_pack') { <lucide-icon [img]="packageIcon" class="w-6 h-6"></lucide-icon> }
+              @case ('lot') { <lucide-icon [img]="layersIcon" class="w-6 h-6"></lucide-icon> }
+              @default { <lucide-icon [img]="boxesIcon" class="w-6 h-6"></lucide-icon> }
+            }
+          </div>
+
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                @switch (p.type) {
+                  @case ('single') { Einzelkauf }
+                  @case ('mystery_pack') { Mystery Pack }
+                  @case ('lot') { Lot / Posten }
+                  @default { Palette }
+                }
+              </span>
+              <span class="text-xs text-slate-400 font-medium">
+                {{ p.purchase_date | date:'dd.MM.yyyy' }}
+              </span>
+            </div>
+            <h1 class="text-xl sm:text-2xl font-black text-slate-900 dark:text-white mt-1">{{ p.title }}</h1>
+          </div>
+        </div>
+
+        <!-- External Link if any -->
+        @if (p.original_url) {
+          <a
+            [href]="p.original_url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+          >
+            <span>Original-Angebot</span>
+            <lucide-icon [img]="linkIcon" class="w-3.5 h-3.5"></lucide-icon>
+          </a>
+        }
+      </div>
+
+      <!-- Source & Supplier Tags -->
+      <div class="flex flex-wrap gap-2 text-xs">
+        @if (p.source) {
+          <div class="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+            <span class="text-slate-400">Quelle:</span>
+            <strong class="text-slate-900 dark:text-white">{{ p.source.name }}</strong>
+          </div>
+        }
+
+        @if (p.supplier) {
+          <div class="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+            <span class="text-slate-400">Lieferant:</span>
+            <strong class="text-slate-900 dark:text-white">{{ p.supplier.name }}</strong>
+          </div>
+        }
+      </div>
+
+      @if (p.notes) {
+        <p class="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
+          {{ p.notes }}
+        </p>
+      }
+    </div>
+
+    <!-- Financial KPI Summary for this Purchase -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Einkaufspreis</span>
+        <span class="text-xl font-black text-slate-900 dark:text-white mt-1 block">
+          {{ p.purchase_price | currency:'EUR':'symbol':'1.2-2':'de' }}
+        </span>
+      </div>
+
+      <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Zusatzkosten</span>
+        <span class="text-xl font-black text-amber-500 mt-1 block">
+          {{ (p.total_purchase_cost || p.purchase_price) - p.purchase_price | currency:'EUR':'symbol':'1.2-2':'de' }}
+        </span>
+      </div>
+
+      <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Gesamtinvestition</span>
+        <span class="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
+          {{ p.total_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
+        </span>
+      </div>
+
+      <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+        <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">Artikelanzahl</span>
+        <span class="text-xl font-black text-slate-900 dark:text-white mt-1 block">
+          {{ p.items_count }} Artikel
+        </span>
+      </div>
+    </div>
+
+    <!-- Purchase Costs Card -->
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <lucide-icon [img]="receiptIcon" class="w-5 h-5 text-amber-500"></lucide-icon>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Zusatzkosten (Versand, Fahrt, Gebühren)</h2>
+        </div>
+
+        <button
+          type="button"
+          (click)="isAddingCost.set(!isAddingCost())"
+          class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 transition"
+        >
+          <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5"></lucide-icon>
+          <span>Kosten erfassen</span>
+        </button>
+      </div>
+
+      @if (isAddingCost()) {
+        <form [formGroup]="costForm" (ngSubmit)="onAddCost()" class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-wrap gap-2 items-center">
+          <select
+            formControlName="type"
+            class="px-3 py-2 rounded-xl text-xs border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+          >
+            <option value="shipping">Versand</option>
+            <option value="travel">Fahrtkosten / Sprit</option>
+            <option value="transport">Spedition / Transport</option>
+            <option value="customs">Zoll</option>
+            <option value="fee">Gebühren</option>
+            <option value="other">Sonstiges</option>
+          </select>
+
+          <input
+            type="number"
+            formControlName="amount"
+            placeholder="Betrag (€)"
+            class="w-28 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+          />
+
+          <input
+            type="text"
+            formControlName="description"
+            placeholder="Notiz (z.B. 15 km Hin- & Rückfahrt)"
+            class="flex-1 min-w-[180px] px-3 py-2 rounded-xl text-xs border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900"
+          />
+
+          <button
+            type="submit"
+            [disabled]="costForm.invalid"
+            class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md disabled:opacity-50"
+          >
+            Hinzufügen
+          </button>
+        </form>
+      }
+
+      @if (p.costs && p.costs.length > 0) {
+        <div class="divide-y divide-slate-100 dark:divide-slate-800">
+          @for (c of p.costs; track c.id) {
+            <div class="py-2.5 flex items-center justify-between text-xs">
+              <div class="flex items-center gap-3">
+                <span class="font-bold uppercase tracking-wider text-slate-500">{{ c.type }}</span>
+                <span class="text-slate-700 dark:text-slate-300">{{ c.description || '-' }}</span>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <span class="font-extrabold text-slate-900 dark:text-white">
+                  {{ c.amount | currency:'EUR':'symbol':'1.2-2':'de' }}
+                </span>
+                <button
+                  type="button"
+                  (click)="onDeleteCost(c.id!)"
+                  class="p-1 text-slate-400 hover:text-rose-500 transition"
+                >
+                  <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="text-xs text-slate-400">Keine Nebenkosten erfasst.</p>
+      }
+    </div>
+
+    <!-- Items & Allocation Mode (Kapitel 12) -->
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Enthaltene Inventar-Artikel</h2>
+          <p class="text-xs text-slate-500">Alle Artikel, die diesem Einkauf zugeordnet sind</p>
+        </div>
+
+        <button
+          type="button"
+          (click)="isAddingItem.set(!isAddingItem())"
+          class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition"
+        >
+          <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
+          <span>+ Artikel erfassen</span>
+        </button>
+      </div>
+
+      <!-- Kostenverteilungs-Modus (Kapitel 12) -->
+      <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="flex items-center gap-2">
+          <lucide-icon [img]="scaleIcon" class="w-4 h-4 text-emerald-500"></lucide-icon>
+          <span class="text-xs font-bold text-slate-700 dark:text-slate-300">Kostenverteilungs-Modus:</span>
+        </div>
+
+        <div class="flex gap-1.5 text-xs font-semibold">
+          <button
+            type="button"
+            (click)="setAllocationMode('even')"
+            class="px-3 py-1.5 rounded-lg border transition"
+            [class.bg-emerald-600]="p.cost_allocation_mode === 'even'"
+            [class.text-white]="p.cost_allocation_mode === 'even'"
+            [class.border-emerald-500]="p.cost_allocation_mode === 'even'"
+          >
+            Gleichmäßig
+          </button>
+          <button
+            type="button"
+            (click)="setAllocationMode('value_weighted')"
+            class="px-3 py-1.5 rounded-lg border transition"
+            [class.bg-emerald-600]="p.cost_allocation_mode === 'value_weighted'"
+            [class.text-white]="p.cost_allocation_mode === 'value_weighted'"
+            [class.border-emerald-500]="p.cost_allocation_mode === 'value_weighted'"
+          >
+            Wertgewichtet
+          </button>
+          <button
+            type="button"
+            (click)="setAllocationMode('manual')"
+            class="px-3 py-1.5 rounded-lg border transition"
+            [class.bg-emerald-600]="p.cost_allocation_mode === 'manual'"
+            [class.text-white]="p.cost_allocation_mode === 'manual'"
+            [class.border-emerald-500]="p.cost_allocation_mode === 'manual'"
+          >
+            Manuell
+          </button>
+        </div>
+      </div>
+
+      <!-- Quick Add Item Form -->
+      @if (isAddingItem()) {
+        <form [formGroup]="itemForm" (ngSubmit)="onAddItem()" class="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-3">
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+            Neuen Artikel zum Einkauf hinzufügen
+          </span>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div class="sm:col-span-1">
+              <label for="newArticleTitle" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Titel / Modell
+              </label>
+              <input
+                id="newArticleTitle"
+                type="text"
+                formControlName="title"
+                placeholder="z.B. Bosch GSR 18V"
+                class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+              />
+            </div>
+
+            <div>
+              <label for="newArticleCondition" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Zustand
+              </label>
+              <select
+                id="newArticleCondition"
+                formControlName="condition"
+                class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+              >
+                <option value="new">Neu / OVP</option>
+                <option value="like_new">Wie neu</option>
+                <option value="very_good">Sehr gut</option>
+                <option value="used">Gebraucht</option>
+                <option value="heavily_used">Stark gebraucht</option>
+                <option value="defective">Defekt / Ersatzteil</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="newArticleExpectedValue" class="block text-[11px] font-semibold text-slate-600 dark:text-slate-400 mb-1">
+                Erwarteter Marktwert (€)
+              </label>
+              <input
+                id="newArticleExpectedValue"
+                type="number"
+                formControlName="expected_value"
+                placeholder="z.B. 75 €"
+                class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold"
+              />
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2">
+            <button
+              type="button"
+              (click)="isAddingItem.set(false)"
+              class="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="submit"
+              [disabled]="itemForm.invalid"
+              class="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold disabled:opacity-50"
+            >
+              Artikel speichern
+            </button>
+          </div>
+        </form>
+      }
+
+      <!-- Items List -->
+      @if (purchaseService.purchaseItems().length > 0) {
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 dark:bg-slate-800/50 text-slate-400 uppercase font-semibold text-[10px]">
+              <tr>
+                <th class="py-3 px-4 rounded-l-xl">Artikel</th>
+                <th class="py-3 px-4">Zustand</th>
+                <th class="py-3 px-4">Status</th>
+                <th class="py-3 px-4">Zugeteilter EK</th>
+                <th class="py-3 px-4">Marktwert</th>
+                <th class="py-3 px-4 rounded-r-xl">Gewinnpotenzial</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+              @for (item of purchaseService.purchaseItems(); track item.id) {
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                  <td class="py-3 px-4 font-bold text-slate-900 dark:text-white">
+                    {{ item.title }}
+                  </td>
+                  <td class="py-3 px-4">
+                    <span class="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 font-semibold text-[10px]">
+                      {{ item.condition }}
+                    </span>
+                  </td>
+                  <td class="py-3 px-4">
+                    <span class="px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 font-bold text-[10px]">
+                      {{ item.status }}
+                    </span>
+                  </td>
+                  <td class="py-3 px-4 font-bold text-slate-800 dark:text-slate-200">
+                    {{ item.allocated_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  </td>
+                  <td class="py-3 px-4 text-slate-600 dark:text-slate-400">
+                    {{ item.expected_value ? (item.expected_value | currency:'EUR':'symbol':'1.2-2':'de') : '-' }}
+                  </td>
+                  <td class="py-3 px-4 font-black text-emerald-600 dark:text-emerald-400">
+                    @if (item.expected_value) {
+                      {{ (item.expected_value - item.allocated_purchase_cost) | currency:'EUR':'symbol':'1.2-2':'de' }}
+                    } @else {
+                      -
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="text-xs text-slate-400 text-center py-6">
+          Noch keine Artikel für diesen Einkauf angelegt. Klicke auf "+ Artikel erfassen", um ausgepackte Ware zuzuordnen.
+        </p>
+      }
+    </div>
+  }
+</div>

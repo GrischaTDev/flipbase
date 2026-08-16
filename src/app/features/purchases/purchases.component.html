@@ -1,4 +1,5 @@
 <div class="space-y-6">
+  <!-- Header & Actions -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <div>
       <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
@@ -11,6 +12,7 @@
 
     <button
       type="button"
+      (click)="openCreateModal()"
       class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-md transition cursor-pointer"
     >
       <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
@@ -18,73 +20,137 @@
     </button>
   </div>
 
-  <!-- Type Filter Tabs (Section 8) -->
+  <!-- Type Filter Tabs (Kapitel 8) -->
   <div class="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto text-xs font-semibold">
     <button
       type="button"
       (click)="activeTab.set('all')"
-      class="px-3 py-1.5 rounded-lg transition"
+      class="px-3.5 py-2 rounded-xl transition cursor-pointer"
       [class.bg-slate-900]="activeTab() === 'all'"
       [class.text-white]="activeTab() === 'all'"
       [class.dark:bg-emerald-600]="activeTab() === 'all'"
       [class.text-slate-600]="activeTab() !== 'all'"
       [class.dark:text-slate-400]="activeTab() !== 'all'"
     >
-      Alle Einkäufe
+      Alle Einkäufe ({{ purchaseService.purchases().length }})
     </button>
+
     <button
       type="button"
       (click)="activeTab.set('single')"
-      class="px-3 py-1.5 rounded-lg transition"
+      class="px-3.5 py-2 rounded-xl transition cursor-pointer"
       [class.bg-slate-900]="activeTab() === 'single'"
       [class.text-white]="activeTab() === 'single'"
       [class.dark:bg-emerald-600]="activeTab() === 'single'"
       [class.text-slate-600]="activeTab() !== 'single'"
       [class.dark:text-slate-400]="activeTab() !== 'single'"
     >
-      {{ 'PURCHASES.TYPE_SINGLE' | translate }}
+      Einzelartikel
     </button>
+
     <button
       type="button"
       (click)="activeTab.set('mystery_pack')"
-      class="px-3 py-1.5 rounded-lg transition"
+      class="px-3.5 py-2 rounded-xl transition cursor-pointer"
       [class.bg-slate-900]="activeTab() === 'mystery_pack'"
       [class.text-white]="activeTab() === 'mystery_pack'"
       [class.dark:bg-emerald-600]="activeTab() === 'mystery_pack'"
       [class.text-slate-600]="activeTab() !== 'mystery_pack'"
       [class.dark:text-slate-400]="activeTab() !== 'mystery_pack'"
     >
-      {{ 'PURCHASES.TYPE_MYSTERY' | translate }}
+      Mystery Packs
     </button>
+
     <button
       type="button"
       (click)="activeTab.set('pallet')"
-      class="px-3 py-1.5 rounded-lg transition"
+      class="px-3.5 py-2 rounded-xl transition cursor-pointer"
       [class.bg-slate-900]="activeTab() === 'pallet'"
       [class.text-white]="activeTab() === 'pallet'"
       [class.dark:bg-emerald-600]="activeTab() === 'pallet'"
       [class.text-slate-600]="activeTab() !== 'pallet'"
       [class.dark:text-slate-400]="activeTab() !== 'pallet'"
     >
-      {{ 'PURCHASES.TYPE_PALLET' | translate }}
+      Paletten / Lots
     </button>
   </div>
 
-  <!-- Empty state for purchases -->
-  <div class="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
-    <div class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 mx-auto flex items-center justify-center mb-3">
-      <lucide-icon [img]="bagIcon" class="w-6 h-6"></lucide-icon>
+  <!-- Purchases List Grid -->
+  @if (filteredPurchases().length > 0) {
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      @for (p of filteredPurchases(); track p.id) {
+        <a
+          [routerLink]="['/purchases', p.id]"
+          class="group p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 shadow-xs hover:shadow-md transition flex flex-col justify-between"
+        >
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold uppercase tracking-wider bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                @switch (p.type) {
+                  @case ('single') { Einzelkauf }
+                  @case ('mystery_pack') { Mystery Pack }
+                  @case ('lot') { Lot }
+                  @default { Palette }
+                }
+              </span>
+              <span class="text-xs text-slate-400">{{ p.purchase_date | date:'dd.MM.yyyy' }}</span>
+            </div>
+
+            <div>
+              <h3 class="text-base font-bold text-slate-900 dark:text-white group-hover:text-emerald-500 transition line-clamp-1">
+                {{ p.title }}
+              </h3>
+              <div class="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                <span>{{ p.source?.name || 'Keine Quelle' }}</span>
+                @if (p.supplier) {
+                  <span>• {{ p.supplier.name }}</span>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <div>
+              <span class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold block">Gesamtinvestition</span>
+              <span class="text-lg font-black text-slate-900 dark:text-white">
+                {{ p.total_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
+              </span>
+            </div>
+
+            <div class="flex items-center gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400 group-hover:translate-x-1 transition">
+              <span>{{ p.items_count }} Artikel</span>
+              <lucide-icon [img]="arrowRightIcon" class="w-4 h-4"></lucide-icon>
+            </div>
+          </div>
+        </a>
+      }
     </div>
-    <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">Noch keine Einkäufe erfasst</h3>
-    <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-5">
-      Erfasse deinen ersten Einkauf aus Kleinanzeigen, eBay, Mystery Packs oder Retourenpaletten.
-    </p>
-    <button
-      type="button"
-      class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition"
-    >
-      <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
-      <span>Einkauf hinzufügen</span>
-    </button>
-  </div>
+  } @else {
+    <!-- Empty State -->
+    <div class="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
+      <div class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 mx-auto flex items-center justify-center mb-3">
+        <lucide-icon [img]="bagIcon" class="w-6 h-6"></lucide-icon>
+      </div>
+      <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">Noch keine Einkäufe in dieser Kategorie</h3>
+      <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-5">
+        Erfasse deinen ersten Einkauf aus Kleinanzeigen, eBay, Mystery Packs oder Retourenpaletten.
+      </p>
+      <button
+        type="button"
+        (click)="openCreateModal()"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer"
+      >
+        <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
+        <span>Einkauf hinzufügen</span>
+      </button>
+    </div>
+  }
+
+  <!-- Create Modal -->
+  @if (isCreateModalOpen()) {
+    <app-purchase-create-modal
+      (close)="closeCreateModal()"
+      (created)="closeCreateModal()"
+    ></app-purchase-create-modal>
+  }
 </div>

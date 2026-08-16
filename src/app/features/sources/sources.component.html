@@ -5,62 +5,217 @@
         {{ 'NAV.SOURCES_SUPPLIERS' | translate }}
       </h1>
       <p class="text-sm text-slate-500 mt-1">
-        Analysiere die Profitabilität deiner Einkaufsquellen und Lieferanten (Section 28).
+        Verwalte Einkaufsquellen und Lieferanten für spätere Profitabilitäts- und ROI-Analysen (Kapitel 28).
       </p>
     </div>
 
-    <button
-      type="button"
-      class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-md transition cursor-pointer"
-    >
-      <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
-      <span>{{ activeTab() === 'sources' ? 'Quelle hinzufügen' : 'Lieferant hinzufügen' }}</span>
-    </button>
+    @if (activeTab() === 'sources') {
+      <button
+        type="button"
+        (click)="isAddingSource.set(!isAddingSource())"
+        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-md transition cursor-pointer"
+      >
+        <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
+        <span>Quelle anlegen</span>
+      </button>
+    } @else {
+      <button
+        type="button"
+        (click)="isAddingSupplier.set(!isAddingSupplier())"
+        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-md transition cursor-pointer"
+      >
+        <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
+        <span>Lieferant anlegen</span>
+      </button>
+    }
   </div>
 
+  <!-- Tabs -->
   <div class="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
     <button
       type="button"
       (click)="activeTab.set('sources')"
-      class="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+      class="px-3.5 py-2 rounded-xl text-xs font-semibold transition cursor-pointer"
       [class.bg-slate-900]="activeTab() === 'sources'"
       [class.text-white]="activeTab() === 'sources'"
       [class.dark:bg-emerald-600]="activeTab() === 'sources'"
       [class.text-slate-600]="activeTab() !== 'sources'"
       [class.dark:text-slate-400]="activeTab() !== 'sources'"
     >
-      Einkaufsquellen
+      Einkaufsquellen ({{ sourcesService.sources().length }})
     </button>
     <button
       type="button"
       (click)="activeTab.set('suppliers')"
-      class="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+      class="px-3.5 py-2 rounded-xl text-xs font-semibold transition cursor-pointer"
       [class.bg-slate-900]="activeTab() === 'suppliers'"
       [class.text-white]="activeTab() === 'suppliers'"
       [class.dark:bg-emerald-600]="activeTab() === 'suppliers'"
       [class.text-slate-600]="activeTab() !== 'suppliers'"
       [class.dark:text-slate-400]="activeTab() !== 'suppliers'"
     >
-      Lieferanten & Verkäufer
+      Lieferanten & Verkäufer ({{ suppliersService.suppliers().length }})
     </button>
   </div>
 
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <!-- Kleinanzeigen Card -->
-    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
-      <div class="flex items-center justify-between">
-        <h3 class="text-base font-bold text-slate-900 dark:text-white">Kleinanzeigen</h3>
-        <span class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-[10px]">Standard</span>
+  <!-- Add Source Form -->
+  @if (isAddingSource() && activeTab() === 'sources') {
+    <form [formGroup]="sourceForm" (ngSubmit)="onAddSource()" class="p-5 bg-white dark:bg-slate-900 border border-emerald-500/30 rounded-3xl shadow-xs space-y-3 animate-fade-in">
+      <h3 class="text-sm font-bold text-slate-900 dark:text-white">Neue Einkaufsquelle hinzufügen</h3>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <input
+          type="text"
+          formControlName="name"
+          placeholder="z.B. Flohmarkt Mauerpark, B-Stock Retouren..."
+          class="flex-1 px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
+        />
+        <div class="flex gap-2">
+          <button
+            type="button"
+            (click)="isAddingSource.set(false)"
+            class="px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-700"
+          >
+            Abbrechen
+          </button>
+          <button
+            type="submit"
+            [disabled]="sourceForm.invalid"
+            class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold disabled:opacity-50"
+          >
+            Speichern
+          </button>
+        </div>
       </div>
-      <p class="text-xs text-slate-500">Plattform für lokale Schnäppchen & Direktabholung</p>
-    </div>
+    </form>
+  }
 
-    <!-- eBay Card -->
-    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
-      <div class="flex items-center justify-between">
-        <h3 class="text-base font-bold text-slate-900 dark:text-white">eBay</h3>
+  <!-- Add Supplier Form -->
+  @if (isAddingSupplier() && activeTab() === 'suppliers') {
+    <form [formGroup]="supplierForm" (ngSubmit)="onAddSupplier()" class="p-5 bg-white dark:bg-slate-900 border border-emerald-500/30 rounded-3xl shadow-xs space-y-4 animate-fade-in">
+      <h3 class="text-sm font-bold text-slate-900 dark:text-white">Neuen Lieferanten erfassen</h3>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <input
+          type="text"
+          formControlName="name"
+          placeholder="Name des Verkäufers / Großhändlers..."
+          class="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
+        />
+        <input
+          type="text"
+          formControlName="contact_info"
+          placeholder="Kontaktinfo (Telefon, E-Mail, Kleinanzeigen-Profil)..."
+          class="px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
+        />
       </div>
-      <p class="text-xs text-slate-500">Auktionen & Sofortkauf-Restposten</p>
+      <input
+        type="text"
+        formControlName="notes"
+        placeholder="Notizen / Zuverlässigkeit..."
+        class="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
+      />
+      <div class="flex justify-end gap-2">
+        <button
+          type="button"
+          (click)="isAddingSupplier.set(false)"
+          class="px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-700"
+        >
+          Abbrechen
+        </button>
+        <button
+          type="submit"
+          [disabled]="supplierForm.invalid"
+          class="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold disabled:opacity-50"
+        >
+          Lieferant speichern
+        </button>
+      </div>
+    </form>
+  }
+
+  <!-- Sources Grid -->
+  @if (activeTab() === 'sources') {
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      @for (src of sourcesService.sources(); track src.id) {
+        <div class="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div class="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-500">
+              <lucide-icon [img]="storeIcon" class="w-4 h-4"></lucide-icon>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 dark:text-white">{{ src.name }}</h3>
+              @if (src.is_default) {
+                <span class="text-[10px] text-emerald-500 font-semibold">Standard-Quelle</span>
+              }
+            </div>
+          </div>
+
+          @if (!src.is_default) {
+            <button
+              type="button"
+              (click)="onDeleteSource(src.id)"
+              class="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+            >
+              <lucide-icon [img]="trashIcon" class="w-4 h-4"></lucide-icon>
+            </button>
+          }
+        </div>
+      }
     </div>
-  </div>
+  }
+
+  <!-- Suppliers Grid -->
+  @if (activeTab() === 'suppliers') {
+    @if (suppliersService.suppliers().length > 0) {
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        @for (sup of suppliersService.suppliers(); track sup.id) {
+          <div class="p-5 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="p-2 rounded-xl bg-blue-500/10 text-blue-500">
+                  <lucide-icon [img]="buildingIcon" class="w-4 h-4"></lucide-icon>
+                </div>
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white">{{ sup.name }}</h3>
+              </div>
+
+              <button
+                type="button"
+                (click)="onDeleteSupplier(sup.id)"
+                class="p-1 text-slate-400 hover:text-rose-500 transition"
+              >
+                <lucide-icon [img]="trashIcon" class="w-4 h-4"></lucide-icon>
+              </button>
+            </div>
+
+            @if (sup.contact_info) {
+              <p class="text-xs text-slate-500">{{ sup.contact_info }}</p>
+            }
+
+            @if (sup.notes) {
+              <p class="text-xs text-slate-400 bg-slate-50 dark:bg-slate-800/50 p-2 rounded-xl">
+                {{ sup.notes }}
+              </p>
+            }
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
+        <div class="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-blue-600 mx-auto flex items-center justify-center mb-3">
+          <lucide-icon [img]="usersIcon" class="w-6 h-6"></lucide-icon>
+        </div>
+        <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">Noch keine Lieferanten angelegt</h3>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-5">
+          Speichere feste Lieferanten, Retourenhändler oder Kleinanzeigen-Verkäufer, um deren Qualität und Profitabilität auszuwerten.
+        </p>
+        <button
+          type="button"
+          (click)="isAddingSupplier.set(true)"
+          class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs transition cursor-pointer"
+        >
+          <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
+          <span>Lieferant erfassen</span>
+        </button>
+      </div>
+    }
+  }
 </div>

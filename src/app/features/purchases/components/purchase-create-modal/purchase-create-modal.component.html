@@ -1,0 +1,346 @@
+<div class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in">
+  <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-2xl w-full p-6 md:p-8 border border-slate-200 dark:border-slate-800 my-8">
+    <div class="flex items-center justify-between mb-6">
+      <div class="flex items-center gap-3">
+        <div class="p-2 rounded-2xl bg-emerald-500/10 text-emerald-500">
+          <lucide-icon [img]="bagIcon" class="w-5 h-5"></lucide-icon>
+        </div>
+        <h2 class="text-xl font-bold text-slate-900 dark:text-white">Neuen Einkauf erfassen</h2>
+      </div>
+
+      <button
+        type="button"
+        (click)="close.emit()"
+        class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+      >
+        <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+      </button>
+    </div>
+
+    @if (errorMessage()) {
+      <div class="p-3.5 mb-5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+        {{ errorMessage() }}
+      </div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-5">
+      <!-- 1. Einkaufstyp Selector (Kapitel 8) -->
+      <div>
+        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
+          Einkaufstyp
+        </label>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          <button
+            type="button"
+            (click)="form.patchValue({ type: 'single' })"
+            class="p-3 rounded-2xl border text-left transition flex flex-col gap-1 cursor-pointer"
+            [class.border-emerald-500]="form.get('type')?.value === 'single'"
+            [class.bg-emerald-500/10]="form.get('type')?.value === 'single'"
+            [class.border-slate-200]="form.get('type')?.value !== 'single'"
+            [class.dark:border-slate-800]="form.get('type')?.value !== 'single'"
+          >
+            <lucide-icon [img]="bagIcon" class="w-4 h-4 text-emerald-500"></lucide-icon>
+            <span class="text-xs font-bold text-slate-900 dark:text-white">Einzelartikel</span>
+            <span class="text-[10px] text-slate-400">1 Kauf → 1 Artikel</span>
+          </button>
+
+          <button
+            type="button"
+            (click)="form.patchValue({ type: 'mystery_pack' })"
+            class="p-3 rounded-2xl border text-left transition flex flex-col gap-1 cursor-pointer"
+            [class.border-emerald-500]="form.get('type')?.value === 'mystery_pack'"
+            [class.bg-emerald-500/10]="form.get('type')?.value === 'mystery_pack'"
+            [class.border-slate-200]="form.get('type')?.value !== 'mystery_pack'"
+            [class.dark:border-slate-800]="form.get('type')?.value !== 'mystery_pack'"
+          >
+            <lucide-icon [img]="packageIcon" class="w-4 h-4 text-purple-500"></lucide-icon>
+            <span class="text-xs font-bold text-slate-900 dark:text-white">Mystery Box</span>
+            <span class="text-[10px] text-slate-400">Mehrere Artikel</span>
+          </button>
+
+          <button
+            type="button"
+            (click)="form.patchValue({ type: 'lot' })"
+            class="p-3 rounded-2xl border text-left transition flex flex-col gap-1 cursor-pointer"
+            [class.border-emerald-500]="form.get('type')?.value === 'lot'"
+            [class.bg-emerald-500/10]="form.get('type')?.value === 'lot'"
+            [class.border-slate-200]="form.get('type')?.value !== 'lot'"
+            [class.dark:border-slate-800]="form.get('type')?.value !== 'lot'"
+          >
+            <lucide-icon [img]="layersIcon" class="w-4 h-4 text-blue-500"></lucide-icon>
+            <span class="text-xs font-bold text-slate-900 dark:text-white">Lot / Posten</span>
+            <span class="text-[10px] text-slate-400">Konvolut</span>
+          </button>
+
+          <button
+            type="button"
+            (click)="form.patchValue({ type: 'pallet' })"
+            class="p-3 rounded-2xl border text-left transition flex flex-col gap-1 cursor-pointer"
+            [class.border-emerald-500]="form.get('type')?.value === 'pallet'"
+            [class.bg-emerald-500/10]="form.get('type')?.value === 'pallet'"
+            [class.border-slate-200]="form.get('type')?.value !== 'pallet'"
+            [class.dark:border-slate-800]="form.get('type')?.value !== 'pallet'"
+          >
+            <lucide-icon [img]="boxesIcon" class="w-4 h-4 text-amber-500"></lucide-icon>
+            <span class="text-xs font-bold text-slate-900 dark:text-white">Palette</span>
+            <span class="text-[10px] text-slate-400">Retourenpalette</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. Titel / Bezeichnung -->
+      <div>
+        <label for="purchaseTitle" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+          Titel / Beschreibung
+        </label>
+        <input
+          id="purchaseTitle"
+          type="text"
+          formControlName="title"
+          placeholder="z.B. Cube Acid Mountainbike oder Mystery Pack 5kg Technik"
+          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
+        />
+      </div>
+
+      <!-- 3. Kaufpreis & Datum -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label for="purchasePrice" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+            Einkaufspreis (€)
+          </label>
+          <input
+            id="purchasePrice"
+            type="number"
+            formControlName="purchase_price"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+
+        <div>
+          <label for="purchaseDate" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+            Kaufdatum
+          </label>
+          <input
+            id="purchaseDate"
+            type="date"
+            formControlName="purchase_date"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+      </div>
+
+      <!-- 4. Einkaufsquelle & Lieferant mit Schnellanlage -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="purchaseSource" class="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              Einkaufsquelle
+            </label>
+            <button
+              type="button"
+              (click)="isAddingSource.set(!isAddingSource())"
+              class="text-[11px] text-emerald-500 hover:underline font-semibold"
+            >
+              + Neu
+            </button>
+          </div>
+
+          @if (isAddingSource()) {
+            <div class="flex gap-2 mb-2">
+              <input
+                type="text"
+                [value]="newSourceName()"
+                (input)="newSourceName.set($any($event.target).value)"
+                placeholder="Neue Quelle..."
+                class="flex-1 px-3 py-1.5 rounded-lg text-xs border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+              />
+              <button
+                type="button"
+                (click)="saveNewSource()"
+                class="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold"
+              >
+                OK
+              </button>
+            </div>
+          }
+
+          <select
+            id="purchaseSource"
+            formControlName="source_id"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
+          >
+            <option [ngValue]="null">-- Quelle wählen --</option>
+            @for (src of sourcesService.sources(); track src.id) {
+              <option [value]="src.id">{{ src.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <label for="purchaseSupplier" class="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              Lieferant / Verkäufer
+            </label>
+            <button
+              type="button"
+              (click)="isAddingSupplier.set(!isAddingSupplier())"
+              class="text-[11px] text-emerald-500 hover:underline font-semibold"
+            >
+              + Neu
+            </button>
+          </div>
+
+          @if (isAddingSupplier()) {
+            <div class="flex gap-2 mb-2">
+              <input
+                type="text"
+                [value]="newSupplierName()"
+                (input)="newSupplierName.set($any($event.target).value)"
+                placeholder="Neuer Verkäufer/Lieferant..."
+                class="flex-1 px-3 py-1.5 rounded-lg text-xs border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+              />
+              <button
+                type="button"
+                (click)="saveNewSupplier()"
+                class="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold"
+              >
+                OK
+              </button>
+            </div>
+          }
+
+          <select
+            id="purchaseSupplier"
+            formControlName="supplier_id"
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
+          >
+            <option [ngValue]="null">-- Optional: Lieferant wählen --</option>
+            @for (sup of suppliersService.suppliers(); track sup.id) {
+              <option [value]="sup.id">{{ sup.name }}</option>
+            }
+          </select>
+        </div>
+      </div>
+
+      <!-- 5. Single Item Specific Fields -->
+      @if (form.get('type')?.value === 'single') {
+        <div class="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-3">
+          <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
+            Artikel-Initialisierung (Kapitel 8: 1 Kauf → 1 Inventar-Artikel)
+          </span>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="singleCondition" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                Zustand
+              </label>
+              <select
+                id="singleCondition"
+                formControlName="single_item_condition"
+                class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+              >
+                <option value="new">Neu / OVP</option>
+                <option value="like_new">Wie neu</option>
+                <option value="very_good">Sehr gut</option>
+                <option value="used">Gebraucht</option>
+                <option value="heavily_used">Stark gebraucht</option>
+                <option value="defective">Defekt / Ersatzteil</option>
+              </select>
+            </div>
+
+            <div>
+              <label for="singleExpectedVal" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+                Erwarteter Marktwert (€)
+              </label>
+              <input
+                id="singleExpectedVal"
+                type="number"
+                formControlName="single_item_expected_value"
+                placeholder="z.B. 70 €"
+                class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+              />
+            </div>
+          </div>
+        </div>
+      }
+
+      <!-- 6. Zusatzkosten (Versand, Fahrt, Gebühren) -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <label class="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+            Zusatzkosten (Versand, Fahrtkosten, Zoll)
+          </label>
+          <button
+            type="button"
+            (click)="addCostRow()"
+            class="inline-flex items-center gap-1 text-xs text-emerald-500 font-bold hover:underline"
+          >
+            <lucide-icon [img]="plusCircleIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <span>+ Kosten hinzufügen</span>
+          </button>
+        </div>
+
+        @for (cost of extraCosts(); track $index) {
+          <div class="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+            <select
+              [value]="cost.type"
+              (change)="updateCostField($index, 'type', $any($event.target).value)"
+              class="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs"
+            >
+              <option value="shipping">Versand</option>
+              <option value="travel">Fahrtkosten / Sprit</option>
+              <option value="transport">Spedition / Transport</option>
+              <option value="customs">Zoll</option>
+              <option value="fee">Gebühren</option>
+              <option value="other">Sonstiges</option>
+            </select>
+
+            <input
+              type="number"
+              [value]="cost.amount"
+              (input)="updateCostField($index, 'amount', $any($event.target).value)"
+              placeholder="Betrag €"
+              class="w-24 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-semibold"
+            />
+
+            <input
+              type="text"
+              [value]="cost.description"
+              (input)="updateCostField($index, 'description', $any($event.target).value)"
+              placeholder="Beschreibung (optional)"
+              class="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs"
+            />
+
+            <button
+              type="button"
+              (click)="removeCostRow($index)"
+              class="p-1 text-slate-400 hover:text-rose-500 rounded"
+            >
+              <lucide-icon [img]="trashIcon" class="w-4 h-4"></lucide-icon>
+            </button>
+          </div>
+        }
+      </div>
+
+      <!-- Actions -->
+      <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+        <button
+          type="button"
+          (click)="close.emit()"
+          class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+        >
+          Abbrechen
+        </button>
+
+        <button
+          type="submit"
+          [disabled]="form.invalid || isSubmitting()"
+          class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-md disabled:opacity-50 transition flex items-center gap-2 cursor-pointer"
+        >
+          <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
+          <span>{{ isSubmitting() ? 'Speichere...' : 'Einkauf speichern' }}</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
