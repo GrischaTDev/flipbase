@@ -1,20 +1,282 @@
 <div class="space-y-6">
-  <div>
-    <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-      {{ 'NAV.LISTINGS' | translate }}
-    </h1>
-    <p class="text-sm text-slate-500 mt-1">
-      Erstelle kopierfertige, plattformspezifische Anzeigentexte für eBay, Kleinanzeigen und Vinted.
-    </p>
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+        {{ 'NAV.LISTINGS' | translate }} & Template Generator
+      </h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Erstelle verkaufsstarke Inserate für Kleinanzeigen, eBay und Vinted mit 1-Klick-Kopieren (Kapitel 21 & 22).
+      </p>
+    </div>
   </div>
 
-  <div class="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
-    <div class="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 mx-auto flex items-center justify-center mb-3">
-      <lucide-icon [img]="tagIcon" class="w-6 h-6"></lucide-icon>
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- Left Column: Item Selection & Customization Options (5 cols) -->
+    <div class="lg:col-span-5 space-y-6">
+      <!-- 1. Item Selector -->
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <div class="flex items-center gap-2">
+          <lucide-icon [img]="boxesIcon" class="w-5 h-5 text-emerald-500"></lucide-icon>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">1. Artikel auswählen</h2>
+        </div>
+
+        @if (inventoryService.items().length > 0) {
+          <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+            @for (item of inventoryService.items(); track item.id) {
+              <button
+                type="button"
+                (click)="selectItem(item)"
+                class="w-full text-left p-3 rounded-2xl border transition flex items-center justify-between cursor-pointer"
+                [class.bg-emerald-50]="selectedItem()?.id === item.id"
+                [class.dark:bg-emerald-950/40]="selectedItem()?.id === item.id"
+                [class.border-emerald-500]="selectedItem()?.id === item.id"
+                [class.bg-slate-50]="selectedItem()?.id !== item.id"
+                [class.dark:bg-slate-800/40]="selectedItem()?.id !== item.id"
+                [class.border-slate-200]="selectedItem()?.id !== item.id"
+                [class.dark:border-slate-700]="selectedItem()?.id !== item.id"
+              >
+                <div>
+                  <strong class="text-xs text-slate-900 dark:text-white block line-clamp-1">{{ item.title }}</strong>
+                  <span class="text-[11px] text-slate-400">
+                    {{ item.condition }} • EK: {{ item.total_item_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  </span>
+                </div>
+
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ml-2"
+                  [class.bg-emerald-100]="item.status === 'ready' || item.status === 'listed'"
+                  [class.text-emerald-700]="item.status === 'ready' || item.status === 'listed'"
+                  [class.bg-slate-200]="item.status !== 'ready' && item.status !== 'listed'"
+                  [class.text-slate-600]="item.status !== 'ready' && item.status !== 'listed'"
+                >
+                  {{ item.status }}
+                </span>
+              </button>
+            }
+          </div>
+        } @else {
+          <p class="text-xs text-slate-400 py-4 text-center">Keine Artikel im Inventar vorhanden.</p>
+        }
+      </div>
+
+      <!-- 2. Listing Price & Textbausteine -->
+      @if (selectedItem(); as item) {
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+          <div class="flex items-center gap-2">
+            <lucide-icon [img]="slidersIcon" class="w-5 h-5 text-indigo-500"></lucide-icon>
+            <h2 class="text-base font-bold text-slate-900 dark:text-white">2. Preis & Bausteine (Kapitel 22)</h2>
+          </div>
+
+          <div>
+            <label for="listingPriceInput" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+              Angebotspreis (€)
+            </label>
+            <input
+              id="listingPriceInput"
+              type="number"
+              [value]="customPrice() || item.expected_value || item.total_item_cost || 50"
+              (input)="customPrice.set($any($event.target).valueAsNumber || 0)"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-black text-emerald-600"
+            />
+          </div>
+
+          <!-- Toggles -->
+          <div class="space-y-2.5 pt-2 text-xs">
+            <label class="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                [checked]="optDisclaimer()"
+                (change)="optDisclaimer.set($any($event.target).checked)"
+                class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span class="text-slate-700 dark:text-slate-300">Rechtlicher Hinweis (Privatverkauf ohne Garantie)</span>
+            </label>
+
+            <label class="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                [checked]="optNonSmoking()"
+                (change)="optNonSmoking.set($any($event.target).checked)"
+                class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span class="text-slate-700 dark:text-slate-300">Tierfreier Nichtraucherhaushalt</span>
+            </label>
+
+            <label class="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                [checked]="optShipping()"
+                (change)="optShipping.set($any($event.target).checked)"
+                class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span class="text-slate-700 dark:text-slate-300">Versicherter Versand (DHL/Hermes)</span>
+            </label>
+
+            <label class="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                [checked]="optPickup()"
+                (change)="optPickup.set($any($event.target).checked)"
+                class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+              />
+              <span class="text-slate-700 dark:text-slate-300">Barzahlung / Abholung vor Ort</span>
+            </label>
+
+            @if (selectedPlatform() === 'kleinanzeigen') {
+              <label class="flex items-center gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  [checked]="optNegotiable()"
+                  (change)="optNegotiable.set($any($event.target).checked)"
+                  class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <span class="text-slate-700 dark:text-slate-300">Verhandlungsbasis (VB)</span>
+              </label>
+            }
+          </div>
+        </div>
+      }
     </div>
-    <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">Listing Studio bereit</h3>
-    <p class="text-xs text-slate-500 max-w-md mx-auto mt-1 mb-5">
-      Wähle einen recherchierten Artikel im Inventar aus, um passende Texte für die Marktplätze zu generieren.
-    </p>
+
+    <!-- Right Column: Generated Preview & Copy Station (7 cols) -->
+    <div class="lg:col-span-7 space-y-6">
+      <!-- Platform Selector Tabs -->
+      <div class="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto text-xs font-semibold">
+        <button
+          type="button"
+          (click)="selectedPlatform.set('kleinanzeigen')"
+          class="px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5"
+          [class.bg-slate-900]="selectedPlatform() === 'kleinanzeigen'"
+          [class.text-white]="selectedPlatform() === 'kleinanzeigen'"
+          [class.dark:bg-emerald-600]="selectedPlatform() === 'kleinanzeigen'"
+          [class.text-slate-600]="selectedPlatform() !== 'kleinanzeigen'"
+          [class.dark:text-slate-400]="selectedPlatform() !== 'kleinanzeigen'"
+        >
+          Kleinanzeigen
+        </button>
+
+        <button
+          type="button"
+          (click)="selectedPlatform.set('ebay')"
+          class="px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5"
+          [class.bg-slate-900]="selectedPlatform() === 'ebay'"
+          [class.text-white]="selectedPlatform() === 'ebay'"
+          [class.dark:bg-emerald-600]="selectedPlatform() === 'ebay'"
+          [class.text-slate-600]="selectedPlatform() !== 'ebay'"
+          [class.dark:text-slate-400]="selectedPlatform() !== 'ebay'"
+        >
+          eBay
+        </button>
+
+        <button
+          type="button"
+          (click)="selectedPlatform.set('vinted')"
+          class="px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5"
+          [class.bg-slate-900]="selectedPlatform() === 'vinted'"
+          [class.text-white]="selectedPlatform() === 'vinted'"
+          [class.dark:bg-emerald-600]="selectedPlatform() === 'vinted'"
+          [class.text-slate-600]="selectedPlatform() !== 'vinted'"
+          [class.dark:text-slate-400]="selectedPlatform() !== 'vinted'"
+        >
+          Vinted
+        </button>
+      </div>
+
+      @if (generatedListing(); as listing) {
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-5 animate-fade-in">
+          <!-- Title Box -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                Generierter Titel ({{ listing.title.length }} Zeichen)
+              </span>
+              <button
+                type="button"
+                (click)="copyToClipboard(listing.title, 'title')"
+                class="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+              >
+                <lucide-icon [img]="copiedTitle() ? checkIcon : copyIcon" class="w-3.5 h-3.5" [class.text-emerald-500]="copiedTitle()"></lucide-icon>
+                <span>{{ copiedTitle() ? 'Kopiert!' : 'Titel kopieren' }}</span>
+              </button>
+            </div>
+
+            <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-white">
+              {{ listing.title }}
+            </div>
+          </div>
+
+          <!-- Description Box -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                Optimierte Artikelbeschreibung
+              </span>
+              <button
+                type="button"
+                (click)="copyToClipboard(listing.description, 'desc')"
+                class="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                <lucide-icon [img]="copiedDesc() ? checkIcon : copyIcon" class="w-3.5 h-3.5"></lucide-icon>
+                <span>{{ copiedDesc() ? 'Kopiert!' : 'Text kopieren' }}</span>
+              </button>
+            </div>
+
+            <textarea
+              [value]="listing.description"
+              rows="12"
+              readonly
+              class="w-full p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white font-mono leading-relaxed resize-none focus:outline-hidden"
+            ></textarea>
+          </div>
+
+          <!-- Vinted Hashtags -->
+          @if (listing.hashtags && listing.hashtags.length > 0) {
+            <div class="space-y-1">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Hashtags</span>
+              <div class="flex flex-wrap gap-1.5">
+                @for (tag of listing.hashtags; track tag) {
+                  <span class="px-2.5 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 text-xs font-semibold">
+                    {{ tag }}
+                  </span>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- Mark As Listed Button (Kapitel 21) -->
+          <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <div>
+              @if (markSuccess()) {
+                <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+                  Als 'gelistet' im Inventar gespeichert!
+                </span>
+              }
+            </div>
+
+            <button
+              type="button"
+              (click)="onMarkAsListed()"
+              [disabled]="isMarkingListed()"
+              class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <lucide-icon [img]="sendIcon" class="w-4 h-4"></lucide-icon>
+              <span>{{ isMarkingListed() ? 'Speichere...' : 'Als gelistet markieren' }}</span>
+            </button>
+          </div>
+        </div>
+      } @else {
+        <div class="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
+          <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 mx-auto flex items-center justify-center mb-3">
+            <lucide-icon [img]="fileIcon" class="w-6 h-6"></lucide-icon>
+          </div>
+          <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">Wähle einen Artikel aus</h3>
+          <p class="text-xs text-slate-500 max-w-xs mx-auto mt-1">
+            Wähle links einen Artikel aus deinem Inventar, um in Sekundenschnelle ein fertiges Listing zu generieren.
+          </p>
+        </div>
+      }
+    </div>
   </div>
 </div>
