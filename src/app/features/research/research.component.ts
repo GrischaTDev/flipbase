@@ -1,71 +1,119 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { CurrencyPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
-import { LucideAngularModule, Search, Sparkles, TrendingUp, CheckCircle, ExternalLink } from 'lucide-angular';
-import { ProfitEngineService } from '../../core/services/profit-engine.service';
-import { ResearchComparable } from '../../core/models/reflip.models';
+import {
+  LucideAngularModule,
+  Search,
+  Sparkles,
+  Zap,
+  Tag,
+  Calculator,
+  ExternalLink,
+  PlusCircle,
+  TrendingUp,
+  AlertCircle,
+  CheckCircle2,
+  Sliders,
+  History,
+  ShieldCheck,
+  Percent,
+} from 'lucide-angular';
+import {
+  ResearchService,
+  ResearchComparisonItem,
+  ResearchSummary,
+} from '../../core/services/research.service';
 
 @Component({
   selector: 'app-research',
-  imports: [ReactiveFormsModule, CurrencyPipe, TranslatePipe, LucideAngularModule],
+  imports: [
+    RouterLink,
+    ReactiveFormsModule,
+    CurrencyPipe,
+    DatePipe,
+    TranslatePipe,
+    LucideAngularModule,
+  ],
   templateUrl: './research.component.html',
   styleUrl: './research.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ResearchComponent {
-  private readonly profitEngine = inject(ProfitEngineService);
+  readonly researchService = inject(ResearchService);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
 
   readonly searchIcon = Search;
   readonly sparklesIcon = Sparkles;
-  readonly trendingIcon = TrendingUp;
-  readonly checkIcon = CheckCircle;
+  readonly zapIcon = Zap;
+  readonly tagIcon = Tag;
+  readonly calcIcon = Calculator;
   readonly linkIcon = ExternalLink;
-
-  readonly isSearching = signal<boolean>(false);
+  readonly plusIcon = PlusCircle;
+  readonly trendingIcon = TrendingUp;
+  readonly alertIcon = AlertCircle;
+  readonly checkIcon = CheckCircle2;
+  readonly slidersIcon = Sliders;
+  readonly historyIcon = History;
+  readonly shieldIcon = ShieldCheck;
+  readonly percentIcon = Percent;
 
   readonly searchForm = new FormGroup({
     query: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    condition: new FormControl('used', { nonNullable: true }),
+    estimatedCost: new FormControl<number>(25.0, { nonNullable: true }),
   });
 
-  readonly sampleComparables = signal<ResearchComparable[]>([
-    {
-      title: 'Bosch Akkuschrauber GSR 18V-55 Solo im L-Boxx',
-      platform: 'kleinanzeigen',
-      price: 69.00,
-      condition: 'Sehr gut',
-      is_sold: true,
-      sold_at: '2026-08-10',
-      similarity_score: 95,
-      url: '#',
-    },
-    {
-      title: 'Bosch Professional GSR 18V-55 Akku Bohrschrauber',
-      platform: 'ebay',
-      price: 74.50,
-      condition: 'Gebraucht',
-      is_sold: true,
-      sold_at: '2026-08-12',
-      similarity_score: 90,
-      url: '#',
-    },
-    {
-      title: 'Bosch GSR 18V-55 Akkuschrauber neuwertig',
-      platform: 'vinted',
-      price: 70.00,
-      condition: 'Wie neu',
-      is_sold: false,
-      listed_at: '2026-08-14',
-      similarity_score: 85,
-      url: '#',
-    },
-  ]);
+  readonly summary = signal<ResearchSummary | null>(null);
+  readonly hasSearched = signal<boolean>(false);
 
-  onSearch(): void {
-    if (this.searchForm.invalid) return;
-    this.isSearching.set(true);
-    setTimeout(() => {
-      this.isSearching.set(false);
-    }, 500);
+  constructor() {
+    // Check if query was passed via route query param (e.g. from Inventory Detail)
+    this.route.queryParams.subscribe((params) => {
+      const q = params['query'];
+      if (q) {
+        this.searchForm.patchValue({ query: q });
+        this.onSearch();
+      }
+    });
+  }
+
+  async onSearch(): Promise<void> {
+    const f = this.searchForm.getRawValue();
+    if (!f.query.trim()) return;
+
+    this.hasSearched.set(true);
+    const { summary } = await this.researchService.executeResearch(
+      f.query.trim(),
+      f.condition,
+      f.estimatedCost
+    );
+    this.summary.set(summary);
+  }
+
+  onToggleItem(item: ResearchComparisonItem): void {
+    this.researchService.toggleExcludeItem(item.id);
+    const f = this.searchForm.getRawValue();
+    const updatedSummary = this.researchService.calculateSummary(
+      this.researchService.currentComparisonItems(),
+      f.estimatedCost
+    );
+    this.summary.set(updatedSummary);
+  }
+
+  openInDealCalculator(): void {
+    const s = this.summary();
+    const f = this.searchForm.getRawValue();
+    if (!s) return;
+
+    this.router.navigate(['/deal-calculator'], {
+      queryParams: {
+        itemTitle: f.query,
+        buyPrice: f.estimatedCost,
+        expectedPrice: s.medianPrice,
+      },
+    });
   }
 }

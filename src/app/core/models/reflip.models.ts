@@ -151,6 +151,29 @@ export interface MarketResearch {
   comparables?: ResearchComparable[];
 }
 
+export interface ResearchQuery {
+  id: string;
+  workspace_id: string;
+  query_text: string;
+  source: string;
+  result_count: number;
+  min_price: number;
+  max_price: number;
+  avg_price: number;
+  median_price: number;
+  created_at?: string;
+}
+
+export interface ResearchResult {
+  id: string;
+  research_query_id: string;
+  title: string;
+  price: number;
+  source: string;
+  url?: string | null;
+  created_at?: string;
+}
+
 export interface ListingDraft {
   id: string;
   inventory_item_id: string;
