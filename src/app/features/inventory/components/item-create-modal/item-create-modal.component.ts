@@ -1,8 +1,9 @@
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LucideAngularModule, X, Plus, Boxes } from 'lucide-angular';
+import { LucideAngularModule, X, Plus, Boxes, Sparkles } from 'lucide-angular';
 import { InventoryService, CreateItemPayload } from '../../../../core/services/inventory.service';
 import { PurchaseService } from '../../../../core/services/purchase.service';
+import { AiAssistantService } from '../../../../core/services/ai-assistant.service';
 import { ItemCondition, ItemStatus } from '../../../../core/models/reflip.models';
 
 @Component({
@@ -15,6 +16,7 @@ import { ItemCondition, ItemStatus } from '../../../../core/models/reflip.models
 export class ItemCreateModalComponent {
   private readonly inventoryService = inject(InventoryService);
   readonly purchaseService = inject(PurchaseService);
+  readonly aiService = inject(AiAssistantService);
 
   readonly close = output<void>();
   readonly created = output<void>();
@@ -22,9 +24,29 @@ export class ItemCreateModalComponent {
   readonly closeIcon = X;
   readonly plusIcon = Plus;
   readonly boxesIcon = Boxes;
+  readonly sparklesIcon = Sparkles;
 
   readonly isSubmitting = signal<boolean>(false);
+  readonly isAiLoading = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
+
+  async onAiAutofill(): Promise<void> {
+    const rawTitle = this.form.get('title')?.value;
+    if (!rawTitle || !rawTitle.trim()) return;
+
+    this.isAiLoading.set(true);
+    const ai = await this.aiService.identifyProduct(rawTitle);
+    this.isAiLoading.set(false);
+
+    this.form.patchValue({
+      title: ai.cleanTitle,
+      brand: ai.brand || this.form.get('brand')?.value,
+      model: ai.model || this.form.get('model')?.value,
+      category: ai.category || this.form.get('category')?.value,
+      condition: ai.condition || this.form.get('condition')?.value,
+      expected_value: ai.estimatedMarketPrice || this.form.get('expected_value')?.value,
+    });
+  }
 
   readonly form = new FormGroup({
     title: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
