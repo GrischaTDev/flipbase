@@ -21,6 +21,7 @@ import {
 interface NavItem {
   path: string;
   labelKey: string;
+  label: string;
   icon: LucideIconData;
 }
 
@@ -39,15 +40,15 @@ export class SidebarComponent {
   readonly logoIcon = Sparkles;
 
   readonly navItems: NavItem[] = [
-    { path: '/dashboard', labelKey: 'NAV.DASHBOARD', icon: LayoutDashboard },
-    { path: '/purchases', labelKey: 'NAV.PURCHASES', icon: ShoppingBag },
-    { path: '/inventory', labelKey: 'NAV.INVENTORY', icon: Boxes },
-    { path: '/research', labelKey: 'NAV.RESEARCH', icon: Search },
-    { path: '/deal-calculator', labelKey: 'NAV.DEAL_CALCULATOR', icon: Calculator },
-    { path: '/listings', labelKey: 'NAV.LISTINGS', icon: Tag },
-    { path: '/sales', labelKey: 'NAV.SALES', icon: TrendingUp },
-    { path: '/sources', labelKey: 'NAV.SOURCES_SUPPLIERS', icon: Store },
-    { path: '/analytics', labelKey: 'NAV.ANALYTICS', icon: BarChart3 },
-    { path: '/settings', labelKey: 'NAV.SETTINGS', icon: Settings },
+    { path: '/dashboard', labelKey: 'NAV.DASHBOARD', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/purchases', labelKey: 'NAV.PURCHASES', label: 'Einkäufe', icon: ShoppingBag },
+    { path: '/inventory', labelKey: 'NAV.INVENTORY', label: 'Inventar', icon: Boxes },
+    { path: '/research', labelKey: 'NAV.RESEARCH', label: 'Research', icon: Search },
+    { path: '/deal-calculator', labelKey: 'NAV.DEAL_CALCULATOR', label: 'Deal Calculator', icon: Calculator },
+    { path: '/listings', labelKey: 'NAV.LISTINGS', label: 'Listing Studio', icon: Tag },
+    { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: TrendingUp },
+    { path: '/sources', labelKey: 'NAV.SOURCES_SUPPLIERS', label: 'Quellen & Lieferanten', icon: Store },
+    { path: '/analytics', labelKey: 'NAV.ANALYTICS', label: 'Analytics', icon: BarChart3 },
+    { path: '/settings', labelKey: 'NAV.SETTINGS', label: 'Einstellungen', icon: Settings },
   ];
 }

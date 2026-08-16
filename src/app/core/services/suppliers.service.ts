@@ -12,7 +12,7 @@ export class SuppliersService {
   private readonly workspaceService = inject(WorkspaceService);
   private readonly mockStore = inject(MockDataStoreService);
 
-  readonly suppliers = signal<Supplier[]>([]);
+  readonly suppliers = signal<Supplier[]>(this.mockStore.demoSuppliers);
   readonly isLoading = signal<boolean>(false);
 
   constructor() {

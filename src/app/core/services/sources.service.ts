@@ -12,7 +12,7 @@ export class SourcesService {
   private readonly workspaceService = inject(WorkspaceService);
   private readonly mockStore = inject(MockDataStoreService);
 
-  readonly sources = signal<Source[]>([]);
+  readonly sources = signal<Source[]>(this.mockStore.demoSources);
   readonly isLoading = signal<boolean>(false);
 
   constructor() {

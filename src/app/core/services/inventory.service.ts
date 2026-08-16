@@ -35,7 +35,9 @@ export class InventoryService {
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly mockStore = inject(MockDataStoreService);
 
-  readonly items = signal<InventoryItem[]>([]);
+  readonly items = signal<InventoryItem[]>(
+    this.mockStore.demoItems.map((i) => this.enrichItemTotals(i))
+  );
   readonly selectedItem = signal<InventoryItem | null>(null);
   readonly itemCosts = signal<ItemCost[]>([]);
   readonly activityLogs = signal<ActivityLog[]>([]);

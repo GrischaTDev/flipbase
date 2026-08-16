@@ -39,7 +39,7 @@ export class PurchaseService {
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly mockStore = inject(MockDataStoreService);
 
-  readonly purchases = signal<Purchase[]>([]);
+  readonly purchases = signal<Purchase[]>(this.mockStore.demoPurchases);
   readonly selectedPurchase = signal<Purchase | null>(null);
   readonly purchaseItems = signal<InventoryItem[]>([]);
   readonly isLoading = signal<boolean>(false);

@@ -42,8 +42,8 @@
         (click)="close.emit()"
         class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-slate-300 hover:text-white hover:bg-slate-800/60 transition group border-l-4 border-transparent"
       >
-        <lucide-icon [img]="item.icon" class="w-4 h-4 text-slate-400 group-hover:text-white group-[.border-emerald-500]:text-emerald-400"></lucide-icon>
-        <span>{{ item.labelKey | translate }}</span>
+        <lucide-icon [img]="item.icon" class="w-4 h-4 text-slate-400 group-hover:text-white group-[.border-emerald-500]:text-emerald-400 shrink-0"></lucide-icon>
+        <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
   </nav>

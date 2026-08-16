@@ -30,7 +30,9 @@ export class SalesService {
   private readonly inventoryService = inject(InventoryService);
   private readonly mockStore = inject(MockDataStoreService);
 
-  readonly sales = signal<Sale[]>([]);
+  readonly sales = signal<Sale[]>(
+    this.mockStore.demoSales.map((s) => this.enrichSaleMetrics(s))
+  );
   readonly isLoading = signal<boolean>(false);
 
   constructor() {

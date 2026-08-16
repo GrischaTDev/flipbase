@@ -14,8 +14,8 @@ export class WorkspaceService {
   private readonly auth = inject(AuthService);
   private readonly mockStore = inject(MockDataStoreService);
 
-  readonly workspaces = signal<Workspace[]>([]);
-  readonly currentWorkspace = signal<Workspace | null>(null);
+  readonly workspaces = signal<Workspace[]>([this.mockStore.demoWorkspace]);
+  readonly currentWorkspace = signal<Workspace | null>(this.mockStore.demoWorkspace);
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
