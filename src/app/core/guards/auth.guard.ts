@@ -6,10 +6,13 @@ export const authGuard: CanActivateFn = async () => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
-  // If still loading session from Supabase, wait or check
+  if (auth.isAuthenticated()) {
+    return true;
+  }
+
+  // If still loading session from Supabase, wait briefly
   if (auth.isLoading()) {
-    // Wait briefly for init to resolve
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 50));
   }
 
   if (auth.isAuthenticated()) {

@@ -59,6 +59,24 @@
         <lucide-icon [img]="loginIcon" class="w-4 h-4"></lucide-icon>
         <span>{{ isLoading() ? ('COMMON.LOADING' | translate) : ('AUTH.SUBMIT_LOGIN' | translate) }}</span>
       </button>
+
+      <!-- Instant Demo Mode Button -->
+      <div class="pt-2">
+        <div class="relative flex py-2 items-center">
+          <div class="grow border-t border-slate-700"></div>
+          <span class="shrink mx-3 text-[10px] uppercase font-bold text-slate-500">Oder ohne Backend</span>
+          <div class="grow border-t border-slate-700"></div>
+        </div>
+
+        <button
+          type="button"
+          (click)="onDemoLogin()"
+          class="w-full py-2.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <lucide-icon [img]="zapIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+          <span>⚡ ReFlip Demo-Modus starten (Sofort loslegen)</span>
+        </button>
+      </div>
     </form>
 
     <!-- Footer Switch to Register -->

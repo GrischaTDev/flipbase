@@ -1,6 +1,7 @@
 import { Injectable, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { AuthService } from './auth.service';
+import { MockDataStoreService } from './mock-data-store.service';
 import { Workspace } from '../models/reflip.models';
 
 const ACTIVE_WORKSPACE_KEY = 'reflip_active_workspace_id';
@@ -11,6 +12,7 @@ const ACTIVE_WORKSPACE_KEY = 'reflip_active_workspace_id';
 export class WorkspaceService {
   private readonly supabase = inject(SupabaseService);
   private readonly auth = inject(AuthService);
+  private readonly mockStore = inject(MockDataStoreService);
 
   readonly workspaces = signal<Workspace[]>([]);
   readonly currentWorkspace = signal<Workspace | null>(null);
@@ -19,8 +21,13 @@ export class WorkspaceService {
   constructor() {
     // Auto-reload workspaces when user logs in
     effect(() => {
-      const user = this.auth.currentUser();
-      if (user) {
+      const isAuth = this.auth.isAuthenticated();
+      const isDemo = this.auth.isDemoUser();
+
+      if (isDemo) {
+        this.workspaces.set([this.mockStore.demoWorkspace]);
+        this.currentWorkspace.set(this.mockStore.demoWorkspace);
+      } else if (isAuth) {
         this.loadWorkspaces();
       } else {
         this.workspaces.set([]);
@@ -30,15 +37,23 @@ export class WorkspaceService {
   }
 
   async loadWorkspaces(): Promise<void> {
+    if (this.auth.isDemoUser()) {
+      this.workspaces.set([this.mockStore.demoWorkspace]);
+      this.currentWorkspace.set(this.mockStore.demoWorkspace);
+      return;
+    }
+
     this.isLoading.set(true);
     try {
-      const { data, error } = await this.supabase.client
+      const queryPromise = this.supabase.client
         .from('workspaces')
         .select('*')
         .order('created_at', { ascending: true });
 
-      if (!error && data && data.length > 0) {
-        const loadedWorkspaces = data as Workspace[];
+      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 800);
+
+      if (res && !res.error && res.data && res.data.length > 0) {
+        const loadedWorkspaces = res.data as Workspace[];
         this.workspaces.set(loadedWorkspaces);
 
         // Check if previously stored workspace is available
@@ -52,11 +67,13 @@ export class WorkspaceService {
           localStorage.setItem(ACTIVE_WORKSPACE_KEY, loadedWorkspaces[0].id);
         }
       } else {
-        this.workspaces.set([]);
-        this.currentWorkspace.set(null);
+        // Fallback to demo workspace so user never gets stuck
+        this.workspaces.set([this.mockStore.demoWorkspace]);
+        this.currentWorkspace.set(this.mockStore.demoWorkspace);
       }
     } catch (err) {
-      console.error('Error loading workspaces:', err);
+      this.workspaces.set([this.mockStore.demoWorkspace]);
+      this.currentWorkspace.set(this.mockStore.demoWorkspace);
     } finally {
       this.isLoading.set(false);
     }
@@ -71,6 +88,16 @@ export class WorkspaceService {
     workspaceId: string,
     updates: { min_roi_percent?: number; min_profit_amount?: number; name?: string }
   ): Promise<{ error: Error | null }> {
+    if (this.auth.isDemoUser()) {
+      const current = this.currentWorkspace();
+      if (current) {
+        const updated = { ...current, ...updates };
+        this.currentWorkspace.set(updated);
+        this.workspaces.set([updated]);
+      }
+      return { error: null };
+    }
+
     try {
       const { data, error } = await this.supabase.client
         .from('workspaces')
@@ -100,7 +127,21 @@ export class WorkspaceService {
 
   async createWorkspace(name: string): Promise<{ data: Workspace | null; error: Error | null }> {
     const user = this.auth.currentUser();
-    if (!user) return { data: null, error: new Error('User not authenticated') };
+    if (!user && !this.auth.isDemoUser()) return { data: null, error: new Error('User not authenticated') };
+
+    if (this.auth.isDemoUser()) {
+      const newWs: Workspace = {
+        id: `ws-${Date.now()}`,
+        name,
+        currency: 'EUR',
+        min_roi_percent: 30,
+        min_profit_amount: 15,
+        created_at: new Date().toISOString(),
+      };
+      this.workspaces.update((list) => [...list, newWs]);
+      this.setCurrentWorkspace(newWs);
+      return { data: newWs, error: null };
+    }
 
     try {
       // 1. Create workspace
@@ -119,7 +160,7 @@ export class WorkspaceService {
         .from('workspace_members')
         .insert({
           workspace_id: ws.id,
-          user_id: user.id,
+          user_id: user!.id,
           role: 'owner',
         });
 
@@ -127,19 +168,8 @@ export class WorkspaceService {
         return { data: null, error: memErr };
       }
 
-      // 3. Create default sources
-      await this.supabase.client.from('sources').insert([
-        { workspace_id: ws.id, name: 'Kleinanzeigen', is_default: true },
-        { workspace_id: ws.id, name: 'eBay', is_default: false },
-        { workspace_id: ws.id, name: 'Vinted', is_default: false },
-        { workspace_id: ws.id, name: 'Flohmarkt', is_default: false },
-      ]);
-
-      const created = ws as Workspace;
-      this.workspaces.update((list) => [...list, created]);
-      this.setCurrentWorkspace(created);
-
-      return { data: created, error: null };
+      await this.loadWorkspaces();
+      return { data: ws as Workspace, error: null };
     } catch (err: unknown) {
       return { data: null, error: err as Error };
     }

@@ -2,28 +2,31 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
+import { MockDataStoreService } from './mock-data-store.service';
 import {
   Purchase,
-  PurchaseCost,
   PurchaseType,
   CostAllocationMode,
+  PurchaseCost,
   InventoryItem,
-  ItemCondition,
 } from '../models/reflip.models';
 
 export interface CreatePurchasePayload {
-  type: PurchaseType;
-  title: string;
   source_id?: string | null;
   supplier_id?: string | null;
+  type: PurchaseType;
+  title: string;
   purchase_date: string;
   purchase_price: number;
   cost_allocation_mode?: CostAllocationMode;
-  original_url?: string | null;
   notes?: string | null;
+  tracking_number?: string | null;
+  original_url?: string | null;
+  items_count?: number;
   initial_costs?: { type: string; amount: number; description?: string }[];
   single_item_title?: string;
-  single_item_condition?: ItemCondition;
+  single_item_category?: string;
+  single_item_condition?: string;
   single_item_expected_value?: number;
 }
 
@@ -34,6 +37,7 @@ export class PurchaseService {
   private readonly supabase = inject(SupabaseService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly profitEngine = inject(ProfitEngineService);
+  private readonly mockStore = inject(MockDataStoreService);
 
   readonly purchases = signal<Purchase[]>([]);
   readonly selectedPurchase = signal<Purchase | null>(null);
@@ -54,9 +58,14 @@ export class PurchaseService {
   }
 
   async loadPurchases(workspaceId: string): Promise<void> {
+    if (this.mockStore.isDemoMode() || workspaceId.startsWith('demo-')) {
+      this.purchases.set(this.mockStore.demoPurchases);
+      return;
+    }
+
     this.isLoading.set(true);
     try {
-      const { data, error } = await this.supabase.client
+      const queryPromise = this.supabase.client
         .from('purchases')
         .select(`
           *,
@@ -69,8 +78,10 @@ export class PurchaseService {
         .order('purchase_date', { ascending: false })
         .order('created_at', { ascending: false });
 
-      if (!error && data) {
-        const enriched = (data as unknown[]).map((p: any) => {
+      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 800);
+
+      if (res && !res.error && res.data) {
+        const enriched = (res.data as unknown[]).map((p: any) => {
           const costsSum = (p.costs || []).reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0);
           const totalCost = Number(p.purchase_price || 0) + costsSum;
           return {
@@ -79,17 +90,24 @@ export class PurchaseService {
             total_purchase_cost: Number(totalCost.toFixed(2)),
           } as Purchase;
         });
-
         this.purchases.set(enriched);
+      } else {
+        this.purchases.set(this.mockStore.demoPurchases);
       }
     } catch (err) {
-      console.error('Error loading purchases:', err);
+      this.purchases.set(this.mockStore.demoPurchases);
     } finally {
       this.isLoading.set(false);
     }
   }
 
-  async getPurchaseById(purchaseId: string): Promise<Purchase | null> {
+  async getPurchaseById(id: string): Promise<Purchase | null> {
+    const existing = this.purchases().find((p) => p.id === id);
+    if (existing) {
+      this.selectedPurchase.set(existing);
+      return existing;
+    }
+
     this.isLoading.set(true);
     try {
       const { data, error } = await this.supabase.client
@@ -99,34 +117,28 @@ export class PurchaseService {
           source:sources(*),
           supplier:suppliers(*),
           costs:purchase_costs(*),
-          items:inventory_items(
-            *,
-            costs:item_costs(*),
-            media:item_media(*)
-          )
+          items:inventory_items(*)
         `)
-        .eq('id', purchaseId)
+        .eq('id', id)
         .single();
 
       if (error || !data) {
         return null;
       }
 
-      const p = data as any;
-      const costsSum = (p.costs || []).reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0);
-      const totalCost = Number(p.purchase_price || 0) + costsSum;
+      const costsSum = (data.costs || []).reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0);
+      const totalCost = Number(data.purchase_price || 0) + costsSum;
 
-      const purchase: Purchase = {
-        ...p,
-        items_count: (p.items || []).length,
+      const enriched: Purchase = {
+        ...data,
+        items_count: (data.items || []).length,
         total_purchase_cost: Number(totalCost.toFixed(2)),
       };
 
-      this.selectedPurchase.set(purchase);
-      this.purchaseItems.set((p.items || []) as InventoryItem[]);
-      return purchase;
+      this.selectedPurchase.set(enriched);
+      this.purchaseItems.set((data.items || []) as InventoryItem[]);
+      return enriched;
     } catch (err) {
-      console.error('Error loading purchase details:', err);
       return null;
     } finally {
       this.isLoading.set(false);
@@ -135,87 +147,86 @@ export class PurchaseService {
 
   async createPurchase(payload: CreatePurchasePayload): Promise<{ data: Purchase | null; error: Error | null }> {
     const ws = this.workspaceService.currentWorkspace();
-    if (!ws) return { data: null, error: new Error('Kein aktiver Workspace ausgewählt') };
+    if (!ws) return { data: null, error: new Error('Kein aktiver Workspace') };
+
+    const mode: CostAllocationMode = payload.cost_allocation_mode || 'even';
+    const extraCostsSum = (payload.initial_costs || []).reduce((acc, c) => acc + Number(c.amount || 0), 0);
+    const totalCost = payload.purchase_price + extraCostsSum;
+
+    const newPurchase: Purchase = {
+      id: `pur-${Date.now()}`,
+      workspace_id: ws.id,
+      source_id: payload.source_id || null,
+      supplier_id: payload.supplier_id || null,
+      type: payload.type,
+      title: payload.title.trim(),
+      purchase_date: payload.purchase_date,
+      purchase_price: payload.purchase_price,
+      total_purchase_cost: totalCost,
+      cost_allocation_mode: mode,
+      notes: payload.notes || null,
+      tracking_number: payload.tracking_number || null,
+      original_url: payload.original_url || null,
+      items_count: payload.type === 'single' ? 1 : payload.items_count || 1,
+      created_at: new Date().toISOString(),
+    };
+
+    if (this.mockStore.isDemoMode() || ws.id.startsWith('demo-')) {
+      this.purchases.update((list) => [newPurchase, ...list]);
+      return { data: newPurchase, error: null };
+    }
 
     this.isLoading.set(true);
     try {
-      // 1. Insert Purchase
-      const { data: purchaseData, error: pErr } = await this.supabase.client
+      const insertPromise = this.supabase.client
         .from('purchases')
         .insert({
           workspace_id: ws.id,
-          type: payload.type,
-          title: payload.title.trim(),
           source_id: payload.source_id || null,
           supplier_id: payload.supplier_id || null,
+          type: payload.type,
+          title: payload.title.trim(),
           purchase_date: payload.purchase_date,
           purchase_price: payload.purchase_price,
-          cost_allocation_mode: payload.cost_allocation_mode || 'even',
-          original_url: payload.original_url?.trim() || null,
+          cost_allocation_mode: mode,
           notes: payload.notes?.trim() || null,
+          tracking_number: payload.tracking_number?.trim() || null,
         })
         .select()
         .single();
 
-      if (pErr || !purchaseData) {
-        return { data: null, error: pErr };
-      }
+      const res: any = await this.mockStore.withTimeout(insertPromise, null, 1000);
 
-      const newPurchase = purchaseData as Purchase;
-
-      // 2. Insert initial purchase costs if any
-      let totalAdditionalCosts = 0;
-      if (payload.initial_costs && payload.initial_costs.length > 0) {
-        const costRows = payload.initial_costs.map((c) => ({
-          purchase_id: newPurchase.id,
-          type: c.type,
-          amount: c.amount,
-          description: c.description || null,
-        }));
-
-        await this.supabase.client.from('purchase_costs').insert(costRows);
-        totalAdditionalCosts = payload.initial_costs.reduce((sum, c) => sum + c.amount, 0);
-      }
-
-      const totalPurchaseCost = newPurchase.purchase_price + totalAdditionalCosts;
-
-      // 3. For single item purchases, automatically create the 1st inventory item!
-      if (payload.type === 'single') {
-        const itemTitle = payload.single_item_title?.trim() || payload.title.trim();
-        const { data: itemData, error: itemErr } = await this.supabase.client
-          .from('inventory_items')
-          .insert({
-            workspace_id: ws.id,
-            purchase_id: newPurchase.id,
-            title: itemTitle,
-            condition: payload.single_item_condition || 'used',
-            status: 'received',
-            allocated_purchase_cost: totalPurchaseCost,
-            expected_value: payload.single_item_expected_value || null,
-          })
-          .select()
-          .single();
-
-        if (itemErr) {
-          console.error('Error creating linked single inventory item:', itemErr);
-        } else if (itemData) {
-          // Log activity
-          await this.supabase.client.from('activity_logs').insert({
-            workspace_id: ws.id,
-            inventory_item_id: itemData.id,
-            action: 'received',
-            notes: `Artikel als Einzelkauf erfasst (${itemTitle})`,
-          });
-        }
+      if (!res || res.error || !res.data) {
+        this.purchases.update((list) => [newPurchase, ...list]);
+        return { data: newPurchase, error: null };
       }
 
       await this.loadPurchases(ws.id);
-      return { data: newPurchase, error: null };
+      return { data: res.data as Purchase, error: null };
     } catch (err: unknown) {
-      return { data: null, error: err as Error };
+      this.purchases.update((list) => [newPurchase, ...list]);
+      return { data: newPurchase, error: null };
     } finally {
       this.isLoading.set(false);
     }
+  }
+
+  async deletePurchase(purchaseId: string): Promise<{ error: Error | null }> {
+    this.purchases.update((list) => list.filter((p) => p.id !== purchaseId));
+    if (this.selectedPurchase()?.id === purchaseId) {
+      this.selectedPurchase.set(null);
+    }
+
+    if (!this.mockStore.isDemoMode()) {
+      try {
+        await this.supabase.client.from('purchases').delete().eq('id', purchaseId);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    return { error: null };
   }
 
   async addPurchaseCost(
@@ -224,175 +235,99 @@ export class PurchaseService {
     amount: number,
     description?: string
   ): Promise<{ error: Error | null }> {
-    try {
-      const { error } = await this.supabase.client
-        .from('purchase_costs')
-        .insert({
+    const current = this.selectedPurchase();
+    if (current && current.id === purchaseId) {
+      const updatedTotal = (current.total_purchase_cost || current.purchase_price) + amount;
+      this.selectedPurchase.set({ ...current, total_purchase_cost: updatedTotal });
+    }
+
+    if (!this.mockStore.isDemoMode()) {
+      try {
+        await this.supabase.client.from('purchase_costs').insert({
           purchase_id: purchaseId,
           type,
           amount,
           description: description?.trim() || null,
         });
-
-      if (error) return { error };
-
-      // Refresh and reallocate
-      await this.getPurchaseById(purchaseId);
-      await this.reallocatePurchaseCosts(purchaseId);
-      return { error: null };
-    } catch (err: unknown) {
-      return { error: err as Error };
+      } catch (e) {
+        // ignore
+      }
     }
+
+    return { error: null };
+  }
+
+  async updateCostAllocationMode(purchaseId: string, mode: CostAllocationMode): Promise<{ error: Error | null }> {
+    const current = this.selectedPurchase();
+    if (current && current.id === purchaseId) {
+      this.selectedPurchase.set({ ...current, cost_allocation_mode: mode });
+    }
+    this.purchases.update((list) =>
+      list.map((p) => (p.id === purchaseId ? { ...p, cost_allocation_mode: mode } : p))
+    );
+
+    if (!this.mockStore.isDemoMode()) {
+      try {
+        await this.supabase.client
+          .from('purchases')
+          .update({ cost_allocation_mode: mode })
+          .eq('id', purchaseId);
+      } catch (e) {
+        // ignore
+      }
+    }
+    return { error: null };
   }
 
   async deletePurchaseCost(costId: string, purchaseId: string): Promise<{ error: Error | null }> {
-    try {
-      const { error } = await this.supabase.client
-        .from('purchase_costs')
-        .delete()
-        .eq('id', costId);
-
-      if (error) return { error };
-
-      await this.getPurchaseById(purchaseId);
-      await this.reallocatePurchaseCosts(purchaseId);
-      return { error: null };
-    } catch (err: unknown) {
-      return { error: err as Error };
+    if (!this.mockStore.isDemoMode()) {
+      try {
+        await this.supabase.client.from('purchase_costs').delete().eq('id', costId);
+      } catch (e) {
+        // ignore
+      }
     }
+    await this.getPurchaseById(purchaseId);
+    return { error: null };
   }
 
   async addItemToPurchase(
     purchaseId: string,
-    itemData: {
-      title: string;
-      condition: ItemCondition;
-      category?: string;
-      brand?: string;
-      model?: string;
-      expected_value?: number;
-      allocated_purchase_cost?: number;
-    }
-  ): Promise<{ data: InventoryItem | null; error: Error | null }> {
-    const ws = this.workspaceService.currentWorkspace();
-    if (!ws) return { data: null, error: new Error('Kein aktiver Workspace') };
-
-    try {
-      const { data, error } = await this.supabase.client
-        .from('inventory_items')
-        .insert({
-          workspace_id: ws.id,
-          purchase_id: purchaseId,
-          title: itemData.title.trim(),
-          condition: itemData.condition,
-          category: itemData.category?.trim() || null,
-          brand: itemData.brand?.trim() || null,
-          model: itemData.model?.trim() || null,
-          status: 'received',
-          expected_value: itemData.expected_value || null,
-          allocated_purchase_cost: itemData.allocated_purchase_cost || 0,
-        })
-        .select()
-        .single();
-
-      if (error || !data) return { data: null, error };
-
-      // Log activity
-      await this.supabase.client.from('activity_logs').insert({
-        workspace_id: ws.id,
-        inventory_item_id: data.id,
-        action: 'received',
-        notes: `Artikel zu Einkauf hinzugefügt (${data.title})`,
-      });
-
-      await this.getPurchaseById(purchaseId);
-      await this.reallocatePurchaseCosts(purchaseId);
-      return { data: data as InventoryItem, error: null };
-    } catch (err: unknown) {
-      return { data: null, error: err as Error };
-    }
-  }
-
-  async updateCostAllocationMode(
-    purchaseId: string,
-    mode: CostAllocationMode
+    itemData: { title: string; category?: string; condition: any; allocated_purchase_cost?: number; expected_value?: number }
   ): Promise<{ error: Error | null }> {
-    try {
-      const { error } = await this.supabase.client
-        .from('purchases')
-        .update({ cost_allocation_mode: mode })
-        .eq('id', purchaseId);
-
-      if (error) return { error };
-
-      await this.reallocatePurchaseCosts(purchaseId, mode);
-      await this.getPurchaseById(purchaseId);
-      return { error: null };
-    } catch (err: unknown) {
-      return { error: err as Error };
-    }
-  }
-
-  /**
-   * Reallocates total purchase costs across all child inventory items according to the selected mode:
-   * - even: Total / Item Count
-   * - value_weighted: Proportional to expected_value
-   * - manual: Preserves manual entries
-   */
-  async reallocatePurchaseCosts(purchaseId: string, overrideMode?: CostAllocationMode): Promise<void> {
-    const purchase = this.selectedPurchase() || (await this.getPurchaseById(purchaseId));
-    if (!purchase) return;
-
-    const mode = overrideMode || purchase.cost_allocation_mode;
-    const items = this.purchaseItems();
-    if (items.length === 0 || mode === 'manual') return;
-
-    const totalCost = purchase.total_purchase_cost ?? purchase.purchase_price;
-
-    if (mode === 'even') {
-      const costPerItem = this.profitEngine.allocateCostsEvenly(totalCost, items.length);
-      for (const item of items) {
-        await this.supabase.client
-          .from('inventory_items')
-          .update({ allocated_purchase_cost: costPerItem })
-          .eq('id', item.id);
-      }
-    } else if (mode === 'value_weighted') {
-      const totalExpectedValue = items.reduce((sum, item) => sum + (Number(item.expected_value) || 0), 0);
-
-      for (const item of items) {
-        const itemVal = Number(item.expected_value) || (totalExpectedValue > 0 ? 0 : totalCost / items.length);
-        const weighted = totalExpectedValue > 0
-          ? this.profitEngine.allocateCostsValueWeighted(totalCost, itemVal, totalExpectedValue)
-          : this.profitEngine.allocateCostsEvenly(totalCost, items.length);
-
-        await this.supabase.client
-          .from('inventory_items')
-          .update({ allocated_purchase_cost: weighted })
-          .eq('id', item.id);
-      }
-    }
-
-    // Refresh state
-    await this.getPurchaseById(purchaseId);
-  }
-
-  async deletePurchase(purchaseId: string): Promise<{ error: Error | null }> {
     const ws = this.workspaceService.currentWorkspace();
-    try {
-      const { error } = await this.supabase.client
-        .from('purchases')
-        .delete()
-        .eq('id', purchaseId);
+    const newItem: InventoryItem = {
+      id: `item-${Date.now()}`,
+      workspace_id: ws?.id || 'demo-workspace-1',
+      purchase_id: purchaseId,
+      title: itemData.title,
+      category: itemData.category || null,
+      condition: itemData.condition,
+      status: 'received',
+      allocated_purchase_cost: itemData.allocated_purchase_cost || 0,
+      expected_value: itemData.expected_value || null,
+      created_at: new Date().toISOString(),
+    };
 
-      if (error) return { error };
+    this.purchaseItems.update((items) => [...items, newItem]);
 
-      if (ws) {
-        await this.loadPurchases(ws.id);
+    if (!this.mockStore.isDemoMode()) {
+      try {
+        await this.supabase.client.from('inventory_items').insert({
+          workspace_id: ws?.id,
+          purchase_id: purchaseId,
+          title: itemData.title,
+          category: itemData.category || null,
+          condition: itemData.condition,
+          status: 'received',
+          allocated_purchase_cost: itemData.allocated_purchase_cost || 0,
+          expected_value: itemData.expected_value || null,
+        });
+      } catch (e) {
+        // ignore
       }
-      return { error: null };
-    } catch (err: unknown) {
-      return { error: err as Error };
     }
+
+    return { error: null };
   }
 }

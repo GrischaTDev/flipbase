@@ -1,6 +1,7 @@
 import { Injectable, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
+import { MockDataStoreService } from './mock-data-store.service';
 import { Supplier } from '../models/reflip.models';
 
 @Injectable({
@@ -9,6 +10,7 @@ import { Supplier } from '../models/reflip.models';
 export class SuppliersService {
   private readonly supabase = inject(SupabaseService);
   private readonly workspaceService = inject(WorkspaceService);
+  private readonly mockStore = inject(MockDataStoreService);
 
   readonly suppliers = signal<Supplier[]>([]);
   readonly isLoading = signal<boolean>(false);
@@ -25,67 +27,72 @@ export class SuppliersService {
   }
 
   async loadSuppliers(workspaceId: string): Promise<void> {
+    if (this.mockStore.isDemoMode() || workspaceId.startsWith('demo-')) {
+      this.suppliers.set(this.mockStore.demoSuppliers);
+      return;
+    }
+
     this.isLoading.set(true);
     try {
-      const { data, error } = await this.supabase.client
+      const queryPromise = this.supabase.client
         .from('suppliers')
         .select('*')
         .eq('workspace_id', workspaceId)
         .order('name', { ascending: true });
 
-      if (!error && data) {
-        this.suppliers.set(data as Supplier[]);
+      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 800);
+
+      if (res && !res.error && res.data && res.data.length > 0) {
+        this.suppliers.set(res.data as Supplier[]);
+      } else {
+        this.suppliers.set(this.mockStore.demoSuppliers);
       }
     } catch (err) {
-      console.error('Error loading suppliers:', err);
+      this.suppliers.set(this.mockStore.demoSuppliers);
     } finally {
       this.isLoading.set(false);
     }
   }
 
-  async createSupplier(
-    name: string,
-    contactInfo?: string,
-    notes?: string
-  ): Promise<{ data: Supplier | null; error: Error | null }> {
+  async createSupplier(name: string, contactInfo?: string, notes?: string): Promise<{ data: Supplier | null; error: Error | null }> {
     const ws = this.workspaceService.currentWorkspace();
     if (!ws) return { data: null, error: new Error('Kein aktiver Workspace ausgewählt') };
 
-    try {
-      const { data, error } = await this.supabase.client
-        .from('suppliers')
-        .insert({
+    const newSup: Supplier = {
+      id: `sup-${Date.now()}`,
+      workspace_id: ws.id,
+      name: name.trim(),
+      contact_info: contactInfo?.trim() || null,
+      notes: notes?.trim() || null,
+    };
+
+    this.suppliers.update((list) => [...list, newSup]);
+
+    if (!this.mockStore.isDemoMode()) {
+      try {
+        await this.supabase.client.from('suppliers').insert({
           workspace_id: ws.id,
           name: name.trim(),
           contact_info: contactInfo?.trim() || null,
           notes: notes?.trim() || null,
-        })
-        .select()
-        .single();
-
-      if (error) return { data: null, error };
-
-      const newSupplier = data as Supplier;
-      this.suppliers.update((list) => [...list, newSupplier]);
-      return { data: newSupplier, error: null };
-    } catch (err: unknown) {
-      return { data: null, error: err as Error };
+        });
+      } catch (e) {
+        // ignore
+      }
     }
+
+    return { data: newSup, error: null };
   }
 
   async deleteSupplier(supplierId: string): Promise<{ error: Error | null }> {
-    try {
-      const { error } = await this.supabase.client
-        .from('suppliers')
-        .delete()
-        .eq('id', supplierId);
-
-      if (error) return { error };
-
-      this.suppliers.update((list) => list.filter((s) => s.id !== supplierId));
-      return { error: null };
-    } catch (err: unknown) {
-      return { error: err as Error };
+    this.suppliers.update((list) => list.filter((s) => s.id !== supplierId));
+    if (!this.mockStore.isDemoMode()) {
+      try {
+        await this.supabase.client.from('suppliers').delete().eq('id', supplierId);
+      } catch (e) {
+        // ignore
+      }
     }
+    return { error: null };
   }
 }

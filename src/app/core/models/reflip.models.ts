@@ -29,7 +29,9 @@ export interface Source {
   id: string;
   workspace_id: string;
   name: string;
-  is_default: boolean;
+  type?: string;
+  is_default?: boolean;
+  is_active?: boolean;
   created_at?: string;
 }
 
@@ -65,6 +67,7 @@ export interface Purchase {
   purchase_price: number;
   cost_allocation_mode: CostAllocationMode;
   original_url?: string | null;
+  tracking_number?: string | null;
   notes?: string | null;
   created_at?: string;
   updated_at?: string;

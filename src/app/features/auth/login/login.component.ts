@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { LucideAngularModule, LogIn, Sparkles, Mail, Lock } from 'lucide-angular';
+import { LucideAngularModule, LogIn, Sparkles, Mail, Lock, Zap } from 'lucide-angular';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
@@ -20,6 +20,7 @@ export class LoginComponent {
   readonly logoIcon = Sparkles;
   readonly mailIcon = Mail;
   readonly lockIcon = Lock;
+  readonly zapIcon = Zap;
 
   readonly isLoading = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
@@ -28,6 +29,10 @@ export class LoginComponent {
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
     password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(6)] }),
   });
+
+  onDemoLogin(): void {
+    this.authService.loginAsDemo();
+  }
 
   async onSubmit(): Promise<void> {
     if (this.form.invalid) return;
