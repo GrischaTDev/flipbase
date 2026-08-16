@@ -1,82 +1,217 @@
-<div class="space-y-6 max-w-3xl">
-  <div>
-    <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-      {{ 'NAV.SETTINGS' | translate }}
-    </h1>
-    <p class="text-sm text-slate-500 mt-1">
-      Konfiguriere deinen aktiven Workspace und deine Rendite-Ziele für den Deal Calculator.
-    </p>
+<div class="space-y-6">
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+        {{ 'NAV.SETTINGS' | translate }} & Datenexport
+      </h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Passe deine Workspace-Parameter an und exportiere deine Finanzdaten für Buchhaltung & Steuer (Kapitel 32 & 40).
+      </p>
+    </div>
   </div>
 
-  @if (statusMessage()) {
-    <div class="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm flex items-center gap-2 animate-fade-in">
-      <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
-      <span>{{ statusMessage() }}</span>
-    </div>
-  }
-
-  <div class="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-xs space-y-6">
-    <div class="flex items-center gap-3 border-b border-slate-100 dark:border-slate-800 pb-4">
-      <div class="p-2.5 rounded-2xl bg-emerald-500/10 text-emerald-500">
-        <lucide-icon [img]="targetIcon" class="w-5 h-5"></lucide-icon>
-      </div>
-      <div>
-        <h2 class="text-base font-bold text-slate-900 dark:text-white">Workspace-Ziele (Section 21)</h2>
-        <p class="text-xs text-slate-500">Wird für automatische Deal-Scores & maximalen Einkaufspreis verwendet</p>
-      </div>
-    </div>
-
-    <form [formGroup]="form" (ngSubmit)="onSave()" class="space-y-5">
-      <div>
-        <label for="settingsWsName" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-          Workspace Name
-        </label>
-        <input
-          id="settingsWsName"
-          type="text"
-          formControlName="name"
-          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
-        />
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label for="settingsMinRoi" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-            {{ 'WORKSPACE.MIN_ROI' | translate }}
-          </label>
-          <input
-            id="settingsMinRoi"
-            type="number"
-            formControlName="min_roi_percent"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-emerald-500"
-          />
-          <p class="text-[11px] text-slate-400 mt-1">Standard: 30% Mindestrendite auf eingesetztes Kapital</p>
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- Left Column: Workspace & Financial Parameters (7 cols) -->
+    <div class="lg:col-span-7 space-y-6">
+      <form [formGroup]="form" (ngSubmit)="onSaveSettings()" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 md:p-8 shadow-xs space-y-5">
+        <div class="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <lucide-icon [img]="slidersIcon" class="w-5 h-5 text-emerald-500"></lucide-icon>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Workspace & Deal-Kriterien</h2>
         </div>
 
-        <div>
-          <label for="settingsMinProfit" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
-            {{ 'WORKSPACE.MIN_PROFIT' | translate }}
-          </label>
-          <input
-            id="settingsMinProfit"
-            type="number"
-            formControlName="min_profit_amount"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-emerald-500"
-          />
-          <p class="text-[11px] text-slate-400 mt-1">Standard: 15,00 € absoluter Mindestgewinn pro Deal</p>
+        @if (saveSuccess()) {
+          <div class="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-semibold flex items-center gap-2">
+            <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+            <span>Einstellungen erfolgreich gespeichert!</span>
+          </div>
+        }
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="workspaceNameInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+              Workspace-Name
+            </label>
+            <input
+              id="workspaceNameInput"
+              type="text"
+              formControlName="name"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold"
+            />
+          </div>
+
+          <div>
+            <label for="currencySelect" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+              Währung
+            </label>
+            <select
+              id="currencySelect"
+              formControlName="currency"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold"
+            >
+              <option value="EUR">Euro (€)</option>
+              <option value="USD">US Dollar ($)</option>
+              <option value="CHF">Schweizer Franken (CHF)</option>
+              <option value="GBP">Britisches Pfund (£)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          <div>
+            <label for="minRoiInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+              Standard Mindest-ROI (%)
+            </label>
+            <input
+              id="minRoiInput"
+              type="number"
+              formControlName="min_roi_percent"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold"
+            />
+            <span class="text-[11px] text-slate-400 mt-1 block">Wird im Deal Calculator als Benchmark genutzt.</span>
+          </div>
+
+          <div>
+            <label for="minProfitInput" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+              Mindest-Reingewinn (€)
+            </label>
+            <input
+              id="minProfitInput"
+              type="number"
+              formControlName="min_profit_amount"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold"
+            />
+            <span class="text-[11px] text-slate-400 mt-1 block">Mindestbetrag vor Kaufempfehlung.</span>
+          </div>
+        </div>
+
+        <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-end">
+          <button
+            type="submit"
+            [disabled]="form.invalid || isSaving()"
+            class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+          >
+            <lucide-icon [img]="saveIcon" class="w-4 h-4"></lucide-icon>
+            <span>{{ isSaving() ? 'Speichere...' : 'Einstellungen speichern' }}</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Language Switcher Card -->
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <div class="flex items-center gap-2">
+          <lucide-icon [img]="globeIcon" class="w-5 h-5 text-indigo-500"></lucide-icon>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Sprache & Internationalisierung</h2>
+        </div>
+
+        <div class="flex gap-3 text-xs">
+          <button
+            type="button"
+            (click)="changeLanguage('de')"
+            class="px-4 py-2 rounded-xl border font-bold transition cursor-pointer"
+            [class.bg-slate-900]="translate.currentLang() === 'de'"
+            [class.text-white]="translate.currentLang() === 'de'"
+            [class.dark:bg-emerald-600]="translate.currentLang() === 'de'"
+            [class.border-slate-300]="translate.currentLang() !== 'de'"
+            [class.dark:border-slate-700]="translate.currentLang() !== 'de'"
+          >
+            🇩🇪 Deutsch
+          </button>
+
+          <button
+            type="button"
+            (click)="changeLanguage('en')"
+            class="px-4 py-2 rounded-xl border font-bold transition cursor-pointer"
+            [class.bg-slate-900]="translate.currentLang() === 'en'"
+            [class.text-white]="translate.currentLang() === 'en'"
+            [class.dark:bg-emerald-600]="translate.currentLang() === 'en'"
+            [class.border-slate-300]="translate.currentLang() !== 'en'"
+            [class.dark:border-slate-700]="translate.currentLang() !== 'en'"
+          >
+            🇬🇧 English
+          </button>
         </div>
       </div>
+    </div>
 
-      <div class="pt-4 flex justify-end">
-        <button
-          type="submit"
-          [disabled]="form.invalid || isSaving()"
-          class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-md transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
-        >
-          <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
-          <span>{{ isSaving() ? ('COMMON.LOADING' | translate) : ('COMMON.SAVE' | translate) }}</span>
-        </button>
+    <!-- Right Column: Data Export & Backup Station (5 cols) -->
+    <div class="lg:col-span-5 space-y-6">
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <div class="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+          <lucide-icon [img]="downloadIcon" class="w-5 h-5 text-emerald-500"></lucide-icon>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Datenexport (Kapitel 32)</h2>
+        </div>
+
+        <p class="text-xs text-slate-500 leading-relaxed">
+          Exportiere alle Transaktionen in saubere CSV-Dateien (Semikolon-getrennt, optimiert für deutsches Excel und Steuerberater) oder lade ein komplettes JSON-Backup herunter.
+        </p>
+
+        <div class="space-y-2.5 pt-2">
+          <!-- Sales CSV -->
+          <button
+            type="button"
+            (click)="exportSalesCsv()"
+            class="w-full p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-left transition flex items-center justify-between cursor-pointer"
+          >
+            <div class="flex items-center gap-3">
+              <lucide-icon [img]="csvIcon" class="w-5 h-5 text-emerald-600"></lucide-icon>
+              <div>
+                <strong class="text-xs text-slate-900 dark:text-white block">Verkäufe exportieren (CSV)</strong>
+                <span class="text-[11px] text-slate-400">{{ salesService.sales().length }} Datensätze mit Gebühren & Gewinn</span>
+              </div>
+            </div>
+            <lucide-icon [img]="downloadIcon" class="w-4 h-4 text-slate-400"></lucide-icon>
+          </button>
+
+          <!-- Purchases CSV -->
+          <button
+            type="button"
+            (click)="exportPurchasesCsv()"
+            class="w-full p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-left transition flex items-center justify-between cursor-pointer"
+          >
+            <div class="flex items-center gap-3">
+              <lucide-icon [img]="csvIcon" class="w-5 h-5 text-blue-600"></lucide-icon>
+              <div>
+                <strong class="text-xs text-slate-900 dark:text-white block">Einkäufe exportieren (CSV)</strong>
+                <span class="text-[11px] text-slate-400">{{ purchaseService.purchases().length }} Einkäufe mit Quellen & Kosten</span>
+              </div>
+            </div>
+            <lucide-icon [img]="downloadIcon" class="w-4 h-4 text-slate-400"></lucide-icon>
+          </button>
+
+          <!-- Inventory CSV -->
+          <button
+            type="button"
+            (click)="exportInventoryCsv()"
+            class="w-full p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-left transition flex items-center justify-between cursor-pointer"
+          >
+            <div class="flex items-center gap-3">
+              <lucide-icon [img]="csvIcon" class="w-5 h-5 text-indigo-600"></lucide-icon>
+              <div>
+                <strong class="text-xs text-slate-900 dark:text-white block">Inventarbestand (CSV)</strong>
+                <span class="text-[11px] text-slate-400">{{ inventoryService.items().length }} Artikel mit EK & Zustand</span>
+              </div>
+            </div>
+            <lucide-icon [img]="downloadIcon" class="w-4 h-4 text-slate-400"></lucide-icon>
+          </button>
+
+          <!-- JSON Backup -->
+          <button
+            type="button"
+            (click)="exportJsonBackup()"
+            class="w-full p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/60 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-left transition flex items-center justify-between cursor-pointer"
+          >
+            <div class="flex items-center gap-3">
+              <lucide-icon [img]="dbIcon" class="w-5 h-5 text-amber-600"></lucide-icon>
+              <div>
+                <strong class="text-xs text-slate-900 dark:text-white block">Komplettes JSON-Backup</strong>
+                <span class="text-[11px] text-slate-400">Vollständiger Workspace-Snapshot</span>
+              </div>
+            </div>
+            <lucide-icon [img]="downloadIcon" class="w-4 h-4 text-slate-400"></lucide-icon>
+          </button>
+        </div>
       </div>
-    </form>
+    </div>
   </div>
 </div>

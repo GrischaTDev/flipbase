@@ -10,6 +10,7 @@ export interface UserProfile {
 export interface Workspace {
   id: string;
   name: string;
+  currency?: string;
   min_roi_percent: number;
   min_profit_amount: number;
   created_at?: string;
