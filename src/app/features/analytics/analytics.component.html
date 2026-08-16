@@ -1,75 +1,422 @@
 <div class="space-y-6">
+  <!-- Header & Time Filter Bar -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
     <div>
       <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
         {{ 'NAV.ANALYTICS' | translate }}
       </h1>
       <p class="text-sm text-slate-500 mt-1">
-        Detaillierte Auswertungen deiner Reselling-Performance, Margen und Plattformen.
+        Detaillierte Auswertungen, Quellen-Intelligence und Paletten-Break-Even Monitor (Kapitel 27–31).
       </p>
     </div>
 
-    <!-- Time Filter -->
-    <div class="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl p-1 bg-white dark:bg-slate-900 text-xs font-semibold">
+    <!-- Time Range Selector (Kapitel 31) -->
+    <div class="flex items-center border border-slate-200 dark:border-slate-700 rounded-2xl p-1 bg-white dark:bg-slate-900 text-xs font-semibold shadow-xs">
       <button
         type="button"
         (click)="timeRange.set('7d')"
-        class="px-3 py-1.5 rounded-lg transition"
+        class="px-3 py-1.5 rounded-xl transition cursor-pointer"
         [class.bg-slate-900]="timeRange() === '7d'"
         [class.text-white]="timeRange() === '7d'"
         [class.dark:bg-emerald-600]="timeRange() === '7d'"
+        [class.text-slate-600]="timeRange() !== '7d'"
+        [class.dark:text-slate-400]="timeRange() !== '7d'"
       >
         7 Tage
       </button>
+
       <button
         type="button"
         (click)="timeRange.set('30d')"
-        class="px-3 py-1.5 rounded-lg transition"
+        class="px-3 py-1.5 rounded-xl transition cursor-pointer"
         [class.bg-slate-900]="timeRange() === '30d'"
         [class.text-white]="timeRange() === '30d'"
         [class.dark:bg-emerald-600]="timeRange() === '30d'"
+        [class.text-slate-600]="timeRange() !== '30d'"
+        [class.dark:text-slate-400]="timeRange() !== '30d'"
       >
         30 Tage
       </button>
+
       <button
         type="button"
         (click)="timeRange.set('1y')"
-        class="px-3 py-1.5 rounded-lg transition"
+        class="px-3 py-1.5 rounded-xl transition cursor-pointer"
         [class.bg-slate-900]="timeRange() === '1y'"
         [class.text-white]="timeRange() === '1y'"
         [class.dark:bg-emerald-600]="timeRange() === '1y'"
+        [class.text-slate-600]="timeRange() !== '1y'"
+        [class.dark:text-slate-400]="timeRange() !== '1y'"
       >
-        Jahr
+        1 Jahr
       </button>
+
       <button
         type="button"
         (click)="timeRange.set('all')"
-        class="px-3 py-1.5 rounded-lg transition"
+        class="px-3 py-1.5 rounded-xl transition cursor-pointer"
         [class.bg-slate-900]="timeRange() === 'all'"
         [class.text-white]="timeRange() === 'all'"
         [class.dark:bg-emerald-600]="timeRange() === 'all'"
+        [class.text-slate-600]="timeRange() !== 'all'"
+        [class.dark:text-slate-400]="timeRange() !== 'all'"
       >
         Gesamt
       </button>
     </div>
   </div>
 
-  <!-- Rankings Preview -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div class="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl space-y-4">
-      <div class="flex items-center gap-2">
-        <lucide-icon [img]="trophyIcon" class="w-5 h-5 text-amber-500"></lucide-icon>
-        <h3 class="text-base font-bold text-slate-900 dark:text-white">Beste Kategorien</h3>
-      </div>
-      <p class="text-xs text-slate-400">Wird mit deinen ersten Verkäufen automatisch berechnet.</p>
+  <!-- KPI Cards for Time Range -->
+  <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Gewinn im Zeitraum</span>
+      <span class="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
+        {{ periodProfit() | currency:'EUR':'symbol':'1.2-2':'de' }}
+      </span>
     </div>
 
-    <div class="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl space-y-4">
-      <div class="flex items-center gap-2">
-        <lucide-icon [img]="trendingIcon" class="w-5 h-5 text-emerald-500"></lucide-icon>
-        <h3 class="text-base font-bold text-slate-900 dark:text-white">Top Einkaufsquellen</h3>
-      </div>
-      <p class="text-xs text-slate-400">Zeigt, wo dein eingesetztes Kapital den höchsten ROI erzielt.</p>
+    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Umsatz im Zeitraum</span>
+      <span class="text-xl font-black text-slate-900 dark:text-white mt-1 block">
+        {{ periodRevenue() | currency:'EUR':'symbol':'1.2-2':'de' }}
+      </span>
+    </div>
+
+    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Ø ROI</span>
+      <span class="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
+        {{ periodAvgRoi() }} %
+      </span>
+    </div>
+
+    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Sell-Through Rate</span>
+      <span class="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1 block">
+        {{ sellThroughRate() }} %
+      </span>
+    </div>
+
+    <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Ø Haltedauer</span>
+      <span class="text-xl font-black text-slate-900 dark:text-white mt-1 block">
+        {{ periodAvgHoldingDays() }} Tage
+      </span>
     </div>
   </div>
+
+  <!-- Section Navigation Tabs -->
+  <div class="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto text-xs font-semibold">
+    <button
+      type="button"
+      (click)="activeSection.set('overview')"
+      class="px-3.5 py-2 rounded-xl transition cursor-pointer"
+      [class.bg-slate-900]="activeSection() === 'overview'"
+      [class.text-white]="activeSection() === 'overview'"
+      [class.dark:bg-emerald-600]="activeSection() === 'overview'"
+      [class.text-slate-600]="activeSection() !== 'overview'"
+      [class.dark:text-slate-400]="activeSection() !== 'overview'"
+    >
+      Übersicht & Insights
+    </button>
+
+    <button
+      type="button"
+      (click)="activeSection.set('sources')"
+      class="px-3.5 py-2 rounded-xl transition cursor-pointer"
+      [class.bg-slate-900]="activeSection() === 'sources'"
+      [class.text-white]="activeSection() === 'sources'"
+      [class.dark:bg-emerald-600]="activeSection() === 'sources'"
+      [class.text-slate-600]="activeSection() !== 'sources'"
+      [class.dark:text-slate-400]="activeSection() !== 'sources'"
+    >
+      Quellen & Lieferanten-Intelligence
+    </button>
+
+    <button
+      type="button"
+      (click)="activeSection.set('pallets')"
+      class="px-3.5 py-2 rounded-xl transition cursor-pointer"
+      [class.bg-slate-900]="activeSection() === 'pallets'"
+      [class.text-white]="activeSection() === 'pallets'"
+      [class.dark:bg-emerald-600]="activeSection() === 'pallets'"
+      [class.text-slate-600]="activeSection() !== 'pallets'"
+      [class.dark:text-slate-400]="activeSection() !== 'pallets'"
+    >
+      Paletten- & Mystery-Monitor
+    </button>
+
+    <button
+      type="button"
+      (click)="activeSection.set('categories')"
+      class="px-3.5 py-2 rounded-xl transition cursor-pointer"
+      [class.bg-slate-900]="activeSection() === 'categories'"
+      [class.text-white]="activeSection() === 'categories'"
+      [class.dark:bg-emerald-600]="activeSection() === 'categories'"
+      [class.text-slate-600]="activeSection() !== 'categories'"
+      [class.dark:text-slate-400]="activeSection() !== 'categories'"
+    >
+      Kategorie-Rankings
+    </button>
+  </div>
+
+  <!-- SECTION 1: OVERVIEW & INSIGHTS -->
+  @if (activeSection() === 'overview') {
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <div class="flex items-center gap-2">
+          <lucide-icon [img]="sparklesIcon" class="w-5 h-5 text-emerald-500"></lucide-icon>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Reselling-Performance</h2>
+        </div>
+        <p class="text-xs text-slate-500">
+          ReFlip analysiert automatisch alle Verkäufe und Einkäufe und vergleicht deine Margen mit deinen Zielwerten.
+        </p>
+
+        <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-2 text-xs">
+          <div class="flex justify-between">
+            <span class="text-slate-500">Verkaufte Artikel:</span>
+            <strong class="text-slate-900 dark:text-white">{{ currentSales().length }}</strong>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">Ø Gewinn pro Verkauf:</span>
+            <strong class="text-emerald-600 dark:text-emerald-400">
+              {{ currentSales().length > 0 ? (periodProfit() / currentSales().length | currency:'EUR':'symbol':'1.2-2':'de') : '0,00 €' }}
+            </strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <div class="flex items-center gap-2">
+          <lucide-icon [img]="trophyIcon" class="w-5 h-5 text-amber-500"></lucide-icon>
+          <h2 class="text-base font-bold text-slate-900 dark:text-white">Top Einkaufsquellen</h2>
+        </div>
+
+        @if (sourceStats().length > 0) {
+          <div class="divide-y divide-slate-100 dark:divide-slate-800">
+            @for (src of sourceStats().slice(0, 3); track src.sourceName) {
+              <div class="py-2.5 flex items-center justify-between text-xs">
+                <div>
+                  <strong class="text-slate-900 dark:text-white block">{{ src.sourceName }}</strong>
+                  <span class="text-[11px] text-slate-400">{{ src.purchasesCount }} Einkäufe</span>
+                </div>
+                <div class="text-right">
+                  <span class="font-bold text-emerald-600 dark:text-emerald-400 block">+ {{ src.profit | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+                  <span class="text-[10px] text-slate-400">ROI: {{ src.roi }}%</span>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="text-xs text-slate-400">Noch keine Einkaufsdaten vorhanden.</p>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- SECTION 2: SOURCES & SUPPLIERS INTELLIGENCE (Kapitel 28) -->
+  @if (activeSection() === 'sources') {
+    <div class="space-y-6">
+      <!-- Sources Table -->
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <h2 class="text-base font-bold text-slate-900 dark:text-white">Profitabilität nach Einkaufsquelle (Kapitel 28)</h2>
+
+        @if (sourceStats().length > 0) {
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-400 uppercase font-semibold text-[10px]">
+                <tr>
+                  <th class="py-3 px-4 rounded-l-xl">Einkaufsquelle</th>
+                  <th class="py-3 px-4">Einkäufe</th>
+                  <th class="py-3 px-4 text-right">Investiert</th>
+                  <th class="py-3 px-4 text-right">Umsatz</th>
+                  <th class="py-3 px-4 text-right">Realisierter Gewinn</th>
+                  <th class="py-3 px-4 text-right">Ø ROI</th>
+                  <th class="py-3 px-4 text-right rounded-r-xl">Ø Verkaufsdauer</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                @for (src of sourceStats(); track src.sourceName) {
+                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                    <td class="py-3 px-4 font-bold text-slate-900 dark:text-white">{{ src.sourceName }}</td>
+                    <td class="py-3 px-4 text-slate-500">{{ src.purchasesCount }}</td>
+                    <td class="py-3 px-4 text-right text-slate-700 dark:text-slate-300 font-semibold">{{ src.invested | currency:'EUR':'symbol':'1.2-2':'de' }}</td>
+                    <td class="py-3 px-4 text-right text-slate-900 dark:text-white font-bold">{{ src.revenue | currency:'EUR':'symbol':'1.2-2':'de' }}</td>
+                    <td class="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">{{ src.profit | currency:'EUR':'symbol':'1.2-2':'de' }}</td>
+                    <td class="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">{{ src.roi }} %</td>
+                    <td class="py-3 px-4 text-right text-slate-500">{{ src.avgHoldingDays }} Tage</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="text-xs text-slate-400">Keine Daten verfügbar.</p>
+        }
+      </div>
+
+      <!-- Suppliers Table -->
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <h2 class="text-base font-bold text-slate-900 dark:text-white">Lieferanten-Qualität & Defektquote (Kapitel 28)</h2>
+
+        @if (supplierStats().length > 0) {
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-400 uppercase font-semibold text-[10px]">
+                <tr>
+                  <th class="py-3 px-4 rounded-l-xl">Lieferant / Verkäufer</th>
+                  <th class="py-3 px-4">Einkäufe</th>
+                  <th class="py-3 px-4 text-right">Ø ROI</th>
+                  <th class="py-3 px-4 text-right rounded-r-xl">Defektquote</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                @for (sup of supplierStats(); track sup.supplierName) {
+                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                    <td class="py-3 px-4 font-bold text-slate-900 dark:text-white">{{ sup.supplierName }}</td>
+                    <td class="py-3 px-4 text-slate-500">{{ sup.purchasesCount }}</td>
+                    <td class="py-3 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">{{ sup.avgRoi }} %</td>
+                    <td class="py-3 px-4 text-right font-bold" [class.text-rose-600]="sup.defectRate > 10" [class.text-slate-600]="sup.defectRate <= 10">
+                      {{ sup.defectRate }} %
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        } @else {
+          <p class="text-xs text-slate-400">Noch keine Lieferanten-Daten vorhanden.</p>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- SECTION 3: PALLETS & MYSTERY MONITOR (Kapitel 29 & 30) -->
+  @if (activeSection() === 'pallets') {
+    <div class="space-y-6">
+      <!-- Pallets Monitor -->
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <h2 class="text-base font-bold text-slate-900 dark:text-white">Paletten- & Lot-Dashboard (Kapitel 30)</h2>
+
+        @if (palletStats().length > 0) {
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            @for (pal of palletStats(); track pal.purchaseId) {
+              <div class="p-5 rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-3">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-sm font-bold text-slate-900 dark:text-white">{{ pal.title }}</h3>
+                  <span
+                    class="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold uppercase"
+                    [class.bg-emerald-100]="pal.isBreakEven"
+                    [class.text-emerald-700]="pal.isBreakEven"
+                    [class.dark:bg-emerald-950]="pal.isBreakEven"
+                    [class.dark:text-emerald-400]="pal.isBreakEven"
+                    [class.bg-amber-100]="!pal.isBreakEven"
+                    [class.text-amber-700]="!pal.isBreakEven"
+                  >
+                    {{ pal.isBreakEven ? 'Break-even erreicht! 🎉' : 'In Amortisierung' }}
+                  </span>
+                </div>
+
+                <div class="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <span class="text-[10px] text-slate-400 block">Investition</span>
+                    <strong class="text-slate-900 dark:text-white">{{ pal.totalInvestment | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-slate-400 block">Umsatz</span>
+                    <strong class="text-emerald-600 dark:text-emerald-400">{{ pal.revenue | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-slate-400 block">Restinventar</span>
+                    <strong class="text-indigo-600 dark:text-indigo-400">{{ pal.remainingStockValue | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+                  </div>
+                </div>
+
+                <div class="text-xs text-slate-500 flex justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <span>{{ pal.soldCount }} von {{ pal.itemsCount }} Artikeln verkauft</span>
+                  <span>Ausschuss: {{ pal.defectRate }}%</span>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="text-xs text-slate-400">Keine Paletten- oder Lot-Einkäufe vorhanden.</p>
+        }
+      </div>
+
+      <!-- Mystery Packs Monitor (Kapitel 29) -->
+      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <h2 class="text-base font-bold text-slate-900 dark:text-white">Mystery-Pack Auswertung (Kapitel 29)</h2>
+
+        @if (mysteryPackStats().length > 0) {
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            @for (pack of mysteryPackStats(); track pack.purchaseId) {
+              <div class="p-5 rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 space-y-3">
+                <h3 class="text-sm font-bold text-slate-900 dark:text-white">{{ pack.title }}</h3>
+
+                <div class="grid grid-cols-3 gap-2 text-xs">
+                  <div>
+                    <span class="text-[10px] text-slate-400 block">Gesamtkosten</span>
+                    <strong class="text-slate-900 dark:text-white">{{ pack.totalCost | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-slate-400 block">Umsatz</span>
+                    <strong class="text-emerald-600 dark:text-emerald-400">{{ pack.revenue | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+                  </div>
+                  <div>
+                    <span class="text-[10px] text-slate-400 block">Realisierter Gewinn</span>
+                    <strong class="text-emerald-600 dark:text-emerald-400">{{ pack.realizedProfit | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+                  </div>
+                </div>
+
+                <div class="text-xs text-slate-500 flex justify-between pt-2 border-t border-slate-200 dark:border-slate-700">
+                  <span>{{ pack.soldCount }} verkauft • {{ pack.openCount }} offen</span>
+                  <span>Restwert: {{ pack.remainingStockValue | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <p class="text-xs text-slate-400">Keine Mystery-Pack Einkäufe vorhanden.</p>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- SECTION 4: CATEGORIES (Kapitel 31) -->
+  @if (activeSection() === 'categories') {
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+      <h2 class="text-base font-bold text-slate-900 dark:text-white">Beste Kategorien Ranking (Kapitel 31)</h2>
+
+      @if (categoryRankings().length > 0) {
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 dark:bg-slate-800/60 text-slate-400 uppercase font-semibold text-[10px]">
+              <tr>
+                <th class="py-3 px-4 rounded-l-xl">Kategorie</th>
+                <th class="py-3 px-4">Gesamte Artikel</th>
+                <th class="py-3 px-4">Verkäufe</th>
+                <th class="py-3 px-4 text-right">Umsatz</th>
+                <th class="py-3 px-4 text-right">Nettogewinn</th>
+                <th class="py-3 px-4 text-right rounded-r-xl">Ø ROI</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+              @for (cat of categoryRankings(); track cat.category) {
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                  <td class="py-3 px-4 font-bold text-slate-900 dark:text-white">{{ cat.category }}</td>
+                  <td class="py-3 px-4 text-slate-500">{{ cat.itemsCount }}</td>
+                  <td class="py-3 px-4 text-slate-500">{{ cat.soldCount }}</td>
+                  <td class="py-3 px-4 text-right font-bold text-slate-900 dark:text-white">{{ cat.revenue | currency:'EUR':'symbol':'1.2-2':'de' }}</td>
+                  <td class="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">{{ cat.profit | currency:'EUR':'symbol':'1.2-2':'de' }}</td>
+                  <td class="py-3 px-4 text-right font-black text-emerald-600 dark:text-emerald-400">{{ cat.avgRoi }} %</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <p class="text-xs text-slate-400">Noch keine Artikel in Kategorien vorhanden.</p>
+      }
+    </div>
+  }
 </div>
