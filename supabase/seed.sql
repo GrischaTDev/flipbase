@@ -1,0 +1,2 @@
+-- Seed data for testing and initial local development
+-- Note: User creation happens automatically on auth sign up via trigger handle_new_user()

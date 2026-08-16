@@ -1,0 +1,122 @@
+<div class="space-y-6">
+  <!-- Top Banner / Quick Actions -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-emerald-600 dark:bg-emerald-900/40 border border-emerald-500/30 rounded-3xl p-6 text-white shadow-xl">
+    <div>
+      <h1 class="text-2xl font-black tracking-tight">Willkommen im ReFlip OS</h1>
+      <p class="text-emerald-100 dark:text-emerald-200 text-sm mt-1">
+        Vom Einkauf bis zum echten Gewinn – behalte den Überblick über deine Deals und Margen.
+      </p>
+    </div>
+    <div class="flex flex-wrap gap-2.5">
+      <a
+        routerLink="/deal-calculator"
+        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white text-emerald-800 font-bold text-xs shadow-md hover:bg-emerald-50 transition"
+      >
+        <lucide-icon [img]="calcIcon" class="w-4 h-4"></lucide-icon>
+        <span>Deal prüfen</span>
+      </a>
+      <a
+        routerLink="/purchases"
+        class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700/80 hover:bg-emerald-700 text-white font-bold text-xs shadow-md border border-emerald-400/30 transition"
+      >
+        <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
+        <span>Einkauf erfassen</span>
+      </a>
+    </div>
+  </div>
+
+  <!-- KPI Cards Grid (Section 27) -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- Realisierter Gewinn -->
+    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
+        <span>{{ 'DASHBOARD.REALIZED_PROFIT' | translate }}</span>
+        <div class="p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600">
+          <lucide-icon [img]="trendingIcon" class="w-4 h-4"></lucide-icon>
+        </div>
+      </div>
+      <div class="mt-3 flex items-baseline gap-2">
+        <span class="text-2xl font-extrabold text-slate-900 dark:text-white">
+          {{ metrics().realized_profit | currency:'EUR':'symbol':'1.2-2':'de' }}
+        </span>
+      </div>
+      <p class="text-[11px] text-slate-400 mt-1">Aus abgeschlossenen Verkäufen</p>
+    </div>
+
+    <!-- Gesamtumsatz -->
+    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
+        <span>{{ 'DASHBOARD.REVENUE' | translate }}</span>
+        <div class="p-2 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-blue-600">
+          <lucide-icon [img]="coinsIcon" class="w-4 h-4"></lucide-icon>
+        </div>
+      </div>
+      <div class="mt-3 flex items-baseline gap-2">
+        <span class="text-2xl font-extrabold text-slate-900 dark:text-white">
+          {{ metrics().total_revenue | currency:'EUR':'symbol':'1.2-2':'de' }}
+        </span>
+      </div>
+      <p class="text-[11px] text-slate-400 mt-1">Verkaufserlöse brutto</p>
+    </div>
+
+    <!-- Gebundenes Kapital -->
+    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
+        <span>{{ 'DASHBOARD.TIED_CAPITAL' | translate }}</span>
+        <div class="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/50 text-amber-600">
+          <lucide-icon [img]="boxesIcon" class="w-4 h-4"></lucide-icon>
+        </div>
+      </div>
+      <div class="mt-3 flex items-baseline gap-2">
+        <span class="text-2xl font-extrabold text-slate-900 dark:text-white">
+          {{ metrics().tied_capital | currency:'EUR':'symbol':'1.2-2':'de' }}
+        </span>
+      </div>
+      <p class="text-[11px] text-slate-400 mt-1">In {{ metrics().active_items_count }} offenen Artikeln</p>
+    </div>
+
+    <!-- Durchschnittlicher ROI -->
+    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+      <div class="flex items-center justify-between text-slate-500 dark:text-slate-400 text-xs font-semibold uppercase tracking-wider">
+        <span>{{ 'DASHBOARD.AVG_ROI' | translate }}</span>
+        <div class="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600">
+          <lucide-icon [img]="percentIcon" class="w-4 h-4"></lucide-icon>
+        </div>
+      </div>
+      <div class="mt-3 flex items-baseline gap-2">
+        <span class="text-2xl font-extrabold text-slate-900 dark:text-white">
+          {{ metrics().average_roi_percent }}%
+        </span>
+      </div>
+      <p class="text-[11px] text-slate-400 mt-1">Ziel: mind. {{ workspaceService.currentWorkspace()?.min_roi_percent ?? 30 }}%</p>
+    </div>
+  </div>
+
+  <!-- Smart Insights Card (Section 27) -->
+  <div class="p-6 rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
+    <div class="flex items-center gap-2.5 mb-4">
+      <div class="p-2 rounded-xl bg-amber-500/10 text-amber-500">
+        <lucide-icon [img]="lightbulbIcon" class="w-5 h-5"></lucide-icon>
+      </div>
+      <div>
+        <h2 class="text-base font-bold text-slate-900 dark:text-white">{{ 'DASHBOARD.INSIGHTS' | translate }}</h2>
+        <p class="text-xs text-slate-500">Automatische Optimierungsvorschläge für dein Reselling-Business</p>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-start gap-3">
+        <span class="text-emerald-500 font-bold text-base">•</span>
+        <div class="text-xs text-slate-600 dark:text-slate-300">
+          <strong class="text-slate-900 dark:text-white">Foundation Phase aktiv:</strong> Dein lokaler Supabase-Stack und das Datenmodell für Einzelartikel, Mystery Packs und Paletten sind einsatzbereit.
+        </div>
+      </div>
+      <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 flex items-start gap-3">
+        <span class="text-blue-500 font-bold text-base">•</span>
+        <div class="text-xs text-slate-600 dark:text-slate-300">
+          <strong class="text-slate-900 dark:text-white">Deal Calculator bereit:</strong> Nutze den Rechner, um vor dem Kauf auf Kleinanzeigen oder eBay den maximalen Einkaufspreis und Deal Score zu berechnen.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

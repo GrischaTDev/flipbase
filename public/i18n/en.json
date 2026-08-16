@@ -1,0 +1,63 @@
+{
+  "APP": {
+    "TITLE": "ReFlip",
+    "TAGLINE": "Decision & Financial System for Resellers"
+  },
+  "NAV": {
+    "DASHBOARD": "Dashboard",
+    "PURCHASES": "Purchases",
+    "INVENTORY": "Inventory",
+    "RESEARCH": "Research",
+    "DEAL_CALCULATOR": "Deal Calculator",
+    "LISTINGS": "Listing Studio",
+    "SALES": "Sales",
+    "SOURCES_SUPPLIERS": "Sources & Suppliers",
+    "ANALYTICS": "Analytics",
+    "SETTINGS": "Settings"
+  },
+  "AUTH": {
+    "LOGIN": "Sign In",
+    "REGISTER": "Sign Up",
+    "LOGOUT": "Sign Out",
+    "EMAIL": "Email Address",
+    "PASSWORD": "Password",
+    "FULL_NAME": "Full Name",
+    "NO_ACCOUNT": "Don't have an account?",
+    "HAVE_ACCOUNT": "Already registered?",
+    "SIGN_IN_TITLE": "Welcome back to ReFlip",
+    "SIGN_UP_TITLE": "Create your ReFlip Account",
+    "SUBMIT_LOGIN": "Sign In",
+    "SUBMIT_REGISTER": "Create Account",
+    "ERROR": "Authentication Error",
+    "SUCCESS_REGISTER": "Registration successful! Redirecting..."
+  },
+  "WORKSPACE": {
+    "CURRENT": "Active Workspace",
+    "SWITCH": "Switch Workspace",
+    "MY_WORKSPACE": "My Workspace",
+    "SETTINGS": "Workspace Settings",
+    "TARGET_METRICS": "Target Metrics",
+    "MIN_ROI": "Minimum ROI (%)",
+    "MIN_PROFIT": "Minimum Profit (€)",
+    "SAVED": "Settings saved"
+  },
+  "COMMON": {
+    "SAVE": "Save",
+    "CANCEL": "Cancel",
+    "DELETE": "Delete",
+    "EDIT": "Edit",
+    "ADD": "Add",
+    "SEARCH": "Search...",
+    "FILTER": "Filter",
+    "STATUS": "Status",
+    "ACTIONS": "Actions",
+    "CREATED_AT": "Created at",
+    "PRICE": "Price",
+    "TOTAL": "Total",
+    "PROFIT": "Profit",
+    "ROI": "ROI",
+    "LOADING": "Loading...",
+    "NO_DATA": "No data available",
+    "CONFIRM": "Confirm"
+  }
+}

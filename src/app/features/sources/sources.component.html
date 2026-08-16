@@ -1,0 +1,66 @@
+<div class="space-y-6">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+        {{ 'NAV.SOURCES_SUPPLIERS' | translate }}
+      </h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Analysiere die Profitabilität deiner Einkaufsquellen und Lieferanten (Section 28).
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-md transition cursor-pointer"
+    >
+      <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
+      <span>{{ activeTab() === 'sources' ? 'Quelle hinzufügen' : 'Lieferant hinzufügen' }}</span>
+    </button>
+  </div>
+
+  <div class="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-2">
+    <button
+      type="button"
+      (click)="activeTab.set('sources')"
+      class="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+      [class.bg-slate-900]="activeTab() === 'sources'"
+      [class.text-white]="activeTab() === 'sources'"
+      [class.dark:bg-emerald-600]="activeTab() === 'sources'"
+      [class.text-slate-600]="activeTab() !== 'sources'"
+      [class.dark:text-slate-400]="activeTab() !== 'sources'"
+    >
+      Einkaufsquellen
+    </button>
+    <button
+      type="button"
+      (click)="activeTab.set('suppliers')"
+      class="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+      [class.bg-slate-900]="activeTab() === 'suppliers'"
+      [class.text-white]="activeTab() === 'suppliers'"
+      [class.dark:bg-emerald-600]="activeTab() === 'suppliers'"
+      [class.text-slate-600]="activeTab() !== 'suppliers'"
+      [class.dark:text-slate-400]="activeTab() !== 'suppliers'"
+    >
+      Lieferanten & Verkäufer
+    </button>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- Kleinanzeigen Card -->
+    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white">Kleinanzeigen</h3>
+        <span class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold text-[10px]">Standard</span>
+      </div>
+      <p class="text-xs text-slate-500">Plattform für lokale Schnäppchen & Direktabholung</p>
+    </div>
+
+    <!-- eBay Card -->
+    <div class="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-3">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-slate-900 dark:text-white">eBay</h3>
+      </div>
+      <p class="text-xs text-slate-500">Auktionen & Sofortkauf-Restposten</p>
+    </div>
+  </div>
+</div>

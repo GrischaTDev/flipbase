@@ -1,0 +1,34 @@
+<div class="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col md:flex-row">
+  <!-- Desktop & Mobile Sidebar -->
+  <app-sidebar
+    [isOpen]="isSidebarOpen()"
+    (close)="closeSidebar()"
+  ></app-sidebar>
+
+  <!-- Main Content Area -->
+  <div class="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
+    <!-- Header -->
+    <app-header
+      (toggleSidebar)="toggleSidebar()"
+      (openCreateWorkspace)="openCreateWorkspace()"
+    ></app-header>
+
+    <!-- Page Content Container -->
+    <main class="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl w-full mx-auto animate-fade-in">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+
+  <!-- Mobile Bottom Navigation -->
+  <app-bottom-nav
+    (toggleMenu)="toggleSidebar()"
+  ></app-bottom-nav>
+
+  <!-- Workspace Modal -->
+  @if (isCreateWorkspaceModalOpen()) {
+    <app-workspace-modal
+      (close)="closeCreateWorkspace()"
+      (created)="closeCreateWorkspace()"
+    ></app-workspace-modal>
+  }
+</div>

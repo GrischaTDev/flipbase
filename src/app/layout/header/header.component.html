@@ -1,0 +1,138 @@
+<header class="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 md:px-6 flex items-center justify-between sticky top-0 z-30">
+  <!-- Left: Mobile Toggle & Workspace Switcher -->
+  <div class="flex items-center gap-3">
+    <button
+      type="button"
+      (click)="toggleSidebar.emit()"
+      class="p-2 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white md:hidden hover:bg-slate-100 dark:hover:bg-slate-800"
+      aria-label="Toggle navigation"
+    >
+      <lucide-icon [img]="MenuIcon" class="w-5 h-5"></lucide-icon>
+    </button>
+
+    <!-- Workspace Selector Dropdown -->
+    <div class="relative">
+      <button
+        type="button"
+        (click)="toggleWorkspaceDropdown()"
+        class="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-sm font-medium text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+      >
+        <lucide-icon [img]="LayersIcon" class="w-4 h-4 text-emerald-500"></lucide-icon>
+        <span class="max-w-[140px] md:max-w-[200px] truncate">
+          {{ workspaceService.currentWorkspace()?.name || ('WORKSPACE.MY_WORKSPACE' | translate) }}
+        </span>
+        <span class="text-xs text-slate-400">▾</span>
+      </button>
+
+      @if (isWorkspaceDropdownOpen()) {
+        <div class="absolute left-0 mt-2 w-64 rounded-xl shadow-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 py-1.5 z-50">
+          <div class="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
+            {{ 'WORKSPACE.CURRENT' | translate }}
+          </div>
+
+          @for (ws of workspaceService.workspaces(); track ws.id) {
+            <button
+              type="button"
+              (click)="selectWorkspace(ws)"
+              class="w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+              [class.font-semibold]="ws.id === workspaceService.currentWorkspace()?.id"
+              [class.text-emerald-600]="ws.id === workspaceService.currentWorkspace()?.id"
+            >
+              <span class="truncate">{{ ws.name }}</span>
+              @if (ws.id === workspaceService.currentWorkspace()?.id) {
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+              }
+            </button>
+          }
+
+          <div class="border-t border-slate-100 dark:border-slate-700 my-1"></div>
+
+          <button
+            type="button"
+            (click)="openCreateWorkspace.emit(); isWorkspaceDropdownOpen.set(false)"
+            class="w-full text-left px-3 py-2 text-sm text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-700 flex items-center gap-2 font-medium"
+          >
+            <lucide-icon [img]="PlusIcon" class="w-4 h-4"></lucide-icon>
+            <span>Neuer Workspace</span>
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+
+  <!-- Right: Language Switcher & Profile -->
+  <div class="flex items-center gap-3">
+    <!-- Language Toggle -->
+    <div class="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg p-0.5 bg-slate-50 dark:bg-slate-800 text-xs">
+      <button
+        type="button"
+        (click)="switchLanguage('de')"
+        class="px-2 py-1 rounded font-medium transition"
+        [class.bg-white]="currentLanguage() === 'de'"
+        [class.dark:bg-slate-700]="currentLanguage() === 'de'"
+        [class.shadow-sm]="currentLanguage() === 'de'"
+        [class.text-slate-900]="currentLanguage() === 'de'"
+        [class.dark:text-white]="currentLanguage() === 'de'"
+        [class.text-slate-500]="currentLanguage() !== 'de'"
+      >
+        DE
+      </button>
+      <button
+        type="button"
+        (click)="switchLanguage('en')"
+        class="px-2 py-1 rounded font-medium transition"
+        [class.bg-white]="currentLanguage() === 'en'"
+        [class.dark:bg-slate-700]="currentLanguage() === 'en'"
+        [class.shadow-sm]="currentLanguage() === 'en'"
+        [class.text-slate-900]="currentLanguage() === 'en'"
+        [class.dark:text-white]="currentLanguage() === 'en'"
+        [class.text-slate-500]="currentLanguage() !== 'en'"
+      >
+        EN
+      </button>
+    </div>
+
+    <!-- User Profile Dropdown -->
+    <div class="relative">
+      <button
+        type="button"
+        (click)="toggleUserDropdown()"
+        class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+      >
+        <div class="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-medium text-xs">
+          {{ auth.userName().charAt(0).toUpperCase() }}
+        </div>
+        <span class="hidden md:inline text-sm font-medium text-slate-700 dark:text-slate-200">
+          {{ auth.userName() }}
+        </span>
+      </button>
+
+      @if (isUserDropdownOpen()) {
+        <div class="absolute right-0 mt-2 w-56 rounded-xl shadow-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 py-1.5 z-50">
+          <div class="px-3 py-2 border-b border-slate-100 dark:border-slate-700">
+            <p class="text-sm font-semibold text-slate-800 dark:text-white truncate">{{ auth.userName() }}</p>
+            <p class="text-xs text-slate-500 truncate">{{ auth.userEmail() }}</p>
+          </div>
+
+          <a
+            routerLink="/settings"
+            (click)="isUserDropdownOpen.set(false)"
+            class="px-3 py-2 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2"
+          >
+            <lucide-icon [img]="UserIcon" class="w-4 h-4 text-slate-400"></lucide-icon>
+            <span>{{ 'NAV.SETTINGS' | translate }}</span>
+          </a>
+
+          <button
+            type="button"
+            (click)="onSignOut()"
+            class="w-full text-left px-3 py-2 text-sm text-rose-600 hover:bg-rose-50 dark:hover:bg-slate-700 flex items-center gap-2"
+          >
+            <lucide-icon [img]="LogOutIcon" class="w-4 h-4 text-rose-500"></lucide-icon>
+            <span>{{ 'AUTH.LOGOUT' | translate }}</span>
+          </button>
+        </div>
+      }
+    </div>
+  </div>
+</header>

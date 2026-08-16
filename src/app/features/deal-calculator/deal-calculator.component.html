@@ -1,0 +1,187 @@
+<div class="space-y-6">
+  <!-- Header -->
+  <div>
+    <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+      {{ 'DEAL_CALCULATOR.TITLE' | translate }}
+    </h1>
+    <p class="text-sm text-slate-500 mt-1">
+      {{ 'DEAL_CALCULATOR.SUBTITLE' | translate }}
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- Form Inputs (Left: 5 cols) -->
+    <div class="lg:col-span-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+      <h2 class="text-sm font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Deal-Parameter</h2>
+
+      <form [formGroup]="form" (ngSubmit)="runCalculation()" class="space-y-4">
+        <div>
+          <label for="calcTitle" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+            Produkt / Suchbegriff
+          </label>
+          <input
+            id="calcTitle"
+            type="text"
+            formControlName="productTitle"
+            placeholder="z.B. Fahrrad, Bohrmaschine..."
+            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
+          />
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="askingPrice" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+              Angebotspreis (€)
+            </label>
+            <input
+              id="askingPrice"
+              type="number"
+              formControlName="askingPrice"
+              (input)="runCalculation()"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div>
+            <label for="fairMarketValue" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+              Marktwert (€)
+            </label>
+            <input
+              id="fairMarketValue"
+              type="number"
+              formControlName="fairMarketValue"
+              (input)="runCalculation()"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="estimatedCosts" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+              Nebenkosten (€)
+            </label>
+            <input
+              id="estimatedCosts"
+              type="number"
+              formControlName="estimatedCosts"
+              (input)="runCalculation()"
+              placeholder="Versand, Fahrt..."
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <div>
+            <label for="condition" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
+              Zustand
+            </label>
+            <select
+              id="condition"
+              formControlName="condition"
+              (change)="runCalculation()"
+              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="new">Neu / OVP</option>
+              <option value="like_new">Wie neu</option>
+              <option value="very_good">Sehr gut</option>
+              <option value="used">Gebraucht</option>
+              <option value="heavily_used">Stark gebraucht</option>
+              <option value="defective">Defekt / Ersatzteil</option>
+            </select>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          (click)="runCalculation()"
+          class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <lucide-icon [img]="calcIcon" class="w-4 h-4"></lucide-icon>
+          <span>Neu berechnen</span>
+        </button>
+      </form>
+    </div>
+
+    <!-- Live Calculation Results (Right: 7 cols) -->
+    @if (evaluation(); as evalRes) {
+      <div class="lg:col-span-7 space-y-4">
+        <!-- Deal Score Banner (Section 22) -->
+        <div
+          class="p-6 rounded-3xl border flex items-center justify-between shadow-xs transition"
+          [class]="getScoreColorClass(evalRes.dealScore)"
+        >
+          <div>
+            <div class="flex items-center gap-2">
+              <lucide-icon [img]="zapIcon" class="w-5 h-5"></lucide-icon>
+              <span class="text-xs uppercase font-bold tracking-wider">ReFlip Deal Score</span>
+            </div>
+            <h3 class="text-3xl font-black mt-1">
+              {{ evalRes.dealScore }} <span class="text-lg font-normal text-slate-400">/ 100</span>
+            </h3>
+            <p class="text-xs mt-1 font-semibold">
+              @switch (evalRes.verdict) {
+                @case ('very_attractive') { <span>🌟 Sehr attraktiver Deal (Top Kaufchance!)</span> }
+                @case ('good') { <span>✅ Guter Deal mit gesunder Marge</span> }
+                @case ('acceptable') { <span>⚖️ Akzeptabler Deal</span> }
+                @case ('weak') { <span>⚠️ Eher schwach – Margenrisiko beachten</span> }
+                @default { <span>❌ Schlechter Deal – unter deiner Mindestrendite</span> }
+              }
+            </p>
+          </div>
+
+          <div class="text-right">
+            <span class="text-xs uppercase tracking-wider text-slate-400 font-semibold block">Max. Einkaufspreis</span>
+            <span class="text-2xl font-extrabold text-slate-900 dark:text-white">
+              {{ evalRes.maxBuyPrice | currency:'EUR':'symbol':'1.2-2':'de' }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Metric Details Cards (Section 19 & 20) -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <span class="text-[11px] font-semibold uppercase text-slate-400 block">Erwarteter Gewinn</span>
+            <span class="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
+              {{ evalRes.expectedProfit | currency:'EUR':'symbol':'1.2-2':'de' }}
+            </span>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <span class="text-[11px] font-semibold uppercase text-slate-400 block">Erwarteter ROI</span>
+            <span class="text-xl font-black text-emerald-600 dark:text-emerald-400 mt-1 block">
+              {{ evalRes.expectedRoiPercent }} %
+            </span>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <span class="text-[11px] font-semibold uppercase text-slate-400 block">Fast Sale Preis</span>
+            <span class="text-xl font-bold text-slate-800 dark:text-slate-200 mt-1 block">
+              {{ evalRes.fastSalePrice | currency:'EUR':'symbol':'1.2-2':'de' }}
+            </span>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <span class="text-[11px] font-semibold uppercase text-slate-400 block">Empfohlener Preis</span>
+            <span class="text-xl font-bold text-slate-800 dark:text-slate-200 mt-1 block">
+              {{ evalRes.recommendedListingPrice | currency:'EUR':'symbol':'1.2-2':'de' }}
+            </span>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <span class="text-[11px] font-semibold uppercase text-slate-400 block">Datensicherheit</span>
+            <span class="text-xl font-bold text-blue-600 dark:text-blue-400 mt-1 block">
+              {{ evalRes.confidenceScore }} %
+            </span>
+          </div>
+
+          <div class="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+            <span class="text-[11px] font-semibold uppercase text-slate-400 block">Gesamtinvestition</span>
+            <span class="text-xl font-bold text-slate-800 dark:text-slate-200 mt-1 block">
+              {{ evalRes.askingPrice + evalRes.expectedCosts | currency:'EUR':'symbol':'1.2-2':'de' }}
+            </span>
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+</div>

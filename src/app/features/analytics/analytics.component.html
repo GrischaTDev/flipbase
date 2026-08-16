@@ -1,0 +1,75 @@
+<div class="space-y-6">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+        {{ 'NAV.ANALYTICS' | translate }}
+      </h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Detaillierte Auswertungen deiner Reselling-Performance, Margen und Plattformen.
+      </p>
+    </div>
+
+    <!-- Time Filter -->
+    <div class="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl p-1 bg-white dark:bg-slate-900 text-xs font-semibold">
+      <button
+        type="button"
+        (click)="timeRange.set('7d')"
+        class="px-3 py-1.5 rounded-lg transition"
+        [class.bg-slate-900]="timeRange() === '7d'"
+        [class.text-white]="timeRange() === '7d'"
+        [class.dark:bg-emerald-600]="timeRange() === '7d'"
+      >
+        7 Tage
+      </button>
+      <button
+        type="button"
+        (click)="timeRange.set('30d')"
+        class="px-3 py-1.5 rounded-lg transition"
+        [class.bg-slate-900]="timeRange() === '30d'"
+        [class.text-white]="timeRange() === '30d'"
+        [class.dark:bg-emerald-600]="timeRange() === '30d'"
+      >
+        30 Tage
+      </button>
+      <button
+        type="button"
+        (click)="timeRange.set('1y')"
+        class="px-3 py-1.5 rounded-lg transition"
+        [class.bg-slate-900]="timeRange() === '1y'"
+        [class.text-white]="timeRange() === '1y'"
+        [class.dark:bg-emerald-600]="timeRange() === '1y'"
+      >
+        Jahr
+      </button>
+      <button
+        type="button"
+        (click)="timeRange.set('all')"
+        class="px-3 py-1.5 rounded-lg transition"
+        [class.bg-slate-900]="timeRange() === 'all'"
+        [class.text-white]="timeRange() === 'all'"
+        [class.dark:bg-emerald-600]="timeRange() === 'all'"
+      >
+        Gesamt
+      </button>
+    </div>
+  </div>
+
+  <!-- Rankings Preview -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div class="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl space-y-4">
+      <div class="flex items-center gap-2">
+        <lucide-icon [img]="trophyIcon" class="w-5 h-5 text-amber-500"></lucide-icon>
+        <h3 class="text-base font-bold text-slate-900 dark:text-white">Beste Kategorien</h3>
+      </div>
+      <p class="text-xs text-slate-400">Wird mit deinen ersten Verkäufen automatisch berechnet.</p>
+    </div>
+
+    <div class="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl space-y-4">
+      <div class="flex items-center gap-2">
+        <lucide-icon [img]="trendingIcon" class="w-5 h-5 text-emerald-500"></lucide-icon>
+        <h3 class="text-base font-bold text-slate-900 dark:text-white">Top Einkaufsquellen</h3>
+      </div>
+      <p class="text-xs text-slate-400">Zeigt, wo dein eingesetztes Kapital den höchsten ROI erzielt.</p>
+    </div>
+  </div>
+</div>

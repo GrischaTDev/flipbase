@@ -1,0 +1,30 @@
+<div class="space-y-6">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
+        {{ 'NAV.SALES' | translate }}
+      </h1>
+      <p class="text-sm text-slate-500 mt-1">
+        Erfasse Verkäufe mit sämtlichen Gebühren & Versandkosten für exakte Gewinnberechnungen.
+      </p>
+    </div>
+
+    <button
+      type="button"
+      class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs shadow-md transition cursor-pointer"
+    >
+      <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
+      <span>Verkauf eintragen</span>
+    </button>
+  </div>
+
+  <div class="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
+    <div class="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 mx-auto flex items-center justify-center mb-3">
+      <lucide-icon [img]="trendingIcon" class="w-6 h-6"></lucide-icon>
+    </div>
+    <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">Noch keine Verkäufe abgeschlossen</h3>
+    <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-5">
+      Verkaufte Artikel fließen direkt in deinen realisierten Gewinn und den Workspace-ROI ein.
+    </p>
+  </div>
+</div>

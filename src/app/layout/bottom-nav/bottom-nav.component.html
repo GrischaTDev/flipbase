@@ -1,0 +1,46 @@
+<nav class="md:hidden fixed bottom-0 left-0 right-0 h-16 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-around px-2 z-30">
+  <a
+    routerLink="/dashboard"
+    routerLinkActive="text-emerald-600 dark:text-emerald-400 font-semibold"
+    class="flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 text-[10px] w-14 py-1"
+  >
+    <lucide-icon [img]="DashboardIcon" class="w-5 h-5"></lucide-icon>
+    <span>Dashboard</span>
+  </a>
+
+  <a
+    routerLink="/purchases"
+    routerLinkActive="text-emerald-600 dark:text-emerald-400 font-semibold"
+    class="flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 text-[10px] w-14 py-1"
+  >
+    <lucide-icon [img]="PurchasesIcon" class="w-5 h-5"></lucide-icon>
+    <span>Einkauf</span>
+  </a>
+
+  <a
+    routerLink="/inventory"
+    routerLinkActive="text-emerald-600 dark:text-emerald-400 font-semibold"
+    class="flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 text-[10px] w-14 py-1"
+  >
+    <lucide-icon [img]="InventoryIcon" class="w-5 h-5"></lucide-icon>
+    <span>Inventar</span>
+  </a>
+
+  <a
+    routerLink="/research"
+    routerLinkActive="text-emerald-600 dark:text-emerald-400 font-semibold"
+    class="flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 text-[10px] w-14 py-1"
+  >
+    <lucide-icon [img]="ResearchIcon" class="w-5 h-5"></lucide-icon>
+    <span>Research</span>
+  </a>
+
+  <button
+    type="button"
+    (click)="toggleMenu.emit()"
+    class="flex flex-col items-center justify-center gap-1 text-slate-500 dark:text-slate-400 text-[10px] w-14 py-1"
+  >
+    <lucide-icon [img]="MenuIcon" class="w-5 h-5"></lucide-icon>
+    <span>Menü</span>
+  </button>
+</nav>
