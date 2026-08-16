@@ -1,6 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { CurrencyPipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideAngularModule,
@@ -13,19 +13,27 @@ import {
   Calculator,
   ArrowUpRight,
   Lightbulb,
+  ShoppingBag,
+  Clock,
 } from 'lucide-angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { SalesService } from '../../core/services/sales.service';
+import { InventoryService } from '../../core/services/inventory.service';
+import { PurchaseService } from '../../core/services/purchase.service';
 import { DashboardMetrics } from '../../core/models/reflip.models';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, CurrencyPipe, TranslatePipe, LucideAngularModule],
+  imports: [RouterLink, CurrencyPipe, DatePipe, TranslatePipe, LucideAngularModule],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardComponent {
   readonly workspaceService = inject(WorkspaceService);
+  readonly salesService = inject(SalesService);
+  readonly inventoryService = inject(InventoryService);
+  readonly purchaseService = inject(PurchaseService);
 
   readonly trendingIcon = TrendingUp;
   readonly coinsIcon = Coins;
@@ -36,14 +44,31 @@ export class DashboardComponent {
   readonly calcIcon = Calculator;
   readonly arrowIcon = ArrowUpRight;
   readonly lightbulbIcon = Lightbulb;
+  readonly bagIcon = ShoppingBag;
+  readonly clockIcon = Clock;
 
-  // Initial KPIs
-  readonly metrics = signal<DashboardMetrics>({
-    realized_profit: 0,
-    total_revenue: 0,
-    tied_capital: 0,
-    inventory_value: 0,
-    active_items_count: 0,
-    average_roi_percent: 0,
+  // Real-time computed dashboard metrics (Kapitel 27)
+  readonly metrics = computed<DashboardMetrics>(() => {
+    const sales = this.salesService.sales();
+    const items = this.inventoryService.items();
+
+    const realizedProfit = sales.reduce((sum, s) => sum + (s.net_profit || 0), 0);
+    const totalRevenue = sales.reduce((sum, s) => sum + (s.sale_price || 0), 0);
+
+    const activeItems = items.filter((i) => i.status !== 'sold' && i.status !== 'archived');
+    const tiedCapital = activeItems.reduce((sum, i) => sum + (i.total_item_cost ?? i.allocated_purchase_cost), 0);
+    const inventoryValue = activeItems.reduce((sum, i) => sum + (Number(i.expected_value) || 0), 0);
+
+    const totalRoi = sales.reduce((sum, s) => sum + (s.roi || 0), 0);
+    const avgRoi = sales.length > 0 ? Number((totalRoi / sales.length).toFixed(1)) : 0;
+
+    return {
+      realized_profit: Number(realizedProfit.toFixed(2)),
+      total_revenue: Number(totalRevenue.toFixed(2)),
+      tied_capital: Number(tiedCapital.toFixed(2)),
+      inventory_value: Number(inventoryValue.toFixed(2)),
+      active_items_count: activeItems.length,
+      average_roi_percent: avgRoi,
+    };
   });
 }
