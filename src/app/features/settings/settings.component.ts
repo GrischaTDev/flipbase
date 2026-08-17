@@ -14,12 +14,15 @@ import {
   Percent,
   Sliders,
   ShieldCheck,
+  Link2,
+  Plug,
 } from 'lucide-angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ExportService } from '../../core/services/export.service';
 import { SalesService } from '../../core/services/sales.service';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { InventoryService } from '../../core/services/inventory.service';
+import { EbayApiService } from '../../core/services/ebay-api.service';
 
 @Component({
   selector: 'app-settings',
@@ -34,6 +37,7 @@ export class SettingsComponent {
   readonly salesService = inject(SalesService);
   readonly purchaseService = inject(PurchaseService);
   readonly inventoryService = inject(InventoryService);
+  readonly ebayApiService = inject(EbayApiService);
   readonly translate = inject(TranslateService);
 
   readonly settingsIcon = Settings;
@@ -47,15 +51,24 @@ export class SettingsComponent {
   readonly percentIcon = Percent;
   readonly slidersIcon = Sliders;
   readonly shieldIcon = ShieldCheck;
+  readonly linkIcon = Link2;
+  readonly plugIcon = Plug;
 
   readonly isSaving = signal<boolean>(false);
   readonly saveSuccess = signal<boolean>(false);
+  readonly ebaySaveSuccess = signal<boolean>(false);
 
   readonly form = new FormGroup({
     name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     currency: new FormControl('EUR', { nonNullable: true, validators: [Validators.required] }),
     min_roi_percent: new FormControl<number>(30, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
     min_profit_amount: new FormControl<number>(15, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
+  });
+
+  readonly ebayForm = new FormGroup({
+    appId: new FormControl(''),
+    certId: new FormControl(''),
+    siteId: new FormControl('EBAY-DE', { nonNullable: true }),
   });
 
   constructor() {
@@ -69,6 +82,13 @@ export class SettingsComponent {
           min_profit_amount: ws.min_profit_amount,
         });
       }
+    });
+
+    const cfg = this.ebayApiService.getConfig();
+    this.ebayForm.patchValue({
+      appId: cfg.appId || '',
+      certId: cfg.certId || '',
+      siteId: cfg.siteId || 'EBAY-DE',
     });
   }
 
@@ -91,6 +111,17 @@ export class SettingsComponent {
     setTimeout(() => this.saveSuccess.set(false), 3000);
   }
 
+  onSaveEbaySettings(): void {
+    const f = this.ebayForm.getRawValue();
+    this.ebayApiService.saveConfig({
+      appId: f.appId?.trim() || undefined,
+      certId: f.certId?.trim() || undefined,
+      siteId: f.siteId || 'EBAY-DE',
+    });
+    this.ebaySaveSuccess.set(true);
+    setTimeout(() => this.ebaySaveSuccess.set(false), 3000);
+  }
+
   exportSalesCsv(): void {
     const csv = this.exportService.generateSalesCsv(this.salesService.sales());
     const date = new Date().toISOString().split('T')[0];
@@ -106,21 +137,6 @@ export class SettingsComponent {
   exportInventoryCsv(): void {
     const csv = this.exportService.generateInventoryCsv(this.inventoryService.items());
     const date = new Date().toISOString().split('T')[0];
-    this.exportService.downloadFile(csv, `reflip-inventar-${date}.csv`, 'text/csv;charset=utf-8;');
-  }
-
-  exportJsonBackup(): void {
-    const json = this.exportService.generateJsonBackup(
-      this.workspaceService.currentWorkspace(),
-      this.purchaseService.purchases(),
-      this.inventoryService.items(),
-      this.salesService.sales()
-    );
-    const date = new Date().toISOString().split('T')[0];
-    this.exportService.downloadFile(json, `reflip-backup-${date}.json`, 'application/json');
-  }
-
-  changeLanguage(lang: string): void {
-    this.translate.use(lang);
+    this.exportService.downloadFile(csv, `reflip-bestand-${date}.csv`, 'text/csv;charset=utf-8;');
   }
 }

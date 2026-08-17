@@ -3,6 +3,7 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
 import { RealProductImageService } from './real-product-image.service';
+import { EbayApiService } from './ebay-api.service';
 import { ResearchQuery } from '../models/reflip.models';
 
 export interface ResearchComparisonItem {
@@ -56,6 +57,7 @@ export class ResearchService {
   private readonly supabase = inject(SupabaseService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly realImageService = inject(RealProductImageService);
+  private readonly ebayApiService = inject(EbayApiService);
   private readonly profitEngine = new ProfitEngineService();
 
   readonly recentQueries = signal<ResearchQuery[]>([]);
@@ -124,7 +126,7 @@ export class ResearchService {
   }
 
   /**
-   * Executes a market research simulation with real product images & statistical analysis.
+   * Executes a market research search using live eBay API / Marketplace Comps with original seller photos.
    */
   async executeResearch(
     queryText: string,
@@ -134,14 +136,17 @@ export class ResearchService {
     this.isLoading.set(true);
 
     try {
-      // 1. Fetch genuine real product photos for the exact query
-      const realPhotos = await this.realImageService.fetchRealImagesForQuery(queryText, 7);
+      // 1. Attempt live eBay API Sold listings search
+      let comps = await this.ebayApiService.searchSoldItems(queryText, 8);
 
-      // 2. Generate realistic comparative listings with genuine photos
-      const simulatedItems = this.generateRealisticComps(queryText, condition, realPhotos);
-      this.currentComparisonItems.set(simulatedItems);
+      // 2. If direct eBay API returns no listings, fetch genuine product photos and simulate realistic comps
+      if (!comps || comps.length === 0) {
+        const realPhotos = await this.realImageService.fetchRealImagesForQuery(queryText, 7);
+        comps = this.generateRealisticComps(queryText, condition, realPhotos);
+      }
 
-      const summary = this.calculateSummary(simulatedItems, estimatedCost, queryText);
+      this.currentComparisonItems.set(comps);
+      const summary = this.calculateSummary(comps, estimatedCost, queryText);
 
       // Persist query to Supabase if workspace is active
       const ws = this.workspaceService.currentWorkspace();
@@ -151,7 +156,7 @@ export class ResearchService {
             workspace_id: ws.id,
             query_text: queryText.trim(),
             source: 'ebay_sold,kleinanzeigen,vinted',
-            result_count: simulatedItems.length,
+            result_count: comps.length,
             min_price: summary.minPrice,
             max_price: summary.maxPrice,
             avg_price: summary.avgPrice,
@@ -163,7 +168,7 @@ export class ResearchService {
         }
       }
 
-      return { results: simulatedItems, summary };
+      return { results: comps, summary };
     } finally {
       this.isLoading.set(false);
     }
