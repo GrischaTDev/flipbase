@@ -1,7 +1,7 @@
 <div class="max-w-2xl mx-auto py-8 space-y-6 animate-fade-in select-none">
   @if (order(); as ord) {
     <!-- Success Banner Card -->
-    <div class="bg-white rounded-3xl p-8 md:p-10 text-center space-y-6 border border-emerald-200 shadow-md">
+    <div class="bg-white rounded-3xl p-8 md:p-10 text-center space-y-6 border border-slate-200 shadow-sm">
       <div class="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 mx-auto flex items-center justify-center shadow-md shadow-emerald-500/20">
         <lucide-icon [img]="checkIcon" class="w-8 h-8"></lucide-icon>
       </div>
@@ -57,9 +57,9 @@
 
       <!-- Payment Instructions if Bank Transfer -->
       @if (ord.customer.paymentMethod === 'bank_transfer') {
-        <div class="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 text-left space-y-2 text-xs">
-          <div class="flex items-center gap-2 font-bold text-indigo-900">
-            <lucide-icon [img]="bankIcon" class="w-4 h-4 text-indigo-600"></lucide-icon>
+        <div class="p-4 rounded-2xl bg-slate-100 border border-slate-200 text-left space-y-2 text-xs">
+          <div class="flex items-center gap-2 font-bold text-slate-900">
+            <lucide-icon [img]="bankIcon" class="w-4 h-4 text-slate-700"></lucide-icon>
             <span>Überweisungsinformationen</span>
           </div>
           <p class="text-[11px] text-slate-600">
@@ -69,7 +69,7 @@
             <div class="flex justify-between"><span class="text-slate-500">Empfänger:</span> <strong class="text-slate-900">{{ storeService.storeSettings().payments.bankAccountHolder }}</strong></div>
             <div class="flex justify-between"><span class="text-slate-500">IBAN:</span> <strong class="text-emerald-700 font-bold">{{ storeService.storeSettings().payments.bankIban }}</strong></div>
             <div class="flex justify-between"><span class="text-slate-500">BIC:</span> <strong class="text-slate-900">{{ storeService.storeSettings().payments.bankBic }}</strong></div>
-            <div class="flex justify-between pt-1.5 border-t border-slate-100"><span class="text-slate-500">Verwendungszweck:</span> <strong class="text-indigo-700 font-bold">{{ ord.orderNumber }}</strong></div>
+            <div class="flex justify-between pt-1.5 border-t border-slate-100"><span class="text-slate-500">Verwendungszweck:</span> <strong class="text-slate-950 font-bold">{{ ord.orderNumber }}</strong></div>
           </div>
         </div>
       }
@@ -81,13 +81,13 @@
           (click)="openInvoice()"
           class="px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 shadow-xs transition"
         >
-          <lucide-icon [img]="fileIcon" class="w-4 h-4 text-indigo-600"></lucide-icon>
+          <lucide-icon [img]="fileIcon" class="w-4 h-4 text-slate-700"></lucide-icon>
           <span>📄 § 25a Rechnung drucken</span>
         </button>
 
         <a
           routerLink="/shop"
-          class="px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/25 transition"
+          class="px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition"
         >
           <lucide-icon [img]="bagIcon" class="w-4 h-4"></lucide-icon>
           <span>Weiter einkaufen</span>
@@ -112,7 +112,7 @@
   } @else {
     <div class="bg-white rounded-3xl p-16 text-center space-y-3 border border-slate-200 shadow-sm">
       <h3 class="text-base font-bold text-slate-900">Bestellung nicht gefunden</h3>
-      <a routerLink="/shop" class="bg-indigo-600 hover:bg-indigo-700 text-white inline-flex px-4 py-2 rounded-xl text-xs font-bold shadow-md">
+      <a routerLink="/shop" class="bg-slate-900 hover:bg-slate-800 text-white inline-flex px-4 py-2 rounded-xl text-xs font-bold shadow-sm">
         Zum Shop-Sortiment
       </a>
     </div>

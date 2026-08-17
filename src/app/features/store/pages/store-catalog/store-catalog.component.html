@@ -1,18 +1,18 @@
 <div class="space-y-16 animate-fade-in select-none">
-  <!-- 1. 🌟 Hero Landing Showcase (Balanced, Fresh & Modern) -->
-  <section class="relative rounded-3xl overflow-hidden bg-gradient-to-br from-indigo-50/70 via-white to-slate-50 border border-slate-200/90 p-6 sm:p-10 md:p-12 shadow-sm">
+  <!-- 1. 🌟 Hero Landing Showcase (Timeless Slate & Crisp White) -->
+  <section class="relative rounded-3xl overflow-hidden bg-white border border-slate-200 p-6 sm:p-10 md:p-12 shadow-sm">
     <div class="max-w-3xl space-y-6">
       <!-- Trust Pill Badge -->
-      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold shadow-2xs">
-        <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5 text-indigo-600"></lucide-icon>
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-slate-800 border border-slate-200 text-xs font-semibold shadow-2xs">
+        <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5 text-slate-600"></lucide-icon>
         <span>Geprüfte Markenware & Schnäppchen</span>
         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-        <span class="text-emerald-700 font-semibold">100% Funktionsgarantie</span>
+        <span class="text-emerald-700 font-bold">100% Funktionsgarantie</span>
       </div>
 
       <!-- Hero Headline -->
       <h1 class="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-[1.15]">
-        Geprüfte Top-Markenware zu <span class="text-indigo-600">unschlagbaren Preisen</span>.
+        Geprüfte Top-Markenware zu fairen Preisen.
       </h1>
 
       <!-- Hero Subtitle -->
@@ -27,7 +27,7 @@
             type="text"
             [formControl]="searchControl"
             placeholder="Artikel, Marke oder Modell suchen..."
-            class="w-full pl-10 pr-4 py-3 rounded-2xl text-xs font-medium placeholder-slate-400 bg-white text-slate-900 border border-slate-300 shadow-sm focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none transition"
+            class="w-full pl-10 pr-4 py-3 rounded-2xl text-xs font-medium placeholder-slate-400 bg-slate-50 text-slate-900 border border-slate-200 shadow-xs focus:border-slate-400 focus:bg-white outline-none transition"
           />
           <lucide-icon [img]="searchIcon" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></lucide-icon>
         </div>
@@ -35,17 +35,17 @@
         <button
           type="button"
           (click)="scrollToCatalog()"
-          class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/40 transition shrink-0"
+          class="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-sm shadow-slate-900/20 transition shrink-0"
         >
           <span>Alle Angebote</span>
           <lucide-icon [img]="arrowRightIcon" class="w-4 h-4"></lucide-icon>
         </button>
       </div>
 
-      <!-- Live KPI Trust Metrics Bar (Balanced) -->
-      <div class="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-slate-200/80 text-xs">
-        <div class="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
+      <!-- Live KPI Trust Metrics Bar (Clean White) -->
+      <div class="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-slate-100 text-xs">
+        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 shadow-2xs flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
             <lucide-icon [img]="shieldIcon" class="w-4 h-4"></lucide-icon>
           </div>
           <div>
@@ -54,8 +54,8 @@
           </div>
         </div>
 
-        <div class="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 shadow-2xs flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-slate-200 text-slate-800 flex items-center justify-center shrink-0">
             <lucide-icon [img]="truckIcon" class="w-4 h-4"></lucide-icon>
           </div>
           <div>
@@ -64,8 +64,8 @@
           </div>
         </div>
 
-        <div class="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0">
+        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 shadow-2xs flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
             <lucide-icon [img]="returnIcon" class="w-4 h-4"></lucide-icon>
           </div>
           <div>
@@ -74,8 +74,8 @@
           </div>
         </div>
 
-        <div class="p-2.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-blue-50 text-amber-500 flex items-center justify-center shrink-0">
+        <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80 shadow-2xs flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-amber-50 text-amber-500 flex items-center justify-center shrink-0">
             <lucide-icon [img]="starIcon" class="w-4 h-4 fill-amber-400"></lucide-icon>
           </div>
           <div>
@@ -89,8 +89,8 @@
 
   <!-- 2. 🛡️ 4 USP Feature Kacheln -->
   <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <div class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:border-indigo-300 transition">
-      <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:border-slate-400 transition">
+      <div class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
         <lucide-icon [img]="shieldIcon" class="w-4.5 h-4.5"></lucide-icon>
       </div>
       <h3 class="font-bold text-sm text-slate-900">Geprüfte Qualität</h3>
@@ -99,8 +99,8 @@
       </p>
     </div>
 
-    <div class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:border-indigo-300 transition">
-      <div class="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:border-slate-400 transition">
+      <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center">
         <lucide-icon [img]="truckIcon" class="w-4.5 h-4.5"></lucide-icon>
       </div>
       <h3 class="font-bold text-sm text-slate-900">Blitzschneller Versand</h3>
@@ -109,8 +109,8 @@
       </p>
     </div>
 
-    <div class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:border-indigo-300 transition">
-      <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:border-slate-400 transition">
+      <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
         <lucide-icon [img]="returnIcon" class="w-4.5 h-4.5"></lucide-icon>
       </div>
       <h3 class="font-bold text-sm text-slate-900">14 Tage Rückgaberecht</h3>
@@ -119,8 +119,8 @@
       </p>
     </div>
 
-    <div class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:border-indigo-300 transition">
-      <div class="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:border-slate-400 transition">
+      <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center">
         <lucide-icon [img]="percentIcon" class="w-4.5 h-4.5"></lucide-icon>
       </div>
       <h3 class="font-bold text-sm text-slate-900">Rechtssicher § 25a UStG</h3>
@@ -135,8 +135,8 @@
     <section class="space-y-4">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <div class="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-200">
-            <lucide-icon [img]="flameIcon" class="w-4 h-4"></lucide-icon>
+          <div class="w-8 h-8 rounded-xl bg-slate-100 text-slate-900 flex items-center justify-center border border-slate-200">
+            <lucide-icon [img]="flameIcon" class="w-4 h-4 text-rose-600"></lucide-icon>
           </div>
           <div>
             <h2 class="text-lg font-black text-slate-900 tracking-tight">Aktuelle Top-Deals</h2>
@@ -147,7 +147,7 @@
         <button
           type="button"
           (click)="sortBy.set('savings'); scrollToCatalog()"
-          class="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
+          class="text-xs font-bold text-slate-900 hover:text-slate-600 flex items-center gap-1 cursor-pointer"
         >
           <span>Alle Deals</span>
           <lucide-icon [img]="arrowRightIcon" class="w-3.5 h-3.5"></lucide-icon>
@@ -160,11 +160,11 @@
           @let currPrice = getItemPrice(item);
           @let discount = getDiscountPercent(item);
 
-          <div class="bg-white rounded-2xl overflow-hidden flex flex-col group transition duration-200 border border-slate-200 shadow-xs hover:border-indigo-300 hover:shadow-xl relative">
+          <div class="bg-white rounded-2xl overflow-hidden flex flex-col group transition duration-200 border border-slate-200 shadow-xs hover:border-slate-400 hover:shadow-xl relative">
             <!-- Deal Flame Badge -->
             @if (discount > 10) {
-              <div class="absolute top-3 right-3 z-20 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black shadow-xs">
-                <lucide-icon [img]="zapIcon" class="w-3 h-3"></lucide-icon>
+              <div class="absolute top-3 right-3 z-20 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-900 text-white text-[10px] font-black shadow-xs">
+                <lucide-icon [img]="zapIcon" class="w-3 h-3 text-amber-400"></lucide-icon>
                 <span>-{{ discount }}%</span>
               </div>
             }
@@ -199,10 +199,10 @@
             <!-- Info & Buy Body -->
             <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
               <div>
-                <span class="text-[10px] uppercase font-bold text-indigo-600 block tracking-wider">
+                <span class="text-[10px] uppercase font-bold text-slate-500 block tracking-wider">
                   {{ item.brand || item.category || 'Kategorie' }}
                 </span>
-                <a [routerLink]="['/shop/item', item.id]" class="font-bold text-xs text-slate-900 hover:text-indigo-600 transition line-clamp-2 mt-0.5">
+                <a [routerLink]="['/shop/item', item.id]" class="font-bold text-xs text-slate-900 hover:text-slate-600 transition line-clamp-2 mt-0.5">
                   {{ item.title }}
                 </a>
               </div>
@@ -219,7 +219,7 @@
                       </span>
                     }
                   </div>
-                  <span class="text-[10px] text-emerald-600 font-bold block">
+                  <span class="text-[10px] text-emerald-700 font-bold block">
                     Du sparst {{ (origPrice - currPrice) | currency:'EUR':'symbol':'1.2-2':'de' }}
                   </span>
                 </div>
@@ -227,7 +227,7 @@
                 <button
                   type="button"
                   (click)="onAddToCart(item, $event)"
-                  class="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-md shadow-indigo-600/20 hover:scale-105 cursor-pointer"
+                  class="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white transition shadow-sm hover:scale-105 cursor-pointer"
                   [title]="addedItemId() === item.id ? 'Im Warenkorb!' : 'In den Warenkorb'"
                 >
                   @if (addedItemId() === item.id) {
@@ -262,7 +262,7 @@
           <select
             [value]="selectedCondition()"
             (change)="selectedCondition.set($any($event.target).value)"
-            class="px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer bg-white text-slate-800 border border-slate-300 shadow-2xs focus:border-indigo-600 outline-none"
+            class="px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer bg-white text-slate-800 border border-slate-300 shadow-2xs focus:border-slate-400 outline-none"
           >
             <option value="all">Alle Zustände</option>
             <option value="new">Neu & OVP</option>
@@ -278,7 +278,7 @@
           <select
             [value]="sortBy()"
             (change)="sortBy.set($any($event.target).value)"
-            class="px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer bg-white text-slate-800 border border-slate-300 shadow-2xs focus:border-indigo-600 outline-none"
+            class="px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer bg-white text-slate-800 border border-slate-300 shadow-2xs focus:border-slate-400 outline-none"
           >
             <option value="newest">Neueste zuerst</option>
             <option value="savings">Höchste Ersparnis</option>
@@ -295,9 +295,9 @@
         type="button"
         (click)="selectedCategory.set('all')"
         class="px-4 py-2 rounded-xl font-bold transition cursor-pointer shrink-0 border shadow-2xs"
-        [class.bg-indigo-600]="selectedCategory() === 'all'"
+        [class.bg-slate-900]="selectedCategory() === 'all'"
         [class.text-white]="selectedCategory() === 'all'"
-        [class.border-indigo-600]="selectedCategory() === 'all'"
+        [class.border-slate-900]="selectedCategory() === 'all'"
         [class.bg-white]="selectedCategory() !== 'all'"
         [class.text-slate-700]="selectedCategory() !== 'all'"
         [class.border-slate-200]="selectedCategory() !== 'all'"
@@ -311,9 +311,9 @@
           type="button"
           (click)="selectedCategory.set(cat)"
           class="px-4 py-2 rounded-xl font-bold transition cursor-pointer shrink-0 border shadow-2xs"
-          [class.bg-indigo-600]="selectedCategory() === cat"
+          [class.bg-slate-900]="selectedCategory() === cat"
           [class.text-white]="selectedCategory() === cat"
-          [class.border-indigo-600]="selectedCategory() === cat"
+          [class.border-slate-900]="selectedCategory() === cat"
           [class.bg-white]="selectedCategory() !== cat"
           [class.text-slate-700]="selectedCategory() !== cat"
           [class.border-slate-200]="selectedCategory() !== cat"
@@ -349,7 +349,7 @@
           @let currPrice = getItemPrice(item);
           @let discount = getDiscountPercent(item);
 
-          <div class="bg-white rounded-2xl overflow-hidden flex flex-col group transition duration-200 border border-slate-200 shadow-xs hover:border-indigo-300 hover:shadow-xl relative">
+          <div class="bg-white rounded-2xl overflow-hidden flex flex-col group transition duration-200 border border-slate-200 shadow-xs hover:border-slate-400 hover:shadow-xl relative">
             <!-- Thumbnail Container -->
             <div class="relative aspect-square w-full bg-slate-100 overflow-hidden flex items-center justify-center">
               @if (getItemThumbnail(item); as thumb) {
@@ -375,7 +375,7 @@
 
               <!-- Discount Tag -->
               @if (discount > 10) {
-                <div class="absolute top-3 right-3 z-20 px-2 py-0.5 rounded-md bg-rose-600 text-white text-[10px] font-black shadow-2xs">
+                <div class="absolute top-3 right-3 z-20 px-2 py-0.5 rounded-full bg-slate-900 text-white text-[10px] font-black shadow-2xs">
                   -{{ discount }}%
                 </div>
               }
@@ -388,11 +388,11 @@
             <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
               <div>
                 <div class="flex items-center justify-between text-[10px] text-slate-500">
-                  <span class="font-bold text-indigo-600 uppercase tracking-wider">{{ item.brand || item.category || 'Artikel' }}</span>
+                  <span class="font-bold text-slate-700 uppercase tracking-wider">{{ item.brand || item.category || 'Artikel' }}</span>
                   <span class="font-mono text-slate-400">SKU: {{ item.sku }}</span>
                 </div>
 
-                <a [routerLink]="['/shop/item', item.id]" class="font-bold text-xs text-slate-900 hover:text-indigo-600 transition line-clamp-2 mt-1">
+                <a [routerLink]="['/shop/item', item.id]" class="font-bold text-xs text-slate-900 hover:text-slate-600 transition line-clamp-2 mt-1">
                   {{ item.title }}
                 </a>
               </div>
@@ -418,7 +418,7 @@
                 <button
                   type="button"
                   (click)="onAddToCart(item, $event)"
-                  class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/20 hover:scale-105 transition"
+                  class="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm hover:scale-105 transition"
                   [title]="addedItemId() === item.id ? 'Im Warenkorb!' : 'In den Warenkorb'"
                 >
                   @if (addedItemId() === item.id) {
@@ -438,7 +438,7 @@
   </section>
 
   <!-- 5. 🌍 Nachhaltigkeits- & Spar-Vorteil Banner -->
-  <section class="rounded-3xl bg-gradient-to-r from-emerald-50 via-white to-indigo-50 border border-emerald-200/80 p-8 md:p-12 shadow-xs">
+  <section class="rounded-3xl bg-gradient-to-r from-emerald-50/80 via-white to-slate-50 border border-emerald-200/80 p-8 md:p-12 shadow-xs">
     <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
       <div class="md:col-span-2 space-y-3">
         <span class="text-xs font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5">
@@ -464,8 +464,8 @@
           </div>
         </div>
 
-        <div class="p-3.5 rounded-2xl bg-white border border-indigo-100 shadow-2xs flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xs shrink-0">
+        <div class="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center font-black text-xs shrink-0">
             100%
           </div>
           <div>
@@ -522,7 +522,7 @@
   <!-- 7. ❓ Häufig gestellte Fragen (FAQ Akkordeon) -->
   <section class="max-w-3xl mx-auto space-y-6">
     <div class="text-center space-y-2">
-      <div class="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 mx-auto flex items-center justify-center">
+      <div class="w-10 h-10 rounded-2xl bg-slate-100 text-slate-800 mx-auto flex items-center justify-center">
         <lucide-icon [img]="helpIcon" class="w-5 h-5"></lucide-icon>
       </div>
       <h2 class="text-2xl font-black text-slate-900 tracking-tight">Häufige Fragen (FAQ)</h2>
@@ -535,7 +535,7 @@
           <button
             type="button"
             (click)="toggleFaq(i)"
-            class="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-4 font-bold text-xs sm:text-sm text-slate-900 hover:text-indigo-600 transition cursor-pointer"
+            class="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-4 font-bold text-xs sm:text-sm text-slate-900 hover:text-slate-600 transition cursor-pointer"
           >
             <span>{{ faq.question }}</span>
             <lucide-icon
@@ -555,15 +555,15 @@
     </div>
   </section>
 
-  <!-- 8. ✉️ Deal-Alert Newsletter Box -->
-  <section class="rounded-3xl bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white p-8 sm:p-12 text-center max-w-3xl mx-auto space-y-4 shadow-xl">
-    <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white mx-auto flex items-center justify-center shadow-lg shadow-indigo-600/30">
+  <!-- 8. ✉️ Deal-Alert Newsletter Box (Midnight Slate) -->
+  <section class="rounded-3xl bg-slate-900 text-white p-8 sm:p-12 text-center max-w-3xl mx-auto space-y-4 shadow-xl">
+    <div class="w-12 h-12 rounded-2xl bg-slate-800 text-white mx-auto flex items-center justify-center shadow-md">
       <lucide-icon [img]="mailIcon" class="w-6 h-6"></lucide-icon>
     </div>
 
     <div class="space-y-1">
       <h3 class="text-xl sm:text-2xl font-black text-white">Keine Schnäppchen mehr verpassen!</h3>
-      <p class="text-xs text-slate-300 max-w-md mx-auto">
+      <p class="text-xs text-slate-400 max-w-md mx-auto">
         Abonniere unseren Deal-Alert und erhalte sofort Bescheid, sobald neue seltene Artikel oder Konvolute online gehen.
       </p>
     </div>
@@ -579,12 +579,12 @@
           type="email"
           [formControl]="newsletterEmail"
           placeholder="Deine E-Mail-Adresse..."
-          class="w-full px-4 py-3 rounded-xl text-xs font-medium bg-white text-slate-900 placeholder-slate-400 outline-none shadow-md"
+          class="w-full px-4 py-3 rounded-xl text-xs font-medium bg-slate-800 text-white placeholder-slate-400 outline-none border border-slate-700 focus:border-slate-500"
         />
         <button
           type="button"
           (click)="onSubscribeNewsletter()"
-          class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-3 rounded-xl text-xs font-bold shrink-0 cursor-pointer shadow-md w-full sm:w-auto transition"
+          class="bg-white hover:bg-slate-100 text-slate-900 px-5 py-3 rounded-xl text-xs font-bold shrink-0 cursor-pointer shadow-md w-full sm:w-auto transition"
         >
           Abonnieren
         </button>

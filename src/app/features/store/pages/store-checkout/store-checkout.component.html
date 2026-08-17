@@ -2,7 +2,7 @@
   <!-- Back Button -->
   <a
     routerLink="/shop"
-    class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-indigo-600 transition cursor-pointer"
+    class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer"
   >
     <lucide-icon [img]="backIcon" class="w-4 h-4"></lucide-icon>
     <span>Zurück zum Shop</span>
@@ -23,7 +23,7 @@
       <p class="text-xs text-slate-500">
         Lege zuerst einen Artikel in den Warenkorb, um zur Kasse zu gehen.
       </p>
-      <a routerLink="/shop" class="bg-indigo-600 hover:bg-indigo-700 text-white inline-flex px-4 py-2 rounded-xl text-xs font-bold mt-2 shadow-md">
+      <a routerLink="/shop" class="bg-slate-900 hover:bg-slate-800 text-white inline-flex px-4 py-2 rounded-xl text-xs font-bold mt-2 shadow-sm">
         Zum Sortiment
       </a>
     </div>
@@ -34,7 +34,7 @@
         <!-- 1. Customer Contact & Address (Crisp White Card) -->
         <div class="bg-white rounded-3xl p-6 md:p-7 space-y-4 shadow-sm border border-slate-200">
           <div class="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-            <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">1</span>
+            <span class="w-6 h-6 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">1</span>
             <h2 class="text-xs font-bold uppercase tracking-wider text-slate-900">Lieferadresse & Kontaktdaten</h2>
           </div>
 
@@ -48,7 +48,7 @@
                 type="text"
                 formControlName="firstName"
                 placeholder="Max"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-slate-50 text-slate-900 border border-slate-200 shadow-2xs focus:border-slate-400 focus:bg-white outline-none"
               />
             </div>
 
@@ -61,7 +61,7 @@
                 type="text"
                 formControlName="lastName"
                 placeholder="Mustermann"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-slate-50 text-slate-900 border border-slate-200 shadow-2xs focus:border-slate-400 focus:bg-white outline-none"
               />
             </div>
           </div>
@@ -76,7 +76,7 @@
                 type="email"
                 formControlName="email"
                 placeholder="max@beispiel.de"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-slate-50 text-slate-900 border border-slate-200 shadow-2xs focus:border-slate-400 focus:bg-white outline-none"
               />
             </div>
 
@@ -89,7 +89,7 @@
                 type="tel"
                 formControlName="phone"
                 placeholder="+49 170 1234567"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-slate-50 text-slate-900 border border-slate-200 shadow-2xs focus:border-slate-400 focus:bg-white outline-none"
               />
             </div>
           </div>
@@ -104,7 +104,7 @@
                 type="text"
                 formControlName="street"
                 placeholder="Musterstraße"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-slate-50 text-slate-900 border border-slate-200 shadow-2xs focus:border-slate-400 focus:bg-white outline-none"
               />
             </div>
 
@@ -117,7 +117,7 @@
                 type="text"
                 formControlName="houseNumber"
                 placeholder="12a"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-slate-50 text-slate-900 border border-slate-200 shadow-2xs focus:border-slate-400 focus:bg-white outline-none"
               />
             </div>
           </div>
@@ -132,7 +132,7 @@
                 type="text"
                 formControlName="zip"
                 placeholder="10115"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-medium bg-slate-50 text-slate-900 border border-slate-200 shadow-2xs focus:border-slate-400 focus:bg-white outline-none"
               />
             </div>
 
@@ -145,7 +145,7 @@
                 type="text"
                 formControlName="city"
                 placeholder="Berlin"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-slate-50 text-slate-900 border border-slate-200 shadow-2xs focus:border-slate-400 focus:bg-white outline-none"
               />
             </div>
           </div>
@@ -154,15 +154,15 @@
         <!-- 2. Shipping Method -->
         <div class="bg-white rounded-3xl p-6 md:p-7 space-y-3.5 shadow-sm border border-slate-200">
           <div class="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-            <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">2</span>
+            <span class="w-6 h-6 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">2</span>
             <h2 class="text-xs font-bold uppercase tracking-wider text-slate-900">Versandart</h2>
           </div>
 
           <div class="space-y-2.5">
             <!-- DHL Standard -->
             <label class="p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition"
-              [class.bg-indigo-50]="form.get('shippingMethod')?.value === 'dhl_standard'"
-              [class.border-indigo-600]="form.get('shippingMethod')?.value === 'dhl_standard'"
+              [class.bg-slate-50]="form.get('shippingMethod')?.value === 'dhl_standard'"
+              [class.border-slate-900]="form.get('shippingMethod')?.value === 'dhl_standard'"
               [class.bg-white]="form.get('shippingMethod')?.value !== 'dhl_standard'"
               [class.border-slate-200]="form.get('shippingMethod')?.value !== 'dhl_standard'"
             >
@@ -171,7 +171,7 @@
                   type="radio"
                   formControlName="shippingMethod"
                   value="dhl_standard"
-                  class="text-indigo-600 cursor-pointer w-4 h-4"
+                  class="text-slate-900 cursor-pointer w-4 h-4"
                 />
                 <div>
                   <strong class="text-xs text-slate-900 block font-bold">DHL Paket (Versichert & Tracking)</strong>
@@ -185,8 +185,8 @@
 
             <!-- Pickup -->
             <label class="p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition"
-              [class.bg-indigo-50]="form.get('shippingMethod')?.value === 'pickup'"
-              [class.border-indigo-600]="form.get('shippingMethod')?.value === 'pickup'"
+              [class.bg-slate-50]="form.get('shippingMethod')?.value === 'pickup'"
+              [class.border-slate-900]="form.get('shippingMethod')?.value === 'pickup'"
               [class.bg-white]="form.get('shippingMethod')?.value !== 'pickup'"
               [class.border-slate-200]="form.get('shippingMethod')?.value !== 'pickup'"
             >
@@ -195,14 +195,14 @@
                   type="radio"
                   formControlName="shippingMethod"
                   value="pickup"
-                  class="text-indigo-600 cursor-pointer w-4 h-4"
+                  class="text-slate-900 cursor-pointer w-4 h-4"
                 />
                 <div>
                   <strong class="text-xs text-slate-900 block font-bold">Kostenlose Selbstabholung</strong>
                   <span class="text-[11px] text-slate-500">Nach Terminabsprache vor Ort</span>
                 </div>
               </div>
-              <span class="font-mono font-bold text-xs text-emerald-600">0,00 €</span>
+              <span class="font-mono font-bold text-xs text-emerald-700">0,00 €</span>
             </label>
           </div>
         </div>
@@ -211,7 +211,7 @@
         <div class="bg-white rounded-3xl p-6 md:p-7 space-y-4 shadow-sm border border-slate-200">
           <div class="flex items-center justify-between pb-3 border-b border-slate-100">
             <div class="flex items-center gap-2.5">
-              <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">3</span>
+              <span class="w-6 h-6 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">3</span>
               <h2 class="text-xs font-bold uppercase tracking-wider text-slate-900">Zahlungsart</h2>
             </div>
             <div class="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
@@ -223,8 +223,8 @@
           <div class="space-y-3">
             <!-- 1. Stripe Kreditkarte -->
             <label class="p-4 rounded-2xl border flex flex-col gap-3 cursor-pointer transition"
-              [class.bg-indigo-50]="selectedPayment() === 'stripe_card'"
-              [class.border-indigo-600]="selectedPayment() === 'stripe_card'"
+              [class.bg-slate-50]="selectedPayment() === 'stripe_card'"
+              [class.border-slate-900]="selectedPayment() === 'stripe_card'"
               [class.bg-white]="selectedPayment() !== 'stripe_card'"
               [class.border-slate-200]="selectedPayment() !== 'stripe_card'"
             >
@@ -234,22 +234,22 @@
                     type="radio"
                     formControlName="paymentMethod"
                     value="stripe_card"
-                    class="text-indigo-600 cursor-pointer w-4 h-4"
+                    class="text-slate-900 cursor-pointer w-4 h-4"
                   />
                   <div class="flex items-center gap-2">
-                    <lucide-icon [img]="cardIcon" class="w-4 h-4 text-indigo-600"></lucide-icon>
+                    <lucide-icon [img]="cardIcon" class="w-4 h-4 text-slate-700"></lucide-icon>
                     <div>
                       <strong class="text-xs text-slate-900 block font-bold">Kreditkarte & Debitkarte (Stripe)</strong>
                       <span class="text-[10px] text-slate-500">Visa, Mastercard, American Express, Apple Pay</span>
                     </div>
                   </div>
                 </div>
-                <span class="px-2 py-0.5 rounded text-[9px] font-mono bg-indigo-100 text-indigo-700 font-bold">
+                <span class="px-2 py-0.5 rounded text-[9px] font-mono bg-slate-200 text-slate-800 font-bold">
                   {{ detectedCardBrand() }}
                 </span>
               </div>
 
-              <!-- Interactive Card Inputs (Visible when Stripe chosen) -->
+              <!-- Interactive Card Inputs -->
               @if (selectedPayment() === 'stripe_card') {
                 <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-3 animate-fade-in text-xs shadow-xs" (click)="$event.stopPropagation()">
                   <div>
@@ -260,7 +260,7 @@
                       type="text"
                       formControlName="cardNumber"
                       placeholder="4242 4242 4242 4242"
-                      class="w-full px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-50 text-slate-900 border border-slate-300 focus:border-indigo-600 outline-none"
+                      class="w-full px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-50 text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
                     />
                   </div>
 
@@ -273,7 +273,7 @@
                         type="text"
                         formControlName="cardExpiry"
                         placeholder="MM/JJ"
-                        class="w-full px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-50 text-slate-900 border border-slate-300 focus:border-indigo-600 outline-none"
+                        class="w-full px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-50 text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
                       />
                     </div>
                     <div>
@@ -285,7 +285,7 @@
                         formControlName="cardCvc"
                         placeholder="123"
                         maxlength="4"
-                        class="w-full px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-50 text-slate-900 border border-slate-300 focus:border-indigo-600 outline-none"
+                        class="w-full px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-50 text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
                       />
                     </div>
                   </div>
@@ -298,7 +298,7 @@
                       type="text"
                       formControlName="cardHolder"
                       placeholder="Vorname Nachname"
-                      class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 text-slate-900 border border-slate-300 focus:border-indigo-600 outline-none"
+                      class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
                     />
                   </div>
                 </div>
@@ -307,8 +307,8 @@
 
             <!-- 2. PayPal Express -->
             <label class="p-4 rounded-2xl border flex flex-col gap-2.5 cursor-pointer transition"
-              [class.bg-indigo-50]="selectedPayment() === 'paypal'"
-              [class.border-indigo-600]="selectedPayment() === 'paypal'"
+              [class.bg-slate-50]="selectedPayment() === 'paypal'"
+              [class.border-slate-900]="selectedPayment() === 'paypal'"
               [class.bg-white]="selectedPayment() !== 'paypal'"
               [class.border-slate-200]="selectedPayment() !== 'paypal'"
             >
@@ -318,7 +318,7 @@
                     type="radio"
                     formControlName="paymentMethod"
                     value="paypal"
-                    class="text-indigo-600 cursor-pointer w-4 h-4"
+                    class="text-slate-900 cursor-pointer w-4 h-4"
                   />
                   <div class="flex items-center gap-2">
                     <span class="text-base">🅿️</span>
@@ -328,15 +328,15 @@
                     </div>
                   </div>
                 </div>
-                <span class="px-2 py-0.5 rounded text-[9px] font-mono bg-blue-100 text-blue-700 font-bold">
+                <span class="px-2 py-0.5 rounded text-[9px] font-mono bg-blue-50 text-blue-700 font-bold border border-blue-200">
                   PayPal Protection
                 </span>
               </div>
 
               @if (selectedPayment() === 'paypal') {
-                <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs space-y-1 animate-fade-in">
-                  <div class="flex items-center gap-1.5 text-amber-800 font-bold text-[11px]">
-                    <lucide-icon [img]="shieldIcon" class="w-3.5 h-3.5 text-amber-600"></lucide-icon>
+                <div class="p-3 bg-white border border-slate-200 rounded-xl text-xs space-y-1 animate-fade-in shadow-2xs">
+                  <div class="flex items-center gap-1.5 text-slate-900 font-bold text-[11px]">
+                    <lucide-icon [img]="shieldIcon" class="w-3.5 h-3.5 text-emerald-600"></lucide-icon>
                     <span>PayPal Käuferschutz aktiv</span>
                   </div>
                   <p class="text-[10px] text-slate-600 leading-tight">
@@ -348,8 +348,8 @@
 
             <!-- 3. Bank Transfer (SEPA Vorkasse) -->
             <label class="p-4 rounded-2xl border flex flex-col gap-2.5 cursor-pointer transition"
-              [class.bg-indigo-50]="selectedPayment() === 'bank_transfer'"
-              [class.border-indigo-600]="selectedPayment() === 'bank_transfer'"
+              [class.bg-slate-50]="selectedPayment() === 'bank_transfer'"
+              [class.border-slate-900]="selectedPayment() === 'bank_transfer'"
               [class.bg-white]="selectedPayment() !== 'bank_transfer'"
               [class.border-slate-200]="selectedPayment() !== 'bank_transfer'"
             >
@@ -359,17 +359,17 @@
                     type="radio"
                     formControlName="paymentMethod"
                     value="bank_transfer"
-                    class="text-indigo-600 cursor-pointer w-4 h-4"
+                    class="text-slate-900 cursor-pointer w-4 h-4"
                   />
                   <div class="flex items-center gap-2">
-                    <lucide-icon [img]="bankIcon" class="w-4 h-4 text-emerald-600"></lucide-icon>
+                    <lucide-icon [img]="bankIcon" class="w-4 h-4 text-slate-700"></lucide-icon>
                     <div>
                       <strong class="text-xs text-slate-900 block font-bold">Banküberweisung / SEPA Vorkasse</strong>
                       <span class="text-[10px] text-slate-500">Kostenlose Überweisung auf unser deutsches Geschäftskonto</span>
                     </div>
                   </div>
                 </div>
-                <span class="px-2 py-0.5 rounded text-[9px] font-mono bg-emerald-100 text-emerald-700 font-bold">
+                <span class="px-2 py-0.5 rounded text-[9px] font-mono bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
                   SEPA
                 </span>
               </div>
@@ -404,8 +404,8 @@
 
             <!-- 4. Barzahlung bei Abholung -->
             <label class="p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition"
-              [class.bg-indigo-50]="selectedPayment() === 'cash_on_pickup'"
-              [class.border-indigo-600]="selectedPayment() === 'cash_on_pickup'"
+              [class.bg-slate-50]="selectedPayment() === 'cash_on_pickup'"
+              [class.border-slate-900]="selectedPayment() === 'cash_on_pickup'"
               [class.bg-white]="selectedPayment() !== 'cash_on_pickup'"
               [class.border-slate-200]="selectedPayment() !== 'cash_on_pickup'"
             >
@@ -414,10 +414,10 @@
                   type="radio"
                   formControlName="paymentMethod"
                   value="cash_on_pickup"
-                  class="text-indigo-600 cursor-pointer w-4 h-4"
+                  class="text-slate-900 cursor-pointer w-4 h-4"
                 />
                 <div class="flex items-center gap-2">
-                  <lucide-icon [img]="cashIcon" class="w-4 h-4 text-amber-600"></lucide-icon>
+                  <lucide-icon [img]="cashIcon" class="w-4 h-4 text-slate-700"></lucide-icon>
                   <div>
                     <strong class="text-xs text-slate-900 block font-bold">Barzahlung bei Abholung</strong>
                     <span class="text-[10px] text-slate-500">Vor Ort bar oder per EC-Karte zahlen</span>
@@ -431,7 +431,7 @@
 
       <!-- Right Column: Order Summary (5 cols) -->
       <div class="lg:col-span-5 space-y-5">
-        <div class="bg-white rounded-3xl p-6 md:p-7 space-y-5 shadow-md border border-slate-200 sticky top-24">
+        <div class="bg-white rounded-3xl p-6 md:p-7 space-y-5 shadow-sm border border-slate-200 sticky top-24">
           <h2 class="text-xs font-bold uppercase tracking-wider text-slate-900 pb-3 border-b border-slate-100">
             Bestellübersicht ({{ storeService.cartItemCount() }} Artikel)
           </h2>
@@ -489,7 +489,7 @@
           <button
             type="submit"
             [disabled]="form.invalid || isSubmitting()"
-            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 px-4 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 disabled:opacity-40 transition"
+            class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3.5 px-4 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-sm disabled:opacity-40 transition"
           >
             @if (isSubmitting()) {
               <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>

@@ -1,16 +1,16 @@
-<div class="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col selection:bg-indigo-600 selection:text-white font-sans antialiased">
-  <!-- Top Announcement Bar (Rich Indigo & Trust Elements) -->
-  <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white text-[11px] font-medium py-2 px-4 border-b border-indigo-500/20 select-none shadow-xs">
+<div class="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col selection:bg-slate-900 selection:text-white font-sans antialiased">
+  <!-- Top Announcement Bar (Midnight Slate & Emerald Accent) -->
+  <div class="bg-slate-950 text-slate-300 text-[11px] font-medium py-2 px-4 border-b border-slate-800 select-none shadow-2xs">
     <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs">
-      <div class="flex items-center gap-4 text-[11px] text-slate-200">
-        <span class="flex items-center gap-1.5 font-semibold text-emerald-400">
+      <div class="flex items-center gap-4 text-[11px] text-slate-300">
+        <span class="flex items-center gap-1.5 font-medium text-emerald-400">
           <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5"></lucide-icon>
           <span>100% Geprüfte Gebrauchtware mit Funktionsgarantie</span>
         </span>
-        <span class="hidden md:inline text-slate-600">•</span>
+        <span class="hidden md:inline text-slate-700">•</span>
         <span class="hidden md:flex items-center gap-1.5 text-slate-300">
-          <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
-          <span>Versand innerhalb von 24h</span>
+          <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
+          <span>Versandfertig innerhalb von 24h</span>
         </span>
       </div>
 
@@ -18,12 +18,12 @@
       <div class="flex items-center gap-2 text-[11px]">
         @if (remainingForFreeShipping() === 0 && storeService.cartItemCount() > 0) {
           <span class="text-emerald-300 font-bold flex items-center gap-1 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30">
-            <lucide-icon [img]="sparklesIcon" class="w-3 h-3"></lucide-icon>
-            <span>🎉 Kostenloser DHL/Hermes-Versand aktiv!</span>
+            <lucide-icon [img]="sparklesIcon" class="w-3 h-3 text-emerald-400"></lucide-icon>
+            <span>🎉 Kostenloser Versand aktiv!</span>
           </span>
         } @else {
-          <span class="text-slate-300 flex items-center gap-1">
-            <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+          <span class="text-slate-400 flex items-center gap-1">
+            <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
             <span>Kostenloser Versand ab {{ storeService.storeSettings().freeShippingThreshold | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
           </span>
         }
@@ -31,14 +31,14 @@
     </div>
   </div>
 
-  <!-- Store Header (Crisp White Glass with Indigo Accent) -->
-  <header class="border-b border-slate-200/90 bg-white/95 backdrop-blur-md sticky top-0 z-40 px-4 md:px-8 select-none shadow-xs">
+  <!-- Store Header (Crisp White Glass with Midnight Slate Branding) -->
+  <header class="border-b border-slate-200/90 bg-white/95 backdrop-blur-md sticky top-0 z-40 px-4 md:px-8 select-none shadow-2xs">
     <div class="max-w-7xl mx-auto h-16 flex items-center justify-between gap-4">
       <!-- Brand Logo -->
       <div class="flex items-center gap-3">
         <a routerLink="/shop" class="flex items-center gap-3 group cursor-pointer">
-          <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-600 to-blue-600 flex items-center justify-center shadow-md shadow-indigo-500/25 group-hover:scale-105 transition">
-            <lucide-icon [img]="storeIcon" class="w-5 h-5 text-white stroke-[2.5]"></lucide-icon>
+          <div class="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center shadow-md shadow-slate-900/20 group-hover:bg-slate-800 transition">
+            <lucide-icon [img]="storeIcon" class="w-5 h-5 text-white stroke-[2.2]"></lucide-icon>
           </div>
           <div>
             <div class="flex items-center gap-2">
@@ -68,23 +68,23 @@
           <span class="hidden md:inline">Händler-Cockpit</span>
         </a>
 
-        <!-- Cart Button with Live Counter Badge & Subtotal (Indigo Primary) -->
+        <!-- Cart Button (Midnight Black with Emerald Badge) -->
         <button
           type="button"
           (click)="storeService.openCart()"
-          class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2.5 cursor-pointer shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/40 transition"
+          class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2.5 cursor-pointer shadow-sm shadow-slate-900/20 transition"
         >
           <div class="relative">
             <lucide-icon [img]="bagIcon" class="w-4 h-4"></lucide-icon>
             @if (storeService.cartItemCount() > 0) {
-              <span class="absolute -top-2 -right-2.5 w-4 h-4 rounded-full bg-emerald-500 text-white text-[9px] font-black font-mono flex items-center justify-center shadow-md animate-pulse">
+              <span class="absolute -top-2 -right-2.5 w-4 h-4 rounded-full bg-emerald-500 text-white text-[9px] font-black font-mono flex items-center justify-center shadow-md">
                 {{ storeService.cartItemCount() }}
               </span>
             }
           </div>
           <span class="hidden sm:inline">Warenkorb</span>
           @if (storeService.cartSubtotal() > 0) {
-            <span class="font-mono font-bold text-white pl-1.5 border-l border-white/20">
+            <span class="font-mono font-bold text-white pl-1.5 border-l border-slate-700">
               {{ storeService.cartSubtotal() | currency:'EUR':'symbol':'1.2-2':'de' }}
             </span>
           }
@@ -98,7 +98,7 @@
     <router-outlet></router-outlet>
   </main>
 
-  <!-- Professional Store Footer -->
+  <!-- Professional Store Footer (Midnight Slate) -->
   <footer class="border-t border-slate-800 bg-slate-950 py-12 px-4 md:px-8 text-xs text-slate-400 select-none mt-16">
     <div class="max-w-7xl mx-auto space-y-10">
       <!-- 4 Column Footer Grid -->
@@ -106,13 +106,13 @@
         <!-- Store Brand Info -->
         <div class="space-y-3">
           <div class="flex items-center gap-2">
-            <div class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
+            <div class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-white">
               <lucide-icon [img]="storeIcon" class="w-4 h-4"></lucide-icon>
             </div>
             <h4 class="font-bold text-white text-sm">{{ storeService.storeSettings().storeName }}</h4>
           </div>
           <p class="text-[11px] leading-relaxed text-slate-400">
-            Dein vertrauensvoller Fachhändler für geprüfte Gebrauchtwaren, Elektronik, Werkzeuge und Schnäppchen. Jedes Produkt technisch & optisch geprüft.
+            Dein Fachhändler für geprüfte Gebrauchtwaren, Elektronik, Werkzeuge und Schnäppchen. Jedes Produkt technisch & optisch geprüft.
           </p>
           <div class="pt-1 flex items-center gap-2 text-emerald-400 font-semibold text-[11px]">
             <lucide-icon [img]="shieldIcon" class="w-4 h-4"></lucide-icon>
@@ -129,7 +129,7 @@
               <span><strong class="text-slate-200">Experten-Qualitätscheck:</strong> Gründlich getestet & gereinigt</span>
             </li>
             <li class="flex items-start gap-2">
-              <lucide-icon [img]="truckIcon" class="w-4 h-4 text-indigo-400 shrink-0 mt-0.5"></lucide-icon>
+              <lucide-icon [img]="truckIcon" class="w-4 h-4 text-slate-400 shrink-0 mt-0.5"></lucide-icon>
               <span><strong class="text-slate-200">Blitzversand:</strong> Innerhalb von 24h mit DHL/Hermes Sendungsverfolgung</span>
             </li>
             <li class="flex items-start gap-2">
@@ -137,7 +137,7 @@
               <span><strong class="text-slate-200">14 Tage Rückgaberecht:</strong> Sorgenfrei online einkaufen</span>
             </li>
             <li class="flex items-start gap-2">
-              <lucide-icon [img]="lockIcon" class="w-4 h-4 text-blue-400 shrink-0 mt-0.5"></lucide-icon>
+              <lucide-icon [img]="lockIcon" class="w-4 h-4 text-slate-400 shrink-0 mt-0.5"></lucide-icon>
               <span><strong class="text-slate-200">Sichere Bezahlung:</strong> 256-Bit SSL-Verschlüsselung</span>
             </li>
           </ul>
@@ -148,15 +148,15 @@
           <h4 class="font-bold text-white text-xs uppercase tracking-wider">Zahlungsmethoden</h4>
           <div class="grid grid-cols-2 gap-2 text-[11px]">
             <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200">
-              <lucide-icon [img]="creditCardIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+              <lucide-icon [img]="creditCardIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
               <span>PayPal & Card</span>
             </div>
             <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200">
-              <lucide-icon [img]="creditCardIcon" class="w-3.5 h-3.5 text-blue-400"></lucide-icon>
+              <lucide-icon [img]="creditCardIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
               <span>Stripe / Visa / MC</span>
             </div>
             <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200">
-              <lucide-icon [img]="lockIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
+              <lucide-icon [img]="lockIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
               <span>Klarna / Sofort</span>
             </div>
             <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200">
@@ -175,9 +175,9 @@
           <p class="font-semibold text-slate-200">{{ storeService.storeSettings().imprint.owner }}</p>
           <p>{{ storeService.storeSettings().imprint.street }}</p>
           <p>{{ storeService.storeSettings().imprint.city }}</p>
-          <p class="pt-1 text-indigo-400 font-medium flex items-center gap-1">
+          <p class="pt-1 text-slate-300 font-medium flex items-center gap-1">
             <span>E-Mail:</span>
-            <a [href]="'mailto:' + storeService.storeSettings().imprint.email" class="hover:underline text-indigo-300">
+            <a [href]="'mailto:' + storeService.storeSettings().imprint.email" class="hover:underline text-slate-200">
               {{ storeService.storeSettings().imprint.email }}
             </a>
           </p>
