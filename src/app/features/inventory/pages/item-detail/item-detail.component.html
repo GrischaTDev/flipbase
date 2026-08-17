@@ -3,7 +3,7 @@
   <div class="flex items-center justify-between pb-1">
     <a
       routerLink="/inventory"
-      class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-100 transition"
+      class="inline-flex items-center gap-1.5 text-xs font-semibold text-rf-text-muted hover:text-rf-text-primary transition"
     >
       <lucide-icon [img]="arrowLeftIcon" class="w-3.5 h-3.5"></lucide-icon>
       <span>Zurück zum Inventar</span>
@@ -22,7 +22,8 @@
       <button
         type="button"
         (click)="onDeleteItem()"
-        class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold transition cursor-pointer"
+        class="p-1.5 rounded-lg text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold transition cursor-pointer"
+        title="Artikel löschen"
       >
         <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
       </button>
@@ -34,13 +35,21 @@
     <div class="linear-surface rounded-xl p-5 space-y-5">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex items-start gap-3.5">
-          <div class="w-10 h-10 rounded-lg bg-[#1e222a] border border-[#373e4d] text-slate-300 flex items-center justify-center shrink-0">
-            <lucide-icon [img]="boxesIcon" class="w-5 h-5"></lucide-icon>
+          <div class="w-12 h-12 rounded-lg bg-rf-subtle border border-rf-border text-rf-text-secondary flex items-center justify-center shrink-0 overflow-hidden">
+            @if (mediaList().length > 0) {
+              <img
+                [src]="getPublicUrl(mediaList()[0].storage_path)"
+                [alt]="item.title"
+                class="w-full h-full object-cover"
+              />
+            } @else {
+              <lucide-icon [img]="boxesIcon" class="w-6 h-6"></lucide-icon>
+            }
           </div>
 
           <div>
             <div class="flex flex-wrap items-center gap-1.5 mb-1">
-              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-medium uppercase bg-[#1e222a] text-slate-300 border border-[#373e4d]">
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-medium uppercase bg-rf-subtle text-rf-text-secondary border border-rf-border">
                 {{ item.condition }}
               </span>
 
@@ -51,17 +60,17 @@
               }
 
               @if (item.brand) {
-                <span class="text-xs text-slate-400 font-medium">{{ item.brand }}</span>
+                <span class="text-xs text-rf-text-muted font-medium">{{ item.brand }}</span>
               }
             </div>
 
-            <h1 class="text-base md:text-lg font-bold text-slate-100">{{ item.title }}</h1>
+            <h1 class="text-base md:text-lg font-bold text-rf-text-primary">{{ item.title }}</h1>
           </div>
         </div>
 
         <!-- Status Lifecycle Selector Dropdown (Kapitel 10) -->
         <div class="flex flex-col sm:items-end gap-1">
-          <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Lifecycle-Status</span>
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">Lifecycle-Status</span>
           <select
             [value]="item.status"
             (change)="onChangeStatus($any($event.target).value)"
@@ -75,24 +84,24 @@
       </div>
 
       <!-- Financial Metrics Ribbon -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-[#373e4d] font-mono">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-rf-border font-mono">
         <div class="linear-kpi p-3 rounded-lg">
-          <span class="text-[10px] uppercase font-sans font-medium text-slate-400 block">Anschaffung (EK)</span>
-          <span class="text-base font-bold text-slate-100 mt-1 block">
+          <span class="text-[10px] uppercase font-sans font-medium text-rf-text-muted block">Anschaffung (EK)</span>
+          <span class="text-base font-bold text-rf-text-primary mt-1 block">
             {{ item.allocated_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
           </span>
         </div>
 
         <div class="linear-kpi p-3 rounded-lg">
-          <span class="text-[10px] uppercase font-sans font-medium text-slate-400 block">Zusatzkosten</span>
+          <span class="text-[10px] uppercase font-sans font-medium text-rf-text-muted block">Zusatzkosten</span>
           <span class="text-base font-bold text-amber-400 mt-1 block">
             {{ (item.total_item_cost || item.allocated_purchase_cost) - item.allocated_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
           </span>
         </div>
 
         <div class="linear-kpi p-3 rounded-lg">
-          <span class="text-[10px] uppercase font-sans font-medium text-slate-400 block">Gesamtkosten</span>
-          <span class="text-base font-bold text-slate-100 mt-1 block">
+          <span class="text-[10px] uppercase font-sans font-medium text-rf-text-muted block">Gesamtkosten</span>
+          <span class="text-base font-bold text-rf-text-primary mt-1 block">
             {{ item.total_item_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
           </span>
         </div>
@@ -106,22 +115,140 @@
       </div>
     </div>
 
+    <!-- Foto-Galerie & Belege (Supabase Storage) -->
+    <div class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-rf-border">
+        <div class="flex items-center gap-2">
+          <lucide-icon [img]="imageIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+          <div>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+              Produktbilder & Kaufbelege (Supabase Storage)
+            </h2>
+            <span class="text-[11px] text-rf-text-muted">
+              {{ mediaList().length }} Datei(en) im Cloud-Speicher hinterlegt
+            </span>
+          </div>
+        </div>
+
+        <!-- Upload Button -->
+        <label class="linear-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0">
+          <lucide-icon [img]="uploadIcon" class="w-3.5 h-3.5"></lucide-icon>
+          <span>{{ isUploading() ? 'Wird hochgeladen...' : 'Fotos hochladen' }}</span>
+          <input
+            type="file"
+            multiple
+            accept="image/*,application/pdf"
+            (change)="onFilesSelected($event)"
+            [disabled]="isUploading()"
+            class="hidden"
+          />
+        </label>
+      </div>
+
+      @if (uploadError()) {
+        <div class="p-2.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
+          {{ uploadError() }}
+        </div>
+      }
+
+      <!-- Media Grid -->
+      @if (mediaList().length > 0) {
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+          @for (media of mediaList(); track media.id) {
+            <div class="group relative rounded-lg border border-rf-border bg-rf-subtle overflow-hidden flex flex-col transition hover:border-rf-border-hover">
+              <!-- Image Container -->
+              <div class="relative aspect-square w-full bg-black/20 flex items-center justify-center overflow-hidden">
+                @if (media.mime_type?.includes('pdf')) {
+                  <div class="flex flex-col items-center gap-1 text-rf-text-muted p-2 text-center">
+                    <lucide-icon [img]="fileIcon" class="w-8 h-8 text-amber-400"></lucide-icon>
+                    <span class="text-[10px] truncate max-w-[100px]">{{ media.file_name || 'Beleg.pdf' }}</span>
+                  </div>
+                } @else {
+                  <img
+                    [src]="getPublicUrl(media.storage_path)"
+                    [alt]="media.file_name || 'Artikelbild'"
+                    class="w-full h-full object-cover transition duration-200 group-hover:scale-105 cursor-pointer"
+                    (click)="previewModalUrl.set(getPublicUrl(media.storage_path))"
+                  />
+                }
+
+                <!-- Primary Badge -->
+                @if (media.is_primary) {
+                  <span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-500 text-white shadow-xs">
+                    ⭐ Hauptbild
+                  </span>
+                }
+
+                <!-- Quick Action Overlay on Hover -->
+                <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                  <button
+                    type="button"
+                    (click)="previewModalUrl.set(getPublicUrl(media.storage_path))"
+                    class="p-1.5 rounded bg-rf-surface/90 text-rf-text-primary hover:text-emerald-400 transition cursor-pointer"
+                    title="Vollbild"
+                  >
+                    <lucide-icon [img]="eyeIcon" class="w-3.5 h-3.5"></lucide-icon>
+                  </button>
+
+                  @if (!media.is_primary) {
+                    <button
+                      type="button"
+                      (click)="onSetPrimary(media)"
+                      class="p-1.5 rounded bg-rf-surface/90 text-rf-text-primary hover:text-amber-400 transition cursor-pointer"
+                      title="Als Hauptbild setzen"
+                    >
+                      <lucide-icon [img]="starIcon" class="w-3.5 h-3.5"></lucide-icon>
+                    </button>
+                  }
+
+                  <button
+                    type="button"
+                    (click)="onDeleteMedia(media)"
+                    class="p-1.5 rounded bg-rf-surface/90 text-rf-text-primary hover:text-rose-400 transition cursor-pointer"
+                    title="Löschen"
+                  >
+                    <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Media Info Footer -->
+              <div class="p-1.5 text-[10px] font-mono text-rf-text-muted flex items-center justify-between border-t border-rf-border">
+                <span class="truncate max-w-[90px]">{{ media.file_name || 'Bild' }}</span>
+                @if (media.file_size) {
+                  <span>{{ (media.file_size / 1024).toFixed(0) }} KB</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="p-8 text-center border border-dashed border-rf-border rounded-lg bg-rf-subtle/50">
+          <lucide-icon [img]="imageIcon" class="w-8 h-8 text-rf-text-dimmed mx-auto mb-2"></lucide-icon>
+          <p class="text-xs font-semibold text-rf-text-secondary">Noch keine Fotos oder Belege hochgeladen</p>
+          <p class="text-[11px] text-rf-text-muted mt-0.5">
+            Lade Produktfotos für Inserate oder Einkaufsbelege direkt in Supabase Storage hoch.
+          </p>
+        </div>
+      }
+    </div>
+
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
       <!-- Left Column: Origin & Item Costs (7 cols) -->
       <div class="lg:col-span-7 space-y-4">
         <!-- Origin Card -->
         <div class="linear-surface rounded-xl p-4 space-y-3">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
             Herkunft & Einkauf (Kapitel 24)
           </h2>
 
           @if (item.purchase) {
-            <div class="p-3 rounded-lg bg-[#1e222a] border border-[#373e4d] flex items-center justify-between">
+            <div class="p-3 rounded-lg bg-rf-subtle border border-rf-border flex items-center justify-between">
               <div>
                 <a [routerLink]="['/purchases', item.purchase.id]" class="text-xs font-semibold text-emerald-400 hover:underline">
                   {{ item.purchase.title }}
                 </a>
-                <p class="text-[11px] text-slate-400 mt-0.5 font-mono">
+                <p class="text-[11px] text-rf-text-muted mt-0.5 font-mono">
                   Gekauft am {{ item.purchase.purchase_date | date:'dd.MM.yyyy' }} • Typ: {{ item.purchase.type }}
                 </p>
               </div>
@@ -134,16 +261,16 @@
               </a>
             </div>
           } @else {
-            <p class="text-xs text-slate-400">Dieser Artikel wurde direkt ohne verknüpften Einkauf angelegt.</p>
+            <p class="text-xs text-rf-text-muted">Dieser Artikel wurde direkt ohne verknüpften Einkauf angelegt.</p>
           }
         </div>
 
         <!-- Item Costs Card (Reparatur, Reinigung, Ersatzteile - Kapitel 9) -->
         <div class="linear-surface rounded-xl p-4 space-y-3">
-          <div class="flex items-center justify-between pb-2 border-b border-[#373e4d]">
+          <div class="flex items-center justify-between pb-2 border-b border-rf-border">
             <div class="flex items-center gap-2">
               <lucide-icon [img]="wrenchIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
-              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Artikelkosten (Reparatur, Reinigung, Teile)</h2>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Artikelkosten (Reparatur, Reinigung, Teile)</h2>
             </div>
 
             <button
@@ -157,10 +284,10 @@
           </div>
 
           @if (isAddingCost()) {
-            <form [formGroup]="costForm" (ngSubmit)="onAddCost()" class="p-3 rounded-lg bg-[#1e222a] border border-[#373e4d] flex flex-wrap gap-2 items-center animate-fade-in">
+            <form [formGroup]="costForm" (ngSubmit)="onAddCost()" class="p-3 rounded-lg bg-rf-subtle border border-rf-border flex flex-wrap gap-2 items-center animate-fade-in">
               <select
                 formControlName="type"
-                class="linear-input px-2.5 py-1.5 rounded-lg text-xs"
+                class="linear-input px-2.5 py-1.5 rounded-lg text-xs cursor-pointer"
               >
                 <option value="repair">Reparatur</option>
                 <option value="cleaning">Reinigung</option>
@@ -195,22 +322,22 @@
           }
 
           @if (inventoryService.itemCosts().length > 0) {
-            <div class="divide-y divide-[#373e4d] font-mono">
+            <div class="divide-y divide-rf-border font-mono">
               @for (c of inventoryService.itemCosts(); track c.id) {
                 <div class="py-2 flex items-center justify-between text-xs">
                   <div class="flex items-center gap-2.5">
-                    <span class="font-bold uppercase text-[10px] text-slate-400">{{ c.type }}</span>
-                    <span class="text-slate-200 font-sans">{{ c.description || '-' }}</span>
+                    <span class="font-bold uppercase text-[10px] text-rf-text-muted">{{ c.type }}</span>
+                    <span class="text-rf-text-secondary font-sans">{{ c.description || '-' }}</span>
                   </div>
 
                   <div class="flex items-center gap-2.5">
-                    <span class="font-bold text-slate-100">
+                    <span class="font-bold text-rf-text-primary">
                       {{ c.amount | currency:'EUR':'symbol':'1.2-2':'de' }}
                     </span>
                     <button
                       type="button"
                       (click)="onDeleteCost(c.id!)"
-                      class="p-1 text-slate-400 hover:text-rose-400 transition cursor-pointer"
+                      class="p-1 text-rf-text-muted hover:text-rose-400 transition cursor-pointer"
                     >
                       <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
                     </button>
@@ -219,16 +346,16 @@
               }
             </div>
           } @else {
-            <p class="text-xs text-slate-400">Keine artikelbezogenen Zusatzkosten erfasst.</p>
+            <p class="text-xs text-rf-text-muted">Keine artikelbezogenen Zusatzkosten erfasst.</p>
           }
         </div>
       </div>
 
       <!-- Right Column: Activity History (5 cols) -->
       <div class="lg:col-span-5 linear-surface rounded-xl p-4 space-y-3">
-        <div class="flex items-center gap-2 pb-2 border-b border-[#373e4d]">
+        <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
           <lucide-icon [img]="historyIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Aktivitäts-Historie (Kapitel 11)</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Aktivitäts-Historie (Kapitel 11)</h2>
         </div>
 
         <div class="space-y-2.5">
@@ -237,18 +364,41 @@
               <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0"></div>
               <div class="flex-1">
                 <div class="flex items-center justify-between">
-                  <strong class="text-slate-200 font-semibold">{{ log.action }}</strong>
-                  <span class="text-[10px] font-mono text-slate-400">{{ log.created_at | date:'dd.MM.yy HH:mm' }}</span>
+                  <strong class="text-rf-text-secondary font-semibold">{{ log.action }}</strong>
+                  <span class="text-[10px] font-mono text-rf-text-muted">{{ log.created_at | date:'dd.MM.yy HH:mm' }}</span>
                 </div>
                 @if (log.notes) {
-                  <p class="text-slate-300 text-[11px] mt-0.5">{{ log.notes }}</p>
+                  <p class="text-rf-text-secondary text-[11px] mt-0.5">{{ log.notes }}</p>
                 }
               </div>
             </div>
           } @empty {
-            <p class="text-xs text-slate-400">Noch keine Aktivitäten protokolliert.</p>
+            <p class="text-xs text-rf-text-muted">Noch keine Aktivitäten protokolliert.</p>
           }
         </div>
+      </div>
+    </div>
+  }
+
+  <!-- Fullscreen Image Preview Modal -->
+  @if (previewModalUrl(); as pUrl) {
+    <div
+      class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
+      (click)="previewModalUrl.set(null)"
+    >
+      <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center">
+        <button
+          type="button"
+          (click)="previewModalUrl.set(null)"
+          class="absolute -top-10 right-0 p-1.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition cursor-pointer"
+        >
+          <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+        </button>
+        <img
+          [src]="pUrl"
+          alt="Vollbild Vorschau"
+          class="max-w-full max-h-[85vh] rounded-xl object-contain shadow-2xl border border-white/10"
+        />
       </div>
     </div>
   }

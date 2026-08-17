@@ -18,9 +18,16 @@ import {
   ExternalLink,
   History,
   CheckCircle2,
+  Image as ImageIcon,
+  Upload,
+  Star,
+  Eye,
+  FileText,
+  X,
 } from 'lucide-angular';
 import { InventoryService } from '../../../../core/services/inventory.service';
-import { ItemStatus } from '../../../../core/models/reflip.models';
+import { MediaService } from '../../../../core/services/media.service';
+import { ItemMedia, ItemStatus } from '../../../../core/models/reflip.models';
 
 @Component({
   selector: 'app-item-detail',
@@ -33,6 +40,7 @@ export class ItemDetailComponent {
   readonly id = input.required<string>();
 
   readonly inventoryService = inject(InventoryService);
+  readonly mediaService = inject(MediaService);
   private readonly router = inject(Router);
 
   readonly arrowLeftIcon = ArrowLeft;
@@ -48,8 +56,18 @@ export class ItemDetailComponent {
   readonly linkIcon = ExternalLink;
   readonly historyIcon = History;
   readonly checkIcon = CheckCircle2;
+  readonly imageIcon = ImageIcon;
+  readonly uploadIcon = Upload;
+  readonly starIcon = Star;
+  readonly eyeIcon = Eye;
+  readonly fileIcon = FileText;
+  readonly closeIcon = X;
 
   readonly isAddingCost = signal<boolean>(false);
+  readonly mediaList = signal<ItemMedia[]>([]);
+  readonly isUploading = signal<boolean>(false);
+  readonly uploadError = signal<string | null>(null);
+  readonly previewModalUrl = signal<string | null>(null);
 
   readonly costForm = new FormGroup({
     type: new FormControl('repair', { nonNullable: true, validators: [Validators.required] }),
@@ -75,8 +93,64 @@ export class ItemDetailComponent {
       const itemId = this.id();
       if (itemId) {
         this.inventoryService.getItemById(itemId);
+        this.loadMedia(itemId);
       }
     });
+  }
+
+  async loadMedia(itemId: string): Promise<void> {
+    const list = await this.mediaService.loadItemMedia(itemId);
+    this.mediaList.set(list);
+  }
+
+  async onFilesSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) return;
+
+    const itemId = this.id();
+    if (!itemId) return;
+
+    this.isUploading.set(true);
+    this.uploadError.set(null);
+
+    const files = Array.from(input.files);
+    const hasExistingMedia = this.mediaList().length > 0;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const isPrimary = !hasExistingMedia && i === 0;
+      const { data, error } = await this.mediaService.uploadItemMedia(itemId, file, isPrimary);
+      if (error) {
+        this.uploadError.set(error.message);
+      } else if (data) {
+        this.mediaList.update((prev) => [data, ...prev]);
+      }
+    }
+
+    this.isUploading.set(false);
+    input.value = '';
+  }
+
+  async onSetPrimary(media: ItemMedia): Promise<void> {
+    const itemId = this.id();
+    if (!itemId) return;
+
+    await this.mediaService.setPrimary(itemId, media.id);
+    this.mediaList.update((prev) =>
+      prev.map((m) => ({ ...m, is_primary: m.id === media.id }))
+    );
+  }
+
+  async onDeleteMedia(media: ItemMedia): Promise<void> {
+    const itemId = this.id();
+    if (!itemId) return;
+
+    await this.mediaService.deleteMedia(itemId, media.id, media.storage_path);
+    this.mediaList.update((prev) => prev.filter((m) => m.id !== media.id));
+  }
+
+  getPublicUrl(path: string): string {
+    return this.mediaService.getPublicUrl(path);
   }
 
   async onChangeStatus(newStatus: string): Promise<void> {
@@ -99,13 +173,13 @@ export class ItemDetailComponent {
   async onDeleteCost(costId: string): Promise<void> {
     const item = this.inventoryService.selectedItem();
     if (!item) return;
-    await this.inventoryService.deleteItemCost(costId, item.id);
+    await this.inventoryService.deleteItemCost(item.id, costId);
   }
 
   async onDeleteItem(): Promise<void> {
     const item = this.inventoryService.selectedItem();
     if (!item) return;
-    if (confirm(`Möchtest du "${item.title}" wirklich löschen?`)) {
+    if (confirm(`Möchtest du "${item.title}" wirklich unwiderruflich löschen?`)) {
       await this.inventoryService.deleteItem(item.id);
       this.router.navigate(['/inventory']);
     }
