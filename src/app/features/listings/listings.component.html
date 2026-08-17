@@ -1,54 +1,60 @@
-<div class="space-y-6">
+<div class="space-y-5 animate-fade-in select-none">
   <!-- Header -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-    <div>
-      <h1 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">
-        {{ 'NAV.LISTINGS' | translate }} & Template Generator
+  <div class="pb-2">
+    <div class="flex items-center gap-2">
+      <h1 class="text-xl font-bold tracking-tight text-zinc-100">
+        {{ 'NAV.LISTINGS' | translate }} & Generator
       </h1>
-      <p class="text-sm text-slate-500 mt-1">
-        Erstelle verkaufsstarke Inserate für Kleinanzeigen, eBay und Vinted mit 1-Klick-Kopieren (Kapitel 21 & 22).
-      </p>
+      <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        Multi-Plattform
+      </span>
     </div>
+    <p class="text-xs text-zinc-400 mt-0.5">
+      Verkaufsstarke Inserate für Kleinanzeigen, eBay und Vinted mit 1-Klick-Kopieren.
+    </p>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
     <!-- Left Column: Item Selection & Customization Options (5 cols) -->
-    <div class="lg:col-span-5 space-y-6">
+    <div class="lg:col-span-5 space-y-4">
       <!-- 1. Item Selector -->
-      <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+      <div class="linear-surface rounded-xl p-4 space-y-3">
         <div class="flex items-center gap-2">
-          <lucide-icon [img]="boxesIcon" class="w-5 h-5 text-emerald-500"></lucide-icon>
-          <h2 class="text-base font-bold text-slate-900 dark:text-white">1. Artikel auswählen</h2>
+          <lucide-icon [img]="boxesIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-300">1. Artikel auswählen</h2>
         </div>
 
         @if (inventoryService.items().length > 0) {
-          <div class="space-y-2 max-h-60 overflow-y-auto pr-1">
+          <div class="space-y-1.5 max-h-60 overflow-y-auto pr-1">
             @for (item of inventoryService.items(); track item.id) {
               <button
                 type="button"
                 (click)="selectItem(item)"
-                class="w-full text-left p-3 rounded-2xl border transition flex items-center justify-between cursor-pointer"
-                [class.bg-emerald-50]="selectedItem()?.id === item.id"
-                [class.dark:bg-emerald-950/40]="selectedItem()?.id === item.id"
-                [class.border-emerald-500]="selectedItem()?.id === item.id"
-                [class.bg-slate-50]="selectedItem()?.id !== item.id"
-                [class.dark:bg-slate-800/40]="selectedItem()?.id !== item.id"
-                [class.border-slate-200]="selectedItem()?.id !== item.id"
-                [class.dark:border-slate-700]="selectedItem()?.id !== item.id"
+                class="w-full text-left p-2.5 rounded-lg border transition flex items-center justify-between cursor-pointer"
+                [class.bg-white/[0.08]]="selectedItem()?.id === item.id"
+                [class.border-emerald-500/40]="selectedItem()?.id === item.id"
+                [class.text-zinc-100]="selectedItem()?.id === item.id"
+                [class.bg-zinc-900]="selectedItem()?.id !== item.id"
+                [class.border-white/5]="selectedItem()?.id !== item.id"
+                [class.text-zinc-300]="selectedItem()?.id !== item.id"
+                [class.hover:bg-white/[0.04]]="selectedItem()?.id !== item.id"
               >
                 <div>
-                  <strong class="text-xs text-slate-900 dark:text-white block line-clamp-1">{{ item.title }}</strong>
-                  <span class="text-[11px] text-slate-400">
+                  <strong class="text-xs block line-clamp-1 font-semibold">{{ item.title }}</strong>
+                  <span class="text-[10px] font-mono text-zinc-500">
                     {{ item.condition }} • EK: {{ item.total_item_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
                   </span>
                 </div>
 
                 <span
-                  class="px-2 py-0.5 rounded text-[10px] font-bold shrink-0 ml-2"
-                  [class.bg-emerald-100]="item.status === 'ready' || item.status === 'listed'"
-                  [class.text-emerald-700]="item.status === 'ready' || item.status === 'listed'"
-                  [class.bg-slate-200]="item.status !== 'ready' && item.status !== 'listed'"
-                  [class.text-slate-600]="item.status !== 'ready' && item.status !== 'listed'"
+                  class="px-2 py-0.5 rounded text-[10px] font-mono shrink-0 ml-2"
+                  [class.bg-emerald-500/10]="item.status === 'ready' || item.status === 'listed'"
+                  [class.text-emerald-400]="item.status === 'ready' || item.status === 'listed'"
+                  [class.border]="true"
+                  [class.border-emerald-500/20]="item.status === 'ready' || item.status === 'listed'"
+                  [class.bg-zinc-800]="item.status !== 'ready' && item.status !== 'listed'"
+                  [class.text-zinc-400]="item.status !== 'ready' && item.status !== 'listed'"
+                  [class.border-white/5]="item.status !== 'ready' && item.status !== 'listed'"
                 >
                   {{ item.status }}
                 </span>
@@ -56,20 +62,20 @@
             }
           </div>
         } @else {
-          <p class="text-xs text-slate-400 py-4 text-center">Keine Artikel im Inventar vorhanden.</p>
+          <p class="text-xs text-zinc-500 py-4 text-center">Keine Artikel im Inventar vorhanden.</p>
         }
       </div>
 
       <!-- 2. Listing Price & Textbausteine -->
       @if (selectedItem(); as item) {
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-4">
+        <div class="linear-surface rounded-xl p-4 space-y-3 animate-fade-in">
           <div class="flex items-center gap-2">
-            <lucide-icon [img]="slidersIcon" class="w-5 h-5 text-indigo-500"></lucide-icon>
-            <h2 class="text-base font-bold text-slate-900 dark:text-white">2. Preis & Bausteine (Kapitel 22)</h2>
+            <lucide-icon [img]="slidersIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-300">2. Preis & Bausteine</h2>
           </div>
 
           <div>
-            <label for="listingPriceInput" class="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+            <label for="listingPriceInput" class="block text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">
               Angebotspreis (€)
             </label>
             <input
@@ -77,61 +83,61 @@
               type="number"
               [value]="customPrice() || item.expected_value || item.total_item_cost || 50"
               (input)="customPrice.set($any($event.target).valueAsNumber || 0)"
-              class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-black text-emerald-600"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400"
             />
           </div>
 
           <!-- Toggles -->
-          <div class="space-y-2.5 pt-2 text-xs">
-            <label class="flex items-center gap-2.5 cursor-pointer">
+          <div class="space-y-2 pt-1 text-xs">
+            <label class="flex items-center gap-2 cursor-pointer text-zinc-300 hover:text-zinc-100">
               <input
                 type="checkbox"
                 [checked]="optDisclaimer()"
                 (change)="optDisclaimer.set($any($event.target).checked)"
-                class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                class="rounded border-zinc-700 bg-zinc-800 text-emerald-500 focus:ring-emerald-500"
               />
-              <span class="text-slate-700 dark:text-slate-300">Rechtlicher Hinweis (Privatverkauf ohne Garantie)</span>
+              <span class="text-[11px]">Rechtlicher Hinweis (Privatverkauf ohne Garantie)</span>
             </label>
 
-            <label class="flex items-center gap-2.5 cursor-pointer">
+            <label class="flex items-center gap-2 cursor-pointer text-zinc-300 hover:text-zinc-100">
               <input
                 type="checkbox"
                 [checked]="optNonSmoking()"
                 (change)="optNonSmoking.set($any($event.target).checked)"
-                class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                class="rounded border-zinc-700 bg-zinc-800 text-emerald-500 focus:ring-emerald-500"
               />
-              <span class="text-slate-700 dark:text-slate-300">Tierfreier Nichtraucherhaushalt</span>
+              <span class="text-[11px]">Tierfreier Nichtraucherhaushalt</span>
             </label>
 
-            <label class="flex items-center gap-2.5 cursor-pointer">
+            <label class="flex items-center gap-2 cursor-pointer text-zinc-300 hover:text-zinc-100">
               <input
                 type="checkbox"
                 [checked]="optShipping()"
                 (change)="optShipping.set($any($event.target).checked)"
-                class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                class="rounded border-zinc-700 bg-zinc-800 text-emerald-500 focus:ring-emerald-500"
               />
-              <span class="text-slate-700 dark:text-slate-300">Versicherter Versand (DHL/Hermes)</span>
+              <span class="text-[11px]">Versicherter Versand (DHL/Hermes)</span>
             </label>
 
-            <label class="flex items-center gap-2.5 cursor-pointer">
+            <label class="flex items-center gap-2 cursor-pointer text-zinc-300 hover:text-zinc-100">
               <input
                 type="checkbox"
                 [checked]="optPickup()"
                 (change)="optPickup.set($any($event.target).checked)"
-                class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                class="rounded border-zinc-700 bg-zinc-800 text-emerald-500 focus:ring-emerald-500"
               />
-              <span class="text-slate-700 dark:text-slate-300">Barzahlung / Abholung vor Ort</span>
+              <span class="text-[11px]">Barzahlung / Abholung vor Ort</span>
             </label>
 
             @if (selectedPlatform() === 'kleinanzeigen') {
-              <label class="flex items-center gap-2.5 cursor-pointer">
+              <label class="flex items-center gap-2 cursor-pointer text-zinc-300 hover:text-zinc-100">
                 <input
                   type="checkbox"
                   [checked]="optNegotiable()"
                   (change)="optNegotiable.set($any($event.target).checked)"
-                  class="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                  class="rounded border-zinc-700 bg-zinc-800 text-emerald-500 focus:ring-emerald-500"
                 />
-                <span class="text-slate-700 dark:text-slate-300">Verhandlungsbasis (VB)</span>
+                <span class="text-[11px]">Verhandlungsbasis (VB)</span>
               </label>
             }
           </div>
@@ -140,18 +146,19 @@
     </div>
 
     <!-- Right Column: Generated Preview & Copy Station (7 cols) -->
-    <div class="lg:col-span-7 space-y-6">
+    <div class="lg:col-span-7 space-y-3">
       <!-- Platform Selector Tabs -->
-      <div class="flex gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto text-xs font-semibold">
+      <div class="linear-surface rounded-xl p-1.5 flex items-center gap-1 overflow-x-auto text-xs">
         <button
           type="button"
           (click)="selectedPlatform.set('kleinanzeigen')"
-          class="px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5"
-          [class.bg-slate-900]="selectedPlatform() === 'kleinanzeigen'"
-          [class.text-white]="selectedPlatform() === 'kleinanzeigen'"
-          [class.dark:bg-emerald-600]="selectedPlatform() === 'kleinanzeigen'"
-          [class.text-slate-600]="selectedPlatform() !== 'kleinanzeigen'"
-          [class.dark:text-slate-400]="selectedPlatform() !== 'kleinanzeigen'"
+          class="px-3 py-1 rounded-md font-medium transition cursor-pointer"
+          [class.bg-white/[0.1]]="selectedPlatform() === 'kleinanzeigen'"
+          [class.text-zinc-100]="selectedPlatform() === 'kleinanzeigen'"
+          [class.border]="selectedPlatform() === 'kleinanzeigen'"
+          [class.border-white/10]="selectedPlatform() === 'kleinanzeigen'"
+          [class.text-zinc-400]="selectedPlatform() !== 'kleinanzeigen'"
+          [class.hover:text-zinc-200]="selectedPlatform() !== 'kleinanzeigen'"
         >
           Kleinanzeigen
         </button>
@@ -159,12 +166,13 @@
         <button
           type="button"
           (click)="selectedPlatform.set('ebay')"
-          class="px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5"
-          [class.bg-slate-900]="selectedPlatform() === 'ebay'"
-          [class.text-white]="selectedPlatform() === 'ebay'"
-          [class.dark:bg-emerald-600]="selectedPlatform() === 'ebay'"
-          [class.text-slate-600]="selectedPlatform() !== 'ebay'"
-          [class.dark:text-slate-400]="selectedPlatform() !== 'ebay'"
+          class="px-3 py-1 rounded-md font-medium transition cursor-pointer"
+          [class.bg-white/[0.1]]="selectedPlatform() === 'ebay'"
+          [class.text-zinc-100]="selectedPlatform() === 'ebay'"
+          [class.border]="selectedPlatform() === 'ebay'"
+          [class.border-white/10]="selectedPlatform() === 'ebay'"
+          [class.text-zinc-400]="selectedPlatform() !== 'ebay'"
+          [class.hover:text-zinc-200]="selectedPlatform() !== 'ebay'"
         >
           eBay
         </button>
@@ -172,36 +180,37 @@
         <button
           type="button"
           (click)="selectedPlatform.set('vinted')"
-          class="px-4 py-2.5 rounded-xl transition cursor-pointer flex items-center gap-1.5"
-          [class.bg-slate-900]="selectedPlatform() === 'vinted'"
-          [class.text-white]="selectedPlatform() === 'vinted'"
-          [class.dark:bg-emerald-600]="selectedPlatform() === 'vinted'"
-          [class.text-slate-600]="selectedPlatform() !== 'vinted'"
-          [class.dark:text-slate-400]="selectedPlatform() !== 'vinted'"
+          class="px-3 py-1 rounded-md font-medium transition cursor-pointer"
+          [class.bg-white/[0.1]]="selectedPlatform() === 'vinted'"
+          [class.text-zinc-100]="selectedPlatform() === 'vinted'"
+          [class.border]="selectedPlatform() === 'vinted'"
+          [class.border-white/10]="selectedPlatform() === 'vinted'"
+          [class.text-zinc-400]="selectedPlatform() !== 'vinted'"
+          [class.hover:text-zinc-200]="selectedPlatform() !== 'vinted'"
         >
           Vinted
         </button>
       </div>
 
       @if (generatedListing(); as listing) {
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-5 animate-fade-in">
+        <div class="linear-surface rounded-xl p-4 space-y-4 animate-fade-in">
           <!-- Title Box -->
           <div class="space-y-1.5">
             <div class="flex items-center justify-between text-xs">
-              <span class="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              <span class="font-bold text-zinc-400 uppercase tracking-wider text-[10px]">
                 Generierter Titel ({{ listing.title.length }} Zeichen)
               </span>
               <button
                 type="button"
                 (click)="copyToClipboard(listing.title, 'title')"
-                class="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                class="linear-btn-secondary inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold cursor-pointer"
               >
-                <lucide-icon [img]="copiedTitle() ? checkIcon : copyIcon" class="w-3.5 h-3.5" [class.text-emerald-500]="copiedTitle()"></lucide-icon>
+                <lucide-icon [img]="copiedTitle() ? checkIcon : copyIcon" class="w-3 h-3" [class.text-emerald-400]="copiedTitle()"></lucide-icon>
                 <span>{{ copiedTitle() ? 'Kopiert!' : 'Titel kopieren' }}</span>
               </button>
             </div>
 
-            <div class="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-sm font-bold text-slate-900 dark:text-white">
+            <div class="p-2.5 rounded-lg bg-zinc-900 border border-white/5 text-xs font-semibold text-zinc-100">
               {{ listing.title }}
             </div>
           </div>
@@ -209,34 +218,34 @@
           <!-- Description Box -->
           <div class="space-y-1.5">
             <div class="flex items-center justify-between text-xs">
-              <span class="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+              <span class="font-bold text-zinc-400 uppercase tracking-wider text-[10px]">
                 Optimierte Artikelbeschreibung
               </span>
               <button
                 type="button"
                 (click)="copyToClipboard(listing.description, 'desc')"
-                class="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                class="linear-btn-primary inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[11px] font-semibold cursor-pointer"
               >
-                <lucide-icon [img]="copiedDesc() ? checkIcon : copyIcon" class="w-3.5 h-3.5"></lucide-icon>
+                <lucide-icon [img]="copiedDesc() ? checkIcon : copyIcon" class="w-3 h-3"></lucide-icon>
                 <span>{{ copiedDesc() ? 'Kopiert!' : 'Text kopieren' }}</span>
               </button>
             </div>
 
             <textarea
               [value]="listing.description"
-              rows="12"
+              rows="10"
               readonly
-              class="w-full p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-xs text-slate-900 dark:text-white font-mono leading-relaxed resize-none focus:outline-hidden"
+              class="w-full p-3 rounded-lg bg-zinc-900 border border-white/5 text-xs text-zinc-200 font-mono leading-relaxed resize-none focus:outline-hidden"
             ></textarea>
           </div>
 
           <!-- Vinted Hashtags -->
           @if (listing.hashtags && listing.hashtags.length > 0) {
             <div class="space-y-1">
-              <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Hashtags</span>
-              <div class="flex flex-wrap gap-1.5">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-zinc-400">Hashtags</span>
+              <div class="flex flex-wrap gap-1">
                 @for (tag of listing.hashtags; track tag) {
-                  <span class="px-2.5 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 text-xs font-semibold">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
                     {{ tag }}
                   </span>
                 }
@@ -245,11 +254,11 @@
           }
 
           <!-- Mark As Listed Button (Kapitel 21) -->
-          <div class="pt-4 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div class="pt-3 border-t border-white/[0.06] flex items-center justify-between">
             <div>
               @if (markSuccess()) {
-                <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+                <span class="text-xs font-semibold text-emerald-400 flex items-center gap-1">
+                  <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5"></lucide-icon>
                   Als 'gelistet' im Inventar gespeichert!
                 </span>
               }
@@ -259,20 +268,20 @@
               type="button"
               (click)="onMarkAsListed()"
               [disabled]="isMarkingListed()"
-              class="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-emerald-600 dark:hover:bg-emerald-500 text-white font-bold text-xs shadow-md transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              class="linear-btn-primary px-3.5 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
-              <lucide-icon [img]="sendIcon" class="w-4 h-4"></lucide-icon>
+              <lucide-icon [img]="sendIcon" class="w-3.5 h-3.5"></lucide-icon>
               <span>{{ isMarkingListed() ? 'Speichere...' : 'Als gelistet markieren' }}</span>
             </button>
           </div>
         </div>
       } @else {
-        <div class="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl">
-          <div class="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 mx-auto flex items-center justify-center mb-3">
-            <lucide-icon [img]="fileIcon" class="w-6 h-6"></lucide-icon>
+        <div class="linear-surface rounded-xl p-10 text-center">
+          <div class="w-10 h-10 rounded-lg bg-zinc-850 border border-white/10 text-zinc-400 mx-auto flex items-center justify-center mb-3">
+            <lucide-icon [img]="fileIcon" class="w-5 h-5"></lucide-icon>
           </div>
-          <h3 class="text-base font-bold text-slate-800 dark:text-slate-200">Wähle einen Artikel aus</h3>
-          <p class="text-xs text-slate-500 max-w-xs mx-auto mt-1">
+          <h3 class="text-sm font-bold text-zinc-200">Wähle einen Artikel aus</h3>
+          <p class="text-xs text-zinc-400 max-w-xs mx-auto mt-1">
             Wähle links einen Artikel aus deinem Inventar, um in Sekundenschnelle ein fertiges Listing zu generieren.
           </p>
         </div>
