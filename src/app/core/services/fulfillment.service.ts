@@ -11,15 +11,32 @@ import {
   ShippingStatus,
 } from '../models/fulfillment.models';
 
+import { WebPushService } from './web-push.service';
+
 const STORAGE_KEY_CARRIER_CFG = 'reflip_carrier_config';
 
 @Injectable({
   providedIn: 'root',
 })
 export class FulfillmentService {
-  private readonly supabase = inject(SupabaseService, { optional: true });
-  private readonly workspaceService = inject(WorkspaceService, { optional: true });
-  private readonly mockStore = inject(MockDataStoreService, { optional: true });
+  private readonly supabase: SupabaseService | null = null;
+  private readonly workspaceService: WorkspaceService | null = null;
+  private readonly mockStore: MockDataStoreService | null = null;
+  private readonly webPushService: WebPushService | null = null;
+
+  constructor() {
+    try {
+      this.supabase = inject(SupabaseService, { optional: true });
+      this.workspaceService = inject(WorkspaceService, { optional: true });
+      this.mockStore = inject(MockDataStoreService, { optional: true });
+      this.webPushService = inject(WebPushService, { optional: true });
+    } catch {
+      this.supabase = null;
+      this.workspaceService = null;
+      this.mockStore = null;
+      this.webPushService = null;
+    }
+  }
 
   readonly availableRates: CarrierRate[] = [
     {
@@ -286,6 +303,11 @@ export class FulfillmentService {
         };
       })
     );
+
+    // Trigger Web Push Notification
+    if (this.webPushService) {
+      this.webPushService.triggerFulfillmentNotification(rate.name, trackingNumber);
+    }
 
     return {
       success: true,

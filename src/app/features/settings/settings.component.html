@@ -731,6 +731,122 @@
         </div>
       </form>
 
+      <!-- 🔔 Web Push & Browser-Benachrichtigungen Card -->
+      <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-rf-border">
+        <div class="flex items-center justify-between pb-2 border-b border-rf-border">
+          <div class="flex items-center gap-2">
+            <lucide-icon [img]="bellIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+              Web Push & Browser-Benachrichtigungen
+            </h2>
+          </div>
+          <span
+            class="px-2 py-0.5 rounded text-[10px] font-mono border font-semibold"
+            [class.bg-emerald-500/15]="webPushService.permission() === 'granted'"
+            [class.text-emerald-300]="webPushService.permission() === 'granted'"
+            [class.border-emerald-500/30]="webPushService.permission() === 'granted'"
+            [class.bg-amber-500/15]="webPushService.permission() === 'default'"
+            [class.text-amber-300]="webPushService.permission() === 'default'"
+            [class.border-amber-500/30]="webPushService.permission() === 'default'"
+            [class.bg-rose-500/15]="webPushService.permission() === 'denied'"
+            [class.text-rose-300]="webPushService.permission() === 'denied'"
+            [class.border-rose-500/30]="webPushService.permission() === 'denied'"
+          >
+            {{ webPushService.permission() === 'granted' ? 'Aktiviert' : webPushService.permission() === 'denied' ? 'Blockiert' : 'Nicht angefragt' }}
+          </span>
+        </div>
+
+        <p class="text-[11px] text-rf-text-muted leading-relaxed">
+          Erhalte native Push-Meldungen direkt auf deinem Smartphone oder Desktop, sobald neue Shop-Bestellungen eingehen oder Versandmarken erstellt werden.
+        </p>
+
+        @if (pushStatusMessage(); as msg) {
+          <div
+            class="p-2.5 rounded-xl border text-xs font-medium flex items-center gap-2"
+            [class.bg-emerald-500/15]="msg.success"
+            [class.border-emerald-500/30]="msg.success"
+            [class.text-emerald-400]="msg.success"
+            [class.bg-rose-500/15]="!msg.success"
+            [class.border-rose-500/30]="!msg.success"
+            [class.text-rose-400]="!msg.success"
+          >
+            <lucide-icon [img]="msg.success ? checkIcon : closeIcon" class="w-4 h-4"></lucide-icon>
+            <span>{{ msg.text }}</span>
+          </div>
+        }
+
+        <!-- Push Permission Actions -->
+        <div class="flex flex-col sm:flex-row gap-2">
+          @if (webPushService.permission() !== 'granted') {
+            <button
+              type="button"
+              (click)="onRequestPushPermission()"
+              class="linear-btn-primary py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+            >
+              <lucide-icon [img]="bellIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <span>Browser-Berechtigung anfordern</span>
+            </button>
+          }
+
+          <button
+            type="button"
+            (click)="onTestWebPush()"
+            [disabled]="isTestingPush()"
+            class="linear-btn-secondary py-2 px-3 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer text-indigo-300 hover:text-white disabled:opacity-40"
+          >
+            <lucide-icon [img]="sendIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <span>{{ isTestingPush() ? 'Wird gesendet...' : '🔔 Test-Push an diesen Browser senden' }}</span>
+          </button>
+        </div>
+
+        <!-- Push Trigger Checkboxes -->
+        <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-2.5 text-xs">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-rf-text-muted block">
+            Benachrichtigungs-Ereignisse
+          </span>
+
+          <label class="flex items-center justify-between cursor-pointer">
+            <span class="text-rf-text-secondary">🛒 Neue Webshop-Bestellungen (/shop)</span>
+            <input
+              type="checkbox"
+              [checked]="webPushService.settings().notifyOnShopOrder"
+              (change)="onTogglePushSetting('notifyOnShopOrder', $any($event.target).checked)"
+              class="rounded text-indigo-600 cursor-pointer"
+            />
+          </label>
+
+          <label class="flex items-center justify-between cursor-pointer">
+            <span class="text-rf-text-secondary">📦 Erstellte Versandetiketten (DHL / Hermes)</span>
+            <input
+              type="checkbox"
+              [checked]="webPushService.settings().notifyOnFulfillment"
+              (change)="onTogglePushSetting('notifyOnFulfillment', $any($event.target).checked)"
+              class="rounded text-indigo-600 cursor-pointer"
+            />
+          </label>
+
+          <label class="flex items-center justify-between cursor-pointer">
+            <span class="text-rf-text-secondary">⚠️ Margen- & Profit-Alarme (ROI &lt; 20%)</span>
+            <input
+              type="checkbox"
+              [checked]="webPushService.settings().notifyOnMarginAlert"
+              (change)="onTogglePushSetting('notifyOnMarginAlert', $any($event.target).checked)"
+              class="rounded text-indigo-600 cursor-pointer"
+            />
+          </label>
+
+          <label class="flex items-center justify-between cursor-pointer pt-1 border-t border-rf-border">
+            <span class="text-rf-text-secondary">🔊 Benachrichtigungston abspielen</span>
+            <input
+              type="checkbox"
+              [checked]="webPushService.settings().soundEnabled"
+              (change)="onTogglePushSetting('soundEnabled', $any($event.target).checked)"
+              class="rounded text-indigo-600 cursor-pointer"
+            />
+          </label>
+        </div>
+      </div>
+
       <!-- 📱 Progressive Web App (PWA) & Mobile Installation Card -->
       <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">

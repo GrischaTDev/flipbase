@@ -43,6 +43,7 @@ import { WebhookService } from '../../core/services/webhook.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { StoreService } from '../../core/services/store.service';
 import { FulfillmentService } from '../../core/services/fulfillment.service';
+import { WebPushService } from '../../core/services/web-push.service';
 import { WorkspaceRole } from '../../core/models/reflip.models';
 
 @Component({
@@ -64,6 +65,7 @@ export class SettingsComponent {
   readonly pwaService = inject(PwaService);
   readonly storeService = inject(StoreService);
   readonly fulfillmentService = inject(FulfillmentService);
+  readonly webPushService = inject(WebPushService);
   readonly translate = inject(TranslateService);
 
   readonly settingsIcon = Settings;
@@ -282,6 +284,39 @@ export class SettingsComponent {
     if (confirm('Möchtest du diesen Workspace wirklich löschen?')) {
       await this.workspaceService.deleteWorkspace(wsId);
     }
+  }
+
+  readonly isTestingPush = signal<boolean>(false);
+  readonly pushStatusMessage = signal<{ success: boolean; text: string } | null>(null);
+
+  async onRequestPushPermission(): Promise<void> {
+    const granted = await this.webPushService.requestPermission();
+    if (granted) {
+      this.pushStatusMessage.set({ success: true, text: 'Browser-Benachrichtigungen erfolgreich erlaubt!' });
+    } else {
+      this.pushStatusMessage.set({ success: false, text: 'Berechtigung wurde im Browser verweigert oder blockiert.' });
+    }
+    setTimeout(() => this.pushStatusMessage.set(null), 4000);
+  }
+
+  async onTestWebPush(): Promise<void> {
+    this.isTestingPush.set(true);
+    const sent = await this.webPushService.sendTestNotification();
+    this.isTestingPush.set(false);
+
+    if (sent) {
+      this.pushStatusMessage.set({ success: true, text: 'Test-Push erfolgreich gesendet!' });
+    } else {
+      this.pushStatusMessage.set({
+        success: false,
+        text: 'Push konnte nicht angezeigt werden. Bitte Berechtigung im Browser prüfen.',
+      });
+    }
+    setTimeout(() => this.pushStatusMessage.set(null), 4000);
+  }
+
+  onTogglePushSetting(key: 'enabled' | 'notifyOnShopOrder' | 'notifyOnFulfillment' | 'notifyOnMarginAlert' | 'soundEnabled', val: boolean): void {
+    this.webPushService.updateSettings({ [key]: val });
   }
 
   onSaveEbayConfig(): void {

@@ -2,6 +2,7 @@ import { Injectable, computed, inject, signal } from '@angular/core';
 import { InventoryService } from './inventory.service';
 import { SalesService } from './sales.service';
 import { WorkspaceService } from './workspace.service';
+import { WebPushService } from './web-push.service';
 import { InventoryItem } from '../models/reflip.models';
 import {
   CartItem,
@@ -87,15 +88,19 @@ export class StoreService {
     return this.cartSubtotal() + this.cartShippingCost();
   });
 
+  private readonly webPushService: WebPushService | null = null;
+
   constructor() {
     try {
       this.inventoryService = inject(InventoryService, { optional: true });
       this.salesService = inject(SalesService, { optional: true });
       this.workspaceService = inject(WorkspaceService, { optional: true });
+      this.webPushService = inject(WebPushService, { optional: true });
     } catch {
       this.inventoryService = null;
       this.salesService = null;
       this.workspaceService = null;
+      this.webPushService = null;
     }
     this.loadPersistedStoreData();
   }
@@ -335,6 +340,15 @@ export class StoreService {
     // 3. Clear cart
     this.clearCart();
     this.isCartOpen.set(false);
+
+    // 4. Trigger Web Push Notification to Reseller
+    if (this.webPushService) {
+      this.webPushService.triggerShopOrderNotification(
+        orderNumber,
+        `${customer.firstName} ${customer.lastName}`,
+        total
+      );
+    }
 
     return newOrder;
   }
