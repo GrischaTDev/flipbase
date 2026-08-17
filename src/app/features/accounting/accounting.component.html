@@ -53,15 +53,37 @@
         <option value="12">Dezember</option>
       </select>
 
+      <!-- Steuerberater-Monatsabschluss Button -->
+      <button
+        type="button"
+        (click)="openTaxAdvisorModal()"
+        class="linear-btn-primary px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20 text-white"
+        title="Monatsbericht und DATEV-Buchungsstapel für Steuerberater öffnen & versenden"
+      >
+        <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5 text-amber-300"></lucide-icon>
+        <span>📊 Steuerberater-Monatsabschluss</span>
+      </button>
+
       <!-- DATEV Export Button -->
       <button
         type="button"
         (click)="onDownloadDatev()"
-        class="linear-btn-primary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+        class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
         title="DATEV-Format (SKR03 / SKR04) für den Steuerberater herunterladen"
       >
         <lucide-icon [img]="spreadsheetIcon" class="w-3.5 h-3.5"></lucide-icon>
-        <span>DATEV CSV Export</span>
+        <span>DATEV CSV</span>
+      </button>
+
+      <!-- Diff Tax Journal Export -->
+      <button
+        type="button"
+        (click)="onDownloadDiffTaxJournal()"
+        class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+        title="§ 25a Differenzbesteuerungs-Journal herunterladen"
+      >
+        <lucide-icon [img]="fileIcon" class="w-3.5 h-3.5"></lucide-icon>
+        <span>§ 25a Journal</span>
       </button>
 
       <!-- EÜR Export Button -->
@@ -72,7 +94,7 @@
         title="Einnahmen-Überschuss-Rechnung für das Finanzamt"
       >
         <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5"></lucide-icon>
-        <span>EÜR Export</span>
+        <span>EÜR CSV</span>
       </button>
     </div>
   </div>
@@ -353,4 +375,228 @@
       </div>
     </div>
   }
+
+  <!-- 📊 Steuerberater-Monatsabschluss & DATEV-Paket Modal -->
+  @if (isTaxAdvisorModalOpen()) {
+    @let report = advisorReport();
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in overflow-y-auto">
+      <div class="linear-surface rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl border border-rf-border overflow-hidden">
+        <!-- Modal Header -->
+        <div class="p-5 border-b border-rf-border flex items-center justify-between bg-rf-subtle shrink-0">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-300 flex items-center justify-center">
+              <lucide-icon [img]="buildingIcon" class="w-5 h-5"></lucide-icon>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-sm font-bold text-rf-text-primary">
+                  Steuerberater-Monatsabschluss & DATEV-Paket
+                </h3>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold">
+                  {{ report.periodLabel }}
+                </span>
+              </div>
+              <p class="text-xs text-rf-text-muted mt-0.5">
+                Vollständiger Monatsabschluss mit § 25a Differenzjournal, DATEV EXTF Buchungsstapel & USt-Zahllast.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            (click)="closeTaxAdvisorModal()"
+            class="p-2 rounded-xl text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface transition cursor-pointer"
+          >
+            <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+          </button>
+        </div>
+
+        <!-- Modal Body (Scrollable) -->
+        <div class="p-6 space-y-6 overflow-y-auto text-xs">
+          <!-- Notification / Dispatch Banner -->
+          @if (emailSentStatus(); as status) {
+            <div
+              class="p-3.5 rounded-xl border font-medium flex items-center gap-2.5 animate-fade-in"
+              [class.bg-emerald-500/15]="status.success"
+              [class.border-emerald-500/30]="status.success"
+              [class.text-emerald-400]="status.success"
+              [class.bg-rose-500/15]="!status.success"
+              [class.border-rose-500/30]="!status.success"
+              [class.text-rose-400]="!status.success"
+            >
+              <lucide-icon [img]="status.success ? checkIcon : alertIcon" class="w-4 h-4"></lucide-icon>
+              <span>{{ status.text }}</span>
+            </div>
+          }
+
+          <!-- 1. Key Metrics Overview (4 KPIs) -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
+            <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-1">
+              <span class="text-[10px] font-bold text-rf-text-muted uppercase tracking-wider block font-sans">Bruttoumsatz</span>
+              <div class="text-lg font-black text-rf-text-primary">
+                {{ report.grossRevenue | currency:'EUR':'symbol':'1.2-2':'de' }}
+              </div>
+              <span class="text-[10px] text-rf-text-muted block font-sans">{{ report.salesCount }} Verkäufe</span>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-1">
+              <span class="text-[10px] font-bold text-rf-text-muted uppercase tracking-wider block font-sans">Wareneinsatz (EK)</span>
+              <div class="text-lg font-black text-indigo-300">
+                {{ report.totalCostOfGoodsSold | currency:'EUR':'symbol':'1.2-2':'de' }}
+              </div>
+              <span class="text-[10px] text-rf-text-muted block font-sans">Anschaffungskosten</span>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-1">
+              <span class="text-[10px] font-bold text-rf-text-muted uppercase tracking-wider block font-sans">Handelsspanne</span>
+              <div class="text-lg font-black text-emerald-400">
+                +{{ report.grossProfitMargin | currency:'EUR':'symbol':'1.2-2':'de' }}
+              </div>
+              <span class="text-[10px] text-rf-text-muted block font-sans">Rohertrag</span>
+            </div>
+
+            <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-1">
+              <span class="text-[10px] font-bold text-rf-text-muted uppercase tracking-wider block font-sans">Geschätzte USt-Zahllast</span>
+              <div class="text-lg font-black" [class.text-amber-400]="report.estimatedTaxDue > 0" [class.text-emerald-400]="report.estimatedTaxDue <= 0">
+                {{ report.estimatedTaxDue | currency:'EUR':'symbol':'1.2-2':'de' }}
+              </div>
+              <span class="text-[10px] text-rf-text-muted block font-sans">USt abzügl. Vorsteuer</span>
+            </div>
+          </div>
+
+          <!-- 2. Steuerberater-Kanzlei & Mandanten-Informationen Form -->
+          <form [formGroup]="advisorForm" class="p-4 rounded-xl bg-rf-subtle border border-rf-border space-y-3">
+            <div class="flex items-center justify-between pb-1 border-b border-rf-border">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-rf-text-primary">
+                Kanzlei- & Mandanten-Konfiguration (DATEV EXTF)
+              </span>
+              <span class="text-[10px] text-rf-text-muted">Wird für Buchungsstapel & E-Mail-Empfang genutzt</span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label class="block text-[10px] font-semibold text-rf-text-muted mb-1">Steuerberater E-Mail</label>
+                <input
+                  type="email"
+                  formControlName="advisorEmail"
+                  class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
+                />
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-semibold text-rf-text-muted mb-1">Kanzleiname / Betreff</label>
+                <input
+                  type="text"
+                  formControlName="firmName"
+                  class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
+                />
+              </div>
+
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[10px] font-semibold text-rf-text-muted mb-1">Mandantennr.</label>
+                  <input
+                    type="text"
+                    formControlName="clientNumber"
+                    class="linear-input w-full px-2 py-1.5 rounded-lg text-xs font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label class="block text-[10px] font-semibold text-rf-text-muted mb-1">Kontenrahmen</label>
+                  <select
+                    formControlName="skrStandard"
+                    class="linear-input w-full px-2 py-1.5 rounded-lg text-xs font-mono cursor-pointer"
+                  >
+                    <option value="SKR03">SKR03</option>
+                    <option value="SKR04">SKR04</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </form>
+
+          <!-- 3. DATEV Kontenspiegel Table -->
+          <div class="space-y-2">
+            <h4 class="text-[11px] font-bold uppercase tracking-wider text-rf-text-primary">
+              DATEV Kontenspiegel ({{ advisorForm.get('skrStandard')?.value }})
+            </h4>
+
+            <div class="rounded-xl border border-rf-border overflow-hidden">
+              <table class="w-full text-left text-xs border-collapse">
+                <thead class="bg-rf-subtle text-rf-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-rf-border">
+                  <tr>
+                    <th class="p-2.5">Konto</th>
+                    <th class="p-2.5">Kontenbezeichnung</th>
+                    <th class="p-2.5 text-right">Soll (€)</th>
+                    <th class="p-2.5 text-right">Haben (€)</th>
+                    <th class="p-2.5 text-right">Saldo (€)</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-rf-border font-mono">
+                  @for (acc of report.accountBalances; track acc.accountNumber) {
+                    <tr class="hover:bg-rf-surface-hover transition">
+                      <td class="p-2.5 font-bold text-indigo-300">{{ acc.accountNumber }}</td>
+                      <td class="p-2.5 font-sans text-rf-text-secondary">{{ acc.accountName }}</td>
+                      <td class="p-2.5 text-right">{{ acc.debit > 0 ? (acc.debit | currency:'EUR':'symbol':'1.2-2':'de') : '-' }}</td>
+                      <td class="p-2.5 text-right">{{ acc.credit > 0 ? (acc.credit | currency:'EUR':'symbol':'1.2-2':'de') : '-' }}</td>
+                      <td class="p-2.5 text-right font-bold" [class.text-emerald-400]="acc.balance > 0" [class.text-rf-text-primary]="acc.balance <= 0">
+                        {{ acc.balance | currency:'EUR':'symbol':'1.2-2':'de' }}
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer Actions -->
+        <div class="p-4 border-t border-rf-border flex flex-col sm:flex-row items-center justify-between gap-3 bg-rf-subtle shrink-0">
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              (click)="onDownloadDatev()"
+              class="linear-btn-secondary px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer flex-1 sm:flex-none"
+            >
+              <lucide-icon [img]="spreadsheetIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+              <span>DATEV EXTF (.csv)</span>
+            </button>
+
+            <button
+              type="button"
+              (click)="onDownloadDiffTaxJournal()"
+              class="linear-btn-secondary px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer flex-1 sm:flex-none"
+            >
+              <lucide-icon [img]="fileIcon" class="w-3.5 h-3.5 text-emerald-400"></lucide-icon>
+              <span>§ 25a Journal (.csv)</span>
+            </button>
+          </div>
+
+          <div class="flex items-center gap-2 w-full sm:w-auto">
+            <button
+              type="button"
+              (click)="printInvoice()"
+              class="linear-btn-secondary px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
+              title="Drucken / Als PDF speichern"
+            >
+              <lucide-icon [img]="printIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <span>Drucken / PDF</span>
+            </button>
+
+            <button
+              type="button"
+              (click)="onSendEmailToAdvisor()"
+              [disabled]="taxAdvisorService.isSendingEmail()"
+              class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-50 flex-1 sm:flex-none"
+            >
+              <lucide-icon [img]="taxAdvisorService.isSendingEmail() ? sparklesIcon : sendIcon" class="w-4 h-4"></lucide-icon>
+              <span>{{ taxAdvisorService.isSendingEmail() ? 'Wird übermittelt...' : '📧 An Steuerberater senden' }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
 </div>
+
