@@ -17,6 +17,7 @@ import {
   Settings,
   X,
   Sparkles,
+  Truck,
 } from 'lucide-angular';
 
 interface NavItem {
@@ -49,6 +50,7 @@ export class SidebarComponent {
     { path: '/deal-calculator', labelKey: 'NAV.DEAL_CALCULATOR', label: 'Deal Calculator', icon: Calculator },
     { path: '/listings', labelKey: 'NAV.LISTINGS', label: 'Listing Studio', icon: Tag },
     { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: TrendingUp },
+    { path: '/fulfillment', labelKey: 'NAV.FULFILLMENT', label: 'Packtisch & Versand', icon: Truck },
     { path: '/accounting', labelKey: 'NAV.ACCOUNTING', label: 'Steuern & DATEV', icon: Receipt },
     { path: '/sources', labelKey: 'NAV.SOURCES_SUPPLIERS', label: 'Quellen & Lieferanten', icon: Store },
     { path: '/analytics', labelKey: 'NAV.ANALYTICS', label: 'Analytics', icon: BarChart3 },

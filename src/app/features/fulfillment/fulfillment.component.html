@@ -1,0 +1,550 @@
+<div class="space-y-6 animate-fade-in select-none">
+  <!-- Page Header -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-rf-border">
+    <div>
+      <div class="flex items-center gap-2">
+        <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
+          Packtisch & Versandetiketten
+        </h1>
+        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 uppercase">
+          Fulfillment Center
+        </span>
+      </div>
+      <p class="text-xs text-rf-text-muted mt-0.5">
+        Verwalte offene Verkäufe, drucke DIN-A6 Versandetiketten für DHL & Hermes und verfolge Sendungsnummern.
+      </p>
+    </div>
+
+    <!-- Search Input -->
+    <div class="relative w-full md:w-64">
+      <lucide-icon [img]="searchIcon" class="w-3.5 h-3.5 absolute left-3 top-2.5 text-rf-text-dimmed"></lucide-icon>
+      <input
+        type="text"
+        placeholder="Bestell-Nr., Name, PLZ..."
+        [value]="searchQuery()"
+        (input)="searchQuery.set($any($event.target).value)"
+        class="linear-input w-full pl-8 pr-3 py-1.5 rounded-xl text-xs"
+      />
+    </div>
+  </div>
+
+  <!-- KPI Overview Cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <!-- Ready to Pack -->
+    <div
+      (click)="selectedStatusTab.set('ready_to_pack')"
+      class="linear-surface rounded-2xl p-5 border cursor-pointer transition shadow-xl"
+      [class.border-amber-500/50]="selectedStatusTab() === 'ready_to_pack'"
+      [class.bg-amber-500/10]="selectedStatusTab() === 'ready_to_pack'"
+    >
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-rf-text-muted">Zu verpacken & versenden</span>
+        <div class="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+          <lucide-icon [img]="packageIcon" class="w-4 h-4"></lucide-icon>
+        </div>
+      </div>
+      <div class="text-2xl font-black text-amber-400 mt-2 font-mono">
+        {{ fulfillmentService.readyToPackCount() }}
+      </div>
+      <p class="text-[11px] text-rf-text-muted mt-1">Paketmarke erstellen oder drucken</p>
+    </div>
+
+    <!-- In Transit / Shipped -->
+    <div
+      (click)="selectedStatusTab.set('shipped')"
+      class="linear-surface rounded-2xl p-5 border cursor-pointer transition shadow-xl"
+      [class.border-indigo-500/50]="selectedStatusTab() === 'shipped'"
+      [class.bg-indigo-500/10]="selectedStatusTab() === 'shipped'"
+    >
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-rf-text-muted">Unterwegs (In Transit)</span>
+        <div class="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
+          <lucide-icon [img]="truckIcon" class="w-4 h-4"></lucide-icon>
+        </div>
+      </div>
+      <div class="text-2xl font-black text-indigo-400 mt-2 font-mono">
+        {{ fulfillmentService.shippedCount() }}
+      </div>
+      <p class="text-[11px] text-rf-text-muted mt-1">Mit Sendungsverfolgung aktiv</p>
+    </div>
+
+    <!-- Delivered -->
+    <div
+      (click)="selectedStatusTab.set('delivered')"
+      class="linear-surface rounded-2xl p-5 border cursor-pointer transition shadow-xl"
+      [class.border-emerald-500/50]="selectedStatusTab() === 'delivered'"
+      [class.bg-emerald-500/10]="selectedStatusTab() === 'delivered'"
+    >
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold uppercase tracking-wider text-rf-text-muted">Erfolgreich zugestellt</span>
+        <div class="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+          <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+        </div>
+      </div>
+      <div class="text-2xl font-black text-emerald-400 mt-2 font-mono">
+        {{ fulfillmentService.deliveredCount() }}
+      </div>
+      <p class="text-[11px] text-rf-text-muted mt-1">Abgeschlossene Verkäufe</p>
+    </div>
+  </div>
+
+  <!-- Status Filter Tabs -->
+  <div class="flex items-center gap-2 border-b border-rf-border pb-1 text-xs">
+    <button
+      type="button"
+      (click)="selectedStatusTab.set('ready_to_pack')"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      [class.bg-amber-600]="selectedStatusTab() === 'ready_to_pack'"
+      [class.text-white]="selectedStatusTab() === 'ready_to_pack'"
+      [class.border-amber-500]="selectedStatusTab() === 'ready_to_pack'"
+      [class.bg-rf-surface]="selectedStatusTab() !== 'ready_to_pack'"
+      [class.text-rf-text-secondary]="selectedStatusTab() !== 'ready_to_pack'"
+      [class.border-rf-border]="selectedStatusTab() !== 'ready_to_pack'"
+    >
+      🔴 Zu verpacken ({{ fulfillmentService.readyToPackCount() }})
+    </button>
+
+    <button
+      type="button"
+      (click)="selectedStatusTab.set('shipped')"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      [class.bg-indigo-600]="selectedStatusTab() === 'shipped'"
+      [class.text-white]="selectedStatusTab() === 'shipped'"
+      [class.border-indigo-500]="selectedStatusTab() === 'shipped'"
+      [class.bg-rf-surface]="selectedStatusTab() !== 'shipped'"
+      [class.text-rf-text-secondary]="selectedStatusTab() !== 'shipped'"
+      [class.border-rf-border]="selectedStatusTab() !== 'shipped'"
+    >
+      🚚 Unterwegs ({{ fulfillmentService.shippedCount() }})
+    </button>
+
+    <button
+      type="button"
+      (click)="selectedStatusTab.set('delivered')"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      [class.bg-emerald-600]="selectedStatusTab() === 'delivered'"
+      [class.text-white]="selectedStatusTab() === 'delivered'"
+      [class.border-emerald-500]="selectedStatusTab() === 'delivered'"
+      [class.bg-rf-surface]="selectedStatusTab() !== 'delivered'"
+      [class.text-rf-text-secondary]="selectedStatusTab() !== 'delivered'"
+      [class.border-rf-border]="selectedStatusTab() !== 'delivered'"
+    >
+      ✅ Zugestellt ({{ fulfillmentService.deliveredCount() }})
+    </button>
+
+    <button
+      type="button"
+      (click)="selectedStatusTab.set('all')"
+      class="px-3.5 py-1.5 rounded-xl font-semibold transition cursor-pointer border"
+      [class.bg-rf-subtle]="selectedStatusTab() === 'all'"
+      [class.text-rf-text-primary]="selectedStatusTab() === 'all'"
+      [class.border-rf-border]="selectedStatusTab() === 'all'"
+      [class.text-rf-text-muted]="selectedStatusTab() !== 'all'"
+    >
+      Alle Sendungen
+    </button>
+  </div>
+
+  <!-- Orders Fulfillment List -->
+  <div class="space-y-3">
+    @for (order of filteredOrders(); track order.id) {
+      <div class="linear-surface rounded-2xl p-5 border border-rf-border shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <!-- Order & Item Info -->
+        <div class="flex-1 space-y-1.5">
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-rf-subtle text-rf-text-secondary border border-rf-border">
+              {{ order.order_number }}
+            </span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+              {{ order.platform }}
+            </span>
+            <span class="text-rf-text-muted text-[11px] font-mono">
+              {{ order.order_date | date:'dd.MM.yyyy HH:mm' }} Uhr
+            </span>
+          </div>
+
+          <h3 class="text-sm font-bold text-rf-text-primary">
+            {{ order.item_title }}
+          </h3>
+
+          <div class="flex flex-wrap items-center gap-3 text-xs text-rf-text-muted">
+            <span>Zustand: <strong class="text-rf-text-secondary">{{ order.item_condition || 'Geprüft' }}</strong></span>
+            <span>•</span>
+            <span>Verkaufspreis: <strong class="text-rf-text-primary font-mono">{{ order.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
+            <span>•</span>
+            <span class="text-indigo-400 font-semibold">{{ order.package_type }}</span>
+          </div>
+
+          <!-- Customer Address Snippet -->
+          <div class="p-2.5 rounded-xl bg-rf-subtle border border-rf-border text-xs text-rf-text-secondary flex items-start gap-2 max-w-lg mt-2">
+            <lucide-icon [img]="pinIcon" class="w-4 h-4 text-indigo-400 shrink-0 mt-0.5"></lucide-icon>
+            <div>
+              <strong class="text-rf-text-primary">{{ order.customer.name }}</strong>
+              <div class="text-[11px] text-rf-text-muted">
+                {{ order.customer.street }} {{ order.customer.house_number }}, {{ order.customer.postal_code }} {{ order.customer.city }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Status & Action Buttons -->
+        <div class="flex flex-col sm:flex-row lg:flex-col items-end gap-2.5 shrink-0">
+          <!-- Tracking Link if shipped -->
+          @if (order.tracking_number) {
+            <div class="flex items-center gap-2 text-xs font-mono">
+              <span class="text-rf-text-muted">Tracking:</span>
+              <a
+                [href]="order.tracking_url"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1 hover:underline"
+              >
+                <span>{{ order.tracking_number }}</span>
+                <lucide-icon [img]="linkIcon" class="w-3 h-3"></lucide-icon>
+              </a>
+            </div>
+          }
+
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- Print Label Button -->
+            <button
+              type="button"
+              (click)="openLabelModal(order)"
+              class="linear-btn-primary px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+            >
+              <lucide-icon [img]="printIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <span>Versandetikett drucken</span>
+            </button>
+
+            <!-- Packing Slip Button -->
+            <button
+              type="button"
+              (click)="openSlipModal(order)"
+              class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+            >
+              <lucide-icon [img]="fileIcon" class="w-3.5 h-3.5 text-rf-text-muted"></lucide-icon>
+              <span>Lieferschein</span>
+            </button>
+
+            <!-- Tracking / Ship Button -->
+            @if (order.status !== 'delivered') {
+              <button
+                type="button"
+                (click)="openTrackingModal(order)"
+                class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer text-amber-300"
+              >
+                <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5"></lucide-icon>
+                <span>{{ order.tracking_number ? 'Tracking bearbeiten' : 'Als Versendet markieren' }}</span>
+              </button>
+            }
+
+            @if (order.status === 'shipped') {
+              <button
+                type="button"
+                (click)="markDelivered(order.id)"
+                class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer text-emerald-400"
+                title="Als Zugestellt markieren"
+              >
+                <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5"></lucide-icon>
+                <span>Zugestellt</span>
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    } @empty {
+      <div class="linear-surface rounded-2xl p-16 text-center text-xs text-rf-text-muted space-y-3">
+        <lucide-icon [img]="packageIcon" class="w-10 h-10 mx-auto text-rf-text-dimmed"></lucide-icon>
+        <h3 class="text-sm font-bold text-rf-text-primary">Keine Sendungen in dieser Ansicht</h3>
+        <p class="text-[11px] max-w-xs mx-auto">
+          Alle aktuellen Bestellungen wurden bereits abgearbeitet oder erfüllen nicht die Filterkriterien.
+        </p>
+      </div>
+    }
+  </div>
+
+  <!-- Printable Shipping Label Modal (DIN-A6 Format) -->
+  @if (isLabelModalOpen() && fulfillmentService.selectedOrderForLabel(); as labelOrder) {
+    <div
+      class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in no-print"
+      (click)="closeLabelModal()"
+    >
+      <div
+        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl p-6 space-y-6 select-none"
+        (click)="$event.stopPropagation()"
+      >
+        <!-- Modal Top Bar -->
+        <div class="flex items-center justify-between border-b border-rf-border pb-3">
+          <div class="flex items-center gap-2">
+            <lucide-icon [img]="printIcon" class="w-5 h-5 text-indigo-400"></lucide-icon>
+            <h3 class="text-base font-bold text-rf-text-primary">Versandetikett Vorschau (DIN-A6)</h3>
+          </div>
+
+          <button
+            type="button"
+            (click)="closeLabelModal()"
+            class="p-1 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
+          >
+            <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+          </button>
+        </div>
+
+        <!-- Printable Label Area (Clean White & Black high contrast for thermal printer) -->
+        <div class="printable-area bg-white text-black p-6 rounded-2xl border-2 border-black font-sans space-y-4 shadow-lg">
+          <!-- Header Bar with Carrier & Service -->
+          <div class="flex items-center justify-between border-b-2 border-black pb-3">
+            <div>
+              <h2 class="text-xl font-black tracking-tight uppercase">
+                {{ labelOrder.carrier === 'hermes' ? 'Hermes Logistik' : 'DHL Paket' }}
+              </h2>
+              <span class="text-xs font-mono font-bold">{{ labelOrder.package_type }}</span>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] uppercase font-bold block">Bestellung:</span>
+              <span class="text-xs font-mono font-black">{{ labelOrder.order_number }}</span>
+            </div>
+          </div>
+
+          <!-- Sender & Recipient Grid -->
+          <div class="grid grid-cols-2 gap-4 py-2 border-b-2 border-black">
+            <!-- Sender -->
+            <div class="text-[11px] space-y-0.5 border-r border-dashed border-neutral-300 pr-2">
+              <span class="text-[9px] uppercase font-bold text-neutral-500 block">Absender:</span>
+              @let sender = fulfillmentService.getSenderAddress();
+              <strong class="block text-xs font-bold">{{ sender.name }}</strong>
+              <div>{{ sender.company }}</div>
+              <div>{{ sender.street }} {{ sender.house_number }}</div>
+              <div>{{ sender.postal_code }} {{ sender.city }}</div>
+              <div class="text-neutral-600">{{ sender.country }}</div>
+            </div>
+
+            <!-- Recipient -->
+            <div class="text-xs space-y-0.5 pl-2">
+              <span class="text-[9px] uppercase font-bold text-neutral-500 block">Empfänger:</span>
+              <strong class="block text-sm font-black">{{ labelOrder.customer.name }}</strong>
+              @if (labelOrder.customer.company) {
+                <div>{{ labelOrder.customer.company }}</div>
+              }
+              <div class="font-semibold">{{ labelOrder.customer.street }} {{ labelOrder.customer.house_number }}</div>
+              <div class="font-black text-sm">{{ labelOrder.customer.postal_code }} {{ labelOrder.customer.city }}</div>
+              <div class="text-neutral-700 font-bold uppercase text-[10px]">{{ labelOrder.customer.country }}</div>
+            </div>
+          </div>
+
+          <!-- Simulated Barcode & Security Warnings -->
+          <div class="space-y-2 pt-2">
+            <div class="h-14 bg-neutral-900 flex items-center justify-center text-white font-mono tracking-widest text-xs rounded-sm">
+              ||| | ||||| || |||||| | |||| ||| ||||||| | ||
+            </div>
+            <div class="flex items-center justify-between text-[10px] text-neutral-600 font-mono">
+              <span>Sendungs-Ref: {{ labelOrder.order_number }}</span>
+              <span>Premium Priority Tracked</span>
+            </div>
+          </div>
+
+          <!-- Fragile / Safety Badge -->
+          <div class="p-2 bg-neutral-100 border border-black text-center text-[10px] font-black uppercase tracking-wider">
+            ⚠️ Vorsicht Zerbrechlich &bull; Elektronik &bull; Vor Nässe Schützen
+          </div>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="flex items-center justify-between pt-2 border-t border-rf-border no-print">
+          <button
+            type="button"
+            (click)="closeLabelModal()"
+            class="linear-btn-secondary px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+          >
+            Schließen
+          </button>
+
+          <button
+            type="button"
+            (click)="printDocument()"
+            class="linear-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
+          >
+            <lucide-icon [img]="printIcon" class="w-4 h-4"></lucide-icon>
+            <span>Jetzt drucken (DIN-A6)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Printable Packing Slip Modal (DIN-A4) -->
+  @if (isSlipModalOpen() && fulfillmentService.selectedOrderForSlip(); as slipOrder) {
+    <div
+      class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in no-print"
+      (click)="closeSlipModal()"
+    >
+      <div
+        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl p-6 space-y-6 select-none"
+        (click)="$event.stopPropagation()"
+      >
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between border-b border-rf-border pb-3">
+          <div class="flex items-center gap-2">
+            <lucide-icon [img]="fileIcon" class="w-5 h-5 text-indigo-400"></lucide-icon>
+            <h3 class="text-base font-bold text-rf-text-primary">Lieferschein & Packzettel Vorschau</h3>
+          </div>
+
+          <button
+            type="button"
+            (click)="closeSlipModal()"
+            class="p-1 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
+          >
+            <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+          </button>
+        </div>
+
+        <!-- Printable Packing Slip Area -->
+        <div class="printable-area bg-white text-black p-8 rounded-2xl border border-neutral-300 font-sans space-y-6 shadow-lg">
+          <div class="flex justify-between items-start border-b border-neutral-300 pb-4">
+            <div>
+              <h1 class="text-xl font-black">LIEFERSCHEIN</h1>
+              <p class="text-xs text-neutral-500 font-mono">Bestell-Nr.: {{ slipOrder.order_number }}</p>
+            </div>
+            <div class="text-right text-xs">
+              <strong class="block font-bold">ReFlip Reselling</strong>
+              <span class="text-neutral-500">Datum: {{ slipOrder.order_date | date:'dd.MM.yyyy' }}</span>
+            </div>
+          </div>
+
+          <!-- Customer info -->
+          <div class="text-xs space-y-1">
+            <span class="text-[10px] uppercase font-bold text-neutral-400 block">Lieferadresse:</span>
+            <strong class="text-sm block">{{ slipOrder.customer.name }}</strong>
+            <div>{{ slipOrder.customer.street }} {{ slipOrder.customer.house_number }}</div>
+            <div>{{ slipOrder.customer.postal_code }} {{ slipOrder.customer.city }}</div>
+          </div>
+
+          <!-- Items Table -->
+          <table class="w-full text-left text-xs border-collapse border border-neutral-300">
+            <thead class="bg-neutral-100 uppercase text-[10px] font-bold border-b border-neutral-300">
+              <tr>
+                <th class="p-2.5">Position</th>
+                <th class="p-2.5">Artikel</th>
+                <th class="p-2.5">Zustand</th>
+                <th class="p-2.5 text-right">Menge</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="p-2.5 font-mono">01</td>
+                <td class="p-2.5 font-bold">{{ slipOrder.item_title }}</td>
+                <td class="p-2.5">{{ slipOrder.item_condition || 'Geprüft' }}</td>
+                <td class="p-2.5 text-right font-mono font-bold">1x</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- Thank you message -->
+          <div class="p-4 bg-neutral-50 border border-neutral-200 rounded-xl text-xs text-neutral-700 leading-relaxed">
+            <p class="font-bold">Vielen Dank für deinen Einkauf!</p>
+            <p class="text-[11px] mt-1 text-neutral-600">
+              Wir wünschen dir viel Freude mit deinem Artikel. Bei Fragen oder Anliegen stehen wir dir jederzeit gerne zur Verfügung!
+            </p>
+          </div>
+        </div>
+
+        <!-- Modal Actions -->
+        <div class="flex items-center justify-between pt-2 border-t border-rf-border no-print">
+          <button
+            type="button"
+            (click)="closeSlipModal()"
+            class="linear-btn-secondary px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+          >
+            Schließen
+          </button>
+
+          <button
+            type="button"
+            (click)="printDocument()"
+            class="linear-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
+          >
+            <lucide-icon [img]="printIcon" class="w-4 h-4"></lucide-icon>
+            <span>Lieferschein drucken</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Tracking Input Modal -->
+  @if (isTrackingModalOpen()) {
+    <div
+      class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in"
+      (click)="closeTrackingModal()"
+    >
+      <div
+        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-6 space-y-5 select-none"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="flex items-center justify-between border-b border-rf-border pb-3">
+          <div class="flex items-center gap-2">
+            <lucide-icon [img]="truckIcon" class="w-5 h-5 text-indigo-400"></lucide-icon>
+            <h3 class="text-base font-bold text-rf-text-primary">Sendungsnummer erfassen</h3>
+          </div>
+
+          <button
+            type="button"
+            (click)="closeTrackingModal()"
+            class="p-1 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
+          >
+            <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+          </button>
+        </div>
+
+        <form [formGroup]="trackingForm" (ngSubmit)="onSaveTracking()" class="space-y-4">
+          <div>
+            <label for="carrierSelect" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+              Versanddienstleister
+            </label>
+            <select
+              id="carrierSelect"
+              formControlName="carrier"
+              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer text-rf-text-secondary"
+            >
+              <option value="dhl">DHL Paket / Warenpost</option>
+              <option value="hermes">Hermes Logistik</option>
+              <option value="dpd">DPD Deutschland</option>
+              <option value="ups">UPS Express</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="trackingNumberInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+              Sendungsnummer / Tracking-ID *
+            </label>
+            <input
+              id="trackingNumberInput"
+              type="text"
+              formControlName="trackingNumber"
+              placeholder="z.B. 00340434289012345678"
+              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
+            />
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2 border-t border-rf-border">
+            <button
+              type="button"
+              (click)="closeTrackingModal()"
+              class="linear-btn-secondary px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+            >
+              Abbrechen
+            </button>
+
+            <button
+              type="submit"
+              [disabled]="trackingForm.invalid"
+              class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20 disabled:opacity-40"
+            >
+              <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <span>Speichern & Versenden</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>
