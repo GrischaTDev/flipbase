@@ -1,29 +1,29 @@
-<div class="min-h-screen bg-slate-50/50 text-slate-800 flex flex-col selection:bg-slate-900 selection:text-white font-sans antialiased">
-  <!-- Top Announcement Bar (Calm & Subtle) -->
-  <div class="bg-slate-900 text-slate-300 text-[11px] font-medium py-2 px-4 select-none">
+<div class="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col selection:bg-indigo-600 selection:text-white font-sans antialiased">
+  <!-- Top Announcement Bar (Rich Indigo & Trust Elements) -->
+  <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white text-[11px] font-medium py-2 px-4 border-b border-indigo-500/20 select-none shadow-xs">
     <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs">
-      <div class="flex items-center gap-4 text-[11px] text-slate-300">
-        <span class="flex items-center gap-1.5 font-medium">
-          <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
-          <span>Geprüfte Gebrauchtware & Funktionsgarantie</span>
+      <div class="flex items-center gap-4 text-[11px] text-slate-200">
+        <span class="flex items-center gap-1.5 font-semibold text-emerald-400">
+          <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5"></lucide-icon>
+          <span>100% Geprüfte Gebrauchtware mit Funktionsgarantie</span>
         </span>
         <span class="hidden md:inline text-slate-600">•</span>
         <span class="hidden md:flex items-center gap-1.5 text-slate-300">
-          <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
+          <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
           <span>Versand innerhalb von 24h</span>
         </span>
       </div>
 
-      <!-- Free Shipping Status (Calm Badge) -->
+      <!-- Free Shipping Status -->
       <div class="flex items-center gap-2 text-[11px]">
         @if (remainingForFreeShipping() === 0 && storeService.cartItemCount() > 0) {
-          <span class="text-emerald-300 font-medium flex items-center gap-1">
-            <lucide-icon [img]="checkIcon" class="w-3 h-3 text-emerald-400"></lucide-icon>
-            <span>Kostenloser Versand aktiv</span>
+          <span class="text-emerald-300 font-bold flex items-center gap-1 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30">
+            <lucide-icon [img]="sparklesIcon" class="w-3 h-3"></lucide-icon>
+            <span>🎉 Kostenloser DHL/Hermes-Versand aktiv!</span>
           </span>
         } @else {
-          <span class="text-slate-400 flex items-center gap-1">
-            <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
+          <span class="text-slate-300 flex items-center gap-1">
+            <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
             <span>Kostenloser Versand ab {{ storeService.storeSettings().freeShippingThreshold | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
           </span>
         }
@@ -31,21 +31,21 @@
     </div>
   </div>
 
-  <!-- Store Header (Sleek Minimalist White) -->
-  <header class="border-b border-slate-200/80 bg-white/95 backdrop-blur-md sticky top-0 z-40 px-4 md:px-8 select-none">
+  <!-- Store Header (Crisp White Glass with Indigo Accent) -->
+  <header class="border-b border-slate-200/90 bg-white/95 backdrop-blur-md sticky top-0 z-40 px-4 md:px-8 select-none shadow-xs">
     <div class="max-w-7xl mx-auto h-16 flex items-center justify-between gap-4">
       <!-- Brand Logo -->
       <div class="flex items-center gap-3">
         <a routerLink="/shop" class="flex items-center gap-3 group cursor-pointer">
-          <div class="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-xs group-hover:bg-slate-800 transition">
-            <lucide-icon [img]="storeIcon" class="w-4 h-4 text-white stroke-[2.2]"></lucide-icon>
+          <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-600 via-indigo-600 to-blue-600 flex items-center justify-center shadow-md shadow-indigo-500/25 group-hover:scale-105 transition">
+            <lucide-icon [img]="storeIcon" class="w-5 h-5 text-white stroke-[2.5]"></lucide-icon>
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <span class="font-bold text-base md:text-lg text-slate-900 block leading-tight tracking-tight">
+              <span class="font-black text-base md:text-lg text-slate-900 block leading-tight tracking-tight">
                 {{ storeService.storeSettings().storeName }}
               </span>
-              <span class="px-1.5 py-0.2 rounded text-[9px] font-semibold text-slate-600 bg-slate-100 border border-slate-200">
+              <span class="px-1.5 py-0.2 rounded text-[9px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
                 Geprüfter Händler
               </span>
             </div>
@@ -57,34 +57,34 @@
       </div>
 
       <!-- Navigation & Cart Controls -->
-      <div class="flex items-center gap-2.5">
+      <div class="flex items-center gap-3">
         <!-- Back to Admin Cockpit Button -->
         <a
           routerLink="/dashboard"
-          class="text-xs font-medium text-slate-600 hover:text-slate-900 px-3 py-2 rounded-xl hover:bg-slate-100 transition flex items-center gap-1.5 cursor-pointer border border-slate-200"
+          class="text-xs font-semibold text-slate-600 hover:text-slate-900 px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 transition flex items-center gap-1.5 cursor-pointer border border-slate-200"
           title="Zurück zum Reselling-Cockpit"
         >
           <lucide-icon [img]="backIcon" class="w-3.5 h-3.5 text-slate-500"></lucide-icon>
           <span class="hidden md:inline">Händler-Cockpit</span>
         </a>
 
-        <!-- Cart Button with Live Counter Badge & Subtotal (Calm Dark Slate) -->
+        <!-- Cart Button with Live Counter Badge & Subtotal (Indigo Primary) -->
         <button
           type="button"
           (click)="storeService.openCart()"
-          class="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-xl text-xs font-medium flex items-center gap-2 cursor-pointer shadow-xs transition"
+          class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2.5 cursor-pointer shadow-md shadow-indigo-600/25 hover:shadow-indigo-600/40 transition"
         >
           <div class="relative">
             <lucide-icon [img]="bagIcon" class="w-4 h-4"></lucide-icon>
             @if (storeService.cartItemCount() > 0) {
-              <span class="absolute -top-1.5 -right-2 w-3.5 h-3.5 rounded-full bg-emerald-500 text-white text-[8px] font-bold font-mono flex items-center justify-center">
+              <span class="absolute -top-2 -right-2.5 w-4 h-4 rounded-full bg-emerald-500 text-white text-[9px] font-black font-mono flex items-center justify-center shadow-md animate-pulse">
                 {{ storeService.cartItemCount() }}
               </span>
             }
           </div>
           <span class="hidden sm:inline">Warenkorb</span>
           @if (storeService.cartSubtotal() > 0) {
-            <span class="font-mono font-semibold text-slate-200 pl-1 border-l border-slate-700">
+            <span class="font-mono font-bold text-white pl-1.5 border-l border-white/20">
               {{ storeService.cartSubtotal() | currency:'EUR':'symbol':'1.2-2':'de' }}
             </span>
           }
@@ -93,97 +93,97 @@
     </div>
   </header>
 
-  <!-- Main Content Area (Clean Light Canvas) -->
+  <!-- Main Content Area -->
   <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 md:p-8">
     <router-outlet></router-outlet>
   </main>
 
-  <!-- Professional Store Footer (Quiet & Clean) -->
-  <footer class="border-t border-slate-200 bg-white py-12 px-4 md:px-8 text-xs text-slate-500 select-none mt-16">
-    <div class="max-w-7xl mx-auto space-y-8">
+  <!-- Professional Store Footer -->
+  <footer class="border-t border-slate-800 bg-slate-950 py-12 px-4 md:px-8 text-xs text-slate-400 select-none mt-16">
+    <div class="max-w-7xl mx-auto space-y-10">
       <!-- 4 Column Footer Grid -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
         <!-- Store Brand Info -->
-        <div class="space-y-2.5">
+        <div class="space-y-3">
           <div class="flex items-center gap-2">
-            <div class="w-6 h-6 rounded-lg bg-slate-900 flex items-center justify-center text-white">
-              <lucide-icon [img]="storeIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <div class="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
+              <lucide-icon [img]="storeIcon" class="w-4 h-4"></lucide-icon>
             </div>
-            <h4 class="font-bold text-slate-900 text-sm">{{ storeService.storeSettings().storeName }}</h4>
+            <h4 class="font-bold text-white text-sm">{{ storeService.storeSettings().storeName }}</h4>
           </div>
-          <p class="text-[11px] leading-relaxed text-slate-500">
-            Dein Fachhändler für geprüfte Gebrauchtwaren, Elektronik, Werkzeuge und Schnäppchen. Jedes Produkt technisch & optisch geprüft.
+          <p class="text-[11px] leading-relaxed text-slate-400">
+            Dein vertrauensvoller Fachhändler für geprüfte Gebrauchtwaren, Elektronik, Werkzeuge und Schnäppchen. Jedes Produkt technisch & optisch geprüft.
           </p>
-          <div class="pt-1 flex items-center gap-1.5 text-slate-700 font-medium text-[11px]">
-            <lucide-icon [img]="shieldIcon" class="w-3.5 h-3.5 text-slate-500"></lucide-icon>
-            <span>Käuferschutz & Funktionsgarantie</span>
+          <div class="pt-1 flex items-center gap-2 text-emerald-400 font-semibold text-[11px]">
+            <lucide-icon [img]="shieldIcon" class="w-4 h-4"></lucide-icon>
+            <span>100% Käuferschutz & Funktionsgarantie</span>
           </div>
         </div>
 
         <!-- Trust & Shipping Guarantees -->
-        <div class="space-y-2.5">
-          <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider">Deine Kundenvorteile</h4>
-          <ul class="space-y-1.5 text-[11px]">
-            <li class="flex items-start gap-2 text-slate-600">
-              <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5"></lucide-icon>
-              <span><strong>Qualitätsprüfung:</strong> Gründlich getestet & gereinigt</span>
+        <div class="space-y-3">
+          <h4 class="font-bold text-white text-xs uppercase tracking-wider">Deine Kundenvorteile</h4>
+          <ul class="space-y-2 text-[11px]">
+            <li class="flex items-start gap-2">
+              <lucide-icon [img]="checkIcon" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></lucide-icon>
+              <span><strong class="text-slate-200">Experten-Qualitätscheck:</strong> Gründlich getestet & gereinigt</span>
             </li>
-            <li class="flex items-start gap-2 text-slate-600">
-              <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5"></lucide-icon>
-              <span><strong>Schneller Versand:</strong> Innerhalb 24h mit Sendungsverfolgung</span>
+            <li class="flex items-start gap-2">
+              <lucide-icon [img]="truckIcon" class="w-4 h-4 text-indigo-400 shrink-0 mt-0.5"></lucide-icon>
+              <span><strong class="text-slate-200">Blitzversand:</strong> Innerhalb von 24h mit DHL/Hermes Sendungsverfolgung</span>
             </li>
-            <li class="flex items-start gap-2 text-slate-600">
-              <lucide-icon [img]="returnIcon" class="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5"></lucide-icon>
-              <span><strong>14 Tage Rückgaberecht:</strong> Sorgenfrei online einkaufen</span>
+            <li class="flex items-start gap-2">
+              <lucide-icon [img]="returnIcon" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></lucide-icon>
+              <span><strong class="text-slate-200">14 Tage Rückgaberecht:</strong> Sorgenfrei online einkaufen</span>
             </li>
-            <li class="flex items-start gap-2 text-slate-600">
-              <lucide-icon [img]="lockIcon" class="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5"></lucide-icon>
-              <span><strong>Sichere Bezahlung:</strong> SSL-verschlüsselt</span>
+            <li class="flex items-start gap-2">
+              <lucide-icon [img]="lockIcon" class="w-4 h-4 text-blue-400 shrink-0 mt-0.5"></lucide-icon>
+              <span><strong class="text-slate-200">Sichere Bezahlung:</strong> 256-Bit SSL-Verschlüsselung</span>
             </li>
           </ul>
         </div>
 
         <!-- Accepted Payment Methods -->
-        <div class="space-y-2.5">
-          <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider">Zahlungsmethoden</h4>
-          <div class="grid grid-cols-2 gap-1.5 text-[11px]">
-            <div class="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-1.5 text-slate-700">
-              <lucide-icon [img]="creditCardIcon" class="w-3.5 h-3.5 text-slate-500"></lucide-icon>
+        <div class="space-y-3">
+          <h4 class="font-bold text-white text-xs uppercase tracking-wider">Zahlungsmethoden</h4>
+          <div class="grid grid-cols-2 gap-2 text-[11px]">
+            <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200">
+              <lucide-icon [img]="creditCardIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
               <span>PayPal & Card</span>
             </div>
-            <div class="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-1.5 text-slate-700">
-              <lucide-icon [img]="creditCardIcon" class="w-3.5 h-3.5 text-slate-500"></lucide-icon>
-              <span>Stripe / Visa</span>
+            <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200">
+              <lucide-icon [img]="creditCardIcon" class="w-3.5 h-3.5 text-blue-400"></lucide-icon>
+              <span>Stripe / Visa / MC</span>
             </div>
-            <div class="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-1.5 text-slate-700">
-              <lucide-icon [img]="lockIcon" class="w-3.5 h-3.5 text-slate-500"></lucide-icon>
+            <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200">
+              <lucide-icon [img]="lockIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
               <span>Klarna / Sofort</span>
             </div>
-            <div class="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center gap-1.5 text-slate-700">
-              <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5 text-slate-500"></lucide-icon>
-              <span>Barzahlung</span>
+            <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200">
+              <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5 text-emerald-400"></lucide-icon>
+              <span>Bar bei Abholung</span>
             </div>
           </div>
-          <p class="text-[10px] text-slate-400 leading-relaxed">
-            Differenzbesteuerung gem. § 25a UStG bei Gebrauchtgegenständen.
+          <p class="text-[10px] text-slate-500 leading-relaxed">
+            Rechtssichere Abwicklung gem. § 25a UStG (Differenzbesteuerung bei Gebrauchtgegenständen).
           </p>
         </div>
 
         <!-- Legal & Impressum -->
-        <div class="space-y-1.5 text-[11px]">
-          <h4 class="font-bold text-slate-900 text-xs uppercase tracking-wider mb-2">Impressum & Kontakt</h4>
-          <p class="font-semibold text-slate-700">{{ storeService.storeSettings().imprint.owner }}</p>
-          <p class="text-slate-500">{{ storeService.storeSettings().imprint.street }}</p>
-          <p class="text-slate-500">{{ storeService.storeSettings().imprint.city }}</p>
-          <p class="pt-1 text-slate-600 font-medium">
+        <div class="space-y-2 text-[11px]">
+          <h4 class="font-bold text-white text-xs uppercase tracking-wider mb-2">Impressum & Kundenservice</h4>
+          <p class="font-semibold text-slate-200">{{ storeService.storeSettings().imprint.owner }}</p>
+          <p>{{ storeService.storeSettings().imprint.street }}</p>
+          <p>{{ storeService.storeSettings().imprint.city }}</p>
+          <p class="pt-1 text-indigo-400 font-medium flex items-center gap-1">
             <span>E-Mail:</span>
-            <a [href]="'mailto:' + storeService.storeSettings().imprint.email" class="hover:underline text-slate-800 ml-1">
+            <a [href]="'mailto:' + storeService.storeSettings().imprint.email" class="hover:underline text-indigo-300">
               {{ storeService.storeSettings().imprint.email }}
             </a>
           </p>
-          <p class="text-slate-500">Tel: {{ storeService.storeSettings().imprint.phone }}</p>
+          <p class="text-slate-400">Tel: {{ storeService.storeSettings().imprint.phone }}</p>
           @if (storeService.storeSettings().imprint.vatId) {
-            <p class="text-[10px] text-slate-400 pt-1 border-t border-slate-100 mt-2">
+            <p class="text-[10px] text-slate-500 pt-1 border-t border-slate-800 mt-2">
               USt-IdNr.: {{ storeService.storeSettings().imprint.vatId }}
             </p>
           }
@@ -191,16 +191,16 @@
       </div>
 
       <!-- Bottom Disclaimer & Copyright -->
-      <div class="pt-6 border-t border-slate-100 flex flex-col md:flex-row items-center justify-between gap-3 text-[11px] text-slate-400">
-        <span>© {{ storeService.storeSettings().storeName }} • Powered by ReFlip OS</span>
-        <div class="flex items-center gap-3">
-          <span class="hover:text-slate-600 cursor-pointer">Datenschutz</span>
+      <div class="pt-6 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-3 text-[11px] text-slate-500">
+        <span>© {{ storeService.storeSettings().storeName }} • Betrieben mit ReFlip Reselling OS</span>
+        <div class="flex items-center gap-4">
+          <span class="hover:text-slate-300 cursor-pointer">Datenschutz</span>
           <span>•</span>
-          <span class="hover:text-slate-600 cursor-pointer">AGB</span>
+          <span class="hover:text-slate-300 cursor-pointer">AGB</span>
           <span>•</span>
-          <span class="hover:text-slate-600 cursor-pointer">Widerrufsbelehrung</span>
+          <span class="hover:text-slate-300 cursor-pointer">Widerrufsbelehrung</span>
           <span>•</span>
-          <span class="hover:text-slate-600 cursor-pointer">Impressum</span>
+          <span class="hover:text-slate-300 cursor-pointer">Impressum</span>
         </div>
       </div>
     </div>

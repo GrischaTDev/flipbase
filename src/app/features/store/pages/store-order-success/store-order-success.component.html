@@ -1,89 +1,103 @@
 <div class="max-w-2xl mx-auto py-8 space-y-6 animate-fade-in select-none">
   @if (order(); as ord) {
-    <!-- Success Banner Card (Calm White Surface with subtle border) -->
-    <div class="bg-white rounded-3xl p-8 md:p-10 text-center space-y-5 border border-slate-200 shadow-xs">
-      <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-800 mx-auto flex items-center justify-center">
-        <lucide-icon [img]="checkIcon" class="w-6 h-6 text-emerald-600"></lucide-icon>
+    <!-- Success Banner Card -->
+    <div class="bg-white rounded-3xl p-8 md:p-10 text-center space-y-6 border border-emerald-200 shadow-md">
+      <div class="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 mx-auto flex items-center justify-center shadow-md shadow-emerald-500/20">
+        <lucide-icon [img]="checkIcon" class="w-8 h-8"></lucide-icon>
       </div>
 
       <div class="space-y-1">
-        <span class="text-xs uppercase font-semibold tracking-wider text-slate-500">Bestellung gebucht</span>
-        <h1 class="text-2xl sm:text-3xl font-bold text-slate-900">Vielen Dank für deine Bestellung!</h1>
+        <span class="text-xs uppercase font-bold tracking-wider text-emerald-700">Bestellung erfolgreich abgeschlossen</span>
+        <h1 class="text-2xl sm:text-3xl font-black text-slate-900">Vielen Dank für deinen Einkauf!</h1>
         <p class="text-xs text-slate-500">
-          Bestellnummer: <strong class="font-mono text-slate-900">{{ ord.orderNumber }}</strong>
+          Bestellnummer: <strong class="font-mono text-slate-900 font-bold">{{ ord.orderNumber }}</strong>
         </p>
       </div>
 
-      <!-- Payment Status Pill (Calm) -->
-      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border bg-slate-50 border-slate-200 text-slate-700">
+      <!-- Payment Status Pill -->
+      <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold border"
+        [class.bg-emerald-50]="ord.paymentStatus === 'paid'"
+        [class.border-emerald-200]="ord.paymentStatus === 'paid'"
+        [class.text-emerald-800]="ord.paymentStatus === 'paid'"
+        [class.bg-amber-50]="ord.paymentStatus === 'pending'"
+        [class.border-amber-200]="ord.paymentStatus === 'pending'"
+        [class.text-amber-800]="ord.paymentStatus === 'pending'"
+      >
         <span class="w-2 h-2 rounded-full" [class.bg-emerald-500]="ord.paymentStatus === 'paid'" [class.bg-amber-500]="ord.paymentStatus === 'pending'"></span>
         @if (ord.paymentMethod === 'stripe_card') {
-          <span>Bezahlt mit Kreditkarte (Stripe)</span>
+          <span>Bezahlt mit Kreditkarte (Stripe • Transaktion: {{ ord.paymentId }})</span>
         } @else if (ord.paymentMethod === 'paypal') {
-          <span>Bezahlt via PayPal Express</span>
+          <span>Bezahlt via PayPal Express (Transaktion: {{ ord.paymentId }})</span>
         } @else if (ord.paymentMethod === 'bank_transfer') {
-          <span>Zahlung ausstehend (Banküberweisung)</span>
+          <span>Zahlung ausstehend (SEPA-Überweisung)</span>
         } @else {
           <span>Zahlung bei Abholung vor Ort</span>
         }
       </div>
 
       <!-- Order Details Strip -->
-      <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 text-left space-y-2">
+      <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700 text-left space-y-2.5">
         <div class="flex justify-between">
           <span class="text-slate-500">Kunde:</span>
           <strong class="text-slate-900">{{ ord.customer.firstName }} {{ ord.customer.lastName }}</strong>
         </div>
         <div class="flex justify-between">
           <span class="text-slate-500">Lieferadresse:</span>
-          <span class="text-slate-900">{{ ord.customer.street }} {{ ord.customer.houseNumber }}, {{ ord.customer.zip }} {{ ord.customer.city }}</span>
+          <span class="text-slate-900 font-medium">{{ ord.customer.street }} {{ ord.customer.houseNumber }}, {{ ord.customer.zip }} {{ ord.customer.city }}</span>
         </div>
         <div class="flex justify-between">
           <span class="text-slate-500">Versandart:</span>
-          <span class="text-slate-900">{{ ord.customer.shippingMethod === 'pickup' ? 'Selbstabholung' : 'DHL Standard Paket' }}</span>
+          <span class="text-slate-900 font-medium">{{ ord.customer.shippingMethod === 'pickup' ? 'Selbstabholung' : 'DHL Standard Paket' }}</span>
         </div>
-        <div class="flex justify-between pt-1.5 border-t border-slate-200">
+        <div class="flex justify-between pt-2 border-t border-slate-200">
           <span class="text-slate-500">Gesamtbetrag:</span>
-          <strong class="font-mono text-slate-950 text-sm font-bold">{{ ord.total | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+          <strong class="font-mono text-slate-950 text-base font-black">{{ ord.total | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
         </div>
       </div>
 
       <!-- Payment Instructions if Bank Transfer -->
       @if (ord.customer.paymentMethod === 'bank_transfer') {
-        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-left space-y-2 text-xs">
-          <div class="flex items-center gap-2 font-bold text-slate-900">
-            <lucide-icon [img]="bankIcon" class="w-4 h-4 text-slate-600"></lucide-icon>
-            <span>Überweisungsdaten</span>
+        <div class="p-4 rounded-2xl bg-indigo-50 border border-indigo-200 text-left space-y-2 text-xs">
+          <div class="flex items-center gap-2 font-bold text-indigo-900">
+            <lucide-icon [img]="bankIcon" class="w-4 h-4 text-indigo-600"></lucide-icon>
+            <span>Überweisungsinformationen</span>
           </div>
-          <p class="text-[11px] text-slate-500">
+          <p class="text-[11px] text-slate-600">
             Bitte überweise den Gesamtbetrag von <strong>{{ ord.total | currency:'EUR':'symbol':'1.2-2':'de' }}</strong> auf unser Bankkonto:
           </p>
-          <div class="font-mono text-[11px] bg-white p-3 rounded-xl border border-slate-200 space-y-1">
+          <div class="font-mono text-[11px] bg-white p-3.5 rounded-xl border border-slate-200 space-y-1.5 shadow-2xs">
             <div class="flex justify-between"><span class="text-slate-500">Empfänger:</span> <strong class="text-slate-900">{{ storeService.storeSettings().payments.bankAccountHolder }}</strong></div>
-            <div class="flex justify-between"><span class="text-slate-500">IBAN:</span> <strong class="text-slate-900">{{ storeService.storeSettings().payments.bankIban }}</strong></div>
+            <div class="flex justify-between"><span class="text-slate-500">IBAN:</span> <strong class="text-emerald-700 font-bold">{{ storeService.storeSettings().payments.bankIban }}</strong></div>
             <div class="flex justify-between"><span class="text-slate-500">BIC:</span> <strong class="text-slate-900">{{ storeService.storeSettings().payments.bankBic }}</strong></div>
-            <div class="flex justify-between pt-1 border-t border-slate-100"><span class="text-slate-500">Verwendungszweck:</span> <strong class="text-slate-900 font-bold">{{ ord.orderNumber }}</strong></div>
+            <div class="flex justify-between pt-1.5 border-t border-slate-100"><span class="text-slate-500">Verwendungszweck:</span> <strong class="text-indigo-700 font-bold">{{ ord.orderNumber }}</strong></div>
           </div>
         </div>
       }
 
-      <div class="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+      <div class="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
         <!-- Print Invoice Button -->
         <button
           type="button"
           (click)="openInvoice()"
-          class="px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 transition"
+          class="px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 shadow-xs transition"
         >
-          <lucide-icon [img]="fileIcon" class="w-3.5 h-3.5"></lucide-icon>
-          <span>Rechnung drucken</span>
+          <lucide-icon [img]="fileIcon" class="w-4 h-4 text-indigo-600"></lucide-icon>
+          <span>📄 § 25a Rechnung drucken</span>
         </button>
 
         <a
           routerLink="/shop"
-          class="px-5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer bg-slate-900 hover:bg-slate-800 text-white shadow-xs transition"
+          class="px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/25 transition"
         >
-          <lucide-icon [img]="bagIcon" class="w-3.5 h-3.5"></lucide-icon>
+          <lucide-icon [img]="bagIcon" class="w-4 h-4"></lucide-icon>
           <span>Weiter einkaufen</span>
+        </a>
+
+        <a
+          routerLink="/sales"
+          class="px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition"
+        >
+          <span>Händler-Cockpit</span>
         </a>
       </div>
     </div>
@@ -96,9 +110,9 @@
       ></app-invoice-modal>
     }
   } @else {
-    <div class="bg-white rounded-2xl p-12 text-center space-y-3 border border-slate-200">
-      <h3 class="text-sm font-bold text-slate-900">Bestellung nicht gefunden</h3>
-      <a routerLink="/shop" class="bg-slate-900 text-white inline-flex px-4 py-2 rounded-xl text-xs font-medium">
+    <div class="bg-white rounded-3xl p-16 text-center space-y-3 border border-slate-200 shadow-sm">
+      <h3 class="text-base font-bold text-slate-900">Bestellung nicht gefunden</h3>
+      <a routerLink="/shop" class="bg-indigo-600 hover:bg-indigo-700 text-white inline-flex px-4 py-2 rounded-xl text-xs font-bold shadow-md">
         Zum Shop-Sortiment
       </a>
     </div>
