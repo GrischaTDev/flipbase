@@ -1,25 +1,25 @@
 <!-- Mobile Backdrop -->
 @if (isOpen()) {
   <div
-    class="fixed inset-0 bg-black/50 backdrop-blur-xs z-40 md:hidden"
+    class="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden"
     (click)="close.emit()"
   ></div>
 }
 
 <!-- Helles Anthrazit Sidebar Container -->
 <aside
-  class="fixed top-0 bottom-0 left-0 z-50 w-60 bg-[#181b22] border-r border-[#2c3240] text-slate-300 flex flex-col transition-transform duration-200 ease-out md:translate-x-0 md:static md:z-auto select-none shadow-xl md:shadow-none"
+  class="fixed top-0 bottom-0 left-0 z-50 w-60 bg-rf-sidebar border-r border-rf-border-subtle text-rf-text-secondary flex flex-col transition-transform duration-200 ease-out md:translate-x-0 md:static md:z-auto select-none shadow-xl md:shadow-none"
   [class.translate-x-0]="isOpen()"
   [class.-translate-x-full]="!isOpen()"
 >
   <!-- Brand Logo Header -->
-  <div class="h-14 flex items-center justify-between px-4 border-b border-[#2c3240]">
+  <div class="h-14 flex items-center justify-between px-4 border-b border-rf-border-subtle">
     <div class="flex items-center gap-2.5">
       <div class="w-6 h-6 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-xs shadow-emerald-500/20">
         <lucide-icon [img]="logoIcon" class="w-3.5 h-3.5 text-white stroke-[2.5]"></lucide-icon>
       </div>
       <div class="flex items-center gap-1.5">
-        <span class="tracking-tight font-bold text-sm text-slate-100">ReFlip</span>
+        <span class="tracking-tight font-bold text-sm text-rf-text-primary">ReFlip</span>
         <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold tracking-wide uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
           OS
         </span>
@@ -29,7 +29,7 @@
     <button
       type="button"
       (click)="close.emit()"
-      class="md:hidden p-1 rounded-md text-slate-400 hover:text-white hover:bg-[#252a34]"
+      class="md:hidden p-1 rounded-md text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover"
     >
       <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
     </button>
@@ -37,7 +37,7 @@
 
   <!-- Navigation Links -->
   <nav class="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5">
-    <div class="px-2 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+    <div class="px-2 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-wider text-rf-text-muted">
       Übersicht
     </div>
     
@@ -46,14 +46,14 @@
         [routerLink]="item.path"
         routerLinkActive="bg-emerald-500/15 text-emerald-300 font-semibold border-emerald-500/30"
         (click)="close.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-slate-300 hover:text-white hover:bg-[#252a34] transition group border border-transparent"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >
-        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-slate-400 group-hover:text-white group-[.font-semibold]:text-emerald-400 shrink-0"></lucide-icon>
+        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-emerald-400 shrink-0"></lucide-icon>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-rf-text-muted">
       Werkzeuge & Ertrag
     </div>
 
@@ -62,14 +62,14 @@
         [routerLink]="item.path"
         routerLinkActive="bg-emerald-500/15 text-emerald-300 font-semibold border-emerald-500/30"
         (click)="close.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-slate-300 hover:text-white hover:bg-[#252a34] transition group border border-transparent"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >
-        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-slate-400 group-hover:text-white group-[.font-semibold]:text-emerald-400 shrink-0"></lucide-icon>
+        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-emerald-400 shrink-0"></lucide-icon>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-rf-text-muted">
       System & Daten
     </div>
 
@@ -78,21 +78,21 @@
         [routerLink]="item.path"
         routerLinkActive="bg-emerald-500/15 text-emerald-300 font-semibold border-emerald-500/30"
         (click)="close.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-slate-300 hover:text-white hover:bg-[#252a34] transition group border border-transparent"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >
-        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-slate-400 group-hover:text-white group-[.font-semibold]:text-emerald-400 shrink-0"></lucide-icon>
+        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-emerald-400 shrink-0"></lucide-icon>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
   </nav>
 
   <!-- Footer Info / Version -->
-  <div class="p-3 border-t border-[#2c3240] text-xs flex items-center justify-between">
+  <div class="p-3 border-t border-rf-border-subtle text-xs flex items-center justify-between">
     <div class="flex items-center gap-1.5">
       <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-      <span class="text-[11px] text-slate-400 font-medium">ReFlip Core</span>
+      <span class="text-[11px] text-rf-text-muted font-medium">ReFlip Core</span>
     </div>
-    <span class="px-1.5 py-0.2 rounded bg-[#252a34] text-slate-300 border border-[#373e4d] font-mono text-[10px]">
+    <span class="px-1.5 py-0.2 rounded bg-rf-surface text-rf-text-secondary border border-rf-border font-mono text-[10px]">
       v0.1
     </span>
   </div>
