@@ -27,10 +27,12 @@ describe('Listing Studio & Multi-Platform Generator (Phase 7)', () => {
   it('should generate optimized Kleinanzeigen listing with VB and polite tone (Chapter 21)', () => {
     const listing = service.generateListing(sampleItem, 'kleinanzeigen', 75.0, {
       includeDisclaimer: true,
+      isCommercialSeller: false,
       includeNonSmoking: true,
       includeShipping: true,
       includePickup: true,
       includeNegotiable: true,
+      styleTone: 'dealer',
     });
 
     expect(listing.platform).toBe('kleinanzeigen');
@@ -39,22 +41,26 @@ describe('Listing Studio & Multi-Platform Generator (Phase 7)', () => {
     expect(listing.description).toContain('Hallo zusammen,');
     expect(listing.description).toContain('Sehr gut');
     expect(listing.description).toContain('75.00 € (Verhandlungsbasis / VB)');
-    expect(listing.description).toContain('Ausschluss jeglicher Sachmängelhaftung');
+    expect(listing.description).toContain('Sachmängelhaftung');
   });
 
-  it('should generate structured eBay listing with clear sections (Chapter 21)', () => {
+  it('should generate structured eBay listing with clear sections and HTML template (Chapter 21)', () => {
     const listing = service.generateListing(sampleItem, 'ebay', 75.0, {
       includeDisclaimer: true,
+      isCommercialSeller: true,
       includeNonSmoking: false,
       includeShipping: true,
       includePickup: true,
       includeNegotiable: false,
+      styleTone: 'dealer',
     });
 
     expect(listing.platform).toBe('ebay');
     expect(listing.description).toContain('PRODUKTBESCHREIBUNG');
-    expect(listing.description).toContain('HIGHLIGHTS & DETAILS:');
+    expect(listing.description).toContain('HIGHLIGHTS');
     expect(listing.description).toContain('LIEFERUMFANG:');
+    expect(listing.htmlDescription).toBeDefined();
+    expect(listing.htmlDescription).toContain('Artikeldetails');
   });
 
   it('should generate fashion/lifestyle Vinted listing with hashtags (Chapter 21)', () => {
@@ -72,15 +78,33 @@ describe('Listing Studio & Multi-Platform Generator (Phase 7)', () => {
 
     const listing = service.generateListing(jacketItem, 'vinted', 65.0, {
       includeDisclaimer: true,
+      isCommercialSeller: false,
       includeNonSmoking: true,
       includeShipping: true,
       includePickup: false,
       includeNegotiable: false,
+      styleTone: 'casual',
     });
 
     expect(listing.platform).toBe('vinted');
     expect(listing.hashtags).toBeDefined();
     expect(listing.hashtags).toContain('#vintage');
     expect(listing.hashtags).toContain('#alphaindustries');
+  });
+
+  it('should generate social media teaser with hashtags and emojis', () => {
+    const listing = service.generateListing(sampleItem, 'social', 75.0, {
+      includeDisclaimer: false,
+      isCommercialSeller: false,
+      includeNonSmoking: true,
+      includeShipping: true,
+      includePickup: true,
+      includeNegotiable: false,
+      styleTone: 'bargain',
+    });
+
+    expect(listing.platform).toBe('social');
+    expect(listing.description).toContain('🔥 Zu verkaufen');
+    expect(listing.description).toContain('75.00 €');
   });
 });

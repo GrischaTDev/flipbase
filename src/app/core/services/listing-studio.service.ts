@@ -4,21 +4,28 @@ import { WorkspaceService } from './workspace.service';
 import { InventoryService } from './inventory.service';
 import { InventoryItem, ListingDraft } from '../models/reflip.models';
 
+export type ListingPlatform = 'kleinanzeigen' | 'ebay' | 'vinted' | 'social';
+export type ListingStyleTone = 'dealer' | 'bargain' | 'collector' | 'casual';
+
 export interface ListingTemplateOptions {
   includeDisclaimer: boolean;
+  isCommercialSeller: boolean;
   includeNonSmoking: boolean;
   includeShipping: boolean;
   includePickup: boolean;
   includeNegotiable: boolean;
+  styleTone: ListingStyleTone;
   customNotes?: string;
 }
 
 export interface GeneratedListing {
-  platform: 'kleinanzeigen' | 'ebay' | 'vinted';
+  platform: ListingPlatform;
   title: string;
   price: number;
   description: string;
+  htmlDescription?: string;
   hashtags?: string[];
+  platformUrl?: string;
 }
 
 @Injectable({
@@ -59,62 +66,78 @@ export class ListingStudioService {
   }
 
   /**
-   * Generates a platform-optimized title and description (Kapitel 21 & 22).
+   * Generates a platform-optimized title and description with customizable style profiles.
    */
   generateListing(
     item: InventoryItem,
-    platform: 'kleinanzeigen' | 'ebay' | 'vinted',
+    platform: ListingPlatform,
     price: number,
     options: ListingTemplateOptions = {
       includeDisclaimer: true,
+      isCommercialSeller: true,
       includeNonSmoking: true,
       includeShipping: true,
       includePickup: true,
       includeNegotiable: false,
+      styleTone: 'dealer',
     }
   ): GeneratedListing {
     const conditionGerman = this.getConditionText(item.condition);
     const title = this.buildPlatformTitle(item, platform, options);
     let description = '';
+    let htmlDescription: string | undefined = undefined;
 
-    if (platform === 'kleinanzeigen') {
-      description = this.buildKleinanzeigenText(item, price, conditionGerman, options);
-    } else if (platform === 'ebay') {
-      description = this.buildEbayText(item, price, conditionGerman, options);
-    } else {
-      description = this.buildVintedText(item, price, conditionGerman, options);
+    switch (platform) {
+      case 'kleinanzeigen':
+        description = this.buildKleinanzeigenText(item, price, conditionGerman, options);
+        break;
+      case 'ebay':
+        description = this.buildEbayText(item, price, conditionGerman, options);
+        htmlDescription = this.buildEbayHtml(item, price, conditionGerman, options);
+        break;
+      case 'vinted':
+        description = this.buildVintedText(item, price, conditionGerman, options);
+        break;
+      case 'social':
+        description = this.buildSocialText(item, price, conditionGerman, options);
+        break;
     }
 
-    const hashtags = platform === 'vinted' ? this.buildHashtags(item) : undefined;
+    const hashtags = platform === 'vinted' || platform === 'social' ? this.buildHashtags(item) : undefined;
+    const platformUrl = this.getPlatformPublishUrl(platform);
 
     return {
       platform,
       title,
       price,
       description,
+      htmlDescription,
       hashtags,
+      platformUrl,
     };
   }
 
   private buildPlatformTitle(
     item: InventoryItem,
-    platform: 'kleinanzeigen' | 'ebay' | 'vinted',
+    platform: ListingPlatform,
     options: ListingTemplateOptions
   ): string {
     const brand = item.brand ? `${item.brand} ` : '';
-    const cond = item.condition === 'new' ? 'NEU / OVP' : item.condition === 'like_new' ? 'WIE NEU' : '';
+    const cond = item.condition === 'new' ? 'NEU & OVP' : item.condition === 'like_new' ? 'WIE NEU' : '';
 
     if (platform === 'kleinanzeigen') {
       const vb = options.includeNegotiable ? ' (VB)' : '';
-      const base = `${brand}${item.title} ${cond}`.trim();
+      const prefix = options.styleTone === 'collector' ? '⭐ TOP ⭐ ' : '';
+      const base = `${prefix}${brand}${item.title} ${cond}`.trim();
       return `${base}${vb}`.slice(0, 70); // Kleinanzeigen max length
     } else if (platform === 'ebay') {
       const model = item.model ? ` ${item.model}` : '';
-      const base = `${brand}${item.title}${model} | ${cond || 'Top Zustand'}`.trim();
+      const base = `${brand}${item.title}${model} | ${cond || 'Geprüfter Zustand'}`.trim();
       return base.slice(0, 80); // eBay max length
-    } else {
-      // Vinted
+    } else if (platform === 'vinted') {
       return `${brand}${item.title}`.trim().slice(0, 60);
+    } else {
+      return `🔥 ${brand}${item.title} zu verkaufen!`;
     }
   }
 
@@ -126,30 +149,44 @@ export class ListingStudioService {
   ): string {
     const lines: string[] = [];
 
-    lines.push(`Hallo zusammen,`);
-    lines.push(``);
-    lines.push(`ich verkaufe hier meinen/meine ${item.title}.`);
-    if (item.brand || item.model) {
-      lines.push(`Marke / Modell: ${[item.brand, item.model].filter(Boolean).join(' - ')}`);
+    if (options.styleTone === 'collector') {
+      lines.push(`Hallo Sammler & Enthusiasten, 🎮`);
+      lines.push(``);
+      lines.push(`angeboten wird hier: ${item.title} in tollem Erhaltungszustand.`);
+    } else if (options.styleTone === 'bargain') {
+      lines.push(`Schnäppchen-Alarm! ⚡`);
+      lines.push(``);
+      lines.push(`Ich biete hier einen/eine ${item.title} zum absoluten Festpreis an.`);
+    } else {
+      lines.push(`Hallo zusammen, 👋`);
+      lines.push(``);
+      lines.push(`zum Verkauf steht hier ein(e) ${item.title}.`);
     }
-    lines.push(`Zustand: ${conditionText}`);
+
+    if (item.brand || item.model) {
+      lines.push(`• Hersteller / Modell: ${[item.brand, item.model].filter(Boolean).join(' - ')}`);
+    }
+    lines.push(`• Zustand: ${conditionText}`);
+    if (item.condition_notes) {
+      lines.push(`• Zustandsdetails: ${item.condition_notes}`);
+    }
     lines.push(``);
 
     if (item.description) {
-      lines.push(`Details zum Artikel:`);
+      lines.push(`Beschreibung:`);
       lines.push(item.description);
       lines.push(``);
     }
 
-    lines.push(`Preis: ${price.toFixed(2)} € ${options.includeNegotiable ? '(Verhandlungsbasis / VB)' : '(Festpreis)'}`);
+    lines.push(`💰 Preis: ${price.toFixed(2)} € ${options.includeNegotiable ? '(Verhandlungsbasis / VB)' : '(Festpreis)'}`);
     lines.push(``);
 
     const logistics: string[] = [];
     if (options.includePickup) {
-      logistics.push(`• Abholung vor Ort gerne nach Absprache möglich (Barzahlung oder PayPal vor Ort).`);
+      logistics.push(`• 📍 Selbstabholung vor Ort flexibel nach Terminabsprache möglich (Barzahlung oder PayPal).`);
     }
     if (options.includeShipping) {
-      logistics.push(`• Versicherter Versand gegen Kostenübernahme (DHL / Hermes) möglich.`);
+      logistics.push(`• 📦 Sicherer und versicherter Versand via DHL / Hermes mit Sendungsnummer.`);
     }
     if (logistics.length > 0) {
       lines.push(`Abholung & Versand:`);
@@ -158,17 +195,21 @@ export class ListingStudioService {
     }
 
     if (options.includeNonSmoking) {
-      lines.push(`• Aus einem gepflegten, tierfreien Nichtraucherhaushalt.`);
+      lines.push(`• 🚭 Gepflegter Nichtraucherhaushalt.`);
     }
 
     if (options.includeDisclaimer) {
       lines.push(``);
       lines.push(`Rechtlicher Hinweis:`);
-      lines.push(`Der Verkauf erfolgt unter Ausschluss jeglicher Sachmängelhaftung. Keine Garantie, Gewährleistung oder Rücknahme, da Privatverkauf.`);
+      if (options.isCommercialSeller) {
+        lines.push(`Gewerblicher Verkauf mit Rechnung (Differenzbesteuerung gem. § 25a UStG bei Gebrauchtwaren). 14 Tage gesetzliches Widerrufsrecht.`);
+      } else {
+        lines.push(`Privatverkauf: Der Verkauf erfolgt unter Ausschluss jeglicher Sachmängelhaftung. Keine Garantie oder Rücknahme.`);
+      }
     }
 
     lines.push(``);
-    lines.push(`Bei Fragen einfach kurz schreiben – antworte in der Regel sehr schnell!`);
+    lines.push(`Bei Fragen einfach kurz eine Nachricht schreiben – antworte zügig!`);
 
     return lines.join('\n');
   }
@@ -182,20 +223,22 @@ export class ListingStudioService {
     const lines: string[] = [];
 
     lines.push(`=========================================`);
-    lines.push(`PRODUKTBESCHREIBUNG`);
+    lines.push(`PRODUKTBESCHREIBUNG & ZUSTAND`);
     lines.push(`=========================================`);
     lines.push(`Artikel: ${item.title}`);
     if (item.brand) lines.push(`Hersteller / Marke: ${item.brand}`);
     if (item.model) lines.push(`Modellbezeichnung: ${item.model}`);
+    if (item.ean) lines.push(`EAN: ${item.ean}`);
     lines.push(`Zustand: ${conditionText}`);
+    if (item.condition_notes) lines.push(`Zustandsdetails: ${item.condition_notes}`);
     lines.push(``);
 
-    lines.push(`HIGHLIGHTS & DETAILS:`);
+    lines.push(`HIGHLIGHTS:`);
     if (item.description) {
       lines.push(item.description);
     } else {
-      lines.push(`• Hochwertige Verarbeitung und zuverlässige Funktion`);
-      lines.push(`• Technisch einwandfrei und sofort einsatzbereit`);
+      lines.push(`• Funktionsgeprüft und technisch einwandfrei`);
+      lines.push(`• Vor dem Verkauf gründlich gereinigt`);
     }
     lines.push(``);
 
@@ -203,21 +246,54 @@ export class ListingStudioService {
     lines.push(`• 1x ${item.title}`);
     lines.push(``);
 
-    lines.push(`VERSAND & BEZAHLUNG:`);
+    lines.push(`VERSAND & SERVICE:`);
     if (options.includeShipping) {
-      lines.push(`• Schneller und sorgfältig gepolsterter Versand mit Sendungsverfolgung.`);
+      lines.push(`• Sorgfältig und stoßsicher gepolsterter Paketversand mit Sendungsverfolgung.`);
     }
     if (options.includePickup) {
-      lines.push(`• Barzahlung bei Selbstabholung möglich.`);
+      lines.push(`• Kostenlose Selbstabholung vor Ort nach Vereinbarung.`);
     }
     lines.push(``);
 
     if (options.includeDisclaimer) {
-      lines.push(`HINWEIS / PRIVATVERKAUF:`);
-      lines.push(`Dies ist ein Privatverkauf. Der Artikel wird unter Ausschluss jeglicher Gewährleistung und Sachmängelhaftung verkauft. Umtausch oder Rücknahme sind ausgeschlossen.`);
+      lines.push(`RECHTLICHE INFORMATIONEN:`);
+      if (options.isCommercialSeller) {
+        lines.push(`Gewerbliches Händlerangebot. Rechnungsstellung erfolgt unter Anwendung der Differenzbesteuerung gem. § 25a UStG (Gebrauchtgegenstände/Sonderregelung).`);
+      } else {
+        lines.push(`Privatverkauf unter Ausschluss jeglicher Gewährleistung und Sachmängelhaftung.`);
+      }
     }
 
     return lines.join('\n');
+  }
+
+  private buildEbayHtml(
+    item: InventoryItem,
+    price: number,
+    conditionText: string,
+    options: ListingTemplateOptions
+  ): string {
+    return `
+<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; color: #222; line-height: 1.6;">
+  <div style="background: #282c37; color: #fff; padding: 20px; border-radius: 12px 12px 0 0;">
+    <h1 style="margin: 0; font-size: 22px;">${item.title}</h1>
+    <p style="margin: 5px 0 0 0; color: #a5b4fc; font-size: 14px;">Zustand: ${conditionText}</p>
+  </div>
+  <div style="padding: 24px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px; background: #fff;">
+    <h3 style="color: #4f46e5; border-bottom: 2px solid #e0e7ff; padding-bottom: 6px;">Artikeldetails</h3>
+    <ul style="padding-left: 20px;">
+      ${item.brand ? `<li><strong>Marke:</strong> ${item.brand}</li>` : ''}
+      ${item.model ? `<li><strong>Modell:</strong> ${item.model}</li>` : ''}
+      <li><strong>Zustand:</strong> ${conditionText}</li>
+      ${item.condition_notes ? `<li><strong>Hinweis:</strong> ${item.condition_notes}</li>` : ''}
+    </ul>
+    <h3 style="color: #4f46e5; border-bottom: 2px solid #e0e7ff; padding-bottom: 6px; margin-top: 20px;">Beschreibung</h3>
+    <p style="white-space: pre-line;">${item.description || 'Geprüfter Artikel in einwandfreiem Zustand.'}</p>
+    <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin-top: 20px; font-size: 12px; color: #64748b;">
+      ${options.isCommercialSeller ? 'Gewerblicher Verkauf mit Rechnung (Differenzbesteuerung gem. § 25a UStG). 14 Tage Widerrufsrecht.' : 'Privatverkauf ohne Garantie oder Rücknahme.'}
+    </div>
+  </div>
+</div>`.trim();
   }
 
   private buildVintedText(
@@ -233,6 +309,7 @@ export class ListingStudioService {
     lines.push(`• Zustand: ${conditionText}`);
     if (item.brand) lines.push(`• Marke: ${item.brand}`);
     if (item.category) lines.push(`• Kategorie: ${item.category}`);
+    if (item.condition_notes) lines.push(`• Details: ${item.condition_notes}`);
     lines.push(``);
 
     if (item.description) {
@@ -248,73 +325,80 @@ export class ListingStudioService {
       lines.push(`📦 Schneller Versand (meist innerhalb von 24h)`);
     }
 
-    if (options.includeDisclaimer) {
+    const tags = this.buildHashtags(item);
+    if (tags.length > 0) {
       lines.push(``);
-      lines.push(`Privatverkauf – keine Rücknahme oder Garantie.`);
+      lines.push(tags.join(' '));
     }
 
     return lines.join('\n');
   }
 
+  private buildSocialText(
+    item: InventoryItem,
+    price: number,
+    conditionText: string,
+    options: ListingTemplateOptions
+  ): string {
+    const brand = item.brand ? `${item.brand} ` : '';
+    return `🔥 Zu verkaufen: ${brand}${item.title}
+💵 Preis: ${price.toFixed(2)} € ${options.includeNegotiable ? '(VB)' : '(Festpreis)'}
+✨ Zustand: ${conditionText}
+📦 Versand oder Abholung möglich!
+
+Bei Interesse gerne PN / Direktnachricht schreiben! 📩
+${this.buildHashtags(item).join(' ')}`.trim();
+  }
+
   private buildHashtags(item: InventoryItem): string[] {
-    const tags: string[] = ['#resell', '#vintage', '#fashion', '#secondhand'];
+    const tags: string[] = ['#reflip', '#secondhand'];
+    if (item.title?.toLowerCase().includes('vintage')) tags.push('#vintage');
+    if (item.title?.toLowerCase().includes('retro')) tags.push('#retro');
     if (item.brand) tags.push(`#${item.brand.toLowerCase().replace(/[^a-z0-9]/g, '')}`);
     if (item.category) tags.push(`#${item.category.toLowerCase().replace(/[^a-z0-9]/g, '')}`);
+    if (item.condition === 'new' || item.condition === 'like_new') tags.push('#neuwertig');
     return tags;
   }
 
-  private getConditionText(condition: string): string {
-    switch (condition) {
+  private getConditionText(cond: string): string {
+    switch (cond) {
       case 'new':
-        return 'Neu und originalverpackt (OVP)';
+        return 'Neu & Originalverpackt (OVP)';
       case 'like_new':
-        return 'Wie neu (kaum bis keine Gebrauchsspuren)';
+        return 'Wie neu (keine sichtbaren Gebrauchsspuren)';
       case 'very_good':
-        return 'Sehr gut (leichte, normale Nutzungsspuren)';
+        return 'Sehr gut (minimale Gebrauchsspuren, voll funktionsfähig)';
       case 'used':
-        return 'Gebraucht (voll funktionsfähig, normale Gebrauchsspuren)';
+        return 'Gebraucht (altersübliche Gebrauchsspuren, voll funktionsfähig)';
       case 'heavily_used':
-        return 'Stark gebraucht (deutliche Gebrauchsspuren, Funktion intakt)';
+        return 'Stark gebraucht (sichtbare Spuren, technisch in Ordnung)';
       case 'defective':
-        return 'Defekt / Für Bastler & Ersatzteilgewinnung';
+        return 'Defekt / Für Bastler';
       default:
-        return 'Guter Zustand';
+        return 'Geprüfter Zustand';
     }
   }
 
+  private getPlatformPublishUrl(platform: ListingPlatform): string {
+    switch (platform) {
+      case 'kleinanzeigen':
+        return 'https://www.kleinanzeigen.de/p-anzeige-aufgeben.html';
+      case 'ebay':
+        return 'https://www.ebay.de/sl/sell';
+      case 'vinted':
+        return 'https://www.vinted.de/items/new';
+      case 'social':
+        return 'https://www.facebook.com/marketplace/create';
+    }
+  }
+
+  /**
+   * Marks item as listed on a specific platform in ReFlip OS!
+   */
   async markItemAsListed(itemId: string, platform: string, listingPrice: number): Promise<void> {
-    await this.inventoryService.updateItemStatus(
-      itemId,
-      'listed',
-      `Gelistet auf ${platform} für ${listingPrice.toFixed(2)} €`
-    );
-  }
-
-  async saveDraft(
-    inventoryItemId: string,
-    platform: 'ebay' | 'kleinanzeigen' | 'vinted',
-    title: string,
-    description: string,
-    price: number
-  ): Promise<{ error: Error | null }> {
-    try {
-      const { error } = await this.supabase.client.from('listing_drafts').insert({
-        inventory_item_id: inventoryItemId,
-        platform,
-        title,
-        description,
-        price,
-        status: 'draft',
-      });
-
-      if (error) return { error };
-
-      const ws = this.workspaceService.currentWorkspace();
-      if (ws) await this.loadDrafts(ws.id);
-
-      return { error: null };
-    } catch (err: unknown) {
-      return { error: err as Error };
-    }
+    await this.inventoryService.updateItem(itemId, {
+      status: 'listed',
+      expected_value: listingPrice,
+    });
   }
 }

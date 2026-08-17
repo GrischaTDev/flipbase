@@ -1,212 +1,428 @@
-<div class="space-y-5 animate-fade-in select-none">
-  <!-- Header -->
-  <div class="pb-1">
-    <div class="flex items-center gap-2">
-      <h1 class="text-xl font-bold tracking-tight text-slate-100">
-        {{ 'NAV.LISTINGS' | translate }} & Listing Studio
-      </h1>
-      <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#262b35] text-slate-300 border border-[#373e4d]">
-        1-Klick Multi-Plattform
-      </span>
+<div class="space-y-6 animate-fade-in select-none">
+  <!-- Page Header & Top Actions -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-rf-border">
+    <div>
+      <div class="flex items-center gap-2">
+        <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
+          Multichannel Listing Studio
+        </h1>
+        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 uppercase">
+          KI Inserate-Generator
+        </span>
+      </div>
+      <p class="text-xs text-rf-text-muted mt-0.5">
+        Generiere optimierte, rechtssichere Verkaufstexte für Kleinanzeigen, eBay, Vinted & Social Media mit einem Klick.
+      </p>
     </div>
-    <p class="text-xs text-slate-400 mt-0.5">
-      Verkaufsfertige Inserate für Kleinanzeigen, eBay und Vinted mit rechtssicheren Klauseln.
-    </p>
+
+    <!-- Quick Action: Copy All -->
+    @if (generatedListing(); as gen) {
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          (click)="copyAll()"
+          class="linear-btn-primary px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+        >
+          <lucide-icon [img]="copiedAll() ? checkIcon : copyIcon" class="w-3.5 h-3.5" [class.text-emerald-400]="copiedAll()"></lucide-icon>
+          <span>{{ copiedAll() ? 'Alles kopiert!' : 'Titel & Text kopieren' }}</span>
+        </button>
+
+        <button
+          type="button"
+          (click)="openPlatformPublish()"
+          class="linear-btn-secondary px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+        >
+          <lucide-icon [img]="linkIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+          <span>Auf Plattform öffnen</span>
+        </button>
+      </div>
+    }
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-    <!-- Left Column: Item Selector & Generator Controls (5 cols) -->
+  <!-- Platform Selector Tabs -->
+  <div class="flex items-center gap-2 overflow-x-auto pb-1 border-b border-rf-border text-xs">
+    <!-- Kleinanzeigen -->
+    <button
+      type="button"
+      (click)="selectedPlatform.set('kleinanzeigen')"
+      class="px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer border"
+      [class.bg-emerald-600]="selectedPlatform() === 'kleinanzeigen'"
+      [class.text-white]="selectedPlatform() === 'kleinanzeigen'"
+      [class.border-emerald-500]="selectedPlatform() === 'kleinanzeigen'"
+      [class.shadow-md]="selectedPlatform() === 'kleinanzeigen'"
+      [class.bg-rf-surface]="selectedPlatform() !== 'kleinanzeigen'"
+      [class.text-rf-text-secondary]="selectedPlatform() !== 'kleinanzeigen'"
+      [class.border-rf-border]="selectedPlatform() !== 'kleinanzeigen'"
+    >
+      <span class="w-2 h-2 rounded-full bg-emerald-300"></span>
+      <span>Kleinanzeigen</span>
+    </button>
+
+    <!-- eBay -->
+    <button
+      type="button"
+      (click)="selectedPlatform.set('ebay')"
+      class="px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer border"
+      [class.bg-blue-600]="selectedPlatform() === 'ebay'"
+      [class.text-white]="selectedPlatform() === 'ebay'"
+      [class.border-blue-500]="selectedPlatform() === 'ebay'"
+      [class.shadow-md]="selectedPlatform() === 'ebay'"
+      [class.bg-rf-surface]="selectedPlatform() !== 'ebay'"
+      [class.text-rf-text-secondary]="selectedPlatform() !== 'ebay'"
+      [class.border-rf-border]="selectedPlatform() !== 'ebay'"
+    >
+      <span class="w-2 h-2 rounded-full bg-blue-300"></span>
+      <span>eBay</span>
+    </button>
+
+    <!-- Vinted -->
+    <button
+      type="button"
+      (click)="selectedPlatform.set('vinted')"
+      class="px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer border"
+      [class.bg-cyan-600]="selectedPlatform() === 'vinted'"
+      [class.text-white]="selectedPlatform() === 'vinted'"
+      [class.border-cyan-500]="selectedPlatform() === 'vinted'"
+      [class.shadow-md]="selectedPlatform() === 'vinted'"
+      [class.bg-rf-surface]="selectedPlatform() !== 'vinted'"
+      [class.text-rf-text-secondary]="selectedPlatform() !== 'vinted'"
+      [class.border-rf-border]="selectedPlatform() !== 'vinted'"
+    >
+      <span class="w-2 h-2 rounded-full bg-cyan-300"></span>
+      <span>Vinted</span>
+    </button>
+
+    <!-- Social / WhatsApp -->
+    <button
+      type="button"
+      (click)="selectedPlatform.set('social')"
+      class="px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer border"
+      [class.bg-purple-600]="selectedPlatform() === 'social'"
+      [class.text-white]="selectedPlatform() === 'social'"
+      [class.border-purple-500]="selectedPlatform() === 'social'"
+      [class.shadow-md]="selectedPlatform() === 'social'"
+      [class.bg-rf-surface]="selectedPlatform() !== 'social'"
+      [class.text-rf-text-secondary]="selectedPlatform() !== 'social'"
+      [class.border-rf-border]="selectedPlatform() !== 'social'"
+    >
+      <span class="w-2 h-2 rounded-full bg-purple-300"></span>
+      <span>Social Media & WhatsApp</span>
+    </button>
+  </div>
+
+  <!-- Studio Main Work Area (2 Columns) -->
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- Left Column: Item Selection & Customization Options (5 cols) -->
     <div class="lg:col-span-5 space-y-4">
-      <div class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 border-b border-[#373e4d] pb-2">
-          Artikel auswählen
+      <!-- 1. Select Inventory Item -->
+      <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary border-b border-rf-border pb-2 flex items-center gap-2">
+          <lucide-icon [img]="boxesIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+          <span>Artikel auswählen</span>
         </h2>
 
-        <!-- Select Item List / Dropdown -->
-        <div class="space-y-1.5 max-h-56 overflow-y-auto pr-1">
-          @for (item of inventoryService.items(); track item.id) {
-            <button
-              type="button"
-              (click)="selectItem(item)"
-              class="w-full p-2.5 rounded-lg border text-left transition flex items-center justify-between cursor-pointer"
-              [class.border-emerald-500]="selectedItem()?.id === item.id"
-              [class.bg-emerald-500/15]="selectedItem()?.id === item.id"
-              [class.border-[#373e4d]]="selectedItem()?.id !== item.id"
-              [class.bg-[#1e222a]]="selectedItem()?.id !== item.id"
-            >
-              <div>
-                <strong class="text-xs font-semibold text-slate-100 block line-clamp-1">{{ item.title }}</strong>
-                <span class="text-[10px] text-slate-400 font-mono">{{ item.condition }} • {{ item.status }}</span>
-              </div>
-              <span class="text-xs font-mono font-bold text-slate-200">
-                {{ item.total_item_cost | currency:'EUR':'symbol':'1.0-0':'de' }}
-              </span>
-            </button>
-          }
+        <div>
+          <label for="itemSelect" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            Aus verfügbarem Inventar ({{ availableItems().length }} bereit)
+          </label>
+          <select
+            id="itemSelect"
+            [value]="selectedItemId()"
+            (change)="onSelectItem($any($event.target).value)"
+            class="linear-input w-full px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+          >
+            @for (it of availableItems(); track it.id) {
+              <option [value]="it.id">
+                {{ it.title }} (EK: {{ it.allocated_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }})
+              </option>
+            }
+          </select>
         </div>
 
-        @if (selectedItem(); as it) {
-          <div class="p-3 rounded-lg bg-[#1e222a] border border-[#373e4d] space-y-1.5 text-xs font-mono">
-            <div class="flex justify-between">
-              <span class="text-slate-400 font-sans">Kategorie / Marke:</span>
-              <span class="text-slate-200">{{ it.brand || it.category || '-' }}</span>
+        <!-- Selected Item Card Details -->
+        @if (selectedItem(); as item) {
+          <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border flex gap-3.5 items-start">
+            <div class="w-14 h-14 rounded-xl bg-rf-surface border border-rf-border overflow-hidden shrink-0 flex items-center justify-center">
+              @if (item.media && item.media.length > 0) {
+                <img [src]="item.media[0].storage_path" [alt]="item.title" class="w-full h-full object-cover" />
+              } @else {
+                <lucide-icon [img]="imageIcon" class="w-6 h-6 text-rf-text-dimmed"></lucide-icon>
+              }
             </div>
-            <div class="flex justify-between">
-              <span class="text-slate-400 font-sans">Status:</span>
-              <span class="text-emerald-400 font-semibold">{{ it.status }}</span>
+
+            <div class="flex-1 min-w-0 space-y-1">
+              <h3 class="text-xs font-bold text-rf-text-primary truncate">{{ item.title }}</h3>
+              <div class="flex items-center gap-2 text-[10px] text-rf-text-muted">
+                <span>Zustand: <strong class="text-rf-text-secondary">{{ item.condition }}</strong></span>
+                <span>•</span>
+                <span>EK: <strong class="text-rf-text-secondary">{{ item.allocated_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
+              </div>
+              @if (item.brand || item.model) {
+                <div class="text-[10px] text-indigo-400 font-medium truncate">
+                  {{ item.brand }} {{ item.model ? ('- ' + item.model) : '' }}
+                </div>
+              }
             </div>
-            <div class="flex justify-between">
-              <span class="text-slate-400 font-sans">Gesamtkosten (EK):</span>
-              <span class="text-slate-200">{{ it.total_item_cost | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+          </div>
+
+          <!-- Price Config -->
+          <div class="grid grid-cols-2 gap-3 pt-2 border-t border-rf-border">
+            <div>
+              <label for="listingPriceInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+                Verkaufspreis (€)
+              </label>
+              <input
+                id="listingPriceInput"
+                type="number"
+                step="0.5"
+                [value]="customPrice()"
+                (input)="customPrice.set(+$any($event.target).value)"
+                class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
+              />
+            </div>
+
+            <div class="flex flex-col justify-end">
+              <label class="flex items-center gap-2 cursor-pointer text-xs text-rf-text-secondary py-2">
+                <input
+                  type="checkbox"
+                  [checked]="optNegotiable()"
+                  (change)="optNegotiable.set($any($event.target).checked)"
+                  class="rounded text-indigo-600 cursor-pointer"
+                />
+                <span class="font-medium">VB (Verhandelbar)</span>
+              </label>
             </div>
           </div>
         }
+      </div>
 
-        <!-- Platform Tabs -->
-        <div>
-          <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
-            Ziel-Plattform (Kapitel 22)
-          </label>
-          <div class="grid grid-cols-3 gap-1.5 p-1 rounded-lg bg-[#1e222a] border border-[#373e4d]">
-            <button
-              type="button"
-              (click)="selectedPlatform.set('kleinanzeigen')"
-              class="py-1 rounded text-xs font-semibold transition cursor-pointer"
-              [class.bg-[#373e4d]]="selectedPlatform() === 'kleinanzeigen'"
-              [class.text-white]="selectedPlatform() === 'kleinanzeigen'"
-              [class.text-slate-400]="selectedPlatform() !== 'kleinanzeigen'"
-            >
-              Kleinanzeigen
-            </button>
+      <!-- 2. AI Style & Tone Presets -->
+      <div class="linear-surface rounded-2xl p-5 space-y-3 shadow-xl">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary border-b border-rf-border pb-2 flex items-center gap-2">
+          <lucide-icon [img]="sparklesIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
+          <span>Tonalität & Inserats-Stil</span>
+        </h2>
 
-            <button
-              type="button"
-              (click)="selectedPlatform.set('ebay')"
-              class="py-1 rounded text-xs font-semibold transition cursor-pointer"
-              [class.bg-[#373e4d]]="selectedPlatform() === 'ebay'"
-              [class.text-white]="selectedPlatform() === 'ebay'"
-              [class.text-slate-400]="selectedPlatform() !== 'ebay'"
-            >
-              eBay
-            </button>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <!-- Dealer -->
+          <button
+            type="button"
+            (click)="selectedTone.set('dealer')"
+            class="p-2.5 rounded-xl border text-left cursor-pointer transition"
+            [class.bg-indigo-500/15]="selectedTone() === 'dealer'"
+            [class.border-indigo-500/50]="selectedTone() === 'dealer'"
+            [class.text-indigo-300]="selectedTone() === 'dealer'"
+            [class.bg-rf-subtle]="selectedTone() !== 'dealer'"
+            [class.border-rf-border]="selectedTone() !== 'dealer'"
+            [class.text-rf-text-secondary]="selectedTone() !== 'dealer'"
+          >
+            <strong class="block text-xs text-rf-text-primary">🎯 Händler-Standard</strong>
+            <span class="text-[10px] text-rf-text-muted">Rechtssicher, strukturiert</span>
+          </button>
 
-            <button
-              type="button"
-              (click)="selectedPlatform.set('vinted')"
-              class="py-1 rounded text-xs font-semibold transition cursor-pointer"
-              [class.bg-[#373e4d]]="selectedPlatform() === 'vinted'"
-              [class.text-white]="selectedPlatform() === 'vinted'"
-              [class.text-slate-400]="selectedPlatform() !== 'vinted'"
-            >
-              Vinted
-            </button>
-          </div>
+          <!-- Bargain -->
+          <button
+            type="button"
+            (click)="selectedTone.set('bargain')"
+            class="p-2.5 rounded-xl border text-left cursor-pointer transition"
+            [class.bg-indigo-500/15]="selectedTone() === 'bargain'"
+            [class.border-indigo-500/50]="selectedTone() === 'bargain'"
+            [class.text-indigo-300]="selectedTone() === 'bargain'"
+            [class.bg-rf-subtle]="selectedTone() !== 'bargain'"
+            [class.border-rf-border]="selectedTone() !== 'bargain'"
+            [class.text-rf-text-secondary]="selectedTone() !== 'bargain'"
+          >
+            <strong class="block text-xs text-rf-text-primary">⚡ Schnäppchenjäger</strong>
+            <span class="text-[10px] text-rf-text-muted">Schnellverkauf & Festpreis</span>
+          </button>
+
+          <!-- Collector -->
+          <button
+            type="button"
+            (click)="selectedTone.set('collector')"
+            class="p-2.5 rounded-xl border text-left cursor-pointer transition"
+            [class.bg-indigo-500/15]="selectedTone() === 'collector'"
+            [class.border-indigo-500/50]="selectedTone() === 'collector'"
+            [class.text-indigo-300]="selectedTone() === 'collector'"
+            [class.bg-rf-subtle]="selectedTone() !== 'collector'"
+            [class.border-rf-border]="selectedTone() !== 'collector'"
+            [class.text-rf-text-secondary]="selectedTone() !== 'collector'"
+          >
+            <strong class="block text-xs text-rf-text-primary">🎮 Sammler & Retro</strong>
+            <span class="text-[10px] text-rf-text-muted">Top-Zustand & OVP Fokus</span>
+          </button>
+
+          <!-- Casual -->
+          <button
+            type="button"
+            (click)="selectedTone.set('casual')"
+            class="p-2.5 rounded-xl border text-left cursor-pointer transition"
+            [class.bg-indigo-500/15]="selectedTone() === 'casual'"
+            [class.border-indigo-500/50]="selectedTone() === 'casual'"
+            [class.text-indigo-300]="selectedTone() === 'casual'"
+            [class.bg-rf-subtle]="selectedTone() !== 'casual'"
+            [class.border-rf-border]="selectedTone() !== 'casual'"
+            [class.text-rf-text-secondary]="selectedTone() !== 'casual'"
+          >
+            <strong class="block text-xs text-rf-text-primary">👗 Casual / Vinted</strong>
+            <span class="text-[10px] text-rf-text-muted">Locker mit Emojis</span>
+          </button>
         </div>
+      </div>
 
-        <!-- Options Checkboxes -->
-        <div class="space-y-2 pt-2 border-t border-[#373e4d] text-xs">
-          <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+      <!-- 3. Text Building Blocks -->
+      <div class="linear-surface rounded-2xl p-5 space-y-3 shadow-xl">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary border-b border-rf-border pb-2 flex items-center gap-2">
+          <lucide-icon [img]="slidersIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+          <span>Textbausteine & Klauseln</span>
+        </h2>
+
+        <div class="space-y-2 text-xs">
+          <label class="flex items-center gap-2 cursor-pointer text-rf-text-secondary">
             <input
               type="checkbox"
-              [checked]="optDisclaimer()"
-              (change)="optDisclaimer.set($any($event.target).checked)"
-              class="rounded border-[#373e4d] bg-[#1e222a] text-emerald-500 focus:ring-emerald-500"
+              [checked]="optCommercial()"
+              (change)="optCommercial.set($any($event.target).checked)"
+              class="rounded text-indigo-600 cursor-pointer"
             />
-            <span>Rechtssicheren EU-Privatverkaufs-Ausschluss anhängen</span>
+            <span>Gewerblicher Reseller (§ 25a Differenzbesteuerung & 14 Tage Widerruf)</span>
           </label>
 
-          <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+          <label class="flex items-center gap-2 cursor-pointer text-rf-text-secondary">
             <input
               type="checkbox"
               [checked]="optShipping()"
               (change)="optShipping.set($any($event.target).checked)"
-              class="rounded border-[#373e4d] bg-[#1e222a] text-emerald-500 focus:ring-emerald-500"
+              class="rounded text-indigo-600 cursor-pointer"
             />
-            <span>Versand- & Abholhinweise beifügen</span>
+            <span>Versicherter Versand mit Tracking anbieten</span>
           </label>
 
-          <label class="flex items-center gap-2 cursor-pointer text-slate-300">
+          <label class="flex items-center gap-2 cursor-pointer text-rf-text-secondary">
+            <input
+              type="checkbox"
+              [checked]="optPickup()"
+              (change)="optPickup.set($any($event.target).checked)"
+              class="rounded text-indigo-600 cursor-pointer"
+            />
+            <span>Selbstabholung vor Ort anbieten</span>
+          </label>
+
+          <label class="flex items-center gap-2 cursor-pointer text-rf-text-secondary">
             <input
               type="checkbox"
               [checked]="optNonSmoking()"
               (change)="optNonSmoking.set($any($event.target).checked)"
-              class="rounded border-[#373e4d] bg-[#1e222a] text-emerald-500 focus:ring-emerald-500"
+              class="rounded text-indigo-600 cursor-pointer"
             />
-            <span>Nichtraucherhaushalt vermerken</span>
+            <span>Nichtraucher- & tierfreier Haushalt erwähnen</span>
+          </label>
+
+          <label class="flex items-center gap-2 cursor-pointer text-rf-text-secondary">
+            <input
+              type="checkbox"
+              [checked]="optDisclaimer()"
+              (change)="optDisclaimer.set($any($event.target).checked)"
+              class="rounded text-indigo-600 cursor-pointer"
+            />
+            <span>Rechtlichen Klausel-Baustein anhängen</span>
           </label>
         </div>
       </div>
     </div>
 
-    <!-- Right Column: Generated Preview & Copy Station (7 cols) -->
+    <!-- Right Column: Live Generated Preview & Copy Box (7 cols) -->
     <div class="lg:col-span-7 space-y-4">
-      @if (generatedListing(); as listing) {
-        <div class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
-          <div class="flex items-center justify-between border-b border-[#373e4d] pb-3">
-            <div class="flex items-center gap-2">
-              <lucide-icon [img]="sparklesIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
-              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">
-                Generiertes Inserat ({{ selectedPlatform() }})
-              </h2>
-            </div>
-
-            <button
-              type="button"
-              (click)="onMarkAsListed()"
-              [disabled]="isMarkingListed()"
-              class="linear-btn-secondary inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer"
-            >
-              <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5 text-emerald-400"></lucide-icon>
-              <span>{{ markSuccess() ? 'Gelistet!' : 'Als "Gelistet" markieren' }}</span>
-            </button>
-          </div>
-
-          <!-- Title Copy Box -->
+      @if (generatedListing(); as gen) {
+        <div class="linear-surface rounded-2xl p-6 space-y-5 shadow-xl sticky top-20">
+          <!-- Title Box -->
           <div class="space-y-1.5">
             <div class="flex items-center justify-between text-xs">
-              <span class="text-[10px] font-semibold uppercase text-slate-400">Titel (optimiert für Suchbegriffe)</span>
+              <span class="font-bold text-rf-text-primary uppercase tracking-wider text-[11px]">
+                Inseratstitel ({{ gen.title.length }} Zeichen)
+              </span>
               <button
                 type="button"
-                (click)="copyToClipboard(listing.title, 'title')"
-                class="text-emerald-400 hover:underline inline-flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+                (click)="copyToClipboard(gen.title, 'title')"
+                class="linear-btn-primary px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
-                <lucide-icon [img]="copiedTitle() ? checkIcon : copyIcon" class="w-3 h-3"></lucide-icon>
+                <lucide-icon [img]="copiedTitle() ? checkIcon : copyIcon" class="w-3.5 h-3.5" [class.text-emerald-400]="copiedTitle()"></lucide-icon>
                 <span>{{ copiedTitle() ? 'Kopiert!' : 'Titel kopieren' }}</span>
               </button>
             </div>
-            <div class="p-2.5 rounded-lg bg-[#1e222a] border border-[#373e4d] text-xs font-mono font-semibold text-slate-100">
-              {{ listing.title }}
+
+            <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border font-bold text-sm text-rf-text-primary">
+              {{ gen.title }}
             </div>
           </div>
 
-          <!-- Description Copy Box -->
+          <!-- Description Box -->
           <div class="space-y-1.5">
             <div class="flex items-center justify-between text-xs">
-              <span class="text-[10px] font-semibold uppercase text-slate-400">Beschreibung & Struktur</span>
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-rf-text-primary uppercase tracking-wider text-[11px]">
+                  Artikelbeschreibung
+                </span>
+                @if (gen.platform === 'ebay') {
+                  <button
+                    type="button"
+                    (click)="showHtmlMode.set(!showHtmlMode())"
+                    class="px-2 py-0.5 rounded text-[10px] font-mono border transition cursor-pointer"
+                    [class.bg-indigo-500/20]="showHtmlMode()"
+                    [class.border-indigo-500/40]="showHtmlMode()"
+                    [class.text-indigo-300]="showHtmlMode()"
+                    [class.bg-rf-subtle]="!showHtmlMode()"
+                    [class.border-rf-border]="!showHtmlMode()"
+                    [class.text-rf-text-muted]="!showHtmlMode()"
+                  >
+                    HTML-Code
+                  </button>
+                }
+              </div>
+
               <button
                 type="button"
-                (click)="copyToClipboard(listing.description, 'desc')"
-                class="text-emerald-400 hover:underline inline-flex items-center gap-1 text-[11px] font-semibold cursor-pointer"
+                (click)="copyToClipboard(showHtmlMode() && gen.htmlDescription ? gen.htmlDescription : gen.description, 'desc')"
+                class="linear-btn-primary px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
-                <lucide-icon [img]="copiedDesc() ? checkIcon : copyIcon" class="w-3 h-3"></lucide-icon>
+                <lucide-icon [img]="copiedDesc() ? checkIcon : copyIcon" class="w-3.5 h-3.5" [class.text-emerald-400]="copiedDesc()"></lucide-icon>
                 <span>{{ copiedDesc() ? 'Kopiert!' : 'Text kopieren' }}</span>
               </button>
             </div>
-            <textarea
-              readonly
-              rows="12"
-              class="w-full p-3 rounded-lg bg-[#1e222a] border border-[#373e4d] text-xs font-mono text-slate-200 leading-relaxed resize-none focus:outline-none"
-            >{{ listing.description }}</textarea>
+
+            <div class="p-4 rounded-xl bg-rf-subtle border border-rf-border text-xs text-rf-text-secondary font-mono leading-relaxed whitespace-pre-line max-h-96 overflow-y-auto">
+              {{ showHtmlMode() && gen.htmlDescription ? gen.htmlDescription : gen.description }}
+            </div>
+          </div>
+
+          <!-- Bottom Actions (Publish & Mark Listed) -->
+          <div class="pt-4 border-t border-rf-border flex flex-col sm:flex-row items-center justify-between gap-3">
+            <button
+              type="button"
+              (click)="openPlatformPublish()"
+              class="linear-btn-secondary w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer text-indigo-300 hover:text-white"
+            >
+              <lucide-icon [img]="linkIcon" class="w-4 h-4"></lucide-icon>
+              <span>Inserat auf {{ selectedPlatform() | translate }} aufgeben</span>
+            </button>
+
+            <button
+              type="button"
+              (click)="markAsListed()"
+              [disabled]="isMarkingListed()"
+              class="linear-btn-primary w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-50"
+            >
+              <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+              <span>{{ isMarkingListed() ? 'Wird gespeichert...' : 'Als "Eingestellt" markieren' }}</span>
+            </button>
           </div>
         </div>
       } @else {
-        <div class="linear-surface rounded-xl p-12 text-center">
-          <div class="w-10 h-10 rounded-lg bg-[#1e222a] border border-[#373e4d] text-slate-400 mx-auto flex items-center justify-center mb-3">
-            <lucide-icon [img]="copyIcon" class="w-5 h-5"></lucide-icon>
-          </div>
-          <h3 class="text-sm font-bold text-slate-200">Kein Artikel ausgewählt</h3>
-          <p class="text-xs text-slate-400 max-w-sm mx-auto mt-1">
-            Wähle links einen Artikel aus deinem Inventar, um automatisch suchmaschinenoptimierte Inserate zu erzeugen.
+        <div class="linear-surface rounded-2xl p-16 text-center text-xs text-rf-text-muted space-y-3">
+          <lucide-icon [img]="fileIcon" class="w-10 h-10 mx-auto text-rf-text-dimmed"></lucide-icon>
+          <h3 class="text-sm font-bold text-rf-text-primary">Kein Artikel ausgewählt</h3>
+          <p class="text-[11px] max-w-xs mx-auto">
+            Wähle links einen Artikel aus, um sofort optimierte Titel und Beschreibungen zu erstellen.
           </p>
         </div>
       }

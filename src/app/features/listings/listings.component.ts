@@ -1,5 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { CurrencyPipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
@@ -15,8 +15,16 @@ import {
   Send,
   Eye,
   Sliders,
+  Code,
+  Image as ImageIcon,
+  Share2,
 } from 'lucide-angular';
-import { ListingStudioService, GeneratedListing, ListingTemplateOptions } from '../../core/services/listing-studio.service';
+import {
+  ListingStudioService,
+  GeneratedListing,
+  ListingPlatform,
+  ListingStyleTone,
+} from '../../core/services/listing-studio.service';
 import { InventoryService } from '../../core/services/inventory.service';
 import { InventoryItem } from '../../core/models/reflip.models';
 
@@ -42,83 +50,114 @@ export class ListingsComponent {
   readonly sendIcon = Send;
   readonly eyeIcon = Eye;
   readonly slidersIcon = Sliders;
+  readonly codeIcon = Code;
+  readonly imageIcon = ImageIcon;
+  readonly shareIcon = Share2;
 
   readonly selectedItemId = signal<string>('');
-  readonly selectedPlatform = signal<'kleinanzeigen' | 'ebay' | 'vinted'>('kleinanzeigen');
+  readonly selectedPlatform = signal<ListingPlatform>('kleinanzeigen');
+  readonly selectedTone = signal<ListingStyleTone>('dealer');
   readonly customPrice = signal<number>(0);
+  readonly showHtmlMode = signal<boolean>(false);
 
-  // Options toggles
+  // Template options
+  readonly optCommercial = signal<boolean>(true);
   readonly optDisclaimer = signal<boolean>(true);
   readonly optNonSmoking = signal<boolean>(true);
   readonly optShipping = signal<boolean>(true);
   readonly optPickup = signal<boolean>(true);
   readonly optNegotiable = signal<boolean>(false);
 
-  // Copy feedbacks
+  // Feedbacks
   readonly copiedTitle = signal<boolean>(false);
   readonly copiedDesc = signal<boolean>(false);
+  readonly copiedAll = signal<boolean>(false);
   readonly isMarkingListed = signal<boolean>(false);
-  readonly markSuccess = signal<boolean>(false);
 
-  // Selected item
-  readonly selectedItem = computed<InventoryItem | null>(() => {
-    const id = this.selectedItemId();
-    if (!id) {
-      // Default to first unlisted item if available
-      const unlisted = this.inventoryService.items().find((i) => i.status !== 'listed' && i.status !== 'sold');
-      return unlisted || this.inventoryService.items()[0] || null;
-    }
-    return this.inventoryService.items().find((i) => i.id === id) || null;
+  readonly availableItems = computed<InventoryItem[]>(() => {
+    return this.inventoryService
+      .items()
+      .filter((i) => i.status !== 'sold' && i.status !== 'returned' && i.status !== 'archived');
   });
 
-  // Generated listing
+  readonly selectedItem = computed<InventoryItem | null>(() => {
+    const id = this.selectedItemId();
+    if (!id) return this.availableItems()[0] || null;
+    return this.availableItems().find((i) => i.id === id) || null;
+  });
+
   readonly generatedListing = computed<GeneratedListing | null>(() => {
     const item = this.selectedItem();
     if (!item) return null;
 
-    const price = this.customPrice() > 0 ? this.customPrice() : (Number(item.expected_value) || item.total_item_cost || 50);
-    const options: ListingTemplateOptions = {
+    const platform = this.selectedPlatform();
+    const price = this.customPrice() > 0 ? this.customPrice() : (item.expected_value ?? item.allocated_purchase_cost * 1.5);
+
+    return this.listingStudio.generateListing(item, platform, price, {
       includeDisclaimer: this.optDisclaimer(),
+      isCommercialSeller: this.optCommercial(),
       includeNonSmoking: this.optNonSmoking(),
       includeShipping: this.optShipping(),
       includePickup: this.optPickup(),
       includeNegotiable: this.optNegotiable(),
-    };
-
-    return this.listingStudio.generateListing(item, this.selectedPlatform(), price, options);
+      styleTone: this.selectedTone(),
+    });
   });
 
-  selectItem(item: InventoryItem): void {
-    this.selectedItemId.set(item.id);
-    this.customPrice.set(Number(item.expected_value) || item.total_item_cost || 50);
-    this.markSuccess.set(false);
+  constructor() {
+    effect(() => {
+      const item = this.selectedItem();
+      if (item && this.customPrice() === 0) {
+        this.customPrice.set(item.expected_value ?? Number((item.allocated_purchase_cost * 1.5).toFixed(2)));
+      }
+    });
   }
 
-  async copyToClipboard(text: string, type: 'title' | 'desc'): Promise<void> {
-    try {
-      await navigator.clipboard.writeText(text);
-      if (type === 'title') {
-        this.copiedTitle.set(true);
-        setTimeout(() => this.copiedTitle.set(false), 2000);
-      } else {
-        this.copiedDesc.set(true);
-        setTimeout(() => this.copiedDesc.set(false), 2000);
-      }
-    } catch (err) {
-      console.error('Clipboard copy failed:', err);
+  onSelectItem(id: string): void {
+    this.selectedItemId.set(id);
+    const item = this.availableItems().find((i) => i.id === id);
+    if (item) {
+      this.customPrice.set(item.expected_value ?? Number((item.allocated_purchase_cost * 1.5).toFixed(2)));
     }
   }
 
-  async onMarkAsListed(): Promise<void> {
+  copyToClipboard(text: string, type: 'title' | 'desc' | 'all'): void {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      if (type === 'title') {
+        this.copiedTitle.set(true);
+        setTimeout(() => this.copiedTitle.set(false), 2000);
+      } else if (type === 'desc') {
+        this.copiedDesc.set(true);
+        setTimeout(() => this.copiedDesc.set(false), 2000);
+      } else {
+        this.copiedAll.set(true);
+        setTimeout(() => this.copiedAll.set(false), 2000);
+      }
+    }
+  }
+
+  copyAll(): void {
+    const gen = this.generatedListing();
+    if (!gen) return;
+    const fullText = `${gen.title}\n\n${gen.description}`;
+    this.copyToClipboard(fullText, 'all');
+  }
+
+  async markAsListed(): Promise<void> {
     const item = this.selectedItem();
-    const listing = this.generatedListing();
-    if (!item || !listing) return;
+    const gen = this.generatedListing();
+    if (!item || !gen) return;
 
     this.isMarkingListed.set(true);
-    await this.listingStudio.markItemAsListed(item.id, listing.platform, listing.price);
-    await this.listingStudio.saveDraft(item.id, listing.platform, listing.title, listing.description, listing.price);
-
+    await this.listingStudio.markItemAsListed(item.id, gen.platform, gen.price);
     this.isMarkingListed.set(false);
-    this.markSuccess.set(true);
+  }
+
+  openPlatformPublish(): void {
+    const gen = this.generatedListing();
+    if (gen?.platformUrl) {
+      window.open(gen.platformUrl, '_blank');
+    }
   }
 }
