@@ -10,7 +10,7 @@
       </span>
     </div>
     <p class="text-xs text-rf-text-muted mt-0.5">
-      Workspace-Parameter verwalten, Team-Mitglieder einladen, eBay API konfigurieren und Daten exportieren.
+      Workspace-Parameter, Discord/Telegram-Webhooks, Team-Rollen und Backups verwalten.
     </p>
   </div>
 
@@ -100,53 +100,49 @@
         </div>
       </form>
 
-      <!-- 2. Team Members & Roles Card -->
+      <!-- 2. Team Members & Roles Management -->
       <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
-        <div class="flex items-center justify-between border-b border-rf-border pb-3">
+        <div class="flex items-center justify-between pb-2 border-b border-rf-border">
           <div class="flex items-center gap-2">
             <lucide-icon [img]="usersIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
-              Team-Mitglieder & Rollen ({{ memberService.members().length }})
-            </h2>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Team-Mitglieder & Rollen</h2>
           </div>
 
           <button
             type="button"
             (click)="openInviteModal()"
-            class="linear-btn-primary px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+            class="linear-btn-primary px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
             <lucide-icon [img]="userPlusIcon" class="w-3.5 h-3.5"></lucide-icon>
             <span>Mitglied einladen</span>
           </button>
         </div>
 
-        <p class="text-xs text-rf-text-muted leading-relaxed">
-          Vergib gezielte Rollen für Sourcing-Mitarbeiter, Packstation-Hilfen oder deinen Steuerberater (Nur-Lesen).
+        <p class="text-[11px] text-rf-text-muted leading-relaxed">
+          Verwalte Zugriffsrechte für Einkäufer, Packtisch-Mitarbeiter und Steuerberater.
         </p>
 
         <!-- Active Members List -->
-        <div class="space-y-2">
+        <div class="divide-y divide-rf-border">
           @for (member of memberService.members(); track member.id) {
             @let badge = memberService.getRoleBadge(member.role);
-            <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="py-3 flex items-center justify-between gap-3 text-xs">
               <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-bold text-xs flex items-center justify-center shrink-0">
-                  {{ member.email.charAt(0).toUpperCase() }}
+                <div class="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 font-bold flex items-center justify-center uppercase text-xs">
+                  {{ member.email ? member.email.substring(0, 2) : 'RF' }}
                 </div>
-
                 <div>
-                  <div class="flex items-center gap-2">
-                    <strong class="text-xs text-rf-text-primary">{{ member.full_name || member.email }}</strong>
-                    <span class="px-2 py-0.2 rounded text-[9px] font-mono font-bold border {{ badge.class }}">
+                  <strong class="text-rf-text-primary block">{{ member.email || 'Workspace-Mitglied' }}</strong>
+                  <div class="flex items-center gap-1.5 mt-0.5">
+                    <span class="px-1.5 py-0.2 rounded text-[9px] font-mono border {{ badge.class }}">
                       {{ badge.label }}
                     </span>
+                    <span class="text-[10px] text-rf-text-muted">• {{ badge.description }}</span>
                   </div>
-                  <span class="text-[11px] text-rf-text-muted block">{{ member.email }}</span>
                 </div>
               </div>
 
-              <!-- Role Selector & Actions -->
-              <div class="flex items-center gap-2 self-end sm:self-center">
+              <div class="flex items-center gap-2">
                 @if (member.role !== 'owner') {
                   <select
                     [value]="member.role"
@@ -208,8 +204,155 @@
       </div>
     </div>
 
-    <!-- Right Column: eBay API & Data Export (5 cols) -->
+    <!-- Right Column: Webhooks, eBay API & Data Export (5 cols) -->
     <div class="lg:col-span-5 space-y-5">
+      <!-- 🔔 Webhooks & Notifications Card -->
+      <form [formGroup]="webhookForm" (ngSubmit)="onSaveWebhookConfig()" class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between pb-2 border-b border-rf-border">
+          <div class="flex items-center gap-2">
+            <lucide-icon [img]="bellIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+              Webhooks & Benachrichtigungen
+            </h2>
+          </div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold">
+            Discord / Telegram
+          </span>
+        </div>
+
+        <p class="text-[11px] text-rf-text-muted leading-relaxed">
+          Erhalte sofortige Push-Nachrichten bei neuen Verkäufen mit Reingewinn, ROI und Plattform.
+        </p>
+
+        @if (webhookSaveSuccess()) {
+          <div class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
+            <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+            <span>Webhook-Konfiguration gespeichert!</span>
+          </div>
+        }
+
+        @if (webhookStatusMessage(); as msg) {
+          <div
+            class="p-2.5 rounded-xl border text-xs font-medium flex items-center gap-2"
+            [class.bg-emerald-500/15]="msg.success"
+            [class.border-emerald-500/30]="msg.success"
+            [class.text-emerald-400]="msg.success"
+            [class.bg-rose-500/15]="!msg.success"
+            [class.border-rose-500/30]="!msg.success"
+            [class.text-rose-400]="!msg.success"
+          >
+            <lucide-icon [img]="msg.success ? checkIcon : closeIcon" class="w-4 h-4"></lucide-icon>
+            <span>{{ msg.text }}</span>
+          </div>
+        }
+
+        <!-- 1. Discord Webhook Section -->
+        <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-2.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-sm">👾</span>
+              <strong class="text-xs text-rf-text-primary">Discord Webhook</strong>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" formControlName="discordEnabled" class="sr-only peer" />
+              <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
+            </label>
+          </div>
+
+          @if (webhookForm.get('discordEnabled')?.value) {
+            <div class="space-y-2 pt-1 animate-fade-in">
+              <input
+                type="text"
+                formControlName="discordWebhookUrl"
+                placeholder="https://discord.com/api/webhooks/..."
+                class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
+              />
+              <div class="flex justify-end">
+                <button
+                  type="button"
+                  (click)="testWebhook('discord')"
+                  [disabled]="isTestingWebhook()"
+                  class="linear-btn-secondary px-3 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <lucide-icon [img]="sendIcon" class="w-3 h-3 text-indigo-400"></lucide-icon>
+                  <span>Discord-Test senden</span>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- 2. Telegram Bot Section -->
+        <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-2.5">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-sm">✈️</span>
+              <strong class="text-xs text-rf-text-primary">Telegram Bot</strong>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" formControlName="telegramEnabled" class="sr-only peer" />
+              <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
+            </label>
+          </div>
+
+          @if (webhookForm.get('telegramEnabled')?.value) {
+            <div class="space-y-2 pt-1 animate-fade-in">
+              <input
+                type="text"
+                formControlName="telegramBotToken"
+                placeholder="Telegram Bot Token (z. B. 123456:ABC-DEF1234...)"
+                class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
+              />
+              <input
+                type="text"
+                formControlName="telegramChatId"
+                placeholder="Chat-ID (@mein_channel oder 1234567)"
+                class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
+              />
+              <div class="flex justify-end">
+                <button
+                  type="button"
+                  (click)="testWebhook('telegram')"
+                  [disabled]="isTestingWebhook()"
+                  class="linear-btn-secondary px-3 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
+                >
+                  <lucide-icon [img]="sendIcon" class="w-3 h-3 text-indigo-400"></lucide-icon>
+                  <span>Telegram-Test senden</span>
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- 3. Audio Chime & Trigger Toggles -->
+        <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-2 text-xs">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" formControlName="notifyOnSale" class="rounded text-indigo-600" />
+            <span class="text-rf-text-secondary">Push bei jedem neuen Verkauf (mit Reingewinn & ROI)</span>
+          </label>
+
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" formControlName="notifyOnPurchase" class="rounded text-indigo-600" />
+            <span class="text-rf-text-secondary">Push bei jedem neuen Einkauf / Palette</span>
+          </label>
+
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" formControlName="soundEnabled" class="rounded text-indigo-600" />
+            <span class="text-rf-text-secondary">🔊 Kassen-Chime Sound bei Sales abspielen</span>
+          </label>
+        </div>
+
+        <div class="pt-2 border-t border-rf-border flex justify-end">
+          <button
+            type="submit"
+            class="linear-btn-primary px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+          >
+            <lucide-icon [img]="saveIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <span>Webhook-Einstellungen speichern</span>
+          </button>
+        </div>
+      </form>
+
       <!-- eBay Developer API -->
       <form [formGroup]="ebayForm" (ngSubmit)="onSaveEbayConfig()" class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">

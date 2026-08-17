@@ -3,6 +3,7 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
 import { MockDataStoreService } from './mock-data-store.service';
+import { WebhookService } from './webhook.service';
 import {
   Purchase,
   PurchaseType,
@@ -38,6 +39,7 @@ export class PurchaseService {
   private readonly workspaceService = inject(WorkspaceService);
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly mockStore = inject(MockDataStoreService);
+  private readonly webhookService = inject(WebhookService);
 
   readonly purchases = signal<Purchase[]>(this.mockStore.demoPurchases);
   readonly selectedPurchase = signal<Purchase | null>(null);
@@ -173,6 +175,7 @@ export class PurchaseService {
 
     if (this.mockStore.isDemoMode() || ws.id.startsWith('demo-')) {
       this.purchases.update((list) => [newPurchase, ...list]);
+      this.webhookService.sendPurchaseNotification(newPurchase);
       return { data: newPurchase, error: null };
     }
 

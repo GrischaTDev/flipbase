@@ -21,6 +21,8 @@ import {
   Mail,
   Trash2,
   X,
+  Bell,
+  Send,
 } from 'lucide-angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ExportService } from '../../core/services/export.service';
@@ -29,6 +31,7 @@ import { PurchaseService } from '../../core/services/purchase.service';
 import { InventoryService } from '../../core/services/inventory.service';
 import { EbayApiService } from '../../core/services/ebay-api.service';
 import { WorkspaceMemberService } from '../../core/services/workspace-member.service';
+import { WebhookService } from '../../core/services/webhook.service';
 import { WorkspaceRole } from '../../core/models/reflip.models';
 
 @Component({
@@ -46,6 +49,7 @@ export class SettingsComponent {
   readonly inventoryService = inject(InventoryService);
   readonly ebayApiService = inject(EbayApiService);
   readonly memberService = inject(WorkspaceMemberService);
+  readonly webhookService = inject(WebhookService);
   readonly translate = inject(TranslateService);
 
   readonly settingsIcon = Settings;
@@ -66,10 +70,16 @@ export class SettingsComponent {
   readonly mailIcon = Mail;
   readonly trashIcon = Trash2;
   readonly closeIcon = X;
+  readonly bellIcon = Bell;
+  readonly sendIcon = Send;
 
   readonly isSaving = signal<boolean>(false);
   readonly saveSuccess = signal<boolean>(false);
   readonly ebaySaveSuccess = signal<boolean>(false);
+  readonly webhookSaveSuccess = signal<boolean>(false);
+
+  readonly isTestingWebhook = signal<boolean>(false);
+  readonly webhookStatusMessage = signal<{ success: boolean; text: string } | null>(null);
 
   // Invite modal state
   readonly isInviteModalOpen = signal<boolean>(false);
@@ -87,6 +97,19 @@ export class SettingsComponent {
   readonly ebayForm = new FormGroup({
     appId: new FormControl(''),
     globalId: new FormControl('EBAY-DE'),
+  });
+
+  readonly webhookForm = new FormGroup({
+    discordEnabled: new FormControl(this.webhookService.config().discordEnabled),
+    discordWebhookUrl: new FormControl(this.webhookService.config().discordWebhookUrl || ''),
+    telegramEnabled: new FormControl(this.webhookService.config().telegramEnabled),
+    telegramBotToken: new FormControl(this.webhookService.config().telegramBotToken || ''),
+    telegramChatId: new FormControl(this.webhookService.config().telegramChatId || ''),
+    customWebhookEnabled: new FormControl(this.webhookService.config().customWebhookEnabled),
+    customWebhookUrl: new FormControl(this.webhookService.config().customWebhookUrl || ''),
+    notifyOnSale: new FormControl(this.webhookService.config().notifyOnSale),
+    notifyOnPurchase: new FormControl(this.webhookService.config().notifyOnPurchase),
+    soundEnabled: new FormControl(this.webhookService.config().soundEnabled),
   });
 
   readonly inviteForm = new FormGroup({
@@ -138,14 +161,45 @@ export class SettingsComponent {
   onSaveEbayConfig(): void {
     const val = this.ebayForm.getRawValue();
     this.ebayApiService.saveConfig({
-      appId: val.appId || '',
+      appId: val.appId?.trim() || undefined,
       siteId: val.globalId || 'EBAY-DE',
     });
+
     this.ebaySaveSuccess.set(true);
     setTimeout(() => this.ebaySaveSuccess.set(false), 3000);
   }
 
-  // Member management
+  onSaveWebhookConfig(): void {
+    const val = this.webhookForm.getRawValue();
+    this.webhookService.updateConfig({
+      discordEnabled: !!val.discordEnabled,
+      discordWebhookUrl: val.discordWebhookUrl?.trim() || '',
+      telegramEnabled: !!val.telegramEnabled,
+      telegramBotToken: val.telegramBotToken?.trim() || '',
+      telegramChatId: val.telegramChatId?.trim() || '',
+      customWebhookEnabled: !!val.customWebhookEnabled,
+      customWebhookUrl: val.customWebhookUrl?.trim() || '',
+      notifyOnSale: !!val.notifyOnSale,
+      notifyOnPurchase: !!val.notifyOnPurchase,
+      soundEnabled: !!val.soundEnabled,
+    });
+
+    this.webhookSaveSuccess.set(true);
+    setTimeout(() => this.webhookSaveSuccess.set(false), 3000);
+  }
+
+  async testWebhook(channel: 'discord' | 'telegram' | 'custom'): Promise<void> {
+    this.onSaveWebhookConfig();
+    this.isTestingWebhook.set(true);
+    this.webhookStatusMessage.set(null);
+
+    const res = await this.webhookService.sendTestNotification(channel);
+    this.isTestingWebhook.set(false);
+    this.webhookStatusMessage.set({ success: res.success, text: res.message });
+
+    setTimeout(() => this.webhookStatusMessage.set(null), 6000);
+  }
+
   openInviteModal(): void {
     this.inviteForm.reset({ email: '', role: 'member' });
     this.inviteError.set(null);

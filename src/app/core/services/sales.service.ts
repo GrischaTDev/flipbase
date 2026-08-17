@@ -4,6 +4,7 @@ import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
 import { InventoryService } from './inventory.service';
 import { MockDataStoreService } from './mock-data-store.service';
+import { WebhookService } from './webhook.service';
 import { Sale, InventoryItem } from '../models/reflip.models';
 
 export interface CreateSalePayload {
@@ -29,6 +30,7 @@ export class SalesService {
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly inventoryService = inject(InventoryService);
   private readonly mockStore = inject(MockDataStoreService);
+  private readonly webhookService = inject(WebhookService);
 
   readonly sales = signal<Sale[]>(
     this.mockStore.demoSales.map((s) => this.enrichSaleMetrics(s))
@@ -153,6 +155,9 @@ export class SalesService {
       'sold',
       `Verkauft für ${payload.sale_price.toFixed(2)} € auf ${payload.platform}`
     );
+
+    // Trigger Discord/Telegram/In-App notification
+    this.webhookService.sendSaleNotification(enrichedSale, item?.title || 'Artikel');
 
     if (!this.mockStore.isDemoMode()) {
       try {

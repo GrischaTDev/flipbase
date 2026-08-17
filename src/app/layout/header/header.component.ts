@@ -1,16 +1,32 @@
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { LucideAngularModule, Layers, Globe, LogOut, User as UserIcon, Plus, Menu, Sun, Moon } from 'lucide-angular';
+import {
+  LucideAngularModule,
+  Layers,
+  Globe,
+  LogOut,
+  User as UserIcon,
+  Plus,
+  Menu,
+  Sun,
+  Moon,
+  Bell,
+  CheckCheck,
+  Trash2,
+  Sparkles,
+} from 'lucide-angular';
 import { AuthService } from '../../core/services/auth.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { WorkspaceMemberService } from '../../core/services/workspace-member.service';
+import { WebhookService } from '../../core/services/webhook.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { Workspace } from '../../core/models/reflip.models';
+import { DatePipe } from '@angular/common';
 
 @Component({
   selector: 'app-header',
-  imports: [RouterLink, TranslatePipe, LucideAngularModule],
+  imports: [RouterLink, TranslatePipe, LucideAngularModule, DatePipe],
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -19,6 +35,7 @@ export class HeaderComponent {
   readonly auth = inject(AuthService);
   readonly workspaceService = inject(WorkspaceService);
   readonly memberService = inject(WorkspaceMemberService);
+  readonly webhookService = inject(WebhookService);
   readonly themeService = inject(ThemeService);
   private readonly translate = inject(TranslateService);
 
@@ -27,6 +44,7 @@ export class HeaderComponent {
 
   readonly isWorkspaceDropdownOpen = signal<boolean>(false);
   readonly isUserDropdownOpen = signal<boolean>(false);
+  readonly isNotificationDropdownOpen = signal<boolean>(false);
 
   // Icons
   readonly LayersIcon = Layers;
@@ -37,17 +55,29 @@ export class HeaderComponent {
   readonly MenuIcon = Menu;
   readonly SunIcon = Sun;
   readonly MoonIcon = Moon;
+  readonly BellIcon = Bell;
+  readonly CheckCheckIcon = CheckCheck;
+  readonly TrashIcon = Trash2;
+  readonly SparklesIcon = Sparkles;
 
   currentLanguage = signal<string>('de');
 
   toggleWorkspaceDropdown(): void {
     this.isWorkspaceDropdownOpen.update((v) => !v);
     this.isUserDropdownOpen.set(false);
+    this.isNotificationDropdownOpen.set(false);
   }
 
   toggleUserDropdown(): void {
     this.isUserDropdownOpen.update((v) => !v);
     this.isWorkspaceDropdownOpen.set(false);
+    this.isNotificationDropdownOpen.set(false);
+  }
+
+  toggleNotificationDropdown(): void {
+    this.isNotificationDropdownOpen.update((v) => !v);
+    this.isWorkspaceDropdownOpen.set(false);
+    this.isUserDropdownOpen.set(false);
   }
 
   selectWorkspace(ws: Workspace): void {
@@ -60,11 +90,7 @@ export class HeaderComponent {
     this.translate.use(lang);
   }
 
-  toggleTheme(): void {
-    this.themeService.toggleTheme();
-  }
-
-  onSignOut(): void {
-    this.auth.signOut();
+  async onSignOut(): Promise<void> {
+    await this.auth.signOut();
   }
 }
