@@ -46,6 +46,21 @@ export class AuthService {
       return;
     }
 
+    try {
+      const { data } = await this.supabase.client.auth.getSession();
+      if (data?.session) {
+        this.session.set(data.session);
+        this.currentUser.set(data.session.user);
+        this.isDemoUser.set(false);
+        this.mockStore.isDemoMode.set(false);
+        await this.loadProfile(data.session.user.id);
+        this.isLoading.set(false);
+        return;
+      }
+    } catch {
+      // Supabase connection offline fallback
+    }
+
     // Default to active demo session so the app works instantly with 0ms latency
     this.isDemoUser.set(true);
     this.mockStore.isDemoMode.set(true);
@@ -70,7 +85,7 @@ export class AuthService {
       if (!error && data) {
         this.profile.set(data as UserProfile);
       }
-    } catch (err) {
+    } catch {
       console.warn('Profile load skipped/offline');
     }
   }
@@ -92,6 +107,10 @@ export class AuthService {
 
       this.session.set(res.data.session);
       this.currentUser.set(res.data.user);
+      this.isDemoUser.set(false);
+      this.mockStore.isDemoMode.set(false);
+      localStorage.removeItem('reflip_logged_out');
+      await this.loadProfile(res.data.user.id);
       return { error: null };
     } catch (err: unknown) {
       return { error: err as Error };
@@ -116,6 +135,9 @@ export class AuthService {
 
       this.session.set(res.data.session);
       this.currentUser.set(res.data.user);
+      this.isDemoUser.set(false);
+      this.mockStore.isDemoMode.set(false);
+      localStorage.removeItem('reflip_logged_out');
       return { error: null };
     } catch (err: unknown) {
       return { error: err as Error };
@@ -132,7 +154,7 @@ export class AuthService {
       localStorage.setItem('reflip_logged_out', 'true');
       try {
         await this.supabase.client.auth.signOut();
-      } catch (e) {
+      } catch {
         // ignore
       }
       this.session.set(null);
