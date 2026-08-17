@@ -57,7 +57,7 @@
       Werkzeuge & Ertrag
     </div>
 
-    @for (item of navItems.slice(4, 8); track item.path) {
+    @for (item of navItems.slice(4, 9); track item.path) {
       <a
         [routerLink]="item.path"
         routerLinkActive="bg-indigo-500/15 text-white font-semibold border-indigo-500/40"
@@ -73,7 +73,7 @@
       System & Daten
     </div>
 
-    @for (item of navItems.slice(8); track item.path) {
+    @for (item of navItems.slice(9); track item.path) {
       <a
         [routerLink]="item.path"
         routerLinkActive="bg-indigo-500/15 text-white font-semibold border-indigo-500/40"

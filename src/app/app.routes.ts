@@ -128,6 +128,11 @@ export const routes: Routes = [
           import('./features/analytics/analytics.component').then((m) => m.AnalyticsComponent),
       },
       {
+        path: 'accounting',
+        loadComponent: () =>
+          import('./features/accounting/accounting.component').then((m) => m.AccountingComponent),
+      },
+      {
         path: 'settings',
         loadComponent: () =>
           import('./features/settings/settings.component').then((m) => m.SettingsComponent),

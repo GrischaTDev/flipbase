@@ -1,0 +1,19 @@
+:host {
+  display: block;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .select-text,
+  .select-text * {
+    visibility: visible;
+  }
+  .select-text {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}

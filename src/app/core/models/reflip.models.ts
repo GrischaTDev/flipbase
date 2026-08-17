@@ -7,10 +7,13 @@ export interface UserProfile {
   updated_at?: string;
 }
 
+export type TaxMode = 'diff_25a' | 'kleinunternehmer_19' | 'regular_19';
+
 export interface Workspace {
   id: string;
   name: string;
   currency?: string;
+  tax_mode?: TaxMode;
   min_roi_percent: number;
   min_profit_amount: number;
   created_at?: string;
@@ -60,11 +63,14 @@ export interface Purchase {
   id: string;
   workspace_id: string;
   type: PurchaseType;
+  purchase_type?: PurchaseType;
   title: string;
   source_id?: string | null;
   supplier_id?: string | null;
   purchase_date: string;
   purchase_price: number;
+  shipping_cost?: number;
+  other_costs?: number;
   cost_allocation_mode: CostAllocationMode;
   original_url?: string | null;
   tracking_number?: string | null;
@@ -76,10 +82,21 @@ export interface Purchase {
   costs?: PurchaseCost[];
   items_count?: number;
   total_purchase_cost?: number;
+  items?: InventoryItem[];
 }
 
 export type ItemCondition = 'new' | 'like_new' | 'very_good' | 'used' | 'heavily_used' | 'defective';
-export type ItemStatus = 'received' | 'needs_review' | 'researched' | 'ready' | 'listed' | 'reserved' | 'sold' | 'returned' | 'archived' | 'defective';
+export type ItemStatus =
+  | 'received'
+  | 'needs_review'
+  | 'researched'
+  | 'ready'
+  | 'listed'
+  | 'reserved'
+  | 'sold'
+  | 'returned'
+  | 'archived'
+  | 'defective';
 
 export interface ItemCost {
   id?: string;
@@ -98,6 +115,7 @@ export interface ItemMedia {
   file_name?: string | null;
   file_size?: number | null;
   mime_type?: string | null;
+  sort_order?: number;
   created_at?: string;
 }
 
@@ -110,17 +128,26 @@ export interface InventoryItem {
   brand?: string | null;
   model?: string | null;
   condition: ItemCondition;
+  condition_notes?: string | null;
   status: ItemStatus;
   sku?: string | null;
   ean?: string | null;
   description?: string | null;
   allocated_purchase_cost: number;
   expected_value?: number | null;
+  tax_mode_override?: TaxMode | null;
+  is_public_store?: boolean;
+  notes?: string | null;
+  weight_g?: number | null;
+  dimension_length_cm?: number | null;
+  dimension_width_cm?: number | null;
+  dimension_height_cm?: number | null;
   created_at?: string;
   updated_at?: string;
   purchase?: Purchase;
   costs?: ItemCost[];
   media?: ItemMedia[];
+  sale?: Sale;
   total_item_cost?: number;
   profit_potential?: number;
 }
@@ -158,14 +185,17 @@ export interface MarketResearch {
 export interface ResearchQuery {
   id: string;
   workspace_id: string;
-  query_text: string;
-  source: string;
-  result_count: number;
+  query_text?: string;
+  search_term?: string;
+  source?: string;
+  result_count?: number;
   min_price: number;
   max_price: number;
-  avg_price: number;
+  avg_price?: number;
   median_price: number;
+  sample_size?: number;
   created_at?: string;
+  results?: ResearchResult[];
 }
 
 export interface ResearchResult {
@@ -181,7 +211,7 @@ export interface ResearchResult {
 export interface ListingDraft {
   id: string;
   inventory_item_id: string;
-  platform: 'ebay' | 'kleinanzeigen' | 'vinted';
+  platform: 'ebay' | 'kleinanzeigen' | 'vinted' | 'store' | string;
   title: string;
   description: string;
   price: number;
@@ -194,7 +224,7 @@ export interface Sale {
   id: string;
   workspace_id: string;
   inventory_item_id: string;
-  platform: 'ebay' | 'kleinanzeigen' | 'vinted' | 'direct' | string;
+  platform: 'ebay' | 'kleinanzeigen' | 'vinted' | 'direct' | 'custom_store' | string;
   sale_price: number;
   sale_date: string;
   platform_fee: number;
@@ -227,4 +257,45 @@ export interface DashboardMetrics {
   inventory_value: number;
   active_items_count: number;
   average_roi_percent: number;
+}
+
+export interface TaxCalculationResult {
+  sale_id: string;
+  item_title: string;
+  sale_date: string;
+  tax_mode: TaxMode;
+  gross_revenue: number;
+  total_purchase_cost: number;
+  gross_margin: number;
+  tax_base: number;
+  vat_amount: number;
+  input_tax_deductible: number; // Vorsteuer aus Gebühren/Versand
+  net_tax_liability: number;     // USt-Zahllast = USt - Vorsteuer
+  net_profit_after_tax: number;
+  invoice_clause: string;
+}
+
+export interface TaxPeriodSummary {
+  period_label: string; // e.g. "Q1 2026", "Februar 2026", "Gesamtjahr 2026"
+  total_sales_count: number;
+  gross_revenue: number;
+  total_cost_of_goods_sold: number;
+  total_gross_margin: number;
+  total_vat_due: number;
+  total_input_tax: number;
+  total_vat_liability: number; // UStVA Zahllast
+  net_profit_after_tax: number;
+  tax_mode: TaxMode;
+}
+
+export interface DatevBookingRecord {
+  belegdatum: string;
+  belegfeld1: string; // Order / Sale ID
+  umsatz: number;
+  sollHaben: 'S' | 'H';
+  konto: string;     // e.g. 8200 (Erlöse § 25a) or 8400
+  gegenkonto: string;// e.g. 1200 (Bank) or 1000 (Kasse)
+  buchungstext: string;
+  kost1?: string;
+  ustSatz: number;
 }
