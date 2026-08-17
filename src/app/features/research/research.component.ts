@@ -27,6 +27,7 @@ import {
   Image as ImageIcon,
   Eye,
   X,
+  Plus,
 } from 'lucide-angular';
 import {
   ResearchService,
@@ -77,6 +78,7 @@ export class ResearchComponent {
   readonly imageIcon = ImageIcon;
   readonly eyeIcon = Eye;
   readonly closeIcon = X;
+  readonly addMoreIcon = Plus;
 
   readonly isScanningBarcode = signal<boolean>(false);
   readonly selectedPlatformFilter = signal<'all' | 'ebay_sold' | 'kleinanzeigen' | 'vinted'>('all');
@@ -87,6 +89,7 @@ export class ResearchComponent {
     query: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     condition: new FormControl('used', { nonNullable: true }),
     estimatedCost: new FormControl<number>(25.0, { nonNullable: true }),
+    limit: new FormControl<number>(24, { nonNullable: true }),
   });
 
   readonly summary = signal<ResearchSummary | null>(null);
@@ -127,9 +130,17 @@ export class ResearchComponent {
     const { summary } = await this.researchService.executeResearch(
       f.query.trim(),
       f.condition,
-      f.estimatedCost
+      f.estimatedCost,
+      f.limit
     );
     this.summary.set(summary);
+  }
+
+  async loadMore(): Promise<void> {
+    const currentLimit = this.searchForm.get('limit')?.value || 24;
+    const newLimit = currentLimit + 12;
+    this.searchForm.patchValue({ limit: newLimit });
+    await this.onSearch();
   }
 
   onToggleItem(item: ResearchComparisonItem): void {

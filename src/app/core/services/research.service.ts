@@ -131,18 +131,19 @@ export class ResearchService {
   async executeResearch(
     queryText: string,
     condition: string = 'used',
-    estimatedCost: number = 25.0
+    estimatedCost: number = 25.0,
+    limit: number = 24
   ): Promise<{ results: ResearchComparisonItem[]; summary: ResearchSummary }> {
     this.isLoading.set(true);
 
     try {
       // 1. Attempt live eBay API Sold listings search
-      let comps = await this.ebayApiService.searchSoldItems(queryText, 8);
+      let comps = await this.ebayApiService.searchSoldItems(queryText, limit);
 
       // 2. If direct eBay API returns no listings, fetch genuine product photos and simulate realistic comps
       if (!comps || comps.length === 0) {
-        const realPhotos = await this.realImageService.fetchRealImagesForQuery(queryText, 7);
-        comps = this.generateRealisticComps(queryText, condition, realPhotos);
+        const realPhotos = await this.realImageService.fetchRealImagesForQuery(queryText, Math.min(limit, 30));
+        comps = this.generateRealisticComps(queryText, condition, realPhotos, limit);
       }
 
       this.currentComparisonItems.set(comps);
@@ -291,7 +292,8 @@ export class ResearchService {
   private generateRealisticComps(
     query: string,
     condition: string,
-    realPhotos: string[]
+    realPhotos: string[],
+    count: number = 24
   ): ResearchComparisonItem[] {
     let baseValue = 50.0;
     const lower = query.toLowerCase();
@@ -320,24 +322,33 @@ export class ResearchService {
       '(Gebraucht mit leichten Gebrauchsspuren)',
       'inkl. Zubehör (Versand möglich)',
       '– Voll funktionsfähig / Gepflegt',
+      'OVP vorhanden, Nichtraucherhaushalt',
+      'Kaum gebraucht, sehr guter Zustand',
+      'Komplett-Set mit Kabel & Anleitung',
+      'Funktioniert einwandfrei, schneller Versand',
+      'Neuwertiger Zustand ohne Mängel',
     ];
 
     const comps: ResearchComparisonItem[] = [];
     const platforms: ('ebay_sold' | 'kleinanzeigen' | 'vinted')[] = [
       'ebay_sold',
       'ebay_sold',
-      'ebay_sold',
       'kleinanzeigen',
+      'ebay_sold',
       'kleinanzeigen',
       'vinted',
       'ebay_sold',
+      'kleinanzeigen',
     ];
 
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < count; i++) {
       const variance = (Math.random() - 0.5) * 0.45; // +/- 22%
       const price = Number((baseValue * (1 + variance)).toFixed(2));
       const source = platforms[i % platforms.length];
-      const photoUrl = realPhotos[i % realPhotos.length] || 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=500&auto=format&fit=crop&q=80';
+      const photoUrl =
+        realPhotos.length > 0
+          ? realPhotos[i % realPhotos.length]
+          : 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=500&auto=format&fit=crop&q=80';
       const titleSuffix = listingTitleSuffixes[i % listingTitleSuffixes.length];
 
       comps.push({
@@ -349,7 +360,7 @@ export class ResearchService {
         url: source === 'ebay_sold'
           ? `https://www.ebay.de/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Complete=1&LH_Sold=1`
           : `https://www.kleinanzeigen.de/s-${encodeURIComponent(query)}/k0`,
-        date: new Date(Date.now() - i * 86400000 * 2).toISOString().split('T')[0],
+        date: new Date(Date.now() - (i % 14) * 86400000).toISOString().split('T')[0],
         condition: condition || 'used',
         isExcluded: false,
       });

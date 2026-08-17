@@ -9,11 +9,11 @@ export class RealProductImageService {
   /**
    * Fetches real live product photographs for any search query using public media APIs.
    */
-  async fetchRealImagesForQuery(query: string, limit: number = 8): Promise<string[]> {
+  async fetchRealImagesForQuery(query: string, limit: number = 30): Promise<string[]> {
     const trimmed = query.trim();
     if (!trimmed) return [];
 
-    const cacheKey = trimmed.toLowerCase();
+    const cacheKey = `${trimmed.toLowerCase()}_${limit}`;
     if (this.imageCache.has(cacheKey)) {
       return this.imageCache.get(cacheKey)!;
     }
@@ -27,7 +27,7 @@ export class RealProductImageService {
       (async () => {
         try {
           const res = await fetch(
-            `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=10&gsrnamespace=6&prop=imageinfo&iiprop=url|thumburl&iiurlwidth=600&format=json&origin=*`
+            `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=${Math.min(limit + 10, 50)}&gsrnamespace=6&prop=imageinfo&iiprop=url|thumburl&iiurlwidth=600&format=json&origin=*`
           );
           if (res.ok) {
             const data = await res.json();
@@ -40,7 +40,7 @@ export class RealProductImageService {
                 !u.includes('.pdf') &&
                 !u.includes('.svg') &&
                 !u.includes('.ogg') &&
-                !u.includes('courant') && // filter old scanned news
+                !u.includes('courant') &&
                 !u.includes('Brabander')
               ) {
                 photos.push(u);
@@ -56,7 +56,7 @@ export class RealProductImageService {
       (async () => {
         try {
           const res = await fetch(
-            `https://de.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=6&prop=pageimages&pithumbsize=600&format=json&origin=*`
+            `https://de.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=12&prop=pageimages&pithumbsize=600&format=json&origin=*`
           );
           if (res.ok) {
             const data = await res.json();
@@ -77,7 +77,7 @@ export class RealProductImageService {
       (async () => {
         try {
           const res = await fetch(
-            `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=6&prop=pageimages&pithumbsize=600&format=json&origin=*`
+            `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=12&prop=pageimages&pithumbsize=600&format=json&origin=*`
           );
           if (res.ok) {
             const data = await res.json();
@@ -114,12 +114,28 @@ export class RealProductImageService {
   private getFallbackPhotography(query: string, limit: number): string[] {
     const lower = query.toLowerCase();
 
+    const pool = [
+      'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1517336714731-489689fd1ca8?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=600&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=600&auto=format&fit=crop&q=80',
+    ];
+
     if (lower.includes('airpod') || lower.includes('audio') || lower.includes('kopfhörer') || lower.includes('bose') || lower.includes('sony')) {
       return [
         'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=600&auto=format&fit=crop&q=80',
         'https://images.unsplash.com/photo-1572536147248-ac59a8abfa4b?w=600&auto=format&fit=crop&q=80',
         'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80',
         'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=600&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1598331668826-20cecc596b86?w=600&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1613040809024-b4ef7ba99bc3?w=600&auto=format&fit=crop&q=80',
       ];
     }
     if (lower.includes('switch') || lower.includes('ps5') || lower.includes('xbox') || lower.includes('gaming') || lower.includes('konsole')) {
@@ -128,27 +144,12 @@ export class RealProductImageService {
         'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&auto=format&fit=crop&q=80',
         'https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=600&auto=format&fit=crop&q=80',
         'https://images.unsplash.com/photo-1605901309584-818e25960a8f?w=600&auto=format&fit=crop&q=80',
-      ];
-    }
-    if (lower.includes('bosch') || lower.includes('makita') || lower.includes('werkzeug') || lower.includes('dewalt') || lower.includes('bohr')) {
-      return [
-        'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=600&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1572981779307-38b8cabb2407?w=600&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1581147036324-c17ac41dfa6c?w=600&auto=format&fit=crop&q=80',
-      ];
-    }
-    if (lower.includes('schuhe') || lower.includes('sneaker') || lower.includes('nike') || lower.includes('adidas') || lower.includes('jordan')) {
-      return [
-        'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=600&auto=format&fit=crop&q=80',
-        'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=600&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1612287233207-6b66e3309a47?w=600&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1593305841991-05c297ba4575?w=600&auto=format&fit=crop&q=80',
+        'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?w=600&auto=format&fit=crop&q=80',
       ];
     }
 
-    return [
-      'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=600&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1550009158-9ebf69173e03?w=600&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=600&auto=format&fit=crop&q=80',
-    ];
+    return pool;
   }
 }

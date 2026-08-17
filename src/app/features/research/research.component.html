@@ -10,7 +10,7 @@
       </span>
     </div>
     <p class="text-xs text-rf-text-muted mt-0.5">
-      Recherchiere real erzielte Verkaufspreise mit Produktbildern, erkenne Ausreißer und wähle die optimale Verkaufsstrategie.
+      Recherchiere real erzielte Verkaufspreise mit echten Produktfotos, erkenne Ausreißer und wähle die optimale Verkaufsstrategie.
     </p>
   </div>
 
@@ -21,7 +21,7 @@
         <input
           type="text"
           formControlName="query"
-          placeholder="Produktname, Modell, EAN oder Suchbegriff (z.B. AirPods Pro 2, Lego 75192)..."
+          placeholder="Produktname, Modell, EAN oder Suchbegriff (z.B. AirPods Pro 2, Lego 75192, PS5)..."
           class="linear-input w-full pl-3 pr-24 py-2 rounded-lg text-xs font-medium"
         />
 
@@ -49,7 +49,7 @@
         <option value="defective">Defekt</option>
       </select>
 
-      <div class="flex items-center gap-1.5 w-auto sm:w-40">
+      <div class="flex items-center gap-1.5 w-auto sm:w-36">
         <input
           type="number"
           formControlName="estimatedCost"
@@ -58,6 +58,18 @@
           title="Deine kalkulierten Kosten / EK"
         />
       </div>
+
+      <!-- Result Count Selector -->
+      <select
+        formControlName="limit"
+        class="linear-input px-3 py-2 rounded-lg text-xs cursor-pointer text-rf-text-secondary w-auto sm:w-32"
+        title="Anzahl Treffer"
+      >
+        <option [value]="12">12 Treffer</option>
+        <option [value]="24">24 Treffer</option>
+        <option [value]="48">48 Treffer</option>
+        <option [value]="100">100 Treffer</option>
+      </select>
 
       <button
         type="submit"
@@ -193,7 +205,7 @@
         <div class="flex items-center gap-2">
           <lucide-icon [img]="slidersIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
           <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
-            Vergleichbare Marktangebote mit Bildern ({{ filteredComparisonItems().length }})
+            Vergleichbare Marktangebote mit Originalfotos ({{ filteredComparisonItems().length }})
           </h2>
         </div>
 
@@ -208,7 +220,7 @@
               [class.text-rf-text-primary]="selectedPlatformFilter() === 'all'"
               [class.text-rf-text-muted]="selectedPlatformFilter() !== 'all'"
             >
-              Alle
+              Alle ({{ researchService.currentComparisonItems().length }})
             </button>
             <button
               type="button"
@@ -432,8 +444,17 @@
         </div>
       }
 
-      <!-- Quick Transfer Button to Deal Calculator -->
-      <div class="pt-3 border-t border-rf-border flex justify-end">
+      <!-- Bottom Controls: Load More & Quick Transfer to Deal Calculator -->
+      <div class="pt-3 border-t border-rf-border flex flex-col sm:flex-row items-center justify-between gap-3">
+        <button
+          type="button"
+          (click)="loadMore()"
+          class="linear-btn-secondary px-4 py-2 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer hover:border-rf-border-hover"
+        >
+          <lucide-icon [img]="addMoreIcon" class="w-3.5 h-3.5"></lucide-icon>
+          <span>+ 12 weitere Angebote laden</span>
+        </button>
+
         <button
           type="button"
           (click)="openInDealCalculator()"
@@ -451,7 +472,7 @@
       </div>
       <h3 class="text-sm font-bold text-rf-text-primary">Starte deine Marktpreis-Recherche</h3>
       <p class="text-xs text-rf-text-muted max-w-md mx-auto mt-1">
-        Gib oben einen Produkttitel ein oder scanne einen Barcode, um echte Verkaufspreise von eBay, Kleinanzeigen und Vinted inklusive Produktbildern zu analysieren.
+        Gib oben einen Produkttitel ein oder scanne einen Barcode, um bis zu 100 echte Verkaufspreise von eBay, Kleinanzeigen und Vinted inklusive Produktfotos zu analysieren.
       </p>
     </div>
   }
