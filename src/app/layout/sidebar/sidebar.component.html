@@ -15,12 +15,12 @@
   <!-- Brand Logo Header -->
   <div class="h-14 flex items-center justify-between px-4 border-b border-rf-border-subtle">
     <div class="flex items-center gap-2.5">
-      <div class="w-6 h-6 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-xs shadow-emerald-500/20">
+      <div class="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-xs shadow-indigo-500/25">
         <lucide-icon [img]="logoIcon" class="w-3.5 h-3.5 text-white stroke-[2.5]"></lucide-icon>
       </div>
       <div class="flex items-center gap-1.5">
         <span class="tracking-tight font-bold text-sm text-rf-text-primary">ReFlip</span>
-        <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold tracking-wide uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+        <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold tracking-wide uppercase bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
           OS
         </span>
       </div>
@@ -29,7 +29,7 @@
     <button
       type="button"
       (click)="close.emit()"
-      class="md:hidden p-1 rounded-md text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover"
+      class="md:hidden p-1 rounded-md text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
     >
       <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
     </button>
@@ -44,11 +44,11 @@
     @for (item of navItems.slice(0, 3); track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-emerald-500/15 text-emerald-300 font-semibold border-emerald-500/30"
+        routerLinkActive="bg-indigo-500/15 text-white font-semibold border-indigo-500/40"
         (click)="close.emit()"
         class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >
-        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-emerald-400 shrink-0"></lucide-icon>
+        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-indigo-400 shrink-0"></lucide-icon>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
@@ -60,11 +60,11 @@
     @for (item of navItems.slice(3, 7); track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-emerald-500/15 text-emerald-300 font-semibold border-emerald-500/30"
+        routerLinkActive="bg-indigo-500/15 text-white font-semibold border-indigo-500/40"
         (click)="close.emit()"
         class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >
-        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-emerald-400 shrink-0"></lucide-icon>
+        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-indigo-400 shrink-0"></lucide-icon>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
@@ -76,11 +76,11 @@
     @for (item of navItems.slice(7); track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-emerald-500/15 text-emerald-300 font-semibold border-emerald-500/30"
+        routerLinkActive="bg-indigo-500/15 text-white font-semibold border-indigo-500/40"
         (click)="close.emit()"
         class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >
-        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-emerald-400 shrink-0"></lucide-icon>
+        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-indigo-400 shrink-0"></lucide-icon>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
@@ -89,7 +89,7 @@
   <!-- Footer Info / Version -->
   <div class="p-3 border-t border-rf-border-subtle text-xs flex items-center justify-between">
     <div class="flex items-center gap-1.5">
-      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+      <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
       <span class="text-[11px] text-rf-text-muted font-medium">ReFlip Core</span>
     </div>
     <span class="px-1.5 py-0.2 rounded bg-rf-surface text-rf-text-secondary border border-rf-border font-mono text-[10px]">

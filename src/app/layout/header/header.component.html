@@ -17,7 +17,7 @@
         (click)="toggleWorkspaceDropdown()"
         class="flex items-center gap-2 px-2.5 py-1 rounded-md border border-rf-border bg-rf-surface text-xs font-medium text-rf-text-primary hover:bg-rf-surface-hover hover:border-rf-border-hover transition shadow-xs cursor-pointer"
       >
-        <lucide-icon [img]="LayersIcon" class="w-3.5 h-3.5 text-emerald-400"></lucide-icon>
+        <lucide-icon [img]="LayersIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
         <span class="max-w-[120px] md:max-w-[180px] truncate font-semibold">
           {{ workspaceService.currentWorkspace()?.name || ('WORKSPACE.MY_WORKSPACE' | translate) }}
         </span>
@@ -36,11 +36,11 @@
               (click)="selectWorkspace(ws)"
               class="w-full text-left px-3 py-1.5 text-xs flex items-center justify-between hover:bg-rf-surface-hover transition text-rf-text-secondary hover:text-rf-text-primary cursor-pointer"
               [class.font-semibold]="ws.id === workspaceService.currentWorkspace()?.id"
-              [class.text-emerald-400]="ws.id === workspaceService.currentWorkspace()?.id"
+              [class.text-indigo-400]="ws.id === workspaceService.currentWorkspace()?.id"
             >
               <span class="truncate">{{ ws.name }}</span>
               @if (ws.id === workspaceService.currentWorkspace()?.id) {
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
               }
             </button>
           }
@@ -50,7 +50,7 @@
           <button
             type="button"
             (click)="openCreateWorkspace.emit(); isWorkspaceDropdownOpen.set(false)"
-            class="w-full text-left px-3 py-1.5 text-xs text-emerald-400 hover:bg-emerald-500/10 flex items-center gap-2 font-medium cursor-pointer"
+            class="w-full text-left px-3 py-1.5 text-xs text-indigo-400 hover:bg-indigo-500/10 flex items-center gap-2 font-medium cursor-pointer"
           >
             <lucide-icon [img]="PlusIcon" class="w-3.5 h-3.5"></lucide-icon>
             <span>Neuer Workspace</span>
@@ -95,7 +95,7 @@
         (click)="toggleUserDropdown()"
         class="flex items-center gap-2 p-1 rounded-md hover:bg-rf-surface-hover transition cursor-pointer"
       >
-        <div class="w-7 h-7 rounded-md bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 flex items-center justify-center font-bold text-xs shadow-xs">
+        <div class="w-7 h-7 rounded-md bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 flex items-center justify-center font-bold text-xs shadow-xs">
           {{ auth.userName().charAt(0).toUpperCase() }}
         </div>
         <span class="hidden md:inline text-xs font-semibold text-rf-text-primary">

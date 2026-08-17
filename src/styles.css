@@ -5,37 +5,42 @@
    Hier kannst du das gesamte Design der App an einer einzigen Stelle anpassen!
    ========================================================================== */
 :root {
-  /* 1. Hintergründe (Canvas & Ebenen) */
-  --rf-bg-app: #1e222a;          /* Haupt-Hintergrund der gesamten App */
-  --rf-bg-sidebar: #181b22;      /* Hintergrund der Sidebar */
-  --rf-bg-header: #1e222a;       /* Hintergrund des Headers */
-  --rf-bg-surface: #262b35;      /* Hintergrund von Kacheln & Karten */
-  --rf-bg-surface-hover: #2c323f;/* Hover-Hintergrund für Karten & Tabellenzeilen */
-  --rf-bg-subtle: #1a1d24;       /* Hintergrund für Eingabefelder, Dropdowns & Pills */
+  /* 1. Hintergründe (Helleres Anthrazit / Slate) */
+  --rf-bg-app: #282c37;          /* Haupt-Hintergrund der gesamten App (helleres Anthrazit) */
+  --rf-bg-sidebar: #21252f;      /* Hintergrund der Sidebar */
+  --rf-bg-header: #282c37;       /* Hintergrund des Headers */
+  --rf-bg-surface: #323846;      /* Hintergrund von Kacheln & Karten */
+  --rf-bg-surface-hover: #3d4454;/* Hover-Hintergrund für Karten & Tabellenzeilen */
+  --rf-bg-subtle: #20242e;       /* Hintergrund für Eingabefelder, Dropdowns & Wells */
 
   /* 2. Rahmen & Linien */
-  --rf-border: #373e4d;          /* Standard-Rahmen für Karten & Tabellen */
-  --rf-border-subtle: #2c3240;   /* Dezentere Trennlinie für Sidebar/Header */
-  --rf-border-hover: #4a5468;    /* Rahmen bei Mauszeiger-Hover */
-  --rf-border-focus: #10b981;    /* Rahmen bei Tastatur-Fokus / Eingabe */
+  --rf-border: #444c5c;          /* Standard-Rahmen für Karten & Tabellen */
+  --rf-border-subtle: #363c4a;   /* Dezentere Trennlinie für Sidebar/Header */
+  --rf-border-hover: #586276;    /* Rahmen bei Mauszeiger-Hover */
+  --rf-border-focus: #6366f1;    /* Rahmen bei Tastatur-Fokus / Eingabe (Indigo) */
 
   /* 3. Textfarben & Typografie */
-  --rf-text-primary: #f8fafc;    /* Hauptüberschriften, Geldbeträge, wichtige Zahlen */
-  --rf-text-secondary: #cbd5e1;  /* Fließtext, Tabellenspalten, Formular-Labels */
-  --rf-text-muted: #94a3b8;      /* Beschreibungen, Einheiten, Zeitstempel */
-  --rf-text-dimmed: #64748b;     /* Platzhalter, inaktive Elemente */
+  --rf-text-primary: #ffffff;    /* Hauptüberschriften, Geldbeträge, wichtige Zahlen */
+  --rf-text-secondary: #d1d5db;  /* Fließtext, Tabellenspalten, Formular-Labels */
+  --rf-text-muted: #9ca3af;      /* Beschreibungen, Einheiten, Zeitstempel */
+  --rf-text-dimmed: #6b7280;     /* Platzhalter, inaktive Elemente */
 
-  /* 4. Primär- & Akzentfarben */
-  --rf-primary: #10b981;         /* Smaragd-Grün (Gewinne, Bestätigungen, Haupt-Buttons) */
-  --rf-primary-hover: #059669;   /* Smaragd-Grün Hover */
-  --rf-primary-subtle: rgba(16, 185, 129, 0.15); /* Grüner Badge-Hintergrund */
-  --rf-primary-border: rgba(16, 185, 129, 0.3);  /* Grüner Badge-Rahmen */
+  /* 4. Primär-Aktionen (Eleganter Indigo-Akzent statt überall Grün) */
+  --rf-primary: #6366f1;         /* Indigo / Royal Blue (Haupt-Buttons, aktive Tabs, Fokus) */
+  --rf-primary-hover: #4f46e5;   /* Indigo Hover */
+  --rf-primary-subtle: rgba(99, 102, 241, 0.15); /* Indigo Badge-Hintergrund */
+  --rf-primary-border: rgba(99, 102, 241, 0.3);  /* Indigo Badge-Rahmen */
+
+  /* 5. Finanz- & Statusfarben (Grün gezielt für Gewinne & ROI) */
+  --rf-profit: #10b981;          /* Smaragd-Grün (Ausschließlich für Reingewinn, positive ROI & Marge) */
+  --rf-profit-subtle: rgba(16, 185, 129, 0.15);
+  --rf-profit-border: rgba(16, 185, 129, 0.3);
 
   --rf-accent-amber: #f59e0b;    /* Bernstein / Gold (Gebundenes Kapital, Warnungen) */
   --rf-accent-amber-subtle: rgba(245, 158, 11, 0.15);
   --rf-accent-amber-border: rgba(245, 158, 11, 0.3);
 
-  --rf-accent-blue: #38bdf8;     /* Saphir-Blau (Marktwerte, Lots, Kategorien) */
+  --rf-accent-blue: #38bdf8;     /* Saphir / Sky Blue (Marktwerte, Lots, Kategorien) */
   --rf-accent-blue-subtle: rgba(56, 189, 248, 0.15);
   --rf-accent-blue-border: rgba(56, 189, 248, 0.3);
 
@@ -47,7 +52,7 @@
   --rf-accent-rose-subtle: rgba(244, 63, 94, 0.15);
   --rf-accent-rose-border: rgba(244, 63, 94, 0.3);
 
-  --rf-accent-indigo: #818cf8;   /* Indigo (Research, Benchmarks, Holding) */
+  --rf-accent-indigo: #818cf8;   /* Helles Indigo */
   --rf-accent-indigo-subtle: rgba(129, 140, 248, 0.15);
   --rf-accent-indigo-border: rgba(129, 140, 248, 0.3);
 }
@@ -75,6 +80,7 @@
 
   --color-rf-primary: var(--rf-primary);
   --color-rf-primary-hover: var(--rf-primary-hover);
+  --color-rf-profit: var(--rf-profit);
 }
 
 @layer base {
@@ -110,33 +116,33 @@
 .linear-surface {
   background-color: var(--rf-bg-surface);
   border: 1px solid var(--rf-border);
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
 }
 
 .linear-card {
   background: linear-gradient(180deg, var(--rf-bg-surface) 0%, var(--rf-bg-subtle) 100%);
   border: 1px solid var(--rf-border);
-  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.15);
 }
 
 .linear-card-interactive {
   background: linear-gradient(180deg, var(--rf-bg-surface) 0%, var(--rf-bg-subtle) 100%);
   border: 1px solid var(--rf-border);
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.15);
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .linear-card-interactive:hover {
   background: linear-gradient(180deg, var(--rf-bg-surface-hover) 0%, var(--rf-bg-surface) 100%);
   border-color: var(--rf-border-hover);
-  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.25);
   transform: translateY(-1px);
 }
 
 .linear-kpi {
   background: linear-gradient(180deg, var(--rf-bg-surface) 0%, var(--rf-bg-subtle) 100%);
   border: 1px solid var(--rf-border);
-  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.15);
   position: relative;
   overflow: hidden;
 }
@@ -161,20 +167,20 @@
 .linear-input:focus {
   outline: none;
   border-color: var(--rf-primary);
-  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
 }
 
 .linear-btn-primary {
-  background: linear-gradient(180deg, var(--rf-primary) 0%, var(--rf-primary-hover) 100%);
+  background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%);
   color: #ffffff;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition: all 0.15s ease;
 }
 
 .linear-btn-primary:hover {
-  background: linear-gradient(180deg, #34d399 0%, var(--rf-primary) 100%);
-  box-shadow: 0 3px 8px rgba(16, 185, 129, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  background: linear-gradient(180deg, #818cf8 0%, #6366f1 100%);
+  box-shadow: 0 3px 8px rgba(99, 102, 241, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .linear-btn-secondary {
