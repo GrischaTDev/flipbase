@@ -24,6 +24,7 @@ import {
   Eye,
   FileText,
   X,
+  Store,
 } from 'lucide-angular';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { MediaService } from '../../../../core/services/media.service';
@@ -58,6 +59,7 @@ export class ItemDetailComponent {
   readonly checkIcon = CheckCircle2;
   readonly imageIcon = ImageIcon;
   readonly uploadIcon = Upload;
+  readonly storeIcon = Store;
   readonly starIcon = Star;
   readonly eyeIcon = Eye;
   readonly fileIcon = FileText;

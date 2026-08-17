@@ -1,0 +1,358 @@
+<div class="space-y-6 animate-fade-in select-none max-w-4xl mx-auto">
+  <!-- Back Button -->
+  <a
+    routerLink="/shop"
+    class="inline-flex items-center gap-1.5 text-xs font-semibold text-rf-text-muted hover:text-rf-text-primary transition cursor-pointer"
+  >
+    <lucide-icon [img]="backIcon" class="w-4 h-4"></lucide-icon>
+    <span>Zurück zum Shop</span>
+  </a>
+
+  <div class="pb-1">
+    <h1 class="text-xl md:text-2xl font-bold tracking-tight text-rf-text-primary">
+      Bestellung abschließen (Kasse)
+    </h1>
+    <p class="text-xs text-rf-text-muted mt-0.5">
+      Gib deine Lieferadresse an und wähle deine bevorzugte Zahlungsart.
+    </p>
+  </div>
+
+  @if (storeService.cart().length === 0) {
+    <div class="linear-surface rounded-2xl p-12 text-center space-y-3">
+      <h3 class="text-base font-bold text-rf-text-primary">Dein Warenkorb ist leer</h3>
+      <p class="text-xs text-rf-text-muted">
+        Lege zuerst einen Artikel in den Warenkorb, um zur Kasse zu gehen.
+      </p>
+      <a routerLink="/shop" class="linear-btn-primary inline-flex px-4 py-2 rounded-xl text-xs font-bold mt-2">
+        Zum Sortiment
+      </a>
+    </div>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="onSubmitOrder()" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <!-- Left Column: Address, Shipping & Payment (7 cols) -->
+      <div class="lg:col-span-7 space-y-6">
+        <!-- 1. Customer Contact & Address -->
+        <div class="linear-surface rounded-2xl p-6 space-y-4 shadow-xl">
+          <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
+            <span class="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 font-bold text-[11px] flex items-center justify-center">1</span>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Lieferadresse & Kontaktdaten</h2>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="firstNameInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+                Vorname *
+              </label>
+              <input
+                id="firstNameInput"
+                type="text"
+                formControlName="firstName"
+                placeholder="Max"
+                class="linear-input w-full px-3 py-2 rounded-lg text-xs"
+              />
+            </div>
+
+            <div>
+              <label for="lastNameInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+                Nachname *
+              </label>
+              <input
+                id="lastNameInput"
+                type="text"
+                formControlName="lastName"
+                placeholder="Mustermann"
+                class="linear-input w-full px-3 py-2 rounded-lg text-xs"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="emailInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+                E-Mail-Adresse (für Bestellbestätigung) *
+              </label>
+              <input
+                id="emailInput"
+                type="email"
+                formControlName="email"
+                placeholder="max@beispiel.de"
+                class="linear-input w-full px-3 py-2 rounded-lg text-xs"
+              />
+            </div>
+
+            <div>
+              <label for="phoneInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+                Telefonnummer (optional)
+              </label>
+              <input
+                id="phoneInput"
+                type="tel"
+                formControlName="phone"
+                placeholder="+49 170 1234567"
+                class="linear-input w-full px-3 py-2 rounded-lg text-xs"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3">
+            <div class="col-span-2">
+              <label for="streetInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+                Straße *
+              </label>
+              <input
+                id="streetInput"
+                type="text"
+                formControlName="street"
+                placeholder="Hauptstraße"
+                class="linear-input w-full px-3 py-2 rounded-lg text-xs"
+              />
+            </div>
+
+            <div>
+              <label for="houseNumberInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+                Hausnr. *
+              </label>
+              <input
+                id="houseNumberInput"
+                type="text"
+                formControlName="houseNumber"
+                placeholder="42a"
+                class="linear-input w-full px-3 py-2 rounded-lg text-xs"
+              />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label for="zipInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+                PLZ *
+              </label>
+              <input
+                id="zipInput"
+                type="text"
+                formControlName="zip"
+                placeholder="10115"
+                class="linear-input w-full px-3 py-2 rounded-lg text-xs font-mono"
+              />
+            </div>
+
+            <div class="sm:col-span-2">
+              <label for="cityInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+                Stadt *
+              </label>
+              <input
+                id="cityInput"
+                type="text"
+                formControlName="city"
+                placeholder="Berlin"
+                class="linear-input w-full px-3 py-2 rounded-lg text-xs"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Shipping Method -->
+        <div class="linear-surface rounded-2xl p-6 space-y-3 shadow-xl">
+          <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
+            <span class="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 font-bold text-[11px] flex items-center justify-center">2</span>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Versandart</h2>
+          </div>
+
+          <div class="space-y-2">
+            <!-- DHL Standard -->
+            <label class="p-3 rounded-xl border flex items-center justify-between cursor-pointer transition"
+              [class.bg-indigo-500/10]="form.get('shippingMethod')?.value === 'dhl_standard'"
+              [class.border-indigo-500/50]="form.get('shippingMethod')?.value === 'dhl_standard'"
+              [class.bg-rf-subtle]="form.get('shippingMethod')?.value !== 'dhl_standard'"
+              [class.border-rf-border]="form.get('shippingMethod')?.value !== 'dhl_standard'"
+            >
+              <div class="flex items-center gap-3">
+                <input
+                  type="radio"
+                  formControlName="shippingMethod"
+                  value="dhl_standard"
+                  class="text-indigo-600 cursor-pointer"
+                />
+                <div>
+                  <strong class="text-xs text-rf-text-primary block">DHL Paket (Versichert & Tracking)</strong>
+                  <span class="text-[10px] text-rf-text-muted">Lieferung in 1-3 Werktagen</span>
+                </div>
+              </div>
+              <span class="font-mono font-bold text-xs text-rf-text-primary">
+                {{ storeService.cartShippingCost() === 0 ? 'Kostenlos' : (storeService.storeSettings().shippingFlatRate | currency:'EUR':'symbol':'1.2-2':'de') }}
+              </span>
+            </label>
+
+            <!-- Pickup -->
+            <label class="p-3 rounded-xl border flex items-center justify-between cursor-pointer transition"
+              [class.bg-indigo-500/10]="form.get('shippingMethod')?.value === 'pickup'"
+              [class.border-indigo-500/50]="form.get('shippingMethod')?.value === 'pickup'"
+              [class.bg-rf-subtle]="form.get('shippingMethod')?.value !== 'pickup'"
+              [class.border-rf-border]="form.get('shippingMethod')?.value !== 'pickup'"
+            >
+              <div class="flex items-center gap-3">
+                <input
+                  type="radio"
+                  formControlName="shippingMethod"
+                  value="pickup"
+                  class="text-indigo-600 cursor-pointer"
+                />
+                <div>
+                  <strong class="text-xs text-rf-text-primary block">Kostenlose Selbstabholung</strong>
+                  <span class="text-[10px] text-rf-text-muted">Nach Terminabsprache vor Ort</span>
+                </div>
+              </div>
+              <span class="font-mono font-bold text-xs text-emerald-400">0,00 €</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 3. Payment Method -->
+        <div class="linear-surface rounded-2xl p-6 space-y-3 shadow-xl">
+          <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
+            <span class="w-5 h-5 rounded-full bg-indigo-500/20 text-indigo-400 font-bold text-[11px] flex items-center justify-center">3</span>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Zahlungsart</h2>
+          </div>
+
+          <div class="space-y-2">
+            <!-- PayPal -->
+            <label class="p-3 rounded-xl border flex items-center justify-between cursor-pointer transition"
+              [class.bg-indigo-500/10]="form.get('paymentMethod')?.value === 'paypal'"
+              [class.border-indigo-500/50]="form.get('paymentMethod')?.value === 'paypal'"
+              [class.bg-rf-subtle]="form.get('paymentMethod')?.value !== 'paypal'"
+              [class.border-rf-border]="form.get('paymentMethod')?.value !== 'paypal'"
+            >
+              <div class="flex items-center gap-3">
+                <input
+                  type="radio"
+                  formControlName="paymentMethod"
+                  value="paypal"
+                  class="text-indigo-600 cursor-pointer"
+                />
+                <div class="flex items-center gap-2">
+                  <lucide-icon [img]="cardIcon" class="w-4 h-4 text-blue-400"></lucide-icon>
+                  <div>
+                    <strong class="text-xs text-rf-text-primary block">PayPal / Käuferschutz</strong>
+                    <span class="text-[10px] text-rf-text-muted">Sicher und direkt online bezahlen</span>
+                  </div>
+                </div>
+              </div>
+            </label>
+
+            <!-- Bank Transfer -->
+            <label class="p-3 rounded-xl border flex items-center justify-between cursor-pointer transition"
+              [class.bg-indigo-500/10]="form.get('paymentMethod')?.value === 'bank_transfer'"
+              [class.border-indigo-500/50]="form.get('paymentMethod')?.value === 'bank_transfer'"
+              [class.bg-rf-subtle]="form.get('paymentMethod')?.value !== 'bank_transfer'"
+              [class.border-rf-border]="form.get('paymentMethod')?.value !== 'bank_transfer'"
+            >
+              <div class="flex items-center gap-3">
+                <input
+                  type="radio"
+                  formControlName="paymentMethod"
+                  value="bank_transfer"
+                  class="text-indigo-600 cursor-pointer"
+                />
+                <div class="flex items-center gap-2">
+                  <lucide-icon [img]="bankIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+                  <div>
+                    <strong class="text-xs text-rf-text-primary block">Banküberweisung / Vorkasse</strong>
+                    <span class="text-[10px] text-rf-text-muted">Bankverbindung wird nach der Bestellung angezeigt</span>
+                  </div>
+                </div>
+              </div>
+            </label>
+
+            <!-- Cash on Pickup -->
+            <label class="p-3 rounded-xl border flex items-center justify-between cursor-pointer transition"
+              [class.bg-indigo-500/10]="form.get('paymentMethod')?.value === 'cash_on_pickup'"
+              [class.border-indigo-500/50]="form.get('paymentMethod')?.value === 'cash_on_pickup'"
+              [class.bg-rf-subtle]="form.get('paymentMethod')?.value !== 'cash_on_pickup'"
+              [class.border-rf-border]="form.get('paymentMethod')?.value !== 'cash_on_pickup'"
+            >
+              <div class="flex items-center gap-3">
+                <input
+                  type="radio"
+                  formControlName="paymentMethod"
+                  value="cash_on_pickup"
+                  class="text-indigo-600 cursor-pointer"
+                />
+                <div class="flex items-center gap-2">
+                  <lucide-icon [img]="cashIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+                  <div>
+                    <strong class="text-xs text-rf-text-primary block">Barzahlung bei Abholung</strong>
+                    <span class="text-[10px] text-rf-text-muted">Passend bei Warenübergabe</span>
+                  </div>
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Order Summary & Place Order Button (5 cols) -->
+      <div class="lg:col-span-5 space-y-4">
+        <div class="linear-surface rounded-2xl p-6 space-y-4 shadow-xl sticky top-24">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary border-b border-rf-border pb-2">
+            Bestellübersicht ({{ storeService.cartItemCount() }} Artikel)
+          </h3>
+
+          <!-- Items Strip -->
+          <div class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+            @for (cartItem of storeService.cart(); track cartItem.item.id) {
+              <div class="flex items-center justify-between gap-2 text-xs">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="w-5 h-5 rounded bg-rf-subtle text-rf-text-muted font-mono text-[10px] font-bold flex items-center justify-center shrink-0">
+                    {{ cartItem.quantity }}x
+                  </span>
+                  <span class="text-rf-text-primary truncate font-medium">{{ cartItem.item.title }}</span>
+                </div>
+                <span class="font-mono font-bold text-rf-text-primary shrink-0">
+                  {{ ((cartItem.item.expected_value || cartItem.item.allocated_purchase_cost * 1.5) * cartItem.quantity) | currency:'EUR':'symbol':'1.2-2':'de' }}
+                </span>
+              </div>
+            }
+          </div>
+
+          <!-- Cost Calculations -->
+          <div class="pt-3 border-t border-rf-border space-y-1.5 text-xs">
+            <div class="flex justify-between text-rf-text-muted">
+              <span>Zwischensumme:</span>
+              <span class="font-mono text-rf-text-secondary">{{ storeService.cartSubtotal() | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+            </div>
+            <div class="flex justify-between text-rf-text-muted">
+              <span>Versandkosten:</span>
+              <span class="font-mono text-rf-text-secondary">
+                @if (form.get('shippingMethod')?.value === 'pickup' || storeService.cartShippingCost() === 0) {
+                  <span class="text-emerald-400 font-bold">Kostenlos</span>
+                } @else {
+                  {{ storeService.cartShippingCost() | currency:'EUR':'symbol':'1.2-2':'de' }}
+                }
+              </span>
+            </div>
+
+            <div class="flex justify-between text-base font-bold text-rf-text-primary pt-2 border-t border-rf-border">
+              <span>Endbetrag:</span>
+              <span class="font-mono text-xl text-emerald-400">
+                {{ (storeService.cartSubtotal() + (form.get('shippingMethod')?.value === 'pickup' ? 0 : storeService.cartShippingCost())) | currency:'EUR':'symbol':'1.2-2':'de' }}
+              </span>
+            </div>
+
+            <p class="text-[10px] text-rf-text-dimmed pt-0.5">
+              {{ storeService.storeSettings().noticeText }}
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            [disabled]="isSubmitting() || form.invalid"
+            class="linear-btn-primary w-full py-3.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 transition disabled:opacity-40"
+          >
+            <lucide-icon [img]="lockIcon" class="w-4 h-4"></lucide-icon>
+            <span>{{ isSubmitting() ? 'Bestellung wird verarbeitet...' : 'Jetzt zahlungspflichtig bestellen' }}</span>
+          </button>
+        </div>
+      </div>
+    </form>
+  }
+</div>

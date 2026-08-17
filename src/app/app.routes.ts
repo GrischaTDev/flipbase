@@ -1,7 +1,45 @@
 import { Routes } from '@angular/router';
 import { ShellComponent } from './layout/shell/shell.component';
+import { StoreLayoutComponent } from './features/store/store-layout/store-layout.component';
 
 export const routes: Routes = [
+  // Public Customer Storefront Routes
+  {
+    path: 'shop',
+    component: StoreLayoutComponent,
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./features/store/pages/store-catalog/store-catalog.component').then(
+            (m) => m.StoreCatalogComponent
+          ),
+      },
+      {
+        path: 'item/:id',
+        loadComponent: () =>
+          import('./features/store/pages/store-item-detail/store-item-detail.component').then(
+            (m) => m.StoreItemDetailComponent
+          ),
+      },
+      {
+        path: 'checkout',
+        loadComponent: () =>
+          import('./features/store/pages/store-checkout/store-checkout.component').then(
+            (m) => m.StoreCheckoutComponent
+          ),
+      },
+      {
+        path: 'order-success/:orderId',
+        loadComponent: () =>
+          import('./features/store/pages/store-order-success/store-order-success.component').then(
+            (m) => m.StoreOrderSuccessComponent
+          ),
+      },
+    ],
+  },
+
+  // Auth Routes
   {
     path: 'auth',
     children: [
@@ -22,6 +60,8 @@ export const routes: Routes = [
       },
     ],
   },
+
+  // Protected Admin OS Dashboard & Workspace
   {
     path: '',
     component: ShellComponent,

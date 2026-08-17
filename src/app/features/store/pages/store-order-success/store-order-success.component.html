@@ -1,0 +1,76 @@
+<div class="max-w-2xl mx-auto py-8 space-y-6 animate-fade-in select-none">
+  @if (order(); as ord) {
+    <!-- Success Banner Card -->
+    <div class="linear-surface rounded-3xl p-8 text-center space-y-4 border border-emerald-500/40 shadow-2xl">
+      <div class="w-16 h-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 mx-auto flex items-center justify-center shadow-lg">
+        <lucide-icon [img]="checkIcon" class="w-8 h-8"></lucide-icon>
+      </div>
+
+      <div class="space-y-1">
+        <span class="text-xs uppercase font-bold tracking-wider text-emerald-400">Bestellung erfolgreich eingegangen!</span>
+        <h1 class="text-2xl font-black text-rf-text-primary">Vielen Dank für deinen Einkauf!</h1>
+        <p class="text-xs text-rf-text-muted">
+          Bestellnummer: <strong class="font-mono text-rf-text-primary">{{ ord.orderNumber }}</strong>
+        </p>
+      </div>
+
+      <div class="p-4 rounded-xl bg-rf-subtle border border-rf-border text-xs text-rf-text-secondary text-left space-y-2">
+        <div class="flex justify-between">
+          <span class="text-rf-text-muted">Kunde:</span>
+          <strong>{{ ord.customer.firstName }} {{ ord.customer.lastName }}</strong>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-rf-text-muted">Lieferadresse:</span>
+          <span>{{ ord.customer.street }} {{ ord.customer.houseNumber }}, {{ ord.customer.zip }} {{ ord.customer.city }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-rf-text-muted">Gesamtbetrag:</span>
+          <strong class="font-mono text-emerald-400 text-sm">{{ ord.total | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+        </div>
+      </div>
+
+      <!-- Payment Instructions if Bank Transfer -->
+      @if (ord.customer.paymentMethod === 'bank_transfer') {
+        <div class="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-left space-y-2 text-xs">
+          <div class="flex items-center gap-2 font-bold text-indigo-300">
+            <lucide-icon [img]="bankIcon" class="w-4 h-4"></lucide-icon>
+            <span>Überweisungsinformationen</span>
+          </div>
+          <p class="text-[11px] text-rf-text-muted">
+            Bitte überweise den Gesamtbetrag von <strong>{{ ord.total | currency:'EUR':'symbol':'1.2-2':'de' }}</strong> auf folgendes Bankkonto:
+          </p>
+          <div class="font-mono text-[11px] bg-rf-surface p-2.5 rounded-lg border border-rf-border space-y-1">
+            <div>Empfänger: <strong>ReFlip Reselling</strong></div>
+            <div>IBAN: <strong>DE89 3704 0044 0532 0130 00</strong></div>
+            <div>BIC: <strong>DBBDEFFXXX</strong></div>
+            <div>Verwendungszweck: <strong>{{ ord.orderNumber }}</strong></div>
+          </div>
+        </div>
+      }
+
+      <div class="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <a
+          routerLink="/shop"
+          class="linear-btn-primary px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
+        >
+          <lucide-icon [img]="bagIcon" class="w-4 h-4"></lucide-icon>
+          <span>Weiter einkaufen</span>
+        </a>
+
+        <a
+          routerLink="/dashboard"
+          class="linear-btn-secondary px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer"
+        >
+          <span>Zum Händler-Dashboard</span>
+        </a>
+      </div>
+    </div>
+  } @else {
+    <div class="linear-surface rounded-2xl p-12 text-center space-y-3">
+      <h3 class="text-base font-bold text-rf-text-primary">Bestellung nicht gefunden</h3>
+      <a routerLink="/shop" class="linear-btn-primary inline-flex px-4 py-2 rounded-xl text-xs font-bold">
+        Zum Shop-Sortiment
+      </a>
+    </div>
+  }
+</div>

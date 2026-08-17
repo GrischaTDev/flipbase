@@ -43,6 +43,7 @@ export class SidebarComponent {
     { path: '/dashboard', labelKey: 'NAV.DASHBOARD', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/purchases', labelKey: 'NAV.PURCHASES', label: 'Einkäufe', icon: ShoppingBag },
     { path: '/inventory', labelKey: 'NAV.INVENTORY', label: 'Inventar', icon: Boxes },
+    { path: '/shop', labelKey: 'NAV.STORE', label: '🛍️ Mein Online-Shop', icon: Store },
     { path: '/research', labelKey: 'NAV.RESEARCH', label: 'Research', icon: Search },
     { path: '/deal-calculator', labelKey: 'NAV.DEAL_CALCULATOR', label: 'Deal Calculator', icon: Calculator },
     { path: '/listings', labelKey: 'NAV.LISTINGS', label: 'Listing Studio', icon: Tag },

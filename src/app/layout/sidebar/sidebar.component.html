@@ -38,10 +38,10 @@
   <!-- Navigation Links -->
   <nav class="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5">
     <div class="px-2 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-wider text-rf-text-muted">
-      Übersicht
+      Übersicht & Store
     </div>
     
-    @for (item of navItems.slice(0, 3); track item.path) {
+    @for (item of navItems.slice(0, 4); track item.path) {
       <a
         [routerLink]="item.path"
         routerLinkActive="bg-indigo-500/15 text-white font-semibold border-indigo-500/40"
@@ -57,7 +57,7 @@
       Werkzeuge & Ertrag
     </div>
 
-    @for (item of navItems.slice(3, 7); track item.path) {
+    @for (item of navItems.slice(4, 8); track item.path) {
       <a
         [routerLink]="item.path"
         routerLinkActive="bg-indigo-500/15 text-white font-semibold border-indigo-500/40"
@@ -73,7 +73,7 @@
       System & Daten
     </div>
 
-    @for (item of navItems.slice(7); track item.path) {
+    @for (item of navItems.slice(8); track item.path) {
       <a
         [routerLink]="item.path"
         routerLinkActive="bg-indigo-500/15 text-white font-semibold border-indigo-500/40"

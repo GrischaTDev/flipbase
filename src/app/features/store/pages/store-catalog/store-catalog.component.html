@@ -1,0 +1,187 @@
+<div class="space-y-6 animate-fade-in select-none">
+  <!-- Hero Banner -->
+  <div class="relative rounded-2xl overflow-hidden bg-gradient-to-br from-indigo-900/50 via-rf-surface to-rf-bg border border-rf-border p-6 md:p-10 shadow-xl">
+    <div class="max-w-2xl space-y-3 relative z-10">
+      <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-semibold">
+        <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5"></lucide-icon>
+        <span>Geprüfte Gebrauchtware & Schnäppchen</span>
+      </div>
+
+      <h1 class="text-2xl md:text-4xl font-extrabold text-rf-text-primary tracking-tight">
+        {{ storeService.storeSettings().storeName }}
+      </h1>
+
+      <p class="text-xs md:text-sm text-rf-text-muted leading-relaxed">
+        {{ storeService.storeSettings().tagline }} • Schneller Versand mit Sendungsverfolgung und 14 Tage Rückgaberecht.
+      </p>
+
+      <!-- Integrated Search Input in Hero -->
+      <div class="pt-2 max-w-lg">
+        <div class="relative">
+          <input
+            type="text"
+            [formControl]="searchControl"
+            placeholder="Produkt, Marke oder Modell suchen..."
+            class="linear-input w-full pl-9 pr-4 py-2.5 rounded-xl text-xs font-medium placeholder-rf-text-dimmed shadow-lg"
+          />
+          <lucide-icon [img]="searchIcon" class="w-4 h-4 text-rf-text-muted absolute left-3 top-1/2 -translate-y-1/2"></lucide-icon>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters & Sorting Bar -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2 border-b border-rf-border">
+    <!-- Category Filter Pills -->
+    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full text-xs">
+      <button
+        type="button"
+        (click)="selectedCategory.set('all')"
+        class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer shrink-0 border"
+        [class.bg-indigo-600]="selectedCategory() === 'all'"
+        [class.text-white]="selectedCategory() === 'all'"
+        [class.border-indigo-500]="selectedCategory() === 'all'"
+        [class.bg-rf-surface]="selectedCategory() !== 'all'"
+        [class.text-rf-text-secondary]="selectedCategory() !== 'all'"
+        [class.border-rf-border]="selectedCategory() !== 'all'"
+      >
+        Alle Artikel ({{ storeService.publicProducts().length }})
+      </button>
+
+      @for (cat of categories(); track cat) {
+        <button
+          type="button"
+          (click)="selectedCategory.set(cat)"
+          class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer shrink-0 border"
+          [class.bg-indigo-600]="selectedCategory() === cat"
+          [class.text-white]="selectedCategory() === cat"
+          [class.border-indigo-500]="selectedCategory() === cat"
+          [class.bg-rf-surface]="selectedCategory() !== cat"
+          [class.text-rf-text-secondary]="selectedCategory() !== cat"
+          [class.border-rf-border]="selectedCategory() !== cat"
+        >
+          {{ cat }}
+        </button>
+      }
+    </div>
+
+    <!-- Secondary Filters (Condition & Sort) -->
+    <div class="flex items-center gap-2 self-end md:self-auto text-xs">
+      <!-- Condition Filter -->
+      <select
+        [value]="selectedCondition()"
+        (change)="selectedCondition.set($any($event.target).value)"
+        class="linear-input px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer text-rf-text-secondary"
+      >
+        <option value="all">Alle Zustände</option>
+        <option value="new">Neu & OVP</option>
+        <option value="like_new">Wie neu</option>
+        <option value="very_good">Sehr gut</option>
+        <option value="used">Gebraucht</option>
+      </select>
+
+      <!-- Sort Filter -->
+      <select
+        [value]="sortBy()"
+        (change)="sortBy.set($any($event.target).value)"
+        class="linear-input px-2.5 py-1 rounded-lg text-xs font-medium cursor-pointer text-rf-text-secondary"
+      >
+        <option value="newest">Neueste zuerst</option>
+        <option value="price_asc">Preis: Günstigste zuerst</option>
+        <option value="price_desc">Preis: Höchste zuerst</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Product Catalog Grid -->
+  @if (filteredProducts().length === 0) {
+    <div class="linear-surface rounded-2xl p-16 text-center space-y-3">
+      <div class="w-12 h-12 rounded-xl bg-rf-subtle border border-rf-border text-rf-text-muted mx-auto flex items-center justify-center">
+        <lucide-icon [img]="searchIcon" class="w-6 h-6"></lucide-icon>
+      </div>
+      <h3 class="text-base font-bold text-rf-text-primary">Keine passenden Artikel gefunden</h3>
+      <p class="text-xs text-rf-text-muted max-w-sm mx-auto">
+        Passe deine Suchbegriffe oder Filter an, um andere Artikel aus unserem Sortiment anzuzeigen.
+      </p>
+    </div>
+  } @else {
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      @for (item of filteredProducts(); track item.id) {
+        <div class="linear-card rounded-2xl overflow-hidden flex flex-col group transition hover:border-rf-border-hover hover:shadow-xl">
+          <!-- Thumbnail & Quick Actions -->
+          <div class="relative aspect-square w-full bg-black/30 overflow-hidden flex items-center justify-center">
+            @if (getItemThumbnail(item); as thumb) {
+              <img
+                [src]="thumb"
+                [alt]="item.title"
+                class="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+              />
+            } @else {
+              <div class="w-full h-full flex flex-col items-center justify-center text-rf-text-dimmed bg-rf-subtle">
+                <lucide-icon [img]="tagIcon" class="w-10 h-10 mb-1"></lucide-icon>
+                <span class="text-[10px]">Produktbild folgt</span>
+              </div>
+            }
+
+            <!-- Condition Badge -->
+            <div class="absolute top-2.5 left-2.5">
+              @let badge = getConditionBadge(item.condition);
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold border backdrop-blur-xs {{ badge.class }}">
+                {{ badge.label }}
+              </span>
+            </div>
+
+            <!-- View Product Link overlay -->
+            <a
+              [routerLink]="['/shop/item', item.id]"
+              class="absolute inset-0 z-10"
+              [title]="item.title"
+            ></a>
+          </div>
+
+          <!-- Card Body -->
+          <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
+            <div>
+              <div class="flex items-center gap-1.5 text-[10px] text-rf-text-muted mb-1">
+                <span>{{ item.category || 'Gebrauchtware' }}</span>
+                @if (item.brand) {
+                  <span>•</span>
+                  <span>{{ item.brand }}</span>
+                }
+              </div>
+
+              <a
+                [routerLink]="['/shop/item', item.id]"
+                class="font-bold text-xs text-rf-text-primary hover:text-indigo-400 transition line-clamp-2"
+              >
+                {{ item.title }}
+              </a>
+            </div>
+
+            <!-- Price & Buy Action -->
+            <div class="pt-2 border-t border-rf-border flex items-center justify-between">
+              <div>
+                <span class="text-base font-black font-mono text-rf-text-primary block leading-none">
+                  {{ getItemPrice(item) | currency:'EUR':'symbol':'1.2-2':'de' }}
+                </span>
+                <span class="text-[9px] text-rf-text-dimmed block mt-0.5">
+                  inkl. MwSt. gem. § 25a
+                </span>
+              </div>
+
+              <button
+                type="button"
+                (click)="storeService.addToCart(item)"
+                class="linear-btn-primary p-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer transition relative z-20 shadow-xs"
+                title="In den Warenkorb"
+              >
+                <lucide-icon [img]="bagIcon" class="w-3.5 h-3.5"></lucide-icon>
+                <span>Kaufen</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

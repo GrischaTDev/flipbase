@@ -11,6 +11,16 @@
 
     <div class="flex items-center gap-2">
       <a
+        [routerLink]="['/shop/item', inventoryService.selectedItem()?.id]"
+        target="_blank"
+        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-300 hover:text-white"
+        title="Im Online-Shop ansehen"
+      >
+        <lucide-icon [img]="storeIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+        <span>Im Shop ansehen</span>
+      </a>
+
+      <a
         [routerLink]="['/research']"
         [queryParams]="{ query: inventoryService.selectedItem()?.title }"
         class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
