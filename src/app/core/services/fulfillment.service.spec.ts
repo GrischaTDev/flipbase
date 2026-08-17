@@ -9,6 +9,38 @@ describe('Fulfillment & Shipping Label Engine', () => {
 
   beforeEach(() => {
     service = Object.create(FulfillmentService.prototype);
+    service.availableRates = [
+      {
+        id: 'dhl-paket-2kg',
+        carrier: 'dhl',
+        name: 'DHL Paket bis 2 kg',
+        description: 'Ideal für Schuhe, Konsolen, Kleingeräte.',
+        price: 5.49,
+        weightLimitKg: 2,
+        dimensions: '60 × 30 × 15 cm',
+        isTrackingIncluded: true,
+        isInsuranceIncluded: true,
+      },
+      {
+        id: 'hermes-s',
+        carrier: 'hermes',
+        name: 'Hermes S-Paket',
+        description: 'Günstiger Paketversand',
+        price: 4.95,
+        weightLimitKg: 25,
+        dimensions: 'Längste + kürzeste Seite bis 50 cm',
+        isTrackingIncluded: true,
+        isInsuranceIncluded: true,
+      },
+    ];
+    service['carrierConfig'] = signal({
+      dhlEnabled: true,
+      dhlEkp: '5003429180',
+      dhlApiKey: 'live_key_test',
+      hermesEnabled: true,
+      hermesClientId: 'H-DE-99',
+      hermesApiKey: 'live_hermes_token',
+    });
     service['orders'] = signal<ShippingOrder[]>([
       {
         id: 'ship-1',
@@ -70,6 +102,31 @@ describe('Fulfillment & Shipping Label Engine', () => {
     const hermesUrl = service.getTrackingUrl('hermes', '02345678901234');
     expect(hermesUrl).toContain('myhermes.de');
     expect(hermesUrl).toContain('02345678901234');
+  });
+
+  it('should purchase a DHL shipping label and update order status', async () => {
+    const res = await service.purchaseShippingLabel('ship-1', 'dhl-paket-2kg');
+
+    expect(res.success).toBe(true);
+    expect(res.trackingNumber).toContain('00340434');
+    expect(res.trackingUrl).toContain('dhl.de');
+
+    const order = service.orders().find((o) => o.id === 'ship-1');
+    expect(order?.status).toBe('label_printed');
+    expect(order?.label_price).toBe(5.49);
+    expect(order?.tracking_number).toBe(res.trackingNumber);
+  });
+
+  it('should purchase a Hermes shipping label and update order status', async () => {
+    const res = await service.purchaseShippingLabel('ship-1', 'hermes-s');
+
+    expect(res.success).toBe(true);
+    expect(res.trackingNumber).toContain('0234');
+    expect(res.trackingUrl).toContain('myhermes.de');
+
+    const order = service.orders().find((o) => o.id === 'ship-1');
+    expect(order?.status).toBe('label_printed');
+    expect(order?.carrier).toBe('hermes');
   });
 
   it('should correctly update order status to shipped with tracking number', () => {

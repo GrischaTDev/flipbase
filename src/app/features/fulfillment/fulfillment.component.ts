@@ -17,6 +17,8 @@ import {
   AlertTriangle,
   X,
   MapPin,
+  Zap,
+  CreditCard,
 } from 'lucide-angular';
 import { FulfillmentService } from '../../core/services/fulfillment.service';
 import { CarrierType, ShippingOrder, ShippingStatus } from '../../core/models/fulfillment.models';
@@ -44,6 +46,8 @@ export class FulfillmentComponent {
   readonly alertIcon = AlertTriangle;
   readonly closeIcon = X;
   readonly pinIcon = MapPin;
+  readonly zapIcon = Zap;
+  readonly cardIcon = CreditCard;
 
   readonly selectedStatusTab = signal<ShippingStatus | 'all'>('ready_to_pack');
   readonly searchQuery = signal<string>('');
@@ -52,6 +56,11 @@ export class FulfillmentComponent {
   readonly isLabelModalOpen = signal<boolean>(false);
   readonly isSlipModalOpen = signal<boolean>(false);
   readonly isTrackingModalOpen = signal<boolean>(false);
+  readonly isPurchaseModalOpen = signal<boolean>(false);
+
+  readonly selectedOrderForPurchase = signal<ShippingOrder | null>(null);
+  readonly selectedRateId = signal<string>('dhl-paket-2kg');
+  readonly isPurchasing = signal<boolean>(false);
 
   readonly trackingOrderId = signal<string>('');
   readonly trackingForm = new FormGroup({
@@ -59,32 +68,72 @@ export class FulfillmentComponent {
     trackingNumber: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(5)] }),
   });
 
-  readonly filteredOrders = computed<ShippingOrder[]>(() => {
-    const status = this.selectedStatusTab();
-    const q = this.searchQuery().toLowerCase().trim();
+  readonly filteredOrders = computed(() => {
+    let list = this.fulfillmentService.orders();
+    const tab = this.selectedStatusTab();
+    const query = this.searchQuery().toLowerCase().trim();
 
-    return this.fulfillmentService.orders().filter((o) => {
-      const matchStatus = status === 'all' || o.status === status || (status === 'ready_to_pack' && o.status === 'label_printed');
-      const matchQuery =
-        !q ||
-        o.order_number.toLowerCase().includes(q) ||
-        o.item_title.toLowerCase().includes(q) ||
-        o.customer.name.toLowerCase().includes(q) ||
-        o.customer.city.toLowerCase().includes(q) ||
-        (o.tracking_number && o.tracking_number.toLowerCase().includes(q));
+    if (tab !== 'all') {
+      if (tab === 'ready_to_pack') {
+        list = list.filter((o) => o.status === 'ready_to_pack' || o.status === 'label_printed');
+      } else {
+        list = list.filter((o) => o.status === tab);
+      }
+    }
 
-      return matchStatus && matchQuery;
-    });
+    if (query) {
+      list = list.filter(
+        (o) =>
+          o.order_number.toLowerCase().includes(query) ||
+          o.item_title.toLowerCase().includes(query) ||
+          o.customer.name.toLowerCase().includes(query) ||
+          o.customer.city.toLowerCase().includes(query) ||
+          (o.tracking_number && o.tracking_number.toLowerCase().includes(query))
+      );
+    }
+
+    return list;
   });
+
+  openPurchaseModal(order: ShippingOrder): void {
+    this.selectedOrderForPurchase.set(order);
+    this.selectedRateId.set(order.carrier === 'hermes' ? 'hermes-s' : 'dhl-paket-2kg');
+    this.isPurchaseModalOpen.set(true);
+  }
+
+  closePurchaseModal(): void {
+    this.isPurchaseModalOpen.set(false);
+    this.selectedOrderForPurchase.set(null);
+  }
+
+  async onConfirmPurchaseLabel(): Promise<void> {
+    const order = this.selectedOrderForPurchase();
+    if (!order) return;
+
+    this.isPurchasing.set(true);
+    try {
+      await this.fulfillmentService.purchaseShippingLabel(order.id, this.selectedRateId());
+      this.isPurchasing.set(false);
+      this.isPurchaseModalOpen.set(false);
+      // Open printable label right after purchase
+      const updatedOrder = this.fulfillmentService.orders().find((o) => o.id === order.id);
+      if (updatedOrder) {
+        this.openLabelModal(updatedOrder);
+      }
+    } catch (e) {
+      this.isPurchasing.set(false);
+      console.error('Carrier label purchase error:', e);
+    }
+  }
 
   openLabelModal(order: ShippingOrder): void {
     this.fulfillmentService.selectedOrderForLabel.set(order);
-    this.fulfillmentService.markAsPrinted(order.id);
     this.isLabelModalOpen.set(true);
   }
 
   closeLabelModal(): void {
     this.isLabelModalOpen.set(false);
+    this.fulfillmentService.selectedOrderForLabel.set(null);
   }
 
   openSlipModal(order: ShippingOrder): void {
@@ -94,12 +143,13 @@ export class FulfillmentComponent {
 
   closeSlipModal(): void {
     this.isSlipModalOpen.set(false);
+    this.fulfillmentService.selectedOrderForSlip.set(null);
   }
 
   openTrackingModal(order: ShippingOrder): void {
     this.trackingOrderId.set(order.id);
     this.trackingForm.patchValue({
-      carrier: order.carrier || 'dhl',
+      carrier: order.carrier,
       trackingNumber: order.tracking_number || '',
     });
     this.isTrackingModalOpen.set(true);
@@ -107,11 +157,11 @@ export class FulfillmentComponent {
 
   closeTrackingModal(): void {
     this.isTrackingModalOpen.set(false);
+    this.trackingOrderId.set('');
   }
 
   onSaveTracking(): void {
     if (this.trackingForm.invalid) return;
-
     const { carrier, trackingNumber } = this.trackingForm.getRawValue();
     this.fulfillmentService.markAsShipped(this.trackingOrderId(), trackingNumber, carrier);
     this.closeTrackingModal();
@@ -122,6 +172,10 @@ export class FulfillmentComponent {
   }
 
   printDocument(): void {
+    window.print();
+  }
+
+  printCurrentDocument(): void {
     window.print();
   }
 }

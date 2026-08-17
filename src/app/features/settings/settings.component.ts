@@ -27,6 +27,8 @@ import {
   Wifi,
   WifiOff,
   CreditCard,
+  Truck,
+  Package,
 } from 'lucide-angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ExportService } from '../../core/services/export.service';
@@ -38,6 +40,7 @@ import { WorkspaceMemberService } from '../../core/services/workspace-member.ser
 import { WebhookService } from '../../core/services/webhook.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { StoreService } from '../../core/services/store.service';
+import { FulfillmentService } from '../../core/services/fulfillment.service';
 import { WorkspaceRole } from '../../core/models/reflip.models';
 
 @Component({
@@ -58,10 +61,13 @@ export class SettingsComponent {
   readonly webhookService = inject(WebhookService);
   readonly pwaService = inject(PwaService);
   readonly storeService = inject(StoreService);
+  readonly fulfillmentService = inject(FulfillmentService);
   readonly translate = inject(TranslateService);
 
   readonly settingsIcon = Settings;
   readonly cardIcon = CreditCard;
+  readonly truckIcon = Truck;
+  readonly packageIcon = Package;
   readonly downloadIcon = Download;
   readonly saveIcon = Save;
   readonly checkIcon = CheckCircle2;
@@ -125,6 +131,7 @@ export class SettingsComponent {
   });
 
   readonly paymentSaveSuccess = signal<boolean>(false);
+  readonly carrierSaveSuccess = signal<boolean>(false);
 
   readonly paymentForm = new FormGroup({
     stripeEnabled: new FormControl(true),
@@ -136,6 +143,15 @@ export class SettingsComponent {
     bankBic: new FormControl(''),
     bankAccountHolder: new FormControl(''),
     cashOnPickupEnabled: new FormControl(true),
+  });
+
+  readonly carrierForm = new FormGroup({
+    dhlEnabled: new FormControl(true),
+    dhlEkp: new FormControl(''),
+    dhlApiKey: new FormControl(''),
+    hermesEnabled: new FormControl(true),
+    hermesClientId: new FormControl(''),
+    hermesApiKey: new FormControl(''),
   });
 
   readonly inviteForm = new FormGroup({
@@ -175,6 +191,16 @@ export class SettingsComponent {
       bankAccountHolder: pm.bankAccountHolder,
       cashOnPickupEnabled: pm.cashOnPickupEnabled,
     });
+
+    const cCfg = this.fulfillmentService.carrierConfig();
+    this.carrierForm.patchValue({
+      dhlEnabled: cCfg.dhlEnabled,
+      dhlEkp: cCfg.dhlEkp,
+      dhlApiKey: cCfg.dhlApiKey,
+      hermesEnabled: cCfg.hermesEnabled,
+      hermesClientId: cCfg.hermesClientId,
+      hermesApiKey: cCfg.hermesApiKey,
+    });
   }
 
   onSavePaymentConfig(): void {
@@ -193,6 +219,21 @@ export class SettingsComponent {
 
     this.paymentSaveSuccess.set(true);
     setTimeout(() => this.paymentSaveSuccess.set(false), 3000);
+  }
+
+  onSaveCarrierConfig(): void {
+    const val = this.carrierForm.getRawValue();
+    this.fulfillmentService.updateCarrierConfig({
+      dhlEnabled: !!val.dhlEnabled,
+      dhlEkp: val.dhlEkp?.trim() || '',
+      dhlApiKey: val.dhlApiKey?.trim() || '',
+      hermesEnabled: !!val.hermesEnabled,
+      hermesClientId: val.hermesClientId?.trim() || '',
+      hermesApiKey: val.hermesApiKey?.trim() || '',
+    });
+
+    this.carrierSaveSuccess.set(true);
+    setTimeout(() => this.carrierSaveSuccess.set(false), 3000);
   }
 
   async onSaveSettings(): Promise<void> {

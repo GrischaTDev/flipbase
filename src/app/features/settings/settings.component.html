@@ -538,6 +538,104 @@
         </div>
       </form>
 
+      <!-- 🚚 Carrier-APIs & Versanddienstleister (DHL & Hermes) -->
+      <form [formGroup]="carrierForm" (ngSubmit)="onSaveCarrierConfig()" class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between pb-2 border-b border-rf-border">
+          <div class="flex items-center gap-2">
+            <lucide-icon [img]="truckIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+              Carrier-APIs & Packtisch
+            </h2>
+          </div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
+            DHL & Hermes
+          </span>
+        </div>
+
+        <p class="text-[11px] text-rf-text-muted leading-relaxed">
+          Hinterlege Zugangsdaten für automatischen Versandmarken-Kauf und Tracking-Generierung.
+        </p>
+
+        @if (carrierSaveSuccess()) {
+          <div class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
+            <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+            <span>Carrier-Konfiguration erfolgreich gespeichert!</span>
+          </div>
+        }
+
+        <div class="space-y-3">
+          <!-- 1. DHL API -->
+          <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-sm">🟡</span>
+                <strong class="text-xs text-rf-text-primary">DHL Geschäftskundenversand (GKP)</strong>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" formControlName="dhlEnabled" class="sr-only peer" />
+                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600 border border-rf-border"></div>
+              </label>
+            </div>
+            @if (carrierForm.get('dhlEnabled')?.value) {
+              <div class="grid grid-cols-2 gap-2 pt-1 animate-fade-in text-xs">
+                <input
+                  type="text"
+                  formControlName="dhlEkp"
+                  placeholder="DHL EKP (Kundennr. z. B. 5001234567)"
+                  class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
+                />
+                <input
+                  type="text"
+                  formControlName="dhlApiKey"
+                  placeholder="DHL API-Key / Passwort"
+                  class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
+                />
+              </div>
+            }
+          </div>
+
+          <!-- 2. Hermes API -->
+          <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="text-sm">🔵</span>
+                <strong class="text-xs text-rf-text-primary">Hermes Versand-API</strong>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" formControlName="hermesEnabled" class="sr-only peer" />
+                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 border border-rf-border"></div>
+              </label>
+            </div>
+            @if (carrierForm.get('hermesEnabled')?.value) {
+              <div class="grid grid-cols-2 gap-2 pt-1 animate-fade-in text-xs">
+                <input
+                  type="text"
+                  formControlName="hermesClientId"
+                  placeholder="Hermes Client-ID / Account-ID"
+                  class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
+                />
+                <input
+                  type="text"
+                  formControlName="hermesApiKey"
+                  placeholder="Hermes API-Token"
+                  class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
+                />
+              </div>
+            }
+          </div>
+        </div>
+
+        <div class="pt-2 border-t border-rf-border flex justify-end">
+          <button
+            type="submit"
+            class="linear-btn-primary px-4 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+          >
+            <lucide-icon [img]="saveIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <span>Carrier-Einstellungen speichern</span>
+          </button>
+        </div>
+      </form>
+
       <!-- 📱 Progressive Web App (PWA) & Mobile Installation Card -->
       <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">

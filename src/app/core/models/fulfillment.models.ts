@@ -13,6 +13,27 @@ export interface AddressInfo {
   email?: string;
 }
 
+export interface CarrierRate {
+  id: string;
+  carrier: CarrierType;
+  name: string;
+  description: string;
+  price: number;
+  weightLimitKg: number;
+  dimensions: string;
+  isTrackingIncluded: boolean;
+  isInsuranceIncluded: boolean;
+}
+
+export interface CarrierConfig {
+  dhlEnabled: boolean;
+  dhlEkp: string; // DHL Kundennummer (10- oder 14-stellig)
+  dhlApiKey: string;
+  hermesEnabled: boolean;
+  hermesClientId: string;
+  hermesApiKey: string;
+}
+
 export interface ShippingOrder {
   id: string;
   workspace_id: string;
@@ -31,6 +52,8 @@ export interface ShippingOrder {
   tracking_url?: string;
   status: ShippingStatus;
   notes?: string;
+  label_price?: number;
+  carrier_transaction_id?: string;
   created_at: string;
   shipped_at?: string;
 }

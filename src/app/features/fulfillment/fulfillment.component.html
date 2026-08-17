@@ -206,6 +206,17 @@
           }
 
           <div class="flex flex-wrap items-center gap-2">
+            <!-- Buy Carrier Label Button -->
+            <button
+              type="button"
+              (click)="openPurchaseModal(order)"
+              class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer text-emerald-300 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 shadow-sm"
+              title="DHL / Hermes Versandmarke via Carrier API buchen"
+            >
+              <lucide-icon [img]="zapIcon" class="w-3.5 h-3.5 text-emerald-400"></lucide-icon>
+              <span>⚡ Label kaufen</span>
+            </button>
+
             <!-- Print Label Button -->
             <button
               type="button"
@@ -546,5 +557,130 @@
         </form>
       </div>
     </div>
+  }
+
+  <!-- ⚡ Live Carrier Label Purchase Modal (DHL / Hermes) -->
+  @if (isPurchaseModalOpen(); as order) {
+    @let targetOrder = selectedOrderForPurchase();
+    @if (targetOrder) {
+      <div
+        class="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in select-none"
+        (click)="closePurchaseModal()"
+      >
+        <div
+          class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl p-6 space-y-5"
+          (click)="$event.stopPropagation()"
+        >
+          <!-- Header -->
+          <div class="flex items-start justify-between border-b border-rf-border pb-3">
+            <div class="flex items-center gap-2">
+              <div class="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+                <lucide-icon [img]="zapIcon" class="w-4 h-4"></lucide-icon>
+              </div>
+              <div>
+                <h3 class="text-base font-bold text-rf-text-primary">Versandmarke direkt kaufen</h3>
+                <p class="text-xs text-rf-text-muted mt-0.5">Offizielles DHL- oder Hermes-Versandetikett buchen.</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              (click)="closePurchaseModal()"
+              class="p-1 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
+            >
+              <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+            </button>
+          </div>
+
+          <!-- Order Summary Pill -->
+          <div class="p-3 rounded-2xl bg-rf-subtle border border-rf-border text-xs space-y-1">
+            <div class="flex justify-between">
+              <span class="text-rf-text-muted">Empfänger:</span>
+              <strong class="text-rf-text-primary">{{ targetOrder.customer.name }} ({{ targetOrder.customer.postal_code }} {{ targetOrder.customer.city }})</strong>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-rf-text-muted">Artikel:</span>
+              <span class="text-rf-text-secondary truncate max-w-[280px]">{{ targetOrder.item_title }}</span>
+            </div>
+          </div>
+
+          <!-- Rate Selection List -->
+          <div class="space-y-2.5">
+            <label class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">
+              Wähle Paketklasse & Versandtarif:
+            </label>
+
+            <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
+              @for (rate of fulfillmentService.availableRates; track rate.id) {
+                <label
+                  class="p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition"
+                  [class.bg-indigo-500/10]="selectedRateId() === rate.id"
+                  [class.border-indigo-500/50]="selectedRateId() === rate.id"
+                  [class.bg-rf-subtle]="selectedRateId() !== rate.id"
+                  [class.border-rf-border]="selectedRateId() !== rate.id"
+                  (click)="selectedRateId.set(rate.id)"
+                >
+                  <div class="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="selectedRate"
+                      [checked]="selectedRateId() === rate.id"
+                      class="text-indigo-600 cursor-pointer"
+                    />
+                    <div>
+                      <div class="flex items-center gap-1.5">
+                        <strong class="text-xs text-rf-text-primary block">{{ rate.name }}</strong>
+                        <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase"
+                          [class.bg-amber-500/20]="rate.carrier === 'dhl'"
+                          [class.text-amber-300]="rate.carrier === 'dhl'"
+                          [class.bg-blue-500/20]="rate.carrier === 'hermes'"
+                          [class.text-blue-300]="rate.carrier === 'hermes'"
+                        >
+                          {{ rate.carrier }}
+                        </span>
+                      </div>
+                      <p class="text-[10px] text-rf-text-muted mt-0.5">{{ rate.description }}</p>
+                    </div>
+                  </div>
+
+                  <div class="text-right shrink-0">
+                    <strong class="font-mono text-sm font-bold text-emerald-400">
+                      {{ rate.price | currency:'EUR':'symbol':'1.2-2':'de' }}
+                    </strong>
+                    <span class="text-[9px] text-rf-text-muted block">inkl. Tracking</span>
+                  </div>
+                </label>
+              }
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex justify-end gap-2 pt-3 border-t border-rf-border">
+            <button
+              type="button"
+              (click)="closePurchaseModal()"
+              class="linear-btn-secondary px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+            >
+              Abbrechen
+            </button>
+
+            <button
+              type="button"
+              (click)="onConfirmPurchaseLabel()"
+              [disabled]="isPurchasing()"
+              class="linear-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-40"
+            >
+              @if (isPurchasing()) {
+                <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <span>Marke wird gebucht...</span>
+              } @else {
+                <lucide-icon [img]="zapIcon" class="w-4 h-4"></lucide-icon>
+                <span>⚡ Jetzt kaufen & Label öffnen</span>
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    }
   }
 </div>
