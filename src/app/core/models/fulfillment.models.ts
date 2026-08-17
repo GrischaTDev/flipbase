@@ -56,4 +56,20 @@ export interface ShippingOrder {
   carrier_transaction_id?: string;
   created_at: string;
   shipped_at?: string;
+  is_bundled?: boolean;
+  bundled_order_ids?: string[];
+  bundled_item_titles?: string[];
+}
+
+export interface BundleCandidate {
+  customerKey: string;
+  customerName: string;
+  customerCity: string;
+  orders: ShippingOrder[];
+  itemsCount: number;
+  totalOrderValue: number;
+  individualShippingCost: number;
+  suggestedRate: CarrierRate;
+  bundledShippingCost: number;
+  potentialSavings: number;
 }

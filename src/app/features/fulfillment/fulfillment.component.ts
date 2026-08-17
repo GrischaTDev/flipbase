@@ -19,9 +19,19 @@ import {
   MapPin,
   Zap,
   CreditCard,
+  Layers,
+  Sparkles,
+  RotateCcw,
+  Boxes,
 } from 'lucide-angular';
 import { FulfillmentService } from '../../core/services/fulfillment.service';
-import { CarrierType, ShippingOrder, ShippingStatus } from '../../core/models/fulfillment.models';
+import {
+  BundleCandidate,
+  CarrierRate,
+  CarrierType,
+  ShippingOrder,
+  ShippingStatus,
+} from '../../core/models/fulfillment.models';
 
 @Component({
   selector: 'app-fulfillment',
@@ -48,6 +58,10 @@ export class FulfillmentComponent {
   readonly pinIcon = MapPin;
   readonly zapIcon = Zap;
   readonly cardIcon = CreditCard;
+  readonly layersIcon = Layers;
+  readonly sparklesIcon = Sparkles;
+  readonly returnIcon = RotateCcw;
+  readonly boxesIcon = Boxes;
 
   readonly selectedStatusTab = signal<ShippingStatus | 'all'>('ready_to_pack');
   readonly searchQuery = signal<string>('');
@@ -57,10 +71,14 @@ export class FulfillmentComponent {
   readonly isSlipModalOpen = signal<boolean>(false);
   readonly isTrackingModalOpen = signal<boolean>(false);
   readonly isPurchaseModalOpen = signal<boolean>(false);
+  readonly isBundleModalOpen = signal<boolean>(false);
 
   readonly selectedOrderForPurchase = signal<ShippingOrder | null>(null);
   readonly selectedRateId = signal<string>('dhl-paket-2kg');
   readonly isPurchasing = signal<boolean>(false);
+
+  readonly isBundling = signal<boolean>(false);
+  readonly bundleSuccessMsg = signal<string | null>(null);
 
   readonly trackingOrderId = signal<string>('');
   readonly trackingForm = new FormGroup({
@@ -95,6 +113,22 @@ export class FulfillmentComponent {
     return list;
   });
 
+  async onBundleCandidate(candidate: BundleCandidate): Promise<void> {
+    this.isBundling.set(true);
+    const bundled = await this.fulfillmentService.bundleOrders(candidate);
+    this.isBundling.set(false);
+    this.bundleSuccessMsg.set(
+      `Sammelpaket für ${candidate.customerName} erfolgreich erstellt! (${candidate.itemsCount} Artikel gebündelt, Ersparnis: ${candidate.potentialSavings.toFixed(2)} €)`
+    );
+    setTimeout(() => this.bundleSuccessMsg.set(null), 5000);
+  }
+
+  async onUnbundleOrder(order: ShippingOrder): Promise<void> {
+    if (confirm('Möchtest du dieses Sammelpaket wirklich wieder in Einzelsendungen aufteilen?')) {
+      await this.fulfillmentService.unbundleOrder(order.id);
+    }
+  }
+
   openPurchaseModal(order: ShippingOrder): void {
     this.selectedOrderForPurchase.set(order);
     this.selectedRateId.set(order.carrier === 'hermes' ? 'hermes-s' : 'dhl-paket-2kg');
@@ -115,7 +149,6 @@ export class FulfillmentComponent {
       await this.fulfillmentService.purchaseShippingLabel(order.id, this.selectedRateId());
       this.isPurchasing.set(false);
       this.isPurchaseModalOpen.set(false);
-      // Open printable label right after purchase
       const updatedOrder = this.fulfillmentService.orders().find((o) => o.id === order.id);
       if (updatedOrder) {
         this.openLabelModal(updatedOrder);

@@ -88,6 +88,91 @@
     </div>
   </div>
 
+  <!-- 📦 Intelligente Paket-Bündelung & Kombiversand-Banner -->
+  @if (bundleSuccessMsg(); as msg) {
+    <div class="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center justify-between animate-fade-in">
+      <div class="flex items-center gap-2">
+        <lucide-icon [img]="checkIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+        <span>{{ msg }}</span>
+      </div>
+      <button type="button" (click)="bundleSuccessMsg.set(null)" class="text-rf-text-muted hover:text-white cursor-pointer">
+        <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
+      </button>
+    </div>
+  }
+
+  @if (fulfillmentService.bundleCandidates().length > 0) {
+    <div class="linear-surface rounded-2xl p-5 border border-indigo-500/40 bg-indigo-500/5 shadow-2xl space-y-4 animate-fade-in">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-500/20">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center">
+            <lucide-icon [img]="boxesIcon" class="w-5 h-5"></lucide-icon>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-sm font-bold text-rf-text-primary">
+                📦 Intelligente Paket-Bündelung verfügbar ({{ fulfillmentService.bundleCandidates().length }} Vorschläge)
+              </h2>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                Kombiversand
+              </span>
+            </div>
+            <p class="text-xs text-rf-text-muted mt-0.5">
+              Mehrere unversendete Artikel an denselben Käufer erkannt. Fasse sie zu einem Sammelpaket zusammen und spare Porto!
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Candidates Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        @for (candidate of fulfillmentService.bundleCandidates(); track candidate.customerKey) {
+          <div class="p-4 rounded-xl bg-rf-subtle border border-rf-border flex flex-col justify-between space-y-3">
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <strong class="text-xs font-bold text-rf-text-primary">{{ candidate.customerName }}</strong>
+                  <span class="text-[10px] text-rf-text-muted">({{ candidate.customerCity }})</span>
+                </div>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  {{ candidate.itemsCount }} Artikel
+                </span>
+              </div>
+
+              <!-- Enclosed Orders List -->
+              <ul class="space-y-1 text-xs">
+                @for (ord of candidate.orders; track ord.id) {
+                  <li class="flex items-center justify-between text-rf-text-secondary">
+                    <span class="line-clamp-1 flex-1 pr-2">• {{ ord.item_title }}</span>
+                    <span class="font-mono text-rf-text-muted shrink-0">{{ ord.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+                  </li>
+                }
+              </ul>
+            </div>
+
+            <!-- Savings & Action Bar -->
+            <div class="pt-2 border-t border-rf-border flex items-center justify-between gap-3 text-xs">
+              <div class="font-mono">
+                <span class="text-[10px] text-rf-text-muted block font-sans">Empfohlener Tarif: {{ candidate.suggestedRate.name }}</span>
+                <span class="font-bold text-emerald-400">Ersparnis: ~{{ candidate.potentialSavings | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+              </div>
+
+              <button
+                type="button"
+                (click)="onBundleCandidate(candidate)"
+                [disabled]="isBundling()"
+                class="linear-btn-primary px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20 disabled:opacity-50"
+              >
+                <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5 text-amber-300"></lucide-icon>
+                <span>⚡ Als Sammelpaket bündeln</span>
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
   <!-- Status Filter Tabs -->
   <div class="flex items-center gap-2 border-b border-rf-border pb-1 text-xs">
     <button
@@ -148,7 +233,9 @@
   <!-- Orders Fulfillment List -->
   <div class="space-y-3">
     @for (order of filteredOrders(); track order.id) {
-      <div class="linear-surface rounded-2xl p-5 border border-rf-border shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div class="linear-surface rounded-2xl p-5 border border-rf-border shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+           [class.border-indigo-500/40]="order.is_bundled"
+           [class.bg-indigo-500/5]="order.is_bundled">
         <!-- Order & Item Info -->
         <div class="flex-1 space-y-1.5">
           <div class="flex flex-wrap items-center gap-2 text-xs">
@@ -158,6 +245,12 @@
             <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
               {{ order.platform }}
             </span>
+            @if (order.is_bundled) {
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase bg-indigo-600 text-white flex items-center gap-1 shadow-sm">
+                <lucide-icon [img]="boxesIcon" class="w-3 h-3"></lucide-icon>
+                <span>Sammelpaket ({{ order.bundled_item_titles?.length }} Artikel)</span>
+              </span>
+            }
             <span class="text-rf-text-muted text-[11px] font-mono">
               {{ order.order_date | date:'dd.MM.yyyy HH:mm' }} Uhr
             </span>
@@ -167,10 +260,24 @@
             {{ order.item_title }}
           </h3>
 
+          <!-- If bundled, list individual items -->
+          @if (order.is_bundled && order.bundled_item_titles) {
+            <div class="p-2.5 rounded-xl bg-rf-subtle/80 border border-rf-border space-y-1 text-xs">
+              <span class="text-[10px] font-bold text-rf-text-muted uppercase tracking-wider block font-sans">
+                Enthaltene Artikel im Paket:
+              </span>
+              <ul class="space-y-0.5 text-rf-text-secondary">
+                @for (title of order.bundled_item_titles; track title) {
+                  <li>📦 {{ title }}</li>
+                }
+              </ul>
+            </div>
+          }
+
           <div class="flex flex-wrap items-center gap-3 text-xs text-rf-text-muted">
             <span>Zustand: <strong class="text-rf-text-secondary">{{ order.item_condition || 'Geprüft' }}</strong></span>
             <span>•</span>
-            <span>Verkaufspreis: <strong class="text-rf-text-primary font-mono">{{ order.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
+            <span>Gesamtwert: <strong class="text-rf-text-primary font-mono">{{ order.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
             <span>•</span>
             <span class="text-indigo-400 font-semibold">{{ order.package_type }}</span>
           </div>
@@ -236,6 +343,19 @@
               <lucide-icon [img]="fileIcon" class="w-3.5 h-3.5 text-rf-text-muted"></lucide-icon>
               <span>Lieferschein</span>
             </button>
+
+            <!-- Unbundle Button if bundled and not yet shipped -->
+            @if (order.is_bundled && order.status === 'ready_to_pack') {
+              <button
+                type="button"
+                (click)="onUnbundleOrder(order)"
+                class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer text-rose-300"
+                title="Sammelpaket wieder aufteilen"
+              >
+                <lucide-icon [img]="returnIcon" class="w-3.5 h-3.5"></lucide-icon>
+                <span>Entbündeln</span>
+              </button>
+            }
 
             <!-- Tracking / Ship Button -->
             @if (order.status !== 'delivered') {
