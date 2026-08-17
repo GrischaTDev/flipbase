@@ -1,20 +1,42 @@
 <div class="max-w-2xl mx-auto py-8 space-y-6 animate-fade-in select-none">
   @if (order(); as ord) {
     <!-- Success Banner Card -->
-    <div class="linear-surface rounded-3xl p-8 text-center space-y-4 border border-emerald-500/40 shadow-2xl">
+    <div class="linear-surface rounded-3xl p-8 text-center space-y-5 border border-emerald-500/40 shadow-2xl">
       <div class="w-16 h-16 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 mx-auto flex items-center justify-center shadow-lg">
         <lucide-icon [img]="checkIcon" class="w-8 h-8"></lucide-icon>
       </div>
 
       <div class="space-y-1">
-        <span class="text-xs uppercase font-bold tracking-wider text-emerald-400">Bestellung erfolgreich eingegangen!</span>
-        <h1 class="text-2xl font-black text-rf-text-primary">Vielen Dank für deinen Einkauf!</h1>
+        <span class="text-xs uppercase font-bold tracking-wider text-emerald-400">Bestellung erfolgreich gebucht!</span>
+        <h1 class="text-2xl font-black text-rf-text-primary">Vielen Dank für deine Bestellung!</h1>
         <p class="text-xs text-rf-text-muted">
           Bestellnummer: <strong class="font-mono text-rf-text-primary">{{ ord.orderNumber }}</strong>
         </p>
       </div>
 
-      <div class="p-4 rounded-xl bg-rf-subtle border border-rf-border text-xs text-rf-text-secondary text-left space-y-2">
+      <!-- Payment Status Pill -->
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold border"
+        [class.bg-emerald-500/15]="ord.paymentStatus === 'paid'"
+        [class.border-emerald-500/30]="ord.paymentStatus === 'paid'"
+        [class.text-emerald-400]="ord.paymentStatus === 'paid'"
+        [class.bg-amber-500/15]="ord.paymentStatus === 'pending'"
+        [class.border-amber-500/30]="ord.paymentStatus === 'pending'"
+        [class.text-amber-400]="ord.paymentStatus === 'pending'"
+      >
+        <span class="w-2 h-2 rounded-full" [class.bg-emerald-400]="ord.paymentStatus === 'paid'" [class.bg-amber-400]="ord.paymentStatus === 'pending'"></span>
+        @if (ord.paymentMethod === 'stripe_card') {
+          <span>Bezahlt mit Kreditkarte (Stripe • Transaktion: {{ ord.paymentId }})</span>
+        } @else if (ord.paymentMethod === 'paypal') {
+          <span>Bezahlt via PayPal Express (Transaktion: {{ ord.paymentId }})</span>
+        } @else if (ord.paymentMethod === 'bank_transfer') {
+          <span>Zahlung ausstehend (SEPA-Überweisung erforderlich)</span>
+        } @else {
+          <span>Zahlung bei Abholung vor Ort</span>
+        }
+      </div>
+
+      <!-- Order Details Strip -->
+      <div class="p-4 rounded-2xl bg-rf-subtle border border-rf-border text-xs text-rf-text-secondary text-left space-y-2">
         <div class="flex justify-between">
           <span class="text-rf-text-muted">Kunde:</span>
           <strong>{{ ord.customer.firstName }} {{ ord.customer.lastName }}</strong>
@@ -24,6 +46,10 @@
           <span>{{ ord.customer.street }} {{ ord.customer.houseNumber }}, {{ ord.customer.zip }} {{ ord.customer.city }}</span>
         </div>
         <div class="flex justify-between">
+          <span class="text-rf-text-muted">Versandart:</span>
+          <span>{{ ord.customer.shippingMethod === 'pickup' ? 'Selbstabholung' : 'DHL Standard Paket' }}</span>
+        </div>
+        <div class="flex justify-between pt-1 border-t border-rf-border">
           <span class="text-rf-text-muted">Gesamtbetrag:</span>
           <strong class="font-mono text-emerald-400 text-sm">{{ ord.total | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
         </div>
@@ -31,24 +57,24 @@
 
       <!-- Payment Instructions if Bank Transfer -->
       @if (ord.customer.paymentMethod === 'bank_transfer') {
-        <div class="p-4 rounded-xl bg-indigo-500/10 border border-indigo-500/30 text-left space-y-2 text-xs">
+        <div class="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-left space-y-2 text-xs">
           <div class="flex items-center gap-2 font-bold text-indigo-300">
             <lucide-icon [img]="bankIcon" class="w-4 h-4"></lucide-icon>
             <span>Überweisungsinformationen</span>
           </div>
           <p class="text-[11px] text-rf-text-muted">
-            Bitte überweise den Gesamtbetrag von <strong>{{ ord.total | currency:'EUR':'symbol':'1.2-2':'de' }}</strong> auf folgendes Bankkonto:
+            Bitte überweise den Gesamtbetrag von <strong>{{ ord.total | currency:'EUR':'symbol':'1.2-2':'de' }}</strong> auf unser Bankkonto:
           </p>
-          <div class="font-mono text-[11px] bg-rf-surface p-2.5 rounded-lg border border-rf-border space-y-1">
-            <div>Empfänger: <strong>ReFlip Reselling</strong></div>
-            <div>IBAN: <strong>DE89 3704 0044 0532 0130 00</strong></div>
-            <div>BIC: <strong>DBBDEFFXXX</strong></div>
-            <div>Verwendungszweck: <strong>{{ ord.orderNumber }}</strong></div>
+          <div class="font-mono text-[11px] bg-rf-surface p-3 rounded-xl border border-rf-border space-y-1">
+            <div class="flex justify-between"><span class="text-rf-text-muted">Empfänger:</span> <strong>{{ storeService.storeSettings().payments.bankAccountHolder }}</strong></div>
+            <div class="flex justify-between"><span class="text-rf-text-muted">IBAN:</span> <strong class="text-emerald-400">{{ storeService.storeSettings().payments.bankIban }}</strong></div>
+            <div class="flex justify-between"><span class="text-rf-text-muted">BIC:</span> <strong>{{ storeService.storeSettings().payments.bankBic }}</strong></div>
+            <div class="flex justify-between pt-1 border-t border-rf-border"><span class="text-rf-text-muted">Verwendungszweck:</span> <strong class="text-indigo-300 font-bold">{{ ord.orderNumber }}</strong></div>
           </div>
         </div>
       }
 
-      <div class="pt-4 flex flex-col sm:flex-row items-center justify-center gap-3">
+      <div class="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
         <a
           routerLink="/shop"
           class="linear-btn-primary px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
@@ -58,10 +84,10 @@
         </a>
 
         <a
-          routerLink="/dashboard"
+          routerLink="/sales"
           class="linear-btn-secondary px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer"
         >
-          <span>Zum Händler-Dashboard</span>
+          <span>Zu den Verkäufen (/sales)</span>
         </a>
       </div>
     </div>

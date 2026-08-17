@@ -1,73 +1,70 @@
-import { describe, it, expect } from 'vitest';
+import '@angular/compiler';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { StoreService } from './store.service';
 import { InventoryItem } from '../models/reflip.models';
-import { CartItem, StoreSettings } from '../models/store.models';
 
-describe('Storefront & Cart Engine (Online Shop)', () => {
-  const dummyItem: InventoryItem = {
-    id: 'item-101',
-    workspace_id: 'ws-1',
-    purchase_id: 'p-1',
-    sku: 'RF-SNES-01',
-    title: 'Super Nintendo Classic Edition',
-    brand: 'Nintendo',
-    category: 'Gaming & Konsolen',
-    condition: 'very_good',
-    allocated_purchase_cost: 35.0,
-    expected_value: 89.99,
-    status: 'listed',
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
+describe('Store & Live Checkout Service', () => {
+  let storeService: StoreService;
 
-  const settings: StoreSettings = {
-    storeName: 'ReFlip Store',
-    tagline: 'Geprüfte Gebrauchtware',
-    shippingFlatRate: 4.99,
-    freeShippingThreshold: 50.0,
-    currency: 'EUR',
-    imprint: {
-      owner: 'ReFlip',
-      street: 'Musterstraße',
-      city: 'Berlin',
-      email: 'test@reflip.de',
-    },
-  };
-
-  it('should correctly calculate cart subtotal with quantities', () => {
-    const cart: CartItem[] = [
-      { item: dummyItem, quantity: 2 },
-    ];
-
-    const subtotal = cart.reduce((sum, i) => sum + (i.item.expected_value || 0) * i.quantity, 0);
-    expect(subtotal).toBeCloseTo(179.98, 2);
+  beforeEach(() => {
+    storeService = new StoreService();
+    storeService.clearCart();
   });
 
-  it('should grant free shipping when subtotal is above freeShippingThreshold', () => {
-    const subtotal = 89.99;
-    const shipping = subtotal >= settings.freeShippingThreshold ? 0 : settings.shippingFlatRate;
-    expect(shipping).toBe(0);
+  it('should initialize with default store and payment settings', () => {
+    const settings = storeService.storeSettings();
+    expect(settings.payments.stripeEnabled).toBe(true);
+    expect(settings.payments.paypalEnabled).toBe(true);
+    expect(settings.payments.bankTransferEnabled).toBe(true);
   });
 
-  it('should apply shipping flat rate when subtotal is below freeShippingThreshold', () => {
-    const smallItem: InventoryItem = {
-      ...dummyItem,
-      id: 'item-102',
-      expected_value: 29.99,
+  it('should calculate cart totals and shipping costs correctly', () => {
+    const sampleItem: InventoryItem = {
+      id: 'inv-test-1',
+      workspace_id: 'ws-1',
+      sku: 'SKU-TEST-1',
+      title: 'Sony PlayStation 5 Disc Edition',
+      status: 'ready',
+      allocated_purchase_cost: 300,
+      expected_value: 450,
+      condition: 'very_good',
+      created_at: '2026-08-18',
     };
-    const cart: CartItem[] = [{ item: smallItem, quantity: 1 }];
-    const subtotal = cart.reduce((sum, i) => sum + (i.item.expected_value || 0) * i.quantity, 0);
 
-    const shipping = subtotal >= settings.freeShippingThreshold ? 0 : settings.shippingFlatRate;
-    expect(shipping).toBe(4.99);
-
-    const total = subtotal + shipping;
-    expect(total).toBeCloseTo(34.98, 2);
+    storeService.addToCart(sampleItem, 1);
+    expect(storeService.cartItemCount()).toBe(1);
+    expect(storeService.cartSubtotal()).toBe(450);
+    // Subtotal 450 >= freeShippingThreshold 50 -> shippingCost = 0
+    expect(storeService.cartShippingCost()).toBe(0);
+    expect(storeService.cartTotal()).toBe(450);
   });
 
-  it('should waive shipping cost when pickup is selected', () => {
-    const shippingMethod = 'pickup';
-    const subtotal = 29.99;
-    const shipping = shippingMethod === 'pickup' ? 0 : settings.shippingFlatRate;
-    expect(shipping).toBe(0);
+  it('should process Stripe payment and simulate gateway roundtrip', async () => {
+    const res = await storeService.processStripePayment(100, {
+      holder: 'Max Mustermann',
+      last4: '4242',
+      brand: 'Visa',
+    });
+
+    expect(res.success).toBe(true);
+    expect(res.transactionId).toContain('ch_stripe_');
+  });
+
+  it('should process PayPal payment and generate transaction ID', async () => {
+    const res = await storeService.processPayPalPayment(150);
+
+    expect(res.success).toBe(true);
+    expect(res.transactionId).toContain('PAYID-');
+  });
+
+  it('should update payment gateway configuration', () => {
+    storeService.updatePaymentsConfig({
+      stripePublishableKey: 'pk_live_custom_key_456',
+      paypalEmail: 'shop@myreflipdomain.com',
+    });
+
+    const pm = storeService.storeSettings().payments;
+    expect(pm.stripePublishableKey).toBe('pk_live_custom_key_456');
+    expect(pm.paypalEmail).toBe('shop@myreflipdomain.com');
   });
 });

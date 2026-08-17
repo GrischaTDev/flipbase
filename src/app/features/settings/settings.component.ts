@@ -26,6 +26,7 @@ import {
   Smartphone,
   Wifi,
   WifiOff,
+  CreditCard,
 } from 'lucide-angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ExportService } from '../../core/services/export.service';
@@ -36,6 +37,7 @@ import { EbayApiService } from '../../core/services/ebay-api.service';
 import { WorkspaceMemberService } from '../../core/services/workspace-member.service';
 import { WebhookService } from '../../core/services/webhook.service';
 import { PwaService } from '../../core/services/pwa.service';
+import { StoreService } from '../../core/services/store.service';
 import { WorkspaceRole } from '../../core/models/reflip.models';
 
 @Component({
@@ -55,9 +57,11 @@ export class SettingsComponent {
   readonly memberService = inject(WorkspaceMemberService);
   readonly webhookService = inject(WebhookService);
   readonly pwaService = inject(PwaService);
+  readonly storeService = inject(StoreService);
   readonly translate = inject(TranslateService);
 
   readonly settingsIcon = Settings;
+  readonly cardIcon = CreditCard;
   readonly downloadIcon = Download;
   readonly saveIcon = Save;
   readonly checkIcon = CheckCircle2;
@@ -120,6 +124,20 @@ export class SettingsComponent {
     soundEnabled: new FormControl(this.webhookService.config().soundEnabled),
   });
 
+  readonly paymentSaveSuccess = signal<boolean>(false);
+
+  readonly paymentForm = new FormGroup({
+    stripeEnabled: new FormControl(true),
+    stripePublishableKey: new FormControl(''),
+    paypalEnabled: new FormControl(true),
+    paypalEmail: new FormControl(''),
+    bankTransferEnabled: new FormControl(true),
+    bankIban: new FormControl(''),
+    bankBic: new FormControl(''),
+    bankAccountHolder: new FormControl(''),
+    cashOnPickupEnabled: new FormControl(true),
+  });
+
   readonly inviteForm = new FormGroup({
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
     role: new FormControl<WorkspaceRole>('member', { nonNullable: true, validators: [Validators.required] }),
@@ -144,6 +162,37 @@ export class SettingsComponent {
       appId: cfg.appId || '',
       globalId: cfg.siteId || 'EBAY-DE',
     });
+
+    const pm = this.storeService.storeSettings().payments;
+    this.paymentForm.patchValue({
+      stripeEnabled: pm.stripeEnabled,
+      stripePublishableKey: pm.stripePublishableKey,
+      paypalEnabled: pm.paypalEnabled,
+      paypalEmail: pm.paypalEmail,
+      bankTransferEnabled: pm.bankTransferEnabled,
+      bankIban: pm.bankIban,
+      bankBic: pm.bankBic,
+      bankAccountHolder: pm.bankAccountHolder,
+      cashOnPickupEnabled: pm.cashOnPickupEnabled,
+    });
+  }
+
+  onSavePaymentConfig(): void {
+    const val = this.paymentForm.getRawValue();
+    this.storeService.updatePaymentsConfig({
+      stripeEnabled: !!val.stripeEnabled,
+      stripePublishableKey: val.stripePublishableKey?.trim() || '',
+      paypalEnabled: !!val.paypalEnabled,
+      paypalEmail: val.paypalEmail?.trim() || '',
+      bankTransferEnabled: !!val.bankTransferEnabled,
+      bankIban: val.bankIban?.trim() || '',
+      bankBic: val.bankBic?.trim() || '',
+      bankAccountHolder: val.bankAccountHolder?.trim() || '',
+      cashOnPickupEnabled: !!val.cashOnPickupEnabled,
+    });
+
+    this.paymentSaveSuccess.set(true);
+    setTimeout(() => this.paymentSaveSuccess.set(false), 3000);
   }
 
   async onSaveSettings(): Promise<void> {
