@@ -131,6 +131,22 @@
       📈 Gesamtübersicht
     </button>
 
+    <!-- 🏢 Holding-Modus (Multi-Workspace Konsolidierung) -->
+    <button
+      type="button"
+      (click)="setSection('holding')"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border flex items-center gap-1.5"
+      [class.bg-purple-600]="activeSection() === 'holding'"
+      [class.text-white]="activeSection() === 'holding'"
+      [class.border-purple-500]="activeSection() === 'holding'"
+      [class.bg-rf-surface]="activeSection() !== 'holding'"
+      [class.text-purple-300]="activeSection() !== 'holding'"
+      [class.border-rf-border]="activeSection() !== 'holding'"
+    >
+      <lucide-icon [img]="buildingIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <span>🏢 Holding-Modus ({{ holdingSummary().workspacesCount }} Mandanten)</span>
+    </button>
+
     <button
       type="button"
       (click)="setSection('platforms')"
@@ -532,6 +548,163 @@
             }
           </tbody>
         </table>
+      </div>
+    </div>
+  }
+
+  <!-- 🏢 Section: Holding & Multi-Workspace Consolidation -->
+  @if (activeSection() === 'holding') {
+    @let holding = holdingSummary();
+    <div class="space-y-6 animate-fade-in">
+      <!-- Holding Top Aggregation Cards -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 font-mono">
+        <div class="linear-surface p-5 rounded-2xl border border-purple-500/30 bg-purple-500/5 shadow-xl space-y-1">
+          <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+            <span class="font-bold uppercase tracking-wider text-[10px] text-purple-300">Konsolidierter Umsatz</span>
+            <lucide-icon [img]="trendingIcon" class="w-4 h-4 text-purple-400"></lucide-icon>
+          </div>
+          <div class="text-2xl font-black text-rf-text-primary">
+            {{ holding.totalRevenue | currency:'EUR':'symbol':'1.2-2':'de' }}
+          </div>
+          <span class="text-[10px] text-rf-text-muted block font-sans">
+            Über {{ holding.workspacesCount }} Reselling-Gewerbe
+          </span>
+        </div>
+
+        <div class="linear-surface p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 shadow-xl space-y-1">
+          <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+            <span class="font-bold uppercase tracking-wider text-[10px] text-emerald-400">Realisierter Holding-Gewinn</span>
+            <lucide-icon [img]="coinsIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+          </div>
+          <div class="text-2xl font-black text-emerald-400">
+            +{{ holding.totalNetProfit | currency:'EUR':'symbol':'1.2-2':'de' }}
+          </div>
+          <span class="text-[10px] text-rf-text-muted block font-sans">
+            Gesamter Nettogewinn nach Abzug aller Kosten
+          </span>
+        </div>
+
+        <div class="linear-surface p-5 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 shadow-xl space-y-1">
+          <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+            <span class="font-bold uppercase tracking-wider text-[10px] text-indigo-300">Lagerbestandswert (EK)</span>
+            <lucide-icon [img]="boxesIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+          </div>
+          <div class="text-2xl font-black text-indigo-300">
+            {{ holding.totalInventoryValue | currency:'EUR':'symbol':'1.2-2':'de' }}
+          </div>
+          <span class="text-[10px] text-rf-text-muted block font-sans">
+            {{ holding.totalInventoryCount }} aktive Artikel gebunden
+          </span>
+        </div>
+
+        <div class="linear-surface p-5 rounded-2xl border border-amber-500/30 bg-amber-500/5 shadow-xl space-y-1">
+          <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+            <span class="font-bold uppercase tracking-wider text-[10px] text-amber-300">Holding Durchschnitts-ROI</span>
+            <lucide-icon [img]="percentIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
+          </div>
+          <div class="text-2xl font-black text-amber-400">
+            {{ holding.averageRoi }}%
+          </div>
+          <span class="text-[10px] text-rf-text-muted block font-sans">
+            Gewichtete Gesamtkapitalrendite
+          </span>
+        </div>
+      </div>
+
+      <!-- Tenant Performance Comparison Table -->
+      <div class="linear-surface rounded-2xl p-6 space-y-4 shadow-xl border border-rf-border">
+        <div class="flex items-center justify-between pb-2 border-b border-rf-border">
+          <div class="flex items-center gap-2">
+            <lucide-icon [img]="buildingIcon" class="w-4 h-4 text-purple-400"></lucide-icon>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+              Mandanten- & Gewerbevergleich (Performance Matrix)
+            </h2>
+          </div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold">
+            {{ holding.workspacesCount }} Mandanten aktiv
+          </span>
+        </div>
+
+        <p class="text-xs text-rf-text-muted">
+          Detaillierte Gegenüberstellung aller eigenständigen Reselling-Accounts und Workspaces.
+        </p>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead class="bg-rf-subtle text-rf-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-rf-border">
+              <tr>
+                <th class="p-3">Mandant / Workspace</th>
+                <th class="p-3">Steuerprofil</th>
+                <th class="p-3 text-right">Lagerbestand (EK)</th>
+                <th class="p-3 text-right">Einkäufe</th>
+                <th class="p-3 text-right">Umsatz</th>
+                <th class="p-3 text-right">Nettogewinn</th>
+                <th class="p-3 text-right">Ø ROI</th>
+                <th class="p-3 text-center">Aktion</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-rf-border font-mono">
+              @for (wsSummary of holding.workspaceSummaries; track wsSummary.workspace.id) {
+                <tr class="hover:bg-rf-surface-hover transition" [class.bg-purple-500/5]="workspaceService.currentWorkspace()?.id === wsSummary.workspace.id">
+                  <td class="p-3 font-sans">
+                    <div class="flex items-center gap-2">
+                      <strong class="text-rf-text-primary text-xs block">{{ wsSummary.workspace.name }}</strong>
+                      @if (workspaceService.currentWorkspace()?.id === wsSummary.workspace.id) {
+                        <span class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold">
+                          AKTIV
+                        </span>
+                      }
+                    </div>
+                    <span class="text-[10px] text-rf-text-muted font-mono">ID: {{ wsSummary.workspace.id }}</span>
+                  </td>
+
+                  <td class="p-3 font-sans text-rf-text-secondary text-[11px]">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-rf-subtle border border-rf-border">
+                      § 25a UStG (Diff)
+                    </span>
+                  </td>
+
+                  <td class="p-3 text-right text-indigo-300 font-bold">
+                    {{ wsSummary.inventoryValue | currency:'EUR':'symbol':'1.2-2':'de' }}
+                    <span class="text-[10px] text-rf-text-muted block font-normal">({{ wsSummary.inventoryCount }} Stk.)</span>
+                  </td>
+
+                  <td class="p-3 text-right text-rf-text-secondary">
+                    {{ wsSummary.totalInvested | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  </td>
+
+                  <td class="p-3 text-right font-bold text-rf-text-primary">
+                    {{ wsSummary.totalRevenue | currency:'EUR':'symbol':'1.2-2':'de' }}
+                    <span class="text-[10px] text-rf-text-muted block font-normal">{{ wsSummary.salesCount }} Verkäufe</span>
+                  </td>
+
+                  <td class="p-3 text-right font-bold text-emerald-400">
+                    +{{ wsSummary.totalProfit | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  </td>
+
+                  <td class="p-3 text-right font-bold text-indigo-300">
+                    {{ wsSummary.roi }}%
+                  </td>
+
+                  <td class="p-3 text-center font-sans">
+                    @if (workspaceService.currentWorkspace()?.id !== wsSummary.workspace.id) {
+                      <button
+                        type="button"
+                        (click)="switchToWorkspace(wsSummary.workspace.id)"
+                        class="linear-btn-secondary px-2.5 py-1 rounded-lg text-[11px] font-semibold text-purple-300 hover:text-white cursor-pointer inline-flex items-center gap-1"
+                      >
+                        <span>Umschalten</span>
+                        <lucide-icon [img]="nextIcon" class="w-3 h-3"></lucide-icon>
+                      </button>
+                    } @else {
+                      <span class="text-[11px] text-emerald-400 font-semibold">Ausgewählt</span>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   }

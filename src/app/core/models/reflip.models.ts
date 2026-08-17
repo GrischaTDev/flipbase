@@ -20,6 +20,30 @@ export interface Workspace {
   updated_at?: string;
 }
 
+export interface WorkspaceSummary {
+  workspace: Workspace;
+  inventoryCount: number;
+  inventoryValue: number;
+  purchasesCount: number;
+  totalInvested: number;
+  salesCount: number;
+  totalRevenue: number;
+  totalProfit: number;
+  roi: number;
+  role: WorkspaceRole;
+}
+
+export interface ConsolidatedHoldingSummary {
+  workspacesCount: number;
+  totalInventoryCount: number;
+  totalInventoryValue: number;
+  totalCapitalInvested: number;
+  totalRevenue: number;
+  totalNetProfit: number;
+  averageRoi: number;
+  workspaceSummaries: WorkspaceSummary[];
+}
+
 export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'fulfillment' | 'accountant' | 'readonly';
 
 export interface WorkspaceMember {

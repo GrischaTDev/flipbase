@@ -17,6 +17,101 @@
   <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
     <!-- Left Column: Parameters & Team Management (7 cols) -->
     <div class="lg:col-span-7 space-y-5">
+      <!-- 🏢 Multi-Workspace & Mandanten-Verwaltung -->
+      <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-rf-border">
+        <div class="flex items-center justify-between pb-2 border-b border-rf-border">
+          <div class="flex items-center gap-2">
+            <lucide-icon [img]="buildingIcon" class="w-4 h-4 text-purple-400"></lucide-icon>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+              Workspaces & Gewerbe-Mandanten ({{ workspaceService.workspaces().length }})
+            </h2>
+          </div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold">
+            Multi-Tenant
+          </span>
+        </div>
+
+        <p class="text-xs text-rf-text-muted">
+          Verwalte separate Gewerbezweige mit eigenen Beständen, Steuermodi und Rechnungsnummernkreisen.
+        </p>
+
+        <!-- Workspaces List -->
+        <div class="space-y-2">
+          @for (ws of workspaceService.workspaces(); track ws.id) {
+            <div
+              class="p-3.5 rounded-xl border flex items-center justify-between transition"
+              [class.bg-purple-500/10]="workspaceService.currentWorkspace()?.id === ws.id"
+              [class.border-purple-500/40]="workspaceService.currentWorkspace()?.id === ws.id"
+              [class.bg-rf-subtle]="workspaceService.currentWorkspace()?.id !== ws.id"
+              [class.border-rf-border]="workspaceService.currentWorkspace()?.id !== ws.id"
+            >
+              <div class="space-y-0.5">
+                <div class="flex items-center gap-2">
+                  <strong class="text-xs text-rf-text-primary">{{ ws.name }}</strong>
+                  @if (workspaceService.currentWorkspace()?.id === ws.id) {
+                    <span class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                      AKTIV
+                    </span>
+                  }
+                </div>
+                <div class="flex items-center gap-2 text-[10px] text-rf-text-muted font-mono">
+                  <span>ID: {{ ws.id }}</span>
+                  <span>•</span>
+                  <span>Währung: {{ ws.currency || 'EUR' }}</span>
+                  <span>•</span>
+                  <span>§ 25a UStG</span>
+                </div>
+              </div>
+
+              <div class="flex items-center gap-2">
+                @if (workspaceService.currentWorkspace()?.id !== ws.id) {
+                  <button
+                    type="button"
+                    (click)="onSwitchWorkspace(ws.id)"
+                    class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-purple-300 hover:text-white"
+                  >
+                    Aktivieren
+                  </button>
+
+                  @if (workspaceService.workspaces().length > 1) {
+                    <button
+                      type="button"
+                      (click)="onDeleteWorkspace(ws.id)"
+                      class="p-1.5 rounded-lg text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer"
+                      title="Workspace löschen"
+                    >
+                      <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+                    </button>
+                  }
+                } @else {
+                  <span class="text-xs text-emerald-400 font-bold px-2 py-1">Aktiver Workspace</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Create New Workspace Row -->
+        <div class="pt-2 border-t border-rf-border flex gap-2">
+          <input
+            type="text"
+            [formControl]="newWorkspaceName"
+            placeholder="Neuer Workspace Name (z. B. Sneaker & Streetwear)"
+            class="linear-input flex-1 px-3 py-1.5 rounded-xl text-xs"
+            (keyup.enter)="onCreateWorkspace()"
+          />
+          <button
+            type="button"
+            (click)="onCreateWorkspace()"
+            [disabled]="newWorkspaceName.invalid || isCreatingWs()"
+            class="linear-btn-primary px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20 disabled:opacity-40"
+          >
+            <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <span>Erstellen</span>
+          </button>
+        </div>
+      </div>
+
       <!-- 1. Workspace Parameters Form -->
       <form [formGroup]="settingsForm" (ngSubmit)="onSaveSettings()" class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
         <div class="flex items-center gap-2 pb-2 border-b border-rf-border">

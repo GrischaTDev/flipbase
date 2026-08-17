@@ -21,6 +21,8 @@ import {
   Zap,
   Calendar,
   Layers,
+  Building,
+  ArrowRight,
 } from 'lucide-angular';
 import {
   AnalyticsService,
@@ -35,6 +37,8 @@ import {
 import { SalesService } from '../../core/services/sales.service';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { InventoryService } from '../../core/services/inventory.service';
+import { WorkspaceService } from '../../core/services/workspace.service';
+import { ConsolidatedHoldingSummary } from '../../core/models/reflip.models';
 
 @Component({
   selector: 'app-analytics',
@@ -48,6 +52,7 @@ export class AnalyticsComponent {
   readonly salesService = inject(SalesService);
   readonly purchaseService = inject(PurchaseService);
   readonly inventoryService = inject(InventoryService);
+  readonly workspaceService = inject(WorkspaceService);
 
   readonly barIcon = BarChart3;
   readonly trendingIcon = TrendingUp;
@@ -66,41 +71,66 @@ export class AnalyticsComponent {
   readonly zapIcon = Zap;
   readonly calendarIcon = Calendar;
   readonly layersIcon = Layers;
+  readonly buildingIcon = Building;
+  readonly nextIcon = ArrowRight;
 
   readonly timeRange = signal<AnalyticsTimeRange>('30d');
   readonly activeSection = signal<
-    'overview' | 'platforms' | 'velocity' | 'cohorts' | 'heatmap' | 'categories' | 'sources'
+    'overview' | 'cohorts' | 'platforms' | 'velocity' | 'heatmap' | 'sources' | 'categories' | 'speed' | 'holding'
   >('overview');
 
-  // Filtered sales based on selected time range
+  readonly isHoldingMode = signal<boolean>(false);
+
   readonly currentSales = computed(() => {
-    return this.analyticsService.filterSalesByTimeRange(
-      this.salesService.sales(),
-      this.timeRange()
-    );
+    const list = this.salesService.sales();
+    const range = this.timeRange();
+    if (range === 'all') return list;
+
+    const now = new Date();
+    const days = range === '7d' ? 7 : range === '30d' ? 30 : 365;
+    const cutoff = new Date(now.getTime() - days * 86400000);
+
+    return list.filter((s) => new Date(s.sale_date) >= cutoff);
   });
 
-  // Overview Financials
-  readonly totalRevenue = computed(() =>
-    this.currentSales().reduce((sum, s) => sum + s.sale_price, 0)
-  );
+  // KPI Computations
+  readonly totalSalesVolume = computed<number>(() => {
+    return this.currentSales().reduce((acc, s) => acc + (s.sale_price || 0), 0);
+  });
 
-  readonly totalNetProfit = computed(() =>
-    this.currentSales().reduce((sum, s) => sum + (s.net_profit || 0), 0)
-  );
+  readonly totalRevenue = computed<number>(() => {
+    return this.totalSalesVolume();
+  });
 
-  readonly avgRoi = computed(() => {
+  readonly totalNetProfit = computed<number>(() => {
+    return this.currentSales().reduce((acc, s) => acc + (s.net_profit || 0), 0);
+  });
+
+  readonly averageRoi = computed<number>(() => {
     const list = this.currentSales();
     if (list.length === 0) return 0;
     const sum = list.reduce((acc, s) => acc + (s.roi || 0), 0);
     return Number((sum / list.length).toFixed(1));
   });
 
-  readonly avgHoldingDays = computed(() => {
+  readonly avgRoi = computed<number>(() => this.averageRoi());
+
+  readonly averageHoldingDays = computed<number>(() => {
     const list = this.currentSales();
     if (list.length === 0) return 0;
     const sum = list.reduce((acc, s) => acc + (s.holding_duration_days || 0), 0);
     return Number((sum / list.length).toFixed(1));
+  });
+
+  readonly avgHoldingDays = computed<number>(() => this.averageHoldingDays());
+
+  // Holding Multi-Workspace Consolidation
+  readonly holdingSummary = computed<ConsolidatedHoldingSummary>(() => {
+    return this.workspaceService.getConsolidatedHoldingSummary(
+      this.salesService.sales(),
+      this.purchaseService.purchases(),
+      this.inventoryService.items()
+    );
   });
 
   // 1. Platform Performance
@@ -148,5 +178,9 @@ export class AnalyticsComponent {
 
   setSection(section: any): void {
     this.activeSection.set(section);
+  }
+
+  switchToWorkspace(wsId: string): void {
+    this.workspaceService.switchWorkspace(wsId);
   }
 }

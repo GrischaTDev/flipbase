@@ -29,6 +29,8 @@ import {
   CreditCard,
   Truck,
   Package,
+  Building,
+  Plus,
 } from 'lucide-angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ExportService } from '../../core/services/export.service';
@@ -68,6 +70,8 @@ export class SettingsComponent {
   readonly cardIcon = CreditCard;
   readonly truckIcon = Truck;
   readonly packageIcon = Package;
+  readonly buildingIcon = Building;
+  readonly plusIcon = Plus;
   readonly downloadIcon = Download;
   readonly saveIcon = Save;
   readonly checkIcon = CheckCircle2;
@@ -158,6 +162,9 @@ export class SettingsComponent {
     email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
     role: new FormControl<WorkspaceRole>('member', { nonNullable: true, validators: [Validators.required] }),
   });
+
+  readonly newWorkspaceName = new FormControl('', { nonNullable: true, validators: [Validators.required] });
+  readonly isCreatingWs = signal<boolean>(false);
 
   constructor() {
     effect(() => {
@@ -254,6 +261,27 @@ export class SettingsComponent {
     this.isSaving.set(false);
     this.saveSuccess.set(true);
     setTimeout(() => this.saveSuccess.set(false), 3000);
+  }
+
+  async onCreateWorkspace(): Promise<void> {
+    if (this.newWorkspaceName.invalid) return;
+    const name = this.newWorkspaceName.value.trim();
+    if (!name) return;
+
+    this.isCreatingWs.set(true);
+    await this.workspaceService.createWorkspace(name);
+    this.newWorkspaceName.reset();
+    this.isCreatingWs.set(false);
+  }
+
+  onSwitchWorkspace(wsId: string): void {
+    this.workspaceService.switchWorkspace(wsId);
+  }
+
+  async onDeleteWorkspace(wsId: string): Promise<void> {
+    if (confirm('Möchtest du diesen Workspace wirklich löschen?')) {
+      await this.workspaceService.deleteWorkspace(wsId);
+    }
   }
 
   onSaveEbayConfig(): void {
