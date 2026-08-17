@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { CurrencyPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideAngularModule,
@@ -13,6 +13,7 @@ import {
   ExternalLink,
   PlusCircle,
   TrendingUp,
+  TrendingDown,
   AlertCircle,
   CheckCircle2,
   Sliders,
@@ -28,6 +29,9 @@ import {
   Eye,
   X,
   Plus,
+  Radio,
+  RefreshCw,
+  Trash2,
 } from 'lucide-angular';
 import {
   ResearchService,
@@ -35,6 +39,7 @@ import {
   ResearchSummary,
 } from '../../core/services/research.service';
 import { BarcodeLookupService } from '../../core/services/barcode-lookup.service';
+import { PriceTrackerService } from '../../core/services/price-tracker.service';
 import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner/barcode-scanner.component';
 
 @Component({
@@ -42,6 +47,7 @@ import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner
   imports: [
     ReactiveFormsModule,
     CurrencyPipe,
+    DatePipe,
     TranslatePipe,
     LucideAngularModule,
     BarcodeScannerComponent,
@@ -52,6 +58,7 @@ import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner
 })
 export class ResearchComponent {
   readonly researchService = inject(ResearchService);
+  readonly priceTrackerService = inject(PriceTrackerService);
   private readonly barcodeLookup = inject(BarcodeLookupService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -64,6 +71,7 @@ export class ResearchComponent {
   readonly linkIcon = ExternalLink;
   readonly plusIcon = PlusCircle;
   readonly trendingIcon = TrendingUp;
+  readonly trendingDownIcon = TrendingDown;
   readonly alertIcon = AlertCircle;
   readonly checkIcon = CheckCircle2;
   readonly slidersIcon = Sliders;
@@ -79,11 +87,16 @@ export class ResearchComponent {
   readonly eyeIcon = Eye;
   readonly closeIcon = X;
   readonly addMoreIcon = Plus;
+  readonly radarIcon = Radio;
+  readonly refreshIcon = RefreshCw;
+  readonly trashIcon = Trash2;
 
+  readonly activeTab = signal<'search' | 'radar'>('search');
   readonly isScanningBarcode = signal<boolean>(false);
   readonly selectedPlatformFilter = signal<'all' | 'ebay_sold' | 'kleinanzeigen' | 'vinted'>('all');
   readonly viewMode = signal<'grid' | 'table'>('grid');
   readonly previewImageUrl = signal<string | null>(null);
+  readonly repricingSuccessId = signal<string | null>(null);
 
   readonly searchForm = new FormGroup({
     query: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -103,9 +116,12 @@ export class ResearchComponent {
   });
 
   constructor() {
-    // Check if query was passed via route query param (e.g. from Inventory Detail)
     this.route.queryParams.subscribe((params) => {
       const q = params['query'];
+      const tab = params['tab'];
+      if (tab === 'radar') {
+        this.activeTab.set('radar');
+      }
       if (q) {
         this.searchForm.patchValue({ query: q });
         this.onSearch();
@@ -166,5 +182,40 @@ export class ResearchComponent {
         expectedPrice: s.medianPrice,
       },
     });
+  }
+
+  // Radar Methods
+  async onScanRadarLive(id?: string): Promise<void> {
+    await this.priceTrackerService.scanMarketLive(id);
+  }
+
+  async onApplyRadarPrice(id: string): Promise<void> {
+    const ok = await this.priceTrackerService.applyRecommendedPrice(id);
+    if (ok) {
+      this.repricingSuccessId.set(id);
+      setTimeout(() => this.repricingSuccessId.set(null), 3000);
+    }
+  }
+
+  onToggleTrackItem(id: string): void {
+    this.priceTrackerService.toggleTracking(id);
+  }
+
+  onDeleteTrackItem(id: string): void {
+    this.priceTrackerService.deleteTrackedItem(id);
+  }
+
+  onAddCurrentSearchToRadar(): void {
+    const f = this.searchForm.getRawValue();
+    const s = this.summary();
+    if (!f.query.trim()) return;
+
+    this.priceTrackerService.addTrackedItem({
+      title: f.query.trim(),
+      price: s?.medianPrice || f.estimatedCost * 1.5,
+      category: 'Recherche',
+    });
+
+    this.activeTab.set('radar');
   }
 }
