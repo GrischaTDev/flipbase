@@ -1,59 +1,100 @@
-# ReFlip
+# 🚀 ReFlip Reselling OS
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.0.7.
+> **Das All-in-One Entscheidungs-, Finanz- und Fulfillment-Betriebssystem für professionelle Reseller, Flohmarkthändler und E-Commerce-Unternehmer.**
 
-## Development server
+![ReFlip Banner](https://images.unsplash.com/photo-1556742049-0a67e55722c0?auto=format&fit=crop&w=1200&q=80)
 
-To start a local development server, run:
+---
 
+## 🌟 Übersicht & Kernfunktionalitäten
+
+ReFlip ist eine moderne, hochperformante **Angular 21 Standalone Web-Applikation (Zoneless Signals Architecture)** mit **Tailwind CSS 4**, die den gesamten Lifecycle eines Reselling-Geschäfts digitalisiert:
+
+### 1. 🔍 Recherche & Konkurrenz-Radar ([`/research`](http://localhost:4200/research))
+* **Echtzeit-Verkaufspreise**: Multi-Plattform-Analyse (eBay Sold, Kleinanzeigen, Vinted) mit Produktfotos und Ausreißer-Bereinigung.
+* **📡 Konkurrenz-Radar**: Live-Überwachung von Preisen mit Unterbietungs-Alarmen (`undercut`) und Preisanstiegs-Chancen (`price_surge`).
+* **1-Klick Inventar-Preisanpassung**: Optimiert Preise direkt ins Inventar und Listing Studio.
+* **📷 Barcode-Scanner & KI-Foto-Erkennung**: EAN/UPC-Scanner mit Kamera und KI-Zustandserkennung.
+
+### 2. 📦 Sourcing & Einkaufs-Management ([`/purchases`](http://localhost:4200/purchases))
+* **Mehrere Einkaufstypen**: Einzelartikel, Mystery Packs, Konvolute/Lots und Retourenpaletten.
+* **Intelligente Kostenallokation**: Wertgewichtet, gleichmäßig oder manuell mit Nebenkosten (Versand, Aufbereitung).
+* **📱 Flohmarkt-Schnellerfassung (PWA Offline-Modus)**: 1-Sekunden-Schnelleingabe für Märkte, inklusive **Live-Bargeld-Cockpit (Cash Wallet)** und automatischem Cloud-Sync bei Netzverbindung.
+
+### 3. 🏷️ Multi-Plattform Listing Studio ([`/listings`](http://localhost:4200/listings))
+* **1-Klick-Crosslisting**: Generiert optimierte Inserate für eBay, Kleinanzeigen und Vinted.
+* **🤖 KI-SEO-Score & Optimierer**: Prüft Zeichenlimits (80/70/60 Zeichen), Keyword-Dichte und schlägt suchmaschinenoptimierte Titel vor.
+* **Listing-Status-Tracking**: Synchronisiert aktive Inserate mit dem Inventar.
+
+### 4. 💰 Verkäufe, Retouren & Gutschriften ([`/sales`](http://localhost:4200/sales))
+* **Live-Profit-Engine**: Berechnet ROI, Haltedauer, Plattformgebühren und Netto-Reingewinn in Echtzeit.
+* **🤖 Retouren- & Reklamations-Abwicklung**: Flexible Voll- oder Teilerstattungen mit automatischer Wiedereinlagerung (`ready`, `needs_review`, `defective`).
+* **📄 § 25a UStG DIN-A4 PDF-Gutschriften**: Offizielle Storno- und Gutschriftsbelege mit 1-Klick Druckansicht.
+
+### 5. 📊 Buchhaltung, § 25a Differenzbesteuerung & DATEV ([`/accounting`](http://localhost:4200/accounting))
+* **Finanzamtskonforme Differenzbesteuerung (§ 25a UStG)**: Automatische Trennung von Differenz- und 19% Regelumsätzen.
+* **📑 DATEV EXTF Buchungsstapel-Export**: Standardkonforme ASCII/CSV-Dateien für SKR03 und SKR04.
+* **📜 § 25a Differenzbesteuerungs-Journal**: Einzelnachweis aller Handelsspannen und Bemessungsgrundlagen für Betriebsprüfungen.
+* **📧 Automatischer Steuerberater-Monatsabschluss**: 1-Klick-Versand des gesamten Monatspakets an die Kanzlei.
+
+### 6. 🚚 Packtisch, Fulfillment & Kombiversand ([`/fulfillment`](http://localhost:4200/fulfillment))
+* **🧠 Intelligente Paket-Bündelung**: Erkennt automatisch Mehrfachkäufe desselben Kunden und berechnet die Portoersparnis.
+* **⚡ 1-Klick Sammelpaket-Erzeugung**: Bündelt Bestellungen zu einer Sendung mit flexiblem Entbündeln (Unbundle).
+* **Carrier-API-Anbindung**: Bucht Live-Versandmarken für DHL und Hermes inkl. DIN-A6 Etikettendruck und Tracking.
+
+### 7. 🏪 Eigener Webshop mit Stripe & PayPal Live-Checkout ([`/store`](http://localhost:4200/store))
+* Öffentlicher Reseller-Storefront mit Warenkorb, Bestandsreservierung und rechtssicheren Kundenbestellungen.
+* Automatischer Lagerabgleich bei Verkäufen.
+
+### 8. 🏢 Multi-Workspace & Holding-Konsolidierung ([`/analytics`](http://localhost:4200/analytics))
+* Trennung verschiedener Geschäftszweige (z. B. *Electronics HQ*, *Vintage Studio*, *Flohmarkt Outlet*).
+* **🏢 Holding-Modus**: Konsolidiertes Gesamt-Dashboard mit aggregierten KPIs, Gesamtkapital und Standortvergleich.
+
+---
+
+## 🛠️ Technologie-Stack & Architektur
+
+* **Framework**: Angular 21 (Standalone Components, `provideZonelessChangeDetection()`, Signal-based State Management).
+* **Styling**: Tailwind CSS 4 mit linearem Dark Canvas Theme (`#282c37`/`#323846`, Electric Indigo & Emerald Green Akzente).
+* **Testing**: Vitest mit **22/22 Test-Suiten und 86/86 bestandenen Unit-Tests**.
+* **Internationalisierung**: `@ngx-translate/core` mit synchronem deutschen Sprachpaket.
+* **Benachrichtigungen**: W3C Web Push Notification API, Discord/Telegram Webhooks und In-App Notifications.
+* **Icons**: `lucide-angular`.
+
+---
+
+## 🚀 Installation & Start
+
+### Voraussetzungen
+* Node.js >= 20.x
+* npm >= 10.x
+
+### Entwicklungsserver starten
 ```bash
+# Abhängigkeiten installieren
+npm install
+
+# Lokalen Dev-Server starten (Port 4200)
+npm start
+# oder
 ng serve
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Die Anwendung ist im Browser unter `http://localhost:4200/` erreichbar.
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
+### Unit Tests ausführen
 ```bash
-ng generate component component-name
+# Vitest Testrunner starten
+npm test
 ```
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
+### Production Build
 ```bash
-ng generate --help
+npm run build
 ```
 
-## Building
+---
 
-To build the project run:
+## 📄 Lizenz & Datenschutz
 
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Entwickelt für Reseller und E-Commerce-Unternehmen. 100% datenschutzkonform mit lokaler Datenspeicherung und optionalem Supabase Cloud-Backend.
