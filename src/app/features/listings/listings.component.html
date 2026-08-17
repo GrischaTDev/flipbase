@@ -30,6 +30,24 @@
     </div>
   </div>
 
+  <!-- Success Banner -->
+  @if (publishSuccessMsg(); as msg) {
+    <div class="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-between animate-fade-in">
+      <div class="flex items-center gap-2">
+        <lucide-icon [img]="checkIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+        <span>{{ msg }}</span>
+      </div>
+      <a
+        [routerLink]="['/shop/item', selectedItemId()]"
+        target="_blank"
+        class="px-3 py-1 rounded-lg bg-emerald-500/30 hover:bg-emerald-500/40 text-white font-bold flex items-center gap-1"
+      >
+        <span>Im Shop ansehen</span>
+        <lucide-icon [img]="linkIcon" class="w-3.5 h-3.5"></lucide-icon>
+      </a>
+    </div>
+  }
+
   <!-- Platform Selector Switcher -->
   <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs select-none">
     <!-- Kleinanzeigen -->
@@ -81,6 +99,23 @@
     >
       <span class="w-2 h-2 rounded-full bg-cyan-300"></span>
       <span>Vinted</span>
+    </button>
+
+    <!-- ReFlip Webshop -->
+    <button
+      type="button"
+      (click)="onSelectPlatform('custom_store')"
+      class="px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer border"
+      [class.bg-amber-600]="selectedPlatform() === 'custom_store'"
+      [class.text-white]="selectedPlatform() === 'custom_store'"
+      [class.border-amber-500]="selectedPlatform() === 'custom_store'"
+      [class.shadow-md]="selectedPlatform() === 'custom_store'"
+      [class.bg-rf-surface]="selectedPlatform() !== 'custom_store'"
+      [class.text-rf-text-secondary]="selectedPlatform() !== 'custom_store'"
+      [class.border-rf-border]="selectedPlatform() !== 'custom_store'"
+    >
+      <lucide-icon [img]="storeIcon" class="w-3.5 h-3.5 text-amber-300"></lucide-icon>
+      <span>🏪 Eigener Webshop</span>
     </button>
 
     <!-- Social / WhatsApp -->
@@ -491,24 +526,45 @@
 
           <!-- Bottom Actions (Publish & Mark Listed) -->
           <div class="pt-4 border-t border-rf-border flex flex-col sm:flex-row items-center justify-between gap-3">
-            <button
-              type="button"
-              (click)="openPlatformPublish()"
-              class="linear-btn-secondary w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer text-indigo-300 hover:text-white"
-            >
-              <lucide-icon [img]="linkIcon" class="w-4 h-4"></lucide-icon>
-              <span>Inserat auf {{ selectedPlatform() | translate }} aufgeben</span>
-            </button>
+            @if (selectedPlatform() === 'custom_store') {
+              <button
+                type="button"
+                (click)="publishToStore()"
+                [disabled]="isMarkingListed()"
+                class="linear-btn-primary w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/25 bg-amber-600 hover:bg-amber-500 border-amber-500 text-white disabled:opacity-50"
+              >
+                <lucide-icon [img]="zapIcon" class="w-4 h-4"></lucide-icon>
+                <span>⚡ Jetzt im Webshop aktivieren</span>
+              </button>
 
-            <button
-              type="button"
-              (click)="markAsListed()"
-              [disabled]="isMarkingListed()"
-              class="linear-btn-primary w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-50"
-            >
-              <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
-              <span>{{ isMarkingListed() ? 'Wird gespeichert...' : 'Als "Eingestellt" markieren' }}</span>
-            </button>
+              <button
+                type="button"
+                (click)="openPlatformPublish()"
+                class="linear-btn-secondary w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer text-amber-300 hover:text-white"
+              >
+                <lucide-icon [img]="storeIcon" class="w-4 h-4"></lucide-icon>
+                <span>Im Online-Shop ansehen</span>
+              </button>
+            } @else {
+              <button
+                type="button"
+                (click)="openPlatformPublish()"
+                class="linear-btn-secondary w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer text-indigo-300 hover:text-white"
+              >
+                <lucide-icon [img]="linkIcon" class="w-4 h-4"></lucide-icon>
+                <span>Inserat auf {{ selectedPlatform() | translate }} aufgeben</span>
+              </button>
+
+              <button
+                type="button"
+                (click)="markAsListed()"
+                [disabled]="isMarkingListed()"
+                class="linear-btn-primary w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-50"
+              >
+                <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+                <span>{{ isMarkingListed() ? 'Wird gespeichert...' : 'Als "Eingestellt" markieren' }}</span>
+              </button>
+            }
           </div>
         </div>
       } @else {

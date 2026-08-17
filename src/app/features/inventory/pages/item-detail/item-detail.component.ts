@@ -189,6 +189,14 @@ export class ItemDetailComponent {
     await this.inventoryService.deleteItemCost(item.id, costId);
   }
 
+  async onTogglePublicStore(isPublic: boolean): Promise<void> {
+    const item = this.inventoryService.selectedItem();
+    if (!item) return;
+    await this.inventoryService.updateItem(item.id, {
+      is_public_store: isPublic,
+    });
+  }
+
   async onDeleteItem(): Promise<void> {
     const item = this.inventoryService.selectedItem();
     if (!item) return;

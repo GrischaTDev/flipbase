@@ -4,7 +4,7 @@ import { WorkspaceService } from './workspace.service';
 import { InventoryService } from './inventory.service';
 import { InventoryItem, ListingDraft } from '../models/reflip.models';
 
-export type ListingPlatform = 'kleinanzeigen' | 'ebay' | 'vinted' | 'social';
+export type ListingPlatform = 'kleinanzeigen' | 'ebay' | 'vinted' | 'custom_store' | 'social';
 export type ListingStyleTone = 'dealer' | 'bargain' | 'collector' | 'casual';
 
 export interface ListingTemplateOptions {
@@ -112,13 +112,17 @@ export class ListingStudioService {
       case 'vinted':
         description = this.buildVintedText(item, price, conditionGerman, options);
         break;
+      case 'custom_store':
+        description = this.buildStoreText(item, price, conditionGerman, options);
+        htmlDescription = this.buildStoreHtml(item, price, conditionGerman, options);
+        break;
       case 'social':
         description = this.buildSocialText(item, price, conditionGerman, options);
         break;
     }
 
     const hashtags = platform === 'vinted' || platform === 'social' ? this.buildHashtags(item) : undefined;
-    const platformUrl = this.getPlatformPublishUrl(platform);
+    const platformUrl = this.getPlatformPublishUrl(platform, item.id);
 
     return {
       platform,
@@ -493,7 +497,52 @@ ${this.buildHashtags(item).join(' ')}`.trim();
     }
   }
 
-  private getPlatformPublishUrl(platform: ListingPlatform): string {
+  private buildStoreText(
+    item: InventoryItem,
+    price: number,
+    conditionText: string,
+    options: ListingTemplateOptions
+  ): string {
+    const lines: string[] = [];
+    lines.push(`🏪 ${item.title}`);
+    lines.push(``);
+    if (item.brand || item.model) {
+      lines.push(`Hersteller & Modell: ${[item.brand, item.model].filter(Boolean).join(' - ')}`);
+    }
+    lines.push(`Zustand: ${conditionText}`);
+    if (item.condition_notes) {
+      lines.push(`Zustandsdetails: ${item.condition_notes}`);
+    }
+    lines.push(``);
+    if (item.description) {
+      lines.push(item.description);
+      lines.push(``);
+    }
+    lines.push(`✔ Sofort lieferbar • Sichere Zahlung per Stripe / PayPal / Überweisung`);
+    lines.push(`✔ Differenzbesteuert gem. § 25a UStG (Gebrauchtwaren)`);
+    return lines.join('\n');
+  }
+
+  private buildStoreHtml(
+    item: InventoryItem,
+    price: number,
+    conditionText: string,
+    options: ListingTemplateOptions
+  ): string {
+    return `<div class="store-product-description">
+  <h3>${item.title}</h3>
+  <p><strong>Zustand:</strong> ${conditionText}</p>
+  ${item.condition_notes ? `<p class="notes">${item.condition_notes}</p>` : ''}
+  <div class="details">${item.description || ''}</div>
+  <ul class="highlights">
+    <li>Geprüfte Gebrauchtware vom Händler</li>
+    <li>Sicherer Käuferschutz mit PayPal / Kreditkarte</li>
+    <li>Schneller, versicherter DHL-Versand</li>
+  </ul>
+</div>`;
+  }
+
+  private getPlatformPublishUrl(platform: ListingPlatform, itemId?: string): string {
     switch (platform) {
       case 'kleinanzeigen':
         return 'https://www.kleinanzeigen.de/p-anzeige-aufgeben.html';
@@ -501,9 +550,28 @@ ${this.buildHashtags(item).join(' ')}`.trim();
         return 'https://www.ebay.de/sl/sell';
       case 'vinted':
         return 'https://www.vinted.de/items/new';
+      case 'custom_store':
+        return itemId ? `/shop/item/${itemId}` : '/shop';
       case 'social':
         return 'https://www.facebook.com/marketplace/create';
     }
+  }
+
+  /**
+   * Publishes item directly to the public Webshop!
+   */
+  async publishToCustomStore(itemId: string, listingPrice: number): Promise<{ success: boolean; url: string }> {
+    if (this.inventoryService) {
+      await this.inventoryService.updateItem(itemId, {
+        is_public_store: true,
+        status: 'ready',
+        expected_value: listingPrice,
+      });
+    }
+    return {
+      success: true,
+      url: `/shop/item/${itemId}`,
+    };
   }
 
   /**

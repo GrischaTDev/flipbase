@@ -23,6 +23,7 @@ import {
   CheckCircle2,
   AlertCircle,
   TrendingUp,
+  Store,
 } from 'lucide-angular';
 import {
   ListingStudioService,
@@ -34,9 +35,11 @@ import {
 import { InventoryService } from '../../core/services/inventory.service';
 import { InventoryItem } from '../../core/models/reflip.models';
 
+import { RouterLink } from '@angular/router';
+
 @Component({
   selector: 'app-listings',
-  imports: [ReactiveFormsModule, CurrencyPipe, TranslatePipe, LucideAngularModule],
+  imports: [RouterLink, ReactiveFormsModule, CurrencyPipe, TranslatePipe, LucideAngularModule],
   templateUrl: './listings.component.html',
   styleUrl: './listings.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -64,6 +67,7 @@ export class ListingsComponent {
   readonly checkCircleIcon = CheckCircle2;
   readonly alertCircleIcon = AlertCircle;
   readonly trendingIcon = TrendingUp;
+  readonly storeIcon = Store;
 
   readonly selectedItemId = signal<string>('');
   readonly selectedPlatform = signal<ListingPlatform>('kleinanzeigen');
@@ -89,6 +93,7 @@ export class ListingsComponent {
   readonly copiedDesc = signal<boolean>(false);
   readonly copiedAll = signal<boolean>(false);
   readonly isMarkingListed = signal<boolean>(false);
+  readonly publishSuccessMsg = signal<string | null>(null);
 
   readonly availableItems = computed<InventoryItem[]>(() => {
     return this.inventoryService
@@ -228,6 +233,18 @@ export class ListingsComponent {
     this.isMarkingListed.set(true);
     await this.listingStudio.markItemAsListed(item.id, this.selectedPlatform(), price);
     this.isMarkingListed.set(false);
+  }
+
+  async publishToStore(): Promise<void> {
+    const item = this.selectedItem();
+    if (!item) return;
+
+    const price = this.customPrice() > 0 ? this.customPrice() : (item.expected_value ?? item.allocated_purchase_cost * 1.5);
+    this.isMarkingListed.set(true);
+    await this.listingStudio.publishToCustomStore(item.id, price);
+    this.isMarkingListed.set(false);
+    this.publishSuccessMsg.set(`🎉 "${item.title}" wurde erfolgreich im Webshop veröffentlicht! (Preis: ${price.toFixed(2)} €)`);
+    setTimeout(() => this.publishSuccessMsg.set(null), 5000);
   }
 
   openPlatformPublish(): void {

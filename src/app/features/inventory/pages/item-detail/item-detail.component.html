@@ -135,6 +135,80 @@
       </div>
     </div>
 
+    <!-- 🏪 Webshop & Online-Store Veröffentlichung -->
+    <div class="linear-surface rounded-xl p-4 md:p-5 space-y-3 border border-indigo-500/30 bg-indigo-500/5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-rf-border">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
+            <lucide-icon [img]="storeIcon" class="w-4 h-4"></lucide-icon>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+                🏪 Eigener Webshop & Online-Store
+              </h2>
+              @if (item.is_public_store !== false && item.status !== 'sold') {
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  🟢 Live im Shop
+                </span>
+              } @else {
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-muted border border-rf-border">
+                  ⚪ Nicht veröffentlicht
+                </span>
+              }
+            </div>
+            <p class="text-[11px] text-rf-text-muted mt-0.5">
+              Steuere, ob dieser Artikel in deinem öffentlichen Kunden-Store gelistet und direkt online kaufbar ist.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- Toggle Button -->
+          <button
+            type="button"
+            (click)="onTogglePublicStore(item.is_public_store === false)"
+            class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border"
+            [class.bg-emerald-600]="item.is_public_store !== false"
+            [class.text-white]="item.is_public_store !== false"
+            [class.border-emerald-500]="item.is_public_store !== false"
+            [class.bg-rf-surface]="item.is_public_store === false"
+            [class.text-rf-text-secondary]="item.is_public_store === false"
+            [class.border-rf-border]="item.is_public_store === false"
+          >
+            <lucide-icon [img]="item.is_public_store !== false ? checkIcon : storeIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <span>{{ item.is_public_store !== false ? 'Im Webshop aktiv' : 'Im Webshop aktivieren' }}</span>
+          </button>
+
+          <!-- Direct View in Store Link -->
+          <a
+            [routerLink]="['/shop/item', item.id]"
+            target="_blank"
+            class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-300 hover:text-white flex items-center gap-1.5"
+            title="Öffentliche Kundenvorschau aufrufen"
+          >
+            <span>Im Shop ansehen</span>
+            <lucide-icon [img]="linkIcon" class="w-3.5 h-3.5"></lucide-icon>
+          </a>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-rf-text-muted font-mono">
+        <div>
+          <span class="font-sans block text-[10px]">Shop-Verkaufspreis:</span>
+          <strong class="text-rf-text-primary text-sm">{{ (item.expected_value || item.allocated_purchase_cost * 1.5) | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+        </div>
+        <div>
+          <span class="font-sans block text-[10px]">Shop-URL:</span>
+          <span class="text-indigo-400 font-sans text-xs">/shop/item/{{ item.id }}</span>
+        </div>
+        <div>
+          <span class="font-sans block text-[10px]">Zahlungsmethoden:</span>
+          <span class="text-rf-text-secondary font-sans text-xs">Stripe, PayPal, Überweisung</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Foto-Galerie & Belege (Supabase Storage) -->
     <div class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-rf-border">

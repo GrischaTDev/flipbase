@@ -20,6 +20,7 @@ import {
   Printer,
   CheckSquare,
   Square,
+  Store,
 } from 'lucide-angular';
 import { InventoryService } from '../../core/services/inventory.service';
 import { ItemCreateModalComponent } from './components/item-create-modal/item-create-modal.component';
@@ -64,6 +65,7 @@ export class InventoryComponent {
   readonly printerIcon = Printer;
   readonly checkSquareIcon = CheckSquare;
   readonly squareIcon = Square;
+  readonly storeIcon = Store;
 
   readonly isCreateModalOpen = signal<boolean>(false);
   readonly isAiScannerOpen = signal<boolean>(false);
@@ -74,6 +76,10 @@ export class InventoryComponent {
   readonly activePreset = signal<string>('all');
   readonly selectedCondition = signal<string>('all');
   readonly selectedStatus = signal<string>('all');
+
+  readonly storePublishedCount = computed(() =>
+    this.inventoryService.items().filter((i) => i.is_public_store !== false && i.status !== 'sold').length
+  );
 
   // Filtered Items Computed Signal
   readonly filteredItems = computed(() => {
@@ -91,6 +97,11 @@ export class InventoryComponent {
       );
     }
 
+    const preset = this.activePreset();
+    if (preset === 'store_public') {
+      list = list.filter((item) => item.is_public_store !== false && item.status !== 'sold');
+    }
+
     const cond = this.selectedCondition();
     if (cond !== 'all') {
       list = list.filter((item) => item.condition === cond);
@@ -103,6 +114,15 @@ export class InventoryComponent {
 
     return list;
   });
+
+  async onTogglePublicStore(item: InventoryItem, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    event?.preventDefault();
+    const nextVal = item.is_public_store === false;
+    await this.inventoryService.updateItem(item.id, {
+      is_public_store: nextVal,
+    });
+  }
 
   readonly totalTiedCapital = computed(() =>
     this.filteredItems().reduce((sum, item) => sum + (item.allocated_purchase_cost || 0), 0)
