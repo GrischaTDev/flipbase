@@ -3,28 +3,29 @@
   <div class="pb-1">
     <div class="flex items-center gap-2">
       <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
-        {{ 'NAV.SETTINGS' | translate }} & Export
+        {{ 'NAV.SETTINGS' | translate }} & Team
       </h1>
       <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-secondary border border-rf-border">
         Workspace
       </span>
     </div>
     <p class="text-xs text-rf-text-muted mt-0.5">
-      Workspace-Parameter verwalten, eBay API Schnittstelle konfigurieren und Finanzdaten exportieren.
+      Workspace-Parameter verwalten, Team-Mitglieder einladen, eBay API konfigurieren und Daten exportieren.
     </p>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-    <!-- Left Column: Workspace & Financial Parameters (7 cols) -->
-    <div class="lg:col-span-7 space-y-4">
-      <form [formGroup]="form" (ngSubmit)="onSaveSettings()" class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+    <!-- Left Column: Parameters & Team Management (7 cols) -->
+    <div class="lg:col-span-7 space-y-5">
+      <!-- 1. Workspace Parameters Form -->
+      <form [formGroup]="settingsForm" (ngSubmit)="onSaveSettings()" class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
         <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
-          <lucide-icon [img]="slidersIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+          <lucide-icon [img]="slidersIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
           <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Workspace & Deal-Kriterien</h2>
         </div>
 
         @if (saveSuccess()) {
-          <div class="p-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
+          <div class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
             <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
             <span>Einstellungen erfolgreich gespeichert!</span>
           </div>
@@ -38,24 +39,23 @@
             <input
               id="workspaceNameInput"
               type="text"
-              formControlName="name"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-medium"
+              formControlName="workspaceName"
+              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-medium"
             />
           </div>
 
           <div>
-            <label for="currencySelect" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
-              Währung
+            <label for="taxModeSelect" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+              Steuer-Modus
             </label>
             <select
-              id="currencySelect"
-              formControlName="currency"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer text-rf-text-secondary"
+              id="taxModeSelect"
+              formControlName="taxMode"
+              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-medium cursor-pointer text-rf-text-secondary"
             >
-              <option value="EUR">Euro (€)</option>
-              <option value="USD">US Dollar ($)</option>
-              <option value="CHF">Schweizer Franken (CHF)</option>
-              <option value="GBP">Britisches Pfund (£)</option>
+              <option value="diff_25a">§ 25a Differenzbesteuerung (Gebrauchtwaren)</option>
+              <option value="kleinunternehmer_19">§ 19 Kleinunternehmer (0% USt)</option>
+              <option value="regular_19">19% Regelbesteuerung (Standard)</option>
             </select>
           </div>
         </div>
@@ -68,8 +68,8 @@
             <input
               id="minRoiInput"
               type="number"
-              formControlName="min_roi_percent"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium"
+              formControlName="minRoiPercent"
+              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
             />
             <span class="text-[10px] text-rf-text-muted mt-0.5 block">Wird im Deal Calculator als Benchmark genutzt.</span>
           </div>
@@ -81,8 +81,8 @@
             <input
               id="minProfitInput"
               type="number"
-              formControlName="min_profit_amount"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium"
+              formControlName="minProfitAmount"
+              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
             />
             <span class="text-[10px] text-rf-text-muted mt-0.5 block">Mindestbetrag vor Kaufempfehlung.</span>
           </div>
@@ -91,8 +91,8 @@
         <div class="pt-3 border-t border-rf-border flex justify-end">
           <button
             type="submit"
-            [disabled]="form.invalid || isSaving()"
-            class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+            [disabled]="settingsForm.invalid || isSaving()"
+            class="linear-btn-primary px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40 shadow-md shadow-indigo-500/20"
           >
             <lucide-icon [img]="saveIcon" class="w-3.5 h-3.5"></lucide-icon>
             <span>{{ isSaving() ? 'Speichere...' : 'Einstellungen speichern' }}</span>
@@ -100,8 +100,118 @@
         </div>
       </form>
 
-      <!-- eBay Developer API Schnittstelle -->
-      <form [formGroup]="ebayForm" (ngSubmit)="onSaveEbaySettings()" class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
+      <!-- 2. Team Members & Roles Card -->
+      <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
+        <div class="flex items-center justify-between border-b border-rf-border pb-3">
+          <div class="flex items-center gap-2">
+            <lucide-icon [img]="usersIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+              Team-Mitglieder & Rollen ({{ memberService.members().length }})
+            </h2>
+          </div>
+
+          <button
+            type="button"
+            (click)="openInviteModal()"
+            class="linear-btn-primary px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+          >
+            <lucide-icon [img]="userPlusIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <span>Mitglied einladen</span>
+          </button>
+        </div>
+
+        <p class="text-xs text-rf-text-muted leading-relaxed">
+          Vergib gezielte Rollen für Sourcing-Mitarbeiter, Packstation-Hilfen oder deinen Steuerberater (Nur-Lesen).
+        </p>
+
+        <!-- Active Members List -->
+        <div class="space-y-2">
+          @for (member of memberService.members(); track member.id) {
+            @let badge = memberService.getRoleBadge(member.role);
+            <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 font-bold text-xs flex items-center justify-center shrink-0">
+                  {{ member.email.charAt(0).toUpperCase() }}
+                </div>
+
+                <div>
+                  <div class="flex items-center gap-2">
+                    <strong class="text-xs text-rf-text-primary">{{ member.full_name || member.email }}</strong>
+                    <span class="px-2 py-0.2 rounded text-[9px] font-mono font-bold border {{ badge.class }}">
+                      {{ badge.label }}
+                    </span>
+                  </div>
+                  <span class="text-[11px] text-rf-text-muted block">{{ member.email }}</span>
+                </div>
+              </div>
+
+              <!-- Role Selector & Actions -->
+              <div class="flex items-center gap-2 self-end sm:self-center">
+                @if (member.role !== 'owner') {
+                  <select
+                    [value]="member.role"
+                    (change)="onUpdateRole(member.id, $any($event.target).value)"
+                    class="linear-input px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer text-rf-text-secondary"
+                  >
+                    <option value="admin">Administrator</option>
+                    <option value="member">Sourcing & Einkauf</option>
+                    <option value="fulfillment">Packstation & Logistik</option>
+                    <option value="accountant">Steuerberater / DATEV</option>
+                    <option value="readonly">Nur-Lesen</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    (click)="onRemoveMember(member.id)"
+                    class="p-1 rounded-lg text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                    title="Mitglied entfernen"
+                  >
+                    <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+                  </button>
+                } @else {
+                  <span class="text-[11px] font-mono text-purple-300 font-semibold px-2 py-1">Inhaber</span>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Pending Invites Strip -->
+        @if (memberService.invites().length > 0) {
+          <div class="pt-3 border-t border-rf-border space-y-2">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-rf-text-muted block">
+              Offene Einladungen ({{ memberService.invites().length }})
+            </span>
+
+            @for (inv of memberService.invites(); track inv.id) {
+              @let badge = memberService.getRoleBadge(inv.role);
+              <div class="p-2.5 rounded-xl bg-rf-subtle/60 border border-dashed border-rf-border flex items-center justify-between text-xs">
+                <div class="flex items-center gap-2">
+                  <lucide-icon [img]="mailIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
+                  <span class="text-rf-text-secondary font-medium">{{ inv.email }}</span>
+                  <span class="px-1.5 py-0.2 rounded text-[9px] font-mono border {{ badge.class }}">
+                    {{ badge.label }}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  (click)="onCancelInvite(inv.id)"
+                  class="text-[10px] text-rose-400 hover:underline cursor-pointer"
+                >
+                  Widerrufen
+                </button>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- Right Column: eBay API & Data Export (5 cols) -->
+    <div class="lg:col-span-5 space-y-5">
+      <!-- eBay Developer API -->
+      <form [formGroup]="ebayForm" (ngSubmit)="onSaveEbayConfig()" class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">
           <div class="flex items-center gap-2">
             <lucide-icon [img]="plugIcon" class="w-4 h-4 text-blue-400"></lucide-icon>
@@ -113,11 +223,11 @@
         </div>
 
         <p class="text-[11px] text-rf-text-muted leading-relaxed">
-          Hinterlege hier deine eBay Developer App-ID, um bei jeder Recherche 100% echte verkaufte Angebote und die Originalfotos der Verkäufer direkt von eBay abzurufen.
+          Hinterlege deine eBay Developer App-ID, um echte verkaufte Angebote und die Originalfotos der Verkäufer direkt abzurufen.
         </p>
 
         @if (ebaySaveSuccess()) {
-          <div class="p-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
+          <div class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
             <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
             <span>eBay API-Konfiguration gespeichert!</span>
           </div>
@@ -132,94 +242,61 @@
               id="ebayAppId"
               type="text"
               formControlName="appId"
-              placeholder="z.B. MeinName-ReFlip-PRD-12345678-abcdef"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono"
+              placeholder="z.B. MeinName-ReFlip-PRD-12345678"
+              class="linear-input w-full px-2.5 py-1.5 rounded-xl text-xs font-mono"
             />
           </div>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label for="ebayCertId" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
-                Cert-ID / Client Secret (optional)
-              </label>
-              <input
-                id="ebayCertId"
-                type="password"
-                formControlName="certId"
-                placeholder="PRD-abcdef123456"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono"
-              />
-            </div>
-
-            <div>
-              <label for="ebaySiteId" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
-                Marktplatz
-              </label>
-              <select
-                id="ebaySiteId"
-                formControlName="siteId"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer text-rf-text-secondary"
-              >
-                <option value="EBAY-DE">eBay Deutschland (EBAY-DE)</option>
-                <option value="EBAY-AT">eBay Österreich (EBAY-AT)</option>
-                <option value="EBAY-CH">eBay Schweiz (EBAY-CH)</option>
-                <option value="EBAY-US">eBay USA (EBAY-US)</option>
-              </select>
-            </div>
+          <div>
+            <label for="ebayGlobalId" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+              Marktplatz
+            </label>
+            <select
+              id="ebayGlobalId"
+              formControlName="globalId"
+              class="linear-input w-full px-2.5 py-1.5 rounded-xl text-xs font-medium cursor-pointer text-rf-text-secondary"
+            >
+              <option value="EBAY-DE">eBay Deutschland (EBAY-DE)</option>
+              <option value="EBAY-AT">eBay Österreich (EBAY-AT)</option>
+              <option value="EBAY-CH">eBay Schweiz (EBAY-CH)</option>
+              <option value="EBAY-US">eBay USA (EBAY-US)</option>
+            </select>
           </div>
         </div>
 
         <div class="pt-3 border-t border-rf-border flex justify-end">
           <button
             type="submit"
-            class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer"
+            class="linear-btn-primary px-4 py-1.5 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
           >
             <lucide-icon [img]="saveIcon" class="w-3.5 h-3.5"></lucide-icon>
             <span>API-Key speichern</span>
           </button>
         </div>
       </form>
-    </div>
 
-    <!-- Right Column: Data Export & DATEV Center (5 cols) -->
-    <div class="lg:col-span-5 space-y-4">
-      <div class="linear-surface rounded-xl p-4 md:p-5 space-y-3 font-sans">
+      <!-- Data Export Center -->
+      <div class="linear-surface rounded-2xl p-5 space-y-3 shadow-xl">
         <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
           <lucide-icon [img]="csvIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Datenexport & Steuerberater</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Datenexport & Backups</h2>
         </div>
 
         <p class="text-xs text-rf-text-muted leading-relaxed">
-          Exportiere alle Geschäftsdaten im standardisierten CSV-Format für deine Einnahmen-Überschuss-Rechnung (EÜR), Buchhaltung oder Steuerberatung.
+          Exportiere alle Geschäftsdaten im standardisierten CSV- oder JSON-Format für deine Buchhaltung oder Sicherung.
         </p>
 
         <div class="space-y-2 pt-2">
           <!-- Sales Export -->
-          <div class="p-3 rounded-lg bg-rf-subtle border border-rf-border flex items-center justify-between">
+          <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between">
             <div>
-              <strong class="text-xs text-rf-text-primary block">Verkäufe & Umsätze</strong>
+              <strong class="text-xs text-rf-text-primary block">Verkäufe & Erlöse</strong>
               <span class="text-[10px] text-rf-text-muted">Inklusive Gebühren, Versand und Reingewinn</span>
             </div>
             <button
               type="button"
               (click)="exportSalesCsv()"
-              class="linear-btn-secondary px-3 py-1 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer"
-            >
-              <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5"></lucide-icon>
-              <span>CSV</span>
-            </button>
-          </div>
-
-          <!-- Purchases Export -->
-          <div class="p-3 rounded-lg bg-rf-subtle border border-rf-border flex items-center justify-between">
-            <div>
-              <strong class="text-xs text-rf-text-primary block">Einkäufe & Chargen</strong>
-              <span class="text-[10px] text-rf-text-muted">Wareneinsatz und Nebenkosten</span>
-            </div>
-            <button
-              type="button"
-              (click)="exportPurchasesCsv()"
-              class="linear-btn-secondary px-3 py-1 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer"
+              class="linear-btn-secondary px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
             >
               <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5"></lucide-icon>
               <span>CSV</span>
@@ -227,22 +304,124 @@
           </div>
 
           <!-- Inventory Export -->
-          <div class="p-3 rounded-lg bg-rf-subtle border border-rf-border flex items-center justify-between">
+          <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between">
             <div>
-              <strong class="text-xs text-rf-text-primary block">Aktueller Warenbestand</strong>
+              <strong class="text-xs text-rf-text-primary block">Inventar & Warenbestand</strong>
               <span class="text-[10px] text-rf-text-muted">Inventurliste mit gebundenem Kapital</span>
             </div>
             <button
               type="button"
               (click)="exportInventoryCsv()"
-              class="linear-btn-secondary px-3 py-1 rounded text-xs font-semibold flex items-center gap-1 cursor-pointer"
+              class="linear-btn-secondary px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
             >
               <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5"></lucide-icon>
               <span>CSV</span>
+            </button>
+          </div>
+
+          <!-- Full Backup -->
+          <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between">
+            <div>
+              <strong class="text-xs text-rf-text-primary block">Vollständiges Backup</strong>
+              <span class="text-[10px] text-rf-text-muted">Alle Datensätze als JSON</span>
+            </div>
+            <button
+              type="button"
+              (click)="exportAllData()"
+              class="linear-btn-primary px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm"
+            >
+              <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <span>JSON</span>
             </button>
           </div>
         </div>
       </div>
     </div>
   </div>
+
+  <!-- Invite Member Modal -->
+  @if (isInviteModalOpen()) {
+    <div
+      class="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in"
+      (click)="closeInviteModal()"
+    >
+      <div
+        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-6 space-y-5 select-none"
+        (click)="$event.stopPropagation()"
+      >
+        <!-- Header -->
+        <div class="flex items-start justify-between border-b border-rf-border pb-3">
+          <div>
+            <h3 class="text-base font-bold text-rf-text-primary">Team-Mitglied einladen</h3>
+            <p class="text-xs text-rf-text-muted mt-0.5">Sende eine Einladung per E-Mail mit definierter Rolle.</p>
+          </div>
+
+          <button
+            type="button"
+            (click)="closeInviteModal()"
+            class="p-1 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
+          >
+            <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+          </button>
+        </div>
+
+        @if (inviteError()) {
+          <div class="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
+            {{ inviteError() }}
+          </div>
+        }
+
+        <form [formGroup]="inviteForm" (ngSubmit)="onSendInvite()" class="space-y-4">
+          <div>
+            <label for="inviteEmailInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+              E-Mail-Adresse *
+            </label>
+            <input
+              id="inviteEmailInput"
+              type="email"
+              formControlName="email"
+              placeholder="mitarbeiter@beispiel.de"
+              class="linear-input w-full px-3 py-2 rounded-xl text-xs"
+            />
+          </div>
+
+          <div>
+            <label for="inviteRoleSelect" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+              Rolle & Berechtigung *
+            </label>
+            <select
+              id="inviteRoleSelect"
+              formControlName="role"
+              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer text-rf-text-secondary"
+            >
+              <option value="member">Sourcing & Einkauf (Einkauf & Inventar)</option>
+              <option value="fulfillment">Packstation & Logistik (Versand & Sendungsverfolgung)</option>
+              <option value="accountant">Steuerberater / DATEV (Nur-Lesen auf Finanzen)</option>
+              <option value="admin">Administrator (Voller Zugriff ohne Inhaber-Rechte)</option>
+              <option value="readonly">Nur-Lesen (Reine Ansicht)</option>
+            </select>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-2 border-t border-rf-border">
+            <button
+              type="button"
+              (click)="closeInviteModal()"
+              class="linear-btn-secondary px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+            >
+              Abbrechen
+            </button>
+
+            <button
+              type="submit"
+              [disabled]="inviteForm.invalid || isSendingInvite()"
+              class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20 disabled:opacity-40"
+            >
+              <lucide-icon [img]="userPlusIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <span>{{ isSendingInvite() ? 'Wird gesendet...' : 'Einladung senden' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
 </div>

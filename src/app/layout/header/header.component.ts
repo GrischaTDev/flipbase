@@ -4,6 +4,7 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { LucideAngularModule, Layers, Globe, LogOut, User as UserIcon, Plus, Menu, Sun, Moon } from 'lucide-angular';
 import { AuthService } from '../../core/services/auth.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { WorkspaceMemberService } from '../../core/services/workspace-member.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { Workspace } from '../../core/models/reflip.models';
 
@@ -17,6 +18,7 @@ import { Workspace } from '../../core/models/reflip.models';
 export class HeaderComponent {
   readonly auth = inject(AuthService);
   readonly workspaceService = inject(WorkspaceService);
+  readonly memberService = inject(WorkspaceMemberService);
   readonly themeService = inject(ThemeService);
   private readonly translate = inject(TranslateService);
 

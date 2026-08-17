@@ -20,12 +20,27 @@ export interface Workspace {
   updated_at?: string;
 }
 
+export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'fulfillment' | 'accountant' | 'readonly';
+
 export interface WorkspaceMember {
   id: string;
   workspace_id: string;
   user_id: string;
-  role: 'owner' | 'admin' | 'member';
+  email: string;
+  full_name?: string | null;
+  role: WorkspaceRole;
   created_at?: string;
+  joined_at?: string;
+}
+
+export interface WorkspaceInvite {
+  id: string;
+  workspace_id: string;
+  email: string;
+  role: WorkspaceRole;
+  invited_by_name?: string;
+  status: 'pending' | 'accepted' | 'declined';
+  created_at: string;
 }
 
 export interface Source {

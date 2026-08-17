@@ -98,9 +98,15 @@
         <div class="w-7 h-7 rounded-md bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 flex items-center justify-center font-bold text-xs shadow-xs">
           {{ auth.userName().charAt(0).toUpperCase() }}
         </div>
-        <span class="hidden md:inline text-xs font-semibold text-rf-text-primary">
-          {{ auth.userName() }}
-        </span>
+        <div class="hidden md:flex items-center gap-1.5">
+          <span class="text-xs font-semibold text-rf-text-primary">
+            {{ auth.userName() }}
+          </span>
+          @let badge = memberService.getRoleBadge(memberService.currentUserRole());
+          <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold border {{ badge.class }}">
+            {{ badge.label }}
+          </span>
+        </div>
       </button>
 
       @if (isUserDropdownOpen()) {

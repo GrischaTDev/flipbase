@@ -16,6 +16,11 @@ import {
   ShieldCheck,
   Link2,
   Plug,
+  Users,
+  UserPlus,
+  Mail,
+  Trash2,
+  X,
 } from 'lucide-angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ExportService } from '../../core/services/export.service';
@@ -23,6 +28,8 @@ import { SalesService } from '../../core/services/sales.service';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { InventoryService } from '../../core/services/inventory.service';
 import { EbayApiService } from '../../core/services/ebay-api.service';
+import { WorkspaceMemberService } from '../../core/services/workspace-member.service';
+import { WorkspaceRole } from '../../core/models/reflip.models';
 
 @Component({
   selector: 'app-settings',
@@ -38,6 +45,7 @@ export class SettingsComponent {
   readonly purchaseService = inject(PurchaseService);
   readonly inventoryService = inject(InventoryService);
   readonly ebayApiService = inject(EbayApiService);
+  readonly memberService = inject(WorkspaceMemberService);
   readonly translate = inject(TranslateService);
 
   readonly settingsIcon = Settings;
@@ -53,33 +61,49 @@ export class SettingsComponent {
   readonly shieldIcon = ShieldCheck;
   readonly linkIcon = Link2;
   readonly plugIcon = Plug;
+  readonly usersIcon = Users;
+  readonly userPlusIcon = UserPlus;
+  readonly mailIcon = Mail;
+  readonly trashIcon = Trash2;
+  readonly closeIcon = X;
 
   readonly isSaving = signal<boolean>(false);
   readonly saveSuccess = signal<boolean>(false);
   readonly ebaySaveSuccess = signal<boolean>(false);
 
-  readonly form = new FormGroup({
-    name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    currency: new FormControl('EUR', { nonNullable: true, validators: [Validators.required] }),
-    min_roi_percent: new FormControl<number>(30, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
-    min_profit_amount: new FormControl<number>(15, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
+  // Invite modal state
+  readonly isInviteModalOpen = signal<boolean>(false);
+  readonly isSendingInvite = signal<boolean>(false);
+  readonly inviteError = signal<string | null>(null);
+
+  readonly settingsForm = new FormGroup({
+    workspaceName: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    currency: new FormControl('EUR', { nonNullable: true }),
+    taxMode: new FormControl('diff_25a', { nonNullable: true }),
+    minRoiPercent: new FormControl<number>(20, { nonNullable: true, validators: [Validators.min(0)] }),
+    minProfitAmount: new FormControl<number>(10, { nonNullable: true, validators: [Validators.min(0)] }),
   });
 
   readonly ebayForm = new FormGroup({
     appId: new FormControl(''),
-    certId: new FormControl(''),
-    siteId: new FormControl('EBAY-DE', { nonNullable: true }),
+    globalId: new FormControl('EBAY-DE'),
+  });
+
+  readonly inviteForm = new FormGroup({
+    email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
+    role: new FormControl<WorkspaceRole>('member', { nonNullable: true, validators: [Validators.required] }),
   });
 
   constructor() {
     effect(() => {
       const ws = this.workspaceService.currentWorkspace();
       if (ws) {
-        this.form.patchValue({
-          name: ws.name,
+        this.settingsForm.patchValue({
+          workspaceName: ws.name,
           currency: ws.currency || 'EUR',
-          min_roi_percent: ws.min_roi_percent,
-          min_profit_amount: ws.min_profit_amount,
+          taxMode: ws.tax_mode || 'diff_25a',
+          minRoiPercent: ws.min_roi_percent,
+          minProfitAmount: ws.min_profit_amount,
         });
       }
     });
@@ -87,23 +111,23 @@ export class SettingsComponent {
     const cfg = this.ebayApiService.getConfig();
     this.ebayForm.patchValue({
       appId: cfg.appId || '',
-      certId: cfg.certId || '',
-      siteId: cfg.siteId || 'EBAY-DE',
+      globalId: cfg.siteId || 'EBAY-DE',
     });
   }
 
   async onSaveSettings(): Promise<void> {
+    if (this.settingsForm.invalid) return;
+
     const ws = this.workspaceService.currentWorkspace();
-    if (!ws || this.form.invalid) return;
+    if (!ws) return;
 
     this.isSaving.set(true);
-    this.saveSuccess.set(false);
+    const val = this.settingsForm.getRawValue();
 
-    const f = this.form.getRawValue();
     await this.workspaceService.updateWorkspaceSettings(ws.id, {
-      name: f.name,
-      min_roi_percent: f.min_roi_percent,
-      min_profit_amount: f.min_profit_amount,
+      name: val.workspaceName,
+      min_roi_percent: val.minRoiPercent,
+      min_profit_amount: val.minProfitAmount,
     });
 
     this.isSaving.set(false);
@@ -111,32 +135,87 @@ export class SettingsComponent {
     setTimeout(() => this.saveSuccess.set(false), 3000);
   }
 
-  onSaveEbaySettings(): void {
-    const f = this.ebayForm.getRawValue();
+  onSaveEbayConfig(): void {
+    const val = this.ebayForm.getRawValue();
     this.ebayApiService.saveConfig({
-      appId: f.appId?.trim() || undefined,
-      certId: f.certId?.trim() || undefined,
-      siteId: f.siteId || 'EBAY-DE',
+      appId: val.appId || '',
+      siteId: val.globalId || 'EBAY-DE',
     });
     this.ebaySaveSuccess.set(true);
     setTimeout(() => this.ebaySaveSuccess.set(false), 3000);
   }
 
-  exportSalesCsv(): void {
-    const csv = this.exportService.generateSalesCsv(this.salesService.sales());
-    const date = new Date().toISOString().split('T')[0];
-    this.exportService.downloadFile(csv, `reflip-verkaeufe-${date}.csv`, 'text/csv;charset=utf-8;');
+  // Member management
+  openInviteModal(): void {
+    this.inviteForm.reset({ email: '', role: 'member' });
+    this.inviteError.set(null);
+    this.isInviteModalOpen.set(true);
   }
 
-  exportPurchasesCsv(): void {
-    const csv = this.exportService.generatePurchasesCsv(this.purchaseService.purchases());
-    const date = new Date().toISOString().split('T')[0];
-    this.exportService.downloadFile(csv, `reflip-einkaeufe-${date}.csv`, 'text/csv;charset=utf-8;');
+  closeInviteModal(): void {
+    this.isInviteModalOpen.set(false);
+  }
+
+  async onSendInvite(): Promise<void> {
+    if (this.inviteForm.invalid) return;
+
+    this.isSendingInvite.set(true);
+    this.inviteError.set(null);
+    const { email, role } = this.inviteForm.getRawValue();
+
+    const { error } = await this.memberService.inviteMember(email, role);
+    this.isSendingInvite.set(false);
+
+    if (error) {
+      this.inviteError.set(error.message);
+    } else {
+      this.closeInviteModal();
+    }
+  }
+
+  async onUpdateRole(memberId: string, role: WorkspaceRole): Promise<void> {
+    await this.memberService.updateMemberRole(memberId, role);
+  }
+
+  async onRemoveMember(memberId: string): Promise<void> {
+    if (confirm('Möchtest du dieses Team-Mitglied wirklich aus dem Workspace entfernen?')) {
+      await this.memberService.removeMember(memberId);
+    }
+  }
+
+  async onCancelInvite(inviteId: string): Promise<void> {
+    await this.memberService.cancelInvite(inviteId);
+  }
+
+  exportAllData(): void {
+    const json = this.exportService.generateJsonBackup(
+      this.workspaceService.currentWorkspace(),
+      this.purchaseService.purchases(),
+      this.inventoryService.items(),
+      this.salesService.sales()
+    );
+    this.exportService.downloadFile(
+      json,
+      `reflip-backup-${new Date().toISOString().split('T')[0]}.json`,
+      'application/json'
+    );
   }
 
   exportInventoryCsv(): void {
     const csv = this.exportService.generateInventoryCsv(this.inventoryService.items());
-    const date = new Date().toISOString().split('T')[0];
-    this.exportService.downloadFile(csv, `reflip-bestand-${date}.csv`, 'text/csv;charset=utf-8;');
+    this.exportService.downloadFile(
+      csv,
+      `reflip-inventar-${new Date().toISOString().split('T')[0]}.csv`,
+      'text/csv;charset=utf-8;'
+    );
+  }
+
+  exportSalesCsv(): void {
+    const csv = this.exportService.generateSalesCsv(this.salesService.sales());
+    this.exportService.downloadFile(
+      csv,
+      `reflip-verkaeufe-${new Date().toISOString().split('T')[0]}.csv`,
+      'text/csv;charset=utf-8;'
+    );
   }
 }
