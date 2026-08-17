@@ -52,17 +52,17 @@ export class StoreItemDetailComponent {
   getConditionBadge(condition?: string): { label: string; class: string } {
     switch (condition) {
       case 'new':
-        return { label: 'Neu & Originalverpackt', class: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30' };
+        return { label: 'Neu & Originalverpackt', class: 'bg-emerald-50 text-emerald-800 border-emerald-300' };
       case 'like_new':
-        return { label: 'Wie neu (Keine Gebrauchsspuren)', class: 'bg-blue-500/15 text-blue-400 border-blue-500/30' };
+        return { label: 'Wie neu (Keine Gebrauchsspuren)', class: 'bg-blue-50 text-blue-800 border-blue-300' };
       case 'very_good':
-        return { label: 'Sehr gut (Minimale Spuren)', class: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30' };
+        return { label: 'Sehr gut (Minimale Spuren)', class: 'bg-indigo-50 text-indigo-800 border-indigo-300' };
       case 'used':
-        return { label: 'Geprüfter Gebrauchtzustand', class: 'bg-amber-500/15 text-amber-400 border-amber-500/30' };
+        return { label: 'Geprüfter Gebrauchtzustand', class: 'bg-amber-50 text-amber-800 border-amber-300' };
       case 'heavily_used':
-        return { label: 'Starke Gebrauchsspuren', class: 'bg-orange-500/15 text-orange-400 border-orange-500/30' };
+        return { label: 'Starke Gebrauchsspuren', class: 'bg-orange-50 text-orange-800 border-orange-300' };
       default:
-        return { label: 'Funktionsgeprüft', class: 'bg-rf-subtle text-rf-text-muted border-rf-border' };
+        return { label: 'Funktionsgeprüft', class: 'bg-slate-100 text-slate-700 border-slate-300' };
     }
   }
 

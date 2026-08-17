@@ -1,26 +1,26 @@
 <div class="space-y-16 animate-fade-in select-none">
-  <!-- 1. 🌟 Hero Landing Showcase -->
-  <section class="relative rounded-3xl overflow-hidden bg-gradient-to-br from-indigo-950/70 via-[#232733] to-[#1c202a] border border-rf-border p-6 sm:p-10 md:p-14 shadow-2xl">
-    <!-- Subtle Background Glow -->
-    <div class="absolute -top-24 -right-24 w-96 h-96 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none"></div>
-    <div class="absolute -bottom-24 -left-24 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+  <!-- 1. 🌟 Hero Landing Showcase (Crisp Bright Light Gradient) -->
+  <section class="relative rounded-3xl overflow-hidden bg-gradient-to-br from-indigo-50 via-white to-blue-50 border border-indigo-100 p-6 sm:p-10 md:p-14 shadow-lg shadow-indigo-100/40">
+    <!-- Subtle Ambient Glow -->
+    <div class="absolute -top-24 -right-24 w-96 h-96 bg-indigo-300/20 rounded-full blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-24 -left-24 w-80 h-80 bg-blue-200/25 rounded-full blur-3xl pointer-events-none"></div>
 
     <div class="relative z-10 max-w-3xl space-y-6">
       <!-- Trust Pill Badge -->
-      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-xs font-bold shadow-xs">
-        <lucide-icon [img]="sparklesIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200 text-xs font-bold shadow-xs">
+        <lucide-icon [img]="sparklesIcon" class="w-4 h-4 text-indigo-600"></lucide-icon>
         <span>Geprüfte Gebrauchtware & Outlet-Deals</span>
-        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-        <span class="text-emerald-300 font-semibold">100% Funktionsgarantie</span>
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        <span class="text-emerald-700 font-bold">100% Funktionsgarantie</span>
       </div>
 
       <!-- Hero Headline -->
-      <h1 class="text-3xl sm:text-4xl md:text-5xl font-black text-rf-text-primary tracking-tight leading-[1.15]">
-        Geprüfte Top-Markenware zu <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-blue-400">unschlagbaren Preisen</span>.
+      <h1 class="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight leading-[1.15]">
+        Geprüfte Top-Markenware zu <span class="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600">unschlagbaren Preisen</span>.
       </h1>
 
       <!-- Hero Subtitle -->
-      <p class="text-sm sm:text-base text-rf-text-secondary leading-relaxed max-w-2xl">
+      <p class="text-sm sm:text-base text-slate-600 leading-relaxed max-w-2xl">
         Entdecke handgeprüfte Elektronik, Werkzeuge und Schnäppchen – bis zu <strong>70% unter Neupreis</strong>. Jedes Produkt einzeln getestet, sofort versandbereit und mit vollem <strong>14 Tage Rückgaberecht</strong>.
       </p>
 
@@ -31,127 +31,127 @@
             type="text"
             [formControl]="searchControl"
             placeholder="Artikel, Marke oder Modell suchen..."
-            class="linear-input w-full pl-10 pr-4 py-3 rounded-2xl text-xs font-medium placeholder-rf-text-dimmed shadow-lg border border-rf-border-hover focus:border-indigo-500"
+            class="w-full pl-10 pr-4 py-3 rounded-2xl text-xs font-medium placeholder-slate-400 bg-white text-slate-900 border border-slate-300 shadow-md focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none transition"
           />
-          <lucide-icon [img]="searchIcon" class="w-4 h-4 text-rf-text-muted absolute left-3.5 top-1/2 -translate-y-1/2"></lucide-icon>
+          <lucide-icon [img]="searchIcon" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></lucide-icon>
         </div>
 
         <button
           type="button"
           (click)="scrollToCatalog()"
-          class="linear-btn-primary px-6 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 shrink-0"
+          class="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 transition shrink-0"
         >
           <span>Alle Angebote</span>
           <lucide-icon [img]="arrowRightIcon" class="w-4 h-4"></lucide-icon>
         </button>
       </div>
 
-      <!-- Live KPI Trust Metrics Bar -->
-      <div class="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-rf-border/60 text-xs">
-        <div class="p-2.5 rounded-xl bg-rf-subtle/70 border border-rf-border/40 flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+      <!-- Live KPI Trust Metrics Bar (Bright Glass) -->
+      <div class="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-indigo-100/80 text-xs">
+        <div class="p-2.5 rounded-xl bg-white/80 border border-indigo-100/80 shadow-xs flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
             <lucide-icon [img]="shieldIcon" class="w-4 h-4"></lucide-icon>
           </div>
           <div>
-            <span class="font-extrabold text-slate-100 block text-xs">100% Geprüft</span>
-            <span class="text-[10px] text-rf-text-muted">Funktionsgarantie</span>
+            <span class="font-extrabold text-slate-900 block text-xs">100% Geprüft</span>
+            <span class="text-[10px] text-slate-500">Funktionsgarantie</span>
           </div>
         </div>
 
-        <div class="p-2.5 rounded-xl bg-rf-subtle/70 border border-rf-border/40 flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+        <div class="p-2.5 rounded-xl bg-white/80 border border-indigo-100/80 shadow-xs flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
             <lucide-icon [img]="truckIcon" class="w-4 h-4"></lucide-icon>
           </div>
           <div>
-            <span class="font-extrabold text-slate-100 block text-xs">&lt; 24h Versand</span>
-            <span class="text-[10px] text-rf-text-muted">DHL / Hermes</span>
+            <span class="font-extrabold text-slate-900 block text-xs">&lt; 24h Versand</span>
+            <span class="text-[10px] text-slate-500">DHL / Hermes</span>
           </div>
         </div>
 
-        <div class="p-2.5 rounded-xl bg-rf-subtle/70 border border-rf-border/40 flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+        <div class="p-2.5 rounded-xl bg-white/80 border border-indigo-100/80 shadow-xs flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
             <lucide-icon [img]="returnIcon" class="w-4 h-4"></lucide-icon>
           </div>
           <div>
-            <span class="font-extrabold text-slate-100 block text-xs">14 Tage</span>
-            <span class="text-[10px] text-rf-text-muted">Rückgaberecht</span>
+            <span class="font-extrabold text-slate-900 block text-xs">14 Tage</span>
+            <span class="text-[10px] text-slate-500">Rückgaberecht</span>
           </div>
         </div>
 
-        <div class="p-2.5 rounded-xl bg-rf-subtle/70 border border-rf-border/40 flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0">
+        <div class="p-2.5 rounded-xl bg-white/80 border border-indigo-100/80 shadow-xs flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
             <lucide-icon [img]="starIcon" class="w-4 h-4 fill-amber-400 text-amber-400"></lucide-icon>
           </div>
           <div>
-            <span class="font-extrabold text-slate-100 block text-xs">4.9 / 5.0</span>
-            <span class="text-[10px] text-rf-text-muted">Kundenzufriedenheit</span>
+            <span class="font-extrabold text-slate-900 block text-xs">4.9 / 5.0</span>
+            <span class="text-[10px] text-slate-500">Kundenbewertung</span>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- 2. 🛡️ 4 USP Feature Kacheln -->
+  <!-- 2. 🛡️ 4 USP Feature Kacheln (White Clean Cards) -->
   <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <div class="linear-card rounded-2xl p-5 space-y-2 border border-rf-border hover:border-indigo-500/40 transition">
-      <div class="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:shadow-md hover:border-indigo-300 transition">
+      <div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
         <lucide-icon [img]="shieldIcon" class="w-5 h-5"></lucide-icon>
       </div>
-      <h3 class="font-bold text-sm text-rf-text-primary">Geprüfte Qualität</h3>
-      <p class="text-xs text-rf-text-muted leading-relaxed">
+      <h3 class="font-bold text-sm text-slate-900">Geprüfte Qualität</h3>
+      <p class="text-xs text-slate-600 leading-relaxed">
         Jeder Artikel wird vor dem Verkauf von Fachleuten technisch getestet, gesäubert und ehrlich bewertet.
       </p>
     </div>
 
-    <div class="linear-card rounded-2xl p-5 space-y-2 border border-rf-border hover:border-indigo-500/40 transition">
-      <div class="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:shadow-md hover:border-indigo-300 transition">
+      <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center">
         <lucide-icon [img]="truckIcon" class="w-5 h-5"></lucide-icon>
       </div>
-      <h3 class="font-bold text-sm text-rf-text-primary">Blitzschneller Versand</h3>
-      <p class="text-xs text-rf-text-muted leading-relaxed">
+      <h3 class="font-bold text-sm text-slate-900">Blitzschneller Versand</h3>
+      <p class="text-xs text-slate-600 leading-relaxed">
         Bestellungen werden werktags innerhalb von 24h mit DHL/Hermes Sendungsverfolgung verschickt.
       </p>
     </div>
 
-    <div class="linear-card rounded-2xl p-5 space-y-2 border border-rf-border hover:border-indigo-500/40 transition">
-      <div class="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:shadow-md hover:border-indigo-300 transition">
+      <div class="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center">
         <lucide-icon [img]="returnIcon" class="w-5 h-5"></lucide-icon>
       </div>
-      <h3 class="font-bold text-sm text-rf-text-primary">14 Tage Rückgaberecht</h3>
-      <p class="text-xs text-rf-text-muted leading-relaxed">
+      <h3 class="font-bold text-sm text-slate-900">14 Tage Rückgaberecht</h3>
+      <p class="text-xs text-slate-600 leading-relaxed">
         Voller Käuferschutz: Passt der Artikel doch nicht, kannst du ihn unkompliziert retournieren.
       </p>
     </div>
 
-    <div class="linear-card rounded-2xl p-5 space-y-2 border border-rf-border hover:border-indigo-500/40 transition">
-      <div class="w-10 h-10 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center">
+    <div class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:shadow-md hover:border-indigo-300 transition">
+      <div class="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center">
         <lucide-icon [img]="percentIcon" class="w-5 h-5"></lucide-icon>
       </div>
-      <h3 class="font-bold text-sm text-rf-text-primary">Rechtssicher § 25a UStG</h3>
-      <p class="text-xs text-rf-text-muted leading-relaxed">
+      <h3 class="font-bold text-sm text-slate-900">Rechtssicher § 25a UStG</h3>
+      <p class="text-xs text-slate-600 leading-relaxed">
         Gewerblicher Verkauf mit ordentlicher Händlerrechnung (Differenzbesteuerung bei Gebrauchtwaren).
       </p>
     </div>
   </section>
 
-  <!-- 3. 🔥 Top Deals & Highlights -->
+  <!-- 3. 🔥 Top Deals & Highlights (Clean White Cards with Soft Shadow) -->
   @if (featuredDeals().length > 0) {
     <section class="space-y-4">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <div class="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center border border-amber-500/30">
+          <div class="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center border border-rose-200">
             <lucide-icon [img]="flameIcon" class="w-4 h-4"></lucide-icon>
           </div>
           <div>
-            <h2 class="text-lg font-black text-rf-text-primary tracking-tight">Aktuelle Top-Deals</h2>
-            <p class="text-xs text-rf-text-muted">Besonders attraktive Schnäppchen mit hoher Ersparnis</p>
+            <h2 class="text-lg font-black text-slate-900 tracking-tight">Aktuelle Top-Deals</h2>
+            <p class="text-xs text-slate-500">Besonders attraktive Schnäppchen mit hoher Ersparnis</p>
           </div>
         </div>
 
         <button
           type="button"
           (click)="sortBy.set('savings'); scrollToCatalog()"
-          class="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 cursor-pointer"
+          class="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer"
         >
           <span>Alle Deals</span>
           <lucide-icon [img]="arrowRightIcon" class="w-3.5 h-3.5"></lucide-icon>
@@ -164,15 +164,15 @@
           @let currPrice = getItemPrice(item);
           @let discount = getDiscountPercent(item);
 
-          <div class="linear-card rounded-2xl overflow-hidden flex flex-col group transition duration-200 hover:border-indigo-500/50 hover:shadow-2xl relative">
+          <div class="bg-white rounded-2xl overflow-hidden flex flex-col group transition duration-200 border border-slate-200 shadow-xs hover:border-indigo-400 hover:shadow-xl relative">
             <!-- Deal Flame Badge -->
-            <div class="absolute top-3 right-3 z-20 flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-black shadow-md">
+            <div class="absolute top-3 right-3 z-20 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-black shadow-md">
               <lucide-icon [img]="zapIcon" class="w-3 h-3"></lucide-icon>
               <span>-{{ discount }}%</span>
             </div>
 
             <!-- Thumbnail -->
-            <div class="relative aspect-square w-full bg-[#1b1f28] overflow-hidden flex items-center justify-center">
+            <div class="relative aspect-square w-full bg-slate-100 overflow-hidden flex items-center justify-center">
               @if (getItemThumbnail(item); as thumb) {
                 <img
                   [src]="thumb"
@@ -180,7 +180,7 @@
                   class="w-full h-full object-cover transition duration-300 group-hover:scale-105"
                 />
               } @else {
-                <div class="w-full h-full flex flex-col items-center justify-center text-rf-text-dimmed bg-rf-subtle">
+                <div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100">
                   <lucide-icon [img]="tagIcon" class="w-10 h-10 mb-1"></lucide-icon>
                   <span class="text-[10px]">Produktfoto</span>
                 </div>
@@ -189,7 +189,7 @@
               <!-- Condition Badge -->
               <div class="absolute top-3 left-3 z-20">
                 @let badge = getConditionBadge(item.condition);
-                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold border backdrop-blur-md {{ badge.class }}">
+                <span class="px-2.5 py-0.5 rounded-md text-[10px] font-bold border backdrop-blur-md bg-white/90 shadow-xs {{ badge.class }}">
                   {{ badge.label }}
                 </span>
               </div>
@@ -201,25 +201,25 @@
             <!-- Info & Buy Body -->
             <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
               <div>
-                <span class="text-[10px] uppercase font-bold text-indigo-400 block tracking-wider">
+                <span class="text-[10px] uppercase font-bold text-indigo-600 block tracking-wider">
                   {{ item.brand || item.category || 'Kategorie' }}
                 </span>
-                <a [routerLink]="['/shop/item', item.id]" class="font-bold text-xs text-rf-text-primary hover:text-indigo-400 transition line-clamp-2 mt-0.5">
+                <a [routerLink]="['/shop/item', item.id]" class="font-bold text-xs text-slate-900 hover:text-indigo-600 transition line-clamp-2 mt-0.5">
                   {{ item.title }}
                 </a>
               </div>
 
-              <div class="pt-2 border-t border-rf-border/60 flex items-center justify-between">
+              <div class="pt-2.5 border-t border-slate-100 flex items-center justify-between">
                 <div>
                   <div class="flex items-baseline gap-1.5">
-                    <span class="text-base font-black font-mono text-rf-text-primary">
+                    <span class="text-base font-black font-mono text-slate-900">
                       {{ currPrice | currency:'EUR':'symbol':'1.2-2':'de' }}
                     </span>
-                    <span class="text-[11px] font-mono text-rf-text-dimmed line-through">
+                    <span class="text-[11px] font-mono text-slate-400 line-through">
                       {{ origPrice | currency:'EUR':'symbol':'1.2-2':'de' }}
                     </span>
                   </div>
-                  <span class="text-[9px] text-emerald-400 font-bold block">
+                  <span class="text-[10px] text-emerald-600 font-bold block">
                     Du sparst {{ (origPrice - currPrice) | currency:'EUR':'symbol':'1.2-2':'de' }}
                   </span>
                 </div>
@@ -227,7 +227,7 @@
                 <button
                   type="button"
                   (click)="onAddToCart(item, $event)"
-                  class="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white transition shadow-md shadow-indigo-600/30 cursor-pointer"
+                  class="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white transition shadow-md shadow-indigo-600/25 cursor-pointer"
                   [title]="addedItemId() === item.id ? 'Im Warenkorb!' : 'In den Warenkorb'"
                 >
                   @if (addedItemId() === item.id) {
@@ -244,12 +244,12 @@
     </section>
   }
 
-  <!-- 4. 📦 Interaktiver Produkt-Katalog mit Filter & Suche -->
-  <section id="catalog-section" class="space-y-6 pt-6">
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-rf-border">
+  <!-- 4. 📦 Interaktiver Produkt-Katalog mit Filter & Suche (Crisp Light Theme) -->
+  <section id="catalog-section" class="space-y-6 pt-4">
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200">
       <div>
-        <h2 class="text-xl font-black text-rf-text-primary tracking-tight">Gesamtes Sortiment</h2>
-        <p class="text-xs text-rf-text-muted">
+        <h2 class="text-xl font-black text-slate-900 tracking-tight">Gesamtes Sortiment</h2>
+        <p class="text-xs text-slate-500">
           {{ filteredProducts().length }} {{ filteredProducts().length === 1 ? 'Artikel verfügbar' : 'Artikel verfügbar' }}
         </p>
       </div>
@@ -258,11 +258,11 @@
       <div class="flex flex-wrap items-center gap-2.5">
         <!-- Condition Filter -->
         <div class="flex items-center gap-1.5 text-xs">
-          <span class="text-rf-text-muted text-[11px] hidden sm:inline">Zustand:</span>
+          <span class="text-slate-500 text-[11px] hidden sm:inline">Zustand:</span>
           <select
             [value]="selectedCondition()"
             (change)="selectedCondition.set($any($event.target).value)"
-            class="linear-input px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer text-rf-text-secondary"
+            class="px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer bg-white text-slate-800 border border-slate-300 shadow-xs focus:border-indigo-600 outline-none"
           >
             <option value="all">Alle Zustände</option>
             <option value="new">Neu & OVP</option>
@@ -274,11 +274,11 @@
 
         <!-- Sort Filter -->
         <div class="flex items-center gap-1.5 text-xs">
-          <span class="text-rf-text-muted text-[11px] hidden sm:inline">Sortieren:</span>
+          <span class="text-slate-500 text-[11px] hidden sm:inline">Sortieren:</span>
           <select
             [value]="sortBy()"
             (change)="sortBy.set($any($event.target).value)"
-            class="linear-input px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer text-rf-text-secondary"
+            class="px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer bg-white text-slate-800 border border-slate-300 shadow-xs focus:border-indigo-600 outline-none"
           >
             <option value="newest">Neueste zuerst</option>
             <option value="savings">Höchste Ersparnis</option>
@@ -289,18 +289,19 @@
       </div>
     </div>
 
-    <!-- Category Filter Tabs -->
+    <!-- Category Filter Tabs (Pill Buttons) -->
     <div class="flex items-center gap-2 overflow-x-auto pb-2 text-xs">
       <button
         type="button"
         (click)="selectedCategory.set('all')"
-        class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer shrink-0 border"
+        class="px-4 py-2 rounded-xl font-bold transition cursor-pointer shrink-0 border shadow-xs"
         [class.bg-indigo-600]="selectedCategory() === 'all'"
         [class.text-white]="selectedCategory() === 'all'"
-        [class.border-indigo-500]="selectedCategory() === 'all'"
-        [class.bg-rf-surface]="selectedCategory() !== 'all'"
-        [class.text-rf-text-secondary]="selectedCategory() !== 'all'"
-        [class.border-rf-border]="selectedCategory() !== 'all'"
+        [class.border-indigo-600]="selectedCategory() === 'all'"
+        [class.bg-white]="selectedCategory() !== 'all'"
+        [class.text-slate-700]="selectedCategory() !== 'all'"
+        [class.border-slate-200]="selectedCategory() !== 'all'"
+        [class.hover:bg-slate-50]="selectedCategory() !== 'all'"
       >
         Alle Kategorien ({{ storeService.publicProducts().length }})
       </button>
@@ -309,13 +310,14 @@
         <button
           type="button"
           (click)="selectedCategory.set(cat)"
-          class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer shrink-0 border"
+          class="px-4 py-2 rounded-xl font-bold transition cursor-pointer shrink-0 border shadow-xs"
           [class.bg-indigo-600]="selectedCategory() === cat"
           [class.text-white]="selectedCategory() === cat"
-          [class.border-indigo-500]="selectedCategory() === cat"
-          [class.bg-rf-surface]="selectedCategory() !== cat"
-          [class.text-rf-text-secondary]="selectedCategory() !== cat"
-          [class.border-rf-border]="selectedCategory() !== cat"
+          [class.border-indigo-600]="selectedCategory() === cat"
+          [class.bg-white]="selectedCategory() !== cat"
+          [class.text-slate-700]="selectedCategory() !== cat"
+          [class.border-slate-200]="selectedCategory() !== cat"
+          [class.hover:bg-slate-50]="selectedCategory() !== cat"
         >
           {{ cat }}
         </button>
@@ -324,18 +326,18 @@
 
     <!-- Product Grid -->
     @if (filteredProducts().length === 0) {
-      <div class="linear-surface rounded-3xl p-16 text-center space-y-4 border border-rf-border">
-        <div class="w-14 h-14 rounded-2xl bg-rf-subtle border border-rf-border text-rf-text-muted mx-auto flex items-center justify-center">
+      <div class="bg-white rounded-3xl p-16 text-center space-y-4 border border-slate-200 shadow-sm">
+        <div class="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 text-slate-400 mx-auto flex items-center justify-center">
           <lucide-icon [img]="searchIcon" class="w-6 h-6"></lucide-icon>
         </div>
-        <h3 class="text-base font-bold text-rf-text-primary">Keine Artikel gefunden</h3>
-        <p class="text-xs text-rf-text-muted max-w-sm mx-auto">
+        <h3 class="text-base font-bold text-slate-900">Keine Artikel gefunden</h3>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto">
           Passe deine Filter oder den Suchbegriff an, um andere Artikel aus unserem Sortiment anzuzeigen.
         </p>
         <button
           type="button"
           (click)="selectedCategory.set('all'); selectedCondition.set('all'); searchControl.reset()"
-          class="linear-btn-secondary px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+          class="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 transition cursor-pointer border border-slate-200"
         >
           Filter zurücksetzen
         </button>
@@ -347,9 +349,9 @@
           @let currPrice = getItemPrice(item);
           @let discount = getDiscountPercent(item);
 
-          <div class="linear-card rounded-2xl overflow-hidden flex flex-col group transition duration-200 hover:border-indigo-500/50 hover:shadow-2xl relative">
+          <div class="bg-white rounded-2xl overflow-hidden flex flex-col group transition duration-200 border border-slate-200 shadow-xs hover:border-indigo-400 hover:shadow-xl relative">
             <!-- Thumbnail Container -->
-            <div class="relative aspect-square w-full bg-[#1b1f28] overflow-hidden flex items-center justify-center">
+            <div class="relative aspect-square w-full bg-slate-100 overflow-hidden flex items-center justify-center">
               @if (getItemThumbnail(item); as thumb) {
                 <img
                   [src]="thumb"
@@ -357,7 +359,7 @@
                   class="w-full h-full object-cover transition duration-300 group-hover:scale-105"
                 />
               } @else {
-                <div class="w-full h-full flex flex-col items-center justify-center text-rf-text-dimmed bg-rf-subtle">
+                <div class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100">
                   <lucide-icon [img]="tagIcon" class="w-10 h-10 mb-1"></lucide-icon>
                   <span class="text-[10px]">Produktbild folgt</span>
                 </div>
@@ -366,14 +368,14 @@
               <!-- Condition Badge -->
               <div class="absolute top-3 left-3 z-20">
                 @let badge = getConditionBadge(item.condition);
-                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold border backdrop-blur-md {{ badge.class }}">
+                <span class="px-2.5 py-0.5 rounded-md text-[10px] font-bold border backdrop-blur-md bg-white/90 shadow-xs {{ badge.class }}">
                   {{ badge.label }}
                 </span>
               </div>
 
               <!-- Discount Tag -->
               @if (discount > 10) {
-                <div class="absolute top-3 right-3 z-20 px-2 py-0.5 rounded-md bg-rose-500 text-white text-[10px] font-black">
+                <div class="absolute top-3 right-3 z-20 px-2 py-0.5 rounded-md bg-rose-600 text-white text-[10px] font-black shadow-xs">
                   -{{ discount }}%
                 </div>
               }
@@ -385,30 +387,30 @@
             <!-- Content Area -->
             <div class="p-4 flex-1 flex flex-col justify-between space-y-3">
               <div>
-                <div class="flex items-center justify-between text-[10px] text-rf-text-muted">
-                  <span class="font-bold text-indigo-400 uppercase tracking-wider">{{ item.brand || item.category || 'Artikel' }}</span>
-                  <span class="font-mono text-rf-text-dimmed">SKU: {{ item.sku }}</span>
+                <div class="flex items-center justify-between text-[10px] text-slate-500">
+                  <span class="font-bold text-indigo-600 uppercase tracking-wider">{{ item.brand || item.category || 'Artikel' }}</span>
+                  <span class="font-mono text-slate-400">SKU: {{ item.sku }}</span>
                 </div>
 
-                <a [routerLink]="['/shop/item', item.id]" class="font-bold text-xs text-rf-text-primary hover:text-indigo-400 transition line-clamp-2 mt-1">
+                <a [routerLink]="['/shop/item', item.id]" class="font-bold text-xs text-slate-900 hover:text-indigo-600 transition line-clamp-2 mt-1">
                   {{ item.title }}
                 </a>
               </div>
 
               <!-- Pricing & Fast Add to Cart -->
-              <div class="pt-3 border-t border-rf-border/60 flex items-center justify-between">
+              <div class="pt-3 border-t border-slate-100 flex items-center justify-between">
                 <div>
                   <div class="flex items-baseline gap-1.5">
-                    <span class="text-base font-black font-mono text-rf-text-primary">
+                    <span class="text-base font-black font-mono text-slate-900">
                       {{ currPrice | currency:'EUR':'symbol':'1.2-2':'de' }}
                     </span>
                     @if (origPrice > currPrice) {
-                      <span class="text-[11px] font-mono text-rf-text-dimmed line-through">
+                      <span class="text-[11px] font-mono text-slate-400 line-through">
                         {{ origPrice | currency:'EUR':'symbol':'1.2-2':'de' }}
                       </span>
                     }
                   </div>
-                  <span class="text-[9px] text-rf-text-dimmed block">
+                  <span class="text-[9px] text-slate-400 block">
                     inkl. USt. gem. § 25a UStG
                   </span>
                 </div>
@@ -416,12 +418,12 @@
                 <button
                   type="button"
                   (click)="onAddToCart(item, $event)"
-                  class="linear-btn-primary px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20 hover:scale-105 transition"
+                  class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-600/20 hover:scale-105 transition"
                   [title]="addedItemId() === item.id ? 'Im Warenkorb!' : 'In den Warenkorb'"
                 >
                   @if (addedItemId() === item.id) {
                     <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5 text-emerald-300"></lucide-icon>
-                    <span class="text-[11px] text-emerald-300">Drin!</span>
+                    <span class="text-[11px] text-emerald-200">Drin!</span>
                   } @else {
                     <lucide-icon [img]="bagIcon" class="w-3.5 h-3.5"></lucide-icon>
                     <span class="text-[11px]">Kaufen</span>
@@ -435,47 +437,47 @@
     }
   </section>
 
-  <!-- 5. 🌍 Nachhaltigkeits- & Spar-Vorteil Banner -->
-  <section class="rounded-3xl bg-gradient-to-r from-emerald-950/40 via-rf-surface to-indigo-950/40 border border-rf-border p-8 md:p-12 shadow-xl">
+  <!-- 5. 🌍 Nachhaltigkeits- & Spar-Vorteil Banner (Light Fresh Clean) -->
+  <section class="rounded-3xl bg-gradient-to-r from-emerald-50 via-white to-indigo-50 border border-emerald-200/80 p-8 md:p-12 shadow-sm">
     <div class="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
       <div class="md:col-span-2 space-y-3">
-        <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-          <lucide-icon [img]="sparklesIcon" class="w-4 h-4"></lucide-icon>
+        <span class="text-xs font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5">
+          <lucide-icon [img]="sparklesIcon" class="w-4 h-4 text-emerald-600"></lucide-icon>
           <span>Clever einkaufen • Umwelt schonen</span>
         </span>
-        <h2 class="text-2xl sm:text-3xl font-black text-rf-text-primary tracking-tight">
+        <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
           Warum Second-Hand & Refurbished?
         </h2>
-        <p class="text-xs sm:text-sm text-rf-text-secondary leading-relaxed">
+        <p class="text-xs sm:text-sm text-slate-600 leading-relaxed">
           Gebrauchte Premium-Artikel sparen bis zu <strong>80% CO2</strong> und wertvolle Rohstoffe im Vergleich zur Neuproduktion – bei identischer Funktion und vollem Händlerschutz.
         </p>
       </div>
 
       <div class="space-y-2.5">
-        <div class="p-3 rounded-2xl bg-rf-subtle border border-rf-border flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
+        <div class="p-3.5 rounded-2xl bg-white border border-emerald-100 shadow-xs flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-xs shrink-0">
             -70%
           </div>
           <div>
-            <strong class="text-xs text-slate-100 block">Massive Preisersparnis</strong>
-            <span class="text-[10px] text-rf-text-muted">Top-Marken zum Bruchteil</span>
+            <strong class="text-xs text-slate-900 block">Massive Preisersparnis</strong>
+            <span class="text-[10px] text-slate-500">Top-Marken zum Bruchteil</span>
           </div>
         </div>
 
-        <div class="p-3 rounded-2xl bg-rf-subtle border border-rf-border flex items-center gap-3">
-          <div class="w-8 h-8 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold text-xs">
+        <div class="p-3.5 rounded-2xl bg-white border border-indigo-100 shadow-xs flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-black text-xs shrink-0">
             100%
           </div>
           <div>
-            <strong class="text-xs text-slate-100 block">Geprüfte Funktion</strong>
-            <span class="text-[10px] text-rf-text-muted">Sorgfältiger Hardwaretest</span>
+            <strong class="text-xs text-slate-900 block">Geprüfte Funktion</strong>
+            <span class="text-[10px] text-slate-500">Sorgfältiger Hardwaretest</span>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- 6. ⭐ Kundenstimmen & Social Proof -->
+  <!-- 6. ⭐ Kundenstimmen & Social Proof (Bright Cards) -->
   <section class="space-y-6">
     <div class="text-center max-w-xl mx-auto space-y-2">
       <div class="flex items-center justify-center gap-1 text-amber-400">
@@ -485,30 +487,30 @@
         <lucide-icon [img]="starIcon" class="w-4 h-4 fill-amber-400"></lucide-icon>
         <lucide-icon [img]="starIcon" class="w-4 h-4 fill-amber-400"></lucide-icon>
       </div>
-      <h2 class="text-2xl font-black text-rf-text-primary tracking-tight">Das sagen unsere Kunden</h2>
-      <p class="text-xs text-rf-text-muted">Echte Bewertungen von zufriedenen Käufern</p>
+      <h2 class="text-2xl font-black text-slate-900 tracking-tight">Das sagen unsere Kunden</h2>
+      <p class="text-xs text-slate-500">Echte Bewertungen von zufriedenen Käufern</p>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
       @for (test of testimonials; track test.name) {
-        <div class="linear-card rounded-2xl p-6 space-y-3 border border-rf-border flex flex-col justify-between">
+        <div class="bg-white rounded-2xl p-6 space-y-3 border border-slate-200 shadow-xs flex flex-col justify-between">
           <div class="space-y-2">
             <div class="flex items-center gap-1 text-amber-400">
               @for (s of [1, 2, 3, 4, 5]; track s) {
                 <lucide-icon [img]="starIcon" class="w-3.5 h-3.5 fill-amber-400"></lucide-icon>
               }
             </div>
-            <p class="text-xs text-rf-text-secondary leading-relaxed italic">
+            <p class="text-xs text-slate-700 leading-relaxed italic">
               "{{ test.text }}"
             </p>
           </div>
 
-          <div class="pt-3 border-t border-rf-border/60 flex items-center justify-between text-xs">
+          <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
             <div>
-              <strong class="text-slate-100 block font-bold">{{ test.name }}</strong>
-              <span class="text-[10px] text-rf-text-muted">{{ test.city }}</span>
+              <strong class="text-slate-900 block font-bold">{{ test.name }}</strong>
+              <span class="text-[10px] text-slate-400">{{ test.city }}</span>
             </div>
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 font-semibold border border-emerald-500/30">
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
               Verifizierter Kauf
             </span>
           </div>
@@ -520,31 +522,31 @@
   <!-- 7. ❓ Häufig gestellte Fragen (FAQ Akkordeon) -->
   <section class="max-w-3xl mx-auto space-y-6">
     <div class="text-center space-y-2">
-      <div class="w-10 h-10 rounded-2xl bg-indigo-500/20 text-indigo-400 mx-auto flex items-center justify-center">
+      <div class="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-600 mx-auto flex items-center justify-center">
         <lucide-icon [img]="helpIcon" class="w-5 h-5"></lucide-icon>
       </div>
-      <h2 class="text-2xl font-black text-rf-text-primary tracking-tight">Häufige Fragen (FAQ)</h2>
-      <p class="text-xs text-rf-text-muted">Alles Wichtige zu Zustand, Versand und Bezahlung</p>
+      <h2 class="text-2xl font-black text-slate-900 tracking-tight">Häufige Fragen (FAQ)</h2>
+      <p class="text-xs text-slate-500">Alles Wichtige zu Zustand, Versand und Bezahlung</p>
     </div>
 
     <div class="space-y-3">
       @for (faq of faqs; track faq.question; let i = $index) {
-        <div class="linear-card rounded-2xl border border-rf-border overflow-hidden transition">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden transition">
           <button
             type="button"
             (click)="toggleFaq(i)"
-            class="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-4 font-bold text-xs sm:text-sm text-rf-text-primary hover:text-indigo-400 transition cursor-pointer"
+            class="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-4 font-bold text-xs sm:text-sm text-slate-900 hover:text-indigo-600 transition cursor-pointer"
           >
             <span>{{ faq.question }}</span>
             <lucide-icon
               [img]="chevronDownIcon"
-              class="w-4 h-4 text-rf-text-muted transition-transform duration-200"
+              class="w-4 h-4 text-slate-400 transition-transform duration-200"
               [class.rotate-180]="openFaqIndex() === i"
             ></lucide-icon>
           </button>
 
           @if (openFaqIndex() === i) {
-            <div class="px-4 sm:px-5 pb-5 text-xs text-rf-text-secondary leading-relaxed border-t border-rf-border-subtle pt-3 animate-fade-in">
+            <div class="px-4 sm:px-5 pb-5 text-xs text-slate-600 leading-relaxed border-t border-slate-100 pt-3 animate-fade-in">
               {{ faq.answer }}
             </div>
           }
@@ -553,22 +555,22 @@
     </div>
   </section>
 
-  <!-- 8. ✉️ Deal-Alert Newsletter Box -->
-  <section class="rounded-3xl bg-gradient-to-br from-indigo-900/60 via-rf-surface to-slate-900 border border-indigo-500/30 p-8 sm:p-12 text-center max-w-3xl mx-auto space-y-4 shadow-2xl">
-    <div class="w-12 h-12 rounded-2xl bg-indigo-600 text-white mx-auto flex items-center justify-center shadow-lg shadow-indigo-500/30">
+  <!-- 8. ✉️ Deal-Alert Newsletter Box (Rich Indigo Banner) -->
+  <section class="rounded-3xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-blue-700 text-white p-8 sm:p-12 text-center max-w-3xl mx-auto space-y-4 shadow-xl shadow-indigo-600/20">
+    <div class="w-12 h-12 rounded-2xl bg-white/20 text-white mx-auto flex items-center justify-center shadow-md">
       <lucide-icon [img]="mailIcon" class="w-6 h-6"></lucide-icon>
     </div>
 
     <div class="space-y-1">
-      <h3 class="text-xl sm:text-2xl font-black text-rf-text-primary">Keine Schnäppchen mehr verpassen!</h3>
-      <p class="text-xs text-rf-text-muted max-w-md mx-auto">
+      <h3 class="text-xl sm:text-2xl font-black text-white">Keine Schnäppchen mehr verpassen!</h3>
+      <p class="text-xs text-indigo-100 max-w-md mx-auto">
         Abonniere unseren Deal-Alert und erhalte sofort Bescheid, sobald neue seltene Artikel oder Konvolute online gehen.
       </p>
     </div>
 
     @if (newsletterSubscribed()) {
-      <div class="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold max-w-md mx-auto animate-fade-in flex items-center justify-center gap-2">
-        <lucide-icon [img]="checkCircleIcon" class="w-4 h-4"></lucide-icon>
+      <div class="p-4 rounded-2xl bg-white/20 border border-white/30 text-white text-xs font-bold max-w-md mx-auto animate-fade-in flex items-center justify-center gap-2">
+        <lucide-icon [img]="checkCircleIcon" class="w-4 h-4 text-emerald-300"></lucide-icon>
         <span>Vielen Dank! Du bist nun für den Deal-Alert registriert.</span>
       </div>
     } @else {
@@ -577,12 +579,12 @@
           type="email"
           [formControl]="newsletterEmail"
           placeholder="Deine E-Mail-Adresse..."
-          class="linear-input w-full px-4 py-2.5 rounded-xl text-xs font-medium placeholder-rf-text-dimmed"
+          class="w-full px-4 py-3 rounded-xl text-xs font-medium bg-white text-slate-900 placeholder-slate-400 outline-none shadow-md"
         />
         <button
           type="button"
           (click)="onSubscribeNewsletter()"
-          class="linear-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold shrink-0 cursor-pointer shadow-md shadow-indigo-500/20 w-full sm:w-auto"
+          class="bg-slate-900 hover:bg-slate-800 text-white px-5 py-3 rounded-xl text-xs font-bold shrink-0 cursor-pointer shadow-md w-full sm:w-auto transition"
         >
           Abonnieren
         </button>

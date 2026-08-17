@@ -211,17 +211,17 @@ export class StoreCatalogComponent {
   getConditionBadge(condition: string): { label: string; class: string } {
     switch (condition) {
       case 'new':
-        return { label: 'Neu & OVP', class: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' };
+        return { label: 'Neu & OVP', class: 'bg-emerald-50 text-emerald-800 border-emerald-300' };
       case 'like_new':
-        return { label: 'Wie neu', class: 'bg-blue-500/20 text-blue-300 border-blue-500/40' };
+        return { label: 'Wie neu', class: 'bg-blue-50 text-blue-800 border-blue-300' };
       case 'very_good':
-        return { label: 'Sehr gut', class: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40' };
+        return { label: 'Sehr gut', class: 'bg-indigo-50 text-indigo-800 border-indigo-300' };
       case 'used':
-        return { label: 'Gebraucht', class: 'bg-amber-500/20 text-amber-300 border-amber-500/40' };
+        return { label: 'Gebraucht', class: 'bg-amber-50 text-amber-800 border-amber-300' };
       case 'heavily_used':
-        return { label: 'Stark gebraucht', class: 'bg-orange-500/20 text-orange-300 border-orange-500/40' };
+        return { label: 'Stark gebraucht', class: 'bg-orange-50 text-orange-800 border-orange-300' };
       default:
-        return { label: 'Geprüft', class: 'bg-rf-subtle text-rf-text-muted border-rf-border' };
+        return { label: 'Geprüft', class: 'bg-slate-100 text-slate-700 border-slate-300' };
     }
   }
 
