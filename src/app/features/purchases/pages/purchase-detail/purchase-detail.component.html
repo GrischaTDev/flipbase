@@ -3,7 +3,7 @@
   <div class="flex items-center justify-between pb-1">
     <a
       routerLink="/purchases"
-      class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-100 transition"
+      class="inline-flex items-center gap-1.5 text-xs font-semibold text-rf-text-muted hover:text-rf-text-primary transition"
     >
       <lucide-icon [img]="arrowLeftIcon" class="w-3.5 h-3.5"></lucide-icon>
       <span>Zurück zur Einkaufsübersicht</span>
@@ -12,7 +12,7 @@
     <button
       type="button"
       (click)="onDeletePurchase()"
-      class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+      class="p-1.5 rounded-lg text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
     >
       <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
       <span class="hidden sm:inline">Einkauf löschen</span>
@@ -21,10 +21,10 @@
 
   @if (purchaseService.selectedPurchase(); as p) {
     <!-- Purchase Header Banner -->
-    <div class="linear-surface rounded-xl p-5 space-y-4">
+    <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0">
+          <div class="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0 shadow-sm">
             @switch (p.type) {
               @case ('single') { <lucide-icon [img]="bagIcon" class="w-5 h-5"></lucide-icon> }
               @case ('mystery_pack') { <lucide-icon [img]="packageIcon" class="w-5 h-5"></lucide-icon> }
@@ -35,19 +35,19 @@
 
           <div>
             <div class="flex items-center gap-2">
-              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-[#1e222a] text-slate-300 border border-[#373e4d]">
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-rf-subtle text-rf-text-secondary border border-rf-border">
                 @switch (p.type) {
                   @case ('single') { Einzelkauf }
                   @case ('mystery_pack') { Mystery Pack }
-                  @case ('lot') { Lot / Posten }
-                  @default { Palette }
+                  @case ('lot') { Lot / Konvolut }
+                  @default { Retouren-Palette }
                 }
               </span>
-              <span class="text-xs text-slate-400 font-mono">
+              <span class="text-xs text-rf-text-muted font-mono">
                 {{ p.purchase_date | date:'dd.MM.yyyy' }}
               </span>
             </div>
-            <h1 class="text-base sm:text-lg font-bold text-slate-100 mt-1">{{ p.title }}</h1>
+            <h1 class="text-base sm:text-lg font-bold text-rf-text-primary mt-1">{{ p.title }}</h1>
           </div>
         </div>
 
@@ -57,7 +57,7 @@
             [href]="p.original_url"
             target="_blank"
             rel="noopener noreferrer"
-            class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-semibold"
+            class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
           >
             <span>Original-Angebot</span>
             <lucide-icon [img]="linkIcon" class="w-3.5 h-3.5"></lucide-icon>
@@ -68,22 +68,22 @@
       <!-- Source & Supplier Tags -->
       <div class="flex flex-wrap gap-2 text-xs">
         @if (p.source) {
-          <div class="px-2.5 py-1 rounded-md bg-[#1e222a] border border-[#373e4d] text-slate-300 flex items-center gap-1.5">
-            <span class="text-slate-400">Quelle:</span>
-            <strong class="text-slate-100">{{ p.source.name }}</strong>
+          <div class="px-2.5 py-1 rounded-lg bg-rf-subtle border border-rf-border text-rf-text-secondary flex items-center gap-1.5">
+            <span class="text-rf-text-muted">Quelle:</span>
+            <strong class="text-rf-text-primary">{{ p.source.name }}</strong>
           </div>
         }
 
         @if (p.supplier) {
-          <div class="px-2.5 py-1 rounded-md bg-[#1e222a] border border-[#373e4d] text-slate-300 flex items-center gap-1.5">
-            <span class="text-slate-400">Lieferant:</span>
-            <strong class="text-slate-100">{{ p.supplier.name }}</strong>
+          <div class="px-2.5 py-1 rounded-lg bg-rf-subtle border border-rf-border text-rf-text-secondary flex items-center gap-1.5">
+            <span class="text-rf-text-muted">Lieferant:</span>
+            <strong class="text-rf-text-primary">{{ p.supplier.name }}</strong>
           </div>
         }
       </div>
 
       @if (p.notes) {
-        <p class="text-xs text-slate-300 bg-[#1e222a] p-3 rounded-lg border border-[#373e4d]">
+        <p class="text-xs text-rf-text-secondary bg-rf-subtle p-3 rounded-xl border border-rf-border">
           {{ p.notes }}
         </p>
       }
@@ -91,214 +91,217 @@
 
     <!-- Financial KPI Summary for this Purchase -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
-      <div class="linear-kpi p-4 rounded-xl">
-        <span class="text-[10px] font-sans font-semibold uppercase tracking-wider text-slate-400 block">Einkaufspreis</span>
-        <span class="text-xl font-bold text-slate-100 mt-1 block">
+      <div class="linear-kpi p-4 rounded-2xl">
+        <span class="text-[10px] font-sans font-semibold uppercase tracking-wider text-rf-text-muted block">Kaufpreis</span>
+        <span class="text-xl font-bold text-rf-text-primary mt-1 block">
           {{ p.purchase_price | currency:'EUR':'symbol':'1.2-2':'de' }}
         </span>
       </div>
 
-      <div class="linear-kpi p-4 rounded-xl">
-        <span class="text-[10px] font-sans font-semibold uppercase tracking-wider text-slate-400 block">Zusatzkosten</span>
+      <div class="linear-kpi p-4 rounded-2xl">
+        <span class="text-[10px] font-sans font-semibold uppercase tracking-wider text-rf-text-muted block">Nebenkosten</span>
         <span class="text-xl font-bold text-amber-400 mt-1 block">
-          {{ (p.total_purchase_cost || p.purchase_price) - p.purchase_price | currency:'EUR':'symbol':'1.2-2':'de' }}
+          {{ ((p.total_purchase_cost || p.purchase_price) - p.purchase_price) | currency:'EUR':'symbol':'1.2-2':'de' }}
         </span>
       </div>
 
-      <div class="linear-kpi p-4 rounded-xl border-emerald-500/40">
-        <span class="text-[10px] font-sans font-semibold uppercase tracking-wider text-emerald-400 block">Gesamtinvestition</span>
+      <div class="linear-kpi p-4 rounded-2xl">
+        <span class="text-[10px] font-sans font-semibold uppercase tracking-wider text-rf-text-muted block">Gesamtkosten</span>
+        <span class="text-xl font-bold text-indigo-400 mt-1 block">
+          {{ (p.total_purchase_cost || p.purchase_price) | currency:'EUR':'symbol':'1.2-2':'de' }}
+        </span>
+      </div>
+
+      <div class="linear-kpi p-4 rounded-2xl">
+        <span class="text-[10px] font-sans font-semibold uppercase tracking-wider text-rf-text-muted block">Artikel</span>
         <span class="text-xl font-bold text-emerald-400 mt-1 block">
-          {{ p.total_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
-        </span>
-      </div>
-
-      <div class="linear-kpi p-4 rounded-xl">
-        <span class="text-[10px] font-sans font-semibold uppercase tracking-wider text-slate-400 block">Artikelanzahl</span>
-        <span class="text-xl font-bold text-slate-100 mt-1 block">
-          {{ p.items_count }} Artikel
+          {{ purchaseService.purchaseItems().length }} Posten
         </span>
       </div>
     </div>
 
-    <!-- Purchase Costs Card -->
-    <div class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
-      <div class="flex items-center justify-between pb-2 border-b border-[#373e4d]">
+    <!-- Extra Costs Section -->
+    <div class="linear-surface rounded-2xl p-4 md:p-5 space-y-4 shadow-xl">
+      <div class="flex items-center justify-between border-b border-rf-border pb-3">
         <div class="flex items-center gap-2">
-          <lucide-icon [img]="receiptIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Zusatzkosten (Versand, Fahrt, Gebühren)</h2>
+          <lucide-icon [img]="coinsIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Nebenkosten (Versand, Fahrt, Gebühren)</h2>
         </div>
 
         <button
           type="button"
           (click)="isAddingCost.set(!isAddingCost())"
-          class="linear-btn-secondary inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer"
+          class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold text-xs cursor-pointer"
         >
-          <lucide-icon [img]="plusIcon" class="w-3 h-3"></lucide-icon>
+          <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5"></lucide-icon>
           <span>Kosten erfassen</span>
         </button>
       </div>
 
       @if (isAddingCost()) {
-        <form [formGroup]="costForm" (ngSubmit)="onAddCost()" class="p-3 rounded-lg bg-[#1e222a] border border-[#373e4d] flex flex-wrap gap-2 items-center animate-fade-in">
-          <select
-            formControlName="type"
-            class="linear-input px-2.5 py-1.5 rounded-lg text-xs"
-          >
-            <option value="shipping">Versand</option>
-            <option value="travel">Fahrtkosten / Sprit</option>
-            <option value="transport">Spedition / Transport</option>
-            <option value="customs">Zoll</option>
-            <option value="fee">Gebühren</option>
-            <option value="other">Sonstiges</option>
-          </select>
+        <form [formGroup]="costForm" (ngSubmit)="onAddCost()" class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-3 animate-fade-in">
+          <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">
+            Nebenkosten zum Einkauf buchen
+          </span>
 
-          <input
-            type="number"
-            formControlName="amount"
-            placeholder="Betrag (€)"
-            class="linear-input w-24 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold"
-          />
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div>
+              <label for="costTypeSelect" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+                Kostenart
+              </label>
+              <select
+                id="costTypeSelect"
+                formControlName="type"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
+              >
+                <option value="shipping">Versand / Fracht</option>
+                <option value="travel">Fahrtkosten / Sprit</option>
+                <option value="packaging">Verpackungsmaterial</option>
+                <option value="import">Zoll / Importabgaben</option>
+                <option value="other">Sonstiges</option>
+              </select>
+            </div>
 
-          <input
-            type="text"
-            formControlName="description"
-            placeholder="Notiz (z.B. 15 km Hin- & Rückfahrt)"
-            class="linear-input flex-1 min-w-[150px] px-2.5 py-1.5 rounded-lg text-xs"
-          />
+            <div>
+              <label for="costAmountInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+                Betrag (€)
+              </label>
+              <input
+                id="costAmountInput"
+                type="number"
+                step="0.01"
+                formControlName="amount"
+                placeholder="z.B. 5.99 €"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
+              />
+            </div>
 
-          <button
-            type="submit"
-            [disabled]="costForm.invalid"
-            class="linear-btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 cursor-pointer"
-          >
-            Hinzufügen
-          </button>
+            <div>
+              <label for="costDescInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+                Beschreibung (optional)
+              </label>
+              <input
+                id="costDescInput"
+                type="text"
+                formControlName="description"
+                placeholder="z.B. DHL Paketmarke"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
+              />
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              (click)="isAddingCost.set(false)"
+              class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="submit"
+              [disabled]="costForm.invalid"
+              class="linear-btn-primary px-3.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 cursor-pointer"
+            >
+              Kosten buchen
+            </button>
+          </div>
         </form>
       }
 
       @if (p.costs && p.costs.length > 0) {
-        <div class="divide-y divide-[#373e4d] font-mono">
-          @for (c of p.costs; track c.id) {
-            <div class="py-2 flex items-center justify-between text-xs">
-              <div class="flex items-center gap-2.5">
-                <span class="font-bold uppercase text-[10px] text-slate-400">{{ c.type }}</span>
-                <span class="text-slate-200 font-sans">{{ c.description || '-' }}</span>
+        <div class="space-y-1.5">
+          @for (cost of p.costs; track cost.id) {
+            <div class="p-2.5 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between text-xs">
+              <div class="flex items-center gap-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-400 border border-amber-500/30 uppercase">
+                  {{ cost.type }}
+                </span>
+                <span class="text-rf-text-secondary">{{ cost.description || 'Nebenkosten' }}</span>
               </div>
 
-              <div class="flex items-center gap-2.5">
-                <span class="font-bold text-slate-100">
-                  {{ c.amount | currency:'EUR':'symbol':'1.2-2':'de' }}
+              <div class="flex items-center gap-3">
+                <span class="font-mono font-bold text-rf-text-primary">
+                  {{ cost.amount | currency:'EUR':'symbol':'1.2-2':'de' }}
                 </span>
-                <button
-                  type="button"
-                  (click)="onDeleteCost(c.id!)"
-                  class="p-1 text-slate-400 hover:text-rose-400 transition cursor-pointer"
-                >
-                  <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
-                </button>
+                @if (cost.id) {
+                  <button
+                    type="button"
+                    (click)="onDeleteCost(cost.id)"
+                    class="text-rf-text-muted hover:text-rose-400 p-1 transition cursor-pointer"
+                  >
+                    <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+                  </button>
+                }
               </div>
             </div>
           }
         </div>
       } @else {
-        <p class="text-xs text-slate-400">Keine Nebenkosten erfasst.</p>
+        <p class="text-xs text-rf-text-muted">Keine gesonderten Nebenkosten erfasst.</p>
       }
     </div>
 
-    <!-- Items & Allocation Mode (Kapitel 12) -->
-    <div class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+    <!-- Items & Interactive Cost Allocator Section -->
+    <div class="linear-surface rounded-2xl p-4 md:p-5 space-y-4 shadow-xl">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-rf-border pb-3">
         <div>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Enthaltene Inventar-Artikel</h2>
-          <p class="text-[11px] text-slate-400">Alle Artikel, die diesem Einkauf zugeordnet sind</p>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Enthaltene Inventar-Artikel</h2>
+          <p class="text-[11px] text-rf-text-muted">Alle Artikel, die diesem Einkauf zugeordnet sind</p>
         </div>
 
-        <button
-          type="button"
-          (click)="isAddingItem.set(!isAddingItem())"
-          class="linear-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold text-xs cursor-pointer"
-        >
-          <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5"></lucide-icon>
-          <span>Artikel erfassen</span>
-        </button>
-      </div>
-
-      <!-- Kostenverteilungs-Modus (Kapitel 12) -->
-      <div class="p-3 rounded-lg bg-[#1e222a] border border-[#373e4d] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div class="flex items-center gap-2">
-          <lucide-icon [img]="scaleIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
-          <span class="text-xs font-semibold text-slate-300">Kostenverteilungs-Modus:</span>
-        </div>
+          <!-- Kostenallokator Studio Button -->
+          <button
+            type="button"
+            (click)="openAllocator()"
+            class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs cursor-pointer text-indigo-300 hover:text-white border-indigo-500/30 bg-indigo-500/10"
+            title="Paletten- & Konvolut-Kostenallokator öffnen"
+          >
+            <lucide-icon [img]="chartIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+            <span>Kostenallokator Studio</span>
+          </button>
 
-        <div class="flex gap-1.5 text-xs font-semibold">
           <button
             type="button"
-            (click)="setAllocationMode('even')"
-            class="px-2.5 py-1 rounded-md transition cursor-pointer"
-            [class.bg-[#373e4d]]="p.cost_allocation_mode === 'even'"
-            [class.text-white]="p.cost_allocation_mode === 'even'"
-            [class.border]="p.cost_allocation_mode === 'even'"
-            [class.border-[#4a5468]]="p.cost_allocation_mode === 'even'"
-            [class.text-slate-400]="p.cost_allocation_mode !== 'even'"
+            (click)="isAddingItem.set(!isAddingItem())"
+            class="linear-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs cursor-pointer shadow-md shadow-indigo-500/20"
           >
-            Gleichmäßig
-          </button>
-          <button
-            type="button"
-            (click)="setAllocationMode('value_weighted')"
-            class="px-2.5 py-1 rounded-md transition cursor-pointer"
-            [class.bg-[#373e4d]]="p.cost_allocation_mode === 'value_weighted'"
-            [class.text-white]="p.cost_allocation_mode === 'value_weighted'"
-            [class.border]="p.cost_allocation_mode === 'value_weighted'"
-            [class.border-[#4a5468]]="p.cost_allocation_mode === 'value_weighted'"
-            [class.text-slate-400]="p.cost_allocation_mode !== 'value_weighted'"
-          >
-            Wertgewichtet
-          </button>
-          <button
-            type="button"
-            (click)="setAllocationMode('manual')"
-            class="px-2.5 py-1 rounded-md transition cursor-pointer"
-            [class.bg-[#373e4d]]="p.cost_allocation_mode === 'manual'"
-            [class.text-white]="p.cost_allocation_mode === 'manual'"
-            [class.border]="p.cost_allocation_mode === 'manual'"
-            [class.border-[#4a5468]]="p.cost_allocation_mode === 'manual'"
-            [class.text-slate-400]="p.cost_allocation_mode !== 'manual'"
-          >
-            Manuell
+            <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <span>Artikel erfassen</span>
           </button>
         </div>
       </div>
 
       <!-- Quick Add Item Form -->
       @if (isAddingItem()) {
-        <form [formGroup]="itemForm" (ngSubmit)="onAddItem()" class="p-3 rounded-lg bg-[#1e222a] border border-[#373e4d] space-y-3 animate-fade-in">
+        <form [formGroup]="itemForm" (ngSubmit)="onAddItem()" class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-3 animate-fade-in">
           <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">
             Neuen Artikel zum Einkauf hinzufügen
           </span>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
             <div class="sm:col-span-1">
-              <label for="newArticleTitle" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                Titel / Modell
+              <label for="newArticleTitle" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+                Titel / Modell *
               </label>
               <input
                 id="newArticleTitle"
                 type="text"
                 formControlName="title"
-                placeholder="z.B. Bosch GSR 18V"
+                placeholder="z.B. Super Nintendo Konsole"
                 class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
               />
             </div>
 
             <div>
-              <label for="newArticleCondition" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+              <label for="newArticleCondition" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
                 Zustand
               </label>
               <select
                 id="newArticleCondition"
                 formControlName="condition"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-slate-200"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
               >
                 <option value="new">Neu / OVP</option>
                 <option value="like_new">Wie neu</option>
@@ -310,14 +313,14 @@
             </div>
 
             <div>
-              <label for="newArticleExpectedValue" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
-                Erwarteter Marktwert (€)
+              <label for="newArticleExpectedValue" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+                Geschätzter Marktwert (€)
               </label>
               <input
                 id="newArticleExpectedValue"
                 type="number"
                 formControlName="expected_value"
-                placeholder="z.B. 75 €"
+                placeholder="z.B. 80 €"
                 class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
               />
             </div>
@@ -336,7 +339,7 @@
               [disabled]="itemForm.invalid"
               class="linear-btn-primary px-3.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 cursor-pointer"
             >
-              Artikel speichern
+              Artikel anlegen
             </button>
           </div>
         </form>
@@ -346,44 +349,66 @@
       @if (purchaseService.purchaseItems().length > 0) {
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs border-collapse">
-            <thead class="bg-[#1e222a] text-slate-300 uppercase font-semibold text-[10px] tracking-wider border-b border-[#373e4d]">
+            <thead class="bg-rf-subtle text-rf-text-muted uppercase font-semibold text-[10px] tracking-wider border-b border-rf-border">
               <tr>
-                <th class="py-2.5 px-3">Artikel</th>
-                <th class="py-2.5 px-3">Zustand</th>
-                <th class="py-2.5 px-3">Status</th>
-                <th class="py-2.5 px-3 text-right">Zugeteilter EK</th>
-                <th class="py-2.5 px-3 text-right">Marktwert</th>
-                <th class="py-2.5 px-3 text-right">Gewinnpotenzial</th>
+                <th class="p-3">Titel</th>
+                <th class="p-3">Zustand</th>
+                <th class="p-3">Status</th>
+                <th class="p-3 text-right">Allokierter EK</th>
+                <th class="p-3 text-right">Geschätzter Wert</th>
+                <th class="p-3 text-right">Marge</th>
+                <th class="p-3 text-right">Aktionen</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-[#373e4d] font-mono">
+            <tbody class="divide-y divide-rf-border">
               @for (item of purchaseService.purchaseItems(); track item.id) {
-                <tr class="hover:bg-[#2c323f] transition">
-                  <td class="py-2.5 px-3 font-semibold text-slate-100 font-sans">
-                    {{ item.title }}
+                <tr class="hover:bg-rf-surface-hover transition">
+                  <td class="p-3 font-semibold text-rf-text-primary">
+                    <a [routerLink]="['/inventory', item.id]" class="hover:text-indigo-400 transition">
+                      {{ item.title }}
+                    </a>
                   </td>
-                  <td class="py-2.5 px-3">
-                    <span class="px-2 py-0.5 rounded bg-[#1e222a] text-slate-300 font-semibold text-[10px] border border-[#373e4d]">
+
+                  <td class="p-3">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-rf-subtle text-rf-text-secondary border border-rf-border uppercase">
                       {{ item.condition }}
                     </span>
                   </td>
-                  <td class="py-2.5 px-3">
-                    <span class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-semibold text-[10px] border border-emerald-500/30">
+
+                  <td class="p-3">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-medium"
+                      [class.bg-emerald-500/15]="item.status === 'ready' || item.status === 'listed'"
+                      [class.text-emerald-400]="item.status === 'ready' || item.status === 'listed'"
+                      [class.bg-blue-500/15]="item.status === 'received'"
+                      [class.text-blue-400]="item.status === 'received'"
+                    >
                       {{ item.status }}
                     </span>
                   </td>
-                  <td class="py-2.5 px-3 text-right font-semibold text-slate-200">
+
+                  <td class="p-3 text-right font-mono font-bold text-rf-text-primary whitespace-nowrap">
                     {{ item.allocated_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
                   </td>
-                  <td class="py-2.5 px-3 text-right text-slate-300">
-                    {{ item.expected_value ? (item.expected_value | currency:'EUR':'symbol':'1.2-2':'de') : '-' }}
+
+                  <td class="p-3 text-right font-mono text-rf-text-secondary whitespace-nowrap">
+                    {{ (item.expected_value || 0) | currency:'EUR':'symbol':'1.2-2':'de' }}
                   </td>
-                  <td class="py-2.5 px-3 text-right font-bold text-emerald-400">
+
+                  <td class="p-3 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">
                     @if (item.expected_value) {
-                      {{ (item.expected_value - item.allocated_purchase_cost) | currency:'EUR':'symbol':'1.2-2':'de' }}
+                      +{{ (item.expected_value - item.allocated_purchase_cost) | currency:'EUR':'symbol':'1.2-2':'de' }}
                     } @else {
                       -
                     }
+                  </td>
+
+                  <td class="p-3 text-right">
+                    <a
+                      [routerLink]="['/inventory', item.id]"
+                      class="text-indigo-400 hover:text-indigo-300 font-semibold text-xs"
+                    >
+                      Details &rarr;
+                    </a>
                   </td>
                 </tr>
               }
@@ -391,10 +416,170 @@
           </table>
         </div>
       } @else {
-        <p class="text-xs text-slate-400 text-center py-6">
-          Noch keine Artikel für diesen Einkauf angelegt. Klicke auf "Artikel erfassen", um ausgepackte Ware zuzuordnen.
-        </p>
+        <div class="p-8 text-center text-xs text-rf-text-muted space-y-2">
+          <lucide-icon [img]="boxesIcon" class="w-8 h-8 mx-auto text-rf-text-dimmed"></lucide-icon>
+          <p class="font-semibold text-rf-text-primary">Noch keine Artikel erfasst</p>
+          <p class="text-[11px]">Klicke auf "Artikel erfassen", um die Einzelpositionen dieses Einkaufs anzulegen.</p>
+        </div>
       }
+    </div>
+  }
+
+  <!-- Interactive Lot & Pallet Cost Allocator Modal -->
+  @if (isAllocatorOpen()) {
+    <div
+      class="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in"
+      (click)="closeAllocator()"
+    >
+      <div
+        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl p-6 md:p-8 space-y-6 select-none"
+        (click)="$event.stopPropagation()"
+      >
+        <!-- Modal Header -->
+        <div class="flex items-start justify-between border-b border-rf-border pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <lucide-icon [img]="chartIcon" class="w-5 h-5 text-indigo-400"></lucide-icon>
+              <h2 class="text-lg font-black text-rf-text-primary">
+                Paletten- & Konvolut-Kostenallokator
+              </h2>
+            </div>
+            <p class="text-xs text-rf-text-muted mt-0.5">
+              Verteile den Gesamtkaufpreis mathematisch exakt auf alle Einzelpositionen.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            (click)="closeAllocator()"
+            class="p-1.5 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
+          >
+            <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+          </button>
+        </div>
+
+        <!-- Mode Selector -->
+        <div class="flex items-center justify-between p-3 rounded-xl bg-rf-subtle border border-rf-border text-xs">
+          <span class="font-semibold text-rf-text-primary">Verteilungs-Strategie:</span>
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              (click)="allocatorMode.set('value_weighted')"
+              class="px-3 py-1.5 rounded-lg font-bold transition cursor-pointer border"
+              [class.bg-indigo-600]="allocatorMode() === 'value_weighted'"
+              [class.text-white]="allocatorMode() === 'value_weighted'"
+              [class.border-indigo-500]="allocatorMode() === 'value_weighted'"
+              [class.bg-rf-surface]="allocatorMode() !== 'value_weighted'"
+              [class.text-rf-text-secondary]="allocatorMode() !== 'value_weighted'"
+              [class.border-rf-border]="allocatorMode() !== 'value_weighted'"
+            >
+              📊 Wertgewichtet (nach Marktwert)
+            </button>
+
+            <button
+              type="button"
+              (click)="allocatorMode.set('even')"
+              class="px-3 py-1.5 rounded-lg font-bold transition cursor-pointer border"
+              [class.bg-indigo-600]="allocatorMode() === 'even'"
+              [class.text-white]="allocatorMode() === 'even'"
+              [class.border-indigo-500]="allocatorMode() === 'even'"
+              [class.bg-rf-surface]="allocatorMode() !== 'even'"
+              [class.text-rf-text-secondary]="allocatorMode() !== 'even'"
+              [class.border-rf-border]="allocatorMode() !== 'even'"
+            >
+              ⚖️ Gleichmäßig (Kosten / Stück)
+            </button>
+          </div>
+        </div>
+
+        <!-- Live Cost Distribution Bar -->
+        <div class="space-y-1.5">
+          <div class="flex justify-between text-xs">
+            <span class="font-semibold text-rf-text-primary">Kostenaufteilung (100% Allokation):</span>
+            <span class="font-mono font-bold text-indigo-400">
+              {{ totalSimulatedAllocatedCost() | currency:'EUR':'symbol':'1.2-2':'de' }}
+            </span>
+          </div>
+
+          <div class="w-full h-3 rounded-full bg-rf-subtle overflow-hidden flex border border-rf-border">
+            @for (alloc of simulatedAllocations(); track alloc.item.id; let idx = $index) {
+              <div
+                class="h-full transition-all duration-300"
+                [style.width.%]="alloc.percent_of_total"
+                [style.background-color]="idx % 4 === 0 ? '#6366f1' : idx % 4 === 1 ? '#38bdf8' : idx % 4 === 2 ? '#10b981' : '#f59e0b'"
+                [title]="alloc.item.title + ': ' + alloc.percent_of_total.toFixed(1) + '%'"
+              ></div>
+            }
+          </div>
+        </div>
+
+        <!-- Interactive Allocation Table -->
+        <div class="max-h-72 overflow-y-auto border border-rf-border rounded-xl">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-rf-subtle text-[10px] font-bold uppercase tracking-wider text-rf-text-muted border-b border-rf-border">
+              <tr>
+                <th class="p-3">Artikel</th>
+                <th class="p-3 text-right">Geschätzter Marktwert (€)</th>
+                <th class="p-3 text-right">Anteil (%)</th>
+                <th class="p-3 text-right">Allokierter EK (€)</th>
+                <th class="p-3 text-right">Proj. Gewinn</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-rf-border">
+              @for (alloc of simulatedAllocations(); track alloc.item.id) {
+                <tr class="hover:bg-rf-surface-hover transition">
+                  <td class="p-3 font-semibold text-rf-text-primary truncate max-w-[180px]">
+                    {{ alloc.item.title }}
+                  </td>
+
+                  <td class="p-3 text-right">
+                    <input
+                      type="number"
+                      step="1"
+                      [value]="alloc.expected_value"
+                      (input)="updateItemExpectedValue(alloc.item.id, +$any($event.target).value)"
+                      class="linear-input w-24 px-2 py-1 rounded-lg text-right font-mono font-bold text-xs"
+                    />
+                  </td>
+
+                  <td class="p-3 text-right font-mono font-semibold text-indigo-300">
+                    {{ alloc.percent_of_total.toFixed(1) }}%
+                  </td>
+
+                  <td class="p-3 text-right font-mono font-black text-rf-text-primary">
+                    {{ alloc.allocated_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  </td>
+
+                  <td class="p-3 text-right font-mono font-bold text-emerald-400">
+                    +{{ (alloc.expected_value - alloc.allocated_cost) | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Modal Footer Actions -->
+        <div class="flex items-center justify-between pt-2 border-t border-rf-border">
+          <button
+            type="button"
+            (click)="closeAllocator()"
+            class="linear-btn-secondary px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
+          >
+            Abbrechen
+          </button>
+
+          <button
+            type="button"
+            (click)="applyAllocations()"
+            [disabled]="isApplyingAllocation()"
+            class="linear-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-50"
+          >
+            <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+            <span>{{ isApplyingAllocation() ? 'Wird gespeichert...' : 'Kostenallokation auf Artikel anwenden' }}</span>
+          </button>
+        </div>
+      </div>
     </div>
   }
 </div>

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
@@ -17,6 +17,11 @@ import {
   Receipt,
   Scale,
   Sparkles,
+  Sliders,
+  CheckCircle2,
+  PieChart,
+  X,
+  RefreshCw,
 } from 'lucide-angular';
 import { PurchaseService } from '../../../../core/services/purchase.service';
 import { CostAllocationMode, ItemCondition } from '../../../../core/models/reflip.models';
@@ -46,9 +51,20 @@ export class PurchaseDetailComponent {
   readonly receiptIcon = Receipt;
   readonly scaleIcon = Scale;
   readonly sparklesIcon = Sparkles;
+  readonly slidersIcon = Sliders;
+  readonly checkIcon = CheckCircle2;
+  readonly chartIcon = PieChart;
+  readonly closeIcon = X;
+  readonly refreshIcon = RefreshCw;
 
   readonly isAddingCost = signal<boolean>(false);
   readonly isAddingItem = signal<boolean>(false);
+  readonly isAllocatorOpen = signal<boolean>(false);
+
+  // Lot Allocator interactive state
+  readonly allocatorMode = signal<CostAllocationMode>('value_weighted');
+  readonly editableExpectedValues = signal<{ [itemId: string]: number }>({});
+  readonly isApplyingAllocation = signal<boolean>(false);
 
   readonly costForm = new FormGroup({
     type: new FormControl('shipping', { nonNullable: true, validators: [Validators.required] }),
@@ -62,6 +78,54 @@ export class PurchaseDetailComponent {
     expected_value: new FormControl<number | null>(null),
   });
 
+  readonly simulatedAllocations = computed(() => {
+    const purchase = this.purchaseService.selectedPurchase();
+    const items = this.purchaseService.purchaseItems();
+    if (!purchase || items.length === 0) return [];
+
+    const totalCost = purchase.total_purchase_cost || purchase.purchase_price;
+    const mode = this.allocatorMode();
+    const customValues = this.editableExpectedValues();
+
+    if (mode === 'even') {
+      const evenCost = Number((totalCost / items.length).toFixed(2));
+      return items.map((it) => {
+        const expVal = customValues[it.id] !== undefined ? customValues[it.id] : (it.expected_value || 0);
+        const percent = (1 / items.length) * 100;
+        return {
+          item: it,
+          expected_value: expVal,
+          allocated_cost: evenCost,
+          percent_of_total: percent,
+        };
+      });
+    }
+
+    // Value weighted mode
+    const sumExpectedValues = items.reduce((sum, it) => {
+      const val = customValues[it.id] !== undefined ? customValues[it.id] : (it.expected_value || 1);
+      return sum + Math.max(0.01, val);
+    }, 0);
+
+    return items.map((it) => {
+      const expVal = customValues[it.id] !== undefined ? customValues[it.id] : (it.expected_value || 1);
+      const factor = sumExpectedValues > 0 ? Math.max(0.01, expVal) / sumExpectedValues : 1 / items.length;
+      const allocatedCost = Number((totalCost * factor).toFixed(2));
+      const percent = factor * 100;
+
+      return {
+        item: it,
+        expected_value: expVal,
+        allocated_cost: allocatedCost,
+        percent_of_total: percent,
+      };
+    });
+  });
+
+  readonly totalSimulatedAllocatedCost = computed(() => {
+    return this.simulatedAllocations().reduce((sum, a) => sum + a.allocated_cost, 0);
+  });
+
   constructor() {
     effect(() => {
       const purchaseId = this.id();
@@ -69,6 +133,44 @@ export class PurchaseDetailComponent {
         this.purchaseService.getPurchaseById(purchaseId);
       }
     });
+  }
+
+  openAllocator(): void {
+    const items = this.purchaseService.purchaseItems();
+    const currentValues: { [itemId: string]: number } = {};
+    for (const it of items) {
+      currentValues[it.id] = it.expected_value || 0;
+    }
+    this.editableExpectedValues.set(currentValues);
+    const p = this.purchaseService.selectedPurchase();
+    if (p) {
+      this.allocatorMode.set(p.cost_allocation_mode || 'value_weighted');
+    }
+    this.isAllocatorOpen.set(true);
+  }
+
+  closeAllocator(): void {
+    this.isAllocatorOpen.set(false);
+  }
+
+  updateItemExpectedValue(itemId: string, value: number): void {
+    this.editableExpectedValues.update((current) => ({
+      ...current,
+      [itemId]: Math.max(0, value),
+    }));
+  }
+
+  async applyAllocations(): Promise<void> {
+    const purchase = this.purchaseService.selectedPurchase();
+    if (!purchase) return;
+
+    this.isApplyingAllocation.set(true);
+    const customValues = this.editableExpectedValues();
+    const itemValues = Object.entries(customValues).map(([id, expected_value]) => ({ id, expected_value }));
+
+    await this.purchaseService.redistributeCosts(purchase.id, this.allocatorMode(), itemValues);
+    this.isApplyingAllocation.set(false);
+    this.closeAllocator();
   }
 
   async setAllocationMode(mode: CostAllocationMode): Promise<void> {

@@ -279,6 +279,69 @@ export class PurchaseService {
     return { error: null };
   }
 
+  async redistributeCosts(
+    purchaseId: string,
+    mode: CostAllocationMode,
+    itemValues?: { id: string; expected_value: number }[]
+  ): Promise<{ error: Error | null }> {
+    const purchase = this.selectedPurchase();
+    if (!purchase || purchase.id !== purchaseId) return { error: null };
+
+    const items = this.purchaseItems();
+    if (items.length === 0) return { error: null };
+
+    const totalCost = purchase.total_purchase_cost || purchase.purchase_price;
+
+    let updatedItems: InventoryItem[] = [];
+
+    if (mode === 'value_weighted') {
+      const sumExpectedValues = items.reduce((sum, it) => {
+        const custom = itemValues?.find((v) => v.id === it.id);
+        const val = custom ? custom.expected_value : (it.expected_value || 1);
+        return sum + Math.max(0.01, val);
+      }, 0);
+
+      updatedItems = items.map((it) => {
+        const custom = itemValues?.find((v) => v.id === it.id);
+        const expVal = custom ? custom.expected_value : (it.expected_value || 1);
+        const factor = sumExpectedValues > 0 ? Math.max(0.01, expVal) / sumExpectedValues : 1 / items.length;
+        const newCost = Number((totalCost * factor).toFixed(2));
+        return {
+          ...it,
+          expected_value: expVal,
+          allocated_purchase_cost: newCost,
+        };
+      });
+    } else if (mode === 'even') {
+      const evenCost = Number((totalCost / items.length).toFixed(2));
+      updatedItems = items.map((it) => ({
+        ...it,
+        allocated_purchase_cost: evenCost,
+      }));
+    }
+
+    this.purchaseItems.set(updatedItems);
+    await this.updateCostAllocationMode(purchaseId, mode);
+
+    if (!this.mockStore.isDemoMode()) {
+      try {
+        for (const it of updatedItems) {
+          await this.supabase.client
+            .from('inventory_items')
+            .update({
+              allocated_purchase_cost: it.allocated_purchase_cost,
+              expected_value: it.expected_value,
+            })
+            .eq('id', it.id);
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    return { error: null };
+  }
+
   async deletePurchaseCost(costId: string, purchaseId: string): Promise<{ error: Error | null }> {
     if (!this.mockStore.isDemoMode()) {
       try {
