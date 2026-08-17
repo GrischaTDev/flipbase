@@ -19,22 +19,26 @@ import {
   History,
   ShieldCheck,
   Percent,
+  Camera,
+  Boxes,
+  Layers,
 } from 'lucide-angular';
 import {
   ResearchService,
   ResearchComparisonItem,
   ResearchSummary,
 } from '../../core/services/research.service';
+import { BarcodeLookupService } from '../../core/services/barcode-lookup.service';
+import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner/barcode-scanner.component';
 
 @Component({
   selector: 'app-research',
   imports: [
-    RouterLink,
     ReactiveFormsModule,
     CurrencyPipe,
-    DatePipe,
     TranslatePipe,
     LucideAngularModule,
+    BarcodeScannerComponent,
   ],
   templateUrl: './research.component.html',
   styleUrl: './research.component.scss',
@@ -42,6 +46,7 @@ import {
 })
 export class ResearchComponent {
   readonly researchService = inject(ResearchService);
+  private readonly barcodeLookup = inject(BarcodeLookupService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -59,6 +64,12 @@ export class ResearchComponent {
   readonly historyIcon = History;
   readonly shieldIcon = ShieldCheck;
   readonly percentIcon = Percent;
+  readonly cameraIcon = Camera;
+  readonly boxesIcon = Boxes;
+  readonly layersIcon = Layers;
+
+  readonly isScanningBarcode = signal<boolean>(false);
+  readonly selectedPlatformFilter = signal<'all' | 'ebay_sold' | 'kleinanzeigen' | 'vinted'>('all');
 
   readonly searchForm = new FormGroup({
     query: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -69,6 +80,13 @@ export class ResearchComponent {
   readonly summary = signal<ResearchSummary | null>(null);
   readonly hasSearched = signal<boolean>(false);
 
+  readonly filteredComparisonItems = computed(() => {
+    const items = this.researchService.currentComparisonItems();
+    const filter = this.selectedPlatformFilter();
+    if (filter === 'all') return items;
+    return items.filter((i) => i.source === filter);
+  });
+
   constructor() {
     // Check if query was passed via route query param (e.g. from Inventory Detail)
     this.route.queryParams.subscribe((params) => {
@@ -78,6 +96,15 @@ export class ResearchComponent {
         this.onSearch();
       }
     });
+  }
+
+  async onBarcodeScanned(ean: string): Promise<void> {
+    this.isScanningBarcode.set(false);
+    const info = await this.barcodeLookup.lookupByEan(ean);
+    if (info) {
+      this.searchForm.patchValue({ query: info.title });
+      this.onSearch();
+    }
   }
 
   async onSearch(): Promise<void> {
@@ -98,7 +125,8 @@ export class ResearchComponent {
     const f = this.searchForm.getRawValue();
     const updatedSummary = this.researchService.calculateSummary(
       this.researchService.currentComparisonItems(),
-      f.estimatedCost
+      f.estimatedCost,
+      f.query
     );
     this.summary.set(updatedSummary);
   }

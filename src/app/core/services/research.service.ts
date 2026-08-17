@@ -25,6 +25,13 @@ export interface PricingStrategy {
   turnaroundDays: string;
 }
 
+export interface MarketLink {
+  platform: 'ebay_sold' | 'kleinanzeigen' | 'vinted' | 'idealo' | 'google_shopping';
+  title: string;
+  url: string;
+  badge: string;
+}
+
 export interface ResearchSummary {
   minPrice: number;
   maxPrice: number;
@@ -35,6 +42,7 @@ export interface ResearchSummary {
   validCount: number;
   excludedCount: number;
   strategies: PricingStrategy[];
+  marketLinks: MarketLink[];
   dealScore: number;
   maxBuyPrice: number;
 }
@@ -80,6 +88,39 @@ export class ResearchService {
   }
 
   /**
+   * Generates live marketplace search links for German platforms.
+   */
+  generateMarketLinks(query: string): MarketLink[] {
+    const encoded = encodeURIComponent(query.trim());
+    return [
+      {
+        platform: 'ebay_sold',
+        title: 'eBay Verkaufte Artikel (Real Comps)',
+        url: `https://www.ebay.de/sch/i.html?_nkw=${encoded}&LH_Complete=1&LH_Sold=1`,
+        badge: 'Tatsächliche Verkaufspreise',
+      },
+      {
+        platform: 'kleinanzeigen',
+        title: 'Kleinanzeigen Angebote',
+        url: `https://www.kleinanzeigen.de/s-${encoded}/k0`,
+        badge: 'Lokale Inserate',
+      },
+      {
+        platform: 'vinted',
+        title: 'Vinted Katalog',
+        url: `https://www.vinted.de/catalog?search_text=${encoded}`,
+        badge: 'Second Hand & Mode',
+      },
+      {
+        platform: 'idealo',
+        title: 'Idealo Neupreis-Vergleich',
+        url: `https://www.idealo.de/preisvergleich/MainSearchProductCategory.html?q=${encoded}`,
+        badge: 'UVP & Neupreise',
+      },
+    ];
+  }
+
+  /**
    * Executes a market research simulation with robust parsing & statistical analysis.
    */
   async executeResearch(
@@ -90,26 +131,30 @@ export class ResearchService {
     this.isLoading.set(true);
 
     try {
-      // Simulate real-world sold listings / current market comps
+      // Generate realistic comparative listings
       const simulatedItems = this.generateRealisticComps(queryText, condition);
       this.currentComparisonItems.set(simulatedItems);
 
-      const summary = this.calculateSummary(simulatedItems, estimatedCost);
+      const summary = this.calculateSummary(simulatedItems, estimatedCost, queryText);
 
       // Persist query to Supabase if workspace is active
       const ws = this.workspaceService.currentWorkspace();
       if (ws && queryText.trim()) {
-        await this.supabase.client.from('research_queries').insert({
-          workspace_id: ws.id,
-          query_text: queryText.trim(),
-          source: 'ebay_sold,kleinanzeigen,vinted',
-          result_count: simulatedItems.length,
-          min_price: summary.minPrice,
-          max_price: summary.maxPrice,
-          avg_price: summary.avgPrice,
-          median_price: summary.medianPrice,
-        });
-        await this.loadRecentQueries(ws.id);
+        try {
+          await this.supabase.client.from('research_queries').insert({
+            workspace_id: ws.id,
+            query_text: queryText.trim(),
+            source: 'ebay_sold,kleinanzeigen,vinted',
+            result_count: simulatedItems.length,
+            min_price: summary.minPrice,
+            max_price: summary.maxPrice,
+            avg_price: summary.avgPrice,
+            median_price: summary.medianPrice,
+          });
+          await this.loadRecentQueries(ws.id);
+        } catch {
+          // offline query persistence ignored
+        }
       }
 
       return { results: simulatedItems, summary };
@@ -121,11 +166,17 @@ export class ResearchService {
   /**
    * Calculates robust statistics, outlier filtering, and pricing strategies (Kapitel 18 & 19).
    */
-  calculateSummary(items: ResearchComparisonItem[], baseCosts: number = 25.0): ResearchSummary {
+  calculateSummary(
+    items: ResearchComparisonItem[],
+    baseCosts: number = 25.0,
+    queryText: string = ''
+  ): ResearchSummary {
     const activePrices = items
       .filter((i) => !i.isExcluded)
       .map((i) => i.price)
       .sort((a, b) => a - b);
+
+    const marketLinks = this.generateMarketLinks(queryText);
 
     if (activePrices.length === 0) {
       return {
@@ -138,6 +189,7 @@ export class ResearchService {
         validCount: 0,
         excludedCount: items.length,
         strategies: [],
+        marketLinks,
         dealScore: 0,
         maxBuyPrice: 0,
       };
@@ -213,79 +265,61 @@ export class ResearchService {
       validCount: activePrices.length,
       excludedCount: items.filter((i) => i.isExcluded).length,
       strategies,
+      marketLinks,
       dealScore: dealEval.dealScore,
       maxBuyPrice,
     };
   }
 
   toggleExcludeItem(itemId: string): void {
-    this.currentComparisonItems.update((list) =>
-      list.map((item) =>
-        item.id === itemId ? { ...item, isExcluded: !item.isExcluded } : item
-      )
+    this.currentComparisonItems.update((items) =>
+      items.map((it) => (it.id === itemId ? { ...it, isExcluded: !it.isExcluded } : it))
     );
   }
 
   private generateRealisticComps(query: string, condition: string): ResearchComparisonItem[] {
-    // Generate realistic market distribution comps tailored to the query
-    const baseSeedPrice = this.estimateSeedPrice(query);
+    let baseValue = 50.0;
+    const lower = query.toLowerCase();
+
+    if (lower.includes('iphone') || lower.includes('macbook') || lower.includes('rtx')) {
+      baseValue = 380.0;
+    } else if (lower.includes('airpods') || lower.includes('bose') || lower.includes('sony')) {
+      baseValue = 110.0;
+    } else if (lower.includes('switch') || lower.includes('ps5') || lower.includes('xbox')) {
+      baseValue = 220.0;
+    } else if (lower.includes('lego') || lower.includes('bosch') || lower.includes('makita')) {
+      baseValue = 75.0;
+    }
+
     const comps: ResearchComparisonItem[] = [];
-
-    const dateToday = new Date();
-
-    // 1. A few normal market sold items
-    const variations = [0.85, 0.95, 1.0, 1.02, 1.1, 1.15, 0.9, 1.25, 0.78, 1.05];
     const platforms: ('ebay_sold' | 'kleinanzeigen' | 'vinted')[] = [
       'ebay_sold',
-      'kleinanzeigen',
       'ebay_sold',
-      'vinted',
       'ebay_sold',
       'kleinanzeigen',
-      'ebay_sold',
-      'ebay_sold',
       'kleinanzeigen',
       'vinted',
     ];
 
-    variations.forEach((factor, idx) => {
-      const price = Number((baseSeedPrice * factor).toFixed(2));
-      const pastDays = idx * 2;
-      const d = new Date(dateToday.getTime() - pastDays * 24 * 60 * 60 * 1000);
+    for (let i = 0; i < 7; i++) {
+      const variance = (Math.random() - 0.5) * 0.4; // +/- 20%
+      const price = Number((baseValue * (1 + variance)).toFixed(2));
+      const source = platforms[i % platforms.length];
 
       comps.push({
-        id: `comp-${idx + 1}`,
-        title: `${query} (${condition}) - Verkauft`,
-        price,
-        source: platforms[idx % platforms.length],
-        date: d.toISOString().split('T')[0],
-        condition,
+        id: 'comp-' + i + '-' + Math.random().toString(36).substring(2, 7),
+        title: `${query} (${source === 'ebay_sold' ? 'Verkauft' : 'Angebot'} #${i + 1})`,
+        price: Math.max(5, price),
+        source,
+        url: source === 'ebay_sold'
+          ? `https://www.ebay.de/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Complete=1&LH_Sold=1`
+          : `https://www.kleinanzeigen.de/s-${encodeURIComponent(query)}/k0`,
+        date: new Date(Date.now() - i * 86400000 * 2).toISOString().split('T')[0],
+        condition: condition || 'used',
         isExcluded: false,
       });
-    });
+    }
 
-    // 2. Outlier 1: Extreme high outlier (Mondpreis)
-    comps.push({
-      id: 'comp-outlier-high',
-      title: `${query} (Sammler / Neu / Mondpreis)`,
-      price: Number((baseSeedPrice * 3.5).toFixed(2)),
-      source: 'ebay_sold',
-      date: dateToday.toISOString().split('T')[0],
-      condition: 'new',
-      isExcluded: true, // Automatically marked as excluded outlier
-    });
-
-    return comps.sort((a, b) => a.price - b.price);
-  }
-
-  private estimateSeedPrice(query: string): number {
-    const q = query.toLowerCase();
-    if (q.includes('iphone') || q.includes('macbook')) return 450;
-    if (q.includes('playstation') || q.includes('ps5') || q.includes('xbox')) return 320;
-    if (q.includes('nintendo') || q.includes('switch')) return 190;
-    if (q.includes('lego')) return 85;
-    if (q.includes('bosch') || q.includes('makita') || q.includes('bohrer')) return 75;
-    if (q.includes('jacke') || q.includes('sneaker') || q.includes('schuhe')) return 60;
-    return 50;
+    return comps;
   }
 }
