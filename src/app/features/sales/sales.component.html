@@ -1,36 +1,33 @@
-<div class="space-y-5 animate-fade-in select-none">
-  <!-- Header & Action -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
+<div class="space-y-4 animate-fade-in select-none">
+  <!-- Page Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-[#373e4d]">
     <div>
-      <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold tracking-tight text-slate-100">
-          {{ 'NAV.SALES' | translate }}
-        </h1>
-        <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#262b35] text-slate-300 border border-[#373e4d]">
-          {{ filteredSales().length }} Verkäufe
-        </span>
-      </div>
+      <h1 class="text-xl font-bold tracking-tight text-slate-100">
+        {{ 'NAV.SALES' | translate }} & Retouren
+      </h1>
       <p class="text-xs text-slate-400 mt-0.5">
-        Realisierte Gewinne, Plattformgebühren, Versandkosten und Nettomargen.
+        Realisierte Gewinne, Plattformgebühren, § 25a Rechnungen & Gutschriften-Abwicklung.
       </p>
     </div>
 
-    <button
-      type="button"
-      (click)="openCreateModal()"
-      class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs cursor-pointer select-none"
-    >
-      <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5 stroke-[2.5]"></lucide-icon>
-      <span>Verkauf erfassen</span>
-    </button>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="openCreateModal()"
+        class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs transition cursor-pointer shadow-lg shadow-indigo-500/20"
+      >
+        <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5"></lucide-icon>
+        <span>Verkauf erfassen</span>
+      </button>
+    </div>
   </div>
 
-  <!-- Top Realized Profit KPIs (Kapitel 26 & 27) -->
+  <!-- KPI Cards Grid -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-    <div class="linear-kpi p-4 rounded-xl border-emerald-500/40">
-      <span class="text-[11px] font-semibold text-emerald-400 block">Realisierter Gewinn</span>
+    <div class="linear-kpi p-4 rounded-xl">
+      <span class="text-[11px] font-semibold text-slate-400 block">Realisierter Gewinn</span>
       <span class="text-2xl font-bold font-mono tracking-tight text-emerald-400 mt-2 block">
-        {{ totalRealizedProfit() | currency:'EUR':'symbol':'1.2-2':'de' }}
+        +{{ totalRealizedProfit() | currency:'EUR':'symbol':'1.2-2':'de' }}
       </span>
       <span class="text-[10px] text-slate-400 mt-0.5 block">Netto nach allen Kosten</span>
     </div>
@@ -40,12 +37,12 @@
       <span class="text-2xl font-bold font-mono tracking-tight text-slate-100 mt-2 block">
         {{ totalRevenue() | currency:'EUR':'symbol':'1.2-2':'de' }}
       </span>
-      <span class="text-[10px] text-slate-400 mt-0.5 block">Brutto-Erlöse</span>
+      <span class="text-[10px] text-slate-400 mt-0.5 block">{{ salesService.sales().length }} getätigte Verkäufe</span>
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[11px] font-semibold text-slate-400 block">Ø Realisierter ROI</span>
-      <span class="text-2xl font-bold font-mono tracking-tight text-emerald-400 mt-2 block">
+      <span class="text-[11px] font-semibold text-slate-400 block">Durchschnittlicher ROI</span>
+      <span class="text-2xl font-bold font-mono tracking-tight text-indigo-400 mt-2 block">
         {{ averageRoi() }} %
       </span>
       <span class="text-[10px] text-slate-400 mt-0.5 block">Return on Investment</span>
@@ -60,7 +57,7 @@
     </div>
   </div>
 
-  <!-- Platform Filter Tabs -->
+  <!-- Platform & Status Filter Tabs -->
   <div class="linear-surface rounded-xl p-1.5 flex items-center gap-1 overflow-x-auto text-xs">
     <button
       type="button"
@@ -74,7 +71,22 @@
       [class.hover:bg-[#2c323f]]="selectedPlatform() !== 'all'"
       [class.hover:text-white]="selectedPlatform() !== 'all'"
     >
-      Alle Plattformen ({{ salesService.sales().length }})
+      Alle Verkäufe ({{ salesService.sales().length }})
+    </button>
+
+    <button
+      type="button"
+      (click)="selectedPlatform.set('returned')"
+      class="px-3 py-1 rounded-md font-semibold transition cursor-pointer flex items-center gap-1.5"
+      [class.bg-rose-500/25]="selectedPlatform() === 'returned'"
+      [class.text-rose-300]="selectedPlatform() === 'returned'"
+      [class.border]="selectedPlatform() === 'returned'"
+      [class.border-rose-500/40]="selectedPlatform() === 'returned'"
+      [class.text-slate-300]="selectedPlatform() !== 'returned'"
+      [class.hover:bg-[#2c323f]]="selectedPlatform() !== 'returned'"
+    >
+      <lucide-icon [img]="returnIcon" class="w-3 h-3 text-rose-400"></lucide-icon>
+      <span>Retouren & Gutschriften ({{ returnService.returns().length }})</span>
     </button>
 
     <button
@@ -124,17 +136,17 @@
 
     <button
       type="button"
-      (click)="selectedPlatform.set('direct')"
+      (click)="selectedPlatform.set('custom_store')"
       class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-[#373e4d]]="selectedPlatform() === 'direct'"
-      [class.text-white]="selectedPlatform() === 'direct'"
-      [class.border]="selectedPlatform() === 'direct'"
-      [class.border-[#4a5468]]="selectedPlatform() === 'direct'"
-      [class.text-slate-300]="selectedPlatform() !== 'direct'"
-      [class.hover:bg-[#2c323f]]="selectedPlatform() !== 'direct'"
-      [class.hover:text-white]="selectedPlatform() !== 'direct'"
+      [class.bg-[#373e4d]]="selectedPlatform() === 'custom_store'"
+      [class.text-white]="selectedPlatform() === 'custom_store'"
+      [class.border]="selectedPlatform() === 'custom_store'"
+      [class.border-[#4a5468]]="selectedPlatform() === 'custom_store'"
+      [class.text-slate-300]="selectedPlatform() !== 'custom_store'"
+      [class.hover:bg-[#2c323f]]="selectedPlatform() !== 'custom_store'"
+      [class.hover:text-white]="selectedPlatform() !== 'custom_store'"
     >
-      Direktverkauf
+      Webshop
     </button>
   </div>
 
@@ -151,16 +163,24 @@
             <th class="py-2.5 px-3 font-semibold text-right">Nettogewinn</th>
             <th class="py-2.5 px-3 font-semibold text-right">ROI</th>
             <th class="py-2.5 px-3 font-semibold text-right">Haltedauer</th>
-            <th class="py-2.5 px-4 font-semibold text-center w-12"></th>
+            <th class="py-2.5 px-4 font-semibold text-center w-28">Aktionen</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[#373e4d]">
           @for (sale of filteredSales(); track sale.id) {
+            @let ret = getReturnForSale(sale.id);
             <tr class="hover:bg-[#2c323f] transition group">
               <td class="py-3 px-4 font-semibold text-slate-100">
-                <a [routerLink]="['/inventory', sale.inventory_item_id]" class="hover:text-emerald-400 transition">
-                  {{ sale.inventory_item?.title || 'Artikel' }}
-                </a>
+                <div class="flex items-center gap-2">
+                  <a [routerLink]="['/inventory', sale.inventory_item_id]" class="hover:text-emerald-400 transition">
+                    {{ sale.inventory_item?.title || 'Artikel' }}
+                  </a>
+                  @if (ret) {
+                    <span class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold">
+                      RETOURNIERT
+                    </span>
+                  }
+                </div>
               </td>
 
               <td class="py-3 px-3">
@@ -189,25 +209,48 @@
                 {{ sale.holding_duration_days }} Tage
               </td>
 
-              <td class="py-3 px-4 text-center flex items-center justify-center gap-1.5">
-                <!-- § 25a Invoice Button -->
-                <button
-                  type="button"
-                  (click)="openInvoiceForSale(sale)"
-                  class="p-1.5 rounded-lg text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/15 transition cursor-pointer"
-                  title="§ 25a Differenzbesteuerungs-Rechnung anzeigen & E-Mail senden"
-                >
-                  <lucide-icon [img]="fileIcon" class="w-3.5 h-3.5"></lucide-icon>
-                </button>
+              <td class="py-3 px-4 text-center">
+                <div class="flex items-center justify-center gap-1.5">
+                  <!-- § 25a Invoice Button -->
+                  <button
+                    type="button"
+                    (click)="openInvoiceForSale(sale)"
+                    class="p-1.5 rounded-lg text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/15 transition cursor-pointer"
+                    title="§ 25a Differenzbesteuerungs-Rechnung anzeigen"
+                  >
+                    <lucide-icon [img]="fileIcon" class="w-3.5 h-3.5"></lucide-icon>
+                  </button>
 
-                <button
-                  type="button"
-                  (click)="onDeleteSale(sale)"
-                  class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                  title="Verkauf stornieren"
-                >
-                  <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
-                </button>
+                  <!-- Return / Credit Note Button -->
+                  @if (ret) {
+                    <button
+                      type="button"
+                      (click)="openCreditNoteForSale(sale)"
+                      class="p-1.5 rounded-lg text-amber-400 hover:text-amber-300 hover:bg-amber-500/15 transition cursor-pointer"
+                      title="Gutschriftsbeleg anzeigen ({{ ret.credit_note_number }})"
+                    >
+                      <lucide-icon [img]="receiptIcon" class="w-3.5 h-3.5"></lucide-icon>
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      (click)="openReturnModal(sale)"
+                      class="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/15 transition cursor-pointer"
+                      title="Retoure / Gutschrift erfassen"
+                    >
+                      <lucide-icon [img]="returnIcon" class="w-3.5 h-3.5"></lucide-icon>
+                    </button>
+                  }
+
+                  <button
+                    type="button"
+                    (click)="onDeleteSale(sale)"
+                    class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                    title="Verkauf stornieren"
+                  >
+                    <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+                  </button>
+                </div>
               </td>
             </tr>
           }
@@ -218,12 +261,20 @@
     <!-- Mobile Cards -->
     <div class="space-y-2 md:hidden">
       @for (sale of filteredSales(); track sale.id) {
+        @let ret = getReturnForSale(sale.id);
         <div class="linear-card-interactive p-3.5 rounded-xl block space-y-2.5 font-mono">
           <div class="flex items-start justify-between gap-2">
             <div>
-              <h3 class="text-xs font-semibold text-slate-100 line-clamp-1 font-sans">
-                {{ sale.inventory_item?.title || 'Artikel' }}
-              </h3>
+              <div class="flex items-center gap-1.5">
+                <h3 class="text-xs font-semibold text-slate-100 line-clamp-1 font-sans">
+                  {{ sale.inventory_item?.title || 'Artikel' }}
+                </h3>
+                @if (ret) {
+                  <span class="px-1.5 py-0.2 rounded text-[9px] bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold font-mono">
+                    RETOURNIERT
+                  </span>
+                }
+              </div>
               <p class="text-[11px] text-slate-400">{{ sale.sale_date | date:'dd.MM.yyyy' }} • {{ sale.platform }}</p>
             </div>
             <strong class="text-xs font-bold text-slate-100">
@@ -261,6 +312,26 @@
               <lucide-icon [img]="fileIcon" class="w-3 h-3"></lucide-icon>
               <span>§ 25a Rechnung</span>
             </button>
+
+            @if (ret) {
+              <button
+                type="button"
+                (click)="openCreditNoteForSale(sale)"
+                class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-amber-300"
+              >
+                <lucide-icon [img]="receiptIcon" class="w-3 h-3"></lucide-icon>
+                <span>Gutschrift</span>
+              </button>
+            } @else {
+              <button
+                type="button"
+                (click)="openReturnModal(sale)"
+                class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-rose-300"
+              >
+                <lucide-icon [img]="returnIcon" class="w-3 h-3"></lucide-icon>
+                <span>Retoure</span>
+              </button>
+            }
           </div>
         </div>
       }
@@ -271,7 +342,7 @@
       <div class="w-10 h-10 rounded-lg bg-[#1e222a] border border-[#373e4d] text-slate-400 mx-auto flex items-center justify-center mb-3">
         <lucide-icon [img]="trendingIcon" class="w-5 h-5"></lucide-icon>
       </div>
-      <h3 class="text-sm font-bold text-slate-200">Noch keine Verkäufe eingetragen</h3>
+      <h3 class="text-sm font-bold text-slate-200">Keine passenden Verkäufe gefunden</h3>
       <p class="text-xs text-slate-400 max-w-sm mx-auto mt-1 mb-4">
         Erfasse deinen ersten Verkauf, um deine realisierten Gewinne und Margen sofort live zu sehen.
       </p>
@@ -294,7 +365,206 @@
     ></app-sale-create-modal>
   }
 
-  <!-- § 25a Invoice Modal -->
+  <!-- ↩️ Retouren- & Gutschriften-Modal -->
+  @if (isReturnModalOpen()) {
+    @let sale = selectedSaleForReturn();
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in overflow-y-auto">
+      <div class="linear-surface rounded-2xl w-full max-w-xl shadow-2xl border border-rf-border overflow-hidden">
+        <!-- Header -->
+        <div class="p-5 border-b border-rf-border flex items-center justify-between bg-rf-subtle">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 flex items-center justify-center">
+              <lucide-icon [img]="returnIcon" class="w-4 h-4"></lucide-icon>
+            </div>
+            <div>
+              <h3 class="text-sm font-bold text-rf-text-primary">
+                Retoure & Gutschrift erfassen
+              </h3>
+              <p class="text-[11px] text-rf-text-muted mt-0.5">
+                {{ sale?.inventory_item?.title || 'Artikel' }} (Verkauf: {{ sale?.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }})
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            (click)="closeReturnModal()"
+            class="p-1.5 rounded-xl text-rf-text-muted hover:text-rf-text-primary transition cursor-pointer"
+          >
+            <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+          </button>
+        </div>
+
+        <!-- Form -->
+        <form [formGroup]="returnForm" (ngSubmit)="onSubmitReturn()" class="p-6 space-y-4 text-xs">
+          <!-- 1. Reason -->
+          <div>
+            <label class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+              Grund der Rückabwicklung
+            </label>
+            <select
+              formControlName="reason"
+              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+            >
+              <option value="buyer_remorse">Widerruf / Nichtgefallen (14 Tage Gesetz)</option>
+              <option value="defective">Transportschaden / Defekt</option>
+              <option value="not_as_described">Zustand weicht von Beschreibung ab</option>
+              <option value="wrong_item">Falscher Artikel geliefert</option>
+              <option value="lost_in_transit">Sendungsverlust bei Versanddienstleister</option>
+              <option value="other">Sonstiges / Kulanz</option>
+            </select>
+          </div>
+
+          <!-- 2. Refund Amount (Full vs Partial) -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">
+                Erstattungsbetrag (€)
+              </label>
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  (click)="onRefundModeChange(true)"
+                  class="px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer"
+                  [class.bg-indigo-600]="returnForm.get('isFullRefund')?.value"
+                  [class.text-white]="returnForm.get('isFullRefund')?.value"
+                  [class.border-indigo-500]="returnForm.get('isFullRefund')?.value"
+                  [class.bg-rf-subtle]="!returnForm.get('isFullRefund')?.value"
+                  [class.text-rf-text-muted]="!returnForm.get('isFullRefund')?.value"
+                  [class.border-rf-border]="!returnForm.get('isFullRefund')?.value"
+                >
+                  Vollerstattung ({{ sale?.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }})
+                </button>
+
+                <button
+                  type="button"
+                  (click)="onRefundModeChange(false)"
+                  class="px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer"
+                  [class.bg-indigo-600]="!returnForm.get('isFullRefund')?.value"
+                  [class.text-white]="!returnForm.get('isFullRefund')?.value"
+                  [class.border-indigo-500]="!returnForm.get('isFullRefund')?.value"
+                  [class.bg-rf-subtle]="returnForm.get('isFullRefund')?.value"
+                  [class.text-rf-text-muted]="returnForm.get('isFullRefund')?.value"
+                  [class.border-rf-border]="returnForm.get('isFullRefund')?.value"
+                >
+                  Teilerstattung
+                </button>
+              </div>
+            </div>
+
+            <div class="relative">
+              <input
+                type="number"
+                step="0.5"
+                formControlName="refundAmount"
+                class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
+              />
+              <span class="absolute right-3 top-2 text-xs text-rf-text-muted">EUR</span>
+            </div>
+          </div>
+
+          <!-- 3. Restock Decision -->
+          <div class="space-y-1.5">
+            <label class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+              Wiedereinlagerung in den Warenbestand
+            </label>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label
+                class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
+                [class.bg-emerald-500/15]="returnForm.get('restockAction')?.value === 'restock_ready'"
+                [class.border-emerald-500/40]="returnForm.get('restockAction')?.value === 'restock_ready'"
+                [class.bg-rf-subtle]="returnForm.get('restockAction')?.value !== 'restock_ready'"
+                [class.border-rf-border]="returnForm.get('restockAction')?.value !== 'restock_ready'"
+              >
+                <input type="radio" formControlName="restockAction" value="restock_ready" class="mt-0.5 cursor-pointer text-indigo-600" />
+                <div>
+                  <strong class="block text-xs text-rf-text-primary">Wieder verkaufsbereit</strong>
+                  <span class="text-[10px] text-rf-text-muted">Artikel zurück in Bestand (ready)</span>
+                </div>
+              </label>
+
+              <label
+                class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
+                [class.bg-amber-500/15]="returnForm.get('restockAction')?.value === 'restock_repair'"
+                [class.border-amber-500/40]="returnForm.get('restockAction')?.value === 'restock_repair'"
+                [class.bg-rf-subtle]="returnForm.get('restockAction')?.value !== 'restock_repair'"
+                [class.border-rf-border]="returnForm.get('restockAction')?.value !== 'restock_repair'"
+              >
+                <input type="radio" formControlName="restockAction" value="restock_repair" class="mt-0.5 cursor-pointer text-indigo-600" />
+                <div>
+                  <strong class="block text-xs text-rf-text-primary">Reparatur / Aufbereitung</strong>
+                  <span class="text-[10px] text-rf-text-muted">In Werkstatt übergeben (repair)</span>
+                </div>
+              </label>
+
+              <label
+                class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
+                [class.bg-rose-500/15]="returnForm.get('restockAction')?.value === 'write_off'"
+                [class.border-rose-500/40]="returnForm.get('restockAction')?.value === 'write_off'"
+                [class.bg-rf-subtle]="returnForm.get('restockAction')?.value !== 'write_off'"
+                [class.border-rf-border]="returnForm.get('restockAction')?.value !== 'write_off'"
+              >
+                <input type="radio" formControlName="restockAction" value="write_off" class="mt-0.5 cursor-pointer text-indigo-600" />
+                <div>
+                  <strong class="block text-xs text-rf-text-primary">Als Defekt abschreiben</strong>
+                  <span class="text-[10px] text-rf-text-muted">Totalverlust / Bruchschaden</span>
+                </div>
+              </label>
+
+              <label
+                class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
+                [class.bg-indigo-500/15]="returnForm.get('restockAction')?.value === 'keep_with_buyer'"
+                [class.border-indigo-500/40]="returnForm.get('restockAction')?.value === 'keep_with_buyer'"
+                [class.bg-rf-subtle]="returnForm.get('restockAction')?.value !== 'keep_with_buyer'"
+                [class.border-rf-border]="returnForm.get('restockAction')?.value !== 'keep_with_buyer'"
+              >
+                <input type="radio" formControlName="restockAction" value="keep_with_buyer" class="mt-0.5 cursor-pointer text-indigo-600" />
+                <div>
+                  <strong class="block text-xs text-rf-text-primary">Bleibt beim Käufer</strong>
+                  <span class="text-[10px] text-rf-text-muted">Preisnachlass / Kulanz</span>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- 4. Notes -->
+          <div>
+            <label class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+              Interne Notizen zur Rückabwicklung
+            </label>
+            <textarea
+              rows="2"
+              formControlName="notes"
+              placeholder="z. B. DHL Sendungsverlust Ticket #88432 oder Minderung akzeptiert."
+              class="linear-input w-full p-2.5 rounded-xl text-xs resize-none"
+            ></textarea>
+          </div>
+
+          <!-- Actions -->
+          <div class="pt-3 border-t border-rf-border flex justify-end gap-2">
+            <button
+              type="button"
+              (click)="closeReturnModal()"
+              class="linear-btn-secondary px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer"
+            >
+              Abbrechen
+            </button>
+
+            <button
+              type="submit"
+              [disabled]="returnForm.invalid || isProcessingReturn()"
+              class="linear-btn-primary px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-rose-500/25 bg-rose-600 hover:bg-rose-500 border-rose-500 disabled:opacity-40"
+            >
+              <lucide-icon [img]="isProcessingReturn() ? sparklesIcon : receiptIcon" class="w-4 h-4"></lucide-icon>
+              <span>{{ isProcessingReturn() ? 'Wird gebucht...' : 'Gutschrift erstellen & Erstattung buchen' }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- § 25a Invoice / Credit Note Modal -->
   @if (activeInvoice(); as inv) {
     <app-invoice-modal
       [invoice]="inv"

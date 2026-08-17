@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideAngularModule,
@@ -15,18 +16,26 @@ import {
   ArrowUpRight,
   Sparkles,
   FileText,
+  RotateCcw,
+  Receipt,
+  X,
+  CheckCircle2,
+  AlertTriangle,
 } from 'lucide-angular';
 import { SalesService } from '../../core/services/sales.service';
 import { InvoiceService } from '../../core/services/invoice.service';
+import { ReturnService } from '../../core/services/return.service';
 import { SaleCreateModalComponent } from './components/sale-create-modal/sale-create-modal.component';
 import { InvoiceModalComponent } from '../../shared/components/invoice-modal/invoice-modal.component';
 import { Sale } from '../../core/models/reflip.models';
 import { Invoice } from '../../core/models/invoice.models';
+import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/return.models';
 
 @Component({
   selector: 'app-sales',
   imports: [
     RouterLink,
+    ReactiveFormsModule,
     CurrencyPipe,
     DatePipe,
     TranslatePipe,
@@ -41,6 +50,7 @@ import { Invoice } from '../../core/models/invoice.models';
 export class SalesComponent {
   readonly salesService = inject(SalesService);
   readonly invoiceService = inject(InvoiceService);
+  readonly returnService = inject(ReturnService);
 
   readonly trendingIcon = TrendingUp;
   readonly coinsIcon = Coins;
@@ -53,19 +63,41 @@ export class SalesComponent {
   readonly arrowIcon = ArrowUpRight;
   readonly sparklesIcon = Sparkles;
   readonly fileIcon = FileText;
+  readonly returnIcon = RotateCcw;
+  readonly receiptIcon = Receipt;
+  readonly closeIcon = X;
+  readonly checkIcon = CheckCircle2;
+  readonly alertIcon = AlertTriangle;
 
   readonly isCreateModalOpen = signal<boolean>(false);
   readonly selectedPlatform = signal<string>('all');
   readonly activeInvoice = signal<Invoice | null>(null);
 
+  // Return modal state
+  readonly isReturnModalOpen = signal<boolean>(false);
+  readonly selectedSaleForReturn = signal<Sale | null>(null);
+  readonly isProcessingReturn = signal<boolean>(false);
+
+  readonly returnForm = new FormGroup({
+    reason: new FormControl<ReturnReason>('buyer_remorse', { nonNullable: true, validators: [Validators.required] }),
+    refundAmount: new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0.01)] }),
+    isFullRefund: new FormControl<boolean>(true, { nonNullable: true }),
+    restockAction: new FormControl<RestockAction>('restock_ready', { nonNullable: true, validators: [Validators.required] }),
+    notes: new FormControl<string>(''),
+  });
+
   readonly filteredSales = computed(() => {
     const list = this.salesService.sales();
     const plat = this.selectedPlatform();
     if (plat === 'all') return list;
+    if (plat === 'returned') {
+      const returnSaleIds = new Set(this.returnService.returns().map((r) => r.sale_id));
+      return list.filter((s) => returnSaleIds.has(s.id));
+    }
     return list.filter((s) => s.platform === plat);
   });
 
-  // KPI Calculations (Kapitel 26 & 27)
+  // KPI Calculations
   readonly totalRealizedProfit = computed(() => {
     return this.salesService.sales().reduce((sum, s) => sum + (s.net_profit || 0), 0);
   });
@@ -99,6 +131,72 @@ export class SalesComponent {
   openInvoiceForSale(sale: Sale): void {
     const inv = this.invoiceService.generateInvoiceForSale(sale, sale.inventory_item);
     this.activeInvoice.set(inv);
+  }
+
+  openCreditNoteForSale(sale: Sale): void {
+    const ret = this.returnService.returns().find((r) => r.sale_id === sale.id);
+    if (ret && ret.creditNoteInvoice) {
+      this.activeInvoice.set(ret.creditNoteInvoice);
+    } else if (ret) {
+      const generated = this.returnService.generateCreditNoteInvoice(ret, sale, null);
+      this.activeInvoice.set(generated);
+    }
+  }
+
+  getReturnForSale(saleId: string): ReturnRecord | undefined {
+    return this.returnService.returns().find((r) => r.sale_id === saleId);
+  }
+
+  openReturnModal(sale: Sale): void {
+    this.selectedSaleForReturn.set(sale);
+    this.returnForm.patchValue({
+      reason: 'buyer_remorse',
+      refundAmount: sale.sale_price,
+      isFullRefund: true,
+      restockAction: 'restock_ready',
+      notes: '',
+    });
+    this.isReturnModalOpen.set(true);
+  }
+
+  closeReturnModal(): void {
+    this.isReturnModalOpen.set(false);
+    this.selectedSaleForReturn.set(null);
+  }
+
+  onRefundModeChange(isFull: boolean): void {
+    this.returnForm.patchValue({ isFullRefund: isFull });
+    const sale = this.selectedSaleForReturn();
+    if (isFull && sale) {
+      this.returnForm.patchValue({ refundAmount: sale.sale_price });
+    }
+  }
+
+  async onSubmitReturn(): Promise<void> {
+    if (this.returnForm.invalid) return;
+    const sale = this.selectedSaleForReturn();
+    if (!sale) return;
+
+    this.isProcessingReturn.set(true);
+    const val = this.returnForm.getRawValue();
+
+    const createdReturn = await this.returnService.processReturn({
+      sale,
+      item: sale.inventory_item,
+      reason: val.reason,
+      refundAmount: val.refundAmount,
+      isFullRefund: val.isFullRefund,
+      restockAction: val.restockAction,
+      notes: val.notes?.trim() || undefined,
+    });
+
+    this.isProcessingReturn.set(false);
+    this.closeReturnModal();
+
+    // Automatically open generated credit note invoice for printing/downloading!
+    if (createdReturn.creditNoteInvoice) {
+      this.activeInvoice.set(createdReturn.creditNoteInvoice);
+    }
   }
 
   closeInvoice(): void {
