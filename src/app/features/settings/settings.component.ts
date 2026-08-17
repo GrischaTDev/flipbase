@@ -23,6 +23,9 @@ import {
   X,
   Bell,
   Send,
+  Smartphone,
+  Wifi,
+  WifiOff,
 } from 'lucide-angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ExportService } from '../../core/services/export.service';
@@ -32,6 +35,7 @@ import { InventoryService } from '../../core/services/inventory.service';
 import { EbayApiService } from '../../core/services/ebay-api.service';
 import { WorkspaceMemberService } from '../../core/services/workspace-member.service';
 import { WebhookService } from '../../core/services/webhook.service';
+import { PwaService } from '../../core/services/pwa.service';
 import { WorkspaceRole } from '../../core/models/reflip.models';
 
 @Component({
@@ -50,6 +54,7 @@ export class SettingsComponent {
   readonly ebayApiService = inject(EbayApiService);
   readonly memberService = inject(WorkspaceMemberService);
   readonly webhookService = inject(WebhookService);
+  readonly pwaService = inject(PwaService);
   readonly translate = inject(TranslateService);
 
   readonly settingsIcon = Settings;
@@ -72,6 +77,9 @@ export class SettingsComponent {
   readonly closeIcon = X;
   readonly bellIcon = Bell;
   readonly sendIcon = Send;
+  readonly smartphoneIcon = Smartphone;
+  readonly wifiIcon = Wifi;
+  readonly wifiOffIcon = WifiOff;
 
   readonly isSaving = signal<boolean>(false);
   readonly saveSuccess = signal<boolean>(false);

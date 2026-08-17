@@ -15,12 +15,15 @@ import {
   CheckCheck,
   Trash2,
   Sparkles,
+  Smartphone,
+  WifiOff,
 } from 'lucide-angular';
 import { AuthService } from '../../core/services/auth.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { WorkspaceMemberService } from '../../core/services/workspace-member.service';
 import { WebhookService } from '../../core/services/webhook.service';
 import { ThemeService } from '../../core/services/theme.service';
+import { PwaService } from '../../core/services/pwa.service';
 import { Workspace } from '../../core/models/reflip.models';
 import { DatePipe } from '@angular/common';
 
@@ -37,6 +40,7 @@ export class HeaderComponent {
   readonly memberService = inject(WorkspaceMemberService);
   readonly webhookService = inject(WebhookService);
   readonly themeService = inject(ThemeService);
+  readonly pwaService = inject(PwaService);
   private readonly translate = inject(TranslateService);
 
   readonly toggleSidebar = output<void>();
@@ -59,6 +63,8 @@ export class HeaderComponent {
   readonly CheckCheckIcon = CheckCheck;
   readonly TrashIcon = Trash2;
   readonly SparklesIcon = Sparkles;
+  readonly SmartphoneIcon = Smartphone;
+  readonly WifiOffIcon = WifiOff;
 
   currentLanguage = signal<string>('de');
 
