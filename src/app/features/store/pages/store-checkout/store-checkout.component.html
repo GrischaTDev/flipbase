@@ -2,45 +2,45 @@
   <!-- Back Button -->
   <a
     routerLink="/shop"
-    class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-indigo-600 transition cursor-pointer"
+    class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer"
   >
     <lucide-icon [img]="backIcon" class="w-4 h-4"></lucide-icon>
     <span>Zurück zum Shop</span>
   </a>
 
   <div class="pb-1">
-    <h1 class="text-2xl md:text-3xl font-black tracking-tight text-slate-900">
-      Bestellung abschließen (Kasse)
+    <h1 class="text-xl md:text-2xl font-bold tracking-tight text-slate-900">
+      Kasse
     </h1>
-    <p class="text-xs sm:text-sm text-slate-500 mt-1">
-      Gib deine Lieferadresse an und wähle deine bevorzugte Zahlungsart (Kreditkarte/Stripe, PayPal, SEPA-Banküberweisung oder Barzahlung).
+    <p class="text-xs text-slate-500 mt-0.5">
+      Lieferadresse eingeben und Zahlungsart auswählen.
     </p>
   </div>
 
   @if (storeService.cart().length === 0) {
-    <div class="bg-white rounded-3xl p-16 text-center space-y-3 border border-slate-200 shadow-sm">
-      <h3 class="text-base font-bold text-slate-900">Dein Warenkorb ist leer</h3>
+    <div class="bg-white rounded-2xl p-12 text-center space-y-3 border border-slate-200">
+      <h3 class="text-sm font-bold text-slate-900">Dein Warenkorb ist leer</h3>
       <p class="text-xs text-slate-500">
         Lege zuerst einen Artikel in den Warenkorb, um zur Kasse zu gehen.
       </p>
-      <a routerLink="/shop" class="bg-indigo-600 hover:bg-indigo-700 text-white inline-flex px-4 py-2 rounded-xl text-xs font-bold mt-2 shadow-md">
+      <a routerLink="/shop" class="bg-slate-900 text-white inline-flex px-4 py-2 rounded-xl text-xs font-medium mt-2">
         Zum Sortiment
       </a>
     </div>
   } @else {
-    <form [formGroup]="form" (ngSubmit)="onSubmitOrder()" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <form [formGroup]="form" (ngSubmit)="onSubmitOrder()" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
       <!-- Left Column: Address, Shipping & Payment (7 cols) -->
-      <div class="lg:col-span-7 space-y-6">
-        <!-- 1. Customer Contact & Address (Crisp White Card) -->
-        <div class="bg-white rounded-3xl p-6 md:p-7 space-y-4 shadow-sm border border-slate-200">
-          <div class="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-            <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">1</span>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-900">Lieferadresse & Kontaktdaten</h2>
+      <div class="lg:col-span-7 space-y-5">
+        <!-- 1. Customer Contact & Address -->
+        <div class="bg-white rounded-2xl p-5 sm:p-6 space-y-4 border border-slate-200 shadow-xs">
+          <div class="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+            <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-800 font-bold text-[11px] flex items-center justify-center">1</span>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-slate-900">Lieferadresse & Kontakt</h2>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label for="firstNameInput" class="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label for="firstNameInput" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                 Vorname *
               </label>
               <input
@@ -48,12 +48,12 @@
                 type="text"
                 formControlName="firstName"
                 placeholder="Max"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3 py-2 rounded-lg text-xs font-medium bg-white text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
               />
             </div>
 
             <div>
-              <label for="lastNameInput" class="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label for="lastNameInput" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                 Nachname *
               </label>
               <input
@@ -61,27 +61,27 @@
                 type="text"
                 formControlName="lastName"
                 placeholder="Mustermann"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3 py-2 rounded-lg text-xs font-medium bg-white text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
               />
             </div>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label for="emailInput" class="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                E-Mail-Adresse (für Bestellbestätigung) *
+              <label for="emailInput" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                E-Mail-Adresse *
               </label>
               <input
                 id="emailInput"
                 type="email"
                 formControlName="email"
                 placeholder="max@beispiel.de"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3 py-2 rounded-lg text-xs font-medium bg-white text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
               />
             </div>
 
             <div>
-              <label for="phoneInput" class="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label for="phoneInput" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                 Telefonnummer (optional)
               </label>
               <input
@@ -89,14 +89,14 @@
                 type="tel"
                 formControlName="phone"
                 placeholder="+49 170 1234567"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3 py-2 rounded-lg text-xs font-medium bg-white text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
               />
             </div>
           </div>
 
           <div class="grid grid-cols-3 gap-3">
             <div class="col-span-2">
-              <label for="streetInput" class="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label for="streetInput" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                 Straße *
               </label>
               <input
@@ -104,12 +104,12 @@
                 type="text"
                 formControlName="street"
                 placeholder="Musterstraße"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3 py-2 rounded-lg text-xs font-medium bg-white text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
               />
             </div>
 
             <div>
-              <label for="houseNumberInput" class="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label for="houseNumberInput" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                 Hausnr. *
               </label>
               <input
@@ -117,14 +117,14 @@
                 type="text"
                 formControlName="houseNumber"
                 placeholder="12a"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3 py-2 rounded-lg text-xs font-medium bg-white text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
               />
             </div>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div>
-              <label for="zipInput" class="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label for="zipInput" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                 PLZ *
               </label>
               <input
@@ -132,12 +132,12 @@
                 type="text"
                 formControlName="zip"
                 placeholder="10115"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-mono font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3 py-2 rounded-lg text-xs font-mono font-medium bg-white text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
               />
             </div>
 
             <div class="sm:col-span-2">
-              <label for="cityInput" class="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+              <label for="cityInput" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                 Stadt *
               </label>
               <input
@@ -145,160 +145,160 @@
                 type="text"
                 formControlName="city"
                 placeholder="Berlin"
-                class="w-full px-3.5 py-2.5 rounded-xl text-xs font-medium bg-white text-slate-900 border border-slate-300 shadow-2xs focus:border-indigo-600 focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                class="w-full px-3 py-2 rounded-lg text-xs font-medium bg-white text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
               />
             </div>
           </div>
         </div>
 
-        <!-- 2. Shipping Method (White Card) -->
-        <div class="bg-white rounded-3xl p-6 md:p-7 space-y-3.5 shadow-sm border border-slate-200">
-          <div class="flex items-center gap-2.5 pb-3 border-b border-slate-100">
-            <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">2</span>
+        <!-- 2. Shipping Method -->
+        <div class="bg-white rounded-2xl p-5 sm:p-6 space-y-3 border border-slate-200 shadow-xs">
+          <div class="flex items-center gap-2 pb-2.5 border-b border-slate-100">
+            <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-800 font-bold text-[11px] flex items-center justify-center">2</span>
             <h2 class="text-xs font-bold uppercase tracking-wider text-slate-900">Versandart</h2>
           </div>
 
-          <div class="space-y-2.5">
+          <div class="space-y-2">
             <!-- DHL Standard -->
-            <label class="p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition"
-              [class.bg-indigo-50]="form.get('shippingMethod')?.value === 'dhl_standard'"
-              [class.border-indigo-600]="form.get('shippingMethod')?.value === 'dhl_standard'"
+            <label class="p-3 rounded-xl border flex items-center justify-between cursor-pointer transition"
+              [class.bg-slate-50]="form.get('shippingMethod')?.value === 'dhl_standard'"
+              [class.border-slate-800]="form.get('shippingMethod')?.value === 'dhl_standard'"
               [class.bg-white]="form.get('shippingMethod')?.value !== 'dhl_standard'"
               [class.border-slate-200]="form.get('shippingMethod')?.value !== 'dhl_standard'"
             >
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-2.5">
                 <input
                   type="radio"
                   formControlName="shippingMethod"
                   value="dhl_standard"
-                  class="text-indigo-600 cursor-pointer w-4 h-4"
+                  class="text-slate-900 cursor-pointer"
                 />
                 <div>
-                  <strong class="text-xs text-slate-900 block font-bold">DHL Paket (Versichert & Tracking)</strong>
-                  <span class="text-[11px] text-slate-500">Lieferung in 1-3 Werktagen direkt an deine Haustür</span>
+                  <strong class="text-xs text-slate-900 block font-semibold">DHL Paket (Versichert & Tracking)</strong>
+                  <span class="text-[10px] text-slate-500">Lieferung in 1-3 Werktagen</span>
                 </div>
               </div>
-              <span class="font-mono font-bold text-xs text-slate-900">
+              <span class="font-mono font-semibold text-xs text-slate-900">
                 {{ storeService.cartShippingCost() === 0 ? 'Kostenlos' : (storeService.storeSettings().shippingFlatRate | currency:'EUR':'symbol':'1.2-2':'de') }}
               </span>
             </label>
 
             <!-- Pickup -->
-            <label class="p-3.5 rounded-2xl border flex items-center justify-between cursor-pointer transition"
-              [class.bg-indigo-50]="form.get('shippingMethod')?.value === 'pickup'"
-              [class.border-indigo-600]="form.get('shippingMethod')?.value === 'pickup'"
+            <label class="p-3 rounded-xl border flex items-center justify-between cursor-pointer transition"
+              [class.bg-slate-50]="form.get('shippingMethod')?.value === 'pickup'"
+              [class.border-slate-800]="form.get('shippingMethod')?.value === 'pickup'"
               [class.bg-white]="form.get('shippingMethod')?.value !== 'pickup'"
               [class.border-slate-200]="form.get('shippingMethod')?.value !== 'pickup'"
             >
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-2.5">
                 <input
                   type="radio"
                   formControlName="shippingMethod"
                   value="pickup"
-                  class="text-indigo-600 cursor-pointer w-4 h-4"
+                  class="text-slate-900 cursor-pointer"
                 />
                 <div>
-                  <strong class="text-xs text-slate-900 block font-bold">Kostenlose Selbstabholung</strong>
-                  <span class="text-[11px] text-slate-500">Nach Terminabsprache vor Ort</span>
+                  <strong class="text-xs text-slate-900 block font-semibold">Selbstabholung</strong>
+                  <span class="text-[10px] text-slate-500">Nach Terminabsprache vor Ort</span>
                 </div>
               </div>
-              <span class="font-mono font-bold text-xs text-emerald-600">0,00 €</span>
+              <span class="font-mono font-semibold text-xs text-slate-900">0,00 €</span>
             </label>
           </div>
         </div>
 
-        <!-- 3. Payment Method (Stripe, PayPal, SEPA) -->
-        <div class="bg-white rounded-3xl p-6 md:p-7 space-y-4 shadow-sm border border-slate-200">
-          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
-            <div class="flex items-center gap-2.5">
-              <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">3</span>
+        <!-- 3. Payment Method -->
+        <div class="bg-white rounded-2xl p-5 sm:p-6 space-y-3 border border-slate-200 shadow-xs">
+          <div class="flex items-center justify-between pb-2.5 border-b border-slate-100">
+            <div class="flex items-center gap-2">
+              <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-800 font-bold text-[11px] flex items-center justify-center">3</span>
               <h2 class="text-xs font-bold uppercase tracking-wider text-slate-900">Zahlungsart</h2>
             </div>
-            <div class="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-              <lucide-icon [img]="lockIcon" class="w-3 h-3 text-emerald-600"></lucide-icon>
-              <span>256-Bit SSL Verschlüsselt</span>
+            <div class="flex items-center gap-1 text-[10px] text-slate-500">
+              <lucide-icon [img]="lockIcon" class="w-3 h-3"></lucide-icon>
+              <span>SSL Verschlüsselt</span>
             </div>
           </div>
 
-          <div class="space-y-3">
+          <div class="space-y-2.5">
             <!-- 1. Stripe Kreditkarte -->
-            <label class="p-4 rounded-2xl border flex flex-col gap-3 cursor-pointer transition"
-              [class.bg-indigo-50]="selectedPayment() === 'stripe_card'"
-              [class.border-indigo-600]="selectedPayment() === 'stripe_card'"
+            <label class="p-3.5 rounded-xl border flex flex-col gap-2.5 cursor-pointer transition"
+              [class.bg-slate-50]="selectedPayment() === 'stripe_card'"
+              [class.border-slate-800]="selectedPayment() === 'stripe_card'"
               [class.bg-white]="selectedPayment() !== 'stripe_card'"
               [class.border-slate-200]="selectedPayment() !== 'stripe_card'"
             >
               <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2.5">
                   <input
                     type="radio"
                     formControlName="paymentMethod"
                     value="stripe_card"
-                    class="text-indigo-600 cursor-pointer w-4 h-4"
+                    class="text-slate-900 cursor-pointer"
                   />
                   <div class="flex items-center gap-2">
-                    <lucide-icon [img]="cardIcon" class="w-4 h-4 text-indigo-600"></lucide-icon>
+                    <lucide-icon [img]="cardIcon" class="w-4 h-4 text-slate-700"></lucide-icon>
                     <div>
-                      <strong class="text-xs text-slate-900 block font-bold">Kreditkarte & Debitkarte (Stripe)</strong>
+                      <strong class="text-xs text-slate-900 block font-semibold">Kreditkarte (Stripe)</strong>
                       <span class="text-[10px] text-slate-500">Visa, Mastercard, American Express, Apple Pay</span>
                     </div>
                   </div>
                 </div>
-                <span class="px-2 py-0.5 rounded text-[9px] font-mono bg-indigo-100 text-indigo-700 font-bold">
+                <span class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-slate-100 text-slate-700 font-semibold">
                   {{ detectedCardBrand() }}
                 </span>
               </div>
 
-              <!-- Interactive Card Inputs (Visible when Stripe chosen) -->
+              <!-- Card Inputs -->
               @if (selectedPayment() === 'stripe_card') {
-                <div class="p-4 bg-white rounded-2xl border border-slate-200 space-y-3 animate-fade-in text-xs shadow-xs" (click)="$event.stopPropagation()">
+                <div class="p-3 bg-white rounded-xl border border-slate-200 space-y-2.5 animate-fade-in text-xs" (click)="$event.stopPropagation()">
                   <div>
-                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                       Kartennummer
                     </label>
                     <input
                       type="text"
                       formControlName="cardNumber"
                       placeholder="4242 4242 4242 4242"
-                      class="w-full px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-50 text-slate-900 border border-slate-300 focus:border-indigo-600 outline-none"
+                      class="w-full px-3 py-1.5 rounded-lg text-xs font-mono bg-slate-50 text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
                     />
                   </div>
 
                   <div class="grid grid-cols-2 gap-2">
                     <div>
-                      <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                      <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                         Gültig bis (MM/JJ)
                       </label>
                       <input
                         type="text"
                         formControlName="cardExpiry"
                         placeholder="MM/JJ"
-                        class="w-full px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-50 text-slate-900 border border-slate-300 focus:border-indigo-600 outline-none"
+                        class="w-full px-3 py-1.5 rounded-lg text-xs font-mono bg-slate-50 text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
                       />
                     </div>
                     <div>
-                      <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
-                        CVC-Sicherheitscode
+                      <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
+                        CVC-Code
                       </label>
                       <input
                         type="text"
                         formControlName="cardCvc"
                         placeholder="123"
                         maxlength="4"
-                        class="w-full px-3.5 py-2 rounded-xl text-xs font-mono bg-slate-50 text-slate-900 border border-slate-300 focus:border-indigo-600 outline-none"
+                        class="w-full px-3 py-1.5 rounded-lg text-xs font-mono bg-slate-50 text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-600 mb-1">
+                    <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-1">
                       Karteninhaber
                     </label>
                     <input
                       type="text"
                       formControlName="cardHolder"
                       placeholder="Vorname Nachname"
-                      class="w-full px-3.5 py-2 rounded-xl text-xs bg-slate-50 text-slate-900 border border-slate-300 focus:border-indigo-600 outline-none"
+                      class="w-full px-3 py-1.5 rounded-lg text-xs bg-slate-50 text-slate-900 border border-slate-200 focus:border-slate-400 outline-none"
                     />
                   </div>
                 </div>
@@ -306,76 +306,61 @@
             </label>
 
             <!-- 2. PayPal Express -->
-            <label class="p-4 rounded-2xl border flex flex-col gap-2.5 cursor-pointer transition"
-              [class.bg-indigo-50]="selectedPayment() === 'paypal'"
-              [class.border-indigo-600]="selectedPayment() === 'paypal'"
+            <label class="p-3.5 rounded-xl border flex flex-col gap-2 cursor-pointer transition"
+              [class.bg-slate-50]="selectedPayment() === 'paypal'"
+              [class.border-slate-800]="selectedPayment() === 'paypal'"
               [class.bg-white]="selectedPayment() !== 'paypal'"
               [class.border-slate-200]="selectedPayment() !== 'paypal'"
             >
               <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2.5">
                   <input
                     type="radio"
                     formControlName="paymentMethod"
                     value="paypal"
-                    class="text-indigo-600 cursor-pointer w-4 h-4"
+                    class="text-slate-900 cursor-pointer"
                   />
-                  <div class="flex items-center gap-2">
-                    <span class="text-base">🅿️</span>
-                    <div>
-                      <strong class="text-xs text-slate-900 block font-bold">PayPal Express</strong>
-                      <span class="text-[10px] text-slate-500">Schnell & sicher mit Käuferschutz bezahlen</span>
-                    </div>
+                  <div>
+                    <strong class="text-xs text-slate-900 block font-semibold">PayPal</strong>
+                    <span class="text-[10px] text-slate-500">Schnell mit Käuferschutz bezahlen</span>
                   </div>
                 </div>
-                <span class="px-2 py-0.5 rounded text-[9px] font-mono bg-blue-100 text-blue-700 font-bold">
+                <span class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-slate-100 text-slate-700 font-semibold">
                   PayPal Protection
                 </span>
               </div>
-
-              @if (selectedPayment() === 'paypal') {
-                <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs space-y-1 animate-fade-in">
-                  <div class="flex items-center gap-1.5 text-amber-800 font-bold text-[11px]">
-                    <lucide-icon [img]="shieldIcon" class="w-3.5 h-3.5 text-amber-600"></lucide-icon>
-                    <span>PayPal Käuferschutz aktiv</span>
-                  </div>
-                  <p class="text-[10px] text-slate-600 leading-tight">
-                    Nach Klick auf "Zahlungspflichtig bestellen" wirst du direkt mit PayPal verbunden und die Zahlung sicher abgebucht.
-                  </p>
-                </div>
-              }
             </label>
 
-            <!-- 3. Bank Transfer (SEPA Vorkasse) -->
-            <label class="p-4 rounded-2xl border flex flex-col gap-2.5 cursor-pointer transition"
-              [class.bg-indigo-50]="selectedPayment() === 'bank_transfer'"
-              [class.border-indigo-600]="selectedPayment() === 'bank_transfer'"
+            <!-- 3. Bank Transfer (SEPA) -->
+            <label class="p-3.5 rounded-xl border flex flex-col gap-2 cursor-pointer transition"
+              [class.bg-slate-50]="selectedPayment() === 'bank_transfer'"
+              [class.border-slate-800]="selectedPayment() === 'bank_transfer'"
               [class.bg-white]="selectedPayment() !== 'bank_transfer'"
               [class.border-slate-200]="selectedPayment() !== 'bank_transfer'"
             >
               <div class="flex items-center justify-between">
-                <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2.5">
                   <input
                     type="radio"
                     formControlName="paymentMethod"
                     value="bank_transfer"
-                    class="text-indigo-600 cursor-pointer w-4 h-4"
+                    class="text-slate-900 cursor-pointer"
                   />
                   <div class="flex items-center gap-2">
-                    <lucide-icon [img]="bankIcon" class="w-4 h-4 text-emerald-600"></lucide-icon>
+                    <lucide-icon [img]="bankIcon" class="w-4 h-4 text-slate-700"></lucide-icon>
                     <div>
-                      <strong class="text-xs text-slate-900 block font-bold">Banküberweisung / SEPA Vorkasse</strong>
-                      <span class="text-[10px] text-slate-500">Kostenlose Überweisung auf unser deutsches Geschäftskonto</span>
+                      <strong class="text-xs text-slate-900 block font-semibold">Banküberweisung / SEPA Vorkasse</strong>
+                      <span class="text-[10px] text-slate-500">Überweisung auf deutsches Geschäftskonto</span>
                     </div>
                   </div>
                 </div>
-                <span class="px-2 py-0.5 rounded text-[9px] font-mono bg-emerald-100 text-emerald-700 font-bold">
+                <span class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-slate-100 text-slate-700 font-semibold">
                   SEPA
                 </span>
               </div>
 
               @if (selectedPayment() === 'bank_transfer') {
-                <div class="p-3 bg-white border border-slate-200 rounded-xl text-xs space-y-1.5 animate-fade-in font-mono text-[11px] shadow-2xs" (click)="$event.stopPropagation()">
+                <div class="p-3 bg-white border border-slate-200 rounded-xl text-xs space-y-1.5 animate-fade-in font-mono text-[11px]" (click)="$event.stopPropagation()">
                   <div class="flex justify-between items-center text-slate-500 text-[10px]">
                     <span>KONTOINHABER:</span>
                     <strong class="text-slate-900">{{ storeService.storeSettings().payments.bankAccountHolder }}</strong>
@@ -383,7 +368,7 @@
                   <div class="flex justify-between items-center text-slate-500 text-[10px]">
                     <span>IBAN:</span>
                     <div class="flex items-center gap-1.5">
-                      <strong class="text-emerald-700 font-bold">{{ storeService.storeSettings().payments.bankIban }}</strong>
+                      <strong class="text-slate-900 font-bold">{{ storeService.storeSettings().payments.bankIban }}</strong>
                       <button
                         type="button"
                         (click)="copyIban(storeService.storeSettings().payments.bankIban)"
@@ -403,25 +388,22 @@
             </label>
 
             <!-- 4. Barzahlung bei Abholung -->
-            <label class="p-4 rounded-2xl border flex items-center justify-between cursor-pointer transition"
-              [class.bg-indigo-50]="selectedPayment() === 'cash_on_pickup'"
-              [class.border-indigo-600]="selectedPayment() === 'cash_on_pickup'"
+            <label class="p-3.5 rounded-xl border flex items-center justify-between cursor-pointer transition"
+              [class.bg-slate-50]="selectedPayment() === 'cash_on_pickup'"
+              [class.border-slate-800]="selectedPayment() === 'cash_on_pickup'"
               [class.bg-white]="selectedPayment() !== 'cash_on_pickup'"
               [class.border-slate-200]="selectedPayment() !== 'cash_on_pickup'"
             >
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-2.5">
                 <input
                   type="radio"
                   formControlName="paymentMethod"
                   value="cash_on_pickup"
-                  class="text-indigo-600 cursor-pointer w-4 h-4"
+                  class="text-slate-900 cursor-pointer"
                 />
-                <div class="flex items-center gap-2">
-                  <lucide-icon [img]="cashIcon" class="w-4 h-4 text-amber-600"></lucide-icon>
-                  <div>
-                    <strong class="text-xs text-slate-900 block font-bold">Barzahlung bei Abholung</strong>
-                    <span class="text-[10px] text-slate-500">Vor Ort bar oder per EC-Karte zahlen</span>
-                  </div>
+                <div>
+                  <strong class="text-xs text-slate-900 block font-semibold">Barzahlung bei Abholung</strong>
+                  <span class="text-[10px] text-slate-500">Vor Ort bar oder per EC-Karte zahlen</span>
                 </div>
               </div>
             </label>
@@ -430,28 +412,28 @@
       </div>
 
       <!-- Right Column: Order Summary (5 cols) -->
-      <div class="lg:col-span-5 space-y-5">
-        <div class="bg-white rounded-3xl p-6 md:p-7 space-y-5 shadow-md border border-slate-200 sticky top-24">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-900 pb-3 border-b border-slate-100">
-            Bestellübersicht ({{ storeService.cartItemCount() }} Artikel)
+      <div class="lg:col-span-5 space-y-4">
+        <div class="bg-white rounded-2xl p-5 sm:p-6 space-y-4 shadow-xs border border-slate-200 sticky top-20">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-900 pb-2.5 border-b border-slate-100">
+            Übersicht ({{ storeService.cartItemCount() }} Artikel)
           </h2>
 
           <!-- Cart items list -->
           <div class="divide-y divide-slate-100 max-h-60 overflow-y-auto pr-1 space-y-2">
             @for (c of storeService.cart(); track c.item.id) {
-              <div class="pt-2 flex items-center justify-between gap-3 text-xs">
-                <div class="flex items-center gap-2.5">
-                  <span class="w-6 h-6 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center font-mono text-[10px] font-bold shrink-0 text-slate-800">
+              <div class="pt-2 flex items-center justify-between gap-2.5 text-xs">
+                <div class="flex items-center gap-2">
+                  <span class="w-5 h-5 rounded bg-slate-100 border border-slate-200 flex items-center justify-center font-mono text-[10px] font-semibold shrink-0 text-slate-700">
                     {{ c.quantity }}x
                   </span>
                   <div>
-                    <strong class="text-slate-900 line-clamp-1 block font-bold">{{ c.item.title }}</strong>
+                    <strong class="text-slate-900 line-clamp-1 block font-medium">{{ c.item.title }}</strong>
                     <span class="text-[10px] text-slate-400 font-mono">
-                      {{ (c.item.expected_value || (c.item.allocated_purchase_cost * 1.5)) | currency:'EUR':'symbol':'1.2-2':'de' }} / Stk.
+                      {{ (c.item.expected_value || (c.item.allocated_purchase_cost * 1.5)) | currency:'EUR':'symbol':'1.2-2':'de' }}
                     </span>
                   </div>
                 </div>
-                <strong class="font-mono text-slate-950 shrink-0 font-black">
+                <strong class="font-mono text-slate-900 shrink-0 font-semibold">
                   {{ ((c.item.expected_value || (c.item.allocated_purchase_cost * 1.5)) * c.quantity) | currency:'EUR':'symbol':'1.2-2':'de' }}
                 </strong>
               </div>
@@ -459,43 +441,43 @@
           </div>
 
           <!-- Cost Calculations -->
-          <div class="pt-3 border-t border-slate-100 space-y-2 text-xs">
-            <div class="flex items-center justify-between text-slate-600">
-              <span>Zwischensumme (Warenwert):</span>
-              <span class="font-mono font-bold text-slate-900">
+          <div class="pt-2.5 border-t border-slate-100 space-y-1.5 text-xs">
+            <div class="flex items-center justify-between text-slate-500">
+              <span>Warenwert:</span>
+              <span class="font-mono font-medium text-slate-900">
                 {{ storeService.cartSubtotal() | currency:'EUR':'symbol':'1.2-2':'de' }}
               </span>
             </div>
 
-            <div class="flex items-center justify-between text-slate-600">
+            <div class="flex items-center justify-between text-slate-500">
               <span>Versandkosten:</span>
-              <span class="font-mono font-bold" [class.text-emerald-700]="storeService.cartShippingCost() === 0">
+              <span class="font-mono font-medium text-slate-900">
                 {{ storeService.cartShippingCost() === 0 ? 'Kostenlos' : (storeService.cartShippingCost() | currency:'EUR':'symbol':'1.2-2':'de') }}
               </span>
             </div>
 
-            <div class="pt-3 border-t border-slate-100 flex items-center justify-between text-sm">
-              <strong class="text-slate-900 font-bold">Gesamtbetrag:</strong>
-              <strong class="font-mono text-xl font-black text-slate-950">
+            <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-sm">
+              <strong class="text-slate-900">Gesamtbetrag:</strong>
+              <strong class="font-mono text-lg font-bold text-slate-950">
                 {{ storeService.cartTotal() | currency:'EUR':'symbol':'1.2-2':'de' }}
               </strong>
             </div>
           </div>
 
-          <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-[10px] text-slate-500 leading-relaxed">
+          <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[10px] text-slate-500 leading-relaxed">
             <p>{{ storeService.storeSettings().noticeText }}</p>
           </div>
 
           <button
             type="submit"
             [disabled]="form.invalid || isSubmitting()"
-            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3.5 px-4 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-600/25 hover:shadow-indigo-600/40 disabled:opacity-40 transition"
+            class="w-full bg-slate-900 hover:bg-slate-800 text-white py-3 px-4 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 cursor-pointer shadow-xs disabled:opacity-40 transition"
           >
             @if (isSubmitting()) {
-              <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-              <span>Zahlung wird verarbeitet...</span>
+              <div class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              <span>Wird verarbeitet...</span>
             } @else {
-              <lucide-icon [img]="lockIcon" class="w-4 h-4"></lucide-icon>
+              <lucide-icon [img]="lockIcon" class="w-3.5 h-3.5"></lucide-icon>
               <span>Zahlungspflichtig bestellen ({{ storeService.cartTotal() | currency:'EUR':'symbol':'1.2-2':'de' }})</span>
             }
           </button>

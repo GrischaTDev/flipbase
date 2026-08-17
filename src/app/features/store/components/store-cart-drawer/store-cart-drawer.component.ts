@@ -11,6 +11,7 @@ import {
   ArrowRight,
   ShieldCheck,
   Truck,
+  CheckCircle2,
 } from 'lucide-angular';
 import { StoreService } from '../../../../core/services/store.service';
 
@@ -32,4 +33,5 @@ export class StoreCartDrawerComponent {
   readonly arrowIcon = ArrowRight;
   readonly shieldIcon = ShieldCheck;
   readonly truckIcon = Truck;
+  readonly checkIcon = CheckCircle2;
 }
