@@ -25,14 +25,23 @@ import {
   FileText,
   X,
   Store,
+  Printer,
 } from 'lucide-angular';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { MediaService } from '../../../../core/services/media.service';
+import { InventoryLabelModalComponent } from '../../../../shared/components/inventory-label-modal/inventory-label-modal.component';
 import { ItemMedia, ItemStatus } from '../../../../core/models/reflip.models';
 
 @Component({
   selector: 'app-item-detail',
-  imports: [RouterLink, ReactiveFormsModule, CurrencyPipe, DatePipe, LucideAngularModule],
+  imports: [
+    RouterLink,
+    ReactiveFormsModule,
+    CurrencyPipe,
+    DatePipe,
+    LucideAngularModule,
+    InventoryLabelModalComponent,
+  ],
   templateUrl: './item-detail.component.html',
   styleUrl: './item-detail.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -64,8 +73,10 @@ export class ItemDetailComponent {
   readonly eyeIcon = Eye;
   readonly fileIcon = FileText;
   readonly closeIcon = X;
+  readonly printerIcon = Printer;
 
   readonly isAddingCost = signal<boolean>(false);
+  readonly isLabelModalOpen = signal<boolean>(false);
   readonly mediaList = signal<ItemMedia[]>([]);
   readonly isUploading = signal<boolean>(false);
   readonly uploadError = signal<string | null>(null);

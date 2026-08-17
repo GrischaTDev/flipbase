@@ -18,6 +18,16 @@
     <div class="flex items-center gap-2">
       <button
         type="button"
+        (click)="openLabelModal()"
+        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs cursor-pointer select-none text-rf-text-secondary hover:text-white border-rf-border bg-rf-subtle shadow-sm"
+        title="Lager- & Barcode-Etiketten drucken"
+      >
+        <lucide-icon [img]="printerIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+        <span>{{ selectedItemIds().size > 0 ? ('🏷️ Etiketten (' + selectedItemIds().size + ')') : '🏷️ Etiketten drucken' }}</span>
+      </button>
+
+      <button
+        type="button"
         (click)="isAiScannerOpen.set(true)"
         class="linear-btn-secondary inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs cursor-pointer select-none text-indigo-300 hover:text-white border-indigo-500/30 bg-indigo-500/10 shadow-sm"
         title="Visual Sourcing AI (Produkterkennung per Foto)"
@@ -231,6 +241,15 @@
       <table class="w-full text-left text-xs border-collapse">
         <thead class="bg-[#1e222a] text-slate-300 uppercase font-semibold text-[10px] tracking-wider border-b border-[#373e4d]">
           <tr>
+            <th class="py-2.5 px-3 w-8 text-center">
+              <input
+                type="checkbox"
+                [checked]="isAllSelected()"
+                (change)="toggleSelectAll()"
+                class="rounded text-indigo-600 cursor-pointer"
+                title="Alle auswählen"
+              />
+            </th>
             <th class="py-2.5 px-4 font-semibold">Produkt & Details</th>
             <th class="py-2.5 px-3 font-semibold">Zustand</th>
             <th class="py-2.5 px-3 font-semibold">Status</th>
@@ -243,7 +262,15 @@
         </thead>
         <tbody class="divide-y divide-[#373e4d]">
           @for (item of filteredItems(); track item.id) {
-            <tr class="hover:bg-[#2c323f] transition group">
+            <tr class="hover:bg-[#2c323f] transition group" [class.bg-indigo-500/5]="isItemSelected(item.id)">
+              <td class="py-3 px-3 text-center">
+                <input
+                  type="checkbox"
+                  [checked]="isItemSelected(item.id)"
+                  (change)="toggleSelectItem(item.id)"
+                  class="rounded text-indigo-600 cursor-pointer"
+                />
+              </td>
               <td class="py-3 px-4">
                 <a [routerLink]="['/inventory', item.id]" class="font-semibold text-slate-100 hover:text-emerald-400 transition block line-clamp-1">
                   {{ item.title }}
@@ -392,5 +419,13 @@
       (close)="isAiScannerOpen.set(false)"
       (productDetected)="onAiProductDetected($event)"
     ></app-ai-photo-scanner-modal>
+  }
+
+  <!-- Inventory Labels Modal -->
+  @if (isLabelModalOpen()) {
+    <app-inventory-label-modal
+      [items]="itemsToPrint()"
+      (close)="closeLabelModal()"
+    ></app-inventory-label-modal>
   }
 </div>

@@ -17,12 +17,16 @@ import {
   CheckCircle2,
   Camera,
   Sparkles,
+  Printer,
+  CheckSquare,
+  Square,
 } from 'lucide-angular';
 import { InventoryService } from '../../core/services/inventory.service';
 import { ItemCreateModalComponent } from './components/item-create-modal/item-create-modal.component';
 import { AiPhotoScannerModalComponent } from '../../shared/components/ai-photo-scanner-modal/ai-photo-scanner-modal.component';
+import { InventoryLabelModalComponent } from '../../shared/components/inventory-label-modal/inventory-label-modal.component';
 import { AiVisualScanResult } from '../../core/services/ai-assistant.service';
-import { ItemCondition, ItemStatus } from '../../core/models/reflip.models';
+import { InventoryItem, ItemCondition, ItemStatus } from '../../core/models/reflip.models';
 
 @Component({
   selector: 'app-inventory',
@@ -33,6 +37,7 @@ import { ItemCondition, ItemStatus } from '../../core/models/reflip.models';
     LucideAngularModule,
     ItemCreateModalComponent,
     AiPhotoScannerModalComponent,
+    InventoryLabelModalComponent,
   ],
   templateUrl: './inventory.component.html',
   styleUrl: './inventory.component.scss',
@@ -56,9 +61,15 @@ export class InventoryComponent {
   readonly checkIcon = CheckCircle2;
   readonly cameraIcon = Camera;
   readonly sparklesIcon = Sparkles;
+  readonly printerIcon = Printer;
+  readonly checkSquareIcon = CheckSquare;
+  readonly squareIcon = Square;
 
   readonly isCreateModalOpen = signal<boolean>(false);
   readonly isAiScannerOpen = signal<boolean>(false);
+  readonly isLabelModalOpen = signal<boolean>(false);
+  readonly selectedItemIds = signal<Set<string>>(new Set());
+
   readonly searchQuery = signal<string>('');
   readonly activePreset = signal<string>('all');
   readonly selectedCondition = signal<string>('all');
@@ -108,12 +119,56 @@ export class InventoryComponent {
     )
   );
 
+  readonly itemsToPrint = computed<InventoryItem[]>(() => {
+    const selected = this.selectedItemIds();
+    if (selected.size === 0) {
+      return this.filteredItems();
+    }
+    return this.filteredItems().filter((item) => selected.has(item.id));
+  });
+
+  toggleSelectItem(id: string): void {
+    const next = new Set(this.selectedItemIds());
+    if (next.has(id)) {
+      next.delete(id);
+    } else {
+      next.add(id);
+    }
+    this.selectedItemIds.set(next);
+  }
+
+  toggleSelectAll(): void {
+    const items = this.filteredItems();
+    if (this.selectedItemIds().size === items.length && items.length > 0) {
+      this.selectedItemIds.set(new Set());
+    } else {
+      this.selectedItemIds.set(new Set(items.map((i) => i.id)));
+    }
+  }
+
+  isItemSelected(id: string): boolean {
+    return this.selectedItemIds().has(id);
+  }
+
+  isAllSelected(): boolean {
+    const items = this.filteredItems();
+    return items.length > 0 && this.selectedItemIds().size === items.length;
+  }
+
   openCreateModal(): void {
     this.isCreateModalOpen.set(true);
   }
 
   closeCreateModal(): void {
     this.isCreateModalOpen.set(false);
+  }
+
+  openLabelModal(): void {
+    this.isLabelModalOpen.set(true);
+  }
+
+  closeLabelModal(): void {
+    this.isLabelModalOpen.set(false);
   }
 
   onAiProductDetected(res: AiVisualScanResult): void {

@@ -10,6 +10,16 @@
     </a>
 
     <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="isLabelModalOpen.set(true)"
+        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rf-text-secondary hover:text-white"
+        title="Lager- & Barcode-Etikett drucken"
+      >
+        <lucide-icon [img]="printerIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+        <span>🏷️ Etikett drucken</span>
+      </button>
+
       <a
         [routerLink]="['/shop/item', inventoryService.selectedItem()?.id]"
         target="_blank"
@@ -411,5 +421,13 @@
         />
       </div>
     </div>
+  }
+
+  <!-- Inventory Single Label Modal -->
+  @if (isLabelModalOpen() && inventoryService.selectedItem()) {
+    <app-inventory-label-modal
+      [items]="[inventoryService.selectedItem()!]"
+      (close)="isLabelModalOpen.set(false)"
+    ></app-inventory-label-modal>
   }
 </div>

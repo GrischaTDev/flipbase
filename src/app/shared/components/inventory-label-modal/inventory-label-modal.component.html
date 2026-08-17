@@ -1,0 +1,303 @@
+<div
+  class="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in select-none"
+  (click)="close.emit()"
+>
+  <div
+    class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl p-6 space-y-4"
+    (click)="$event.stopPropagation()"
+  >
+    <!-- Modal Header -->
+    <div class="flex items-start justify-between border-b border-rf-border pb-3 shrink-0 no-print">
+      <div>
+        <div class="flex items-center gap-2">
+          <lucide-icon [img]="tagIcon" class="w-5 h-5 text-indigo-400"></lucide-icon>
+          <h2 class="text-base font-bold text-rf-text-primary">
+            Lager- & Barcode-Etikettendruck
+          </h2>
+          <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+            {{ items().length }} {{ items().length === 1 ? 'Artikel' : 'Artikel ausgewählt' }}
+          </span>
+        </div>
+        <p class="text-xs text-rf-text-muted mt-0.5">
+          Drucke Barcode- und QR-Etiketten für deine Lagerfächer, Kartons und Artikel.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          (click)="printLabels()"
+          class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
+        >
+          <lucide-icon [img]="printerIcon" class="w-4 h-4"></lucide-icon>
+          <span>Jetzt drucken</span>
+        </button>
+
+        <button
+          type="button"
+          (click)="close.emit()"
+          class="p-1 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
+        >
+          <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Options & Format Toolbar -->
+    <div class="p-3 rounded-2xl bg-rf-subtle border border-rf-border flex flex-wrap items-center justify-between gap-3 text-xs shrink-0 no-print">
+      <!-- Format Picker -->
+      <div class="flex items-center gap-2">
+        <span class="text-[10px] uppercase font-bold text-rf-text-muted">Format:</span>
+        <div class="flex items-center gap-1 bg-rf-surface p-1 rounded-xl border border-rf-border">
+          <button
+            type="button"
+            (click)="setFormat('compact')"
+            class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer"
+            [class.bg-indigo-600]="selectedFormat() === 'compact'"
+            [class.text-white]="selectedFormat() === 'compact'"
+            [class.text-rf-text-muted]="selectedFormat() !== 'compact'"
+          >
+            Kompakt (50×30 mm)
+          </button>
+          <button
+            type="button"
+            (click)="setFormat('standard')"
+            class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer"
+            [class.bg-indigo-600]="selectedFormat() === 'standard'"
+            [class.text-white]="selectedFormat() === 'standard'"
+            [class.text-rf-text-muted]="selectedFormat() !== 'standard'"
+          >
+            Standard (70×36 mm)
+          </button>
+          <button
+            type="button"
+            (click)="setFormat('large')"
+            class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer"
+            [class.bg-indigo-600]="selectedFormat() === 'large'"
+            [class.text-white]="selectedFormat() === 'large'"
+            [class.text-rf-text-muted]="selectedFormat() !== 'large'"
+          >
+            Groß / Box (DIN-A6)
+          </button>
+        </div>
+      </div>
+
+      <!-- Visibility Checkboxes -->
+      <div class="flex items-center gap-3 text-[11px]">
+        <label class="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            [checked]="showBarcode()"
+            (change)="toggleBarcode()"
+            class="rounded text-indigo-600 cursor-pointer"
+          />
+          <span>Barcode / SKU</span>
+        </label>
+
+        <label class="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            [checked]="showQrCode()"
+            (change)="toggleQrCode()"
+            class="rounded text-indigo-600 cursor-pointer"
+          />
+          <span>QR-Code</span>
+        </label>
+
+        <label class="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            [checked]="showPrice()"
+            (change)="togglePrice()"
+            class="rounded text-indigo-600 cursor-pointer"
+          />
+          <span>Zielpreis (€)</span>
+        </label>
+
+        <label class="flex items-center gap-1.5 cursor-pointer">
+          <input
+            type="checkbox"
+            [checked]="showDate()"
+            (change)="toggleDate()"
+            class="rounded text-indigo-600 cursor-pointer"
+          />
+          <span>Datum</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Printable & Preview Container -->
+    <div class="flex-1 overflow-y-auto p-4 bg-neutral-900 rounded-2xl border border-rf-border">
+      <div class="printable-labels-container">
+        <!-- Compact Layout (50x30mm) -->
+        @if (selectedFormat() === 'compact') {
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            @for (item of items(); track item.id) {
+              <div class="print-page-break bg-white text-black p-3 rounded-lg border-2 border-black space-y-1.5 font-sans shadow-sm w-full max-w-[240px] mx-auto">
+                <div class="flex justify-between items-start">
+                  <div class="space-y-0.5 max-w-[150px]">
+                    <strong class="text-[11px] font-black line-clamp-1 block leading-tight text-black">{{ item.title }}</strong>
+                    <span class="text-[9px] text-gray-700 font-bold block">{{ item.brand }} {{ item.model }}</span>
+                  </div>
+                  @if (showPrice() && item.expected_value) {
+                    <span class="text-[10px] font-mono font-black border border-black px-1 rounded bg-neutral-100 shrink-0">
+                      {{ item.expected_value | currency:'EUR':'symbol':'1.0-0':'de' }}
+                    </span>
+                  }
+                </div>
+
+                <div class="flex items-center justify-between pt-1 border-t border-black text-[8px] font-mono">
+                  <span>{{ getConditionLabel(item.condition) }}</span>
+                  @if (showDate() && item.created_at) {
+                    <span>{{ item.created_at | date:'dd.MM.yy' }}</span>
+                  }
+                </div>
+
+                @if (showBarcode()) {
+                  <div class="text-center pt-0.5">
+                    <div class="font-mono text-[9px] font-black tracking-widest">{{ item.sku || ('RF-' + item.id.substring(0, 8)) }}</div>
+                    <!-- Vector Barcode Simulation -->
+                    <div class="h-5 flex items-center justify-center gap-[1.5px] overflow-hidden my-0.5">
+                      <div class="h-full w-[2px] bg-black"></div>
+                      <div class="h-full w-[1px] bg-black"></div>
+                      <div class="h-full w-[3px] bg-black"></div>
+                      <div class="h-full w-[1px] bg-black"></div>
+                      <div class="h-full w-[2px] bg-black"></div>
+                      <div class="h-full w-[4px] bg-black"></div>
+                      <div class="h-full w-[1px] bg-black"></div>
+                      <div class="h-full w-[2px] bg-black"></div>
+                      <div class="h-full w-[3px] bg-black"></div>
+                      <div class="h-full w-[1px] bg-black"></div>
+                      <div class="h-full w-[2px] bg-black"></div>
+                      <div class="h-full w-[1px] bg-black"></div>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Standard Layout (70x36mm DIN-A4 Sticker Bogen) -->
+        @if (selectedFormat() === 'standard') {
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            @for (item of items(); track item.id) {
+              <div class="print-page-break bg-white text-black p-3.5 rounded-xl border-2 border-black space-y-2 font-sans shadow-md">
+                <div class="flex justify-between items-start gap-2">
+                  <div class="space-y-0.5">
+                    <strong class="text-xs font-black line-clamp-2 leading-tight text-black">{{ item.title }}</strong>
+                    <div class="text-[9px] text-gray-800 font-bold">
+                      @if (item.brand) { <span>{{ item.brand }}</span> }
+                      @if (item.model) { <span> • {{ item.model }}</span> }
+                    </div>
+                  </div>
+
+                  @if (showQrCode()) {
+                    <div class="w-10 h-10 border border-black p-0.5 shrink-0 flex items-center justify-center bg-white rounded">
+                      <!-- Simulated QR Code SVG -->
+                      <svg viewBox="0 0 24 24" class="w-full h-full text-black fill-current">
+                        <path d="M2 2h7v7H2V2zm2 2v3h3V4H4zm11-2h7v7h-7V2zm2 2v3h3V4h-3zM2 15h7v7H2v-7zm2 2v3h3v-3H4zm14-2h3v3h-3v-3zm0 4h3v3h-3v-3zm-3-4h2v2h-2v-2zm0 3h2v3h-2v-3zm-4-3h2v5h-2v-5zM11 2h2v4h-2V2zm0 6h2v3h-2V8zm0 5h2v2h-2v-2zm-6-2h7v2H5v-2z" />
+                      </svg>
+                    </div>
+                  }
+                </div>
+
+                <div class="flex items-center justify-between text-[9px] font-mono border-t border-b border-black py-1">
+                  <span>Zustand: <strong>{{ getConditionLabel(item.condition) }}</strong></span>
+                  @if (showPrice() && item.expected_value) {
+                    <strong class="text-[11px] font-black">VK: {{ item.expected_value | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+                  }
+                </div>
+
+                @if (showBarcode()) {
+                  <div class="text-center">
+                    <div class="h-6 flex items-center justify-center gap-[2px] overflow-hidden">
+                      <div class="h-full w-[2px] bg-black"></div>
+                      <div class="h-full w-[1px] bg-black"></div>
+                      <div class="h-full w-[3px] bg-black"></div>
+                      <div class="h-full w-[1px] bg-black"></div>
+                      <div class="h-full w-[2px] bg-black"></div>
+                      <div class="h-full w-[4px] bg-black"></div>
+                      <div class="h-full w-[1px] bg-black"></div>
+                      <div class="h-full w-[3px] bg-black"></div>
+                      <div class="h-full w-[2px] bg-black"></div>
+                      <div class="h-full w-[1px] bg-black"></div>
+                      <div class="h-full w-[2px] bg-black"></div>
+                      <div class="h-full w-[4px] bg-black"></div>
+                    </div>
+                    <span class="text-[9px] font-mono font-black tracking-wider block mt-0.5">
+                      {{ item.sku || ('SKU-' + item.id.substring(0, 8).toUpperCase()) }}
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Large / Storage Bin Layout (DIN-A6) -->
+        @if (selectedFormat() === 'large') {
+          <div class="space-y-6">
+            @for (item of items(); track item.id) {
+              <div class="print-page-break bg-white text-black p-6 rounded-2xl border-4 border-black space-y-4 font-sans max-w-lg mx-auto shadow-xl">
+                <div class="flex justify-between items-start border-b-2 border-black pb-3">
+                  <div>
+                    <span class="text-[10px] font-mono font-black uppercase tracking-widest text-gray-700 block">ReFlip Lagerfach-Etikett</span>
+                    <h3 class="text-lg font-black text-black leading-tight mt-0.5">{{ item.title }}</h3>
+                  </div>
+
+                  @if (showPrice() && item.expected_value) {
+                    <div class="text-right">
+                      <span class="text-[9px] font-mono block text-gray-700">Zielpreis</span>
+                      <strong class="text-xl font-mono font-black">{{ item.expected_value | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+                    </div>
+                  }
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 text-xs font-mono">
+                  <div class="p-2 border border-black rounded-lg">
+                    <span class="text-[9px] text-gray-700 block uppercase">Hersteller & Modell</span>
+                    <strong class="text-sm block">{{ item.brand || '-' }} {{ item.model || '' }}</strong>
+                  </div>
+                  <div class="p-2 border border-black rounded-lg">
+                    <span class="text-[9px] text-gray-700 block uppercase">Zustand</span>
+                    <strong class="text-sm block">{{ getConditionLabel(item.condition) }}</strong>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between gap-4 pt-2 border-t-2 border-black">
+                  @if (showBarcode()) {
+                    <div class="flex-1 text-center">
+                      <div class="h-10 flex items-center justify-center gap-[3px] overflow-hidden my-1">
+                        <div class="h-full w-[3px] bg-black"></div>
+                        <div class="h-full w-[2px] bg-black"></div>
+                        <div class="h-full w-[4px] bg-black"></div>
+                        <div class="h-full w-[1px] bg-black"></div>
+                        <div class="h-full w-[3px] bg-black"></div>
+                        <div class="h-full w-[5px] bg-black"></div>
+                        <div class="h-full w-[2px] bg-black"></div>
+                        <div class="h-full w-[4px] bg-black"></div>
+                        <div class="h-full w-[2px] bg-black"></div>
+                        <div class="h-full w-[1px] bg-black"></div>
+                        <div class="h-full w-[3px] bg-black"></div>
+                      </div>
+                      <span class="text-xs font-mono font-black tracking-widest">{{ item.sku || ('SKU-' + item.id.substring(0, 8).toUpperCase()) }}</span>
+                    </div>
+                  }
+
+                  @if (showQrCode()) {
+                    <div class="w-16 h-16 border-2 border-black p-1 shrink-0 flex items-center justify-center bg-white rounded-lg">
+                      <svg viewBox="0 0 24 24" class="w-full h-full text-black fill-current">
+                        <path d="M2 2h7v7H2V2zm2 2v3h3V4H4zm11-2h7v7h-7V2zm2 2v3h3V4h-3zM2 15h7v7H2v-7zm2 2v3h3v-3H4zm14-2h3v3h-3v-3zm0 4h3v3h-3v-3zm-3-4h2v2h-2v-2zm0 3h2v3h-2v-3zm-4-3h2v5h-2v-5zM11 2h2v4h-2V2zm0 6h2v3h-2V8zm0 5h2v2h-2v-2zm-6-2h7v2H5v-2z" />
+                      </svg>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+</div>
