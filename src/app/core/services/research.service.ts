@@ -9,6 +9,7 @@ export interface ResearchComparisonItem {
   title: string;
   price: number;
   source: 'ebay_sold' | 'kleinanzeigen' | 'vinted';
+  imageUrl?: string;
   url?: string;
   date?: string;
   condition?: string;
@@ -279,16 +280,27 @@ export class ResearchService {
 
   private generateRealisticComps(query: string, condition: string): ResearchComparisonItem[] {
     let baseValue = 50.0;
+    let imageUrl = 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=400&auto=format&fit=crop&q=80';
     const lower = query.toLowerCase();
 
-    if (lower.includes('iphone') || lower.includes('macbook') || lower.includes('rtx')) {
+    if (lower.includes('iphone') || lower.includes('macbook') || lower.includes('rtx') || lower.includes('phone')) {
       baseValue = 380.0;
-    } else if (lower.includes('airpods') || lower.includes('bose') || lower.includes('sony')) {
+      imageUrl = 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&auto=format&fit=crop&q=80';
+    } else if (lower.includes('airpods') || lower.includes('bose') || lower.includes('sony') || lower.includes('audio') || lower.includes('kopfhörer')) {
       baseValue = 110.0;
-    } else if (lower.includes('switch') || lower.includes('ps5') || lower.includes('xbox')) {
+      imageUrl = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&auto=format&fit=crop&q=80';
+    } else if (lower.includes('switch') || lower.includes('ps5') || lower.includes('xbox') || lower.includes('nintendo') || lower.includes('konsole')) {
       baseValue = 220.0;
-    } else if (lower.includes('lego') || lower.includes('bosch') || lower.includes('makita')) {
+      imageUrl = 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=400&auto=format&fit=crop&q=80';
+    } else if (lower.includes('lego') || lower.includes('spielzeug') || lower.includes('figur')) {
+      baseValue = 85.0;
+      imageUrl = 'https://images.unsplash.com/photo-1585366119957-e9730b6d0f60?w=400&auto=format&fit=crop&q=80';
+    } else if (lower.includes('bosch') || lower.includes('makita') || lower.includes('werkzeug') || lower.includes('bohr')) {
       baseValue = 75.0;
+      imageUrl = 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=400&auto=format&fit=crop&q=80';
+    } else if (lower.includes('schuhe') || lower.includes('sneaker') || lower.includes('nike') || lower.includes('adidas') || lower.includes('jacke')) {
+      baseValue = 65.0;
+      imageUrl = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&auto=format&fit=crop&q=80';
     }
 
     const comps: ResearchComparisonItem[] = [];
@@ -311,6 +323,7 @@ export class ResearchService {
         title: `${query} (${source === 'ebay_sold' ? 'Verkauft' : 'Angebot'} #${i + 1})`,
         price: Math.max(5, price),
         source,
+        imageUrl,
         url: source === 'ebay_sold'
           ? `https://www.ebay.de/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Complete=1&LH_Sold=1`
           : `https://www.kleinanzeigen.de/s-${encodeURIComponent(query)}/k0`,

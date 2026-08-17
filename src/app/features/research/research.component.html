@@ -10,7 +10,7 @@
       </span>
     </div>
     <p class="text-xs text-rf-text-muted mt-0.5">
-      Recherchiere real erzielte Verkaufspreise, erkenne Ausreißer und wähle die optimale Verkaufsstrategie.
+      Recherchiere real erzielte Verkaufspreise mit Produktbildern, erkenne Ausreißer und wähle die optimale Verkaufsstrategie.
     </p>
   </div>
 
@@ -187,106 +187,158 @@
       }
     </div>
 
-    <!-- Comparative Items Table with 1-Click Outlier Filter -->
-    <div class="linear-surface rounded-xl p-4 md:p-5 space-y-3">
+    <!-- Comparative Listings Section with Images & Outlier Filter -->
+    <div class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-rf-border pb-3">
         <div class="flex items-center gap-2">
           <lucide-icon [img]="slidersIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
           <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
-            Vergleichbare Marktangebote & Ausreißer-Filter ({{ filteredComparisonItems().length }})
+            Vergleichbare Marktangebote mit Bildern ({{ filteredComparisonItems().length }})
           </h2>
         </div>
 
-        <!-- Filter Tabs -->
-        <div class="flex items-center gap-1 text-[11px] p-0.5 rounded-lg bg-rf-subtle border border-rf-border">
-          <button
-            type="button"
-            (click)="selectedPlatformFilter.set('all')"
-            class="px-2 py-0.5 rounded transition cursor-pointer"
-            [class.bg-rf-border]="selectedPlatformFilter() === 'all'"
-            [class.text-rf-text-primary]="selectedPlatformFilter() === 'all'"
-            [class.text-rf-text-muted]="selectedPlatformFilter() !== 'all'"
-          >
-            Alle
-          </button>
-          <button
-            type="button"
-            (click)="selectedPlatformFilter.set('ebay_sold')"
-            class="px-2 py-0.5 rounded transition cursor-pointer"
-            [class.bg-rf-border]="selectedPlatformFilter() === 'ebay_sold'"
-            [class.text-rf-text-primary]="selectedPlatformFilter() === 'ebay_sold'"
-            [class.text-rf-text-muted]="selectedPlatformFilter() !== 'ebay_sold'"
-          >
-            eBay Verkaufte
-          </button>
-          <button
-            type="button"
-            (click)="selectedPlatformFilter.set('kleinanzeigen')"
-            class="px-2 py-0.5 rounded transition cursor-pointer"
-            [class.bg-rf-border]="selectedPlatformFilter() === 'kleinanzeigen'"
-            [class.text-rf-text-primary]="selectedPlatformFilter() === 'kleinanzeigen'"
-            [class.text-rf-text-muted]="selectedPlatformFilter() !== 'kleinanzeigen'"
-          >
-            Kleinanzeigen
-          </button>
-          <button
-            type="button"
-            (click)="selectedPlatformFilter.set('vinted')"
-            class="px-2 py-0.5 rounded transition cursor-pointer"
-            [class.bg-rf-border]="selectedPlatformFilter() === 'vinted'"
-            [class.text-rf-text-primary]="selectedPlatformFilter() === 'vinted'"
-            [class.text-rf-text-muted]="selectedPlatformFilter() !== 'vinted'"
-          >
-            Vinted
-          </button>
+        <div class="flex items-center gap-2">
+          <!-- Platform Filter Tabs -->
+          <div class="flex items-center gap-1 text-[11px] p-0.5 rounded-lg bg-rf-subtle border border-rf-border">
+            <button
+              type="button"
+              (click)="selectedPlatformFilter.set('all')"
+              class="px-2 py-0.5 rounded transition cursor-pointer"
+              [class.bg-rf-border]="selectedPlatformFilter() === 'all'"
+              [class.text-rf-text-primary]="selectedPlatformFilter() === 'all'"
+              [class.text-rf-text-muted]="selectedPlatformFilter() !== 'all'"
+            >
+              Alle
+            </button>
+            <button
+              type="button"
+              (click)="selectedPlatformFilter.set('ebay_sold')"
+              class="px-2 py-0.5 rounded transition cursor-pointer"
+              [class.bg-rf-border]="selectedPlatformFilter() === 'ebay_sold'"
+              [class.text-rf-text-primary]="selectedPlatformFilter() === 'ebay_sold'"
+              [class.text-rf-text-muted]="selectedPlatformFilter() !== 'ebay_sold'"
+            >
+              eBay
+            </button>
+            <button
+              type="button"
+              (click)="selectedPlatformFilter.set('kleinanzeigen')"
+              class="px-2 py-0.5 rounded transition cursor-pointer"
+              [class.bg-rf-border]="selectedPlatformFilter() === 'kleinanzeigen'"
+              [class.text-rf-text-primary]="selectedPlatformFilter() === 'kleinanzeigen'"
+              [class.text-rf-text-muted]="selectedPlatformFilter() !== 'kleinanzeigen'"
+            >
+              Kleinanzeigen
+            </button>
+            <button
+              type="button"
+              (click)="selectedPlatformFilter.set('vinted')"
+              class="px-2 py-0.5 rounded transition cursor-pointer"
+              [class.bg-rf-border]="selectedPlatformFilter() === 'vinted'"
+              [class.text-rf-text-primary]="selectedPlatformFilter() === 'vinted'"
+              [class.text-rf-text-muted]="selectedPlatformFilter() !== 'vinted'"
+            >
+              Vinted
+            </button>
+          </div>
+
+          <!-- View Mode Toggle (Grid vs Table) -->
+          <div class="flex items-center gap-1 p-0.5 rounded-lg bg-rf-subtle border border-rf-border text-xs">
+            <button
+              type="button"
+              (click)="viewMode.set('grid')"
+              class="p-1 rounded transition cursor-pointer"
+              [class.bg-rf-border]="viewMode() === 'grid'"
+              [class.text-rf-text-primary]="viewMode() === 'grid'"
+              [class.text-rf-text-muted]="viewMode() !== 'grid'"
+              title="Karten / Galerie-Ansicht"
+            >
+              <lucide-icon [img]="gridIcon" class="w-3.5 h-3.5"></lucide-icon>
+            </button>
+
+            <button
+              type="button"
+              (click)="viewMode.set('table')"
+              class="p-1 rounded transition cursor-pointer"
+              [class.bg-rf-border]="viewMode() === 'table'"
+              [class.text-rf-text-primary]="viewMode() === 'table'"
+              [class.text-rf-text-muted]="viewMode() !== 'table'"
+              title="Tabellen-Ansicht"
+            >
+              <lucide-icon [img]="listIcon" class="w-3.5 h-3.5"></lucide-icon>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr class="border-b border-rf-border text-rf-text-muted uppercase text-[10px] font-semibold tracking-wider">
-              <th class="py-2.5 px-3">Status</th>
-              <th class="py-2.5 px-3">Plattform</th>
-              <th class="py-2.5 px-3">Titel</th>
-              <th class="py-2.5 px-3 text-right">Verkaufspreis</th>
-              <th class="py-2.5 px-3 text-right">Aktion</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-rf-border font-mono">
-            @for (comp of filteredComparisonItems(); track comp.id) {
-              <tr
-                class="hover:bg-rf-surface-hover transition"
-                [class.opacity-40]="comp.isExcluded"
-                [class.line-through]="comp.isExcluded"
-              >
-                <td class="py-2.5 px-3 font-sans">
+      <!-- CARD / GALLERY VIEW WITH IMAGES -->
+      @if (viewMode() === 'grid') {
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+          @for (comp of filteredComparisonItems(); track comp.id) {
+            <div
+              class="group relative rounded-xl border border-rf-border bg-rf-subtle overflow-hidden flex flex-col transition hover:border-rf-border-hover"
+              [class.opacity-40]="comp.isExcluded"
+            >
+              <!-- Product Image Thumbnail -->
+              <div class="relative aspect-video w-full bg-black/30 flex items-center justify-center overflow-hidden">
+                @if (comp.imageUrl) {
+                  <img
+                    [src]="comp.imageUrl"
+                    [alt]="comp.title"
+                    class="w-full h-full object-cover transition duration-200 group-hover:scale-105 cursor-pointer"
+                    (click)="previewImageUrl.set(comp.imageUrl)"
+                  />
+                } @else {
+                  <lucide-icon [img]="imageIcon" class="w-8 h-8 text-rf-text-dimmed"></lucide-icon>
+                }
+
+                <!-- Price Badge -->
+                <div class="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/75 backdrop-blur-xs font-mono font-bold text-xs text-white shadow-xs">
+                  {{ comp.price | currency:'EUR':'symbol':'1.2-2':'de' }}
+                </div>
+
+                <!-- Platform Tag -->
+                <span class="absolute top-2 left-2 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold uppercase bg-rf-surface/90 text-rf-text-secondary border border-rf-border">
+                  {{ comp.source }}
+                </span>
+
+                <!-- Quick Zoom Button -->
+                @if (comp.imageUrl) {
+                  <button
+                    type="button"
+                    (click)="previewImageUrl.set(comp.imageUrl)"
+                    class="absolute top-2 right-2 p-1 rounded bg-black/60 text-white opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                    title="Vollbild"
+                  >
+                    <lucide-icon [img]="eyeIcon" class="w-3.5 h-3.5"></lucide-icon>
+                  </button>
+                }
+              </div>
+
+              <!-- Content Body -->
+              <div class="p-3 flex-1 flex flex-col justify-between space-y-2 text-xs">
+                <div>
+                  <h4 class="font-semibold text-rf-text-primary line-clamp-2">{{ comp.title }}</h4>
+                  <div class="flex items-center justify-between text-[10px] text-rf-text-muted mt-1 font-mono">
+                    <span>Zustand: {{ comp.condition }}</span>
+                    <span>{{ comp.date }}</span>
+                  </div>
+                </div>
+
+                <!-- Outlier Exclusion Action -->
+                <div class="pt-2 border-t border-rf-border flex items-center justify-between">
                   <span
-                    class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase"
-                    [class.bg-emerald-500/15]="!comp.isExcluded"
+                    class="text-[9px] font-bold uppercase font-mono"
                     [class.text-emerald-400]="!comp.isExcluded"
-                    [class.bg-rose-500/15]="comp.isExcluded"
                     [class.text-rose-400]="comp.isExcluded"
                   >
                     {{ comp.isExcluded ? 'Ausgeschlossen' : 'Aktiv' }}
                   </span>
-                </td>
-                <td class="py-2.5 px-3 font-sans">
-                  <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-rf-subtle text-rf-text-secondary border border-rf-border">
-                    {{ comp.source }}
-                  </span>
-                </td>
-                <td class="py-2.5 px-3 font-sans text-rf-text-primary font-medium">
-                  {{ comp.title }}
-                </td>
-                <td class="py-2.5 px-3 text-right font-bold text-rf-text-primary">
-                  {{ comp.price | currency:'EUR':'symbol':'1.2-2':'de' }}
-                </td>
-                <td class="py-2.5 px-3 text-right">
+
                   <button
                     type="button"
                     (click)="onToggleItem(comp)"
-                    class="px-2 py-1 rounded text-[10px] font-semibold border border-rf-border transition cursor-pointer"
+                    class="px-2 py-1 rounded text-[10px] font-semibold border transition cursor-pointer"
                     [class.bg-rose-500/15]="!comp.isExcluded"
                     [class.text-rose-400]="!comp.isExcluded"
                     [class.border-rose-500/30]="!comp.isExcluded"
@@ -294,14 +346,91 @@
                     [class.text-emerald-400]="comp.isExcluded"
                     [class.border-emerald-500/30]="comp.isExcluded"
                   >
-                    {{ comp.isExcluded ? '+ Einbeziehen' : '✕ Als Ausreißer ausschließen' }}
+                    {{ comp.isExcluded ? '+ Einbeziehen' : '✕ Ausreißer' }}
                   </button>
-                </td>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <!-- TABLE VIEW -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-rf-border text-rf-text-muted uppercase text-[10px] font-semibold tracking-wider">
+                <th class="py-2.5 px-3">Bild</th>
+                <th class="py-2.5 px-3">Status</th>
+                <th class="py-2.5 px-3">Plattform</th>
+                <th class="py-2.5 px-3">Titel</th>
+                <th class="py-2.5 px-3 text-right">Verkaufspreis</th>
+                <th class="py-2.5 px-3 text-right">Aktion</th>
               </tr>
-            }
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody class="divide-y divide-rf-border font-mono">
+              @for (comp of filteredComparisonItems(); track comp.id) {
+                <tr
+                  class="hover:bg-rf-surface-hover transition"
+                  [class.opacity-40]="comp.isExcluded"
+                  [class.line-through]="comp.isExcluded"
+                >
+                  <td class="py-2.5 px-3">
+                    <div class="w-9 h-9 rounded-md bg-rf-surface border border-rf-border overflow-hidden flex items-center justify-center">
+                      @if (comp.imageUrl) {
+                        <img
+                          [src]="comp.imageUrl"
+                          [alt]="comp.title"
+                          class="w-full h-full object-cover cursor-pointer"
+                          (click)="previewImageUrl.set(comp.imageUrl)"
+                        />
+                      } @else {
+                        <lucide-icon [img]="imageIcon" class="w-4 h-4 text-rf-text-dimmed"></lucide-icon>
+                      }
+                    </div>
+                  </td>
+                  <td class="py-2.5 px-3 font-sans">
+                    <span
+                      class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase"
+                      [class.bg-emerald-500/15]="!comp.isExcluded"
+                      [class.text-emerald-400]="!comp.isExcluded"
+                      [class.bg-rose-500/15]="comp.isExcluded"
+                      [class.text-rose-400]="comp.isExcluded"
+                    >
+                      {{ comp.isExcluded ? 'Ausgeschlossen' : 'Aktiv' }}
+                    </span>
+                  </td>
+                  <td class="py-2.5 px-3 font-sans">
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-rf-subtle text-rf-text-secondary border border-rf-border">
+                      {{ comp.source }}
+                    </span>
+                  </td>
+                  <td class="py-2.5 px-3 font-sans text-rf-text-primary font-medium">
+                    {{ comp.title }}
+                  </td>
+                  <td class="py-2.5 px-3 text-right font-bold text-rf-text-primary">
+                    {{ comp.price | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  </td>
+                  <td class="py-2.5 px-3 text-right">
+                    <button
+                      type="button"
+                      (click)="onToggleItem(comp)"
+                      class="px-2 py-1 rounded text-[10px] font-semibold border border-rf-border transition cursor-pointer"
+                      [class.bg-rose-500/15]="!comp.isExcluded"
+                      [class.text-rose-400]="!comp.isExcluded"
+                      [class.border-rose-500/30]="!comp.isExcluded"
+                      [class.bg-emerald-500/15]="comp.isExcluded"
+                      [class.text-emerald-400]="comp.isExcluded"
+                      [class.border-emerald-500/30]="comp.isExcluded"
+                    >
+                      {{ comp.isExcluded ? '+ Einbeziehen' : '✕ Ausreißer' }}
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
 
       <!-- Quick Transfer Button to Deal Calculator -->
       <div class="pt-3 border-t border-rf-border flex justify-end">
@@ -322,7 +451,7 @@
       </div>
       <h3 class="text-sm font-bold text-rf-text-primary">Starte deine Marktpreis-Recherche</h3>
       <p class="text-xs text-rf-text-muted max-w-md mx-auto mt-1">
-        Gib oben einen Produkttitel ein oder scanne einen Barcode, um echte Verkaufspreise von eBay, Kleinanzeigen und Vinted mit automatischer Ausreißer-Bereinigung zu analysieren.
+        Gib oben einen Produkttitel ein oder scanne einen Barcode, um echte Verkaufspreise von eBay, Kleinanzeigen und Vinted inklusive Produktbildern zu analysieren.
       </p>
     </div>
   }
@@ -333,5 +462,28 @@
       (close)="isScanningBarcode.set(false)"
       (detected)="onBarcodeScanned($event)"
     ></app-barcode-scanner>
+  }
+
+  <!-- Fullscreen Image Preview Lightbox -->
+  @if (previewImageUrl(); as pUrl) {
+    <div
+      class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
+      (click)="previewImageUrl.set(null)"
+    >
+      <div class="relative max-w-3xl max-h-[85vh] flex flex-col items-center">
+        <button
+          type="button"
+          (click)="previewImageUrl.set(null)"
+          class="absolute -top-10 right-0 p-1.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition cursor-pointer"
+        >
+          <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+        </button>
+        <img
+          [src]="pUrl"
+          alt="Vollbild Vorschau"
+          class="max-w-full max-h-[80vh] rounded-xl object-contain shadow-2xl border border-white/10"
+        />
+      </div>
+    </div>
   }
 </div>

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideAngularModule,
@@ -22,6 +22,11 @@ import {
   Camera,
   Boxes,
   Layers,
+  LayoutGrid,
+  List,
+  Image as ImageIcon,
+  Eye,
+  X,
 } from 'lucide-angular';
 import {
   ResearchService,
@@ -67,9 +72,16 @@ export class ResearchComponent {
   readonly cameraIcon = Camera;
   readonly boxesIcon = Boxes;
   readonly layersIcon = Layers;
+  readonly gridIcon = LayoutGrid;
+  readonly listIcon = List;
+  readonly imageIcon = ImageIcon;
+  readonly eyeIcon = Eye;
+  readonly closeIcon = X;
 
   readonly isScanningBarcode = signal<boolean>(false);
   readonly selectedPlatformFilter = signal<'all' | 'ebay_sold' | 'kleinanzeigen' | 'vinted'>('all');
+  readonly viewMode = signal<'grid' | 'table'>('grid');
+  readonly previewImageUrl = signal<string | null>(null);
 
   readonly searchForm = new FormGroup({
     query: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
