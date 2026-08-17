@@ -1,232 +1,538 @@
-<div class="space-y-5 animate-fade-in select-none">
-  <!-- Header & Time-range selector -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
+<div class="space-y-6 animate-fade-in select-none">
+  <!-- Page Header & Time Range Filter -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-rf-border">
     <div>
       <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold tracking-tight text-slate-100">
-          {{ 'NAV.ANALYTICS' | translate }} & Controlling
+        <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
+          Analytics & Performance Cockpit
         </h1>
-        <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#262b35] text-slate-300 border border-[#373e4d]">
-          Performance KPIs
+        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 uppercase">
+          Profit Intelligence
         </span>
       </div>
-      <p class="text-xs text-slate-400 mt-0.5">
-        Rentabilitätsanalysen, Paletten-Break-Even, Lieferantenqualität und Haltezeiten.
+      <p class="text-xs text-rf-text-muted mt-0.5">
+        Plattform-Gebührenvergleich, Kapitalumschlag, Haltedauer-Geschwindigkeit & Kohorten-Refinanzierung.
       </p>
     </div>
 
-    <!-- Time Range Tabs (Kapitel 27) -->
-    <div class="linear-surface rounded-xl p-1 flex items-center gap-1 text-xs">
+    <!-- Time Range Selector -->
+    <div class="flex items-center gap-1.5 p-1 rounded-xl bg-rf-surface border border-rf-border text-xs">
       <button
         type="button"
-        (click)="timeRange.set('7d')"
-        class="px-2.5 py-1 rounded-md font-semibold transition cursor-pointer"
-        [class.bg-[#373e4d]]="timeRange() === '7d'"
+        (click)="setTimeRange('7d')"
+        class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
+        [class.bg-indigo-600]="timeRange() === '7d'"
         [class.text-white]="timeRange() === '7d'"
-        [class.text-slate-400]="timeRange() !== '7d'"
+        [class.text-rf-text-muted]="timeRange() !== '7d'"
       >
         7 Tage
       </button>
-
       <button
         type="button"
-        (click)="timeRange.set('30d')"
-        class="px-2.5 py-1 rounded-md font-semibold transition cursor-pointer"
-        [class.bg-[#373e4d]]="timeRange() === '30d'"
+        (click)="setTimeRange('30d')"
+        class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
+        [class.bg-indigo-600]="timeRange() === '30d'"
         [class.text-white]="timeRange() === '30d'"
-        [class.text-slate-400]="timeRange() !== '30d'"
+        [class.text-rf-text-muted]="timeRange() !== '30d'"
       >
         30 Tage
       </button>
-
       <button
         type="button"
-        (click)="timeRange.set('1y')"
-        class="px-2.5 py-1 rounded-md font-semibold transition cursor-pointer"
-        [class.bg-[#373e4d]]="timeRange() === '1y'"
+        (click)="setTimeRange('1y')"
+        class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
+        [class.bg-indigo-600]="timeRange() === '1y'"
         [class.text-white]="timeRange() === '1y'"
-        [class.text-slate-400]="timeRange() !== '1y'"
+        [class.text-rf-text-muted]="timeRange() !== '1y'"
       >
-        Dieses Jahr
+        1 Jahr
       </button>
-
       <button
         type="button"
-        (click)="timeRange.set('all')"
-        class="px-2.5 py-1 rounded-md font-semibold transition cursor-pointer"
-        [class.bg-[#373e4d]]="timeRange() === 'all'"
+        (click)="setTimeRange('all')"
+        class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
+        [class.bg-indigo-600]="timeRange() === 'all'"
         [class.text-white]="timeRange() === 'all'"
-        [class.text-slate-400]="timeRange() !== 'all'"
+        [class.text-rf-text-muted]="timeRange() !== 'all'"
       >
         Gesamt
       </button>
     </div>
   </div>
 
-  <!-- Primary Financial Overview Grid -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-    <!-- Realisierter Gewinn -->
-    <div class="linear-kpi p-4 rounded-xl border-emerald-500/40">
-      <div class="flex items-center justify-between text-emerald-400 text-[11px] font-semibold">
-        <span>Realisierter Nettogewinn</span>
-        <lucide-icon [img]="trendingIcon" class="w-3.5 h-3.5"></lucide-icon>
+  <!-- Top Financial KPI Summary Grid -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 font-mono">
+    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-rf-border shadow-xl space-y-1">
+      <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+        <span class="font-bold uppercase tracking-wider text-[10px]">Bruttoumsatz</span>
+        <lucide-icon [img]="trendingIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
       </div>
-      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-emerald-400">
-        {{ periodProfit() | currency:'EUR':'symbol':'1.2-2':'de' }}
+      <div class="text-2xl font-black text-rf-text-primary">
+        {{ totalRevenue() | currency:'EUR':'symbol':'1.2-2':'de' }}
       </div>
-      <span class="text-[10px] text-slate-400 mt-0.5 block">Nach Abzug aller Ausgaben & Gebühren</span>
+      <span class="text-[10px] text-rf-text-muted block font-sans">
+        {{ currentSales().length }} Verkäufe im Zeitraum
+      </span>
     </div>
 
-    <!-- Bruttoumsatz -->
-    <div class="linear-kpi p-4 rounded-xl">
-      <div class="flex items-center justify-between text-slate-400 text-[11px] font-semibold">
-        <span>Bruttoumsatz</span>
-        <lucide-icon [img]="coinsIcon" class="w-3.5 h-3.5 text-blue-400"></lucide-icon>
+    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-rf-border shadow-xl space-y-1">
+      <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+        <span class="font-bold uppercase tracking-wider text-[10px]">Reingewinn (Netto)</span>
+        <lucide-icon [img]="coinsIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
       </div>
-      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-slate-100">
-        {{ periodRevenue() | currency:'EUR':'symbol':'1.2-2':'de' }}
+      <div class="text-2xl font-black text-emerald-400">
+        +{{ totalNetProfit() | currency:'EUR':'symbol':'1.2-2':'de' }}
       </div>
-      <span class="text-[10px] text-slate-400 mt-0.5 block">Aus {{ currentSales().length }} Transaktionen</span>
+      <span class="text-[10px] text-rf-text-muted block font-sans">
+        Nach Abzug aller Gebühren & EK
+      </span>
     </div>
 
-    <!-- Durchschnittlicher ROI -->
-    <div class="linear-kpi p-4 rounded-xl">
-      <div class="flex items-center justify-between text-slate-400 text-[11px] font-semibold">
-        <span>Durchschnittlicher ROI</span>
-        <lucide-icon [img]="percentIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-rf-border shadow-xl space-y-1">
+      <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+        <span class="font-bold uppercase tracking-wider text-[10px]">Durchschnittl. ROI</span>
+        <lucide-icon [img]="percentIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
       </div>
-      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-emerald-400">
-        {{ periodAvgRoi() }} %
+      <div class="text-2xl font-black text-indigo-400">
+        {{ avgRoi() }}%
       </div>
-      <span class="text-[10px] text-slate-400 mt-0.5 block">Einsatz vs. Reingewinn</span>
+      <span class="text-[10px] text-rf-text-muted block font-sans">
+        Kapitalrendite pro verkaufter Artikel
+      </span>
     </div>
 
-    <!-- Durchschnittliche Haltedauer -->
-    <div class="linear-kpi p-4 rounded-xl">
-      <div class="flex items-center justify-between text-slate-400 text-[11px] font-semibold">
-        <span>Ø Umschlagzeit (Holding)</span>
-        <lucide-icon [img]="clockIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
+    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-rf-border shadow-xl space-y-1">
+      <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+        <span class="font-bold uppercase tracking-wider text-[10px]">Ø Haltedauer</span>
+        <lucide-icon [img]="clockIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
       </div>
-      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-slate-100">
-        {{ periodAvgHoldingDays() }} Tage
+      <div class="text-2xl font-black text-amber-400">
+        {{ avgHoldingDays() }} Tage
       </div>
-      <span class="text-[10px] text-slate-400 mt-0.5 block">Vom Einkauf bis Verkauf</span>
+      <span class="text-[10px] text-rf-text-muted block font-sans">
+        Von Einkauf bis zum Verkauf
+      </span>
     </div>
   </div>
 
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-    <!-- Pallet & Mystery Pack Break-Even Radar (Kapitel 29) - 7 cols -->
-    <div class="lg:col-span-7 linear-surface rounded-xl p-4 md:p-5 space-y-4">
-      <div class="flex items-center gap-2 pb-2 border-b border-[#373e4d]">
-        <lucide-icon [img]="packageIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
-        <div>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">
-            Paletten & Lot Break-Even Radar (Kapitel 29)
+  <!-- Section Navigation Tabs -->
+  <div class="flex items-center gap-2 overflow-x-auto pb-1 border-b border-rf-border text-xs">
+    <button
+      type="button"
+      (click)="setSection('overview')"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      [class.bg-indigo-600]="activeSection() === 'overview'"
+      [class.text-white]="activeSection() === 'overview'"
+      [class.border-indigo-500]="activeSection() === 'overview'"
+      [class.bg-rf-surface]="activeSection() !== 'overview'"
+      [class.text-rf-text-secondary]="activeSection() !== 'overview'"
+      [class.border-rf-border]="activeSection() !== 'overview'"
+    >
+      📈 Gesamtübersicht
+    </button>
+
+    <button
+      type="button"
+      (click)="setSection('platforms')"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      [class.bg-indigo-600]="activeSection() === 'platforms'"
+      [class.text-white]="activeSection() === 'platforms'"
+      [class.border-indigo-500]="activeSection() === 'platforms'"
+      [class.bg-rf-surface]="activeSection() !== 'platforms'"
+      [class.text-rf-text-secondary]="activeSection() !== 'platforms'"
+      [class.border-rf-border]="activeSection() !== 'platforms'"
+    >
+      📊 Plattform-Rentabilität & Gebühren
+    </button>
+
+    <button
+      type="button"
+      (click)="setSection('velocity')"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      [class.bg-indigo-600]="activeSection() === 'velocity'"
+      [class.text-white]="activeSection() === 'velocity'"
+      [class.border-indigo-500]="activeSection() === 'velocity'"
+      [class.bg-rf-surface]="activeSection() !== 'velocity'"
+      [class.text-rf-text-secondary]="activeSection() !== 'velocity'"
+      [class.border-rf-border]="activeSection() !== 'velocity'"
+    >
+      ⚡ Haltedauer & Kapitalumschlag
+    </button>
+
+    <button
+      type="button"
+      (click)="setSection('cohorts')"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      [class.bg-indigo-600]="activeSection() === 'cohorts'"
+      [class.text-white]="activeSection() === 'cohorts'"
+      [class.border-indigo-500]="activeSection() === 'cohorts'"
+      [class.bg-rf-surface]="activeSection() !== 'cohorts'"
+      [class.text-rf-text-secondary]="activeSection() !== 'cohorts'"
+      [class.border-rf-border]="activeSection() !== 'cohorts'"
+    >
+      📦 Einkaufs-Kohorten & Recovery
+    </button>
+
+    <button
+      type="button"
+      (click)="setSection('heatmap')"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      [class.bg-indigo-600]="activeSection() === 'heatmap'"
+      [class.text-white]="activeSection() === 'heatmap'"
+      [class.border-indigo-500]="activeSection() === 'heatmap'"
+      [class.bg-rf-surface]="activeSection() !== 'heatmap'"
+      [class.text-rf-text-secondary]="activeSection() !== 'heatmap'"
+      [class.border-rf-border]="activeSection() !== 'heatmap'"
+    >
+      🕒 Verkaufs-Heatmap (Beste Zeiten)
+    </button>
+
+    <button
+      type="button"
+      (click)="setSection('categories')"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      [class.bg-indigo-600]="activeSection() === 'categories'"
+      [class.text-white]="activeSection() === 'categories'"
+      [class.border-indigo-500]="activeSection() === 'categories'"
+      [class.bg-rf-surface]="activeSection() !== 'categories'"
+      [class.text-rf-text-secondary]="activeSection() !== 'categories'"
+      [class.border-rf-border]="activeSection() !== 'categories'"
+    >
+      🏷️ Kategorien & Sell-Through
+    </button>
+  </div>
+
+  <!-- Tab 1: Overview -->
+  @if (activeSection() === 'overview') {
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-fade-in">
+      <!-- Left: Recent Top Profits (7 cols) -->
+      <div class="lg:col-span-7 linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
+        <div class="flex items-center gap-2 border-b border-rf-border pb-3">
+          <lucide-icon [img]="trophyIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            Top-Gewinnbringer im Zeitraum
           </h2>
-          <p class="text-[11px] text-slate-400">
-            Automatischer Kostenrücklauf bis zum Break-Even-Point für Großkäufe.
-          </p>
+        </div>
+
+        <div class="divide-y divide-rf-border">
+          @for (sale of currentSales().slice(0, 5); track sale.id) {
+            <div class="py-3 flex items-center justify-between text-xs">
+              <div class="space-y-0.5">
+                <strong class="text-rf-text-primary block">{{ sale.inventory_item?.title || 'Verkaufter Artikel' }}</strong>
+                <div class="flex items-center gap-2 text-[10px] text-rf-text-muted">
+                  <span class="uppercase font-mono font-bold text-indigo-400">{{ sale.platform }}</span>
+                  <span>•</span>
+                  <span>VK: {{ sale.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+                  <span>•</span>
+                  <span>{{ sale.holding_duration_days || 0 }} Tage Haltedauer</span>
+                </div>
+              </div>
+
+              <div class="text-right font-mono">
+                <span class="font-bold text-emerald-400 text-sm block">
+                  +{{ (sale.net_profit || 0) | currency:'EUR':'symbol':'1.2-2':'de' }}
+                </span>
+                <span class="text-[10px] text-rf-text-muted">ROI: {{ sale.roi || 0 }}%</span>
+              </div>
+            </div>
+          } @empty {
+            <div class="p-8 text-center text-xs text-rf-text-muted">Keine Verkäufe im gewählten Zeitraum.</div>
+          }
         </div>
       </div>
 
-      @if (palletStats().length > 0) {
+      <!-- Right: Quick Platform Breakdown (5 cols) -->
+      <div class="lg:col-span-5 linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
+        <div class="flex items-center gap-2 border-b border-rf-border pb-3">
+          <lucide-icon [img]="storeIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            Plattform-Umsatzverteilung
+          </h2>
+        </div>
+
         <div class="space-y-3">
-          @for (p of palletStats(); track p.purchaseId) {
-            <div class="p-3.5 rounded-lg bg-[#1e222a] border border-[#373e4d] space-y-2.5">
-              <div class="flex items-start justify-between gap-2">
-                <div>
-                  <h3 class="text-xs font-semibold text-slate-100">{{ p.title }}</h3>
-                  <span class="text-[10px] text-slate-400 font-mono">
-                    {{ p.soldCount }} von {{ p.itemsCount }} Artikeln verkauft ({{ p.openCount }} im Lager)
-                  </span>
-                </div>
-
-                <span
-                  class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase"
-                  [class.bg-emerald-500/15]="p.isBreakEven"
-                  [class.text-emerald-400]="p.isBreakEven"
-                  [class.border]="true"
-                  [class.border-emerald-500/30]="p.isBreakEven"
-                  [class.bg-amber-500/15]="!p.isBreakEven"
-                  [class.text-amber-400]="!p.isBreakEven"
-                  [class.border-amber-500/30]="!p.isBreakEven"
-                >
-                  {{ p.isBreakEven ? 'Profit-Zone' : 'Am Abbezahlen' }}
-                </span>
+          @for (p of platformPerformance(); track p.platform) {
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs">
+                <strong class="text-rf-text-primary">{{ p.platformLabel }}</strong>
+                <span class="font-mono font-bold text-emerald-400">+{{ p.netProfit | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
               </div>
-
-              <!-- Progress Bar -->
-              <div class="space-y-1">
-                <div class="flex justify-between text-[11px] font-mono">
-                  <span class="text-slate-400">Erlös: <strong class="text-slate-200">{{ p.revenue | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
-                  <span class="text-slate-400">Kosten: <strong class="text-slate-200">{{ p.totalInvestment | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
-                </div>
-
-                <div class="w-full h-1.5 rounded-full bg-[#373e4d] overflow-hidden">
-                  <div
-                    class="h-full rounded-full transition-all duration-500"
-                    [class.bg-emerald-400]="p.isBreakEven"
-                    [class.bg-amber-400]="!p.isBreakEven"
-                    [style.width.%]="p.totalInvestment > 0 ? (p.revenue / p.totalInvestment) * 100 : 0"
-                  ></div>
-                </div>
+              <div class="w-full h-2 rounded-full bg-rf-subtle overflow-hidden flex border border-rf-border">
+                <div
+                  class="h-full bg-indigo-500"
+                  [style.width.%]="(p.grossRevenue / (totalRevenue() || 1)) * 100"
+                ></div>
               </div>
-
-              <div class="flex items-center justify-between text-[11px] font-mono pt-1 text-slate-300">
-                <span>{{ p.totalInvestment > 0 ? ((p.revenue / p.totalInvestment) * 100).toFixed(0) : 0 }}% der Kosten eingespielt</span>
-                <span class="font-bold" [class.text-emerald-400]="p.realizedProfit >= 0" [class.text-amber-400]="p.realizedProfit < 0">
-                  {{ p.realizedProfit >= 0 ? '+' : '' }}{{ p.realizedProfit | currency:'EUR':'symbol':'1.2-2':'de' }} Netto
-                </span>
+              <div class="flex justify-between text-[10px] text-rf-text-muted">
+                <span>{{ p.salesCount }} Verkäufe ({{ ((p.grossRevenue / (totalRevenue() || 1)) * 100).toFixed(0) }}% Umsatz)</span>
+                <span>Gebührenquote: {{ p.effectiveFeePercent }}%</span>
               </div>
             </div>
           }
         </div>
-      } @else {
-        <p class="text-xs text-slate-400 py-6 text-center">Keine Paletten oder Mystery Packs erfasst.</p>
-      }
+      </div>
     </div>
+  }
 
-    <!-- Supplier Defect Rate & Performance (Kapitel 28) - 5 cols -->
-    <div class="lg:col-span-5 linear-surface rounded-xl p-4 md:p-5 space-y-4">
-      <div class="flex items-center gap-2 pb-2 border-b border-[#373e4d]">
-        <lucide-icon [img]="usersIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+  <!-- Tab 2: Platforms & Fees Matrix -->
+  @if (activeSection() === 'platforms') {
+    <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl animate-fade-in">
+      <div class="flex items-center justify-between border-b border-rf-border pb-3">
         <div>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">
-            Lieferanten-Audit & Defekt-Rate (Kapitel 28)
+          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            Plattform-Rentabilitäts-Matrix & Gebührenvergleich
           </h2>
-          <p class="text-[11px] text-slate-400">
-            Welche Verkäufer liefern die beste Marge und geringste Ausschussquote?
+          <p class="text-[11px] text-rf-text-muted mt-0.5">
+            Vergleiche die tatsächliche Rentabilität unter Berücksichtigung von Verkaufsgebühren.
           </p>
         </div>
       </div>
 
-      @if (supplierStats().length > 0) {
-        <div class="divide-y divide-[#373e4d]">
-          @for (sup of supplierStats(); track sup.supplierName) {
-            <div class="py-3 space-y-1.5 text-xs">
-              <div class="flex items-center justify-between">
-                <strong class="text-slate-100 font-semibold">{{ sup.supplierName }}</strong>
-                <span class="text-emerald-400 font-mono font-bold">{{ sup.purchasesCount }} Einkäufe</span>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs border-collapse font-sans">
+          <thead class="bg-rf-subtle text-rf-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-rf-border">
+            <tr>
+              <th class="p-3">Plattform</th>
+              <th class="p-3 text-right">Verkäufe</th>
+              <th class="p-3 text-right">Bruttoumsatz</th>
+              <th class="p-3 text-right">Gezahlte Gebühren</th>
+              <th class="p-3 text-right">Effektive Gebühr (%)</th>
+              <th class="p-3 text-right">Reingewinn (Netto)</th>
+              <th class="p-3 text-right">Nettomarge</th>
+              <th class="p-3 text-right">Ø Haltedauer</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-rf-border font-mono">
+            @for (p of platformPerformance(); track p.platform) {
+              <tr class="hover:bg-rf-surface-hover transition">
+                <td class="p-3 font-sans font-bold text-rf-text-primary">
+                  {{ p.platformLabel }}
+                </td>
+                <td class="p-3 text-right text-rf-text-secondary">{{ p.salesCount }}x</td>
+                <td class="p-3 text-right font-bold text-rf-text-primary">
+                  {{ p.grossRevenue | currency:'EUR':'symbol':'1.2-2':'de' }}
+                </td>
+                <td class="p-3 text-right text-rose-400">
+                  -{{ p.platformFees | currency:'EUR':'symbol':'1.2-2':'de' }}
+                </td>
+                <td class="p-3 text-right font-bold" [class.text-emerald-400]="p.effectiveFeePercent === 0" [class.text-amber-400]="p.effectiveFeePercent > 0">
+                  {{ p.effectiveFeePercent }}%
+                </td>
+                <td class="p-3 text-right font-bold text-emerald-400">
+                  +{{ p.netProfit | currency:'EUR':'symbol':'1.2-2':'de' }}
+                </td>
+                <td class="p-3 text-right text-indigo-300 font-bold">
+                  {{ p.profitMargin }}%
+                </td>
+                <td class="p-3 text-right text-rf-text-muted">
+                  {{ p.avgHoldingDays }} Tage
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
+
+  <!-- Tab 3: Velocity & Holding Duration -->
+  @if (activeSection() === 'velocity') {
+    @let vel = holdingDurationAnalysis();
+    <div class="space-y-5 animate-fade-in">
+      <!-- Velocity KPI Row -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono">
+        <div class="linear-surface p-4 rounded-2xl border border-rf-border space-y-1">
+          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block">Kapitalumschlag / Jahr</span>
+          <span class="text-2xl font-black text-indigo-400">{{ vel.capitalTurnoverRate }}x</span>
+          <span class="text-[10px] text-rf-text-muted font-sans block">Umschlagshäufigkeit</span>
+        </div>
+
+        <div class="linear-surface p-4 rounded-2xl border border-rf-border space-y-1">
+          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block">Durchschnitt</span>
+          <span class="text-2xl font-black text-rf-text-primary">{{ vel.avgOverallDays }} Tage</span>
+          <span class="text-[10px] text-rf-text-muted font-sans block">Bis zum erfolgreichen Verkauf</span>
+        </div>
+
+        <div class="linear-surface p-4 rounded-2xl border border-rf-border space-y-1">
+          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block">Schnellster Verkauf</span>
+          <span class="text-2xl font-black text-emerald-400">{{ vel.fastestSaleDays }} Tage</span>
+          <span class="text-[10px] text-rf-text-muted font-sans block">Blitzschneller Flip</span>
+        </div>
+
+        <div class="linear-surface p-4 rounded-2xl border border-rf-border space-y-1">
+          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block">Längste Haltedauer</span>
+          <span class="text-2xl font-black text-rose-400">{{ vel.slowestSaleDays }} Tage</span>
+          <span class="text-[10px] text-rf-text-muted font-sans block">Langsamster Artikel</span>
+        </div>
+      </div>
+
+      <!-- Speed Buckets Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        @for (b of vel.buckets; track b.label) {
+          <div class="linear-surface rounded-2xl p-5 border border-rf-border shadow-xl space-y-2 font-sans">
+            <div class="flex items-center justify-between">
+              <strong class="text-xs text-rf-text-primary">{{ b.label }}</strong>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-secondary border border-rf-border">
+                {{ b.percent }}%
+              </span>
+            </div>
+
+            <div class="text-xl font-black font-mono text-rf-text-primary">
+              {{ b.count }} Verkäufe
+            </div>
+
+            <div class="flex justify-between text-[11px] font-mono pt-2 border-t border-rf-border text-rf-text-muted">
+              <span>Gewinn: <strong class="text-emerald-400">+{{ b.totalProfit | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
+              <span>ROI: <strong>{{ b.avgRoi }}%</strong></span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Tab 4: Cohort Analysis -->
+  @if (activeSection() === 'cohorts') {
+    <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl animate-fade-in">
+      <div class="border-b border-rf-border pb-3">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+          Monatliche Einkaufs-Kohorten & Break-Even Refinanzierung
+        </h2>
+        <p class="text-[11px] text-rf-text-muted mt-0.5">
+          Verfolge, wie schnell jede Einkaufscharge ihr investiertes Kapital wieder einspielt (Break-Even Recovery Rate).
+        </p>
+      </div>
+
+      <div class="space-y-4">
+        @for (c of monthlyCohorts(); track c.monthKey) {
+          <div class="p-4 rounded-xl bg-rf-subtle border border-rf-border space-y-3">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+              <div class="flex items-center gap-2">
+                <strong class="text-sm font-bold text-rf-text-primary">{{ c.monthLabel }}</strong>
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase"
+                  [class.bg-emerald-500/15]="c.isProfitable"
+                  [class.text-emerald-400]="c.isProfitable"
+                  [class.border]="c.isProfitable"
+                  [class.border-emerald-500/30]="c.isProfitable"
+                  [class.bg-amber-500/15]="!c.isProfitable"
+                  [class.text-amber-400]="!c.isProfitable"
+                >
+                  {{ c.isProfitable ? 'Im Gewinn (Break-Even erreicht)' : 'In Refinanzierung' }}
+                </span>
               </div>
 
-              <div class="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-400 pt-0.5">
-                <div>
-                  <span class="text-[9px] uppercase font-sans text-slate-400 block">Defektquote</span>
-                  <span [class.text-emerald-400]="sup.defectRate <= 5" [class.text-rose-400]="sup.defectRate > 5">
-                    {{ sup.defectRate }}%
-                  </span>
-                </div>
-                <div class="text-right">
-                  <span class="text-[9px] uppercase font-sans text-slate-400 block">Ø ROI</span>
-                  <span class="text-slate-200">{{ sup.avgRoi }}%</span>
-                </div>
+              <div class="flex items-center gap-4 font-mono">
+                <span>Investiert: <strong>{{ c.invested | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
+                <span>Erlöst: <strong class="text-emerald-400">{{ c.realizedRevenue | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
               </div>
             </div>
-          }
-        </div>
-      } @else {
-        <p class="text-xs text-slate-400 py-6 text-center">Noch keine Lieferanten-Daten vorhanden.</p>
-      }
+
+            <!-- Recovery Progress Bar -->
+            <div class="space-y-1">
+              <div class="w-full h-3 rounded-full bg-rf-surface overflow-hidden flex border border-rf-border">
+                <div
+                  class="h-full transition-all duration-500"
+                  [class.bg-emerald-500]="c.isProfitable"
+                  [class.bg-indigo-500]="!c.isProfitable"
+                  [style.width.%]="c.recoveryPercent > 100 ? 100 : c.recoveryPercent"
+                ></div>
+              </div>
+              <div class="flex justify-between text-[10px] text-rf-text-muted font-mono">
+                <span>Refinanzierungs-Quote: <strong class="text-rf-text-primary">{{ c.recoveryPercent }}%</strong></span>
+                <span>{{ c.soldCount }} von {{ c.itemsCount }} Artikel verkauft</span>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
     </div>
-  </div>
+  }
+
+  <!-- Tab 5: Sales Heatmap -->
+  @if (activeSection() === 'heatmap') {
+    <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl animate-fade-in">
+      <div class="border-b border-rf-border pb-3">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+          Wochentags- & Verkaufszeit-Heatmap
+        </h2>
+        <p class="text-[11px] text-rf-text-muted mt-0.5">
+          Finde die lukrativsten Tage und Zeiten heraus, um deine Inserate optimal zu platzieren.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
+        @for (day of salesHeatmap(); track day.dayName) {
+          <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-2 text-center font-sans">
+            <strong class="text-xs text-rf-text-primary block border-b border-rf-border pb-1">
+              {{ day.dayName }}
+            </strong>
+
+            <div class="text-lg font-black font-mono text-indigo-400">
+              {{ day.totalSales }} Sales
+            </div>
+
+            <div class="space-y-1 text-[10px] text-left text-rf-text-muted pt-1 border-t border-rf-border font-mono">
+              <div class="flex justify-between">
+                <span>🌅 Vormittags:</span>
+                <strong class="text-rf-text-secondary">{{ day.morningCount }}</strong>
+              </div>
+              <div class="flex justify-between">
+                <span>☀️ Nachmittags:</span>
+                <strong class="text-rf-text-secondary">{{ day.afternoonCount }}</strong>
+              </div>
+              <div class="flex justify-between">
+                <span>🌙 Abends (18-23h):</span>
+                <strong class="text-emerald-400">{{ day.eveningCount }}</strong>
+              </div>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Tab 6: Categories -->
+  @if (activeSection() === 'categories') {
+    <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl animate-fade-in">
+      <div class="border-b border-rf-border pb-3">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+          Kategorie-Rentabilität & Sell-Through Ränge
+        </h2>
+        <p class="text-[11px] text-rf-text-muted mt-0.5">
+          Welche Warenkategorien erzielen den höchsten Gewinn und ROI?
+        </p>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs border-collapse">
+          <thead class="bg-rf-subtle text-rf-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-rf-border">
+            <tr>
+              <th class="p-3">Kategorie</th>
+              <th class="p-3 text-right">Bestand</th>
+              <th class="p-3 text-right">Verkauft</th>
+              <th class="p-3 text-right">Umsatz</th>
+              <th class="p-3 text-right">Nettogewinn</th>
+              <th class="p-3 text-right">Ø ROI</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-rf-border font-mono">
+            @for (cat of categoryRankings(); track cat.category) {
+              <tr class="hover:bg-rf-surface-hover transition">
+                <td class="p-3 font-sans font-bold text-rf-text-primary">{{ cat.category }}</td>
+                <td class="p-3 text-right text-rf-text-secondary">{{ cat.itemsCount }}</td>
+                <td class="p-3 text-right text-rf-text-secondary">{{ cat.soldCount }}</td>
+                <td class="p-3 text-right font-bold text-rf-text-primary">
+                  {{ cat.revenue | currency:'EUR':'symbol':'1.2-2':'de' }}
+                </td>
+                <td class="p-3 text-right font-bold text-emerald-400">
+                  +{{ cat.profit | currency:'EUR':'symbol':'1.2-2':'de' }}
+                </td>
+                <td class="p-3 text-right font-bold text-indigo-300">{{ cat.avgRoi }}%</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
+  }
 </div>

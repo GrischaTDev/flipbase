@@ -18,15 +18,27 @@ import {
   CheckCircle2,
   Sparkles,
   ArrowUpRight,
+  Zap,
+  Calendar,
+  Layers,
 } from 'lucide-angular';
-import { AnalyticsService, AnalyticsTimeRange } from '../../core/services/analytics.service';
+import {
+  AnalyticsService,
+  AnalyticsTimeRange,
+  PlatformPerformance,
+  HoldingDurationAnalysis,
+  MonthlyCohortStats,
+  DayHeatmap,
+  CategoryRank,
+  SourcePerformance,
+} from '../../core/services/analytics.service';
 import { SalesService } from '../../core/services/sales.service';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { InventoryService } from '../../core/services/inventory.service';
 
 @Component({
   selector: 'app-analytics',
-  imports: [CurrencyPipe, TranslatePipe, LucideAngularModule],
+  imports: [CurrencyPipe, LucideAngularModule],
   templateUrl: './analytics.component.html',
   styleUrl: './analytics.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -51,9 +63,14 @@ export class AnalyticsComponent {
   readonly checkIcon = CheckCircle2;
   readonly sparklesIcon = Sparkles;
   readonly arrowIcon = ArrowUpRight;
+  readonly zapIcon = Zap;
+  readonly calendarIcon = Calendar;
+  readonly layersIcon = Layers;
 
   readonly timeRange = signal<AnalyticsTimeRange>('30d');
-  readonly activeSection = signal<'overview' | 'sources' | 'pallets' | 'categories'>('overview');
+  readonly activeSection = signal<
+    'overview' | 'platforms' | 'velocity' | 'cohorts' | 'heatmap' | 'categories' | 'sources'
+  >('overview');
 
   // Filtered sales based on selected time range
   readonly currentSales = computed(() => {
@@ -63,73 +80,73 @@ export class AnalyticsComponent {
     );
   });
 
-  // KPI Computations for the selected timeframe
-  readonly periodProfit = computed(() => {
-    return this.currentSales().reduce((sum, s) => sum + (s.net_profit || 0), 0);
-  });
+  // Overview Financials
+  readonly totalRevenue = computed(() =>
+    this.currentSales().reduce((sum, s) => sum + s.sale_price, 0)
+  );
 
-  readonly periodRevenue = computed(() => {
-    return this.currentSales().reduce((sum, s) => sum + (s.sale_price || 0), 0);
-  });
+  readonly totalNetProfit = computed(() =>
+    this.currentSales().reduce((sum, s) => sum + (s.net_profit || 0), 0)
+  );
 
-  readonly periodAvgRoi = computed(() => {
+  readonly avgRoi = computed(() => {
     const list = this.currentSales();
     if (list.length === 0) return 0;
-    const total = list.reduce((sum, s) => sum + (s.roi || 0), 0);
-    return Number((total / list.length).toFixed(1));
+    const sum = list.reduce((acc, s) => acc + (s.roi || 0), 0);
+    return Number((sum / list.length).toFixed(1));
   });
 
-  readonly periodAvgHoldingDays = computed(() => {
+  readonly avgHoldingDays = computed(() => {
     const list = this.currentSales();
     if (list.length === 0) return 0;
-    const total = list.reduce((sum, s) => sum + (s.holding_duration_days || 0), 0);
-    return Math.round(total / list.length);
+    const sum = list.reduce((acc, s) => acc + (s.holding_duration_days || 0), 0);
+    return Number((sum / list.length).toFixed(1));
   });
 
-  readonly sellThroughRate = computed(() => {
-    const totalItems = this.inventoryService.items().length;
-    const soldItems = this.inventoryService.items().filter((i) => i.status === 'sold').length;
-    return this.analyticsService.calculateSellThroughRate(totalItems, soldItems);
-  });
+  // 1. Platform Performance
+  readonly platformPerformance = computed<PlatformPerformance[]>(() =>
+    this.analyticsService.computePlatformPerformance(this.currentSales())
+  );
 
-  // Source & Supplier Intelligence
-  readonly sourceStats = computed(() => {
-    return this.analyticsService.computeSourcePerformance(
+  // 2. Holding Duration & Speed Buckets
+  readonly holdingDurationAnalysis = computed<HoldingDurationAnalysis>(() =>
+    this.analyticsService.computeHoldingDurationAnalysis(this.currentSales())
+  );
+
+  // 3. Monthly Cohorts
+  readonly monthlyCohorts = computed<MonthlyCohortStats[]>(() =>
+    this.analyticsService.computeMonthlyCohorts(
       this.purchaseService.purchases(),
       this.salesService.sales()
-    );
-  });
+    )
+  );
 
-  readonly supplierStats = computed(() => {
-    return this.analyticsService.computeSupplierPerformance(
+  // 4. Sales Heatmap
+  readonly salesHeatmap = computed<DayHeatmap[]>(() =>
+    this.analyticsService.computeSalesHeatmap(this.salesService.sales())
+  );
+
+  // 5. Category Rankings
+  readonly categoryRankings = computed<CategoryRank[]>(() =>
+    this.analyticsService.computeCategoryRankings(
+      this.inventoryService.items(),
+      this.currentSales()
+    )
+  );
+
+  // 6. Source Performance
+  readonly sourcePerformance = computed<SourcePerformance[]>(() =>
+    this.analyticsService.computeSourcePerformance(
       this.purchaseService.purchases(),
-      this.inventoryService.items(),
-      this.salesService.sales()
-    );
-  });
+      this.currentSales()
+    )
+  );
 
-  // Mystery Pack & Pallet Dashboards
-  readonly mysteryPackStats = computed(() => {
-    return this.analyticsService.computeMysteryPackStats(
-      this.purchaseService.purchases(),
-      this.inventoryService.items(),
-      this.salesService.sales()
-    );
-  });
+  setTimeRange(range: AnalyticsTimeRange): void {
+    this.timeRange.set(range);
+  }
 
-  readonly palletStats = computed(() => {
-    return this.analyticsService.computePalletStats(
-      this.purchaseService.purchases(),
-      this.inventoryService.items(),
-      this.salesService.sales()
-    );
-  });
-
-  // Category Rankings
-  readonly categoryRankings = computed(() => {
-    return this.analyticsService.computeCategoryRankings(
-      this.inventoryService.items(),
-      this.salesService.sales()
-    );
-  });
+  setSection(section: any): void {
+    this.activeSection.set(section);
+  }
 }
