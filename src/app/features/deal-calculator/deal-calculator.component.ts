@@ -11,13 +11,16 @@ import {
   Zap,
   ArrowRight,
   Info,
+  Camera,
 } from 'lucide-angular';
 import { ProfitEngineService, DealEvaluationResult } from '../../core/services/profit-engine.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { BarcodeLookupService } from '../../core/services/barcode-lookup.service';
+import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner/barcode-scanner.component';
 
 @Component({
   selector: 'app-deal-calculator',
-  imports: [ReactiveFormsModule, CurrencyPipe, TranslatePipe, LucideAngularModule],
+  imports: [ReactiveFormsModule, CurrencyPipe, TranslatePipe, LucideAngularModule, BarcodeScannerComponent],
   templateUrl: './deal-calculator.component.html',
   styleUrl: './deal-calculator.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,6 +28,7 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 export class DealCalculatorComponent {
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly workspaceService = inject(WorkspaceService);
+  private readonly barcodeLookup = inject(BarcodeLookupService);
 
   readonly calcIcon = Calculator;
   readonly trendingIcon = TrendingUp;
@@ -33,6 +37,9 @@ export class DealCalculatorComponent {
   readonly zapIcon = Zap;
   readonly arrowIcon = ArrowRight;
   readonly infoIcon = Info;
+  readonly cameraIcon = Camera;
+
+  readonly isScanningBarcode = signal<boolean>(false);
 
   readonly form = new FormGroup({
     productTitle: new FormControl('Cube Acid Mountainbike 29"', { nonNullable: true }),
@@ -47,6 +54,18 @@ export class DealCalculatorComponent {
 
   constructor() {
     this.runCalculation();
+  }
+
+  async onBarcodeScanned(ean: string): Promise<void> {
+    this.isScanningBarcode.set(false);
+    const info = await this.barcodeLookup.lookupByEan(ean);
+    if (info) {
+      this.form.patchValue({
+        productTitle: info.title,
+        fairMarketValue: info.estimatedPrice || this.form.get('fairMarketValue')?.value,
+      });
+      this.runCalculation();
+    }
   }
 
   runCalculation(): void {

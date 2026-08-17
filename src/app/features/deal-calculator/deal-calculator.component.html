@@ -2,14 +2,14 @@
   <!-- Header -->
   <div class="pb-1">
     <div class="flex items-center gap-2">
-      <h1 class="text-xl font-bold tracking-tight text-slate-100">
+      <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
         {{ 'NAV.DEAL_CALCULATOR' | translate }}
       </h1>
-      <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#262b35] text-slate-300 border border-[#373e4d]">
+      <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-secondary border border-rf-border">
         100% Deterministisch
       </span>
     </div>
-    <p class="text-xs text-slate-400 mt-0.5">
+    <p class="text-xs text-rf-text-muted mt-0.5">
       Prüfe vor dem Kauf exakt, ob sich ein Deal lohnt – unter Berücksichtigung aller Plattformgebühren, Reparaturen und Steuern.
     </p>
   </div>
@@ -18,12 +18,24 @@
     <!-- Left Column: Input Form (7 cols) -->
     <div class="lg:col-span-7 space-y-4">
       <form [formGroup]="form" (ngSubmit)="runCalculation()" class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-300 border-b border-[#373e4d] pb-2">
-          Parameter des Deals
-        </h2>
+        <div class="flex items-center justify-between border-b border-rf-border pb-2">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-secondary">
+            Parameter des Deals
+          </h2>
+
+          <button
+            type="button"
+            (click)="isScanningBarcode.set(true)"
+            class="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-blue-500/15 hover:bg-blue-500/25 text-blue-400 border border-blue-500/30 text-xs font-semibold transition cursor-pointer"
+            title="Barcode scannen"
+          >
+            <lucide-icon [img]="cameraIcon" class="w-3.5 h-3.5 text-blue-400"></lucide-icon>
+            <span>📷 Barcode scannen</span>
+          </button>
+        </div>
 
         <div>
-          <label for="productTitle" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+          <label for="productTitle" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
             Artikel / Titel
           </label>
           <input
@@ -39,7 +51,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Asking Price -->
           <div>
-            <label for="askingPriceInput" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            <label for="askingPriceInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
               Verkaufspreis des Anbieters (EK in €)
             </label>
             <input
@@ -54,7 +66,7 @@
 
           <!-- Fair Market Value -->
           <div>
-            <label for="marketValueInput" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            <label for="marketValueInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
               Erwarteter Verkaufspreis (€)
             </label>
             <input
@@ -71,7 +83,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Estimated Costs -->
           <div>
-            <label for="estimatedCostsInput" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            <label for="estimatedCostsInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
               Nebenkosten (Versand, Fahrt, Teile in €)
             </label>
             <input
@@ -86,14 +98,14 @@
 
           <!-- Condition -->
           <div>
-            <label for="conditionSelect" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            <label for="conditionSelect" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
               Zustand
             </label>
             <select
               id="conditionSelect"
               formControlName="condition"
               (change)="runCalculation()"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer text-slate-200"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer text-rf-text-secondary"
             >
               <option value="new">Neu / OVP</option>
               <option value="like_new">Wie neu</option>
@@ -135,7 +147,7 @@
           </div>
 
           <div class="space-y-1">
-            <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block">Erwarteter Nettogewinn</span>
+            <span class="text-[10px] font-semibold text-rf-text-muted uppercase tracking-wider block">Erwarteter Nettogewinn</span>
             <div class="text-3xl font-black font-mono tracking-tight" [class.text-emerald-400]="evalRes.expectedProfit > 0" [class.text-rose-400]="evalRes.expectedProfit <= 0">
               {{ evalRes.expectedProfit | currency:'EUR':'symbol':'1.2-2':'de' }}
             </div>
@@ -144,12 +156,12 @@
             </span>
           </div>
 
-          <div class="pt-3 border-t border-[#373e4d] space-y-2 text-xs font-mono">
-            <div class="flex justify-between text-slate-300">
+          <div class="pt-3 border-t border-rf-border space-y-2 text-xs font-mono">
+            <div class="flex justify-between text-rf-text-secondary">
               <span class="font-sans">Gesamtkosten:</span>
               <strong>{{ evalRes.expectedCosts | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
             </div>
-            <div class="flex justify-between text-slate-300">
+            <div class="flex justify-between text-rf-text-secondary">
               <span class="font-sans">Empfohlener Listenpreis:</span>
               <span>{{ evalRes.recommendedListingPrice | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
             </div>
@@ -158,12 +170,12 @@
 
         <!-- Max Buy Price Calculator (Kapitel 17) -->
         <div class="linear-surface rounded-xl p-4 space-y-2 font-mono">
-          <div class="flex items-center gap-2 pb-2 border-b border-[#373e4d]">
+          <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
             <lucide-icon [img]="sparklesIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
-            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-200 font-sans">Maximaler Einkaufspreis</h3>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary font-sans">Maximaler Einkaufspreis</h3>
           </div>
 
-          <p class="text-[11px] text-slate-400 font-sans leading-relaxed">
+          <p class="text-[11px] text-rf-text-muted font-sans leading-relaxed">
             Um deine Ziel-Margen und Mindestgewinne sicher einzuhalten, darfst du für diesen Artikel maximal zahlen:
           </p>
 
@@ -174,4 +186,12 @@
       }
     </div>
   </div>
+
+  <!-- Barcode Scanner Modal -->
+  @if (isScanningBarcode()) {
+    <app-barcode-scanner
+      (close)="isScanningBarcode.set(false)"
+      (detected)="onBarcodeScanned($event)"
+    ></app-barcode-scanner>
+  }
 </div>

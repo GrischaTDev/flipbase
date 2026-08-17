@@ -1,0 +1,18 @@
+@keyframes laserScan {
+  0% {
+    top: 0%;
+    opacity: 0.8;
+  }
+  50% {
+    top: 96%;
+    opacity: 1;
+  }
+  100% {
+    top: 0%;
+    opacity: 0.8;
+  }
+}
+
+.scan-laser {
+  animation: laserScan 2s infinite ease-in-out;
+}

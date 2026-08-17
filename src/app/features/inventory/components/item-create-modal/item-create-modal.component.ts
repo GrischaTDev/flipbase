@@ -1,15 +1,17 @@
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LucideAngularModule, X, Plus, Boxes, Sparkles } from 'lucide-angular';
+import { LucideAngularModule, X, Plus, Boxes, Sparkles, Camera } from 'lucide-angular';
 import { InventoryService, CreateItemPayload } from '../../../../core/services/inventory.service';
 import { PurchaseService } from '../../../../core/services/purchase.service';
 import { AiAssistantService } from '../../../../core/services/ai-assistant.service';
+import { BarcodeLookupService } from '../../../../core/services/barcode-lookup.service';
+import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
 import { DatePipe } from '@angular/common';
 import { ItemCondition, ItemStatus } from '../../../../core/models/reflip.models';
 
 @Component({
   selector: 'app-item-create-modal',
-  imports: [ReactiveFormsModule, DatePipe, LucideAngularModule],
+  imports: [ReactiveFormsModule, DatePipe, LucideAngularModule, BarcodeScannerComponent],
   templateUrl: './item-create-modal.component.html',
   styleUrl: './item-create-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -18,6 +20,7 @@ export class ItemCreateModalComponent {
   private readonly inventoryService = inject(InventoryService);
   readonly purchaseService = inject(PurchaseService);
   readonly aiService = inject(AiAssistantService);
+  readonly barcodeLookup = inject(BarcodeLookupService);
 
   readonly close = output<void>();
   readonly created = output<void>();
@@ -26,9 +29,11 @@ export class ItemCreateModalComponent {
   readonly plusIcon = Plus;
   readonly boxesIcon = Boxes;
   readonly sparklesIcon = Sparkles;
+  readonly cameraIcon = Camera;
 
   readonly isSubmitting = signal<boolean>(false);
   readonly isAiLoading = signal<boolean>(false);
+  readonly isScanningBarcode = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
 
   async onAiAutofill(): Promise<void> {
@@ -47,6 +52,25 @@ export class ItemCreateModalComponent {
       condition: ai.condition || this.form.get('condition')?.value,
       expected_value: ai.estimatedMarketPrice || this.form.get('expected_value')?.value,
     });
+  }
+
+  async onBarcodeScanned(ean: string): Promise<void> {
+    this.isScanningBarcode.set(false);
+    this.form.patchValue({ ean });
+
+    this.isAiLoading.set(true);
+    const info = await this.barcodeLookup.lookupByEan(ean);
+    this.isAiLoading.set(false);
+
+    if (info) {
+      this.form.patchValue({
+        title: info.title || this.form.get('title')?.value,
+        brand: info.brand || this.form.get('brand')?.value,
+        model: info.model || this.form.get('model')?.value,
+        category: info.category || this.form.get('category')?.value,
+        expected_value: info.estimatedPrice || this.form.get('expected_value')?.value,
+      });
+    }
   }
 
   readonly form = new FormGroup({
