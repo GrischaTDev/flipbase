@@ -75,6 +75,16 @@
       }
 
       <div class="pt-3 flex flex-col sm:flex-row items-center justify-center gap-3">
+        <!-- Print Invoice Button -->
+        <button
+          type="button"
+          (click)="openInvoice()"
+          class="linear-btn-secondary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/10"
+        >
+          <lucide-icon [img]="fileIcon" class="w-4 h-4"></lucide-icon>
+          <span>📄 § 25a Rechnung drucken / E-Mail</span>
+        </button>
+
         <a
           routerLink="/shop"
           class="linear-btn-primary px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
@@ -87,10 +97,18 @@
           routerLink="/sales"
           class="linear-btn-secondary px-5 py-2.5 rounded-xl text-xs font-semibold flex items-center gap-2 cursor-pointer"
         >
-          <span>Zu den Verkäufen (/sales)</span>
+          <span>Zu den Verkäufen</span>
         </a>
       </div>
     </div>
+
+    <!-- § 25a Invoice Modal -->
+    @if (activeInvoice(); as inv) {
+      <app-invoice-modal
+        [invoice]="inv"
+        (close)="closeInvoice()"
+      ></app-invoice-modal>
+    }
   } @else {
     <div class="linear-surface rounded-2xl p-12 text-center space-y-3">
       <h3 class="text-base font-bold text-rf-text-primary">Bestellung nicht gefunden</h3>

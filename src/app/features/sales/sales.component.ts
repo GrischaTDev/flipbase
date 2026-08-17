@@ -14,10 +14,14 @@ import {
   Clock,
   ArrowUpRight,
   Sparkles,
+  FileText,
 } from 'lucide-angular';
 import { SalesService } from '../../core/services/sales.service';
+import { InvoiceService } from '../../core/services/invoice.service';
 import { SaleCreateModalComponent } from './components/sale-create-modal/sale-create-modal.component';
+import { InvoiceModalComponent } from '../../shared/components/invoice-modal/invoice-modal.component';
 import { Sale } from '../../core/models/reflip.models';
+import { Invoice } from '../../core/models/invoice.models';
 
 @Component({
   selector: 'app-sales',
@@ -28,6 +32,7 @@ import { Sale } from '../../core/models/reflip.models';
     TranslatePipe,
     LucideAngularModule,
     SaleCreateModalComponent,
+    InvoiceModalComponent,
   ],
   templateUrl: './sales.component.html',
   styleUrl: './sales.component.scss',
@@ -35,6 +40,7 @@ import { Sale } from '../../core/models/reflip.models';
 })
 export class SalesComponent {
   readonly salesService = inject(SalesService);
+  readonly invoiceService = inject(InvoiceService);
 
   readonly trendingIcon = TrendingUp;
   readonly coinsIcon = Coins;
@@ -46,9 +52,11 @@ export class SalesComponent {
   readonly clockIcon = Clock;
   readonly arrowIcon = ArrowUpRight;
   readonly sparklesIcon = Sparkles;
+  readonly fileIcon = FileText;
 
   readonly isCreateModalOpen = signal<boolean>(false);
   readonly selectedPlatform = signal<string>('all');
+  readonly activeInvoice = signal<Invoice | null>(null);
 
   readonly filteredSales = computed(() => {
     const list = this.salesService.sales();
@@ -86,6 +94,15 @@ export class SalesComponent {
 
   closeCreateModal(): void {
     this.isCreateModalOpen.set(false);
+  }
+
+  openInvoiceForSale(sale: Sale): void {
+    const inv = this.invoiceService.generateInvoiceForSale(sale, sale.inventory_item);
+    this.activeInvoice.set(inv);
+  }
+
+  closeInvoice(): void {
+    this.activeInvoice.set(null);
   }
 
   async onDeleteSale(sale: Sale): Promise<void> {

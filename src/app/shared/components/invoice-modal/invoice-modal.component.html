@@ -1,0 +1,237 @@
+<div class="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 select-none print:p-0 print:bg-white print:static print:z-auto">
+  <div class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl print:border-none print:shadow-none print:max-w-none print:max-h-none print:rounded-none print:bg-white print:text-black">
+    
+    <!-- Modal Header (Hidden on Print) -->
+    <div class="p-5 border-b border-rf-border flex items-center justify-between shrink-0 bg-rf-subtle print:hidden">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
+          <lucide-icon [img]="fileIcon" class="w-5 h-5"></lucide-icon>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h2 class="text-base font-bold text-rf-text-primary">
+              Rechnung {{ invoice().invoiceNumber }}
+            </h2>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              § 25a UStG
+            </span>
+          </div>
+          <p class="text-xs text-rf-text-muted mt-0.5">
+            Druckfertige DIN-A4 Differenzbesteuerungs-Rechnung & Kaufbestätigung
+          </p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <!-- Send Email Button -->
+        <button
+          type="button"
+          (click)="sendEmail()"
+          [disabled]="isSendingEmail()"
+          class="linear-btn-secondary px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+          title="Kaufbestätigung & Rechnung per E-Mail an Käufer senden"
+        >
+          @if (isSendingEmail()) {
+            <div class="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></div>
+            <span>Wird gesendet...</span>
+          } @else {
+            <lucide-icon [img]="sendIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+            <span>E-Mail senden</span>
+          }
+        </button>
+
+        <!-- Print / PDF Button -->
+        <button
+          type="button"
+          (click)="printInvoice()"
+          class="linear-btn-primary px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+        >
+          <lucide-icon [img]="printerIcon" class="w-3.5 h-3.5"></lucide-icon>
+          <span>Drucken / Als PDF speichern</span>
+        </button>
+
+        <!-- Close Button -->
+        <button
+          type="button"
+          (click)="close.emit()"
+          class="p-1.5 rounded-xl text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
+        >
+          <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- Email Sent Banner -->
+    @if (emailSentMessage()) {
+      <div class="px-5 py-2.5 bg-emerald-500/15 border-b border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2 print:hidden animate-fade-in">
+        <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+        <span>{{ emailSentMessage() }}</span>
+      </div>
+    }
+
+    <!-- Document Body / Printable DIN-A4 Paper Canvas -->
+    <div class="flex-1 overflow-y-auto p-6 md:p-10 bg-rf-canvas print:p-0 print:bg-white print:overflow-visible flex justify-center">
+      
+      <!-- DIN-A4 Invoice Sheet -->
+      <div class="din-a4-sheet bg-white text-slate-900 shadow-xl border border-slate-200 rounded-xl p-8 md:p-12 w-full max-w-3xl min-h-[297mm] print:border-none print:shadow-none print:rounded-none print:p-0 print:w-full print:min-h-0 print:text-black font-sans leading-normal">
+        
+        <!-- Header / Briefkopf (DIN 5008) -->
+        <div class="flex items-start justify-between border-b border-slate-200 pb-6 mb-8">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs">R</span>
+              <strong class="text-lg font-black tracking-tight text-slate-900">{{ invoice().seller.company || invoice().seller.name }}</strong>
+            </div>
+            <p class="text-xs text-slate-500 mt-1">ReFlip Reselling & Second Hand Solutions</p>
+          </div>
+
+          <div class="text-right text-[11px] text-slate-600 space-y-0.5">
+            <strong class="text-slate-900 block font-bold">{{ invoice().seller.name }}</strong>
+            <div>{{ invoice().seller.street }}</div>
+            <div>{{ invoice().seller.postalCode }} {{ invoice().seller.city }}</div>
+            <div>E-Mail: {{ invoice().seller.email }}</div>
+            @if (invoice().seller.vatId) {
+              <div class="font-mono">USt-IdNr.: {{ invoice().seller.vatId }}</div>
+            }
+            @if (invoice().seller.taxId) {
+              <div class="font-mono">Steuer-Nr.: {{ invoice().seller.taxId }}</div>
+            }
+          </div>
+        </div>
+
+        <!-- Sender / Receiver Block (DIN 5008 Anschriftfeld) -->
+        <div class="grid grid-cols-2 gap-8 mb-8">
+          <!-- Empfänger -->
+          <div>
+            <span class="text-[9px] text-slate-400 block uppercase tracking-wider mb-1 underline">
+              {{ invoice().seller.name }} • {{ invoice().seller.street }} • {{ invoice().seller.postalCode }} {{ invoice().seller.city }}
+            </span>
+            <div class="bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-xs text-slate-800 space-y-0.5">
+              <strong class="text-sm font-bold text-slate-900 block">{{ invoice().buyer.name }}</strong>
+              <div>{{ invoice().buyer.street }}</div>
+              <div>{{ invoice().buyer.postalCode }} {{ invoice().buyer.city }}</div>
+              <div>{{ invoice().buyer.country }}</div>
+              @if (invoice().buyer.email) {
+                <div class="text-slate-500 pt-1 text-[11px]">E-Mail: {{ invoice().buyer.email }}</div>
+              }
+            </div>
+          </div>
+
+          <!-- Rechnungs-Metadaten -->
+          <div class="text-right text-xs space-y-1.5 self-end">
+            <h1 class="text-2xl font-black tracking-tight text-slate-900 uppercase">RECHNUNG</h1>
+            <div class="space-y-1 pt-1">
+              <div>
+                <span class="text-slate-500">Rechnungsnummer:</span>
+                <strong class="font-mono font-bold text-slate-900 ml-2">{{ invoice().invoiceNumber }}</strong>
+              </div>
+              <div>
+                <span class="text-slate-500">Rechnungsdatum:</span>
+                <strong class="text-slate-900 ml-2">{{ invoice().invoiceDate | date:'dd.MM.yyyy' }}</strong>
+              </div>
+              <div>
+                <span class="text-slate-500">Liefer-/Leistungsdatum:</span>
+                <span class="text-slate-800 ml-2">{{ invoice().deliveryDate | date:'dd.MM.yyyy' }}</span>
+              </div>
+              <div>
+                <span class="text-slate-500">Bestellreferenz:</span>
+                <span class="font-mono text-slate-800 ml-2">{{ invoice().orderNumber }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Positionstabelle -->
+        <table class="w-full text-xs text-left mb-8 border-collapse">
+          <thead>
+            <tr class="border-b-2 border-slate-800 text-[11px] font-bold text-slate-900 uppercase">
+              <th class="py-2.5 px-2 w-10">Pos.</th>
+              <th class="py-2.5 px-2">Bezeichnung / Artikel</th>
+              <th class="py-2.5 px-2 w-24">Zustand</th>
+              <th class="py-2.5 px-2 w-14 text-center">Menge</th>
+              <th class="py-2.5 px-2 w-24 text-right">Einzelpreis</th>
+              <th class="py-2.5 px-2 w-24 text-right">Gesamt</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-200">
+            @for (item of invoice().items; track item.sku || $index; let i = $index) {
+              <tr class="align-top">
+                <td class="py-3 px-2 font-mono text-slate-500">{{ i + 1 }}</td>
+                <td class="py-3 px-2">
+                  <strong class="text-slate-900 block font-semibold">{{ item.title }}</strong>
+                  @if (item.sku) {
+                    <span class="text-[10px] text-slate-500 font-mono">SKU: {{ item.sku }}</span>
+                  }
+                </td>
+                <td class="py-3 px-2 text-slate-600">{{ item.condition || 'Gebraucht' }}</td>
+                <td class="py-3 px-2 text-center font-mono font-bold">{{ item.quantity }}</td>
+                <td class="py-3 px-2 text-right font-mono text-slate-700">
+                  {{ item.unitPrice | currency:'EUR':'symbol':'1.2-2':'de' }}
+                </td>
+                <td class="py-3 px-2 text-right font-mono font-bold text-slate-900">
+                  {{ item.totalPrice | currency:'EUR':'symbol':'1.2-2':'de' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <!-- Summenblock -->
+        <div class="flex justify-end mb-8">
+          <div class="w-72 space-y-1.5 text-xs text-right">
+            <div class="flex justify-between text-slate-600">
+              <span>Warenwert (Netto/Brutto):</span>
+              <span class="font-mono">{{ invoice().subtotal | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+            </div>
+            <div class="flex justify-between text-slate-600">
+              <span>Versandkosten:</span>
+              <span class="font-mono">
+                {{ invoice().shippingCost === 0 ? 'Kostenfrei' : (invoice().shippingCost | currency:'EUR':'symbol':'1.2-2':'de') }}
+              </span>
+            </div>
+            <div class="flex justify-between pt-2 border-t-2 border-slate-900 text-sm font-black text-slate-900">
+              <span>Gesamtbetrag:</span>
+              <span class="font-mono">{{ invoice().total | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- § 25a UStG Gesetzlicher Hinweis Box -->
+        <div class="p-4 rounded-lg bg-slate-100 border border-slate-200 text-xs text-slate-700 mb-8 leading-relaxed">
+          <strong class="text-slate-900 block font-bold mb-1">Steuerlicher Hinweis:</strong>
+          <p>{{ invoice().taxClause }}</p>
+        </div>
+
+        <!-- Zahlungsdetails -->
+        <div class="grid grid-cols-2 gap-6 text-xs text-slate-700 border-t border-slate-200 pt-6 mb-8">
+          <div>
+            <strong class="text-slate-900 block font-bold mb-1">Zahlungsinformation:</strong>
+            <div>Zahlungsart: <span class="font-semibold text-slate-900">{{ invoice().paymentMethod }}</span></div>
+            <div>
+              Status: 
+              @if (invoice().paymentStatus === 'paid') {
+                <span class="font-bold text-emerald-700">Vollständig bezahlt</span>
+              } @else {
+                <span class="font-bold text-amber-700">Zahlung ausstehend (Fällig bis {{ invoice().paymentDueDate | date:'dd.MM.yyyy' }})</span>
+              }
+            </div>
+          </div>
+
+          <div class="text-right">
+            <strong class="text-slate-900 block font-bold mb-1">Bankverbindung:</strong>
+            <div>{{ invoice().seller.bankName || 'Helaba Landesbank' }}</div>
+            <div class="font-mono">IBAN: {{ invoice().seller.iban }}</div>
+            <div class="font-mono">BIC: {{ invoice().seller.bic }}</div>
+            <div class="text-[10px] text-slate-500 mt-1">Verwendungszweck: {{ invoice().invoiceNumber }} / {{ invoice().orderNumber }}</div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-[10px] text-slate-400 text-center border-t border-slate-100 pt-4">
+          {{ invoice().seller.company || invoice().seller.name }} • Inhaber: {{ invoice().seller.name }} • {{ invoice().seller.street }}, {{ invoice().seller.postalCode }} {{ invoice().seller.city }}
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

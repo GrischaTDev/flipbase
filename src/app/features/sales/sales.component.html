@@ -189,11 +189,22 @@
                 {{ sale.holding_duration_days }} Tage
               </td>
 
-              <td class="py-3 px-4 text-center">
+              <td class="py-3 px-4 text-center flex items-center justify-center gap-1.5">
+                <!-- § 25a Invoice Button -->
+                <button
+                  type="button"
+                  (click)="openInvoiceForSale(sale)"
+                  class="p-1.5 rounded-lg text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/15 transition cursor-pointer"
+                  title="§ 25a Differenzbesteuerungs-Rechnung anzeigen & E-Mail senden"
+                >
+                  <lucide-icon [img]="fileIcon" class="w-3.5 h-3.5"></lucide-icon>
+                </button>
+
                 <button
                   type="button"
                   (click)="onDeleteSale(sale)"
-                  class="p-1 rounded text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                  class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                  title="Verkauf stornieren"
                 >
                   <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
                 </button>
@@ -240,6 +251,17 @@
               <strong class="text-slate-200">{{ sale.holding_duration_days }} Tage</strong>
             </div>
           </div>
+
+          <div class="pt-2 border-t border-[#373e4d] flex justify-end gap-2">
+            <button
+              type="button"
+              (click)="openInvoiceForSale(sale)"
+              class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-indigo-300"
+            >
+              <lucide-icon [img]="fileIcon" class="w-3 h-3"></lucide-icon>
+              <span>§ 25a Rechnung</span>
+            </button>
+          </div>
         </div>
       }
     </div>
@@ -264,11 +286,19 @@
     </div>
   }
 
-  <!-- Modal -->
+  <!-- Modal Create -->
   @if (isCreateModalOpen()) {
     <app-sale-create-modal
       (close)="closeCreateModal()"
       (created)="closeCreateModal()"
     ></app-sale-create-modal>
+  }
+
+  <!-- § 25a Invoice Modal -->
+  @if (activeInvoice(); as inv) {
+    <app-invoice-modal
+      [invoice]="inv"
+      (close)="closeInvoice()"
+    ></app-invoice-modal>
   }
 </div>
