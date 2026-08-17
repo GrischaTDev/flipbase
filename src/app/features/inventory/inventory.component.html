@@ -15,14 +15,26 @@
       </p>
     </div>
 
-    <button
-      type="button"
-      (click)="openCreateModal()"
-      class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs cursor-pointer select-none"
-    >
-      <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5 stroke-[2.5]"></lucide-icon>
-      <span>{{ 'INVENTORY.NEW_ITEM' | translate }}</span>
-    </button>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="isAiScannerOpen.set(true)"
+        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs cursor-pointer select-none text-indigo-300 hover:text-white border-indigo-500/30 bg-indigo-500/10 shadow-sm"
+        title="Visual Sourcing AI (Produkterkennung per Foto)"
+      >
+        <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+        <span>📸 KI-Foto-Scan</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="isCreateModalOpen.set(true)"
+        class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl font-bold text-xs cursor-pointer select-none shadow-md shadow-indigo-500/20"
+      >
+        <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5 stroke-[2.5]"></lucide-icon>
+        <span>{{ 'INVENTORY.NEW_ITEM' | translate }}</span>
+      </button>
+    </div>
   </div>
 
   <!-- Anthrazit KPI Cards Grid -->
@@ -368,8 +380,17 @@
   <!-- Create Modal -->
   @if (isCreateModalOpen()) {
     <app-item-create-modal
-      (close)="closeCreateModal()"
-      (created)="closeCreateModal()"
+      #createModal
+      (close)="isCreateModalOpen.set(false)"
+      (created)="isCreateModalOpen.set(false)"
     ></app-item-create-modal>
+  }
+
+  <!-- AI Photo Scanner Modal -->
+  @if (isAiScannerOpen()) {
+    <app-ai-photo-scanner-modal
+      (close)="isAiScannerOpen.set(false)"
+      (productDetected)="onAiProductDetected($event)"
+    ></app-ai-photo-scanner-modal>
   }
 </div>

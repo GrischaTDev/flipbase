@@ -1,0 +1,226 @@
+<div
+  class="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in select-none"
+  (click)="close.emit()"
+>
+  <div
+    class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl p-6 space-y-5"
+    (click)="$event.stopPropagation()"
+  >
+    <!-- Modal Header -->
+    <div class="flex items-start justify-between border-b border-rf-border pb-3">
+      <div>
+        <div class="flex items-center gap-2">
+          <lucide-icon [img]="sparklesIcon" class="w-5 h-5 text-indigo-400"></lucide-icon>
+          <h2 class="text-base font-bold text-rf-text-primary">
+            Visual Sourcing AI (KI-Foto-Erkennung)
+          </h2>
+        </div>
+        <p class="text-xs text-rf-text-muted mt-0.5">
+          Mache ein Foto oder lade ein Produktbild hoch – die KI erkennt Marke, Modell & Marktwert.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        (click)="close.emit()"
+        class="p-1 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
+      >
+        <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+      </button>
+    </div>
+
+    <!-- Mode Selector Tabs (Upload vs Camera) -->
+    @if (!previewImage()) {
+      <div class="flex items-center gap-2 border-b border-rf-border pb-1 text-xs">
+        <button
+          type="button"
+          (click)="activeTab.set('upload'); stopCamera()"
+          class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+          [class.bg-indigo-600]="activeTab() === 'upload'"
+          [class.text-white]="activeTab() === 'upload'"
+          [class.border-indigo-500]="activeTab() === 'upload'"
+          [class.bg-rf-subtle]="activeTab() !== 'upload'"
+          [class.text-rf-text-secondary]="activeTab() !== 'upload'"
+          [class.border-rf-border]="activeTab() !== 'upload'"
+        >
+          <span class="flex items-center gap-1.5">
+            <lucide-icon [img]="uploadIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <span>Foto hochladen</span>
+          </span>
+        </button>
+
+        <button
+          type="button"
+          (click)="startCamera()"
+          class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+          [class.bg-indigo-600]="activeTab() === 'camera'"
+          [class.text-white]="activeTab() === 'camera'"
+          [class.border-indigo-500]="activeTab() === 'camera'"
+          [class.bg-rf-subtle]="activeTab() !== 'camera'"
+          [class.text-rf-text-secondary]="activeTab() !== 'camera'"
+          [class.border-rf-border]="activeTab() !== 'camera'"
+        >
+          <span class="flex items-center gap-1.5">
+            <lucide-icon [img]="cameraIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <span>Live-Kamera</span>
+          </span>
+        </button>
+      </div>
+    }
+
+    <!-- Tab 1: Upload Zone -->
+    @if (!previewImage() && activeTab() === 'upload') {
+      <div
+        class="border-2 border-dashed border-rf-border hover:border-indigo-500/50 rounded-2xl p-10 text-center transition cursor-pointer bg-rf-subtle/50 relative"
+      >
+        <input
+          type="file"
+          accept="image/*"
+          (change)="onFileSelected($event)"
+          class="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+        />
+        <div class="space-y-3 pointer-events-none">
+          <div class="w-12 h-12 rounded-2xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 mx-auto flex items-center justify-center">
+            <lucide-icon [img]="uploadIcon" class="w-6 h-6"></lucide-icon>
+          </div>
+          <div>
+            <strong class="text-xs text-rf-text-primary block">Produktfoto auswählen oder hierher ziehen</strong>
+            <span class="text-[11px] text-rf-text-muted">Unterstützt JPG, PNG, WEBP (Smartphone-Fotos)</span>
+          </div>
+        </div>
+      </div>
+    }
+
+    <!-- Tab 2: Camera View -->
+    @if (!previewImage() && activeTab() === 'camera') {
+      <div class="space-y-3">
+        <div class="relative w-full aspect-4/3 rounded-2xl overflow-hidden bg-black border border-rf-border flex items-center justify-center">
+          <video #videoElement playsinline class="w-full h-full object-cover"></video>
+          <canvas #canvasElement class="hidden"></canvas>
+
+          @if (cameraError()) {
+            <div class="absolute inset-0 bg-black/90 p-4 text-center flex flex-col items-center justify-center text-xs text-rose-400 space-y-2">
+              <p>{{ cameraError() }}</p>
+              <button
+                type="button"
+                (click)="activeTab.set('upload')"
+                class="linear-btn-secondary px-3 py-1 rounded-lg text-xs"
+              >
+                Zum Datei-Upload wechseln
+              </button>
+            </div>
+          }
+        </div>
+
+        @if (isCameraActive()) {
+          <div class="flex justify-center pt-1">
+            <button
+              type="button"
+              (click)="capturePhoto()"
+              class="linear-btn-primary px-6 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
+            >
+              <lucide-icon [img]="cameraIcon" class="w-4 h-4"></lucide-icon>
+              <span>Foto aufnehmen & analysieren</span>
+            </button>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- Image Preview & AI Scanner Radar -->
+    @if (previewImage()) {
+      <div class="space-y-4 animate-fade-in">
+        <div class="relative w-full h-48 rounded-2xl overflow-hidden bg-black border border-rf-border flex items-center justify-center">
+          <img [src]="previewImage()" alt="Scan Preview" class="w-full h-full object-contain" />
+
+          @if (isAnalyzing()) {
+            <div class="absolute inset-0 bg-indigo-950/40 backdrop-blur-xs flex flex-col items-center justify-center space-y-2 text-white">
+              <div class="scan-laser"></div>
+              <div class="p-3 rounded-2xl bg-indigo-600/30 border border-indigo-500/50 animate-pulse">
+                <lucide-icon [img]="sparklesIcon" class="w-6 h-6 text-indigo-300"></lucide-icon>
+              </div>
+              <span class="text-xs font-mono font-bold tracking-wider uppercase text-indigo-200">
+                KI analysiert Objektmerkmale...
+              </span>
+            </div>
+          }
+        </div>
+
+        <!-- AI Detected Result Card -->
+        @if (scanResult(); as res) {
+          <div class="p-4 rounded-2xl bg-rf-subtle border border-indigo-500/40 space-y-3 animate-fade-in shadow-xl">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5">
+                <lucide-icon [img]="zapIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+                <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-300">
+                  Erkanntes Produkt ({{ (res.confidenceScore * 100).toFixed(0) }}% Konfidenz)
+                </span>
+              </div>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                Marktwert: ~{{ res.estimatedMarketValue | currency:'EUR':'symbol':'1.2-2':'de' }}
+              </span>
+            </div>
+
+            <div class="space-y-1">
+              <h3 class="text-sm font-bold text-rf-text-primary">{{ res.title }}</h3>
+              <div class="flex flex-wrap items-center gap-2 text-xs text-rf-text-muted">
+                @if (res.brand) {
+                  <span class="px-2 py-0.5 rounded bg-rf-surface border border-rf-border text-rf-text-secondary font-medium">
+                    Marke: <strong>{{ res.brand }}</strong>
+                  </span>
+                }
+                @if (res.model) {
+                  <span class="px-2 py-0.5 rounded bg-rf-surface border border-rf-border text-rf-text-secondary font-medium">
+                    Modell: <strong>{{ res.model }}</strong>
+                  </span>
+                }
+                <span class="px-2 py-0.5 rounded bg-rf-surface border border-rf-border text-rf-text-secondary font-medium">
+                  Kategorie: <strong>{{ res.category }}</strong>
+                </span>
+              </div>
+            </div>
+
+            @if (res.conditionNotes) {
+              <p class="text-[11px] text-rf-text-muted bg-rf-surface p-2.5 rounded-xl border border-rf-border">
+                {{ res.conditionNotes }}
+              </p>
+            }
+
+            @if (res.detectedLabels.length > 0) {
+              <div class="flex flex-wrap gap-1.5 pt-1">
+                @for (lbl of res.detectedLabels; track lbl) {
+                  <span class="px-2 py-0.5 rounded text-[9px] font-mono bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                    #{{ lbl }}
+                  </span>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Bottom Actions -->
+        <div class="flex items-center justify-between pt-2 border-t border-rf-border">
+          <button
+            type="button"
+            (click)="resetScan()"
+            class="linear-btn-secondary px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+          >
+            <lucide-icon [img]="refreshIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <span>Anderes Foto</span>
+          </button>
+
+          @if (scanResult()) {
+            <button
+              type="button"
+              (click)="applyResult()"
+              class="linear-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
+            >
+              <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+              <span>Attribute übernehmen</span>
+            </button>
+          }
+        </div>
+      </div>
+    }
+  </div>
+</div>

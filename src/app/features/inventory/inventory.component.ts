@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, ViewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -15,9 +15,13 @@ import {
   Coins,
   ShieldCheck,
   CheckCircle2,
+  Camera,
+  Sparkles,
 } from 'lucide-angular';
 import { InventoryService } from '../../core/services/inventory.service';
 import { ItemCreateModalComponent } from './components/item-create-modal/item-create-modal.component';
+import { AiPhotoScannerModalComponent } from '../../shared/components/ai-photo-scanner-modal/ai-photo-scanner-modal.component';
+import { AiVisualScanResult } from '../../core/services/ai-assistant.service';
 import { ItemCondition, ItemStatus } from '../../core/models/reflip.models';
 
 @Component({
@@ -28,6 +32,7 @@ import { ItemCondition, ItemStatus } from '../../core/models/reflip.models';
     TranslatePipe,
     LucideAngularModule,
     ItemCreateModalComponent,
+    AiPhotoScannerModalComponent,
   ],
   templateUrl: './inventory.component.html',
   styleUrl: './inventory.component.scss',
@@ -35,6 +40,8 @@ import { ItemCondition, ItemStatus } from '../../core/models/reflip.models';
 })
 export class InventoryComponent {
   readonly inventoryService = inject(InventoryService);
+
+  @ViewChild('createModal') createModal?: ItemCreateModalComponent;
 
   readonly boxesIcon = Boxes;
   readonly plusIcon = Plus;
@@ -47,8 +54,11 @@ export class InventoryComponent {
   readonly coinsIcon = Coins;
   readonly shieldIcon = ShieldCheck;
   readonly checkIcon = CheckCircle2;
+  readonly cameraIcon = Camera;
+  readonly sparklesIcon = Sparkles;
 
   readonly isCreateModalOpen = signal<boolean>(false);
+  readonly isAiScannerOpen = signal<boolean>(false);
   readonly searchQuery = signal<string>('');
   readonly activePreset = signal<string>('all');
   readonly selectedCondition = signal<string>('all');
@@ -58,57 +68,45 @@ export class InventoryComponent {
   readonly filteredItems = computed(() => {
     let list = this.inventoryService.items();
     const query = this.searchQuery().toLowerCase().trim();
-    const preset = this.activePreset();
-    const condition = this.selectedCondition();
-    const status = this.selectedStatus();
 
-    // 1. Text Search Filter
     if (query) {
       list = list.filter(
-        (i) =>
-          i.title.toLowerCase().includes(query) ||
-          (i.brand && i.brand.toLowerCase().includes(query)) ||
-          (i.model && i.model.toLowerCase().includes(query)) ||
-          (i.category && i.category.toLowerCase().includes(query))
+        (item) =>
+          item.title.toLowerCase().includes(query) ||
+          (item.sku && item.sku.toLowerCase().includes(query)) ||
+          (item.ean && item.ean.toLowerCase().includes(query)) ||
+          (item.brand && item.brand.toLowerCase().includes(query)) ||
+          (item.model && item.model.toLowerCase().includes(query))
       );
     }
 
-    // 2. Condition Filter
-    if (condition !== 'all') {
-      list = list.filter((i) => i.condition === condition);
+    const cond = this.selectedCondition();
+    if (cond !== 'all') {
+      list = list.filter((item) => item.condition === cond);
     }
 
-    // 3. Status Filter
-    if (status !== 'all') {
-      list = list.filter((i) => i.status === status);
-    }
-
-    // 4. Saved View Presets (Kapitel 23)
-    if (preset === 'needs_research') {
-      list = list.filter((i) => i.status === 'received' || i.status === 'needs_review');
-    } else if (preset === 'unlisted') {
-      list = list.filter((i) => i.status === 'researched' || i.status === 'ready');
-    } else if (preset === 'high_margin') {
-      list = list.filter((i) => (i.profit_potential ?? 0) >= 30);
-    } else if (preset === 'defective') {
-      list = list.filter((i) => i.status === 'defective' || i.condition === 'defective');
+    const stat = this.selectedStatus();
+    if (stat !== 'all') {
+      list = list.filter((item) => item.status === stat);
     }
 
     return list;
   });
 
-  // KPI Summary for Current Filtered Inventory
-  readonly totalTiedCapital = computed(() => {
-    return this.filteredItems().reduce((sum, i) => sum + (i.total_item_cost ?? i.allocated_purchase_cost), 0);
-  });
+  readonly totalTiedCapital = computed(() =>
+    this.filteredItems().reduce((sum, item) => sum + (item.allocated_purchase_cost || 0), 0)
+  );
 
-  readonly totalExpectedValue = computed(() => {
-    return this.filteredItems().reduce((sum, i) => sum + (Number(i.expected_value) || 0), 0);
-  });
+  readonly totalExpectedValue = computed(() =>
+    this.filteredItems().reduce((sum, item) => sum + (Number(item.expected_value) || 0), 0)
+  );
 
-  readonly totalProfitPotential = computed(() => {
-    return Math.max(0, this.totalExpectedValue() - this.totalTiedCapital());
-  });
+  readonly totalProfitPotential = computed(() =>
+    this.filteredItems().reduce(
+      (sum, item) => sum + Math.max(0, (Number(item.expected_value) || 0) - (item.allocated_purchase_cost || 0)),
+      0
+    )
+  );
 
   openCreateModal(): void {
     this.isCreateModalOpen.set(true);
@@ -116,5 +114,26 @@ export class InventoryComponent {
 
   closeCreateModal(): void {
     this.isCreateModalOpen.set(false);
+  }
+
+  onAiProductDetected(res: AiVisualScanResult): void {
+    this.isAiScannerOpen.set(false);
+    this.isCreateModalOpen.set(true);
+
+    // Give modal a tick to render and prefill
+    setTimeout(() => {
+      if (this.createModal) {
+        this.createModal.prefillWithAiResult(res);
+      }
+    }, 50);
+  }
+
+  setPreset(preset: string): void {
+    this.activePreset.set(preset);
+    if (preset === 'all') {
+      this.selectedStatus.set('all');
+    } else {
+      this.selectedStatus.set(preset);
+    }
   }
 }

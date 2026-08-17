@@ -29,6 +29,16 @@ describe('AI Identification & Assistant Engine (Phase 8 & 9)', () => {
     expect(result.detectedDefects.some((d) => d.includes('Akku'))).toBe(true);
   });
 
+  it('should analyze image and extract visual sourcing attributes', async () => {
+    const visualResult = await aiService.analyzeImage('data:image/jpeg;base64,sample', 'ps5_console_photo.jpg');
+
+    expect(visualResult.brand).toBe('Sony');
+    expect(visualResult.category).toBe('Gaming & Konsolen');
+    expect(visualResult.estimatedMarketValue).toBeGreaterThan(200);
+    expect(visualResult.confidenceScore).toBeGreaterThan(0.8);
+    expect(visualResult.detectedLabels).toContain('PlayStation');
+  });
+
   it('should enhance listing copy for Kleinanzeigen with polite tone and defect warning (Chapter 15)', async () => {
     const title = 'Nintendo Switch OLED';
     const rawNotes = 'Kratzer auf der Rückseite, Display einwandfrei';

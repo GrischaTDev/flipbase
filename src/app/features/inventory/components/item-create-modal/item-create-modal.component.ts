@@ -1,17 +1,24 @@
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LucideAngularModule, X, Plus, Boxes, Sparkles, Camera } from 'lucide-angular';
+import { LucideAngularModule, X, Plus, Boxes, Sparkles, Camera, Barcode } from 'lucide-angular';
 import { InventoryService, CreateItemPayload } from '../../../../core/services/inventory.service';
 import { PurchaseService } from '../../../../core/services/purchase.service';
-import { AiAssistantService } from '../../../../core/services/ai-assistant.service';
+import { AiAssistantService, AiVisualScanResult } from '../../../../core/services/ai-assistant.service';
 import { BarcodeLookupService } from '../../../../core/services/barcode-lookup.service';
 import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
+import { AiPhotoScannerModalComponent } from '../../../../shared/components/ai-photo-scanner-modal/ai-photo-scanner-modal.component';
 import { DatePipe } from '@angular/common';
 import { ItemCondition, ItemStatus } from '../../../../core/models/reflip.models';
 
 @Component({
   selector: 'app-item-create-modal',
-  imports: [ReactiveFormsModule, DatePipe, LucideAngularModule, BarcodeScannerComponent],
+  imports: [
+    ReactiveFormsModule,
+    DatePipe,
+    LucideAngularModule,
+    BarcodeScannerComponent,
+    AiPhotoScannerModalComponent,
+  ],
   templateUrl: './item-create-modal.component.html',
   styleUrl: './item-create-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -30,11 +37,29 @@ export class ItemCreateModalComponent {
   readonly boxesIcon = Boxes;
   readonly sparklesIcon = Sparkles;
   readonly cameraIcon = Camera;
+  readonly barcodeIcon = Barcode;
 
   readonly isSubmitting = signal<boolean>(false);
   readonly isAiLoading = signal<boolean>(false);
   readonly isScanningBarcode = signal<boolean>(false);
+  readonly isScanningPhoto = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
+
+  readonly form = new FormGroup({
+    purchase_id: new FormControl<string | null>(null),
+    title: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
+    category: new FormControl(''),
+    brand: new FormControl(''),
+    model: new FormControl(''),
+    condition: new FormControl<ItemCondition>('very_good', { nonNullable: true, validators: [Validators.required] }),
+    status: new FormControl<ItemStatus>('received', { nonNullable: true }),
+    sku: new FormControl(''),
+    ean: new FormControl(''),
+    description: new FormControl(''),
+    condition_notes: new FormControl(''),
+    allocated_purchase_cost: new FormControl<number>(0, { nonNullable: true, validators: [Validators.min(0)] }),
+    expected_value: new FormControl<number | null>(null, { validators: [Validators.min(0)] }),
+  });
 
   async onAiAutofill(): Promise<void> {
     const rawTitle = this.form.get('title')?.value;
@@ -54,39 +79,45 @@ export class ItemCreateModalComponent {
     });
   }
 
+  onPhotoScanned(res: AiVisualScanResult): void {
+    this.isScanningPhoto.set(false);
+    this.form.patchValue({
+      title: res.title,
+      brand: res.brand || this.form.get('brand')?.value,
+      model: res.model || this.form.get('model')?.value,
+      category: res.category || this.form.get('category')?.value,
+      condition: res.condition || this.form.get('condition')?.value,
+      expected_value: res.estimatedMarketValue || this.form.get('expected_value')?.value,
+      condition_notes: res.conditionNotes || this.form.get('condition_notes')?.value,
+    });
+  }
+
   async onBarcodeScanned(ean: string): Promise<void> {
     this.isScanningBarcode.set(false);
     this.form.patchValue({ ean });
 
-    this.isAiLoading.set(true);
     const info = await this.barcodeLookup.lookupByEan(ean);
-    this.isAiLoading.set(false);
-
     if (info) {
       this.form.patchValue({
         title: info.title || this.form.get('title')?.value,
         brand: info.brand || this.form.get('brand')?.value,
-        model: info.model || this.form.get('model')?.value,
         category: info.category || this.form.get('category')?.value,
         expected_value: info.estimatedPrice || this.form.get('expected_value')?.value,
       });
     }
   }
 
-  readonly form = new FormGroup({
-    title: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
-    category: new FormControl(''),
-    brand: new FormControl(''),
-    model: new FormControl(''),
-    condition: new FormControl<ItemCondition>('used', { nonNullable: true }),
-    status: new FormControl<ItemStatus>('received', { nonNullable: true }),
-    allocated_purchase_cost: new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
-    expected_value: new FormControl<number | null>(null),
-    purchase_id: new FormControl<string | null>(null),
-    sku: new FormControl(''),
-    ean: new FormControl(''),
-    description: new FormControl(''),
-  });
+  prefillWithAiResult(res: AiVisualScanResult): void {
+    this.form.patchValue({
+      title: res.title,
+      brand: res.brand || '',
+      model: res.model || '',
+      category: res.category || '',
+      condition: res.condition || 'very_good',
+      expected_value: res.estimatedMarketValue || null,
+      condition_notes: res.conditionNotes || '',
+    });
+  }
 
   async onSubmit(): Promise<void> {
     if (this.form.invalid) return;
@@ -94,20 +125,20 @@ export class ItemCreateModalComponent {
     this.isSubmitting.set(true);
     this.errorMessage.set(null);
 
-    const f = this.form.getRawValue();
+    const val = this.form.getRawValue();
     const payload: CreateItemPayload = {
-      title: f.title,
-      category: f.category || null,
-      brand: f.brand || null,
-      model: f.model || null,
-      condition: f.condition,
-      status: f.status,
-      allocated_purchase_cost: f.allocated_purchase_cost,
-      expected_value: f.expected_value || null,
-      purchase_id: f.purchase_id || null,
-      sku: f.sku || null,
-      ean: f.ean || null,
-      description: f.description || null,
+      purchase_id: val.purchase_id || undefined,
+      title: val.title.trim(),
+      category: val.category?.trim() || undefined,
+      brand: val.brand?.trim() || undefined,
+      model: val.model?.trim() || undefined,
+      condition: val.condition,
+      status: val.status,
+      sku: val.sku?.trim() || undefined,
+      ean: val.ean?.trim() || undefined,
+      description: val.description?.trim() || undefined,
+      allocated_purchase_cost: val.allocated_purchase_cost,
+      expected_value: val.expected_value || undefined,
     };
 
     const { error } = await this.inventoryService.createItem(payload);
