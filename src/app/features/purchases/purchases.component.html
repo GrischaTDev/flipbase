@@ -11,21 +11,57 @@
         </span>
       </div>
       <p class="text-xs text-slate-400 mt-0.5">
-        Einzelartikel, Mystery Packs und Paletten mit automatischer Kostenallokation.
+        Einzelartikel, Mystery Packs, Paletten & Flohmarkt-Schnellerfassung.
       </p>
     </div>
 
-    <button
-      type="button"
-      (click)="openCreateModal()"
-      class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs cursor-pointer select-none"
-    >
-      <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5 stroke-[2.5]"></lucide-icon>
-      <span>{{ 'PURCHASES.NEW_PURCHASE' | translate }}</span>
-    </button>
+    <div class="flex items-center gap-2">
+      <!-- Flohmarkt-Schnellerfassung Button -->
+      <button
+        type="button"
+        (click)="openFleaMarketModal()"
+        class="linear-btn-secondary px-3.5 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 cursor-pointer text-amber-300 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 shadow-sm"
+        title="Offlinefähige Schnellerfassung für Flohmärkte & Haushaltsauflösungen"
+      >
+        <lucide-icon [img]="zapIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
+        <span>⚡ Flohmarkt-Schnellerfassung</span>
+      </button>
+
+      <!-- Standard Einkauf erfassen -->
+      <button
+        type="button"
+        (click)="openCreateModal()"
+        class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs cursor-pointer select-none shadow-lg shadow-indigo-500/20"
+      >
+        <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5 stroke-[2.5]"></lucide-icon>
+        <span>{{ 'PURCHASES.NEW_PURCHASE' | translate }}</span>
+      </button>
+    </div>
   </div>
 
-  <!-- Type Filter Tabs (Kapitel 8) -->
+  <!-- Offline / Sync Warning Banner -->
+  @if (offlineSyncService.pendingCount() > 0) {
+    <div class="p-3.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-xs font-semibold flex items-center justify-between animate-fade-in">
+      <div class="flex items-center gap-2">
+        <lucide-icon [img]="offlineSyncService.isOnline() ? zapIcon : wifiOffIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
+        <span>
+          {{ offlineSyncService.pendingCount() }} Flohmarkt-Einkäufe in lokaler Offline-Warteschlange gespeichert.
+        </span>
+      </div>
+
+      <button
+        type="button"
+        (click)="onSyncNow()"
+        [disabled]="offlineSyncService.isSyncing()"
+        class="linear-btn-primary px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer shadow-md disabled:opacity-50"
+      >
+        <lucide-icon [img]="refreshIcon" class="w-3 h-3" [class.animate-spin]="offlineSyncService.isSyncing()"></lucide-icon>
+        <span>{{ offlineSyncService.isSyncing() ? 'Synchronisiere...' : 'Jetzt mit Cloud synchronisieren' }}</span>
+      </button>
+    </div>
+  }
+
+  <!-- Type Filter Tabs -->
   <div class="linear-surface rounded-xl p-1.5 flex items-center gap-1 overflow-x-auto text-xs">
     <button
       type="button"
@@ -69,7 +105,22 @@
       [class.hover:bg-[#2c323f]]="activeTab() !== 'mystery_pack'"
       [class.hover:text-white]="activeTab() !== 'mystery_pack'"
     >
-      Mystery Packs
+      Mystery Boxen
+    </button>
+
+    <button
+      type="button"
+      (click)="activeTab.set('lot')"
+      class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
+      [class.bg-[#373e4d]]="activeTab() === 'lot'"
+      [class.text-white]="activeTab() === 'lot'"
+      [class.border]="activeTab() === 'lot'"
+      [class.border-[#4a5468]]="activeTab() === 'lot'"
+      [class.text-slate-300]="activeTab() !== 'lot'"
+      [class.hover:bg-[#2c323f]]="activeTab() !== 'lot'"
+      [class.hover:text-white]="activeTab() !== 'lot'"
+    >
+      Konvolute
     </button>
 
     <button
@@ -84,7 +135,7 @@
       [class.hover:bg-[#2c323f]]="activeTab() !== 'pallet'"
       [class.hover:text-white]="activeTab() !== 'pallet'"
     >
-      Paletten / Lots
+      Paletten
     </button>
   </div>
 
@@ -94,38 +145,26 @@
       @for (p of filteredPurchases(); track p.id) {
         <a
           [routerLink]="['/purchases', p.id]"
-          class="linear-card-interactive p-4 rounded-xl flex flex-col justify-between group cursor-pointer"
+          class="linear-card-interactive p-4 rounded-xl block space-y-3 font-mono text-xs group"
         >
-          <div class="space-y-2.5">
-            <div class="flex items-center justify-between">
-              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-[#1e222a] text-slate-300 border border-[#373e4d]">
-                @switch (p.type) {
-                  @case ('single') { Einzelkauf }
-                  @case ('mystery_pack') { Mystery Pack }
-                  @case ('lot') { Lot }
-                  @default { Palette }
-                }
+          <div class="flex items-start justify-between gap-2">
+            <div class="space-y-1">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[#1e222a] text-slate-300 border border-[#373e4d] font-sans">
+                {{ p.type }}
               </span>
-              <span class="text-[11px] font-mono text-slate-400">{{ p.purchase_date | date:'dd.MM.yyyy' }}</span>
+              <h3 class="text-sm font-semibold text-slate-100 group-hover:text-indigo-400 transition font-sans line-clamp-1">
+                {{ p.title || p.source?.name || 'Einkauf' }}
+              </h3>
             </div>
 
-            <div>
-              <h3 class="text-xs font-semibold text-slate-100 group-hover:text-emerald-400 transition line-clamp-1">
-                {{ p.title }}
-              </h3>
-              <div class="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5">
-                <span>{{ p.source?.name || 'Keine Quelle' }}</span>
-                @if (p.supplier) {
-                  <span>•</span>
-                  <span>{{ p.supplier.name }}</span>
-                }
-              </div>
-            </div>
+            <span class="text-[11px] text-slate-400">
+              {{ p.purchase_date | date:'dd.MM.yyyy' }}
+            </span>
           </div>
 
-          <div class="mt-4 pt-3 border-t border-[#373e4d] flex items-center justify-between font-mono">
+          <div class="flex items-center justify-between pt-2 border-t border-[#373e4d]">
             <div>
-              <span class="text-[10px] font-sans text-slate-400 block">Gesamtinvestition</span>
+              <span class="text-[10px] text-slate-400 font-sans block">Gesamtkosten</span>
               <span class="text-sm font-bold text-slate-100">
                 {{ p.total_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
               </span>
@@ -147,7 +186,7 @@
       </div>
       <h3 class="text-sm font-bold text-slate-200">Noch keine Einkäufe in dieser Kategorie</h3>
       <p class="text-xs text-slate-400 max-w-sm mx-auto mt-1 mb-4">
-        Erfasse deinen ersten Einkauf aus Kleinanzeigen, eBay oder Retourenpaletten.
+        Erfasse deinen ersten Einkauf aus Kleinanzeigen, eBay oder Flohmärkten.
       </p>
       <button
         type="button"
@@ -160,11 +199,242 @@
     </div>
   }
 
-  <!-- Create Modal -->
+  <!-- Standard Create Modal -->
   @if (isCreateModalOpen()) {
     <app-purchase-create-modal
       (close)="closeCreateModal()"
       (created)="closeCreateModal()"
     ></app-purchase-create-modal>
+  }
+
+  <!-- ⚡ Flohmarkt-Schnellerfassungs & Bargeld-Modal -->
+  @if (isFleaMarketModalOpen()) {
+    @let wallet = offlineSyncService.cashWallet();
+    <div class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto">
+      <div class="linear-surface rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl border border-rf-border overflow-hidden">
+        <!-- Header -->
+        <div class="p-4 sm:p-5 border-b border-rf-border flex items-center justify-between bg-rf-subtle shrink-0">
+          <div class="flex items-center gap-2.5">
+            <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 flex items-center justify-center">
+              <lucide-icon [img]="zapIcon" class="w-5 h-5 text-amber-400"></lucide-icon>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-sm font-bold text-rf-text-primary">
+                  ⚡ Flohmarkt-Schnellerfassung
+                </h3>
+                <span class="px-2 py-0.2 rounded text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  Offline-Bereit
+                </span>
+              </div>
+              <p class="text-[11px] text-rf-text-muted mt-0.5">
+                {{ wallet.locationName }} • Schnelle Bar-Eingabe mit 1 Klick
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            (click)="closeFleaMarketModal()"
+            class="p-2 rounded-xl text-rf-text-muted hover:text-rf-text-primary transition cursor-pointer"
+          >
+            <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+          </button>
+        </div>
+
+        <!-- Body -->
+        <div class="p-4 sm:p-6 space-y-4 overflow-y-auto text-xs">
+          <!-- Live Cash Cockpit (4 KPIs) -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono">
+            <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-0.5">
+              <span class="text-[10px] font-bold text-rf-text-muted uppercase font-sans block">Start-Bargeld</span>
+              <span class="text-base font-black text-rf-text-primary block">
+                {{ wallet.startCash | currency:'EUR':'symbol':'1.2-2':'de' }}
+              </span>
+              <span class="text-[9px] text-rf-text-muted font-sans block">Eingesteckt</span>
+            </div>
+
+            <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-0.5">
+              <span class="text-[10px] font-bold text-rf-text-muted uppercase font-sans block">Rest im Geldbeutel</span>
+              <span class="text-base font-black text-emerald-400 block">
+                {{ wallet.currentCash | currency:'EUR':'symbol':'1.2-2':'de' }}
+              </span>
+              <span class="text-[9px] text-rf-text-muted font-sans block">Noch verfügbar</span>
+            </div>
+
+            <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-0.5">
+              <span class="text-[10px] font-bold text-rf-text-muted uppercase font-sans block">Ausgegeben</span>
+              <span class="text-base font-black text-indigo-300 block">
+                {{ wallet.totalSpent | currency:'EUR':'symbol':'1.2-2':'de' }}
+              </span>
+              <span class="text-[9px] text-rf-text-muted font-sans block">{{ wallet.itemsCount }} Käufe heute</span>
+            </div>
+
+            <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-0.5">
+              <span class="text-[10px] font-bold text-rf-text-muted uppercase font-sans block">Geschätzter Erlös</span>
+              <span class="text-base font-black text-amber-400 block">
+                {{ wallet.estimatedTotalResale | currency:'EUR':'symbol':'1.2-2':'de' }}
+              </span>
+              <span class="text-[9px] text-emerald-400 font-sans block">+{{ offlineSyncService.potentialProfitEstimate() | currency:'EUR':'symbol':'1.2-2':'de' }} Marge</span>
+            </div>
+          </div>
+
+          <!-- Quick Feedback Banner -->
+          @if (rapidSuccessBanner(); as sMsg) {
+            <div class="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-bold flex items-center gap-2 animate-fade-in">
+              <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+              <span>{{ sMsg }}</span>
+            </div>
+          }
+
+          <!-- Rapid Input Form -->
+          <form [formGroup]="rapidForm" (ngSubmit)="onSubmitRapidPurchase()" class="p-4 rounded-xl bg-rf-subtle border border-rf-border space-y-3">
+            <div class="flex items-center justify-between pb-1 border-b border-rf-border">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-rf-text-primary">
+                Artikel jetzt erfassen
+              </span>
+              <span class="text-[10px] text-amber-300 font-mono">⚡ 1-Sekunden-Save</span>
+            </div>
+
+            <!-- Title -->
+            <div>
+              <label class="block text-[10px] font-semibold text-rf-text-muted mb-1">Artikelbezeichnung</label>
+              <input
+                type="text"
+                formControlName="title"
+                placeholder="z. B. Pokémon Gold Edition Game Boy OVP..."
+                class="linear-input w-full px-3 py-2 rounded-xl text-xs font-semibold"
+                autofocus
+              />
+            </div>
+
+            <!-- Prices & Quick Add Buttons -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-[10px] font-semibold text-rf-text-muted mb-1">Bar-Einkaufspreis (€)</label>
+                <div class="relative">
+                  <input
+                    type="number"
+                    step="1"
+                    formControlName="purchasePrice"
+                    (input)="onPriceChange(+$any($event.target).value)"
+                    class="linear-input w-full px-3 py-2 rounded-xl text-sm font-mono font-black text-amber-400"
+                  />
+                  <span class="absolute right-3 top-2 text-xs text-rf-text-muted font-mono">EUR</span>
+                </div>
+
+                <!-- Quick +5, +10, +20 Buttons -->
+                <div class="flex items-center gap-1.5 mt-1.5">
+                  <button
+                    type="button"
+                    (click)="onAddQuickAmount(5)"
+                    class="px-2 py-1 rounded-lg bg-rf-surface border border-rf-border hover:border-indigo-500 font-mono text-[10px] font-bold text-rf-text-secondary cursor-pointer"
+                  >
+                    +5€
+                  </button>
+                  <button
+                    type="button"
+                    (click)="onAddQuickAmount(10)"
+                    class="px-2 py-1 rounded-lg bg-rf-surface border border-rf-border hover:border-indigo-500 font-mono text-[10px] font-bold text-rf-text-secondary cursor-pointer"
+                  >
+                    +10€
+                  </button>
+                  <button
+                    type="button"
+                    (click)="onAddQuickAmount(20)"
+                    class="px-2 py-1 rounded-lg bg-rf-surface border border-rf-border hover:border-indigo-500 font-mono text-[10px] font-bold text-rf-text-secondary cursor-pointer"
+                  >
+                    +20€
+                  </button>
+                  <button
+                    type="button"
+                    (click)="onAddQuickAmount(50)"
+                    class="px-2 py-1 rounded-lg bg-rf-surface border border-rf-border hover:border-indigo-500 font-mono text-[10px] font-bold text-rf-text-secondary cursor-pointer"
+                  >
+                    +50€
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-[10px] font-semibold text-rf-text-muted mb-1">Geschätzter Verkaufspreis (€)</label>
+                <div class="relative">
+                  <input
+                    type="number"
+                    step="1"
+                    formControlName="estimatedResalePrice"
+                    class="linear-input w-full px-3 py-2 rounded-xl text-sm font-mono font-black text-emerald-400"
+                  />
+                  <span class="absolute right-3 top-2 text-xs text-rf-text-muted font-mono">EUR</span>
+                </div>
+                <span class="text-[10px] text-rf-text-muted mt-1 block">Wird für Marge & ROI kalkuliert</span>
+              </div>
+            </div>
+
+            <!-- Submit Button -->
+            <button
+              type="submit"
+              [disabled]="rapidForm.invalid"
+              class="linear-btn-primary w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/25 bg-amber-600 hover:bg-amber-500 border-amber-500 text-white disabled:opacity-40"
+            >
+              <lucide-icon [img]="zapIcon" class="w-4 h-4"></lucide-icon>
+              <span>⚡ Speichern & Nächsten Artikel erfassen</span>
+            </button>
+          </form>
+
+          <!-- Today's Captured Items List -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-rf-text-primary">
+                Heute auf dem Markt erfasst ({{ offlineSyncService.pendingEntries().length }})
+              </span>
+              <span class="text-[10px] text-rf-text-muted">Lokal gespeichert</span>
+            </div>
+
+            <div class="space-y-1.5 max-h-48 overflow-y-auto">
+              @for (entry of offlineSyncService.pendingEntries(); track entry.id) {
+                <div class="p-2.5 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between gap-3">
+                  <div class="flex items-center gap-2 flex-1">
+                    <span class="w-2 h-2 rounded-full" [class.bg-amber-400]="entry.sync_status === 'pending'" [class.bg-emerald-400]="entry.sync_status === 'synced'"></span>
+                    <span class="font-bold text-rf-text-primary line-clamp-1">{{ entry.title }}</span>
+                  </div>
+
+                  <div class="flex items-center gap-3 font-mono text-xs shrink-0">
+                    <span class="font-bold text-amber-400">{{ entry.purchase_price | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+                    <span class="text-rf-text-muted">→</span>
+                    <span class="font-bold text-emerald-400">{{ entry.estimated_resale_price | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+                    <button
+                      type="button"
+                      (click)="onDeletePending(entry.id)"
+                      class="p-1 text-rf-text-muted hover:text-rose-400 cursor-pointer"
+                    >
+                      <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+                    </button>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 border-t border-rf-border flex items-center justify-between bg-rf-subtle shrink-0">
+          <div class="flex items-center gap-2 text-xs">
+            <span class="w-2 h-2 rounded-full" [class.bg-emerald-400]="offlineSyncService.isOnline()" [class.bg-rose-500]="!offlineSyncService.isOnline()"></span>
+            <span class="text-rf-text-muted">{{ offlineSyncService.isOnline() ? 'Online (Cloud verbunden)' : 'Offline (Lokaler PWA-Speicher)' }}</span>
+          </div>
+
+          <button
+            type="button"
+            (click)="onSyncNow()"
+            [disabled]="offlineSyncService.isSyncing() || offlineSyncService.pendingCount() === 0"
+            class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
+          >
+            <lucide-icon [img]="refreshIcon" class="w-3.5 h-3.5" [class.animate-spin]="offlineSyncService.isSyncing()"></lucide-icon>
+            <span>{{ offlineSyncService.isSyncing() ? 'Synchronisiere...' : 'Cloud-Sync ausführen' }}</span>
+          </button>
+        </div>
+      </div>
+    </div>
   }
 </div>
