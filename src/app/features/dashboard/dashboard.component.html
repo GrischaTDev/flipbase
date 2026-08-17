@@ -1,14 +1,14 @@
 <div class="space-y-5 animate-fade-in select-none">
   <!-- Top Banner / Quick Actions -->
-  <div class="linear-surface rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border border-white/[0.08]">
+  <div class="linear-surface rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-200 dark:border-white/[0.08]">
     <div>
       <div class="flex items-center gap-2">
-        <h1 class="text-lg font-bold tracking-tight text-zinc-100">Willkommen im ReFlip OS</h1>
-        <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-medium tracking-wide uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        <h1 class="text-lg font-bold tracking-tight text-slate-900 dark:text-zinc-100">Willkommen im ReFlip OS</h1>
+        <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold tracking-wide uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
           Aktiv
         </span>
       </div>
-      <p class="text-xs text-zinc-400 mt-0.5">
+      <p class="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">
         Lückenlose Ertragsrechnung vom Einkauf bis zum realisierten Nettogewinn.
       </p>
     </div>
@@ -16,16 +16,16 @@
     <div class="flex flex-wrap items-center gap-2">
       <a
         routerLink="/deal-calculator"
-        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer"
+        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
       >
-        <lucide-icon [img]="calcIcon" class="w-3.5 h-3.5 text-zinc-400"></lucide-icon>
+        <lucide-icon [img]="calcIcon" class="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400"></lucide-icon>
         <span>Deal prüfen</span>
       </a>
       <a
         routerLink="/purchases"
-        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer"
+        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
       >
-        <lucide-icon [img]="bagIcon" class="w-3.5 h-3.5 text-zinc-400"></lucide-icon>
+        <lucide-icon [img]="bagIcon" class="w-3.5 h-3.5 text-slate-500 dark:text-zinc-400"></lucide-icon>
         <span>Einkauf erfassen</span>
       </a>
       <a
@@ -41,100 +41,108 @@
   <!-- Real-time KPI Cards Grid (Kapitel 27) -->
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
     <!-- Realisierter Gewinn -->
-    <div class="linear-kpi p-4 rounded-xl">
-      <div class="flex items-center justify-between text-zinc-400 text-[11px] font-medium">
+    <div class="linear-kpi p-4 rounded-xl border-emerald-500/30">
+      <div class="flex items-center justify-between text-slate-500 dark:text-zinc-400 text-[11px] font-semibold">
         <span>{{ 'DASHBOARD.REALIZED_PROFIT' | translate }}</span>
-        <lucide-icon [img]="trendingIcon" class="w-3.5 h-3.5 text-emerald-400"></lucide-icon>
+        <div class="w-6 h-6 rounded-md bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+          <lucide-icon [img]="trendingIcon" class="w-3.5 h-3.5"></lucide-icon>
+        </div>
       </div>
-      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-emerald-400">
+      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-emerald-600 dark:text-emerald-400">
         {{ metrics().realized_profit | currency:'EUR':'symbol':'1.2-2':'de' }}
       </div>
-      <p class="text-[10px] text-zinc-500 mt-0.5">Aus {{ salesService.sales().length }} abgeschlossenen Verkäufen</p>
+      <p class="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">Aus {{ salesService.sales().length }} abgeschlossenen Verkäufen</p>
     </div>
 
     <!-- Gesamtumsatz -->
     <div class="linear-kpi p-4 rounded-xl">
-      <div class="flex items-center justify-between text-zinc-400 text-[11px] font-medium">
+      <div class="flex items-center justify-between text-slate-500 dark:text-zinc-400 text-[11px] font-semibold">
         <span>{{ 'DASHBOARD.REVENUE' | translate }}</span>
-        <lucide-icon [img]="coinsIcon" class="w-3.5 h-3.5 text-blue-400"></lucide-icon>
+        <div class="w-6 h-6 rounded-md bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
+          <lucide-icon [img]="coinsIcon" class="w-3.5 h-3.5"></lucide-icon>
+        </div>
       </div>
-      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-zinc-100">
+      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-slate-900 dark:text-zinc-100">
         {{ metrics().total_revenue | currency:'EUR':'symbol':'1.2-2':'de' }}
       </div>
-      <p class="text-[10px] text-zinc-500 mt-0.5">Brutto-Verkaufserlöse</p>
+      <p class="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">Brutto-Verkaufserlöse</p>
     </div>
 
     <!-- Gebundenes Kapital -->
     <div class="linear-kpi p-4 rounded-xl">
-      <div class="flex items-center justify-between text-zinc-400 text-[11px] font-medium">
+      <div class="flex items-center justify-between text-slate-500 dark:text-zinc-400 text-[11px] font-semibold">
         <span>{{ 'DASHBOARD.TIED_CAPITAL' | translate }}</span>
-        <lucide-icon [img]="boxesIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
+        <div class="w-6 h-6 rounded-md bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
+          <lucide-icon [img]="boxesIcon" class="w-3.5 h-3.5"></lucide-icon>
+        </div>
       </div>
-      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-zinc-100">
+      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-slate-900 dark:text-zinc-100">
         {{ metrics().tied_capital | currency:'EUR':'symbol':'1.2-2':'de' }}
       </div>
-      <p class="text-[10px] text-zinc-500 mt-0.5">In {{ metrics().active_items_count }} aktiven Lagerartikeln</p>
+      <p class="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">In {{ metrics().active_items_count }} aktiven Lagerartikeln</p>
     </div>
 
     <!-- Durchschnittlicher ROI -->
     <div class="linear-kpi p-4 rounded-xl">
-      <div class="flex items-center justify-between text-zinc-400 text-[11px] font-medium">
+      <div class="flex items-center justify-between text-slate-500 dark:text-zinc-400 text-[11px] font-semibold">
         <span>{{ 'DASHBOARD.AVG_ROI' | translate }}</span>
-        <lucide-icon [img]="percentIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+        <div class="w-6 h-6 rounded-md bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+          <lucide-icon [img]="percentIcon" class="w-3.5 h-3.5"></lucide-icon>
+        </div>
       </div>
-      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-zinc-100">
+      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-slate-900 dark:text-zinc-100">
         {{ metrics().average_roi_percent }} %
       </div>
-      <p class="text-[10px] text-zinc-500 mt-0.5">Ziel-Benchmark: {{ workspaceService.currentWorkspace()?.min_roi_percent ?? 30 }}%</p>
+      <p class="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">Ziel-Benchmark: {{ workspaceService.currentWorkspace()?.min_roi_percent ?? 30 }}%</p>
     </div>
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
     <!-- Recent Sales Feed (Left: 7 cols) -->
     <div class="lg:col-span-7 linear-surface rounded-xl p-4 space-y-3">
-      <div class="flex items-center justify-between border-b border-white/[0.06] pb-3">
-        <h2 class="text-xs font-bold text-zinc-200 uppercase tracking-wider">Letzte Verkäufe</h2>
-        <a routerLink="/sales" class="text-[11px] text-emerald-400 font-medium hover:underline">Alle anzeigen →</a>
+      <div class="flex items-center justify-between border-b border-slate-100 dark:border-white/[0.06] pb-3">
+        <h2 class="text-xs font-bold text-slate-800 dark:text-zinc-200 uppercase tracking-wider">Letzte Verkäufe</h2>
+        <a routerLink="/sales" class="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold hover:underline">Alle anzeigen →</a>
       </div>
 
       @if (salesService.sales().length > 0) {
-        <div class="divide-y divide-white/[0.04]">
+        <div class="divide-y divide-slate-100 dark:divide-white/[0.04]">
           @for (s of salesService.sales().slice(0, 5); track s.id) {
-            <div class="py-2.5 flex items-center justify-between text-xs hover:bg-white/[0.02] px-1 rounded transition">
+            <div class="py-2.5 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-white/[0.02] px-1 rounded transition">
               <div>
-                <strong class="text-zinc-200 block font-semibold">{{ s.inventory_item?.title || 'Artikel' }}</strong>
-                <span class="text-zinc-500 text-[11px] font-mono">{{ s.sale_date | date:'dd.MM.yyyy' }} • {{ s.platform }}</span>
+                <strong class="text-slate-900 dark:text-zinc-200 block font-semibold">{{ s.inventory_item?.title || 'Artikel' }}</strong>
+                <span class="text-slate-400 dark:text-zinc-500 text-[11px] font-mono">{{ s.sale_date | date:'dd.MM.yyyy' }} • {{ s.platform }}</span>
               </div>
               <div class="text-right font-mono">
-                <span class="font-bold text-emerald-400 block">+{{ s.net_profit | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
-                <span class="text-[10px] text-zinc-400">ROI: {{ s.roi }}%</span>
+                <span class="font-bold text-emerald-600 dark:text-emerald-400 block">+{{ s.net_profit | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+                <span class="text-[10px] text-slate-400 dark:text-zinc-400">ROI: {{ s.roi }}%</span>
               </div>
             </div>
           }
         </div>
       } @else {
-        <p class="text-xs text-zinc-500 py-6 text-center">Noch keine Verkäufe getätigt.</p>
+        <p class="text-xs text-slate-400 dark:text-zinc-500 py-6 text-center">Noch keine Verkäufe getätigt.</p>
       }
     </div>
 
     <!-- Smart Insights (Right: 5 cols) -->
     <div class="lg:col-span-5 linear-surface rounded-xl p-4 space-y-3">
-      <div class="flex items-center gap-2 border-b border-white/[0.06] pb-3">
-        <lucide-icon [img]="lightbulbIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
-        <h2 class="text-xs font-bold text-zinc-200 uppercase tracking-wider">{{ 'DASHBOARD.INSIGHTS' | translate }}</h2>
+      <div class="flex items-center gap-2 border-b border-slate-100 dark:border-white/[0.06] pb-3">
+        <lucide-icon [img]="lightbulbIcon" class="w-4 h-4 text-amber-500"></lucide-icon>
+        <h2 class="text-xs font-bold text-slate-800 dark:text-zinc-200 uppercase tracking-wider">{{ 'DASHBOARD.INSIGHTS' | translate }}</h2>
       </div>
 
       <div class="space-y-2.5 text-xs">
-        <div class="p-3 rounded-lg bg-zinc-900 border border-white/5">
-          <strong class="text-zinc-200 block mb-0.5 text-[11px]">Gebundenes Kapital im Lager:</strong>
-          <span class="text-zinc-400 text-[11px]">
-            Aktuell sind <span class="text-zinc-200 font-mono font-medium">{{ metrics().tied_capital | currency:'EUR':'symbol':'1.2-2':'de' }}</span> in <span class="text-zinc-200 font-mono font-medium">{{ metrics().active_items_count }}</span> Artikeln gebunden.
+        <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-900 border border-slate-200/80 dark:border-white/5">
+          <strong class="text-slate-900 dark:text-zinc-200 block mb-0.5 text-[11px]">Gebundenes Kapital im Lager:</strong>
+          <span class="text-slate-600 dark:text-zinc-400 text-[11px]">
+            Aktuell sind <span class="text-slate-900 dark:text-zinc-200 font-mono font-semibold">{{ metrics().tied_capital | currency:'EUR':'symbol':'1.2-2':'de' }}</span> in <span class="text-slate-900 dark:text-zinc-200 font-mono font-semibold">{{ metrics().active_items_count }}</span> Artikeln gebunden.
           </span>
         </div>
 
-        <div class="p-3 rounded-lg bg-zinc-900 border border-white/5">
-          <strong class="text-zinc-200 block mb-0.5 text-[11px]">Deterministische Ertragsrechnung:</strong>
-          <span class="text-zinc-400 text-[11px]">
+        <div class="p-3 rounded-lg bg-slate-50 dark:bg-zinc-900 border border-slate-200/80 dark:border-white/5">
+          <strong class="text-slate-900 dark:text-zinc-200 block mb-0.5 text-[11px]">Deterministische Ertragsrechnung:</strong>
+          <span class="text-slate-600 dark:text-zinc-400 text-[11px]">
             Jeder Verkauf zieht automatisch Einkaufskosten, Reparaturen, Plattformgebühren und Versand ab.
           </span>
         </div>

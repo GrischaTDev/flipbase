@@ -1,26 +1,26 @@
 <!-- Mobile Backdrop -->
 @if (isOpen()) {
   <div
-    class="fixed inset-0 bg-black/60 backdrop-blur-xs z-40 md:hidden"
+    class="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-40 md:hidden"
     (click)="close.emit()"
   ></div>
 }
 
-<!-- Linear-Style Sidebar Container -->
+<!-- Modern Clean Sidebar Container -->
 <aside
-  class="fixed top-0 bottom-0 left-0 z-50 w-60 bg-zinc-950 border-r border-white/[0.07] text-zinc-300 flex flex-col transition-transform duration-200 ease-out md:translate-x-0 md:static md:z-auto select-none"
+  class="fixed top-0 bottom-0 left-0 z-50 w-60 bg-white dark:bg-zinc-950 border-r border-slate-200 dark:border-white/[0.07] text-slate-700 dark:text-zinc-300 flex flex-col transition-transform duration-200 ease-out md:translate-x-0 md:static md:z-auto select-none shadow-xs md:shadow-none"
   [class.translate-x-0]="isOpen()"
   [class.-translate-x-full]="!isOpen()"
 >
   <!-- Brand Logo Header -->
-  <div class="h-14 flex items-center justify-between px-4 border-b border-white/[0.06]">
+  <div class="h-14 flex items-center justify-between px-4 border-b border-slate-200 dark:border-white/[0.06]">
     <div class="flex items-center gap-2.5">
-      <div class="w-6 h-6 rounded-md bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-xs shadow-emerald-500/20">
-        <lucide-icon [img]="logoIcon" class="w-3.5 h-3.5 text-zinc-950 stroke-[2.5]"></lucide-icon>
+      <div class="w-6 h-6 rounded-md bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center shadow-xs shadow-emerald-500/20">
+        <lucide-icon [img]="logoIcon" class="w-3.5 h-3.5 text-white stroke-[2.5]"></lucide-icon>
       </div>
       <div class="flex items-center gap-1.5">
-        <span class="tracking-tight font-bold text-sm text-zinc-100">ReFlip</span>
-        <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-medium tracking-wide uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+        <span class="tracking-tight font-bold text-sm text-slate-900 dark:text-zinc-100">ReFlip</span>
+        <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold tracking-wide uppercase bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">
           OS
         </span>
       </div>
@@ -29,7 +29,7 @@
     <button
       type="button"
       (click)="close.emit()"
-      class="md:hidden p-1 rounded-md text-zinc-400 hover:text-zinc-100 hover:bg-white/5"
+      class="md:hidden p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-100 dark:hover:text-zinc-100 dark:hover:bg-white/5"
     >
       <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
     </button>
@@ -37,62 +37,62 @@
 
   <!-- Navigation Links -->
   <nav class="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5">
-    <div class="px-2 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+    <div class="px-2 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
       Übersicht
     </div>
     
     @for (item of navItems.slice(0, 3); track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-white/[0.08] text-zinc-100 font-semibold border-white/[0.08]"
+        routerLinkActive="bg-emerald-50 text-emerald-800 font-semibold border-emerald-200 dark:bg-white/[0.08] dark:text-zinc-100 dark:border-white/[0.08]"
         (click)="close.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] transition group border border-transparent"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] transition group border border-transparent"
       >
-        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-200 group-[.text-zinc-100]:text-emerald-400 shrink-0"></lucide-icon>
+        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 group-[.font-semibold]:text-emerald-600 dark:text-zinc-400 dark:group-[.font-semibold]:text-emerald-400 shrink-0"></lucide-icon>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
       Werkzeuge & Ertrag
     </div>
 
     @for (item of navItems.slice(3, 7); track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-white/[0.08] text-zinc-100 font-semibold border-white/[0.08]"
+        routerLinkActive="bg-emerald-50 text-emerald-800 font-semibold border-emerald-200 dark:bg-white/[0.08] dark:text-zinc-100 dark:border-white/[0.08]"
         (click)="close.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] transition group border border-transparent"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] transition group border border-transparent"
       >
-        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-200 group-[.text-zinc-100]:text-emerald-400 shrink-0"></lucide-icon>
+        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 group-[.font-semibold]:text-emerald-600 dark:text-zinc-400 dark:group-[.font-semibold]:text-emerald-400 shrink-0"></lucide-icon>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
       System & Daten
     </div>
 
     @for (item of navItems.slice(7); track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-white/[0.08] text-zinc-100 font-semibold border-white/[0.08]"
+        routerLinkActive="bg-emerald-50 text-emerald-800 font-semibold border-emerald-200 dark:bg-white/[0.08] dark:text-zinc-100 dark:border-white/[0.08]"
         (click)="close.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.04] transition group border border-transparent"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100/70 dark:hover:bg-white/[0.04] transition group border border-transparent"
       >
-        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-zinc-400 group-hover:text-zinc-200 group-[.text-zinc-100]:text-emerald-400 shrink-0"></lucide-icon>
+        <lucide-icon [img]="item.icon" class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-700 group-[.font-semibold]:text-emerald-600 dark:text-zinc-400 dark:group-[.font-semibold]:text-emerald-400 shrink-0"></lucide-icon>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
   </nav>
 
   <!-- Footer Info / Version -->
-  <div class="p-3 border-t border-white/[0.06] text-xs flex items-center justify-between">
+  <div class="p-3 border-t border-slate-200 dark:border-white/[0.06] text-xs flex items-center justify-between">
     <div class="flex items-center gap-1.5">
-      <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-      <span class="text-[11px] text-zinc-400 font-medium">ReFlip Core</span>
+      <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+      <span class="text-[11px] text-slate-500 dark:text-zinc-400 font-medium">ReFlip Core</span>
     </div>
-    <span class="px-1.5 py-0.2 rounded bg-zinc-900 text-zinc-400 border border-white/5 font-mono text-[10px]">
+    <span class="px-1.5 py-0.2 rounded bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 border border-slate-200 dark:border-white/5 font-mono text-[10px]">
       v0.1
     </span>
   </div>

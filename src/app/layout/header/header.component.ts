@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { LucideAngularModule, Layers, Globe, LogOut, User as UserIcon, Plus, Menu } from 'lucide-angular';
+import { LucideAngularModule, Layers, Globe, LogOut, User as UserIcon, Plus, Menu, Sun, Moon } from 'lucide-angular';
 import { AuthService } from '../../core/services/auth.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { ThemeService } from '../../core/services/theme.service';
 import { Workspace } from '../../core/models/reflip.models';
 
 @Component({
@@ -16,6 +17,7 @@ import { Workspace } from '../../core/models/reflip.models';
 export class HeaderComponent {
   readonly auth = inject(AuthService);
   readonly workspaceService = inject(WorkspaceService);
+  readonly themeService = inject(ThemeService);
   private readonly translate = inject(TranslateService);
 
   readonly toggleSidebar = output<void>();
@@ -31,6 +33,8 @@ export class HeaderComponent {
   readonly UserIcon = UserIcon;
   readonly PlusIcon = Plus;
   readonly MenuIcon = Menu;
+  readonly SunIcon = Sun;
+  readonly MoonIcon = Moon;
 
   currentLanguage = signal<string>('de');
 
@@ -52,6 +56,10 @@ export class HeaderComponent {
   switchLanguage(lang: string): void {
     this.currentLanguage.set(lang);
     this.translate.use(lang);
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
   }
 
   onSignOut(): void {
