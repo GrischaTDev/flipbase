@@ -1,50 +1,41 @@
-<div class="space-y-6 animate-fade-in select-none">
-  <!-- Page Header & Top Actions -->
-  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-rf-border">
+<div class="space-y-6 animate-fade-in pb-12">
+  <!-- Header & Description -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
     <div>
       <div class="flex items-center gap-2">
         <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
-          Multichannel Listing Studio
+          Listing Studio & KI-SEO Optimizer
         </h1>
-        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 uppercase">
-          KI Inserate-Generator
+        <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 flex items-center gap-1">
+          <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+          <span>AI Cassini & SEO 2.0</span>
         </span>
       </div>
-      <p class="text-xs text-rf-text-muted mt-0.5">
-        Generiere optimierte, rechtssichere Verkaufstexte für Kleinanzeigen, eBay, Vinted & Social Media mit einem Klick.
+      <p class="text-xs text-rf-text-muted mt-1">
+        Erstelle verkaufsoptimierte Inserate mit SEO-Tuning, Keyword-Dichte und rechtssicheren Klauseln für Kleinanzeigen, eBay & Vinted.
       </p>
     </div>
 
-    <!-- Quick Action: Copy All -->
-    @if (generatedListing(); as gen) {
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          (click)="copyAll()"
-          class="linear-btn-primary px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
-        >
-          <lucide-icon [img]="copiedAll() ? checkIcon : copyIcon" class="w-3.5 h-3.5" [class.text-emerald-400]="copiedAll()"></lucide-icon>
-          <span>{{ copiedAll() ? 'Alles kopiert!' : 'Titel & Text kopieren' }}</span>
-        </button>
-
-        <button
-          type="button"
-          (click)="openPlatformPublish()"
-          class="linear-btn-secondary px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-        >
-          <lucide-icon [img]="linkIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
-          <span>Auf Plattform öffnen</span>
-        </button>
-      </div>
-    }
+    <!-- Quick Action Bar -->
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="copyAll()"
+        [disabled]="!selectedItem()"
+        class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-40"
+      >
+        <lucide-icon [img]="copiedAll() ? checkIcon : copyIcon" class="w-4 h-4"></lucide-icon>
+        <span>{{ copiedAll() ? 'Alles kopiert!' : 'Titel & Text kopieren' }}</span>
+      </button>
+    </div>
   </div>
 
-  <!-- Platform Selector Tabs -->
-  <div class="flex items-center gap-2 overflow-x-auto pb-1 border-b border-rf-border text-xs">
+  <!-- Platform Selector Switcher -->
+  <div class="flex items-center gap-2 overflow-x-auto pb-1 text-xs select-none">
     <!-- Kleinanzeigen -->
     <button
       type="button"
-      (click)="selectedPlatform.set('kleinanzeigen')"
+      (click)="onSelectPlatform('kleinanzeigen')"
       class="px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer border"
       [class.bg-emerald-600]="selectedPlatform() === 'kleinanzeigen'"
       [class.text-white]="selectedPlatform() === 'kleinanzeigen'"
@@ -61,24 +52,24 @@
     <!-- eBay -->
     <button
       type="button"
-      (click)="selectedPlatform.set('ebay')"
+      (click)="onSelectPlatform('ebay')"
       class="px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer border"
-      [class.bg-blue-600]="selectedPlatform() === 'ebay'"
+      [class.bg-indigo-600]="selectedPlatform() === 'ebay'"
       [class.text-white]="selectedPlatform() === 'ebay'"
-      [class.border-blue-500]="selectedPlatform() === 'ebay'"
+      [class.border-indigo-500]="selectedPlatform() === 'ebay'"
       [class.shadow-md]="selectedPlatform() === 'ebay'"
       [class.bg-rf-surface]="selectedPlatform() !== 'ebay'"
       [class.text-rf-text-secondary]="selectedPlatform() !== 'ebay'"
       [class.border-rf-border]="selectedPlatform() !== 'ebay'"
     >
-      <span class="w-2 h-2 rounded-full bg-blue-300"></span>
-      <span>eBay</span>
+      <span class="w-2 h-2 rounded-full bg-indigo-300"></span>
+      <span>eBay Marketplace (Cassini)</span>
     </button>
 
     <!-- Vinted -->
     <button
       type="button"
-      (click)="selectedPlatform.set('vinted')"
+      (click)="onSelectPlatform('vinted')"
       class="px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer border"
       [class.bg-cyan-600]="selectedPlatform() === 'vinted'"
       [class.text-white]="selectedPlatform() === 'vinted'"
@@ -95,7 +86,7 @@
     <!-- Social / WhatsApp -->
     <button
       type="button"
-      (click)="selectedPlatform.set('social')"
+      (click)="onSelectPlatform('social')"
       class="px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer border"
       [class.bg-purple-600]="selectedPlatform() === 'social'"
       [class.text-white]="selectedPlatform() === 'social'"
@@ -158,56 +149,45 @@
                 <span>EK: <strong class="text-rf-text-secondary">{{ item.allocated_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
               </div>
               @if (item.brand || item.model) {
-                <div class="text-[10px] text-indigo-400 font-medium truncate">
-                  {{ item.brand }} {{ item.model ? ('- ' + item.model) : '' }}
+                <div class="text-[10px] text-indigo-400 font-mono">
+                  {{ item.brand || '' }} {{ item.model ? '• ' + item.model : '' }}
                 </div>
               }
             </div>
           </div>
-
-          <!-- Price Config -->
-          <div class="grid grid-cols-2 gap-3 pt-2 border-t border-rf-border">
-            <div>
-              <label for="listingPriceInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
-                Verkaufspreis (€)
-              </label>
-              <input
-                id="listingPriceInput"
-                type="number"
-                step="0.5"
-                [value]="customPrice()"
-                (input)="customPrice.set(+$any($event.target).value)"
-                class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
-              />
-            </div>
-
-            <div class="flex flex-col justify-end">
-              <label class="flex items-center gap-2 cursor-pointer text-xs text-rf-text-secondary py-2">
-                <input
-                  type="checkbox"
-                  [checked]="optNegotiable()"
-                  (change)="optNegotiable.set($any($event.target).checked)"
-                  class="rounded text-indigo-600 cursor-pointer"
-                />
-                <span class="font-medium">VB (Verhandelbar)</span>
-              </label>
-            </div>
-          </div>
         }
+
+        <!-- Price Input -->
+        <div>
+          <label for="priceInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            Verkaufspreis (€)
+          </label>
+          <div class="relative">
+            <input
+              id="priceInput"
+              type="number"
+              step="0.5"
+              [value]="customPrice()"
+              (input)="customPrice.set($any($event.target).valueAsNumber || 0)"
+              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
+            />
+            <span class="absolute right-3 top-2 text-xs text-rf-text-muted">EUR</span>
+          </div>
+        </div>
       </div>
 
-      <!-- 2. AI Style & Tone Presets -->
+      <!-- 2. Style Tone & Persona -->
       <div class="linear-surface rounded-2xl p-5 space-y-3 shadow-xl">
         <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary border-b border-rf-border pb-2 flex items-center gap-2">
-          <lucide-icon [img]="sparklesIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
-          <span>Tonalität & Inserats-Stil</span>
+          <lucide-icon [img]="sparklesIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+          <span>Stil & Tonalität</span>
         </h2>
 
-        <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="grid grid-cols-2 gap-2">
           <!-- Dealer -->
           <button
             type="button"
-            (click)="selectedTone.set('dealer')"
+            (click)="onSelectTone('dealer')"
             class="p-2.5 rounded-xl border text-left cursor-pointer transition"
             [class.bg-indigo-500/15]="selectedTone() === 'dealer'"
             [class.border-indigo-500/50]="selectedTone() === 'dealer'"
@@ -216,14 +196,14 @@
             [class.border-rf-border]="selectedTone() !== 'dealer'"
             [class.text-rf-text-secondary]="selectedTone() !== 'dealer'"
           >
-            <strong class="block text-xs text-rf-text-primary">🎯 Händler-Standard</strong>
-            <span class="text-[10px] text-rf-text-muted">Rechtssicher, strukturiert</span>
+            <strong class="block text-xs text-rf-text-primary">💼 Gewerblich</strong>
+            <span class="text-[10px] text-rf-text-muted">Seriös, § 25a & Widerruf</span>
           </button>
 
           <!-- Bargain -->
           <button
             type="button"
-            (click)="selectedTone.set('bargain')"
+            (click)="onSelectTone('bargain')"
             class="p-2.5 rounded-xl border text-left cursor-pointer transition"
             [class.bg-indigo-500/15]="selectedTone() === 'bargain'"
             [class.border-indigo-500/50]="selectedTone() === 'bargain'"
@@ -232,14 +212,14 @@
             [class.border-rf-border]="selectedTone() !== 'bargain'"
             [class.text-rf-text-secondary]="selectedTone() !== 'bargain'"
           >
-            <strong class="block text-xs text-rf-text-primary">⚡ Schnäppchenjäger</strong>
-            <span class="text-[10px] text-rf-text-muted">Schnellverkauf & Festpreis</span>
+            <strong class="block text-xs text-rf-text-primary">⚡ Schnäppchen</strong>
+            <span class="text-[10px] text-rf-text-muted">Festpreis & Quick Flip</span>
           </button>
 
           <!-- Collector -->
           <button
             type="button"
-            (click)="selectedTone.set('collector')"
+            (click)="onSelectTone('collector')"
             class="p-2.5 rounded-xl border text-left cursor-pointer transition"
             [class.bg-indigo-500/15]="selectedTone() === 'collector'"
             [class.border-indigo-500/50]="selectedTone() === 'collector'"
@@ -255,7 +235,7 @@
           <!-- Casual -->
           <button
             type="button"
-            (click)="selectedTone.set('casual')"
+            (click)="onSelectTone('casual')"
             class="p-2.5 rounded-xl border text-left cursor-pointer transition"
             [class.bg-indigo-500/15]="selectedTone() === 'casual'"
             [class.border-indigo-500/50]="selectedTone() === 'casual'"
@@ -331,19 +311,121 @@
       </div>
     </div>
 
-    <!-- Right Column: Live Generated Preview & Copy Box (7 cols) -->
+    <!-- Right Column: Live Generated Preview & KI-SEO Optimizer (7 cols) -->
     <div class="lg:col-span-7 space-y-4">
-      @if (generatedListing(); as gen) {
-        <div class="linear-surface rounded-2xl p-6 space-y-5 shadow-xl sticky top-20">
+      @if (selectedItem(); as item) {
+        <!-- 🤖 KI-SEO Score & Tuning Dashboard Card -->
+        @if (seoAnalysis(); as seo) {
+          <div class="linear-surface rounded-2xl p-5 border border-indigo-500/30 bg-indigo-500/5 space-y-4 shadow-xl">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2.5">
+                <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center">
+                  <lucide-icon [img]="gaugeIcon" class="w-4 h-4"></lucide-icon>
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h3 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+                      KI-Listing SEO Score
+                    </h3>
+                    <span
+                      class="px-2 py-0.5 rounded-full text-xs font-mono font-bold border"
+                      [class.bg-emerald-500/20]="seo.score >= 80"
+                      [class.text-emerald-300]="seo.score >= 80"
+                      [class.border-emerald-500/40]="seo.score >= 80"
+                      [class.bg-amber-500/20]="seo.score < 80 && seo.score >= 60"
+                      [class.text-amber-300]="seo.score < 80 && seo.score >= 60"
+                      [class.border-amber-500/40]="seo.score < 80 && seo.score >= 60"
+                      [class.bg-rose-500/20]="seo.score < 60"
+                      [class.text-rose-300]="seo.score < 60"
+                      [class.border-rose-500/40]="seo.score < 60"
+                    >
+                      {{ seo.score }} / 100
+                    </span>
+                  </div>
+                  <p class="text-[10px] text-rf-text-muted mt-0.5">
+                    Algorithmus-Optimierung für {{ selectedPlatform() | translate }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Apply AI Optimization Button -->
+              <button
+                type="button"
+                (click)="applyAiOptimization()"
+                class="linear-btn-primary px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+                title="Titel und Beschreibung mit optimalen Keywords anwenden"
+              >
+                <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5 text-amber-300"></lucide-icon>
+                <span>{{ aiOptimizedApplied() ? 'Optimiert! ✨' : '✨ KI-SEO optimieren' }}</span>
+              </button>
+            </div>
+
+            <!-- Keywords & Character Utilization -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <!-- Character Gauge -->
+              <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-1">
+                <div class="flex justify-between text-[10px] font-semibold text-rf-text-muted">
+                  <span>Titel-Länge</span>
+                  <span class="font-mono" [class.text-emerald-400]="seo.charCount <= seo.maxChars && seo.charCount >= (seo.maxChars - 15)">
+                    {{ seo.charCount }} / {{ seo.maxChars }} Zeichen
+                  </span>
+                </div>
+                <div class="w-full h-2 rounded-full bg-rf-surface overflow-hidden border border-rf-border">
+                  <div
+                    class="h-full transition-all duration-300"
+                    [style.width.%]="(seo.charCount / seo.maxChars) * 100"
+                    [class.bg-emerald-400]="seo.charCount <= seo.maxChars && seo.charCount >= (seo.maxChars - 15)"
+                    [class.bg-amber-400]="seo.charCount < (seo.maxChars - 15)"
+                    [class.bg-rose-500]="seo.charCount > seo.maxChars"
+                  ></div>
+                </div>
+              </div>
+
+              <!-- Detected Keyword Badges -->
+              <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-1.5">
+                <span class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted block">
+                  Erkannte Keywords:
+                </span>
+                <div class="flex flex-wrap gap-1">
+                  @for (kw of seo.detectedKeywords; track kw) {
+                    <span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium">
+                      ✔ {{ kw }}
+                    </span>
+                  }
+                  @for (miss of seo.missingKeywords; track miss) {
+                    <span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium">
+                      + {{ miss }}
+                    </span>
+                  }
+                </div>
+              </div>
+            </div>
+
+            <!-- Improvement Suggestion List -->
+            @if (seo.suggestions.length > 0) {
+              <div class="text-[11px] text-rf-text-muted space-y-1 pt-1 border-t border-rf-border/50">
+                @for (sug of seo.suggestions; track sug) {
+                  <div class="flex items-start gap-1.5">
+                    <span class="text-indigo-400 text-xs">💡</span>
+                    <span>{{ sug }}</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        }
+
+        <!-- Live Editor & Generated Listing -->
+        <div class="linear-surface rounded-2xl p-6 space-y-5 shadow-xl">
           <!-- Title Box -->
           <div class="space-y-1.5">
             <div class="flex items-center justify-between text-xs">
               <span class="font-bold text-rf-text-primary uppercase tracking-wider text-[11px]">
-                Inseratstitel ({{ gen.title.length }} Zeichen)
+                Inseratstitel ({{ currentTitle().length }} Zeichen)
               </span>
               <button
                 type="button"
-                (click)="copyToClipboard(gen.title, 'title')"
+                (click)="copyToClipboard(currentTitle(), 'title')"
                 class="linear-btn-primary px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
                 <lucide-icon [img]="copiedTitle() ? checkIcon : copyIcon" class="w-3.5 h-3.5" [class.text-emerald-400]="copiedTitle()"></lucide-icon>
@@ -351,9 +433,12 @@
               </button>
             </div>
 
-            <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border font-bold text-sm text-rf-text-primary">
-              {{ gen.title }}
-            </div>
+            <input
+              type="text"
+              [value]="currentTitle()"
+              (input)="onTitleInput($event)"
+              class="linear-input w-full p-3 rounded-xl font-bold text-sm text-rf-text-primary"
+            />
           </div>
 
           <!-- Description Box -->
@@ -363,7 +448,7 @@
                 <span class="font-bold text-rf-text-primary uppercase tracking-wider text-[11px]">
                   Artikelbeschreibung
                 </span>
-                @if (gen.platform === 'ebay') {
+                @if (selectedPlatform() === 'ebay') {
                   <button
                     type="button"
                     (click)="showHtmlMode.set(!showHtmlMode())"
@@ -382,7 +467,7 @@
 
               <button
                 type="button"
-                (click)="copyToClipboard(showHtmlMode() && gen.htmlDescription ? gen.htmlDescription : gen.description, 'desc')"
+                (click)="copyToClipboard(showHtmlMode() && baseGeneratedListing()?.htmlDescription ? baseGeneratedListing()!.htmlDescription! : currentDesc(), 'desc')"
                 class="linear-btn-primary px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
                 <lucide-icon [img]="copiedDesc() ? checkIcon : copyIcon" class="w-3.5 h-3.5" [class.text-emerald-400]="copiedDesc()"></lucide-icon>
@@ -390,9 +475,18 @@
               </button>
             </div>
 
-            <div class="p-4 rounded-xl bg-rf-subtle border border-rf-border text-xs text-rf-text-secondary font-mono leading-relaxed whitespace-pre-line max-h-96 overflow-y-auto">
-              {{ showHtmlMode() && gen.htmlDescription ? gen.htmlDescription : gen.description }}
-            </div>
+            @if (showHtmlMode() && baseGeneratedListing()?.htmlDescription) {
+              <div class="p-4 rounded-xl bg-rf-subtle border border-rf-border text-xs text-rf-text-secondary font-mono leading-relaxed whitespace-pre-line max-h-96 overflow-y-auto">
+                {{ baseGeneratedListing()?.htmlDescription }}
+              </div>
+            } @else {
+              <textarea
+                rows="14"
+                [value]="currentDesc()"
+                (input)="onDescInput($event)"
+                class="linear-input w-full p-4 rounded-xl text-xs text-rf-text-secondary font-mono leading-relaxed resize-y"
+              ></textarea>
+            }
           </div>
 
           <!-- Bottom Actions (Publish & Mark Listed) -->

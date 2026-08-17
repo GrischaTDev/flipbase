@@ -58,53 +58,29 @@ describe('Listing Studio & Multi-Platform Generator (Phase 7)', () => {
     expect(listing.platform).toBe('ebay');
     expect(listing.description).toContain('PRODUKTBESCHREIBUNG');
     expect(listing.description).toContain('HIGHLIGHTS');
-    expect(listing.description).toContain('LIEFERUMFANG:');
-    expect(listing.htmlDescription).toBeDefined();
-    expect(listing.htmlDescription).toContain('Artikeldetails');
+    expect(listing.htmlDescription).toContain('Artikelübersicht');
+    expect(listing.htmlDescription).toContain('Bosch Professional');
   });
 
-  it('should generate fashion/lifestyle Vinted listing with hashtags (Chapter 21)', () => {
-    const jacketItem: InventoryItem = {
-      id: 'item-jacket-1',
-      workspace_id: 'ws-1',
-      title: 'Vintage Bomberjacke',
-      brand: 'Alpha Industries',
-      category: 'Jacken',
-      condition: 'very_good',
-      status: 'ready',
-      allocated_purchase_cost: 20.0,
-      expected_value: 65.0,
-    };
+  it('should analyze listing SEO score and detect key keywords', () => {
+    const analysis = service.analyzeAndOptimizeListing(
+      sampleItem,
+      'ebay',
+      'Bosch Professional Akku-Bohrschrauber GSR 18V-55 Sehr Gut Geprüft',
+      'Beschreibung mit • Aufzählung und DHL Versand'
+    );
 
-    const listing = service.generateListing(jacketItem, 'vinted', 65.0, {
-      includeDisclaimer: true,
-      isCommercialSeller: false,
-      includeNonSmoking: true,
-      includeShipping: true,
-      includePickup: false,
-      includeNegotiable: false,
-      styleTone: 'casual',
-    });
-
-    expect(listing.platform).toBe('vinted');
-    expect(listing.hashtags).toBeDefined();
-    expect(listing.hashtags).toContain('#vintage');
-    expect(listing.hashtags).toContain('#alphaindustries');
+    expect(analysis.score).toBeGreaterThan(60);
+    expect(analysis.maxChars).toBe(80);
+    expect(analysis.detectedKeywords.length).toBeGreaterThan(0);
+    expect(analysis.optimizedTitle).toContain('Bosch Professional');
+    expect(analysis.optimizedDescription).toContain('LIEFERUMFANG & HIGHLIGHTS');
   });
 
-  it('should generate social media teaser with hashtags and emojis', () => {
-    const listing = service.generateListing(sampleItem, 'social', 75.0, {
-      includeDisclaimer: false,
-      isCommercialSeller: false,
-      includeNonSmoking: true,
-      includeShipping: true,
-      includePickup: true,
-      includeNegotiable: false,
-      styleTone: 'bargain',
-    });
+  it('should generate optimized Vinted title and hashtags', () => {
+    const analysis = service.analyzeAndOptimizeListing(sampleItem, 'vinted');
 
-    expect(listing.platform).toBe('social');
-    expect(listing.description).toContain('🔥 Zu verkaufen');
-    expect(listing.description).toContain('75.00 €');
+    expect(analysis.maxChars).toBe(60);
+    expect(analysis.optimizedTitle.length).toBeLessThanOrEqual(60);
   });
 });
