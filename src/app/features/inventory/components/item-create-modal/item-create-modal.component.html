@@ -1,6 +1,12 @@
-<div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in select-none">
-  <div class="linear-surface rounded-2xl shadow-2xl max-w-xl w-full p-6 border border-rf-border my-8">
-    <div class="flex items-center justify-between pb-4 mb-4 border-b border-rf-border">
+<div
+  class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto animate-fade-in select-none"
+  (click)="close.emit()"
+>
+  <div
+    class="linear-surface rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col border border-rf-border overflow-hidden my-auto animate-modal-card"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="flex items-center justify-between p-5 border-b border-rf-border bg-rf-subtle shrink-0">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
           <lucide-icon [img]="boxesIcon" class="w-4 h-4"></lucide-icon>
@@ -14,19 +20,20 @@
       <button
         type="button"
         (click)="close.emit()"
-        class="p-1 rounded-md text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover transition cursor-pointer"
+        class="p-1.5 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover transition cursor-pointer"
       >
         <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
       </button>
     </div>
 
-    @if (errorMessage()) {
-      <div class="p-3 mb-4 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
-        {{ errorMessage() }}
-      </div>
-    }
+    <div class="p-5 overflow-y-auto flex-1 space-y-4">
+      @if (errorMessage()) {
+        <div class="p-3 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
+          {{ errorMessage() }}
+        </div>
+      }
 
-    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-3.5">
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-3.5">
       <div>
         <div class="flex items-center justify-between mb-1">
           <label for="itemTitle" class="block text-[11px] font-semibold uppercase tracking-wider text-rf-text-muted">
@@ -232,20 +239,20 @@
       </div>
     </form>
   </div>
-
-  <!-- Barcode Scanner Modal -->
-  @if (isScanningBarcode()) {
-    <app-barcode-scanner
-      (close)="isScanningBarcode.set(false)"
-      (detected)="onBarcodeScanned($event)"
-    ></app-barcode-scanner>
-  }
-
-  <!-- AI Photo Scanner Modal -->
-  @if (isScanningPhoto()) {
-    <app-ai-photo-scanner-modal
-      (close)="isScanningPhoto.set(false)"
-      (productDetected)="onPhotoScanned($event)"
-    ></app-ai-photo-scanner-modal>
-  }
 </div>
+
+<!-- Barcode Scanner Modal -->
+@if (isScanningBarcode()) {
+  <app-barcode-scanner
+    (close)="isScanningBarcode.set(false)"
+    (detected)="onBarcodeScanned($event)"
+  ></app-barcode-scanner>
+}
+
+<!-- AI Photo Scanner Modal -->
+@if (isScanningPhoto()) {
+  <app-ai-photo-scanner-modal
+    (close)="isScanningPhoto.set(false)"
+    (productDetected)="onPhotoScanned($event)"
+  ></app-ai-photo-scanner-modal>
+}

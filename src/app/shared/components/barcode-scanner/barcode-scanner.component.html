@@ -1,5 +1,11 @@
-<div class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in select-none">
-  <div class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-5 border border-rf-border flex flex-col space-y-4">
+<div
+  class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in select-none"
+  (click)="close.emit()"
+>
+  <div
+    class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-5 border border-rf-border flex flex-col space-y-4 animate-modal-card"
+    (click)="$event.stopPropagation()"
+  >
     <!-- Header -->
     <div class="flex items-center justify-between pb-3 border-b border-rf-border">
       <div class="flex items-center gap-2">
@@ -57,7 +63,7 @@
 
       <!-- Success Flash Overlay -->
       @if (scannedResult()) {
-        <div class="absolute inset-0 bg-emerald-500/40 backdrop-blur-xs flex flex-col items-center justify-center gap-2 animate-fade-in text-white font-bold">
+        <div class="absolute inset-0 bg-emerald-500/40 backdrop-blur-sm flex flex-col items-center justify-center gap-2 animate-fade-in text-white font-bold">
           <lucide-icon [img]="checkIcon" class="w-10 h-10 text-white animate-bounce"></lucide-icon>
           <span class="text-sm font-mono">{{ scannedResult() }}</span>
           <span class="text-xs text-emerald-100 font-sans">Erfolgreich erkannt!</span>
@@ -70,7 +76,7 @@
           <button
             type="button"
             (click)="toggleTorch()"
-            class="p-2 rounded-lg bg-black/60 backdrop-blur-xs text-white hover:bg-black/80 transition cursor-pointer"
+            class="p-2 rounded-lg bg-black/60 backdrop-blur-sm text-white hover:bg-black/80 transition cursor-pointer"
             title="Taschenlampe / Licht an"
           >
             <lucide-icon [img]="isTorchOn() ? torchOnIcon : torchOffIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
@@ -80,7 +86,7 @@
         <button
           type="button"
           (click)="toggleFacingMode()"
-          class="p-2 rounded-lg bg-black/60 backdrop-blur-xs text-white hover:bg-black/80 transition cursor-pointer"
+          class="p-2 rounded-lg bg-black/60 backdrop-blur-sm text-white hover:bg-black/80 transition cursor-pointer"
           title="Kamera wechseln"
         >
           <lucide-icon [img]="switchIcon" class="w-4 h-4"></lucide-icon>

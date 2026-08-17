@@ -428,11 +428,11 @@
   <!-- Interactive Lot & Pallet Cost Allocator Modal -->
   @if (isAllocatorOpen()) {
     <div
-      class="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
       (click)="closeAllocator()"
     >
       <div
-        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-3xl overflow-hidden shadow-2xl p-6 md:p-8 space-y-6 select-none"
+        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 md:p-8 space-y-6 select-none my-auto animate-modal-card"
         (click)="$event.stopPropagation()"
       >
         <!-- Modal Header -->

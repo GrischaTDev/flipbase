@@ -288,11 +288,11 @@
   <!-- Printable Invoice Preview Modal -->
   @if (invoiceModalItem(); as modalItem) {
     <div
-      class="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
       (click)="closeInvoiceModal()"
     >
       <div
-        class="bg-white text-gray-900 rounded-2xl w-full max-w-2xl overflow-hidden shadow-2xl p-8 space-y-6 select-text"
+        class="bg-white text-gray-900 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-8 space-y-6 select-text my-auto animate-modal-card"
         (click)="$event.stopPropagation()"
       >
         <!-- Modal Header -->
@@ -379,8 +379,14 @@
   <!-- 📊 Steuerberater-Monatsabschluss & DATEV-Paket Modal -->
   @if (isTaxAdvisorModalOpen()) {
     @let report = advisorReport();
-    <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in overflow-y-auto">
-      <div class="linear-surface rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl border border-rf-border overflow-hidden">
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto select-none"
+      (click)="closeTaxAdvisorModal()"
+    >
+      <div
+        class="linear-surface rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl border border-rf-border overflow-hidden my-auto animate-modal-card"
+        (click)="$event.stopPropagation()"
+      >
         <!-- Modal Header -->
         <div class="p-5 border-b border-rf-border flex items-center justify-between bg-rf-subtle shrink-0">
           <div class="flex items-center gap-3">

@@ -1,9 +1,9 @@
 <div
-  class="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in select-none"
+  class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in select-none overflow-y-auto"
   (click)="close.emit()"
 >
   <div
-    class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl p-6 space-y-5"
+    class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 my-auto animate-modal-card"
     (click)="$event.stopPropagation()"
   >
     <!-- Modal Header -->
@@ -134,7 +134,7 @@
           <img [src]="previewImage()" alt="Scan Preview" class="w-full h-full object-contain" />
 
           @if (isAnalyzing()) {
-            <div class="absolute inset-0 bg-indigo-950/40 backdrop-blur-xs flex flex-col items-center justify-center space-y-2 text-white">
+            <div class="absolute inset-0 bg-indigo-950/40 backdrop-blur-sm flex flex-col items-center justify-center space-y-2 text-white">
               <div class="scan-laser"></div>
               <div class="p-3 rounded-2xl bg-indigo-600/30 border border-indigo-500/50 animate-pulse">
                 <lucide-icon [img]="sparklesIcon" class="w-6 h-6 text-indigo-300"></lucide-icon>

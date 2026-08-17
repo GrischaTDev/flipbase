@@ -1,6 +1,12 @@
-<div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in select-none">
-  <div class="linear-surface rounded-2xl shadow-2xl max-w-2xl w-full p-6 border border-[#373e4d] my-8">
-    <div class="flex items-center justify-between pb-4 mb-4 border-b border-[#373e4d]">
+<div
+  class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto animate-fade-in select-none"
+  (click)="close.emit()"
+>
+  <div
+    class="linear-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-[#373e4d] overflow-hidden my-auto animate-modal-card"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="flex items-center justify-between p-5 border-b border-[#373e4d] bg-[#1e222a] shrink-0">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
           <lucide-icon [img]="bagIcon" class="w-4 h-4"></lucide-icon>
@@ -14,19 +20,20 @@
       <button
         type="button"
         (click)="close.emit()"
-        class="p-1 rounded-md text-slate-400 hover:text-white hover:bg-[#373e4d] transition cursor-pointer"
+        class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#373e4d] transition cursor-pointer"
       >
         <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
       </button>
     </div>
 
-    @if (errorMessage()) {
-      <div class="p-3 mb-4 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
-        {{ errorMessage() }}
-      </div>
-    }
+    <div class="p-5 overflow-y-auto flex-1 space-y-4">
+      @if (errorMessage()) {
+        <div class="p-3 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
+          {{ errorMessage() }}
+        </div>
+      }
 
-    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
       <!-- 1. Einkaufstyp Selector (Kapitel 8) -->
       <div>
         <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">

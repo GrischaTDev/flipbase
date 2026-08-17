@@ -397,11 +397,11 @@
   <!-- Printable Shipping Label Modal (DIN-A6 Format) -->
   @if (isLabelModalOpen() && fulfillmentService.selectedOrderForLabel(); as labelOrder) {
     <div
-      class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in no-print"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in no-print overflow-y-auto"
       (click)="closeLabelModal()"
     >
       <div
-        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-xl overflow-hidden shadow-2xl p-6 space-y-6 select-none"
+        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6 select-none my-auto"
         (click)="$event.stopPropagation()"
       >
         <!-- Modal Top Bar -->
@@ -505,11 +505,11 @@
   <!-- Printable Packing Slip Modal (DIN-A4) -->
   @if (isSlipModalOpen() && fulfillmentService.selectedOrderForSlip(); as slipOrder) {
     <div
-      class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in no-print"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in no-print overflow-y-auto"
       (click)="closeSlipModal()"
     >
       <div
-        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl p-6 space-y-6 select-none"
+        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6 select-none my-auto"
         (click)="$event.stopPropagation()"
       >
         <!-- Modal Header -->
@@ -604,11 +604,11 @@
   <!-- Tracking Input Modal -->
   @if (isTrackingModalOpen()) {
     <div
-      class="fixed inset-0 bg-black/75 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in"
+      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
       (click)="closeTrackingModal()"
     >
       <div
-        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-md overflow-hidden shadow-2xl p-6 space-y-5 select-none"
+        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 select-none my-auto"
         (click)="$event.stopPropagation()"
       >
         <div class="flex items-center justify-between border-b border-rf-border pb-3">
@@ -684,11 +684,11 @@
     @let targetOrder = selectedOrderForPurchase();
     @if (targetOrder) {
       <div
-        class="fixed inset-0 bg-black/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-fade-in select-none"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in select-none overflow-y-auto"
         (click)="closePurchaseModal()"
       >
         <div
-          class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-lg overflow-hidden shadow-2xl p-6 space-y-5"
+          class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 my-auto"
           (click)="$event.stopPropagation()"
         >
           <!-- Header -->
