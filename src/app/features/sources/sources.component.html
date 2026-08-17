@@ -1,15 +1,15 @@
 <div class="space-y-5 animate-fade-in select-none">
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
     <div>
       <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold tracking-tight text-zinc-100">
+        <h1 class="text-xl font-bold tracking-tight text-slate-100">
           {{ 'NAV.SOURCES_SUPPLIERS' | translate }}
         </h1>
-        <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-medium bg-zinc-850 text-zinc-400 border border-white/10">
+        <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#262b35] text-slate-300 border border-[#373e4d]">
           Management
         </span>
       </div>
-      <p class="text-xs text-zinc-400 mt-0.5">
+      <p class="text-xs text-slate-400 mt-0.5">
         Einkaufsquellen und Lieferanten für Profitabilitäts- und ROI-Analysen.
       </p>
     </div>
@@ -40,26 +40,28 @@
     <button
       type="button"
       (click)="activeTab.set('sources')"
-      class="px-3 py-1 rounded-md font-medium transition cursor-pointer"
-      [class.bg-white/[0.1]]="activeTab() === 'sources'"
-      [class.text-zinc-100]="activeTab() === 'sources'"
+      class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
+      [class.bg-[#373e4d]]="activeTab() === 'sources'"
+      [class.text-white]="activeTab() === 'sources'"
       [class.border]="activeTab() === 'sources'"
-      [class.border-white/10]="activeTab() === 'sources'"
-      [class.text-zinc-400]="activeTab() !== 'sources'"
-      [class.hover:text-zinc-200]="activeTab() !== 'sources'"
+      [class.border-[#4a5468]]="activeTab() === 'sources'"
+      [class.text-slate-300]="activeTab() !== 'sources'"
+      [class.hover:bg-[#2c323f]]="activeTab() !== 'sources'"
+      [class.hover:text-white]="activeTab() !== 'sources'"
     >
       Einkaufsquellen ({{ sourcesService.sources().length }})
     </button>
     <button
       type="button"
       (click)="activeTab.set('suppliers')"
-      class="px-3 py-1 rounded-md font-medium transition cursor-pointer"
-      [class.bg-white/[0.1]]="activeTab() === 'suppliers'"
-      [class.text-zinc-100]="activeTab() === 'suppliers'"
+      class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
+      [class.bg-[#373e4d]]="activeTab() === 'suppliers'"
+      [class.text-white]="activeTab() === 'suppliers'"
       [class.border]="activeTab() === 'suppliers'"
-      [class.border-white/10]="activeTab() === 'suppliers'"
-      [class.text-zinc-400]="activeTab() !== 'suppliers'"
-      [class.hover:text-zinc-200]="activeTab() !== 'suppliers'"
+      [class.border-[#4a5468]]="activeTab() === 'suppliers'"
+      [class.text-slate-300]="activeTab() !== 'suppliers'"
+      [class.hover:bg-[#2c323f]]="activeTab() !== 'suppliers'"
+      [class.hover:text-white]="activeTab() !== 'suppliers'"
     >
       Lieferanten & Verkäufer ({{ suppliersService.suppliers().length }})
     </button>
@@ -67,8 +69,8 @@
 
   <!-- Add Source Form -->
   @if (isAddingSource() && activeTab() === 'sources') {
-    <form [formGroup]="sourceForm" (ngSubmit)="onAddSource()" class="p-4 linear-surface rounded-xl space-y-3 animate-fade-in border-emerald-500/30">
-      <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-200">Neue Einkaufsquelle hinzufügen</h3>
+    <form [formGroup]="sourceForm" (ngSubmit)="onAddSource()" class="p-4 linear-surface rounded-xl space-y-3 animate-fade-in border-emerald-500/40">
+      <h3 class="text-xs font-bold uppercase tracking-wider text-slate-200">Neue Einkaufsquelle hinzufügen</h3>
       <div class="flex flex-col sm:flex-row gap-2.5">
         <input
           type="text"
@@ -80,7 +82,7 @@
           <button
             type="button"
             (click)="isAddingSource.set(false)"
-            class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer"
+            class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
           >
             Abbrechen
           </button>
@@ -98,8 +100,8 @@
 
   <!-- Add Supplier Form -->
   @if (isAddingSupplier() && activeTab() === 'suppliers') {
-    <form [formGroup]="supplierForm" (ngSubmit)="onAddSupplier()" class="p-4 linear-surface rounded-xl space-y-3 animate-fade-in border-emerald-500/30">
-      <h3 class="text-xs font-bold uppercase tracking-wider text-zinc-200">Neuen Lieferanten erfassen</h3>
+    <form [formGroup]="supplierForm" (ngSubmit)="onAddSupplier()" class="p-4 linear-surface rounded-xl space-y-3 animate-fade-in border-emerald-500/40">
+      <h3 class="text-xs font-bold uppercase tracking-wider text-slate-200">Neuen Lieferanten erfassen</h3>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <input
           type="text"
@@ -124,7 +126,7 @@
         <button
           type="button"
           (click)="isAddingSupplier.set(false)"
-          class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-medium cursor-pointer"
+          class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
         >
           Abbrechen
         </button>
@@ -145,11 +147,11 @@
       @for (src of sourcesService.sources(); track src.id) {
         <div class="linear-card p-3.5 rounded-xl flex items-center justify-between">
           <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center">
+            <div class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
               <lucide-icon [img]="storeIcon" class="w-4 h-4"></lucide-icon>
             </div>
             <div>
-              <h3 class="text-xs font-semibold text-zinc-100">{{ src.name }}</h3>
+              <h3 class="text-xs font-semibold text-slate-100">{{ src.name }}</h3>
               @if (src.is_default) {
                 <span class="text-[10px] text-emerald-400 font-medium">Standard-Quelle</span>
               }
@@ -160,7 +162,7 @@
             <button
               type="button"
               (click)="onDeleteSource(src.id)"
-              class="p-1 text-zinc-500 hover:text-rose-400 rounded-md hover:bg-white/5 transition cursor-pointer"
+              class="p-1 text-slate-400 hover:text-rose-400 rounded-md hover:bg-[#373e4d] transition cursor-pointer"
             >
               <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
             </button>
@@ -178,27 +180,27 @@
           <div class="linear-card p-3.5 rounded-xl space-y-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <div class="w-7 h-7 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center">
+                <div class="w-7 h-7 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center">
                   <lucide-icon [img]="buildingIcon" class="w-3.5 h-3.5"></lucide-icon>
                 </div>
-                <h3 class="text-xs font-semibold text-zinc-100">{{ sup.name }}</h3>
+                <h3 class="text-xs font-semibold text-slate-100">{{ sup.name }}</h3>
               </div>
 
               <button
                 type="button"
                 (click)="onDeleteSupplier(sup.id)"
-                class="p-1 text-zinc-500 hover:text-rose-400 transition cursor-pointer"
+                class="p-1 text-slate-400 hover:text-rose-400 transition cursor-pointer"
               >
                 <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
               </button>
             </div>
 
             @if (sup.contact_info) {
-              <p class="text-[11px] text-zinc-400">{{ sup.contact_info }}</p>
+              <p class="text-[11px] text-slate-300">{{ sup.contact_info }}</p>
             }
 
             @if (sup.notes) {
-              <p class="text-[10px] text-zinc-500 bg-zinc-900 border border-white/5 p-2 rounded-lg">
+              <p class="text-[10px] text-slate-400 bg-[#1e222a] border border-[#373e4d] p-2 rounded-lg">
                 {{ sup.notes }}
               </p>
             }
@@ -207,11 +209,11 @@
       </div>
     } @else {
       <div class="linear-surface rounded-xl p-10 text-center">
-        <div class="w-10 h-10 rounded-lg bg-zinc-850 border border-white/10 text-zinc-400 mx-auto flex items-center justify-center mb-3">
+        <div class="w-10 h-10 rounded-lg bg-[#1e222a] border border-[#373e4d] text-slate-400 mx-auto flex items-center justify-center mb-3">
           <lucide-icon [img]="usersIcon" class="w-5 h-5"></lucide-icon>
         </div>
-        <h3 class="text-sm font-bold text-zinc-200">Noch keine Lieferanten angelegt</h3>
-        <p class="text-xs text-zinc-400 max-w-sm mx-auto mt-1 mb-4">
+        <h3 class="text-sm font-bold text-slate-200">Noch keine Lieferanten angelegt</h3>
+        <p class="text-xs text-slate-400 max-w-sm mx-auto mt-1 mb-4">
           Speichere feste Lieferanten, Retourenhändler oder Kleinanzeigen-Verkäufer, um deren Qualität auszuwerten.
         </p>
         <button

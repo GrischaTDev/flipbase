@@ -4,11 +4,12 @@ import { LucideAngularModule, X, Plus, Boxes, Sparkles } from 'lucide-angular';
 import { InventoryService, CreateItemPayload } from '../../../../core/services/inventory.service';
 import { PurchaseService } from '../../../../core/services/purchase.service';
 import { AiAssistantService } from '../../../../core/services/ai-assistant.service';
+import { DatePipe } from '@angular/common';
 import { ItemCondition, ItemStatus } from '../../../../core/models/reflip.models';
 
 @Component({
   selector: 'app-item-create-modal',
-  imports: [ReactiveFormsModule, LucideAngularModule],
+  imports: [ReactiveFormsModule, DatePipe, LucideAngularModule],
   templateUrl: './item-create-modal.component.html',
   styleUrl: './item-create-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

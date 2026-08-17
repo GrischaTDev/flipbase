@@ -1,29 +1,29 @@
 <div class="space-y-5 animate-fade-in select-none">
-  <!-- Header & Time Filter Bar -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2">
+  <!-- Header & Time-range selector -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
     <div>
       <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold tracking-tight text-zinc-100">
-          {{ 'NAV.ANALYTICS' | translate }}
+        <h1 class="text-xl font-bold tracking-tight text-slate-100">
+          {{ 'NAV.ANALYTICS' | translate }} & Controlling
         </h1>
-        <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-          Intelligence
+        <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#262b35] text-slate-300 border border-[#373e4d]">
+          Performance KPIs
         </span>
       </div>
-      <p class="text-xs text-zinc-400 mt-0.5">
-        Quellen-Intelligence, Paletten-Break-Even und Margenanalysen.
+      <p class="text-xs text-slate-400 mt-0.5">
+        Rentabilitätsanalysen, Paletten-Break-Even, Lieferantenqualität und Haltezeiten.
       </p>
     </div>
 
-    <!-- Time Range Selector (Kapitel 31) -->
+    <!-- Time Range Tabs (Kapitel 27) -->
     <div class="linear-surface rounded-xl p-1 flex items-center gap-1 text-xs">
       <button
         type="button"
         (click)="timeRange.set('7d')"
-        class="px-2.5 py-1 rounded-md font-medium transition cursor-pointer"
-        [class.bg-white/[0.1]]="timeRange() === '7d'"
-        [class.text-zinc-100]="timeRange() === '7d'"
-        [class.text-zinc-400]="timeRange() !== '7d'"
+        class="px-2.5 py-1 rounded-md font-semibold transition cursor-pointer"
+        [class.bg-[#373e4d]]="timeRange() === '7d'"
+        [class.text-white]="timeRange() === '7d'"
+        [class.text-slate-400]="timeRange() !== '7d'"
       >
         7 Tage
       </button>
@@ -31,10 +31,10 @@
       <button
         type="button"
         (click)="timeRange.set('30d')"
-        class="px-2.5 py-1 rounded-md font-medium transition cursor-pointer"
-        [class.bg-white/[0.1]]="timeRange() === '30d'"
-        [class.text-zinc-100]="timeRange() === '30d'"
-        [class.text-zinc-400]="timeRange() !== '30d'"
+        class="px-2.5 py-1 rounded-md font-semibold transition cursor-pointer"
+        [class.bg-[#373e4d]]="timeRange() === '30d'"
+        [class.text-white]="timeRange() === '30d'"
+        [class.text-slate-400]="timeRange() !== '30d'"
       >
         30 Tage
       </button>
@@ -42,383 +42,191 @@
       <button
         type="button"
         (click)="timeRange.set('1y')"
-        class="px-2.5 py-1 rounded-md font-medium transition cursor-pointer"
-        [class.bg-white/[0.1]]="timeRange() === '1y'"
-        [class.text-zinc-100]="timeRange() === '1y'"
-        [class.text-zinc-400]="timeRange() !== '1y'"
+        class="px-2.5 py-1 rounded-md font-semibold transition cursor-pointer"
+        [class.bg-[#373e4d]]="timeRange() === '1y'"
+        [class.text-white]="timeRange() === '1y'"
+        [class.text-slate-400]="timeRange() !== '1y'"
       >
-        1 Jahr
+        Dieses Jahr
       </button>
 
       <button
         type="button"
         (click)="timeRange.set('all')"
-        class="px-2.5 py-1 rounded-md font-medium transition cursor-pointer"
-        [class.bg-white/[0.1]]="timeRange() === 'all'"
-        [class.text-zinc-100]="timeRange() === 'all'"
-        [class.text-zinc-400]="timeRange() !== 'all'"
+        class="px-2.5 py-1 rounded-md font-semibold transition cursor-pointer"
+        [class.bg-[#373e4d]]="timeRange() === 'all'"
+        [class.text-white]="timeRange() === 'all'"
+        [class.text-slate-400]="timeRange() !== 'all'"
       >
         Gesamt
       </button>
     </div>
   </div>
 
-  <!-- KPI Cards for Time Range -->
-  <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
-    <div class="linear-kpi p-3.5 rounded-xl">
-      <span class="text-[10px] font-medium uppercase text-zinc-400 block">Gewinn im Zeitraum</span>
-      <span class="text-xl font-bold font-mono text-emerald-400 mt-1 block">
+  <!-- Primary Financial Overview Grid -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <!-- Realisierter Gewinn -->
+    <div class="linear-kpi p-4 rounded-xl border-emerald-500/40">
+      <div class="flex items-center justify-between text-emerald-400 text-[11px] font-semibold">
+        <span>Realisierter Nettogewinn</span>
+        <lucide-icon [img]="trendingIcon" class="w-3.5 h-3.5"></lucide-icon>
+      </div>
+      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-emerald-400">
         {{ periodProfit() | currency:'EUR':'symbol':'1.2-2':'de' }}
-      </span>
+      </div>
+      <span class="text-[10px] text-slate-400 mt-0.5 block">Nach Abzug aller Ausgaben & Gebühren</span>
     </div>
 
-    <div class="linear-kpi p-3.5 rounded-xl">
-      <span class="text-[10px] font-medium uppercase text-zinc-400 block">Umsatz</span>
-      <span class="text-xl font-bold font-mono text-zinc-100 mt-1 block">
+    <!-- Bruttoumsatz -->
+    <div class="linear-kpi p-4 rounded-xl">
+      <div class="flex items-center justify-between text-slate-400 text-[11px] font-semibold">
+        <span>Bruttoumsatz</span>
+        <lucide-icon [img]="coinsIcon" class="w-3.5 h-3.5 text-blue-400"></lucide-icon>
+      </div>
+      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-slate-100">
         {{ periodRevenue() | currency:'EUR':'symbol':'1.2-2':'de' }}
-      </span>
+      </div>
+      <span class="text-[10px] text-slate-400 mt-0.5 block">Aus {{ currentSales().length }} Transaktionen</span>
     </div>
 
-    <div class="linear-kpi p-3.5 rounded-xl">
-      <span class="text-[10px] font-medium uppercase text-zinc-400 block">Ø ROI</span>
-      <span class="text-xl font-bold font-mono text-emerald-400 mt-1 block">
+    <!-- Durchschnittlicher ROI -->
+    <div class="linear-kpi p-4 rounded-xl">
+      <div class="flex items-center justify-between text-slate-400 text-[11px] font-semibold">
+        <span>Durchschnittlicher ROI</span>
+        <lucide-icon [img]="percentIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+      </div>
+      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-emerald-400">
         {{ periodAvgRoi() }} %
-      </span>
+      </div>
+      <span class="text-[10px] text-slate-400 mt-0.5 block">Einsatz vs. Reingewinn</span>
     </div>
 
-    <div class="linear-kpi p-3.5 rounded-xl">
-      <span class="text-[10px] font-medium uppercase text-zinc-400 block">Sell-Through Rate</span>
-      <span class="text-xl font-bold font-mono text-indigo-400 mt-1 block">
-        {{ sellThroughRate() }} %
-      </span>
-    </div>
-
-    <div class="linear-kpi p-3.5 rounded-xl">
-      <span class="text-[10px] font-medium uppercase text-zinc-400 block">Ø Haltedauer</span>
-      <span class="text-xl font-bold font-mono text-zinc-100 mt-1 block">
+    <!-- Durchschnittliche Haltedauer -->
+    <div class="linear-kpi p-4 rounded-xl">
+      <div class="flex items-center justify-between text-slate-400 text-[11px] font-semibold">
+        <span>Ø Umschlagzeit (Holding)</span>
+        <lucide-icon [img]="clockIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
+      </div>
+      <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-slate-100">
         {{ periodAvgHoldingDays() }} Tage
-      </span>
+      </div>
+      <span class="text-[10px] text-slate-400 mt-0.5 block">Vom Einkauf bis Verkauf</span>
     </div>
   </div>
 
-  <!-- Section Navigation Tabs -->
-  <div class="linear-surface rounded-xl p-1.5 flex items-center gap-1 overflow-x-auto text-xs">
-    <button
-      type="button"
-      (click)="activeSection.set('overview')"
-      class="px-3 py-1 rounded-md font-medium transition cursor-pointer"
-      [class.bg-white/[0.1]]="activeSection() === 'overview'"
-      [class.text-zinc-100]="activeSection() === 'overview'"
-      [class.border]="activeSection() === 'overview'"
-      [class.border-white/10]="activeSection() === 'overview'"
-      [class.text-zinc-400]="activeSection() !== 'overview'"
-      [class.hover:text-zinc-200]="activeSection() !== 'overview'"
-    >
-      Übersicht & Insights
-    </button>
-
-    <button
-      type="button"
-      (click)="activeSection.set('sources')"
-      class="px-3 py-1 rounded-md font-medium transition cursor-pointer"
-      [class.bg-white/[0.1]]="activeSection() === 'sources'"
-      [class.text-zinc-100]="activeSection() === 'sources'"
-      [class.border]="activeSection() === 'sources'"
-      [class.border-white/10]="activeSection() === 'sources'"
-      [class.text-zinc-400]="activeSection() !== 'sources'"
-      [class.hover:text-zinc-200]="activeSection() !== 'sources'"
-    >
-      Quellen & Lieferanten-Intelligence
-    </button>
-
-    <button
-      type="button"
-      (click)="activeSection.set('pallets')"
-      class="px-3 py-1 rounded-md font-medium transition cursor-pointer"
-      [class.bg-white/[0.1]]="activeSection() === 'pallets'"
-      [class.text-zinc-100]="activeSection() === 'pallets'"
-      [class.border]="activeSection() === 'pallets'"
-      [class.border-white/10]="activeSection() === 'pallets'"
-      [class.text-zinc-400]="activeSection() !== 'pallets'"
-      [class.hover:text-zinc-200]="activeSection() !== 'pallets'"
-    >
-      Paletten- & Mystery-Monitor
-    </button>
-
-    <button
-      type="button"
-      (click)="activeSection.set('categories')"
-      class="px-3 py-1 rounded-md font-medium transition cursor-pointer"
-      [class.bg-white/[0.1]]="activeSection() === 'categories'"
-      [class.text-zinc-100]="activeSection() === 'categories'"
-      [class.border]="activeSection() === 'categories'"
-      [class.border-white/10]="activeSection() === 'categories'"
-      [class.text-zinc-400]="activeSection() !== 'categories'"
-      [class.hover:text-zinc-200]="activeSection() !== 'categories'"
-    >
-      Kategorie-Rankings
-    </button>
-  </div>
-
-  <!-- SECTION 1: OVERVIEW & INSIGHTS -->
-  @if (activeSection() === 'overview') {
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div class="linear-surface rounded-xl p-4 space-y-3">
-        <div class="flex items-center gap-2 pb-2 border-b border-white/[0.06]">
-          <lucide-icon [img]="sparklesIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-200">Reselling-Performance</h2>
-        </div>
-        <p class="text-xs text-zinc-400">
-          ReFlip analysiert automatisch alle Verkäufe und Einkäufe und vergleicht deine Margen mit deinen Zielwerten.
-        </p>
-
-        <div class="p-3 rounded-lg bg-zinc-900 border border-white/5 space-y-2 text-xs font-mono">
-          <div class="flex justify-between">
-            <span class="text-zinc-400 font-sans">Verkaufte Artikel:</span>
-            <strong class="text-zinc-100">{{ currentSales().length }}</strong>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-zinc-400 font-sans">Ø Gewinn pro Verkauf:</span>
-            <strong class="text-emerald-400">
-              {{ currentSales().length > 0 ? (periodProfit() / currentSales().length | currency:'EUR':'symbol':'1.2-2':'de') : '0,00 €' }}
-            </strong>
-          </div>
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+    <!-- Pallet & Mystery Pack Break-Even Radar (Kapitel 29) - 7 cols -->
+    <div class="lg:col-span-7 linear-surface rounded-xl p-4 md:p-5 space-y-4">
+      <div class="flex items-center gap-2 pb-2 border-b border-[#373e4d]">
+        <lucide-icon [img]="packageIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+        <div>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">
+            Paletten & Lot Break-Even Radar (Kapitel 29)
+          </h2>
+          <p class="text-[11px] text-slate-400">
+            Automatischer Kostenrücklauf bis zum Break-Even-Point für Großkäufe.
+          </p>
         </div>
       </div>
 
-      <div class="linear-surface rounded-xl p-4 space-y-3">
-        <div class="flex items-center gap-2 pb-2 border-b border-white/[0.06]">
-          <lucide-icon [img]="trophyIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-200">Top Einkaufsquellen</h2>
-        </div>
-
-        @if (sourceStats().length > 0) {
-          <div class="divide-y divide-white/[0.04]">
-            @for (src of sourceStats().slice(0, 3); track src.sourceName) {
-              <div class="py-2 flex items-center justify-between text-xs font-mono">
+      @if (palletStats().length > 0) {
+        <div class="space-y-3">
+          @for (p of palletStats(); track p.purchaseId) {
+            <div class="p-3.5 rounded-lg bg-[#1e222a] border border-[#373e4d] space-y-2.5">
+              <div class="flex items-start justify-between gap-2">
                 <div>
-                  <strong class="text-zinc-200 block font-semibold font-sans">{{ src.sourceName }}</strong>
-                  <span class="text-[10px] text-zinc-500 font-sans">{{ src.purchasesCount }} Einkäufe</span>
-                </div>
-                <div class="text-right">
-                  <span class="font-bold text-emerald-400 block">+{{ src.profit | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
-                  <span class="text-[10px] text-zinc-400">ROI: {{ src.roi }}%</span>
-                </div>
-              </div>
-            }
-          </div>
-        } @else {
-          <p class="text-xs text-zinc-500">Noch keine Einkaufsdaten vorhanden.</p>
-        }
-      </div>
-    </div>
-  }
-
-  <!-- SECTION 2: SOURCES & SUPPLIERS INTELLIGENCE (Kapitel 28) -->
-  @if (activeSection() === 'sources') {
-    <div class="space-y-4">
-      <!-- Sources Table -->
-      <div class="linear-surface rounded-xl p-4 space-y-3">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-200">Profitabilität nach Einkaufsquelle (Kapitel 28)</h2>
-
-        @if (sourceStats().length > 0) {
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs border-collapse">
-              <thead class="bg-white/[0.02] text-zinc-400 uppercase font-semibold text-[10px] tracking-wider border-b border-white/[0.06]">
-                <tr>
-                  <th class="py-2.5 px-3">Einkaufsquelle</th>
-                  <th class="py-2.5 px-3">Einkäufe</th>
-                  <th class="py-2.5 px-3 text-right">Investiert</th>
-                  <th class="py-2.5 px-3 text-right">Umsatz</th>
-                  <th class="py-2.5 px-3 text-right">Realisierter Gewinn</th>
-                  <th class="py-2.5 px-3 text-right">Ø ROI</th>
-                  <th class="py-2.5 px-3 text-right">Ø Verkaufsdauer</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-white/[0.04] font-mono">
-                @for (src of sourceStats(); track src.sourceName) {
-                  <tr class="hover:bg-white/[0.02] transition">
-                    <td class="py-2.5 px-3 font-semibold font-sans text-zinc-100">{{ src.sourceName }}</td>
-                    <td class="py-2.5 px-3 text-zinc-400 font-sans">{{ src.purchasesCount }}</td>
-                    <td class="py-2.5 px-3 text-right text-zinc-300">{{ src.invested | currency:'EUR':'symbol':'1.2-2':'de' }}</td>
-                    <td class="py-2.5 px-3 text-right text-zinc-200 font-bold">{{ src.revenue | currency:'EUR':'symbol':'1.2-2':'de' }}</td>
-                    <td class="py-2.5 px-3 text-right font-bold text-emerald-400">+{{ src.profit | currency:'EUR':'symbol':'1.2-2':'de' }}</td>
-                    <td class="py-2.5 px-3 text-right font-bold text-emerald-400">{{ src.roi }} %</td>
-                    <td class="py-2.5 px-3 text-right text-zinc-400">{{ src.avgHoldingDays }} Tage</td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        } @else {
-          <p class="text-xs text-zinc-500">Keine Daten verfügbar.</p>
-        }
-      </div>
-
-      <!-- Suppliers Table -->
-      <div class="linear-surface rounded-xl p-4 space-y-3">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-200">Lieferanten-Qualität & Defektquote (Kapitel 28)</h2>
-
-        @if (supplierStats().length > 0) {
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs border-collapse">
-              <thead class="bg-white/[0.02] text-zinc-400 uppercase font-semibold text-[10px] tracking-wider border-b border-white/[0.06]">
-                <tr>
-                  <th class="py-2.5 px-3">Lieferant / Verkäufer</th>
-                  <th class="py-2.5 px-3">Einkäufe</th>
-                  <th class="py-2.5 px-3 text-right">Ø ROI</th>
-                  <th class="py-2.5 px-3 text-right">Defektquote</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-white/[0.04] font-mono">
-                @for (sup of supplierStats(); track sup.supplierName) {
-                  <tr class="hover:bg-white/[0.02] transition">
-                    <td class="py-2.5 px-3 font-semibold font-sans text-zinc-100">{{ sup.supplierName }}</td>
-                    <td class="py-2.5 px-3 text-zinc-400 font-sans">{{ sup.purchasesCount }}</td>
-                    <td class="py-2.5 px-3 text-right font-bold text-emerald-400">{{ sup.avgRoi }} %</td>
-                    <td class="py-2.5 px-3 text-right font-bold" [class.text-rose-400]="sup.defectRate > 10" [class.text-zinc-300]="sup.defectRate <= 10">
-                      {{ sup.defectRate }} %
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
-          </div>
-        } @else {
-          <p class="text-xs text-zinc-500">Noch keine Lieferanten-Daten vorhanden.</p>
-        }
-      </div>
-    </div>
-  }
-
-  <!-- SECTION 3: PALLETS & MYSTERY MONITOR (Kapitel 29 & 30) -->
-  @if (activeSection() === 'pallets') {
-    <div class="space-y-4">
-      <!-- Pallets Monitor -->
-      <div class="linear-surface rounded-xl p-4 space-y-3">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-200">Paletten- & Lot-Dashboard (Kapitel 30)</h2>
-
-        @if (palletStats().length > 0) {
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            @for (pal of palletStats(); track pal.purchaseId) {
-              <div class="linear-card p-4 rounded-xl space-y-3">
-                <div class="flex items-center justify-between">
-                  <h3 class="text-xs font-bold text-zinc-100">{{ pal.title }}</h3>
-                  <span
-                    class="px-2 py-0.5 rounded text-[10px] font-mono font-medium uppercase"
-                    [class.bg-emerald-500/10]="pal.isBreakEven"
-                    [class.text-emerald-400]="pal.isBreakEven"
-                    [class.border]="true"
-                    [class.border-emerald-500/20]="pal.isBreakEven"
-                    [class.bg-amber-500/10]="!pal.isBreakEven"
-                    [class.text-amber-400]="!pal.isBreakEven"
-                    [class.border-amber-500/20]="!pal.isBreakEven"
-                  >
-                    {{ pal.isBreakEven ? 'Break-even erreicht! 🎉' : 'In Amortisierung' }}
+                  <h3 class="text-xs font-semibold text-slate-100">{{ p.title }}</h3>
+                  <span class="text-[10px] text-slate-400 font-mono">
+                    {{ p.soldCount }} von {{ p.itemsCount }} Artikeln verkauft ({{ p.openCount }} im Lager)
                   </span>
                 </div>
 
-                <div class="grid grid-cols-3 gap-2 text-xs font-mono">
-                  <div>
-                    <span class="text-[10px] font-sans text-zinc-400 block">Investition</span>
-                    <strong class="text-zinc-200">{{ pal.totalInvestment | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
-                  </div>
-                  <div>
-                    <span class="text-[10px] font-sans text-zinc-400 block">Umsatz</span>
-                    <strong class="text-emerald-400">{{ pal.revenue | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
-                  </div>
-                  <div>
-                    <span class="text-[10px] font-sans text-zinc-400 block">Restinventar</span>
-                    <strong class="text-indigo-400">{{ pal.remainingStockValue | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
-                  </div>
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase"
+                  [class.bg-emerald-500/15]="p.isBreakEven"
+                  [class.text-emerald-400]="p.isBreakEven"
+                  [class.border]="true"
+                  [class.border-emerald-500/30]="p.isBreakEven"
+                  [class.bg-amber-500/15]="!p.isBreakEven"
+                  [class.text-amber-400]="!p.isBreakEven"
+                  [class.border-amber-500/30]="!p.isBreakEven"
+                >
+                  {{ p.isBreakEven ? 'Profit-Zone' : 'Am Abbezahlen' }}
+                </span>
+              </div>
+
+              <!-- Progress Bar -->
+              <div class="space-y-1">
+                <div class="flex justify-between text-[11px] font-mono">
+                  <span class="text-slate-400">Erlös: <strong class="text-slate-200">{{ p.revenue | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
+                  <span class="text-slate-400">Kosten: <strong class="text-slate-200">{{ p.totalInvestment | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
                 </div>
 
-                <div class="text-[11px] text-zinc-400 flex justify-between pt-2 border-t border-white/[0.06]">
-                  <span>{{ pal.soldCount }} von {{ pal.itemsCount }} Artikeln verkauft</span>
-                  <span>Ausschuss: {{ pal.defectRate }}%</span>
+                <div class="w-full h-1.5 rounded-full bg-[#373e4d] overflow-hidden">
+                  <div
+                    class="h-full rounded-full transition-all duration-500"
+                    [class.bg-emerald-400]="p.isBreakEven"
+                    [class.bg-amber-400]="!p.isBreakEven"
+                    [style.width.%]="p.totalInvestment > 0 ? (p.revenue / p.totalInvestment) * 100 : 0"
+                  ></div>
                 </div>
               </div>
-            }
-          </div>
-        } @else {
-          <p class="text-xs text-zinc-500">Keine Paletten- oder Lot-Einkäufe vorhanden.</p>
-        }
-      </div>
 
-      <!-- Mystery Packs Monitor (Kapitel 29) -->
-      <div class="linear-surface rounded-xl p-4 space-y-3">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-200">Mystery-Pack Auswertung (Kapitel 29)</h2>
-
-        @if (mysteryPackStats().length > 0) {
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
-            @for (pack of mysteryPackStats(); track pack.purchaseId) {
-              <div class="linear-card p-4 rounded-xl space-y-3">
-                <h3 class="text-xs font-bold text-zinc-100">{{ pack.title }}</h3>
-
-                <div class="grid grid-cols-3 gap-2 text-xs font-mono">
-                  <div>
-                    <span class="text-[10px] font-sans text-zinc-400 block">Gesamtkosten</span>
-                    <strong class="text-zinc-200">{{ pack.totalCost | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
-                  </div>
-                  <div>
-                    <span class="text-[10px] font-sans text-zinc-400 block">Umsatz</span>
-                    <strong class="text-emerald-400">{{ pack.revenue | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
-                  </div>
-                  <div>
-                    <span class="text-[10px] font-sans text-zinc-400 block">Realisierter Gewinn</span>
-                    <strong class="text-emerald-400">{{ pack.realizedProfit | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
-                  </div>
-                </div>
-
-                <div class="text-[11px] text-zinc-400 flex justify-between pt-2 border-t border-white/[0.06]">
-                  <span>{{ pack.soldCount }} verkauft • {{ pack.openCount }} offen</span>
-                  <span class="font-mono">Restwert: {{ pack.remainingStockValue | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
-                </div>
+              <div class="flex items-center justify-between text-[11px] font-mono pt-1 text-slate-300">
+                <span>{{ p.totalInvestment > 0 ? ((p.revenue / p.totalInvestment) * 100).toFixed(0) : 0 }}% der Kosten eingespielt</span>
+                <span class="font-bold" [class.text-emerald-400]="p.realizedProfit >= 0" [class.text-amber-400]="p.realizedProfit < 0">
+                  {{ p.realizedProfit >= 0 ? '+' : '' }}{{ p.realizedProfit | currency:'EUR':'symbol':'1.2-2':'de' }} Netto
+                </span>
               </div>
-            }
-          </div>
-        } @else {
-          <p class="text-xs text-zinc-500">Keine Mystery-Pack Einkäufe vorhanden.</p>
-        }
-      </div>
-    </div>
-  }
-
-  <!-- SECTION 4: CATEGORIES (Kapitel 31) -->
-  @if (activeSection() === 'categories') {
-    <div class="linear-surface rounded-xl p-4 space-y-3">
-      <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-200">Beste Kategorien Ranking (Kapitel 31)</h2>
-
-      @if (categoryRankings().length > 0) {
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs border-collapse">
-            <thead class="bg-white/[0.02] text-zinc-400 uppercase font-semibold text-[10px] tracking-wider border-b border-white/[0.06]">
-              <tr>
-                <th class="py-2.5 px-3">Kategorie</th>
-                <th class="py-2.5 px-3">Gesamte Artikel</th>
-                <th class="py-2.5 px-3">Verkäufe</th>
-                <th class="py-2.5 px-3 text-right">Umsatz</th>
-                <th class="py-2.5 px-3 text-right">Nettogewinn</th>
-                <th class="py-2.5 px-3 text-right">Ø ROI</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-white/[0.04] font-mono">
-              @for (cat of categoryRankings(); track cat.category) {
-                <tr class="hover:bg-white/[0.02] transition">
-                  <td class="py-2.5 px-3 font-semibold font-sans text-zinc-100">{{ cat.category }}</td>
-                  <td class="py-2.5 px-3 text-zinc-400 font-sans">{{ cat.itemsCount }}</td>
-                  <td class="py-2.5 px-3 text-zinc-400 font-sans">{{ cat.soldCount }}</td>
-                  <td class="py-2.5 px-3 text-right font-bold text-zinc-200">{{ cat.revenue | currency:'EUR':'symbol':'1.2-2':'de' }}</td>
-                  <td class="py-2.5 px-3 text-right font-bold text-emerald-400">+{{ cat.profit | currency:'EUR':'symbol':'1.2-2':'de' }}</td>
-                  <td class="py-2.5 px-3 text-right font-bold text-emerald-400">{{ cat.avgRoi }} %</td>
-                </tr>
-              }
-            </tbody>
-          </table>
+            </div>
+          }
         </div>
       } @else {
-        <p class="text-xs text-zinc-500">Noch keine Artikel in Kategorien vorhanden.</p>
+        <p class="text-xs text-slate-400 py-6 text-center">Keine Paletten oder Mystery Packs erfasst.</p>
       }
     </div>
-  }
+
+    <!-- Supplier Defect Rate & Performance (Kapitel 28) - 5 cols -->
+    <div class="lg:col-span-5 linear-surface rounded-xl p-4 md:p-5 space-y-4">
+      <div class="flex items-center gap-2 pb-2 border-b border-[#373e4d]">
+        <lucide-icon [img]="usersIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+        <div>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">
+            Lieferanten-Audit & Defekt-Rate (Kapitel 28)
+          </h2>
+          <p class="text-[11px] text-slate-400">
+            Welche Verkäufer liefern die beste Marge und geringste Ausschussquote?
+          </p>
+        </div>
+      </div>
+
+      @if (supplierStats().length > 0) {
+        <div class="divide-y divide-[#373e4d]">
+          @for (sup of supplierStats(); track sup.supplierName) {
+            <div class="py-3 space-y-1.5 text-xs">
+              <div class="flex items-center justify-between">
+                <strong class="text-slate-100 font-semibold">{{ sup.supplierName }}</strong>
+                <span class="text-emerald-400 font-mono font-bold">{{ sup.purchasesCount }} Einkäufe</span>
+              </div>
+
+              <div class="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-400 pt-0.5">
+                <div>
+                  <span class="text-[9px] uppercase font-sans text-slate-400 block">Defektquote</span>
+                  <span [class.text-emerald-400]="sup.defectRate <= 5" [class.text-rose-400]="sup.defectRate > 5">
+                    {{ sup.defectRate }}%
+                  </span>
+                </div>
+                <div class="text-right">
+                  <span class="text-[9px] uppercase font-sans text-slate-400 block">Ø ROI</span>
+                  <span class="text-slate-200">{{ sup.avgRoi }}%</span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="text-xs text-slate-400 py-6 text-center">Noch keine Lieferanten-Daten vorhanden.</p>
+      }
+    </div>
+  </div>
 </div>

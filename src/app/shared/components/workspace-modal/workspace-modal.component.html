@@ -1,55 +1,55 @@
-<div class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-  <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-slate-200 dark:border-slate-700">
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-bold text-slate-900 dark:text-white">Neuen Workspace erstellen</h3>
+<div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in select-none">
+  <div class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-6 border border-[#373e4d]">
+    <div class="flex items-center justify-between mb-4 pb-3 border-b border-[#373e4d]">
+      <h3 class="text-sm font-bold text-slate-100">Neuen Workspace erstellen</h3>
       <button
         type="button"
         (click)="close.emit()"
-        class="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700"
+        class="p-1 rounded-md text-slate-400 hover:text-white hover:bg-[#373e4d] transition cursor-pointer"
       >
-        <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+        <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
       </button>
     </div>
 
-    <p class="text-sm text-slate-500 dark:text-slate-400 mb-5">
+    <p class="text-xs text-slate-400 mb-4">
       Ein Workspace trennt sämtliche Einkäufe, Inventardaten und Verkäufe sauber voneinander.
     </p>
 
     @if (errorMessage()) {
-      <div class="p-3 mb-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm">
+      <div class="p-3 mb-4 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
         {{ errorMessage() }}
       </div>
     }
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
       <div>
-        <label for="workspaceName" class="block text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1.5">
+        <label for="workspaceName" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
           Workspace Name
         </label>
         <input
           id="workspaceName"
           type="text"
           formControlName="name"
-          placeholder="z.B. Mein Reselling-Business oder Flohmarkt 2026"
-          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500 text-sm"
+          placeholder="z.B. Mein Reselling-Business"
+          class="linear-input w-full px-3 py-1.5 rounded-lg text-xs"
           autofocus
         />
       </div>
 
-      <div class="flex justify-end gap-3 pt-2">
+      <div class="flex justify-end gap-2.5 pt-3 border-t border-[#373e4d]">
         <button
           type="button"
           (click)="close.emit()"
-          class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition"
+          class="linear-btn-secondary px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
         >
           Abbrechen
         </button>
         <button
           type="submit"
           [disabled]="form.invalid || isSubmitting()"
-          class="px-4 py-2 rounded-xl text-sm font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md disabled:opacity-50 transition flex items-center gap-2"
+          class="linear-btn-primary px-4 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 transition flex items-center gap-1.5 cursor-pointer"
         >
-          <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
+          <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5"></lucide-icon>
           <span>{{ isSubmitting() ? 'Erstelle...' : 'Erstellen' }}</span>
         </button>
       </div>

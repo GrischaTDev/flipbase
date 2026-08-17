@@ -1,70 +1,73 @@
-<div class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in">
-  <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-2xl w-full p-6 md:p-8 border border-slate-200 dark:border-slate-800 my-8">
-    <div class="flex items-center justify-between mb-6">
-      <div class="flex items-center gap-3">
-        <div class="p-2 rounded-2xl bg-emerald-500/10 text-emerald-500">
-          <lucide-icon [img]="trendingIcon" class="w-5 h-5"></lucide-icon>
+<div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in select-none">
+  <div class="linear-surface rounded-2xl shadow-2xl max-w-2xl w-full p-6 border border-[#373e4d] my-8">
+    <div class="flex items-center justify-between pb-4 mb-4 border-b border-[#373e4d]">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+          <lucide-icon [img]="trendingIcon" class="w-4 h-4"></lucide-icon>
         </div>
-        <h2 class="text-xl font-bold text-slate-900 dark:text-white">Verkauf erfassen (Kapitel 26)</h2>
+        <div>
+          <h2 class="text-sm font-bold text-slate-100">Verkauf erfassen (Kapitel 26)</h2>
+          <p class="text-[11px] text-slate-400">Realisierter Gewinn, Plattformgebühren & ROI</p>
+        </div>
       </div>
 
       <button
         type="button"
         (click)="close.emit()"
-        class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+        class="p-1 rounded-md text-slate-400 hover:text-white hover:bg-[#373e4d] transition cursor-pointer"
       >
-        <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+        <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
       </button>
     </div>
 
     @if (errorMessage()) {
-      <div class="p-3.5 mb-5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+      <div class="p-3 mb-4 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
         {{ errorMessage() }}
       </div>
     }
 
     <!-- Live Calculation Ribbon (Kapitel 26) -->
-    <div class="p-4 mb-5 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+    <div class="p-3.5 mb-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
       <div>
-        <span class="text-[10px] uppercase font-bold text-slate-400 block">Gesamtkosten</span>
-        <strong class="text-slate-900 dark:text-white text-sm">
+        <span class="text-[10px] uppercase font-sans font-semibold text-slate-400 block">Gesamtkosten</span>
+        <strong class="text-slate-100 text-sm">
           {{ liveMetrics().totalCosts | currency:'EUR':'symbol':'1.2-2':'de' }}
         </strong>
       </div>
 
       <div>
-        <span class="text-[10px] uppercase font-bold text-slate-400 block">Realisierter Gewinn</span>
-        <strong class="text-emerald-600 dark:text-emerald-400 text-sm">
+        <span class="text-[10px] uppercase font-sans font-semibold text-emerald-400 block">Realisierter Gewinn</span>
+        <strong class="text-emerald-400 text-sm">
           {{ liveMetrics().profit | currency:'EUR':'symbol':'1.2-2':'de' }}
         </strong>
       </div>
 
       <div>
-        <span class="text-[10px] uppercase font-bold text-slate-400 block">ROI</span>
-        <strong class="text-emerald-600 dark:text-emerald-400 text-sm">
+        <span class="text-[10px] uppercase font-sans font-semibold text-emerald-400 block">ROI</span>
+        <strong class="text-emerald-400 text-sm">
           {{ liveMetrics().roi }} %
         </strong>
       </div>
 
       <div>
-        <span class="text-[10px] uppercase font-bold text-slate-400 block">Haltedauer</span>
-        <strong class="text-slate-900 dark:text-white text-sm">
+        <span class="text-[10px] uppercase font-sans font-semibold text-slate-400 block">Haltedauer</span>
+        <strong class="text-slate-100 text-sm">
           {{ liveMetrics().holdingDays }} Tage
         </strong>
       </div>
     </div>
 
-    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-3.5">
       <!-- 1. Artikel auswählen -->
       <div>
-        <label for="saleItem" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+        <label for="saleItem" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
           Verkaufter Artikel
         </label>
         <select
           id="saleItem"
           formControlName="inventory_item_id"
           (change)="updateLiveCalculation()"
-          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold focus:ring-2 focus:ring-emerald-500"
+          class="linear-input w-full px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-slate-200"
         >
           <option value="">-- Artikel aus Inventar auswählen --</option>
           @for (item of availableItems(); track item.id) {
@@ -76,9 +79,9 @@
       </div>
 
       <!-- 2. Verkaufspreis & Plattform & Datum -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <div>
-          <label for="salePrice" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+          <label for="salePrice" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
             Verkaufspreis (€)
           </label>
           <input
@@ -86,29 +89,30 @@
             type="number"
             formControlName="sale_price"
             (input)="updateLiveCalculation()"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-black text-emerald-600 focus:ring-2 focus:ring-emerald-500"
+            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400"
           />
         </div>
 
         <div>
-          <label for="salePlatform" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+          <label for="salePlatform" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
             Verkaufsplattform
           </label>
           <select
             id="salePlatform"
             formControlName="platform"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+            (change)="updateLiveCalculation()"
+            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-slate-200"
           >
-            <option value="kleinanzeigen">Kleinanzeigen (Bar / Direkt)</option>
-            <option value="ebay">eBay</option>
-            <option value="vinted">Vinted</option>
-            <option value="direct">Direktverkauf / Bekannte</option>
-            <option value="other">Sonstige</option>
+            <option value="kleinanzeigen">Kleinanzeigen (0% Gebühr)</option>
+            <option value="ebay">eBay (~11% Gebühr)</option>
+            <option value="vinted">Vinted (0% Verkäufer)</option>
+            <option value="direct">Direktverkauf (0%)</option>
+            <option value="other">Andere</option>
           </select>
         </div>
 
         <div>
-          <label for="saleDate" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+          <label for="saleDate" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
             Verkaufsdatum
           </label>
           <input
@@ -116,79 +120,76 @@
             type="date"
             formControlName="sale_date"
             (input)="updateLiveCalculation()"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs"
+            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono"
           />
         </div>
       </div>
 
-      <!-- 3. Abzüge / Verkaufskosten (Kapitel 11 & 26) -->
-      <div class="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-3">
-        <span class="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider block">
-          Verkaufskosten & Gebühren
-        </span>
+      <!-- 3. Gebühren & Versandkosten -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+        <div>
+          <label for="saleFee" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            Plattformgebühr (€)
+          </label>
+          <input
+            id="saleFee"
+            type="number"
+            formControlName="platform_fees"
+            (input)="updateLiveCalculation()"
+            placeholder="0.00"
+            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
+          />
+        </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div>
-            <label for="feeInput" class="block text-[11px] text-slate-500 mb-1">
-              Plattformgebühren (€)
-            </label>
-            <input
-              id="feeInput"
-              type="number"
-              formControlName="platform_fee"
-              (input)="updateLiveCalculation()"
-              class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold"
-            />
-          </div>
+        <div>
+          <label for="saleShippingOut" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            Versandkosten (€)
+          </label>
+          <input
+            id="saleShippingOut"
+            type="number"
+            formControlName="shipping_costs"
+            (input)="updateLiveCalculation()"
+            placeholder="0.00"
+            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
+          />
+        </div>
 
-          <div>
-            <label for="shipInput" class="block text-[11px] text-slate-500 mb-1">
-              Versandkosten (€)
-            </label>
-            <input
-              id="shipInput"
-              type="number"
-              formControlName="shipping_cost"
-              (input)="updateLiveCalculation()"
-              class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold"
-            />
-          </div>
-
-          <div>
-            <label for="packInput" class="block text-[11px] text-slate-500 mb-1">
-              Verpackung / Karton (€)
-            </label>
-            <input
-              id="packInput"
-              type="number"
-              formControlName="packaging_cost"
-              (input)="updateLiveCalculation()"
-              class="w-full px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-semibold"
-            />
-          </div>
+        <div>
+          <label for="salePaymentFees" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+            Zahlungsgebühren (€)
+          </label>
+          <input
+            id="salePaymentFees"
+            type="number"
+            formControlName="payment_fees"
+            (input)="updateLiveCalculation()"
+            placeholder="0.00"
+            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
+          />
         </div>
       </div>
 
-      <!-- 4. Notizen & Referenzen -->
+      <!-- 4. Notizen -->
       <div>
-        <label for="saleNotes" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
-          Käufer-Notizen / Referenz (optional)
+        <label for="saleNotes" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+          Notizen zum Verkauf (optional)
         </label>
         <input
           id="saleNotes"
           type="text"
-          formControlName="buyer_notes"
-          placeholder="z.B. Käufer hat bar bei Abholung gezahlt"
-          class="w-full px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs"
+          formControlName="notes"
+          placeholder="z.B. Käufer hat bar bei Abholung bezahlt..."
+          class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
         />
       </div>
 
       <!-- Actions -->
-      <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+      <div class="flex justify-end gap-2.5 pt-3 border-t border-[#373e4d]">
         <button
           type="button"
           (click)="close.emit()"
-          class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+          class="linear-btn-secondary px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
         >
           Abbrechen
         </button>
@@ -196,9 +197,9 @@
         <button
           type="submit"
           [disabled]="form.invalid || isSubmitting()"
-          class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-md disabled:opacity-50 transition flex items-center gap-2 cursor-pointer"
+          class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
         >
-          <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
+          <lucide-icon [img]="trendingIcon" class="w-3.5 h-3.5"></lucide-icon>
           <span>{{ isSubmitting() ? 'Speichere...' : 'Verkauf abschließen' }}</span>
         </button>
       </div>

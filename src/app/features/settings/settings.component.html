@@ -1,15 +1,15 @@
 <div class="space-y-5 animate-fade-in select-none">
   <!-- Header -->
-  <div class="pb-2">
+  <div class="pb-1">
     <div class="flex items-center gap-2">
-      <h1 class="text-xl font-bold tracking-tight text-zinc-100">
+      <h1 class="text-xl font-bold tracking-tight text-slate-100">
         {{ 'NAV.SETTINGS' | translate }} & Export
       </h1>
-      <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-medium bg-zinc-850 text-zinc-400 border border-white/10">
+      <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#262b35] text-slate-300 border border-[#373e4d]">
         Workspace
       </span>
     </div>
-    <p class="text-xs text-zinc-400 mt-0.5">
+    <p class="text-xs text-slate-400 mt-0.5">
       Workspace-Parameter verwalten und Finanzdaten für Buchhaltung & Steuerberater exportieren.
     </p>
   </div>
@@ -18,13 +18,13 @@
     <!-- Left Column: Workspace & Financial Parameters (7 cols) -->
     <div class="lg:col-span-7 space-y-4">
       <form [formGroup]="form" (ngSubmit)="onSaveSettings()" class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
-        <div class="flex items-center gap-2 pb-2 border-b border-white/[0.06]">
+        <div class="flex items-center gap-2 pb-2 border-b border-[#373e4d]">
           <lucide-icon [img]="slidersIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-200">Workspace & Deal-Kriterien</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Workspace & Deal-Kriterien</h2>
         </div>
 
         @if (saveSuccess()) {
-          <div class="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium flex items-center gap-2">
+          <div class="p-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
             <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
             <span>Einstellungen erfolgreich gespeichert!</span>
           </div>
@@ -32,7 +32,7 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label for="workspaceNameInput" class="block text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">
+            <label for="workspaceNameInput" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
               Workspace-Name
             </label>
             <input
@@ -44,13 +44,13 @@
           </div>
 
           <div>
-            <label for="currencySelect" class="block text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">
+            <label for="currencySelect" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
               Währung
             </label>
             <select
               id="currencySelect"
               formControlName="currency"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer text-slate-200"
             >
               <option value="EUR">Euro (€)</option>
               <option value="USD">US Dollar ($)</option>
@@ -62,7 +62,7 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
           <div>
-            <label for="minRoiInput" class="block text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">
+            <label for="minRoiInput" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
               Standard Mindest-ROI (%)
             </label>
             <input
@@ -71,11 +71,11 @@
               formControlName="min_roi_percent"
               class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium"
             />
-            <span class="text-[10px] text-zinc-500 mt-0.5 block">Wird im Deal Calculator als Benchmark genutzt.</span>
+            <span class="text-[10px] text-slate-400 mt-0.5 block">Wird im Deal Calculator als Benchmark genutzt.</span>
           </div>
 
           <div>
-            <label for="minProfitInput" class="block text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-1">
+            <label for="minProfitInput" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
               Mindest-Reingewinn (€)
             </label>
             <input
@@ -84,11 +84,11 @@
               formControlName="min_profit_amount"
               class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-medium"
             />
-            <span class="text-[10px] text-zinc-500 mt-0.5 block">Mindestbetrag vor Kaufempfehlung.</span>
+            <span class="text-[10px] text-slate-400 mt-0.5 block">Mindestbetrag vor Kaufempfehlung.</span>
           </div>
         </div>
 
-        <div class="pt-3 border-t border-white/[0.06] flex justify-end">
+        <div class="pt-3 border-t border-[#373e4d] flex justify-end">
           <button
             type="submit"
             [disabled]="form.invalid || isSaving()"
@@ -104,7 +104,7 @@
       <div class="linear-surface rounded-xl p-4 space-y-3">
         <div class="flex items-center gap-2">
           <lucide-icon [img]="globeIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-200">Sprache & Internationalisierung</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Sprache & Internationalisierung</h2>
         </div>
 
         <div class="flex gap-2 text-xs">
@@ -112,11 +112,11 @@
             type="button"
             (click)="changeLanguage('de')"
             class="px-3 py-1.5 rounded-lg border font-medium transition cursor-pointer"
-            [class.bg-white/[0.1]]="translate.currentLang() === 'de'"
-            [class.text-zinc-100]="translate.currentLang() === 'de'"
-            [class.border-white/20]="translate.currentLang() === 'de'"
-            [class.border-white/5]="translate.currentLang() !== 'de'"
-            [class.text-zinc-400]="translate.currentLang() !== 'de'"
+            [class.bg-[#373e4d]]="translate.currentLang() === 'de'"
+            [class.text-white]="translate.currentLang() === 'de'"
+            [class.border-[#4a5468]]="translate.currentLang() === 'de'"
+            [class.border-[#373e4d]]="translate.currentLang() !== 'de'"
+            [class.text-slate-300]="translate.currentLang() !== 'de'"
           >
             🇩🇪 Deutsch
           </button>
@@ -125,11 +125,11 @@
             type="button"
             (click)="changeLanguage('en')"
             class="px-3 py-1.5 rounded-lg border font-medium transition cursor-pointer"
-            [class.bg-white/[0.1]]="translate.currentLang() === 'en'"
-            [class.text-zinc-100]="translate.currentLang() === 'en'"
-            [class.border-white/20]="translate.currentLang() === 'en'"
-            [class.border-white/5]="translate.currentLang() !== 'en'"
-            [class.text-zinc-400]="translate.currentLang() !== 'en'"
+            [class.bg-[#373e4d]]="translate.currentLang() === 'en'"
+            [class.text-white]="translate.currentLang() === 'en'"
+            [class.border-[#4a5468]]="translate.currentLang() === 'en'"
+            [class.border-[#373e4d]]="translate.currentLang() !== 'en'"
+            [class.text-slate-300]="translate.currentLang() !== 'en'"
           >
             🇬🇧 English
           </button>
@@ -140,12 +140,12 @@
     <!-- Right Column: Data Export & Backup Station (5 cols) -->
     <div class="lg:col-span-5 space-y-4">
       <div class="linear-surface rounded-xl p-4 space-y-3">
-        <div class="flex items-center gap-2 pb-2 border-b border-white/[0.06]">
+        <div class="flex items-center gap-2 pb-2 border-b border-[#373e4d]">
           <lucide-icon [img]="downloadIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-200">Datenexport (Kapitel 32)</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Datenexport (Kapitel 32)</h2>
         </div>
 
-        <p class="text-[11px] text-zinc-400 leading-relaxed">
+        <p class="text-[11px] text-slate-300 leading-relaxed">
           Exportiere alle Transaktionen in saubere CSV-Dateien (Semikolon-getrennt, optimiert für Excel & Steuerberater) oder lade ein komplettes JSON-Backup herunter.
         </p>
 
@@ -159,11 +159,11 @@
             <div class="flex items-center gap-2.5">
               <lucide-icon [img]="csvIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
               <div>
-                <strong class="text-xs text-zinc-200 block font-semibold">Verkäufe exportieren (CSV)</strong>
-                <span class="text-[10px] text-zinc-400 font-mono">{{ salesService.sales().length }} Datensätze mit Gebühren & Gewinn</span>
+                <strong class="text-xs text-slate-200 block font-semibold">Verkäufe exportieren (CSV)</strong>
+                <span class="text-[10px] text-slate-400 font-mono">{{ salesService.sales().length }} Datensätze mit Gebühren & Gewinn</span>
               </div>
             </div>
-            <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5 text-zinc-500"></lucide-icon>
+            <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
           </button>
 
           <!-- Purchases CSV -->
@@ -175,11 +175,11 @@
             <div class="flex items-center gap-2.5">
               <lucide-icon [img]="csvIcon" class="w-4 h-4 text-blue-400"></lucide-icon>
               <div>
-                <strong class="text-xs text-zinc-200 block font-semibold">Einkäufe exportieren (CSV)</strong>
-                <span class="text-[10px] text-zinc-400 font-mono">{{ purchaseService.purchases().length }} Einkäufe mit Quellen & Kosten</span>
+                <strong class="text-xs text-slate-200 block font-semibold">Einkäufe exportieren (CSV)</strong>
+                <span class="text-[10px] text-slate-400 font-mono">{{ purchaseService.purchases().length }} Einkäufe mit Quellen & Kosten</span>
               </div>
             </div>
-            <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5 text-zinc-500"></lucide-icon>
+            <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
           </button>
 
           <!-- Inventory CSV -->
@@ -191,11 +191,11 @@
             <div class="flex items-center gap-2.5">
               <lucide-icon [img]="csvIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
               <div>
-                <strong class="text-xs text-zinc-200 block font-semibold">Inventarbestand (CSV)</strong>
-                <span class="text-[10px] text-zinc-400 font-mono">{{ inventoryService.items().length }} Artikel mit EK & Zustand</span>
+                <strong class="text-xs text-slate-200 block font-semibold">Inventarbestand (CSV)</strong>
+                <span class="text-[10px] text-slate-400 font-mono">{{ inventoryService.items().length }} Artikel mit EK & Zustand</span>
               </div>
             </div>
-            <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5 text-zinc-500"></lucide-icon>
+            <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
           </button>
 
           <!-- JSON Backup -->
@@ -207,11 +207,11 @@
             <div class="flex items-center gap-2.5">
               <lucide-icon [img]="dbIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
               <div>
-                <strong class="text-xs text-zinc-200 block font-semibold">Komplettes JSON-Backup</strong>
-                <span class="text-[10px] text-zinc-400">Vollständiger Workspace-Snapshot</span>
+                <strong class="text-xs text-slate-200 block font-semibold">Komplettes JSON-Backup</strong>
+                <span class="text-[10px] text-slate-400">Vollständiger Workspace-Snapshot</span>
               </div>
             </div>
-            <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5 text-zinc-500"></lucide-icon>
+            <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
           </button>
         </div>
       </div>

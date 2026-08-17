@@ -3,7 +3,7 @@
   <div class="flex items-center justify-between pb-1">
     <a
       routerLink="/inventory"
-      class="inline-flex items-center gap-1.5 text-xs font-semibold text-zinc-400 hover:text-zinc-100 transition"
+      class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-100 transition"
     >
       <lucide-icon [img]="arrowLeftIcon" class="w-3.5 h-3.5"></lucide-icon>
       <span>Zurück zum Inventar</span>
@@ -22,7 +22,7 @@
       <button
         type="button"
         (click)="onDeleteItem()"
-        class="p-1.5 rounded-lg text-zinc-500 hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold transition cursor-pointer"
+        class="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold transition cursor-pointer"
       >
         <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
       </button>
@@ -34,34 +34,34 @@
     <div class="linear-surface rounded-xl p-5 space-y-5">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex items-start gap-3.5">
-          <div class="w-10 h-10 rounded-lg bg-zinc-850 border border-white/10 text-zinc-300 flex items-center justify-center shrink-0">
+          <div class="w-10 h-10 rounded-lg bg-[#1e222a] border border-[#373e4d] text-slate-300 flex items-center justify-center shrink-0">
             <lucide-icon [img]="boxesIcon" class="w-5 h-5"></lucide-icon>
           </div>
 
           <div>
             <div class="flex flex-wrap items-center gap-1.5 mb-1">
-              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-medium uppercase bg-zinc-850 text-zinc-300 border border-white/5">
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-medium uppercase bg-[#1e222a] text-slate-300 border border-[#373e4d]">
                 {{ item.condition }}
               </span>
 
               @if (item.category) {
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/15 text-blue-400 border border-blue-500/30">
                   {{ item.category }}
                 </span>
               }
 
               @if (item.brand) {
-                <span class="text-xs text-zinc-400 font-medium">{{ item.brand }}</span>
+                <span class="text-xs text-slate-400 font-medium">{{ item.brand }}</span>
               }
             </div>
 
-            <h1 class="text-base md:text-lg font-bold text-zinc-100">{{ item.title }}</h1>
+            <h1 class="text-base md:text-lg font-bold text-slate-100">{{ item.title }}</h1>
           </div>
         </div>
 
         <!-- Status Lifecycle Selector Dropdown (Kapitel 10) -->
         <div class="flex flex-col sm:items-end gap-1">
-          <span class="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Lifecycle-Status</span>
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Lifecycle-Status</span>
           <select
             [value]="item.status"
             (change)="onChangeStatus($any($event.target).value)"
@@ -75,29 +75,29 @@
       </div>
 
       <!-- Financial Metrics Ribbon -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-white/[0.06] font-mono">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-[#373e4d] font-mono">
         <div class="linear-kpi p-3 rounded-lg">
-          <span class="text-[10px] uppercase font-sans font-medium text-zinc-400 block">Anschaffung (EK)</span>
-          <span class="text-base font-bold text-zinc-100 mt-1 block">
+          <span class="text-[10px] uppercase font-sans font-medium text-slate-400 block">Anschaffung (EK)</span>
+          <span class="text-base font-bold text-slate-100 mt-1 block">
             {{ item.allocated_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
           </span>
         </div>
 
         <div class="linear-kpi p-3 rounded-lg">
-          <span class="text-[10px] uppercase font-sans font-medium text-zinc-400 block">Zusatzkosten</span>
+          <span class="text-[10px] uppercase font-sans font-medium text-slate-400 block">Zusatzkosten</span>
           <span class="text-base font-bold text-amber-400 mt-1 block">
             {{ (item.total_item_cost || item.allocated_purchase_cost) - item.allocated_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
           </span>
         </div>
 
         <div class="linear-kpi p-3 rounded-lg">
-          <span class="text-[10px] uppercase font-sans font-medium text-zinc-400 block">Gesamtkosten</span>
-          <span class="text-base font-bold text-zinc-100 mt-1 block">
+          <span class="text-[10px] uppercase font-sans font-medium text-slate-400 block">Gesamtkosten</span>
+          <span class="text-base font-bold text-slate-100 mt-1 block">
             {{ item.total_item_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
           </span>
         </div>
 
-        <div class="linear-kpi p-3 rounded-lg border-emerald-500/30">
+        <div class="linear-kpi p-3 rounded-lg border-emerald-500/40">
           <span class="text-[10px] uppercase font-sans font-medium text-emerald-400 block">Gewinnpotenzial</span>
           <span class="text-base font-bold text-emerald-400 mt-1 block">
             {{ item.profit_potential !== undefined ? ('+' + (item.profit_potential | currency:'EUR':'symbol':'1.2-2':'de')) : 'Offen' }}
@@ -111,17 +111,17 @@
       <div class="lg:col-span-7 space-y-4">
         <!-- Origin Card -->
         <div class="linear-surface rounded-xl p-4 space-y-3">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-300">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">
             Herkunft & Einkauf (Kapitel 24)
           </h2>
 
           @if (item.purchase) {
-            <div class="p-3 rounded-lg bg-zinc-900 border border-white/5 flex items-center justify-between">
+            <div class="p-3 rounded-lg bg-[#1e222a] border border-[#373e4d] flex items-center justify-between">
               <div>
                 <a [routerLink]="['/purchases', item.purchase.id]" class="text-xs font-semibold text-emerald-400 hover:underline">
                   {{ item.purchase.title }}
                 </a>
-                <p class="text-[11px] text-zinc-400 mt-0.5 font-mono">
+                <p class="text-[11px] text-slate-400 mt-0.5 font-mono">
                   Gekauft am {{ item.purchase.purchase_date | date:'dd.MM.yyyy' }} • Typ: {{ item.purchase.type }}
                 </p>
               </div>
@@ -134,16 +134,16 @@
               </a>
             </div>
           } @else {
-            <p class="text-xs text-zinc-500">Dieser Artikel wurde direkt ohne verknüpften Einkauf angelegt.</p>
+            <p class="text-xs text-slate-400">Dieser Artikel wurde direkt ohne verknüpften Einkauf angelegt.</p>
           }
         </div>
 
         <!-- Item Costs Card (Reparatur, Reinigung, Ersatzteile - Kapitel 9) -->
         <div class="linear-surface rounded-xl p-4 space-y-3">
-          <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+          <div class="flex items-center justify-between pb-2 border-b border-[#373e4d]">
             <div class="flex items-center gap-2">
               <lucide-icon [img]="wrenchIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
-              <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-300">Artikelkosten (Reparatur, Reinigung, Teile)</h2>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Artikelkosten (Reparatur, Reinigung, Teile)</h2>
             </div>
 
             <button
@@ -157,7 +157,7 @@
           </div>
 
           @if (isAddingCost()) {
-            <form [formGroup]="costForm" (ngSubmit)="onAddCost()" class="p-3 rounded-lg bg-zinc-900 border border-white/5 flex flex-wrap gap-2 items-center animate-fade-in">
+            <form [formGroup]="costForm" (ngSubmit)="onAddCost()" class="p-3 rounded-lg bg-[#1e222a] border border-[#373e4d] flex flex-wrap gap-2 items-center animate-fade-in">
               <select
                 formControlName="type"
                 class="linear-input px-2.5 py-1.5 rounded-lg text-xs"
@@ -195,22 +195,22 @@
           }
 
           @if (inventoryService.itemCosts().length > 0) {
-            <div class="divide-y divide-white/[0.04] font-mono">
+            <div class="divide-y divide-[#373e4d] font-mono">
               @for (c of inventoryService.itemCosts(); track c.id) {
                 <div class="py-2 flex items-center justify-between text-xs">
                   <div class="flex items-center gap-2.5">
-                    <span class="font-bold uppercase text-[10px] text-zinc-400">{{ c.type }}</span>
-                    <span class="text-zinc-300 font-sans">{{ c.description || '-' }}</span>
+                    <span class="font-bold uppercase text-[10px] text-slate-400">{{ c.type }}</span>
+                    <span class="text-slate-200 font-sans">{{ c.description || '-' }}</span>
                   </div>
 
                   <div class="flex items-center gap-2.5">
-                    <span class="font-bold text-zinc-100">
+                    <span class="font-bold text-slate-100">
                       {{ c.amount | currency:'EUR':'symbol':'1.2-2':'de' }}
                     </span>
                     <button
                       type="button"
                       (click)="onDeleteCost(c.id!)"
-                      class="p-1 text-zinc-500 hover:text-rose-400 transition cursor-pointer"
+                      class="p-1 text-slate-400 hover:text-rose-400 transition cursor-pointer"
                     >
                       <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
                     </button>
@@ -219,16 +219,16 @@
               }
             </div>
           } @else {
-            <p class="text-xs text-zinc-500">Keine artikelbezogenen Zusatzkosten erfasst.</p>
+            <p class="text-xs text-slate-400">Keine artikelbezogenen Zusatzkosten erfasst.</p>
           }
         </div>
       </div>
 
       <!-- Right Column: Activity History (5 cols) -->
       <div class="lg:col-span-5 linear-surface rounded-xl p-4 space-y-3">
-        <div class="flex items-center gap-2 pb-2 border-b border-white/[0.06]">
+        <div class="flex items-center gap-2 pb-2 border-b border-[#373e4d]">
           <lucide-icon [img]="historyIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-zinc-300">Aktivitäts-Historie (Kapitel 11)</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-slate-200">Aktivitäts-Historie (Kapitel 11)</h2>
         </div>
 
         <div class="space-y-2.5">
@@ -237,16 +237,16 @@
               <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0"></div>
               <div class="flex-1">
                 <div class="flex items-center justify-between">
-                  <strong class="text-zinc-200 font-semibold">{{ log.action }}</strong>
-                  <span class="text-[10px] font-mono text-zinc-500">{{ log.created_at | date:'dd.MM.yy HH:mm' }}</span>
+                  <strong class="text-slate-200 font-semibold">{{ log.action }}</strong>
+                  <span class="text-[10px] font-mono text-slate-400">{{ log.created_at | date:'dd.MM.yy HH:mm' }}</span>
                 </div>
                 @if (log.notes) {
-                  <p class="text-zinc-400 text-[11px] mt-0.5">{{ log.notes }}</p>
+                  <p class="text-slate-300 text-[11px] mt-0.5">{{ log.notes }}</p>
                 }
               </div>
             </div>
           } @empty {
-            <p class="text-xs text-zinc-500">Noch keine Aktivitäten protokolliert.</p>
+            <p class="text-xs text-slate-400">Noch keine Aktivitäten protokolliert.</p>
           }
         </div>
       </div>

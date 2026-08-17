@@ -1,88 +1,91 @@
-<div class="fixed inset-0 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in">
-  <div class="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl max-w-2xl w-full p-6 md:p-8 border border-slate-200 dark:border-slate-800 my-8">
-    <div class="flex items-center justify-between mb-6">
-      <div class="flex items-center gap-3">
-        <div class="p-2 rounded-2xl bg-emerald-500/10 text-emerald-500">
-          <lucide-icon [img]="bagIcon" class="w-5 h-5"></lucide-icon>
+<div class="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto animate-fade-in select-none">
+  <div class="linear-surface rounded-2xl shadow-2xl max-w-2xl w-full p-6 border border-[#373e4d] my-8">
+    <div class="flex items-center justify-between pb-4 mb-4 border-b border-[#373e4d]">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+          <lucide-icon [img]="bagIcon" class="w-4 h-4"></lucide-icon>
         </div>
-        <h2 class="text-xl font-bold text-slate-900 dark:text-white">Neuen Einkauf erfassen</h2>
+        <div>
+          <h2 class="text-sm font-bold text-slate-100">Neuen Einkauf erfassen</h2>
+          <p class="text-[11px] text-slate-400">Einzelkauf, Mystery Box oder Palette mit Nebenkosten</p>
+        </div>
       </div>
 
       <button
         type="button"
         (click)="close.emit()"
-        class="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+        class="p-1 rounded-md text-slate-400 hover:text-white hover:bg-[#373e4d] transition cursor-pointer"
       >
-        <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+        <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
       </button>
     </div>
 
     @if (errorMessage()) {
-      <div class="p-3.5 mb-5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs">
+      <div class="p-3 mb-4 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
         {{ errorMessage() }}
       </div>
     }
 
-    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-5">
+    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
       <!-- 1. Einkaufstyp Selector (Kapitel 8) -->
       <div>
-        <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-2">
+        <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
           Einkaufstyp
         </label>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <button
             type="button"
             (click)="form.patchValue({ type: 'single' })"
-            class="p-3 rounded-2xl border text-left transition flex flex-col gap-1 cursor-pointer"
+            class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
             [class.border-emerald-500]="form.get('type')?.value === 'single'"
-            [class.bg-emerald-500/10]="form.get('type')?.value === 'single'"
-            [class.border-slate-200]="form.get('type')?.value !== 'single'"
-            [class.dark:border-slate-800]="form.get('type')?.value !== 'single'"
+            [class.bg-emerald-500/15]="form.get('type')?.value === 'single'"
+            [class.border-[#373e4d]]="form.get('type')?.value !== 'single'"
+            [class.bg-[#1e222a]]="form.get('type')?.value !== 'single'"
           >
-            <lucide-icon [img]="bagIcon" class="w-4 h-4 text-emerald-500"></lucide-icon>
-            <span class="text-xs font-bold text-slate-900 dark:text-white">Einzelartikel</span>
+            <lucide-icon [img]="bagIcon" class="w-3.5 h-3.5 text-emerald-400"></lucide-icon>
+            <span class="text-xs font-bold text-slate-100">Einzelartikel</span>
             <span class="text-[10px] text-slate-400">1 Kauf → 1 Artikel</span>
           </button>
 
           <button
             type="button"
             (click)="form.patchValue({ type: 'mystery_pack' })"
-            class="p-3 rounded-2xl border text-left transition flex flex-col gap-1 cursor-pointer"
+            class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
             [class.border-emerald-500]="form.get('type')?.value === 'mystery_pack'"
-            [class.bg-emerald-500/10]="form.get('type')?.value === 'mystery_pack'"
-            [class.border-slate-200]="form.get('type')?.value !== 'mystery_pack'"
-            [class.dark:border-slate-800]="form.get('type')?.value !== 'mystery_pack'"
+            [class.bg-emerald-500/15]="form.get('type')?.value === 'mystery_pack'"
+            [class.border-[#373e4d]]="form.get('type')?.value !== 'mystery_pack'"
+            [class.bg-[#1e222a]]="form.get('type')?.value !== 'mystery_pack'"
           >
-            <lucide-icon [img]="packageIcon" class="w-4 h-4 text-purple-500"></lucide-icon>
-            <span class="text-xs font-bold text-slate-900 dark:text-white">Mystery Box</span>
+            <lucide-icon [img]="packageIcon" class="w-3.5 h-3.5 text-purple-400"></lucide-icon>
+            <span class="text-xs font-bold text-slate-100">Mystery Box</span>
             <span class="text-[10px] text-slate-400">Mehrere Artikel</span>
           </button>
 
           <button
             type="button"
             (click)="form.patchValue({ type: 'lot' })"
-            class="p-3 rounded-2xl border text-left transition flex flex-col gap-1 cursor-pointer"
+            class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
             [class.border-emerald-500]="form.get('type')?.value === 'lot'"
-            [class.bg-emerald-500/10]="form.get('type')?.value === 'lot'"
-            [class.border-slate-200]="form.get('type')?.value !== 'lot'"
-            [class.dark:border-slate-800]="form.get('type')?.value !== 'lot'"
+            [class.bg-emerald-500/15]="form.get('type')?.value === 'lot'"
+            [class.border-[#373e4d]]="form.get('type')?.value !== 'lot'"
+            [class.bg-[#1e222a]]="form.get('type')?.value !== 'lot'"
           >
-            <lucide-icon [img]="layersIcon" class="w-4 h-4 text-blue-500"></lucide-icon>
-            <span class="text-xs font-bold text-slate-900 dark:text-white">Lot / Posten</span>
+            <lucide-icon [img]="layersIcon" class="w-3.5 h-3.5 text-blue-400"></lucide-icon>
+            <span class="text-xs font-bold text-slate-100">Lot / Posten</span>
             <span class="text-[10px] text-slate-400">Konvolut</span>
           </button>
 
           <button
             type="button"
             (click)="form.patchValue({ type: 'pallet' })"
-            class="p-3 rounded-2xl border text-left transition flex flex-col gap-1 cursor-pointer"
+            class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
             [class.border-emerald-500]="form.get('type')?.value === 'pallet'"
-            [class.bg-emerald-500/10]="form.get('type')?.value === 'pallet'"
-            [class.border-slate-200]="form.get('type')?.value !== 'pallet'"
-            [class.dark:border-slate-800]="form.get('type')?.value !== 'pallet'"
+            [class.bg-emerald-500/15]="form.get('type')?.value === 'pallet'"
+            [class.border-[#373e4d]]="form.get('type')?.value !== 'pallet'"
+            [class.bg-[#1e222a]]="form.get('type')?.value !== 'pallet'"
           >
-            <lucide-icon [img]="boxesIcon" class="w-4 h-4 text-amber-500"></lucide-icon>
-            <span class="text-xs font-bold text-slate-900 dark:text-white">Palette</span>
+            <lucide-icon [img]="boxesIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
+            <span class="text-xs font-bold text-slate-100">Palette</span>
             <span class="text-[10px] text-slate-400">Retourenpalette</span>
           </button>
         </div>
@@ -90,7 +93,7 @@
 
       <!-- 2. Titel / Bezeichnung -->
       <div>
-        <label for="purchaseTitle" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+        <label for="purchaseTitle" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
           Titel / Beschreibung
         </label>
         <input
@@ -98,48 +101,48 @@
           type="text"
           formControlName="title"
           placeholder="z.B. Cube Acid Mountainbike oder Mystery Pack 5kg Technik"
-          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
+          class="linear-input w-full px-3 py-1.5 rounded-lg text-xs"
         />
       </div>
 
       <!-- 3. Kaufpreis & Datum -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label for="purchasePrice" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+          <label for="purchasePrice" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
             Einkaufspreis (€)
           </label>
           <input
             id="purchasePrice"
             type="number"
             formControlName="purchase_price"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-emerald-500"
+            class="linear-input w-full px-3 py-1.5 rounded-lg text-xs font-mono font-bold"
           />
         </div>
 
         <div>
-          <label for="purchaseDate" class="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1.5">
+          <label for="purchaseDate" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
             Kaufdatum
           </label>
           <input
             id="purchaseDate"
             type="date"
             formControlName="purchase_date"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
+            class="linear-input w-full px-3 py-1.5 rounded-lg text-xs font-mono"
           />
         </div>
       </div>
 
       <!-- 4. Einkaufsquelle & Lieferant mit Schnellanlage -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <div class="flex items-center justify-between mb-1.5">
-            <label for="purchaseSource" class="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+          <div class="flex items-center justify-between mb-1">
+            <label for="purchaseSource" class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               Einkaufsquelle
             </label>
             <button
               type="button"
               (click)="isAddingSource.set(!isAddingSource())"
-              class="text-[11px] text-emerald-500 hover:underline font-semibold"
+              class="text-[10px] text-emerald-400 hover:underline font-semibold"
             >
               + Neu
             </button>
@@ -152,12 +155,12 @@
                 [value]="newSourceName()"
                 (input)="newSourceName.set($any($event.target).value)"
                 placeholder="Neue Quelle..."
-                class="flex-1 px-3 py-1.5 rounded-lg text-xs border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                class="linear-input flex-1 px-2.5 py-1 rounded-md text-xs"
               />
               <button
                 type="button"
                 (click)="saveNewSource()"
-                class="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold"
+                class="linear-btn-primary px-2.5 py-1 rounded-md text-xs font-semibold"
               >
                 OK
               </button>
@@ -167,7 +170,7 @@
           <select
             id="purchaseSource"
             formControlName="source_id"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
+            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-slate-200"
           >
             <option [ngValue]="null">-- Quelle wählen --</option>
             @for (src of sourcesService.sources(); track src.id) {
@@ -177,14 +180,14 @@
         </div>
 
         <div>
-          <div class="flex items-center justify-between mb-1.5">
-            <label for="purchaseSupplier" class="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+          <div class="flex items-center justify-between mb-1">
+            <label for="purchaseSupplier" class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
               Lieferant / Verkäufer
             </label>
             <button
               type="button"
               (click)="isAddingSupplier.set(!isAddingSupplier())"
-              class="text-[11px] text-emerald-500 hover:underline font-semibold"
+              class="text-[10px] text-emerald-400 hover:underline font-semibold"
             >
               + Neu
             </button>
@@ -196,13 +199,13 @@
                 type="text"
                 [value]="newSupplierName()"
                 (input)="newSupplierName.set($any($event.target).value)"
-                placeholder="Neuer Verkäufer/Lieferant..."
-                class="flex-1 px-3 py-1.5 rounded-lg text-xs border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800"
+                placeholder="Neuer Verkäufer..."
+                class="linear-input flex-1 px-2.5 py-1 rounded-md text-xs"
               />
               <button
                 type="button"
                 (click)="saveNewSupplier()"
-                class="px-2.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold"
+                class="linear-btn-primary px-2.5 py-1 rounded-md text-xs font-semibold"
               >
                 OK
               </button>
@@ -212,7 +215,7 @@
           <select
             id="purchaseSupplier"
             formControlName="supplier_id"
-            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500"
+            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-slate-200"
           >
             <option [ngValue]="null">-- Optional: Lieferant wählen --</option>
             @for (sup of suppliersService.suppliers(); track sup.id) {
@@ -224,20 +227,20 @@
 
       <!-- 5. Single Item Specific Fields -->
       @if (form.get('type')?.value === 'single') {
-        <div class="p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/20 space-y-3">
-          <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
+        <div class="p-3.5 rounded-xl bg-[#1e222a] border border-[#373e4d] space-y-2.5">
+          <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
             Artikel-Initialisierung (Kapitel 8: 1 Kauf → 1 Inventar-Artikel)
           </span>
 
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
-              <label for="singleCondition" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label for="singleCondition" class="block text-[10px] font-semibold text-slate-400 mb-1">
                 Zustand
               </label>
               <select
                 id="singleCondition"
                 formControlName="single_item_condition"
-                class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-slate-200"
               >
                 <option value="new">Neu / OVP</option>
                 <option value="like_new">Wie neu</option>
@@ -249,7 +252,7 @@
             </div>
 
             <div>
-              <label for="singleExpectedVal" class="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1">
+              <label for="singleExpectedVal" class="block text-[10px] font-semibold text-slate-400 mb-1">
                 Erwarteter Marktwert (€)
               </label>
               <input
@@ -257,7 +260,7 @@
                 type="number"
                 formControlName="single_item_expected_value"
                 placeholder="z.B. 70 €"
-                class="w-full px-3 py-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400"
               />
             </div>
           </div>
@@ -267,13 +270,13 @@
       <!-- 6. Zusatzkosten (Versand, Fahrt, Gebühren) -->
       <div class="space-y-2">
         <div class="flex items-center justify-between">
-          <label class="text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+          <label class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
             Zusatzkosten (Versand, Fahrtkosten, Zoll)
           </label>
           <button
             type="button"
             (click)="addCostRow()"
-            class="inline-flex items-center gap-1 text-xs text-emerald-500 font-bold hover:underline"
+            class="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-semibold hover:underline"
           >
             <lucide-icon [img]="plusCircleIcon" class="w-3.5 h-3.5"></lucide-icon>
             <span>+ Kosten hinzufügen</span>
@@ -281,11 +284,11 @@
         </div>
 
         @for (cost of extraCosts(); track $index) {
-          <div class="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+          <div class="flex items-center gap-2 p-2 rounded-lg bg-[#1e222a] border border-[#373e4d]">
             <select
               [value]="cost.type"
               (change)="updateCostField($index, 'type', $any($event.target).value)"
-              class="px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs"
+              class="linear-input px-2 py-1 rounded-md text-xs"
             >
               <option value="shipping">Versand</option>
               <option value="travel">Fahrtkosten / Sprit</option>
@@ -300,7 +303,7 @@
               [value]="cost.amount"
               (input)="updateCostField($index, 'amount', $any($event.target).value)"
               placeholder="Betrag €"
-              class="w-24 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs font-semibold"
+              class="linear-input w-24 px-2 py-1 rounded-md text-xs font-mono font-bold"
             />
 
             <input
@@ -308,26 +311,26 @@
               [value]="cost.description"
               (input)="updateCostField($index, 'description', $any($event.target).value)"
               placeholder="Beschreibung (optional)"
-              class="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-xs"
+              class="linear-input flex-1 px-2 py-1 rounded-md text-xs"
             />
 
             <button
               type="button"
               (click)="removeCostRow($index)"
-              class="p-1 text-slate-400 hover:text-rose-500 rounded"
+              class="p-1 text-slate-400 hover:text-rose-400 rounded"
             >
-              <lucide-icon [img]="trashIcon" class="w-4 h-4"></lucide-icon>
+              <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
             </button>
           </div>
         }
       </div>
 
       <!-- Actions -->
-      <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-800">
+      <div class="flex justify-end gap-2.5 pt-3 border-t border-[#373e4d]">
         <button
           type="button"
           (click)="close.emit()"
-          class="px-4 py-2.5 rounded-xl text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+          class="linear-btn-secondary px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
         >
           Abbrechen
         </button>
@@ -335,9 +338,9 @@
         <button
           type="submit"
           [disabled]="form.invalid || isSubmitting()"
-          class="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm shadow-md disabled:opacity-50 transition flex items-center gap-2 cursor-pointer"
+          class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
         >
-          <lucide-icon [img]="plusIcon" class="w-4 h-4"></lucide-icon>
+          <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5"></lucide-icon>
           <span>{{ isSubmitting() ? 'Speichere...' : 'Einkauf speichern' }}</span>
         </button>
       </div>
