@@ -1,11 +1,11 @@
-name: re-flip
+name: re-flip-web
 
 services:
-  re-flip:
+  web:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: re-flip
+    container_name: re-flip-web
     ports:
       - "8080:80"
     restart: unless-stopped
