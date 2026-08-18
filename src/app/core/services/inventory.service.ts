@@ -81,7 +81,12 @@ export class InventoryService {
       const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 1000);
 
       if (res && !res.error && res.data && res.data.length > 0) {
-        const enriched = (res.data as unknown[]).map((item: any) => this.enrichItemTotals(item));
+        const localMap = new Map(this.mockStore.getItems().map((i) => [i.id, i]));
+        const enriched = (res.data as unknown[]).map((item: any) => {
+          const local = localMap.get(item.id);
+          const merged = local ? { ...item, ...local } : item;
+          return this.enrichItemTotals(merged);
+        });
         this.items.set(enriched);
         enriched.forEach((i) => this.mockStore.saveItem(i));
       }
@@ -93,7 +98,7 @@ export class InventoryService {
   }
 
   async getItemById(itemId: string): Promise<InventoryItem | null> {
-    const existing = this.items().find((i) => i.id === itemId) || this.mockStore.getItems().find((i) => i.id === itemId);
+    const existing = this.mockStore.getItems().find((i) => i.id === itemId) || this.items().find((i) => i.id === itemId);
     if (existing) {
       const enriched = this.enrichItemTotals(existing);
       this.selectedItem.set(enriched);
@@ -139,6 +144,10 @@ export class InventoryService {
       this.activityLogs.set(localLogs);
     }
 
+    if (this.mockStore.isDemoMode() || itemId.startsWith('demo-')) {
+      return;
+    }
+
     try {
       const { data, error } = await this.supabase.client
         .from('activity_logs')
@@ -149,8 +158,8 @@ export class InventoryService {
       if (!error && data && data.length > 0) {
         this.activityLogs.set(data as ActivityLog[]);
       }
-    } catch (err) {
-      // Ignore offline
+    } catch {
+      // offline fallback
     }
   }
 
@@ -173,7 +182,7 @@ export class InventoryService {
 
   async createItem(payload: CreateItemPayload): Promise<{ data: InventoryItem | null; error: Error | null }> {
     const ws = this.workspaceService.currentWorkspace();
-    if (!ws) return { data: null, error: new Error('Kein aktiver Workspace ausgewählt') };
+    if (!ws) return { data: null, error: new Error('Kein aktiver Workspace') };
 
     const newItem: InventoryItem = {
       id: `item-${Date.now()}`,
@@ -242,15 +251,15 @@ export class InventoryService {
     itemId: string,
     updates: Partial<InventoryItem>
   ): Promise<{ error: Error | null }> {
+    const stored = this.mockStore.getItems().find((i) => i.id === itemId);
+    const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
+    if (base) {
+      const updated = this.enrichItemTotals({ ...base, ...updates });
+      this.mockStore.saveItem(updated);
+    }
+
     this.items.update((list) =>
-      list.map((item) => {
-        if (item.id === itemId) {
-          const updated = this.enrichItemTotals({ ...item, ...updates });
-          this.mockStore.saveItem(updated);
-          return updated;
-        }
-        return item;
-      })
+      list.map((item) => (item.id === itemId ? this.enrichItemTotals({ ...item, ...updates }) : item))
     );
 
     const currentSel = this.selectedItem();
@@ -277,15 +286,15 @@ export class InventoryService {
     newStatus: ItemStatus,
     notes?: string
   ): Promise<{ error: Error | null }> {
+    const stored = this.mockStore.getItems().find((i) => i.id === itemId);
+    const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
+    if (base) {
+      const updated = { ...base, status: newStatus };
+      this.mockStore.saveItem(updated);
+    }
+
     this.items.update((list) =>
-      list.map((item) => {
-        if (item.id === itemId) {
-          const updated = { ...item, status: newStatus };
-          this.mockStore.saveItem(updated);
-          return updated;
-        }
-        return item;
-      })
+      list.map((item) => (item.id === itemId ? { ...item, status: newStatus } : item))
     );
 
     const currentSel = this.selectedItem();

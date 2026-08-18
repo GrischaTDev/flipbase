@@ -90,16 +90,16 @@ export class ItemDetailComponent {
   });
 
   readonly allStatuses: { value: ItemStatus; label: string }[] = [
-    { value: 'received', label: 'Eingetroffen (received)' },
-    { value: 'needs_review', label: 'Zu prüfen (needs_review)' },
-    { value: 'researched', label: 'Recherchiert (researched)' },
-    { value: 'ready', label: 'Verkaufsbereit (ready)' },
-    { value: 'listed', label: 'Gelistet (listed)' },
-    { value: 'reserved', label: 'Reserviert (reserved)' },
-    { value: 'sold', label: 'Verkauft (sold)' },
-    { value: 'returned', label: 'Retourniert (returned)' },
-    { value: 'defective', label: 'Defekt (defective)' },
-    { value: 'archived', label: 'Archiviert (archived)' },
+    { value: 'received', label: 'Eingetroffen' },
+    { value: 'needs_review', label: 'Zu prüfen' },
+    { value: 'researched', label: 'Recherchiert' },
+    { value: 'ready', label: 'Verkaufsbereit' },
+    { value: 'listed', label: 'Gelistet' },
+    { value: 'reserved', label: 'Reserviert' },
+    { value: 'sold', label: 'Verkauft' },
+    { value: 'returned', label: 'Retourniert' },
+    { value: 'defective', label: 'Defekt' },
+    { value: 'archived', label: 'Archiviert' },
   ];
 
   constructor() {
