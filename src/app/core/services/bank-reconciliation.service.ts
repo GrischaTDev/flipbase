@@ -443,8 +443,8 @@ export class BankReconciliationService {
       // Check Purchases (Wareneinkauf / Ankäufe)
       const purchases = this.purchaseService.purchases();
       for (const pur of purchases) {
-        const isExactCost = Math.abs(pur.total_purchase_price - absAmount) < 0.05;
-        const batchNameLower = (pur.batch_name || '').toLowerCase();
+        const isExactCost = Math.abs(pur.purchase_price - absAmount) < 0.05;
+        const batchNameLower = (pur.title || '').toLowerCase();
         const sellerLower = (pur.supplier?.name || pur.source?.name || '').toLowerCase();
 
         if ((purposeLower.includes(batchNameLower) || counterpartyLower.includes(sellerLower)) && isExactCost) {
@@ -454,12 +454,12 @@ export class BankReconciliationService {
             match: {
               targetType: 'purchase',
               targetId: pur.id,
-              targetReference: pur.batch_name || 'Ankauf',
+              targetReference: pur.title || 'Ankauf',
               targetName: pur.supplier?.name || 'Lieferant / Verkäufer',
-              targetAmount: pur.total_purchase_price,
+              targetAmount: pur.purchase_price,
               confidence: 95,
               confidenceLabel: 'high',
-              reason: `Wareneinkauf "${pur.batch_name}" zugeordnet (${pur.total_purchase_price.toFixed(2)} €)`,
+              reason: `Wareneinkauf "${pur.title}" zugeordnet (${pur.purchase_price.toFixed(2)} €)`,
               purchase: pur,
             },
           };
@@ -472,12 +472,12 @@ export class BankReconciliationService {
             match: {
               targetType: 'purchase',
               targetId: pur.id,
-              targetReference: pur.batch_name || 'Ankauf',
+              targetReference: pur.title || 'Ankauf',
               targetName: pur.supplier?.name || 'Lieferant',
-              targetAmount: pur.total_purchase_price,
+              targetAmount: pur.purchase_price,
               confidence: 80,
               confidenceLabel: 'probable',
-              reason: `Einkaufsbetrag (${pur.total_purchase_price.toFixed(2)} €) passt zu Ankauf "${pur.batch_name}"`,
+              reason: `Einkaufsbetrag (${pur.purchase_price.toFixed(2)} €) passt zu Ankauf "${pur.title}"`,
               purchase: pur,
             },
           };
@@ -654,8 +654,8 @@ export class BankReconciliationService {
         bookingDate: '2026-08-14',
         counterpartyName: firstPurchase?.supplier?.name || 'Insolvenzverwerter Nord',
         counterpartyIban: 'DE44 2004 0000 8888 9999 00',
-        purpose: `Rechnung Wareneinkauf ${firstPurchase?.batch_name || 'Elektronik Konvolut'}`,
-        amount: -(firstPurchase?.total_purchase_price || 250.0),
+        purpose: `Rechnung Wareneinkauf ${firstPurchase?.title || 'Elektronik Konvolut'}`,
+        amount: -(firstPurchase?.purchase_price || 250.0),
         currency: 'EUR',
         sourceFormat: 'csv_sparkasse',
         status: 'pending',

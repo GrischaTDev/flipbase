@@ -491,19 +491,19 @@
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
         <div class="kpi-card space-y-1">
           <span class="kpi-label">Brutto-Umsatz</span>
-          <div class="kpi-value font-mono">{{ sum.total_gross_revenue | currency:'EUR':'symbol':'1.2-2':'de' }}</div>
+          <div class="kpi-value font-mono">{{ sum.gross_revenue | currency:'EUR':'symbol':'1.2-2':'de' }}</div>
           <span class="text-[10px] text-muted">{{ filteredTaxResults().length }} Verkäufe</span>
         </div>
 
         <div class="kpi-card space-y-1">
           <span class="kpi-label">Wareneinsatz (Ankauf)</span>
-          <div class="kpi-value font-mono text-muted">{{ sum.total_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}</div>
+          <div class="kpi-value font-mono text-muted">{{ sum.total_cost_of_goods_sold | currency:'EUR':'symbol':'1.2-2':'de' }}</div>
           <span class="text-[10px] text-muted">Einkaufspreise gem. § 25a</span>
         </div>
 
         <div class="kpi-card space-y-1">
           <span class="kpi-label">Rohertrag (Marge)</span>
-          <div class="kpi-value font-mono text-accent-emerald">{{ sum.total_margin_gross | currency:'EUR':'symbol':'1.2-2':'de' }}</div>
+          <div class="kpi-value font-mono text-accent-emerald">{{ sum.total_gross_margin | currency:'EUR':'symbol':'1.2-2':'de' }}</div>
           <span class="text-[10px] text-muted">Bemessungsgrundlage</span>
         </div>
 
@@ -548,24 +548,24 @@
                   </td>
                   <td class="py-3 px-4">
                     <strong class="text-white block font-medium">{{ row.item_title }}</strong>
-                    <span class="font-mono text-[10px] text-muted">{{ row.item_sku || 'Keine SKU' }}</span>
+                    <span class="font-mono text-[10px] text-muted">{{ row.sale_id }}</span>
                   </td>
                   <td class="py-3 px-4">
                     <span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-3 text-muted border border-border/60">
-                      {{ row.platform }}
+                      {{ row.tax_mode === 'diff_25a' ? '§ 25a' : row.tax_mode === 'kleinunternehmer_19' ? 'KU § 19' : 'Regel' }}
                     </span>
                   </td>
                   <td class="py-3 px-4 text-right font-mono font-semibold text-white">
-                    {{ row.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }}
+                    {{ row.gross_revenue | currency:'EUR':'symbol':'1.2-2':'de' }}
                   </td>
                   <td class="py-3 px-4 text-right font-mono text-muted">
-                    {{ row.purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
+                    {{ row.total_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
                   </td>
                   <td class="py-3 px-4 text-right font-mono font-bold text-accent-emerald">
-                    {{ row.margin_gross | currency:'EUR':'symbol':'1.2-2':'de' }}
+                    {{ row.gross_margin | currency:'EUR':'symbol':'1.2-2':'de' }}
                   </td>
                   <td class="py-3 px-4 text-right font-mono text-amber-400">
-                    {{ row.vat_due | currency:'EUR':'symbol':'1.2-2':'de' }}
+                    {{ row.vat_amount | currency:'EUR':'symbol':'1.2-2':'de' }}
                   </td>
                   <td class="py-3 px-4 text-center">
                     <button
