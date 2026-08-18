@@ -415,8 +415,8 @@
                   </td>
 
                   <td class="p-3">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-rf-subtle text-rf-text-secondary border border-rf-border uppercase">
-                      {{ item.condition }}
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-rf-subtle text-rf-text-secondary border border-rf-border">
+                      {{ ('INVENTORY.CONDITIONS.' + item.condition.toUpperCase()) | translate }}
                     </span>
                   </td>
 
@@ -427,7 +427,7 @@
                       [class.bg-blue-500/15]="item.status === 'received'"
                       [class.text-blue-400]="item.status === 'received'"
                     >
-                      {{ item.status }}
+                      {{ ('INVENTORY.STATUSES.' + item.status.toUpperCase()) | translate }}
                     </span>
                   </td>
 

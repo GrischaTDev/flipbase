@@ -179,7 +179,7 @@
             <div class="flex-1 min-w-0 space-y-1">
               <h3 class="text-xs font-bold text-rf-text-primary truncate">{{ item.title }}</h3>
               <div class="flex items-center gap-2 text-[10px] text-rf-text-muted">
-                <span>Zustand: <strong class="text-rf-text-secondary">{{ item.condition }}</strong></span>
+                <span>Zustand: <strong class="text-rf-text-secondary">{{ ('INVENTORY.CONDITIONS.' + item.condition.toUpperCase()) | translate }}</strong></span>
                 <span>•</span>
                 <span>EK: <strong class="text-rf-text-secondary">{{ item.allocated_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
               </div>

@@ -37,6 +37,7 @@ import { CostAllocationMode, ItemCondition } from '../../../../core/models/refli
     ReactiveFormsModule,
     CurrencyPipe,
     DatePipe,
+    TranslatePipe,
     LucideAngularModule,
     ImageCropperModalComponent,
   ],

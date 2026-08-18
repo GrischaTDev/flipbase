@@ -39,6 +39,7 @@ import { ItemMedia, ItemStatus } from '../../../../core/models/reflip.models';
     ReactiveFormsModule,
     CurrencyPipe,
     DatePipe,
+    TranslatePipe,
     LucideAngularModule,
     InventoryLabelModalComponent,
   ],

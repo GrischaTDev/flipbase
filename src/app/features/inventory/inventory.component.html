@@ -309,7 +309,7 @@
 
               <td class="py-3 px-3">
                 <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#1e222a] text-slate-300 border border-[#373e4d]">
-                  {{ item.condition }}
+                  {{ ('INVENTORY.CONDITIONS.' + item.condition.toUpperCase()) | translate }}
                 </span>
               </td>
 
@@ -335,7 +335,7 @@
                     [class.bg-slate-400]="item.status === 'received' || item.status === 'needs_review'"
                     [class.bg-rose-400]="item.status === 'defective'"
                   ></span>
-                  {{ item.status }}
+                  {{ ('INVENTORY.STATUSES.' + item.status.toUpperCase()) | translate }}
                 </span>
               </td>
 
@@ -402,7 +402,7 @@
               <p class="text-[11px] text-slate-400">{{ item.brand || item.category || 'Keine Kategorie' }}</p>
             </div>
             <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-              {{ item.status }}
+              {{ ('INVENTORY.STATUSES.' + item.status.toUpperCase()) | translate }}
             </span>
           </div>
 

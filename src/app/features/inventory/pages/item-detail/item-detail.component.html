@@ -69,8 +69,8 @@
 
           <div>
             <div class="flex flex-wrap items-center gap-1.5 mb-1">
-              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-medium uppercase bg-rf-subtle text-rf-text-secondary border border-rf-border">
-                {{ item.condition }}
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-rf-subtle text-rf-text-secondary border border-rf-border">
+                {{ ('INVENTORY.CONDITIONS.' + item.condition.toUpperCase()) | translate }}
               </span>
 
               @if (item.category) {
