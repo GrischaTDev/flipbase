@@ -7,6 +7,7 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
 
   beforeEach(() => {
     service = new FulfillmentService();
+    service.loadDemoOrders();
   });
 
   it('should automatically detect bundle candidates for same customer', () => {

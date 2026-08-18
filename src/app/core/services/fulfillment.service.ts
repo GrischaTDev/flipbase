@@ -184,15 +184,19 @@ export class FulfillmentService {
       }
     } catch {}
 
+    return [];
+  }
+
+  loadDemoOrders(): void {
     const now = new Date();
-    return [
+    const demo = [
       {
         id: 'ship-1',
         workspace_id: 'ws-1',
         sale_id: 'sale-1',
         order_number: 'ORD-2026-8801',
         order_date: now.toISOString(),
-        platform: 'kleinanzeigen',
+        platform: 'kleinanzeigen' as const,
         item_title: 'Sony PlayStation 5 Digital Edition (CFI-1116B)',
         item_sku: 'SKU-PS5-DIG',
         item_condition: 'Sehr gut',
@@ -206,9 +210,9 @@ export class FulfillmentService {
           country: 'Deutschland',
           email: 'max.weber@beispiel.de',
         },
-        carrier: 'dhl',
+        carrier: 'dhl' as const,
         package_type: 'DHL Paket bis 2 kg',
-        status: 'ready_to_pack',
+        status: 'ready_to_pack' as const,
         created_at: now.toISOString(),
       },
       {
@@ -217,7 +221,7 @@ export class FulfillmentService {
         sale_id: 'sale-bundle-extra',
         order_number: 'ORD-2026-8805',
         order_date: now.toISOString(),
-        platform: 'kleinanzeigen',
+        platform: 'kleinanzeigen' as const,
         item_title: 'Sony DualSense Wireless Controller Midnight Black',
         item_sku: 'SKU-PS5-CTRL',
         item_condition: 'Wie neu',
@@ -231,9 +235,9 @@ export class FulfillmentService {
           country: 'Deutschland',
           email: 'max.weber@beispiel.de',
         },
-        carrier: 'dhl',
+        carrier: 'dhl' as const,
         package_type: 'DHL Paket bis 2 kg',
-        status: 'ready_to_pack',
+        status: 'ready_to_pack' as const,
         created_at: now.toISOString(),
       },
       {
@@ -242,7 +246,7 @@ export class FulfillmentService {
         sale_id: 'sale-2',
         order_number: 'ORD-2026-8802',
         order_date: new Date(now.getTime() - 86400000).toISOString(),
-        platform: 'ebay',
+        platform: 'ebay' as const,
         item_title: 'Bosch Professional Akku-Bohrschrauber GSR 18V-55',
         item_sku: 'SKU-BOSCH-18V',
         item_condition: 'Wie neu',
@@ -256,45 +260,17 @@ export class FulfillmentService {
           country: 'Deutschland',
           email: 'laura.becker@beispiel.de',
         },
-        carrier: 'dhl',
+        carrier: 'dhl' as const,
         package_type: 'DHL Paket bis 2 kg',
         tracking_number: '00340434289012345678',
         tracking_url:
           'https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=00340434289012345678',
-        status: 'shipped',
+        status: 'shipped' as const,
         created_at: new Date(now.getTime() - 86400000).toISOString(),
         shipped_at: new Date(now.getTime() - 3600000).toISOString(),
       },
-      {
-        id: 'ship-3',
-        workspace_id: 'ws-1',
-        sale_id: 'sale-3',
-        order_number: 'ORD-2026-8803',
-        order_date: new Date(now.getTime() - 172800000).toISOString(),
-        platform: 'vinted',
-        item_title: 'Vintage Alpha Industries Bomberjacke (Schwarz, L)',
-        item_sku: 'SKU-VNT-JACK',
-        item_condition: 'Sehr gut',
-        sale_price: 65.0,
-        customer: {
-          name: 'Sophie Wagner',
-          street: 'Bergmannstraße',
-          house_number: '88',
-          postal_code: '10961',
-          city: 'Berlin',
-          country: 'Deutschland',
-          email: 'sophie.wagner@beispiel.de',
-        },
-        carrier: 'hermes',
-        package_type: 'Hermes S-Paket',
-        tracking_number: '02345678901234',
-        tracking_url:
-          'https://www.myhermes.de/empfangen/sendungsverfolgung/sendungsdetails/?trackingNumber=02345678901234',
-        status: 'delivered',
-        created_at: new Date(now.getTime() - 172800000).toISOString(),
-        shipped_at: new Date(now.getTime() - 86400000).toISOString(),
-      },
     ];
+    this.orders.set(demo);
   }
 
   private persistOrders(): void {
