@@ -23,8 +23,10 @@
         <label for="email" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
           {{ 'AUTH.EMAIL' | translate }}
         </label>
-        <div class="relative">
-          <lucide-icon [img]="mailIcon" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"></lucide-icon>
+        <div class="relative flex items-center">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <lucide-icon [img]="mailIcon" class="w-4 h-4"></lucide-icon>
+          </div>
           <input
             id="email"
             type="email"
@@ -39,8 +41,10 @@
         <label for="password" class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
           {{ 'AUTH.PASSWORD' | translate }}
         </label>
-        <div class="relative">
-          <lucide-icon [img]="lockIcon" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5"></lucide-icon>
+        <div class="relative flex items-center">
+          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+            <lucide-icon [img]="lockIcon" class="w-4 h-4"></lucide-icon>
+          </div>
           <input
             id="password"
             type="password"
@@ -74,7 +78,7 @@
           class="w-full py-2.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-bold text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
         >
           <lucide-icon [img]="zapIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
-          <span>⚡ ReFlip Demo-Modus starten (Sofort loslegen)</span>
+          <span>ReFlip Demo-Modus starten (Sofort loslegen)</span>
         </button>
       </div>
     </form>
