@@ -1,3 +1,5 @@
+name: re-flip
+
 services:
   re-flip:
     build:
