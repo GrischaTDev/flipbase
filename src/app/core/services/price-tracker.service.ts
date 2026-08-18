@@ -55,12 +55,16 @@ export class PriceTrackerService {
       }
     } catch {}
 
+    return [];
+  }
+
+  loadDemoItems(): void {
     const now = new Date();
     const d1 = new Date(now.getTime() - 86400000 * 7).toISOString().split('T')[0];
     const d2 = new Date(now.getTime() - 86400000 * 3).toISOString().split('T')[0];
     const d3 = now.toISOString().split('T')[0];
 
-    return [
+    const demo: PriceTrackedItem[] = [
       {
         id: 'track-1',
         workspace_id: 'ws-1',
@@ -154,6 +158,8 @@ export class PriceTrackerService {
         ],
       },
     ];
+    this.trackedItems.set(demo);
+    this.persistItems();
   }
 
   private persistItems(): void {

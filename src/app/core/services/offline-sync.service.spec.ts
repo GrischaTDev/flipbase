@@ -7,6 +7,8 @@ describe('OfflineSyncService & Flea Market Rapid Sourcing (Chapter 28)', () => {
 
   beforeEach(() => {
     service = new OfflineSyncService();
+    service.loadDemoEntries();
+    service.startCashSession(250.0, 'Flohmarkt Mauerpark Berlin');
   });
 
   it('should initialize with online status and persisted wallet', () => {

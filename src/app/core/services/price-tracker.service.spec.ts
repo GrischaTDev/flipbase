@@ -7,6 +7,7 @@ describe('PriceTrackerService & Competitor Radar (Chapter 26)', () => {
 
   beforeEach(() => {
     service = new PriceTrackerService();
+    service.loadDemoItems();
   });
 
   it('should initialize with pre-configured radar items', () => {

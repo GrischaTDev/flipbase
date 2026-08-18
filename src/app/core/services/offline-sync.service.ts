@@ -70,7 +70,11 @@ export class OfflineSyncService {
       }
     } catch {}
 
-    return [
+    return [];
+  }
+
+  loadDemoEntries(): void {
+    const demo: OfflinePurchaseEntry[] = [
       {
         id: 'off-1',
         workspace_id: 'ws-1',
@@ -85,6 +89,8 @@ export class OfflineSyncService {
         sync_status: 'pending',
       },
     ];
+    this.pendingEntries.set(demo);
+    this.persistEntries();
   }
 
   private persistEntries(): void {
@@ -104,14 +110,14 @@ export class OfflineSyncService {
     } catch {}
 
     return {
-      isActive: true,
-      startCash: 250.0,
-      currentCash: 215.0,
-      totalSpent: 35.0,
-      estimatedTotalResale: 85.0,
-      itemsCount: 1,
-      locationName: 'Flohmarkt Mauerpark Berlin',
-      startedAt: new Date().toISOString(),
+      isActive: false,
+      startCash: 0,
+      currentCash: 0,
+      totalSpent: 0,
+      estimatedTotalResale: 0,
+      itemsCount: 0,
+      locationName: '',
+      startedAt: '',
     };
   }
 
