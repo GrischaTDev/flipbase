@@ -61,7 +61,22 @@ export class PurchaseService {
 
   async loadPurchases(workspaceId: string): Promise<void> {
     const localPurchases = this.mockStore.getPurchases(workspaceId);
-    this.purchases.set(localPurchases);
+    const localItems = this.mockStore.getItems(workspaceId);
+    const localSources = this.mockStore.getSources();
+    const localSuppliers = this.mockStore.getSuppliers();
+
+    const enrichedLocal = localPurchases.map((p) => {
+      const matchingItems = localItems.filter((i) => i.purchase_id === p.id);
+      const source = p.source || (p.source_id ? localSources.find((s) => s.id === p.source_id) : undefined);
+      const supplier = p.supplier || (p.supplier_id ? localSuppliers.find((s) => s.id === p.supplier_id) : undefined);
+      return {
+        ...p,
+        source,
+        supplier,
+        items_count: matchingItems.length > 0 ? matchingItems.length : (p.items_count || 1),
+      } as Purchase;
+    });
+    this.purchases.set(enrichedLocal);
 
     if (this.mockStore.isDemoMode() || workspaceId.startsWith('demo-')) {
       return;
@@ -90,7 +105,7 @@ export class PurchaseService {
           const totalCost = Number(p.purchase_price || 0) + costsSum;
           return {
             ...p,
-            items_count: (p.items || []).length,
+            items_count: (p.items || []).length > 0 ? (p.items || []).length : (p.items_count || 1),
             total_purchase_cost: Number(totalCost.toFixed(2)),
           } as Purchase;
         });
@@ -107,10 +122,20 @@ export class PurchaseService {
   async getPurchaseById(id: string): Promise<Purchase | null> {
     const existing = this.purchases().find((p) => p.id === id) || this.mockStore.getPurchases().find((p) => p.id === id);
     if (existing) {
-      this.selectedPurchase.set(existing);
       const items = this.mockStore.getItems().filter((i) => i.purchase_id === id);
+      const localSources = this.mockStore.getSources();
+      const localSuppliers = this.mockStore.getSuppliers();
+      const source = existing.source || (existing.source_id ? localSources.find((s) => s.id === existing.source_id) : undefined);
+      const supplier = existing.supplier || (existing.supplier_id ? localSuppliers.find((s) => s.id === existing.supplier_id) : undefined);
+      const enriched: Purchase = {
+        ...existing,
+        source,
+        supplier,
+        items_count: items.length > 0 ? items.length : (existing.items_count || 1),
+      };
+      this.selectedPurchase.set(enriched);
       this.purchaseItems.set(items);
-      return existing;
+      return enriched;
     }
 
     this.isLoading.set(true);
@@ -136,7 +161,7 @@ export class PurchaseService {
 
       const enriched: Purchase = {
         ...data,
-        items_count: (data.items || []).length,
+        items_count: (data.items || []).length > 0 ? (data.items || []).length : (data.items_count || 1),
         total_purchase_cost: Number(totalCost.toFixed(2)),
       };
 
@@ -158,11 +183,18 @@ export class PurchaseService {
     const extraCostsSum = (payload.initial_costs || []).reduce((acc, c) => acc + Number(c.amount || 0), 0);
     const totalCost = payload.purchase_price + extraCostsSum;
 
+    const localSources = this.mockStore.getSources();
+    const localSuppliers = this.mockStore.getSuppliers();
+    const source = payload.source_id ? localSources.find((s) => s.id === payload.source_id) : undefined;
+    const supplier = payload.supplier_id ? localSuppliers.find((s) => s.id === payload.supplier_id) : undefined;
+
     const newPurchase: Purchase = {
       id: `pur-${Date.now()}`,
       workspace_id: ws.id,
       source_id: payload.source_id || null,
       supplier_id: payload.supplier_id || null,
+      source,
+      supplier,
       type: payload.type,
       title: payload.title.trim(),
       purchase_date: payload.purchase_date,
@@ -172,7 +204,7 @@ export class PurchaseService {
       notes: payload.notes || null,
       tracking_number: payload.tracking_number || null,
       original_url: payload.original_url || null,
-      items_count: payload.type === 'single' ? 1 : payload.items_count || 1,
+      items_count: payload.type === 'single' ? 1 : payload.items_count || 0,
       created_at: new Date().toISOString(),
     };
 
@@ -381,6 +413,15 @@ export class PurchaseService {
 
     this.mockStore.saveItem(newItem);
     this.purchaseItems.update((items) => [...items, newItem]);
+
+    const totalCount = this.mockStore.getItems().filter((i) => i.purchase_id === purchaseId).length;
+    this.purchases.update((list) =>
+      list.map((p) => (p.id === purchaseId ? { ...p, items_count: totalCount } : p))
+    );
+    const storedP = this.mockStore.getPurchases().find((p) => p.id === purchaseId);
+    if (storedP) {
+      this.mockStore.savePurchase({ ...storedP, items_count: totalCount });
+    }
 
     if (!this.mockStore.isDemoMode()) {
       try {

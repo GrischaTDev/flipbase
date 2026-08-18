@@ -200,6 +200,14 @@ export class InventoryService {
     this.items.update((list) => [enriched, ...list]);
     await this.logActivity(newItem.id, 'received', `Artikel angelegt (${newItem.title})`);
 
+    if (payload.purchase_id) {
+      const allForPur = this.mockStore.getItems().filter((i) => i.purchase_id === payload.purchase_id);
+      const storedPur = this.mockStore.getPurchases().find((p) => p.id === payload.purchase_id);
+      if (storedPur) {
+        this.mockStore.savePurchase({ ...storedPur, items_count: allForPur.length });
+      }
+    }
+
     if (this.mockStore.isDemoMode() || ws.id.startsWith('demo-')) {
       return { data: enriched, error: null };
     }
