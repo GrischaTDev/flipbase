@@ -11,10 +11,10 @@
     "supabase:stop": "supabase stop",
     "supabase:status": "supabase status",
     "supabase:reset": "supabase db reset",
-    "docker:build": "docker compose build",
-    "docker:up": "docker compose up -d",
-    "docker:down": "docker compose down",
-    "docker:restart": "docker compose down && docker compose up -d --build"
+    "docker:build": "docker compose -f docker/docker-compose.yml build",
+    "docker:up": "docker compose -f docker/docker-compose.yml up -d",
+    "docker:down": "docker compose -f docker/docker-compose.yml down",
+    "docker:restart": "docker compose -f docker/docker-compose.yml down && docker compose -f docker/docker-compose.yml up -d --build"
   },
   "private": true,
   "packageManager": "npm@11.5.2",

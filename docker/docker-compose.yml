@@ -1,8 +1,8 @@
 services:
   re-flip:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: re-flip
     ports:
       - "8080:80"

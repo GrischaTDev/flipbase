@@ -19,7 +19,7 @@ RUN npx ng build --configuration production
 FROM nginx:stable-alpine AS production
 
 # Custom Nginx-Konfiguration für Angular SPA-Routing
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 
 # Build-Artefakte aus Stage 1 holen
 COPY --from=build /app/dist/re-flip/browser /usr/share/nginx/html
