@@ -21,6 +21,9 @@ import { StoreService } from '../../../../core/services/store.service';
   templateUrl: './store-cart-drawer.component.html',
   styleUrl: './store-cart-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:keydown.escape)': 'storeService.closeCart()',
+  },
 })
 export class StoreCartDrawerComponent {
   readonly storeService = inject(StoreService);

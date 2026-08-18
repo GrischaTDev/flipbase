@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  inject,
+  output,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -33,6 +41,10 @@ import { DatePipe } from '@angular/common';
   templateUrl: './header.component.html',
   styleUrl: './header.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:click)': 'onDocumentClick($event)',
+    '(document:keydown.escape)': 'closeAllDropdowns()',
+  },
 })
 export class HeaderComponent {
   readonly auth = inject(AuthService);
@@ -49,6 +61,10 @@ export class HeaderComponent {
   readonly isWorkspaceDropdownOpen = signal<boolean>(false);
   readonly isUserDropdownOpen = signal<boolean>(false);
   readonly isNotificationDropdownOpen = signal<boolean>(false);
+
+  readonly workspaceContainer = viewChild<ElementRef<HTMLElement>>('workspaceContainer');
+  readonly notificationContainer = viewChild<ElementRef<HTMLElement>>('notificationContainer');
+  readonly userContainer = viewChild<ElementRef<HTMLElement>>('userContainer');
 
   // Icons
   readonly LayersIcon = Layers;
@@ -99,4 +115,31 @@ export class HeaderComponent {
   async onSignOut(): Promise<void> {
     await this.auth.signOut();
   }
+
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as Node | null;
+    if (!target) return;
+
+    const wsEl = this.workspaceContainer()?.nativeElement;
+    if (this.isWorkspaceDropdownOpen() && wsEl && !wsEl.contains(target)) {
+      this.isWorkspaceDropdownOpen.set(false);
+    }
+
+    const notifEl = this.notificationContainer()?.nativeElement;
+    if (this.isNotificationDropdownOpen() && notifEl && !notifEl.contains(target)) {
+      this.isNotificationDropdownOpen.set(false);
+    }
+
+    const userEl = this.userContainer()?.nativeElement;
+    if (this.isUserDropdownOpen() && userEl && !userEl.contains(target)) {
+      this.isUserDropdownOpen.set(false);
+    }
+  }
+
+  closeAllDropdowns(): void {
+    this.isWorkspaceDropdownOpen.set(false);
+    this.isNotificationDropdownOpen.set(false);
+    this.isUserDropdownOpen.set(false);
+  }
 }
+

@@ -11,7 +11,7 @@
     </button>
 
     <!-- Workspace Selector Dropdown -->
-    <div class="relative">
+    <div class="relative" #workspaceContainer>
       <button
         type="button"
         (click)="toggleWorkspaceDropdown()"
@@ -84,7 +84,7 @@
     }
 
     <!-- Notification Bell Dropdown -->
-    <div class="relative">
+    <div class="relative" #notificationContainer>
       <button
         type="button"
         (click)="toggleNotificationDropdown()"
@@ -202,7 +202,7 @@
     </div>
 
     <!-- User Profile Dropdown -->
-    <div class="relative">
+    <div class="relative" #userContainer>
       <button
         type="button"
         (click)="toggleUserDropdown()"
