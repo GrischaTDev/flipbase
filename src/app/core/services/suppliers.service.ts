@@ -27,8 +27,10 @@ export class SuppliersService {
   }
 
   async loadSuppliers(workspaceId: string): Promise<void> {
+    const local = this.mockStore.getSuppliers(workspaceId);
+    this.suppliers.set(local);
+
     if (this.mockStore.isDemoMode() || workspaceId.startsWith('demo-')) {
-      this.suppliers.set(this.mockStore.demoSuppliers);
       return;
     }
 
@@ -40,15 +42,14 @@ export class SuppliersService {
         .eq('workspace_id', workspaceId)
         .order('name', { ascending: true });
 
-      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 800);
+      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 1000);
 
       if (res && !res.error && res.data && res.data.length > 0) {
         this.suppliers.set(res.data as Supplier[]);
-      } else {
-        this.suppliers.set(this.mockStore.demoSuppliers);
+        (res.data as Supplier[]).forEach((s) => this.mockStore.saveSupplier(s));
       }
     } catch (err) {
-      this.suppliers.set(this.mockStore.demoSuppliers);
+      // Keep local
     } finally {
       this.isLoading.set(false);
     }
@@ -66,6 +67,7 @@ export class SuppliersService {
       notes: notes?.trim() || null,
     };
 
+    this.mockStore.saveSupplier(newSup);
     this.suppliers.update((list) => [...list, newSup]);
 
     if (!this.mockStore.isDemoMode()) {

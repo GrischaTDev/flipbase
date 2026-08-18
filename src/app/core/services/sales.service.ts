@@ -49,9 +49,10 @@ export class SalesService {
   }
 
   async loadSales(workspaceId: string): Promise<void> {
+    const localSales = this.mockStore.getSales(workspaceId).map((s) => this.enrichSaleMetrics(s));
+    this.sales.set(localSales);
+
     if (this.mockStore.isDemoMode() || workspaceId.startsWith('demo-')) {
-      const enriched = this.mockStore.demoSales.map((s) => this.enrichSaleMetrics(s));
-      this.sales.set(enriched);
       return;
     }
 
@@ -71,18 +72,15 @@ export class SalesService {
         .order('sale_date', { ascending: false })
         .order('created_at', { ascending: false });
 
-      const res = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 800);
+      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 1000);
 
-      if (res && !res.error && res.data) {
+      if (res && !res.error && res.data && res.data.length > 0) {
         const enriched = (res.data as unknown[]).map((s: any) => this.enrichSaleMetrics(s));
         this.sales.set(enriched);
-      } else {
-        const enriched = this.mockStore.demoSales.map((s) => this.enrichSaleMetrics(s));
-        this.sales.set(enriched);
+        enriched.forEach((s) => this.mockStore.saveSale(s));
       }
     } catch (err) {
-      const enriched = this.mockStore.demoSales.map((s) => this.enrichSaleMetrics(s));
-      this.sales.set(enriched);
+      // Keep local sales
     } finally {
       this.isLoading.set(false);
     }
@@ -148,6 +146,9 @@ export class SalesService {
     };
 
     const enrichedSale = this.enrichSaleMetrics(rawSale);
+
+    // 1. Immediately persist locally (resilient against page reloads)
+    this.mockStore.saveSale(enrichedSale);
     this.sales.update((list) => [enrichedSale, ...list]);
 
     await this.inventoryService.updateItemStatus(
@@ -184,6 +185,7 @@ export class SalesService {
   }
 
   async deleteSale(saleId: string, inventoryItemId: string): Promise<{ error: Error | null }> {
+    this.mockStore.deleteSale(saleId);
     this.sales.update((list) => list.filter((s) => s.id !== saleId));
 
     await this.inventoryService.updateItemStatus(

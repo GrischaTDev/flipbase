@@ -58,9 +58,10 @@ export class InventoryService {
   }
 
   async loadInventory(workspaceId: string): Promise<void> {
+    const localItems = this.mockStore.getItems(workspaceId).map((i) => this.enrichItemTotals(i));
+    this.items.set(localItems);
+
     if (this.mockStore.isDemoMode() || workspaceId.startsWith('demo-')) {
-      const enriched = this.mockStore.demoItems.map((i) => this.enrichItemTotals(i));
-      this.items.set(enriched);
       return;
     }
 
@@ -77,30 +78,29 @@ export class InventoryService {
         .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false });
 
-      const res = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 800);
+      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 1000);
 
-      if (res && !res.error && res.data) {
+      if (res && !res.error && res.data && res.data.length > 0) {
         const enriched = (res.data as unknown[]).map((item: any) => this.enrichItemTotals(item));
         this.items.set(enriched);
-      } else {
-        // Fallback to demo items
-        const enriched = this.mockStore.demoItems.map((i) => this.enrichItemTotals(i));
-        this.items.set(enriched);
+        enriched.forEach((i) => this.mockStore.saveItem(i));
       }
     } catch (err) {
-      const enriched = this.mockStore.demoItems.map((i) => this.enrichItemTotals(i));
-      this.items.set(enriched);
+      // Keep local items
     } finally {
       this.isLoading.set(false);
     }
   }
 
   async getItemById(itemId: string): Promise<InventoryItem | null> {
-    const existing = this.items().find((i) => i.id === itemId);
+    const existing = this.items().find((i) => i.id === itemId) || this.mockStore.getItems().find((i) => i.id === itemId);
     if (existing) {
-      this.selectedItem.set(existing);
-      this.itemCosts.set(existing.costs || []);
-      return existing;
+      const enriched = this.enrichItemTotals(existing);
+      this.selectedItem.set(enriched);
+      const costs = this.mockStore.getItemCosts(itemId);
+      this.itemCosts.set(costs.length > 0 ? costs : (enriched.costs || []));
+      await this.loadActivityLogs(itemId);
+      return enriched;
     }
 
     this.isLoading.set(true);
@@ -134,6 +134,11 @@ export class InventoryService {
   }
 
   async loadActivityLogs(itemId: string): Promise<void> {
+    const localLogs = this.mockStore.getActivityLogs(itemId);
+    if (localLogs.length > 0) {
+      this.activityLogs.set(localLogs);
+    }
+
     try {
       const { data, error } = await this.supabase.client
         .from('activity_logs')
@@ -141,7 +146,7 @@ export class InventoryService {
         .eq('inventory_item_id', itemId)
         .order('created_at', { ascending: false });
 
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
         this.activityLogs.set(data as ActivityLog[]);
       }
     } catch (err) {
@@ -188,16 +193,20 @@ export class InventoryService {
       created_at: new Date().toISOString(),
     };
 
+    const enriched = this.enrichItemTotals(newItem);
+
+    // 1. Immediately persist locally (resilient against page reloads)
+    this.mockStore.saveItem(enriched);
+    this.items.update((list) => [enriched, ...list]);
+    await this.logActivity(newItem.id, 'received', `Artikel angelegt (${newItem.title})`);
+
     if (this.mockStore.isDemoMode() || ws.id.startsWith('demo-')) {
-      const enriched = this.enrichItemTotals(newItem);
-      this.items.update((list) => [enriched, ...list]);
-      await this.logActivity(newItem.id, 'received', `Artikel angelegt (${newItem.title})`);
       return { data: enriched, error: null };
     }
 
-    this.isLoading.set(true);
+    // 2. Sync to Supabase in background if connected
     try {
-      const insertPromise = this.supabase.client
+      await this.supabase.client
         .from('inventory_items')
         .insert({
           workspace_id: ws.id,
@@ -213,30 +222,12 @@ export class InventoryService {
           description: payload.description?.trim() || null,
           allocated_purchase_cost: payload.allocated_purchase_cost || 0,
           expected_value: payload.expected_value || null,
-        })
-        .select()
-        .single();
-
-      const res: any = await this.mockStore.withTimeout(insertPromise, null, 1000);
-
-      if (!res || res.error || !res.data) {
-        // Local fallback
-        const enriched = this.enrichItemTotals(newItem);
-        this.items.update((list) => [enriched, ...list]);
-        return { data: enriched, error: null };
-      }
-
-      const enriched = this.enrichItemTotals(res.data);
-      await this.logActivity(enriched.id, 'received', `Artikel angelegt (${enriched.title})`);
-      await this.loadInventory(ws.id);
-      return { data: enriched, error: null };
-    } catch (err: unknown) {
-      const enriched = this.enrichItemTotals(newItem);
-      this.items.update((list) => [enriched, ...list]);
-      return { data: enriched, error: null };
-    } finally {
-      this.isLoading.set(false);
+        });
+    } catch {
+      // Local fallback active
     }
+
+    return { data: enriched, error: null };
   }
 
   async updateItem(
@@ -244,7 +235,14 @@ export class InventoryService {
     updates: Partial<InventoryItem>
   ): Promise<{ error: Error | null }> {
     this.items.update((list) =>
-      list.map((item) => (item.id === itemId ? this.enrichItemTotals({ ...item, ...updates }) : item))
+      list.map((item) => {
+        if (item.id === itemId) {
+          const updated = this.enrichItemTotals({ ...item, ...updates });
+          this.mockStore.saveItem(updated);
+          return updated;
+        }
+        return item;
+      })
     );
 
     const currentSel = this.selectedItem();
@@ -272,7 +270,14 @@ export class InventoryService {
     notes?: string
   ): Promise<{ error: Error | null }> {
     this.items.update((list) =>
-      list.map((item) => (item.id === itemId ? { ...item, status: newStatus } : item))
+      list.map((item) => {
+        if (item.id === itemId) {
+          const updated = { ...item, status: newStatus };
+          this.mockStore.saveItem(updated);
+          return updated;
+        }
+        return item;
+      })
     );
 
     const currentSel = this.selectedItem();
@@ -311,6 +316,7 @@ export class InventoryService {
       created_at: new Date().toISOString(),
     };
 
+    this.mockStore.saveItemCost(newCost);
     this.itemCosts.update((costs) => [...costs, newCost]);
 
     // Update item costs
@@ -318,7 +324,9 @@ export class InventoryService {
       list.map((i) => {
         if (i.id === itemId) {
           const updatedCosts = [...(i.costs || []), newCost];
-          return this.enrichItemTotals({ ...i, costs: updatedCosts });
+          const updatedItem = this.enrichItemTotals({ ...i, costs: updatedCosts });
+          this.mockStore.saveItem(updatedItem);
+          return updatedItem;
         }
         return i;
       })
@@ -343,12 +351,15 @@ export class InventoryService {
   }
 
   async deleteItemCost(costId: string, itemId: string): Promise<{ error: Error | null }> {
+    this.mockStore.deleteItemCost(costId);
     this.itemCosts.update((costs) => costs.filter((c) => c.id !== costId));
     this.items.update((list) =>
       list.map((i) => {
         if (i.id === itemId) {
           const updatedCosts = (i.costs || []).filter((c) => c.id !== costId);
-          return this.enrichItemTotals({ ...i, costs: updatedCosts });
+          const updatedItem = this.enrichItemTotals({ ...i, costs: updatedCosts });
+          this.mockStore.saveItem(updatedItem);
+          return updatedItem;
         }
         return i;
       })
@@ -375,6 +386,7 @@ export class InventoryService {
       created_at: new Date().toISOString(),
     };
 
+    this.mockStore.saveActivityLog(newLog);
     this.activityLogs.update((logs) => [newLog, ...logs]);
 
     if (!this.mockStore.isDemoMode()) {
@@ -392,6 +404,7 @@ export class InventoryService {
   }
 
   async deleteItem(itemId: string): Promise<{ error: Error | null }> {
+    this.mockStore.deleteItem(itemId);
     this.items.update((list) => list.filter((i) => i.id !== itemId));
     if (this.selectedItem()?.id === itemId) {
       this.selectedItem.set(null);

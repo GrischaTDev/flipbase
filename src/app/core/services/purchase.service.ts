@@ -60,8 +60,10 @@ export class PurchaseService {
   }
 
   async loadPurchases(workspaceId: string): Promise<void> {
+    const localPurchases = this.mockStore.getPurchases(workspaceId);
+    this.purchases.set(localPurchases);
+
     if (this.mockStore.isDemoMode() || workspaceId.startsWith('demo-')) {
-      this.purchases.set(this.mockStore.demoPurchases);
       return;
     }
 
@@ -80,9 +82,9 @@ export class PurchaseService {
         .order('purchase_date', { ascending: false })
         .order('created_at', { ascending: false });
 
-      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 800);
+      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 1000);
 
-      if (res && !res.error && res.data) {
+      if (res && !res.error && res.data && res.data.length > 0) {
         const enriched = (res.data as unknown[]).map((p: any) => {
           const costsSum = (p.costs || []).reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0);
           const totalCost = Number(p.purchase_price || 0) + costsSum;
@@ -93,20 +95,21 @@ export class PurchaseService {
           } as Purchase;
         });
         this.purchases.set(enriched);
-      } else {
-        this.purchases.set(this.mockStore.demoPurchases);
+        enriched.forEach((p) => this.mockStore.savePurchase(p));
       }
     } catch (err) {
-      this.purchases.set(this.mockStore.demoPurchases);
+      // Keep local stored purchases
     } finally {
       this.isLoading.set(false);
     }
   }
 
   async getPurchaseById(id: string): Promise<Purchase | null> {
-    const existing = this.purchases().find((p) => p.id === id);
+    const existing = this.purchases().find((p) => p.id === id) || this.mockStore.getPurchases().find((p) => p.id === id);
     if (existing) {
       this.selectedPurchase.set(existing);
+      const items = this.mockStore.getItems().filter((i) => i.purchase_id === id);
+      this.purchaseItems.set(items);
       return existing;
     }
 
@@ -173,15 +176,18 @@ export class PurchaseService {
       created_at: new Date().toISOString(),
     };
 
+    // 1. Immediately persist locally (resilient against page reloads)
+    this.mockStore.savePurchase(newPurchase);
+    this.purchases.update((list) => [newPurchase, ...list]);
+    this.webhookService.sendPurchaseNotification(newPurchase);
+
     if (this.mockStore.isDemoMode() || ws.id.startsWith('demo-')) {
-      this.purchases.update((list) => [newPurchase, ...list]);
-      this.webhookService.sendPurchaseNotification(newPurchase);
       return { data: newPurchase, error: null };
     }
 
-    this.isLoading.set(true);
+    // 2. Sync to Supabase in background if connected
     try {
-      const insertPromise = this.supabase.client
+      await this.supabase.client
         .from('purchases')
         .insert({
           workspace_id: ws.id,
@@ -194,28 +200,16 @@ export class PurchaseService {
           cost_allocation_mode: mode,
           notes: payload.notes?.trim() || null,
           tracking_number: payload.tracking_number?.trim() || null,
-        })
-        .select()
-        .single();
-
-      const res: any = await this.mockStore.withTimeout(insertPromise, null, 1000);
-
-      if (!res || res.error || !res.data) {
-        this.purchases.update((list) => [newPurchase, ...list]);
-        return { data: newPurchase, error: null };
-      }
-
-      await this.loadPurchases(ws.id);
-      return { data: res.data as Purchase, error: null };
-    } catch (err: unknown) {
-      this.purchases.update((list) => [newPurchase, ...list]);
-      return { data: newPurchase, error: null };
-    } finally {
-      this.isLoading.set(false);
+        });
+    } catch {
+      // Local fallback active
     }
+
+    return { data: newPurchase, error: null };
   }
 
   async deletePurchase(purchaseId: string): Promise<{ error: Error | null }> {
+    this.mockStore.deletePurchase(purchaseId);
     this.purchases.update((list) => list.filter((p) => p.id !== purchaseId));
     if (this.selectedPurchase()?.id === purchaseId) {
       this.selectedPurchase.set(null);
@@ -263,10 +257,19 @@ export class PurchaseService {
   async updateCostAllocationMode(purchaseId: string, mode: CostAllocationMode): Promise<{ error: Error | null }> {
     const current = this.selectedPurchase();
     if (current && current.id === purchaseId) {
-      this.selectedPurchase.set({ ...current, cost_allocation_mode: mode });
+      const updated = { ...current, cost_allocation_mode: mode };
+      this.selectedPurchase.set(updated);
+      this.mockStore.savePurchase(updated);
     }
     this.purchases.update((list) =>
-      list.map((p) => (p.id === purchaseId ? { ...p, cost_allocation_mode: mode } : p))
+      list.map((p) => {
+        if (p.id === purchaseId) {
+          const updated = { ...p, cost_allocation_mode: mode };
+          this.mockStore.savePurchase(updated);
+          return updated;
+        }
+        return p;
+      })
     );
 
     if (!this.mockStore.isDemoMode()) {
@@ -324,6 +327,7 @@ export class PurchaseService {
     }
 
     this.purchaseItems.set(updatedItems);
+    updatedItems.forEach((it) => this.mockStore.saveItem(it));
     await this.updateCostAllocationMode(purchaseId, mode);
 
     if (!this.mockStore.isDemoMode()) {
@@ -375,6 +379,7 @@ export class PurchaseService {
       created_at: new Date().toISOString(),
     };
 
+    this.mockStore.saveItem(newItem);
     this.purchaseItems.update((items) => [...items, newItem]);
 
     if (!this.mockStore.isDemoMode()) {

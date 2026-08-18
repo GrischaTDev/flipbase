@@ -27,8 +27,10 @@ export class SourcesService {
   }
 
   async loadSources(workspaceId: string): Promise<void> {
+    const local = this.mockStore.getSources(workspaceId);
+    this.sources.set(local);
+
     if (this.mockStore.isDemoMode() || workspaceId.startsWith('demo-')) {
-      this.sources.set(this.mockStore.demoSources);
       return;
     }
 
@@ -41,15 +43,14 @@ export class SourcesService {
         .order('is_default', { ascending: false })
         .order('name', { ascending: true });
 
-      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 800);
+      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 1000);
 
       if (res && !res.error && res.data && res.data.length > 0) {
         this.sources.set(res.data as Source[]);
-      } else {
-        this.sources.set(this.mockStore.demoSources);
+        (res.data as Source[]).forEach((s) => this.mockStore.saveSource(s));
       }
     } catch (err) {
-      this.sources.set(this.mockStore.demoSources);
+      // Keep local
     } finally {
       this.isLoading.set(false);
     }
@@ -68,6 +69,7 @@ export class SourcesService {
       type: 'online_marketplace',
     };
 
+    this.mockStore.saveSource(newSrc);
     this.sources.update((list) => [...list, newSrc]);
 
     if (!this.mockStore.isDemoMode()) {
@@ -86,6 +88,7 @@ export class SourcesService {
   }
 
   async deleteSource(sourceId: string): Promise<{ error: Error | null }> {
+    this.mockStore.deleteSource(sourceId);
     this.sources.update((list) => list.filter((s) => s.id !== sourceId));
     if (!this.mockStore.isDemoMode()) {
       try {
