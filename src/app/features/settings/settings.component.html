@@ -981,11 +981,9 @@
   @if (isInviteModalOpen()) {
     <div
       class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
-      (click)="closeInviteModal()"
     >
       <div
         class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 select-none my-auto animate-modal-card"
-        (click)="$event.stopPropagation()"
       >
         <!-- Header -->
         <div class="flex items-start justify-between border-b border-rf-border pb-3">
