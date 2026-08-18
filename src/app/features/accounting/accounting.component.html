@@ -1,608 +1,658 @@
 <div class="space-y-6 animate-fade-in select-none">
-  <!-- Page Header & Period Selector & Export Actions -->
-  <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-2 border-b border-rf-border">
+  <!-- Top Header & Primary Tabs Switcher -->
+  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border/40 pb-4">
     <div>
-      <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
-          Buchhaltung, Steuern & DATEV
-        </h1>
-        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 uppercase">
-          § 25a Differenzbesteuerung
-        </span>
-      </div>
-      <p class="text-xs text-rf-text-muted mt-0.5">
-        Finanzamt- & DATEV-konforme Margenbesteuerung für Gebrauchtwarenhändler und Reseller.
+      <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+        <lucide-icon [img]="cardIcon" class="w-5 h-5 text-accent-emerald"></lucide-icon>
+        <span>Finanzen, Steuern & Bankabgleich</span>
+      </h1>
+      <p class="text-xs text-muted mt-0.5">
+        Differenzbesteuerung gem. § 25a UStG, DATEV-Export und automatischer Kontoauszug-Zahlungsabgleich.
       </p>
     </div>
 
-    <!-- Filters & Export Buttons -->
-    <div class="flex flex-wrap items-center gap-2 text-xs">
-      <!-- Year Select -->
-      <select
-        [value]="selectedYear()"
-        (change)="selectedYear.set(+$any($event.target).value)"
-        class="linear-input px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
-      >
-        <option [value]="2026">Jahr 2026</option>
-        <option [value]="2025">Jahr 2025</option>
-        <option [value]="2024">Jahr 2024</option>
-      </select>
-
-      <!-- Period Select -->
-      <select
-        [value]="selectedPeriod()"
-        (change)="selectedPeriod.set($any($event.target).value)"
-        class="linear-input px-2.5 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
-      >
-        <option value="all">Gesamtjahr</option>
-        <option value="Q1">1. Quartal (Q1)</option>
-        <option value="Q2">2. Quartal (Q2)</option>
-        <option value="Q3">3. Quartal (Q3)</option>
-        <option value="Q4">4. Quartal (Q4)</option>
-        <option value="01">Januar</option>
-        <option value="02">Februar</option>
-        <option value="03">März</option>
-        <option value="04">April</option>
-        <option value="05">Mai</option>
-        <option value="06">Juni</option>
-        <option value="07">Juli</option>
-        <option value="08">August</option>
-        <option value="09">September</option>
-        <option value="10">Oktober</option>
-        <option value="11">November</option>
-        <option value="12">Dezember</option>
-      </select>
-
-      <!-- Steuerberater-Monatsabschluss Button -->
+    <!-- Navigation Tabs -->
+    <div class="flex items-center gap-1.5 p-1 rounded-xl bg-surface-2 border border-border/60">
       <button
         type="button"
-        (click)="openTaxAdvisorModal()"
-        class="linear-btn-primary px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20 text-white"
-        title="Monatsbericht und DATEV-Buchungsstapel für Steuerberater öffnen & versenden"
-      >
-        <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5 text-amber-300"></lucide-icon>
-        <span>📊 Steuerberater-Monatsabschluss</span>
-      </button>
-
-      <!-- DATEV Export Button -->
-      <button
-        type="button"
-        (click)="onDownloadDatev()"
-        class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-        title="DATEV-Format (SKR03 / SKR04) für den Steuerberater herunterladen"
+        (click)="activeTab.set('tax_journal')"
+        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+        [class.bg-surface-3]="activeTab() === 'tax_journal'"
+        [class.text-white]="activeTab() === 'tax_journal'"
+        [class.shadow-2xs]="activeTab() === 'tax_journal'"
+        [class.text-muted]="activeTab() !== 'tax_journal'"
+        [class.hover:text-white]="activeTab() !== 'tax_journal'"
       >
         <lucide-icon [img]="spreadsheetIcon" class="w-3.5 h-3.5"></lucide-icon>
-        <span>DATEV CSV</span>
+        <span>§ 25a Steuer & DATEV</span>
       </button>
 
-      <!-- Diff Tax Journal Export -->
       <button
         type="button"
-        (click)="onDownloadDiffTaxJournal()"
-        class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-        title="§ 25a Differenzbesteuerungs-Journal herunterladen"
+        (click)="activeTab.set('bank_reconciliation')"
+        class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer relative"
+        [class.bg-surface-3]="activeTab() === 'bank_reconciliation'"
+        [class.text-white]="activeTab() === 'bank_reconciliation'"
+        [class.shadow-2xs]="activeTab() === 'bank_reconciliation'"
+        [class.text-muted]="activeTab() !== 'bank_reconciliation'"
+        [class.hover:text-white]="activeTab() !== 'bank_reconciliation'"
       >
-        <lucide-icon [img]="fileIcon" class="w-3.5 h-3.5"></lucide-icon>
-        <span>§ 25a Journal</span>
-      </button>
-
-      <!-- EÜR Export Button -->
-      <button
-        type="button"
-        (click)="onDownloadEur()"
-        class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
-        title="Einnahmen-Überschuss-Rechnung für das Finanzamt"
-      >
-        <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5"></lucide-icon>
-        <span>EÜR CSV</span>
+        <lucide-icon [img]="cardIcon" class="w-3.5 h-3.5 text-accent-emerald"></lucide-icon>
+        <span>💳 Bankabgleich</span>
+        @if (bankService.summary().matchedCount > 0) {
+          <span class="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-accent-emerald text-black font-mono">
+            {{ bankService.summary().matchedCount }}
+          </span>
+        }
       </button>
     </div>
   </div>
 
-  <!-- Tax Law Info Banner -->
-  <div class="linear-surface rounded-2xl p-4 border border-indigo-500/30 flex items-start gap-3.5 text-xs bg-gradient-to-r from-indigo-950/30 to-rf-surface">
-    <div class="w-7 h-7 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
-      <lucide-icon [img]="helpIcon" class="w-4 h-4"></lucide-icon>
-    </div>
-    <div class="space-y-1 text-rf-text-secondary leading-relaxed">
-      <strong class="text-rf-text-primary block font-semibold">Wie funktioniert § 25a UStG (Differenzbesteuerung)?</strong>
-      <p class="text-[11px] text-rf-text-muted">
-        Gebrauchtwaren, die ohne Vorsteuerabzug (z. B. von Privatpersonen auf Kleinanzeigen oder Flohmärkten) eingekauft wurden, werden nicht voll besteuert.
-        Die 19% Umsatzsteuer fällt <strong>ausschließlich auf deine Marge (VK &minus; EK)</strong> an. Auf Kundenrechnungen darf keine MwSt. separat ausgewiesen werden.
-      </p>
-    </div>
-  </div>
-
-  <!-- KPI Summary Cards (UStVA & Finanzamt Cockpit) -->
-  @let summary = periodSummary();
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-    <!-- 1. Umsatz & Wareneinsatz -->
-    <div class="linear-kpi rounded-2xl p-4 space-y-2">
-      <div class="flex items-center justify-between text-rf-text-muted text-xs">
-        <span>Bruttoumsatz</span>
-        <span class="font-mono text-[11px] text-rf-text-dimmed">{{ summary.total_sales_count }} Verkäufe</span>
-      </div>
-      <div class="text-2xl font-black font-mono text-rf-text-primary">
-        {{ summary.gross_revenue | currency:'EUR':'symbol':'1.2-2':'de' }}
-      </div>
-      <div class="text-[11px] text-rf-text-muted pt-1 border-t border-rf-border flex justify-between">
-        <span>Wareneinsatz (EK):</span>
-        <span class="font-mono text-rf-text-secondary">{{ summary.total_cost_of_goods_sold | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
-      </div>
-    </div>
-
-    <!-- 2. Margen-Bemessungsgrundlage -->
-    <div class="linear-kpi rounded-2xl p-4 space-y-2">
-      <div class="flex items-center justify-between text-rf-text-muted text-xs">
-        <span>Rohertrag / Marge</span>
-        <span class="px-1.5 py-0.2 rounded text-[9px] font-mono bg-blue-500/15 text-blue-400 border border-blue-500/30">Basis § 25a</span>
-      </div>
-      <div class="text-2xl font-black font-mono text-blue-400">
-        {{ summary.total_gross_margin | currency:'EUR':'symbol':'1.2-2':'de' }}
-      </div>
-      <div class="text-[11px] text-rf-text-muted pt-1 border-t border-rf-border flex justify-between">
-        <span>Handelsspanne:</span>
-        <span class="font-mono font-bold text-blue-300">
-          {{ summary.gross_revenue > 0 ? ((summary.total_gross_margin / summary.gross_revenue) * 100).toFixed(1) : '0.0' }}%
-        </span>
-      </div>
-    </div>
-
-    <!-- 3. USt auf Marge vs. Vorsteuer -->
-    <div class="linear-kpi rounded-2xl p-4 space-y-2">
-      <div class="flex items-center justify-between text-rf-text-muted text-xs">
-        <span>USt auf Differenz</span>
-        <span class="text-[10px] text-amber-400 font-mono">19% Marge</span>
-      </div>
-      <div class="text-2xl font-black font-mono text-amber-400">
-        {{ summary.total_vat_due | currency:'EUR':'symbol':'1.2-2':'de' }}
-      </div>
-      <div class="text-[11px] text-rf-text-muted pt-1 border-t border-rf-border flex justify-between">
-        <span>Abziehbare Vorsteuer:</span>
-        <span class="font-mono text-emerald-400">- {{ summary.total_input_tax | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
-      </div>
-    </div>
-
-    <!-- 4. UStVA-Zahllast an das Finanzamt -->
-    <div class="linear-kpi rounded-2xl p-4 space-y-2 border-indigo-500/40">
-      <div class="flex items-center justify-between text-xs">
-        <span class="font-semibold text-indigo-300">USt-Zahllast (UStVA)</span>
-        <span class="w-2 h-2 rounded-full bg-indigo-400 animate-pulse"></span>
-      </div>
-      <div class="text-2xl font-black font-mono text-indigo-400">
-        {{ summary.total_vat_liability | currency:'EUR':'symbol':'1.2-2':'de' }}
-      </div>
-      <div class="text-[11px] text-rf-text-muted pt-1 border-t border-rf-border flex justify-between">
-        <span>Reingewinn n. Steuern:</span>
-        <span class="font-mono font-bold text-emerald-400">{{ summary.net_profit_after_tax | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Detailed Tax Breakdown Table -->
-  <div class="linear-surface rounded-2xl overflow-hidden shadow-xl border border-rf-border">
-    <div class="p-4 border-b border-rf-border flex items-center justify-between">
-      <div class="flex items-center gap-2">
-        <lucide-icon [img]="receiptIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
-        <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
-          Steuerliche Aufstellung aller Verkäufe ({{ filteredTaxResults().length }} Posten)
-        </h2>
-      </div>
-    </div>
-
-    @if (filteredTaxResults().length === 0) {
-      <div class="p-12 text-center text-xs text-rf-text-muted space-y-2">
-        <lucide-icon [img]="receiptIcon" class="w-8 h-8 mx-auto text-rf-text-dimmed"></lucide-icon>
-        <p class="font-semibold text-rf-text-primary">Keine Verkäufe im gewählten Zeitraum gefunden</p>
-        <p class="text-[11px]">Wähle ein anderes Quartal oder Jahr aus.</p>
-      </div>
-    } @else {
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-xs">
-          <thead class="bg-rf-subtle text-[10px] font-bold uppercase tracking-wider text-rf-text-muted border-b border-rf-border">
-            <tr>
-              <th class="p-3">Datum</th>
-              <th class="p-3">Artikel</th>
-              <th class="p-3">Besteuerung</th>
-              <th class="p-3 text-right">VK Brutto</th>
-              <th class="p-3 text-right">EK Gesamt</th>
-              <th class="p-3 text-right">Marge (Diff.)</th>
-              <th class="p-3 text-right">USt (19%)</th>
-              <th class="p-3 text-right">Vorsteuer</th>
-              <th class="p-3 text-right">Zahllast</th>
-              <th class="p-3 text-right">Gewinn netto</th>
-              <th class="p-3 text-center">Beleg</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-rf-border">
-            @for (row of filteredTaxResults(); track row.sale_id) {
-              <tr class="hover:bg-rf-surface-hover transition">
-                <td class="p-3 font-mono text-[11px] text-rf-text-muted whitespace-nowrap">
-                  {{ row.sale_date | date:'dd.MM.yyyy' }}
-                </td>
-
-                <td class="p-3 max-w-[200px] truncate font-semibold text-rf-text-primary">
-                  {{ row.item_title }}
-                </td>
-
-                <td class="p-3">
-                  <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase"
-                    [class.bg-indigo-500/15]="row.tax_mode === 'diff_25a'"
-                    [class.text-indigo-300]="row.tax_mode === 'diff_25a'"
-                    [class.border]="true"
-                    [class.border-indigo-500/30]="row.tax_mode === 'diff_25a'"
-                    [class.bg-amber-500/15]="row.tax_mode === 'kleinunternehmer_19'"
-                    [class.text-amber-400]="row.tax_mode === 'kleinunternehmer_19'"
-                    [class.border-amber-500/30]="row.tax_mode === 'kleinunternehmer_19'"
-                  >
-                    {{ row.tax_mode === 'diff_25a' ? '§ 25a Diff' : (row.tax_mode === 'kleinunternehmer_19' ? '§ 19 KU' : '19% Regel') }}
-                  </span>
-                </td>
-
-                <td class="p-3 text-right font-mono font-bold text-rf-text-primary whitespace-nowrap">
-                  {{ row.gross_revenue | currency:'EUR':'symbol':'1.2-2':'de' }}
-                </td>
-
-                <td class="p-3 text-right font-mono text-rf-text-muted whitespace-nowrap">
-                  {{ row.total_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
-                </td>
-
-                <td class="p-3 text-right font-mono font-semibold text-blue-400 whitespace-nowrap">
-                  {{ row.gross_margin | currency:'EUR':'symbol':'1.2-2':'de' }}
-                </td>
-
-                <td class="p-3 text-right font-mono text-amber-400 whitespace-nowrap">
-                  {{ row.vat_amount | currency:'EUR':'symbol':'1.2-2':'de' }}
-                </td>
-
-                <td class="p-3 text-right font-mono text-emerald-400 whitespace-nowrap">
-                  {{ row.input_tax_deductible > 0 ? ('- ' + (row.input_tax_deductible | currency:'EUR':'symbol':'1.2-2':'de')) : '0,00 €' }}
-                </td>
-
-                <td class="p-3 text-right font-mono font-bold text-indigo-300 whitespace-nowrap">
-                  {{ row.net_tax_liability | currency:'EUR':'symbol':'1.2-2':'de' }}
-                </td>
-
-                <td class="p-3 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">
-                  {{ row.net_profit_after_tax | currency:'EUR':'symbol':'1.2-2':'de' }}
-                </td>
-
-                <td class="p-3 text-center">
-                  <button
-                    type="button"
-                    (click)="openInvoiceModal(row)"
-                    class="p-1.5 rounded-lg text-rf-text-muted hover:text-indigo-400 hover:bg-rf-subtle transition cursor-pointer"
-                    title="Rechnung / Beleg mit § 25a Klausel anzeigen"
-                  >
-                    <lucide-icon [img]="fileIcon" class="w-4 h-4"></lucide-icon>
-                  </button>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </div>
-    }
-  </div>
-
-  <!-- Printable Invoice Preview Modal -->
-  @if (invoiceModalItem(); as modalItem) {
+  <!-- Feedback Banner (Floating Notification) -->
+  @if (bookingFeedback(); as fb) {
     <div
-      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
-      (click)="closeInvoiceModal()"
+      class="p-3.5 rounded-xl text-xs font-medium border animate-fade-in flex items-center justify-between shadow-md"
+      [class.bg-accent-emerald/10]="fb.success"
+      [class.border-accent-emerald/30]="fb.success"
+      [class.text-accent-emerald]="fb.success"
+      [class.bg-rose-500/10]="!fb.success"
+      [class.border-rose-500/30]="!fb.success"
+      [class.text-rose-400]="!fb.success"
     >
-      <div
-        class="bg-white text-gray-900 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-8 space-y-6 select-text my-auto animate-modal-card"
-        (click)="$event.stopPropagation()"
-      >
-        <!-- Modal Header -->
-        <div class="flex items-start justify-between border-b pb-4">
-          <div>
-            <h2 class="text-xl font-black text-gray-900">Rechnung / Verkaufsbeleg</h2>
-            <p class="text-xs text-gray-500 font-mono mt-0.5">Beleg-ID: {{ modalItem.sale_id }}</p>
-          </div>
-
-          <div class="flex items-center gap-2 print:hidden">
-            <button
-              type="button"
-              (click)="printInvoice()"
-              class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md"
-            >
-              <lucide-icon [img]="printIcon" class="w-3.5 h-3.5"></lucide-icon>
-              <span>Drucken / PDF</span>
-            </button>
-
-            <button
-              type="button"
-              (click)="closeInvoiceModal()"
-              class="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 cursor-pointer"
-            >
-              <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
-            </button>
-          </div>
-        </div>
-
-        <!-- Belegdetails -->
-        <div class="grid grid-cols-2 gap-4 text-xs">
-          <div>
-            <strong class="block text-gray-700 font-semibold mb-1">Verkäufer (Händler):</strong>
-            <p class="font-bold">ReFlip Reselling</p>
-            <p>Musterstraße 12</p>
-            <p>10115 Berlin</p>
-            <p class="pt-1 text-gray-500">USt-IdNr.: DE 123456789</p>
-          </div>
-
-          <div class="text-right">
-            <strong class="block text-gray-700 font-semibold mb-1">Belegdatum:</strong>
-            <p class="font-mono font-bold">{{ modalItem.sale_date | date:'dd.MM.yyyy' }}</p>
-            <p class="text-gray-500 mt-2">Besteuerung: <strong class="text-gray-900">Differenzbesteuert</strong></p>
-          </div>
-        </div>
-
-        <!-- Positionen -->
-        <div class="border rounded-xl overflow-hidden">
-          <table class="w-full text-left text-xs">
-            <thead class="bg-gray-100 font-bold uppercase text-[10px] text-gray-600">
-              <tr>
-                <th class="p-3">Pos.</th>
-                <th class="p-3">Bezeichnung & Zustand</th>
-                <th class="p-3 text-right">Betrag</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y">
-              <tr>
-                <td class="p-3 font-mono">1</td>
-                <td class="p-3 font-bold text-gray-900">{{ modalItem.item_title }}</td>
-                <td class="p-3 text-right font-mono font-black">{{ modalItem.gross_revenue | currency:'EUR':'symbol':'1.2-2':'de' }}</td>
-              </tr>
-            </tbody>
-            <tfoot class="bg-gray-50 font-bold">
-              <tr>
-                <td colspan="2" class="p-3 text-right">Gesamtbetrag:</td>
-                <td class="p-3 text-right font-mono text-base font-black text-indigo-700">
-                  {{ modalItem.gross_revenue | currency:'EUR':'symbol':'1.2-2':'de' }}
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-
-        <!-- Rechtssichere § 25a Klausel -->
-        <div class="p-4 rounded-xl bg-gray-100 border text-xs text-gray-700 leading-relaxed">
-          <strong class="block font-bold text-gray-900 mb-0.5">Steuerlicher Hinweis:</strong>
-          <span>{{ modalItem.invoice_clause }}</span>
-        </div>
+      <div class="flex items-center gap-2">
+        <lucide-icon [img]="fb.success ? checkIcon : alertIcon" class="w-4 h-4"></lucide-icon>
+        <span>{{ fb.message }}</span>
       </div>
+      <button type="button" (click)="bookingFeedback.set(null)" class="text-white/60 hover:text-white cursor-pointer">
+        <lucide-icon [img]="closeIcon" class="w-3.5 h-3.5"></lucide-icon>
+      </button>
     </div>
   }
 
-  <!-- 📊 Steuerberater-Monatsabschluss & DATEV-Paket Modal -->
-  @if (isTaxAdvisorModalOpen()) {
-    @let report = advisorReport();
-    <div
-      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto select-none"
-      (click)="closeTaxAdvisorModal()"
-    >
+  <!-- ========================================================================= -->
+  <!-- TAB 1: BANK RECONCILIATION ENGINE (MT940 / CAMT / CSV)                     -->
+  <!-- ========================================================================= -->
+  @if (activeTab() === 'bank_reconciliation') {
+    <div class="space-y-6 animate-fade-in">
+      <!-- File Upload & Drag-and-Drop Area -->
       <div
-        class="linear-surface rounded-2xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl border border-rf-border overflow-hidden my-auto animate-modal-card"
-        (click)="$event.stopPropagation()"
+        class="rounded-2xl border-2 border-dashed p-6 text-center transition cursor-pointer relative"
+        [class.border-accent-emerald]="isDraggingFile()"
+        [class.bg-accent-emerald/5]="isDraggingFile()"
+        [class.border-border/80]="!isDraggingFile()"
+        [class.bg-surface-1]="!isDraggingFile()"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave()"
+        (drop)="onFileDrop($event)"
       >
-        <!-- Modal Header -->
-        <div class="p-5 border-b border-rf-border flex items-center justify-between bg-rf-subtle shrink-0">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-purple-500/20 border border-purple-500/40 text-purple-300 flex items-center justify-center">
-              <lucide-icon [img]="buildingIcon" class="w-5 h-5"></lucide-icon>
-            </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <h3 class="text-sm font-bold text-rf-text-primary">
-                  Steuerberater-Monatsabschluss & DATEV-Paket
-                </h3>
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/20 text-purple-300 border border-purple-500/30 font-bold">
-                  {{ report.periodLabel }}
-                </span>
-              </div>
-              <p class="text-xs text-rf-text-muted mt-0.5">
-                Vollständiger Monatsabschluss mit § 25a Differenzjournal, DATEV EXTF Buchungsstapel & USt-Zahllast.
-              </p>
-            </div>
+        <input
+          type="file"
+          id="bankFileInput"
+          accept=".csv,.txt,.xml,.sta,.940"
+          (change)="onFileUpload($event)"
+          class="hidden"
+        />
+
+        <div class="max-w-md mx-auto space-y-3">
+          <div class="w-12 h-12 rounded-2xl bg-surface-2 border border-border/80 text-accent-emerald mx-auto flex items-center justify-center shadow-2xs">
+            <lucide-icon [img]="uploadIcon" class="w-6 h-6"></lucide-icon>
           </div>
 
-          <button
-            type="button"
-            (click)="closeTaxAdvisorModal()"
-            class="p-2 rounded-xl text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface transition cursor-pointer"
-          >
-            <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
-          </button>
-        </div>
+          <div>
+            <h3 class="text-sm font-bold text-white">Bank-Kontoauszug hochladen oder hier ablegen</h3>
+            <p class="text-xs text-muted mt-0.5">
+              Unterstützt <strong>CSV</strong> (Sparkasse, DKB, N26, Volksbank, PayPal), <strong>MT940</strong> und <strong>CAMT.053 XML</strong>.
+            </p>
+          </div>
 
-        <!-- Modal Body (Scrollable) -->
-        <div class="p-6 space-y-6 overflow-y-auto text-xs">
-          <!-- Notification / Dispatch Banner -->
-          @if (emailSentStatus(); as status) {
-            <div
-              class="p-3.5 rounded-xl border font-medium flex items-center gap-2.5 animate-fade-in"
-              [class.bg-emerald-500/15]="status.success"
-              [class.border-emerald-500/30]="status.success"
-              [class.text-emerald-400]="status.success"
-              [class.bg-rose-500/15]="!status.success"
-              [class.border-rose-500/30]="!status.success"
-              [class.text-rose-400]="!status.success"
+          <div class="flex flex-wrap items-center justify-center gap-2.5 pt-1">
+            <label
+              for="bankFileInput"
+              class="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
-              <lucide-icon [img]="status.success ? checkIcon : alertIcon" class="w-4 h-4"></lucide-icon>
-              <span>{{ status.text }}</span>
-            </div>
-          }
+              <lucide-icon [img]="uploadIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <span>Datei auswählen</span>
+            </label>
 
-          <!-- 1. Key Metrics Overview (4 KPIs) -->
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
-            <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-1">
-              <span class="text-[10px] font-bold text-rf-text-muted uppercase tracking-wider block font-sans">Bruttoumsatz</span>
-              <div class="text-lg font-black text-rf-text-primary">
-                {{ report.grossRevenue | currency:'EUR':'symbol':'1.2-2':'de' }}
-              </div>
-              <span class="text-[10px] text-rf-text-muted block font-sans">{{ report.salesCount }} Verkäufe</span>
-            </div>
+            <button
+              type="button"
+              (click)="onLoadDemoStatement()"
+              class="btn-secondary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer"
+            >
+              <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5 text-accent-emerald"></lucide-icon>
+              <span>Demo-Kontoauszug laden</span>
+            </button>
 
-            <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-1">
-              <span class="text-[10px] font-bold text-rf-text-muted uppercase tracking-wider block font-sans">Wareneinsatz (EK)</span>
-              <div class="text-lg font-black text-indigo-300">
-                {{ report.totalCostOfGoodsSold | currency:'EUR':'symbol':'1.2-2':'de' }}
-              </div>
-              <span class="text-[10px] text-rf-text-muted block font-sans">Anschaffungskosten</span>
-            </div>
+            @if (bankService.transactions().length > 0) {
+              <button
+                type="button"
+                (click)="onResetBankStatement()"
+                class="text-xs text-muted hover:text-rose-400 p-2 transition cursor-pointer"
+                title="Kontoauszug zurücksetzen"
+              >
+                <lucide-icon [img]="trashIcon" class="w-4 h-4"></lucide-icon>
+              </button>
+            }
+          </div>
+        </div>
+      </div>
 
-            <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-1">
-              <span class="text-[10px] font-bold text-rf-text-muted uppercase tracking-wider block font-sans">Handelsspanne</span>
-              <div class="text-lg font-black text-emerald-400">
-                +{{ report.grossProfitMargin | currency:'EUR':'symbol':'1.2-2':'de' }}
-              </div>
-              <span class="text-[10px] text-rf-text-muted block font-sans">Rohertrag</span>
-            </div>
-
-            <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-1">
-              <span class="text-[10px] font-bold text-rf-text-muted uppercase tracking-wider block font-sans">Geschätzte USt-Zahllast</span>
-              <div class="text-lg font-black" [class.text-amber-400]="report.estimatedTaxDue > 0" [class.text-emerald-400]="report.estimatedTaxDue <= 0">
-                {{ report.estimatedTaxDue | currency:'EUR':'symbol':'1.2-2':'de' }}
-              </div>
-              <span class="text-[10px] text-rf-text-muted block font-sans">USt abzügl. Vorsteuer</span>
-            </div>
+      <!-- KPI Summary Cards (When transactions are loaded) -->
+      @if (bankService.transactions().length > 0) {
+        @let sum = bankService.summary();
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <!-- Total Count -->
+          <div class="kpi-card space-y-1">
+            <span class="kpi-label">Umsätze importiert</span>
+            <div class="kpi-value font-mono">{{ sum.totalCount }}</div>
+            <span class="text-[10px] text-muted">{{ sum.bookedCount }} gebucht • {{ sum.openCount }} offen</span>
           </div>
 
-          <!-- 2. Steuerberater-Kanzlei & Mandanten-Informationen Form -->
-          <form [formGroup]="advisorForm" class="p-4 rounded-xl bg-rf-subtle border border-rf-border space-y-3">
-            <div class="flex items-center justify-between pb-1 border-b border-rf-border">
-              <span class="text-[11px] font-bold uppercase tracking-wider text-rf-text-primary">
-                Kanzlei- & Mandanten-Konfiguration (DATEV EXTF)
-              </span>
-              <span class="text-[10px] text-rf-text-muted">Wird für Buchungsstapel & E-Mail-Empfang genutzt</span>
+          <!-- Total Income -->
+          <div class="kpi-card space-y-1">
+            <span class="kpi-label flex items-center gap-1 text-accent-emerald">
+              <lucide-icon [img]="incomeIcon" class="w-3 h-3"></lucide-icon>
+              <span>Gutschriften</span>
+            </span>
+            <div class="kpi-value font-mono text-accent-emerald">
+              {{ sum.totalIncome | currency:'EUR':'symbol':'1.2-2':'de' }}
             </div>
+            <span class="text-[10px] text-muted">Zahlungseingänge</span>
+          </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div>
-                <label class="block text-[10px] font-semibold text-rf-text-muted mb-1">Steuerberater E-Mail</label>
-                <input
-                  type="email"
-                  formControlName="advisorEmail"
-                  class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
-                />
-              </div>
-
-              <div>
-                <label class="block text-[10px] font-semibold text-rf-text-muted mb-1">Kanzleiname / Betreff</label>
-                <input
-                  type="text"
-                  formControlName="firmName"
-                  class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
-                />
-              </div>
-
-              <div class="grid grid-cols-2 gap-2">
-                <div>
-                  <label class="block text-[10px] font-semibold text-rf-text-muted mb-1">Mandantennr.</label>
-                  <input
-                    type="text"
-                    formControlName="clientNumber"
-                    class="linear-input w-full px-2 py-1.5 rounded-lg text-xs font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label class="block text-[10px] font-semibold text-rf-text-muted mb-1">Kontenrahmen</label>
-                  <select
-                    formControlName="skrStandard"
-                    class="linear-input w-full px-2 py-1.5 rounded-lg text-xs font-mono cursor-pointer"
-                  >
-                    <option value="SKR03">SKR03</option>
-                    <option value="SKR04">SKR04</option>
-                  </select>
-                </div>
-              </div>
+          <!-- Total Expenses -->
+          <div class="kpi-card space-y-1">
+            <span class="kpi-label flex items-center gap-1 text-rose-400">
+              <lucide-icon [img]="expenseIcon" class="w-3 h-3"></lucide-icon>
+              <span>Lastschriften / Ausgaben</span>
+            </span>
+            <div class="kpi-value font-mono text-rose-400">
+              -{{ sum.totalExpense | currency:'EUR':'symbol':'1.2-2':'de' }}
             </div>
-          </form>
+            <span class="text-[10px] text-muted">Einkäufe & Gebühren</span>
+          </div>
 
-          <!-- 3. DATEV Kontenspiegel Table -->
-          <div class="space-y-2">
-            <h4 class="text-[11px] font-bold uppercase tracking-wider text-rf-text-primary">
-              DATEV Kontenspiegel ({{ advisorForm.get('skrStandard')?.value }})
-            </h4>
-
-            <div class="rounded-xl border border-rf-border overflow-hidden">
-              <table class="w-full text-left text-xs border-collapse">
-                <thead class="bg-rf-subtle text-rf-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-rf-border">
-                  <tr>
-                    <th class="p-2.5">Konto</th>
-                    <th class="p-2.5">Kontenbezeichnung</th>
-                    <th class="p-2.5 text-right">Soll (€)</th>
-                    <th class="p-2.5 text-right">Haben (€)</th>
-                    <th class="p-2.5 text-right">Saldo (€)</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-rf-border font-mono">
-                  @for (acc of report.accountBalances; track acc.accountNumber) {
-                    <tr class="hover:bg-rf-surface-hover transition">
-                      <td class="p-2.5 font-bold text-indigo-300">{{ acc.accountNumber }}</td>
-                      <td class="p-2.5 font-sans text-rf-text-secondary">{{ acc.accountName }}</td>
-                      <td class="p-2.5 text-right">{{ acc.debit > 0 ? (acc.debit | currency:'EUR':'symbol':'1.2-2':'de') : '-' }}</td>
-                      <td class="p-2.5 text-right">{{ acc.credit > 0 ? (acc.credit | currency:'EUR':'symbol':'1.2-2':'de') : '-' }}</td>
-                      <td class="p-2.5 text-right font-bold" [class.text-emerald-400]="acc.balance > 0" [class.text-rf-text-primary]="acc.balance <= 0">
-                        {{ acc.balance | currency:'EUR':'symbol':'1.2-2':'de' }}
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
+          <!-- Auto Match Rate -->
+          <div class="kpi-card space-y-1">
+            <span class="kpi-label">Auto-Match-Rate</span>
+            <div class="kpi-value font-mono text-white flex items-baseline gap-1">
+              <span>{{ sum.autoMatchRate }}%</span>
+              <span class="text-[10px] text-accent-emerald font-normal">({{ sum.matchedCount }} bereit)</span>
+            </div>
+            <div class="w-full h-1.5 rounded-full bg-surface-3 overflow-hidden mt-1">
+              <div class="h-full bg-accent-emerald transition-all duration-300" [style.width.%]="sum.autoMatchRate"></div>
             </div>
           </div>
         </div>
 
-        <!-- Modal Footer Actions -->
-        <div class="p-4 border-t border-rf-border flex flex-col sm:flex-row items-center justify-between gap-3 bg-rf-subtle shrink-0">
-          <div class="flex items-center gap-2 w-full sm:w-auto">
+        <!-- Toolbar & Filter Controls -->
+        <div class="card p-3 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs">
+          <!-- Filter Tabs -->
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              (click)="bankTxFilter.set('all')"
+              class="px-3 py-1 rounded-lg font-medium transition cursor-pointer"
+              [class.bg-surface-3]="bankTxFilter() === 'all'"
+              [class.text-white]="bankTxFilter() === 'all'"
+              [class.text-muted]="bankTxFilter() !== 'all'"
+            >
+              Alle ({{ sum.totalCount }})
+            </button>
+
+            <button
+              type="button"
+              (click)="bankTxFilter.set('matched')"
+              class="px-3 py-1 rounded-lg font-medium transition cursor-pointer flex items-center gap-1"
+              [class.bg-surface-3]="bankTxFilter() === 'matched'"
+              [class.text-accent-emerald]="bankTxFilter() === 'matched'"
+              [class.text-muted]="bankTxFilter() !== 'matched'"
+            >
+              <lucide-icon [img]="checkIcon" class="w-3 h-3 text-accent-emerald"></lucide-icon>
+              <span>Bereit zum Buchen ({{ sum.matchedCount }})</span>
+            </button>
+
+            <button
+              type="button"
+              (click)="bankTxFilter.set('pending')"
+              class="px-3 py-1 rounded-lg font-medium transition cursor-pointer"
+              [class.bg-surface-3]="bankTxFilter() === 'pending'"
+              [class.text-amber-400]="bankTxFilter() === 'pending'"
+              [class.text-muted]="bankTxFilter() !== 'pending'"
+            >
+              Offen / Ungeklärt ({{ sum.openCount }})
+            </button>
+
+            <button
+              type="button"
+              (click)="bankTxFilter.set('booked')"
+              class="px-3 py-1 rounded-lg font-medium transition cursor-pointer"
+              [class.bg-surface-3]="bankTxFilter() === 'booked'"
+              [class.text-white]="bankTxFilter() === 'booked'"
+              [class.text-muted]="bankTxFilter() !== 'booked'"
+            >
+              Bereits gebucht ({{ sum.bookedCount }})
+            </button>
+          </div>
+
+          <!-- Search & Batch Book Button -->
+          <div class="flex items-center gap-2">
+            <div class="relative">
+              <input
+                type="text"
+                [value]="bankSearchQuery()"
+                (input)="bankSearchQuery.set($any($event.target).value)"
+                placeholder="Suchen..."
+                class="input-field text-xs py-1.5 pl-8 pr-3 w-40 sm:w-48"
+              />
+              <lucide-icon [img]="searchIcon" class="w-3.5 h-3.5 text-muted absolute left-2.5 top-1/2 -translate-y-1/2"></lucide-icon>
+            </div>
+
+            @if (sum.matchedCount > 0) {
+              <button
+                type="button"
+                (click)="onBookAllExactMatches()"
+                class="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs"
+              >
+                <lucide-icon [img]="checkCheckIcon" class="w-3.5 h-3.5"></lucide-icon>
+                <span>Alle Treffer buchen ({{ sum.matchedCount }})</span>
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Bank Transactions Table -->
+        <div class="card overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-border/40 bg-surface-2 text-muted font-medium text-[11px] uppercase tracking-wider">
+                  <th class="py-2.5 px-4">Datum</th>
+                  <th class="py-2.5 px-4">Auftraggeber / Empfänger</th>
+                  <th class="py-2.5 px-4">Verwendungszweck</th>
+                  <th class="py-2.5 px-4 text-right">Betrag</th>
+                  <th class="py-2.5 px-4">Zugeordnetes Objekt / Match</th>
+                  <th class="py-2.5 px-4 text-center">Status</th>
+                  <th class="py-2.5 px-4 text-right">Aktionen</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-border/30">
+                @for (tx of filteredBankTransactions(); track tx.id) {
+                  <tr class="hover:bg-surface-2/40 transition">
+                    <!-- Date -->
+                    <td class="py-3 px-4 font-mono text-muted text-[11px] whitespace-nowrap">
+                      {{ tx.bookingDate | date:'dd.MM.yyyy' }}
+                    </td>
+
+                    <!-- Counterparty -->
+                    <td class="py-3 px-4">
+                      <strong class="text-white block font-medium">{{ tx.counterpartyName }}</strong>
+                      @if (tx.counterpartyIban) {
+                        <span class="font-mono text-[10px] text-muted block">{{ tx.counterpartyIban }}</span>
+                      }
+                    </td>
+
+                    <!-- Purpose -->
+                    <td class="py-3 px-4 max-w-xs">
+                      <p class="text-muted text-[11px] line-clamp-2" [title]="tx.purpose">
+                        {{ tx.purpose }}
+                      </p>
+                    </td>
+
+                    <!-- Amount -->
+                    <td class="py-3 px-4 text-right whitespace-nowrap">
+                      <span
+                        class="font-mono font-bold text-xs"
+                        [class.text-accent-emerald]="tx.amount > 0"
+                        [class.text-rose-400]="tx.amount < 0"
+                      >
+                        {{ tx.amount > 0 ? '+' : '' }}{{ tx.amount | currency:'EUR':'symbol':'1.2-2':'de' }}
+                      </span>
+                    </td>
+
+                    <!-- Matched Target & Confidence -->
+                    <td class="py-3 px-4">
+                      @if (tx.match; as m) {
+                        <div class="space-y-1">
+                          <div class="flex items-center gap-1.5">
+                            <span
+                              class="px-1.5 py-0.2 rounded text-[10px] font-bold font-mono border"
+                              [class.bg-accent-emerald/15]="m.confidence >= 95"
+                              [class.border-accent-emerald/40]="m.confidence >= 95"
+                              [class.text-accent-emerald]="m.confidence >= 95"
+                              [class.bg-blue-500/15]="m.confidence >= 80 && m.confidence < 95"
+                              [class.border-blue-500/40]="m.confidence >= 80 && m.confidence < 95"
+                              [class.text-blue-400]="m.confidence >= 80 && m.confidence < 95"
+                              [class.bg-amber-500/15]="m.confidence < 80"
+                              [class.border-amber-500/40]="m.confidence < 80"
+                              [class.text-amber-400]="m.confidence < 80"
+                            >
+                              {{ m.confidence }}% Match
+                            </span>
+                            <strong class="text-white text-[11px]">{{ m.targetReference }}</strong>
+                          </div>
+                          <span class="text-[10px] text-muted block line-clamp-1">{{ m.reason }}</span>
+                        </div>
+                      } @else {
+                        <span class="text-muted text-[11px] italic">Kein automatischer Treffer</span>
+                      }
+                    </td>
+
+                    <!-- Status Badge -->
+                    <td class="py-3 px-4 text-center whitespace-nowrap">
+                      @if (tx.status === 'booked') {
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-accent-emerald/15 text-accent-emerald border border-accent-emerald/30">
+                          Gebucht
+                        </span>
+                      } @else if (tx.status === 'matched') {
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                          Bereit
+                        </span>
+                      } @else if (tx.status === 'ignored') {
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-3 text-muted">
+                          Ignoriert
+                        </span>
+                      } @else {
+                        <span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                          Offen
+                        </span>
+                      }
+                    </td>
+
+                    <!-- Action Buttons -->
+                    <td class="py-3 px-4 text-right whitespace-nowrap">
+                      <div class="flex items-center justify-end gap-1.5">
+                        @if (tx.status === 'matched') {
+                          <button
+                            type="button"
+                            (click)="onBookTransaction(tx.id)"
+                            class="btn-primary text-[11px] py-1 px-2.5 flex items-center gap-1 cursor-pointer"
+                            title="Buchung bestätigen & abgleichen"
+                          >
+                            <lucide-icon [img]="checkSingleIcon" class="w-3 h-3"></lucide-icon>
+                            <span>Buchen</span>
+                          </button>
+                        }
+
+                        @if (tx.status === 'pending') {
+                          <button
+                            type="button"
+                            (click)="openManualAssign(tx)"
+                            class="btn-secondary text-[11px] py-1 px-2 cursor-pointer"
+                            title="Manuell zuordnen"
+                          >
+                            Zuweisen
+                          </button>
+                        }
+
+                        @if (tx.status !== 'booked') {
+                          <button
+                            type="button"
+                            (click)="onIgnoreTransaction(tx.id)"
+                            class="text-muted hover:text-white p-1 transition cursor-pointer"
+                            title="Ignorieren"
+                          >
+                            <lucide-icon [img]="closeIcon" class="w-3.5 h-3.5"></lucide-icon>
+                          </button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ========================================================================= -->
+  <!-- TAB 2: § 25a STEUER & DATEV JOURNAL (ORIGINAL CONTENT)                    -->
+  <!-- ========================================================================= -->
+  @if (activeTab() === 'tax_journal') {
+    <div class="space-y-6 animate-fade-in">
+      <!-- Filter Bar & Summary Cards -->
+      <div class="card p-4 space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <!-- Year & Period Selector -->
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+            <span class="text-muted font-medium">Besteuerungszeitraum:</span>
+            
+            <select
+              [value]="selectedYear()"
+              (change)="selectedYear.set(+$any($event.target).value)"
+              class="input-field text-xs py-1.5 px-3 w-24"
+            >
+              <option [value]="2026">2026</option>
+              <option [value]="2025">2025</option>
+              <option [value]="2024">2024</option>
+            </select>
+
+            <select
+              [value]="selectedPeriod()"
+              (change)="selectedPeriod.set($any($event.target).value)"
+              class="input-field text-xs py-1.5 px-3 w-36"
+            >
+              <option value="all">Ganzes Jahr</option>
+              <option value="Q1">1. Quartal (Q1)</option>
+              <option value="Q2">2. Quartal (Q2)</option>
+              <option value="Q3">3. Quartal (Q3)</option>
+              <option value="Q4">4. Quartal (Q4)</option>
+              <option value="01">Januar (01)</option>
+              <option value="02">Februar (02)</option>
+              <option value="03">März (03)</option>
+              <option value="04">April (04)</option>
+              <option value="05">Mai (05)</option>
+              <option value="06">Juni (06)</option>
+              <option value="07">Juli (07)</option>
+              <option value="08">August (08)</option>
+              <option value="09">September (09)</option>
+              <option value="10">Oktober (10)</option>
+              <option value="11">November (11)</option>
+              <option value="12">Dezember (12)</option>
+            </select>
+          </div>
+
+          <!-- Export Actions & Tax Advisor Integration -->
+          <div class="flex flex-wrap items-center gap-2">
             <button
               type="button"
               (click)="onDownloadDatev()"
-              class="linear-btn-secondary px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer flex-1 sm:flex-none"
+              class="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
-              <lucide-icon [img]="spreadsheetIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
-              <span>DATEV EXTF (.csv)</span>
+              <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5 text-accent-emerald"></lucide-icon>
+              <span>DATEV EXTF CSV</span>
             </button>
 
             <button
               type="button"
               (click)="onDownloadDiffTaxJournal()"
-              class="linear-btn-secondary px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer flex-1 sm:flex-none"
+              class="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
-              <lucide-icon [img]="fileIcon" class="w-3.5 h-3.5 text-emerald-400"></lucide-icon>
-              <span>§ 25a Journal (.csv)</span>
-            </button>
-          </div>
-
-          <div class="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              type="button"
-              (click)="printInvoice()"
-              class="linear-btn-secondary px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer"
-              title="Drucken / Als PDF speichern"
-            >
-              <lucide-icon [img]="printIcon" class="w-3.5 h-3.5"></lucide-icon>
-              <span>Drucken / PDF</span>
+              <lucide-icon [img]="spreadsheetIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <span>§ 25a Journal</span>
             </button>
 
             <button
               type="button"
-              (click)="onSendEmailToAdvisor()"
-              [disabled]="taxAdvisorService.isSendingEmail()"
-              class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-50 flex-1 sm:flex-none"
+              (click)="openTaxAdvisorModal()"
+              class="btn-primary text-xs py-1.5 px-3.5 flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
-              <lucide-icon [img]="taxAdvisorService.isSendingEmail() ? sparklesIcon : sendIcon" class="w-4 h-4"></lucide-icon>
-              <span>{{ taxAdvisorService.isSendingEmail() ? 'Wird übermittelt...' : '📧 An Steuerberater senden' }}</span>
+              <lucide-icon [img]="mailIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <span>An Steuerberater senden</span>
             </button>
           </div>
         </div>
       </div>
+
+      <!-- Financial Metrics Summary Cards -->
+      @let sum = periodSummary();
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+        <div class="kpi-card space-y-1">
+          <span class="kpi-label">Brutto-Umsatz</span>
+          <div class="kpi-value font-mono">{{ sum.total_gross_revenue | currency:'EUR':'symbol':'1.2-2':'de' }}</div>
+          <span class="text-[10px] text-muted">{{ filteredTaxResults().length }} Verkäufe</span>
+        </div>
+
+        <div class="kpi-card space-y-1">
+          <span class="kpi-label">Wareneinsatz (Ankauf)</span>
+          <div class="kpi-value font-mono text-muted">{{ sum.total_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}</div>
+          <span class="text-[10px] text-muted">Einkaufspreise gem. § 25a</span>
+        </div>
+
+        <div class="kpi-card space-y-1">
+          <span class="kpi-label">Rohertrag (Marge)</span>
+          <div class="kpi-value font-mono text-accent-emerald">{{ sum.total_margin_gross | currency:'EUR':'symbol':'1.2-2':'de' }}</div>
+          <span class="text-[10px] text-muted">Bemessungsgrundlage</span>
+        </div>
+
+        <div class="kpi-card space-y-1">
+          <span class="kpi-label">Umsatzsteuerzahllast (19%)</span>
+          <div class="kpi-value font-mono text-amber-400">{{ sum.total_vat_due | currency:'EUR':'symbol':'1.2-2':'de' }}</div>
+          <span class="text-[10px] text-muted">UStVA Kennzahl 81 / 66</span>
+        </div>
+      </div>
+
+      <!-- Tax Calculations Table -->
+      <div class="card overflow-hidden">
+        <div class="p-4 border-b border-border/40 flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-bold text-white">Differenzbesteuerungs-Journal (§ 25a UStG)</h2>
+            <span class="text-xs text-muted">Detaillierte Einzelaufzeichnung nach den Vorgaben der Finanzverwaltung</span>
+          </div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-surface-3 text-muted">
+            {{ filteredTaxResults().length }} Einträge
+          </span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-border/40 bg-surface-2 text-muted font-medium text-[11px] uppercase tracking-wider">
+                <th class="py-2.5 px-4">Verkaufsdatum</th>
+                <th class="py-2.5 px-4">Artikel / SKU</th>
+                <th class="py-2.5 px-4">Plattform</th>
+                <th class="py-2.5 px-4 text-right">Verkaufspreis</th>
+                <th class="py-2.5 px-4 text-right">Einkaufspreis</th>
+                <th class="py-2.5 px-4 text-right">Marge (Brutto)</th>
+                <th class="py-2.5 px-4 text-right">USt (19%)</th>
+                <th class="py-2.5 px-4 text-center">Rechnung</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border/30">
+              @for (row of filteredTaxResults(); track row.sale_id) {
+                <tr class="hover:bg-surface-2/40 transition">
+                  <td class="py-3 px-4 font-mono text-muted text-[11px] whitespace-nowrap">
+                    {{ row.sale_date | date:'dd.MM.yyyy' }}
+                  </td>
+                  <td class="py-3 px-4">
+                    <strong class="text-white block font-medium">{{ row.item_title }}</strong>
+                    <span class="font-mono text-[10px] text-muted">{{ row.item_sku || 'Keine SKU' }}</span>
+                  </td>
+                  <td class="py-3 px-4">
+                    <span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-surface-3 text-muted border border-border/60">
+                      {{ row.platform }}
+                    </span>
+                  </td>
+                  <td class="py-3 px-4 text-right font-mono font-semibold text-white">
+                    {{ row.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  </td>
+                  <td class="py-3 px-4 text-right font-mono text-muted">
+                    {{ row.purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  </td>
+                  <td class="py-3 px-4 text-right font-mono font-bold text-accent-emerald">
+                    {{ row.margin_gross | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  </td>
+                  <td class="py-3 px-4 text-right font-mono text-amber-400">
+                    {{ row.vat_due | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  </td>
+                  <td class="py-3 px-4 text-center">
+                    <button
+                      type="button"
+                      (click)="openInvoiceModal(row)"
+                      class="text-muted hover:text-white p-1 transition cursor-pointer"
+                      title="Rechnung anzeigen"
+                    >
+                      <lucide-icon [img]="fileIcon" class="w-4 h-4"></lucide-icon>
+                    </button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ========================================================================= -->
+  <!-- MODAL: STEUERBERATER EXPORT & E-MAIL VERSAND                             -->
+  <!-- ========================================================================= -->
+  @if (isTaxAdvisorModalOpen()) {
+    <div class="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4" (click)="closeTaxAdvisorModal()">
+      <div class="card w-full max-w-lg p-6 space-y-5 animate-modal-card" (click)="$event.stopPropagation()">
+        <div class="flex items-center justify-between border-b border-border/40 pb-3">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-accent-emerald/15 text-accent-emerald flex items-center justify-center">
+              <lucide-icon [img]="mailIcon" class="w-4 h-4"></lucide-icon>
+            </div>
+            <h3 class="text-sm font-bold text-white">Monatsabschluss an Steuerberater senden</h3>
+          </div>
+          <button type="button" (click)="closeTaxAdvisorModal()" class="text-muted hover:text-white cursor-pointer">
+            <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
+          </button>
+        </div>
+
+        <form [formGroup]="advisorForm" (ngSubmit)="onSendEmailToAdvisor()" class="space-y-3.5 text-xs">
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Steuerkanzlei / Name</label>
+            <input type="text" formControlName="firmName" placeholder="Kanzlei Müller & Partner" class="input-field w-full text-xs" />
+          </div>
+
+          <div>
+            <label class="block text-[10px] font-bold uppercase tracking-wider text-muted mb-1">E-Mail-Adresse der Kanzlei *</label>
+            <input type="email" formControlName="advisorEmail" placeholder="mandanten@kanzlei-mueller.de" class="input-field w-full text-xs" />
+          </div>
+
+          <div class="grid grid-cols-3 gap-2.5">
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Mandantennr.</label>
+              <input type="text" formControlName="clientNumber" placeholder="10420" class="input-field w-full text-xs font-mono" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Beraternr.</label>
+              <input type="text" formControlName="consultantNumber" placeholder="9812" class="input-field w-full text-xs font-mono" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase tracking-wider text-muted mb-1">Kontenrahmen</label>
+              <select formControlName="skrStandard" class="input-field w-full text-xs font-mono">
+                <option value="SKR03">SKR03</option>
+                <option value="SKR04">SKR04</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="p-3 rounded-xl bg-surface-2 border border-border/40 text-[11px] text-muted space-y-1">
+            <span class="font-bold text-white block">Enthaltene Anlagen im ZIP-Paket:</span>
+            <ul class="list-disc list-inside space-y-0.5">
+              <li>DATEV EXTF Buchungsstapel CSV (SKR03/SKR04 Konten 8200/8400)</li>
+              <li>§ 25a UStG Differenzbesteuerungs-Journal (Monat {{ selectedPeriod() }}/{{ selectedYear() }})</li>
+              <li>EÜR Monatsübersicht & Vorsteuer-Zahllastberechnung</li>
+            </ul>
+          </div>
+
+          <div class="pt-2 flex items-center justify-end gap-2">
+            <button type="button" (click)="closeTaxAdvisorModal()" class="btn-secondary text-xs py-2 px-4 cursor-pointer">
+              Abbrechen
+            </button>
+            <button type="submit" [disabled]="advisorForm.invalid" class="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer">
+              <lucide-icon [img]="sendIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <span>Exportpaket übermitteln</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   }
 </div>
-

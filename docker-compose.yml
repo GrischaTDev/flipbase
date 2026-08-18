@@ -1,0 +1,9 @@
+services:
+  re-flip:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: re-flip
+    ports:
+      - "8080:80"
+    restart: unless-stopped

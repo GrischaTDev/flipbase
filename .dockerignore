@@ -1,0 +1,27 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+.angular
+
+# Docs & Config (nicht für den Build nötig)
+README.md
+ARCHITECTURE.md
+.editorconfig
+.prettierrc
+__screenshots__/
+
+# Supabase (lokaler Dev-Stack)
+supabase
+
+# Gemini / AI
+.gemini
