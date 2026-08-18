@@ -22,13 +22,24 @@ import {
   PieChart,
   X,
   RefreshCw,
+  Image,
+  Crop,
 } from 'lucide-angular';
 import { PurchaseService } from '../../../../core/services/purchase.service';
+import { MediaService } from '../../../../core/services/media.service';
+import { ImageCropperModalComponent, CroppedImageResult } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
 import { CostAllocationMode, ItemCondition } from '../../../../core/models/reflip.models';
 
 @Component({
   selector: 'app-purchase-detail',
-  imports: [RouterLink, ReactiveFormsModule, CurrencyPipe, DatePipe, LucideAngularModule],
+  imports: [
+    RouterLink,
+    ReactiveFormsModule,
+    CurrencyPipe,
+    DatePipe,
+    LucideAngularModule,
+    ImageCropperModalComponent,
+  ],
   templateUrl: './purchase-detail.component.html',
   styleUrl: './purchase-detail.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -37,6 +48,7 @@ export class PurchaseDetailComponent {
   readonly id = input.required<string>();
 
   readonly purchaseService = inject(PurchaseService);
+  private readonly mediaService = inject(MediaService);
   private readonly router = inject(Router);
 
   readonly arrowLeftIcon = ArrowLeft;
@@ -56,10 +68,15 @@ export class PurchaseDetailComponent {
   readonly chartIcon = PieChart;
   readonly closeIcon = X;
   readonly refreshIcon = RefreshCw;
+  readonly imageIcon = Image;
+  readonly cropIcon = Crop;
 
   readonly isAddingCost = signal<boolean>(false);
   readonly isAddingItem = signal<boolean>(false);
   readonly isAllocatorOpen = signal<boolean>(false);
+  readonly isCropperOpen = signal<boolean>(false);
+  readonly selectedImageFile = signal<File | null>(null);
+  readonly selectedImageDataUrl = signal<string | null>(null);
 
   // Lot Allocator interactive state
   readonly allocatorMode = signal<CostAllocationMode>('value_weighted');
@@ -196,17 +213,37 @@ export class PurchaseDetailComponent {
     await this.purchaseService.deletePurchaseCost(costId, purchase.id);
   }
 
+  onImageCropped(result: CroppedImageResult): void {
+    this.selectedImageFile.set(result.file);
+    this.selectedImageDataUrl.set(result.dataUrl);
+    this.isCropperOpen.set(false);
+  }
+
+  removeSelectedImage(): void {
+    this.selectedImageFile.set(null);
+    this.selectedImageDataUrl.set(null);
+  }
+
   async onAddItem(): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
     if (!purchase || this.itemForm.invalid) return;
 
     const val = this.itemForm.getRawValue();
-    await this.purchaseService.addItemToPurchase(purchase.id, {
+    const res = await this.purchaseService.addItemToPurchase(purchase.id, {
       title: val.title,
       condition: val.condition,
       expected_value: val.expected_value || undefined,
     });
 
+    if (res.data && this.selectedImageFile()) {
+      try {
+        await this.mediaService.uploadItemMedia(res.data.id, this.selectedImageFile()!, true);
+      } catch (err) {
+        console.warn('Image upload error on item create in purchase detail:', err);
+      }
+    }
+
+    this.removeSelectedImage();
     this.itemForm.reset({ title: '', condition: 'used', expected_value: null });
     this.isAddingItem.set(false);
   }

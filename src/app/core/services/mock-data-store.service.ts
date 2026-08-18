@@ -8,6 +8,7 @@ import {
   Sale,
   ActivityLog,
   ItemCost,
+  ItemMedia,
 } from '../models/reflip.models';
 
 const DEMO_WS_ID = 'demo-workspace-1';
@@ -19,6 +20,7 @@ const STORAGE_KEY_SOURCES = 'reflip_local_sources';
 const STORAGE_KEY_SUPPLIERS = 'reflip_local_suppliers';
 const STORAGE_KEY_ITEM_COSTS = 'reflip_local_item_costs';
 const STORAGE_KEY_ACTIVITY_LOGS = 'reflip_local_activity_logs';
+const STORAGE_KEY_MEDIA = 'reflip_local_media';
 
 function getStorage(): Storage | null {
   try {
@@ -280,6 +282,57 @@ export class MockDataStoreService {
       const all: ActivityLog[] = stored ? JSON.parse(stored) : [];
       all.unshift(log);
       getStorage()?.setItem(STORAGE_KEY_ACTIVITY_LOGS, JSON.stringify(all.slice(0, 500)));
+    } catch {}
+  }
+
+  // --- Media Persistent API ---
+  getItemMedia(itemId?: string): ItemMedia[] {
+    try {
+      const stored = getStorage()?.getItem(STORAGE_KEY_MEDIA);
+      if (stored) {
+        const list: ItemMedia[] = JSON.parse(stored);
+        return itemId ? list.filter((m) => m.inventory_item_id === itemId) : list;
+      }
+    } catch {}
+    return [];
+  }
+
+  saveItemMedia(media: ItemMedia): void {
+    try {
+      const all = this.getItemMedia();
+      const idx = all.findIndex((m) => m.id === media.id);
+      if (media.is_primary) {
+        all.forEach((m) => {
+          if (m.inventory_item_id === media.inventory_item_id) {
+            m.is_primary = false;
+          }
+        });
+      }
+      if (idx >= 0) {
+        all[idx] = media;
+      } else {
+        all.unshift(media);
+      }
+      getStorage()?.setItem(STORAGE_KEY_MEDIA, JSON.stringify(all));
+    } catch {}
+  }
+
+  deleteItemMedia(id: string): void {
+    try {
+      const all = this.getItemMedia().filter((m) => m.id !== id);
+      getStorage()?.setItem(STORAGE_KEY_MEDIA, JSON.stringify(all));
+    } catch {}
+  }
+
+  setItemMediaPrimary(itemId: string, mediaId: string): void {
+    try {
+      const all = this.getItemMedia();
+      all.forEach((m) => {
+        if (m.inventory_item_id === itemId) {
+          m.is_primary = m.id === mediaId;
+        }
+      });
+      getStorage()?.setItem(STORAGE_KEY_MEDIA, JSON.stringify(all));
     } catch {}
   }
 

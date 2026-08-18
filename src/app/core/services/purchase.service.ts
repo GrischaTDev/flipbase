@@ -364,7 +364,7 @@ export class PurchaseService {
   async addItemToPurchase(
     purchaseId: string,
     itemData: { title: string; category?: string; condition: any; allocated_purchase_cost?: number; expected_value?: number }
-  ): Promise<{ error: Error | null }> {
+  ): Promise<{ data: InventoryItem | null; error: Error | null }> {
     const ws = this.workspaceService.currentWorkspace();
     const newItem: InventoryItem = {
       id: `item-${Date.now()}`,
@@ -399,6 +399,6 @@ export class PurchaseService {
       }
     }
 
-    return { error: null };
+    return { data: newItem, error: null };
   }
 }

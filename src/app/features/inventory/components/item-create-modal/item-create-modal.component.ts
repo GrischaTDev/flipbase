@@ -1,12 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LucideAngularModule, X, Plus, Boxes, Sparkles, Camera, Barcode } from 'lucide-angular';
+import { LucideAngularModule, X, Plus, Boxes, Sparkles, Camera, Barcode, Image, Trash2, Crop } from 'lucide-angular';
 import { InventoryService, CreateItemPayload } from '../../../../core/services/inventory.service';
 import { PurchaseService } from '../../../../core/services/purchase.service';
+import { MediaService } from '../../../../core/services/media.service';
 import { AiAssistantService, AiVisualScanResult } from '../../../../core/services/ai-assistant.service';
 import { BarcodeLookupService } from '../../../../core/services/barcode-lookup.service';
 import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
 import { AiPhotoScannerModalComponent } from '../../../../shared/components/ai-photo-scanner-modal/ai-photo-scanner-modal.component';
+import { ImageCropperModalComponent, CroppedImageResult } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
 import { DatePipe } from '@angular/common';
 import { ItemCondition, ItemStatus } from '../../../../core/models/reflip.models';
 
@@ -18,6 +20,7 @@ import { ItemCondition, ItemStatus } from '../../../../core/models/reflip.models
     LucideAngularModule,
     BarcodeScannerComponent,
     AiPhotoScannerModalComponent,
+    ImageCropperModalComponent,
   ],
   templateUrl: './item-create-modal.component.html',
   styleUrl: './item-create-modal.component.scss',
@@ -25,6 +28,7 @@ import { ItemCondition, ItemStatus } from '../../../../core/models/reflip.models
 })
 export class ItemCreateModalComponent {
   private readonly inventoryService = inject(InventoryService);
+  private readonly mediaService = inject(MediaService);
   readonly purchaseService = inject(PurchaseService);
   readonly aiService = inject(AiAssistantService);
   readonly barcodeLookup = inject(BarcodeLookupService);
@@ -38,11 +42,17 @@ export class ItemCreateModalComponent {
   readonly sparklesIcon = Sparkles;
   readonly cameraIcon = Camera;
   readonly barcodeIcon = Barcode;
+  readonly imageIcon = Image;
+  readonly trashIcon = Trash2;
+  readonly cropIcon = Crop;
 
   readonly isSubmitting = signal<boolean>(false);
   readonly isAiLoading = signal<boolean>(false);
   readonly isScanningBarcode = signal<boolean>(false);
   readonly isScanningPhoto = signal<boolean>(false);
+  readonly isCropperOpen = signal<boolean>(false);
+  readonly selectedImageFile = signal<File | null>(null);
+  readonly selectedImageDataUrl = signal<string | null>(null);
   readonly errorMessage = signal<string | null>(null);
 
   readonly form = new FormGroup({
@@ -119,6 +129,17 @@ export class ItemCreateModalComponent {
     });
   }
 
+  onImageCropped(result: CroppedImageResult): void {
+    this.selectedImageFile.set(result.file);
+    this.selectedImageDataUrl.set(result.dataUrl);
+    this.isCropperOpen.set(false);
+  }
+
+  removeSelectedImage(): void {
+    this.selectedImageFile.set(null);
+    this.selectedImageDataUrl.set(null);
+  }
+
   async onSubmit(): Promise<void> {
     if (this.form.invalid) return;
 
@@ -141,7 +162,16 @@ export class ItemCreateModalComponent {
       expected_value: val.expected_value || undefined,
     };
 
-    const { error } = await this.inventoryService.createItem(payload);
+    const { data: createdItem, error } = await this.inventoryService.createItem(payload);
+
+    if (createdItem && this.selectedImageFile()) {
+      try {
+        await this.mediaService.uploadItemMedia(createdItem.id, this.selectedImageFile()!, true);
+      } catch (uploadErr) {
+        console.warn('Image upload error on item create:', uploadErr);
+      }
+    }
+
     this.isSubmitting.set(false);
 
     if (error) {

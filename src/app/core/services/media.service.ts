@@ -28,8 +28,10 @@ export class MediaService {
    * Loads all media records for a given inventory item.
    */
   async loadItemMedia(itemId: string): Promise<ItemMedia[]> {
+    const local = this.mockStore.getItemMedia(itemId);
+
     if (this.mockStore.isDemoMode() || itemId.startsWith('demo-')) {
-      return this.localMediaMap.get(itemId) || [];
+      return local;
     }
 
     try {
@@ -40,14 +42,15 @@ export class MediaService {
         .order('created_at', { ascending: false });
 
       const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 1200);
-      if (res?.data && !res.error) {
+      if (res?.data && !res.error && res.data.length > 0) {
+        (res.data as ItemMedia[]).forEach((m) => this.mockStore.saveItemMedia(m));
         return res.data as ItemMedia[];
       }
     } catch {
       // offline fallback
     }
 
-    return this.localMediaMap.get(itemId) || [];
+    return local;
   }
 
   /**
@@ -61,128 +64,123 @@ export class MediaService {
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const storagePath = `${itemId}/${Date.now()}_${cleanFileName}`;
 
-    if (this.mockStore.isDemoMode() || itemId.startsWith('demo-')) {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const mockMedia: ItemMedia = {
-            id: 'media-' + Math.random().toString(36).substring(2, 9),
-            inventory_item_id: itemId,
-            storage_path: reader.result as string,
-            is_primary: isPrimary,
-            file_name: file.name,
-            file_size: file.size,
-            mime_type: file.type,
-            created_at: new Date().toISOString(),
-          };
-
-          const existing = this.localMediaMap.get(itemId) || [];
-          if (isPrimary) {
-            existing.forEach((m) => (m.is_primary = false));
-          }
-          this.localMediaMap.set(itemId, [mockMedia, ...existing]);
-          resolve({ data: mockMedia, error: null });
-        };
-        reader.onerror = () => resolve({ data: null, error: new Error('Datei konnte nicht gelesen werden.') });
-        reader.readAsDataURL(file);
-      });
-    }
-
-    try {
-      // 1. Upload to Supabase Storage
-      const { error: uploadError } = await this.supabase.client.storage
-        .from('item-media')
-        .upload(storagePath, file, {
-          contentType: file.type,
-          upsert: true,
-        });
-
-      if (uploadError) {
-        return { data: null, error: uploadError };
-      }
-
-      // 2. If setting as primary, unset other primaries first
-      if (isPrimary) {
-        await this.supabase.client
-          .from('item_media')
-          .update({ is_primary: false })
-          .eq('inventory_item_id', itemId);
-      }
-
-      // 3. Insert record in item_media table
-      const { data: inserted, error: dbError } = await this.supabase.client
-        .from('item_media')
-        .insert({
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result as string;
+        const localMedia: ItemMedia = {
+          id: 'media-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
           inventory_item_id: itemId,
-          storage_path: storagePath,
+          storage_path: dataUrl,
           is_primary: isPrimary,
           file_name: file.name,
           file_size: file.size,
           mime_type: file.type,
-        })
-        .select()
-        .single();
+          created_at: new Date().toISOString(),
+        };
 
-      if (dbError) {
-        return { data: null, error: dbError };
-      }
+        // 1. Immediately persist locally
+        this.mockStore.saveItemMedia(localMedia);
 
-      const mediaRecord = inserted as ItemMedia;
-      return { data: mediaRecord, error: null };
-    } catch (err: unknown) {
-      return { data: null, error: err as Error };
-    }
+        if (this.mockStore.isDemoMode() || itemId.startsWith('demo-')) {
+          resolve({ data: localMedia, error: null });
+          return;
+        }
+
+        // 2. Try Supabase Storage upload in background
+        try {
+          const { error: uploadError } = await this.supabase.client.storage
+            .from('item-media')
+            .upload(storagePath, file, {
+              contentType: file.type,
+              upsert: true,
+            });
+
+          if (!uploadError) {
+            if (isPrimary) {
+              await this.supabase.client
+                .from('item_media')
+                .update({ is_primary: false })
+                .eq('inventory_item_id', itemId);
+            }
+
+            const { data: inserted, error: dbError } = await this.supabase.client
+              .from('item_media')
+              .insert({
+                inventory_item_id: itemId,
+                storage_path: storagePath,
+                is_primary: isPrimary,
+                file_name: file.name,
+                file_size: file.size,
+                mime_type: file.type,
+              })
+              .select()
+              .single();
+
+            if (!dbError && inserted) {
+              const cloudMedia = inserted as ItemMedia;
+              this.mockStore.saveItemMedia(cloudMedia);
+              resolve({ data: cloudMedia, error: null });
+              return;
+            }
+          }
+        } catch {
+          // Local media already saved
+        }
+
+        resolve({ data: localMedia, error: null });
+      };
+
+      reader.onerror = () => resolve({ data: null, error: new Error('Datei konnte nicht gelesen werden.') });
+      reader.readAsDataURL(file);
+    });
   }
 
   /**
    * Deletes a media item from storage and database.
    */
   async deleteMedia(itemId: string, mediaId: string, storagePath: string): Promise<{ error: Error | null }> {
-    if (this.mockStore.isDemoMode() || itemId.startsWith('demo-')) {
-      const existing = this.localMediaMap.get(itemId) || [];
-      this.localMediaMap.set(itemId, existing.filter((m) => m.id !== mediaId));
-      return { error: null };
-    }
+    this.mockStore.deleteItemMedia(mediaId);
 
-    try {
-      // Delete from storage if not a data URL
-      if (!storagePath.startsWith('data:')) {
-        await this.supabase.client.storage.from('item-media').remove([storagePath]);
+    if (!this.mockStore.isDemoMode() && !itemId.startsWith('demo-')) {
+      try {
+        if (!storagePath.startsWith('data:')) {
+          await this.supabase.client.storage.from('item-media').remove([storagePath]);
+        }
+        const { error } = await this.supabase.client.from('item_media').delete().eq('id', mediaId);
+        return { error };
+      } catch (err: unknown) {
+        return { error: err as Error };
       }
-
-      // Delete from table
-      const { error } = await this.supabase.client.from('item_media').delete().eq('id', mediaId);
-      return { error };
-    } catch (err: unknown) {
-      return { error: err as Error };
     }
+
+    return { error: null };
   }
 
   /**
    * Sets a specific media as the primary thumbnail.
    */
   async setPrimary(itemId: string, mediaId: string): Promise<{ error: Error | null }> {
-    if (this.mockStore.isDemoMode() || itemId.startsWith('demo-')) {
-      const list = this.localMediaMap.get(itemId) || [];
-      list.forEach((m) => (m.is_primary = m.id === mediaId));
-      this.localMediaMap.set(itemId, list);
-      return { error: null };
+    this.mockStore.setItemMediaPrimary(itemId, mediaId);
+
+    if (!this.mockStore.isDemoMode() && !itemId.startsWith('demo-')) {
+      try {
+        await this.supabase.client
+          .from('item_media')
+          .update({ is_primary: false })
+          .eq('inventory_item_id', itemId);
+
+        const { error } = await this.supabase.client
+          .from('item_media')
+          .update({ is_primary: true })
+          .eq('id', mediaId);
+
+        return { error };
+      } catch (err: unknown) {
+        return { error: err as Error };
+      }
     }
 
-    try {
-      await this.supabase.client
-        .from('item_media')
-        .update({ is_primary: false })
-        .eq('inventory_item_id', itemId);
-
-      const { error } = await this.supabase.client
-        .from('item_media')
-        .update({ is_primary: true })
-        .eq('id', mediaId);
-
-      return { error };
-    } catch (err: unknown) {
-      return { error: err as Error };
-    }
+    return { error: null };
   }
 }
