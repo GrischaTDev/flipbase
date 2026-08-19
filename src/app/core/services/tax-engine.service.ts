@@ -30,7 +30,9 @@ export class TaxEngineService {
 
     return sales.map((sale) => {
       const item =
-        sale.inventory_item || items.find((i) => i.id === sale.inventory_item_id) || ({} as InventoryItem);
+        sale.inventory_item ||
+        items.find((i) => i.id === sale.inventory_item_id) ||
+        ({} as InventoryItem);
       return this.calculateSaleTax(sale, item, defaultMode);
     });
   });
@@ -41,13 +43,12 @@ export class TaxEngineService {
   calculateSaleTax(
     sale: Sale,
     item: InventoryItem,
-    defaultTaxMode: TaxMode = 'diff_25a'
+    defaultTaxMode: TaxMode = 'diff_25a',
   ): TaxCalculationResult {
     const taxMode = item.tax_mode_override || defaultTaxMode;
     const grossRevenue = sale.sale_price;
 
-    const directItemCosts =
-      item.costs?.reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
+    const directItemCosts = item.costs?.reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
     const totalPurchaseCost = (item.allocated_purchase_cost || 0) + directItemCosts;
     const grossMargin = grossRevenue - totalPurchaseCost;
 
@@ -58,7 +59,10 @@ export class TaxEngineService {
 
     // Operating expenses Vorsteuer (e.g. fees, shipping paid with 19% VAT)
     const operatingCosts =
-      (sale.platform_fee || 0) + (sale.shipping_cost || 0) + (sale.packaging_cost || 0) + (sale.other_costs || 0);
+      (sale.platform_fee || 0) +
+      (sale.shipping_cost || 0) +
+      (sale.packaging_cost || 0) +
+      (sale.other_costs || 0);
 
     switch (taxMode) {
       case 'diff_25a': {
@@ -93,9 +97,7 @@ export class TaxEngineService {
     }
 
     const netTaxLiability = Number((vatAmount - inputTaxDeductible).toFixed(2));
-    const netProfitAfterTax = Number(
-      (grossMargin - operatingCosts - vatAmount).toFixed(2)
-    );
+    const netProfitAfterTax = Number((grossMargin - operatingCosts - vatAmount).toFixed(2));
 
     return {
       sale_id: sale.id,
@@ -120,7 +122,7 @@ export class TaxEngineService {
   summarizePeriod(
     taxResults: TaxCalculationResult[],
     periodLabel: string,
-    taxMode: TaxMode = this.currentTaxMode()
+    taxMode: TaxMode = this.currentTaxMode(),
   ): TaxPeriodSummary {
     const grossRevenue = taxResults.reduce((s, r) => s + r.gross_revenue, 0);
     const totalCostOfGoodsSold = taxResults.reduce((s, r) => s + r.total_purchase_cost, 0);

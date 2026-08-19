@@ -3,6 +3,7 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { AuthService } from './auth.service';
 import { MockDataStoreService } from './mock-data-store.service';
+import { SyncStatusService } from './sync-status.service';
 import { WorkspaceInvite, WorkspaceMember, WorkspaceRole } from '../models/reflip.models';
 
 @Injectable({
@@ -10,6 +11,7 @@ import { WorkspaceInvite, WorkspaceMember, WorkspaceRole } from '../models/refli
 })
 export class WorkspaceMemberService {
   private readonly supabase = inject(SupabaseService);
+  private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly auth = inject(AuthService);
   private readonly mockStore = inject(MockDataStoreService);
@@ -67,6 +69,11 @@ export class WorkspaceMemberService {
   });
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const ws = this.workspaceService.currentWorkspace();
@@ -74,7 +81,9 @@ export class WorkspaceMemberService {
           this.loadMembers(ws.id);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   async loadMembers(workspaceId: string): Promise<void> {
@@ -84,18 +93,20 @@ export class WorkspaceMemberService {
     try {
       const { data, error } = await this.supabase.client
         .from('workspace_members')
-        .select(`
+        .select(
+          `
           id,
           workspace_id,
           user_id,
           role,
           created_at,
           profile:profiles(email, full_name)
-        `)
+        `,
+        )
         .eq('workspace_id', workspaceId);
 
       if (error) {
-        console.error('Fehler beim Laden der Workspace-Mitglieder aus Supabase:', error);
+        this.syncStatus.melde('Laden der Workspace-Mitglieder', error);
       } else if (data && data.length > 0) {
         const mapped: WorkspaceMember[] = (data as unknown[]).map((m: any) => ({
           id: m.id,
@@ -110,7 +121,7 @@ export class WorkspaceMemberService {
         this.members.set(mapped);
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden der Workspace-Mitglieder:', err);
+      this.syncStatus.melde('Laden der Workspace-Mitglieder', err);
     } finally {
       this.isLoading.set(false);
     }
@@ -124,8 +135,14 @@ export class WorkspaceMemberService {
       return { error: new Error('Dieses Mitglied ist bereits im Workspace registriert.') };
     }
 
-    if (this.invites().some((i) => (i.email ?? '').toLowerCase() === cleanEmail && i.status === 'pending')) {
-      return { error: new Error('Für diese E-Mail-Adresse liegt bereits eine offene Einladung vor.') };
+    if (
+      this.invites().some(
+        (i) => (i.email ?? '').toLowerCase() === cleanEmail && i.status === 'pending',
+      )
+    ) {
+      return {
+        error: new Error('Für diese E-Mail-Adresse liegt bereits eine offene Einladung vor.'),
+      };
     }
 
     const newInvite: WorkspaceInvite = {
@@ -142,9 +159,12 @@ export class WorkspaceMemberService {
     return { error: null };
   }
 
-  async updateMemberRole(memberId: string, newRole: WorkspaceRole): Promise<{ error: Error | null }> {
+  async updateMemberRole(
+    memberId: string,
+    newRole: WorkspaceRole,
+  ): Promise<{ error: Error | null }> {
     this.members.update((list) =>
-      list.map((m) => (m.id === memberId ? { ...m, role: newRole } : m))
+      list.map((m) => (m.id === memberId ? { ...m, role: newRole } : m)),
     );
 
     if (!this.mockStore.isDemoMode()) {
@@ -155,11 +175,10 @@ export class WorkspaceMemberService {
           .eq('id', memberId);
 
         if (error) {
-          console.error('Fehler beim Aktualisieren der Mitgliederrolle in Supabase:', error);
-          return { error: new Error(error.message) };
+          return { error: this.syncStatus.melde('Aktualisieren der Mitgliederrolle', error) };
         }
-      } catch (err: any) {
-        console.error('Verbindungsfehler beim Aktualisieren der Rolle:', err);
+      } catch (err: unknown) {
+        return { error: this.syncStatus.melde('Aktualisieren der Rolle', err) };
       }
     }
 
@@ -171,13 +190,15 @@ export class WorkspaceMemberService {
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        const { error } = await this.supabase.client.from('workspace_members').delete().eq('id', memberId);
+        const { error } = await this.supabase.client
+          .from('workspace_members')
+          .delete()
+          .eq('id', memberId);
         if (error) {
-          console.error('Fehler beim Entfernen des Mitglieds aus Supabase:', error);
-          return { error: new Error(error.message) };
+          return { error: this.syncStatus.melde('Entfernen des Mitglieds', error) };
         }
-      } catch (err: any) {
-        console.error('Verbindungsfehler beim Entfernen des Mitglieds:', err);
+      } catch (err: unknown) {
+        return { error: this.syncStatus.melde('Entfernen des Mitglieds', err) };
       }
     }
 

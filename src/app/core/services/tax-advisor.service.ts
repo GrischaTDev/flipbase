@@ -1,10 +1,15 @@
 import { Injectable, effect, inject, signal } from '@angular/core';
-import { DatevAccountBalance, MonthlyTaxReport, TaxAdvisorConfig } from '../models/accounting.models';
+import {
+  DatevAccountBalance,
+  MonthlyTaxReport,
+  TaxAdvisorConfig,
+} from '../models/accounting.models';
 import { Purchase, Sale, TaxCalculationResult } from '../models/reflip.models';
 import { WebhookService } from './webhook.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
+import { SyncStatusService } from './sync-status.service';
 
 const STORAGE_KEY_ADVISOR = 'reflip_tax_advisor_config';
 
@@ -13,15 +18,25 @@ const STORAGE_KEY_ADVISOR = 'reflip_tax_advisor_config';
 })
 export class TaxAdvisorService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly syncStatus = inject(SyncStatusService, { optional: true })!;
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly webhookService = inject(WebhookService, { optional: true });
   private readonly webPushService = inject(WebPushService, { optional: true });
 
   readonly advisorConfig = signal<TaxAdvisorConfig>(this.loadAdvisorConfig());
   readonly isSendingEmail = signal<boolean>(false);
-  readonly lastDispatchResult = signal<{ success: boolean; message: string; timestamp: string } | null>(null);
+  readonly lastDispatchResult = signal<{
+    success: boolean;
+    message: string;
+    timestamp: string;
+  } | null>(null);
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
@@ -29,7 +44,9 @@ export class TaxAdvisorService {
           this.loadFromSupabase(ws.id);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   private loadAdvisorConfig(): TaxAdvisorConfig {
@@ -83,7 +100,7 @@ export class TaxAdvisorService {
         } catch {}
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden der Steuerberaterkonfiguration:', err);
+      this.syncStatus.melde('Laden der Steuerberaterkonfiguration', err);
     }
   }
 
@@ -114,11 +131,11 @@ export class TaxAdvisorService {
             include_pdf_report: updated.includePdfReport,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: 'workspace_id' }
+          { onConflict: 'workspace_id' },
         )
         .then(({ error }) => {
           if (error) {
-            console.error('Fehler beim Speichern der Steuerberaterkonfiguration in Supabase:', error);
+            this.syncStatus.melde('Speichern der Steuerberaterkonfiguration', error);
           }
         });
     }
@@ -133,7 +150,7 @@ export class TaxAdvisorService {
     taxResults: TaxCalculationResult[],
     purchases: Purchase[],
     sales: Sale[],
-    workspaceName: string = 'ReFlip Reselling HQ'
+    workspaceName: string = 'ReFlip Reselling HQ',
   ): MonthlyTaxReport {
     const cfg = this.advisorConfig();
     const periodLabel = period === 'all' ? `Gesamtjahr ${year}` : `${period} ${year}`;
@@ -148,8 +165,13 @@ export class TaxAdvisorService {
 
     const totalCostOfGoodsSold = taxResults.reduce((sum, r) => sum + r.total_purchase_cost, 0);
     const operatingExpenses = sales.reduce(
-      (sum, s) => sum + (s.platform_fee || 0) + (s.shipping_cost || 0) + (s.packaging_cost || 0) + (s.other_costs || 0),
-      0
+      (sum, s) =>
+        sum +
+        (s.platform_fee || 0) +
+        (s.shipping_cost || 0) +
+        (s.packaging_cost || 0) +
+        (s.other_costs || 0),
+      0,
     );
 
     const grossProfitMargin = grossRevenue - totalCostOfGoodsSold;
@@ -204,7 +226,10 @@ export class TaxAdvisorService {
         accountName: 'Ausgehende Frachten & Porto',
         debit: sales.reduce((sum, s) => sum + (s.shipping_cost || 0) + (s.packaging_cost || 0), 0),
         credit: 0,
-        balance: sales.reduce((sum, s) => sum + (s.shipping_cost || 0) + (s.packaging_cost || 0), 0),
+        balance: sales.reduce(
+          (sum, s) => sum + (s.shipping_cost || 0) + (s.packaging_cost || 0),
+          0,
+        ),
       },
       {
         accountNumber: accGebuehren,
@@ -349,7 +374,10 @@ export class TaxAdvisorService {
   /**
    * Sends the monthly tax report bundle to the tax consultant email address.
    */
-  async sendReportPackageToAdvisor(report: MonthlyTaxReport, email?: string): Promise<{ success: boolean; message: string }> {
+  async sendReportPackageToAdvisor(
+    report: MonthlyTaxReport,
+    email?: string,
+  ): Promise<{ success: boolean; message: string }> {
     this.isSendingEmail.set(true);
 
     await new Promise((res) => setTimeout(res, 1000));

@@ -5,6 +5,7 @@ import { ProfitEngineService } from './profit-engine.service';
 import { InventoryService } from './inventory.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { WebhookService } from './webhook.service';
+import { SyncStatusService } from './sync-status.service';
 import { Sale, InventoryItem } from '../models/reflip.models';
 
 export interface CreateSalePayload {
@@ -26,6 +27,7 @@ export interface CreateSalePayload {
 })
 export class SalesService {
   private readonly supabase = inject(SupabaseService);
+  private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly inventoryService = inject(InventoryService);
@@ -36,6 +38,11 @@ export class SalesService {
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const ws = this.workspaceService.currentWorkspace();
@@ -45,7 +52,9 @@ export class SalesService {
           this.sales.set([]);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   async loadSales(workspaceId: string): Promise<void> {
@@ -59,27 +68,29 @@ export class SalesService {
     try {
       const { data, error } = await this.supabase.client
         .from('sales')
-        .select(`
+        .select(
+          `
           *,
           inventory_item:inventory_items(
             *,
             purchase:purchases(*, source:sources(*), supplier:suppliers(*)),
             costs:item_costs(*)
           )
-        `)
+        `,
+        )
         .eq('workspace_id', workspaceId)
         .order('sale_date', { ascending: false })
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Fehler beim Laden der Verkäufe aus Supabase:', error);
+        this.syncStatus.melde('Laden der Verkäufe', error);
         this.sales.set([]);
       } else if (data) {
         const enriched = (data as unknown[]).map((s: any) => this.enrichSaleMetrics(s));
         this.sales.set(enriched);
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden der Verkäufe:', err);
+      this.syncStatus.melde('Laden der Verkäufe', err);
       this.sales.set([]);
     } finally {
       this.isLoading.set(false);
@@ -93,7 +104,7 @@ export class SalesService {
     const itemPurchaseCost = Number(item?.allocated_purchase_cost || 0);
     const itemExtraCosts = (item?.costs || []).reduce(
       (sum: number, c: any) => sum + Number(c.amount || 0),
-      0
+      0,
     );
     const totalItemBasisCost = itemPurchaseCost + itemExtraCosts;
 
@@ -121,7 +132,9 @@ export class SalesService {
     } as Sale;
   }
 
-  async createSale(payload: CreateSalePayload): Promise<{ data: Sale | null; error: Error | null }> {
+  async createSale(
+    payload: CreateSalePayload,
+  ): Promise<{ data: Sale | null; error: Error | null }> {
     const ws = this.workspaceService.currentWorkspace();
     if (!ws) return { data: null, error: new Error('Kein aktiver Workspace') };
 
@@ -154,7 +167,7 @@ export class SalesService {
     await this.inventoryService.updateItemStatus(
       payload.inventory_item_id,
       'sold',
-      `Verkauft für ${payload.sale_price.toFixed(2)} € auf ${payload.platform}`
+      `Verkauft für ${payload.sale_price.toFixed(2)} € auf ${payload.platform}`,
     );
 
     // Trigger Discord/Telegram/In-App notification
@@ -162,31 +175,35 @@ export class SalesService {
 
     if (!this.mockStore.isDemoMode() && !ws.id.startsWith('demo-')) {
       try {
-        const { data: dbSale, error: dbError } = await this.supabase.client.from('sales').insert({
-          workspace_id: ws.id,
-          inventory_item_id: payload.inventory_item_id,
-          platform: payload.platform,
-          sale_price: payload.sale_price,
-          sale_date: payload.sale_date,
-          platform_fee: payload.platform_fee || 0,
-          shipping_cost: payload.shipping_cost || 0,
-          packaging_cost: payload.packaging_cost || 0,
-          other_costs: payload.other_costs || 0,
-          external_order_id: payload.external_order_id?.trim() || null,
-          external_listing_id: payload.external_listing_id?.trim() || null,
-          buyer_notes: payload.buyer_notes?.trim() || null,
-        }).select().single();
+        const { data: dbSale, error: dbError } = await this.supabase.client
+          .from('sales')
+          .insert({
+            workspace_id: ws.id,
+            inventory_item_id: payload.inventory_item_id,
+            platform: payload.platform,
+            sale_price: payload.sale_price,
+            sale_date: payload.sale_date,
+            platform_fee: payload.platform_fee || 0,
+            shipping_cost: payload.shipping_cost || 0,
+            packaging_cost: payload.packaging_cost || 0,
+            other_costs: payload.other_costs || 0,
+            external_order_id: payload.external_order_id?.trim() || null,
+            external_listing_id: payload.external_listing_id?.trim() || null,
+            buyer_notes: payload.buyer_notes?.trim() || null,
+          })
+          .select()
+          .single();
 
         if (dbError) {
-          console.error('Fehler beim Speichern des Verkaufs in Supabase:', dbError);
+          return { data: null, error: this.syncStatus.melde('Speichern des Verkaufs', dbError) };
         } else if (dbSale) {
           const finalSale = this.enrichSaleMetrics({ ...enrichedSale, id: dbSale.id });
           this.mockStore.saveSale(finalSale);
           this.sales.update((list) => [finalSale, ...list.filter((s) => s.id !== enrichedSale.id)]);
           return { data: finalSale, error: null };
         }
-      } catch (e: any) {
-        console.error('Verbindungsfehler beim Speichern des Verkaufs:', e);
+      } catch (e: unknown) {
+        return { data: null, error: this.syncStatus.melde('Speichern des Verkaufs', e) };
       }
     }
 
@@ -200,18 +217,17 @@ export class SalesService {
     await this.inventoryService.updateItemStatus(
       inventoryItemId,
       'ready',
-      'Verkauf storniert/gelöscht'
+      'Verkauf storniert/gelöscht',
     );
 
     if (!this.mockStore.isDemoMode()) {
       try {
         const { error } = await this.supabase.client.from('sales').delete().eq('id', saleId);
         if (error) {
-          console.error('Fehler beim Löschen des Verkaufs in Supabase:', error);
-          return { error: new Error(error.message) };
+          return { error: this.syncStatus.melde('Löschen des Verkaufs', error) };
         }
-      } catch (e: any) {
-        console.error('Verbindungsfehler beim Löschen des Verkaufs:', e);
+      } catch (e: unknown) {
+        return { error: this.syncStatus.melde('Löschen des Verkaufs', e) };
       }
     }
 

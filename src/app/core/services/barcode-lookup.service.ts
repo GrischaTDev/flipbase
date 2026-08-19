@@ -71,7 +71,9 @@ export class BarcodeLookupService {
 
     // 2. Try Open Food / Product Facts API for public EANs
     try {
-      const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${cleanEan}.json`);
+      const response = await fetch(
+        `https://world.openfoodfacts.org/api/v0/product/${cleanEan}.json`,
+      );
       if (response.ok) {
         const json = await response.json();
         if (json.status === 1 && json.product) {

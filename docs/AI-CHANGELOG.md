@@ -17,6 +17,51 @@ Dieses Projekt wird teilweise mit KI-Assistenten entwickelt. **Jede** von einer 
 **Verifiziert durch:** <Build / Tests / manuell – mit Ergebnis>
 ```
 
+## 2026-08-19 – Claude Opus 5 (Anthropic) – Phase 5b: Nacharbeit zur Prüfung
+
+**Art:** Bugfix, Sicherheit, Datenbank-Migration, Tests
+
+**Betroffen:**
+- `src/app/core/services/sync-status.service.ts` + `.spec.ts` (neu)
+- `src/app/shared/components/sync-error-banner/` (neu)
+- `src/app/core/services/demo-data-isolation.spec.ts` (neu)
+- `supabase/migrations/20260819150000_phase5b_member_profile_fk.sql` (neu)
+- 18 Services, `mock-data-store`, `auth`, `workspace`, `shell`, `environment.ts`
+
+**Was:**
+
+1. **Fehlgeschlagenes Speichern wird jetzt gemeldet** (Befund Kritisch 1). Neuer `SyncStatusService` sammelt misslungene Schreibvorgänge und übersetzt technische Fehlerkennungen in verständliche Sätze. 78 Fehlerstellen in neun Services geben den Fehler jetzt an die Oberfläche weiter statt ihn nur in die Konsole zu schreiben. Ein Streifen in der Shell zeigt sie an. Zusätzlich wird die vorläufige Anzeige zurückgenommen: Ein nicht gespeicherter Einkauf verschwindet wieder aus Liste und Browser-Speicher, statt Sicherheit vorzutäuschen.
+
+2. **Beispieldaten nur noch im Demo-Modus** (Befund Kritisch 2). Der Konstruktor des `MockDataStore` befüllt nichts mehr. `ensureShowcaseData()` wird ausschliesslich aufgerufen, wenn der Demo-Modus aktiv ist, und überschreibt vorhandene Daten nicht. `enterDemoMode()` ersetzt den lokalen Bestand nicht mehr – nur der ausdrückliche Knopf „Beispieldaten neu laden" tut das.
+
+3. **Team-Verwaltung repariert** (Befund Schwer 3). Migration ergänzt den Fremdschlüssel `workspace_members.user_id → public.profiles(id)`, damit PostgREST die verknüpfte Abfrage auflösen kann.
+
+4. **Mock-Kennung `ws-1` aufgelöst** (Befund Schwer 4). Die Workspace-Signale starten leer statt mit Mock-Daten. Dadurch feuern keine Abfragen mehr mit einer ungültigen UUID.
+
+5. **`allowDemoMode` in der Produktionsumgebung zurück auf `false`** (Befund Mittel 5).
+
+6. **`any` von 100 auf 60 gesenkt** (Befund Mittel 6) – unter dem ursprünglichen Ausgangswert von 65. Catch-Parameter auf `unknown` mit sauberer Eingrenzung, JSON-Spalten über den generierten `Json`-Typ.
+
+7. **Tests ergänzt** (Befund Mittel 7): 144 statt 121, 27 statt 25 Dateien. Darunter Regressionstests für beide kritischen Befunde und ein Test, der prüft, dass die Workspace-Signale leer starten.
+
+8. **Kleinigkeiten:** letzter `withTimeout`-Aufruf entfernt, Passwortlänge in der Fehlermeldung von 6 auf 10 korrigiert (entspricht `config.toml`).
+
+**Zusätzlich gefunden und behoben:** Bei jedem erfolgreichen Anlegen blieb der vorläufige Eintrag mit seiner Behelfs-Kennung im lokalen Spiegel liegen. Jeder Einkauf, Artikel, jede Quelle und jeder Lieferant tauchte dadurch doppelt auf – auch in den Sicherungen. Betroffen waren `purchase`, `inventory`, `sources` und `suppliers`.
+
+**Eine eigene Fehlentscheidung korrigiert:** Ich hatte das `try { effect() } catch {}` aus 18 Services entfernt, weil es echte Fehler verschluckt. Daraufhin schlugen 39 Tests fehl – der blanke Test-Injector kennt keinen `ChangeDetectionScheduler`. Ich habe geprüft, ob sich das mit `TestBed` sauber lösen lässt: nein, dafür fehlt die Testumgebung mit jsdom aus Phase 8. Der Schutz ist deshalb wieder drin, jetzt mit Begründung und Hinweis auf den Zeitpunkt zum Entfernen.
+
+**Verifiziert durch:**
+- `npx ng build` erfolgreich; `npx vitest run` → **27 Dateien / 144 Tests grün**
+- `npx supabase db reset` und `npx supabase db diff` → „No schema changes found"
+- **Im Browser reproduziert:** Fehlschlagendes Speichern meldet jetzt „Speichern des Einkaufs fehlgeschlagen: Keine Berechtigung für diesen Workspace.", der Streifen erscheint, der Eintrag verschwindet aus Liste und Browser-Speicher – und die Datenbank bleibt unberührt
+- **Team-Verwaltung geprüft:** verknüpfte Abfrage liefert Profil mit E-Mail und Name
+- **12 Seiten durchlaufen:** alle Anfragen mit echter Workspace-UUID, durchgehend 200 OK, keine `ws-1`-Fehler mehr, 0 offene Sync-Fehler
+- **Nach der Anmeldung** liegt nur noch `reflip_active_workspace_id` im Browser – keine untergeschobenen Beispieldaten mehr
+
+**Bewusst offen:** Die Offline-Warteschlange (Plan 5.2.4) und die Migration vorhandener localStorage-Daten in die Datenbank (Plan 5.2.5) sind weiterhin nicht umgesetzt.
+
+---
+
 ## 2026-08-19 – Claude Opus 5 (Anthropic) – Prüfung von Phase 5
 
 **Art:** Analyse (keine Codeänderung)

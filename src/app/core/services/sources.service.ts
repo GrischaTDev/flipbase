@@ -2,6 +2,7 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
+import { SyncStatusService } from './sync-status.service';
 import { Source } from '../models/reflip.models';
 
 @Injectable({
@@ -9,6 +10,7 @@ import { Source } from '../models/reflip.models';
 })
 export class SourcesService {
   private readonly supabase = inject(SupabaseService);
+  private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly mockStore = inject(MockDataStoreService);
 
@@ -16,6 +18,11 @@ export class SourcesService {
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const currentWs = this.workspaceService.currentWorkspace();
@@ -25,7 +32,9 @@ export class SourcesService {
           this.sources.set([]);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   async loadSources(workspaceId: string): Promise<void> {
@@ -45,20 +54,24 @@ export class SourcesService {
         .order('name', { ascending: true });
 
       if (error) {
-        console.error('Fehler beim Laden der Quellen aus Supabase:', error);
+        this.syncStatus.melde('Laden der Quellen', error);
         this.sources.set([]);
       } else if (data) {
         this.sources.set(data as Source[]);
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden der Quellen:', err);
+      this.syncStatus.melde('Laden der Quellen', err);
       this.sources.set([]);
     } finally {
       this.isLoading.set(false);
     }
   }
 
-  async createSource(name: string, isDefault = false, type = 'online_marketplace'): Promise<{ data: Source | null; error: Error | null }> {
+  async createSource(
+    name: string,
+    isDefault = false,
+    type = 'online_marketplace',
+  ): Promise<{ data: Source | null; error: Error | null }> {
     const ws = this.workspaceService.currentWorkspace();
     if (!ws) return { data: null, error: new Error('Kein aktiver Workspace ausgewählt') };
 
@@ -76,24 +89,31 @@ export class SourcesService {
 
     if (!this.mockStore.isDemoMode() && !ws.id.startsWith('demo-')) {
       try {
-        const { data: dbSrc, error: dbError } = await this.supabase.client.from('sources').insert({
-          workspace_id: ws.id,
-          name: name.trim(),
-          is_default: isDefault,
-          is_active: true,
-          type,
-        }).select().single();
+        const { data: dbSrc, error: dbError } = await this.supabase.client
+          .from('sources')
+          .insert({
+            workspace_id: ws.id,
+            name: name.trim(),
+            is_default: isDefault,
+            is_active: true,
+            type,
+          })
+          .select()
+          .single();
 
         if (dbError) {
-          console.error('Fehler beim Speichern der Quelle in Supabase:', dbError);
+          return { data: null, error: this.syncStatus.melde('Speichern der Quelle', dbError) };
         } else if (dbSrc) {
           const finalSrc: Source = { ...newSrc, id: dbSrc.id };
+          // Vorlaeufigen Eintrag entfernen, sonst bleibt er mit seiner
+          // Behelfs-Kennung im lokalen Spiegel liegen (Duplikat).
+          this.mockStore.deleteSource(newSrc.id);
           this.mockStore.saveSource(finalSrc);
           this.sources.update((list) => [finalSrc, ...list.filter((s) => s.id !== newSrc.id)]);
           return { data: finalSrc, error: null };
         }
       } catch (e) {
-        console.error('Verbindungsfehler beim Anlegen der Quelle:', e);
+        return { data: null, error: this.syncStatus.melde('Anlegen der Quelle', e) };
       }
     }
 
@@ -107,11 +127,10 @@ export class SourcesService {
       try {
         const { error } = await this.supabase.client.from('sources').delete().eq('id', sourceId);
         if (error) {
-          console.error('Fehler beim Löschen der Quelle in Supabase:', error);
-          return { error: new Error(error.message) };
+          return { error: this.syncStatus.melde('Löschen der Quelle', error) };
         }
-      } catch (e: any) {
-        console.error('Verbindungsfehler beim Löschen der Quelle:', e);
+      } catch (e: unknown) {
+        return { error: this.syncStatus.melde('Löschen der Quelle', e) };
       }
     }
     return { error: null };

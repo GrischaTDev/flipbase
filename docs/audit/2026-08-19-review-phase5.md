@@ -4,6 +4,7 @@
 |---|---|
 | **Datum** | 2026-08-19 |
 | **Geprüft von** | Claude Opus 5 (Anthropic) |
+| **Status** | ✅ Nacharbeit (Phase 5b) am 2026-08-19 abgeschlossen |
 | **Geprüfter Stand** | Arbeitsverzeichnis, 44 geänderte Dateien, nicht committet |
 | **Grundlage** | [Sanierungsplan Phase 5](./2026-08-19-sanierungsplan.md), [Projekt-Audit](./2026-08-19-projekt-audit.md) |
 
@@ -269,3 +270,23 @@ Die deutschen Fehlermeldungen in `mapAuthErrorToGerman()` sind eine echte Verbes
 ---
 
 *Erstellt von Claude Opus 5 (Anthropic) am 2026-08-19. Alle Befunde sind am Quellcode belegt; die kritischen Punkte wurden zusätzlich im laufenden Betrieb gegen die echte Datenbank reproduziert.*
+
+---
+
+## ✅ Nacharbeit Phase 5b – erledigt am 2026-08-19
+
+| # | Befund | Ergebnis |
+|---|---|---|
+| 1 | 🔴 Speichern schlägt fehl, App meldet Erfolg | ✅ behoben – 78 Fehlerstellen umgebaut, neuer `SyncStatusService`, sichtbarer Fehlerstreifen, Rücknahme der vorläufigen Anzeige |
+| 2 | 🔴 Erfundene Daten für echte Nutzer | ✅ behoben – Beispieldaten nur noch im Demo-Modus, `enterDemoMode()` überschreibt nichts mehr |
+| 3 | 🟠 Team-Verwaltung kaputt | ✅ behoben – Fremdschlüssel `workspace_members → profiles` ergänzt |
+| 4 | 🟠 Mock-Kennung `ws-1` | ✅ behoben – Workspace-Signale starten leer |
+| 5 | 🟡 `allowDemoMode` in Produktion | ✅ zurück auf `false` |
+| 6 | 🟡 `any` von 65 auf 100 | ✅ auf **60** gesenkt – unter dem Ausgangswert |
+| 7 | 🟡 Keine neuen Tests | ✅ 144 statt 121 Tests, 27 statt 25 Dateien |
+| 8 | 🟢 `withTimeout`, Passwortlänge | ✅ erledigt |
+| — | 🟢 `try { effect() } catch {}` | ⏸️ bleibt vorerst – ohne die Testumgebung aus Phase 8 schlagen sonst 39 Tests fehl. Jetzt mit Begründung im Code vermerkt. |
+
+**Zusätzlich gefunden und behoben:** Bei jedem erfolgreichen Anlegen blieb der vorläufige Eintrag mit seiner Behelfs-Kennung im lokalen Spiegel liegen – jeder Einkauf, Artikel, jede Quelle und jeder Lieferant tauchte dadurch doppelt auf, auch in den Sicherungen. Betroffen waren `purchase`, `inventory`, `sources` und `suppliers`.
+
+**Verifiziert:** `ng build` erfolgreich · 27 Dateien / 144 Tests grün · `supabase db diff` ohne Unterschiede · fehlgeschlagenes Speichern im Browser reproduziert und jetzt korrekt gemeldet · alle Seiten laden mit echter Workspace-UUID und 200 OK.

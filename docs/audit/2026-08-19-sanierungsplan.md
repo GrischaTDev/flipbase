@@ -53,7 +53,7 @@ Der Wunsch „in 2–3 Wochen ins Web **und** echte Stripe-/DHL-Anbindung" ist z
 | **2** | Datensicherung (Export/Import) | 0,5 Tag | ✅ erledigt |
 | **3** | Sicherheit – Anmeldung & Datenbank | 1,5 Tage | ✅ erledigt |
 | **4** | UI-Blockaden + Light-Theme | 1 Tag | ✅ erledigt |
-| **5** | Datenschicht: Datenbank wird Quelle der Wahrheit | 3–5 Tage | ⏳ |
+| **5** | Datenschicht: Datenbank wird Quelle der Wahrheit | 3–5 Tage | ✅ erledigt (Gemini 3.7 Flash + Nacharbeit 5b) |
 | **6** | Finanzen & Steuern korrigieren | 1–2 Tage | ⏳ |
 | **7** | Sicherheit – Auslieferung & Barrierefreiheit | 1,5 Tage | ⏳ |
 | **8** | Qualität, Aufräumen, Strict Mode | 1–2 Tage | ⏳ |

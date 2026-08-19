@@ -3,6 +3,7 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
 import { MockDataStoreService } from './mock-data-store.service';
+import { SyncStatusService } from './sync-status.service';
 import {
   InventoryItem,
   ItemCost,
@@ -31,6 +32,7 @@ export interface CreateItemPayload {
 })
 export class InventoryService {
   private readonly supabase = inject(SupabaseService);
+  private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly mockStore = inject(MockDataStoreService);
@@ -42,6 +44,11 @@ export class InventoryService {
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const ws = this.workspaceService.currentWorkspace();
@@ -54,7 +61,9 @@ export class InventoryService {
           this.activityLogs.set([]);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   async loadInventory(workspaceId: string): Promise<void> {
@@ -68,24 +77,26 @@ export class InventoryService {
     try {
       const { data, error } = await this.supabase.client
         .from('inventory_items')
-        .select(`
+        .select(
+          `
           *,
           purchase:purchases(*, source:sources(*), supplier:suppliers(*)),
           costs:item_costs(*),
           media:item_media(*)
-        `)
+        `,
+        )
         .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Fehler beim Laden des Inventars aus Supabase:', error);
+        this.syncStatus.melde('Laden des Inventars', error);
         this.items.set([]);
       } else if (data) {
         const enriched = (data as unknown[]).map((item: any) => this.enrichItemTotals(item));
         this.items.set(enriched);
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden des Inventars:', err);
+      this.syncStatus.melde('Laden des Inventars', err);
       this.items.set([]);
     } finally {
       this.isLoading.set(false);
@@ -93,12 +104,14 @@ export class InventoryService {
   }
 
   async getItemById(itemId: string): Promise<InventoryItem | null> {
-    const existing = this.mockStore.getItems().find((i) => i.id === itemId) || this.items().find((i) => i.id === itemId);
+    const existing =
+      this.mockStore.getItems().find((i) => i.id === itemId) ||
+      this.items().find((i) => i.id === itemId);
     if (existing) {
       const enriched = this.enrichItemTotals(existing);
       this.selectedItem.set(enriched);
       const costs = this.mockStore.getItemCosts(itemId);
-      this.itemCosts.set(costs.length > 0 ? costs : (enriched.costs || []));
+      this.itemCosts.set(costs.length > 0 ? costs : enriched.costs || []);
       await this.loadActivityLogs(itemId);
       return enriched;
     }
@@ -107,17 +120,19 @@ export class InventoryService {
     try {
       const { data, error } = await this.supabase.client
         .from('inventory_items')
-        .select(`
+        .select(
+          `
           *,
           purchase:purchases(*, source:sources(*), supplier:suppliers(*)),
           costs:item_costs(*),
           media:item_media(*)
-        `)
+        `,
+        )
         .eq('id', itemId)
         .single();
 
       if (error || !data) {
-        if (error) console.error('Fehler beim Abrufen des Artikels:', error);
+        if (error) this.syncStatus.melde('Abrufen des Artikels', error);
         return null;
       }
 
@@ -128,7 +143,7 @@ export class InventoryService {
       await this.loadActivityLogs(itemId);
       return item;
     } catch (err) {
-      console.error('Verbindungsfehler bei getItemById:', err);
+      this.syncStatus.melde('GetItemById', err);
       return null;
     } finally {
       this.isLoading.set(false);
@@ -153,24 +168,25 @@ export class InventoryService {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Fehler beim Laden der Aktivitätsprotokolle:', error);
+        this.syncStatus.melde('Laden der Aktivitätsprotokolle', error);
       } else if (data && data.length > 0) {
         this.activityLogs.set(data as ActivityLog[]);
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden der Aktivitätsprotokolle:', err);
+      this.syncStatus.melde('Laden der Aktivitätsprotokolle', err);
     }
   }
 
   public enrichItemTotals(raw: any): InventoryItem {
     const additionalCostsSum = (raw.costs || []).reduce(
       (sum: number, c: any) => sum + Number(c.amount || 0),
-      0
+      0,
     );
     const purchaseCost = Number(raw.allocated_purchase_cost || 0);
     const totalCost = Number((purchaseCost + additionalCostsSum).toFixed(2));
     const expectedVal = raw.expected_value ? Number(raw.expected_value) : null;
-    const profitPotential = expectedVal !== null ? Number((expectedVal - totalCost).toFixed(2)) : undefined;
+    const profitPotential =
+      expectedVal !== null ? Number((expectedVal - totalCost).toFixed(2)) : undefined;
 
     return {
       ...raw,
@@ -179,7 +195,9 @@ export class InventoryService {
     } as InventoryItem;
   }
 
-  async createItem(payload: CreateItemPayload): Promise<{ data: InventoryItem | null; error: Error | null }> {
+  async createItem(
+    payload: CreateItemPayload,
+  ): Promise<{ data: InventoryItem | null; error: Error | null }> {
     const ws = this.workspaceService.currentWorkspace();
     if (!ws) return { data: null, error: new Error('Kein aktiver Workspace') };
 
@@ -209,7 +227,9 @@ export class InventoryService {
     await this.logActivity(newItem.id, 'received', `Artikel angelegt (${newItem.title})`);
 
     if (payload.purchase_id) {
-      const allForPur = this.mockStore.getItems().filter((i) => i.purchase_id === payload.purchase_id);
+      const allForPur = this.mockStore
+        .getItems()
+        .filter((i) => i.purchase_id === payload.purchase_id);
       const storedPur = this.mockStore.getPurchases().find((p) => p.id === payload.purchase_id);
       if (storedPur) {
         this.mockStore.savePurchase({ ...storedPur, items_count: allForPur.length });
@@ -243,15 +263,18 @@ export class InventoryService {
         .single();
 
       if (dbError) {
-        console.error('Fehler beim Speichern des Artikels in Supabase:', dbError);
+        return { data: null, error: this.syncStatus.melde('Speichern des Artikels', dbError) };
       } else if (dbData) {
         const finalEnriched = this.enrichItemTotals(dbData);
+        // Vorlaeufigen Eintrag entfernen, sonst bleibt er mit seiner
+        // Behelfs-Kennung im lokalen Spiegel liegen (Duplikat).
+        this.mockStore.deleteItem(newItem.id);
         this.mockStore.saveItem(finalEnriched);
         this.items.update((list) => [finalEnriched, ...list.filter((i) => i.id !== newItem.id)]);
         return { data: finalEnriched, error: null };
       }
-    } catch (err: any) {
-      console.error('Verbindungsfehler beim Erstellen des Artikels:', err);
+    } catch (err: unknown) {
+      return { data: null, error: this.syncStatus.melde('Erstellen des Artikels', err) };
     }
 
     return { data: enriched, error: null };
@@ -259,7 +282,7 @@ export class InventoryService {
 
   async updateItem(
     itemId: string,
-    updates: Partial<InventoryItem>
+    updates: Partial<InventoryItem>,
   ): Promise<{ error: Error | null }> {
     const stored = this.mockStore.getItems().find((i) => i.id === itemId);
     const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
@@ -269,7 +292,9 @@ export class InventoryService {
     }
 
     this.items.update((list) =>
-      list.map((item) => (item.id === itemId ? this.enrichItemTotals({ ...item, ...updates }) : item))
+      list.map((item) =>
+        item.id === itemId ? this.enrichItemTotals({ ...item, ...updates }) : item,
+      ),
     );
 
     const currentSel = this.selectedItem();
@@ -296,11 +321,10 @@ export class InventoryService {
           .eq('id', itemId);
 
         if (error) {
-          console.error('Fehler beim Aktualisieren des Artikels in Supabase:', error);
-          return { error: new Error(error.message) };
+          return { error: this.syncStatus.melde('Aktualisieren des Artikels', error) };
         }
-      } catch (e: any) {
-        console.error('Verbindungsfehler beim Aktualisieren des Artikels:', e);
+      } catch (e: unknown) {
+        return { error: this.syncStatus.melde('Aktualisieren des Artikels', e) };
       }
     }
 
@@ -310,7 +334,7 @@ export class InventoryService {
   async updateItemStatus(
     itemId: string,
     newStatus: ItemStatus,
-    notes?: string
+    notes?: string,
   ): Promise<{ error: Error | null }> {
     const stored = this.mockStore.getItems().find((i) => i.id === itemId);
     const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
@@ -320,7 +344,7 @@ export class InventoryService {
     }
 
     this.items.update((list) =>
-      list.map((item) => (item.id === itemId ? { ...item, status: newStatus } : item))
+      list.map((item) => (item.id === itemId ? { ...item, status: newStatus } : item)),
     );
 
     const currentSel = this.selectedItem();
@@ -338,11 +362,10 @@ export class InventoryService {
           .eq('id', itemId);
 
         if (error) {
-          console.error('Fehler beim Aktualisieren des Artikelstatus in Supabase:', error);
-          return { error: new Error(error.message) };
+          return { error: this.syncStatus.melde('Aktualisieren des Artikelstatus', error) };
         }
-      } catch (e: any) {
-        console.error('Verbindungsfehler beim Aktualisieren des Artikelstatus:', e);
+      } catch (e: unknown) {
+        return { error: this.syncStatus.melde('Aktualisieren des Artikelstatus', e) };
       }
     }
 
@@ -353,7 +376,7 @@ export class InventoryService {
     itemId: string,
     type: string,
     amount: number,
-    description?: string
+    description?: string,
   ): Promise<{ error: Error | null }> {
     const newCost: ItemCost = {
       id: `cost-${Date.now()}`,
@@ -377,10 +400,14 @@ export class InventoryService {
           return updatedItem;
         }
         return i;
-      })
+      }),
     );
 
-    await this.logActivity(itemId, 'cost_added', `Kosten hinzugefügt: ${amount.toFixed(2)} € (${type})`);
+    await this.logActivity(
+      itemId,
+      'cost_added',
+      `Kosten hinzugefügt: ${amount.toFixed(2)} € (${type})`,
+    );
 
     if (!this.mockStore.isDemoMode()) {
       try {
@@ -392,11 +419,10 @@ export class InventoryService {
         });
 
         if (error) {
-          console.error('Fehler beim Hinzufügen der Artikelkosten in Supabase:', error);
-          return { error: new Error(error.message) };
+          return { error: this.syncStatus.melde('Hinzufügen der Artikelkosten', error) };
         }
-      } catch (e: any) {
-        console.error('Verbindungsfehler beim Hinzufügen der Artikelkosten:', e);
+      } catch (e: unknown) {
+        return { error: this.syncStatus.melde('Hinzufügen der Artikelkosten', e) };
       }
     }
 
@@ -415,18 +441,17 @@ export class InventoryService {
           return updatedItem;
         }
         return i;
-      })
+      }),
     );
 
     if (!this.mockStore.isDemoMode()) {
       try {
         const { error } = await this.supabase.client.from('item_costs').delete().eq('id', costId);
         if (error) {
-          console.error('Fehler beim Löschen der Artikelkosten in Supabase:', error);
-          return { error: new Error(error.message) };
+          return { error: this.syncStatus.melde('Löschen der Artikelkosten', error) };
         }
-      } catch (e: any) {
-        console.error('Verbindungsfehler beim Löschen der Artikelkosten:', e);
+      } catch (e: unknown) {
+        return { error: this.syncStatus.melde('Löschen der Artikelkosten', e) };
       }
     }
 
@@ -457,10 +482,10 @@ export class InventoryService {
         });
 
         if (error) {
-          console.error('Fehler beim Speichern des Aktivitätsprotokolls in Supabase:', error);
+          this.syncStatus.melde('Speichern des Aktivitätsprotokolls', error);
         }
-      } catch (e: any) {
-        console.error('Verbindungsfehler beim Speichern des Aktivitätsprotokolls:', e);
+      } catch (e: unknown) {
+        this.syncStatus.melde('Speichern des Aktivitätsprotokolls', e);
       }
     }
   }
@@ -474,13 +499,15 @@ export class InventoryService {
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        const { error } = await this.supabase.client.from('inventory_items').delete().eq('id', itemId);
+        const { error } = await this.supabase.client
+          .from('inventory_items')
+          .delete()
+          .eq('id', itemId);
         if (error) {
-          console.error('Fehler beim Löschen des Artikels in Supabase:', error);
-          return { error: new Error(error.message) };
+          return { error: this.syncStatus.melde('Löschen des Artikels', error) };
         }
-      } catch (e: any) {
-        console.error('Verbindungsfehler beim Löschen des Artikels:', e);
+      } catch (e: unknown) {
+        return { error: this.syncStatus.melde('Löschen des Artikels', e) };
       }
     }
 

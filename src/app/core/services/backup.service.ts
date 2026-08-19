@@ -153,7 +153,7 @@ export class BackupService {
     if (candidate.version > BACKUP_VERSION) {
       warnings.push(
         `Die Sicherung wurde mit einer neueren Version erstellt (Format ${candidate.version}, ` +
-          `diese App kennt ${BACKUP_VERSION}). Möglicherweise gehen unbekannte Felder verloren.`
+          `diese App kennt ${BACKUP_VERSION}). Möglicherweise gehen unbekannte Felder verloren.`,
       );
     }
 
@@ -162,7 +162,7 @@ export class BackupService {
     }
 
     const foreignKeys = Object.keys(candidate.entries).filter(
-      (key) => !key.startsWith(BACKUP_KEY_PREFIX)
+      (key) => !key.startsWith(BACKUP_KEY_PREFIX),
     );
     if (foreignKeys.length > 0) {
       return {
@@ -275,7 +275,7 @@ export class BackupService {
   /** Hält den Zeitpunkt der letzten Sicherung fest. */
   markBackupCreated(
     isoDate: string = new Date().toISOString(),
-    storage: StorageLike | null = getBrowserStorage()
+    storage: StorageLike | null = getBrowserStorage(),
   ): void {
     this.lastBackupAt.set(isoDate);
     try {

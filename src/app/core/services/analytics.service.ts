@@ -142,15 +142,18 @@ export class AnalyticsService {
    * Computes source performance analytics (Kapitel 28).
    */
   computeSourcePerformance(purchases: Purchase[], sales: Sale[]): SourcePerformance[] {
-    const sourceMap = new Map<string, {
-      name: string;
-      purchasesCount: number;
-      invested: number;
-      revenue: number;
-      profit: number;
-      totalHoldingDays: number;
-      salesCount: number;
-    }>();
+    const sourceMap = new Map<
+      string,
+      {
+        name: string;
+        purchasesCount: number;
+        invested: number;
+        revenue: number;
+        profit: number;
+        totalHoldingDays: number;
+        salesCount: number;
+      }
+    >();
 
     // 1. Aggregate purchases per source
     for (const p of purchases) {
@@ -212,15 +215,22 @@ export class AnalyticsService {
   /**
    * Computes supplier performance analytics and defect rates (Kapitel 28).
    */
-  computeSupplierPerformance(purchases: Purchase[], items: InventoryItem[], sales: Sale[]): SupplierPerformance[] {
-    const supplierMap = new Map<string, {
-      name: string;
-      purchasesCount: number;
-      itemsCount: number;
-      defectiveCount: number;
-      totalRoi: number;
-      salesCount: number;
-    }>();
+  computeSupplierPerformance(
+    purchases: Purchase[],
+    items: InventoryItem[],
+    sales: Sale[],
+  ): SupplierPerformance[] {
+    const supplierMap = new Map<
+      string,
+      {
+        name: string;
+        purchasesCount: number;
+        itemsCount: number;
+        defectiveCount: number;
+        totalRoi: number;
+        salesCount: number;
+      }
+    >();
 
     for (const p of purchases) {
       if (!p.supplier) continue;
@@ -263,7 +273,8 @@ export class AnalyticsService {
 
     const results: SupplierPerformance[] = [];
     for (const [name, val] of supplierMap.entries()) {
-      const defectRate = val.itemsCount > 0 ? Number(((val.defectiveCount / val.itemsCount) * 100).toFixed(1)) : 0;
+      const defectRate =
+        val.itemsCount > 0 ? Number(((val.defectiveCount / val.itemsCount) * 100).toFixed(1)) : 0;
       const avgRoi = val.salesCount > 0 ? Number((val.totalRoi / val.salesCount).toFixed(1)) : 0;
 
       results.push({
@@ -280,7 +291,11 @@ export class AnalyticsService {
   /**
    * Computes Mystery Pack Statistics (Kapitel 29).
    */
-  computeMysteryPackStats(purchases: Purchase[], items: InventoryItem[], sales: Sale[]): MysteryPackStats[] {
+  computeMysteryPackStats(
+    purchases: Purchase[],
+    items: InventoryItem[],
+    sales: Sale[],
+  ): MysteryPackStats[] {
     const mysteryPurchases = purchases.filter((p) => p.type === 'mystery_pack');
 
     return mysteryPurchases.map((p) => {
@@ -295,7 +310,10 @@ export class AnalyticsService {
       const revenue = packSales.reduce((sum, s) => sum + s.sale_price, 0);
       const realizedProfit = packSales.reduce((sum, s) => sum + (s.net_profit || 0), 0);
 
-      const remainingStockValue = openItems.reduce((sum, i) => sum + (Number(i.expected_value) || 0), 0);
+      const remainingStockValue = openItems.reduce(
+        (sum, i) => sum + (Number(i.expected_value) || 0),
+        0,
+      );
 
       return {
         purchaseId: p.id,
@@ -323,16 +341,22 @@ export class AnalyticsService {
 
       const soldItems = palletItems.filter((i) => i.status === 'sold');
       const openItems = palletItems.filter((i) => i.status !== 'sold' && i.status !== 'archived');
-      const defectiveItems = palletItems.filter((i) => i.condition === 'defective' || i.status === 'defective');
+      const defectiveItems = palletItems.filter(
+        (i) => i.condition === 'defective' || i.status === 'defective',
+      );
 
-      const defectRate = palletItems.length > 0
-        ? Number(((defectiveItems.length / palletItems.length) * 100).toFixed(1))
-        : 0;
+      const defectRate =
+        palletItems.length > 0
+          ? Number(((defectiveItems.length / palletItems.length) * 100).toFixed(1))
+          : 0;
 
       const palletSales = sales.filter((s) => s.inventory_item?.purchase_id === p.id);
       const revenue = palletSales.reduce((sum, s) => sum + s.sale_price, 0);
       const realizedProfit = palletSales.reduce((sum, s) => sum + (s.net_profit || 0), 0);
-      const remainingStockValue = openItems.reduce((sum, i) => sum + (Number(i.expected_value) || 0), 0);
+      const remainingStockValue = openItems.reduce(
+        (sum, i) => sum + (Number(i.expected_value) || 0),
+        0,
+      );
 
       // Break-even is reached when accumulated revenue >= total investment
       const isBreakEven = revenue >= totalInvest;
@@ -340,12 +364,17 @@ export class AnalyticsService {
       let daysToBreakEven: number | undefined;
       if (isBreakEven && palletSales.length > 0) {
         // Sort sales chronologically to find exact break-even date
-        const sortedSales = [...palletSales].sort((a, b) => new Date(a.sale_date).getTime() - new Date(b.sale_date).getTime());
+        const sortedSales = [...palletSales].sort(
+          (a, b) => new Date(a.sale_date).getTime() - new Date(b.sale_date).getTime(),
+        );
         let runningRev = 0;
         for (const s of sortedSales) {
           runningRev += s.sale_price;
           if (runningRev >= totalInvest) {
-            daysToBreakEven = this.profitEngine.calculateHoldingDurationDays(p.purchase_date, s.sale_date);
+            daysToBreakEven = this.profitEngine.calculateHoldingDurationDays(
+              p.purchase_date,
+              s.sale_date,
+            );
             break;
           }
         }
@@ -373,14 +402,17 @@ export class AnalyticsService {
    * Computes category rankings and sell-through rates (Kapitel 31).
    */
   computeCategoryRankings(items: InventoryItem[], sales: Sale[]): CategoryRank[] {
-    const catMap = new Map<string, {
-      category: string;
-      itemsCount: number;
-      soldCount: number;
-      revenue: number;
-      profit: number;
-      totalRoi: number;
-    }>();
+    const catMap = new Map<
+      string,
+      {
+        category: string;
+        itemsCount: number;
+        soldCount: number;
+        revenue: number;
+        profit: number;
+        totalRoi: number;
+      }
+    >();
 
     for (const item of items) {
       const cat = item.category?.trim() || 'Allgemein';
@@ -441,13 +473,16 @@ export class AnalyticsService {
    * Computes platform profitability and fee analytics.
    */
   computePlatformPerformance(sales: Sale[]): PlatformPerformance[] {
-    const map = new Map<string, {
-      salesCount: number;
-      grossRevenue: number;
-      platformFees: number;
-      netProfit: number;
-      totalHoldingDays: number;
-    }>();
+    const map = new Map<
+      string,
+      {
+        salesCount: number;
+        grossRevenue: number;
+        platformFees: number;
+        netProfit: number;
+        totalHoldingDays: number;
+      }
+    >();
 
     for (const s of sales) {
       const p = s.platform || 'other';
@@ -604,13 +639,16 @@ export class AnalyticsService {
    * Computes monthly purchase cohort recovery stats.
    */
   computeMonthlyCohorts(purchases: Purchase[], sales: Sale[]): MonthlyCohortStats[] {
-    const monthMap = new Map<string, {
-      invested: number;
-      itemsCount: number;
-      revenue: number;
-      profit: number;
-      soldCount: number;
-    }>();
+    const monthMap = new Map<
+      string,
+      {
+        invested: number;
+        itemsCount: number;
+        revenue: number;
+        profit: number;
+        soldCount: number;
+      }
+    >();
 
     for (const p of purchases) {
       const monthKey = p.purchase_date.substring(0, 7); // 'YYYY-MM'
@@ -685,15 +723,7 @@ export class AnalyticsService {
    * Computes sales distribution across days and time slots.
    */
   computeSalesHeatmap(sales: Sale[]): DayHeatmap[] {
-    const days = [
-      'Sonntag',
-      'Montag',
-      'Dienstag',
-      'Mittwoch',
-      'Donnerstag',
-      'Freitag',
-      'Samstag',
-    ];
+    const days = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 
     const heatmap: DayHeatmap[] = days.map((dayName, dayIndex) => ({
       dayName,
@@ -727,14 +757,6 @@ export class AnalyticsService {
     }
 
     // Reorder starting Monday (1, 2, 3, 4, 5, 6, 0)
-    return [
-      heatmap[1],
-      heatmap[2],
-      heatmap[3],
-      heatmap[4],
-      heatmap[5],
-      heatmap[6],
-      heatmap[0],
-    ];
+    return [heatmap[1], heatmap[2], heatmap[3], heatmap[4], heatmap[5], heatmap[6], heatmap[0]];
   }
 }

@@ -22,13 +22,17 @@ export class OfflineSyncService {
   private readonly webhookService = inject(WebhookService, { optional: true });
 
   readonly isOnline = signal<boolean>(
-    typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean' ? navigator.onLine : true
+    typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean'
+      ? navigator.onLine
+      : true,
   );
   readonly pendingEntries = signal<OfflinePurchaseEntry[]>(this.loadPersistedEntries());
   readonly cashWallet = signal<CashWalletSession>(this.loadPersistedWallet());
   readonly isSyncing = signal<boolean>(false);
 
-  readonly pendingCount = computed(() => this.pendingEntries().filter((e) => e.sync_status === 'pending').length);
+  readonly pendingCount = computed(
+    () => this.pendingEntries().filter((e) => e.sync_status === 'pending').length,
+  );
 
   readonly potentialProfitEstimate = computed(() => {
     const w = this.cashWallet();
@@ -36,6 +40,11 @@ export class OfflineSyncService {
   });
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
@@ -43,7 +52,9 @@ export class OfflineSyncService {
           this.loadFromSupabase(ws.id);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
 
     if (typeof window !== 'undefined') {
       window.addEventListener('online', () => {
@@ -241,7 +252,8 @@ export class OfflineSyncService {
     photoDataUrl?: string;
   }): OfflinePurchaseEntry {
     const ws = this.workspaceService?.currentWorkspace();
-    const estResale = payload.estimatedResalePrice || Number((payload.purchasePrice * 2.2).toFixed(2));
+    const estResale =
+      payload.estimatedResalePrice || Number((payload.purchasePrice * 2.2).toFixed(2));
     const loc = payload.locationName || this.cashWallet().locationName || 'Flohmarkt';
 
     const entry: OfflinePurchaseEntry = {
@@ -343,7 +355,7 @@ export class OfflineSyncService {
 
     // Mark all as synced
     this.pendingEntries.update((list) =>
-      list.map((e) => (e.sync_status === 'pending' ? { ...e, sync_status: 'synced' } : e))
+      list.map((e) => (e.sync_status === 'pending' ? { ...e, sync_status: 'synced' } : e)),
     );
     this.persistEntries();
     this.isSyncing.set(false);

@@ -9,7 +9,7 @@ export class PwaService {
   readonly isOnline = signal<boolean>(
     typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean'
       ? navigator.onLine
-      : true
+      : true,
   );
   readonly swRegistered = signal<boolean>(false);
 

@@ -92,10 +92,11 @@ export class MediaService {
         .eq('inventory_item_id', itemId)
         .order('created_at', { ascending: false });
 
-      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 1200);
-      if (res?.data && !res.error && res.data.length > 0) {
-        (res.data as ItemMedia[]).forEach((m) => this.mockStore.saveItemMedia(m));
-        return res.data as ItemMedia[];
+      const { data, error } = await queryPromise;
+      if (!error && data && data.length > 0) {
+        const medien = data as unknown as ItemMedia[];
+        medien.forEach((m) => this.mockStore.saveItemMedia(m));
+        return medien;
       }
     } catch {
       // offline fallback
@@ -110,7 +111,7 @@ export class MediaService {
   async uploadItemMedia(
     itemId: string,
     file: File,
-    isPrimary: boolean = false
+    isPrimary: boolean = false,
   ): Promise<{ data: ItemMedia | null; error: Error | null }> {
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const storagePath = `${itemId}/${Date.now()}_${cleanFileName}`;
@@ -182,7 +183,8 @@ export class MediaService {
         resolve({ data: localMedia, error: null });
       };
 
-      reader.onerror = () => resolve({ data: null, error: new Error('Datei konnte nicht gelesen werden.') });
+      reader.onerror = () =>
+        resolve({ data: null, error: new Error('Datei konnte nicht gelesen werden.') });
       reader.readAsDataURL(file);
     });
   }
@@ -190,7 +192,11 @@ export class MediaService {
   /**
    * Deletes a media item from storage and database.
    */
-  async deleteMedia(itemId: string, mediaId: string, storagePath: string): Promise<{ error: Error | null }> {
+  async deleteMedia(
+    itemId: string,
+    mediaId: string,
+    storagePath: string,
+  ): Promise<{ error: Error | null }> {
     this.mockStore.deleteItemMedia(mediaId);
 
     if (!this.mockStore.isDemoMode() && !itemId.startsWith('demo-')) {

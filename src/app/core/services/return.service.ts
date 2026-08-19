@@ -7,6 +7,7 @@ import { WorkspaceService } from './workspace.service';
 import { WebhookService } from './webhook.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
+import { SyncStatusService } from './sync-status.service';
 
 const STORAGE_KEY_RETURNS = 'reflip_saved_returns';
 
@@ -15,6 +16,7 @@ const STORAGE_KEY_RETURNS = 'reflip_saved_returns';
 })
 export class ReturnService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly syncStatus = inject(SyncStatusService, { optional: true })!;
   private readonly inventoryService = inject(InventoryService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly webhookService = inject(WebhookService, { optional: true });
@@ -24,6 +26,11 @@ export class ReturnService {
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
@@ -31,7 +38,9 @@ export class ReturnService {
           this.loadReturns(ws.id);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   private loadPersistedReturns(): ReturnRecord[] {
@@ -81,7 +90,7 @@ export class ReturnService {
         .order('return_date', { ascending: false });
 
       if (error) {
-        console.error('Fehler beim Laden der Retouren aus Supabase:', error);
+        this.syncStatus.melde('Laden der Retouren', error);
       } else if (data && data.length > 0) {
         const mapped: ReturnRecord[] = (data as unknown[]).map((r: any) => ({
           ...r,
@@ -93,7 +102,7 @@ export class ReturnService {
         this.persistReturns();
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden der Retouren:', err);
+      this.syncStatus.melde('Laden der Retouren', err);
     } finally {
       this.isLoading.set(false);
     }
@@ -155,7 +164,11 @@ export class ReturnService {
       }
 
       if (payload.restockAction !== 'keep_with_buyer') {
-        await this.inventoryService.updateItemStatus(payload.sale.inventory_item_id, targetStatus, statusLog);
+        await this.inventoryService.updateItemStatus(
+          payload.sale.inventory_item_id,
+          targetStatus,
+          statusLog,
+        );
       }
     }
 
@@ -166,29 +179,36 @@ export class ReturnService {
     // 4. Save to Supabase
     if (this.supabase && ws && !ws.id.startsWith('demo-')) {
       try {
-        const { data: dbReturn, error } = await this.supabase.client.from('returns').insert({
-          workspace_id: ws.id,
-          sale_id: payload.sale.id,
-          inventory_item_id: payload.sale.inventory_item_id,
-          credit_note_number: creditNoteNumber,
-          return_date: newReturn.return_date,
-          reason: payload.reason,
-          refund_amount: newReturn.refund_amount,
-          is_full_refund: payload.isFullRefund,
-          restock_action: payload.restockAction,
-          buyer_name: newReturn.buyer_name,
-          notes: payload.notes || null,
-        }).select().single();
+        const { data: dbReturn, error } = await this.supabase.client
+          .from('returns')
+          .insert({
+            workspace_id: ws.id,
+            sale_id: payload.sale.id,
+            inventory_item_id: payload.sale.inventory_item_id,
+            credit_note_number: creditNoteNumber,
+            return_date: newReturn.return_date,
+            reason: payload.reason,
+            refund_amount: newReturn.refund_amount,
+            is_full_refund: payload.isFullRefund,
+            restock_action: payload.restockAction,
+            buyer_name: newReturn.buyer_name,
+            notes: payload.notes || null,
+          })
+          .select()
+          .single();
 
         if (error) {
-          console.error('Fehler beim Speichern der Retoure in Supabase:', error);
+          this.syncStatus.melde('Speichern der Retoure', error);
         } else if (dbReturn) {
           const finalReturn: ReturnRecord = { ...newReturn, id: dbReturn.id };
-          this.returns.update((list) => [finalReturn, ...list.filter((r) => r.id !== newReturn.id)]);
+          this.returns.update((list) => [
+            finalReturn,
+            ...list.filter((r) => r.id !== newReturn.id),
+          ]);
           this.persistReturns();
         }
       } catch (err) {
-        console.error('Verbindungsfehler beim Speichern der Retoure:', err);
+        this.syncStatus.melde('Speichern der Retoure', err);
       }
     }
 
@@ -214,9 +234,15 @@ export class ReturnService {
   /**
    * Generates a formal § 25a UStG Credit Note (Gutschrift) matching the DIN-A4 Invoice layout.
    */
-  generateCreditNoteInvoice(returnRecord: ReturnRecord, sale: Sale, workspace: Workspace | null): Invoice {
+  generateCreditNoteInvoice(
+    returnRecord: ReturnRecord,
+    sale: Sale,
+    workspace: Workspace | null,
+  ): Invoice {
     const wsName = workspace?.name || 'ReFlip Reselling HQ';
-    const originalInvoiceNumber = sale.external_order_id ? `RE-${sale.external_order_id}` : `RE-${sale.id.substring(0, 8)}`;
+    const originalInvoiceNumber = sale.external_order_id
+      ? `RE-${sale.external_order_id}`
+      : `RE-${sale.id.substring(0, 8)}`;
 
     return {
       id: returnRecord.id,

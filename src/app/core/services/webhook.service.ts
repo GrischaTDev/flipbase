@@ -29,11 +29,14 @@ export class WebhookService {
   readonly config = signal<WebhookConfig>(this.loadConfig());
   readonly notifications = signal<AppNotification[]>(this.loadNotifications());
 
-  readonly unreadCount = computed(
-    () => this.notifications().filter((n) => !n.read).length
-  );
+  readonly unreadCount = computed(() => this.notifications().filter((n) => !n.read).length);
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
@@ -41,7 +44,9 @@ export class WebhookService {
           this.loadFromSupabase(ws.id);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   private loadConfig(): WebhookConfig {
@@ -78,7 +83,8 @@ export class WebhookService {
         id: 'notif-init-1',
         type: 'system',
         title: 'Willkommen bei ReFlip OS!',
-        message: 'Dein Reselling-System ist einsatzbereit. Konfiguriere Webhooks für Discord & Telegram.',
+        message:
+          'Dein Reselling-System ist einsatzbereit. Konfiguriere Webhooks für Discord & Telegram.',
         timestamp: new Date().toISOString(),
         read: false,
       },
@@ -171,7 +177,7 @@ export class WebhookService {
             sound_enabled: updated.soundEnabled,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: 'workspace_id' }
+          { onConflict: 'workspace_id' },
         )
         .then(({ error }) => {
           if (error) console.error('Fehler beim Speichern der Webhook-Konfiguration:', error);
@@ -234,10 +240,7 @@ export class WebhookService {
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !ws.id.startsWith('demo-')) {
-      this.supabase.client
-        .from('app_notifications')
-        .delete()
-        .eq('workspace_id', ws.id);
+      this.supabase.client.from('app_notifications').delete().eq('workspace_id', ws.id);
     }
   }
 
@@ -334,7 +337,7 @@ export class WebhookService {
    * Sends a test webhook notification to verify credentials.
    */
   async sendTestNotification(
-    channel: 'discord' | 'telegram' | 'custom'
+    channel: 'discord' | 'telegram' | 'custom',
   ): Promise<{ success: boolean; message: string }> {
     const cfg = this.config();
 
@@ -348,7 +351,8 @@ export class WebhookService {
           embeds: [
             {
               title: 'ReFlip Test-Nachricht',
-              description: 'Deine Discord-Webhook-Integration ist **erfolgreich aktiv** und empfangsbereit!',
+              description:
+                'Deine Discord-Webhook-Integration ist **erfolgreich aktiv** und empfangsbereit!',
               color: 6514673,
               fields: [
                 { name: 'System', value: 'ReFlip OS 2026', inline: true },
@@ -363,8 +367,8 @@ export class WebhookService {
           body: JSON.stringify(payload),
         });
         return { success: true, message: 'Discord-Testnachricht erfolgreich gesendet!' };
-      } catch (err: any) {
-        return { success: false, message: `Fehler beim Senden: ${err.message || err}` };
+      } catch (err: unknown) {
+        return { success: false, message: `Fehler beim Senden: ${err instanceof Error ? err.message : String(err)}` };
       }
     } else if (channel === 'telegram') {
       if (!cfg.telegramBotToken || !cfg.telegramChatId) {
@@ -386,8 +390,8 @@ export class WebhookService {
           return { success: false, message: `Telegram API Fehler: HTTP ${res.status}` };
         }
         return { success: true, message: 'Telegram-Testnachricht erfolgreich gesendet!' };
-      } catch (err: any) {
-        return { success: false, message: `Fehler beim Senden: ${err.message || err}` };
+      } catch (err: unknown) {
+        return { success: false, message: `Fehler beim Senden: ${err instanceof Error ? err.message : String(err)}` };
       }
     } else {
       return { success: true, message: 'Custom Webhook Test erfolgreich ausgeführt.' };

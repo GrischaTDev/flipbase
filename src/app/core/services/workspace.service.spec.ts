@@ -7,9 +7,22 @@ import { InventoryItem, Purchase, Sale } from '../models/reflip.models';
 describe('Multi-Workspace & Holding Consolidation Service', () => {
   let service: WorkspaceService;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     const injector = Injector.create({ providers: [] });
     service = runInInjectionContext(injector, () => new WorkspaceService());
+    // Die Workspace-Signale starten bewusst leer, damit ohne Anmeldung keine
+    // Abfragen mit der Mock-Kennung "ws-1" an die Datenbank gehen. Ohne
+    // Backend faellt der Dienst auf die Demo-Workspaces zurueck - fuer diese
+    // Tests wird dieser Zustand hier ausdruecklich hergestellt.
+    await service.loadWorkspaces();
+  });
+
+  it('startet ohne Anmeldung mit leeren Signalen, damit keine ungueltige Workspace-Kennung abgefragt wird', () => {
+    const injector = Injector.create({ providers: [] });
+    const frisch = runInInjectionContext(injector, () => new WorkspaceService());
+
+    expect(frisch.workspaces()).toEqual([]);
+    expect(frisch.currentWorkspace()).toBeNull();
   });
 
   it('should initialize with multi-workspace presets', () => {

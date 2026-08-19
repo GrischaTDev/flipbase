@@ -65,6 +65,11 @@ export class ResearchService {
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const ws = this.workspaceService.currentWorkspace();
@@ -74,7 +79,9 @@ export class ResearchService {
           this.recentQueries.set([]);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   async loadRecentQueries(workspaceId: string): Promise<void> {
@@ -134,7 +141,7 @@ export class ResearchService {
     queryText: string,
     condition: string = 'used',
     estimatedCost: number = 25.0,
-    limit: number = 24
+    limit: number = 24,
   ): Promise<{ results: ResearchComparisonItem[]; summary: ResearchSummary }> {
     this.isLoading.set(true);
 
@@ -144,7 +151,10 @@ export class ResearchService {
 
       // 2. If direct eBay API returns no listings, fetch genuine product photos and simulate realistic comps
       if (!comps || comps.length === 0) {
-        const realPhotos = await this.realImageService.fetchRealImagesForQuery(queryText, Math.min(limit, 30));
+        const realPhotos = await this.realImageService.fetchRealImagesForQuery(
+          queryText,
+          Math.min(limit, 30),
+        );
         comps = this.generateRealisticComps(queryText, condition, realPhotos, limit);
       }
 
@@ -183,7 +193,7 @@ export class ResearchService {
   calculateSummary(
     items: ResearchComparisonItem[],
     baseCosts: number = 25.0,
-    queryText: string = ''
+    queryText: string = '',
   ): ResearchSummary {
     const activePrices = items
       .filter((i) => !i.isExcluded)
@@ -287,7 +297,7 @@ export class ResearchService {
 
   toggleExcludeItem(itemId: string): void {
     this.currentComparisonItems.update((items) =>
-      items.map((it) => (it.id === itemId ? { ...it, isExcluded: !it.isExcluded } : it))
+      items.map((it) => (it.id === itemId ? { ...it, isExcluded: !it.isExcluded } : it)),
     );
   }
 
@@ -295,24 +305,64 @@ export class ResearchService {
     query: string,
     condition: string,
     realPhotos: string[],
-    count: number = 24
+    count: number = 24,
   ): ResearchComparisonItem[] {
     let baseValue = 50.0;
     const lower = query.toLowerCase();
 
-    if (lower.includes('airpod') || lower.includes('bose') || lower.includes('sony') || lower.includes('audio') || lower.includes('kopfhörer')) {
+    if (
+      lower.includes('airpod') ||
+      lower.includes('bose') ||
+      lower.includes('sony') ||
+      lower.includes('audio') ||
+      lower.includes('kopfhörer')
+    ) {
       baseValue = 110.0;
-    } else if (lower.includes('switch') || lower.includes('ps5') || lower.includes('xbox') || lower.includes('nintendo') || lower.includes('konsole')) {
+    } else if (
+      lower.includes('switch') ||
+      lower.includes('ps5') ||
+      lower.includes('xbox') ||
+      lower.includes('nintendo') ||
+      lower.includes('konsole')
+    ) {
       baseValue = 220.0;
-    } else if (lower.includes('iphone') || lower.includes('macbook') || lower.includes('ipad') || lower.includes('samsung') || lower.includes('phone')) {
+    } else if (
+      lower.includes('iphone') ||
+      lower.includes('macbook') ||
+      lower.includes('ipad') ||
+      lower.includes('samsung') ||
+      lower.includes('phone')
+    ) {
       baseValue = 380.0;
-    } else if (lower.includes('bosch') || lower.includes('makita') || lower.includes('werkzeug') || lower.includes('bohr') || lower.includes('dewalt')) {
+    } else if (
+      lower.includes('bosch') ||
+      lower.includes('makita') ||
+      lower.includes('werkzeug') ||
+      lower.includes('bohr') ||
+      lower.includes('dewalt')
+    ) {
       baseValue = 75.0;
-    } else if (lower.includes('lego') || lower.includes('spielzeug') || lower.includes('star wars') || lower.includes('pokemon')) {
+    } else if (
+      lower.includes('lego') ||
+      lower.includes('spielzeug') ||
+      lower.includes('star wars') ||
+      lower.includes('pokemon')
+    ) {
       baseValue = 85.0;
-    } else if (lower.includes('schuhe') || lower.includes('sneaker') || lower.includes('nike') || lower.includes('adidas') || lower.includes('jordan')) {
+    } else if (
+      lower.includes('schuhe') ||
+      lower.includes('sneaker') ||
+      lower.includes('nike') ||
+      lower.includes('adidas') ||
+      lower.includes('jordan')
+    ) {
       baseValue = 65.0;
-    } else if (lower.includes('fahrrad') || lower.includes('bike') || lower.includes('cube') || lower.includes('mountainbike')) {
+    } else if (
+      lower.includes('fahrrad') ||
+      lower.includes('bike') ||
+      lower.includes('cube') ||
+      lower.includes('mountainbike')
+    ) {
       baseValue = 140.0;
     }
 
@@ -359,9 +409,10 @@ export class ResearchService {
         price: Math.max(5, price),
         source,
         imageUrl: photoUrl,
-        url: source === 'ebay_sold'
-          ? `https://www.ebay.de/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Complete=1&LH_Sold=1`
-          : `https://www.kleinanzeigen.de/s-${encodeURIComponent(query)}/k0`,
+        url:
+          source === 'ebay_sold'
+            ? `https://www.ebay.de/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Complete=1&LH_Sold=1`
+            : `https://www.kleinanzeigen.de/s-${encodeURIComponent(query)}/k0`,
         date: new Date(Date.now() - (i % 14) * 86400000).toISOString().split('T')[0],
         condition: condition || 'used',
         isExcluded: false,

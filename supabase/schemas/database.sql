@@ -28,7 +28,8 @@ CREATE TABLE IF NOT EXISTS public.workspaces (
 CREATE TABLE IF NOT EXISTS public.workspace_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE
+        CONSTRAINT workspace_members_user_id_profiles_fkey REFERENCES public.profiles(id) ON DELETE CASCADE,
     role TEXT NOT NULL DEFAULT 'owner',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (workspace_id, user_id)
@@ -1369,3 +1370,6 @@ DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+COMMENT ON CONSTRAINT workspace_members_user_id_profiles_fkey ON public.workspace_members IS
+  'Ermoeglicht die verknuepfte Abfrage der Mitglieder mit ihren Profildaten ueber PostgREST.';

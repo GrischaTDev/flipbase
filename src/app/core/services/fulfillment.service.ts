@@ -12,6 +12,7 @@ import {
   ShippingStatus,
 } from '../models/fulfillment.models';
 import { WebPushService } from './web-push.service';
+import { Json } from '../models/supabase.types';
 
 const STORAGE_KEY_CARRIER_CFG = 'reflip_carrier_config';
 const STORAGE_KEY_SHIPPING_ORDERS = 'reflip_shipping_orders';
@@ -92,15 +93,17 @@ export class FulfillmentService {
   readonly selectedBundleCandidate = signal<BundleCandidate | null>(null);
 
   readonly readyToPackCount = computed<number>(
-    () => this.orders().filter((o) => o.status === 'ready_to_pack' || o.status === 'label_printed').length
+    () =>
+      this.orders().filter((o) => o.status === 'ready_to_pack' || o.status === 'label_printed')
+        .length,
   );
 
   readonly shippedCount = computed<number>(
-    () => this.orders().filter((o) => o.status === 'shipped').length
+    () => this.orders().filter((o) => o.status === 'shipped').length,
   );
 
   readonly deliveredCount = computed<number>(
-    () => this.orders().filter((o) => o.status === 'delivered').length
+    () => this.orders().filter((o) => o.status === 'delivered').length,
   );
 
   /**
@@ -108,7 +111,7 @@ export class FulfillmentService {
    */
   readonly bundleCandidates = computed<BundleCandidate[]>(() => {
     const unfulfilled = this.orders().filter(
-      (o) => (o.status === 'ready_to_pack' || o.status === 'label_printed') && !o.is_bundled
+      (o) => (o.status === 'ready_to_pack' || o.status === 'label_printed') && !o.is_bundled,
     );
 
     const grouped = new Map<string, ShippingOrder[]>();
@@ -150,6 +153,11 @@ export class FulfillmentService {
   });
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
@@ -157,7 +165,9 @@ export class FulfillmentService {
           this.loadFromSupabase(ws.id);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   loadDemoOrders(): void {
@@ -405,7 +415,7 @@ export class FulfillmentService {
             hermes_api_key: updated.hermesApiKey,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: 'workspace_id' }
+          { onConflict: 'workspace_id' },
         )
         .then(({ error }) => {
           if (error) console.error('Fehler beim Speichern der Carrier-Konfiguration:', error);
@@ -454,8 +464,8 @@ export class FulfillmentService {
               status: 'shipped' as ShippingStatus,
               shipped_at: shippedAt,
             }
-          : o
-      )
+          : o,
+      ),
     );
     this.persistOrders();
 
@@ -482,7 +492,9 @@ export class FulfillmentService {
     const orderIds = candidate.orders.map((o) => o.id);
     const itemTitles = candidate.orders.map((o) => o.item_title);
     const firstOrder = candidate.orders[0];
-    const totalSalePrice = Number(candidate.orders.reduce((sum, o) => sum + o.sale_price, 0).toFixed(2));
+    const totalSalePrice = Number(
+      candidate.orders.reduce((sum, o) => sum + o.sale_price, 0).toFixed(2),
+    );
 
     const bundledOrder: ShippingOrder = {
       id: `ship-bundle-${Date.now()}`,
@@ -521,7 +533,7 @@ export class FulfillmentService {
         item_sku: bundledOrder.item_sku,
         item_condition: bundledOrder.item_condition,
         sale_price: bundledOrder.sale_price,
-        customer: bundledOrder.customer as any,
+        customer: bundledOrder.customer as unknown as Json,
         carrier: bundledOrder.carrier,
         package_type: bundledOrder.package_type,
         status: bundledOrder.status,
@@ -577,8 +589,13 @@ export class FulfillmentService {
    */
   async purchaseShippingLabel(
     orderOrId: ShippingOrder | string,
-    rateOrId: CarrierRate | string
-  ): Promise<{ success: boolean; trackingNumber: string; trackingUrl: string; labelPrice: number }> {
+    rateOrId: CarrierRate | string,
+  ): Promise<{
+    success: boolean;
+    trackingNumber: string;
+    trackingUrl: string;
+    labelPrice: number;
+  }> {
     let order: ShippingOrder | undefined;
     if (typeof orderOrId === 'string') {
       order = this.orders().find((o) => o.id === orderOrId);
@@ -627,8 +644,8 @@ export class FulfillmentService {
               label_price: rate!.price,
               carrier_transaction_id: transactionId,
             }
-          : o
-      )
+          : o,
+      ),
     );
 
     this.persistOrders();
@@ -680,8 +697,8 @@ export class FulfillmentService {
               status,
               shipped_at: shippedAt || o.shipped_at,
             }
-          : o
-      )
+          : o,
+      ),
     );
     this.persistOrders();
 
@@ -691,10 +708,7 @@ export class FulfillmentService {
       if (shippedAt) dbPayload.shipped_at = shippedAt;
       if (deliveredAt) dbPayload.delivered_at = deliveredAt;
 
-      this.supabase.client
-        .from('shipping_orders')
-        .update(dbPayload)
-        .eq('id', orderId);
+      this.supabase.client.from('shipping_orders').update(dbPayload).eq('id', orderId);
     }
   }
 

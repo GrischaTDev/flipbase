@@ -5,6 +5,7 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
 import { BottomNavComponent } from '../bottom-nav/bottom-nav.component';
 import { WorkspaceModalComponent } from '../../shared/components/workspace-modal/workspace-modal.component';
 import { AuthService } from '../../core/services/auth.service';
+import { SyncErrorBannerComponent } from '../../shared/components/sync-error-banner/sync-error-banner.component';
 import { MockDataStoreService } from '../../core/services/mock-data-store.service';
 
 @Component({
@@ -16,6 +17,7 @@ import { MockDataStoreService } from '../../core/services/mock-data-store.servic
     SidebarComponent,
     BottomNavComponent,
     WorkspaceModalComponent,
+    SyncErrorBannerComponent,
   ],
   templateUrl: './shell.component.html',
   styleUrl: './shell.component.scss',

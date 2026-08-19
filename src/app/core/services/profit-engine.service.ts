@@ -38,7 +38,10 @@ export class ProfitEngineService {
   /**
    * Calculates holding duration in full days between purchase and sale.
    */
-  calculateHoldingDurationDays(purchaseDate: string | Date, saleDate: string | Date = new Date()): number {
+  calculateHoldingDurationDays(
+    purchaseDate: string | Date,
+    saleDate: string | Date = new Date(),
+  ): number {
     const start = new Date(purchaseDate).getTime();
     const end = new Date(saleDate).getTime();
     const diffMs = Math.max(0, end - start);
@@ -59,7 +62,7 @@ export class ProfitEngineService {
   allocateCostsValueWeighted(
     totalPurchaseCost: number,
     itemExpectedValue: number,
-    sumAllExpectedValues: number
+    sumAllExpectedValues: number,
   ): number {
     if (sumAllExpectedValues <= 0) return 0;
     const ratio = itemExpectedValue / sumAllExpectedValues;
@@ -73,12 +76,12 @@ export class ProfitEngineService {
     fairMarketValue: number,
     estimatedAdditionalCosts: number,
     minRoiPercent: number = 30,
-    minProfitAmount: number = 15
+    minProfitAmount: number = 15,
   ): number {
     // Formula derived from: FairValue - MaxBuyPrice - AdditionalCosts >= MinProfit
     // and (FairValue - MaxBuyPrice - AdditionalCosts) / (MaxBuyPrice + AdditionalCosts) >= MinRoi / 100
     const profitBound = fairMarketValue - estimatedAdditionalCosts - minProfitAmount;
-    const roiMultiplier = 1 + (minRoiPercent / 100);
+    const roiMultiplier = 1 + minRoiPercent / 100;
     const roiBound = (fairMarketValue - estimatedAdditionalCosts * roiMultiplier) / roiMultiplier;
 
     const maxBuy = Math.min(profitBound, roiBound);
@@ -96,12 +99,12 @@ export class ProfitEngineService {
     expectedRoiPercent: number,
     expectedProfit: number,
     liquidityScore: number = 70, // 0-100
-    confidenceScore: number = 80  // 0-100
+    confidenceScore: number = 80, // 0-100
   ): number {
     // Score components mapped to 0-100:
     // ROI: 0% -> 0, 50% -> 50, 100%+ -> 100
     const roiComponent = Math.min(100, Math.max(0, expectedRoiPercent));
-    
+
     // Profit: 0€ -> 0, 50€ -> 70, 100€+ -> 100
     const profitComponent = Math.min(100, Math.max(0, (expectedProfit / 80) * 100));
 
@@ -111,12 +114,11 @@ export class ProfitEngineService {
     // Confidence: 0-100
     const confidenceComponent = Math.min(100, Math.max(0, confidenceScore));
 
-    const totalScore = (
+    const totalScore =
       roiComponent * 0.4 +
       profitComponent * 0.3 +
       liquidityComponent * 0.2 +
-      confidenceComponent * 0.1
-    );
+      confidenceComponent * 0.1;
 
     return Math.min(100, Math.max(0, Math.round(totalScore)));
   }
@@ -130,15 +132,25 @@ export class ProfitEngineService {
     estimatedCosts: number = 0,
     minRoiPercent: number = 30,
     minProfitAmount: number = 15,
-    confidenceScore: number = 85
+    confidenceScore: number = 85,
   ): DealEvaluationResult {
     const fastSalePrice = Number((fairMarketValue * 0.85).toFixed(2));
     const recommendedListingPrice = Number((fairMarketValue * 1.12).toFixed(2));
     const totalInvested = askingPrice + estimatedCosts;
     const expectedProfit = this.calculateProfit(fairMarketValue, totalInvested);
     const expectedRoiPercent = this.calculateRoi(expectedProfit, totalInvested);
-    const maxBuyPrice = this.calculateMaxBuyPrice(fairMarketValue, estimatedCosts, minRoiPercent, minProfitAmount);
-    const dealScore = this.calculateDealScore(expectedRoiPercent, expectedProfit, 75, confidenceScore);
+    const maxBuyPrice = this.calculateMaxBuyPrice(
+      fairMarketValue,
+      estimatedCosts,
+      minRoiPercent,
+      minProfitAmount,
+    );
+    const dealScore = this.calculateDealScore(
+      expectedRoiPercent,
+      expectedProfit,
+      75,
+      confidenceScore,
+    );
 
     let verdict: DealEvaluationResult['verdict'] = 'acceptable';
     if (dealScore >= 86) verdict = 'very_attractive';
@@ -165,12 +177,19 @@ export class ProfitEngineService {
   /**
    * Calculates robust statistical median and removes extreme outliers.
    */
-  calculateRobustMarketStats(prices: number[]): { median: number; min: number; max: number; count: number } {
+  calculateRobustMarketStats(prices: number[]): {
+    median: number;
+    min: number;
+    max: number;
+    count: number;
+  } {
     if (!prices || prices.length === 0) {
       return { median: 0, min: 0, max: 0, count: 0 };
     }
 
-    const sorted = [...prices].filter((p) => typeof p === 'number' && !isNaN(p) && p > 0).sort((a, b) => a - b);
+    const sorted = [...prices]
+      .filter((p) => typeof p === 'number' && !isNaN(p) && p > 0)
+      .sort((a, b) => a - b);
     if (sorted.length === 0) return { median: 0, min: 0, max: 0, count: 0 };
 
     // Filter outliers using Interquartile Range (IQR) if we have enough data points (>= 4)
@@ -191,7 +210,8 @@ export class ProfitEngineService {
     }
 
     const mid = Math.floor(filtered.length / 2);
-    const median = filtered.length % 2 !== 0 ? filtered[mid] : (filtered[mid - 1] + filtered[mid]) / 2;
+    const median =
+      filtered.length % 2 !== 0 ? filtered[mid] : (filtered[mid - 1] + filtered[mid]) / 2;
 
     return {
       median: Number(median.toFixed(2)),

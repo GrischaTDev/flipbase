@@ -109,14 +109,15 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
         this.checkTorchSupport();
         this.startDetectionLoop();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       this.isScanning.set(false);
-      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      const name = err instanceof DOMException ? err.name : '';
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
         this.errorMessage.set('Kamerazugriff verweigert. Bitte Berechtigung im Browser erteilen.');
-      } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
         this.errorMessage.set('Keine Kamera gefunden. Nutze bitte die manuelle Barcode-Eingabe.');
       } else {
-        this.errorMessage.set(err.message || 'Kamera konnte nicht gestartet werden.');
+        this.errorMessage.set((err instanceof Error ? err.message : '') || 'Kamera konnte nicht gestartet werden.');
       }
     }
   }

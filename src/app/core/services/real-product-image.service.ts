@@ -27,7 +27,7 @@ export class RealProductImageService {
       (async () => {
         try {
           const res = await fetch(
-            `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=${Math.min(limit + 10, 50)}&gsrnamespace=6&prop=imageinfo&iiprop=url|thumburl&iiurlwidth=600&format=json&origin=*`
+            `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=${Math.min(limit + 10, 50)}&gsrnamespace=6&prop=imageinfo&iiprop=url|thumburl&iiurlwidth=600&format=json&origin=*`,
           );
           if (res.ok) {
             const data = await res.json();
@@ -36,7 +36,10 @@ export class RealProductImageService {
               const u = p.imageinfo?.[0]?.thumburl || p.imageinfo?.[0]?.url;
               if (
                 u &&
-                (u.includes('.jpg') || u.includes('.jpeg') || u.includes('.png') || u.includes('.webp')) &&
+                (u.includes('.jpg') ||
+                  u.includes('.jpeg') ||
+                  u.includes('.png') ||
+                  u.includes('.webp')) &&
                 !u.includes('.pdf') &&
                 !u.includes('.svg') &&
                 !u.includes('.ogg') &&
@@ -56,7 +59,7 @@ export class RealProductImageService {
       (async () => {
         try {
           const res = await fetch(
-            `https://de.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=12&prop=pageimages&pithumbsize=600&format=json&origin=*`
+            `https://de.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=12&prop=pageimages&pithumbsize=600&format=json&origin=*`,
           );
           if (res.ok) {
             const data = await res.json();
@@ -77,7 +80,7 @@ export class RealProductImageService {
       (async () => {
         try {
           const res = await fetch(
-            `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=12&prop=pageimages&pithumbsize=600&format=json&origin=*`
+            `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=12&prop=pageimages&pithumbsize=600&format=json&origin=*`,
           );
           if (res.ok) {
             const data = await res.json();
@@ -127,7 +130,13 @@ export class RealProductImageService {
       'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=600&auto=format&fit=crop&q=80',
     ];
 
-    if (lower.includes('airpod') || lower.includes('audio') || lower.includes('kopfhörer') || lower.includes('bose') || lower.includes('sony')) {
+    if (
+      lower.includes('airpod') ||
+      lower.includes('audio') ||
+      lower.includes('kopfhörer') ||
+      lower.includes('bose') ||
+      lower.includes('sony')
+    ) {
       return [
         'https://images.unsplash.com/photo-1600294037681-c80b4cb5b434?w=600&auto=format&fit=crop&q=80',
         'https://images.unsplash.com/photo-1572536147248-ac59a8abfa4b?w=600&auto=format&fit=crop&q=80',
@@ -138,7 +147,13 @@ export class RealProductImageService {
         'https://images.unsplash.com/photo-1613040809024-b4ef7ba99bc3?w=600&auto=format&fit=crop&q=80',
       ];
     }
-    if (lower.includes('switch') || lower.includes('ps5') || lower.includes('xbox') || lower.includes('gaming') || lower.includes('konsole')) {
+    if (
+      lower.includes('switch') ||
+      lower.includes('ps5') ||
+      lower.includes('xbox') ||
+      lower.includes('gaming') ||
+      lower.includes('konsole')
+    ) {
       return [
         'https://images.unsplash.com/photo-1578301978693-85fa9c0320b9?w=600&auto=format&fit=crop&q=80',
         'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?w=600&auto=format&fit=crop&q=80',

@@ -1,0 +1,59 @@
+@if (syncStatus.hatFehler()) {
+  <div
+    class="bg-rose-500/15 border-b border-rose-500/40 px-4 md:px-6 py-2.5"
+    role="alert"
+    aria-live="assertive"
+  >
+    <div class="max-w-7xl mx-auto flex items-start gap-3">
+      <lucide-icon
+        [img]="warningIcon"
+        class="w-4 h-4 text-rose-400 shrink-0 mt-0.5"
+      ></lucide-icon>
+
+      <div class="min-w-0 flex-1 space-y-1">
+        <strong class="text-xs text-rose-300 block">
+          @if (syncStatus.anzahl() === 1) {
+            Ein Vorgang konnte nicht gespeichert werden
+          } @else {
+            {{ syncStatus.anzahl() }} Vorgänge konnten nicht gespeichert werden
+          }
+        </strong>
+
+        @for (fehler of syncStatus.fehler(); track fehler.id) {
+          <div class="flex items-start justify-between gap-2">
+            <p class="text-[11px] text-rf-text-secondary leading-relaxed min-w-0">
+              <span class="font-semibold">{{ fehler.vorgang }}:</span>
+              {{ fehler.meldung }}
+              @if (fehler.code) {
+                <span class="text-rf-text-dimmed font-mono">({{ fehler.code }})</span>
+              }
+            </p>
+            <button
+              type="button"
+              (click)="syncStatus.verwerfen(fehler.id)"
+              class="p-0.5 rounded text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer shrink-0"
+              aria-label="Diese Meldung schliessen"
+            >
+              <lucide-icon [img]="closeIcon" class="w-3 h-3"></lucide-icon>
+            </button>
+          </div>
+        }
+
+        <p class="text-[11px] text-rf-text-muted leading-relaxed pt-0.5">
+          Die betroffenen Daten sind <strong>nicht</strong> dauerhaft gespeichert. Bitte prüfe die
+          Verbindung zur Datenbank und trage sie erneut ein.
+        </p>
+      </div>
+
+      @if (syncStatus.anzahl() > 1) {
+        <button
+          type="button"
+          (click)="syncStatus.alleVerwerfen()"
+          class="text-[10px] font-semibold text-rf-text-muted hover:text-rf-text-primary px-2 py-1 rounded-lg hover:bg-rf-surface-hover cursor-pointer shrink-0"
+        >
+          Alle schliessen
+        </button>
+      }
+    </div>
+  </div>
+}

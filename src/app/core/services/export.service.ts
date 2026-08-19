@@ -132,6 +132,8 @@ export class ExportService {
   private escapeCsv(value: string): string {
     if (!value) return '';
     const clean = value.replace(/"/g, '""');
-    return clean.includes(';') || clean.includes('\n') || clean.includes('"') ? `"${clean}"` : clean;
+    return clean.includes(';') || clean.includes('\n') || clean.includes('"')
+      ? `"${clean}"`
+      : clean;
   }
 }

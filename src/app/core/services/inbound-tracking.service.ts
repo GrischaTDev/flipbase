@@ -173,11 +173,7 @@ export class InboundTrackingService {
     }
 
     // 4. DHL (10, 12, 20 digits, JJD, CY, etc.)
-    if (
-      /^(0034\d{16}|JJD\d{16,20}|CY\d{9}[A-Z]{2}|\d{10}|\d{12}|\d{20})$/i.test(
-        raw
-      )
-    ) {
+    if (/^(0034\d{16}|JJD\d{16,20}|CY\d{9}[A-Z]{2}|\d{10}|\d{12}|\d{20})$/i.test(raw)) {
       return 'dhl';
     }
 
@@ -238,7 +234,7 @@ export class InboundTrackingService {
     trackingNumber?: string | null,
     carrier?: TrackingCarrier | null,
     currentStatus?: InboundTrackingStatus | null,
-    purchaseDate?: string
+    purchaseDate?: string,
   ): InboundTrackingInfo | null {
     if (!trackingNumber || !trackingNumber.trim()) {
       return null;
@@ -252,12 +248,7 @@ export class InboundTrackingService {
     const trackingUrl = this.getTrackingPortalUrl(effectiveCarrier, trimmed);
 
     // Mock realistic checkpoints based on purchase date & status
-    const checkpoints = this.generateCheckpoints(
-      effectiveCarrier,
-      trimmed,
-      status,
-      purchaseDate
-    );
+    const checkpoints = this.generateCheckpoints(effectiveCarrier, trimmed, status, purchaseDate);
 
     return {
       carrier: effectiveCarrier,
@@ -268,9 +259,7 @@ export class InboundTrackingService {
       tracking_url: trackingUrl,
       estimated_delivery: status === 'delivered' ? null : 'Morgen, bis 14:00 Uhr',
       last_checkpoint:
-        checkpoints.length > 0
-          ? checkpoints[checkpoints.length - 1].description
-          : null,
+        checkpoints.length > 0 ? checkpoints[checkpoints.length - 1].description : null,
       checkpoints,
     };
   }
@@ -279,7 +268,7 @@ export class InboundTrackingService {
     carrier: TrackingCarrier,
     code: string,
     status: InboundTrackingStatus,
-    dateStr?: string
+    dateStr?: string,
   ): InboundTrackingCheckpoint[] {
     const baseDate = dateStr ? new Date(dateStr) : new Date();
     const cName = CARRIER_METAS[carrier]?.name || 'Paketdienst';
@@ -293,11 +282,7 @@ export class InboundTrackingService {
       },
     ];
 
-    if (
-      status === 'in_transit' ||
-      status === 'out_for_delivery' ||
-      status === 'delivered'
-    ) {
+    if (status === 'in_transit' || status === 'out_for_delivery' || status === 'delivered') {
       points.push({
         timestamp: new Date(baseDate.getTime() + 1000 * 60 * 60 * 14).toISOString(),
         status: 'in_transit',

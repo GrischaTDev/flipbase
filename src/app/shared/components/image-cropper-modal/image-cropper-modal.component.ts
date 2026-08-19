@@ -212,8 +212,8 @@ export class ImageCropperModalComponent {
       });
 
       this.close.emit();
-    } catch (err: any) {
-      this.errorMessage.set('Fehler bei der Bildkomprimierung: ' + (err?.message || err));
+    } catch (err: unknown) {
+      this.errorMessage.set('Fehler bei der Bildkomprimierung: ' + (err instanceof Error ? err.message : String(err)));
     } finally {
       this.isProcessing.set(false);
     }

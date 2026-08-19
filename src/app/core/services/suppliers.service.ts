@@ -2,6 +2,7 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
+import { SyncStatusService } from './sync-status.service';
 import { Supplier } from '../models/reflip.models';
 
 @Injectable({
@@ -9,6 +10,7 @@ import { Supplier } from '../models/reflip.models';
 })
 export class SuppliersService {
   private readonly supabase = inject(SupabaseService);
+  private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly mockStore = inject(MockDataStoreService);
 
@@ -16,6 +18,11 @@ export class SuppliersService {
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const currentWs = this.workspaceService.currentWorkspace();
@@ -25,7 +32,9 @@ export class SuppliersService {
           this.suppliers.set([]);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   async loadSuppliers(workspaceId: string): Promise<void> {
@@ -44,20 +53,24 @@ export class SuppliersService {
         .order('name', { ascending: true });
 
       if (error) {
-        console.error('Fehler beim Laden der Lieferanten aus Supabase:', error);
+        this.syncStatus.melde('Laden der Lieferanten', error);
         this.suppliers.set([]);
       } else if (data) {
         this.suppliers.set(data as Supplier[]);
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden der Lieferanten:', err);
+      this.syncStatus.melde('Laden der Lieferanten', err);
       this.suppliers.set([]);
     } finally {
       this.isLoading.set(false);
     }
   }
 
-  async createSupplier(name: string, contactInfo?: string, notes?: string): Promise<{ data: Supplier | null; error: Error | null }> {
+  async createSupplier(
+    name: string,
+    contactInfo?: string,
+    notes?: string,
+  ): Promise<{ data: Supplier | null; error: Error | null }> {
     const ws = this.workspaceService.currentWorkspace();
     if (!ws) return { data: null, error: new Error('Kein aktiver Workspace ausgewählt') };
 
@@ -74,23 +87,30 @@ export class SuppliersService {
 
     if (!this.mockStore.isDemoMode() && !ws.id.startsWith('demo-')) {
       try {
-        const { data: dbSup, error: dbError } = await this.supabase.client.from('suppliers').insert({
-          workspace_id: ws.id,
-          name: name.trim(),
-          contact_info: contactInfo?.trim() || null,
-          notes: notes?.trim() || null,
-        }).select().single();
+        const { data: dbSup, error: dbError } = await this.supabase.client
+          .from('suppliers')
+          .insert({
+            workspace_id: ws.id,
+            name: name.trim(),
+            contact_info: contactInfo?.trim() || null,
+            notes: notes?.trim() || null,
+          })
+          .select()
+          .single();
 
         if (dbError) {
-          console.error('Fehler beim Anlegen des Lieferanten in Supabase:', dbError);
+          return { data: null, error: this.syncStatus.melde('Anlegen des Lieferanten', dbError) };
         } else if (dbSup) {
           const finalSup: Supplier = { ...newSup, id: dbSup.id };
+          // Vorlaeufigen Eintrag entfernen, sonst bleibt er mit seiner
+          // Behelfs-Kennung im lokalen Spiegel liegen (Duplikat).
+          this.mockStore.deleteSupplier(newSup.id);
           this.mockStore.saveSupplier(finalSup);
           this.suppliers.update((list) => [finalSup, ...list.filter((s) => s.id !== newSup.id)]);
           return { data: finalSup, error: null };
         }
       } catch (e) {
-        console.error('Verbindungsfehler beim Anlegen des Lieferanten:', e);
+        return { data: null, error: this.syncStatus.melde('Anlegen des Lieferanten', e) };
       }
     }
 
@@ -101,13 +121,15 @@ export class SuppliersService {
     this.suppliers.update((list) => list.filter((s) => s.id !== supplierId));
     if (!this.mockStore.isDemoMode()) {
       try {
-        const { error } = await this.supabase.client.from('suppliers').delete().eq('id', supplierId);
+        const { error } = await this.supabase.client
+          .from('suppliers')
+          .delete()
+          .eq('id', supplierId);
         if (error) {
-          console.error('Fehler beim Löschen des Lieferanten in Supabase:', error);
-          return { error: new Error(error.message) };
+          return { error: this.syncStatus.melde('Löschen des Lieferanten', error) };
         }
-      } catch (e: any) {
-        console.error('Verbindungsfehler beim Löschen des Lieferanten:', e);
+      } catch (e: unknown) {
+        return { error: this.syncStatus.melde('Löschen des Lieferanten', e) };
       }
     }
     return { error: null };

@@ -1,11 +1,17 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
-import { PriceAlert, PricePoint, PriceTrackedItem, PriceTrend } from '../models/price-tracker.models';
+import {
+  PriceAlert,
+  PricePoint,
+  PriceTrackedItem,
+  PriceTrend,
+} from '../models/price-tracker.models';
 import { InventoryItem } from '../models/reflip.models';
 import { InventoryService } from './inventory.service';
 import { WorkspaceService } from './workspace.service';
 import { WebhookService } from './webhook.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
+import { Json } from '../models/supabase.types';
 
 const STORAGE_KEY_RADAR = 'reflip_price_radar_items';
 
@@ -24,18 +30,23 @@ export class PriceTrackerService {
   readonly lastScanTimestamp = signal<string>(new Date().toISOString());
 
   readonly activeAlertsCount = computed(
-    () => this.trackedItems().filter((item) => item.alertTriggered !== 'none').length
+    () => this.trackedItems().filter((item) => item.alertTriggered !== 'none').length,
   );
 
   readonly undercutCount = computed(
-    () => this.trackedItems().filter((item) => item.alertTriggered === 'undercut').length
+    () => this.trackedItems().filter((item) => item.alertTriggered === 'undercut').length,
   );
 
   readonly surgeCount = computed(
-    () => this.trackedItems().filter((item) => item.alertTriggered === 'price_surge').length
+    () => this.trackedItems().filter((item) => item.alertTriggered === 'price_surge').length,
   );
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
@@ -43,7 +54,9 @@ export class PriceTrackerService {
           this.loadFromSupabase(ws.id);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   private loadPersistedItems(): PriceTrackedItem[] {
@@ -265,7 +278,7 @@ export class PriceTrackerService {
         price_difference_percent: newItem.priceDifferencePercent,
         alert_triggered: newItem.alertTriggered,
         is_tracking_active: newItem.isTrackingActive,
-        price_history: newItem.priceHistory as any,
+        price_history: newItem.priceHistory as unknown as Json,
       });
     }
 
@@ -288,9 +301,13 @@ export class PriceTrackerService {
         if (!it.isTrackingActive) return it;
 
         const randomFactor = (Math.random() - 0.48) * 0.08;
-        const newAvg = Number(Math.max(10, it.currentMarketAverage * (1 + randomFactor)).toFixed(2));
+        const newAvg = Number(
+          Math.max(10, it.currentMarketAverage * (1 + randomFactor)).toFixed(2),
+        );
         const newLowest = Number(Math.max(8, newAvg * 0.9).toFixed(2));
-        const diffPercent = Number((((newLowest - it.currentOurPrice) / it.currentOurPrice) * 100).toFixed(1));
+        const diffPercent = Number(
+          (((newLowest - it.currentOurPrice) / it.currentOurPrice) * 100).toFixed(1),
+        );
 
         let trend: PriceTrend = 'stable';
         if (diffPercent < -8) trend = 'falling';
@@ -322,7 +339,7 @@ export class PriceTrackerService {
           lastCheckedAt: nowStr,
           priceHistory: history.slice(-10),
         };
-      })
+      }),
     );
 
     this.persistItems();
@@ -333,10 +350,13 @@ export class PriceTrackerService {
     if (undercuts.length > 0) {
       const topUndercut = undercuts[0];
       if (this.webPushService) {
-        this.webPushService.sendNotification(`Preis-Alarm: ${topUndercut.title.substring(0, 30)}...`, {
-          body: `Konkurrenz bietet für ${topUndercut.currentMarketLowest.toFixed(2)} € an (Dein Preis: ${topUndercut.currentOurPrice.toFixed(2)} €).`,
-          tag: `radar-alert-${topUndercut.id}`,
-        });
+        this.webPushService.sendNotification(
+          `Preis-Alarm: ${topUndercut.title.substring(0, 30)}...`,
+          {
+            body: `Konkurrenz bietet für ${topUndercut.currentMarketLowest.toFixed(2)} € an (Dein Preis: ${topUndercut.currentOurPrice.toFixed(2)} €).`,
+            tag: `radar-alert-${topUndercut.id}`,
+          },
+        );
       }
       if (this.webhookService) {
         this.webhookService.addNotification({
@@ -364,10 +384,12 @@ export class PriceTrackerService {
               ...t,
               currentOurPrice: newPrice,
               alertTriggered: 'none',
-              priceDifferencePercent: Number((((t.currentMarketLowest - newPrice) / newPrice) * 100).toFixed(1)),
+              priceDifferencePercent: Number(
+                (((t.currentMarketLowest - newPrice) / newPrice) * 100).toFixed(1),
+              ),
             }
-          : t
-      )
+          : t,
+      ),
     );
     this.persistItems();
 
@@ -382,7 +404,7 @@ export class PriceTrackerService {
 
   toggleTracking(itemId: string): void {
     this.trackedItems.update((list) =>
-      list.map((t) => (t.id === itemId ? { ...t, isTrackingActive: !t.isTrackingActive } : t))
+      list.map((t) => (t.id === itemId ? { ...t, isTrackingActive: !t.isTrackingActive } : t)),
     );
     this.persistItems();
   }

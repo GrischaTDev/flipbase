@@ -2,6 +2,7 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { AuthService } from './auth.service';
 import { MockDataStoreService } from './mock-data-store.service';
+import { SyncStatusService } from './sync-status.service';
 import {
   ConsolidatedHoldingSummary,
   InventoryItem,
@@ -18,6 +19,7 @@ const ACTIVE_WORKSPACE_KEY = 'reflip_active_workspace_id';
 })
 export class WorkspaceService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly syncStatus = inject(SyncStatusService, { optional: true })!;
   private readonly auth = inject(AuthService, { optional: true });
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
 
@@ -51,14 +53,23 @@ export class WorkspaceService {
     },
   ];
 
-  readonly workspaces = signal<Workspace[]>(this.defaultWorkspaces);
-  readonly currentWorkspace = signal<Workspace | null>(this.defaultWorkspaces[0]);
+  // Bewusst leer starten. Zuvor standen hier die Mock-Workspaces, wodurch alle
+  // abhaengigen Effects sofort mit der Kennung "ws-1" feuerten und die Datenbank
+  // mit einer ungueltigen UUID abfragten (22P02). Die echten Workspaces setzt
+  // der Effect unten, sobald die Anmeldung steht.
+  readonly workspaces = signal<Workspace[]>([]);
+  readonly currentWorkspace = signal<Workspace | null>(null);
   readonly isLoading = signal<boolean>(false);
 
   // Holding consolidation mode toggle (across all tenant workspaces)
   readonly isHoldingConsolidatedMode = signal<boolean>(false);
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const isAuth = this.auth?.isAuthenticated();
@@ -74,7 +85,9 @@ export class WorkspaceService {
           this.currentWorkspace.set(null);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   async loadWorkspaces(): Promise<void> {
@@ -92,7 +105,7 @@ export class WorkspaceService {
         .order('created_at', { ascending: true });
 
       if (error) {
-        console.error('Fehler beim Laden der Workspaces aus Supabase:', error);
+        this.syncStatus.melde('Laden der Workspaces', error);
         this.workspaces.set([]);
         this.currentWorkspace.set(null);
       } else if (data && data.length > 0) {
@@ -113,7 +126,7 @@ export class WorkspaceService {
         this.currentWorkspace.set(null);
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden der Workspaces:', err);
+      this.syncStatus.melde('Laden der Workspaces', err);
       this.workspaces.set([]);
       this.currentWorkspace.set(null);
     } finally {
@@ -147,7 +160,13 @@ export class WorkspaceService {
 
   async updateWorkspaceSettings(
     workspaceId: string,
-    updates: { min_roi_percent?: number; min_profit_amount?: number; name?: string; currency?: string; tax_mode?: any }
+    updates: {
+      min_roi_percent?: number;
+      min_profit_amount?: number;
+      name?: string;
+      currency?: string;
+      tax_mode?: any;
+    },
   ): Promise<{ error: Error | null }> {
     const currentList = this.workspaces();
     const updatedList = currentList.map((w) => (w.id === workspaceId ? { ...w, ...updates } : w));
@@ -174,11 +193,10 @@ export class WorkspaceService {
           .eq('id', workspaceId);
 
         if (error) {
-          console.error('Fehler beim Aktualisieren des Workspace in Supabase:', error);
-          return { error: new Error(error.message) };
+          return { error: this.syncStatus.melde('Aktualisieren des Workspace', error) };
         }
-      } catch (err: any) {
-        console.error('Verbindungsfehler beim Aktualisieren des Workspace:', err);
+      } catch (err: unknown) {
+        return { error: this.syncStatus.melde('Aktualisieren des Workspace', err) };
       }
     }
 
@@ -203,7 +221,10 @@ export class WorkspaceService {
         });
 
         if (error) {
-          console.error('Fehler beim Erstellen des Workspace über RPC:', error);
+          return {
+            data: null,
+            error: this.syncStatus.melde('Erstellen des Workspace über RPC', error),
+          };
         } else if (newId) {
           const dbWs: Workspace = { ...newWs, id: newId };
           this.workspaces.update((list) => [...list, dbWs]);
@@ -211,8 +232,8 @@ export class WorkspaceService {
           this.setCurrentWorkspace(dbWs);
           return { data: dbWs, error: null };
         }
-      } catch (err: any) {
-        console.error('Verbindungsfehler beim Erstellen des Workspace:', err);
+      } catch (err: unknown) {
+        return { data: null, error: this.syncStatus.melde('Erstellen des Workspace', err) };
       }
     }
 
@@ -237,12 +258,15 @@ export class WorkspaceService {
 
     if (this.supabase && this.auth?.isAuthenticated() && !this.auth.isDemoMode()) {
       try {
-        const { error } = await this.supabase.client.from('workspaces').delete().eq('id', workspaceId);
+        const { error } = await this.supabase.client
+          .from('workspaces')
+          .delete()
+          .eq('id', workspaceId);
         if (error) {
-          console.error('Fehler beim Löschen des Workspace in Supabase:', error);
+          this.syncStatus.melde('Löschen des Workspace', error);
         }
       } catch (err) {
-        console.error('Verbindungsfehler beim Löschen des Workspace:', err);
+        this.syncStatus.melde('Löschen des Workspace', err);
       }
     }
 
@@ -255,23 +279,33 @@ export class WorkspaceService {
   getConsolidatedHoldingSummary(
     sales: Sale[] = [],
     purchases: Purchase[] = [],
-    items: InventoryItem[] = []
+    items: InventoryItem[] = [],
   ): ConsolidatedHoldingSummary {
     const wsList = this.workspaces();
 
     const summaries: WorkspaceSummary[] = wsList.map((ws) => {
-      const wsItems = items.filter((i) => !i.workspace_id || i.workspace_id === ws.id || ws.id === 'ws-1');
-      const wsPurchases = purchases.filter((p) => !p.workspace_id || p.workspace_id === ws.id || ws.id === 'ws-1');
-      const wsSales = sales.filter((s) => !s.workspace_id || s.workspace_id === ws.id || ws.id === 'ws-1');
+      const wsItems = items.filter(
+        (i) => !i.workspace_id || i.workspace_id === ws.id || ws.id === 'ws-1',
+      );
+      const wsPurchases = purchases.filter(
+        (p) => !p.workspace_id || p.workspace_id === ws.id || ws.id === 'ws-1',
+      );
+      const wsSales = sales.filter(
+        (s) => !s.workspace_id || s.workspace_id === ws.id || ws.id === 'ws-1',
+      );
 
       const invVal = wsItems
         .filter((i) => i.status !== 'sold' && i.status !== 'returned' && i.status !== 'archived')
         .reduce((sum, i) => sum + (i.allocated_purchase_cost || 0), 0);
 
-      const invested = wsPurchases.reduce((sum, p) => sum + (p.purchase_price || 0) + (p.shipping_cost || 0), 0);
+      const invested = wsPurchases.reduce(
+        (sum, p) => sum + (p.purchase_price || 0) + (p.shipping_cost || 0),
+        0,
+      );
       const revenue = wsSales.reduce((sum, s) => sum + (s.sale_price || 0), 0);
       const profit = wsSales.reduce((sum, s) => sum + (s.net_profit || 0), 0);
-      const avgRoi = wsSales.length > 0 ? wsSales.reduce((sum, s) => sum + (s.roi || 0), 0) / wsSales.length : 0;
+      const avgRoi =
+        wsSales.length > 0 ? wsSales.reduce((sum, s) => sum + (s.roi || 0), 0) / wsSales.length : 0;
 
       return {
         workspace: ws,
@@ -292,7 +326,8 @@ export class WorkspaceService {
     const totalCapitalInvested = summaries.reduce((sum, s) => sum + s.totalInvested, 0);
     const totalRevenue = summaries.reduce((sum, s) => sum + s.totalRevenue, 0);
     const totalNetProfit = summaries.reduce((sum, s) => sum + s.totalProfit, 0);
-    const averageRoi = summaries.length > 0 ? summaries.reduce((sum, s) => sum + s.roi, 0) / summaries.length : 0;
+    const averageRoi =
+      summaries.length > 0 ? summaries.reduce((sum, s) => sum + s.roi, 0) / summaries.length : 0;
 
     return {
       workspacesCount: wsList.length,

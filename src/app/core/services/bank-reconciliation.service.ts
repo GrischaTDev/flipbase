@@ -149,7 +149,12 @@ export class BankReconciliationService {
       if (fileName.endsWith('.xml') || text.includes('<?xml') || text.includes('<Document')) {
         format = 'camt053';
         parsed = this.parseCamt053Xml(text);
-      } else if (fileName.endsWith('.sta') || fileName.endsWith('.940') || text.includes(':20:') || text.includes(':61:')) {
+      } else if (
+        fileName.endsWith('.sta') ||
+        fileName.endsWith('.940') ||
+        text.includes(':20:') ||
+        text.includes(':61:')
+      ) {
         format = 'mt940';
         parsed = this.parseMt940(text);
       } else {
@@ -195,7 +200,7 @@ export class BankReconciliationService {
         matchedCount,
         message: `${matched.length} Transaktionen (${format.toUpperCase()}) erfolgreich importiert und abgeglichen.`,
       };
-    } catch (err: any) {
+    } catch (err: unknown) {
       return {
         success: false,
         formatDetected: 'csv_auto',
@@ -204,7 +209,7 @@ export class BankReconciliationService {
         totalIncome: 0,
         totalExpense: 0,
         matchedCount: 0,
-        message: 'Fehler beim Lesen der Bankdatei: ' + (err?.message || 'Unbekanntes Format'),
+        message: 'Fehler beim Lesen der Bankdatei: ' + (err instanceof Error ? err.message : 'Unbekanntes Format'),
       };
     } finally {
       this.isProcessing.set(false);
@@ -229,11 +234,36 @@ export class BankReconciliationService {
     const headers = this.parseCsvLine(lines[0], delimiter).map((h) => h.toLowerCase().trim());
 
     // Detect column indexes
-    let dateIdx = headers.findIndex((h) => h.includes('datum') || h.includes('buchungstag') || h.includes('wertstellung') || h.includes('date'));
-    let purposeIdx = headers.findIndex((h) => h.includes('verwendungszweck') || h.includes('buchungstext') || h.includes('beschreibung') || h.includes('description') || h.includes('details'));
-    let nameIdx = headers.findIndex((h) => h.includes('beguenstigter') || h.includes('begünstigter') || h.includes('zahlungsempfänger') || h.includes('zahlungspflichtiger') || h.includes('auftraggeber') || h.includes('name') || h.includes('partner'));
+    let dateIdx = headers.findIndex(
+      (h) =>
+        h.includes('datum') ||
+        h.includes('buchungstag') ||
+        h.includes('wertstellung') ||
+        h.includes('date'),
+    );
+    let purposeIdx = headers.findIndex(
+      (h) =>
+        h.includes('verwendungszweck') ||
+        h.includes('buchungstext') ||
+        h.includes('beschreibung') ||
+        h.includes('description') ||
+        h.includes('details'),
+    );
+    let nameIdx = headers.findIndex(
+      (h) =>
+        h.includes('beguenstigter') ||
+        h.includes('begünstigter') ||
+        h.includes('zahlungsempfänger') ||
+        h.includes('zahlungspflichtiger') ||
+        h.includes('auftraggeber') ||
+        h.includes('name') ||
+        h.includes('partner'),
+    );
     let ibanIdx = headers.findIndex((h) => h.includes('iban') || h.includes('kontonummer'));
-    let amountIdx = headers.findIndex((h) => h.includes('betrag') || h.includes('umsatz') || h.includes('amount') || h.includes('wert'));
+    let amountIdx = headers.findIndex(
+      (h) =>
+        h.includes('betrag') || h.includes('umsatz') || h.includes('amount') || h.includes('wert'),
+    );
 
     // Fallbacks if header matching fails
     if (dateIdx === -1) dateIdx = 0;
@@ -312,7 +342,10 @@ export class BankReconciliationService {
 
       const tag86Idx = block.indexOf(':86:');
       if (tag86Idx !== -1) {
-        const raw86 = block.substring(tag86Idx + 4).replace(/\r?\n/g, ' ').trim();
+        const raw86 = block
+          .substring(tag86Idx + 4)
+          .replace(/\r?\n/g, ' ')
+          .trim();
         purpose = raw86;
 
         // Try extracting sub-tags (e.g. ?20, ?32)
@@ -364,8 +397,12 @@ export class BankReconciliationService {
         const currency = amtElement?.getAttribute('Ccy') || 'EUR';
 
         // Counterparty & Purpose
-        const dbtrNm = ntry.getElementsByTagName('Dbtr')[0]?.getElementsByTagName('Nm')[0]?.textContent;
-        const cdtrNm = ntry.getElementsByTagName('Cdtr')[0]?.getElementsByTagName('Nm')[0]?.textContent;
+        const dbtrNm = ntry
+          .getElementsByTagName('Dbtr')[0]
+          ?.getElementsByTagName('Nm')[0]?.textContent;
+        const cdtrNm = ntry
+          .getElementsByTagName('Cdtr')[0]
+          ?.getElementsByTagName('Nm')[0]?.textContent;
         const counterpartyName = (amount > 0 ? dbtrNm : cdtrNm) || 'Bankkunde';
 
         const iban = ntry.getElementsByTagName('IBAN')[0]?.textContent;
@@ -425,7 +462,11 @@ export class BankReconciliationService {
         }
 
         // High Confidence: Customer Last Name + Exact Amount
-        if (custLastLower.length > 2 && (purposeLower.includes(custLastLower) || counterpartyLower.includes(custLastLower)) && isExactAmount) {
+        if (
+          custLastLower.length > 2 &&
+          (purposeLower.includes(custLastLower) || counterpartyLower.includes(custLastLower)) &&
+          isExactAmount
+        ) {
           return {
             ...tx,
             status: ord.paymentStatus === 'paid' ? 'booked' : 'matched',
@@ -498,7 +539,10 @@ export class BankReconciliationService {
         const batchNameLower = (pur.title || '').toLowerCase();
         const sellerLower = (pur.supplier?.name || pur.source?.name || '').toLowerCase();
 
-        if ((purposeLower.includes(batchNameLower) || counterpartyLower.includes(sellerLower)) && isExactCost) {
+        if (
+          (purposeLower.includes(batchNameLower) || counterpartyLower.includes(sellerLower)) &&
+          isExactCost
+        ) {
           return {
             ...tx,
             status: 'matched',
@@ -536,7 +580,11 @@ export class BankReconciliationService {
       }
 
       // Check Operating Expenses (DHL Paketmarken, eBay Gebühren, Verpackung)
-      if (purposeLower.includes('dhl') || counterpartyLower.includes('dhl') || purposeLower.includes('hermes')) {
+      if (
+        purposeLower.includes('dhl') ||
+        counterpartyLower.includes('dhl') ||
+        purposeLower.includes('hermes')
+      ) {
         return {
           ...tx,
           status: 'matched',
@@ -592,7 +640,7 @@ export class BankReconciliationService {
     if (tx.match.targetType === 'store_order' && tx.match.order) {
       const order = tx.match.order;
       this.storeService.orders.update((orders) =>
-        orders.map((o) => (o.id === order.id ? { ...o, paymentStatus: 'paid' as const } : o))
+        orders.map((o) => (o.id === order.id ? { ...o, paymentStatus: 'paid' as const } : o)),
       );
 
       // Also ensure § 25a invoice exists
@@ -605,7 +653,7 @@ export class BankReconciliationService {
 
     const now = new Date().toISOString();
     this.transactions.update((all) =>
-      all.map((t) => (t.id === txId ? { ...t, status: 'booked' as const, bookedAt: now } : t))
+      all.map((t) => (t.id === txId ? { ...t, status: 'booked' as const, bookedAt: now } : t)),
     );
     this.persistTransactions();
 
@@ -620,7 +668,9 @@ export class BankReconciliationService {
    */
   async bookAllExactMatches(): Promise<{ bookedCount: number; message: string }> {
     const list = this.transactions();
-    const toBook = list.filter((t) => t.status === 'matched' && t.match && t.match.confidence >= 90);
+    const toBook = list.filter(
+      (t) => t.status === 'matched' && t.match && t.match.confidence >= 90,
+    );
 
     for (const tx of toBook) {
       await this.bookTransaction(tx.id);
@@ -644,8 +694,8 @@ export class BankReconciliationService {
               status: 'matched' as const,
               match: { ...match, confidence: 100, confidenceLabel: 'manual' as const },
             }
-          : t
-      )
+          : t,
+      ),
     );
     this.persistTransactions();
   }
@@ -655,7 +705,7 @@ export class BankReconciliationService {
    */
   ignoreTransaction(txId: string): void {
     this.transactions.update((list) =>
-      list.map((t) => (t.id === txId ? { ...t, status: 'ignored' as const } : t))
+      list.map((t) => (t.id === txId ? { ...t, status: 'ignored' as const } : t)),
     );
     this.persistTransactions();
   }
@@ -681,9 +731,13 @@ export class BankReconciliationService {
       {
         id: 'tx-demo-1',
         bookingDate: '2026-08-16',
-        counterpartyName: firstOrder ? `${firstOrder.customer.firstName} ${firstOrder.customer.lastName}` : 'Maximilian Weber',
+        counterpartyName: firstOrder
+          ? `${firstOrder.customer.firstName} ${firstOrder.customer.lastName}`
+          : 'Maximilian Weber',
         counterpartyIban: 'DE89 1005 0000 1234 5678 90',
-        purpose: firstOrder ? `Bestellung ${firstOrder.orderNumber} Webshop Einkauf` : 'Bestellung ORD-748291 Webshop Einkauf',
+        purpose: firstOrder
+          ? `Bestellung ${firstOrder.orderNumber} Webshop Einkauf`
+          : 'Bestellung ORD-748291 Webshop Einkauf',
         amount: firstOrder ? firstOrder.total : 149.99,
         currency: 'EUR',
         sourceFormat: 'csv_sparkasse',
@@ -793,9 +847,7 @@ export class BankReconciliationService {
   }
 
   private normalizeAmount(amountStr: string): number {
-    const clean = amountStr
-      .replace(/['"€\s]/g, '')
-      .trim();
+    const clean = amountStr.replace(/['"€\s]/g, '').trim();
 
     // Check if format is German: 1.234,56
     if (clean.includes(',') && !clean.includes('.')) {

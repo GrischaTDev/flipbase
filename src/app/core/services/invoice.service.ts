@@ -4,6 +4,7 @@ import { SupabaseService } from './supabase.service';
 import { InventoryItem, Sale, TaxMode } from '../models/reflip.models';
 import { StoreOrder } from '../models/store.models';
 import { EmailConfirmation, Invoice, InvoiceItem, InvoiceParty } from '../models/invoice.models';
+import { Json } from '../models/supabase.types';
 
 const STORAGE_KEY_INVOICES = 'reflip_generated_invoices';
 const STORAGE_KEY_EMAILS = 'reflip_sent_emails';
@@ -23,6 +24,11 @@ export class InvoiceService {
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
@@ -30,7 +36,9 @@ export class InvoiceService {
           this.loadFromSupabase(ws.id);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   private loadInvoices(): Invoice[] {
@@ -77,10 +85,12 @@ export class InvoiceService {
       const [invRes, emailRes] = await Promise.all([
         this.supabase.client
           .from('invoices')
-          .select(`
+          .select(
+            `
             *,
             items:invoice_items(*)
-          `)
+          `,
+          )
           .eq('workspace_id', workspaceId)
           .order('invoice_date', { ascending: false }),
         this.supabase.client
@@ -98,7 +108,13 @@ export class InvoiceService {
           invoiceDate: inv.invoice_date,
           deliveryDate: inv.delivery_date,
           seller: (inv.seller as InvoiceParty) || this.getSellerParty(),
-          buyer: (inv.buyer as InvoiceParty) || { name: 'Kunde', street: '', postalCode: '', city: '', country: 'Deutschland' },
+          buyer: (inv.buyer as InvoiceParty) || {
+            name: 'Kunde',
+            street: '',
+            postalCode: '',
+            city: '',
+            country: 'Deutschland',
+          },
           items: ((inv.items || []) as unknown[]).map((it: any) => ({
             sku: it.sku || undefined,
             title: it.title,
@@ -180,12 +196,14 @@ export class InvoiceService {
   generateInvoiceForSale(
     sale: Sale,
     item?: InventoryItem,
-    buyerInfo?: Partial<InvoiceParty>
+    buyerInfo?: Partial<InvoiceParty>,
   ): Invoice {
     const ws = this.workspaceService?.currentWorkspace();
     const taxMode: TaxMode = item?.tax_mode_override || ws?.tax_mode || 'diff_25a';
-    const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
-    const orderNumber = sale.external_order_id || 'ORD-' + Math.floor(100000 + Math.random() * 900000);
+    const invoiceNumber =
+      'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
+    const orderNumber =
+      sale.external_order_id || 'ORD-' + Math.floor(100000 + Math.random() * 900000);
     const salePrice = sale.sale_price;
     const shippingCost = sale.shipping_cost || 0;
     const total = salePrice;
@@ -232,36 +250,41 @@ export class InvoiceService {
 
     // Persist to Supabase
     if (this.supabase && ws && !ws.id.startsWith('demo-')) {
-      this.supabase.client.from('invoices').insert({
-        workspace_id: ws.id,
-        invoice_number: invoice.invoiceNumber,
-        order_number: invoice.orderNumber,
-        invoice_date: invoice.invoiceDate,
-        delivery_date: invoice.deliveryDate,
-        seller: invoice.seller as any,
-        buyer: invoice.buyer as any,
-        subtotal: invoice.subtotal,
-        shipping_cost: invoice.shippingCost,
-        total: invoice.total,
-        tax_mode: invoice.taxMode,
-        tax_clause: invoice.taxClause,
-        payment_method: invoice.paymentMethod,
-        payment_status: invoice.paymentStatus,
-        notes: invoice.notes,
-      }).select().single().then(({ data: dbInv }) => {
-        if (dbInv) {
-          const itemInserts = invoice.items.map((it) => ({
-            invoice_id: dbInv.id,
-            sku: it.sku || null,
-            title: it.title,
-            condition: it.condition || null,
-            quantity: it.quantity,
-            unit_price: it.unitPrice,
-            total_price: it.totalPrice,
-          }));
-          this.supabase?.client.from('invoice_items').insert(itemInserts);
-        }
-      });
+      this.supabase.client
+        .from('invoices')
+        .insert({
+          workspace_id: ws.id,
+          invoice_number: invoice.invoiceNumber,
+          order_number: invoice.orderNumber,
+          invoice_date: invoice.invoiceDate,
+          delivery_date: invoice.deliveryDate,
+          seller: invoice.seller as unknown as Json,
+          buyer: invoice.buyer as unknown as Json,
+          subtotal: invoice.subtotal,
+          shipping_cost: invoice.shippingCost,
+          total: invoice.total,
+          tax_mode: invoice.taxMode,
+          tax_clause: invoice.taxClause,
+          payment_method: invoice.paymentMethod,
+          payment_status: invoice.paymentStatus,
+          notes: invoice.notes,
+        })
+        .select()
+        .single()
+        .then(({ data: dbInv }) => {
+          if (dbInv) {
+            const itemInserts = invoice.items.map((it) => ({
+              invoice_id: dbInv.id,
+              sku: it.sku || null,
+              title: it.title,
+              condition: it.condition || null,
+              quantity: it.quantity,
+              unit_price: it.unitPrice,
+              total_price: it.totalPrice,
+            }));
+            this.supabase?.client.from('invoice_items').insert(itemInserts);
+          }
+        });
     }
 
     return invoice;
@@ -272,7 +295,8 @@ export class InvoiceService {
    */
   generateInvoiceForOrder(order: StoreOrder): Invoice {
     const ws = this.workspaceService?.currentWorkspace();
-    const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
+    const invoiceNumber =
+      'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
     const taxMode: TaxMode = 'diff_25a';
 
     const invoiceItems: InvoiceItem[] = order.items.map((cartItem) => {
@@ -313,10 +337,10 @@ export class InvoiceService {
         order.paymentMethod === 'stripe_card'
           ? 'Kreditkarte (Stripe)'
           : order.paymentMethod === 'paypal'
-          ? 'PayPal Express'
-          : order.paymentMethod === 'bank_transfer'
-          ? 'Banküberweisung (SEPA)'
-          : 'Barzahlung bei Abholung',
+            ? 'PayPal Express'
+            : order.paymentMethod === 'bank_transfer'
+              ? 'Banküberweisung (SEPA)'
+              : 'Barzahlung bei Abholung',
       paymentStatus: order.paymentStatus === 'paid' ? 'paid' : 'pending',
       paymentDueDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
       notes: order.customer.notes || 'Vielen Dank für Ihre Bestellung im ReFlip Webshop!',
@@ -327,37 +351,42 @@ export class InvoiceService {
 
     // Persist to Supabase
     if (this.supabase && ws && !ws.id.startsWith('demo-')) {
-      this.supabase.client.from('invoices').insert({
-        workspace_id: ws.id,
-        invoice_number: invoice.invoiceNumber,
-        order_number: invoice.orderNumber,
-        invoice_date: invoice.invoiceDate,
-        delivery_date: invoice.deliveryDate,
-        seller: invoice.seller as any,
-        buyer: invoice.buyer as any,
-        subtotal: invoice.subtotal,
-        shipping_cost: invoice.shippingCost,
-        total: invoice.total,
-        tax_mode: invoice.taxMode,
-        tax_clause: invoice.taxClause,
-        payment_method: invoice.paymentMethod,
-        payment_status: invoice.paymentStatus,
-        payment_due_date: invoice.paymentDueDate,
-        notes: invoice.notes,
-      }).select().single().then(({ data: dbInv }) => {
-        if (dbInv) {
-          const itemInserts = invoice.items.map((it) => ({
-            invoice_id: dbInv.id,
-            sku: it.sku || null,
-            title: it.title,
-            condition: it.condition || null,
-            quantity: it.quantity,
-            unit_price: it.unitPrice,
-            total_price: it.totalPrice,
-          }));
-          this.supabase?.client.from('invoice_items').insert(itemInserts);
-        }
-      });
+      this.supabase.client
+        .from('invoices')
+        .insert({
+          workspace_id: ws.id,
+          invoice_number: invoice.invoiceNumber,
+          order_number: invoice.orderNumber,
+          invoice_date: invoice.invoiceDate,
+          delivery_date: invoice.deliveryDate,
+          seller: invoice.seller as unknown as Json,
+          buyer: invoice.buyer as unknown as Json,
+          subtotal: invoice.subtotal,
+          shipping_cost: invoice.shippingCost,
+          total: invoice.total,
+          tax_mode: invoice.taxMode,
+          tax_clause: invoice.taxClause,
+          payment_method: invoice.paymentMethod,
+          payment_status: invoice.paymentStatus,
+          payment_due_date: invoice.paymentDueDate,
+          notes: invoice.notes,
+        })
+        .select()
+        .single()
+        .then(({ data: dbInv }) => {
+          if (dbInv) {
+            const itemInserts = invoice.items.map((it) => ({
+              invoice_id: dbInv.id,
+              sku: it.sku || null,
+              title: it.title,
+              condition: it.condition || null,
+              quantity: it.quantity,
+              unit_price: it.unitPrice,
+              total_price: it.totalPrice,
+            }));
+            this.supabase?.client.from('invoice_items').insert(itemInserts);
+          }
+        });
     }
 
     return invoice;
@@ -368,7 +397,7 @@ export class InvoiceService {
    */
   async sendConfirmationEmail(
     invoice: Invoice,
-    trackingUrl?: string
+    trackingUrl?: string,
   ): Promise<{ success: boolean; message: string }> {
     const ws = this.workspaceService?.currentWorkspace();
     await new Promise((res) => setTimeout(res, 300));

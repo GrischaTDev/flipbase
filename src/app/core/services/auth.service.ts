@@ -50,7 +50,7 @@ export class AuthService {
 
   /** Zugriffsrecht auf die Anwendung: echte Anmeldung oder gewählter Demo-Modus. */
   readonly canAccessApp = computed<boolean>(
-    () => this.isAuthenticated() || (this.isDemoModeAllowed && this.isDemoMode())
+    () => this.isAuthenticated() || (this.isDemoModeAllowed && this.isDemoMode()),
   );
 
   readonly userEmail = computed<string>(() => {
@@ -76,6 +76,9 @@ export class AuthService {
 
   constructor() {
     this.mockStore.isDemoMode.set(this.isDemoMode());
+    if (this.isDemoMode()) {
+      this.mockStore.ensureShowcaseData();
+    }
     this.sessionReady = this.initAuth();
     this.watchAuthState();
   }
@@ -143,19 +146,31 @@ export class AuthService {
     }
   }
 
-  private mapAuthErrorToGerman(error: any): Error {
-    const msg = error?.message || '';
+  /** Uebersetzt die englischen Meldungen von Supabase in verstaendliches Deutsch. */
+  private mapAuthErrorToGerman(error: unknown): Error {
+    const msg = error instanceof Error ? error.message : String(error ?? '');
     if (msg.includes('Invalid login credentials')) {
-      return new Error('E-Mail-Adresse oder Passwort ist nicht korrekt oder das Konto existiert noch nicht. Bitte registriere dich zuerst neu.');
+      return new Error(
+        'E-Mail-Adresse oder Passwort ist nicht korrekt oder das Konto existiert noch nicht. Bitte registriere dich zuerst neu.',
+      );
     }
-    if (msg.includes('Failed to fetch') || msg.includes('fetch') || msg.includes('network') || msg.includes('NetworkError')) {
-      return new Error('Verbindung zum Server fehlgeschlagen. Bitte prüfe deine Internetverbindung oder starte den Datenbank-Dienst.');
+    if (
+      msg.includes('Failed to fetch') ||
+      msg.includes('fetch') ||
+      msg.includes('network') ||
+      msg.includes('NetworkError')
+    ) {
+      return new Error(
+        'Verbindung zum Server fehlgeschlagen. Bitte prüfe deine Internetverbindung oder starte den Datenbank-Dienst.',
+      );
     }
     if (msg.includes('User already registered') || msg.includes('already registered')) {
-      return new Error('Ein Konto mit dieser E-Mail-Adresse existiert bereits. Bitte melde dich an.');
+      return new Error(
+        'Ein Konto mit dieser E-Mail-Adresse existiert bereits. Bitte melde dich an.',
+      );
     }
     if (msg.includes('Password should be at least')) {
-      return new Error('Das Passwort ist zu kurz. Bitte verwende mindestens 6 Zeichen.');
+      return new Error('Das Passwort ist zu kurz. Bitte verwende mindestens 10 Zeichen.');
     }
     if (msg.includes('Email not confirmed')) {
       return new Error('Die E-Mail-Adresse wurde noch nicht bestätigt.');
@@ -187,7 +202,7 @@ export class AuthService {
       this.applySession(data.session);
       await this.loadProfile(data.user.id);
       return { error: null };
-    } catch (err: any) {
+    } catch (err: unknown) {
       return {
         error: this.mapAuthErrorToGerman(err),
       };
@@ -196,7 +211,11 @@ export class AuthService {
     }
   }
 
-  async signUp(email: string, password: string, fullName: string): Promise<{ error: Error | null }> {
+  async signUp(
+    email: string,
+    password: string,
+    fullName: string,
+  ): Promise<{ error: Error | null }> {
     this.isLoading.set(true);
     try {
       const { data, error } = await this.supabase.client.auth.signUp({
@@ -214,7 +233,7 @@ export class AuthService {
         this.applySession(data.session);
       }
       return { error: null };
-    } catch (err: any) {
+    } catch (err: unknown) {
       return {
         error: this.mapAuthErrorToGerman(err),
       };
@@ -244,8 +263,11 @@ export class AuthService {
   /** Startet den Demo-Modus als bewusste Entscheidung des Nutzers. */
   enterDemoMode(): void {
     if (!this.isDemoModeAllowed) return;
-    this.mockStore.resetToDemoShowcase();
     this.setDemoMode(true);
+    // Nur ergaenzen, nicht ueberschreiben: Zuvor wurde hier der komplette
+    // lokale Bestand ersetzt - wer als echter Nutzer versehentlich auf
+    // "Demo-Modus starten" klickte, verlor seine lokalen Daten.
+    this.mockStore.ensureShowcaseData();
     this.router.navigate(['/dashboard']);
   }
 

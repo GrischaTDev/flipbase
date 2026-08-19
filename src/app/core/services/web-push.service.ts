@@ -87,7 +87,10 @@ export class WebPushService {
   /**
    * Displays a browser push notification if permitted and plays sound.
    */
-  sendNotification(title: string, options?: { body?: string; icon?: string; badge?: string; tag?: string }): boolean {
+  sendNotification(
+    title: string,
+    options?: { body?: string; icon?: string; badge?: string; tag?: string },
+  ): boolean {
     const currentPerm = this.permission();
     const cfg = this.settings();
 

@@ -5,6 +5,7 @@ import { WorkspaceService } from './workspace.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
 import { InventoryItem } from '../models/reflip.models';
+import { Json } from '../models/supabase.types';
 import {
   CartItem,
   CheckoutCustomerInfo,
@@ -93,6 +94,11 @@ export class StoreService {
 
   constructor() {
     this.loadPersistedStoreData();
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
@@ -100,7 +106,9 @@ export class StoreService {
           this.loadFromSupabase(ws.id);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   private loadPersistedStoreData(): void {
@@ -142,10 +150,12 @@ export class StoreService {
           .maybeSingle(),
         this.supabase.client
           .from('store_orders')
-          .select(`
+          .select(
+            `
             *,
             items:store_order_items(*)
-          `)
+          `,
+          )
           .eq('workspace_id', workspaceId)
           .order('created_at', { ascending: false }),
       ]);
@@ -158,7 +168,8 @@ export class StoreService {
           shippingFlatRate: Number(d.shipping_flat_rate || 4.99),
           freeShippingThreshold: Number(d.free_shipping_threshold || 50.0),
           currency: d.currency || 'EUR',
-          payments: (d.payments as unknown as PaymentGatewayConfig) || this.storeSettings().payments,
+          payments:
+            (d.payments as unknown as PaymentGatewayConfig) || this.storeSettings().payments,
           imprint: (d.imprint as any) || this.storeSettings().imprint,
           noticeText: d.notice_text || this.storeSettings().noticeText,
         };
@@ -177,14 +188,14 @@ export class StoreService {
           createdAt: o.created_at,
           customer: o.customer as CheckoutCustomerInfo,
           items: ((o.items || []) as unknown[]).map((it: any) => ({
-            item: ({
+            item: {
               id: it.inventory_item_id || '',
               workspace_id: o.workspace_id,
               title: it.item_title,
               condition: 'Gebraucht',
               status: 'sold',
               allocated_purchase_cost: Number(it.price || 0),
-            } as unknown) as InventoryItem,
+            } as unknown as InventoryItem,
             quantity: it.quantity,
           })),
           subtotal: Number(o.subtotal || 0),
@@ -228,12 +239,12 @@ export class StoreService {
             shipping_flat_rate: updated.shippingFlatRate,
             free_shipping_threshold: updated.freeShippingThreshold,
             currency: updated.currency,
-            payments: updated.payments as any,
-            imprint: updated.imprint as any,
+            payments: updated.payments as unknown as Json,
+            imprint: updated.imprint as unknown as Json,
             notice_text: updated.noticeText,
             updated_at: new Date().toISOString(),
           },
-          { onConflict: 'workspace_id' }
+          { onConflict: 'workspace_id' },
         )
         .then(({ error }) => {
           if (error) console.error('Fehler beim Speichern der Shop-Einstellungen:', error);
@@ -253,7 +264,7 @@ export class StoreService {
 
     if (existing) {
       this.cart.update((items) =>
-        items.map((i) => (i.item.id === item.id ? { ...i, quantity: i.quantity + quantity } : i))
+        items.map((i) => (i.item.id === item.id ? { ...i, quantity: i.quantity + quantity } : i)),
       );
     } else {
       this.cart.update((items) => [...items, { item, quantity }]);
@@ -266,9 +277,7 @@ export class StoreService {
       this.removeFromCart(itemId);
       return;
     }
-    this.cart.update((items) =>
-      items.map((i) => (i.item.id === itemId ? { ...i, quantity } : i))
-    );
+    this.cart.update((items) => items.map((i) => (i.item.id === itemId ? { ...i, quantity } : i)));
     this.persistCart();
   }
 
@@ -308,7 +317,7 @@ export class StoreService {
 
   async processStripePayment(
     amount: number,
-    cardDetails: { holder: string; last4: string; brand: string }
+    cardDetails: { holder: string; last4: string; brand: string },
   ): Promise<{ success: boolean; transactionId: string }> {
     await new Promise((res) => setTimeout(res, 50));
     return {
@@ -317,9 +326,7 @@ export class StoreService {
     };
   }
 
-  async processPayPalPayment(
-    amount: number
-  ): Promise<{ success: boolean; transactionId: string }> {
+  async processPayPalPayment(amount: number): Promise<{ success: boolean; transactionId: string }> {
     await new Promise((res) => setTimeout(res, 50));
     return {
       success: true,
@@ -340,7 +347,7 @@ export class StoreService {
     if (customer.paymentMethod === 'stripe_card') {
       const stripeRes = await this.processStripePayment(
         total,
-        customer.cardDetails || { holder: 'Customer', last4: '4242', brand: 'Visa' }
+        customer.cardDetails || { holder: 'Customer', last4: '4242', brand: 'Visa' },
       );
       paymentStatus = stripeRes.success ? 'paid' : 'failed';
       paymentId = stripeRes.transactionId;
@@ -380,7 +387,7 @@ export class StoreService {
         .insert({
           workspace_id: ws.id,
           order_number: newOrder.orderNumber,
-          customer: newOrder.customer as any,
+          customer: newOrder.customer as unknown as Json,
           subtotal: newOrder.subtotal,
           shipping_cost: newOrder.shippingCost,
           total: newOrder.total,
@@ -395,7 +402,8 @@ export class StoreService {
           if (dbOrder) {
             const itemInserts = currentCart.map((c) => ({
               store_order_id: dbOrder.id,
-              inventory_item_id: c.item.id.startsWith('item-') && !c.item.id.includes('demo') ? c.item.id : null,
+              inventory_item_id:
+                c.item.id.startsWith('item-') && !c.item.id.includes('demo') ? c.item.id : null,
               item_title: c.item.title,
               quantity: c.quantity,
               price: c.item.expected_value ?? c.item.allocated_purchase_cost * 1.5,
@@ -446,7 +454,7 @@ export class StoreService {
       this.webPushService.triggerShopOrderNotification(
         orderNumber,
         `${customer.firstName} ${customer.lastName}`,
-        total
+        total,
       );
     }
 

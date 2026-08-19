@@ -70,7 +70,9 @@ export class EbayApiService {
           source: 'ebay_sold' as const,
           imageUrl: it.imageUrl || it.galleryURL,
           url: it.viewItemURL || it.url,
-          date: it.endTime ? new Date(it.endTime).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          date: it.endTime
+            ? new Date(it.endTime).toISOString().split('T')[0]
+            : new Date().toISOString().split('T')[0],
           condition: it.conditionDisplayName || it.condition || 'Gebraucht',
           isExcluded: false,
         }));
@@ -96,7 +98,9 @@ export class EbayApiService {
               source: 'ebay_sold' as const,
               imageUrl: it.galleryURL?.[0] || '',
               url: it.viewItemURL?.[0] || `https://www.ebay.de/itm/${it.itemId?.[0]}`,
-              date: it.listingInfo?.[0]?.endTime?.[0]?.split('T')?.[0] || new Date().toISOString().split('T')[0],
+              date:
+                it.listingInfo?.[0]?.endTime?.[0]?.split('T')?.[0] ||
+                new Date().toISOString().split('T')[0],
               condition: it.condition?.[0]?.conditionDisplayName?.[0] || 'Gebraucht',
               isExcluded: false,
             };

@@ -38,28 +38,42 @@ export class ThemeService {
   constructor() {
     this.watchSystemPreference();
 
-    effect(() => {
-      const theme = this.currentTheme();
-      if (typeof document === 'undefined') return;
-      document.documentElement.classList.toggle('dark', theme === 'dark');
-      // Adressleiste mobiler Browser mitfaerben
-      document
-        .querySelector('meta[name="theme-color"]')
-        ?.setAttribute('content', theme === 'dark' ? '#282c37' : '#f4f5f7');
-    });
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
+    try {
+      effect(() => {
+        const theme = this.currentTheme();
+        if (typeof document === 'undefined') return;
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+        // Adressleiste mobiler Browser mitfaerben
+        document
+          .querySelector('meta[name="theme-color"]')
+          ?.setAttribute('content', theme === 'dark' ? '#282c37' : '#f4f5f7');
+      });
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
 
-    effect(() => {
-      const pref = this.preference();
-      try {
-        if (pref === 'system') {
-          localStorage.removeItem(STORAGE_KEY);
-        } else {
-          localStorage.setItem(STORAGE_KEY, pref);
+    // Schutz nur fuer die Testumgebung (kein ChangeDetectionScheduler), siehe Phase 8.
+    try {
+      effect(() => {
+        const pref = this.preference();
+        try {
+          if (pref === 'system') {
+            localStorage.removeItem(STORAGE_KEY);
+          } else {
+            localStorage.setItem(STORAGE_KEY, pref);
+          }
+        } catch {
+          // Ohne Speicher gilt die Auswahl nur fuer diese Sitzung.
         }
-      } catch {
-        // Ohne Speicher gilt die Auswahl nur fuer diese Sitzung.
-      }
-    });
+      });
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   /** Wechselt zwischen hell und dunkel; die Systemautomatik wird dabei verlassen. */

@@ -109,7 +109,11 @@ export class AiAssistantService {
         if (!brand) brand = 'Nintendo';
         model = lower.includes('oled') ? 'Switch OLED' : 'Switch';
         estimatedPrice = 210;
-      } else if (lower.includes('bohrschrauber') || lower.includes('akkuschrauber') || lower.includes('gsr')) {
+      } else if (
+        lower.includes('bohrschrauber') ||
+        lower.includes('akkuschrauber') ||
+        lower.includes('gsr')
+      ) {
         category = 'Heimwerken & Werkzeug';
         if (lower.includes('gsr 18v')) model = 'GSR 18V-55';
         estimatedPrice = 75;
@@ -129,7 +133,8 @@ export class AiAssistantService {
 
       // 4. Detect Defects
       if (lower.includes('kratzer')) defects.push('Sichtbare Kratzer am Gehäuse');
-      if (lower.includes('riss') || lower.includes('gesplittert')) defects.push('Riss / Beschädigung');
+      if (lower.includes('riss') || lower.includes('gesplittert'))
+        defects.push('Riss / Beschädigung');
       if (lower.includes('akku schwach')) defects.push('Akkuleistung reduziert');
       if (lower.includes('ohne kabel')) defects.push('Ladekabel fehlt');
 
@@ -156,15 +161,18 @@ export class AiAssistantService {
    */
   async analyzeImage(
     imageSrcOrFile: File | string,
-    filenameHint?: string
+    filenameHint?: string,
   ): Promise<AiVisualScanResult> {
     this.isProcessing.set(true);
 
     // Simulate AI vision latency (500ms) for realistic UX
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    let hint = (filenameHint || (typeof imageSrcOrFile === 'string' ? imageSrcOrFile : imageSrcOrFile.name) || '')
-      .toLowerCase();
+    let hint = (
+      filenameHint ||
+      (typeof imageSrcOrFile === 'string' ? imageSrcOrFile : imageSrcOrFile.name) ||
+      ''
+    ).toLowerCase();
 
     // Default recognition patterns for visual AI
     let title = 'Elektronik- & Gebrauchtartikel';
@@ -183,7 +191,8 @@ export class AiAssistantService {
       model = 'CFI-1116B';
       category = 'Gaming & Konsolen';
       condition = 'very_good';
-      conditionNotes = 'Geringe Gebrauchsspuren, weiße Seitenschalen sauber, Lüftergitter staubfrei.';
+      conditionNotes =
+        'Geringe Gebrauchsspuren, weiße Seitenschalen sauber, Lüftergitter staubfrei.';
       estimatedMarketValue = 350.0;
       confidenceScore = 0.96;
       detectedLabels.push('PlayStation', 'Konsole', 'White', 'NextGen');
@@ -261,7 +270,7 @@ export class AiAssistantService {
     rawTitle: string,
     rawNotes: string,
     condition: ItemCondition,
-    platform: 'kleinanzeigen' | 'ebay' | 'vinted'
+    platform: 'kleinanzeigen' | 'ebay' | 'vinted',
   ): Promise<AiEnhanceResult> {
     const ident = await this.identifyProduct(rawTitle);
     const cleanTitle = ident.cleanTitle;

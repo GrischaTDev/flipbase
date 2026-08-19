@@ -46,44 +46,115 @@ export class MockDataStoreService {
   };
 
   readonly defaultSources: Source[] = [
-    { id: 'src-1', workspace_id: DEMO_WS_ID, name: 'Kleinanzeigen', type: 'online_marketplace', is_active: true },
-    { id: 'src-2', workspace_id: DEMO_WS_ID, name: 'eBay', type: 'online_marketplace', is_active: true },
-    { id: 'src-3', workspace_id: DEMO_WS_ID, name: 'Vinted', type: 'online_marketplace', is_active: true },
-    { id: 'src-4', workspace_id: DEMO_WS_ID, name: 'Flohmarkt Mauerpark', type: 'flea_market', is_active: true },
-    { id: 'src-5', workspace_id: DEMO_WS_ID, name: 'Haushaltsauflösung', type: 'private_seller', is_active: true },
-    { id: 'src-6', workspace_id: DEMO_WS_ID, name: 'B-Stock Retourenhandel', type: 'b2b_wholesaler', is_active: true },
+    {
+      id: 'src-1',
+      workspace_id: DEMO_WS_ID,
+      name: 'Kleinanzeigen',
+      type: 'online_marketplace',
+      is_active: true,
+    },
+    {
+      id: 'src-2',
+      workspace_id: DEMO_WS_ID,
+      name: 'eBay',
+      type: 'online_marketplace',
+      is_active: true,
+    },
+    {
+      id: 'src-3',
+      workspace_id: DEMO_WS_ID,
+      name: 'Vinted',
+      type: 'online_marketplace',
+      is_active: true,
+    },
+    {
+      id: 'src-4',
+      workspace_id: DEMO_WS_ID,
+      name: 'Flohmarkt Mauerpark',
+      type: 'flea_market',
+      is_active: true,
+    },
+    {
+      id: 'src-5',
+      workspace_id: DEMO_WS_ID,
+      name: 'Haushaltsauflösung',
+      type: 'private_seller',
+      is_active: true,
+    },
+    {
+      id: 'src-6',
+      workspace_id: DEMO_WS_ID,
+      name: 'B-Stock Retourenhandel',
+      type: 'b2b_wholesaler',
+      is_active: true,
+    },
   ];
 
   readonly defaultSuppliers: Supplier[] = [
-    { id: 'sup-1', workspace_id: DEMO_WS_ID, name: 'Privatverkäufer (Kleinanzeigen)', contact_info: 'Berlin & Umland' },
-    { id: 'sup-2', workspace_id: DEMO_WS_ID, name: 'Flohmarkt Mauerpark Funde', contact_info: 'Sonntags-Sourcing' },
-    { id: 'sup-3', workspace_id: DEMO_WS_ID, name: 'B-Ware & Restposten Nord GmbH', contact_info: 'b2b@restposten-nord.de' },
+    {
+      id: 'sup-1',
+      workspace_id: DEMO_WS_ID,
+      name: 'Privatverkäufer (Kleinanzeigen)',
+      contact_info: 'Berlin & Umland',
+    },
+    {
+      id: 'sup-2',
+      workspace_id: DEMO_WS_ID,
+      name: 'Flohmarkt Mauerpark Funde',
+      contact_info: 'Sonntags-Sourcing',
+    },
+    {
+      id: 'sup-3',
+      workspace_id: DEMO_WS_ID,
+      name: 'B-Ware & Restposten Nord GmbH',
+      contact_info: 'b2b@restposten-nord.de',
+    },
   ];
 
-  constructor() {
-    this.ensureInitialShowcaseData();
-  }
+  // Bewusst kein Konstruktor: Beispieldaten duerfen NUR im Demo-Modus entstehen.
+  //
+  // Zuvor lief das Befuellen ungeschuetzt im Konstruktor. Da dieser Dienst von
+  // elf Services injiziert wird, bekam damit jeder Nutzer - auch ein echt
+  // angemeldeter mit leerem Bestand - vier erfundene Einkaeufe und neun Artikel
+  // in den Browser geschrieben. Die landeten anschliessend in jeder Sicherung.
 
   /**
-   * Stellt sicher, dass im Demo-Modus ein voller, realistischer Beispieldatensatz
-   * (Einkäufe, Mystery Box, Einzelartikel, Verkäufe, Margen, Charts) vorhanden ist.
+   * Legt Beispieldaten an, falls noch keine vorhanden sind.
+   *
+   * Darf ausschliesslich im Demo-Modus aufgerufen werden. Bereits vorhandene
+   * Daten bleiben unangetastet, damit im Demo-Modus erfasste Eingaben eines
+   * Nutzers nicht bei jedem Start verloren gehen.
    */
-  private ensureInitialShowcaseData(): void {
+  ensureShowcaseData(): void {
     const storage = getStorage();
     if (!storage) return;
 
-    const purchases = storage.getItem(STORAGE_KEY_PURCHASES);
-    const items = storage.getItem(STORAGE_KEY_ITEMS);
-    if (!purchases || !items || JSON.parse(purchases || '[]').length === 0 || JSON.parse(items || '[]').length === 0) {
+    const einkaeufe = this.sicherLesen(STORAGE_KEY_PURCHASES);
+    const artikel = this.sicherLesen(STORAGE_KEY_ITEMS);
+    if (einkaeufe.length === 0 && artikel.length === 0) {
       this.populateShowcaseData();
     }
   }
 
   /**
-   * Setzt alle Demo-Daten auf ein vollständiges, realistisches Showcase-Szenario zurück.
+   * Setzt die Demo-Daten auf das vollstaendige Beispielszenario zurueck und
+   * ueberschreibt dabei den vorhandenen lokalen Bestand.
+   *
+   * Nur fuer die ausdrueckliche Aktion "Beispieldaten neu laden" im
+   * Demo-Banner gedacht - niemals automatisch aufrufen.
    */
-  public resetToDemoShowcase(): void {
+  resetToDemoShowcase(): void {
     this.populateShowcaseData();
+  }
+
+  private sicherLesen(schluessel: string): unknown[] {
+    try {
+      const roh = getStorage()?.getItem(schluessel);
+      const wert: unknown = roh ? JSON.parse(roh) : [];
+      return Array.isArray(wert) ? wert : [];
+    } catch {
+      return [];
+    }
   }
 
   private populateShowcaseData(): void {
@@ -126,7 +197,7 @@ export class MockDataStoreService {
         id: 'pur-demo-3',
         workspace_id: DEMO_WS_ID,
         type: 'lot',
-        title: 'Vintage Streetwear Kleidungspaket (Carhartt, Nike, Levi\'s)',
+        title: "Vintage Streetwear Kleidungspaket (Carhartt, Nike, Levi's)",
         purchase_date: '2026-08-13',
         purchase_price: 85.0,
         shipping_cost: 5.49,
@@ -265,7 +336,7 @@ export class MockDataStoreService {
         workspace_id: DEMO_WS_ID,
         purchase_id: 'pur-demo-3',
         sku: 'RF-LEV-008',
-        title: 'Levi\'s 501 Made in USA Vintage Jeans (W32 L34)',
+        title: "Levi's 501 Made in USA Vintage Jeans (W32 L34)",
         category: 'Kleidung & Vintage',
         condition: 'used',
         status: 'ready',
@@ -300,9 +371,9 @@ export class MockDataStoreService {
         sale_date: '2026-08-14',
         platform: 'ebay',
         sale_price: 379.0,
-        platform_fee: 37.90,
+        platform_fee: 37.9,
         shipping_cost: 6.99,
-        packaging_cost: 1.50,
+        packaging_cost: 1.5,
         other_costs: 0.0,
         external_order_id: 'EBAY-994812-DE',
         buyer_notes: 'Zahlung per eBay Managed Payments erhalten. Sendung per DHL Paket versandt.',
@@ -319,12 +390,12 @@ export class MockDataStoreService {
         platform: 'kleinanzeigen',
         sale_price: 110.0,
         platform_fee: 0.0,
-        shipping_cost: 4.50,
+        shipping_cost: 4.5,
         packaging_cost: 1.0,
         other_costs: 0.0,
         external_order_id: 'KA-88129-BERLIN',
         buyer_notes: 'Sicher bezahlen Funktion Kleinanzeigen genutzt.',
-        net_profit: 59.50,
+        net_profit: 59.5,
         roi: 132.2,
         holding_duration_days: 5,
         created_at: '2026-08-16T12:30:00.000Z',
@@ -338,7 +409,7 @@ export class MockDataStoreService {
         sale_price: 135.0,
         platform_fee: 0.0,
         shipping_cost: 4.99,
-        packaging_cost: 1.20,
+        packaging_cost: 1.2,
         other_costs: 0.0,
         external_order_id: 'VINTED-772184-FR',
         buyer_notes: 'Verkauf über Vinted System nach Frankreich.',
@@ -389,7 +460,7 @@ export class MockDataStoreService {
                 !p.workspace_id ||
                 p.workspace_id === workspaceId ||
                 ((p.workspace_id === 'ws-1' || p.workspace_id === 'demo-workspace-1') &&
-                  (workspaceId === 'ws-1' || workspaceId === 'demo-workspace-1'))
+                  (workspaceId === 'ws-1' || workspaceId === 'demo-workspace-1')),
             )
           : list;
       }
@@ -412,7 +483,9 @@ export class MockDataStoreService {
 
   setPurchases(workspaceId: string, purchases: Purchase[]): void {
     try {
-      const other = this.getPurchases().filter((p) => p.workspace_id && p.workspace_id !== workspaceId);
+      const other = this.getPurchases().filter(
+        (p) => p.workspace_id && p.workspace_id !== workspaceId,
+      );
       const combined = [...purchases, ...other];
       getStorage()?.setItem(STORAGE_KEY_PURCHASES, JSON.stringify(combined));
     } catch {}
@@ -437,7 +510,7 @@ export class MockDataStoreService {
                 !i.workspace_id ||
                 i.workspace_id === workspaceId ||
                 ((i.workspace_id === 'ws-1' || i.workspace_id === 'demo-workspace-1') &&
-                  (workspaceId === 'ws-1' || workspaceId === 'demo-workspace-1'))
+                  (workspaceId === 'ws-1' || workspaceId === 'demo-workspace-1')),
             )
           : list;
       }
@@ -485,7 +558,7 @@ export class MockDataStoreService {
                 !s.workspace_id ||
                 s.workspace_id === workspaceId ||
                 ((s.workspace_id === 'ws-1' || s.workspace_id === 'demo-workspace-1') &&
-                  (workspaceId === 'ws-1' || workspaceId === 'demo-workspace-1'))
+                  (workspaceId === 'ws-1' || workspaceId === 'demo-workspace-1')),
             )
           : list;
       }
@@ -527,7 +600,9 @@ export class MockDataStoreService {
       const stored = getStorage()?.getItem(STORAGE_KEY_SOURCES);
       if (stored) {
         const list: Source[] = JSON.parse(stored);
-        return workspaceId ? list.filter((s) => !s.workspace_id || s.workspace_id === workspaceId) : list;
+        return workspaceId
+          ? list.filter((s) => !s.workspace_id || s.workspace_id === workspaceId)
+          : list;
       }
     } catch {}
     return this.defaultSources;
@@ -555,7 +630,9 @@ export class MockDataStoreService {
 
   setSources(workspaceId: string, sources: Source[]): void {
     try {
-      const other = this.getSources().filter((s) => s.workspace_id && s.workspace_id !== workspaceId);
+      const other = this.getSources().filter(
+        (s) => s.workspace_id && s.workspace_id !== workspaceId,
+      );
       const combined = [...sources, ...other];
       getStorage()?.setItem(STORAGE_KEY_SOURCES, JSON.stringify(combined));
     } catch {}
@@ -566,7 +643,9 @@ export class MockDataStoreService {
       const stored = getStorage()?.getItem(STORAGE_KEY_SUPPLIERS);
       if (stored) {
         const list: Supplier[] = JSON.parse(stored);
-        return workspaceId ? list.filter((s) => !s.workspace_id || s.workspace_id === workspaceId) : list;
+        return workspaceId
+          ? list.filter((s) => !s.workspace_id || s.workspace_id === workspaceId)
+          : list;
       }
     } catch {}
     return this.defaultSuppliers;
@@ -594,7 +673,9 @@ export class MockDataStoreService {
 
   setSuppliers(workspaceId: string, suppliers: Supplier[]): void {
     try {
-      const other = this.getSuppliers().filter((s) => s.workspace_id && s.workspace_id !== workspaceId);
+      const other = this.getSuppliers().filter(
+        (s) => s.workspace_id && s.workspace_id !== workspaceId,
+      );
       const combined = [...suppliers, ...other];
       getStorage()?.setItem(STORAGE_KEY_SUPPLIERS, JSON.stringify(combined));
     } catch {}
@@ -631,7 +712,10 @@ export class MockDataStoreService {
       const stored = getStorage()?.getItem(STORAGE_KEY_ITEM_COSTS);
       if (stored) {
         const all: ItemCost[] = JSON.parse(stored);
-        getStorage()?.setItem(STORAGE_KEY_ITEM_COSTS, JSON.stringify(all.filter((c) => c.id !== id)));
+        getStorage()?.setItem(
+          STORAGE_KEY_ITEM_COSTS,
+          JSON.stringify(all.filter((c) => c.id !== id)),
+        );
       }
     } catch {}
   }

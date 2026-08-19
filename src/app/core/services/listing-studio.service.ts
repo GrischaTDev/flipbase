@@ -53,6 +53,11 @@ export class ListingStudioService {
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
+    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
+    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
+    // fehl. Danach ersatzlos entfernen.
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
@@ -62,7 +67,9 @@ export class ListingStudioService {
           this.savedDrafts.set([]);
         }
       });
-    } catch {}
+    } catch {
+      // nur Testumgebung ohne Scheduler
+    }
   }
 
   async loadDrafts(workspaceId: string): Promise<void> {
@@ -96,7 +103,7 @@ export class ListingStudioService {
       includePickup: true,
       includeNegotiable: false,
       styleTone: 'dealer',
-    }
+    },
   ): GeneratedListing {
     const conditionGerman = this.getConditionText(item.condition);
     const title = this.buildPlatformTitle(item, platform, options);
@@ -123,7 +130,8 @@ export class ListingStudioService {
         break;
     }
 
-    const hashtags = platform === 'vinted' || platform === 'social' ? this.buildHashtags(item) : undefined;
+    const hashtags =
+      platform === 'vinted' || platform === 'social' ? this.buildHashtags(item) : undefined;
     const platformUrl = this.getPlatformPublishUrl(platform, item.id);
 
     return {
@@ -144,7 +152,7 @@ export class ListingStudioService {
     item: InventoryItem,
     platform: ListingPlatform,
     currentTitle?: string,
-    currentDesc?: string
+    currentDesc?: string,
   ): SeoOptimizationResult {
     const title = (currentTitle || item.title || '').trim();
     const desc = (currentDesc || item.description || '').trim();
@@ -182,7 +190,9 @@ export class ListingStudioService {
       detectedKeywords.push('Zustand/OVP');
     } else {
       missingKeywords.push('Zustand / OVP');
-      suggestions.push('Füge einen prägnanten Zustandshinweis wie "OVP", "Wie Neu" oder "Top Zustand" ein.');
+      suggestions.push(
+        'Füge einen prägnanten Zustandshinweis wie "OVP", "Wie Neu" oder "Top Zustand" ein.',
+      );
     }
 
     // Title score calculation
@@ -204,21 +214,37 @@ export class ListingStudioService {
     // Description score calculation
     let descriptionScore = 40;
     if (desc.includes('•') || desc.includes('-') || desc.includes('*')) descriptionScore += 25;
-    if (desc.toLowerCase().includes('versand') || desc.toLowerCase().includes('abholung')) descriptionScore += 20;
-    if (desc.toLowerCase().includes('gewährleistung') || desc.toLowerCase().includes('differenzbesteuerung') || desc.toLowerCase().includes('garantie')) descriptionScore += 15;
+    if (desc.toLowerCase().includes('versand') || desc.toLowerCase().includes('abholung'))
+      descriptionScore += 20;
+    if (
+      desc.toLowerCase().includes('gewährleistung') ||
+      desc.toLowerCase().includes('differenzbesteuerung') ||
+      desc.toLowerCase().includes('garantie')
+    )
+      descriptionScore += 15;
 
     descriptionScore = Math.min(100, Math.max(25, descriptionScore));
     const overallScore = Math.round(titleScore * 0.55 + descriptionScore * 0.45);
 
     if (charCount < 45) {
-      suggestions.push(`Titel nutzt nur ${charCount}/${maxChars} Zeichen. Nutze relevante Suchbegriffe aus!`);
+      suggestions.push(
+        `Titel nutzt nur ${charCount}/${maxChars} Zeichen. Nutze relevante Suchbegriffe aus!`,
+      );
     }
 
     // Build optimized high-conversion title
     const brand = item.brand ? `${item.brand} ` : '';
-    const model = item.model && !item.title.toLowerCase().includes(item.model.toLowerCase()) ? ` ${item.model}` : '';
-    const condTag = item.condition === 'new' ? 'NEU & OVP' : item.condition === 'like_new' ? 'Wie Neu OVP' : 'Sehr Gut Geprüft';
-    
+    const model =
+      item.model && !item.title.toLowerCase().includes(item.model.toLowerCase())
+        ? ` ${item.model}`
+        : '';
+    const condTag =
+      item.condition === 'new'
+        ? 'NEU & OVP'
+        : item.condition === 'like_new'
+          ? 'Wie Neu OVP'
+          : 'Sehr Gut Geprüft';
+
     let optimizedTitle = '';
     if (platform === 'ebay') {
       optimizedTitle = `${brand}${item.title}${model} | ${condTag} | Blitzversand`.trim();
@@ -242,7 +268,10 @@ export class ListingStudioService {
       maxChars,
       detectedKeywords,
       missingKeywords,
-      suggestions: suggestions.length > 0 ? suggestions : ['Hervorragend! Dein Listing ist maximal suchmaschinenoptimiert.'],
+      suggestions:
+        suggestions.length > 0
+          ? suggestions
+          : ['Hervorragend! Dein Listing ist maximal suchmaschinenoptimiert.'],
       optimizedTitle,
       optimizedDescription,
     };
@@ -276,10 +305,11 @@ export class ListingStudioService {
   private buildPlatformTitle(
     item: InventoryItem,
     platform: ListingPlatform,
-    options: ListingTemplateOptions
+    options: ListingTemplateOptions,
   ): string {
     const brand = item.brand ? `${item.brand} ` : '';
-    const cond = item.condition === 'new' ? 'NEU & OVP' : item.condition === 'like_new' ? 'WIE NEU' : '';
+    const cond =
+      item.condition === 'new' ? 'NEU & OVP' : item.condition === 'like_new' ? 'WIE NEU' : '';
 
     if (platform === 'kleinanzeigen') {
       const vb = options.includeNegotiable ? ' (VB)' : '';
@@ -301,7 +331,7 @@ export class ListingStudioService {
     item: InventoryItem,
     price: number,
     conditionText: string,
-    options: ListingTemplateOptions
+    options: ListingTemplateOptions,
   ): string {
     const lines: string[] = [];
 
@@ -334,7 +364,9 @@ export class ListingStudioService {
       lines.push(``);
     }
 
-    lines.push(`Preis: ${price.toFixed(2)} €${options.includeNegotiable ? ' (Verhandlungsbasis / VB)' : ' (Festpreis)'}`);
+    lines.push(
+      `Preis: ${price.toFixed(2)} €${options.includeNegotiable ? ' (Verhandlungsbasis / VB)' : ' (Festpreis)'}`,
+    );
     lines.push(``);
 
     if (options.includeNonSmoking) {
@@ -352,10 +384,14 @@ export class ListingStudioService {
       lines.push(``);
       if (options.isCommercialSeller) {
         lines.push(`Rechtlicher Hinweis:`);
-        lines.push(`Verkauf durch gewerblichen Händler. Differenzbesteuerung gemäß § 25a UStG (kein gesonderter MwSt.-Ausweis).`);
+        lines.push(
+          `Verkauf durch gewerblichen Händler. Differenzbesteuerung gemäß § 25a UStG (kein gesonderter MwSt.-Ausweis).`,
+        );
       } else {
         lines.push(`Rechtlicher Hinweis:`);
-        lines.push(`Privatverkauf. Der Verkauf erfolgt unter Ausschluss jeglicher Sachmängelhaftung.`);
+        lines.push(
+          `Privatverkauf. Der Verkauf erfolgt unter Ausschluss jeglicher Sachmängelhaftung.`,
+        );
       }
     }
 
@@ -366,7 +402,7 @@ export class ListingStudioService {
     item: InventoryItem,
     price: number,
     conditionText: string,
-    options: ListingTemplateOptions
+    options: ListingTemplateOptions,
   ): string {
     const lines: string[] = [];
     lines.push(`=========================================`);
@@ -408,7 +444,7 @@ export class ListingStudioService {
     item: InventoryItem,
     price: number,
     conditionText: string,
-    options: ListingTemplateOptions
+    options: ListingTemplateOptions,
   ): string {
     return `<div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; color: #1e293b; line-height: 1.6;">
   <div style="background: #1e1b4b; color: #ffffff; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
@@ -435,7 +471,7 @@ export class ListingStudioService {
     item: InventoryItem,
     price: number,
     conditionText: string,
-    options: ListingTemplateOptions
+    options: ListingTemplateOptions,
   ): string {
     const lines: string[] = [];
     lines.push(`${item.title}`);
@@ -458,7 +494,7 @@ export class ListingStudioService {
     item: InventoryItem,
     price: number,
     conditionText: string,
-    options: ListingTemplateOptions
+    options: ListingTemplateOptions,
   ): string {
     return `${item.title}
 Preis: ${price.toFixed(2)} €
@@ -503,7 +539,7 @@ ${this.buildHashtags(item).join(' ')}`.trim();
     item: InventoryItem,
     price: number,
     conditionText: string,
-    options: ListingTemplateOptions
+    options: ListingTemplateOptions,
   ): string {
     const lines: string[] = [];
     lines.push(`${item.title}`);
@@ -529,7 +565,7 @@ ${this.buildHashtags(item).join(' ')}`.trim();
     item: InventoryItem,
     price: number,
     conditionText: string,
-    options: ListingTemplateOptions
+    options: ListingTemplateOptions,
   ): string {
     return `<div class="store-product-description">
   <h3>${item.title}</h3>
@@ -562,7 +598,10 @@ ${this.buildHashtags(item).join(' ')}`.trim();
   /**
    * Publishes item directly to the public Webshop!
    */
-  async publishToCustomStore(itemId: string, listingPrice: number): Promise<{ success: boolean; url: string }> {
+  async publishToCustomStore(
+    itemId: string,
+    listingPrice: number,
+  ): Promise<{ success: boolean; url: string }> {
     if (this.inventoryService) {
       await this.inventoryService.updateItem(itemId, {
         is_public_store: true,

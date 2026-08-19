@@ -10,16 +10,12 @@ export class SupabaseService {
   public readonly client: SupabaseClient<Database>;
 
   constructor() {
-    this.client = createClient<Database>(
-      environment.supabaseUrl,
-      environment.supabaseAnonKey,
-      {
-        auth: {
-          persistSession: true,
-          autoRefreshToken: true,
-          detectSessionInUrl: true,
-        },
-      }
-    );
+    this.client = createClient<Database>(environment.supabaseUrl, environment.supabaseAnonKey, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+      },
+    });
   }
 }
