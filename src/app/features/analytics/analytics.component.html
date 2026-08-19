@@ -120,7 +120,7 @@
     <button
       type="button"
       (click)="setSection('overview')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'overview'"
       [class.text-white]="activeSection() === 'overview'"
       [class.border-indigo-500]="activeSection() === 'overview'"
@@ -128,14 +128,15 @@
       [class.text-rf-text-secondary]="activeSection() !== 'overview'"
       [class.border-rf-border]="activeSection() !== 'overview'"
     >
-      📈 Gesamtübersicht
+      <lucide-icon [img]="trendingIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <span>Gesamtübersicht</span>
     </button>
 
-    <!-- 🏢 Holding-Modus (Multi-Workspace Konsolidierung) -->
+    <!-- Holding-Modus (Multi-Workspace Konsolidierung) -->
     <button
       type="button"
       (click)="setSection('holding')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border flex items-center gap-1.5"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-purple-600]="activeSection() === 'holding'"
       [class.text-white]="activeSection() === 'holding'"
       [class.border-purple-500]="activeSection() === 'holding'"
@@ -144,13 +145,13 @@
       [class.border-rf-border]="activeSection() !== 'holding'"
     >
       <lucide-icon [img]="buildingIcon" class="w-3.5 h-3.5"></lucide-icon>
-      <span>🏢 Holding-Modus ({{ holdingSummary().workspacesCount }} Mandanten)</span>
+      <span>Holding-Modus ({{ holdingSummary().workspacesCount }} Mandanten)</span>
     </button>
 
     <button
       type="button"
       (click)="setSection('platforms')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'platforms'"
       [class.text-white]="activeSection() === 'platforms'"
       [class.border-indigo-500]="activeSection() === 'platforms'"
@@ -158,13 +159,14 @@
       [class.text-rf-text-secondary]="activeSection() !== 'platforms'"
       [class.border-rf-border]="activeSection() !== 'platforms'"
     >
-      📊 Plattform-Rentabilität & Gebühren
+      <lucide-icon [img]="barIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <span>Plattform-Rentabilität & Gebühren</span>
     </button>
 
     <button
       type="button"
       (click)="setSection('velocity')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'velocity'"
       [class.text-white]="activeSection() === 'velocity'"
       [class.border-indigo-500]="activeSection() === 'velocity'"
@@ -172,13 +174,14 @@
       [class.text-rf-text-secondary]="activeSection() !== 'velocity'"
       [class.border-rf-border]="activeSection() !== 'velocity'"
     >
-      ⚡ Haltedauer & Kapitalumschlag
+      <lucide-icon [img]="zapIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <span>Haltedauer & Kapitalumschlag</span>
     </button>
 
     <button
       type="button"
       (click)="setSection('cohorts')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'cohorts'"
       [class.text-white]="activeSection() === 'cohorts'"
       [class.border-indigo-500]="activeSection() === 'cohorts'"
@@ -186,13 +189,14 @@
       [class.text-rf-text-secondary]="activeSection() !== 'cohorts'"
       [class.border-rf-border]="activeSection() !== 'cohorts'"
     >
-      📦 Einkaufs-Kohorten & Recovery
+      <lucide-icon [img]="boxesIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <span>Einkaufs-Kohorten & Recovery</span>
     </button>
 
     <button
       type="button"
       (click)="setSection('heatmap')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'heatmap'"
       [class.text-white]="activeSection() === 'heatmap'"
       [class.border-indigo-500]="activeSection() === 'heatmap'"
@@ -200,13 +204,14 @@
       [class.text-rf-text-secondary]="activeSection() !== 'heatmap'"
       [class.border-rf-border]="activeSection() !== 'heatmap'"
     >
-      🕒 Verkaufs-Heatmap (Beste Zeiten)
+      <lucide-icon [img]="clockIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <span>Verkaufs-Heatmap (Beste Zeiten)</span>
     </button>
 
     <button
       type="button"
       (click)="setSection('categories')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'categories'"
       [class.text-white]="activeSection() === 'categories'"
       [class.border-indigo-500]="activeSection() === 'categories'"
@@ -214,7 +219,8 @@
       [class.text-rf-text-secondary]="activeSection() !== 'categories'"
       [class.border-rf-border]="activeSection() !== 'categories'"
     >
-      🏷️ Kategorien & Sell-Through
+      <lucide-icon [img]="tagIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <span>Kategorien & Sell-Through</span>
     </button>
   </div>
 
@@ -488,16 +494,25 @@
             </div>
 
             <div class="space-y-1 text-[10px] text-left text-rf-text-muted pt-1 border-t border-rf-border font-mono">
-              <div class="flex justify-between">
-                <span>🌅 Vormittags:</span>
+              <div class="flex justify-between items-center">
+                <span class="inline-flex items-center gap-1">
+                  <lucide-icon [img]="sunriseIcon" class="w-3 h-3 text-amber-400"></lucide-icon>
+                  <span>Vormittags:</span>
+                </span>
                 <strong class="text-rf-text-secondary">{{ day.morningCount }}</strong>
               </div>
-              <div class="flex justify-between">
-                <span>☀️ Nachmittags:</span>
+              <div class="flex justify-between items-center">
+                <span class="inline-flex items-center gap-1">
+                  <lucide-icon [img]="sunIcon" class="w-3 h-3 text-yellow-400"></lucide-icon>
+                  <span>Nachmittags:</span>
+                </span>
                 <strong class="text-rf-text-secondary">{{ day.afternoonCount }}</strong>
               </div>
-              <div class="flex justify-between">
-                <span>🌙 Abends (18-23h):</span>
+              <div class="flex justify-between items-center">
+                <span class="inline-flex items-center gap-1">
+                  <lucide-icon [img]="moonIcon" class="w-3 h-3 text-indigo-400"></lucide-icon>
+                  <span>Abends (18-23h):</span>
+                </span>
                 <strong class="text-emerald-400">{{ day.eveningCount }}</strong>
               </div>
             </div>
@@ -552,7 +567,7 @@
     </div>
   }
 
-  <!-- 🏢 Section: Holding & Multi-Workspace Consolidation -->
+  <!-- Section: Holding & Multi-Workspace Consolidation -->
   @if (activeSection() === 'holding') {
     @let holding = holdingSummary();
     <div class="space-y-6 animate-fade-in">

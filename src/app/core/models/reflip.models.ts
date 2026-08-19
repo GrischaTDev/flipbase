@@ -98,6 +98,28 @@ export interface PurchaseCost {
   created_at?: string;
 }
 
+export type TrackingCarrier = 'dhl' | 'dpd' | 'hermes' | 'ups' | 'gls' | 'fedex' | 'deutsche_post' | 'other';
+export type InboundTrackingStatus = 'pending' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'exception';
+
+export interface InboundTrackingCheckpoint {
+  timestamp: string;
+  status: InboundTrackingStatus;
+  location?: string;
+  description: string;
+}
+
+export interface InboundTrackingInfo {
+  carrier: TrackingCarrier;
+  carrier_name: string;
+  tracking_number: string;
+  status: InboundTrackingStatus;
+  status_label: string;
+  tracking_url: string;
+  estimated_delivery?: string | null;
+  last_checkpoint?: string | null;
+  checkpoints?: InboundTrackingCheckpoint[];
+}
+
 export interface Purchase {
   id: string;
   workspace_id: string;
@@ -113,6 +135,9 @@ export interface Purchase {
   cost_allocation_mode: CostAllocationMode;
   original_url?: string | null;
   tracking_number?: string | null;
+  tracking_carrier?: TrackingCarrier | null;
+  tracking_status?: InboundTrackingStatus | null;
+  estimated_delivery?: string | null;
   notes?: string | null;
   created_at?: string;
   updated_at?: string;

@@ -284,7 +284,7 @@
     }
   }
 
-  <!-- TAB 2: 📡 KONKURRENZ-RADAR & PREISÜBERWACHUNG -->
+  <!-- TAB 2: KONKURRENZ-RADAR & PREISÜBERWACHUNG -->
   @if (activeTab() === 'radar') {
     <div class="space-y-4 animate-fade-in">
       <!-- Radar Action & Status Bar -->
@@ -310,7 +310,7 @@
           class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-50"
         >
           <lucide-icon [img]="refreshIcon" class="w-4 h-4" [class.animate-spin]="priceTrackerService.isScanning()"></lucide-icon>
-          <span>{{ priceTrackerService.isScanning() ? 'Scanne Plattformen...' : '📡 Live-Marktpreise jetzt scannen' }}</span>
+          <span>{{ priceTrackerService.isScanning() ? 'Scanne Plattformen...' : 'Live-Marktpreise jetzt scannen' }}</span>
         </button>
       </div>
 
@@ -323,22 +323,34 @@
         </div>
 
         <div class="linear-kpi p-3.5 rounded-xl border-rose-500/30 bg-rose-500/10">
-          <span class="text-[10px] text-rose-300 font-sans uppercase font-bold block">🚨 Unterboten</span>
+          <span class="text-[10px] text-rose-300 font-sans uppercase font-bold flex items-center gap-1">
+            <lucide-icon [img]="alertIcon" class="w-3 h-3 text-rose-400"></lucide-icon>
+            <span>Unterboten</span>
+          </span>
           <span class="text-xl font-bold text-rose-400 mt-1 block">{{ priceTrackerService.undercutCount() }}</span>
           <span class="text-[10px] text-rose-300/80 font-sans block">Konkurrenz günstiger</span>
         </div>
 
         <div class="linear-kpi p-3.5 rounded-xl border-emerald-500/30 bg-emerald-500/10">
-          <span class="text-[10px] text-emerald-300 font-sans uppercase font-bold block">🚀 Preisanstieg</span>
+          <span class="text-[10px] text-emerald-300 font-sans uppercase font-bold flex items-center gap-1">
+            <lucide-icon [img]="trendingIcon" class="w-3 h-3 text-emerald-400"></lucide-icon>
+            <span>Preisanstieg</span>
+          </span>
           <span class="text-xl font-bold text-emerald-400 mt-1 block">{{ priceTrackerService.surgeCount() }}</span>
           <span class="text-[10px] text-emerald-300/80 font-sans block">Preiserhöhung möglich</span>
         </div>
 
         <div class="linear-kpi p-3.5 rounded-xl">
           <span class="text-[10px] text-rf-text-muted font-sans uppercase font-bold block">Scanner-Status</span>
-          <span class="text-sm font-bold text-indigo-300 mt-2 block font-sans">
-            {{ priceTrackerService.isScanning() ? '⚡ Scan läuft...' : '🟢 Bereit' }}
-          </span>
+          <div class="text-sm font-bold text-indigo-300 mt-2 flex items-center gap-1.5 font-sans">
+            @if (priceTrackerService.isScanning()) {
+              <lucide-icon [img]="refreshIcon" class="w-3.5 h-3.5 animate-spin text-indigo-400"></lucide-icon>
+              <span>Scan läuft...</span>
+            } @else {
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span class="text-emerald-400">Bereit</span>
+            }
+          </div>
           <span class="text-[10px] text-rf-text-muted font-sans block">eBay & Kleinanzeigen</span>
         </div>
       </div>
@@ -426,7 +438,7 @@
                   [title]="'Preis im Inventar auf ' + item.recommendedPrice + ' € anpassen'"
                 >
                   <lucide-icon [img]="zapIcon" class="w-3.5 h-3.5 text-amber-300"></lucide-icon>
-                  <span>⚡ Auf {{ item.recommendedPrice | currency:'EUR':'symbol':'1.2-2':'de' }} anpassen</span>
+                  <span>Auf {{ item.recommendedPrice | currency:'EUR':'symbol':'1.2-2':'de' }} anpassen</span>
                 </button>
               }
 

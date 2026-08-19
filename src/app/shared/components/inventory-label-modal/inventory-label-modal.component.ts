@@ -17,12 +17,13 @@ import {
   CheckCircle2,
 } from 'lucide-angular';
 import { InventoryItem } from '../../../core/models/reflip.models';
+import { CustomCheckboxComponent } from '../custom-checkbox/custom-checkbox.component';
 
 export type LabelFormat = 'compact' | 'standard' | 'large';
 
 @Component({
   selector: 'app-inventory-label-modal',
-  imports: [CurrencyPipe, DatePipe, LucideAngularModule],
+  imports: [CurrencyPipe, DatePipe, LucideAngularModule, CustomCheckboxComponent],
   templateUrl: './inventory-label-modal.component.html',
   styleUrl: './inventory-label-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

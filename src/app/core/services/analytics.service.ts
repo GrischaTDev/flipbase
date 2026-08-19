@@ -558,7 +558,7 @@ export class AnalyticsService {
 
     const buckets: HoldingDurationBucket[] = [
       {
-        label: '⚡ Schnelldreher (< 7 Tage)',
+        label: 'Schnelldreher (< 7 Tage)',
         count: bFast.count,
         percent: Number(((bFast.count / n) * 100).toFixed(1)),
         totalProfit: Number(bFast.profit.toFixed(2)),
@@ -566,7 +566,7 @@ export class AnalyticsService {
         color: '#6366f1',
       },
       {
-        label: '🟢 Optimal (7 – 30 Tage)',
+        label: 'Optimal (7 – 30 Tage)',
         count: bNormal.count,
         percent: Number(((bNormal.count / n) * 100).toFixed(1)),
         totalProfit: Number(bNormal.profit.toFixed(2)),
@@ -574,7 +574,7 @@ export class AnalyticsService {
         color: '#10b981',
       },
       {
-        label: '🟡 Mittel (31 – 60 Tage)',
+        label: 'Mittel (31 – 60 Tage)',
         count: bMedium.count,
         percent: Number(((bMedium.count / n) * 100).toFixed(1)),
         totalProfit: Number(bMedium.profit.toFixed(2)),
@@ -582,7 +582,7 @@ export class AnalyticsService {
         color: '#f59e0b',
       },
       {
-        label: '🔴 Langläufer (> 60 Tage)',
+        label: 'Langläufer (> 60 Tage)',
         count: bSlow.count,
         percent: Number(((bSlow.count / n) * 100).toFixed(1)),
         totalProfit: Number(bSlow.profit.toFixed(2)),

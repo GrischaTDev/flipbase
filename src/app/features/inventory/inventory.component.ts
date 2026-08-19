@@ -29,6 +29,8 @@ import { InventoryLabelModalComponent } from '../../shared/components/inventory-
 import { AiVisualScanResult } from '../../core/services/ai-assistant.service';
 import { InventoryItem, ItemCondition, ItemStatus } from '../../core/models/reflip.models';
 import { CustomSelectComponent, SelectOption } from '../../shared/components/custom-select/custom-select.component';
+import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
+import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 
 type FilterPreset = string;
 
@@ -43,6 +45,8 @@ type FilterPreset = string;
     AiPhotoScannerModalComponent,
     InventoryLabelModalComponent,
     CustomSelectComponent,
+    CustomCheckboxComponent,
+    CustomSearchInputComponent,
   ],
   templateUrl: './inventory.component.html',
   styleUrl: './inventory.component.scss',
@@ -215,6 +219,12 @@ export class InventoryComponent {
     const items = this.filteredItems();
     return items.length > 0 && this.selectedItemIds().size === items.length;
   }
+
+  readonly isIndeterminate = computed(() => {
+    const count = this.selectedItemIds().size;
+    const total = this.filteredItems().length;
+    return count > 0 && count < total;
+  });
 
   openCreateModal(): void {
     this.isCreateModalOpen.set(true);

@@ -84,45 +84,29 @@
 
       <!-- Visibility Checkboxes -->
       <div class="flex items-center gap-3 text-[11px]">
-        <label class="flex items-center gap-1.5 cursor-pointer">
-          <input
-            type="checkbox"
-            [checked]="showBarcode()"
-            (change)="toggleBarcode()"
-            class="rounded text-indigo-600 cursor-pointer"
-          />
-          <span>Barcode / SKU</span>
-        </label>
+        <app-custom-checkbox
+          [(checked)]="showBarcode"
+          label="Barcode / SKU"
+          size="sm"
+        ></app-custom-checkbox>
 
-        <label class="flex items-center gap-1.5 cursor-pointer">
-          <input
-            type="checkbox"
-            [checked]="showQrCode()"
-            (change)="toggleQrCode()"
-            class="rounded text-indigo-600 cursor-pointer"
-          />
-          <span>QR-Code</span>
-        </label>
+        <app-custom-checkbox
+          [(checked)]="showQrCode"
+          label="QR-Code"
+          size="sm"
+        ></app-custom-checkbox>
 
-        <label class="flex items-center gap-1.5 cursor-pointer">
-          <input
-            type="checkbox"
-            [checked]="showPrice()"
-            (change)="togglePrice()"
-            class="rounded text-indigo-600 cursor-pointer"
-          />
-          <span>Zielpreis (€)</span>
-        </label>
+        <app-custom-checkbox
+          [(checked)]="showPrice"
+          label="Zielpreis (€)"
+          size="sm"
+        ></app-custom-checkbox>
 
-        <label class="flex items-center gap-1.5 cursor-pointer">
-          <input
-            type="checkbox"
-            [checked]="showDate()"
-            (change)="toggleDate()"
-            class="rounded text-indigo-600 cursor-pointer"
-          />
-          <span>Datum</span>
-        </label>
+        <app-custom-checkbox
+          [(checked)]="showDate"
+          label="Datum"
+          size="sm"
+        ></app-custom-checkbox>
       </div>
     </div>
 

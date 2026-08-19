@@ -268,7 +268,7 @@ export class AiAssistantService {
 
     let desc = '';
     if (platform === 'kleinanzeigen') {
-      desc = `Hallo zusammen, 👋\n\nich verkaufe hier meinen/meine ${cleanTitle}.\n\nZustand: ${condition}\n`;
+      desc = `Hallo zusammen,\n\nich verkaufe hier meinen/meine ${cleanTitle}.\n\nZustand: ${condition}\n`;
       if (rawNotes) desc += `\nDetails: ${rawNotes}\n`;
       desc += `\nAbholung vor Ort oder versicherter Versand via DHL möglich. Bei Fragen gerne schreiben!`;
     } else {

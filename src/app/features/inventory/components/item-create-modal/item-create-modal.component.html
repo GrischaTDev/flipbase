@@ -47,7 +47,7 @@
               title="Foto aufnehmen oder hochladen (Visual Sourcing AI)"
             >
               <lucide-icon [img]="cameraIcon" class="w-3 h-3 text-indigo-400"></lucide-icon>
-              <span>📸 Foto-Scan</span>
+              <span>Foto-Scan</span>
             </button>
 
             <!-- Barcode Scanner Button -->
@@ -69,7 +69,7 @@
               class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold transition disabled:opacity-40 cursor-pointer"
             >
               <lucide-icon [img]="sparklesIcon" class="w-3 h-3 text-emerald-400"></lucide-icon>
-              <span>{{ isAiLoading() ? 'Analysiere...' : '🤖 KI-Autofill' }}</span>
+              <span>{{ isAiLoading() ? 'Analysiere...' : 'KI-Autofill' }}</span>
             </button>
           </div>
         </div>
@@ -82,7 +82,7 @@
         />
       </div>
 
-      <!-- 🖼️ 1:1 Image Cropper & Upload Preview Section -->
+      <!-- 1:1 Image Cropper & Upload Preview Section -->
       <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border">
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-1.5">
@@ -138,8 +138,9 @@
             (click)="isCropperOpen.set(true)"
             class="p-3 border border-dashed border-rf-border hover:border-emerald-500/40 rounded-lg text-center bg-rf-surface/50 hover:bg-emerald-500/5 transition cursor-pointer"
           >
-            <p class="text-[11px] text-rf-text-secondary font-medium">
-              📷 Klicke hier, um ein Foto hochzuladen & im festen 1:1-Format zuzuschneiden
+            <p class="text-[11px] text-rf-text-secondary font-medium flex items-center justify-center gap-1.5">
+              <lucide-icon [img]="cameraIcon" class="w-3.5 h-3.5 text-emerald-400"></lucide-icon>
+              <span>Klicke hier, um ein Foto hochzuladen & im festen 1:1-Format zuzuschneiden</span>
             </p>
           </div>
         }
@@ -303,7 +304,7 @@
   ></app-ai-photo-scanner-modal>
 }
 
-<!-- 🖼️ Image Cropper & Resizer Studio Modal (Fixed 1:1) -->
+<!-- Image Cropper & Resizer Studio Modal (Fixed 1:1) -->
 @if (isCropperOpen()) {
   <app-image-cropper-modal
     (close)="isCropperOpen.set(false)"

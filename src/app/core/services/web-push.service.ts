@@ -134,7 +134,7 @@ export class WebPushService {
       if (!granted) return false;
     }
 
-    return this.sendNotification('🔔 ReFlip Web Push Test', {
+    return this.sendNotification('ReFlip Web Push Test', {
       body: 'Web Push-Benachrichtigungen funktionieren einwandfrei!',
       tag: 'test-push',
     });
@@ -143,7 +143,7 @@ export class WebPushService {
   triggerShopOrderNotification(orderNumber: string, customerName: string, amount: number): void {
     if (!this.settings().notifyOnShopOrder) return;
 
-    this.sendNotification(`🛒 Neue Shop-Bestellung #${orderNumber}!`, {
+    this.sendNotification(`Neue Shop-Bestellung #${orderNumber}`, {
       body: `${customerName} hat eine Bestellung über ${amount.toFixed(2)} € aufgegeben.`,
       tag: `order-${orderNumber}`,
     });
@@ -152,7 +152,7 @@ export class WebPushService {
   triggerFulfillmentNotification(carrier: string, trackingNumber: string): void {
     if (!this.settings().notifyOnFulfillment) return;
 
-    this.sendNotification(`📦 ${carrier} Versandlabel erstellt!`, {
+    this.sendNotification(`${carrier} Versandlabel erstellt`, {
       body: `Sendungsnummer: ${trackingNumber} - Paket ist bereit zum Packen.`,
       tag: `fulfillment-${trackingNumber}`,
     });

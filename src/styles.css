@@ -196,6 +196,44 @@
   color: var(--rf-text-primary);
 }
 
+/* Linear Anthrazit Data Tables */
+.linear-table {
+  width: 100%;
+  text-align: left;
+  font-size: 0.75rem;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.linear-table thead tr th {
+  background-color: #1e222a;
+  border-bottom: 1px solid #373e4d;
+}
+
+.linear-table thead tr th:first-child {
+  border-top-left-radius: 0.75rem;
+}
+
+.linear-table thead tr th:last-child {
+  border-top-right-radius: 0.75rem;
+}
+
+.linear-table tbody tr td {
+  border-bottom: 1px solid #373e4d;
+}
+
+.linear-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.linear-table tbody tr:last-child td:first-child {
+  border-bottom-left-radius: 0.75rem;
+}
+
+.linear-table tbody tr:last-child td:last-child {
+  border-bottom-right-radius: 0.75rem;
+}
+
 /* Animations */
 @keyframes fadeIn {
   from {

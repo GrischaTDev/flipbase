@@ -24,11 +24,16 @@ import {
   Coins,
   Wifi,
   WifiOff,
+  Tag,
+  Gift,
+  Store,
+  Truck,
 } from 'lucide-angular';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { OfflineSyncService } from '../../core/services/offline-sync.service';
+import { InboundTrackingService } from '../../core/services/inbound-tracking.service';
 import { PurchaseCreateModalComponent } from './components/purchase-create-modal/purchase-create-modal.component';
-import { PurchaseType } from '../../core/models/reflip.models';
+import { Purchase, PurchaseType } from '../../core/models/reflip.models';
 
 @Component({
   selector: 'app-purchases',
@@ -48,6 +53,7 @@ import { PurchaseType } from '../../core/models/reflip.models';
 export class PurchasesComponent {
   readonly purchaseService = inject(PurchaseService);
   readonly offlineSyncService = inject(OfflineSyncService);
+  readonly trackingService = inject(InboundTrackingService);
 
   readonly bagIcon = ShoppingBag;
   readonly plusIcon = Plus;
@@ -55,9 +61,13 @@ export class PurchasesComponent {
   readonly layersIcon = Layers;
   readonly boxesIcon = Boxes;
   readonly arrowRightIcon = ArrowRight;
+  readonly truckIcon = Truck;
   readonly linkIcon = ExternalLink;
   readonly zapIcon = Zap;
   readonly walletIcon = Wallet;
+  readonly tagIcon = Tag;
+  readonly giftIcon = Gift;
+  readonly storeIcon = Store;
   readonly pinIcon = MapPin;
   readonly sparklesIcon = Sparkles;
   readonly checkIcon = CheckCircle2;
@@ -143,7 +153,7 @@ export class PurchasesComponent {
       notes: val.notes?.trim() || undefined,
     });
 
-    this.rapidSuccessBanner.set(`⚡ "${created.title}" für ${created.purchase_price.toFixed(2)} € gespeichert!`);
+    this.rapidSuccessBanner.set(`"${created.title}" für ${created.purchase_price.toFixed(2)} € gespeichert!`);
     setTimeout(() => this.rapidSuccessBanner.set(null), 4000);
 
     // Reset for next rapid entry while keeping location

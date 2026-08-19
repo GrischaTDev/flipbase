@@ -24,6 +24,10 @@ import {
   AlertCircle,
   TrendingUp,
   Store,
+  Briefcase,
+  Gamepad2,
+  Shirt,
+  Lightbulb,
 } from 'lucide-angular';
 import {
   ListingStudioService,
@@ -36,10 +40,11 @@ import { InventoryService } from '../../core/services/inventory.service';
 import { InventoryItem } from '../../core/models/reflip.models';
 
 import { RouterLink } from '@angular/router';
+import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 
 @Component({
   selector: 'app-listings',
-  imports: [RouterLink, ReactiveFormsModule, CurrencyPipe, TranslatePipe, LucideAngularModule],
+  imports: [RouterLink, ReactiveFormsModule, CurrencyPipe, TranslatePipe, LucideAngularModule, CustomCheckboxComponent],
   templateUrl: './listings.component.html',
   styleUrl: './listings.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -68,6 +73,10 @@ export class ListingsComponent {
   readonly alertCircleIcon = AlertCircle;
   readonly trendingIcon = TrendingUp;
   readonly storeIcon = Store;
+  readonly briefcaseIcon = Briefcase;
+  readonly gamepadIcon = Gamepad2;
+  readonly shirtIcon = Shirt;
+  readonly lightbulbIcon = Lightbulb;
 
   readonly selectedItemId = signal<string>('');
   readonly selectedPlatform = signal<ListingPlatform>('kleinanzeigen');
@@ -243,7 +252,7 @@ export class ListingsComponent {
     this.isMarkingListed.set(true);
     await this.listingStudio.publishToCustomStore(item.id, price);
     this.isMarkingListed.set(false);
-    this.publishSuccessMsg.set(`🎉 "${item.title}" wurde erfolgreich im Webshop veröffentlicht! (Preis: ${price.toFixed(2)} €)`);
+    this.publishSuccessMsg.set(`"${item.title}" wurde erfolgreich im Webshop veröffentlicht! (Preis: ${price.toFixed(2)} €)`);
     setTimeout(() => this.publishSuccessMsg.set(null), 5000);
   }
 

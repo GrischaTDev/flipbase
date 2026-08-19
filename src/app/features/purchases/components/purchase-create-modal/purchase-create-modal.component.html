@@ -330,6 +330,47 @@
         }
       </div>
 
+      <!-- Inbound Sendungsverfolgung (Tracking) -->
+      <div class="p-3 rounded-xl bg-[#1e222a] border border-[#373e4d] space-y-2.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5 text-xs font-semibold text-slate-200">
+            <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+            <span>Sendungsverfolgung (DHL, DPD, Hermes, UPS, GLS)</span>
+          </div>
+          @if (form.controls.tracking_carrier.value) {
+            <span
+              class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border"
+              [class]="trackingService.carrierMetas[form.controls.tracking_carrier.value].badgeClass"
+            >
+              {{ trackingService.carrierMetas[form.controls.tracking_carrier.value].name }}
+            </span>
+          }
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+          <div class="sm:col-span-8">
+            <input
+              type="text"
+              formControlName="tracking_number"
+              (input)="onTrackingNumberInput($event)"
+              placeholder="Sendungsnummer eingeben oder einfügen..."
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono text-slate-100"
+            />
+          </div>
+          <div class="sm:col-span-4">
+            <select
+              formControlName="tracking_carrier"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-slate-200"
+            >
+              <option [ngValue]="null">Auto-Erkennung</option>
+              @for (c of trackingService.carrierOptions; track c.value) {
+                <option [value]="c.value">{{ c.label }}</option>
+              }
+            </select>
+          </div>
+        </div>
+      </div>
+
       <!-- Actions -->
       <div class="flex justify-end gap-2.5 pt-3 border-t border-[#373e4d]">
         <button

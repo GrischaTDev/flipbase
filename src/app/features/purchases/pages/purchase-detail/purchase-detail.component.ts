@@ -24,11 +24,20 @@ import {
   RefreshCw,
   Image,
   Crop,
+  Truck,
+  Copy,
+  Check,
 } from 'lucide-angular';
 import { PurchaseService } from '../../../../core/services/purchase.service';
 import { MediaService } from '../../../../core/services/media.service';
+import { InboundTrackingService } from '../../../../core/services/inbound-tracking.service';
 import { ImageCropperModalComponent, CroppedImageResult } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
-import { CostAllocationMode, ItemCondition } from '../../../../core/models/reflip.models';
+import {
+  CostAllocationMode,
+  InboundTrackingStatus,
+  ItemCondition,
+  TrackingCarrier,
+} from '../../../../core/models/reflip.models';
 
 @Component({
   selector: 'app-purchase-detail',
@@ -51,6 +60,15 @@ export class PurchaseDetailComponent {
   readonly purchaseService = inject(PurchaseService);
   private readonly mediaService = inject(MediaService);
   private readonly router = inject(Router);
+  readonly trackingService = inject(InboundTrackingService);
+
+  /** Fortschrittsstufen der Sendungsverfolgung – typisiert, damit der Zugriff auf statusConfig im Template typsicher bleibt. */
+  readonly trackingSteps: readonly InboundTrackingStatus[] = [
+    'pending',
+    'in_transit',
+    'out_for_delivery',
+    'delivered',
+  ];
 
   readonly arrowLeftIcon = ArrowLeft;
   readonly bagIcon = ShoppingBag;
@@ -71,6 +89,9 @@ export class PurchaseDetailComponent {
   readonly refreshIcon = RefreshCw;
   readonly imageIcon = Image;
   readonly cropIcon = Crop;
+  readonly truckIcon = Truck;
+  readonly copyIcon = Copy;
+  readonly checkSmallIcon = Check;
 
   readonly isAddingCost = signal<boolean>(false);
   readonly isAddingItem = signal<boolean>(false);
@@ -78,6 +99,24 @@ export class PurchaseDetailComponent {
   readonly isCropperOpen = signal<boolean>(false);
   readonly selectedImageFile = signal<File | null>(null);
   readonly selectedImageDataUrl = signal<string | null>(null);
+
+  // Tracking state
+  readonly isEditingTracking = signal<boolean>(false);
+  readonly trackingNumberDraft = signal<string>('');
+  readonly trackingCarrierDraft = signal<TrackingCarrier | null>(null);
+  readonly trackingCopied = signal<boolean>(false);
+  readonly isMarkingDelivered = signal<boolean>(false);
+
+  readonly trackingInfo = computed(() => {
+    const p = this.purchaseService.selectedPurchase();
+    if (!p?.tracking_number) return null;
+    return this.trackingService.getTrackingInfo(
+      p.tracking_number,
+      p.tracking_carrier,
+      p.tracking_status,
+      p.purchase_date
+    );
+  });
 
   // Lot Allocator interactive state
   readonly allocatorMode = signal<CostAllocationMode>('value_weighted');
@@ -256,5 +295,60 @@ export class PurchaseDetailComponent {
       await this.purchaseService.deletePurchase(purchase.id);
       this.router.navigate(['/purchases']);
     }
+  }
+
+  // -- Tracking Methods --
+  startEditTracking(): void {
+    const p = this.purchaseService.selectedPurchase();
+    this.trackingNumberDraft.set(p?.tracking_number || '');
+    this.trackingCarrierDraft.set(p?.tracking_carrier || null);
+    this.isEditingTracking.set(true);
+  }
+
+  onTrackingDraftInput(event: Event): void {
+    const val = (event.target as HTMLInputElement).value;
+    this.trackingNumberDraft.set(val);
+    if (val && val.trim()) {
+      this.trackingCarrierDraft.set(this.trackingService.autoDetectCarrier(val));
+    }
+  }
+
+  async saveTracking(): Promise<void> {
+    const p = this.purchaseService.selectedPurchase();
+    if (!p) return;
+    const num = this.trackingNumberDraft().trim();
+    await this.purchaseService.updatePurchaseTracking(
+      p.id,
+      num || null,
+      this.trackingCarrierDraft(),
+      num ? 'in_transit' : null
+    );
+    this.isEditingTracking.set(false);
+  }
+
+  cancelEditTracking(): void {
+    this.isEditingTracking.set(false);
+  }
+
+  copyTrackingNumber(): void {
+    const info = this.trackingInfo();
+    if (!info) return;
+    navigator.clipboard.writeText(info.tracking_number);
+    this.trackingCopied.set(true);
+    setTimeout(() => this.trackingCopied.set(false), 2000);
+  }
+
+  openTrackingPortal(): void {
+    const info = this.trackingInfo();
+    if (!info?.tracking_url) return;
+    window.open(info.tracking_url, '_blank', 'noopener,noreferrer');
+  }
+
+  async markDeliveredAndSync(): Promise<void> {
+    const p = this.purchaseService.selectedPurchase();
+    if (!p) return;
+    this.isMarkingDelivered.set(true);
+    await this.purchaseService.markPurchaseDeliveredAndSyncItems(p.id);
+    this.isMarkingDelivered.set(false);
   }
 }

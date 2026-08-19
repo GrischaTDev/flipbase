@@ -23,6 +23,10 @@ import {
   Layers,
   Building,
   ArrowRight,
+  Tag,
+  Sun,
+  Sunrise,
+  Moon,
 } from 'lucide-angular';
 import {
   AnalyticsService,
@@ -73,6 +77,10 @@ export class AnalyticsComponent {
   readonly layersIcon = Layers;
   readonly buildingIcon = Building;
   readonly nextIcon = ArrowRight;
+  readonly tagIcon = Tag;
+  readonly sunIcon = Sun;
+  readonly sunriseIcon = Sunrise;
+  readonly moonIcon = Moon;
 
   readonly timeRange = signal<AnalyticsTimeRange>('30d');
   readonly activeSection = signal<

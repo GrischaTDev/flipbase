@@ -372,7 +372,7 @@ export class FulfillmentService {
       order_number: `BUNDLE-${candidate.orders.length}x-${firstOrder.order_number}`,
       order_date: new Date().toISOString(),
       platform: firstOrder.platform,
-      item_title: `📦 SAMMELPAKET (${candidate.orders.length} Artikel): ${itemTitles.join(' + ')}`,
+      item_title: `SAMMELPAKET (${candidate.orders.length} Artikel): ${itemTitles.join(' + ')}`,
       item_sku: 'BUNDLE-SKU',
       item_condition: 'Gemischt',
       sale_price: totalSalePrice,
@@ -392,7 +392,7 @@ export class FulfillmentService {
     this.persistOrders();
 
     if (this.webPushService) {
-      this.webPushService.sendNotification(`📦 Sammelpaket gebündelt: ${candidate.customerName}`, {
+      this.webPushService.sendNotification(`Sammelpaket gebündelt: ${candidate.customerName}`, {
         body: `${candidate.orders.length} Artikel zu 1 Paket zusammengefasst. Ersparnis: ${candidate.potentialSavings.toFixed(2)} €.`,
         tag: `bundle-${bundledOrder.id}`,
       });
@@ -493,7 +493,7 @@ export class FulfillmentService {
     this.persistOrders();
 
     if (this.webPushService) {
-      this.webPushService.sendNotification(`📦 Versandlabel gekauft (${rate.carrier.toUpperCase()})`, {
+      this.webPushService.sendNotification(`Versandlabel gekauft (${rate.carrier.toUpperCase()})`, {
         body: `${rate.name} für ${order.customer.name} gebucht. Sendungsnummer: ${trackingNumber}`,
         tag: `label-purchase-${order.id}`,
       });

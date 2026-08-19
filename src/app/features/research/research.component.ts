@@ -88,6 +88,7 @@ export class ResearchComponent {
   readonly closeIcon = X;
   readonly addMoreIcon = Plus;
   readonly radarIcon = Radio;
+  readonly radioIcon = Radio;
   readonly refreshIcon = RefreshCw;
   readonly trashIcon = Trash2;
 

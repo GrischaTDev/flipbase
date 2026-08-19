@@ -115,7 +115,7 @@
       [class.border-rf-border]="selectedPlatform() !== 'custom_store'"
     >
       <lucide-icon [img]="storeIcon" class="w-3.5 h-3.5 text-amber-300"></lucide-icon>
-      <span>🏪 Eigener Webshop</span>
+      <span>Eigener Webshop</span>
     </button>
 
     <!-- Social / WhatsApp -->
@@ -231,7 +231,10 @@
             [class.border-rf-border]="selectedTone() !== 'dealer'"
             [class.text-rf-text-secondary]="selectedTone() !== 'dealer'"
           >
-            <strong class="block text-xs text-rf-text-primary">💼 Gewerblich</strong>
+            <strong class="block text-xs text-rf-text-primary flex items-center gap-1.5">
+              <lucide-icon [img]="briefcaseIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+              <span>Gewerblich</span>
+            </strong>
             <span class="text-[10px] text-rf-text-muted">Seriös, § 25a & Widerruf</span>
           </button>
 
@@ -247,7 +250,10 @@
             [class.border-rf-border]="selectedTone() !== 'bargain'"
             [class.text-rf-text-secondary]="selectedTone() !== 'bargain'"
           >
-            <strong class="block text-xs text-rf-text-primary">⚡ Schnäppchen</strong>
+            <strong class="block text-xs text-rf-text-primary flex items-center gap-1.5">
+              <lucide-icon [img]="zapIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
+              <span>Schnäppchen</span>
+            </strong>
             <span class="text-[10px] text-rf-text-muted">Festpreis & Quick Flip</span>
           </button>
 
@@ -263,7 +269,10 @@
             [class.border-rf-border]="selectedTone() !== 'collector'"
             [class.text-rf-text-secondary]="selectedTone() !== 'collector'"
           >
-            <strong class="block text-xs text-rf-text-primary">🎮 Sammler & Retro</strong>
+            <strong class="block text-xs text-rf-text-primary flex items-center gap-1.5">
+              <lucide-icon [img]="gamepadIcon" class="w-3.5 h-3.5 text-purple-400"></lucide-icon>
+              <span>Sammler & Retro</span>
+            </strong>
             <span class="text-[10px] text-rf-text-muted">Top-Zustand & OVP Fokus</span>
           </button>
 
@@ -279,8 +288,11 @@
             [class.border-rf-border]="selectedTone() !== 'casual'"
             [class.text-rf-text-secondary]="selectedTone() !== 'casual'"
           >
-            <strong class="block text-xs text-rf-text-primary">👗 Casual / Vinted</strong>
-            <span class="text-[10px] text-rf-text-muted">Locker mit Emojis</span>
+            <strong class="block text-xs text-rf-text-primary flex items-center gap-1.5">
+              <lucide-icon [img]="shirtIcon" class="w-3.5 h-3.5 text-emerald-400"></lucide-icon>
+              <span>Casual / Vinted</span>
+            </strong>
+            <span class="text-[10px] text-rf-text-muted">Lockerer Schreibstil</span>
           </button>
         </div>
       </div>
@@ -292,56 +304,36 @@
           <span>Textbausteine & Klauseln</span>
         </h2>
 
-        <div class="space-y-2 text-xs">
-          <label class="flex items-center gap-2 cursor-pointer text-rf-text-secondary">
-            <input
-              type="checkbox"
-              [checked]="optCommercial()"
-              (change)="optCommercial.set($any($event.target).checked)"
-              class="rounded text-indigo-600 cursor-pointer"
-            />
-            <span>Gewerblicher Reseller (§ 25a Differenzbesteuerung & 14 Tage Widerruf)</span>
-          </label>
+        <div class="space-y-2.5 text-xs">
+          <app-custom-checkbox
+            [(checked)]="optCommercial"
+            label="Gewerblicher Reseller (§ 25a Differenzbesteuerung & 14 Tage Widerruf)"
+            size="sm"
+          ></app-custom-checkbox>
 
-          <label class="flex items-center gap-2 cursor-pointer text-rf-text-secondary">
-            <input
-              type="checkbox"
-              [checked]="optShipping()"
-              (change)="optShipping.set($any($event.target).checked)"
-              class="rounded text-indigo-600 cursor-pointer"
-            />
-            <span>Versicherter Versand mit Tracking anbieten</span>
-          </label>
+          <app-custom-checkbox
+            [(checked)]="optShipping"
+            label="Versicherter Versand mit Tracking anbieten"
+            size="sm"
+          ></app-custom-checkbox>
 
-          <label class="flex items-center gap-2 cursor-pointer text-rf-text-secondary">
-            <input
-              type="checkbox"
-              [checked]="optPickup()"
-              (change)="optPickup.set($any($event.target).checked)"
-              class="rounded text-indigo-600 cursor-pointer"
-            />
-            <span>Selbstabholung vor Ort anbieten</span>
-          </label>
+          <app-custom-checkbox
+            [(checked)]="optPickup"
+            label="Selbstabholung vor Ort anbieten"
+            size="sm"
+          ></app-custom-checkbox>
 
-          <label class="flex items-center gap-2 cursor-pointer text-rf-text-secondary">
-            <input
-              type="checkbox"
-              [checked]="optNonSmoking()"
-              (change)="optNonSmoking.set($any($event.target).checked)"
-              class="rounded text-indigo-600 cursor-pointer"
-            />
-            <span>Nichtraucher- & tierfreier Haushalt erwähnen</span>
-          </label>
+          <app-custom-checkbox
+            [(checked)]="optNonSmoking"
+            label="Nichtraucher- & tierfreier Haushalt erwähnen"
+            size="sm"
+          ></app-custom-checkbox>
 
-          <label class="flex items-center gap-2 cursor-pointer text-rf-text-secondary">
-            <input
-              type="checkbox"
-              [checked]="optDisclaimer()"
-              (change)="optDisclaimer.set($any($event.target).checked)"
-              class="rounded text-indigo-600 cursor-pointer"
-            />
-            <span>Rechtlichen Klausel-Baustein anhängen</span>
-          </label>
+          <app-custom-checkbox
+            [(checked)]="optDisclaimer"
+            label="Rechtlichen Klausel-Baustein anhängen"
+            size="sm"
+          ></app-custom-checkbox>
         </div>
       </div>
     </div>
@@ -349,7 +341,7 @@
     <!-- Right Column: Live Generated Preview & KI-SEO Optimizer (7 cols) -->
     <div class="lg:col-span-7 space-y-4">
       @if (selectedItem(); as item) {
-        <!-- 🤖 KI-SEO Score & Tuning Dashboard Card -->
+        <!-- KI-SEO Score & Tuning Dashboard Card -->
         @if (seoAnalysis(); as seo) {
           <div class="linear-surface rounded-2xl p-5 border border-indigo-500/30 bg-indigo-500/5 space-y-4 shadow-xl">
             <div class="flex items-center justify-between">
@@ -362,19 +354,8 @@
                     <h3 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
                       KI-Listing SEO Score
                     </h3>
-                    <span
-                      class="px-2 py-0.5 rounded-full text-xs font-mono font-bold border"
-                      [class.bg-emerald-500/20]="seo.score >= 80"
-                      [class.text-emerald-300]="seo.score >= 80"
-                      [class.border-emerald-500/40]="seo.score >= 80"
-                      [class.bg-amber-500/20]="seo.score < 80 && seo.score >= 60"
-                      [class.text-amber-300]="seo.score < 80 && seo.score >= 60"
-                      [class.border-amber-500/40]="seo.score < 80 && seo.score >= 60"
-                      [class.bg-rose-500/20]="seo.score < 60"
-                      [class.text-rose-300]="seo.score < 60"
-                      [class.border-rose-500/40]="seo.score < 60"
-                    >
-                      {{ seo.score }} / 100
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                      {{ seo.score }}% Optimiert
                     </span>
                   </div>
                   <p class="text-[10px] text-rf-text-muted mt-0.5">
@@ -391,7 +372,7 @@
                 title="Titel und Beschreibung mit optimalen Keywords anwenden"
               >
                 <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5 text-amber-300"></lucide-icon>
-                <span>{{ aiOptimizedApplied() ? 'Optimiert! ✨' : '✨ KI-SEO optimieren' }}</span>
+                <span>{{ aiOptimizedApplied() ? 'Optimiert!' : 'KI-SEO optimieren' }}</span>
               </button>
             </div>
 
@@ -423,8 +404,9 @@
                 </span>
                 <div class="flex flex-wrap gap-1">
                   @for (kw of seo.detectedKeywords; track kw) {
-                    <span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium">
-                      ✔ {{ kw }}
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium">
+                      <lucide-icon [img]="checkIcon" class="w-2.5 h-2.5 text-emerald-400"></lucide-icon>
+                      <span>{{ kw }}</span>
                     </span>
                   }
                   @for (miss of seo.missingKeywords; track miss) {
@@ -441,7 +423,7 @@
               <div class="text-[11px] text-rf-text-muted space-y-1 pt-1 border-t border-rf-border/50">
                 @for (sug of seo.suggestions; track sug) {
                   <div class="flex items-start gap-1.5">
-                    <span class="text-indigo-400 text-xs">💡</span>
+                    <lucide-icon [img]="lightbulbIcon" class="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5"></lucide-icon>
                     <span>{{ sug }}</span>
                   </div>
                 }
@@ -533,8 +515,8 @@
                 [disabled]="isMarkingListed()"
                 class="linear-btn-primary w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/25 bg-amber-600 hover:bg-amber-500 border-amber-500 text-white disabled:opacity-50"
               >
-                <lucide-icon [img]="zapIcon" class="w-4 h-4"></lucide-icon>
-                <span>⚡ Jetzt im Webshop aktivieren</span>
+                <lucide-icon [img]="storeIcon" class="w-4 h-4"></lucide-icon>
+                <span>Im Webshop aktivieren</span>
               </button>
 
               <button

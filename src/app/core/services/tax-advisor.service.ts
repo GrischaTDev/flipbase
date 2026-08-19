@@ -294,7 +294,7 @@ export class TaxAdvisorService {
 
     // Notify user in-app and via web push
     if (this.webPushService) {
-      this.webPushService.sendNotification('📊 DATEV Monatsabschluss versendet', {
+      this.webPushService.sendNotification('DATEV Monatsabschluss versendet', {
         body: `Bericht für ${report.periodLabel} an ${targetEmail} gesendet.`,
         tag: 'tax-report-sent',
       });
@@ -302,7 +302,7 @@ export class TaxAdvisorService {
 
     if (this.webhookService) {
       this.webhookService.addNotification({
-        title: '📊 DATEV Steuerberater-Bericht versendet',
+        title: 'DATEV Steuerberater-Bericht versendet',
         message: `Monatsbericht (${report.periodLabel}) an ${targetEmail} übermittelt.`,
         type: 'system',
       });

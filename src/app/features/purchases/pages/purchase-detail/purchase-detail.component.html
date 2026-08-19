@@ -326,7 +326,7 @@
             </div>
           </div>
 
-          <!-- 🖼️ 1:1 Image Preview / Crop Button in Mystery Box Item Form -->
+          <!-- 1:1 Image Preview / Crop Button in Mystery Box Item Form -->
           <div class="p-2.5 rounded-lg bg-rf-surface border border-rf-border flex flex-wrap items-center justify-between gap-2.5">
             <div class="flex items-center gap-2">
               @if (selectedImageDataUrl()) {
@@ -390,25 +390,203 @@
         </form>
       }
 
+      <!-- Inbound Sendungsverfolgung -->
+      <div class="linear-surface rounded-xl p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-indigo-600/15 border border-indigo-500/30 flex items-center justify-center">
+              <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+            </div>
+            <div>
+              <h2 class="text-xs font-bold text-slate-100 uppercase tracking-wider">Sendungsverfolgung</h2>
+              <p class="text-[10px] text-slate-400">DHL · DPD · Hermes · UPS · GLS</p>
+            </div>
+          </div>
+
+          @if (!isEditingTracking()) {
+            <button
+              type="button"
+              (click)="startEditTracking()"
+              class="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
+            >
+              {{ trackingInfo() ? 'Ändern' : '+ Sendungsnr. hinzufügen' }}
+            </button>
+          }
+        </div>
+
+        <!-- Edit Mode -->
+        @if (isEditingTracking()) {
+          <div class="space-y-2">
+            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+              <div class="sm:col-span-8">
+                <input
+                  type="text"
+                  [value]="trackingNumberDraft()"
+                  (input)="onTrackingDraftInput($event)"
+                  placeholder="Sendungsnummer einfügen..."
+                  class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono text-slate-100"
+                />
+              </div>
+              <div class="sm:col-span-4">
+                <select
+                  [value]="trackingCarrierDraft()"
+                  (change)="trackingCarrierDraft.set($any($event.target).value)"
+                  class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-slate-200"
+                >
+                  <option [ngValue]="null">Auto-Erkennung</option>
+                  @for (c of trackingService.carrierOptions; track c.value) {
+                    <option [value]="c.value">{{ c.label }}</option>
+                  }
+                </select>
+              </div>
+            </div>
+
+            @if (trackingCarrierDraft()) {
+              <div class="flex items-center gap-1.5">
+                <span class="text-[10px] text-slate-400">Erkannt als:</span>
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border"
+                  [class]="trackingService.carrierMetas[trackingCarrierDraft()!].badgeClass"
+                >
+                  {{ trackingService.carrierMetas[trackingCarrierDraft()!].name }}
+                </span>
+              </div>
+            }
+
+            <div class="flex justify-end gap-2">
+              <button
+                type="button"
+                (click)="cancelEditTracking()"
+                class="linear-btn-secondary px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Abbrechen
+              </button>
+              <button
+                type="button"
+                (click)="saveTracking()"
+                class="linear-btn-primary px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Speichern
+              </button>
+            </div>
+          </div>
+        }
+
+        <!-- Display Mode -->
+        @if (!isEditingTracking() && trackingInfo()) {
+          @let info = trackingInfo()!;
+          <div class="space-y-3">
+            <!-- Carrier & Status Row -->
+            <div class="flex items-center justify-between p-2.5 rounded-lg bg-[#181c24] border border-[#373e4d]">
+              <div class="flex items-center gap-2 min-w-0">
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border shrink-0"
+                  [class]="trackingService.carrierMetas[info.carrier].badgeClass"
+                >
+                  {{ info.carrier_name }}
+                </span>
+                <span class="font-mono text-xs text-slate-200 truncate">{{ info.tracking_number }}</span>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  (click)="copyTrackingNumber()"
+                  class="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-700/50 transition cursor-pointer"
+                  [title]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
+                >
+                  <lucide-icon [img]="trackingCopied() ? checkSmallIcon : copyIcon" class="w-3 h-3"></lucide-icon>
+                </button>
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-bold border"
+                  [class]="trackingService.statusConfig[info.status].badgeClass"
+                >
+                  {{ info.status_label }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Progress Steps -->
+            <div class="flex items-center gap-1">
+              @for (step of trackingSteps; track step) {
+                <div
+                  class="h-1 flex-1 rounded-full transition-colors"
+                  [class.bg-emerald-500]="trackingService.statusConfig[info.status].step >= trackingService.statusConfig[step].step"
+                  [class.bg-[#373e4d]]="trackingService.statusConfig[info.status].step < trackingService.statusConfig[step].step"
+                ></div>
+              }
+            </div>
+
+            <!-- Checkpoints Timeline -->
+            @if (info.checkpoints && info.checkpoints.length > 0) {
+              <div class="space-y-1.5 pl-2 border-l-2 border-[#373e4d]">
+                @for (cp of info.checkpoints; track cp.timestamp) {
+                  <div class="flex items-start gap-2 pl-2">
+                    <div class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                      [class.bg-emerald-400]="cp.status === 'delivered'"
+                      [class.bg-blue-400]="cp.status === 'in_transit'"
+                      [class.bg-amber-400]="cp.status === 'out_for_delivery'"
+                      [class.bg-slate-500]="cp.status === 'pending'"
+                    ></div>
+                    <div>
+                      <p class="text-[11px] text-slate-200">{{ cp.description }}</p>
+                      <p class="text-[10px] text-slate-500">{{ cp.location }} · {{ cp.timestamp | date:'dd.MM.yyyy, HH:mm' }}</p>
+                    </div>
+                  </div>
+                }
+              </div>
+            }
+
+            <!-- Action Buttons -->
+            <div class="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                (click)="openTrackingPortal()"
+                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-[#1e222a] border border-[#4a5468] text-slate-200 hover:border-indigo-500 hover:text-indigo-300 transition cursor-pointer"
+              >
+                <lucide-icon [img]="linkIcon" class="w-3 h-3"></lucide-icon>
+                <span>Bei {{ info.carrier_name }} verfolgen</span>
+              </button>
+
+              @if (info.status !== 'delivered') {
+                <button
+                  type="button"
+                  (click)="markDeliveredAndSync()"
+                  [disabled]="isMarkingDelivered()"
+                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-600/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-600/25 hover:border-emerald-400 transition cursor-pointer disabled:opacity-40"
+                >
+                  <lucide-icon [img]="checkIcon" class="w-3 h-3"></lucide-icon>
+                  <span>{{ isMarkingDelivered() ? 'Sync...' : 'Zugestellt & Artikel-Status sync' }}</span>
+                </button>
+              }
+            </div>
+          </div>
+        }
+
+        <!-- Empty State (no tracking) -->
+        @if (!isEditingTracking() && !trackingInfo()) {
+          <p class="text-xs text-slate-400">Noch keine Sendungsnummer hinterlegt.</p>
+        }
+      </div>
+
       <!-- Items List -->
       @if (purchaseService.purchaseItems().length > 0) {
         <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs border-collapse">
-            <thead class="bg-rf-subtle text-rf-text-muted uppercase font-semibold text-[10px] tracking-wider border-b border-rf-border">
+          <table class="linear-table">
+            <thead class="bg-rf-subtle text-rf-text-muted uppercase font-semibold text-[10px] tracking-wider">
               <tr>
-                <th class="p-3">Titel</th>
-                <th class="p-3">Zustand</th>
-                <th class="p-3">Status</th>
-                <th class="p-3 text-right">Allokierter EK</th>
-                <th class="p-3 text-right">Geschätzter Wert</th>
-                <th class="p-3 text-right">Marge</th>
-                <th class="p-3 text-right">Aktionen</th>
+                <th class="p-3 rounded-tl-xl border-b border-rf-border">Titel</th>
+                <th class="p-3 border-b border-rf-border">Zustand</th>
+                <th class="p-3 border-b border-rf-border">Status</th>
+                <th class="p-3 text-right border-b border-rf-border">Allokierter EK</th>
+                <th class="p-3 text-right border-b border-rf-border">Geschätzter Wert</th>
+                <th class="p-3 text-right border-b border-rf-border">Marge</th>
+                <th class="p-3 text-right rounded-tr-xl border-b border-rf-border">Aktionen</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-rf-border">
               @for (item of purchaseService.purchaseItems(); track item.id) {
-                <tr class="hover:bg-rf-surface-hover transition">
-                  <td class="p-3 font-semibold text-rf-text-primary">
+                <tr class="hover:bg-rf-surface-hover transition group">
+                  <td class="p-3 font-semibold text-rf-text-primary group-last:rounded-bl-xl">
                     <a [routerLink]="['/inventory', item.id]" class="hover:text-indigo-400 transition">
                       {{ item.title }}
                     </a>
@@ -447,7 +625,7 @@
                     }
                   </td>
 
-                  <td class="p-3 text-right">
+                  <td class="p-3 text-right group-last:rounded-br-xl">
                     <a
                       [routerLink]="['/inventory', item.id]"
                       class="text-indigo-400 hover:text-indigo-300 font-semibold text-xs"
@@ -518,7 +696,10 @@
               [class.text-rf-text-secondary]="allocatorMode() !== 'value_weighted'"
               [class.border-rf-border]="allocatorMode() !== 'value_weighted'"
             >
-              📊 Wertgewichtet (nach Marktwert)
+              <div class="inline-flex items-center gap-1.5">
+                <lucide-icon [img]="chartIcon" class="w-3.5 h-3.5"></lucide-icon>
+                <span>Wertgewichtet (nach Marktwert)</span>
+              </div>
             </button>
 
             <button
@@ -532,7 +713,10 @@
               [class.text-rf-text-secondary]="allocatorMode() !== 'even'"
               [class.border-rf-border]="allocatorMode() !== 'even'"
             >
-              ⚖️ Gleichmäßig (Kosten / Stück)
+              <div class="inline-flex items-center gap-1.5">
+                <lucide-icon [img]="scaleIcon" class="w-3.5 h-3.5"></lucide-icon>
+                <span>Gleichmäßig (Kosten / Stück)</span>
+              </div>
             </button>
           </div>
         </div>
@@ -628,7 +812,7 @@
     </div>
   }
 
-  <!-- 🖼️ Image Cropper & Resizer Studio Modal (Fixed 1:1) -->
+  <!-- Image Cropper & Resizer Studio Modal (Fixed 1:1) -->
   @if (isCropperOpen()) {
     <app-image-cropper-modal
       (close)="isCropperOpen.set(false)"

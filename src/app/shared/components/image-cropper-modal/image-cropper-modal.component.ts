@@ -23,6 +23,7 @@ import {
   Sparkles,
   RefreshCw,
   Crop,
+  ArrowRight,
 } from 'lucide-angular';
 
 export interface CroppedImageResult {
@@ -59,6 +60,7 @@ export class ImageCropperModalComponent {
   readonly sparklesIcon = Sparkles;
   readonly refreshIcon = RefreshCw;
   readonly cropIcon = Crop;
+  readonly arrowRightIcon = ArrowRight;
 
   // Cropper State Signals
   readonly imageChangedEvent = signal<Event | null>(null);

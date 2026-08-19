@@ -23,7 +23,7 @@
         title="Lager- & Barcode-Etiketten drucken"
       >
         <lucide-icon [img]="printerIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
-        <span>{{ selectedItemIds().size > 0 ? ('🏷️ Etiketten (' + selectedItemIds().size + ')') : '🏷️ Etiketten drucken' }}</span>
+        <span>{{ selectedItemIds().size > 0 ? ('Etiketten drucken (' + selectedItemIds().size + ')') : 'Etiketten drucken' }}</span>
       </button>
 
       <button
@@ -32,8 +32,8 @@
         class="linear-btn-secondary inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs cursor-pointer select-none text-indigo-300 hover:text-white border-indigo-500/30 bg-indigo-500/10 shadow-sm"
         title="Visual Sourcing AI (Produkterkennung per Foto)"
       >
-        <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
-        <span>📸 KI-Foto-Scan</span>
+        <lucide-icon [img]="cameraIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+        <span>KI-Foto-Scan</span>
       </button>
 
       <button
@@ -202,15 +202,11 @@
 
     <!-- Search Input & Filters -->
     <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
-      <div class="sm:col-span-6 relative">
-        <lucide-icon [img]="searchIcon" class="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5"></lucide-icon>
-        <input
-          type="text"
-          [value]="searchQuery()"
-          (input)="searchQuery.set($any($event.target).value)"
+      <div class="sm:col-span-6">
+        <app-custom-search-input
           placeholder="Artikel, Marke, Modell oder SKU suchen..."
-          class="linear-input w-full pl-9 pr-3 py-1.5 rounded-lg text-xs font-medium placeholder-slate-400"
-        />
+          [(value)]="searchQuery"
+        ></app-custom-search-input>
       </div>
 
       <div class="sm:col-span-3">
@@ -234,38 +230,42 @@
   <!-- Anthrazit Data Table View -->
   @if (filteredItems().length > 0) {
     <div class="linear-surface rounded-xl overflow-visible hidden md:block">
-      <table class="w-full text-left text-xs border-collapse">
-        <thead class="bg-[#1e222a] text-slate-300 uppercase font-semibold text-[10px] tracking-wider border-b border-[#373e4d]">
+      <table class="linear-table">
+        <thead class="bg-[#1e222a] text-slate-300 uppercase font-semibold text-[10px] tracking-wider">
           <tr>
-            <th class="py-2.5 px-3 w-8 text-center">
-              <input
-                type="checkbox"
-                [checked]="isAllSelected()"
-                (change)="toggleSelectAll()"
-                class="rounded text-indigo-600 cursor-pointer"
-                title="Alle auswählen"
-              />
+            <th class="py-2.5 px-3 w-8 text-center rounded-tl-xl border-b border-[#373e4d]">
+              <div class="flex items-center justify-center">
+                <app-custom-checkbox
+                  [checked]="isAllSelected()"
+                  [indeterminate]="isIndeterminate()"
+                  (checkedChange)="toggleSelectAll()"
+                  size="md"
+                  ariaLabel="Alle Artikel auswählen"
+                ></app-custom-checkbox>
+              </div>
             </th>
-            <th class="py-2.5 px-4 font-semibold">Produkt & Details</th>
-            <th class="py-2.5 px-3 font-semibold">Zustand</th>
-            <th class="py-2.5 px-3 font-semibold">Status</th>
-            <th class="py-2.5 px-3 font-semibold">Quelle</th>
-            <th class="py-2.5 px-3 font-semibold text-right">Gesamtkosten</th>
-            <th class="py-2.5 px-3 font-semibold text-right">Marktwert</th>
-            <th class="py-2.5 px-3 font-semibold text-right">Gewinnpotenzial</th>
-            <th class="py-2.5 px-4 font-semibold text-center w-12"></th>
+            <th class="py-2.5 px-4 font-semibold border-b border-[#373e4d]">Produkt & Details</th>
+            <th class="py-2.5 px-3 font-semibold border-b border-[#373e4d]">Zustand</th>
+            <th class="py-2.5 px-3 font-semibold border-b border-[#373e4d]">Status</th>
+            <th class="py-2.5 px-3 font-semibold border-b border-[#373e4d]">Quelle</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-[#373e4d]">Gesamtkosten</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-[#373e4d]">Marktwert</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-[#373e4d]">Gewinnpotenzial</th>
+            <th class="py-2.5 px-4 font-semibold text-center w-12 rounded-tr-xl border-b border-[#373e4d]"></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[#373e4d]">
           @for (item of filteredItems(); track item.id) {
             <tr class="hover:bg-[#2c323f] transition group" [class.bg-indigo-500/5]="isItemSelected(item.id)">
-              <td class="py-3 px-3 text-center">
-                <input
-                  type="checkbox"
-                  [checked]="isItemSelected(item.id)"
-                  (change)="toggleSelectItem(item.id)"
-                  class="rounded text-indigo-600 cursor-pointer"
-                />
+              <td class="py-3 px-3 text-center group-last:rounded-bl-xl">
+                <div class="flex items-center justify-center">
+                  <app-custom-checkbox
+                    [checked]="isItemSelected(item.id)"
+                    (checkedChange)="toggleSelectItem(item.id)"
+                    size="md"
+                    [ariaLabel]="'Artikel ' + item.title + ' auswählen'"
+                  ></app-custom-checkbox>
+                </div>
               </td>
               <td class="py-3 px-4">
                 <a [routerLink]="['/inventory', item.id]" class="font-semibold text-slate-100 hover:text-emerald-400 transition block line-clamp-1">
@@ -322,7 +322,7 @@
                 }
               </td>
 
-              <td class="py-3 px-4 text-center">
+              <td class="py-3 px-4 text-center group-last:rounded-br-xl">
                 <div class="flex items-center justify-center gap-1">
                   <button
                     type="button"

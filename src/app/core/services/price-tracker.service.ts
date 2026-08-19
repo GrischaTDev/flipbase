@@ -277,14 +277,14 @@ export class PriceTrackerService {
     if (undercuts.length > 0) {
       const topUndercut = undercuts[0];
       if (this.webPushService) {
-        this.webPushService.sendNotification(`🚨 Preis-Alarm: ${topUndercut.title.substring(0, 30)}...`, {
+        this.webPushService.sendNotification(`Preis-Alarm: ${topUndercut.title.substring(0, 30)}...`, {
           body: `Konkurrenz bietet für ${topUndercut.currentMarketLowest.toFixed(2)} € an (Dein Preis: ${topUndercut.currentOurPrice.toFixed(2)} €).`,
           tag: `radar-alert-${topUndercut.id}`,
         });
       }
       if (this.webhookService) {
         this.webhookService.addNotification({
-          title: `🚨 Konkurrenz-Unterbietung festgestellt`,
+          title: `Konkurrenz-Unterbietung festgestellt`,
           message: `${topUndercut.title} wird auf ${topUndercut.lowestCompetitorPlatform} für ${topUndercut.currentMarketLowest.toFixed(2)} € unterboten.`,
           type: 'alert',
         });

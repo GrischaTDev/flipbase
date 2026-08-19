@@ -31,6 +31,12 @@ import {
   Package,
   Building,
   Plus,
+  Bot,
+  Landmark,
+  ShoppingCart,
+  AlertTriangle,
+  Volume2,
+  Store,
 } from 'lucide-angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ExportService } from '../../core/services/export.service';
@@ -45,10 +51,11 @@ import { StoreService } from '../../core/services/store.service';
 import { FulfillmentService } from '../../core/services/fulfillment.service';
 import { WebPushService } from '../../core/services/web-push.service';
 import { WorkspaceRole } from '../../core/models/reflip.models';
+import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 
 @Component({
   selector: 'app-settings',
-  imports: [ReactiveFormsModule, TranslatePipe, LucideAngularModule],
+  imports: [ReactiveFormsModule, TranslatePipe, LucideAngularModule, CustomCheckboxComponent],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -96,6 +103,12 @@ export class SettingsComponent {
   readonly smartphoneIcon = Smartphone;
   readonly wifiIcon = Wifi;
   readonly wifiOffIcon = WifiOff;
+  readonly botIcon = Bot;
+  readonly landmarkIcon = Landmark;
+  readonly shoppingCartIcon = ShoppingCart;
+  readonly alertTriangleIcon = AlertTriangle;
+  readonly volumeIcon = Volume2;
+  readonly storeIcon = Store;
 
   readonly isSaving = signal<boolean>(false);
   readonly saveSuccess = signal<boolean>(false);

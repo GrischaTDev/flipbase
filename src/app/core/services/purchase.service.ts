@@ -10,6 +10,8 @@ import {
   CostAllocationMode,
   PurchaseCost,
   InventoryItem,
+  TrackingCarrier,
+  InboundTrackingStatus,
 } from '../models/reflip.models';
 
 export interface CreatePurchasePayload {
@@ -22,6 +24,8 @@ export interface CreatePurchasePayload {
   cost_allocation_mode?: CostAllocationMode;
   notes?: string | null;
   tracking_number?: string | null;
+  tracking_carrier?: TrackingCarrier | null;
+  tracking_status?: InboundTrackingStatus | null;
   original_url?: string | null;
   items_count?: number;
   initial_costs?: { type: string; amount: number; description?: string }[];
@@ -202,7 +206,9 @@ export class PurchaseService {
       total_purchase_cost: totalCost,
       cost_allocation_mode: mode,
       notes: payload.notes || null,
-      tracking_number: payload.tracking_number || null,
+      tracking_number: payload.tracking_number?.trim() || null,
+      tracking_carrier: payload.tracking_carrier || (payload.tracking_number ? 'dhl' : null),
+      tracking_status: payload.tracking_status || (payload.tracking_number ? 'in_transit' : null),
       original_url: payload.original_url || null,
       items_count: payload.type === 'single' ? 1 : payload.items_count || 0,
       created_at: new Date().toISOString(),
@@ -238,6 +244,87 @@ export class PurchaseService {
     }
 
     return { data: newPurchase, error: null };
+  }
+
+  async updatePurchaseTracking(
+    purchaseId: string,
+    trackingNumber: string | null,
+    carrier?: TrackingCarrier | null,
+    status?: InboundTrackingStatus | null
+  ): Promise<{ data: Purchase | null; error: Error | null }> {
+    const existing = this.purchases().find((p) => p.id === purchaseId);
+    if (!existing) return { data: null, error: new Error('Einkauf nicht gefunden') };
+
+    const updated: Purchase = {
+      ...existing,
+      tracking_number: trackingNumber ? trackingNumber.trim() : null,
+      tracking_carrier: carrier || existing.tracking_carrier || (trackingNumber ? 'dhl' : null),
+      tracking_status: status || existing.tracking_status || (trackingNumber ? 'in_transit' : null),
+      updated_at: new Date().toISOString(),
+    };
+
+    this.mockStore.savePurchase(updated);
+    this.purchases.update((list) =>
+      list.map((p) => (p.id === purchaseId ? updated : p))
+    );
+    if (this.selectedPurchase()?.id === purchaseId) {
+      this.selectedPurchase.set(updated);
+    }
+
+    if (!this.mockStore.isDemoMode() && !existing.workspace_id.startsWith('demo-')) {
+      try {
+        await this.supabase.client
+          .from('purchases')
+          .update({
+            tracking_number: updated.tracking_number,
+          })
+          .eq('id', purchaseId);
+      } catch {}
+    }
+
+    return { data: updated, error: null };
+  }
+
+  async markPurchaseDeliveredAndSyncItems(
+    purchaseId: string
+  ): Promise<{ updatedCount: number; error: Error | null }> {
+    const existing = this.purchases().find((p) => p.id === purchaseId);
+    if (!existing) return { updatedCount: 0, error: new Error('Einkauf nicht gefunden') };
+
+    // 1. Update purchase tracking status to delivered
+    await this.updatePurchaseTracking(
+      purchaseId,
+      existing.tracking_number || null,
+      existing.tracking_carrier,
+      'delivered'
+    );
+
+    // 2. Find and update all associated items to 'received'
+    const allItems = this.mockStore.getItems(existing.workspace_id);
+    const purchaseItems = allItems.filter((i) => i.purchase_id === purchaseId);
+    let updatedCount = 0;
+
+    for (const item of purchaseItems) {
+      if (item.status === 'needs_review' || !item.status) {
+        const updatedItem: InventoryItem = {
+          ...item,
+          status: 'received',
+          updated_at: new Date().toISOString(),
+        };
+        this.mockStore.saveItem(updatedItem);
+        updatedCount++;
+      }
+    }
+
+    // Refresh selected purchase items list
+    if (this.selectedPurchase()?.id === purchaseId) {
+      const refreshedItems = this.mockStore
+        .getItems(existing.workspace_id)
+        .filter((i) => i.purchase_id === purchaseId);
+      this.purchaseItems.set(refreshedItems);
+    }
+
+    return { updatedCount, error: null };
   }
 
   async deletePurchase(purchaseId: string): Promise<{ error: Error | null }> {

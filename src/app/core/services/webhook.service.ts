@@ -126,7 +126,7 @@ export class WebhookService {
     // 1. Add In-App notification
     this.addNotification({
       type: 'sale',
-      title: `🎉 Neuer Verkauf: ${itemTitle}`,
+      title: `Neuer Verkauf: ${itemTitle}`,
       message: `Verkauft für ${price} € auf ${platform}. Reingewinn: +${profit} € (ROI: ${roi}%).`,
       link: '/sales',
     });
@@ -139,14 +139,14 @@ export class WebhookService {
           avatar_url: 'https://cdn-icons-png.flaticon.com/512/891/891462.png',
           embeds: [
             {
-              title: '🎉 Neuer Verkauf gebucht!',
+              title: 'Neuer Verkauf gebucht!',
               description: `**${itemTitle}** wurde erfolgreich verkauft.`,
               color: 1095937,
               fields: [
-                { name: '💰 Verkaufspreis', value: `${price} €`, inline: true },
-                { name: '🚀 Reingewinn', value: `+${profit} €`, inline: true },
-                { name: '📈 ROI', value: `${roi}%`, inline: true },
-                { name: '🏷️ Plattform', value: platform, inline: true },
+                { name: 'Verkaufspreis', value: `${price} €`, inline: true },
+                { name: 'Reingewinn', value: `+${profit} €`, inline: true },
+                { name: 'ROI', value: `${roi}%`, inline: true },
+                { name: 'Plattform', value: platform, inline: true },
               ],
               footer: { text: 'ReFlip OS • Reselling Intelligence' },
               timestamp: new Date().toISOString(),
@@ -166,7 +166,7 @@ export class WebhookService {
     // 3. Telegram Bot
     if (cfg.telegramEnabled && cfg.telegramBotToken && cfg.telegramChatId) {
       try {
-        const text = `🎉 *NEUER SALE GEBUCHT!*\n\n📦 *Artikel:* ${itemTitle}\n💰 *Verkaufspreis:* ${price} €\n🚀 *Reingewinn:* +${profit} € (ROI: ${roi}%)\n🏷️ *Plattform:* ${platform}`;
+        const text = `*NEUER SALE GEBUCHT!*\n\n*Artikel:* ${itemTitle}\n*Verkaufspreis:* ${price} €\n*Reingewinn:* +${profit} € (ROI: ${roi}%)\n*Plattform:* ${platform}`;
         const url = `https://api.telegram.org/bot${cfg.telegramBotToken}/sendMessage`;
         await fetch(url, {
           method: 'POST',
@@ -194,7 +194,7 @@ export class WebhookService {
 
     this.addNotification({
       type: 'purchase',
-      title: `📦 Neuer Einkauf: ${purchase.title}`,
+      title: `Neuer Einkauf: ${purchase.title}`,
       message: `Einkaufskosten: ${cost} € (${purchase.type === 'pallet' ? 'Palette / Konvolut' : 'Einzelkauf'}).`,
       link: '/purchases',
     });
@@ -217,12 +217,12 @@ export class WebhookService {
           username: 'ReFlip Reselling Bot',
           embeds: [
             {
-              title: '🔔 ReFlip Test-Nachricht',
+              title: 'ReFlip Test-Nachricht',
               description: 'Deine Discord-Webhook-Integration ist **erfolgreich aktiv** und empfangsbereit!',
               color: 6514673,
               fields: [
                 { name: 'System', value: 'ReFlip OS 2026', inline: true },
-                { name: 'Status', value: '✅ Verbunden', inline: true },
+                { name: 'Status', value: 'Verbunden (Aktiv)', inline: true },
               ],
             },
           ],
@@ -241,7 +241,7 @@ export class WebhookService {
         return { success: false, message: 'Bitte gib Bot-Token und Chat-ID ein.' };
       }
       try {
-        const text = `🔔 *ReFlip Test-Nachricht*\n\nDeine Telegram-Bot-Integration ist *erfolgreich aktiv* und empfangsbereit! ✅`;
+        const text = `*ReFlip Test-Nachricht*\n\nDeine Telegram-Bot-Integration ist *erfolgreich aktiv* und empfangsbereit!`;
         const url = `https://api.telegram.org/bot${cfg.telegramBotToken}/sendMessage`;
         const res = await fetch(url, {
           method: 'POST',

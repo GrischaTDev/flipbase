@@ -153,24 +153,24 @@
   <!-- Sales Table (Desktop) -->
   @if (filteredSales().length > 0) {
     <div class="linear-surface rounded-xl overflow-hidden hidden md:block">
-      <table class="w-full text-left text-xs border-collapse">
-        <thead class="bg-[#1e222a] text-slate-300 uppercase font-semibold text-[10px] tracking-wider border-b border-[#373e4d]">
+      <table class="linear-table">
+        <thead class="bg-[#1e222a] text-slate-300 uppercase font-semibold text-[10px] tracking-wider">
           <tr>
-            <th class="py-2.5 px-4 font-semibold">Verkaufter Artikel</th>
-            <th class="py-2.5 px-3 font-semibold">Plattform</th>
-            <th class="py-2.5 px-3 font-semibold">Datum</th>
-            <th class="py-2.5 px-3 font-semibold text-right">Verkaufspreis</th>
-            <th class="py-2.5 px-3 font-semibold text-right">Nettogewinn</th>
-            <th class="py-2.5 px-3 font-semibold text-right">ROI</th>
-            <th class="py-2.5 px-3 font-semibold text-right">Haltedauer</th>
-            <th class="py-2.5 px-4 font-semibold text-center w-28">Aktionen</th>
+            <th class="py-2.5 px-4 font-semibold rounded-tl-xl border-b border-[#373e4d]">Verkaufter Artikel</th>
+            <th class="py-2.5 px-3 font-semibold border-b border-[#373e4d]">Plattform</th>
+            <th class="py-2.5 px-3 font-semibold border-b border-[#373e4d]">Datum</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-[#373e4d]">Verkaufspreis</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-[#373e4d]">Nettogewinn</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-[#373e4d]">ROI</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-[#373e4d]">Haltedauer</th>
+            <th class="py-2.5 px-4 font-semibold text-center w-28 rounded-tr-xl border-b border-[#373e4d]">Aktionen</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-[#373e4d]">
           @for (sale of filteredSales(); track sale.id) {
             @let ret = getReturnForSale(sale.id);
             <tr class="hover:bg-[#2c323f] transition group">
-              <td class="py-3 px-4 font-semibold text-slate-100">
+              <td class="py-3 px-4 font-semibold text-slate-100 group-last:rounded-bl-xl">
                 <div class="flex items-center gap-2">
                   <a [routerLink]="['/inventory', sale.inventory_item_id]" class="hover:text-emerald-400 transition">
                     {{ sale.inventory_item?.title || 'Artikel' }}
@@ -209,7 +209,7 @@
                 {{ sale.holding_duration_days }} Tage
               </td>
 
-              <td class="py-3 px-4 text-center">
+              <td class="py-3 px-4 text-center group-last:rounded-br-xl">
                 <div class="flex items-center justify-center gap-1.5">
                   <!-- § 25a Invoice Button -->
                   <button

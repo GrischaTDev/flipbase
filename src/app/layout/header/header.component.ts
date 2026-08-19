@@ -25,6 +25,7 @@ import {
   Sparkles,
   Smartphone,
   WifiOff,
+  Settings,
 } from 'lucide-angular';
 import { AuthService } from '../../core/services/auth.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
@@ -75,6 +76,7 @@ export class HeaderComponent {
   readonly MenuIcon = Menu;
   readonly SunIcon = Sun;
   readonly MoonIcon = Moon;
+  readonly settingsIcon = Settings;
   readonly BellIcon = Bell;
   readonly CheckCheckIcon = CheckCheck;
   readonly TrashIcon = Trash2;

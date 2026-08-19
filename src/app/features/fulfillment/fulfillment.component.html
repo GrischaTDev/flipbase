@@ -88,7 +88,7 @@
     </div>
   </div>
 
-  <!-- 📦 Intelligente Paket-Bündelung & Kombiversand-Banner -->
+  <!-- Intelligente Paket-Bündelung & Kombiversand-Banner -->
   @if (bundleSuccessMsg(); as msg) {
     <div class="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center justify-between animate-fade-in">
       <div class="flex items-center gap-2">
@@ -108,18 +108,13 @@
           <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center">
             <lucide-icon [img]="boxesIcon" class="w-5 h-5"></lucide-icon>
           </div>
-          <div>
-            <div class="flex items-center gap-2">
-              <h2 class="text-sm font-bold text-rf-text-primary">
-                📦 Intelligente Paket-Bündelung verfügbar ({{ fulfillmentService.bundleCandidates().length }} Vorschläge)
-              </h2>
-              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                Kombiversand
-              </span>
-            </div>
-            <p class="text-xs text-rf-text-muted mt-0.5">
-              Mehrere unversendete Artikel an denselben Käufer erkannt. Fasse sie zu einem Sammelpaket zusammen und spare Porto!
-            </p>
+          <div class="flex items-center gap-2">
+            <h2 class="text-sm font-bold text-rf-text-primary">
+              Intelligente Paket-Bündelung verfügbar ({{ fulfillmentService.bundleCandidates().length }} Vorschläge)
+            </h2>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+              Kombiversand
+            </span>
           </div>
         </div>
       </div>
@@ -139,22 +134,20 @@
                 </span>
               </div>
 
-              <!-- Enclosed Orders List -->
-              <ul class="space-y-1 text-xs">
-                @for (ord of candidate.orders; track ord.id) {
-                  <li class="flex items-center justify-between text-rf-text-secondary">
-                    <span class="line-clamp-1 flex-1 pr-2">• {{ ord.item_title }}</span>
-                    <span class="font-mono text-rf-text-muted shrink-0">{{ ord.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
-                  </li>
+              <!-- Order Items List -->
+              <ul class="text-[11px] text-rf-text-muted space-y-1 pl-1 font-mono">
+                @for (order of candidate.orders; track order.id) {
+                  <li class="truncate">• {{ order.item_title }}</li>
                 }
               </ul>
             </div>
 
-            <!-- Savings & Action Bar -->
-            <div class="pt-2 border-t border-rf-border flex items-center justify-between gap-3 text-xs">
-              <div class="font-mono">
-                <span class="text-[10px] text-rf-text-muted block font-sans">Empfohlener Tarif: {{ candidate.suggestedRate.name }}</span>
-                <span class="font-bold text-emerald-400">Ersparnis: ~{{ candidate.potentialSavings | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+            <div class="pt-2 border-t border-rf-border flex items-center justify-between">
+              <div>
+                <span class="text-[10px] text-rf-text-muted uppercase font-bold block">Portoersparnis</span>
+                <strong class="text-xs font-mono text-emerald-400 font-bold">
+                  ~ {{ candidate.potentialSavings | currency:'EUR':'symbol':'1.2-2':'de' }}
+                </strong>
               </div>
 
               <button
@@ -164,7 +157,7 @@
                 class="linear-btn-primary px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20 disabled:opacity-50"
               >
                 <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5 text-amber-300"></lucide-icon>
-                <span>⚡ Als Sammelpaket bündeln</span>
+                <span>Als Sammelpaket bündeln</span>
               </button>
             </div>
           </div>
@@ -178,7 +171,7 @@
     <button
       type="button"
       (click)="selectedStatusTab.set('ready_to_pack')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-amber-600]="selectedStatusTab() === 'ready_to_pack'"
       [class.text-white]="selectedStatusTab() === 'ready_to_pack'"
       [class.border-amber-500]="selectedStatusTab() === 'ready_to_pack'"
@@ -186,13 +179,14 @@
       [class.text-rf-text-secondary]="selectedStatusTab() !== 'ready_to_pack'"
       [class.border-rf-border]="selectedStatusTab() !== 'ready_to_pack'"
     >
-      🔴 Zu verpacken ({{ fulfillmentService.readyToPackCount() }})
+      <lucide-icon [img]="packageIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <span>Zu verpacken ({{ fulfillmentService.readyToPackCount() }})</span>
     </button>
 
     <button
       type="button"
       (click)="selectedStatusTab.set('shipped')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="selectedStatusTab() === 'shipped'"
       [class.text-white]="selectedStatusTab() === 'shipped'"
       [class.border-indigo-500]="selectedStatusTab() === 'shipped'"
@@ -200,13 +194,14 @@
       [class.text-rf-text-secondary]="selectedStatusTab() !== 'shipped'"
       [class.border-rf-border]="selectedStatusTab() !== 'shipped'"
     >
-      🚚 Unterwegs ({{ fulfillmentService.shippedCount() }})
+      <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <span>Unterwegs ({{ fulfillmentService.shippedCount() }})</span>
     </button>
 
     <button
       type="button"
       (click)="selectedStatusTab.set('delivered')"
-      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
+      class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-emerald-600]="selectedStatusTab() === 'delivered'"
       [class.text-white]="selectedStatusTab() === 'delivered'"
       [class.border-emerald-500]="selectedStatusTab() === 'delivered'"
@@ -214,7 +209,8 @@
       [class.text-rf-text-secondary]="selectedStatusTab() !== 'delivered'"
       [class.border-rf-border]="selectedStatusTab() !== 'delivered'"
     >
-      ✅ Zugestellt ({{ fulfillmentService.deliveredCount() }})
+      <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <span>Zugestellt ({{ fulfillmentService.deliveredCount() }})</span>
     </button>
 
     <button
@@ -268,7 +264,10 @@
               </span>
               <ul class="space-y-0.5 text-rf-text-secondary">
                 @for (title of order.bundled_item_titles; track title) {
-                  <li>📦 {{ title }}</li>
+                  <li class="flex items-center gap-1">
+                    <lucide-icon [img]="packageIcon" class="w-3 h-3 text-indigo-400 shrink-0"></lucide-icon>
+                    <span>{{ title }}</span>
+                  </li>
                 }
               </ul>
             </div>
@@ -321,7 +320,7 @@
               title="DHL / Hermes Versandmarke via Carrier API buchen"
             >
               <lucide-icon [img]="zapIcon" class="w-3.5 h-3.5 text-emerald-400"></lucide-icon>
-              <span>⚡ Label kaufen</span>
+              <span>Label online kaufen</span>
             </button>
 
             <!-- Print Label Button -->
@@ -475,7 +474,7 @@
 
           <!-- Fragile / Safety Badge -->
           <div class="p-2 bg-neutral-100 border border-black text-center text-[10px] font-black uppercase tracking-wider">
-            ⚠️ Vorsicht Zerbrechlich &bull; Elektronik &bull; Vor Nässe Schützen
+            Vorsicht Zerbrechlich &bull; Elektronik &bull; Vor Nässe Schützen
           </div>
         </div>
 
@@ -679,7 +678,7 @@
     </div>
   }
 
-  <!-- ⚡ Live Carrier Label Purchase Modal (DHL / Hermes) -->
+  <!-- Live Carrier Label Purchase Modal (DHL / Hermes) -->
   @if (isPurchaseModalOpen(); as order) {
     @let targetOrder = selectedOrderForPurchase();
     @if (targetOrder) {
@@ -795,7 +794,7 @@
                 <span>Marke wird gebucht...</span>
               } @else {
                 <lucide-icon [img]="zapIcon" class="w-4 h-4"></lucide-icon>
-                <span>⚡ Jetzt kaufen & Label öffnen</span>
+                <span>Jetzt kaufen & Label öffnen</span>
               }
             </button>
           </div>

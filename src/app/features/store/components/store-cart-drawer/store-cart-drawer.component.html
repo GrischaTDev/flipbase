@@ -35,7 +35,7 @@
       @if (storeService.cartSubtotal() >= storeService.storeSettings().freeShippingThreshold) {
         <div class="flex items-center gap-2 text-emerald-700 font-bold">
           <lucide-icon [img]="truckIcon" class="w-4 h-4 text-emerald-600"></lucide-icon>
-          <span>Glückwunsch! Kostenloser Versand aktiv! 🎉</span>
+          <span>Glückwunsch! Kostenloser Versand aktiv!</span>
         </div>
       } @else {
         <div class="flex items-center justify-between text-slate-600 mb-1.5 font-medium">

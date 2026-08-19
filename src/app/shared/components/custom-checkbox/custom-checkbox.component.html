@@ -1,0 +1,68 @@
+<div
+  class="relative inline-flex items-center gap-2 select-none group cursor-pointer"
+  (click)="toggle($event)"
+>
+  <!-- Rounded Square Checkbox Box -->
+  <div
+    role="checkbox"
+    [attr.aria-checked]="indeterminate() ? 'mixed' : checked()"
+    [attr.aria-disabled]="effectiveDisabled()"
+    [attr.aria-label]="ariaLabel() || label() || 'Checkbox'"
+    [id]="id() || null"
+    tabindex="0"
+    (keydown)="onKeyDown($event)"
+    (blur)="onBlur()"
+    class="relative flex items-center justify-center rounded border transition-all duration-150 outline-none shrink-0"
+    [class.w-3.5]="size() === 'sm'"
+    [class.h-3.5]="size() === 'sm'"
+    [class.w-4]="size() === 'md'"
+    [class.h-4]="size() === 'md'"
+    [class.w-5]="size() === 'lg'"
+    [class.h-5]="size() === 'lg'"
+    [class.bg-indigo-600]="checked() || indeterminate()"
+    [class.border-indigo-500]="checked() || indeterminate()"
+    [class.shadow-sm]="checked() || indeterminate()"
+    [class.shadow-indigo-500/30]="checked() || indeterminate()"
+    [class.bg-[#161920]]="!checked() && !indeterminate()"
+    [class.border-[#555f75]]="!checked() && !indeterminate()"
+    [class.group-hover:border-indigo-400]="!checked() && !indeterminate() && !effectiveDisabled()"
+    [class.group-hover:bg-[#1f242e]]="!checked() && !indeterminate() && !effectiveDisabled()"
+  >
+    @if (checked() && !indeterminate()) {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="3.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="text-white w-2.5 h-2.5 animate-scale-in"
+      >
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    } @else if (indeterminate()) {
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="4"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="text-white w-2.5 h-2.5 animate-scale-in"
+      >
+        <line x1="5" y1="12" x2="19" y2="12"></line>
+      </svg>
+    }
+  </div>
+
+  <!-- Optional Label -->
+  @if (label()) {
+    <span
+      class="text-xs font-medium text-rf-text-secondary group-hover:text-rf-text-primary transition-colors select-none"
+    >
+      {{ label() }}
+    </span>
+  } @else {
+    <ng-content></ng-content>
+  }
+</div>

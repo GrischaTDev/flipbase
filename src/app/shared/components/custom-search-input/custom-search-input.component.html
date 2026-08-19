@@ -1,0 +1,62 @@
+<div
+  class="relative flex items-center w-full group"
+  [class.opacity-50]="effectiveDisabled()"
+>
+  <!-- Search Icon (Rock-solid Centered) -->
+  <div
+    class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-slate-400 group-focus-within:text-indigo-400 transition-colors w-4 h-4"
+  >
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2.2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class="w-3.5 h-3.5"
+    >
+      <circle cx="11" cy="11" r="8"></circle>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
+  </div>
+
+  <!-- Input Field -->
+  <input
+    #searchInput
+    type="text"
+    [value]="value()"
+    [placeholder]="placeholder()"
+    [disabled]="effectiveDisabled()"
+    [id]="id() || null"
+    [attr.aria-label]="ariaLabel()"
+    (input)="onInput($event)"
+    (keydown)="onKeyDown($event)"
+    (blur)="onBlur()"
+    class="w-full bg-[#20242e] border border-[#444c5c] rounded-lg text-xs font-medium placeholder-slate-400 text-slate-100 transition focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs h-8.5 pl-9"
+    [class.pr-8]="clearable() && value()"
+    [class.pr-3]="!clearable() || !value()"
+  />
+
+  <!-- Clear Button -->
+  @if (clearable() && value() && !effectiveDisabled()) {
+    <button
+      type="button"
+      (click)="onClear()"
+      class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md text-slate-400 hover:text-white hover:bg-slate-700/60 transition cursor-pointer flex items-center justify-center"
+      title="Suche zurücksetzen"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="w-3 h-3"
+      >
+        <line x1="18" y1="6" x2="6" y2="18"></line>
+        <line x1="6" y1="6" x2="18" y2="18"></line>
+      </svg>
+    </button>
+  }
+</div>

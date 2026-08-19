@@ -11,11 +11,13 @@ import {
   Boxes,
   PlusCircle,
   Trash2,
+  Truck,
 } from 'lucide-angular';
 import { PurchaseService, CreatePurchasePayload } from '../../../../core/services/purchase.service';
 import { SourcesService } from '../../../../core/services/sources.service';
 import { SuppliersService } from '../../../../core/services/suppliers.service';
-import { PurchaseType, ItemCondition } from '../../../../core/models/reflip.models';
+import { InboundTrackingService } from '../../../../core/services/inbound-tracking.service';
+import { PurchaseType, ItemCondition, TrackingCarrier } from '../../../../core/models/reflip.models';
 
 interface ExtraCostEntry {
   type: string;
@@ -34,6 +36,7 @@ export class PurchaseCreateModalComponent {
   private readonly purchaseService = inject(PurchaseService);
   readonly sourcesService = inject(SourcesService);
   readonly suppliersService = inject(SuppliersService);
+  readonly trackingService = inject(InboundTrackingService);
 
   readonly close = output<void>();
   readonly created = output<void>();
@@ -46,6 +49,7 @@ export class PurchaseCreateModalComponent {
   readonly packageIcon = Package;
   readonly layersIcon = Layers;
   readonly boxesIcon = Boxes;
+  readonly truckIcon = Truck;
 
   readonly isSubmitting = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
@@ -66,6 +70,8 @@ export class PurchaseCreateModalComponent {
     supplier_id: new FormControl<string | null>(null),
     purchase_date: new FormControl<string>(new Date().toISOString().split('T')[0], { nonNullable: true, validators: [Validators.required] }),
     purchase_price: new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
+    tracking_number: new FormControl<string>(''),
+    tracking_carrier: new FormControl<TrackingCarrier | null>(null),
     original_url: new FormControl<string>(''),
     notes: new FormControl<string>(''),
     // Single item specific fields
@@ -112,6 +118,14 @@ export class PurchaseCreateModalComponent {
     }
   }
 
+  onTrackingNumberInput(event: Event): void {
+    const val = (event.target as HTMLInputElement).value;
+    if (val && val.trim()) {
+      const detected = this.trackingService.autoDetectCarrier(val);
+      this.form.patchValue({ tracking_carrier: detected });
+    }
+  }
+
   async onSubmit(): Promise<void> {
     if (this.form.invalid) return;
 
@@ -126,6 +140,8 @@ export class PurchaseCreateModalComponent {
       supplier_id: f.supplier_id,
       purchase_date: f.purchase_date,
       purchase_price: f.purchase_price,
+      tracking_number: f.tracking_number?.trim() || null,
+      tracking_carrier: f.tracking_carrier || (f.tracking_number ? this.trackingService.autoDetectCarrier(f.tracking_number) : null),
       original_url: f.original_url || null,
       notes: f.notes || null,
       initial_costs: this.extraCosts().filter((c) => c.amount > 0),

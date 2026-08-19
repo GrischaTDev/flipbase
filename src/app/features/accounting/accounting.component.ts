@@ -42,12 +42,14 @@ import { TaxCalculationResult, TaxMode } from '../../core/models/reflip.models';
 import { MonthlyTaxReport } from '../../core/models/accounting.models';
 import { BankTransaction } from '../../core/models/bank-reconciliation.models';
 
+import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
+
 export type AccountingTab = 'tax_journal' | 'bank_reconciliation';
 export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
 
 @Component({
   selector: 'app-accounting',
-  imports: [ReactiveFormsModule, CurrencyPipe, DatePipe, LucideAngularModule],
+  imports: [ReactiveFormsModule, CurrencyPipe, DatePipe, LucideAngularModule, CustomSearchInputComponent],
   templateUrl: './accounting.component.html',
   styleUrl: './accounting.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

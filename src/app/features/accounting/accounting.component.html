@@ -38,7 +38,7 @@
         [class.hover:text-white]="activeTab() !== 'bank_reconciliation'"
       >
         <lucide-icon [img]="cardIcon" class="w-3.5 h-3.5 text-accent-emerald"></lucide-icon>
-        <span>💳 Bankabgleich</span>
+        <span>Bankabgleich</span>
         @if (bankService.summary().matchedCount > 0) {
           <span class="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-accent-emerald text-black font-mono">
             {{ bankService.summary().matchedCount }}
@@ -237,15 +237,12 @@
 
           <!-- Search & Batch Book Button -->
           <div class="flex items-center gap-2">
-            <div class="relative">
-              <input
-                type="text"
-                [value]="bankSearchQuery()"
-                (input)="bankSearchQuery.set($any($event.target).value)"
+            <div class="w-40 sm:w-52">
+              <app-custom-search-input
                 placeholder="Suchen..."
-                class="input-field text-xs py-1.5 pl-8 pr-3 w-40 sm:w-48"
-              />
-              <lucide-icon [img]="searchIcon" class="w-3.5 h-3.5 text-muted absolute left-2.5 top-1/2 -translate-y-1/2"></lucide-icon>
+                [(value)]="bankSearchQuery"
+                size="sm"
+              ></app-custom-search-input>
             </div>
 
             @if (sum.matchedCount > 0) {

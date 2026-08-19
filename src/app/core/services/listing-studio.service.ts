@@ -201,7 +201,7 @@ export class ListingStudioService {
 
     // Description score calculation
     let descriptionScore = 40;
-    if (desc.includes('•') || desc.includes('-') || desc.includes('✔')) descriptionScore += 25;
+    if (desc.includes('•') || desc.includes('-') || desc.includes('*')) descriptionScore += 25;
     if (desc.toLowerCase().includes('versand') || desc.toLowerCase().includes('abholung')) descriptionScore += 20;
     if (desc.toLowerCase().includes('gewährleistung') || desc.toLowerCase().includes('differenzbesteuerung') || desc.toLowerCase().includes('garantie')) descriptionScore += 15;
 
@@ -224,7 +224,7 @@ export class ListingStudioService {
         optimizedTitle = `${brand}${item.title}${model} ${condTag}`.trim().slice(0, 80);
       }
     } else if (platform === 'kleinanzeigen') {
-      optimizedTitle = `⭐ ${brand}${item.title}${model} (${condTag})`.trim().slice(0, 70);
+      optimizedTitle = `${brand}${item.title}${model} (${condTag})`.trim().slice(0, 70);
     } else {
       optimizedTitle = `${brand}${item.title}${model} - ${condTag}`.trim().slice(0, 60);
     }
@@ -249,21 +249,21 @@ export class ListingStudioService {
   private buildOptimizedSeoDescription(item: InventoryItem, platform: ListingPlatform): string {
     const conditionText = this.getConditionText(item.condition);
     const lines: string[] = [
-      `🔥 Top-Angebot: ${item.brand ? item.brand + ' ' : ''}${item.title}`,
+      `Top-Angebot: ${item.brand ? item.brand + ' ' : ''}${item.title}`,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
-      `📦 LIEFERUMFANG & HIGHLIGHTS:`,
+      `LIEFERUMFANG & HIGHLIGHTS:`,
       `• Artikel: ${item.title}`,
       item.brand ? `• Hersteller: ${item.brand}` : '',
       item.model ? `• Modell: ${item.model}` : '',
       `• Zustand: ${conditionText}`,
       item.condition_notes ? `• Details zum Zustand: ${item.condition_notes}` : '',
-      item.description ? `\n📝 BESCHREIBUNG:\n${item.description}` : '',
-      `\n🚚 VERSAND & ABHOLUNG:`,
+      item.description ? `\nBESCHREIBUNG:\n${item.description}` : '',
+      `\nVERSAND & ABHOLUNG:`,
       `• Versicherter DHL / Hermes Versand mit Sendungsverfolgung möglich`,
       `• Sichere und gepolsterte Verpackung garantiert`,
       `• Schneller Versand innerhalb von 24 Stunden nach Zahlungseingang`,
       `• Barzahlung bei Abholung oder Überweisung / PayPal`,
-      `\n⚖️ RECHTLICHER HINWEIS:`,
+      `\nRECHTLICHER HINWEIS:`,
       `Geprüfte Gebrauchtware vom Händler. Differenzbesteuerung gem. § 25a UStG.`,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     ].filter(Boolean);
@@ -281,7 +281,7 @@ export class ListingStudioService {
 
     if (platform === 'kleinanzeigen') {
       const vb = options.includeNegotiable ? ' (VB)' : '';
-      const prefix = options.styleTone === 'collector' ? '⭐ TOP ⭐ ' : '';
+      const prefix = options.styleTone === 'collector' ? 'TOP ' : '';
       const base = `${prefix}${brand}${item.title} ${cond}`.trim();
       return `${base}${vb}`.slice(0, 70);
     } else if (platform === 'ebay') {
@@ -291,7 +291,7 @@ export class ListingStudioService {
     } else if (platform === 'vinted') {
       return `${brand}${item.title}`.trim().slice(0, 60);
     } else {
-      return `🔥 ${brand}${item.title} zu verkaufen!`;
+      return `${brand}${item.title} zu verkaufen!`;
     }
   }
 
@@ -304,15 +304,15 @@ export class ListingStudioService {
     const lines: string[] = [];
 
     if (options.styleTone === 'collector') {
-      lines.push(`Hallo Sammler & Enthusiasten, 🎮`);
+      lines.push(`Hallo Sammler & Enthusiasten,`);
       lines.push(``);
       lines.push(`angeboten wird hier: ${item.title} in tollem Erhaltungszustand.`);
     } else if (options.styleTone === 'bargain') {
-      lines.push(`Schnäppchen-Alarm! ⚡`);
+      lines.push(`Schnäppchen-Angebot:`);
       lines.push(``);
-      lines.push(`Ich biete hier einen/eine ${item.title} zum absoluten Festpreis an.`);
+      lines.push(`Ich biete hier einen/eine ${item.title} zum fairen Festpreis an.`);
     } else {
-      lines.push(`Hallo zusammen, 👋`);
+      lines.push(`Hallo zusammen,`);
       lines.push(``);
       lines.push(`zum Verkauf steht hier ein(e) ${item.title}.`);
     }
@@ -336,14 +336,14 @@ export class ListingStudioService {
     lines.push(``);
 
     if (options.includeNonSmoking) {
-      lines.push(`✔ Gepflegter Nichtraucherhaushalt ohne Haustiere.`);
+      lines.push(`• Gepflegter Nichtraucherhaushalt ohne Haustiere.`);
     }
     if (options.includePickup && options.includeShipping) {
-      lines.push(`✔ Abholung vor Ort nach Absprache oder versicherter Versand möglich.`);
+      lines.push(`• Abholung vor Ort nach Absprache oder versicherter Versand möglich.`);
     } else if (options.includePickup) {
-      lines.push(`✔ Nur an Selbstabholer.`);
+      lines.push(`• Nur an Selbstabholer.`);
     } else if (options.includeShipping) {
-      lines.push(`✔ Versicherter Versand mit Sendungsverfolgung.`);
+      lines.push(`• Versicherter Versand mit Sendungsverfolgung.`);
     }
 
     if (options.includeDisclaimer) {
@@ -436,7 +436,7 @@ export class ListingStudioService {
     options: ListingTemplateOptions
   ): string {
     const lines: string[] = [];
-    lines.push(`✨ ${item.title}`);
+    lines.push(`${item.title}`);
     lines.push(``);
     lines.push(`Zustand: ${conditionText}`);
     if (item.brand) lines.push(`Marke: ${item.brand}`);
@@ -446,7 +446,7 @@ export class ListingStudioService {
       lines.push(item.description);
       lines.push(``);
     }
-    lines.push(`📦 Schneller Versand garantiert!`);
+    lines.push(`Schneller und sicherer Versand garantiert!`);
     lines.push(``);
     lines.push(this.buildHashtags(item).join(' '));
     return lines.join('\n');
@@ -458,13 +458,13 @@ export class ListingStudioService {
     conditionText: string,
     options: ListingTemplateOptions
   ): string {
-    return `🔥 ${item.title} 🔥
-💰 Preis: ${price.toFixed(2)} €
-📍 Zustand: ${conditionText}
+    return `${item.title}
+Preis: ${price.toFixed(2)} €
+Zustand: ${conditionText}
 
 ${item.description || ''}
 
-Bei Interesse einfach eine PN schreiben! 📩
+Bei Interesse gerne melden!
 ${this.buildHashtags(item).join(' ')}`.trim();
   }
 
@@ -504,7 +504,7 @@ ${this.buildHashtags(item).join(' ')}`.trim();
     options: ListingTemplateOptions
   ): string {
     const lines: string[] = [];
-    lines.push(`🏪 ${item.title}`);
+    lines.push(`${item.title}`);
     lines.push(``);
     if (item.brand || item.model) {
       lines.push(`Hersteller & Modell: ${[item.brand, item.model].filter(Boolean).join(' - ')}`);
@@ -518,8 +518,8 @@ ${this.buildHashtags(item).join(' ')}`.trim();
       lines.push(item.description);
       lines.push(``);
     }
-    lines.push(`✔ Sofort lieferbar • Sichere Zahlung per Stripe / PayPal / Überweisung`);
-    lines.push(`✔ Differenzbesteuert gem. § 25a UStG (Gebrauchtwaren)`);
+    lines.push(`• Sofort lieferbar • Sichere Zahlung per Stripe / PayPal / Überweisung`);
+    lines.push(`• Differenzbesteuert gem. § 25a UStG (Gebrauchtwaren)`);
     return lines.join('\n');
   }
 

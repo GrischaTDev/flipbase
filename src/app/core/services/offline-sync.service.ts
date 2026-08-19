@@ -199,7 +199,7 @@ export class OfflineSyncService {
 
     // 3. Web Push trigger
     if (this.webPushService) {
-      this.webPushService.sendNotification(`⚡ Flohmarktfund gespeichert`, {
+      this.webPushService.sendNotification(`Flohmarktfund gespeichert`, {
         body: `${payload.title} für ${payload.purchasePrice.toFixed(2)} € erfasst (Rest-Bargeld: ${this.cashWallet().currentCash.toFixed(2)} €).`,
         tag: `offline-entry-${entry.id}`,
       });
@@ -257,7 +257,7 @@ export class OfflineSyncService {
 
     if (this.webhookService) {
       this.webhookService.addNotification({
-        title: '⚡ Offline-Sync abgeschlossen',
+        title: 'Offline-Sync abgeschlossen',
         message: `${count} Flohmarkt-Einkäufe erfolgreich in den Cloud-Workspace übertragen.`,
         type: 'system',
       });

@@ -17,7 +17,7 @@
         title="Lager- & Barcode-Etikett drucken"
       >
         <lucide-icon [img]="printerIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
-        <span>🏷️ Etikett drucken</span>
+        <span>Etikett drucken</span>
       </button>
 
       <a
@@ -132,7 +132,7 @@
       </div>
     </div>
 
-    <!-- 🏪 Webshop & Online-Store Veröffentlichung -->
+    <!-- Webshop & Online-Store Veröffentlichung -->
     <div class="linear-surface rounded-xl p-4 md:p-5 space-y-3 border border-indigo-500/30 bg-indigo-500/5">
       <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-rf-border">
         <div class="flex items-center gap-2.5">
@@ -142,15 +142,17 @@
           <div>
             <div class="flex items-center gap-2">
               <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
-                🏪 Eigener Webshop & Online-Store
+                Eigener Webshop & Online-Store
               </h2>
               @if (item.is_public_store !== false && item.status !== 'sold') {
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
-                  🟢 Live im Shop
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>Live im Shop</span>
                 </span>
               } @else {
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-muted border border-rf-border">
-                  ⚪ Nicht veröffentlicht
+                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-muted border border-rf-border">
+                  <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                  <span>Nicht gelistet</span>
                 </span>
               }
             </div>
