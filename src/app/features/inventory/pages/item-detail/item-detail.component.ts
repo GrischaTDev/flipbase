@@ -100,15 +100,6 @@ export class ItemDetailComponent {
     { value: 'archived', label: 'Archiviert' },
   ];
 
-  isMainPipelineStatus(status?: string): boolean {
-    return status === 'received' || status === 'ready' || status === 'listed' || status === 'sold';
-  }
-
-  async onSelectSpecialStatus(status: string): Promise<void> {
-    if (!status) return;
-    await this.onChangeStatus(status);
-  }
-
   constructor() {
     effect(() => {
       const itemId = this.id();

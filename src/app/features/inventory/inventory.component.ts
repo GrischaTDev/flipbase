@@ -115,6 +115,24 @@ export class InventoryComponent {
     return list;
   });
 
+  readonly allStatuses: { value: ItemStatus; label: string }[] = [
+    { value: 'received', label: 'Auf Lager' },
+    { value: 'ready', label: 'Bereit' },
+    { value: 'listed', label: 'Gelistet' },
+    { value: 'sold', label: 'Verkauft' },
+    { value: 'reserved', label: 'Reserviert' },
+    { value: 'defective', label: 'Defekt' },
+    { value: 'returned', label: 'Retourniert' },
+    { value: 'archived', label: 'Archiviert' },
+  ];
+
+  async onChangeItemStatus(item: InventoryItem, newStatus: string, event?: Event): Promise<void> {
+    event?.stopPropagation();
+    event?.preventDefault();
+    if (!newStatus || newStatus === item.status) return;
+    await this.inventoryService.updateItemStatus(item.id, newStatus as ItemStatus);
+  }
+
   async onTogglePublicStore(item: InventoryItem, event?: Event): Promise<void> {
     event?.stopPropagation();
     event?.preventDefault();

@@ -88,223 +88,40 @@
           </div>
         </div>
 
-        <!-- Aktueller Status-Badge -->
-        <div class="flex items-center gap-2">
-          <span class="px-3 py-1 rounded-full text-xs font-mono font-bold border"
-            [class.bg-blue-500/15]="item.status === 'received'"
-            [class.text-blue-400]="item.status === 'received'"
-            [class.border-blue-500/30]="item.status === 'received'"
-            [class.bg-amber-500/15]="item.status === 'ready'"
-            [class.text-amber-400]="item.status === 'ready'"
-            [class.border-amber-500/30]="item.status === 'ready'"
-            [class.bg-emerald-500/15]="item.status === 'listed'"
-            [class.text-emerald-400]="item.status === 'listed'"
-            [class.border-emerald-500/30]="item.status === 'listed'"
-            [class.bg-purple-500/15]="item.status === 'sold'"
-            [class.text-purple-300]="item.status === 'sold'"
-            [class.border-purple-500/30]="item.status === 'sold'"
-            [class.bg-rose-500/15]="item.status === 'defective'"
-            [class.text-rose-400]="item.status === 'defective'"
-            [class.border-rose-500/30]="item.status === 'defective'"
-            [class.bg-slate-500/15]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
-            [class.text-slate-300]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
-            [class.border-slate-500/30]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
-          >
-            {{ ('INVENTORY.STATUSES.' + item.status.toUpperCase()) | translate }}
-          </span>
-        </div>
-      </div>
-
-      <!-- 🚀 Interaktive Status-Pipeline (Workflow Stepper) -->
-      <div class="p-3.5 sm:p-4 rounded-xl bg-rf-subtle border border-rf-border space-y-3">
-        <div class="flex items-center justify-between gap-2">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-rf-text-muted">
-            Artikel-Fortschritt & Status
-          </span>
-
-          <!-- Sonderstatus Dropdown -->
-          <div class="flex items-center gap-1.5">
+        <!-- Prominente, farbige Status-Auswahl -->
+        <div class="flex flex-col sm:items-end gap-1 shrink-0">
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">Status</span>
+          <div class="relative">
             <select
-              [value]="isMainPipelineStatus(item.status) ? '' : item.status"
-              (change)="onSelectSpecialStatus($any($event.target).value)"
-              class="linear-input text-[11px] py-1 px-2.5 rounded-lg text-rf-text-muted hover:text-rf-text-primary cursor-pointer border border-rf-border bg-rf-surface"
+              [value]="item.status"
+              (change)="onChangeStatus($any($event.target).value)"
+              class="px-3.5 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition shadow-sm outline-none pr-8"
+              [class.bg-blue-500/20]="item.status === 'received'"
+              [class.text-blue-300]="item.status === 'received'"
+              [class.border-blue-500/50]="item.status === 'received'"
+              [class.bg-amber-500/20]="item.status === 'ready'"
+              [class.text-amber-300]="item.status === 'ready'"
+              [class.border-amber-500/50]="item.status === 'ready'"
+              [class.bg-emerald-500/20]="item.status === 'listed'"
+              [class.text-emerald-300]="item.status === 'listed'"
+              [class.border-emerald-500/50]="item.status === 'listed'"
+              [class.bg-purple-500/20]="item.status === 'sold'"
+              [class.text-purple-300]="item.status === 'sold'"
+              [class.border-purple-500/50]="item.status === 'sold'"
+              [class.bg-rose-500/20]="item.status === 'defective'"
+              [class.text-rose-300]="item.status === 'defective'"
+              [class.border-rose-500/50]="item.status === 'defective'"
+              [class.bg-slate-500/20]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
+              [class.text-slate-200]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
+              [class.border-slate-500/50]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
             >
-              <option value="" disabled selected>⋯ Sonderstatus</option>
-              <option value="reserved">🤝 Reserviert</option>
-              <option value="defective">⚠️ Defekt / Ersatzteil</option>
-              <option value="returned">↩️ Retourniert</option>
-              <option value="archived">🗄️ Archiviert</option>
+              @for (st of allStatuses; track st.value) {
+                <option [value]="st.value" class="bg-[#181a20] text-slate-200 font-medium">
+                  {{ st.label }}
+                </option>
+              }
             </select>
           </div>
-        </div>
-
-        <!-- 4-Schritte Pipeline Stepper -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <!-- Schritt 1: Auf Lager -->
-          <button
-            type="button"
-            (click)="onChangeStatus('received')"
-            class="p-2.5 rounded-xl border text-left transition flex items-center gap-2.5 cursor-pointer relative"
-            [class.bg-blue-500/15]="item.status === 'received'"
-            [class.border-blue-500]="item.status === 'received'"
-            [class.text-blue-300]="item.status === 'received'"
-            [class.bg-rf-surface]="item.status !== 'received'"
-            [class.border-rf-border]="item.status !== 'received'"
-            [class.text-rf-text-muted]="item.status !== 'received'"
-            [class.hover:bg-rf-surface-hover]="item.status !== 'received'"
-          >
-            <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0"
-              [class.bg-blue-500/20]="item.status === 'received'"
-              [class.text-blue-400]="item.status === 'received'"
-              [class.bg-rf-subtle]="item.status !== 'received'"
-              [class.text-rf-text-muted]="item.status !== 'received'"
-            >
-              📦
-            </div>
-            <div class="min-w-0">
-              <span class="text-[9px] font-mono text-rf-text-muted block leading-none">Schritt 1</span>
-              <span class="text-xs font-bold text-rf-text-primary block truncate mt-0.5">Auf Lager</span>
-            </div>
-          </button>
-
-          <!-- Schritt 2: Bereit -->
-          <button
-            type="button"
-            (click)="onChangeStatus('ready')"
-            class="p-2.5 rounded-xl border text-left transition flex items-center gap-2.5 cursor-pointer relative"
-            [class.bg-amber-500/15]="item.status === 'ready'"
-            [class.border-amber-500]="item.status === 'ready'"
-            [class.text-amber-300]="item.status === 'ready'"
-            [class.bg-rf-surface]="item.status !== 'ready'"
-            [class.border-rf-border]="item.status !== 'ready'"
-            [class.text-rf-text-muted]="item.status !== 'ready'"
-            [class.hover:bg-rf-surface-hover]="item.status !== 'ready'"
-          >
-            <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0"
-              [class.bg-amber-500/20]="item.status === 'ready'"
-              [class.text-amber-400]="item.status === 'ready'"
-              [class.bg-rf-subtle]="item.status !== 'ready'"
-              [class.text-rf-text-muted]="item.status !== 'ready'"
-            >
-              📸
-            </div>
-            <div class="min-w-0">
-              <span class="text-[9px] font-mono text-rf-text-muted block leading-none">Schritt 2</span>
-              <span class="text-xs font-bold text-rf-text-primary block truncate mt-0.5">Bereit</span>
-            </div>
-          </button>
-
-          <!-- Schritt 3: Gelistet -->
-          <button
-            type="button"
-            (click)="onChangeStatus('listed')"
-            class="p-2.5 rounded-xl border text-left transition flex items-center gap-2.5 cursor-pointer relative"
-            [class.bg-emerald-500/15]="item.status === 'listed'"
-            [class.border-emerald-500]="item.status === 'listed'"
-            [class.text-emerald-300]="item.status === 'listed'"
-            [class.bg-rf-surface]="item.status !== 'listed'"
-            [class.border-rf-border]="item.status !== 'listed'"
-            [class.text-rf-text-muted]="item.status !== 'listed'"
-            [class.hover:bg-rf-surface-hover]="item.status !== 'listed'"
-          >
-            <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0"
-              [class.bg-emerald-500/20]="item.status === 'listed'"
-              [class.text-emerald-400]="item.status === 'listed'"
-              [class.bg-rf-subtle]="item.status !== 'listed'"
-              [class.text-rf-text-muted]="item.status !== 'listed'"
-            >
-              🚀
-            </div>
-            <div class="min-w-0">
-              <span class="text-[9px] font-mono text-rf-text-muted block leading-none">Schritt 3</span>
-              <span class="text-xs font-bold text-rf-text-primary block truncate mt-0.5">Gelistet</span>
-            </div>
-          </button>
-
-          <!-- Schritt 4: Verkauft -->
-          <button
-            type="button"
-            (click)="onChangeStatus('sold')"
-            class="p-2.5 rounded-xl border text-left transition flex items-center gap-2.5 cursor-pointer relative"
-            [class.bg-purple-500/20]="item.status === 'sold'"
-            [class.border-purple-500]="item.status === 'sold'"
-            [class.text-purple-300]="item.status === 'sold'"
-            [class.bg-rf-surface]="item.status !== 'sold'"
-            [class.border-rf-border]="item.status !== 'sold'"
-            [class.text-rf-text-muted]="item.status !== 'sold'"
-            [class.hover:bg-rf-surface-hover]="item.status !== 'sold'"
-          >
-            <div class="w-7 h-7 rounded-lg flex items-center justify-center text-xs shrink-0"
-              [class.bg-purple-500/30]="item.status === 'sold'"
-              [class.text-purple-300]="item.status === 'sold'"
-              [class.bg-rf-subtle]="item.status !== 'sold'"
-              [class.text-rf-text-muted]="item.status !== 'sold'"
-            >
-              💰
-            </div>
-            <div class="min-w-0">
-              <span class="text-[9px] font-mono text-rf-text-muted block leading-none">Schritt 4</span>
-              <span class="text-xs font-bold text-rf-text-primary block truncate mt-0.5">Verkauft 🎉</span>
-            </div>
-          </button>
-        </div>
-
-        <!-- Kontext-Aktion (Quick Actions) -->
-        <div class="flex items-center justify-between pt-2 border-t border-rf-border flex-wrap gap-2 text-xs">
-          @switch (item.status) {
-            @case ('received') {
-              <span class="text-rf-text-muted text-[11px]">Artikel ist auf Lager. Bereite Fotos oder Listing vor:</span>
-              <div class="flex items-center gap-2">
-                <button
-                  type="button"
-                  (click)="onChangeStatus('ready')"
-                  class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1 cursor-pointer"
-                >
-                  <span>Als Bereit markieren</span>
-                </button>
-                <a
-                  [routerLink]="['/listings']"
-                  class="linear-btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1.5 text-white"
-                >
-                  <span>Listing Studio</span>
-                  <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5"></lucide-icon>
-                </a>
-              </div>
-            }
-            @case ('ready') {
-              <span class="text-rf-text-muted text-[11px]">Artikel ist verkaufsbereit. Veröffentliche ihn auf Marktplätzen:</span>
-              <button
-                type="button"
-                (click)="onChangeStatus('listed')"
-                class="linear-btn-primary px-3.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1.5 cursor-pointer shadow-md shadow-emerald-500/20 text-white"
-              >
-                <span>🚀 Als Gelistet markieren</span>
-              </button>
-            }
-            @case ('listed') {
-              <span class="text-emerald-400 font-semibold text-[11px]">🎉 Artikel ist aktiv online! Käufer gefunden?</span>
-              <button
-                type="button"
-                (click)="onChangeStatus('sold')"
-                class="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs inline-flex items-center gap-1.5 cursor-pointer shadow-lg shadow-emerald-500/25 transition"
-              >
-                <span>💰 Jetzt als Verkauft verbuchen 🎉</span>
-              </button>
-            }
-            @case ('sold') {
-              <span class="text-purple-300 font-semibold text-[11px]">✅ Artikel erfolgreich verkauft! Gewinn ist in Analytics verbucht.</span>
-            }
-            @default {
-              <span class="text-rf-text-muted text-[11px]">Sonderstatus aktiv ({{ ('INVENTORY.STATUSES.' + item.status.toUpperCase()) | translate }}).</span>
-              <button
-                type="button"
-                (click)="onChangeStatus('received')"
-                class="text-xs text-indigo-400 hover:underline cursor-pointer"
-              >
-                Zurück zur Haupt-Pipeline
-              </button>
-            }
-          }
         </div>
       </div>
 
