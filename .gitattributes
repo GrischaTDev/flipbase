@@ -1,0 +1,19 @@
+# Zeilenenden vereinheitlichen.
+# Ohne diese Datei erzeugt jede Bearbeitung unter Windows CRLF/LF-Rauschen
+# im git diff, das echte Aenderungen ueberdeckt.
+* text=auto eol=lf
+
+# Binaerdateien nie anfassen
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.avif  binary
+*.ico   binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+*.eot   binary
