@@ -52,7 +52,6 @@ import { FulfillmentService } from '../../core/services/fulfillment.service';
 import { WebPushService } from '../../core/services/web-push.service';
 import { WorkspaceRole } from '../../core/models/reflip.models';
 import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
-import { BackupPanelComponent } from './components/backup-panel/backup-panel.component';
 
 @Component({
   selector: 'app-settings',
@@ -61,7 +60,6 @@ import { BackupPanelComponent } from './components/backup-panel/backup-panel.com
     TranslatePipe,
     LucideAngularModule,
     CustomCheckboxComponent,
-    BackupPanelComponent,
   ],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss',

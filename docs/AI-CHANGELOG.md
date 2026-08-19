@@ -17,6 +17,33 @@ Dieses Projekt wird teilweise mit KI-Assistenten entwickelt. **Jede** von einer 
 **Verifiziert durch:** <Build / Tests / manuell – mit Ergebnis>
 ```
 
+## 2026-08-19 – Claude Opus 5 (Anthropic) – Vollständige Umstellung auf Supabase
+
+**Art:** Refactoring, Aufräumen
+
+**Betroffen:** `mock-data-store.service.ts`, `webhook.service.ts`, `header.component.*`, `settings.component.*`; entfernt: `backup.service.ts`, `backup.models.ts`, `backup-panel/`, zugehörige Tests
+
+**Was:**
+
+Auf Wunsch von Grischa vollständig auf die lokale Supabase-Datenbank umgestellt und die Sicherungsfunktion entfernt.
+
+1. **Backup-Funktion entfernt.** Sie stammte aus Phase 2, als der Browser-Speicher die einzige Ablage war. Seit Phase 5 liegt alles in der Datenbank – die Sicherung sicherte also eine Kopie statt des Originals, und das Abzeichen „Sicherung fällig" mahnte etwas an, dessen Verlust nichts kostet. Entfernt: Dienst, Modelle, Panel in den Einstellungen, Abzeichen im Header und die Tests.
+
+2. **Lokale Spiegelung der Geschäftsdaten abgeschaltet.** Statt 38 Aufrufstellen einzeln anzufassen, eine zentrale Sperre in den 15 Schreibmethoden des `MockDataStore`: Ausserhalb des Demo-Modus schreiben sie nichts. Das ist die sicherere Variante – es kann keine Stelle übersehen werden.
+
+3. **Gleiches für den Benachrichtigungs-Zwischenspeicher** im `WebhookService`.
+
+**Was bleibt:** Der Demo-Modus funktioniert unverändert – dort ist der lokale Speicher weiterhin die Ablage. Für angemeldete Nutzer bleibt nur `reflip_active_workspace_id` im Browser, eine reine Anzeigeeinstellung.
+
+**Verifiziert durch:**
+- `npx ng build` erfolgreich; `npx vitest run` → 29 Dateien / 173 Tests grün, darunter vier neue für die Schreibsperre
+- **Im Docker-Container unter `http://reflip.localhost/`**: angemeldet, Einkauf über die Oberfläche angelegt → steht in der Datenbank, `reflip_local_purchases` bleibt `null`, und nach dem Neuladen erscheint der Einkauf aus der Datenbank in der Liste
+- Das Abzeichen „Sicherung fällig" ist verschwunden
+
+**Hinweis für Sicherungen:** Die Daten liegen jetzt in Postgres. Ein Abzug geht über `npx supabase db dump --data-only -f reflip-daten.sql`.
+
+---
+
 ## 2026-08-19 – Claude Opus 5 (Anthropic) – Phase 7: Auslieferung & Barrierefreiheit
 
 **Art:** Sicherheit, Barrierefreiheit, Konfiguration

@@ -56,6 +56,7 @@ describe('Beispieldaten dürfen nur im Demo-Modus entstehen', () => {
 
   it('überschreibt vorhandene Daten nicht, wenn Beispieldaten angefordert werden', () => {
     const store = neuerStore();
+    store.isDemoMode.set(true);
     store.savePurchase({
       id: 'echt-1',
       workspace_id: 'ws-echt',
@@ -74,6 +75,7 @@ describe('Beispieldaten dürfen nur im Demo-Modus entstehen', () => {
 
   it('setzt nur auf ausdrückliches Zurücksetzen die Beispieldaten neu', () => {
     const store = neuerStore();
+    store.isDemoMode.set(true);
     store.savePurchase({
       id: 'echt-1',
       workspace_id: 'ws-echt',
@@ -88,5 +90,65 @@ describe('Beispieldaten dürfen nur im Demo-Modus entstehen', () => {
     const titel = store.getPurchases().map((p) => p.title);
     expect(titel).not.toContain('Echter Einkauf des Nutzers');
     expect(titel.length).toBeGreaterThan(0);
+  });
+
+  describe('Schreibsperre ausserhalb des Demo-Modus', () => {
+    // Seit der Umstellung auf Supabase ist die Datenbank die alleinige Quelle
+    // der Wahrheit. Der lokale Speicher darf sich bei angemeldeten Nutzern
+    // nicht mehr mit Geschaeftsdaten fuellen - sonst entstuende eine zweite,
+    // veraltende Kopie, die niemand pflegt.
+    const beispielEinkauf = {
+      id: 'p-1',
+      workspace_id: 'ws',
+      type: 'single' as const,
+      title: 'Sollte nicht ankommen',
+      purchase_date: '2026-08-19',
+      purchase_price: 10,
+    };
+
+    it('schreibt keinen Einkauf, solange der Demo-Modus aus ist', () => {
+      const store = neuerStore();
+
+      store.savePurchase(beispielEinkauf);
+
+      expect(store.getPurchases().length).toBe(0);
+      expect(Object.keys(speicher)).toEqual([]);
+    });
+
+    it('schreibt keinen Artikel, solange der Demo-Modus aus ist', () => {
+      const store = neuerStore();
+
+      store.saveItem({
+        id: 'i-1',
+        workspace_id: 'ws',
+        title: 'Sollte nicht ankommen',
+        condition: 'used',
+        status: 'ready',
+        allocated_purchase_cost: 0,
+      });
+
+      expect(store.getItems().length).toBe(0);
+    });
+
+    it('schreibt im Demo-Modus wieder ganz normal', () => {
+      const store = neuerStore();
+      store.isDemoMode.set(true);
+
+      store.savePurchase(beispielEinkauf);
+
+      expect(store.getPurchases().length).toBe(1);
+    });
+
+    it('loescht ausserhalb des Demo-Modus nichts', () => {
+      const store = neuerStore();
+      store.isDemoMode.set(true);
+      store.savePurchase(beispielEinkauf);
+
+      store.isDemoMode.set(false);
+      store.deletePurchase('p-1');
+      store.isDemoMode.set(true);
+
+      expect(store.getPurchases().length).toBe(1);
+    });
   });
 });

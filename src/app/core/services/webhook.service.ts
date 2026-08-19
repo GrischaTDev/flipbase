@@ -3,6 +3,7 @@ import { WebhookConfig, AppNotification } from '../models/webhook.models';
 import { Sale, Purchase } from '../models/reflip.models';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
+import { MockDataStoreService } from './mock-data-store.service';
 
 const STORAGE_KEY_CONFIG = 'reflip_webhook_config';
 const STORAGE_KEY_NOTIFS = 'reflip_app_notifications';
@@ -24,6 +25,7 @@ function getStorage(): Storage | null {
 })
 export class WebhookService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
 
   readonly config = signal<WebhookConfig>(this.loadConfig());
@@ -69,6 +71,21 @@ export class WebhookService {
       notifyOnLowMargin: true,
       soundEnabled: true,
     };
+  }
+
+  /**
+   * Legt die Benachrichtigungen lokal ab – aber nur im Demo-Modus.
+   *
+   * Für angemeldete Nutzer ist die Tabelle `app_notifications` die Quelle der
+   * Wahrheit. Ein lokaler Zwischenspeicher würde dort nur veralten.
+   */
+  private speichereLokal(liste: AppNotification[]): void {
+    if (!this.mockStore?.isDemoMode()) return;
+    try {
+      getStorage()?.setItem(STORAGE_KEY_NOTIFS, JSON.stringify(liste));
+    } catch {
+      // Ohne Speicher gilt die Liste nur fuer diese Sitzung.
+    }
   }
 
   private loadNotifications(): AppNotification[] {
@@ -141,9 +158,7 @@ export class WebhookService {
           link: n.link || undefined,
         }));
         this.notifications.set(mapped);
-        try {
-          getStorage()?.setItem(STORAGE_KEY_NOTIFS, JSON.stringify(mapped));
-        } catch {}
+        this.speichereLokal(mapped);
       }
     } catch (err) {
       console.error('Verbindungsfehler beim Laden der Benachrichtigungen:', err);
@@ -195,9 +210,7 @@ export class WebhookService {
 
     const updated = [item, ...this.notifications()].slice(0, 50);
     this.notifications.set(updated);
-    try {
-      getStorage()?.setItem(STORAGE_KEY_NOTIFS, JSON.stringify(updated));
-    } catch {}
+    this.speichereLokal(updated);
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !ws.id.startsWith('demo-')) {
@@ -219,9 +232,7 @@ export class WebhookService {
   markAllAsRead(): void {
     const updated = this.notifications().map((n) => ({ ...n, read: true }));
     this.notifications.set(updated);
-    try {
-      getStorage()?.setItem(STORAGE_KEY_NOTIFS, JSON.stringify(updated));
-    } catch {}
+    this.speichereLokal(updated);
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !ws.id.startsWith('demo-')) {

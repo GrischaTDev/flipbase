@@ -25,7 +25,6 @@ import {
   Sparkles,
   Smartphone,
   WifiOff,
-  ShieldAlert,
   Settings,
 } from 'lucide-angular';
 import { AuthService } from '../../core/services/auth.service';
@@ -34,7 +33,6 @@ import { WorkspaceMemberService } from '../../core/services/workspace-member.ser
 import { WebhookService } from '../../core/services/webhook.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { PwaService } from '../../core/services/pwa.service';
-import { BackupService } from '../../core/services/backup.service';
 import { Workspace } from '../../core/models/reflip.models';
 import { DatePipe } from '@angular/common';
 
@@ -56,7 +54,6 @@ export class HeaderComponent {
   readonly webhookService = inject(WebhookService);
   readonly themeService = inject(ThemeService);
   readonly pwaService = inject(PwaService);
-  readonly backupService = inject(BackupService);
   private readonly translate = inject(TranslateService);
 
   readonly toggleSidebar = output<void>();
@@ -86,7 +83,6 @@ export class HeaderComponent {
   readonly SparklesIcon = Sparkles;
   readonly SmartphoneIcon = Smartphone;
   readonly WifiOffIcon = WifiOff;
-  readonly ShieldAlertIcon = ShieldAlert;
 
   currentLanguage = signal<string>('de');
 

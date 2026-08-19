@@ -34,6 +34,15 @@ function getStorage(): Storage | null {
   providedIn: 'root',
 })
 export class MockDataStoreService {
+  /**
+   * Schaltet den lokalen Zwischenspeicher scharf.
+   *
+   * Seit der Umstellung auf Supabase ist die Datenbank die alleinige Quelle
+   * der Wahrheit. Dieser Speicher hält nur noch die Daten des Demo-Modus.
+   * Alle Schreibmethoden prüfen dieses Signal und tun bei einem angemeldeten
+   * Nutzer nichts – sonst würde sich im Browser eine zweite, veraltende Kopie
+   * der Geschäftsdaten ansammeln.
+   */
   readonly isDemoMode = signal<boolean>(false);
 
   readonly demoWorkspace: Workspace = {
@@ -469,6 +478,7 @@ export class MockDataStoreService {
   }
 
   savePurchase(purchase: Purchase): void {
+    if (!this.isDemoMode()) return;
     try {
       const all = this.getPurchases();
       const idx = all.findIndex((p) => p.id === purchase.id);
@@ -492,6 +502,7 @@ export class MockDataStoreService {
   }
 
   deletePurchase(id: string): void {
+    if (!this.isDemoMode()) return;
     try {
       const all = this.getPurchases().filter((p) => p.id !== id);
       getStorage()?.setItem(STORAGE_KEY_PURCHASES, JSON.stringify(all));
@@ -519,6 +530,7 @@ export class MockDataStoreService {
   }
 
   saveItem(item: InventoryItem): void {
+    if (!this.isDemoMode()) return;
     try {
       const all = this.getItems();
       const idx = all.findIndex((i) => i.id === item.id);
@@ -540,6 +552,7 @@ export class MockDataStoreService {
   }
 
   deleteItem(id: string): void {
+    if (!this.isDemoMode()) return;
     try {
       const all = this.getItems().filter((i) => i.id !== id);
       getStorage()?.setItem(STORAGE_KEY_ITEMS, JSON.stringify(all));
@@ -567,6 +580,7 @@ export class MockDataStoreService {
   }
 
   saveSale(sale: Sale): void {
+    if (!this.isDemoMode()) return;
     try {
       const all = this.getSales();
       const idx = all.findIndex((s) => s.id === sale.id);
@@ -588,6 +602,7 @@ export class MockDataStoreService {
   }
 
   deleteSale(id: string): void {
+    if (!this.isDemoMode()) return;
     try {
       const all = this.getSales().filter((s) => s.id !== id);
       getStorage()?.setItem(STORAGE_KEY_SALES, JSON.stringify(all));
@@ -609,6 +624,7 @@ export class MockDataStoreService {
   }
 
   saveSource(source: Source): void {
+    if (!this.isDemoMode()) return;
     try {
       const all = this.getSources();
       const idx = all.findIndex((s) => s.id === source.id);
@@ -622,6 +638,7 @@ export class MockDataStoreService {
   }
 
   deleteSource(id: string): void {
+    if (!this.isDemoMode()) return;
     try {
       const all = this.getSources().filter((s) => s.id !== id);
       getStorage()?.setItem(STORAGE_KEY_SOURCES, JSON.stringify(all));
@@ -652,6 +669,7 @@ export class MockDataStoreService {
   }
 
   saveSupplier(supplier: Supplier): void {
+    if (!this.isDemoMode()) return;
     try {
       const all = this.getSuppliers();
       const idx = all.findIndex((s) => s.id === supplier.id);
@@ -665,6 +683,7 @@ export class MockDataStoreService {
   }
 
   deleteSupplier(id: string): void {
+    if (!this.isDemoMode()) return;
     try {
       const all = this.getSuppliers().filter((s) => s.id !== id);
       getStorage()?.setItem(STORAGE_KEY_SUPPLIERS, JSON.stringify(all));
@@ -694,6 +713,7 @@ export class MockDataStoreService {
   }
 
   saveItemCost(cost: ItemCost): void {
+    if (!this.isDemoMode()) return;
     try {
       const stored = getStorage()?.getItem(STORAGE_KEY_ITEM_COSTS);
       const all: ItemCost[] = stored ? JSON.parse(stored) : [];
@@ -708,6 +728,7 @@ export class MockDataStoreService {
   }
 
   deleteItemCost(id: string): void {
+    if (!this.isDemoMode()) return;
     try {
       const stored = getStorage()?.getItem(STORAGE_KEY_ITEM_COSTS);
       if (stored) {
@@ -733,6 +754,7 @@ export class MockDataStoreService {
   }
 
   saveActivityLog(log: ActivityLog): void {
+    if (!this.isDemoMode()) return;
     try {
       const stored = getStorage()?.getItem(STORAGE_KEY_ACTIVITY_LOGS);
       const all: ActivityLog[] = stored ? JSON.parse(stored) : [];
@@ -754,6 +776,7 @@ export class MockDataStoreService {
   }
 
   saveItemMedia(media: ItemMedia): void {
+    if (!this.isDemoMode()) return;
     try {
       const all = this.getItemMedia();
       const idx = all.findIndex((m) => m.id === media.id);
@@ -774,6 +797,7 @@ export class MockDataStoreService {
   }
 
   deleteItemMedia(id: string): void {
+    if (!this.isDemoMode()) return;
     try {
       const all = this.getItemMedia().filter((m) => m.id !== id);
       getStorage()?.setItem(STORAGE_KEY_MEDIA, JSON.stringify(all));
