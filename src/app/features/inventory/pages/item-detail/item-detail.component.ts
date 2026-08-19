@@ -164,8 +164,8 @@ export class ItemDetailComponent {
     this.mediaList.update((prev) => prev.filter((m) => m.id !== media.id));
   }
 
-  getPublicUrl(path: string): string {
-    return this.mediaService.getPublicUrl(path);
+  getMediaUrl(path: string): string {
+    return this.mediaService.getMediaUrl(path);
   }
 
   async onChangeStatus(newStatus: string | null): Promise<void> {

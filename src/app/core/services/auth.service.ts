@@ -4,7 +4,25 @@ import { AuthSession, User } from '@supabase/supabase-js';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { UserProfile } from '../models/reflip.models';
+import { environment } from '../../../environments/environment';
 
+/** Speicherschlüssel für den bewusst gewählten Demo-Modus. */
+const DEMO_MODE_KEY = 'reflip_demo_mode';
+
+/**
+ * Anmeldung und Sitzungsverwaltung.
+ *
+ * Wichtige Unterscheidung:
+ * - `isAuthenticated` bedeutet: es gibt eine **echte** Supabase-Sitzung.
+ * - `isDemoMode` bedeutet: der Nutzer hat den Demo-Modus **bewusst gewählt**.
+ *   Es werden ausschliesslich lokale Daten dieses Browsers angezeigt, es
+ *   besteht kein Zugriff auf Serverdaten.
+ * - `canAccessApp` ist das, worauf der Router-Guard prüft.
+ *
+ * Diese drei Begriffe waren zuvor in einer einzigen Variable vermischt, die
+ * standardmässig auf "angemeldet" stand. Damit war jede Zugriffsprüfung
+ * wirkungslos.
+ */
 @Injectable({
   providedIn: 'root',
 })
@@ -13,18 +31,35 @@ export class AuthService {
   private readonly mockStore = inject(MockDataStoreService);
   private readonly router = inject(Router);
 
-  // Signals
   readonly session = signal<AuthSession | null>(null);
   readonly currentUser = signal<User | null>(null);
   readonly profile = signal<UserProfile | null>(null);
   readonly isLoading = signal<boolean>(false);
-  readonly isDemoUser = signal<boolean>(true);
 
-  // Computed signals
-  readonly isAuthenticated = computed(() => !!this.currentUser() || this.isDemoUser());
-  readonly userEmail = computed(() => (this.isDemoUser() ? 'demo@reflip.app' : this.currentUser()?.email ?? ''));
-  readonly userName = computed(() => {
-    if (this.isDemoUser()) return 'Demo Reseller';
+  /**
+   * Demo-Modus. Standard ist **aus** – er muss auf der Anmeldeseite aktiv
+   * gewählt werden.
+   */
+  readonly isDemoMode = signal<boolean>(this.readStoredDemoMode());
+
+  /** Ob der Demo-Modus überhaupt angeboten wird (im Web-Betrieb abschaltbar). */
+  readonly isDemoModeAllowed = environment.allowDemoMode;
+
+  /** Echte Anmeldung – ausschliesslich eine gültige Supabase-Sitzung. */
+  readonly isAuthenticated = computed<boolean>(() => !!this.currentUser());
+
+  /** Zugriffsrecht auf die Anwendung: echte Anmeldung oder gewählter Demo-Modus. */
+  readonly canAccessApp = computed<boolean>(
+    () => this.isAuthenticated() || (this.isDemoModeAllowed && this.isDemoMode())
+  );
+
+  readonly userEmail = computed<string>(() => {
+    if (this.isAuthenticated()) return this.currentUser()?.email ?? '';
+    return this.isDemoMode() ? 'demo@reflip.app' : '';
+  });
+
+  readonly userName = computed<string>(() => {
+    if (!this.isAuthenticated()) return this.isDemoMode() ? 'Demo Reseller' : '';
     return (
       this.profile()?.full_name ||
       this.currentUser()?.user_metadata?.['full_name'] ||
@@ -33,45 +68,63 @@ export class AuthService {
     );
   });
 
+  /**
+   * Wird aufgelöst, sobald die gespeicherte Sitzung geprüft wurde.
+   * Der Router-Guard wartet darauf, statt eine feste Zeitspanne zu raten.
+   */
+  readonly sessionReady: Promise<void>;
+
   constructor() {
-    this.initAuth();
+    this.mockStore.isDemoMode.set(this.isDemoMode());
+    this.sessionReady = this.initAuth();
+    this.watchAuthState();
   }
 
+  /**
+   * Stellt eine bestehende Sitzung wieder her. Schlägt der Aufruf fehl, gilt
+   * der Nutzer als nicht angemeldet – es wird **nicht** ersatzweise Zugriff
+   * gewährt.
+   */
   private async initAuth(): Promise<void> {
-    const isExplicitlyLoggedOut = localStorage.getItem('reflip_logged_out') === 'true';
-    if (isExplicitlyLoggedOut) {
-      this.isDemoUser.set(false);
-      this.mockStore.isDemoMode.set(false);
-      this.isLoading.set(false);
-      return;
-    }
-
+    this.isLoading.set(true);
     try {
       const { data } = await this.supabase.client.auth.getSession();
       if (data?.session) {
-        this.session.set(data.session);
-        this.currentUser.set(data.session.user);
-        this.isDemoUser.set(false);
-        this.mockStore.isDemoMode.set(false);
+        this.applySession(data.session);
         await this.loadProfile(data.session.user.id);
-        this.isLoading.set(false);
-        return;
       }
     } catch {
-      // Supabase connection offline fallback
+      // Backend nicht erreichbar: Nutzer bleibt abgemeldet.
+    } finally {
+      this.isLoading.set(false);
     }
-
-    // Default to active demo session so the app works instantly with 0ms latency
-    this.isDemoUser.set(true);
-    this.mockStore.isDemoMode.set(true);
-    this.isLoading.set(false);
   }
 
-  loginAsDemo(): void {
-    this.isDemoUser.set(true);
-    this.mockStore.isDemoMode.set(true);
-    localStorage.removeItem('reflip_logged_out');
-    this.router.navigate(['/dashboard']);
+  /**
+   * Hält die Sitzung aktuell – etwa bei Token-Erneuerung oder einer Abmeldung
+   * in einem anderen Browser-Tab.
+   */
+  private watchAuthState(): void {
+    try {
+      this.supabase.client.auth.onAuthStateChange((_event, session) => {
+        if (session) {
+          this.applySession(session);
+        } else {
+          this.session.set(null);
+          this.currentUser.set(null);
+          this.profile.set(null);
+        }
+      });
+    } catch {
+      // Ohne erreichbares Backend gibt es keine Sitzungsereignisse.
+    }
+  }
+
+  private applySession(session: AuthSession): void {
+    this.session.set(session);
+    this.currentUser.set(session.user);
+    // Eine echte Anmeldung beendet den Demo-Modus.
+    this.setDemoMode(false);
   }
 
   async loadProfile(userId: string): Promise<void> {
@@ -86,34 +139,42 @@ export class AuthService {
         this.profile.set(data as UserProfile);
       }
     } catch {
-      console.warn('Profile load skipped/offline');
+      // Profil ist optional – die Anmeldung bleibt davon unberührt.
     }
   }
 
+  /**
+   * Meldet mit E-Mail und Passwort an.
+   *
+   * Es gibt **keinen** Ersatzweg: Ist das Backend nicht erreichbar oder sind
+   * die Zugangsdaten falsch, schlägt die Anmeldung fehl. Zuvor führte ein
+   * Zeitüberschreitungs-Fallback dazu, dass jede beliebige Kombination aus
+   * E-Mail und Passwort akzeptiert wurde, sobald Supabase langsam antwortete.
+   */
   async signIn(email: string, password: string): Promise<{ error: Error | null }> {
     this.isLoading.set(true);
     try {
-      const signInPromise = this.supabase.client.auth.signInWithPassword({ email, password });
-      const res: any = await this.mockStore.withTimeout(signInPromise, null, 1200);
+      const { data, error } = await this.supabase.client.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-      if (!res || res.error) {
-        // Fallback: allow demo login
-        if (email.toLowerCase().includes('demo') || !res) {
-          this.loginAsDemo();
-          return { error: null };
-        }
-        return { error: res?.error || new Error('Backend nicht erreichbar. Nutze bitte den Demo-Modus!') };
+      if (error) {
+        return { error };
+      }
+      if (!data.session || !data.user) {
+        return { error: new Error('Anmeldung fehlgeschlagen. Bitte erneut versuchen.') };
       }
 
-      this.session.set(res.data.session);
-      this.currentUser.set(res.data.user);
-      this.isDemoUser.set(false);
-      this.mockStore.isDemoMode.set(false);
-      localStorage.removeItem('reflip_logged_out');
-      await this.loadProfile(res.data.user.id);
+      this.applySession(data.session);
+      await this.loadProfile(data.user.id);
       return { error: null };
-    } catch (err: unknown) {
-      return { error: err as Error };
+    } catch {
+      return {
+        error: new Error(
+          'Backend nicht erreichbar. Starte den lokalen Supabase-Stack mit "npm run supabase:start".'
+        ),
+      };
     } finally {
       this.isLoading.set(false);
     }
@@ -122,25 +183,27 @@ export class AuthService {
   async signUp(email: string, password: string, fullName: string): Promise<{ error: Error | null }> {
     this.isLoading.set(true);
     try {
-      const signUpPromise = this.supabase.client.auth.signUp({
+      const { data, error } = await this.supabase.client.auth.signUp({
         email,
         password,
         options: { data: { full_name: fullName } },
       });
-      const res: any = await this.mockStore.withTimeout(signUpPromise, null, 1200);
 
-      if (!res || res.error) {
-        return { error: res?.error || new Error('Backend nicht erreichbar. Starte bitte Supabase oder nutze den Demo-Modus.') };
+      if (error) {
+        return { error };
       }
 
-      this.session.set(res.data.session);
-      this.currentUser.set(res.data.user);
-      this.isDemoUser.set(false);
-      this.mockStore.isDemoMode.set(false);
-      localStorage.removeItem('reflip_logged_out');
+      // Ist die E-Mail-Bestätigung aktiv, liefert Supabase noch keine Sitzung.
+      if (data.session) {
+        this.applySession(data.session);
+      }
       return { error: null };
-    } catch (err: unknown) {
-      return { error: err as Error };
+    } catch {
+      return {
+        error: new Error(
+          'Backend nicht erreichbar. Starte den lokalen Supabase-Stack mit "npm run supabase:start".'
+        ),
+      };
     } finally {
       this.isLoading.set(false);
     }
@@ -149,20 +212,48 @@ export class AuthService {
   async signOut(): Promise<void> {
     this.isLoading.set(true);
     try {
-      this.isDemoUser.set(false);
-      this.mockStore.isDemoMode.set(false);
-      localStorage.setItem('reflip_logged_out', 'true');
       try {
         await this.supabase.client.auth.signOut();
       } catch {
-        // ignore
+        // Auch ohne erreichbares Backend lokal abmelden.
       }
       this.session.set(null);
       this.currentUser.set(null);
       this.profile.set(null);
+      this.setDemoMode(false);
       this.router.navigate(['/auth/login']);
     } finally {
       this.isLoading.set(false);
+    }
+  }
+
+  /** Startet den Demo-Modus als bewusste Entscheidung des Nutzers. */
+  enterDemoMode(): void {
+    if (!this.isDemoModeAllowed) return;
+    this.setDemoMode(true);
+    this.router.navigate(['/dashboard']);
+  }
+
+  private setDemoMode(active: boolean): void {
+    this.isDemoMode.set(active);
+    this.mockStore.isDemoMode.set(active);
+    try {
+      if (active) {
+        localStorage.setItem(DEMO_MODE_KEY, 'true');
+      } else {
+        localStorage.removeItem(DEMO_MODE_KEY);
+      }
+    } catch {
+      // Ohne Speicher gilt der Modus nur für diese Sitzung.
+    }
+  }
+
+  private readStoredDemoMode(): boolean {
+    if (!environment.allowDemoMode) return false;
+    try {
+      return localStorage.getItem(DEMO_MODE_KEY) === 'true';
+    } catch {
+      return false;
     }
   }
 }

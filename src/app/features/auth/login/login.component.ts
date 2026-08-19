@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { LucideAngularModule, LogIn, Sparkles, Mail, Lock, Zap } from 'lucide-angular';
 import { AuthService } from '../../../core/services/auth.service';
@@ -15,6 +15,7 @@ import { AuthService } from '../../../core/services/auth.service';
 export class LoginComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
 
   readonly loginIcon = LogIn;
   readonly logoIcon = Sparkles;
@@ -30,8 +31,16 @@ export class LoginComponent {
     password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(6)] }),
   });
 
+  /** Ob der Demo-Modus in dieser Umgebung angeboten wird. */
+  readonly isDemoModeAllowed = this.authService.isDemoModeAllowed;
+
   onDemoLogin(): void {
-    this.authService.loginAsDemo();
+    this.authService.enterDemoMode();
+  }
+
+  /** Zielseite, auf die der Guard umgeleitet hat – sonst das Dashboard. */
+  private redirectTarget(): string {
+    return this.route.snapshot.queryParamMap.get('redirectTo') || '/dashboard';
   }
 
   async onSubmit(): Promise<void> {
@@ -48,7 +57,7 @@ export class LoginComponent {
     if (error) {
       this.errorMessage.set(error.message);
     } else {
-      this.router.navigate(['/dashboard']);
+      this.router.navigateByUrl(this.redirectTarget());
     }
   }
 }

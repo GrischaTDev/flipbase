@@ -1,235 +1,25 @@
--- Enable UUID Extension
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 -- ==============================================================================
--- 1. PROFILES & WORKSPACES
--- ==============================================================================
-
-CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    email TEXT,
-    full_name TEXT,
-    avatar_url TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.workspaces (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name TEXT NOT NULL,
-    min_roi_percent NUMERIC NOT NULL DEFAULT 30.0,
-    min_profit_amount NUMERIC NOT NULL DEFAULT 15.0,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.workspace_members (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    role TEXT NOT NULL DEFAULT 'owner',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (workspace_id, user_id)
-);
-
--- ==============================================================================
--- 2. SOURCES & SUPPLIERS
--- ==============================================================================
-
-CREATE TABLE IF NOT EXISTS public.sources (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    is_default BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.suppliers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    name TEXT NOT NULL,
-    contact_info TEXT,
-    notes TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- ==============================================================================
--- 3. PURCHASES & PURCHASE COSTS
--- ==============================================================================
-
-CREATE TABLE IF NOT EXISTS public.purchases (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    type TEXT NOT NULL CHECK (type IN ('single', 'mystery_pack', 'lot', 'pallet')),
-    title TEXT NOT NULL,
-    source_id UUID REFERENCES public.sources(id) ON DELETE SET NULL,
-    supplier_id UUID REFERENCES public.suppliers(id) ON DELETE SET NULL,
-    purchase_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    purchase_price NUMERIC NOT NULL DEFAULT 0.00,
-    cost_allocation_mode TEXT NOT NULL DEFAULT 'even' CHECK (cost_allocation_mode IN ('manual', 'even', 'value_weighted')),
-    original_url TEXT,
-    notes TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.purchase_costs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    purchase_id UUID NOT NULL REFERENCES public.purchases(id) ON DELETE CASCADE,
-    type TEXT NOT NULL,
-    amount NUMERIC NOT NULL DEFAULT 0.00,
-    description TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- ==============================================================================
--- 4. INVENTORY ITEMS & ITEM COSTS & MEDIA
--- ==============================================================================
-
-CREATE TABLE IF NOT EXISTS public.inventory_items (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    purchase_id UUID REFERENCES public.purchases(id) ON DELETE CASCADE,
-    category TEXT,
-    title TEXT NOT NULL,
-    brand TEXT,
-    model TEXT,
-    condition TEXT NOT NULL DEFAULT 'used' CHECK (condition IN ('new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective')),
-    status TEXT NOT NULL DEFAULT 'received' CHECK (status IN ('received', 'needs_review', 'researched', 'ready', 'listed', 'reserved', 'sold', 'returned', 'archived', 'defective')),
-    sku TEXT,
-    ean TEXT,
-    description TEXT,
-    allocated_purchase_cost NUMERIC NOT NULL DEFAULT 0.00,
-    expected_value NUMERIC,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.item_costs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    inventory_item_id UUID NOT NULL REFERENCES public.inventory_items(id) ON DELETE CASCADE,
-    type TEXT NOT NULL,
-    amount NUMERIC NOT NULL DEFAULT 0.00,
-    description TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.item_media (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    inventory_item_id UUID NOT NULL REFERENCES public.inventory_items(id) ON DELETE CASCADE,
-    storage_path TEXT NOT NULL,
-    is_primary BOOLEAN NOT NULL DEFAULT FALSE,
-    file_name TEXT,
-    file_size INTEGER,
-    mime_type TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- ==============================================================================
--- 5. MARKET RESEARCH & COMPARABLES
--- ==============================================================================
-
-CREATE TABLE IF NOT EXISTS public.market_research (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE SET NULL,
-    query TEXT NOT NULL,
-    fair_value NUMERIC,
-    fast_sale_price NUMERIC,
-    recommended_listing_price NUMERIC,
-    confidence_score NUMERIC,
-    deal_score NUMERIC,
-    max_buy_price NUMERIC,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.research_comparables (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    research_id UUID NOT NULL REFERENCES public.market_research(id) ON DELETE CASCADE,
-    platform TEXT NOT NULL,
-    external_id TEXT,
-    title TEXT NOT NULL,
-    price NUMERIC NOT NULL,
-    condition TEXT,
-    is_sold BOOLEAN NOT NULL DEFAULT FALSE,
-    sold_at TIMESTAMPTZ,
-    listed_at TIMESTAMPTZ,
-    url TEXT,
-    similarity_score NUMERIC NOT NULL DEFAULT 100,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- ==============================================================================
--- 6. LISTINGS & SALES
--- ==============================================================================
-
-CREATE TABLE IF NOT EXISTS public.listing_drafts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    inventory_item_id UUID NOT NULL REFERENCES public.inventory_items(id) ON DELETE CASCADE,
-    platform TEXT NOT NULL,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-    price NUMERIC NOT NULL,
-    status TEXT NOT NULL DEFAULT 'draft',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS public.sales (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    inventory_item_id UUID NOT NULL REFERENCES public.inventory_items(id) ON DELETE CASCADE,
-    platform TEXT NOT NULL,
-    sale_price NUMERIC NOT NULL DEFAULT 0.00,
-    sale_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    platform_fee NUMERIC NOT NULL DEFAULT 0.00,
-    shipping_cost NUMERIC NOT NULL DEFAULT 0.00,
-    packaging_cost NUMERIC NOT NULL DEFAULT 0.00,
-    other_costs NUMERIC NOT NULL DEFAULT 0.00,
-    external_order_id TEXT,
-    external_listing_id TEXT,
-    buyer_notes TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- ==============================================================================
--- 7. ACTIVITY LOGS
--- ==============================================================================
-
-CREATE TABLE IF NOT EXISTS public.activity_logs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE CASCADE,
-    action TEXT NOT NULL,
-    notes TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
--- ==============================================================================
--- ROW LEVEL SECURITY
+-- sicherheitshaertung der row level security
 --
--- Diese Datei beschreibt den Zielzustand des Schemas. Sie muss die
--- Sicherheitsregeln enthalten - sonst erzeugt "supabase db diff" eine
--- Migration, die saemtliche Policies wieder loescht.
+-- zweck:
+--   1. schliesst die luecke, ueber die sich jeder angemeldete nutzer selbst in
+--      jeden fremden workspace eintragen konnte
+--   2. ersetzt die bisherigen "for all"-policies durch getrennte policies je
+--      operation und rolle, wie in CLAUDE.md vorgegeben
+--   3. setzt search_path in allen security-definer-funktionen
+--   4. ergaenzt fehlende delete-policies und indexe
+--
+-- betroffen: alle tabellen im schema public sowie die hilfsfunktionen
+--            is_workspace_member und handle_new_user
+--
+-- hinweis: dieses skript loescht bestehende policies und legt sie neu an.
+--          das ist beabsichtigt und notwendig, weil die alten policies
+--          "for all" verwenden und nicht ergaenzt, sondern ersetzt werden
+--          muessen. daten werden dabei nicht veraendert.
 -- ==============================================================================
 
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.workspaces ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.workspace_members ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.sources ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.purchases ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.purchase_costs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.item_costs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.item_media ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.market_research ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.research_comparables ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.listing_drafts ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
-
-
+-- ------------------------------------------------------------------------------
+-- 1. hilfsfunktionen
 -- ------------------------------------------------------------------------------
 
 -- prueft, ob der aufrufende nutzer mitglied des workspace ist.
@@ -332,9 +122,38 @@ begin
 end;
 $$;
 
-
-
+-- ------------------------------------------------------------------------------
+-- 2. alte policies entfernen
 --
+-- destruktiv: entfernt saemtliche bisherigen zugriffsregeln. die neuen regeln
+-- folgen unmittelbar darunter. zwischen diesen beiden bloecken ist der zugriff
+-- auf die tabellen vollstaendig gesperrt - das ist innerhalb einer migration
+-- unkritisch, da sie als eine transaktion laeuft.
+-- ------------------------------------------------------------------------------
+
+drop policy if exists "Users can view own profile" on public.profiles;
+drop policy if exists "Users can update own profile" on public.profiles;
+drop policy if exists "Members can view workspace" on public.workspaces;
+drop policy if exists "Members can update workspace" on public.workspaces;
+drop policy if exists "Authenticated users can create workspace" on public.workspaces;
+drop policy if exists "Members can view membership" on public.workspace_members;
+drop policy if exists "Members can insert membership" on public.workspace_members;
+drop policy if exists "Sources access" on public.sources;
+drop policy if exists "Suppliers access" on public.suppliers;
+drop policy if exists "Purchases access" on public.purchases;
+drop policy if exists "Purchase Costs access" on public.purchase_costs;
+drop policy if exists "Inventory Items access" on public.inventory_items;
+drop policy if exists "Item Costs access" on public.item_costs;
+drop policy if exists "Item Media access" on public.item_media;
+drop policy if exists "Market Research access" on public.market_research;
+drop policy if exists "Research Comparables access" on public.research_comparables;
+drop policy if exists "Listing Drafts access" on public.listing_drafts;
+drop policy if exists "Sales access" on public.sales;
+drop policy if exists "Activity Logs access" on public.activity_logs;
+
+-- ------------------------------------------------------------------------------
+-- 3. profiles
+-- ------------------------------------------------------------------------------
 
 create policy "Eigenes Profil lesen"
 on public.profiles for select to authenticated
@@ -830,6 +649,12 @@ set public = false
 where id = 'item-media';
 
 -- destruktiv: entfernt die bisherigen, zu weit gefassten regeln.
+drop policy if exists "Public item-media access" on storage.objects;
+drop policy if exists "Authenticated users can upload item-media" on storage.objects;
+drop policy if exists "Authenticated users can update item-media" on storage.objects;
+drop policy if exists "Authenticated users can delete item-media" on storage.objects;
+drop policy if exists "Anon users can upload item-media in dev" on storage.objects;
+drop policy if exists "Anon users can delete item-media in dev" on storage.objects;
 
 create policy "Artikelmedien lesen"
 on storage.objects for select to authenticated
@@ -858,51 +683,3 @@ comment on function public.is_workspace_admin(uuid) is
   'Prueft, ob der aufrufende Nutzer den Workspace verwalten darf (Rolle owner oder admin).';
 comment on function public.create_workspace(text) is
   'Legt einen Workspace an und traegt den Aufrufer als Eigentuemer ein. Einziger erlaubter Weg, einen Workspace zu erzeugen.';
-
-
-
-
-grant usage on schema public to authenticated, service_role;
-
-grant select, insert, update, delete
-  on all tables in schema public
-  to authenticated;
-
-grant all
-  on all tables in schema public
-  to service_role;
-
-grant usage, select
-  on all sequences in schema public
-  to authenticated, service_role;
-
-grant execute
-  on all functions in schema public
-  to authenticated, service_role;
-
--- kuenftig angelegte objekte automatisch mitversorgen, damit dieselbe luecke
--- nicht bei der naechsten tabelle erneut entsteht.
-alter default privileges in schema public
-  grant select, insert, update, delete on tables to authenticated;
-
-alter default privileges in schema public
-  grant all on tables to service_role;
-
-alter default privileges in schema public
-  grant usage, select on sequences to authenticated, service_role;
-
-alter default privileges in schema public
-  grant execute on functions to authenticated, service_role;
-
--- ==============================================================================
--- TRIGGER AUF auth.users
---
--- Legt bei jeder Registrierung Profil, Standard-Workspace, Eigentuemer-
--- Mitgliedschaft und die Standardquellen an. Muss hier stehen, damit
--- "supabase db diff" den Trigger nicht als ueberzaehlig erkennt und loescht.
--- ==============================================================================
-
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

@@ -115,6 +115,42 @@ Das `OR user_id = auth.uid()` erlaubt jedem angemeldeten Nutzer, sich selbst in 
 
 `store.service.ts:35` (`pk_test_reflip_live_sample_key_123`), `fulfillment.service.ts:295/298` (`dhl_sandbox_key_live_2026_demo`). Aktuell reine Platzhalter – aber das Muster lädt dazu ein, später echte Schlüssel dort einzutragen. Alles im Angular-Bundle ist öffentlich lesbar. Geheimnisse gehören ausschließlich in Edge Functions.
 
+
+### 2.11 🔴 Nachtrag: Der Datenbank fehlten sämtliche Zugriffsrechte – sie hat nie funktioniert
+
+> Gefunden am 2026-08-19 während Phase 3, beim ersten echten Test gegen die laufende Datenbank.
+
+Die Tabellen wurden angelegt, ohne den Rollen der Supabase-API Rechte zu erteilen. Jede Abfrage über PostgREST endete mit:
+
+```
+42501 – permission denied for table profiles
+```
+
+Und zwar **noch bevor** Row Level Security überhaupt ausgewertet wurde. Betroffen waren `authenticated`, `anon` **und sogar `service_role`** – also wirklich jeder Zugriffsweg.
+
+Aufgefallen ist das nie, weil sämtliche Datenbankaufrufe im Frontend in leeren `catch {}`-Blöcken enden (Befund 3.1). Die Anwendung ist stillschweigend auf den `localStorage` zurückgefallen. **Die Datenbank war seit Projektbeginn vollständig unbenutzt** – was auch erklärt, warum die Datenschicht so gebaut ist, wie sie gebaut ist: Sie musste ohne Datenbank funktionieren, weil es faktisch keine gab.
+
+**Behoben** in Phase 3 durch Migration `20260819130000_grant_api_roles.sql`, inklusive `alter default privileges`, damit dieselbe Lücke bei der nächsten Tabelle nicht erneut entsteht.
+
+### 2.12 🟠 Nachtrag: Der lokale Supabase-Stack lief auf von Windows gesperrten Ports
+
+> Gefunden am 2026-08-19 während Phase 3.
+
+`supabase/config.toml` verwendete die Ports 57320–57329. Windows reserviert auf diesem Rechner für Hyper-V unter anderem den Bereich **57322–57921** – darin lagen fünf der sieben Supabase-Ports (Datenbank, Studio, Mailpit, Analytics, Pooler). Der Stack ließ sich dadurch nicht mehr starten:
+
+```
+bind: Der Zugriff auf einen Socket war aufgrund der Zugriffsrechte
+des Sockets unzulässig
+```
+
+Diese reservierten Bereiche verschieben sich nach Neustarts – das Problem tritt also sporadisch auf und ist schwer zuzuordnen. Zusätzlich kollidierten die Standardports mit zwei anderen Supabase-Projekten auf demselben Rechner (`finance-management`, `movie-collection`).
+
+**Behoben** in Phase 3: Umstellung auf 54350–54359 (frei und außerhalb aller reservierten Bereiche). Prüfen lässt sich das mit:
+
+```bash
+netsh interface ipv4 show excludedportrange protocol=tcp
+```
+
 ---
 
 ## 3. 🔴 Kritisch – Architektur der Datenschicht
@@ -443,14 +479,15 @@ Der Komponentencode entspricht deinen Vorgaben nahezu vollständig. Die Probleme
 
 | Kategorie | Anzahl |
 |---|---|
-| 🔴 Kritisch (Sicherheit / Datenverlust / defektes Rendern) | 13 |
-| 🟠 Schwer (falsche Berechnungen / irreführende Doku) | 11 |
+| 🔴 Kritisch (Sicherheit / Datenverlust / defektes Rendern) | 14 |
+| 🟠 Schwer (falsche Berechnungen / irreführende Doku / Umgebung) | 12 |
 | 🟡 Mittel (Qualität, UI, Barrierefreiheit) | 24 |
 | 🟢 Gering (Aufräumen) | 9 |
-| **Summe** | **57** |
+| **Summe** | **59** |
 
-> Nachtrag 2026-08-19: Befund 7.11 kam beim Testen im echten Browser hinzu und ist
-> bereits behoben. Statische Codeanalyse allein hätte ihn nicht gefunden.
+> Nachträge 2026-08-19: Die Befunde 7.11, 2.11 und 2.12 kamen beim Testen gegen
+> die laufende Anwendung und Datenbank hinzu und sind bereits behoben. Keiner
+> davon wäre durch statische Codeanalyse allein auffindbar gewesen.
 
 ---
 

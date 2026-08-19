@@ -58,7 +58,7 @@
           <div class="w-12 h-12 rounded-lg bg-rf-subtle border border-rf-border text-rf-text-secondary flex items-center justify-center shrink-0 overflow-hidden">
             @if (mediaList().length > 0) {
               <img
-                [src]="getPublicUrl(mediaList()[0].storage_path)"
+                [src]="getMediaUrl(mediaList()[0].storage_path)"
                 [alt]="item.title"
                 class="w-full h-full object-cover"
               />
@@ -258,10 +258,10 @@
                   </div>
                 } @else {
                   <img
-                    [src]="getPublicUrl(media.storage_path)"
+                    [src]="getMediaUrl(media.storage_path)"
                     [alt]="media.file_name || 'Artikelbild'"
                     class="w-full h-full object-cover transition duration-200 group-hover:scale-105 cursor-pointer"
-                    (click)="previewModalUrl.set(getPublicUrl(media.storage_path))"
+                    (click)="previewModalUrl.set(getMediaUrl(media.storage_path))"
                   />
                 }
 
@@ -276,7 +276,7 @@
                 <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
                   <button
                     type="button"
-                    (click)="previewModalUrl.set(getPublicUrl(media.storage_path))"
+                    (click)="previewModalUrl.set(getMediaUrl(media.storage_path))"
                     class="p-1.5 rounded bg-rf-surface/90 text-rf-text-primary hover:text-emerald-400 transition cursor-pointer"
                     title="Vollbild"
                   >

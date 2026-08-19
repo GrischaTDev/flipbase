@@ -19,6 +19,70 @@ Dieses Projekt wird teilweise mit KI-Assistenten entwickelt. **Jede** von einer 
 
 ---
 
+## 2026-08-19 – Claude Opus 5 (Anthropic) – Phase 3: Sicherheit (Anmeldung & Datenbank)
+
+**Art:** Sicherheit, Bugfix, Konfiguration
+
+**Betroffen:**
+- `src/app/core/services/auth.service.ts` (neu geschrieben)
+- `src/app/core/guards/auth.guard.ts` (neu geschrieben, `guestGuard` ergänzt)
+- `src/app/app.routes.ts`, `src/app/features/auth/login/`, `src/app/layout/shell/`
+- `src/app/core/services/media.service.ts`, `workspace-member.service.ts`, `workspace.service.ts`
+- `src/environments/*`, `angular.json`, `supabase/config.toml`, `public/sw.js`
+- `supabase/migrations/20260819120000_security_hardening.sql` (neu)
+- `supabase/migrations/20260819130000_grant_api_roles.sql` (neu)
+- `supabase/schemas/database.sql` (vervollständigt)
+
+**Was:**
+
+*Anmeldung*
+1. **Demo-Modus von Anmeldung getrennt.** `isAuthenticated` bedeutet jetzt ausschliesslich „echte Supabase-Sitzung". Der Demo-Modus ist ein eigener, bewusst zu wählender Zustand (Standard: aus) und wird durch ein Banner in der Shell deutlich gekennzeichnet. Der Guard prüft `canAccessApp`.
+2. **Unsicheren Login-Fallback entfernt.** Zuvor wurde bei einer Zeitüberschreitung von 1200 ms **jede** Kombination aus E-Mail und Passwort akzeptiert. Jetzt gibt es keinen Ersatzweg mehr.
+3. **`authGuard` an alle geschützten Routen gehängt**, dazu ein `guestGuard`, der Angemeldete von Anmeldung und Registrierung fernhält. Der Guard **wartet** auf `sessionReady` statt 50 ms zu raten – dadurch bleibt man beim Neuladen angemeldet.
+4. **`onAuthStateChange` angebunden** – Token-Erneuerung und Abmeldung in anderen Tabs wirken jetzt.
+5. **Umgebungsschalter `allowDemoMode`**: in der Entwicklung an, in der Produktion aus. Dazu die fehlenden `fileReplacements` in `angular.json` ergänzt – `environment.development.ts` wurde bisher **nie** verwendet.
+
+*Datenbank*
+6. **Kritische Lücke geschlossen:** Die INSERT-Policy auf `workspace_members` erlaubte `OR user_id = auth.uid()`. Jeder angemeldete Nutzer konnte sich damit in jeden fremden Workspace eintragen. Ersetzt durch eine Prüfung auf Verwalterrolle; neue Workspaces entstehen über die neue Funktion `public.create_workspace()`.
+7. **Alle Policies neu geschrieben** nach `CLAUDE.md`: kein `FOR ALL`, getrennte Policies je Operation, immer `TO authenticated`, immer `(select auth.uid())`, fehlende DELETE-Policies ergänzt. 60 Policies über 15 Tabellen.
+8. **`set search_path = ''`** in allen `SECURITY DEFINER`-Funktionen.
+9. **17 Indizes** auf allen Spalten, die in Policies geprüft werden.
+10. **Storage-Bucket abgesichert:** `public = false`, die beiden `anon`-Policies (Hochladen **und Löschen**) entfernt. `MediaService` nutzt jetzt signierte URLs mit Signal-gestütztem Zwischenspeicher, damit Templates weiter synchron binden können.
+11. **`supabase/schemas/database.sql` vervollständigt** – enthielt nur Tabellen, keine Sicherheitsregeln. `supabase db diff` hätte vorgeschlagen, alle Policies zu löschen. Jetzt meldet der Befehl „No schema changes found".
+12. `config.toml`: `site_url` auf 4200 korrigiert, Passwort-Mindestlänge von 6 auf 10, Weiterleitungs-URLs ergänzt.
+
+*Zwei gravierende Funde, die erst beim Test gegen die laufende Datenbank sichtbar wurden*
+13. **Der Datenbank fehlten sämtliche GRANTs** (Audit 2.11). Jede Abfrage endete mit `42501 permission denied` – für `authenticated`, `anon` **und `service_role`**. Die Datenbank war seit Projektbeginn vollständig unbenutzt; die leeren `catch {}`-Blöcke im Frontend haben das verdeckt. Behoben, inklusive `alter default privileges` für künftige Tabellen.
+14. **Der lokale Supabase-Stack lief auf von Windows gesperrten Ports** (Audit 2.12). Hyper-V reserviert auf diesem Rechner 57322–57921; darin lagen fünf der sieben konfigurierten Ports. Zusätzlich Kollision mit zwei anderen Supabase-Projekten. Umgestellt auf 54350–54359.
+
+*Zwei Folgefehler, die dadurch erst auftraten*
+15. **Service Worker blockierte die Datenbank.** Er fing alle GET-Anfragen ab und beantwortete sie mit „503 Offline" – auch Supabase. Vorgezogen aus Phase 7 und neu geschrieben: er fasst jetzt nur noch eigene, statische Dateien an und lässt fremde Herkünfte unberührt. Damit ist auch das Zwischenspeichern von Geschäfts- und Anmeldedaten beendet (Audit 2.7).
+16. **Absturz in `workspace-member.service.ts`.** `m.email.toLowerCase()` – die Tabelle `workspace_members` hat gar keine Spalte `email`, das Feld existiert nur im TypeScript-Modell (Audit 3.3). Sobald echte Zeilen kamen, warf das eine Ausnahme mitten in der Änderungserkennung. Vorläufig abgesichert; die saubere Lösung (Verknüpfung mit `profiles`) gehört zur Angleichung von Modell und Schema in Phase 5.
+
+**Verifiziert durch:**
+- `npx ng build` → erfolgreich; `npx vitest run` → 25 Dateien / 121 Tests grün
+- `npx supabase db reset` → alle vier Migrationen sauber angewendet
+- `npx supabase db diff` → **„No schema changes found"**
+- **Angriffstests gegen die laufende Datenbank** mit zwei echten Nutzern (Alice, Bob):
+  - Bob trägt sich in Alices Workspace ein → `42501 violates row-level security policy` ✅
+  - Bob liest Alices Einkäufe → leere Menge ✅
+  - Bob schreibt in Alices Workspace → abgewiesen ✅
+  - Bob liest Alices Mitgliedschaften → leere Menge ✅
+  - Nicht angemeldet liest Einkäufe → `permission denied` ✅
+  - Nicht angemeldet lädt in den Bucket hoch → `403 AccessDenied` ✅
+  - Nicht angemeldet löscht eine vorhandene Datei → `403 AccessDenied` ✅
+  - Öffentlicher Bucket-Abruf → HTTP 400 (nicht mehr öffentlich) ✅
+  - Kontrolle: Alice sieht ihre eigenen Daten, angemeldeter Upload funktioniert ✅
+- **Anmeldefluss im echten Browser:** `/dashboard` ohne Anmeldung → Umleitung mit `redirectTo`; falsches Passwort → abgewiesen; richtiges Passwort → Dashboard mit **echten Daten aus der Datenbank**; Neuladen bleibt angemeldet; `/auth/login` als Angemeldeter → Umleitung; Abmelden → gesperrt und Token entfernt; Demo-Modus → Banner sichtbar
+- Datenbank anschliessend zurückgesetzt, Testnutzer entfernt
+
+**Bewusst offen gelassen (gehört zu Phase 5):**
+Die App fragt weiter parallel mit der Mock-Workspace-ID `ws-1` ab, was `400 Bad Request` erzeugt (keine gültige UUID). Die Abfragen mit echter UUID liefern korrekt Daten. Das ist die localStorage/Datenbank-Doppelung aus Audit 3.1 und wird in Phase 5 aufgelöst.
+
+**Auswirkung für dich:** Die Anwendung ist ohne Anmeldung nicht mehr nutzbar. In der Entwicklung steht weiterhin der Demo-Modus zur Verfügung, im Produktions-Build nicht.
+
+---
+
 ## 2026-08-19 – Claude Opus 5 (Anthropic) – Phase 2: Datensicherung
 
 **Art:** Feature & Bugfix

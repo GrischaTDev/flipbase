@@ -72,7 +72,7 @@ export class WorkspaceService {
     try {
       effect(() => {
         const isAuth = this.auth?.isAuthenticated();
-        const isDemo = this.auth?.isDemoUser();
+        const isDemo = this.auth?.isDemoMode();
 
         if (isDemo || !this.supabase) {
           if (this.workspaces().length === 0) {
@@ -105,7 +105,7 @@ export class WorkspaceService {
   }
 
   async loadWorkspaces(): Promise<void> {
-    if (this.auth?.isDemoUser() || !this.supabase) {
+    if (this.auth?.isDemoMode() || !this.supabase) {
       if (this.workspaces().length === 0) {
         this.workspaces.set(this.defaultWorkspaces);
         this.currentWorkspace.set(this.defaultWorkspaces[0]);

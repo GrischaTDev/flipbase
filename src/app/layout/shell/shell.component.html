@@ -13,6 +13,22 @@
       (openCreateWorkspace)="openCreateWorkspace()"
     ></app-header>
 
+    <!-- Demo-Modus deutlich kennzeichnen -->
+    @if (auth.isDemoMode()) {
+      <div
+        class="bg-amber-500/15 border-b border-amber-500/30 px-4 md:px-6 py-2 text-center"
+        role="status"
+      >
+        <p class="text-[11px] text-amber-300 leading-relaxed">
+          <strong>Demo-Modus</strong> &ndash; alle Daten liegen nur in diesem Browser und werden
+          nicht auf dem Server gespeichert.
+          <a routerLink="/auth/login" class="underline font-semibold hover:text-amber-200 ml-1">
+            Mit Konto anmelden
+          </a>
+        </p>
+      </div>
+    }
+
     <!-- Page Content Container -->
     <main class="flex-1 p-4 md:p-6 lg:p-7 max-w-7xl w-full mx-auto animate-fade-in">
       <router-outlet></router-outlet>

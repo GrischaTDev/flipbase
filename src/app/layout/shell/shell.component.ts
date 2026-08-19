@@ -1,14 +1,16 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { RouterLink, RouterOutlet } from '@angular/router';
 import { HeaderComponent } from '../header/header.component';
 import { SidebarComponent } from '../sidebar/sidebar.component';
 import { BottomNavComponent } from '../bottom-nav/bottom-nav.component';
 import { WorkspaceModalComponent } from '../../shared/components/workspace-modal/workspace-modal.component';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-shell',
   imports: [
     RouterOutlet,
+    RouterLink,
     HeaderComponent,
     SidebarComponent,
     BottomNavComponent,
@@ -19,6 +21,8 @@ import { WorkspaceModalComponent } from '../../shared/components/workspace-modal
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ShellComponent {
+  readonly auth = inject(AuthService);
+
   readonly isSidebarOpen = signal<boolean>(false);
   readonly isCreateWorkspaceModalOpen = signal<boolean>(false);
 

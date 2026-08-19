@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { ShellComponent } from './layout/shell/shell.component';
 import { StoreLayoutComponent } from './features/store/store-layout/store-layout.component';
+import { authGuard, guestGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
   // Public Customer Storefront Routes
@@ -39,9 +40,10 @@ export const routes: Routes = [
     ],
   },
 
-  // Auth Routes
+  // Auth Routes – fuer bereits angemeldete Nutzer gesperrt
   {
     path: 'auth',
+    canActivate: [guestGuard],
     children: [
       {
         path: 'login',
@@ -65,6 +67,7 @@ export const routes: Routes = [
   {
     path: '',
     component: ShellComponent,
+    canActivate: [authGuard],
     children: [
       {
         path: 'dashboard',

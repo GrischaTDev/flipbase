@@ -59,8 +59,15 @@ export class WorkspaceMemberService {
   readonly isLoading = signal<boolean>(false);
 
   readonly currentUserRole = computed<WorkspaceRole>(() => {
-    const currentEmail = this.auth.userEmail();
-    const member = this.members().find((m) => m.email.toLowerCase() === currentEmail?.toLowerCase());
+    const currentEmail = this.auth.userEmail()?.toLowerCase();
+    if (!currentEmail) return 'owner';
+
+    // Achtung: Die Tabelle workspace_members hat keine Spalte "email" - das
+    // Feld existiert bisher nur im TypeScript-Modell. Aus der Datenbank
+    // geladene Mitglieder haben es daher nicht, weshalb hier gegen undefined
+    // abgesichert wird. Die saubere Loesung (Verknuepfung mit profiles)
+    // gehoert zur Angleichung von Modell und Schema.
+    const member = this.members().find((m) => (m.email ?? '').toLowerCase() === currentEmail);
     return member?.role || 'owner';
   });
 
@@ -97,11 +104,11 @@ export class WorkspaceMemberService {
     const ws = this.workspaceService.currentWorkspace();
     const cleanEmail = email.trim().toLowerCase();
 
-    if (this.members().some((m) => m.email.toLowerCase() === cleanEmail)) {
+    if (this.members().some((m) => (m.email ?? '').toLowerCase() === cleanEmail)) {
       return { error: new Error('Dieses Mitglied ist bereits im Workspace registriert.') };
     }
 
-    if (this.invites().some((i) => i.email.toLowerCase() === cleanEmail && i.status === 'pending')) {
+    if (this.invites().some((i) => (i.email ?? '').toLowerCase() === cleanEmail && i.status === 'pending')) {
       return { error: new Error('Für diese E-Mail-Adresse liegt bereits eine offene Einladung vor.') };
     }
 

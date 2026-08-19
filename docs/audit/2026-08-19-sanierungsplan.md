@@ -51,7 +51,7 @@ Der Wunsch „in 2–3 Wochen ins Web **und** echte Stripe-/DHL-Anbindung" ist z
 |---|---|---|---|
 | **1** | Build reparieren | 0,5 Std | ✅ erledigt |
 | **2** | Datensicherung (Export/Import) | 0,5 Tag | ✅ erledigt |
-| **3** | Sicherheit – Anmeldung & Datenbank | 1,5 Tage | ⏳ |
+| **3** | Sicherheit – Anmeldung & Datenbank | 1,5 Tage | ✅ erledigt |
 | **4** | UI-Blockaden + Light-Theme | 1 Tag | ⏳ |
 | **5** | Datenschicht: Datenbank wird Quelle der Wahrheit | 3–5 Tage | ⏳ |
 | **6** | Finanzen & Steuern korrigieren | 1–2 Tage | ⏳ |
@@ -96,7 +96,7 @@ Der Wunsch „in 2–3 Wochen ins Web **und** echte Stripe-/DHL-Anbindung" ist z
 
 ---
 
-## Phase 3 – Sicherheit: Anmeldung & Datenbank ⏱️ ~1,5 Tage 🔴
+## Phase 3 – Sicherheit: Anmeldung & Datenbank ⏱️ ~1,5 Tage ✅
 
 **Vorgezogen wegen des Web-Termins.** Diese Punkte dürfen am Tag des Web-Starts nicht offen sein – und je früher sie sitzen, desto weniger baut die restliche Arbeit auf falschen Annahmen auf.
 
@@ -199,7 +199,7 @@ Reihenfolge nach Wichtigkeit: `return.service` → `invoice.service` → `tax-ad
 |---|---|---|
 | 7.1.1 | Security-Header in `nginx.conf`: CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy | Audit 2.8 |
 | 7.1.2 | `index.html` auf `no-cache` | Audit 2.8 |
-| 7.1.3 | Service Worker: API- und Auth-Antworten **nicht** cachen; möglichst auf `@angular/service-worker` umstellen | Audit 2.7 |
+| ~~7.1.3~~ | ~~Service Worker: API- und Auth-Antworten nicht cachen~~ – **in Phase 3 vorgezogen**, weil der Worker die neu funktionierende Datenbank mit „503 Offline" blockierte. Umstellung auf `@angular/service-worker` bleibt offen. | Audit 2.7 |
 | 7.1.4 | Edge Function: `Deno.serve`, CORS auf eigene Domain, JWT prüfen | Audit 2.9 |
 | 7.1.5 | Alle API-Schlüssel aus dem Frontend entfernen | Audit 2.10 |
 | 7.1.6 | Docker: `HEALTHCHECK`, Port `8080:80`, `.env`-Mechanismus | Audit 6.8 |

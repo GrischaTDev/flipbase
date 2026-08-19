@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { ItemMedia } from '../models/reflip.models';
@@ -13,15 +13,66 @@ export class MediaService {
   private readonly localMediaMap = new Map<string, ItemMedia[]>();
 
   /**
-   * Retrieves public URL for a given storage path or data URI.
+   * Zwischenspeicher fuer signierte URLs: Speicherpfad -> abrufbare URL.
+   * Als Signal, damit Templates automatisch nachziehen, sobald eine URL
+   * eingetroffen ist.
    */
-  getPublicUrl(storagePath: string): string {
+  private readonly signedUrls = signal<Record<string, string>>({});
+
+  /** Pfade, deren Signierung gerade laeuft - verhindert Mehrfachanfragen. */
+  private readonly pendingSignatures = new Set<string>();
+
+  /** Gueltigkeit einer signierten URL in Sekunden. */
+  private static readonly SIGNED_URL_TTL = 3600;
+
+  /**
+   * Liefert eine abrufbare URL fuer einen Speicherpfad.
+   *
+   * Der Bucket ist seit der Sicherheitshaertung nicht mehr oeffentlich, daher
+   * werden signierte URLs verwendet. Weil Templates synchron binden, gibt die
+   * Methode zunaechst eine leere Zeichenkette zurueck und stoesst die
+   * Signierung an; sobald die URL vorliegt, aktualisiert das Signal die Ansicht.
+   *
+   * Bereits vollstaendige URLs und Daten-URIs werden unveraendert
+   * durchgereicht - das betrifft alle lokal gespeicherten Bilder.
+   */
+  getMediaUrl(storagePath: string): string {
     if (!storagePath) return '';
-    if (storagePath.startsWith('http://') || storagePath.startsWith('https://') || storagePath.startsWith('data:')) {
+    if (
+      storagePath.startsWith('http://') ||
+      storagePath.startsWith('https://') ||
+      storagePath.startsWith('data:') ||
+      storagePath.startsWith('blob:')
+    ) {
       return storagePath;
     }
-    const { data } = this.supabase.client.storage.from('item-media').getPublicUrl(storagePath);
-    return data.publicUrl;
+
+    const cached = this.signedUrls()[storagePath];
+    if (cached) return cached;
+
+    this.requestSignedUrl(storagePath);
+    return '';
+  }
+
+  /** Fordert eine signierte URL an und legt sie im Zwischenspeicher ab. */
+  private requestSignedUrl(storagePath: string): void {
+    if (this.pendingSignatures.has(storagePath)) return;
+    this.pendingSignatures.add(storagePath);
+
+    void this.supabase.client.storage
+      .from('item-media')
+      .createSignedUrl(storagePath, MediaService.SIGNED_URL_TTL)
+      .then(({ data, error }) => {
+        if (!error && data?.signedUrl) {
+          this.signedUrls.update((map) => ({ ...map, [storagePath]: data.signedUrl }));
+        }
+      })
+      .catch(() => {
+        // Ohne erreichbares Backend bleibt das Bild leer.
+      })
+      .finally(() => {
+        this.pendingSignatures.delete(storagePath);
+      });
   }
 
   /**
