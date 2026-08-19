@@ -49,8 +49,8 @@ Der Wunsch „in 2–3 Wochen ins Web **und** echte Stripe-/DHL-Anbindung" ist z
 
 | Phase | Inhalt | Aufwand | Status |
 |---|---|---|---|
-| **1** | Build reparieren | 0,5 Std | 🔄 in Arbeit |
-| **2** | Datensicherung (Export/Import) | 0,5 Tag | ⏳ |
+| **1** | Build reparieren | 0,5 Std | ✅ erledigt |
+| **2** | Datensicherung (Export/Import) | 0,5 Tag | ✅ erledigt |
 | **3** | Sicherheit – Anmeldung & Datenbank | 1,5 Tage | ⏳ |
 | **4** | UI-Blockaden + Light-Theme | 1 Tag | ⏳ |
 | **5** | Datenschicht: Datenbank wird Quelle der Wahrheit | 3–5 Tage | ⏳ |
@@ -63,7 +63,7 @@ Der Wunsch „in 2–3 Wochen ins Web **und** echte Stripe-/DHL-Anbindung" ist z
 
 ---
 
-## Phase 1 – Wieder baubar machen ⏱️ ~30 Min 🔄
+## Phase 1 – Wieder baubar machen ⏱️ ~30 Min ✅
 
 **Warum zuerst:** Solange der Build kaputt ist, kannst du kein Docker-Image bauen.
 
@@ -79,7 +79,7 @@ Der Wunsch „in 2–3 Wochen ins Web **und** echte Stripe-/DHL-Anbindung" ist z
 
 ---
 
-## Phase 2 – Deine Daten sichern ⏱️ ~0,5 Tag
+## Phase 2 – Deine Daten sichern ⏱️ ~0,5 Tag ✅
 
 **Vorgezogen, weil echte Daten vorhanden sind.** Bevor irgendjemand die Datenschicht anfasst, brauchst du ein Sicherheitsnetz. Aktuell liegt dein Mystery-Paket mit den zwei Artikeln ausschließlich im `localStorage` deines Browsers – ein geleerter Cache und es ist weg.
 

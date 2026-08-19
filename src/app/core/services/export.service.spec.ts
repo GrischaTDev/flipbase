@@ -49,19 +49,4 @@ describe('ExportService (Phase 10: CSV & JSON Backup)', () => {
     expect(csv).toContain('"Barzahlung bei Abholung; netter Kontakt"');
   });
 
-  it('should generate valid JSON Backup with complete workspace snapshot', () => {
-    const json = exportService.generateJsonBackup(
-      { id: 'ws-1', user_id: 'u-1', name: 'Test Workspace', currency: 'EUR', min_roi_percent: 30, min_profit_absolute: 15, is_default: true, created_at: '2026-08-16' },
-      [],
-      [],
-      []
-    );
-
-    const parsed = JSON.parse(json);
-    expect(parsed.version).toBe('1.0');
-    expect(parsed.workspace.name).toBe('Test Workspace');
-    expect(Array.isArray(parsed.purchases)).toBe(true);
-    expect(Array.isArray(parsed.inventory)).toBe(true);
-    expect(Array.isArray(parsed.sales)).toBe(true);
-  });
 });

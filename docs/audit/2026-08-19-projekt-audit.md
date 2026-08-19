@@ -380,7 +380,34 @@ Screenreader lesen dann den Dateinamen vor. Bei dekorativen Bildern: `alt=""`.
 
 Tastaturnutzer müssen sich auf jeder Seite durch die komplette 13-Punkte-Navigation tabben. Ein „Zum Inhalt springen"-Link fehlt.
 
-### 7.11 Kleinere UI-Themen
+### 7.11 🔴 Nachtrag: Ein kaputter Formularbezug legte das Rendern der ganzen App lahm
+
+> Gefunden am 2026-08-19 während Phase 2, beim Testen im echten Browser. Statisch war das nicht sichtbar – der Fehler tritt erst zur Laufzeit auf.
+
+`settings.component.html` bindet an vier Bankfelder:
+
+```html
+formControlName="bankName"          <!-- existierte nicht -->
+formControlName="bankIban"
+formControlName="bankBic"
+formControlName="bankAccountHolder"
+```
+
+Die `paymentForm`-Gruppe in `settings.component.ts` enthielt jedoch **kein** Feld `bankName`. Sobald die Zahlungsarten-Karte sichtbar wurde, warf Angular bei jedem Durchlauf:
+
+```
+ERROR Error: Cannot find control with name: 'bankName'
+```
+
+Eine Ausnahme mitten in der Änderungserkennung bricht den restlichen Durchlauf ab. Sichtbare Folge: Auf der Einstellungsseite blieben **die komplette Sidebar-Navigation und der Header leer**, und sämtliche `@if`-Blöcke, die nach der defekten Stelle ausgewertet wurden, rendern nicht. Die Seite sah aus wie ein halb geladener Torso.
+
+Warum das lange unbemerkt blieb: Der Fehler landet nur in der Browser-Konsole, die Seite stürzt nicht ab, und es gibt keinen einzigen Komponenten-Test (siehe 6.4), der so etwas gefunden hätte.
+
+**Behoben** in Phase 2 durch Ergänzen des fehlenden `bankName`-Controls.
+
+**Lehre daraus für den Plan:** Genau solche Fehler sind der Grund, warum in Phase 8 Komponenten-Tests und eine `vitest.config.ts` mit `jsdom` stehen. Ein einziger Rendertest der Einstellungsseite hätte das sofort gezeigt.
+
+### 7.12 Kleinere UI-Themen
 
 - Externe Google Fonts ohne lokales Fallback: bei fehlender Internetverbindung – also genau im beworbenen **Offline-Modus auf dem Flohmarkt** – bricht die Typografie ein
 - Der Sidebar-Punkt „Mein Online-Shop" führt nach `/shop` in ein anderes Layout **ohne Rückweg** in die Verwaltung
@@ -416,11 +443,14 @@ Der Komponentencode entspricht deinen Vorgaben nahezu vollständig. Die Probleme
 
 | Kategorie | Anzahl |
 |---|---|
-| 🔴 Kritisch (Sicherheit / Datenverlust) | 12 |
+| 🔴 Kritisch (Sicherheit / Datenverlust / defektes Rendern) | 13 |
 | 🟠 Schwer (falsche Berechnungen / irreführende Doku) | 11 |
 | 🟡 Mittel (Qualität, UI, Barrierefreiheit) | 24 |
 | 🟢 Gering (Aufräumen) | 9 |
-| **Summe** | **56** |
+| **Summe** | **57** |
+
+> Nachtrag 2026-08-19: Befund 7.11 kam beim Testen im echten Browser hinzu und ist
+> bereits behoben. Statische Codeanalyse allein hätte ihn nicht gefunden.
 
 ---
 

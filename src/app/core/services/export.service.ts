@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Sale, Purchase, InventoryItem, Workspace } from '../models/reflip.models';
+import { Sale, Purchase, InventoryItem } from '../models/reflip.models';
 
 @Injectable({
   providedIn: 'root',
@@ -112,26 +112,6 @@ export class ExportService {
     ]);
 
     return [headers.join(';'), ...rows.map((r) => r.join(';'))].join('\r\n');
-  }
-
-  /**
-   * Generates a full JSON backup of the workspace data.
-   */
-  generateJsonBackup(
-    workspace: Workspace | null,
-    purchases: Purchase[],
-    items: InventoryItem[],
-    sales: Sale[]
-  ): string {
-    const backup = {
-      version: '1.0',
-      exportedAt: new Date().toISOString(),
-      workspace,
-      purchases,
-      inventory: items,
-      sales,
-    };
-    return JSON.stringify(backup, null, 2);
   }
 
   /**

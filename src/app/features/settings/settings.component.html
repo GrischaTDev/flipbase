@@ -900,23 +900,31 @@
             </button>
           </div>
 
-          <!-- Full Backup -->
+          <!-- Einkaufsauswertung -->
           <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between">
             <div>
-              <strong class="text-xs text-rf-text-primary block">Vollständiges Backup</strong>
-              <span class="text-[10px] text-rf-text-muted">Alle Datensätze als JSON</span>
+              <strong class="text-xs text-rf-text-primary block">Einkäufe &amp; Wareneinsatz</strong>
+              <span class="text-[10px] text-rf-text-muted">Kostenverteilung und Nebenkosten</span>
             </div>
             <button
               type="button"
-              (click)="exportAllData()"
-              class="linear-btn-primary px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer shadow-sm"
+              (click)="exportPurchasesCsv()"
+              class="linear-btn-secondary px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
             >
               <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5"></lucide-icon>
-              <span>JSON</span>
+              <span>CSV</span>
             </button>
           </div>
         </div>
+
+        <p class="text-[10px] text-rf-text-dimmed leading-relaxed pt-1 border-t border-rf-border">
+          CSV-Dateien sind für Auswertung und Buchhaltung gedacht. Für eine vollständige
+          Datensicherung nutze den Bereich „Sicherung &amp; Wiederherstellung“.
+        </p>
       </div>
+
+      <!-- Sicherung & Wiederherstellung -->
+      <app-backup-panel></app-backup-panel>
     </div>
   </div>
 

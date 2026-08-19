@@ -52,10 +52,17 @@ import { FulfillmentService } from '../../core/services/fulfillment.service';
 import { WebPushService } from '../../core/services/web-push.service';
 import { WorkspaceRole } from '../../core/models/reflip.models';
 import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
+import { BackupPanelComponent } from './components/backup-panel/backup-panel.component';
 
 @Component({
   selector: 'app-settings',
-  imports: [ReactiveFormsModule, TranslatePipe, LucideAngularModule, CustomCheckboxComponent],
+  imports: [
+    ReactiveFormsModule,
+    TranslatePipe,
+    LucideAngularModule,
+    CustomCheckboxComponent,
+    BackupPanelComponent,
+  ],
   templateUrl: './settings.component.html',
   styleUrl: './settings.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -158,6 +165,7 @@ export class SettingsComponent {
     paypalEnabled: new FormControl(true),
     paypalEmail: new FormControl(''),
     bankTransferEnabled: new FormControl(true),
+    bankName: new FormControl(''),
     bankIban: new FormControl(''),
     bankBic: new FormControl(''),
     bankAccountHolder: new FormControl(''),
@@ -415,17 +423,12 @@ export class SettingsComponent {
     await this.memberService.cancelInvite(inviteId);
   }
 
-  exportAllData(): void {
-    const json = this.exportService.generateJsonBackup(
-      this.workspaceService.currentWorkspace(),
-      this.purchaseService.purchases(),
-      this.inventoryService.items(),
-      this.salesService.sales()
-    );
+  exportPurchasesCsv(): void {
+    const csv = this.exportService.generatePurchasesCsv(this.purchaseService.purchases());
     this.exportService.downloadFile(
-      json,
-      `reflip-backup-${new Date().toISOString().split('T')[0]}.json`,
-      'application/json'
+      csv,
+      `reflip-einkaeufe-${new Date().toISOString().split('T')[0]}.csv`,
+      'text/csv;charset=utf-8;'
     );
   }
 
