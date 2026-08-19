@@ -188,38 +188,23 @@
 
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <div>
-          <label for="itemCondition" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+          <label class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
             Zustand
           </label>
-          <select
-            id="itemCondition"
+          <app-custom-select
             formControlName="condition"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
-          >
-            <option value="new">Neu / OVP</option>
-            <option value="like_new">Wie neu</option>
-            <option value="very_good">Sehr gut</option>
-            <option value="used">Gebraucht</option>
-            <option value="heavily_used">Stark gebraucht</option>
-            <option value="defective">Defekt / Ersatzteil</option>
-          </select>
+            [options]="conditionOptions"
+          ></app-custom-select>
         </div>
 
         <div>
-          <label for="itemStatus" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
-            Status-Lifecycle
+          <label class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            Status
           </label>
-          <select
-            id="itemStatus"
+          <app-custom-select
             formControlName="status"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
-          >
-            <option value="received">Eingetroffen (received)</option>
-            <option value="needs_review">Zu prüfen (needs_review)</option>
-            <option value="researched">Recherchiert (researched)</option>
-            <option value="ready">Verkaufsbereit (ready)</option>
-            <option value="listed">Gelistet (listed)</option>
-          </select>
+            [options]="statusOptions"
+          ></app-custom-select>
         </div>
 
         <div>

@@ -12,6 +12,8 @@ import { ImageCropperModalComponent, CroppedImageResult } from '../../../../shar
 import { DatePipe } from '@angular/common';
 import { ItemCondition, ItemStatus } from '../../../../core/models/reflip.models';
 
+import { CustomSelectComponent, SelectOption } from '../../../../shared/components/custom-select/custom-select.component';
+
 @Component({
   selector: 'app-item-create-modal',
   imports: [
@@ -21,6 +23,7 @@ import { ItemCondition, ItemStatus } from '../../../../core/models/reflip.models
     BarcodeScannerComponent,
     AiPhotoScannerModalComponent,
     ImageCropperModalComponent,
+    CustomSelectComponent,
   ],
   templateUrl: './item-create-modal.component.html',
   styleUrl: './item-create-modal.component.scss',
@@ -32,6 +35,24 @@ export class ItemCreateModalComponent {
   readonly purchaseService = inject(PurchaseService);
   readonly aiService = inject(AiAssistantService);
   readonly barcodeLookup = inject(BarcodeLookupService);
+
+  readonly conditionOptions: SelectOption<ItemCondition>[] = [
+    { value: 'new', label: 'Neu / OVP' },
+    { value: 'like_new', label: 'Wie neu' },
+    { value: 'very_good', label: 'Sehr gut' },
+    { value: 'used', label: 'Gebraucht' },
+    { value: 'heavily_used', label: 'Stark gebraucht' },
+    { value: 'defective', label: 'Defekt / Ersatzteil' },
+  ];
+
+  readonly statusOptions: SelectOption<ItemStatus>[] = [
+    { value: 'received', label: 'Auf Lager', badgeClass: 'bg-blue-400' },
+    { value: 'ready', label: 'Bereit', badgeClass: 'bg-amber-400' },
+    { value: 'listed', label: 'Gelistet', badgeClass: 'bg-emerald-400' },
+    { value: 'sold', label: 'Verkauft', badgeClass: 'bg-purple-400' },
+    { value: 'reserved', label: 'Reserviert', badgeClass: 'bg-slate-400' },
+    { value: 'defective', label: 'Defekt / Ersatzteil', badgeClass: 'bg-rose-400' },
+  ];
 
   readonly close = output<void>();
   readonly created = output<void>();

@@ -214,37 +214,19 @@
       </div>
 
       <div class="sm:col-span-3">
-        <select
-          [value]="selectedCondition()"
-          (change)="selectedCondition.set($any($event.target).value)"
-          class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer text-slate-200"
-        >
-          <option value="all">Alle Zustände</option>
-          <option value="new">Neu / OVP</option>
-          <option value="like_new">Wie neu</option>
-          <option value="very_good">Sehr gut</option>
-          <option value="used">Gebraucht</option>
-          <option value="heavily_used">Stark gebraucht</option>
-          <option value="defective">Defekt / Ersatzteil</option>
-        </select>
+        <app-custom-select
+          variant="filter"
+          [options]="filterConditionOptions"
+          [(value)]="selectedCondition"
+        ></app-custom-select>
       </div>
 
       <div class="sm:col-span-3">
-        <select
-          [value]="selectedStatus()"
-          (change)="selectedStatus.set($any($event.target).value)"
-          class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer text-slate-200"
-        >
-          <option value="all">Alle Status</option>
-          <option value="received">Auf Lager</option>
-          <option value="ready">Bereit</option>
-          <option value="listed">Gelistet</option>
-          <option value="sold">Verkauft</option>
-          <option value="reserved">Reserviert</option>
-          <option value="defective">Defekt / Ersatzteil</option>
-          <option value="returned">Retourniert</option>
-          <option value="archived">Archiviert</option>
-        </select>
+        <app-custom-select
+          variant="filter"
+          [options]="filterStatusOptions"
+          [(value)]="selectedStatus"
+        ></app-custom-select>
       </div>
     </div>
   </div>
@@ -311,35 +293,13 @@
                 </span>
               </td>
 
-              <td class="py-2.5 px-3">
-                <select
+              <td class="py-2 px-3">
+                <app-custom-select
+                  variant="pill"
+                  [options]="statusOptions"
                   [value]="item.status"
-                  (click)="$event.stopPropagation()"
-                  (change)="onChangeItemStatus(item, $any($event.target).value, $event)"
-                  class="text-[11px] font-semibold rounded-full px-2.5 py-1 border cursor-pointer transition outline-none pr-6"
-                  [class.bg-blue-500/15]="item.status === 'received'"
-                  [class.text-blue-300]="item.status === 'received'"
-                  [class.border-blue-500/30]="item.status === 'received'"
-                  [class.bg-amber-500/15]="item.status === 'ready'"
-                  [class.text-amber-300]="item.status === 'ready'"
-                  [class.border-amber-500/30]="item.status === 'ready'"
-                  [class.bg-emerald-500/15]="item.status === 'listed'"
-                  [class.text-emerald-300]="item.status === 'listed'"
-                  [class.border-emerald-500/30]="item.status === 'listed'"
-                  [class.bg-purple-500/15]="item.status === 'sold'"
-                  [class.text-purple-300]="item.status === 'sold'"
-                  [class.border-purple-500/30]="item.status === 'sold'"
-                  [class.bg-rose-500/15]="item.status === 'defective'"
-                  [class.text-rose-300]="item.status === 'defective'"
-                  [class.border-rose-500/30]="item.status === 'defective'"
-                  [class.bg-[#1e222a]]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
-                  [class.text-slate-300]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
-                  [class.border-[#373e4d]]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
-                >
-                  @for (st of allStatuses; track st.value) {
-                    <option [value]="st.value" class="bg-[#181a20] text-slate-200">{{ st.label }}</option>
-                  }
-                </select>
+                  (valueChange)="onChangeItemStatus(item, $event)"
+                ></app-custom-select>
               </td>
 
               <td class="py-3 px-3 text-slate-400 text-[11px]">

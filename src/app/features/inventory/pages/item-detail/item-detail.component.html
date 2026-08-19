@@ -91,37 +91,12 @@
         <!-- Prominente, farbige Status-Auswahl -->
         <div class="flex flex-col sm:items-end gap-1 shrink-0">
           <span class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">Status</span>
-          <div class="relative">
-            <select
-              [value]="item.status"
-              (change)="onChangeStatus($any($event.target).value)"
-              class="px-3.5 py-1.5 rounded-full text-xs font-bold border cursor-pointer transition shadow-sm outline-none pr-8"
-              [class.bg-blue-500/20]="item.status === 'received'"
-              [class.text-blue-300]="item.status === 'received'"
-              [class.border-blue-500/50]="item.status === 'received'"
-              [class.bg-amber-500/20]="item.status === 'ready'"
-              [class.text-amber-300]="item.status === 'ready'"
-              [class.border-amber-500/50]="item.status === 'ready'"
-              [class.bg-emerald-500/20]="item.status === 'listed'"
-              [class.text-emerald-300]="item.status === 'listed'"
-              [class.border-emerald-500/50]="item.status === 'listed'"
-              [class.bg-purple-500/20]="item.status === 'sold'"
-              [class.text-purple-300]="item.status === 'sold'"
-              [class.border-purple-500/50]="item.status === 'sold'"
-              [class.bg-rose-500/20]="item.status === 'defective'"
-              [class.text-rose-300]="item.status === 'defective'"
-              [class.border-rose-500/50]="item.status === 'defective'"
-              [class.bg-slate-500/20]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
-              [class.text-slate-200]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
-              [class.border-slate-500/50]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
-            >
-              @for (st of allStatuses; track st.value) {
-                <option [value]="st.value" class="bg-[#181a20] text-slate-200 font-medium">
-                  {{ st.label }}
-                </option>
-              }
-            </select>
-          </div>
+          <app-custom-select
+            variant="pill"
+            [options]="statusOptions"
+            [value]="item.status"
+            (valueChange)="onChangeStatus($event)"
+          ></app-custom-select>
         </div>
       </div>
 

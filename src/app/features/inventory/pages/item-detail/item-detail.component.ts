@@ -32,6 +32,8 @@ import { MediaService } from '../../../../core/services/media.service';
 import { InventoryLabelModalComponent } from '../../../../shared/components/inventory-label-modal/inventory-label-modal.component';
 import { ItemMedia, ItemStatus } from '../../../../core/models/reflip.models';
 
+import { CustomSelectComponent, SelectOption } from '../../../../shared/components/custom-select/custom-select.component';
+
 @Component({
   selector: 'app-item-detail',
   imports: [
@@ -42,6 +44,7 @@ import { ItemMedia, ItemStatus } from '../../../../core/models/reflip.models';
     TranslatePipe,
     LucideAngularModule,
     InventoryLabelModalComponent,
+    CustomSelectComponent,
   ],
   templateUrl: './item-detail.component.html',
   styleUrl: './item-detail.component.scss',
@@ -89,15 +92,15 @@ export class ItemDetailComponent {
     description: new FormControl(''),
   });
 
-  readonly allStatuses: { value: ItemStatus; label: string }[] = [
-    { value: 'received', label: 'Auf Lager' },
-    { value: 'ready', label: 'Bereit' },
-    { value: 'listed', label: 'Gelistet' },
-    { value: 'sold', label: 'Verkauft' },
-    { value: 'reserved', label: 'Reserviert' },
-    { value: 'defective', label: 'Defekt / Ersatzteil' },
-    { value: 'returned', label: 'Retourniert' },
-    { value: 'archived', label: 'Archiviert' },
+  readonly statusOptions: SelectOption<ItemStatus>[] = [
+    { value: 'received', label: 'Auf Lager', badgeClass: 'bg-blue-400', colorClass: 'bg-blue-500/20 text-blue-300 border-blue-500/50 hover:bg-blue-500/30' },
+    { value: 'ready', label: 'Bereit', badgeClass: 'bg-amber-400', colorClass: 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30' },
+    { value: 'listed', label: 'Gelistet', badgeClass: 'bg-emerald-400', colorClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30' },
+    { value: 'sold', label: 'Verkauft', badgeClass: 'bg-purple-400', colorClass: 'bg-purple-500/20 text-purple-300 border-purple-500/50 hover:bg-purple-500/30' },
+    { value: 'reserved', label: 'Reserviert', badgeClass: 'bg-slate-400', colorClass: 'bg-slate-500/20 text-slate-200 border-slate-500/50 hover:bg-slate-500/30' },
+    { value: 'defective', label: 'Defekt / Ersatzteil', badgeClass: 'bg-rose-400', colorClass: 'bg-rose-500/20 text-rose-300 border-rose-500/50 hover:bg-rose-500/30' },
+    { value: 'returned', label: 'Retourniert', badgeClass: 'bg-slate-400', colorClass: 'bg-slate-500/20 text-slate-200 border-slate-500/50 hover:bg-slate-500/30' },
+    { value: 'archived', label: 'Archiviert', badgeClass: 'bg-slate-400', colorClass: 'bg-slate-500/20 text-slate-200 border-slate-500/50 hover:bg-slate-500/30' },
   ];
 
   constructor() {
@@ -165,7 +168,8 @@ export class ItemDetailComponent {
     return this.mediaService.getPublicUrl(path);
   }
 
-  async onChangeStatus(newStatus: string): Promise<void> {
+  async onChangeStatus(newStatus: string | null): Promise<void> {
+    if (!newStatus) return;
     const item = this.inventoryService.selectedItem();
     if (!item) return;
     await this.inventoryService.updateItemStatus(item.id, newStatus as ItemStatus);
