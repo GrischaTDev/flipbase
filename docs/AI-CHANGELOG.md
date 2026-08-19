@@ -19,6 +19,32 @@ Dieses Projekt wird teilweise mit KI-Assistenten entwickelt. **Jede** von einer 
 
 ---
 
+## 2026-08-19 – Claude Opus 5 (Anthropic) – Phase 1: Build repariert
+
+**Art:** Bugfix & Konfiguration
+
+**Betroffen:**
+- `src/app/features/purchases/pages/purchase-detail/purchase-detail.component.ts`
+- `src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html`
+- `.gitattributes` (neu)
+
+**Was:**
+1. **Build-Fehler behoben.** Im Template lief `@for (step of ['pending', ...])` über ein Inline-Array von Zeichenketten und griff mit `$any(step)` auf `InboundTrackingService.statusConfig` zu. `$any()` erzeugt genau den `any`-Typ, den der Indexzugriff auf ein `Record<InboundTrackingStatus, …>` dann ablehnt – daher 2 × `TS7053`. Die Stufen liegen jetzt als typisiertes Feld `trackingSteps: readonly InboundTrackingStatus[]` in der Komponente; `$any()` ist entfernt.
+2. **Die 50 uncommitteten Änderungen gesichert** – zusammenhängende Arbeiten aus der vorherigen Sitzung mit Google Gemini (InboundTrackingService, CustomCheckbox, CustomSearchInput, `.linear-table`-Styles, überarbeitete Templates), in zwei Commits getrennt nach Code und Doku.
+3. **`.gitattributes` angelegt** (`* text=auto eol=lf`) – bewusst als letzter Schritt, damit sich die Zeilenende-Normalisierung nicht mit den inhaltlichen Änderungen vermischt.
+
+**Warum:**
+`ng build` brach ab – damit war kein Docker-Image baubar, und jede weitere Arbeit hätte darauf blockiert.
+
+**Verifiziert durch:**
+- `npx ng build` → **erfolgreich**, Initial-Bundle 825,88 kB (192,85 kB übertragen)
+- `npx vitest run` → **24 Test-Dateien, 96 Tests bestanden**
+- `git status` → sauber
+
+**Offen aus Phase 1:** nichts.
+
+---
+
 ## 2026-08-19 – Claude Opus 5 (Anthropic) – Vollständiger Projekt-Audit
 
 **Art:** Analyse & Doku (keine Änderung am Anwendungscode)
