@@ -1,16 +1,16 @@
-<div class="space-y-5 animate-fade-in select-none">
+<div class="space-y-5 animate-fade-in">
   <!-- Header & Actions -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
     <div>
       <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold tracking-tight text-slate-100">
+        <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
           {{ 'PURCHASES.TITLE' | translate }}
         </h1>
-        <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#262b35] text-slate-300 border border-[#373e4d]">
+        <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-surface-alt text-rf-text-secondary border border-rf-line">
           {{ filteredPurchases().length }} Einkäufe
         </span>
       </div>
-      <p class="text-xs text-slate-400 mt-0.5">
+      <p class="text-xs text-rf-text-muted mt-0.5">
         Einzelartikel, Mystery Packs, Paletten & Flohmarkt-Schnellerfassung.
       </p>
     </div>
@@ -67,13 +67,13 @@
       type="button"
       (click)="activeTab.set('all')"
       class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-[#373e4d]]="activeTab() === 'all'"
-      [class.text-white]="activeTab() === 'all'"
+      [class.bg-rf-line]="activeTab() === 'all'"
+      [class.text-rf-text-primary]="activeTab() === 'all'"
       [class.border]="activeTab() === 'all'"
-      [class.border-[#4a5468]]="activeTab() === 'all'"
-      [class.text-slate-300]="activeTab() !== 'all'"
-      [class.hover:bg-[#2c323f]]="activeTab() !== 'all'"
-      [class.hover:text-white]="activeTab() !== 'all'"
+      [class.border-rf-line-strong]="activeTab() === 'all'"
+      [class.text-rf-text-secondary]="activeTab() !== 'all'"
+      [class.hover:bg-rf-surface-alt]="activeTab() !== 'all'"
+      [class.hover:text-rf-text-primary]="activeTab() !== 'all'"
     >
       Alle Einkäufe ({{ purchaseService.purchases().length }})
     </button>
@@ -82,13 +82,13 @@
       type="button"
       (click)="activeTab.set('single')"
       class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-[#373e4d]]="activeTab() === 'single'"
-      [class.text-white]="activeTab() === 'single'"
+      [class.bg-rf-line]="activeTab() === 'single'"
+      [class.text-rf-text-primary]="activeTab() === 'single'"
       [class.border]="activeTab() === 'single'"
-      [class.border-[#4a5468]]="activeTab() === 'single'"
-      [class.text-slate-300]="activeTab() !== 'single'"
-      [class.hover:bg-[#2c323f]]="activeTab() !== 'single'"
-      [class.hover:text-white]="activeTab() !== 'single'"
+      [class.border-rf-line-strong]="activeTab() === 'single'"
+      [class.text-rf-text-secondary]="activeTab() !== 'single'"
+      [class.hover:bg-rf-surface-alt]="activeTab() !== 'single'"
+      [class.hover:text-rf-text-primary]="activeTab() !== 'single'"
     >
       Einzelartikel
     </button>
@@ -97,13 +97,13 @@
       type="button"
       (click)="activeTab.set('mystery_pack')"
       class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-[#373e4d]]="activeTab() === 'mystery_pack'"
-      [class.text-white]="activeTab() === 'mystery_pack'"
+      [class.bg-rf-line]="activeTab() === 'mystery_pack'"
+      [class.text-rf-text-primary]="activeTab() === 'mystery_pack'"
       [class.border]="activeTab() === 'mystery_pack'"
-      [class.border-[#4a5468]]="activeTab() === 'mystery_pack'"
-      [class.text-slate-300]="activeTab() !== 'mystery_pack'"
-      [class.hover:bg-[#2c323f]]="activeTab() !== 'mystery_pack'"
-      [class.hover:text-white]="activeTab() !== 'mystery_pack'"
+      [class.border-rf-line-strong]="activeTab() === 'mystery_pack'"
+      [class.text-rf-text-secondary]="activeTab() !== 'mystery_pack'"
+      [class.hover:bg-rf-surface-alt]="activeTab() !== 'mystery_pack'"
+      [class.hover:text-rf-text-primary]="activeTab() !== 'mystery_pack'"
     >
       Mystery Boxen
     </button>
@@ -112,13 +112,13 @@
       type="button"
       (click)="activeTab.set('lot')"
       class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-[#373e4d]]="activeTab() === 'lot'"
-      [class.text-white]="activeTab() === 'lot'"
+      [class.bg-rf-line]="activeTab() === 'lot'"
+      [class.text-rf-text-primary]="activeTab() === 'lot'"
       [class.border]="activeTab() === 'lot'"
-      [class.border-[#4a5468]]="activeTab() === 'lot'"
-      [class.text-slate-300]="activeTab() !== 'lot'"
-      [class.hover:bg-[#2c323f]]="activeTab() !== 'lot'"
-      [class.hover:text-white]="activeTab() !== 'lot'"
+      [class.border-rf-line-strong]="activeTab() === 'lot'"
+      [class.text-rf-text-secondary]="activeTab() !== 'lot'"
+      [class.hover:bg-rf-surface-alt]="activeTab() !== 'lot'"
+      [class.hover:text-rf-text-primary]="activeTab() !== 'lot'"
     >
       Konvolute
     </button>
@@ -127,13 +127,13 @@
       type="button"
       (click)="activeTab.set('pallet')"
       class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-[#373e4d]]="activeTab() === 'pallet'"
-      [class.text-white]="activeTab() === 'pallet'"
+      [class.bg-rf-line]="activeTab() === 'pallet'"
+      [class.text-rf-text-primary]="activeTab() === 'pallet'"
       [class.border]="activeTab() === 'pallet'"
-      [class.border-[#4a5468]]="activeTab() === 'pallet'"
-      [class.text-slate-300]="activeTab() !== 'pallet'"
-      [class.hover:bg-[#2c323f]]="activeTab() !== 'pallet'"
-      [class.hover:text-white]="activeTab() !== 'pallet'"
+      [class.border-rf-line-strong]="activeTab() === 'pallet'"
+      [class.text-rf-text-secondary]="activeTab() !== 'pallet'"
+      [class.hover:bg-rf-surface-alt]="activeTab() !== 'pallet'"
+      [class.hover:text-rf-text-primary]="activeTab() !== 'pallet'"
     >
       Paletten
     </button>
@@ -150,7 +150,7 @@
           <div class="flex items-start justify-between gap-2">
             <div class="space-y-1.5 grow min-w-0">
               <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-[#1e222a] text-slate-300 border border-[#373e4d] font-sans">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-rf-well text-rf-text-secondary border border-rf-line font-sans">
                   @switch (p.type) {
                     @case ('mystery_pack') {
                       <lucide-icon [img]="giftIcon" class="w-3 h-3 text-purple-400"></lucide-icon>
@@ -179,12 +179,12 @@
                 }
               </div>
 
-              <h3 class="text-sm font-semibold text-slate-100 group-hover:text-indigo-400 transition font-sans line-clamp-1">
+              <h3 class="text-sm font-semibold text-rf-text-primary group-hover:text-indigo-400 transition font-sans line-clamp-1">
                 {{ p.title || p.source?.name || 'Einkauf' }}
               </h3>
             </div>
 
-            <span class="text-[11px] text-slate-400 shrink-0">
+            <span class="text-[11px] text-rf-text-muted shrink-0">
               {{ p.purchase_date | date:'dd.MM.yyyy' }}
             </span>
           </div>
@@ -193,11 +193,11 @@
           @if (p.tracking_number) {
             @let trackInfo = trackingService.getTrackingInfo(p.tracking_number, p.tracking_carrier, p.tracking_status, p.purchase_date);
             @if (trackInfo) {
-              <div class="flex items-center justify-between text-[11px] px-2.5 py-1 rounded-md bg-[#181c24] border border-[#373e4d] font-sans">
+              <div class="flex items-center justify-between text-[11px] px-2.5 py-1 rounded-md bg-rf-well border border-rf-line font-sans">
                 <div class="flex items-center gap-1.5 min-w-0">
                   <lucide-icon [img]="truckIcon" class="w-3 h-3 text-indigo-400 shrink-0"></lucide-icon>
-                  <span class="font-bold text-slate-300 truncate">{{ trackInfo.carrier_name }}</span>
-                  <span class="font-mono text-[10px] text-slate-400 truncate">{{ trackInfo.tracking_number }}</span>
+                  <span class="font-bold text-rf-text-secondary truncate">{{ trackInfo.carrier_name }}</span>
+                  <span class="font-mono text-[10px] text-rf-text-muted truncate">{{ trackInfo.tracking_number }}</span>
                 </div>
                 <span
                   class="px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 border"
@@ -209,10 +209,10 @@
             }
           }
 
-          <div class="flex items-center justify-between pt-2 border-t border-[#373e4d]">
+          <div class="flex items-center justify-between pt-2 border-t border-rf-line">
             <div>
-              <span class="text-[10px] text-slate-400 font-sans block">Gesamtkosten</span>
-              <span class="text-sm font-bold text-slate-100">
+              <span class="text-[10px] text-rf-text-muted font-sans block">Gesamtkosten</span>
+              <span class="text-sm font-bold text-rf-text-primary">
                 {{ (p.total_purchase_cost || p.purchase_price) | currency:'EUR':'symbol':'1.2-2':'de' }}
               </span>
             </div>
@@ -228,11 +228,11 @@
   } @else {
     <!-- Empty State -->
     <div class="linear-surface rounded-xl p-10 text-center">
-      <div class="w-10 h-10 rounded-lg bg-[#1e222a] border border-[#373e4d] text-slate-400 mx-auto flex items-center justify-center mb-3">
+      <div class="w-10 h-10 rounded-lg bg-rf-well border border-rf-line text-rf-text-muted mx-auto flex items-center justify-center mb-3">
         <lucide-icon [img]="bagIcon" class="w-5 h-5"></lucide-icon>
       </div>
-      <h3 class="text-sm font-bold text-slate-200">Noch keine Einkäufe in dieser Kategorie</h3>
-      <p class="text-xs text-slate-400 max-w-sm mx-auto mt-1 mb-4">
+      <h3 class="text-sm font-bold text-rf-text-secondary">Noch keine Einkäufe in dieser Kategorie</h3>
+      <p class="text-xs text-rf-text-muted max-w-sm mx-auto mt-1 mb-4">
         Erfasse deinen ersten Einkauf aus Kleinanzeigen, eBay oder Flohmärkten.
       </p>
       <button
@@ -258,7 +258,7 @@
   @if (isFleaMarketModalOpen()) {
     @let wallet = offlineSyncService.cashWallet();
     <div
-      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto select-none"
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto"
     >
       <div
         class="linear-surface rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl border border-rf-border overflow-hidden my-auto animate-modal-card"
@@ -426,7 +426,7 @@
             <button
               type="submit"
               [disabled]="rapidForm.invalid"
-              class="linear-btn-primary w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/25 bg-amber-600 hover:bg-amber-500 border-amber-500 text-white disabled:opacity-40"
+              class="linear-btn-primary w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/25 bg-amber-700 hover:bg-amber-700 border-amber-500 text-rf-on-accent disabled:opacity-40"
             >
               <lucide-icon [img]="zapIcon" class="w-4 h-4"></lucide-icon>
               <span>Speichern & Nächsten Artikel erfassen</span>

@@ -1,16 +1,16 @@
-<div class="space-y-5 animate-fade-in select-none">
+<div class="space-y-5 animate-fade-in">
   <!-- Header & Action -->
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
     <div>
       <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold tracking-tight text-slate-100">
+        <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
           {{ 'INVENTORY.TITLE' | translate }}
         </h1>
-        <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-[#262b35] text-slate-300 border border-[#373e4d]">
+        <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-surface-alt text-rf-text-secondary border border-rf-line">
           {{ filteredItems().length }} Artikel
         </span>
       </div>
-      <p class="text-xs text-slate-400 mt-0.5">
+      <p class="text-xs text-rf-text-muted mt-0.5">
         Lagerbestand, Zustand, Status-Lifecycle und Gewinnpotenziale im Überblick.
       </p>
     </div>
@@ -19,7 +19,7 @@
       <button
         type="button"
         (click)="openLabelModal()"
-        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs cursor-pointer select-none text-rf-text-secondary hover:text-white border-rf-border bg-rf-subtle shadow-sm"
+        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs cursor-pointer select-none text-rf-text-secondary hover:text-rf-text-primary border-rf-border bg-rf-subtle shadow-sm"
         title="Lager- & Barcode-Etiketten drucken"
       >
         <lucide-icon [img]="printerIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
@@ -29,7 +29,7 @@
       <button
         type="button"
         (click)="isAiScannerOpen.set(true)"
-        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs cursor-pointer select-none text-indigo-300 hover:text-white border-indigo-500/30 bg-indigo-500/10 shadow-sm"
+        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs cursor-pointer select-none text-indigo-300 hover:text-rf-text-primary border-indigo-500/30 bg-indigo-500/10 shadow-sm"
         title="Visual Sourcing AI (Produkterkennung per Foto)"
       >
         <lucide-icon [img]="cameraIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
@@ -51,41 +51,41 @@
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
     <div class="linear-kpi p-4 rounded-xl">
       <div class="flex items-center justify-between">
-        <span class="text-[11px] font-semibold text-slate-400">Artikel im Filter</span>
-        <div class="w-6 h-6 rounded-md bg-[#373e4d] flex items-center justify-center text-slate-300">
+        <span class="text-[11px] font-semibold text-rf-text-muted">Artikel im Filter</span>
+        <div class="w-6 h-6 rounded-md bg-rf-line flex items-center justify-center text-rf-text-secondary">
           <lucide-icon [img]="boxesIcon" class="w-3.5 h-3.5"></lucide-icon>
         </div>
       </div>
-      <div class="text-2xl font-bold font-mono tracking-tight text-slate-100 mt-2">
+      <div class="text-2xl font-bold font-mono tracking-tight text-rf-text-primary mt-2">
         {{ filteredItems().length }}
       </div>
-      <span class="text-[10px] text-slate-400 mt-0.5 block">von {{ inventoryService.items().length }} Gesamteinträgen</span>
+      <span class="text-[10px] text-rf-text-muted mt-0.5 block">von {{ inventoryService.items().length }} Gesamteinträgen</span>
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
       <div class="flex items-center justify-between">
-        <span class="text-[11px] font-semibold text-slate-400">Gebundenes Kapital</span>
+        <span class="text-[11px] font-semibold text-rf-text-muted">Gebundenes Kapital</span>
         <div class="w-6 h-6 rounded-md bg-amber-500/15 flex items-center justify-center text-amber-400">
           <lucide-icon [img]="coinsIcon" class="w-3.5 h-3.5"></lucide-icon>
         </div>
       </div>
-      <div class="text-2xl font-bold font-mono tracking-tight text-slate-100 mt-2">
+      <div class="text-2xl font-bold font-mono tracking-tight text-rf-text-primary mt-2">
         {{ totalTiedCapital() | currency:'EUR':'symbol':'1.2-2':'de' }}
       </div>
-      <span class="text-[10px] text-slate-400 mt-0.5 block">Ø {{ (totalTiedCapital() / (filteredItems().length || 1)) | currency:'EUR':'symbol':'1.2-2':'de' }} pro Artikel</span>
+      <span class="text-[10px] text-rf-text-muted mt-0.5 block">Ø {{ (totalTiedCapital() / (filteredItems().length || 1)) | currency:'EUR':'symbol':'1.2-2':'de' }} pro Artikel</span>
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
       <div class="flex items-center justify-between">
-        <span class="text-[11px] font-semibold text-slate-400">Geschätzter Marktwert</span>
+        <span class="text-[11px] font-semibold text-rf-text-muted">Geschätzter Marktwert</span>
         <div class="w-6 h-6 rounded-md bg-blue-500/15 flex items-center justify-center text-blue-400">
           <lucide-icon [img]="tagIcon" class="w-3.5 h-3.5"></lucide-icon>
         </div>
       </div>
-      <div class="text-2xl font-bold font-mono tracking-tight text-slate-100 mt-2">
+      <div class="text-2xl font-bold font-mono tracking-tight text-rf-text-primary mt-2">
         {{ totalExpectedValue() | currency:'EUR':'symbol':'1.2-2':'de' }}
       </div>
-      <span class="text-[10px] text-slate-400 mt-0.5 block">Erwarteter Gesamterlös</span>
+      <span class="text-[10px] text-rf-text-muted mt-0.5 block">Erwarteter Gesamterlös</span>
     </div>
 
     <div class="linear-kpi p-4 rounded-xl border-emerald-500/40">
@@ -112,13 +112,13 @@
         type="button"
         (click)="activePreset.set('all')"
         class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
-        [class.bg-[#373e4d]]="activePreset() === 'all'"
-        [class.text-white]="activePreset() === 'all'"
+        [class.bg-rf-line]="activePreset() === 'all'"
+        [class.text-rf-text-primary]="activePreset() === 'all'"
         [class.border]="activePreset() === 'all'"
-        [class.border-[#4a5468]]="activePreset() === 'all'"
-        [class.text-slate-300]="activePreset() !== 'all'"
-        [class.hover:bg-[#2c323f]]="activePreset() !== 'all'"
-        [class.hover:text-white]="activePreset() !== 'all'"
+        [class.border-rf-line-strong]="activePreset() === 'all'"
+        [class.text-rf-text-secondary]="activePreset() !== 'all'"
+        [class.hover:bg-rf-surface-alt]="activePreset() !== 'all'"
+        [class.hover:text-rf-text-primary]="activePreset() !== 'all'"
       >
         Alle ({{ inventoryService.items().length }})
       </button>
@@ -127,13 +127,13 @@
         type="button"
         (click)="activePreset.set('needs_research')"
         class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
-        [class.bg-[#373e4d]]="activePreset() === 'needs_research'"
-        [class.text-white]="activePreset() === 'needs_research'"
+        [class.bg-rf-line]="activePreset() === 'needs_research'"
+        [class.text-rf-text-primary]="activePreset() === 'needs_research'"
         [class.border]="activePreset() === 'needs_research'"
-        [class.border-[#4a5468]]="activePreset() === 'needs_research'"
-        [class.text-slate-300]="activePreset() !== 'needs_research'"
-        [class.hover:bg-[#2c323f]]="activePreset() !== 'needs_research'"
-        [class.hover:text-white]="activePreset() !== 'needs_research'"
+        [class.border-rf-line-strong]="activePreset() === 'needs_research'"
+        [class.text-rf-text-secondary]="activePreset() !== 'needs_research'"
+        [class.hover:bg-rf-surface-alt]="activePreset() !== 'needs_research'"
+        [class.hover:text-rf-text-primary]="activePreset() !== 'needs_research'"
       >
         Noch recherchieren
       </button>
@@ -142,13 +142,13 @@
         type="button"
         (click)="activePreset.set('unlisted')"
         class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
-        [class.bg-[#373e4d]]="activePreset() === 'unlisted'"
-        [class.text-white]="activePreset() === 'unlisted'"
+        [class.bg-rf-line]="activePreset() === 'unlisted'"
+        [class.text-rf-text-primary]="activePreset() === 'unlisted'"
         [class.border]="activePreset() === 'unlisted'"
-        [class.border-[#4a5468]]="activePreset() === 'unlisted'"
-        [class.text-slate-300]="activePreset() !== 'unlisted'"
-        [class.hover:bg-[#2c323f]]="activePreset() !== 'unlisted'"
-        [class.hover:text-white]="activePreset() !== 'unlisted'"
+        [class.border-rf-line-strong]="activePreset() === 'unlisted'"
+        [class.text-rf-text-secondary]="activePreset() !== 'unlisted'"
+        [class.hover:bg-rf-surface-alt]="activePreset() !== 'unlisted'"
+        [class.hover:text-rf-text-primary]="activePreset() !== 'unlisted'"
       >
         Nicht gelistet
       </button>
@@ -157,13 +157,13 @@
         type="button"
         (click)="activePreset.set('high_margin')"
         class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
-        [class.bg-[#373e4d]]="activePreset() === 'high_margin'"
-        [class.text-white]="activePreset() === 'high_margin'"
+        [class.bg-rf-line]="activePreset() === 'high_margin'"
+        [class.text-rf-text-primary]="activePreset() === 'high_margin'"
         [class.border]="activePreset() === 'high_margin'"
-        [class.border-[#4a5468]]="activePreset() === 'high_margin'"
-        [class.text-slate-300]="activePreset() !== 'high_margin'"
-        [class.hover:bg-[#2c323f]]="activePreset() !== 'high_margin'"
-        [class.hover:text-white]="activePreset() !== 'high_margin'"
+        [class.border-rf-line-strong]="activePreset() === 'high_margin'"
+        [class.text-rf-text-secondary]="activePreset() !== 'high_margin'"
+        [class.hover:bg-rf-surface-alt]="activePreset() !== 'high_margin'"
+        [class.hover:text-rf-text-primary]="activePreset() !== 'high_margin'"
       >
         Hohe Marge (≥ 30 €)
       </button>
@@ -172,13 +172,13 @@
         type="button"
         (click)="activePreset.set('defective')"
         class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
-        [class.bg-[#373e4d]]="activePreset() === 'defective'"
-        [class.text-white]="activePreset() === 'defective'"
+        [class.bg-rf-line]="activePreset() === 'defective'"
+        [class.text-rf-text-primary]="activePreset() === 'defective'"
         [class.border]="activePreset() === 'defective'"
-        [class.border-[#4a5468]]="activePreset() === 'defective'"
-        [class.text-slate-300]="activePreset() !== 'defective'"
-        [class.hover:bg-[#2c323f]]="activePreset() !== 'defective'"
-        [class.hover:text-white]="activePreset() !== 'defective'"
+        [class.border-rf-line-strong]="activePreset() === 'defective'"
+        [class.text-rf-text-secondary]="activePreset() !== 'defective'"
+        [class.hover:bg-rf-surface-alt]="activePreset() !== 'defective'"
+        [class.hover:text-rf-text-primary]="activePreset() !== 'defective'"
       >
         Defekt / Bastler
       </button>
@@ -188,12 +188,12 @@
         (click)="activePreset.set('store_public')"
         class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
         [class.bg-amber-600]="activePreset() === 'store_public'"
-        [class.text-white]="activePreset() === 'store_public'"
+        [class.text-rf-text-primary]="activePreset() === 'store_public'"
         [class.border]="activePreset() === 'store_public'"
         [class.border-amber-500]="activePreset() === 'store_public'"
         [class.text-amber-300]="activePreset() !== 'store_public'"
-        [class.hover:bg-[#2c323f]]="activePreset() !== 'store_public'"
-        [class.hover:text-white]="activePreset() !== 'store_public'"
+        [class.hover:bg-rf-surface-alt]="activePreset() !== 'store_public'"
+        [class.hover:text-rf-text-primary]="activePreset() !== 'store_public'"
       >
         <lucide-icon [img]="storeIcon" class="w-3 h-3 text-amber-400"></lucide-icon>
         <span>Im Webshop ({{ storePublishedCount() }})</span>
@@ -231,9 +231,9 @@
   @if (filteredItems().length > 0) {
     <div class="linear-surface rounded-xl overflow-visible hidden md:block">
       <table class="linear-table">
-        <thead class="bg-[#1e222a] text-slate-300 uppercase font-semibold text-[10px] tracking-wider">
+        <thead class="bg-rf-well text-rf-text-secondary uppercase font-semibold text-[10px] tracking-wider">
           <tr>
-            <th class="py-2.5 px-3 w-8 text-center rounded-tl-xl border-b border-[#373e4d]">
+            <th class="py-2.5 px-3 w-8 text-center rounded-tl-xl border-b border-rf-line">
               <div class="flex items-center justify-center">
                 <app-custom-checkbox
                   [checked]="isAllSelected()"
@@ -244,19 +244,19 @@
                 ></app-custom-checkbox>
               </div>
             </th>
-            <th class="py-2.5 px-4 font-semibold border-b border-[#373e4d]">Produkt & Details</th>
-            <th class="py-2.5 px-3 font-semibold border-b border-[#373e4d]">Zustand</th>
-            <th class="py-2.5 px-3 font-semibold border-b border-[#373e4d]">Status</th>
-            <th class="py-2.5 px-3 font-semibold border-b border-[#373e4d]">Quelle</th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-[#373e4d]">Gesamtkosten</th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-[#373e4d]">Marktwert</th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-[#373e4d]">Gewinnpotenzial</th>
-            <th class="py-2.5 px-4 font-semibold text-center w-12 rounded-tr-xl border-b border-[#373e4d]"></th>
+            <th class="py-2.5 px-4 font-semibold border-b border-rf-line">Produkt & Details</th>
+            <th class="py-2.5 px-3 font-semibold border-b border-rf-line">Zustand</th>
+            <th class="py-2.5 px-3 font-semibold border-b border-rf-line">Status</th>
+            <th class="py-2.5 px-3 font-semibold border-b border-rf-line">Quelle</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">Gesamtkosten</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">Marktwert</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">Gewinnpotenzial</th>
+            <th class="py-2.5 px-4 font-semibold text-center w-12 rounded-tr-xl border-b border-rf-line"></th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-[#373e4d]">
+        <tbody class="divide-y divide-rf-line">
           @for (item of filteredItems(); track item.id) {
-            <tr class="hover:bg-[#2c323f] transition group" [class.bg-indigo-500/5]="isItemSelected(item.id)">
+            <tr class="hover:bg-rf-surface-alt transition group" [class.bg-indigo-500/5]="isItemSelected(item.id)">
               <td class="py-3 px-3 text-center group-last:rounded-bl-xl">
                 <div class="flex items-center justify-center">
                   <app-custom-checkbox
@@ -268,14 +268,14 @@
                 </div>
               </td>
               <td class="py-3 px-4">
-                <a [routerLink]="['/inventory', item.id]" class="font-semibold text-slate-100 hover:text-emerald-400 transition block line-clamp-1">
+                <a [routerLink]="['/inventory', item.id]" class="font-semibold text-rf-text-primary hover:text-emerald-400 transition block line-clamp-1">
                   {{ item.title }}
                 </a>
-                <div class="flex items-center gap-2 mt-0.5 text-[11px] text-slate-400">
+                <div class="flex items-center gap-2 mt-0.5 text-[11px] text-rf-text-muted">
                   <span>{{ item.brand || item.category || 'Keine Kategorie' }}</span>
                   @if (item.model) {
                     <span>•</span>
-                    <span class="font-mono text-slate-400">{{ item.model }}</span>
+                    <span class="font-mono text-rf-text-muted">{{ item.model }}</span>
                   }
                   @if (item.is_public_store !== false && item.status !== 'sold') {
                     <span>•</span>
@@ -288,7 +288,7 @@
               </td>
 
               <td class="py-3 px-3">
-                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#1e222a] text-slate-300 border border-[#373e4d]">
+                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-rf-well text-rf-text-secondary border border-rf-line">
                   {{ ('INVENTORY.CONDITIONS.' + item.condition.toUpperCase()) | translate }}
                 </span>
               </td>
@@ -302,11 +302,11 @@
                 ></app-custom-select>
               </td>
 
-              <td class="py-3 px-3 text-slate-400 text-[11px]">
+              <td class="py-3 px-3 text-rf-text-muted text-[11px]">
                 {{ item.purchase?.source?.name || 'Direktkauf' }}
               </td>
 
-              <td class="py-3 px-3 text-right font-mono font-semibold text-slate-200">
+              <td class="py-3 px-3 text-right font-mono font-semibold text-rf-text-secondary">
                 {{ item.total_item_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
               </td>
 
@@ -327,20 +327,20 @@
                   <button
                     type="button"
                     (click)="onTogglePublicStore(item, $event)"
-                    class="p-1 rounded hover:bg-[#373e4d] transition cursor-pointer"
+                    class="p-1 rounded hover:bg-rf-line transition cursor-pointer"
                     [title]="item.is_public_store !== false ? 'Im Webshop aktiv (Klicken zum Deaktivieren)' : 'Im Webshop aktivieren'"
                   >
                     <lucide-icon
                       [img]="storeIcon"
                       class="w-3.5 h-3.5"
                       [class.text-amber-400]="item.is_public_store !== false"
-                      [class.text-slate-500]="item.is_public_store === false"
+                      [class.text-rf-text-dimmed]="item.is_public_store === false"
                     ></lucide-icon>
                   </button>
 
                   <a
                     [routerLink]="['/inventory', item.id]"
-                    class="p-1 rounded text-slate-400 hover:text-white hover:bg-[#373e4d] transition inline-flex items-center justify-center cursor-pointer"
+                    class="p-1 rounded text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-line transition inline-flex items-center justify-center cursor-pointer"
                   >
                     <lucide-icon [img]="arrowRightIcon" class="w-3.5 h-3.5"></lucide-icon>
                   </a>
@@ -361,8 +361,8 @@
         >
           <div class="flex items-start justify-between gap-2">
             <div>
-              <h3 class="text-xs font-semibold text-slate-100 line-clamp-1">{{ item.title }}</h3>
-              <p class="text-[11px] text-slate-400">{{ item.brand || item.category || 'Keine Kategorie' }}</p>
+              <h3 class="text-xs font-semibold text-rf-text-primary line-clamp-1">{{ item.title }}</h3>
+              <p class="text-[11px] text-rf-text-muted">{{ item.brand || item.category || 'Keine Kategorie' }}</p>
             </div>
             <span class="px-2 py-0.5 rounded text-[10px] font-semibold border"
               [class.bg-blue-500/15]="item.status === 'received'"
@@ -380,22 +380,22 @@
               [class.bg-rose-500/15]="item.status === 'defective'"
               [class.text-rose-400]="item.status === 'defective'"
               [class.border-rose-500/30]="item.status === 'defective'"
-              [class.bg-[#1e222a]]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
-              [class.text-slate-300]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
-              [class.border-[#373e4d]]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
+              [class.bg-rf-well]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
+              [class.text-rf-text-secondary]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
+              [class.border-rf-line]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
             >
               {{ ('INVENTORY.STATUSES.' + item.status.toUpperCase()) | translate }}
             </span>
           </div>
 
-          <div class="flex items-center justify-between text-xs pt-2 border-t border-[#373e4d] font-mono">
+          <div class="flex items-center justify-between text-xs pt-2 border-t border-rf-line font-mono">
             <div>
-              <span class="text-[10px] text-slate-400 font-sans block">Kosten</span>
-              <strong class="text-slate-200">{{ item.total_item_cost | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+              <span class="text-[10px] text-rf-text-muted font-sans block">Kosten</span>
+              <strong class="text-rf-text-secondary">{{ item.total_item_cost | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
             </div>
 
             <div class="text-right">
-              <span class="text-[10px] text-slate-400 font-sans block">Potenzial</span>
+              <span class="text-[10px] text-rf-text-muted font-sans block">Potenzial</span>
               <strong class="text-emerald-400">
                 {{ item.profit_potential !== undefined ? ('+' + (item.profit_potential | currency:'EUR':'symbol':'1.2-2':'de')) : '-' }}
               </strong>
@@ -407,11 +407,11 @@
   } @else {
     <!-- Empty State -->
     <div class="linear-surface rounded-xl p-10 text-center">
-      <div class="w-10 h-10 rounded-lg bg-[#1e222a] border border-[#373e4d] text-slate-400 mx-auto flex items-center justify-center mb-3">
+      <div class="w-10 h-10 rounded-lg bg-rf-well border border-rf-line text-rf-text-muted mx-auto flex items-center justify-center mb-3">
         <lucide-icon [img]="boxesIcon" class="w-5 h-5"></lucide-icon>
       </div>
-      <h3 class="text-sm font-bold text-slate-200">Keine Artikel gefunden</h3>
-      <p class="text-xs text-slate-400 max-w-sm mx-auto mt-1 mb-4">
+      <h3 class="text-sm font-bold text-rf-text-secondary">Keine Artikel gefunden</h3>
+      <p class="text-xs text-rf-text-muted max-w-sm mx-auto mt-1 mb-4">
         Passe deine Filter an oder lege einen neuen Artikel in deinem Inventar an.
       </p>
       <button

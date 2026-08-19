@@ -1,24 +1,24 @@
 <div
-  class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto animate-fade-in select-none"
+  class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto animate-fade-in"
 >
   <div
-    class="linear-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-[#373e4d] overflow-hidden my-auto animate-modal-card"
+    class="linear-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-rf-line overflow-hidden my-auto animate-modal-card"
   >
-    <div class="flex items-center justify-between p-5 border-b border-[#373e4d] bg-[#1e222a] shrink-0">
+    <div class="flex items-center justify-between p-5 border-b border-rf-line bg-rf-well shrink-0">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
           <lucide-icon [img]="trendingIcon" class="w-4 h-4"></lucide-icon>
         </div>
         <div>
-          <h2 class="text-sm font-bold text-slate-100">Verkauf erfassen (Kapitel 26)</h2>
-          <p class="text-[11px] text-slate-400">Realisierter Gewinn, Plattformgebühren & ROI</p>
+          <h2 class="text-sm font-bold text-rf-text-primary">Verkauf erfassen (Kapitel 26)</h2>
+          <p class="text-[11px] text-rf-text-muted">Realisierter Gewinn, Plattformgebühren & ROI</p>
         </div>
       </div>
 
       <button
         type="button"
         (click)="close.emit()"
-        class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#373e4d] transition cursor-pointer"
+        class="p-1.5 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-line transition cursor-pointer"
       >
         <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
       </button>
@@ -34,8 +34,8 @@
     <!-- Live Calculation Ribbon (Kapitel 26) -->
     <div class="p-3.5 mb-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
       <div>
-        <span class="text-[10px] uppercase font-sans font-semibold text-slate-400 block">Gesamtkosten</span>
-        <strong class="text-slate-100 text-sm">
+        <span class="text-[10px] uppercase font-sans font-semibold text-rf-text-muted block">Gesamtkosten</span>
+        <strong class="text-rf-text-primary text-sm">
           {{ liveMetrics().totalCosts | currency:'EUR':'symbol':'1.2-2':'de' }}
         </strong>
       </div>
@@ -55,8 +55,8 @@
       </div>
 
       <div>
-        <span class="text-[10px] uppercase font-sans font-semibold text-slate-400 block">Haltedauer</span>
-        <strong class="text-slate-100 text-sm">
+        <span class="text-[10px] uppercase font-sans font-semibold text-rf-text-muted block">Haltedauer</span>
+        <strong class="text-rf-text-primary text-sm">
           {{ liveMetrics().holdingDays }} Tage
         </strong>
       </div>
@@ -65,14 +65,14 @@
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-3.5">
       <!-- 1. Artikel auswählen -->
       <div>
-        <label for="saleItem" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+        <label for="saleItem" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
           Verkaufter Artikel
         </label>
         <select
           id="saleItem"
           formControlName="inventory_item_id"
           (change)="updateLiveCalculation()"
-          class="linear-input w-full px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-slate-200"
+          class="linear-input w-full px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-rf-text-secondary"
         >
           <option value="">-- Artikel aus Inventar auswählen --</option>
           @for (item of availableItems(); track item.id) {
@@ -86,7 +86,7 @@
       <!-- 2. Verkaufspreis & Plattform & Datum -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <div>
-          <label for="salePrice" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+          <label for="salePrice" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
             Verkaufspreis (€)
           </label>
           <input
@@ -99,14 +99,14 @@
         </div>
 
         <div>
-          <label for="salePlatform" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+          <label for="salePlatform" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
             Verkaufsplattform
           </label>
           <select
             id="salePlatform"
             formControlName="platform"
             (change)="updateLiveCalculation()"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-slate-200"
+            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
           >
             <option value="kleinanzeigen">Kleinanzeigen (0% Gebühr)</option>
             <option value="ebay">eBay (~11% Gebühr)</option>
@@ -117,7 +117,7 @@
         </div>
 
         <div>
-          <label for="saleDate" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+          <label for="saleDate" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
             Verkaufsdatum
           </label>
           <input
@@ -133,7 +133,7 @@
       <!-- 3. Gebühren & Versandkosten -->
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
         <div>
-          <label for="saleFee" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+          <label for="saleFee" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
             Plattformgebühr (€)
           </label>
           <input
@@ -147,7 +147,7 @@
         </div>
 
         <div>
-          <label for="saleShippingOut" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+          <label for="saleShippingOut" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
             Versandkosten (€)
           </label>
           <input
@@ -161,7 +161,7 @@
         </div>
 
         <div>
-          <label for="salePaymentFees" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+          <label for="salePaymentFees" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
             Zahlungsgebühren (€)
           </label>
           <input
@@ -177,7 +177,7 @@
 
       <!-- 4. Notizen -->
       <div>
-        <label for="saleNotes" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+        <label for="saleNotes" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
           Notizen zum Verkauf (optional)
         </label>
         <input
@@ -190,7 +190,7 @@
       </div>
 
       <!-- Actions -->
-      <div class="flex justify-end gap-2.5 pt-3 border-t border-[#373e4d]">
+      <div class="flex justify-end gap-2.5 pt-3 border-t border-rf-line">
         <button
           type="button"
           (click)="close.emit()"

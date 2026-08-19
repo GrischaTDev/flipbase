@@ -1,4 +1,4 @@
-<div class="space-y-6 animate-fade-in select-none">
+<div class="space-y-6 animate-fade-in">
   <!-- Page Header & Time Range Filter -->
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-rf-border">
     <div>
@@ -22,7 +22,7 @@
         (click)="setTimeRange('7d')"
         class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
         [class.bg-indigo-600]="timeRange() === '7d'"
-        [class.text-white]="timeRange() === '7d'"
+        [class.text-rf-text-primary]="timeRange() === '7d'"
         [class.text-rf-text-muted]="timeRange() !== '7d'"
       >
         7 Tage
@@ -32,7 +32,7 @@
         (click)="setTimeRange('30d')"
         class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
         [class.bg-indigo-600]="timeRange() === '30d'"
-        [class.text-white]="timeRange() === '30d'"
+        [class.text-rf-text-primary]="timeRange() === '30d'"
         [class.text-rf-text-muted]="timeRange() !== '30d'"
       >
         30 Tage
@@ -42,7 +42,7 @@
         (click)="setTimeRange('1y')"
         class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
         [class.bg-indigo-600]="timeRange() === '1y'"
-        [class.text-white]="timeRange() === '1y'"
+        [class.text-rf-text-primary]="timeRange() === '1y'"
         [class.text-rf-text-muted]="timeRange() !== '1y'"
       >
         1 Jahr
@@ -52,7 +52,7 @@
         (click)="setTimeRange('all')"
         class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
         [class.bg-indigo-600]="timeRange() === 'all'"
-        [class.text-white]="timeRange() === 'all'"
+        [class.text-rf-text-primary]="timeRange() === 'all'"
         [class.text-rf-text-muted]="timeRange() !== 'all'"
       >
         Gesamt
@@ -122,7 +122,7 @@
       (click)="setSection('overview')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'overview'"
-      [class.text-white]="activeSection() === 'overview'"
+      [class.text-rf-text-primary]="activeSection() === 'overview'"
       [class.border-indigo-500]="activeSection() === 'overview'"
       [class.bg-rf-surface]="activeSection() !== 'overview'"
       [class.text-rf-text-secondary]="activeSection() !== 'overview'"
@@ -138,7 +138,7 @@
       (click)="setSection('holding')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-purple-600]="activeSection() === 'holding'"
-      [class.text-white]="activeSection() === 'holding'"
+      [class.text-rf-text-primary]="activeSection() === 'holding'"
       [class.border-purple-500]="activeSection() === 'holding'"
       [class.bg-rf-surface]="activeSection() !== 'holding'"
       [class.text-purple-300]="activeSection() !== 'holding'"
@@ -153,7 +153,7 @@
       (click)="setSection('platforms')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'platforms'"
-      [class.text-white]="activeSection() === 'platforms'"
+      [class.text-rf-text-primary]="activeSection() === 'platforms'"
       [class.border-indigo-500]="activeSection() === 'platforms'"
       [class.bg-rf-surface]="activeSection() !== 'platforms'"
       [class.text-rf-text-secondary]="activeSection() !== 'platforms'"
@@ -168,7 +168,7 @@
       (click)="setSection('velocity')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'velocity'"
-      [class.text-white]="activeSection() === 'velocity'"
+      [class.text-rf-text-primary]="activeSection() === 'velocity'"
       [class.border-indigo-500]="activeSection() === 'velocity'"
       [class.bg-rf-surface]="activeSection() !== 'velocity'"
       [class.text-rf-text-secondary]="activeSection() !== 'velocity'"
@@ -183,7 +183,7 @@
       (click)="setSection('cohorts')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'cohorts'"
-      [class.text-white]="activeSection() === 'cohorts'"
+      [class.text-rf-text-primary]="activeSection() === 'cohorts'"
       [class.border-indigo-500]="activeSection() === 'cohorts'"
       [class.bg-rf-surface]="activeSection() !== 'cohorts'"
       [class.text-rf-text-secondary]="activeSection() !== 'cohorts'"
@@ -198,7 +198,7 @@
       (click)="setSection('heatmap')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'heatmap'"
-      [class.text-white]="activeSection() === 'heatmap'"
+      [class.text-rf-text-primary]="activeSection() === 'heatmap'"
       [class.border-indigo-500]="activeSection() === 'heatmap'"
       [class.bg-rf-surface]="activeSection() !== 'heatmap'"
       [class.text-rf-text-secondary]="activeSection() !== 'heatmap'"
@@ -213,7 +213,7 @@
       (click)="setSection('categories')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'categories'"
-      [class.text-white]="activeSection() === 'categories'"
+      [class.text-rf-text-primary]="activeSection() === 'categories'"
       [class.border-indigo-500]="activeSection() === 'categories'"
       [class.bg-rf-surface]="activeSection() !== 'categories'"
       [class.text-rf-text-secondary]="activeSection() !== 'categories'"
@@ -706,7 +706,7 @@
                       <button
                         type="button"
                         (click)="switchToWorkspace(wsSummary.workspace.id)"
-                        class="linear-btn-secondary px-2.5 py-1 rounded-lg text-[11px] font-semibold text-purple-300 hover:text-white cursor-pointer inline-flex items-center gap-1"
+                        class="linear-btn-secondary px-2.5 py-1 rounded-lg text-[11px] font-semibold text-purple-300 hover:text-rf-text-primary cursor-pointer inline-flex items-center gap-1"
                       >
                         <span>Umschalten</span>
                         <lucide-icon [img]="nextIcon" class="w-3 h-3"></lucide-icon>

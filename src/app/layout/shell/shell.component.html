@@ -1,4 +1,6 @@
-<div class="min-h-screen bg-rf-bg text-rf-text-primary flex flex-col md:flex-row antialiased select-none">
+<a class="rf-skip-link" href="#hauptinhalt">Zum Inhalt springen</a>
+
+<div class="min-h-screen bg-rf-bg text-rf-text-primary flex flex-col md:flex-row antialiased">
   <!-- Desktop & Mobile Sidebar -->
   <app-sidebar
     [isOpen]="isSidebarOpen()"
@@ -30,7 +32,7 @@
     }
 
     <!-- Page Content Container -->
-    <main class="flex-1 p-4 md:p-6 lg:p-7 max-w-7xl w-full mx-auto animate-fade-in">
+    <main id="hauptinhalt" tabindex="-1" class="flex-1 p-4 md:p-6 lg:p-7 max-w-7xl w-full mx-auto animate-fade-in">
       <router-outlet></router-outlet>
     </main>
   </div>

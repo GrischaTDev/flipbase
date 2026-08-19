@@ -40,7 +40,7 @@
       <a
         [routerLink]="['/shop/item', selectedItemId()]"
         target="_blank"
-        class="px-3 py-1 rounded-lg bg-emerald-500/30 hover:bg-emerald-500/40 text-white font-bold flex items-center gap-1"
+        class="px-3 py-1 rounded-lg bg-emerald-500/30 hover:bg-emerald-500/40 text-rf-text-primary font-bold flex items-center gap-1"
       >
         <span>Im Shop ansehen</span>
         <lucide-icon [img]="linkIcon" class="w-3.5 h-3.5"></lucide-icon>
@@ -56,7 +56,7 @@
       (click)="onSelectPlatform('kleinanzeigen')"
       class="px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer border"
       [class.bg-emerald-600]="selectedPlatform() === 'kleinanzeigen'"
-      [class.text-white]="selectedPlatform() === 'kleinanzeigen'"
+      [class.text-rf-text-primary]="selectedPlatform() === 'kleinanzeigen'"
       [class.border-emerald-500]="selectedPlatform() === 'kleinanzeigen'"
       [class.shadow-md]="selectedPlatform() === 'kleinanzeigen'"
       [class.bg-rf-surface]="selectedPlatform() !== 'kleinanzeigen'"
@@ -73,7 +73,7 @@
       (click)="onSelectPlatform('ebay')"
       class="px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer border"
       [class.bg-indigo-600]="selectedPlatform() === 'ebay'"
-      [class.text-white]="selectedPlatform() === 'ebay'"
+      [class.text-rf-text-primary]="selectedPlatform() === 'ebay'"
       [class.border-indigo-500]="selectedPlatform() === 'ebay'"
       [class.shadow-md]="selectedPlatform() === 'ebay'"
       [class.bg-rf-surface]="selectedPlatform() !== 'ebay'"
@@ -90,7 +90,7 @@
       (click)="onSelectPlatform('vinted')"
       class="px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer border"
       [class.bg-cyan-600]="selectedPlatform() === 'vinted'"
-      [class.text-white]="selectedPlatform() === 'vinted'"
+      [class.text-rf-text-primary]="selectedPlatform() === 'vinted'"
       [class.border-cyan-500]="selectedPlatform() === 'vinted'"
       [class.shadow-md]="selectedPlatform() === 'vinted'"
       [class.bg-rf-surface]="selectedPlatform() !== 'vinted'"
@@ -107,7 +107,7 @@
       (click)="onSelectPlatform('custom_store')"
       class="px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer border"
       [class.bg-amber-600]="selectedPlatform() === 'custom_store'"
-      [class.text-white]="selectedPlatform() === 'custom_store'"
+      [class.text-rf-text-primary]="selectedPlatform() === 'custom_store'"
       [class.border-amber-500]="selectedPlatform() === 'custom_store'"
       [class.shadow-md]="selectedPlatform() === 'custom_store'"
       [class.bg-rf-surface]="selectedPlatform() !== 'custom_store'"
@@ -124,7 +124,7 @@
       (click)="onSelectPlatform('social')"
       class="px-4 py-2 rounded-xl font-bold transition flex items-center gap-2 cursor-pointer border"
       [class.bg-purple-600]="selectedPlatform() === 'social'"
-      [class.text-white]="selectedPlatform() === 'social'"
+      [class.text-rf-text-primary]="selectedPlatform() === 'social'"
       [class.border-purple-500]="selectedPlatform() === 'social'"
       [class.shadow-md]="selectedPlatform() === 'social'"
       [class.bg-rf-surface]="selectedPlatform() !== 'social'"
@@ -513,7 +513,7 @@
                 type="button"
                 (click)="publishToStore()"
                 [disabled]="isMarkingListed()"
-                class="linear-btn-primary w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/25 bg-amber-600 hover:bg-amber-500 border-amber-500 text-white disabled:opacity-50"
+                class="linear-btn-primary w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-amber-500/25 bg-amber-700 hover:bg-amber-700 border-amber-500 text-rf-on-accent disabled:opacity-50"
               >
                 <lucide-icon [img]="storeIcon" class="w-4 h-4"></lucide-icon>
                 <span>Im Webshop aktivieren</span>
@@ -522,7 +522,7 @@
               <button
                 type="button"
                 (click)="openPlatformPublish()"
-                class="linear-btn-secondary w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer text-amber-300 hover:text-white"
+                class="linear-btn-secondary w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer text-amber-300 hover:text-rf-text-primary"
               >
                 <lucide-icon [img]="storeIcon" class="w-4 h-4"></lucide-icon>
                 <span>Im Online-Shop ansehen</span>
@@ -531,7 +531,7 @@
               <button
                 type="button"
                 (click)="openPlatformPublish()"
-                class="linear-btn-secondary w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer text-indigo-300 hover:text-white"
+                class="linear-btn-secondary w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer text-indigo-300 hover:text-rf-text-primary"
               >
                 <lucide-icon [img]="linkIcon" class="w-4 h-4"></lucide-icon>
                 <span>Inserat auf {{ selectedPlatform() | translate }} aufgeben</span>

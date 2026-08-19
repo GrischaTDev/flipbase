@@ -4,7 +4,8 @@
     <meta charset="utf-8" />
     <title>ReFlip – Reselling OS</title>
     <base href="/" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+    <!-- Kein user-scalable=no: das Sperren des Zooms verstoesst gegen WCAG 1.4.4 (Resize Text, AA) -->
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link rel="manifest" href="manifest.webmanifest" />
 
@@ -14,14 +15,11 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="ReFlip" />
     <link rel="apple-touch-icon" href="icons/icon.svg" />
-    
-    <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono for Linear Dark Style -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Lokal gehostete Schriften: kein Aufruf an fonts.gstatic.com,
+         damit keine Besucher-IP in die USA uebertragen wird (DSGVO) und
+         die Typografie auch offline steht. -->
+    <link rel="preload" href="fonts/plus-jakarta-sans-300-latin-fdb05b.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="fonts/fonts.css" />
   </head>
   <body class="bg-zinc-950 text-zinc-100 font-sans antialiased selection:bg-emerald-500/30 selection:text-emerald-300">
     <app-root></app-root>

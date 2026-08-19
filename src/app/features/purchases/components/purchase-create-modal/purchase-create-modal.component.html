@@ -1,24 +1,24 @@
 <div
-  class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto animate-fade-in select-none"
+  class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto animate-fade-in"
 >
   <div
-    class="linear-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-[#373e4d] overflow-hidden my-auto animate-modal-card"
+    class="linear-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-rf-line overflow-hidden my-auto animate-modal-card"
   >
-    <div class="flex items-center justify-between p-5 border-b border-[#373e4d] bg-[#1e222a] shrink-0">
+    <div class="flex items-center justify-between p-5 border-b border-rf-line bg-rf-well shrink-0">
       <div class="flex items-center gap-2.5">
         <div class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
           <lucide-icon [img]="bagIcon" class="w-4 h-4"></lucide-icon>
         </div>
         <div>
-          <h2 class="text-sm font-bold text-slate-100">Neuen Einkauf erfassen</h2>
-          <p class="text-[11px] text-slate-400">Einzelkauf, Mystery Box oder Palette mit Nebenkosten</p>
+          <h2 class="text-sm font-bold text-rf-text-primary">Neuen Einkauf erfassen</h2>
+          <p class="text-[11px] text-rf-text-muted">Einzelkauf, Mystery Box oder Palette mit Nebenkosten</p>
         </div>
       </div>
 
       <button
         type="button"
         (click)="close.emit()"
-        class="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-[#373e4d] transition cursor-pointer"
+        class="p-1.5 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-line transition cursor-pointer"
       >
         <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
       </button>
@@ -34,7 +34,7 @@
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
       <!-- 1. Einkaufstyp Selector (Kapitel 8) -->
       <div>
-        <label class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+        <label class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1.5">
           Einkaufstyp
         </label>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -44,12 +44,12 @@
             class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
             [class.border-emerald-500]="form.get('type')?.value === 'single'"
             [class.bg-emerald-500/15]="form.get('type')?.value === 'single'"
-            [class.border-[#373e4d]]="form.get('type')?.value !== 'single'"
-            [class.bg-[#1e222a]]="form.get('type')?.value !== 'single'"
+            [class.border-rf-line]="form.get('type')?.value !== 'single'"
+            [class.bg-rf-well]="form.get('type')?.value !== 'single'"
           >
             <lucide-icon [img]="bagIcon" class="w-3.5 h-3.5 text-emerald-400"></lucide-icon>
-            <span class="text-xs font-bold text-slate-100">Einzelartikel</span>
-            <span class="text-[10px] text-slate-400">1 Kauf → 1 Artikel</span>
+            <span class="text-xs font-bold text-rf-text-primary">Einzelartikel</span>
+            <span class="text-[10px] text-rf-text-muted">1 Kauf → 1 Artikel</span>
           </button>
 
           <button
@@ -58,12 +58,12 @@
             class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
             [class.border-emerald-500]="form.get('type')?.value === 'mystery_pack'"
             [class.bg-emerald-500/15]="form.get('type')?.value === 'mystery_pack'"
-            [class.border-[#373e4d]]="form.get('type')?.value !== 'mystery_pack'"
-            [class.bg-[#1e222a]]="form.get('type')?.value !== 'mystery_pack'"
+            [class.border-rf-line]="form.get('type')?.value !== 'mystery_pack'"
+            [class.bg-rf-well]="form.get('type')?.value !== 'mystery_pack'"
           >
             <lucide-icon [img]="packageIcon" class="w-3.5 h-3.5 text-purple-400"></lucide-icon>
-            <span class="text-xs font-bold text-slate-100">Mystery Box</span>
-            <span class="text-[10px] text-slate-400">Mehrere Artikel</span>
+            <span class="text-xs font-bold text-rf-text-primary">Mystery Box</span>
+            <span class="text-[10px] text-rf-text-muted">Mehrere Artikel</span>
           </button>
 
           <button
@@ -72,12 +72,12 @@
             class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
             [class.border-emerald-500]="form.get('type')?.value === 'lot'"
             [class.bg-emerald-500/15]="form.get('type')?.value === 'lot'"
-            [class.border-[#373e4d]]="form.get('type')?.value !== 'lot'"
-            [class.bg-[#1e222a]]="form.get('type')?.value !== 'lot'"
+            [class.border-rf-line]="form.get('type')?.value !== 'lot'"
+            [class.bg-rf-well]="form.get('type')?.value !== 'lot'"
           >
             <lucide-icon [img]="layersIcon" class="w-3.5 h-3.5 text-blue-400"></lucide-icon>
-            <span class="text-xs font-bold text-slate-100">Lot / Posten</span>
-            <span class="text-[10px] text-slate-400">Konvolut</span>
+            <span class="text-xs font-bold text-rf-text-primary">Lot / Posten</span>
+            <span class="text-[10px] text-rf-text-muted">Konvolut</span>
           </button>
 
           <button
@@ -86,19 +86,19 @@
             class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
             [class.border-emerald-500]="form.get('type')?.value === 'pallet'"
             [class.bg-emerald-500/15]="form.get('type')?.value === 'pallet'"
-            [class.border-[#373e4d]]="form.get('type')?.value !== 'pallet'"
-            [class.bg-[#1e222a]]="form.get('type')?.value !== 'pallet'"
+            [class.border-rf-line]="form.get('type')?.value !== 'pallet'"
+            [class.bg-rf-well]="form.get('type')?.value !== 'pallet'"
           >
             <lucide-icon [img]="boxesIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
-            <span class="text-xs font-bold text-slate-100">Palette</span>
-            <span class="text-[10px] text-slate-400">Retourenpalette</span>
+            <span class="text-xs font-bold text-rf-text-primary">Palette</span>
+            <span class="text-[10px] text-rf-text-muted">Retourenpalette</span>
           </button>
         </div>
       </div>
 
       <!-- 2. Titel / Bezeichnung -->
       <div>
-        <label for="purchaseTitle" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+        <label for="purchaseTitle" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
           Titel / Beschreibung
         </label>
         <input
@@ -113,7 +113,7 @@
       <!-- 3. Kaufpreis & Datum -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label for="purchasePrice" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+          <label for="purchasePrice" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
             Einkaufspreis (€)
           </label>
           <input
@@ -125,7 +125,7 @@
         </div>
 
         <div>
-          <label for="purchaseDate" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+          <label for="purchaseDate" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
             Kaufdatum
           </label>
           <input
@@ -141,7 +141,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <div class="flex items-center justify-between mb-1">
-            <label for="purchaseSource" class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <label for="purchaseSource" class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">
               Einkaufsquelle
             </label>
             <button
@@ -175,7 +175,7 @@
           <select
             id="purchaseSource"
             formControlName="source_id"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-slate-200"
+            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
           >
             <option [ngValue]="null">-- Quelle wählen --</option>
             @for (src of sourcesService.sources(); track src.id) {
@@ -186,7 +186,7 @@
 
         <div>
           <div class="flex items-center justify-between mb-1">
-            <label for="purchaseSupplier" class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <label for="purchaseSupplier" class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">
               Lieferant / Verkäufer
             </label>
             <button
@@ -220,7 +220,7 @@
           <select
             id="purchaseSupplier"
             formControlName="supplier_id"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-slate-200"
+            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
           >
             <option [ngValue]="null">-- Optional: Lieferant wählen --</option>
             @for (sup of suppliersService.suppliers(); track sup.id) {
@@ -232,20 +232,20 @@
 
       <!-- 5. Single Item Specific Fields -->
       @if (form.get('type')?.value === 'single') {
-        <div class="p-3.5 rounded-xl bg-[#1e222a] border border-[#373e4d] space-y-2.5">
+        <div class="p-3.5 rounded-xl bg-rf-well border border-rf-line space-y-2.5">
           <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
             Artikel-Initialisierung (Kapitel 8: 1 Kauf → 1 Inventar-Artikel)
           </span>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div>
-              <label for="singleCondition" class="block text-[10px] font-semibold text-slate-400 mb-1">
+              <label for="singleCondition" class="block text-[10px] font-semibold text-rf-text-muted mb-1">
                 Zustand
               </label>
               <select
                 id="singleCondition"
                 formControlName="single_item_condition"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-slate-200"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
               >
                 <option value="new">Neu / OVP</option>
                 <option value="like_new">Wie neu</option>
@@ -257,7 +257,7 @@
             </div>
 
             <div>
-              <label for="singleExpectedVal" class="block text-[10px] font-semibold text-slate-400 mb-1">
+              <label for="singleExpectedVal" class="block text-[10px] font-semibold text-rf-text-muted mb-1">
                 Erwarteter Marktwert (€)
               </label>
               <input
@@ -275,7 +275,7 @@
       <!-- 6. Zusatzkosten (Versand, Fahrt, Gebühren) -->
       <div class="space-y-2">
         <div class="flex items-center justify-between">
-          <label class="text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+          <label class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">
             Zusatzkosten (Versand, Fahrtkosten, Zoll)
           </label>
           <button
@@ -289,7 +289,7 @@
         </div>
 
         @for (cost of extraCosts(); track $index) {
-          <div class="flex items-center gap-2 p-2 rounded-lg bg-[#1e222a] border border-[#373e4d]">
+          <div class="flex items-center gap-2 p-2 rounded-lg bg-rf-well border border-rf-line">
             <select
               [value]="cost.type"
               (change)="updateCostField($index, 'type', $any($event.target).value)"
@@ -322,7 +322,7 @@
             <button
               type="button"
               (click)="removeCostRow($index)"
-              class="p-1 text-slate-400 hover:text-rose-400 rounded"
+              class="p-1 text-rf-text-muted hover:text-rose-400 rounded"
             >
               <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
             </button>
@@ -331,9 +331,9 @@
       </div>
 
       <!-- Inbound Sendungsverfolgung (Tracking) -->
-      <div class="p-3 rounded-xl bg-[#1e222a] border border-[#373e4d] space-y-2.5">
+      <div class="p-3 rounded-xl bg-rf-well border border-rf-line space-y-2.5">
         <div class="flex items-center justify-between">
-          <div class="flex items-center gap-1.5 text-xs font-semibold text-slate-200">
+          <div class="flex items-center gap-1.5 text-xs font-semibold text-rf-text-secondary">
             <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
             <span>Sendungsverfolgung (DHL, DPD, Hermes, UPS, GLS)</span>
           </div>
@@ -354,13 +354,13 @@
               formControlName="tracking_number"
               (input)="onTrackingNumberInput($event)"
               placeholder="Sendungsnummer eingeben oder einfügen..."
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono text-slate-100"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono text-rf-text-primary"
             />
           </div>
           <div class="sm:col-span-4">
             <select
               formControlName="tracking_carrier"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-slate-200"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
             >
               <option [ngValue]="null">Auto-Erkennung</option>
               @for (c of trackingService.carrierOptions; track c.value) {
@@ -372,7 +372,7 @@
       </div>
 
       <!-- Actions -->
-      <div class="flex justify-end gap-2.5 pt-3 border-t border-[#373e4d]">
+      <div class="flex justify-end gap-2.5 pt-3 border-t border-rf-line">
         <button
           type="button"
           (click)="close.emit()"

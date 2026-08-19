@@ -16,7 +16,7 @@
   <div class="h-14 flex items-center justify-between px-4 border-b border-rf-border-subtle">
     <div class="flex items-center gap-2.5">
       <div class="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-xs shadow-indigo-500/25">
-        <lucide-icon [img]="logoIcon" class="w-3.5 h-3.5 text-white stroke-[2.5]"></lucide-icon>
+        <lucide-icon [img]="logoIcon" class="w-3.5 h-3.5 text-rf-text-primary stroke-[2.5]"></lucide-icon>
       </div>
       <div class="flex items-center gap-1.5">
         <span class="tracking-tight font-bold text-sm text-rf-text-primary">ReFlip</span>
@@ -44,7 +44,7 @@
     @for (item of navItems.slice(0, 4); track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-indigo-500/15 text-white font-semibold border-indigo-500/40"
+        routerLinkActive="bg-indigo-500/15 text-rf-text-primary font-semibold border-indigo-500/40"
         (click)="close.emit()"
         class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >
@@ -60,7 +60,7 @@
     @for (item of navItems.slice(4, 9); track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-indigo-500/15 text-white font-semibold border-indigo-500/40"
+        routerLinkActive="bg-indigo-500/15 text-rf-text-primary font-semibold border-indigo-500/40"
         (click)="close.emit()"
         class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >
@@ -76,7 +76,7 @@
     @for (item of navItems.slice(9); track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-indigo-500/15 text-white font-semibold border-indigo-500/40"
+        routerLinkActive="bg-indigo-500/15 text-rf-text-primary font-semibold border-indigo-500/40"
         (click)="close.emit()"
         class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >

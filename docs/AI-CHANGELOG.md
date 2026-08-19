@@ -19,6 +19,57 @@ Dieses Projekt wird teilweise mit KI-Assistenten entwickelt. **Jede** von einer 
 
 ---
 
+## 2026-08-19 – Claude Opus 5 (Anthropic) – Phase 4: UI-Blockaden & helles Design
+
+**Art:** Feature, Barrierefreiheit, Bugfix
+
+**Betroffen:** `src/styles.css` (neu aufgebaut), `src/index.html`, `src/app/core/services/theme.service.ts` (neu geschrieben), `src/app/layout/{shell,header}/`, `public/fonts/` (neu), 37 Templates
+
+**Was:**
+
+1. **`select-none` entfernt, wo es Inhalte blockierte.** 35 von 52 Vorkommen: Shell-Wurzel, 14 Seiten-Wurzeln und alle Modal-Container. Damit lassen sich SKU, Sendungs- und Rechnungsnummern wieder markieren und kopieren. Auf Buttons und Navigation bleiben 17 Vorkommen erhalten – dort ist die Einstellung korrekt.
+
+2. **Zoom entsperrt.** `user-scalable=no` aus `index.html` entfernt (WCAG 1.4.4).
+
+3. **Helles Design gebaut.** `styles.css` neu aufgebaut: `:root` trägt die helle Palette, `html.dark` die bisherige dunkle. Die dunklen Werte sind unverändert übernommen, das dunkle Design sieht also exakt aus wie vorher.
+
+   Der Kniff, der 985 Template-Änderungen erspart hat: Die Akzentfarben von Tailwind (`--color-emerald-400` und Verwandte) zeigen jetzt auf themenabhängige Variablen. Dadurch passen sich rund 480 bereits vorhandene Klassen wie `text-emerald-400` automatisch an, ohne dass die Templates angefasst werden mussten. Im hellen Design werden sie abgedunkelt, weil die Originaltöne auf Weiß nur rund 2:1 Kontrast hätten.
+
+4. **Templates auf Design-Tokens umgestellt.** 563 fest verdrahtete Farbklassen ersetzt: 134 × `text-white`, 106 × `text-slate-400`, 162 arbiträre Hex-Werte wie `border-[#373e4d]` und weitere. Im dunklen Design ergeben die Tokens exakt dieselben Farben. Die 10 Stellen, an denen weißer Text auf farbigem Grund sitzt, haben ein eigenes Token `text-rf-on-accent` bekommen und bleiben weiß.
+
+5. **Theme-Umschalter gebaut.** Er war im Header gar nicht vorhanden – Dienst und Icons waren eingebunden, das Template hatte den Knopf nie. `ThemeService` neu geschrieben: folgt standardmäßig der Systemvoreinstellung, reagiert auf deren Änderung, merkt sich eine bewusste Auswahl und färbt die Adressleiste mobiler Browser mit.
+
+6. **Sichtbarer Fokusrahmen** für alle bedienbaren Elemente über `:focus-visible` (WCAG 2.4.7) und **Sprunglink** „Zum Inhalt springen" in der Shell (WCAG 2.4.1).
+
+7. **`prefers-reduced-motion` wird respektiert** (WCAG 2.3.3).
+
+8. **Schriften lokal.** Plus Jakarta Sans und JetBrains Mono liegen als 4 woff2-Dateien (90 KB, nur Latin) unter `public/fonts/`. Damit entfällt der Aufruf an `fonts.gstatic.com` bei jedem Seitenaufruf, der die IP-Adresse jedes Besuchers in die USA überträgt – und die Typografie steht auch offline, was für die beworbene Flohmarkt-Nutzung entscheidend ist.
+
+9. **Öffentlicher Shop vom Umschalter ausgenommen.** `/shop` ist ein eigenständiges, dauerhaft helles Kundendesign mit dunklen Leisten. Es behält über `.rf-palette-fixed` immer die Originalfarben.
+
+**Zwei weitere vorhandene Fehler gefunden und behoben:**
+
+10. **Über 100 Verwendungen undefinierter Design-Klassen** (Audit 7.13). `accounting.component.html` nutzte durchgängig `text-muted`, `text-accent-emerald`, `bg-surface-2`, `card`, `kpi-value` und weitere – aus einem älteren Design-System, das nie migriert wurde. Sie erzeugten keinerlei Wirkung: Kennzahlen und Karten der Buchhaltungsseite waren schlicht unformatiert. `card`, `kpi-label` und `kpi-value` sind jetzt definiert, die übrigen auf Tokens abgebildet.
+
+11. **11 Stellen mit weißem Text auf zu hellem Farbgrund** (Audit 7.14), teils nur 2,15:1 statt 4,5:1 – in **beiden** Designs, also kein Problem des neuen hellen. Angehoben auf `emerald-700` (5,55:1), `amber-700` (4,99:1) und `rose-600` (4,70:1).
+
+**Korrektur eines eigenen Fehlers:**
+
+12. **Audit-Befund 7.5 („12 Bilder ohne `alt`") war falsch und wurde zurückgezogen.** Mein ursprünglicher Test war ein zeilenbasiertes `grep`; die `<img>`-Tags sind mehrzeilig formatiert, das `alt` steht auf der Folgezeile. Korrekt geprüft: 14 Bilder, 0 ohne `alt`. Hier war nichts zu tun.
+
+**Verifiziert durch:**
+- `npx ng build` → erfolgreich; `npx vitest run` → 25 Dateien / 121 Tests grün
+- **Rechnerische Kontrastprüfung im Browser** über 11 Seiten (Dashboard, Einkäufe, Inventar, Verkäufe, Buchhaltung, Einstellungen, Analytics, Listings, Fulfillment, Research, Quellen, Deal Calculator): **0 Verstöße** bei den Textfarben im hellen Design
+- Weiß-auf-Farbe gesondert geprüft: Sprunglink 6,29:1, Primär-Buttons 6,29:1, alle Badges nach der Korrektur ≥ 4,5:1
+- **Sichtprüfung** beider Designs auf Dashboard, Buchhaltung, Inventar und Shop
+- Shop bei dunklem Admin-Design geprüft: bleibt hell, Akzente bleiben hell (`rgb(52, 211, 153)`)
+- Textmarkierung praktisch getestet: Überschrift lässt sich auswählen, Sidebar bleibt geschützt
+- Schriften: `document.fonts` meldet 6 geladene Schnitte, **0 externe Aufrufe** an Google
+
+**Bewusst nicht geändert:** Die Druckkomponenten (Rechnung, Etikett, Lieferschein) bleiben weiß mit schwarzem Text – sie werden auf Papier ausgegeben.
+
+---
+
 ## 2026-08-19 – Claude Opus 5 (Anthropic) – Phase 3: Sicherheit (Anmeldung & Datenbank)
 
 **Art:** Sicherheit, Bugfix, Konfiguration

@@ -1,21 +1,21 @@
 <div
-  class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in select-none"
+  class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
 >
   <div
-    class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-6 border border-[#373e4d] animate-modal-card"
+    class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-6 border border-rf-line animate-modal-card"
   >
-    <div class="flex items-center justify-between mb-4 pb-3 border-b border-[#373e4d]">
-      <h3 class="text-sm font-bold text-slate-100">Neuen Workspace erstellen</h3>
+    <div class="flex items-center justify-between mb-4 pb-3 border-b border-rf-line">
+      <h3 class="text-sm font-bold text-rf-text-primary">Neuen Workspace erstellen</h3>
       <button
         type="button"
         (click)="close.emit()"
-        class="p-1 rounded-md text-slate-400 hover:text-white hover:bg-[#373e4d] transition cursor-pointer"
+        class="p-1 rounded-md text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-line transition cursor-pointer"
       >
         <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
       </button>
     </div>
 
-    <p class="text-xs text-slate-400 mb-4">
+    <p class="text-xs text-rf-text-muted mb-4">
       Ein Workspace trennt sämtliche Einkäufe, Inventardaten und Verkäufe sauber voneinander.
     </p>
 
@@ -27,7 +27,7 @@
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
       <div>
-        <label for="workspaceName" class="block text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-1">
+        <label for="workspaceName" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
           Workspace Name
         </label>
         <input
@@ -40,7 +40,7 @@
         />
       </div>
 
-      <div class="flex justify-end gap-2.5 pt-3 border-t border-[#373e4d]">
+      <div class="flex justify-end gap-2.5 pt-3 border-t border-rf-line">
         <button
           type="button"
           (click)="close.emit()"

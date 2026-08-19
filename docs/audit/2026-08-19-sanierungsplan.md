@@ -52,7 +52,7 @@ Der Wunsch „in 2–3 Wochen ins Web **und** echte Stripe-/DHL-Anbindung" ist z
 | **1** | Build reparieren | 0,5 Std | ✅ erledigt |
 | **2** | Datensicherung (Export/Import) | 0,5 Tag | ✅ erledigt |
 | **3** | Sicherheit – Anmeldung & Datenbank | 1,5 Tage | ✅ erledigt |
-| **4** | UI-Blockaden + Light-Theme | 1 Tag | ⏳ |
+| **4** | UI-Blockaden + Light-Theme | 1 Tag | ✅ erledigt |
 | **5** | Datenschicht: Datenbank wird Quelle der Wahrheit | 3–5 Tage | ⏳ |
 | **6** | Finanzen & Steuern korrigieren | 1–2 Tage | ⏳ |
 | **7** | Sicherheit – Auslieferung & Barrierefreiheit | 1,5 Tage | ⏳ |
@@ -126,7 +126,7 @@ Der Wunsch „in 2–3 Wochen ins Web **und** echte Stripe-/DHL-Anbindung" ist z
 
 ---
 
-## Phase 4 – UI-Blockaden + Light-Theme ⏱️ ~1 Tag
+## Phase 4 – UI-Blockaden + Light-Theme ⏱️ ~1 Tag ✅
 
 | # | Aufgabe | Wirkung |
 |---|---|---|
@@ -138,7 +138,7 @@ Der Wunsch „in 2–3 Wochen ins Web **und** echte Stripe-/DHL-Anbindung" ist z
 | 4.6 | Globaler `:focus-visible`-Fokusring | Tastaturnavigation sichtbar |
 | 4.7 | `@media (prefers-reduced-motion: reduce)` | Systemeinstellung respektiert |
 | 4.8 | Google Fonts lokal nach `public/fonts/` | Offline nutzbar + DSGVO |
-| 4.9 | Die 12 `<img>` ohne `alt` ergänzen | – |
+| ~~4.9~~ | ~~Die 12 `<img>` ohne `alt` ergänzen~~ – **entfällt**: Fehlalarm, alle 14 Bilder haben ein `alt` (Audit 7.5). | – |
 
 > 4.4 ist der eigentliche Aufwand am Light-Theme. Ich gehe alle Templates durch – vermutlich finde ich dabei noch weitere Ungereimtheiten.
 

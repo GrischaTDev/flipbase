@@ -18,13 +18,13 @@
       type="button"
       (click)="toggleDropdown($event)"
       [disabled]="effectiveDisabled()"
-      class="linear-input w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition select-none text-slate-200"
+      class="linear-input w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition select-none text-rf-text-secondary"
       [class.opacity-50]="effectiveDisabled()"
       [class.cursor-not-allowed]="effectiveDisabled()"
       [class.border-indigo-500]="isOpen()"
     >
       <span class="truncate">{{ selectedOption()?.label || placeholder() }}</span>
-      <lucide-icon [img]="chevronIcon" class="w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform duration-200" [class.rotate-180]="isOpen()"></lucide-icon>
+      <lucide-icon [img]="chevronIcon" class="w-3.5 h-3.5 text-rf-text-muted shrink-0 transition-transform duration-200" [class.rotate-180]="isOpen()"></lucide-icon>
     </button>
   } @else {
     <!-- Default Form Select Variant -->
@@ -54,7 +54,7 @@
   <!-- Floating Dropdown Panel -->
   @if (isOpen()) {
     <div
-      class="custom-select-menu absolute z-50 min-w-[160px] max-w-[320px] w-full rounded-xl bg-[#181a20] border border-[#373e4d] shadow-2xl ring-1 ring-white/5 py-1.5 max-h-60 overflow-y-auto outline-none animate-in fade-in zoom-in-95 duration-100"
+      class="custom-select-menu absolute z-50 min-w-[160px] max-w-[320px] w-full rounded-xl bg-rf-well border border-rf-line shadow-2xl ring-1 ring-white/5 py-1.5 max-h-60 overflow-y-auto outline-none animate-in fade-in zoom-in-95 duration-100"
       [class.bottom-full]="isDropUp()"
       [class.mb-1.5]="isDropUp()"
       [class.top-full]="!isDropUp()"
@@ -72,9 +72,9 @@
             [class.bg-indigo-600/20]="isSelected"
             [class.text-indigo-300]="isSelected"
             [class.font-bold]="isSelected"
-            [class.text-slate-200]="!isSelected"
-            [class.hover:bg-[#262c37]]="!isSelected"
-            [class.hover:text-white]="!isSelected"
+            [class.text-rf-text-secondary]="!isSelected"
+            [class.hover:bg-rf-surface-alt]="!isSelected"
+            [class.hover:text-rf-text-primary]="!isSelected"
           >
             <div class="flex items-center gap-2 truncate">
               @if (option.badgeClass) {

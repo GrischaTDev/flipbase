@@ -392,9 +392,13 @@ Wer mit der Tastatur arbeitet, tabbt aus dem offenen Dialog heraus in die Seite 
 
 `src/index.html`: `user-scalable=no`. Verstößt gegen **WCAG 1.4.4 (Resize Text, Level AA)**. Auf dem Handy – dem Hauptgerät für die Flohmarkt-Schnellerfassung – kannst du nicht hineinzoomen. Ersatzlos streichen.
 
-### 7.5 12 Bilder ohne `alt`-Attribut
+### 7.5 ~~12 Bilder ohne `alt`-Attribut~~ — ❌ **Fehlalarm, zurückgezogen**
 
-Screenreader lesen dann den Dateinamen vor. Bei dekorativen Bildern: `alt=""`.
+> Korrektur vom 2026-08-19 während Phase 4.
+
+Dieser Befund war falsch. Mein ursprünglicher Test war ein zeilenbasiertes `grep` nach `<img` ohne `alt=` in derselben Zeile. Die `<img>`-Tags im Projekt sind aber über mehrere Zeilen formatiert, das `alt` steht jeweils auf der Folgezeile.
+
+Eine korrekte Prüfung über den gesamten Tag hinweg ergibt: **14 `<img>`-Tags, davon 0 ohne `alt`.** Hier war nichts zu tun.
 
 ### 7.6 `NgOptimizedImage` wird nirgends verwendet
 
@@ -443,7 +447,43 @@ Warum das lange unbemerkt blieb: Der Fehler landet nur in der Browser-Konsole, d
 
 **Lehre daraus für den Plan:** Genau solche Fehler sind der Grund, warum in Phase 8 Komponenten-Tests und eine `vitest.config.ts` mit `jsdom` stehen. Ein einziger Rendertest der Einstellungsseite hätte das sofort gezeigt.
 
-### 7.12 Kleinere UI-Themen
+
+### 7.13 🟡 Nachtrag: Über 100 Verwendungen undefinierter Design-Klassen
+
+> Gefunden am 2026-08-19 während Phase 4.
+
+`accounting.component.html` verwendete durchgängig Klassen aus einem älteren Design-System, das nie migriert wurde und nirgendwo definiert ist:
+
+| Klasse | Verwendungen |
+|---|---|
+| `text-muted` | 41 |
+| `text-accent-emerald` | 17 |
+| `bg-surface-3` | 10 |
+| `kpi-label` / `kpi-value` | je 8 |
+| `bg-accent-emerald` | 7 |
+| `bg-surface-2` | 5 |
+| `card` | 5 |
+| `border-accent-emerald` | 4 |
+| `bg-surface-1`, `border-border` | je 1 |
+
+Diese Klassen erzeugten **keinerlei Wirkung**. Auf der Buchhaltungsseite hatten die betroffenen Elemente also weder Hintergrund noch Textfarbe – Kennzahlen und Karten waren schlicht unformatiert. Behoben in Phase 4: `card`, `kpi-label` und `kpi-value` sind jetzt definiert, die übrigen auf die Design-Tokens abgebildet.
+
+### 7.14 🟡 Nachtrag: 11 Stellen mit weißem Text auf zu hellem Farbgrund
+
+> Gefunden am 2026-08-19 während Phase 4 durch eine rechnerische Kontrastprüfung.
+
+Weißer Text auf voll deckenden Akzentflächen erreichte teils nur ein Viertel des geforderten Kontrasts – und zwar in **beiden** Designs, es ist also kein Problem des neuen hellen Designs:
+
+| Fläche | Kontrast mit Weiß | Nötig | Betroffen |
+|---|---|---|---|
+| `bg-amber-500` | 2,15:1 | 4,5:1 | 2 Buttons |
+| `bg-emerald-500` | 2,54:1 | 4,5:1 | 6 Stellen (Login, Registrierung, Benachrichtigungs-Abzeichen, Artikel-Badge) |
+| `bg-amber-600` | 3,19:1 | 4,5:1 | 2 Buttons |
+| `bg-rose-500` | 3,67:1 | 4,5:1 | 1 Badge |
+
+Behoben durch Anheben auf `emerald-700` (5,55:1), `amber-700` (4,99:1) und `rose-600` (4,70:1).
+
+### 7.15 Kleinere UI-Themen
 
 - Externe Google Fonts ohne lokales Fallback: bei fehlender Internetverbindung – also genau im beworbenen **Offline-Modus auf dem Flohmarkt** – bricht die Typografie ein
 - Der Sidebar-Punkt „Mein Online-Shop" führt nach `/shop` in ein anderes Layout **ohne Rückweg** in die Verwaltung
@@ -481,9 +521,10 @@ Der Komponentencode entspricht deinen Vorgaben nahezu vollständig. Die Probleme
 |---|---|
 | 🔴 Kritisch (Sicherheit / Datenverlust / defektes Rendern) | 14 |
 | 🟠 Schwer (falsche Berechnungen / irreführende Doku / Umgebung) | 12 |
-| 🟡 Mittel (Qualität, UI, Barrierefreiheit) | 24 |
+| 🟡 Mittel (Qualität, UI, Barrierefreiheit) | 25 |
 | 🟢 Gering (Aufräumen) | 9 |
-| **Summe** | **59** |
+| ❌ Zurückgezogen (Fehlalarm) | 1 |
+| **Summe (gültig)** | **60** |
 
 > Nachträge 2026-08-19: Die Befunde 7.11, 2.11 und 2.12 kamen beim Testen gegen
 > die laufende Anwendung und Datenbank hinzu und sind bereits behoben. Keiner

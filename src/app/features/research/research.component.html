@@ -1,4 +1,4 @@
-<div class="space-y-5 animate-fade-in select-none">
+<div class="space-y-5 animate-fade-in">
   <!-- Header & Tab Navigation -->
   <div class="pb-1 border-b border-rf-border flex flex-col md:flex-row md:items-center justify-between gap-3">
     <div>
@@ -35,7 +35,7 @@
         (click)="activeTab.set('radar')"
         class="px-3.5 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 cursor-pointer"
         [class.bg-indigo-600]="activeTab() === 'radar'"
-        [class.text-white]="activeTab() === 'radar'"
+        [class.text-rf-text-primary]="activeTab() === 'radar'"
         [class.shadow-md]="activeTab() === 'radar'"
         [class.shadow-indigo-500/20]="activeTab() === 'radar'"
         [class.text-rf-text-muted]="activeTab() !== 'radar'"
@@ -43,7 +43,7 @@
         <lucide-icon [img]="radarIcon" class="w-3.5 h-3.5" [class.text-amber-300]="activeTab() === 'radar'"></lucide-icon>
         <span>Konkurrenz-Radar</span>
         @if (priceTrackerService.activeAlertsCount() > 0) {
-          <span class="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black bg-rose-500 text-white">
+          <span class="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black bg-rose-600 text-rf-on-accent">
             {{ priceTrackerService.activeAlertsCount() }}
           </span>
         }
@@ -247,7 +247,7 @@
             >
               <div class="relative aspect-square rounded-lg bg-black/40 overflow-hidden cursor-pointer" (click)="previewImageUrl.set(item.imageUrl)">
                 <img [src]="item.imageUrl" [alt]="item.title" class="w-full h-full object-cover group-hover:scale-105 transition" />
-                <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-black/75 text-white">
+                <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-black/75 text-rf-text-primary">
                   {{ item.source === 'ebay_sold' ? 'eBay' : item.source === 'kleinanzeigen' ? 'Kleinanzeigen' : 'Vinted' }}
                 </span>
               </div>
@@ -484,7 +484,7 @@
         <button
           type="button"
           (click)="previewImageUrl.set(null)"
-          class="absolute -top-10 right-0 p-1.5 rounded-full bg-white/10 text-white hover:bg-white/20 transition cursor-pointer"
+          class="absolute -top-10 right-0 p-1.5 rounded-full bg-white/10 text-rf-text-primary hover:bg-white/20 transition cursor-pointer"
         >
           <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
         </button>

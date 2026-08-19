@@ -1,5 +1,5 @@
 <div
-  class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in select-none overflow-y-auto"
+  class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
   (click)="close.emit()"
 >
   <div
@@ -37,7 +37,7 @@
           (click)="activeTab.set('upload'); stopCamera()"
           class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
           [class.bg-indigo-600]="activeTab() === 'upload'"
-          [class.text-white]="activeTab() === 'upload'"
+          [class.text-rf-text-primary]="activeTab() === 'upload'"
           [class.border-indigo-500]="activeTab() === 'upload'"
           [class.bg-rf-subtle]="activeTab() !== 'upload'"
           [class.text-rf-text-secondary]="activeTab() !== 'upload'"
@@ -54,7 +54,7 @@
           (click)="startCamera()"
           class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border"
           [class.bg-indigo-600]="activeTab() === 'camera'"
-          [class.text-white]="activeTab() === 'camera'"
+          [class.text-rf-text-primary]="activeTab() === 'camera'"
           [class.border-indigo-500]="activeTab() === 'camera'"
           [class.bg-rf-subtle]="activeTab() !== 'camera'"
           [class.text-rf-text-secondary]="activeTab() !== 'camera'"
@@ -134,7 +134,7 @@
           <img [src]="previewImage()" alt="Scan Preview" class="w-full h-full object-contain" />
 
           @if (isAnalyzing()) {
-            <div class="absolute inset-0 bg-indigo-950/40 backdrop-blur-sm flex flex-col items-center justify-center space-y-2 text-white">
+            <div class="absolute inset-0 bg-indigo-950/40 backdrop-blur-sm flex flex-col items-center justify-center space-y-2 text-rf-text-primary">
               <div class="scan-laser"></div>
               <div class="p-3 rounded-2xl bg-indigo-600/30 border border-indigo-500/50 animate-pulse">
                 <lucide-icon [img]="sparklesIcon" class="w-6 h-6 text-indigo-300"></lucide-icon>

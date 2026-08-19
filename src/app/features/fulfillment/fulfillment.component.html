@@ -1,4 +1,4 @@
-<div class="space-y-6 animate-fade-in select-none">
+<div class="space-y-6 animate-fade-in">
   <!-- Page Header -->
   <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-rf-border">
     <div>
@@ -95,7 +95,7 @@
         <lucide-icon [img]="checkIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
         <span>{{ msg }}</span>
       </div>
-      <button type="button" (click)="bundleSuccessMsg.set(null)" class="text-rf-text-muted hover:text-white cursor-pointer">
+      <button type="button" (click)="bundleSuccessMsg.set(null)" class="text-rf-text-muted hover:text-rf-text-primary cursor-pointer">
         <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
       </button>
     </div>
@@ -173,7 +173,7 @@
       (click)="selectedStatusTab.set('ready_to_pack')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-amber-600]="selectedStatusTab() === 'ready_to_pack'"
-      [class.text-white]="selectedStatusTab() === 'ready_to_pack'"
+      [class.text-rf-text-primary]="selectedStatusTab() === 'ready_to_pack'"
       [class.border-amber-500]="selectedStatusTab() === 'ready_to_pack'"
       [class.bg-rf-surface]="selectedStatusTab() !== 'ready_to_pack'"
       [class.text-rf-text-secondary]="selectedStatusTab() !== 'ready_to_pack'"
@@ -188,7 +188,7 @@
       (click)="selectedStatusTab.set('shipped')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="selectedStatusTab() === 'shipped'"
-      [class.text-white]="selectedStatusTab() === 'shipped'"
+      [class.text-rf-text-primary]="selectedStatusTab() === 'shipped'"
       [class.border-indigo-500]="selectedStatusTab() === 'shipped'"
       [class.bg-rf-surface]="selectedStatusTab() !== 'shipped'"
       [class.text-rf-text-secondary]="selectedStatusTab() !== 'shipped'"
@@ -203,7 +203,7 @@
       (click)="selectedStatusTab.set('delivered')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-emerald-600]="selectedStatusTab() === 'delivered'"
-      [class.text-white]="selectedStatusTab() === 'delivered'"
+      [class.text-rf-text-primary]="selectedStatusTab() === 'delivered'"
       [class.border-emerald-500]="selectedStatusTab() === 'delivered'"
       [class.bg-rf-surface]="selectedStatusTab() !== 'delivered'"
       [class.text-rf-text-secondary]="selectedStatusTab() !== 'delivered'"
@@ -242,7 +242,7 @@
               {{ order.platform }}
             </span>
             @if (order.is_bundled) {
-              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase bg-indigo-600 text-white flex items-center gap-1 shadow-sm">
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase bg-indigo-600 text-rf-on-accent flex items-center gap-1 shadow-sm">
                 <lucide-icon [img]="boxesIcon" class="w-3 h-3"></lucide-icon>
                 <span>Sammelpaket ({{ order.bundled_item_titles?.length }} Artikel)</span>
               </span>
@@ -400,7 +400,7 @@
       (click)="closeLabelModal()"
     >
       <div
-        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6 select-none my-auto"
+        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6 my-auto"
         (click)="$event.stopPropagation()"
       >
         <!-- Modal Top Bar -->
@@ -438,42 +438,42 @@
           <!-- Sender & Recipient Grid -->
           <div class="grid grid-cols-2 gap-4 py-2 border-b-2 border-black">
             <!-- Sender -->
-            <div class="text-[11px] space-y-0.5 border-r border-dashed border-neutral-300 pr-2">
-              <span class="text-[9px] uppercase font-bold text-neutral-500 block">Absender:</span>
+            <div class="text-[11px] space-y-0.5 border-r border-dashed border-rf-border pr-2">
+              <span class="text-[9px] uppercase font-bold text-rf-text-muted block">Absender:</span>
               @let sender = fulfillmentService.getSenderAddress();
               <strong class="block text-xs font-bold">{{ sender.name }}</strong>
               <div>{{ sender.company }}</div>
               <div>{{ sender.street }} {{ sender.house_number }}</div>
               <div>{{ sender.postal_code }} {{ sender.city }}</div>
-              <div class="text-neutral-600">{{ sender.country }}</div>
+              <div class="text-rf-text-secondary">{{ sender.country }}</div>
             </div>
 
             <!-- Recipient -->
             <div class="text-xs space-y-0.5 pl-2">
-              <span class="text-[9px] uppercase font-bold text-neutral-500 block">Empfänger:</span>
+              <span class="text-[9px] uppercase font-bold text-rf-text-muted block">Empfänger:</span>
               <strong class="block text-sm font-black">{{ labelOrder.customer.name }}</strong>
               @if (labelOrder.customer.company) {
                 <div>{{ labelOrder.customer.company }}</div>
               }
               <div class="font-semibold">{{ labelOrder.customer.street }} {{ labelOrder.customer.house_number }}</div>
               <div class="font-black text-sm">{{ labelOrder.customer.postal_code }} {{ labelOrder.customer.city }}</div>
-              <div class="text-neutral-700 font-bold uppercase text-[10px]">{{ labelOrder.customer.country }}</div>
+              <div class="text-rf-text-secondary font-bold uppercase text-[10px]">{{ labelOrder.customer.country }}</div>
             </div>
           </div>
 
           <!-- Simulated Barcode & Security Warnings -->
           <div class="space-y-2 pt-2">
-            <div class="h-14 bg-neutral-900 flex items-center justify-center text-white font-mono tracking-widest text-xs rounded-sm">
+            <div class="h-14 bg-neutral-900 flex items-center justify-center text-rf-text-primary font-mono tracking-widest text-xs rounded-sm">
               ||| | ||||| || |||||| | |||| ||| ||||||| | ||
             </div>
-            <div class="flex items-center justify-between text-[10px] text-neutral-600 font-mono">
+            <div class="flex items-center justify-between text-[10px] text-rf-text-secondary font-mono">
               <span>Sendungs-Ref: {{ labelOrder.order_number }}</span>
               <span>Premium Priority Tracked</span>
             </div>
           </div>
 
           <!-- Fragile / Safety Badge -->
-          <div class="p-2 bg-neutral-100 border border-black text-center text-[10px] font-black uppercase tracking-wider">
+          <div class="p-2 bg-rf-subtle border border-black text-center text-[10px] font-black uppercase tracking-wider">
             Vorsicht Zerbrechlich &bull; Elektronik &bull; Vor Nässe Schützen
           </div>
         </div>
@@ -508,7 +508,7 @@
       (click)="closeSlipModal()"
     >
       <div
-        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6 select-none my-auto"
+        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6 my-auto"
         (click)="$event.stopPropagation()"
       >
         <!-- Modal Header -->
@@ -528,29 +528,29 @@
         </div>
 
         <!-- Printable Packing Slip Area -->
-        <div class="printable-area bg-white text-black p-8 rounded-2xl border border-neutral-300 font-sans space-y-6 shadow-lg">
-          <div class="flex justify-between items-start border-b border-neutral-300 pb-4">
+        <div class="printable-area bg-white text-black p-8 rounded-2xl border border-rf-border font-sans space-y-6 shadow-lg">
+          <div class="flex justify-between items-start border-b border-rf-border pb-4">
             <div>
               <h1 class="text-xl font-black">LIEFERSCHEIN</h1>
-              <p class="text-xs text-neutral-500 font-mono">Bestell-Nr.: {{ slipOrder.order_number }}</p>
+              <p class="text-xs text-rf-text-muted font-mono">Bestell-Nr.: {{ slipOrder.order_number }}</p>
             </div>
             <div class="text-right text-xs">
               <strong class="block font-bold">ReFlip Reselling</strong>
-              <span class="text-neutral-500">Datum: {{ slipOrder.order_date | date:'dd.MM.yyyy' }}</span>
+              <span class="text-rf-text-muted">Datum: {{ slipOrder.order_date | date:'dd.MM.yyyy' }}</span>
             </div>
           </div>
 
           <!-- Customer info -->
           <div class="text-xs space-y-1">
-            <span class="text-[10px] uppercase font-bold text-neutral-400 block">Lieferadresse:</span>
+            <span class="text-[10px] uppercase font-bold text-rf-text-dimmed block">Lieferadresse:</span>
             <strong class="text-sm block">{{ slipOrder.customer.name }}</strong>
             <div>{{ slipOrder.customer.street }} {{ slipOrder.customer.house_number }}</div>
             <div>{{ slipOrder.customer.postal_code }} {{ slipOrder.customer.city }}</div>
           </div>
 
           <!-- Items Table -->
-          <table class="w-full text-left text-xs border-collapse border border-neutral-300">
-            <thead class="bg-neutral-100 uppercase text-[10px] font-bold border-b border-neutral-300">
+          <table class="w-full text-left text-xs border-collapse border border-rf-border">
+            <thead class="bg-rf-subtle uppercase text-[10px] font-bold border-b border-rf-border">
               <tr>
                 <th class="p-2.5">Position</th>
                 <th class="p-2.5">Artikel</th>
@@ -569,9 +569,9 @@
           </table>
 
           <!-- Thank you message -->
-          <div class="p-4 bg-neutral-50 border border-neutral-200 rounded-xl text-xs text-neutral-700 leading-relaxed">
+          <div class="p-4 bg-rf-subtle border border-rf-border-subtle rounded-xl text-xs text-rf-text-secondary leading-relaxed">
             <p class="font-bold">Vielen Dank für deinen Einkauf!</p>
-            <p class="text-[11px] mt-1 text-neutral-600">
+            <p class="text-[11px] mt-1 text-rf-text-secondary">
               Wir wünschen dir viel Freude mit deinem Artikel. Bei Fragen oder Anliegen stehen wir dir jederzeit gerne zur Verfügung!
             </p>
           </div>
@@ -607,7 +607,7 @@
       (click)="closeTrackingModal()"
     >
       <div
-        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 select-none my-auto"
+        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 my-auto"
         (click)="$event.stopPropagation()"
       >
         <div class="flex items-center justify-between border-b border-rf-border pb-3">
@@ -683,7 +683,7 @@
     @let targetOrder = selectedOrderForPurchase();
     @if (targetOrder) {
       <div
-        class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in select-none overflow-y-auto"
+        class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
         (click)="closePurchaseModal()"
       >
         <div

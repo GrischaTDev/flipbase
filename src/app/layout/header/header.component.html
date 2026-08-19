@@ -105,7 +105,7 @@
       >
         <lucide-icon [img]="BellIcon" class="w-4 h-4"></lucide-icon>
         @if (webhookService.unreadCount() > 0) {
-          <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-white text-[9px] font-bold flex items-center justify-center animate-pulse">
+          <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-700 text-rf-on-accent text-[9px] font-bold flex items-center justify-center animate-pulse">
             {{ webhookService.unreadCount() }}
           </span>
         }
@@ -187,6 +187,20 @@
         </div>
       }
     </div>
+
+    <!-- Design umschalten (hell / dunkel) -->
+    <button
+      type="button"
+      (click)="themeService.toggleTheme()"
+      class="p-1.5 rounded-lg border border-rf-border bg-rf-surface text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover transition cursor-pointer"
+      [attr.aria-label]="themeService.isDark() ? 'Zu hellem Design wechseln' : 'Zu dunklem Design wechseln'"
+      [title]="themeService.isDark() ? 'Helles Design' : 'Dunkles Design'"
+    >
+      <lucide-icon
+        [img]="themeService.isDark() ? SunIcon : MoonIcon"
+        class="w-4 h-4"
+      ></lucide-icon>
+    </button>
 
     <!-- Language Toggle -->
     <div class="flex items-center border border-rf-border rounded-md p-0.5 bg-rf-surface text-[11px]">

@@ -2,89 +2,269 @@
 
 /* ==========================================================================
    REFLIP OS – ZENTRALE DESIGN-VARIABLEN (THEME CONFIG)
-   Hier kannst du das gesamte Design der App an einer einzigen Stelle anpassen!
+
+   Das gesamte Erscheinungsbild der Verwaltungs-App wird hier gesteuert.
+
+   Aufbau:
+     :root      → helles Design (Standard)
+     html.dark  → dunkles Design
+     @theme     → verbindet die Variablen mit den Tailwind-Klassen
+
+   Wichtig: Die Werte unter html.dark sind exakt die bisherigen Farben.
+   Das dunkle Design sieht also unveraendert aus.
+
+   Der oeffentliche Shop (/shop) hat ein eigenes, dauerhaft helles
+   Kundendesign und wird ueber .rf-palette-fixed vom Umschalter ausgenommen.
    ========================================================================== */
+
 :root {
-  /* 1. Hintergründe (Helleres Anthrazit / Slate) */
-  --rf-bg-app: #282c37;          /* Haupt-Hintergrund der gesamten App (helleres Anthrazit) */
-  --rf-bg-sidebar: #21252f;      /* Hintergrund der Sidebar */
-  --rf-bg-header: #282c37;       /* Hintergrund des Headers */
-  --rf-bg-surface: #323846;      /* Hintergrund von Kacheln & Karten */
-  --rf-bg-surface-hover: #3d4454;/* Hover-Hintergrund für Karten & Tabellenzeilen */
-  --rf-bg-subtle: #20242e;       /* Hintergrund für Eingabefelder, Dropdowns & Wells */
+  /* 1. Hintergruende */
+  --rf-bg-app: #f4f5f7;          /* Haupt-Hintergrund der gesamten App */
+  --rf-bg-sidebar: #ffffff;      /* Hintergrund der Sidebar */
+  --rf-bg-header: #ffffff;       /* Hintergrund des Headers */
+  --rf-bg-surface: #ffffff;      /* Hintergrund von Kacheln & Karten */
+  --rf-bg-surface-hover: #eef0f4;/* Hover-Hintergrund fuer Karten & Tabellenzeilen */
+  --rf-bg-subtle: #f7f8fa;       /* Hintergrund fuer Eingabefelder, Dropdowns & Wells */
+  --rf-bg-surface-alt: #fbfcfd;  /* Leicht abgesetzte Flaeche innerhalb von Karten */
+  --rf-bg-well: #eef1f5;         /* Tabellenkoepfe und eingelassene Bereiche */
 
   /* 2. Rahmen & Linien */
-  --rf-border: #444c5c;          /* Standard-Rahmen für Karten & Tabellen */
-  --rf-border-subtle: #363c4a;   /* Dezentere Trennlinie für Sidebar/Header */
-  --rf-border-hover: #586276;    /* Rahmen bei Mauszeiger-Hover */
-  --rf-border-focus: #6366f1;    /* Rahmen bei Tastatur-Fokus / Eingabe (Indigo) */
+  --rf-border: #d9dde5;          /* Standard-Rahmen fuer Karten & Tabellen */
+  --rf-border-subtle: #e8ebf0;   /* Dezentere Trennlinie fuer Sidebar/Header */
+  --rf-border-hover: #b4bcca;    /* Rahmen bei Mauszeiger-Hover */
+  --rf-border-focus: #4f46e5;    /* Rahmen bei Tastatur-Fokus / Eingabe */
+  --rf-line: #e2e6ec;            /* Trennlinien innerhalb von Karten & Tabellen */
+  --rf-line-strong: #c7cdd8;     /* Kraeftigere Trennlinie */
 
-  /* 3. Textfarben & Typografie */
-  --rf-text-primary: #ffffff;    /* Hauptüberschriften, Geldbeträge, wichtige Zahlen */
-  --rf-text-secondary: #d1d5db;  /* Fließtext, Tabellenspalten, Formular-Labels */
-  --rf-text-muted: #9ca3af;      /* Beschreibungen, Einheiten, Zeitstempel */
+  /* 3. Textfarben */
+  --rf-text-primary: #111827;    /* Hauptueberschriften, Geldbetraege, wichtige Zahlen */
+  --rf-text-secondary: #374151;  /* Fliesstext, Tabellenspalten, Formular-Labels */
+  --rf-text-muted: #596273;      /* Beschreibungen, Einheiten, Zeitstempel */
   --rf-text-dimmed: #6b7280;     /* Platzhalter, inaktive Elemente */
+  --rf-text-on-accent: #ffffff;  /* Text auf farbigen Flaechen (Buttons, Badges) */
 
-  /* 4. Primär-Aktionen (Eleganter Indigo-Akzent statt überall Grün) */
-  --rf-primary: #6366f1;         /* Indigo / Royal Blue (Haupt-Buttons, aktive Tabs, Fokus) */
-  --rf-primary-hover: #4f46e5;   /* Indigo Hover */
-  --rf-primary-subtle: rgba(99, 102, 241, 0.15); /* Indigo Badge-Hintergrund */
-  --rf-primary-border: rgba(99, 102, 241, 0.3);  /* Indigo Badge-Rahmen */
+  /* 4. Primaer-Aktionen */
+  --rf-primary: #4f46e5;
+  --rf-primary-hover: #4338ca;
+  --rf-primary-subtle: rgba(79, 70, 229, 0.1);
+  --rf-primary-border: rgba(79, 70, 229, 0.25);
 
-  /* 5. Finanz- & Statusfarben (Grün gezielt für Gewinne & ROI) */
-  --rf-profit: #10b981;          /* Smaragd-Grün (Ausschließlich für Reingewinn, positive ROI & Marge) */
+  /* 5. Finanz- & Statusfarben */
+  --rf-profit: #047857;
+  --rf-profit-subtle: rgba(4, 120, 87, 0.1);
+  --rf-profit-border: rgba(4, 120, 87, 0.25);
+
+  --rf-accent-amber: #b45309;
+  --rf-accent-amber-subtle: rgba(180, 83, 9, 0.1);
+  --rf-accent-amber-border: rgba(180, 83, 9, 0.25);
+
+  --rf-accent-blue: #1d4ed8;
+  --rf-accent-blue-subtle: rgba(29, 78, 216, 0.1);
+  --rf-accent-blue-border: rgba(29, 78, 216, 0.25);
+
+  --rf-accent-purple: #7e22ce;
+  --rf-accent-purple-subtle: rgba(126, 34, 206, 0.1);
+  --rf-accent-purple-border: rgba(126, 34, 206, 0.25);
+
+  --rf-accent-rose: #be123c;
+  --rf-accent-rose-subtle: rgba(190, 18, 60, 0.1);
+  --rf-accent-rose-border: rgba(190, 18, 60, 0.25);
+
+  --rf-accent-indigo: #4338ca;
+  --rf-accent-indigo-subtle: rgba(67, 56, 202, 0.1);
+  --rf-accent-indigo-border: rgba(67, 56, 202, 0.25);
+
+  /* 6. Schatten – im hellen Design deutlich zurueckhaltender */
+  --rf-shadow-sm: 0 1px 2px 0 rgba(16, 24, 40, 0.05);
+  --rf-shadow-md: 0 1px 3px 0 rgba(16, 24, 40, 0.08);
+  --rf-shadow-lg: 0 4px 10px -2px rgba(16, 24, 40, 0.1);
+
+  /* 7. Akzent-Textfarben
+     Diese Werte ersetzen die gleichnamigen Tailwind-Farben (siehe @theme).
+     Im hellen Design werden sie abgedunkelt, damit sie auf weissem Grund
+     die WCAG-AA-Mindestanforderung von 4.5:1 erfuellen. Die hellen
+     Originaltoene haetten dort nur rund 2:1. */
+  --rf-c-emerald-300: #065f46;
+  --rf-c-emerald-400: #047857;
+  --rf-c-indigo-300: #3730a3;
+  --rf-c-indigo-400: #4338ca;
+  --rf-c-amber-300: #92400e;
+  --rf-c-amber-400: #b45309;
+  --rf-c-rose-300: #9f1239;
+  --rf-c-rose-400: #be123c;
+  --rf-c-purple-300: #6b21a8;
+  --rf-c-purple-400: #7e22ce;
+  --rf-c-blue-300: #1e40af;
+  --rf-c-blue-400: #1d4ed8;
+  --rf-c-cyan-300: #155e75;
+  --rf-c-yellow-400: #a16207;
+
+  /* Helle Akzenttoene, die nur auf farbigem Grund vorkommen – dort bleiben
+     sie hell, damit der Kontrast erhalten bleibt. */
+  --rf-c-emerald-100: #d1fae5;
+  --rf-c-indigo-200: #c7d2fe;
+  --rf-c-amber-200: #fde68a;
+}
+
+html.dark {
+  /* 1. Hintergruende (Anthrazit / Slate) */
+  --rf-bg-app: #282c37;
+  --rf-bg-sidebar: #21252f;
+  --rf-bg-header: #282c37;
+  --rf-bg-surface: #323846;
+  --rf-bg-surface-hover: #3d4454;
+  --rf-bg-subtle: #20242e;
+  --rf-bg-surface-alt: #2c323f;
+  --rf-bg-well: #1e222a;
+
+  /* 2. Rahmen & Linien */
+  --rf-border: #444c5c;
+  --rf-border-subtle: #363c4a;
+  --rf-border-hover: #586276;
+  --rf-border-focus: #6366f1;
+  --rf-line: #373e4d;
+  --rf-line-strong: #4a5468;
+
+  /* 3. Textfarben */
+  --rf-text-primary: #ffffff;
+  --rf-text-secondary: #d1d5db;
+  --rf-text-muted: #9ca3af;
+  --rf-text-dimmed: #6b7280;
+  --rf-text-on-accent: #ffffff;
+
+  /* 4. Primaer-Aktionen (Electric Indigo) */
+  --rf-primary: #6366f1;
+  --rf-primary-hover: #4f46e5;
+  --rf-primary-subtle: rgba(99, 102, 241, 0.15);
+  --rf-primary-border: rgba(99, 102, 241, 0.3);
+
+  /* 5. Finanz- & Statusfarben */
+  --rf-profit: #10b981;
   --rf-profit-subtle: rgba(16, 185, 129, 0.15);
   --rf-profit-border: rgba(16, 185, 129, 0.3);
 
-  --rf-accent-amber: #f59e0b;    /* Bernstein / Gold (Gebundenes Kapital, Warnungen) */
+  --rf-accent-amber: #f59e0b;
   --rf-accent-amber-subtle: rgba(245, 158, 11, 0.15);
   --rf-accent-amber-border: rgba(245, 158, 11, 0.3);
 
-  --rf-accent-blue: #38bdf8;     /* Saphir / Sky Blue (Marktwerte, Lots, Kategorien) */
+  --rf-accent-blue: #38bdf8;
   --rf-accent-blue-subtle: rgba(56, 189, 248, 0.15);
   --rf-accent-blue-border: rgba(56, 189, 248, 0.3);
 
-  --rf-accent-purple: #a855f7;   /* Violett (Mystery Packs, Verkäufe) */
+  --rf-accent-purple: #a855f7;
   --rf-accent-purple-subtle: rgba(168, 85, 247, 0.15);
   --rf-accent-purple-border: rgba(168, 85, 247, 0.3);
 
-  --rf-accent-rose: #f43f5e;     /* Korallen-Rot (Verluste, Defekt, Löschen) */
+  --rf-accent-rose: #f43f5e;
   --rf-accent-rose-subtle: rgba(244, 63, 94, 0.15);
   --rf-accent-rose-border: rgba(244, 63, 94, 0.3);
 
-  --rf-accent-indigo: #818cf8;   /* Helles Indigo */
+  --rf-accent-indigo: #818cf8;
   --rf-accent-indigo-subtle: rgba(129, 140, 248, 0.15);
   --rf-accent-indigo-border: rgba(129, 140, 248, 0.3);
+
+  /* 6. Schatten */
+  --rf-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --rf-shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
+  --rf-shadow-lg: 0 4px 10px -2px rgba(0, 0, 0, 0.25);
+
+  /* 7. Akzent-Textfarben – hier die Original-Tailwind-Toene */
+  --rf-c-emerald-300: #6ee7b7;
+  --rf-c-emerald-400: #34d399;
+  --rf-c-indigo-300: #a5b4fc;
+  --rf-c-indigo-400: #818cf8;
+  --rf-c-amber-300: #fcd34d;
+  --rf-c-amber-400: #fbbf24;
+  --rf-c-rose-300: #fda4af;
+  --rf-c-rose-400: #fb7185;
+  --rf-c-purple-300: #d8b4fe;
+  --rf-c-purple-400: #c084fc;
+  --rf-c-blue-300: #93c5fd;
+  --rf-c-blue-400: #60a5fa;
+  --rf-c-cyan-300: #67e8f9;
+  --rf-c-yellow-400: #facc15;
+
+  --rf-c-emerald-100: #d1fae5;
+  --rf-c-indigo-200: #c7d2fe;
+  --rf-c-amber-200: #fde68a;
+}
+
+/* Der oeffentliche Shop ist dauerhaft hell gestaltet, verwendet aber dunkle
+   Leisten mit hellen Akzenttoenen. Er bleibt deshalb vom Umschalter
+   unberuehrt und behaelt immer die urspruenglichen Tailwind-Farben. */
+.rf-palette-fixed {
+  --rf-c-emerald-300: #6ee7b7;
+  --rf-c-emerald-400: #34d399;
+  --rf-c-indigo-300: #a5b4fc;
+  --rf-c-indigo-400: #818cf8;
+  --rf-c-amber-300: #fcd34d;
+  --rf-c-amber-400: #fbbf24;
+  --rf-c-rose-300: #fda4af;
+  --rf-c-rose-400: #fb7185;
+  --rf-c-purple-300: #d8b4fe;
+  --rf-c-purple-400: #c084fc;
+  --rf-c-blue-300: #93c5fd;
+  --rf-c-blue-400: #60a5fa;
+  --rf-c-cyan-300: #67e8f9;
+  --rf-c-yellow-400: #facc15;
 }
 
 @theme {
   --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  /* Theme Tokens via CSS Variables */
+  /* Eigene Design-Tokens */
   --color-rf-bg: var(--rf-bg-app);
   --color-rf-sidebar: var(--rf-bg-sidebar);
   --color-rf-header: var(--rf-bg-header);
   --color-rf-surface: var(--rf-bg-surface);
   --color-rf-surface-hover: var(--rf-bg-surface-hover);
+  --color-rf-surface-alt: var(--rf-bg-surface-alt);
   --color-rf-subtle: var(--rf-bg-subtle);
+  --color-rf-well: var(--rf-bg-well);
 
   --color-rf-border: var(--rf-border);
   --color-rf-border-subtle: var(--rf-border-subtle);
   --color-rf-border-hover: var(--rf-border-hover);
+  --color-rf-line: var(--rf-line);
+  --color-rf-line-strong: var(--rf-line-strong);
 
   --color-rf-text-primary: var(--rf-text-primary);
   --color-rf-text-secondary: var(--rf-text-secondary);
   --color-rf-text-muted: var(--rf-text-muted);
   --color-rf-text-dimmed: var(--rf-text-dimmed);
+  --color-rf-on-accent: var(--rf-text-on-accent);
 
   --color-rf-primary: var(--rf-primary);
   --color-rf-primary-hover: var(--rf-primary-hover);
   --color-rf-profit: var(--rf-profit);
+
+  /* Die Akzentfarben von Tailwind werden auf themenabhaengige Variablen
+     umgebogen. Dadurch passen sich rund 480 bereits vorhandene Klassen wie
+     text-emerald-400 automatisch an das Design an, ohne dass die Templates
+     angefasst werden muessen. */
+  --color-emerald-100: var(--rf-c-emerald-100);
+  --color-emerald-300: var(--rf-c-emerald-300);
+  --color-emerald-400: var(--rf-c-emerald-400);
+  --color-indigo-200: var(--rf-c-indigo-200);
+  --color-indigo-300: var(--rf-c-indigo-300);
+  --color-indigo-400: var(--rf-c-indigo-400);
+  --color-amber-200: var(--rf-c-amber-200);
+  --color-amber-300: var(--rf-c-amber-300);
+  --color-amber-400: var(--rf-c-amber-400);
+  --color-rose-300: var(--rf-c-rose-300);
+  --color-rose-400: var(--rf-c-rose-400);
+  --color-purple-300: var(--rf-c-purple-300);
+  --color-purple-400: var(--rf-c-purple-400);
+  --color-blue-300: var(--rf-c-blue-300);
+  --color-blue-400: var(--rf-c-blue-400);
+  --color-cyan-300: var(--rf-c-cyan-300);
+  --color-yellow-400: var(--rf-c-yellow-400);
 }
 
 @layer base {
-  html, body {
+  html,
+  body {
     font-family: var(--font-sans);
     background-color: var(--rf-bg-app);
     color: var(--rf-text-secondary);
@@ -95,7 +275,35 @@
     -moz-osx-font-smoothing: grayscale;
   }
 
-  /* Sleek Scrollbars */
+  /* Sichtbarer Fokusrahmen fuer die Tastaturbedienung (WCAG 2.4.7).
+     Gilt fuer alle bedienbaren Elemente und nur bei Tastatur-Fokus,
+     damit Mausklicks keinen Rahmen hinterlassen. */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--rf-border-focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Sprunglink zum Hauptinhalt – nur sichtbar, wenn er den Fokus hat. */
+  .rf-skip-link {
+    position: absolute;
+    left: 0.75rem;
+    top: -3rem;
+    z-index: 100;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    background-color: var(--rf-primary);
+    color: var(--rf-text-on-accent);
+    font-size: 0.75rem;
+    font-weight: 700;
+    transition: top 0.15s ease;
+  }
+
+  .rf-skip-link:focus {
+    top: 0.75rem;
+  }
+
+  /* Schlanke Bildlaufleisten */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -112,42 +320,43 @@
   }
 }
 
-/* UI Utility Classes gebunden an zentrale CSS-Variablen */
+/* UI-Hilfsklassen, gebunden an die zentralen Variablen */
 .linear-surface {
   background-color: var(--rf-bg-surface);
   border: 1px solid var(--rf-border);
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
+  box-shadow: var(--rf-shadow-md);
 }
 
 .linear-card {
   background: linear-gradient(180deg, var(--rf-bg-surface) 0%, var(--rf-bg-subtle) 100%);
   border: 1px solid var(--rf-border);
-  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.15);
+  box-shadow: var(--rf-shadow-md);
 }
 
 .linear-card-interactive {
   background: linear-gradient(180deg, var(--rf-bg-surface) 0%, var(--rf-bg-subtle) 100%);
   border: 1px solid var(--rf-border);
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.15);
+  box-shadow: var(--rf-shadow-md);
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .linear-card-interactive:hover {
   background: linear-gradient(180deg, var(--rf-bg-surface-hover) 0%, var(--rf-bg-surface) 100%);
   border-color: var(--rf-border-hover);
-  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.25);
+  box-shadow: var(--rf-shadow-lg);
   transform: translateY(-1px);
 }
 
 .linear-kpi {
   background: linear-gradient(180deg, var(--rf-bg-surface) 0%, var(--rf-bg-subtle) 100%);
   border: 1px solid var(--rf-border);
-  box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.15);
+  box-shadow: var(--rf-shadow-md);
   position: relative;
   overflow: hidden;
 }
 
-.linear-kpi::before {
+/* Feiner Lichtreflex am oberen Rand – im hellen Design unerwuenscht. */
+html.dark .linear-kpi::before {
   content: '';
   position: absolute;
   top: 0;
@@ -161,26 +370,32 @@
   background-color: var(--rf-bg-subtle);
   border: 1px solid var(--rf-border);
   color: var(--rf-text-primary);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.linear-input::placeholder {
+  color: var(--rf-text-dimmed);
 }
 
 .linear-input:focus {
   outline: none;
-  border-color: var(--rf-primary);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+  border-color: var(--rf-border-focus);
+  box-shadow: 0 0 0 2px var(--rf-primary-subtle);
 }
 
 .linear-btn-primary {
-  background: linear-gradient(180deg, #6366f1 0%, #4f46e5 100%);
-  color: #ffffff;
+  background: linear-gradient(180deg, var(--rf-primary) 0%, var(--rf-primary-hover) 100%);
+  color: var(--rf-text-on-accent);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow: var(--rf-shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition: all 0.15s ease;
 }
 
 .linear-btn-primary:hover {
-  background: linear-gradient(180deg, #818cf8 0%, #6366f1 100%);
-  box-shadow: 0 3px 8px rgba(99, 102, 241, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  background: linear-gradient(180deg, var(--rf-accent-indigo) 0%, var(--rf-primary) 100%);
+  box-shadow: 0 3px 8px var(--rf-primary-border), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .linear-btn-secondary {
@@ -196,7 +411,34 @@
   color: var(--rf-text-primary);
 }
 
-/* Linear Anthrazit Data Tables */
+/* Kacheln und Kennzahlen.
+   Diese Klassen wurden im Buchhaltungsbereich verwendet, waren aber nie
+   definiert - die betroffenen Elemente hatten dadurch weder Hintergrund
+   noch Textfarbe. */
+.card {
+  background-color: var(--rf-bg-surface);
+  border: 1px solid var(--rf-border);
+  border-radius: 1rem;
+  box-shadow: var(--rf-shadow-md);
+}
+
+.kpi-label {
+  display: block;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--rf-text-muted);
+}
+
+.kpi-value {
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.75rem;
+  color: var(--rf-text-primary);
+}
+
+/* Datentabellen */
 .linear-table {
   width: 100%;
   text-align: left;
@@ -206,8 +448,9 @@
 }
 
 .linear-table thead tr th {
-  background-color: #1e222a;
-  border-bottom: 1px solid #373e4d;
+  background-color: var(--rf-bg-well);
+  border-bottom: 1px solid var(--rf-line);
+  color: var(--rf-text-muted);
 }
 
 .linear-table thead tr th:first-child {
@@ -219,7 +462,7 @@
 }
 
 .linear-table tbody tr td {
-  border-bottom: 1px solid #373e4d;
+  border-bottom: 1px solid var(--rf-line);
 }
 
 .linear-table tbody tr:last-child td {
@@ -234,7 +477,7 @@
   border-bottom-right-radius: 0.75rem;
 }
 
-/* Animations */
+/* Animationen */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -261,4 +504,21 @@
 
 .animate-modal-card {
   animation: modalCardPop 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Systemeinstellung "Bewegung reduzieren" respektieren (WCAG 2.3.3).
+   Relevant fuer Menschen mit vestibulaeren Beschwerden. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .linear-card-interactive:hover {
+    transform: none;
+  }
 }

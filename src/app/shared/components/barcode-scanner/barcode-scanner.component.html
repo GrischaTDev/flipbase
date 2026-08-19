@@ -1,5 +1,5 @@
 <div
-  class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in select-none"
+  class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
   (click)="close.emit()"
 >
   <div
@@ -63,8 +63,8 @@
 
       <!-- Success Flash Overlay -->
       @if (scannedResult()) {
-        <div class="absolute inset-0 bg-emerald-500/40 backdrop-blur-sm flex flex-col items-center justify-center gap-2 animate-fade-in text-white font-bold">
-          <lucide-icon [img]="checkIcon" class="w-10 h-10 text-white animate-bounce"></lucide-icon>
+        <div class="absolute inset-0 bg-emerald-500/40 backdrop-blur-sm flex flex-col items-center justify-center gap-2 animate-fade-in text-rf-text-primary font-bold">
+          <lucide-icon [img]="checkIcon" class="w-10 h-10 text-rf-text-primary animate-bounce"></lucide-icon>
           <span class="text-sm font-mono">{{ scannedResult() }}</span>
           <span class="text-xs text-emerald-100 font-sans">Erfolgreich erkannt!</span>
         </div>
@@ -76,7 +76,7 @@
           <button
             type="button"
             (click)="toggleTorch()"
-            class="p-2 rounded-lg bg-black/60 backdrop-blur-sm text-white hover:bg-black/80 transition cursor-pointer"
+            class="p-2 rounded-lg bg-black/60 backdrop-blur-sm text-rf-text-primary hover:bg-black/80 transition cursor-pointer"
             title="Taschenlampe / Licht an"
           >
             <lucide-icon [img]="isTorchOn() ? torchOnIcon : torchOffIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
@@ -86,7 +86,7 @@
         <button
           type="button"
           (click)="toggleFacingMode()"
-          class="p-2 rounded-lg bg-black/60 backdrop-blur-sm text-white hover:bg-black/80 transition cursor-pointer"
+          class="p-2 rounded-lg bg-black/60 backdrop-blur-sm text-rf-text-primary hover:bg-black/80 transition cursor-pointer"
           title="Kamera wechseln"
         >
           <lucide-icon [img]="switchIcon" class="w-4 h-4"></lucide-icon>

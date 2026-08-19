@@ -1,4 +1,4 @@
-<div class="space-y-5 animate-fade-in select-none">
+<div class="space-y-5 animate-fade-in">
   <!-- Header -->
   <div class="pb-1">
     <div class="flex items-center gap-2">
@@ -68,7 +68,7 @@
                   <button
                     type="button"
                     (click)="onSwitchWorkspace(ws.id)"
-                    class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-purple-300 hover:text-white"
+                    class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-purple-300 hover:text-rf-text-primary"
                   >
                     Aktivieren
                   </button>
@@ -347,7 +347,7 @@
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" formControlName="discordEnabled" class="sr-only peer" />
-              <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
+              <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
             </label>
           </div>
 
@@ -382,7 +382,7 @@
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" formControlName="telegramEnabled" class="sr-only peer" />
-              <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
+              <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
             </label>
           </div>
 
@@ -483,7 +483,7 @@
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="stripeEnabled" class="sr-only peer" />
-                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
+                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
               </label>
             </div>
             @if (paymentForm.get('stripeEnabled')?.value) {
@@ -504,7 +504,7 @@
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="paypalEnabled" class="sr-only peer" />
-                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
+                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
               </label>
             </div>
             @if (paymentForm.get('paypalEnabled')?.value) {
@@ -525,7 +525,7 @@
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="bankTransferEnabled" class="sr-only peer" />
-                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
+                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
               </label>
             </div>
             @if (paymentForm.get('bankTransferEnabled')?.value) {
@@ -603,7 +603,7 @@
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="dhlEnabled" class="sr-only peer" />
-                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600 border border-rf-border"></div>
+                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600 border border-rf-border"></div>
               </label>
             </div>
             @if (carrierForm.get('dhlEnabled')?.value) {
@@ -632,7 +632,7 @@
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="hermesEnabled" class="sr-only peer" />
-                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 border border-rf-border"></div>
+                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 border border-rf-border"></div>
               </label>
             </div>
             @if (carrierForm.get('hermesEnabled')?.value) {
@@ -728,7 +728,7 @@
               type="button"
               (click)="onTestWebPush()"
               [disabled]="isTestingPush()"
-              class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer text-indigo-300 hover:text-white disabled:opacity-50"
+              class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer text-indigo-300 hover:text-rf-text-primary disabled:opacity-50"
             >
               <lucide-icon [img]="sendIcon" class="w-3.5 h-3.5"></lucide-icon>
               <span>{{ isTestingPush() ? 'Wird gesendet...' : 'Test-Push senden' }}</span>
@@ -934,7 +934,7 @@
       class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
     >
       <div
-        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 select-none my-auto animate-modal-card"
+        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 my-auto animate-modal-card"
       >
         <!-- Header -->
         <div class="flex items-start justify-between border-b border-rf-border pb-3">
