@@ -54,7 +54,11 @@
   <!-- Floating Dropdown Panel -->
   @if (isOpen()) {
     <div
-      class="custom-select-menu absolute z-50 mt-1.5 min-w-[160px] max-w-[320px] w-full rounded-xl bg-[#181a20] border border-[#373e4d] shadow-2xl ring-1 ring-white/5 py-1.5 max-h-60 overflow-y-auto outline-none animate-in fade-in zoom-in-95 duration-100"
+      class="custom-select-menu absolute z-50 min-w-[160px] max-w-[320px] w-full rounded-xl bg-[#181a20] border border-[#373e4d] shadow-2xl ring-1 ring-white/5 py-1.5 max-h-60 overflow-y-auto outline-none animate-in fade-in zoom-in-95 duration-100"
+      [class.bottom-full]="isDropUp()"
+      [class.mb-1.5]="isDropUp()"
+      [class.top-full]="!isDropUp()"
+      [class.mt-1.5]="!isDropUp()"
       [class.right-0]="variant() === 'pill'"
       [class.left-0]="variant() !== 'pill'"
     >

@@ -38,6 +38,8 @@ export interface SelectOption<T = string> {
   host: {
     '(document:click)': 'onDocumentClick($event)',
     '(document:keydown.escape)': 'closeDropdown()',
+    '[class.relative]': 'true',
+    '[class.z-50]': 'isOpen()',
   },
 })
 export class CustomSelectComponent<T = string> implements ControlValueAccessor {
@@ -50,9 +52,11 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly size = input<'sm' | 'md'>('md');
   readonly disabledInput = input<boolean>(false, { alias: 'disabled' });
   readonly widthClass = input<string>('w-full');
+  readonly openDirection = input<'auto' | 'down' | 'up'>('auto');
 
   readonly isOpen = signal<boolean>(false);
   readonly isDisabled = signal<boolean>(false);
+  readonly isDropUp = signal<boolean>(false);
 
   readonly chevronIcon = ChevronDown;
   readonly checkIcon = Check;
@@ -93,9 +97,20 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
       event.preventDefault();
     }
     if (this.effectiveDisabled()) return;
-    this.isOpen.update((v) => !v);
-    if (this.isOpen()) {
+
+    if (!this.isOpen()) {
+      if (this.openDirection() === 'auto') {
+        const rect = this.elementRef.nativeElement.getBoundingClientRect();
+        const spaceBelow = window.innerHeight - rect.bottom;
+        // If less than 240px below and there's enough space above, open upwards
+        this.isDropUp.set(spaceBelow < 240 && rect.top > spaceBelow);
+      } else {
+        this.isDropUp.set(this.openDirection() === 'up');
+      }
+      this.isOpen.set(true);
       this.onTouched();
+    } else {
+      this.isOpen.set(false);
     }
   }
 
