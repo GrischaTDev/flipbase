@@ -105,16 +105,16 @@
       "DEFECTIVE": "Defekt / Ersatzteil"
     },
     "STATUSES": {
-      "RECEIVED": "Eingetroffen",
+      "RECEIVED": "Auf Lager",
       "NEEDS_REVIEW": "Zu prüfen",
       "RESEARCHED": "Recherchiert",
-      "READY": "Verkaufsbereit",
+      "READY": "Bereit",
       "LISTED": "Gelistet",
       "RESERVED": "Reserviert",
       "SOLD": "Verkauft",
       "RETURNED": "Retourniert",
       "ARCHIVED": "Archiviert",
-      "DEFECTIVE": "Defekt"
+      "DEFECTIVE": "Defekt / Ersatzteil"
     }
   },
   "RESEARCH": {

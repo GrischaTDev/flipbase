@@ -90,17 +90,24 @@ export class ItemDetailComponent {
   });
 
   readonly allStatuses: { value: ItemStatus; label: string }[] = [
-    { value: 'received', label: 'Eingetroffen' },
-    { value: 'needs_review', label: 'Zu prüfen' },
-    { value: 'researched', label: 'Recherchiert' },
-    { value: 'ready', label: 'Verkaufsbereit' },
+    { value: 'received', label: 'Auf Lager' },
+    { value: 'ready', label: 'Bereit' },
     { value: 'listed', label: 'Gelistet' },
-    { value: 'reserved', label: 'Reserviert' },
     { value: 'sold', label: 'Verkauft' },
+    { value: 'reserved', label: 'Reserviert' },
+    { value: 'defective', label: 'Defekt / Ersatzteil' },
     { value: 'returned', label: 'Retourniert' },
-    { value: 'defective', label: 'Defekt' },
     { value: 'archived', label: 'Archiviert' },
   ];
+
+  isMainPipelineStatus(status?: string): boolean {
+    return status === 'received' || status === 'ready' || status === 'listed' || status === 'sold';
+  }
+
+  async onSelectSpecialStatus(status: string): Promise<void> {
+    if (!status) return;
+    await this.onChangeStatus(status);
+  }
 
   constructor() {
     effect(() => {
