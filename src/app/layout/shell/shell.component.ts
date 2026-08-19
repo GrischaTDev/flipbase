@@ -5,6 +5,7 @@ import { SidebarComponent } from '../sidebar/sidebar.component';
 import { BottomNavComponent } from '../bottom-nav/bottom-nav.component';
 import { WorkspaceModalComponent } from '../../shared/components/workspace-modal/workspace-modal.component';
 import { AuthService } from '../../core/services/auth.service';
+import { MockDataStoreService } from '../../core/services/mock-data-store.service';
 
 @Component({
   selector: 'app-shell',
@@ -22,9 +23,15 @@ import { AuthService } from '../../core/services/auth.service';
 })
 export class ShellComponent {
   readonly auth = inject(AuthService);
+  private readonly mockStore = inject(MockDataStoreService);
 
   readonly isSidebarOpen = signal<boolean>(false);
   readonly isCreateWorkspaceModalOpen = signal<boolean>(false);
+
+  reloadDemoData(): void {
+    this.mockStore.resetToDemoShowcase();
+    window.location.reload();
+  }
 
   toggleSidebar(): void {
     this.isSidebarOpen.update((v) => !v);

@@ -35,39 +35,38 @@ export class InventoryService {
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly mockStore = inject(MockDataStoreService);
 
-  readonly items = signal<InventoryItem[]>(
-    this.mockStore.demoItems.map((i) => this.enrichItemTotals(i))
-  );
+  readonly items = signal<InventoryItem[]>([]);
   readonly selectedItem = signal<InventoryItem | null>(null);
   readonly itemCosts = signal<ItemCost[]>([]);
   readonly activityLogs = signal<ActivityLog[]>([]);
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
-    effect(() => {
-      const ws = this.workspaceService.currentWorkspace();
-      if (ws) {
-        this.loadInventory(ws.id);
-      } else {
-        this.items.set([]);
-        this.selectedItem.set(null);
-        this.itemCosts.set([]);
-        this.activityLogs.set([]);
-      }
-    });
+    try {
+      effect(() => {
+        const ws = this.workspaceService.currentWorkspace();
+        if (ws) {
+          this.loadInventory(ws.id);
+        } else {
+          this.items.set([]);
+          this.selectedItem.set(null);
+          this.itemCosts.set([]);
+          this.activityLogs.set([]);
+        }
+      });
+    } catch {}
   }
 
   async loadInventory(workspaceId: string): Promise<void> {
-    const localItems = this.mockStore.getItems(workspaceId).map((i) => this.enrichItemTotals(i));
-    this.items.set(localItems);
-
-    if (this.mockStore.isDemoMode() || workspaceId.startsWith('demo-')) {
+    if (this.mockStore.isDemoMode()) {
+      const localItems = this.mockStore.getItems(workspaceId).map((i) => this.enrichItemTotals(i));
+      this.items.set(localItems);
       return;
     }
 
     this.isLoading.set(true);
     try {
-      const queryPromise = this.supabase.client
+      const { data, error } = await this.supabase.client
         .from('inventory_items')
         .select(`
           *,
@@ -78,20 +77,16 @@ export class InventoryService {
         .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false });
 
-      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 1000);
-
-      if (res && !res.error && res.data && res.data.length > 0) {
-        const localMap = new Map(this.mockStore.getItems().map((i) => [i.id, i]));
-        const enriched = (res.data as unknown[]).map((item: any) => {
-          const local = localMap.get(item.id);
-          const merged = local ? { ...item, ...local } : item;
-          return this.enrichItemTotals(merged);
-        });
+      if (error) {
+        console.error('Fehler beim Laden des Inventars aus Supabase:', error);
+        this.items.set([]);
+      } else if (data) {
+        const enriched = (data as unknown[]).map((item: any) => this.enrichItemTotals(item));
         this.items.set(enriched);
-        enriched.forEach((i) => this.mockStore.saveItem(i));
       }
     } catch (err) {
-      // Keep local items
+      console.error('Verbindungsfehler beim Laden des Inventars:', err);
+      this.items.set([]);
     } finally {
       this.isLoading.set(false);
     }
@@ -122,6 +117,7 @@ export class InventoryService {
         .single();
 
       if (error || !data) {
+        if (error) console.error('Fehler beim Abrufen des Artikels:', error);
         return null;
       }
 
@@ -132,6 +128,7 @@ export class InventoryService {
       await this.loadActivityLogs(itemId);
       return item;
     } catch (err) {
+      console.error('Verbindungsfehler bei getItemById:', err);
       return null;
     } finally {
       this.isLoading.set(false);
@@ -155,11 +152,13 @@ export class InventoryService {
         .eq('inventory_item_id', itemId)
         .order('created_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (error) {
+        console.error('Fehler beim Laden der Aktivitätsprotokolle:', error);
+      } else if (data && data.length > 0) {
         this.activityLogs.set(data as ActivityLog[]);
       }
-    } catch {
-      // offline fallback
+    } catch (err) {
+      console.error('Verbindungsfehler beim Laden der Aktivitätsprotokolle:', err);
     }
   }
 
@@ -204,7 +203,7 @@ export class InventoryService {
 
     const enriched = this.enrichItemTotals(newItem);
 
-    // 1. Immediately persist locally (resilient against page reloads)
+    // 1. Immediately persist locally (instant UI feedback)
     this.mockStore.saveItem(enriched);
     this.items.update((list) => [enriched, ...list]);
     await this.logActivity(newItem.id, 'received', `Artikel angelegt (${newItem.title})`);
@@ -221,9 +220,9 @@ export class InventoryService {
       return { data: enriched, error: null };
     }
 
-    // 2. Sync to Supabase in background if connected
+    // 2. Sync to Supabase in background
     try {
-      await this.supabase.client
+      const { data: dbData, error: dbError } = await this.supabase.client
         .from('inventory_items')
         .insert({
           workspace_id: ws.id,
@@ -239,9 +238,20 @@ export class InventoryService {
           description: payload.description?.trim() || null,
           allocated_purchase_cost: payload.allocated_purchase_cost || 0,
           expected_value: payload.expected_value || null,
-        });
-    } catch {
-      // Local fallback active
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        console.error('Fehler beim Speichern des Artikels in Supabase:', dbError);
+      } else if (dbData) {
+        const finalEnriched = this.enrichItemTotals(dbData);
+        this.mockStore.saveItem(finalEnriched);
+        this.items.update((list) => [finalEnriched, ...list.filter((i) => i.id !== newItem.id)]);
+        return { data: finalEnriched, error: null };
+      }
+    } catch (err: any) {
+      console.error('Verbindungsfehler beim Erstellen des Artikels:', err);
     }
 
     return { data: enriched, error: null };
@@ -269,12 +279,28 @@ export class InventoryService {
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        await this.supabase.client
+        const {
+          total_item_cost,
+          profit_potential,
+          costs,
+          media,
+          purchase,
+          sale,
+          activity_logs,
+          ...dbUpdates
+        } = updates as any;
+
+        const { error } = await this.supabase.client
           .from('inventory_items')
-          .update({ ...updates, updated_at: new Date().toISOString() })
+          .update({ ...dbUpdates, updated_at: new Date().toISOString() })
           .eq('id', itemId);
-      } catch (e) {
-        // ignore
+
+        if (error) {
+          console.error('Fehler beim Aktualisieren des Artikels in Supabase:', error);
+          return { error: new Error(error.message) };
+        }
+      } catch (e: any) {
+        console.error('Verbindungsfehler beim Aktualisieren des Artikels:', e);
       }
     }
 
@@ -306,12 +332,17 @@ export class InventoryService {
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        await this.supabase.client
+        const { error } = await this.supabase.client
           .from('inventory_items')
           .update({ status: newStatus, updated_at: new Date().toISOString() })
           .eq('id', itemId);
-      } catch (e) {
-        // ignore
+
+        if (error) {
+          console.error('Fehler beim Aktualisieren des Artikelstatus in Supabase:', error);
+          return { error: new Error(error.message) };
+        }
+      } catch (e: any) {
+        console.error('Verbindungsfehler beim Aktualisieren des Artikelstatus:', e);
       }
     }
 
@@ -353,14 +384,19 @@ export class InventoryService {
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        await this.supabase.client.from('item_costs').insert({
+        const { error } = await this.supabase.client.from('item_costs').insert({
           inventory_item_id: itemId,
           type,
           amount,
           description: description?.trim() || null,
         });
-      } catch (e) {
-        // ignore
+
+        if (error) {
+          console.error('Fehler beim Hinzufügen der Artikelkosten in Supabase:', error);
+          return { error: new Error(error.message) };
+        }
+      } catch (e: any) {
+        console.error('Verbindungsfehler beim Hinzufügen der Artikelkosten:', e);
       }
     }
 
@@ -384,9 +420,13 @@ export class InventoryService {
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        await this.supabase.client.from('item_costs').delete().eq('id', costId);
-      } catch (e) {
-        // ignore
+        const { error } = await this.supabase.client.from('item_costs').delete().eq('id', costId);
+        if (error) {
+          console.error('Fehler beim Löschen der Artikelkosten in Supabase:', error);
+          return { error: new Error(error.message) };
+        }
+      } catch (e: any) {
+        console.error('Verbindungsfehler beim Löschen der Artikelkosten:', e);
       }
     }
 
@@ -394,9 +434,10 @@ export class InventoryService {
   }
 
   async logActivity(itemId: string, action: string, notes?: string): Promise<void> {
+    const wsId = this.workspaceService.currentWorkspace()?.id || 'demo-workspace-1';
     const newLog: ActivityLog = {
       id: `log-${Date.now()}`,
-      workspace_id: this.workspaceService.currentWorkspace()?.id || 'demo-workspace-1',
+      workspace_id: wsId,
       inventory_item_id: itemId,
       action,
       notes: notes || null,
@@ -406,16 +447,20 @@ export class InventoryService {
     this.mockStore.saveActivityLog(newLog);
     this.activityLogs.update((logs) => [newLog, ...logs]);
 
-    if (!this.mockStore.isDemoMode()) {
+    if (!this.mockStore.isDemoMode() && !wsId.startsWith('demo-')) {
       try {
-        await this.supabase.client.from('activity_logs').insert({
-          workspace_id: this.workspaceService.currentWorkspace()?.id,
+        const { error } = await this.supabase.client.from('activity_logs').insert({
+          workspace_id: wsId,
           inventory_item_id: itemId,
           action,
           notes: notes || null,
         });
-      } catch (e) {
-        // ignore
+
+        if (error) {
+          console.error('Fehler beim Speichern des Aktivitätsprotokolls in Supabase:', error);
+        }
+      } catch (e: any) {
+        console.error('Verbindungsfehler beim Speichern des Aktivitätsprotokolls:', e);
       }
     }
   }
@@ -429,9 +474,13 @@ export class InventoryService {
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        await this.supabase.client.from('inventory_items').delete().eq('id', itemId);
-      } catch (e) {
-        // ignore
+        const { error } = await this.supabase.client.from('inventory_items').delete().eq('id', itemId);
+        if (error) {
+          console.error('Fehler beim Löschen des Artikels in Supabase:', error);
+          return { error: new Error(error.message) };
+        }
+      } catch (e: any) {
+        console.error('Verbindungsfehler beim Löschen des Artikels:', e);
       }
     }
 

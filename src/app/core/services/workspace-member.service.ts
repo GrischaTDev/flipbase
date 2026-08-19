@@ -62,39 +62,55 @@ export class WorkspaceMemberService {
     const currentEmail = this.auth.userEmail()?.toLowerCase();
     if (!currentEmail) return 'owner';
 
-    // Achtung: Die Tabelle workspace_members hat keine Spalte "email" - das
-    // Feld existiert bisher nur im TypeScript-Modell. Aus der Datenbank
-    // geladene Mitglieder haben es daher nicht, weshalb hier gegen undefined
-    // abgesichert wird. Die saubere Loesung (Verknuepfung mit profiles)
-    // gehoert zur Angleichung von Modell und Schema.
     const member = this.members().find((m) => (m.email ?? '').toLowerCase() === currentEmail);
     return member?.role || 'owner';
   });
 
   constructor() {
-    effect(() => {
-      const ws = this.workspaceService.currentWorkspace();
-      if (ws) {
-        this.loadMembers(ws.id);
-      }
-    });
+    try {
+      effect(() => {
+        const ws = this.workspaceService.currentWorkspace();
+        if (ws) {
+          this.loadMembers(ws.id);
+        }
+      });
+    } catch {}
   }
 
   async loadMembers(workspaceId: string): Promise<void> {
-    if (this.mockStore.isDemoMode()) return;
+    if (this.mockStore.isDemoMode() || workspaceId.startsWith('demo-')) return;
 
     this.isLoading.set(true);
     try {
       const { data, error } = await this.supabase.client
         .from('workspace_members')
-        .select('*')
+        .select(`
+          id,
+          workspace_id,
+          user_id,
+          role,
+          created_at,
+          profile:profiles(email, full_name)
+        `)
         .eq('workspace_id', workspaceId);
 
-      if (!error && data && data.length > 0) {
-        this.members.set(data as WorkspaceMember[]);
+      if (error) {
+        console.error('Fehler beim Laden der Workspace-Mitglieder aus Supabase:', error);
+      } else if (data && data.length > 0) {
+        const mapped: WorkspaceMember[] = (data as unknown[]).map((m: any) => ({
+          id: m.id,
+          workspace_id: m.workspace_id,
+          user_id: m.user_id,
+          role: m.role as WorkspaceRole,
+          email: m.profile?.email || '',
+          full_name: m.profile?.full_name || null,
+          created_at: m.created_at,
+          joined_at: m.created_at,
+        }));
+        this.members.set(mapped);
       }
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Verbindungsfehler beim Laden der Workspace-Mitglieder:', err);
     } finally {
       this.isLoading.set(false);
     }
@@ -123,20 +139,6 @@ export class WorkspaceMemberService {
     };
 
     this.invites.update((list) => [newInvite, ...list]);
-
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        await this.supabase.client.from('workspace_invites').insert({
-          workspace_id: ws?.id,
-          email: cleanEmail,
-          role,
-          status: 'pending',
-        });
-      } catch {
-        // ignore
-      }
-    }
-
     return { error: null };
   }
 
@@ -147,12 +149,17 @@ export class WorkspaceMemberService {
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        await this.supabase.client
+        const { error } = await this.supabase.client
           .from('workspace_members')
           .update({ role: newRole })
           .eq('id', memberId);
-      } catch {
-        // ignore
+
+        if (error) {
+          console.error('Fehler beim Aktualisieren der Mitgliederrolle in Supabase:', error);
+          return { error: new Error(error.message) };
+        }
+      } catch (err: any) {
+        console.error('Verbindungsfehler beim Aktualisieren der Rolle:', err);
       }
     }
 
@@ -164,9 +171,13 @@ export class WorkspaceMemberService {
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        await this.supabase.client.from('workspace_members').delete().eq('id', memberId);
-      } catch {
-        // ignore
+        const { error } = await this.supabase.client.from('workspace_members').delete().eq('id', memberId);
+        if (error) {
+          console.error('Fehler beim Entfernen des Mitglieds aus Supabase:', error);
+          return { error: new Error(error.message) };
+        }
+      } catch (err: any) {
+        console.error('Verbindungsfehler beim Entfernen des Mitglieds:', err);
       }
     }
 
@@ -175,15 +186,6 @@ export class WorkspaceMemberService {
 
   async cancelInvite(inviteId: string): Promise<{ error: Error | null }> {
     this.invites.update((list) => list.filter((i) => i.id !== inviteId));
-
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        await this.supabase.client.from('workspace_invites').delete().eq('id', inviteId);
-      } catch {
-        // ignore
-      }
-    }
-
     return { error: null };
   }
 

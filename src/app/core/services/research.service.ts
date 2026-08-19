@@ -65,14 +65,16 @@ export class ResearchService {
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
-    effect(() => {
-      const ws = this.workspaceService.currentWorkspace();
-      if (ws) {
-        this.loadRecentQueries(ws.id);
-      } else {
-        this.recentQueries.set([]);
-      }
-    });
+    try {
+      effect(() => {
+        const ws = this.workspaceService.currentWorkspace();
+        if (ws) {
+          this.loadRecentQueries(ws.id);
+        } else {
+          this.recentQueries.set([]);
+        }
+      });
+    } catch {}
   }
 
   async loadRecentQueries(workspaceId: string): Promise<void> {

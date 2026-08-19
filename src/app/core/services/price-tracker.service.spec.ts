@@ -1,12 +1,14 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
+import { Injector, runInInjectionContext } from '@angular/core';
 import { PriceTrackerService } from './price-tracker.service';
 
 describe('PriceTrackerService & Competitor Radar (Chapter 26)', () => {
   let service: PriceTrackerService;
 
   beforeEach(() => {
-    service = new PriceTrackerService();
+    const injector = Injector.create({ providers: [] });
+    service = runInInjectionContext(injector, () => new PriceTrackerService());
     service.loadDemoItems();
   });
 

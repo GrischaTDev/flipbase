@@ -143,13 +143,31 @@ export class AuthService {
     }
   }
 
+  private mapAuthErrorToGerman(error: any): Error {
+    const msg = error?.message || '';
+    if (msg.includes('Invalid login credentials')) {
+      return new Error('E-Mail-Adresse oder Passwort ist nicht korrekt oder das Konto existiert noch nicht. Bitte registriere dich zuerst neu.');
+    }
+    if (msg.includes('Failed to fetch') || msg.includes('fetch') || msg.includes('network') || msg.includes('NetworkError')) {
+      return new Error('Verbindung zum Server fehlgeschlagen. Bitte prüfe deine Internetverbindung oder starte den Datenbank-Dienst.');
+    }
+    if (msg.includes('User already registered') || msg.includes('already registered')) {
+      return new Error('Ein Konto mit dieser E-Mail-Adresse existiert bereits. Bitte melde dich an.');
+    }
+    if (msg.includes('Password should be at least')) {
+      return new Error('Das Passwort ist zu kurz. Bitte verwende mindestens 6 Zeichen.');
+    }
+    if (msg.includes('Email not confirmed')) {
+      return new Error('Die E-Mail-Adresse wurde noch nicht bestätigt.');
+    }
+    if (msg.includes('rate limit')) {
+      return new Error('Zu viele Versuche in kurzer Zeit. Bitte warte einen kurzen Moment.');
+    }
+    return new Error(msg || 'Anmeldung fehlgeschlagen. Bitte prüfe deine Eingaben.');
+  }
+
   /**
    * Meldet mit E-Mail und Passwort an.
-   *
-   * Es gibt **keinen** Ersatzweg: Ist das Backend nicht erreichbar oder sind
-   * die Zugangsdaten falsch, schlägt die Anmeldung fehl. Zuvor führte ein
-   * Zeitüberschreitungs-Fallback dazu, dass jede beliebige Kombination aus
-   * E-Mail und Passwort akzeptiert wurde, sobald Supabase langsam antwortete.
    */
   async signIn(email: string, password: string): Promise<{ error: Error | null }> {
     this.isLoading.set(true);
@@ -160,7 +178,7 @@ export class AuthService {
       });
 
       if (error) {
-        return { error };
+        return { error: this.mapAuthErrorToGerman(error) };
       }
       if (!data.session || !data.user) {
         return { error: new Error('Anmeldung fehlgeschlagen. Bitte erneut versuchen.') };
@@ -169,11 +187,9 @@ export class AuthService {
       this.applySession(data.session);
       await this.loadProfile(data.user.id);
       return { error: null };
-    } catch {
+    } catch (err: any) {
       return {
-        error: new Error(
-          'Backend nicht erreichbar. Starte den lokalen Supabase-Stack mit "npm run supabase:start".'
-        ),
+        error: this.mapAuthErrorToGerman(err),
       };
     } finally {
       this.isLoading.set(false);
@@ -190,7 +206,7 @@ export class AuthService {
       });
 
       if (error) {
-        return { error };
+        return { error: this.mapAuthErrorToGerman(error) };
       }
 
       // Ist die E-Mail-Bestätigung aktiv, liefert Supabase noch keine Sitzung.
@@ -198,11 +214,9 @@ export class AuthService {
         this.applySession(data.session);
       }
       return { error: null };
-    } catch {
+    } catch (err: any) {
       return {
-        error: new Error(
-          'Backend nicht erreichbar. Starte den lokalen Supabase-Stack mit "npm run supabase:start".'
-        ),
+        error: this.mapAuthErrorToGerman(err),
       };
     } finally {
       this.isLoading.set(false);
@@ -230,6 +244,7 @@ export class AuthService {
   /** Startet den Demo-Modus als bewusste Entscheidung des Nutzers. */
   enterDemoMode(): void {
     if (!this.isDemoModeAllowed) return;
+    this.mockStore.resetToDemoShowcase();
     this.setDemoMode(true);
     this.router.navigate(['/dashboard']);
   }

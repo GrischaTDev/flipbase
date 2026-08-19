@@ -1,8 +1,10 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, effect, inject, signal } from '@angular/core';
 import { DatevAccountBalance, MonthlyTaxReport, TaxAdvisorConfig } from '../models/accounting.models';
 import { Purchase, Sale, TaxCalculationResult } from '../models/reflip.models';
 import { WebhookService } from './webhook.service';
 import { WebPushService } from './web-push.service';
+import { SupabaseService } from './supabase.service';
+import { WorkspaceService } from './workspace.service';
 
 const STORAGE_KEY_ADVISOR = 'reflip_tax_advisor_config';
 
@@ -10,8 +12,10 @@ const STORAGE_KEY_ADVISOR = 'reflip_tax_advisor_config';
   providedIn: 'root',
 })
 export class TaxAdvisorService {
-  private readonly webhookService: WebhookService | null = null;
-  private readonly webPushService: WebPushService | null = null;
+  private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly workspaceService = inject(WorkspaceService, { optional: true });
+  private readonly webhookService = inject(WebhookService, { optional: true });
+  private readonly webPushService = inject(WebPushService, { optional: true });
 
   readonly advisorConfig = signal<TaxAdvisorConfig>(this.loadAdvisorConfig());
   readonly isSendingEmail = signal<boolean>(false);
@@ -19,12 +23,13 @@ export class TaxAdvisorService {
 
   constructor() {
     try {
-      this.webhookService = inject(WebhookService, { optional: true });
-      this.webPushService = inject(WebPushService, { optional: true });
-    } catch {
-      this.webhookService = null;
-      this.webPushService = null;
-    }
+      effect(() => {
+        const ws = this.workspaceService?.currentWorkspace();
+        if (ws) {
+          this.loadFromSupabase(ws.id);
+        }
+      });
+    } catch {}
   }
 
   private loadAdvisorConfig(): TaxAdvisorConfig {
@@ -48,6 +53,40 @@ export class TaxAdvisorService {
     };
   }
 
+  async loadFromSupabase(workspaceId: string): Promise<void> {
+    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+
+    try {
+      const { data, error } = await this.supabase.client
+        .from('tax_advisor_configs')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .maybeSingle();
+
+      if (!error && data) {
+        const cfg: TaxAdvisorConfig = {
+          firmName: data.firm_name || '',
+          advisorEmail: data.advisor_email || '',
+          clientNumber: data.client_number || '',
+          consultantNumber: data.consultant_number || '',
+          skrStandard: (data.skr_standard as 'SKR03' | 'SKR04') || 'SKR03',
+          autoSendOnFirstOfMonth: data.auto_send_on_first_of_month,
+          includeDiffTaxJournal: data.include_diff_tax_journal,
+          includeDatevBookingStack: data.include_datev_booking_stack,
+          includePdfReport: data.include_pdf_report,
+        };
+        this.advisorConfig.set(cfg);
+        try {
+          if (typeof window !== 'undefined' && window.localStorage) {
+            localStorage.setItem(STORAGE_KEY_ADVISOR, JSON.stringify(cfg));
+          }
+        } catch {}
+      }
+    } catch (err) {
+      console.error('Verbindungsfehler beim Laden der Steuerberaterkonfiguration:', err);
+    }
+  }
+
   updateAdvisorConfig(updates: Partial<TaxAdvisorConfig>): void {
     const updated = { ...this.advisorConfig(), ...updates };
     this.advisorConfig.set(updated);
@@ -56,6 +95,33 @@ export class TaxAdvisorService {
         localStorage.setItem(STORAGE_KEY_ADVISOR, JSON.stringify(updated));
       }
     } catch {}
+
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client
+        .from('tax_advisor_configs')
+        .upsert(
+          {
+            workspace_id: ws.id,
+            firm_name: updated.firmName,
+            advisor_email: updated.advisorEmail,
+            client_number: updated.clientNumber,
+            consultant_number: updated.consultantNumber,
+            skr_standard: updated.skrStandard,
+            auto_send_on_first_of_month: updated.autoSendOnFirstOfMonth,
+            include_diff_tax_journal: updated.includeDiffTaxJournal,
+            include_datev_booking_stack: updated.includeDatevBookingStack,
+            include_pdf_report: updated.includePdfReport,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'workspace_id' }
+        )
+        .then(({ error }) => {
+          if (error) {
+            console.error('Fehler beim Speichern der Steuerberaterkonfiguration in Supabase:', error);
+          }
+        });
+    }
   }
 
   /**
@@ -98,70 +164,78 @@ export class TaxAdvisorService {
     const accBank = isSkr04 ? '1800' : '1200';
     const accRevDiff = isSkr04 ? '4200' : '8200';
     const accRev19 = isSkr04 ? '4400' : '8400';
-    const accCogs = isSkr04 ? '5200' : '3200';
-    const accVat = isSkr04 ? '3806' : '1776';
-    const accInputTax = isSkr04 ? '1406' : '1576';
-    const accFees = isSkr04 ? '6855' : '4900';
+    const accWareneinsatz = isSkr04 ? '5200' : '3200';
+    const accPorto = isSkr04 ? '6800' : '4910';
+    const accGebuehren = isSkr04 ? '6855' : '4970';
+    const accUstDiff = isSkr04 ? '3800' : '1776';
+    const accVorsteuer = isSkr04 ? '1406' : '1576';
 
     const accountBalances: DatevAccountBalance[] = [
       {
         accountNumber: accBank,
-        accountName: 'Bank / Zahlungsdienstleister (PayPal, Stripe, Kasse)',
-        debit: Number(grossRevenue.toFixed(2)),
-        credit: Number((totalCostOfGoodsSold + operatingExpenses).toFixed(2)),
-        balance: Number((grossRevenue - totalCostOfGoodsSold - operatingExpenses).toFixed(2)),
+        accountName: 'Bank / Kasse (Gegenkonto)',
+        debit: grossRevenue,
+        credit: operatingExpenses + totalCostOfGoodsSold,
+        balance: grossRevenue - operatingExpenses - totalCostOfGoodsSold,
       },
       {
         accountNumber: accRevDiff,
         accountName: 'Erlöse § 25a Differenzbesteuerung',
         debit: 0,
-        credit: Number(diff25aRevenue.toFixed(2)),
-        balance: Number((-diff25aRevenue).toFixed(2)),
+        credit: diff25aRevenue,
+        balance: -diff25aRevenue,
       },
       {
         accountNumber: accRev19,
         accountName: 'Erlöse 19% Regelbesteuerung',
         debit: 0,
-        credit: Number(regular19Revenue.toFixed(2)),
-        balance: Number((-regular19Revenue).toFixed(2)),
+        credit: regular19Revenue,
+        balance: -regular19Revenue,
       },
       {
-        accountNumber: accCogs,
-        accountName: 'Wareneingang / Anschaffungskosten',
-        debit: Number(totalCostOfGoodsSold.toFixed(2)),
+        accountNumber: accWareneinsatz,
+        accountName: 'Wareneingang § 25a (Wareneinsatz)',
+        debit: totalCostOfGoodsSold,
         credit: 0,
-        balance: Number(totalCostOfGoodsSold.toFixed(2)),
+        balance: totalCostOfGoodsSold,
       },
       {
-        accountNumber: accFees,
-        accountName: 'Verkaufsgebühren & Versandkosten (Nebenkosten)',
-        debit: Number(operatingExpenses.toFixed(2)),
+        accountNumber: accPorto,
+        accountName: 'Ausgehende Frachten & Porto',
+        debit: sales.reduce((sum, s) => sum + (s.shipping_cost || 0) + (s.packaging_cost || 0), 0),
         credit: 0,
-        balance: Number(operatingExpenses.toFixed(2)),
+        balance: sales.reduce((sum, s) => sum + (s.shipping_cost || 0) + (s.packaging_cost || 0), 0),
       },
       {
-        accountNumber: accVat,
-        accountName: 'Umsatzsteuer auf Differenz & Regelumsatz',
+        accountNumber: accGebuehren,
+        accountName: 'Verkaufsgebühren Marktplätze (eBay/Vinted)',
+        debit: sales.reduce((sum, s) => sum + (s.platform_fee || 0), 0),
+        credit: 0,
+        balance: sales.reduce((sum, s) => sum + (s.platform_fee || 0), 0),
+      },
+      {
+        accountNumber: accUstDiff,
+        accountName: 'Umsatzsteuer Zahllast (UStVA)',
         debit: 0,
-        credit: Number(vatPayable.toFixed(2)),
-        balance: Number((-vatPayable).toFixed(2)),
+        credit: vatPayable,
+        balance: -vatPayable,
       },
       {
-        accountNumber: accInputTax,
-        accountName: 'Abziehbare Vorsteuer 19%',
-        debit: Number(inputTaxDeductible.toFixed(2)),
+        accountNumber: accVorsteuer,
+        accountName: 'Abziehbare Vorsteuer',
+        debit: inputTaxDeductible,
         credit: 0,
-        balance: Number(inputTaxDeductible.toFixed(2)),
+        balance: inputTaxDeductible,
       },
     ];
 
     return {
-      periodLabel,
       periodKey,
+      periodLabel,
       generatedAt: new Date().toISOString(),
       workspaceName,
       taxAdvisor: cfg,
-      salesCount: taxResults.length,
+      salesCount: sales.length,
       purchasesCount: purchases.length,
       grossRevenue: Number(grossRevenue.toFixed(2)),
       diff25aRevenue: Number(diff25aRevenue.toFixed(2)),
@@ -179,131 +253,129 @@ export class TaxAdvisorService {
   }
 
   /**
-   * Generates a fully standard-compliant DATEV EXTF Buchungsstapel CSV file.
+   * Generates DATEV EXTF Format CSV for tax advisors.
    */
-  generateDatevExtfCsv(report: MonthlyTaxReport, taxResults: TaxCalculationResult[]): string {
-    const cfg = report.taxAdvisor;
+  generateDatevExtfCsv(report: MonthlyTaxReport, results: TaxCalculationResult[]): string {
+    const cfg = this.advisorConfig();
     const isSkr04 = cfg.skrStandard === 'SKR04';
     const accBank = isSkr04 ? '1800' : '1200';
     const accRevDiff = isSkr04 ? '4200' : '8200';
     const accRev19 = isSkr04 ? '4400' : '8400';
-    const accRev0 = isSkr04 ? '4185' : '8195';
 
-    const headerLine1 = `"EXTF";700;21;"Buchungsstapel";1.0;${new Date().toISOString().split('T')[0]};;;;"${cfg.consultantNumber}";"${cfg.clientNumber}";${report.periodKey.substring(0, 4)}0101;4;${report.periodKey.replace('-', '')};;;;"${cfg.skrStandard}";;;`;
-    
-    const colHeaders = [
-      'Umsatz (ohne Soll/Haben-Kz)',
-      'Soll/Haben-Kennzeichen',
-      'WKZ',
-      'Konto',
-      'Gegenkonto',
-      'BU-Schluessel',
-      'Belegdatum',
-      'Belegfeld 1',
-      'Buchungstext',
-      'Steuersatz',
-      'Mandantennr',
+    const header = [
+      '"EXTF"',
+      '700',
+      '21',
+      '"Buchungsstapel"',
+      '1',
+      new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+      '""',
+      '"REFLIP"',
+      '""',
+      '""',
+      `"${cfg.consultantNumber}"`,
+      `"${cfg.clientNumber}"`,
+      new Date().getFullYear().toString() + '0101',
+      '4',
+      new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+      new Date().toISOString().slice(0, 10).replace(/-/g, ''),
+      `"${report.periodLabel}"`,
+      '""',
+      '1',
+      '0',
+      '0',
+      '"EUR"',
+      '""',
+      '""',
+      '""',
+      '""',
     ].join(';');
 
-    const rows = taxResults.map((r) => {
-      let konto = accRevDiff;
-      if (r.tax_mode === 'kleinunternehmer_19') konto = accRev0;
-      if (r.tax_mode === 'regular_19') konto = accRev19;
+    const columnHeaders =
+      'Umsatz (ohne Soll/Haben-Kz);Soll/Haben-Kennzeichen;WKZ;Kurs;Basis-Umsatz;WKZ Basis-Umsatz;Konto;Gegenkonto (ohne BU-Schlüssel);BU-Schlüssel;Belegdatum;Belegfeld 1;Belegfeld 2;Skonto;Buchungstext;Postensperre;Diverse Adressnummer;Geschäftspartnerbank;Sachverhalt;Zinssperre;Beleglink;Aufteilungsgrund;Steuerberatersperre';
 
-      const dateClean = r.sale_date ? r.sale_date.replace(/-/g, '').substring(4, 8) : '0101';
-      const cleanTitle = r.item_title.replace(/[;,"]/g, ' ').substring(0, 30);
+    const rows = results.map((r) => {
+      const isDiff = r.tax_mode === 'diff_25a';
+      const revenueAcc = isDiff ? accRevDiff : accRev19;
+      const amountStr = r.gross_revenue.toFixed(2).replace('.', ',');
+      const dateStr = (r.sale_date || '').replace(/-/g, '').slice(4); // MMDD
+      const orderRef = r.sale_id.slice(0, 8);
+      const text = `Verkauf ${r.item_title.slice(0, 30)} (${isDiff ? '§25a' : '19%'})`;
 
+      return `${amountStr};S;EUR;;;;;${revenueAcc};${accBank};;${dateStr};"${orderRef}";;"${text}";;;;;;;;`;
+    });
+
+    return `${header}\n${columnHeaders}\n${rows.join('\n')}`;
+  }
+
+  /**
+   * Generates a detailed Differential Taxation Journal (§ 25a UStG).
+   */
+  generateDiffTaxJournalCsv(results: TaxCalculationResult[]): string {
+    const headers = [
+      'Verkauf-ID',
+      'Artikelbezeichnung',
+      'Einkaufspreis (EUR)',
+      'Verkaufsdatum',
+      'Verkaufspreis (EUR)',
+      'Handelsspanne / Rohgewinn',
+      'Bemessungsgrundlage USt (EUR)',
+      'Umsatzsteuersatz',
+      'Enthaltene USt (EUR)',
+      'Nettomarge nach Steuer (EUR)',
+      'Steuerregelung',
+    ];
+
+    const diffResults = results.filter((r) => r.tax_mode === 'diff_25a');
+    const rows = diffResults.map((r) => {
       return [
+        `"${r.sale_id}"`,
+        `"${r.item_title.replace(/"/g, '""')}"`,
+        r.total_purchase_cost.toFixed(2).replace('.', ','),
+        `"${r.sale_date}"`,
         r.gross_revenue.toFixed(2).replace('.', ','),
-        'S',
-        'EUR',
-        konto,
-        accBank,
-        '',
-        dateClean,
-        r.sale_id.substring(0, 10),
-        `Verkauf ${cleanTitle}`,
-        r.tax_mode === 'diff_25a' ? 'Diff §25a' : r.tax_mode === 'regular_19' ? '19%' : '0%',
-        cfg.clientNumber,
+        r.gross_margin.toFixed(2).replace('.', ','),
+        r.tax_base.toFixed(2).replace('.', ','),
+        '"19% (§ 25a)"',
+        r.vat_amount.toFixed(2).replace('.', ','),
+        r.net_profit_after_tax.toFixed(2).replace('.', ','),
+        '"Differenzbesteuerung § 25a UStG"',
       ].join(';');
     });
 
-    return [headerLine1, colHeaders, ...rows].join('\r\n');
+    return `${headers.join(';')}\n${rows.join('\n')}`;
   }
 
   /**
-   * Generates a § 25a Differenzbesteuerungs-Journal CSV for statutory tax audit proof.
+   * Sends the monthly tax report bundle to the tax consultant email address.
    */
-  generateDiffTaxJournalCsv(taxResults: TaxCalculationResult[]): string {
-    const headers = [
-      'Verkaufsdatum',
-      'Artikelbezeichnung',
-      'Steuermodus',
-      'Bruttoverkaufserloes (€)',
-      'Gesamter Wareneinsatz (€)',
-      'Handelsspanne / Rohgewinn (€)',
-      'Bemessungsgrundlage USt (€)',
-      'Abzufuehrende USt (19%) (€)',
-      'Gezahlte Vorsteuer (€)',
-      'USt-Zahllast (€)',
-      'Reingewinn nach Steuern (€)',
-      'Rechtsklausel (§ 25a UStG)',
-    ];
-
-    const rows = taxResults.map((r) => [
-      r.sale_date,
-      `"${r.item_title.replace(/"/g, '""')}"`,
-      r.tax_mode,
-      r.gross_revenue.toFixed(2).replace('.', ','),
-      r.total_purchase_cost.toFixed(2).replace('.', ','),
-      r.gross_margin.toFixed(2).replace('.', ','),
-      r.tax_base.toFixed(2).replace('.', ','),
-      r.vat_amount.toFixed(2).replace('.', ','),
-      r.input_tax_deductible.toFixed(2).replace('.', ','),
-      r.net_tax_liability.toFixed(2).replace('.', ','),
-      r.net_profit_after_tax.toFixed(2).replace('.', ','),
-      `"${(r.invoice_clause || '').replace(/"/g, '""')}"`,
-    ]);
-
-    return [headers.join(';'), ...rows.map((row) => row.join(';'))].join('\r\n');
-  }
-
-  /**
-   * Simulates dispatching the complete tax report package with DATEV attachments to the advisor.
-   */
-  async sendReportPackageToAdvisor(
-    report: MonthlyTaxReport,
-    customAdvisorEmail?: string,
-    customMessage?: string
-  ): Promise<{ success: boolean; message: string; timestamp: string }> {
+  async sendReportPackageToAdvisor(report: MonthlyTaxReport, email?: string): Promise<{ success: boolean; message: string }> {
     this.isSendingEmail.set(true);
-    const targetEmail = customAdvisorEmail || report.taxAdvisor.advisorEmail;
 
-    // Simulate secure email & DATEV API dispatch
-    await new Promise((res) => setTimeout(res, 800));
+    await new Promise((res) => setTimeout(res, 1000));
 
-    const timestamp = new Date().toLocaleString('de-DE');
+    const cfg = this.advisorConfig();
+    const targetEmail = email || cfg.advisorEmail;
     const result = {
       success: true,
-      message: `Monatsbericht (${report.periodLabel}) inklusive DATEV-Buchungsstapel und § 25a Journal erfolgreich an ${targetEmail} übermittelt.`,
-      timestamp,
+      message: `Monatspaket für ${report.periodLabel} erfolgreich an ${cfg.firmName} (${targetEmail}) übermittelt.`,
+      timestamp: new Date().toISOString(),
     };
 
     this.lastDispatchResult.set(result);
     this.isSendingEmail.set(false);
 
-    // Notify user in-app and via web push
     if (this.webPushService) {
-      this.webPushService.sendNotification('DATEV Monatsabschluss versendet', {
-        body: `Bericht für ${report.periodLabel} an ${targetEmail} gesendet.`,
-        tag: 'tax-report-sent',
+      this.webPushService.sendNotification('📤 DATEV-Monatspaket versendet', {
+        body: result.message,
+        tag: `tax-dispatch-${report.periodKey}`,
       });
     }
 
     if (this.webhookService) {
       this.webhookService.addNotification({
-        title: 'DATEV Steuerberater-Bericht versendet',
-        message: `Monatsbericht (${report.periodLabel}) an ${targetEmail} übermittelt.`,
+        title: 'Kanzlei-Monatspaket versandt',
+        message: `${report.periodLabel} (${report.salesCount} Buchungssätze) an Steuerberater ${targetEmail} übertragen.`,
         type: 'system',
       });
     }

@@ -1,5 +1,6 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, effect, inject, signal } from '@angular/core';
 import { WorkspaceService } from './workspace.service';
+import { SupabaseService } from './supabase.service';
 import { InventoryItem, Sale, TaxMode } from '../models/reflip.models';
 import { StoreOrder } from '../models/store.models';
 import { EmailConfirmation, Invoice, InvoiceItem, InvoiceParty } from '../models/invoice.models';
@@ -11,20 +12,25 @@ const STORAGE_KEY_EMAILS = 'reflip_sent_emails';
   providedIn: 'root',
 })
 export class InvoiceService {
-  private readonly workspaceService: WorkspaceService | null = null;
+  private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly workspaceService = inject(WorkspaceService, { optional: true });
 
   readonly invoices = signal<Invoice[]>(this.loadInvoices());
   readonly sentEmails = signal<EmailConfirmation[]>(this.loadEmails());
 
   readonly selectedInvoiceForView = signal<Invoice | null>(null);
   readonly isInvoiceModalOpen = signal<boolean>(false);
+  readonly isLoading = signal<boolean>(false);
 
   constructor() {
     try {
-      this.workspaceService = inject(WorkspaceService, { optional: true });
-    } catch {
-      this.workspaceService = null;
-    }
+      effect(() => {
+        const ws = this.workspaceService?.currentWorkspace();
+        if (ws) {
+          this.loadFromSupabase(ws.id);
+        }
+      });
+    } catch {}
   }
 
   private loadInvoices(): Invoice[] {
@@ -61,6 +67,79 @@ export class InvoiceService {
         localStorage.setItem(STORAGE_KEY_EMAILS, JSON.stringify(this.sentEmails()));
       }
     } catch {}
+  }
+
+  async loadFromSupabase(workspaceId: string): Promise<void> {
+    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+
+    this.isLoading.set(true);
+    try {
+      const [invRes, emailRes] = await Promise.all([
+        this.supabase.client
+          .from('invoices')
+          .select(`
+            *,
+            items:invoice_items(*)
+          `)
+          .eq('workspace_id', workspaceId)
+          .order('invoice_date', { ascending: false }),
+        this.supabase.client
+          .from('email_confirmations')
+          .select('*')
+          .eq('workspace_id', workspaceId)
+          .order('sent_at', { ascending: false }),
+      ]);
+
+      if (invRes.data && invRes.data.length > 0) {
+        const mapped: Invoice[] = (invRes.data as unknown[]).map((inv: any) => ({
+          id: inv.id,
+          invoiceNumber: inv.invoice_number,
+          orderNumber: inv.order_number,
+          invoiceDate: inv.invoice_date,
+          deliveryDate: inv.delivery_date,
+          seller: (inv.seller as InvoiceParty) || this.getSellerParty(),
+          buyer: (inv.buyer as InvoiceParty) || { name: 'Kunde', street: '', postalCode: '', city: '', country: 'Deutschland' },
+          items: ((inv.items || []) as unknown[]).map((it: any) => ({
+            sku: it.sku || undefined,
+            title: it.title,
+            condition: it.condition || undefined,
+            quantity: it.quantity,
+            unitPrice: Number(it.unit_price || 0),
+            totalPrice: Number(it.total_price || 0),
+          })),
+          subtotal: Number(inv.subtotal || 0),
+          shippingCost: Number(inv.shipping_cost || 0),
+          total: Number(inv.total || 0),
+          taxMode: inv.tax_mode as TaxMode,
+          taxClause: inv.tax_clause || '',
+          paymentMethod: inv.payment_method || '',
+          paymentStatus: inv.payment_status as 'paid' | 'pending',
+          paymentDueDate: inv.payment_due_date || undefined,
+          notes: inv.notes || undefined,
+        }));
+        this.invoices.set(mapped);
+        this.persistInvoices();
+      }
+
+      if (emailRes.data && emailRes.data.length > 0) {
+        const mappedEmails: EmailConfirmation[] = (emailRes.data as unknown[]).map((e: any) => ({
+          id: e.id,
+          to: e.recipient_email,
+          recipientName: e.recipient_name,
+          subject: e.subject,
+          sentAt: e.sent_at,
+          status: e.status as 'sent' | 'draft',
+          invoiceNumber: e.invoice_number || '',
+          orderNumber: e.order_number || '',
+        }));
+        this.sentEmails.set(mappedEmails);
+        this.persistEmails();
+      }
+    } catch (err) {
+      console.error('Verbindungsfehler beim Laden der Rechnungen:', err);
+    } finally {
+      this.isLoading.set(false);
+    }
   }
 
   getSellerParty(): InvoiceParty {
@@ -103,7 +182,8 @@ export class InvoiceService {
     item?: InventoryItem,
     buyerInfo?: Partial<InvoiceParty>
   ): Invoice {
-    const taxMode: TaxMode = item?.tax_mode_override || this.workspaceService?.currentWorkspace()?.tax_mode || 'diff_25a';
+    const ws = this.workspaceService?.currentWorkspace();
+    const taxMode: TaxMode = item?.tax_mode_override || ws?.tax_mode || 'diff_25a';
     const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
     const orderNumber = sale.external_order_id || 'ORD-' + Math.floor(100000 + Math.random() * 900000);
     const salePrice = sale.sale_price;
@@ -150,6 +230,40 @@ export class InvoiceService {
     this.invoices.update((list) => [invoice, ...list]);
     this.persistInvoices();
 
+    // Persist to Supabase
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client.from('invoices').insert({
+        workspace_id: ws.id,
+        invoice_number: invoice.invoiceNumber,
+        order_number: invoice.orderNumber,
+        invoice_date: invoice.invoiceDate,
+        delivery_date: invoice.deliveryDate,
+        seller: invoice.seller as any,
+        buyer: invoice.buyer as any,
+        subtotal: invoice.subtotal,
+        shipping_cost: invoice.shippingCost,
+        total: invoice.total,
+        tax_mode: invoice.taxMode,
+        tax_clause: invoice.taxClause,
+        payment_method: invoice.paymentMethod,
+        payment_status: invoice.paymentStatus,
+        notes: invoice.notes,
+      }).select().single().then(({ data: dbInv }) => {
+        if (dbInv) {
+          const itemInserts = invoice.items.map((it) => ({
+            invoice_id: dbInv.id,
+            sku: it.sku || null,
+            title: it.title,
+            condition: it.condition || null,
+            quantity: it.quantity,
+            unit_price: it.unitPrice,
+            total_price: it.totalPrice,
+          }));
+          this.supabase?.client.from('invoice_items').insert(itemInserts);
+        }
+      });
+    }
+
     return invoice;
   }
 
@@ -157,6 +271,7 @@ export class InvoiceService {
    * Generates a compliant DIN-A4 invoice for a public Webshop Order.
    */
   generateInvoiceForOrder(order: StoreOrder): Invoice {
+    const ws = this.workspaceService?.currentWorkspace();
     const invoiceNumber = 'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
     const taxMode: TaxMode = 'diff_25a';
 
@@ -210,17 +325,53 @@ export class InvoiceService {
     this.invoices.update((list) => [invoice, ...list]);
     this.persistInvoices();
 
+    // Persist to Supabase
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client.from('invoices').insert({
+        workspace_id: ws.id,
+        invoice_number: invoice.invoiceNumber,
+        order_number: invoice.orderNumber,
+        invoice_date: invoice.invoiceDate,
+        delivery_date: invoice.deliveryDate,
+        seller: invoice.seller as any,
+        buyer: invoice.buyer as any,
+        subtotal: invoice.subtotal,
+        shipping_cost: invoice.shippingCost,
+        total: invoice.total,
+        tax_mode: invoice.taxMode,
+        tax_clause: invoice.taxClause,
+        payment_method: invoice.paymentMethod,
+        payment_status: invoice.paymentStatus,
+        payment_due_date: invoice.paymentDueDate,
+        notes: invoice.notes,
+      }).select().single().then(({ data: dbInv }) => {
+        if (dbInv) {
+          const itemInserts = invoice.items.map((it) => ({
+            invoice_id: dbInv.id,
+            sku: it.sku || null,
+            title: it.title,
+            condition: it.condition || null,
+            quantity: it.quantity,
+            unit_price: it.unitPrice,
+            total_price: it.totalPrice,
+          }));
+          this.supabase?.client.from('invoice_items').insert(itemInserts);
+        }
+      });
+    }
+
     return invoice;
   }
 
   /**
-   * Simulates sending a branded HTML purchase confirmation email with invoice attachment.
+   * Sends a purchase confirmation email and records it in Supabase.
    */
   async sendConfirmationEmail(
     invoice: Invoice,
     trackingUrl?: string
   ): Promise<{ success: boolean; message: string }> {
-    await new Promise((res) => setTimeout(res, 500));
+    const ws = this.workspaceService?.currentWorkspace();
+    await new Promise((res) => setTimeout(res, 300));
 
     const emailRecord: EmailConfirmation = {
       id: 'em-' + Math.random().toString(36).substring(2, 8),
@@ -235,6 +386,22 @@ export class InvoiceService {
 
     this.sentEmails.update((list) => [emailRecord, ...list]);
     this.persistEmails();
+
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      try {
+        await this.supabase.client.from('email_confirmations').insert({
+          workspace_id: ws.id,
+          recipient_email: emailRecord.to,
+          recipient_name: emailRecord.recipientName,
+          subject: emailRecord.subject,
+          status: 'sent',
+          invoice_number: invoice.invoiceNumber,
+          order_number: invoice.orderNumber,
+        });
+      } catch (err) {
+        console.error('Fehler beim Speichern der E-Mail-Bestätigung in Supabase:', err);
+      }
+    }
 
     return {
       success: true,

@@ -1,10 +1,11 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { PriceAlert, PricePoint, PriceTrackedItem, PriceTrend } from '../models/price-tracker.models';
 import { InventoryItem } from '../models/reflip.models';
 import { InventoryService } from './inventory.service';
 import { WorkspaceService } from './workspace.service';
 import { WebhookService } from './webhook.service';
 import { WebPushService } from './web-push.service';
+import { SupabaseService } from './supabase.service';
 
 const STORAGE_KEY_RADAR = 'reflip_price_radar_items';
 
@@ -12,10 +13,11 @@ const STORAGE_KEY_RADAR = 'reflip_price_radar_items';
   providedIn: 'root',
 })
 export class PriceTrackerService {
-  private readonly inventoryService: InventoryService | null = null;
-  private readonly workspaceService: WorkspaceService | null = null;
-  private readonly webhookService: WebhookService | null = null;
-  private readonly webPushService: WebPushService | null = null;
+  private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly inventoryService = inject(InventoryService, { optional: true });
+  private readonly workspaceService = inject(WorkspaceService, { optional: true });
+  private readonly webhookService = inject(WebhookService, { optional: true });
+  private readonly webPushService = inject(WebPushService, { optional: true });
 
   readonly trackedItems = signal<PriceTrackedItem[]>(this.loadPersistedItems());
   readonly isScanning = signal<boolean>(false);
@@ -35,16 +37,13 @@ export class PriceTrackerService {
 
   constructor() {
     try {
-      this.inventoryService = inject(InventoryService, { optional: true });
-      this.workspaceService = inject(WorkspaceService, { optional: true });
-      this.webhookService = inject(WebhookService, { optional: true });
-      this.webPushService = inject(WebPushService, { optional: true });
-    } catch {
-      this.inventoryService = null;
-      this.workspaceService = null;
-      this.webhookService = null;
-      this.webPushService = null;
-    }
+      effect(() => {
+        const ws = this.workspaceService?.currentWorkspace();
+        if (ws) {
+          this.loadFromSupabase(ws.id);
+        }
+      });
+    } catch {}
   }
 
   private loadPersistedItems(): PriceTrackedItem[] {
@@ -56,6 +55,45 @@ export class PriceTrackerService {
     } catch {}
 
     return [];
+  }
+
+  async loadFromSupabase(workspaceId: string): Promise<void> {
+    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+
+    try {
+      const { data, error } = await this.supabase.client
+        .from('price_tracked_items')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .order('created_at', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        const mapped: PriceTrackedItem[] = (data as unknown[]).map((t: any) => ({
+          id: t.id,
+          workspace_id: t.workspace_id,
+          inventory_item_id: t.inventory_item_id || undefined,
+          title: t.title,
+          category: t.category || 'Allgemein',
+          currentOurPrice: Number(t.current_our_price || 0),
+          currentMarketAverage: Number(t.current_market_average || 0),
+          currentMarketLowest: Number(t.current_market_lowest || 0),
+          recommendedPrice: Number(t.recommended_price || 0),
+          lowestCompetitorTitle: t.lowest_competitor_title || undefined,
+          lowestCompetitorPlatform: t.lowest_competitor_platform || 'kleinanzeigen',
+          lowestCompetitorUrl: t.lowest_competitor_url || undefined,
+          priceTrend: t.price_trend as PriceTrend,
+          priceDifferencePercent: Number(t.price_difference_percent || 0),
+          alertTriggered: t.alert_triggered as PriceAlert,
+          lastCheckedAt: t.last_checked_at || new Date().toISOString(),
+          isTrackingActive: t.is_tracking_active,
+          priceHistory: (t.price_history as PricePoint[]) || [],
+        }));
+        this.trackedItems.set(mapped);
+        this.persistItems();
+      }
+    } catch (err) {
+      console.error('Verbindungsfehler beim Laden des Preisradars:', err);
+    }
   }
 
   loadDemoItems(): void {
@@ -209,6 +247,28 @@ export class PriceTrackerService {
 
     this.trackedItems.update((list) => [newItem, ...list]);
     this.persistItems();
+
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client.from('price_tracked_items').insert({
+        workspace_id: ws.id,
+        inventory_item_id: item.inventory_item_id || null,
+        title: newItem.title,
+        category: newItem.category,
+        current_our_price: newItem.currentOurPrice,
+        current_market_average: newItem.currentMarketAverage,
+        current_market_lowest: newItem.currentMarketLowest,
+        recommended_price: newItem.recommendedPrice,
+        lowest_competitor_title: newItem.lowestCompetitorTitle,
+        lowest_competitor_platform: newItem.lowestCompetitorPlatform,
+        lowest_competitor_url: newItem.lowestCompetitorUrl,
+        price_trend: newItem.priceTrend,
+        price_difference_percent: newItem.priceDifferencePercent,
+        alert_triggered: newItem.alertTriggered,
+        is_tracking_active: newItem.isTrackingActive,
+        price_history: newItem.priceHistory as any,
+      });
+    }
+
     return newItem;
   }
 
@@ -217,8 +277,6 @@ export class PriceTrackerService {
    */
   async scanMarketLive(targetId?: string): Promise<void> {
     this.isScanning.set(true);
-
-    // Simulate multi-platform live scraping roundtrip
     await new Promise((res) => setTimeout(res, 900));
 
     const nowStr = new Date().toISOString();
@@ -229,8 +287,7 @@ export class PriceTrackerService {
         if (targetId && it.id !== targetId) return it;
         if (!it.isTrackingActive) return it;
 
-        // Dynamic market price fluctuation simulation
-        const randomFactor = (Math.random() - 0.48) * 0.08; // -4% to +4%
+        const randomFactor = (Math.random() - 0.48) * 0.08;
         const newAvg = Number(Math.max(10, it.currentMarketAverage * (1 + randomFactor)).toFixed(2));
         const newLowest = Number(Math.max(8, newAvg * 0.9).toFixed(2));
         const diffPercent = Number((((newLowest - it.currentOurPrice) / it.currentOurPrice) * 100).toFixed(1));
@@ -263,7 +320,7 @@ export class PriceTrackerService {
           priceDifferencePercent: diffPercent,
           alertTriggered: alert,
           lastCheckedAt: nowStr,
-          priceHistory: history.slice(-10), // keep last 10 points
+          priceHistory: history.slice(-10),
         };
       })
     );
@@ -272,7 +329,6 @@ export class PriceTrackerService {
     this.lastScanTimestamp.set(nowStr);
     this.isScanning.set(false);
 
-    // If alerts were triggered, notify via Web Push
     const undercuts = this.trackedItems().filter((t) => t.alertTriggered === 'undercut');
     if (undercuts.length > 0) {
       const topUndercut = undercuts[0];
@@ -301,7 +357,6 @@ export class PriceTrackerService {
 
     const newPrice = tracked.recommendedPrice;
 
-    // Update in tracking list
     this.trackedItems.update((list) =>
       list.map((t) =>
         t.id === trackedItemId
@@ -316,7 +371,6 @@ export class PriceTrackerService {
     );
     this.persistItems();
 
-    // Synchronize into Inventory Item if linked
     if (this.inventoryService && tracked.inventory_item_id) {
       await this.inventoryService.updateItem(tracked.inventory_item_id, {
         expected_value: newPrice,
@@ -336,5 +390,10 @@ export class PriceTrackerService {
   deleteTrackedItem(itemId: string): void {
     this.trackedItems.update((list) => list.filter((t) => t.id !== itemId));
     this.persistItems();
+
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client.from('price_tracked_items').delete().eq('id', itemId);
+    }
   }
 }

@@ -17,9 +17,9 @@ const ACTIVE_WORKSPACE_KEY = 'reflip_active_workspace_id';
   providedIn: 'root',
 })
 export class WorkspaceService {
-  private readonly supabase: SupabaseService | null = null;
-  private readonly auth: AuthService | null = null;
-  private readonly mockStore: MockDataStoreService | null = null;
+  private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly auth = inject(AuthService, { optional: true });
+  private readonly mockStore = inject(MockDataStoreService, { optional: true });
 
   private readonly defaultWorkspaces: Workspace[] = [
     {
@@ -51,8 +51,8 @@ export class WorkspaceService {
     },
   ];
 
-  readonly workspaces = signal<Workspace[]>(this.loadPersistedWorkspaces());
-  readonly currentWorkspace = signal<Workspace | null>(this.workspaces()[0] || this.defaultWorkspaces[0]);
+  readonly workspaces = signal<Workspace[]>(this.defaultWorkspaces);
+  readonly currentWorkspace = signal<Workspace | null>(this.defaultWorkspaces[0]);
   readonly isLoading = signal<boolean>(false);
 
   // Holding consolidation mode toggle (across all tenant workspaces)
@@ -60,72 +60,43 @@ export class WorkspaceService {
 
   constructor() {
     try {
-      this.supabase = inject(SupabaseService, { optional: true });
-      this.auth = inject(AuthService, { optional: true });
-      this.mockStore = inject(MockDataStoreService, { optional: true });
-    } catch {
-      this.supabase = null;
-      this.auth = null;
-      this.mockStore = null;
-    }
-
-    try {
       effect(() => {
         const isAuth = this.auth?.isAuthenticated();
         const isDemo = this.auth?.isDemoMode();
 
         if (isDemo || !this.supabase) {
-          if (this.workspaces().length === 0) {
-            this.workspaces.set(this.defaultWorkspaces);
-            this.currentWorkspace.set(this.defaultWorkspaces[0]);
-          }
+          this.workspaces.set(this.defaultWorkspaces);
+          this.currentWorkspace.set(this.defaultWorkspaces[0]);
         } else if (isAuth) {
           this.loadWorkspaces();
+        } else {
+          this.workspaces.set([]);
+          this.currentWorkspace.set(null);
         }
       });
     } catch {}
   }
 
-  private loadPersistedWorkspaces(): Workspace[] {
-    try {
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('reflip_saved_workspaces');
-        if (stored) return JSON.parse(stored);
-      }
-    } catch {}
-    return this.defaultWorkspaces;
-  }
-
-  private persistWorkspaces(): void {
-    try {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('reflip_saved_workspaces', JSON.stringify(this.workspaces()));
-      }
-    } catch {}
-  }
-
   async loadWorkspaces(): Promise<void> {
     if (this.auth?.isDemoMode() || !this.supabase) {
-      if (this.workspaces().length === 0) {
-        this.workspaces.set(this.defaultWorkspaces);
-        this.currentWorkspace.set(this.defaultWorkspaces[0]);
-      }
+      this.workspaces.set(this.defaultWorkspaces);
+      this.currentWorkspace.set(this.defaultWorkspaces[0]);
       return;
     }
 
     this.isLoading.set(true);
     try {
-      const queryPromise = this.supabase.client
+      const { data, error } = await this.supabase.client
         .from('workspaces')
         .select('*')
         .order('created_at', { ascending: true });
 
-      const res: any = this.mockStore
-        ? await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 800)
-        : await queryPromise;
-
-      if (res && !res.error && res.data && res.data.length > 0) {
-        const loadedWorkspaces = res.data as Workspace[];
+      if (error) {
+        console.error('Fehler beim Laden der Workspaces aus Supabase:', error);
+        this.workspaces.set([]);
+        this.currentWorkspace.set(null);
+      } else if (data && data.length > 0) {
+        const loadedWorkspaces = data as Workspace[];
         this.workspaces.set(loadedWorkspaces);
 
         const storedId = localStorage.getItem(ACTIVE_WORKSPACE_KEY);
@@ -137,12 +108,14 @@ export class WorkspaceService {
           this.currentWorkspace.set(loadedWorkspaces[0]);
           localStorage.setItem(ACTIVE_WORKSPACE_KEY, loadedWorkspaces[0].id);
         }
+      } else {
+        this.workspaces.set([]);
+        this.currentWorkspace.set(null);
       }
     } catch (err) {
-      if (this.workspaces().length === 0) {
-        this.workspaces.set(this.defaultWorkspaces);
-        this.currentWorkspace.set(this.defaultWorkspaces[0]);
-      }
+      console.error('Verbindungsfehler beim Laden der Workspaces:', err);
+      this.workspaces.set([]);
+      this.currentWorkspace.set(null);
     } finally {
       this.isLoading.set(false);
     }
@@ -153,6 +126,14 @@ export class WorkspaceService {
     try {
       if (typeof window !== 'undefined') {
         localStorage.setItem(ACTIVE_WORKSPACE_KEY, workspace.id);
+      }
+    } catch {}
+  }
+
+  private persistWorkspaces(): void {
+    try {
+      if (typeof window !== 'undefined' && this.auth?.isDemoMode()) {
+        localStorage.setItem('reflip_saved_workspaces', JSON.stringify(this.workspaces()));
       }
     } catch {}
   }
@@ -178,6 +159,29 @@ export class WorkspaceService {
       if (updatedCurrent) this.currentWorkspace.set(updatedCurrent);
     }
 
+    if (this.supabase && this.auth?.isAuthenticated() && !this.auth.isDemoMode()) {
+      try {
+        const { error } = await this.supabase.client
+          .from('workspaces')
+          .update({
+            name: updates.name,
+            min_roi_percent: updates.min_roi_percent,
+            min_profit_amount: updates.min_profit_amount,
+            currency: updates.currency,
+            tax_mode: updates.tax_mode,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', workspaceId);
+
+        if (error) {
+          console.error('Fehler beim Aktualisieren des Workspace in Supabase:', error);
+          return { error: new Error(error.message) };
+        }
+      } catch (err: any) {
+        console.error('Verbindungsfehler beim Aktualisieren des Workspace:', err);
+      }
+    }
+
     return { error: null };
   }
 
@@ -191,6 +195,26 @@ export class WorkspaceService {
       min_profit_amount: 15,
       created_at: new Date().toISOString(),
     };
+
+    if (this.supabase && this.auth?.isAuthenticated() && !this.auth.isDemoMode()) {
+      try {
+        const { data: newId, error } = await this.supabase.client.rpc('create_workspace', {
+          p_name: name.trim(),
+        });
+
+        if (error) {
+          console.error('Fehler beim Erstellen des Workspace über RPC:', error);
+        } else if (newId) {
+          const dbWs: Workspace = { ...newWs, id: newId };
+          this.workspaces.update((list) => [...list, dbWs]);
+          this.persistWorkspaces();
+          this.setCurrentWorkspace(dbWs);
+          return { data: dbWs, error: null };
+        }
+      } catch (err: any) {
+        console.error('Verbindungsfehler beim Erstellen des Workspace:', err);
+      }
+    }
 
     this.workspaces.update((list) => [...list, newWs]);
     this.persistWorkspaces();
@@ -211,6 +235,17 @@ export class WorkspaceService {
       this.setCurrentWorkspace(filtered[0]);
     }
 
+    if (this.supabase && this.auth?.isAuthenticated() && !this.auth.isDemoMode()) {
+      try {
+        const { error } = await this.supabase.client.from('workspaces').delete().eq('id', workspaceId);
+        if (error) {
+          console.error('Fehler beim Löschen des Workspace in Supabase:', error);
+        }
+      } catch (err) {
+        console.error('Verbindungsfehler beim Löschen des Workspace:', err);
+      }
+    }
+
     return { success: true };
   }
 
@@ -225,7 +260,6 @@ export class WorkspaceService {
     const wsList = this.workspaces();
 
     const summaries: WorkspaceSummary[] = wsList.map((ws) => {
-      // If items have workspace_id, filter; otherwise allocate proportionally or calculate totals
       const wsItems = items.filter((i) => !i.workspace_id || i.workspace_id === ws.id || ws.id === 'ws-1');
       const wsPurchases = purchases.filter((p) => !p.workspace_id || p.workspace_id === ws.id || ws.id === 'ws-1');
       const wsSales = sales.filter((s) => !s.workspace_id || s.workspace_id === ws.id || ws.id === 'ws-1');

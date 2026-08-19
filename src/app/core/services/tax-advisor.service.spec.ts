@@ -1,5 +1,6 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
+import { Injector, runInInjectionContext } from '@angular/core';
 import { TaxAdvisorService } from './tax-advisor.service';
 import { Purchase, Sale, TaxCalculationResult } from '../models/reflip.models';
 
@@ -7,7 +8,8 @@ describe('TaxAdvisorService & DATEV Export Engine (Chapter 24)', () => {
   let service: TaxAdvisorService;
 
   beforeEach(() => {
-    service = new TaxAdvisorService();
+    const injector = Injector.create({ providers: [] });
+    service = runInInjectionContext(injector, () => new TaxAdvisorService());
   });
 
   const sampleTaxResults: TaxCalculationResult[] = [

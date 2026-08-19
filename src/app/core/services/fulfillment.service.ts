@@ -1,4 +1,4 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
@@ -20,24 +20,10 @@ const STORAGE_KEY_SHIPPING_ORDERS = 'reflip_shipping_orders';
   providedIn: 'root',
 })
 export class FulfillmentService {
-  private readonly supabase: SupabaseService | null = null;
-  private readonly workspaceService: WorkspaceService | null = null;
-  private readonly mockStore: MockDataStoreService | null = null;
-  private readonly webPushService: WebPushService | null = null;
-
-  constructor() {
-    try {
-      this.supabase = inject(SupabaseService, { optional: true });
-      this.workspaceService = inject(WorkspaceService, { optional: true });
-      this.mockStore = inject(MockDataStoreService, { optional: true });
-      this.webPushService = inject(WebPushService, { optional: true });
-    } catch {
-      this.supabase = null;
-      this.workspaceService = null;
-      this.mockStore = null;
-      this.webPushService = null;
-    }
-  }
+  private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly workspaceService = inject(WorkspaceService, { optional: true });
+  private readonly mockStore = inject(MockDataStoreService, { optional: true });
+  private readonly webPushService = inject(WebPushService, { optional: true });
 
   readonly availableRates: CarrierRate[] = [
     {
@@ -98,7 +84,6 @@ export class FulfillmentService {
   ];
 
   readonly carrierConfig = signal<CarrierConfig>(this.loadCarrierConfig());
-
   readonly orders = signal<ShippingOrder[]>(this.loadPersistedOrders());
 
   readonly selectedOrderForLabel = signal<ShippingOrder | null>(null);
@@ -129,7 +114,6 @@ export class FulfillmentService {
     const grouped = new Map<string, ShippingOrder[]>();
 
     for (const ord of unfulfilled) {
-      // Create canonical customer identity key based on name + postal code + street
       const key = `${ord.customer.name.trim().toLowerCase()}_${ord.customer.postal_code.trim()}_${ord.customer.street.trim().toLowerCase()}`;
       const list = grouped.get(key) || [];
       list.push(ord);
@@ -138,37 +122,26 @@ export class FulfillmentService {
 
     const candidates: BundleCandidate[] = [];
 
-    for (const [key, list] of grouped.entries()) {
-      if (list.length > 1) {
-        const first = list[0];
-        const totalValue = Number(list.reduce((sum, o) => sum + o.sale_price, 0).toFixed(2));
-
-        const individualShippingCost = Number(
-          list.reduce((sum, o) => {
-            const matchedRate = this.availableRates.find((r) => r.name === o.package_type) || this.availableRates[1];
-            return sum + matchedRate.price;
-          }, 0).toFixed(2)
-        );
-
-        let suggestedRate = this.availableRates[1]; // default 2kg
-        if (list.length >= 3 || totalValue > 250) {
-          suggestedRate = this.availableRates[2]; // 5kg for multi items
-        }
-
-        const bundledShippingCost = suggestedRate.price;
-        const potentialSavings = Number(Math.max(0, individualShippingCost - bundledShippingCost).toFixed(2));
+    for (const [key, group] of grouped.entries()) {
+      if (group.length > 1) {
+        const totalItems = group.length;
+        const totalWeight = totalItems * 0.4;
+        const individualShippingTotal = totalItems * 5.49;
+        const bundleRate = this.availableRates[1]; // 2kg Paket
+        const bundleShippingCost = bundleRate.price;
+        const savings = Math.max(0, individualShippingTotal - bundleShippingCost);
 
         candidates.push({
           customerKey: key,
-          customerName: first.customer.name,
-          customerCity: `${first.customer.postal_code} ${first.customer.city}`,
-          orders: list,
-          itemsCount: list.length,
-          totalOrderValue: totalValue,
-          individualShippingCost,
-          suggestedRate,
-          bundledShippingCost,
-          potentialSavings,
+          customerName: group[0].customer.name,
+          customerCity: group[0].customer.city,
+          orders: group,
+          itemsCount: totalItems,
+          totalOrderValue: Number(group.reduce((sum, o) => sum + o.sale_price, 0).toFixed(2)),
+          individualShippingCost: Number(individualShippingTotal.toFixed(2)),
+          suggestedRate: bundleRate,
+          bundledShippingCost: Number(bundleShippingCost.toFixed(2)),
+          potentialSavings: Number(savings.toFixed(2)),
         });
       }
     }
@@ -176,27 +149,27 @@ export class FulfillmentService {
     return candidates;
   });
 
-  private loadPersistedOrders(): ShippingOrder[] {
+  constructor() {
     try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        const stored = localStorage.getItem(STORAGE_KEY_SHIPPING_ORDERS);
-        if (stored) return JSON.parse(stored);
-      }
+      effect(() => {
+        const ws = this.workspaceService?.currentWorkspace();
+        if (ws) {
+          this.loadFromSupabase(ws.id);
+        }
+      });
     } catch {}
-
-    return [];
   }
 
   loadDemoOrders(): void {
     const now = new Date();
-    const demo = [
+    const demoOrders: ShippingOrder[] = [
       {
         id: 'ship-1',
         workspace_id: 'ws-1',
         sale_id: 'sale-1',
         order_number: 'ORD-2026-8801',
         order_date: now.toISOString(),
-        platform: 'kleinanzeigen' as const,
+        platform: 'ebay' as const,
         item_title: 'Sony PlayStation 5 Digital Edition (CFI-1116B)',
         item_sku: 'SKU-PS5-DIG',
         item_condition: 'Sehr gut',
@@ -216,16 +189,56 @@ export class FulfillmentService {
         created_at: now.toISOString(),
       },
       {
-        id: 'ship-bundle-extra',
+        id: 'ship-2',
         workspace_id: 'ws-1',
-        sale_id: 'sale-bundle-extra',
-        order_number: 'ORD-2026-8805',
+        sale_id: 'sale-2',
+        order_number: 'ORD-2026-8802',
         order_date: now.toISOString(),
-        platform: 'kleinanzeigen' as const,
-        item_title: 'Sony DualSense Wireless Controller Midnight Black',
+        platform: 'ebay' as const,
+        item_title: 'DualSense Wireless Controller (Midnight Black)',
         item_sku: 'SKU-PS5-CTRL',
-        item_condition: 'Wie neu',
-        sale_price: 49.0,
+        item_condition: 'Neuwertig',
+        sale_price: 55.0,
+        customer: {
+          name: 'Maximilian Weber',
+          street: 'Hauptstraße',
+          house_number: '42b',
+          postal_code: '80331',
+          city: 'München',
+          country: 'Deutschland',
+          email: 'max.weber@beispiel.de',
+        },
+        carrier: 'dhl' as const,
+        package_type: 'DHL Warenpost',
+        status: 'ready_to_pack' as const,
+        created_at: now.toISOString(),
+      },
+    ];
+    this.orders.set(demoOrders);
+    this.persistOrders();
+  }
+
+  private loadPersistedOrders(): ShippingOrder[] {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const stored = localStorage.getItem(STORAGE_KEY_SHIPPING_ORDERS);
+        if (stored) return JSON.parse(stored);
+      }
+    } catch {}
+
+    const now = new Date();
+    return [
+      {
+        id: 'ship-1',
+        workspace_id: 'ws-1',
+        sale_id: 'sale-1',
+        order_number: 'ORD-2026-8801',
+        order_date: now.toISOString(),
+        platform: 'ebay' as const,
+        item_title: 'Sony PlayStation 5 Digital Edition (CFI-1116B)',
+        item_sku: 'SKU-PS5-DIG',
+        item_condition: 'Sehr gut',
+        sale_price: 360.0,
         customer: {
           name: 'Maximilian Weber',
           street: 'Hauptstraße',
@@ -270,7 +283,6 @@ export class FulfillmentService {
         shipped_at: new Date(now.getTime() - 3600000).toISOString(),
       },
     ];
-    this.orders.set(demo);
   }
 
   private persistOrders(): void {
@@ -299,6 +311,76 @@ export class FulfillmentService {
     };
   }
 
+  async loadFromSupabase(workspaceId: string): Promise<void> {
+    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+
+    try {
+      const [orderRes, cfgRes] = await Promise.all([
+        this.supabase.client
+          .from('shipping_orders')
+          .select('*')
+          .eq('workspace_id', workspaceId)
+          .order('created_at', { ascending: false }),
+        this.supabase.client
+          .from('carrier_configs')
+          .select('*')
+          .eq('workspace_id', workspaceId)
+          .maybeSingle(),
+      ]);
+
+      if (orderRes.data && orderRes.data.length > 0) {
+        const mapped: ShippingOrder[] = (orderRes.data as unknown[]).map((o: any) => ({
+          id: o.id,
+          workspace_id: o.workspace_id,
+          sale_id: o.sale_id || '',
+          order_number: o.order_number,
+          order_date: o.order_date,
+          platform: o.platform,
+          item_title: o.item_title,
+          item_sku: o.item_sku || undefined,
+          item_condition: o.item_condition || undefined,
+          sale_price: Number(o.sale_price || 0),
+          customer: o.customer as AddressInfo,
+          carrier: o.carrier as CarrierType,
+          package_type: o.package_type,
+          tracking_number: o.tracking_number || undefined,
+          tracking_url: o.tracking_url || undefined,
+          label_price: o.label_price ? Number(o.label_price) : undefined,
+          carrier_transaction_id: o.carrier_transaction_id || undefined,
+          status: o.status as ShippingStatus,
+          created_at: o.created_at,
+          shipped_at: o.shipped_at || undefined,
+          delivered_at: o.delivered_at || undefined,
+          is_bundled: o.is_bundled || false,
+          bundled_order_ids: o.bundled_order_ids || undefined,
+          bundled_item_titles: o.bundled_item_titles || undefined,
+          notes: o.notes || undefined,
+        }));
+        this.orders.set(mapped);
+        this.persistOrders();
+      }
+
+      if (cfgRes.data) {
+        const cfg: CarrierConfig = {
+          dhlEnabled: cfgRes.data.dhl_enabled,
+          dhlEkp: cfgRes.data.dhl_ekp || '',
+          dhlApiKey: cfgRes.data.dhl_api_key || '',
+          hermesEnabled: cfgRes.data.hermes_enabled,
+          hermesClientId: cfgRes.data.hermes_client_id || '',
+          hermesApiKey: cfgRes.data.hermes_api_key || '',
+        };
+        this.carrierConfig.set(cfg);
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEY_CARRIER_CFG, JSON.stringify(cfg));
+          }
+        } catch {}
+      }
+    } catch (err) {
+      console.error('Verbindungsfehler beim Laden der Versanddaten:', err);
+    }
+  }
+
   updateCarrierConfig(cfg: Partial<CarrierConfig>): void {
     const updated = { ...this.carrierConfig(), ...cfg };
     this.carrierConfig.set(updated);
@@ -307,6 +389,28 @@ export class FulfillmentService {
         localStorage.setItem(STORAGE_KEY_CARRIER_CFG, JSON.stringify(updated));
       }
     } catch {}
+
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client
+        .from('carrier_configs')
+        .upsert(
+          {
+            workspace_id: ws.id,
+            dhl_enabled: updated.dhlEnabled,
+            dhl_ekp: updated.dhlEkp,
+            dhl_api_key: updated.dhlApiKey,
+            hermes_enabled: updated.hermesEnabled,
+            hermes_client_id: updated.hermesClientId,
+            hermes_api_key: updated.hermesApiKey,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'workspace_id' }
+        )
+        .then(({ error }) => {
+          if (error) console.error('Fehler beim Speichern der Carrier-Konfiguration:', error);
+        });
+    }
   }
 
   getTrackingUrl(carrier: CarrierType, trackingNumber: string): string {
@@ -337,6 +441,7 @@ export class FulfillmentService {
   markAsShipped(orderId: string, trackingNumber?: string, carrier: CarrierType = 'dhl'): void {
     const trk = trackingNumber || `TRK-${Date.now()}`;
     const url = this.getTrackingUrl(carrier, trk);
+    const shippedAt = new Date().toISOString();
 
     this.orders.update((prev) =>
       prev.map((o) =>
@@ -347,12 +452,26 @@ export class FulfillmentService {
               tracking_number: trk,
               tracking_url: url,
               status: 'shipped' as ShippingStatus,
-              shipped_at: new Date().toISOString(),
+              shipped_at: shippedAt,
             }
           : o
       )
     );
     this.persistOrders();
+
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client
+        .from('shipping_orders')
+        .update({
+          carrier,
+          tracking_number: trk,
+          tracking_url: url,
+          status: 'shipped',
+          shipped_at: shippedAt,
+        })
+        .eq('id', orderId);
+    }
   }
 
   /**
@@ -387,9 +506,31 @@ export class FulfillmentService {
       notes: `Kombiversand für ${candidate.customerName}. Portovorteil: ${candidate.potentialSavings.toFixed(2)} €`,
     };
 
-    // Remove individual unbundled orders and replace with the bundled order
     this.orders.update((prev) => [bundledOrder, ...prev.filter((o) => !orderIds.includes(o.id))]);
     this.persistOrders();
+
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client.from('shipping_orders').insert({
+        workspace_id: ws.id,
+        sale_id: bundledOrder.sale_id || null,
+        order_number: bundledOrder.order_number,
+        order_date: bundledOrder.order_date,
+        platform: bundledOrder.platform,
+        item_title: bundledOrder.item_title,
+        item_sku: bundledOrder.item_sku,
+        item_condition: bundledOrder.item_condition,
+        sale_price: bundledOrder.sale_price,
+        customer: bundledOrder.customer as any,
+        carrier: bundledOrder.carrier,
+        package_type: bundledOrder.package_type,
+        status: bundledOrder.status,
+        is_bundled: true,
+        bundled_order_ids: bundledOrder.bundled_order_ids,
+        bundled_item_titles: bundledOrder.bundled_item_titles,
+        notes: bundledOrder.notes,
+      });
+    }
 
     if (this.webPushService) {
       this.webPushService.sendNotification(`Sammelpaket gebündelt: ${candidate.customerName}`, {
@@ -492,6 +633,22 @@ export class FulfillmentService {
 
     this.persistOrders();
 
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client
+        .from('shipping_orders')
+        .update({
+          carrier: rate.carrier,
+          package_type: rate.name,
+          status: 'label_printed',
+          tracking_number: trackingNumber,
+          tracking_url: trackingUrl,
+          label_price: rate.price,
+          carrier_transaction_id: transactionId,
+        })
+        .eq('id', order.id);
+    }
+
     if (this.webPushService) {
       this.webPushService.sendNotification(`Versandlabel gekauft (${rate.carrier.toUpperCase()})`, {
         body: `${rate.name} für ${order.customer.name} gebucht. Sendungsnummer: ${trackingNumber}`,
@@ -512,18 +669,33 @@ export class FulfillmentService {
   }
 
   updateOrderStatus(orderId: string, status: ShippingStatus): void {
+    const deliveredAt = status === 'delivered' ? new Date().toISOString() : undefined;
+    const shippedAt = status === 'shipped' ? new Date().toISOString() : undefined;
+
     this.orders.update((prev) =>
       prev.map((o) =>
         o.id === orderId
           ? {
               ...o,
               status,
-              shipped_at: status === 'shipped' ? new Date().toISOString() : o.shipped_at,
+              shipped_at: shippedAt || o.shipped_at,
             }
           : o
       )
     );
     this.persistOrders();
+
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      const dbPayload: any = { status };
+      if (shippedAt) dbPayload.shipped_at = shippedAt;
+      if (deliveredAt) dbPayload.delivered_at = deliveredAt;
+
+      this.supabase.client
+        .from('shipping_orders')
+        .update(dbPayload)
+        .eq('id', orderId);
+    }
   }
 
   openLabelModal(order: ShippingOrder): void {

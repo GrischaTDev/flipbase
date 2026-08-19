@@ -1,5 +1,6 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
+import { Injector, runInInjectionContext } from '@angular/core';
 import { StoreService } from './store.service';
 import { InventoryItem } from '../models/reflip.models';
 
@@ -7,7 +8,8 @@ describe('Store & Live Checkout Service', () => {
   let storeService: StoreService;
 
   beforeEach(() => {
-    storeService = new StoreService();
+    const injector = Injector.create({ providers: [] });
+    storeService = runInInjectionContext(injector, () => new StoreService());
     storeService.clearCart();
   });
 

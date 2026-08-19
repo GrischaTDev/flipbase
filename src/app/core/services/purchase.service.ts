@@ -45,50 +45,51 @@ export class PurchaseService {
   private readonly mockStore = inject(MockDataStoreService);
   private readonly webhookService = inject(WebhookService);
 
-  readonly purchases = signal<Purchase[]>(this.mockStore.demoPurchases);
+  readonly purchases = signal<Purchase[]>([]);
   readonly selectedPurchase = signal<Purchase | null>(null);
   readonly purchaseItems = signal<InventoryItem[]>([]);
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
-    effect(() => {
-      const ws = this.workspaceService.currentWorkspace();
-      if (ws) {
-        this.loadPurchases(ws.id);
-      } else {
-        this.purchases.set([]);
-        this.selectedPurchase.set(null);
-        this.purchaseItems.set([]);
-      }
-    });
+    try {
+      effect(() => {
+        const ws = this.workspaceService.currentWorkspace();
+        if (ws) {
+          this.loadPurchases(ws.id);
+        } else {
+          this.purchases.set([]);
+          this.selectedPurchase.set(null);
+          this.purchaseItems.set([]);
+        }
+      });
+    } catch {}
   }
 
   async loadPurchases(workspaceId: string): Promise<void> {
-    const localPurchases = this.mockStore.getPurchases(workspaceId);
-    const localItems = this.mockStore.getItems(workspaceId);
-    const localSources = this.mockStore.getSources();
-    const localSuppliers = this.mockStore.getSuppliers();
+    if (this.mockStore.isDemoMode()) {
+      const localPurchases = this.mockStore.getPurchases(workspaceId);
+      const localItems = this.mockStore.getItems(workspaceId);
+      const localSources = this.mockStore.getSources();
+      const localSuppliers = this.mockStore.getSuppliers();
 
-    const enrichedLocal = localPurchases.map((p) => {
-      const matchingItems = localItems.filter((i) => i.purchase_id === p.id);
-      const source = p.source || (p.source_id ? localSources.find((s) => s.id === p.source_id) : undefined);
-      const supplier = p.supplier || (p.supplier_id ? localSuppliers.find((s) => s.id === p.supplier_id) : undefined);
-      return {
-        ...p,
-        source,
-        supplier,
-        items_count: matchingItems.length > 0 ? matchingItems.length : (p.items_count || 1),
-      } as Purchase;
-    });
-    this.purchases.set(enrichedLocal);
-
-    if (this.mockStore.isDemoMode() || workspaceId.startsWith('demo-')) {
+      const enrichedLocal = localPurchases.map((p) => {
+        const matchingItems = localItems.filter((i) => i.purchase_id === p.id);
+        const source = p.source || (p.source_id ? localSources.find((s) => s.id === p.source_id) : undefined);
+        const supplier = p.supplier || (p.supplier_id ? localSuppliers.find((s) => s.id === p.supplier_id) : undefined);
+        return {
+          ...p,
+          source,
+          supplier,
+          items_count: matchingItems.length > 0 ? matchingItems.length : (p.items_count || 1),
+        } as Purchase;
+      });
+      this.purchases.set(enrichedLocal);
       return;
     }
 
     this.isLoading.set(true);
     try {
-      const queryPromise = this.supabase.client
+      const { data, error } = await this.supabase.client
         .from('purchases')
         .select(`
           *,
@@ -101,10 +102,11 @@ export class PurchaseService {
         .order('purchase_date', { ascending: false })
         .order('created_at', { ascending: false });
 
-      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 1000);
-
-      if (res && !res.error && res.data && res.data.length > 0) {
-        const enriched = (res.data as unknown[]).map((p: any) => {
+      if (error) {
+        console.error('Fehler beim Laden der Einkäufe aus Supabase:', error);
+        this.purchases.set([]);
+      } else if (data) {
+        const enriched = (data as unknown[]).map((p: any) => {
           const costsSum = (p.costs || []).reduce((acc: number, c: any) => acc + Number(c.amount || 0), 0);
           const totalCost = Number(p.purchase_price || 0) + costsSum;
           return {
@@ -114,10 +116,10 @@ export class PurchaseService {
           } as Purchase;
         });
         this.purchases.set(enriched);
-        enriched.forEach((p) => this.mockStore.savePurchase(p));
       }
     } catch (err) {
-      // Keep local stored purchases
+      console.error('Verbindungsfehler beim Laden der Einkäufe:', err);
+      this.purchases.set([]);
     } finally {
       this.isLoading.set(false);
     }
@@ -157,6 +159,7 @@ export class PurchaseService {
         .single();
 
       if (error || !data) {
+        if (error) console.error('Fehler beim Abrufen des Einkaufs:', error);
         return null;
       }
 
@@ -164,8 +167,9 @@ export class PurchaseService {
       const totalCost = Number(data.purchase_price || 0) + costsSum;
 
       const enriched: Purchase = {
-        ...data,
-        items_count: (data.items || []).length > 0 ? (data.items || []).length : (data.items_count || 1),
+        ...(data as any),
+        type: data.type as PurchaseType,
+        items_count: (data.items || []).length > 0 ? (data.items || []).length : 1,
         total_purchase_cost: Number(totalCost.toFixed(2)),
       };
 
@@ -173,6 +177,7 @@ export class PurchaseService {
       this.purchaseItems.set((data.items || []) as InventoryItem[]);
       return enriched;
     } catch (err) {
+      console.error('Verbindungsfehler bei getPurchaseById:', err);
       return null;
     } finally {
       this.isLoading.set(false);
@@ -214,7 +219,7 @@ export class PurchaseService {
       created_at: new Date().toISOString(),
     };
 
-    // 1. Immediately persist locally (resilient against page reloads)
+    // 1. Immediately persist locally
     this.mockStore.savePurchase(newPurchase);
     this.purchases.update((list) => [newPurchase, ...list]);
     this.webhookService.sendPurchaseNotification(newPurchase);
@@ -223,9 +228,9 @@ export class PurchaseService {
       return { data: newPurchase, error: null };
     }
 
-    // 2. Sync to Supabase in background if connected
+    // 2. Sync to Supabase
     try {
-      await this.supabase.client
+      const { data: dbPur, error: dbError } = await this.supabase.client
         .from('purchases')
         .insert({
           workspace_id: ws.id,
@@ -238,9 +243,27 @@ export class PurchaseService {
           cost_allocation_mode: mode,
           notes: payload.notes?.trim() || null,
           tracking_number: payload.tracking_number?.trim() || null,
-        });
-    } catch {
-      // Local fallback active
+          tracking_carrier: payload.tracking_carrier || (payload.tracking_number ? 'dhl' : null),
+          tracking_status: payload.tracking_status || (payload.tracking_number ? 'in_transit' : 'pending'),
+          original_url: payload.original_url || null,
+          total_purchase_cost: totalCost,
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        console.error('Fehler beim Speichern des Einkaufs in Supabase:', dbError);
+      } else if (dbPur) {
+        const finalPurchase: Purchase = {
+          ...newPurchase,
+          id: dbPur.id,
+        };
+        this.mockStore.savePurchase(finalPurchase);
+        this.purchases.update((list) => [finalPurchase, ...list.filter((p) => p.id !== newPurchase.id)]);
+        return { data: finalPurchase, error: null };
+      }
+    } catch (err: any) {
+      console.error('Verbindungsfehler beim Erstellen des Einkaufs:', err);
     }
 
     return { data: newPurchase, error: null };
@@ -273,13 +296,22 @@ export class PurchaseService {
 
     if (!this.mockStore.isDemoMode() && !existing.workspace_id.startsWith('demo-')) {
       try {
-        await this.supabase.client
+        const { error } = await this.supabase.client
           .from('purchases')
           .update({
             tracking_number: updated.tracking_number,
+            tracking_carrier: updated.tracking_carrier,
+            tracking_status: updated.tracking_status || 'pending',
+            updated_at: new Date().toISOString(),
           })
           .eq('id', purchaseId);
-      } catch {}
+
+        if (error) {
+          console.error('Fehler beim Aktualisieren des Tracking-Status:', error);
+        }
+      } catch (err) {
+        console.error('Verbindungsfehler beim Aktualisieren des Tracking-Status:', err);
+      }
     }
 
     return { data: updated, error: null };
@@ -336,9 +368,13 @@ export class PurchaseService {
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        await this.supabase.client.from('purchases').delete().eq('id', purchaseId);
-      } catch (e) {
-        // ignore
+        const { error } = await this.supabase.client.from('purchases').delete().eq('id', purchaseId);
+        if (error) {
+          console.error('Fehler beim Löschen des Einkaufs in Supabase:', error);
+          return { error: new Error(error.message) };
+        }
+      } catch (e: any) {
+        console.error('Verbindungsfehler beim Löschen des Einkaufs:', e);
       }
     }
 
@@ -359,14 +395,19 @@ export class PurchaseService {
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        await this.supabase.client.from('purchase_costs').insert({
+        const { error } = await this.supabase.client.from('purchase_costs').insert({
           purchase_id: purchaseId,
           type,
           amount,
           description: description?.trim() || null,
         });
-      } catch (e) {
-        // ignore
+
+        if (error) {
+          console.error('Fehler beim Hinzufügen der Einkaufskosten in Supabase:', error);
+          return { error: new Error(error.message) };
+        }
+      } catch (e: any) {
+        console.error('Verbindungsfehler beim Hinzufügen der Einkaufskosten:', e);
       }
     }
 
@@ -393,12 +434,17 @@ export class PurchaseService {
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        await this.supabase.client
+        const { error } = await this.supabase.client
           .from('purchases')
           .update({ cost_allocation_mode: mode })
           .eq('id', purchaseId);
-      } catch (e) {
-        // ignore
+
+        if (error) {
+          console.error('Fehler beim Aktualisieren des Verteilungsmodus in Supabase:', error);
+          return { error: new Error(error.message) };
+        }
+      } catch (e: any) {
+        console.error('Verbindungsfehler beim Aktualisieren des Verteilungsmodus:', e);
       }
     }
     return { error: null };
@@ -452,16 +498,20 @@ export class PurchaseService {
     if (!this.mockStore.isDemoMode()) {
       try {
         for (const it of updatedItems) {
-          await this.supabase.client
+          const { error } = await this.supabase.client
             .from('inventory_items')
             .update({
               allocated_purchase_cost: it.allocated_purchase_cost,
               expected_value: it.expected_value,
             })
             .eq('id', it.id);
+
+          if (error) {
+            console.error('Fehler bei der Kostenverteilung in Supabase:', error);
+          }
         }
-      } catch (e) {
-        // ignore
+      } catch (e: any) {
+        console.error('Verbindungsfehler bei der Kostenverteilung:', e);
       }
     }
 
@@ -471,9 +521,12 @@ export class PurchaseService {
   async deletePurchaseCost(costId: string, purchaseId: string): Promise<{ error: Error | null }> {
     if (!this.mockStore.isDemoMode()) {
       try {
-        await this.supabase.client.from('purchase_costs').delete().eq('id', costId);
-      } catch (e) {
-        // ignore
+        const { error } = await this.supabase.client.from('purchase_costs').delete().eq('id', costId);
+        if (error) {
+          console.error('Fehler beim Löschen der Einkaufskosten in Supabase:', error);
+        }
+      } catch (e: any) {
+        console.error('Verbindungsfehler beim Löschen der Einkaufskosten:', e);
       }
     }
     await this.getPurchaseById(purchaseId);
@@ -510,10 +563,11 @@ export class PurchaseService {
       this.mockStore.savePurchase({ ...storedP, items_count: totalCount });
     }
 
-    if (!this.mockStore.isDemoMode()) {
+    const wsId = ws?.id;
+    if (!this.mockStore.isDemoMode() && wsId && !wsId.startsWith('demo-')) {
       try {
-        await this.supabase.client.from('inventory_items').insert({
-          workspace_id: ws?.id,
+        const { data: dbData, error } = await this.supabase.client.from('inventory_items').insert({
+          workspace_id: wsId,
           purchase_id: purchaseId,
           title: itemData.title,
           category: itemData.category || null,
@@ -521,9 +575,18 @@ export class PurchaseService {
           status: 'received',
           allocated_purchase_cost: itemData.allocated_purchase_cost || 0,
           expected_value: itemData.expected_value || null,
-        });
-      } catch (e) {
-        // ignore
+        }).select().single();
+
+        if (error) {
+          console.error('Fehler beim Hinzufügen des Artikels zum Einkauf in Supabase:', error);
+        } else if (dbData) {
+          const finalItem = { ...newItem, id: dbData.id };
+          this.mockStore.saveItem(finalItem);
+          this.purchaseItems.update((items) => [finalItem, ...items.filter((i) => i.id !== newItem.id)]);
+          return { data: finalItem, error: null };
+        }
+      } catch (e: any) {
+        console.error('Verbindungsfehler beim Hinzufügen des Artikels zum Einkauf:', e);
       }
     }
 

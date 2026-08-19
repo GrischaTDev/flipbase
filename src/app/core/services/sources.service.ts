@@ -12,51 +12,53 @@ export class SourcesService {
   private readonly workspaceService = inject(WorkspaceService);
   private readonly mockStore = inject(MockDataStoreService);
 
-  readonly sources = signal<Source[]>(this.mockStore.demoSources);
+  readonly sources = signal<Source[]>([]);
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
-    effect(() => {
-      const currentWs = this.workspaceService.currentWorkspace();
-      if (currentWs) {
-        this.loadSources(currentWs.id);
-      } else {
-        this.sources.set([]);
-      }
-    });
+    try {
+      effect(() => {
+        const currentWs = this.workspaceService.currentWorkspace();
+        if (currentWs) {
+          this.loadSources(currentWs.id);
+        } else {
+          this.sources.set([]);
+        }
+      });
+    } catch {}
   }
 
   async loadSources(workspaceId: string): Promise<void> {
-    const local = this.mockStore.getSources(workspaceId);
-    this.sources.set(local);
-
-    if (this.mockStore.isDemoMode() || workspaceId.startsWith('demo-')) {
+    if (this.mockStore.isDemoMode()) {
+      const local = this.mockStore.getSources(workspaceId);
+      this.sources.set(local);
       return;
     }
 
     this.isLoading.set(true);
     try {
-      const queryPromise = this.supabase.client
+      const { data, error } = await this.supabase.client
         .from('sources')
         .select('*')
         .eq('workspace_id', workspaceId)
         .order('is_default', { ascending: false })
         .order('name', { ascending: true });
 
-      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 1000);
-
-      if (res && !res.error && res.data && res.data.length > 0) {
-        this.sources.set(res.data as Source[]);
-        (res.data as Source[]).forEach((s) => this.mockStore.saveSource(s));
+      if (error) {
+        console.error('Fehler beim Laden der Quellen aus Supabase:', error);
+        this.sources.set([]);
+      } else if (data) {
+        this.sources.set(data as Source[]);
       }
     } catch (err) {
-      // Keep local
+      console.error('Verbindungsfehler beim Laden der Quellen:', err);
+      this.sources.set([]);
     } finally {
       this.isLoading.set(false);
     }
   }
 
-  async createSource(name: string, isDefault = false): Promise<{ data: Source | null; error: Error | null }> {
+  async createSource(name: string, isDefault = false, type = 'online_marketplace'): Promise<{ data: Source | null; error: Error | null }> {
     const ws = this.workspaceService.currentWorkspace();
     if (!ws) return { data: null, error: new Error('Kein aktiver Workspace ausgewählt') };
 
@@ -66,21 +68,32 @@ export class SourcesService {
       name: name.trim(),
       is_default: isDefault,
       is_active: true,
-      type: 'online_marketplace',
+      type,
     };
 
     this.mockStore.saveSource(newSrc);
     this.sources.update((list) => [...list, newSrc]);
 
-    if (!this.mockStore.isDemoMode()) {
+    if (!this.mockStore.isDemoMode() && !ws.id.startsWith('demo-')) {
       try {
-        await this.supabase.client.from('sources').insert({
+        const { data: dbSrc, error: dbError } = await this.supabase.client.from('sources').insert({
           workspace_id: ws.id,
           name: name.trim(),
           is_default: isDefault,
-        });
+          is_active: true,
+          type,
+        }).select().single();
+
+        if (dbError) {
+          console.error('Fehler beim Speichern der Quelle in Supabase:', dbError);
+        } else if (dbSrc) {
+          const finalSrc: Source = { ...newSrc, id: dbSrc.id };
+          this.mockStore.saveSource(finalSrc);
+          this.sources.update((list) => [finalSrc, ...list.filter((s) => s.id !== newSrc.id)]);
+          return { data: finalSrc, error: null };
+        }
       } catch (e) {
-        // ignore
+        console.error('Verbindungsfehler beim Anlegen der Quelle:', e);
       }
     }
 
@@ -92,9 +105,13 @@ export class SourcesService {
     this.sources.update((list) => list.filter((s) => s.id !== sourceId));
     if (!this.mockStore.isDemoMode()) {
       try {
-        await this.supabase.client.from('sources').delete().eq('id', sourceId);
-      } catch (e) {
-        // ignore
+        const { error } = await this.supabase.client.from('sources').delete().eq('id', sourceId);
+        if (error) {
+          console.error('Fehler beim Löschen der Quelle in Supabase:', error);
+          return { error: new Error(error.message) };
+        }
+      } catch (e: any) {
+        console.error('Verbindungsfehler beim Löschen der Quelle:', e);
       }
     }
     return { error: null };

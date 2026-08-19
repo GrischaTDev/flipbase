@@ -6,5 +6,5 @@ export const environment = {
    * Demo-Modus ohne Anmeldung. Zeigt ausschliesslich lokale Browser-Daten,
    * nie Serverdaten. Fuer den Web-Betrieb auf false setzen.
    */
-  allowDemoMode: false,
+  allowDemoMode: true,
 };

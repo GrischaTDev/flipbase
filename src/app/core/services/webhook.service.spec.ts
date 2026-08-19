@@ -1,5 +1,6 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
+import { Injector, runInInjectionContext } from '@angular/core';
 import { WebhookService } from './webhook.service';
 import { Sale, Purchase } from '../models/reflip.models';
 
@@ -7,7 +8,8 @@ describe('Webhook & Notification Service', () => {
   let webhookService: WebhookService;
 
   beforeEach(() => {
-    webhookService = new WebhookService();
+    const injector = Injector.create({ providers: [] });
+    webhookService = runInInjectionContext(injector, () => new WebhookService());
   });
 
   it('should initialize with default config and system notification', () => {

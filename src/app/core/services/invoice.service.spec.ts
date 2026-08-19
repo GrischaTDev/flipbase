@@ -1,5 +1,6 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
+import { Injector, runInInjectionContext } from '@angular/core';
 import { InvoiceService } from './invoice.service';
 import { Sale, InventoryItem } from '../models/reflip.models';
 import { StoreOrder } from '../models/store.models';
@@ -8,7 +9,8 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
   let service: InvoiceService;
 
   beforeEach(() => {
-    service = new InvoiceService();
+    const injector = Injector.create({ providers: [] });
+    service = runInInjectionContext(injector, () => new InvoiceService());
   });
 
   it('should generate a compliant § 25a UStG invoice for a Sale', () => {

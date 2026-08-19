@@ -19,13 +19,19 @@
     [class.h-4]="size() === 'md'"
     [class.w-5]="size() === 'lg'"
     [class.h-5]="size() === 'lg'"
-    [class.bg-indigo-600]="checked() || indeterminate()"
-    [class.border-indigo-500]="checked() || indeterminate()"
+    [class.bg-emerald-700]="(checked() || indeterminate()) && color() === 'emerald'"
+    [class.dark:bg-emerald-600]="(checked() || indeterminate()) && color() === 'emerald'"
+    [class.border-emerald-700]="(checked() || indeterminate()) && color() === 'emerald'"
+    [class.dark:border-emerald-600]="(checked() || indeterminate()) && color() === 'emerald'"
+    [class.shadow-emerald-500/25]="(checked() || indeterminate()) && color() === 'emerald'"
+    [class.bg-indigo-600]="(checked() || indeterminate()) && color() === 'indigo'"
+    [class.border-indigo-500]="(checked() || indeterminate()) && color() === 'indigo'"
+    [class.shadow-indigo-500/30]="(checked() || indeterminate()) && color() === 'indigo'"
     [class.shadow-sm]="checked() || indeterminate()"
-    [class.shadow-indigo-500/30]="checked() || indeterminate()"
     [class.bg-rf-well]="!checked() && !indeterminate()"
     [class.border-rf-border-hover]="!checked() && !indeterminate()"
-    [class.group-hover:border-indigo-400]="!checked() && !indeterminate() && !effectiveDisabled()"
+    [class.group-hover:border-emerald-500]="!checked() && !indeterminate() && !effectiveDisabled() && color() === 'emerald'"
+    [class.group-hover:border-indigo-400]="!checked() && !indeterminate() && !effectiveDisabled() && color() === 'indigo'"
     [class.group-hover:bg-rf-subtle]="!checked() && !indeterminate() && !effectiveDisabled()"
   >
     @if (checked() && !indeterminate()) {
@@ -36,7 +42,7 @@
         stroke-width="3.5"
         stroke-linecap="round"
         stroke-linejoin="round"
-        class="text-rf-text-primary w-2.5 h-2.5 animate-scale-in"
+        class="text-rf-on-accent w-2.5 h-2.5 animate-scale-in"
       >
         <polyline points="20 6 9 17 4 12"></polyline>
       </svg>
@@ -48,7 +54,7 @@
         stroke-width="4"
         stroke-linecap="round"
         stroke-linejoin="round"
-        class="text-rf-text-primary w-2.5 h-2.5 animate-scale-in"
+        class="text-rf-on-accent w-2.5 h-2.5 animate-scale-in"
       >
         <line x1="5" y1="12" x2="19" y2="12"></line>
       </svg>

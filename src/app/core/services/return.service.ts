@@ -1,4 +1,4 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, effect, inject, signal } from '@angular/core';
 import { RestockAction, ReturnReason, ReturnRecord } from '../models/return.models';
 import { Invoice } from '../models/invoice.models';
 import { InventoryItem, ItemStatus, Sale, Workspace } from '../models/reflip.models';
@@ -6,6 +6,7 @@ import { InventoryService } from './inventory.service';
 import { WorkspaceService } from './workspace.service';
 import { WebhookService } from './webhook.service';
 import { WebPushService } from './web-push.service';
+import { SupabaseService } from './supabase.service';
 
 const STORAGE_KEY_RETURNS = 'reflip_saved_returns';
 
@@ -13,25 +14,24 @@ const STORAGE_KEY_RETURNS = 'reflip_saved_returns';
   providedIn: 'root',
 })
 export class ReturnService {
-  private readonly inventoryService: InventoryService | null = null;
-  private readonly workspaceService: WorkspaceService | null = null;
-  private readonly webhookService: WebhookService | null = null;
-  private readonly webPushService: WebPushService | null = null;
+  private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly inventoryService = inject(InventoryService, { optional: true });
+  private readonly workspaceService = inject(WorkspaceService, { optional: true });
+  private readonly webhookService = inject(WebhookService, { optional: true });
+  private readonly webPushService = inject(WebPushService, { optional: true });
 
   readonly returns = signal<ReturnRecord[]>(this.loadPersistedReturns());
+  readonly isLoading = signal<boolean>(false);
 
   constructor() {
     try {
-      this.inventoryService = inject(InventoryService, { optional: true });
-      this.workspaceService = inject(WorkspaceService, { optional: true });
-      this.webhookService = inject(WebhookService, { optional: true });
-      this.webPushService = inject(WebPushService, { optional: true });
-    } catch {
-      this.inventoryService = null;
-      this.workspaceService = null;
-      this.webhookService = null;
-      this.webPushService = null;
-    }
+      effect(() => {
+        const ws = this.workspaceService?.currentWorkspace();
+        if (ws) {
+          this.loadReturns(ws.id);
+        }
+      });
+    } catch {}
   }
 
   private loadPersistedReturns(): ReturnRecord[] {
@@ -67,6 +67,36 @@ export class ReturnService {
         localStorage.setItem(STORAGE_KEY_RETURNS, JSON.stringify(this.returns()));
       }
     } catch {}
+  }
+
+  async loadReturns(workspaceId: string): Promise<void> {
+    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+
+    this.isLoading.set(true);
+    try {
+      const { data, error } = await this.supabase.client
+        .from('returns')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .order('return_date', { ascending: false });
+
+      if (error) {
+        console.error('Fehler beim Laden der Retouren aus Supabase:', error);
+      } else if (data && data.length > 0) {
+        const mapped: ReturnRecord[] = (data as unknown[]).map((r: any) => ({
+          ...r,
+          reason: r.reason as ReturnReason,
+          restock_action: r.restock_action as RestockAction,
+          refund_amount: Number(r.refund_amount || 0),
+        }));
+        this.returns.set(mapped);
+        this.persistReturns();
+      }
+    } catch (err) {
+      console.error('Verbindungsfehler beim Laden der Retouren:', err);
+    } finally {
+      this.isLoading.set(false);
+    }
   }
 
   /**
@@ -129,11 +159,40 @@ export class ReturnService {
       }
     }
 
-    // 3. Save to state
+    // 3. Save to state & local storage
     this.returns.update((prev) => [newReturn, ...prev]);
     this.persistReturns();
 
-    // 4. Notifications
+    // 4. Save to Supabase
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      try {
+        const { data: dbReturn, error } = await this.supabase.client.from('returns').insert({
+          workspace_id: ws.id,
+          sale_id: payload.sale.id,
+          inventory_item_id: payload.sale.inventory_item_id,
+          credit_note_number: creditNoteNumber,
+          return_date: newReturn.return_date,
+          reason: payload.reason,
+          refund_amount: newReturn.refund_amount,
+          is_full_refund: payload.isFullRefund,
+          restock_action: payload.restockAction,
+          buyer_name: newReturn.buyer_name,
+          notes: payload.notes || null,
+        }).select().single();
+
+        if (error) {
+          console.error('Fehler beim Speichern der Retoure in Supabase:', error);
+        } else if (dbReturn) {
+          const finalReturn: ReturnRecord = { ...newReturn, id: dbReturn.id };
+          this.returns.update((list) => [finalReturn, ...list.filter((r) => r.id !== newReturn.id)]);
+          this.persistReturns();
+        }
+      } catch (err) {
+        console.error('Verbindungsfehler beim Speichern der Retoure:', err);
+      }
+    }
+
+    // 5. Notifications
     if (this.webPushService) {
       this.webPushService.sendNotification(`↩️ Retoure erfasst: ${creditNoteNumber}`, {
         body: `Erstattung von ${payload.refundAmount.toFixed(2)} € gebucht für ${payload.item?.title || 'Artikel'}.`,

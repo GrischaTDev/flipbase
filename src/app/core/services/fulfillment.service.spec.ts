@@ -1,12 +1,14 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
+import { Injector, runInInjectionContext } from '@angular/core';
 import { FulfillmentService } from './fulfillment.service';
 
 describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
   let service: FulfillmentService;
 
   beforeEach(() => {
-    service = new FulfillmentService();
+    const injector = Injector.create({ providers: [] });
+    service = runInInjectionContext(injector, () => new FulfillmentService());
     service.loadDemoOrders();
   });
 

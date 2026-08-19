@@ -1,8 +1,10 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { StoreService } from './store.service';
 import { SalesService } from './sales.service';
 import { PurchaseService } from './purchase.service';
 import { InvoiceService } from './invoice.service';
+import { SupabaseService } from './supabase.service';
+import { WorkspaceService } from './workspace.service';
 import {
   BankFormatType,
   BankReconciliationMatch,
@@ -17,6 +19,8 @@ const STORAGE_KEY_BANK_TRANSACTIONS = 'reflip_bank_transactions';
   providedIn: 'root',
 })
 export class BankReconciliationService {
+  private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly storeService = inject(StoreService);
   private readonly salesService = inject(SalesService);
   private readonly purchaseService = inject(PurchaseService);
@@ -25,6 +29,53 @@ export class BankReconciliationService {
   readonly transactions = signal<BankTransaction[]>(this.loadStoredTransactions());
   readonly isProcessing = signal<boolean>(false);
   readonly selectedTransaction = signal<BankTransaction | null>(null);
+
+  constructor() {
+    try {
+      effect(() => {
+        const ws = this.workspaceService?.currentWorkspace();
+        if (ws) {
+          this.loadFromSupabase(ws.id);
+        }
+      });
+    } catch {
+      // Ignored in unit testing environments without ChangeDetectionScheduler
+    }
+  }
+
+  async loadFromSupabase(workspaceId: string): Promise<void> {
+    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+
+    try {
+      const { data, error } = await this.supabase.client
+        .from('bank_transactions')
+        .select('*')
+        .eq('workspace_id', workspaceId)
+        .order('booking_date', { ascending: false });
+
+      if (!error && data && data.length > 0) {
+        const mapped: BankTransaction[] = (data as unknown[]).map((t: any) => ({
+          id: t.id,
+          bookingDate: t.booking_date,
+          valueDate: t.value_date || undefined,
+          counterpartyName: t.counterparty_name,
+          counterpartyIban: t.counterparty_iban || undefined,
+          counterpartyBic: t.counterparty_bic || undefined,
+          purpose: t.purpose,
+          amount: Number(t.amount),
+          currency: t.currency,
+          sourceFormat: t.source_format as BankFormatType,
+          status: t.status,
+          match: t.match_data as BankReconciliationMatch | undefined,
+          bookedAt: t.booked_at || undefined,
+        }));
+        this.transactions.set(mapped);
+        this.persistTransactions();
+      }
+    } catch (err) {
+      console.error('Verbindungsfehler beim Laden der Banktransaktionen:', err);
+    }
+  }
 
   readonly summary = computed<BankReconciliationSummary>(() => {
     const list = this.transactions();

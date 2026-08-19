@@ -53,14 +53,16 @@ export class ListingStudioService {
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
-    effect(() => {
-      const ws = this.workspaceService?.currentWorkspace();
-      if (ws) {
-        this.loadDrafts(ws.id);
-      } else {
-        this.savedDrafts.set([]);
-      }
-    });
+    try {
+      effect(() => {
+        const ws = this.workspaceService?.currentWorkspace();
+        if (ws) {
+          this.loadDrafts(ws.id);
+        } else {
+          this.savedDrafts.set([]);
+        }
+      });
+    } catch {}
   }
 
   async loadDrafts(workspaceId: string): Promise<void> {

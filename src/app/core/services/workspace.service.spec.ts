@@ -1,5 +1,6 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
+import { Injector, runInInjectionContext } from '@angular/core';
 import { WorkspaceService } from './workspace.service';
 import { InventoryItem, Purchase, Sale } from '../models/reflip.models';
 
@@ -7,7 +8,8 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
   let service: WorkspaceService;
 
   beforeEach(() => {
-    service = new WorkspaceService();
+    const injector = Injector.create({ providers: [] });
+    service = runInInjectionContext(injector, () => new WorkspaceService());
   });
 
   it('should initialize with multi-workspace presets', () => {

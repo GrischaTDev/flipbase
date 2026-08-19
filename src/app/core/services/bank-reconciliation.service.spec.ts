@@ -2,6 +2,7 @@ import '@angular/compiler';
 import {
   createEnvironmentInjector,
   EnvironmentInjector,
+  provideZonelessChangeDetection,
   runInInjectionContext,
   signal,
 } from '@angular/core';
@@ -56,6 +57,7 @@ describe('BankReconciliationService', () => {
 
     injector = createEnvironmentInjector(
       [
+        provideZonelessChangeDetection(),
         { provide: StoreService, useValue: mockStoreService },
         { provide: SalesService, useValue: mockSalesService },
         { provide: PurchaseService, useValue: mockPurchaseService },

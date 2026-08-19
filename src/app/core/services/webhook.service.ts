@@ -1,6 +1,8 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { WebhookConfig, AppNotification } from '../models/webhook.models';
 import { Sale, Purchase } from '../models/reflip.models';
+import { SupabaseService } from './supabase.service';
+import { WorkspaceService } from './workspace.service';
 
 const STORAGE_KEY_CONFIG = 'reflip_webhook_config';
 const STORAGE_KEY_NOTIFS = 'reflip_app_notifications';
@@ -21,12 +23,26 @@ function getStorage(): Storage | null {
   providedIn: 'root',
 })
 export class WebhookService {
+  private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly workspaceService = inject(WorkspaceService, { optional: true });
+
   readonly config = signal<WebhookConfig>(this.loadConfig());
   readonly notifications = signal<AppNotification[]>(this.loadNotifications());
 
   readonly unreadCount = computed(
     () => this.notifications().filter((n) => !n.read).length
   );
+
+  constructor() {
+    try {
+      effect(() => {
+        const ws = this.workspaceService?.currentWorkspace();
+        if (ws) {
+          this.loadFromSupabase(ws.id);
+        }
+      });
+    } catch {}
+  }
 
   private loadConfig(): WebhookConfig {
     try {
@@ -69,12 +85,98 @@ export class WebhookService {
     ];
   }
 
+  async loadFromSupabase(workspaceId: string): Promise<void> {
+    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+
+    try {
+      const [cfgRes, notifRes] = await Promise.all([
+        this.supabase.client
+          .from('webhook_configs')
+          .select('*')
+          .eq('workspace_id', workspaceId)
+          .maybeSingle(),
+        this.supabase.client
+          .from('app_notifications')
+          .select('*')
+          .eq('workspace_id', workspaceId)
+          .order('created_at', { ascending: false })
+          .limit(50),
+      ]);
+
+      if (cfgRes.data) {
+        const d = cfgRes.data;
+        const cfg: WebhookConfig = {
+          discordEnabled: d.discord_enabled,
+          discordWebhookUrl: d.discord_webhook_url || '',
+          telegramEnabled: d.telegram_enabled,
+          telegramBotToken: d.telegram_bot_token || '',
+          telegramChatId: d.telegram_chat_id || '',
+          customWebhookEnabled: d.custom_webhook_enabled,
+          customWebhookUrl: d.custom_webhook_url || '',
+          notifyOnSale: d.notify_on_sale,
+          notifyOnPurchase: d.notify_on_purchase,
+          notifyOnLowMargin: d.notify_on_low_margin,
+          soundEnabled: d.sound_enabled,
+        };
+        this.config.set(cfg);
+        try {
+          getStorage()?.setItem(STORAGE_KEY_CONFIG, JSON.stringify(cfg));
+        } catch {}
+      }
+
+      if (notifRes.data && notifRes.data.length > 0) {
+        const mapped: AppNotification[] = (notifRes.data as unknown[]).map((n: any) => ({
+          id: n.id,
+          type: n.type,
+          title: n.title,
+          message: n.message,
+          timestamp: n.created_at,
+          read: n.read,
+          link: n.link || undefined,
+        }));
+        this.notifications.set(mapped);
+        try {
+          getStorage()?.setItem(STORAGE_KEY_NOTIFS, JSON.stringify(mapped));
+        } catch {}
+      }
+    } catch (err) {
+      console.error('Verbindungsfehler beim Laden der Benachrichtigungen:', err);
+    }
+  }
+
   updateConfig(cfg: Partial<WebhookConfig>): void {
     const updated = { ...this.config(), ...cfg };
     this.config.set(updated);
     try {
       getStorage()?.setItem(STORAGE_KEY_CONFIG, JSON.stringify(updated));
     } catch {}
+
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client
+        .from('webhook_configs')
+        .upsert(
+          {
+            workspace_id: ws.id,
+            discord_enabled: updated.discordEnabled,
+            discord_webhook_url: updated.discordWebhookUrl,
+            telegram_enabled: updated.telegramEnabled,
+            telegram_bot_token: updated.telegramBotToken,
+            telegram_chat_id: updated.telegramChatId,
+            custom_webhook_enabled: updated.customWebhookEnabled,
+            custom_webhook_url: updated.customWebhookUrl,
+            notify_on_sale: updated.notifyOnSale,
+            notify_on_purchase: updated.notifyOnPurchase,
+            notify_on_low_margin: updated.notifyOnLowMargin,
+            sound_enabled: updated.soundEnabled,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'workspace_id' }
+        )
+        .then(({ error }) => {
+          if (error) console.error('Fehler beim Speichern der Webhook-Konfiguration:', error);
+        });
+    }
   }
 
   addNotification(n: Omit<AppNotification, 'id' | 'timestamp' | 'read'>): void {
@@ -91,6 +193,18 @@ export class WebhookService {
       getStorage()?.setItem(STORAGE_KEY_NOTIFS, JSON.stringify(updated));
     } catch {}
 
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client.from('app_notifications').insert({
+        workspace_id: ws.id,
+        type: item.type,
+        title: item.title,
+        message: item.message,
+        read: false,
+        link: item.link || null,
+      });
+    }
+
     if (this.config().soundEnabled) {
       this.playChimeSound();
     }
@@ -102,6 +216,14 @@ export class WebhookService {
     try {
       getStorage()?.setItem(STORAGE_KEY_NOTIFS, JSON.stringify(updated));
     } catch {}
+
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client
+        .from('app_notifications')
+        .update({ read: true })
+        .eq('workspace_id', ws.id);
+    }
   }
 
   clearNotifications(): void {
@@ -109,6 +231,14 @@ export class WebhookService {
     try {
       getStorage()?.setItem(STORAGE_KEY_NOTIFS, JSON.stringify([]));
     } catch {}
+
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client
+        .from('app_notifications')
+        .delete()
+        .eq('workspace_id', ws.id);
+    }
   }
 
   /**

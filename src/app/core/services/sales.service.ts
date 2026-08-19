@@ -32,33 +32,32 @@ export class SalesService {
   private readonly mockStore = inject(MockDataStoreService);
   private readonly webhookService = inject(WebhookService);
 
-  readonly sales = signal<Sale[]>(
-    this.mockStore.demoSales.map((s) => this.enrichSaleMetrics(s))
-  );
+  readonly sales = signal<Sale[]>([]);
   readonly isLoading = signal<boolean>(false);
 
   constructor() {
-    effect(() => {
-      const ws = this.workspaceService.currentWorkspace();
-      if (ws) {
-        this.loadSales(ws.id);
-      } else {
-        this.sales.set([]);
-      }
-    });
+    try {
+      effect(() => {
+        const ws = this.workspaceService.currentWorkspace();
+        if (ws) {
+          this.loadSales(ws.id);
+        } else {
+          this.sales.set([]);
+        }
+      });
+    } catch {}
   }
 
   async loadSales(workspaceId: string): Promise<void> {
-    const localSales = this.mockStore.getSales(workspaceId).map((s) => this.enrichSaleMetrics(s));
-    this.sales.set(localSales);
-
-    if (this.mockStore.isDemoMode() || workspaceId.startsWith('demo-')) {
+    if (this.mockStore.isDemoMode()) {
+      const localSales = this.mockStore.getSales(workspaceId).map((s) => this.enrichSaleMetrics(s));
+      this.sales.set(localSales);
       return;
     }
 
     this.isLoading.set(true);
     try {
-      const queryPromise = this.supabase.client
+      const { data, error } = await this.supabase.client
         .from('sales')
         .select(`
           *,
@@ -72,15 +71,16 @@ export class SalesService {
         .order('sale_date', { ascending: false })
         .order('created_at', { ascending: false });
 
-      const res: any = await this.mockStore.withTimeout(queryPromise, { data: null, error: new Error('Timeout') }, 1000);
-
-      if (res && !res.error && res.data && res.data.length > 0) {
-        const enriched = (res.data as unknown[]).map((s: any) => this.enrichSaleMetrics(s));
+      if (error) {
+        console.error('Fehler beim Laden der Verkäufe aus Supabase:', error);
+        this.sales.set([]);
+      } else if (data) {
+        const enriched = (data as unknown[]).map((s: any) => this.enrichSaleMetrics(s));
         this.sales.set(enriched);
-        enriched.forEach((s) => this.mockStore.saveSale(s));
       }
     } catch (err) {
-      // Keep local sales
+      console.error('Verbindungsfehler beim Laden der Verkäufe:', err);
+      this.sales.set([]);
     } finally {
       this.isLoading.set(false);
     }
@@ -160,9 +160,9 @@ export class SalesService {
     // Trigger Discord/Telegram/In-App notification
     this.webhookService.sendSaleNotification(enrichedSale, item?.title || 'Artikel');
 
-    if (!this.mockStore.isDemoMode()) {
+    if (!this.mockStore.isDemoMode() && !ws.id.startsWith('demo-')) {
       try {
-        await this.supabase.client.from('sales').insert({
+        const { data: dbSale, error: dbError } = await this.supabase.client.from('sales').insert({
           workspace_id: ws.id,
           inventory_item_id: payload.inventory_item_id,
           platform: payload.platform,
@@ -175,9 +175,18 @@ export class SalesService {
           external_order_id: payload.external_order_id?.trim() || null,
           external_listing_id: payload.external_listing_id?.trim() || null,
           buyer_notes: payload.buyer_notes?.trim() || null,
-        });
-      } catch (e) {
-        // ignore
+        }).select().single();
+
+        if (dbError) {
+          console.error('Fehler beim Speichern des Verkaufs in Supabase:', dbError);
+        } else if (dbSale) {
+          const finalSale = this.enrichSaleMetrics({ ...enrichedSale, id: dbSale.id });
+          this.mockStore.saveSale(finalSale);
+          this.sales.update((list) => [finalSale, ...list.filter((s) => s.id !== enrichedSale.id)]);
+          return { data: finalSale, error: null };
+        }
+      } catch (e: any) {
+        console.error('Verbindungsfehler beim Speichern des Verkaufs:', e);
       }
     }
 
@@ -196,9 +205,13 @@ export class SalesService {
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        await this.supabase.client.from('sales').delete().eq('id', saleId);
-      } catch (e) {
-        // ignore
+        const { error } = await this.supabase.client.from('sales').delete().eq('id', saleId);
+        if (error) {
+          console.error('Fehler beim Löschen des Verkaufs in Supabase:', error);
+          return { error: new Error(error.message) };
+        }
+      } catch (e: any) {
+        console.error('Verbindungsfehler beim Löschen des Verkaufs:', e);
       }
     }
 

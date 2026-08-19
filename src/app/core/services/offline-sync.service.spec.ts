@@ -1,12 +1,14 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
+import { Injector, runInInjectionContext } from '@angular/core';
 import { OfflineSyncService } from './offline-sync.service';
 
 describe('OfflineSyncService & Flea Market Rapid Sourcing (Chapter 28)', () => {
   let service: OfflineSyncService;
 
   beforeEach(() => {
-    service = new OfflineSyncService();
+    const injector = Injector.create({ providers: [] });
+    service = runInInjectionContext(injector, () => new OfflineSyncService());
     service.loadDemoEntries();
     service.startCashSession(250.0, 'Flohmarkt Mauerpark Berlin');
   });

@@ -1,8 +1,9 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { InventoryService } from './inventory.service';
 import { SalesService } from './sales.service';
 import { WorkspaceService } from './workspace.service';
 import { WebPushService } from './web-push.service';
+import { SupabaseService } from './supabase.service';
 import { InventoryItem } from '../models/reflip.models';
 import {
   CartItem,
@@ -20,9 +21,11 @@ const STORAGE_KEY_ORDERS = 'reflip_store_orders';
   providedIn: 'root',
 })
 export class StoreService {
-  private readonly inventoryService: InventoryService | null = null;
-  private readonly salesService: SalesService | null = null;
-  private readonly workspaceService: WorkspaceService | null = null;
+  private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly inventoryService = inject(InventoryService, { optional: true });
+  private readonly salesService = inject(SalesService, { optional: true });
+  private readonly workspaceService = inject(WorkspaceService, { optional: true });
+  private readonly webPushService = inject(WebPushService, { optional: true });
 
   readonly storeSettings = signal<StoreSettings>({
     storeName: 'ReFlip Store & Second Hand Outlet',
@@ -88,21 +91,16 @@ export class StoreService {
     return this.cartSubtotal() + this.cartShippingCost();
   });
 
-  private readonly webPushService: WebPushService | null = null;
-
   constructor() {
-    try {
-      this.inventoryService = inject(InventoryService, { optional: true });
-      this.salesService = inject(SalesService, { optional: true });
-      this.workspaceService = inject(WorkspaceService, { optional: true });
-      this.webPushService = inject(WebPushService, { optional: true });
-    } catch {
-      this.inventoryService = null;
-      this.salesService = null;
-      this.workspaceService = null;
-      this.webPushService = null;
-    }
     this.loadPersistedStoreData();
+    try {
+      effect(() => {
+        const ws = this.workspaceService?.currentWorkspace();
+        if (ws) {
+          this.loadFromSupabase(ws.id);
+        }
+      });
+    } catch {}
   }
 
   private loadPersistedStoreData(): void {
@@ -128,25 +126,88 @@ export class StoreService {
         this.orders.set(JSON.parse(savedOrders));
       }
     } catch (e) {
-      console.warn('Could not read store data from localStorage', e);
+      console.error('Fehler beim Laden gespeicherter Shop-Daten:', e);
     }
   }
 
-  updateStoreSettings(settings: Partial<StoreSettings>): void {
-    const updated = { ...this.storeSettings(), ...settings };
-    this.storeSettings.set(updated);
+  async loadFromSupabase(workspaceId: string): Promise<void> {
+    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+
     try {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(updated));
+      const [settingsRes, ordersRes] = await Promise.all([
+        this.supabase.client
+          .from('store_settings')
+          .select('*')
+          .eq('workspace_id', workspaceId)
+          .maybeSingle(),
+        this.supabase.client
+          .from('store_orders')
+          .select(`
+            *,
+            items:store_order_items(*)
+          `)
+          .eq('workspace_id', workspaceId)
+          .order('created_at', { ascending: false }),
+      ]);
+
+      if (settingsRes.data) {
+        const d = settingsRes.data;
+        const loadedSettings: StoreSettings = {
+          storeName: d.store_name,
+          tagline: d.tagline || '',
+          shippingFlatRate: Number(d.shipping_flat_rate || 4.99),
+          freeShippingThreshold: Number(d.free_shipping_threshold || 50.0),
+          currency: d.currency || 'EUR',
+          payments: (d.payments as unknown as PaymentGatewayConfig) || this.storeSettings().payments,
+          imprint: (d.imprint as any) || this.storeSettings().imprint,
+          noticeText: d.notice_text || this.storeSettings().noticeText,
+        };
+        this.storeSettings.set(loadedSettings);
+        try {
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(loadedSettings));
+          }
+        } catch {}
       }
-    } catch {}
+
+      if (ordersRes.data && ordersRes.data.length > 0) {
+        const mappedOrders: StoreOrder[] = (ordersRes.data as unknown[]).map((o: any) => ({
+          id: o.id,
+          orderNumber: o.order_number,
+          createdAt: o.created_at,
+          customer: o.customer as CheckoutCustomerInfo,
+          items: ((o.items || []) as unknown[]).map((it: any) => ({
+            item: ({
+              id: it.inventory_item_id || '',
+              workspace_id: o.workspace_id,
+              title: it.item_title,
+              condition: 'Gebraucht',
+              status: 'sold',
+              allocated_purchase_cost: Number(it.price || 0),
+            } as unknown) as InventoryItem,
+            quantity: it.quantity,
+          })),
+          subtotal: Number(o.subtotal || 0),
+          shippingCost: Number(o.shipping_cost || 0),
+          total: Number(o.total || 0),
+          paymentMethod: o.payment_method,
+          paymentStatus: o.payment_status,
+          paymentId: o.payment_id || undefined,
+          status: o.status,
+        }));
+        this.orders.set(mappedOrders);
+        this.persistOrders();
+      }
+    } catch (err) {
+      console.error('Verbindungsfehler beim Laden der Store-Daten:', err);
+    }
   }
 
-  updatePaymentsConfig(payments: Partial<PaymentGatewayConfig>): void {
-    const current = this.storeSettings();
-    const updated: StoreSettings = {
-      ...current,
-      payments: { ...current.payments, ...payments },
+  updateSettings(settings: Partial<StoreSettings>): void {
+    const updated = {
+      ...this.storeSettings(),
+      ...settings,
+      payments: { ...this.storeSettings().payments, ...(settings.payments || {}) },
     };
     this.storeSettings.set(updated);
     try {
@@ -154,46 +215,66 @@ export class StoreService {
         localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(updated));
       }
     } catch {}
+
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client
+        .from('store_settings')
+        .upsert(
+          {
+            workspace_id: ws.id,
+            store_name: updated.storeName,
+            tagline: updated.tagline,
+            shipping_flat_rate: updated.shippingFlatRate,
+            free_shipping_threshold: updated.freeShippingThreshold,
+            currency: updated.currency,
+            payments: updated.payments as any,
+            imprint: updated.imprint as any,
+            notice_text: updated.noticeText,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'workspace_id' }
+        )
+        .then(({ error }) => {
+          if (error) console.error('Fehler beim Speichern der Shop-Einstellungen:', error);
+        });
+    }
   }
 
-  addToCart(item: InventoryItem, quantity: number = 1): void {
+  updatePaymentsConfig(payments: Partial<PaymentGatewayConfig>): void {
+    this.updateSettings({
+      payments: { ...this.storeSettings().payments, ...payments },
+    });
+  }
+
+  addToCart(item: InventoryItem, quantity = 1): void {
     const current = this.cart();
-    const existingIndex = current.findIndex((c) => c.item.id === item.id);
+    const existing = current.find((i) => i.item.id === item.id);
 
-    if (existingIndex > -1) {
-      const updated = [...current];
-      updated[existingIndex] = {
-        ...updated[existingIndex],
-        quantity: updated[existingIndex].quantity + quantity,
-      };
-      this.cart.set(updated);
+    if (existing) {
+      this.cart.update((items) =>
+        items.map((i) => (i.item.id === item.id ? { ...i, quantity: i.quantity + quantity } : i))
+      );
     } else {
-      this.cart.set([...current, { item, quantity }]);
+      this.cart.update((items) => [...items, { item, quantity }]);
     }
-
     this.persistCart();
-    this.isCartOpen.set(true);
+  }
+
+  updateQuantity(itemId: string, quantity: number): void {
+    if (quantity <= 0) {
+      this.removeFromCart(itemId);
+      return;
+    }
+    this.cart.update((items) =>
+      items.map((i) => (i.item.id === itemId ? { ...i, quantity } : i))
+    );
+    this.persistCart();
   }
 
   removeFromCart(itemId: string): void {
-    this.cart.set(this.cart().filter((c) => c.item.id !== itemId));
+    this.cart.update((items) => items.filter((i) => i.item.id !== itemId));
     this.persistCart();
-  }
-
-  updateQuantity(itemId: string, delta: number): void {
-    const current = this.cart();
-    const itemIndex = current.findIndex((c) => c.item.id === itemId);
-    if (itemIndex === -1) return;
-
-    const newQty = current[itemIndex].quantity + delta;
-    if (newQty <= 0) {
-      this.removeFromCart(itemId);
-    } else {
-      const updated = [...current];
-      updated[itemIndex] = { ...updated[itemIndex], quantity: newQty };
-      this.cart.set(updated);
-      this.persistCart();
-    }
   }
 
   clearCart(): void {
@@ -225,14 +306,10 @@ export class StoreService {
     this.isCartOpen.set(false);
   }
 
-  /**
-   * Simulates processing a Stripe credit card transaction.
-   */
   async processStripePayment(
     amount: number,
     cardDetails: { holder: string; last4: string; brand: string }
   ): Promise<{ success: boolean; transactionId: string }> {
-    // Simulated async secure payment gateway roundtrip
     await new Promise((res) => setTimeout(res, 50));
     return {
       success: true,
@@ -240,9 +317,6 @@ export class StoreService {
     };
   }
 
-  /**
-   * Simulates PayPal Express instant payment confirmation.
-   */
   async processPayPalPayment(
     amount: number
   ): Promise<{ success: boolean; transactionId: string }> {
@@ -253,9 +327,6 @@ export class StoreService {
     };
   }
 
-  /**
-   * Places an order, completes payment and automatically books sale in ReFlip OS!
-   */
   async placeOrder(customer: CheckoutCustomerInfo): Promise<StoreOrder> {
     const currentCart = this.cart();
     const orderNumber = 'RF-' + Math.floor(100000 + Math.random() * 900000);
@@ -278,7 +349,6 @@ export class StoreService {
       paymentStatus = ppRes.success ? 'paid' : 'failed';
       paymentId = ppRes.transactionId;
     } else {
-      // bank_transfer / cash_on_pickup
       paymentStatus = 'pending';
       paymentId = 'REF-' + Math.random().toString(36).substring(2, 8).toUpperCase();
     }
@@ -302,18 +372,49 @@ export class StoreService {
     this.orders.update((prev) => [newOrder, ...prev]);
     this.persistOrders();
 
-    // 2. Automatically synchronize ReFlip inventory: Mark items as sold and book sales!
+    // 2. Persist to Supabase
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+      this.supabase.client
+        .from('store_orders')
+        .insert({
+          workspace_id: ws.id,
+          order_number: newOrder.orderNumber,
+          customer: newOrder.customer as any,
+          subtotal: newOrder.subtotal,
+          shipping_cost: newOrder.shippingCost,
+          total: newOrder.total,
+          payment_method: newOrder.paymentMethod,
+          payment_status: newOrder.paymentStatus,
+          payment_id: newOrder.paymentId,
+          status: newOrder.status,
+        })
+        .select()
+        .single()
+        .then(({ data: dbOrder }) => {
+          if (dbOrder) {
+            const itemInserts = currentCart.map((c) => ({
+              store_order_id: dbOrder.id,
+              inventory_item_id: c.item.id.startsWith('item-') && !c.item.id.includes('demo') ? c.item.id : null,
+              item_title: c.item.title,
+              quantity: c.quantity,
+              price: c.item.expected_value ?? c.item.allocated_purchase_cost * 1.5,
+            }));
+            this.supabase?.client.from('store_order_items').insert(itemInserts);
+          }
+        });
+    }
+
+    // 3. Automatically synchronize ReFlip inventory
     for (const cartItem of currentCart) {
       const price = cartItem.item.expected_value ?? cartItem.item.allocated_purchase_cost * 1.5;
 
-      // Update inventory item status
       if (this.inventoryService) {
         await this.inventoryService.updateItem(cartItem.item.id, {
           status: 'sold',
         });
       }
 
-      // Calculate realistic gateway fee
       let paymentFee = 0;
       if (customer.paymentMethod === 'stripe_card') {
         paymentFee = Number((price * 0.014 + 0.25).toFixed(2));
@@ -321,14 +422,13 @@ export class StoreService {
         paymentFee = Number((price * 0.0249 + 0.35).toFixed(2));
       }
 
-      // Create sales entry in ReFlip with § 25a accounting
       if (this.salesService) {
         await this.salesService.createSale({
           inventory_item_id: cartItem.item.id,
           sale_date: new Date().toISOString().split('T')[0],
           platform: 'custom_store',
           sale_price: price,
-          platform_fee: 0, // 0% platform fee on own shop!
+          platform_fee: 0,
           shipping_cost: customer.shippingMethod === 'pickup' ? 0 : 4.5,
           other_costs: paymentFee,
           external_order_id: orderNumber,
@@ -337,11 +437,11 @@ export class StoreService {
       }
     }
 
-    // 3. Clear cart
+    // 4. Clear cart
     this.clearCart();
     this.isCartOpen.set(false);
 
-    // 4. Trigger Web Push Notification to Reseller
+    // 5. Trigger Web Push Notification
     if (this.webPushService) {
       this.webPushService.triggerShopOrderNotification(
         orderNumber,
