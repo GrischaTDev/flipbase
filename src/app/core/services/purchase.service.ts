@@ -143,9 +143,15 @@ export class PurchaseService {
   }
 
   async getPurchaseById(id: string): Promise<Purchase | null> {
-    const existing =
-      this.purchases().find((p) => p.id === id) ||
-      this.mockStore.getPurchases().find((p) => p.id === id);
+    // Die lokale Abkürzung gilt nur im Demo-Modus. Für angemeldete Nutzer muss
+    // die Datenbank gefragt werden: Die zugehörigen Artikel stehen seit der
+    // Umstellung auf „Datenbank zuerst" nicht mehr im lokalen Spiegel, wodurch
+    // die Einkaufs-Detailseite gar keine Artikel mehr anzeigte – und die
+    // Kostenverteilung damit ins Leere lief.
+    const existing = this.mockStore.isDemoMode()
+      ? this.purchases().find((p) => p.id === id) ||
+        this.mockStore.getPurchases().find((p) => p.id === id)
+      : undefined;
     if (existing) {
       const items = this.mockStore.getItems().filter((i) => i.purchase_id === id);
       const localSources = this.mockStore.getSources();
@@ -533,30 +539,29 @@ export class PurchaseService {
 
     let updatedItems: InventoryItem[] = [];
 
+    // Die Verteilung rechnet in ganzen Cent und vergibt den Rest nach groesstem
+    // Anteil. So entspricht die Summe der zugeordneten Kosten exakt dem
+    // Einkaufspreis - Grundlage fuer das § 25a-Journal und den DATEV-Export.
     if (mode === 'value_weighted') {
-      const sumExpectedValues = items.reduce((sum, it) => {
+      const erwarteteWerte = items.map((it) => {
         const custom = itemValues?.find((v) => v.id === it.id);
-        const val = custom ? custom.expected_value : it.expected_value || 1;
-        return sum + Math.max(0.01, val);
-      }, 0);
-
-      updatedItems = items.map((it) => {
-        const custom = itemValues?.find((v) => v.id === it.id);
-        const expVal = custom ? custom.expected_value : it.expected_value || 1;
-        const factor =
-          sumExpectedValues > 0 ? Math.max(0.01, expVal) / sumExpectedValues : 1 / items.length;
-        const newCost = Number((totalCost * factor).toFixed(2));
-        return {
-          ...it,
-          expected_value: expVal,
-          allocated_purchase_cost: newCost,
-        };
+        return custom ? custom.expected_value : (it.expected_value ?? 0);
       });
-    } else if (mode === 'even') {
-      const evenCost = Number((totalCost / items.length).toFixed(2));
-      updatedItems = items.map((it) => ({
+      const anteile = this.profitEngine.allocateCosts(totalCost, erwarteteWerte);
+
+      updatedItems = items.map((it, index) => ({
         ...it,
-        allocated_purchase_cost: evenCost,
+        expected_value: erwarteteWerte[index],
+        allocated_purchase_cost: anteile[index],
+      }));
+    } else if (mode === 'even') {
+      const anteile = this.profitEngine.allocateCosts(
+        totalCost,
+        items.map(() => 1),
+      );
+      updatedItems = items.map((it, index) => ({
+        ...it,
+        allocated_purchase_cost: anteile[index],
       }));
     }
 

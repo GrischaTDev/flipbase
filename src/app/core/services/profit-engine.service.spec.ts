@@ -20,16 +20,19 @@ describe('ProfitEngineService (Deterministic Logic)', () => {
     expect(roi).toBe(185);
   });
 
-  it('should allocate costs evenly across items', () => {
-    // Palette 1600 € total cost, 100 items -> 16 € per item (Chapter 12)
-    const costPerItem = service.allocateCostsEvenly(1600, 100);
-    expect(costPerItem).toBe(16.0);
+  it('verteilt Kosten gleichmäßig: 1.600 € auf 100 Artikel ergibt 16 € je Artikel', () => {
+    const anteile = service.allocateCosts(1600, new Array(100).fill(1));
+
+    expect(anteile.every((a) => a === 16.0)).toBe(true);
+    expect(anteile.reduce((s, a) => s + Math.round(a * 100), 0)).toBe(160000);
   });
 
-  it('should allocate costs value-weighted based on expected market value', () => {
-    // Total 1600 € costs, total expected value 3200 €. Item expected value 160 € -> 80 € cost
-    const weightedCost = service.allocateCostsValueWeighted(1600, 160, 3200);
-    expect(weightedCost).toBe(80.0);
+  it('verteilt Kosten wertgewichtet nach erwartetem Marktwert', () => {
+    // 1.600 € Gesamtkosten, erwartete Werte 160 € und 3.040 € (Summe 3.200 €)
+    const anteile = service.allocateCosts(1600, [160, 3040]);
+
+    expect(anteile[0]).toBe(80.0);
+    expect(anteile.reduce((s, a) => s + Math.round(a * 100), 0)).toBe(160000);
   });
 
   it('should calculate max buy price considering target ROI and min profit', () => {

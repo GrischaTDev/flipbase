@@ -51,22 +51,52 @@ export class ProfitEngineService {
   /**
    * Distributes total purchase costs across items evenly.
    */
-  allocateCostsEvenly(totalPurchaseCost: number, itemCount: number): number {
-    if (itemCount <= 0) return 0;
-    return Number((totalPurchaseCost / itemCount).toFixed(2));
-  }
-
   /**
-   * Distributes total purchase costs proportionally based on expected market values.
+   * Verteilt einen Gesamtbetrag exakt auf mehrere Artikel.
+   *
+   * Rechnet durchgehend in ganzen Cent und vergibt den unvermeidbaren Rest
+   * nach dem Verfahren des grössten Restes. Dadurch entspricht die Summe der
+   * Rückgabewerte **immer** exakt dem Gesamtbetrag.
+   *
+   * Zuvor wurde je Artikel einzeln gerundet: 100 € auf 3 Artikel ergaben
+   * 33,33 € × 3 = 99,99 €. Der fehlende Cent verfälschte den Wareneinsatz und
+   * damit auch das § 25a-Journal und den DATEV-Export.
+   *
+   * @param totalCost Gesamtbetrag in Euro. Negative Werte gelten als 0.
+   * @param weights   Gewicht je Artikel, etwa der erwartete Verkaufswert.
+   *                  Sind alle Gewichte 0 oder negativ, wird gleichmässig
+   *                  verteilt – sonst bekäme jeder Artikel 0 € und der
+   *                  gesamte Einkaufspreis verschwände aus der Kalkulation.
+   * @returns Betrag je Artikel in Euro, in derselben Reihenfolge wie `weights`.
    */
-  allocateCostsValueWeighted(
-    totalPurchaseCost: number,
-    itemExpectedValue: number,
-    sumAllExpectedValues: number,
-  ): number {
-    if (sumAllExpectedValues <= 0) return 0;
-    const ratio = itemExpectedValue / sumAllExpectedValues;
-    return Number((totalPurchaseCost * ratio).toFixed(2));
+  allocateCosts(totalCost: number, weights: readonly number[]): number[] {
+    if (weights.length === 0) return [];
+
+    const gesamtCent = Math.max(0, Math.round(totalCost * 100));
+    if (gesamtCent === 0) return weights.map(() => 0);
+
+    const gewichte = weights.map((w) => (Number.isFinite(w) && w > 0 ? w : 0));
+    const gewichtSumme = gewichte.reduce((s, w) => s + w, 0);
+
+    // Ohne brauchbare Gewichte gleichmaessig verteilen.
+    const verwendet = gewichtSumme > 0 ? gewichte : gewichte.map(() => 1);
+    const summe = gewichtSumme > 0 ? gewichtSumme : verwendet.length;
+
+    // Erst abrunden, dann die verbleibenden Cent nach groesstem Rest vergeben.
+    const exakt = verwendet.map((w) => (gesamtCent * w) / summe);
+    const cent = exakt.map((c) => Math.floor(c));
+    let rest = gesamtCent - cent.reduce((s, c) => s + c, 0);
+
+    const reihenfolge = exakt
+      .map((c, index) => ({ index, rest: c - Math.floor(c), gewicht: verwendet[index] }))
+      .sort((a, b) => b.rest - a.rest || b.gewicht - a.gewicht || a.index - b.index);
+
+    for (let i = 0; rest > 0; i = (i + 1) % reihenfolge.length) {
+      cent[reihenfolge[i].index]++;
+      rest--;
+    }
+
+    return cent.map((c) => c / 100);
   }
 
   /**

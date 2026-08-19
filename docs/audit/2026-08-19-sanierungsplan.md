@@ -54,7 +54,7 @@ Der Wunsch „in 2–3 Wochen ins Web **und** echte Stripe-/DHL-Anbindung" ist z
 | **3** | Sicherheit – Anmeldung & Datenbank | 1,5 Tage | ✅ erledigt |
 | **4** | UI-Blockaden + Light-Theme | 1 Tag | ✅ erledigt |
 | **5** | Datenschicht: Datenbank wird Quelle der Wahrheit | 3–5 Tage | ✅ erledigt (Gemini 3.7 Flash + Nacharbeit 5b) |
-| **6** | Finanzen & Steuern korrigieren | 1–2 Tage | ⏳ |
+| **6** | Finanzen & Steuern korrigieren | 1–2 Tage | ✅ erledigt |
 | **7** | Sicherheit – Auslieferung & Barrierefreiheit | 1,5 Tage | ⏳ |
 | **8** | Qualität, Aufräumen, Strict Mode | 1–2 Tage | ⏳ |
 | — | 🚀 **Web-Start ohne Shop** | | |
@@ -174,7 +174,7 @@ Reihenfolge nach Wichtigkeit: `return.service` → `invoice.service` → `tax-ad
 
 ---
 
-## Phase 6 – Finanzen & Steuern ⏱️ ~1–2 Tage 🔴
+## Phase 6 – Finanzen & Steuern ⏱️ ~1–2 Tage ✅
 
 | # | Aufgabe | Bezug |
 |---|---|---|

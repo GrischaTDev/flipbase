@@ -17,6 +17,54 @@ Dieses Projekt wird teilweise mit KI-Assistenten entwickelt. **Jede** von einer 
 **Verifiziert durch:** <Build / Tests / manuell – mit Ergebnis>
 ```
 
+## 2026-08-19 – Claude Opus 5 (Anthropic) – Phase 6: Finanzen & Steuern
+
+**Art:** Bugfix (Rechenfehler), Tests
+
+**Betroffen:**
+- `src/app/core/services/profit-engine.service.ts`
+- `src/app/core/services/tax-engine.service.ts`
+- `src/app/core/services/tax-advisor.service.ts`
+- `src/app/core/services/purchase.service.ts`, `export.service.ts`
+- `src/app/features/accounting/accounting.component.ts`
+- `src/app/core/services/cost-allocation.spec.ts`, `datev-export.spec.ts` (neu)
+
+**Was:**
+
+Nach Plan-Aufgabe 6.8 wurde zu **jedem** Befund zuerst ein Test geschrieben, der den Fehler zeigt, und erst danach korrigiert.
+
+1. **Kostenverteilung geht exakt auf** (Audit 4.1). Neue Methode `allocateCosts(gesamt, gewichte)` rechnet in ganzen Cent und vergibt den Rest nach dem Verfahren des grössten Restes. 100 € auf 3 Artikel ergeben jetzt 33,34 + 33,33 + 33,33 = **exakt 100,00 €**; zuvor 99,99 €. Ein Test prüft jeden Betrag von 0,01 bis 5,00 € auf 7 Artikel.
+
+2. **Wertgewichtete Verteilung verschluckt den Einkaufspreis nicht mehr** (Audit 4.2). Ohne gepflegte Erwartungswerte wird gleichmässig verteilt, statt jedem Artikel 0 € zuzuordnen – wodurch zuvor der gesamte Einkaufspreis aus der Kalkulation verschwand und jeder Verkauf wie 100 % Gewinn aussah.
+
+3. **DATEV-Belegdatum als TTMM** (Audit 4.3). Der 17.08.2026 erscheint als `1708`; zuvor stand dort `0817`, was DATEV als Tag 08 / Monat 17 liest.
+
+4. **Buchungsrichtung korrigiert** (Audit 4.4). Ein Verkauf wird als *Bank an Erlöse* gebucht: Konto 1200, Gegenkonto 8200. Zuvor stand das Erlöskonto im Feld „Konto" mit Kennzeichen S.
+
+5. **Vollständige EXTF-Kopfzeile mit 31 Feldern** (Audit 4.5), inklusive Wirtschaftsjahresbeginn, Sachkontenlänge, Zeitraum und Währung. Zuvor waren es 10 Felder – DATEV konnte die Datei nicht einlesen.
+
+6. **Reingewinn rechnet die Vorsteuer gegen** (Audit 4.6). Jetzt `Marge − Betriebskosten − Zahllast` statt `− volle Umsatzsteuer`. Der ausgewiesene Gewinn war zuvor systematisch zu niedrig.
+
+7. **Schutz vor Formeln in allen CSV-Exporten** (Audit 4.7). Werte, die mit `=`, `+`, `-` oder `@` beginnen, bekommen ein Apostroph vorangestellt. Betrifft DATEV, EÜR, § 25a-Journal und die Exporte aus dem `ExportService`.
+
+8. **Zeichenkodierung und Zeilenenden.** Alle CSV-Dateien werden mit Byte Order Mark ausgeliefert, sonst zeigen DATEV und Excel Umlaute verstümmelt an. Das § 25a-Journal nutzt jetzt CRLF statt LF.
+
+**Zwei zusätzliche Funde:**
+
+9. **Eine zweite, schwerer fehlerhafte DATEV-Umsetzung.** Der Knopf in der Oberfläche rief nicht die geprüfte Funktion auf, sondern `tax-advisor.service.generateDatevExtfCsv` – dort waren die Felder der Buchungszeilen gegenüber den Spaltenüberschriften **um eine Position verschoben**: Das Bankkonto landete in der Spalte „BU-Schlüssel", das Belegdatum blieb leer und stand stattdessen in „Belegfeld 1". Die Doppelung ist entfernt, die Funktion delegiert jetzt an den `TaxEngineService`; die SKR03/SKR04-Umschaltung und die Kanzleinummern sind als Optionen erhalten.
+
+10. **Einkaufs-Detailseite zeigte angemeldeten Nutzern keine Artikel.** Folgefehler aus Phase 5: `getPurchaseById` nahm eine lokale Abkürzung und las die Artikel aus dem Mock-Spiegel, der seit der Umstellung auf „Datenbank zuerst" leer ist. Damit lief auch die Kostenverteilung ins Leere. Die Abkürzung gilt jetzt nur noch im Demo-Modus.
+
+**Verifiziert durch:**
+- `npx ng build` erfolgreich; `npx vitest run` → **29 Dateien / 174 Tests grün** (vorher 144), darunter 30 neue Tests für Kostenverteilung und DATEV
+- **Im Browser gegen die echte Datenbank:** Mystery Pack über 100 € mit drei Artikeln angelegt, Kostenverteilung ausgelöst → 33,34 / 33,33 / 33,33, Summe exakt 100,00 €
+- **Echten DATEV-Stapel erzeugt und Feld für Feld geprüft:** BOM vorhanden, 31 Kopffelder, `Konto 1200`, `Gegenkonto 8200`, `Belegdatum 1708`, CRLF
+- **EÜR und § 25a-Journal geprüft:** Artikeltitel `=HYPERLINK(...)` erscheint entschärft als `'=HYPERLINK(...)`, Reingewinn 257,71 € entspricht `316,67 − 10 − 48,96`
+
+**Vorbehalt, unverändert gültig:** Ich bin kein Steuerberater. Die Formate sind nach den DATEV-Vorgaben umgesetzt und rechnerisch geprüft, aber ein erzeugter Stapel sollte vor dem ersten Einreichen von der Kanzlei gegengelesen werden.
+
+---
+
 ## 2026-08-19 – Claude Opus 5 (Anthropic) – Phase 5b: Nacharbeit zur Prüfung
 
 **Art:** Bugfix, Sicherheit, Datenbank-Migration, Tests

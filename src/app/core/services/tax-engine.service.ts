@@ -11,6 +11,16 @@ import {
   TaxPeriodSummary,
 } from '../models/reflip.models';
 
+/** Einstellungen für den DATEV-Buchungsstapel. */
+export interface DatevOptionen {
+  /** Kontenrahmen der Kanzlei. Standard ist SKR03. */
+  skrStandard?: 'SKR03' | 'SKR04';
+  beraternummer?: string;
+  mandantennummer?: string;
+  /** Bezeichnung des Stapels, etwa „August 2026". */
+  bezeichnung?: string;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -97,7 +107,11 @@ export class TaxEngineService {
     }
 
     const netTaxLiability = Number((vatAmount - inputTaxDeductible).toFixed(2));
-    const netProfitAfterTax = Number((grossMargin - operatingCosts - vatAmount).toFixed(2));
+    // Reingewinn = Marge abzüglich Betriebskosten abzüglich der tatsächlichen
+    // Zahllast. Zuvor wurde die volle Umsatzsteuer abgezogen und die eine Zeile
+    // darüber berechnete abziehbare Vorsteuer ignoriert – der ausgewiesene
+    // Gewinn war dadurch systematisch zu niedrig.
+    const netProfitAfterTax = Number((grossMargin - operatingCosts - netTaxLiability).toFixed(2));
 
     return {
       sale_id: sale.id,
@@ -147,54 +161,144 @@ export class TaxEngineService {
   }
 
   /**
-   * Generates a standard DATEV-compatible CSV format for tax advisors (Steuerberater).
+   * Spalten des DATEV-Buchungsstapels in der vorgeschriebenen Reihenfolge.
+   * Öffentlich, damit Tests über den Spaltennamen statt über einen festen
+   * Index prüfen können.
    */
-  generateDatevCsv(taxResults: TaxCalculationResult[]): string {
-    const headers = [
-      'Umsatz (ohne Soll/Haben-Kz)',
-      'Soll/Haben-Kennzeichen',
-      'WKZ',
-      'Konto',
-      'Gegenkonto',
-      'BU-Schlüssel',
-      'Belegdatum',
-      'Belegfeld 1',
-      'Buchungstext',
-      'Steuersatz',
-    ];
+  readonly datevSpalten: readonly string[] = [
+    'Umsatz (ohne Soll/Haben-Kz)',
+    'Soll/Haben-Kennzeichen',
+    'WKZ Umsatz',
+    'Kurs',
+    'Basis-Umsatz',
+    'WKZ Basis-Umsatz',
+    'Konto',
+    'Gegenkonto (ohne BU-Schlüssel)',
+    'BU-Schlüssel',
+    'Belegdatum',
+    'Belegfeld 1',
+    'Belegfeld 2',
+    'Skonto',
+    'Buchungstext',
+  ];
 
-    const rows = taxResults.map((r) => {
-      // DATEV Konto nach SKR03:
-      // 8200 = Erlöse § 25a Differenzbesteuerung
-      // 8195 = Erlöse Kleinunternehmer § 19
-      // 8400 = Erlöse 19% USt
-      let konto = '8200';
-      if (r.tax_mode === 'kleinunternehmer_19') konto = '8195';
-      if (r.tax_mode === 'regular_19') konto = '8400';
+  /**
+   * Entschärft Werte, die ein Tabellenprogramm sonst als Formel ausführen
+   * würde. Ohne das könnte ein Artikeltitel wie `=HYPERLINK(...)` beim Öffnen
+   * der Datei in der Steuerkanzlei Schaden anrichten.
+   */
+  private schuetzeVorFormel(wert: string): string {
+    return /^[=+\-@\t\r]/.test(wert) ? `'${wert}` : wert;
+  }
 
-      const gegenkonto = '1200'; // Bank / Zahlungsdienstleister
-      const dateFormatted = r.sale_date ? r.sale_date.replace(/-/g, '').substring(4, 8) : '0101'; // MMDD
-      const cleanTitle = r.item_title.replace(/[;,"]/g, ' ').substring(0, 30);
+  /** Formatiert ein ISO-Datum als TTMM – so erwartet DATEV das Belegdatum. */
+  private alsBelegdatum(isoDatum: string): string {
+    const treffer = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDatum ?? '');
+    if (!treffer) return '0101';
+    return `${treffer[3]}${treffer[2]}`;
+  }
+
+  /** Formatiert ein ISO-Datum als JJJJMMTT für die Kopfzeile. */
+  private alsKopfDatum(isoDatum: string): string {
+    const treffer = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDatum ?? '');
+    return treffer ? `${treffer[1]}${treffer[2]}${treffer[3]}` : '';
+  }
+
+  /**
+   * Erzeugt die 31-feldrige EXTF-Kopfzeile eines DATEV-Buchungsstapels.
+   *
+   * Zuvor standen dort nur 10 Felder – DATEV konnte die Datei damit nicht
+   * einlesen. Feldzahl und Reihenfolge gibt das Format vor.
+   */
+  private baueExtfKopf(taxResults: TaxCalculationResult[], optionen: DatevOptionen = {}): string {
+    const daten = taxResults
+      .map((r) => this.alsKopfDatum(r.sale_date))
+      .filter((d) => d.length === 8)
+      .sort();
+    const von = daten[0] ?? this.alsKopfDatum(new Date().toISOString());
+    const bis = daten[daten.length - 1] ?? von;
+    const wirtschaftsjahr = `${von.substring(0, 4)}0101`;
+    const erzeugt = new Date().toISOString().replace(/[-:T]/g, '').replace(/\..*$/, '');
+
+    return [
+      '"EXTF"', // 1  Kennzeichen
+      '700', // 2  Versionsnummer
+      '21', // 3  Formatkategorie: Buchungsstapel
+      '"Buchungsstapel"', // 4  Formatname
+      '13', // 5  Formatversion
+      erzeugt, // 6  Erzeugt am
+      '', // 7  importiert (bleibt leer)
+      '"RE"', // 8  Herkunft
+      '"ReFlip"', // 9  Exportiert von
+      '', // 10 Importiert von
+      optionen.beraternummer || '0', // 11 Beraternummer
+      optionen.mandantennummer || '0', // 12 Mandantennummer
+      wirtschaftsjahr, // 13 Wirtschaftsjahresbeginn
+      '4', // 14 Sachkontenlänge
+      von, // 15 Datum von
+      bis, // 16 Datum bis
+      `"${(optionen.bezeichnung || '').replace(/"/g, '')}"`, // 17 Bezeichnung
+      '""', // 18 Diktatkürzel
+      '1', // 19 Buchungstyp: Finanzbuchführung
+      '"EUR"', // 20 Währungskennzeichen
+      '', // 21 reserviert
+      '', // 22 Derivatskennzeichen
+      '', // 23 reserviert
+      '', // 24 reserviert
+      '', // 25 SKR
+      '', // 26 Branchenlösung-Id
+      '', // 27 reserviert
+      '', // 28 reserviert
+      '""', // 29 Anwendungsinformation
+      '', // 30 reserviert
+      '', // 31 reserviert
+    ].join(';');
+  }
+
+  /**
+   * Erzeugt einen DATEV-Buchungsstapel im EXTF-Format.
+   *
+   * Ein Verkauf wird als *Bank an Erlöse* gebucht: Konto 1200 (Bank),
+   * Gegenkonto je nach Steuermodus. Zuvor stand das Erlöskonto im Feld
+   * „Konto" mit Kennzeichen S – damit landete der Umsatz auf der falschen
+   * Seite. Das Belegdatum stand als MMTT statt TTMM.
+   *
+   * Hinweis: Die Datei sollte vor dem Einreichen von der Steuerkanzlei
+   * gegengelesen werden. Die DATEV-Formatvorgaben sind versionsabhängig.
+   */
+  generateDatevCsv(taxResults: TaxCalculationResult[], optionen: DatevOptionen = {}): string {
+    const skr04 = optionen.skrStandard === 'SKR04';
+    const bankkonto = skr04 ? '1800' : '1200';
+
+    const zeilen = taxResults.map((r) => {
+      // Erlöskonten nach SKR03 bzw. SKR04
+      let erloeskonto = skr04 ? '4200' : '8200'; // § 25a Differenzbesteuerung
+      if (r.tax_mode === 'kleinunternehmer_19') erloeskonto = skr04 ? '4185' : '8195';
+      if (r.tax_mode === 'regular_19') erloeskonto = skr04 ? '4400' : '8400';
+
+      const buchungstext = this.schuetzeVorFormel(
+        `Verkauf ${r.item_title.replace(/[;"\r\n]/g, ' ')}`.substring(0, 60),
+      );
 
       return [
-        r.gross_revenue.toFixed(2).replace('.', ','),
-        'S',
-        'EUR',
-        konto,
-        gegenkonto,
-        '',
-        dateFormatted,
-        r.sale_id.substring(0, 10),
-        `Verkauf ${cleanTitle}`,
-        r.tax_mode === 'diff_25a' ? 'Diff. 19%' : r.tax_mode === 'regular_19' ? '19%' : '0%',
+        Math.abs(r.gross_revenue).toFixed(2).replace('.', ','), // Umsatz
+        'S', // Soll/Haben-Kennzeichen
+        'EUR', // WKZ Umsatz
+        '', // Kurs
+        '', // Basis-Umsatz
+        '', // WKZ Basis-Umsatz
+        bankkonto, // Konto: Bank
+        erloeskonto, // Gegenkonto: Erlöse
+        '', // BU-Schlüssel
+        this.alsBelegdatum(r.sale_date), // Belegdatum (TTMM)
+        r.sale_id.substring(0, 12), // Belegfeld 1
+        '', // Belegfeld 2
+        '', // Skonto
+        buchungstext, // Buchungstext
       ].join(';');
     });
 
-    return [
-      'EXTF;700;21;DATEV Format;1.0;' + new Date().toISOString().split('T')[0] + ';;;;',
-      headers.join(';'),
-      ...rows,
-    ].join('\r\n');
+    return [this.baueExtfKopf(taxResults), this.datevSpalten.join(';'), ...zeilen].join('\r\n');
   }
 
   /**
@@ -217,7 +321,7 @@ export class TaxEngineService {
     const rows = taxResults.map((r) => {
       return [
         r.sale_date,
-        `"${r.item_title.replace(/"/g, '""')}"`,
+        `"${this.schuetzeVorFormel(r.item_title).replace(/"/g, '""')}"`,
         r.tax_mode,
         r.gross_revenue.toFixed(2).replace('.', ','),
         r.total_purchase_cost.toFixed(2).replace('.', ','),

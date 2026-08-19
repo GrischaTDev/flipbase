@@ -298,7 +298,9 @@ export class AccountingComponent {
   }
 
   private downloadFile(content: string, filename: string, mimeType: string): void {
-    const blob = new Blob([content], { type: mimeType });
+    // Byte Order Mark voranstellen: Ohne sie zeigen DATEV und Excel Umlaute in
+    // Artikelbezeichnungen und Buchungstexten verstuemmelt an.
+    const blob = new Blob(['\uFEFF' + content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;

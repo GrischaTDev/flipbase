@@ -118,7 +118,10 @@ export class ExportService {
    * Triggers a browser file download.
    */
   downloadFile(content: string, filename: string, mimeType: string): void {
-    const blob = new Blob([content], { type: mimeType });
+    // CSV-Dateien mit Byte Order Mark ausliefern, sonst zeigt Excel Umlaute
+    // verstuemmelt an. Andere Formate bleiben unveraendert.
+    const istCsv = mimeType.includes('csv');
+    const blob = new Blob([istCsv ? '\uFEFF' + content : content], { type: mimeType });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -131,7 +134,12 @@ export class ExportService {
 
   private escapeCsv(value: string): string {
     if (!value) return '';
-    const clean = value.replace(/"/g, '""');
+
+    // Werte, die mit =, +, - oder @ beginnen, führt ein Tabellenprogramm beim
+    // Öffnen als Formel aus. Ein vorangestelltes Apostroph verhindert das.
+    const geschuetzt = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+
+    const clean = geschuetzt.replace(/"/g, '""');
     return clean.includes(';') || clean.includes('\n') || clean.includes('"')
       ? `"${clean}"`
       : clean;

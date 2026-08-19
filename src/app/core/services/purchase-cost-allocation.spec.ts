@@ -15,7 +15,7 @@ describe('Purchase & Cost Allocation Engine (Phase 2)', () => {
       const travel = 3.5;
       const totalCost = purchasePrice + shipping + travel; // 34.49 €
 
-      const itemCost = profitEngine.allocateCostsEvenly(totalCost, 1);
+      const [itemCost] = profitEngine.allocateCosts(totalCost, [1]);
       expect(itemCost).toBe(34.49);
     });
   });
@@ -27,8 +27,9 @@ describe('Purchase & Cost Allocation Engine (Phase 2)', () => {
       const totalInvest = paletteCost + transportCost; // 1600 €
       const itemCount = 100;
 
-      const allocatedPerItem = profitEngine.allocateCostsEvenly(totalInvest, itemCount);
-      expect(allocatedPerItem).toBe(16.0);
+      const anteile = profitEngine.allocateCosts(totalInvest, new Array(itemCount).fill(1));
+      expect(anteile.every((a) => a === 16.0)).toBe(true);
+      expect(anteile.reduce((s, a) => s + Math.round(a * 100), 0)).toBe(totalInvest * 100);
     });
 
     it('Mode: Value-Weighted (Wertgewichtet) -> proportional to expected market value', () => {
@@ -39,11 +40,11 @@ describe('Purchase & Cost Allocation Engine (Phase 2)', () => {
       // Item C: Expected value 500 €
       // Total expected value: 800 €
       const totalInvest = 1600.0;
-      const sumExpectedValues = 800.0;
 
-      const itemACost = profitEngine.allocateCostsValueWeighted(totalInvest, 100, sumExpectedValues);
-      const itemBCost = profitEngine.allocateCostsValueWeighted(totalInvest, 200, sumExpectedValues);
-      const itemCCost = profitEngine.allocateCostsValueWeighted(totalInvest, 500, sumExpectedValues);
+      const [itemACost, itemBCost, itemCCost] = profitEngine.allocateCosts(
+        totalInvest,
+        [100, 200, 500],
+      );
 
       // Item A: (100 / 800) * 1600 = 200 €
       expect(itemACost).toBe(200.0);
@@ -56,9 +57,13 @@ describe('Purchase & Cost Allocation Engine (Phase 2)', () => {
       expect(itemACost + itemBCost + itemCCost).toBe(totalInvest);
     });
 
-    it('should handle edge cases like 0 items or 0 sum gracefully', () => {
-      expect(profitEngine.allocateCostsEvenly(1000, 0)).toBe(0);
-      expect(profitEngine.allocateCostsValueWeighted(1000, 50, 0)).toBe(0);
+    it('kommt mit Sonderfällen zurecht: keine Artikel, keine Werte', () => {
+      expect(profitEngine.allocateCosts(1000, [])).toEqual([]);
+
+      // Ohne erwartete Werte wird gleichmäßig verteilt, statt jedem Artikel 0 €
+      // zu geben - sonst verschwände der gesamte Einkaufspreis aus der Rechnung.
+      const ohneWerte = profitEngine.allocateCosts(1000, [0, 0]);
+      expect(ohneWerte).toEqual([500, 500]);
     });
   });
 });

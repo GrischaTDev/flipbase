@@ -10,6 +10,7 @@ import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { SyncStatusService } from './sync-status.service';
+import { TaxEngineService } from './tax-engine.service';
 
 const STORAGE_KEY_ADVISOR = 'reflip_tax_advisor_config';
 
@@ -18,6 +19,7 @@ const STORAGE_KEY_ADVISOR = 'reflip_tax_advisor_config';
 })
 export class TaxAdvisorService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly taxEngine = inject(TaxEngineService);
   private readonly syncStatus = inject(SyncStatusService, { optional: true })!;
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly webhookService = inject(WebhookService, { optional: true });
@@ -277,60 +279,31 @@ export class TaxAdvisorService {
     };
   }
 
+  /** Entschärft Werte, die ein Tabellenprogramm sonst als Formel ausführen würde. */
+  private schuetzeVorFormel(wert: string): string {
+    return /^[=+\-@\t\r]/.test(wert) ? `'${wert}` : wert;
+  }
+
   /**
-   * Generates DATEV EXTF Format CSV for tax advisors.
+   * Erzeugt den DATEV-Buchungsstapel für die Steuerkanzlei.
+   *
+   * Delegiert an den TaxEngineService. Zuvor gab es hier eine zweite, eigene
+   * Umsetzung mit gravierenden Fehlern: Die Felder der Buchungszeilen waren
+   * gegenüber den Spaltenüberschriften um eine Position verschoben – das
+   * Bankkonto landete in der Spalte „BU-Schlüssel", das Belegdatum blieb leer
+   * und stand stattdessen in „Belegfeld 1". Zusätzlich hatte die Kopfzeile 26
+   * statt 31 Felder, das Datum stand als MMTT statt TTMM, und die Zeilen waren
+   * mit LF statt CRLF getrennt.
    */
   generateDatevExtfCsv(report: MonthlyTaxReport, results: TaxCalculationResult[]): string {
     const cfg = this.advisorConfig();
-    const isSkr04 = cfg.skrStandard === 'SKR04';
-    const accBank = isSkr04 ? '1800' : '1200';
-    const accRevDiff = isSkr04 ? '4200' : '8200';
-    const accRev19 = isSkr04 ? '4400' : '8400';
 
-    const header = [
-      '"EXTF"',
-      '700',
-      '21',
-      '"Buchungsstapel"',
-      '1',
-      new Date().toISOString().slice(0, 10).replace(/-/g, ''),
-      '""',
-      '"REFLIP"',
-      '""',
-      '""',
-      `"${cfg.consultantNumber}"`,
-      `"${cfg.clientNumber}"`,
-      new Date().getFullYear().toString() + '0101',
-      '4',
-      new Date().toISOString().slice(0, 10).replace(/-/g, ''),
-      new Date().toISOString().slice(0, 10).replace(/-/g, ''),
-      `"${report.periodLabel}"`,
-      '""',
-      '1',
-      '0',
-      '0',
-      '"EUR"',
-      '""',
-      '""',
-      '""',
-      '""',
-    ].join(';');
-
-    const columnHeaders =
-      'Umsatz (ohne Soll/Haben-Kz);Soll/Haben-Kennzeichen;WKZ;Kurs;Basis-Umsatz;WKZ Basis-Umsatz;Konto;Gegenkonto (ohne BU-Schlüssel);BU-Schlüssel;Belegdatum;Belegfeld 1;Belegfeld 2;Skonto;Buchungstext;Postensperre;Diverse Adressnummer;Geschäftspartnerbank;Sachverhalt;Zinssperre;Beleglink;Aufteilungsgrund;Steuerberatersperre';
-
-    const rows = results.map((r) => {
-      const isDiff = r.tax_mode === 'diff_25a';
-      const revenueAcc = isDiff ? accRevDiff : accRev19;
-      const amountStr = r.gross_revenue.toFixed(2).replace('.', ',');
-      const dateStr = (r.sale_date || '').replace(/-/g, '').slice(4); // MMDD
-      const orderRef = r.sale_id.slice(0, 8);
-      const text = `Verkauf ${r.item_title.slice(0, 30)} (${isDiff ? '§25a' : '19%'})`;
-
-      return `${amountStr};S;EUR;;;;;${revenueAcc};${accBank};;${dateStr};"${orderRef}";;"${text}";;;;;;;;`;
+    return this.taxEngine.generateDatevCsv(results, {
+      skrStandard: cfg.skrStandard === 'SKR04' ? 'SKR04' : 'SKR03',
+      beraternummer: cfg.consultantNumber,
+      mandantennummer: cfg.clientNumber,
+      bezeichnung: report.periodLabel,
     });
-
-    return `${header}\n${columnHeaders}\n${rows.join('\n')}`;
   }
 
   /**
@@ -355,7 +328,7 @@ export class TaxAdvisorService {
     const rows = diffResults.map((r) => {
       return [
         `"${r.sale_id}"`,
-        `"${r.item_title.replace(/"/g, '""')}"`,
+        `"${this.schuetzeVorFormel(r.item_title).replace(/"/g, '""')}"`,
         r.total_purchase_cost.toFixed(2).replace('.', ','),
         `"${r.sale_date}"`,
         r.gross_revenue.toFixed(2).replace('.', ','),
@@ -368,7 +341,8 @@ export class TaxAdvisorService {
       ].join(';');
     });
 
-    return `${headers.join(';')}\n${rows.join('\n')}`;
+    // CRLF als Zeilenende: Buchhaltungsprogramme und DATEV erwarten es so.
+    return [headers.join(';'), ...rows].join('\r\n');
   }
 
   /**

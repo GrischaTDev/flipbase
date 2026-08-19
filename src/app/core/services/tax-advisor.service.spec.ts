@@ -1,14 +1,31 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Injector, runInInjectionContext } from '@angular/core';
+import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { TaxAdvisorService } from './tax-advisor.service';
+import { TaxEngineService } from './tax-engine.service';
+import { WorkspaceService } from './workspace.service';
+import { SalesService } from './sales.service';
+import { InventoryService } from './inventory.service';
 import { Purchase, Sale, TaxCalculationResult } from '../models/reflip.models';
 
 describe('TaxAdvisorService & DATEV Export Engine (Chapter 24)', () => {
   let service: TaxAdvisorService;
 
   beforeEach(() => {
-    const injector = Injector.create({ providers: [] });
+    // Der TaxAdvisorService delegiert den DATEV-Export an den TaxEngineService;
+    // dieser wird deshalb mit schlanken Attrappen echt bereitgestellt.
+    const engineInjector = Injector.create({
+      providers: [
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal(null) } },
+        { provide: SalesService, useValue: { sales: signal([]) } },
+        { provide: InventoryService, useValue: { items: signal([]) } },
+      ],
+    });
+    const taxEngine = runInInjectionContext(engineInjector, () => new TaxEngineService());
+
+    const injector = Injector.create({
+      providers: [{ provide: TaxEngineService, useValue: taxEngine }],
+    });
     service = runInInjectionContext(injector, () => new TaxAdvisorService());
   });
 
