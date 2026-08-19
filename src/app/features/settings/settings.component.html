@@ -49,7 +49,7 @@
                 <div class="flex items-center gap-2">
                   <strong class="text-xs text-rf-text-primary">{{ ws.name }}</strong>
                   @if (workspaceService.currentWorkspace()?.id === ws.id) {
-                    <span class="px-1.5 py-0.2 rounded text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                    <span class="px-1.5 py-0.2 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
                       AKTIV
                     </span>
                   }
@@ -229,7 +229,7 @@
                 <div>
                   <strong class="text-rf-text-primary block">{{ member.email || 'Workspace-Mitglied' }}</strong>
                   <div class="flex items-center gap-1.5 mt-0.5">
-                    <span class="px-1.5 py-0.2 rounded text-[9px] font-mono border {{ badge.class }}">
+                    <span class="px-1.5 py-0.2 rounded text-[10px] font-mono border {{ badge.class }}">
                       {{ badge.label }}
                     </span>
                     <span class="text-[10px] text-rf-text-muted">• {{ badge.description }}</span>
@@ -280,7 +280,7 @@
                 <div class="flex items-center gap-2">
                   <lucide-icon [img]="mailIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
                   <span class="text-rf-text-secondary font-medium">{{ inv.email }}</span>
-                  <span class="px-1.5 py-0.2 rounded text-[9px] font-mono border {{ badge.class }}">
+                  <span class="px-1.5 py-0.2 rounded text-[10px] font-mono border {{ badge.class }}">
                     {{ badge.label }}
                   </span>
                 </div>
@@ -614,12 +614,11 @@
                   placeholder="DHL EKP (Kundennr. z. B. 5001234567)"
                   class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
                 />
-                <input
-                  type="text"
-                  formControlName="dhlApiKey"
-                  placeholder="DHL API-Key / Passwort"
-                  class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
-                />
+                <p class="col-span-2 text-[10px] text-rf-text-muted leading-relaxed">
+                  Der DHL-Zugangsschlüssel wird bewusst nicht hier gespeichert.
+                  Geheime Schlüssel gehören in eine Edge Function &ndash; alles, was das
+                  Frontend kennt, ist im Browser lesbar.
+                </p>
               </div>
             }
           </div>
@@ -643,12 +642,11 @@
                   placeholder="Hermes Client-ID / Account-ID"
                   class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
                 />
-                <input
-                  type="text"
-                  formControlName="hermesApiKey"
-                  placeholder="Hermes API-Key / Secret"
-                  class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
-                />
+                <p class="col-span-2 text-[10px] text-rf-text-muted leading-relaxed">
+                  Der Hermes-Zugangsschlüssel wird bewusst nicht hier gespeichert.
+                  Geheime Schlüssel gehören in eine Edge Function &ndash; alles, was das
+                  Frontend kennt, ist im Browser lesbar.
+                </p>
               </div>
             }
           </div>

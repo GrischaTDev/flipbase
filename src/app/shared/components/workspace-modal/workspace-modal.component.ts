@@ -2,10 +2,11 @@ import { ChangeDetectionStrategy, Component, inject, output, signal } from '@ang
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { LucideAngularModule, X, Plus } from 'lucide-angular';
 import { WorkspaceService } from '../../../core/services/workspace.service';
+import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 
 @Component({
   selector: 'app-workspace-modal',
-  imports: [ReactiveFormsModule, LucideAngularModule],
+  imports: [ModalDialogDirective, ReactiveFormsModule, LucideAngularModule],
   templateUrl: './workspace-modal.component.html',
   styleUrl: './workspace-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

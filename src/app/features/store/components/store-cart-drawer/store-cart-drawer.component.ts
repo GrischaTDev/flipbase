@@ -14,10 +14,11 @@ import {
   CheckCircle2,
 } from 'lucide-angular';
 import { StoreService } from '../../../../core/services/store.service';
+import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 
 @Component({
   selector: 'app-store-cart-drawer',
-  imports: [RouterLink, CurrencyPipe, LucideAngularModule],
+  imports: [ModalDialogDirective, RouterLink, CurrencyPipe, LucideAngularModule],
   templateUrl: './store-cart-drawer.component.html',
   styleUrl: './store-cart-drawer.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

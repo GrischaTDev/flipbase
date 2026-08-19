@@ -11,6 +11,7 @@ import {
   LoadedImage,
 } from 'ngx-image-cropper';
 import imageCompression from 'browser-image-compression';
+import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 import {
   LucideAngularModule,
   RotateCw,
@@ -36,7 +37,7 @@ export interface CroppedImageResult {
 
 @Component({
   selector: 'app-image-cropper-modal',
-  imports: [ImageCropperComponent, LucideAngularModule],
+  imports: [ModalDialogDirective, ImageCropperComponent, LucideAngularModule],
   templateUrl: './image-cropper-modal.component.html',
   styleUrl: './image-cropper-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

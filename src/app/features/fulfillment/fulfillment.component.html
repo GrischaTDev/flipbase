@@ -397,6 +397,9 @@
   @if (isLabelModalOpen() && fulfillmentService.selectedOrderForLabel(); as labelOrder) {
     <div
       class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in no-print overflow-y-auto"
+      appModalDialog
+      dialogTitel="Versandetikett"
+      (dialogClose)="closeLabelModal()"
       (click)="closeLabelModal()"
     >
       <div
@@ -439,7 +442,7 @@
           <div class="grid grid-cols-2 gap-4 py-2 border-b-2 border-black">
             <!-- Sender -->
             <div class="text-[11px] space-y-0.5 border-r border-dashed border-rf-border pr-2">
-              <span class="text-[9px] uppercase font-bold text-rf-text-muted block">Absender:</span>
+              <span class="text-[10px] uppercase font-bold text-rf-text-muted block">Absender:</span>
               @let sender = fulfillmentService.getSenderAddress();
               <strong class="block text-xs font-bold">{{ sender.name }}</strong>
               <div>{{ sender.company }}</div>
@@ -450,7 +453,7 @@
 
             <!-- Recipient -->
             <div class="text-xs space-y-0.5 pl-2">
-              <span class="text-[9px] uppercase font-bold text-rf-text-muted block">Empfänger:</span>
+              <span class="text-[10px] uppercase font-bold text-rf-text-muted block">Empfänger:</span>
               <strong class="block text-sm font-black">{{ labelOrder.customer.name }}</strong>
               @if (labelOrder.customer.company) {
                 <div>{{ labelOrder.customer.company }}</div>
@@ -505,6 +508,9 @@
   @if (isSlipModalOpen() && fulfillmentService.selectedOrderForSlip(); as slipOrder) {
     <div
       class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in no-print overflow-y-auto"
+      appModalDialog
+      dialogTitel="Lieferschein"
+      (dialogClose)="closeSlipModal()"
       (click)="closeSlipModal()"
     >
       <div
@@ -604,6 +610,9 @@
   @if (isTrackingModalOpen()) {
     <div
       class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
+      appModalDialog
+      dialogTitel="Sendungsverfolgung"
+      (dialogClose)="closeTrackingModal()"
       (click)="closeTrackingModal()"
     >
       <div
@@ -684,6 +693,9 @@
     @if (targetOrder) {
       <div
         class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
+        appModalDialog
+        dialogTitel="Einkauf erfassen"
+        (dialogClose)="closePurchaseModal()"
         (click)="closePurchaseModal()"
       >
         <div
@@ -749,7 +761,7 @@
                     <div>
                       <div class="flex items-center gap-1.5">
                         <strong class="text-xs text-rf-text-primary block">{{ rate.name }}</strong>
-                        <span class="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold uppercase"
+                        <span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold uppercase"
                           [class.bg-amber-500/20]="rate.carrier === 'dhl'"
                           [class.text-amber-300]="rate.carrier === 'dhl'"
                           [class.bg-blue-500/20]="rate.carrier === 'hermes'"
@@ -766,7 +778,7 @@
                     <strong class="font-mono text-sm font-bold text-emerald-400">
                       {{ rate.price | currency:'EUR':'symbol':'1.2-2':'de' }}
                     </strong>
-                    <span class="text-[9px] text-rf-text-muted block">inkl. Tracking</span>
+                    <span class="text-[10px] text-rf-text-muted block">inkl. Tracking</span>
                   </div>
                 </label>
               }

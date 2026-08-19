@@ -43,13 +43,14 @@ import { MonthlyTaxReport } from '../../core/models/accounting.models';
 import { BankTransaction } from '../../core/models/bank-reconciliation.models';
 
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
+import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 
 export type AccountingTab = 'tax_journal' | 'bank_reconciliation';
 export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
 
 @Component({
   selector: 'app-accounting',
-  imports: [ReactiveFormsModule, CurrencyPipe, DatePipe, LucideAngularModule, CustomSearchInputComponent],
+  imports: [ModalDialogDirective, ReactiveFormsModule, CurrencyPipe, DatePipe, LucideAngularModule, CustomSearchInputComponent],
   templateUrl: './accounting.component.html',
   styleUrl: './accounting.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

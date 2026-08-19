@@ -13,10 +13,11 @@ import { DatePipe } from '@angular/common';
 import { ItemCondition, ItemStatus } from '../../../../core/models/reflip.models';
 
 import { CustomSelectComponent, SelectOption } from '../../../../shared/components/custom-select/custom-select.component';
+import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 
 @Component({
   selector: 'app-item-create-modal',
-  imports: [
+  imports: [ModalDialogDirective, 
     ReactiveFormsModule,
     DatePipe,
     LucideAngularModule,

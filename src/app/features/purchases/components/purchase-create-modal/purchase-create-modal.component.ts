@@ -18,6 +18,7 @@ import { SourcesService } from '../../../../core/services/sources.service';
 import { SuppliersService } from '../../../../core/services/suppliers.service';
 import { InboundTrackingService } from '../../../../core/services/inbound-tracking.service';
 import { PurchaseType, ItemCondition, TrackingCarrier } from '../../../../core/models/reflip.models';
+import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 
 interface ExtraCostEntry {
   type: string;
@@ -27,7 +28,7 @@ interface ExtraCostEntry {
 
 @Component({
   selector: 'app-purchase-create-modal',
-  imports: [ReactiveFormsModule, LucideAngularModule],
+  imports: [ModalDialogDirective, ReactiveFormsModule, LucideAngularModule],
   templateUrl: './purchase-create-modal.component.html',
   styleUrl: './purchase-create-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

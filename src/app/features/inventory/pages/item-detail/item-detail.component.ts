@@ -33,10 +33,11 @@ import { InventoryLabelModalComponent } from '../../../../shared/components/inve
 import { ItemMedia, ItemStatus } from '../../../../core/models/reflip.models';
 
 import { CustomSelectComponent, SelectOption } from '../../../../shared/components/custom-select/custom-select.component';
+import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 
 @Component({
   selector: 'app-item-detail',
-  imports: [
+  imports: [ModalDialogDirective, 
     RouterLink,
     ReactiveFormsModule,
     CurrencyPipe,

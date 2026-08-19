@@ -1,5 +1,8 @@
 <div
   class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
+  appModalDialog
+  dialogTitel="Neuen Workspace erstellen"
+  (dialogClose)="close.emit()"
 >
   <div
     class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-6 border border-rf-line animate-modal-card"

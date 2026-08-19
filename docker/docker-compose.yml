@@ -7,5 +7,23 @@ services:
       dockerfile: docker/Dockerfile
     container_name: re-flip-web
     ports:
-      - "80:80"
+      # Host-Port 8080 statt 80: Port 80 wird auf Windows haeufig schon
+      # belegt (IIS, andere Container) und braucht erhoehte Rechte.
+      # Die Anwendung ist damit unter http://localhost:8080 erreichbar.
+      - "8080:80"
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    # Der Container liefert nur statische Dateien aus und braucht kein
+    # Schreibrecht auf sein Dateisystem.
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    security_opt:
+      - no-new-privileges:true

@@ -1,5 +1,8 @@
 <div
   class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 print:p-0 print:bg-white print:static print:z-auto overflow-y-auto animate-fade-in"
+  appModalDialog
+  dialogTitel="Rechnung / Gutschrift"
+  (dialogClose)="close.emit()"
   (click)="close.emit()"
 >
   <div
@@ -109,7 +112,7 @@
         <div class="grid grid-cols-2 gap-8 mb-8">
           <!-- Empfänger -->
           <div>
-            <span class="text-[9px] text-slate-400 block uppercase tracking-wider mb-1 underline">
+            <span class="text-[10px] text-slate-400 block uppercase tracking-wider mb-1 underline">
               {{ invoice().seller.name }} • {{ invoice().seller.street }} • {{ invoice().seller.postalCode }} {{ invoice().seller.city }}
             </span>
             <div class="bg-slate-50 border border-slate-200 rounded-lg p-3.5 text-xs text-slate-800 space-y-0.5">

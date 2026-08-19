@@ -2,6 +2,9 @@
 @if (storeService.isCartOpen()) {
   <div
     class="fixed inset-0 bg-slate-900/50 backdrop-blur-2xs z-50 animate-fade-in"
+    appModalDialog
+    dialogTitel="Warenkorb"
+    (dialogClose)="storeService.closeCart()"
     (click)="storeService.closeCart()"
   ></div>
 

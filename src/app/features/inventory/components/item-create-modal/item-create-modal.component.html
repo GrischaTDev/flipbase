@@ -1,5 +1,8 @@
 <div
   class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto animate-fade-in"
+  appModalDialog
+  dialogTitel="Neuen Artikel anlegen"
+  (dialogClose)="close.emit()"
 >
   <div
     class="linear-surface rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col border border-rf-border overflow-hidden my-auto animate-modal-card"
@@ -110,7 +113,7 @@
                 alt="Produktfoto Vorschau"
                 class="w-full h-full object-cover"
               />
-              <span class="absolute bottom-0 inset-x-0 bg-emerald-600/90 text-[8px] font-mono font-bold text-center text-rf-text-primary py-0.5">
+              <span class="absolute bottom-0 inset-x-0 bg-emerald-600/90 text-[10px] font-mono font-bold text-center text-rf-text-primary py-0.5">
                 1:1 FIX
               </span>
             </div>

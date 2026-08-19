@@ -1,5 +1,8 @@
 <div
   class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
+  appModalDialog
+  dialogTitel="Artikel per Foto erkennen"
+  (dialogClose)="close.emit()"
   (click)="close.emit()"
 >
   <div
@@ -189,7 +192,7 @@
             @if (res.detectedLabels.length > 0) {
               <div class="flex flex-wrap gap-1.5 pt-1">
                 @for (lbl of res.detectedLabels; track lbl) {
-                  <span class="px-2 py-0.5 rounded text-[9px] font-mono bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
                     #{{ lbl }}
                   </span>
                 }

@@ -40,7 +40,7 @@
         <lucide-icon [img]="cardIcon" class="w-3.5 h-3.5 text-rf-profit"></lucide-icon>
         <span>Bankabgleich</span>
         @if (bankService.summary().matchedCount > 0) {
-          <span class="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-rf-profit text-black font-mono">
+          <span class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rf-profit text-black font-mono">
             {{ bankService.summary().matchedCount }}
           </span>
         }
@@ -588,6 +588,9 @@
   <!-- ========================================================================= -->
   @if (isTaxAdvisorModalOpen()) {
     <div class="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+    appModalDialog
+    dialogTitel="Monatspaket an die Steuerkanzlei senden"
+    (dialogClose)="closeTaxAdvisorModal()"
       <div class="card w-full max-w-lg p-6 space-y-5 animate-modal-card" (click)="$event.stopPropagation()">
         <div class="flex items-center justify-between border-b border-rf-border/40 pb-3">
           <div class="flex items-center gap-2">

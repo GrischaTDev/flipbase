@@ -17,6 +17,57 @@ Dieses Projekt wird teilweise mit KI-Assistenten entwickelt. **Jede** von einer 
 **Verifiziert durch:** <Build / Tests / manuell – mit Ergebnis>
 ```
 
+## 2026-08-19 – Claude Opus 5 (Anthropic) – Phase 7: Auslieferung & Barrierefreiheit
+
+**Art:** Sicherheit, Barrierefreiheit, Konfiguration
+
+**Betroffen:**
+- `docker/nginx.conf`, `docker/security-headers.conf` (neu), `docker/Dockerfile`, `docker/docker-compose.yml`
+- `supabase/functions/marketplace-search/index.ts` (neu geschrieben)
+- `src/app/shared/directives/modal-dialog.directive.ts` + `.spec.ts` (neu)
+- `angular.json`, `fulfillment.service.ts`, `store.service.ts`, `settings.component.html`
+- 15 Komponenten mit modalen Dialogen
+
+**Was:**
+
+*Auslieferung*
+
+1. **Fünf Sicherheits-Header in nginx** (Audit 2.8): `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` und eine `Content-Security-Policy`. Sie liegen in `security-headers.conf` und werden in jedem `location`-Block eingebunden – in nginx **ersetzen** `add_header`-Anweisungen im inneren Block sonst alle geerbten. Zusätzlich `server_tokens off`.
+
+2. **`index.html`, Service Worker und Manifest auf `no-cache`**, statische Dateien mit Inhalts-Hash weiterhin ein Jahr. Ohne das zeigt der Browser nach einem neuen Stand weiterhin die alte Anwendung.
+
+3. **Docker gehärtet:** `HEALTHCHECK` gegen einen neuen `/healthz`-Endpunkt, `read_only: true` mit tmpfs für die Schreibpfade von nginx, `no-new-privileges`. Der Host-Port ist von **80 auf 8080** gewechselt – Port 80 braucht auf Windows erhöhte Rechte und kollidiert leicht.
+
+4. **Edge Function neu geschrieben** (Audit 2.9): `Deno.serve` statt des veralteten `serve` aus `deno.land/std`, CORS auf eine Liste erlaubter Herkünfte begrenzt statt `*`, Aufrufe erfordern eine Anmeldung, Fehler typsicher behandelt.
+
+5. **API-Schlüssel aus dem Frontend** (Audit 2.10): Die Platzhalter sind geleert, und die Eingabefelder für die DHL- und Hermes-Zugangsschlüssel sind aus den Einstellungen entfernt. An ihrer Stelle steht der Hinweis, dass geheime Schlüssel in eine Edge Function gehören. Der veröffentlichbare Stripe-Schlüssel darf im Frontend bleiben.
+
+*Barrierefreiheit*
+
+6. **Alle 18 modalen Dialoge zugänglich gemacht** (Audit 7.3). Die neue `ModalDialogDirective` rüstet mit einer Zeile je Dialog nach: `role="dialog"`, `aria-modal`, eine Fokus-Falle, Escape zum Schließen, Fokus-Rückgabe auf das auslösende Element und eine Scroll-Sperre für den Hintergrund. Bewusst als Direktive statt als Hülle – so blieb das Layout der bestehenden Overlays unangetastet.
+
+7. **Klickbares `<div>` zu einer echten Schaltfläche** in der Recherche (Audit 7.9), mit `aria-label`.
+
+8. **Kleinste Schriftgrade angehoben**: 41 Stellen von 9 px und 2 von 8 px auf 10 px.
+
+**Ein Fund, der die App im Container unbrauchbar gemacht hätte:**
+
+9. **Die strenge CSP blockierte Angulars eigenes Stylesheet-Laden.** Angular hängt beim Einbetten des kritischen CSS ein `onload="this.media='all'"` an den Stylesheet-Link. Die CSP verbietet Inline-Handler – dadurch blieb `styles-*.css` auf `media="print"` stehen und wurde **nie aktiviert**. Die Anwendung lief nur auf dem eingebetteten Basis-CSS. Behoben durch `inlineCritical: false` in `angular.json`; der Stylesheet-Link kommt jetzt ohne Inline-Handler aus.
+
+**Zusätzlich behoben:** Die Vorschau im Verteilungs-Dialog rechnete noch mit der alten Rundung und hätte 99,99 € angezeigt, wo anschließend 100,00 € gebucht werden. Sie nutzt jetzt dieselbe Verteilung wie das Speichern.
+
+**Verifiziert durch:**
+- `npx ng build` erfolgreich; `npx vitest run` → **30 Dateien / 195 Tests grün** (vorher 174), darunter 21 neue Tests für Fokus-Falle, Startfokus, Fokus-Rückgabe und Scroll-Sperre
+- **Im laufenden Container** (`localhost:8080`): alle fünf Header vorhanden, auch auf statischen Dateien; `index.html` mit `no-cache`; `/healthz` antwortet; Stylesheet lädt mit `media="alle"`; keine Inline-Handler mehr im DOM
+- **Dialog im Browser geprüft:** `role="dialog"`, `aria-modal="true"`, `aria-label` gesetzt, Hintergrund gesperrt, Fokus im Dialog; Tab vom letzten zum ersten Element, Shift+Tab rückwärts, Fokus von außen zurückgeholt – alle drei Richtungen greifen; Escape schließt, Sperre gelöst, Fokus zurück auf dem Auslöser
+- 12 Seiten durchlaufen, keine Fehler, keine offenen Sync-Meldungen
+
+**Entfallen:** `NgOptimizedImage` (Plan 7.2.4). Alle 14 Bilder sind dynamisch – Daten-URIs oder signierte Speicher-URLs. Daten-URIs unterstützt `NgOptimizedImage` ausdrücklich nicht, und statische Bilder gibt es in den Templates keine.
+
+**Offen:** Die Umstellung des Service Workers auf `@angular/service-worker` (Plan 7.1.3). Der eigene Worker ist seit Phase 3 unbedenklich; die Umstellung wäre eine Verbesserung, keine Fehlerbehebung.
+
+---
+
 ## 2026-08-19 – Claude Opus 5 (Anthropic) – Phase 6: Finanzen & Steuern
 
 **Art:** Bugfix (Rechenfehler), Tests

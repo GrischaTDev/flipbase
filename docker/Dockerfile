@@ -20,11 +20,16 @@ FROM nginx:stable-alpine AS production
 
 # Custom Nginx-Konfiguration für Angular SPA-Routing
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
+COPY docker/security-headers.conf /etc/nginx/security-headers.conf
 
 # Build-Artefakte aus Stage 1 holen
 COPY --from=build /app/dist/re-flip/browser /usr/share/nginx/html
 
 # Port 80 freigeben
 EXPOSE 80
+
+# Zustandspruefung: Docker erkennt damit, ob der Server wirklich antwortet
+# und nicht nur der Prozess laeuft.
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3   CMD wget --quiet --tries=1 --spider http://localhost/healthz || exit 1
 
 CMD ["nginx", "-g", "daemon off;"]

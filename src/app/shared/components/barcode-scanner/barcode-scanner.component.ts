@@ -9,6 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 import {
   LucideAngularModule,
   Camera,
@@ -29,7 +30,7 @@ declare class BarcodeDetector {
 
 @Component({
   selector: 'app-barcode-scanner',
-  imports: [ReactiveFormsModule, LucideAngularModule],
+  imports: [ModalDialogDirective, ReactiveFormsModule, LucideAngularModule],
   templateUrl: './barcode-scanner.component.html',
   styleUrl: './barcode-scanner.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

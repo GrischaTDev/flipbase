@@ -25,6 +25,7 @@ import {
   Boxes,
 } from 'lucide-angular';
 import { FulfillmentService } from '../../core/services/fulfillment.service';
+import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import {
   BundleCandidate,
   CarrierRate,
@@ -35,7 +36,7 @@ import {
 
 @Component({
   selector: 'app-fulfillment',
-  imports: [ReactiveFormsModule, CurrencyPipe, DatePipe, LucideAngularModule],
+  imports: [ModalDialogDirective, ReactiveFormsModule, CurrencyPipe, DatePipe, LucideAngularModule],
   templateUrl: './fulfillment.component.html',
   styleUrl: './fulfillment.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

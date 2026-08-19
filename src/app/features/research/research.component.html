@@ -43,7 +43,7 @@
         <lucide-icon [img]="radarIcon" class="w-3.5 h-3.5" [class.text-amber-300]="activeTab() === 'radar'"></lucide-icon>
         <span>Konkurrenz-Radar</span>
         @if (priceTrackerService.activeAlertsCount() > 0) {
-          <span class="px-1.5 py-0.2 rounded-full text-[9px] font-mono font-black bg-rose-600 text-rf-on-accent">
+          <span class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black bg-rose-600 text-rf-on-accent">
             {{ priceTrackerService.activeAlertsCount() }}
           </span>
         }
@@ -245,12 +245,17 @@
               class="linear-surface rounded-xl overflow-hidden border border-rf-border p-2.5 flex flex-col justify-between space-y-2 transition relative group"
               [class.opacity-40]="item.isExcluded"
             >
-              <div class="relative aspect-square rounded-lg bg-black/40 overflow-hidden cursor-pointer" (click)="previewImageUrl.set(item.imageUrl)">
+              <button
+                type="button"
+                class="relative aspect-square w-full rounded-lg bg-black/40 overflow-hidden cursor-pointer"
+                (click)="previewImageUrl.set(item.imageUrl)"
+                [attr.aria-label]="'Bild von ' + item.title + ' vergrössern'"
+              >
                 <img [src]="item.imageUrl" [alt]="item.title" class="w-full h-full object-cover group-hover:scale-105 transition" />
-                <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[9px] font-mono font-bold bg-black/75 text-rf-text-primary">
+                <span class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-black/75 text-rf-text-primary">
                   {{ item.source === 'ebay_sold' ? 'eBay' : item.source === 'kleinanzeigen' ? 'Kleinanzeigen' : 'Vinted' }}
                 </span>
-              </div>
+              </button>
 
               <div>
                 <h4 class="text-[11px] font-semibold text-rf-text-primary line-clamp-2 leading-tight" [title]="item.title">
@@ -478,6 +483,9 @@
   @if (previewImageUrl(); as pUrl) {
     <div
       class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
+      appModalDialog
+      dialogTitel="Bildvorschau"
+      (dialogClose)="previewImageUrl.set(null)"
       (click)="previewImageUrl.set(null)"
     >
       <div class="relative max-w-3xl max-h-[85vh] flex flex-col items-center">

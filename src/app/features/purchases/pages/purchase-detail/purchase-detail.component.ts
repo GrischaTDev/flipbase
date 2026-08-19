@@ -32,6 +32,8 @@ import { PurchaseService } from '../../../../core/services/purchase.service';
 import { MediaService } from '../../../../core/services/media.service';
 import { InboundTrackingService } from '../../../../core/services/inbound-tracking.service';
 import { ImageCropperModalComponent, CroppedImageResult } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
+import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
+import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
 import {
   CostAllocationMode,
   InboundTrackingStatus,
@@ -41,7 +43,7 @@ import {
 
 @Component({
   selector: 'app-purchase-detail',
-  imports: [
+  imports: [ModalDialogDirective, 
     RouterLink,
     ReactiveFormsModule,
     CurrencyPipe,
@@ -61,6 +63,7 @@ export class PurchaseDetailComponent {
   private readonly mediaService = inject(MediaService);
   private readonly router = inject(Router);
   readonly trackingService = inject(InboundTrackingService);
+  private readonly profitEngine = inject(ProfitEngineService);
 
   /** Fortschrittsstufen der Sendungsverfolgung – typisiert, damit der Zugriff auf statusConfig im Template typsicher bleibt. */
   readonly trackingSteps: readonly InboundTrackingStatus[] = [
@@ -144,39 +147,21 @@ export class PurchaseDetailComponent {
     const mode = this.allocatorMode();
     const customValues = this.editableExpectedValues();
 
-    if (mode === 'even') {
-      const evenCost = Number((totalCost / items.length).toFixed(2));
-      return items.map((it) => {
-        const expVal = customValues[it.id] !== undefined ? customValues[it.id] : (it.expected_value || 0);
-        const percent = (1 / items.length) * 100;
-        return {
-          item: it,
-          expected_value: expVal,
-          allocated_cost: evenCost,
-          percent_of_total: percent,
-        };
-      });
-    }
+    const erwarteteWerte = items.map((it) =>
+      customValues[it.id] !== undefined ? customValues[it.id] : (it.expected_value ?? 0),
+    );
 
-    // Value weighted mode
-    const sumExpectedValues = items.reduce((sum, it) => {
-      const val = customValues[it.id] !== undefined ? customValues[it.id] : (it.expected_value || 1);
-      return sum + Math.max(0.01, val);
-    }, 0);
+    // Dieselbe Verteilung wie beim Speichern verwenden, damit die Vorschau
+    // nicht 99,99 € anzeigt, wo anschliessend 100,00 € gebucht werden.
+    const gewichte = mode === 'even' ? items.map(() => 1) : erwarteteWerte;
+    const anteile = this.profitEngine.allocateCosts(totalCost, gewichte);
 
-    return items.map((it) => {
-      const expVal = customValues[it.id] !== undefined ? customValues[it.id] : (it.expected_value || 1);
-      const factor = sumExpectedValues > 0 ? Math.max(0.01, expVal) / sumExpectedValues : 1 / items.length;
-      const allocatedCost = Number((totalCost * factor).toFixed(2));
-      const percent = factor * 100;
-
-      return {
-        item: it,
-        expected_value: expVal,
-        allocated_cost: allocatedCost,
-        percent_of_total: percent,
-      };
-    });
+    return items.map((it, index) => ({
+      item: it,
+      expected_value: erwarteteWerte[index],
+      allocated_cost: anteile[index],
+      percent_of_total: totalCost > 0 ? (anteile[index] / totalCost) * 100 : 0,
+    }));
   });
 
   readonly totalSimulatedAllocatedCost = computed(() => {

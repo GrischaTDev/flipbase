@@ -18,12 +18,13 @@ import {
 } from 'lucide-angular';
 import { InventoryItem } from '../../../core/models/reflip.models';
 import { CustomCheckboxComponent } from '../custom-checkbox/custom-checkbox.component';
+import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 
 export type LabelFormat = 'compact' | 'standard' | 'large';
 
 @Component({
   selector: 'app-inventory-label-modal',
-  imports: [CurrencyPipe, DatePipe, LucideAngularModule, CustomCheckboxComponent],
+  imports: [ModalDialogDirective, CurrencyPipe, DatePipe, LucideAngularModule, CustomCheckboxComponent],
   templateUrl: './inventory-label-modal.component.html',
   styleUrl: './inventory-label-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -36,9 +36,11 @@ export class StoreService {
     currency: 'EUR',
     payments: {
       stripeEnabled: true,
-      stripePublishableKey: 'pk_test_reflip_live_sample_key_123',
+      // Der veroeffentlichbare Stripe-Schluessel darf im Frontend stehen.
+      // Der geheime Schluessel niemals - der gehoert in eine Edge Function.
+      stripePublishableKey: '',
       paypalEnabled: true,
-      paypalClientId: 'sb-reflip-merchant-sample-client-id',
+      paypalClientId: '',
       paypalEmail: 'pay@reflip-outlet.de',
       bankTransferEnabled: true,
       bankIban: 'DE45 5001 0517 5555 6666 77',

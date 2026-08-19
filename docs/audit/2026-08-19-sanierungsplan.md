@@ -55,7 +55,7 @@ Der Wunsch „in 2–3 Wochen ins Web **und** echte Stripe-/DHL-Anbindung" ist z
 | **4** | UI-Blockaden + Light-Theme | 1 Tag | ✅ erledigt |
 | **5** | Datenschicht: Datenbank wird Quelle der Wahrheit | 3–5 Tage | ✅ erledigt (Gemini 3.7 Flash + Nacharbeit 5b) |
 | **6** | Finanzen & Steuern korrigieren | 1–2 Tage | ✅ erledigt |
-| **7** | Sicherheit – Auslieferung & Barrierefreiheit | 1,5 Tage | ⏳ |
+| **7** | Sicherheit – Auslieferung & Barrierefreiheit | 1,5 Tage | ✅ erledigt |
 | **8** | Qualität, Aufräumen, Strict Mode | 1–2 Tage | ⏳ |
 | — | 🚀 **Web-Start ohne Shop** | | |
 | **9** | Echte Integrationen: Stripe, PayPal, DHL, Hermes | 2–3 Wochen | ⏳ |
@@ -191,7 +191,7 @@ Reihenfolge nach Wichtigkeit: `return.service` → `invoice.service` → `tax-ad
 
 ---
 
-## Phase 7 – Sicherheit: Auslieferung & Barrierefreiheit ⏱️ ~1,5 Tage 🔴
+## Phase 7 – Sicherheit: Auslieferung & Barrierefreiheit ⏱️ ~1,5 Tage ✅
 
 ### 7.1 Auslieferung
 
@@ -212,7 +212,7 @@ Reihenfolge nach Wichtigkeit: `return.service` → `invoice.service` → `tax-ad
 | 7.2.1 | Gemeinsame `<app-modal>`-Komponente: `role="dialog"`, `aria-modal`, Fokus-Falle, Escape, Fokus-Rückgabe – alle 22 Overlays umstellen | Audit 7.3 |
 | 7.2.2 | Die 5 klickbaren `<div>`s zu `<button>`s | Audit 7.9 |
 | 7.2.3 | Sprunglink „Zum Inhalt springen" | Audit 7.10 |
-| 7.2.4 | `NgOptimizedImage` für statische Bilder | Audit 7.6 |
+| ~~7.2.4~~ | ~~`NgOptimizedImage`~~ – **entfällt**: Alle 14 Bilder sind dynamisch (Daten-URIs, signierte Speicher-URLs). Daten-URIs unterstützt `NgOptimizedImage` nicht; statische Bilder gibt es in den Templates keine. | Audit 7.6 |
 | 7.2.5 | Kleinste Schriftgrade anheben, Kontraste prüfen | Audit 7.11 |
 
 ---

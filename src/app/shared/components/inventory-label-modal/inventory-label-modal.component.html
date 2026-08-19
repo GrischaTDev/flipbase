@@ -1,5 +1,8 @@
 <div
   class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
+  appModalDialog
+  dialogTitel="Etiketten drucken"
+  (dialogClose)="close.emit()"
   (click)="close.emit()"
 >
   <div
@@ -121,7 +124,7 @@
                 <div class="flex justify-between items-start">
                   <div class="space-y-0.5 max-w-[150px]">
                     <strong class="text-[11px] font-black line-clamp-1 block leading-tight text-black">{{ item.title }}</strong>
-                    <span class="text-[9px] text-gray-700 font-bold block">{{ item.brand }} {{ item.model }}</span>
+                    <span class="text-[10px] text-gray-700 font-bold block">{{ item.brand }} {{ item.model }}</span>
                   </div>
                   @if (showPrice() && item.expected_value) {
                     <span class="text-[10px] font-mono font-black border border-black px-1 rounded bg-neutral-100 shrink-0">
@@ -130,7 +133,7 @@
                   }
                 </div>
 
-                <div class="flex items-center justify-between pt-1 border-t border-black text-[8px] font-mono">
+                <div class="flex items-center justify-between pt-1 border-t border-black text-[10px] font-mono">
                   <span>{{ getConditionLabel(item.condition) }}</span>
                   @if (showDate() && item.created_at) {
                     <span>{{ item.created_at | date:'dd.MM.yy' }}</span>
@@ -139,7 +142,7 @@
 
                 @if (showBarcode()) {
                   <div class="text-center pt-0.5">
-                    <div class="font-mono text-[9px] font-black tracking-widest">{{ item.sku || ('RF-' + item.id.substring(0, 8)) }}</div>
+                    <div class="font-mono text-[10px] font-black tracking-widest">{{ item.sku || ('RF-' + item.id.substring(0, 8)) }}</div>
                     <!-- Vector Barcode Simulation -->
                     <div class="h-5 flex items-center justify-center gap-[1.5px] overflow-hidden my-0.5">
                       <div class="h-full w-[2px] bg-black"></div>
@@ -170,7 +173,7 @@
                 <div class="flex justify-between items-start gap-2">
                   <div class="space-y-0.5">
                     <strong class="text-xs font-black line-clamp-2 leading-tight text-black">{{ item.title }}</strong>
-                    <div class="text-[9px] text-gray-800 font-bold">
+                    <div class="text-[10px] text-gray-800 font-bold">
                       @if (item.brand) { <span>{{ item.brand }}</span> }
                       @if (item.model) { <span> • {{ item.model }}</span> }
                     </div>
@@ -186,7 +189,7 @@
                   }
                 </div>
 
-                <div class="flex items-center justify-between text-[9px] font-mono border-t border-b border-black py-1">
+                <div class="flex items-center justify-between text-[10px] font-mono border-t border-b border-black py-1">
                   <span>Zustand: <strong>{{ getConditionLabel(item.condition) }}</strong></span>
                   @if (showPrice() && item.expected_value) {
                     <strong class="text-[11px] font-black">VK: {{ item.expected_value | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
@@ -209,7 +212,7 @@
                       <div class="h-full w-[2px] bg-black"></div>
                       <div class="h-full w-[4px] bg-black"></div>
                     </div>
-                    <span class="text-[9px] font-mono font-black tracking-wider block mt-0.5">
+                    <span class="text-[10px] font-mono font-black tracking-wider block mt-0.5">
                       {{ item.sku || ('SKU-' + item.id.substring(0, 8).toUpperCase()) }}
                     </span>
                   </div>
@@ -232,7 +235,7 @@
 
                   @if (showPrice() && item.expected_value) {
                     <div class="text-right">
-                      <span class="text-[9px] font-mono block text-gray-700">Zielpreis</span>
+                      <span class="text-[10px] font-mono block text-gray-700">Zielpreis</span>
                       <strong class="text-xl font-mono font-black">{{ item.expected_value | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
                     </div>
                   }
@@ -240,11 +243,11 @@
 
                 <div class="grid grid-cols-2 gap-4 text-xs font-mono">
                   <div class="p-2 border border-black rounded-lg">
-                    <span class="text-[9px] text-gray-700 block uppercase">Hersteller & Modell</span>
+                    <span class="text-[10px] text-gray-700 block uppercase">Hersteller & Modell</span>
                     <strong class="text-sm block">{{ item.brand || '-' }} {{ item.model || '' }}</strong>
                   </div>
                   <div class="p-2 border border-black rounded-lg">
-                    <span class="text-[9px] text-gray-700 block uppercase">Zustand</span>
+                    <span class="text-[10px] text-gray-700 block uppercase">Zustand</span>
                     <strong class="text-sm block">{{ getConditionLabel(item.condition) }}</strong>
                   </div>
                 </div>

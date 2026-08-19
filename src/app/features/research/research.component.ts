@@ -41,10 +41,11 @@ import {
 import { BarcodeLookupService } from '../../core/services/barcode-lookup.service';
 import { PriceTrackerService } from '../../core/services/price-tracker.service';
 import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner/barcode-scanner.component';
+import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 
 @Component({
   selector: 'app-research',
-  imports: [
+  imports: [ModalDialogDirective, 
     ReactiveFormsModule,
     CurrencyPipe,
     DatePipe,

@@ -1,5 +1,8 @@
 <div
   class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
+  appModalDialog
+  dialogTitel="Barcode scannen"
+  (dialogClose)="close.emit()"
   (click)="close.emit()"
 >
   <div

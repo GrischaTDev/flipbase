@@ -22,10 +22,11 @@ import {
   Zap,
 } from 'lucide-angular';
 import { AiAssistantService, AiVisualScanResult } from '../../../core/services/ai-assistant.service';
+import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 
 @Component({
   selector: 'app-ai-photo-scanner-modal',
-  imports: [CurrencyPipe, LucideAngularModule],
+  imports: [ModalDialogDirective, CurrencyPipe, LucideAngularModule],
   templateUrl: './ai-photo-scanner-modal.component.html',
   styleUrl: './ai-photo-scanner-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

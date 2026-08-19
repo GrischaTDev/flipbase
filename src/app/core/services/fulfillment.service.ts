@@ -314,10 +314,12 @@ export class FulfillmentService {
     return {
       dhlEnabled: true,
       dhlEkp: '5001234567',
-      dhlApiKey: 'dhl_sandbox_key_live_2026_demo',
+      // Kein Schluessel im Frontend: Traeger-Zugangsdaten gehoeren in
+      // Edge Functions, nicht in eine vom Browser lesbare Tabelle.
+      dhlApiKey: '',
       hermesEnabled: true,
       hermesClientId: 'HERMES-99421',
-      hermesApiKey: 'hermes_sec_auth_991823_demo',
+      hermesApiKey: '',
     };
   }
 

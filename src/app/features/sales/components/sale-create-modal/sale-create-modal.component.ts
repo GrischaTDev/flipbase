@@ -6,10 +6,11 @@ import { SalesService, CreateSalePayload } from '../../../../core/services/sales
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
 import { InventoryItem } from '../../../../core/models/reflip.models';
+import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 
 @Component({
   selector: 'app-sale-create-modal',
-  imports: [ReactiveFormsModule, CurrencyPipe, LucideAngularModule],
+  imports: [ModalDialogDirective, ReactiveFormsModule, CurrencyPipe, LucideAngularModule],
   templateUrl: './sale-create-modal.component.html',
   styleUrl: './sale-create-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

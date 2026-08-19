@@ -20,10 +20,11 @@ import {
 } from 'lucide-angular';
 import { Invoice } from '../../../core/models/invoice.models';
 import { InvoiceService } from '../../../core/services/invoice.service';
+import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 
 @Component({
   selector: 'app-invoice-modal',
-  imports: [CurrencyPipe, DatePipe, LucideAngularModule],
+  imports: [ModalDialogDirective, CurrencyPipe, DatePipe, LucideAngularModule],
   templateUrl: './invoice-modal.component.html',
   styleUrl: './invoice-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

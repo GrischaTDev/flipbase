@@ -1,5 +1,8 @@
 <div
   class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto animate-fade-in"
+  appModalDialog
+  dialogTitel="Neuen Einkauf erfassen"
+  (dialogClose)="close.emit()"
 >
   <div
     class="linear-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-rf-line overflow-hidden my-auto animate-modal-card"

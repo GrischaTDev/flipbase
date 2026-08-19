@@ -652,6 +652,9 @@
   @if (isAllocatorOpen()) {
     <div
       class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
+      appModalDialog
+      dialogTitel="Kosten verteilen"
+      (dialogClose)="closeAllocator()"
       (click)="closeAllocator()"
     >
       <div

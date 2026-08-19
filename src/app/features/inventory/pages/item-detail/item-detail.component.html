@@ -267,7 +267,7 @@
 
                 <!-- Primary Badge -->
                 @if (media.is_primary) {
-                  <span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-700 text-rf-on-accent shadow-xs">
+                  <span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-700 text-rf-on-accent shadow-xs">
                     ⭐ Hauptbild
                   </span>
                 }
@@ -477,6 +477,9 @@
   @if (previewModalUrl(); as pUrl) {
     <div
       class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
+      appModalDialog
+      dialogTitel="Bildvorschau"
+      (dialogClose)="previewModalUrl.set(null)"
       (click)="previewModalUrl.set(null)"
     >
       <div class="relative max-w-4xl max-h-[90vh] flex flex-col items-center">

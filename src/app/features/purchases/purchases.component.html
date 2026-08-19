@@ -200,7 +200,7 @@
                   <span class="font-mono text-[10px] text-rf-text-muted truncate">{{ trackInfo.tracking_number }}</span>
                 </div>
                 <span
-                  class="px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 border"
+                  class="px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 border"
                   [class]="trackingService.statusConfig[trackInfo.status].badgeClass"
                 >
                   {{ trackInfo.status_label }}
@@ -302,7 +302,7 @@
               <span class="text-base font-black text-rf-text-primary block">
                 {{ wallet.startCash | currency:'EUR':'symbol':'1.2-2':'de' }}
               </span>
-              <span class="text-[9px] text-rf-text-muted font-sans block">Eingesteckt</span>
+              <span class="text-[10px] text-rf-text-muted font-sans block">Eingesteckt</span>
             </div>
 
             <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-0.5">
@@ -310,7 +310,7 @@
               <span class="text-base font-black text-emerald-400 block">
                 {{ wallet.currentCash | currency:'EUR':'symbol':'1.2-2':'de' }}
               </span>
-              <span class="text-[9px] text-rf-text-muted font-sans block">Noch verfügbar</span>
+              <span class="text-[10px] text-rf-text-muted font-sans block">Noch verfügbar</span>
             </div>
 
             <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-0.5">
@@ -318,7 +318,7 @@
               <span class="text-base font-black text-indigo-300 block">
                 {{ wallet.totalSpent | currency:'EUR':'symbol':'1.2-2':'de' }}
               </span>
-              <span class="text-[9px] text-rf-text-muted font-sans block">{{ wallet.itemsCount }} Käufe heute</span>
+              <span class="text-[10px] text-rf-text-muted font-sans block">{{ wallet.itemsCount }} Käufe heute</span>
             </div>
 
             <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-0.5">
@@ -326,7 +326,7 @@
               <span class="text-base font-black text-amber-400 block">
                 {{ wallet.estimatedTotalResale | currency:'EUR':'symbol':'1.2-2':'de' }}
               </span>
-              <span class="text-[9px] text-emerald-400 font-sans block">+{{ offlineSyncService.potentialProfitEstimate() | currency:'EUR':'symbol':'1.2-2':'de' }} Marge</span>
+              <span class="text-[10px] text-emerald-400 font-sans block">+{{ offlineSyncService.potentialProfitEstimate() | currency:'EUR':'symbol':'1.2-2':'de' }} Marge</span>
             </div>
           </div>
 
