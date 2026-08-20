@@ -15,7 +15,10 @@ services:
       AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /secrets/storage_encryption
       TZ: Europe/Berlin
     healthcheck:
-      test: ['CMD', 'authelia', 'health']
+      # Den Unterbefehl "authelia health" gibt es seit 4.39 nicht mehr;
+      # geprueft wird deshalb der Endpunkt. 127.0.0.1 statt localhost,
+      # damit die Aufloesung nicht ueber IPv6 danebengreift.
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://127.0.0.1:9091/api/health']
       interval: 30s
       timeout: 5s
       retries: 3
