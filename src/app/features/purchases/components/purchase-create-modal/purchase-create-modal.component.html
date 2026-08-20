@@ -5,9 +5,9 @@
   (dialogClose)="closed.emit()"
 >
   <div
-    class="linear-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-rf-line overflow-hidden my-auto animate-modal-card"
+    class="linear-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-fb-line overflow-hidden my-auto animate-modal-card"
   >
-    <div class="flex items-center justify-between p-5 border-b border-rf-line bg-rf-well shrink-0">
+    <div class="flex items-center justify-between p-5 border-b border-fb-line bg-fb-well shrink-0">
       <div class="flex items-center gap-2.5">
         <div
           class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
@@ -15,8 +15,8 @@
           <svg [lucideIcon]="bagIcon" class="w-4 h-4"></svg>
         </div>
         <div>
-          <h2 class="text-sm font-bold text-rf-text-primary">Neuen Einkauf erfassen</h2>
-          <p class="text-[11px] text-rf-text-muted">
+          <h2 class="text-sm font-bold text-fb-text-primary">Neuen Einkauf erfassen</h2>
+          <p class="text-[11px] text-fb-text-muted">
             Einzelkauf, Mystery Box oder Palette mit Nebenkosten
           </p>
         </div>
@@ -25,7 +25,7 @@
       <button
         type="button"
         (click)="closed.emit()"
-        class="p-1.5 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-line transition cursor-pointer"
+        class="p-1.5 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-line transition cursor-pointer"
       >
         <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
       </button>
@@ -42,7 +42,7 @@
         <!-- 1. Einkaufstyp Selector (Kapitel 8) -->
         <div>
           <span
-            class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1.5"
+            class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1.5"
           >
             Einkaufstyp
           </span>
@@ -53,12 +53,12 @@
               class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
               [class.border-emerald-500]="form.get('type')?.value === 'single'"
               [class.bg-emerald-500/15]="form.get('type')?.value === 'single'"
-              [class.border-rf-line]="form.get('type')?.value !== 'single'"
-              [class.bg-rf-well]="form.get('type')?.value !== 'single'"
+              [class.border-fb-line]="form.get('type')?.value !== 'single'"
+              [class.bg-fb-well]="form.get('type')?.value !== 'single'"
             >
               <svg [lucideIcon]="bagIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
-              <span class="text-xs font-bold text-rf-text-primary">Einzelartikel</span>
-              <span class="text-[10px] text-rf-text-muted">1 Kauf → 1 Artikel</span>
+              <span class="text-xs font-bold text-fb-text-primary">Einzelartikel</span>
+              <span class="text-[10px] text-fb-text-muted">1 Kauf → 1 Artikel</span>
             </button>
 
             <button
@@ -67,12 +67,12 @@
               class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
               [class.border-emerald-500]="form.get('type')?.value === 'mystery_pack'"
               [class.bg-emerald-500/15]="form.get('type')?.value === 'mystery_pack'"
-              [class.border-rf-line]="form.get('type')?.value !== 'mystery_pack'"
-              [class.bg-rf-well]="form.get('type')?.value !== 'mystery_pack'"
+              [class.border-fb-line]="form.get('type')?.value !== 'mystery_pack'"
+              [class.bg-fb-well]="form.get('type')?.value !== 'mystery_pack'"
             >
               <svg [lucideIcon]="packageIcon" class="w-3.5 h-3.5 text-purple-400"></svg>
-              <span class="text-xs font-bold text-rf-text-primary">Mystery Box</span>
-              <span class="text-[10px] text-rf-text-muted">Mehrere Artikel</span>
+              <span class="text-xs font-bold text-fb-text-primary">Mystery Box</span>
+              <span class="text-[10px] text-fb-text-muted">Mehrere Artikel</span>
             </button>
 
             <button
@@ -81,12 +81,12 @@
               class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
               [class.border-emerald-500]="form.get('type')?.value === 'lot'"
               [class.bg-emerald-500/15]="form.get('type')?.value === 'lot'"
-              [class.border-rf-line]="form.get('type')?.value !== 'lot'"
-              [class.bg-rf-well]="form.get('type')?.value !== 'lot'"
+              [class.border-fb-line]="form.get('type')?.value !== 'lot'"
+              [class.bg-fb-well]="form.get('type')?.value !== 'lot'"
             >
               <svg [lucideIcon]="layersIcon" class="w-3.5 h-3.5 text-blue-400"></svg>
-              <span class="text-xs font-bold text-rf-text-primary">Lot / Posten</span>
-              <span class="text-[10px] text-rf-text-muted">Konvolut</span>
+              <span class="text-xs font-bold text-fb-text-primary">Lot / Posten</span>
+              <span class="text-[10px] text-fb-text-muted">Konvolut</span>
             </button>
 
             <button
@@ -95,12 +95,12 @@
               class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
               [class.border-emerald-500]="form.get('type')?.value === 'pallet'"
               [class.bg-emerald-500/15]="form.get('type')?.value === 'pallet'"
-              [class.border-rf-line]="form.get('type')?.value !== 'pallet'"
-              [class.bg-rf-well]="form.get('type')?.value !== 'pallet'"
+              [class.border-fb-line]="form.get('type')?.value !== 'pallet'"
+              [class.bg-fb-well]="form.get('type')?.value !== 'pallet'"
             >
               <svg [lucideIcon]="boxesIcon" class="w-3.5 h-3.5 text-amber-400"></svg>
-              <span class="text-xs font-bold text-rf-text-primary">Palette</span>
-              <span class="text-[10px] text-rf-text-muted">Retourenpalette</span>
+              <span class="text-xs font-bold text-fb-text-primary">Palette</span>
+              <span class="text-[10px] text-fb-text-muted">Retourenpalette</span>
             </button>
           </div>
         </div>
@@ -109,7 +109,7 @@
         <div>
           <label
             for="purchaseTitle"
-            class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
           >
             Titel / Beschreibung
           </label>
@@ -127,7 +127,7 @@
           <div>
             <label
               for="purchasePrice"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Einkaufspreis (€)
             </label>
@@ -142,7 +142,7 @@
           <div>
             <label
               for="purchaseDate"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Kaufdatum
             </label>
@@ -161,7 +161,7 @@
             <div class="flex items-center justify-between mb-1">
               <label
                 for="purchaseSource"
-                class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted"
+                class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
               >
                 Einkaufsquelle
               </label>
@@ -196,7 +196,7 @@
             <select
               id="purchaseSource"
               formControlName="source_id"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
             >
               <option [ngValue]="null">-- Quelle wählen --</option>
               @for (src of sourcesService.sources(); track src.id) {
@@ -209,7 +209,7 @@
             <div class="flex items-center justify-between mb-1">
               <label
                 for="purchaseSupplier"
-                class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted"
+                class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
               >
                 Lieferant / Verkäufer
               </label>
@@ -244,7 +244,7 @@
             <select
               id="purchaseSupplier"
               formControlName="supplier_id"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
             >
               <option [ngValue]="null">-- Optional: Lieferant wählen --</option>
               @for (sup of suppliersService.suppliers(); track sup.id) {
@@ -256,7 +256,7 @@
 
         <!-- 5. Single Item Specific Fields -->
         @if (form.get('type')?.value === 'single') {
-          <div class="p-3.5 rounded-xl bg-rf-well border border-rf-line space-y-2.5">
+          <div class="p-3.5 rounded-xl bg-fb-well border border-fb-line space-y-2.5">
             <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
               Artikel-Initialisierung (Kapitel 8: 1 Kauf → 1 Inventar-Artikel)
             </span>
@@ -265,14 +265,14 @@
               <div>
                 <label
                   for="singleCondition"
-                  class="block text-[10px] font-semibold text-rf-text-muted mb-1"
+                  class="block text-[10px] font-semibold text-fb-text-muted mb-1"
                 >
                   Zustand
                 </label>
                 <select
                   id="singleCondition"
                   formControlName="single_item_condition"
-                  class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
+                  class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
                 >
                   <option value="new">Neu / OVP</option>
                   <option value="like_new">Wie neu</option>
@@ -286,7 +286,7 @@
               <div>
                 <label
                   for="singleExpectedVal"
-                  class="block text-[10px] font-semibold text-rf-text-muted mb-1"
+                  class="block text-[10px] font-semibold text-fb-text-muted mb-1"
                 >
                   Erwarteter Marktwert (€)
                 </label>
@@ -305,7 +305,7 @@
         <!-- 6. Zusatzkosten (Versand, Fahrt, Gebühren) -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <span class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">
+            <span class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
               Zusatzkosten (Versand, Fahrtkosten, Zoll)
             </span>
             <button
@@ -319,7 +319,7 @@
           </div>
 
           @for (cost of extraCosts(); track $index) {
-            <div class="flex items-center gap-2 p-2 rounded-lg bg-rf-well border border-rf-line">
+            <div class="flex items-center gap-2 p-2 rounded-lg bg-fb-well border border-fb-line">
               <select
                 [value]="cost.type"
                 (change)="updateCostField($index, 'type', $any($event.target).value)"
@@ -352,7 +352,7 @@
               <button
                 type="button"
                 (click)="removeCostRow($index)"
-                class="p-1 text-rf-text-muted hover:text-rose-400 rounded"
+                class="p-1 text-fb-text-muted hover:text-rose-400 rounded"
               >
                 <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
               </button>
@@ -361,9 +361,9 @@
         </div>
 
         <!-- Inbound Sendungsverfolgung (Tracking) -->
-        <div class="p-3 rounded-xl bg-rf-well border border-rf-line space-y-2.5">
+        <div class="p-3 rounded-xl bg-fb-well border border-fb-line space-y-2.5">
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-1.5 text-xs font-semibold text-rf-text-secondary">
+            <div class="flex items-center gap-1.5 text-xs font-semibold text-fb-text-secondary">
               <svg [lucideIcon]="truckIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
               <span>Sendungsverfolgung (DHL, DPD, Hermes, UPS, GLS)</span>
             </div>
@@ -386,13 +386,13 @@
                 formControlName="tracking_number"
                 (input)="onTrackingNumberInput($event)"
                 placeholder="Sendungsnummer eingeben oder einfügen..."
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono text-rf-text-primary"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono text-fb-text-primary"
               />
             </div>
             <div class="sm:col-span-4">
               <select
                 formControlName="tracking_carrier"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
               >
                 <option [ngValue]="null">Auto-Erkennung</option>
                 @for (c of trackingService.carrierOptions; track c.value) {
@@ -404,7 +404,7 @@
         </div>
 
         <!-- Actions -->
-        <div class="flex justify-end gap-2.5 pt-3 border-t border-rf-line">
+        <div class="flex justify-end gap-2.5 pt-3 border-t border-fb-line">
           <button
             type="button"
             (click)="closed.emit()"

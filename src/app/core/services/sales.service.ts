@@ -6,7 +6,7 @@ import { InventoryService } from './inventory.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { WebhookService } from './webhook.service';
 import { SyncStatusService } from './sync-status.service';
-import { Sale, InventoryItem } from '../models/reflip.models';
+import { Sale, InventoryItem } from '../models/flipbase.models';
 
 export interface CreateSalePayload {
   inventory_item_id: string;

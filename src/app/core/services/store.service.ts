@@ -5,7 +5,7 @@ import { WorkspaceService } from './workspace.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
-import { InventoryItem } from '../models/reflip.models';
+import { InventoryItem } from '../models/flipbase.models';
 import { Json } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 import {
@@ -16,9 +16,9 @@ import {
   StoreSettings,
 } from '../models/store.models';
 
-const STORAGE_KEY_SETTINGS = 'reflip_store_settings';
-const STORAGE_KEY_CART = 'reflip_store_cart';
-const STORAGE_KEY_ORDERS = 'reflip_store_orders';
+const STORAGE_KEY_SETTINGS = 'flipbase_store_settings';
+const STORAGE_KEY_CART = 'flipbase_store_cart';
+const STORAGE_KEY_ORDERS = 'flipbase_store_orders';
 
 @Injectable({
   providedIn: 'root',
@@ -47,7 +47,7 @@ export class StoreService {
       stripePublishableKey: '',
       paypalEnabled: true,
       paypalClientId: '',
-      paypalEmail: 'pay@reflip-outlet.de',
+      paypalEmail: 'pay@flipbase-outlet.de',
       bankTransferEnabled: true,
       bankIban: 'DE45 5001 0517 5555 6666 77',
       bankBic: 'HELA DE FF 500',
@@ -58,7 +58,7 @@ export class StoreService {
       owner: 'Flipbase Reselling',
       street: 'Musterstraße 12',
       city: '10115 Berlin',
-      email: 'service@reflip-store.de',
+      email: 'service@flipbase-store.de',
       phone: '+49 (0) 30 12345678',
       vatId: 'DE 123456789 (Differenzbesteuert gem. § 25a UStG)',
     },

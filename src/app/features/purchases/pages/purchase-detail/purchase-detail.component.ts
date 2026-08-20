@@ -53,7 +53,7 @@ import {
   InboundTrackingStatus,
   ItemCondition,
   TrackingCarrier,
-} from '../../../../core/models/reflip.models';
+} from '../../../../core/models/flipbase.models';
 
 @Component({
   selector: 'app-purchase-detail',

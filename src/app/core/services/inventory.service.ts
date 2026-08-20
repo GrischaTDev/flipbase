@@ -10,7 +10,7 @@ import {
   ItemStatus,
   ItemCondition,
   ActivityLog,
-} from '../models/reflip.models';
+} from '../models/flipbase.models';
 
 export interface CreateItemPayload {
   purchase_id?: string | null;

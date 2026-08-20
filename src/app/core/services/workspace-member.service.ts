@@ -4,7 +4,7 @@ import { WorkspaceService } from './workspace.service';
 import { AuthService } from './auth.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SyncStatusService } from './sync-status.service';
-import { WorkspaceInvite, WorkspaceMember, WorkspaceRole } from '../models/reflip.models';
+import { WorkspaceInvite, WorkspaceMember, WorkspaceRole } from '../models/flipbase.models';
 
 @Injectable({
   providedIn: 'root',
@@ -21,7 +21,7 @@ export class WorkspaceMemberService {
       id: 'wm-1',
       workspace_id: 'ws-1',
       user_id: 'user-owner',
-      email: 'alex.reflip@example.com',
+      email: 'alex.flipbase@example.com',
       full_name: 'Alex (Inhaber)',
       role: 'owner',
       joined_at: '2026-01-01T10:00:00Z',
@@ -245,7 +245,7 @@ export class WorkspaceMemberService {
       case 'readonly':
         return {
           label: 'Nur-Lesen',
-          class: 'bg-rf-subtle text-rf-text-muted border-rf-border',
+          class: 'bg-fb-subtle text-fb-text-muted border-fb-border',
           description: 'Ansicht von Daten ohne Bearbeitungsrechte',
         };
     }

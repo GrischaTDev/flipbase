@@ -368,7 +368,7 @@ CREATE TABLE IF NOT EXISTS public.store_order_items (
 CREATE TABLE IF NOT EXISTS public.store_settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE UNIQUE,
-    store_name TEXT NOT NULL DEFAULT 'ReFlip Store',
+    store_name TEXT NOT NULL DEFAULT 'Flipbase Store',
     tagline TEXT,
     banner_url TEXT,
     shipping_flat_rate NUMERIC NOT NULL DEFAULT 4.99,

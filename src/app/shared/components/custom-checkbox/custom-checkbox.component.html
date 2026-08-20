@@ -28,15 +28,15 @@
     [class.border-indigo-500]="(checked() || indeterminate()) && color() === 'indigo'"
     [class.shadow-indigo-500/30]="(checked() || indeterminate()) && color() === 'indigo'"
     [class.shadow-sm]="checked() || indeterminate()"
-    [class.bg-rf-well]="!checked() && !indeterminate()"
-    [class.border-rf-border-hover]="!checked() && !indeterminate()"
+    [class.bg-fb-well]="!checked() && !indeterminate()"
+    [class.border-fb-border-hover]="!checked() && !indeterminate()"
     [class.group-hover:border-emerald-500]="
       !checked() && !indeterminate() && !effectiveDisabled() && color() === 'emerald'
     "
     [class.group-hover:border-indigo-400]="
       !checked() && !indeterminate() && !effectiveDisabled() && color() === 'indigo'
     "
-    [class.group-hover:bg-rf-subtle]="!checked() && !indeterminate() && !effectiveDisabled()"
+    [class.group-hover:bg-fb-subtle]="!checked() && !indeterminate() && !effectiveDisabled()"
   >
     @if (checked() && !indeterminate()) {
       <svg
@@ -46,7 +46,7 @@
         stroke-width="3.5"
         stroke-linecap="round"
         stroke-linejoin="round"
-        class="text-rf-on-accent w-2.5 h-2.5 animate-scale-in"
+        class="text-fb-on-accent w-2.5 h-2.5 animate-scale-in"
       >
         <polyline points="20 6 9 17 4 12"></polyline>
       </svg>
@@ -58,7 +58,7 @@
         stroke-width="4"
         stroke-linecap="round"
         stroke-linejoin="round"
-        class="text-rf-on-accent w-2.5 h-2.5 animate-scale-in"
+        class="text-fb-on-accent w-2.5 h-2.5 animate-scale-in"
       >
         <line x1="5" y1="12" x2="19" y2="12"></line>
       </svg>
@@ -68,7 +68,7 @@
   <!-- Optional Label -->
   @if (label()) {
     <span
-      class="text-xs font-medium text-rf-text-secondary group-hover:text-rf-text-primary transition-colors select-none"
+      class="text-xs font-medium text-fb-text-secondary group-hover:text-fb-text-primary transition-colors select-none"
     >
       {{ label() }}
     </span>

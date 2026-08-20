@@ -1,30 +1,30 @@
 <div class="space-y-6 animate-fade-in">
   <!-- Top Header & Primary Tabs Switcher -->
   <div
-    class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-rf-border/40 pb-4"
+    class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-fb-border/40 pb-4"
   >
     <div>
-      <h1 class="text-xl font-bold tracking-tight text-rf-text-primary flex items-center gap-2">
-        <svg [lucideIcon]="cardIcon" class="w-5 h-5 text-rf-profit"></svg>
+      <h1 class="text-xl font-bold tracking-tight text-fb-text-primary flex items-center gap-2">
+        <svg [lucideIcon]="cardIcon" class="w-5 h-5 text-fb-profit"></svg>
         <span>Finanzen, Steuern & Bankabgleich</span>
       </h1>
-      <p class="text-xs text-rf-text-muted mt-0.5">
+      <p class="text-xs text-fb-text-muted mt-0.5">
         Differenzbesteuerung gem. § 25a UStG, DATEV-Export und automatischer
         Kontoauszug-Zahlungsabgleich.
       </p>
     </div>
 
     <!-- Navigation Tabs -->
-    <div class="flex items-center gap-1.5 p-1 rounded-xl bg-rf-subtle border border-rf-border/60">
+    <div class="flex items-center gap-1.5 p-1 rounded-xl bg-fb-subtle border border-fb-border/60">
       <button
         type="button"
         (click)="activeTab.set('tax_journal')"
         class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-        [class.bg-rf-surface-alt]="activeTab() === 'tax_journal'"
-        [class.text-rf-text-primary]="activeTab() === 'tax_journal'"
+        [class.bg-fb-surface-alt]="activeTab() === 'tax_journal'"
+        [class.text-fb-text-primary]="activeTab() === 'tax_journal'"
         [class.shadow-2xs]="activeTab() === 'tax_journal'"
-        [class.text-rf-text-muted]="activeTab() !== 'tax_journal'"
-        [class.hover:text-rf-text-primary]="activeTab() !== 'tax_journal'"
+        [class.text-fb-text-muted]="activeTab() !== 'tax_journal'"
+        [class.hover:text-fb-text-primary]="activeTab() !== 'tax_journal'"
       >
         <svg [lucideIcon]="spreadsheetIcon" class="w-3.5 h-3.5"></svg>
         <span>§ 25a Steuer & DATEV</span>
@@ -34,17 +34,17 @@
         type="button"
         (click)="activeTab.set('bank_reconciliation')"
         class="px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer relative"
-        [class.bg-rf-surface-alt]="activeTab() === 'bank_reconciliation'"
-        [class.text-rf-text-primary]="activeTab() === 'bank_reconciliation'"
+        [class.bg-fb-surface-alt]="activeTab() === 'bank_reconciliation'"
+        [class.text-fb-text-primary]="activeTab() === 'bank_reconciliation'"
         [class.shadow-2xs]="activeTab() === 'bank_reconciliation'"
-        [class.text-rf-text-muted]="activeTab() !== 'bank_reconciliation'"
-        [class.hover:text-rf-text-primary]="activeTab() !== 'bank_reconciliation'"
+        [class.text-fb-text-muted]="activeTab() !== 'bank_reconciliation'"
+        [class.hover:text-fb-text-primary]="activeTab() !== 'bank_reconciliation'"
       >
-        <svg [lucideIcon]="cardIcon" class="w-3.5 h-3.5 text-rf-profit"></svg>
+        <svg [lucideIcon]="cardIcon" class="w-3.5 h-3.5 text-fb-profit"></svg>
         <span>Bankabgleich</span>
         @if (bankService.summary().matchedCount > 0) {
           <span
-            class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rf-profit text-black font-mono"
+            class="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-fb-profit text-black font-mono"
           >
             {{ bankService.summary().matchedCount }}
           </span>
@@ -57,9 +57,9 @@
   @if (bookingFeedback(); as fb) {
     <div
       class="p-3.5 rounded-xl text-xs font-medium border animate-fade-in flex items-center justify-between shadow-md"
-      [class.bg-rf-profit/10]="fb.success"
-      [class.border-rf-profit/30]="fb.success"
-      [class.text-rf-profit]="fb.success"
+      [class.bg-fb-profit/10]="fb.success"
+      [class.border-fb-profit/30]="fb.success"
+      [class.text-fb-profit]="fb.success"
       [class.bg-rose-500/10]="!fb.success"
       [class.border-rose-500/30]="!fb.success"
       [class.text-rose-400]="!fb.success"
@@ -71,7 +71,7 @@
       <button
         type="button"
         (click)="bookingFeedback.set(null)"
-        class="text-white/60 hover:text-rf-text-primary cursor-pointer"
+        class="text-white/60 hover:text-fb-text-primary cursor-pointer"
       >
         <svg [lucideIcon]="closeIcon" class="w-3.5 h-3.5"></svg>
       </button>
@@ -86,10 +86,10 @@
       <!-- File Upload & Drag-and-Drop Area -->
       <div
         class="rounded-2xl border-2 border-dashed p-6 text-center transition cursor-pointer relative"
-        [class.border-rf-profit]="isDraggingFile()"
-        [class.bg-rf-profit/5]="isDraggingFile()"
-        [class.border-rf-border/80]="!isDraggingFile()"
-        [class.bg-rf-surface]="!isDraggingFile()"
+        [class.border-fb-profit]="isDraggingFile()"
+        [class.bg-fb-profit/5]="isDraggingFile()"
+        [class.border-fb-border/80]="!isDraggingFile()"
+        [class.bg-fb-surface]="!isDraggingFile()"
         (dragover)="onDragOver($event)"
         (dragleave)="onDragLeave()"
         (drop)="onFileDrop($event)"
@@ -104,16 +104,16 @@
 
         <div class="max-w-md mx-auto space-y-3">
           <div
-            class="w-12 h-12 rounded-2xl bg-rf-subtle border border-rf-border/80 text-rf-profit mx-auto flex items-center justify-center shadow-2xs"
+            class="w-12 h-12 rounded-2xl bg-fb-subtle border border-fb-border/80 text-fb-profit mx-auto flex items-center justify-center shadow-2xs"
           >
             <svg [lucideIcon]="uploadIcon" class="w-6 h-6"></svg>
           </div>
 
           <div>
-            <h3 class="text-sm font-bold text-rf-text-primary">
+            <h3 class="text-sm font-bold text-fb-text-primary">
               Bank-Kontoauszug hochladen oder hier ablegen
             </h3>
-            <p class="text-xs text-rf-text-muted mt-0.5">
+            <p class="text-xs text-fb-text-muted mt-0.5">
               Unterstützt <strong>CSV</strong> (Sparkasse, DKB, N26, Volksbank, PayPal),
               <strong>MT940</strong> und <strong>CAMT.053 XML</strong>.
             </p>
@@ -133,7 +133,7 @@
               (click)="onLoadDemoStatement()"
               class="btn-secondary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer"
             >
-              <svg [lucideIcon]="sparklesIcon" class="w-3.5 h-3.5 text-rf-profit"></svg>
+              <svg [lucideIcon]="sparklesIcon" class="w-3.5 h-3.5 text-fb-profit"></svg>
               <span>Demo-Kontoauszug laden</span>
             </button>
 
@@ -141,7 +141,7 @@
               <button
                 type="button"
                 (click)="onResetBankStatement()"
-                class="text-xs text-rf-text-muted hover:text-rose-400 p-2 transition cursor-pointer"
+                class="text-xs text-fb-text-muted hover:text-rose-400 p-2 transition cursor-pointer"
                 title="Kontoauszug zurücksetzen"
               >
                 <svg [lucideIcon]="trashIcon" class="w-4 h-4"></svg>
@@ -159,21 +159,21 @@
           <div class="kpi-card space-y-1">
             <span class="kpi-label">Umsätze importiert</span>
             <div class="kpi-value font-mono">{{ sum.totalCount }}</div>
-            <span class="text-[10px] text-rf-text-muted"
+            <span class="text-[10px] text-fb-text-muted"
               >{{ sum.bookedCount }} gebucht • {{ sum.openCount }} offen</span
             >
           </div>
 
           <!-- Total Income -->
           <div class="kpi-card space-y-1">
-            <span class="kpi-label flex items-center gap-1 text-rf-profit">
+            <span class="kpi-label flex items-center gap-1 text-fb-profit">
               <svg [lucideIcon]="incomeIcon" class="w-3 h-3"></svg>
               <span>Gutschriften</span>
             </span>
-            <div class="kpi-value font-mono text-rf-profit">
+            <div class="kpi-value font-mono text-fb-profit">
               {{ sum.totalIncome | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
             </div>
-            <span class="text-[10px] text-rf-text-muted">Zahlungseingänge</span>
+            <span class="text-[10px] text-fb-text-muted">Zahlungseingänge</span>
           </div>
 
           <!-- Total Expenses -->
@@ -185,21 +185,21 @@
             <div class="kpi-value font-mono text-rose-400">
               -{{ sum.totalExpense | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
             </div>
-            <span class="text-[10px] text-rf-text-muted">Einkäufe & Gebühren</span>
+            <span class="text-[10px] text-fb-text-muted">Einkäufe & Gebühren</span>
           </div>
 
           <!-- Auto Match Rate -->
           <div class="kpi-card space-y-1">
             <span class="kpi-label">Auto-Match-Rate</span>
-            <div class="kpi-value font-mono text-rf-text-primary flex items-baseline gap-1">
+            <div class="kpi-value font-mono text-fb-text-primary flex items-baseline gap-1">
               <span>{{ sum.autoMatchRate }}%</span>
-              <span class="text-[10px] text-rf-profit font-normal"
+              <span class="text-[10px] text-fb-profit font-normal"
                 >({{ sum.matchedCount }} bereit)</span
               >
             </div>
-            <div class="w-full h-1.5 rounded-full bg-rf-surface-alt overflow-hidden mt-1">
+            <div class="w-full h-1.5 rounded-full bg-fb-surface-alt overflow-hidden mt-1">
               <div
-                class="h-full bg-rf-profit transition-all duration-300"
+                class="h-full bg-fb-profit transition-all duration-300"
                 [style.width.%]="sum.autoMatchRate"
               ></div>
             </div>
@@ -216,9 +216,9 @@
               type="button"
               (click)="bankTxFilter.set('all')"
               class="px-3 py-1 rounded-lg font-medium transition cursor-pointer"
-              [class.bg-rf-surface-alt]="bankTxFilter() === 'all'"
-              [class.text-rf-text-primary]="bankTxFilter() === 'all'"
-              [class.text-rf-text-muted]="bankTxFilter() !== 'all'"
+              [class.bg-fb-surface-alt]="bankTxFilter() === 'all'"
+              [class.text-fb-text-primary]="bankTxFilter() === 'all'"
+              [class.text-fb-text-muted]="bankTxFilter() !== 'all'"
             >
               Alle ({{ sum.totalCount }})
             </button>
@@ -227,11 +227,11 @@
               type="button"
               (click)="bankTxFilter.set('matched')"
               class="px-3 py-1 rounded-lg font-medium transition cursor-pointer flex items-center gap-1"
-              [class.bg-rf-surface-alt]="bankTxFilter() === 'matched'"
-              [class.text-rf-profit]="bankTxFilter() === 'matched'"
-              [class.text-rf-text-muted]="bankTxFilter() !== 'matched'"
+              [class.bg-fb-surface-alt]="bankTxFilter() === 'matched'"
+              [class.text-fb-profit]="bankTxFilter() === 'matched'"
+              [class.text-fb-text-muted]="bankTxFilter() !== 'matched'"
             >
-              <svg [lucideIcon]="checkIcon" class="w-3 h-3 text-rf-profit"></svg>
+              <svg [lucideIcon]="checkIcon" class="w-3 h-3 text-fb-profit"></svg>
               <span>Bereit zum Buchen ({{ sum.matchedCount }})</span>
             </button>
 
@@ -239,9 +239,9 @@
               type="button"
               (click)="bankTxFilter.set('pending')"
               class="px-3 py-1 rounded-lg font-medium transition cursor-pointer"
-              [class.bg-rf-surface-alt]="bankTxFilter() === 'pending'"
+              [class.bg-fb-surface-alt]="bankTxFilter() === 'pending'"
               [class.text-amber-400]="bankTxFilter() === 'pending'"
-              [class.text-rf-text-muted]="bankTxFilter() !== 'pending'"
+              [class.text-fb-text-muted]="bankTxFilter() !== 'pending'"
             >
               Offen / Ungeklärt ({{ sum.openCount }})
             </button>
@@ -250,9 +250,9 @@
               type="button"
               (click)="bankTxFilter.set('booked')"
               class="px-3 py-1 rounded-lg font-medium transition cursor-pointer"
-              [class.bg-rf-surface-alt]="bankTxFilter() === 'booked'"
-              [class.text-rf-text-primary]="bankTxFilter() === 'booked'"
-              [class.text-rf-text-muted]="bankTxFilter() !== 'booked'"
+              [class.bg-fb-surface-alt]="bankTxFilter() === 'booked'"
+              [class.text-fb-text-primary]="bankTxFilter() === 'booked'"
+              [class.text-fb-text-muted]="bankTxFilter() !== 'booked'"
             >
               Bereits gebucht ({{ sum.bookedCount }})
             </button>
@@ -287,7 +287,7 @@
             <table class="w-full text-left text-xs border-collapse">
               <thead>
                 <tr
-                  class="border-b border-rf-border/40 bg-rf-subtle text-rf-text-muted font-medium text-[11px] uppercase tracking-wider"
+                  class="border-b border-fb-border/40 bg-fb-subtle text-fb-text-muted font-medium text-[11px] uppercase tracking-wider"
                 >
                   <th class="py-2.5 px-4">Datum</th>
                   <th class="py-2.5 px-4">Auftraggeber / Empfänger</th>
@@ -300,21 +300,21 @@
               </thead>
               <tbody class="divide-y divide-border/30">
                 @for (tx of filteredBankTransactions(); track tx.id) {
-                  <tr class="hover:bg-rf-subtle/40 transition">
+                  <tr class="hover:bg-fb-subtle/40 transition">
                     <!-- Date -->
                     <td
-                      class="py-3 px-4 font-mono text-rf-text-muted text-[11px] whitespace-nowrap"
+                      class="py-3 px-4 font-mono text-fb-text-muted text-[11px] whitespace-nowrap"
                     >
                       {{ tx.bookingDate | date: 'dd.MM.yyyy' }}
                     </td>
 
                     <!-- Counterparty -->
                     <td class="py-3 px-4">
-                      <strong class="text-rf-text-primary block font-medium">{{
+                      <strong class="text-fb-text-primary block font-medium">{{
                         tx.counterpartyName
                       }}</strong>
                       @if (tx.counterpartyIban) {
-                        <span class="font-mono text-[10px] text-rf-text-muted block">{{
+                        <span class="font-mono text-[10px] text-fb-text-muted block">{{
                           tx.counterpartyIban
                         }}</span>
                       }
@@ -322,7 +322,7 @@
 
                     <!-- Purpose -->
                     <td class="py-3 px-4 max-w-xs">
-                      <p class="text-rf-text-muted text-[11px] line-clamp-2" [title]="tx.purpose">
+                      <p class="text-fb-text-muted text-[11px] line-clamp-2" [title]="tx.purpose">
                         {{ tx.purpose }}
                       </p>
                     </td>
@@ -331,7 +331,7 @@
                     <td class="py-3 px-4 text-right whitespace-nowrap">
                       <span
                         class="font-mono font-bold text-xs"
-                        [class.text-rf-profit]="tx.amount > 0"
+                        [class.text-fb-profit]="tx.amount > 0"
                         [class.text-rose-400]="tx.amount < 0"
                       >
                         {{ tx.amount > 0 ? '+' : ''
@@ -346,9 +346,9 @@
                           <div class="flex items-center gap-1.5">
                             <span
                               class="px-1.5 py-0.2 rounded text-[10px] font-bold font-mono border"
-                              [class.bg-rf-profit/15]="m.confidence >= 95"
-                              [class.border-rf-profit/40]="m.confidence >= 95"
-                              [class.text-rf-profit]="m.confidence >= 95"
+                              [class.bg-fb-profit/15]="m.confidence >= 95"
+                              [class.border-fb-profit/40]="m.confidence >= 95"
+                              [class.text-fb-profit]="m.confidence >= 95"
                               [class.bg-blue-500/15]="m.confidence >= 80 && m.confidence < 95"
                               [class.border-blue-500/40]="m.confidence >= 80 && m.confidence < 95"
                               [class.text-blue-400]="m.confidence >= 80 && m.confidence < 95"
@@ -358,16 +358,16 @@
                             >
                               {{ m.confidence }}% Match
                             </span>
-                            <strong class="text-rf-text-primary text-[11px]">{{
+                            <strong class="text-fb-text-primary text-[11px]">{{
                               m.targetReference
                             }}</strong>
                           </div>
-                          <span class="text-[10px] text-rf-text-muted block line-clamp-1">{{
+                          <span class="text-[10px] text-fb-text-muted block line-clamp-1">{{
                             m.reason
                           }}</span>
                         </div>
                       } @else {
-                        <span class="text-rf-text-muted text-[11px] italic"
+                        <span class="text-fb-text-muted text-[11px] italic"
                           >Kein automatischer Treffer</span
                         >
                       }
@@ -377,7 +377,7 @@
                     <td class="py-3 px-4 text-center whitespace-nowrap">
                       @if (tx.status === 'booked') {
                         <span
-                          class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rf-profit/15 text-rf-profit border border-rf-profit/30"
+                          class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-fb-profit/15 text-fb-profit border border-fb-profit/30"
                         >
                           Gebucht
                         </span>
@@ -389,7 +389,7 @@
                         </span>
                       } @else if (tx.status === 'ignored') {
                         <span
-                          class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-rf-surface-alt text-rf-text-muted"
+                          class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-fb-surface-alt text-fb-text-muted"
                         >
                           Ignoriert
                         </span>
@@ -432,7 +432,7 @@
                           <button
                             type="button"
                             (click)="onIgnoreTransaction(tx.id)"
-                            class="text-rf-text-muted hover:text-rf-text-primary p-1 transition cursor-pointer"
+                            class="text-fb-text-muted hover:text-fb-text-primary p-1 transition cursor-pointer"
                             title="Ignorieren"
                           >
                             <svg [lucideIcon]="closeIcon" class="w-3.5 h-3.5"></svg>
@@ -460,7 +460,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
           <!-- Year & Period Selector -->
           <div class="flex flex-wrap items-center gap-2 text-xs">
-            <span class="text-rf-text-muted font-medium">Besteuerungszeitraum:</span>
+            <span class="text-fb-text-muted font-medium">Besteuerungszeitraum:</span>
 
             <select
               [value]="selectedYear()"
@@ -504,7 +504,7 @@
               (click)="onDownloadDatev()"
               class="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
-              <svg [lucideIcon]="downloadIcon" class="w-3.5 h-3.5 text-rf-profit"></svg>
+              <svg [lucideIcon]="downloadIcon" class="w-3.5 h-3.5 text-fb-profit"></svg>
               <span>DATEV EXTF CSV</span>
             </button>
 
@@ -537,25 +537,25 @@
           <div class="kpi-value font-mono">
             {{ sum.gross_revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </div>
-          <span class="text-[10px] text-rf-text-muted"
+          <span class="text-[10px] text-fb-text-muted"
             >{{ filteredTaxResults().length }} Verkäufe</span
           >
         </div>
 
         <div class="kpi-card space-y-1">
           <span class="kpi-label">Wareneinsatz (Ankauf)</span>
-          <div class="kpi-value font-mono text-rf-text-muted">
+          <div class="kpi-value font-mono text-fb-text-muted">
             {{ sum.total_cost_of_goods_sold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </div>
-          <span class="text-[10px] text-rf-text-muted">Einkaufspreise gem. § 25a</span>
+          <span class="text-[10px] text-fb-text-muted">Einkaufspreise gem. § 25a</span>
         </div>
 
         <div class="kpi-card space-y-1">
           <span class="kpi-label">Rohertrag (Marge)</span>
-          <div class="kpi-value font-mono text-rf-profit">
+          <div class="kpi-value font-mono text-fb-profit">
             {{ sum.total_gross_margin | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </div>
-          <span class="text-[10px] text-rf-text-muted">Bemessungsgrundlage</span>
+          <span class="text-[10px] text-fb-text-muted">Bemessungsgrundlage</span>
         </div>
 
         <div class="kpi-card space-y-1">
@@ -563,23 +563,23 @@
           <div class="kpi-value font-mono text-amber-400">
             {{ sum.total_vat_due | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </div>
-          <span class="text-[10px] text-rf-text-muted">UStVA Kennzahl 81 / 66</span>
+          <span class="text-[10px] text-fb-text-muted">UStVA Kennzahl 81 / 66</span>
         </div>
       </div>
 
       <!-- Tax Calculations Table -->
       <div class="card overflow-hidden">
-        <div class="p-4 border-b border-rf-border/40 flex items-center justify-between">
+        <div class="p-4 border-b border-fb-border/40 flex items-center justify-between">
           <div>
-            <h2 class="text-sm font-bold text-rf-text-primary">
+            <h2 class="text-sm font-bold text-fb-text-primary">
               Differenzbesteuerungs-Journal (§ 25a UStG)
             </h2>
-            <span class="text-xs text-rf-text-muted"
+            <span class="text-xs text-fb-text-muted"
               >Detaillierte Einzelaufzeichnung nach den Vorgaben der Finanzverwaltung</span
             >
           </div>
           <span
-            class="px-2 py-0.5 rounded text-[10px] font-mono bg-rf-surface-alt text-rf-text-muted"
+            class="px-2 py-0.5 rounded text-[10px] font-mono bg-fb-surface-alt text-fb-text-muted"
           >
             {{ filteredTaxResults().length }} Einträge
           </span>
@@ -589,7 +589,7 @@
           <table class="w-full text-left text-xs border-collapse">
             <thead>
               <tr
-                class="border-b border-rf-border/40 bg-rf-subtle text-rf-text-muted font-medium text-[11px] uppercase tracking-wider"
+                class="border-b border-fb-border/40 bg-fb-subtle text-fb-text-muted font-medium text-[11px] uppercase tracking-wider"
               >
                 <th class="py-2.5 px-4">Verkaufsdatum</th>
                 <th class="py-2.5 px-4">Artikel / SKU</th>
@@ -603,19 +603,19 @@
             </thead>
             <tbody class="divide-y divide-border/30">
               @for (row of filteredTaxResults(); track row.sale_id) {
-                <tr class="hover:bg-rf-subtle/40 transition">
-                  <td class="py-3 px-4 font-mono text-rf-text-muted text-[11px] whitespace-nowrap">
+                <tr class="hover:bg-fb-subtle/40 transition">
+                  <td class="py-3 px-4 font-mono text-fb-text-muted text-[11px] whitespace-nowrap">
                     {{ row.sale_date | date: 'dd.MM.yyyy' }}
                   </td>
                   <td class="py-3 px-4">
-                    <strong class="text-rf-text-primary block font-medium">{{
+                    <strong class="text-fb-text-primary block font-medium">{{
                       row.item_title
                     }}</strong>
-                    <span class="font-mono text-[10px] text-rf-text-muted">{{ row.sale_id }}</span>
+                    <span class="font-mono text-[10px] text-fb-text-muted">{{ row.sale_id }}</span>
                   </td>
                   <td class="py-3 px-4">
                     <span
-                      class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-rf-surface-alt text-rf-text-muted border border-rf-border/60"
+                      class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-fb-surface-alt text-fb-text-muted border border-fb-border/60"
                     >
                       {{
                         row.tax_mode === 'diff_25a'
@@ -626,13 +626,13 @@
                       }}
                     </span>
                   </td>
-                  <td class="py-3 px-4 text-right font-mono font-semibold text-rf-text-primary">
+                  <td class="py-3 px-4 text-right font-mono font-semibold text-fb-text-primary">
                     {{ row.gross_revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </td>
-                  <td class="py-3 px-4 text-right font-mono text-rf-text-muted">
+                  <td class="py-3 px-4 text-right font-mono text-fb-text-muted">
                     {{ row.total_purchase_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </td>
-                  <td class="py-3 px-4 text-right font-mono font-bold text-rf-profit">
+                  <td class="py-3 px-4 text-right font-mono font-bold text-fb-profit">
                     {{ row.gross_margin | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </td>
                   <td class="py-3 px-4 text-right font-mono text-amber-400">
@@ -642,7 +642,7 @@
                     <button
                       type="button"
                       (click)="openInvoiceModal(row)"
-                      class="text-rf-text-muted hover:text-rf-text-primary p-1 transition cursor-pointer"
+                      class="text-fb-text-muted hover:text-fb-text-primary p-1 transition cursor-pointer"
                       title="Rechnung anzeigen"
                     >
                       <svg [lucideIcon]="fileIcon" class="w-4 h-4"></svg>
@@ -668,21 +668,21 @@
       (dialogClose)="closeTaxAdvisorModal()"
     >
       <div class="card w-full max-w-lg p-6 space-y-5 animate-modal-card">
-        <div class="flex items-center justify-between border-b border-rf-border/40 pb-3">
+        <div class="flex items-center justify-between border-b border-fb-border/40 pb-3">
           <div class="flex items-center gap-2">
             <div
-              class="w-7 h-7 rounded-lg bg-rf-profit/15 text-rf-profit flex items-center justify-center"
+              class="w-7 h-7 rounded-lg bg-fb-profit/15 text-fb-profit flex items-center justify-center"
             >
               <svg [lucideIcon]="mailIcon" class="w-4 h-4"></svg>
             </div>
-            <h3 class="text-sm font-bold text-rf-text-primary">
+            <h3 class="text-sm font-bold text-fb-text-primary">
               Monatsabschluss an Steuerberater senden
             </h3>
           </div>
           <button
             type="button"
             (click)="closeTaxAdvisorModal()"
-            class="text-rf-text-muted hover:text-rf-text-primary cursor-pointer"
+            class="text-fb-text-muted hover:text-fb-text-primary cursor-pointer"
           >
             <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
           </button>
@@ -696,7 +696,7 @@
           <div>
             <label
               for="accoun-steuerkanzlei-name"
-              class="block text-[10px] font-bold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-bold uppercase tracking-wider text-fb-text-muted mb-1"
               >Steuerkanzlei / Name</label
             >
             <input
@@ -711,7 +711,7 @@
           <div>
             <label
               for="accoun-e-mail-adresse-der"
-              class="block text-[10px] font-bold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-bold uppercase tracking-wider text-fb-text-muted mb-1"
               >E-Mail-Adresse der Kanzlei *</label
             >
             <input
@@ -727,7 +727,7 @@
             <div>
               <label
                 for="accoun-mandantennr"
-                class="block text-[10px] font-bold uppercase tracking-wider text-rf-text-muted mb-1"
+                class="block text-[10px] font-bold uppercase tracking-wider text-fb-text-muted mb-1"
                 >Mandantennr.</label
               >
               <input
@@ -741,7 +741,7 @@
             <div>
               <label
                 for="accoun-beraternr"
-                class="block text-[10px] font-bold uppercase tracking-wider text-rf-text-muted mb-1"
+                class="block text-[10px] font-bold uppercase tracking-wider text-fb-text-muted mb-1"
                 >Beraternr.</label
               >
               <input
@@ -755,7 +755,7 @@
             <div>
               <label
                 for="accoun-kontenrahmen"
-                class="block text-[10px] font-bold uppercase tracking-wider text-rf-text-muted mb-1"
+                class="block text-[10px] font-bold uppercase tracking-wider text-fb-text-muted mb-1"
                 >Kontenrahmen</label
               >
               <select
@@ -770,9 +770,9 @@
           </div>
 
           <div
-            class="p-3 rounded-xl bg-rf-subtle border border-rf-border/40 text-[11px] text-rf-text-muted space-y-1"
+            class="p-3 rounded-xl bg-fb-subtle border border-fb-border/40 text-[11px] text-fb-text-muted space-y-1"
           >
-            <span class="font-bold text-rf-text-primary block"
+            <span class="font-bold text-fb-text-primary block"
               >Enthaltene Anlagen im ZIP-Paket:</span
             >
             <ul class="list-disc list-inside space-y-0.5">

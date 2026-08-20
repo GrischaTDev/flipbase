@@ -6,11 +6,11 @@
   (dialogClose)="closed.emit()"
 >
   <div
-    class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl print:border-none print:shadow-none print:max-w-none print:max-h-none print:rounded-none print:bg-white print:text-black my-auto animate-modal-card"
+    class="bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl print:border-none print:shadow-none print:max-w-none print:max-h-none print:rounded-none print:bg-white print:text-black my-auto animate-modal-card"
   >
     <!-- Modal Header (Hidden on Print) -->
     <div
-      class="p-5 border-b border-rf-border flex items-center justify-between shrink-0 bg-rf-subtle print:hidden"
+      class="p-5 border-b border-fb-border flex items-center justify-between shrink-0 bg-fb-subtle print:hidden"
     >
       <div class="flex items-center gap-3">
         <div
@@ -20,7 +20,7 @@
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h2 class="text-base font-bold text-rf-text-primary">
+            <h2 class="text-base font-bold text-fb-text-primary">
               Rechnung {{ invoice().invoiceNumber }}
             </h2>
             <span
@@ -29,7 +29,7 @@
               § 25a UStG
             </span>
           </div>
-          <p class="text-xs text-rf-text-muted mt-0.5">
+          <p class="text-xs text-fb-text-muted mt-0.5">
             Druckfertige DIN-A4 Differenzbesteuerungs-Rechnung & Kaufbestätigung
           </p>
         </div>
@@ -69,7 +69,7 @@
         <button
           type="button"
           (click)="closed.emit()"
-          class="p-1.5 rounded-xl text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
+          class="p-1.5 rounded-xl text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
         >
           <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
         </button>
@@ -88,7 +88,7 @@
 
     <!-- Document Body / Printable DIN-A4 Paper Canvas -->
     <div
-      class="flex-1 overflow-y-auto p-6 md:p-10 bg-rf-canvas print:p-0 print:bg-white print:overflow-visible flex justify-center"
+      class="flex-1 overflow-y-auto p-6 md:p-10 bg-fb-canvas print:p-0 print:bg-white print:overflow-visible flex justify-center"
     >
       <!-- DIN-A4 Invoice Sheet -->
       <div

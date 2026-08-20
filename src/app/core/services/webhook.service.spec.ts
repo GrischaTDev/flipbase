@@ -2,7 +2,7 @@ import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Injector, runInInjectionContext } from '@angular/core';
 import { WebhookService } from './webhook.service';
-import { Sale, Purchase } from '../models/reflip.models';
+import { Sale, Purchase } from '../models/flipbase.models';
 
 describe('Webhook & Notification Service', () => {
   let webhookService: WebhookService;

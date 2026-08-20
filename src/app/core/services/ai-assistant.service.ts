@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { ItemCondition } from '../models/reflip.models';
+import { ItemCondition } from '../models/flipbase.models';
 
 export interface AiProductIdentification {
   cleanTitle: string;

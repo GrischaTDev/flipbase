@@ -15,8 +15,8 @@ import { WebPushService } from './web-push.service';
 import { Json } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 
-const STORAGE_KEY_CARRIER_CFG = 'reflip_carrier_config';
-const STORAGE_KEY_SHIPPING_ORDERS = 'reflip_shipping_orders';
+const STORAGE_KEY_CARRIER_CFG = 'flipbase_carrier_config';
+const STORAGE_KEY_SHIPPING_ORDERS = 'flipbase_shipping_orders';
 
 @Injectable({
   providedIn: 'root',
@@ -448,7 +448,7 @@ export class FulfillmentService {
       postal_code: '10115',
       city: 'Berlin',
       country: 'Deutschland',
-      email: 'versand@reflip.de',
+      email: 'versand@flipbase.de',
       phone: '+49 30 98765432',
     };
   }

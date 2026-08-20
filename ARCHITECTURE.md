@@ -30,7 +30,7 @@ Dieses Dokument beschreibt die interne Architektur, Entwurfsmuster, Service-Schi
 src/app/
 ├── core/
 │   ├── models/                  # TypeScript Interfaces & Types
-│   │   ├── reflip.models.ts     # Workspace, Purchases, Inventory, Sales, Tax
+│   │   ├── flipbase.models.ts     # Workspace, Purchases, Inventory, Sales, Tax
 │   │   ├── accounting.models.ts # DATEV EXTF, SKR Kontenspiegel, Monatsabschluss
 │   │   ├── fulfillment.models.ts# Carrier Rates, Shipping Labels, Bundling
 │   │   ├── invoice.models.ts    # DIN-A4 Rechnungen & E-Mail Bestätigung

@@ -6,7 +6,7 @@ export type ThemePreference = 'light' | 'dark' | 'system';
 /** Tatsaechlich angewendetes Design. */
 export type AppTheme = 'light' | 'dark';
 
-const STORAGE_KEY = 'reflip_theme';
+const STORAGE_KEY = 'flipbase_theme';
 
 /**
  * Steuert helles und dunkles Design.

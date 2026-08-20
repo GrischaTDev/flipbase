@@ -3,7 +3,7 @@
   <div class="flex items-center justify-between pb-1">
     <a
       routerLink="/purchases"
-      class="inline-flex items-center gap-1.5 text-xs font-semibold text-rf-text-muted hover:text-rf-text-primary transition"
+      class="inline-flex items-center gap-1.5 text-xs font-semibold text-fb-text-muted hover:text-fb-text-primary transition"
     >
       <svg [lucideIcon]="arrowLeftIcon" class="w-3.5 h-3.5"></svg>
       <span>Zurück zur Einkaufsübersicht</span>
@@ -12,7 +12,7 @@
     <button
       type="button"
       (click)="onDeletePurchase()"
-      class="p-1.5 rounded-lg text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+      class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
     >
       <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
       <span class="hidden sm:inline">Einkauf löschen</span>
@@ -46,7 +46,7 @@
           <div>
             <div class="flex items-center gap-2">
               <span
-                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-rf-subtle text-rf-text-secondary border border-rf-border"
+                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-fb-subtle text-fb-text-secondary border border-fb-border"
               >
                 @switch (p.type) {
                   @case ('single') {
@@ -63,11 +63,11 @@
                   }
                 }
               </span>
-              <span class="text-xs text-rf-text-muted font-mono">
+              <span class="text-xs text-fb-text-muted font-mono">
                 {{ p.purchase_date | date: 'dd.MM.yyyy' }}
               </span>
             </div>
-            <h1 class="text-base sm:text-lg font-bold text-rf-text-primary mt-1">{{ p.title }}</h1>
+            <h1 class="text-base sm:text-lg font-bold text-fb-text-primary mt-1">{{ p.title }}</h1>
           </div>
         </div>
 
@@ -89,26 +89,26 @@
       <div class="flex flex-wrap gap-2 text-xs">
         @if (p.source) {
           <div
-            class="px-2.5 py-1 rounded-lg bg-rf-subtle border border-rf-border text-rf-text-secondary flex items-center gap-1.5"
+            class="px-2.5 py-1 rounded-lg bg-fb-subtle border border-fb-border text-fb-text-secondary flex items-center gap-1.5"
           >
-            <span class="text-rf-text-muted">Quelle:</span>
-            <strong class="text-rf-text-primary">{{ p.source.name }}</strong>
+            <span class="text-fb-text-muted">Quelle:</span>
+            <strong class="text-fb-text-primary">{{ p.source.name }}</strong>
           </div>
         }
 
         @if (p.supplier) {
           <div
-            class="px-2.5 py-1 rounded-lg bg-rf-subtle border border-rf-border text-rf-text-secondary flex items-center gap-1.5"
+            class="px-2.5 py-1 rounded-lg bg-fb-subtle border border-fb-border text-fb-text-secondary flex items-center gap-1.5"
           >
-            <span class="text-rf-text-muted">Lieferant:</span>
-            <strong class="text-rf-text-primary">{{ p.supplier.name }}</strong>
+            <span class="text-fb-text-muted">Lieferant:</span>
+            <strong class="text-fb-text-primary">{{ p.supplier.name }}</strong>
           </div>
         }
       </div>
 
       @if (p.notes) {
         <p
-          class="text-xs text-rf-text-secondary bg-rf-subtle p-3 rounded-xl border border-rf-border"
+          class="text-xs text-fb-text-secondary bg-fb-subtle p-3 rounded-xl border border-fb-border"
         >
           {{ p.notes }}
         </p>
@@ -119,17 +119,17 @@
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
       <div class="linear-kpi p-4 rounded-2xl">
         <span
-          class="text-[10px] font-sans font-semibold uppercase tracking-wider text-rf-text-muted block"
+          class="text-[10px] font-sans font-semibold uppercase tracking-wider text-fb-text-muted block"
           >Kaufpreis</span
         >
-        <span class="text-xl font-bold text-rf-text-primary mt-1 block">
+        <span class="text-xl font-bold text-fb-text-primary mt-1 block">
           {{ p.purchase_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
         </span>
       </div>
 
       <div class="linear-kpi p-4 rounded-2xl">
         <span
-          class="text-[10px] font-sans font-semibold uppercase tracking-wider text-rf-text-muted block"
+          class="text-[10px] font-sans font-semibold uppercase tracking-wider text-fb-text-muted block"
           >Nebenkosten</span
         >
         <span class="text-xl font-bold text-amber-400 mt-1 block">
@@ -142,7 +142,7 @@
 
       <div class="linear-kpi p-4 rounded-2xl">
         <span
-          class="text-[10px] font-sans font-semibold uppercase tracking-wider text-rf-text-muted block"
+          class="text-[10px] font-sans font-semibold uppercase tracking-wider text-fb-text-muted block"
           >Gesamtkosten</span
         >
         <span class="text-xl font-bold text-indigo-400 mt-1 block">
@@ -154,7 +154,7 @@
 
       <div class="linear-kpi p-4 rounded-2xl">
         <span
-          class="text-[10px] font-sans font-semibold uppercase tracking-wider text-rf-text-muted block"
+          class="text-[10px] font-sans font-semibold uppercase tracking-wider text-fb-text-muted block"
           >Artikel</span
         >
         <span class="text-xl font-bold text-emerald-400 mt-1 block">
@@ -165,10 +165,10 @@
 
     <!-- Extra Costs Section -->
     <div class="linear-surface rounded-2xl p-4 md:p-5 space-y-4 shadow-xl">
-      <div class="flex items-center justify-between border-b border-rf-border pb-3">
+      <div class="flex items-center justify-between border-b border-fb-border pb-3">
         <div class="flex items-center gap-2">
           <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-amber-400"></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
             Nebenkosten (Versand, Fahrt, Gebühren)
           </h2>
         </div>
@@ -187,7 +187,7 @@
         <form
           [formGroup]="costForm"
           (ngSubmit)="onAddCost()"
-          class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-3 animate-fade-in"
+          class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-3 animate-fade-in"
         >
           <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">
             Nebenkosten zum Einkauf buchen
@@ -197,14 +197,14 @@
             <div>
               <label
                 for="costTypeSelect"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
               >
                 Kostenart
               </label>
               <select
                 id="costTypeSelect"
                 formControlName="type"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
               >
                 <option value="shipping">Versand / Fracht</option>
                 <option value="travel">Fahrtkosten / Sprit</option>
@@ -217,7 +217,7 @@
             <div>
               <label
                 for="costAmountInput"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
               >
                 Betrag (€)
               </label>
@@ -234,7 +234,7 @@
             <div>
               <label
                 for="costDescInput"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
               >
                 Beschreibung (optional)
               </label>
@@ -271,7 +271,7 @@
         <div class="space-y-1.5">
           @for (cost of p.costs; track cost.id) {
             <div
-              class="p-2.5 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between text-xs"
+              class="p-2.5 rounded-xl bg-fb-subtle border border-fb-border flex items-center justify-between text-xs"
             >
               <div class="flex items-center gap-2">
                 <span
@@ -279,18 +279,18 @@
                 >
                   {{ cost.type }}
                 </span>
-                <span class="text-rf-text-secondary">{{ cost.description || 'Nebenkosten' }}</span>
+                <span class="text-fb-text-secondary">{{ cost.description || 'Nebenkosten' }}</span>
               </div>
 
               <div class="flex items-center gap-3">
-                <span class="font-mono font-bold text-rf-text-primary">
+                <span class="font-mono font-bold text-fb-text-primary">
                   {{ cost.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </span>
                 @if (cost.id) {
                   <button
                     type="button"
                     (click)="onDeleteCost(cost.id)"
-                    class="text-rf-text-muted hover:text-rose-400 p-1 transition cursor-pointer"
+                    class="text-fb-text-muted hover:text-rose-400 p-1 transition cursor-pointer"
                   >
                     <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
                   </button>
@@ -300,20 +300,20 @@
           }
         </div>
       } @else {
-        <p class="text-xs text-rf-text-muted">Keine gesonderten Nebenkosten erfasst.</p>
+        <p class="text-xs text-fb-text-muted">Keine gesonderten Nebenkosten erfasst.</p>
       }
     </div>
 
     <!-- Items & Interactive Cost Allocator Section -->
     <div class="linear-surface rounded-2xl p-4 md:p-5 space-y-4 shadow-xl">
       <div
-        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-rf-border pb-3"
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-fb-border pb-3"
       >
         <div>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
             Enthaltene Inventar-Artikel
           </h2>
-          <p class="text-[11px] text-rf-text-muted">
+          <p class="text-[11px] text-fb-text-muted">
             Alle Artikel, die diesem Einkauf zugeordnet sind
           </p>
         </div>
@@ -323,7 +323,7 @@
           <button
             type="button"
             (click)="openAllocator()"
-            class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs cursor-pointer text-indigo-300 hover:text-rf-text-primary border-indigo-500/30 bg-indigo-500/10"
+            class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs cursor-pointer text-indigo-300 hover:text-fb-text-primary border-indigo-500/30 bg-indigo-500/10"
             title="Paletten- & Konvolut-Kostenallokator öffnen"
           >
             <svg [lucideIcon]="chartIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
@@ -346,7 +346,7 @@
         <form
           [formGroup]="itemForm"
           (ngSubmit)="onAddItem()"
-          class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-3 animate-fade-in"
+          class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-3 animate-fade-in"
         >
           <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">
             Neuen Artikel zum Einkauf hinzufügen
@@ -356,7 +356,7 @@
             <div class="sm:col-span-1">
               <label
                 for="newArticleTitle"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
               >
                 Titel / Modell *
               </label>
@@ -372,14 +372,14 @@
             <div>
               <label
                 for="newArticleCondition"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
               >
                 Zustand
               </label>
               <select
                 id="newArticleCondition"
                 formControlName="condition"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
               >
                 <option value="new">Neu / OVP</option>
                 <option value="like_new">Wie neu</option>
@@ -393,7 +393,7 @@
             <div>
               <label
                 for="newArticleExpectedValue"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
               >
                 Geschätzter Marktwert (€)
               </label>
@@ -409,7 +409,7 @@
 
           <!-- 1:1 Image Preview / Crop Button in Mystery Box Item Form -->
           <div
-            class="p-2.5 rounded-lg bg-rf-surface border border-rf-border flex flex-wrap items-center justify-between gap-2.5"
+            class="p-2.5 rounded-lg bg-fb-surface border border-fb-border flex flex-wrap items-center justify-between gap-2.5"
           >
             <div class="flex items-center gap-2">
               @if (selectedImageDataUrl()) {
@@ -423,7 +423,7 @@
                   />
                 </div>
                 <div>
-                  <span class="text-xs font-semibold text-rf-text-primary block"
+                  <span class="text-xs font-semibold text-fb-text-primary block"
                     >Foto zugeschnitten</span
                   >
                   <span class="text-[10px] text-emerald-400 font-mono">1:1 Fix & Komprimiert</span>
@@ -435,10 +435,10 @@
                   <svg [lucideIcon]="imageIcon" class="w-4 h-4"></svg>
                 </div>
                 <div>
-                  <span class="text-xs font-semibold text-rf-text-primary block"
+                  <span class="text-xs font-semibold text-fb-text-primary block"
                     >Produktfoto (Optional)</span
                   >
-                  <span class="text-[10px] text-rf-text-muted">Im festen 1:1-Quadrat</span>
+                  <span class="text-[10px] text-fb-text-muted">Im festen 1:1-Quadrat</span>
                 </div>
               }
             </div>
@@ -448,7 +448,7 @@
                 <button
                   type="button"
                   (click)="removeSelectedImage()"
-                  class="p-1 rounded-md text-rf-text-muted hover:text-rose-400 text-xs transition cursor-pointer"
+                  class="p-1 rounded-md text-fb-text-muted hover:text-rose-400 text-xs transition cursor-pointer"
                   title="Foto entfernen"
                 >
                   <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
@@ -492,22 +492,22 @@
         <div class="overflow-x-auto">
           <table class="linear-table">
             <thead
-              class="bg-rf-subtle text-rf-text-muted uppercase font-semibold text-[10px] tracking-wider"
+              class="bg-fb-subtle text-fb-text-muted uppercase font-semibold text-[10px] tracking-wider"
             >
               <tr>
-                <th class="p-3 rounded-tl-xl border-b border-rf-border">Titel</th>
-                <th class="p-3 border-b border-rf-border">Zustand</th>
-                <th class="p-3 border-b border-rf-border">Status</th>
-                <th class="p-3 text-right border-b border-rf-border">Allokierter EK</th>
-                <th class="p-3 text-right border-b border-rf-border">Geschätzter Wert</th>
-                <th class="p-3 text-right border-b border-rf-border">Marge</th>
-                <th class="p-3 text-right rounded-tr-xl border-b border-rf-border">Aktionen</th>
+                <th class="p-3 rounded-tl-xl border-b border-fb-border">Titel</th>
+                <th class="p-3 border-b border-fb-border">Zustand</th>
+                <th class="p-3 border-b border-fb-border">Status</th>
+                <th class="p-3 text-right border-b border-fb-border">Allokierter EK</th>
+                <th class="p-3 text-right border-b border-fb-border">Geschätzter Wert</th>
+                <th class="p-3 text-right border-b border-fb-border">Marge</th>
+                <th class="p-3 text-right rounded-tr-xl border-b border-fb-border">Aktionen</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-rf-border">
+            <tbody class="divide-y divide-fb-border">
               @for (item of purchaseService.purchaseItems(); track item.id) {
-                <tr class="hover:bg-rf-surface-hover transition group">
-                  <td class="p-3 font-semibold text-rf-text-primary group-last:rounded-bl-xl">
+                <tr class="hover:bg-fb-surface-hover transition group">
+                  <td class="p-3 font-semibold text-fb-text-primary group-last:rounded-bl-xl">
                     <a
                       [routerLink]="['/inventory', item.id]"
                       class="hover:text-indigo-400 transition"
@@ -518,7 +518,7 @@
 
                   <td class="p-3">
                     <span
-                      class="px-2 py-0.5 rounded text-[10px] font-mono bg-rf-subtle text-rf-text-secondary border border-rf-border"
+                      class="px-2 py-0.5 rounded text-[10px] font-mono bg-fb-subtle text-fb-text-secondary border border-fb-border"
                     >
                       {{ 'INVENTORY.CONDITIONS.' + item.condition.toUpperCase() | translate }}
                     </span>
@@ -539,12 +539,12 @@
                   </td>
 
                   <td
-                    class="p-3 text-right font-mono font-bold text-rf-text-primary whitespace-nowrap"
+                    class="p-3 text-right font-mono font-bold text-fb-text-primary whitespace-nowrap"
                   >
                     {{ item.allocated_purchase_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </td>
 
-                  <td class="p-3 text-right font-mono text-rf-text-secondary whitespace-nowrap">
+                  <td class="p-3 text-right font-mono text-fb-text-secondary whitespace-nowrap">
                     {{ item.expected_value || 0 | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </td>
 
@@ -573,9 +573,9 @@
           </table>
         </div>
       } @else {
-        <div class="p-8 text-center text-xs text-rf-text-muted space-y-2">
-          <svg [lucideIcon]="boxesIcon" class="w-8 h-8 mx-auto text-rf-text-dimmed"></svg>
-          <p class="font-semibold text-rf-text-primary">Noch keine Artikel erfasst</p>
+        <div class="p-8 text-center text-xs text-fb-text-muted space-y-2">
+          <svg [lucideIcon]="boxesIcon" class="w-8 h-8 mx-auto text-fb-text-dimmed"></svg>
+          <p class="font-semibold text-fb-text-primary">Noch keine Artikel erfasst</p>
           <p class="text-[11px]">
             Klicke auf "Artikel erfassen", um die Einzelpositionen dieses Einkaufs anzulegen.
           </p>
@@ -593,15 +593,15 @@
             <svg [lucideIcon]="truckIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
           </div>
           <div class="min-w-0">
-            <h2 class="text-xs font-bold text-rf-text-primary uppercase tracking-wider">
+            <h2 class="text-xs font-bold text-fb-text-primary uppercase tracking-wider">
               Sendungsverfolgung
             </h2>
             @if (!isEditingTracking() && trackingInfo(); as kurzinfo) {
-              <p class="text-[10px] text-rf-text-muted truncate font-mono">
+              <p class="text-[10px] text-fb-text-muted truncate font-mono">
                 {{ kurzinfo.carrier_name }} · {{ kurzinfo.tracking_number }}
               </p>
             } @else {
-              <p class="text-[10px] text-rf-text-muted">DHL · DPD · Hermes · UPS · GLS</p>
+              <p class="text-[10px] text-fb-text-muted">DHL · DPD · Hermes · UPS · GLS</p>
             }
           </div>
         </div>
@@ -637,7 +637,7 @@
                   ? 'Details der Sendungsverfolgung einklappen'
                   : 'Details der Sendungsverfolgung ausklappen'
               "
-              class="p-1 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover transition cursor-pointer"
+              class="p-1 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
             >
               <svg
                 [lucideIcon]="isTrackingExpanded() ? chevronUpIcon : chevronDownIcon"
@@ -659,7 +659,7 @@
                 (input)="onTrackingDraftInput($event)"
                 placeholder="Sendungsnummer einfügen..."
                 aria-label="Sendungsnummer"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono text-rf-text-primary"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono text-fb-text-primary"
               />
             </div>
             <div class="sm:col-span-4">
@@ -667,7 +667,7 @@
                 [value]="trackingCarrierDraft()"
                 (change)="trackingCarrierDraft.set($any($event.target).value)"
                 aria-label="Versanddienstleister"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
               >
                 <option [ngValue]="null">Auto-Erkennung</option>
                 @for (c of trackingService.carrierOptions; track c.value) {
@@ -679,7 +679,7 @@
 
           @if (trackingCarrierDraft()) {
             <div class="flex items-center gap-1.5">
-              <span class="text-[10px] text-rf-text-muted">Erkannt als:</span>
+              <span class="text-[10px] text-fb-text-muted">Erkannt als:</span>
               <span
                 class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border"
                 [class]="trackingService.carrierMetas[trackingCarrierDraft()!].badgeClass"
@@ -725,7 +725,7 @@
                 trackingService.statusConfig[info.status].step >=
                 trackingService.statusConfig[step].step
               "
-              [class.bg-rf-line]="
+              [class.bg-fb-line]="
                 trackingService.statusConfig[info.status].step <
                 trackingService.statusConfig[step].step
               "
@@ -736,7 +736,7 @@
         <div id="sendungsverfolgung-details" class="space-y-3" [hidden]="!isTrackingExpanded()">
           <!-- Sendungsnummer & Zusteller -->
           <div
-            class="flex items-center justify-between p-2.5 rounded-lg bg-rf-well border border-rf-line"
+            class="flex items-center justify-between p-2.5 rounded-lg bg-fb-well border border-fb-line"
           >
             <div class="flex items-center gap-2 min-w-0">
               <span
@@ -745,14 +745,14 @@
               >
                 {{ info.carrier_name }}
               </span>
-              <span class="font-mono text-xs text-rf-text-secondary truncate">{{
+              <span class="font-mono text-xs text-fb-text-secondary truncate">{{
                 info.tracking_number
               }}</span>
             </div>
             <button
               type="button"
               (click)="copyTrackingNumber()"
-              class="p-1 rounded text-rf-text-muted hover:text-rf-text-primary hover:bg-slate-700/50 transition cursor-pointer shrink-0"
+              class="p-1 rounded text-fb-text-muted hover:text-fb-text-primary hover:bg-slate-700/50 transition cursor-pointer shrink-0"
               [title]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
               [attr.aria-label]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
             >
@@ -765,7 +765,7 @@
 
           <!-- Checkpoints Timeline -->
           @if (info.checkpoints && info.checkpoints.length > 0) {
-            <div class="space-y-1.5 pl-2 border-l-2 border-rf-line">
+            <div class="space-y-1.5 pl-2 border-l-2 border-fb-line">
               @for (cp of info.checkpoints; track cp.timestamp) {
                 <div class="flex items-start gap-2 pl-2">
                   <div
@@ -776,8 +776,8 @@
                     [class.bg-slate-500]="cp.status === 'pending'"
                   ></div>
                   <div>
-                    <p class="text-[11px] text-rf-text-secondary">{{ cp.description }}</p>
-                    <p class="text-[10px] text-rf-text-dimmed">
+                    <p class="text-[11px] text-fb-text-secondary">{{ cp.description }}</p>
+                    <p class="text-[10px] text-fb-text-dimmed">
                       {{ cp.location }} · {{ cp.timestamp | date: 'dd.MM.yyyy, HH:mm' }}
                     </p>
                   </div>
@@ -791,7 +791,7 @@
             <button
               type="button"
               (click)="openTrackingPortal()"
-              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-rf-well border border-rf-line-strong text-rf-text-secondary hover:border-indigo-500 hover:text-indigo-300 transition cursor-pointer"
+              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-fb-well border border-fb-line-strong text-fb-text-secondary hover:border-indigo-500 hover:text-indigo-300 transition cursor-pointer"
             >
               <svg [lucideIcon]="linkIcon" class="w-3 h-3"></svg>
               <span>Bei {{ info.carrier_name }} verfolgen</span>
@@ -816,7 +816,7 @@
 
       <!-- Empty State (no tracking) -->
       @if (!isEditingTracking() && !trackingInfo()) {
-        <p class="text-xs text-rf-text-muted">Noch keine Sendungsnummer hinterlegt.</p>
+        <p class="text-xs text-fb-text-muted">Noch keine Sendungsnummer hinterlegt.</p>
       }
     </div>
   }
@@ -831,18 +831,18 @@
       (dialogClose)="closeAllocator()"
     >
       <div
-        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 md:p-8 space-y-6 my-auto animate-modal-card"
+        class="bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 md:p-8 space-y-6 my-auto animate-modal-card"
       >
         <!-- Modal Header -->
-        <div class="flex items-start justify-between border-b border-rf-border pb-4">
+        <div class="flex items-start justify-between border-b border-fb-border pb-4">
           <div>
             <div class="flex items-center gap-2">
               <svg [lucideIcon]="chartIcon" class="w-5 h-5 text-indigo-400"></svg>
-              <h2 class="text-lg font-black text-rf-text-primary">
+              <h2 class="text-lg font-black text-fb-text-primary">
                 Paletten- & Konvolut-Kostenallokator
               </h2>
             </div>
-            <p class="text-xs text-rf-text-muted mt-0.5">
+            <p class="text-xs text-fb-text-muted mt-0.5">
               Verteile den Gesamtkaufpreis mathematisch exakt auf alle Einzelpositionen.
             </p>
           </div>
@@ -850,7 +850,7 @@
           <button
             type="button"
             (click)="closeAllocator()"
-            class="p-1.5 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
+            class="p-1.5 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
           >
             <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
           </button>
@@ -858,20 +858,20 @@
 
         <!-- Mode Selector -->
         <div
-          class="flex items-center justify-between p-3 rounded-xl bg-rf-subtle border border-rf-border text-xs"
+          class="flex items-center justify-between p-3 rounded-xl bg-fb-subtle border border-fb-border text-xs"
         >
-          <span class="font-semibold text-rf-text-primary">Verteilungs-Strategie:</span>
+          <span class="font-semibold text-fb-text-primary">Verteilungs-Strategie:</span>
           <div class="flex items-center gap-2">
             <button
               type="button"
               (click)="allocatorMode.set('value_weighted')"
               class="px-3 py-1.5 rounded-lg font-bold transition cursor-pointer border"
               [class.bg-indigo-600]="allocatorMode() === 'value_weighted'"
-              [class.text-rf-text-primary]="allocatorMode() === 'value_weighted'"
+              [class.text-fb-text-primary]="allocatorMode() === 'value_weighted'"
               [class.border-indigo-500]="allocatorMode() === 'value_weighted'"
-              [class.bg-rf-surface]="allocatorMode() !== 'value_weighted'"
-              [class.text-rf-text-secondary]="allocatorMode() !== 'value_weighted'"
-              [class.border-rf-border]="allocatorMode() !== 'value_weighted'"
+              [class.bg-fb-surface]="allocatorMode() !== 'value_weighted'"
+              [class.text-fb-text-secondary]="allocatorMode() !== 'value_weighted'"
+              [class.border-fb-border]="allocatorMode() !== 'value_weighted'"
             >
               <div class="inline-flex items-center gap-1.5">
                 <svg [lucideIcon]="chartIcon" class="w-3.5 h-3.5"></svg>
@@ -884,11 +884,11 @@
               (click)="allocatorMode.set('even')"
               class="px-3 py-1.5 rounded-lg font-bold transition cursor-pointer border"
               [class.bg-indigo-600]="allocatorMode() === 'even'"
-              [class.text-rf-text-primary]="allocatorMode() === 'even'"
+              [class.text-fb-text-primary]="allocatorMode() === 'even'"
               [class.border-indigo-500]="allocatorMode() === 'even'"
-              [class.bg-rf-surface]="allocatorMode() !== 'even'"
-              [class.text-rf-text-secondary]="allocatorMode() !== 'even'"
-              [class.border-rf-border]="allocatorMode() !== 'even'"
+              [class.bg-fb-surface]="allocatorMode() !== 'even'"
+              [class.text-fb-text-secondary]="allocatorMode() !== 'even'"
+              [class.border-fb-border]="allocatorMode() !== 'even'"
             >
               <div class="inline-flex items-center gap-1.5">
                 <svg [lucideIcon]="scaleIcon" class="w-3.5 h-3.5"></svg>
@@ -901,7 +901,7 @@
         <!-- Live Cost Distribution Bar -->
         <div class="space-y-1.5">
           <div class="flex justify-between text-xs">
-            <span class="font-semibold text-rf-text-primary"
+            <span class="font-semibold text-fb-text-primary"
               >Kostenaufteilung (100% Allokation):</span
             >
             <span class="font-mono font-bold text-indigo-400">
@@ -910,7 +910,7 @@
           </div>
 
           <div
-            class="w-full h-3 rounded-full bg-rf-subtle overflow-hidden flex border border-rf-border"
+            class="w-full h-3 rounded-full bg-fb-subtle overflow-hidden flex border border-fb-border"
           >
             @for (alloc of simulatedAllocations(); track alloc.item.id; let idx = $index) {
               <div
@@ -932,10 +932,10 @@
         </div>
 
         <!-- Interactive Allocation Table -->
-        <div class="max-h-72 overflow-y-auto border border-rf-border rounded-xl">
+        <div class="max-h-72 overflow-y-auto border border-fb-border rounded-xl">
           <table class="w-full text-left text-xs">
             <thead
-              class="bg-rf-subtle text-[10px] font-bold uppercase tracking-wider text-rf-text-muted border-b border-rf-border"
+              class="bg-fb-subtle text-[10px] font-bold uppercase tracking-wider text-fb-text-muted border-b border-fb-border"
             >
               <tr>
                 <th class="p-3">Artikel</th>
@@ -945,10 +945,10 @@
                 <th class="p-3 text-right">Proj. Gewinn</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-rf-border">
+            <tbody class="divide-y divide-fb-border">
               @for (alloc of simulatedAllocations(); track alloc.item.id) {
-                <tr class="hover:bg-rf-surface-hover transition">
-                  <td class="p-3 font-semibold text-rf-text-primary truncate max-w-[180px]">
+                <tr class="hover:bg-fb-surface-hover transition">
+                  <td class="p-3 font-semibold text-fb-text-primary truncate max-w-[180px]">
                     {{ alloc.item.title }}
                   </td>
 
@@ -966,7 +966,7 @@
                     {{ alloc.percent_of_total.toFixed(1) }}%
                   </td>
 
-                  <td class="p-3 text-right font-mono font-black text-rf-text-primary">
+                  <td class="p-3 text-right font-mono font-black text-fb-text-primary">
                     {{ alloc.allocated_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </td>
 
@@ -983,7 +983,7 @@
         </div>
 
         <!-- Modal Footer Actions -->
-        <div class="flex items-center justify-between pt-2 border-t border-rf-border">
+        <div class="flex items-center justify-between pt-2 border-t border-fb-border">
           <button
             type="button"
             (click)="closeAllocator()"

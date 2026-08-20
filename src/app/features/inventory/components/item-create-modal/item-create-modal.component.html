@@ -5,10 +5,10 @@
   (dialogClose)="closed.emit()"
 >
   <div
-    class="linear-surface rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col border border-rf-border overflow-hidden my-auto animate-modal-card"
+    class="linear-surface rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col border border-fb-border overflow-hidden my-auto animate-modal-card"
   >
     <div
-      class="flex items-center justify-between p-5 border-b border-rf-border bg-rf-subtle shrink-0"
+      class="flex items-center justify-between p-5 border-b border-fb-border bg-fb-subtle shrink-0"
     >
       <div class="flex items-center gap-2.5">
         <div
@@ -17,8 +17,8 @@
           <svg [lucideIcon]="boxesIcon" class="w-4 h-4"></svg>
         </div>
         <div>
-          <h2 class="text-sm font-bold text-rf-text-primary">Neuen Inventar-Artikel anlegen</h2>
-          <p class="text-[11px] text-rf-text-muted">
+          <h2 class="text-sm font-bold text-fb-text-primary">Neuen Inventar-Artikel anlegen</h2>
+          <p class="text-[11px] text-fb-text-muted">
             Artikel erfassen mit Zustand & Kostenallokation
           </p>
         </div>
@@ -27,7 +27,7 @@
       <button
         type="button"
         (click)="closed.emit()"
-        class="p-1.5 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover transition cursor-pointer"
+        class="p-1.5 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
       >
         <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
       </button>
@@ -45,7 +45,7 @@
           <div class="flex items-center justify-between mb-1">
             <label
               for="itemTitle"
-              class="block text-[11px] font-semibold uppercase tracking-wider text-rf-text-muted"
+              class="block text-[11px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >
               Artikelname / Produkttitel
             </label>
@@ -90,16 +90,16 @@
             type="text"
             formControlName="title"
             placeholder="z.B. Bosch Akku-Bohrschrauber GSR 18V-55 wie neu"
-            class="linear-input w-full px-3 py-2 rounded-lg text-xs font-medium placeholder-rf-text-dimmed"
+            class="linear-input w-full px-3 py-2 rounded-lg text-xs font-medium placeholder-fb-text-dimmed"
           />
         </div>
 
         <!-- 1:1 Image Cropper & Upload Preview Section -->
-        <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border">
+        <div class="p-3 rounded-xl bg-fb-subtle border border-fb-border">
           <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-1.5">
               <svg [lucideIcon]="imageIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
-              <span class="text-[11px] font-bold uppercase tracking-wider text-rf-text-primary">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-fb-text-primary">
                 Produktfoto (1:1 Quadrat)
               </span>
             </div>
@@ -118,7 +118,7 @@
 
           @if (selectedImageDataUrl()) {
             <div
-              class="flex items-center gap-3 p-2 rounded-lg bg-rf-surface border border-rf-border"
+              class="flex items-center gap-3 p-2 rounded-lg bg-fb-surface border border-fb-border"
             >
               <div
                 class="w-16 h-16 rounded-lg overflow-hidden bg-black/40 border border-emerald-500/40 shrink-0 relative aspect-square"
@@ -129,14 +129,14 @@
                   class="w-full h-full object-cover"
                 />
                 <span
-                  class="absolute bottom-0 inset-x-0 bg-emerald-600/90 text-[10px] font-mono font-bold text-center text-rf-text-primary py-0.5"
+                  class="absolute bottom-0 inset-x-0 bg-emerald-600/90 text-[10px] font-mono font-bold text-center text-fb-text-primary py-0.5"
                 >
                   1:1 FIX
                 </span>
               </div>
 
               <div class="grow min-w-0">
-                <p class="text-xs font-semibold text-rf-text-primary truncate">
+                <p class="text-xs font-semibold text-fb-text-primary truncate">
                   {{ selectedImageFile()?.name || 'Zugeordnetes Produktfoto' }}
                 </p>
                 <p class="text-[10px] text-emerald-400 font-mono mt-0.5">
@@ -147,7 +147,7 @@
               <button
                 type="button"
                 (click)="removeSelectedImage()"
-                class="p-1.5 rounded-lg text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer shrink-0"
+                class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer shrink-0"
                 title="Foto entfernen"
               >
                 <svg [lucideIcon]="trashIcon" class="w-4 h-4"></svg>
@@ -157,10 +157,10 @@
             <button
               type="button"
               (click)="isCropperOpen.set(true)"
-              class="p-3 border border-dashed border-rf-border hover:border-emerald-500/40 rounded-lg text-center bg-rf-surface/50 hover:bg-emerald-500/5 transition cursor-pointer w-full"
+              class="p-3 border border-dashed border-fb-border hover:border-emerald-500/40 rounded-lg text-center bg-fb-surface/50 hover:bg-emerald-500/5 transition cursor-pointer w-full"
             >
               <p
-                class="text-[11px] text-rf-text-secondary font-medium flex items-center justify-center gap-1.5"
+                class="text-[11px] text-fb-text-secondary font-medium flex items-center justify-center gap-1.5"
               >
                 <svg [lucideIcon]="cameraIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
                 <span
@@ -175,7 +175,7 @@
           <div>
             <label
               for="itemCategory"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Kategorie
             </label>
@@ -191,7 +191,7 @@
           <div>
             <label
               for="itemBrand"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Marke
             </label>
@@ -207,7 +207,7 @@
           <div>
             <label
               for="itemModel"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Modell
             </label>
@@ -224,7 +224,7 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           <div>
             <span
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Zustand
             </span>
@@ -236,7 +236,7 @@
 
           <div>
             <span
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Status
             </span>
@@ -249,7 +249,7 @@
           <div>
             <label
               for="itemEan"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               EAN / Barcode
             </label>
@@ -267,7 +267,7 @@
           <div>
             <label
               for="itemCost"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Direkte Anschaffungskosten (€)
             </label>
@@ -283,7 +283,7 @@
           <div>
             <label
               for="itemExpectedValue"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Erwarteter Marktwert (€)
             </label>
@@ -300,14 +300,14 @@
         <div>
           <label
             for="itemPurchaseSelect"
-            class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
           >
             Zugehöriger Einkauf (optional)
           </label>
           <select
             id="itemPurchaseSelect"
             formControlName="purchase_id"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
+            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
           >
             <option value="">-- Kein Einkauf zugeordnet --</option>
             @for (p of purchaseService.purchases(); track p.id) {
@@ -318,7 +318,7 @@
           </select>
         </div>
 
-        <div class="flex items-center justify-end gap-2 pt-4 border-t border-rf-border">
+        <div class="flex items-center justify-end gap-2 pt-4 border-t border-fb-border">
           <button
             type="button"
             (click)="closed.emit()"

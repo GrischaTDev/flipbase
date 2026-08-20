@@ -14,7 +14,7 @@ import { InvoiceService } from './invoice.service';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { BankTransaction } from '../models/bank-reconciliation.models';
 import { StoreOrder } from '../models/store.models';
-import { Purchase, Sale } from '../models/reflip.models';
+import { Purchase, Sale } from '../models/flipbase.models';
 
 describe('BankReconciliationService', () => {
   let service: BankReconciliationService;

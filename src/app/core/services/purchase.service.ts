@@ -16,7 +16,7 @@ import {
   ItemCondition,
   TrackingCarrier,
   InboundTrackingStatus,
-} from '../models/reflip.models';
+} from '../models/flipbase.models';
 
 export interface CreatePurchasePayload {
   source_id?: string | null;

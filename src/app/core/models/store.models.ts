@@ -1,4 +1,4 @@
-import { InventoryItem } from './reflip.models';
+import { InventoryItem } from './flipbase.models';
 
 export interface PaymentGatewayConfig {
   stripeEnabled: boolean;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { InventoryItem, Sale } from '../models/reflip.models';
+import { InventoryItem, Sale } from '../models/flipbase.models';
 
 describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
   // Pure function test directly without DI overhead

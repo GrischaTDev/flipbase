@@ -5,9 +5,9 @@
   (dialogClose)="closed.emit()"
 >
   <div
-    class="linear-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-rf-line overflow-hidden my-auto animate-modal-card"
+    class="linear-surface rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-fb-line overflow-hidden my-auto animate-modal-card"
   >
-    <div class="flex items-center justify-between p-5 border-b border-rf-line bg-rf-well shrink-0">
+    <div class="flex items-center justify-between p-5 border-b border-fb-line bg-fb-well shrink-0">
       <div class="flex items-center gap-2.5">
         <div
           class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
@@ -15,15 +15,15 @@
           <svg [lucideIcon]="trendingIcon" class="w-4 h-4"></svg>
         </div>
         <div>
-          <h2 class="text-sm font-bold text-rf-text-primary">Verkauf erfassen (Kapitel 26)</h2>
-          <p class="text-[11px] text-rf-text-muted">Realisierter Gewinn, Plattformgebühren & ROI</p>
+          <h2 class="text-sm font-bold text-fb-text-primary">Verkauf erfassen (Kapitel 26)</h2>
+          <p class="text-[11px] text-fb-text-muted">Realisierter Gewinn, Plattformgebühren & ROI</p>
         </div>
       </div>
 
       <button
         type="button"
         (click)="closed.emit()"
-        class="p-1.5 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-line transition cursor-pointer"
+        class="p-1.5 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-line transition cursor-pointer"
       >
         <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
       </button>
@@ -41,10 +41,10 @@
         class="p-3.5 mb-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono"
       >
         <div>
-          <span class="text-[10px] uppercase font-sans font-semibold text-rf-text-muted block"
+          <span class="text-[10px] uppercase font-sans font-semibold text-fb-text-muted block"
             >Gesamtkosten</span
           >
-          <strong class="text-rf-text-primary text-sm">
+          <strong class="text-fb-text-primary text-sm">
             {{ liveMetrics().totalCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </strong>
         </div>
@@ -66,10 +66,10 @@
         </div>
 
         <div>
-          <span class="text-[10px] uppercase font-sans font-semibold text-rf-text-muted block"
+          <span class="text-[10px] uppercase font-sans font-semibold text-fb-text-muted block"
             >Haltedauer</span
           >
-          <strong class="text-rf-text-primary text-sm">
+          <strong class="text-fb-text-primary text-sm">
             {{ liveMetrics().holdingDays }} Tage
           </strong>
         </div>
@@ -80,7 +80,7 @@
         <div>
           <label
             for="saleItem"
-            class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
           >
             Verkaufter Artikel
           </label>
@@ -88,7 +88,7 @@
             id="saleItem"
             formControlName="inventory_item_id"
             (change)="updateLiveCalculation()"
-            class="linear-input w-full px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-rf-text-secondary"
+            class="linear-input w-full px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-fb-text-secondary"
           >
             <option value="">-- Artikel aus Inventar auswählen --</option>
             @for (item of availableItems(); track item.id) {
@@ -105,7 +105,7 @@
           <div>
             <label
               for="salePrice"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Verkaufspreis (€)
             </label>
@@ -121,7 +121,7 @@
           <div>
             <label
               for="salePlatform"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Verkaufsplattform
             </label>
@@ -129,7 +129,7 @@
               id="salePlatform"
               formControlName="platform"
               (change)="updateLiveCalculation()"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
             >
               <option value="kleinanzeigen">Kleinanzeigen (0% Gebühr)</option>
               <option value="ebay">eBay (~11% Gebühr)</option>
@@ -142,7 +142,7 @@
           <div>
             <label
               for="saleDate"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Verkaufsdatum
             </label>
@@ -161,7 +161,7 @@
           <div>
             <label
               for="saleFee"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Plattformgebühr (€)
             </label>
@@ -178,7 +178,7 @@
           <div>
             <label
               for="saleShippingOut"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Versandkosten (€)
             </label>
@@ -195,7 +195,7 @@
           <div>
             <label
               for="salePaymentFees"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Zahlungsgebühren (€)
             </label>
@@ -214,7 +214,7 @@
         <div>
           <label
             for="saleNotes"
-            class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
           >
             Notizen zum Verkauf (optional)
           </label>
@@ -228,7 +228,7 @@
         </div>
 
         <!-- Actions -->
-        <div class="flex justify-end gap-2.5 pt-3 border-t border-rf-line">
+        <div class="flex justify-end gap-2.5 pt-3 border-t border-fb-line">
           <button
             type="button"
             (click)="closed.emit()"

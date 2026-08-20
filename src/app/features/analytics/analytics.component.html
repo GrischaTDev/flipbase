@@ -1,11 +1,11 @@
 <div class="space-y-6 animate-fade-in">
   <!-- Page Header & Time Range Filter -->
   <div
-    class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-rf-border"
+    class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-fb-border"
   >
     <div>
       <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
+        <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">
           Analytics & Performance Cockpit
         </h1>
         <span
@@ -14,7 +14,7 @@
           Profit Intelligence
         </span>
       </div>
-      <p class="text-xs text-rf-text-muted mt-0.5">
+      <p class="text-xs text-fb-text-muted mt-0.5">
         Plattform-Gebührenvergleich, Kapitalumschlag, Haltedauer-Geschwindigkeit &
         Kohorten-Refinanzierung.
       </p>
@@ -22,15 +22,15 @@
 
     <!-- Time Range Selector -->
     <div
-      class="flex items-center gap-1.5 p-1 rounded-xl bg-rf-surface border border-rf-border text-xs"
+      class="flex items-center gap-1.5 p-1 rounded-xl bg-fb-surface border border-fb-border text-xs"
     >
       <button
         type="button"
         (click)="setTimeRange('7d')"
         class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
         [class.bg-indigo-600]="timeRange() === '7d'"
-        [class.text-rf-text-primary]="timeRange() === '7d'"
-        [class.text-rf-text-muted]="timeRange() !== '7d'"
+        [class.text-fb-text-primary]="timeRange() === '7d'"
+        [class.text-fb-text-muted]="timeRange() !== '7d'"
       >
         7 Tage
       </button>
@@ -39,8 +39,8 @@
         (click)="setTimeRange('30d')"
         class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
         [class.bg-indigo-600]="timeRange() === '30d'"
-        [class.text-rf-text-primary]="timeRange() === '30d'"
-        [class.text-rf-text-muted]="timeRange() !== '30d'"
+        [class.text-fb-text-primary]="timeRange() === '30d'"
+        [class.text-fb-text-muted]="timeRange() !== '30d'"
       >
         30 Tage
       </button>
@@ -49,8 +49,8 @@
         (click)="setTimeRange('1y')"
         class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
         [class.bg-indigo-600]="timeRange() === '1y'"
-        [class.text-rf-text-primary]="timeRange() === '1y'"
-        [class.text-rf-text-muted]="timeRange() !== '1y'"
+        [class.text-fb-text-primary]="timeRange() === '1y'"
+        [class.text-fb-text-muted]="timeRange() !== '1y'"
       >
         1 Jahr
       </button>
@@ -59,8 +59,8 @@
         (click)="setTimeRange('all')"
         class="px-3 py-1 rounded-lg font-semibold transition cursor-pointer"
         [class.bg-indigo-600]="timeRange() === 'all'"
-        [class.text-rf-text-primary]="timeRange() === 'all'"
-        [class.text-rf-text-muted]="timeRange() !== 'all'"
+        [class.text-fb-text-primary]="timeRange() === 'all'"
+        [class.text-fb-text-muted]="timeRange() !== 'all'"
       >
         Gesamt
       </button>
@@ -69,67 +69,67 @@
 
   <!-- Top Financial KPI Summary Grid -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 font-mono">
-    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-rf-border shadow-xl space-y-1">
-      <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-fb-border shadow-xl space-y-1">
+      <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
         <span class="font-bold uppercase tracking-wider text-[10px]">Bruttoumsatz</span>
         <svg [lucideIcon]="trendingIcon" class="w-4 h-4 text-indigo-400"></svg>
       </div>
-      <div class="text-2xl font-black text-rf-text-primary">
+      <div class="text-2xl font-black text-fb-text-primary">
         {{ totalRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </div>
-      <span class="text-[10px] text-rf-text-muted block font-sans">
+      <span class="text-[10px] text-fb-text-muted block font-sans">
         {{ currentSales().length }} Verkäufe im Zeitraum
       </span>
     </div>
 
-    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-rf-border shadow-xl space-y-1">
-      <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-fb-border shadow-xl space-y-1">
+      <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
         <span class="font-bold uppercase tracking-wider text-[10px]">Reingewinn (Netto)</span>
         <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-emerald-400"></svg>
       </div>
       <div class="text-2xl font-black text-emerald-400">
         +{{ totalNetProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </div>
-      <span class="text-[10px] text-rf-text-muted block font-sans">
+      <span class="text-[10px] text-fb-text-muted block font-sans">
         Nach Abzug aller Gebühren & EK
       </span>
     </div>
 
-    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-rf-border shadow-xl space-y-1">
-      <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-fb-border shadow-xl space-y-1">
+      <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
         <span class="font-bold uppercase tracking-wider text-[10px]">Durchschnittl. ROI</span>
         <svg [lucideIcon]="percentIcon" class="w-4 h-4 text-indigo-400"></svg>
       </div>
       <div class="text-2xl font-black text-indigo-400">{{ avgRoi() }}%</div>
-      <span class="text-[10px] text-rf-text-muted block font-sans">
+      <span class="text-[10px] text-fb-text-muted block font-sans">
         Kapitalrendite pro verkaufter Artikel
       </span>
     </div>
 
-    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-rf-border shadow-xl space-y-1">
-      <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+    <div class="linear-surface p-4 md:p-5 rounded-2xl border border-fb-border shadow-xl space-y-1">
+      <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
         <span class="font-bold uppercase tracking-wider text-[10px]">Ø Haltedauer</span>
         <svg [lucideIcon]="clockIcon" class="w-4 h-4 text-amber-400"></svg>
       </div>
       <div class="text-2xl font-black text-amber-400">{{ avgHoldingDays() }} Tage</div>
-      <span class="text-[10px] text-rf-text-muted block font-sans">
+      <span class="text-[10px] text-fb-text-muted block font-sans">
         Von Einkauf bis zum Verkauf
       </span>
     </div>
   </div>
 
   <!-- Section Navigation Tabs -->
-  <div class="flex items-center gap-2 overflow-x-auto pb-1 border-b border-rf-border text-xs">
+  <div class="flex items-center gap-2 overflow-x-auto pb-1 border-b border-fb-border text-xs">
     <button
       type="button"
       (click)="setSection('overview')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'overview'"
-      [class.text-rf-text-primary]="activeSection() === 'overview'"
+      [class.text-fb-text-primary]="activeSection() === 'overview'"
       [class.border-indigo-500]="activeSection() === 'overview'"
-      [class.bg-rf-surface]="activeSection() !== 'overview'"
-      [class.text-rf-text-secondary]="activeSection() !== 'overview'"
-      [class.border-rf-border]="activeSection() !== 'overview'"
+      [class.bg-fb-surface]="activeSection() !== 'overview'"
+      [class.text-fb-text-secondary]="activeSection() !== 'overview'"
+      [class.border-fb-border]="activeSection() !== 'overview'"
     >
       <svg [lucideIcon]="trendingIcon" class="w-3.5 h-3.5"></svg>
       <span>Gesamtübersicht</span>
@@ -141,11 +141,11 @@
       (click)="setSection('holding')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-purple-600]="activeSection() === 'holding'"
-      [class.text-rf-text-primary]="activeSection() === 'holding'"
+      [class.text-fb-text-primary]="activeSection() === 'holding'"
       [class.border-purple-500]="activeSection() === 'holding'"
-      [class.bg-rf-surface]="activeSection() !== 'holding'"
+      [class.bg-fb-surface]="activeSection() !== 'holding'"
       [class.text-purple-300]="activeSection() !== 'holding'"
-      [class.border-rf-border]="activeSection() !== 'holding'"
+      [class.border-fb-border]="activeSection() !== 'holding'"
     >
       <svg [lucideIcon]="buildingIcon" class="w-3.5 h-3.5"></svg>
       <span>Holding-Modus ({{ holdingSummary().workspacesCount }} Mandanten)</span>
@@ -156,11 +156,11 @@
       (click)="setSection('platforms')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'platforms'"
-      [class.text-rf-text-primary]="activeSection() === 'platforms'"
+      [class.text-fb-text-primary]="activeSection() === 'platforms'"
       [class.border-indigo-500]="activeSection() === 'platforms'"
-      [class.bg-rf-surface]="activeSection() !== 'platforms'"
-      [class.text-rf-text-secondary]="activeSection() !== 'platforms'"
-      [class.border-rf-border]="activeSection() !== 'platforms'"
+      [class.bg-fb-surface]="activeSection() !== 'platforms'"
+      [class.text-fb-text-secondary]="activeSection() !== 'platforms'"
+      [class.border-fb-border]="activeSection() !== 'platforms'"
     >
       <svg [lucideIcon]="barIcon" class="w-3.5 h-3.5"></svg>
       <span>Plattform-Rentabilität & Gebühren</span>
@@ -171,11 +171,11 @@
       (click)="setSection('velocity')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'velocity'"
-      [class.text-rf-text-primary]="activeSection() === 'velocity'"
+      [class.text-fb-text-primary]="activeSection() === 'velocity'"
       [class.border-indigo-500]="activeSection() === 'velocity'"
-      [class.bg-rf-surface]="activeSection() !== 'velocity'"
-      [class.text-rf-text-secondary]="activeSection() !== 'velocity'"
-      [class.border-rf-border]="activeSection() !== 'velocity'"
+      [class.bg-fb-surface]="activeSection() !== 'velocity'"
+      [class.text-fb-text-secondary]="activeSection() !== 'velocity'"
+      [class.border-fb-border]="activeSection() !== 'velocity'"
     >
       <svg [lucideIcon]="zapIcon" class="w-3.5 h-3.5"></svg>
       <span>Haltedauer & Kapitalumschlag</span>
@@ -186,11 +186,11 @@
       (click)="setSection('cohorts')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'cohorts'"
-      [class.text-rf-text-primary]="activeSection() === 'cohorts'"
+      [class.text-fb-text-primary]="activeSection() === 'cohorts'"
       [class.border-indigo-500]="activeSection() === 'cohorts'"
-      [class.bg-rf-surface]="activeSection() !== 'cohorts'"
-      [class.text-rf-text-secondary]="activeSection() !== 'cohorts'"
-      [class.border-rf-border]="activeSection() !== 'cohorts'"
+      [class.bg-fb-surface]="activeSection() !== 'cohorts'"
+      [class.text-fb-text-secondary]="activeSection() !== 'cohorts'"
+      [class.border-fb-border]="activeSection() !== 'cohorts'"
     >
       <svg [lucideIcon]="boxesIcon" class="w-3.5 h-3.5"></svg>
       <span>Einkaufs-Kohorten & Recovery</span>
@@ -201,11 +201,11 @@
       (click)="setSection('heatmap')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'heatmap'"
-      [class.text-rf-text-primary]="activeSection() === 'heatmap'"
+      [class.text-fb-text-primary]="activeSection() === 'heatmap'"
       [class.border-indigo-500]="activeSection() === 'heatmap'"
-      [class.bg-rf-surface]="activeSection() !== 'heatmap'"
-      [class.text-rf-text-secondary]="activeSection() !== 'heatmap'"
-      [class.border-rf-border]="activeSection() !== 'heatmap'"
+      [class.bg-fb-surface]="activeSection() !== 'heatmap'"
+      [class.text-fb-text-secondary]="activeSection() !== 'heatmap'"
+      [class.border-fb-border]="activeSection() !== 'heatmap'"
     >
       <svg [lucideIcon]="clockIcon" class="w-3.5 h-3.5"></svg>
       <span>Verkaufs-Heatmap (Beste Zeiten)</span>
@@ -216,11 +216,11 @@
       (click)="setSection('categories')"
       class="px-3.5 py-1.5 rounded-xl font-bold transition cursor-pointer border inline-flex items-center gap-1.5"
       [class.bg-indigo-600]="activeSection() === 'categories'"
-      [class.text-rf-text-primary]="activeSection() === 'categories'"
+      [class.text-fb-text-primary]="activeSection() === 'categories'"
       [class.border-indigo-500]="activeSection() === 'categories'"
-      [class.bg-rf-surface]="activeSection() !== 'categories'"
-      [class.text-rf-text-secondary]="activeSection() !== 'categories'"
-      [class.border-rf-border]="activeSection() !== 'categories'"
+      [class.bg-fb-surface]="activeSection() !== 'categories'"
+      [class.text-fb-text-secondary]="activeSection() !== 'categories'"
+      [class.border-fb-border]="activeSection() !== 'categories'"
     >
       <svg [lucideIcon]="tagIcon" class="w-3.5 h-3.5"></svg>
       <span>Kategorien & Sell-Through</span>
@@ -232,21 +232,21 @@
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 animate-fade-in">
       <!-- Left: Recent Top Profits (7 cols) -->
       <div class="lg:col-span-7 linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
-        <div class="flex items-center gap-2 border-b border-rf-border pb-3">
+        <div class="flex items-center gap-2 border-b border-fb-border pb-3">
           <svg [lucideIcon]="trophyIcon" class="w-4 h-4 text-amber-400"></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
             Top-Gewinnbringer im Zeitraum
           </h2>
         </div>
 
-        <div class="divide-y divide-rf-border">
+        <div class="divide-y divide-fb-border">
           @for (sale of currentSales().slice(0, 5); track sale.id) {
             <div class="py-3 flex items-center justify-between text-xs">
               <div class="space-y-0.5">
-                <strong class="text-rf-text-primary block">{{
+                <strong class="text-fb-text-primary block">{{
                   sale.inventory_item?.title || 'Verkaufter Artikel'
                 }}</strong>
-                <div class="flex items-center gap-2 text-[10px] text-rf-text-muted">
+                <div class="flex items-center gap-2 text-[10px] text-fb-text-muted">
                   <span class="uppercase font-mono font-bold text-indigo-400">{{
                     sale.platform
                   }}</span>
@@ -263,11 +263,11 @@
                 <span class="font-bold text-emerald-400 text-sm block">
                   +{{ sale.net_profit || 0 | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </span>
-                <span class="text-[10px] text-rf-text-muted">ROI: {{ sale.roi || 0 }}%</span>
+                <span class="text-[10px] text-fb-text-muted">ROI: {{ sale.roi || 0 }}%</span>
               </div>
             </div>
           } @empty {
-            <div class="p-8 text-center text-xs text-rf-text-muted">
+            <div class="p-8 text-center text-xs text-fb-text-muted">
               Keine Verkäufe im gewählten Zeitraum.
             </div>
           }
@@ -276,9 +276,9 @@
 
       <!-- Right: Quick Platform Breakdown (5 cols) -->
       <div class="lg:col-span-5 linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
-        <div class="flex items-center gap-2 border-b border-rf-border pb-3">
+        <div class="flex items-center gap-2 border-b border-fb-border pb-3">
           <svg [lucideIcon]="storeIcon" class="w-4 h-4 text-indigo-400"></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
             Plattform-Umsatzverteilung
           </h2>
         </div>
@@ -287,20 +287,20 @@
           @for (p of platformPerformance(); track p.platform) {
             <div class="space-y-1">
               <div class="flex justify-between text-xs">
-                <strong class="text-rf-text-primary">{{ p.platformLabel }}</strong>
+                <strong class="text-fb-text-primary">{{ p.platformLabel }}</strong>
                 <span class="font-mono font-bold text-emerald-400"
                   >+{{ p.netProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</span
                 >
               </div>
               <div
-                class="w-full h-2 rounded-full bg-rf-subtle overflow-hidden flex border border-rf-border"
+                class="w-full h-2 rounded-full bg-fb-subtle overflow-hidden flex border border-fb-border"
               >
                 <div
                   class="h-full bg-indigo-500"
                   [style.width.%]="(p.grossRevenue / (totalRevenue() || 1)) * 100"
                 ></div>
               </div>
-              <div class="flex justify-between text-[10px] text-rf-text-muted">
+              <div class="flex justify-between text-[10px] text-fb-text-muted">
                 <span
                   >{{ p.salesCount }} Verkäufe ({{
                     ((p.grossRevenue / (totalRevenue() || 1)) * 100).toFixed(0)
@@ -318,12 +318,12 @@
   <!-- Tab 2: Platforms & Fees Matrix -->
   @if (activeSection() === 'platforms') {
     <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl animate-fade-in">
-      <div class="flex items-center justify-between border-b border-rf-border pb-3">
+      <div class="flex items-center justify-between border-b border-fb-border pb-3">
         <div>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
             Plattform-Rentabilitäts-Matrix & Gebührenvergleich
           </h2>
-          <p class="text-[11px] text-rf-text-muted mt-0.5">
+          <p class="text-[11px] text-fb-text-muted mt-0.5">
             Vergleiche die tatsächliche Rentabilität unter Berücksichtigung von Verkaufsgebühren.
           </p>
         </div>
@@ -332,7 +332,7 @@
       <div class="overflow-x-auto">
         <table class="w-full text-left text-xs border-collapse font-sans">
           <thead
-            class="bg-rf-subtle text-rf-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-rf-border"
+            class="bg-fb-subtle text-fb-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-fb-border"
           >
             <tr>
               <th class="p-3">Plattform</th>
@@ -345,14 +345,14 @@
               <th class="p-3 text-right">Ø Haltedauer</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-rf-border font-mono">
+          <tbody class="divide-y divide-fb-border font-mono">
             @for (p of platformPerformance(); track p.platform) {
-              <tr class="hover:bg-rf-surface-hover transition">
-                <td class="p-3 font-sans font-bold text-rf-text-primary">
+              <tr class="hover:bg-fb-surface-hover transition">
+                <td class="p-3 font-sans font-bold text-fb-text-primary">
                   {{ p.platformLabel }}
                 </td>
-                <td class="p-3 text-right text-rf-text-secondary">{{ p.salesCount }}x</td>
-                <td class="p-3 text-right font-bold text-rf-text-primary">
+                <td class="p-3 text-right text-fb-text-secondary">{{ p.salesCount }}x</td>
+                <td class="p-3 text-right font-bold text-fb-text-primary">
                   {{ p.grossRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </td>
                 <td class="p-3 text-right text-rose-400">
@@ -369,7 +369,7 @@
                   +{{ p.netProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </td>
                 <td class="p-3 text-right text-indigo-300 font-bold">{{ p.profitMargin }}%</td>
-                <td class="p-3 text-right text-rf-text-muted">{{ p.avgHoldingDays }} Tage</td>
+                <td class="p-3 text-right text-fb-text-muted">{{ p.avgHoldingDays }} Tage</td>
               </tr>
             }
           </tbody>
@@ -384,40 +384,40 @@
     <div class="space-y-5 animate-fade-in">
       <!-- Velocity KPI Row -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono">
-        <div class="linear-surface p-4 rounded-2xl border border-rf-border space-y-1">
-          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block"
+        <div class="linear-surface p-4 rounded-2xl border border-fb-border space-y-1">
+          <span class="text-[10px] font-sans uppercase font-bold text-fb-text-muted block"
             >Kapitalumschlag / Jahr</span
           >
           <span class="text-2xl font-black text-indigo-400">{{ vel.capitalTurnoverRate }}x</span>
-          <span class="text-[10px] text-rf-text-muted font-sans block">Umschlagshäufigkeit</span>
+          <span class="text-[10px] text-fb-text-muted font-sans block">Umschlagshäufigkeit</span>
         </div>
 
-        <div class="linear-surface p-4 rounded-2xl border border-rf-border space-y-1">
-          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block"
+        <div class="linear-surface p-4 rounded-2xl border border-fb-border space-y-1">
+          <span class="text-[10px] font-sans uppercase font-bold text-fb-text-muted block"
             >Durchschnitt</span
           >
-          <span class="text-2xl font-black text-rf-text-primary"
+          <span class="text-2xl font-black text-fb-text-primary"
             >{{ vel.avgOverallDays }} Tage</span
           >
-          <span class="text-[10px] text-rf-text-muted font-sans block"
+          <span class="text-[10px] text-fb-text-muted font-sans block"
             >Bis zum erfolgreichen Verkauf</span
           >
         </div>
 
-        <div class="linear-surface p-4 rounded-2xl border border-rf-border space-y-1">
-          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block"
+        <div class="linear-surface p-4 rounded-2xl border border-fb-border space-y-1">
+          <span class="text-[10px] font-sans uppercase font-bold text-fb-text-muted block"
             >Schnellster Verkauf</span
           >
           <span class="text-2xl font-black text-emerald-400">{{ vel.fastestSaleDays }} Tage</span>
-          <span class="text-[10px] text-rf-text-muted font-sans block">Blitzschneller Flip</span>
+          <span class="text-[10px] text-fb-text-muted font-sans block">Blitzschneller Flip</span>
         </div>
 
-        <div class="linear-surface p-4 rounded-2xl border border-rf-border space-y-1">
-          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block"
+        <div class="linear-surface p-4 rounded-2xl border border-fb-border space-y-1">
+          <span class="text-[10px] font-sans uppercase font-bold text-fb-text-muted block"
             >Längste Haltedauer</span
           >
           <span class="text-2xl font-black text-rose-400">{{ vel.slowestSaleDays }} Tage</span>
-          <span class="text-[10px] text-rf-text-muted font-sans block">Langsamster Artikel</span>
+          <span class="text-[10px] text-fb-text-muted font-sans block">Langsamster Artikel</span>
         </div>
       </div>
 
@@ -425,23 +425,23 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         @for (b of vel.buckets; track b.label) {
           <div
-            class="linear-surface rounded-2xl p-5 border border-rf-border shadow-xl space-y-2 font-sans"
+            class="linear-surface rounded-2xl p-5 border border-fb-border shadow-xl space-y-2 font-sans"
           >
             <div class="flex items-center justify-between">
-              <strong class="text-xs text-rf-text-primary">{{ b.label }}</strong>
+              <strong class="text-xs text-fb-text-primary">{{ b.label }}</strong>
               <span
-                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-secondary border border-rf-border"
+                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-fb-subtle text-fb-text-secondary border border-fb-border"
               >
                 {{ b.percent }}%
               </span>
             </div>
 
-            <div class="text-xl font-black font-mono text-rf-text-primary">
+            <div class="text-xl font-black font-mono text-fb-text-primary">
               {{ b.count }} Verkäufe
             </div>
 
             <div
-              class="flex justify-between text-[11px] font-mono pt-2 border-t border-rf-border text-rf-text-muted"
+              class="flex justify-between text-[11px] font-mono pt-2 border-t border-fb-border text-fb-text-muted"
             >
               <span
                 >Gewinn:
@@ -462,11 +462,11 @@
   <!-- Tab 4: Cohort Analysis -->
   @if (activeSection() === 'cohorts') {
     <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl animate-fade-in">
-      <div class="border-b border-rf-border pb-3">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+      <div class="border-b border-fb-border pb-3">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
           Monatliche Einkaufs-Kohorten & Break-Even Refinanzierung
         </h2>
-        <p class="text-[11px] text-rf-text-muted mt-0.5">
+        <p class="text-[11px] text-fb-text-muted mt-0.5">
           Verfolge, wie schnell jede Einkaufscharge ihr investiertes Kapital wieder einspielt
           (Break-Even Recovery Rate).
         </p>
@@ -474,10 +474,10 @@
 
       <div class="space-y-4">
         @for (c of monthlyCohorts(); track c.monthKey) {
-          <div class="p-4 rounded-xl bg-rf-subtle border border-rf-border space-y-3">
+          <div class="p-4 rounded-xl bg-fb-subtle border border-fb-border space-y-3">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
               <div class="flex items-center gap-2">
-                <strong class="text-sm font-bold text-rf-text-primary">{{ c.monthLabel }}</strong>
+                <strong class="text-sm font-bold text-fb-text-primary">{{ c.monthLabel }}</strong>
                 <span
                   class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase"
                   [class.bg-emerald-500/15]="c.isProfitable"
@@ -510,7 +510,7 @@
             <!-- Recovery Progress Bar -->
             <div class="space-y-1">
               <div
-                class="w-full h-3 rounded-full bg-rf-surface overflow-hidden flex border border-rf-border"
+                class="w-full h-3 rounded-full bg-fb-surface overflow-hidden flex border border-fb-border"
               >
                 <div
                   class="h-full transition-all duration-500"
@@ -519,10 +519,10 @@
                   [style.width.%]="c.recoveryPercent > 100 ? 100 : c.recoveryPercent"
                 ></div>
               </div>
-              <div class="flex justify-between text-[10px] text-rf-text-muted font-mono">
+              <div class="flex justify-between text-[10px] text-fb-text-muted font-mono">
                 <span
                   >Refinanzierungs-Quote:
-                  <strong class="text-rf-text-primary">{{ c.recoveryPercent }}%</strong></span
+                  <strong class="text-fb-text-primary">{{ c.recoveryPercent }}%</strong></span
                 >
                 <span>{{ c.soldCount }} von {{ c.itemsCount }} Artikel verkauft</span>
               </div>
@@ -536,11 +536,11 @@
   <!-- Tab 5: Sales Heatmap -->
   @if (activeSection() === 'heatmap') {
     <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl animate-fade-in">
-      <div class="border-b border-rf-border pb-3">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+      <div class="border-b border-fb-border pb-3">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
           Wochentags- & Verkaufszeit-Heatmap
         </h2>
-        <p class="text-[11px] text-rf-text-muted mt-0.5">
+        <p class="text-[11px] text-fb-text-muted mt-0.5">
           Finde die lukrativsten Tage und Zeiten heraus, um deine Inserate optimal zu platzieren.
         </p>
       </div>
@@ -548,9 +548,9 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
         @for (day of salesHeatmap(); track day.dayName) {
           <div
-            class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-2 text-center font-sans"
+            class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-2 text-center font-sans"
           >
-            <strong class="text-xs text-rf-text-primary block border-b border-rf-border pb-1">
+            <strong class="text-xs text-fb-text-primary block border-b border-fb-border pb-1">
               {{ day.dayName }}
             </strong>
 
@@ -559,21 +559,21 @@
             </div>
 
             <div
-              class="space-y-1 text-[10px] text-left text-rf-text-muted pt-1 border-t border-rf-border font-mono"
+              class="space-y-1 text-[10px] text-left text-fb-text-muted pt-1 border-t border-fb-border font-mono"
             >
               <div class="flex justify-between items-center">
                 <span class="inline-flex items-center gap-1">
                   <svg [lucideIcon]="sunriseIcon" class="w-3 h-3 text-amber-400"></svg>
                   <span>Vormittags:</span>
                 </span>
-                <strong class="text-rf-text-secondary">{{ day.morningCount }}</strong>
+                <strong class="text-fb-text-secondary">{{ day.morningCount }}</strong>
               </div>
               <div class="flex justify-between items-center">
                 <span class="inline-flex items-center gap-1">
                   <svg [lucideIcon]="sunIcon" class="w-3 h-3 text-yellow-400"></svg>
                   <span>Nachmittags:</span>
                 </span>
-                <strong class="text-rf-text-secondary">{{ day.afternoonCount }}</strong>
+                <strong class="text-fb-text-secondary">{{ day.afternoonCount }}</strong>
               </div>
               <div class="flex justify-between items-center">
                 <span class="inline-flex items-center gap-1">
@@ -592,11 +592,11 @@
   <!-- Tab 6: Categories -->
   @if (activeSection() === 'categories') {
     <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl animate-fade-in">
-      <div class="border-b border-rf-border pb-3">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+      <div class="border-b border-fb-border pb-3">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
           Kategorie-Rentabilität & Sell-Through Ränge
         </h2>
-        <p class="text-[11px] text-rf-text-muted mt-0.5">
+        <p class="text-[11px] text-fb-text-muted mt-0.5">
           Welche Warenkategorien erzielen den höchsten Gewinn und ROI?
         </p>
       </div>
@@ -604,7 +604,7 @@
       <div class="overflow-x-auto">
         <table class="w-full text-left text-xs border-collapse">
           <thead
-            class="bg-rf-subtle text-rf-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-rf-border"
+            class="bg-fb-subtle text-fb-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-fb-border"
           >
             <tr>
               <th class="p-3">Kategorie</th>
@@ -615,13 +615,13 @@
               <th class="p-3 text-right">Ø ROI</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-rf-border font-mono">
+          <tbody class="divide-y divide-fb-border font-mono">
             @for (cat of categoryRankings(); track cat.category) {
-              <tr class="hover:bg-rf-surface-hover transition">
-                <td class="p-3 font-sans font-bold text-rf-text-primary">{{ cat.category }}</td>
-                <td class="p-3 text-right text-rf-text-secondary">{{ cat.itemsCount }}</td>
-                <td class="p-3 text-right text-rf-text-secondary">{{ cat.soldCount }}</td>
-                <td class="p-3 text-right font-bold text-rf-text-primary">
+              <tr class="hover:bg-fb-surface-hover transition">
+                <td class="p-3 font-sans font-bold text-fb-text-primary">{{ cat.category }}</td>
+                <td class="p-3 text-right text-fb-text-secondary">{{ cat.itemsCount }}</td>
+                <td class="p-3 text-right text-fb-text-secondary">{{ cat.soldCount }}</td>
+                <td class="p-3 text-right font-bold text-fb-text-primary">
                   {{ cat.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </td>
                 <td class="p-3 text-right font-bold text-emerald-400">
@@ -645,16 +645,16 @@
         <div
           class="linear-surface p-5 rounded-2xl border border-purple-500/30 bg-purple-500/5 shadow-xl space-y-1"
         >
-          <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+          <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
             <span class="font-bold uppercase tracking-wider text-[10px] text-purple-300"
               >Konsolidierter Umsatz</span
             >
             <svg [lucideIcon]="trendingIcon" class="w-4 h-4 text-purple-400"></svg>
           </div>
-          <div class="text-2xl font-black text-rf-text-primary">
+          <div class="text-2xl font-black text-fb-text-primary">
             {{ holding.totalRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </div>
-          <span class="text-[10px] text-rf-text-muted block font-sans">
+          <span class="text-[10px] text-fb-text-muted block font-sans">
             Über {{ holding.workspacesCount }} Reselling-Gewerbe
           </span>
         </div>
@@ -662,7 +662,7 @@
         <div
           class="linear-surface p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 shadow-xl space-y-1"
         >
-          <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+          <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
             <span class="font-bold uppercase tracking-wider text-[10px] text-emerald-400"
               >Realisierter Holding-Gewinn</span
             >
@@ -671,7 +671,7 @@
           <div class="text-2xl font-black text-emerald-400">
             +{{ holding.totalNetProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </div>
-          <span class="text-[10px] text-rf-text-muted block font-sans">
+          <span class="text-[10px] text-fb-text-muted block font-sans">
             Gesamter Nettogewinn nach Abzug aller Kosten
           </span>
         </div>
@@ -679,7 +679,7 @@
         <div
           class="linear-surface p-5 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 shadow-xl space-y-1"
         >
-          <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+          <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
             <span class="font-bold uppercase tracking-wider text-[10px] text-indigo-300"
               >Lagerbestandswert (EK)</span
             >
@@ -688,7 +688,7 @@
           <div class="text-2xl font-black text-indigo-300">
             {{ holding.totalInventoryValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </div>
-          <span class="text-[10px] text-rf-text-muted block font-sans">
+          <span class="text-[10px] text-fb-text-muted block font-sans">
             {{ holding.totalInventoryCount }} aktive Artikel gebunden
           </span>
         </div>
@@ -696,25 +696,25 @@
         <div
           class="linear-surface p-5 rounded-2xl border border-amber-500/30 bg-amber-500/5 shadow-xl space-y-1"
         >
-          <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
+          <div class="flex items-center justify-between text-fb-text-muted text-xs font-sans">
             <span class="font-bold uppercase tracking-wider text-[10px] text-amber-300"
               >Holding Durchschnitts-ROI</span
             >
             <svg [lucideIcon]="percentIcon" class="w-4 h-4 text-amber-400"></svg>
           </div>
           <div class="text-2xl font-black text-amber-400">{{ holding.averageRoi }}%</div>
-          <span class="text-[10px] text-rf-text-muted block font-sans">
+          <span class="text-[10px] text-fb-text-muted block font-sans">
             Gewichtete Gesamtkapitalrendite
           </span>
         </div>
       </div>
 
       <!-- Tenant Performance Comparison Table -->
-      <div class="linear-surface rounded-2xl p-6 space-y-4 shadow-xl border border-rf-border">
-        <div class="flex items-center justify-between pb-2 border-b border-rf-border">
+      <div class="linear-surface rounded-2xl p-6 space-y-4 shadow-xl border border-fb-border">
+        <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
             <svg [lucideIcon]="buildingIcon" class="w-4 h-4 text-purple-400"></svg>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
               Mandanten- & Gewerbevergleich (Performance Matrix)
             </h2>
           </div>
@@ -725,14 +725,14 @@
           </span>
         </div>
 
-        <p class="text-xs text-rf-text-muted">
+        <p class="text-xs text-fb-text-muted">
           Detaillierte Gegenüberstellung aller eigenständigen Reselling-Accounts und Workspaces.
         </p>
 
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs border-collapse">
             <thead
-              class="bg-rf-subtle text-rf-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-rf-border"
+              class="bg-fb-subtle text-fb-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-fb-border"
             >
               <tr>
                 <th class="p-3">Mandant / Workspace</th>
@@ -745,17 +745,17 @@
                 <th class="p-3 text-center">Aktion</th>
               </tr>
             </thead>
-            <tbody class="divide-y divide-rf-border font-mono">
+            <tbody class="divide-y divide-fb-border font-mono">
               @for (wsSummary of holding.workspaceSummaries; track wsSummary.workspace.id) {
                 <tr
-                  class="hover:bg-rf-surface-hover transition"
+                  class="hover:bg-fb-surface-hover transition"
                   [class.bg-purple-500/5]="
                     workspaceService.currentWorkspace()?.id === wsSummary.workspace.id
                   "
                 >
                   <td class="p-3 font-sans">
                     <div class="flex items-center gap-2">
-                      <strong class="text-rf-text-primary text-xs block">{{
+                      <strong class="text-fb-text-primary text-xs block">{{
                         wsSummary.workspace.name
                       }}</strong>
                       @if (workspaceService.currentWorkspace()?.id === wsSummary.workspace.id) {
@@ -766,14 +766,14 @@
                         </span>
                       }
                     </div>
-                    <span class="text-[10px] text-rf-text-muted font-mono"
+                    <span class="text-[10px] text-fb-text-muted font-mono"
                       >ID: {{ wsSummary.workspace.id }}</span
                     >
                   </td>
 
-                  <td class="p-3 font-sans text-rf-text-secondary text-[11px]">
+                  <td class="p-3 font-sans text-fb-text-secondary text-[11px]">
                     <span
-                      class="px-2 py-0.5 rounded text-[10px] font-mono bg-rf-subtle border border-rf-border"
+                      class="px-2 py-0.5 rounded text-[10px] font-mono bg-fb-subtle border border-fb-border"
                     >
                       § 25a UStG (Diff)
                     </span>
@@ -781,18 +781,18 @@
 
                   <td class="p-3 text-right text-indigo-300 font-bold">
                     {{ wsSummary.inventoryValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                    <span class="text-[10px] text-rf-text-muted block font-normal"
+                    <span class="text-[10px] text-fb-text-muted block font-normal"
                       >({{ wsSummary.inventoryCount }} Stk.)</span
                     >
                   </td>
 
-                  <td class="p-3 text-right text-rf-text-secondary">
+                  <td class="p-3 text-right text-fb-text-secondary">
                     {{ wsSummary.totalInvested | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </td>
 
-                  <td class="p-3 text-right font-bold text-rf-text-primary">
+                  <td class="p-3 text-right font-bold text-fb-text-primary">
                     {{ wsSummary.totalRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                    <span class="text-[10px] text-rf-text-muted block font-normal"
+                    <span class="text-[10px] text-fb-text-muted block font-normal"
                       >{{ wsSummary.salesCount }} Verkäufe</span
                     >
                   </td>
@@ -808,7 +808,7 @@
                       <button
                         type="button"
                         (click)="switchToWorkspace(wsSummary.workspace.id)"
-                        class="linear-btn-secondary px-2.5 py-1 rounded-lg text-[11px] font-semibold text-purple-300 hover:text-rf-text-primary cursor-pointer inline-flex items-center gap-1"
+                        class="linear-btn-secondary px-2.5 py-1 rounded-lg text-[11px] font-semibold text-purple-300 hover:text-fb-text-primary cursor-pointer inline-flex items-center gap-1"
                       >
                         <span>Umschalten</span>
                         <svg [lucideIcon]="nextIcon" class="w-3 h-3"></svg>

@@ -3,7 +3,7 @@
   <div class="flex items-center justify-between pb-1">
     <a
       routerLink="/inventory"
-      class="inline-flex items-center gap-1.5 text-xs font-semibold text-rf-text-muted hover:text-rf-text-primary transition"
+      class="inline-flex items-center gap-1.5 text-xs font-semibold text-fb-text-muted hover:text-fb-text-primary transition"
     >
       <svg [lucideIcon]="arrowLeftIcon" class="w-3.5 h-3.5"></svg>
       <span>Zurück zum Inventar</span>
@@ -13,7 +13,7 @@
       <button
         type="button"
         (click)="isLabelModalOpen.set(true)"
-        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rf-text-secondary hover:text-rf-text-primary"
+        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-fb-text-secondary hover:text-fb-text-primary"
         title="Lager- & Barcode-Etikett drucken"
       >
         <svg [lucideIcon]="printerIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
@@ -23,7 +23,7 @@
       <a
         [routerLink]="['/shop/item', inventoryService.selectedItem()?.id]"
         target="_blank"
-        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-300 hover:text-rf-text-primary"
+        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-300 hover:text-fb-text-primary"
         title="Im Online-Shop ansehen"
       >
         <svg [lucideIcon]="storeIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
@@ -42,7 +42,7 @@
       <button
         type="button"
         (click)="onDeleteItem()"
-        class="p-1.5 rounded-lg text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold transition cursor-pointer"
+        class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold transition cursor-pointer"
         title="Artikel löschen"
       >
         <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
@@ -56,7 +56,7 @@
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex items-start gap-3.5">
           <div
-            class="w-12 h-12 rounded-lg bg-rf-subtle border border-rf-border text-rf-text-secondary flex items-center justify-center shrink-0 overflow-hidden"
+            class="w-12 h-12 rounded-lg bg-fb-subtle border border-fb-border text-fb-text-secondary flex items-center justify-center shrink-0 overflow-hidden"
           >
             @if (mediaList().length > 0) {
               <img
@@ -72,7 +72,7 @@
           <div>
             <div class="flex flex-wrap items-center gap-1.5 mb-1">
               <span
-                class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-rf-subtle text-rf-text-secondary border border-rf-border"
+                class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-fb-subtle text-fb-text-secondary border border-fb-border"
               >
                 {{ 'INVENTORY.CONDITIONS.' + item.condition.toUpperCase() | translate }}
               </span>
@@ -86,17 +86,17 @@
               }
 
               @if (item.brand) {
-                <span class="text-xs text-rf-text-muted font-medium">{{ item.brand }}</span>
+                <span class="text-xs text-fb-text-muted font-medium">{{ item.brand }}</span>
               }
             </div>
 
-            <h1 class="text-base md:text-lg font-bold text-rf-text-primary">{{ item.title }}</h1>
+            <h1 class="text-base md:text-lg font-bold text-fb-text-primary">{{ item.title }}</h1>
           </div>
         </div>
 
         <!-- Prominente, farbige Status-Auswahl -->
         <div class="flex flex-col sm:items-end gap-1 shrink-0">
-          <span class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted"
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >Status</span
           >
           <app-custom-select
@@ -109,18 +109,18 @@
       </div>
 
       <!-- Financial Metrics Ribbon -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-rf-border font-mono">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-fb-border font-mono">
         <div class="linear-kpi p-3 rounded-lg">
-          <span class="text-[10px] uppercase font-sans font-medium text-rf-text-muted block"
+          <span class="text-[10px] uppercase font-sans font-medium text-fb-text-muted block"
             >Anschaffung (EK)</span
           >
-          <span class="text-base font-bold text-rf-text-primary mt-1 block">
+          <span class="text-base font-bold text-fb-text-primary mt-1 block">
             {{ item.allocated_purchase_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </span>
         </div>
 
         <div class="linear-kpi p-3 rounded-lg">
-          <span class="text-[10px] uppercase font-sans font-medium text-rf-text-muted block"
+          <span class="text-[10px] uppercase font-sans font-medium text-fb-text-muted block"
             >Zusatzkosten</span
           >
           <span class="text-base font-bold text-amber-400 mt-1 block">
@@ -132,10 +132,10 @@
         </div>
 
         <div class="linear-kpi p-3 rounded-lg">
-          <span class="text-[10px] uppercase font-sans font-medium text-rf-text-muted block"
+          <span class="text-[10px] uppercase font-sans font-medium text-fb-text-muted block"
             >Gesamtkosten</span
           >
-          <span class="text-base font-bold text-rf-text-primary mt-1 block">
+          <span class="text-base font-bold text-fb-text-primary mt-1 block">
             {{ item.total_item_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </span>
         </div>
@@ -160,7 +160,7 @@
       class="linear-surface rounded-xl p-4 md:p-5 space-y-3 border border-indigo-500/30 bg-indigo-500/5"
     >
       <div
-        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-rf-border"
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-fb-border"
       >
         <div class="flex items-center gap-2.5">
           <div
@@ -170,7 +170,7 @@
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+              <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
                 Eigener Webshop & Online-Store
               </h2>
               @if (item.is_public_store !== false && item.status !== 'sold') {
@@ -182,14 +182,14 @@
                 </span>
               } @else {
                 <span
-                  class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-muted border border-rf-border"
+                  class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-fb-subtle text-fb-text-muted border border-fb-border"
                 >
                   <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
                   <span>Nicht gelistet</span>
                 </span>
               }
             </div>
-            <p class="text-[11px] text-rf-text-muted mt-0.5">
+            <p class="text-[11px] text-fb-text-muted mt-0.5">
               Steuere, ob dieser Artikel in deinem öffentlichen Kunden-Store gelistet und direkt
               online kaufbar ist.
             </p>
@@ -203,11 +203,11 @@
             (click)="onTogglePublicStore(item.is_public_store === false)"
             class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border"
             [class.bg-emerald-600]="item.is_public_store !== false"
-            [class.text-rf-text-primary]="item.is_public_store !== false"
+            [class.text-fb-text-primary]="item.is_public_store !== false"
             [class.border-emerald-500]="item.is_public_store !== false"
-            [class.bg-rf-surface]="item.is_public_store === false"
-            [class.text-rf-text-secondary]="item.is_public_store === false"
-            [class.border-rf-border]="item.is_public_store === false"
+            [class.bg-fb-surface]="item.is_public_store === false"
+            [class.text-fb-text-secondary]="item.is_public_store === false"
+            [class.border-fb-border]="item.is_public_store === false"
           >
             <svg
               [lucideIcon]="item.is_public_store !== false ? checkIcon : storeIcon"
@@ -222,7 +222,7 @@
           <a
             [routerLink]="['/shop/item', item.id]"
             target="_blank"
-            class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-300 hover:text-rf-text-primary flex items-center gap-1.5"
+            class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-300 hover:text-fb-text-primary flex items-center gap-1.5"
             title="Öffentliche Kundenvorschau aufrufen"
           >
             <span>Im Shop ansehen</span>
@@ -231,10 +231,10 @@
         </div>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-rf-text-muted font-mono">
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-fb-text-muted font-mono">
         <div>
           <span class="font-sans block text-[10px]">Shop-Verkaufspreis:</span>
-          <strong class="text-rf-text-primary text-sm">{{
+          <strong class="text-fb-text-primary text-sm">{{
             item.expected_value || item.allocated_purchase_cost * 1.5
               | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
           }}</strong>
@@ -245,7 +245,7 @@
         </div>
         <div>
           <span class="font-sans block text-[10px]">Zahlungsmethoden:</span>
-          <span class="text-rf-text-secondary font-sans text-xs">Stripe, PayPal, Überweisung</span>
+          <span class="text-fb-text-secondary font-sans text-xs">Stripe, PayPal, Überweisung</span>
         </div>
       </div>
     </div>
@@ -253,15 +253,15 @@
     <!-- Foto-Galerie & Belege (Supabase Storage) -->
     <div class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
       <div
-        class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-rf-border"
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-fb-border"
       >
         <div class="flex items-center gap-2">
           <svg [lucideIcon]="imageIcon" class="w-4 h-4 text-emerald-400"></svg>
           <div>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
               Produktbilder & Kaufbelege (Supabase Storage)
             </h2>
-            <span class="text-[11px] text-rf-text-muted">
+            <span class="text-[11px] text-fb-text-muted">
               {{ mediaList().length }} Datei(en) im Cloud-Speicher hinterlegt
             </span>
           </div>
@@ -297,14 +297,14 @@
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           @for (media of mediaList(); track media.id) {
             <div
-              class="group relative rounded-lg border border-rf-border bg-rf-subtle overflow-hidden flex flex-col transition hover:border-rf-border-hover"
+              class="group relative rounded-lg border border-fb-border bg-fb-subtle overflow-hidden flex flex-col transition hover:border-fb-border-hover"
             >
               <!-- Image Container -->
               <div
                 class="relative aspect-square w-full bg-black/20 flex items-center justify-center overflow-hidden"
               >
                 @if (media.mime_type?.includes('pdf')) {
-                  <div class="flex flex-col items-center gap-1 text-rf-text-muted p-2 text-center">
+                  <div class="flex flex-col items-center gap-1 text-fb-text-muted p-2 text-center">
                     <svg [lucideIcon]="fileIcon" class="w-8 h-8 text-amber-400"></svg>
                     <span class="text-[10px] truncate max-w-[100px]">{{
                       media.file_name || 'Beleg.pdf'
@@ -328,7 +328,7 @@
                 <!-- Primary Badge -->
                 @if (media.is_primary) {
                   <span
-                    class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-700 text-rf-on-accent shadow-xs"
+                    class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-700 text-fb-on-accent shadow-xs"
                   >
                     ⭐ Hauptbild
                   </span>
@@ -341,7 +341,7 @@
                   <button
                     type="button"
                     (click)="previewModalUrl.set(getMediaUrl(media.storage_path))"
-                    class="p-1.5 rounded bg-rf-surface/90 text-rf-text-primary hover:text-emerald-400 transition cursor-pointer"
+                    class="p-1.5 rounded bg-fb-surface/90 text-fb-text-primary hover:text-emerald-400 transition cursor-pointer"
                     title="Vollbild"
                   >
                     <svg [lucideIcon]="eyeIcon" class="w-3.5 h-3.5"></svg>
@@ -351,7 +351,7 @@
                     <button
                       type="button"
                       (click)="onSetPrimary(media)"
-                      class="p-1.5 rounded bg-rf-surface/90 text-rf-text-primary hover:text-amber-400 transition cursor-pointer"
+                      class="p-1.5 rounded bg-fb-surface/90 text-fb-text-primary hover:text-amber-400 transition cursor-pointer"
                       title="Als Hauptbild setzen"
                     >
                       <svg [lucideIcon]="starIcon" class="w-3.5 h-3.5"></svg>
@@ -361,7 +361,7 @@
                   <button
                     type="button"
                     (click)="onDeleteMedia(media)"
-                    class="p-1.5 rounded bg-rf-surface/90 text-rf-text-primary hover:text-rose-400 transition cursor-pointer"
+                    class="p-1.5 rounded bg-fb-surface/90 text-fb-text-primary hover:text-rose-400 transition cursor-pointer"
                     title="Löschen"
                   >
                     <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
@@ -371,7 +371,7 @@
 
               <!-- Media Info Footer -->
               <div
-                class="p-1.5 text-[10px] font-mono text-rf-text-muted flex items-center justify-between border-t border-rf-border"
+                class="p-1.5 text-[10px] font-mono text-fb-text-muted flex items-center justify-between border-t border-fb-border"
               >
                 <span class="truncate max-w-[90px]">{{ media.file_name || 'Bild' }}</span>
                 @if (media.file_size) {
@@ -383,13 +383,13 @@
         </div>
       } @else {
         <div
-          class="p-8 text-center border border-dashed border-rf-border rounded-lg bg-rf-subtle/50"
+          class="p-8 text-center border border-dashed border-fb-border rounded-lg bg-fb-subtle/50"
         >
-          <svg [lucideIcon]="imageIcon" class="w-8 h-8 text-rf-text-dimmed mx-auto mb-2"></svg>
-          <p class="text-xs font-semibold text-rf-text-secondary">
+          <svg [lucideIcon]="imageIcon" class="w-8 h-8 text-fb-text-dimmed mx-auto mb-2"></svg>
+          <p class="text-xs font-semibold text-fb-text-secondary">
             Noch keine Fotos oder Belege hochgeladen
           </p>
-          <p class="text-[11px] text-rf-text-muted mt-0.5">
+          <p class="text-[11px] text-fb-text-muted mt-0.5">
             Lade Produktfotos für Inserate oder Einkaufsbelege direkt in Supabase Storage hoch.
           </p>
         </div>
@@ -401,13 +401,13 @@
       <div class="lg:col-span-7 space-y-4">
         <!-- Origin Card -->
         <div class="linear-surface rounded-xl p-4 space-y-3">
-          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
             Herkunft & Einkauf (Kapitel 24)
           </h2>
 
           @if (item.purchase) {
             <div
-              class="p-3 rounded-lg bg-rf-subtle border border-rf-border flex items-center justify-between"
+              class="p-3 rounded-lg bg-fb-subtle border border-fb-border flex items-center justify-between"
             >
               <div>
                 <a
@@ -416,7 +416,7 @@
                 >
                   {{ item.purchase.title }}
                 </a>
-                <p class="text-[11px] text-rf-text-muted mt-0.5 font-mono">
+                <p class="text-[11px] text-fb-text-muted mt-0.5 font-mono">
                   Gekauft am {{ item.purchase.purchase_date | date: 'dd.MM.yyyy' }} • Typ:
                   {{ item.purchase.type }}
                 </p>
@@ -430,7 +430,7 @@
               </a>
             </div>
           } @else {
-            <p class="text-xs text-rf-text-muted">
+            <p class="text-xs text-fb-text-muted">
               Dieser Artikel wurde direkt ohne verknüpften Einkauf angelegt.
             </p>
           }
@@ -438,10 +438,10 @@
 
         <!-- Item Costs Card (Reparatur, Reinigung, Ersatzteile - Kapitel 9) -->
         <div class="linear-surface rounded-xl p-4 space-y-3">
-          <div class="flex items-center justify-between pb-2 border-b border-rf-border">
+          <div class="flex items-center justify-between pb-2 border-b border-fb-border">
             <div class="flex items-center gap-2">
               <svg [lucideIcon]="wrenchIcon" class="w-4 h-4 text-amber-400"></svg>
-              <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+              <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
                 Artikelkosten (Reparatur, Reinigung, Teile)
               </h2>
             </div>
@@ -460,7 +460,7 @@
             <form
               [formGroup]="costForm"
               (ngSubmit)="onAddCost()"
-              class="p-3 rounded-lg bg-rf-subtle border border-rf-border flex flex-wrap gap-2 items-center animate-fade-in"
+              class="p-3 rounded-lg bg-fb-subtle border border-fb-border flex flex-wrap gap-2 items-center animate-fade-in"
             >
               <select
                 formControlName="type"
@@ -499,24 +499,24 @@
           }
 
           @if (inventoryService.itemCosts().length > 0) {
-            <div class="divide-y divide-rf-border font-mono">
+            <div class="divide-y divide-fb-border font-mono">
               @for (c of inventoryService.itemCosts(); track c.id) {
                 <div class="py-2 flex items-center justify-between text-xs">
                   <div class="flex items-center gap-2.5">
-                    <span class="font-bold uppercase text-[10px] text-rf-text-muted">{{
+                    <span class="font-bold uppercase text-[10px] text-fb-text-muted">{{
                       c.type
                     }}</span>
-                    <span class="text-rf-text-secondary font-sans">{{ c.description || '-' }}</span>
+                    <span class="text-fb-text-secondary font-sans">{{ c.description || '-' }}</span>
                   </div>
 
                   <div class="flex items-center gap-2.5">
-                    <span class="font-bold text-rf-text-primary">
+                    <span class="font-bold text-fb-text-primary">
                       {{ c.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                     </span>
                     <button
                       type="button"
                       (click)="onDeleteCost(c.id!)"
-                      class="p-1 text-rf-text-muted hover:text-rose-400 transition cursor-pointer"
+                      class="p-1 text-fb-text-muted hover:text-rose-400 transition cursor-pointer"
                     >
                       <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
                     </button>
@@ -525,16 +525,16 @@
               }
             </div>
           } @else {
-            <p class="text-xs text-rf-text-muted">Keine artikelbezogenen Zusatzkosten erfasst.</p>
+            <p class="text-xs text-fb-text-muted">Keine artikelbezogenen Zusatzkosten erfasst.</p>
           }
         </div>
       </div>
 
       <!-- Right Column: Activity History (5 cols) -->
       <div class="lg:col-span-5 linear-surface rounded-xl p-4 space-y-3">
-        <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
+        <div class="flex items-center gap-2 pb-2 border-b border-fb-border">
           <svg [lucideIcon]="historyIcon" class="w-4 h-4 text-indigo-400"></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
             Aktivitäts-Historie (Kapitel 11)
           </h2>
         </div>
@@ -545,18 +545,18 @@
               <div class="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0"></div>
               <div class="flex-1">
                 <div class="flex items-center justify-between">
-                  <strong class="text-rf-text-secondary font-semibold">{{ log.action }}</strong>
-                  <span class="text-[10px] font-mono text-rf-text-muted">{{
+                  <strong class="text-fb-text-secondary font-semibold">{{ log.action }}</strong>
+                  <span class="text-[10px] font-mono text-fb-text-muted">{{
                     log.created_at | date: 'dd.MM.yy HH:mm'
                   }}</span>
                 </div>
                 @if (log.notes) {
-                  <p class="text-rf-text-secondary text-[11px] mt-0.5">{{ log.notes }}</p>
+                  <p class="text-fb-text-secondary text-[11px] mt-0.5">{{ log.notes }}</p>
                 }
               </div>
             </div>
           } @empty {
-            <p class="text-xs text-rf-text-muted">Noch keine Aktivitäten protokolliert.</p>
+            <p class="text-xs text-fb-text-muted">Noch keine Aktivitäten protokolliert.</p>
           }
         </div>
       </div>
@@ -576,7 +576,7 @@
         <button
           type="button"
           (click)="previewModalUrl.set(null)"
-          class="absolute -top-10 right-0 p-1.5 rounded-full bg-white/10 text-rf-text-primary hover:bg-white/20 transition cursor-pointer"
+          class="absolute -top-10 right-0 p-1.5 rounded-full bg-white/10 text-fb-text-primary hover:bg-white/20 transition cursor-pointer"
         >
           <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
         </button>

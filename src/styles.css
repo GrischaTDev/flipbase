@@ -14,199 +14,199 @@
    Das dunkle Design sieht also unveraendert aus.
 
    Der oeffentliche Shop (/shop) hat ein eigenes, dauerhaft helles
-   Kundendesign und wird ueber .rf-palette-fixed vom Umschalter ausgenommen.
+   Kundendesign und wird ueber .fb-palette-fixed vom Umschalter ausgenommen.
    ========================================================================== */
 
 :root {
   /* 1. Hintergruende */
-  --rf-bg-app: #f4f5f7; /* Haupt-Hintergrund der gesamten App */
-  --rf-bg-sidebar: #ffffff; /* Hintergrund der Sidebar */
-  --rf-bg-header: #ffffff; /* Hintergrund des Headers */
-  --rf-bg-surface: #ffffff; /* Hintergrund von Kacheln & Karten */
-  --rf-bg-surface-hover: #eef0f4; /* Hover-Hintergrund fuer Karten & Tabellenzeilen */
-  --rf-bg-subtle: #f7f8fa; /* Hintergrund fuer Eingabefelder, Dropdowns & Wells */
-  --rf-bg-surface-alt: #fbfcfd; /* Leicht abgesetzte Flaeche innerhalb von Karten */
-  --rf-bg-well: #eef1f5; /* Tabellenkoepfe und eingelassene Bereiche */
+  --fb-bg-app: #f4f5f7; /* Haupt-Hintergrund der gesamten App */
+  --fb-bg-sidebar: #ffffff; /* Hintergrund der Sidebar */
+  --fb-bg-header: #ffffff; /* Hintergrund des Headers */
+  --fb-bg-surface: #ffffff; /* Hintergrund von Kacheln & Karten */
+  --fb-bg-surface-hover: #eef0f4; /* Hover-Hintergrund fuer Karten & Tabellenzeilen */
+  --fb-bg-subtle: #f7f8fa; /* Hintergrund fuer Eingabefelder, Dropdowns & Wells */
+  --fb-bg-surface-alt: #fbfcfd; /* Leicht abgesetzte Flaeche innerhalb von Karten */
+  --fb-bg-well: #eef1f5; /* Tabellenkoepfe und eingelassene Bereiche */
 
   /* 2. Rahmen & Linien */
-  --rf-border: #d9dde5; /* Standard-Rahmen fuer Karten & Tabellen */
-  --rf-border-subtle: #e8ebf0; /* Dezentere Trennlinie fuer Sidebar/Header */
-  --rf-border-hover: #b4bcca; /* Rahmen bei Mauszeiger-Hover */
-  --rf-border-focus: #4f46e5; /* Rahmen bei Tastatur-Fokus / Eingabe */
-  --rf-line: #e2e6ec; /* Trennlinien innerhalb von Karten & Tabellen */
-  --rf-line-strong: #c7cdd8; /* Kraeftigere Trennlinie */
+  --fb-border: #d9dde5; /* Standard-Rahmen fuer Karten & Tabellen */
+  --fb-border-subtle: #e8ebf0; /* Dezentere Trennlinie fuer Sidebar/Header */
+  --fb-border-hover: #b4bcca; /* Rahmen bei Mauszeiger-Hover */
+  --fb-border-focus: #4f46e5; /* Rahmen bei Tastatur-Fokus / Eingabe */
+  --fb-line: #e2e6ec; /* Trennlinien innerhalb von Karten & Tabellen */
+  --fb-line-strong: #c7cdd8; /* Kraeftigere Trennlinie */
 
   /* 3. Textfarben */
-  --rf-text-primary: #111827; /* Hauptueberschriften, Geldbetraege, wichtige Zahlen */
-  --rf-text-secondary: #374151; /* Fliesstext, Tabellenspalten, Formular-Labels */
-  --rf-text-muted: #596273; /* Beschreibungen, Einheiten, Zeitstempel */
-  --rf-text-dimmed: #6b7280; /* Platzhalter, inaktive Elemente */
-  --rf-text-on-accent: #ffffff; /* Text auf farbigen Flaechen (Buttons, Badges) */
+  --fb-text-primary: #111827; /* Hauptueberschriften, Geldbetraege, wichtige Zahlen */
+  --fb-text-secondary: #374151; /* Fliesstext, Tabellenspalten, Formular-Labels */
+  --fb-text-muted: #596273; /* Beschreibungen, Einheiten, Zeitstempel */
+  --fb-text-dimmed: #6b7280; /* Platzhalter, inaktive Elemente */
+  --fb-text-on-accent: #ffffff; /* Text auf farbigen Flaechen (Buttons, Badges) */
 
   /* 4. Primaer-Aktionen */
-  --rf-primary: #4f46e5;
-  --rf-primary-hover: #4338ca;
-  --rf-primary-subtle: rgba(79, 70, 229, 0.1);
-  --rf-primary-border: rgba(79, 70, 229, 0.25);
+  --fb-primary: #4f46e5;
+  --fb-primary-hover: #4338ca;
+  --fb-primary-subtle: rgba(79, 70, 229, 0.1);
+  --fb-primary-border: rgba(79, 70, 229, 0.25);
 
   /* 5. Finanz- & Statusfarben */
-  --rf-profit: #047857;
-  --rf-profit-subtle: rgba(4, 120, 87, 0.1);
-  --rf-profit-border: rgba(4, 120, 87, 0.25);
+  --fb-profit: #047857;
+  --fb-profit-subtle: rgba(4, 120, 87, 0.1);
+  --fb-profit-border: rgba(4, 120, 87, 0.25);
 
-  --rf-accent-amber: #b45309;
-  --rf-accent-amber-subtle: rgba(180, 83, 9, 0.1);
-  --rf-accent-amber-border: rgba(180, 83, 9, 0.25);
+  --fb-accent-amber: #b45309;
+  --fb-accent-amber-subtle: rgba(180, 83, 9, 0.1);
+  --fb-accent-amber-border: rgba(180, 83, 9, 0.25);
 
-  --rf-accent-blue: #1d4ed8;
-  --rf-accent-blue-subtle: rgba(29, 78, 216, 0.1);
-  --rf-accent-blue-border: rgba(29, 78, 216, 0.25);
+  --fb-accent-blue: #1d4ed8;
+  --fb-accent-blue-subtle: rgba(29, 78, 216, 0.1);
+  --fb-accent-blue-border: rgba(29, 78, 216, 0.25);
 
-  --rf-accent-purple: #7e22ce;
-  --rf-accent-purple-subtle: rgba(126, 34, 206, 0.1);
-  --rf-accent-purple-border: rgba(126, 34, 206, 0.25);
+  --fb-accent-purple: #7e22ce;
+  --fb-accent-purple-subtle: rgba(126, 34, 206, 0.1);
+  --fb-accent-purple-border: rgba(126, 34, 206, 0.25);
 
-  --rf-accent-rose: #be123c;
-  --rf-accent-rose-subtle: rgba(190, 18, 60, 0.1);
-  --rf-accent-rose-border: rgba(190, 18, 60, 0.25);
+  --fb-accent-rose: #be123c;
+  --fb-accent-rose-subtle: rgba(190, 18, 60, 0.1);
+  --fb-accent-rose-border: rgba(190, 18, 60, 0.25);
 
-  --rf-accent-indigo: #4338ca;
-  --rf-accent-indigo-subtle: rgba(67, 56, 202, 0.1);
-  --rf-accent-indigo-border: rgba(67, 56, 202, 0.25);
+  --fb-accent-indigo: #4338ca;
+  --fb-accent-indigo-subtle: rgba(67, 56, 202, 0.1);
+  --fb-accent-indigo-border: rgba(67, 56, 202, 0.25);
 
   /* 6. Schatten – im hellen Design deutlich zurueckhaltender */
-  --rf-shadow-sm: 0 1px 2px 0 rgba(16, 24, 40, 0.05);
-  --rf-shadow-md: 0 1px 3px 0 rgba(16, 24, 40, 0.08);
-  --rf-shadow-lg: 0 4px 10px -2px rgba(16, 24, 40, 0.1);
+  --fb-shadow-sm: 0 1px 2px 0 rgba(16, 24, 40, 0.05);
+  --fb-shadow-md: 0 1px 3px 0 rgba(16, 24, 40, 0.08);
+  --fb-shadow-lg: 0 4px 10px -2px rgba(16, 24, 40, 0.1);
 
   /* 7. Akzent-Textfarben
      Diese Werte ersetzen die gleichnamigen Tailwind-Farben (siehe @theme).
      Im hellen Design werden sie abgedunkelt, damit sie auf weissem Grund
      die WCAG-AA-Mindestanforderung von 4.5:1 erfuellen. Die hellen
      Originaltoene haetten dort nur rund 2:1. */
-  --rf-c-emerald-300: #065f46;
-  --rf-c-emerald-400: #047857;
-  --rf-c-indigo-300: #3730a3;
-  --rf-c-indigo-400: #4338ca;
-  --rf-c-amber-300: #92400e;
-  --rf-c-amber-400: #b45309;
-  --rf-c-rose-300: #9f1239;
-  --rf-c-rose-400: #be123c;
-  --rf-c-purple-300: #6b21a8;
-  --rf-c-purple-400: #7e22ce;
-  --rf-c-blue-300: #1e40af;
-  --rf-c-blue-400: #1d4ed8;
-  --rf-c-cyan-300: #155e75;
-  --rf-c-yellow-400: #a16207;
+  --fb-c-emerald-300: #065f46;
+  --fb-c-emerald-400: #047857;
+  --fb-c-indigo-300: #3730a3;
+  --fb-c-indigo-400: #4338ca;
+  --fb-c-amber-300: #92400e;
+  --fb-c-amber-400: #b45309;
+  --fb-c-rose-300: #9f1239;
+  --fb-c-rose-400: #be123c;
+  --fb-c-purple-300: #6b21a8;
+  --fb-c-purple-400: #7e22ce;
+  --fb-c-blue-300: #1e40af;
+  --fb-c-blue-400: #1d4ed8;
+  --fb-c-cyan-300: #155e75;
+  --fb-c-yellow-400: #a16207;
 
   /* Helle Akzenttoene, die nur auf farbigem Grund vorkommen – dort bleiben
      sie hell, damit der Kontrast erhalten bleibt. */
-  --rf-c-emerald-100: #d1fae5;
-  --rf-c-indigo-200: #c7d2fe;
-  --rf-c-amber-200: #fde68a;
+  --fb-c-emerald-100: #d1fae5;
+  --fb-c-indigo-200: #c7d2fe;
+  --fb-c-amber-200: #fde68a;
 }
 
 html.dark {
   /* 1. Hintergruende (Anthrazit / Slate) */
-  --rf-bg-app: #282c37;
-  --rf-bg-sidebar: #21252f;
-  --rf-bg-header: #282c37;
-  --rf-bg-surface: #323846;
-  --rf-bg-surface-hover: #3d4454;
-  --rf-bg-subtle: #20242e;
-  --rf-bg-surface-alt: #2c323f;
-  --rf-bg-well: #1e222a;
+  --fb-bg-app: #282c37;
+  --fb-bg-sidebar: #21252f;
+  --fb-bg-header: #282c37;
+  --fb-bg-surface: #323846;
+  --fb-bg-surface-hover: #3d4454;
+  --fb-bg-subtle: #20242e;
+  --fb-bg-surface-alt: #2c323f;
+  --fb-bg-well: #1e222a;
 
   /* 2. Rahmen & Linien */
-  --rf-border: #444c5c;
-  --rf-border-subtle: #363c4a;
-  --rf-border-hover: #586276;
-  --rf-border-focus: #6366f1;
-  --rf-line: #373e4d;
-  --rf-line-strong: #4a5468;
+  --fb-border: #444c5c;
+  --fb-border-subtle: #363c4a;
+  --fb-border-hover: #586276;
+  --fb-border-focus: #6366f1;
+  --fb-line: #373e4d;
+  --fb-line-strong: #4a5468;
 
   /* 3. Textfarben */
-  --rf-text-primary: #ffffff;
-  --rf-text-secondary: #d1d5db;
-  --rf-text-muted: #9ca3af;
-  --rf-text-dimmed: #6b7280;
-  --rf-text-on-accent: #ffffff;
+  --fb-text-primary: #ffffff;
+  --fb-text-secondary: #d1d5db;
+  --fb-text-muted: #9ca3af;
+  --fb-text-dimmed: #6b7280;
+  --fb-text-on-accent: #ffffff;
 
   /* 4. Primaer-Aktionen (Electric Indigo) */
-  --rf-primary: #6366f1;
-  --rf-primary-hover: #4f46e5;
-  --rf-primary-subtle: rgba(99, 102, 241, 0.15);
-  --rf-primary-border: rgba(99, 102, 241, 0.3);
+  --fb-primary: #6366f1;
+  --fb-primary-hover: #4f46e5;
+  --fb-primary-subtle: rgba(99, 102, 241, 0.15);
+  --fb-primary-border: rgba(99, 102, 241, 0.3);
 
   /* 5. Finanz- & Statusfarben */
-  --rf-profit: #10b981;
-  --rf-profit-subtle: rgba(16, 185, 129, 0.15);
-  --rf-profit-border: rgba(16, 185, 129, 0.3);
+  --fb-profit: #10b981;
+  --fb-profit-subtle: rgba(16, 185, 129, 0.15);
+  --fb-profit-border: rgba(16, 185, 129, 0.3);
 
-  --rf-accent-amber: #f59e0b;
-  --rf-accent-amber-subtle: rgba(245, 158, 11, 0.15);
-  --rf-accent-amber-border: rgba(245, 158, 11, 0.3);
+  --fb-accent-amber: #f59e0b;
+  --fb-accent-amber-subtle: rgba(245, 158, 11, 0.15);
+  --fb-accent-amber-border: rgba(245, 158, 11, 0.3);
 
-  --rf-accent-blue: #38bdf8;
-  --rf-accent-blue-subtle: rgba(56, 189, 248, 0.15);
-  --rf-accent-blue-border: rgba(56, 189, 248, 0.3);
+  --fb-accent-blue: #38bdf8;
+  --fb-accent-blue-subtle: rgba(56, 189, 248, 0.15);
+  --fb-accent-blue-border: rgba(56, 189, 248, 0.3);
 
-  --rf-accent-purple: #a855f7;
-  --rf-accent-purple-subtle: rgba(168, 85, 247, 0.15);
-  --rf-accent-purple-border: rgba(168, 85, 247, 0.3);
+  --fb-accent-purple: #a855f7;
+  --fb-accent-purple-subtle: rgba(168, 85, 247, 0.15);
+  --fb-accent-purple-border: rgba(168, 85, 247, 0.3);
 
-  --rf-accent-rose: #f43f5e;
-  --rf-accent-rose-subtle: rgba(244, 63, 94, 0.15);
-  --rf-accent-rose-border: rgba(244, 63, 94, 0.3);
+  --fb-accent-rose: #f43f5e;
+  --fb-accent-rose-subtle: rgba(244, 63, 94, 0.15);
+  --fb-accent-rose-border: rgba(244, 63, 94, 0.3);
 
-  --rf-accent-indigo: #818cf8;
-  --rf-accent-indigo-subtle: rgba(129, 140, 248, 0.15);
-  --rf-accent-indigo-border: rgba(129, 140, 248, 0.3);
+  --fb-accent-indigo: #818cf8;
+  --fb-accent-indigo-subtle: rgba(129, 140, 248, 0.15);
+  --fb-accent-indigo-border: rgba(129, 140, 248, 0.3);
 
   /* 6. Schatten */
-  --rf-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-  --rf-shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
-  --rf-shadow-lg: 0 4px 10px -2px rgba(0, 0, 0, 0.25);
+  --fb-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --fb-shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
+  --fb-shadow-lg: 0 4px 10px -2px rgba(0, 0, 0, 0.25);
 
   /* 7. Akzent-Textfarben – hier die Original-Tailwind-Toene */
-  --rf-c-emerald-300: #6ee7b7;
-  --rf-c-emerald-400: #34d399;
-  --rf-c-indigo-300: #a5b4fc;
-  --rf-c-indigo-400: #818cf8;
-  --rf-c-amber-300: #fcd34d;
-  --rf-c-amber-400: #fbbf24;
-  --rf-c-rose-300: #fda4af;
-  --rf-c-rose-400: #fb7185;
-  --rf-c-purple-300: #d8b4fe;
-  --rf-c-purple-400: #c084fc;
-  --rf-c-blue-300: #93c5fd;
-  --rf-c-blue-400: #60a5fa;
-  --rf-c-cyan-300: #67e8f9;
-  --rf-c-yellow-400: #facc15;
+  --fb-c-emerald-300: #6ee7b7;
+  --fb-c-emerald-400: #34d399;
+  --fb-c-indigo-300: #a5b4fc;
+  --fb-c-indigo-400: #818cf8;
+  --fb-c-amber-300: #fcd34d;
+  --fb-c-amber-400: #fbbf24;
+  --fb-c-rose-300: #fda4af;
+  --fb-c-rose-400: #fb7185;
+  --fb-c-purple-300: #d8b4fe;
+  --fb-c-purple-400: #c084fc;
+  --fb-c-blue-300: #93c5fd;
+  --fb-c-blue-400: #60a5fa;
+  --fb-c-cyan-300: #67e8f9;
+  --fb-c-yellow-400: #facc15;
 
-  --rf-c-emerald-100: #d1fae5;
-  --rf-c-indigo-200: #c7d2fe;
-  --rf-c-amber-200: #fde68a;
+  --fb-c-emerald-100: #d1fae5;
+  --fb-c-indigo-200: #c7d2fe;
+  --fb-c-amber-200: #fde68a;
 }
 
 /* Der oeffentliche Shop ist dauerhaft hell gestaltet, verwendet aber dunkle
    Leisten mit hellen Akzenttoenen. Er bleibt deshalb vom Umschalter
    unberuehrt und behaelt immer die urspruenglichen Tailwind-Farben. */
-.rf-palette-fixed {
-  --rf-c-emerald-300: #6ee7b7;
-  --rf-c-emerald-400: #34d399;
-  --rf-c-indigo-300: #a5b4fc;
-  --rf-c-indigo-400: #818cf8;
-  --rf-c-amber-300: #fcd34d;
-  --rf-c-amber-400: #fbbf24;
-  --rf-c-rose-300: #fda4af;
-  --rf-c-rose-400: #fb7185;
-  --rf-c-purple-300: #d8b4fe;
-  --rf-c-purple-400: #c084fc;
-  --rf-c-blue-300: #93c5fd;
-  --rf-c-blue-400: #60a5fa;
-  --rf-c-cyan-300: #67e8f9;
-  --rf-c-yellow-400: #facc15;
+.fb-palette-fixed {
+  --fb-c-emerald-300: #6ee7b7;
+  --fb-c-emerald-400: #34d399;
+  --fb-c-indigo-300: #a5b4fc;
+  --fb-c-indigo-400: #818cf8;
+  --fb-c-amber-300: #fcd34d;
+  --fb-c-amber-400: #fbbf24;
+  --fb-c-rose-300: #fda4af;
+  --fb-c-rose-400: #fb7185;
+  --fb-c-purple-300: #d8b4fe;
+  --fb-c-purple-400: #c084fc;
+  --fb-c-blue-300: #93c5fd;
+  --fb-c-blue-400: #60a5fa;
+  --fb-c-cyan-300: #67e8f9;
+  --fb-c-yellow-400: #facc15;
 }
 
 @theme {
@@ -215,60 +215,60 @@ html.dark {
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Eigene Design-Tokens */
-  --color-rf-bg: var(--rf-bg-app);
-  --color-rf-sidebar: var(--rf-bg-sidebar);
-  --color-rf-header: var(--rf-bg-header);
-  --color-rf-surface: var(--rf-bg-surface);
-  --color-rf-surface-hover: var(--rf-bg-surface-hover);
-  --color-rf-surface-alt: var(--rf-bg-surface-alt);
-  --color-rf-subtle: var(--rf-bg-subtle);
-  --color-rf-well: var(--rf-bg-well);
+  --color-fb-bg: var(--fb-bg-app);
+  --color-fb-sidebar: var(--fb-bg-sidebar);
+  --color-fb-header: var(--fb-bg-header);
+  --color-fb-surface: var(--fb-bg-surface);
+  --color-fb-surface-hover: var(--fb-bg-surface-hover);
+  --color-fb-surface-alt: var(--fb-bg-surface-alt);
+  --color-fb-subtle: var(--fb-bg-subtle);
+  --color-fb-well: var(--fb-bg-well);
 
-  --color-rf-border: var(--rf-border);
-  --color-rf-border-subtle: var(--rf-border-subtle);
-  --color-rf-border-hover: var(--rf-border-hover);
-  --color-rf-line: var(--rf-line);
-  --color-rf-line-strong: var(--rf-line-strong);
+  --color-fb-border: var(--fb-border);
+  --color-fb-border-subtle: var(--fb-border-subtle);
+  --color-fb-border-hover: var(--fb-border-hover);
+  --color-fb-line: var(--fb-line);
+  --color-fb-line-strong: var(--fb-line-strong);
 
-  --color-rf-text-primary: var(--rf-text-primary);
-  --color-rf-text-secondary: var(--rf-text-secondary);
-  --color-rf-text-muted: var(--rf-text-muted);
-  --color-rf-text-dimmed: var(--rf-text-dimmed);
-  --color-rf-on-accent: var(--rf-text-on-accent);
+  --color-fb-text-primary: var(--fb-text-primary);
+  --color-fb-text-secondary: var(--fb-text-secondary);
+  --color-fb-text-muted: var(--fb-text-muted);
+  --color-fb-text-dimmed: var(--fb-text-dimmed);
+  --color-fb-on-accent: var(--fb-text-on-accent);
 
-  --color-rf-primary: var(--rf-primary);
-  --color-rf-primary-hover: var(--rf-primary-hover);
-  --color-rf-profit: var(--rf-profit);
+  --color-fb-primary: var(--fb-primary);
+  --color-fb-primary-hover: var(--fb-primary-hover);
+  --color-fb-profit: var(--fb-profit);
 
   /* Die Akzentfarben von Tailwind werden auf themenabhaengige Variablen
      umgebogen. Dadurch passen sich rund 480 bereits vorhandene Klassen wie
      text-emerald-400 automatisch an das Design an, ohne dass die Templates
      angefasst werden muessen. */
-  --color-emerald-100: var(--rf-c-emerald-100);
-  --color-emerald-300: var(--rf-c-emerald-300);
-  --color-emerald-400: var(--rf-c-emerald-400);
-  --color-indigo-200: var(--rf-c-indigo-200);
-  --color-indigo-300: var(--rf-c-indigo-300);
-  --color-indigo-400: var(--rf-c-indigo-400);
-  --color-amber-200: var(--rf-c-amber-200);
-  --color-amber-300: var(--rf-c-amber-300);
-  --color-amber-400: var(--rf-c-amber-400);
-  --color-rose-300: var(--rf-c-rose-300);
-  --color-rose-400: var(--rf-c-rose-400);
-  --color-purple-300: var(--rf-c-purple-300);
-  --color-purple-400: var(--rf-c-purple-400);
-  --color-blue-300: var(--rf-c-blue-300);
-  --color-blue-400: var(--rf-c-blue-400);
-  --color-cyan-300: var(--rf-c-cyan-300);
-  --color-yellow-400: var(--rf-c-yellow-400);
+  --color-emerald-100: var(--fb-c-emerald-100);
+  --color-emerald-300: var(--fb-c-emerald-300);
+  --color-emerald-400: var(--fb-c-emerald-400);
+  --color-indigo-200: var(--fb-c-indigo-200);
+  --color-indigo-300: var(--fb-c-indigo-300);
+  --color-indigo-400: var(--fb-c-indigo-400);
+  --color-amber-200: var(--fb-c-amber-200);
+  --color-amber-300: var(--fb-c-amber-300);
+  --color-amber-400: var(--fb-c-amber-400);
+  --color-rose-300: var(--fb-c-rose-300);
+  --color-rose-400: var(--fb-c-rose-400);
+  --color-purple-300: var(--fb-c-purple-300);
+  --color-purple-400: var(--fb-c-purple-400);
+  --color-blue-300: var(--fb-c-blue-300);
+  --color-blue-400: var(--fb-c-blue-400);
+  --color-cyan-300: var(--fb-c-cyan-300);
+  --color-yellow-400: var(--fb-c-yellow-400);
 }
 
 @layer base {
   html,
   body {
     font-family: var(--font-sans);
-    background-color: var(--rf-bg-app);
-    color: var(--rf-text-secondary);
+    background-color: var(--fb-bg-app);
+    color: var(--fb-text-secondary);
     height: 100%;
     margin: 0;
     padding: 0;
@@ -280,27 +280,27 @@ html.dark {
      Gilt fuer alle bedienbaren Elemente und nur bei Tastatur-Fokus,
      damit Mausklicks keinen Rahmen hinterlassen. */
   :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
-    outline: 2px solid var(--rf-border-focus);
+    outline: 2px solid var(--fb-border-focus);
     outline-offset: 2px;
     border-radius: 4px;
   }
 
   /* Sprunglink zum Hauptinhalt – nur sichtbar, wenn er den Fokus hat. */
-  .rf-skip-link {
+  .fb-skip-link {
     position: absolute;
     left: 0.75rem;
     top: -3rem;
     z-index: 100;
     padding: 0.5rem 1rem;
     border-radius: 0.5rem;
-    background-color: var(--rf-primary);
-    color: var(--rf-text-on-accent);
+    background-color: var(--fb-primary);
+    color: var(--fb-text-on-accent);
     font-size: 0.75rem;
     font-weight: 700;
     transition: top 0.15s ease;
   }
 
-  .rf-skip-link:focus {
+  .fb-skip-link:focus {
     top: 0.75rem;
   }
 
@@ -313,45 +313,45 @@ html.dark {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--rf-border);
+    background: var(--fb-border);
     border-radius: 9999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: var(--rf-border-hover);
+    background: var(--fb-border-hover);
   }
 }
 
 /* UI-Hilfsklassen, gebunden an die zentralen Variablen */
 .linear-surface {
-  background-color: var(--rf-bg-surface);
-  border: 1px solid var(--rf-border);
-  box-shadow: var(--rf-shadow-md);
+  background-color: var(--fb-bg-surface);
+  border: 1px solid var(--fb-border);
+  box-shadow: var(--fb-shadow-md);
 }
 
 .linear-card {
-  background: linear-gradient(180deg, var(--rf-bg-surface) 0%, var(--rf-bg-subtle) 100%);
-  border: 1px solid var(--rf-border);
-  box-shadow: var(--rf-shadow-md);
+  background: linear-gradient(180deg, var(--fb-bg-surface) 0%, var(--fb-bg-subtle) 100%);
+  border: 1px solid var(--fb-border);
+  box-shadow: var(--fb-shadow-md);
 }
 
 .linear-card-interactive {
-  background: linear-gradient(180deg, var(--rf-bg-surface) 0%, var(--rf-bg-subtle) 100%);
-  border: 1px solid var(--rf-border);
-  box-shadow: var(--rf-shadow-md);
+  background: linear-gradient(180deg, var(--fb-bg-surface) 0%, var(--fb-bg-subtle) 100%);
+  border: 1px solid var(--fb-border);
+  box-shadow: var(--fb-shadow-md);
   transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .linear-card-interactive:hover {
-  background: linear-gradient(180deg, var(--rf-bg-surface-hover) 0%, var(--rf-bg-surface) 100%);
-  border-color: var(--rf-border-hover);
-  box-shadow: var(--rf-shadow-lg);
+  background: linear-gradient(180deg, var(--fb-bg-surface-hover) 0%, var(--fb-bg-surface) 100%);
+  border-color: var(--fb-border-hover);
+  box-shadow: var(--fb-shadow-lg);
   transform: translateY(-1px);
 }
 
 .linear-kpi {
-  background: linear-gradient(180deg, var(--rf-bg-surface) 0%, var(--rf-bg-subtle) 100%);
-  border: 1px solid var(--rf-border);
-  box-shadow: var(--rf-shadow-md);
+  background: linear-gradient(180deg, var(--fb-bg-surface) 0%, var(--fb-bg-subtle) 100%);
+  border: 1px solid var(--fb-border);
+  box-shadow: var(--fb-shadow-md);
   position: relative;
   overflow: hidden;
 }
@@ -373,52 +373,52 @@ html.dark .linear-kpi::before {
 }
 
 .linear-input {
-  background-color: var(--rf-bg-subtle);
-  border: 1px solid var(--rf-border);
-  color: var(--rf-text-primary);
+  background-color: var(--fb-bg-subtle);
+  border: 1px solid var(--fb-border);
+  color: var(--fb-text-primary);
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
 }
 
 .linear-input::placeholder {
-  color: var(--rf-text-dimmed);
+  color: var(--fb-text-dimmed);
 }
 
 .linear-input:focus {
   outline: none;
-  border-color: var(--rf-border-focus);
-  box-shadow: 0 0 0 2px var(--rf-primary-subtle);
+  border-color: var(--fb-border-focus);
+  box-shadow: 0 0 0 2px var(--fb-primary-subtle);
 }
 
 .linear-btn-primary {
-  background: linear-gradient(180deg, var(--rf-primary) 0%, var(--rf-primary-hover) 100%);
-  color: var(--rf-text-on-accent);
+  background: linear-gradient(180deg, var(--fb-primary) 0%, var(--fb-primary-hover) 100%);
+  color: var(--fb-text-on-accent);
   border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow:
-    var(--rf-shadow-md),
+    var(--fb-shadow-md),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition: all 0.15s ease;
 }
 
 .linear-btn-primary:hover {
-  background: linear-gradient(180deg, var(--rf-accent-indigo) 0%, var(--rf-primary) 100%);
+  background: linear-gradient(180deg, var(--fb-accent-indigo) 0%, var(--fb-primary) 100%);
   box-shadow:
-    0 3px 8px var(--rf-primary-border),
+    0 3px 8px var(--fb-primary-border),
     inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .linear-btn-secondary {
-  background-color: var(--rf-bg-surface-hover);
-  border: 1px solid var(--rf-border);
-  color: var(--rf-text-secondary);
+  background-color: var(--fb-bg-surface-hover);
+  border: 1px solid var(--fb-border);
+  color: var(--fb-text-secondary);
   transition: all 0.15s ease;
 }
 
 .linear-btn-secondary:hover {
-  background-color: var(--rf-border-hover);
-  border-color: var(--rf-border-hover);
-  color: var(--rf-text-primary);
+  background-color: var(--fb-border-hover);
+  border-color: var(--fb-border-hover);
+  color: var(--fb-text-primary);
 }
 
 /* Kacheln und Kennzahlen.
@@ -426,10 +426,10 @@ html.dark .linear-kpi::before {
    definiert - die betroffenen Elemente hatten dadurch weder Hintergrund
    noch Textfarbe. */
 .card {
-  background-color: var(--rf-bg-surface);
-  border: 1px solid var(--rf-border);
+  background-color: var(--fb-bg-surface);
+  border: 1px solid var(--fb-border);
   border-radius: 1rem;
-  box-shadow: var(--rf-shadow-md);
+  box-shadow: var(--fb-shadow-md);
 }
 
 .kpi-label {
@@ -438,14 +438,14 @@ html.dark .linear-kpi::before {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--rf-text-muted);
+  color: var(--fb-text-muted);
 }
 
 .kpi-value {
   font-size: 1.25rem;
   font-weight: 700;
   line-height: 1.75rem;
-  color: var(--rf-text-primary);
+  color: var(--fb-text-primary);
 }
 
 /* Datentabellen */
@@ -458,9 +458,9 @@ html.dark .linear-kpi::before {
 }
 
 .linear-table thead tr th {
-  background-color: var(--rf-bg-well);
-  border-bottom: 1px solid var(--rf-line);
-  color: var(--rf-text-muted);
+  background-color: var(--fb-bg-well);
+  border-bottom: 1px solid var(--fb-line);
+  color: var(--fb-text-muted);
 }
 
 .linear-table thead tr th:first-child {
@@ -472,7 +472,7 @@ html.dark .linear-kpi::before {
 }
 
 .linear-table tbody tr td {
-  border-bottom: 1px solid var(--rf-line);
+  border-bottom: 1px solid var(--fb-line);
 }
 
 .linear-table tbody tr:last-child td {

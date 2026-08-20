@@ -2,7 +2,7 @@ import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Injector, runInInjectionContext } from '@angular/core';
 import { ReturnService } from './return.service';
-import { InventoryItem, Sale } from '../models/reflip.models';
+import { InventoryItem, Sale } from '../models/flipbase.models';
 
 describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
   let service: ReturnService;

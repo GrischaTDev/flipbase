@@ -1,17 +1,17 @@
-<div class="min-h-screen bg-rf-well flex items-center justify-center p-4 py-8">
+<div class="min-h-screen bg-fb-well flex items-center justify-center p-4 py-8">
   <div
-    class="max-w-md w-full bg-rf-surface-alt border border-rf-border rounded-3xl p-6 sm:p-8 shadow-2xl animate-fade-in"
+    class="max-w-md w-full bg-fb-surface-alt border border-fb-border rounded-3xl p-6 sm:p-8 shadow-2xl animate-fade-in"
   >
     <!-- Logo & Title -->
     <div class="text-center mb-6">
       <div
-        class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-700 text-rf-on-accent mb-3 shadow-lg shadow-emerald-500/20"
+        class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-700 text-fb-on-accent mb-3 shadow-lg shadow-emerald-500/20"
       >
         <svg [lucideIcon]="logoIcon" class="w-6 h-6"></svg>
       </div>
-      <h1 class="text-2xl font-extrabold text-rf-text-primary tracking-tight">Flipbase</h1>
-      <p class="text-xs text-rf-text-muted mt-0.5">Entscheidungs- und Finanzsystem für Reseller</p>
-      <h2 class="text-base font-bold text-rf-text-secondary mt-3">
+      <h1 class="text-2xl font-extrabold text-fb-text-primary tracking-tight">Flipbase</h1>
+      <p class="text-xs text-fb-text-muted mt-0.5">Entscheidungs- und Finanzsystem für Reseller</p>
+      <h2 class="text-base font-bold text-fb-text-secondary mt-3">
         {{ 'AUTH.SIGN_UP_TITLE' | translate }}
       </h2>
     </div>
@@ -42,13 +42,13 @@
       <div>
         <label
           for="regFullName"
-          class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5"
+          class="block text-xs font-semibold uppercase tracking-wider text-fb-text-secondary mb-1.5"
         >
           {{ 'AUTH.FULL_NAME' | translate }}
         </label>
         <div class="relative flex items-center">
           <div
-            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
+            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-fb-text-muted"
           >
             <svg [lucideIcon]="userIcon" class="w-4 h-4"></svg>
           </div>
@@ -58,7 +58,7 @@
             formControlName="fullName"
             placeholder="Max Mustermann"
             autocomplete="name"
-            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-rf-border bg-rf-well text-rf-text-primary placeholder-rf-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition"
+            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition"
           />
         </div>
         @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
@@ -72,13 +72,13 @@
       <div>
         <label
           for="regEmail"
-          class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5"
+          class="block text-xs font-semibold uppercase tracking-wider text-fb-text-secondary mb-1.5"
         >
           {{ 'AUTH.EMAIL' | translate }}
         </label>
         <div class="relative flex items-center">
           <div
-            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
+            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-fb-text-muted"
           >
             <svg [lucideIcon]="mailIcon" class="w-4 h-4"></svg>
           </div>
@@ -88,7 +88,7 @@
             formControlName="email"
             placeholder="deine.email@beispiel.de"
             autocomplete="email"
-            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-rf-border bg-rf-well text-rf-text-primary placeholder-rf-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition"
+            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition"
           />
         </div>
         @if (form.controls.email.touched && form.controls.email.invalid) {
@@ -102,13 +102,13 @@
       <div>
         <label
           for="regPassword"
-          class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5"
+          class="block text-xs font-semibold uppercase tracking-wider text-fb-text-secondary mb-1.5"
         >
           {{ 'AUTH.PASSWORD' | translate }}
         </label>
         <div class="relative flex items-center">
           <div
-            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
+            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-fb-text-muted"
           >
             <svg [lucideIcon]="lockIcon" class="w-4 h-4"></svg>
           </div>
@@ -118,12 +118,12 @@
             formControlName="password"
             placeholder="Mindestens 8 Zeichen"
             autocomplete="new-password"
-            class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-rf-border bg-rf-well text-rf-text-primary placeholder-rf-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition"
+            class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition"
           />
           <button
             type="button"
             (click)="toggleShowPassword()"
-            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-rf-text-muted hover:text-rf-text-primary cursor-pointer transition"
+            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-fb-text-muted hover:text-fb-text-primary cursor-pointer transition"
             [attr.aria-label]="showPassword() ? 'Passwort verbergen' : 'Passwort anzeigen'"
           >
             <svg [lucideIcon]="showPassword() ? eyeOffIcon : eyeIcon" class="w-4 h-4"></svg>
@@ -133,14 +133,14 @@
         <!-- Password Strength Meter -->
         @if (passwordValue().length > 0) {
           <div class="mt-2 space-y-1 animate-fade-in">
-            <div class="w-full bg-rf-border h-1.5 rounded-full overflow-hidden">
+            <div class="w-full bg-fb-border h-1.5 rounded-full overflow-hidden">
               <div
                 class="h-full transition-all duration-300 rounded-full"
                 [class]="passwordStrength().colorClass + ' ' + passwordStrength().widthClass"
               ></div>
             </div>
             <div
-              class="flex items-center justify-between text-[10px] text-rf-text-muted font-medium"
+              class="flex items-center justify-between text-[10px] text-fb-text-muted font-medium"
             >
               <span>Sicherheitsstufe:</span>
               <span
@@ -164,13 +164,13 @@
       <div>
         <label
           for="regConfirmPassword"
-          class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5"
+          class="block text-xs font-semibold uppercase tracking-wider text-fb-text-secondary mb-1.5"
         >
           {{ 'AUTH.PASSWORD_CONFIRM' | translate }}
         </label>
         <div class="relative flex items-center">
           <div
-            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
+            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-fb-text-muted"
           >
             <svg [lucideIcon]="lockIcon" class="w-4 h-4"></svg>
           </div>
@@ -180,14 +180,14 @@
             formControlName="confirmPassword"
             placeholder="Passwort erneut eingeben"
             autocomplete="new-password"
-            class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-rf-border bg-rf-well text-rf-text-primary placeholder-rf-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition"
+            class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition"
             [class.border-rose-500]="isPasswordMismatch"
             [class.border-emerald-500]="isPasswordMatch"
           />
           <button
             type="button"
             (click)="toggleShowConfirmPassword()"
-            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-rf-text-muted hover:text-rf-text-primary cursor-pointer transition"
+            class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-fb-text-muted hover:text-fb-text-primary cursor-pointer transition"
             [attr.aria-label]="showConfirmPassword() ? 'Passwort verbergen' : 'Passwort anzeigen'"
           >
             <svg [lucideIcon]="showConfirmPassword() ? eyeOffIcon : eyeIcon" class="w-4 h-4"></svg>
@@ -217,7 +217,7 @@
             ariaLabel="AGB und Datenschutzerklärung akzeptieren"
             class="mt-0.5 shrink-0"
           ></app-custom-checkbox>
-          <span class="text-xs text-rf-text-muted leading-relaxed cursor-pointer select-none">
+          <span class="text-xs text-fb-text-muted leading-relaxed cursor-pointer select-none">
             {{ 'AUTH.ACCEPT_TERMS' | translate }}
             <a
               href="#"
@@ -247,7 +247,7 @@
       <button
         type="submit"
         [disabled]="form.invalid || isLoading()"
-        class="w-full mt-3 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-rf-on-accent font-bold text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 cursor-pointer"
+        class="w-full mt-3 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-fb-on-accent font-bold text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 cursor-pointer"
       >
         <svg [lucideIcon]="registerIcon" class="w-4 h-4"></svg>
         <span>{{
@@ -257,7 +257,7 @@
     </form>
 
     <!-- Footer Switch to Login -->
-    <div class="mt-6 text-center text-xs text-rf-text-muted border-t border-rf-border pt-4">
+    <div class="mt-6 text-center text-xs text-fb-text-muted border-t border-fb-border pt-4">
       {{ 'AUTH.HAVE_ACCOUNT' | translate }}
       <a routerLink="/auth/login" class="text-emerald-400 font-semibold hover:underline ml-1">
         {{ 'AUTH.LOGIN' | translate }}

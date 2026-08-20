@@ -10,20 +10,20 @@
 
 <!-- Helles Anthrazit Sidebar Container -->
 <aside
-  class="fixed top-0 bottom-0 left-0 z-50 w-60 bg-rf-sidebar border-r border-rf-border-subtle text-rf-text-secondary flex flex-col transition-transform duration-200 ease-out md:translate-x-0 md:static md:z-auto select-none shadow-xl md:shadow-none"
+  class="fixed top-0 bottom-0 left-0 z-50 w-60 bg-fb-sidebar border-r border-fb-border-subtle text-fb-text-secondary flex flex-col transition-transform duration-200 ease-out md:translate-x-0 md:static md:z-auto select-none shadow-xl md:shadow-none"
   [class.translate-x-0]="isOpen()"
   [class.-translate-x-full]="!isOpen()"
 >
   <!-- Brand Logo Header -->
-  <div class="h-14 flex items-center justify-between px-4 border-b border-rf-border-subtle">
+  <div class="h-14 flex items-center justify-between px-4 border-b border-fb-border-subtle">
     <div class="flex items-center gap-2.5">
       <div
         class="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-xs shadow-indigo-500/25"
       >
-        <svg [lucideIcon]="logoIcon" class="w-3.5 h-3.5 text-rf-text-primary stroke-[2.5]"></svg>
+        <svg [lucideIcon]="logoIcon" class="w-3.5 h-3.5 text-fb-text-primary stroke-[2.5]"></svg>
       </div>
       <div class="flex items-center gap-1.5">
-        <span class="tracking-tight font-bold text-sm text-rf-text-primary">Flipbase</span>
+        <span class="tracking-tight font-bold text-sm text-fb-text-primary">Flipbase</span>
         <span
           class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold tracking-wide uppercase bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
         >
@@ -35,7 +35,7 @@
     <button
       type="button"
       (click)="closed.emit()"
-      class="md:hidden p-1 rounded-md text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
+      class="md:hidden p-1 rounded-md text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
     >
       <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
     </button>
@@ -43,58 +43,58 @@
 
   <!-- Navigation Links -->
   <nav class="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5">
-    <div class="px-2 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-wider text-rf-text-muted">
+    <div class="px-2 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
       Übersicht & Store
     </div>
 
     @for (item of navItems.slice(0, 4); track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-indigo-500/15 text-rf-text-primary font-semibold border-indigo-500/40"
+        routerLinkActive="bg-indigo-500/15 text-fb-text-primary font-semibold border-indigo-500/40"
         (click)="closed.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
       >
         <svg
           [lucideIcon]="item.icon"
-          class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-indigo-400 shrink-0"
+          class="w-3.5 h-3.5 text-fb-text-muted group-hover:text-fb-text-primary group-[.font-semibold]:text-indigo-400 shrink-0"
         ></svg>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-rf-text-muted">
+    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
       Werkzeuge & Ertrag
     </div>
 
     @for (item of navItems.slice(4, 9); track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-indigo-500/15 text-rf-text-primary font-semibold border-indigo-500/40"
+        routerLinkActive="bg-indigo-500/15 text-fb-text-primary font-semibold border-indigo-500/40"
         (click)="closed.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
       >
         <svg
           [lucideIcon]="item.icon"
-          class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-indigo-400 shrink-0"
+          class="w-3.5 h-3.5 text-fb-text-muted group-hover:text-fb-text-primary group-[.font-semibold]:text-indigo-400 shrink-0"
         ></svg>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-rf-text-muted">
+    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
       System & Daten
     </div>
 
     @for (item of navItems.slice(9); track item.path) {
       <a
         [routerLink]="item.path"
-        routerLinkActive="bg-indigo-500/15 text-rf-text-primary font-semibold border-indigo-500/40"
+        routerLinkActive="bg-indigo-500/15 text-fb-text-primary font-semibold border-indigo-500/40"
         (click)="closed.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
       >
         <svg
           [lucideIcon]="item.icon"
-          class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-indigo-400 shrink-0"
+          class="w-3.5 h-3.5 text-fb-text-muted group-hover:text-fb-text-primary group-[.font-semibold]:text-indigo-400 shrink-0"
         ></svg>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
@@ -102,13 +102,13 @@
   </nav>
 
   <!-- Footer Info / Version -->
-  <div class="p-3 border-t border-rf-border-subtle text-xs flex items-center justify-between">
+  <div class="p-3 border-t border-fb-border-subtle text-xs flex items-center justify-between">
     <div class="flex items-center gap-1.5">
       <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
-      <span class="text-[11px] text-rf-text-muted font-medium">Flipbase Core</span>
+      <span class="text-[11px] text-fb-text-muted font-medium">Flipbase Core</span>
     </div>
     <span
-      class="px-1.5 py-0.2 rounded bg-rf-surface text-rf-text-secondary border border-rf-border font-mono text-[10px]"
+      class="px-1.5 py-0.2 rounded bg-fb-surface text-fb-text-secondary border border-fb-border font-mono text-[10px]"
     >
       v0.1
     </span>

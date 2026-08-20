@@ -6,10 +6,10 @@
   (dialogClose)="closed.emit()"
 >
   <div
-    class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-5 border border-rf-border flex flex-col space-y-4 animate-modal-card"
+    class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-5 border border-fb-border flex flex-col space-y-4 animate-modal-card"
   >
     <!-- Header -->
-    <div class="flex items-center justify-between pb-3 border-b border-rf-border">
+    <div class="flex items-center justify-between pb-3 border-b border-fb-border">
       <div class="flex items-center gap-2">
         <div
           class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
@@ -17,15 +17,15 @@
           <svg [lucideIcon]="cameraIcon" class="w-4 h-4"></svg>
         </div>
         <div>
-          <h2 class="text-sm font-bold text-rf-text-primary">Barcode & EAN scannen</h2>
-          <p class="text-[11px] text-rf-text-muted">Kamera auf Barcode halten</p>
+          <h2 class="text-sm font-bold text-fb-text-primary">Barcode & EAN scannen</h2>
+          <p class="text-[11px] text-fb-text-muted">Kamera auf Barcode halten</p>
         </div>
       </div>
 
       <button
         type="button"
         (click)="closed.emit()"
-        class="p-1 rounded-md text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover transition cursor-pointer"
+        class="p-1 rounded-md text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
       >
         <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
       </button>
@@ -43,7 +43,7 @@
 
     <!-- Camera Viewfinder Container -->
     <div
-      class="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-black flex items-center justify-center border border-rf-border"
+      class="relative w-full aspect-[4/3] rounded-xl overflow-hidden bg-black flex items-center justify-center border border-fb-border"
     >
       <video #videoElement playsinline autoplay muted class="w-full h-full object-cover"></video>
 
@@ -76,9 +76,9 @@
       <!-- Success Flash Overlay -->
       @if (scannedResult()) {
         <div
-          class="absolute inset-0 bg-emerald-500/40 backdrop-blur-sm flex flex-col items-center justify-center gap-2 animate-fade-in text-rf-text-primary font-bold"
+          class="absolute inset-0 bg-emerald-500/40 backdrop-blur-sm flex flex-col items-center justify-center gap-2 animate-fade-in text-fb-text-primary font-bold"
         >
-          <svg [lucideIcon]="checkIcon" class="w-10 h-10 text-rf-text-primary animate-bounce"></svg>
+          <svg [lucideIcon]="checkIcon" class="w-10 h-10 text-fb-text-primary animate-bounce"></svg>
           <span class="text-sm font-mono">{{ scannedResult() }}</span>
           <span class="text-xs text-emerald-100 font-sans">Erfolgreich erkannt!</span>
         </div>
@@ -90,7 +90,7 @@
           <button
             type="button"
             (click)="toggleTorch()"
-            class="p-2 rounded-lg bg-black/60 backdrop-blur-sm text-rf-text-primary hover:bg-black/80 transition cursor-pointer"
+            class="p-2 rounded-lg bg-black/60 backdrop-blur-sm text-fb-text-primary hover:bg-black/80 transition cursor-pointer"
             title="Taschenlampe / Licht an"
           >
             <svg
@@ -103,7 +103,7 @@
         <button
           type="button"
           (click)="toggleFacingMode()"
-          class="p-2 rounded-lg bg-black/60 backdrop-blur-sm text-rf-text-primary hover:bg-black/80 transition cursor-pointer"
+          class="p-2 rounded-lg bg-black/60 backdrop-blur-sm text-fb-text-primary hover:bg-black/80 transition cursor-pointer"
           title="Kamera wechseln"
         >
           <svg [lucideIcon]="switchIcon" class="w-4 h-4"></svg>
@@ -112,10 +112,10 @@
     </div>
 
     <!-- Manual Barcode Entry Fallback -->
-    <div class="space-y-1.5 pt-2 border-t border-rf-border">
+    <div class="space-y-1.5 pt-2 border-t border-fb-border">
       <label
         for="barcod-oder-ean-barcode-manuell"
-        class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted"
+        class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
       >
         Oder EAN / Barcode manuell eingeben
       </label>

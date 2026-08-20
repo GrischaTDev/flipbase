@@ -10,7 +10,7 @@ import {
   LucideSliders as Sliders,
   LucideCheckCircle2 as CheckCircle2,
 } from '@lucide/angular';
-import { InventoryItem } from '../../../core/models/reflip.models';
+import { InventoryItem } from '../../../core/models/flipbase.models';
 import { CustomCheckboxComponent } from '../custom-checkbox/custom-checkbox.component';
 import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 

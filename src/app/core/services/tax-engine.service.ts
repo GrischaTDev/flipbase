@@ -8,7 +8,7 @@ import {
   TaxCalculationResult,
   TaxMode,
   TaxPeriodSummary,
-} from '../models/reflip.models';
+} from '../models/flipbase.models';
 
 /** Einstellungen für den DATEV-Buchungsstapel. */
 export interface DatevOptionen {

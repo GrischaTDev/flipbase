@@ -44,7 +44,7 @@ auth.flipbase.de {
 # deshalb reicht Caddy die Antwort unveraendert durch.
 # ---------------------------------------------------------------------------
 app.flipbase.de {
-	reverse_proxy reflip-web:80
+	reverse_proxy flipbase-web:80
 
 	# Verwaltungsoberflaeche gehoert nicht in Suchmaschinen.
 	header X-Robots-Tag "noindex, nofollow"

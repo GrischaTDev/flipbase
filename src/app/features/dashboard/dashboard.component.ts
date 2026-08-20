@@ -20,7 +20,7 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { SalesService } from '../../core/services/sales.service';
 import { InventoryService } from '../../core/services/inventory.service';
 import { PurchaseService } from '../../core/services/purchase.service';
-import { DashboardMetrics } from '../../core/models/reflip.models';
+import { DashboardMetrics } from '../../core/models/flipbase.models';
 
 @Component({
   selector: 'app-dashboard',

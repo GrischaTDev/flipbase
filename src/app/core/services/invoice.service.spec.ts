@@ -2,7 +2,7 @@ import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Injector, runInInjectionContext } from '@angular/core';
 import { InvoiceService } from './invoice.service';
-import { Sale, InventoryItem } from '../models/reflip.models';
+import { Sale, InventoryItem } from '../models/flipbase.models';
 import { StoreOrder } from '../models/store.models';
 
 describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {

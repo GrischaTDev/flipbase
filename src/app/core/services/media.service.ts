@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
-import { ItemMedia } from '../models/reflip.models';
+import { ItemMedia } from '../models/flipbase.models';
 
 @Injectable({
   providedIn: 'root',

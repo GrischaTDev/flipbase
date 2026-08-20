@@ -44,7 +44,7 @@ import {
   SeoOptimizationResult,
 } from '../../core/services/listing-studio.service';
 import { InventoryService } from '../../core/services/inventory.service';
-import { InventoryItem } from '../../core/models/reflip.models';
+import { InventoryItem } from '../../core/models/flipbase.models';
 
 import { RouterLink } from '@angular/router';
 import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';

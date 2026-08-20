@@ -5,7 +5,7 @@ import { TaxEngineService } from './tax-engine.service';
 import { WorkspaceService } from './workspace.service';
 import { SalesService } from './sales.service';
 import { InventoryService } from './inventory.service';
-import { TaxCalculationResult } from '../models/reflip.models';
+import { TaxCalculationResult } from '../models/flipbase.models';
 
 /**
  * Prüft den DATEV-Buchungsstapel und die Steuerberechnung.

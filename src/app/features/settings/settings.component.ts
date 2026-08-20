@@ -50,7 +50,7 @@ import { PwaService } from '../../core/services/pwa.service';
 import { StoreService } from '../../core/services/store.service';
 import { FulfillmentService } from '../../core/services/fulfillment.service';
 import { WebPushService } from '../../core/services/web-push.service';
-import { WorkspaceRole } from '../../core/models/reflip.models';
+import { WorkspaceRole } from '../../core/models/flipbase.models';
 import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 
 @Component({
@@ -449,7 +449,7 @@ export class SettingsComponent {
     const csv = this.exportService.generatePurchasesCsv(this.purchaseService.purchases());
     this.exportService.downloadFile(
       csv,
-      `reflip-einkaeufe-${new Date().toISOString().split('T')[0]}.csv`,
+      `flipbase-einkaeufe-${new Date().toISOString().split('T')[0]}.csv`,
       'text/csv;charset=utf-8;',
     );
   }
@@ -458,7 +458,7 @@ export class SettingsComponent {
     const csv = this.exportService.generateInventoryCsv(this.inventoryService.items());
     this.exportService.downloadFile(
       csv,
-      `reflip-inventar-${new Date().toISOString().split('T')[0]}.csv`,
+      `flipbase-inventar-${new Date().toISOString().split('T')[0]}.csv`,
       'text/csv;charset=utf-8;',
     );
   }
@@ -467,7 +467,7 @@ export class SettingsComponent {
     const csv = this.exportService.generateSalesCsv(this.salesService.sales());
     this.exportService.downloadFile(
       csv,
-      `reflip-verkaeufe-${new Date().toISOString().split('T')[0]}.csv`,
+      `flipbase-verkaeufe-${new Date().toISOString().split('T')[0]}.csv`,
       'text/csv;charset=utf-8;',
     );
   }

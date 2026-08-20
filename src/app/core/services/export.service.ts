@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { Sale, Purchase, InventoryItem } from '../models/reflip.models';
+import { Sale, Purchase, InventoryItem } from '../models/flipbase.models';
 
 @Injectable({
   providedIn: 'root',

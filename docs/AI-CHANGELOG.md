@@ -34,15 +34,15 @@ Auf Wunsch von Grischa vollständig auf die lokale Supabase-Datenbank umgestellt
 
 3. **Gleiches für den Benachrichtigungs-Zwischenspeicher** im `WebhookService`.
 
-**Was bleibt:** Der Demo-Modus funktioniert unverändert – dort ist der lokale Speicher weiterhin die Ablage. Für angemeldete Nutzer bleibt nur `reflip_active_workspace_id` im Browser, eine reine Anzeigeeinstellung.
+**Was bleibt:** Der Demo-Modus funktioniert unverändert – dort ist der lokale Speicher weiterhin die Ablage. Für angemeldete Nutzer bleibt nur `flipbase_active_workspace_id` im Browser, eine reine Anzeigeeinstellung.
 
 **Verifiziert durch:**
 
 - `npx ng build` erfolgreich; `npx vitest run` → 29 Dateien / 173 Tests grün, darunter vier neue für die Schreibsperre
-- **Im Docker-Container unter `http://reflip.localhost/`**: angemeldet, Einkauf über die Oberfläche angelegt → steht in der Datenbank, `reflip_local_purchases` bleibt `null`, und nach dem Neuladen erscheint der Einkauf aus der Datenbank in der Liste
+- **Im Docker-Container unter `http://flipbase.localhost/`**: angemeldet, Einkauf über die Oberfläche angelegt → steht in der Datenbank, `flipbase_local_purchases` bleibt `null`, und nach dem Neuladen erscheint der Einkauf aus der Datenbank in der Liste
 - Das Abzeichen „Sicherung fällig" ist verschwunden
 
-**Hinweis für Sicherungen:** Die Daten liegen jetzt in Postgres. Ein Abzug geht über `npx supabase db dump --data-only -f reflip-daten.sql`.
+**Hinweis für Sicherungen:** Die Daten liegen jetzt in Postgres. Ein Abzug geht über `npx supabase db dump --data-only -f flipbase-daten.sql`.
 
 ---
 
@@ -190,7 +190,7 @@ Nach Plan-Aufgabe 6.8 wurde zu **jedem** Befund zuerst ein Test geschrieben, der
 - **Im Browser reproduziert:** Fehlschlagendes Speichern meldet jetzt „Speichern des Einkaufs fehlgeschlagen: Keine Berechtigung für diesen Workspace.", der Streifen erscheint, der Eintrag verschwindet aus Liste und Browser-Speicher – und die Datenbank bleibt unberührt
 - **Team-Verwaltung geprüft:** verknüpfte Abfrage liefert Profil mit E-Mail und Name
 - **12 Seiten durchlaufen:** alle Anfragen mit echter Workspace-UUID, durchgehend 200 OK, keine `ws-1`-Fehler mehr, 0 offene Sync-Fehler
-- **Nach der Anmeldung** liegt nur noch `reflip_active_workspace_id` im Browser – keine untergeschobenen Beispieldaten mehr
+- **Nach der Anmeldung** liegt nur noch `flipbase_active_workspace_id` im Browser – keine untergeschobenen Beispieldaten mehr
 
 **Bewusst offen:** Die Offline-Warteschlange (Plan 5.2.4) und die Migration vorhandener localStorage-Daten in die Datenbank (Plan 5.2.5) sind weiterhin nicht umgesetzt.
 
@@ -301,7 +301,7 @@ Erfüllung von Phase 5 des Sanierungsplans (`docs/audit/2026-08-19-sanierungspla
 
    Der Kniff, der 985 Template-Änderungen erspart hat: Die Akzentfarben von Tailwind (`--color-emerald-400` und Verwandte) zeigen jetzt auf themenabhängige Variablen. Dadurch passen sich rund 480 bereits vorhandene Klassen wie `text-emerald-400` automatisch an, ohne dass die Templates angefasst werden mussten. Im hellen Design werden sie abgedunkelt, weil die Originaltöne auf Weiß nur rund 2:1 Kontrast hätten.
 
-4. **Templates auf Design-Tokens umgestellt.** 563 fest verdrahtete Farbklassen ersetzt: 134 × `text-white`, 106 × `text-slate-400`, 162 arbiträre Hex-Werte wie `border-[#373e4d]` und weitere. Im dunklen Design ergeben die Tokens exakt dieselben Farben. Die 10 Stellen, an denen weißer Text auf farbigem Grund sitzt, haben ein eigenes Token `text-rf-on-accent` bekommen und bleiben weiß.
+4. **Templates auf Design-Tokens umgestellt.** 563 fest verdrahtete Farbklassen ersetzt: 134 × `text-white`, 106 × `text-slate-400`, 162 arbiträre Hex-Werte wie `border-[#373e4d]` und weitere. Im dunklen Design ergeben die Tokens exakt dieselben Farben. Die 10 Stellen, an denen weißer Text auf farbigem Grund sitzt, haben ein eigenes Token `text-fb-on-accent` bekommen und bleiben weiß.
 
 5. **Theme-Umschalter gebaut.** Er war im Header gar nicht vorhanden – Dienst und Icons waren eingebunden, das Template hatte den Knopf nie. `ThemeService` neu geschrieben: folgt standardmäßig der Systemvoreinstellung, reagiert auf deren Änderung, merkt sich eine bewusste Auswahl und färbt die Adressleiste mobiler Browser mit.
 
@@ -311,7 +311,7 @@ Erfüllung von Phase 5 des Sanierungsplans (`docs/audit/2026-08-19-sanierungspla
 
 8. **Schriften lokal.** Plus Jakarta Sans und JetBrains Mono liegen als 4 woff2-Dateien (90 KB, nur Latin) unter `public/fonts/`. Damit entfällt der Aufruf an `fonts.gstatic.com` bei jedem Seitenaufruf, der die IP-Adresse jedes Besuchers in die USA überträgt – und die Typografie steht auch offline, was für die beworbene Flohmarkt-Nutzung entscheidend ist.
 
-9. **Öffentlicher Shop vom Umschalter ausgenommen.** `/shop` ist ein eigenständiges, dauerhaft helles Kundendesign mit dunklen Leisten. Es behält über `.rf-palette-fixed` immer die Originalfarben.
+9. **Öffentlicher Shop vom Umschalter ausgenommen.** `/shop` ist ein eigenständiges, dauerhaft helles Kundendesign mit dunklen Leisten. Es behält über `.fb-palette-fixed` immer die Originalfarben.
 
 **Zwei weitere vorhandene Fehler gefunden und behoben:**
 
@@ -409,7 +409,7 @@ Die App fragt weiter parallel mit der Mock-Workspace-ID `ws-1` ab, was `400 Bad 
 
 **Was:**
 
-1. **Vollständige Sicherung.** Der neue `BackupService` erfasst **alle** 25 Speicherbereiche mit dem Präfix `reflip_` – auch Retouren, Rechnungen, Shop-Bestellungen, Artikelkosten, Belege, Bargeldkasse, Offline-Warteschlange und Konfigurationen. Werte werden geparst abgelegt, damit die Datei lesbar bleibt; nicht parsbare Werte (z. B. `reflip_theme` = `dark`) landen unverändert und werden in `rawKeys` vermerkt, damit das Einspielen zeichengenau bleibt.
+1. **Vollständige Sicherung.** Der neue `BackupService` erfasst **alle** 25 Speicherbereiche mit dem Präfix `flipbase_` – auch Retouren, Rechnungen, Shop-Bestellungen, Artikelkosten, Belege, Bargeldkasse, Offline-Warteschlange und Konfigurationen. Werte werden geparst abgelegt, damit die Datei lesbar bleibt; nicht parsbare Werte (z. B. `flipbase_theme` = `dark`) landen unverändert und werden in `rawKeys` vermerkt, damit das Einspielen zeichengenau bleibt.
 
 2. **Wiederherstellung mit Prüfung und Vorschau.** Vor dem Überschreiben wird die Datei geprüft (Format, Version, keine projektfremden Schlüssel) und der Inhalt angezeigt: Anzahl Einkäufe, Artikel, Verkäufe, Retouren, Rechnungen, Shop-Bestellungen, Datenbereiche, Dateigrösse. Erst danach ist das Einspielen möglich. Der aktuelle Stand wird dabei automatisch als Datei heruntergeladen, bevor er ersetzt wird.
 
@@ -423,14 +423,14 @@ Die App fragt weiter parallel mit der Mock-Workspace-ID `ws-1` ab, was `400 Bad 
 
 - **Kein modaler Dialog für die Bestätigung.** Die 22 vorhandenen Overlays im Projekt haben weder `role="dialog"` noch Fokus-Falle (Audit 7.3). Statt einen 23. unzugänglichen Dialog zu bauen, sitzt die Bestätigung als Karte direkt auf der Seite.
 - **Vollständiges Ersetzen statt Zusammenführen.** Ohne verlässliche Zeitstempel pro Datensatz liesse sich beim Zusammenführen zweier Bestände nicht entscheiden, welche Fassung gilt. Das Ergebnis wäre stillschweigend falsch. Deshalb: klar angesagtes Ersetzen, mit automatischer Sicherheitskopie vorher.
-- **Anmeldezustand wird nicht mitgesichert.** `reflip_logged_out` bleibt aussen vor, damit eine alte Sicherung nicht den aktuellen Anmeldestatus überschreibt.
+- **Anmeldezustand wird nicht mitgesichert.** `flipbase_logged_out` bleibt aussen vor, damit eine alte Sicherung nicht den aktuellen Anmeldestatus überschreibt.
 - **Speicherzugriff als Parameter.** `StorageLike` erlaubt es, den Dienst in Tests ohne Browser mit einer Attrappe zu betreiben – passend zur bestehenden Konvention, Dienste per `new` zu instanziieren.
 
 **Verifiziert durch:**
 
 - `npx vitest run` → **25 Test-Dateien, 121 Tests bestanden** (vorher 24/96: +26 neue Sicherungstests, −1 Test des entfernten Teil-Exports)
 - `npx ng build` → **erfolgreich**
-- **Test im echten Browser** (Chrome, `ng serve`): Rundlauf Sicherung → Daten zerstören → Einspielen stellt Einkauf, beide Artikel und den nicht-JSON-Wert `reflip_theme` zeichengenau wieder her; nach der Sicherung entstandene Reste werden entfernt; fremde Speicherschlüssel bleiben unangetastet
+- **Test im echten Browser** (Chrome, `ng serve`): Rundlauf Sicherung → Daten zerstören → Einspielen stellt Einkauf, beide Artikel und den nicht-JSON-Wert `flipbase_theme` zeichengenau wieder her; nach der Sicherung entstandene Reste werden entfernt; fremde Speicherschlüssel bleiben unangetastet
 - **Ablehnung geprüft:** fremde JSON-Datei und beschädigtes JSON werden mit verständlicher Meldung abgewiesen
 - **Oberfläche geprüft:** Statusbox, Header-Abzeichen, Vorschau mit korrekten Zahlen (1 Einkauf, 2 Artikel), Warnhinweis und beide Schaltflächen erscheinen wie vorgesehen
 

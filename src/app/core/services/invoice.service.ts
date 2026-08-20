@@ -2,14 +2,14 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 import { WorkspaceService } from './workspace.service';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
-import { InventoryItem, Sale, TaxMode } from '../models/reflip.models';
+import { InventoryItem, Sale, TaxMode } from '../models/flipbase.models';
 import { StoreOrder } from '../models/store.models';
 import { EmailConfirmation, Invoice, InvoiceItem, InvoiceParty } from '../models/invoice.models';
 import { Json } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 
-const STORAGE_KEY_INVOICES = 'reflip_generated_invoices';
-const STORAGE_KEY_EMAILS = 'reflip_sent_emails';
+const STORAGE_KEY_INVOICES = 'flipbase_generated_invoices';
+const STORAGE_KEY_EMAILS = 'flipbase_sent_emails';
 
 @Injectable({
   providedIn: 'root',
@@ -173,7 +173,7 @@ export class InvoiceService {
       postalCode: '10115',
       city: 'Berlin',
       country: 'Deutschland',
-      email: 'rechnung@reflip.de',
+      email: 'rechnung@flipbase.de',
       phone: '+49 (0) 30 98765432',
       taxId: '21/815/08150',
       vatId: 'DE 345 678 901',

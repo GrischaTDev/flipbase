@@ -3,7 +3,7 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { InventoryService } from './inventory.service';
 import { MockDataStoreService } from './mock-data-store.service';
-import { InventoryItem, ListingDraft } from '../models/reflip.models';
+import { InventoryItem, ListingDraft } from '../models/flipbase.models';
 import { LoggerService } from './logger.service';
 
 export type ListingPlatform = 'kleinanzeigen' | 'ebay' | 'vinted' | 'custom_store' | 'social';
@@ -513,7 +513,7 @@ ${this.buildHashtags(item).join(' ')}`.trim();
   }
 
   private buildHashtags(item: InventoryItem): string[] {
-    const tags: string[] = ['#reflip', '#secondhand'];
+    const tags: string[] = ['#flipbase', '#secondhand'];
     if (item.title?.toLowerCase().includes('vintage')) tags.push('#vintage');
     if (item.title?.toLowerCase().includes('retro')) tags.push('#retro');
     if (item.brand) tags.push(`#${item.brand.toLowerCase().replace(/[^a-z0-9]/g, '')}`);

@@ -2,7 +2,7 @@ import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Injector, runInInjectionContext } from '@angular/core';
 import { StoreService } from './store.service';
-import { InventoryItem } from '../models/reflip.models';
+import { InventoryItem } from '../models/flipbase.models';
 
 describe('Store & Live Checkout Service', () => {
   let storeService: StoreService;
@@ -62,11 +62,11 @@ describe('Store & Live Checkout Service', () => {
   it('should update payment gateway configuration', () => {
     storeService.updatePaymentsConfig({
       stripePublishableKey: 'pk_live_custom_key_456',
-      paypalEmail: 'shop@myreflipdomain.com',
+      paypalEmail: 'shop@myflipbasedomain.com',
     });
 
     const pm = storeService.storeSettings().payments;
     expect(pm.stripePublishableKey).toBe('pk_live_custom_key_456');
-    expect(pm.paypalEmail).toBe('shop@myreflipdomain.com');
+    expect(pm.paypalEmail).toBe('shop@myflipbasedomain.com');
   });
 });

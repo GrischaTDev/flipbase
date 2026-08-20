@@ -38,7 +38,7 @@ import { TaxAdvisorService } from '../../core/services/tax-advisor.service';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { SalesService } from '../../core/services/sales.service';
 import { BankReconciliationService } from '../../core/services/bank-reconciliation.service';
-import { TaxCalculationResult, TaxMode } from '../../core/models/reflip.models';
+import { TaxCalculationResult, TaxMode } from '../../core/models/flipbase.models';
 import { MonthlyTaxReport } from '../../core/models/accounting.models';
 import { BankTransaction } from '../../core/models/bank-reconciliation.models';
 

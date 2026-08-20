@@ -4,7 +4,7 @@ import {
   MonthlyTaxReport,
   TaxAdvisorConfig,
 } from '../models/accounting.models';
-import { Purchase, Sale, TaxCalculationResult } from '../models/reflip.models';
+import { Purchase, Sale, TaxCalculationResult } from '../models/flipbase.models';
 import { WebhookService } from './webhook.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
@@ -13,7 +13,7 @@ import { SyncStatusService } from './sync-status.service';
 import { TaxEngineService } from './tax-engine.service';
 import { MockDataStoreService } from './mock-data-store.service';
 
-const STORAGE_KEY_ADVISOR = 'reflip_tax_advisor_config';
+const STORAGE_KEY_ADVISOR = 'flipbase_tax_advisor_config';
 
 @Injectable({
   providedIn: 'root',

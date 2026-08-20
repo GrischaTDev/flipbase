@@ -8,7 +8,7 @@ services:
     container_name: flipbase-web
     ports:
       # Port 80, damit die gewohnten Adressen http://localhost/ und
-      # http://reflip.localhost/ ohne Portangabe funktionieren.
+      # http://flipbase.localhost/ ohne Portangabe funktionieren.
       # Falls Port 80 auf dem Rechner einmal belegt ist, hier auf
       # "8080:80" umstellen - die Anwendung laeuft dann unter :8080.
       - '80:80'

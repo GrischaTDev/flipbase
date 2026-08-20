@@ -3,7 +3,7 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SyncStatusService } from './sync-status.service';
-import { Supplier } from '../models/reflip.models';
+import { Supplier } from '../models/flipbase.models';
 import { nurAktive } from './stammdaten-filter';
 
 @Injectable({

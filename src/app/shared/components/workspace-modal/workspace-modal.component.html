@@ -5,20 +5,20 @@
   (dialogClose)="closed.emit()"
 >
   <div
-    class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-6 border border-rf-line animate-modal-card"
+    class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-6 border border-fb-line animate-modal-card"
   >
-    <div class="flex items-center justify-between mb-4 pb-3 border-b border-rf-line">
-      <h3 class="text-sm font-bold text-rf-text-primary">Neuen Workspace erstellen</h3>
+    <div class="flex items-center justify-between mb-4 pb-3 border-b border-fb-line">
+      <h3 class="text-sm font-bold text-fb-text-primary">Neuen Workspace erstellen</h3>
       <button
         type="button"
         (click)="closed.emit()"
-        class="p-1 rounded-md text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-line transition cursor-pointer"
+        class="p-1 rounded-md text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-line transition cursor-pointer"
       >
         <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
       </button>
     </div>
 
-    <p class="text-xs text-rf-text-muted mb-4">
+    <p class="text-xs text-fb-text-muted mb-4">
       Ein Workspace trennt sämtliche Einkäufe, Inventardaten und Verkäufe sauber voneinander.
     </p>
 
@@ -34,7 +34,7 @@
       <div>
         <label
           for="workspaceName"
-          class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+          class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
         >
           Workspace Name
         </label>
@@ -47,7 +47,7 @@
         />
       </div>
 
-      <div class="flex justify-end gap-2.5 pt-3 border-t border-rf-line">
+      <div class="flex justify-end gap-2.5 pt-3 border-t border-fb-line">
         <button
           type="button"
           (click)="closed.emit()"

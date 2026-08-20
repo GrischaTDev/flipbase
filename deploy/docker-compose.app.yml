@@ -1,11 +1,11 @@
-name: reflip
+name: flipbase
 
 services:
   web:
     build:
       context: ./app
       dockerfile: docker/Dockerfile
-    container_name: reflip-web
+    container_name: flipbase-web
     restart: unless-stopped
     # Kein ports-Abschnitt: erreichbar ausschliesslich ueber Caddy im selben Netz.
     healthcheck:

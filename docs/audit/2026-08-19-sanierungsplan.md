@@ -1,4 +1,4 @@
-# 🛠️ ReFlip – Sanierungsplan
+# 🛠️ Flipbase – Sanierungsplan
 
 |                  |                                                                            |
 | ---------------- | -------------------------------------------------------------------------- |
@@ -86,7 +86,7 @@ Der Wunsch „in 2–3 Wochen ins Web **und** echte Stripe-/DHL-Anbindung" ist z
 | #   | Aufgabe                                                                                                                                     |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | 2.1 | **Sofort-Sicherung:** Den aktuellen `localStorage`-Inhalt als JSON-Datei außerhalb des Browsers ablegen – bevor wir irgendetwas anderes tun |
-| 2.2 | `BackupService`: Export **aller** `reflip_local_*`-Schlüssel als eine JSON-Datei mit Versionskennzeichen und Zeitstempel                    |
+| 2.2 | `BackupService`: Export **aller** `flipbase_local_*`-Schlüssel als eine JSON-Datei mit Versionskennzeichen und Zeitstempel                  |
 | 2.3 | Import-Funktion mit Validierung und Vorschau („Diese Sicherung enthält 1 Einkauf, 2 Artikel, 0 Verkäufe – wirklich einspielen?")            |
 | 2.4 | Bedienoberfläche dafür in den Einstellungen                                                                                                 |
 | 2.5 | Erinnerung im Header, wenn die letzte Sicherung älter als 7 Tage ist                                                                        |
@@ -132,8 +132,8 @@ Der Wunsch „in 2–3 Wochen ins Web **und** echte Stripe-/DHL-Anbindung" ist z
 | ------- | --------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | 4.1     | `select-none` von Shell und allen Inhaltsbereichen entfernen (52 Stellen → nur Buttons/Navigation)                                            | Kopieren funktioniert wieder                       |
 | 4.2     | `user-scalable=no` aus `index.html` streichen                                                                                                 | Zoom auf dem Handy                                 |
-| 4.3     | **Light-Theme bauen:** alle `--rf-*`-Variablen für hell definieren, `.dark`-Umschaltung in `styles.css`, Systemvoreinstellung berücksichtigen | Der Schalter tut endlich etwas                     |
-| 4.4     | Alle ~50 Templates auf fest verdrahtete dunkle Tailwind-Klassen prüfen und auf `rf-`-Variablen umstellen                                      | Ohne diesen Schritt bleibt das Light-Theme fleckig |
+| 4.3     | **Light-Theme bauen:** alle `--fb-*`-Variablen für hell definieren, `.dark`-Umschaltung in `styles.css`, Systemvoreinstellung berücksichtigen | Der Schalter tut endlich etwas                     |
+| 4.4     | Alle ~50 Templates auf fest verdrahtete dunkle Tailwind-Klassen prüfen und auf `fb-`-Variablen umstellen                                      | Ohne diesen Schritt bleibt das Light-Theme fleckig |
 | 4.5     | Kontraste im Light-Theme gegen WCAG AA prüfen                                                                                                 | –                                                  |
 | 4.6     | Globaler `:focus-visible`-Fokusring                                                                                                           | Tastaturnavigation sichtbar                        |
 | 4.7     | `@media (prefers-reduced-motion: reduce)`                                                                                                     | Systemeinstellung respektiert                      |

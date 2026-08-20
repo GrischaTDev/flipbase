@@ -2,16 +2,16 @@
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
     <div>
       <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
+        <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">
           {{ 'NAV.SOURCES_SUPPLIERS' | translate }}
         </h1>
         <span
-          class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-surface-alt text-rf-text-secondary border border-rf-line"
+          class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-fb-surface-alt text-fb-text-secondary border border-fb-line"
         >
           Management
         </span>
       </div>
-      <p class="text-xs text-rf-text-muted mt-0.5">
+      <p class="text-xs text-fb-text-muted mt-0.5">
         Einkaufsquellen und Lieferanten für Profitabilitäts- und ROI-Analysen.
       </p>
     </div>
@@ -43,11 +43,11 @@
       class="linear-card rounded-xl p-3 flex items-start gap-2.5 border border-amber-500/40 bg-amber-500/10"
     >
       <svg [lucideIcon]="warnIcon" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></svg>
-      <p class="text-xs text-rf-text-secondary flex-1">{{ text }}</p>
+      <p class="text-xs text-fb-text-secondary flex-1">{{ text }}</p>
       <button
         type="button"
         (click)="meldung.set(null)"
-        class="p-0.5 text-rf-text-muted hover:text-rf-text-primary rounded transition cursor-pointer"
+        class="p-0.5 text-fb-text-muted hover:text-fb-text-primary rounded transition cursor-pointer"
         aria-label="Meldung schließen"
       >
         <svg [lucideIcon]="xIcon" class="w-3.5 h-3.5"></svg>
@@ -61,13 +61,13 @@
       type="button"
       (click)="activeTab.set('sources')"
       class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-rf-line]="activeTab() === 'sources'"
-      [class.text-rf-text-primary]="activeTab() === 'sources'"
+      [class.bg-fb-line]="activeTab() === 'sources'"
+      [class.text-fb-text-primary]="activeTab() === 'sources'"
       [class.border]="activeTab() === 'sources'"
-      [class.border-rf-line-strong]="activeTab() === 'sources'"
-      [class.text-rf-text-secondary]="activeTab() !== 'sources'"
-      [class.hover:bg-rf-surface-alt]="activeTab() !== 'sources'"
-      [class.hover:text-rf-text-primary]="activeTab() !== 'sources'"
+      [class.border-fb-line-strong]="activeTab() === 'sources'"
+      [class.text-fb-text-secondary]="activeTab() !== 'sources'"
+      [class.hover:bg-fb-surface-alt]="activeTab() !== 'sources'"
+      [class.hover:text-fb-text-primary]="activeTab() !== 'sources'"
     >
       Einkaufsquellen ({{ sourcesService.sources().length }})
     </button>
@@ -75,13 +75,13 @@
       type="button"
       (click)="activeTab.set('suppliers')"
       class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-rf-line]="activeTab() === 'suppliers'"
-      [class.text-rf-text-primary]="activeTab() === 'suppliers'"
+      [class.bg-fb-line]="activeTab() === 'suppliers'"
+      [class.text-fb-text-primary]="activeTab() === 'suppliers'"
       [class.border]="activeTab() === 'suppliers'"
-      [class.border-rf-line-strong]="activeTab() === 'suppliers'"
-      [class.text-rf-text-secondary]="activeTab() !== 'suppliers'"
-      [class.hover:bg-rf-surface-alt]="activeTab() !== 'suppliers'"
-      [class.hover:text-rf-text-primary]="activeTab() !== 'suppliers'"
+      [class.border-fb-line-strong]="activeTab() === 'suppliers'"
+      [class.text-fb-text-secondary]="activeTab() !== 'suppliers'"
+      [class.hover:bg-fb-surface-alt]="activeTab() !== 'suppliers'"
+      [class.hover:text-fb-text-primary]="activeTab() !== 'suppliers'"
     >
       Lieferanten & Verkäufer ({{ suppliersService.suppliers().length }})
     </button>
@@ -93,7 +93,7 @@
         <button
           type="button"
           (click)="schalteArchivierteQuellen()"
-          class="px-2.5 py-1 rounded-md font-medium transition cursor-pointer whitespace-nowrap text-rf-text-muted hover:text-rf-text-primary"
+          class="px-2.5 py-1 rounded-md font-medium transition cursor-pointer whitespace-nowrap text-fb-text-muted hover:text-fb-text-primary"
           [class.text-amber-400]="sourcesService.zeigeArchivierte()"
           [attr.aria-pressed]="sourcesService.zeigeArchivierte()"
         >
@@ -105,7 +105,7 @@
         <button
           type="button"
           (click)="schalteArchivierteLieferanten()"
-          class="px-2.5 py-1 rounded-md font-medium transition cursor-pointer whitespace-nowrap text-rf-text-muted hover:text-rf-text-primary"
+          class="px-2.5 py-1 rounded-md font-medium transition cursor-pointer whitespace-nowrap text-fb-text-muted hover:text-fb-text-primary"
           [class.text-amber-400]="suppliersService.zeigeArchivierte()"
           [attr.aria-pressed]="suppliersService.zeigeArchivierte()"
         >
@@ -124,7 +124,7 @@
       (ngSubmit)="onAddSource()"
       class="p-4 linear-surface rounded-xl space-y-3 animate-fade-in border-emerald-500/40"
     >
-      <h3 class="text-xs font-bold uppercase tracking-wider text-rf-text-secondary">
+      <h3 class="text-xs font-bold uppercase tracking-wider text-fb-text-secondary">
         Neue Einkaufsquelle hinzufügen
       </h3>
       <div class="flex flex-col sm:flex-row gap-2.5">
@@ -161,7 +161,7 @@
       (ngSubmit)="onAddSupplier()"
       class="p-4 linear-surface rounded-xl space-y-3 animate-fade-in border-emerald-500/40"
     >
-      <h3 class="text-xs font-bold uppercase tracking-wider text-rf-text-secondary">
+      <h3 class="text-xs font-bold uppercase tracking-wider text-fb-text-secondary">
         Neuen Lieferanten erfassen
       </h3>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -229,7 +229,7 @@
               />
               <button
                 type="submit"
-                class="p-1.5 text-emerald-400 hover:bg-rf-line rounded-md transition cursor-pointer"
+                class="p-1.5 text-emerald-400 hover:bg-fb-line rounded-md transition cursor-pointer"
                 aria-label="Änderung speichern"
                 [disabled]="editForm.controls.name.invalid"
               >
@@ -238,7 +238,7 @@
               <button
                 type="button"
                 (click)="brichBearbeitenAb()"
-                class="p-1.5 text-rf-text-muted hover:bg-rf-line rounded-md transition cursor-pointer"
+                class="p-1.5 text-fb-text-muted hover:bg-fb-line rounded-md transition cursor-pointer"
                 aria-label="Bearbeiten abbrechen"
               >
                 <svg [lucideIcon]="xIcon" class="w-3.5 h-3.5"></svg>
@@ -252,7 +252,7 @@
                 <svg [lucideIcon]="storeIcon" class="w-4 h-4"></svg>
               </div>
               <div class="min-w-0">
-                <h3 class="text-xs font-semibold text-rf-text-primary truncate">{{ src.name }}</h3>
+                <h3 class="text-xs font-semibold text-fb-text-primary truncate">{{ src.name }}</h3>
                 @if (src.is_default) {
                   <span class="text-[10px] text-emerald-400 font-medium">Standard-Quelle</span>
                 } @else if (istArchiviert(src)) {
@@ -265,7 +265,7 @@
               <button
                 type="button"
                 (click)="starteQuelleBearbeiten(src.id, src.name)"
-                class="p-1 text-rf-text-muted hover:text-indigo-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                class="p-1 text-fb-text-muted hover:text-indigo-400 rounded-md hover:bg-fb-line transition cursor-pointer"
                 aria-label="Quelle bearbeiten"
               >
                 <svg [lucideIcon]="pencilIcon" class="w-3.5 h-3.5"></svg>
@@ -276,7 +276,7 @@
                   <button
                     type="button"
                     (click)="archiviereQuelle(src.id, false)"
-                    class="p-1 text-rf-text-muted hover:text-emerald-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                    class="p-1 text-fb-text-muted hover:text-emerald-400 rounded-md hover:bg-fb-line transition cursor-pointer"
                     aria-label="Quelle wieder aktivieren"
                   >
                     <svg [lucideIcon]="archiveRestoreIcon" class="w-3.5 h-3.5"></svg>
@@ -285,7 +285,7 @@
                   <button
                     type="button"
                     (click)="archiviereQuelle(src.id, true)"
-                    class="p-1 text-rf-text-muted hover:text-amber-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                    class="p-1 text-fb-text-muted hover:text-amber-400 rounded-md hover:bg-fb-line transition cursor-pointer"
                     aria-label="Quelle archivieren"
                   >
                     <svg [lucideIcon]="archiveIcon" class="w-3.5 h-3.5"></svg>
@@ -295,7 +295,7 @@
                 <button
                   type="button"
                   (click)="onDeleteSource(src.id)"
-                  class="p-1 text-rf-text-muted hover:text-rose-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                  class="p-1 text-fb-text-muted hover:text-rose-400 rounded-md hover:bg-fb-line transition cursor-pointer"
                   aria-label="Quelle endgültig löschen"
                 >
                   <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
@@ -353,7 +353,7 @@
                   <button
                     type="button"
                     (click)="brichBearbeitenAb()"
-                    class="text-[11px] text-rf-text-muted hover:text-rf-text-primary transition cursor-pointer"
+                    class="text-[11px] text-fb-text-muted hover:text-fb-text-primary transition cursor-pointer"
                   >
                     Abbrechen
                   </button>
@@ -368,7 +368,7 @@
                     <svg [lucideIcon]="buildingIcon" class="w-3.5 h-3.5"></svg>
                   </div>
                   <div class="min-w-0">
-                    <h3 class="text-xs font-semibold text-rf-text-primary truncate">
+                    <h3 class="text-xs font-semibold text-fb-text-primary truncate">
                       {{ sup.name }}
                     </h3>
                     @if (istArchiviert(sup)) {
@@ -383,7 +383,7 @@
                     (click)="
                       starteLieferantBearbeiten(sup.id, sup.name, sup.contact_info, sup.notes)
                     "
-                    class="p-1 text-rf-text-muted hover:text-indigo-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                    class="p-1 text-fb-text-muted hover:text-indigo-400 rounded-md hover:bg-fb-line transition cursor-pointer"
                     aria-label="Lieferant bearbeiten"
                   >
                     <svg [lucideIcon]="pencilIcon" class="w-3.5 h-3.5"></svg>
@@ -393,7 +393,7 @@
                     <button
                       type="button"
                       (click)="archiviereLieferant(sup.id, false)"
-                      class="p-1 text-rf-text-muted hover:text-emerald-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                      class="p-1 text-fb-text-muted hover:text-emerald-400 rounded-md hover:bg-fb-line transition cursor-pointer"
                       aria-label="Lieferant wieder aktivieren"
                     >
                       <svg [lucideIcon]="archiveRestoreIcon" class="w-3.5 h-3.5"></svg>
@@ -402,7 +402,7 @@
                     <button
                       type="button"
                       (click)="archiviereLieferant(sup.id, true)"
-                      class="p-1 text-rf-text-muted hover:text-amber-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                      class="p-1 text-fb-text-muted hover:text-amber-400 rounded-md hover:bg-fb-line transition cursor-pointer"
                       aria-label="Lieferant archivieren"
                     >
                       <svg [lucideIcon]="archiveIcon" class="w-3.5 h-3.5"></svg>
@@ -412,7 +412,7 @@
                   <button
                     type="button"
                     (click)="onDeleteSupplier(sup.id)"
-                    class="p-1 text-rf-text-muted hover:text-rose-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                    class="p-1 text-fb-text-muted hover:text-rose-400 rounded-md hover:bg-fb-line transition cursor-pointer"
                     aria-label="Lieferant endgültig löschen"
                   >
                     <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
@@ -422,12 +422,12 @@
             }
 
             @if (sup.contact_info) {
-              <p class="text-[11px] text-rf-text-secondary">{{ sup.contact_info }}</p>
+              <p class="text-[11px] text-fb-text-secondary">{{ sup.contact_info }}</p>
             }
 
             @if (sup.notes) {
               <p
-                class="text-[10px] text-rf-text-muted bg-rf-well border border-rf-line p-2 rounded-lg"
+                class="text-[10px] text-fb-text-muted bg-fb-well border border-fb-line p-2 rounded-lg"
               >
                 {{ sup.notes }}
               </p>
@@ -438,12 +438,12 @@
     } @else {
       <div class="linear-surface rounded-xl p-10 text-center">
         <div
-          class="w-10 h-10 rounded-lg bg-rf-well border border-rf-line text-rf-text-muted mx-auto flex items-center justify-center mb-3"
+          class="w-10 h-10 rounded-lg bg-fb-well border border-fb-line text-fb-text-muted mx-auto flex items-center justify-center mb-3"
         >
           <svg [lucideIcon]="usersIcon" class="w-5 h-5"></svg>
         </div>
-        <h3 class="text-sm font-bold text-rf-text-secondary">Noch keine Lieferanten angelegt</h3>
-        <p class="text-xs text-rf-text-muted max-w-sm mx-auto mt-1 mb-4">
+        <h3 class="text-sm font-bold text-fb-text-secondary">Noch keine Lieferanten angelegt</h3>
+        <p class="text-xs text-fb-text-muted max-w-sm mx-auto mt-1 mb-4">
           Speichere feste Lieferanten, Retourenhändler oder Kleinanzeigen-Verkäufer, um deren
           Qualität auszuwerten.
         </p>

@@ -9,18 +9,18 @@ import {
   ActivityLog,
   ItemCost,
   ItemMedia,
-} from '../models/reflip.models';
+} from '../models/flipbase.models';
 
 const DEMO_WS_ID = 'ws-1';
 
-const STORAGE_KEY_PURCHASES = 'reflip_local_purchases';
-const STORAGE_KEY_ITEMS = 'reflip_local_inventory';
-const STORAGE_KEY_SALES = 'reflip_local_sales';
-const STORAGE_KEY_SOURCES = 'reflip_local_sources';
-const STORAGE_KEY_SUPPLIERS = 'reflip_local_suppliers';
-const STORAGE_KEY_ITEM_COSTS = 'reflip_local_item_costs';
-const STORAGE_KEY_ACTIVITY_LOGS = 'reflip_local_activity_logs';
-const STORAGE_KEY_MEDIA = 'reflip_local_media';
+const STORAGE_KEY_PURCHASES = 'flipbase_local_purchases';
+const STORAGE_KEY_ITEMS = 'flipbase_local_inventory';
+const STORAGE_KEY_SALES = 'flipbase_local_sales';
+const STORAGE_KEY_SOURCES = 'flipbase_local_sources';
+const STORAGE_KEY_SUPPLIERS = 'flipbase_local_suppliers';
+const STORAGE_KEY_ITEM_COSTS = 'flipbase_local_item_costs';
+const STORAGE_KEY_ACTIVITY_LOGS = 'flipbase_local_activity_logs';
+const STORAGE_KEY_MEDIA = 'flipbase_local_media';
 
 function getStorage(): Storage | null {
   try {

@@ -14,7 +14,7 @@
 const ERLAUBTE_HERKUENFTE = new Set(
   (
     Deno.env.get('ALLOWED_ORIGINS') ??
-    'http://localhost:4200,http://localhost,http://reflip.localhost'
+    'http://localhost:4200,http://localhost,http://flipbase.localhost'
   )
     .split(',')
     .map((h) => h.trim())

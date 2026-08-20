@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ExportService } from './export.service';
-import { Sale } from '../models/reflip.models';
+import { Sale } from '../models/flipbase.models';
 
 describe('ExportService (Phase 10: CSV & JSON Backup)', () => {
   let exportService: ExportService;

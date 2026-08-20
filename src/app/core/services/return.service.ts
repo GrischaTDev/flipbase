@@ -1,7 +1,7 @@
 import { Injectable, effect, inject, signal } from '@angular/core';
 import { RestockAction, ReturnReason, ReturnRecord } from '../models/return.models';
 import { Invoice } from '../models/invoice.models';
-import { InventoryItem, ItemStatus, Sale, Workspace } from '../models/reflip.models';
+import { InventoryItem, ItemStatus, Sale, Workspace } from '../models/flipbase.models';
 import { InventoryService } from './inventory.service';
 import { WorkspaceService } from './workspace.service';
 import { WebhookService } from './webhook.service';
@@ -10,7 +10,7 @@ import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { MockDataStoreService } from './mock-data-store.service';
 
-const STORAGE_KEY_RETURNS = 'reflip_saved_returns';
+const STORAGE_KEY_RETURNS = 'flipbase_saved_returns';
 
 @Injectable({
   providedIn: 'root',
@@ -259,7 +259,7 @@ export class ReturnService {
         postalCode: '10115',
         city: 'Berlin',
         country: 'Deutschland',
-        email: 'kontakt@reflip.de',
+        email: 'kontakt@flipbase.de',
         phone: '+49 30 98765432',
         taxId: '34/234/56789',
         vatId: 'DE345678901',

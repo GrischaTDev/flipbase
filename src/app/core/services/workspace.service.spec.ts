@@ -2,7 +2,7 @@ import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { Injector, runInInjectionContext } from '@angular/core';
 import { WorkspaceService } from './workspace.service';
-import { InventoryItem, Purchase, Sale } from '../models/reflip.models';
+import { InventoryItem, Purchase, Sale } from '../models/flipbase.models';
 
 describe('Multi-Workspace & Holding Consolidation Service', () => {
   let service: WorkspaceService;

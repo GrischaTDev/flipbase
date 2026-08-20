@@ -5,11 +5,11 @@
   (dialogClose)="closed.emit()"
 >
   <div
-    class="linear-surface rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl border border-rf-border overflow-hidden my-auto animate-modal-card"
+    class="linear-surface rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl border border-fb-border overflow-hidden my-auto animate-modal-card"
   >
     <!-- Header -->
     <div
-      class="p-4 sm:p-5 border-b border-rf-border flex items-center justify-between bg-rf-subtle shrink-0"
+      class="p-4 sm:p-5 border-b border-fb-border flex items-center justify-between bg-fb-subtle shrink-0"
     >
       <div class="flex items-center gap-2.5">
         <div
@@ -19,14 +19,14 @@
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h2 class="text-sm font-bold text-rf-text-primary">{{ title() }}</h2>
+            <h2 class="text-sm font-bold text-fb-text-primary">{{ title() }}</h2>
             <span
               class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
             >
               Fix 1:1 Quadrat
             </span>
           </div>
-          <p class="text-[11px] text-rf-text-muted">
+          <p class="text-[11px] text-fb-text-muted">
             Optimiert für professionelle Marktplatz-Listings & Inventar
           </p>
         </div>
@@ -35,7 +35,7 @@
       <button
         type="button"
         (click)="closed.emit()"
-        class="p-1.5 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover transition cursor-pointer"
+        class="p-1.5 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
       >
         <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
       </button>
@@ -56,7 +56,7 @@
         <div
           (drop)="onDrop($event)"
           (dragover)="onDragOver($event)"
-          class="border-2 border-dashed border-rf-border hover:border-emerald-500/50 rounded-2xl p-8 sm:p-12 text-center bg-rf-subtle/50 hover:bg-emerald-500/5 transition cursor-pointer flex flex-col items-center justify-center gap-3 relative"
+          class="border-2 border-dashed border-fb-border hover:border-emerald-500/50 rounded-2xl p-8 sm:p-12 text-center bg-fb-subtle/50 hover:bg-emerald-500/5 transition cursor-pointer flex flex-col items-center justify-center gap-3 relative"
         >
           <input
             type="file"
@@ -72,14 +72,14 @@
           </div>
 
           <div>
-            <h3 class="text-sm font-bold text-rf-text-primary">Foto hier ablegen oder klicken</h3>
-            <p class="text-xs text-rf-text-muted mt-1">
+            <h3 class="text-sm font-bold text-fb-text-primary">Foto hier ablegen oder klicken</h3>
+            <p class="text-xs text-fb-text-muted mt-1">
               Unterstützt JPG, PNG, WebP oder Kamera-Upload
             </p>
           </div>
 
           <div
-            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rf-surface border border-rf-border text-[11px] text-rf-text-secondary mt-2"
+            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-fb-surface border border-fb-border text-[11px] text-fb-text-secondary mt-2"
           >
             <svg [lucideIcon]="sparklesIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
             <span>Wird automatisch auf 1:1 zugeschnitten & komprimiert</span>
@@ -88,7 +88,7 @@
       } @else {
         <!-- Interactive Cropper -->
         <div
-          class="relative bg-black/60 rounded-2xl overflow-hidden border border-rf-border flex items-center justify-center min-h-[300px] max-h-[420px]"
+          class="relative bg-black/60 rounded-2xl overflow-hidden border border-fb-border flex items-center justify-center min-h-[300px] max-h-[420px]"
         >
           <image-cropper
             [imageChangedEvent]="imageChangedEvent()!"
@@ -119,15 +119,15 @@
         </div>
 
         <!-- Controls Toolbar -->
-        <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-3">
+        <div class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-3">
           <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
             <!-- Zoom Controls -->
             <div class="flex items-center gap-2">
-              <span class="text-rf-text-muted text-[11px] font-semibold">Zoom:</span>
+              <span class="text-fb-text-muted text-[11px] font-semibold">Zoom:</span>
               <button
                 type="button"
                 (click)="zoomOut()"
-                class="p-1.5 rounded-lg bg-rf-surface border border-rf-border hover:bg-rf-surface-hover text-rf-text-primary transition cursor-pointer"
+                class="p-1.5 rounded-lg bg-fb-surface border border-fb-border hover:bg-fb-surface-hover text-fb-text-primary transition cursor-pointer"
                 title="Verkleinern"
               >
                 <svg [lucideIcon]="zoomOutIcon" class="w-3.5 h-3.5"></svg>
@@ -146,12 +146,12 @@
               <button
                 type="button"
                 (click)="zoomIn()"
-                class="p-1.5 rounded-lg bg-rf-surface border border-rf-border hover:bg-rf-surface-hover text-rf-text-primary transition cursor-pointer"
+                class="p-1.5 rounded-lg bg-fb-surface border border-fb-border hover:bg-fb-surface-hover text-fb-text-primary transition cursor-pointer"
                 title="Vergrößern"
               >
                 <svg [lucideIcon]="zoomInIcon" class="w-3.5 h-3.5"></svg>
               </button>
-              <span class="font-mono text-[11px] text-rf-text-secondary w-9 text-right"
+              <span class="font-mono text-[11px] text-fb-text-secondary w-9 text-right"
                 >{{ scale().toFixed(1) }}x</span
               >
             </div>
@@ -161,7 +161,7 @@
               <button
                 type="button"
                 (click)="rotateClockwise()"
-                class="px-2.5 py-1.5 rounded-lg bg-rf-surface border border-rf-border hover:bg-rf-surface-hover text-rf-text-primary transition cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold"
+                class="px-2.5 py-1.5 rounded-lg bg-fb-surface border border-fb-border hover:bg-fb-surface-hover text-fb-text-primary transition cursor-pointer inline-flex items-center gap-1.5 text-xs font-semibold"
                 title="Um 90° drehen"
               >
                 <svg [lucideIcon]="rotateIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
@@ -171,7 +171,7 @@
               <button
                 type="button"
                 (click)="resetTransform()"
-                class="px-2.5 py-1.5 rounded-lg bg-rf-surface border border-rf-border hover:bg-rf-surface-hover text-rf-text-muted hover:text-rf-text-primary transition cursor-pointer inline-flex items-center gap-1.5 text-xs"
+                class="px-2.5 py-1.5 rounded-lg bg-fb-surface border border-fb-border hover:bg-fb-surface-hover text-fb-text-muted hover:text-fb-text-primary transition cursor-pointer inline-flex items-center gap-1.5 text-xs"
                 title="Zurücksetzen"
               >
                 <svg [lucideIcon]="refreshIcon" class="w-3.5 h-3.5"></svg>
@@ -181,15 +181,15 @@
           </div>
 
           <!-- Optimization Info Banner -->
-          <div class="flex items-center justify-between pt-2 border-t border-rf-border text-[11px]">
-            <div class="flex items-center gap-2 text-rf-text-muted">
+          <div class="flex items-center justify-between pt-2 border-t border-fb-border text-[11px]">
+            <div class="flex items-center gap-2 text-fb-text-muted">
               <span
                 >Original:
-                <strong class="font-mono text-rf-text-secondary">{{
+                <strong class="font-mono text-fb-text-secondary">{{
                   formatBytes(originalSizeBytes())
                 }}</strong></span
               >
-              <svg [lucideIcon]="arrowRightIcon" class="w-3 h-3 text-rf-text-muted"></svg>
+              <svg [lucideIcon]="arrowRightIcon" class="w-3 h-3 text-fb-text-muted"></svg>
               <span
                 >Zielgröße:
                 <strong class="font-mono text-emerald-400">~150–250 KB (1200×1200 px)</strong></span
@@ -214,7 +214,7 @@
 
     <!-- Footer Actions -->
     <div
-      class="p-4 sm:p-5 border-t border-rf-border bg-rf-subtle flex items-center justify-between shrink-0"
+      class="p-4 sm:p-5 border-t border-fb-border bg-fb-subtle flex items-center justify-between shrink-0"
     >
       <button
         type="button"

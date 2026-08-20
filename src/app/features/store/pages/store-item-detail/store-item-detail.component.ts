@@ -15,7 +15,7 @@ import {
 } from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
-import { InventoryItem } from '../../../../core/models/reflip.models';
+import { InventoryItem } from '../../../../core/models/flipbase.models';
 
 @Component({
   selector: 'app-store-item-detail',

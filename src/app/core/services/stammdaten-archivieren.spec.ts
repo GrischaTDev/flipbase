@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { signal } from '@angular/core';
 import { SourcesService } from './sources.service';
 import { SuppliersService } from './suppliers.service';
-import { Source, Supplier } from '../models/reflip.models';
+import { Source, Supplier } from '../models/flipbase.models';
 import { nurAktive, istArchiviert } from './stammdaten-filter';
 
 /**

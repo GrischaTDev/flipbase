@@ -1,5 +1,5 @@
 import { StoreOrder } from './store.models';
-import { Purchase, Sale } from './reflip.models';
+import { Purchase, Sale } from './flipbase.models';
 
 export type BankFormatType =
   | 'csv_auto'

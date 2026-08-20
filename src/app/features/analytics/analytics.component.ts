@@ -40,7 +40,7 @@ import { SalesService } from '../../core/services/sales.service';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { InventoryService } from '../../core/services/inventory.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
-import { ConsolidatedHoldingSummary } from '../../core/models/reflip.models';
+import { ConsolidatedHoldingSummary } from '../../core/models/flipbase.models';
 
 @Component({
   selector: 'app-analytics',

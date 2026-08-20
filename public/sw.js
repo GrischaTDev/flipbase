@@ -12,7 +12,7 @@
  * Datenbank auch dann nicht erreichte, wenn sie lief.
  */
 
-const CACHE_NAME = 'reflip-os-v2';
+const CACHE_NAME = 'flipbase-os-v2';
 
 const STATIC_ASSETS = [
   '/',

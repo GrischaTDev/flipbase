@@ -20,7 +20,7 @@ import {
   PurchaseType,
   ItemCondition,
   TrackingCarrier,
-} from '../../../../core/models/reflip.models';
+} from '../../../../core/models/flipbase.models';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 
 interface ExtraCostEntry {

@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { ProfitEngineService } from './profit-engine.service';
-import { Sale, Purchase, InventoryItem } from '../models/reflip.models';
+import { Sale, Purchase, InventoryItem } from '../models/flipbase.models';
 
 export type AnalyticsTimeRange = '7d' | '30d' | '1y' | 'all';
 

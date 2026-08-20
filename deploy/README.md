@@ -15,8 +15,8 @@ auch auf den Server bringen.
 | `Caddyfile`                     | `/opt/supabase/volumes/proxy/caddy/Caddyfile` |
 | `docker-compose.localports.yml` | `/opt/supabase/`                              |
 | `docker-compose.landing.yml`    | `/opt/supabase/`                              |
-| `docker-compose.app.yml`        | `/opt/reflip/docker-compose.yml`              |
-| `backup.sh`                     | `/opt/reflip/backup.sh`                       |
+| `docker-compose.app.yml`        | `/opt/flipbase/docker-compose.yml`            |
+| `backup.sh`                     | `/opt/flipbase/backup.sh`                     |
 | `cron-aufraeumen-n8n-server`    | `/etc/cron.d/…` auf dem **zweiten** Server    |
 | `docker-compose.authelia.yml`   | `/opt/supabase/`                              |
 | `authelia/configuration.yml`    | `/opt/authelia/config/configuration.yml`      |
@@ -48,7 +48,7 @@ deshalb in separate Dateien:
 | ------------------ | ------------------------------------------------- |
 | `flipbase.de`      | statische Landingpage aus `/opt/flipbase-landing` |
 | `www.flipbase.de`  | Weiterleitung auf die nackte Domain               |
-| `app.flipbase.de`  | die Angular-Anwendung im Container `reflip-web`   |
+| `app.flipbase.de`  | die Angular-Anwendung im Container `flipbase-web` |
 | `api.flipbase.de`  | Supabase – API offen, Studio hinter Authelia      |
 | `auth.flipbase.de` | Anmeldeseite von Authelia                         |
 
@@ -112,14 +112,14 @@ Danach wird alles **verschlüsselt** und auf den zweiten Server (n8n,
 ### ⚠️ Der private Schlüssel muss auch woanders liegen
 
 Die ausgelagerten Sicherungen sind mit `age` verschlüsselt. Der passende
-private Schlüssel liegt unter `/opt/reflip/sicherung-schluessel.txt` – **auf
+private Schlüssel liegt unter `/opt/flipbase/sicherung-schluessel.txt` – **auf
 demselben Server**. Stirbt die Maschine, sind die Kopien auf dem zweiten
 Server ohne ihn wertlos.
 
 Deshalb einmalig auslesen und im Passwortmanager ablegen:
 
 ```bash
-ssh root@168.119.246.33 'cat /opt/reflip/sicherung-schluessel.txt'
+ssh root@168.119.246.33 'cat /opt/flipbase/sicherung-schluessel.txt'
 ```
 
 ### Wie die Rechte verteilt sind

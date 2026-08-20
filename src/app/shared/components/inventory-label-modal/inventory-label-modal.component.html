@@ -6,21 +6,21 @@
   (dialogClose)="closed.emit()"
 >
   <div
-    class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl p-6 space-y-4 my-auto animate-modal-card"
+    class="bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl p-6 space-y-4 my-auto animate-modal-card"
   >
     <!-- Modal Header -->
-    <div class="flex items-start justify-between border-b border-rf-border pb-3 shrink-0 no-print">
+    <div class="flex items-start justify-between border-b border-fb-border pb-3 shrink-0 no-print">
       <div>
         <div class="flex items-center gap-2">
           <svg [lucideIcon]="tagIcon" class="w-5 h-5 text-indigo-400"></svg>
-          <h2 class="text-base font-bold text-rf-text-primary">Lager- & Barcode-Etikettendruck</h2>
+          <h2 class="text-base font-bold text-fb-text-primary">Lager- & Barcode-Etikettendruck</h2>
           <span
             class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
           >
             {{ items().length }} {{ items().length === 1 ? 'Artikel' : 'Artikel ausgewählt' }}
           </span>
         </div>
-        <p class="text-xs text-rf-text-muted mt-0.5">
+        <p class="text-xs text-fb-text-muted mt-0.5">
           Drucke Barcode- und QR-Etiketten für deine Lagerfächer, Kartons und Artikel.
         </p>
       </div>
@@ -38,7 +38,7 @@
         <button
           type="button"
           (click)="closed.emit()"
-          class="p-1 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
+          class="p-1 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
         >
           <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
         </button>
@@ -47,19 +47,19 @@
 
     <!-- Options & Format Toolbar -->
     <div
-      class="p-3 rounded-2xl bg-rf-subtle border border-rf-border flex flex-wrap items-center justify-between gap-3 text-xs shrink-0 no-print"
+      class="p-3 rounded-2xl bg-fb-subtle border border-fb-border flex flex-wrap items-center justify-between gap-3 text-xs shrink-0 no-print"
     >
       <!-- Format Picker -->
       <div class="flex items-center gap-2">
-        <span class="text-[10px] uppercase font-bold text-rf-text-muted">Format:</span>
-        <div class="flex items-center gap-1 bg-rf-surface p-1 rounded-xl border border-rf-border">
+        <span class="text-[10px] uppercase font-bold text-fb-text-muted">Format:</span>
+        <div class="flex items-center gap-1 bg-fb-surface p-1 rounded-xl border border-fb-border">
           <button
             type="button"
             (click)="setFormat('compact')"
             class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer"
             [class.bg-indigo-600]="selectedFormat() === 'compact'"
             [class.text-white]="selectedFormat() === 'compact'"
-            [class.text-rf-text-muted]="selectedFormat() !== 'compact'"
+            [class.text-fb-text-muted]="selectedFormat() !== 'compact'"
           >
             Kompakt (50×30 mm)
           </button>
@@ -69,7 +69,7 @@
             class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer"
             [class.bg-indigo-600]="selectedFormat() === 'standard'"
             [class.text-white]="selectedFormat() === 'standard'"
-            [class.text-rf-text-muted]="selectedFormat() !== 'standard'"
+            [class.text-fb-text-muted]="selectedFormat() !== 'standard'"
           >
             Standard (70×36 mm)
           </button>
@@ -79,7 +79,7 @@
             class="px-2.5 py-1 rounded-lg text-[11px] font-semibold transition cursor-pointer"
             [class.bg-indigo-600]="selectedFormat() === 'large'"
             [class.text-white]="selectedFormat() === 'large'"
-            [class.text-rf-text-muted]="selectedFormat() !== 'large'"
+            [class.text-fb-text-muted]="selectedFormat() !== 'large'"
           >
             Groß / Box (DIN-A6)
           </button>
@@ -111,7 +111,7 @@
     </div>
 
     <!-- Printable & Preview Container -->
-    <div class="flex-1 overflow-y-auto p-4 bg-neutral-900 rounded-2xl border border-rf-border">
+    <div class="flex-1 overflow-y-auto p-4 bg-neutral-900 rounded-2xl border border-fb-border">
       <div class="printable-labels-container">
         <!-- Compact Layout (50x30mm) -->
         @if (selectedFormat() === 'compact') {

@@ -31,7 +31,7 @@ export class EbayApiService {
 
   private loadSavedConfig(): void {
     try {
-      const saved = localStorage.getItem('reflip_ebay_config');
+      const saved = localStorage.getItem('flipbase_ebay_config');
       if (saved) {
         this.config = { ...this.config, ...JSON.parse(saved) };
       }
@@ -43,7 +43,7 @@ export class EbayApiService {
   saveConfig(newConfig: Partial<EbayApiConfig>): void {
     this.config = { ...this.config, ...newConfig };
     try {
-      localStorage.setItem('reflip_ebay_config', JSON.stringify(this.config));
+      localStorage.setItem('flipbase_ebay_config', JSON.stringify(this.config));
     } catch {
       // ignore
     }

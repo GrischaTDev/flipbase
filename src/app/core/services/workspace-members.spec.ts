@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { WorkspaceMember, WorkspaceRole } from '../models/reflip.models';
+import { WorkspaceMember, WorkspaceRole } from '../models/flipbase.models';
 
 describe('Workspace Member & Role Management', () => {
   const members: WorkspaceMember[] = [
@@ -7,7 +7,7 @@ describe('Workspace Member & Role Management', () => {
       id: 'wm-1',
       workspace_id: 'ws-1',
       user_id: 'u-1',
-      email: 'owner@reflip.de',
+      email: 'owner@flipbase.de',
       full_name: 'Max Inhaber',
       role: 'owner',
     },
@@ -15,7 +15,7 @@ describe('Workspace Member & Role Management', () => {
       id: 'wm-2',
       workspace_id: 'ws-1',
       user_id: 'u-2',
-      email: 'sourcing@reflip.de',
+      email: 'sourcing@flipbase.de',
       full_name: 'Sarah Einkauf',
       role: 'member',
     },

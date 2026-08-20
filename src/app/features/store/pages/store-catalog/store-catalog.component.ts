@@ -30,7 +30,7 @@ import {
   LucideZap as Zap,
 } from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
-import { InventoryItem } from '../../../../core/models/reflip.models';
+import { InventoryItem } from '../../../../core/models/flipbase.models';
 
 interface FaqItem {
   question: string;

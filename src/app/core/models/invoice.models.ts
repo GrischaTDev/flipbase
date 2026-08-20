@@ -1,4 +1,4 @@
-import { TaxMode } from './reflip.models';
+import { TaxMode } from './flipbase.models';
 
 export interface InvoiceItem {
   sku?: string;

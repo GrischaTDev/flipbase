@@ -9,7 +9,7 @@ export interface WebPushSettings {
   soundEnabled: boolean;
 }
 
-const STORAGE_KEY_PUSH_SETTINGS = 'reflip_web_push_settings';
+const STORAGE_KEY_PUSH_SETTINGS = 'flipbase_web_push_settings';
 
 @Injectable({
   providedIn: 'root',
@@ -114,7 +114,7 @@ export class WebPushService {
           body: options?.body || 'Flipbase Reselling OS Update',
           icon: options?.icon || '/icons/icon-192.png',
           badge: options?.badge || '/icons/icon-192.png',
-          tag: options?.tag || 'reflip-alert',
+          tag: options?.tag || 'flipbase-alert',
         });
 
         notif.onclick = () => {

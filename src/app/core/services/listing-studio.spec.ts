@@ -1,7 +1,7 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ListingStudioService } from './listing-studio.service';
-import { InventoryItem } from '../models/reflip.models';
+import { InventoryItem } from '../models/flipbase.models';
 
 describe('Listing Studio & Multi-Platform Generator (Phase 7)', () => {
   let service: ListingStudioService;

@@ -27,7 +27,7 @@ import { InvoiceService } from '../../core/services/invoice.service';
 import { ReturnService } from '../../core/services/return.service';
 import { SaleCreateModalComponent } from './components/sale-create-modal/sale-create-modal.component';
 import { InvoiceModalComponent } from '../../shared/components/invoice-modal/invoice-modal.component';
-import { Sale } from '../../core/models/reflip.models';
+import { Sale } from '../../core/models/flipbase.models';
 import { Invoice } from '../../core/models/invoice.models';
 import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/return.models';
 

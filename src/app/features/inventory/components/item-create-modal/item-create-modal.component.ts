@@ -27,7 +27,7 @@ import {
   CroppedImageResult,
 } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
 import { DatePipe } from '@angular/common';
-import { ItemCondition, ItemStatus } from '../../../../core/models/reflip.models';
+import { ItemCondition, ItemStatus } from '../../../../core/models/flipbase.models';
 
 import {
   CustomSelectComponent,

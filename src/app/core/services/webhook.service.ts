@@ -1,13 +1,13 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { WebhookConfig, AppNotification } from '../models/webhook.models';
-import { Sale, Purchase } from '../models/reflip.models';
+import { Sale, Purchase } from '../models/flipbase.models';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { LoggerService } from './logger.service';
 
-const STORAGE_KEY_CONFIG = 'reflip_webhook_config';
-const STORAGE_KEY_NOTIFS = 'reflip_app_notifications';
+const STORAGE_KEY_CONFIG = 'flipbase_webhook_config';
+const STORAGE_KEY_NOTIFS = 'flipbase_app_notifications';
 
 function getStorage(): Storage | null {
   try {

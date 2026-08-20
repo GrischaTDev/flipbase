@@ -16,7 +16,7 @@ set -euo pipefail
 ZIEL="/var/backups/flipbase"
 TAGE=14
 STAMPEL=$(date +%Y-%m-%d_%H%M)
-SCHLUESSEL_PUB="/opt/reflip/sicherung-schluessel.pub"
+SCHLUESSEL_PUB="/opt/flipbase/sicherung-schluessel.pub"
 FERN_ZIEL="flipbackup@168.119.165.201:"  # rrsync sperrt das Zielverzeichnis ein - der Pfad ist deshalb relativ
 FERN_SCHLUESSEL="/root/.ssh/flipbase-backup"
 

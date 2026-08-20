@@ -121,7 +121,7 @@ private ensureInitialShowcaseData(): void {
 }
 ```
 
-`populateShowcaseData()` schreibt unbedingt in `reflip_local_purchases`, `reflip_local_inventory`, `reflip_local_sales`, `reflip_local_sources` und `reflip_local_suppliers`.
+`populateShowcaseData()` schreibt unbedingt in `flipbase_local_purchases`, `flipbase_local_inventory`, `flipbase_local_sales`, `flipbase_local_sources` und `flipbase_local_suppliers`.
 
 **Nachgewiesen im laufenden Betrieb:** Ich habe mich als echter Nutzer bei leerer Datenbank angemeldet. Ergebnis im Browser-Speicher:
 
@@ -133,7 +133,7 @@ workspaceIdsLokal: ["ws-1"]        ← der Mock-Workspace
 
 Zwei konkrete Folgen:
 
-1. **Die Sicherung aus Phase 2 wird verunreinigt.** Sie erfasst alle `reflip_`-Schlüssel – also auch diese 4 erfundenen Einkäufe und 9 Artikel. Wer die Sicherung später einspielt, holt sich Fantasiedaten zurück.
+1. **Die Sicherung aus Phase 2 wird verunreinigt.** Sie erfasst alle `flipbase_`-Schlüssel – also auch diese 4 erfundenen Einkäufe und 9 Artikel. Wer die Sicherung später einspielt, holt sich Fantasiedaten zurück.
 2. **`enterDemoMode()` ruft `resetToDemoShowcase()` auf** – das überschreibt den lokalen Bestand **ohne Rückfrage**. Wer als echter Nutzer versehentlich auf „Demo-Modus starten" klickt, verliert seine lokalen Daten.
 
 Der Knopf „Beispieldaten neu laden" im Demo-Banner ist dagegen in Ordnung – dort ist das Zurücksetzen ja gewollt.

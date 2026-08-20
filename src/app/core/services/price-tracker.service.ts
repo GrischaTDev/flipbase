@@ -14,7 +14,7 @@ import { MockDataStoreService } from './mock-data-store.service';
 import { Json } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 
-const STORAGE_KEY_RADAR = 'reflip_price_radar_items';
+const STORAGE_KEY_RADAR = 'flipbase_price_radar_items';
 
 @Injectable({
   providedIn: 'root',

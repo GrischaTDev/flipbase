@@ -9,8 +9,8 @@ import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { LoggerService } from './logger.service';
 
-const STORAGE_KEY_OFFLINE_ENTRIES = 'reflip_offline_purchase_entries';
-const STORAGE_KEY_CASH_WALLET = 'reflip_flea_market_cash_wallet';
+const STORAGE_KEY_OFFLINE_ENTRIES = 'flipbase_offline_purchase_entries';
+const STORAGE_KEY_CASH_WALLET = 'flipbase_flea_market_cash_wallet';
 
 @Injectable({
   providedIn: 'root',

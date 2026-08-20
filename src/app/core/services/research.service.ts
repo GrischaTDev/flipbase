@@ -5,7 +5,7 @@ import { ProfitEngineService } from './profit-engine.service';
 import { RealProductImageService } from './real-product-image.service';
 import { EbayApiService } from './ebay-api.service';
 import { MockDataStoreService } from './mock-data-store.service';
-import { ResearchQuery } from '../models/reflip.models';
+import { ResearchQuery } from '../models/flipbase.models';
 import { LoggerService } from './logger.service';
 
 export interface ResearchComparisonItem {

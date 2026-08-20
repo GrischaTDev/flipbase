@@ -2,16 +2,16 @@
   <!-- Header -->
   <div class="pb-1">
     <div class="flex items-center gap-2">
-      <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
+      <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">
         {{ 'NAV.SETTINGS' | translate }} & Team
       </h1>
       <span
-        class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-secondary border border-rf-border"
+        class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-fb-subtle text-fb-text-secondary border border-fb-border"
       >
         Workspace
       </span>
     </div>
-    <p class="text-xs text-rf-text-muted mt-0.5">
+    <p class="text-xs text-fb-text-muted mt-0.5">
       Workspace-Parameter, Discord/Telegram-Webhooks, Team-Rollen und Backups verwalten.
     </p>
   </div>
@@ -20,11 +20,11 @@
     <!-- Left Column: Parameters & Team Management (7 cols) -->
     <div class="lg:col-span-7 space-y-5">
       <!-- Multi-Workspace & Mandanten-Verwaltung -->
-      <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-rf-border">
-        <div class="flex items-center justify-between pb-2 border-b border-rf-border">
+      <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-fb-border">
+        <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
             <svg [lucideIcon]="buildingIcon" class="w-4 h-4 text-purple-400"></svg>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
               Workspaces & Gewerbe-Mandanten ({{ workspaceService.workspaces().length }})
             </h2>
           </div>
@@ -35,7 +35,7 @@
           </span>
         </div>
 
-        <p class="text-xs text-rf-text-muted">
+        <p class="text-xs text-fb-text-muted">
           Verwalte separate Gewerbezweige mit eigenen Beständen, Steuermodi und
           Rechnungsnummernkreisen.
         </p>
@@ -47,12 +47,12 @@
               class="p-3.5 rounded-xl border flex items-center justify-between transition"
               [class.bg-purple-500/10]="workspaceService.currentWorkspace()?.id === ws.id"
               [class.border-purple-500/40]="workspaceService.currentWorkspace()?.id === ws.id"
-              [class.bg-rf-subtle]="workspaceService.currentWorkspace()?.id !== ws.id"
-              [class.border-rf-border]="workspaceService.currentWorkspace()?.id !== ws.id"
+              [class.bg-fb-subtle]="workspaceService.currentWorkspace()?.id !== ws.id"
+              [class.border-fb-border]="workspaceService.currentWorkspace()?.id !== ws.id"
             >
               <div class="space-y-0.5">
                 <div class="flex items-center gap-2">
-                  <strong class="text-xs text-rf-text-primary">{{ ws.name }}</strong>
+                  <strong class="text-xs text-fb-text-primary">{{ ws.name }}</strong>
                   @if (workspaceService.currentWorkspace()?.id === ws.id) {
                     <span
                       class="px-1.5 py-0.2 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold"
@@ -61,7 +61,7 @@
                     </span>
                   }
                 </div>
-                <div class="flex items-center gap-2 text-[10px] text-rf-text-muted font-mono">
+                <div class="flex items-center gap-2 text-[10px] text-fb-text-muted font-mono">
                   <span>ID: {{ ws.id }}</span>
                   <span>•</span>
                   <span>Währung: {{ ws.currency || 'EUR' }}</span>
@@ -75,7 +75,7 @@
                   <button
                     type="button"
                     (click)="onSwitchWorkspace(ws.id)"
-                    class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-purple-300 hover:text-rf-text-primary"
+                    class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-purple-300 hover:text-fb-text-primary"
                   >
                     Aktivieren
                   </button>
@@ -84,7 +84,7 @@
                     <button
                       type="button"
                       (click)="onDeleteWorkspace(ws.id)"
-                      class="p-1.5 rounded-lg text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer"
+                      class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer"
                       title="Workspace löschen"
                     >
                       <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
@@ -101,7 +101,7 @@
         </div>
 
         <!-- Create New Workspace Row -->
-        <div class="pt-2 border-t border-rf-border flex gap-2">
+        <div class="pt-2 border-t border-fb-border flex gap-2">
           <input
             type="text"
             [formControl]="newWorkspaceName"
@@ -127,9 +127,9 @@
         (ngSubmit)="onSaveSettings()"
         class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
       >
-        <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
+        <div class="flex items-center gap-2 pb-2 border-b border-fb-border">
           <svg [lucideIcon]="slidersIcon" class="w-4 h-4 text-indigo-400"></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
             Workspace & Deal-Kriterien
           </h2>
         </div>
@@ -147,7 +147,7 @@
           <div>
             <label
               for="workspaceNameInput"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Workspace-Name
             </label>
@@ -162,14 +162,14 @@
           <div>
             <label
               for="taxModeSelect"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Steuer-Modus
             </label>
             <select
               id="taxModeSelect"
               formControlName="taxMode"
-              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-medium cursor-pointer text-rf-text-secondary"
+              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-medium cursor-pointer text-fb-text-secondary"
             >
               <option value="diff_25a">§ 25a Differenzbesteuerung (Gebrauchtwaren)</option>
               <option value="kleinunternehmer_19">§ 19 Kleinunternehmer (0% USt)</option>
@@ -182,7 +182,7 @@
           <div>
             <label
               for="minRoiInput"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Standard Mindest-ROI (%)
             </label>
@@ -192,7 +192,7 @@
               formControlName="minRoiPercent"
               class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
             />
-            <span class="text-[10px] text-rf-text-muted mt-0.5 block"
+            <span class="text-[10px] text-fb-text-muted mt-0.5 block"
               >Wird im Deal Calculator als Benchmark genutzt.</span
             >
           </div>
@@ -200,7 +200,7 @@
           <div>
             <label
               for="minProfitInput"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Mindest-Reingewinn (€)
             </label>
@@ -210,13 +210,13 @@
               formControlName="minProfitAmount"
               class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
             />
-            <span class="text-[10px] text-rf-text-muted mt-0.5 block"
+            <span class="text-[10px] text-fb-text-muted mt-0.5 block"
               >Mindestbetrag vor Kaufempfehlung.</span
             >
           </div>
         </div>
 
-        <div class="pt-3 border-t border-rf-border flex justify-end">
+        <div class="pt-3 border-t border-fb-border flex justify-end">
           <button
             type="submit"
             [disabled]="settingsForm.invalid || isSaving()"
@@ -230,10 +230,10 @@
 
       <!-- 2. Team Members & Roles Management -->
       <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
-        <div class="flex items-center justify-between pb-2 border-b border-rf-border">
+        <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
             <svg [lucideIcon]="usersIcon" class="w-4 h-4 text-indigo-400"></svg>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
               Team-Mitglieder & Rollen
             </h2>
           </div>
@@ -248,12 +248,12 @@
           </button>
         </div>
 
-        <p class="text-[11px] text-rf-text-muted leading-relaxed">
+        <p class="text-[11px] text-fb-text-muted leading-relaxed">
           Verwalte Zugriffsrechte für Einkäufer, Packtisch-Mitarbeiter und Steuerberater.
         </p>
 
         <!-- Active Members List -->
-        <div class="divide-y divide-rf-border">
+        <div class="divide-y divide-fb-border">
           @for (member of memberService.members(); track member.id) {
             @let badge = memberService.getRoleBadge(member.role);
             <div class="py-3 flex items-center justify-between gap-3 text-xs">
@@ -264,7 +264,7 @@
                   {{ member.email ? member.email.substring(0, 2) : 'RF' }}
                 </div>
                 <div>
-                  <strong class="text-rf-text-primary block">{{
+                  <strong class="text-fb-text-primary block">{{
                     member.email || 'Workspace-Mitglied'
                   }}</strong>
                   <div class="flex items-center gap-1.5 mt-0.5">
@@ -273,7 +273,7 @@
                     >
                       {{ badge.label }}
                     </span>
-                    <span class="text-[10px] text-rf-text-muted">• {{ badge.description }}</span>
+                    <span class="text-[10px] text-fb-text-muted">• {{ badge.description }}</span>
                   </div>
                 </div>
               </div>
@@ -283,7 +283,7 @@
                   <select
                     [value]="member.role"
                     (change)="onUpdateRole(member.id, $any($event.target).value)"
-                    class="linear-input px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer text-rf-text-secondary"
+                    class="linear-input px-2.5 py-1 rounded-lg text-[11px] font-semibold cursor-pointer text-fb-text-secondary"
                   >
                     <option value="admin">Administrator</option>
                     <option value="member">Sourcing & Einkauf</option>
@@ -295,7 +295,7 @@
                   <button
                     type="button"
                     (click)="onRemoveMember(member.id)"
-                    class="p-1 rounded-lg text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                    class="p-1 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                     title="Mitglied entfernen"
                   >
                     <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
@@ -312,19 +312,19 @@
 
         <!-- Pending Invites Strip -->
         @if (memberService.invites().length > 0) {
-          <div class="pt-3 border-t border-rf-border space-y-2">
-            <span class="text-[10px] font-bold uppercase tracking-wider text-rf-text-muted block">
+          <div class="pt-3 border-t border-fb-border space-y-2">
+            <span class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted block">
               Offene Einladungen ({{ memberService.invites().length }})
             </span>
 
             @for (inv of memberService.invites(); track inv.id) {
               @let badge = memberService.getRoleBadge(inv.role);
               <div
-                class="p-2.5 rounded-xl bg-rf-subtle/60 border border-dashed border-rf-border flex items-center justify-between text-xs"
+                class="p-2.5 rounded-xl bg-fb-subtle/60 border border-dashed border-fb-border flex items-center justify-between text-xs"
               >
                 <div class="flex items-center gap-2">
                   <svg [lucideIcon]="mailIcon" class="w-3.5 h-3.5 text-amber-400"></svg>
-                  <span class="text-rf-text-secondary font-medium">{{ inv.email }}</span>
+                  <span class="text-fb-text-secondary font-medium">{{ inv.email }}</span>
                   <span
                     class="px-1.5 py-0.2 rounded text-[10px] font-mono border {{ badge.class }}"
                   >
@@ -352,10 +352,10 @@
         (ngSubmit)="onSaveWebhookConfig()"
         class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
       >
-        <div class="flex items-center justify-between pb-2 border-b border-rf-border">
+        <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
             <svg [lucideIcon]="bellIcon" class="w-4 h-4 text-emerald-400"></svg>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
               Webhooks & Benachrichtigungen
             </h2>
           </div>
@@ -366,7 +366,7 @@
           </span>
         </div>
 
-        <p class="text-[11px] text-rf-text-muted leading-relaxed">
+        <p class="text-[11px] text-fb-text-muted leading-relaxed">
           Erhalte sofortige Push-Nachrichten bei neuen Verkäufen mit Reingewinn, ROI und Plattform.
         </p>
 
@@ -394,16 +394,16 @@
           </div>
         }
 
-        <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-2.5">
+        <div class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-2.5">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <svg [lucideIcon]="botIcon" class="w-4 h-4 text-indigo-400"></svg>
-              <strong class="text-xs text-rf-text-primary">Discord Webhook</strong>
+              <strong class="text-xs text-fb-text-primary">Discord Webhook</strong>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" formControlName="discordEnabled" class="sr-only peer" />
               <div
-                class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"
+                class="w-9 h-5 bg-fb-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-fb-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-fb-border"
               ></div>
             </label>
           </div>
@@ -431,16 +431,16 @@
           }
         </div>
 
-        <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-2.5">
+        <div class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-2.5">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <svg [lucideIcon]="sendIcon" class="w-4 h-4 text-blue-400"></svg>
-              <strong class="text-xs text-rf-text-primary">Telegram Bot</strong>
+              <strong class="text-xs text-fb-text-primary">Telegram Bot</strong>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" formControlName="telegramEnabled" class="sr-only peer" />
               <div
-                class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"
+                class="w-9 h-5 bg-fb-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-fb-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-fb-border"
               ></div>
             </label>
           </div>
@@ -474,7 +474,7 @@
           }
         </div>
 
-        <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-2.5 text-xs">
+        <div class="p-3 rounded-xl bg-fb-subtle border border-fb-border space-y-2.5 text-xs">
           <app-custom-checkbox
             formControlName="notifyOnSale"
             label="Push bei jedem neuen Verkauf (mit Reingewinn & ROI)"
@@ -488,14 +488,14 @@
           ></app-custom-checkbox>
 
           <app-custom-checkbox formControlName="soundEnabled" size="sm">
-            <span class="text-rf-text-secondary flex items-center gap-1.5 text-xs">
+            <span class="text-fb-text-secondary flex items-center gap-1.5 text-xs">
               <svg [lucideIcon]="volumeIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
               <span>Kassen-Chime Sound bei Sales abspielen</span>
             </span>
           </app-custom-checkbox>
         </div>
 
-        <div class="pt-2 border-t border-rf-border flex justify-end">
+        <div class="pt-2 border-t border-fb-border flex justify-end">
           <button
             type="submit"
             class="linear-btn-primary px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
@@ -511,10 +511,10 @@
         (ngSubmit)="onSavePaymentConfig()"
         class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
       >
-        <div class="flex items-center justify-between pb-2 border-b border-rf-border">
+        <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
             <svg [lucideIcon]="cardIcon" class="w-4 h-4 text-emerald-400"></svg>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
               Webshop & Zahlungs-Gateways
             </h2>
           </div>
@@ -525,7 +525,7 @@
           </span>
         </div>
 
-        <p class="text-[11px] text-rf-text-muted leading-relaxed">
+        <p class="text-[11px] text-fb-text-muted leading-relaxed">
           Verwalte die Zahlungsmethoden für deinen öffentlichen Flipbase Online-Shop (/shop).
         </p>
 
@@ -539,18 +539,18 @@
         }
 
         <div class="space-y-3">
-          <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-2">
+          <div class="p-3 rounded-xl bg-fb-subtle border border-fb-border space-y-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <svg [lucideIcon]="cardIcon" class="w-4 h-4 text-indigo-400"></svg>
-                <strong class="text-xs text-rf-text-primary"
+                <strong class="text-xs text-fb-text-primary"
                   >Stripe (Kreditkarte / Apple Pay)</strong
                 >
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="stripeEnabled" class="sr-only peer" />
                 <div
-                  class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"
+                  class="w-9 h-5 bg-fb-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-fb-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-fb-border"
                 ></div>
               </label>
             </div>
@@ -564,16 +564,16 @@
             }
           </div>
 
-          <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-2">
+          <div class="p-3 rounded-xl bg-fb-subtle border border-fb-border space-y-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <svg [lucideIcon]="cardIcon" class="w-4 h-4 text-blue-400"></svg>
-                <strong class="text-xs text-rf-text-primary">PayPal Express</strong>
+                <strong class="text-xs text-fb-text-primary">PayPal Express</strong>
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="paypalEnabled" class="sr-only peer" />
                 <div
-                  class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"
+                  class="w-9 h-5 bg-fb-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-fb-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-fb-border"
                 ></div>
               </label>
             </div>
@@ -581,24 +581,24 @@
               <input
                 type="text"
                 formControlName="paypalEmail"
-                placeholder="PayPal Händler-E-Mail (z. B. pay@reflip.de)"
+                placeholder="PayPal Händler-E-Mail (z. B. pay@flipbase.de)"
                 class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
               />
             }
           </div>
 
-          <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-2">
+          <div class="p-3 rounded-xl bg-fb-subtle border border-fb-border space-y-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <svg [lucideIcon]="landmarkIcon" class="w-4 h-4 text-emerald-400"></svg>
-                <strong class="text-xs text-rf-text-primary"
+                <strong class="text-xs text-fb-text-primary"
                   >Banküberweisung (SEPA Vorkasse)</strong
                 >
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="bankTransferEnabled" class="sr-only peer" />
                 <div
-                  class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"
+                  class="w-9 h-5 bg-fb-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-fb-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-fb-border"
                 ></div>
               </label>
             </div>
@@ -633,7 +633,7 @@
           </div>
         </div>
 
-        <div class="pt-2 border-t border-rf-border flex justify-end">
+        <div class="pt-2 border-t border-fb-border flex justify-end">
           <button
             type="submit"
             class="linear-btn-primary px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
@@ -649,10 +649,10 @@
         (ngSubmit)="onSaveCarrierConfig()"
         class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
       >
-        <div class="flex items-center justify-between pb-2 border-b border-rf-border">
+        <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
             <svg [lucideIcon]="truckIcon" class="w-4 h-4 text-amber-400"></svg>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
               Carrier-APIs & Packtisch
             </h2>
           </div>
@@ -663,7 +663,7 @@
           </span>
         </div>
 
-        <p class="text-[11px] text-rf-text-muted leading-relaxed">
+        <p class="text-[11px] text-fb-text-muted leading-relaxed">
           Hinterlege Zugangsdaten für automatischen Versandmarken-Kauf und Tracking-Generierung.
         </p>
 
@@ -677,18 +677,18 @@
         }
 
         <div class="space-y-3">
-          <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-2">
+          <div class="p-3 rounded-xl bg-fb-subtle border border-fb-border space-y-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <svg [lucideIcon]="truckIcon" class="w-4 h-4 text-amber-400"></svg>
-                <strong class="text-xs text-rf-text-primary"
+                <strong class="text-xs text-fb-text-primary"
                   >DHL Geschäftskundenversand (GKP)</strong
                 >
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="dhlEnabled" class="sr-only peer" />
                 <div
-                  class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600 border border-rf-border"
+                  class="w-9 h-5 bg-fb-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-fb-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600 border border-fb-border"
                 ></div>
               </label>
             </div>
@@ -700,7 +700,7 @@
                   placeholder="DHL EKP (Kundennr. z. B. 5001234567)"
                   class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
                 />
-                <p class="col-span-2 text-[10px] text-rf-text-muted leading-relaxed">
+                <p class="col-span-2 text-[10px] text-fb-text-muted leading-relaxed">
                   Der DHL-Zugangsschlüssel wird bewusst nicht hier gespeichert. Geheime Schlüssel
                   gehören in eine Edge Function &ndash; alles, was das Frontend kennt, ist im
                   Browser lesbar.
@@ -709,16 +709,16 @@
             }
           </div>
 
-          <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-2">
+          <div class="p-3 rounded-xl bg-fb-subtle border border-fb-border space-y-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <svg [lucideIcon]="truckIcon" class="w-4 h-4 text-blue-400"></svg>
-                <strong class="text-xs text-rf-text-primary">Hermes Versand-API</strong>
+                <strong class="text-xs text-fb-text-primary">Hermes Versand-API</strong>
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="hermesEnabled" class="sr-only peer" />
                 <div
-                  class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 border border-rf-border"
+                  class="w-9 h-5 bg-fb-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-fb-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 border border-fb-border"
                 ></div>
               </label>
             </div>
@@ -730,7 +730,7 @@
                   placeholder="Hermes Client-ID / Account-ID"
                   class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
                 />
-                <p class="col-span-2 text-[10px] text-rf-text-muted leading-relaxed">
+                <p class="col-span-2 text-[10px] text-fb-text-muted leading-relaxed">
                   Der Hermes-Zugangsschlüssel wird bewusst nicht hier gespeichert. Geheime Schlüssel
                   gehören in eine Edge Function &ndash; alles, was das Frontend kennt, ist im
                   Browser lesbar.
@@ -740,7 +740,7 @@
           </div>
         </div>
 
-        <div class="pt-2 border-t border-rf-border flex justify-end">
+        <div class="pt-2 border-t border-fb-border flex justify-end">
           <button
             type="submit"
             class="linear-btn-primary px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
@@ -751,11 +751,11 @@
         </div>
       </form>
 
-      <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-rf-border">
-        <div class="flex items-center justify-between pb-2 border-b border-rf-border">
+      <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-fb-border">
+        <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
             <svg [lucideIcon]="bellIcon" class="w-4 h-4 text-indigo-400"></svg>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
               Web Push & Browser-Benachrichtigungen
             </h2>
           </div>
@@ -790,7 +790,7 @@
           </span>
         </div>
 
-        <p class="text-[11px] text-rf-text-muted leading-relaxed">
+        <p class="text-[11px] text-fb-text-muted leading-relaxed">
           Erhalte System-Benachrichtigungen direkt in deinem Browser oder auf dem Smartphone –
           selbst wenn Flipbase geschlossen ist.
         </p>
@@ -811,11 +811,11 @@
         }
 
         <div
-          class="flex items-center justify-between p-3 rounded-xl bg-rf-subtle border border-rf-border"
+          class="flex items-center justify-between p-3 rounded-xl bg-fb-subtle border border-fb-border"
         >
           <div>
-            <strong class="text-xs text-rf-text-primary block">Push-Berechtigung</strong>
-            <span class="text-[10px] text-rf-text-muted"
+            <strong class="text-xs text-fb-text-primary block">Push-Berechtigung</strong>
+            <span class="text-[10px] text-fb-text-muted"
               >Status: {{ webPushService.permission() }}</span
             >
           </div>
@@ -834,7 +834,7 @@
               type="button"
               (click)="onTestWebPush()"
               [disabled]="isTestingPush()"
-              class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer text-indigo-300 hover:text-rf-text-primary disabled:opacity-50"
+              class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer text-indigo-300 hover:text-fb-text-primary disabled:opacity-50"
             >
               <svg [lucideIcon]="sendIcon" class="w-3.5 h-3.5"></svg>
               <span>{{ isTestingPush() ? 'Wird gesendet...' : 'Test-Push senden' }}</span>
@@ -842,13 +842,13 @@
           }
         </div>
 
-        <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-2.5 text-xs">
-          <span class="text-[10px] font-bold uppercase tracking-wider text-rf-text-muted block">
+        <div class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-2.5 text-xs">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted block">
             Benachrichtigungs-Ereignisse
           </span>
 
           <div class="flex items-center justify-between">
-            <span class="text-rf-text-secondary flex items-center gap-1.5">
+            <span class="text-fb-text-secondary flex items-center gap-1.5">
               <svg [lucideIcon]="shoppingCartIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
               <span>Neue Webshop-Bestellungen (/shop)</span>
             </span>
@@ -860,7 +860,7 @@
           </div>
 
           <div class="flex items-center justify-between">
-            <span class="text-rf-text-secondary flex items-center gap-1.5">
+            <span class="text-fb-text-secondary flex items-center gap-1.5">
               <svg [lucideIcon]="packageIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
               <span>Erstellte Versandetiketten (DHL / Hermes)</span>
             </span>
@@ -872,7 +872,7 @@
           </div>
 
           <div class="flex items-center justify-between">
-            <span class="text-rf-text-secondary flex items-center gap-1.5">
+            <span class="text-fb-text-secondary flex items-center gap-1.5">
               <svg [lucideIcon]="alertTriangleIcon" class="w-3.5 h-3.5 text-amber-400"></svg>
               <span>Margen- & Profit-Alarme (ROI &lt; 20%)</span>
             </span>
@@ -883,8 +883,8 @@
             ></app-custom-checkbox>
           </div>
 
-          <div class="flex items-center justify-between pt-1 border-t border-rf-border">
-            <span class="text-rf-text-secondary flex items-center gap-1.5">
+          <div class="flex items-center justify-between pt-1 border-t border-fb-border">
+            <span class="text-fb-text-secondary flex items-center gap-1.5">
               <svg [lucideIcon]="volumeIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
               <span>Benachrichtigungston abspielen</span>
             </span>
@@ -898,10 +898,10 @@
       </div>
 
       <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
-        <div class="flex items-center justify-between pb-2 border-b border-rf-border">
+        <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
             <svg [lucideIcon]="smartphoneIcon" class="w-4 h-4 text-indigo-400"></svg>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
               Progressive Web App (PWA)
             </h2>
           </div>
@@ -912,15 +912,15 @@
           </span>
         </div>
 
-        <p class="text-[11px] text-rf-text-muted leading-relaxed">
+        <p class="text-[11px] text-fb-text-muted leading-relaxed">
           Installiere Flipbase als eigenständige App auf deinem Smartphone (iOS & Android) oder
           Desktop für blitzschnellen Offline-Zugriff beim Sourcing auf Flohmärkten.
         </p>
 
         <!-- Status Grid -->
         <div class="grid grid-cols-2 gap-2 text-xs">
-          <div class="p-2.5 rounded-xl bg-rf-subtle border border-rf-border space-y-1">
-            <span class="text-[10px] text-rf-text-muted font-bold block uppercase"
+          <div class="p-2.5 rounded-xl bg-fb-subtle border border-fb-border space-y-1">
+            <span class="text-[10px] text-fb-text-muted font-bold block uppercase"
               >Netzwerk-Status</span
             >
             <div class="flex items-center gap-1.5">
@@ -934,8 +934,8 @@
             </div>
           </div>
 
-          <div class="p-2.5 rounded-xl bg-rf-subtle border border-rf-border space-y-1">
-            <span class="text-[10px] text-rf-text-muted font-bold block uppercase">App-Modus</span>
+          <div class="p-2.5 rounded-xl bg-fb-subtle border border-fb-border space-y-1">
+            <span class="text-[10px] text-fb-text-muted font-bold block uppercase">App-Modus</span>
             <div class="flex items-center gap-1.5">
               @if (pwaService.isInstalled()) {
                 <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
@@ -943,8 +943,8 @@
                   >Installiert (Standalone)</strong
                 >
               } @else {
-                <span class="w-2 h-2 rounded-full bg-rf-text-muted"></span>
-                <strong class="text-rf-text-secondary font-mono text-[11px]">Im Web-Browser</strong>
+                <span class="w-2 h-2 rounded-full bg-fb-text-muted"></span>
+                <strong class="text-fb-text-secondary font-mono text-[11px]">Im Web-Browser</strong>
               }
             </div>
           </div>
@@ -973,14 +973,14 @@
 
       <!-- Data Export Center -->
       <div class="linear-surface rounded-2xl p-5 space-y-3 shadow-xl">
-        <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
+        <div class="flex items-center gap-2 pb-2 border-b border-fb-border">
           <svg [lucideIcon]="csvIcon" class="w-4 h-4 text-emerald-400"></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
             Datenexport & Backups
           </h2>
         </div>
 
-        <p class="text-xs text-rf-text-muted leading-relaxed">
+        <p class="text-xs text-fb-text-muted leading-relaxed">
           Exportiere alle Geschäftsdaten im standardisierten CSV- oder JSON-Format für deine
           Buchhaltung oder Sicherung.
         </p>
@@ -988,11 +988,11 @@
         <div class="space-y-2 pt-2">
           <!-- Sales Export -->
           <div
-            class="p-3 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between"
+            class="p-3 rounded-xl bg-fb-subtle border border-fb-border flex items-center justify-between"
           >
             <div>
-              <strong class="text-xs text-rf-text-primary block">Verkäufe & Erlöse</strong>
-              <span class="text-[10px] text-rf-text-muted"
+              <strong class="text-xs text-fb-text-primary block">Verkäufe & Erlöse</strong>
+              <span class="text-[10px] text-fb-text-muted"
                 >Inklusive Gebühren, Versand und Reingewinn</span
               >
             </div>
@@ -1008,11 +1008,11 @@
 
           <!-- Inventory Export -->
           <div
-            class="p-3 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between"
+            class="p-3 rounded-xl bg-fb-subtle border border-fb-border flex items-center justify-between"
           >
             <div>
-              <strong class="text-xs text-rf-text-primary block">Inventar & Warenbestand</strong>
-              <span class="text-[10px] text-rf-text-muted"
+              <strong class="text-xs text-fb-text-primary block">Inventar & Warenbestand</strong>
+              <span class="text-[10px] text-fb-text-muted"
                 >Inventurliste mit gebundenem Kapital</span
               >
             </div>
@@ -1028,13 +1028,13 @@
 
           <!-- Einkaufsauswertung -->
           <div
-            class="p-3 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between"
+            class="p-3 rounded-xl bg-fb-subtle border border-fb-border flex items-center justify-between"
           >
             <div>
-              <strong class="text-xs text-rf-text-primary block"
+              <strong class="text-xs text-fb-text-primary block"
                 >Einkäufe &amp; Wareneinsatz</strong
               >
-              <span class="text-[10px] text-rf-text-muted">Kostenverteilung und Nebenkosten</span>
+              <span class="text-[10px] text-fb-text-muted">Kostenverteilung und Nebenkosten</span>
             </div>
             <button
               type="button"
@@ -1047,7 +1047,7 @@
           </div>
         </div>
 
-        <p class="text-[10px] text-rf-text-dimmed leading-relaxed pt-1 border-t border-rf-border">
+        <p class="text-[10px] text-fb-text-dimmed leading-relaxed pt-1 border-t border-fb-border">
           CSV-Dateien sind für Auswertung und Buchhaltung gedacht. Deine Daten selbst liegen in der
           Datenbank &ndash; eine Sicherung erstellst du dort.
         </p>
@@ -1061,13 +1061,13 @@
       class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
     >
       <div
-        class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 my-auto animate-modal-card"
+        class="bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 my-auto animate-modal-card"
       >
         <!-- Header -->
-        <div class="flex items-start justify-between border-b border-rf-border pb-3">
+        <div class="flex items-start justify-between border-b border-fb-border pb-3">
           <div>
-            <h3 class="text-base font-bold text-rf-text-primary">Team-Mitglied einladen</h3>
-            <p class="text-xs text-rf-text-muted mt-0.5">
+            <h3 class="text-base font-bold text-fb-text-primary">Team-Mitglied einladen</h3>
+            <p class="text-xs text-fb-text-muted mt-0.5">
               Sende eine Einladung per E-Mail mit definierter Rolle.
             </p>
           </div>
@@ -1075,7 +1075,7 @@
           <button
             type="button"
             (click)="closeInviteModal()"
-            class="p-1 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
+            class="p-1 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
           >
             <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
           </button>
@@ -1093,7 +1093,7 @@
           <div>
             <label
               for="inviteEmailInput"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               E-Mail-Adresse *
             </label>
@@ -1109,14 +1109,14 @@
           <div>
             <label
               for="inviteRoleSelect"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Rolle & Berechtigung *
             </label>
             <select
               id="inviteRoleSelect"
               formControlName="role"
-              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer text-rf-text-secondary"
+              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer text-fb-text-secondary"
             >
               <option value="member">Sourcing & Einkauf (Einkauf & Inventar)</option>
               <option value="fulfillment">
@@ -1128,7 +1128,7 @@
             </select>
           </div>
 
-          <div class="flex justify-end gap-2 pt-2 border-t border-rf-border">
+          <div class="flex justify-end gap-2 pt-2 border-t border-fb-border">
             <button
               type="button"
               (click)="closeInviteModal()"

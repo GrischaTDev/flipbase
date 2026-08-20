@@ -3,11 +3,11 @@ import { Router } from '@angular/router';
 import { AuthSession, User } from '@supabase/supabase-js';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
-import { UserProfile } from '../models/reflip.models';
+import { UserProfile } from '../models/flipbase.models';
 import { environment } from '../../../environments/environment';
 
 /** Speicherschlüssel für den bewusst gewählten Demo-Modus. */
-const DEMO_MODE_KEY = 'reflip_demo_mode';
+const DEMO_MODE_KEY = 'flipbase_demo_mode';
 
 /**
  * Anmeldung und Sitzungsverwaltung.
@@ -55,7 +55,7 @@ export class AuthService {
 
   readonly userEmail = computed<string>(() => {
     if (this.isAuthenticated()) return this.currentUser()?.email ?? '';
-    return this.isDemoMode() ? 'demo@reflip.app' : '';
+    return this.isDemoMode() ? 'demo@flipbase.app' : '';
   });
 
   readonly userName = computed<string>(() => {

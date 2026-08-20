@@ -1,4 +1,4 @@
-# 🔍 ReFlip – Vollständiger Projekt-Audit
+# 🔍 Flipbase – Vollständiger Projekt-Audit
 
 |                      |                                                                                                  |
 | -------------------- | ------------------------------------------------------------------------------------------------ |
@@ -117,7 +117,7 @@ Das `OR user_id = auth.uid()` erlaubt jedem angemeldeten Nutzer, sich selbst in 
 
 ### 2.10 API-Schlüssel im Frontend-Quellcode
 
-`store.service.ts:35` (`pk_test_reflip_live_sample_key_123`), `fulfillment.service.ts:295/298` (`dhl_sandbox_key_live_2026_demo`). Aktuell reine Platzhalter – aber das Muster lädt dazu ein, später echte Schlüssel dort einzutragen. Alles im Angular-Bundle ist öffentlich lesbar. Geheimnisse gehören ausschließlich in Edge Functions.
+`store.service.ts:35` (`pk_test_flipbase_live_sample_key_123`), `fulfillment.service.ts:295/298` (`dhl_sandbox_key_live_2026_demo`). Aktuell reine Platzhalter – aber das Muster lädt dazu ein, später echte Schlüssel dort einzutragen. Alles im Angular-Bundle ist öffentlich lesbar. Geheimnisse gehören ausschließlich in Edge Functions.
 
 ### 2.11 🔴 Nachtrag: Der Datenbank fehlten sämtliche Zugriffsrechte – sie hat nie funktioniert
 

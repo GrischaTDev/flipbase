@@ -1,7 +1,7 @@
 <div class="relative flex items-center w-full group" [class.opacity-50]="effectiveDisabled()">
   <!-- Search Icon (Rock-solid Centered) -->
   <div
-    class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-rf-text-muted group-focus-within:text-indigo-400 transition-colors w-4 h-4"
+    class="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none flex items-center justify-center text-fb-text-muted group-focus-within:text-indigo-400 transition-colors w-4 h-4"
   >
     <svg
       viewBox="0 0 24 24"
@@ -29,7 +29,7 @@
     (input)="onInput($event)"
     (keydown)="onKeyDown($event)"
     (blur)="onBlur()"
-    class="w-full bg-rf-subtle border border-rf-border rounded-lg text-xs font-medium placeholder-rf-text-dimmed text-rf-text-primary transition focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs h-8.5 pl-9"
+    class="w-full bg-fb-subtle border border-fb-border rounded-lg text-xs font-medium placeholder-fb-text-dimmed text-fb-text-primary transition focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs h-8.5 pl-9"
     [class.pr-8]="clearable() && value()"
     [class.pr-3]="!clearable() || !value()"
   />
@@ -39,7 +39,7 @@
     <button
       type="button"
       (click)="onClear()"
-      class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md text-rf-text-muted hover:text-rf-text-primary hover:bg-slate-700/60 transition cursor-pointer flex items-center justify-center"
+      class="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md text-fb-text-muted hover:text-fb-text-primary hover:bg-slate-700/60 transition cursor-pointer flex items-center justify-center"
       title="Suche zurücksetzen"
     >
       <svg

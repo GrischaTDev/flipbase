@@ -1,4 +1,4 @@
-import { InventoryItem, Sale } from './reflip.models';
+import { InventoryItem, Sale } from './flipbase.models';
 import { Invoice } from './invoice.models';
 
 export type ReturnReason =

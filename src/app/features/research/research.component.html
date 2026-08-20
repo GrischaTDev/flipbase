@@ -1,20 +1,20 @@
 <div class="space-y-5 animate-fade-in">
   <!-- Header & Tab Navigation -->
   <div
-    class="pb-1 border-b border-rf-border flex flex-col md:flex-row md:items-center justify-between gap-3"
+    class="pb-1 border-b border-fb-border flex flex-col md:flex-row md:items-center justify-between gap-3"
   >
     <div>
       <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
+        <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">
           {{ 'NAV.RESEARCH' | translate }} & Konkurrenz-Radar
         </h1>
         <span
-          class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-secondary border border-rf-border"
+          class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-fb-subtle text-fb-text-secondary border border-fb-border"
         >
           eBay Sold • Kleinanzeigen • Vinted
         </span>
       </div>
-      <p class="text-xs text-rf-text-muted mt-0.5">
+      <p class="text-xs text-fb-text-muted mt-0.5">
         Recherchiere Echtzeit-Verkaufspreise, überwache Konkurrenzangebote und passe deine Preise
         mit 1 Klick an.
       </p>
@@ -22,16 +22,16 @@
 
     <!-- Main Tabs -->
     <div
-      class="flex items-center gap-1.5 p-1 bg-rf-subtle rounded-xl border border-rf-border self-start md:self-auto text-xs"
+      class="flex items-center gap-1.5 p-1 bg-fb-subtle rounded-xl border border-fb-border self-start md:self-auto text-xs"
     >
       <button
         type="button"
         (click)="activeTab.set('search')"
         class="px-3.5 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 cursor-pointer"
-        [class.bg-rf-surface]="activeTab() === 'search'"
-        [class.text-rf-text-primary]="activeTab() === 'search'"
+        [class.bg-fb-surface]="activeTab() === 'search'"
+        [class.text-fb-text-primary]="activeTab() === 'search'"
         [class.shadow-sm]="activeTab() === 'search'"
-        [class.text-rf-text-muted]="activeTab() !== 'search'"
+        [class.text-fb-text-muted]="activeTab() !== 'search'"
       >
         <svg [lucideIcon]="searchIcon" class="w-3.5 h-3.5"></svg>
         <span>Marktrecherche</span>
@@ -42,10 +42,10 @@
         (click)="activeTab.set('radar')"
         class="px-3.5 py-1.5 rounded-lg font-bold transition flex items-center gap-1.5 cursor-pointer"
         [class.bg-indigo-600]="activeTab() === 'radar'"
-        [class.text-rf-text-primary]="activeTab() === 'radar'"
+        [class.text-fb-text-primary]="activeTab() === 'radar'"
         [class.shadow-md]="activeTab() === 'radar'"
         [class.shadow-indigo-500/20]="activeTab() === 'radar'"
-        [class.text-rf-text-muted]="activeTab() !== 'radar'"
+        [class.text-fb-text-muted]="activeTab() !== 'radar'"
       >
         <svg
           [lucideIcon]="radarIcon"
@@ -55,7 +55,7 @@
         <span>Konkurrenz-Radar</span>
         @if (priceTrackerService.activeAlertsCount() > 0) {
           <span
-            class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black bg-rose-600 text-rf-on-accent"
+            class="px-1.5 py-0.2 rounded-full text-[10px] font-mono font-black bg-rose-600 text-fb-on-accent"
           >
             {{ priceTrackerService.activeAlertsCount() }}
           </span>
@@ -85,7 +85,7 @@
             <button
               type="button"
               (click)="isScanningBarcode.set(true)"
-              class="p-1 rounded text-rf-text-muted hover:text-blue-400 hover:bg-blue-500/10 transition cursor-pointer"
+              class="p-1 rounded text-fb-text-muted hover:text-blue-400 hover:bg-blue-500/10 transition cursor-pointer"
               title="Barcode scannen"
             >
               <svg [lucideIcon]="cameraIcon" class="w-4 h-4 text-blue-400"></svg>
@@ -95,7 +95,7 @@
 
         <select
           formControlName="condition"
-          class="linear-input px-3 py-2 rounded-lg text-xs cursor-pointer text-rf-text-secondary w-auto sm:w-36"
+          class="linear-input px-3 py-2 rounded-lg text-xs cursor-pointer text-fb-text-secondary w-auto sm:w-36"
         >
           <option value="new">Neu / OVP</option>
           <option value="like_new">Wie neu</option>
@@ -135,10 +135,10 @@
       <div class="space-y-4 animate-fade-in">
         <!-- Quick Action Bar -->
         <div
-          class="flex items-center justify-between p-3 rounded-xl bg-rf-subtle border border-rf-border"
+          class="flex items-center justify-between p-3 rounded-xl bg-fb-subtle border border-fb-border"
         >
           <div class="flex items-center gap-2 text-xs">
-            <span class="font-bold text-rf-text-primary"
+            <span class="font-bold text-fb-text-primary"
               >Analyse für "{{ searchForm.get('query')?.value }}":</span
             >
             <span class="font-mono text-emerald-400 font-bold"
@@ -171,43 +171,43 @@
         <!-- KPI Metrics Grid -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
           <div class="linear-kpi p-3.5 rounded-xl">
-            <span class="text-[10px] text-rf-text-muted font-sans block uppercase font-bold"
+            <span class="text-[10px] text-fb-text-muted font-sans block uppercase font-bold"
               >Geringster Preis</span
             >
-            <span class="text-xl font-bold text-rf-text-primary mt-1 block">{{
+            <span class="text-xl font-bold text-fb-text-primary mt-1 block">{{
               s.minPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
             }}</span>
-            <span class="text-[10px] text-rf-text-muted font-sans block">Untergrenze</span>
+            <span class="text-[10px] text-fb-text-muted font-sans block">Untergrenze</span>
           </div>
 
           <div class="linear-kpi p-3.5 rounded-xl">
-            <span class="text-[10px] text-rf-text-muted font-sans block uppercase font-bold"
+            <span class="text-[10px] text-fb-text-muted font-sans block uppercase font-bold"
               >Median-Marktwert</span
             >
             <span class="text-xl font-bold text-emerald-400 mt-1 block">{{
               s.medianPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
             }}</span>
-            <span class="text-[10px] text-rf-text-muted font-sans block">Realistischer Wert</span>
+            <span class="text-[10px] text-fb-text-muted font-sans block">Realistischer Wert</span>
           </div>
 
           <div class="linear-kpi p-3.5 rounded-xl">
-            <span class="text-[10px] text-rf-text-muted font-sans block uppercase font-bold"
+            <span class="text-[10px] text-fb-text-muted font-sans block uppercase font-bold"
               >Durchschnitt</span
             >
             <span class="text-xl font-bold text-indigo-300 mt-1 block">{{
               s.avgPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
             }}</span>
-            <span class="text-[10px] text-rf-text-muted font-sans block">Mittelwert</span>
+            <span class="text-[10px] text-fb-text-muted font-sans block">Mittelwert</span>
           </div>
 
           <div class="linear-kpi p-3.5 rounded-xl">
-            <span class="text-[10px] text-rf-text-muted font-sans block uppercase font-bold"
+            <span class="text-[10px] text-fb-text-muted font-sans block uppercase font-bold"
               >Max. Einkaufspreis</span
             >
             <span class="text-xl font-bold text-amber-400 mt-1 block">{{
               s.maxBuyPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
             }}</span>
-            <span class="text-[10px] text-rf-text-muted font-sans block">Für mind. 30% ROI</span>
+            <span class="text-[10px] text-fb-text-muted font-sans block">Für mind. 30% ROI</span>
           </div>
         </div>
 
@@ -215,33 +215,33 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
           @for (strat of s.strategies; track strat.type) {
             <div
-              class="linear-surface rounded-xl p-4 border border-rf-border flex flex-col justify-between space-y-3"
+              class="linear-surface rounded-xl p-4 border border-fb-border flex flex-col justify-between space-y-3"
             >
               <div>
                 <div class="flex items-center justify-between">
-                  <h4 class="text-xs font-bold text-rf-text-primary">{{ strat.label }}</h4>
+                  <h4 class="text-xs font-bold text-fb-text-primary">{{ strat.label }}</h4>
                   <span
-                    class="px-2 py-0.5 rounded text-[10px] font-mono bg-rf-subtle font-semibold text-rf-text-muted"
+                    class="px-2 py-0.5 rounded text-[10px] font-mono bg-fb-subtle font-semibold text-fb-text-muted"
                   >
                     {{ strat.turnaroundDays }}
                   </span>
                 </div>
-                <p class="text-[11px] text-rf-text-muted mt-1 leading-snug">
+                <p class="text-[11px] text-fb-text-muted mt-1 leading-snug">
                   {{ strat.description }}
                 </p>
               </div>
 
               <div
-                class="pt-2 border-t border-rf-border flex items-baseline justify-between font-mono"
+                class="pt-2 border-t border-fb-border flex items-baseline justify-between font-mono"
               >
                 <div>
-                  <span class="text-[10px] text-rf-text-muted block font-sans">Empfohlener VK</span>
+                  <span class="text-[10px] text-fb-text-muted block font-sans">Empfohlener VK</span>
                   <span class="text-lg font-black text-indigo-400">{{
                     strat.recommendedPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
                   }}</span>
                 </div>
                 <div class="text-right">
-                  <span class="text-[10px] text-rf-text-muted block font-sans"
+                  <span class="text-[10px] text-fb-text-muted block font-sans"
                     >Geschätzter Gewinn</span
                   >
                   <span class="text-sm font-bold text-emerald-400"
@@ -258,7 +258,7 @@
         <!-- Comparison List Header & Platform Filter -->
         <div class="flex items-center justify-between pt-2">
           <div class="flex items-center gap-2">
-            <h3 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
               Vergleichsangebote ({{ filteredComparisonItems().length }})
             </h3>
           </div>
@@ -268,9 +268,9 @@
               type="button"
               (click)="selectedPlatformFilter.set('all')"
               class="px-2.5 py-1 rounded-md font-semibold transition cursor-pointer"
-              [class.bg-rf-subtle]="selectedPlatformFilter() === 'all'"
-              [class.text-rf-text-primary]="selectedPlatformFilter() === 'all'"
-              [class.text-rf-text-muted]="selectedPlatformFilter() !== 'all'"
+              [class.bg-fb-subtle]="selectedPlatformFilter() === 'all'"
+              [class.text-fb-text-primary]="selectedPlatformFilter() === 'all'"
+              [class.text-fb-text-muted]="selectedPlatformFilter() !== 'all'"
             >
               Alle
             </button>
@@ -278,9 +278,9 @@
               type="button"
               (click)="selectedPlatformFilter.set('ebay_sold')"
               class="px-2.5 py-1 rounded-md font-semibold transition cursor-pointer"
-              [class.bg-rf-subtle]="selectedPlatformFilter() === 'ebay_sold'"
-              [class.text-rf-text-primary]="selectedPlatformFilter() === 'ebay_sold'"
-              [class.text-rf-text-muted]="selectedPlatformFilter() !== 'ebay_sold'"
+              [class.bg-fb-subtle]="selectedPlatformFilter() === 'ebay_sold'"
+              [class.text-fb-text-primary]="selectedPlatformFilter() === 'ebay_sold'"
+              [class.text-fb-text-muted]="selectedPlatformFilter() !== 'ebay_sold'"
             >
               eBay Sold
             </button>
@@ -288,9 +288,9 @@
               type="button"
               (click)="selectedPlatformFilter.set('kleinanzeigen')"
               class="px-2.5 py-1 rounded-md font-semibold transition cursor-pointer"
-              [class.bg-rf-subtle]="selectedPlatformFilter() === 'kleinanzeigen'"
-              [class.text-rf-text-primary]="selectedPlatformFilter() === 'kleinanzeigen'"
-              [class.text-rf-text-muted]="selectedPlatformFilter() !== 'kleinanzeigen'"
+              [class.bg-fb-subtle]="selectedPlatformFilter() === 'kleinanzeigen'"
+              [class.text-fb-text-primary]="selectedPlatformFilter() === 'kleinanzeigen'"
+              [class.text-fb-text-muted]="selectedPlatformFilter() !== 'kleinanzeigen'"
             >
               Kleinanzeigen
             </button>
@@ -301,7 +301,7 @@
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
           @for (item of filteredComparisonItems(); track item.id) {
             <div
-              class="linear-surface rounded-xl overflow-hidden border border-rf-border p-2.5 flex flex-col justify-between space-y-2 transition relative group"
+              class="linear-surface rounded-xl overflow-hidden border border-fb-border p-2.5 flex flex-col justify-between space-y-2 transition relative group"
               [class.opacity-40]="item.isExcluded"
             >
               <button
@@ -316,7 +316,7 @@
                   class="w-full h-full object-cover group-hover:scale-105 transition"
                 />
                 <span
-                  class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-black/75 text-rf-text-primary"
+                  class="absolute bottom-1 right-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-black/75 text-fb-text-primary"
                 >
                   {{
                     item.source === 'ebay_sold'
@@ -330,7 +330,7 @@
 
               <div>
                 <h4
-                  class="text-[11px] font-semibold text-rf-text-primary line-clamp-2 leading-tight"
+                  class="text-[11px] font-semibold text-fb-text-primary line-clamp-2 leading-tight"
                   [title]="item.title"
                 >
                   {{ item.title }}
@@ -342,7 +342,7 @@
                   <button
                     type="button"
                     (click)="onToggleItem(item)"
-                    class="text-[10px] text-rf-text-muted hover:text-rf-text-primary cursor-pointer"
+                    class="text-[10px] text-fb-text-muted hover:text-fb-text-primary cursor-pointer"
                   >
                     {{ item.isExcluded ? 'Einschließen' : 'Ausschließen' }}
                   </button>
@@ -355,12 +355,12 @@
     } @else if (!researchService.isLoading()) {
       <div class="linear-surface rounded-xl p-12 text-center">
         <div
-          class="w-10 h-10 rounded-lg bg-rf-subtle border border-rf-border text-rf-text-muted mx-auto flex items-center justify-center mb-3"
+          class="w-10 h-10 rounded-lg bg-fb-subtle border border-fb-border text-fb-text-muted mx-auto flex items-center justify-center mb-3"
         >
           <svg [lucideIcon]="searchIcon" class="w-5 h-5"></svg>
         </div>
-        <h3 class="text-sm font-bold text-rf-text-primary">Starte deine Marktpreis-Recherche</h3>
-        <p class="text-xs text-rf-text-muted max-w-md mx-auto mt-1">
+        <h3 class="text-sm font-bold text-fb-text-primary">Starte deine Marktpreis-Recherche</h3>
+        <p class="text-xs text-fb-text-muted max-w-md mx-auto mt-1">
           Gib oben einen Produkttitel ein oder scanne einen Barcode, um echte Verkaufspreise zu
           analysieren.
         </p>
@@ -373,7 +373,7 @@
     <div class="space-y-4 animate-fade-in">
       <!-- Radar Action & Status Bar -->
       <div
-        class="linear-surface rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-rf-border"
+        class="linear-surface rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-fb-border"
       >
         <div class="flex items-center gap-3">
           <div
@@ -382,11 +382,11 @@
             <svg [lucideIcon]="radarIcon" class="w-5 h-5"></svg>
           </div>
           <div>
-            <h2 class="text-sm font-bold text-rf-text-primary">
+            <h2 class="text-sm font-bold text-fb-text-primary">
               Live-Konkurrenz-Radar ({{ priceTrackerService.trackedItems().length }} überwachte
               Artikel)
             </h2>
-            <p class="text-xs text-rf-text-muted mt-0.5">
+            <p class="text-xs text-fb-text-muted mt-0.5">
               Letzter Suchlauf:
               {{ priceTrackerService.lastScanTimestamp() | date: 'dd.MM.yyyy, HH:mm' }} Uhr
             </p>
@@ -415,13 +415,13 @@
       <!-- Radar KPI Counters -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
         <div class="linear-kpi p-3.5 rounded-xl">
-          <span class="text-[10px] text-rf-text-muted font-sans uppercase font-bold block"
+          <span class="text-[10px] text-fb-text-muted font-sans uppercase font-bold block"
             >Überwacht</span
           >
-          <span class="text-xl font-bold text-rf-text-primary mt-1 block">{{
+          <span class="text-xl font-bold text-fb-text-primary mt-1 block">{{
             priceTrackerService.trackedItems().length
           }}</span>
-          <span class="text-[10px] text-rf-text-muted font-sans block">Aktive Artikel</span>
+          <span class="text-[10px] text-fb-text-muted font-sans block">Aktive Artikel</span>
         </div>
 
         <div class="linear-kpi p-3.5 rounded-xl border-rose-500/30 bg-rose-500/10">
@@ -451,7 +451,7 @@
         </div>
 
         <div class="linear-kpi p-3.5 rounded-xl">
-          <span class="text-[10px] text-rf-text-muted font-sans uppercase font-bold block"
+          <span class="text-[10px] text-fb-text-muted font-sans uppercase font-bold block"
             >Scanner-Status</span
           >
           <div class="text-sm font-bold text-indigo-300 mt-2 flex items-center gap-1.5 font-sans">
@@ -466,7 +466,7 @@
               <span class="text-emerald-400">Bereit</span>
             }
           </div>
-          <span class="text-[10px] text-rf-text-muted font-sans block">eBay & Kleinanzeigen</span>
+          <span class="text-[10px] text-fb-text-muted font-sans block">eBay & Kleinanzeigen</span>
         </div>
       </div>
 
@@ -479,13 +479,13 @@
             [class.bg-rose-500/5]="item.alertTriggered === 'undercut'"
             [class.border-emerald-500/50]="item.alertTriggered === 'price_surge'"
             [class.bg-emerald-500/5]="item.alertTriggered === 'price_surge'"
-            [class.border-rf-border]="item.alertTriggered === 'none'"
+            [class.border-fb-border]="item.alertTriggered === 'none'"
           >
             <!-- Left: Title, Category & Competitor Link -->
             <div class="space-y-1.5 flex-1">
               <div class="flex items-center gap-2">
                 <span
-                  class="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono bg-rf-subtle text-rf-text-secondary border border-rf-border"
+                  class="px-2 py-0.5 rounded text-[10px] font-bold uppercase font-mono bg-fb-subtle text-fb-text-secondary border border-fb-border"
                 >
                   {{ item.category }}
                 </span>
@@ -506,17 +506,17 @@
                   </span>
                 } @else {
                   <span
-                    class="px-2 py-0.5 rounded text-[10px] font-mono text-rf-text-muted bg-rf-subtle"
+                    class="px-2 py-0.5 rounded text-[10px] font-mono text-fb-text-muted bg-fb-subtle"
                   >
                     PREIS STABIL
                   </span>
                 }
               </div>
 
-              <h3 class="text-sm font-bold text-rf-text-primary">{{ item.title }}</h3>
+              <h3 class="text-sm font-bold text-fb-text-primary">{{ item.title }}</h3>
 
               @if (item.lowestCompetitorTitle) {
-                <div class="text-[11px] text-rf-text-muted flex items-center gap-1.5">
+                <div class="text-[11px] text-fb-text-muted flex items-center gap-1.5">
                   <span>Günstigster Konkurrent:</span>
                   <a
                     [href]="item.lowestCompetitorUrl"
@@ -533,17 +533,17 @@
 
             <!-- Middle: Price Comparison Metrics (Our Price vs Lowest vs Avg) -->
             <div
-              class="grid grid-cols-3 gap-3 font-mono text-xs text-center shrink-0 border-y md:border-y-0 md:border-x border-rf-border py-2 md:py-0 md:px-4"
+              class="grid grid-cols-3 gap-3 font-mono text-xs text-center shrink-0 border-y md:border-y-0 md:border-x border-fb-border py-2 md:py-0 md:px-4"
             >
               <div>
-                <span class="text-[10px] font-sans text-rf-text-muted block">Unser Preis</span>
-                <strong class="text-sm font-black text-rf-text-primary">{{
+                <span class="text-[10px] font-sans text-fb-text-muted block">Unser Preis</span>
+                <strong class="text-sm font-black text-fb-text-primary">{{
                   item.currentOurPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
                 }}</strong>
               </div>
 
               <div>
-                <span class="text-[10px] font-sans text-rf-text-muted block">Günstigster</span>
+                <span class="text-[10px] font-sans text-fb-text-muted block">Günstigster</span>
                 <strong
                   class="text-sm font-black"
                   [class.text-rose-400]="item.currentMarketLowest < item.currentOurPrice"
@@ -554,7 +554,7 @@
               </div>
 
               <div>
-                <span class="text-[10px] font-sans text-rf-text-muted block">Ø Markt</span>
+                <span class="text-[10px] font-sans text-fb-text-muted block">Ø Markt</span>
                 <strong class="text-sm font-bold text-indigo-300">{{
                   item.currentMarketAverage | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
                 }}</strong>
@@ -589,7 +589,7 @@
               <button
                 type="button"
                 (click)="onScanRadarLive(item.id)"
-                class="p-2 rounded-xl text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-subtle transition cursor-pointer"
+                class="p-2 rounded-xl text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-subtle transition cursor-pointer"
                 title="Diesen Artikel jetzt einzeln scannen"
               >
                 <svg [lucideIcon]="refreshIcon" class="w-4 h-4"></svg>
@@ -598,7 +598,7 @@
               <button
                 type="button"
                 (click)="onDeleteTrackItem(item.id)"
-                class="p-2 rounded-xl text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                class="p-2 rounded-xl text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                 title="Aus dem Radar entfernen"
               >
                 <svg [lucideIcon]="trashIcon" class="w-4 h-4"></svg>
@@ -631,7 +631,7 @@
         <button
           type="button"
           (click)="previewImageUrl.set(null)"
-          class="absolute -top-10 right-0 p-1.5 rounded-full bg-white/10 text-rf-text-primary hover:bg-white/20 transition cursor-pointer"
+          class="absolute -top-10 right-0 p-1.5 rounded-full bg-white/10 text-fb-text-primary hover:bg-white/20 transition cursor-pointer"
         >
           <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
         </button>

@@ -4,7 +4,7 @@ import {
   InboundTrackingStatus,
   InboundTrackingInfo,
   InboundTrackingCheckpoint,
-} from '../models/reflip.models';
+} from '../models/flipbase.models';
 
 export interface CarrierMeta {
   id: TrackingCarrier;

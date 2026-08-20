@@ -15,7 +15,7 @@ import {
   BankTransaction,
 } from '../models/bank-reconciliation.models';
 
-const STORAGE_KEY_BANK_TRANSACTIONS = 'reflip_bank_transactions';
+const STORAGE_KEY_BANK_TRANSACTIONS = 'flipbase_bank_transactions';
 
 @Injectable({
   providedIn: 'root',

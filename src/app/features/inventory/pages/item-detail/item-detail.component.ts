@@ -30,7 +30,7 @@ import {
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { MediaService } from '../../../../core/services/media.service';
 import { InventoryLabelModalComponent } from '../../../../shared/components/inventory-label-modal/inventory-label-modal.component';
-import { ItemMedia, ItemStatus } from '../../../../core/models/reflip.models';
+import { ItemMedia, ItemStatus } from '../../../../core/models/flipbase.models';
 
 import {
   CustomSelectComponent,

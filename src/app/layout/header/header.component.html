@@ -1,12 +1,12 @@
 <header
-  class="h-14 border-b border-rf-border-subtle bg-rf-header/95 backdrop-blur-md px-4 md:px-6 flex items-center justify-between sticky top-0 z-30 select-none shadow-xs"
+  class="h-14 border-b border-fb-border-subtle bg-fb-header/95 backdrop-blur-md px-4 md:px-6 flex items-center justify-between sticky top-0 z-30 select-none shadow-xs"
 >
   <!-- Left: Mobile Toggle & Workspace Switcher -->
   <div class="flex items-center gap-2.5">
     <button
       type="button"
       (click)="toggleSidebar.emit()"
-      class="p-1.5 rounded-md text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover md:hidden cursor-pointer"
+      class="p-1.5 rounded-md text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover md:hidden cursor-pointer"
       aria-label="Toggle navigation"
     >
       <svg [lucideIcon]="MenuIcon" class="w-4 h-4"></svg>
@@ -17,20 +17,20 @@
       <button
         type="button"
         (click)="toggleWorkspaceDropdown()"
-        class="flex items-center gap-2 px-2.5 py-1 rounded-md border border-rf-border bg-rf-surface text-xs font-medium text-rf-text-primary hover:bg-rf-surface-hover hover:border-rf-border-hover transition shadow-xs cursor-pointer"
+        class="flex items-center gap-2 px-2.5 py-1 rounded-md border border-fb-border bg-fb-surface text-xs font-medium text-fb-text-primary hover:bg-fb-surface-hover hover:border-fb-border-hover transition shadow-xs cursor-pointer"
       >
         <svg [lucideIcon]="LayersIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
         <span class="max-w-[120px] md:max-w-[180px] truncate font-semibold">
           {{ workspaceService.currentWorkspace()?.name || ('WORKSPACE.MY_WORKSPACE' | translate) }}
         </span>
-        <span class="text-[10px] text-rf-text-muted">▾</span>
+        <span class="text-[10px] text-fb-text-muted">▾</span>
       </button>
 
       @if (isWorkspaceDropdownOpen()) {
         <div
-          class="absolute left-0 mt-1.5 w-60 rounded-xl shadow-2xl bg-rf-surface border border-rf-border py-1 z-50 animate-fade-in"
+          class="absolute left-0 mt-1.5 w-60 rounded-xl shadow-2xl bg-fb-surface border border-fb-border py-1 z-50 animate-fade-in"
         >
-          <div class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-rf-text-muted">
+          <div class="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
             {{ 'WORKSPACE.CURRENT' | translate }}
           </div>
 
@@ -38,7 +38,7 @@
             <button
               type="button"
               (click)="selectWorkspace(ws)"
-              class="w-full text-left px-3 py-1.5 text-xs flex items-center justify-between hover:bg-rf-surface-hover transition text-rf-text-secondary hover:text-rf-text-primary cursor-pointer"
+              class="w-full text-left px-3 py-1.5 text-xs flex items-center justify-between hover:bg-fb-surface-hover transition text-fb-text-secondary hover:text-fb-text-primary cursor-pointer"
               [class.font-semibold]="ws.id === workspaceService.currentWorkspace()?.id"
               [class.text-indigo-400]="ws.id === workspaceService.currentWorkspace()?.id"
             >
@@ -49,7 +49,7 @@
             </button>
           }
 
-          <div class="border-t border-rf-border my-1"></div>
+          <div class="border-t border-fb-border my-1"></div>
 
           <button
             type="button"
@@ -94,13 +94,13 @@
       <button
         type="button"
         (click)="toggleNotificationDropdown()"
-        class="relative p-1.5 rounded-lg border border-rf-border bg-rf-surface text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover transition cursor-pointer"
+        class="relative p-1.5 rounded-lg border border-fb-border bg-fb-surface text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
         title="Benachrichtigungen"
       >
         <svg [lucideIcon]="BellIcon" class="w-4 h-4"></svg>
         @if (webhookService.unreadCount() > 0) {
           <span
-            class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-700 text-rf-on-accent text-[10px] font-bold flex items-center justify-center animate-pulse"
+            class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-700 text-fb-on-accent text-[10px] font-bold flex items-center justify-center animate-pulse"
           >
             {{ webhookService.unreadCount() }}
           </span>
@@ -109,12 +109,12 @@
 
       @if (isNotificationDropdownOpen()) {
         <div
-          class="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl shadow-2xl bg-rf-surface border border-rf-border p-3.5 z-50 animate-fade-in space-y-3"
+          class="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl shadow-2xl bg-fb-surface border border-fb-border p-3.5 z-50 animate-fade-in space-y-3"
         >
-          <div class="flex items-center justify-between border-b border-rf-border pb-2">
+          <div class="flex items-center justify-between border-b border-fb-border pb-2">
             <div class="flex items-center gap-1.5">
               <svg [lucideIcon]="BellIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
-              <strong class="text-xs text-rf-text-primary">Benachrichtigungen</strong>
+              <strong class="text-xs text-fb-text-primary">Benachrichtigungen</strong>
               @if (webhookService.unreadCount() > 0) {
                 <span
                   class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400"
@@ -128,7 +128,7 @@
               <button
                 type="button"
                 (click)="webhookService.markAllAsRead()"
-                class="text-[10px] text-rf-text-muted hover:text-indigo-400 cursor-pointer flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-rf-surface-hover"
+                class="text-[10px] text-fb-text-muted hover:text-indigo-400 cursor-pointer flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-fb-surface-hover"
                 title="Alle als gelesen markieren"
               >
                 <svg [lucideIcon]="CheckCheckIcon" class="w-3 h-3"></svg>
@@ -137,7 +137,7 @@
               <button
                 type="button"
                 (click)="webhookService.clearNotifications()"
-                class="text-[10px] text-rf-text-muted hover:text-rose-400 cursor-pointer p-1 rounded hover:bg-rose-500/10"
+                class="text-[10px] text-fb-text-muted hover:text-rose-400 cursor-pointer p-1 rounded hover:bg-rose-500/10"
                 title="Verlauf leeren"
               >
                 <svg [lucideIcon]="TrashIcon" class="w-3 h-3"></svg>
@@ -145,21 +145,21 @@
             </div>
           </div>
 
-          <div class="max-h-72 overflow-y-auto divide-y divide-rf-border space-y-1">
+          <div class="max-h-72 overflow-y-auto divide-y divide-fb-border space-y-1">
             @for (notif of webhookService.notifications(); track notif.id) {
               <div
                 class="py-2 px-1 text-xs space-y-1 rounded-lg transition"
                 [class.bg-indigo-500/5]="!notif.read"
               >
                 <div class="flex items-start justify-between gap-2">
-                  <strong class="text-[11px] text-rf-text-primary" [class.font-bold]="!notif.read">
+                  <strong class="text-[11px] text-fb-text-primary" [class.font-bold]="!notif.read">
                     {{ notif.title }}
                   </strong>
-                  <span class="text-[10px] font-mono text-rf-text-muted shrink-0">
+                  <span class="text-[10px] font-mono text-fb-text-muted shrink-0">
                     {{ notif.timestamp | date: 'shortTime' }}
                   </span>
                 </div>
-                <p class="text-[11px] text-rf-text-muted leading-relaxed">
+                <p class="text-[11px] text-fb-text-muted leading-relaxed">
                   {{ notif.message }}
                 </p>
                 @if (notif.link) {
@@ -173,14 +173,14 @@
                 }
               </div>
             } @empty {
-              <div class="p-4 text-center text-xs text-rf-text-muted">
+              <div class="p-4 text-center text-xs text-fb-text-muted">
                 Keine neuen Meldungen vorhanden.
               </div>
             }
           </div>
 
           <div
-            class="pt-2 border-t border-rf-border flex justify-between items-center text-[10px] text-rf-text-muted"
+            class="pt-2 border-t border-fb-border flex justify-between items-center text-[10px] text-fb-text-muted"
           >
             <a
               routerLink="/settings"
@@ -200,7 +200,7 @@
     <button
       type="button"
       (click)="themeService.toggleTheme()"
-      class="p-1.5 rounded-lg border border-rf-border bg-rf-surface text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover transition cursor-pointer"
+      class="p-1.5 rounded-lg border border-fb-border bg-fb-surface text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
       [attr.aria-label]="
         themeService.isDark() ? 'Zu hellem Design wechseln' : 'Zu dunklem Design wechseln'
       "
@@ -211,16 +211,16 @@
 
     <!-- Language Toggle -->
     <div
-      class="flex items-center border border-rf-border rounded-md p-0.5 bg-rf-surface text-[11px]"
+      class="flex items-center border border-fb-border rounded-md p-0.5 bg-fb-surface text-[11px]"
     >
       <button
         type="button"
         (click)="switchLanguage('de')"
         class="px-2 py-0.5 rounded font-medium transition cursor-pointer"
-        [class.bg-rf-border]="currentLanguage() === 'de'"
+        [class.bg-fb-border]="currentLanguage() === 'de'"
         [class.shadow-xs]="currentLanguage() === 'de'"
-        [class.text-rf-text-primary]="currentLanguage() === 'de'"
-        [class.text-rf-text-muted]="currentLanguage() !== 'de'"
+        [class.text-fb-text-primary]="currentLanguage() === 'de'"
+        [class.text-fb-text-muted]="currentLanguage() !== 'de'"
       >
         DE
       </button>
@@ -228,10 +228,10 @@
         type="button"
         (click)="switchLanguage('en')"
         class="px-2 py-0.5 rounded font-medium transition cursor-pointer"
-        [class.bg-rf-border]="currentLanguage() === 'en'"
+        [class.bg-fb-border]="currentLanguage() === 'en'"
         [class.shadow-xs]="currentLanguage() === 'en'"
-        [class.text-rf-text-primary]="currentLanguage() === 'en'"
-        [class.text-rf-text-muted]="currentLanguage() !== 'en'"
+        [class.text-fb-text-primary]="currentLanguage() === 'en'"
+        [class.text-fb-text-muted]="currentLanguage() !== 'en'"
       >
         EN
       </button>
@@ -242,7 +242,7 @@
       <button
         type="button"
         (click)="toggleUserDropdown()"
-        class="flex items-center gap-2 p-1 rounded-md hover:bg-rf-surface-hover transition cursor-pointer"
+        class="flex items-center gap-2 p-1 rounded-md hover:bg-fb-surface-hover transition cursor-pointer"
       >
         <div
           class="w-7 h-7 rounded-md bg-indigo-500/20 border border-indigo-500/30 text-indigo-300 flex items-center justify-center font-bold text-xs shadow-xs"
@@ -250,7 +250,7 @@
           {{ auth.userName().charAt(0).toUpperCase() }}
         </div>
         <div class="hidden md:flex items-center gap-1.5">
-          <span class="text-xs font-semibold text-rf-text-primary">
+          <span class="text-xs font-semibold text-fb-text-primary">
             {{ auth.userName() }}
           </span>
           @let badge = memberService.getRoleBadge(memberService.currentUserRole());
@@ -264,19 +264,19 @@
 
       @if (isUserDropdownOpen()) {
         <div
-          class="absolute right-0 mt-1.5 w-52 rounded-xl shadow-2xl bg-rf-surface border border-rf-border py-1 z-50 animate-fade-in"
+          class="absolute right-0 mt-1.5 w-52 rounded-xl shadow-2xl bg-fb-surface border border-fb-border py-1 z-50 animate-fade-in"
         >
-          <div class="px-3 py-1.5 border-b border-rf-border">
-            <p class="text-xs font-semibold text-rf-text-primary truncate">{{ auth.userName() }}</p>
-            <p class="text-[10px] text-rf-text-muted truncate">{{ auth.userEmail() }}</p>
+          <div class="px-3 py-1.5 border-b border-fb-border">
+            <p class="text-xs font-semibold text-fb-text-primary truncate">{{ auth.userName() }}</p>
+            <p class="text-[10px] text-fb-text-muted truncate">{{ auth.userEmail() }}</p>
           </div>
 
           <a
             routerLink="/settings"
             (click)="isUserDropdownOpen.set(false)"
-            class="px-3 py-1.5 text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover flex items-center gap-2 cursor-pointer"
+            class="px-3 py-1.5 text-xs text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover flex items-center gap-2 cursor-pointer"
           >
-            <svg [lucideIcon]="UserIcon" class="w-3.5 h-3.5 text-rf-text-muted"></svg>
+            <svg [lucideIcon]="UserIcon" class="w-3.5 h-3.5 text-fb-text-muted"></svg>
             <span>{{ 'NAV.SETTINGS' | translate }}</span>
           </a>
 

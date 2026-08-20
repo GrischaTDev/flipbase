@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ItemCondition, ItemStatus } from '../models/reflip.models';
+import { ItemCondition, ItemStatus } from '../models/flipbase.models';
 
 describe('Inventory Domain & Lifecycle Rules (Phase 3)', () => {
   it('should support all specified item conditions from Chapter 17', () => {

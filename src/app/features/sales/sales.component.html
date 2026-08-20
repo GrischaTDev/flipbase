@@ -1,13 +1,13 @@
 <div class="space-y-4 animate-fade-in">
   <!-- Page Header -->
   <div
-    class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-rf-line"
+    class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-fb-line"
   >
     <div>
-      <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
+      <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">
         {{ 'NAV.SALES' | translate }} & Retouren
       </h1>
-      <p class="text-xs text-rf-text-muted mt-0.5">
+      <p class="text-xs text-fb-text-muted mt-0.5">
         Realisierte Gewinne, Plattformgebühren, § 25a Rechnungen & Gutschriften-Abwicklung.
       </p>
     </div>
@@ -27,37 +27,37 @@
   <!-- KPI Cards Grid -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
     <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[11px] font-semibold text-rf-text-muted block">Realisierter Gewinn</span>
+      <span class="text-[11px] font-semibold text-fb-text-muted block">Realisierter Gewinn</span>
       <span class="text-2xl font-bold font-mono tracking-tight text-emerald-400 mt-2 block">
         +{{ totalRealizedProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </span>
-      <span class="text-[10px] text-rf-text-muted mt-0.5 block">Netto nach allen Kosten</span>
+      <span class="text-[10px] text-fb-text-muted mt-0.5 block">Netto nach allen Kosten</span>
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[11px] font-semibold text-rf-text-muted block">Gesamtumsatz</span>
-      <span class="text-2xl font-bold font-mono tracking-tight text-rf-text-primary mt-2 block">
+      <span class="text-[11px] font-semibold text-fb-text-muted block">Gesamtumsatz</span>
+      <span class="text-2xl font-bold font-mono tracking-tight text-fb-text-primary mt-2 block">
         {{ totalRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </span>
-      <span class="text-[10px] text-rf-text-muted mt-0.5 block"
+      <span class="text-[10px] text-fb-text-muted mt-0.5 block"
         >{{ salesService.sales().length }} getätigte Verkäufe</span
       >
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[11px] font-semibold text-rf-text-muted block">Durchschnittlicher ROI</span>
+      <span class="text-[11px] font-semibold text-fb-text-muted block">Durchschnittlicher ROI</span>
       <span class="text-2xl font-bold font-mono tracking-tight text-indigo-400 mt-2 block">
         {{ averageRoi() }} %
       </span>
-      <span class="text-[10px] text-rf-text-muted mt-0.5 block">Return on Investment</span>
+      <span class="text-[10px] text-fb-text-muted mt-0.5 block">Return on Investment</span>
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[11px] font-semibold text-rf-text-muted block">Ø Haltedauer</span>
-      <span class="text-2xl font-bold font-mono tracking-tight text-rf-text-primary mt-2 block">
+      <span class="text-[11px] font-semibold text-fb-text-muted block">Ø Haltedauer</span>
+      <span class="text-2xl font-bold font-mono tracking-tight text-fb-text-primary mt-2 block">
         {{ averageHoldingDays() }} Tage
       </span>
-      <span class="text-[10px] text-rf-text-muted mt-0.5 block">Vom Einkauf bis Verkauf</span>
+      <span class="text-[10px] text-fb-text-muted mt-0.5 block">Vom Einkauf bis Verkauf</span>
     </div>
   </div>
 
@@ -67,13 +67,13 @@
       type="button"
       (click)="selectedPlatform.set('all')"
       class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-rf-line]="selectedPlatform() === 'all'"
-      [class.text-rf-text-primary]="selectedPlatform() === 'all'"
+      [class.bg-fb-line]="selectedPlatform() === 'all'"
+      [class.text-fb-text-primary]="selectedPlatform() === 'all'"
       [class.border]="selectedPlatform() === 'all'"
-      [class.border-rf-line-strong]="selectedPlatform() === 'all'"
-      [class.text-rf-text-secondary]="selectedPlatform() !== 'all'"
-      [class.hover:bg-rf-surface-alt]="selectedPlatform() !== 'all'"
-      [class.hover:text-rf-text-primary]="selectedPlatform() !== 'all'"
+      [class.border-fb-line-strong]="selectedPlatform() === 'all'"
+      [class.text-fb-text-secondary]="selectedPlatform() !== 'all'"
+      [class.hover:bg-fb-surface-alt]="selectedPlatform() !== 'all'"
+      [class.hover:text-fb-text-primary]="selectedPlatform() !== 'all'"
     >
       Alle Verkäufe ({{ salesService.sales().length }})
     </button>
@@ -86,8 +86,8 @@
       [class.text-rose-300]="selectedPlatform() === 'returned'"
       [class.border]="selectedPlatform() === 'returned'"
       [class.border-rose-500/40]="selectedPlatform() === 'returned'"
-      [class.text-rf-text-secondary]="selectedPlatform() !== 'returned'"
-      [class.hover:bg-rf-surface-alt]="selectedPlatform() !== 'returned'"
+      [class.text-fb-text-secondary]="selectedPlatform() !== 'returned'"
+      [class.hover:bg-fb-surface-alt]="selectedPlatform() !== 'returned'"
     >
       <svg [lucideIcon]="returnIcon" class="w-3 h-3 text-rose-400"></svg>
       <span>Retouren & Gutschriften ({{ returnService.returns().length }})</span>
@@ -97,13 +97,13 @@
       type="button"
       (click)="selectedPlatform.set('kleinanzeigen')"
       class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-rf-line]="selectedPlatform() === 'kleinanzeigen'"
-      [class.text-rf-text-primary]="selectedPlatform() === 'kleinanzeigen'"
+      [class.bg-fb-line]="selectedPlatform() === 'kleinanzeigen'"
+      [class.text-fb-text-primary]="selectedPlatform() === 'kleinanzeigen'"
       [class.border]="selectedPlatform() === 'kleinanzeigen'"
-      [class.border-rf-line-strong]="selectedPlatform() === 'kleinanzeigen'"
-      [class.text-rf-text-secondary]="selectedPlatform() !== 'kleinanzeigen'"
-      [class.hover:bg-rf-surface-alt]="selectedPlatform() !== 'kleinanzeigen'"
-      [class.hover:text-rf-text-primary]="selectedPlatform() !== 'kleinanzeigen'"
+      [class.border-fb-line-strong]="selectedPlatform() === 'kleinanzeigen'"
+      [class.text-fb-text-secondary]="selectedPlatform() !== 'kleinanzeigen'"
+      [class.hover:bg-fb-surface-alt]="selectedPlatform() !== 'kleinanzeigen'"
+      [class.hover:text-fb-text-primary]="selectedPlatform() !== 'kleinanzeigen'"
     >
       Kleinanzeigen
     </button>
@@ -112,13 +112,13 @@
       type="button"
       (click)="selectedPlatform.set('ebay')"
       class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-rf-line]="selectedPlatform() === 'ebay'"
-      [class.text-rf-text-primary]="selectedPlatform() === 'ebay'"
+      [class.bg-fb-line]="selectedPlatform() === 'ebay'"
+      [class.text-fb-text-primary]="selectedPlatform() === 'ebay'"
       [class.border]="selectedPlatform() === 'ebay'"
-      [class.border-rf-line-strong]="selectedPlatform() === 'ebay'"
-      [class.text-rf-text-secondary]="selectedPlatform() !== 'ebay'"
-      [class.hover:bg-rf-surface-alt]="selectedPlatform() !== 'ebay'"
-      [class.hover:text-rf-text-primary]="selectedPlatform() !== 'ebay'"
+      [class.border-fb-line-strong]="selectedPlatform() === 'ebay'"
+      [class.text-fb-text-secondary]="selectedPlatform() !== 'ebay'"
+      [class.hover:bg-fb-surface-alt]="selectedPlatform() !== 'ebay'"
+      [class.hover:text-fb-text-primary]="selectedPlatform() !== 'ebay'"
     >
       eBay
     </button>
@@ -127,13 +127,13 @@
       type="button"
       (click)="selectedPlatform.set('vinted')"
       class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-rf-line]="selectedPlatform() === 'vinted'"
-      [class.text-rf-text-primary]="selectedPlatform() === 'vinted'"
+      [class.bg-fb-line]="selectedPlatform() === 'vinted'"
+      [class.text-fb-text-primary]="selectedPlatform() === 'vinted'"
       [class.border]="selectedPlatform() === 'vinted'"
-      [class.border-rf-line-strong]="selectedPlatform() === 'vinted'"
-      [class.text-rf-text-secondary]="selectedPlatform() !== 'vinted'"
-      [class.hover:bg-rf-surface-alt]="selectedPlatform() !== 'vinted'"
-      [class.hover:text-rf-text-primary]="selectedPlatform() !== 'vinted'"
+      [class.border-fb-line-strong]="selectedPlatform() === 'vinted'"
+      [class.text-fb-text-secondary]="selectedPlatform() !== 'vinted'"
+      [class.hover:bg-fb-surface-alt]="selectedPlatform() !== 'vinted'"
+      [class.hover:text-fb-text-primary]="selectedPlatform() !== 'vinted'"
     >
       Vinted
     </button>
@@ -142,13 +142,13 @@
       type="button"
       (click)="selectedPlatform.set('custom_store')"
       class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-rf-line]="selectedPlatform() === 'custom_store'"
-      [class.text-rf-text-primary]="selectedPlatform() === 'custom_store'"
+      [class.bg-fb-line]="selectedPlatform() === 'custom_store'"
+      [class.text-fb-text-primary]="selectedPlatform() === 'custom_store'"
       [class.border]="selectedPlatform() === 'custom_store'"
-      [class.border-rf-line-strong]="selectedPlatform() === 'custom_store'"
-      [class.text-rf-text-secondary]="selectedPlatform() !== 'custom_store'"
-      [class.hover:bg-rf-surface-alt]="selectedPlatform() !== 'custom_store'"
-      [class.hover:text-rf-text-primary]="selectedPlatform() !== 'custom_store'"
+      [class.border-fb-line-strong]="selectedPlatform() === 'custom_store'"
+      [class.text-fb-text-secondary]="selectedPlatform() !== 'custom_store'"
+      [class.hover:bg-fb-surface-alt]="selectedPlatform() !== 'custom_store'"
+      [class.hover:text-fb-text-primary]="selectedPlatform() !== 'custom_store'"
     >
       Webshop
     </button>
@@ -159,34 +159,34 @@
     <div class="linear-surface rounded-xl overflow-hidden hidden md:block">
       <table class="linear-table">
         <thead
-          class="bg-rf-well text-rf-text-secondary uppercase font-semibold text-[10px] tracking-wider"
+          class="bg-fb-well text-fb-text-secondary uppercase font-semibold text-[10px] tracking-wider"
         >
           <tr>
-            <th class="py-2.5 px-4 font-semibold rounded-tl-xl border-b border-rf-line">
+            <th class="py-2.5 px-4 font-semibold rounded-tl-xl border-b border-fb-line">
               Verkaufter Artikel
             </th>
-            <th class="py-2.5 px-3 font-semibold border-b border-rf-line">Plattform</th>
-            <th class="py-2.5 px-3 font-semibold border-b border-rf-line">Datum</th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">
+            <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Plattform</th>
+            <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Datum</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
               Verkaufspreis
             </th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
               Nettogewinn
             </th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">ROI</th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">Haltedauer</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">ROI</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">Haltedauer</th>
             <th
-              class="py-2.5 px-4 font-semibold text-center w-28 rounded-tr-xl border-b border-rf-line"
+              class="py-2.5 px-4 font-semibold text-center w-28 rounded-tr-xl border-b border-fb-line"
             >
               Aktionen
             </th>
           </tr>
         </thead>
-        <tbody class="divide-y divide-rf-line">
+        <tbody class="divide-y divide-fb-line">
           @for (sale of filteredSales(); track sale.id) {
             @let ret = getReturnForSale(sale.id);
-            <tr class="hover:bg-rf-surface-alt transition group">
-              <td class="py-3 px-4 font-semibold text-rf-text-primary group-last:rounded-bl-xl">
+            <tr class="hover:bg-fb-surface-alt transition group">
+              <td class="py-3 px-4 font-semibold text-fb-text-primary group-last:rounded-bl-xl">
                 <div class="flex items-center gap-2">
                   <a
                     [routerLink]="['/inventory', sale.inventory_item_id]"
@@ -206,17 +206,17 @@
 
               <td class="py-3 px-3">
                 <span
-                  class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-rf-well text-rf-text-secondary border border-rf-line"
+                  class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-fb-well text-fb-text-secondary border border-fb-line"
                 >
                   {{ sale.platform }}
                 </span>
               </td>
 
-              <td class="py-3 px-3 text-rf-text-muted font-mono text-[11px]">
+              <td class="py-3 px-3 text-fb-text-muted font-mono text-[11px]">
                 {{ sale.sale_date | date: 'dd.MM.yyyy' }}
               </td>
 
-              <td class="py-3 px-3 text-right font-mono font-semibold text-rf-text-secondary">
+              <td class="py-3 px-3 text-right font-mono font-semibold text-fb-text-secondary">
                 {{ sale.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
               </td>
 
@@ -236,7 +236,7 @@
                 {{ sale.roi }} %
               </td>
 
-              <td class="py-3 px-3 text-right font-mono text-rf-text-secondary">
+              <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
                 {{ sale.holding_duration_days }} Tage
               </td>
 
@@ -276,7 +276,7 @@
                   <button
                     type="button"
                     (click)="onDeleteSale(sale)"
-                    class="p-1.5 rounded-lg text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                    class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                     title="Verkauf stornieren"
                   >
                     <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
@@ -297,7 +297,7 @@
           <div class="flex items-start justify-between gap-2">
             <div>
               <div class="flex items-center gap-1.5">
-                <h3 class="text-xs font-semibold text-rf-text-primary line-clamp-1 font-sans">
+                <h3 class="text-xs font-semibold text-fb-text-primary line-clamp-1 font-sans">
                   {{ sale.inventory_item?.title || 'Artikel' }}
                 </h3>
                 @if (ret) {
@@ -308,35 +308,35 @@
                   </span>
                 }
               </div>
-              <p class="text-[11px] text-rf-text-muted">
+              <p class="text-[11px] text-fb-text-muted">
                 {{ sale.sale_date | date: 'dd.MM.yyyy' }} • {{ sale.platform }}
               </p>
             </div>
-            <strong class="text-xs font-bold text-rf-text-primary">
+            <strong class="text-xs font-bold text-fb-text-primary">
               {{ sale.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
             </strong>
           </div>
 
-          <div class="flex items-center justify-between text-xs pt-2 border-t border-rf-line">
+          <div class="flex items-center justify-between text-xs pt-2 border-t border-fb-line">
             <div>
-              <span class="text-[10px] text-rf-text-muted font-sans block">Gewinn</span>
+              <span class="text-[10px] text-fb-text-muted font-sans block">Gewinn</span>
               <strong class="text-emerald-400">
                 +{{ sale.net_profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
               </strong>
             </div>
 
             <div>
-              <span class="text-[10px] text-rf-text-muted font-sans block">ROI</span>
+              <span class="text-[10px] text-fb-text-muted font-sans block">ROI</span>
               <strong class="text-emerald-400"> {{ sale.roi }} % </strong>
             </div>
 
             <div class="text-right">
-              <span class="text-[10px] text-rf-text-muted font-sans block">Haltedauer</span>
-              <strong class="text-rf-text-secondary">{{ sale.holding_duration_days }} Tage</strong>
+              <span class="text-[10px] text-fb-text-muted font-sans block">Haltedauer</span>
+              <strong class="text-fb-text-secondary">{{ sale.holding_duration_days }} Tage</strong>
             </div>
           </div>
 
-          <div class="pt-2 border-t border-rf-line flex justify-end gap-2">
+          <div class="pt-2 border-t border-fb-line flex justify-end gap-2">
             <button
               type="button"
               (click)="openInvoiceForSale(sale)"
@@ -373,12 +373,12 @@
     <!-- Empty State -->
     <div class="linear-surface rounded-xl p-10 text-center">
       <div
-        class="w-10 h-10 rounded-lg bg-rf-well border border-rf-line text-rf-text-muted mx-auto flex items-center justify-center mb-3"
+        class="w-10 h-10 rounded-lg bg-fb-well border border-fb-line text-fb-text-muted mx-auto flex items-center justify-center mb-3"
       >
         <svg [lucideIcon]="trendingIcon" class="w-5 h-5"></svg>
       </div>
-      <h3 class="text-sm font-bold text-rf-text-secondary">Keine passenden Verkäufe gefunden</h3>
-      <p class="text-xs text-rf-text-muted max-w-sm mx-auto mt-1 mb-4">
+      <h3 class="text-sm font-bold text-fb-text-secondary">Keine passenden Verkäufe gefunden</h3>
+      <p class="text-xs text-fb-text-muted max-w-sm mx-auto mt-1 mb-4">
         Erfasse deinen ersten Verkauf, um deine realisierten Gewinne und Margen sofort live zu
         sehen.
       </p>
@@ -408,10 +408,10 @@
       class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto"
     >
       <div
-        class="linear-surface rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl border border-rf-border my-auto animate-modal-card"
+        class="linear-surface rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl border border-fb-border my-auto animate-modal-card"
       >
         <!-- Header -->
-        <div class="p-5 border-b border-rf-border flex items-center justify-between bg-rf-subtle">
+        <div class="p-5 border-b border-fb-border flex items-center justify-between bg-fb-subtle">
           <div class="flex items-center gap-2.5">
             <div
               class="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 flex items-center justify-center"
@@ -419,8 +419,8 @@
               <svg [lucideIcon]="returnIcon" class="w-4 h-4"></svg>
             </div>
             <div>
-              <h3 class="text-sm font-bold text-rf-text-primary">Retoure & Gutschrift erfassen</h3>
-              <p class="text-[11px] text-rf-text-muted mt-0.5">
+              <h3 class="text-sm font-bold text-fb-text-primary">Retoure & Gutschrift erfassen</h3>
+              <p class="text-[11px] text-fb-text-muted mt-0.5">
                 {{ sale?.inventory_item?.title || 'Artikel' }} (Verkauf:
                 {{ sale?.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }})
               </p>
@@ -430,7 +430,7 @@
           <button
             type="button"
             (click)="closeReturnModal()"
-            class="p-1.5 rounded-xl text-rf-text-muted hover:text-rf-text-primary transition cursor-pointer"
+            class="p-1.5 rounded-xl text-fb-text-muted hover:text-fb-text-primary transition cursor-pointer"
           >
             <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
           </button>
@@ -442,7 +442,7 @@
           <div>
             <label
               for="sales-grund-der-ruckabwicklung"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Grund der Rückabwicklung
             </label>
@@ -463,7 +463,7 @@
           <!-- 2. Refund Amount (Full vs Partial) -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <span class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
                 Erstattungsbetrag (€)
               </span>
               <div class="flex items-center gap-2">
@@ -472,11 +472,11 @@
                   (click)="onRefundModeChange(true)"
                   class="px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer"
                   [class.bg-indigo-600]="returnForm.get('isFullRefund')?.value"
-                  [class.text-rf-text-primary]="returnForm.get('isFullRefund')?.value"
+                  [class.text-fb-text-primary]="returnForm.get('isFullRefund')?.value"
                   [class.border-indigo-500]="returnForm.get('isFullRefund')?.value"
-                  [class.bg-rf-subtle]="!returnForm.get('isFullRefund')?.value"
-                  [class.text-rf-text-muted]="!returnForm.get('isFullRefund')?.value"
-                  [class.border-rf-border]="!returnForm.get('isFullRefund')?.value"
+                  [class.bg-fb-subtle]="!returnForm.get('isFullRefund')?.value"
+                  [class.text-fb-text-muted]="!returnForm.get('isFullRefund')?.value"
+                  [class.border-fb-border]="!returnForm.get('isFullRefund')?.value"
                 >
                   Vollerstattung ({{
                     sale?.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
@@ -488,11 +488,11 @@
                   (click)="onRefundModeChange(false)"
                   class="px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer"
                   [class.bg-indigo-600]="!returnForm.get('isFullRefund')?.value"
-                  [class.text-rf-text-primary]="!returnForm.get('isFullRefund')?.value"
+                  [class.text-fb-text-primary]="!returnForm.get('isFullRefund')?.value"
                   [class.border-indigo-500]="!returnForm.get('isFullRefund')?.value"
-                  [class.bg-rf-subtle]="returnForm.get('isFullRefund')?.value"
-                  [class.text-rf-text-muted]="returnForm.get('isFullRefund')?.value"
-                  [class.border-rf-border]="returnForm.get('isFullRefund')?.value"
+                  [class.bg-fb-subtle]="returnForm.get('isFullRefund')?.value"
+                  [class.text-fb-text-muted]="returnForm.get('isFullRefund')?.value"
+                  [class.border-fb-border]="returnForm.get('isFullRefund')?.value"
                 >
                   Teilerstattung
                 </button>
@@ -506,14 +506,14 @@
                 formControlName="refundAmount"
                 class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
               />
-              <span class="absolute right-3 top-2 text-xs text-rf-text-muted">EUR</span>
+              <span class="absolute right-3 top-2 text-xs text-fb-text-muted">EUR</span>
             </div>
           </div>
 
           <!-- 3. Restock Decision -->
           <div class="space-y-1.5">
             <span
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Wiedereinlagerung in den Warenbestand
             </span>
@@ -526,8 +526,8 @@
                 [class.border-emerald-500/40]="
                   returnForm.get('restockAction')?.value === 'restock_ready'
                 "
-                [class.bg-rf-subtle]="returnForm.get('restockAction')?.value !== 'restock_ready'"
-                [class.border-rf-border]="
+                [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'restock_ready'"
+                [class.border-fb-border]="
                   returnForm.get('restockAction')?.value !== 'restock_ready'
                 "
               >
@@ -538,8 +538,8 @@
                   class="mt-0.5 cursor-pointer text-indigo-600"
                 />
                 <div>
-                  <strong class="block text-xs text-rf-text-primary">Wieder verkaufsbereit</strong>
-                  <span class="text-[10px] text-rf-text-muted"
+                  <strong class="block text-xs text-fb-text-primary">Wieder verkaufsbereit</strong>
+                  <span class="text-[10px] text-fb-text-muted"
                     >Artikel zurück in Bestand (ready)</span
                   >
                 </div>
@@ -553,8 +553,8 @@
                 [class.border-amber-500/40]="
                   returnForm.get('restockAction')?.value === 'restock_repair'
                 "
-                [class.bg-rf-subtle]="returnForm.get('restockAction')?.value !== 'restock_repair'"
-                [class.border-rf-border]="
+                [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'restock_repair'"
+                [class.border-fb-border]="
                   returnForm.get('restockAction')?.value !== 'restock_repair'
                 "
               >
@@ -565,10 +565,10 @@
                   class="mt-0.5 cursor-pointer text-indigo-600"
                 />
                 <div>
-                  <strong class="block text-xs text-rf-text-primary"
+                  <strong class="block text-xs text-fb-text-primary"
                     >Reparatur / Aufbereitung</strong
                   >
-                  <span class="text-[10px] text-rf-text-muted"
+                  <span class="text-[10px] text-fb-text-muted"
                     >In Werkstatt übergeben (repair)</span
                   >
                 </div>
@@ -578,8 +578,8 @@
                 class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
                 [class.bg-rose-500/15]="returnForm.get('restockAction')?.value === 'write_off'"
                 [class.border-rose-500/40]="returnForm.get('restockAction')?.value === 'write_off'"
-                [class.bg-rf-subtle]="returnForm.get('restockAction')?.value !== 'write_off'"
-                [class.border-rf-border]="returnForm.get('restockAction')?.value !== 'write_off'"
+                [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'write_off'"
+                [class.border-fb-border]="returnForm.get('restockAction')?.value !== 'write_off'"
               >
                 <input
                   type="radio"
@@ -588,8 +588,8 @@
                   class="mt-0.5 cursor-pointer text-indigo-600"
                 />
                 <div>
-                  <strong class="block text-xs text-rf-text-primary">Als Defekt abschreiben</strong>
-                  <span class="text-[10px] text-rf-text-muted">Totalverlust / Bruchschaden</span>
+                  <strong class="block text-xs text-fb-text-primary">Als Defekt abschreiben</strong>
+                  <span class="text-[10px] text-fb-text-muted">Totalverlust / Bruchschaden</span>
                 </div>
               </label>
 
@@ -601,8 +601,8 @@
                 [class.border-indigo-500/40]="
                   returnForm.get('restockAction')?.value === 'keep_with_buyer'
                 "
-                [class.bg-rf-subtle]="returnForm.get('restockAction')?.value !== 'keep_with_buyer'"
-                [class.border-rf-border]="
+                [class.bg-fb-subtle]="returnForm.get('restockAction')?.value !== 'keep_with_buyer'"
+                [class.border-fb-border]="
                   returnForm.get('restockAction')?.value !== 'keep_with_buyer'
                 "
               >
@@ -613,8 +613,8 @@
                   class="mt-0.5 cursor-pointer text-indigo-600"
                 />
                 <div>
-                  <strong class="block text-xs text-rf-text-primary">Bleibt beim Käufer</strong>
-                  <span class="text-[10px] text-rf-text-muted">Preisnachlass / Kulanz</span>
+                  <strong class="block text-xs text-fb-text-primary">Bleibt beim Käufer</strong>
+                  <span class="text-[10px] text-fb-text-muted">Preisnachlass / Kulanz</span>
                 </div>
               </label>
             </div>
@@ -624,7 +624,7 @@
           <div>
             <label
               for="sales-interne-notizen-zur-ruckabwicklung"
-              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
             >
               Interne Notizen zur Rückabwicklung
             </label>
@@ -638,7 +638,7 @@
           </div>
 
           <!-- Actions -->
-          <div class="pt-3 border-t border-rf-border flex justify-end gap-2">
+          <div class="pt-3 border-t border-fb-border flex justify-end gap-2">
             <button
               type="button"
               (click)="closeReturnModal()"

@@ -10,9 +10,9 @@ import {
   Sale,
   Workspace,
   WorkspaceSummary,
-} from '../models/reflip.models';
+} from '../models/flipbase.models';
 
-const ACTIVE_WORKSPACE_KEY = 'reflip_active_workspace_id';
+const ACTIVE_WORKSPACE_KEY = 'flipbase_active_workspace_id';
 
 @Injectable({
   providedIn: 'root',
@@ -146,7 +146,7 @@ export class WorkspaceService {
   private persistWorkspaces(): void {
     try {
       if (typeof window !== 'undefined' && this.auth?.isDemoMode()) {
-        localStorage.setItem('reflip_saved_workspaces', JSON.stringify(this.workspaces()));
+        localStorage.setItem('flipbase_saved_workspaces', JSON.stringify(this.workspaces()));
       }
     } catch {}
   }

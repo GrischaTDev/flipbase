@@ -6,7 +6,7 @@ import { TaxEngineService } from './tax-engine.service';
 import { WorkspaceService } from './workspace.service';
 import { SalesService } from './sales.service';
 import { InventoryService } from './inventory.service';
-import { Purchase, Sale, TaxCalculationResult } from '../models/reflip.models';
+import { Purchase, Sale, TaxCalculationResult } from '../models/flipbase.models';
 
 describe('TaxAdvisorService & DATEV Export Engine (Chapter 24)', () => {
   let service: TaxAdvisorService;

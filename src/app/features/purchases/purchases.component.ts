@@ -33,7 +33,7 @@ import { PurchaseService } from '../../core/services/purchase.service';
 import { OfflineSyncService } from '../../core/services/offline-sync.service';
 import { InboundTrackingService } from '../../core/services/inbound-tracking.service';
 import { PurchaseCreateModalComponent } from './components/purchase-create-modal/purchase-create-modal.component';
-import { PurchaseType } from '../../core/models/reflip.models';
+import { PurchaseType } from '../../core/models/flipbase.models';
 
 @Component({
   selector: 'app-purchases',

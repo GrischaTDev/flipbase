@@ -10,7 +10,7 @@
       [class.cursor-not-allowed]="effectiveDisabled()"
       [class]="
         selectedOption()?.colorClass ||
-        'bg-rf-subtle text-rf-text-primary border-rf-border hover:border-rf-border-hover'
+        'bg-fb-subtle text-fb-text-primary border-fb-border hover:border-fb-border-hover'
       "
     >
       <span class="truncate">{{ selectedOption()?.label || placeholder() }}</span>
@@ -25,7 +25,7 @@
       type="button"
       (click)="toggleDropdown($event)"
       [disabled]="effectiveDisabled()"
-      class="linear-input w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition select-none text-rf-text-secondary"
+      class="linear-input w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition select-none text-fb-text-secondary"
       [class.opacity-50]="effectiveDisabled()"
       [class.cursor-not-allowed]="effectiveDisabled()"
       [class.border-indigo-500]="isOpen()"
@@ -33,7 +33,7 @@
       <span class="truncate">{{ selectedOption()?.label || placeholder() }}</span>
       <svg
         [lucideIcon]="chevronIcon"
-        class="w-3.5 h-3.5 text-rf-text-muted shrink-0 transition-transform duration-200"
+        class="w-3.5 h-3.5 text-fb-text-muted shrink-0 transition-transform duration-200"
         [class.rotate-180]="isOpen()"
       ></svg>
     </button>
@@ -43,7 +43,7 @@
       type="button"
       (click)="toggleDropdown($event)"
       [disabled]="effectiveDisabled()"
-      class="linear-input w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer transition select-none text-rf-text-primary"
+      class="linear-input w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer transition select-none text-fb-text-primary"
       [class.opacity-50]="effectiveDisabled()"
       [class.cursor-not-allowed]="effectiveDisabled()"
       [class.border-indigo-500]="isOpen()"
@@ -54,13 +54,13 @@
         @if (selectedOption()?.badgeClass) {
           <span class="w-2 h-2 rounded-full shrink-0" [class]="selectedOption()?.badgeClass"></span>
         }
-        <span class="truncate" [class.text-rf-text-muted]="!selectedOption()">
+        <span class="truncate" [class.text-fb-text-muted]="!selectedOption()">
           {{ selectedOption()?.label || placeholder() }}
         </span>
       </div>
       <svg
         [lucideIcon]="chevronIcon"
-        class="w-4 h-4 text-rf-text-muted shrink-0 transition-transform duration-200"
+        class="w-4 h-4 text-fb-text-muted shrink-0 transition-transform duration-200"
         [class.rotate-180]="isOpen()"
       ></svg>
     </button>
@@ -69,7 +69,7 @@
   <!-- Floating Dropdown Panel -->
   @if (isOpen()) {
     <div
-      class="custom-select-menu absolute z-50 min-w-[160px] max-w-[320px] w-full rounded-xl bg-rf-well border border-rf-line shadow-2xl ring-1 ring-white/5 py-1.5 max-h-60 overflow-y-auto outline-none animate-in fade-in zoom-in-95 duration-100"
+      class="custom-select-menu absolute z-50 min-w-[160px] max-w-[320px] w-full rounded-xl bg-fb-well border border-fb-line shadow-2xl ring-1 ring-white/5 py-1.5 max-h-60 overflow-y-auto outline-none animate-in fade-in zoom-in-95 duration-100"
       [class.bottom-full]="isDropUp()"
       [class.mb-1.5]="isDropUp()"
       [class.top-full]="!isDropUp()"
@@ -87,9 +87,9 @@
             [class.bg-indigo-600/20]="isSelected"
             [class.text-indigo-300]="isSelected"
             [class.font-bold]="isSelected"
-            [class.text-rf-text-secondary]="!isSelected"
-            [class.hover:bg-rf-surface-alt]="!isSelected"
-            [class.hover:text-rf-text-primary]="!isSelected"
+            [class.text-fb-text-secondary]="!isSelected"
+            [class.hover:bg-fb-surface-alt]="!isSelected"
+            [class.hover:text-fb-text-primary]="!isSelected"
           >
             <div class="flex items-center gap-2 truncate">
               @if (option.badgeClass) {

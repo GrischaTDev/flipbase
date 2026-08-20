@@ -33,7 +33,7 @@ import { WorkspaceMemberService } from '../../core/services/workspace-member.ser
 import { WebhookService } from '../../core/services/webhook.service';
 import { ThemeService } from '../../core/services/theme.service';
 import { PwaService } from '../../core/services/pwa.service';
-import { Workspace } from '../../core/models/reflip.models';
+import { Workspace } from '../../core/models/flipbase.models';
 import { DatePipe } from '@angular/common';
 
 @Component({
