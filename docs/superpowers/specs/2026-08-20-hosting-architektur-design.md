@@ -2,7 +2,7 @@
 
 **Datum:** 2026-08-20
 **Beteiligt:** Grischa Tänzer, Claude Opus 5
-**Status:** Grundinstallation umgesetzt, DNS-Umstellung offen
+**Status:** In Betrieb unter https://app.flipbase.de
 
 ---
 
@@ -102,3 +102,27 @@ Server 168.119.246.33 (Hetzner CX33, Ubuntu 26.04 LTS)
 | 9   | Projekt hat kein Git-Remote – Quellcode liegt nur lokal                                                                                                                                                                                                                                                                                                                        | Grischa                        |
 | 10  | Landingpage auf `flipbase.de` – braucht Impressumsdaten                                                                                                                                                                                                                                                                                                                        | Grischa                        |
 | 11  | Umbenennung ReFlip -> Flipbase im Code (Kosmetik)                                                                                                                                                                                                                                                                                                                              | –                              |
+
+---
+
+## Betriebsstand 2026-08-20
+
+Ausgerollt und im laufenden Betrieb geprueft:
+
+| | |
+|---|---|
+| `https://app.flipbase.de` | Dashboard, HTTP 200, Anmeldung erzwungen |
+| `https://api.flipbase.de` | Supabase; API mit Schluessel erreichbar, Studio hinter Passwortschutz |
+| `https://flipbase.de` / `www.` | Weiterleitung aufs Dashboard (spaeter Landingpage) |
+| Zertifikate | vier Stueck, automatisch von Let's Encrypt |
+| Datenbankports | von aussen geprueft dicht (5432, 6543, 8000) |
+| Sicherung | naechtlich 03:30 Uhr, 14 Tage, Auslagerung offen |
+
+Im Produktivstand geprueft: Stylesheet laedt mit `media="all"` (die
+CSP-Blockade aus Phase 7 ist nicht zurueck), alle Icons werden gezeichnet,
+CSP verweist auf `https://api.flipbase.de` und `wss://`, keine Fehler in der
+Browserkonsole.
+
+Der ausgerollte Stand enthaelt Phase 8 bis einschliesslich der
+Icon-Umstellung. Offen bleiben LoggerService, Strict Mode und die restlichen
+45 ESLint-Befunde.
