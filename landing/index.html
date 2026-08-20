@@ -1,0 +1,700 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flipbase – Betriebssystem fürs Reselling</title>
+    <meta
+      name="description"
+      content="Flipbase führt Einkauf, Bestand, Verkauf und Buchhaltung fürs Reselling an einer Stelle zusammen. In Entwicklung."
+    />
+    <!-- Bleibt bis zum vollständigen Impressum aus dem Index. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#282c37" />
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="stylesheet" href="/fonts/fonts.css" />
+    <style>
+      :root {
+        --canvas: #282c37;
+        --deep: #21252f;
+        --surface: #323846;
+        --surface-alt: #2c323f;
+        --line: #363c4a;
+        --line-strong: #444c5c;
+        --ink: #ffffff;
+        --ink-soft: #c7ccd6;
+        --ink-muted: #9ca3af;
+        --ink-dim: #8d95a5;
+        --indigo: #6366f1;
+        /* Hellerer Ton fuer Text: #6366f1 erreicht auf dem Untergrund nur 3,1:1. */
+        --indigo-text: #a5b4fc;
+        /* Kraeftiger fuer Flaechen mit weisser Schrift: #6366f1 kaeme nur auf 4,47:1. */
+        --indigo-flaeche: #4f46e5;
+        --emerald: #10b981;
+        --amber: #f59e0b;
+        --sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        --rand: clamp(1.25rem, 5vw, 5.5rem);
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--ink-soft);
+        font-family: var(--sans);
+        font-weight: 300;
+        font-size: clamp(0.95rem, 0.9rem + 0.25vw, 1.05rem);
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+
+      /* Millimeterpapier: leise Anspielung auf ein Kassenbuch. */
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.016) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.016) 1px, transparent 1px);
+        background-size: 76px 76px;
+        mask-image: radial-gradient(ellipse 90% 60% at 50% 0%, #000 20%, transparent 78%);
+      }
+
+      main,
+      header,
+      footer {
+        position: relative;
+        z-index: 1;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      /* ---------- Kopf ---------- */
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.75rem var(--rand) 0;
+      }
+
+      .marke {
+        display: flex;
+        align-items: baseline;
+        gap: 0.6rem;
+        font-weight: 700;
+        color: var(--ink);
+        letter-spacing: -0.02em;
+        font-size: 1.05rem;
+      }
+
+      .marke span {
+        font-family: var(--mono);
+        font-size: 0.66rem;
+        font-weight: 500;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--ink-dim);
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        padding: 0.18rem 0.5rem;
+      }
+
+      .kopf-link {
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-muted);
+        text-decoration: none;
+        border-bottom: 1px solid transparent;
+        transition:
+          color 0.2s,
+          border-color 0.2s;
+      }
+
+      .kopf-link:hover,
+      .kopf-link:focus-visible {
+        color: var(--ink);
+        border-color: var(--indigo);
+      }
+
+      /* ---------- Aufmacher ---------- */
+
+      .aufmacher {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+        gap: clamp(2.5rem, 6vw, 5rem);
+        align-items: center;
+        padding: clamp(3.5rem, 9vw, 7.5rem) var(--rand) clamp(3rem, 7vw, 5.5rem);
+        max-width: 1320px;
+        margin: 0 auto;
+      }
+
+      @media (max-width: 900px) {
+        .aufmacher {
+          grid-template-columns: minmax(0, 1fr);
+          gap: 3rem;
+        }
+      }
+
+      .stand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--amber);
+        margin-bottom: 1.75rem;
+      }
+
+      .stand::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 999px;
+        background: var(--amber);
+        box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.15);
+      }
+
+      h1 {
+        font-size: clamp(2.3rem, 1.2rem + 4.4vw, 4.35rem);
+        line-height: 1.03;
+        letter-spacing: -0.038em;
+        font-weight: 800;
+        color: var(--ink);
+        margin: 0 0 1.4rem;
+      }
+
+      h1 em {
+        font-style: normal;
+        color: var(--ink-dim);
+        font-weight: 300;
+      }
+
+      .unterzeile {
+        font-size: clamp(1rem, 0.95rem + 0.35vw, 1.2rem);
+        max-width: 33ch;
+        margin: 0 0 2.25rem;
+        color: var(--ink-muted);
+      }
+
+      .marker {
+        color: var(--ink-soft);
+        border-bottom: 1px solid var(--line-strong);
+      }
+
+      .aktionen {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 1.5rem;
+      }
+
+      .knopf {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.55rem;
+        background: var(--indigo-flaeche);
+        color: #fff;
+        text-decoration: none;
+        font-weight: 600;
+        font-size: 0.9rem;
+        padding: 0.8rem 1.35rem;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        transition:
+          transform 0.18s,
+          box-shadow 0.18s,
+          background 0.18s;
+      }
+
+      .knopf:hover,
+      .knopf:focus-visible {
+        background: #4338ca;
+        transform: translateY(-1px);
+        box-shadow: 0 10px 30px -12px rgba(99, 102, 241, 0.8);
+      }
+
+      .nebenlink {
+        font-size: 0.85rem;
+        color: var(--ink-dim);
+        text-decoration: none;
+        border-bottom: 1px solid var(--line-strong);
+        padding-bottom: 1px;
+        transition: color 0.2s;
+      }
+
+      .nebenlink:hover,
+      .nebenlink:focus-visible {
+        color: var(--ink-soft);
+      }
+
+      /* ---------- Der Beleg ---------- */
+
+      .beleg {
+        background: linear-gradient(180deg, var(--surface) 0%, var(--surface-alt) 100%);
+        border: 1px solid var(--line-strong);
+        border-radius: 18px;
+        padding: 1.5rem 1.6rem 1.35rem;
+        box-shadow:
+          0 30px 60px -30px rgba(0, 0, 0, 0.75),
+          0 1px 0 0 rgba(255, 255, 255, 0.04) inset;
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        max-width: 460px;
+        width: 100%;
+        justify-self: end;
+      }
+
+      @media (max-width: 900px) {
+        .beleg {
+          justify-self: stretch;
+        }
+      }
+
+      .beleg-kopf {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        color: var(--ink-dim);
+        font-size: 0.63rem;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        padding-bottom: 0.9rem;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .zeile {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 1rem;
+        padding: 0.62rem 0;
+        border-bottom: 1px dashed var(--line);
+        color: var(--ink-muted);
+      }
+
+      .zeile b {
+        font-weight: 500;
+        color: var(--ink-soft);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .zeile.tief {
+        padding-left: 1.1rem;
+        position: relative;
+        color: var(--ink-dim);
+        font-size: 0.75rem;
+      }
+
+      .zeile.tief::before {
+        content: '└';
+        position: absolute;
+        left: 0;
+        color: var(--line-strong);
+      }
+
+      .zeile.summe {
+        border-bottom: none;
+        border-top: 1px solid var(--line-strong);
+        margin-top: 0.5rem;
+        padding-top: 0.95rem;
+        color: var(--ink);
+        font-size: 0.95rem;
+      }
+
+      .zeile.summe b {
+        color: var(--emerald);
+        font-weight: 600;
+        font-size: 1.15rem;
+      }
+
+      .beleg-fuss {
+        margin: 0.9rem 0 0;
+        font-size: 0.64rem;
+        line-height: 1.5;
+        color: var(--ink-dim);
+        letter-spacing: 0.02em;
+      }
+
+      /* ---------- Abschnitte ---------- */
+
+      section {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: clamp(3rem, 7vw, 5.5rem) var(--rand);
+      }
+
+      .abschnitt-titel {
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--ink-dim);
+        margin: 0 0 2.5rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      .abschnitt-titel::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: var(--line);
+      }
+
+      .raster {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+        gap: 1px;
+        background: var(--line);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        overflow: hidden;
+      }
+
+      .feld {
+        background: var(--canvas);
+        padding: 1.75rem 1.6rem;
+        transition: background 0.25s;
+      }
+
+      .feld:hover {
+        background: var(--surface-alt);
+      }
+
+      .feld h3 {
+        font-size: 1rem;
+        font-weight: 700;
+        color: var(--ink);
+        letter-spacing: -0.015em;
+        margin: 0 0 0.6rem;
+      }
+
+      .feld p {
+        margin: 0;
+        font-size: 0.88rem;
+        color: var(--ink-muted);
+        line-height: 1.6;
+      }
+
+      .feld .nr {
+        font-family: var(--mono);
+        font-size: 0.66rem;
+        letter-spacing: 0.15em;
+        color: var(--indigo-text);
+        display: block;
+        margin-bottom: 0.9rem;
+      }
+
+      /* ---------- Ehrlicher Stand ---------- */
+
+      .status {
+        border: 1px solid var(--line-strong);
+        border-radius: 16px;
+        padding: clamp(1.5rem, 3vw, 2.25rem);
+        background: linear-gradient(135deg, var(--surface-alt), transparent 70%);
+      }
+
+      .status p {
+        margin: 0 0 1.5rem;
+        max-width: 62ch;
+      }
+
+      .status ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.7rem;
+      }
+
+      .status li {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.85rem;
+        align-items: baseline;
+        font-size: 0.88rem;
+      }
+
+      .zeichen {
+        font-family: var(--mono);
+        font-size: 0.68rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 0.15rem 0.5rem;
+        border-radius: 6px;
+        border: 1px solid;
+        white-space: nowrap;
+      }
+
+      .zeichen.fertig {
+        color: var(--emerald);
+        border-color: rgba(16, 185, 129, 0.3);
+        background: rgba(16, 185, 129, 0.1);
+      }
+
+      .zeichen.arbeit {
+        color: var(--amber);
+        border-color: rgba(245, 158, 11, 0.3);
+        background: rgba(245, 158, 11, 0.1);
+      }
+
+      /* ---------- Fuss ---------- */
+
+      footer {
+        border-top: 1px solid var(--line);
+        margin-top: 2rem;
+        background: var(--deep);
+      }
+
+      .fuss-inhalt {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: clamp(2.5rem, 5vw, 3.5rem) var(--rand);
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr));
+        gap: 2.5rem;
+      }
+
+      .fuss-inhalt h4 {
+        font-family: var(--mono);
+        font-size: 0.65rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--ink-dim);
+        margin: 0 0 1rem;
+        font-weight: 500;
+      }
+
+      .fuss-inhalt p {
+        margin: 0 0 0.35rem;
+        font-size: 0.85rem;
+        color: var(--ink-muted);
+      }
+
+      .platzhalter {
+        color: var(--amber);
+        font-family: var(--mono);
+        font-size: 0.8rem;
+      }
+
+      .hinweis {
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 0 var(--rand) 2.5rem;
+        font-size: 0.75rem;
+        color: var(--ink-dim);
+        border-top: 1px solid var(--line);
+        padding-top: 1.5rem;
+      }
+
+      /* ---------- Auftritt ---------- */
+
+      .auf {
+        opacity: 0;
+        transform: translateY(14px);
+        animation: herein 0.75s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      }
+
+      @keyframes herein {
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .auf {
+          animation: none;
+          opacity: 1;
+          transform: none;
+        }
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--indigo);
+        outline-offset: 3px;
+        border-radius: 4px;
+      }
+
+      .nur-fuer-screenreader {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+
+  <body>
+    <header class="auf" style="animation-delay: 0.05s">
+      <div class="marke">Flipbase <span>Reselling OS</span></div>
+      <a class="kopf-link" href="https://app.flipbase.de">Anmelden →</a>
+    </header>
+
+    <main>
+      <div class="aufmacher">
+        <div>
+          <div class="stand auf" style="animation-delay: 0.15s">In Entwicklung</div>
+
+          <h1 class="auf" style="animation-delay: 0.22s">
+            Vom Wühltisch<br />
+            zur <em>Buchhaltung.</em>
+          </h1>
+
+          <p class="unterzeile auf" style="animation-delay: 0.3s">
+            Flipbase führt Einkauf, Bestand, Verkauf und Steuern an einer Stelle zusammen — bis auf
+            <span class="marker">den Cent</span> nachvollziehbar.
+          </p>
+
+          <div class="aktionen auf" style="animation-delay: 0.38s">
+            <a class="knopf" href="https://app.flipbase.de">Zur Anwendung</a>
+            <a class="nebenlink" href="#umfang">Was drinsteckt</a>
+          </div>
+        </div>
+
+        <div class="beleg auf" style="animation-delay: 0.45s" aria-labelledby="beleg-titel">
+          <div class="beleg-kopf">
+            <span id="beleg-titel">Mystery-Paket · 3 Artikel</span>
+            <span>§ 25a</span>
+          </div>
+
+          <div class="zeile"><span>Einkauf</span><b>100,00 €</b></div>
+          <div class="zeile tief"><span>Artikel 1</span><b>33,34 €</b></div>
+          <div class="zeile tief"><span>Artikel 2</span><b>33,33 €</b></div>
+          <div class="zeile tief"><span>Artikel 3</span><b>33,33 €</b></div>
+          <div class="zeile"><span>Verkauf Artikel 1</span><b>129,00 €</b></div>
+          <div class="zeile"><span>Wareneinsatz</span><b>−33,34 €</b></div>
+          <div class="zeile"><span>Plattformgebühr</span><b>−12,90 €</b></div>
+          <div class="zeile"><span>Versand &amp; Material</span><b>−5,49 €</b></div>
+          <div class="zeile"><span>Differenzsteuer § 25a</span><b>−15,27 €</b></div>
+          <div class="zeile summe"><span>Bleibt</span><b>62,00 €</b></div>
+
+          <p class="beleg-fuss">
+            Beispielrechnung, nachrechenbar: Der Einkaufspreis geht auf den Cent auf — nicht auf
+            99,99 €. Die Differenzsteuer sind 19/119 der Marge von 95,66 €.
+          </p>
+        </div>
+      </div>
+
+      <section id="umfang">
+        <h2 class="abschnitt-titel">Was drinsteckt</h2>
+        <div class="raster">
+          <div class="feld">
+            <span class="nr">01</span>
+            <h3>Einkauf erfassen</h3>
+            <p>
+              Einzelstücke, Mystery-Pakete, Konvolute und Paletten. Nebenkosten werden auf die
+              Artikel verteilt — gleichmäßig, wertgewichtet oder von Hand.
+            </p>
+          </div>
+          <div class="feld">
+            <span class="nr">02</span>
+            <h3>Bestand führen</h3>
+            <p>
+              Jeder Artikel mit Zustand, Fotos, tatsächlichen Kosten und Liegezeit. Man sieht, was
+              ein Stück wirklich gekostet hat.
+            </p>
+          </div>
+          <div class="feld">
+            <span class="nr">03</span>
+            <h3>Verkaufen</h3>
+            <p>
+              Inserate für eBay, Kleinanzeigen und Vinted vorbereiten. Nach dem Verkauf steht der
+              Gewinn nach Gebühren, Versand und Steuer da.
+            </p>
+          </div>
+          <div class="feld">
+            <span class="nr">04</span>
+            <h3>Abrechnen</h3>
+            <p>
+              Differenzbesteuerung nach § 25a, EÜR und ein DATEV-Buchungsstapel für die Kanzlei.
+              Kein Nachrechnen im Tabellenblatt.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2 class="abschnitt-titel">Ehrlicher Stand</h2>
+        <div class="status">
+          <p>
+            Flipbase entsteht gerade und wird im täglichen Betrieb erprobt. Damit klar ist, worauf
+            man sich heute stützen kann und worauf noch nicht:
+          </p>
+          <ul>
+            <li>
+              <span class="zeichen fertig">nutzbar</span>
+              <span
+                >Einkäufe, Bestand, Verkäufe, Kostenverteilung, § 25a-Abrechnung und
+                DATEV-Export</span
+              >
+            </li>
+            <li>
+              <span class="zeichen arbeit">in Arbeit</span>
+              <span>Versandlabels bei DHL und Hermes — bislang nur nachgestellt</span>
+            </li>
+            <li>
+              <span class="zeichen arbeit">in Arbeit</span>
+              <span
+                >Preisrecherche und Konkurrenzbeobachtung — liefern noch keine echten Daten</span
+              >
+            </li>
+            <li>
+              <span class="zeichen arbeit">in Arbeit</span>
+              <span>Eigener Shop mit Zahlungsabwicklung</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="fuss-inhalt">
+        <div>
+          <h4>Kontakt</h4>
+          <p class="platzhalter">[E-Mail-Adresse]</p>
+        </div>
+        <div>
+          <h4>Impressum</h4>
+          <p class="platzhalter">[Name]</p>
+          <p class="platzhalter">[Straße und Hausnummer]</p>
+          <p class="platzhalter">[PLZ und Ort]</p>
+        </div>
+        <div>
+          <h4>Datenschutz</h4>
+          <p>
+            Diese Seite lädt ausschließlich eigene Dateien. Es werden keine Cookies gesetzt, nichts
+            gespeichert und keine fremden Dienste eingebunden.
+          </p>
+        </div>
+      </div>
+      <p class="hinweis">
+        <strong>Hinweis:</strong> Die Angaben zu Impressum und Kontakt sind noch Platzhalter. Die
+        Seite ist deshalb für Suchmaschinen gesperrt, bis sie vollständig sind.
+      </p>
+    </footer>
+  </body>
+</html>

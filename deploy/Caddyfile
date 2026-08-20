@@ -1,0 +1,63 @@
+# ---------------------------------------------------------------------------
+# api.n3odev.de - Supabase
+# Die API-Pfade sind oeffentlich (durch Schluessel und RLS geschuetzt),
+# alles uebrige ist die Studio-Oberflaeche hinter Passwortschutz.
+# ---------------------------------------------------------------------------
+{$PROXY_DOMAIN} {
+    @supabase_api path /auth/v1/* /rest/v1/* /graphql/v1 /realtime/v1/* /storage/v1/* /functions/v1/* /mcp /sso/*
+
+    handle @supabase_api {
+        reverse_proxy api-gw:8000
+    }
+
+    handle {
+        basic_auth {
+            # PROXY_AUTH_PASSWORD wird beim Start durch den bcrypt-Wert ersetzt
+            {$PROXY_AUTH_USERNAME} {$PROXY_AUTH_PASSWORD}
+        }
+
+        reverse_proxy studio:3000
+    }
+
+    header -server
+}
+
+# ---------------------------------------------------------------------------
+# app.n3odev.de - ReFlip Dashboard
+# Die Sicherheits-Header setzt nginx im Container selbst (Phase 7),
+# deshalb reicht Caddy die Antwort unveraendert durch.
+# ---------------------------------------------------------------------------
+app.flipbase.de {
+    reverse_proxy reflip-web:80
+
+    # Verwaltungsoberflaeche gehoert nicht in Suchmaschinen.
+    header X-Robots-Tag "noindex, nofollow"
+    header -server
+}
+
+# ---------------------------------------------------------------------------
+# flipbase.de - statische Landingpage.
+# www leitet auf die nackte Domain, damit es spaeter nur eine Adresse gibt.
+# ---------------------------------------------------------------------------
+www.flipbase.de {
+    redir https://flipbase.de{uri} permanent
+    header -server
+}
+
+flipbase.de {
+    root * /srv/landing
+    file_server
+    encode zstd gzip
+
+    header {
+        -server
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+        # Die Seite enthaelt kein JavaScript und laedt nichts von fremden Servern.
+        Content-Security-Policy "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
+    }
+
+    header /fonts/* Cache-Control "public, max-age=31536000, immutable"
+    header /index.html Cache-Control "no-cache"
+}

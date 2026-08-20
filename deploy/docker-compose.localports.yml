@@ -1,0 +1,13 @@
+# Docker umgeht die ufw-Firewall bei veroeffentlichten Ports.
+# Deshalb lauschen Datenbank, Pooler und API-Gateway ausschliesslich
+# auf der Loopback-Adresse. Von aussen erreichbar ist nur Caddy.
+services:
+  db:
+    ports: !override
+      - "127.0.0.1:${POSTGRES_PORT}:5432"
+  supavisor:
+    ports: !override
+      - "127.0.0.1:${POOLER_PROXY_PORT_TRANSACTION}:6543"
+  api-gw:
+    ports: !override
+      - "127.0.0.1:${KONG_HTTP_PORT:-8000}:8000/tcp"

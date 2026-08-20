@@ -1,0 +1,7 @@
+# Bindet die statische Landingpage in den vorhandenen Caddy ein.
+# Eigene Datei, damit ein Supabase-Update die mitgelieferten Vorlagen
+# ueberschreiben kann, ohne diese Einbindung zu verlieren.
+services:
+  caddy:
+    volumes:
+      - /opt/flipbase-landing:/srv/landing:ro

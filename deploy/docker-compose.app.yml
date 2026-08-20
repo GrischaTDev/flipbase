@@ -1,0 +1,29 @@
+name: reflip
+
+services:
+  web:
+    build:
+      context: ./app
+      dockerfile: docker/Dockerfile
+    container_name: reflip-web
+    restart: unless-stopped
+    # Kein ports-Abschnitt: erreichbar ausschliesslich ueber Caddy im selben Netz.
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/cache/nginx
+      - /var/run
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - supabase_default
+
+networks:
+  supabase_default:
+    external: true

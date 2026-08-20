@@ -11,3 +11,9 @@ src/app/core/models/supabase.types.ts
 
 # Sperrdateien
 package-lock.json
+
+# Abbilder der Serverkonfiguration - sollen zeichengenau dem entsprechen,
+# was auf dem Server liegt. Umformatieren wuerde sie auseinanderlaufen lassen.
+deploy/Caddyfile
+deploy/backup.sh
+deploy/*.yml
