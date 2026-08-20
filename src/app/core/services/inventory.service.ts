@@ -43,6 +43,15 @@ export class InventoryService {
   readonly activityLogs = signal<ActivityLog[]>([]);
   readonly isLoading = signal<boolean>(false);
 
+  /**
+   * Ob die Artikelliste dieses Arbeitsbereichs vollstaendig geladen ist.
+   *
+   * Andere Dienste leiten daraus ab, ob sie sich auf `items()` verlassen
+   * duerfen - etwa fuer die Artikelanzahl eines Einkaufs. Ohne diese
+   * Unterscheidung wuerde waehrend des Ladens ueberall kurz "0" stehen.
+   */
+  readonly istGeladen = signal<boolean>(false);
+
   constructor() {
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
     // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
@@ -55,6 +64,7 @@ export class InventoryService {
         if (ws) {
           this.loadInventory(ws.id);
         } else {
+          this.istGeladen.set(false);
           this.items.set([]);
           this.selectedItem.set(null);
           this.itemCosts.set([]);
@@ -70,6 +80,7 @@ export class InventoryService {
     if (this.mockStore.isDemoMode()) {
       const localItems = this.mockStore.getItems(workspaceId).map((i) => this.enrichItemTotals(i));
       this.items.set(localItems);
+      this.istGeladen.set(true);
       return;
     }
 
@@ -94,6 +105,7 @@ export class InventoryService {
       } else if (data) {
         const enriched = (data as unknown[]).map((item: any) => this.enrichItemTotals(item));
         this.items.set(enriched);
+        this.istGeladen.set(true);
       }
     } catch (err) {
       this.syncStatus.melde('Laden des Inventars', err);
@@ -225,16 +237,6 @@ export class InventoryService {
     this.mockStore.saveItem(enriched);
     this.items.update((list) => [enriched, ...list]);
     await this.logActivity(newItem.id, 'received', `Artikel angelegt (${newItem.title})`);
-
-    if (payload.purchase_id) {
-      const allForPur = this.mockStore
-        .getItems()
-        .filter((i) => i.purchase_id === payload.purchase_id);
-      const storedPur = this.mockStore.getPurchases().find((p) => p.id === payload.purchase_id);
-      if (storedPur) {
-        this.mockStore.savePurchase({ ...storedPur, items_count: allForPur.length });
-      }
-    }
 
     if (this.mockStore.isDemoMode()) {
       return { data: enriched, error: null };
@@ -487,6 +489,44 @@ export class InventoryService {
       } catch (e: unknown) {
         this.syncStatus.melde('Speichern des Aktivitätsprotokolls', e);
       }
+    }
+  }
+
+  /**
+   * Uebernimmt bereits berechnete Artikelaenderungen in die Live-Liste.
+   *
+   * Gedacht fuer Vorgaenge, die mehrere Artikel auf einmal anfassen (z. B. die
+   * Kostenverteilung eines Konvoluts) und die Datenbank selbst schreiben.
+   */
+  uebernehmeArtikelAenderungen(geaenderte: InventoryItem[]): void {
+    if (geaenderte.length === 0) return;
+    const nachId = new Map(geaenderte.map((i) => [i.id, i]));
+
+    this.items.update((list) =>
+      list.map((item) => {
+        const treffer = nachId.get(item.id);
+        return treffer ? this.enrichItemTotals({ ...item, ...treffer }) : item;
+      }),
+    );
+
+    const aktuell = this.selectedItem();
+    if (aktuell && nachId.has(aktuell.id)) {
+      this.selectedItem.set(this.enrichItemTotals({ ...aktuell, ...nachId.get(aktuell.id)! }));
+    }
+
+    geaenderte.forEach((i) => this.mockStore.saveItem(i));
+  }
+
+  /**
+   * Entfernt alle Artikel eines geloeschten Einkaufs aus der Live-Liste.
+   *
+   * In der Datenbank erledigt das der Fremdschluessel (ON DELETE CASCADE);
+   * die Anzeige muss aber im selben Moment nachziehen.
+   */
+  entferneArtikelZuEinkauf(purchaseId: string): void {
+    this.items.update((list) => list.filter((i) => i.purchase_id !== purchaseId));
+    if (this.selectedItem()?.purchase_id === purchaseId) {
+      this.selectedItem.set(null);
     }
   }
 

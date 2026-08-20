@@ -43,6 +43,16 @@ export class MockDataStoreService {
    * Nutzer nichts – sonst würde sich im Browser eine zweite, veraltende Kopie
    * der Geschäftsdaten ansammeln.
    */
+  /**
+   * Ob der Demo-Modus laeuft.
+   *
+   * Der lokale Spiegel ist ausschliesslich dafuer da: Alle Lese- und
+   * Schreibmethoden steigen ausserhalb des Demo-Modus sofort aus. Angemeldet
+   * ist die Datenbank die Quelle, und die Anzeige haengt an den Signalen der
+   * Fachdienste. Ohne diese Sperre wurden Anzeigen aus einem Speicher
+   * berechnet, der angemeldet leer bleibt - so entstand z. B. die Kachel mit
+   * "0 Artikel", obwohl gerade ein Artikel erfasst worden war.
+   */
   readonly isDemoMode = signal<boolean>(false);
 
   readonly demoWorkspace: Workspace = {
@@ -459,6 +469,7 @@ export class MockDataStoreService {
 
   // --- Purchases Persistent API ---
   getPurchases(workspaceId?: string): Purchase[] {
+    if (!this.isDemoMode()) return [];
     try {
       const stored = getStorage()?.getItem(STORAGE_KEY_PURCHASES);
       if (stored) {
@@ -511,6 +522,7 @@ export class MockDataStoreService {
 
   // --- Inventory Items Persistent API ---
   getItems(workspaceId?: string): InventoryItem[] {
+    if (!this.isDemoMode()) return [];
     try {
       const stored = getStorage()?.getItem(STORAGE_KEY_ITEMS);
       if (stored) {
@@ -561,6 +573,7 @@ export class MockDataStoreService {
 
   // --- Sales Persistent API ---
   getSales(workspaceId?: string): Sale[] {
+    if (!this.isDemoMode()) return [];
     try {
       const stored = getStorage()?.getItem(STORAGE_KEY_SALES);
       if (stored) {
@@ -611,6 +624,7 @@ export class MockDataStoreService {
 
   // --- Sources & Suppliers API ---
   getSources(workspaceId?: string): Source[] {
+    if (!this.isDemoMode()) return [];
     try {
       const stored = getStorage()?.getItem(STORAGE_KEY_SOURCES);
       if (stored) {
@@ -656,6 +670,7 @@ export class MockDataStoreService {
   }
 
   getSuppliers(workspaceId?: string): Supplier[] {
+    if (!this.isDemoMode()) return [];
     try {
       const stored = getStorage()?.getItem(STORAGE_KEY_SUPPLIERS);
       if (stored) {
@@ -702,6 +717,7 @@ export class MockDataStoreService {
 
   // --- Item Costs API ---
   getItemCosts(itemId: string): ItemCost[] {
+    if (!this.isDemoMode()) return [];
     try {
       const stored = getStorage()?.getItem(STORAGE_KEY_ITEM_COSTS);
       if (stored) {
@@ -743,6 +759,7 @@ export class MockDataStoreService {
 
   // --- Activity Logs API ---
   getActivityLogs(itemId: string): ActivityLog[] {
+    if (!this.isDemoMode()) return [];
     try {
       const stored = getStorage()?.getItem(STORAGE_KEY_ACTIVITY_LOGS);
       if (stored) {
@@ -765,6 +782,7 @@ export class MockDataStoreService {
 
   // --- Media Persistent API ---
   getItemMedia(itemId?: string): ItemMedia[] {
+    if (!this.isDemoMode()) return [];
     try {
       const stored = getStorage()?.getItem(STORAGE_KEY_MEDIA);
       if (stored) {
@@ -805,6 +823,7 @@ export class MockDataStoreService {
   }
 
   setItemMediaPrimary(itemId: string, mediaId: string): void {
+    if (!this.isDemoMode()) return;
     try {
       const all = this.getItemMedia();
       all.forEach((m) => {

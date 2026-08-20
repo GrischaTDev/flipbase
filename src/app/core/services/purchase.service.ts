@@ -1,8 +1,11 @@
-import { Injectable, effect, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
 import { MockDataStoreService } from './mock-data-store.service';
+import { InventoryService } from './inventory.service';
+import { SourcesService } from './sources.service';
+import { SuppliersService } from './suppliers.service';
 import { WebhookService } from './webhook.service';
 import { SyncStatusService } from './sync-status.service';
 import {
@@ -10,6 +13,7 @@ import {
   PurchaseType,
   CostAllocationMode,
   InventoryItem,
+  ItemCondition,
   TrackingCarrier,
   InboundTrackingStatus,
 } from '../models/reflip.models';
@@ -45,11 +49,60 @@ export class PurchaseService {
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly mockStore = inject(MockDataStoreService);
   private readonly webhookService = inject(WebhookService);
+  // Der Inventardienst ist die einzige Quelle fuer Artikel. Diese Richtung der
+  // Abhaengigkeit ist bewusst: Der Inventardienst kennt Einkaeufe nicht, sonst
+  // haetten beide Dienste einen eigenen - und damit frueher oder spaeter
+  // abweichenden - Bestand.
+  private readonly inventory = inject(InventoryService);
+  private readonly sourcesService = inject(SourcesService);
+  private readonly suppliersService = inject(SuppliersService);
 
-  readonly purchases = signal<Purchase[]>([]);
-  readonly selectedPurchase = signal<Purchase | null>(null);
-  readonly purchaseItems = signal<InventoryItem[]>([]);
+  /** Die Einkaeufe, wie sie aus Datenbank oder lokalem Spiegel kommen. */
+  private readonly purchasesRaw = signal<Purchase[]>([]);
+  private readonly selectedPurchaseRaw = signal<Purchase | null>(null);
+  /** Artikel aus der Detailabfrage - nur Rueckfallebene, solange das Inventar laedt. */
+  private readonly purchaseItemsFallback = signal<InventoryItem[]>([]);
   readonly isLoading = signal<boolean>(false);
+
+  /**
+   * Einkaufsliste mit abgeleiteter Artikelanzahl.
+   *
+   * Die Anzahl wird bewusst nicht mitgefuehrt, sondern bei jeder Anzeige aus
+   * der Inventarliste berechnet. Nur so stimmt jede Kachel sofort, egal wo ein
+   * Artikel angelegt oder geloescht wurde. Solange das Inventar noch laedt,
+   * gilt der Wert aus der Datenbankabfrage.
+   */
+  readonly purchases = computed<Purchase[]>(() => {
+    const liste = this.purchasesRaw();
+    if (!this.inventory.istGeladen()) return liste;
+    const items = this.inventory.items();
+    return liste.map((p) => ({ ...p, items_count: this.zaehleArtikel(p, items) }));
+  });
+
+  readonly selectedPurchase = computed<Purchase | null>(() => {
+    const p = this.selectedPurchaseRaw();
+    if (!p) return null;
+    if (!this.inventory.istGeladen()) return p;
+    return { ...p, items_count: this.zaehleArtikel(p, this.inventory.items()) };
+  });
+
+  /** Die Artikel des geoeffneten Einkaufs - direkt aus der Inventarliste. */
+  readonly purchaseItems = computed<InventoryItem[]>(() => {
+    const p = this.selectedPurchaseRaw();
+    if (!p) return [];
+    if (!this.inventory.istGeladen()) return this.purchaseItemsFallback();
+    return this.inventory.items().filter((i) => i.purchase_id === p.id);
+  });
+
+  /**
+   * Ein Einzelkauf ist selbst der Artikel und zaehlt daher als einer, auch
+   * wenn dafuer (noch) kein eigener Inventareintrag angelegt wurde.
+   */
+  private zaehleArtikel(einkauf: Purchase, items: InventoryItem[]): number {
+    const anzahl = items.filter((i) => i.purchase_id === einkauf.id).length;
+    if (anzahl > 0) return anzahl;
+    return einkauf.type === 'single' ? 1 : 0;
+  }
 
   constructor() {
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
@@ -63,9 +116,9 @@ export class PurchaseService {
         if (ws) {
           this.loadPurchases(ws.id);
         } else {
-          this.purchases.set([]);
-          this.selectedPurchase.set(null);
-          this.purchaseItems.set([]);
+          this.purchasesRaw.set([]);
+          this.selectedPurchaseRaw.set(null);
+          this.purchaseItemsFallback.set([]);
         }
       });
     } catch {
@@ -91,10 +144,10 @@ export class PurchaseService {
           ...p,
           source,
           supplier,
-          items_count: matchingItems.length > 0 ? matchingItems.length : p.items_count || 1,
+          items_count: this.zaehleArtikel(p, matchingItems),
         } as Purchase;
       });
-      this.purchases.set(enrichedLocal);
+      this.purchasesRaw.set(enrichedLocal);
       return;
     }
 
@@ -108,7 +161,7 @@ export class PurchaseService {
           source:sources(*),
           supplier:suppliers(*),
           costs:purchase_costs(*),
-          items:inventory_items(id, title, status, allocated_purchase_cost, expected_value)
+          items:inventory_items(id, purchase_id, title, status, allocated_purchase_cost, expected_value)
         `,
         )
         .eq('workspace_id', workspaceId)
@@ -117,7 +170,7 @@ export class PurchaseService {
 
       if (error) {
         this.syncStatus.melde('Laden der Einkäufe', error);
-        this.purchases.set([]);
+        this.purchasesRaw.set([]);
       } else if (data) {
         const enriched = (data as unknown[]).map((p: any) => {
           const costsSum = (p.costs || []).reduce(
@@ -127,15 +180,15 @@ export class PurchaseService {
           const totalCost = Number(p.purchase_price || 0) + costsSum;
           return {
             ...p,
-            items_count: (p.items || []).length > 0 ? (p.items || []).length : p.items_count || 1,
+            items_count: this.zaehleArtikel(p, (p.items || []) as InventoryItem[]),
             total_purchase_cost: Number(totalCost.toFixed(2)),
           } as Purchase;
         });
-        this.purchases.set(enriched);
+        this.purchasesRaw.set(enriched);
       }
     } catch (err) {
       this.syncStatus.melde('Laden der Einkäufe', err);
-      this.purchases.set([]);
+      this.purchasesRaw.set([]);
     } finally {
       this.isLoading.set(false);
     }
@@ -167,10 +220,10 @@ export class PurchaseService {
         ...existing,
         source,
         supplier,
-        items_count: items.length > 0 ? items.length : existing.items_count || 1,
+        items_count: this.zaehleArtikel(existing, items),
       };
-      this.selectedPurchase.set(enriched);
-      this.purchaseItems.set(items);
+      this.selectedPurchaseRaw.set(enriched);
+      this.purchaseItemsFallback.set(items);
       return enriched;
     }
 
@@ -204,12 +257,15 @@ export class PurchaseService {
       const enriched: Purchase = {
         ...(data as any),
         type: data.type as PurchaseType,
-        items_count: (data.items || []).length > 0 ? (data.items || []).length : 1,
+        items_count: this.zaehleArtikel(
+          data as unknown as Purchase,
+          (data.items || []) as InventoryItem[],
+        ),
         total_purchase_cost: Number(totalCost.toFixed(2)),
       };
 
-      this.selectedPurchase.set(enriched);
-      this.purchaseItems.set((data.items || []) as InventoryItem[]);
+      this.selectedPurchaseRaw.set(enriched);
+      this.purchaseItemsFallback.set((data.items || []) as InventoryItem[]);
       return enriched;
     } catch (err) {
       this.syncStatus.melde('GetPurchaseById', err);
@@ -232,13 +288,14 @@ export class PurchaseService {
     );
     const totalCost = payload.purchase_price + extraCostsSum;
 
-    const localSources = this.mockStore.getSources();
-    const localSuppliers = this.mockStore.getSuppliers();
+    // Aus den geladenen Stammdaten, nicht aus dem lokalen Spiegel: Der ist im
+    // angemeldeten Betrieb leer, wodurch die frische Kachel weder Quelle noch
+    // Lieferant anzeigte, bis die Seite neu geladen wurde.
     const source = payload.source_id
-      ? localSources.find((s) => s.id === payload.source_id)
+      ? this.sourcesService.sources().find((s) => s.id === payload.source_id)
       : undefined;
     const supplier = payload.supplier_id
-      ? localSuppliers.find((s) => s.id === payload.supplier_id)
+      ? this.suppliersService.suppliers().find((s) => s.id === payload.supplier_id)
       : undefined;
 
     const newPurchase: Purchase = {
@@ -265,7 +322,7 @@ export class PurchaseService {
 
     // 1. Immediately persist locally
     this.mockStore.savePurchase(newPurchase);
-    this.purchases.update((list) => [newPurchase, ...list]);
+    this.purchasesRaw.update((list) => [newPurchase, ...list]);
     this.webhookService.sendPurchaseNotification(newPurchase);
 
     if (this.mockStore.isDemoMode()) {
@@ -309,7 +366,7 @@ export class PurchaseService {
         // liegen und der Einkauf taucht doppelt auf - auch in jeder Sicherung.
         this.mockStore.deletePurchase(newPurchase.id);
         this.mockStore.savePurchase(finalPurchase);
-        this.purchases.update((list) => [
+        this.purchasesRaw.update((list) => [
           finalPurchase,
           ...list.filter((p) => p.id !== newPurchase.id && p.id !== finalPurchase.id),
         ]);
@@ -332,7 +389,7 @@ export class PurchaseService {
    */
   private verwerfeVorlaeufigenEinkauf(vorlaeufigeId: string): void {
     this.mockStore.deletePurchase(vorlaeufigeId);
-    this.purchases.update((list) => list.filter((p) => p.id !== vorlaeufigeId));
+    this.purchasesRaw.update((list) => list.filter((p) => p.id !== vorlaeufigeId));
   }
 
   async updatePurchaseTracking(
@@ -353,9 +410,9 @@ export class PurchaseService {
     };
 
     this.mockStore.savePurchase(updated);
-    this.purchases.update((list) => list.map((p) => (p.id === purchaseId ? updated : p)));
+    this.purchasesRaw.update((list) => list.map((p) => (p.id === purchaseId ? updated : p)));
     if (this.selectedPurchase()?.id === purchaseId) {
-      this.selectedPurchase.set(updated);
+      this.selectedPurchaseRaw.set(updated);
     }
 
     if (!this.mockStore.isDemoMode() && !this.mockStore?.isDemoMode()) {
@@ -401,29 +458,19 @@ export class PurchaseService {
       'delivered',
     );
 
-    // 2. Find and update all associated items to 'received'
-    const allItems = this.mockStore.getItems(existing.workspace_id);
-    const purchaseItems = allItems.filter((i) => i.purchase_id === purchaseId);
+    // 2. Alle zugehoerigen Artikel auf "eingetroffen" setzen. Die Liste kommt
+    // aus dem Inventardienst, der sie auch in der Datenbank nachzieht - frueher
+    // stand hier der lokale Spiegel, der angemeldet leer ist: Es wurde nichts
+    // aktualisiert und die Artikeltabelle der Detailseite lief anschliessend leer.
+    const zugehoerige = this.inventory
+      .items()
+      .filter((i) => i.purchase_id === purchaseId && (i.status === 'needs_review' || !i.status));
     let updatedCount = 0;
 
-    for (const item of purchaseItems) {
-      if (item.status === 'needs_review' || !item.status) {
-        const updatedItem: InventoryItem = {
-          ...item,
-          status: 'received',
-          updated_at: new Date().toISOString(),
-        };
-        this.mockStore.saveItem(updatedItem);
-        updatedCount++;
-      }
-    }
-
-    // Refresh selected purchase items list
-    if (this.selectedPurchase()?.id === purchaseId) {
-      const refreshedItems = this.mockStore
-        .getItems(existing.workspace_id)
-        .filter((i) => i.purchase_id === purchaseId);
-      this.purchaseItems.set(refreshedItems);
+    for (const item of zugehoerige) {
+      const { error } = await this.inventory.updateItemStatus(item.id, 'received');
+      if (error) return { updatedCount, error };
+      updatedCount++;
     }
 
     return { updatedCount, error: null };
@@ -431,9 +478,12 @@ export class PurchaseService {
 
   async deletePurchase(purchaseId: string): Promise<{ error: Error | null }> {
     this.mockStore.deletePurchase(purchaseId);
-    this.purchases.update((list) => list.filter((p) => p.id !== purchaseId));
+    this.purchasesRaw.update((list) => list.filter((p) => p.id !== purchaseId));
+    // Die Datenbank raeumt die Artikel per Fremdschluessel mit ab; die Anzeige
+    // muss im selben Moment nachziehen.
+    this.inventory.entferneArtikelZuEinkauf(purchaseId);
     if (this.selectedPurchase()?.id === purchaseId) {
-      this.selectedPurchase.set(null);
+      this.selectedPurchaseRaw.set(null);
     }
 
     if (!this.mockStore.isDemoMode()) {
@@ -462,7 +512,7 @@ export class PurchaseService {
     const current = this.selectedPurchase();
     if (current && current.id === purchaseId) {
       const updatedTotal = (current.total_purchase_cost || current.purchase_price) + amount;
-      this.selectedPurchase.set({ ...current, total_purchase_cost: updatedTotal });
+      this.selectedPurchaseRaw.set({ ...current, total_purchase_cost: updatedTotal });
     }
 
     if (!this.mockStore.isDemoMode()) {
@@ -492,10 +542,10 @@ export class PurchaseService {
     const current = this.selectedPurchase();
     if (current && current.id === purchaseId) {
       const updated = { ...current, cost_allocation_mode: mode };
-      this.selectedPurchase.set(updated);
+      this.selectedPurchaseRaw.set(updated);
       this.mockStore.savePurchase(updated);
     }
-    this.purchases.update((list) =>
+    this.purchasesRaw.update((list) =>
       list.map((p) => {
         if (p.id === purchaseId) {
           const updated = { ...p, cost_allocation_mode: mode };
@@ -564,8 +614,7 @@ export class PurchaseService {
       }));
     }
 
-    this.purchaseItems.set(updatedItems);
-    updatedItems.forEach((it) => this.mockStore.saveItem(it));
+    this.inventory.uebernehmeArtikelAenderungen(updatedItems);
     await this.updateCostAllocationMode(purchaseId, mode);
 
     if (!this.mockStore.isDemoMode()) {
@@ -609,82 +658,31 @@ export class PurchaseService {
     return { error: null };
   }
 
+  /**
+   * Legt einen Artikel an und haengt ihn an diesen Einkauf.
+   *
+   * Die eigentliche Arbeit macht der Inventardienst: Nur so landet der Artikel
+   * in derselben Liste, aus der Inventar, Artikeltabelle und Artikelanzahl der
+   * Kachel abgeleitet werden - alles aktualisiert sich damit sofort.
+   */
   async addItemToPurchase(
     purchaseId: string,
     itemData: {
       title: string;
       category?: string;
-      condition: any;
+      condition: ItemCondition;
       allocated_purchase_cost?: number;
       expected_value?: number;
     },
   ): Promise<{ data: InventoryItem | null; error: Error | null }> {
-    const ws = this.workspaceService.currentWorkspace();
-    const newItem: InventoryItem = {
-      id: `item-${Date.now()}`,
-      workspace_id: ws?.id || 'demo-workspace-1',
+    return this.inventory.createItem({
       purchase_id: purchaseId,
       title: itemData.title,
       category: itemData.category || null,
       condition: itemData.condition,
       status: 'received',
       allocated_purchase_cost: itemData.allocated_purchase_cost || 0,
-      expected_value: itemData.expected_value || null,
-      created_at: new Date().toISOString(),
-    };
-
-    this.mockStore.saveItem(newItem);
-    this.purchaseItems.update((items) => [...items, newItem]);
-
-    const totalCount = this.mockStore.getItems().filter((i) => i.purchase_id === purchaseId).length;
-    this.purchases.update((list) =>
-      list.map((p) => (p.id === purchaseId ? { ...p, items_count: totalCount } : p)),
-    );
-    const storedP = this.mockStore.getPurchases().find((p) => p.id === purchaseId);
-    if (storedP) {
-      this.mockStore.savePurchase({ ...storedP, items_count: totalCount });
-    }
-
-    const wsId = ws?.id;
-    if (!this.mockStore.isDemoMode() && wsId && !this.mockStore?.isDemoMode()) {
-      try {
-        const { data: dbData, error } = await this.supabase.client
-          .from('inventory_items')
-          .insert({
-            workspace_id: wsId,
-            purchase_id: purchaseId,
-            title: itemData.title,
-            category: itemData.category || null,
-            condition: itemData.condition,
-            status: 'received',
-            allocated_purchase_cost: itemData.allocated_purchase_cost || 0,
-            expected_value: itemData.expected_value || null,
-          })
-          .select()
-          .single();
-
-        if (error) {
-          return {
-            data: null,
-            error: this.syncStatus.melde('Hinzufügen des Artikels zum Einkauf', error),
-          };
-        } else if (dbData) {
-          const finalItem = { ...newItem, id: dbData.id };
-          this.mockStore.saveItem(finalItem);
-          this.purchaseItems.update((items) => [
-            finalItem,
-            ...items.filter((i) => i.id !== newItem.id),
-          ]);
-          return { data: finalItem, error: null };
-        }
-      } catch (e: unknown) {
-        return {
-          data: null,
-          error: this.syncStatus.melde('Hinzufügen des Artikels zum Einkauf', e),
-        };
-      }
-    }
-
-    return { data: newItem, error: null };
+      expected_value: itemData.expected_value ?? null,
+    });
   }
 }

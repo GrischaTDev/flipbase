@@ -46,6 +46,9 @@ describe('Beispieldaten dürfen nur im Demo-Modus entstehen', () => {
 
   it('legt Beispieldaten erst auf ausdrückliche Anforderung an', () => {
     const store = neuerStore();
+    // Der Demo-Modus laeuft hier bereits: enterDemoMode() setzt ihn, bevor es
+    // die Beispieldaten anfordert. Ohne ihn gibt der Spiegel nichts heraus.
+    store.isDemoMode.set(true);
     expect(store.getPurchases().length).toBe(0);
 
     store.ensureShowcaseData();
@@ -140,6 +143,22 @@ describe('Beispieldaten dürfen nur im Demo-Modus entstehen', () => {
       store.savePurchase(beispielEinkauf);
 
       expect(store.getPurchases().length).toBe(1);
+    });
+
+    it('gibt ausserhalb des Demo-Modus nichts heraus, auch wenn etwas gespeichert ist', () => {
+      // Gegenprobe zur Schreibsperre: Wer sich anmeldet, nachdem er den
+      // Demo-Modus benutzt hat, darf die alten Eintraege nirgends mehr sehen -
+      // und keine Anzeige darf ihre Werte daraus ableiten.
+      const store = neuerStore();
+      store.isDemoMode.set(true);
+      store.savePurchase(beispielEinkauf);
+
+      store.isDemoMode.set(false);
+
+      expect(store.getPurchases()).toEqual([]);
+      expect(store.getItems()).toEqual([]);
+      expect(store.getSources()).toEqual([]);
+      expect(store.getSuppliers()).toEqual([]);
     });
 
     it('loescht ausserhalb des Demo-Modus nichts', () => {
