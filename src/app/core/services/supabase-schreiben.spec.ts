@@ -13,10 +13,15 @@ describe('Schreibbefehle im Hintergrund', () => {
   /** Verhaelt sich wie der Erbauer: fuehrt erst aus, wenn `then` gerufen wird. */
   function faulerBefehl(ergebnis: { error: unknown }) {
     const zustand = { ausgefuehrt: false };
+    // Die Form muss zu PromiseLike passen, sonst prueft TypeScript sie nicht
+    // gegen dieselbe Schnittstelle wie den echten Erbauer.
     const befehl = {
-      then<T>(beiErfolg: (wert: { error: unknown }) => T) {
+      then<T1 = { error: unknown }, T2 = never>(
+        beiErfolg?: ((wert: { error: unknown }) => T1 | PromiseLike<T1>) | null,
+        beiFehler?: ((grund: unknown) => T2 | PromiseLike<T2>) | null,
+      ): PromiseLike<T1 | T2> {
         zustand.ausgefuehrt = true;
-        return Promise.resolve(ergebnis).then(beiErfolg);
+        return Promise.resolve(ergebnis).then(beiErfolg, beiFehler);
       },
     };
     return { befehl, zustand };
