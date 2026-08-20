@@ -26,6 +26,7 @@ import {
   AiVisualScanResult,
 } from '../../../core/services/ai-assistant.service';
 import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
+import { LoggerService } from '../../../core/services/logger.service';
 
 @Component({
   selector: 'app-ai-photo-scanner-modal',
@@ -36,6 +37,9 @@ import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.di
 })
 export class AiPhotoScannerModalComponent implements OnDestroy {
   private readonly aiService = inject(AiAssistantService);
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
 
   readonly close = output<void>();
   readonly productDetected = output<AiVisualScanResult>();
@@ -134,7 +138,7 @@ export class AiPhotoScannerModalComponent implements OnDestroy {
       res.previewImageUrl = imageSrc;
       this.scanResult.set(res);
     } catch (err) {
-      console.error('Error analyzing image:', err);
+      this.logger.error('Error analyzing image:', err);
     } finally {
       this.isAnalyzing.set(false);
     }

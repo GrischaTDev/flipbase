@@ -6,6 +6,7 @@ import { InvoiceService } from './invoice.service';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
+import { LoggerService } from './logger.service';
 import {
   BankFormatType,
   BankReconciliationMatch,
@@ -21,6 +22,9 @@ const STORAGE_KEY_BANK_TRANSACTIONS = 'reflip_bank_transactions';
 })
 export class BankReconciliationService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly storeService = inject(StoreService);
@@ -75,7 +79,7 @@ export class BankReconciliationService {
         this.persistTransactions();
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden der Banktransaktionen:', err);
+      this.logger.error('Verbindungsfehler beim Laden der Banktransaktionen:', err);
     }
   }
 

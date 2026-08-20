@@ -45,6 +45,7 @@ import {
 } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
+import { LoggerService } from '../../../../core/services/logger.service';
 import {
   CostAllocationMode,
   InboundTrackingStatus,
@@ -72,6 +73,10 @@ export class PurchaseDetailComponent {
   readonly id = input.required<string>();
 
   readonly purchaseService = inject(PurchaseService);
+
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly mediaService = inject(MediaService);
   private readonly router = inject(Router);
   readonly trackingService = inject(InboundTrackingService);
@@ -290,7 +295,7 @@ export class PurchaseDetailComponent {
       try {
         await this.mediaService.uploadItemMedia(res.data.id, this.selectedImageFile()!, true);
       } catch (err) {
-        console.warn('Image upload error on item create in purchase detail:', err);
+        this.logger.warn('Image upload error on item create in purchase detail:', err);
       }
     }
 

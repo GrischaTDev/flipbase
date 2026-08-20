@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { ResearchComparisonItem } from './research.service';
+import { LoggerService } from './logger.service';
 
 export interface EbayApiConfig {
   appId?: string;
@@ -15,6 +16,9 @@ export interface EbayApiConfig {
 })
 export class EbayApiService {
   private readonly supabase = inject(SupabaseService);
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
 
   private config: EbayApiConfig = {
     siteId: 'EBAY-DE',
@@ -78,7 +82,7 @@ export class EbayApiService {
         }));
       }
     } catch (err) {
-      console.warn('Edge function marketplace-search fallback', err);
+      this.logger.warn('Edge function marketplace-search fallback', err);
     }
 
     // 2. Direct Open eBay Finding RSS / Open Search Bridge if direct key configured
@@ -107,7 +111,7 @@ export class EbayApiService {
           });
         }
       } catch (err) {
-        console.warn('eBay direct finding API call failed', err);
+        this.logger.warn('eBay direct finding API call failed', err);
       }
     }
 

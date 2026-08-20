@@ -7,6 +7,7 @@ import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { InventoryItem } from '../models/reflip.models';
 import { Json } from '../models/supabase.types';
+import { LoggerService } from './logger.service';
 import {
   CartItem,
   CheckoutCustomerInfo,
@@ -24,6 +25,9 @@ const STORAGE_KEY_ORDERS = 'reflip_store_orders';
 })
 export class StoreService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly inventoryService = inject(InventoryService, { optional: true });
   private readonly salesService = inject(SalesService, { optional: true });
@@ -138,7 +142,7 @@ export class StoreService {
         this.orders.set(JSON.parse(savedOrders));
       }
     } catch (e) {
-      console.error('Fehler beim Laden gespeicherter Shop-Daten:', e);
+      this.logger.error('Fehler beim Laden gespeicherter Shop-Daten:', e);
     }
   }
 
@@ -214,7 +218,7 @@ export class StoreService {
         this.persistOrders();
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden der Store-Daten:', err);
+      this.logger.error('Verbindungsfehler beim Laden der Store-Daten:', err);
     }
   }
 
@@ -251,7 +255,7 @@ export class StoreService {
           { onConflict: 'workspace_id' },
         )
         .then(({ error }) => {
-          if (error) console.error('Fehler beim Speichern der Shop-Einstellungen:', error);
+          if (error) this.logger.error('Fehler beim Speichern der Shop-Einstellungen:', error);
         });
     }
   }

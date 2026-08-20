@@ -12,6 +12,7 @@ import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { Json } from '../models/supabase.types';
+import { LoggerService } from './logger.service';
 
 const STORAGE_KEY_RADAR = 'reflip_price_radar_items';
 
@@ -20,6 +21,9 @@ const STORAGE_KEY_RADAR = 'reflip_price_radar_items';
 })
 export class PriceTrackerService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly inventoryService = inject(InventoryService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
@@ -106,7 +110,7 @@ export class PriceTrackerService {
         this.persistItems();
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden des Preisradars:', err);
+      this.logger.error('Verbindungsfehler beim Laden des Preisradars:', err);
     }
   }
 

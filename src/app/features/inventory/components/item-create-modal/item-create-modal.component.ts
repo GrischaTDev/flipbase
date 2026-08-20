@@ -34,6 +34,7 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
+import { LoggerService } from '../../../../core/services/logger.service';
 
 @Component({
   selector: 'app-item-create-modal',
@@ -53,6 +54,9 @@ import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog
 })
 export class ItemCreateModalComponent {
   private readonly inventoryService = inject(InventoryService);
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly mediaService = inject(MediaService);
   readonly purchaseService = inject(PurchaseService);
   readonly aiService = inject(AiAssistantService);
@@ -220,7 +224,7 @@ export class ItemCreateModalComponent {
       try {
         await this.mediaService.uploadItemMedia(createdItem.id, this.selectedImageFile()!, true);
       } catch (uploadErr) {
-        console.warn('Image upload error on item create:', uploadErr);
+        this.logger.warn('Image upload error on item create:', uploadErr);
       }
     }
 

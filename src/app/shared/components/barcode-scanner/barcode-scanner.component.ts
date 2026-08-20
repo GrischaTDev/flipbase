@@ -4,12 +4,14 @@ import {
   ElementRef,
   OnDestroy,
   OnInit,
+  inject,
   output,
   signal,
   viewChild,
 } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
+import { LoggerService } from '../../../core/services/logger.service';
 import {
   LucideDynamicIcon,
   LucideCamera as Camera,
@@ -36,6 +38,9 @@ declare class BarcodeDetector {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BarcodeScannerComponent implements OnInit, OnDestroy {
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   readonly close = output<void>();
   readonly detected = output<string>();
 
@@ -79,7 +84,7 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
           formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code'],
         });
       } catch (e) {
-        console.warn('BarcodeDetector initialisation fallback', e);
+        this.logger.warn('BarcodeDetector initialisation fallback', e);
       }
     }
   }
@@ -144,7 +149,7 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
       });
       this.isTorchOn.set(newState);
     } catch (e) {
-      console.warn('Torch toggle failed', e);
+      this.logger.warn('Torch toggle failed', e);
     }
   }
 

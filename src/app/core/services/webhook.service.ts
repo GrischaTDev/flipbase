@@ -4,6 +4,7 @@ import { Sale, Purchase } from '../models/reflip.models';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
+import { LoggerService } from './logger.service';
 
 const STORAGE_KEY_CONFIG = 'reflip_webhook_config';
 const STORAGE_KEY_NOTIFS = 'reflip_app_notifications';
@@ -25,6 +26,9 @@ function getStorage(): Storage | null {
 })
 export class WebhookService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
 
@@ -161,7 +165,7 @@ export class WebhookService {
         this.speichereLokal(mapped);
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden der Benachrichtigungen:', err);
+      this.logger.error('Verbindungsfehler beim Laden der Benachrichtigungen:', err);
     }
   }
 
@@ -195,7 +199,7 @@ export class WebhookService {
           { onConflict: 'workspace_id' },
         )
         .then(({ error }) => {
-          if (error) console.error('Fehler beim Speichern der Webhook-Konfiguration:', error);
+          if (error) this.logger.error('Fehler beim Speichern der Webhook-Konfiguration:', error);
         });
     }
   }
@@ -303,7 +307,7 @@ export class WebhookService {
           body: JSON.stringify(payload),
         });
       } catch (e) {
-        console.warn('Discord webhook dispatch error:', e);
+        this.logger.warn('Discord webhook dispatch error:', e);
       }
     }
 
@@ -322,7 +326,7 @@ export class WebhookService {
           }),
         });
       } catch (e) {
-        console.warn('Telegram webhook dispatch error:', e);
+        this.logger.warn('Telegram webhook dispatch error:', e);
       }
     }
   }

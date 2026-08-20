@@ -1,12 +1,16 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
+import { Injector, runInInjectionContext } from '@angular/core';
 import { PwaService } from './pwa.service';
 
 describe('PWA & Offline Service', () => {
   let pwaService: PwaService;
 
   beforeEach(() => {
-    pwaService = new PwaService();
+    // Wie in den uebrigen Dienst-Tests: leerer Injektor, damit optionale
+    // Abhaengigkeiten sauber als null ankommen statt zu werfen.
+    const injector = Injector.create({ providers: [] });
+    pwaService = runInInjectionContext(injector, () => new PwaService());
   });
 
   it('should initialize with default online and installation states', () => {

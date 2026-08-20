@@ -6,6 +6,7 @@ import { InventoryItem, Sale, TaxMode } from '../models/reflip.models';
 import { StoreOrder } from '../models/store.models';
 import { EmailConfirmation, Invoice, InvoiceItem, InvoiceParty } from '../models/invoice.models';
 import { Json } from '../models/supabase.types';
+import { LoggerService } from './logger.service';
 
 const STORAGE_KEY_INVOICES = 'reflip_generated_invoices';
 const STORAGE_KEY_EMAILS = 'reflip_sent_emails';
@@ -15,6 +16,9 @@ const STORAGE_KEY_EMAILS = 'reflip_sent_emails';
 })
 export class InvoiceService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
 
@@ -154,7 +158,7 @@ export class InvoiceService {
         this.persistEmails();
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden der Rechnungen:', err);
+      this.logger.error('Verbindungsfehler beim Laden der Rechnungen:', err);
     } finally {
       this.isLoading.set(false);
     }
@@ -430,7 +434,7 @@ export class InvoiceService {
           order_number: invoice.orderNumber,
         });
       } catch (err) {
-        console.error('Fehler beim Speichern der E-Mail-Bestätigung in Supabase:', err);
+        this.logger.error('Fehler beim Speichern der E-Mail-Bestätigung in Supabase:', err);
       }
     }
 

@@ -1,9 +1,13 @@
-import { Injectable, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
+import { LoggerService } from './logger.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class PwaService {
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   readonly isInstallable = signal<boolean>(false);
   readonly isInstalled = signal<boolean>(false);
   readonly isOnline = signal<boolean>(
@@ -73,7 +77,7 @@ export class PwaService {
         return true;
       }
     } catch (err) {
-      console.warn('PWA Install prompt error:', err);
+      this.logger.warn('PWA Install prompt error:', err);
     }
     return false;
   }
@@ -88,7 +92,7 @@ export class PwaService {
       await navigator.serviceWorker.register('/sw.js');
       this.swRegistered.set(true);
     } catch (err) {
-      console.warn('ServiceWorker registration error:', err);
+      this.logger.warn('ServiceWorker registration error:', err);
     }
   }
 }

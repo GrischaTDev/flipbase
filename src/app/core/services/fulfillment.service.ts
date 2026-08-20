@@ -13,6 +13,7 @@ import {
 } from '../models/fulfillment.models';
 import { WebPushService } from './web-push.service';
 import { Json } from '../models/supabase.types';
+import { LoggerService } from './logger.service';
 
 const STORAGE_KEY_CARRIER_CFG = 'reflip_carrier_config';
 const STORAGE_KEY_SHIPPING_ORDERS = 'reflip_shipping_orders';
@@ -22,6 +23,9 @@ const STORAGE_KEY_SHIPPING_ORDERS = 'reflip_shipping_orders';
 })
 export class FulfillmentService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly webPushService = inject(WebPushService, { optional: true });
@@ -388,7 +392,7 @@ export class FulfillmentService {
         } catch {}
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden der Versanddaten:', err);
+      this.logger.error('Verbindungsfehler beim Laden der Versanddaten:', err);
     }
   }
 
@@ -419,7 +423,7 @@ export class FulfillmentService {
           { onConflict: 'workspace_id' },
         )
         .then(({ error }) => {
-          if (error) console.error('Fehler beim Speichern der Carrier-Konfiguration:', error);
+          if (error) this.logger.error('Fehler beim Speichern der Carrier-Konfiguration:', error);
         });
     }
   }

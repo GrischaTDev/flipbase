@@ -18,6 +18,7 @@ import {
 } from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
 import { CheckoutCustomerInfo } from '../../../../core/models/store.models';
+import { LoggerService } from '../../../../core/services/logger.service';
 
 @Component({
   selector: 'app-store-checkout',
@@ -28,6 +29,9 @@ import { CheckoutCustomerInfo } from '../../../../core/models/store.models';
 })
 export class StoreCheckoutComponent {
   readonly storeService = inject(StoreService);
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly router = inject(Router);
 
   readonly backIcon = ArrowLeft;
@@ -133,7 +137,7 @@ export class StoreCheckoutComponent {
       this.router.navigate(['/shop/order-success', order.id]);
     } catch (e) {
       this.isSubmitting.set(false);
-      console.error('Order submission error:', e);
+      this.logger.error('Order submission error:', e);
     }
   }
 }

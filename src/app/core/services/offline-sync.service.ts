@@ -7,6 +7,7 @@ import { WebPushService } from './web-push.service';
 import { WebhookService } from './webhook.service';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
+import { LoggerService } from './logger.service';
 
 const STORAGE_KEY_OFFLINE_ENTRIES = 'reflip_offline_purchase_entries';
 const STORAGE_KEY_CASH_WALLET = 'reflip_flea_market_cash_wallet';
@@ -16,6 +17,9 @@ const STORAGE_KEY_CASH_WALLET = 'reflip_flea_market_cash_wallet';
 })
 export class OfflineSyncService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly purchaseService = inject(PurchaseService, { optional: true });
   private readonly inventoryService = inject(InventoryService, { optional: true });
@@ -136,7 +140,7 @@ export class OfflineSyncService {
         this.persistWallet();
       }
     } catch (err) {
-      console.error('Verbindungsfehler beim Laden der Offline-Daten:', err);
+      this.logger.error('Verbindungsfehler beim Laden der Offline-Daten:', err);
     }
   }
 

@@ -4,6 +4,7 @@ import { WorkspaceService } from './workspace.service';
 import { InventoryService } from './inventory.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { InventoryItem, ListingDraft } from '../models/reflip.models';
+import { LoggerService } from './logger.service';
 
 export type ListingPlatform = 'kleinanzeigen' | 'ebay' | 'vinted' | 'custom_store' | 'social';
 export type ListingStyleTone = 'dealer' | 'bargain' | 'collector' | 'casual';
@@ -47,6 +48,9 @@ export interface SeoOptimizationResult {
 })
 export class ListingStudioService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly inventoryService = inject(InventoryService, { optional: true });
@@ -86,7 +90,7 @@ export class ListingStudioService {
         this.savedDrafts.set(data as ListingDraft[]);
       }
     } catch (err) {
-      console.error('Error loading listing drafts:', err);
+      this.logger.error('Error loading listing drafts:', err);
     }
   }
 

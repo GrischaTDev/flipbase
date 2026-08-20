@@ -45,6 +45,10 @@ module.exports = tseslint.config(
         'error',
         { type: 'attribute', prefix: 'app', style: 'camelCase' },
       ],
+      // Ausgaben laufen ueber den LoggerService, damit sie an einer Stelle
+      // umgelenkt werden koennen. Ausnahmen unten fuer den Dienst selbst und
+      // den Programmstart, der vor der Abhaengigkeitsverwaltung liegt.
+      'no-console': 'error',
       // Nicht genutzte Variablen sind ein Fehler - fuehrende Unterstriche
       // gelten als bewusst ungenutzt.
       '@typescript-eslint/no-unused-vars': [
@@ -59,6 +63,12 @@ module.exports = tseslint.config(
         },
       ],
     },
+  },
+  {
+    // Der Logger schreibt selbst auf die Konsole, und main.ts laeuft vor dem
+    // Aufbau der Abhaengigkeitsverwaltung - dort gibt es noch keinen Dienst.
+    files: ['src/app/core/services/logger.service.ts', 'src/main.ts'],
+    rules: { 'no-console': 'off' },
   },
   {
     files: ['**/*.html'],

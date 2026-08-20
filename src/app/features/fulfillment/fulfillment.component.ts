@@ -25,6 +25,7 @@ import {
 } from '@lucide/angular';
 import { FulfillmentService } from '../../core/services/fulfillment.service';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
+import { LoggerService } from '../../core/services/logger.service';
 import {
   BundleCandidate,
   CarrierType,
@@ -41,6 +42,9 @@ import {
 })
 export class FulfillmentComponent {
   readonly fulfillmentService = inject(FulfillmentService);
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
 
   readonly packageIcon = Package;
   readonly truckIcon = Truck;
@@ -160,7 +164,7 @@ export class FulfillmentComponent {
       }
     } catch (e) {
       this.isPurchasing.set(false);
-      console.error('Carrier label purchase error:', e);
+      this.logger.error('Carrier label purchase error:', e);
     }
   }
 

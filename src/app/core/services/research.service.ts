@@ -6,6 +6,7 @@ import { RealProductImageService } from './real-product-image.service';
 import { EbayApiService } from './ebay-api.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { ResearchQuery } from '../models/reflip.models';
+import { LoggerService } from './logger.service';
 
 export interface ResearchComparisonItem {
   id: string;
@@ -56,6 +57,9 @@ export interface ResearchSummary {
 })
 export class ResearchService {
   private readonly supabase = inject(SupabaseService);
+  // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
+  // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
+  private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService);
   private readonly realImageService = inject(RealProductImageService);
@@ -102,7 +106,7 @@ export class ResearchService {
         this.recentQueries.set(data as ResearchQuery[]);
       }
     } catch (err) {
-      console.error('Error loading research queries:', err);
+      this.logger.error('Error loading research queries:', err);
     }
   }
 
