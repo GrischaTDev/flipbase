@@ -19,6 +19,7 @@ import {
 import { SourcesService } from '../../core/services/sources.service';
 import { SuppliersService } from '../../core/services/suppliers.service';
 import { istArchiviert } from '../../core/services/stammdaten-filter';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-sources',
@@ -28,6 +29,7 @@ import { istArchiviert } from '../../core/services/stammdaten-filter';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SourcesComponent {
+  private readonly dialog = inject(ConfirmDialogService);
   readonly sourcesService = inject(SourcesService);
   readonly suppliersService = inject(SuppliersService);
 
@@ -124,7 +126,13 @@ export class SourcesComponent {
 
   async onDeleteSource(sourceId: string): Promise<void> {
     this.meldung.set(null);
-    if (!confirm('Diese Quelle endgültig löschen? Das geht nur, wenn kein Einkauf daran hängt.')) {
+    const bestaetigt = await this.dialog.frage({
+      titel: 'Quelle löschen?',
+      text: 'Die Quelle wird endgültig entfernt. Das geht nur, wenn kein Einkauf mehr auf sie verweist.',
+      bestaetigenText: 'Löschen',
+      gefahr: true,
+    });
+    if (!bestaetigt) {
       return;
     }
     const { error } = await this.sourcesService.deleteSource(sourceId);
@@ -182,9 +190,13 @@ export class SourcesComponent {
 
   async onDeleteSupplier(supplierId: string): Promise<void> {
     this.meldung.set(null);
-    if (
-      !confirm('Diesen Lieferanten endgültig löschen? Das geht nur, wenn kein Einkauf daran hängt.')
-    ) {
+    const bestaetigt = await this.dialog.frage({
+      titel: 'Lieferant löschen?',
+      text: 'Der Lieferant wird endgültig entfernt. Das geht nur, wenn kein Einkauf mehr auf ihn verweist.',
+      bestaetigenText: 'Löschen',
+      gefahr: true,
+    });
+    if (!bestaetigt) {
       return;
     }
     const { error } = await this.suppliersService.deleteSupplier(supplierId);

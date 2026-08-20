@@ -37,6 +37,7 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-item-detail',
@@ -58,6 +59,7 @@ import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog
 export class ItemDetailComponent {
   readonly id = input.required<string>();
 
+  private readonly dialog = inject(ConfirmDialogService);
   readonly inventoryService = inject(InventoryService);
   readonly mediaService = inject(MediaService);
   private readonly router = inject(Router);
@@ -255,7 +257,13 @@ export class ItemDetailComponent {
   async onDeleteItem(): Promise<void> {
     const item = this.inventoryService.selectedItem();
     if (!item) return;
-    if (confirm(`Möchtest du "${item.title}" wirklich unwiderruflich löschen?`)) {
+    const bestaetigt = await this.dialog.frage({
+      titel: 'Artikel löschen?',
+      text: `„${item.title}“ wird endgültig gelöscht. Das lässt sich nicht rückgängig machen.`,
+      bestaetigenText: 'Löschen',
+      gefahr: true,
+    });
+    if (bestaetigt) {
       await this.inventoryService.deleteItem(item.id);
       this.router.navigate(['/inventory']);
     }

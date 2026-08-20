@@ -32,6 +32,7 @@ import {
   ShippingOrder,
   ShippingStatus,
 } from '../../core/models/fulfillment.models';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-fulfillment',
@@ -41,6 +42,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FulfillmentComponent {
+  private readonly dialog = inject(ConfirmDialogService);
   readonly fulfillmentService = inject(FulfillmentService);
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
@@ -133,7 +135,12 @@ export class FulfillmentComponent {
   }
 
   async onUnbundleOrder(order: ShippingOrder): Promise<void> {
-    if (confirm('Möchtest du dieses Sammelpaket wirklich wieder in Einzelsendungen aufteilen?')) {
+    const bestaetigt = await this.dialog.frage({
+      titel: 'Sammelpaket aufteilen?',
+      text: 'Das Sammelpaket wird wieder in einzelne Sendungen zerlegt.',
+      bestaetigenText: 'Aufteilen',
+    });
+    if (bestaetigt) {
       await this.fulfillmentService.unbundleOrder(order.id);
     }
   }

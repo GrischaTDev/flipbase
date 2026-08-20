@@ -1,0 +1,62 @@
+@if (dialog.anfrage(); as anfrage) {
+  <div
+    class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in"
+    appModalDialog
+    schliesstBeiKlickAussen
+    [dialogTitel]="anfrage.titel"
+    (dialogClose)="dialog.antworte(false)"
+  >
+    <div
+      class="bg-fb-surface border border-fb-border rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 animate-modal-card"
+    >
+      <div class="flex items-start gap-3">
+        <div
+          class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border"
+          [class.bg-rose-500/15]="anfrage.gefahr"
+          [class.border-rose-500/30]="anfrage.gefahr"
+          [class.text-rose-400]="anfrage.gefahr"
+          [class.bg-indigo-500/15]="!anfrage.gefahr"
+          [class.border-indigo-500/30]="!anfrage.gefahr"
+          [class.text-indigo-400]="!anfrage.gefahr"
+        >
+          <svg [lucideIcon]="anfrage.gefahr ? warnIcon : infoIcon" class="w-4 h-4"></svg>
+        </div>
+
+        <div class="min-w-0 space-y-1.5">
+          <h2 class="text-sm font-bold text-fb-text-primary">{{ anfrage.titel }}</h2>
+          <p class="text-xs text-fb-text-secondary leading-relaxed whitespace-pre-line">
+            {{ anfrage.text }}
+          </p>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-1">
+        <!-- Bei einem Hinweis gibt es nichts abzulehnen, deshalb entfaellt die
+             zweite Schaltflaeche - sonst muesste man sich zwischen zwei
+             gleichbedeutenden Antworten entscheiden. -->
+        @if (!anfrage.nurHinweis) {
+          <button
+            type="button"
+            (click)="dialog.antworte(false)"
+            class="linear-btn-secondary px-4 py-1.5 rounded-xl text-xs font-semibold cursor-pointer"
+          >
+            {{ anfrage.abbrechenText || 'Abbrechen' }}
+          </button>
+        }
+
+        <button
+          type="button"
+          (click)="dialog.antworte(true)"
+          class="px-4 py-1.5 rounded-xl text-xs font-bold cursor-pointer border transition"
+          [class.bg-rose-600]="anfrage.gefahr"
+          [class.border-rose-500]="anfrage.gefahr"
+          [class.text-white]="anfrage.gefahr"
+          [class.hover:bg-rose-500]="anfrage.gefahr"
+          [class.linear-btn-primary]="!anfrage.gefahr"
+        >
+          {{ anfrage.bestaetigenText || 'Bestätigen' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

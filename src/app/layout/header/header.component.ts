@@ -32,6 +32,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { WorkspaceMemberService } from '../../core/services/workspace-member.service';
 import { WebhookService } from '../../core/services/webhook.service';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { AppNotification } from '../../core/models/webhook.models';
 import { ThemeService } from '../../core/services/theme.service';
 import { PwaService } from '../../core/services/pwa.service';
@@ -54,6 +55,7 @@ export class HeaderComponent {
   readonly workspaceService = inject(WorkspaceService);
   readonly memberService = inject(WorkspaceMemberService);
   readonly webhookService = inject(WebhookService);
+  private readonly dialog = inject(ConfirmDialogService);
   readonly themeService = inject(ThemeService);
   readonly pwaService = inject(PwaService);
   private readonly translate = inject(TranslateService);
@@ -121,15 +123,22 @@ export class HeaderComponent {
   }
 
   /**
-   * Oeffnet eine Meldung: als gelesen vermerken und das Menue schliessen.
+   * Oeffnet eine Meldung.
+   *
+   * Mit Ziel uebernimmt routerLink im Template die Navigation. Ohne Ziel -
+   * typischerweise eine Ankuendigung des Betreibers - erscheint ihr Text in
+   * einem Dialog, statt dass ein Klick ins Leere geht.
    *
    * Das Markieren laeuft ueber den Dienst, damit der Zaehler an der Glocke
-   * mitzieht und der Zustand das naechste Laden ueberlebt. Die eigentliche
-   * Navigation macht routerLink im Template.
+   * mitzieht und der Zustand das naechste Laden ueberlebt.
    */
-  oeffneBenachrichtigung(notif: AppNotification): void {
+  async oeffneBenachrichtigung(notif: AppNotification): Promise<void> {
     this.webhookService.markAsRead(notif.id);
     this.isNotificationDropdownOpen.set(false);
+
+    if (!notif.link) {
+      await this.dialog.zeigeHinweis(notif.title, notif.details || notif.message);
+    }
   }
 
   onDocumentClick(event: MouseEvent): void {

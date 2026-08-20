@@ -147,11 +147,10 @@
 
           <div class="max-h-72 overflow-y-auto divide-y divide-fb-border space-y-1">
             @for (notif of webhookService.notifications(); track notif.id) {
-              <!-- Mit Ziel ist der ganze Eintrag die Schaltflaeche - ein
-                   Textlink am unteren Rand ist auf einer kleinen Karte unnoetig
-                   schwer zu treffen. Ohne Ziel bleibt es bewusst ein reiner
-                   Absatz, damit nichts anklickbar aussieht, was nirgendwohin
-                   fuehrt. -->
+              <!-- Jeder Eintrag ist als Ganzes anklickbar. Mit Ziel fuehrt er
+                   dorthin, ohne Ziel oeffnet er seinen Text in einem Dialog -
+                   eine Ankuendigung fuehrt nirgendwohin, hat aber mehr zu sagen,
+                   als hier hineinpasst. -->
               @if (notif.link) {
                 <a
                   [routerLink]="notif.link"
@@ -160,21 +159,20 @@
                   [class.bg-indigo-500/5]="!notif.read"
                 >
                   <ng-container
-                    *ngTemplateOutlet="
-                      meldungsInhalt;
-                      context: { $implicit: notif, verlinkt: true }
-                    "
+                    *ngTemplateOutlet="meldungsInhalt; context: { $implicit: notif }"
                   ></ng-container>
                 </a>
               } @else {
-                <div class="py-2 px-2 text-xs rounded-lg" [class.bg-indigo-500/5]="!notif.read">
+                <button
+                  type="button"
+                  (click)="oeffneBenachrichtigung(notif)"
+                  class="group block w-full text-left py-2 px-2 text-xs rounded-lg transition hover:bg-fb-surface-hover cursor-pointer"
+                  [class.bg-indigo-500/5]="!notif.read"
+                >
                   <ng-container
-                    *ngTemplateOutlet="
-                      meldungsInhalt;
-                      context: { $implicit: notif, verlinkt: false }
-                    "
+                    *ngTemplateOutlet="meldungsInhalt; context: { $implicit: notif }"
                   ></ng-container>
-                </div>
+                </button>
               }
             } @empty {
               <div class="p-4 text-center text-xs text-fb-text-muted">
@@ -183,15 +181,25 @@
             }
           </div>
 
-          <ng-template #meldungsInhalt let-notif let-verlinkt="verlinkt">
+          <ng-template #meldungsInhalt let-notif>
             <div class="flex items-start justify-between gap-2">
-              <strong
-                class="text-[11px] text-fb-text-primary"
-                [class.font-bold]="!notif.read"
-                [class.group-hover:text-indigo-300]="verlinkt"
-              >
-                {{ notif.title }}
-              </strong>
+              <span class="flex items-center gap-1.5 min-w-0">
+                <!-- Eine Ankuendigung des Betreibers soll man nicht mit einem
+                     eigenen Vorgang verwechseln. -->
+                @if (notif.type === 'system') {
+                  <span
+                    class="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 shrink-0"
+                  >
+                    System
+                  </span>
+                }
+                <strong
+                  class="text-[11px] text-fb-text-primary group-hover:text-indigo-300 truncate"
+                  [class.font-bold]="!notif.read"
+                >
+                  {{ notif.title }}
+                </strong>
+              </span>
               <span class="text-[10px] font-mono text-fb-text-muted shrink-0">
                 {{ notif.timestamp | date: 'shortTime' }}
               </span>
@@ -200,20 +208,6 @@
               {{ notif.message }}
             </p>
           </ng-template>
-
-          <div
-            class="pt-2 border-t border-fb-border flex justify-between items-center text-[10px] text-fb-text-muted"
-          >
-            <a
-              routerLink="/settings"
-              (click)="isNotificationDropdownOpen.set(false)"
-              class="text-indigo-400 hover:underline inline-flex items-center gap-1"
-            >
-              <svg [lucideIcon]="settingsIcon" class="w-3 h-3"></svg>
-              <span>Webhook-Einstellungen</span>
-            </a>
-            <span>Flipbase Live Push</span>
-          </div>
         </div>
       }
     </div>

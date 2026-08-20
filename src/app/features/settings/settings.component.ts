@@ -52,6 +52,7 @@ import { FulfillmentService } from '../../core/services/fulfillment.service';
 import { WebPushService } from '../../core/services/web-push.service';
 import { WorkspaceRole } from '../../core/models/flipbase.models';
 import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-settings',
@@ -61,6 +62,7 @@ import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsComponent {
+  private readonly dialog = inject(ConfirmDialogService);
   readonly workspaceService = inject(WorkspaceService);
   readonly exportService = inject(ExportService);
   readonly salesService = inject(SalesService);
@@ -310,7 +312,13 @@ export class SettingsComponent {
   }
 
   async onDeleteWorkspace(wsId: string): Promise<void> {
-    if (confirm('Möchtest du diesen Workspace wirklich löschen?')) {
+    const bestaetigt = await this.dialog.frage({
+      titel: 'Workspace löschen?',
+      text: 'Der Workspace wird mit allen darin erfassten Daten gelöscht. Das lässt sich nicht rückgängig machen.',
+      bestaetigenText: 'Löschen',
+      gefahr: true,
+    });
+    if (bestaetigt) {
       await this.workspaceService.deleteWorkspace(wsId);
     }
   }
@@ -436,7 +444,13 @@ export class SettingsComponent {
   }
 
   async onRemoveMember(memberId: string): Promise<void> {
-    if (confirm('Möchtest du dieses Team-Mitglied wirklich aus dem Workspace entfernen?')) {
+    const bestaetigt = await this.dialog.frage({
+      titel: 'Mitglied entfernen?',
+      text: 'Die Person verliert damit den Zugriff auf diesen Workspace.',
+      bestaetigenText: 'Entfernen',
+      gefahr: true,
+    });
+    if (bestaetigt) {
       await this.memberService.removeMember(memberId);
     }
   }

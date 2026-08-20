@@ -30,6 +30,7 @@ import { InvoiceModalComponent } from '../../shared/components/invoice-modal/inv
 import { Sale } from '../../core/models/flipbase.models';
 import { Invoice } from '../../core/models/invoice.models';
 import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/return.models';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-sales',
@@ -48,6 +49,7 @@ import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/ret
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SalesComponent {
+  private readonly dialog = inject(ConfirmDialogService);
   readonly salesService = inject(SalesService);
   readonly invoiceService = inject(InvoiceService);
   readonly returnService = inject(ReturnService);
@@ -213,11 +215,13 @@ export class SalesComponent {
   }
 
   async onDeleteSale(sale: Sale): Promise<void> {
-    if (
-      confirm(
-        'Möchtest du diesen Verkauf wirklich stornieren? Der Artikel wird wieder auf "verkaufsbereit" zurückgesetzt.',
-      )
-    ) {
+    const bestaetigt = await this.dialog.frage({
+      titel: 'Verkauf stornieren?',
+      text: 'Der Verkauf wird entfernt und der Artikel wieder auf „verkaufsbereit“ gesetzt.',
+      bestaetigenText: 'Stornieren',
+      gefahr: true,
+    });
+    if (bestaetigt) {
       await this.salesService.deleteSale(sale.id, sale.inventory_item_id);
     }
   }

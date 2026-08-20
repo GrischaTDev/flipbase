@@ -106,9 +106,15 @@ export class WebhookService {
       {
         id: 'notif-init-1',
         type: 'system',
-        title: 'Willkommen bei Flipbase OS!',
-        message:
-          'Dein Reselling-System ist einsatzbereit. Konfiguriere Webhooks für Discord & Telegram.',
+        title: 'Willkommen bei Flipbase',
+        message: 'Kurz erklärt, wie du anfängst.',
+        details:
+          'Flipbase begleitet einen Artikel vom Einkauf bis zum Gewinn.\n\n' +
+          'Fang mit einem Einkauf an: Trag ein, was du bezahlt hast, und leg die enthaltenen Artikel an. ' +
+          'Nebenkosten wie Versand oder Fahrtkosten kommen dazu und werden auf die Artikel verteilt – ' +
+          'so weißt du bei jedem einzelnen, was er dich wirklich gekostet hat.\n\n' +
+          'Sobald du verkaufst, rechnet Flipbase Gebühren und Versand gegen und zeigt dir den echten Gewinn. ' +
+          'Benachrichtigungen nach Discord oder Telegram richtest du unter „Einstellungen“ ein.',
         timestamp: new Date().toISOString(),
         read: false,
       },

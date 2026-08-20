@@ -54,6 +54,7 @@ import {
   ItemCondition,
   TrackingCarrier,
 } from '../../../../core/models/flipbase.models';
+import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 
 @Component({
   selector: 'app-purchase-detail',
@@ -74,6 +75,7 @@ import {
 export class PurchaseDetailComponent {
   readonly id = input.required<string>();
 
+  private readonly dialog = inject(ConfirmDialogService);
   readonly purchaseService = inject(PurchaseService);
 
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
@@ -312,7 +314,13 @@ export class PurchaseDetailComponent {
   async onDeletePurchase(): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
     if (!purchase) return;
-    if (confirm('Möchtest du diesen Einkauf und alle zugehörigen Daten wirklich löschen?')) {
+    const bestaetigt = await this.dialog.frage({
+      titel: 'Einkauf löschen?',
+      text: `„${purchase.title}“ wird gelöscht, zusammen mit allen zugeordneten Artikeln und Nebenkosten. Das lässt sich nicht rückgängig machen.`,
+      bestaetigenText: 'Löschen',
+      gefahr: true,
+    });
+    if (bestaetigt) {
       await this.purchaseService.deletePurchase(purchase.id);
       this.router.navigate(['/purchases']);
     }

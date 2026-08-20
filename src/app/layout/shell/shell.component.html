@@ -52,6 +52,10 @@
   <!-- Mobile Bottom Navigation -->
   <app-bottom-nav (toggleMenu)="toggleSidebar()"></app-bottom-nav>
 
+  <!-- Rueckfragen und Hinweise der ganzen Anwendung. Steht genau einmal hier;
+       jede Stelle, die etwas fragen will, ruft den ConfirmDialogService. -->
+  <app-confirm-dialog></app-confirm-dialog>
+
   <!-- Workspace Modal -->
   @if (isCreateWorkspaceModalOpen()) {
     <app-workspace-modal
