@@ -89,4 +89,67 @@ describe('Webhook & Notification Service', () => {
     expect(webhookService.notifications().length).toBe(initialCount + 1);
     expect(webhookService.notifications()[0].title).toContain('Nintendo Switch OVP');
   });
+
+  it('verlinkt die Meldung auf den Einkauf, nicht auf die Uebersicht', () => {
+    // Zu einer Meldung ueber einen bestimmten Einkauf gehoert dieser Einkauf.
+    // Vorher zeigte der Link auf '/purchases' - wer schon dort stand, sah beim
+    // Klicken gar nichts passieren.
+    const samplePurchase: Purchase = {
+      id: 'p-42',
+      workspace_id: 'ws-1',
+      type: 'single',
+      title: 'Kamera',
+      purchase_date: '2026-08-18',
+      purchase_price: 60,
+      cost_allocation_mode: 'even',
+    };
+
+    webhookService.sendPurchaseNotification(samplePurchase);
+
+    expect(webhookService.notifications()[0].link).toBe('/purchases/p-42');
+  });
+
+  describe('Einzelne Meldung als gelesen markieren', () => {
+    // Frueher setzte das Aufklappmenue `notif.read = true` direkt am Objekt.
+    // Das Signal erfuhr davon nichts: Der Zaehler an der Glocke blieb stehen,
+    // und nach dem naechsten Laden war alles wieder ungelesen.
+    it('senkt den Zaehler und laesst die uebrigen Meldungen ungelesen', () => {
+      webhookService.addNotification({
+        type: 'sale',
+        title: 'Erste',
+        message: 'Test',
+      });
+      webhookService.addNotification({
+        type: 'sale',
+        title: 'Zweite',
+        message: 'Test',
+      });
+      const vorher = webhookService.unreadCount();
+      const id = webhookService.notifications()[0].id;
+
+      webhookService.markAsRead(id);
+
+      expect(webhookService.unreadCount()).toBe(vorher - 1);
+      expect(webhookService.notifications().find((n) => n.id === id)?.read).toBe(true);
+      expect(webhookService.notifications().filter((n) => !n.read).length).toBe(vorher - 1);
+    });
+
+    it('aendert nichts, wenn die Meldung schon gelesen ist', () => {
+      const id = webhookService.notifications()[0].id;
+      webhookService.markAsRead(id);
+      const zwischenstand = webhookService.unreadCount();
+
+      webhookService.markAsRead(id);
+
+      expect(webhookService.unreadCount()).toBe(zwischenstand);
+    });
+
+    it('laesst eine unbekannte Kennung wirkungslos', () => {
+      const vorher = webhookService.unreadCount();
+
+      webhookService.markAsRead('gibt-es-nicht');
+
+      expect(webhookService.unreadCount()).toBe(vorher);
+    });
+  });
 });

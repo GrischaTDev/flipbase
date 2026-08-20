@@ -233,6 +233,32 @@ export class WebhookService {
     }
   }
 
+  /**
+   * Markiert eine einzelne Meldung als gelesen.
+   *
+   * Frueher hat das Aufklappmenue dafuer `notif.read = true` direkt am Objekt
+   * gesetzt. Das aendert zwar das Objekt, aber nicht das Signal: Der Zaehler an
+   * der Glocke blieb stehen, und gespeichert wurde es weder im Browser noch in
+   * der Datenbank - nach dem naechsten Laden war alles wieder ungelesen.
+   */
+  markAsRead(id: string): void {
+    const vorher = this.notifications();
+    if (!vorher.some((n) => n.id === id && !n.read)) return;
+
+    const updated = vorher.map((n) => (n.id === id ? { ...n, read: true } : n));
+    this.notifications.set(updated);
+    this.speichereLokal(updated);
+
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
+      this.supabase.client
+        .from('app_notifications')
+        .update({ read: true })
+        .eq('workspace_id', ws.id)
+        .eq('id', id);
+    }
+  }
+
   markAllAsRead(): void {
     const updated = this.notifications().map((n) => ({ ...n, read: true }));
     this.notifications.set(updated);
@@ -344,7 +370,11 @@ export class WebhookService {
       type: 'purchase',
       title: `Neuer Einkauf: ${purchase.title}`,
       message: `Einkaufskosten: ${cost} € (${purchase.type === 'pallet' ? 'Palette / Konvolut' : 'Einzelkauf'}).`,
-      link: '/purchases',
+      // Auf den Einkauf selbst, nicht auf die Liste: Zu einer Meldung ueber
+      // einen bestimmten Einkauf gehoert dieser Einkauf. Vorher landete man auf
+      // der Uebersicht und musste ihn dort suchen - und wer schon dort stand,
+      // sah beim Klicken gar keine Veraenderung.
+      link: `/purchases/${purchase.id}`,
     });
   }
 

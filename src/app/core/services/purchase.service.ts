@@ -323,9 +323,9 @@ export class PurchaseService {
     // 1. Immediately persist locally
     this.mockStore.savePurchase(newPurchase);
     this.purchasesRaw.update((list) => [newPurchase, ...list]);
-    this.webhookService.sendPurchaseNotification(newPurchase);
 
     if (this.mockStore.isDemoMode()) {
+      this.webhookService.sendPurchaseNotification(newPurchase);
       return { data: newPurchase, error: null };
     }
 
@@ -370,6 +370,12 @@ export class PurchaseService {
           finalPurchase,
           ...list.filter((p) => p.id !== newPurchase.id && p.id !== finalPurchase.id),
         ]);
+        // Erst jetzt melden: Die Meldung verlinkt auf den Einkauf, und bis
+        // hierhin traegt er nur eine Behelfskennung. Eine Meldung vorher haette
+        // dauerhaft auf eine Kennung gezeigt, die es gleich nicht mehr gibt.
+        // Nebeneffekt und richtig so: Scheitert das Speichern, gibt es auch
+        // keine Meldung ueber einen Einkauf, den es nicht gibt.
+        this.webhookService.sendPurchaseNotification(finalPurchase);
         return { data: finalPurchase, error: null };
       }
     } catch (err: unknown) {

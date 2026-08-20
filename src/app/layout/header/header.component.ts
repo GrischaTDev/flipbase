@@ -7,6 +7,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
@@ -31,6 +32,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { WorkspaceMemberService } from '../../core/services/workspace-member.service';
 import { WebhookService } from '../../core/services/webhook.service';
+import { AppNotification } from '../../core/models/webhook.models';
 import { ThemeService } from '../../core/services/theme.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { Workspace } from '../../core/models/flipbase.models';
@@ -38,7 +40,7 @@ import { DatePipe } from '@angular/common';
 
 @Component({
   selector: 'app-header',
-  imports: [RouterLink, TranslatePipe, LucideDynamicIcon, DatePipe],
+  imports: [RouterLink, TranslatePipe, LucideDynamicIcon, DatePipe, NgTemplateOutlet],
   templateUrl: './header.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -116,6 +118,18 @@ export class HeaderComponent {
 
   async onSignOut(): Promise<void> {
     await this.auth.signOut();
+  }
+
+  /**
+   * Oeffnet eine Meldung: als gelesen vermerken und das Menue schliessen.
+   *
+   * Das Markieren laeuft ueber den Dienst, damit der Zaehler an der Glocke
+   * mitzieht und der Zustand das naechste Laden ueberlebt. Die eigentliche
+   * Navigation macht routerLink im Template.
+   */
+  oeffneBenachrichtigung(notif: AppNotification): void {
+    this.webhookService.markAsRead(notif.id);
+    this.isNotificationDropdownOpen.set(false);
   }
 
   onDocumentClick(event: MouseEvent): void {
