@@ -90,12 +90,15 @@ Server 168.119.246.33 (Hetzner CX33, Ubuntu 26.04 LTS)
 
 | # | Punkt | Blockiert durch |
 |---|---|---|
-| 1 | DNS: `app` und `api` als A/AAAA auf den Server | Grischa |
+| 1 | Domain `flipbase.de` registrieren, DNS fuer `app`, `api`, `@`, `www` | Grischa – Bestellung lief noch |
 | 2 | Caddy aktivieren, Zertifikate holen | Punkt 1 |
 | 3 | Erstes Benutzerkonto in Studio anlegen | Punkt 2 |
-| 4 | Nächtliche Datensicherung per Cron einrichten | – |
+| 4 | ~~Nächtliche Datensicherung per Cron~~ – erledigt, 03:30 Uhr, 14 Tage Aufbewahrung, geprueft | – |
+| 4b | **Auslagerung der Sicherung** – liegt bisher nur auf demselben Server. Zurueckgestellt auf Wunsch von Grischa. Geprueft: Hetzner Storage Box (~3,81 EUR/Mon., EU, einfach), Backblaze B2 (anderer Anbieter), Google Cloud (funktioniert, aber aufwendig). Umsetzung mit rclone inklusive Verschluesselung – der Abzug enthaelt Steuerdaten und die .env mit allen Schluesseln. | vertagt |
 | 5 | Shop: Zahlungsart am Starttag (Schaufenster / Vorkasse / Stripe abwarten) | Entscheidung Grischa |
 | 6 | Einstiegsroute je nach Hostname (`/shop` statt `/dashboard`) | Punkt 5 |
 | 7 | Rechtstexte für den Shop | Grischa (Anwalt / Händlerbund) |
 | 8 | Phase 8 des Sanierungsplans | – |
 | 9 | Projekt hat kein Git-Remote – Quellcode liegt nur lokal | Grischa |
+| 10 | Landingpage auf `flipbase.de` – braucht Impressumsdaten | Grischa |
+| 11 | Umbenennung ReFlip -> Flipbase im Code (Kosmetik) | – |
