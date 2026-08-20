@@ -8,6 +8,8 @@ import { WebhookService } from './webhook.service';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { LoggerService } from './logger.service';
+import { schreibeImHintergrund } from './supabase-schreiben';
+import { SyncStatusService } from './sync-status.service';
 
 const STORAGE_KEY_OFFLINE_ENTRIES = 'flipbase_offline_purchase_entries';
 const STORAGE_KEY_CASH_WALLET = 'flipbase_flea_market_cash_wallet';
@@ -17,6 +19,7 @@ const STORAGE_KEY_CASH_WALLET = 'flipbase_flea_market_cash_wallet';
 })
 export class OfflineSyncService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly syncStatus = inject(SyncStatusService, { optional: true });
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
@@ -216,17 +219,21 @@ export class OfflineSyncService {
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client.from('cash_wallet_sessions').insert({
-        workspace_id: ws.id,
-        is_active: true,
-        start_cash: session.startCash,
-        current_cash: session.currentCash,
-        total_spent: session.totalSpent,
-        estimated_total_resale: session.estimatedTotalResale,
-        items_count: session.itemsCount,
-        location_name: session.locationName,
-        started_at: session.startedAt,
-      });
+      schreibeImHintergrund(
+        this.supabase.client.from('cash_wallet_sessions').insert({
+          workspace_id: ws.id,
+          is_active: true,
+          start_cash: session.startCash,
+          current_cash: session.currentCash,
+          total_spent: session.totalSpent,
+          estimated_total_resale: session.estimatedTotalResale,
+          items_count: session.itemsCount,
+          location_name: session.locationName,
+          started_at: session.startedAt,
+        }),
+        'Speichern der Kassensitzung',
+        this.syncStatus,
+      );
     }
   }
 
@@ -236,11 +243,15 @@ export class OfflineSyncService {
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client
-        .from('cash_wallet_sessions')
-        .update({ is_active: false })
-        .eq('workspace_id', ws.id)
-        .eq('is_active', true);
+      schreibeImHintergrund(
+        this.supabase.client
+          .from('cash_wallet_sessions')
+          .update({ is_active: false })
+          .eq('workspace_id', ws.id)
+          .eq('is_active', true),
+        'Aktualisieren der Kassensitzung',
+        this.syncStatus,
+      );
     }
   }
 
@@ -295,19 +306,23 @@ export class OfflineSyncService {
 
     // 3. Persist to Supabase if connected
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client.from('offline_purchase_entries').insert({
-        workspace_id: ws.id,
-        title: entry.title,
-        purchase_price: entry.purchase_price,
-        estimated_resale_price: entry.estimated_resale_price,
-        location_name: entry.location_name,
-        category: entry.category,
-        condition: entry.condition,
-        notes: entry.notes || null,
-        photo_data_url: entry.photo_data_url || null,
-        captured_at: entry.captured_at,
-        sync_status: 'pending',
-      });
+      schreibeImHintergrund(
+        this.supabase.client.from('offline_purchase_entries').insert({
+          workspace_id: ws.id,
+          title: entry.title,
+          purchase_price: entry.purchase_price,
+          estimated_resale_price: entry.estimated_resale_price,
+          location_name: entry.location_name,
+          category: entry.category,
+          condition: entry.condition,
+          notes: entry.notes || null,
+          photo_data_url: entry.photo_data_url || null,
+          captured_at: entry.captured_at,
+          sync_status: 'pending',
+        }),
+        'Speichern des Offline-Eintrags',
+        this.syncStatus,
+      );
     }
 
     // 4. Web Push trigger
@@ -368,11 +383,15 @@ export class OfflineSyncService {
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client
-        .from('offline_purchase_entries')
-        .update({ sync_status: 'synced' })
-        .eq('workspace_id', ws.id)
-        .eq('sync_status', 'pending');
+      schreibeImHintergrund(
+        this.supabase.client
+          .from('offline_purchase_entries')
+          .update({ sync_status: 'synced' })
+          .eq('workspace_id', ws.id)
+          .eq('sync_status', 'pending'),
+        'Aktualisieren des Offline-Eintrags',
+        this.syncStatus,
+      );
     }
 
     if (this.webhookService) {
@@ -392,7 +411,11 @@ export class OfflineSyncService {
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client.from('offline_purchase_entries').delete().eq('id', id);
+      schreibeImHintergrund(
+        this.supabase.client.from('offline_purchase_entries').delete().eq('id', id),
+        'Loeschen des Offline-Eintrags',
+        this.syncStatus,
+      );
     }
   }
 }

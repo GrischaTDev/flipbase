@@ -14,6 +14,8 @@ import {
 import { WebPushService } from './web-push.service';
 import { Json } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
+import { schreibeImHintergrund } from './supabase-schreiben';
+import { SyncStatusService } from './sync-status.service';
 
 const STORAGE_KEY_CARRIER_CFG = 'flipbase_carrier_config';
 const STORAGE_KEY_SHIPPING_ORDERS = 'flipbase_shipping_orders';
@@ -23,6 +25,7 @@ const STORAGE_KEY_SHIPPING_ORDERS = 'flipbase_shipping_orders';
 })
 export class FulfillmentService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly syncStatus = inject(SyncStatusService, { optional: true });
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
@@ -476,16 +479,20 @@ export class FulfillmentService {
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client
-        .from('shipping_orders')
-        .update({
-          carrier,
-          tracking_number: trk,
-          tracking_url: url,
-          status: 'shipped',
-          shipped_at: shippedAt,
-        })
-        .eq('id', orderId);
+      schreibeImHintergrund(
+        this.supabase.client
+          .from('shipping_orders')
+          .update({
+            carrier,
+            tracking_number: trk,
+            tracking_url: url,
+            status: 'shipped',
+            shipped_at: shippedAt,
+          })
+          .eq('id', orderId),
+        'Aktualisieren des Versandauftrags',
+        this.syncStatus,
+      );
     }
   }
 
@@ -528,25 +535,29 @@ export class FulfillmentService {
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client.from('shipping_orders').insert({
-        workspace_id: ws.id,
-        sale_id: bundledOrder.sale_id || null,
-        order_number: bundledOrder.order_number,
-        order_date: bundledOrder.order_date,
-        platform: bundledOrder.platform,
-        item_title: bundledOrder.item_title,
-        item_sku: bundledOrder.item_sku,
-        item_condition: bundledOrder.item_condition,
-        sale_price: bundledOrder.sale_price,
-        customer: bundledOrder.customer as unknown as Json,
-        carrier: bundledOrder.carrier,
-        package_type: bundledOrder.package_type,
-        status: bundledOrder.status,
-        is_bundled: true,
-        bundled_order_ids: bundledOrder.bundled_order_ids,
-        bundled_item_titles: bundledOrder.bundled_item_titles,
-        notes: bundledOrder.notes,
-      });
+      schreibeImHintergrund(
+        this.supabase.client.from('shipping_orders').insert({
+          workspace_id: ws.id,
+          sale_id: bundledOrder.sale_id || null,
+          order_number: bundledOrder.order_number,
+          order_date: bundledOrder.order_date,
+          platform: bundledOrder.platform,
+          item_title: bundledOrder.item_title,
+          item_sku: bundledOrder.item_sku,
+          item_condition: bundledOrder.item_condition,
+          sale_price: bundledOrder.sale_price,
+          customer: bundledOrder.customer as unknown as Json,
+          carrier: bundledOrder.carrier,
+          package_type: bundledOrder.package_type,
+          status: bundledOrder.status,
+          is_bundled: true,
+          bundled_order_ids: bundledOrder.bundled_order_ids,
+          bundled_item_titles: bundledOrder.bundled_item_titles,
+          notes: bundledOrder.notes,
+        }),
+        'Speichern des Versandauftrags',
+        this.syncStatus,
+      );
     }
 
     if (this.webPushService) {
@@ -657,18 +668,22 @@ export class FulfillmentService {
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client
-        .from('shipping_orders')
-        .update({
-          carrier: rate.carrier,
-          package_type: rate.name,
-          status: 'label_printed',
-          tracking_number: trackingNumber,
-          tracking_url: trackingUrl,
-          label_price: rate.price,
-          carrier_transaction_id: transactionId,
-        })
-        .eq('id', order.id);
+      schreibeImHintergrund(
+        this.supabase.client
+          .from('shipping_orders')
+          .update({
+            carrier: rate.carrier,
+            package_type: rate.name,
+            status: 'label_printed',
+            tracking_number: trackingNumber,
+            tracking_url: trackingUrl,
+            label_price: rate.price,
+            carrier_transaction_id: transactionId,
+          })
+          .eq('id', order.id),
+        'Aktualisieren des Versandauftrags',
+        this.syncStatus,
+      );
     }
 
     if (this.webPushService) {
@@ -713,7 +728,11 @@ export class FulfillmentService {
       if (shippedAt) dbPayload.shipped_at = shippedAt;
       if (deliveredAt) dbPayload.delivered_at = deliveredAt;
 
-      this.supabase.client.from('shipping_orders').update(dbPayload).eq('id', orderId);
+      schreibeImHintergrund(
+        this.supabase.client.from('shipping_orders').update(dbPayload).eq('id', orderId),
+        'Aktualisieren des Versandauftrags',
+        this.syncStatus,
+      );
     }
   }
 

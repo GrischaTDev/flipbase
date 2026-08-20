@@ -5,6 +5,8 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { LoggerService } from './logger.service';
+import { schreibeImHintergrund } from './supabase-schreiben';
+import { SyncStatusService } from './sync-status.service';
 
 const STORAGE_KEY_CONFIG = 'flipbase_webhook_config';
 const STORAGE_KEY_NOTIFS = 'flipbase_app_notifications';
@@ -26,6 +28,7 @@ function getStorage(): Storage | null {
 })
 export class WebhookService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly syncStatus = inject(SyncStatusService, { optional: true });
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
@@ -218,18 +221,55 @@ export class WebhookService {
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client.from('app_notifications').insert({
-        workspace_id: ws.id,
-        type: item.type,
-        title: item.title,
-        message: item.message,
-        read: false,
-        link: item.link || null,
-      });
+      void this.schreibeMeldungInDieDatenbank(item, ws.id);
     }
 
     if (this.config().soundEnabled) {
       this.playChimeSound();
+    }
+  }
+
+  /**
+   * Legt die Meldung in der Datenbank an und uebernimmt deren Kennung.
+   *
+   * Die Kennung wird gebraucht: Angezeigt wird zuerst die eigene Behelfskennung
+   * (`notif-...`), die Spalte in der Datenbank ist aber eine UUID. Wer die
+   * Meldung dann als gelesen markiert, wuerde mit der Behelfskennung nicht nur
+   * ins Leere greifen, sondern einen Datenbankfehler ausloesen. Deshalb wird
+   * sie nach dem Anlegen durch die echte ersetzt - dasselbe Vorgehen wie beim
+   * Anlegen eines Einkaufs.
+   */
+  private async schreibeMeldungInDieDatenbank(
+    item: AppNotification,
+    workspaceId: string,
+  ): Promise<void> {
+    if (!this.supabase) return;
+    try {
+      const { data, error } = await this.supabase.client
+        .from('app_notifications')
+        .insert({
+          workspace_id: workspaceId,
+          type: item.type,
+          title: item.title,
+          message: item.message,
+          read: false,
+          link: item.link || null,
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        this.syncStatus?.melde('Speichern der Benachrichtigung', error);
+        return;
+      }
+
+      if (data?.id) {
+        this.notifications.update((liste) =>
+          liste.map((n) => (n.id === item.id ? { ...n, id: data.id } : n)),
+        );
+      }
+    } catch (e: unknown) {
+      this.syncStatus?.melde('Speichern der Benachrichtigung', e);
     }
   }
 
@@ -251,11 +291,15 @@ export class WebhookService {
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client
-        .from('app_notifications')
-        .update({ read: true })
-        .eq('workspace_id', ws.id)
-        .eq('id', id);
+      schreibeImHintergrund(
+        this.supabase.client
+          .from('app_notifications')
+          .update({ read: true })
+          .eq('workspace_id', ws.id)
+          .eq('id', id),
+        'Aktualisieren der Benachrichtigung',
+        this.syncStatus,
+      );
     }
   }
 
@@ -266,10 +310,14 @@ export class WebhookService {
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client
-        .from('app_notifications')
-        .update({ read: true })
-        .eq('workspace_id', ws.id);
+      schreibeImHintergrund(
+        this.supabase.client
+          .from('app_notifications')
+          .update({ read: true })
+          .eq('workspace_id', ws.id),
+        'Aktualisieren der Benachrichtigung',
+        this.syncStatus,
+      );
     }
   }
 
@@ -281,7 +329,11 @@ export class WebhookService {
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client.from('app_notifications').delete().eq('workspace_id', ws.id);
+      schreibeImHintergrund(
+        this.supabase.client.from('app_notifications').delete().eq('workspace_id', ws.id),
+        'Loeschen der Benachrichtigungen',
+        this.syncStatus,
+      );
     }
   }
 

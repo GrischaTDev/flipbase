@@ -13,6 +13,8 @@ import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { Json } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
+import { schreibeImHintergrund } from './supabase-schreiben';
+import { SyncStatusService } from './sync-status.service';
 
 const STORAGE_KEY_RADAR = 'flipbase_price_radar_items';
 
@@ -21,6 +23,7 @@ const STORAGE_KEY_RADAR = 'flipbase_price_radar_items';
 })
 export class PriceTrackerService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly syncStatus = inject(SyncStatusService, { optional: true });
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
@@ -267,24 +270,28 @@ export class PriceTrackerService {
     this.persistItems();
 
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client.from('price_tracked_items').insert({
-        workspace_id: ws.id,
-        inventory_item_id: item.inventory_item_id || null,
-        title: newItem.title,
-        category: newItem.category,
-        current_our_price: newItem.currentOurPrice,
-        current_market_average: newItem.currentMarketAverage,
-        current_market_lowest: newItem.currentMarketLowest,
-        recommended_price: newItem.recommendedPrice,
-        lowest_competitor_title: newItem.lowestCompetitorTitle,
-        lowest_competitor_platform: newItem.lowestCompetitorPlatform,
-        lowest_competitor_url: newItem.lowestCompetitorUrl,
-        price_trend: newItem.priceTrend,
-        price_difference_percent: newItem.priceDifferencePercent,
-        alert_triggered: newItem.alertTriggered,
-        is_tracking_active: newItem.isTrackingActive,
-        price_history: newItem.priceHistory as unknown as Json,
-      });
+      schreibeImHintergrund(
+        this.supabase.client.from('price_tracked_items').insert({
+          workspace_id: ws.id,
+          inventory_item_id: item.inventory_item_id || null,
+          title: newItem.title,
+          category: newItem.category,
+          current_our_price: newItem.currentOurPrice,
+          current_market_average: newItem.currentMarketAverage,
+          current_market_lowest: newItem.currentMarketLowest,
+          recommended_price: newItem.recommendedPrice,
+          lowest_competitor_title: newItem.lowestCompetitorTitle,
+          lowest_competitor_platform: newItem.lowestCompetitorPlatform,
+          lowest_competitor_url: newItem.lowestCompetitorUrl,
+          price_trend: newItem.priceTrend,
+          price_difference_percent: newItem.priceDifferencePercent,
+          alert_triggered: newItem.alertTriggered,
+          is_tracking_active: newItem.isTrackingActive,
+          price_history: newItem.priceHistory as unknown as Json,
+        }),
+        'Speichern der Preisbeobachtung',
+        this.syncStatus,
+      );
     }
 
     return newItem;
@@ -420,7 +427,11 @@ export class PriceTrackerService {
 
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client.from('price_tracked_items').delete().eq('id', itemId);
+      schreibeImHintergrund(
+        this.supabase.client.from('price_tracked_items').delete().eq('id', itemId),
+        'Loeschen der Preisbeobachtung',
+        this.syncStatus,
+      );
     }
   }
 }
