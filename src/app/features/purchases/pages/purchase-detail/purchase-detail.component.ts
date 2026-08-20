@@ -35,6 +35,8 @@ import {
   LucideTruck as Truck,
   LucideCopy as Copy,
   LucideCheck as Check,
+  LucideChevronDown as ChevronDown,
+  LucideChevronUp as ChevronUp,
 } from '@lucide/angular';
 import { PurchaseService } from '../../../../core/services/purchase.service';
 import { MediaService } from '../../../../core/services/media.service';
@@ -112,6 +114,8 @@ export class PurchaseDetailComponent {
   readonly truckIcon = Truck;
   readonly copyIcon = Copy;
   readonly checkSmallIcon = Check;
+  readonly chevronDownIcon = ChevronDown;
+  readonly chevronUpIcon = ChevronUp;
 
   readonly isAddingCost = signal<boolean>(false);
   readonly isAddingItem = signal<boolean>(false);
@@ -126,6 +130,8 @@ export class PurchaseDetailComponent {
   readonly trackingCarrierDraft = signal<TrackingCarrier | null>(null);
   readonly trackingCopied = signal<boolean>(false);
   readonly isMarkingDelivered = signal<boolean>(false);
+  /** Die Sendungsverfolgung zeigt standardmaessig nur Status und Fortschrittsbalken. */
+  readonly isTrackingExpanded = signal<boolean>(false);
 
   readonly trackingInfo = computed(() => {
     const p = this.purchaseService.selectedPurchase();
@@ -340,6 +346,10 @@ export class PurchaseDetailComponent {
       num ? 'in_transit' : null,
     );
     this.isEditingTracking.set(false);
+  }
+
+  toggleTrackingDetails(): void {
+    this.isTrackingExpanded.update((offen) => !offen);
   }
 
   cancelEditTracking(): void {

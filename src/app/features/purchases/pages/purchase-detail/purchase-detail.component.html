@@ -487,206 +487,6 @@
         </form>
       }
 
-      <!-- Inbound Sendungsverfolgung -->
-      <div class="linear-surface rounded-xl p-5 space-y-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2">
-            <div
-              class="w-7 h-7 rounded-lg bg-indigo-600/15 border border-indigo-500/30 flex items-center justify-center"
-            >
-              <svg [lucideIcon]="truckIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
-            </div>
-            <div>
-              <h2 class="text-xs font-bold text-rf-text-primary uppercase tracking-wider">
-                Sendungsverfolgung
-              </h2>
-              <p class="text-[10px] text-rf-text-muted">DHL · DPD · Hermes · UPS · GLS</p>
-            </div>
-          </div>
-
-          @if (!isEditingTracking()) {
-            <button
-              type="button"
-              (click)="startEditTracking()"
-              class="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
-            >
-              {{ trackingInfo() ? 'Ändern' : '+ Sendungsnr. hinzufügen' }}
-            </button>
-          }
-        </div>
-
-        <!-- Edit Mode -->
-        @if (isEditingTracking()) {
-          <div class="space-y-2">
-            <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-              <div class="sm:col-span-8">
-                <input
-                  type="text"
-                  [value]="trackingNumberDraft()"
-                  (input)="onTrackingDraftInput($event)"
-                  placeholder="Sendungsnummer einfügen..."
-                  class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono text-rf-text-primary"
-                />
-              </div>
-              <div class="sm:col-span-4">
-                <select
-                  [value]="trackingCarrierDraft()"
-                  (change)="trackingCarrierDraft.set($any($event.target).value)"
-                  class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
-                >
-                  <option [ngValue]="null">Auto-Erkennung</option>
-                  @for (c of trackingService.carrierOptions; track c.value) {
-                    <option [value]="c.value">{{ c.label }}</option>
-                  }
-                </select>
-              </div>
-            </div>
-
-            @if (trackingCarrierDraft()) {
-              <div class="flex items-center gap-1.5">
-                <span class="text-[10px] text-rf-text-muted">Erkannt als:</span>
-                <span
-                  class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border"
-                  [class]="trackingService.carrierMetas[trackingCarrierDraft()!].badgeClass"
-                >
-                  {{ trackingService.carrierMetas[trackingCarrierDraft()!].name }}
-                </span>
-              </div>
-            }
-
-            <div class="flex justify-end gap-2">
-              <button
-                type="button"
-                (click)="cancelEditTracking()"
-                class="linear-btn-secondary px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer"
-              >
-                Abbrechen
-              </button>
-              <button
-                type="button"
-                (click)="saveTracking()"
-                class="linear-btn-primary px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer"
-              >
-                Speichern
-              </button>
-            </div>
-          </div>
-        }
-
-        <!-- Display Mode -->
-        @if (!isEditingTracking() && trackingInfo()) {
-          @let info = trackingInfo()!;
-          <div class="space-y-3">
-            <!-- Carrier & Status Row -->
-            <div
-              class="flex items-center justify-between p-2.5 rounded-lg bg-rf-well border border-rf-line"
-            >
-              <div class="flex items-center gap-2 min-w-0">
-                <span
-                  class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border shrink-0"
-                  [class]="trackingService.carrierMetas[info.carrier].badgeClass"
-                >
-                  {{ info.carrier_name }}
-                </span>
-                <span class="font-mono text-xs text-rf-text-secondary truncate">{{
-                  info.tracking_number
-                }}</span>
-              </div>
-              <div class="flex items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
-                  (click)="copyTrackingNumber()"
-                  class="p-1 rounded text-rf-text-muted hover:text-rf-text-primary hover:bg-slate-700/50 transition cursor-pointer"
-                  [title]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
-                >
-                  <svg
-                    [lucideIcon]="trackingCopied() ? checkSmallIcon : copyIcon"
-                    class="w-3 h-3"
-                  ></svg>
-                </button>
-                <span
-                  class="px-2 py-0.5 rounded text-[10px] font-bold border"
-                  [class]="trackingService.statusConfig[info.status].badgeClass"
-                >
-                  {{ info.status_label }}
-                </span>
-              </div>
-            </div>
-
-            <!-- Progress Steps -->
-            <div class="flex items-center gap-1">
-              @for (step of trackingSteps; track step) {
-                <div
-                  class="h-1 flex-1 rounded-full transition-colors"
-                  [class.bg-emerald-500]="
-                    trackingService.statusConfig[info.status].step >=
-                    trackingService.statusConfig[step].step
-                  "
-                  [class.bg-rf-line]="
-                    trackingService.statusConfig[info.status].step <
-                    trackingService.statusConfig[step].step
-                  "
-                ></div>
-              }
-            </div>
-
-            <!-- Checkpoints Timeline -->
-            @if (info.checkpoints && info.checkpoints.length > 0) {
-              <div class="space-y-1.5 pl-2 border-l-2 border-rf-line">
-                @for (cp of info.checkpoints; track cp.timestamp) {
-                  <div class="flex items-start gap-2 pl-2">
-                    <div
-                      class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
-                      [class.bg-emerald-400]="cp.status === 'delivered'"
-                      [class.bg-blue-400]="cp.status === 'in_transit'"
-                      [class.bg-amber-400]="cp.status === 'out_for_delivery'"
-                      [class.bg-slate-500]="cp.status === 'pending'"
-                    ></div>
-                    <div>
-                      <p class="text-[11px] text-rf-text-secondary">{{ cp.description }}</p>
-                      <p class="text-[10px] text-rf-text-dimmed">
-                        {{ cp.location }} · {{ cp.timestamp | date: 'dd.MM.yyyy, HH:mm' }}
-                      </p>
-                    </div>
-                  </div>
-                }
-              </div>
-            }
-
-            <!-- Action Buttons -->
-            <div class="flex items-center gap-2 pt-1">
-              <button
-                type="button"
-                (click)="openTrackingPortal()"
-                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-rf-well border border-rf-line-strong text-rf-text-secondary hover:border-indigo-500 hover:text-indigo-300 transition cursor-pointer"
-              >
-                <svg [lucideIcon]="linkIcon" class="w-3 h-3"></svg>
-                <span>Bei {{ info.carrier_name }} verfolgen</span>
-              </button>
-
-              @if (info.status !== 'delivered') {
-                <button
-                  type="button"
-                  (click)="markDeliveredAndSync()"
-                  [disabled]="isMarkingDelivered()"
-                  class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-600/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-600/25 hover:border-emerald-400 transition cursor-pointer disabled:opacity-40"
-                >
-                  <svg [lucideIcon]="checkIcon" class="w-3 h-3"></svg>
-                  <span>{{
-                    isMarkingDelivered() ? 'Sync...' : 'Zugestellt & Artikel-Status sync'
-                  }}</span>
-                </button>
-              }
-            </div>
-          </div>
-        }
-
-        <!-- Empty State (no tracking) -->
-        @if (!isEditingTracking() && !trackingInfo()) {
-          <p class="text-xs text-rf-text-muted">Noch keine Sendungsnummer hinterlegt.</p>
-        }
-      </div>
-
       <!-- Items List -->
       @if (purchaseService.purchaseItems().length > 0) {
         <div class="overflow-x-auto">
@@ -780,6 +580,243 @@
             Klicke auf "Artikel erfassen", um die Einzelpositionen dieses Einkaufs anzulegen.
           </p>
         </div>
+      }
+    </div>
+
+    <!-- Inbound Sendungsverfolgung -->
+    <div class="linear-surface rounded-2xl p-4 md:p-5 space-y-3 shadow-xl">
+      <div class="flex items-center justify-between gap-3">
+        <div class="flex items-center gap-2 min-w-0">
+          <div
+            class="w-7 h-7 rounded-lg bg-indigo-600/15 border border-indigo-500/30 flex items-center justify-center shrink-0"
+          >
+            <svg [lucideIcon]="truckIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
+          </div>
+          <div class="min-w-0">
+            <h2 class="text-xs font-bold text-rf-text-primary uppercase tracking-wider">
+              Sendungsverfolgung
+            </h2>
+            @if (!isEditingTracking() && trackingInfo(); as kurzinfo) {
+              <p class="text-[10px] text-rf-text-muted truncate font-mono">
+                {{ kurzinfo.carrier_name }} · {{ kurzinfo.tracking_number }}
+              </p>
+            } @else {
+              <p class="text-[10px] text-rf-text-muted">DHL · DPD · Hermes · UPS · GLS</p>
+            }
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 shrink-0">
+          @if (!isEditingTracking() && trackingInfo(); as kurzinfo) {
+            <span
+              class="px-2 py-0.5 rounded text-[10px] font-bold border"
+              [class]="trackingService.statusConfig[kurzinfo.status].badgeClass"
+            >
+              {{ kurzinfo.status_label }}
+            </span>
+          }
+
+          @if (!isEditingTracking()) {
+            <button
+              type="button"
+              (click)="startEditTracking()"
+              class="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
+            >
+              {{ trackingInfo() ? 'Ändern' : '+ Sendungsnr. hinzufügen' }}
+            </button>
+          }
+
+          @if (!isEditingTracking() && trackingInfo()) {
+            <button
+              type="button"
+              (click)="toggleTrackingDetails()"
+              [attr.aria-expanded]="isTrackingExpanded()"
+              aria-controls="sendungsverfolgung-details"
+              [attr.aria-label]="
+                isTrackingExpanded()
+                  ? 'Details der Sendungsverfolgung einklappen'
+                  : 'Details der Sendungsverfolgung ausklappen'
+              "
+              class="p-1 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover transition cursor-pointer"
+            >
+              <svg
+                [lucideIcon]="isTrackingExpanded() ? chevronUpIcon : chevronDownIcon"
+                class="w-4 h-4"
+              ></svg>
+            </button>
+          }
+        </div>
+      </div>
+
+      <!-- Edit Mode -->
+      @if (isEditingTracking()) {
+        <div class="space-y-2">
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+            <div class="sm:col-span-8">
+              <input
+                type="text"
+                [value]="trackingNumberDraft()"
+                (input)="onTrackingDraftInput($event)"
+                placeholder="Sendungsnummer einfügen..."
+                aria-label="Sendungsnummer"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono text-rf-text-primary"
+              />
+            </div>
+            <div class="sm:col-span-4">
+              <select
+                [value]="trackingCarrierDraft()"
+                (change)="trackingCarrierDraft.set($any($event.target).value)"
+                aria-label="Versanddienstleister"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
+              >
+                <option [ngValue]="null">Auto-Erkennung</option>
+                @for (c of trackingService.carrierOptions; track c.value) {
+                  <option [value]="c.value">{{ c.label }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          @if (trackingCarrierDraft()) {
+            <div class="flex items-center gap-1.5">
+              <span class="text-[10px] text-rf-text-muted">Erkannt als:</span>
+              <span
+                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border"
+                [class]="trackingService.carrierMetas[trackingCarrierDraft()!].badgeClass"
+              >
+                {{ trackingService.carrierMetas[trackingCarrierDraft()!].name }}
+              </span>
+            </div>
+          }
+
+          <div class="flex justify-end gap-2">
+            <button
+              type="button"
+              (click)="cancelEditTracking()"
+              class="linear-btn-secondary px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              (click)="saveTracking()"
+              class="linear-btn-primary px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer"
+            >
+              Speichern
+            </button>
+          </div>
+        </div>
+      }
+
+      <!-- Display Mode -->
+      @if (!isEditingTracking() && trackingInfo()) {
+        @let info = trackingInfo()!;
+
+        <!-- Fortschrittsbalken – bleiben auch im eingeklappten Zustand sichtbar -->
+        <div
+          class="flex items-center gap-1"
+          role="img"
+          [attr.aria-label]="'Sendungsstatus: ' + info.status_label"
+        >
+          @for (step of trackingSteps; track step) {
+            <div
+              class="h-1 flex-1 rounded-full transition-colors"
+              [class.bg-emerald-500]="
+                trackingService.statusConfig[info.status].step >=
+                trackingService.statusConfig[step].step
+              "
+              [class.bg-rf-line]="
+                trackingService.statusConfig[info.status].step <
+                trackingService.statusConfig[step].step
+              "
+            ></div>
+          }
+        </div>
+
+        <div id="sendungsverfolgung-details" class="space-y-3" [hidden]="!isTrackingExpanded()">
+          <!-- Sendungsnummer & Zusteller -->
+          <div
+            class="flex items-center justify-between p-2.5 rounded-lg bg-rf-well border border-rf-line"
+          >
+            <div class="flex items-center gap-2 min-w-0">
+              <span
+                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border shrink-0"
+                [class]="trackingService.carrierMetas[info.carrier].badgeClass"
+              >
+                {{ info.carrier_name }}
+              </span>
+              <span class="font-mono text-xs text-rf-text-secondary truncate">{{
+                info.tracking_number
+              }}</span>
+            </div>
+            <button
+              type="button"
+              (click)="copyTrackingNumber()"
+              class="p-1 rounded text-rf-text-muted hover:text-rf-text-primary hover:bg-slate-700/50 transition cursor-pointer shrink-0"
+              [title]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
+              [attr.aria-label]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
+            >
+              <svg
+                [lucideIcon]="trackingCopied() ? checkSmallIcon : copyIcon"
+                class="w-3 h-3"
+              ></svg>
+            </button>
+          </div>
+
+          <!-- Checkpoints Timeline -->
+          @if (info.checkpoints && info.checkpoints.length > 0) {
+            <div class="space-y-1.5 pl-2 border-l-2 border-rf-line">
+              @for (cp of info.checkpoints; track cp.timestamp) {
+                <div class="flex items-start gap-2 pl-2">
+                  <div
+                    class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+                    [class.bg-emerald-400]="cp.status === 'delivered'"
+                    [class.bg-blue-400]="cp.status === 'in_transit'"
+                    [class.bg-amber-400]="cp.status === 'out_for_delivery'"
+                    [class.bg-slate-500]="cp.status === 'pending'"
+                  ></div>
+                  <div>
+                    <p class="text-[11px] text-rf-text-secondary">{{ cp.description }}</p>
+                    <p class="text-[10px] text-rf-text-dimmed">
+                      {{ cp.location }} · {{ cp.timestamp | date: 'dd.MM.yyyy, HH:mm' }}
+                    </p>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Action Buttons -->
+          <div class="flex flex-wrap items-center gap-2 pt-1">
+            <button
+              type="button"
+              (click)="openTrackingPortal()"
+              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-rf-well border border-rf-line-strong text-rf-text-secondary hover:border-indigo-500 hover:text-indigo-300 transition cursor-pointer"
+            >
+              <svg [lucideIcon]="linkIcon" class="w-3 h-3"></svg>
+              <span>Bei {{ info.carrier_name }} verfolgen</span>
+            </button>
+
+            @if (info.status !== 'delivered') {
+              <button
+                type="button"
+                (click)="markDeliveredAndSync()"
+                [disabled]="isMarkingDelivered()"
+                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-600/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-600/25 hover:border-emerald-400 transition cursor-pointer disabled:opacity-40"
+              >
+                <svg [lucideIcon]="checkIcon" class="w-3 h-3"></svg>
+                <span>{{
+                  isMarkingDelivered() ? 'Sync...' : 'Zugestellt & Artikel-Status sync'
+                }}</span>
+              </button>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- Empty State (no tracking) -->
+      @if (!isEditingTracking() && !trackingInfo()) {
+        <p class="text-xs text-rf-text-muted">Noch keine Sendungsnummer hinterlegt.</p>
       }
     </div>
   }
