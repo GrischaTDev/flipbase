@@ -1,14 +1,14 @@
-# 🚀 ReFlip Reselling OS
+# 🚀 Flipbase Reselling OS
 
 > **Das All-in-One Entscheidungs-, Finanz- und Fulfillment-Betriebssystem für professionelle Reseller, Flohmarkthändler und E-Commerce-Unternehmer.**
 
-![ReFlip Banner](https://images.unsplash.com/photo-1556742049-0a67e55722c0?auto=format&fit=crop&w=1200&q=80)
+![Flipbase Banner](https://images.unsplash.com/photo-1556742049-0a67e55722c0?auto=format&fit=crop&w=1200&q=80)
 
 ---
 
 ## 🌟 Übersicht & Kernfunktionalitäten
 
-ReFlip ist eine moderne, hochperformante **Angular 21 Standalone Web-Applikation (Zoneless Signals Architecture)** mit **Tailwind CSS 4**, die den gesamten Lifecycle eines Reselling-Geschäfts digitalisiert:
+Flipbase ist eine moderne, hochperformante **Angular 21 Standalone Web-Applikation (Zoneless Signals Architecture)** mit **Tailwind CSS 4**, die den gesamten Lifecycle eines Reselling-Geschäfts digitalisiert:
 
 ### 1. 🔍 Recherche & Konkurrenz-Radar ([`/research`](http://localhost:4200/research))
 

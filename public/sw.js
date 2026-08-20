@@ -1,5 +1,5 @@
 /**
- * Service Worker für ReFlip.
+ * Service Worker für Flipbase.
  *
  * Aufgabe: die statischen Dateien der Anwendung offline verfügbar halten.
  *

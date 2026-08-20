@@ -23,7 +23,7 @@ COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker/security-headers.conf /etc/nginx/security-headers.conf
 
 # Build-Artefakte aus Stage 1 holen
-COPY --from=build /app/dist/re-flip/browser /usr/share/nginx/html
+COPY --from=build /app/dist/flipbase/browser /usr/share/nginx/html
 
 # Port 80 freigeben
 EXPOSE 80

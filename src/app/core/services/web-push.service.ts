@@ -111,7 +111,7 @@ export class WebPushService {
     if (typeof window !== 'undefined' && 'Notification' in window && currentPerm === 'granted') {
       try {
         const notif = new Notification(title, {
-          body: options?.body || 'ReFlip Reselling OS Update',
+          body: options?.body || 'Flipbase Reselling OS Update',
           icon: options?.icon || '/icons/icon-192.png',
           badge: options?.badge || '/icons/icon-192.png',
           tag: options?.tag || 'reflip-alert',
@@ -137,7 +137,7 @@ export class WebPushService {
       if (!granted) return false;
     }
 
-    return this.sendNotification('ReFlip Web Push Test', {
+    return this.sendNotification('Flipbase Web Push Test', {
       body: 'Web Push-Benachrichtigungen funktionieren einwandfrei!',
       tag: 'test-push',
     });

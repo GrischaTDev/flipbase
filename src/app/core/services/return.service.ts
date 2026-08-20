@@ -241,7 +241,7 @@ export class ReturnService {
     sale: Sale,
     workspace: Workspace | null,
   ): Invoice {
-    const wsName = workspace?.name || 'ReFlip Reselling HQ';
+    const wsName = workspace?.name || 'Flipbase Reselling HQ';
     const originalInvoiceNumber = sale.external_order_id
       ? `RE-${sale.external_order_id}`
       : `RE-${sale.id.substring(0, 8)}`;
@@ -254,7 +254,7 @@ export class ReturnService {
       deliveryDate: returnRecord.return_date,
       seller: {
         name: wsName,
-        company: 'ReFlip E-Commerce Einzelunternehmen',
+        company: 'Flipbase E-Commerce Einzelunternehmen',
         street: 'Gewerbestraße 10',
         postalCode: '10115',
         city: 'Berlin',

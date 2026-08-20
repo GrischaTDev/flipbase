@@ -12,7 +12,7 @@ import { TRANSLATIONS_DE, TRANSLATIONS_EN } from './core/i18n/translations';
 })
 export class App {
   private readonly translate = inject(TranslateService);
-  protected readonly title = signal('re-flip');
+  protected readonly title = signal('flipbase');
 
   constructor() {
     this.translate.setTranslation('de', TRANSLATIONS_DE, true);

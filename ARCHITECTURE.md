@@ -1,6 +1,6 @@
-# 🏛️ ReFlip Reselling OS – System- & Code-Architektur
+# 🏛️ Flipbase Reselling OS – System- & Code-Architektur
 
-Dieses Dokument beschreibt die interne Architektur, Entwurfsmuster, Service-Schichten und Datenflüsse von **ReFlip Reselling OS**.
+Dieses Dokument beschreibt die interne Architektur, Entwurfsmuster, Service-Schichten und Datenflüsse von **Flipbase Reselling OS**.
 
 ---
 

@@ -228,7 +228,7 @@ export class TaxEngineService {
       erzeugt, // 6  Erzeugt am
       '', // 7  importiert (bleibt leer)
       '"RE"', // 8  Herkunft
-      '"ReFlip"', // 9  Exportiert von
+      '"Flipbase"', // 9  Exportiert von
       '', // 10 Importiert von
       optionen.beraternummer || '0', // 11 Beraternummer
       optionen.mandantennummer || '0', // 12 Mandantennummer

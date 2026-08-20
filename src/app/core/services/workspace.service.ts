@@ -26,7 +26,7 @@ export class WorkspaceService {
   private readonly defaultWorkspaces: Workspace[] = [
     {
       id: 'ws-1',
-      name: 'ReFlip Electronics HQ',
+      name: 'Flipbase Electronics HQ',
       currency: 'EUR',
       tax_mode: 'diff_25a',
       min_roi_percent: 35,

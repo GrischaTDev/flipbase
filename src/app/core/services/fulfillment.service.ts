@@ -439,10 +439,10 @@ export class FulfillmentService {
   }
 
   getSenderAddress(): AddressInfo {
-    const wsName = this.workspaceService?.currentWorkspace()?.name || 'ReFlip Reselling HQ';
+    const wsName = this.workspaceService?.currentWorkspace()?.name || 'Flipbase Reselling HQ';
     return {
       name: wsName,
-      company: 'ReFlip E-Commerce Einzelunternehmen',
+      company: 'Flipbase E-Commerce Einzelunternehmen',
       street: 'Gewerbestraße',
       house_number: '10',
       postal_code: '10115',

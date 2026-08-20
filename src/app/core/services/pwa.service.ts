@@ -60,7 +60,7 @@ export class PwaService {
   }
 
   /**
-   * Prompts the user to install ReFlip to their home screen or desktop.
+   * Prompts the user to install Flipbase to their home screen or desktop.
    */
   async promptInstall(): Promise<boolean> {
     if (!this.deferredPrompt) {

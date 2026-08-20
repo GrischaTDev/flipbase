@@ -35,7 +35,7 @@ export class StoreService {
   private readonly webPushService = inject(WebPushService, { optional: true });
 
   readonly storeSettings = signal<StoreSettings>({
-    storeName: 'ReFlip Store & Second Hand Outlet',
+    storeName: 'Flipbase Store & Second Hand Outlet',
     tagline: 'Geprüfte Gebrauchtware, Elektronik & Schnäppchen mit Käuferschutz',
     shippingFlatRate: 4.99,
     freeShippingThreshold: 50.0,
@@ -51,11 +51,11 @@ export class StoreService {
       bankTransferEnabled: true,
       bankIban: 'DE45 5001 0517 5555 6666 77',
       bankBic: 'HELA DE FF 500',
-      bankAccountHolder: 'ReFlip Reselling GmbH & Co. KG',
+      bankAccountHolder: 'Flipbase Reselling GmbH & Co. KG',
       cashOnPickupEnabled: true,
     },
     imprint: {
-      owner: 'ReFlip Reselling',
+      owner: 'Flipbase Reselling',
       street: 'Musterstraße 12',
       city: '10115 Berlin',
       email: 'service@reflip-store.de',
@@ -423,7 +423,7 @@ export class StoreService {
         });
     }
 
-    // 3. Automatically synchronize ReFlip inventory
+    // 3. Automatically synchronize Flipbase inventory
     for (const cartItem of currentCart) {
       const price = cartItem.item.expected_value ?? cartItem.item.allocated_purchase_cost * 1.5;
 

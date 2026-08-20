@@ -177,7 +177,7 @@ export class AccountingComponent {
       this.filteredTaxResults(),
       this.purchaseService.purchases(),
       this.salesService.sales(),
-      this.workspaceService.currentWorkspace()?.name || 'ReFlip HQ',
+      this.workspaceService.currentWorkspace()?.name || 'Flipbase HQ',
     );
   });
 

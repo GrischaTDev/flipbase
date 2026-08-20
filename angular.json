@@ -6,7 +6,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "re-flip": {
+    "flipbase": {
       "projectType": "application",
       "schematics": {
         "@schematics/angular:class": {
@@ -93,10 +93,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "re-flip:build:production"
+              "buildTarget": "flipbase:build:production"
             },
             "development": {
-              "buildTarget": "re-flip:build:development"
+              "buildTarget": "flipbase:build:development"
             }
           },
           "defaultConfiguration": "development"

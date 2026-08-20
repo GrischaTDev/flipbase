@@ -103,7 +103,7 @@ export class WebhookService {
       {
         id: 'notif-init-1',
         type: 'system',
-        title: 'Willkommen bei ReFlip OS!',
+        title: 'Willkommen bei Flipbase OS!',
         message:
           'Dein Reselling-System ist einsatzbereit. Konfiguriere Webhooks für Discord & Telegram.',
         timestamp: new Date().toISOString(),
@@ -283,7 +283,7 @@ export class WebhookService {
     if (cfg.discordEnabled && cfg.discordWebhookUrl) {
       try {
         const payload = {
-          username: 'ReFlip Reselling Bot',
+          username: 'Flipbase Reselling Bot',
           avatar_url: 'https://cdn-icons-png.flaticon.com/512/891/891462.png',
           embeds: [
             {
@@ -296,7 +296,7 @@ export class WebhookService {
                 { name: 'ROI', value: `${roi}%`, inline: true },
                 { name: 'Plattform', value: platform, inline: true },
               ],
-              footer: { text: 'ReFlip OS • Reselling Intelligence' },
+              footer: { text: 'Flipbase OS • Reselling Intelligence' },
               timestamp: new Date().toISOString(),
             },
           ],
@@ -362,15 +362,15 @@ export class WebhookService {
       }
       try {
         const payload = {
-          username: 'ReFlip Reselling Bot',
+          username: 'Flipbase Reselling Bot',
           embeds: [
             {
-              title: 'ReFlip Test-Nachricht',
+              title: 'Flipbase Test-Nachricht',
               description:
                 'Deine Discord-Webhook-Integration ist **erfolgreich aktiv** und empfangsbereit!',
               color: 6514673,
               fields: [
-                { name: 'System', value: 'ReFlip OS 2026', inline: true },
+                { name: 'System', value: 'Flipbase OS 2026', inline: true },
                 { name: 'Status', value: 'Verbunden (Aktiv)', inline: true },
               ],
             },
@@ -393,7 +393,7 @@ export class WebhookService {
         return { success: false, message: 'Bitte gib Bot-Token und Chat-ID ein.' };
       }
       try {
-        const text = `*ReFlip Test-Nachricht*\n\nDeine Telegram-Bot-Integration ist *erfolgreich aktiv* und empfangsbereit!`;
+        const text = `*Flipbase Test-Nachricht*\n\nDeine Telegram-Bot-Integration ist *erfolgreich aktiv* und empfangsbereit!`;
         const url = `https://api.telegram.org/bot${cfg.telegramBotToken}/sendMessage`;
         const res = await fetch(url, {
           method: 'POST',

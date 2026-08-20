@@ -167,8 +167,8 @@ export class InvoiceService {
   getSellerParty(): InvoiceParty {
     const ws = this.workspaceService?.currentWorkspace();
     return {
-      name: ws?.name || 'ReFlip Reselling GmbH & Co. KG',
-      company: 'ReFlip Reselling',
+      name: ws?.name || 'Flipbase Reselling GmbH & Co. KG',
+      company: 'Flipbase Reselling',
       street: 'Gewerbestraße 10',
       postalCode: '10115',
       city: 'Berlin',
@@ -197,7 +197,7 @@ export class InvoiceService {
   }
 
   /**
-   * Generates a compliant DIN-A4 invoice for a recorded ReFlip Sale.
+   * Generates a compliant DIN-A4 invoice for a recorded Flipbase Sale.
    */
   generateInvoiceForSale(
     sale: Sale,
@@ -248,7 +248,7 @@ export class InvoiceService {
       taxClause: this.getTaxClause(taxMode),
       paymentMethod: sale.platform || 'Online-Zahlung',
       paymentStatus: 'paid',
-      notes: sale.buyer_notes || 'Vielen Dank für Ihren Einkauf bei ReFlip!',
+      notes: sale.buyer_notes || 'Vielen Dank für Ihren Einkauf bei Flipbase!',
     };
 
     this.invoices.update((list) => [invoice, ...list]);
@@ -349,7 +349,7 @@ export class InvoiceService {
               : 'Barzahlung bei Abholung',
       paymentStatus: order.paymentStatus === 'paid' ? 'paid' : 'pending',
       paymentDueDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
-      notes: order.customer.notes || 'Vielen Dank für Ihre Bestellung im ReFlip Webshop!',
+      notes: order.customer.notes || 'Vielen Dank für Ihre Bestellung im Flipbase Webshop!',
     };
 
     this.invoices.update((list) => [invoice, ...list]);

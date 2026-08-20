@@ -154,7 +154,7 @@ export class TaxAdvisorService {
     taxResults: TaxCalculationResult[],
     purchases: Purchase[],
     sales: Sale[],
-    workspaceName = 'ReFlip Reselling HQ',
+    workspaceName = 'Flipbase Reselling HQ',
   ): MonthlyTaxReport {
     const cfg = this.advisorConfig();
     const periodLabel = period === 'all' ? `Gesamtjahr ${year}` : `${period} ${year}`;

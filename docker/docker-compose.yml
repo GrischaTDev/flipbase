@@ -1,11 +1,11 @@
-name: re-flip-web
+name: flipbase-web
 
 services:
   web:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: re-flip-web
+    container_name: flipbase-web
     ports:
       # Port 80, damit die gewohnten Adressen http://localhost/ und
       # http://reflip.localhost/ ohne Portangabe funktionieren.

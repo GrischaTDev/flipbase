@@ -10,7 +10,7 @@ export const TRANSLATIONS_DE = {
   direct: 'Direktverkauf',
 
   APP: {
-    TITLE: 'ReFlip',
+    TITLE: 'Flipbase',
     TAGLINE: 'Entscheidungs- und Finanzsystem für Reseller',
   },
   NAV: {
@@ -47,8 +47,8 @@ export const TRANSLATIONS_DE = {
     FULL_NAME: 'Vollständiger Name',
     NO_ACCOUNT: 'Noch kein Konto?',
     HAVE_ACCOUNT: 'Bereits registriert?',
-    SIGN_IN_TITLE: 'Willkommen zurück bei ReFlip',
-    SIGN_UP_TITLE: 'Erstelle deinen ReFlip Account',
+    SIGN_IN_TITLE: 'Willkommen zurück bei Flipbase',
+    SIGN_UP_TITLE: 'Erstelle deinen Flipbase Account',
     SUBMIT_LOGIN: 'Anmelden',
     SUBMIT_REGISTER: 'Konto erstellen',
     ERROR: 'Authentifizierungsfehler',
@@ -310,7 +310,7 @@ export const TRANSLATIONS_EN = {
   direct: 'Direct Sale',
 
   APP: {
-    TITLE: 'ReFlip',
+    TITLE: 'Flipbase',
     TAGLINE: 'Decision & Financial System for Resellers',
   },
   NAV: {
@@ -344,8 +344,8 @@ export const TRANSLATIONS_EN = {
     FULL_NAME: 'Full Name',
     NO_ACCOUNT: "Don't have an account?",
     HAVE_ACCOUNT: 'Already registered?',
-    SIGN_IN_TITLE: 'Welcome back to ReFlip',
-    SIGN_UP_TITLE: 'Create your ReFlip Account',
+    SIGN_IN_TITLE: 'Welcome back to Flipbase',
+    SIGN_UP_TITLE: 'Create your Flipbase Account',
     SUBMIT_LOGIN: 'Sign In',
     SUBMIT_REGISTER: 'Create Account',
     ERROR: 'Authentication Error',

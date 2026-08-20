@@ -622,7 +622,7 @@ ${this.buildHashtags(item).join(' ')}`.trim();
   }
 
   /**
-   * Marks item as listed on a specific platform in ReFlip OS!
+   * Marks item as listed on a specific platform in Flipbase OS!
    */
   async markItemAsListed(itemId: string, platform: string, listingPrice: number): Promise<void> {
     if (!this.inventoryService) return;
