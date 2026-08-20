@@ -36,7 +36,7 @@ interface NavItem {
 })
 export class SidebarComponent {
   readonly isOpen = input<boolean>(false);
-  readonly close = output<void>();
+  readonly closed = output<void>();
 
   readonly closeIcon = X;
   readonly logoIcon = Sparkles;

@@ -38,7 +38,7 @@ export class ImageCropperModalComponent {
   readonly title = input<string>('Produktfoto zuschneiden & optimieren');
 
   readonly imageReady = output<CroppedImageResult>();
-  readonly close = output<void>();
+  readonly closed = output<void>();
 
   // Lucide Icons
   readonly rotateIcon = RotateCw;
@@ -206,7 +206,7 @@ export class ImageCropperModalComponent {
         compressedSize: compressedFile.size,
       });
 
-      this.close.emit();
+      this.closed.emit();
     } catch (err: unknown) {
       this.errorMessage.set(
         'Fehler bei der Bildkomprimierung: ' + (err instanceof Error ? err.message : String(err)),

@@ -396,7 +396,7 @@
   <!-- Modal Create -->
   @if (isCreateModalOpen()) {
     <app-sale-create-modal
-      (close)="closeCreateModal()"
+      (closed)="closeCreateModal()"
       (created)="closeCreateModal()"
     ></app-sale-create-modal>
   }
@@ -670,6 +670,6 @@
 
   <!-- § 25a Invoice / Credit Note Modal -->
   @if (activeInvoice(); as inv) {
-    <app-invoice-modal [invoice]="inv" (close)="closeInvoice()"></app-invoice-modal>
+    <app-invoice-modal [invoice]="inv" (closed)="closeInvoice()"></app-invoice-modal>
   }
 </div>

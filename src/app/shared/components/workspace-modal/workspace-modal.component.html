@@ -2,7 +2,7 @@
   class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
   appModalDialog
   dialogTitel="Neuen Workspace erstellen"
-  (dialogClose)="close.emit()"
+  (dialogClose)="closed.emit()"
 >
   <div
     class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-6 border border-rf-line animate-modal-card"
@@ -11,7 +11,7 @@
       <h3 class="text-sm font-bold text-rf-text-primary">Neuen Workspace erstellen</h3>
       <button
         type="button"
-        (click)="close.emit()"
+        (click)="closed.emit()"
         class="p-1 rounded-md text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-line transition cursor-pointer"
       >
         <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
@@ -50,7 +50,7 @@
       <div class="flex justify-end gap-2.5 pt-3 border-t border-rf-line">
         <button
           type="button"
-          (click)="close.emit()"
+          (click)="closed.emit()"
           class="linear-btn-secondary px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
         >
           Abbrechen

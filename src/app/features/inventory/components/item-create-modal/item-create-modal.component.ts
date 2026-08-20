@@ -80,7 +80,7 @@ export class ItemCreateModalComponent {
     { value: 'defective', label: 'Defekt / Ersatzteil', badgeClass: 'bg-rose-400' },
   ];
 
-  readonly close = output<void>();
+  readonly closed = output<void>();
   readonly created = output<void>();
 
   readonly closeIcon = X;
@@ -234,7 +234,7 @@ export class ItemCreateModalComponent {
       this.errorMessage.set(error.message);
     } else {
       this.created.emit();
-      this.close.emit();
+      this.closed.emit();
     }
   }
 }

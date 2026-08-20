@@ -38,7 +38,7 @@ export class SaleCreateModalComponent {
   readonly inventoryService = inject(InventoryService);
   private readonly profitEngine = inject(ProfitEngineService);
 
-  readonly close = output<void>();
+  readonly closed = output<void>();
   readonly created = output<void>();
 
   readonly closeIcon = X;
@@ -168,7 +168,7 @@ export class SaleCreateModalComponent {
       this.errorMessage.set(error.message);
     } else {
       this.created.emit();
-      this.close.emit();
+      this.closed.emit();
     }
   }
 }

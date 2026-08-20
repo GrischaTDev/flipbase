@@ -26,7 +26,7 @@ export class InvoiceModalComponent {
   private readonly invoiceService = inject(InvoiceService);
 
   readonly invoice = input.required<Invoice>();
-  readonly close = output<void>();
+  readonly closed = output<void>();
 
   readonly printerIcon = Printer;
   readonly closeIcon = X;

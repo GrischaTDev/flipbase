@@ -34,7 +34,7 @@ export class CustomCheckboxComponent implements ControlValueAccessor {
   readonly checked = model<boolean>(false);
   readonly indeterminate = input<boolean>(false);
   readonly label = input<string>('');
-  readonly disabledInput = input<boolean>(false, { alias: 'disabled' });
+  readonly disabled = input<boolean>(false);
   readonly size = input<'sm' | 'md' | 'lg'>('md');
   readonly color = input<'emerald' | 'indigo'>('emerald');
   readonly ariaLabel = input<string>('');
@@ -45,7 +45,7 @@ export class CustomCheckboxComponent implements ControlValueAccessor {
   private onChange: (value: boolean) => void = () => undefined;
   private onTouched: () => void = () => undefined;
 
-  readonly effectiveDisabled = computed(() => this.disabledInput() || this.isDisabled());
+  readonly effectiveDisabled = computed(() => this.disabled() || this.isDisabled());
 
   // ControlValueAccessor methods
   writeValue(obj: boolean | null): void {

@@ -32,13 +32,13 @@ export class CustomSearchInputComponent implements ControlValueAccessor {
 
   readonly value = model<string>('');
   readonly placeholder = input<string>('Suchen...');
-  readonly disabledInput = input<boolean>(false, { alias: 'disabled' });
+  readonly disabled = input<boolean>(false);
   readonly clearable = input<boolean>(true);
   readonly size = input<'sm' | 'md' | 'lg'>('md');
   readonly id = input<string>('');
   readonly ariaLabel = input<string>('Suche');
 
-  readonly search = output<string>();
+  readonly searched = output<string>();
   readonly clear = output<void>();
 
   readonly isDisabled = signal<boolean>(false);
@@ -46,7 +46,7 @@ export class CustomSearchInputComponent implements ControlValueAccessor {
   private onChange: (value: string) => void = () => undefined;
   private onTouched: () => void = () => undefined;
 
-  readonly effectiveDisabled = computed(() => this.disabledInput() || this.isDisabled());
+  readonly effectiveDisabled = computed(() => this.disabled() || this.isDisabled());
 
   // ControlValueAccessor methods
   writeValue(obj: string | null): void {
@@ -70,12 +70,12 @@ export class CustomSearchInputComponent implements ControlValueAccessor {
     const val = target.value;
     this.value.set(val);
     this.onChange(val);
-    this.search.emit(val);
+    this.searched.emit(val);
   }
 
   onKeyDown(event: KeyboardEvent): void {
     if (event.key === 'Enter') {
-      this.search.emit(this.value());
+      this.searched.emit(this.value());
     } else if (event.key === 'Escape' && this.clearable() && this.value()) {
       this.onClear();
     }
@@ -86,7 +86,7 @@ export class CustomSearchInputComponent implements ControlValueAccessor {
     this.value.set('');
     this.onChange('');
     this.clear.emit();
-    this.search.emit('');
+    this.searched.emit('');
     this.inputElement()?.nativeElement.focus();
   }
 

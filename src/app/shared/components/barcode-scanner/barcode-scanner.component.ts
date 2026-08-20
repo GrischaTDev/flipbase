@@ -41,7 +41,7 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
-  readonly close = output<void>();
+  readonly closed = output<void>();
   readonly detected = output<string>();
 
   readonly videoRef = viewChild<ElementRef<HTMLVideoElement>>('videoElement');
@@ -196,7 +196,7 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
 
     setTimeout(() => {
       this.detected.emit(code);
-      this.close.emit();
+      this.closed.emit();
     }, 400);
   }
 

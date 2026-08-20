@@ -53,7 +53,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly placeholder = input<string>('Bitte wählen...');
   readonly variant = input<'default' | 'pill' | 'filter'>('default');
   readonly size = input<'sm' | 'md'>('md');
-  readonly disabledInput = input<boolean>(false, { alias: 'disabled' });
+  readonly disabled = input<boolean>(false);
   readonly widthClass = input<string>('w-full');
   readonly openDirection = input<'auto' | 'down' | 'up'>('auto');
 
@@ -67,7 +67,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   private onChange: (value: T | null) => void = () => undefined;
   private onTouched: () => void = () => undefined;
 
-  readonly effectiveDisabled = computed(() => this.disabledInput() || this.isDisabled());
+  readonly effectiveDisabled = computed(() => this.disabled() || this.isDisabled());
 
   readonly selectedOption = computed(() => {
     const val = this.value();

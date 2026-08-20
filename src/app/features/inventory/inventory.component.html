@@ -507,7 +507,7 @@
   @if (isCreateModalOpen()) {
     <app-item-create-modal
       #createModal
-      (close)="isCreateModalOpen.set(false)"
+      (closed)="isCreateModalOpen.set(false)"
       (created)="isCreateModalOpen.set(false)"
     ></app-item-create-modal>
   }
@@ -515,7 +515,7 @@
   <!-- AI Photo Scanner Modal -->
   @if (isAiScannerOpen()) {
     <app-ai-photo-scanner-modal
-      (close)="isAiScannerOpen.set(false)"
+      (closed)="isAiScannerOpen.set(false)"
       (productDetected)="onAiProductDetected($event)"
     ></app-ai-photo-scanner-modal>
   }
@@ -524,7 +524,7 @@
   @if (isLabelModalOpen()) {
     <app-inventory-label-modal
       [items]="itemsToPrint()"
-      (close)="closeLabelModal()"
+      (closed)="closeLabelModal()"
     ></app-inventory-label-modal>
   }
 </div>

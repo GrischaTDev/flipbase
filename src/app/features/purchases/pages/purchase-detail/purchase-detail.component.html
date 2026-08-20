@@ -976,7 +976,7 @@
   <!-- Image Cropper & Resizer Studio Modal (Fixed 1:1) -->
   @if (isCropperOpen()) {
     <app-image-cropper-modal
-      (close)="isCropperOpen.set(false)"
+      (closed)="isCropperOpen.set(false)"
       (imageReady)="onImageCropped($event)"
     ></app-image-cropper-modal>
   }

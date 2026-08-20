@@ -3,7 +3,7 @@
   appModalDialog
   schliesstBeiKlickAussen
   dialogTitel="Barcode scannen"
-  (dialogClose)="close.emit()"
+  (dialogClose)="closed.emit()"
 >
   <div
     class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-5 border border-rf-border flex flex-col space-y-4 animate-modal-card"
@@ -24,7 +24,7 @@
 
       <button
         type="button"
-        (click)="close.emit()"
+        (click)="closed.emit()"
         class="p-1 rounded-md text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover transition cursor-pointer"
       >
         <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>

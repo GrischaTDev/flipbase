@@ -3,7 +3,7 @@
   appModalDialog
   schliesstBeiKlickAussen
   dialogTitel="Etiketten drucken"
-  (dialogClose)="close.emit()"
+  (dialogClose)="closed.emit()"
 >
   <div
     class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl p-6 space-y-4 my-auto animate-modal-card"
@@ -37,7 +37,7 @@
 
         <button
           type="button"
-          (click)="close.emit()"
+          (click)="closed.emit()"
           class="p-1 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
         >
           <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>

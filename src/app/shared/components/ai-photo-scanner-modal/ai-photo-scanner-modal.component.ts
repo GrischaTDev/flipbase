@@ -41,7 +41,7 @@ export class AiPhotoScannerModalComponent implements OnDestroy {
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
 
-  readonly close = output<void>();
+  readonly closed = output<void>();
   readonly productDetected = output<AiVisualScanResult>();
 
   @ViewChild('videoElement') videoElement?: ElementRef<HTMLVideoElement>;
@@ -156,7 +156,7 @@ export class AiPhotoScannerModalComponent implements OnDestroy {
     const res = this.scanResult();
     if (res) {
       this.productDetected.emit(res);
-      this.close.emit();
+      this.closed.emit();
     }
   }
 

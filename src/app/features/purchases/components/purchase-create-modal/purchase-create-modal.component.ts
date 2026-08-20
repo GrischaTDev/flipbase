@@ -42,7 +42,7 @@ export class PurchaseCreateModalComponent {
   readonly suppliersService = inject(SuppliersService);
   readonly trackingService = inject(InboundTrackingService);
 
-  readonly close = output<void>();
+  readonly closed = output<void>();
   readonly created = output<void>();
 
   readonly closeIcon = X;
@@ -170,7 +170,7 @@ export class PurchaseCreateModalComponent {
       this.errorMessage.set(error.message);
     } else {
       this.created.emit();
-      this.close.emit();
+      this.closed.emit();
     }
   }
 }

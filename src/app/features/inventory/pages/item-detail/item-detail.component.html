@@ -587,7 +587,7 @@
   @if (isLabelModalOpen() && inventoryService.selectedItem()) {
     <app-inventory-label-modal
       [items]="[inventoryService.selectedItem()!]"
-      (close)="isLabelModalOpen.set(false)"
+      (closed)="isLabelModalOpen.set(false)"
     ></app-inventory-label-modal>
   }
 </div>

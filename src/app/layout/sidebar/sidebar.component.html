@@ -4,7 +4,7 @@
     type="button"
     class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
     aria-label="Menü schließen"
-    (click)="close.emit()"
+    (click)="closed.emit()"
   ></button>
 }
 
@@ -34,7 +34,7 @@
 
     <button
       type="button"
-      (click)="close.emit()"
+      (click)="closed.emit()"
       class="md:hidden p-1 rounded-md text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
     >
       <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
@@ -51,7 +51,7 @@
       <a
         [routerLink]="item.path"
         routerLinkActive="bg-indigo-500/15 text-rf-text-primary font-semibold border-indigo-500/40"
-        (click)="close.emit()"
+        (click)="closed.emit()"
         class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >
         <svg
@@ -70,7 +70,7 @@
       <a
         [routerLink]="item.path"
         routerLinkActive="bg-indigo-500/15 text-rf-text-primary font-semibold border-indigo-500/40"
-        (click)="close.emit()"
+        (click)="closed.emit()"
         class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >
         <svg
@@ -89,7 +89,7 @@
       <a
         [routerLink]="item.path"
         routerLinkActive="bg-indigo-500/15 text-rf-text-primary font-semibold border-indigo-500/40"
-        (click)="close.emit()"
+        (click)="closed.emit()"
         class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >
         <svg

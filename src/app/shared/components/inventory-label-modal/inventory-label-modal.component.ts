@@ -31,7 +31,7 @@ export type LabelFormat = 'compact' | 'standard' | 'large';
 })
 export class InventoryLabelModalComponent {
   readonly items = input.required<InventoryItem[]>();
-  readonly close = output<void>();
+  readonly closed = output<void>();
 
   readonly printerIcon = Printer;
   readonly closeIcon = X;

@@ -613,7 +613,7 @@
   <!-- Barcode Scanner Modal -->
   @if (isScanningBarcode()) {
     <app-barcode-scanner
-      (close)="isScanningBarcode.set(false)"
+      (closed)="isScanningBarcode.set(false)"
       (detected)="onBarcodeScanned($event)"
     ></app-barcode-scanner>
   }

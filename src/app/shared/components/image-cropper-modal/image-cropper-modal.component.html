@@ -2,7 +2,7 @@
   class="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-5 animate-fade-in"
   appModalDialog
   dialogTitel="Bild zuschneiden"
-  (dialogClose)="close.emit()"
+  (dialogClose)="closed.emit()"
 >
   <div
     class="linear-surface rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl border border-rf-border overflow-hidden my-auto animate-modal-card"
@@ -34,7 +34,7 @@
 
       <button
         type="button"
-        (click)="close.emit()"
+        (click)="closed.emit()"
         class="p-1.5 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover transition cursor-pointer"
       >
         <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
@@ -218,7 +218,7 @@
     >
       <button
         type="button"
-        (click)="close.emit()"
+        (click)="closed.emit()"
         class="linear-btn-secondary px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
       >
         Abbrechen

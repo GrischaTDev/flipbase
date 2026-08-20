@@ -292,7 +292,7 @@
   <!-- Standard Create Modal -->
   @if (isCreateModalOpen()) {
     <app-purchase-create-modal
-      (close)="closeCreateModal()"
+      (closed)="closeCreateModal()"
       (created)="closeCreateModal()"
     ></app-purchase-create-modal>
   }

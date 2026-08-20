@@ -14,7 +14,7 @@ import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.di
 export class WorkspaceModalComponent {
   private readonly workspaceService = inject(WorkspaceService);
 
-  readonly close = output<void>();
+  readonly closed = output<void>();
   readonly created = output<void>();
 
   readonly closeIcon = X;
@@ -45,7 +45,7 @@ export class WorkspaceModalComponent {
       this.errorMessage.set(error.message);
     } else {
       this.created.emit();
-      this.close.emit();
+      this.closed.emit();
     }
   }
 }
