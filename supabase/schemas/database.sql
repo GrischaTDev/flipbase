@@ -55,7 +55,11 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
     name TEXT NOT NULL,
     contact_info TEXT,
     notes TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    -- Archivieren statt loeschen: Einkaeufe verweisen auf Lieferanten, und
+    -- diese Verweise muessen nachvollziehbar bleiben. Ein archivierter
+    -- Lieferant verschwindet nur aus den Auswahllisten.
+    is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- ==============================================================================

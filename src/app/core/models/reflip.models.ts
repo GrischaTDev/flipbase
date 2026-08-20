@@ -85,6 +85,12 @@ export interface Supplier {
   contact_info?: string | null;
   notes?: string | null;
   created_at?: string;
+  /**
+   * Falsch bedeutet archiviert: nicht mehr auswählbar, in vorhandenen
+   * Einkäufen aber weiterhin sichtbar. Einkäufe verweisen auf Lieferanten,
+   * und diese Verweise müssen nachvollziehbar bleiben.
+   */
+  is_active?: boolean;
 }
 
 export type PurchaseType = 'single' | 'mystery_pack' | 'lot' | 'pallet';

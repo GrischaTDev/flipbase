@@ -37,6 +37,24 @@
     }
   </div>
 
+  @if (meldung(); as text) {
+    <div
+      role="alert"
+      class="linear-card rounded-xl p-3 flex items-start gap-2.5 border border-amber-500/40 bg-amber-500/10"
+    >
+      <svg [lucideIcon]="warnIcon" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></svg>
+      <p class="text-xs text-rf-text-secondary flex-1">{{ text }}</p>
+      <button
+        type="button"
+        (click)="meldung.set(null)"
+        class="p-0.5 text-rf-text-muted hover:text-rf-text-primary rounded transition cursor-pointer"
+        aria-label="Meldung schließen"
+      >
+        <svg [lucideIcon]="xIcon" class="w-3.5 h-3.5"></svg>
+      </button>
+    </div>
+  }
+
   <!-- Tabs -->
   <div class="linear-surface rounded-xl p-1.5 flex items-center gap-1 overflow-x-auto text-xs">
     <button
@@ -67,6 +85,36 @@
     >
       Lieferanten & Verkäufer ({{ suppliersService.suppliers().length }})
     </button>
+
+    <!-- Archivierte werden standardmäßig ausgeblendet. Ohne diesen Schalter
+         wären sie nicht wiederauffindbar. -->
+    <div class="ml-auto pr-1">
+      @if (activeTab() === 'sources') {
+        <button
+          type="button"
+          (click)="schalteArchivierteQuellen()"
+          class="px-2.5 py-1 rounded-md font-medium transition cursor-pointer whitespace-nowrap text-rf-text-muted hover:text-rf-text-primary"
+          [class.text-amber-400]="sourcesService.zeigeArchivierte()"
+          [attr.aria-pressed]="sourcesService.zeigeArchivierte()"
+        >
+          {{
+            sourcesService.zeigeArchivierte() ? 'Archivierte ausblenden' : 'Archivierte anzeigen'
+          }}
+        </button>
+      } @else {
+        <button
+          type="button"
+          (click)="schalteArchivierteLieferanten()"
+          class="px-2.5 py-1 rounded-md font-medium transition cursor-pointer whitespace-nowrap text-rf-text-muted hover:text-rf-text-primary"
+          [class.text-amber-400]="suppliersService.zeigeArchivierte()"
+          [attr.aria-pressed]="suppliersService.zeigeArchivierte()"
+        >
+          {{
+            suppliersService.zeigeArchivierte() ? 'Archivierte ausblenden' : 'Archivierte anzeigen'
+          }}
+        </button>
+      }
+    </div>
   </div>
 
   <!-- Add Source Form -->
@@ -159,29 +207,101 @@
   @if (activeTab() === 'sources') {
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
       @for (src of sourcesService.sources(); track src.id) {
-        <div class="linear-card p-3.5 rounded-xl flex items-center justify-between">
-          <div class="flex items-center gap-2.5">
-            <div
-              class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
+        <div
+          class="linear-card p-3.5 rounded-xl flex items-center justify-between gap-2"
+          [class.opacity-60]="istArchiviert(src)"
+        >
+          @if (bearbeiteQuelle() === src.id) {
+            <!-- Bearbeiten: Name ändern ist unkritisch, Einkäufe hängen an der
+                 unveränderlichen Kennung und behalten ihre Verknüpfung. -->
+            <form
+              [formGroup]="editForm"
+              (ngSubmit)="speichereQuelle(src.id)"
+              class="flex items-center gap-2 w-full"
             >
-              <svg [lucideIcon]="storeIcon" class="w-4 h-4"></svg>
+              <label class="sr-only" [attr.for]="'quelle-' + src.id">Name der Quelle</label>
+              <input
+                [id]="'quelle-' + src.id"
+                type="text"
+                formControlName="name"
+                class="linear-input flex-1 px-3 py-1.5 rounded-lg text-xs"
+                placeholder="Name der Quelle"
+              />
+              <button
+                type="submit"
+                class="p-1.5 text-emerald-400 hover:bg-rf-line rounded-md transition cursor-pointer"
+                aria-label="Änderung speichern"
+                [disabled]="editForm.controls.name.invalid"
+              >
+                <svg [lucideIcon]="checkSmallIcon" class="w-3.5 h-3.5"></svg>
+              </button>
+              <button
+                type="button"
+                (click)="brichBearbeitenAb()"
+                class="p-1.5 text-rf-text-muted hover:bg-rf-line rounded-md transition cursor-pointer"
+                aria-label="Bearbeiten abbrechen"
+              >
+                <svg [lucideIcon]="xIcon" class="w-3.5 h-3.5"></svg>
+              </button>
+            </form>
+          } @else {
+            <div class="flex items-center gap-2.5 min-w-0">
+              <div
+                class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0"
+              >
+                <svg [lucideIcon]="storeIcon" class="w-4 h-4"></svg>
+              </div>
+              <div class="min-w-0">
+                <h3 class="text-xs font-semibold text-rf-text-primary truncate">{{ src.name }}</h3>
+                @if (src.is_default) {
+                  <span class="text-[10px] text-emerald-400 font-medium">Standard-Quelle</span>
+                } @else if (istArchiviert(src)) {
+                  <span class="text-[10px] text-amber-400 font-medium">Archiviert</span>
+                }
+              </div>
             </div>
-            <div>
-              <h3 class="text-xs font-semibold text-rf-text-primary">{{ src.name }}</h3>
-              @if (src.is_default) {
-                <span class="text-[10px] text-emerald-400 font-medium">Standard-Quelle</span>
+
+            <div class="flex items-center gap-0.5 shrink-0">
+              <button
+                type="button"
+                (click)="starteQuelleBearbeiten(src.id, src.name)"
+                class="p-1 text-rf-text-muted hover:text-indigo-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                aria-label="Quelle bearbeiten"
+              >
+                <svg [lucideIcon]="pencilIcon" class="w-3.5 h-3.5"></svg>
+              </button>
+
+              @if (!src.is_default) {
+                @if (istArchiviert(src)) {
+                  <button
+                    type="button"
+                    (click)="archiviereQuelle(src.id, false)"
+                    class="p-1 text-rf-text-muted hover:text-emerald-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                    aria-label="Quelle wieder aktivieren"
+                  >
+                    <svg [lucideIcon]="archiveRestoreIcon" class="w-3.5 h-3.5"></svg>
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    (click)="archiviereQuelle(src.id, true)"
+                    class="p-1 text-rf-text-muted hover:text-amber-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                    aria-label="Quelle archivieren"
+                  >
+                    <svg [lucideIcon]="archiveIcon" class="w-3.5 h-3.5"></svg>
+                  </button>
+                }
+
+                <button
+                  type="button"
+                  (click)="onDeleteSource(src.id)"
+                  class="p-1 text-rf-text-muted hover:text-rose-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                  aria-label="Quelle endgültig löschen"
+                >
+                  <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
+                </button>
               }
             </div>
-          </div>
-
-          @if (!src.is_default) {
-            <button
-              type="button"
-              (click)="onDeleteSource(src.id)"
-              class="p-1 text-rf-text-muted hover:text-rose-400 rounded-md hover:bg-rf-line transition cursor-pointer"
-            >
-              <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
-            </button>
           }
         </div>
       }
@@ -194,24 +314,112 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         @for (sup of suppliersService.suppliers(); track sup.id) {
           <div class="linear-card p-3.5 rounded-xl space-y-2">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center gap-2">
-                <div
-                  class="w-7 h-7 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center"
-                >
-                  <svg [lucideIcon]="buildingIcon" class="w-3.5 h-3.5"></svg>
-                </div>
-                <h3 class="text-xs font-semibold text-rf-text-primary">{{ sup.name }}</h3>
-              </div>
-
-              <button
-                type="button"
-                (click)="onDeleteSupplier(sup.id)"
-                class="p-1 text-rf-text-muted hover:text-rose-400 transition cursor-pointer"
+            @if (bearbeiteLieferant() === sup.id) {
+              <form
+                [formGroup]="editForm"
+                (ngSubmit)="speichereLieferant(sup.id)"
+                class="space-y-2"
               >
-                <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
-              </button>
-            </div>
+                <label class="sr-only" [attr.for]="'lieferant-' + sup.id">Name</label>
+                <input
+                  [id]="'lieferant-' + sup.id"
+                  type="text"
+                  formControlName="name"
+                  class="linear-input w-full px-3 py-1.5 rounded-lg text-xs"
+                  placeholder="Name"
+                />
+                <input
+                  type="text"
+                  formControlName="contact_info"
+                  class="linear-input w-full px-3 py-1.5 rounded-lg text-xs"
+                  placeholder="Kontakt (E-Mail, Telefon)"
+                  aria-label="Kontaktangaben"
+                />
+                <input
+                  type="text"
+                  formControlName="notes"
+                  class="linear-input w-full px-3 py-1.5 rounded-lg text-xs"
+                  placeholder="Notizen"
+                  aria-label="Notizen"
+                />
+                <div class="flex items-center gap-2">
+                  <button
+                    type="submit"
+                    class="linear-btn-primary px-3 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 cursor-pointer"
+                    [disabled]="editForm.controls.name.invalid"
+                  >
+                    Speichern
+                  </button>
+                  <button
+                    type="button"
+                    (click)="brichBearbeitenAb()"
+                    class="text-[11px] text-rf-text-muted hover:text-rf-text-primary transition cursor-pointer"
+                  >
+                    Abbrechen
+                  </button>
+                </div>
+              </form>
+            } @else {
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 min-w-0">
+                  <div
+                    class="w-7 h-7 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center shrink-0"
+                  >
+                    <svg [lucideIcon]="buildingIcon" class="w-3.5 h-3.5"></svg>
+                  </div>
+                  <div class="min-w-0">
+                    <h3 class="text-xs font-semibold text-rf-text-primary truncate">
+                      {{ sup.name }}
+                    </h3>
+                    @if (istArchiviert(sup)) {
+                      <span class="text-[10px] text-amber-400 font-medium">Archiviert</span>
+                    }
+                  </div>
+                </div>
+
+                <div class="flex items-center gap-0.5 shrink-0">
+                  <button
+                    type="button"
+                    (click)="
+                      starteLieferantBearbeiten(sup.id, sup.name, sup.contact_info, sup.notes)
+                    "
+                    class="p-1 text-rf-text-muted hover:text-indigo-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                    aria-label="Lieferant bearbeiten"
+                  >
+                    <svg [lucideIcon]="pencilIcon" class="w-3.5 h-3.5"></svg>
+                  </button>
+
+                  @if (istArchiviert(sup)) {
+                    <button
+                      type="button"
+                      (click)="archiviereLieferant(sup.id, false)"
+                      class="p-1 text-rf-text-muted hover:text-emerald-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                      aria-label="Lieferant wieder aktivieren"
+                    >
+                      <svg [lucideIcon]="archiveRestoreIcon" class="w-3.5 h-3.5"></svg>
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      (click)="archiviereLieferant(sup.id, true)"
+                      class="p-1 text-rf-text-muted hover:text-amber-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                      aria-label="Lieferant archivieren"
+                    >
+                      <svg [lucideIcon]="archiveIcon" class="w-3.5 h-3.5"></svg>
+                    </button>
+                  }
+
+                  <button
+                    type="button"
+                    (click)="onDeleteSupplier(sup.id)"
+                    class="p-1 text-rf-text-muted hover:text-rose-400 rounded-md hover:bg-rf-line transition cursor-pointer"
+                    aria-label="Lieferant endgültig löschen"
+                  >
+                    <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
+                  </button>
+                </div>
+              </div>
+            }
 
             @if (sup.contact_info) {
               <p class="text-[11px] text-rf-text-secondary">{{ sup.contact_info }}</p>

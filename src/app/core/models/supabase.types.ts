@@ -1509,6 +1509,7 @@ export type Database = {
           contact_info: string | null
           created_at: string
           id: string
+          is_active: boolean
           name: string
           notes: string | null
           workspace_id: string
@@ -1517,6 +1518,7 @@ export type Database = {
           contact_info?: string | null
           created_at?: string
           id?: string
+          is_active?: boolean
           name: string
           notes?: string | null
           workspace_id: string
@@ -1525,6 +1527,7 @@ export type Database = {
           contact_info?: string | null
           created_at?: string
           id?: string
+          is_active?: boolean
           name?: string
           notes?: string | null
           workspace_id?: string
