@@ -52,7 +52,7 @@ export class EbayApiService {
   /**
    * Searches live completed / sold items on eBay with genuine original seller photos.
    */
-  async searchSoldItems(query: string, limit: number = 10): Promise<ResearchComparisonItem[]> {
+  async searchSoldItems(query: string, limit = 10): Promise<ResearchComparisonItem[]> {
     const cleanQ = query.trim();
     if (!cleanQ) return [];
 

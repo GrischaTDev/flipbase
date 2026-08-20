@@ -1,23 +1,31 @@
 <div class="space-y-6 animate-fade-in">
   <!-- Page Header -->
-  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-rf-border">
+  <div
+    class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-rf-border"
+  >
     <div>
       <div class="flex items-center gap-2">
         <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
           Packtisch & Versandetiketten
         </h1>
-        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 uppercase">
+        <span
+          class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-amber-500/15 text-amber-300 border border-amber-500/30 uppercase"
+        >
           Fulfillment Center
         </span>
       </div>
       <p class="text-xs text-rf-text-muted mt-0.5">
-        Verwalte offene Verkäufe, drucke DIN-A6 Versandetiketten für DHL & Hermes und verfolge Sendungsnummern.
+        Verwalte offene Verkäufe, drucke DIN-A6 Versandetiketten für DHL & Hermes und verfolge
+        Sendungsnummern.
       </p>
     </div>
 
     <!-- Search Input -->
     <div class="relative w-full md:w-64">
-      <lucide-icon [img]="searchIcon" class="w-3.5 h-3.5 absolute left-3 top-2.5 text-rf-text-dimmed"></lucide-icon>
+      <lucide-icon
+        [img]="searchIcon"
+        class="w-3.5 h-3.5 absolute left-3 top-2.5 text-rf-text-dimmed"
+      ></lucide-icon>
       <input
         type="text"
         placeholder="Bestell-Nr., Name, PLZ..."
@@ -38,8 +46,12 @@
       [class.bg-amber-500/10]="selectedStatusTab() === 'ready_to_pack'"
     >
       <div class="flex items-center justify-between">
-        <span class="text-xs font-bold uppercase tracking-wider text-rf-text-muted">Zu verpacken & versenden</span>
-        <div class="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center">
+        <span class="text-xs font-bold uppercase tracking-wider text-rf-text-muted"
+          >Zu verpacken & versenden</span
+        >
+        <div
+          class="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center"
+        >
           <lucide-icon [img]="packageIcon" class="w-4 h-4"></lucide-icon>
         </div>
       </div>
@@ -57,8 +69,12 @@
       [class.bg-indigo-500/10]="selectedStatusTab() === 'shipped'"
     >
       <div class="flex items-center justify-between">
-        <span class="text-xs font-bold uppercase tracking-wider text-rf-text-muted">Unterwegs (In Transit)</span>
-        <div class="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center">
+        <span class="text-xs font-bold uppercase tracking-wider text-rf-text-muted"
+          >Unterwegs (In Transit)</span
+        >
+        <div
+          class="w-8 h-8 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center"
+        >
           <lucide-icon [img]="truckIcon" class="w-4 h-4"></lucide-icon>
         </div>
       </div>
@@ -76,8 +92,12 @@
       [class.bg-emerald-500/10]="selectedStatusTab() === 'delivered'"
     >
       <div class="flex items-center justify-between">
-        <span class="text-xs font-bold uppercase tracking-wider text-rf-text-muted">Erfolgreich zugestellt</span>
-        <div class="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+        <span class="text-xs font-bold uppercase tracking-wider text-rf-text-muted"
+          >Erfolgreich zugestellt</span
+        >
+        <div
+          class="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
+        >
           <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
         </div>
       </div>
@@ -90,29 +110,46 @@
 
   <!-- Intelligente Paket-Bündelung & Kombiversand-Banner -->
   @if (bundleSuccessMsg(); as msg) {
-    <div class="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center justify-between animate-fade-in">
+    <div
+      class="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center justify-between animate-fade-in"
+    >
       <div class="flex items-center gap-2">
         <lucide-icon [img]="checkIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
         <span>{{ msg }}</span>
       </div>
-      <button type="button" (click)="bundleSuccessMsg.set(null)" class="text-rf-text-muted hover:text-rf-text-primary cursor-pointer">
+      <button
+        type="button"
+        (click)="bundleSuccessMsg.set(null)"
+        class="text-rf-text-muted hover:text-rf-text-primary cursor-pointer"
+      >
         <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
       </button>
     </div>
   }
 
   @if (fulfillmentService.bundleCandidates().length > 0) {
-    <div class="linear-surface rounded-2xl p-5 border border-indigo-500/40 bg-indigo-500/5 shadow-2xl space-y-4 animate-fade-in">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-500/20">
+    <div
+      class="linear-surface rounded-2xl p-5 border border-indigo-500/40 bg-indigo-500/5 shadow-2xl space-y-4 animate-fade-in"
+    >
+      <div
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-indigo-500/20"
+      >
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center">
+          <div
+            class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center"
+          >
             <lucide-icon [img]="boxesIcon" class="w-5 h-5"></lucide-icon>
           </div>
           <div class="flex items-center gap-2">
             <h2 class="text-sm font-bold text-rf-text-primary">
-              Intelligente Paket-Bündelung verfügbar ({{ fulfillmentService.bundleCandidates().length }} Vorschläge)
+              Intelligente Paket-Bündelung verfügbar ({{
+                fulfillmentService.bundleCandidates().length
+              }}
+              Vorschläge)
             </h2>
-            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+            <span
+              class="px-2 py-0.5 rounded text-[10px] font-mono font-black bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+            >
               Kombiversand
             </span>
           </div>
@@ -122,14 +159,20 @@
       <!-- Candidates Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
         @for (candidate of fulfillmentService.bundleCandidates(); track candidate.customerKey) {
-          <div class="p-4 rounded-xl bg-rf-subtle border border-rf-border flex flex-col justify-between space-y-3">
+          <div
+            class="p-4 rounded-xl bg-rf-subtle border border-rf-border flex flex-col justify-between space-y-3"
+          >
             <div class="space-y-2">
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                  <strong class="text-xs font-bold text-rf-text-primary">{{ candidate.customerName }}</strong>
+                  <strong class="text-xs font-bold text-rf-text-primary">{{
+                    candidate.customerName
+                  }}</strong>
                   <span class="text-[10px] text-rf-text-muted">({{ candidate.customerCity }})</span>
                 </div>
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                >
                   {{ candidate.itemsCount }} Artikel
                 </span>
               </div>
@@ -144,9 +187,11 @@
 
             <div class="pt-2 border-t border-rf-border flex items-center justify-between">
               <div>
-                <span class="text-[10px] text-rf-text-muted uppercase font-bold block">Portoersparnis</span>
+                <span class="text-[10px] text-rf-text-muted uppercase font-bold block"
+                  >Portoersparnis</span
+                >
                 <strong class="text-xs font-mono text-emerald-400 font-bold">
-                  ~ {{ candidate.potentialSavings | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  ~ {{ candidate.potentialSavings | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </strong>
               </div>
 
@@ -229,26 +274,34 @@
   <!-- Orders Fulfillment List -->
   <div class="space-y-3">
     @for (order of filteredOrders(); track order.id) {
-      <div class="linear-surface rounded-2xl p-5 border border-rf-border shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4"
-           [class.border-indigo-500/40]="order.is_bundled"
-           [class.bg-indigo-500/5]="order.is_bundled">
+      <div
+        class="linear-surface rounded-2xl p-5 border border-rf-border shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4"
+        [class.border-indigo-500/40]="order.is_bundled"
+        [class.bg-indigo-500/5]="order.is_bundled"
+      >
         <!-- Order & Item Info -->
         <div class="flex-1 space-y-1.5">
           <div class="flex flex-wrap items-center gap-2 text-xs">
-            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-rf-subtle text-rf-text-secondary border border-rf-border">
+            <span
+              class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-rf-subtle text-rf-text-secondary border border-rf-border"
+            >
               {{ order.order_number }}
             </span>
-            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-indigo-500/15 text-indigo-300 border border-indigo-500/30">
+            <span
+              class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
+            >
               {{ order.platform }}
             </span>
             @if (order.is_bundled) {
-              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase bg-indigo-600 text-rf-on-accent flex items-center gap-1 shadow-sm">
+              <span
+                class="px-2 py-0.5 rounded text-[10px] font-mono font-black uppercase bg-indigo-600 text-rf-on-accent flex items-center gap-1 shadow-sm"
+              >
                 <lucide-icon [img]="boxesIcon" class="w-3 h-3"></lucide-icon>
                 <span>Sammelpaket ({{ order.bundled_item_titles?.length }} Artikel)</span>
               </span>
             }
             <span class="text-rf-text-muted text-[11px] font-mono">
-              {{ order.order_date | date:'dd.MM.yyyy HH:mm' }} Uhr
+              {{ order.order_date | date: 'dd.MM.yyyy HH:mm' }} Uhr
             </span>
           </div>
 
@@ -259,13 +312,18 @@
           <!-- If bundled, list individual items -->
           @if (order.is_bundled && order.bundled_item_titles) {
             <div class="p-2.5 rounded-xl bg-rf-subtle/80 border border-rf-border space-y-1 text-xs">
-              <span class="text-[10px] font-bold text-rf-text-muted uppercase tracking-wider block font-sans">
+              <span
+                class="text-[10px] font-bold text-rf-text-muted uppercase tracking-wider block font-sans"
+              >
                 Enthaltene Artikel im Paket:
               </span>
               <ul class="space-y-0.5 text-rf-text-secondary">
                 @for (title of order.bundled_item_titles; track title) {
                   <li class="flex items-center gap-1">
-                    <lucide-icon [img]="packageIcon" class="w-3 h-3 text-indigo-400 shrink-0"></lucide-icon>
+                    <lucide-icon
+                      [img]="packageIcon"
+                      class="w-3 h-3 text-indigo-400 shrink-0"
+                    ></lucide-icon>
                     <span>{{ title }}</span>
                   </li>
                 }
@@ -274,20 +332,36 @@
           }
 
           <div class="flex flex-wrap items-center gap-3 text-xs text-rf-text-muted">
-            <span>Zustand: <strong class="text-rf-text-secondary">{{ order.item_condition || 'Geprüft' }}</strong></span>
+            <span
+              >Zustand:
+              <strong class="text-rf-text-secondary">{{
+                order.item_condition || 'Geprüft'
+              }}</strong></span
+            >
             <span>•</span>
-            <span>Gesamtwert: <strong class="text-rf-text-primary font-mono">{{ order.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
+            <span
+              >Gesamtwert:
+              <strong class="text-rf-text-primary font-mono">{{
+                order.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+              }}</strong></span
+            >
             <span>•</span>
             <span class="text-indigo-400 font-semibold">{{ order.package_type }}</span>
           </div>
 
           <!-- Customer Address Snippet -->
-          <div class="p-2.5 rounded-xl bg-rf-subtle border border-rf-border text-xs text-rf-text-secondary flex items-start gap-2 max-w-lg mt-2">
-            <lucide-icon [img]="pinIcon" class="w-4 h-4 text-indigo-400 shrink-0 mt-0.5"></lucide-icon>
+          <div
+            class="p-2.5 rounded-xl bg-rf-subtle border border-rf-border text-xs text-rf-text-secondary flex items-start gap-2 max-w-lg mt-2"
+          >
+            <lucide-icon
+              [img]="pinIcon"
+              class="w-4 h-4 text-indigo-400 shrink-0 mt-0.5"
+            ></lucide-icon>
             <div>
               <strong class="text-rf-text-primary">{{ order.customer.name }}</strong>
               <div class="text-[11px] text-rf-text-muted">
-                {{ order.customer.street }} {{ order.customer.house_number }}, {{ order.customer.postal_code }} {{ order.customer.city }}
+                {{ order.customer.street }} {{ order.customer.house_number }},
+                {{ order.customer.postal_code }} {{ order.customer.city }}
               </div>
             </div>
           </div>
@@ -364,7 +438,9 @@
                 class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer text-amber-300"
               >
                 <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5"></lucide-icon>
-                <span>{{ order.tracking_number ? 'Tracking bearbeiten' : 'Als Versendet markieren' }}</span>
+                <span>{{
+                  order.tracking_number ? 'Tracking bearbeiten' : 'Als Versendet markieren'
+                }}</span>
               </button>
             }
 
@@ -384,10 +460,14 @@
       </div>
     } @empty {
       <div class="linear-surface rounded-2xl p-16 text-center text-xs text-rf-text-muted space-y-3">
-        <lucide-icon [img]="packageIcon" class="w-10 h-10 mx-auto text-rf-text-dimmed"></lucide-icon>
+        <lucide-icon
+          [img]="packageIcon"
+          class="w-10 h-10 mx-auto text-rf-text-dimmed"
+        ></lucide-icon>
         <h3 class="text-sm font-bold text-rf-text-primary">Keine Sendungen in dieser Ansicht</h3>
         <p class="text-[11px] max-w-xs mx-auto">
-          Alle aktuellen Bestellungen wurden bereits abgearbeitet oder erfüllen nicht die Filterkriterien.
+          Alle aktuellen Bestellungen wurden bereits abgearbeitet oder erfüllen nicht die
+          Filterkriterien.
         </p>
       </div>
     }
@@ -410,7 +490,9 @@
         <div class="flex items-center justify-between border-b border-rf-border pb-3">
           <div class="flex items-center gap-2">
             <lucide-icon [img]="printIcon" class="w-5 h-5 text-indigo-400"></lucide-icon>
-            <h3 class="text-base font-bold text-rf-text-primary">Versandetikett Vorschau (DIN-A6)</h3>
+            <h3 class="text-base font-bold text-rf-text-primary">
+              Versandetikett Vorschau (DIN-A6)
+            </h3>
           </div>
 
           <button
@@ -423,7 +505,9 @@
         </div>
 
         <!-- Printable Label Area (Clean White & Black high contrast for thermal printer) -->
-        <div class="printable-area bg-white text-black p-6 rounded-2xl border-2 border-black font-sans space-y-4 shadow-lg">
+        <div
+          class="printable-area bg-white text-black p-6 rounded-2xl border-2 border-black font-sans space-y-4 shadow-lg"
+        >
           <!-- Header Bar with Carrier & Service -->
           <div class="flex items-center justify-between border-b-2 border-black pb-3">
             <div>
@@ -442,7 +526,9 @@
           <div class="grid grid-cols-2 gap-4 py-2 border-b-2 border-black">
             <!-- Sender -->
             <div class="text-[11px] space-y-0.5 border-r border-dashed border-rf-border pr-2">
-              <span class="text-[10px] uppercase font-bold text-rf-text-muted block">Absender:</span>
+              <span class="text-[10px] uppercase font-bold text-rf-text-muted block"
+                >Absender:</span
+              >
               @let sender = fulfillmentService.getSenderAddress();
               <strong class="block text-xs font-bold">{{ sender.name }}</strong>
               <div>{{ sender.company }}</div>
@@ -453,30 +539,44 @@
 
             <!-- Recipient -->
             <div class="text-xs space-y-0.5 pl-2">
-              <span class="text-[10px] uppercase font-bold text-rf-text-muted block">Empfänger:</span>
+              <span class="text-[10px] uppercase font-bold text-rf-text-muted block"
+                >Empfänger:</span
+              >
               <strong class="block text-sm font-black">{{ labelOrder.customer.name }}</strong>
               @if (labelOrder.customer.company) {
                 <div>{{ labelOrder.customer.company }}</div>
               }
-              <div class="font-semibold">{{ labelOrder.customer.street }} {{ labelOrder.customer.house_number }}</div>
-              <div class="font-black text-sm">{{ labelOrder.customer.postal_code }} {{ labelOrder.customer.city }}</div>
-              <div class="text-rf-text-secondary font-bold uppercase text-[10px]">{{ labelOrder.customer.country }}</div>
+              <div class="font-semibold">
+                {{ labelOrder.customer.street }} {{ labelOrder.customer.house_number }}
+              </div>
+              <div class="font-black text-sm">
+                {{ labelOrder.customer.postal_code }} {{ labelOrder.customer.city }}
+              </div>
+              <div class="text-rf-text-secondary font-bold uppercase text-[10px]">
+                {{ labelOrder.customer.country }}
+              </div>
             </div>
           </div>
 
           <!-- Simulated Barcode & Security Warnings -->
           <div class="space-y-2 pt-2">
-            <div class="h-14 bg-neutral-900 flex items-center justify-center text-rf-text-primary font-mono tracking-widest text-xs rounded-sm">
+            <div
+              class="h-14 bg-neutral-900 flex items-center justify-center text-rf-text-primary font-mono tracking-widest text-xs rounded-sm"
+            >
               ||| | ||||| || |||||| | |||| ||| ||||||| | ||
             </div>
-            <div class="flex items-center justify-between text-[10px] text-rf-text-secondary font-mono">
+            <div
+              class="flex items-center justify-between text-[10px] text-rf-text-secondary font-mono"
+            >
               <span>Sendungs-Ref: {{ labelOrder.order_number }}</span>
               <span>Premium Priority Tracked</span>
             </div>
           </div>
 
           <!-- Fragile / Safety Badge -->
-          <div class="p-2 bg-rf-subtle border border-black text-center text-[10px] font-black uppercase tracking-wider">
+          <div
+            class="p-2 bg-rf-subtle border border-black text-center text-[10px] font-black uppercase tracking-wider"
+          >
             Vorsicht Zerbrechlich &bull; Elektronik &bull; Vor Nässe Schützen
           </div>
         </div>
@@ -521,7 +621,9 @@
         <div class="flex items-center justify-between border-b border-rf-border pb-3">
           <div class="flex items-center gap-2">
             <lucide-icon [img]="fileIcon" class="w-5 h-5 text-indigo-400"></lucide-icon>
-            <h3 class="text-base font-bold text-rf-text-primary">Lieferschein & Packzettel Vorschau</h3>
+            <h3 class="text-base font-bold text-rf-text-primary">
+              Lieferschein & Packzettel Vorschau
+            </h3>
           </div>
 
           <button
@@ -534,21 +636,29 @@
         </div>
 
         <!-- Printable Packing Slip Area -->
-        <div class="printable-area bg-white text-black p-8 rounded-2xl border border-rf-border font-sans space-y-6 shadow-lg">
+        <div
+          class="printable-area bg-white text-black p-8 rounded-2xl border border-rf-border font-sans space-y-6 shadow-lg"
+        >
           <div class="flex justify-between items-start border-b border-rf-border pb-4">
             <div>
               <h1 class="text-xl font-black">LIEFERSCHEIN</h1>
-              <p class="text-xs text-rf-text-muted font-mono">Bestell-Nr.: {{ slipOrder.order_number }}</p>
+              <p class="text-xs text-rf-text-muted font-mono">
+                Bestell-Nr.: {{ slipOrder.order_number }}
+              </p>
             </div>
             <div class="text-right text-xs">
               <strong class="block font-bold">ReFlip Reselling</strong>
-              <span class="text-rf-text-muted">Datum: {{ slipOrder.order_date | date:'dd.MM.yyyy' }}</span>
+              <span class="text-rf-text-muted"
+                >Datum: {{ slipOrder.order_date | date: 'dd.MM.yyyy' }}</span
+              >
             </div>
           </div>
 
           <!-- Customer info -->
           <div class="text-xs space-y-1">
-            <span class="text-[10px] uppercase font-bold text-rf-text-dimmed block">Lieferadresse:</span>
+            <span class="text-[10px] uppercase font-bold text-rf-text-dimmed block"
+              >Lieferadresse:</span
+            >
             <strong class="text-sm block">{{ slipOrder.customer.name }}</strong>
             <div>{{ slipOrder.customer.street }} {{ slipOrder.customer.house_number }}</div>
             <div>{{ slipOrder.customer.postal_code }} {{ slipOrder.customer.city }}</div>
@@ -575,10 +685,13 @@
           </table>
 
           <!-- Thank you message -->
-          <div class="p-4 bg-rf-subtle border border-rf-border-subtle rounded-xl text-xs text-rf-text-secondary leading-relaxed">
+          <div
+            class="p-4 bg-rf-subtle border border-rf-border-subtle rounded-xl text-xs text-rf-text-secondary leading-relaxed"
+          >
             <p class="font-bold">Vielen Dank für deinen Einkauf!</p>
             <p class="text-[11px] mt-1 text-rf-text-secondary">
-              Wir wünschen dir viel Freude mit deinem Artikel. Bei Fragen oder Anliegen stehen wir dir jederzeit gerne zur Verfügung!
+              Wir wünschen dir viel Freude mit deinem Artikel. Bei Fragen oder Anliegen stehen wir
+              dir jederzeit gerne zur Verfügung!
             </p>
           </div>
         </div>
@@ -636,7 +749,10 @@
 
         <form [formGroup]="trackingForm" (ngSubmit)="onSaveTracking()" class="space-y-4">
           <div>
-            <label for="carrierSelect" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              for="carrierSelect"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               Versanddienstleister
             </label>
             <select
@@ -652,7 +768,10 @@
           </div>
 
           <div>
-            <label for="trackingNumberInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              for="trackingNumberInput"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               Sendungsnummer / Tracking-ID *
             </label>
             <input
@@ -705,12 +824,16 @@
           <!-- Header -->
           <div class="flex items-start justify-between border-b border-rf-border pb-3">
             <div class="flex items-center gap-2">
-              <div class="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+              <div
+                class="w-8 h-8 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
+              >
                 <lucide-icon [img]="zapIcon" class="w-4 h-4"></lucide-icon>
               </div>
               <div>
                 <h3 class="text-base font-bold text-rf-text-primary">Versandmarke direkt kaufen</h3>
-                <p class="text-xs text-rf-text-muted mt-0.5">Offizielles DHL- oder Hermes-Versandetikett buchen.</p>
+                <p class="text-xs text-rf-text-muted mt-0.5">
+                  Offizielles DHL- oder Hermes-Versandetikett buchen.
+                </p>
               </div>
             </div>
 
@@ -727,17 +850,24 @@
           <div class="p-3 rounded-2xl bg-rf-subtle border border-rf-border text-xs space-y-1">
             <div class="flex justify-between">
               <span class="text-rf-text-muted">Empfänger:</span>
-              <strong class="text-rf-text-primary">{{ targetOrder.customer.name }} ({{ targetOrder.customer.postal_code }} {{ targetOrder.customer.city }})</strong>
+              <strong class="text-rf-text-primary"
+                >{{ targetOrder.customer.name }} ({{ targetOrder.customer.postal_code }}
+                {{ targetOrder.customer.city }})</strong
+              >
             </div>
             <div class="flex justify-between">
               <span class="text-rf-text-muted">Artikel:</span>
-              <span class="text-rf-text-secondary truncate max-w-[280px]">{{ targetOrder.item_title }}</span>
+              <span class="text-rf-text-secondary truncate max-w-[280px]">{{
+                targetOrder.item_title
+              }}</span>
             </div>
           </div>
 
           <!-- Rate Selection List -->
           <div class="space-y-2.5">
-            <label class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">
+            <label
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted"
+            >
               Wähle Paketklasse & Versandtarif:
             </label>
 
@@ -761,7 +891,8 @@
                     <div>
                       <div class="flex items-center gap-1.5">
                         <strong class="text-xs text-rf-text-primary block">{{ rate.name }}</strong>
-                        <span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold uppercase"
+                        <span
+                          class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold uppercase"
                           [class.bg-amber-500/20]="rate.carrier === 'dhl'"
                           [class.text-amber-300]="rate.carrier === 'dhl'"
                           [class.bg-blue-500/20]="rate.carrier === 'hermes'"
@@ -776,7 +907,7 @@
 
                   <div class="text-right shrink-0">
                     <strong class="font-mono text-sm font-bold text-emerald-400">
-                      {{ rate.price | currency:'EUR':'symbol':'1.2-2':'de' }}
+                      {{ rate.price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                     </strong>
                     <span class="text-[10px] text-rf-text-muted block">inkl. Tracking</span>
                   </div>
@@ -802,7 +933,9 @@
               class="linear-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-40"
             >
               @if (isPurchasing()) {
-                <div class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <div
+                  class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
+                ></div>
                 <span>Marke wird gebucht...</span>
               } @else {
                 <lucide-icon [img]="zapIcon" class="w-4 h-4"></lucide-icon>

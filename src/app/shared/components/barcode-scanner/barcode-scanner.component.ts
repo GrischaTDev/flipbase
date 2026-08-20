@@ -118,7 +118,9 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
       } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
         this.errorMessage.set('Keine Kamera gefunden. Nutze bitte die manuelle Barcode-Eingabe.');
       } else {
-        this.errorMessage.set((err instanceof Error ? err.message : '') || 'Kamera konnte nicht gestartet werden.');
+        this.errorMessage.set(
+          (err instanceof Error ? err.message : '') || 'Kamera konnte nicht gestartet werden.',
+        );
       }
     }
   }

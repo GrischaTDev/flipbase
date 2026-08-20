@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CurrencyPipe, DatePipe } from '@angular/common';
@@ -45,7 +52,8 @@ import { ModalDialogDirective } from '../../shared/directives/modal-dialog.direc
 
 @Component({
   selector: 'app-research',
-  imports: [ModalDialogDirective, 
+  imports: [
+    ModalDialogDirective,
     ReactiveFormsModule,
     CurrencyPipe,
     DatePipe,
@@ -149,7 +157,7 @@ export class ResearchComponent {
       f.query.trim(),
       f.condition,
       f.estimatedCost,
-      f.limit
+      f.limit,
     );
     this.summary.set(summary);
   }
@@ -167,7 +175,7 @@ export class ResearchComponent {
     const updatedSummary = this.researchService.calculateSummary(
       this.researchService.currentComparisonItems(),
       f.estimatedCost,
-      f.query
+      f.query,
     );
     this.summary.set(updatedSummary);
   }

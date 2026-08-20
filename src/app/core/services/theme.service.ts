@@ -38,11 +38,12 @@ export class ThemeService {
   constructor() {
     this.watchSystemPreference();
 
-    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
-    // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
-    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
-    // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
-    // fehl. Danach ersatzlos entfernen.
+    // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die Tests
+    // erzeugen die Dienste mit `new` statt ueber TestBed, weshalb kein
+    // Injektionskontext existiert. Die Umgebung laeuft seit Phase 8 zwar unter
+    // jsdom, das aendert daran aber nichts - der Scheduler kommt aus Angulars
+    // Abhaengigkeitsverwaltung, nicht aus dem Browser. Dieser Schutz kann erst
+    // entfallen, wenn die Tests auf TestBed umgestellt sind.
     try {
       effect(() => {
         const theme = this.currentTheme();

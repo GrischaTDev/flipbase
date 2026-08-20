@@ -1,18 +1,26 @@
 <div class="min-h-screen bg-rf-well flex items-center justify-center p-4 py-8">
-  <div class="max-w-md w-full bg-rf-surface-alt border border-rf-border rounded-3xl p-6 sm:p-8 shadow-2xl animate-fade-in">
+  <div
+    class="max-w-md w-full bg-rf-surface-alt border border-rf-border rounded-3xl p-6 sm:p-8 shadow-2xl animate-fade-in"
+  >
     <!-- Logo & Title -->
     <div class="text-center mb-6">
-      <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-700 text-rf-on-accent mb-3 shadow-lg shadow-emerald-500/20">
+      <div
+        class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-700 text-rf-on-accent mb-3 shadow-lg shadow-emerald-500/20"
+      >
         <lucide-icon [img]="logoIcon" class="w-6 h-6"></lucide-icon>
       </div>
       <h1 class="text-2xl font-extrabold text-rf-text-primary tracking-tight">ReFlip</h1>
       <p class="text-xs text-rf-text-muted mt-0.5">Entscheidungs- und Finanzsystem für Reseller</p>
-      <h2 class="text-base font-bold text-rf-text-secondary mt-3">{{ 'AUTH.SIGN_UP_TITLE' | translate }}</h2>
+      <h2 class="text-base font-bold text-rf-text-secondary mt-3">
+        {{ 'AUTH.SIGN_UP_TITLE' | translate }}
+      </h2>
     </div>
 
     <!-- Error Box -->
     @if (errorMessage()) {
-      <div class="p-3 mb-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start gap-2 animate-fade-in">
+      <div
+        class="p-3 mb-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start gap-2 animate-fade-in"
+      >
         <lucide-icon [img]="alertIcon" class="w-4 h-4 mt-0.5 shrink-0"></lucide-icon>
         <span>{{ errorMessage() }}</span>
       </div>
@@ -20,7 +28,9 @@
 
     <!-- Success Box -->
     @if (successMessage()) {
-      <div class="p-3 mb-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2 animate-fade-in">
+      <div
+        class="p-3 mb-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2 animate-fade-in"
+      >
         <lucide-icon [img]="checkIcon" class="w-4 h-4 shrink-0"></lucide-icon>
         <span>{{ successMessage() }}</span>
       </div>
@@ -30,11 +40,16 @@
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
       <!-- Full Name -->
       <div>
-        <label for="regFullName" class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5">
+        <label
+          for="regFullName"
+          class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5"
+        >
           {{ 'AUTH.FULL_NAME' | translate }}
         </label>
         <div class="relative flex items-center">
-          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted">
+          <div
+            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
+          >
             <lucide-icon [img]="userIcon" class="w-4 h-4"></lucide-icon>
           </div>
           <input
@@ -47,17 +62,24 @@
           />
         </div>
         @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
-          <p class="text-[11px] text-rose-400 mt-1 pl-1">Bitte gib deinen vollständigen Namen ein.</p>
+          <p class="text-[11px] text-rose-400 mt-1 pl-1">
+            Bitte gib deinen vollständigen Namen ein.
+          </p>
         }
       </div>
 
       <!-- Email -->
       <div>
-        <label for="regEmail" class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5">
+        <label
+          for="regEmail"
+          class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5"
+        >
           {{ 'AUTH.EMAIL' | translate }}
         </label>
         <div class="relative flex items-center">
-          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted">
+          <div
+            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
+          >
             <lucide-icon [img]="mailIcon" class="w-4 h-4"></lucide-icon>
           </div>
           <input
@@ -70,17 +92,24 @@
           />
         </div>
         @if (form.controls.email.touched && form.controls.email.invalid) {
-          <p class="text-[11px] text-rose-400 mt-1 pl-1">Bitte gib eine gültige E-Mail-Adresse ein.</p>
+          <p class="text-[11px] text-rose-400 mt-1 pl-1">
+            Bitte gib eine gültige E-Mail-Adresse ein.
+          </p>
         }
       </div>
 
       <!-- Password -->
       <div>
-        <label for="regPassword" class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5">
+        <label
+          for="regPassword"
+          class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5"
+        >
           {{ 'AUTH.PASSWORD' | translate }}
         </label>
         <div class="relative flex items-center">
-          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted">
+          <div
+            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
+          >
             <lucide-icon [img]="lockIcon" class="w-4 h-4"></lucide-icon>
           </div>
           <input
@@ -97,7 +126,10 @@
             class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-rf-text-muted hover:text-rf-text-primary cursor-pointer transition"
             [attr.aria-label]="showPassword() ? 'Passwort verbergen' : 'Passwort anzeigen'"
           >
-            <lucide-icon [img]="showPassword() ? eyeOffIcon : eyeIcon" class="w-4 h-4"></lucide-icon>
+            <lucide-icon
+              [img]="showPassword() ? eyeOffIcon : eyeIcon"
+              class="w-4 h-4"
+            ></lucide-icon>
           </button>
         </div>
 
@@ -110,26 +142,39 @@
                 [class]="passwordStrength().colorClass + ' ' + passwordStrength().widthClass"
               ></div>
             </div>
-            <div class="flex items-center justify-between text-[10px] text-rf-text-muted font-medium">
+            <div
+              class="flex items-center justify-between text-[10px] text-rf-text-muted font-medium"
+            >
               <span>Sicherheitsstufe:</span>
-              <span [class.text-rose-400]="passwordStrength().score === 1" [class.text-amber-400]="passwordStrength().score === 2" [class.text-emerald-400]="passwordStrength().score === 3">
+              <span
+                [class.text-rose-400]="passwordStrength().score === 1"
+                [class.text-amber-400]="passwordStrength().score === 2"
+                [class.text-emerald-400]="passwordStrength().score === 3"
+              >
                 {{ passwordStrength().labelKey | translate }}
               </span>
             </div>
           </div>
         }
         @if (form.controls.password.touched && form.controls.password.invalid) {
-          <p class="text-[11px] text-rose-400 mt-1 pl-1">Das Passwort muss mindestens 8 Zeichen lang sein.</p>
+          <p class="text-[11px] text-rose-400 mt-1 pl-1">
+            Das Passwort muss mindestens 8 Zeichen lang sein.
+          </p>
         }
       </div>
 
       <!-- Confirm Password -->
       <div>
-        <label for="regConfirmPassword" class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5">
+        <label
+          for="regConfirmPassword"
+          class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5"
+        >
           {{ 'AUTH.PASSWORD_CONFIRM' | translate }}
         </label>
         <div class="relative flex items-center">
-          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted">
+          <div
+            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
+          >
             <lucide-icon [img]="lockIcon" class="w-4 h-4"></lucide-icon>
           </div>
           <input
@@ -148,7 +193,10 @@
             class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-rf-text-muted hover:text-rf-text-primary cursor-pointer transition"
             [attr.aria-label]="showConfirmPassword() ? 'Passwort verbergen' : 'Passwort anzeigen'"
           >
-            <lucide-icon [img]="showConfirmPassword() ? eyeOffIcon : eyeIcon" class="w-4 h-4"></lucide-icon>
+            <lucide-icon
+              [img]="showConfirmPassword() ? eyeOffIcon : eyeIcon"
+              class="w-4 h-4"
+            ></lucide-icon>
           </button>
         </div>
 
@@ -177,13 +225,21 @@
           ></app-custom-checkbox>
           <label class="text-xs text-rf-text-muted leading-relaxed cursor-pointer select-none">
             {{ 'AUTH.ACCEPT_TERMS' | translate }}
-            <a href="#" (click)="$event.preventDefault()" class="text-emerald-700 dark:text-emerald-400 underline hover:text-emerald-800 dark:hover:text-emerald-300 font-semibold">
+            <a
+              href="#"
+              (click)="$event.preventDefault()"
+              class="text-emerald-700 dark:text-emerald-400 underline hover:text-emerald-800 dark:hover:text-emerald-300 font-semibold"
+            >
               {{ 'AUTH.TERMS_LINK' | translate }}
             </a>
             {{ 'AUTH.AND' | translate }}
-            <a href="#" (click)="$event.preventDefault()" class="text-emerald-700 dark:text-emerald-400 underline hover:text-emerald-800 dark:hover:text-emerald-300 font-semibold">
-              {{ 'AUTH.PRIVACY_LINK' | translate }}
-            </a>.
+            <a
+              href="#"
+              (click)="$event.preventDefault()"
+              class="text-emerald-700 dark:text-emerald-400 underline hover:text-emerald-800 dark:hover:text-emerald-300 font-semibold"
+            >
+              {{ 'AUTH.PRIVACY_LINK' | translate }} </a
+            >.
           </label>
         </div>
         @if (form.controls.acceptTerms.touched && form.controls.acceptTerms.invalid) {
@@ -200,7 +256,9 @@
         class="w-full mt-3 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-rf-on-accent font-bold text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 cursor-pointer"
       >
         <lucide-icon [img]="registerIcon" class="w-4 h-4"></lucide-icon>
-        <span>{{ isLoading() ? ('COMMON.LOADING' | translate) : ('AUTH.SUBMIT_REGISTER' | translate) }}</span>
+        <span>{{
+          isLoading() ? ('COMMON.LOADING' | translate) : ('AUTH.SUBMIT_REGISTER' | translate)
+        }}</span>
       </button>
     </form>
 

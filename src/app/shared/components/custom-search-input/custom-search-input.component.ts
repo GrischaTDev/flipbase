@@ -51,9 +51,7 @@ export class CustomSearchInputComponent implements ControlValueAccessor {
   private onChange: (value: string) => void = () => {};
   private onTouched: () => void = () => {};
 
-  readonly effectiveDisabled = computed(
-    () => this.disabledInput() || this.isDisabled()
-  );
+  readonly effectiveDisabled = computed(() => this.disabledInput() || this.isDisabled());
 
   // ControlValueAccessor methods
   writeValue(obj: string | null): void {

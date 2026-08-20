@@ -13,28 +13,28 @@ export const routes: Routes = [
         path: '',
         loadComponent: () =>
           import('./features/store/pages/store-catalog/store-catalog.component').then(
-            (m) => m.StoreCatalogComponent
+            (m) => m.StoreCatalogComponent,
           ),
       },
       {
         path: 'item/:id',
         loadComponent: () =>
           import('./features/store/pages/store-item-detail/store-item-detail.component').then(
-            (m) => m.StoreItemDetailComponent
+            (m) => m.StoreItemDetailComponent,
           ),
       },
       {
         path: 'checkout',
         loadComponent: () =>
           import('./features/store/pages/store-checkout/store-checkout.component').then(
-            (m) => m.StoreCheckoutComponent
+            (m) => m.StoreCheckoutComponent,
           ),
       },
       {
         path: 'order-success/:orderId',
         loadComponent: () =>
           import('./features/store/pages/store-order-success/store-order-success.component').then(
-            (m) => m.StoreOrderSuccessComponent
+            (m) => m.StoreOrderSuccessComponent,
           ),
       },
     ],
@@ -83,7 +83,7 @@ export const routes: Routes = [
         path: 'purchases/:id',
         loadComponent: () =>
           import('./features/purchases/pages/purchase-detail/purchase-detail.component').then(
-            (m) => m.PurchaseDetailComponent
+            (m) => m.PurchaseDetailComponent,
           ),
       },
       {
@@ -95,7 +95,7 @@ export const routes: Routes = [
         path: 'inventory/:id',
         loadComponent: () =>
           import('./features/inventory/pages/item-detail/item-detail.component').then(
-            (m) => m.ItemDetailComponent
+            (m) => m.ItemDetailComponent,
           ),
       },
       {
@@ -107,7 +107,7 @@ export const routes: Routes = [
         path: 'deal-calculator',
         loadComponent: () =>
           import('./features/deal-calculator/deal-calculator.component').then(
-            (m) => m.DealCalculatorComponent
+            (m) => m.DealCalculatorComponent,
           ),
       },
       {
@@ -138,7 +138,9 @@ export const routes: Routes = [
       {
         path: 'fulfillment',
         loadComponent: () =>
-          import('./features/fulfillment/fulfillment.component').then((m) => m.FulfillmentComponent),
+          import('./features/fulfillment/fulfillment.component').then(
+            (m) => m.FulfillmentComponent,
+          ),
       },
       {
         path: 'settings',

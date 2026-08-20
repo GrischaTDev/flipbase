@@ -30,7 +30,10 @@ describe('AI Identification & Assistant Engine (Phase 8 & 9)', () => {
   });
 
   it('should analyze image and extract visual sourcing attributes', async () => {
-    const visualResult = await aiService.analyzeImage('data:image/jpeg;base64,sample', 'ps5_console_photo.jpg');
+    const visualResult = await aiService.analyzeImage(
+      'data:image/jpeg;base64,sample',
+      'ps5_console_photo.jpg',
+    );
 
     expect(visualResult.brand).toBe('Sony');
     expect(visualResult.category).toBe('Gaming & Konsolen');

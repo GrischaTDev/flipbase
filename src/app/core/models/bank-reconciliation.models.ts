@@ -13,12 +13,7 @@ export type BankFormatType =
 
 export type BankTransactionStatus = 'pending' | 'matched' | 'booked' | 'ignored';
 
-export type MatchTargetType =
-  | 'store_order'
-  | 'sale'
-  | 'purchase'
-  | 'operating_expense'
-  | 'unknown';
+export type MatchTargetType = 'store_order' | 'sale' | 'purchase' | 'operating_expense' | 'unknown';
 
 export interface BankReconciliationMatch {
   targetType: MatchTargetType;

@@ -28,7 +28,9 @@ describe('Webhook & Notification Service', () => {
     });
 
     expect(webhookService.config().discordEnabled).toBe(true);
-    expect(webhookService.config().discordWebhookUrl).toBe('https://discord.com/api/webhooks/123/abc');
+    expect(webhookService.config().discordWebhookUrl).toBe(
+      'https://discord.com/api/webhooks/123/abc',
+    );
   });
 
   it('should add notifications and mark all as read', () => {

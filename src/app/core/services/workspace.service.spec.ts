@@ -88,7 +88,11 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
       },
     ];
 
-    const holding = service.getConsolidatedHoldingSummary(sampleSales, samplePurchases, sampleItems);
+    const holding = service.getConsolidatedHoldingSummary(
+      sampleSales,
+      samplePurchases,
+      sampleItems,
+    );
 
     expect(holding.workspacesCount).toBeGreaterThanOrEqual(1);
     expect(holding.totalRevenue).toBeGreaterThanOrEqual(200);

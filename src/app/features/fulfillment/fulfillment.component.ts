@@ -83,8 +83,14 @@ export class FulfillmentComponent {
 
   readonly trackingOrderId = signal<string>('');
   readonly trackingForm = new FormGroup({
-    carrier: new FormControl<CarrierType>('dhl', { nonNullable: true, validators: [Validators.required] }),
-    trackingNumber: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(5)] }),
+    carrier: new FormControl<CarrierType>('dhl', {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
+    trackingNumber: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.minLength(5)],
+    }),
   });
 
   readonly filteredOrders = computed(() => {
@@ -107,7 +113,7 @@ export class FulfillmentComponent {
           o.item_title.toLowerCase().includes(query) ||
           o.customer.name.toLowerCase().includes(query) ||
           o.customer.city.toLowerCase().includes(query) ||
-          (o.tracking_number && o.tracking_number.toLowerCase().includes(query))
+          (o.tracking_number && o.tracking_number.toLowerCase().includes(query)),
       );
     }
 
@@ -119,7 +125,7 @@ export class FulfillmentComponent {
     const bundled = await this.fulfillmentService.bundleOrders(candidate);
     this.isBundling.set(false);
     this.bundleSuccessMsg.set(
-      `Sammelpaket für ${candidate.customerName} erfolgreich erstellt! (${candidate.itemsCount} Artikel gebündelt, Ersparnis: ${candidate.potentialSavings.toFixed(2)} €)`
+      `Sammelpaket für ${candidate.customerName} erfolgreich erstellt! (${candidate.itemsCount} Artikel gebündelt, Ersparnis: ${candidate.potentialSavings.toFixed(2)} €)`,
     );
     setTimeout(() => this.bundleSuccessMsg.set(null), 5000);
   }

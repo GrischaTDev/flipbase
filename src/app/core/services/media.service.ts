@@ -111,7 +111,7 @@ export class MediaService {
   async uploadItemMedia(
     itemId: string,
     file: File,
-    isPrimary: boolean = false,
+    isPrimary = false,
   ): Promise<{ data: ItemMedia | null; error: Error | null }> {
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const storagePath = `${itemId}/${Date.now()}_${cleanFileName}`;

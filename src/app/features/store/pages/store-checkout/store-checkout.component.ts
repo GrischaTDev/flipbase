@@ -48,19 +48,28 @@ export class StoreCheckoutComponent {
   readonly form = new FormGroup({
     firstName: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     lastName: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
+    email: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.email],
+    }),
     phone: new FormControl(''),
     street: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     houseNumber: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     zip: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     city: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    country: new FormControl('Deutschland', { nonNullable: true, validators: [Validators.required] }),
+    country: new FormControl('Deutschland', {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
     shippingMethod: new FormControl<'dhl_standard' | 'hermes_standard' | 'pickup'>('dhl_standard', {
       nonNullable: true,
     }),
-    paymentMethod: new FormControl<'stripe_card' | 'paypal' | 'bank_transfer' | 'cash_on_pickup'>('stripe_card', {
-      nonNullable: true,
-    }),
+    paymentMethod: new FormControl<'stripe_card' | 'paypal' | 'bank_transfer' | 'cash_on_pickup'>(
+      'stripe_card',
+      {
+        nonNullable: true,
+      },
+    ),
     cardNumber: new FormControl('4242 •••• •••• 4242'),
     cardExpiry: new FormControl('12/28'),
     cardCvc: new FormControl('123'),

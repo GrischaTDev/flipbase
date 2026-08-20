@@ -18,8 +18,7 @@ describe('Kostenverteilung – die Summe muss exakt aufgehen', () => {
   });
 
   /** Summiert in ganzen Cent, damit der Vergleich nicht selbst rundungsanfällig ist. */
-  const summeCent = (werte: number[]): number =>
-    werte.reduce((s, w) => s + Math.round(w * 100), 0);
+  const summeCent = (werte: number[]): number => werte.reduce((s, w) => s + Math.round(w * 100), 0);
 
   describe('gleichmäßige Verteilung', () => {
     it('verteilt 100 € auf 3 Artikel ohne Cent-Verlust', () => {

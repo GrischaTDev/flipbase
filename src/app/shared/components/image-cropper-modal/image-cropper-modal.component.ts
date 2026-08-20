@@ -1,15 +1,5 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  input,
-  output,
-  signal,
-} from '@angular/core';
-import {
-  ImageCropperComponent,
-  ImageCroppedEvent,
-  LoadedImage,
-} from 'ngx-image-cropper';
+import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
+import { ImageCropperComponent, ImageCroppedEvent, LoadedImage } from 'ngx-image-cropper';
 import imageCompression from 'browser-image-compression';
 import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 import {
@@ -148,7 +138,9 @@ export class ImageCropperModalComponent {
   }
 
   loadImageFailed(): void {
-    this.errorMessage.set('Das Bild konnte nicht geladen werden. Bitte wähle eine gültige Bilddatei (JPEG, PNG, WebP).');
+    this.errorMessage.set(
+      'Das Bild konnte nicht geladen werden. Bitte wähle eine gültige Bilddatei (JPEG, PNG, WebP).',
+    );
   }
 
   rotateClockwise(): void {
@@ -186,7 +178,9 @@ export class ImageCropperModalComponent {
     try {
       // 1. Create a File from Blob
       const originalFile = this.imageFile();
-      const fileName = originalFile ? originalFile.name.replace(/\.[^/.]+$/, '.jpg') : `product_${Date.now()}.jpg`;
+      const fileName = originalFile
+        ? originalFile.name.replace(/\.[^/.]+$/, '.jpg')
+        : `product_${Date.now()}.jpg`;
       const rawCroppedFile = new File([blob], fileName, { type: 'image/jpeg' });
 
       // 2. Compress image with browser-image-compression
@@ -214,7 +208,9 @@ export class ImageCropperModalComponent {
 
       this.close.emit();
     } catch (err: unknown) {
-      this.errorMessage.set('Fehler bei der Bildkomprimierung: ' + (err instanceof Error ? err.message : String(err)));
+      this.errorMessage.set(
+        'Fehler bei der Bildkomprimierung: ' + (err instanceof Error ? err.message : String(err)),
+      );
     } finally {
       this.isProcessing.set(false);
     }

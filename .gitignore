@@ -42,3 +42,7 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+
+# Von der Supabase-CLI erzeugt
+supabase/.temp/
+supabase/.branches/

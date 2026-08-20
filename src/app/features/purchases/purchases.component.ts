@@ -86,16 +86,28 @@ export class PurchasesComponent {
 
   readonly rapidForm = new FormGroup({
     title: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    purchasePrice: new FormControl<number>(10, { nonNullable: true, validators: [Validators.required, Validators.min(0.5)] }),
-    estimatedResalePrice: new FormControl<number>(25, { nonNullable: true, validators: [Validators.required, Validators.min(1)] }),
-    locationName: new FormControl(this.offlineSyncService.cashWallet().locationName, { nonNullable: true }),
+    purchasePrice: new FormControl<number>(10, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(0.5)],
+    }),
+    estimatedResalePrice: new FormControl<number>(25, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(1)],
+    }),
+    locationName: new FormControl(this.offlineSyncService.cashWallet().locationName, {
+      nonNullable: true,
+    }),
     condition: new FormControl('Gebraucht', { nonNullable: true }),
     notes: new FormControl(''),
   });
 
   readonly walletConfigForm = new FormGroup({
-    startCash: new FormControl<number>(this.offlineSyncService.cashWallet().startCash, { nonNullable: true }),
-    locationName: new FormControl(this.offlineSyncService.cashWallet().locationName, { nonNullable: true }),
+    startCash: new FormControl<number>(this.offlineSyncService.cashWallet().startCash, {
+      nonNullable: true,
+    }),
+    locationName: new FormControl(this.offlineSyncService.cashWallet().locationName, {
+      nonNullable: true,
+    }),
   });
 
   readonly isEditingWallet = signal<boolean>(false);
@@ -153,7 +165,9 @@ export class PurchasesComponent {
       notes: val.notes?.trim() || undefined,
     });
 
-    this.rapidSuccessBanner.set(`"${created.title}" für ${created.purchase_price.toFixed(2)} € gespeichert!`);
+    this.rapidSuccessBanner.set(
+      `"${created.title}" für ${created.purchase_price.toFixed(2)} € gespeichert!`,
+    );
     setTimeout(() => this.rapidSuccessBanner.set(null), 4000);
 
     // Reset for next rapid entry while keeping location

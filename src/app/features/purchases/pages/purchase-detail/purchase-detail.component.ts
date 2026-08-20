@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
@@ -31,7 +39,10 @@ import {
 import { PurchaseService } from '../../../../core/services/purchase.service';
 import { MediaService } from '../../../../core/services/media.service';
 import { InboundTrackingService } from '../../../../core/services/inbound-tracking.service';
-import { ImageCropperModalComponent, CroppedImageResult } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
+import {
+  ImageCropperModalComponent,
+  CroppedImageResult,
+} from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
 import {
@@ -43,7 +54,8 @@ import {
 
 @Component({
   selector: 'app-purchase-detail',
-  imports: [ModalDialogDirective, 
+  imports: [
+    ModalDialogDirective,
     RouterLink,
     ReactiveFormsModule,
     CurrencyPipe,
@@ -117,23 +129,29 @@ export class PurchaseDetailComponent {
       p.tracking_number,
       p.tracking_carrier,
       p.tracking_status,
-      p.purchase_date
+      p.purchase_date,
     );
   });
 
   // Lot Allocator interactive state
   readonly allocatorMode = signal<CostAllocationMode>('value_weighted');
-  readonly editableExpectedValues = signal<{ [itemId: string]: number }>({});
+  readonly editableExpectedValues = signal<Record<string, number>>({});
   readonly isApplyingAllocation = signal<boolean>(false);
 
   readonly costForm = new FormGroup({
     type: new FormControl('shipping', { nonNullable: true, validators: [Validators.required] }),
-    amount: new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0.01)] }),
+    amount: new FormControl<number>(0, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(0.01)],
+    }),
     description: new FormControl(''),
   });
 
   readonly itemForm = new FormGroup({
-    title: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
+    title: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.minLength(2)],
+    }),
     condition: new FormControl<ItemCondition>('used', { nonNullable: true }),
     expected_value: new FormControl<number | null>(null),
   });
@@ -179,7 +197,7 @@ export class PurchaseDetailComponent {
 
   openAllocator(): void {
     const items = this.purchaseService.purchaseItems();
-    const currentValues: { [itemId: string]: number } = {};
+    const currentValues: Record<string, number> = {};
     for (const it of items) {
       currentValues[it.id] = it.expected_value || 0;
     }
@@ -208,7 +226,10 @@ export class PurchaseDetailComponent {
 
     this.isApplyingAllocation.set(true);
     const customValues = this.editableExpectedValues();
-    const itemValues = Object.entries(customValues).map(([id, expected_value]) => ({ id, expected_value }));
+    const itemValues = Object.entries(customValues).map(([id, expected_value]) => ({
+      id,
+      expected_value,
+    }));
 
     await this.purchaseService.redistributeCosts(purchase.id, this.allocatorMode(), itemValues);
     this.isApplyingAllocation.set(false);
@@ -226,7 +247,12 @@ export class PurchaseDetailComponent {
     if (!purchase || this.costForm.invalid) return;
 
     const val = this.costForm.getRawValue();
-    await this.purchaseService.addPurchaseCost(purchase.id, val.type, val.amount, val.description || undefined);
+    await this.purchaseService.addPurchaseCost(
+      purchase.id,
+      val.type,
+      val.amount,
+      val.description || undefined,
+    );
 
     this.costForm.reset({ type: 'shipping', amount: 0, description: '' });
     this.isAddingCost.set(false);
@@ -306,7 +332,7 @@ export class PurchaseDetailComponent {
       p.id,
       num || null,
       this.trackingCarrierDraft(),
-      num ? 'in_transit' : null
+      num ? 'in_transit' : null,
     );
     this.isEditingTracking.set(false);
   }

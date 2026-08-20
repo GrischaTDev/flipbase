@@ -55,12 +55,7 @@ import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox
 
 @Component({
   selector: 'app-settings',
-  imports: [
-    ReactiveFormsModule,
-    TranslatePipe,
-    LucideAngularModule,
-    CustomCheckboxComponent,
-  ],
+  imports: [ReactiveFormsModule, TranslatePipe, LucideAngularModule, CustomCheckboxComponent],
   templateUrl: './settings.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -132,8 +127,14 @@ export class SettingsComponent {
     workspaceName: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
     currency: new FormControl('EUR', { nonNullable: true }),
     taxMode: new FormControl('diff_25a', { nonNullable: true }),
-    minRoiPercent: new FormControl<number>(20, { nonNullable: true, validators: [Validators.min(0)] }),
-    minProfitAmount: new FormControl<number>(10, { nonNullable: true, validators: [Validators.min(0)] }),
+    minRoiPercent: new FormControl<number>(20, {
+      nonNullable: true,
+      validators: [Validators.min(0)],
+    }),
+    minProfitAmount: new FormControl<number>(10, {
+      nonNullable: true,
+      validators: [Validators.min(0)],
+    }),
   });
 
   readonly ebayForm = new FormGroup({
@@ -180,11 +181,20 @@ export class SettingsComponent {
   });
 
   readonly inviteForm = new FormGroup({
-    email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
-    role: new FormControl<WorkspaceRole>('member', { nonNullable: true, validators: [Validators.required] }),
+    email: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.email],
+    }),
+    role: new FormControl<WorkspaceRole>('member', {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
   });
 
-  readonly newWorkspaceName = new FormControl('', { nonNullable: true, validators: [Validators.required] });
+  readonly newWorkspaceName = new FormControl('', {
+    nonNullable: true,
+    validators: [Validators.required],
+  });
   readonly isCreatingWs = signal<boolean>(false);
 
   constructor() {
@@ -311,9 +321,15 @@ export class SettingsComponent {
   async onRequestPushPermission(): Promise<void> {
     const granted = await this.webPushService.requestPermission();
     if (granted) {
-      this.pushStatusMessage.set({ success: true, text: 'Browser-Benachrichtigungen erfolgreich erlaubt!' });
+      this.pushStatusMessage.set({
+        success: true,
+        text: 'Browser-Benachrichtigungen erfolgreich erlaubt!',
+      });
     } else {
-      this.pushStatusMessage.set({ success: false, text: 'Berechtigung wurde im Browser verweigert oder blockiert.' });
+      this.pushStatusMessage.set({
+        success: false,
+        text: 'Berechtigung wurde im Browser verweigert oder blockiert.',
+      });
     }
     setTimeout(() => this.pushStatusMessage.set(null), 4000);
   }
@@ -334,7 +350,15 @@ export class SettingsComponent {
     setTimeout(() => this.pushStatusMessage.set(null), 4000);
   }
 
-  onTogglePushSetting(key: 'enabled' | 'notifyOnShopOrder' | 'notifyOnFulfillment' | 'notifyOnMarginAlert' | 'soundEnabled', val: boolean): void {
+  onTogglePushSetting(
+    key:
+      | 'enabled'
+      | 'notifyOnShopOrder'
+      | 'notifyOnFulfillment'
+      | 'notifyOnMarginAlert'
+      | 'soundEnabled',
+    val: boolean,
+  ): void {
     this.webPushService.updateSettings({ [key]: val });
   }
 
@@ -426,7 +450,7 @@ export class SettingsComponent {
     this.exportService.downloadFile(
       csv,
       `reflip-einkaeufe-${new Date().toISOString().split('T')[0]}.csv`,
-      'text/csv;charset=utf-8;'
+      'text/csv;charset=utf-8;',
     );
   }
 
@@ -435,7 +459,7 @@ export class SettingsComponent {
     this.exportService.downloadFile(
       csv,
       `reflip-inventar-${new Date().toISOString().split('T')[0]}.csv`,
-      'text/csv;charset=utf-8;'
+      'text/csv;charset=utf-8;',
     );
   }
 
@@ -444,7 +468,7 @@ export class SettingsComponent {
     this.exportService.downloadFile(
       csv,
       `reflip-verkaeufe-${new Date().toISOString().split('T')[0]}.csv`,
-      'text/csv;charset=utf-8;'
+      'text/csv;charset=utf-8;',
     );
   }
 }

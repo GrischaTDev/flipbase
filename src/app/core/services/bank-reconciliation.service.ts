@@ -209,7 +209,9 @@ export class BankReconciliationService {
         totalIncome: 0,
         totalExpense: 0,
         matchedCount: 0,
-        message: 'Fehler beim Lesen der Bankdatei: ' + (err instanceof Error ? err.message : 'Unbekanntes Format'),
+        message:
+          'Fehler beim Lesen der Bankdatei: ' +
+          (err instanceof Error ? err.message : 'Unbekanntes Format'),
       };
     } finally {
       this.isProcessing.set(false);
@@ -259,7 +261,7 @@ export class BankReconciliationService {
         h.includes('name') ||
         h.includes('partner'),
     );
-    let ibanIdx = headers.findIndex((h) => h.includes('iban') || h.includes('kontonummer'));
+    const ibanIdx = headers.findIndex((h) => h.includes('iban') || h.includes('kontonummer'));
     let amountIdx = headers.findIndex(
       (h) =>
         h.includes('betrag') || h.includes('umsatz') || h.includes('amount') || h.includes('wert'),

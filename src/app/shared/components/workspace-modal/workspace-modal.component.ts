@@ -24,7 +24,10 @@ export class WorkspaceModalComponent {
   readonly errorMessage = signal<string | null>(null);
 
   readonly form = new FormGroup({
-    name: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
+    name: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.minLength(2)],
+    }),
   });
 
   async onSubmit(): Promise<void> {

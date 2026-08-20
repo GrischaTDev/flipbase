@@ -27,9 +27,7 @@ const STATIC_EXTENSIONS =
   /\.(?:js|css|woff2?|ttf|otf|eot|svg|png|jpg|jpeg|gif|ico|webp|avif|json|webmanifest)$/i;
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)));
   self.skipWaiting();
 });
 
@@ -38,8 +36,8 @@ self.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((keys) =>
-        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key)))
-      )
+        Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))),
+      ),
   );
   self.clients.claim();
 });
@@ -87,7 +85,7 @@ self.addEventListener('fetch', (event) => {
           }
           return response;
         })
-        .catch(() => caches.match('/index.html').then((cached) => cached || Response.error()))
+        .catch(() => caches.match('/index.html').then((cached) => cached || Response.error())),
     );
     return;
   }
@@ -106,6 +104,6 @@ self.addEventListener('fetch', (event) => {
         .catch(() => cached || Response.error());
 
       return cached || fromNetwork;
-    })
+    }),
   );
 });

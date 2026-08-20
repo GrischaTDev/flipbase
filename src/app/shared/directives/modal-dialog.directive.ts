@@ -1,4 +1,12 @@
-import { Directive, ElementRef, OnDestroy, afterNextRender, inject, input, output } from '@angular/core';
+import {
+  Directive,
+  ElementRef,
+  OnDestroy,
+  afterNextRender,
+  inject,
+  input,
+  output,
+} from '@angular/core';
 
 /**
  * Rüstet einen vorhandenen modalen Dialog um alles nach, was für Tastatur- und
@@ -115,8 +123,9 @@ export class ModalDialogDirective implements OnDestroy {
     // Reine Schließen-Knöpfe überspringen, damit der Fokus auf dem ersten
     // inhaltlichen Element landet – meist das erste Eingabefeld.
     const ziel =
-      elemente.find((el) => !/schliess|close|abbrechen/i.test(el.getAttribute('aria-label') ?? '')) ??
-      elemente[0];
+      elemente.find(
+        (el) => !/schliess|close|abbrechen/i.test(el.getAttribute('aria-label') ?? ''),
+      ) ?? elemente[0];
     (ziel ?? this.host.nativeElement).focus?.();
   }
 }

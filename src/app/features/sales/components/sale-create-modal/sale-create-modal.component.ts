@@ -1,7 +1,24 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CurrencyPipe } from '@angular/common';
-import { LucideAngularModule, X, Plus, TrendingUp, DollarSign, Calendar, Tag, ShieldCheck } from 'lucide-angular';
+import {
+  LucideAngularModule,
+  X,
+  Plus,
+  TrendingUp,
+  DollarSign,
+  Calendar,
+  Tag,
+  ShieldCheck,
+} from 'lucide-angular';
 import { SalesService, CreateSalePayload } from '../../../../core/services/sales.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
@@ -37,10 +54,22 @@ export class SaleCreateModalComponent {
   readonly errorMessage = signal<string | null>(null);
 
   readonly form = new FormGroup({
-    inventory_item_id: new FormControl<string>('', { nonNullable: true, validators: [Validators.required] }),
-    platform: new FormControl<string>('kleinanzeigen', { nonNullable: true, validators: [Validators.required] }),
-    sale_price: new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0.01)] }),
-    sale_date: new FormControl<string>(new Date().toISOString().split('T')[0], { nonNullable: true, validators: [Validators.required] }),
+    inventory_item_id: new FormControl<string>('', {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
+    platform: new FormControl<string>('kleinanzeigen', {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
+    sale_price: new FormControl<number>(0, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(0.01)],
+    }),
+    sale_date: new FormControl<string>(new Date().toISOString().split('T')[0], {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
     platform_fee: new FormControl<number>(0, { nonNullable: true }),
     shipping_cost: new FormControl<number>(0, { nonNullable: true }),
     packaging_cost: new FormControl<number>(0, { nonNullable: true }),
@@ -53,7 +82,9 @@ export class SaleCreateModalComponent {
   readonly availableItems = computed(() => {
     const list = this.inventoryService.items();
     const preId = this.preselectedItemId();
-    return list.filter((item) => item.status !== 'sold' && item.status !== 'archived' || item.id === preId);
+    return list.filter(
+      (item) => (item.status !== 'sold' && item.status !== 'archived') || item.id === preId,
+    );
   });
 
   // Currently selected item for live math
@@ -88,7 +119,11 @@ export class SaleCreateModalComponent {
     const item = this.inventoryService.items().find((i) => i.id === f.inventory_item_id);
 
     const itemBaseCost = item ? (item.total_item_cost ?? item.allocated_purchase_cost) : 0;
-    const saleFees = (f.platform_fee || 0) + (f.shipping_cost || 0) + (f.packaging_cost || 0) + (f.other_costs || 0);
+    const saleFees =
+      (f.platform_fee || 0) +
+      (f.shipping_cost || 0) +
+      (f.packaging_cost || 0) +
+      (f.other_costs || 0);
     const totalCosts = Number((itemBaseCost + saleFees).toFixed(2));
     const profit = this.profitEngine.calculateProfit(f.sale_price || 0, totalCosts);
     const roi = this.profitEngine.calculateRoi(profit, totalCosts);

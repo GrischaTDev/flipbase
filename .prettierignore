@@ -1,0 +1,13 @@
+# Erzeugte Verzeichnisse
+dist/
+coverage/
+.angular/
+node_modules/
+
+# Von Supabase erzeugt bzw. temporaer
+supabase/.temp/
+supabase/.branches/
+src/app/core/models/supabase.types.ts
+
+# Sperrdateien
+package-lock.json

@@ -55,7 +55,9 @@
     <div class="linear-surface rounded-xl p-5 space-y-5">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div class="flex items-start gap-3.5">
-          <div class="w-12 h-12 rounded-lg bg-rf-subtle border border-rf-border text-rf-text-secondary flex items-center justify-center shrink-0 overflow-hidden">
+          <div
+            class="w-12 h-12 rounded-lg bg-rf-subtle border border-rf-border text-rf-text-secondary flex items-center justify-center shrink-0 overflow-hidden"
+          >
             @if (mediaList().length > 0) {
               <img
                 [src]="getMediaUrl(mediaList()[0].storage_path)"
@@ -69,12 +71,16 @@
 
           <div>
             <div class="flex flex-wrap items-center gap-1.5 mb-1">
-              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-rf-subtle text-rf-text-secondary border border-rf-border">
-                {{ ('INVENTORY.CONDITIONS.' + item.condition.toUpperCase()) | translate }}
+              <span
+                class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-rf-subtle text-rf-text-secondary border border-rf-border"
+              >
+                {{ 'INVENTORY.CONDITIONS.' + item.condition.toUpperCase() | translate }}
               </span>
 
               @if (item.category) {
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/15 text-blue-400 border border-blue-500/30">
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/15 text-blue-400 border border-blue-500/30"
+                >
                   {{ item.category }}
                 </span>
               }
@@ -90,7 +96,9 @@
 
         <!-- Prominente, farbige Status-Auswahl -->
         <div class="flex flex-col sm:items-end gap-1 shrink-0">
-          <span class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">Status</span>
+          <span class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted"
+            >Status</span
+          >
           <app-custom-select
             variant="pill"
             [options]="statusOptions"
@@ -103,40 +111,61 @@
       <!-- Financial Metrics Ribbon -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-rf-border font-mono">
         <div class="linear-kpi p-3 rounded-lg">
-          <span class="text-[10px] uppercase font-sans font-medium text-rf-text-muted block">Anschaffung (EK)</span>
+          <span class="text-[10px] uppercase font-sans font-medium text-rf-text-muted block"
+            >Anschaffung (EK)</span
+          >
           <span class="text-base font-bold text-rf-text-primary mt-1 block">
-            {{ item.allocated_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
+            {{ item.allocated_purchase_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </span>
         </div>
 
         <div class="linear-kpi p-3 rounded-lg">
-          <span class="text-[10px] uppercase font-sans font-medium text-rf-text-muted block">Zusatzkosten</span>
+          <span class="text-[10px] uppercase font-sans font-medium text-rf-text-muted block"
+            >Zusatzkosten</span
+          >
           <span class="text-base font-bold text-amber-400 mt-1 block">
-            {{ (item.total_item_cost || item.allocated_purchase_cost) - item.allocated_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
+            {{
+              (item.total_item_cost || item.allocated_purchase_cost) - item.allocated_purchase_cost
+                | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+            }}
           </span>
         </div>
 
         <div class="linear-kpi p-3 rounded-lg">
-          <span class="text-[10px] uppercase font-sans font-medium text-rf-text-muted block">Gesamtkosten</span>
+          <span class="text-[10px] uppercase font-sans font-medium text-rf-text-muted block"
+            >Gesamtkosten</span
+          >
           <span class="text-base font-bold text-rf-text-primary mt-1 block">
-            {{ item.total_item_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
+            {{ item.total_item_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </span>
         </div>
 
         <div class="linear-kpi p-3 rounded-lg border-emerald-500/40">
-          <span class="text-[10px] uppercase font-sans font-medium text-emerald-400 block">Gewinnpotenzial</span>
+          <span class="text-[10px] uppercase font-sans font-medium text-emerald-400 block"
+            >Gewinnpotenzial</span
+          >
           <span class="text-base font-bold text-emerald-400 mt-1 block">
-            {{ item.profit_potential !== undefined ? ('+' + (item.profit_potential | currency:'EUR':'symbol':'1.2-2':'de')) : 'Offen' }}
+            {{
+              item.profit_potential !== undefined
+                ? '+' + (item.profit_potential | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                : 'Offen'
+            }}
           </span>
         </div>
       </div>
     </div>
 
     <!-- Webshop & Online-Store Veröffentlichung -->
-    <div class="linear-surface rounded-xl p-4 md:p-5 space-y-3 border border-indigo-500/30 bg-indigo-500/5">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-rf-border">
+    <div
+      class="linear-surface rounded-xl p-4 md:p-5 space-y-3 border border-indigo-500/30 bg-indigo-500/5"
+    >
+      <div
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-rf-border"
+      >
         <div class="flex items-center gap-2.5">
-          <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
+          <div
+            class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center"
+          >
             <lucide-icon [img]="storeIcon" class="w-4 h-4"></lucide-icon>
           </div>
           <div>
@@ -145,19 +174,24 @@
                 Eigener Webshop & Online-Store
               </h2>
               @if (item.is_public_store !== false && item.status !== 'sold') {
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                <span
+                  class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                >
                   <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   <span>Live im Shop</span>
                 </span>
               } @else {
-                <span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-muted border border-rf-border">
+                <span
+                  class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-muted border border-rf-border"
+                >
                   <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
                   <span>Nicht gelistet</span>
                 </span>
               }
             </div>
             <p class="text-[11px] text-rf-text-muted mt-0.5">
-              Steuere, ob dieser Artikel in deinem öffentlichen Kunden-Store gelistet und direkt online kaufbar ist.
+              Steuere, ob dieser Artikel in deinem öffentlichen Kunden-Store gelistet und direkt
+              online kaufbar ist.
             </p>
           </div>
         </div>
@@ -175,8 +209,13 @@
             [class.text-rf-text-secondary]="item.is_public_store === false"
             [class.border-rf-border]="item.is_public_store === false"
           >
-            <lucide-icon [img]="item.is_public_store !== false ? checkIcon : storeIcon" class="w-3.5 h-3.5"></lucide-icon>
-            <span>{{ item.is_public_store !== false ? 'Im Webshop aktiv' : 'Im Webshop aktivieren' }}</span>
+            <lucide-icon
+              [img]="item.is_public_store !== false ? checkIcon : storeIcon"
+              class="w-3.5 h-3.5"
+            ></lucide-icon>
+            <span>{{
+              item.is_public_store !== false ? 'Im Webshop aktiv' : 'Im Webshop aktivieren'
+            }}</span>
           </button>
 
           <!-- Direct View in Store Link -->
@@ -195,7 +234,10 @@
       <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-rf-text-muted font-mono">
         <div>
           <span class="font-sans block text-[10px]">Shop-Verkaufspreis:</span>
-          <strong class="text-rf-text-primary text-sm">{{ (item.expected_value || item.allocated_purchase_cost * 1.5) | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+          <strong class="text-rf-text-primary text-sm">{{
+            item.expected_value || item.allocated_purchase_cost * 1.5
+              | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+          }}</strong>
         </div>
         <div>
           <span class="font-sans block text-[10px]">Shop-URL:</span>
@@ -210,7 +252,9 @@
 
     <!-- Foto-Galerie & Belege (Supabase Storage) -->
     <div class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-rf-border">
+      <div
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-rf-border"
+      >
         <div class="flex items-center gap-2">
           <lucide-icon [img]="imageIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
           <div>
@@ -224,7 +268,9 @@
         </div>
 
         <!-- Upload Button -->
-        <label class="linear-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0">
+        <label
+          class="linear-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0"
+        >
           <lucide-icon [img]="uploadIcon" class="w-3.5 h-3.5"></lucide-icon>
           <span>{{ isUploading() ? 'Wird hochgeladen...' : 'Fotos hochladen' }}</span>
           <input
@@ -239,7 +285,9 @@
       </div>
 
       @if (uploadError()) {
-        <div class="p-2.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
+        <div
+          class="p-2.5 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs"
+        >
           {{ uploadError() }}
         </div>
       }
@@ -248,13 +296,19 @@
       @if (mediaList().length > 0) {
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
           @for (media of mediaList(); track media.id) {
-            <div class="group relative rounded-lg border border-rf-border bg-rf-subtle overflow-hidden flex flex-col transition hover:border-rf-border-hover">
+            <div
+              class="group relative rounded-lg border border-rf-border bg-rf-subtle overflow-hidden flex flex-col transition hover:border-rf-border-hover"
+            >
               <!-- Image Container -->
-              <div class="relative aspect-square w-full bg-black/20 flex items-center justify-center overflow-hidden">
+              <div
+                class="relative aspect-square w-full bg-black/20 flex items-center justify-center overflow-hidden"
+              >
                 @if (media.mime_type?.includes('pdf')) {
                   <div class="flex flex-col items-center gap-1 text-rf-text-muted p-2 text-center">
                     <lucide-icon [img]="fileIcon" class="w-8 h-8 text-amber-400"></lucide-icon>
-                    <span class="text-[10px] truncate max-w-[100px]">{{ media.file_name || 'Beleg.pdf' }}</span>
+                    <span class="text-[10px] truncate max-w-[100px]">{{
+                      media.file_name || 'Beleg.pdf'
+                    }}</span>
                   </div>
                 } @else {
                   <img
@@ -267,13 +321,17 @@
 
                 <!-- Primary Badge -->
                 @if (media.is_primary) {
-                  <span class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-700 text-rf-on-accent shadow-xs">
+                  <span
+                    class="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-700 text-rf-on-accent shadow-xs"
+                  >
                     ⭐ Hauptbild
                   </span>
                 }
 
                 <!-- Quick Action Overlay on Hover -->
-                <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                <div
+                  class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5"
+                >
                   <button
                     type="button"
                     (click)="previewModalUrl.set(getMediaUrl(media.storage_path))"
@@ -306,7 +364,9 @@
               </div>
 
               <!-- Media Info Footer -->
-              <div class="p-1.5 text-[10px] font-mono text-rf-text-muted flex items-center justify-between border-t border-rf-border">
+              <div
+                class="p-1.5 text-[10px] font-mono text-rf-text-muted flex items-center justify-between border-t border-rf-border"
+              >
                 <span class="truncate max-w-[90px]">{{ media.file_name || 'Bild' }}</span>
                 @if (media.file_size) {
                   <span>{{ (media.file_size / 1024).toFixed(0) }} KB</span>
@@ -316,9 +376,16 @@
           }
         </div>
       } @else {
-        <div class="p-8 text-center border border-dashed border-rf-border rounded-lg bg-rf-subtle/50">
-          <lucide-icon [img]="imageIcon" class="w-8 h-8 text-rf-text-dimmed mx-auto mb-2"></lucide-icon>
-          <p class="text-xs font-semibold text-rf-text-secondary">Noch keine Fotos oder Belege hochgeladen</p>
+        <div
+          class="p-8 text-center border border-dashed border-rf-border rounded-lg bg-rf-subtle/50"
+        >
+          <lucide-icon
+            [img]="imageIcon"
+            class="w-8 h-8 text-rf-text-dimmed mx-auto mb-2"
+          ></lucide-icon>
+          <p class="text-xs font-semibold text-rf-text-secondary">
+            Noch keine Fotos oder Belege hochgeladen
+          </p>
           <p class="text-[11px] text-rf-text-muted mt-0.5">
             Lade Produktfotos für Inserate oder Einkaufsbelege direkt in Supabase Storage hoch.
           </p>
@@ -336,13 +403,19 @@
           </h2>
 
           @if (item.purchase) {
-            <div class="p-3 rounded-lg bg-rf-subtle border border-rf-border flex items-center justify-between">
+            <div
+              class="p-3 rounded-lg bg-rf-subtle border border-rf-border flex items-center justify-between"
+            >
               <div>
-                <a [routerLink]="['/purchases', item.purchase.id]" class="text-xs font-semibold text-emerald-400 hover:underline">
+                <a
+                  [routerLink]="['/purchases', item.purchase.id]"
+                  class="text-xs font-semibold text-emerald-400 hover:underline"
+                >
                   {{ item.purchase.title }}
                 </a>
                 <p class="text-[11px] text-rf-text-muted mt-0.5 font-mono">
-                  Gekauft am {{ item.purchase.purchase_date | date:'dd.MM.yyyy' }} • Typ: {{ item.purchase.type }}
+                  Gekauft am {{ item.purchase.purchase_date | date: 'dd.MM.yyyy' }} • Typ:
+                  {{ item.purchase.type }}
                 </p>
               </div>
 
@@ -354,7 +427,9 @@
               </a>
             </div>
           } @else {
-            <p class="text-xs text-rf-text-muted">Dieser Artikel wurde direkt ohne verknüpften Einkauf angelegt.</p>
+            <p class="text-xs text-rf-text-muted">
+              Dieser Artikel wurde direkt ohne verknüpften Einkauf angelegt.
+            </p>
           }
         </div>
 
@@ -363,7 +438,9 @@
           <div class="flex items-center justify-between pb-2 border-b border-rf-border">
             <div class="flex items-center gap-2">
               <lucide-icon [img]="wrenchIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
-              <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Artikelkosten (Reparatur, Reinigung, Teile)</h2>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+                Artikelkosten (Reparatur, Reinigung, Teile)
+              </h2>
             </div>
 
             <button
@@ -377,7 +454,11 @@
           </div>
 
           @if (isAddingCost()) {
-            <form [formGroup]="costForm" (ngSubmit)="onAddCost()" class="p-3 rounded-lg bg-rf-subtle border border-rf-border flex flex-wrap gap-2 items-center animate-fade-in">
+            <form
+              [formGroup]="costForm"
+              (ngSubmit)="onAddCost()"
+              class="p-3 rounded-lg bg-rf-subtle border border-rf-border flex flex-wrap gap-2 items-center animate-fade-in"
+            >
               <select
                 formControlName="type"
                 class="linear-input px-2.5 py-1.5 rounded-lg text-xs cursor-pointer"
@@ -419,13 +500,15 @@
               @for (c of inventoryService.itemCosts(); track c.id) {
                 <div class="py-2 flex items-center justify-between text-xs">
                   <div class="flex items-center gap-2.5">
-                    <span class="font-bold uppercase text-[10px] text-rf-text-muted">{{ c.type }}</span>
+                    <span class="font-bold uppercase text-[10px] text-rf-text-muted">{{
+                      c.type
+                    }}</span>
                     <span class="text-rf-text-secondary font-sans">{{ c.description || '-' }}</span>
                   </div>
 
                   <div class="flex items-center gap-2.5">
                     <span class="font-bold text-rf-text-primary">
-                      {{ c.amount | currency:'EUR':'symbol':'1.2-2':'de' }}
+                      {{ c.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                     </span>
                     <button
                       type="button"
@@ -448,7 +531,9 @@
       <div class="lg:col-span-5 linear-surface rounded-xl p-4 space-y-3">
         <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
           <lucide-icon [img]="historyIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Aktivitäts-Historie (Kapitel 11)</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            Aktivitäts-Historie (Kapitel 11)
+          </h2>
         </div>
 
         <div class="space-y-2.5">
@@ -458,7 +543,9 @@
               <div class="flex-1">
                 <div class="flex items-center justify-between">
                   <strong class="text-rf-text-secondary font-semibold">{{ log.action }}</strong>
-                  <span class="text-[10px] font-mono text-rf-text-muted">{{ log.created_at | date:'dd.MM.yy HH:mm' }}</span>
+                  <span class="text-[10px] font-mono text-rf-text-muted">{{
+                    log.created_at | date: 'dd.MM.yy HH:mm'
+                  }}</span>
                 </div>
                 @if (log.notes) {
                   <p class="text-rf-text-secondary text-[11px] mt-0.5">{{ log.notes }}</p>

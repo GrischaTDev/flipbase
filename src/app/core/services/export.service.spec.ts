@@ -48,5 +48,4 @@ describe('ExportService (Phase 10: CSV & JSON Backup)', () => {
     expect(csv).toContain('90.00');
     expect(csv).toContain('"Barzahlung bei Abholung; netter Kontakt"');
   });
-
 });

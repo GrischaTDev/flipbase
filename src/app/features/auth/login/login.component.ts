@@ -27,8 +27,14 @@ export class LoginComponent {
   readonly errorMessage = signal<string | null>(null);
 
   readonly form = new FormGroup({
-    email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
-    password: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(6)] }),
+    email: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.email],
+    }),
+    password: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.minLength(6)],
+    }),
   });
 
   /** Ob der Demo-Modus in dieser Umgebung angeboten wird. */

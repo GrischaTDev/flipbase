@@ -1,7 +1,3 @@
 {
-  "recommendations": [
-    "angular.ng-template",
-    "esbenp.prettier-vscode",
-    "stylelint.vs-stylelint"
-  ]
+  "recommendations": ["angular.ng-template", "esbenp.prettier-vscode", "stylelint.vs-stylelint"]
 }

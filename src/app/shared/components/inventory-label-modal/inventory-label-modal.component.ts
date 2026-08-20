@@ -1,10 +1,4 @@
-import {
-  ChangeDetectionStrategy,
-  Component,
-  input,
-  output,
-  signal,
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
   LucideAngularModule,
@@ -24,7 +18,13 @@ export type LabelFormat = 'compact' | 'standard' | 'large';
 
 @Component({
   selector: 'app-inventory-label-modal',
-  imports: [ModalDialogDirective, CurrencyPipe, DatePipe, LucideAngularModule, CustomCheckboxComponent],
+  imports: [
+    ModalDialogDirective,
+    CurrencyPipe,
+    DatePipe,
+    LucideAngularModule,
+    CustomCheckboxComponent,
+  ],
   templateUrl: './inventory-label-modal.component.html',
   styleUrl: './inventory-label-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

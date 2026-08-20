@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal, ViewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+  ViewChild,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -28,7 +35,10 @@ import { AiPhotoScannerModalComponent } from '../../shared/components/ai-photo-s
 import { InventoryLabelModalComponent } from '../../shared/components/inventory-label-modal/inventory-label-modal.component';
 import { AiVisualScanResult } from '../../core/services/ai-assistant.service';
 import { InventoryItem, ItemCondition, ItemStatus } from '../../core/models/reflip.models';
-import { CustomSelectComponent, SelectOption } from '../../shared/components/custom-select/custom-select.component';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../shared/components/custom-select/custom-select.component';
 import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 
@@ -85,14 +95,55 @@ export class InventoryComponent {
   readonly selectedItemIds = signal<Set<string>>(new Set());
 
   readonly statusOptions: SelectOption<ItemStatus>[] = [
-    { value: 'received', label: 'Auf Lager', badgeClass: 'bg-blue-400', colorClass: 'bg-blue-500/15 text-blue-300 border-blue-500/30 hover:bg-blue-500/25' },
-    { value: 'ready', label: 'Bereit', badgeClass: 'bg-amber-400', colorClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/25' },
-    { value: 'listed', label: 'Gelistet', badgeClass: 'bg-emerald-400', colorClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25' },
-    { value: 'sold', label: 'Verkauft', badgeClass: 'bg-purple-400', colorClass: 'bg-purple-500/15 text-purple-300 border-purple-500/30 hover:bg-purple-500/25' },
-    { value: 'reserved', label: 'Reserviert', badgeClass: 'bg-slate-400', colorClass: 'bg-[#1e222a] text-slate-300 border-[#373e4d] hover:bg-[#282e3a]' },
-    { value: 'defective', label: 'Defekt', badgeClass: 'bg-rose-400', colorClass: 'bg-rose-500/15 text-rose-300 border-rose-500/30 hover:bg-rose-500/25' },
-    { value: 'returned', label: 'Retourniert', badgeClass: 'bg-slate-400', colorClass: 'bg-[#1e222a] text-slate-300 border-[#373e4d] hover:bg-[#282e3a]' },
-    { value: 'archived', label: 'Archiviert', badgeClass: 'bg-slate-400', colorClass: 'bg-[#1e222a] text-slate-300 border-[#373e4d] hover:bg-[#282e3a]' },
+    {
+      value: 'received',
+      label: 'Auf Lager',
+      badgeClass: 'bg-blue-400',
+      colorClass: 'bg-blue-500/15 text-blue-300 border-blue-500/30 hover:bg-blue-500/25',
+    },
+    {
+      value: 'ready',
+      label: 'Bereit',
+      badgeClass: 'bg-amber-400',
+      colorClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/25',
+    },
+    {
+      value: 'listed',
+      label: 'Gelistet',
+      badgeClass: 'bg-emerald-400',
+      colorClass:
+        'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25',
+    },
+    {
+      value: 'sold',
+      label: 'Verkauft',
+      badgeClass: 'bg-purple-400',
+      colorClass: 'bg-purple-500/15 text-purple-300 border-purple-500/30 hover:bg-purple-500/25',
+    },
+    {
+      value: 'reserved',
+      label: 'Reserviert',
+      badgeClass: 'bg-slate-400',
+      colorClass: 'bg-[#1e222a] text-slate-300 border-[#373e4d] hover:bg-[#282e3a]',
+    },
+    {
+      value: 'defective',
+      label: 'Defekt',
+      badgeClass: 'bg-rose-400',
+      colorClass: 'bg-rose-500/15 text-rose-300 border-rose-500/30 hover:bg-rose-500/25',
+    },
+    {
+      value: 'returned',
+      label: 'Retourniert',
+      badgeClass: 'bg-slate-400',
+      colorClass: 'bg-[#1e222a] text-slate-300 border-[#373e4d] hover:bg-[#282e3a]',
+    },
+    {
+      value: 'archived',
+      label: 'Archiviert',
+      badgeClass: 'bg-slate-400',
+      colorClass: 'bg-[#1e222a] text-slate-300 border-[#373e4d] hover:bg-[#282e3a]',
+    },
   ];
 
   readonly filterStatusOptions: SelectOption<string>[] = [
@@ -117,8 +168,11 @@ export class InventoryComponent {
     { value: 'defective', label: 'Defekt / Ersatzteil' },
   ];
 
-  readonly storePublishedCount = computed(() =>
-    this.inventoryService.items().filter((i) => i.is_public_store !== false && i.status !== 'sold').length
+  readonly storePublishedCount = computed(
+    () =>
+      this.inventoryService
+        .items()
+        .filter((i) => i.is_public_store !== false && i.status !== 'sold').length,
   );
 
   // Filtered Items Computed Signal
@@ -133,7 +187,7 @@ export class InventoryComponent {
           (item.sku && item.sku.toLowerCase().includes(query)) ||
           (item.ean && item.ean.toLowerCase().includes(query)) ||
           (item.brand && item.brand.toLowerCase().includes(query)) ||
-          (item.model && item.model.toLowerCase().includes(query))
+          (item.model && item.model.toLowerCase().includes(query)),
       );
     }
 
@@ -170,18 +224,19 @@ export class InventoryComponent {
   }
 
   readonly totalTiedCapital = computed(() =>
-    this.filteredItems().reduce((sum, item) => sum + (item.allocated_purchase_cost || 0), 0)
+    this.filteredItems().reduce((sum, item) => sum + (item.allocated_purchase_cost || 0), 0),
   );
 
   readonly totalExpectedValue = computed(() =>
-    this.filteredItems().reduce((sum, item) => sum + (Number(item.expected_value) || 0), 0)
+    this.filteredItems().reduce((sum, item) => sum + (Number(item.expected_value) || 0), 0),
   );
 
   readonly totalProfitPotential = computed(() =>
     this.filteredItems().reduce(
-      (sum, item) => sum + Math.max(0, (Number(item.expected_value) || 0) - (item.allocated_purchase_cost || 0)),
-      0
-    )
+      (sum, item) =>
+        sum + Math.max(0, (Number(item.expected_value) || 0) - (item.allocated_purchase_cost || 0)),
+      0,
+    ),
   );
 
   readonly itemsToPrint = computed<InventoryItem[]>(() => {

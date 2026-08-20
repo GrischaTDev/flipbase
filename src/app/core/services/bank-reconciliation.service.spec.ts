@@ -36,7 +36,7 @@ describe('BankReconciliationService', () => {
       orders: mockStoreOrders,
       updatePaymentStatus: (orderId: string, status: string) => {
         mockStoreOrders.update((orders) =>
-          orders.map((o) => (o.id === orderId ? { ...o, paymentStatus: status as any } : o))
+          orders.map((o) => (o.id === orderId ? { ...o, paymentStatus: status as any } : o)),
         );
       },
     };
@@ -64,7 +64,7 @@ describe('BankReconciliationService', () => {
         { provide: InvoiceService, useValue: mockInvoiceService },
         BankReconciliationService,
       ],
-      null as any
+      null as any,
     );
 
     service = runInInjectionContext(injector, () => new BankReconciliationService());
@@ -90,7 +90,7 @@ describe('BankReconciliationService', () => {
 
     expect(parsed[1].bookingDate).toBe('2026-08-14');
     expect(parsed[1].counterpartyName).toBe('DHL Paket GmbH');
-    expect(parsed[1].amount).toBe(-39.50);
+    expect(parsed[1].amount).toBe(-39.5);
   });
 
   it('should parse MT940 statement text', () => {

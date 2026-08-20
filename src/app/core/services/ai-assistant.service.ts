@@ -168,7 +168,7 @@ export class AiAssistantService {
     // Simulate AI vision latency (500ms) for realistic UX
     await new Promise((resolve) => setTimeout(resolve, 500));
 
-    let hint = (
+    const hint = (
       filenameHint ||
       (typeof imageSrcOrFile === 'string' ? imageSrcOrFile : imageSrcOrFile.name) ||
       ''

@@ -19,29 +19,29 @@
 
 :root {
   /* 1. Hintergruende */
-  --rf-bg-app: #f4f5f7;          /* Haupt-Hintergrund der gesamten App */
-  --rf-bg-sidebar: #ffffff;      /* Hintergrund der Sidebar */
-  --rf-bg-header: #ffffff;       /* Hintergrund des Headers */
-  --rf-bg-surface: #ffffff;      /* Hintergrund von Kacheln & Karten */
-  --rf-bg-surface-hover: #eef0f4;/* Hover-Hintergrund fuer Karten & Tabellenzeilen */
-  --rf-bg-subtle: #f7f8fa;       /* Hintergrund fuer Eingabefelder, Dropdowns & Wells */
-  --rf-bg-surface-alt: #fbfcfd;  /* Leicht abgesetzte Flaeche innerhalb von Karten */
-  --rf-bg-well: #eef1f5;         /* Tabellenkoepfe und eingelassene Bereiche */
+  --rf-bg-app: #f4f5f7; /* Haupt-Hintergrund der gesamten App */
+  --rf-bg-sidebar: #ffffff; /* Hintergrund der Sidebar */
+  --rf-bg-header: #ffffff; /* Hintergrund des Headers */
+  --rf-bg-surface: #ffffff; /* Hintergrund von Kacheln & Karten */
+  --rf-bg-surface-hover: #eef0f4; /* Hover-Hintergrund fuer Karten & Tabellenzeilen */
+  --rf-bg-subtle: #f7f8fa; /* Hintergrund fuer Eingabefelder, Dropdowns & Wells */
+  --rf-bg-surface-alt: #fbfcfd; /* Leicht abgesetzte Flaeche innerhalb von Karten */
+  --rf-bg-well: #eef1f5; /* Tabellenkoepfe und eingelassene Bereiche */
 
   /* 2. Rahmen & Linien */
-  --rf-border: #d9dde5;          /* Standard-Rahmen fuer Karten & Tabellen */
-  --rf-border-subtle: #e8ebf0;   /* Dezentere Trennlinie fuer Sidebar/Header */
-  --rf-border-hover: #b4bcca;    /* Rahmen bei Mauszeiger-Hover */
-  --rf-border-focus: #4f46e5;    /* Rahmen bei Tastatur-Fokus / Eingabe */
-  --rf-line: #e2e6ec;            /* Trennlinien innerhalb von Karten & Tabellen */
-  --rf-line-strong: #c7cdd8;     /* Kraeftigere Trennlinie */
+  --rf-border: #d9dde5; /* Standard-Rahmen fuer Karten & Tabellen */
+  --rf-border-subtle: #e8ebf0; /* Dezentere Trennlinie fuer Sidebar/Header */
+  --rf-border-hover: #b4bcca; /* Rahmen bei Mauszeiger-Hover */
+  --rf-border-focus: #4f46e5; /* Rahmen bei Tastatur-Fokus / Eingabe */
+  --rf-line: #e2e6ec; /* Trennlinien innerhalb von Karten & Tabellen */
+  --rf-line-strong: #c7cdd8; /* Kraeftigere Trennlinie */
 
   /* 3. Textfarben */
-  --rf-text-primary: #111827;    /* Hauptueberschriften, Geldbetraege, wichtige Zahlen */
-  --rf-text-secondary: #374151;  /* Fliesstext, Tabellenspalten, Formular-Labels */
-  --rf-text-muted: #596273;      /* Beschreibungen, Einheiten, Zeitstempel */
-  --rf-text-dimmed: #6b7280;     /* Platzhalter, inaktive Elemente */
-  --rf-text-on-accent: #ffffff;  /* Text auf farbigen Flaechen (Buttons, Badges) */
+  --rf-text-primary: #111827; /* Hauptueberschriften, Geldbetraege, wichtige Zahlen */
+  --rf-text-secondary: #374151; /* Fliesstext, Tabellenspalten, Formular-Labels */
+  --rf-text-muted: #596273; /* Beschreibungen, Einheiten, Zeitstempel */
+  --rf-text-dimmed: #6b7280; /* Platzhalter, inaktive Elemente */
+  --rf-text-on-accent: #ffffff; /* Text auf farbigen Flaechen (Buttons, Badges) */
 
   /* 4. Primaer-Aktionen */
   --rf-primary: #4f46e5;
@@ -210,7 +210,8 @@ html.dark {
 }
 
 @theme {
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans:
+    'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
   /* Eigene Design-Tokens */
@@ -363,7 +364,12 @@ html.dark .linear-kpi::before {
   left: 0;
   right: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.15) 50%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.15) 50%,
+    transparent 100%
+  );
 }
 
 .linear-input {
@@ -389,13 +395,17 @@ html.dark .linear-kpi::before {
   background: linear-gradient(180deg, var(--rf-primary) 0%, var(--rf-primary-hover) 100%);
   color: var(--rf-text-on-accent);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: var(--rf-shadow-md), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow:
+    var(--rf-shadow-md),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
   transition: all 0.15s ease;
 }
 
 .linear-btn-primary:hover {
   background: linear-gradient(180deg, var(--rf-accent-indigo) 0%, var(--rf-primary) 100%);
-  box-shadow: 0 3px 8px var(--rf-primary-border), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow:
+    0 3px 8px var(--rf-primary-border),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 .linear-btn-secondary {

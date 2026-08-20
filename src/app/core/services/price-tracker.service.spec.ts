@@ -55,7 +55,9 @@ describe('PriceTrackerService & Competitor Radar (Chapter 26)', () => {
     const initialActive = first.isTrackingActive;
 
     service.toggleTracking(first.id);
-    expect(service.trackedItems().find((t) => t.id === first.id)?.isTrackingActive).toBe(!initialActive);
+    expect(service.trackedItems().find((t) => t.id === first.id)?.isTrackingActive).toBe(
+      !initialActive,
+    );
 
     service.deleteTrackedItem(first.id);
     expect(service.trackedItems().some((t) => t.id === first.id)).toBe(false);

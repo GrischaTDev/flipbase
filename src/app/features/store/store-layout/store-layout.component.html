@@ -1,6 +1,10 @@
-<div class="rf-palette-fixed min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col selection:bg-slate-900 selection:text-white font-sans antialiased">
+<div
+  class="rf-palette-fixed min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col selection:bg-slate-900 selection:text-white font-sans antialiased"
+>
   <!-- Top Announcement Bar (Midnight Slate & Emerald Accent) -->
-  <div class="bg-slate-950 text-slate-300 text-[11px] font-medium py-2 px-4 border-b border-slate-800 select-none shadow-2xs">
+  <div
+    class="bg-slate-950 text-slate-300 text-[11px] font-medium py-2 px-4 border-b border-slate-800 select-none shadow-2xs"
+  >
     <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2 text-xs">
       <div class="flex items-center gap-4 text-[11px] text-slate-300">
         <span class="flex items-center gap-1.5 font-medium text-emerald-400">
@@ -17,14 +21,22 @@
       <!-- Free Shipping Status -->
       <div class="flex items-center gap-2 text-[11px]">
         @if (remainingForFreeShipping() === 0 && storeService.cartItemCount() > 0) {
-          <span class="text-emerald-300 font-bold flex items-center gap-1 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30">
+          <span
+            class="text-emerald-300 font-bold flex items-center gap-1 bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-500/30"
+          >
             <lucide-icon [img]="sparklesIcon" class="w-3 h-3 text-emerald-400"></lucide-icon>
             <span>Kostenloser Versand aktiv!</span>
           </span>
         } @else {
           <span class="text-slate-400 flex items-center gap-1">
             <lucide-icon [img]="truckIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
-            <span>Kostenloser Versand ab {{ storeService.storeSettings().freeShippingThreshold | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+            <span
+              >Kostenloser Versand ab
+              {{
+                storeService.storeSettings().freeShippingThreshold
+                  | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+              }}</span
+            >
           </span>
         }
       </div>
@@ -32,20 +44,28 @@
   </div>
 
   <!-- Store Header (Crisp White Glass with Midnight Slate Branding) -->
-  <header class="border-b border-slate-200/90 bg-white/95 backdrop-blur-md sticky top-0 z-40 px-4 md:px-8 select-none shadow-2xs">
+  <header
+    class="border-b border-slate-200/90 bg-white/95 backdrop-blur-md sticky top-0 z-40 px-4 md:px-8 select-none shadow-2xs"
+  >
     <div class="max-w-7xl mx-auto h-16 flex items-center justify-between gap-4">
       <!-- Brand Logo -->
       <div class="flex items-center gap-3">
         <a routerLink="/shop" class="flex items-center gap-3 group cursor-pointer">
-          <div class="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center shadow-md shadow-slate-900/20 group-hover:bg-slate-800 transition">
+          <div
+            class="w-10 h-10 rounded-2xl bg-slate-900 flex items-center justify-center shadow-md shadow-slate-900/20 group-hover:bg-slate-800 transition"
+          >
             <lucide-icon [img]="storeIcon" class="w-5 h-5 text-white stroke-[2.2]"></lucide-icon>
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <span class="font-black text-base md:text-lg text-slate-900 block leading-tight tracking-tight">
+              <span
+                class="font-black text-base md:text-lg text-slate-900 block leading-tight tracking-tight"
+              >
                 {{ storeService.storeSettings().storeName }}
               </span>
-              <span class="px-1.5 py-0.2 rounded text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <span
+                class="px-1.5 py-0.2 rounded text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 border border-emerald-200"
+              >
                 Geprüfter Händler
               </span>
             </div>
@@ -77,7 +97,9 @@
           <div class="relative">
             <lucide-icon [img]="bagIcon" class="w-4 h-4"></lucide-icon>
             @if (storeService.cartItemCount() > 0) {
-              <span class="absolute -top-2 -right-2.5 w-4 h-4 rounded-full bg-emerald-500 text-white text-[10px] font-black font-mono flex items-center justify-center shadow-md">
+              <span
+                class="absolute -top-2 -right-2.5 w-4 h-4 rounded-full bg-emerald-500 text-white text-[10px] font-black font-mono flex items-center justify-center shadow-md"
+              >
                 {{ storeService.cartItemCount() }}
               </span>
             }
@@ -85,7 +107,7 @@
           <span class="hidden sm:inline">Warenkorb</span>
           @if (storeService.cartSubtotal() > 0) {
             <span class="font-mono font-bold text-white pl-1.5 border-l border-slate-700">
-              {{ storeService.cartSubtotal() | currency:'EUR':'symbol':'1.2-2':'de' }}
+              {{ storeService.cartSubtotal() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
             </span>
           }
         </button>
@@ -99,20 +121,27 @@
   </main>
 
   <!-- Professional Store Footer (Midnight Slate) -->
-  <footer class="border-t border-slate-800 bg-slate-950 py-12 px-4 md:px-8 text-xs text-slate-400 select-none mt-16">
+  <footer
+    class="border-t border-slate-800 bg-slate-950 py-12 px-4 md:px-8 text-xs text-slate-400 select-none mt-16"
+  >
     <div class="max-w-7xl mx-auto space-y-10">
       <!-- 4 Column Footer Grid -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
         <!-- Store Brand Info -->
         <div class="space-y-3">
           <div class="flex items-center gap-2">
-            <div class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-white">
+            <div
+              class="w-7 h-7 rounded-lg bg-slate-800 flex items-center justify-center text-white"
+            >
               <lucide-icon [img]="storeIcon" class="w-4 h-4"></lucide-icon>
             </div>
-            <h4 class="font-bold text-white text-sm">{{ storeService.storeSettings().storeName }}</h4>
+            <h4 class="font-bold text-white text-sm">
+              {{ storeService.storeSettings().storeName }}
+            </h4>
           </div>
           <p class="text-[11px] leading-relaxed text-slate-400">
-            Dein Fachhändler für geprüfte Gebrauchtwaren, Elektronik, Werkzeuge und Schnäppchen. Jedes Produkt technisch & optisch geprüft.
+            Dein Fachhändler für geprüfte Gebrauchtwaren, Elektronik, Werkzeuge und Schnäppchen.
+            Jedes Produkt technisch & optisch geprüft.
           </p>
           <div class="pt-1 flex items-center gap-2 text-emerald-400 font-semibold text-[11px]">
             <lucide-icon [img]="shieldIcon" class="w-4 h-4"></lucide-icon>
@@ -122,23 +151,49 @@
 
         <!-- Trust & Shipping Guarantees -->
         <div class="space-y-3">
-          <h4 class="font-bold text-white text-xs uppercase tracking-wider">Deine Kundenvorteile</h4>
+          <h4 class="font-bold text-white text-xs uppercase tracking-wider">
+            Deine Kundenvorteile
+          </h4>
           <ul class="space-y-2 text-[11px]">
             <li class="flex items-start gap-2">
-              <lucide-icon [img]="checkIcon" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></lucide-icon>
-              <span><strong class="text-slate-200">Experten-Qualitätscheck:</strong> Gründlich getestet & gereinigt</span>
+              <lucide-icon
+                [img]="checkIcon"
+                class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"
+              ></lucide-icon>
+              <span
+                ><strong class="text-slate-200">Experten-Qualitätscheck:</strong> Gründlich getestet
+                & gereinigt</span
+              >
             </li>
             <li class="flex items-start gap-2">
-              <lucide-icon [img]="truckIcon" class="w-4 h-4 text-slate-400 shrink-0 mt-0.5"></lucide-icon>
-              <span><strong class="text-slate-200">Blitzversand:</strong> Innerhalb von 24h mit DHL/Hermes Sendungsverfolgung</span>
+              <lucide-icon
+                [img]="truckIcon"
+                class="w-4 h-4 text-slate-400 shrink-0 mt-0.5"
+              ></lucide-icon>
+              <span
+                ><strong class="text-slate-200">Blitzversand:</strong> Innerhalb von 24h mit
+                DHL/Hermes Sendungsverfolgung</span
+              >
             </li>
             <li class="flex items-start gap-2">
-              <lucide-icon [img]="returnIcon" class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"></lucide-icon>
-              <span><strong class="text-slate-200">14 Tage Rückgaberecht:</strong> Sorgenfrei online einkaufen</span>
+              <lucide-icon
+                [img]="returnIcon"
+                class="w-4 h-4 text-amber-400 shrink-0 mt-0.5"
+              ></lucide-icon>
+              <span
+                ><strong class="text-slate-200">14 Tage Rückgaberecht:</strong> Sorgenfrei online
+                einkaufen</span
+              >
             </li>
             <li class="flex items-start gap-2">
-              <lucide-icon [img]="lockIcon" class="w-4 h-4 text-slate-400 shrink-0 mt-0.5"></lucide-icon>
-              <span><strong class="text-slate-200">Sichere Bezahlung:</strong> 256-Bit SSL-Verschlüsselung</span>
+              <lucide-icon
+                [img]="lockIcon"
+                class="w-4 h-4 text-slate-400 shrink-0 mt-0.5"
+              ></lucide-icon>
+              <span
+                ><strong class="text-slate-200">Sichere Bezahlung:</strong> 256-Bit
+                SSL-Verschlüsselung</span
+              >
             </li>
           </ul>
         </div>
@@ -147,37 +202,53 @@
         <div class="space-y-3">
           <h4 class="font-bold text-white text-xs uppercase tracking-wider">Zahlungsmethoden</h4>
           <div class="grid grid-cols-2 gap-2 text-[11px]">
-            <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200">
+            <div
+              class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200"
+            >
               <lucide-icon [img]="creditCardIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
               <span>PayPal & Card</span>
             </div>
-            <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200">
+            <div
+              class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200"
+            >
               <lucide-icon [img]="creditCardIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
               <span>Stripe / Visa / MC</span>
             </div>
-            <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200">
+            <div
+              class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200"
+            >
               <lucide-icon [img]="lockIcon" class="w-3.5 h-3.5 text-slate-400"></lucide-icon>
               <span>Klarna / Sofort</span>
             </div>
-            <div class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200">
+            <div
+              class="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-1.5 text-slate-200"
+            >
               <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5 text-emerald-400"></lucide-icon>
               <span>Bar bei Abholung</span>
             </div>
           </div>
           <p class="text-[10px] text-slate-500 leading-relaxed">
-            Rechtssichere Abwicklung gem. § 25a UStG (Differenzbesteuerung bei Gebrauchtgegenständen).
+            Rechtssichere Abwicklung gem. § 25a UStG (Differenzbesteuerung bei
+            Gebrauchtgegenständen).
           </p>
         </div>
 
         <!-- Legal & Impressum -->
         <div class="space-y-2 text-[11px]">
-          <h4 class="font-bold text-white text-xs uppercase tracking-wider mb-2">Impressum & Kundenservice</h4>
-          <p class="font-semibold text-slate-200">{{ storeService.storeSettings().imprint.owner }}</p>
+          <h4 class="font-bold text-white text-xs uppercase tracking-wider mb-2">
+            Impressum & Kundenservice
+          </h4>
+          <p class="font-semibold text-slate-200">
+            {{ storeService.storeSettings().imprint.owner }}
+          </p>
           <p>{{ storeService.storeSettings().imprint.street }}</p>
           <p>{{ storeService.storeSettings().imprint.city }}</p>
           <p class="pt-1 text-slate-300 font-medium flex items-center gap-1">
             <span>E-Mail:</span>
-            <a [href]="'mailto:' + storeService.storeSettings().imprint.email" class="hover:underline text-slate-200">
+            <a
+              [href]="'mailto:' + storeService.storeSettings().imprint.email"
+              class="hover:underline text-slate-200"
+            >
               {{ storeService.storeSettings().imprint.email }}
             </a>
           </p>
@@ -191,8 +262,12 @@
       </div>
 
       <!-- Bottom Disclaimer & Copyright -->
-      <div class="pt-6 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-3 text-[11px] text-slate-500">
-        <span>© {{ storeService.storeSettings().storeName }} • Betrieben mit ReFlip Reselling OS</span>
+      <div
+        class="pt-6 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-3 text-[11px] text-slate-500"
+      >
+        <span
+          >© {{ storeService.storeSettings().storeName }} • Betrieben mit ReFlip Reselling OS</span
+        >
         <div class="flex items-center gap-4">
           <span class="hover:text-slate-300 cursor-pointer">Datenschutz</span>
           <span>•</span>

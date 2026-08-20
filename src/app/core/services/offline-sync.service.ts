@@ -194,7 +194,7 @@ export class OfflineSyncService {
     } catch {}
   }
 
-  startCashSession(startAmount: number, locationName: string = 'Flohmarkt'): void {
+  startCashSession(startAmount: number, locationName = 'Flohmarkt'): void {
     const session: CashWalletSession = {
       isActive: true,
       startCash: startAmount,

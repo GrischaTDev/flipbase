@@ -9,7 +9,7 @@ export class RealProductImageService {
   /**
    * Fetches real live product photographs for any search query using public media APIs.
    */
-  async fetchRealImagesForQuery(query: string, limit: number = 30): Promise<string[]> {
+  async fetchRealImagesForQuery(query: string, limit = 30): Promise<string[]> {
     const trimmed = query.trim();
     if (!trimmed) return [];
 

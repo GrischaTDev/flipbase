@@ -87,6 +87,7 @@ src/app/
 ## 3. 🔄 Kern-Datenflüsse
 
 ### 1. Einkauf & Kostenallokation
+
 ```mermaid
 graph LR
     P[Einkauf erfasst] -->|Single, Lot, Palette| PS[PurchaseService]
@@ -95,6 +96,7 @@ graph LR
 ```
 
 ### 2. Verkauf & § 25a Differenzbesteuerung
+
 ```mermaid
 graph LR
     INV[Inventar: ready] -->|Verkauf erfassen| SS[SalesService]
@@ -104,6 +106,7 @@ graph LR
 ```
 
 ### 3. Retoure & Gutschriften-Abwicklung
+
 ```mermaid
 graph LR
     SS[Verkauf] -->|Kunde reklamiert/widerruft| RS[ReturnService]
@@ -112,6 +115,7 @@ graph LR
 ```
 
 ### 4. Packtisch & Intelligente Paket-Bündelung
+
 ```mermaid
 graph LR
     ORD1[Bestellung 1] & ORD2[Bestellung 2] -->|Gleicher Käufer erkannt| FS[FulfillmentService]
@@ -123,6 +127,6 @@ graph LR
 
 ## 4. 🧪 Test- & Qualitätsstandards
 
-* **Test-Suite**: Vitest mit **22/22 Test-Dateien und 86/86 Tests (100% Pass-Rate)**.
-* **TypeScript Strict Mode**: 100% typsicher ohne implizite oder unbegründete `any`-Typen.
-* **Build-Stabilität**: Saubere Kompilierung über `ng build` ohne Warnungen.
+- **Test-Suite**: Vitest mit **22/22 Test-Dateien und 86/86 Tests (100% Pass-Rate)**.
+- **TypeScript Strict Mode**: 100% typsicher ohne implizite oder unbegründete `any`-Typen.
+- **Build-Stabilität**: Saubere Kompilierung über `ng build` ohne Warnungen.

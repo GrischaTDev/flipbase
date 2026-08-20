@@ -67,7 +67,7 @@ describe('Listing Studio & Multi-Platform Generator (Phase 7)', () => {
       sampleItem,
       'ebay',
       'Bosch Professional Akku-Bohrschrauber GSR 18V-55 Sehr Gut Geprüft',
-      'Beschreibung mit • Aufzählung und DHL Versand'
+      'Beschreibung mit • Aufzählung und DHL Versand',
     );
 
     expect(analysis.score).toBeGreaterThan(60);

@@ -144,4 +144,3 @@ export class HeaderComponent {
     this.isUserDropdownOpen.set(false);
   }
 }
-

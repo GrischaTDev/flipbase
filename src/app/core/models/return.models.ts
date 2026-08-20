@@ -2,12 +2,7 @@ import { InventoryItem, Sale } from './reflip.models';
 import { Invoice } from './invoice.models';
 
 export type ReturnReason =
-  | 'defective'
-  | 'wrong_item'
-  | 'buyer_remorse'
-  | 'not_as_described'
-  | 'lost_in_transit'
-  | 'other';
+  'defective' | 'wrong_item' | 'buyer_remorse' | 'not_as_described' | 'lost_in_transit' | 'other';
 
 export type RestockAction = 'restock_ready' | 'restock_repair' | 'write_off' | 'keep_with_buyer';
 

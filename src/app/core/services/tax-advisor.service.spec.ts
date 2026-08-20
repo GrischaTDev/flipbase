@@ -74,8 +74,16 @@ describe('TaxAdvisorService & DATEV Export Engine (Chapter 24)', () => {
       2026,
       '08',
       sampleTaxResults,
-      [{ id: 'p1', purchase_price: 300, shipping_cost: 0, purchase_date: '2026-08-01', status: 'active' } as Purchase],
-      [{ id: 's1', sale_price: 450, platform_fee: 15, shipping_cost: 5 } as Sale]
+      [
+        {
+          id: 'p1',
+          purchase_price: 300,
+          shipping_cost: 0,
+          purchase_date: '2026-08-01',
+          status: 'active',
+        } as Purchase,
+      ],
+      [{ id: 's1', sale_price: 450, platform_fee: 15, shipping_cost: 5 } as Sale],
     );
 
     expect(report.grossRevenue).toBe(650);

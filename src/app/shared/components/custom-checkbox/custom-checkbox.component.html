@@ -30,8 +30,12 @@
     [class.shadow-sm]="checked() || indeterminate()"
     [class.bg-rf-well]="!checked() && !indeterminate()"
     [class.border-rf-border-hover]="!checked() && !indeterminate()"
-    [class.group-hover:border-emerald-500]="!checked() && !indeterminate() && !effectiveDisabled() && color() === 'emerald'"
-    [class.group-hover:border-indigo-400]="!checked() && !indeterminate() && !effectiveDisabled() && color() === 'indigo'"
+    [class.group-hover:border-emerald-500]="
+      !checked() && !indeterminate() && !effectiveDisabled() && color() === 'emerald'
+    "
+    [class.group-hover:border-indigo-400]="
+      !checked() && !indeterminate() && !effectiveDisabled() && color() === 'indigo'
+    "
     [class.group-hover:bg-rf-subtle]="!checked() && !indeterminate() && !effectiveDisabled()"
   >
     @if (checked() && !indeterminate()) {

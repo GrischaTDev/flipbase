@@ -5,7 +5,9 @@
         <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
           {{ 'NAV.SOURCES_SUPPLIERS' | translate }}
         </h1>
-        <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-surface-alt text-rf-text-secondary border border-rf-line">
+        <span
+          class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-surface-alt text-rf-text-secondary border border-rf-line"
+        >
           Management
         </span>
       </div>
@@ -69,8 +71,14 @@
 
   <!-- Add Source Form -->
   @if (isAddingSource() && activeTab() === 'sources') {
-    <form [formGroup]="sourceForm" (ngSubmit)="onAddSource()" class="p-4 linear-surface rounded-xl space-y-3 animate-fade-in border-emerald-500/40">
-      <h3 class="text-xs font-bold uppercase tracking-wider text-rf-text-secondary">Neue Einkaufsquelle hinzufügen</h3>
+    <form
+      [formGroup]="sourceForm"
+      (ngSubmit)="onAddSource()"
+      class="p-4 linear-surface rounded-xl space-y-3 animate-fade-in border-emerald-500/40"
+    >
+      <h3 class="text-xs font-bold uppercase tracking-wider text-rf-text-secondary">
+        Neue Einkaufsquelle hinzufügen
+      </h3>
       <div class="flex flex-col sm:flex-row gap-2.5">
         <input
           type="text"
@@ -100,8 +108,14 @@
 
   <!-- Add Supplier Form -->
   @if (isAddingSupplier() && activeTab() === 'suppliers') {
-    <form [formGroup]="supplierForm" (ngSubmit)="onAddSupplier()" class="p-4 linear-surface rounded-xl space-y-3 animate-fade-in border-emerald-500/40">
-      <h3 class="text-xs font-bold uppercase tracking-wider text-rf-text-secondary">Neuen Lieferanten erfassen</h3>
+    <form
+      [formGroup]="supplierForm"
+      (ngSubmit)="onAddSupplier()"
+      class="p-4 linear-surface rounded-xl space-y-3 animate-fade-in border-emerald-500/40"
+    >
+      <h3 class="text-xs font-bold uppercase tracking-wider text-rf-text-secondary">
+        Neuen Lieferanten erfassen
+      </h3>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <input
           type="text"
@@ -147,7 +161,9 @@
       @for (src of sourcesService.sources(); track src.id) {
         <div class="linear-card p-3.5 rounded-xl flex items-center justify-between">
           <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+            <div
+              class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
+            >
               <lucide-icon [img]="storeIcon" class="w-4 h-4"></lucide-icon>
             </div>
             <div>
@@ -180,7 +196,9 @@
           <div class="linear-card p-3.5 rounded-xl space-y-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <div class="w-7 h-7 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center">
+                <div
+                  class="w-7 h-7 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center"
+                >
                   <lucide-icon [img]="buildingIcon" class="w-3.5 h-3.5"></lucide-icon>
                 </div>
                 <h3 class="text-xs font-semibold text-rf-text-primary">{{ sup.name }}</h3>
@@ -200,7 +218,9 @@
             }
 
             @if (sup.notes) {
-              <p class="text-[10px] text-rf-text-muted bg-rf-well border border-rf-line p-2 rounded-lg">
+              <p
+                class="text-[10px] text-rf-text-muted bg-rf-well border border-rf-line p-2 rounded-lg"
+              >
                 {{ sup.notes }}
               </p>
             }
@@ -209,12 +229,15 @@
       </div>
     } @else {
       <div class="linear-surface rounded-xl p-10 text-center">
-        <div class="w-10 h-10 rounded-lg bg-rf-well border border-rf-line text-rf-text-muted mx-auto flex items-center justify-center mb-3">
+        <div
+          class="w-10 h-10 rounded-lg bg-rf-well border border-rf-line text-rf-text-muted mx-auto flex items-center justify-center mb-3"
+        >
           <lucide-icon [img]="usersIcon" class="w-5 h-5"></lucide-icon>
         </div>
         <h3 class="text-sm font-bold text-rf-text-secondary">Noch keine Lieferanten angelegt</h3>
         <p class="text-xs text-rf-text-muted max-w-sm mx-auto mt-1 mb-4">
-          Speichere feste Lieferanten, Retourenhändler oder Kleinanzeigen-Verkäufer, um deren Qualität auszuwerten.
+          Speichere feste Lieferanten, Retourenhändler oder Kleinanzeigen-Verkäufer, um deren
+          Qualität auszuwerten.
         </p>
         <button
           type="button"

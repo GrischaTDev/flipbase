@@ -1,8 +1,28 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { AbstractControl, FormControl, FormGroup, ReactiveFormsModule, ValidationErrors, ValidatorFn, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  ValidationErrors,
+  ValidatorFn,
+  Validators,
+} from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { LucideAngularModule, UserPlus, Sparkles, Mail, Lock, User, Eye, EyeOff, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-angular';
+import {
+  LucideAngularModule,
+  UserPlus,
+  Sparkles,
+  Mail,
+  Lock,
+  User,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  ShieldCheck,
+  AlertCircle,
+} from 'lucide-angular';
 import { AuthService } from '../../../core/services/auth.service';
 import { CustomCheckboxComponent } from '../../../shared/components/custom-checkbox/custom-checkbox.component';
 
@@ -16,7 +36,13 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
 
 @Component({
   selector: 'app-register',
-  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, LucideAngularModule, CustomCheckboxComponent],
+  imports: [
+    ReactiveFormsModule,
+    RouterLink,
+    TranslatePipe,
+    LucideAngularModule,
+    CustomCheckboxComponent,
+  ],
   templateUrl: './register.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -45,8 +71,14 @@ export class RegisterComponent {
 
   readonly form = new FormGroup(
     {
-      fullName: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
-      email: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.email] }),
+      fullName: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.required, Validators.minLength(2)],
+      }),
+      email: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.required, Validators.email],
+      }),
       password: new FormControl('', {
         nonNullable: true,
         validators: [Validators.required, Validators.minLength(8)],
@@ -60,7 +92,7 @@ export class RegisterComponent {
         validators: [Validators.requiredTrue],
       }),
     },
-    { validators: [passwordMatchValidator] }
+    { validators: [passwordMatchValidator] },
   );
 
   // Dynamic Password Strength calculation
@@ -83,12 +115,27 @@ export class RegisterComponent {
     if (/\d/.test(val) || /[^A-Za-z0-9]/.test(val)) score++;
 
     if (score <= 1) {
-      return { score: 1, labelKey: 'AUTH.PASSWORD_STRENGTH_WEAK', colorClass: 'bg-rose-500', widthClass: 'w-1/3' };
+      return {
+        score: 1,
+        labelKey: 'AUTH.PASSWORD_STRENGTH_WEAK',
+        colorClass: 'bg-rose-500',
+        widthClass: 'w-1/3',
+      };
     }
     if (score === 2) {
-      return { score: 2, labelKey: 'AUTH.PASSWORD_STRENGTH_MEDIUM', colorClass: 'bg-amber-500', widthClass: 'w-2/3' };
+      return {
+        score: 2,
+        labelKey: 'AUTH.PASSWORD_STRENGTH_MEDIUM',
+        colorClass: 'bg-amber-500',
+        widthClass: 'w-2/3',
+      };
     }
-    return { score: 3, labelKey: 'AUTH.PASSWORD_STRENGTH_STRONG', colorClass: 'bg-emerald-500', widthClass: 'w-full' };
+    return {
+      score: 3,
+      labelKey: 'AUTH.PASSWORD_STRENGTH_STRONG',
+      colorClass: 'bg-emerald-500',
+      widthClass: 'w-full',
+    };
   });
 
   constructor() {

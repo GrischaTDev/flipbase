@@ -5,19 +5,26 @@
       <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
         {{ 'NAV.DEAL_CALCULATOR' | translate }}
       </h1>
-      <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-secondary border border-rf-border">
+      <span
+        class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-secondary border border-rf-border"
+      >
         100% Deterministisch
       </span>
     </div>
     <p class="text-xs text-rf-text-muted mt-0.5">
-      Prüfe vor dem Kauf exakt, ob sich ein Deal lohnt – unter Berücksichtigung aller Plattformgebühren, Reparaturen und Steuern.
+      Prüfe vor dem Kauf exakt, ob sich ein Deal lohnt – unter Berücksichtigung aller
+      Plattformgebühren, Reparaturen und Steuern.
     </p>
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
     <!-- Left Column: Input Form (7 cols) -->
     <div class="lg:col-span-7 space-y-4">
-      <form [formGroup]="form" (ngSubmit)="runCalculation()" class="linear-surface rounded-xl p-4 md:p-5 space-y-4">
+      <form
+        [formGroup]="form"
+        (ngSubmit)="runCalculation()"
+        class="linear-surface rounded-xl p-4 md:p-5 space-y-4"
+      >
         <div class="flex items-center justify-between border-b border-rf-border pb-2">
           <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-secondary">
             Parameter des Deals
@@ -35,7 +42,10 @@
         </div>
 
         <div>
-          <label for="productTitle" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+          <label
+            for="productTitle"
+            class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+          >
             Artikel / Titel
           </label>
           <input
@@ -51,7 +61,10 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Asking Price -->
           <div>
-            <label for="askingPriceInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              for="askingPriceInput"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               Verkaufspreis des Anbieters (EK in €)
             </label>
             <input
@@ -66,7 +79,10 @@
 
           <!-- Fair Market Value -->
           <div>
-            <label for="marketValueInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              for="marketValueInput"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               Erwarteter Verkaufspreis (€)
             </label>
             <input
@@ -83,7 +99,10 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <!-- Estimated Costs -->
           <div>
-            <label for="estimatedCostsInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              for="estimatedCostsInput"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               Nebenkosten (Versand, Fahrt, Teile in €)
             </label>
             <input
@@ -98,7 +117,10 @@
 
           <!-- Condition -->
           <div>
-            <label for="conditionSelect" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              for="conditionSelect"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               Zustand
             </label>
             <select
@@ -131,7 +153,11 @@
           [class.border-rose-500/40]="evalRes.expectedProfit <= 0"
         >
           <div class="flex items-center justify-between">
-            <span class="text-xs font-bold uppercase tracking-wider" [class.text-emerald-400]="evalRes.expectedProfit > 0" [class.text-rose-400]="evalRes.expectedProfit <= 0">
+            <span
+              class="text-xs font-bold uppercase tracking-wider"
+              [class.text-emerald-400]="evalRes.expectedProfit > 0"
+              [class.text-rose-400]="evalRes.expectedProfit <= 0"
+            >
               Score: {{ evalRes.dealScore }}/100
             </span>
 
@@ -147,11 +173,22 @@
           </div>
 
           <div class="space-y-1">
-            <span class="text-[10px] font-semibold text-rf-text-muted uppercase tracking-wider block">Erwarteter Nettogewinn</span>
-            <div class="text-3xl font-black font-mono tracking-tight" [class.text-emerald-400]="evalRes.expectedProfit > 0" [class.text-rose-400]="evalRes.expectedProfit <= 0">
-              {{ evalRes.expectedProfit | currency:'EUR':'symbol':'1.2-2':'de' }}
+            <span
+              class="text-[10px] font-semibold text-rf-text-muted uppercase tracking-wider block"
+              >Erwarteter Nettogewinn</span
+            >
+            <div
+              class="text-3xl font-black font-mono tracking-tight"
+              [class.text-emerald-400]="evalRes.expectedProfit > 0"
+              [class.text-rose-400]="evalRes.expectedProfit <= 0"
+            >
+              {{ evalRes.expectedProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
             </div>
-            <span class="text-xs font-mono font-bold" [class.text-emerald-400]="evalRes.expectedProfit > 0" [class.text-rose-400]="evalRes.expectedProfit <= 0">
+            <span
+              class="text-xs font-mono font-bold"
+              [class.text-emerald-400]="evalRes.expectedProfit > 0"
+              [class.text-rose-400]="evalRes.expectedProfit <= 0"
+            >
               ROI: {{ evalRes.expectedRoiPercent }}% | Vertrauen: {{ evalRes.confidenceScore }}%
             </span>
           </div>
@@ -159,11 +196,15 @@
           <div class="pt-3 border-t border-rf-border space-y-2 text-xs font-mono">
             <div class="flex justify-between text-rf-text-secondary">
               <span class="font-sans">Gesamtkosten:</span>
-              <strong>{{ evalRes.expectedCosts | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+              <strong>{{
+                evalRes.expectedCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+              }}</strong>
             </div>
             <div class="flex justify-between text-rf-text-secondary">
               <span class="font-sans">Empfohlener Listenpreis:</span>
-              <span>{{ evalRes.recommendedListingPrice | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+              <span>{{
+                evalRes.recommendedListingPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+              }}</span>
             </div>
           </div>
         </div>
@@ -172,15 +213,18 @@
         <div class="linear-surface rounded-xl p-4 space-y-2 font-mono">
           <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
             <lucide-icon [img]="sparklesIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
-            <h3 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary font-sans">Maximaler Einkaufspreis</h3>
+            <h3 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary font-sans">
+              Maximaler Einkaufspreis
+            </h3>
           </div>
 
           <p class="text-[11px] text-rf-text-muted font-sans leading-relaxed">
-            Um deine Ziel-Margen und Mindestgewinne sicher einzuhalten, darfst du für diesen Artikel maximal zahlen:
+            Um deine Ziel-Margen und Mindestgewinne sicher einzuhalten, darfst du für diesen Artikel
+            maximal zahlen:
           </p>
 
           <div class="text-2xl font-bold text-emerald-400 pt-1">
-            {{ evalRes.maxBuyPrice | currency:'EUR':'symbol':'1.2-2':'de' }}
+            {{ evalRes.maxBuyPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </div>
         </div>
       }

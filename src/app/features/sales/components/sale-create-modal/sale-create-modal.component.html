@@ -9,7 +9,9 @@
   >
     <div class="flex items-center justify-between p-5 border-b border-rf-line bg-rf-well shrink-0">
       <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center">
+        <div
+          class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
+        >
           <lucide-icon [img]="trendingIcon" class="w-4 h-4"></lucide-icon>
         </div>
         <div>
@@ -34,183 +36,217 @@
         </div>
       }
 
-    <!-- Live Calculation Ribbon (Kapitel 26) -->
-    <div class="p-3.5 mb-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
-      <div>
-        <span class="text-[10px] uppercase font-sans font-semibold text-rf-text-muted block">Gesamtkosten</span>
-        <strong class="text-rf-text-primary text-sm">
-          {{ liveMetrics().totalCosts | currency:'EUR':'symbol':'1.2-2':'de' }}
-        </strong>
-      </div>
-
-      <div>
-        <span class="text-[10px] uppercase font-sans font-semibold text-emerald-400 block">Realisierter Gewinn</span>
-        <strong class="text-emerald-400 text-sm">
-          {{ liveMetrics().profit | currency:'EUR':'symbol':'1.2-2':'de' }}
-        </strong>
-      </div>
-
-      <div>
-        <span class="text-[10px] uppercase font-sans font-semibold text-emerald-400 block">ROI</span>
-        <strong class="text-emerald-400 text-sm">
-          {{ liveMetrics().roi }} %
-        </strong>
-      </div>
-
-      <div>
-        <span class="text-[10px] uppercase font-sans font-semibold text-rf-text-muted block">Haltedauer</span>
-        <strong class="text-rf-text-primary text-sm">
-          {{ liveMetrics().holdingDays }} Tage
-        </strong>
-      </div>
-    </div>
-
-    <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-3.5">
-      <!-- 1. Artikel auswählen -->
-      <div>
-        <label for="saleItem" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
-          Verkaufter Artikel
-        </label>
-        <select
-          id="saleItem"
-          formControlName="inventory_item_id"
-          (change)="updateLiveCalculation()"
-          class="linear-input w-full px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-rf-text-secondary"
-        >
-          <option value="">-- Artikel aus Inventar auswählen --</option>
-          @for (item of availableItems(); track item.id) {
-            <option [value]="item.id">
-              {{ item.title }} (EK: {{ item.total_item_cost | currency:'EUR':'symbol':'1.2-2':'de' }})
-            </option>
-          }
-        </select>
-      </div>
-
-      <!-- 2. Verkaufspreis & Plattform & Datum -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+      <!-- Live Calculation Ribbon (Kapitel 26) -->
+      <div
+        class="p-3.5 mb-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono"
+      >
         <div>
-          <label for="salePrice" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
-            Verkaufspreis (€)
-          </label>
-          <input
-            id="salePrice"
-            type="number"
-            formControlName="sale_price"
-            (input)="updateLiveCalculation()"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400"
-          />
+          <span class="text-[10px] uppercase font-sans font-semibold text-rf-text-muted block"
+            >Gesamtkosten</span
+          >
+          <strong class="text-rf-text-primary text-sm">
+            {{ liveMetrics().totalCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+          </strong>
         </div>
 
         <div>
-          <label for="salePlatform" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
-            Verkaufsplattform
+          <span class="text-[10px] uppercase font-sans font-semibold text-emerald-400 block"
+            >Realisierter Gewinn</span
+          >
+          <strong class="text-emerald-400 text-sm">
+            {{ liveMetrics().profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+          </strong>
+        </div>
+
+        <div>
+          <span class="text-[10px] uppercase font-sans font-semibold text-emerald-400 block"
+            >ROI</span
+          >
+          <strong class="text-emerald-400 text-sm"> {{ liveMetrics().roi }} % </strong>
+        </div>
+
+        <div>
+          <span class="text-[10px] uppercase font-sans font-semibold text-rf-text-muted block"
+            >Haltedauer</span
+          >
+          <strong class="text-rf-text-primary text-sm">
+            {{ liveMetrics().holdingDays }} Tage
+          </strong>
+        </div>
+      </div>
+
+      <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-3.5">
+        <!-- 1. Artikel auswählen -->
+        <div>
+          <label
+            for="saleItem"
+            class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+          >
+            Verkaufter Artikel
           </label>
           <select
-            id="salePlatform"
-            formControlName="platform"
+            id="saleItem"
+            formControlName="inventory_item_id"
             (change)="updateLiveCalculation()"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
+            class="linear-input w-full px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-rf-text-secondary"
           >
-            <option value="kleinanzeigen">Kleinanzeigen (0% Gebühr)</option>
-            <option value="ebay">eBay (~11% Gebühr)</option>
-            <option value="vinted">Vinted (0% Verkäufer)</option>
-            <option value="direct">Direktverkauf (0%)</option>
-            <option value="other">Andere</option>
+            <option value="">-- Artikel aus Inventar auswählen --</option>
+            @for (item of availableItems(); track item.id) {
+              <option [value]="item.id">
+                {{ item.title }} (EK:
+                {{ item.total_item_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }})
+              </option>
+            }
           </select>
         </div>
 
+        <!-- 2. Verkaufspreis & Plattform & Datum -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div>
+            <label
+              for="salePrice"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
+              Verkaufspreis (€)
+            </label>
+            <input
+              id="salePrice"
+              type="number"
+              formControlName="sale_price"
+              (input)="updateLiveCalculation()"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400"
+            />
+          </div>
+
+          <div>
+            <label
+              for="salePlatform"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
+              Verkaufsplattform
+            </label>
+            <select
+              id="salePlatform"
+              formControlName="platform"
+              (change)="updateLiveCalculation()"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-rf-text-secondary"
+            >
+              <option value="kleinanzeigen">Kleinanzeigen (0% Gebühr)</option>
+              <option value="ebay">eBay (~11% Gebühr)</option>
+              <option value="vinted">Vinted (0% Verkäufer)</option>
+              <option value="direct">Direktverkauf (0%)</option>
+              <option value="other">Andere</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              for="saleDate"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
+              Verkaufsdatum
+            </label>
+            <input
+              id="saleDate"
+              type="date"
+              formControlName="sale_date"
+              (input)="updateLiveCalculation()"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono"
+            />
+          </div>
+        </div>
+
+        <!-- 3. Gebühren & Versandkosten -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          <div>
+            <label
+              for="saleFee"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
+              Plattformgebühr (€)
+            </label>
+            <input
+              id="saleFee"
+              type="number"
+              formControlName="platform_fees"
+              (input)="updateLiveCalculation()"
+              placeholder="0.00"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
+            />
+          </div>
+
+          <div>
+            <label
+              for="saleShippingOut"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
+              Versandkosten (€)
+            </label>
+            <input
+              id="saleShippingOut"
+              type="number"
+              formControlName="shipping_costs"
+              (input)="updateLiveCalculation()"
+              placeholder="0.00"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
+            />
+          </div>
+
+          <div>
+            <label
+              for="salePaymentFees"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
+              Zahlungsgebühren (€)
+            </label>
+            <input
+              id="salePaymentFees"
+              type="number"
+              formControlName="payment_fees"
+              (input)="updateLiveCalculation()"
+              placeholder="0.00"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
+            />
+          </div>
+        </div>
+
+        <!-- 4. Notizen -->
         <div>
-          <label for="saleDate" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
-            Verkaufsdatum
+          <label
+            for="saleNotes"
+            class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+          >
+            Notizen zum Verkauf (optional)
           </label>
           <input
-            id="saleDate"
-            type="date"
-            formControlName="sale_date"
-            (input)="updateLiveCalculation()"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono"
-          />
-        </div>
-      </div>
-
-      <!-- 3. Gebühren & Versandkosten -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-        <div>
-          <label for="saleFee" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
-            Plattformgebühr (€)
-          </label>
-          <input
-            id="saleFee"
-            type="number"
-            formControlName="platform_fees"
-            (input)="updateLiveCalculation()"
-            placeholder="0.00"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
+            id="saleNotes"
+            type="text"
+            formControlName="notes"
+            placeholder="z.B. Käufer hat bar bei Abholung bezahlt..."
+            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
           />
         </div>
 
-        <div>
-          <label for="saleShippingOut" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
-            Versandkosten (€)
-          </label>
-          <input
-            id="saleShippingOut"
-            type="number"
-            formControlName="shipping_costs"
-            (input)="updateLiveCalculation()"
-            placeholder="0.00"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
-          />
+        <!-- Actions -->
+        <div class="flex justify-end gap-2.5 pt-3 border-t border-rf-line">
+          <button
+            type="button"
+            (click)="close.emit()"
+            class="linear-btn-secondary px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+          >
+            Abbrechen
+          </button>
+
+          <button
+            type="submit"
+            [disabled]="form.invalid || isSubmitting()"
+            class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+          >
+            <lucide-icon [img]="trendingIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <span>{{ isSubmitting() ? 'Speichere...' : 'Verkauf abschließen' }}</span>
+          </button>
         </div>
-
-        <div>
-          <label for="salePaymentFees" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
-            Zahlungsgebühren (€)
-          </label>
-          <input
-            id="salePaymentFees"
-            type="number"
-            formControlName="payment_fees"
-            (input)="updateLiveCalculation()"
-            placeholder="0.00"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
-          />
-        </div>
-      </div>
-
-      <!-- 4. Notizen -->
-      <div>
-        <label for="saleNotes" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
-          Notizen zum Verkauf (optional)
-        </label>
-        <input
-          id="saleNotes"
-          type="text"
-          formControlName="notes"
-          placeholder="z.B. Käufer hat bar bei Abholung bezahlt..."
-          class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
-        />
-      </div>
-
-      <!-- Actions -->
-      <div class="flex justify-end gap-2.5 pt-3 border-t border-rf-line">
-        <button
-          type="button"
-          (click)="close.emit()"
-          class="linear-btn-secondary px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
-        >
-          Abbrechen
-        </button>
-
-        <button
-          type="submit"
-          [disabled]="form.invalid || isSubmitting()"
-          class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
-        >
-          <lucide-icon [img]="trendingIcon" class="w-3.5 h-3.5"></lucide-icon>
-          <span>{{ isSubmitting() ? 'Speichere...' : 'Verkauf abschließen' }}</span>
-        </button>
-      </div>
-    </form>
+      </form>
+    </div>
   </div>
 </div>

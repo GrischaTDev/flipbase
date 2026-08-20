@@ -31,7 +31,9 @@ describe('DATEV-Buchungsstapel & Steuerberechnung', () => {
     engine = runInInjectionContext(injector, () => new TaxEngineService());
   });
 
-  const ergebnis = (ueberschreibungen: Partial<TaxCalculationResult> = {}): TaxCalculationResult => ({
+  const ergebnis = (
+    ueberschreibungen: Partial<TaxCalculationResult> = {},
+  ): TaxCalculationResult => ({
     sale_id: 'a1b2c3d4-e5f6-0000-0000-000000000001',
     item_title: 'Sony PlayStation 5',
     sale_date: '2026-08-17',
@@ -51,14 +53,20 @@ describe('DATEV-Buchungsstapel & Steuerberechnung', () => {
   /** Zerlegt den erzeugten Stapel in Kopfzeile, Spaltenüberschriften und Buchungen. */
   const zerlege = (csv: string) => {
     const zeilen = csv.split('\r\n');
-    return { kopf: zeilen[0].split(';'), spalten: zeilen[1].split(';'), buchungen: zeilen.slice(2) };
+    return {
+      kopf: zeilen[0].split(';'),
+      spalten: zeilen[1].split(';'),
+      buchungen: zeilen.slice(2),
+    };
   };
 
   describe('Belegdatum (Audit 4.3)', () => {
     it('schreibt das Datum als TTMM, nicht als MMTT', () => {
       // 2026-08-17 muss als "1708" erscheinen (17. August).
       // Zuvor stand dort "0817" - das liest DATEV als Tag 08, Monat 17.
-      const { buchungen } = zerlege(engine.generateDatevCsv([ergebnis({ sale_date: '2026-08-17' })]));
+      const { buchungen } = zerlege(
+        engine.generateDatevCsv([ergebnis({ sale_date: '2026-08-17' })]),
+      );
       const felder = buchungen[0].split(';');
       const belegdatum = felder[engine.datevSpalten.indexOf('Belegdatum')];
 
@@ -66,7 +74,9 @@ describe('DATEV-Buchungsstapel & Steuerberechnung', () => {
     });
 
     it('füllt einstellige Tage und Monate auf zwei Stellen auf', () => {
-      const { buchungen } = zerlege(engine.generateDatevCsv([ergebnis({ sale_date: '2026-03-05' })]));
+      const { buchungen } = zerlege(
+        engine.generateDatevCsv([ergebnis({ sale_date: '2026-03-05' })]),
+      );
       const felder = buchungen[0].split(';');
 
       expect(felder[engine.datevSpalten.indexOf('Belegdatum')]).toBe('0503');
@@ -87,7 +97,7 @@ describe('DATEV-Buchungsstapel & Steuerberechnung', () => {
     });
 
     it('nutzt je Steuermodus das richtige Erlöskonto', () => {
-      const faelle: ReadonlyArray<[TaxCalculationResult['tax_mode'], string]> = [
+      const faelle: readonly [TaxCalculationResult['tax_mode'], string][] = [
         ['diff_25a', '8200'],
         ['kleinunternehmer_19', '8195'],
         ['regular_19', '8400'],

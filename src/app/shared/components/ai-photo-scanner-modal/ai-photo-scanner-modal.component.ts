@@ -21,7 +21,10 @@ import {
   ShieldCheck,
   Zap,
 } from 'lucide-angular';
-import { AiAssistantService, AiVisualScanResult } from '../../../core/services/ai-assistant.service';
+import {
+  AiAssistantService,
+  AiVisualScanResult,
+} from '../../../core/services/ai-assistant.service';
 import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 
 @Component({
@@ -75,7 +78,9 @@ export class AiPhotoScannerModalComponent implements OnDestroy {
         this.isCameraActive.set(true);
       }
     } catch {
-      this.cameraError.set('Kamerazugriff wurde abgelehnt oder ist auf diesem Gerät nicht verfügbar.');
+      this.cameraError.set(
+        'Kamerazugriff wurde abgelehnt oder ist auf diesem Gerät nicht verfügbar.',
+      );
       this.activeTab.set('upload');
     }
   }

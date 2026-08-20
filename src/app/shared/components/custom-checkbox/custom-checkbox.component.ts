@@ -45,9 +45,7 @@ export class CustomCheckboxComponent implements ControlValueAccessor {
   private onChange: (value: boolean) => void = () => {};
   private onTouched: () => void = () => {};
 
-  readonly effectiveDisabled = computed(
-    () => this.disabledInput() || this.isDisabled()
-  );
+  readonly effectiveDisabled = computed(() => this.disabledInput() || this.isDisabled());
 
   // ControlValueAccessor methods
   writeValue(obj: boolean | null): void {

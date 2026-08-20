@@ -24,7 +24,7 @@ describe('SyncStatusService – sichtbare Meldung fehlgeschlagener Speichervorg�
   });
 
   describe('Übersetzung technischer Fehler', () => {
-    const faelle: ReadonlyArray<[string, unknown, string]> = [
+    const faelle: readonly [string, unknown, string][] = [
       ['fehlende Berechtigung', { code: '42501' }, 'Keine Berechtigung'],
       ['doppelter Eintrag', { code: '23505' }, 'existiert bereits'],
       ['fehlende Verknüpfung', { code: '23503' }, 'verknüpfter Datensatz'],

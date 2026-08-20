@@ -1,11 +1,11 @@
 # 🔍 ReFlip – Vollständiger Projekt-Audit
 
-| | |
-|---|---|
-| **Datum** | 2026-08-19 |
-| **Durchgeführt von** | Claude Opus 5 (Anthropic) – KI-Assistent |
-| **Stand** | Branch `master`, letzter Commit `0fa228f`, plus 50 uncommittete Änderungen im Arbeitsverzeichnis |
-| **Umfang** | Doku, Build, Tests, Angular-Code, Supabase/Datenbank, Docker, UI & Barrierefreiheit |
+|                      |                                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------ |
+| **Datum**            | 2026-08-19                                                                                       |
+| **Durchgeführt von** | Claude Opus 5 (Anthropic) – KI-Assistent                                                         |
+| **Stand**            | Branch `master`, letzter Commit `0fa228f`, plus 50 uncommittete Änderungen im Arbeitsverzeichnis |
+| **Umfang**           | Doku, Build, Tests, Angular-Code, Supabase/Datenbank, Docker, UI & Barrierefreiheit              |
 
 ---
 
@@ -25,13 +25,13 @@ Dazu kommt: Die Doku beschreibt Dinge als "live", die in Wirklichkeit simuliert 
 
 ## 1. Zustand von Build & Tests (gemessen, nicht geschätzt)
 
-| Prüfung | Ergebnis |
-|---|---|
-| `npx ng build` | ❌ **FEHLGESCHLAGEN** – 2 × `TS7053` |
-| `npx vitest run` | ✅ 24 Test-Dateien, 96 Tests bestanden (1,58 s) |
-| Test-Abdeckung UI | ❌ 0 Komponenten-Tests – nur Services |
-| ESLint | ❌ nicht vorhanden |
-| CI (`.github/workflows/ci.yml`) | ⚠️ baut nur, führt **keine Tests** aus |
+| Prüfung                         | Ergebnis                                        |
+| ------------------------------- | ----------------------------------------------- |
+| `npx ng build`                  | ❌ **FEHLGESCHLAGEN** – 2 × `TS7053`            |
+| `npx vitest run`                | ✅ 24 Test-Dateien, 96 Tests bestanden (1,58 s) |
+| Test-Abdeckung UI               | ❌ 0 Komponenten-Tests – nur Services           |
+| ESLint                          | ❌ nicht vorhanden                              |
+| CI (`.github/workflows/ci.yml`) | ⚠️ baut nur, führt **keine Tests** aus          |
 
 ### 1.1 Die konkreten Build-Fehler
 
@@ -57,6 +57,7 @@ Ursache: In der `@for`-Schleife läuft `step` als `string` über ein Array von L
 ### 2.2 Der Guard wäre auch eingehängt wirkungslos
 
 `src/app/core/services/auth.service.ts:29`
+
 ```ts
 readonly isDemoUser = signal<boolean>(true);              // Standard: true
 readonly isAuthenticated = computed(() => !!this.currentUser() || this.isDemoUser());
@@ -67,10 +68,11 @@ readonly isAuthenticated = computed(() => !!this.currentUser() || this.isDemoUse
 ### 2.3 Login-Fallback lässt jeden rein
 
 `auth.service.ts` in `signIn()`:
+
 ```ts
 if (!res || res.error) {
   if (email.toLowerCase().includes('demo') || !res) {
-    this.loginAsDemo();          // <- Erfolg zurückgeben, ohne Passwortprüfung
+    this.loginAsDemo(); // <- Erfolg zurückgeben, ohne Passwortprüfung
     return { error: null };
   }
 }
@@ -81,6 +83,7 @@ Wenn Supabase nicht innerhalb von 1200 ms antwortet (`withTimeout`), ist `res ==
 ### 2.4 Datenbank: Jeder angemeldete Nutzer kann in jeden fremden Workspace
 
 `supabase/migrations/20260816000001_initial_schema.sql`:
+
 ```sql
 CREATE POLICY "Members can insert membership" ON public.workspace_members
 FOR INSERT WITH CHECK (public.is_workspace_member(workspace_id) OR user_id = auth.uid());
@@ -91,6 +94,7 @@ Das `OR user_id = auth.uid()` erlaubt jedem angemeldeten Nutzer, sich selbst in 
 ### 2.5 Storage-Bucket: öffentlich + anonym beschreib- und löschbar
 
 `supabase/migrations/20260817000002_storage_setup.sql`:
+
 - `public = true` → **alle** hochgeladenen Artikelfotos und PDFs sind per URL öffentlich abrufbar, ohne Anmeldung
 - Policy `"Anon users can upload item-media in dev"` → **nicht angemeldete** Besucher dürfen Dateien hochladen (10 MB, auch PDF)
 - Policy `"Anon users can delete item-media in dev"` → **nicht angemeldete** Besucher dürfen **alle** Dateien löschen
@@ -114,7 +118,6 @@ Das `OR user_id = auth.uid()` erlaubt jedem angemeldeten Nutzer, sich selbst in 
 ### 2.10 API-Schlüssel im Frontend-Quellcode
 
 `store.service.ts:35` (`pk_test_reflip_live_sample_key_123`), `fulfillment.service.ts:295/298` (`dhl_sandbox_key_live_2026_demo`). Aktuell reine Platzhalter – aber das Muster lädt dazu ein, später echte Schlüssel dort einzutragen. Alles im Angular-Bundle ist öffentlich lesbar. Geheimnisse gehören ausschließlich in Edge Functions.
-
 
 ### 2.11 🔴 Nachtrag: Der Datenbank fehlten sämtliche Zugriffsrechte – sie hat nie funktioniert
 
@@ -158,8 +161,9 @@ netsh interface ipv4 show excludedportrange protocol=tcp
 ### 3.1 `localStorage` ist die Wahrheit, die Datenbank ist Beiwerk
 
 `inventory.service.ts:83`:
+
 ```ts
-const merged = local ? { ...item, ...local } : item;   // local überschreibt IMMER die DB
+const merged = local ? { ...item, ...local } : item; // local überschreibt IMMER die DB
 ```
 
 Der gleiche Aufbau steckt in `purchase.service.ts` und `sales.service.ts`. Die Konsequenzen:
@@ -178,18 +182,18 @@ Das ist für ein Werkzeug, das Buchhaltung und Steuerdaten verwaltet, das größ
 
 **Ohne jede Tabelle – existiert nur im Browser:**
 
-| Bereich | Betroffene Services |
-|---|---|
-| Retouren & Gutschriften | `return.service.ts` |
-| Versand, Labels, Bündelung | `fulfillment.service.ts` |
-| Webshop, Bestellungen, Zahlungen | `store.service.ts` |
-| Buchhaltung, DATEV, Kanzlei-Paket | `tax-advisor.service.ts` |
-| Bankabgleich | `bank-reconciliation.service.ts` |
-| Konkurrenz-Radar & Preisalarme | `price-tracker.service.ts` |
-| Rechnungen | `invoice.service.ts` |
-| Benachrichtigungen & Webhooks | `webhook.service.ts` |
-| Offline-Warteschlange, Cash Wallet | `offline-sync.service.ts` |
-| Wareneingangs-Tracking | `inbound-tracking.service.ts` |
+| Bereich                            | Betroffene Services              |
+| ---------------------------------- | -------------------------------- |
+| Retouren & Gutschriften            | `return.service.ts`              |
+| Versand, Labels, Bündelung         | `fulfillment.service.ts`         |
+| Webshop, Bestellungen, Zahlungen   | `store.service.ts`               |
+| Buchhaltung, DATEV, Kanzlei-Paket  | `tax-advisor.service.ts`         |
+| Bankabgleich                       | `bank-reconciliation.service.ts` |
+| Konkurrenz-Radar & Preisalarme     | `price-tracker.service.ts`       |
+| Rechnungen                         | `invoice.service.ts`             |
+| Benachrichtigungen & Webhooks      | `webhook.service.ts`             |
+| Offline-Warteschlange, Cash Wallet | `offline-sync.service.ts`        |
+| Wareneingangs-Tracking             | `inbound-tracking.service.ts`    |
 
 20 von 34 Services fassen Supabase überhaupt nicht an.
 
@@ -197,13 +201,13 @@ Das ist für ein Werkzeug, das Buchhaltung und Steuerdaten verwaltet, das größ
 
 Felder, die im TypeScript-Modell existieren, aber **nicht** in der Tabelle:
 
-| Modell | Feld | Tabelle |
-|---|---|---|
-| `Workspace` | `currency`, `tax_mode` | fehlen in `workspaces` |
-| `Source` | `type`, `is_active` | fehlen in `sources` |
-| `WorkspaceMember` | `email`, `full_name`, `joined_at` | fehlen in `workspace_members` |
-| `Purchase` | `tracking_number`, `tracking_carrier`, `tracking_status`, `total_purchase_cost` | fehlen in `purchases` |
-| `InventoryItem` | `tax_mode_override` | fehlt in `inventory_items` |
+| Modell            | Feld                                                                            | Tabelle                       |
+| ----------------- | ------------------------------------------------------------------------------- | ----------------------------- |
+| `Workspace`       | `currency`, `tax_mode`                                                          | fehlen in `workspaces`        |
+| `Source`          | `type`, `is_active`                                                             | fehlen in `sources`           |
+| `WorkspaceMember` | `email`, `full_name`, `joined_at`                                               | fehlen in `workspace_members` |
+| `Purchase`        | `tracking_number`, `tracking_carrier`, `tracking_status`, `total_purchase_cost` | fehlen in `purchases`         |
+| `InventoryItem`   | `tax_mode_override`                                                             | fehlt in `inventory_items`    |
 
 Sobald du wirklich mit Supabase arbeitest, schlagen diese Inserts fehl oder verlieren Felder. `tax_mode_override` wird im Steuermodul aktiv verwendet – der Wert kann derzeit nie dauerhaft gespeichert werden.
 
@@ -224,6 +228,7 @@ Die Doku behauptet „100 % deterministisch", „zentimetergenau", „finanzamts
 ### 4.1 Kostenverteilung verliert Cent-Beträge
 
 `profit-engine.service.ts:51`
+
 ```ts
 allocateCostsEvenly(totalPurchaseCost, itemCount) {
   return Number((totalPurchaseCost / itemCount).toFixed(2));
@@ -232,11 +237,12 @@ allocateCostsEvenly(totalPurchaseCost, itemCount) {
 
 100 € auf 3 Artikel → 33,33 € × 3 = **99,99 €**. Ein Cent verschwindet. Bei einer Palette mit 60 Artikeln fehlen bis zu 60 Cent im Wareneinsatz. Die Summe der zugeordneten Kosten entspricht damit **nie garantiert** dem Einkaufspreis – und genau diese Summe landet im § 25a-Journal und im DATEV-Export.
 
-Richtig wäre: in ganzen Cent rechnen und den Rest auf die ersten *n* Artikel verteilen (Largest-Remainder-Verfahren).
+Richtig wäre: in ganzen Cent rechnen und den Rest auf die ersten _n_ Artikel verteilen (Largest-Remainder-Verfahren).
 
 ### 4.2 Wertgewichtete Verteilung verschluckt den kompletten Einkaufspreis
 
 `profit-engine.service.ts:64`
+
 ```ts
 if (sumAllExpectedValues <= 0) return 0;
 ```
@@ -246,11 +252,12 @@ Wenn bei keinem Artikel ein erwarteter Wert eingetragen ist (der Normalfall bei 
 ### 4.3 DATEV-Export: falsches Datumsformat
 
 `tax-engine.service.ts`
+
 ```ts
-const dateFormatted = r.sale_date.replace(/-/g, '').substring(4, 8);  // ergibt MMTT
+const dateFormatted = r.sale_date.replace(/-/g, '').substring(4, 8); // ergibt MMTT
 ```
 
-`2026-08-17` → `20260817` → `substring(4,8)` = `"0817"` = **Monat 08, Tag 17**. DATEV erwartet im Feld *Belegdatum* aber `TTMM`, also `1708`. Jede exportierte Buchung hat damit ein falsches Datum – und `"0817"` wird als Tag 08 / Monat 17 gelesen, also ein ungültiger Monat. Der Stapel wird von DATEV abgelehnt oder falsch verbucht.
+`2026-08-17` → `20260817` → `substring(4,8)` = `"0817"` = **Monat 08, Tag 17**. DATEV erwartet im Feld _Belegdatum_ aber `TTMM`, also `1708`. Jede exportierte Buchung hat damit ein falsches Datum – und `"0817"` wird als Tag 08 / Monat 17 gelesen, also ein ungültiger Monat. Der Stapel wird von DATEV abgelehnt oder falsch verbucht.
 
 ### 4.4 DATEV-Export: falsche Buchungsrichtung
 
@@ -261,7 +268,7 @@ const gegenkonto = '1200';    // Bank
 'S',                          // Soll
 ```
 
-Ein Verkauf wird gebucht als *Bank an Erlöse*. Hier steht das Erlöskonto im Feld `Konto` mit Kennzeichen `S` (Soll) – das bucht den Umsatz auf die falsche Seite. Korrekt ist `Konto = 1200`, `Gegenkonto = 8200`, `S`.
+Ein Verkauf wird gebucht als _Bank an Erlöse_. Hier steht das Erlöskonto im Feld `Konto` mit Kennzeichen `S` (Soll) – das bucht den Umsatz auf die falsche Seite. Korrekt ist `Konto = 1200`, `Gegenkonto = 8200`, `S`.
 
 ### 4.5 DATEV-Header ist kein gültiger EXTF-Header
 
@@ -289,18 +296,18 @@ Titel wie `=HYPERLINK(...)` oder `+1+1` werden ungeprüft in die CSV geschrieben
 
 Die `README.md` bewirbt als fertige Funktionen, was tatsächlich **Simulation mit Zufallszahlen** ist:
 
-| Doku-Aussage | Realität im Code |
-|---|---|
-| „Stripe & PayPal **Live**-Checkout" | `store.service.ts:229` – *„Simulates processing a Stripe credit card transaction"*, Transaktions-ID via `Math.random()` |
-| „Bucht **Live**-Versandmarken für DHL und Hermes" | `fulfillment.service.ts` – erzeugte Trackingnummern, Platzhalter-API-Keys, kein einziger API-Aufruf |
-| „Carrier-API-Anbindung" | nur Tracking-**Links** auf dhl.de / myhermes.de |
-| „Live-Überwachung von Preisen" | `price-tracker.service.ts` – simulierte Preisbewegungen |
-| „KI-Foto-Erkennung / KI-Zustandserkennung" | `ai-assistant.service.ts` – regelbasiert, kein KI-Modell |
-| „22/22 Test-Suiten, 86/86 Tests" | tatsächlich 24 Suiten / 96 Tests |
-| „Angular 21" | `package.json` sagt Angular **22** |
-| „TypeScript Strict Mode: 100 % typsicher" | `strict` ist in `tsconfig.json` **nicht gesetzt** (siehe 6.1) |
-| „Saubere Kompilierung ohne Warnungen" | Build schlägt aktuell fehl |
-| „100 % datenschutzkonform" | Google Fonts werden von `fonts.gstatic.com` geladen → IP-Übertragung in die USA bei jedem Seitenaufruf (DSGVO-relevant, in DE mehrfach abgemahnt) |
+| Doku-Aussage                                      | Realität im Code                                                                                                                                  |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| „Stripe & PayPal **Live**-Checkout"               | `store.service.ts:229` – _„Simulates processing a Stripe credit card transaction"_, Transaktions-ID via `Math.random()`                           |
+| „Bucht **Live**-Versandmarken für DHL und Hermes" | `fulfillment.service.ts` – erzeugte Trackingnummern, Platzhalter-API-Keys, kein einziger API-Aufruf                                               |
+| „Carrier-API-Anbindung"                           | nur Tracking-**Links** auf dhl.de / myhermes.de                                                                                                   |
+| „Live-Überwachung von Preisen"                    | `price-tracker.service.ts` – simulierte Preisbewegungen                                                                                           |
+| „KI-Foto-Erkennung / KI-Zustandserkennung"        | `ai-assistant.service.ts` – regelbasiert, kein KI-Modell                                                                                          |
+| „22/22 Test-Suiten, 86/86 Tests"                  | tatsächlich 24 Suiten / 96 Tests                                                                                                                  |
+| „Angular 21"                                      | `package.json` sagt Angular **22**                                                                                                                |
+| „TypeScript Strict Mode: 100 % typsicher"         | `strict` ist in `tsconfig.json` **nicht gesetzt** (siehe 6.1)                                                                                     |
+| „Saubere Kompilierung ohne Warnungen"             | Build schlägt aktuell fehl                                                                                                                        |
+| „100 % datenschutzkonform"                        | Google Fonts werden von `fonts.gstatic.com` geladen → IP-Übertragung in die USA bei jedem Seitenaufruf (DSGVO-relevant, in DE mehrfach abgemahnt) |
 
 Simulation ist für eine lokale Entwicklungsversion völlig in Ordnung. Nur muss die Doku es sagen – sonst verlässt du dich später auf etwas, das nicht da ist.
 
@@ -321,7 +328,7 @@ Simulation ist für eine lokale Entwicklungsversion völlig in Ordnung. Nur muss
 `-- lucide-angular@1.0.0       (veraltet, überall importiert)
 ```
 
-36 Dateien importieren aus dem **alten** Paket. Das alte Paket hat Peer-Dependencies auf ältere Angular-Versionen – **das ist der Grund, warum überall `--legacy-peer-deps` steht** (Dockerfile, CI). Dieser Schalter deaktiviert die Abhängigkeitsprüfung von npm komplett und versteckt damit auch alle *anderen* Konflikte.
+36 Dateien importieren aus dem **alten** Paket. Das alte Paket hat Peer-Dependencies auf ältere Angular-Versionen – **das ist der Grund, warum überall `--legacy-peer-deps` steht** (Dockerfile, CI). Dieser Schalter deaktiviert die Abhängigkeitsprüfung von npm komplett und versteckt damit auch alle _anderen_ Konflikte.
 
 ### 6.3 Ungenutzte Abhängigkeiten und tote Dateien
 
@@ -344,6 +351,7 @@ Auf Windows erzeugt jede Bearbeitung CRLF/LF-Rauschen (bei `git diff` sichtbar).
 ### 6.7 Supabase-Konfiguration passt nicht zur App
 
 `supabase/config.toml`:
+
 - `site_url = "http://127.0.0.1:3000"` – die App läuft auf **4200** (dev) bzw. **80** (Docker). Bestätigungs- und Passwort-Reset-Links zeigen ins Leere.
 - `minimum_password_length = 6` – zu kurz
 - `enable_confirmations = false` – für lokal ok, muss vor dem Web-Betrieb an
@@ -366,7 +374,7 @@ Auf Windows erzeugt jede Bearbeitung CRLF/LF-Rauschen (bei `git diff` sichtbar).
 
 ## 7. 🟡 Mittel – UI & Barrierefreiheit
 
-Deine `CLAUDE.md` fordert: *„Muss alle AXE-Checks bestehen. Muss alle WCAG-AA-Mindestanforderungen erfüllen."* Das ist derzeit nicht erfüllt.
+Deine `CLAUDE.md` fordert: _„Muss alle AXE-Checks bestehen. Muss alle WCAG-AA-Mindestanforderungen erfüllen."_ Das ist derzeit nicht erfüllt.
 
 ### 7.1 Nichts in der App lässt sich markieren oder kopieren
 
@@ -427,10 +435,9 @@ Tastaturnutzer müssen sich auf jeder Seite durch die komplette 13-Punkte-Naviga
 `settings.component.html` bindet an vier Bankfelder:
 
 ```html
-formControlName="bankName"          <!-- existierte nicht -->
-formControlName="bankIban"
-formControlName="bankBic"
-formControlName="bankAccountHolder"
+formControlName="bankName"
+<!-- existierte nicht -->
+formControlName="bankIban" formControlName="bankBic" formControlName="bankAccountHolder"
 ```
 
 Die `paymentForm`-Gruppe in `settings.component.ts` enthielt jedoch **kein** Feld `bankName`. Sobald die Zahlungsarten-Karte sichtbar wurde, warf Angular bei jedem Durchlauf:
@@ -447,24 +454,23 @@ Warum das lange unbemerkt blieb: Der Fehler landet nur in der Browser-Konsole, d
 
 **Lehre daraus für den Plan:** Genau solche Fehler sind der Grund, warum in Phase 8 Komponenten-Tests und eine `vitest.config.ts` mit `jsdom` stehen. Ein einziger Rendertest der Einstellungsseite hätte das sofort gezeigt.
 
-
 ### 7.13 🟡 Nachtrag: Über 100 Verwendungen undefinierter Design-Klassen
 
 > Gefunden am 2026-08-19 während Phase 4.
 
 `accounting.component.html` verwendete durchgängig Klassen aus einem älteren Design-System, das nie migriert wurde und nirgendwo definiert ist:
 
-| Klasse | Verwendungen |
-|---|---|
-| `text-muted` | 41 |
-| `text-accent-emerald` | 17 |
-| `bg-surface-3` | 10 |
-| `kpi-label` / `kpi-value` | je 8 |
-| `bg-accent-emerald` | 7 |
-| `bg-surface-2` | 5 |
-| `card` | 5 |
-| `border-accent-emerald` | 4 |
-| `bg-surface-1`, `border-border` | je 1 |
+| Klasse                          | Verwendungen |
+| ------------------------------- | ------------ |
+| `text-muted`                    | 41           |
+| `text-accent-emerald`           | 17           |
+| `bg-surface-3`                  | 10           |
+| `kpi-label` / `kpi-value`       | je 8         |
+| `bg-accent-emerald`             | 7            |
+| `bg-surface-2`                  | 5            |
+| `card`                          | 5            |
+| `border-accent-emerald`         | 4            |
+| `bg-surface-1`, `border-border` | je 1         |
 
 Diese Klassen erzeugten **keinerlei Wirkung**. Auf der Buchhaltungsseite hatten die betroffenen Elemente also weder Hintergrund noch Textfarbe – Kennzahlen und Karten waren schlicht unformatiert. Behoben in Phase 4: `card`, `kpi-label` und `kpi-value` sind jetzt definiert, die übrigen auf die Design-Tokens abgebildet.
 
@@ -474,12 +480,12 @@ Diese Klassen erzeugten **keinerlei Wirkung**. Auf der Buchhaltungsseite hatten 
 
 Weißer Text auf voll deckenden Akzentflächen erreichte teils nur ein Viertel des geforderten Kontrasts – und zwar in **beiden** Designs, es ist also kein Problem des neuen hellen Designs:
 
-| Fläche | Kontrast mit Weiß | Nötig | Betroffen |
-|---|---|---|---|
-| `bg-amber-500` | 2,15:1 | 4,5:1 | 2 Buttons |
-| `bg-emerald-500` | 2,54:1 | 4,5:1 | 6 Stellen (Login, Registrierung, Benachrichtigungs-Abzeichen, Artikel-Badge) |
-| `bg-amber-600` | 3,19:1 | 4,5:1 | 2 Buttons |
-| `bg-rose-500` | 3,67:1 | 4,5:1 | 1 Badge |
+| Fläche           | Kontrast mit Weiß | Nötig | Betroffen                                                                    |
+| ---------------- | ----------------- | ----- | ---------------------------------------------------------------------------- |
+| `bg-amber-500`   | 2,15:1            | 4,5:1 | 2 Buttons                                                                    |
+| `bg-emerald-500` | 2,54:1            | 4,5:1 | 6 Stellen (Login, Registrierung, Benachrichtigungs-Abzeichen, Artikel-Badge) |
+| `bg-amber-600`   | 3,19:1            | 4,5:1 | 2 Buttons                                                                    |
+| `bg-rose-500`    | 3,67:1            | 4,5:1 | 1 Badge                                                                      |
 
 Behoben durch Anheben auf `emerald-700` (5,55:1), `amber-700` (4,99:1) und `rose-600` (4,70:1).
 
@@ -495,21 +501,21 @@ Behoben durch Anheben auf `emerald-700` (5,55:1), `amber-700` (4,99:1) und `rose
 
 Damit das Bild vollständig bleibt – hier wurde vieles richtig gemacht:
 
-| | |
-|---|---|
-| ✅ | **0** Verwendungen von `ngClass` / `ngStyle` – durchgängig `class`/`style`-Bindings |
-| ✅ | **0** Verwendungen von `*ngIf` / `*ngFor` / `*ngSwitch` – durchgängig `@if` / `@for` / `@switch` |
-| ✅ | **0** `@Input()` / `@Output()` Decorators – durchgängig `input()` / `output()` |
-| ✅ | **0** `@HostBinding` / `@HostListener` |
-| ✅ | **0** Inline-Templates – alle in eigenen `.html`-Dateien |
-| ✅ | 38 von 39 Komponenten mit `ChangeDetectionStrategy.OnPush` |
-| ✅ | Durchgängig Standalone Components, `provideZonelessChangeDetection()`, `inject()` statt Konstruktor-Injection |
-| ✅ | Lazy Loading für **alle** Feature-Routes |
-| ✅ | Ordnerstruktur exakt nach deiner `CLAUDE.md`: `core/` – `shared/` – `layout/` – `features/` |
-| ✅ | Sauberes, zentrales Design-System in `styles.css` mit CSS-Variablen an einer Stelle – gut gemacht und gut kommentiert |
-| ✅ | 96 grüne Unit-Tests für die Geschäftslogik |
-| ✅ | Kein `innerHTML`, kein `bypassSecurityTrust` – keine XSS-Fläche im Frontend |
-| ✅ | Mehrstufiges Dockerfile mit korrektem Layer-Caching |
+|     |                                                                                                                       |
+| --- | --------------------------------------------------------------------------------------------------------------------- |
+| ✅  | **0** Verwendungen von `ngClass` / `ngStyle` – durchgängig `class`/`style`-Bindings                                   |
+| ✅  | **0** Verwendungen von `*ngIf` / `*ngFor` / `*ngSwitch` – durchgängig `@if` / `@for` / `@switch`                      |
+| ✅  | **0** `@Input()` / `@Output()` Decorators – durchgängig `input()` / `output()`                                        |
+| ✅  | **0** `@HostBinding` / `@HostListener`                                                                                |
+| ✅  | **0** Inline-Templates – alle in eigenen `.html`-Dateien                                                              |
+| ✅  | 38 von 39 Komponenten mit `ChangeDetectionStrategy.OnPush`                                                            |
+| ✅  | Durchgängig Standalone Components, `provideZonelessChangeDetection()`, `inject()` statt Konstruktor-Injection         |
+| ✅  | Lazy Loading für **alle** Feature-Routes                                                                              |
+| ✅  | Ordnerstruktur exakt nach deiner `CLAUDE.md`: `core/` – `shared/` – `layout/` – `features/`                           |
+| ✅  | Sauberes, zentrales Design-System in `styles.css` mit CSS-Variablen an einer Stelle – gut gemacht und gut kommentiert |
+| ✅  | 96 grüne Unit-Tests für die Geschäftslogik                                                                            |
+| ✅  | Kein `innerHTML`, kein `bypassSecurityTrust` – keine XSS-Fläche im Frontend                                           |
+| ✅  | Mehrstufiges Dockerfile mit korrektem Layer-Caching                                                                   |
 
 Der Komponentencode entspricht deinen Vorgaben nahezu vollständig. Die Probleme liegen fast ausnahmslos in Konfiguration, Datenschicht, Datenbank und Dokumentation.
 
@@ -517,14 +523,14 @@ Der Komponentencode entspricht deinen Vorgaben nahezu vollständig. Die Probleme
 
 ## 9. Zahlen auf einen Blick
 
-| Kategorie | Anzahl |
-|---|---|
-| 🔴 Kritisch (Sicherheit / Datenverlust / defektes Rendern) | 14 |
-| 🟠 Schwer (falsche Berechnungen / irreführende Doku / Umgebung) | 12 |
-| 🟡 Mittel (Qualität, UI, Barrierefreiheit) | 25 |
-| 🟢 Gering (Aufräumen) | 9 |
-| ❌ Zurückgezogen (Fehlalarm) | 1 |
-| **Summe (gültig)** | **60** |
+| Kategorie                                                       | Anzahl |
+| --------------------------------------------------------------- | ------ |
+| 🔴 Kritisch (Sicherheit / Datenverlust / defektes Rendern)      | 14     |
+| 🟠 Schwer (falsche Berechnungen / irreführende Doku / Umgebung) | 12     |
+| 🟡 Mittel (Qualität, UI, Barrierefreiheit)                      | 25     |
+| 🟢 Gering (Aufräumen)                                           | 9      |
+| ❌ Zurückgezogen (Fehlalarm)                                    | 1      |
+| **Summe (gültig)**                                              | **60** |
 
 > Nachträge 2026-08-19: Die Befunde 7.11, 2.11 und 2.12 kamen beim Testen gegen
 > die laufende Anwendung und Datenbank hinzu und sind bereits behoben. Keiner
@@ -532,4 +538,4 @@ Der Komponentencode entspricht deinen Vorgaben nahezu vollständig. Die Probleme
 
 ---
 
-*Erstellt von Claude Opus 5 (Anthropic) am 2026-08-19. Alle Aussagen wurden am Quellcode verifiziert; Build- und Testergebnisse stammen aus tatsächlichen Läufen von `npx ng build` und `npx vitest run`.*
+_Erstellt von Claude Opus 5 (Anthropic) am 2026-08-19. Alle Aussagen wurden am Quellcode verifiziert; Build- und Testergebnisse stammen aus tatsächlichen Läufen von `npx ng build` und `npx vitest run`._

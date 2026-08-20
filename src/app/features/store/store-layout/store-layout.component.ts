@@ -50,4 +50,3 @@ export class StoreLayoutComponent {
     return Math.max(0, threshold - subtotal);
   });
 }
-

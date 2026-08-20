@@ -379,7 +379,10 @@ export class WebhookService {
         });
         return { success: true, message: 'Discord-Testnachricht erfolgreich gesendet!' };
       } catch (err: unknown) {
-        return { success: false, message: `Fehler beim Senden: ${err instanceof Error ? err.message : String(err)}` };
+        return {
+          success: false,
+          message: `Fehler beim Senden: ${err instanceof Error ? err.message : String(err)}`,
+        };
       }
     } else if (channel === 'telegram') {
       if (!cfg.telegramBotToken || !cfg.telegramChatId) {
@@ -402,7 +405,10 @@ export class WebhookService {
         }
         return { success: true, message: 'Telegram-Testnachricht erfolgreich gesendet!' };
       } catch (err: unknown) {
-        return { success: false, message: `Fehler beim Senden: ${err instanceof Error ? err.message : String(err)}` };
+        return {
+          success: false,
+          message: `Fehler beim Senden: ${err instanceof Error ? err.message : String(err)}`,
+        };
       }
     } else {
       return { success: true, message: 'Custom Webhook Test erfolgreich ausgeführt.' };

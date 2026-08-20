@@ -64,9 +64,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   private onChange: (value: T | null) => void = () => {};
   private onTouched: () => void = () => {};
 
-  readonly effectiveDisabled = computed(
-    () => this.disabledInput() || this.isDisabled()
-  );
+  readonly effectiveDisabled = computed(() => this.disabledInput() || this.isDisabled());
 
   readonly selectedOption = computed(() => {
     const val = this.value();

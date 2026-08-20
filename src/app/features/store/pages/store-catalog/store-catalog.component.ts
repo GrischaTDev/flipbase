@@ -124,7 +124,7 @@ export class StoreCatalogComponent {
           i.brand?.toLowerCase().includes(query) ||
           i.model?.toLowerCase().includes(query) ||
           i.category?.toLowerCase().includes(query) ||
-          i.sku?.toLowerCase().includes(query)
+          i.sku?.toLowerCase().includes(query),
       );
     }
 
@@ -219,7 +219,10 @@ export class StoreCatalogComponent {
       case 'used':
         return { label: 'Gebraucht', class: 'bg-amber-50 text-amber-700 border-amber-200' };
       case 'heavily_used':
-        return { label: 'Stark gebraucht', class: 'bg-orange-50 text-orange-700 border-orange-200' };
+        return {
+          label: 'Stark gebraucht',
+          class: 'bg-orange-50 text-orange-700 border-orange-200',
+        };
       default:
         return { label: 'Geprüft', class: 'bg-slate-100 text-slate-700 border-slate-200' };
     }

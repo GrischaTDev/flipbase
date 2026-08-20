@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { CurrencyPipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -44,7 +51,14 @@ import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox
 
 @Component({
   selector: 'app-listings',
-  imports: [RouterLink, ReactiveFormsModule, CurrencyPipe, TranslatePipe, LucideAngularModule, CustomCheckboxComponent],
+  imports: [
+    RouterLink,
+    ReactiveFormsModule,
+    CurrencyPipe,
+    TranslatePipe,
+    LucideAngularModule,
+    CustomCheckboxComponent,
+  ],
   templateUrl: './listings.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -121,7 +135,10 @@ export class ListingsComponent {
     if (!item) return null;
 
     const platform = this.selectedPlatform();
-    const price = this.customPrice() > 0 ? this.customPrice() : (item.expected_value ?? item.allocated_purchase_cost * 1.5);
+    const price =
+      this.customPrice() > 0
+        ? this.customPrice()
+        : (item.expected_value ?? item.allocated_purchase_cost * 1.5);
 
     return this.listingStudio.generateListing(item, platform, price, {
       includeDisclaimer: this.optDisclaimer(),
@@ -155,7 +172,7 @@ export class ListingsComponent {
       item,
       this.selectedPlatform(),
       this.currentTitle(),
-      this.currentDesc()
+      this.currentDesc(),
     );
   });
 
@@ -163,7 +180,9 @@ export class ListingsComponent {
     effect(() => {
       const item = this.selectedItem();
       if (item && this.customPrice() === 0) {
-        this.customPrice.set(item.expected_value ?? Number((item.allocated_purchase_cost * 1.5).toFixed(2)));
+        this.customPrice.set(
+          item.expected_value ?? Number((item.allocated_purchase_cost * 1.5).toFixed(2)),
+        );
       }
     });
   }
@@ -174,7 +193,9 @@ export class ListingsComponent {
     this.customDescOverride.set(null);
     const item = this.availableItems().find((i) => i.id === id);
     if (item) {
-      this.customPrice.set(item.expected_value ?? Number((item.allocated_purchase_cost * 1.5).toFixed(2)));
+      this.customPrice.set(
+        item.expected_value ?? Number((item.allocated_purchase_cost * 1.5).toFixed(2)),
+      );
     }
   }
 
@@ -238,7 +259,10 @@ export class ListingsComponent {
     const item = this.selectedItem();
     if (!item) return;
 
-    const price = this.customPrice() > 0 ? this.customPrice() : (item.expected_value ?? item.allocated_purchase_cost * 1.5);
+    const price =
+      this.customPrice() > 0
+        ? this.customPrice()
+        : (item.expected_value ?? item.allocated_purchase_cost * 1.5);
     this.isMarkingListed.set(true);
     await this.listingStudio.markItemAsListed(item.id, this.selectedPlatform(), price);
     this.isMarkingListed.set(false);
@@ -248,11 +272,16 @@ export class ListingsComponent {
     const item = this.selectedItem();
     if (!item) return;
 
-    const price = this.customPrice() > 0 ? this.customPrice() : (item.expected_value ?? item.allocated_purchase_cost * 1.5);
+    const price =
+      this.customPrice() > 0
+        ? this.customPrice()
+        : (item.expected_value ?? item.allocated_purchase_cost * 1.5);
     this.isMarkingListed.set(true);
     await this.listingStudio.publishToCustomStore(item.id, price);
     this.isMarkingListed.set(false);
-    this.publishSuccessMsg.set(`"${item.title}" wurde erfolgreich im Webshop veröffentlicht! (Preis: ${price.toFixed(2)} €)`);
+    this.publishSuccessMsg.set(
+      `"${item.title}" wurde erfolgreich im Webshop veröffentlicht! (Preis: ${price.toFixed(2)} €)`,
+    );
     setTimeout(() => this.publishSuccessMsg.set(null), 5000);
   }
 

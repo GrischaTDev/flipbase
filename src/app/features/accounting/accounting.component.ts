@@ -50,7 +50,14 @@ export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
 
 @Component({
   selector: 'app-accounting',
-  imports: [ModalDialogDirective, ReactiveFormsModule, CurrencyPipe, DatePipe, LucideAngularModule, CustomSearchInputComponent],
+  imports: [
+    ModalDialogDirective,
+    ReactiveFormsModule,
+    CurrencyPipe,
+    DatePipe,
+    LucideAngularModule,
+    CustomSearchInputComponent,
+  ],
   templateUrl: './accounting.component.html',
   styleUrl: './accounting.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -113,14 +120,23 @@ export class AccountingComponent {
   readonly manualAssignTx = signal<BankTransaction | null>(null);
 
   readonly advisorForm = new FormGroup({
-    firmName: new FormControl(this.taxAdvisorService.advisorConfig().firmName, { nonNullable: true }),
+    firmName: new FormControl(this.taxAdvisorService.advisorConfig().firmName, {
+      nonNullable: true,
+    }),
     advisorEmail: new FormControl(this.taxAdvisorService.advisorConfig().advisorEmail, {
       nonNullable: true,
       validators: [Validators.required, Validators.email],
     }),
-    clientNumber: new FormControl(this.taxAdvisorService.advisorConfig().clientNumber, { nonNullable: true }),
-    consultantNumber: new FormControl(this.taxAdvisorService.advisorConfig().consultantNumber, { nonNullable: true }),
-    skrStandard: new FormControl<'SKR03' | 'SKR04'>(this.taxAdvisorService.advisorConfig().skrStandard, { nonNullable: true }),
+    clientNumber: new FormControl(this.taxAdvisorService.advisorConfig().clientNumber, {
+      nonNullable: true,
+    }),
+    consultantNumber: new FormControl(this.taxAdvisorService.advisorConfig().consultantNumber, {
+      nonNullable: true,
+    }),
+    skrStandard: new FormControl<'SKR03' | 'SKR04'>(
+      this.taxAdvisorService.advisorConfig().skrStandard,
+      { nonNullable: true },
+    ),
   });
 
   // Filtered Tax Results
@@ -161,7 +177,7 @@ export class AccountingComponent {
       this.filteredTaxResults(),
       this.purchaseService.purchases(),
       this.salesService.sales(),
-      this.workspaceService.currentWorkspace()?.name || 'ReFlip HQ'
+      this.workspaceService.currentWorkspace()?.name || 'ReFlip HQ',
     );
   });
 
@@ -180,7 +196,8 @@ export class AccountingComponent {
 
       // Text search
       if (q) {
-        const text = `${tx.counterpartyName} ${tx.purpose} ${tx.amount} ${tx.match?.targetReference || ''}`.toLowerCase();
+        const text =
+          `${tx.counterpartyName} ${tx.purpose} ${tx.amount} ${tx.match?.targetReference || ''}`.toLowerCase();
         if (!text.includes(q)) return false;
       }
 
@@ -230,7 +247,8 @@ export class AccountingComponent {
     this.bankService.loadDemoStatement();
     this.bookingFeedback.set({
       success: true,
-      message: 'Demo-Kontoauszug (Sparkasse August 2026) geladen und mit Shop-Bestellungen abgeglichen.',
+      message:
+        'Demo-Kontoauszug (Sparkasse August 2026) geladen und mit Shop-Bestellungen abgeglichen.',
     });
     setTimeout(() => this.bookingFeedback.set(null), 5000);
   }
@@ -270,17 +288,29 @@ export class AccountingComponent {
   onDownloadDatev(): void {
     const report = this.advisorReport();
     const csv = this.taxAdvisorService.generateDatevExtfCsv(report, this.filteredTaxResults());
-    this.downloadFile(csv, `DATEV_Buchungsstapel_${this.selectedYear()}_${this.selectedPeriod()}.csv`, 'text/csv;charset=utf-8;');
+    this.downloadFile(
+      csv,
+      `DATEV_Buchungsstapel_${this.selectedYear()}_${this.selectedPeriod()}.csv`,
+      'text/csv;charset=utf-8;',
+    );
   }
 
   onDownloadDiffTaxJournal(): void {
     const csv = this.taxAdvisorService.generateDiffTaxJournalCsv(this.filteredTaxResults());
-    this.downloadFile(csv, `DiffBesteuerung_25a_Journal_${this.selectedYear()}_${this.selectedPeriod()}.csv`, 'text/csv;charset=utf-8;');
+    this.downloadFile(
+      csv,
+      `DiffBesteuerung_25a_Journal_${this.selectedYear()}_${this.selectedPeriod()}.csv`,
+      'text/csv;charset=utf-8;',
+    );
   }
 
   onDownloadEur(): void {
     const csv = this.taxEngine.generateEurCsv(this.filteredTaxResults());
-    this.downloadFile(csv, `EUER_Bericht_${this.selectedYear()}_${this.selectedPeriod()}.csv`, 'text/csv;charset=utf-8;');
+    this.downloadFile(
+      csv,
+      `EUER_Bericht_${this.selectedYear()}_${this.selectedPeriod()}.csv`,
+      'text/csv;charset=utf-8;',
+    );
   }
 
   async onSendEmailToAdvisor(): Promise<void> {
@@ -293,7 +323,10 @@ export class AccountingComponent {
     if (res.success) {
       this.emailSentStatus.set({ success: true, text: res.message });
     } else {
-      this.emailSentStatus.set({ success: false, text: 'Übermittlung an den Steuerberater fehlgeschlagen.' });
+      this.emailSentStatus.set({
+        success: false,
+        text: 'Übermittlung an den Steuerberater fehlgeschlagen.',
+      });
     }
     setTimeout(() => this.emailSentStatus.set(null), 5000);
   }

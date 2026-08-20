@@ -10,6 +10,7 @@ Dieses Projekt wird teilweise mit KI-Assistenten entwickelt. **Jede** von einer 
 
 ```markdown
 ## YYYY-MM-DD – <Modellname> – <Kurztitel>
+
 **Art:** Analyse | Feature | Bugfix | Refactoring | Doku | Konfiguration
 **Betroffen:** <Dateien oder Bereiche>
 **Was:** <Was wurde gemacht>
@@ -36,6 +37,7 @@ Auf Wunsch von Grischa vollständig auf die lokale Supabase-Datenbank umgestellt
 **Was bleibt:** Der Demo-Modus funktioniert unverändert – dort ist der lokale Speicher weiterhin die Ablage. Für angemeldete Nutzer bleibt nur `reflip_active_workspace_id` im Browser, eine reine Anzeigeeinstellung.
 
 **Verifiziert durch:**
+
 - `npx ng build` erfolgreich; `npx vitest run` → 29 Dateien / 173 Tests grün, darunter vier neue für die Schreibsperre
 - **Im Docker-Container unter `http://reflip.localhost/`**: angemeldet, Einkauf über die Oberfläche angelegt → steht in der Datenbank, `reflip_local_purchases` bleibt `null`, und nach dem Neuladen erscheint der Einkauf aus der Datenbank in der Liste
 - Das Abzeichen „Sicherung fällig" ist verschwunden
@@ -49,6 +51,7 @@ Auf Wunsch von Grischa vollständig auf die lokale Supabase-Datenbank umgestellt
 **Art:** Sicherheit, Barrierefreiheit, Konfiguration
 
 **Betroffen:**
+
 - `docker/nginx.conf`, `docker/security-headers.conf` (neu), `docker/Dockerfile`, `docker/docker-compose.yml`
 - `supabase/functions/marketplace-search/index.ts` (neu geschrieben)
 - `src/app/shared/directives/modal-dialog.directive.ts` + `.spec.ts` (neu)
@@ -57,7 +60,7 @@ Auf Wunsch von Grischa vollständig auf die lokale Supabase-Datenbank umgestellt
 
 **Was:**
 
-*Auslieferung*
+_Auslieferung_
 
 1. **Fünf Sicherheits-Header in nginx** (Audit 2.8): `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` und eine `Content-Security-Policy`. Sie liegen in `security-headers.conf` und werden in jedem `location`-Block eingebunden – in nginx **ersetzen** `add_header`-Anweisungen im inneren Block sonst alle geerbten. Zusätzlich `server_tokens off`.
 
@@ -69,7 +72,7 @@ Auf Wunsch von Grischa vollständig auf die lokale Supabase-Datenbank umgestellt
 
 5. **API-Schlüssel aus dem Frontend** (Audit 2.10): Die Platzhalter sind geleert, und die Eingabefelder für die DHL- und Hermes-Zugangsschlüssel sind aus den Einstellungen entfernt. An ihrer Stelle steht der Hinweis, dass geheime Schlüssel in eine Edge Function gehören. Der veröffentlichbare Stripe-Schlüssel darf im Frontend bleiben.
 
-*Barrierefreiheit*
+_Barrierefreiheit_
 
 6. **Alle 18 modalen Dialoge zugänglich gemacht** (Audit 7.3). Die neue `ModalDialogDirective` rüstet mit einer Zeile je Dialog nach: `role="dialog"`, `aria-modal`, eine Fokus-Falle, Escape zum Schließen, Fokus-Rückgabe auf das auslösende Element und eine Scroll-Sperre für den Hintergrund. Bewusst als Direktive statt als Hülle – so blieb das Layout der bestehenden Overlays unangetastet.
 
@@ -84,6 +87,7 @@ Auf Wunsch von Grischa vollständig auf die lokale Supabase-Datenbank umgestellt
 **Zusätzlich behoben:** Die Vorschau im Verteilungs-Dialog rechnete noch mit der alten Rundung und hätte 99,99 € angezeigt, wo anschließend 100,00 € gebucht werden. Sie nutzt jetzt dieselbe Verteilung wie das Speichern.
 
 **Verifiziert durch:**
+
 - `npx ng build` erfolgreich; `npx vitest run` → **30 Dateien / 195 Tests grün** (vorher 174), darunter 21 neue Tests für Fokus-Falle, Startfokus, Fokus-Rückgabe und Scroll-Sperre
 - **Im laufenden Container** (`localhost:8080`): alle fünf Header vorhanden, auch auf statischen Dateien; `index.html` mit `no-cache`; `/healthz` antwortet; Stylesheet lädt mit `media="alle"`; keine Inline-Handler mehr im DOM
 - **Dialog im Browser geprüft:** `role="dialog"`, `aria-modal="true"`, `aria-label` gesetzt, Hintergrund gesperrt, Fokus im Dialog; Tab vom letzten zum ersten Element, Shift+Tab rückwärts, Fokus von außen zurückgeholt – alle drei Richtungen greifen; Escape schließt, Sperre gelöst, Fokus zurück auf dem Auslöser
@@ -100,6 +104,7 @@ Auf Wunsch von Grischa vollständig auf die lokale Supabase-Datenbank umgestellt
 **Art:** Bugfix (Rechenfehler), Tests
 
 **Betroffen:**
+
 - `src/app/core/services/profit-engine.service.ts`
 - `src/app/core/services/tax-engine.service.ts`
 - `src/app/core/services/tax-advisor.service.ts`
@@ -117,7 +122,7 @@ Nach Plan-Aufgabe 6.8 wurde zu **jedem** Befund zuerst ein Test geschrieben, der
 
 3. **DATEV-Belegdatum als TTMM** (Audit 4.3). Der 17.08.2026 erscheint als `1708`; zuvor stand dort `0817`, was DATEV als Tag 08 / Monat 17 liest.
 
-4. **Buchungsrichtung korrigiert** (Audit 4.4). Ein Verkauf wird als *Bank an Erlöse* gebucht: Konto 1200, Gegenkonto 8200. Zuvor stand das Erlöskonto im Feld „Konto" mit Kennzeichen S.
+4. **Buchungsrichtung korrigiert** (Audit 4.4). Ein Verkauf wird als _Bank an Erlöse_ gebucht: Konto 1200, Gegenkonto 8200. Zuvor stand das Erlöskonto im Feld „Konto" mit Kennzeichen S.
 
 5. **Vollständige EXTF-Kopfzeile mit 31 Feldern** (Audit 4.5), inklusive Wirtschaftsjahresbeginn, Sachkontenlänge, Zeitraum und Währung. Zuvor waren es 10 Felder – DATEV konnte die Datei nicht einlesen.
 
@@ -134,6 +139,7 @@ Nach Plan-Aufgabe 6.8 wurde zu **jedem** Befund zuerst ein Test geschrieben, der
 10. **Einkaufs-Detailseite zeigte angemeldeten Nutzern keine Artikel.** Folgefehler aus Phase 5: `getPurchaseById` nahm eine lokale Abkürzung und las die Artikel aus dem Mock-Spiegel, der seit der Umstellung auf „Datenbank zuerst" leer ist. Damit lief auch die Kostenverteilung ins Leere. Die Abkürzung gilt jetzt nur noch im Demo-Modus.
 
 **Verifiziert durch:**
+
 - `npx ng build` erfolgreich; `npx vitest run` → **29 Dateien / 174 Tests grün** (vorher 144), darunter 30 neue Tests für Kostenverteilung und DATEV
 - **Im Browser gegen die echte Datenbank:** Mystery Pack über 100 € mit drei Artikeln angelegt, Kostenverteilung ausgelöst → 33,34 / 33,33 / 33,33, Summe exakt 100,00 €
 - **Echten DATEV-Stapel erzeugt und Feld für Feld geprüft:** BOM vorhanden, 31 Kopffelder, `Konto 1200`, `Gegenkonto 8200`, `Belegdatum 1708`, CRLF
@@ -148,6 +154,7 @@ Nach Plan-Aufgabe 6.8 wurde zu **jedem** Befund zuerst ein Test geschrieben, der
 **Art:** Bugfix, Sicherheit, Datenbank-Migration, Tests
 
 **Betroffen:**
+
 - `src/app/core/services/sync-status.service.ts` + `.spec.ts` (neu)
 - `src/app/shared/components/sync-error-banner/` (neu)
 - `src/app/core/services/demo-data-isolation.spec.ts` (neu)
@@ -177,6 +184,7 @@ Nach Plan-Aufgabe 6.8 wurde zu **jedem** Befund zuerst ein Test geschrieben, der
 **Eine eigene Fehlentscheidung korrigiert:** Ich hatte das `try { effect() } catch {}` aus 18 Services entfernt, weil es echte Fehler verschluckt. Daraufhin schlugen 39 Tests fehl – der blanke Test-Injector kennt keinen `ChangeDetectionScheduler`. Ich habe geprüft, ob sich das mit `TestBed` sauber lösen lässt: nein, dafür fehlt die Testumgebung mit jsdom aus Phase 8. Der Schutz ist deshalb wieder drin, jetzt mit Begründung und Hinweis auf den Zeitpunkt zum Entfernen.
 
 **Verifiziert durch:**
+
 - `npx ng build` erfolgreich; `npx vitest run` → **27 Dateien / 144 Tests grün**
 - `npx supabase db reset` und `npx supabase db diff` → „No schema changes found"
 - **Im Browser reproduziert:** Fehlschlagendes Speichern meldet jetzt „Speichern des Einkaufs fehlgeschlagen: Keine Berechtigung für diesen Workspace.", der Streifen erscheint, der Eintrag verschwindet aus Liste und Browser-Speicher – und die Datenbank bleibt unberührt
@@ -200,6 +208,7 @@ Unabhängige Prüfung der von Gemini 3.7 Flash umgesetzten Phase 5. Ergebnis: **
 Bestätigt und nachgeprüft: Das Datenbankschema ist gut gemacht. 17 Tabellen, 67 Policies nach `CLAUDE.md`, kein `FOR ALL`, Kindtabellen korrekt über die Elterntabelle abgesichert, 21 Indizes, `db diff` sauber, Typen generiert und Client typisiert. Ich habe die Angriffstests aus Phase 3 auf alle neuen Tabellen wiederholt – nichts kam durch.
 
 Kritische Befunde:
+
 1. **Speichern schlägt fehl, die App meldet Erfolg.** Im laufenden Betrieb reproduziert: Ein Einkauf erscheint in der Liste und im Browser-Speicher, steht aber nicht in der Datenbank – die Oberfläche bekam `error: null`. 37 Schreibpfade in 9 Services protokollieren DB-Fehler nur in der Konsole. Plan-Aufgabe 5.2.3 (sichtbarer Fehlerhinweis) ist nicht umgesetzt.
 2. **Echte Nutzer bekommen erfundene Daten untergeschoben.** `ensureInitialShowcaseData()` läuft ungeschützt im Konstruktor und schreibt 4 Fantasie-Einkäufe und 9 Artikel in dieselben Speicherschlüssel wie echte Daten. Folge: verunreinigte Sicherungen aus Phase 2. Zusätzlich überschreibt `enterDemoMode()` den lokalen Bestand ohne Rückfrage.
 
@@ -209,6 +218,7 @@ Weitere: Team-Verwaltung durch fehlenden Fremdschlüssel `workspace_members → 
 Phase 5 wurde von einem anderen Assistenten umgesetzt und sollte vor der Freigabe unabhängig geprüft werden.
 
 **Verifiziert durch:**
+
 - `npx supabase db reset` und `npx supabase db diff` („No schema changes found")
 - Angriffstests mit zwei echten Nutzern über alle 17 neuen Tabellen: GRANTs, anonymer Zugriff, fremdes Lesen, Schreiben, Ändern, Löschen – alles korrekt abgewehrt
 - `npx ng build` erfolgreich, `npx vitest run` 25/121 grün
@@ -223,7 +233,8 @@ Phase 5 wurde von einem anderen Assistenten umgesetzt und sollte vor der Freigab
 
 **Art:** Feature, Refactoring, Datenbank-Migration, Sicherheit, Typisierung
 
-**Betroffen:** 
+**Betroffen:**
+
 - `supabase/migrations/20260819140000_phase5_schema_completion.sql` (neu)
 - `supabase/schemas/database.sql` (vollständig synchronisiert)
 - `src/app/core/models/supabase.types.ts` (neu generiert mit `supabase gen types`)
@@ -266,6 +277,7 @@ Phase 5 wurde von einem anderen Assistenten umgesetzt und sollte vor der Freigab
 Erfüllung von Phase 5 des Sanierungsplans (`docs/audit/2026-08-19-sanierungsplan.md`). Beseitigung der Mock-Architektur, Etablierung von Supabase PostgreSQL als verlässliche Single Source of Truth und saubere Anbindung für die anschließende Review durch Claude Opus 5.
 
 **Verifiziert durch:**
+
 - `npx supabase db reset` (0 Fehler, alle Migrationen & Seeds erfolgreich)
 - `npx supabase db diff --use-migra` („No schema changes found“)
 - `npx ng build` (Exit code 0, 0 Fehler, Bundle generiert)
@@ -312,6 +324,7 @@ Erfüllung von Phase 5 des Sanierungsplans (`docs/audit/2026-08-19-sanierungspla
 12. **Audit-Befund 7.5 („12 Bilder ohne `alt`") war falsch und wurde zurückgezogen.** Mein ursprünglicher Test war ein zeilenbasiertes `grep`; die `<img>`-Tags sind mehrzeilig formatiert, das `alt` steht auf der Folgezeile. Korrekt geprüft: 14 Bilder, 0 ohne `alt`. Hier war nichts zu tun.
 
 **Verifiziert durch:**
+
 - `npx ng build` → erfolgreich; `npx vitest run` → 25 Dateien / 121 Tests grün
 - **Rechnerische Kontrastprüfung im Browser** über 11 Seiten (Dashboard, Einkäufe, Inventar, Verkäufe, Buchhaltung, Einstellungen, Analytics, Listings, Fulfillment, Research, Quellen, Deal Calculator): **0 Verstöße** bei den Textfarben im hellen Design
 - Weiß-auf-Farbe gesondert geprüft: Sprunglink 6,29:1, Primär-Buttons 6,29:1, alle Badges nach der Korrektur ≥ 4,5:1
@@ -329,6 +342,7 @@ Erfüllung von Phase 5 des Sanierungsplans (`docs/audit/2026-08-19-sanierungspla
 **Art:** Sicherheit, Bugfix, Konfiguration
 
 **Betroffen:**
+
 - `src/app/core/services/auth.service.ts` (neu geschrieben)
 - `src/app/core/guards/auth.guard.ts` (neu geschrieben, `guestGuard` ergänzt)
 - `src/app/app.routes.ts`, `src/app/features/auth/login/`, `src/app/layout/shell/`
@@ -340,31 +354,22 @@ Erfüllung von Phase 5 des Sanierungsplans (`docs/audit/2026-08-19-sanierungspla
 
 **Was:**
 
-*Anmeldung*
+_Anmeldung_
+
 1. **Demo-Modus von Anmeldung getrennt.** `isAuthenticated` bedeutet jetzt ausschliesslich „echte Supabase-Sitzung". Der Demo-Modus ist ein eigener, bewusst zu wählender Zustand (Standard: aus) und wird durch ein Banner in der Shell deutlich gekennzeichnet. Der Guard prüft `canAccessApp`.
 2. **Unsicheren Login-Fallback entfernt.** Zuvor wurde bei einer Zeitüberschreitung von 1200 ms **jede** Kombination aus E-Mail und Passwort akzeptiert. Jetzt gibt es keinen Ersatzweg mehr.
 3. **`authGuard` an alle geschützten Routen gehängt**, dazu ein `guestGuard`, der Angemeldete von Anmeldung und Registrierung fernhält. Der Guard **wartet** auf `sessionReady` statt 50 ms zu raten – dadurch bleibt man beim Neuladen angemeldet.
 4. **`onAuthStateChange` angebunden** – Token-Erneuerung und Abmeldung in anderen Tabs wirken jetzt.
 5. **Umgebungsschalter `allowDemoMode`**: in der Entwicklung an, in der Produktion aus. Dazu die fehlenden `fileReplacements` in `angular.json` ergänzt – `environment.development.ts` wurde bisher **nie** verwendet.
 
-*Datenbank*
-6. **Kritische Lücke geschlossen:** Die INSERT-Policy auf `workspace_members` erlaubte `OR user_id = auth.uid()`. Jeder angemeldete Nutzer konnte sich damit in jeden fremden Workspace eintragen. Ersetzt durch eine Prüfung auf Verwalterrolle; neue Workspaces entstehen über die neue Funktion `public.create_workspace()`.
-7. **Alle Policies neu geschrieben** nach `CLAUDE.md`: kein `FOR ALL`, getrennte Policies je Operation, immer `TO authenticated`, immer `(select auth.uid())`, fehlende DELETE-Policies ergänzt. 60 Policies über 15 Tabellen.
-8. **`set search_path = ''`** in allen `SECURITY DEFINER`-Funktionen.
-9. **17 Indizes** auf allen Spalten, die in Policies geprüft werden.
-10. **Storage-Bucket abgesichert:** `public = false`, die beiden `anon`-Policies (Hochladen **und Löschen**) entfernt. `MediaService` nutzt jetzt signierte URLs mit Signal-gestütztem Zwischenspeicher, damit Templates weiter synchron binden können.
-11. **`supabase/schemas/database.sql` vervollständigt** – enthielt nur Tabellen, keine Sicherheitsregeln. `supabase db diff` hätte vorgeschlagen, alle Policies zu löschen. Jetzt meldet der Befehl „No schema changes found".
-12. `config.toml`: `site_url` auf 4200 korrigiert, Passwort-Mindestlänge von 6 auf 10, Weiterleitungs-URLs ergänzt.
+_Datenbank_ 6. **Kritische Lücke geschlossen:** Die INSERT-Policy auf `workspace_members` erlaubte `OR user_id = auth.uid()`. Jeder angemeldete Nutzer konnte sich damit in jeden fremden Workspace eintragen. Ersetzt durch eine Prüfung auf Verwalterrolle; neue Workspaces entstehen über die neue Funktion `public.create_workspace()`. 7. **Alle Policies neu geschrieben** nach `CLAUDE.md`: kein `FOR ALL`, getrennte Policies je Operation, immer `TO authenticated`, immer `(select auth.uid())`, fehlende DELETE-Policies ergänzt. 60 Policies über 15 Tabellen. 8. **`set search_path = ''`** in allen `SECURITY DEFINER`-Funktionen. 9. **17 Indizes** auf allen Spalten, die in Policies geprüft werden. 10. **Storage-Bucket abgesichert:** `public = false`, die beiden `anon`-Policies (Hochladen **und Löschen**) entfernt. `MediaService` nutzt jetzt signierte URLs mit Signal-gestütztem Zwischenspeicher, damit Templates weiter synchron binden können. 11. **`supabase/schemas/database.sql` vervollständigt** – enthielt nur Tabellen, keine Sicherheitsregeln. `supabase db diff` hätte vorgeschlagen, alle Policies zu löschen. Jetzt meldet der Befehl „No schema changes found". 12. `config.toml`: `site_url` auf 4200 korrigiert, Passwort-Mindestlänge von 6 auf 10, Weiterleitungs-URLs ergänzt.
 
-*Zwei gravierende Funde, die erst beim Test gegen die laufende Datenbank sichtbar wurden*
-13. **Der Datenbank fehlten sämtliche GRANTs** (Audit 2.11). Jede Abfrage endete mit `42501 permission denied` – für `authenticated`, `anon` **und `service_role`**. Die Datenbank war seit Projektbeginn vollständig unbenutzt; die leeren `catch {}`-Blöcke im Frontend haben das verdeckt. Behoben, inklusive `alter default privileges` für künftige Tabellen.
-14. **Der lokale Supabase-Stack lief auf von Windows gesperrten Ports** (Audit 2.12). Hyper-V reserviert auf diesem Rechner 57322–57921; darin lagen fünf der sieben konfigurierten Ports. Zusätzlich Kollision mit zwei anderen Supabase-Projekten. Umgestellt auf 54350–54359.
+_Zwei gravierende Funde, die erst beim Test gegen die laufende Datenbank sichtbar wurden_ 13. **Der Datenbank fehlten sämtliche GRANTs** (Audit 2.11). Jede Abfrage endete mit `42501 permission denied` – für `authenticated`, `anon` **und `service_role`**. Die Datenbank war seit Projektbeginn vollständig unbenutzt; die leeren `catch {}`-Blöcke im Frontend haben das verdeckt. Behoben, inklusive `alter default privileges` für künftige Tabellen. 14. **Der lokale Supabase-Stack lief auf von Windows gesperrten Ports** (Audit 2.12). Hyper-V reserviert auf diesem Rechner 57322–57921; darin lagen fünf der sieben konfigurierten Ports. Zusätzlich Kollision mit zwei anderen Supabase-Projekten. Umgestellt auf 54350–54359.
 
-*Zwei Folgefehler, die dadurch erst auftraten*
-15. **Service Worker blockierte die Datenbank.** Er fing alle GET-Anfragen ab und beantwortete sie mit „503 Offline" – auch Supabase. Vorgezogen aus Phase 7 und neu geschrieben: er fasst jetzt nur noch eigene, statische Dateien an und lässt fremde Herkünfte unberührt. Damit ist auch das Zwischenspeichern von Geschäfts- und Anmeldedaten beendet (Audit 2.7).
-16. **Absturz in `workspace-member.service.ts`.** `m.email.toLowerCase()` – die Tabelle `workspace_members` hat gar keine Spalte `email`, das Feld existiert nur im TypeScript-Modell (Audit 3.3). Sobald echte Zeilen kamen, warf das eine Ausnahme mitten in der Änderungserkennung. Vorläufig abgesichert; die saubere Lösung (Verknüpfung mit `profiles`) gehört zur Angleichung von Modell und Schema in Phase 5.
+_Zwei Folgefehler, die dadurch erst auftraten_ 15. **Service Worker blockierte die Datenbank.** Er fing alle GET-Anfragen ab und beantwortete sie mit „503 Offline" – auch Supabase. Vorgezogen aus Phase 7 und neu geschrieben: er fasst jetzt nur noch eigene, statische Dateien an und lässt fremde Herkünfte unberührt. Damit ist auch das Zwischenspeichern von Geschäfts- und Anmeldedaten beendet (Audit 2.7). 16. **Absturz in `workspace-member.service.ts`.** `m.email.toLowerCase()` – die Tabelle `workspace_members` hat gar keine Spalte `email`, das Feld existiert nur im TypeScript-Modell (Audit 3.3). Sobald echte Zeilen kamen, warf das eine Ausnahme mitten in der Änderungserkennung. Vorläufig abgesichert; die saubere Lösung (Verknüpfung mit `profiles`) gehört zur Angleichung von Modell und Schema in Phase 5.
 
 **Verifiziert durch:**
+
 - `npx ng build` → erfolgreich; `npx vitest run` → 25 Dateien / 121 Tests grün
 - `npx supabase db reset` → alle vier Migrationen sauber angewendet
 - `npx supabase db diff` → **„No schema changes found"**
@@ -393,6 +398,7 @@ Die App fragt weiter parallel mit der Mock-Workspace-ID `ws-1` ab, was `400 Bad 
 **Art:** Feature & Bugfix
 
 **Betroffen:**
+
 - `src/app/core/models/backup.models.ts` (neu)
 - `src/app/core/services/backup.service.ts` (neu)
 - `src/app/core/services/backup.service.spec.ts` (neu, 26 Tests)
@@ -421,6 +427,7 @@ Die App fragt weiter parallel mit der Mock-Workspace-ID `ws-1` ab, was `400 Bad 
 - **Speicherzugriff als Parameter.** `StorageLike` erlaubt es, den Dienst in Tests ohne Browser mit einer Attrappe zu betreiben – passend zur bestehenden Konvention, Dienste per `new` zu instanziieren.
 
 **Verifiziert durch:**
+
 - `npx vitest run` → **25 Test-Dateien, 121 Tests bestanden** (vorher 24/96: +26 neue Sicherungstests, −1 Test des entfernten Teil-Exports)
 - `npx ng build` → **erfolgreich**
 - **Test im echten Browser** (Chrome, `ng serve`): Rundlauf Sicherung → Daten zerstören → Einspielen stellt Einkauf, beide Artikel und den nicht-JSON-Wert `reflip_theme` zeichengenau wieder her; nach der Sicherung entstandene Reste werden entfernt; fremde Speicherschlüssel bleiben unangetastet
@@ -436,11 +443,13 @@ Die App fragt weiter parallel mit der Mock-Workspace-ID `ws-1` ab, was `400 Bad 
 **Art:** Bugfix & Konfiguration
 
 **Betroffen:**
+
 - `src/app/features/purchases/pages/purchase-detail/purchase-detail.component.ts`
 - `src/app/features/purchases/pages/purchase-detail/purchase-detail.component.html`
 - `.gitattributes` (neu)
 
 **Was:**
+
 1. **Build-Fehler behoben.** Im Template lief `@for (step of ['pending', ...])` über ein Inline-Array von Zeichenketten und griff mit `$any(step)` auf `InboundTrackingService.statusConfig` zu. `$any()` erzeugt genau den `any`-Typ, den der Indexzugriff auf ein `Record<InboundTrackingStatus, …>` dann ablehnt – daher 2 × `TS7053`. Die Stufen liegen jetzt als typisiertes Feld `trackingSteps: readonly InboundTrackingStatus[]` in der Komponente; `$any()` ist entfernt.
 2. **Die 50 uncommitteten Änderungen gesichert** – zusammenhängende Arbeiten aus der vorherigen Sitzung mit Google Gemini (InboundTrackingService, CustomCheckbox, CustomSearchInput, `.linear-table`-Styles, überarbeitete Templates), in zwei Commits getrennt nach Code und Doku.
 3. **`.gitattributes` angelegt** (`* text=auto eol=lf`) – bewusst als letzter Schritt, damit sich die Zeilenende-Normalisierung nicht mit den inhaltlichen Änderungen vermischt.
@@ -449,6 +458,7 @@ Die App fragt weiter parallel mit der Mock-Workspace-ID `ws-1` ab, was `400 Bad 
 `ng build` brach ab – damit war kein Docker-Image baubar, und jede weitere Arbeit hätte darauf blockiert.
 
 **Verifiziert durch:**
+
 - `npx ng build` → **erfolgreich**, Initial-Bundle 825,88 kB (192,85 kB übertragen)
 - `npx vitest run` → **24 Test-Dateien, 96 Tests bestanden**
 - `git status` → sauber
@@ -462,6 +472,7 @@ Die App fragt weiter parallel mit der Mock-Workspace-ID `ws-1` ab, was `400 Bad 
 **Art:** Analyse & Doku (keine Änderung am Anwendungscode)
 
 **Betroffen:**
+
 - `docs/audit/2026-08-19-projekt-audit.md` (neu)
 - `docs/audit/2026-08-19-sanierungsplan.md` (neu)
 - `docs/AI-CHANGELOG.md` (neu)
@@ -470,6 +481,7 @@ Die App fragt weiter parallel mit der Mock-Workspace-ID `ws-1` ab, was `400 Bad 
 Vollständige Untersuchung des Projekts auf Wunsch von Grischa Tänzer – Codesauberkeit, Fehler, Sicherheit, Datenbank, Docker, UI und Barrierefreiheit. Ergebnis: **56 Befunde** (12 kritisch, 11 schwer, 24 mittel, 9 gering), festgehalten im Audit-Dokument, sowie ein 7-Phasen-Sanierungsplan.
 
 Wichtigste Befunde:
+
 1. `ng build` schlägt aktuell fehl (2 × TS7053 in `purchase-detail.component.html`)
 2. Kein Login-Schutz – `authGuard` existiert, ist aber nirgends eingehängt und wäre wirkungslos, weil `isAuthenticated` den Demo-Modus mit einschließt
 3. `localStorage` ist die Quelle der Wahrheit, nicht die Datenbank – 20 von 34 Services haben keine Supabase-Anbindung, ~60 % der Anwendung hat keine Tabellen
@@ -484,6 +496,7 @@ Ausdrücklich positiv: Die Angular-Grundlagen sind sauber – durchgängig Signa
 Das Projekt wurde zuvor mit Google Gemini aufgesetzt. Vor der weiteren Entwicklung sollte der Ist-Zustand unabhängig geprüft werden.
 
 **Verifiziert durch:**
+
 - `npx ng build` → **fehlgeschlagen**, 2 Fehler (TS7053)
 - `npx vitest run` → **24 Test-Dateien, 96 Tests bestanden**, 1,58 s
 - `npm ls` → Doppelinstallation `lucide-angular@1.0.0` + `@lucide/angular@1.31.0` bestätigt

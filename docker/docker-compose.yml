@@ -11,10 +11,10 @@ services:
       # http://reflip.localhost/ ohne Portangabe funktionieren.
       # Falls Port 80 auf dem Rechner einmal belegt ist, hier auf
       # "8080:80" umstellen - die Anwendung laeuft dann unter :8080.
-      - "80:80"
+      - '80:80'
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/healthz"]
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://127.0.0.1/healthz']
       interval: 30s
       timeout: 3s
       retries: 3

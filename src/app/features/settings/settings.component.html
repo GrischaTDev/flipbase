@@ -5,7 +5,9 @@
       <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
         {{ 'NAV.SETTINGS' | translate }} & Team
       </h1>
-      <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-secondary border border-rf-border">
+      <span
+        class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-secondary border border-rf-border"
+      >
         Workspace
       </span>
     </div>
@@ -26,13 +28,16 @@
               Workspaces & Gewerbe-Mandanten ({{ workspaceService.workspaces().length }})
             </h2>
           </div>
-          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold">
+          <span
+            class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold"
+          >
             Multi-Tenant
           </span>
         </div>
 
         <p class="text-xs text-rf-text-muted">
-          Verwalte separate Gewerbezweige mit eigenen Beständen, Steuermodi und Rechnungsnummernkreisen.
+          Verwalte separate Gewerbezweige mit eigenen Beständen, Steuermodi und
+          Rechnungsnummernkreisen.
         </p>
 
         <!-- Workspaces List -->
@@ -49,7 +54,9 @@
                 <div class="flex items-center gap-2">
                   <strong class="text-xs text-rf-text-primary">{{ ws.name }}</strong>
                   @if (workspaceService.currentWorkspace()?.id === ws.id) {
-                    <span class="px-1.5 py-0.2 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                    <span
+                      class="px-1.5 py-0.2 rounded text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold"
+                    >
                       AKTIV
                     </span>
                   }
@@ -84,7 +91,9 @@
                     </button>
                   }
                 } @else {
-                  <span class="text-xs text-emerald-400 font-bold px-2 py-1">Aktiver Workspace</span>
+                  <span class="text-xs text-emerald-400 font-bold px-2 py-1"
+                    >Aktiver Workspace</span
+                  >
                 }
               </div>
             </div>
@@ -113,14 +122,22 @@
       </div>
 
       <!-- 1. Workspace Parameters Form -->
-      <form [formGroup]="settingsForm" (ngSubmit)="onSaveSettings()" class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
+      <form
+        [formGroup]="settingsForm"
+        (ngSubmit)="onSaveSettings()"
+        class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
+      >
         <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
           <lucide-icon [img]="slidersIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Workspace & Deal-Kriterien</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            Workspace & Deal-Kriterien
+          </h2>
         </div>
 
         @if (saveSuccess()) {
-          <div class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
+          <div
+            class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2"
+          >
             <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
             <span>Einstellungen erfolgreich gespeichert!</span>
           </div>
@@ -128,7 +145,10 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label for="workspaceNameInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              for="workspaceNameInput"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               Workspace-Name
             </label>
             <input
@@ -140,7 +160,10 @@
           </div>
 
           <div>
-            <label for="taxModeSelect" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              for="taxModeSelect"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               Steuer-Modus
             </label>
             <select
@@ -157,7 +180,10 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
           <div>
-            <label for="minRoiInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              for="minRoiInput"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               Standard Mindest-ROI (%)
             </label>
             <input
@@ -166,11 +192,16 @@
               formControlName="minRoiPercent"
               class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
             />
-            <span class="text-[10px] text-rf-text-muted mt-0.5 block">Wird im Deal Calculator als Benchmark genutzt.</span>
+            <span class="text-[10px] text-rf-text-muted mt-0.5 block"
+              >Wird im Deal Calculator als Benchmark genutzt.</span
+            >
           </div>
 
           <div>
-            <label for="minProfitInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              for="minProfitInput"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               Mindest-Reingewinn (€)
             </label>
             <input
@@ -179,7 +210,9 @@
               formControlName="minProfitAmount"
               class="linear-input w-full px-3 py-2 rounded-xl text-xs font-mono font-bold"
             />
-            <span class="text-[10px] text-rf-text-muted mt-0.5 block">Mindestbetrag vor Kaufempfehlung.</span>
+            <span class="text-[10px] text-rf-text-muted mt-0.5 block"
+              >Mindestbetrag vor Kaufempfehlung.</span
+            >
           </div>
         </div>
 
@@ -200,7 +233,9 @@
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">
           <div class="flex items-center gap-2">
             <lucide-icon [img]="usersIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
-            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Team-Mitglieder & Rollen</h2>
+            <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+              Team-Mitglieder & Rollen
+            </h2>
           </div>
 
           <button
@@ -223,13 +258,19 @@
             @let badge = memberService.getRoleBadge(member.role);
             <div class="py-3 flex items-center justify-between gap-3 text-xs">
               <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 font-bold flex items-center justify-center uppercase text-xs">
+                <div
+                  class="w-8 h-8 rounded-full bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 font-bold flex items-center justify-center uppercase text-xs"
+                >
                   {{ member.email ? member.email.substring(0, 2) : 'RF' }}
                 </div>
                 <div>
-                  <strong class="text-rf-text-primary block">{{ member.email || 'Workspace-Mitglied' }}</strong>
+                  <strong class="text-rf-text-primary block">{{
+                    member.email || 'Workspace-Mitglied'
+                  }}</strong>
                   <div class="flex items-center gap-1.5 mt-0.5">
-                    <span class="px-1.5 py-0.2 rounded text-[10px] font-mono border {{ badge.class }}">
+                    <span
+                      class="px-1.5 py-0.2 rounded text-[10px] font-mono border {{ badge.class }}"
+                    >
                       {{ badge.label }}
                     </span>
                     <span class="text-[10px] text-rf-text-muted">• {{ badge.description }}</span>
@@ -260,7 +301,9 @@
                     <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
                   </button>
                 } @else {
-                  <span class="text-[11px] font-mono text-purple-300 font-semibold px-2 py-1">Inhaber</span>
+                  <span class="text-[11px] font-mono text-purple-300 font-semibold px-2 py-1"
+                    >Inhaber</span
+                  >
                 }
               </div>
             </div>
@@ -276,11 +319,15 @@
 
             @for (inv of memberService.invites(); track inv.id) {
               @let badge = memberService.getRoleBadge(inv.role);
-              <div class="p-2.5 rounded-xl bg-rf-subtle/60 border border-dashed border-rf-border flex items-center justify-between text-xs">
+              <div
+                class="p-2.5 rounded-xl bg-rf-subtle/60 border border-dashed border-rf-border flex items-center justify-between text-xs"
+              >
                 <div class="flex items-center gap-2">
                   <lucide-icon [img]="mailIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
                   <span class="text-rf-text-secondary font-medium">{{ inv.email }}</span>
-                  <span class="px-1.5 py-0.2 rounded text-[10px] font-mono border {{ badge.class }}">
+                  <span
+                    class="px-1.5 py-0.2 rounded text-[10px] font-mono border {{ badge.class }}"
+                  >
                     {{ badge.label }}
                   </span>
                 </div>
@@ -300,7 +347,11 @@
     </div>
 
     <div class="lg:col-span-5 space-y-5">
-      <form [formGroup]="webhookForm" (ngSubmit)="onSaveWebhookConfig()" class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
+      <form
+        [formGroup]="webhookForm"
+        (ngSubmit)="onSaveWebhookConfig()"
+        class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
+      >
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">
           <div class="flex items-center gap-2">
             <lucide-icon [img]="bellIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
@@ -308,7 +359,9 @@
               Webhooks & Benachrichtigungen
             </h2>
           </div>
-          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold">
+          <span
+            class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold"
+          >
             Discord / Telegram
           </span>
         </div>
@@ -318,7 +371,9 @@
         </p>
 
         @if (webhookSaveSuccess()) {
-          <div class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
+          <div
+            class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2"
+          >
             <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
             <span>Webhook-Konfiguration gespeichert!</span>
           </div>
@@ -334,7 +389,10 @@
             [class.border-rose-500/30]="!msg.success"
             [class.text-rose-300]="!msg.success"
           >
-            <lucide-icon [img]="msg.success ? checkIcon : closeIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <lucide-icon
+              [img]="msg.success ? checkIcon : closeIcon"
+              class="w-3.5 h-3.5"
+            ></lucide-icon>
             <span>{{ msg.text }}</span>
           </div>
         }
@@ -347,7 +405,9 @@
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" formControlName="discordEnabled" class="sr-only peer" />
-              <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
+              <div
+                class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"
+              ></div>
             </label>
           </div>
 
@@ -382,7 +442,9 @@
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
               <input type="checkbox" formControlName="telegramEnabled" class="sr-only peer" />
-              <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
+              <div
+                class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"
+              ></div>
             </label>
           </div>
 
@@ -428,10 +490,7 @@
             size="sm"
           ></app-custom-checkbox>
 
-          <app-custom-checkbox
-            formControlName="soundEnabled"
-            size="sm"
-          >
+          <app-custom-checkbox formControlName="soundEnabled" size="sm">
             <span class="text-rf-text-secondary flex items-center gap-1.5 text-xs">
               <lucide-icon [img]="volumeIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
               <span>Kassen-Chime Sound bei Sales abspielen</span>
@@ -450,7 +509,11 @@
         </div>
       </form>
 
-      <form [formGroup]="paymentForm" (ngSubmit)="onSavePaymentConfig()" class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
+      <form
+        [formGroup]="paymentForm"
+        (ngSubmit)="onSavePaymentConfig()"
+        class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
+      >
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">
           <div class="flex items-center gap-2">
             <lucide-icon [img]="cardIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
@@ -458,7 +521,9 @@
               Webshop & Zahlungs-Gateways
             </h2>
           </div>
-          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold">
+          <span
+            class="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-semibold"
+          >
             Stripe & PayPal
           </span>
         </div>
@@ -468,7 +533,9 @@
         </p>
 
         @if (paymentSaveSuccess()) {
-          <div class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
+          <div
+            class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2"
+          >
             <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
             <span>Zahlungsmethoden erfolgreich gespeichert!</span>
           </div>
@@ -479,11 +546,15 @@
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <lucide-icon [img]="cardIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
-                <strong class="text-xs text-rf-text-primary">Stripe (Kreditkarte / Apple Pay)</strong>
+                <strong class="text-xs text-rf-text-primary"
+                  >Stripe (Kreditkarte / Apple Pay)</strong
+                >
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="stripeEnabled" class="sr-only peer" />
-                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
+                <div
+                  class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"
+                ></div>
               </label>
             </div>
             @if (paymentForm.get('stripeEnabled')?.value) {
@@ -504,7 +575,9 @@
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="paypalEnabled" class="sr-only peer" />
-                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
+                <div
+                  class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"
+                ></div>
               </label>
             </div>
             @if (paymentForm.get('paypalEnabled')?.value) {
@@ -521,11 +594,15 @@
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <lucide-icon [img]="landmarkIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
-                <strong class="text-xs text-rf-text-primary">Banküberweisung (SEPA Vorkasse)</strong>
+                <strong class="text-xs text-rf-text-primary"
+                  >Banküberweisung (SEPA Vorkasse)</strong
+                >
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="bankTransferEnabled" class="sr-only peer" />
-                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"></div>
+                <div
+                  class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-rf-border"
+                ></div>
               </label>
             </div>
             @if (paymentForm.get('bankTransferEnabled')?.value) {
@@ -570,7 +647,11 @@
         </div>
       </form>
 
-      <form [formGroup]="carrierForm" (ngSubmit)="onSaveCarrierConfig()" class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
+      <form
+        [formGroup]="carrierForm"
+        (ngSubmit)="onSaveCarrierConfig()"
+        class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
+      >
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">
           <div class="flex items-center gap-2">
             <lucide-icon [img]="truckIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
@@ -578,7 +659,9 @@
               Carrier-APIs & Packtisch
             </h2>
           </div>
-          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold">
+          <span
+            class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold"
+          >
             DHL & Hermes
           </span>
         </div>
@@ -588,7 +671,9 @@
         </p>
 
         @if (carrierSaveSuccess()) {
-          <div class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
+          <div
+            class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2"
+          >
             <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
             <span>Carrier-Konfiguration erfolgreich gespeichert!</span>
           </div>
@@ -599,11 +684,15 @@
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <lucide-icon [img]="truckIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
-                <strong class="text-xs text-rf-text-primary">DHL Geschäftskundenversand (GKP)</strong>
+                <strong class="text-xs text-rf-text-primary"
+                  >DHL Geschäftskundenversand (GKP)</strong
+                >
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="dhlEnabled" class="sr-only peer" />
-                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600 border border-rf-border"></div>
+                <div
+                  class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600 border border-rf-border"
+                ></div>
               </label>
             </div>
             @if (carrierForm.get('dhlEnabled')?.value) {
@@ -615,9 +704,9 @@
                   class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
                 />
                 <p class="col-span-2 text-[10px] text-rf-text-muted leading-relaxed">
-                  Der DHL-Zugangsschlüssel wird bewusst nicht hier gespeichert.
-                  Geheime Schlüssel gehören in eine Edge Function &ndash; alles, was das
-                  Frontend kennt, ist im Browser lesbar.
+                  Der DHL-Zugangsschlüssel wird bewusst nicht hier gespeichert. Geheime Schlüssel
+                  gehören in eine Edge Function &ndash; alles, was das Frontend kennt, ist im
+                  Browser lesbar.
                 </p>
               </div>
             }
@@ -631,7 +720,9 @@
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" formControlName="hermesEnabled" class="sr-only peer" />
-                <div class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 border border-rf-border"></div>
+                <div
+                  class="w-9 h-5 bg-rf-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-rf-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 border border-rf-border"
+                ></div>
               </label>
             </div>
             @if (carrierForm.get('hermesEnabled')?.value) {
@@ -643,9 +734,9 @@
                   class="linear-input w-full px-2.5 py-1.5 rounded-xl text-[11px] font-mono"
                 />
                 <p class="col-span-2 text-[10px] text-rf-text-muted leading-relaxed">
-                  Der Hermes-Zugangsschlüssel wird bewusst nicht hier gespeichert.
-                  Geheime Schlüssel gehören in eine Edge Function &ndash; alles, was das
-                  Frontend kennt, ist im Browser lesbar.
+                  Der Hermes-Zugangsschlüssel wird bewusst nicht hier gespeichert. Geheime Schlüssel
+                  gehören in eine Edge Function &ndash; alles, was das Frontend kennt, ist im
+                  Browser lesbar.
                 </p>
               </div>
             }
@@ -676,19 +767,35 @@
             [class.bg-emerald-500/15]="webPushService.permission() === 'granted'"
             [class.text-emerald-300]="webPushService.permission() === 'granted'"
             [class.border-emerald-500/30]="webPushService.permission() === 'granted'"
-            [class.bg-amber-500/15]="webPushService.permission() === 'default' || webPushService.permission() === 'unsupported'"
-            [class.text-amber-300]="webPushService.permission() === 'default' || webPushService.permission() === 'unsupported'"
-            [class.border-amber-500/30]="webPushService.permission() === 'default' || webPushService.permission() === 'unsupported'"
+            [class.bg-amber-500/15]="
+              webPushService.permission() === 'default' ||
+              webPushService.permission() === 'unsupported'
+            "
+            [class.text-amber-300]="
+              webPushService.permission() === 'default' ||
+              webPushService.permission() === 'unsupported'
+            "
+            [class.border-amber-500/30]="
+              webPushService.permission() === 'default' ||
+              webPushService.permission() === 'unsupported'
+            "
             [class.bg-rose-500/15]="webPushService.permission() === 'denied'"
             [class.text-rose-300]="webPushService.permission() === 'denied'"
             [class.border-rose-500/30]="webPushService.permission() === 'denied'"
           >
-            {{ webPushService.permission() === 'granted' ? 'Aktiviert' : webPushService.permission() === 'denied' ? 'Blockiert' : 'Nicht aktiviert' }}
+            {{
+              webPushService.permission() === 'granted'
+                ? 'Aktiviert'
+                : webPushService.permission() === 'denied'
+                  ? 'Blockiert'
+                  : 'Nicht aktiviert'
+            }}
           </span>
         </div>
 
         <p class="text-[11px] text-rf-text-muted leading-relaxed">
-          Erhalte System-Benachrichtigungen direkt in deinem Browser oder auf dem Smartphone – selbst wenn ReFlip geschlossen ist.
+          Erhalte System-Benachrichtigungen direkt in deinem Browser oder auf dem Smartphone –
+          selbst wenn ReFlip geschlossen ist.
         </p>
 
         @if (pushStatusMessage(); as msg) {
@@ -701,15 +808,22 @@
             [class.border-rose-500/30]="!msg.success"
             [class.text-rose-300]="!msg.success"
           >
-            <lucide-icon [img]="msg.success ? checkIcon : closeIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <lucide-icon
+              [img]="msg.success ? checkIcon : closeIcon"
+              class="w-3.5 h-3.5"
+            ></lucide-icon>
             <span>{{ msg.text }}</span>
           </div>
         }
 
-        <div class="flex items-center justify-between p-3 rounded-xl bg-rf-subtle border border-rf-border">
+        <div
+          class="flex items-center justify-between p-3 rounded-xl bg-rf-subtle border border-rf-border"
+        >
           <div>
             <strong class="text-xs text-rf-text-primary block">Push-Berechtigung</strong>
-            <span class="text-[10px] text-rf-text-muted">Status: {{ webPushService.permission() }}</span>
+            <span class="text-[10px] text-rf-text-muted"
+              >Status: {{ webPushService.permission() }}</span
+            >
           </div>
 
           @if (webPushService.permission() !== 'granted') {
@@ -741,7 +855,10 @@
 
           <div class="flex items-center justify-between">
             <span class="text-rf-text-secondary flex items-center gap-1.5">
-              <lucide-icon [img]="shoppingCartIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+              <lucide-icon
+                [img]="shoppingCartIcon"
+                class="w-3.5 h-3.5 text-indigo-400"
+              ></lucide-icon>
               <span>Neue Webshop-Bestellungen (/shop)</span>
             </span>
             <app-custom-checkbox
@@ -765,7 +882,10 @@
 
           <div class="flex items-center justify-between">
             <span class="text-rf-text-secondary flex items-center gap-1.5">
-              <lucide-icon [img]="alertTriangleIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
+              <lucide-icon
+                [img]="alertTriangleIcon"
+                class="w-3.5 h-3.5 text-amber-400"
+              ></lucide-icon>
               <span>Margen- & Profit-Alarme (ROI &lt; 20%)</span>
             </span>
             <app-custom-checkbox
@@ -797,19 +917,24 @@
               Progressive Web App (PWA)
             </h2>
           </div>
-          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-semibold">
+          <span
+            class="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 font-semibold"
+          >
             Mobile & Offline
           </span>
         </div>
 
         <p class="text-[11px] text-rf-text-muted leading-relaxed">
-          Installiere ReFlip als eigenständige App auf deinem Smartphone (iOS & Android) oder Desktop für blitzschnellen Offline-Zugriff beim Sourcing auf Flohmärkten.
+          Installiere ReFlip als eigenständige App auf deinem Smartphone (iOS & Android) oder
+          Desktop für blitzschnellen Offline-Zugriff beim Sourcing auf Flohmärkten.
         </p>
 
         <!-- Status Grid -->
         <div class="grid grid-cols-2 gap-2 text-xs">
           <div class="p-2.5 rounded-xl bg-rf-subtle border border-rf-border space-y-1">
-            <span class="text-[10px] text-rf-text-muted font-bold block uppercase">Netzwerk-Status</span>
+            <span class="text-[10px] text-rf-text-muted font-bold block uppercase"
+              >Netzwerk-Status</span
+            >
             <div class="flex items-center gap-1.5">
               @if (pwaService.isOnline()) {
                 <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
@@ -826,7 +951,9 @@
             <div class="flex items-center gap-1.5">
               @if (pwaService.isInstalled()) {
                 <span class="w-2 h-2 rounded-full bg-indigo-400"></span>
-                <strong class="text-indigo-300 font-mono text-[11px]">Installiert (Standalone)</strong>
+                <strong class="text-indigo-300 font-mono text-[11px]"
+                  >Installiert (Standalone)</strong
+                >
               } @else {
                 <span class="w-2 h-2 rounded-full bg-rf-text-muted"></span>
                 <strong class="text-rf-text-secondary font-mono text-[11px]">Im Web-Browser</strong>
@@ -847,7 +974,9 @@
             </button>
           </div>
         } @else {
-          <div class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2">
+          <div
+            class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2"
+          >
             <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
             <span>ReFlip ist bereits als native App auf diesem Gerät installiert.</span>
           </div>
@@ -858,19 +987,26 @@
       <div class="linear-surface rounded-2xl p-5 space-y-3 shadow-xl">
         <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
           <lucide-icon [img]="csvIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">Datenexport & Backups</h2>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
+            Datenexport & Backups
+          </h2>
         </div>
 
         <p class="text-xs text-rf-text-muted leading-relaxed">
-          Exportiere alle Geschäftsdaten im standardisierten CSV- oder JSON-Format für deine Buchhaltung oder Sicherung.
+          Exportiere alle Geschäftsdaten im standardisierten CSV- oder JSON-Format für deine
+          Buchhaltung oder Sicherung.
         </p>
 
         <div class="space-y-2 pt-2">
           <!-- Sales Export -->
-          <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between">
+          <div
+            class="p-3 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between"
+          >
             <div>
               <strong class="text-xs text-rf-text-primary block">Verkäufe & Erlöse</strong>
-              <span class="text-[10px] text-rf-text-muted">Inklusive Gebühren, Versand und Reingewinn</span>
+              <span class="text-[10px] text-rf-text-muted"
+                >Inklusive Gebühren, Versand und Reingewinn</span
+              >
             </div>
             <button
               type="button"
@@ -883,10 +1019,14 @@
           </div>
 
           <!-- Inventory Export -->
-          <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between">
+          <div
+            class="p-3 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between"
+          >
             <div>
               <strong class="text-xs text-rf-text-primary block">Inventar & Warenbestand</strong>
-              <span class="text-[10px] text-rf-text-muted">Inventurliste mit gebundenem Kapital</span>
+              <span class="text-[10px] text-rf-text-muted"
+                >Inventurliste mit gebundenem Kapital</span
+              >
             </div>
             <button
               type="button"
@@ -899,9 +1039,13 @@
           </div>
 
           <!-- Einkaufsauswertung -->
-          <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between">
+          <div
+            class="p-3 rounded-xl bg-rf-subtle border border-rf-border flex items-center justify-between"
+          >
             <div>
-              <strong class="text-xs text-rf-text-primary block">Einkäufe &amp; Wareneinsatz</strong>
+              <strong class="text-xs text-rf-text-primary block"
+                >Einkäufe &amp; Wareneinsatz</strong
+              >
               <span class="text-[10px] text-rf-text-muted">Kostenverteilung und Nebenkosten</span>
             </div>
             <button
@@ -916,11 +1060,10 @@
         </div>
 
         <p class="text-[10px] text-rf-text-dimmed leading-relaxed pt-1 border-t border-rf-border">
-          CSV-Dateien sind für Auswertung und Buchhaltung gedacht. Deine Daten selbst liegen
-          in der Datenbank &ndash; eine Sicherung erstellst du dort.
+          CSV-Dateien sind für Auswertung und Buchhaltung gedacht. Deine Daten selbst liegen in der
+          Datenbank &ndash; eine Sicherung erstellst du dort.
         </p>
       </div>
-
     </div>
   </div>
 
@@ -936,7 +1079,9 @@
         <div class="flex items-start justify-between border-b border-rf-border pb-3">
           <div>
             <h3 class="text-base font-bold text-rf-text-primary">Team-Mitglied einladen</h3>
-            <p class="text-xs text-rf-text-muted mt-0.5">Sende eine Einladung per E-Mail mit definierter Rolle.</p>
+            <p class="text-xs text-rf-text-muted mt-0.5">
+              Sende eine Einladung per E-Mail mit definierter Rolle.
+            </p>
           </div>
 
           <button
@@ -949,14 +1094,19 @@
         </div>
 
         @if (inviteError()) {
-          <div class="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
+          <div
+            class="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs"
+          >
             {{ inviteError() }}
           </div>
         }
 
         <form [formGroup]="inviteForm" (ngSubmit)="onSendInvite()" class="space-y-4">
           <div>
-            <label for="inviteEmailInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              for="inviteEmailInput"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               E-Mail-Adresse *
             </label>
             <input
@@ -969,7 +1119,10 @@
           </div>
 
           <div>
-            <label for="inviteRoleSelect" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              for="inviteRoleSelect"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               Rolle & Berechtigung *
             </label>
             <select
@@ -978,7 +1131,9 @@
               class="linear-input w-full px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer text-rf-text-secondary"
             >
               <option value="member">Sourcing & Einkauf (Einkauf & Inventar)</option>
-              <option value="fulfillment">Packstation & Logistik (Versand & Sendungsverfolgung)</option>
+              <option value="fulfillment">
+                Packstation & Logistik (Versand & Sendungsverfolgung)
+              </option>
               <option value="accountant">Steuerberater / DATEV (Nur-Lesen auf Finanzen)</option>
               <option value="admin">Administrator (Voller Zugriff ohne Inhaber-Rechte)</option>
               <option value="readonly">Nur-Lesen (Reine Ansicht)</option>

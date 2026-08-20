@@ -30,7 +30,14 @@ describe('Workspace Member & Role Management', () => {
   ];
 
   it('should verify defined roles in workspace hierarchy', () => {
-    const roles: WorkspaceRole[] = ['owner', 'admin', 'member', 'fulfillment', 'accountant', 'readonly'];
+    const roles: WorkspaceRole[] = [
+      'owner',
+      'admin',
+      'member',
+      'fulfillment',
+      'accountant',
+      'readonly',
+    ];
     expect(roles.length).toBe(6);
     expect(roles).toContain('owner');
     expect(roles).toContain('accountant');
@@ -44,7 +51,9 @@ describe('Workspace Member & Role Management', () => {
   });
 
   it('should update member role immutably', () => {
-    const updated = members.map((m) => (m.id === 'wm-2' ? { ...m, role: 'admin' as WorkspaceRole } : m));
+    const updated = members.map((m) =>
+      m.id === 'wm-2' ? { ...m, role: 'admin' as WorkspaceRole } : m,
+    );
     const modifiedMember = updated.find((m) => m.id === 'wm-2');
     expect(modifiedMember?.role).toBe('admin');
   });

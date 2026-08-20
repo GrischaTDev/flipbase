@@ -17,7 +17,11 @@ import { PurchaseService, CreatePurchasePayload } from '../../../../core/service
 import { SourcesService } from '../../../../core/services/sources.service';
 import { SuppliersService } from '../../../../core/services/suppliers.service';
 import { InboundTrackingService } from '../../../../core/services/inbound-tracking.service';
-import { PurchaseType, ItemCondition, TrackingCarrier } from '../../../../core/models/reflip.models';
+import {
+  PurchaseType,
+  ItemCondition,
+  TrackingCarrier,
+} from '../../../../core/models/reflip.models';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 
 interface ExtraCostEntry {
@@ -66,11 +70,20 @@ export class PurchaseCreateModalComponent {
 
   readonly form = new FormGroup({
     type: new FormControl<PurchaseType>('single', { nonNullable: true }),
-    title: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
+    title: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.minLength(2)],
+    }),
     source_id: new FormControl<string | null>(null),
     supplier_id: new FormControl<string | null>(null),
-    purchase_date: new FormControl<string>(new Date().toISOString().split('T')[0], { nonNullable: true, validators: [Validators.required] }),
-    purchase_price: new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
+    purchase_date: new FormControl<string>(new Date().toISOString().split('T')[0], {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
+    purchase_price: new FormControl<number>(0, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(0)],
+    }),
     tracking_number: new FormControl<string>(''),
     tracking_carrier: new FormControl<TrackingCarrier | null>(null),
     original_url: new FormControl<string>(''),
@@ -81,10 +94,7 @@ export class PurchaseCreateModalComponent {
   });
 
   addCostRow(): void {
-    this.extraCosts.update((costs) => [
-      ...costs,
-      { type: 'shipping', amount: 0, description: '' },
-    ]);
+    this.extraCosts.update((costs) => [...costs, { type: 'shipping', amount: 0, description: '' }]);
   }
 
   removeCostRow(index: number): void {
@@ -93,7 +103,9 @@ export class PurchaseCreateModalComponent {
 
   updateCostField(index: number, field: keyof ExtraCostEntry, value: any): void {
     this.extraCosts.update((costs) =>
-      costs.map((c, i) => (i === index ? { ...c, [field]: field === 'amount' ? Number(value) || 0 : value } : c))
+      costs.map((c, i) =>
+        i === index ? { ...c, [field]: field === 'amount' ? Number(value) || 0 : value } : c,
+      ),
     );
   }
 
@@ -142,7 +154,9 @@ export class PurchaseCreateModalComponent {
       purchase_date: f.purchase_date,
       purchase_price: f.purchase_price,
       tracking_number: f.tracking_number?.trim() || null,
-      tracking_carrier: f.tracking_carrier || (f.tracking_number ? this.trackingService.autoDetectCarrier(f.tracking_number) : null),
+      tracking_carrier:
+        f.tracking_carrier ||
+        (f.tracking_number ? this.trackingService.autoDetectCarrier(f.tracking_number) : null),
       original_url: f.original_url || null,
       notes: f.notes || null,
       initial_costs: this.extraCosts().filter((c) => c.amount > 0),

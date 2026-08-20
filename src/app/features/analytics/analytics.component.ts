@@ -84,7 +84,15 @@ export class AnalyticsComponent {
 
   readonly timeRange = signal<AnalyticsTimeRange>('30d');
   readonly activeSection = signal<
-    'overview' | 'cohorts' | 'platforms' | 'velocity' | 'heatmap' | 'sources' | 'categories' | 'speed' | 'holding'
+    | 'overview'
+    | 'cohorts'
+    | 'platforms'
+    | 'velocity'
+    | 'heatmap'
+    | 'sources'
+    | 'categories'
+    | 'speed'
+    | 'holding'
   >('overview');
 
   readonly isHoldingMode = signal<boolean>(false);
@@ -137,47 +145,47 @@ export class AnalyticsComponent {
     return this.workspaceService.getConsolidatedHoldingSummary(
       this.salesService.sales(),
       this.purchaseService.purchases(),
-      this.inventoryService.items()
+      this.inventoryService.items(),
     );
   });
 
   // 1. Platform Performance
   readonly platformPerformance = computed<PlatformPerformance[]>(() =>
-    this.analyticsService.computePlatformPerformance(this.currentSales())
+    this.analyticsService.computePlatformPerformance(this.currentSales()),
   );
 
   // 2. Holding Duration & Speed Buckets
   readonly holdingDurationAnalysis = computed<HoldingDurationAnalysis>(() =>
-    this.analyticsService.computeHoldingDurationAnalysis(this.currentSales())
+    this.analyticsService.computeHoldingDurationAnalysis(this.currentSales()),
   );
 
   // 3. Monthly Cohorts
   readonly monthlyCohorts = computed<MonthlyCohortStats[]>(() =>
     this.analyticsService.computeMonthlyCohorts(
       this.purchaseService.purchases(),
-      this.salesService.sales()
-    )
+      this.salesService.sales(),
+    ),
   );
 
   // 4. Sales Heatmap
   readonly salesHeatmap = computed<DayHeatmap[]>(() =>
-    this.analyticsService.computeSalesHeatmap(this.salesService.sales())
+    this.analyticsService.computeSalesHeatmap(this.salesService.sales()),
   );
 
   // 5. Category Rankings
   readonly categoryRankings = computed<CategoryRank[]>(() =>
     this.analyticsService.computeCategoryRankings(
       this.inventoryService.items(),
-      this.currentSales()
-    )
+      this.currentSales(),
+    ),
   );
 
   // 6. Source Performance
   readonly sourcePerformance = computed<SourcePerformance[]>(() =>
     this.analyticsService.computeSourcePerformance(
       this.purchaseService.purchases(),
-      this.currentSales()
-    )
+      this.currentSales(),
+    ),
   );
 
   setTimeRange(range: AnalyticsTimeRange): void {

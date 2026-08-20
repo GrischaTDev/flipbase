@@ -32,12 +32,16 @@ import { MediaService } from '../../../../core/services/media.service';
 import { InventoryLabelModalComponent } from '../../../../shared/components/inventory-label-modal/inventory-label-modal.component';
 import { ItemMedia, ItemStatus } from '../../../../core/models/reflip.models';
 
-import { CustomSelectComponent, SelectOption } from '../../../../shared/components/custom-select/custom-select.component';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 
 @Component({
   selector: 'app-item-detail',
-  imports: [ModalDialogDirective, 
+  imports: [
+    ModalDialogDirective,
     RouterLink,
     ReactiveFormsModule,
     CurrencyPipe,
@@ -89,19 +93,63 @@ export class ItemDetailComponent {
 
   readonly costForm = new FormGroup({
     type: new FormControl('repair', { nonNullable: true, validators: [Validators.required] }),
-    amount: new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0.01)] }),
+    amount: new FormControl<number>(0, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(0.01)],
+    }),
     description: new FormControl(''),
   });
 
   readonly statusOptions: SelectOption<ItemStatus>[] = [
-    { value: 'received', label: 'Auf Lager', badgeClass: 'bg-blue-400', colorClass: 'bg-blue-500/20 text-blue-300 border-blue-500/50 hover:bg-blue-500/30' },
-    { value: 'ready', label: 'Bereit', badgeClass: 'bg-amber-400', colorClass: 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30' },
-    { value: 'listed', label: 'Gelistet', badgeClass: 'bg-emerald-400', colorClass: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30' },
-    { value: 'sold', label: 'Verkauft', badgeClass: 'bg-purple-400', colorClass: 'bg-purple-500/20 text-purple-300 border-purple-500/50 hover:bg-purple-500/30' },
-    { value: 'reserved', label: 'Reserviert', badgeClass: 'bg-slate-400', colorClass: 'bg-slate-500/20 text-slate-200 border-slate-500/50 hover:bg-slate-500/30' },
-    { value: 'defective', label: 'Defekt / Ersatzteil', badgeClass: 'bg-rose-400', colorClass: 'bg-rose-500/20 text-rose-300 border-rose-500/50 hover:bg-rose-500/30' },
-    { value: 'returned', label: 'Retourniert', badgeClass: 'bg-slate-400', colorClass: 'bg-slate-500/20 text-slate-200 border-slate-500/50 hover:bg-slate-500/30' },
-    { value: 'archived', label: 'Archiviert', badgeClass: 'bg-slate-400', colorClass: 'bg-slate-500/20 text-slate-200 border-slate-500/50 hover:bg-slate-500/30' },
+    {
+      value: 'received',
+      label: 'Auf Lager',
+      badgeClass: 'bg-blue-400',
+      colorClass: 'bg-blue-500/20 text-blue-300 border-blue-500/50 hover:bg-blue-500/30',
+    },
+    {
+      value: 'ready',
+      label: 'Bereit',
+      badgeClass: 'bg-amber-400',
+      colorClass: 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30',
+    },
+    {
+      value: 'listed',
+      label: 'Gelistet',
+      badgeClass: 'bg-emerald-400',
+      colorClass:
+        'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30',
+    },
+    {
+      value: 'sold',
+      label: 'Verkauft',
+      badgeClass: 'bg-purple-400',
+      colorClass: 'bg-purple-500/20 text-purple-300 border-purple-500/50 hover:bg-purple-500/30',
+    },
+    {
+      value: 'reserved',
+      label: 'Reserviert',
+      badgeClass: 'bg-slate-400',
+      colorClass: 'bg-slate-500/20 text-slate-200 border-slate-500/50 hover:bg-slate-500/30',
+    },
+    {
+      value: 'defective',
+      label: 'Defekt / Ersatzteil',
+      badgeClass: 'bg-rose-400',
+      colorClass: 'bg-rose-500/20 text-rose-300 border-rose-500/50 hover:bg-rose-500/30',
+    },
+    {
+      value: 'returned',
+      label: 'Retourniert',
+      badgeClass: 'bg-slate-400',
+      colorClass: 'bg-slate-500/20 text-slate-200 border-slate-500/50 hover:bg-slate-500/30',
+    },
+    {
+      value: 'archived',
+      label: 'Archiviert',
+      badgeClass: 'bg-slate-400',
+      colorClass: 'bg-slate-500/20 text-slate-200 border-slate-500/50 hover:bg-slate-500/30',
+    },
   ];
 
   constructor() {
@@ -152,9 +200,7 @@ export class ItemDetailComponent {
     if (!itemId) return;
 
     await this.mediaService.setPrimary(itemId, media.id);
-    this.mediaList.update((prev) =>
-      prev.map((m) => ({ ...m, is_primary: m.id === media.id }))
-    );
+    this.mediaList.update((prev) => prev.map((m) => ({ ...m, is_primary: m.id === media.id })));
   }
 
   async onDeleteMedia(media: ItemMedia): Promise<void> {
@@ -181,7 +227,12 @@ export class ItemDetailComponent {
     if (!item || this.costForm.invalid) return;
 
     const val = this.costForm.getRawValue();
-    await this.inventoryService.addItemCost(item.id, val.type, val.amount, val.description || undefined);
+    await this.inventoryService.addItemCost(
+      item.id,
+      val.type,
+      val.amount,
+      val.description || undefined,
+    );
 
     this.costForm.reset({ type: 'repair', amount: 0, description: '' });
     this.isAddingCost.set(false);

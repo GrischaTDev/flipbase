@@ -2,10 +2,7 @@
 
 <div class="min-h-screen bg-rf-bg text-rf-text-primary flex flex-col md:flex-row antialiased">
   <!-- Desktop & Mobile Sidebar -->
-  <app-sidebar
-    [isOpen]="isSidebarOpen()"
-    (close)="closeSidebar()"
-  ></app-sidebar>
+  <app-sidebar [isOpen]="isSidebarOpen()" (close)="closeSidebar()"></app-sidebar>
 
   <!-- Main Content Area -->
   <div class="flex-1 flex flex-col min-w-0 pb-16 md:pb-0 bg-rf-bg">
@@ -43,15 +40,17 @@
     <app-sync-error-banner></app-sync-error-banner>
 
     <!-- Page Content Container -->
-    <main id="hauptinhalt" tabindex="-1" class="flex-1 p-4 md:p-6 lg:p-7 max-w-7xl w-full mx-auto animate-fade-in">
+    <main
+      id="hauptinhalt"
+      tabindex="-1"
+      class="flex-1 p-4 md:p-6 lg:p-7 max-w-7xl w-full mx-auto animate-fade-in"
+    >
       <router-outlet></router-outlet>
     </main>
   </div>
 
   <!-- Mobile Bottom Navigation -->
-  <app-bottom-nav
-    (toggleMenu)="toggleSidebar()"
-  ></app-bottom-nav>
+  <app-bottom-nav (toggleMenu)="toggleSidebar()"></app-bottom-nav>
 
   <!-- Workspace Modal -->
   @if (isCreateWorkspaceModalOpen()) {

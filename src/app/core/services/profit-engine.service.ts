@@ -105,8 +105,8 @@ export class ProfitEngineService {
   calculateMaxBuyPrice(
     fairMarketValue: number,
     estimatedAdditionalCosts: number,
-    minRoiPercent: number = 30,
-    minProfitAmount: number = 15,
+    minRoiPercent = 30,
+    minProfitAmount = 15,
   ): number {
     // Formula derived from: FairValue - MaxBuyPrice - AdditionalCosts >= MinProfit
     // and (FairValue - MaxBuyPrice - AdditionalCosts) / (MaxBuyPrice + AdditionalCosts) >= MinRoi / 100
@@ -128,8 +128,8 @@ export class ProfitEngineService {
   calculateDealScore(
     expectedRoiPercent: number,
     expectedProfit: number,
-    liquidityScore: number = 70, // 0-100
-    confidenceScore: number = 80, // 0-100
+    liquidityScore = 70, // 0-100
+    confidenceScore = 80, // 0-100
   ): number {
     // Score components mapped to 0-100:
     // ROI: 0% -> 0, 50% -> 50, 100%+ -> 100
@@ -159,10 +159,10 @@ export class ProfitEngineService {
   evaluateDeal(
     askingPrice: number,
     fairMarketValue: number,
-    estimatedCosts: number = 0,
-    minRoiPercent: number = 30,
-    minProfitAmount: number = 15,
-    confidenceScore: number = 85,
+    estimatedCosts = 0,
+    minRoiPercent = 30,
+    minProfitAmount = 15,
+    confidenceScore = 85,
   ): DealEvaluationResult {
     const fastSalePrice = Number((fairMarketValue * 0.85).toFixed(2));
     const recommendedListingPrice = Number((fairMarketValue * 1.12).toFixed(2));

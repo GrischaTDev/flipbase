@@ -139,9 +139,9 @@ export class ResearchService {
    */
   async executeResearch(
     queryText: string,
-    condition: string = 'used',
-    estimatedCost: number = 25.0,
-    limit: number = 24,
+    condition = 'used',
+    estimatedCost = 25.0,
+    limit = 24,
   ): Promise<{ results: ResearchComparisonItem[]; summary: ResearchSummary }> {
     this.isLoading.set(true);
 
@@ -192,8 +192,8 @@ export class ResearchService {
    */
   calculateSummary(
     items: ResearchComparisonItem[],
-    baseCosts: number = 25.0,
-    queryText: string = '',
+    baseCosts = 25.0,
+    queryText = '',
   ): ResearchSummary {
     const activePrices = items
       .filter((i) => !i.isExcluded)
@@ -305,7 +305,7 @@ export class ResearchService {
     query: string,
     condition: string,
     realPhotos: string[],
-    count: number = 24,
+    count = 24,
   ): ResearchComparisonItem[] {
     let baseValue = 50.0;
     const lower = query.toLowerCase();

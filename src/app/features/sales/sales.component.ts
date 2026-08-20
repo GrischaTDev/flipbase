@@ -79,10 +79,19 @@ export class SalesComponent {
   readonly isProcessingReturn = signal<boolean>(false);
 
   readonly returnForm = new FormGroup({
-    reason: new FormControl<ReturnReason>('buyer_remorse', { nonNullable: true, validators: [Validators.required] }),
-    refundAmount: new FormControl<number>(0, { nonNullable: true, validators: [Validators.required, Validators.min(0.01)] }),
+    reason: new FormControl<ReturnReason>('buyer_remorse', {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
+    refundAmount: new FormControl<number>(0, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(0.01)],
+    }),
     isFullRefund: new FormControl<boolean>(true, { nonNullable: true }),
-    restockAction: new FormControl<RestockAction>('restock_ready', { nonNullable: true, validators: [Validators.required] }),
+    restockAction: new FormControl<RestockAction>('restock_ready', {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
     notes: new FormControl<string>(''),
   });
 
@@ -204,7 +213,11 @@ export class SalesComponent {
   }
 
   async onDeleteSale(sale: Sale): Promise<void> {
-    if (confirm('Möchtest du diesen Verkauf wirklich stornieren? Der Artikel wird wieder auf "verkaufsbereit" zurückgesetzt.')) {
+    if (
+      confirm(
+        'Möchtest du diesen Verkauf wirklich stornieren? Der Artikel wird wieder auf "verkaufsbereit" zurückgesetzt.',
+      )
+    ) {
       await this.salesService.deleteSale(sale.id, sale.inventory_item_id);
     }
   }

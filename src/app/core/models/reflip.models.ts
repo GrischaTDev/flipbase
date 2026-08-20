@@ -44,7 +44,8 @@ export interface ConsolidatedHoldingSummary {
   workspaceSummaries: WorkspaceSummary[];
 }
 
-export type WorkspaceRole = 'owner' | 'admin' | 'member' | 'fulfillment' | 'accountant' | 'readonly';
+export type WorkspaceRole =
+  'owner' | 'admin' | 'member' | 'fulfillment' | 'accountant' | 'readonly';
 
 export interface WorkspaceMember {
   id: string;
@@ -98,8 +99,10 @@ export interface PurchaseCost {
   created_at?: string;
 }
 
-export type TrackingCarrier = 'dhl' | 'dpd' | 'hermes' | 'ups' | 'gls' | 'fedex' | 'deutsche_post' | 'other';
-export type InboundTrackingStatus = 'pending' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'exception';
+export type TrackingCarrier =
+  'dhl' | 'dpd' | 'hermes' | 'ups' | 'gls' | 'fedex' | 'deutsche_post' | 'other';
+export type InboundTrackingStatus =
+  'pending' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'exception';
 
 export interface InboundTrackingCheckpoint {
   timestamp: string;
@@ -149,7 +152,8 @@ export interface Purchase {
   items?: InventoryItem[];
 }
 
-export type ItemCondition = 'new' | 'like_new' | 'very_good' | 'used' | 'heavily_used' | 'defective';
+export type ItemCondition =
+  'new' | 'like_new' | 'very_good' | 'used' | 'heavily_used' | 'defective';
 export type ItemStatus =
   | 'received'
   | 'needs_review'
@@ -334,7 +338,7 @@ export interface TaxCalculationResult {
   tax_base: number;
   vat_amount: number;
   input_tax_deductible: number; // Vorsteuer aus Gebühren/Versand
-  net_tax_liability: number;     // USt-Zahllast = USt - Vorsteuer
+  net_tax_liability: number; // USt-Zahllast = USt - Vorsteuer
   net_profit_after_tax: number;
   invoice_clause: string;
 }
@@ -357,8 +361,8 @@ export interface DatevBookingRecord {
   belegfeld1: string; // Order / Sale ID
   umsatz: number;
   sollHaben: 'S' | 'H';
-  konto: string;     // e.g. 8200 (Erlöse § 25a) or 8400
-  gegenkonto: string;// e.g. 1200 (Bank) or 1000 (Kasse)
+  konto: string; // e.g. 8200 (Erlöse § 25a) or 8400
+  gegenkonto: string; // e.g. 1200 (Bank) or 1000 (Kasse)
   buchungstext: string;
   kost1?: string;
   ustSatz: number;

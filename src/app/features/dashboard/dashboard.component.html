@@ -1,10 +1,16 @@
 <div class="space-y-5 animate-fade-in">
   <!-- Top Banner / Quick Actions -->
-  <div class="linear-surface rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border border-rf-line">
+  <div
+    class="linear-surface rounded-xl p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border border-rf-line"
+  >
     <div>
       <div class="flex items-center gap-2">
-        <h1 class="text-lg font-bold tracking-tight text-rf-text-primary">Willkommen im ReFlip OS</h1>
-        <span class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold tracking-wide uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+        <h1 class="text-lg font-bold tracking-tight text-rf-text-primary">
+          Willkommen im ReFlip OS
+        </h1>
+        <span
+          class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold tracking-wide uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+        >
           Aktiv
         </span>
       </div>
@@ -44,26 +50,32 @@
     <div class="linear-kpi p-4 rounded-xl border-emerald-500/40">
       <div class="flex items-center justify-between text-rf-text-muted text-[11px] font-semibold">
         <span>{{ 'DASHBOARD.REALIZED_PROFIT' | translate }}</span>
-        <div class="w-6 h-6 rounded-md bg-emerald-500/15 flex items-center justify-center text-emerald-400">
+        <div
+          class="w-6 h-6 rounded-md bg-emerald-500/15 flex items-center justify-center text-emerald-400"
+        >
           <lucide-icon [img]="trendingIcon" class="w-3.5 h-3.5"></lucide-icon>
         </div>
       </div>
       <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-emerald-400">
-        {{ metrics().realized_profit | currency:'EUR':'symbol':'1.2-2':'de' }}
+        {{ metrics().realized_profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </div>
-      <p class="text-[10px] text-rf-text-muted mt-0.5">Aus {{ salesService.sales().length }} abgeschlossenen Verkäufen</p>
+      <p class="text-[10px] text-rf-text-muted mt-0.5">
+        Aus {{ salesService.sales().length }} abgeschlossenen Verkäufen
+      </p>
     </div>
 
     <!-- Gesamtumsatz -->
     <div class="linear-kpi p-4 rounded-xl">
       <div class="flex items-center justify-between text-rf-text-muted text-[11px] font-semibold">
         <span>{{ 'DASHBOARD.REVENUE' | translate }}</span>
-        <div class="w-6 h-6 rounded-md bg-blue-500/15 flex items-center justify-center text-blue-400">
+        <div
+          class="w-6 h-6 rounded-md bg-blue-500/15 flex items-center justify-center text-blue-400"
+        >
           <lucide-icon [img]="coinsIcon" class="w-3.5 h-3.5"></lucide-icon>
         </div>
       </div>
       <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-rf-text-primary">
-        {{ metrics().total_revenue | currency:'EUR':'symbol':'1.2-2':'de' }}
+        {{ metrics().total_revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </div>
       <p class="text-[10px] text-rf-text-muted mt-0.5">Brutto-Verkaufserlöse</p>
     </div>
@@ -72,28 +84,36 @@
     <div class="linear-kpi p-4 rounded-xl">
       <div class="flex items-center justify-between text-rf-text-muted text-[11px] font-semibold">
         <span>{{ 'DASHBOARD.TIED_CAPITAL' | translate }}</span>
-        <div class="w-6 h-6 rounded-md bg-amber-500/15 flex items-center justify-center text-amber-400">
+        <div
+          class="w-6 h-6 rounded-md bg-amber-500/15 flex items-center justify-center text-amber-400"
+        >
           <lucide-icon [img]="boxesIcon" class="w-3.5 h-3.5"></lucide-icon>
         </div>
       </div>
       <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-rf-text-primary">
-        {{ metrics().tied_capital | currency:'EUR':'symbol':'1.2-2':'de' }}
+        {{ metrics().tied_capital | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </div>
-      <p class="text-[10px] text-rf-text-muted mt-0.5">In {{ metrics().active_items_count }} aktiven Lagerartikeln</p>
+      <p class="text-[10px] text-rf-text-muted mt-0.5">
+        In {{ metrics().active_items_count }} aktiven Lagerartikeln
+      </p>
     </div>
 
     <!-- Durchschnittlicher ROI -->
     <div class="linear-kpi p-4 rounded-xl">
       <div class="flex items-center justify-between text-rf-text-muted text-[11px] font-semibold">
         <span>{{ 'DASHBOARD.AVG_ROI' | translate }}</span>
-        <div class="w-6 h-6 rounded-md bg-indigo-500/15 flex items-center justify-center text-indigo-400">
+        <div
+          class="w-6 h-6 rounded-md bg-indigo-500/15 flex items-center justify-center text-indigo-400"
+        >
           <lucide-icon [img]="percentIcon" class="w-3.5 h-3.5"></lucide-icon>
         </div>
       </div>
       <div class="mt-2 text-2xl font-bold font-mono tracking-tight text-rf-text-primary">
         {{ metrics().average_roi_percent }} %
       </div>
-      <p class="text-[10px] text-rf-text-muted mt-0.5">Ziel-Benchmark: {{ workspaceService.currentWorkspace()?.min_roi_percent ?? 30 }}%</p>
+      <p class="text-[10px] text-rf-text-muted mt-0.5">
+        Ziel-Benchmark: {{ workspaceService.currentWorkspace()?.min_roi_percent ?? 30 }}%
+      </p>
     </div>
   </div>
 
@@ -101,20 +121,32 @@
     <!-- Recent Sales Feed (Left: 7 cols) -->
     <div class="lg:col-span-7 linear-surface rounded-xl p-4 space-y-3">
       <div class="flex items-center justify-between border-b border-rf-line pb-3">
-        <h2 class="text-xs font-bold text-rf-text-secondary uppercase tracking-wider">Letzte Verkäufe</h2>
-        <a routerLink="/sales" class="text-[11px] text-emerald-400 font-semibold hover:underline">Alle anzeigen →</a>
+        <h2 class="text-xs font-bold text-rf-text-secondary uppercase tracking-wider">
+          Letzte Verkäufe
+        </h2>
+        <a routerLink="/sales" class="text-[11px] text-emerald-400 font-semibold hover:underline"
+          >Alle anzeigen →</a
+        >
       </div>
 
       @if (salesService.sales().length > 0) {
         <div class="divide-y divide-rf-line">
           @for (s of salesService.sales().slice(0, 5); track s.id) {
-            <div class="py-2.5 flex items-center justify-between text-xs hover:bg-rf-surface-alt px-1 rounded transition">
+            <div
+              class="py-2.5 flex items-center justify-between text-xs hover:bg-rf-surface-alt px-1 rounded transition"
+            >
               <div>
-                <strong class="text-rf-text-primary block font-semibold">{{ s.inventory_item?.title || 'Artikel' }}</strong>
-                <span class="text-rf-text-muted text-[11px] font-mono">{{ s.sale_date | date:'dd.MM.yyyy' }} • {{ s.platform }}</span>
+                <strong class="text-rf-text-primary block font-semibold">{{
+                  s.inventory_item?.title || 'Artikel'
+                }}</strong>
+                <span class="text-rf-text-muted text-[11px] font-mono"
+                  >{{ s.sale_date | date: 'dd.MM.yyyy' }} • {{ s.platform }}</span
+                >
               </div>
               <div class="text-right font-mono">
-                <span class="font-bold text-emerald-400 block">+{{ s.net_profit | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+                <span class="font-bold text-emerald-400 block"
+                  >+{{ s.net_profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</span
+                >
                 <span class="text-[10px] text-rf-text-muted">ROI: {{ s.roi }}%</span>
               </div>
             </div>
@@ -129,21 +161,36 @@
     <div class="lg:col-span-5 linear-surface rounded-xl p-4 space-y-3">
       <div class="flex items-center gap-2 border-b border-rf-line pb-3">
         <lucide-icon [img]="lightbulbIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
-        <h2 class="text-xs font-bold text-rf-text-secondary uppercase tracking-wider">{{ 'DASHBOARD.INSIGHTS' | translate }}</h2>
+        <h2 class="text-xs font-bold text-rf-text-secondary uppercase tracking-wider">
+          {{ 'DASHBOARD.INSIGHTS' | translate }}
+        </h2>
       </div>
 
       <div class="space-y-2.5 text-xs">
         <div class="p-3 rounded-lg bg-rf-well border border-rf-line">
-          <strong class="text-rf-text-primary block mb-0.5 text-[11px]">Gebundenes Kapital im Lager:</strong>
+          <strong class="text-rf-text-primary block mb-0.5 text-[11px]"
+            >Gebundenes Kapital im Lager:</strong
+          >
           <span class="text-rf-text-secondary text-[11px]">
-            Aktuell sind <span class="text-rf-text-primary font-mono font-semibold">{{ metrics().tied_capital | currency:'EUR':'symbol':'1.2-2':'de' }}</span> in <span class="text-rf-text-primary font-mono font-semibold">{{ metrics().active_items_count }}</span> Artikeln gebunden.
+            Aktuell sind
+            <span class="text-rf-text-primary font-mono font-semibold">{{
+              metrics().tied_capital | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+            }}</span>
+            in
+            <span class="text-rf-text-primary font-mono font-semibold">{{
+              metrics().active_items_count
+            }}</span>
+            Artikeln gebunden.
           </span>
         </div>
 
         <div class="p-3 rounded-lg bg-rf-well border border-rf-line">
-          <strong class="text-rf-text-primary block mb-0.5 text-[11px]">Deterministische Ertragsrechnung:</strong>
+          <strong class="text-rf-text-primary block mb-0.5 text-[11px]"
+            >Deterministische Ertragsrechnung:</strong
+          >
           <span class="text-rf-text-secondary text-[11px]">
-            Jeder Verkauf zieht automatisch Einkaufskosten, Reparaturen, Plattformgebühren und Versand ab.
+            Jeder Verkauf zieht automatisch Einkaufskosten, Reparaturen, Plattformgebühren und
+            Versand ab.
           </span>
         </div>
       </div>

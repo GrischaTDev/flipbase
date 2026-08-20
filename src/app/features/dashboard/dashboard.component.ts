@@ -56,7 +56,10 @@ export class DashboardComponent {
     const totalRevenue = sales.reduce((sum, s) => sum + (s.sale_price || 0), 0);
 
     const activeItems = items.filter((i) => i.status !== 'sold' && i.status !== 'archived');
-    const tiedCapital = activeItems.reduce((sum, i) => sum + (i.total_item_cost ?? i.allocated_purchase_cost), 0);
+    const tiedCapital = activeItems.reduce(
+      (sum, i) => sum + (i.total_item_cost ?? i.allocated_purchase_cost),
+      0,
+    );
     const inventoryValue = activeItems.reduce((sum, i) => sum + (Number(i.expected_value) || 0), 0);
 
     const totalRoi = sales.reduce((sum, s) => sum + (s.roi || 0), 0);

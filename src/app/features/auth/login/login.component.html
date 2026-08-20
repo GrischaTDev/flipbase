@@ -2,17 +2,23 @@
   <div class="max-w-md w-full bg-rf-surface-alt border border-rf-border rounded-3xl p-8 shadow-2xl">
     <!-- Logo & Title -->
     <div class="text-center mb-8">
-      <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-700 text-rf-on-accent mb-3 shadow-lg shadow-emerald-500/20">
+      <div
+        class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-700 text-rf-on-accent mb-3 shadow-lg shadow-emerald-500/20"
+      >
         <lucide-icon [img]="logoIcon" class="w-6 h-6"></lucide-icon>
       </div>
       <h1 class="text-2xl font-extrabold text-rf-text-primary tracking-tight">ReFlip</h1>
       <p class="text-xs text-rf-text-muted mt-1">Entscheidungs- und Finanzsystem für Reseller</p>
-      <h2 class="text-lg font-bold text-rf-text-secondary mt-4">{{ 'AUTH.SIGN_IN_TITLE' | translate }}</h2>
+      <h2 class="text-lg font-bold text-rf-text-secondary mt-4">
+        {{ 'AUTH.SIGN_IN_TITLE' | translate }}
+      </h2>
     </div>
 
     <!-- Error Box -->
     @if (errorMessage()) {
-      <div class="p-3 mb-5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
+      <div
+        class="p-3 mb-5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs"
+      >
         {{ errorMessage() }}
       </div>
     }
@@ -20,11 +26,16 @@
     <!-- Form -->
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
       <div>
-        <label for="email" class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5">
+        <label
+          for="email"
+          class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5"
+        >
           {{ 'AUTH.EMAIL' | translate }}
         </label>
         <div class="relative flex items-center">
-          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted">
+          <div
+            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
+          >
             <lucide-icon [img]="mailIcon" class="w-4 h-4"></lucide-icon>
           </div>
           <input
@@ -38,11 +49,16 @@
       </div>
 
       <div>
-        <label for="password" class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5">
+        <label
+          for="password"
+          class="block text-xs font-semibold uppercase tracking-wider text-rf-text-secondary mb-1.5"
+        >
           {{ 'AUTH.PASSWORD' | translate }}
         </label>
         <div class="relative flex items-center">
-          <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted">
+          <div
+            class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
+          >
             <lucide-icon [img]="lockIcon" class="w-4 h-4"></lucide-icon>
           </div>
           <input
@@ -61,7 +77,9 @@
         class="w-full mt-2 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-rf-on-accent font-bold text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition flex items-center justify-center gap-2 cursor-pointer"
       >
         <lucide-icon [img]="loginIcon" class="w-4 h-4"></lucide-icon>
-        <span>{{ isLoading() ? ('COMMON.LOADING' | translate) : ('AUTH.SUBMIT_LOGIN' | translate) }}</span>
+        <span>{{
+          isLoading() ? ('COMMON.LOADING' | translate) : ('AUTH.SUBMIT_LOGIN' | translate)
+        }}</span>
       </button>
 
       <!-- Demo-Modus – nur wenn die Umgebung ihn erlaubt -->
@@ -69,7 +87,9 @@
         <div class="pt-2">
           <div class="relative flex py-2 items-center">
             <div class="grow border-t border-rf-border"></div>
-            <span class="shrink mx-3 text-[10px] uppercase font-bold text-rf-text-dimmed">Oder ohne Backend</span>
+            <span class="shrink mx-3 text-[10px] uppercase font-bold text-rf-text-dimmed"
+              >Oder ohne Backend</span
+            >
             <div class="grow border-t border-rf-border"></div>
           </div>
 
@@ -83,8 +103,8 @@
           </button>
 
           <p class="mt-2 text-[10px] text-rf-text-dimmed leading-relaxed text-center">
-            Der Demo-Modus arbeitet ausschliesslich mit Daten in diesem Browser. Es besteht
-            kein Zugriff auf Serverdaten, und nichts wird dauerhaft gespeichert.
+            Der Demo-Modus arbeitet ausschliesslich mit Daten in diesem Browser. Es besteht kein
+            Zugriff auf Serverdaten, und nichts wird dauerhaft gespeichert.
           </p>
         </div>
       }

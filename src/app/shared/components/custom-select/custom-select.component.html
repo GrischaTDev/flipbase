@@ -8,10 +8,17 @@
       class="inline-flex items-center justify-between gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition cursor-pointer shadow-sm outline-none select-none max-w-full"
       [class.opacity-50]="effectiveDisabled()"
       [class.cursor-not-allowed]="effectiveDisabled()"
-      [class]="selectedOption()?.colorClass || 'bg-rf-subtle text-rf-text-primary border-rf-border hover:border-rf-border-hover'"
+      [class]="
+        selectedOption()?.colorClass ||
+        'bg-rf-subtle text-rf-text-primary border-rf-border hover:border-rf-border-hover'
+      "
     >
       <span class="truncate">{{ selectedOption()?.label || placeholder() }}</span>
-      <lucide-icon [img]="chevronIcon" class="w-3 h-3 shrink-0 opacity-70 transition-transform duration-200" [class.rotate-180]="isOpen()"></lucide-icon>
+      <lucide-icon
+        [img]="chevronIcon"
+        class="w-3 h-3 shrink-0 opacity-70 transition-transform duration-200"
+        [class.rotate-180]="isOpen()"
+      ></lucide-icon>
     </button>
   } @else if (variant() === 'filter') {
     <button
@@ -24,7 +31,11 @@
       [class.border-indigo-500]="isOpen()"
     >
       <span class="truncate">{{ selectedOption()?.label || placeholder() }}</span>
-      <lucide-icon [img]="chevronIcon" class="w-3.5 h-3.5 text-rf-text-muted shrink-0 transition-transform duration-200" [class.rotate-180]="isOpen()"></lucide-icon>
+      <lucide-icon
+        [img]="chevronIcon"
+        class="w-3.5 h-3.5 text-rf-text-muted shrink-0 transition-transform duration-200"
+        [class.rotate-180]="isOpen()"
+      ></lucide-icon>
     </button>
   } @else {
     <!-- Default Form Select Variant -->
@@ -47,7 +58,11 @@
           {{ selectedOption()?.label || placeholder() }}
         </span>
       </div>
-      <lucide-icon [img]="chevronIcon" class="w-4 h-4 text-rf-text-muted shrink-0 transition-transform duration-200" [class.rotate-180]="isOpen()"></lucide-icon>
+      <lucide-icon
+        [img]="chevronIcon"
+        class="w-4 h-4 text-rf-text-muted shrink-0 transition-transform duration-200"
+        [class.rotate-180]="isOpen()"
+      ></lucide-icon>
     </button>
   }
 
@@ -84,7 +99,10 @@
             </div>
 
             @if (isSelected) {
-              <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></lucide-icon>
+              <lucide-icon
+                [img]="checkIcon"
+                class="w-3.5 h-3.5 text-indigo-400 shrink-0"
+              ></lucide-icon>
             }
           </button>
         }

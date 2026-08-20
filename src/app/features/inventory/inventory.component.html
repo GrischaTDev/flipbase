@@ -6,7 +6,9 @@
         <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
           {{ 'INVENTORY.TITLE' | translate }}
         </h1>
-        <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-surface-alt text-rf-text-secondary border border-rf-line">
+        <span
+          class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-rf-surface-alt text-rf-text-secondary border border-rf-line"
+        >
           {{ filteredItems().length }} Artikel
         </span>
       </div>
@@ -23,7 +25,11 @@
         title="Lager- & Barcode-Etiketten drucken"
       >
         <lucide-icon [img]="printerIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
-        <span>{{ selectedItemIds().size > 0 ? ('Etiketten drucken (' + selectedItemIds().size + ')') : 'Etiketten drucken' }}</span>
+        <span>{{
+          selectedItemIds().size > 0
+            ? 'Etiketten drucken (' + selectedItemIds().size + ')'
+            : 'Etiketten drucken'
+        }}</span>
       </button>
 
       <button
@@ -52,38 +58,53 @@
     <div class="linear-kpi p-4 rounded-xl">
       <div class="flex items-center justify-between">
         <span class="text-[11px] font-semibold text-rf-text-muted">Artikel im Filter</span>
-        <div class="w-6 h-6 rounded-md bg-rf-line flex items-center justify-center text-rf-text-secondary">
+        <div
+          class="w-6 h-6 rounded-md bg-rf-line flex items-center justify-center text-rf-text-secondary"
+        >
           <lucide-icon [img]="boxesIcon" class="w-3.5 h-3.5"></lucide-icon>
         </div>
       </div>
       <div class="text-2xl font-bold font-mono tracking-tight text-rf-text-primary mt-2">
         {{ filteredItems().length }}
       </div>
-      <span class="text-[10px] text-rf-text-muted mt-0.5 block">von {{ inventoryService.items().length }} Gesamteinträgen</span>
+      <span class="text-[10px] text-rf-text-muted mt-0.5 block"
+        >von {{ inventoryService.items().length }} Gesamteinträgen</span
+      >
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
       <div class="flex items-center justify-between">
         <span class="text-[11px] font-semibold text-rf-text-muted">Gebundenes Kapital</span>
-        <div class="w-6 h-6 rounded-md bg-amber-500/15 flex items-center justify-center text-amber-400">
+        <div
+          class="w-6 h-6 rounded-md bg-amber-500/15 flex items-center justify-center text-amber-400"
+        >
           <lucide-icon [img]="coinsIcon" class="w-3.5 h-3.5"></lucide-icon>
         </div>
       </div>
       <div class="text-2xl font-bold font-mono tracking-tight text-rf-text-primary mt-2">
-        {{ totalTiedCapital() | currency:'EUR':'symbol':'1.2-2':'de' }}
+        {{ totalTiedCapital() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </div>
-      <span class="text-[10px] text-rf-text-muted mt-0.5 block">Ø {{ (totalTiedCapital() / (filteredItems().length || 1)) | currency:'EUR':'symbol':'1.2-2':'de' }} pro Artikel</span>
+      <span class="text-[10px] text-rf-text-muted mt-0.5 block"
+        >Ø
+        {{
+          totalTiedCapital() / (filteredItems().length || 1)
+            | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+        }}
+        pro Artikel</span
+      >
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
       <div class="flex items-center justify-between">
         <span class="text-[11px] font-semibold text-rf-text-muted">Geschätzter Marktwert</span>
-        <div class="w-6 h-6 rounded-md bg-blue-500/15 flex items-center justify-center text-blue-400">
+        <div
+          class="w-6 h-6 rounded-md bg-blue-500/15 flex items-center justify-center text-blue-400"
+        >
           <lucide-icon [img]="tagIcon" class="w-3.5 h-3.5"></lucide-icon>
         </div>
       </div>
       <div class="text-2xl font-bold font-mono tracking-tight text-rf-text-primary mt-2">
-        {{ totalExpectedValue() | currency:'EUR':'symbol':'1.2-2':'de' }}
+        {{ totalExpectedValue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </div>
       <span class="text-[10px] text-rf-text-muted mt-0.5 block">Erwarteter Gesamterlös</span>
     </div>
@@ -91,15 +112,21 @@
     <div class="linear-kpi p-4 rounded-xl border-emerald-500/40">
       <div class="flex items-center justify-between">
         <span class="text-[11px] font-semibold text-emerald-400">Gewinnpotenzial</span>
-        <div class="w-6 h-6 rounded-md bg-emerald-500/15 flex items-center justify-center text-emerald-400">
+        <div
+          class="w-6 h-6 rounded-md bg-emerald-500/15 flex items-center justify-center text-emerald-400"
+        >
           <lucide-icon [img]="trendingIcon" class="w-3.5 h-3.5"></lucide-icon>
         </div>
       </div>
       <div class="text-2xl font-bold font-mono tracking-tight text-emerald-400 mt-2">
-        {{ totalProfitPotential() | currency:'EUR':'symbol':'1.2-2':'de' }}
+        {{ totalProfitPotential() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </div>
       <span class="text-[10px] text-emerald-400/80 mt-0.5 block font-medium">
-        +{{ totalTiedCapital() > 0 ? ((totalProfitPotential() / totalTiedCapital()) * 100).toFixed(0) : 0 }}% Ertragspotenzial
+        +{{
+          totalTiedCapital() > 0
+            ? ((totalProfitPotential() / totalTiedCapital()) * 100).toFixed(0)
+            : 0
+        }}% Ertragspotenzial
       </span>
     </div>
   </div>
@@ -231,7 +258,9 @@
   @if (filteredItems().length > 0) {
     <div class="linear-surface rounded-xl overflow-visible hidden md:block">
       <table class="linear-table">
-        <thead class="bg-rf-well text-rf-text-secondary uppercase font-semibold text-[10px] tracking-wider">
+        <thead
+          class="bg-rf-well text-rf-text-secondary uppercase font-semibold text-[10px] tracking-wider"
+        >
           <tr>
             <th class="py-2.5 px-3 w-8 text-center rounded-tl-xl border-b border-rf-line">
               <div class="flex items-center justify-center">
@@ -248,15 +277,24 @@
             <th class="py-2.5 px-3 font-semibold border-b border-rf-line">Zustand</th>
             <th class="py-2.5 px-3 font-semibold border-b border-rf-line">Status</th>
             <th class="py-2.5 px-3 font-semibold border-b border-rf-line">Quelle</th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">Gesamtkosten</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">
+              Gesamtkosten
+            </th>
             <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">Marktwert</th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">Gewinnpotenzial</th>
-            <th class="py-2.5 px-4 font-semibold text-center w-12 rounded-tr-xl border-b border-rf-line"></th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">
+              Gewinnpotenzial
+            </th>
+            <th
+              class="py-2.5 px-4 font-semibold text-center w-12 rounded-tr-xl border-b border-rf-line"
+            ></th>
           </tr>
         </thead>
         <tbody class="divide-y divide-rf-line">
           @for (item of filteredItems(); track item.id) {
-            <tr class="hover:bg-rf-surface-alt transition group" [class.bg-indigo-500/5]="isItemSelected(item.id)">
+            <tr
+              class="hover:bg-rf-surface-alt transition group"
+              [class.bg-indigo-500/5]="isItemSelected(item.id)"
+            >
               <td class="py-3 px-3 text-center group-last:rounded-bl-xl">
                 <div class="flex items-center justify-center">
                   <app-custom-checkbox
@@ -268,7 +306,10 @@
                 </div>
               </td>
               <td class="py-3 px-4">
-                <a [routerLink]="['/inventory', item.id]" class="font-semibold text-rf-text-primary hover:text-emerald-400 transition block line-clamp-1">
+                <a
+                  [routerLink]="['/inventory', item.id]"
+                  class="font-semibold text-rf-text-primary hover:text-emerald-400 transition block line-clamp-1"
+                >
                   {{ item.title }}
                 </a>
                 <div class="flex items-center gap-2 mt-0.5 text-[11px] text-rf-text-muted">
@@ -288,8 +329,10 @@
               </td>
 
               <td class="py-3 px-3">
-                <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-rf-well text-rf-text-secondary border border-rf-line">
-                  {{ ('INVENTORY.CONDITIONS.' + item.condition.toUpperCase()) | translate }}
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-semibold bg-rf-well text-rf-text-secondary border border-rf-line"
+                >
+                  {{ 'INVENTORY.CONDITIONS.' + item.condition.toUpperCase() | translate }}
                 </span>
               </td>
 
@@ -307,16 +350,20 @@
               </td>
 
               <td class="py-3 px-3 text-right font-mono font-semibold text-rf-text-secondary">
-                {{ item.total_item_cost | currency:'EUR':'symbol':'1.2-2':'de' }}
+                {{ item.total_item_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
               </td>
 
               <td class="py-3 px-3 text-right font-mono font-semibold text-blue-400">
-                {{ item.expected_value ? (item.expected_value | currency:'EUR':'symbol':'1.2-2':'de') : '-' }}
+                {{
+                  item.expected_value
+                    ? (item.expected_value | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                    : '-'
+                }}
               </td>
 
               <td class="py-3 px-3 text-right font-mono font-bold text-emerald-400">
                 @if (item.profit_potential !== undefined) {
-                  +{{ item.profit_potential | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  +{{ item.profit_potential | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 } @else {
                   -
                 }
@@ -328,7 +375,11 @@
                     type="button"
                     (click)="onTogglePublicStore(item, $event)"
                     class="p-1 rounded hover:bg-rf-line transition cursor-pointer"
-                    [title]="item.is_public_store !== false ? 'Im Webshop aktiv (Klicken zum Deaktivieren)' : 'Im Webshop aktivieren'"
+                    [title]="
+                      item.is_public_store !== false
+                        ? 'Im Webshop aktiv (Klicken zum Deaktivieren)'
+                        : 'Im Webshop aktivieren'
+                    "
                   >
                     <lucide-icon
                       [img]="storeIcon"
@@ -361,10 +412,15 @@
         >
           <div class="flex items-start justify-between gap-2">
             <div>
-              <h3 class="text-xs font-semibold text-rf-text-primary line-clamp-1">{{ item.title }}</h3>
-              <p class="text-[11px] text-rf-text-muted">{{ item.brand || item.category || 'Keine Kategorie' }}</p>
+              <h3 class="text-xs font-semibold text-rf-text-primary line-clamp-1">
+                {{ item.title }}
+              </h3>
+              <p class="text-[11px] text-rf-text-muted">
+                {{ item.brand || item.category || 'Keine Kategorie' }}
+              </p>
             </div>
-            <span class="px-2 py-0.5 rounded text-[10px] font-semibold border"
+            <span
+              class="px-2 py-0.5 rounded text-[10px] font-semibold border"
               [class.bg-blue-500/15]="item.status === 'received'"
               [class.text-blue-400]="item.status === 'received'"
               [class.border-blue-500/30]="item.status === 'received'"
@@ -380,24 +436,44 @@
               [class.bg-rose-500/15]="item.status === 'defective'"
               [class.text-rose-400]="item.status === 'defective'"
               [class.border-rose-500/30]="item.status === 'defective'"
-              [class.bg-rf-well]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
-              [class.text-rf-text-secondary]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
-              [class.border-rf-line]="item.status === 'reserved' || item.status === 'returned' || item.status === 'archived'"
+              [class.bg-rf-well]="
+                item.status === 'reserved' ||
+                item.status === 'returned' ||
+                item.status === 'archived'
+              "
+              [class.text-rf-text-secondary]="
+                item.status === 'reserved' ||
+                item.status === 'returned' ||
+                item.status === 'archived'
+              "
+              [class.border-rf-line]="
+                item.status === 'reserved' ||
+                item.status === 'returned' ||
+                item.status === 'archived'
+              "
             >
-              {{ ('INVENTORY.STATUSES.' + item.status.toUpperCase()) | translate }}
+              {{ 'INVENTORY.STATUSES.' + item.status.toUpperCase() | translate }}
             </span>
           </div>
 
-          <div class="flex items-center justify-between text-xs pt-2 border-t border-rf-line font-mono">
+          <div
+            class="flex items-center justify-between text-xs pt-2 border-t border-rf-line font-mono"
+          >
             <div>
               <span class="text-[10px] text-rf-text-muted font-sans block">Kosten</span>
-              <strong class="text-rf-text-secondary">{{ item.total_item_cost | currency:'EUR':'symbol':'1.2-2':'de' }}</strong>
+              <strong class="text-rf-text-secondary">{{
+                item.total_item_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+              }}</strong>
             </div>
 
             <div class="text-right">
               <span class="text-[10px] text-rf-text-muted font-sans block">Potenzial</span>
               <strong class="text-emerald-400">
-                {{ item.profit_potential !== undefined ? ('+' + (item.profit_potential | currency:'EUR':'symbol':'1.2-2':'de')) : '-' }}
+                {{
+                  item.profit_potential !== undefined
+                    ? '+' + (item.profit_potential | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                    : '-'
+                }}
               </strong>
             </div>
           </div>
@@ -407,7 +483,9 @@
   } @else {
     <!-- Empty State -->
     <div class="linear-surface rounded-xl p-10 text-center">
-      <div class="w-10 h-10 rounded-lg bg-rf-well border border-rf-line text-rf-text-muted mx-auto flex items-center justify-center mb-3">
+      <div
+        class="w-10 h-10 rounded-lg bg-rf-well border border-rf-line text-rf-text-muted mx-auto flex items-center justify-center mb-3"
+      >
         <lucide-icon [img]="boxesIcon" class="w-5 h-5"></lucide-icon>
       </div>
       <h3 class="text-sm font-bold text-rf-text-secondary">Keine Artikel gefunden</h3>

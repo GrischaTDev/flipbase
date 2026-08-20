@@ -3,7 +3,14 @@ import { ItemCondition, ItemStatus } from '../models/reflip.models';
 
 describe('Inventory Domain & Lifecycle Rules (Phase 3)', () => {
   it('should support all specified item conditions from Chapter 17', () => {
-    const conditions: ItemCondition[] = ['new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective'];
+    const conditions: ItemCondition[] = [
+      'new',
+      'like_new',
+      'very_good',
+      'used',
+      'heavily_used',
+      'defective',
+    ];
     expect(conditions.length).toBe(6);
     expect(conditions).toContain('defective');
     expect(conditions).toContain('like_new');

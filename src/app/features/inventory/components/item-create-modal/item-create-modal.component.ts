@@ -1,23 +1,44 @@
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { LucideAngularModule, X, Plus, Boxes, Sparkles, Camera, Barcode, Image, Trash2, Crop } from 'lucide-angular';
+import {
+  LucideAngularModule,
+  X,
+  Plus,
+  Boxes,
+  Sparkles,
+  Camera,
+  Barcode,
+  Image,
+  Trash2,
+  Crop,
+} from 'lucide-angular';
 import { InventoryService, CreateItemPayload } from '../../../../core/services/inventory.service';
 import { PurchaseService } from '../../../../core/services/purchase.service';
 import { MediaService } from '../../../../core/services/media.service';
-import { AiAssistantService, AiVisualScanResult } from '../../../../core/services/ai-assistant.service';
+import {
+  AiAssistantService,
+  AiVisualScanResult,
+} from '../../../../core/services/ai-assistant.service';
 import { BarcodeLookupService } from '../../../../core/services/barcode-lookup.service';
 import { BarcodeScannerComponent } from '../../../../shared/components/barcode-scanner/barcode-scanner.component';
 import { AiPhotoScannerModalComponent } from '../../../../shared/components/ai-photo-scanner-modal/ai-photo-scanner-modal.component';
-import { ImageCropperModalComponent, CroppedImageResult } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
+import {
+  ImageCropperModalComponent,
+  CroppedImageResult,
+} from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
 import { DatePipe } from '@angular/common';
 import { ItemCondition, ItemStatus } from '../../../../core/models/reflip.models';
 
-import { CustomSelectComponent, SelectOption } from '../../../../shared/components/custom-select/custom-select.component';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 
 @Component({
   selector: 'app-item-create-modal',
-  imports: [ModalDialogDirective, 
+  imports: [
+    ModalDialogDirective,
     ReactiveFormsModule,
     DatePipe,
     LucideAngularModule,
@@ -79,17 +100,26 @@ export class ItemCreateModalComponent {
 
   readonly form = new FormGroup({
     purchase_id: new FormControl<string | null>(null),
-    title: new FormControl('', { nonNullable: true, validators: [Validators.required, Validators.minLength(2)] }),
+    title: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.minLength(2)],
+    }),
     category: new FormControl(''),
     brand: new FormControl(''),
     model: new FormControl(''),
-    condition: new FormControl<ItemCondition>('very_good', { nonNullable: true, validators: [Validators.required] }),
+    condition: new FormControl<ItemCondition>('very_good', {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
     status: new FormControl<ItemStatus>('received', { nonNullable: true }),
     sku: new FormControl(''),
     ean: new FormControl(''),
     description: new FormControl(''),
     condition_notes: new FormControl(''),
-    allocated_purchase_cost: new FormControl<number>(0, { nonNullable: true, validators: [Validators.min(0)] }),
+    allocated_purchase_cost: new FormControl<number>(0, {
+      nonNullable: true,
+      validators: [Validators.min(0)],
+    }),
     expected_value: new FormControl<number | null>(null, { validators: [Validators.min(0)] }),
   });
 

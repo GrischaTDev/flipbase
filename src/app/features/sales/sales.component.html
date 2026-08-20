@@ -1,6 +1,8 @@
 <div class="space-y-4 animate-fade-in">
   <!-- Page Header -->
-  <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-rf-line">
+  <div
+    class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-rf-line"
+  >
     <div>
       <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
         {{ 'NAV.SALES' | translate }} & Retouren
@@ -27,7 +29,7 @@
     <div class="linear-kpi p-4 rounded-xl">
       <span class="text-[11px] font-semibold text-rf-text-muted block">Realisierter Gewinn</span>
       <span class="text-2xl font-bold font-mono tracking-tight text-emerald-400 mt-2 block">
-        +{{ totalRealizedProfit() | currency:'EUR':'symbol':'1.2-2':'de' }}
+        +{{ totalRealizedProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </span>
       <span class="text-[10px] text-rf-text-muted mt-0.5 block">Netto nach allen Kosten</span>
     </div>
@@ -35,9 +37,11 @@
     <div class="linear-kpi p-4 rounded-xl">
       <span class="text-[11px] font-semibold text-rf-text-muted block">Gesamtumsatz</span>
       <span class="text-2xl font-bold font-mono tracking-tight text-rf-text-primary mt-2 block">
-        {{ totalRevenue() | currency:'EUR':'symbol':'1.2-2':'de' }}
+        {{ totalRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </span>
-      <span class="text-[10px] text-rf-text-muted mt-0.5 block">{{ salesService.sales().length }} getätigte Verkäufe</span>
+      <span class="text-[10px] text-rf-text-muted mt-0.5 block"
+        >{{ salesService.sales().length }} getätigte Verkäufe</span
+      >
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
@@ -154,16 +158,28 @@
   @if (filteredSales().length > 0) {
     <div class="linear-surface rounded-xl overflow-hidden hidden md:block">
       <table class="linear-table">
-        <thead class="bg-rf-well text-rf-text-secondary uppercase font-semibold text-[10px] tracking-wider">
+        <thead
+          class="bg-rf-well text-rf-text-secondary uppercase font-semibold text-[10px] tracking-wider"
+        >
           <tr>
-            <th class="py-2.5 px-4 font-semibold rounded-tl-xl border-b border-rf-line">Verkaufter Artikel</th>
+            <th class="py-2.5 px-4 font-semibold rounded-tl-xl border-b border-rf-line">
+              Verkaufter Artikel
+            </th>
             <th class="py-2.5 px-3 font-semibold border-b border-rf-line">Plattform</th>
             <th class="py-2.5 px-3 font-semibold border-b border-rf-line">Datum</th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">Verkaufspreis</th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">Nettogewinn</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">
+              Verkaufspreis
+            </th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">
+              Nettogewinn
+            </th>
             <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">ROI</th>
             <th class="py-2.5 px-3 font-semibold text-right border-b border-rf-line">Haltedauer</th>
-            <th class="py-2.5 px-4 font-semibold text-center w-28 rounded-tr-xl border-b border-rf-line">Aktionen</th>
+            <th
+              class="py-2.5 px-4 font-semibold text-center w-28 rounded-tr-xl border-b border-rf-line"
+            >
+              Aktionen
+            </th>
           </tr>
         </thead>
         <tbody class="divide-y divide-rf-line">
@@ -172,11 +188,16 @@
             <tr class="hover:bg-rf-surface-alt transition group">
               <td class="py-3 px-4 font-semibold text-rf-text-primary group-last:rounded-bl-xl">
                 <div class="flex items-center gap-2">
-                  <a [routerLink]="['/inventory', sale.inventory_item_id]" class="hover:text-emerald-400 transition">
+                  <a
+                    [routerLink]="['/inventory', sale.inventory_item_id]"
+                    class="hover:text-emerald-400 transition"
+                  >
                     {{ sale.inventory_item?.title || 'Artikel' }}
                   </a>
                   @if (ret) {
-                    <span class="px-1.5 py-0.2 rounded text-[10px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold">
+                    <span
+                      class="px-1.5 py-0.2 rounded text-[10px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold"
+                    >
                       RETOURNIERT
                     </span>
                   }
@@ -184,24 +205,34 @@
               </td>
 
               <td class="py-3 px-3">
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-rf-well text-rf-text-secondary border border-rf-line">
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-rf-well text-rf-text-secondary border border-rf-line"
+                >
                   {{ sale.platform }}
                 </span>
               </td>
 
               <td class="py-3 px-3 text-rf-text-muted font-mono text-[11px]">
-                {{ sale.sale_date | date:'dd.MM.yyyy' }}
+                {{ sale.sale_date | date: 'dd.MM.yyyy' }}
               </td>
 
               <td class="py-3 px-3 text-right font-mono font-semibold text-rf-text-secondary">
-                {{ sale.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }}
+                {{ sale.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
               </td>
 
-              <td class="py-3 px-3 text-right font-mono font-bold" [class.text-emerald-400]="(sale.net_profit || 0) >= 0" [class.text-rose-400]="(sale.net_profit || 0) < 0">
-                +{{ sale.net_profit | currency:'EUR':'symbol':'1.2-2':'de' }}
+              <td
+                class="py-3 px-3 text-right font-mono font-bold"
+                [class.text-emerald-400]="(sale.net_profit || 0) >= 0"
+                [class.text-rose-400]="(sale.net_profit || 0) < 0"
+              >
+                +{{ sale.net_profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
               </td>
 
-              <td class="py-3 px-3 text-right font-mono font-bold" [class.text-emerald-400]="(sale.roi || 0) >= 0" [class.text-rose-400]="(sale.roi || 0) < 0">
+              <td
+                class="py-3 px-3 text-right font-mono font-bold"
+                [class.text-emerald-400]="(sale.roi || 0) >= 0"
+                [class.text-rose-400]="(sale.roi || 0) < 0"
+              >
                 {{ sale.roi }} %
               </td>
 
@@ -270,15 +301,19 @@
                   {{ sale.inventory_item?.title || 'Artikel' }}
                 </h3>
                 @if (ret) {
-                  <span class="px-1.5 py-0.2 rounded text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold font-mono">
+                  <span
+                    class="px-1.5 py-0.2 rounded text-[10px] bg-rose-500/20 text-rose-300 border border-rose-500/40 font-bold font-mono"
+                  >
                     RETOURNIERT
                   </span>
                 }
               </div>
-              <p class="text-[11px] text-rf-text-muted">{{ sale.sale_date | date:'dd.MM.yyyy' }} • {{ sale.platform }}</p>
+              <p class="text-[11px] text-rf-text-muted">
+                {{ sale.sale_date | date: 'dd.MM.yyyy' }} • {{ sale.platform }}
+              </p>
             </div>
             <strong class="text-xs font-bold text-rf-text-primary">
-              {{ sale.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }}
+              {{ sale.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
             </strong>
           </div>
 
@@ -286,15 +321,13 @@
             <div>
               <span class="text-[10px] text-rf-text-muted font-sans block">Gewinn</span>
               <strong class="text-emerald-400">
-                +{{ sale.net_profit | currency:'EUR':'symbol':'1.2-2':'de' }}
+                +{{ sale.net_profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
               </strong>
             </div>
 
             <div>
               <span class="text-[10px] text-rf-text-muted font-sans block">ROI</span>
-              <strong class="text-emerald-400">
-                {{ sale.roi }} %
-              </strong>
+              <strong class="text-emerald-400"> {{ sale.roi }} % </strong>
             </div>
 
             <div class="text-right">
@@ -339,12 +372,15 @@
   } @else {
     <!-- Empty State -->
     <div class="linear-surface rounded-xl p-10 text-center">
-      <div class="w-10 h-10 rounded-lg bg-rf-well border border-rf-line text-rf-text-muted mx-auto flex items-center justify-center mb-3">
+      <div
+        class="w-10 h-10 rounded-lg bg-rf-well border border-rf-line text-rf-text-muted mx-auto flex items-center justify-center mb-3"
+      >
         <lucide-icon [img]="trendingIcon" class="w-5 h-5"></lucide-icon>
       </div>
       <h3 class="text-sm font-bold text-rf-text-secondary">Keine passenden Verkäufe gefunden</h3>
       <p class="text-xs text-rf-text-muted max-w-sm mx-auto mt-1 mb-4">
-        Erfasse deinen ersten Verkauf, um deine realisierten Gewinne und Margen sofort live zu sehen.
+        Erfasse deinen ersten Verkauf, um deine realisierten Gewinne und Margen sofort live zu
+        sehen.
       </p>
       <button
         type="button"
@@ -377,15 +413,16 @@
         <!-- Header -->
         <div class="p-5 border-b border-rf-border flex items-center justify-between bg-rf-subtle">
           <div class="flex items-center gap-2.5">
-            <div class="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 flex items-center justify-center">
+            <div
+              class="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 flex items-center justify-center"
+            >
               <lucide-icon [img]="returnIcon" class="w-4 h-4"></lucide-icon>
             </div>
             <div>
-              <h3 class="text-sm font-bold text-rf-text-primary">
-                Retoure & Gutschrift erfassen
-              </h3>
+              <h3 class="text-sm font-bold text-rf-text-primary">Retoure & Gutschrift erfassen</h3>
               <p class="text-[11px] text-rf-text-muted mt-0.5">
-                {{ sale?.inventory_item?.title || 'Artikel' }} (Verkauf: {{ sale?.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }})
+                {{ sale?.inventory_item?.title || 'Artikel' }} (Verkauf:
+                {{ sale?.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }})
               </p>
             </div>
           </div>
@@ -403,7 +440,9 @@
         <form [formGroup]="returnForm" (ngSubmit)="onSubmitReturn()" class="p-6 space-y-4 text-xs">
           <!-- 1. Reason -->
           <div>
-            <label class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               Grund der Rückabwicklung
             </label>
             <select
@@ -437,7 +476,9 @@
                   [class.text-rf-text-muted]="!returnForm.get('isFullRefund')?.value"
                   [class.border-rf-border]="!returnForm.get('isFullRefund')?.value"
                 >
-                  Vollerstattung ({{ sale?.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }})
+                  Vollerstattung ({{
+                    sale?.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                  }})
                 </button>
 
                 <button
@@ -469,35 +510,65 @@
 
           <!-- 3. Restock Decision -->
           <div class="space-y-1.5">
-            <label class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               Wiedereinlagerung in den Warenbestand
             </label>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <label
                 class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
-                [class.bg-emerald-500/15]="returnForm.get('restockAction')?.value === 'restock_ready'"
-                [class.border-emerald-500/40]="returnForm.get('restockAction')?.value === 'restock_ready'"
+                [class.bg-emerald-500/15]="
+                  returnForm.get('restockAction')?.value === 'restock_ready'
+                "
+                [class.border-emerald-500/40]="
+                  returnForm.get('restockAction')?.value === 'restock_ready'
+                "
                 [class.bg-rf-subtle]="returnForm.get('restockAction')?.value !== 'restock_ready'"
-                [class.border-rf-border]="returnForm.get('restockAction')?.value !== 'restock_ready'"
+                [class.border-rf-border]="
+                  returnForm.get('restockAction')?.value !== 'restock_ready'
+                "
               >
-                <input type="radio" formControlName="restockAction" value="restock_ready" class="mt-0.5 cursor-pointer text-indigo-600" />
+                <input
+                  type="radio"
+                  formControlName="restockAction"
+                  value="restock_ready"
+                  class="mt-0.5 cursor-pointer text-indigo-600"
+                />
                 <div>
                   <strong class="block text-xs text-rf-text-primary">Wieder verkaufsbereit</strong>
-                  <span class="text-[10px] text-rf-text-muted">Artikel zurück in Bestand (ready)</span>
+                  <span class="text-[10px] text-rf-text-muted"
+                    >Artikel zurück in Bestand (ready)</span
+                  >
                 </div>
               </label>
 
               <label
                 class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
-                [class.bg-amber-500/15]="returnForm.get('restockAction')?.value === 'restock_repair'"
-                [class.border-amber-500/40]="returnForm.get('restockAction')?.value === 'restock_repair'"
+                [class.bg-amber-500/15]="
+                  returnForm.get('restockAction')?.value === 'restock_repair'
+                "
+                [class.border-amber-500/40]="
+                  returnForm.get('restockAction')?.value === 'restock_repair'
+                "
                 [class.bg-rf-subtle]="returnForm.get('restockAction')?.value !== 'restock_repair'"
-                [class.border-rf-border]="returnForm.get('restockAction')?.value !== 'restock_repair'"
+                [class.border-rf-border]="
+                  returnForm.get('restockAction')?.value !== 'restock_repair'
+                "
               >
-                <input type="radio" formControlName="restockAction" value="restock_repair" class="mt-0.5 cursor-pointer text-indigo-600" />
+                <input
+                  type="radio"
+                  formControlName="restockAction"
+                  value="restock_repair"
+                  class="mt-0.5 cursor-pointer text-indigo-600"
+                />
                 <div>
-                  <strong class="block text-xs text-rf-text-primary">Reparatur / Aufbereitung</strong>
-                  <span class="text-[10px] text-rf-text-muted">In Werkstatt übergeben (repair)</span>
+                  <strong class="block text-xs text-rf-text-primary"
+                    >Reparatur / Aufbereitung</strong
+                  >
+                  <span class="text-[10px] text-rf-text-muted"
+                    >In Werkstatt übergeben (repair)</span
+                  >
                 </div>
               </label>
 
@@ -508,7 +579,12 @@
                 [class.bg-rf-subtle]="returnForm.get('restockAction')?.value !== 'write_off'"
                 [class.border-rf-border]="returnForm.get('restockAction')?.value !== 'write_off'"
               >
-                <input type="radio" formControlName="restockAction" value="write_off" class="mt-0.5 cursor-pointer text-indigo-600" />
+                <input
+                  type="radio"
+                  formControlName="restockAction"
+                  value="write_off"
+                  class="mt-0.5 cursor-pointer text-indigo-600"
+                />
                 <div>
                   <strong class="block text-xs text-rf-text-primary">Als Defekt abschreiben</strong>
                   <span class="text-[10px] text-rf-text-muted">Totalverlust / Bruchschaden</span>
@@ -517,12 +593,23 @@
 
               <label
                 class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
-                [class.bg-indigo-500/15]="returnForm.get('restockAction')?.value === 'keep_with_buyer'"
-                [class.border-indigo-500/40]="returnForm.get('restockAction')?.value === 'keep_with_buyer'"
+                [class.bg-indigo-500/15]="
+                  returnForm.get('restockAction')?.value === 'keep_with_buyer'
+                "
+                [class.border-indigo-500/40]="
+                  returnForm.get('restockAction')?.value === 'keep_with_buyer'
+                "
                 [class.bg-rf-subtle]="returnForm.get('restockAction')?.value !== 'keep_with_buyer'"
-                [class.border-rf-border]="returnForm.get('restockAction')?.value !== 'keep_with_buyer'"
+                [class.border-rf-border]="
+                  returnForm.get('restockAction')?.value !== 'keep_with_buyer'
+                "
               >
-                <input type="radio" formControlName="restockAction" value="keep_with_buyer" class="mt-0.5 cursor-pointer text-indigo-600" />
+                <input
+                  type="radio"
+                  formControlName="restockAction"
+                  value="keep_with_buyer"
+                  class="mt-0.5 cursor-pointer text-indigo-600"
+                />
                 <div>
                   <strong class="block text-xs text-rf-text-primary">Bleibt beim Käufer</strong>
                   <span class="text-[10px] text-rf-text-muted">Preisnachlass / Kulanz</span>
@@ -533,7 +620,9 @@
 
           <!-- 4. Notes -->
           <div>
-            <label class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+            <label
+              class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+            >
               Interne Notizen zur Rückabwicklung
             </label>
             <textarea
@@ -559,8 +648,15 @@
               [disabled]="returnForm.invalid || isProcessingReturn()"
               class="linear-btn-primary px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-rose-500/25 bg-rose-600 hover:bg-rose-500 border-rose-500 disabled:opacity-40"
             >
-              <lucide-icon [img]="isProcessingReturn() ? sparklesIcon : receiptIcon" class="w-4 h-4"></lucide-icon>
-              <span>{{ isProcessingReturn() ? 'Wird gebucht...' : 'Gutschrift erstellen & Erstattung buchen' }}</span>
+              <lucide-icon
+                [img]="isProcessingReturn() ? sparklesIcon : receiptIcon"
+                class="w-4 h-4"
+              ></lucide-icon>
+              <span>{{
+                isProcessingReturn()
+                  ? 'Wird gebucht...'
+                  : 'Gutschrift erstellen & Erstattung buchen'
+              }}</span>
             </button>
           </div>
         </form>
@@ -570,9 +666,6 @@
 
   <!-- § 25a Invoice / Credit Note Modal -->
   @if (activeInvoice(); as inv) {
-    <app-invoice-modal
-      [invoice]="inv"
-      (close)="closeInvoice()"
-    ></app-invoice-modal>
+    <app-invoice-modal [invoice]="inv" (close)="closeInvoice()"></app-invoice-modal>
   }
 </div>

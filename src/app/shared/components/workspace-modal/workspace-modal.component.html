@@ -23,14 +23,19 @@
     </p>
 
     @if (errorMessage()) {
-      <div class="p-3 mb-4 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
+      <div
+        class="p-3 mb-4 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs"
+      >
         {{ errorMessage() }}
       </div>
     }
 
     <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
       <div>
-        <label for="workspaceName" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+        <label
+          for="workspaceName"
+          class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+        >
           Workspace Name
         </label>
         <input
@@ -39,7 +44,6 @@
           formControlName="name"
           placeholder="z.B. Mein Reselling-Business"
           class="linear-input w-full px-3 py-1.5 rounded-lg text-xs"
-          autofocus
         />
       </div>
 

@@ -13,14 +13,23 @@ import {
   Info,
   Camera,
 } from 'lucide-angular';
-import { ProfitEngineService, DealEvaluationResult } from '../../core/services/profit-engine.service';
+import {
+  ProfitEngineService,
+  DealEvaluationResult,
+} from '../../core/services/profit-engine.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { BarcodeLookupService } from '../../core/services/barcode-lookup.service';
 import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner/barcode-scanner.component';
 
 @Component({
   selector: 'app-deal-calculator',
-  imports: [ReactiveFormsModule, CurrencyPipe, TranslatePipe, LucideAngularModule, BarcodeScannerComponent],
+  imports: [
+    ReactiveFormsModule,
+    CurrencyPipe,
+    TranslatePipe,
+    LucideAngularModule,
+    BarcodeScannerComponent,
+  ],
   templateUrl: './deal-calculator.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -43,9 +52,18 @@ export class DealCalculatorComponent {
 
   readonly form = new FormGroup({
     productTitle: new FormControl('Cube Acid Mountainbike 29"', { nonNullable: true }),
-    askingPrice: new FormControl<number>(25, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
-    fairMarketValue: new FormControl<number>(70, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
-    estimatedCosts: new FormControl<number>(8, { nonNullable: true, validators: [Validators.required, Validators.min(0)] }),
+    askingPrice: new FormControl<number>(25, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(0)],
+    }),
+    fairMarketValue: new FormControl<number>(70, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(0)],
+    }),
+    estimatedCosts: new FormControl<number>(8, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(0)],
+    }),
     condition: new FormControl('used', { nonNullable: true }),
   });
 
@@ -80,7 +98,7 @@ export class DealCalculatorComponent {
       raw.estimatedCosts,
       minRoi,
       minProfit,
-      88
+      88,
     );
 
     this.evaluation.set(result);

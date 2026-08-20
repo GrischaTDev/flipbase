@@ -6,13 +6,16 @@
         <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
           Listing Studio & KI-SEO Optimizer
         </h1>
-        <span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 flex items-center gap-1">
+        <span
+          class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 flex items-center gap-1"
+        >
           <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
           <span>AI Cassini & SEO 2.0</span>
         </span>
       </div>
       <p class="text-xs text-rf-text-muted mt-1">
-        Erstelle verkaufsoptimierte Inserate mit SEO-Tuning, Keyword-Dichte und rechtssicheren Klauseln für Kleinanzeigen, eBay & Vinted.
+        Erstelle verkaufsoptimierte Inserate mit SEO-Tuning, Keyword-Dichte und rechtssicheren
+        Klauseln für Kleinanzeigen, eBay & Vinted.
       </p>
     </div>
 
@@ -32,7 +35,9 @@
 
   <!-- Success Banner -->
   @if (publishSuccessMsg(); as msg) {
-    <div class="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-between animate-fade-in">
+    <div
+      class="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center justify-between animate-fade-in"
+    >
       <div class="flex items-center gap-2">
         <lucide-icon [img]="checkIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
         <span>{{ msg }}</span>
@@ -142,13 +147,18 @@
     <div class="lg:col-span-5 space-y-4">
       <!-- 1. Select Inventory Item -->
       <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary border-b border-rf-border pb-2 flex items-center gap-2">
+        <h2
+          class="text-xs font-bold uppercase tracking-wider text-rf-text-primary border-b border-rf-border pb-2 flex items-center gap-2"
+        >
           <lucide-icon [img]="boxesIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
           <span>Artikel auswählen</span>
         </h2>
 
         <div>
-          <label for="itemSelect" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+          <label
+            for="itemSelect"
+            class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+          >
             Aus verfügbarem Inventar ({{ availableItems().length }} bereit)
           </label>
           <select
@@ -159,7 +169,8 @@
           >
             @for (it of availableItems(); track it.id) {
               <option [value]="it.id">
-                {{ it.title }} (EK: {{ it.allocated_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }})
+                {{ it.title }} (EK:
+                {{ it.allocated_purchase_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }})
               </option>
             }
           </select>
@@ -167,10 +178,18 @@
 
         <!-- Selected Item Card Details -->
         @if (selectedItem(); as item) {
-          <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border flex gap-3.5 items-start">
-            <div class="w-14 h-14 rounded-xl bg-rf-surface border border-rf-border overflow-hidden shrink-0 flex items-center justify-center">
+          <div
+            class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border flex gap-3.5 items-start"
+          >
+            <div
+              class="w-14 h-14 rounded-xl bg-rf-surface border border-rf-border overflow-hidden shrink-0 flex items-center justify-center"
+            >
               @if (item.media && item.media.length > 0) {
-                <img [src]="item.media[0].storage_path" [alt]="item.title" class="w-full h-full object-cover" />
+                <img
+                  [src]="item.media[0].storage_path"
+                  [alt]="item.title"
+                  class="w-full h-full object-cover"
+                />
               } @else {
                 <lucide-icon [img]="imageIcon" class="w-6 h-6 text-rf-text-dimmed"></lucide-icon>
               }
@@ -179,9 +198,19 @@
             <div class="flex-1 min-w-0 space-y-1">
               <h3 class="text-xs font-bold text-rf-text-primary truncate">{{ item.title }}</h3>
               <div class="flex items-center gap-2 text-[10px] text-rf-text-muted">
-                <span>Zustand: <strong class="text-rf-text-secondary">{{ ('INVENTORY.CONDITIONS.' + item.condition.toUpperCase()) | translate }}</strong></span>
+                <span
+                  >Zustand:
+                  <strong class="text-rf-text-secondary">{{
+                    'INVENTORY.CONDITIONS.' + item.condition.toUpperCase() | translate
+                  }}</strong></span
+                >
                 <span>•</span>
-                <span>EK: <strong class="text-rf-text-secondary">{{ item.allocated_purchase_cost | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
+                <span
+                  >EK:
+                  <strong class="text-rf-text-secondary">{{
+                    item.allocated_purchase_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                  }}</strong></span
+                >
               </div>
               @if (item.brand || item.model) {
                 <div class="text-[10px] text-indigo-400 font-mono">
@@ -194,7 +223,10 @@
 
         <!-- Price Input -->
         <div>
-          <label for="priceInput" class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1">
+          <label
+            for="priceInput"
+            class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
+          >
             Verkaufspreis (€)
           </label>
           <div class="relative">
@@ -213,7 +245,9 @@
 
       <!-- 2. Style Tone & Persona -->
       <div class="linear-surface rounded-2xl p-5 space-y-3 shadow-xl">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary border-b border-rf-border pb-2 flex items-center gap-2">
+        <h2
+          class="text-xs font-bold uppercase tracking-wider text-rf-text-primary border-b border-rf-border pb-2 flex items-center gap-2"
+        >
           <lucide-icon [img]="sparklesIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
           <span>Stil & Tonalität</span>
         </h2>
@@ -299,7 +333,9 @@
 
       <!-- 3. Text Building Blocks -->
       <div class="linear-surface rounded-2xl p-5 space-y-3 shadow-xl">
-        <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary border-b border-rf-border pb-2 flex items-center gap-2">
+        <h2
+          class="text-xs font-bold uppercase tracking-wider text-rf-text-primary border-b border-rf-border pb-2 flex items-center gap-2"
+        >
           <lucide-icon [img]="slidersIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
           <span>Textbausteine & Klauseln</span>
         </h2>
@@ -343,10 +379,14 @@
       @if (selectedItem(); as item) {
         <!-- KI-SEO Score & Tuning Dashboard Card -->
         @if (seoAnalysis(); as seo) {
-          <div class="linear-surface rounded-2xl p-5 border border-indigo-500/30 bg-indigo-500/5 space-y-4 shadow-xl">
+          <div
+            class="linear-surface rounded-2xl p-5 border border-indigo-500/30 bg-indigo-500/5 space-y-4 shadow-xl"
+          >
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2.5">
-                <div class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center">
+                <div
+                  class="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 flex items-center justify-center"
+                >
                   <lucide-icon [img]="gaugeIcon" class="w-4 h-4"></lucide-icon>
                 </div>
                 <div>
@@ -354,7 +394,9 @@
                     <h3 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
                       KI-Listing SEO Score
                     </h3>
-                    <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                    <span
+                      class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
+                    >
                       {{ seo.score }}% Optimiert
                     </span>
                   </div>
@@ -382,16 +424,25 @@
               <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-1">
                 <div class="flex justify-between text-[10px] font-semibold text-rf-text-muted">
                   <span>Titel-Länge</span>
-                  <span class="font-mono" [class.text-emerald-400]="seo.charCount <= seo.maxChars && seo.charCount >= (seo.maxChars - 15)">
+                  <span
+                    class="font-mono"
+                    [class.text-emerald-400]="
+                      seo.charCount <= seo.maxChars && seo.charCount >= seo.maxChars - 15
+                    "
+                  >
                     {{ seo.charCount }} / {{ seo.maxChars }} Zeichen
                   </span>
                 </div>
-                <div class="w-full h-2 rounded-full bg-rf-surface overflow-hidden border border-rf-border">
+                <div
+                  class="w-full h-2 rounded-full bg-rf-surface overflow-hidden border border-rf-border"
+                >
                   <div
                     class="h-full transition-all duration-300"
                     [style.width.%]="(seo.charCount / seo.maxChars) * 100"
-                    [class.bg-emerald-400]="seo.charCount <= seo.maxChars && seo.charCount >= (seo.maxChars - 15)"
-                    [class.bg-amber-400]="seo.charCount < (seo.maxChars - 15)"
+                    [class.bg-emerald-400]="
+                      seo.charCount <= seo.maxChars && seo.charCount >= seo.maxChars - 15
+                    "
+                    [class.bg-amber-400]="seo.charCount < seo.maxChars - 15"
                     [class.bg-rose-500]="seo.charCount > seo.maxChars"
                   ></div>
                 </div>
@@ -399,18 +450,27 @@
 
               <!-- Detected Keyword Badges -->
               <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-1.5">
-                <span class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted block">
+                <span
+                  class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted block"
+                >
                   Erkannte Keywords:
                 </span>
                 <div class="flex flex-wrap gap-1">
                   @for (kw of seo.detectedKeywords; track kw) {
-                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium">
-                      <lucide-icon [img]="checkIcon" class="w-2.5 h-2.5 text-emerald-400"></lucide-icon>
+                    <span
+                      class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 font-medium"
+                    >
+                      <lucide-icon
+                        [img]="checkIcon"
+                        class="w-2.5 h-2.5 text-emerald-400"
+                      ></lucide-icon>
                       <span>{{ kw }}</span>
                     </span>
                   }
                   @for (miss of seo.missingKeywords; track miss) {
-                    <span class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium">
+                    <span
+                      class="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/15 text-amber-300 border border-amber-500/30 font-medium"
+                    >
                       + {{ miss }}
                     </span>
                   }
@@ -420,10 +480,15 @@
 
             <!-- Improvement Suggestion List -->
             @if (seo.suggestions.length > 0) {
-              <div class="text-[11px] text-rf-text-muted space-y-1 pt-1 border-t border-rf-border/50">
+              <div
+                class="text-[11px] text-rf-text-muted space-y-1 pt-1 border-t border-rf-border/50"
+              >
                 @for (sug of seo.suggestions; track sug) {
                   <div class="flex items-start gap-1.5">
-                    <lucide-icon [img]="lightbulbIcon" class="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5"></lucide-icon>
+                    <lucide-icon
+                      [img]="lightbulbIcon"
+                      class="w-3.5 h-3.5 text-indigo-400 shrink-0 mt-0.5"
+                    ></lucide-icon>
                     <span>{{ sug }}</span>
                   </div>
                 }
@@ -445,7 +510,11 @@
                 (click)="copyToClipboard(currentTitle(), 'title')"
                 class="linear-btn-primary px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
-                <lucide-icon [img]="copiedTitle() ? checkIcon : copyIcon" class="w-3.5 h-3.5" [class.text-emerald-400]="copiedTitle()"></lucide-icon>
+                <lucide-icon
+                  [img]="copiedTitle() ? checkIcon : copyIcon"
+                  class="w-3.5 h-3.5"
+                  [class.text-emerald-400]="copiedTitle()"
+                ></lucide-icon>
                 <span>{{ copiedTitle() ? 'Kopiert!' : 'Titel kopieren' }}</span>
               </button>
             </div>
@@ -484,16 +553,29 @@
 
               <button
                 type="button"
-                (click)="copyToClipboard(showHtmlMode() && baseGeneratedListing()?.htmlDescription ? baseGeneratedListing()!.htmlDescription! : currentDesc(), 'desc')"
+                (click)="
+                  copyToClipboard(
+                    showHtmlMode() && baseGeneratedListing()?.htmlDescription
+                      ? baseGeneratedListing()!.htmlDescription!
+                      : currentDesc(),
+                    'desc'
+                  )
+                "
                 class="linear-btn-primary px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer"
               >
-                <lucide-icon [img]="copiedDesc() ? checkIcon : copyIcon" class="w-3.5 h-3.5" [class.text-emerald-400]="copiedDesc()"></lucide-icon>
+                <lucide-icon
+                  [img]="copiedDesc() ? checkIcon : copyIcon"
+                  class="w-3.5 h-3.5"
+                  [class.text-emerald-400]="copiedDesc()"
+                ></lucide-icon>
                 <span>{{ copiedDesc() ? 'Kopiert!' : 'Text kopieren' }}</span>
               </button>
             </div>
 
             @if (showHtmlMode() && baseGeneratedListing()?.htmlDescription) {
-              <div class="p-4 rounded-xl bg-rf-subtle border border-rf-border text-xs text-rf-text-secondary font-mono leading-relaxed whitespace-pre-line max-h-96 overflow-y-auto">
+              <div
+                class="p-4 rounded-xl bg-rf-subtle border border-rf-border text-xs text-rf-text-secondary font-mono leading-relaxed whitespace-pre-line max-h-96 overflow-y-auto"
+              >
                 {{ baseGeneratedListing()?.htmlDescription }}
               </div>
             } @else {
@@ -507,7 +589,9 @@
           </div>
 
           <!-- Bottom Actions (Publish & Mark Listed) -->
-          <div class="pt-4 border-t border-rf-border flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div
+            class="pt-4 border-t border-rf-border flex flex-col sm:flex-row items-center justify-between gap-3"
+          >
             @if (selectedPlatform() === 'custom_store') {
               <button
                 type="button"
@@ -544,17 +628,22 @@
                 class="linear-btn-primary w-full sm:w-auto px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-50"
               >
                 <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
-                <span>{{ isMarkingListed() ? 'Wird gespeichert...' : 'Als "Eingestellt" markieren' }}</span>
+                <span>{{
+                  isMarkingListed() ? 'Wird gespeichert...' : 'Als "Eingestellt" markieren'
+                }}</span>
               </button>
             }
           </div>
         </div>
       } @else {
-        <div class="linear-surface rounded-2xl p-16 text-center text-xs text-rf-text-muted space-y-3">
+        <div
+          class="linear-surface rounded-2xl p-16 text-center text-xs text-rf-text-muted space-y-3"
+        >
           <lucide-icon [img]="fileIcon" class="w-10 h-10 mx-auto text-rf-text-dimmed"></lucide-icon>
           <h3 class="text-sm font-bold text-rf-text-primary">Kein Artikel ausgewählt</h3>
           <p class="text-[11px] max-w-xs mx-auto">
-            Wähle links einen Artikel aus, um sofort optimierte Titel und Beschreibungen zu erstellen.
+            Wähle links einen Artikel aus, um sofort optimierte Titel und Beschreibungen zu
+            erstellen.
           </p>
         </div>
       }

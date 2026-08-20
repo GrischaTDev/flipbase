@@ -195,7 +195,11 @@ describe('Analytics & Break-Even Engine (Phase 5)', () => {
       },
     ];
 
-    const statsAfter = analyticsService.computePalletStats([mockPurchase], mockItems, salesAfterBreakEven);
+    const statsAfter = analyticsService.computePalletStats(
+      [mockPurchase],
+      mockItems,
+      salesAfterBreakEven,
+    );
     expect(statsAfter[0].isBreakEven).toBe(true);
     expect(statsAfter[0].daysToBreakEven).toBe(14);
   });

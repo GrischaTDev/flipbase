@@ -1,22 +1,29 @@
 <div class="space-y-6 animate-fade-in">
   <!-- Page Header & Time Range Filter -->
-  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-rf-border">
+  <div
+    class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-rf-border"
+  >
     <div>
       <div class="flex items-center gap-2">
         <h1 class="text-xl font-bold tracking-tight text-rf-text-primary">
           Analytics & Performance Cockpit
         </h1>
-        <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 uppercase">
+        <span
+          class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 uppercase"
+        >
           Profit Intelligence
         </span>
       </div>
       <p class="text-xs text-rf-text-muted mt-0.5">
-        Plattform-Gebührenvergleich, Kapitalumschlag, Haltedauer-Geschwindigkeit & Kohorten-Refinanzierung.
+        Plattform-Gebührenvergleich, Kapitalumschlag, Haltedauer-Geschwindigkeit &
+        Kohorten-Refinanzierung.
       </p>
     </div>
 
     <!-- Time Range Selector -->
-    <div class="flex items-center gap-1.5 p-1 rounded-xl bg-rf-surface border border-rf-border text-xs">
+    <div
+      class="flex items-center gap-1.5 p-1 rounded-xl bg-rf-surface border border-rf-border text-xs"
+    >
       <button
         type="button"
         (click)="setTimeRange('7d')"
@@ -68,7 +75,7 @@
         <lucide-icon [img]="trendingIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
       </div>
       <div class="text-2xl font-black text-rf-text-primary">
-        {{ totalRevenue() | currency:'EUR':'symbol':'1.2-2':'de' }}
+        {{ totalRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </div>
       <span class="text-[10px] text-rf-text-muted block font-sans">
         {{ currentSales().length }} Verkäufe im Zeitraum
@@ -81,7 +88,7 @@
         <lucide-icon [img]="coinsIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
       </div>
       <div class="text-2xl font-black text-emerald-400">
-        +{{ totalNetProfit() | currency:'EUR':'symbol':'1.2-2':'de' }}
+        +{{ totalNetProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </div>
       <span class="text-[10px] text-rf-text-muted block font-sans">
         Nach Abzug aller Gebühren & EK
@@ -93,9 +100,7 @@
         <span class="font-bold uppercase tracking-wider text-[10px]">Durchschnittl. ROI</span>
         <lucide-icon [img]="percentIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
       </div>
-      <div class="text-2xl font-black text-indigo-400">
-        {{ avgRoi() }}%
-      </div>
+      <div class="text-2xl font-black text-indigo-400">{{ avgRoi() }}%</div>
       <span class="text-[10px] text-rf-text-muted block font-sans">
         Kapitalrendite pro verkaufter Artikel
       </span>
@@ -106,9 +111,7 @@
         <span class="font-bold uppercase tracking-wider text-[10px]">Ø Haltedauer</span>
         <lucide-icon [img]="clockIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
       </div>
-      <div class="text-2xl font-black text-amber-400">
-        {{ avgHoldingDays() }} Tage
-      </div>
+      <div class="text-2xl font-black text-amber-400">{{ avgHoldingDays() }} Tage</div>
       <span class="text-[10px] text-rf-text-muted block font-sans">
         Von Einkauf bis zum Verkauf
       </span>
@@ -240,11 +243,17 @@
           @for (sale of currentSales().slice(0, 5); track sale.id) {
             <div class="py-3 flex items-center justify-between text-xs">
               <div class="space-y-0.5">
-                <strong class="text-rf-text-primary block">{{ sale.inventory_item?.title || 'Verkaufter Artikel' }}</strong>
+                <strong class="text-rf-text-primary block">{{
+                  sale.inventory_item?.title || 'Verkaufter Artikel'
+                }}</strong>
                 <div class="flex items-center gap-2 text-[10px] text-rf-text-muted">
-                  <span class="uppercase font-mono font-bold text-indigo-400">{{ sale.platform }}</span>
+                  <span class="uppercase font-mono font-bold text-indigo-400">{{
+                    sale.platform
+                  }}</span>
                   <span>•</span>
-                  <span>VK: {{ sale.sale_price | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+                  <span
+                    >VK: {{ sale.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</span
+                  >
                   <span>•</span>
                   <span>{{ sale.holding_duration_days || 0 }} Tage Haltedauer</span>
                 </div>
@@ -252,13 +261,15 @@
 
               <div class="text-right font-mono">
                 <span class="font-bold text-emerald-400 text-sm block">
-                  +{{ (sale.net_profit || 0) | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  +{{ sale.net_profit || 0 | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </span>
                 <span class="text-[10px] text-rf-text-muted">ROI: {{ sale.roi || 0 }}%</span>
               </div>
             </div>
           } @empty {
-            <div class="p-8 text-center text-xs text-rf-text-muted">Keine Verkäufe im gewählten Zeitraum.</div>
+            <div class="p-8 text-center text-xs text-rf-text-muted">
+              Keine Verkäufe im gewählten Zeitraum.
+            </div>
           }
         </div>
       </div>
@@ -277,16 +288,24 @@
             <div class="space-y-1">
               <div class="flex justify-between text-xs">
                 <strong class="text-rf-text-primary">{{ p.platformLabel }}</strong>
-                <span class="font-mono font-bold text-emerald-400">+{{ p.netProfit | currency:'EUR':'symbol':'1.2-2':'de' }}</span>
+                <span class="font-mono font-bold text-emerald-400"
+                  >+{{ p.netProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</span
+                >
               </div>
-              <div class="w-full h-2 rounded-full bg-rf-subtle overflow-hidden flex border border-rf-border">
+              <div
+                class="w-full h-2 rounded-full bg-rf-subtle overflow-hidden flex border border-rf-border"
+              >
                 <div
                   class="h-full bg-indigo-500"
                   [style.width.%]="(p.grossRevenue / (totalRevenue() || 1)) * 100"
                 ></div>
               </div>
               <div class="flex justify-between text-[10px] text-rf-text-muted">
-                <span>{{ p.salesCount }} Verkäufe ({{ ((p.grossRevenue / (totalRevenue() || 1)) * 100).toFixed(0) }}% Umsatz)</span>
+                <span
+                  >{{ p.salesCount }} Verkäufe ({{
+                    ((p.grossRevenue / (totalRevenue() || 1)) * 100).toFixed(0)
+                  }}% Umsatz)</span
+                >
                 <span>Gebührenquote: {{ p.effectiveFeePercent }}%</span>
               </div>
             </div>
@@ -312,7 +331,9 @@
 
       <div class="overflow-x-auto">
         <table class="w-full text-left text-xs border-collapse font-sans">
-          <thead class="bg-rf-subtle text-rf-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-rf-border">
+          <thead
+            class="bg-rf-subtle text-rf-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-rf-border"
+          >
             <tr>
               <th class="p-3">Plattform</th>
               <th class="p-3 text-right">Verkäufe</th>
@@ -332,23 +353,23 @@
                 </td>
                 <td class="p-3 text-right text-rf-text-secondary">{{ p.salesCount }}x</td>
                 <td class="p-3 text-right font-bold text-rf-text-primary">
-                  {{ p.grossRevenue | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  {{ p.grossRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </td>
                 <td class="p-3 text-right text-rose-400">
-                  -{{ p.platformFees | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  -{{ p.platformFees | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </td>
-                <td class="p-3 text-right font-bold" [class.text-emerald-400]="p.effectiveFeePercent === 0" [class.text-amber-400]="p.effectiveFeePercent > 0">
+                <td
+                  class="p-3 text-right font-bold"
+                  [class.text-emerald-400]="p.effectiveFeePercent === 0"
+                  [class.text-amber-400]="p.effectiveFeePercent > 0"
+                >
                   {{ p.effectiveFeePercent }}%
                 </td>
                 <td class="p-3 text-right font-bold text-emerald-400">
-                  +{{ p.netProfit | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  +{{ p.netProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </td>
-                <td class="p-3 text-right text-indigo-300 font-bold">
-                  {{ p.profitMargin }}%
-                </td>
-                <td class="p-3 text-right text-rf-text-muted">
-                  {{ p.avgHoldingDays }} Tage
-                </td>
+                <td class="p-3 text-right text-indigo-300 font-bold">{{ p.profitMargin }}%</td>
+                <td class="p-3 text-right text-rf-text-muted">{{ p.avgHoldingDays }} Tage</td>
               </tr>
             }
           </tbody>
@@ -364,25 +385,37 @@
       <!-- Velocity KPI Row -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 font-mono">
         <div class="linear-surface p-4 rounded-2xl border border-rf-border space-y-1">
-          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block">Kapitalumschlag / Jahr</span>
+          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block"
+            >Kapitalumschlag / Jahr</span
+          >
           <span class="text-2xl font-black text-indigo-400">{{ vel.capitalTurnoverRate }}x</span>
           <span class="text-[10px] text-rf-text-muted font-sans block">Umschlagshäufigkeit</span>
         </div>
 
         <div class="linear-surface p-4 rounded-2xl border border-rf-border space-y-1">
-          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block">Durchschnitt</span>
-          <span class="text-2xl font-black text-rf-text-primary">{{ vel.avgOverallDays }} Tage</span>
-          <span class="text-[10px] text-rf-text-muted font-sans block">Bis zum erfolgreichen Verkauf</span>
+          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block"
+            >Durchschnitt</span
+          >
+          <span class="text-2xl font-black text-rf-text-primary"
+            >{{ vel.avgOverallDays }} Tage</span
+          >
+          <span class="text-[10px] text-rf-text-muted font-sans block"
+            >Bis zum erfolgreichen Verkauf</span
+          >
         </div>
 
         <div class="linear-surface p-4 rounded-2xl border border-rf-border space-y-1">
-          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block">Schnellster Verkauf</span>
+          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block"
+            >Schnellster Verkauf</span
+          >
           <span class="text-2xl font-black text-emerald-400">{{ vel.fastestSaleDays }} Tage</span>
           <span class="text-[10px] text-rf-text-muted font-sans block">Blitzschneller Flip</span>
         </div>
 
         <div class="linear-surface p-4 rounded-2xl border border-rf-border space-y-1">
-          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block">Längste Haltedauer</span>
+          <span class="text-[10px] font-sans uppercase font-bold text-rf-text-muted block"
+            >Längste Haltedauer</span
+          >
           <span class="text-2xl font-black text-rose-400">{{ vel.slowestSaleDays }} Tage</span>
           <span class="text-[10px] text-rf-text-muted font-sans block">Langsamster Artikel</span>
         </div>
@@ -391,10 +424,14 @@
       <!-- Speed Buckets Cards -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         @for (b of vel.buckets; track b.label) {
-          <div class="linear-surface rounded-2xl p-5 border border-rf-border shadow-xl space-y-2 font-sans">
+          <div
+            class="linear-surface rounded-2xl p-5 border border-rf-border shadow-xl space-y-2 font-sans"
+          >
             <div class="flex items-center justify-between">
               <strong class="text-xs text-rf-text-primary">{{ b.label }}</strong>
-              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-secondary border border-rf-border">
+              <span
+                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-rf-subtle text-rf-text-secondary border border-rf-border"
+              >
                 {{ b.percent }}%
               </span>
             </div>
@@ -403,9 +440,18 @@
               {{ b.count }} Verkäufe
             </div>
 
-            <div class="flex justify-between text-[11px] font-mono pt-2 border-t border-rf-border text-rf-text-muted">
-              <span>Gewinn: <strong class="text-emerald-400">+{{ b.totalProfit | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
-              <span>ROI: <strong>{{ b.avgRoi }}%</strong></span>
+            <div
+              class="flex justify-between text-[11px] font-mono pt-2 border-t border-rf-border text-rf-text-muted"
+            >
+              <span
+                >Gewinn:
+                <strong class="text-emerald-400"
+                  >+{{ b.totalProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</strong
+                ></span
+              >
+              <span
+                >ROI: <strong>{{ b.avgRoi }}%</strong></span
+              >
             </div>
           </div>
         }
@@ -421,7 +467,8 @@
           Monatliche Einkaufs-Kohorten & Break-Even Refinanzierung
         </h2>
         <p class="text-[11px] text-rf-text-muted mt-0.5">
-          Verfolge, wie schnell jede Einkaufscharge ihr investiertes Kapital wieder einspielt (Break-Even Recovery Rate).
+          Verfolge, wie schnell jede Einkaufscharge ihr investiertes Kapital wieder einspielt
+          (Break-Even Recovery Rate).
         </p>
       </div>
 
@@ -431,7 +478,8 @@
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
               <div class="flex items-center gap-2">
                 <strong class="text-sm font-bold text-rf-text-primary">{{ c.monthLabel }}</strong>
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase"
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase"
                   [class.bg-emerald-500/15]="c.isProfitable"
                   [class.text-emerald-400]="c.isProfitable"
                   [class.border]="c.isProfitable"
@@ -444,14 +492,26 @@
               </div>
 
               <div class="flex items-center gap-4 font-mono">
-                <span>Investiert: <strong>{{ c.invested | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
-                <span>Erlöst: <strong class="text-emerald-400">{{ c.realizedRevenue | currency:'EUR':'symbol':'1.2-2':'de' }}</strong></span>
+                <span
+                  >Investiert:
+                  <strong>{{
+                    c.invested | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                  }}</strong></span
+                >
+                <span
+                  >Erlöst:
+                  <strong class="text-emerald-400">{{
+                    c.realizedRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                  }}</strong></span
+                >
               </div>
             </div>
 
             <!-- Recovery Progress Bar -->
             <div class="space-y-1">
-              <div class="w-full h-3 rounded-full bg-rf-surface overflow-hidden flex border border-rf-border">
+              <div
+                class="w-full h-3 rounded-full bg-rf-surface overflow-hidden flex border border-rf-border"
+              >
                 <div
                   class="h-full transition-all duration-500"
                   [class.bg-emerald-500]="c.isProfitable"
@@ -460,7 +520,10 @@
                 ></div>
               </div>
               <div class="flex justify-between text-[10px] text-rf-text-muted font-mono">
-                <span>Refinanzierungs-Quote: <strong class="text-rf-text-primary">{{ c.recoveryPercent }}%</strong></span>
+                <span
+                  >Refinanzierungs-Quote:
+                  <strong class="text-rf-text-primary">{{ c.recoveryPercent }}%</strong></span
+                >
                 <span>{{ c.soldCount }} von {{ c.itemsCount }} Artikel verkauft</span>
               </div>
             </div>
@@ -484,7 +547,9 @@
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
         @for (day of salesHeatmap(); track day.dayName) {
-          <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-2 text-center font-sans">
+          <div
+            class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-2 text-center font-sans"
+          >
             <strong class="text-xs text-rf-text-primary block border-b border-rf-border pb-1">
               {{ day.dayName }}
             </strong>
@@ -493,7 +558,9 @@
               {{ day.totalSales }} Sales
             </div>
 
-            <div class="space-y-1 text-[10px] text-left text-rf-text-muted pt-1 border-t border-rf-border font-mono">
+            <div
+              class="space-y-1 text-[10px] text-left text-rf-text-muted pt-1 border-t border-rf-border font-mono"
+            >
               <div class="flex justify-between items-center">
                 <span class="inline-flex items-center gap-1">
                   <lucide-icon [img]="sunriseIcon" class="w-3 h-3 text-amber-400"></lucide-icon>
@@ -536,7 +603,9 @@
 
       <div class="overflow-x-auto">
         <table class="w-full text-left text-xs border-collapse">
-          <thead class="bg-rf-subtle text-rf-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-rf-border">
+          <thead
+            class="bg-rf-subtle text-rf-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-rf-border"
+          >
             <tr>
               <th class="p-3">Kategorie</th>
               <th class="p-3 text-right">Bestand</th>
@@ -553,10 +622,10 @@
                 <td class="p-3 text-right text-rf-text-secondary">{{ cat.itemsCount }}</td>
                 <td class="p-3 text-right text-rf-text-secondary">{{ cat.soldCount }}</td>
                 <td class="p-3 text-right font-bold text-rf-text-primary">
-                  {{ cat.revenue | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  {{ cat.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </td>
                 <td class="p-3 text-right font-bold text-emerald-400">
-                  +{{ cat.profit | currency:'EUR':'symbol':'1.2-2':'de' }}
+                  +{{ cat.profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </td>
                 <td class="p-3 text-right font-bold text-indigo-300">{{ cat.avgRoi }}%</td>
               </tr>
@@ -573,53 +642,67 @@
     <div class="space-y-6 animate-fade-in">
       <!-- Holding Top Aggregation Cards -->
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 font-mono">
-        <div class="linear-surface p-5 rounded-2xl border border-purple-500/30 bg-purple-500/5 shadow-xl space-y-1">
+        <div
+          class="linear-surface p-5 rounded-2xl border border-purple-500/30 bg-purple-500/5 shadow-xl space-y-1"
+        >
           <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
-            <span class="font-bold uppercase tracking-wider text-[10px] text-purple-300">Konsolidierter Umsatz</span>
+            <span class="font-bold uppercase tracking-wider text-[10px] text-purple-300"
+              >Konsolidierter Umsatz</span
+            >
             <lucide-icon [img]="trendingIcon" class="w-4 h-4 text-purple-400"></lucide-icon>
           </div>
           <div class="text-2xl font-black text-rf-text-primary">
-            {{ holding.totalRevenue | currency:'EUR':'symbol':'1.2-2':'de' }}
+            {{ holding.totalRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </div>
           <span class="text-[10px] text-rf-text-muted block font-sans">
             Über {{ holding.workspacesCount }} Reselling-Gewerbe
           </span>
         </div>
 
-        <div class="linear-surface p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 shadow-xl space-y-1">
+        <div
+          class="linear-surface p-5 rounded-2xl border border-emerald-500/30 bg-emerald-500/5 shadow-xl space-y-1"
+        >
           <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
-            <span class="font-bold uppercase tracking-wider text-[10px] text-emerald-400">Realisierter Holding-Gewinn</span>
+            <span class="font-bold uppercase tracking-wider text-[10px] text-emerald-400"
+              >Realisierter Holding-Gewinn</span
+            >
             <lucide-icon [img]="coinsIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
           </div>
           <div class="text-2xl font-black text-emerald-400">
-            +{{ holding.totalNetProfit | currency:'EUR':'symbol':'1.2-2':'de' }}
+            +{{ holding.totalNetProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </div>
           <span class="text-[10px] text-rf-text-muted block font-sans">
             Gesamter Nettogewinn nach Abzug aller Kosten
           </span>
         </div>
 
-        <div class="linear-surface p-5 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 shadow-xl space-y-1">
+        <div
+          class="linear-surface p-5 rounded-2xl border border-indigo-500/30 bg-indigo-500/5 shadow-xl space-y-1"
+        >
           <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
-            <span class="font-bold uppercase tracking-wider text-[10px] text-indigo-300">Lagerbestandswert (EK)</span>
+            <span class="font-bold uppercase tracking-wider text-[10px] text-indigo-300"
+              >Lagerbestandswert (EK)</span
+            >
             <lucide-icon [img]="boxesIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
           </div>
           <div class="text-2xl font-black text-indigo-300">
-            {{ holding.totalInventoryValue | currency:'EUR':'symbol':'1.2-2':'de' }}
+            {{ holding.totalInventoryValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
           </div>
           <span class="text-[10px] text-rf-text-muted block font-sans">
             {{ holding.totalInventoryCount }} aktive Artikel gebunden
           </span>
         </div>
 
-        <div class="linear-surface p-5 rounded-2xl border border-amber-500/30 bg-amber-500/5 shadow-xl space-y-1">
+        <div
+          class="linear-surface p-5 rounded-2xl border border-amber-500/30 bg-amber-500/5 shadow-xl space-y-1"
+        >
           <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
-            <span class="font-bold uppercase tracking-wider text-[10px] text-amber-300">Holding Durchschnitts-ROI</span>
+            <span class="font-bold uppercase tracking-wider text-[10px] text-amber-300"
+              >Holding Durchschnitts-ROI</span
+            >
             <lucide-icon [img]="percentIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
           </div>
-          <div class="text-2xl font-black text-amber-400">
-            {{ holding.averageRoi }}%
-          </div>
+          <div class="text-2xl font-black text-amber-400">{{ holding.averageRoi }}%</div>
           <span class="text-[10px] text-rf-text-muted block font-sans">
             Gewichtete Gesamtkapitalrendite
           </span>
@@ -635,7 +718,9 @@
               Mandanten- & Gewerbevergleich (Performance Matrix)
             </h2>
           </div>
-          <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold">
+          <span
+            class="px-2 py-0.5 rounded text-[10px] font-mono bg-purple-500/15 text-purple-300 border border-purple-500/30 font-semibold"
+          >
             {{ holding.workspacesCount }} Mandanten aktiv
           </span>
         </div>
@@ -646,7 +731,9 @@
 
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs border-collapse">
-            <thead class="bg-rf-subtle text-rf-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-rf-border">
+            <thead
+              class="bg-rf-subtle text-rf-text-muted uppercase text-[10px] font-bold tracking-wider border-b border-rf-border"
+            >
               <tr>
                 <th class="p-3">Mandant / Workspace</th>
                 <th class="p-3">Steuerprofil</th>
@@ -660,46 +747,61 @@
             </thead>
             <tbody class="divide-y divide-rf-border font-mono">
               @for (wsSummary of holding.workspaceSummaries; track wsSummary.workspace.id) {
-                <tr class="hover:bg-rf-surface-hover transition" [class.bg-purple-500/5]="workspaceService.currentWorkspace()?.id === wsSummary.workspace.id">
+                <tr
+                  class="hover:bg-rf-surface-hover transition"
+                  [class.bg-purple-500/5]="
+                    workspaceService.currentWorkspace()?.id === wsSummary.workspace.id
+                  "
+                >
                   <td class="p-3 font-sans">
                     <div class="flex items-center gap-2">
-                      <strong class="text-rf-text-primary text-xs block">{{ wsSummary.workspace.name }}</strong>
+                      <strong class="text-rf-text-primary text-xs block">{{
+                        wsSummary.workspace.name
+                      }}</strong>
                       @if (workspaceService.currentWorkspace()?.id === wsSummary.workspace.id) {
-                        <span class="px-1.5 py-0.2 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold">
+                        <span
+                          class="px-1.5 py-0.2 rounded text-[10px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 font-bold"
+                        >
                           AKTIV
                         </span>
                       }
                     </div>
-                    <span class="text-[10px] text-rf-text-muted font-mono">ID: {{ wsSummary.workspace.id }}</span>
+                    <span class="text-[10px] text-rf-text-muted font-mono"
+                      >ID: {{ wsSummary.workspace.id }}</span
+                    >
                   </td>
 
                   <td class="p-3 font-sans text-rf-text-secondary text-[11px]">
-                    <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-rf-subtle border border-rf-border">
+                    <span
+                      class="px-2 py-0.5 rounded text-[10px] font-mono bg-rf-subtle border border-rf-border"
+                    >
                       § 25a UStG (Diff)
                     </span>
                   </td>
 
                   <td class="p-3 text-right text-indigo-300 font-bold">
-                    {{ wsSummary.inventoryValue | currency:'EUR':'symbol':'1.2-2':'de' }}
-                    <span class="text-[10px] text-rf-text-muted block font-normal">({{ wsSummary.inventoryCount }} Stk.)</span>
+                    {{ wsSummary.inventoryValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    <span class="text-[10px] text-rf-text-muted block font-normal"
+                      >({{ wsSummary.inventoryCount }} Stk.)</span
+                    >
                   </td>
 
                   <td class="p-3 text-right text-rf-text-secondary">
-                    {{ wsSummary.totalInvested | currency:'EUR':'symbol':'1.2-2':'de' }}
+                    {{ wsSummary.totalInvested | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </td>
 
                   <td class="p-3 text-right font-bold text-rf-text-primary">
-                    {{ wsSummary.totalRevenue | currency:'EUR':'symbol':'1.2-2':'de' }}
-                    <span class="text-[10px] text-rf-text-muted block font-normal">{{ wsSummary.salesCount }} Verkäufe</span>
+                    {{ wsSummary.totalRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    <span class="text-[10px] text-rf-text-muted block font-normal"
+                      >{{ wsSummary.salesCount }} Verkäufe</span
+                    >
                   </td>
 
                   <td class="p-3 text-right font-bold text-emerald-400">
-                    +{{ wsSummary.totalProfit | currency:'EUR':'symbol':'1.2-2':'de' }}
+                    +{{ wsSummary.totalProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </td>
 
-                  <td class="p-3 text-right font-bold text-indigo-300">
-                    {{ wsSummary.roi }}%
-                  </td>
+                  <td class="p-3 text-right font-bold text-indigo-300">{{ wsSummary.roi }}%</td>
 
                   <td class="p-3 text-center font-sans">
                     @if (workspaceService.currentWorkspace()?.id !== wsSummary.workspace.id) {
