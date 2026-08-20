@@ -40,9 +40,9 @@ import { DatePipe } from '@angular/common';
   selector: 'app-header',
   imports: [RouterLink, TranslatePipe, LucideAngularModule, DatePipe],
   templateUrl: './header.component.html',
-  styleUrl: './header.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
+    class: 'block',
     '(document:click)': 'onDocumentClick($event)',
     '(document:keydown.escape)': 'closeAllDropdowns()',
   },

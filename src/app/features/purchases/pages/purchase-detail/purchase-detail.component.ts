@@ -53,7 +53,7 @@ import {
     ImageCropperModalComponent,
   ],
   templateUrl: './purchase-detail.component.html',
-  styleUrl: './purchase-detail.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseDetailComponent {

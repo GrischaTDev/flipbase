@@ -27,7 +27,7 @@ import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog
     CustomSelectComponent,
   ],
   templateUrl: './item-create-modal.component.html',
-  styleUrl: './item-create-modal.component.scss',
+  host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ItemCreateModalComponent {

@@ -47,7 +47,7 @@ import { Purchase, PurchaseType } from '../../core/models/reflip.models';
     PurchaseCreateModalComponent,
   ],
   templateUrl: './purchases.component.html',
-  styleUrl: './purchases.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchasesComponent {

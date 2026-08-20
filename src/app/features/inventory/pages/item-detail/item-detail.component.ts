@@ -48,7 +48,7 @@ import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog
     CustomSelectComponent,
   ],
   templateUrl: './item-detail.component.html',
-  styleUrl: './item-detail.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ItemDetailComponent {

@@ -9,7 +9,7 @@ import { AuthService } from '../../../core/services/auth.service';
   selector: 'app-login',
   imports: [ReactiveFormsModule, RouterLink, TranslatePipe, LucideAngularModule],
   templateUrl: './login.component.html',
-  styleUrl: './login.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LoginComponent {

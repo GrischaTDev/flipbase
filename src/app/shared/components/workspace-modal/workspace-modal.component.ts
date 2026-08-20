@@ -8,7 +8,7 @@ import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.di
   selector: 'app-workspace-modal',
   imports: [ModalDialogDirective, ReactiveFormsModule, LucideAngularModule],
   templateUrl: './workspace-modal.component.html',
-  styleUrl: './workspace-modal.component.scss',
+  host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkspaceModalComponent {

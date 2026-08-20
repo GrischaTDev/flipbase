@@ -44,7 +44,7 @@ import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/ret
     InvoiceModalComponent,
   ],
   templateUrl: './sales.component.html',
-  styleUrl: './sales.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SalesComponent {

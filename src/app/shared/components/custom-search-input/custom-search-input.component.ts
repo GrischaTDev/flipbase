@@ -17,7 +17,6 @@ import { LucideAngularModule, Search, X } from 'lucide-angular';
   selector: 'app-custom-search-input',
   imports: [LucideAngularModule],
   templateUrl: './custom-search-input.component.html',
-  styleUrl: './custom-search-input.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     {
@@ -27,8 +26,7 @@ import { LucideAngularModule, Search, X } from 'lucide-angular';
     },
   ],
   host: {
-    '[class.w-full]': 'true',
-    '[class.block]': 'true',
+    class: 'block w-full',
   },
 })
 export class CustomSearchInputComponent implements ControlValueAccessor {

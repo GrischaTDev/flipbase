@@ -48,7 +48,7 @@ import { ConsolidatedHoldingSummary } from '../../core/models/reflip.models';
   selector: 'app-analytics',
   imports: [CurrencyPipe, LucideAngularModule],
   templateUrl: './analytics.component.html',
-  styleUrl: './analytics.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AnalyticsComponent {

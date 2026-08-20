@@ -31,7 +31,7 @@ interface NavItem {
   selector: 'app-sidebar',
   imports: [RouterLink, RouterLinkActive, TranslatePipe, LucideAngularModule],
   templateUrl: './sidebar.component.html',
-  styleUrl: './sidebar.component.scss',
+  host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SidebarComponent {

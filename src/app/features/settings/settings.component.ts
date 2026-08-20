@@ -62,7 +62,7 @@ import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox
     CustomCheckboxComponent,
   ],
   templateUrl: './settings.component.html',
-  styleUrl: './settings.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsComponent {

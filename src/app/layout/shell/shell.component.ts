@@ -20,7 +20,7 @@ import { MockDataStoreService } from '../../core/services/mock-data-store.servic
     SyncErrorBannerComponent,
   ],
   templateUrl: './shell.component.html',
-  styleUrl: './shell.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ShellComponent {

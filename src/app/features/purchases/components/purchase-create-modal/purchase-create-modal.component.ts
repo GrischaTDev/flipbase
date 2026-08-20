@@ -30,7 +30,7 @@ interface ExtraCostEntry {
   selector: 'app-purchase-create-modal',
   imports: [ModalDialogDirective, ReactiveFormsModule, LucideAngularModule],
   templateUrl: './purchase-create-modal.component.html',
-  styleUrl: './purchase-create-modal.component.scss',
+  host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseCreateModalComponent {

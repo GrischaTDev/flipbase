@@ -12,7 +12,7 @@ import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog
   selector: 'app-sale-create-modal',
   imports: [ModalDialogDirective, ReactiveFormsModule, CurrencyPipe, LucideAngularModule],
   templateUrl: './sale-create-modal.component.html',
-  styleUrl: './sale-create-modal.component.scss',
+  host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SaleCreateModalComponent {

@@ -24,7 +24,7 @@ import { CurrencyPipe } from '@angular/common';
   selector: 'app-store-layout',
   imports: [RouterOutlet, RouterLink, CurrencyPipe, LucideAngularModule, StoreCartDrawerComponent],
   templateUrl: './store-layout.component.html',
-  styleUrl: './store-layout.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StoreLayoutComponent {

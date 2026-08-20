@@ -22,7 +22,7 @@ import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner
   selector: 'app-deal-calculator',
   imports: [ReactiveFormsModule, CurrencyPipe, TranslatePipe, LucideAngularModule, BarcodeScannerComponent],
   templateUrl: './deal-calculator.component.html',
-  styleUrl: './deal-calculator.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DealCalculatorComponent {

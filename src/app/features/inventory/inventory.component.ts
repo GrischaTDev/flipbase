@@ -49,7 +49,7 @@ type FilterPreset = string;
     CustomSearchInputComponent,
   ],
   templateUrl: './inventory.component.html',
-  styleUrl: './inventory.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InventoryComponent {

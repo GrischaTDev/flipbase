@@ -23,7 +23,7 @@ import { InvoiceModalComponent } from '../../../../shared/components/invoice-mod
   selector: 'app-store-order-success',
   imports: [RouterLink, CurrencyPipe, LucideAngularModule, InvoiceModalComponent],
   templateUrl: './store-order-success.component.html',
-  styleUrl: './store-order-success.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StoreOrderSuccessComponent {

@@ -23,7 +23,7 @@ import { CheckoutCustomerInfo } from '../../../../core/models/store.models';
   selector: 'app-store-checkout',
   imports: [RouterLink, ReactiveFormsModule, CurrencyPipe, LucideAngularModule],
   templateUrl: './store-checkout.component.html',
-  styleUrl: './store-checkout.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StoreCheckoutComponent {

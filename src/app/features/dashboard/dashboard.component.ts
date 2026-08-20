@@ -26,7 +26,7 @@ import { DashboardMetrics } from '../../core/models/reflip.models';
   selector: 'app-dashboard',
   imports: [RouterLink, CurrencyPipe, DatePipe, TranslatePipe, LucideAngularModule],
   templateUrl: './dashboard.component.html',
-  styleUrl: './dashboard.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardComponent {

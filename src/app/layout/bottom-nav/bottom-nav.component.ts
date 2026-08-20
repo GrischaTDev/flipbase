@@ -13,7 +13,7 @@ import {
   selector: 'app-bottom-nav',
   imports: [RouterLink, RouterLinkActive, LucideAngularModule],
   templateUrl: './bottom-nav.component.html',
-  styleUrl: './bottom-nav.component.scss',
+  host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BottomNavComponent {

@@ -21,7 +21,7 @@ import { InventoryItem } from '../../../../core/models/reflip.models';
   selector: 'app-store-item-detail',
   imports: [RouterLink, CurrencyPipe, LucideAngularModule],
   templateUrl: './store-item-detail.component.html',
-  styleUrl: './store-item-detail.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StoreItemDetailComponent {

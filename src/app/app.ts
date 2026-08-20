@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { TRANSLATIONS_DE, TRANSLATIONS_EN } from './core/i18n/translations';
@@ -8,6 +8,7 @@ import { TRANSLATIONS_DE, TRANSLATIONS_EN } from './core/i18n/translations';
   imports: [RouterOutlet],
   templateUrl: './app.html',
   styleUrl: './app.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
   private readonly translate = inject(TranslateService);

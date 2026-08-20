@@ -9,7 +9,7 @@ import { SuppliersService } from '../../core/services/suppliers.service';
   selector: 'app-sources',
   imports: [ReactiveFormsModule, TranslatePipe, LucideAngularModule],
   templateUrl: './sources.component.html',
-  styleUrl: './sources.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SourcesComponent {

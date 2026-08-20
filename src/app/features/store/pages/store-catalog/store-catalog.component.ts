@@ -49,7 +49,7 @@ interface Testimonial {
   selector: 'app-store-catalog',
   imports: [RouterLink, ReactiveFormsModule, CurrencyPipe, LucideAngularModule],
   templateUrl: './store-catalog.component.html',
-  styleUrl: './store-catalog.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StoreCatalogComponent {

@@ -46,7 +46,7 @@ import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox
   selector: 'app-listings',
   imports: [RouterLink, ReactiveFormsModule, CurrencyPipe, TranslatePipe, LucideAngularModule, CustomCheckboxComponent],
   templateUrl: './listings.component.html',
-  styleUrl: './listings.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ListingsComponent {

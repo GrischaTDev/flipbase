@@ -587,10 +587,12 @@
   <!-- MODAL: STEUERBERATER EXPORT & E-MAIL VERSAND                             -->
   <!-- ========================================================================= -->
   @if (isTaxAdvisorModalOpen()) {
-    <div class="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-    appModalDialog
-    dialogTitel="Monatspaket an die Steuerkanzlei senden"
-    (dialogClose)="closeTaxAdvisorModal()"
+    <div
+      class="fixed inset-0 bg-black/70 backdrop-blur-xs z-50 flex items-center justify-center p-4"
+      appModalDialog
+      dialogTitel="Monatspaket an die Steuerkanzlei senden"
+      (dialogClose)="closeTaxAdvisorModal()"
+    >
       <div class="card w-full max-w-lg p-6 space-y-5 animate-modal-card" (click)="$event.stopPropagation()">
         <div class="flex items-center justify-between border-b border-rf-border/40 pb-3">
           <div class="flex items-center gap-2">

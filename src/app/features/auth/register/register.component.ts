@@ -18,7 +18,7 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
   selector: 'app-register',
   imports: [ReactiveFormsModule, RouterLink, TranslatePipe, LucideAngularModule, CustomCheckboxComponent],
   templateUrl: './register.component.html',
-  styleUrl: './register.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class RegisterComponent {

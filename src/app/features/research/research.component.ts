@@ -54,7 +54,7 @@ import { ModalDialogDirective } from '../../shared/directives/modal-dialog.direc
     BarcodeScannerComponent,
   ],
   templateUrl: './research.component.html',
-  styleUrl: './research.component.scss',
+  host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ResearchComponent {
