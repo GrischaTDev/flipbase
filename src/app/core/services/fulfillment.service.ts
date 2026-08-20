@@ -323,7 +323,7 @@ export class FulfillmentService {
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+    if (!this.supabase || this.mockStore?.isDemoMode()) return;
 
     try {
       const [orderRes, cfgRes] = await Promise.all([
@@ -402,7 +402,7 @@ export class FulfillmentService {
     } catch {}
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client
         .from('carrier_configs')
         .upsert(
@@ -471,7 +471,7 @@ export class FulfillmentService {
     this.persistOrders();
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client
         .from('shipping_orders')
         .update({
@@ -523,7 +523,7 @@ export class FulfillmentService {
     this.persistOrders();
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client.from('shipping_orders').insert({
         workspace_id: ws.id,
         sale_id: bundledOrder.sale_id || null,
@@ -652,7 +652,7 @@ export class FulfillmentService {
     this.persistOrders();
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client
         .from('shipping_orders')
         .update({
@@ -704,7 +704,7 @@ export class FulfillmentService {
     this.persistOrders();
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       const dbPayload: any = { status };
       if (shippedAt) dbPayload.shipped_at = shippedAt;
       if (deliveredAt) dbPayload.delivered_at = deliveredAt;

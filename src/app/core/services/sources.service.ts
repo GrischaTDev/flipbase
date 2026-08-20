@@ -87,7 +87,7 @@ export class SourcesService {
     this.mockStore.saveSource(newSrc);
     this.sources.update((list) => [...list, newSrc]);
 
-    if (!this.mockStore.isDemoMode() && !ws.id.startsWith('demo-')) {
+    if (!this.mockStore.isDemoMode() && !this.mockStore?.isDemoMode()) {
       try {
         const { data: dbSrc, error: dbError } = await this.supabase.client
           .from('sources')

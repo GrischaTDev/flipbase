@@ -2,6 +2,7 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { InventoryService } from './inventory.service';
+import { MockDataStoreService } from './mock-data-store.service';
 import { InventoryItem, ListingDraft } from '../models/reflip.models';
 
 export type ListingPlatform = 'kleinanzeigen' | 'ebay' | 'vinted' | 'custom_store' | 'social';
@@ -46,6 +47,7 @@ export interface SeoOptimizationResult {
 })
 export class ListingStudioService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly inventoryService = inject(InventoryService, { optional: true });
 
@@ -74,7 +76,7 @@ export class ListingStudioService {
 
   async loadDrafts(_workspaceId: string): Promise<void> {
     try {
-      if (!this.supabase) return;
+      if (!this.supabase || this.mockStore?.isDemoMode()) return;
       const { data, error } = await this.supabase.client
         .from('listing_drafts')
         .select('*')

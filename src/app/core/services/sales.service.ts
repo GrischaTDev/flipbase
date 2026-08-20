@@ -173,7 +173,7 @@ export class SalesService {
     // Trigger Discord/Telegram/In-App notification
     this.webhookService.sendSaleNotification(enrichedSale, item?.title || 'Artikel');
 
-    if (!this.mockStore.isDemoMode() && !ws.id.startsWith('demo-')) {
+    if (!this.mockStore.isDemoMode() && !this.mockStore?.isDemoMode()) {
       try {
         const { data: dbSale, error: dbError } = await this.supabase.client
           .from('sales')

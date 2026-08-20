@@ -4,6 +4,7 @@ import { SalesService } from './sales.service';
 import { WorkspaceService } from './workspace.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
+import { MockDataStoreService } from './mock-data-store.service';
 import { InventoryItem } from '../models/reflip.models';
 import { Json } from '../models/supabase.types';
 import {
@@ -23,6 +24,7 @@ const STORAGE_KEY_ORDERS = 'reflip_store_orders';
 })
 export class StoreService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly inventoryService = inject(InventoryService, { optional: true });
   private readonly salesService = inject(SalesService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
@@ -141,7 +143,7 @@ export class StoreService {
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+    if (!this.supabase || this.mockStore?.isDemoMode()) return;
 
     try {
       const [settingsRes, ordersRes] = await Promise.all([
@@ -230,7 +232,7 @@ export class StoreService {
     } catch {}
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client
         .from('store_settings')
         .upsert(
@@ -385,7 +387,7 @@ export class StoreService {
 
     // 2. Persist to Supabase
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client
         .from('store_orders')
         .insert({

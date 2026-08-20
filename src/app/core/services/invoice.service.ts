@@ -1,6 +1,7 @@
 import { Injectable, effect, inject, signal } from '@angular/core';
 import { WorkspaceService } from './workspace.service';
 import { SupabaseService } from './supabase.service';
+import { MockDataStoreService } from './mock-data-store.service';
 import { InventoryItem, Sale, TaxMode } from '../models/reflip.models';
 import { StoreOrder } from '../models/store.models';
 import { EmailConfirmation, Invoice, InvoiceItem, InvoiceParty } from '../models/invoice.models';
@@ -14,6 +15,7 @@ const STORAGE_KEY_EMAILS = 'reflip_sent_emails';
 })
 export class InvoiceService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
 
   readonly invoices = signal<Invoice[]>(this.loadInvoices());
@@ -78,7 +80,7 @@ export class InvoiceService {
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+    if (!this.supabase || this.mockStore?.isDemoMode()) return;
 
     this.isLoading.set(true);
     try {
@@ -249,7 +251,7 @@ export class InvoiceService {
     this.persistInvoices();
 
     // Persist to Supabase
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client
         .from('invoices')
         .insert({
@@ -350,7 +352,7 @@ export class InvoiceService {
     this.persistInvoices();
 
     // Persist to Supabase
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client
         .from('invoices')
         .insert({
@@ -416,7 +418,7 @@ export class InvoiceService {
     this.sentEmails.update((list) => [emailRecord, ...list]);
     this.persistEmails();
 
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       try {
         await this.supabase.client.from('email_confirmations').insert({
           workspace_id: ws.id,

@@ -10,6 +10,7 @@ import { WorkspaceService } from './workspace.service';
 import { WebhookService } from './webhook.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
+import { MockDataStoreService } from './mock-data-store.service';
 import { Json } from '../models/supabase.types';
 
 const STORAGE_KEY_RADAR = 'reflip_price_radar_items';
@@ -19,6 +20,7 @@ const STORAGE_KEY_RADAR = 'reflip_price_radar_items';
 })
 export class PriceTrackerService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly inventoryService = inject(InventoryService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly webhookService = inject(WebhookService, { optional: true });
@@ -70,7 +72,7 @@ export class PriceTrackerService {
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+    if (!this.supabase || this.mockStore?.isDemoMode()) return;
 
     try {
       const { data, error } = await this.supabase.client
@@ -260,7 +262,7 @@ export class PriceTrackerService {
     this.trackedItems.update((list) => [newItem, ...list]);
     this.persistItems();
 
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client.from('price_tracked_items').insert({
         workspace_id: ws.id,
         inventory_item_id: item.inventory_item_id || null,
@@ -413,7 +415,7 @@ export class PriceTrackerService {
     this.persistItems();
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client.from('price_tracked_items').delete().eq('id', itemId);
     }
   }

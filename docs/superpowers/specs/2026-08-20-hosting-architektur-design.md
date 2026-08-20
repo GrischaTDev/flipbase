@@ -109,14 +109,14 @@ Server 168.119.246.33 (Hetzner CX33, Ubuntu 26.04 LTS)
 
 Ausgerollt und im laufenden Betrieb geprueft:
 
-| | |
-|---|---|
-| `https://app.flipbase.de` | Dashboard, HTTP 200, Anmeldung erzwungen |
-| `https://api.flipbase.de` | Supabase; API mit Schluessel erreichbar, Studio hinter Passwortschutz |
-| `https://flipbase.de` / `www.` | Weiterleitung aufs Dashboard (spaeter Landingpage) |
-| Zertifikate | vier Stueck, automatisch von Let's Encrypt |
-| Datenbankports | von aussen geprueft dicht (5432, 6543, 8000) |
-| Sicherung | naechtlich 03:30 Uhr, 14 Tage, Auslagerung offen |
+|                                |                                                                       |
+| ------------------------------ | --------------------------------------------------------------------- |
+| `https://app.flipbase.de`      | Dashboard, HTTP 200, Anmeldung erzwungen                              |
+| `https://api.flipbase.de`      | Supabase; API mit Schluessel erreichbar, Studio hinter Passwortschutz |
+| `https://flipbase.de` / `www.` | Weiterleitung aufs Dashboard (spaeter Landingpage)                    |
+| Zertifikate                    | vier Stueck, automatisch von Let's Encrypt                            |
+| Datenbankports                 | von aussen geprueft dicht (5432, 6543, 8000)                          |
+| Sicherung                      | naechtlich 03:30 Uhr, 14 Tage, Auslagerung offen                      |
 
 Im Produktivstand geprueft: Stylesheet laedt mit `media="all"` (die
 CSP-Blockade aus Phase 7 ist nicht zurueck), alle Icons werden gezeichnet,

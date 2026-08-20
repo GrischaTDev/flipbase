@@ -5,6 +5,7 @@ import { PurchaseService } from './purchase.service';
 import { InvoiceService } from './invoice.service';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
+import { MockDataStoreService } from './mock-data-store.service';
 import {
   BankFormatType,
   BankReconciliationMatch,
@@ -20,6 +21,7 @@ const STORAGE_KEY_BANK_TRANSACTIONS = 'reflip_bank_transactions';
 })
 export class BankReconciliationService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly storeService = inject(StoreService);
   private readonly salesService = inject(SalesService);
@@ -44,7 +46,7 @@ export class BankReconciliationService {
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+    if (!this.supabase || this.mockStore?.isDemoMode()) return;
 
     try {
       const { data, error } = await this.supabase.client

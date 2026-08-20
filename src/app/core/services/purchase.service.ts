@@ -268,7 +268,7 @@ export class PurchaseService {
     this.purchases.update((list) => [newPurchase, ...list]);
     this.webhookService.sendPurchaseNotification(newPurchase);
 
-    if (this.mockStore.isDemoMode() || ws.id.startsWith('demo-')) {
+    if (this.mockStore.isDemoMode()) {
       return { data: newPurchase, error: null };
     }
 
@@ -358,7 +358,7 @@ export class PurchaseService {
       this.selectedPurchase.set(updated);
     }
 
-    if (!this.mockStore.isDemoMode() && !existing.workspace_id.startsWith('demo-')) {
+    if (!this.mockStore.isDemoMode() && !this.mockStore?.isDemoMode()) {
       try {
         const { error } = await this.supabase.client
           .from('purchases')
@@ -646,7 +646,7 @@ export class PurchaseService {
     }
 
     const wsId = ws?.id;
-    if (!this.mockStore.isDemoMode() && wsId && !wsId.startsWith('demo-')) {
+    if (!this.mockStore.isDemoMode() && wsId && !this.mockStore?.isDemoMode()) {
       try {
         const { data: dbData, error } = await this.supabase.client
           .from('inventory_items')

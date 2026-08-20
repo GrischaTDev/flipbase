@@ -6,6 +6,7 @@ import { WorkspaceService } from './workspace.service';
 import { WebPushService } from './web-push.service';
 import { WebhookService } from './webhook.service';
 import { SupabaseService } from './supabase.service';
+import { MockDataStoreService } from './mock-data-store.service';
 
 const STORAGE_KEY_OFFLINE_ENTRIES = 'reflip_offline_purchase_entries';
 const STORAGE_KEY_CASH_WALLET = 'reflip_flea_market_cash_wallet';
@@ -15,6 +16,7 @@ const STORAGE_KEY_CASH_WALLET = 'reflip_flea_market_cash_wallet';
 })
 export class OfflineSyncService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly purchaseService = inject(PurchaseService, { optional: true });
   private readonly inventoryService = inject(InventoryService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
@@ -81,7 +83,7 @@ export class OfflineSyncService {
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+    if (!this.supabase || this.mockStore?.isDemoMode()) return;
 
     try {
       const [entriesRes, walletRes] = await Promise.all([
@@ -209,7 +211,7 @@ export class OfflineSyncService {
     this.persistWallet();
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client.from('cash_wallet_sessions').insert({
         workspace_id: ws.id,
         is_active: true,
@@ -229,7 +231,7 @@ export class OfflineSyncService {
     this.persistWallet();
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client
         .from('cash_wallet_sessions')
         .update({ is_active: false })
@@ -288,7 +290,7 @@ export class OfflineSyncService {
     }
 
     // 3. Persist to Supabase if connected
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client.from('offline_purchase_entries').insert({
         workspace_id: ws.id,
         title: entry.title,
@@ -361,7 +363,7 @@ export class OfflineSyncService {
     this.isSyncing.set(false);
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client
         .from('offline_purchase_entries')
         .update({ sync_status: 'synced' })
@@ -385,7 +387,7 @@ export class OfflineSyncService {
     this.persistEntries();
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client.from('offline_purchase_entries').delete().eq('id', id);
     }
   }

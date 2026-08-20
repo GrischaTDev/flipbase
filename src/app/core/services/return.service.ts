@@ -8,6 +8,7 @@ import { WebhookService } from './webhook.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
+import { MockDataStoreService } from './mock-data-store.service';
 
 const STORAGE_KEY_RETURNS = 'reflip_saved_returns';
 
@@ -16,6 +17,7 @@ const STORAGE_KEY_RETURNS = 'reflip_saved_returns';
 })
 export class ReturnService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly syncStatus = inject(SyncStatusService, { optional: true })!;
   private readonly inventoryService = inject(InventoryService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
@@ -79,7 +81,7 @@ export class ReturnService {
   }
 
   async loadReturns(workspaceId: string): Promise<void> {
-    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+    if (!this.supabase || this.mockStore?.isDemoMode()) return;
 
     this.isLoading.set(true);
     try {
@@ -177,7 +179,7 @@ export class ReturnService {
     this.persistReturns();
 
     // 4. Save to Supabase
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       try {
         const { data: dbReturn, error } = await this.supabase.client
           .from('returns')

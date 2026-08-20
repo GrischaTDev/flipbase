@@ -109,7 +109,7 @@ export class WebhookService {
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase || workspaceId.startsWith('demo-')) return;
+    if (!this.supabase || this.mockStore?.isDemoMode()) return;
 
     try {
       const [cfgRes, notifRes] = await Promise.all([
@@ -173,7 +173,7 @@ export class WebhookService {
     } catch {}
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client
         .from('webhook_configs')
         .upsert(
@@ -213,7 +213,7 @@ export class WebhookService {
     this.speichereLokal(updated);
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client.from('app_notifications').insert({
         workspace_id: ws.id,
         type: item.type,
@@ -235,7 +235,7 @@ export class WebhookService {
     this.speichereLokal(updated);
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client
         .from('app_notifications')
         .update({ read: true })
@@ -250,7 +250,7 @@ export class WebhookService {
     } catch {}
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !ws.id.startsWith('demo-')) {
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       this.supabase.client.from('app_notifications').delete().eq('workspace_id', ws.id);
     }
   }

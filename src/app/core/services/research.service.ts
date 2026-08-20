@@ -4,6 +4,7 @@ import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
 import { RealProductImageService } from './real-product-image.service';
 import { EbayApiService } from './ebay-api.service';
+import { MockDataStoreService } from './mock-data-store.service';
 import { ResearchQuery } from '../models/reflip.models';
 
 export interface ResearchComparisonItem {
@@ -55,6 +56,7 @@ export interface ResearchSummary {
 })
 export class ResearchService {
   private readonly supabase = inject(SupabaseService);
+  private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService);
   private readonly realImageService = inject(RealProductImageService);
   private readonly ebayApiService = inject(EbayApiService);
@@ -85,6 +87,9 @@ export class ResearchService {
   }
 
   async loadRecentQueries(workspaceId: string): Promise<void> {
+    // Im Demo-Modus bleibt alles im Browser - kein Serverzugriff.
+    if (this.mockStore?.isDemoMode()) return;
+
     try {
       const { data, error } = await this.supabase.client
         .from('research_queries')
@@ -163,7 +168,7 @@ export class ResearchService {
 
       // Persist query to Supabase if workspace is active
       const ws = this.workspaceService.currentWorkspace();
-      if (ws && queryText.trim()) {
+      if (ws && queryText.trim() && !this.mockStore?.isDemoMode()) {
         try {
           await this.supabase.client.from('research_queries').insert({
             workspace_id: ws.id,

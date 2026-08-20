@@ -156,7 +156,7 @@ export class InventoryService {
       this.activityLogs.set(localLogs);
     }
 
-    if (this.mockStore.isDemoMode() || itemId.startsWith('demo-')) {
+    if (this.mockStore.isDemoMode()) {
       return;
     }
 
@@ -236,7 +236,7 @@ export class InventoryService {
       }
     }
 
-    if (this.mockStore.isDemoMode() || ws.id.startsWith('demo-')) {
+    if (this.mockStore.isDemoMode()) {
       return { data: enriched, error: null };
     }
 
@@ -472,7 +472,7 @@ export class InventoryService {
     this.mockStore.saveActivityLog(newLog);
     this.activityLogs.update((logs) => [newLog, ...logs]);
 
-    if (!this.mockStore.isDemoMode() && !wsId.startsWith('demo-')) {
+    if (!this.mockStore.isDemoMode() && !this.mockStore?.isDemoMode()) {
       try {
         const { error } = await this.supabase.client.from('activity_logs').insert({
           workspace_id: wsId,

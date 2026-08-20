@@ -85,7 +85,7 @@ export class SuppliersService {
     this.mockStore.saveSupplier(newSup);
     this.suppliers.update((list) => [...list, newSup]);
 
-    if (!this.mockStore.isDemoMode() && !ws.id.startsWith('demo-')) {
+    if (!this.mockStore.isDemoMode() && !this.mockStore?.isDemoMode()) {
       try {
         const { data: dbSup, error: dbError } = await this.supabase.client
           .from('suppliers')

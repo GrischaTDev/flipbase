@@ -87,7 +87,7 @@ export class WorkspaceMemberService {
   }
 
   async loadMembers(workspaceId: string): Promise<void> {
-    if (this.mockStore.isDemoMode() || workspaceId.startsWith('demo-')) return;
+    if (this.mockStore.isDemoMode()) return;
 
     this.isLoading.set(true);
     try {

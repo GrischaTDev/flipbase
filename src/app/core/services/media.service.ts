@@ -81,7 +81,7 @@ export class MediaService {
   async loadItemMedia(itemId: string): Promise<ItemMedia[]> {
     const local = this.mockStore.getItemMedia(itemId);
 
-    if (this.mockStore.isDemoMode() || itemId.startsWith('demo-')) {
+    if (this.mockStore.isDemoMode()) {
       return local;
     }
 
@@ -134,7 +134,7 @@ export class MediaService {
         // 1. Immediately persist locally
         this.mockStore.saveItemMedia(localMedia);
 
-        if (this.mockStore.isDemoMode() || itemId.startsWith('demo-')) {
+        if (this.mockStore.isDemoMode()) {
           resolve({ data: localMedia, error: null });
           return;
         }
@@ -199,7 +199,7 @@ export class MediaService {
   ): Promise<{ error: Error | null }> {
     this.mockStore.deleteItemMedia(mediaId);
 
-    if (!this.mockStore.isDemoMode() && !itemId.startsWith('demo-')) {
+    if (!this.mockStore.isDemoMode() && !this.mockStore?.isDemoMode()) {
       try {
         if (!storagePath.startsWith('data:')) {
           await this.supabase.client.storage.from('item-media').remove([storagePath]);
@@ -220,7 +220,7 @@ export class MediaService {
   async setPrimary(itemId: string, mediaId: string): Promise<{ error: Error | null }> {
     this.mockStore.setItemMediaPrimary(itemId, mediaId);
 
-    if (!this.mockStore.isDemoMode() && !itemId.startsWith('demo-')) {
+    if (!this.mockStore.isDemoMode() && !this.mockStore?.isDemoMode()) {
       try {
         await this.supabase.client
           .from('item_media')
