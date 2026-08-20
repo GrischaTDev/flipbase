@@ -2,14 +2,19 @@ name: flipbase
 
 services:
   web:
-    build:
-      context: ./app
-      dockerfile: docker/Dockerfile
+    # Das Abbild wird von GitHub Actions gebaut und in die GitHub Container
+    # Registry gelegt (siehe .github/workflows/ci.yml). Der Server baut nichts
+    # mehr selbst - er laedt nur noch das fertige Abbild.
+    #
+    # IMAGE_TAG bleibt im Normalfall leer und zeigt damit auf "latest", also
+    # den letzten Stand von master. Fuer einen Rueckfall auf eine aeltere
+    # Fassung wird der Wert gesetzt, siehe deploy/README.md.
+    image: ghcr.io/grischatdev/flipbase:${IMAGE_TAG:-latest}
     container_name: flipbase-web
     restart: unless-stopped
     # Kein ports-Abschnitt: erreichbar ausschliesslich ueber Caddy im selben Netz.
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/healthz"]
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://127.0.0.1/healthz']
       interval: 30s
       timeout: 3s
       retries: 3

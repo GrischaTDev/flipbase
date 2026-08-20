@@ -2,40 +2,188 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [master]
   pull_request:
-    branches: [main, master]
+    branches: [master]
+
+# Two runs of the same ref must never overlap. Pull requests cancel the older
+# run to save minutes. master does not: a cancelled run there could abort
+# halfway through a deployment and leave the server in an unclear state.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Least privilege by default. The only job that needs more says so itself.
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+  # Hard-coded rather than derived from github.repository, because a registry
+  # path has to be lowercase and the owner is spelled "GrischaTDev".
+  IMAGE: ghcr.io/grischatdev/flipbase
+  DEPLOY_HOST: 168.119.246.33
+  DEPLOY_USER: root
+  DEPLOY_DIR: /opt/flipbase
+  CONTAINER: flipbase-web
 
 jobs:
-  pruefen:
-    name: Bauen, testen, pruefen
+  check:
+    name: Verify
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
-      - name: Node einrichten
+      - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Abhaengigkeiten installieren
+      - name: Install dependencies
         run: npm ci
 
-      - name: Formatierung pruefen
+      - name: Check formatting
         run: npm run format:check
 
-      - name: Statische Analyse
+      - name: Lint
         run: npm run lint
 
-      # Vitest entfernt Typen nur, es prueft sie nicht - und der Anwendungsbau
-      # schliesst die Tests aus. Ohne diesen Schritt bleiben Typfehler in
-      # Testdaten unsichtbar.
-      - name: Typen pruefen
+      # Vitest only strips types, it does not check them, and the application
+      # build excludes the tests. Without this step type errors in test data
+      # stay invisible.
+      - name: Check types
         run: npm run typecheck
 
-      - name: Tests
+      - name: Test
         run: npm test
 
-      - name: Bauen
+      - name: Build
         run: npm run build
+
+  image:
+    name: Publish image
+    needs: check
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.tag.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Every build gets its own immutable tag next to "latest". That tag is
+      # what makes a rollback a one-liner instead of a rebuild.
+      - name: Determine image tag
+        id: tag
+        run: echo "value=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      # The environment file in the repository points at a local Supabase for
+      # development. Until now the server overwrote it with the production
+      # values right before building (prepare.sh). Since the image is built
+      # here, that has to happen here - otherwise the deployed app would talk
+      # to 127.0.0.1 and have no backend at all.
+      #
+      # The key is the publishable one that every visitor's browser downloads;
+      # it is only safe because row level security is switched on. The service
+      # role key must never end up in a frontend build.
+      - name: Write the production environment file
+        env:
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "SUPABASE_ANON_KEY is not set - refusing to build an image without a backend." >&2
+            exit 1
+          fi
+          cat > src/environments/environment.ts <<EOF
+          export const environment = {
+            production: true,
+            supabaseUrl: 'https://api.flipbase.de',
+            supabaseAnonKey: '$SUPABASE_ANON_KEY',
+            /**
+             * Demo mode without signing in. Shows local browser data only,
+             * never server data. Switched off for the hosted app.
+             */
+            allowDemoMode: false,
+          };
+          EOF
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ steps.tag.outputs.value }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to production
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Read access to the package, so the server can be handed a token that is
+    # valid only while this job runs. Nothing long-lived is stored there.
+    permissions:
+      contents: read
+      packages: read
+    environment:
+      name: production
+      url: https://app.flipbase.de
+    # Deployments are serialised across all runs, not just per ref.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+
+      # Three deliberate choices here.
+      #
+      # The key cannot run anything but deploy/deploy.sh on the server: it is
+      # pinned to that script in authorized_keys. What looks like a command
+      # below is only the argument the script reads - it cannot open a shell.
+      #
+      # The registry token is this job's own, valid only while the job runs and
+      # piped through stdin so it never shows up in the server's process list.
+      # The script drops it again after pulling, so the production machine
+      # holds no permanent registry credential that could leak or expire.
+      #
+      # The deployment names the immutable tag instead of "latest", so this run
+      # ships exactly the image it built, even if another run pushes meanwhile.
+      # The script also waits for the container to report healthy - a restarted
+      # container is not yet a working one.
+      - name: Deploy the image and wait for the container to be healthy
+        env:
+          TAG: ${{ needs.image.outputs.tag }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '%s' "$REGISTRY_TOKEN" \
+            | ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" "$TAG"
+
+      - name: Check the public address
+        run: curl --fail --silent --show-error --retry 5 --retry-delay 3 https://app.flipbase.de/healthz

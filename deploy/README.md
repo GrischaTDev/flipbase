@@ -6,7 +6,71 @@ ist – die nächtliche Sicherung erfasst Datenbank und Schlüssel, aber nicht d
 Konfiguration des Reverse Proxy.
 
 Sie werden **nicht automatisch ausgerollt**. Wer hier etwas ändert, muss es
-auch auf den Server bringen.
+auch auf den Server bringen. Die Ausnahme ist die Anwendung selbst – die rollt
+seit der Einrichtung der Pipeline bei jedem Push auf `master` von allein aus.
+
+## Deployment der Anwendung
+
+Bei jedem Push auf `master` läuft [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
+
+1. **Verify** – Format, Lint, Typen, Tests, Build. Schlägt einer fehl, endet es hier.
+2. **Publish image** – baut das Docker-Abbild und legt es in die GitHub
+   Container Registry, zweifach gekennzeichnet: `latest` und `sha-<kurz>`.
+3. **Deploy** – meldet sich per SSH am Server an und startet
+   `/opt/flipbase/deploy.sh`, das genau diese Kennzeichnung lädt, den Container
+   austauscht und wartet, bis er sich gesund meldet. Danach prüft die Pipeline
+   noch `https://app.flipbase.de/healthz` von außen.
+
+Der Server baut also **nichts** mehr selbst. Er lädt ein fertiges Abbild.
+
+### Warum das so aufgebaut ist
+
+- **Der Deploy-Schlüssel kann nur dieses eine Skript starten.** In
+  `authorized_keys` ist er per `command="…"` auf `deploy.sh` festgelegt; eine
+  Shell öffnet er nicht. Die gewünschte Kennzeichnung kommt über
+  `SSH_ORIGINAL_COMMAND` und wird im Skript streng geprüft.
+- **Auf dem Server liegt kein dauerhafter Registry-Zugang.** Das Token gehört
+  dem laufenden CI-Auftrag, wird über die Standardeingabe übergeben (steht also
+  nie in der Prozessliste) und nach dem Laden wieder verworfen. Ein
+  gespeichertes Token würde entweder irgendwann ablaufen und das Deployment
+  still zerlegen – oder ewig gültig herumliegen.
+- **Ausgerollt wird die feste Kennzeichnung, nicht `latest`.** So geht genau
+  das Abbild live, das dieser Lauf gebaut hat, auch wenn parallel ein zweiter
+  Lauf etwas hochlädt.
+- **Migrationen laufen bewusst nicht mit.** Schemaänderungen automatisch bei
+  jedem Push auf die Produktivdatenbank loszulassen, ist ein anderes Kaliber
+  als ein Frontend auszutauschen. Das bleibt ein bewusster Schritt über
+  `apply-migrations.sh`.
+
+### Rückfall auf eine ältere Fassung
+
+Jedes Abbild bleibt unter seiner Kennzeichnung liegen. Auf dem Server:
+
+```bash
+cd /opt/flipbase
+IMAGE_TAG=sha-1a2b3c4 docker compose up -d web
+```
+
+Die Kennzeichnung steht in der GitHub-Action des jeweiligen Laufs. Liegt das
+Abbild lokal nicht mehr vor, muss vorher einmal `docker login ghcr.io`
+erfolgen.
+
+### Einmalige Einrichtung
+
+Nötig sind drei Secrets im Repository (bereits gesetzt) und die Vorbereitung
+des Servers:
+
+| Secret               | Inhalt                                                          |
+| -------------------- | --------------------------------------------------------------- |
+| `SUPABASE_ANON_KEY`  | Der öffentliche Schlüssel aus `/opt/supabase/.env` (`ANON_KEY`) |
+| `DEPLOY_SSH_KEY`     | Privater Teil des Deploy-Schlüsselpaars                         |
+| `DEPLOY_KNOWN_HOSTS` | Hostschlüssel des Servers, damit SSH ihn nicht blind akzeptiert |
+
+Der `ANON_KEY` wird gebraucht, weil `src/environments/environment.ts` im Repo
+auf ein lokales Supabase zeigt. Früher hat `prepare.sh` diese Datei auf dem
+Server vor dem Bauen überschrieben; da jetzt die CI baut, schreibt sie die
+Datei dort. Ohne den Schlüssel bricht der Lauf ab, statt eine Anwendung ohne
+Backend auszuliefern.
 
 ## Was wohin gehört
 
@@ -17,6 +81,7 @@ auch auf den Server bringen.
 | `docker-compose.landing.yml`    | `/opt/supabase/`                              |
 | `docker-compose.app.yml`        | `/opt/flipbase/docker-compose.yml`            |
 | `backup.sh`                     | `/opt/flipbase/backup.sh`                     |
+| `deploy.sh`                     | `/opt/flipbase/deploy.sh` (ausführbar)        |
 | `cron-aufraeumen-n8n-server`    | `/etc/cron.d/…` auf dem **zweiten** Server    |
 | `docker-compose.authelia.yml`   | `/opt/supabase/`                              |
 | `authelia/configuration.yml`    | `/opt/authelia/config/configuration.yml`      |
