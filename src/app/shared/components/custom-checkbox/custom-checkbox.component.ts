@@ -77,12 +77,6 @@ export class CustomCheckboxComponent implements ControlValueAccessor {
     this.onTouched();
   }
 
-  onKeyDown(event: KeyboardEvent): void {
-    if (event.key === ' ' || event.key === 'Enter') {
-      this.toggle(event);
-    }
-  }
-
   onBlur(): void {
     this.onTouched();
   }

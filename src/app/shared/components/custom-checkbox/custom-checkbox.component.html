@@ -1,17 +1,17 @@
-<div
+<button
+  type="button"
+  role="checkbox"
+  [attr.aria-checked]="indeterminate() ? 'mixed' : checked()"
+  [attr.aria-disabled]="effectiveDisabled()"
+  [attr.aria-label]="ariaLabel() || label() || 'Checkbox'"
+  [id]="id() || null"
   class="relative inline-flex items-center gap-2 select-none group cursor-pointer"
   (click)="toggle($event)"
+  (blur)="onBlur()"
 >
   <!-- Rounded Square Checkbox Box -->
   <div
-    role="checkbox"
-    [attr.aria-checked]="indeterminate() ? 'mixed' : checked()"
-    [attr.aria-disabled]="effectiveDisabled()"
-    [attr.aria-label]="ariaLabel() || label() || 'Checkbox'"
-    [id]="id() || null"
-    tabindex="0"
-    (keydown)="onKeyDown($event)"
-    (blur)="onBlur()"
+    aria-hidden="true"
     class="relative flex items-center justify-center rounded border transition-all duration-150 outline-none shrink-0"
     [class.w-3.5]="size() === 'sm'"
     [class.h-3.5]="size() === 'sm'"
@@ -75,4 +75,4 @@
   } @else {
     <ng-content></ng-content>
   }
-</div>
+</button>

@@ -311,12 +311,18 @@
                     }}</span>
                   </div>
                 } @else {
-                  <img
-                    [src]="getMediaUrl(media.storage_path)"
-                    [alt]="media.file_name || 'Artikelbild'"
-                    class="w-full h-full object-cover transition duration-200 group-hover:scale-105 cursor-pointer"
+                  <button
+                    type="button"
+                    class="w-full h-full"
+                    aria-label="Bild vergrößern"
                     (click)="previewModalUrl.set(getMediaUrl(media.storage_path))"
-                  />
+                  >
+                    <img
+                      [src]="getMediaUrl(media.storage_path)"
+                      [alt]="media.file_name || 'Artikelbild'"
+                      class="w-full h-full object-cover transition duration-200 group-hover:scale-105 cursor-pointer"
+                    />
+                  </button>
                 }
 
                 <!-- Primary Badge -->

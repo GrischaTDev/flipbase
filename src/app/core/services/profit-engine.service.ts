@@ -182,7 +182,7 @@ export class ProfitEngineService {
       confidenceScore,
     );
 
-    let verdict: DealEvaluationResult['verdict'] = 'acceptable';
+    let verdict: DealEvaluationResult['verdict'];
     if (dealScore >= 86) verdict = 'very_attractive';
     else if (dealScore >= 71) verdict = 'good';
     else if (dealScore >= 51) verdict = 'acceptable';

@@ -351,7 +351,7 @@ export class StoreService {
     const shippingCost = customer.shippingMethod === 'pickup' ? 0 : this.cartShippingCost();
     const total = subtotal + shippingCost;
 
-    let paymentStatus: 'paid' | 'pending' | 'failed' = 'pending';
+    let paymentStatus: 'paid' | 'pending' | 'failed';
     let paymentId: string | undefined;
 
     if (customer.paymentMethod === 'stripe_card') {

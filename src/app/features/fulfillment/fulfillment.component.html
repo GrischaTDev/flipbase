@@ -872,13 +872,13 @@
                   [class.border-indigo-500/50]="selectedRateId() === rate.id"
                   [class.bg-rf-subtle]="selectedRateId() !== rate.id"
                   [class.border-rf-border]="selectedRateId() !== rate.id"
-                  (click)="selectedRateId.set(rate.id)"
                 >
                   <div class="flex items-center gap-3">
                     <input
                       type="radio"
                       name="selectedRate"
                       [checked]="selectedRateId() === rate.id"
+                      (change)="selectedRateId.set(rate.id)"
                       class="text-indigo-600 cursor-pointer"
                     />
                     <div>

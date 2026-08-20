@@ -276,7 +276,7 @@ export class AiAssistantService {
     const ident = await this.identifyProduct(rawTitle);
     const cleanTitle = ident.cleanTitle;
 
-    let desc = '';
+    let desc: string;
     if (platform === 'kleinanzeigen') {
       desc = `Hallo zusammen,\n\nich verkaufe hier meinen/meine ${cleanTitle}.\n\nZustand: ${condition}\n`;
       if (rawNotes) desc += `\nDetails: ${rawNotes}\n`;

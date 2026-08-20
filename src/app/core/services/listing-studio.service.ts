@@ -251,7 +251,7 @@ export class ListingStudioService {
           ? 'Wie Neu OVP'
           : 'Sehr Gut Geprüft';
 
-    let optimizedTitle = '';
+    let optimizedTitle: string;
     if (platform === 'ebay') {
       optimizedTitle = `${brand}${item.title}${model} | ${condTag} | Blitzversand`.trim();
       if (optimizedTitle.length > 80) {
