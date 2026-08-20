@@ -1,0 +1,17 @@
+# Benutzer fuer die Anmeldung an der Verwaltungsoberflaeche.
+#
+# Das Passwort steht hier NICHT im Klartext, sondern als Argon2-Hash.
+# Setzen oder aendern mit:  bash /opt/authelia/passwort-setzen.sh <benutzer>
+#
+# Weitere Personen (etwa die Steuerkanzlei) werden hier nach demselben Muster
+# ergaenzt. Authelia liest die Datei im laufenden Betrieb neu ein.
+
+users:
+  grischa:
+    disabled: false
+    displayname: 'Grischa Tänzer'
+    # Platzhalter - wird durch passwort-setzen.sh ersetzt.
+    password: 'HASH - mit passwort-setzen.sh erzeugen'
+    email: 'grischa.taenzer@gmail.com'
+    groups:
+      - 'admins'

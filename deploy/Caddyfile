@@ -1,7 +1,11 @@
 # ---------------------------------------------------------------------------
-# api.n3odev.de - Supabase
-# Die API-Pfade sind oeffentlich (durch Schluessel und RLS geschuetzt),
-# alles uebrige ist die Studio-Oberflaeche hinter Passwortschutz.
+# api.flipbase.de - Supabase
+#
+# Die API-Pfade sind oeffentlich: Sie sind durch Schluessel und RLS geschuetzt
+# und werden von der Anwendung im Browser aufgerufen.
+#
+# Alles uebrige ist Supabase Studio - die Datenbank-Verwaltung. Davor sitzt
+# Authelia mit Anmeldeseite und zweitem Faktor.
 # ---------------------------------------------------------------------------
 {$PROXY_DOMAIN} {
     @supabase_api path /auth/v1/* /rest/v1/* /graphql/v1 /realtime/v1/* /storage/v1/* /functions/v1/* /mcp /sso/*
@@ -11,9 +15,9 @@
     }
 
     handle {
-        basic_auth {
-            # PROXY_AUTH_PASSWORD wird beim Start durch den bcrypt-Wert ersetzt
-            {$PROXY_AUTH_USERNAME} {$PROXY_AUTH_PASSWORD}
+        forward_auth authelia:9091 {
+            uri /api/authz/forward-auth
+            copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
         }
 
         reverse_proxy studio:3000
@@ -23,7 +27,19 @@
 }
 
 # ---------------------------------------------------------------------------
-# app.n3odev.de - ReFlip Dashboard
+# auth.flipbase.de - die Anmeldeseite selbst.
+# Muss ohne vorgelagerte Pruefung erreichbar sein, sonst koennte sich
+# niemand anmelden.
+# ---------------------------------------------------------------------------
+auth.flipbase.de {
+    reverse_proxy authelia:9091
+
+    header X-Robots-Tag "noindex, nofollow"
+    header -server
+}
+
+# ---------------------------------------------------------------------------
+# app.flipbase.de - Flipbase
 # Die Sicherheits-Header setzt nginx im Container selbst (Phase 7),
 # deshalb reicht Caddy die Antwort unveraendert durch.
 # ---------------------------------------------------------------------------

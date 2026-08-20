@@ -1,0 +1,29 @@
+# Authelia sichert die Verwaltungsoberflaeche ab.
+# Laeuft im selben Netz wie Caddy, damit forward_auth es erreicht.
+# Kein veroeffentlichter Port - erreichbar ausschliesslich ueber Caddy.
+services:
+  authelia:
+    container_name: authelia
+    image: authelia/authelia:4.39.20
+    restart: unless-stopped
+    volumes:
+      - /opt/authelia/config:/config
+      - /opt/authelia/secrets:/secrets:ro
+    environment:
+      AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE: /secrets/jwt
+      AUTHELIA_SESSION_SECRET_FILE: /secrets/session
+      AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE: /secrets/storage_encryption
+      TZ: Europe/Berlin
+    healthcheck:
+      test: ['CMD', 'authelia', 'health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+
+  caddy:
+    depends_on:
+      authelia:
+        condition: service_started

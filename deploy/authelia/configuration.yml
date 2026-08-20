@@ -1,0 +1,63 @@
+# Authelia sichert die Verwaltungsoberflaeche von Supabase Studio ab.
+# Die API-Pfade unter api.flipbase.de bleiben davon unberuehrt - die sind
+# oeffentlich gedacht und durch Schluessel und RLS geschuetzt.
+
+theme: 'dark'
+
+server:
+  address: 'tcp://0.0.0.0:9091'
+
+log:
+  level: 'info'
+  format: 'text'
+
+totp:
+  issuer: 'flipbase.de'
+  period: 30
+  skew: 1
+
+authentication_backend:
+  # Kein Selbstbedienungs-Zuruecksetzen: Es gibt keinen Mailversand, und bei
+  # einer Handvoll Konten ist das Zuruecksetzen von Hand ohnehin schneller.
+  password_reset:
+    disable: true
+  file:
+    path: '/config/users.yml'
+    watch: true
+    password:
+      algorithm: 'argon2'
+
+access_control:
+  # Was nicht ausdruecklich erlaubt ist, ist verboten.
+  default_policy: 'deny'
+  rules:
+    - domain: 'api.flipbase.de'
+      policy: 'two_factor'
+
+session:
+  name: 'authelia_session'
+  same_site: 'lax'
+  expiration: '8 hours'
+  inactivity: '1 hour'
+  remember_me: '1 month'
+  cookies:
+    - domain: 'flipbase.de'
+      authelia_url: 'https://auth.flipbase.de'
+      default_redirection_url: 'https://api.flipbase.de'
+
+regulation:
+  # Nach drei Fehlversuchen zehn Minuten Sperre - bremst Durchprobieren aus.
+  max_retries: 3
+  find_time: '2 minutes'
+  ban_time: '10 minutes'
+
+storage:
+  local:
+    path: '/config/db.sqlite3'
+
+notifier:
+  # Kein Mailversand eingerichtet. Meldungen - etwa der Link zum Einrichten
+  # des zweiten Faktors - landen in dieser Datei.
+  disable_startup_check: true
+  filesystem:
+    filename: '/config/notification.txt'
