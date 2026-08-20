@@ -154,9 +154,10 @@
               </button>
             </div>
           } @else {
-            <div
+            <button
+              type="button"
               (click)="isCropperOpen.set(true)"
-              class="p-3 border border-dashed border-rf-border hover:border-emerald-500/40 rounded-lg text-center bg-rf-surface/50 hover:bg-emerald-500/5 transition cursor-pointer"
+              class="p-3 border border-dashed border-rf-border hover:border-emerald-500/40 rounded-lg text-center bg-rf-surface/50 hover:bg-emerald-500/5 transition cursor-pointer w-full"
             >
               <p
                 class="text-[11px] text-rf-text-secondary font-medium flex items-center justify-center gap-1.5"
@@ -166,7 +167,7 @@
                   >Klicke hier, um ein Foto hochzuladen & im festen 1:1-Format zuzuschneiden</span
                 >
               </p>
-            </div>
+            </button>
           }
         </div>
 

@@ -39,9 +39,11 @@
   <!-- KPI Overview Cards -->
   <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
     <!-- Ready to Pack -->
-    <div
+    <button
+      type="button"
       (click)="selectedStatusTab.set('ready_to_pack')"
-      class="linear-surface rounded-2xl p-5 border cursor-pointer transition shadow-xl"
+      [attr.aria-pressed]="selectedStatusTab() === 'ready_to_pack'"
+      class="linear-surface rounded-2xl p-5 border cursor-pointer transition shadow-xl w-full text-left"
       [class.border-amber-500/50]="selectedStatusTab() === 'ready_to_pack'"
       [class.bg-amber-500/10]="selectedStatusTab() === 'ready_to_pack'"
     >
@@ -59,12 +61,14 @@
         {{ fulfillmentService.readyToPackCount() }}
       </div>
       <p class="text-[11px] text-rf-text-muted mt-1">Paketmarke erstellen oder drucken</p>
-    </div>
+    </button>
 
     <!-- In Transit / Shipped -->
-    <div
+    <button
+      type="button"
       (click)="selectedStatusTab.set('shipped')"
-      class="linear-surface rounded-2xl p-5 border cursor-pointer transition shadow-xl"
+      [attr.aria-pressed]="selectedStatusTab() === 'shipped'"
+      class="linear-surface rounded-2xl p-5 border cursor-pointer transition shadow-xl w-full text-left"
       [class.border-indigo-500/50]="selectedStatusTab() === 'shipped'"
       [class.bg-indigo-500/10]="selectedStatusTab() === 'shipped'"
     >
@@ -82,12 +86,14 @@
         {{ fulfillmentService.shippedCount() }}
       </div>
       <p class="text-[11px] text-rf-text-muted mt-1">Mit Sendungsverfolgung aktiv</p>
-    </div>
+    </button>
 
     <!-- Delivered -->
-    <div
+    <button
+      type="button"
       (click)="selectedStatusTab.set('delivered')"
-      class="linear-surface rounded-2xl p-5 border cursor-pointer transition shadow-xl"
+      [attr.aria-pressed]="selectedStatusTab() === 'delivered'"
+      class="linear-surface rounded-2xl p-5 border cursor-pointer transition shadow-xl w-full text-left"
       [class.border-emerald-500/50]="selectedStatusTab() === 'delivered'"
       [class.bg-emerald-500/10]="selectedStatusTab() === 'delivered'"
     >
@@ -105,7 +111,7 @@
         {{ fulfillmentService.deliveredCount() }}
       </div>
       <p class="text-[11px] text-rf-text-muted mt-1">Abgeschlossene Verkäufe</p>
-    </div>
+    </button>
   </div>
 
   <!-- Intelligente Paket-Bündelung & Kombiversand-Banner -->
