@@ -94,6 +94,21 @@ export interface Supplier {
 }
 
 export type PurchaseType = 'single' | 'mystery_pack' | 'lot' | 'pallet';
+
+/**
+ * Bezeichnung der Einkaufsart im Klartext.
+ *
+ * Bewusst als vollstaendiger Record und nicht als Abfrage im Einzelfall: So
+ * verlangt TypeScript fuer jede neue Art eine Bezeichnung. Vorher stand in der
+ * Benachrichtigung `type === 'pallet' ? 'Palette' : 'Einzelkauf'` - eine
+ * Mystery Box wurde damit als Einzelkauf gemeldet.
+ */
+export const EINKAUFSART_BEZEICHNUNG: Record<PurchaseType, string> = {
+  single: 'Einzelkauf',
+  mystery_pack: 'Mystery Box',
+  lot: 'Konvolut',
+  pallet: 'Palette',
+};
 export type CostAllocationMode = 'manual' | 'even' | 'value_weighted';
 
 export interface PurchaseCost {

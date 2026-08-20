@@ -109,6 +109,25 @@ describe('Webhook & Notification Service', () => {
     expect(webhookService.notifications()[0].link).toBe('/purchases/p-42');
   });
 
+  it('nennt die Einkaufsart richtig, nicht nur Palette oder Einzelkauf', () => {
+    // Vorher unterschied die Meldung nur zwischen Palette und "Einzelkauf" -
+    // eine Mystery Box wurde damit als Einzelkauf gemeldet.
+    const mysteryBox: Purchase = {
+      id: 'p-7',
+      workspace_id: 'ws-1',
+      type: 'mystery_pack',
+      title: '3kg Retoure Mystery',
+      purchase_date: '2026-08-20',
+      purchase_price: 21.98,
+      cost_allocation_mode: 'even',
+    };
+
+    webhookService.sendPurchaseNotification(mysteryBox);
+
+    expect(webhookService.notifications()[0].message).toContain('Mystery Box');
+    expect(webhookService.notifications()[0].message).not.toContain('Einzelkauf');
+  });
+
   describe('Einzelne Meldung als gelesen markieren', () => {
     // Frueher setzte das Aufklappmenue `notif.read = true` direkt am Objekt.
     // Das Signal erfuhr davon nichts: Der Zaehler an der Glocke blieb stehen,

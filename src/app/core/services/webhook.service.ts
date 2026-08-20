@@ -1,6 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { WebhookConfig, AppNotification } from '../models/webhook.models';
-import { Sale, Purchase } from '../models/flipbase.models';
+import { Sale, Purchase, EINKAUFSART_BEZEICHNUNG } from '../models/flipbase.models';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
@@ -10,6 +10,17 @@ import { SyncStatusService } from './sync-status.service';
 
 const STORAGE_KEY_CONFIG = 'flipbase_webhook_config';
 const STORAGE_KEY_NOTIFS = 'flipbase_app_notifications';
+
+/**
+ * Betrag in deutscher Schreibweise: 21,98 statt 21.98.
+ *
+ * `toFixed` schreibt immer mit Punkt. In einer deutschen Oberflaeche sah die
+ * Meldung damit aus wie aus einem anderen Programm - ueberall sonst formatiert
+ * die CurrencyPipe mit Komma.
+ */
+function euro(betrag: number): string {
+  return betrag.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 function getStorage(): Storage | null {
   try {
@@ -350,8 +361,8 @@ export class WebhookService {
     const cfg = this.config();
     if (!cfg.notifyOnSale) return;
 
-    const profit = (sale.net_profit || 0).toFixed(2);
-    const price = sale.sale_price.toFixed(2);
+    const profit = euro(sale.net_profit || 0);
+    const price = euro(sale.sale_price);
     const roi = sale.roi || 0;
     const platform = sale.platform || 'Kleinanzeigen';
 
@@ -422,12 +433,12 @@ export class WebhookService {
     const cfg = this.config();
     if (!cfg.notifyOnPurchase) return;
 
-    const cost = (purchase.total_purchase_cost || purchase.purchase_price).toFixed(2);
+    const cost = euro(purchase.total_purchase_cost || purchase.purchase_price);
 
     this.addNotification({
       type: 'purchase',
       title: `Neuer Einkauf: ${purchase.title}`,
-      message: `Einkaufskosten: ${cost} € (${purchase.type === 'pallet' ? 'Palette / Konvolut' : 'Einzelkauf'}).`,
+      message: `Einkaufskosten: ${cost} € (${EINKAUFSART_BEZEICHNUNG[purchase.type]}).`,
       // Auf den Einkauf selbst, nicht auf die Liste: Zu einer Meldung ueber
       // einen bestimmten Einkauf gehoert dieser Einkauf. Vorher landete man auf
       // der Uebersicht und musste ihn dort suchen - und wer schon dort stand,
