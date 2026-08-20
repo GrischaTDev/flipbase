@@ -116,11 +116,15 @@
 
     <!-- Manual Barcode Entry Fallback -->
     <div class="space-y-1.5 pt-2 border-t border-rf-border">
-      <label class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">
+      <label
+        for="barcod-oder-ean-barcode-manuell"
+        class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted"
+      >
         Oder EAN / Barcode manuell eingeben
       </label>
       <form (ngSubmit)="onManualSubmit()" class="flex items-center gap-2">
         <input
+          id="barcod-oder-ean-barcode-manuell"
           type="text"
           [formControl]="manualEanControl"
           placeholder="z.B. 4005317316719"

@@ -867,11 +867,11 @@
 
           <!-- Rate Selection List -->
           <div class="space-y-2.5">
-            <label
+            <span
               class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted"
             >
               Wähle Paketklasse & Versandtarif:
-            </label>
+            </span>
 
             <div class="space-y-2 max-h-64 overflow-y-auto pr-1">
               @for (rate of fulfillmentService.availableRates; track rate.id) {

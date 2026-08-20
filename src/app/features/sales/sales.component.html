@@ -441,11 +441,13 @@
           <!-- 1. Reason -->
           <div>
             <label
+              for="sales-grund-der-ruckabwicklung"
               class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
             >
               Grund der Rückabwicklung
             </label>
             <select
+              id="sales-grund-der-ruckabwicklung"
               formControlName="reason"
               class="linear-input w-full px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer"
             >
@@ -461,9 +463,9 @@
           <!-- 2. Refund Amount (Full vs Partial) -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <label class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">
+              <span class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">
                 Erstattungsbetrag (€)
-              </label>
+              </span>
               <div class="flex items-center gap-2">
                 <button
                   type="button"
@@ -510,11 +512,11 @@
 
           <!-- 3. Restock Decision -->
           <div class="space-y-1.5">
-            <label
+            <span
               class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
             >
               Wiedereinlagerung in den Warenbestand
-            </label>
+            </span>
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <label
                 class="p-2.5 rounded-xl border flex items-start gap-2 cursor-pointer transition"
@@ -621,11 +623,13 @@
           <!-- 4. Notes -->
           <div>
             <label
+              for="sales-interne-notizen-zur-ruckabwicklung"
               class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1"
             >
               Interne Notizen zur Rückabwicklung
             </label>
             <textarea
+              id="sales-interne-notizen-zur-ruckabwicklung"
               rows="2"
               formControlName="notes"
               placeholder="z. B. DHL Sendungsverlust Ticket #88432 oder Minderung akzeptiert."

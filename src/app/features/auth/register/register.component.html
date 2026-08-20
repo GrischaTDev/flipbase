@@ -223,7 +223,7 @@
             ariaLabel="AGB und Datenschutzerklärung akzeptieren"
             class="mt-0.5 shrink-0"
           ></app-custom-checkbox>
-          <label class="text-xs text-rf-text-muted leading-relaxed cursor-pointer select-none">
+          <span class="text-xs text-rf-text-muted leading-relaxed cursor-pointer select-none">
             {{ 'AUTH.ACCEPT_TERMS' | translate }}
             <a
               href="#"
@@ -240,7 +240,7 @@
             >
               {{ 'AUTH.PRIVACY_LINK' | translate }} </a
             >.
-          </label>
+          </span>
         </div>
         @if (form.controls.acceptTerms.touched && form.controls.acceptTerms.invalid) {
           <p class="text-[11px] text-rose-400 mt-1 pl-6">

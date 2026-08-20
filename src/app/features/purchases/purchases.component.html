@@ -421,10 +421,13 @@
 
             <!-- Title -->
             <div>
-              <label class="block text-[10px] font-semibold text-rf-text-muted mb-1"
+              <label
+                for="purcha-artikelbezeichnung"
+                class="block text-[10px] font-semibold text-rf-text-muted mb-1"
                 >Artikelbezeichnung</label
               >
               <input
+                id="purcha-artikelbezeichnung"
                 type="text"
                 formControlName="title"
                 placeholder="z. B. Pokémon Gold Edition Game Boy OVP..."
@@ -435,8 +438,8 @@
             <!-- Prices & Quick Add Buttons -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label class="block text-[10px] font-semibold text-rf-text-muted mb-1"
-                  >Bar-Einkaufspreis (€)</label
+                <span class="block text-[10px] font-semibold text-rf-text-muted mb-1"
+                  >Bar-Einkaufspreis (€)</span
                 >
                 <div class="relative">
                   <input
@@ -485,8 +488,8 @@
               </div>
 
               <div>
-                <label class="block text-[10px] font-semibold text-rf-text-muted mb-1"
-                  >Geschätzter Verkaufspreis (€)</label
+                <span class="block text-[10px] font-semibold text-rf-text-muted mb-1"
+                  >Geschätzter Verkaufspreis (€)</span
                 >
                 <div class="relative">
                   <input

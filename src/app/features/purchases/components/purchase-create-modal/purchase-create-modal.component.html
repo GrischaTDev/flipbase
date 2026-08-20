@@ -41,11 +41,11 @@
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
         <!-- 1. Einkaufstyp Selector (Kapitel 8) -->
         <div>
-          <label
+          <span
             class="block text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted mb-1.5"
           >
             Einkaufstyp
-          </label>
+          </span>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
               type="button"
@@ -305,9 +305,9 @@
         <!-- 6. Zusatzkosten (Versand, Fahrt, Gebühren) -->
         <div class="space-y-2">
           <div class="flex items-center justify-between">
-            <label class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">
+            <span class="text-[10px] font-semibold uppercase tracking-wider text-rf-text-muted">
               Zusatzkosten (Versand, Fahrtkosten, Zoll)
-            </label>
+            </span>
             <button
               type="button"
               (click)="addCostRow()"

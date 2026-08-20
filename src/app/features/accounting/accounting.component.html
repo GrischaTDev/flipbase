@@ -695,10 +695,12 @@
         >
           <div>
             <label
+              for="accoun-steuerkanzlei-name"
               class="block text-[10px] font-bold uppercase tracking-wider text-rf-text-muted mb-1"
               >Steuerkanzlei / Name</label
             >
             <input
+              id="accoun-steuerkanzlei-name"
               type="text"
               formControlName="firmName"
               placeholder="Kanzlei Müller & Partner"
@@ -708,10 +710,12 @@
 
           <div>
             <label
+              for="accoun-e-mail-adresse-der"
               class="block text-[10px] font-bold uppercase tracking-wider text-rf-text-muted mb-1"
               >E-Mail-Adresse der Kanzlei *</label
             >
             <input
+              id="accoun-e-mail-adresse-der"
               type="email"
               formControlName="advisorEmail"
               placeholder="mandanten@kanzlei-mueller.de"
@@ -722,10 +726,12 @@
           <div class="grid grid-cols-3 gap-2.5">
             <div>
               <label
+                for="accoun-mandantennr"
                 class="block text-[10px] font-bold uppercase tracking-wider text-rf-text-muted mb-1"
                 >Mandantennr.</label
               >
               <input
+                id="accoun-mandantennr"
                 type="text"
                 formControlName="clientNumber"
                 placeholder="10420"
@@ -734,10 +740,12 @@
             </div>
             <div>
               <label
+                for="accoun-beraternr"
                 class="block text-[10px] font-bold uppercase tracking-wider text-rf-text-muted mb-1"
                 >Beraternr.</label
               >
               <input
+                id="accoun-beraternr"
                 type="text"
                 formControlName="consultantNumber"
                 placeholder="9812"
@@ -746,10 +754,15 @@
             </div>
             <div>
               <label
+                for="accoun-kontenrahmen"
                 class="block text-[10px] font-bold uppercase tracking-wider text-rf-text-muted mb-1"
                 >Kontenrahmen</label
               >
-              <select formControlName="skrStandard" class="input-field w-full text-xs font-mono">
+              <select
+                id="accoun-kontenrahmen"
+                formControlName="skrStandard"
+                class="input-field w-full text-xs font-mono"
+              >
                 <option value="SKR03">SKR03</option>
                 <option value="SKR04">SKR04</option>
               </select>
