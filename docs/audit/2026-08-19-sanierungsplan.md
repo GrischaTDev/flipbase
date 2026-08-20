@@ -217,7 +217,7 @@ Reihenfolge nach Wichtigkeit: `return.service` → `invoice.service` → `tax-ad
 
 ---
 
-## Phase 8 – Qualität & Aufräumen ⏱️ ~1–2 Tage
+## Phase 8 – Qualität & Aufräumen ⏱️ ~1–2 Tage ✅
 
 | #    | Aufgabe                                                                                       |
 | ---- | --------------------------------------------------------------------------------------------- |
@@ -239,13 +239,13 @@ Reihenfolge nach Wichtigkeit: `return.service` → `invoice.service` → `tax-ad
 
 Vor dem Umschalten abzuhaken:
 
-- [ ] Alle Phasen 1–8 abgeschlossen und freigegeben
-- [ ] `ng build` und alle Tests grün
+- [x] Alle Phasen 1–8 abgeschlossen und freigegeben
+- [x] `ng build` und alle Tests grün
 - [ ] Shop-Route (`/shop`) deaktiviert oder hinter Anmeldung
-- [ ] Echtes Supabase-Projekt (nicht mehr lokal), Migrationen eingespielt
+- [x] Eigener Server mit selbst gehostetem Supabase, Migrationen eingespielt
 - [ ] Anon-Key und URL über Umgebungsvariablen, nicht fest im Bundle
 - [ ] Sicherung deiner Daten eingespielt und geprüft
-- [ ] HTTPS, Security-Header aktiv
+- [x] HTTPS, Security-Header aktiv
 - [ ] Datenschutzerklärung und Impressum vorhanden
 
 ---
@@ -303,3 +303,23 @@ Vor dem Umschalten abzuhaken:
 ---
 
 _Erstellt von Claude Opus 5 (Anthropic) am 2026-08-19, überarbeitet nach Abstimmung mit Grischa Tänzer am selben Tag._
+
+---
+
+## Nachtrag zu Phase 8 (2026-08-20)
+
+Alle elf Punkte umgesetzt. Zusätzlich kam heraus, was der Plan nicht vorsah:
+
+| Fund | Umfang |
+|---|---|
+| 87 Barrierefreiheits-Verstöße in Templates – Phase 7 hatte sie per Hand geprüft und übersehen | behoben |
+| Demo-Modus griff trotz gegenteiliger Zusage auf den Server zu: 46 Prüfungen suchten ein Präfix `demo-`, die Kennungen heissen aber `ws-1` | behoben, mit Regressionstest |
+| Zwei Dialoge trugen ihre Attribute ausserhalb des Tags – Direktive wirkungslos, Attributtext sichtbar | behoben |
+| Versandtarife: Radiofeld ohne `(change)`, Auswahl nur per Mausklick auf das Label | behoben |
+| `<label>` in `<label>` im Checkout – ungültiges HTML | behoben |
+| Healthcheck des Containers schlug immer fehl (IPv6/IPv4) | behoben |
+| CSP erlaubte nur die lokale Entwicklungsdatenbank | behoben |
+| 34 Typfehler in Testdaten, unsichtbar weil Vitest Typen nicht prüft | behoben, `npm run typecheck` in der CI |
+
+**Stand:** 0 ESLint-Fehler, 176 Tests grün, CI vollständig grün.
+**Offen:** 51 `any`-Warnungen – sie hebeln den Strict Mode aus und sind der nächste sinnvolle Schritt.
