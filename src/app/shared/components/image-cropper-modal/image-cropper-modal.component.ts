@@ -3,19 +3,19 @@ import { ImageCropperComponent, ImageCroppedEvent, LoadedImage } from 'ngx-image
 import imageCompression from 'browser-image-compression';
 import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 import {
-  LucideAngularModule,
-  RotateCw,
-  ZoomIn,
-  ZoomOut,
-  Maximize2,
-  Check,
-  X,
-  UploadCloud,
-  Sparkles,
-  RefreshCw,
-  Crop,
-  ArrowRight,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideRotateCw as RotateCw,
+  LucideZoomIn as ZoomIn,
+  LucideZoomOut as ZoomOut,
+  LucideMaximize2 as Maximize2,
+  LucideCheck as Check,
+  LucideX as X,
+  LucideUploadCloud as UploadCloud,
+  LucideSparkles as Sparkles,
+  LucideRefreshCw as RefreshCw,
+  LucideCrop as Crop,
+  LucideArrowRight as ArrowRight,
+} from '@lucide/angular';
 
 export interface CroppedImageResult {
   file: File;
@@ -27,7 +27,7 @@ export interface CroppedImageResult {
 
 @Component({
   selector: 'app-image-cropper-modal',
-  imports: [ModalDialogDirective, ImageCropperComponent, LucideAngularModule],
+  imports: [ModalDialogDirective, ImageCropperComponent, LucideDynamicIcon],
   templateUrl: './image-cropper-modal.component.html',
   styleUrl: './image-cropper-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

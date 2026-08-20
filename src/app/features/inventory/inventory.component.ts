@@ -10,25 +10,25 @@ import { RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
-  LucideAngularModule,
-  Boxes,
-  Plus,
-  Filter,
-  Search,
-  Tag,
-  Eye,
-  ArrowRight,
-  TrendingUp,
-  Coins,
-  ShieldCheck,
-  CheckCircle2,
-  Camera,
-  Sparkles,
-  Printer,
-  CheckSquare,
-  Square,
-  Store,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideBoxes as Boxes,
+  LucidePlus as Plus,
+  LucideFilter as Filter,
+  LucideSearch as Search,
+  LucideTag as Tag,
+  LucideEye as Eye,
+  LucideArrowRight as ArrowRight,
+  LucideTrendingUp as TrendingUp,
+  LucideCoins as Coins,
+  LucideShieldCheck as ShieldCheck,
+  LucideCheckCircle2 as CheckCircle2,
+  LucideCamera as Camera,
+  LucideSparkles as Sparkles,
+  LucidePrinter as Printer,
+  LucideCheckSquare as CheckSquare,
+  LucideSquare as Square,
+  LucideStore as Store,
+} from '@lucide/angular';
 import { InventoryService } from '../../core/services/inventory.service';
 import { ItemCreateModalComponent } from './components/item-create-modal/item-create-modal.component';
 import { AiPhotoScannerModalComponent } from '../../shared/components/ai-photo-scanner-modal/ai-photo-scanner-modal.component';
@@ -50,7 +50,7 @@ type FilterPreset = string;
     RouterLink,
     CurrencyPipe,
     TranslatePipe,
-    LucideAngularModule,
+    LucideDynamicIcon,
     ItemCreateModalComponent,
     AiPhotoScannerModalComponent,
     InventoryLabelModalComponent,

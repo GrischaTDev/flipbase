@@ -10,7 +10,11 @@ import {
   signal,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { LucideAngularModule, ChevronDown, Check } from 'lucide-angular';
+import {
+  LucideDynamicIcon,
+  LucideChevronDown as ChevronDown,
+  LucideCheck as Check,
+} from '@lucide/angular';
 
 export interface SelectOption<T = string> {
   value: T;
@@ -23,7 +27,7 @@ export interface SelectOption<T = string> {
 
 @Component({
   selector: 'app-custom-select',
-  imports: [LucideAngularModule],
+  imports: [LucideDynamicIcon],
   templateUrl: './custom-select.component.html',
   styleUrl: './custom-select.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

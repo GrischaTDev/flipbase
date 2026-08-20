@@ -3,19 +3,19 @@ import { RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
-  LucideAngularModule,
-  TrendingUp,
-  Coins,
-  Boxes,
-  Percent,
-  PlusCircle,
-  Search,
-  Calculator,
-  ArrowUpRight,
-  Lightbulb,
-  ShoppingBag,
-  Clock,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideTrendingUp as TrendingUp,
+  LucideCoins as Coins,
+  LucideBoxes as Boxes,
+  LucidePercent as Percent,
+  LucidePlusCircle as PlusCircle,
+  LucideSearch as Search,
+  LucideCalculator as Calculator,
+  LucideArrowUpRight as ArrowUpRight,
+  LucideLightbulb as Lightbulb,
+  LucideShoppingBag as ShoppingBag,
+  LucideClock as Clock,
+} from '@lucide/angular';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { SalesService } from '../../core/services/sales.service';
 import { InventoryService } from '../../core/services/inventory.service';
@@ -24,7 +24,7 @@ import { DashboardMetrics } from '../../core/models/reflip.models';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, CurrencyPipe, DatePipe, TranslatePipe, LucideAngularModule],
+  imports: [RouterLink, CurrencyPipe, DatePipe, TranslatePipe, LucideDynamicIcon],
   templateUrl: './dashboard.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,

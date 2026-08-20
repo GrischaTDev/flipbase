@@ -12,7 +12,7 @@
     <div class="flex items-start justify-between border-b border-rf-border pb-3 shrink-0 no-print">
       <div>
         <div class="flex items-center gap-2">
-          <lucide-icon [img]="tagIcon" class="w-5 h-5 text-indigo-400"></lucide-icon>
+          <svg [lucideIcon]="tagIcon" class="w-5 h-5 text-indigo-400"></svg>
           <h2 class="text-base font-bold text-rf-text-primary">Lager- & Barcode-Etikettendruck</h2>
           <span
             class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
@@ -31,7 +31,7 @@
           (click)="printLabels()"
           class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
         >
-          <lucide-icon [img]="printerIcon" class="w-4 h-4"></lucide-icon>
+          <svg [lucideIcon]="printerIcon" class="w-4 h-4"></svg>
           <span>Jetzt drucken</span>
         </button>
 
@@ -40,7 +40,7 @@
           (click)="close.emit()"
           class="p-1 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
         >
-          <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+          <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
         </button>
       </div>
     </div>

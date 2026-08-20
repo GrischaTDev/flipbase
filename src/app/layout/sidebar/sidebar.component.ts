@@ -2,34 +2,34 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
-  LucideAngularModule,
-  LucideIconData,
-  LayoutDashboard,
-  ShoppingBag,
-  Boxes,
-  Search,
-  Calculator,
-  Tag,
-  TrendingUp,
-  Store,
-  BarChart3,
-  Receipt,
-  Settings,
-  X,
-  Sparkles,
-  Truck,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideIconInput,
+  LucideLayoutDashboard as LayoutDashboard,
+  LucideShoppingBag as ShoppingBag,
+  LucideBoxes as Boxes,
+  LucideSearch as Search,
+  LucideCalculator as Calculator,
+  LucideTag as Tag,
+  LucideTrendingUp as TrendingUp,
+  LucideStore as Store,
+  LucideBarChart3 as BarChart3,
+  LucideReceipt as Receipt,
+  LucideSettings as Settings,
+  LucideX as X,
+  LucideSparkles as Sparkles,
+  LucideTruck as Truck,
+} from '@lucide/angular';
 
 interface NavItem {
   path: string;
   labelKey: string;
   label: string;
-  icon: LucideIconData;
+  icon: LucideIconInput;
 }
 
 @Component({
   selector: 'app-sidebar',
-  imports: [RouterLink, RouterLinkActive, TranslatePipe, LucideAngularModule],
+  imports: [RouterLink, RouterLinkActive, TranslatePipe, LucideDynamicIcon],
   templateUrl: './sidebar.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,

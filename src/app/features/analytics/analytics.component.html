@@ -72,7 +72,7 @@
     <div class="linear-surface p-4 md:p-5 rounded-2xl border border-rf-border shadow-xl space-y-1">
       <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
         <span class="font-bold uppercase tracking-wider text-[10px]">Bruttoumsatz</span>
-        <lucide-icon [img]="trendingIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+        <svg [lucideIcon]="trendingIcon" class="w-4 h-4 text-indigo-400"></svg>
       </div>
       <div class="text-2xl font-black text-rf-text-primary">
         {{ totalRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
@@ -85,7 +85,7 @@
     <div class="linear-surface p-4 md:p-5 rounded-2xl border border-rf-border shadow-xl space-y-1">
       <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
         <span class="font-bold uppercase tracking-wider text-[10px]">Reingewinn (Netto)</span>
-        <lucide-icon [img]="coinsIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+        <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-emerald-400"></svg>
       </div>
       <div class="text-2xl font-black text-emerald-400">
         +{{ totalNetProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
@@ -98,7 +98,7 @@
     <div class="linear-surface p-4 md:p-5 rounded-2xl border border-rf-border shadow-xl space-y-1">
       <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
         <span class="font-bold uppercase tracking-wider text-[10px]">Durchschnittl. ROI</span>
-        <lucide-icon [img]="percentIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+        <svg [lucideIcon]="percentIcon" class="w-4 h-4 text-indigo-400"></svg>
       </div>
       <div class="text-2xl font-black text-indigo-400">{{ avgRoi() }}%</div>
       <span class="text-[10px] text-rf-text-muted block font-sans">
@@ -109,7 +109,7 @@
     <div class="linear-surface p-4 md:p-5 rounded-2xl border border-rf-border shadow-xl space-y-1">
       <div class="flex items-center justify-between text-rf-text-muted text-xs font-sans">
         <span class="font-bold uppercase tracking-wider text-[10px]">Ø Haltedauer</span>
-        <lucide-icon [img]="clockIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
+        <svg [lucideIcon]="clockIcon" class="w-4 h-4 text-amber-400"></svg>
       </div>
       <div class="text-2xl font-black text-amber-400">{{ avgHoldingDays() }} Tage</div>
       <span class="text-[10px] text-rf-text-muted block font-sans">
@@ -131,7 +131,7 @@
       [class.text-rf-text-secondary]="activeSection() !== 'overview'"
       [class.border-rf-border]="activeSection() !== 'overview'"
     >
-      <lucide-icon [img]="trendingIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <svg [lucideIcon]="trendingIcon" class="w-3.5 h-3.5"></svg>
       <span>Gesamtübersicht</span>
     </button>
 
@@ -147,7 +147,7 @@
       [class.text-purple-300]="activeSection() !== 'holding'"
       [class.border-rf-border]="activeSection() !== 'holding'"
     >
-      <lucide-icon [img]="buildingIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <svg [lucideIcon]="buildingIcon" class="w-3.5 h-3.5"></svg>
       <span>Holding-Modus ({{ holdingSummary().workspacesCount }} Mandanten)</span>
     </button>
 
@@ -162,7 +162,7 @@
       [class.text-rf-text-secondary]="activeSection() !== 'platforms'"
       [class.border-rf-border]="activeSection() !== 'platforms'"
     >
-      <lucide-icon [img]="barIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <svg [lucideIcon]="barIcon" class="w-3.5 h-3.5"></svg>
       <span>Plattform-Rentabilität & Gebühren</span>
     </button>
 
@@ -177,7 +177,7 @@
       [class.text-rf-text-secondary]="activeSection() !== 'velocity'"
       [class.border-rf-border]="activeSection() !== 'velocity'"
     >
-      <lucide-icon [img]="zapIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <svg [lucideIcon]="zapIcon" class="w-3.5 h-3.5"></svg>
       <span>Haltedauer & Kapitalumschlag</span>
     </button>
 
@@ -192,7 +192,7 @@
       [class.text-rf-text-secondary]="activeSection() !== 'cohorts'"
       [class.border-rf-border]="activeSection() !== 'cohorts'"
     >
-      <lucide-icon [img]="boxesIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <svg [lucideIcon]="boxesIcon" class="w-3.5 h-3.5"></svg>
       <span>Einkaufs-Kohorten & Recovery</span>
     </button>
 
@@ -207,7 +207,7 @@
       [class.text-rf-text-secondary]="activeSection() !== 'heatmap'"
       [class.border-rf-border]="activeSection() !== 'heatmap'"
     >
-      <lucide-icon [img]="clockIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <svg [lucideIcon]="clockIcon" class="w-3.5 h-3.5"></svg>
       <span>Verkaufs-Heatmap (Beste Zeiten)</span>
     </button>
 
@@ -222,7 +222,7 @@
       [class.text-rf-text-secondary]="activeSection() !== 'categories'"
       [class.border-rf-border]="activeSection() !== 'categories'"
     >
-      <lucide-icon [img]="tagIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <svg [lucideIcon]="tagIcon" class="w-3.5 h-3.5"></svg>
       <span>Kategorien & Sell-Through</span>
     </button>
   </div>
@@ -233,7 +233,7 @@
       <!-- Left: Recent Top Profits (7 cols) -->
       <div class="lg:col-span-7 linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
         <div class="flex items-center gap-2 border-b border-rf-border pb-3">
-          <lucide-icon [img]="trophyIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
+          <svg [lucideIcon]="trophyIcon" class="w-4 h-4 text-amber-400"></svg>
           <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
             Top-Gewinnbringer im Zeitraum
           </h2>
@@ -277,7 +277,7 @@
       <!-- Right: Quick Platform Breakdown (5 cols) -->
       <div class="lg:col-span-5 linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
         <div class="flex items-center gap-2 border-b border-rf-border pb-3">
-          <lucide-icon [img]="storeIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+          <svg [lucideIcon]="storeIcon" class="w-4 h-4 text-indigo-400"></svg>
           <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
             Plattform-Umsatzverteilung
           </h2>
@@ -563,21 +563,21 @@
             >
               <div class="flex justify-between items-center">
                 <span class="inline-flex items-center gap-1">
-                  <lucide-icon [img]="sunriseIcon" class="w-3 h-3 text-amber-400"></lucide-icon>
+                  <svg [lucideIcon]="sunriseIcon" class="w-3 h-3 text-amber-400"></svg>
                   <span>Vormittags:</span>
                 </span>
                 <strong class="text-rf-text-secondary">{{ day.morningCount }}</strong>
               </div>
               <div class="flex justify-between items-center">
                 <span class="inline-flex items-center gap-1">
-                  <lucide-icon [img]="sunIcon" class="w-3 h-3 text-yellow-400"></lucide-icon>
+                  <svg [lucideIcon]="sunIcon" class="w-3 h-3 text-yellow-400"></svg>
                   <span>Nachmittags:</span>
                 </span>
                 <strong class="text-rf-text-secondary">{{ day.afternoonCount }}</strong>
               </div>
               <div class="flex justify-between items-center">
                 <span class="inline-flex items-center gap-1">
-                  <lucide-icon [img]="moonIcon" class="w-3 h-3 text-indigo-400"></lucide-icon>
+                  <svg [lucideIcon]="moonIcon" class="w-3 h-3 text-indigo-400"></svg>
                   <span>Abends (18-23h):</span>
                 </span>
                 <strong class="text-emerald-400">{{ day.eveningCount }}</strong>
@@ -649,7 +649,7 @@
             <span class="font-bold uppercase tracking-wider text-[10px] text-purple-300"
               >Konsolidierter Umsatz</span
             >
-            <lucide-icon [img]="trendingIcon" class="w-4 h-4 text-purple-400"></lucide-icon>
+            <svg [lucideIcon]="trendingIcon" class="w-4 h-4 text-purple-400"></svg>
           </div>
           <div class="text-2xl font-black text-rf-text-primary">
             {{ holding.totalRevenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
@@ -666,7 +666,7 @@
             <span class="font-bold uppercase tracking-wider text-[10px] text-emerald-400"
               >Realisierter Holding-Gewinn</span
             >
-            <lucide-icon [img]="coinsIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+            <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-emerald-400"></svg>
           </div>
           <div class="text-2xl font-black text-emerald-400">
             +{{ holding.totalNetProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
@@ -683,7 +683,7 @@
             <span class="font-bold uppercase tracking-wider text-[10px] text-indigo-300"
               >Lagerbestandswert (EK)</span
             >
-            <lucide-icon [img]="boxesIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+            <svg [lucideIcon]="boxesIcon" class="w-4 h-4 text-indigo-400"></svg>
           </div>
           <div class="text-2xl font-black text-indigo-300">
             {{ holding.totalInventoryValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
@@ -700,7 +700,7 @@
             <span class="font-bold uppercase tracking-wider text-[10px] text-amber-300"
               >Holding Durchschnitts-ROI</span
             >
-            <lucide-icon [img]="percentIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
+            <svg [lucideIcon]="percentIcon" class="w-4 h-4 text-amber-400"></svg>
           </div>
           <div class="text-2xl font-black text-amber-400">{{ holding.averageRoi }}%</div>
           <span class="text-[10px] text-rf-text-muted block font-sans">
@@ -713,7 +713,7 @@
       <div class="linear-surface rounded-2xl p-6 space-y-4 shadow-xl border border-rf-border">
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">
           <div class="flex items-center gap-2">
-            <lucide-icon [img]="buildingIcon" class="w-4 h-4 text-purple-400"></lucide-icon>
+            <svg [lucideIcon]="buildingIcon" class="w-4 h-4 text-purple-400"></svg>
             <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
               Mandanten- & Gewerbevergleich (Performance Matrix)
             </h2>
@@ -811,7 +811,7 @@
                         class="linear-btn-secondary px-2.5 py-1 rounded-lg text-[11px] font-semibold text-purple-300 hover:text-rf-text-primary cursor-pointer inline-flex items-center gap-1"
                       >
                         <span>Umschalten</span>
-                        <lucide-icon [img]="nextIcon" class="w-3 h-3"></lucide-icon>
+                        <svg [lucideIcon]="nextIcon" class="w-3 h-3"></svg>
                       </button>
                     } @else {
                       <span class="text-[11px] text-emerald-400 font-semibold">Ausgewählt</span>

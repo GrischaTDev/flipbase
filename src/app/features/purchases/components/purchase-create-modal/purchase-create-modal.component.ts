@@ -1,17 +1,17 @@
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
-  LucideAngularModule,
-  X,
-  Plus,
-  ShoppingBag,
-  Package,
-  Layers,
-  Boxes,
-  PlusCircle,
-  Trash2,
-  Truck,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideX as X,
+  LucidePlus as Plus,
+  LucideShoppingBag as ShoppingBag,
+  LucidePackage as Package,
+  LucideLayers as Layers,
+  LucideBoxes as Boxes,
+  LucidePlusCircle as PlusCircle,
+  LucideTrash2 as Trash2,
+  LucideTruck as Truck,
+} from '@lucide/angular';
 import { PurchaseService, CreatePurchasePayload } from '../../../../core/services/purchase.service';
 import { SourcesService } from '../../../../core/services/sources.service';
 import { SuppliersService } from '../../../../core/services/suppliers.service';
@@ -31,7 +31,7 @@ interface ExtraCostEntry {
 
 @Component({
   selector: 'app-purchase-create-modal',
-  imports: [ModalDialogDirective, ReactiveFormsModule, LucideAngularModule],
+  imports: [ModalDialogDirective, ReactiveFormsModule, LucideDynamicIcon],
   templateUrl: './purchase-create-modal.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,

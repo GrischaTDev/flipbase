@@ -3,25 +3,25 @@ import { Router, RouterLink } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CurrencyPipe } from '@angular/common';
 import {
-  LucideAngularModule,
-  ArrowLeft,
-  ShieldCheck,
-  Truck,
-  CreditCard,
-  Building,
-  Banknote,
-  CheckCircle2,
-  Lock,
-  Copy,
-  Check,
-  Zap,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideArrowLeft as ArrowLeft,
+  LucideShieldCheck as ShieldCheck,
+  LucideTruck as Truck,
+  LucideCreditCard as CreditCard,
+  LucideBuilding as Building,
+  LucideBanknote as Banknote,
+  LucideCheckCircle2 as CheckCircle2,
+  LucideLock as Lock,
+  LucideCopy as Copy,
+  LucideCheck as Check,
+  LucideZap as Zap,
+} from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
 import { CheckoutCustomerInfo } from '../../../../core/models/store.models';
 
 @Component({
   selector: 'app-store-checkout',
-  imports: [RouterLink, ReactiveFormsModule, CurrencyPipe, LucideAngularModule],
+  imports: [RouterLink, ReactiveFormsModule, CurrencyPipe, LucideDynamicIcon],
   templateUrl: './store-checkout.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,

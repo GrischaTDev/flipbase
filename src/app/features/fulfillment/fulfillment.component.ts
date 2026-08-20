@@ -2,27 +2,27 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
-  LucideAngularModule,
-  Package,
-  Truck,
-  CheckCircle2,
-  Printer,
-  FileText,
-  ExternalLink,
-  Search,
-  Sliders,
-  Send,
-  QrCode,
-  AlertTriangle,
-  X,
-  MapPin,
-  Zap,
-  CreditCard,
-  Layers,
-  Sparkles,
-  RotateCcw,
-  Boxes,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucidePackage as Package,
+  LucideTruck as Truck,
+  LucideCheckCircle2 as CheckCircle2,
+  LucidePrinter as Printer,
+  LucideFileText as FileText,
+  LucideExternalLink as ExternalLink,
+  LucideSearch as Search,
+  LucideSliders as Sliders,
+  LucideSend as Send,
+  LucideQrCode as QrCode,
+  LucideAlertTriangle as AlertTriangle,
+  LucideX as X,
+  LucideMapPin as MapPin,
+  LucideZap as Zap,
+  LucideCreditCard as CreditCard,
+  LucideLayers as Layers,
+  LucideSparkles as Sparkles,
+  LucideRotateCcw as RotateCcw,
+  LucideBoxes as Boxes,
+} from '@lucide/angular';
 import { FulfillmentService } from '../../core/services/fulfillment.service';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import {
@@ -34,7 +34,7 @@ import {
 
 @Component({
   selector: 'app-fulfillment',
-  imports: [ModalDialogDirective, ReactiveFormsModule, CurrencyPipe, DatePipe, LucideAngularModule],
+  imports: [ModalDialogDirective, ReactiveFormsModule, CurrencyPipe, DatePipe, LucideDynamicIcon],
   templateUrl: './fulfillment.component.html',
   styleUrl: './fulfillment.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

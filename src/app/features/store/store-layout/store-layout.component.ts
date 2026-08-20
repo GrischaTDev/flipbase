@@ -1,28 +1,28 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterOutlet } from '@angular/router';
 import {
-  LucideAngularModule,
-  ShoppingBag,
-  Store,
-  ShieldCheck,
-  Truck,
-  RotateCcw,
-  Search,
-  ArrowLeft,
-  Sparkles,
-  Lock,
-  CreditCard,
-  CheckCircle2,
-  BadgePercent,
-  Heart,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideShoppingBag as ShoppingBag,
+  LucideStore as Store,
+  LucideShieldCheck as ShieldCheck,
+  LucideTruck as Truck,
+  LucideRotateCcw as RotateCcw,
+  LucideSearch as Search,
+  LucideArrowLeft as ArrowLeft,
+  LucideSparkles as Sparkles,
+  LucideLock as Lock,
+  LucideCreditCard as CreditCard,
+  LucideCheckCircle2 as CheckCircle2,
+  LucideBadgePercent as BadgePercent,
+  LucideHeart as Heart,
+} from '@lucide/angular';
 import { StoreService } from '../../../core/services/store.service';
 import { StoreCartDrawerComponent } from '../components/store-cart-drawer/store-cart-drawer.component';
 import { CurrencyPipe } from '@angular/common';
 
 @Component({
   selector: 'app-store-layout',
-  imports: [RouterOutlet, RouterLink, CurrencyPipe, LucideAngularModule, StoreCartDrawerComponent],
+  imports: [RouterOutlet, RouterLink, CurrencyPipe, LucideDynamicIcon, StoreCartDrawerComponent],
   templateUrl: './store-layout.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,

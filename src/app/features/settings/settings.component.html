@@ -23,7 +23,7 @@
       <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-rf-border">
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">
           <div class="flex items-center gap-2">
-            <lucide-icon [img]="buildingIcon" class="w-4 h-4 text-purple-400"></lucide-icon>
+            <svg [lucideIcon]="buildingIcon" class="w-4 h-4 text-purple-400"></svg>
             <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
               Workspaces & Gewerbe-Mandanten ({{ workspaceService.workspaces().length }})
             </h2>
@@ -87,7 +87,7 @@
                       class="p-1.5 rounded-lg text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 cursor-pointer"
                       title="Workspace löschen"
                     >
-                      <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+                      <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
                     </button>
                   }
                 } @else {
@@ -115,7 +115,7 @@
             [disabled]="newWorkspaceName.invalid || isCreatingWs()"
             class="linear-btn-primary px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20 disabled:opacity-40"
           >
-            <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
             <span>Erstellen</span>
           </button>
         </div>
@@ -128,7 +128,7 @@
         class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
       >
         <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
-          <lucide-icon [img]="slidersIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+          <svg [lucideIcon]="slidersIcon" class="w-4 h-4 text-indigo-400"></svg>
           <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
             Workspace & Deal-Kriterien
           </h2>
@@ -138,7 +138,7 @@
           <div
             class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2"
           >
-            <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="checkIcon" class="w-4 h-4"></svg>
             <span>Einstellungen erfolgreich gespeichert!</span>
           </div>
         }
@@ -222,7 +222,7 @@
             [disabled]="settingsForm.invalid || isSaving()"
             class="linear-btn-primary px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40 shadow-md shadow-indigo-500/20"
           >
-            <lucide-icon [img]="saveIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <svg [lucideIcon]="saveIcon" class="w-3.5 h-3.5"></svg>
             <span>{{ isSaving() ? 'Speichere...' : 'Einstellungen speichern' }}</span>
           </button>
         </div>
@@ -232,7 +232,7 @@
       <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">
           <div class="flex items-center gap-2">
-            <lucide-icon [img]="usersIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+            <svg [lucideIcon]="usersIcon" class="w-4 h-4 text-indigo-400"></svg>
             <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
               Team-Mitglieder & Rollen
             </h2>
@@ -243,7 +243,7 @@
             (click)="openInviteModal()"
             class="linear-btn-primary px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
           >
-            <lucide-icon [img]="userPlusIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <svg [lucideIcon]="userPlusIcon" class="w-3.5 h-3.5"></svg>
             <span>Mitglied einladen</span>
           </button>
         </div>
@@ -298,7 +298,7 @@
                     class="p-1 rounded-lg text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                     title="Mitglied entfernen"
                   >
-                    <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+                    <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
                   </button>
                 } @else {
                   <span class="text-[11px] font-mono text-purple-300 font-semibold px-2 py-1"
@@ -323,7 +323,7 @@
                 class="p-2.5 rounded-xl bg-rf-subtle/60 border border-dashed border-rf-border flex items-center justify-between text-xs"
               >
                 <div class="flex items-center gap-2">
-                  <lucide-icon [img]="mailIcon" class="w-3.5 h-3.5 text-amber-400"></lucide-icon>
+                  <svg [lucideIcon]="mailIcon" class="w-3.5 h-3.5 text-amber-400"></svg>
                   <span class="text-rf-text-secondary font-medium">{{ inv.email }}</span>
                   <span
                     class="px-1.5 py-0.2 rounded text-[10px] font-mono border {{ badge.class }}"
@@ -354,7 +354,7 @@
       >
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">
           <div class="flex items-center gap-2">
-            <lucide-icon [img]="bellIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+            <svg [lucideIcon]="bellIcon" class="w-4 h-4 text-emerald-400"></svg>
             <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
               Webhooks & Benachrichtigungen
             </h2>
@@ -374,7 +374,7 @@
           <div
             class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2"
           >
-            <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="checkIcon" class="w-4 h-4"></svg>
             <span>Webhook-Konfiguration gespeichert!</span>
           </div>
         }
@@ -389,10 +389,7 @@
             [class.border-rose-500/30]="!msg.success"
             [class.text-rose-300]="!msg.success"
           >
-            <lucide-icon
-              [img]="msg.success ? checkIcon : closeIcon"
-              class="w-3.5 h-3.5"
-            ></lucide-icon>
+            <svg [lucideIcon]="msg.success ? checkIcon : closeIcon" class="w-3.5 h-3.5"></svg>
             <span>{{ msg.text }}</span>
           </div>
         }
@@ -400,7 +397,7 @@
         <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-2.5">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <lucide-icon [img]="botIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+              <svg [lucideIcon]="botIcon" class="w-4 h-4 text-indigo-400"></svg>
               <strong class="text-xs text-rf-text-primary">Discord Webhook</strong>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
@@ -426,7 +423,7 @@
                   [disabled]="isTestingWebhook()"
                   class="linear-btn-secondary px-3 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
                 >
-                  <lucide-icon [img]="sendIcon" class="w-3 h-3 text-indigo-400"></lucide-icon>
+                  <svg [lucideIcon]="sendIcon" class="w-3 h-3 text-indigo-400"></svg>
                   <span>Discord-Test senden</span>
                 </button>
               </div>
@@ -437,7 +434,7 @@
         <div class="p-3.5 rounded-xl bg-rf-subtle border border-rf-border space-y-2.5">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
-              <lucide-icon [img]="sendIcon" class="w-4 h-4 text-blue-400"></lucide-icon>
+              <svg [lucideIcon]="sendIcon" class="w-4 h-4 text-blue-400"></svg>
               <strong class="text-xs text-rf-text-primary">Telegram Bot</strong>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
@@ -469,7 +466,7 @@
                   [disabled]="isTestingWebhook()"
                   class="linear-btn-secondary px-3 py-1 rounded-lg text-[10px] font-bold flex items-center gap-1 cursor-pointer"
                 >
-                  <lucide-icon [img]="sendIcon" class="w-3 h-3 text-indigo-400"></lucide-icon>
+                  <svg [lucideIcon]="sendIcon" class="w-3 h-3 text-indigo-400"></svg>
                   <span>Telegram-Test senden</span>
                 </button>
               </div>
@@ -492,7 +489,7 @@
 
           <app-custom-checkbox formControlName="soundEnabled" size="sm">
             <span class="text-rf-text-secondary flex items-center gap-1.5 text-xs">
-              <lucide-icon [img]="volumeIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+              <svg [lucideIcon]="volumeIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
               <span>Kassen-Chime Sound bei Sales abspielen</span>
             </span>
           </app-custom-checkbox>
@@ -503,7 +500,7 @@
             type="submit"
             class="linear-btn-primary px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
           >
-            <lucide-icon [img]="saveIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <svg [lucideIcon]="saveIcon" class="w-3.5 h-3.5"></svg>
             <span>Webhook-Einstellungen speichern</span>
           </button>
         </div>
@@ -516,7 +513,7 @@
       >
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">
           <div class="flex items-center gap-2">
-            <lucide-icon [img]="cardIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+            <svg [lucideIcon]="cardIcon" class="w-4 h-4 text-emerald-400"></svg>
             <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
               Webshop & Zahlungs-Gateways
             </h2>
@@ -536,7 +533,7 @@
           <div
             class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2"
           >
-            <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="checkIcon" class="w-4 h-4"></svg>
             <span>Zahlungsmethoden erfolgreich gespeichert!</span>
           </div>
         }
@@ -545,7 +542,7 @@
           <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <lucide-icon [img]="cardIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+                <svg [lucideIcon]="cardIcon" class="w-4 h-4 text-indigo-400"></svg>
                 <strong class="text-xs text-rf-text-primary"
                   >Stripe (Kreditkarte / Apple Pay)</strong
                 >
@@ -570,7 +567,7 @@
           <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <lucide-icon [img]="cardIcon" class="w-4 h-4 text-blue-400"></lucide-icon>
+                <svg [lucideIcon]="cardIcon" class="w-4 h-4 text-blue-400"></svg>
                 <strong class="text-xs text-rf-text-primary">PayPal Express</strong>
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
@@ -593,7 +590,7 @@
           <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <lucide-icon [img]="landmarkIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+                <svg [lucideIcon]="landmarkIcon" class="w-4 h-4 text-emerald-400"></svg>
                 <strong class="text-xs text-rf-text-primary"
                   >Banküberweisung (SEPA Vorkasse)</strong
                 >
@@ -641,7 +638,7 @@
             type="submit"
             class="linear-btn-primary px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
           >
-            <lucide-icon [img]="saveIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <svg [lucideIcon]="saveIcon" class="w-3.5 h-3.5"></svg>
             <span>Zahlungsmethoden speichern</span>
           </button>
         </div>
@@ -654,7 +651,7 @@
       >
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">
           <div class="flex items-center gap-2">
-            <lucide-icon [img]="truckIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
+            <svg [lucideIcon]="truckIcon" class="w-4 h-4 text-amber-400"></svg>
             <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
               Carrier-APIs & Packtisch
             </h2>
@@ -674,7 +671,7 @@
           <div
             class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2"
           >
-            <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="checkIcon" class="w-4 h-4"></svg>
             <span>Carrier-Konfiguration erfolgreich gespeichert!</span>
           </div>
         }
@@ -683,7 +680,7 @@
           <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <lucide-icon [img]="truckIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
+                <svg [lucideIcon]="truckIcon" class="w-4 h-4 text-amber-400"></svg>
                 <strong class="text-xs text-rf-text-primary"
                   >DHL Geschäftskundenversand (GKP)</strong
                 >
@@ -715,7 +712,7 @@
           <div class="p-3 rounded-xl bg-rf-subtle border border-rf-border space-y-2">
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
-                <lucide-icon [img]="truckIcon" class="w-4 h-4 text-blue-400"></lucide-icon>
+                <svg [lucideIcon]="truckIcon" class="w-4 h-4 text-blue-400"></svg>
                 <strong class="text-xs text-rf-text-primary">Hermes Versand-API</strong>
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
@@ -748,7 +745,7 @@
             type="submit"
             class="linear-btn-primary px-4 py-2 rounded-xl font-bold text-xs transition flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
           >
-            <lucide-icon [img]="saveIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <svg [lucideIcon]="saveIcon" class="w-3.5 h-3.5"></svg>
             <span>Carrier-Einstellungen speichern</span>
           </button>
         </div>
@@ -757,7 +754,7 @@
       <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-rf-border">
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">
           <div class="flex items-center gap-2">
-            <lucide-icon [img]="bellIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+            <svg [lucideIcon]="bellIcon" class="w-4 h-4 text-indigo-400"></svg>
             <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
               Web Push & Browser-Benachrichtigungen
             </h2>
@@ -808,10 +805,7 @@
             [class.border-rose-500/30]="!msg.success"
             [class.text-rose-300]="!msg.success"
           >
-            <lucide-icon
-              [img]="msg.success ? checkIcon : closeIcon"
-              class="w-3.5 h-3.5"
-            ></lucide-icon>
+            <svg [lucideIcon]="msg.success ? checkIcon : closeIcon" class="w-3.5 h-3.5"></svg>
             <span>{{ msg.text }}</span>
           </div>
         }
@@ -832,7 +826,7 @@
               (click)="onRequestPushPermission()"
               class="linear-btn-primary px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
             >
-              <lucide-icon [img]="bellIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <svg [lucideIcon]="bellIcon" class="w-3.5 h-3.5"></svg>
               <span>Push aktivieren</span>
             </button>
           } @else {
@@ -842,7 +836,7 @@
               [disabled]="isTestingPush()"
               class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer text-indigo-300 hover:text-rf-text-primary disabled:opacity-50"
             >
-              <lucide-icon [img]="sendIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <svg [lucideIcon]="sendIcon" class="w-3.5 h-3.5"></svg>
               <span>{{ isTestingPush() ? 'Wird gesendet...' : 'Test-Push senden' }}</span>
             </button>
           }
@@ -855,10 +849,7 @@
 
           <div class="flex items-center justify-between">
             <span class="text-rf-text-secondary flex items-center gap-1.5">
-              <lucide-icon
-                [img]="shoppingCartIcon"
-                class="w-3.5 h-3.5 text-indigo-400"
-              ></lucide-icon>
+              <svg [lucideIcon]="shoppingCartIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
               <span>Neue Webshop-Bestellungen (/shop)</span>
             </span>
             <app-custom-checkbox
@@ -870,7 +861,7 @@
 
           <div class="flex items-center justify-between">
             <span class="text-rf-text-secondary flex items-center gap-1.5">
-              <lucide-icon [img]="packageIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+              <svg [lucideIcon]="packageIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
               <span>Erstellte Versandetiketten (DHL / Hermes)</span>
             </span>
             <app-custom-checkbox
@@ -882,10 +873,7 @@
 
           <div class="flex items-center justify-between">
             <span class="text-rf-text-secondary flex items-center gap-1.5">
-              <lucide-icon
-                [img]="alertTriangleIcon"
-                class="w-3.5 h-3.5 text-amber-400"
-              ></lucide-icon>
+              <svg [lucideIcon]="alertTriangleIcon" class="w-3.5 h-3.5 text-amber-400"></svg>
               <span>Margen- & Profit-Alarme (ROI &lt; 20%)</span>
             </span>
             <app-custom-checkbox
@@ -897,7 +885,7 @@
 
           <div class="flex items-center justify-between pt-1 border-t border-rf-border">
             <span class="text-rf-text-secondary flex items-center gap-1.5">
-              <lucide-icon [img]="volumeIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+              <svg [lucideIcon]="volumeIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
               <span>Benachrichtigungston abspielen</span>
             </span>
             <app-custom-checkbox
@@ -912,7 +900,7 @@
       <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
         <div class="flex items-center justify-between pb-2 border-b border-rf-border">
           <div class="flex items-center gap-2">
-            <lucide-icon [img]="smartphoneIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+            <svg [lucideIcon]="smartphoneIcon" class="w-4 h-4 text-indigo-400"></svg>
             <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
               Progressive Web App (PWA)
             </h2>
@@ -969,7 +957,7 @@
               (click)="pwaService.promptInstall()"
               class="w-full linear-btn-primary py-2.5 px-4 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25"
             >
-              <lucide-icon [img]="smartphoneIcon" class="w-4 h-4"></lucide-icon>
+              <svg [lucideIcon]="smartphoneIcon" class="w-4 h-4"></svg>
               <span>ReFlip auf Smartphone / Desktop installieren</span>
             </button>
           </div>
@@ -977,7 +965,7 @@
           <div
             class="p-2.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2"
           >
-            <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="checkIcon" class="w-4 h-4"></svg>
             <span>ReFlip ist bereits als native App auf diesem Gerät installiert.</span>
           </div>
         }
@@ -986,7 +974,7 @@
       <!-- Data Export Center -->
       <div class="linear-surface rounded-2xl p-5 space-y-3 shadow-xl">
         <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
-          <lucide-icon [img]="csvIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+          <svg [lucideIcon]="csvIcon" class="w-4 h-4 text-emerald-400"></svg>
           <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
             Datenexport & Backups
           </h2>
@@ -1013,7 +1001,7 @@
               (click)="exportSalesCsv()"
               class="linear-btn-secondary px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
             >
-              <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <svg [lucideIcon]="downloadIcon" class="w-3.5 h-3.5"></svg>
               <span>CSV</span>
             </button>
           </div>
@@ -1033,7 +1021,7 @@
               (click)="exportInventoryCsv()"
               class="linear-btn-secondary px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
             >
-              <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <svg [lucideIcon]="downloadIcon" class="w-3.5 h-3.5"></svg>
               <span>CSV</span>
             </button>
           </div>
@@ -1053,7 +1041,7 @@
               (click)="exportPurchasesCsv()"
               class="linear-btn-secondary px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 cursor-pointer"
             >
-              <lucide-icon [img]="downloadIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <svg [lucideIcon]="downloadIcon" class="w-3.5 h-3.5"></svg>
               <span>CSV</span>
             </button>
           </div>
@@ -1089,7 +1077,7 @@
             (click)="closeInviteModal()"
             class="p-1 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
           >
-            <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+            <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
           </button>
         </div>
 
@@ -1154,7 +1142,7 @@
               [disabled]="inviteForm.invalid || isSendingInvite()"
               class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20 disabled:opacity-40"
             >
-              <lucide-icon [img]="userPlusIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <svg [lucideIcon]="userPlusIcon" class="w-3.5 h-3.5"></svg>
               <span>{{ isSendingInvite() ? 'Wird gesendet...' : 'Einladung senden' }}</span>
             </button>
           </div>

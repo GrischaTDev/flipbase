@@ -2,23 +2,23 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import {
-  LucideAngularModule,
-  ShoppingBag,
-  X,
-  Plus,
-  Minus,
-  Trash2,
-  ArrowRight,
-  ShieldCheck,
-  Truck,
-  CheckCircle2,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideShoppingBag as ShoppingBag,
+  LucideX as X,
+  LucidePlus as Plus,
+  LucideMinus as Minus,
+  LucideTrash2 as Trash2,
+  LucideArrowRight as ArrowRight,
+  LucideShieldCheck as ShieldCheck,
+  LucideTruck as Truck,
+  LucideCheckCircle2 as CheckCircle2,
+} from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 
 @Component({
   selector: 'app-store-cart-drawer',
-  imports: [ModalDialogDirective, RouterLink, CurrencyPipe, LucideAngularModule],
+  imports: [ModalDialogDirective, RouterLink, CurrencyPipe, LucideDynamicIcon],
   templateUrl: './store-cart-drawer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {

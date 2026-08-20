@@ -4,24 +4,24 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
-  LucideAngularModule,
-  TrendingUp,
-  Coins,
-  DollarSign,
-  Calendar,
-  Plus,
-  Trash2,
-  Tag,
-  Clock,
-  ArrowUpRight,
-  Sparkles,
-  FileText,
-  RotateCcw,
-  Receipt,
-  X,
-  CheckCircle2,
-  AlertTriangle,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideTrendingUp as TrendingUp,
+  LucideCoins as Coins,
+  LucideDollarSign as DollarSign,
+  LucideCalendar as Calendar,
+  LucidePlus as Plus,
+  LucideTrash2 as Trash2,
+  LucideTag as Tag,
+  LucideClock as Clock,
+  LucideArrowUpRight as ArrowUpRight,
+  LucideSparkles as Sparkles,
+  LucideFileText as FileText,
+  LucideRotateCcw as RotateCcw,
+  LucideReceipt as Receipt,
+  LucideX as X,
+  LucideCheckCircle2 as CheckCircle2,
+  LucideAlertTriangle as AlertTriangle,
+} from '@lucide/angular';
 import { SalesService } from '../../core/services/sales.service';
 import { InvoiceService } from '../../core/services/invoice.service';
 import { ReturnService } from '../../core/services/return.service';
@@ -39,7 +39,7 @@ import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/ret
     CurrencyPipe,
     DatePipe,
     TranslatePipe,
-    LucideAngularModule,
+    LucideDynamicIcon,
     SaleCreateModalComponent,
     InvoiceModalComponent,
   ],

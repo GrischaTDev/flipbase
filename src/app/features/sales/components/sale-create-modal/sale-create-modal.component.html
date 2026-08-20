@@ -12,7 +12,7 @@
         <div
           class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
         >
-          <lucide-icon [img]="trendingIcon" class="w-4 h-4"></lucide-icon>
+          <svg [lucideIcon]="trendingIcon" class="w-4 h-4"></svg>
         </div>
         <div>
           <h2 class="text-sm font-bold text-rf-text-primary">Verkauf erfassen (Kapitel 26)</h2>
@@ -25,7 +25,7 @@
         (click)="close.emit()"
         class="p-1.5 rounded-lg text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-line transition cursor-pointer"
       >
-        <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
+        <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
       </button>
     </div>
 
@@ -242,7 +242,7 @@
             [disabled]="form.invalid || isSubmitting()"
             class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
           >
-            <lucide-icon [img]="trendingIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <svg [lucideIcon]="trendingIcon" class="w-3.5 h-3.5"></svg>
             <span>{{ isSubmitting() ? 'Speichere...' : 'Verkauf abschließen' }}</span>
           </button>
         </div>

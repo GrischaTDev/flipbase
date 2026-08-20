@@ -5,7 +5,7 @@
       routerLink="/inventory"
       class="inline-flex items-center gap-1.5 text-xs font-semibold text-rf-text-muted hover:text-rf-text-primary transition"
     >
-      <lucide-icon [img]="arrowLeftIcon" class="w-3.5 h-3.5"></lucide-icon>
+      <svg [lucideIcon]="arrowLeftIcon" class="w-3.5 h-3.5"></svg>
       <span>Zurück zum Inventar</span>
     </a>
 
@@ -16,7 +16,7 @@
         class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-rf-text-secondary hover:text-rf-text-primary"
         title="Lager- & Barcode-Etikett drucken"
       >
-        <lucide-icon [img]="printerIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+        <svg [lucideIcon]="printerIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
         <span>Etikett drucken</span>
       </button>
 
@@ -26,7 +26,7 @@
         class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-300 hover:text-rf-text-primary"
         title="Im Online-Shop ansehen"
       >
-        <lucide-icon [img]="storeIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+        <svg [lucideIcon]="storeIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
         <span>Im Shop ansehen</span>
       </a>
 
@@ -35,7 +35,7 @@
         [queryParams]="{ query: inventoryService.selectedItem()?.title }"
         class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
       >
-        <lucide-icon [img]="searchIcon" class="w-3.5 h-3.5 text-emerald-400"></lucide-icon>
+        <svg [lucideIcon]="searchIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
         <span>Market Research</span>
       </a>
 
@@ -45,7 +45,7 @@
         class="p-1.5 rounded-lg text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold transition cursor-pointer"
         title="Artikel löschen"
       >
-        <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+        <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
       </button>
     </div>
   </div>
@@ -65,7 +65,7 @@
                 class="w-full h-full object-cover"
               />
             } @else {
-              <lucide-icon [img]="boxesIcon" class="w-6 h-6"></lucide-icon>
+              <svg [lucideIcon]="boxesIcon" class="w-6 h-6"></svg>
             }
           </div>
 
@@ -166,7 +166,7 @@
           <div
             class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-300 flex items-center justify-center"
           >
-            <lucide-icon [img]="storeIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="storeIcon" class="w-4 h-4"></svg>
           </div>
           <div>
             <div class="flex items-center gap-2">
@@ -209,10 +209,10 @@
             [class.text-rf-text-secondary]="item.is_public_store === false"
             [class.border-rf-border]="item.is_public_store === false"
           >
-            <lucide-icon
-              [img]="item.is_public_store !== false ? checkIcon : storeIcon"
+            <svg
+              [lucideIcon]="item.is_public_store !== false ? checkIcon : storeIcon"
               class="w-3.5 h-3.5"
-            ></lucide-icon>
+            ></svg>
             <span>{{
               item.is_public_store !== false ? 'Im Webshop aktiv' : 'Im Webshop aktivieren'
             }}</span>
@@ -226,7 +226,7 @@
             title="Öffentliche Kundenvorschau aufrufen"
           >
             <span>Im Shop ansehen</span>
-            <lucide-icon [img]="linkIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <svg [lucideIcon]="linkIcon" class="w-3.5 h-3.5"></svg>
           </a>
         </div>
       </div>
@@ -256,7 +256,7 @@
         class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-rf-border"
       >
         <div class="flex items-center gap-2">
-          <lucide-icon [img]="imageIcon" class="w-4 h-4 text-emerald-400"></lucide-icon>
+          <svg [lucideIcon]="imageIcon" class="w-4 h-4 text-emerald-400"></svg>
           <div>
             <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
               Produktbilder & Kaufbelege (Supabase Storage)
@@ -271,7 +271,7 @@
         <label
           class="linear-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer shrink-0"
         >
-          <lucide-icon [img]="uploadIcon" class="w-3.5 h-3.5"></lucide-icon>
+          <svg [lucideIcon]="uploadIcon" class="w-3.5 h-3.5"></svg>
           <span>{{ isUploading() ? 'Wird hochgeladen...' : 'Fotos hochladen' }}</span>
           <input
             type="file"
@@ -305,7 +305,7 @@
               >
                 @if (media.mime_type?.includes('pdf')) {
                   <div class="flex flex-col items-center gap-1 text-rf-text-muted p-2 text-center">
-                    <lucide-icon [img]="fileIcon" class="w-8 h-8 text-amber-400"></lucide-icon>
+                    <svg [lucideIcon]="fileIcon" class="w-8 h-8 text-amber-400"></svg>
                     <span class="text-[10px] truncate max-w-[100px]">{{
                       media.file_name || 'Beleg.pdf'
                     }}</span>
@@ -338,7 +338,7 @@
                     class="p-1.5 rounded bg-rf-surface/90 text-rf-text-primary hover:text-emerald-400 transition cursor-pointer"
                     title="Vollbild"
                   >
-                    <lucide-icon [img]="eyeIcon" class="w-3.5 h-3.5"></lucide-icon>
+                    <svg [lucideIcon]="eyeIcon" class="w-3.5 h-3.5"></svg>
                   </button>
 
                   @if (!media.is_primary) {
@@ -348,7 +348,7 @@
                       class="p-1.5 rounded bg-rf-surface/90 text-rf-text-primary hover:text-amber-400 transition cursor-pointer"
                       title="Als Hauptbild setzen"
                     >
-                      <lucide-icon [img]="starIcon" class="w-3.5 h-3.5"></lucide-icon>
+                      <svg [lucideIcon]="starIcon" class="w-3.5 h-3.5"></svg>
                     </button>
                   }
 
@@ -358,7 +358,7 @@
                     class="p-1.5 rounded bg-rf-surface/90 text-rf-text-primary hover:text-rose-400 transition cursor-pointer"
                     title="Löschen"
                   >
-                    <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+                    <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
                   </button>
                 </div>
               </div>
@@ -379,10 +379,7 @@
         <div
           class="p-8 text-center border border-dashed border-rf-border rounded-lg bg-rf-subtle/50"
         >
-          <lucide-icon
-            [img]="imageIcon"
-            class="w-8 h-8 text-rf-text-dimmed mx-auto mb-2"
-          ></lucide-icon>
+          <svg [lucideIcon]="imageIcon" class="w-8 h-8 text-rf-text-dimmed mx-auto mb-2"></svg>
           <p class="text-xs font-semibold text-rf-text-secondary">
             Noch keine Fotos oder Belege hochgeladen
           </p>
@@ -437,7 +434,7 @@
         <div class="linear-surface rounded-xl p-4 space-y-3">
           <div class="flex items-center justify-between pb-2 border-b border-rf-border">
             <div class="flex items-center gap-2">
-              <lucide-icon [img]="wrenchIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
+              <svg [lucideIcon]="wrenchIcon" class="w-4 h-4 text-amber-400"></svg>
               <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
                 Artikelkosten (Reparatur, Reinigung, Teile)
               </h2>
@@ -448,7 +445,7 @@
               (click)="isAddingCost.set(!isAddingCost())"
               class="linear-btn-secondary inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold cursor-pointer"
             >
-              <lucide-icon [img]="plusIcon" class="w-3 h-3"></lucide-icon>
+              <svg [lucideIcon]="plusIcon" class="w-3 h-3"></svg>
               <span>Kosten erfassen</span>
             </button>
           </div>
@@ -515,7 +512,7 @@
                       (click)="onDeleteCost(c.id!)"
                       class="p-1 text-rf-text-muted hover:text-rose-400 transition cursor-pointer"
                     >
-                      <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+                      <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
                     </button>
                   </div>
                 </div>
@@ -530,7 +527,7 @@
       <!-- Right Column: Activity History (5 cols) -->
       <div class="lg:col-span-5 linear-surface rounded-xl p-4 space-y-3">
         <div class="flex items-center gap-2 pb-2 border-b border-rf-border">
-          <lucide-icon [img]="historyIcon" class="w-4 h-4 text-indigo-400"></lucide-icon>
+          <svg [lucideIcon]="historyIcon" class="w-4 h-4 text-indigo-400"></svg>
           <h2 class="text-xs font-bold uppercase tracking-wider text-rf-text-primary">
             Aktivitäts-Historie (Kapitel 11)
           </h2>
@@ -575,7 +572,7 @@
           (click)="previewModalUrl.set(null)"
           class="absolute -top-10 right-0 p-1.5 rounded-full bg-white/10 text-rf-text-primary hover:bg-white/20 transition cursor-pointer"
         >
-          <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+          <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
         </button>
         <img
           [src]="pUrl"

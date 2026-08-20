@@ -2,24 +2,24 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import {
-  LucideAngularModule,
-  ArrowLeft,
-  ShoppingBag,
-  ShieldCheck,
-  Truck,
-  RotateCcw,
-  CheckCircle2,
-  Tag,
-  Share2,
-  Check,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideArrowLeft as ArrowLeft,
+  LucideShoppingBag as ShoppingBag,
+  LucideShieldCheck as ShieldCheck,
+  LucideTruck as Truck,
+  LucideRotateCcw as RotateCcw,
+  LucideCheckCircle2 as CheckCircle2,
+  LucideTag as Tag,
+  LucideShare2 as Share2,
+  LucideCheck as Check,
+} from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { InventoryItem } from '../../../../core/models/reflip.models';
 
 @Component({
   selector: 'app-store-item-detail',
-  imports: [RouterLink, CurrencyPipe, LucideAngularModule],
+  imports: [RouterLink, CurrencyPipe, LucideDynamicIcon],
   templateUrl: './store-item-detail.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,

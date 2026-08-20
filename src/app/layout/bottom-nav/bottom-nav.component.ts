@@ -1,17 +1,17 @@
 import { ChangeDetectionStrategy, Component, output } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import {
-  LucideAngularModule,
-  LayoutDashboard,
-  ShoppingBag,
-  Boxes,
-  Search,
-  Menu,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideLayoutDashboard as LayoutDashboard,
+  LucideShoppingBag as ShoppingBag,
+  LucideBoxes as Boxes,
+  LucideSearch as Search,
+  LucideMenu as Menu,
+} from '@lucide/angular';
 
 @Component({
   selector: 'app-bottom-nav',
-  imports: [RouterLink, RouterLinkActive, LucideAngularModule],
+  imports: [RouterLink, RouterLinkActive, LucideDynamicIcon],
   templateUrl: './bottom-nav.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -19,11 +19,8 @@ jobs:
           node-version: 22
           cache: 'npm'
 
-      # Hinweis: --legacy-peer-deps ist noetig, solange lucide-angular
-      # mitinstalliert wird - dessen Peer-Bereich endet bei Angular 21,
-      # das Projekt laeuft auf 22. Faellt mit Plan-Punkt 8.1 weg.
       - name: Abhaengigkeiten installieren
-        run: npm ci --legacy-peer-deps
+        run: npm ci
 
       - name: Formatierung pruefen
         run: npm run format:check

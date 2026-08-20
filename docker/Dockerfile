@@ -7,7 +7,7 @@ WORKDIR /app
 
 # Dependencies zuerst kopieren → Docker-Layer-Caching nutzen
 COPY package.json package-lock.json ./
-RUN npm ci --ignore-scripts --legacy-peer-deps
+RUN npm ci --ignore-scripts
 
 # Quellcode kopieren & produktions-Build erstellen
 COPY . .

@@ -10,17 +10,17 @@ import {
 } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import {
-  LucideAngularModule,
-  Camera,
-  Upload,
-  Sparkles,
-  CheckCircle2,
-  X,
-  RefreshCw,
-  Tag,
-  ShieldCheck,
-  Zap,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideCamera as Camera,
+  LucideUpload as Upload,
+  LucideSparkles as Sparkles,
+  LucideCheckCircle2 as CheckCircle2,
+  LucideX as X,
+  LucideRefreshCw as RefreshCw,
+  LucideTag as Tag,
+  LucideShieldCheck as ShieldCheck,
+  LucideZap as Zap,
+} from '@lucide/angular';
 import {
   AiAssistantService,
   AiVisualScanResult,
@@ -29,7 +29,7 @@ import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.di
 
 @Component({
   selector: 'app-ai-photo-scanner-modal',
-  imports: [ModalDialogDirective, CurrencyPipe, LucideAngularModule],
+  imports: [ModalDialogDirective, CurrencyPipe, LucideDynamicIcon],
   templateUrl: './ai-photo-scanner-modal.component.html',
   styleUrl: './ai-photo-scanner-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

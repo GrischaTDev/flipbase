@@ -1,15 +1,15 @@
 import { ChangeDetectionStrategy, Component, input, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
-  LucideAngularModule,
-  Printer,
-  X,
-  Tag,
-  QrCode,
-  Barcode,
-  Sliders,
-  CheckCircle2,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucidePrinter as Printer,
+  LucideX as X,
+  LucideTag as Tag,
+  LucideQrCode as QrCode,
+  LucideBarcode as Barcode,
+  LucideSliders as Sliders,
+  LucideCheckCircle2 as CheckCircle2,
+} from '@lucide/angular';
 import { InventoryItem } from '../../../core/models/reflip.models';
 import { CustomCheckboxComponent } from '../custom-checkbox/custom-checkbox.component';
 import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
@@ -22,7 +22,7 @@ export type LabelFormat = 'compact' | 'standard' | 'large';
     ModalDialogDirective,
     CurrencyPipe,
     DatePipe,
-    LucideAngularModule,
+    LucideDynamicIcon,
     CustomCheckboxComponent,
   ],
   templateUrl: './inventory-label-modal.component.html',

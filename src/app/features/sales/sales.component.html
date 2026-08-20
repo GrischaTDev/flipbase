@@ -18,7 +18,7 @@
         (click)="openCreateModal()"
         class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs transition cursor-pointer shadow-lg shadow-indigo-500/20"
       >
-        <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5"></lucide-icon>
+        <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
         <span>Verkauf erfassen</span>
       </button>
     </div>
@@ -89,7 +89,7 @@
       [class.text-rf-text-secondary]="selectedPlatform() !== 'returned'"
       [class.hover:bg-rf-surface-alt]="selectedPlatform() !== 'returned'"
     >
-      <lucide-icon [img]="returnIcon" class="w-3 h-3 text-rose-400"></lucide-icon>
+      <svg [lucideIcon]="returnIcon" class="w-3 h-3 text-rose-400"></svg>
       <span>Retouren & Gutschriften ({{ returnService.returns().length }})</span>
     </button>
 
@@ -249,7 +249,7 @@
                     class="p-1.5 rounded-lg text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/15 transition cursor-pointer"
                     title="§ 25a Differenzbesteuerungs-Rechnung anzeigen"
                   >
-                    <lucide-icon [img]="fileIcon" class="w-3.5 h-3.5"></lucide-icon>
+                    <svg [lucideIcon]="fileIcon" class="w-3.5 h-3.5"></svg>
                   </button>
 
                   <!-- Return / Credit Note Button -->
@@ -260,7 +260,7 @@
                       class="p-1.5 rounded-lg text-amber-400 hover:text-amber-300 hover:bg-amber-500/15 transition cursor-pointer"
                       title="Gutschriftsbeleg anzeigen ({{ ret.credit_note_number }})"
                     >
-                      <lucide-icon [img]="receiptIcon" class="w-3.5 h-3.5"></lucide-icon>
+                      <svg [lucideIcon]="receiptIcon" class="w-3.5 h-3.5"></svg>
                     </button>
                   } @else {
                     <button
@@ -269,7 +269,7 @@
                       class="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/15 transition cursor-pointer"
                       title="Retoure / Gutschrift erfassen"
                     >
-                      <lucide-icon [img]="returnIcon" class="w-3.5 h-3.5"></lucide-icon>
+                      <svg [lucideIcon]="returnIcon" class="w-3.5 h-3.5"></svg>
                     </button>
                   }
 
@@ -279,7 +279,7 @@
                     class="p-1.5 rounded-lg text-rf-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                     title="Verkauf stornieren"
                   >
-                    <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+                    <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
                   </button>
                 </div>
               </td>
@@ -342,7 +342,7 @@
               (click)="openInvoiceForSale(sale)"
               class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-indigo-300"
             >
-              <lucide-icon [img]="fileIcon" class="w-3 h-3"></lucide-icon>
+              <svg [lucideIcon]="fileIcon" class="w-3 h-3"></svg>
               <span>§ 25a Rechnung</span>
             </button>
 
@@ -352,7 +352,7 @@
                 (click)="openCreditNoteForSale(sale)"
                 class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-amber-300"
               >
-                <lucide-icon [img]="receiptIcon" class="w-3 h-3"></lucide-icon>
+                <svg [lucideIcon]="receiptIcon" class="w-3 h-3"></svg>
                 <span>Gutschrift</span>
               </button>
             } @else {
@@ -361,7 +361,7 @@
                 (click)="openReturnModal(sale)"
                 class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-rose-300"
               >
-                <lucide-icon [img]="returnIcon" class="w-3 h-3"></lucide-icon>
+                <svg [lucideIcon]="returnIcon" class="w-3 h-3"></svg>
                 <span>Retoure</span>
               </button>
             }
@@ -375,7 +375,7 @@
       <div
         class="w-10 h-10 rounded-lg bg-rf-well border border-rf-line text-rf-text-muted mx-auto flex items-center justify-center mb-3"
       >
-        <lucide-icon [img]="trendingIcon" class="w-5 h-5"></lucide-icon>
+        <svg [lucideIcon]="trendingIcon" class="w-5 h-5"></svg>
       </div>
       <h3 class="text-sm font-bold text-rf-text-secondary">Keine passenden Verkäufe gefunden</h3>
       <p class="text-xs text-rf-text-muted max-w-sm mx-auto mt-1 mb-4">
@@ -387,7 +387,7 @@
         (click)="openCreateModal()"
         class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs transition cursor-pointer"
       >
-        <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5"></lucide-icon>
+        <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
         <span>Verkauf erfassen</span>
       </button>
     </div>
@@ -416,7 +416,7 @@
             <div
               class="w-9 h-9 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 flex items-center justify-center"
             >
-              <lucide-icon [img]="returnIcon" class="w-4 h-4"></lucide-icon>
+              <svg [lucideIcon]="returnIcon" class="w-4 h-4"></svg>
             </div>
             <div>
               <h3 class="text-sm font-bold text-rf-text-primary">Retoure & Gutschrift erfassen</h3>
@@ -432,7 +432,7 @@
             (click)="closeReturnModal()"
             class="p-1.5 rounded-xl text-rf-text-muted hover:text-rf-text-primary transition cursor-pointer"
           >
-            <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+            <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
           </button>
         </div>
 
@@ -652,10 +652,10 @@
               [disabled]="returnForm.invalid || isProcessingReturn()"
               class="linear-btn-primary px-5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-lg shadow-rose-500/25 bg-rose-600 hover:bg-rose-500 border-rose-500 disabled:opacity-40"
             >
-              <lucide-icon
-                [img]="isProcessingReturn() ? sparklesIcon : receiptIcon"
+              <svg
+                [lucideIcon]="isProcessingReturn() ? sparklesIcon : receiptIcon"
                 class="w-4 h-4"
-              ></lucide-icon>
+              ></svg>
               <span>{{
                 isProcessingReturn()
                   ? 'Wird gebucht...'

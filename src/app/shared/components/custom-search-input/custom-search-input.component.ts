@@ -11,11 +11,9 @@ import {
   viewChild,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { LucideAngularModule, Search, X } from 'lucide-angular';
 
 @Component({
   selector: 'app-custom-search-input',
-  imports: [LucideAngularModule],
   templateUrl: './custom-search-input.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
@@ -44,9 +42,6 @@ export class CustomSearchInputComponent implements ControlValueAccessor {
   readonly clear = output<void>();
 
   readonly isDisabled = signal<boolean>(false);
-
-  readonly searchIcon = Search;
-  readonly xIcon = X;
 
   private onChange: (value: string) => void = () => {};
   private onTouched: () => void = () => {};

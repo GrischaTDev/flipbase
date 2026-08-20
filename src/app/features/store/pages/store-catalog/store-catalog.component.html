@@ -8,7 +8,7 @@
       <div
         class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 text-slate-800 border border-slate-200 text-xs font-semibold shadow-2xs"
       >
-        <lucide-icon [img]="sparklesIcon" class="w-3.5 h-3.5 text-slate-600"></lucide-icon>
+        <svg [lucideIcon]="sparklesIcon" class="w-3.5 h-3.5 text-slate-600"></svg>
         <span>Geprüfte Markenware & Schnäppchen</span>
         <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
         <span class="text-emerald-700 font-bold">100% Funktionsgarantie</span>
@@ -37,10 +37,10 @@
             placeholder="Artikel, Marke oder Modell suchen..."
             class="w-full pl-10 pr-4 py-3 rounded-2xl text-xs font-medium placeholder-slate-400 bg-slate-50 text-slate-900 border border-slate-200 shadow-xs focus:border-slate-400 focus:bg-white outline-none transition"
           />
-          <lucide-icon
-            [img]="searchIcon"
+          <svg
+            [lucideIcon]="searchIcon"
             class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"
-          ></lucide-icon>
+          ></svg>
         </div>
 
         <button
@@ -49,7 +49,7 @@
           class="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-sm shadow-slate-900/20 transition shrink-0"
         >
           <span>Alle Angebote</span>
-          <lucide-icon [img]="arrowRightIcon" class="w-4 h-4"></lucide-icon>
+          <svg [lucideIcon]="arrowRightIcon" class="w-4 h-4"></svg>
         </button>
       </div>
 
@@ -61,7 +61,7 @@
           <div
             class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0"
           >
-            <lucide-icon [img]="shieldIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="shieldIcon" class="w-4 h-4"></svg>
           </div>
           <div>
             <span class="font-extrabold text-slate-900 block text-xs">100% Geprüft</span>
@@ -75,7 +75,7 @@
           <div
             class="w-8 h-8 rounded-lg bg-slate-200 text-slate-800 flex items-center justify-center shrink-0"
           >
-            <lucide-icon [img]="truckIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="truckIcon" class="w-4 h-4"></svg>
           </div>
           <div>
             <span class="font-extrabold text-slate-900 block text-xs">&lt; 24h Versand</span>
@@ -89,7 +89,7 @@
           <div
             class="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0"
           >
-            <lucide-icon [img]="returnIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="returnIcon" class="w-4 h-4"></svg>
           </div>
           <div>
             <span class="font-extrabold text-slate-900 block text-xs">14 Tage</span>
@@ -103,7 +103,7 @@
           <div
             class="w-8 h-8 rounded-lg bg-amber-50 text-amber-500 flex items-center justify-center shrink-0"
           >
-            <lucide-icon [img]="starIcon" class="w-4 h-4 fill-amber-400"></lucide-icon>
+            <svg [lucideIcon]="starIcon" class="w-4 h-4 fill-amber-400"></svg>
           </div>
           <div>
             <span class="font-extrabold text-slate-900 block text-xs">4.9 / 5.0</span>
@@ -122,7 +122,7 @@
       <div
         class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center"
       >
-        <lucide-icon [img]="shieldIcon" class="w-4.5 h-4.5"></lucide-icon>
+        <svg [lucideIcon]="shieldIcon" class="w-4.5 h-4.5"></svg>
       </div>
       <h3 class="font-bold text-sm text-slate-900">Geprüfte Qualität</h3>
       <p class="text-xs text-slate-600 leading-relaxed">
@@ -135,7 +135,7 @@
       class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:border-slate-400 transition"
     >
       <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center">
-        <lucide-icon [img]="truckIcon" class="w-4.5 h-4.5"></lucide-icon>
+        <svg [lucideIcon]="truckIcon" class="w-4.5 h-4.5"></svg>
       </div>
       <h3 class="font-bold text-sm text-slate-900">Blitzschneller Versand</h3>
       <p class="text-xs text-slate-600 leading-relaxed">
@@ -147,7 +147,7 @@
       class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:border-slate-400 transition"
     >
       <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center">
-        <lucide-icon [img]="returnIcon" class="w-4.5 h-4.5"></lucide-icon>
+        <svg [lucideIcon]="returnIcon" class="w-4.5 h-4.5"></svg>
       </div>
       <h3 class="font-bold text-sm text-slate-900">14 Tage Rückgaberecht</h3>
       <p class="text-xs text-slate-600 leading-relaxed">
@@ -159,7 +159,7 @@
       class="bg-white rounded-2xl p-5 space-y-2 border border-slate-200 shadow-xs hover:border-slate-400 transition"
     >
       <div class="w-9 h-9 rounded-xl bg-slate-100 text-slate-800 flex items-center justify-center">
-        <lucide-icon [img]="percentIcon" class="w-4.5 h-4.5"></lucide-icon>
+        <svg [lucideIcon]="percentIcon" class="w-4.5 h-4.5"></svg>
       </div>
       <h3 class="font-bold text-sm text-slate-900">Rechtssicher § 25a UStG</h3>
       <p class="text-xs text-slate-600 leading-relaxed">
@@ -177,7 +177,7 @@
           <div
             class="w-8 h-8 rounded-xl bg-slate-100 text-slate-900 flex items-center justify-center border border-slate-200"
           >
-            <lucide-icon [img]="flameIcon" class="w-4 h-4 text-rose-600"></lucide-icon>
+            <svg [lucideIcon]="flameIcon" class="w-4 h-4 text-rose-600"></svg>
           </div>
           <div>
             <h2 class="text-lg font-black text-slate-900 tracking-tight">Aktuelle Top-Deals</h2>
@@ -193,7 +193,7 @@
           class="text-xs font-bold text-slate-900 hover:text-slate-600 flex items-center gap-1 cursor-pointer"
         >
           <span>Alle Deals</span>
-          <lucide-icon [img]="arrowRightIcon" class="w-3.5 h-3.5"></lucide-icon>
+          <svg [lucideIcon]="arrowRightIcon" class="w-3.5 h-3.5"></svg>
         </button>
       </div>
 
@@ -211,7 +211,7 @@
               <div
                 class="absolute top-3 right-3 z-20 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-900 text-white text-[10px] font-black shadow-xs"
               >
-                <lucide-icon [img]="zapIcon" class="w-3 h-3 text-amber-400"></lucide-icon>
+                <svg [lucideIcon]="zapIcon" class="w-3 h-3 text-amber-400"></svg>
                 <span>-{{ discount }}%</span>
               </div>
             }
@@ -230,7 +230,7 @@
                 <div
                   class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100"
                 >
-                  <lucide-icon [img]="tagIcon" class="w-10 h-10 mb-1"></lucide-icon>
+                  <svg [lucideIcon]="tagIcon" class="w-10 h-10 mb-1"></svg>
                   <span class="text-[10px]">Produktfoto</span>
                 </div>
               }
@@ -294,9 +294,9 @@
                   [title]="addedItemId() === item.id ? 'Im Warenkorb!' : 'In den Warenkorb'"
                 >
                   @if (addedItemId() === item.id) {
-                    <lucide-icon [img]="checkIcon" class="w-4 h-4 text-emerald-300"></lucide-icon>
+                    <svg [lucideIcon]="checkIcon" class="w-4 h-4 text-emerald-300"></svg>
                   } @else {
-                    <lucide-icon [img]="bagIcon" class="w-4 h-4"></lucide-icon>
+                    <svg [lucideIcon]="bagIcon" class="w-4 h-4"></svg>
                   }
                 </button>
               </div>
@@ -398,7 +398,7 @@
         <div
           class="w-14 h-14 rounded-2xl bg-slate-100 border border-slate-200 text-slate-400 mx-auto flex items-center justify-center"
         >
-          <lucide-icon [img]="searchIcon" class="w-6 h-6"></lucide-icon>
+          <svg [lucideIcon]="searchIcon" class="w-6 h-6"></svg>
         </div>
         <h3 class="text-base font-bold text-slate-900">Keine Artikel gefunden</h3>
         <p class="text-xs text-slate-500 max-w-sm mx-auto">
@@ -437,7 +437,7 @@
                 <div
                   class="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-slate-100"
                 >
-                  <lucide-icon [img]="tagIcon" class="w-10 h-10 mb-1"></lucide-icon>
+                  <svg [lucideIcon]="tagIcon" class="w-10 h-10 mb-1"></svg>
                   <span class="text-[10px]">Produktbild folgt</span>
                 </div>
               }
@@ -512,13 +512,10 @@
                   [title]="addedItemId() === item.id ? 'Im Warenkorb!' : 'In den Warenkorb'"
                 >
                   @if (addedItemId() === item.id) {
-                    <lucide-icon
-                      [img]="checkIcon"
-                      class="w-3.5 h-3.5 text-emerald-300"
-                    ></lucide-icon>
+                    <svg [lucideIcon]="checkIcon" class="w-3.5 h-3.5 text-emerald-300"></svg>
                     <span class="text-[11px] text-emerald-200">Drin!</span>
                   } @else {
-                    <lucide-icon [img]="bagIcon" class="w-3.5 h-3.5"></lucide-icon>
+                    <svg [lucideIcon]="bagIcon" class="w-3.5 h-3.5"></svg>
                     <span class="text-[11px]">Kaufen</span>
                   }
                 </button>
@@ -539,7 +536,7 @@
         <span
           class="text-xs font-bold uppercase tracking-wider text-emerald-700 flex items-center gap-1.5"
         >
-          <lucide-icon [img]="sparklesIcon" class="w-4 h-4 text-emerald-600"></lucide-icon>
+          <svg [lucideIcon]="sparklesIcon" class="w-4 h-4 text-emerald-600"></svg>
           <span>Clever einkaufen • Umwelt schonen</span>
         </span>
         <h2 class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
@@ -587,11 +584,11 @@
   <section class="space-y-6">
     <div class="text-center max-w-xl mx-auto space-y-2">
       <div class="flex items-center justify-center gap-1 text-amber-400">
-        <lucide-icon [img]="starIcon" class="w-4 h-4 fill-amber-400"></lucide-icon>
-        <lucide-icon [img]="starIcon" class="w-4 h-4 fill-amber-400"></lucide-icon>
-        <lucide-icon [img]="starIcon" class="w-4 h-4 fill-amber-400"></lucide-icon>
-        <lucide-icon [img]="starIcon" class="w-4 h-4 fill-amber-400"></lucide-icon>
-        <lucide-icon [img]="starIcon" class="w-4 h-4 fill-amber-400"></lucide-icon>
+        <svg [lucideIcon]="starIcon" class="w-4 h-4 fill-amber-400"></svg>
+        <svg [lucideIcon]="starIcon" class="w-4 h-4 fill-amber-400"></svg>
+        <svg [lucideIcon]="starIcon" class="w-4 h-4 fill-amber-400"></svg>
+        <svg [lucideIcon]="starIcon" class="w-4 h-4 fill-amber-400"></svg>
+        <svg [lucideIcon]="starIcon" class="w-4 h-4 fill-amber-400"></svg>
       </div>
       <h2 class="text-2xl font-black text-slate-900 tracking-tight">Das sagen unsere Kunden</h2>
       <p class="text-xs text-slate-500">Echte Bewertungen von zufriedenen Käufern</p>
@@ -605,7 +602,7 @@
           <div class="space-y-2">
             <div class="flex items-center gap-1 text-amber-400">
               @for (s of [1, 2, 3, 4, 5]; track s) {
-                <lucide-icon [img]="starIcon" class="w-3.5 h-3.5 fill-amber-400"></lucide-icon>
+                <svg [lucideIcon]="starIcon" class="w-3.5 h-3.5 fill-amber-400"></svg>
               }
             </div>
             <p class="text-xs text-slate-700 leading-relaxed italic">"{{ test.text }}"</p>
@@ -633,7 +630,7 @@
       <div
         class="w-10 h-10 rounded-2xl bg-slate-100 text-slate-800 mx-auto flex items-center justify-center"
       >
-        <lucide-icon [img]="helpIcon" class="w-5 h-5"></lucide-icon>
+        <svg [lucideIcon]="helpIcon" class="w-5 h-5"></svg>
       </div>
       <h2 class="text-2xl font-black text-slate-900 tracking-tight">Häufige Fragen (FAQ)</h2>
       <p class="text-xs text-slate-500">Alles Wichtige zu Zustand, Versand und Bezahlung</p>
@@ -650,11 +647,11 @@
             class="w-full p-4 sm:p-5 text-left flex items-center justify-between gap-4 font-bold text-xs sm:text-sm text-slate-900 hover:text-slate-600 transition cursor-pointer"
           >
             <span>{{ faq.question }}</span>
-            <lucide-icon
-              [img]="chevronDownIcon"
+            <svg
+              [lucideIcon]="chevronDownIcon"
               class="w-4 h-4 text-slate-400 transition-transform duration-200"
               [class.rotate-180]="openFaqIndex() === i"
-            ></lucide-icon>
+            ></svg>
           </button>
 
           @if (openFaqIndex() === i) {
@@ -676,7 +673,7 @@
     <div
       class="w-12 h-12 rounded-2xl bg-slate-800 text-white mx-auto flex items-center justify-center shadow-md"
     >
-      <lucide-icon [img]="mailIcon" class="w-6 h-6"></lucide-icon>
+      <svg [lucideIcon]="mailIcon" class="w-6 h-6"></svg>
     </div>
 
     <div class="space-y-1">
@@ -691,7 +688,7 @@
       <div
         class="p-4 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold max-w-md mx-auto animate-fade-in flex items-center justify-center gap-2"
       >
-        <lucide-icon [img]="checkCircleIcon" class="w-4 h-4 text-emerald-300"></lucide-icon>
+        <svg [lucideIcon]="checkCircleIcon" class="w-4 h-4 text-emerald-300"></svg>
         <span>Vielen Dank! Du bist nun für den Deal-Alert registriert.</span>
       </div>
     } @else {

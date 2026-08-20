@@ -2,20 +2,20 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
-  LucideAngularModule,
-  Store,
-  Users,
-  Plus,
-  Trash2,
-  CheckCircle2,
-  Building,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideStore as Store,
+  LucideUsers as Users,
+  LucidePlus as Plus,
+  LucideTrash2 as Trash2,
+  LucideCheckCircle2 as CheckCircle2,
+  LucideBuilding as Building,
+} from '@lucide/angular';
 import { SourcesService } from '../../core/services/sources.service';
 import { SuppliersService } from '../../core/services/suppliers.service';
 
 @Component({
   selector: 'app-sources',
-  imports: [ReactiveFormsModule, TranslatePipe, LucideAngularModule],
+  imports: [ReactiveFormsModule, TranslatePipe, LucideDynamicIcon],
   templateUrl: './sources.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,

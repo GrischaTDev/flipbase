@@ -10,23 +10,23 @@ import {
 import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
-  LucideAngularModule,
-  Layers,
-  Globe,
-  LogOut,
-  User as UserIcon,
-  Plus,
-  Menu,
-  Sun,
-  Moon,
-  Bell,
-  CheckCheck,
-  Trash2,
-  Sparkles,
-  Smartphone,
-  WifiOff,
-  Settings,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideLayers as Layers,
+  LucideGlobe as Globe,
+  LucideLogOut as LogOut,
+  LucideUser as UserIcon,
+  LucidePlus as Plus,
+  LucideMenu as Menu,
+  LucideSun as Sun,
+  LucideMoon as Moon,
+  LucideBell as Bell,
+  LucideCheckCheck as CheckCheck,
+  LucideTrash2 as Trash2,
+  LucideSparkles as Sparkles,
+  LucideSmartphone as Smartphone,
+  LucideWifiOff as WifiOff,
+  LucideSettings as Settings,
+} from '@lucide/angular';
 import { AuthService } from '../../core/services/auth.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { WorkspaceMemberService } from '../../core/services/workspace-member.service';
@@ -38,7 +38,7 @@ import { DatePipe } from '@angular/common';
 
 @Component({
   selector: 'app-header',
-  imports: [RouterLink, TranslatePipe, LucideAngularModule, DatePipe],
+  imports: [RouterLink, TranslatePipe, LucideDynamicIcon, DatePipe],
   templateUrl: './header.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {

@@ -20,10 +20,7 @@
       <div
         class="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-xs shadow-indigo-500/25"
       >
-        <lucide-icon
-          [img]="logoIcon"
-          class="w-3.5 h-3.5 text-rf-text-primary stroke-[2.5]"
-        ></lucide-icon>
+        <svg [lucideIcon]="logoIcon" class="w-3.5 h-3.5 text-rf-text-primary stroke-[2.5]"></svg>
       </div>
       <div class="flex items-center gap-1.5">
         <span class="tracking-tight font-bold text-sm text-rf-text-primary">ReFlip</span>
@@ -40,7 +37,7 @@
       (click)="close.emit()"
       class="md:hidden p-1 rounded-md text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
     >
-      <lucide-icon [img]="closeIcon" class="w-4 h-4"></lucide-icon>
+      <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
     </button>
   </div>
 
@@ -57,10 +54,10 @@
         (click)="close.emit()"
         class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >
-        <lucide-icon
-          [img]="item.icon"
+        <svg
+          [lucideIcon]="item.icon"
           class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-indigo-400 shrink-0"
-        ></lucide-icon>
+        ></svg>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
@@ -76,10 +73,10 @@
         (click)="close.emit()"
         class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >
-        <lucide-icon
-          [img]="item.icon"
+        <svg
+          [lucideIcon]="item.icon"
           class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-indigo-400 shrink-0"
-        ></lucide-icon>
+        ></svg>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
@@ -95,10 +92,10 @@
         (click)="close.emit()"
         class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-rf-text-secondary hover:text-rf-text-primary hover:bg-rf-surface-hover transition group border border-transparent"
       >
-        <lucide-icon
-          [img]="item.icon"
+        <svg
+          [lucideIcon]="item.icon"
           class="w-3.5 h-3.5 text-rf-text-muted group-hover:text-rf-text-primary group-[.font-semibold]:text-indigo-400 shrink-0"
-        ></lucide-icon>
+        ></svg>
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }

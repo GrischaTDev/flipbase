@@ -22,7 +22,7 @@
         (click)="isAddingSource.set(!isAddingSource())"
         class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs cursor-pointer"
       >
-        <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5 stroke-[2.5]"></lucide-icon>
+        <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5 stroke-[2.5]"></svg>
         <span>Quelle anlegen</span>
       </button>
     } @else {
@@ -31,7 +31,7 @@
         (click)="isAddingSupplier.set(!isAddingSupplier())"
         class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs cursor-pointer"
       >
-        <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5 stroke-[2.5]"></lucide-icon>
+        <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5 stroke-[2.5]"></svg>
         <span>Lieferant anlegen</span>
       </button>
     }
@@ -164,7 +164,7 @@
             <div
               class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
             >
-              <lucide-icon [img]="storeIcon" class="w-4 h-4"></lucide-icon>
+              <svg [lucideIcon]="storeIcon" class="w-4 h-4"></svg>
             </div>
             <div>
               <h3 class="text-xs font-semibold text-rf-text-primary">{{ src.name }}</h3>
@@ -180,7 +180,7 @@
               (click)="onDeleteSource(src.id)"
               class="p-1 text-rf-text-muted hover:text-rose-400 rounded-md hover:bg-rf-line transition cursor-pointer"
             >
-              <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+              <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
             </button>
           }
         </div>
@@ -199,7 +199,7 @@
                 <div
                   class="w-7 h-7 rounded-lg bg-blue-500/15 border border-blue-500/30 text-blue-400 flex items-center justify-center"
                 >
-                  <lucide-icon [img]="buildingIcon" class="w-3.5 h-3.5"></lucide-icon>
+                  <svg [lucideIcon]="buildingIcon" class="w-3.5 h-3.5"></svg>
                 </div>
                 <h3 class="text-xs font-semibold text-rf-text-primary">{{ sup.name }}</h3>
               </div>
@@ -209,7 +209,7 @@
                 (click)="onDeleteSupplier(sup.id)"
                 class="p-1 text-rf-text-muted hover:text-rose-400 transition cursor-pointer"
               >
-                <lucide-icon [img]="trashIcon" class="w-3.5 h-3.5"></lucide-icon>
+                <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
               </button>
             </div>
 
@@ -232,7 +232,7 @@
         <div
           class="w-10 h-10 rounded-lg bg-rf-well border border-rf-line text-rf-text-muted mx-auto flex items-center justify-center mb-3"
         >
-          <lucide-icon [img]="usersIcon" class="w-5 h-5"></lucide-icon>
+          <svg [lucideIcon]="usersIcon" class="w-5 h-5"></svg>
         </div>
         <h3 class="text-sm font-bold text-rf-text-secondary">Noch keine Lieferanten angelegt</h3>
         <p class="text-xs text-rf-text-muted max-w-sm mx-auto mt-1 mb-4">
@@ -244,7 +244,7 @@
           (click)="isAddingSupplier.set(true)"
           class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs transition cursor-pointer"
         >
-          <lucide-icon [img]="plusIcon" class="w-3.5 h-3.5"></lucide-icon>
+          <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
           <span>Lieferant erfassen</span>
         </button>
       </div>

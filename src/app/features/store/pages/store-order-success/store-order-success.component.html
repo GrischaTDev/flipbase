@@ -7,7 +7,7 @@
       <div
         class="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 mx-auto flex items-center justify-center shadow-md shadow-emerald-500/20"
       >
-        <lucide-icon [img]="checkIcon" class="w-8 h-8"></lucide-icon>
+        <svg [lucideIcon]="checkIcon" class="w-8 h-8"></svg>
       </div>
 
       <div class="space-y-1">
@@ -86,7 +86,7 @@
           class="p-4 rounded-2xl bg-slate-100 border border-slate-200 text-left space-y-2 text-xs"
         >
           <div class="flex items-center gap-2 font-bold text-slate-900">
-            <lucide-icon [img]="bankIcon" class="w-4 h-4 text-slate-700"></lucide-icon>
+            <svg [lucideIcon]="bankIcon" class="w-4 h-4 text-slate-700"></svg>
             <span>Überweisungsinformationen</span>
           </div>
           <p class="text-[11px] text-slate-600">
@@ -130,7 +130,7 @@
           (click)="openInvoice()"
           class="px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 shadow-xs transition"
         >
-          <lucide-icon [img]="fileIcon" class="w-4 h-4 text-slate-700"></lucide-icon>
+          <svg [lucideIcon]="fileIcon" class="w-4 h-4 text-slate-700"></svg>
           <span>§ 25a Rechnung drucken</span>
         </button>
 
@@ -138,7 +138,7 @@
           routerLink="/shop"
           class="px-6 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer bg-slate-900 hover:bg-slate-800 text-white shadow-sm transition"
         >
-          <lucide-icon [img]="bagIcon" class="w-4 h-4"></lucide-icon>
+          <svg [lucideIcon]="bagIcon" class="w-4 h-4"></svg>
           <span>Weiter einkaufen</span>
         </a>
 

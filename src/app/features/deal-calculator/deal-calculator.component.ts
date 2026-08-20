@@ -3,16 +3,16 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { CurrencyPipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
-  LucideAngularModule,
-  Calculator,
-  TrendingUp,
-  Sparkles,
-  ShieldCheck,
-  Zap,
-  ArrowRight,
-  Info,
-  Camera,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideCalculator as Calculator,
+  LucideTrendingUp as TrendingUp,
+  LucideSparkles as Sparkles,
+  LucideShieldCheck as ShieldCheck,
+  LucideZap as Zap,
+  LucideArrowRight as ArrowRight,
+  LucideInfo as Info,
+  LucideCamera as Camera,
+} from '@lucide/angular';
 import {
   ProfitEngineService,
   DealEvaluationResult,
@@ -27,7 +27,7 @@ import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner
     ReactiveFormsModule,
     CurrencyPipe,
     TranslatePipe,
-    LucideAngularModule,
+    LucideDynamicIcon,
     BarcodeScannerComponent,
   ],
   templateUrl: './deal-calculator.component.html',

@@ -5,7 +5,7 @@
       <div
         class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-700 text-rf-on-accent mb-3 shadow-lg shadow-emerald-500/20"
       >
-        <lucide-icon [img]="logoIcon" class="w-6 h-6"></lucide-icon>
+        <svg [lucideIcon]="logoIcon" class="w-6 h-6"></svg>
       </div>
       <h1 class="text-2xl font-extrabold text-rf-text-primary tracking-tight">ReFlip</h1>
       <p class="text-xs text-rf-text-muted mt-1">Entscheidungs- und Finanzsystem für Reseller</p>
@@ -36,7 +36,7 @@
           <div
             class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
           >
-            <lucide-icon [img]="mailIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="mailIcon" class="w-4 h-4"></svg>
           </div>
           <input
             id="email"
@@ -59,7 +59,7 @@
           <div
             class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
           >
-            <lucide-icon [img]="lockIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="lockIcon" class="w-4 h-4"></svg>
           </div>
           <input
             id="password"
@@ -76,7 +76,7 @@
         [disabled]="form.invalid || isLoading()"
         class="w-full mt-2 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-rf-on-accent font-bold text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition flex items-center justify-center gap-2 cursor-pointer"
       >
-        <lucide-icon [img]="loginIcon" class="w-4 h-4"></lucide-icon>
+        <svg [lucideIcon]="loginIcon" class="w-4 h-4"></svg>
         <span>{{
           isLoading() ? ('COMMON.LOADING' | translate) : ('AUTH.SUBMIT_LOGIN' | translate)
         }}</span>
@@ -98,7 +98,7 @@
             (click)="onDemoLogin()"
             class="w-full py-2.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 font-bold text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
           >
-            <lucide-icon [img]="zapIcon" class="w-4 h-4 text-amber-400"></lucide-icon>
+            <svg [lucideIcon]="zapIcon" class="w-4 h-4 text-amber-400"></svg>
             <span>Demo-Modus starten (ohne Anmeldung)</span>
           </button>
 

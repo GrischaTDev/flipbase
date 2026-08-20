@@ -2,12 +2,19 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
-import { LucideAngularModule, LogIn, Sparkles, Mail, Lock, Zap } from 'lucide-angular';
+import {
+  LucideDynamicIcon,
+  LucideLogIn as LogIn,
+  LucideSparkles as Sparkles,
+  LucideMail as Mail,
+  LucideLock as Lock,
+  LucideZap as Zap,
+} from '@lucide/angular';
 import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, LucideAngularModule],
+  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, LucideDynamicIcon],
   templateUrl: './login.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,

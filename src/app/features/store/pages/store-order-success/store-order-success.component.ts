@@ -2,17 +2,17 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import {
-  LucideAngularModule,
-  CheckCircle2,
-  Package,
-  Truck,
-  Building,
-  ArrowRight,
-  ShoppingBag,
-  FileText,
-  Printer,
-  Mail,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideCheckCircle2 as CheckCircle2,
+  LucidePackage as Package,
+  LucideTruck as Truck,
+  LucideBuilding as Building,
+  LucideArrowRight as ArrowRight,
+  LucideShoppingBag as ShoppingBag,
+  LucideFileText as FileText,
+  LucidePrinter as Printer,
+  LucideMail as Mail,
+} from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
 import { InvoiceService } from '../../../../core/services/invoice.service';
 import { StoreOrder } from '../../../../core/models/store.models';
@@ -21,7 +21,7 @@ import { InvoiceModalComponent } from '../../../../shared/components/invoice-mod
 
 @Component({
   selector: 'app-store-order-success',
-  imports: [RouterLink, CurrencyPipe, LucideAngularModule, InvoiceModalComponent],
+  imports: [RouterLink, CurrencyPipe, LucideDynamicIcon, InvoiceModalComponent],
   templateUrl: './store-order-success.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,

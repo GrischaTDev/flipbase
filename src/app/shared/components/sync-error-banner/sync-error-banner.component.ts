@@ -1,5 +1,9 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { LucideAngularModule, AlertTriangle, X } from 'lucide-angular';
+import {
+  LucideDynamicIcon,
+  LucideAlertTriangle as AlertTriangle,
+  LucideX as X,
+} from '@lucide/angular';
 import { SyncStatusService } from '../../../core/services/sync-status.service';
 
 /**
@@ -15,7 +19,7 @@ import { SyncStatusService } from '../../../core/services/sync-status.service';
  */
 @Component({
   selector: 'app-sync-error-banner',
-  imports: [LucideAngularModule],
+  imports: [LucideDynamicIcon],
   templateUrl: './sync-error-banner.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

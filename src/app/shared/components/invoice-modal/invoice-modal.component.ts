@@ -1,23 +1,23 @@
 import { ChangeDetectionStrategy, Component, inject, input, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
-  LucideAngularModule,
-  Printer,
-  X,
-  Mail,
-  CheckCircle2,
-  FileText,
-  Building,
-  User,
-  Send,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucidePrinter as Printer,
+  LucideX as X,
+  LucideMail as Mail,
+  LucideCheckCircle2 as CheckCircle2,
+  LucideFileText as FileText,
+  LucideBuilding as Building,
+  LucideUser as User,
+  LucideSend as Send,
+} from '@lucide/angular';
 import { Invoice } from '../../../core/models/invoice.models';
 import { InvoiceService } from '../../../core/services/invoice.service';
 import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 
 @Component({
   selector: 'app-invoice-modal',
-  imports: [ModalDialogDirective, CurrencyPipe, DatePipe, LucideAngularModule],
+  imports: [ModalDialogDirective, CurrencyPipe, DatePipe, LucideDynamicIcon],
   templateUrl: './invoice-modal.component.html',
   styleUrl: './invoice-modal.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

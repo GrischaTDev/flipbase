@@ -4,7 +4,7 @@
     routerLink="/shop"
     class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 transition cursor-pointer"
   >
-    <lucide-icon [img]="backIcon" class="w-4 h-4"></lucide-icon>
+    <svg [lucideIcon]="backIcon" class="w-4 h-4"></svg>
     <span>Zurück zum Shop</span>
   </a>
 
@@ -272,7 +272,7 @@
             <div
               class="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200"
             >
-              <lucide-icon [img]="lockIcon" class="w-3 h-3 text-emerald-600"></lucide-icon>
+              <svg [lucideIcon]="lockIcon" class="w-3 h-3 text-emerald-600"></svg>
               <span>256-Bit SSL Verschlüsselt</span>
             </div>
           </div>
@@ -295,7 +295,7 @@
                     class="text-slate-900 cursor-pointer w-4 h-4"
                   />
                   <div class="flex items-center gap-2">
-                    <lucide-icon [img]="cardIcon" class="w-4 h-4 text-slate-700"></lucide-icon>
+                    <svg [lucideIcon]="cardIcon" class="w-4 h-4 text-slate-700"></svg>
                     <div>
                       <strong class="text-xs text-slate-900 block font-bold"
                         >Kreditkarte & Debitkarte (Stripe)</strong
@@ -405,7 +405,7 @@
                     class="text-slate-900 cursor-pointer w-4 h-4"
                   />
                   <div class="flex items-center gap-2">
-                    <lucide-icon [img]="cardIcon" class="w-4 h-4 text-blue-600"></lucide-icon>
+                    <svg [lucideIcon]="cardIcon" class="w-4 h-4 text-blue-600"></svg>
                     <div>
                       <strong class="text-xs text-slate-900 block font-bold">PayPal Express</strong>
                       <span class="text-[10px] text-slate-500"
@@ -426,10 +426,7 @@
                   class="p-3 bg-white border border-slate-200 rounded-xl text-xs space-y-1 animate-fade-in shadow-2xs"
                 >
                   <div class="flex items-center gap-1.5 text-slate-900 font-bold text-[11px]">
-                    <lucide-icon
-                      [img]="shieldIcon"
-                      class="w-3.5 h-3.5 text-emerald-600"
-                    ></lucide-icon>
+                    <svg [lucideIcon]="shieldIcon" class="w-3.5 h-3.5 text-emerald-600"></svg>
                     <span>PayPal Käuferschutz aktiv</span>
                   </div>
                   <p class="text-[10px] text-slate-600 leading-tight">
@@ -457,7 +454,7 @@
                     class="text-slate-900 cursor-pointer w-4 h-4"
                   />
                   <div class="flex items-center gap-2">
-                    <lucide-icon [img]="bankIcon" class="w-4 h-4 text-slate-700"></lucide-icon>
+                    <svg [lucideIcon]="bankIcon" class="w-4 h-4 text-slate-700"></svg>
                     <div>
                       <strong class="text-xs text-slate-900 block font-bold"
                         >Banküberweisung / SEPA Vorkasse</strong
@@ -498,10 +495,10 @@
                         class="p-1 rounded bg-slate-100 text-slate-600 hover:text-slate-900 cursor-pointer"
                         title="IBAN kopieren"
                       >
-                        <lucide-icon
-                          [img]="isIbanCopied() ? checkCheckIcon : copyIcon"
+                        <svg
+                          [lucideIcon]="isIbanCopied() ? checkCheckIcon : copyIcon"
                           class="w-3 h-3"
-                        ></lucide-icon>
+                        ></svg>
                       </button>
                     </div>
                   </div>
@@ -531,7 +528,7 @@
                   class="text-slate-900 cursor-pointer w-4 h-4"
                 />
                 <div class="flex items-center gap-2">
-                  <lucide-icon [img]="cashIcon" class="w-4 h-4 text-slate-700"></lucide-icon>
+                  <svg [lucideIcon]="cashIcon" class="w-4 h-4 text-slate-700"></svg>
                   <div>
                     <strong class="text-xs text-slate-900 block font-bold"
                       >Barzahlung bei Abholung</strong
@@ -640,7 +637,7 @@
               ></div>
               <span>Zahlung wird verarbeitet...</span>
             } @else {
-              <lucide-icon [img]="lockIcon" class="w-4 h-4"></lucide-icon>
+              <svg [lucideIcon]="lockIcon" class="w-4 h-4"></svg>
               <span
                 >Zahlungspflichtig bestellen ({{
                   storeService.cartTotal() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'

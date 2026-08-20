@@ -7,7 +7,7 @@
       <div
         class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-700 text-rf-on-accent mb-3 shadow-lg shadow-emerald-500/20"
       >
-        <lucide-icon [img]="logoIcon" class="w-6 h-6"></lucide-icon>
+        <svg [lucideIcon]="logoIcon" class="w-6 h-6"></svg>
       </div>
       <h1 class="text-2xl font-extrabold text-rf-text-primary tracking-tight">ReFlip</h1>
       <p class="text-xs text-rf-text-muted mt-0.5">Entscheidungs- und Finanzsystem für Reseller</p>
@@ -21,7 +21,7 @@
       <div
         class="p-3 mb-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs flex items-start gap-2 animate-fade-in"
       >
-        <lucide-icon [img]="alertIcon" class="w-4 h-4 mt-0.5 shrink-0"></lucide-icon>
+        <svg [lucideIcon]="alertIcon" class="w-4 h-4 mt-0.5 shrink-0"></svg>
         <span>{{ errorMessage() }}</span>
       </div>
     }
@@ -31,7 +31,7 @@
       <div
         class="p-3 mb-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs flex items-center gap-2 animate-fade-in"
       >
-        <lucide-icon [img]="checkIcon" class="w-4 h-4 shrink-0"></lucide-icon>
+        <svg [lucideIcon]="checkIcon" class="w-4 h-4 shrink-0"></svg>
         <span>{{ successMessage() }}</span>
       </div>
     }
@@ -50,7 +50,7 @@
           <div
             class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
           >
-            <lucide-icon [img]="userIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="userIcon" class="w-4 h-4"></svg>
           </div>
           <input
             id="regFullName"
@@ -80,7 +80,7 @@
           <div
             class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
           >
-            <lucide-icon [img]="mailIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="mailIcon" class="w-4 h-4"></svg>
           </div>
           <input
             id="regEmail"
@@ -110,7 +110,7 @@
           <div
             class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
           >
-            <lucide-icon [img]="lockIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="lockIcon" class="w-4 h-4"></svg>
           </div>
           <input
             id="regPassword"
@@ -126,10 +126,7 @@
             class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-rf-text-muted hover:text-rf-text-primary cursor-pointer transition"
             [attr.aria-label]="showPassword() ? 'Passwort verbergen' : 'Passwort anzeigen'"
           >
-            <lucide-icon
-              [img]="showPassword() ? eyeOffIcon : eyeIcon"
-              class="w-4 h-4"
-            ></lucide-icon>
+            <svg [lucideIcon]="showPassword() ? eyeOffIcon : eyeIcon" class="w-4 h-4"></svg>
           </button>
         </div>
 
@@ -175,7 +172,7 @@
           <div
             class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-rf-text-muted"
           >
-            <lucide-icon [img]="lockIcon" class="w-4 h-4"></lucide-icon>
+            <svg [lucideIcon]="lockIcon" class="w-4 h-4"></svg>
           </div>
           <input
             id="regConfirmPassword"
@@ -193,10 +190,7 @@
             class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-rf-text-muted hover:text-rf-text-primary cursor-pointer transition"
             [attr.aria-label]="showConfirmPassword() ? 'Passwort verbergen' : 'Passwort anzeigen'"
           >
-            <lucide-icon
-              [img]="showConfirmPassword() ? eyeOffIcon : eyeIcon"
-              class="w-4 h-4"
-            ></lucide-icon>
+            <svg [lucideIcon]="showConfirmPassword() ? eyeOffIcon : eyeIcon" class="w-4 h-4"></svg>
           </button>
         </div>
 
@@ -208,7 +202,7 @@
         }
         @if (isPasswordMatch) {
           <p class="text-[11px] text-emerald-400 mt-1 pl-1 flex items-center gap-1">
-            <lucide-icon [img]="checkIcon" class="w-3.5 h-3.5"></lucide-icon>
+            <svg [lucideIcon]="checkIcon" class="w-3.5 h-3.5"></svg>
             <span>{{ 'AUTH.PASSWORD_MATCH_OK' | translate }}</span>
           </p>
         }
@@ -255,7 +249,7 @@
         [disabled]="form.invalid || isLoading()"
         class="w-full mt-3 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-rf-on-accent font-bold text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 cursor-pointer"
       >
-        <lucide-icon [img]="registerIcon" class="w-4 h-4"></lucide-icon>
+        <svg [lucideIcon]="registerIcon" class="w-4 h-4"></svg>
         <span>{{
           isLoading() ? ('COMMON.LOADING' | translate) : ('AUTH.SUBMIT_REGISTER' | translate)
         }}</span>

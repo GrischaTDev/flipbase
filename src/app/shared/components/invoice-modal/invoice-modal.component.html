@@ -16,7 +16,7 @@
         <div
           class="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center"
         >
-          <lucide-icon [img]="fileIcon" class="w-5 h-5"></lucide-icon>
+          <svg [lucideIcon]="fileIcon" class="w-5 h-5"></svg>
         </div>
         <div>
           <div class="flex items-center gap-2">
@@ -50,7 +50,7 @@
             ></div>
             <span>Wird gesendet...</span>
           } @else {
-            <lucide-icon [img]="sendIcon" class="w-3.5 h-3.5 text-indigo-400"></lucide-icon>
+            <svg [lucideIcon]="sendIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
             <span>E-Mail senden</span>
           }
         </button>
@@ -61,7 +61,7 @@
           (click)="printInvoice()"
           class="linear-btn-primary px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
         >
-          <lucide-icon [img]="printerIcon" class="w-3.5 h-3.5"></lucide-icon>
+          <svg [lucideIcon]="printerIcon" class="w-3.5 h-3.5"></svg>
           <span>Drucken / Als PDF speichern</span>
         </button>
 
@@ -71,7 +71,7 @@
           (click)="close.emit()"
           class="p-1.5 rounded-xl text-rf-text-muted hover:text-rf-text-primary hover:bg-rf-surface-hover cursor-pointer"
         >
-          <lucide-icon [img]="closeIcon" class="w-5 h-5"></lucide-icon>
+          <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
         </button>
       </div>
     </div>
@@ -81,7 +81,7 @@
       <div
         class="px-5 py-2.5 bg-emerald-500/15 border-b border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2 print:hidden animate-fade-in"
       >
-        <lucide-icon [img]="checkIcon" class="w-4 h-4"></lucide-icon>
+        <svg [lucideIcon]="checkIcon" class="w-4 h-4"></svg>
         <span>{{ emailSentMessage() }}</span>
       </div>
     }

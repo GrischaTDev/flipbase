@@ -11,16 +11,16 @@ import {
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
 import {
-  LucideAngularModule,
-  Camera,
-  X,
-  Zap,
-  ZapOff,
-  SwitchCamera,
-  Search,
-  CheckCircle2,
-  AlertCircle,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideCamera as Camera,
+  LucideX as X,
+  LucideZap as Zap,
+  LucideZapOff as ZapOff,
+  LucideSwitchCamera as SwitchCamera,
+  LucideSearch as Search,
+  LucideCheckCircle2 as CheckCircle2,
+  LucideAlertCircle as AlertCircle,
+} from '@lucide/angular';
 
 declare class BarcodeDetector {
   constructor(options?: { formats: string[] });
@@ -30,7 +30,7 @@ declare class BarcodeDetector {
 
 @Component({
   selector: 'app-barcode-scanner',
-  imports: [ModalDialogDirective, ReactiveFormsModule, LucideAngularModule],
+  imports: [ModalDialogDirective, ReactiveFormsModule, LucideDynamicIcon],
   templateUrl: './barcode-scanner.component.html',
   styleUrl: './barcode-scanner.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

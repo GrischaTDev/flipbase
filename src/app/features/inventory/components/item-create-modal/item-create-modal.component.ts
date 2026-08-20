@@ -1,17 +1,17 @@
 import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
-  LucideAngularModule,
-  X,
-  Plus,
-  Boxes,
-  Sparkles,
-  Camera,
-  Barcode,
-  Image,
-  Trash2,
-  Crop,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideX as X,
+  LucidePlus as Plus,
+  LucideBoxes as Boxes,
+  LucideSparkles as Sparkles,
+  LucideCamera as Camera,
+  LucideBarcode as Barcode,
+  LucideImage as Image,
+  LucideTrash2 as Trash2,
+  LucideCrop as Crop,
+} from '@lucide/angular';
 import { InventoryService, CreateItemPayload } from '../../../../core/services/inventory.service';
 import { PurchaseService } from '../../../../core/services/purchase.service';
 import { MediaService } from '../../../../core/services/media.service';
@@ -41,7 +41,7 @@ import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog
     ModalDialogDirective,
     ReactiveFormsModule,
     DatePipe,
-    LucideAngularModule,
+    LucideDynamicIcon,
     BarcodeScannerComponent,
     AiPhotoScannerModalComponent,
     ImageCropperModalComponent,

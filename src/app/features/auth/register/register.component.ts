@@ -11,18 +11,18 @@ import {
 import { Router, RouterLink } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
-  LucideAngularModule,
-  UserPlus,
-  Sparkles,
-  Mail,
-  Lock,
-  User,
-  Eye,
-  EyeOff,
-  CheckCircle2,
-  ShieldCheck,
-  AlertCircle,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideUserPlus as UserPlus,
+  LucideSparkles as Sparkles,
+  LucideMail as Mail,
+  LucideLock as Lock,
+  LucideUser as User,
+  LucideEye as Eye,
+  LucideEyeOff as EyeOff,
+  LucideCheckCircle2 as CheckCircle2,
+  LucideShieldCheck as ShieldCheck,
+  LucideAlertCircle as AlertCircle,
+} from '@lucide/angular';
 import { AuthService } from '../../../core/services/auth.service';
 import { CustomCheckboxComponent } from '../../../shared/components/custom-checkbox/custom-checkbox.component';
 
@@ -40,7 +40,7 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
     ReactiveFormsModule,
     RouterLink,
     TranslatePipe,
-    LucideAngularModule,
+    LucideDynamicIcon,
     CustomCheckboxComponent,
   ],
   templateUrl: './register.component.html',

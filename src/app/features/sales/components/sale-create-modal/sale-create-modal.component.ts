@@ -10,15 +10,15 @@ import {
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CurrencyPipe } from '@angular/common';
 import {
-  LucideAngularModule,
-  X,
-  Plus,
-  TrendingUp,
-  DollarSign,
-  Calendar,
-  Tag,
-  ShieldCheck,
-} from 'lucide-angular';
+  LucideDynamicIcon,
+  LucideX as X,
+  LucidePlus as Plus,
+  LucideTrendingUp as TrendingUp,
+  LucideDollarSign as DollarSign,
+  LucideCalendar as Calendar,
+  LucideTag as Tag,
+  LucideShieldCheck as ShieldCheck,
+} from '@lucide/angular';
 import { SalesService, CreateSalePayload } from '../../../../core/services/sales.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
@@ -26,7 +26,7 @@ import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog
 
 @Component({
   selector: 'app-sale-create-modal',
-  imports: [ModalDialogDirective, ReactiveFormsModule, CurrencyPipe, LucideAngularModule],
+  imports: [ModalDialogDirective, ReactiveFormsModule, CurrencyPipe, LucideDynamicIcon],
   templateUrl: './sale-create-modal.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
