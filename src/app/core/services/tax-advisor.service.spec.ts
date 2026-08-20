@@ -80,7 +80,6 @@ describe('TaxAdvisorService & DATEV Export Engine (Chapter 24)', () => {
           purchase_price: 300,
           shipping_cost: 0,
           purchase_date: '2026-08-01',
-          status: 'active',
         } as Purchase,
       ],
       [{ id: 's1', sale_price: 450, platform_fee: 15, shipping_cost: 5 } as Sale],

@@ -22,6 +22,10 @@ describe('Analytics & Break-Even Engine (Phase 5)', () => {
   it('should calculate platform profitability and fee ratios', () => {
     const sampleSales: Sale[] = [
       {
+        inventory_item_id: 'item-test',
+        shipping_cost: 0,
+        packaging_cost: 0,
+        other_costs: 0,
         id: 's-1',
         workspace_id: 'ws-1',
         platform: 'ebay',
@@ -33,6 +37,10 @@ describe('Analytics & Break-Even Engine (Phase 5)', () => {
         created_at: '2026-08-01',
       },
       {
+        inventory_item_id: 'item-test',
+        shipping_cost: 0,
+        packaging_cost: 0,
+        other_costs: 0,
         id: 's-2',
         workspace_id: 'ws-1',
         platform: 'kleinanzeigen',
@@ -60,6 +68,11 @@ describe('Analytics & Break-Even Engine (Phase 5)', () => {
   it('should calculate holding duration velocity buckets and turnover rate', () => {
     const sampleSales: Sale[] = [
       {
+        inventory_item_id: 'item-test',
+        platform_fee: 0,
+        shipping_cost: 0,
+        packaging_cost: 0,
+        other_costs: 0,
         id: 's-1',
         workspace_id: 'ws-1',
         platform: 'ebay',
@@ -71,6 +84,11 @@ describe('Analytics & Break-Even Engine (Phase 5)', () => {
         created_at: '2026-08-01',
       },
       {
+        inventory_item_id: 'item-test',
+        platform_fee: 0,
+        shipping_cost: 0,
+        packaging_cost: 0,
+        other_costs: 0,
         id: 's-2',
         workspace_id: 'ws-1',
         platform: 'ebay',
@@ -109,6 +127,12 @@ describe('Analytics & Break-Even Engine (Phase 5)', () => {
 
     const sales: Sale[] = [
       {
+        inventory_item_id: 'item-test',
+        platform: 'ebay',
+        platform_fee: 0,
+        shipping_cost: 0,
+        packaging_cost: 0,
+        other_costs: 0,
         id: 's-1',
         workspace_id: 'ws-1',
         sale_date: '2026-01-20',
@@ -134,7 +158,7 @@ describe('Analytics & Break-Even Engine (Phase 5)', () => {
       purchase_price: 1500.0,
       total_purchase_cost: 1700.0,
       cost_allocation_mode: 'even',
-      item_count: 50,
+      items_count: 50,
       created_at: '2026-08-01T10:00:00Z',
       updated_at: '2026-08-01T10:00:00Z',
     };

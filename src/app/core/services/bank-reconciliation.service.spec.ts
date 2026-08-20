@@ -130,6 +130,7 @@ describe('BankReconciliationService', () => {
       {
         id: 'ord-test-1',
         orderNumber: 'ORD-100200',
+        status: 'confirmed',
         createdAt: '2026-08-15T10:00:00Z',
         items: [],
         customer: {
@@ -175,6 +176,7 @@ describe('BankReconciliationService', () => {
       {
         id: 'ord-book-1',
         orderNumber: 'ORD-BOOK-99',
+        status: 'confirmed',
         createdAt: '2026-08-15T10:00:00Z',
         items: [],
         customer: {

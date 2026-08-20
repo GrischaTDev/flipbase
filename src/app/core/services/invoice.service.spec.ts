@@ -74,7 +74,7 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
         zip: '12045',
         city: 'Berlin',
         country: 'Deutschland',
-        shippingMethod: 'standard',
+        shippingMethod: 'dhl_standard',
         paymentMethod: 'stripe_card',
       },
       items: [

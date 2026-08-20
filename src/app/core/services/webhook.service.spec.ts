@@ -48,6 +48,11 @@ describe('Webhook & Notification Service', () => {
 
   it('should send in-app notification when sale occurs', async () => {
     const sampleSale: Sale = {
+      inventory_item_id: 'item-test',
+      platform_fee: 0,
+      shipping_cost: 0,
+      packaging_cost: 0,
+      other_costs: 0,
       id: 'sale-test-1',
       workspace_id: 'ws-1',
       platform: 'kleinanzeigen',

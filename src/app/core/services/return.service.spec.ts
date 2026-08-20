@@ -13,6 +13,8 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
   });
 
   const sampleSale: Sale = {
+    packaging_cost: 0,
+    other_costs: 0,
     id: 'sale-99',
     workspace_id: 'ws-1',
     inventory_item_id: 'item-99',
@@ -26,6 +28,7 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
   };
 
   const sampleItem: InventoryItem = {
+    condition: 'used',
     id: 'item-99',
     workspace_id: 'ws-1',
     title: 'Nintendo Switch OLED',

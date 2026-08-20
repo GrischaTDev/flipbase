@@ -28,6 +28,12 @@ jobs:
       - name: Statische Analyse
         run: npm run lint
 
+      # Vitest entfernt Typen nur, es prueft sie nicht - und der Anwendungsbau
+      # schliesst die Tests aus. Ohne diesen Schritt bleiben Typfehler in
+      # Testdaten unsichtbar.
+      - name: Typen pruefen
+        run: npm run typecheck
+
       - name: Tests
         run: npm test
 

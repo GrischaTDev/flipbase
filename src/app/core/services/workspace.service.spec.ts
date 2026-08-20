@@ -54,6 +54,10 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
   it('should calculate consolidated holding summary across workspaces', () => {
     const sampleSales: Sale[] = [
       {
+        platform_fee: 0,
+        shipping_cost: 0,
+        packaging_cost: 0,
+        other_costs: 0,
         id: 's-1',
         workspace_id: 'ws-1',
         inventory_item_id: 'item-1',
@@ -68,17 +72,20 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
 
     const samplePurchases: Purchase[] = [
       {
+        type: 'single',
+        title: 'Testeinkauf',
+        cost_allocation_mode: 'even',
         id: 'p-1',
         workspace_id: 'ws-1',
         purchase_date: '2026-08-10',
         purchase_price: 120,
         shipping_cost: 0,
-        status: 'active',
       },
     ];
 
     const sampleItems: InventoryItem[] = [
       {
+        condition: 'used',
         id: 'item-1',
         workspace_id: 'ws-1',
         title: 'Sony Alpha 7 Kamera',

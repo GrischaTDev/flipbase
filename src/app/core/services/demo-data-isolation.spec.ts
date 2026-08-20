@@ -58,6 +58,7 @@ describe('Beispieldaten dürfen nur im Demo-Modus entstehen', () => {
     const store = neuerStore();
     store.isDemoMode.set(true);
     store.savePurchase({
+      cost_allocation_mode: 'even',
       id: 'echt-1',
       workspace_id: 'ws-echt',
       type: 'single',
@@ -77,6 +78,7 @@ describe('Beispieldaten dürfen nur im Demo-Modus entstehen', () => {
     const store = neuerStore();
     store.isDemoMode.set(true);
     store.savePurchase({
+      cost_allocation_mode: 'even',
       id: 'echt-1',
       workspace_id: 'ws-echt',
       type: 'single',
@@ -104,6 +106,7 @@ describe('Beispieldaten dürfen nur im Demo-Modus entstehen', () => {
       title: 'Sollte nicht ankommen',
       purchase_date: '2026-08-19',
       purchase_price: 10,
+      cost_allocation_mode: 'even' as const,
     };
 
     it('schreibt keinen Einkauf, solange der Demo-Modus aus ist', () => {

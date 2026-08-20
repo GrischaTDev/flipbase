@@ -13,13 +13,73 @@ describe('Research & Pricing Engine (Phase 6)', () => {
 
   it('should calculate accurate statistical metrics and exclude outliers (Chapter 18)', () => {
     const mockItems: ResearchComparisonItem[] = [
-      { id: '1', title: 'Comps 1', price: 50.0, source: 'ebay_sold', isExcluded: false },
-      { id: '2', title: 'Comps 2', price: 60.0, source: 'ebay_sold', isExcluded: false },
-      { id: '3', title: 'Comps 3', price: 70.0, source: 'kleinanzeigen', isExcluded: false },
-      { id: '4', title: 'Comps 4', price: 80.0, source: 'vinted', isExcluded: false },
-      { id: '5', title: 'Comps 5', price: 90.0, source: 'ebay_sold', isExcluded: false },
+      {
+        id: '1',
+        title: 'Comps 1',
+        price: 50.0,
+        source: 'ebay_sold',
+        imageUrl: '',
+        url: '',
+        date: '2026-08-01',
+        condition: 'used',
+        isExcluded: false,
+      },
+      {
+        id: '2',
+        title: 'Comps 2',
+        price: 60.0,
+        source: 'ebay_sold',
+        imageUrl: '',
+        url: '',
+        date: '2026-08-01',
+        condition: 'used',
+        isExcluded: false,
+      },
+      {
+        id: '3',
+        title: 'Comps 3',
+        price: 70.0,
+        source: 'kleinanzeigen',
+        imageUrl: '',
+        url: '',
+        date: '2026-08-01',
+        condition: 'used',
+        isExcluded: false,
+      },
+      {
+        id: '4',
+        title: 'Comps 4',
+        price: 80.0,
+        source: 'vinted',
+        imageUrl: '',
+        url: '',
+        date: '2026-08-01',
+        condition: 'used',
+        isExcluded: false,
+      },
+      {
+        id: '5',
+        title: 'Comps 5',
+        price: 90.0,
+        source: 'ebay_sold',
+        imageUrl: '',
+        url: '',
+        date: '2026-08-01',
+        condition: 'used',
+        isExcluded: false,
+      },
       // Outlier excluded
-      { id: '6', title: 'Mondpreis Outlier', price: 999.0, source: 'ebay_sold', isExcluded: true },
+      {
+        id: '6',
+        title: 'Mondpreis Outlier',
+        price: 999.0,
+        source: 'ebay_sold',
+        imageUrl: '',
+        url: '',
+        date: '2026-08-01',
+        condition: 'used',
+        isExcluded: true,
+      },
     ];
 
     const summary = researchService.calculateSummary(mockItems, 25.0);
@@ -35,9 +95,39 @@ describe('Research & Pricing Engine (Phase 6)', () => {
 
   it('should generate all 3 Pricing Strategies (Quick Sale, Fair Market, High Margin) (Chapter 19)', () => {
     const mockItems: ResearchComparisonItem[] = [
-      { id: '1', title: 'Comps 1', price: 60.0, source: 'ebay_sold', isExcluded: false },
-      { id: '2', title: 'Comps 2', price: 70.0, source: 'ebay_sold', isExcluded: false },
-      { id: '3', title: 'Comps 3', price: 80.0, source: 'kleinanzeigen', isExcluded: false },
+      {
+        id: '1',
+        title: 'Comps 1',
+        price: 60.0,
+        source: 'ebay_sold',
+        imageUrl: '',
+        url: '',
+        date: '2026-08-01',
+        condition: 'used',
+        isExcluded: false,
+      },
+      {
+        id: '2',
+        title: 'Comps 2',
+        price: 70.0,
+        source: 'ebay_sold',
+        imageUrl: '',
+        url: '',
+        date: '2026-08-01',
+        condition: 'used',
+        isExcluded: false,
+      },
+      {
+        id: '3',
+        title: 'Comps 3',
+        price: 80.0,
+        source: 'kleinanzeigen',
+        imageUrl: '',
+        url: '',
+        date: '2026-08-01',
+        condition: 'used',
+        isExcluded: false,
+      },
     ];
 
     const baseCost = 25.0;
