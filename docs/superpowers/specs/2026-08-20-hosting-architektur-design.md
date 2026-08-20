@@ -19,7 +19,8 @@ gehostet wird.
 | Shop und ReFlip trennen? | **Ja, nach Domain getrennt** | ReFlip ist das Werkzeug, Wiehenstore die Kundenmarke. Ein Shop braucht seine eigene Domain. |
 | Mehrmandantenfähigkeit jetzt bauen? | **Nein, bewusst zurückgestellt** | Es gibt einen Nutzer und einen Shop. Die Grenze lässt sich später ziehen; `store_settings` hält das Impressum bereits pro Shop. |
 | Getrennte Angular-Builds? | **Nein, eine App** | Ein Bundle für beide Domains. Der Kunde lädt dabei den Dashboard-Code mit – bei einem kleinen Shop hinnehmbar. Aufteilen, wenn es stört. |
-| Dashboard-Domain | **`app.n3odev.de`** | Technische Verwaltungsadresse, unabhängig von der Shop-Marke. Kein Domainkauf nötig. |
+| Dashboard-Domain | **`app.flipbase.de`** | Eigene Domain fuer das Werkzeug, unabhaengig von der Shop-Marke. |
+| Domainname fuer das Werkzeug | **`flipbase.de`** | `reflip.de` ist vergeben, nur `re-flip.de` waere frei gewesen – ein Bindestrich im Namen ist auf Dauer laestig. Gepruefte Alternativen: `flipkontor.de`, `resellwerk.de`. `flippilot` schied aus (bestehende US-Flipping-Software). Das niederlaendische Flipbase hat sich inzwischen in "Video Intakes" umbenannt; anderes Land, anderes Geschaeftsfeld. Beworben wird spaeter das Produkt, nicht der Name. |
 | Hosting | **Eigener Server statt netcup-Webhosting** | Shared Hosting kann weder Docker noch Supabase noch Edge Functions. Der fertige Container aus Phase 7 läuft auf dem Server unverändert. |
 | Datenbank | **Supabase selbst gehostet** | Volle Kontrolle über Geschäfts- und Steuerdaten; Preis. Gegenleistung: Sicherungen und Updates liegen beim Betreiber. |
 | Anbieter | **Hetzner CX33** (4 Kerne, 8 GB, 80 GB) | Nach Preisvergleich mit netcup, Contabo und Hostinger. netcup wäre bei mehr Plattenplatz ähnlich teuer; entschieden wurde für Hetzner. |
@@ -39,8 +40,8 @@ gehostet wird.
 Server 168.119.246.33 (Hetzner CX33, Ubuntu 26.04 LTS)
 │
 ├── Caddy ─────────────────── Ports 80/443, Zertifikate automatisch
-│   ├── api.n3odev.de ....... Supabase (API offen, Studio hinter Passwort)
-│   ├── app.n3odev.de ....... ReFlip-Dashboard, noindex
+│   ├── api.flipbase.de ....... Supabase (API offen, Studio hinter Passwort)
+│   ├── app.flipbase.de ....... ReFlip-Dashboard, noindex
 │   └── wiehenstore.de ...... Shop (später, siehe offene Punkte)
 │
 ├── reflip-web .............. Angular-App hinter nginx, Container aus Phase 7
@@ -81,7 +82,7 @@ Server 168.119.246.33 (Hetzner CX33, Ubuntu 26.04 LTS)
 - **Healthcheck schlug immer fehl:** `http://localhost/healthz` löst im Container
   zuerst auf IPv6 auf, nginx lauscht nur auf IPv4. Jetzt `127.0.0.1`.
 - **CSP hätte die Anwendung lahmgelegt:** `connect-src` erlaubte nur die lokale
-  Entwicklungsdatenbank. Jetzt `https://api.n3odev.de` und `wss://` für Realtime.
+  Entwicklungsdatenbank. Jetzt `https://api.flipbase.de` und `wss://` für Realtime.
 
 ---
 
