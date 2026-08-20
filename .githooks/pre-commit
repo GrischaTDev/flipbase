@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# Formatiert die vorgemerkten Dateien, bevor der Commit entsteht.
+#
+# Hintergrund: Die CI prueft die Formatierung mit `prettier --check`. Wird eine
+# Datei von Hand oder per Skript bearbeitet und danach nicht formatiert, faellt
+# das erst auf GitHub auf - der Lauf ist rot, obwohl inhaltlich nichts fehlt.
+#
+# Bewusst ohne zusaetzliche Pakete. Aktiv wird er durch:
+#   git config core.hooksPath .githooks
+#
+# Hinweis zur Umsetzung: Die Dateiliste wird direkt weitergeleitet und nicht in
+# einer Variablen zwischengespeichert - die Shell verwirft bei der
+# Befehlsersetzung Null-Bytes, wodurch die mit -z getrennte Liste leer ankaeme.
+
+# Ohne installierte Abhaengigkeiten (frischer Klon) nicht blockieren.
+if [ ! -x "node_modules/.bin/prettier" ]; then
+  echo "pre-commit: prettier nicht installiert - Formatierung uebersprungen."
+  exit 0
+fi
+
+liste() {
+  git diff --cached --name-only --diff-filter=ACMR -z
+}
+
+if [ -z "$(git diff --cached --name-only --diff-filter=ACMR)" ]; then
+  exit 0
+fi
+
+# --ignore-unknown ueberspringt, was Prettier nicht kennt (Bilder, .sql, ...).
+# .prettierignore wird beachtet.
+if ! liste | xargs -0 node_modules/.bin/prettier --ignore-unknown --write >/dev/null 2>&1; then
+  echo "pre-commit: prettier meldete einen Fehler - Commit laeuft weiter."
+  exit 0
+fi
+
+# Die formatierten Fassungen zurueck in die Bereitstellung.
+liste | xargs -0 git add
+
+exit 0

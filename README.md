@@ -107,6 +107,23 @@ npm run build
 
 ---
 
+## 🧰 Qualitaetspruefungen
+
+Vor jedem Commit formatiert ein Git-Hook die vorgemerkten Dateien automatisch. Aktivieren nach dem Klonen:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+Die gleichen Pruefungen wie in der CI lassen sich auch von Hand ausfuehren:
+
+| Befehl              | Prueft                       |
+| ------------------- | ---------------------------- |
+| `npm run format`    | formatiert alles             |
+| `npm run lint`      | statische Analyse            |
+| `npm run typecheck` | Typen in Anwendung und Tests |
+| `npm test`          | Unit-Tests                   |
+
 ## 📄 Lizenz & Datenschutz
 
 Entwickelt für Reseller und E-Commerce-Unternehmen. 100% datenschutzkonform mit lokaler Datenspeicherung und optionalem Supabase Cloud-Backend.
