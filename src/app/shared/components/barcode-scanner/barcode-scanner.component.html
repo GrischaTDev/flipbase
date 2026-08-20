@@ -1,13 +1,12 @@
 <div
   class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-50 animate-fade-in"
   appModalDialog
+  schliesstBeiKlickAussen
   dialogTitel="Barcode scannen"
   (dialogClose)="close.emit()"
-  (click)="close.emit()"
 >
   <div
     class="linear-surface rounded-2xl shadow-2xl max-w-md w-full p-5 border border-rf-border flex flex-col space-y-4 animate-modal-card"
-    (click)="$event.stopPropagation()"
   >
     <!-- Header -->
     <div class="flex items-center justify-between pb-3 border-b border-rf-border">

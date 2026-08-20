@@ -478,13 +478,12 @@
     <div
       class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in no-print overflow-y-auto"
       appModalDialog
+      schliesstBeiKlickAussen
       dialogTitel="Versandetikett"
       (dialogClose)="closeLabelModal()"
-      (click)="closeLabelModal()"
     >
       <div
         class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6 my-auto"
-        (click)="$event.stopPropagation()"
       >
         <!-- Modal Top Bar -->
         <div class="flex items-center justify-between border-b border-rf-border pb-3">
@@ -609,13 +608,12 @@
     <div
       class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in no-print overflow-y-auto"
       appModalDialog
+      schliesstBeiKlickAussen
       dialogTitel="Lieferschein"
       (dialogClose)="closeSlipModal()"
-      (click)="closeSlipModal()"
     >
       <div
         class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6 my-auto"
-        (click)="$event.stopPropagation()"
       >
         <!-- Modal Header -->
         <div class="flex items-center justify-between border-b border-rf-border pb-3">
@@ -724,13 +722,12 @@
     <div
       class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
       appModalDialog
+      schliesstBeiKlickAussen
       dialogTitel="Sendungsverfolgung"
       (dialogClose)="closeTrackingModal()"
-      (click)="closeTrackingModal()"
     >
       <div
         class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 my-auto"
-        (click)="$event.stopPropagation()"
       >
         <div class="flex items-center justify-between border-b border-rf-border pb-3">
           <div class="flex items-center gap-2">
@@ -813,13 +810,12 @@
       <div
         class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
         appModalDialog
+        schliesstBeiKlickAussen
         dialogTitel="Einkauf erfassen"
         (dialogClose)="closePurchaseModal()"
-        (click)="closePurchaseModal()"
       >
         <div
           class="bg-rf-surface text-rf-text-secondary border border-rf-border rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 my-auto"
-          (click)="$event.stopPropagation()"
         >
           <!-- Header -->
           <div class="flex items-start justify-between border-b border-rf-border pb-3">

@@ -3,6 +3,7 @@ import {
   ElementRef,
   OnDestroy,
   afterNextRender,
+  booleanAttribute,
   inject,
   input,
   output,
@@ -20,19 +21,28 @@ import {
  * - der Fokus kehrt beim Schließen auf das auslösende Element zurück
  * - der Hintergrund lässt sich nicht scrollen, solange der Dialog offen ist
  *
- * Bewusst als Direktive und nicht als Hülle: So lassen sich die 22 bereits
- * vorhandenen Overlays mit einer Zeile nachrüsten, ohne ihr Layout anzufassen.
+ * Bewusst als Direktive und nicht als Hülle: So lassen sich die vorhandenen
+ * Overlays mit einer Zeile nachrüsten, ohne ihr Layout anzufassen.
  *
- * Verwendung am **inneren** Dialogkasten, nicht am Hintergrund:
+ * Verwendung am **Hintergrund** des Dialogs, also am `fixed inset-0`-Element:
  *
  * ```html
- * <div class="fixed inset-0 …" (click)="close.emit()">
- *   <div class="card …"
- *        appModalDialog
- *        dialogTitel="Neuen Einkauf erfassen"
- *        (dialogClose)="close.emit()"
- *        (click)="$event.stopPropagation()">
+ * <div class="fixed inset-0 …"
+ *      appModalDialog
+ *      dialogTitel="Neuen Einkauf erfassen"
+ *      (dialogClose)="close.emit()">
+ *   <div class="card …">…</div>
+ * </div>
  * ```
+ *
+ * Ein Klick auf den Hintergrund schließt den Dialog nur, wenn
+ * `schliesstBeiKlickAussen` gesetzt ist. Standard ist **aus**, damit ein
+ * Fehlklick neben einem Formular keine Eingaben verwirft.
+ *
+ * Zuvor lag diese Logik in den Templates: Der Hintergrund trug `(click)` zum
+ * Schließen und der innere Kasten `(click)="$event.stopPropagation()"`, damit
+ * Klicks im Dialog nicht durchschlagen. Beides waren aus Sicht der
+ * Barrierefreiheit Klick-Handler auf nicht bedienbaren Elementen.
  */
 @Directive({
   selector: '[appModalDialog]',
@@ -41,6 +51,7 @@ import {
     'aria-modal': 'true',
     tabindex: '-1',
     '[attr.aria-label]': 'dialogTitel() || null',
+    '(click)': 'onHintergrundKlick($event)',
     '(document:keydown.escape)': 'onEscape($event)',
     '(document:keydown.tab)': 'onTab($event)',
     '(document:keydown.shift.tab)': 'onTab($event)',
@@ -54,6 +65,12 @@ export class ModalDialogDirective implements OnDestroy {
 
   /** Ob Escape den Dialog schließt. Bei Dialogen mit Datenverlustgefahr abschaltbar. */
   readonly schliesstMitEscape = input<boolean>(true);
+
+  /**
+   * Ob ein Klick auf den Hintergrund den Dialog schließt. Standard: nein.
+   * Bei Formulardialogen bewusst aus, damit ein Fehlklick nichts verwirft.
+   */
+  readonly schliesstBeiKlickAussen = input(false, { transform: booleanAttribute });
 
   readonly dialogClose = output<void>();
 
@@ -73,6 +90,17 @@ export class ModalDialogDirective implements OnDestroy {
     // Fokus dorthin zurückgeben, wo er herkam – sonst springt er an den
     // Seitenanfang und der Nutzer verliert die Orientierung.
     this.zuvorFokussiert?.focus?.();
+  }
+
+  /**
+   * Schließt bei einem Klick auf den Hintergrund. Klicks im Dialog haben ein
+   * inneres Element als Ziel und lösen deshalb nicht aus - ein
+   * `stopPropagation` in den Templates ist dadurch überflüssig.
+   */
+  protected onHintergrundKlick(event: Event): void {
+    if (!this.schliesstBeiKlickAussen()) return;
+    if (event.target !== this.host.nativeElement) return;
+    this.dialogClose.emit();
   }
 
   protected onEscape(event: Event): void {
