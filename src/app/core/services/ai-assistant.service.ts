@@ -174,15 +174,16 @@ export class AiAssistantService {
       ''
     ).toLowerCase();
 
-    // Default recognition patterns for visual AI
-    let title = 'Elektronik- & Gebrauchtartikel';
-    let brand: string | null = null;
-    let model: string | null = null;
-    let category = 'Allgemeine Gebrauchtwaren';
-    let condition: ItemCondition = 'very_good';
-    let conditionNotes = 'Optisch gepflegter Zustand, keine gravierenden Mängel erkennbar.';
-    let estimatedMarketValue = 75.0;
-    let confidenceScore = 0.88;
+    // Jeder Zweig der folgenden Kette setzt alle Werte, der letzte ist ein
+    // else - Vorgabewerte waeren deshalb toter Code.
+    let title: string;
+    let brand: string | null;
+    let model: string | null;
+    let category: string;
+    let condition: ItemCondition;
+    let conditionNotes: string;
+    let estimatedMarketValue: number;
+    let confidenceScore: number;
     const detectedLabels: string[] = ['Secondhand', 'Geprüft'];
 
     if (hint.includes('ps5') || hint.includes('playstation') || hint.includes('sony')) {

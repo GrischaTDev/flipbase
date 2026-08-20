@@ -64,8 +64,8 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly chevronIcon = ChevronDown;
   readonly checkIcon = Check;
 
-  private onChange: (value: T | null) => void = () => {};
-  private onTouched: () => void = () => {};
+  private onChange: (value: T | null) => void = () => undefined;
+  private onTouched: () => void = () => undefined;
 
   readonly effectiveDisabled = computed(() => this.disabledInput() || this.isDisabled());
 

@@ -43,8 +43,8 @@ export class CustomSearchInputComponent implements ControlValueAccessor {
 
   readonly isDisabled = signal<boolean>(false);
 
-  private onChange: (value: string) => void = () => {};
-  private onTouched: () => void = () => {};
+  private onChange: (value: string) => void = () => undefined;
+  private onTouched: () => void = () => undefined;
 
   readonly effectiveDisabled = computed(() => this.disabledInput() || this.isDisabled());
 

@@ -337,7 +337,7 @@ export class BankReconciliationService {
       }
 
       const isCredit = headerLine.includes('CR') || headerLine.includes('C');
-      const amountMatch = headerLine.match(/[CD]R?([0-9]+[,\.][0-9]{2})/);
+      const amountMatch = headerLine.match(/[CD]R?([0-9]+[,.][0-9]{2})/);
       let amount = 0;
       if (amountMatch) {
         amount = parseFloat(amountMatch[1].replace(',', '.'));
@@ -820,8 +820,7 @@ export class BankReconciliationService {
     let current = '';
     let inQuotes = false;
 
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
+    for (const char of line) {
       if (char === '"') {
         inQuotes = !inQuotes;
       } else if (char === delimiter && !inQuotes) {
