@@ -8,22 +8,22 @@
 # Authelia mit Anmeldeseite und zweitem Faktor.
 # ---------------------------------------------------------------------------
 {$PROXY_DOMAIN} {
-    @supabase_api path /auth/v1/* /rest/v1/* /graphql/v1 /realtime/v1/* /storage/v1/* /functions/v1/* /mcp /sso/*
+	@supabase_api path /auth/v1/* /rest/v1/* /graphql/v1 /realtime/v1/* /storage/v1/* /functions/v1/* /mcp /sso/*
 
-    handle @supabase_api {
-        reverse_proxy api-gw:8000
-    }
+	handle @supabase_api {
+		reverse_proxy api-gw:8000
+	}
 
-    handle {
-        forward_auth authelia:9091 {
-            uri /api/authz/forward-auth
-            copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
-        }
+	handle {
+		forward_auth authelia:9091 {
+			uri /api/authz/forward-auth
+			copy_headers Remote-User Remote-Groups Remote-Name Remote-Email
+		}
 
-        reverse_proxy studio:3000
-    }
+		reverse_proxy studio:3000
+	}
 
-    header -server
+	header -server
 }
 
 # ---------------------------------------------------------------------------
@@ -32,10 +32,10 @@
 # niemand anmelden.
 # ---------------------------------------------------------------------------
 auth.flipbase.de {
-    reverse_proxy authelia:9091
+	reverse_proxy authelia:9091
 
-    header X-Robots-Tag "noindex, nofollow"
-    header -server
+	header X-Robots-Tag "noindex, nofollow"
+	header -server
 }
 
 # ---------------------------------------------------------------------------
@@ -44,11 +44,11 @@ auth.flipbase.de {
 # deshalb reicht Caddy die Antwort unveraendert durch.
 # ---------------------------------------------------------------------------
 app.flipbase.de {
-    reverse_proxy reflip-web:80
+	reverse_proxy reflip-web:80
 
-    # Verwaltungsoberflaeche gehoert nicht in Suchmaschinen.
-    header X-Robots-Tag "noindex, nofollow"
-    header -server
+	# Verwaltungsoberflaeche gehoert nicht in Suchmaschinen.
+	header X-Robots-Tag "noindex, nofollow"
+	header -server
 }
 
 # ---------------------------------------------------------------------------
@@ -56,24 +56,24 @@ app.flipbase.de {
 # www leitet auf die nackte Domain, damit es spaeter nur eine Adresse gibt.
 # ---------------------------------------------------------------------------
 www.flipbase.de {
-    redir https://flipbase.de{uri} permanent
-    header -server
+	redir https://flipbase.de{uri} permanent
+	header -server
 }
 
 flipbase.de {
-    root * /srv/landing
-    file_server
-    encode zstd gzip
+	root * /srv/landing
+	file_server
+	encode zstd gzip
 
-    header {
-        -server
-        X-Content-Type-Options nosniff
-        X-Frame-Options DENY
-        Referrer-Policy strict-origin-when-cross-origin
-        # Die Seite enthaelt kein JavaScript und laedt nichts von fremden Servern.
-        Content-Security-Policy "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
-    }
+	header {
+		-server
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		# Die Seite enthaelt kein JavaScript und laedt nichts von fremden Servern.
+		Content-Security-Policy "default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
+	}
 
-    header /fonts/* Cache-Control "public, max-age=31536000, immutable"
-    header /index.html Cache-Control "no-cache"
+	header /fonts/* Cache-Control "public, max-age=31536000, immutable"
+	header /index.html Cache-Control "no-cache"
 }
