@@ -39,7 +39,7 @@
       }
 
       <form [formGroup]="form" (ngSubmit)="onSubmit()" class="space-y-4">
-        <!-- 1. Einkaufstyp Selector (Kapitel 8) -->
+        <!-- 1. Einkaufstyp Selector -->
         <div>
           <span
             class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1.5"
@@ -203,6 +203,11 @@
                 <option [value]="src.id">{{ src.name }}</option>
               }
             </select>
+            <p class="text-[10px] text-fb-text-muted mt-1 leading-relaxed">
+              <strong class="text-fb-text-secondary">Wo</strong> gekauft: der Kanal, z. B.
+              Kleinanzeigen oder Flohmarkt. Die Auswertung zeigt dir später, welcher Kanal die beste
+              Marge bringt.
+            </p>
           </div>
 
           <div>
@@ -251,6 +256,11 @@
                 <option [value]="sup.id">{{ sup.name }}</option>
               }
             </select>
+            <p class="text-[10px] text-fb-text-muted mt-1 leading-relaxed">
+              <strong class="text-fb-text-secondary">Bei wem</strong> gekauft: die Person oder
+              Firma. Lohnt sich, wenn du dort wieder kaufst oder reklamieren willst – auf dem
+              Flohmarkt darf das Feld leer bleiben.
+            </p>
           </div>
         </div>
 
@@ -258,8 +268,12 @@
         @if (form.get('type')?.value === 'single') {
           <div class="p-3.5 rounded-xl bg-fb-well border border-fb-line space-y-2.5">
             <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
-              Artikel-Initialisierung (Kapitel 8: 1 Kauf → 1 Inventar-Artikel)
+              Angaben zum Artikel
             </span>
+            <p class="text-[10px] text-fb-text-muted leading-relaxed">
+              Aus einem Einzelkauf wird ein Artikel im Inventar – mit dem Titel des Einkaufs und den
+              gesamten Einkaufskosten.
+            </p>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               <div>

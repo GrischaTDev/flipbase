@@ -95,13 +95,16 @@ export class PurchaseService {
   });
 
   /**
-   * Ein Einzelkauf ist selbst der Artikel und zaehlt daher als einer, auch
-   * wenn dafuer (noch) kein eigener Inventareintrag angelegt wurde.
+   * Zaehlt die Artikel eines Einkaufs.
+   *
+   * Frueher galt ein Einzelkauf als ein Artikel, auch ohne Inventareintrag -
+   * eine Notluege, weil beim Anlegen keiner erzeugt wurde. Seit
+   * `legeEinzelartikelAn` das nachholt, zaehlt hier schlicht, was es gibt.
+   * Einzelkaeufe von frueher stehen deshalb auf 0, bis ein Artikel erfasst
+   * wird; die Detailseite zeigte dort ohnehin schon eine leere Liste.
    */
   private zaehleArtikel(einkauf: Purchase, items: InventoryItem[]): number {
-    const anzahl = items.filter((i) => i.purchase_id === einkauf.id).length;
-    if (anzahl > 0) return anzahl;
-    return einkauf.type === 'single' ? 1 : 0;
+    return items.filter((i) => i.purchase_id === einkauf.id).length;
   }
 
   constructor() {
@@ -325,6 +328,7 @@ export class PurchaseService {
     this.purchasesRaw.update((list) => [newPurchase, ...list]);
 
     if (this.mockStore.isDemoMode()) {
+      await this.legeEinzelartikelAn(newPurchase, payload);
       this.webhookService.sendPurchaseNotification(newPurchase);
       return { data: newPurchase, error: null };
     }
@@ -375,6 +379,7 @@ export class PurchaseService {
         // dauerhaft auf eine Kennung gezeigt, die es gleich nicht mehr gibt.
         // Nebeneffekt und richtig so: Scheitert das Speichern, gibt es auch
         // keine Meldung ueber einen Einkauf, den es nicht gibt.
+        await this.legeEinzelartikelAn(finalPurchase, payload);
         this.webhookService.sendPurchaseNotification(finalPurchase);
         return { data: finalPurchase, error: null };
       }
@@ -384,6 +389,38 @@ export class PurchaseService {
     }
 
     return { data: newPurchase, error: null };
+  }
+
+  /**
+   * Legt fuer einen Einzelkauf den zugehoerigen Inventar-Artikel an.
+   *
+   * Das Formular fragt bei einem Einzelkauf nach Zustand und erwartetem
+   * Marktwert und beschriftet den Kasten mit "1 Kauf -> 1 Inventar-Artikel".
+   * Genau das ist nie passiert: Die Angaben wurden mitgeschickt und
+   * weggeworfen. Die Kachel zeigte trotzdem "1 Artikel", die Detailseite
+   * "0 Posten" - beides war auf seine Weise richtig, weil es den Artikel
+   * schlicht nicht gab.
+   *
+   * Die gesamten Einkaufskosten gehen auf diesen einen Artikel, denn er ist
+   * der Einkauf. Liegt eine Sendungsnummer vor, ist er noch unterwegs und
+   * bekommt "zu pruefen" - daraus macht die Zustellmeldung spaeter
+   * "eingetroffen".
+   */
+  private async legeEinzelartikelAn(
+    einkauf: Purchase,
+    payload: CreatePurchasePayload,
+  ): Promise<void> {
+    if (einkauf.type !== 'single') return;
+
+    await this.inventory.createItem({
+      purchase_id: einkauf.id,
+      title: payload.single_item_title?.trim() || einkauf.title,
+      category: payload.single_item_category?.trim() || null,
+      condition: (payload.single_item_condition as ItemCondition) || 'used',
+      status: payload.tracking_number?.trim() ? 'needs_review' : 'received',
+      allocated_purchase_cost: einkauf.total_purchase_cost || einkauf.purchase_price,
+      expected_value: payload.single_item_expected_value ?? null,
+    });
   }
 
   /**
