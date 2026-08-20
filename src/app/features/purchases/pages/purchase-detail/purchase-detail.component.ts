@@ -140,7 +140,6 @@ export class PurchaseDetailComponent {
       p.tracking_number,
       p.tracking_carrier,
       p.tracking_status,
-      p.purchase_date,
     );
   });
 

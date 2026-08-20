@@ -3,7 +3,6 @@ import {
   TrackingCarrier,
   InboundTrackingStatus,
   InboundTrackingInfo,
-  InboundTrackingCheckpoint,
 } from '../models/flipbase.models';
 
 export interface CarrierMeta {
@@ -230,11 +229,21 @@ export class InboundTrackingService {
   /**
    * Liefert aufbereitete Tracking-Details inkl. Status, Checkpoints und Portal-Link
    */
+  /**
+   * Stellt die Angaben zu einer Sendung zusammen.
+   *
+   * Wichtig: Hier wird **nichts abgefragt**. Der Status ist der Wert, den der
+   * Nutzer selbst gesetzt hat, und die Adresse ist der Link auf die Seite des
+   * Zustellers. Frueher hat diese Stelle zusaetzlich Stationen und eine
+   * Zustellprognose erfunden - berechnet aus dem Einkaufsdatum. Das sah aus
+   * wie eine echte Auskunft, und danach wurde entschieden, ob man beim
+   * Verkaeufer reklamiert. Erfundene Daten sind an dieser Stelle schlimmer als
+   * gar keine, deshalb sind sie raus, bis eine echte Abfrage angebunden ist.
+   */
   getTrackingInfo(
     trackingNumber?: string | null,
     carrier?: TrackingCarrier | null,
     currentStatus?: InboundTrackingStatus | null,
-    purchaseDate?: string,
   ): InboundTrackingInfo | null {
     if (!trackingNumber || !trackingNumber.trim()) {
       return null;
@@ -247,9 +256,6 @@ export class InboundTrackingService {
     const statusCfg = TRACKING_STATUS_CONFIG[status];
     const trackingUrl = this.getTrackingPortalUrl(effectiveCarrier, trimmed);
 
-    // Mock realistic checkpoints based on purchase date & status
-    const checkpoints = this.generateCheckpoints(effectiveCarrier, trimmed, status, purchaseDate);
-
     return {
       carrier: effectiveCarrier,
       carrier_name: meta.name,
@@ -257,58 +263,12 @@ export class InboundTrackingService {
       status,
       status_label: statusCfg.label,
       tracking_url: trackingUrl,
-      estimated_delivery: status === 'delivered' ? null : 'Morgen, bis 14:00 Uhr',
-      last_checkpoint:
-        checkpoints.length > 0 ? checkpoints[checkpoints.length - 1].description : null,
-      checkpoints,
+      // Keine Stationen und keine Zustellprognose: Beides gaebe es nur aus
+      // einer echten Abfrage. Die Felder bleiben im Modell, damit die spaetere
+      // Anbindung sie fuellen kann, ohne dass hier etwas umgebaut wird.
+      estimated_delivery: null,
+      last_checkpoint: null,
+      checkpoints: [],
     };
-  }
-
-  private generateCheckpoints(
-    carrier: TrackingCarrier,
-    code: string,
-    status: InboundTrackingStatus,
-    dateStr?: string,
-  ): InboundTrackingCheckpoint[] {
-    const baseDate = dateStr ? new Date(dateStr) : new Date();
-    const cName = CARRIER_METAS[carrier]?.name || 'Paketdienst';
-
-    const points: InboundTrackingCheckpoint[] = [
-      {
-        timestamp: new Date(baseDate.getTime() + 1000 * 60 * 60 * 2).toISOString(),
-        status: 'pending',
-        location: 'Elektronisch übermittelt',
-        description: `Die Sendungsdaten wurden an ${cName} übermittelt.`,
-      },
-    ];
-
-    if (status === 'in_transit' || status === 'out_for_delivery' || status === 'delivered') {
-      points.push({
-        timestamp: new Date(baseDate.getTime() + 1000 * 60 * 60 * 14).toISOString(),
-        status: 'in_transit',
-        location: 'Paketzentrum',
-        description: `Sendung im Start-Paketzentrum bearbeitet und weitertransportiert.`,
-      });
-    }
-
-    if (status === 'out_for_delivery' || status === 'delivered') {
-      points.push({
-        timestamp: new Date(baseDate.getTime() + 1000 * 60 * 60 * 26).toISOString(),
-        status: 'out_for_delivery',
-        location: 'Zustellfahrzeug',
-        description: `Die Sendung befindet sich im Zustellfahrzeug.`,
-      });
-    }
-
-    if (status === 'delivered') {
-      points.push({
-        timestamp: new Date(baseDate.getTime() + 1000 * 60 * 60 * 30).toISOString(),
-        status: 'delivered',
-        location: 'Empfängeradresse / Ablageort',
-        description: `Erfolgreich zugestellt an Empfänger.`,
-      });
-    }
-
-    return points;
   }
 }

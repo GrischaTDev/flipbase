@@ -763,28 +763,11 @@
             </button>
           </div>
 
-          <!-- Checkpoints Timeline -->
-          @if (info.checkpoints && info.checkpoints.length > 0) {
-            <div class="space-y-1.5 pl-2 border-l-2 border-fb-line">
-              @for (cp of info.checkpoints; track cp.timestamp) {
-                <div class="flex items-start gap-2 pl-2">
-                  <div
-                    class="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
-                    [class.bg-emerald-400]="cp.status === 'delivered'"
-                    [class.bg-blue-400]="cp.status === 'in_transit'"
-                    [class.bg-amber-400]="cp.status === 'out_for_delivery'"
-                    [class.bg-slate-500]="cp.status === 'pending'"
-                  ></div>
-                  <div>
-                    <p class="text-[11px] text-fb-text-secondary">{{ cp.description }}</p>
-                    <p class="text-[10px] text-fb-text-dimmed">
-                      {{ cp.location }} · {{ cp.timestamp | date: 'dd.MM.yyyy, HH:mm' }}
-                    </p>
-                  </div>
-                </div>
-              }
-            </div>
-          }
+          <!-- Hinweis auf die Herkunft des Status -->
+          <p class="text-[10px] text-fb-text-muted leading-relaxed">
+            Der Status wird von dir gepflegt. Eine Abfrage beim Zusteller ist noch nicht angebunden
+            – den aktuellen Stand siehst du über den Link unten.
+          </p>
 
           <!-- Action Buttons -->
           <div class="flex flex-wrap items-center gap-2 pt-1">
@@ -806,7 +789,7 @@
               >
                 <svg [lucideIcon]="checkIcon" class="w-3 h-3"></svg>
                 <span>{{
-                  isMarkingDelivered() ? 'Sync...' : 'Zugestellt & Artikel-Status sync'
+                  isMarkingDelivered() ? 'Speichere...' : 'Als zugestellt eintragen'
                 }}</span>
               </button>
             }
