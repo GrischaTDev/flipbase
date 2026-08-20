@@ -318,8 +318,8 @@ export class StoreService {
   }
 
   async processStripePayment(
-    amount: number,
-    cardDetails: { holder: string; last4: string; brand: string },
+    _amount: number,
+    _cardDetails: { holder: string; last4: string; brand: string },
   ): Promise<{ success: boolean; transactionId: string }> {
     await new Promise((res) => setTimeout(res, 50));
     return {
@@ -328,7 +328,9 @@ export class StoreService {
     };
   }
 
-  async processPayPalPayment(amount: number): Promise<{ success: boolean; transactionId: string }> {
+  async processPayPalPayment(
+    _amount: number,
+  ): Promise<{ success: boolean; transactionId: string }> {
     await new Promise((res) => setTimeout(res, 50));
     return {
       success: true,

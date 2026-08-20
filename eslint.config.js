@@ -49,7 +49,14 @@ module.exports = tseslint.config(
       // gelten als bewusst ungenutzt.
       '@typescript-eslint/no-unused-vars': [
         'error',
-        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          // Das Muster `const { a, b, ...rest } = obj` trennt Felder bewusst
+          // ab. Die abgetrennten Namen sind dabei nie in Gebrauch - das ist
+          // der Zweck, kein Versehen.
+          ignoreRestSiblings: true,
+        },
       ],
     },
   },

@@ -1,7 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
-import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideAngularModule,
   BarChart3,

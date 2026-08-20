@@ -7,7 +7,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideAngularModule,
@@ -34,7 +34,7 @@ import { ItemCreateModalComponent } from './components/item-create-modal/item-cr
 import { AiPhotoScannerModalComponent } from '../../shared/components/ai-photo-scanner-modal/ai-photo-scanner-modal.component';
 import { InventoryLabelModalComponent } from '../../shared/components/inventory-label-modal/inventory-label-modal.component';
 import { AiVisualScanResult } from '../../core/services/ai-assistant.service';
-import { InventoryItem, ItemCondition, ItemStatus } from '../../core/models/reflip.models';
+import { InventoryItem, ItemStatus } from '../../core/models/reflip.models';
 import {
   CustomSelectComponent,
   SelectOption,

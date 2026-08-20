@@ -32,7 +32,7 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
   });
 
   it('should switch between tenant workspaces', () => {
-    const ws1 = service.workspaces()[0];
+    const _ws1 = service.workspaces()[0];
     const ws2 = service.workspaces()[1];
 
     if (ws2) {

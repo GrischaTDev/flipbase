@@ -85,7 +85,7 @@ export class PwaService {
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
     try {
-      const reg = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.register('/sw.js');
       this.swRegistered.set(true);
     } catch (err) {
       console.warn('ServiceWorker registration error:', err);

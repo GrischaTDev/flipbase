@@ -128,7 +128,6 @@ export class FulfillmentService {
     for (const [key, group] of grouped.entries()) {
       if (group.length > 1) {
         const totalItems = group.length;
-        const totalWeight = totalItems * 0.4;
         const individualShippingTotal = totalItems * 5.49;
         const bundleRate = this.availableRates[1]; // 2kg Paket
         const bundleShippingCost = bundleRate.price;

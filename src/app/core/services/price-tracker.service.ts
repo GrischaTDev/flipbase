@@ -5,7 +5,6 @@ import {
   PriceTrackedItem,
   PriceTrend,
 } from '../models/price-tracker.models';
-import { InventoryItem } from '../models/reflip.models';
 import { InventoryService } from './inventory.service';
 import { WorkspaceService } from './workspace.service';
 import { WebhookService } from './webhook.service';

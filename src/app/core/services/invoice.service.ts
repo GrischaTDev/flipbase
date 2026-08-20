@@ -397,7 +397,7 @@ export class InvoiceService {
    */
   async sendConfirmationEmail(
     invoice: Invoice,
-    trackingUrl?: string,
+    _trackingUrl?: string,
   ): Promise<{ success: boolean; message: string }> {
     const ws = this.workspaceService?.currentWorkspace();
     await new Promise((res) => setTimeout(res, 300));

@@ -72,7 +72,7 @@ export class ListingStudioService {
     }
   }
 
-  async loadDrafts(workspaceId: string): Promise<void> {
+  async loadDrafts(_workspaceId: string): Promise<void> {
     try {
       if (!this.supabase) return;
       const { data, error } = await this.supabase.client
@@ -277,7 +277,7 @@ export class ListingStudioService {
     };
   }
 
-  private buildOptimizedSeoDescription(item: InventoryItem, platform: ListingPlatform): string {
+  private buildOptimizedSeoDescription(item: InventoryItem, _platform: ListingPlatform): string {
     const conditionText = this.getConditionText(item.condition);
     const lines: string[] = [
       `Top-Angebot: ${item.brand ? item.brand + ' ' : ''}${item.title}`,
@@ -471,7 +471,7 @@ export class ListingStudioService {
     item: InventoryItem,
     price: number,
     conditionText: string,
-    options: ListingTemplateOptions,
+    _options: ListingTemplateOptions,
   ): string {
     const lines: string[] = [];
     lines.push(`${item.title}`);
@@ -494,7 +494,7 @@ export class ListingStudioService {
     item: InventoryItem,
     price: number,
     conditionText: string,
-    options: ListingTemplateOptions,
+    _options: ListingTemplateOptions,
   ): string {
     return `${item.title}
 Preis: ${price.toFixed(2)} €
@@ -539,7 +539,7 @@ ${this.buildHashtags(item).join(' ')}`.trim();
     item: InventoryItem,
     price: number,
     conditionText: string,
-    options: ListingTemplateOptions,
+    _options: ListingTemplateOptions,
   ): string {
     const lines: string[] = [];
     lines.push(`${item.title}`);
@@ -565,7 +565,7 @@ ${this.buildHashtags(item).join(' ')}`.trim();
     item: InventoryItem,
     price: number,
     conditionText: string,
-    options: ListingTemplateOptions,
+    _options: ListingTemplateOptions,
   ): string {
     return `<div class="store-product-description">
   <h3>${item.title}</h3>

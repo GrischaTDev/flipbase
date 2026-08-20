@@ -114,7 +114,7 @@ export class RealProductImageService {
     return fallbackPhotos;
   }
 
-  private getFallbackPhotography(query: string, limit: number): string[] {
+  private getFallbackPhotography(query: string, _limit: number): string[] {
     const lower = query.toLowerCase();
 
     const pool = [

@@ -129,7 +129,7 @@ export class ImageCropperModalComponent {
     }
   }
 
-  imageLoaded(image: LoadedImage): void {
+  imageLoaded(_image: LoadedImage): void {
     this.errorMessage.set(null);
   }
 

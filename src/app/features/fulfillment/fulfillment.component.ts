@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideAngularModule,
   Package,
@@ -28,7 +27,6 @@ import { FulfillmentService } from '../../core/services/fulfillment.service';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import {
   BundleCandidate,
-  CarrierRate,
   CarrierType,
   ShippingOrder,
   ShippingStatus,
@@ -122,7 +120,7 @@ export class FulfillmentComponent {
 
   async onBundleCandidate(candidate: BundleCandidate): Promise<void> {
     this.isBundling.set(true);
-    const bundled = await this.fulfillmentService.bundleOrders(candidate);
+    await this.fulfillmentService.bundleOrders(candidate);
     this.isBundling.set(false);
     this.bundleSuccessMsg.set(
       `Sammelpaket für ${candidate.customerName} erfolgreich erstellt! (${candidate.itemsCount} Artikel gebündelt, Ersparnis: ${candidate.potentialSavings.toFixed(2)} €)`,

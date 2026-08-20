@@ -3,7 +3,6 @@ import { WorkspaceService } from './workspace.service';
 import { SalesService } from './sales.service';
 import { InventoryService } from './inventory.service';
 import {
-  DatevBookingRecord,
   InventoryItem,
   Sale,
   TaxCalculationResult,

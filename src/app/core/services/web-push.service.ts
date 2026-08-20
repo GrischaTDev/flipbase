@@ -79,7 +79,7 @@ export class WebPushService {
       const res = await Notification.requestPermission();
       this.permission.set(res as any);
       return res === 'granted';
-    } catch (err) {
+    } catch (_err) {
       return false;
     }
   }

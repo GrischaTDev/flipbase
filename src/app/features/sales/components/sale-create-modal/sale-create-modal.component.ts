@@ -22,7 +22,6 @@ import {
 import { SalesService, CreateSalePayload } from '../../../../core/services/sales.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
-import { InventoryItem } from '../../../../core/models/reflip.models';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 
 @Component({
