@@ -308,116 +308,198 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-fb-line">
-          @for (item of filteredItems(); track item.id) {
-            <tr
-              class="hover:bg-fb-surface-alt transition group"
-              [class.bg-indigo-500/5]="isItemSelected(item.id)"
-            >
-              <td class="py-3 px-3 text-center group-last:rounded-bl-xl">
-                <div class="flex items-center justify-center">
-                  <app-custom-checkbox
-                    [checked]="isItemSelected(item.id)"
-                    (checkedChange)="toggleSelectItem(item.id)"
-                    size="md"
-                    [ariaLabel]="'Artikel ' + item.title + ' auswählen'"
-                  ></app-custom-checkbox>
-                </div>
-              </td>
-              <td class="py-3 px-4">
-                <a
-                  [routerLink]="['/inventory', item.id]"
-                  class="font-semibold text-fb-text-primary hover:text-emerald-400 transition block line-clamp-1"
-                >
-                  {{ item.title }}
-                </a>
-                <div class="flex items-center gap-2 mt-0.5 text-[11px] text-fb-text-muted">
-                  <span>{{ item.brand || item.category || 'Keine Kategorie' }}</span>
-                  @if (item.model) {
-                    <span>•</span>
-                    <span class="font-mono text-fb-text-muted">{{ item.model }}</span>
-                  }
-                  @if (item.is_public_store !== false && item.status !== 'sold') {
-                    <span>•</span>
-                    <span class="text-amber-300 font-semibold flex items-center gap-0.5">
-                      <svg [lucideIcon]="storeIcon" class="w-3 h-3 text-amber-400"></svg>
-                      <span>Webshop</span>
-                    </span>
-                  }
-                </div>
-              </td>
-
-              <td class="py-3 px-3">
-                <span
-                  class="px-2 py-0.5 rounded text-[10px] font-semibold bg-fb-well text-fb-text-secondary border border-fb-line"
-                >
-                  {{ 'INVENTORY.CONDITIONS.' + item.condition.toUpperCase() | translate }}
-                </span>
-              </td>
-
-              <td class="py-2 px-3">
-                <app-custom-select
-                  variant="pill"
-                  [options]="statusOptions"
-                  [value]="item.status"
-                  (valueChange)="onChangeItemStatus(item, $event)"
-                ></app-custom-select>
-              </td>
-
-              <td class="py-3 px-3 text-fb-text-muted text-[11px]">
-                {{ item.purchase?.source?.name || 'Direktkauf' }}
-              </td>
-
-              <td class="py-3 px-3 text-right font-mono font-semibold text-fb-text-secondary">
-                {{ item.total_item_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-              </td>
-
-              <td class="py-3 px-3 text-right font-mono font-semibold text-blue-400">
-                {{
-                  item.expected_value
-                    ? (item.expected_value | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
-                    : '-'
-                }}
-              </td>
-
-              <td class="py-3 px-3 text-right font-mono font-bold text-emerald-400">
-                @if (item.profit_potential !== undefined) {
-                  +{{ item.profit_potential | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                } @else {
-                  -
-                }
-              </td>
-
-              <td class="py-3 px-4 text-center group-last:rounded-br-xl">
-                <div class="flex items-center justify-center gap-1">
+          <!-- Gleiche Stuecke stehen als eine Zeile da; die einzelnen Artikel
+               darunter, sobald man aufklappt. Zusammengefasst wird nur die
+               Anzeige - jedes Stueck bleibt ein eigener Artikel. -->
+          @for (gruppe of gruppierteArtikel(); track gruppe.schluessel) {
+            @if (gruppe.stuecke.length === 1) {
+              <ng-container
+                *ngTemplateOutlet="artikelZeile; context: { $implicit: gruppe.stuecke[0] }"
+              ></ng-container>
+            } @else {
+              <tr class="hover:bg-fb-surface-alt transition bg-fb-subtle/40">
+                <td class="py-3 px-3 text-center">
                   <button
                     type="button"
-                    (click)="onTogglePublicStore(item, $event)"
-                    class="p-1 rounded hover:bg-fb-line transition cursor-pointer"
-                    [title]="
-                      item.is_public_store !== false
-                        ? 'Im Webshop aktiv (Klicken zum Deaktivieren)'
-                        : 'Im Webshop aktivieren'
+                    (click)="toggleGruppe(gruppe.schluessel)"
+                    class="p-1 rounded-md text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
+                    [attr.aria-expanded]="istGruppeOffen(gruppe.schluessel)"
+                    [attr.aria-label]="
+                      (istGruppeOffen(gruppe.schluessel) ? 'Einklappen: ' : 'Aufklappen: ') +
+                      gruppe.stuecke[0].title
                     "
                   >
                     <svg
-                      [lucideIcon]="storeIcon"
-                      class="w-3.5 h-3.5"
-                      [class.text-amber-400]="item.is_public_store !== false"
-                      [class.text-fb-text-dimmed]="item.is_public_store === false"
+                      [lucideIcon]="
+                        istGruppeOffen(gruppe.schluessel) ? chevronUpIcon : chevronDownIcon
+                      "
+                      class="w-4 h-4"
                     ></svg>
                   </button>
-
-                  <a
-                    [routerLink]="['/inventory', item.id]"
-                    class="p-1 rounded text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-line transition inline-flex items-center justify-center cursor-pointer"
+                </td>
+                <td class="py-3 px-4">
+                  <button
+                    type="button"
+                    (click)="toggleGruppe(gruppe.schluessel)"
+                    class="text-left font-semibold text-fb-text-primary hover:text-emerald-400 transition cursor-pointer"
                   >
-                    <svg [lucideIcon]="arrowRightIcon" class="w-3.5 h-3.5"></svg>
-                  </a>
-                </div>
-              </td>
-            </tr>
+                    {{ gruppe.stuecke[0].title }}
+                  </button>
+                  <div class="text-[10px] text-fb-text-muted mt-0.5 font-mono">
+                    {{ gruppe.stuecke.length }} Stück
+                  </div>
+                </td>
+                <td class="py-3 px-3">
+                  <span
+                    class="px-2 py-0.5 rounded text-[10px] font-mono bg-fb-subtle text-fb-text-secondary border border-fb-border"
+                  >
+                    {{
+                      'INVENTORY.CONDITIONS.' + gruppe.stuecke[0].condition.toUpperCase()
+                        | translate
+                    }}
+                  </span>
+                </td>
+                <td class="py-3 px-3">
+                  <span class="text-[10px] font-mono text-fb-text-secondary">
+                    {{ 'INVENTORY.STATUSES.' + gruppe.stuecke[0].status.toUpperCase() | translate }}
+                  </span>
+                </td>
+                <td class="py-3 px-3 text-[11px] text-fb-text-muted">—</td>
+                <td class="py-3 px-3 text-right font-mono font-bold text-fb-text-primary">
+                  {{
+                    gruppenSumme(gruppe.stuecke, 'allocated_purchase_cost')
+                      | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                  }}
+                </td>
+                <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
+                  {{
+                    gruppenSumme(gruppe.stuecke, 'expected_value')
+                      | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                  }}
+                </td>
+                <td class="py-3 px-3 text-right font-mono text-emerald-400">—</td>
+                <td class="py-3 px-4"></td>
+              </tr>
+
+              @if (istGruppeOffen(gruppe.schluessel)) {
+                @for (item of gruppe.stuecke; track item.id) {
+                  <ng-container
+                    *ngTemplateOutlet="artikelZeile; context: { $implicit: item }"
+                  ></ng-container>
+                }
+              }
+            }
           }
         </tbody>
+        <ng-template #artikelZeile let-item>
+          <tr
+            class="hover:bg-fb-surface-alt transition group"
+            [class.bg-indigo-500/5]="isItemSelected(item.id)"
+          >
+            <td class="py-3 px-3 text-center group-last:rounded-bl-xl">
+              <div class="flex items-center justify-center">
+                <app-custom-checkbox
+                  [checked]="isItemSelected(item.id)"
+                  (checkedChange)="toggleSelectItem(item.id)"
+                  size="md"
+                  [ariaLabel]="'Artikel ' + item.title + ' auswählen'"
+                ></app-custom-checkbox>
+              </div>
+            </td>
+            <td class="py-3 px-4">
+              <a
+                [routerLink]="['/inventory', item.id]"
+                class="font-semibold text-fb-text-primary hover:text-emerald-400 transition block line-clamp-1"
+              >
+                {{ item.title }}
+              </a>
+              <div class="flex items-center gap-2 mt-0.5 text-[11px] text-fb-text-muted">
+                <span>{{ item.brand || item.category || 'Keine Kategorie' }}</span>
+                @if (item.model) {
+                  <span>•</span>
+                  <span class="font-mono text-fb-text-muted">{{ item.model }}</span>
+                }
+                @if (item.is_public_store !== false && item.status !== 'sold') {
+                  <span>•</span>
+                  <span class="text-amber-300 font-semibold flex items-center gap-0.5">
+                    <svg [lucideIcon]="storeIcon" class="w-3 h-3 text-amber-400"></svg>
+                    <span>Webshop</span>
+                  </span>
+                }
+              </div>
+            </td>
+
+            <td class="py-3 px-3">
+              <span
+                class="px-2 py-0.5 rounded text-[10px] font-semibold bg-fb-well text-fb-text-secondary border border-fb-line"
+              >
+                {{ 'INVENTORY.CONDITIONS.' + item.condition.toUpperCase() | translate }}
+              </span>
+            </td>
+
+            <td class="py-2 px-3">
+              <app-custom-select
+                variant="pill"
+                [options]="statusOptions"
+                [value]="item.status"
+                (valueChange)="onChangeItemStatus(item, $event)"
+              ></app-custom-select>
+            </td>
+
+            <td class="py-3 px-3 text-fb-text-muted text-[11px]">
+              {{ item.purchase?.source?.name || 'Direktkauf' }}
+            </td>
+
+            <td class="py-3 px-3 text-right font-mono font-semibold text-fb-text-secondary">
+              {{ item.total_item_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            </td>
+
+            <td class="py-3 px-3 text-right font-mono font-semibold text-blue-400">
+              {{
+                item.expected_value
+                  ? (item.expected_value | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                  : '-'
+              }}
+            </td>
+
+            <td class="py-3 px-3 text-right font-mono font-bold text-emerald-400">
+              @if (item.profit_potential !== undefined) {
+                +{{ item.profit_potential | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              } @else {
+                -
+              }
+            </td>
+
+            <td class="py-3 px-4 text-center group-last:rounded-br-xl">
+              <div class="flex items-center justify-center gap-1">
+                <button
+                  type="button"
+                  (click)="onTogglePublicStore(item, $event)"
+                  class="p-1 rounded hover:bg-fb-line transition cursor-pointer"
+                  [title]="
+                    item.is_public_store !== false
+                      ? 'Im Webshop aktiv (Klicken zum Deaktivieren)'
+                      : 'Im Webshop aktivieren'
+                  "
+                >
+                  <svg
+                    [lucideIcon]="storeIcon"
+                    class="w-3.5 h-3.5"
+                    [class.text-amber-400]="item.is_public_store !== false"
+                    [class.text-fb-text-dimmed]="item.is_public_store === false"
+                  ></svg>
+                </button>
+
+                <a
+                  [routerLink]="['/inventory', item.id]"
+                  class="p-1 rounded text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-line transition inline-flex items-center justify-center cursor-pointer"
+                >
+                  <svg [lucideIcon]="arrowRightIcon" class="w-3.5 h-3.5"></svg>
+                </a>
+              </div>
+            </td>
+          </tr>
+        </ng-template>
       </table>
     </div>
 

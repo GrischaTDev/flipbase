@@ -13,6 +13,8 @@ import {
   LucideDynamicIcon,
   LucideBoxes as Boxes,
   LucideBarcode as Barcode,
+  LucideChevronDown as ChevronDown,
+  LucideChevronUp as ChevronUp,
   LucidePlus as Plus,
   LucideFilter as Filter,
   LucideSearch as Search,
@@ -43,12 +45,14 @@ import {
 import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner/barcode-scanner.component';
+import { NgTemplateOutlet } from '@angular/common';
 
 type FilterPreset = string;
 
 @Component({
   selector: 'app-inventory',
   imports: [
+    NgTemplateOutlet,
     BarcodeScannerComponent,
     RouterLink,
     CurrencyPipe,
@@ -85,6 +89,8 @@ export class InventoryComponent {
   readonly cameraIcon = Camera;
   readonly sparklesIcon = Sparkles;
   readonly barcodeIcon = Barcode;
+  readonly chevronDownIcon = ChevronDown;
+  readonly chevronUpIcon = ChevronUp;
   readonly printerIcon = Printer;
   readonly checkSquareIcon = CheckSquare;
   readonly squareIcon = Square;
@@ -253,6 +259,68 @@ export class InventoryComponent {
     await this.inventoryService.updateItem(item.id, {
       is_public_store: nextVal,
     });
+  }
+
+  /** Welche Gruppen aufgeklappt sind. */
+  readonly offeneGruppen = signal<Set<string>>(new Set());
+
+  /**
+   * Fasst gleiche Stuecke zu einer Zeile zusammen.
+   *
+   * Jedes Stueck bleibt ein eigener Artikel - das verlangt die Einzeldifferenz
+   * nach § 25a und ist noetig, damit jedes seinen eigenen Zustand, Preis und
+   * Verkauf haben kann. Nur die Anzeige fasst zusammen, damit zwanzig gleiche
+   * Handyhuellen nicht zwanzig Zeilen belegen. Genau so loesen es
+   * Warenwirtschaften fuer Gebrauchtware ueber ihre Seriennummern.
+   *
+   * Der Status gehoert bewusst zum Gruppenschluessel: Sind drei verkauft und
+   * zwei auf Lager, sollen das zwei Zeilen sein - sonst verschwindet die
+   * Information, die man beim Blick auf die Liste sucht.
+   */
+  readonly gruppierteArtikel = computed(() => {
+    const gruppen = new Map<string, { schluessel: string; stuecke: InventoryItem[] }>();
+
+    for (const artikel of this.filteredItems()) {
+      const schluessel = [
+        artikel.title.trim().toLowerCase(),
+        artikel.condition,
+        artikel.status,
+        artikel.purchase_id ?? '',
+      ].join('|');
+
+      const vorhandene = gruppen.get(schluessel);
+      if (vorhandene) {
+        vorhandene.stuecke.push(artikel);
+      } else {
+        gruppen.set(schluessel, { schluessel, stuecke: [artikel] });
+      }
+    }
+
+    return [...gruppen.values()];
+  });
+
+  istGruppeOffen(schluessel: string): boolean {
+    return this.offeneGruppen().has(schluessel);
+  }
+
+  toggleGruppe(schluessel: string): void {
+    this.offeneGruppen.update((offen) => {
+      const neu = new Set(offen);
+      if (neu.has(schluessel)) {
+        neu.delete(schluessel);
+      } else {
+        neu.add(schluessel);
+      }
+      return neu;
+    });
+  }
+
+  /** Summe eines Feldes ueber alle Stuecke einer Gruppe. */
+  gruppenSumme(
+    stuecke: InventoryItem[],
+    feld: 'allocated_purchase_cost' | 'expected_value',
+  ): number {
+    return stuecke.reduce((summe, s) => summe + (Number(s[feld]) || 0), 0);
   }
 
   readonly totalTiedCapital = computed(() =>
