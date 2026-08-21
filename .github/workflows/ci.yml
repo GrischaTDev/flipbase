@@ -152,6 +152,10 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     steps:
+      # Der Auftrag braucht die Migrationsdateien fuer den Abgleich unten -
+      # ohne Checkout laeuft das Suchmuster ins Leere und meldet "*.sql".
+      - uses: actions/checkout@v4
+
       - name: Set up SSH
         env:
           SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
@@ -178,6 +182,9 @@ jobs:
           angewendet="$(ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" migrationen)"
           fehlend=""
           for datei in supabase/migrations/*.sql; do
+            # Kein Treffer heisst: das Muster steht noch da. Dann gibt es nichts
+            # zu pruefen - und keine erfundene Fehlermeldung.
+            [ -e "$datei" ] || continue
             version="$(basename "$datei" | cut -d_ -f1)"
             if ! echo "$angewendet" | grep -qx "$version"; then
               fehlend="$fehlend $(basename "$datei")"
