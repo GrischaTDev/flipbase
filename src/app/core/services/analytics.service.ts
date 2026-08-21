@@ -739,21 +739,15 @@ export class AnalyticsService {
     for (const s of sales) {
       const d = new Date(s.sale_date);
       const dayIndex = d.getDay();
-      const hour = d.getHours();
 
       const entry = heatmap[dayIndex];
       entry.totalSales += 1;
       entry.totalRevenue += s.sale_price;
 
-      if (hour >= 6 && hour < 12) {
-        entry.morningCount++;
-      } else if (hour >= 12 && hour < 18) {
-        entry.afternoonCount++;
-      } else if (hour >= 18 && hour < 23) {
-        entry.eveningCount++;
-      } else {
-        entry.nightCount++;
-      }
+      // Keine Auswertung nach Tageszeit: sale_date ist ein Datum ohne Uhrzeit.
+      // Die Aufteilung in Vormittag, Nachmittag und Abend stand deshalb immer
+      // auf null, waehrend die Ueberschrift "die lukrativsten Tage und Zeiten"
+      // versprach. Der Wochentag laesst sich aus dem Datum ableiten und bleibt.
     }
 
     // Reorder starting Monday (1, 2, 3, 4, 5, 6, 0)
