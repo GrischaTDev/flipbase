@@ -294,6 +294,32 @@
           </div>
         </div>
 
+        <!-- Anzahl nur beim Anlegen: Beim Bearbeiten geht es um diesen einen
+             Artikel, nicht um weitere Stuecke. -->
+        @if (!istBearbeitung()) {
+          <div>
+            <label
+              for="itemAnzahl"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+            >
+              Anzahl gleicher Stücke
+            </label>
+            <input
+              id="itemAnzahl"
+              type="number"
+              min="1"
+              max="200"
+              formControlName="anzahl"
+              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold"
+            />
+            <p class="text-[10px] text-fb-text-muted mt-1 leading-relaxed">
+              Jedes Stück wird ein eigener Artikel mit eigener Nummer – nötig, damit jedes seinen
+              eigenen Zustand, Preis und Verkauf haben kann. Der angegebene Einkaufswert gilt
+              <strong class="text-fb-text-secondary">je Stück</strong>.
+            </p>
+          </div>
+        }
+
         <div>
           <label
             for="itemPurchaseSelect"

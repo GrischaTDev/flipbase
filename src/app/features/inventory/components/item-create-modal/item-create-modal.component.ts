@@ -145,6 +145,17 @@ export class ItemCreateModalComponent {
       validators: [Validators.min(0)],
     }),
     expected_value: new FormControl<number | null>(null, { validators: [Validators.min(0)] }),
+    /**
+     * Anzahl gleicher Stuecke.
+     *
+     * Jedes Stueck wird ein eigener Artikel - so verlangt es die Einzeldifferenz
+     * nach § 25a, und nur so kann jedes Stueck seinen eigenen Zustand, Preis und
+     * Verkauf haben. Das Feld erspart lediglich das mehrfache Ausfuellen.
+     */
+    anzahl: new FormControl<number>(1, {
+      nonNullable: true,
+      validators: [Validators.required, Validators.min(1), Validators.max(200)],
+    }),
   });
 
   async onAiAutofill(): Promise<void> {
@@ -297,7 +308,22 @@ export class ItemCreateModalComponent {
       return;
     }
 
-    const { data: createdItem, error } = await this.inventoryService.createItem(payload);
+    // Mehrfach anlegen: je Stueck ein eigener Artikel mit eigener Nummer.
+    const anzahl = Math.max(1, Math.min(200, this.form.getRawValue().anzahl || 1));
+    let letzterFehler: Error | null = null;
+    let ersterArtikel: InventoryItem | null = null;
+
+    for (let i = 0; i < anzahl; i++) {
+      const { data, error: fehler } = await this.inventoryService.createItem(payload);
+      if (fehler) {
+        letzterFehler = fehler;
+        break;
+      }
+      if (!ersterArtikel) ersterArtikel = data;
+    }
+
+    const createdItem = ersterArtikel;
+    const error = letzterFehler;
 
     if (createdItem && this.selectedImageFile()) {
       try {

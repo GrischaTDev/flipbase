@@ -27,6 +27,22 @@ export interface CreateItemPayload {
   expected_value?: number | null;
 }
 
+/**
+ * Vorlaeufige Kennung fuer einen neuen Artikel.
+ *
+ * Stand vorher auf `item-${Date.now()}`. Werden zwei Artikel in derselben
+ * Millisekunde angelegt - beim Erfassen mehrerer gleicher Stuecke passiert
+ * genau das -, bekommen sie dieselbe Kennung, und der zweite ueberschreibt den
+ * ersten. Aufgefallen beim Anlegen von fuenf Stueck: angekommen sind zwei.
+ *
+ * Die endgueltige Kennung vergibt anschliessend die Datenbank.
+ */
+function vorlaeufigeKennung(): string {
+  return typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -214,7 +230,7 @@ export class InventoryService {
     if (!ws) return { data: null, error: new Error('Kein aktiver Workspace') };
 
     const newItem: InventoryItem = {
-      id: `item-${Date.now()}`,
+      id: vorlaeufigeKennung(),
       workspace_id: ws.id,
       purchase_id: payload.purchase_id || null,
       category: payload.category?.trim() || null,
