@@ -199,6 +199,7 @@ export class PurchaseCreateModalComponent {
     const vorhandener = this.purchase();
     const { error } = vorhandener
       ? await this.purchaseService.updatePurchase(vorhandener.id, {
+          type: payload.type,
           title: payload.title,
           purchase_date: payload.purchase_date,
           purchase_price: payload.purchase_price,

@@ -445,11 +445,14 @@ export class PurchaseService {
    *
    * Die Artikel bleiben unberuehrt. Wer den Einkaufspreis aendert, aendert
    * damit nicht die bereits verteilten Kosten - das macht der Kostenallokator
-   * bewusst als eigener Schritt.
+   * bewusst als eigener Schritt. Dasselbe gilt fuer die Einkaufsart: Sie
+   * beschreibt die Herkunft, nicht den Bestand - ein Lot, das sich als Mystery
+   * Box entpuppt, behaelt seine bereits erfassten Artikel.
    */
   async updatePurchase(
     purchaseId: string,
     updates: {
+      type?: PurchaseType;
       title?: string;
       purchase_date?: string;
       purchase_price?: number;
@@ -488,6 +491,7 @@ export class PurchaseService {
       const { error } = await this.supabase.client
         .from('purchases')
         .update({
+          type: updates.type,
           title: updates.title,
           purchase_date: updates.purchase_date,
           purchase_price: updates.purchase_price,

@@ -91,6 +91,68 @@ describe('Bearbeiten vorhandener Daten', () => {
       expect(selectedPurchaseRaw()?.title).toBe('Konvolut Werkzeug (geprüft)');
     });
 
+    /** Wie `dienstMit`, aber angemeldet - und merkt sich, was zur Datenbank geht. */
+    function dienstMitDatenbank(liste: Purchase[]) {
+      const geschrieben: Record<string, unknown>[] = [];
+      const purchasesRaw = signal<Purchase[]>(liste);
+      const selectedPurchaseRaw = signal<Purchase | null>(liste[0] ?? null);
+      return {
+        geschrieben,
+        purchasesRaw,
+        dienst: baue<PurchaseService>(PurchaseService.prototype, {
+          purchasesRaw,
+          selectedPurchaseRaw,
+          mockStore: {
+            isDemoMode: () => false,
+            getPurchases: () => [],
+            savePurchase: () => undefined,
+          },
+          sourcesService: { sources: () => [] },
+          suppliersService: { suppliers: () => [] },
+          syncStatus: { melde: (_bereich: string, fehler: unknown) => new Error(String(fehler)) },
+          supabase: {
+            client: {
+              from: () => ({
+                update: (werte: Record<string, unknown>) => {
+                  geschrieben.push(werte);
+                  return { eq: () => Promise.resolve({ error: null }) };
+                },
+              }),
+            },
+          },
+        }),
+      };
+    }
+
+    it('uebernimmt eine geaenderte Einkaufsart in der Anzeige', async () => {
+      // Die Art laesst sich im Bearbeiten-Dialog anklicken, wurde beim
+      // Speichern aber weggeworfen: Aus einem Lot wurde nie eine Mystery Box.
+      const { dienst, purchasesRaw } = dienstMit([einkauf]);
+
+      await dienst.updatePurchase('p-1', { type: 'mystery_pack' });
+
+      expect(purchasesRaw()[0].type).toBe('mystery_pack');
+    });
+
+    it('schreibt die geaenderte Einkaufsart auch in die Datenbank', async () => {
+      // Der eigentliche Fehler: Die Anzeige zog mit, die Spalte `type` stand
+      // aber nicht im Schreibbefehl - nach dem naechsten Laden war die alte
+      // Art zurueck.
+      const { dienst, geschrieben } = dienstMitDatenbank([einkauf]);
+
+      await dienst.updatePurchase('p-1', { type: 'mystery_pack' });
+
+      expect(geschrieben[0]['type']).toBe('mystery_pack');
+    });
+
+    it('laesst die Art unangetastet, wenn nur der Preis korrigiert wird', async () => {
+      const { dienst, purchasesRaw } = dienstMitDatenbank([einkauf]);
+
+      await dienst.updatePurchase('p-1', { purchase_price: 249.9 });
+
+      expect(purchasesRaw()[0].type).toBe('lot');
+    });
+
     it('haengt die neue Quelle an, wenn sie gewechselt wird', async () => {
       const { dienst, purchasesRaw } = dienstMit([einkauf]);
 
