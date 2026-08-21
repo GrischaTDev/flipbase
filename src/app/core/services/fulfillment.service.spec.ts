@@ -39,17 +39,22 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     expect(service.orders().some((o) => o.id === bundled.id)).toBe(false);
   });
 
-  it('should purchase a DHL shipping label and update order status', async () => {
+  it('erfindet keine Sendungsnummer, wenn kein Zusteller angebunden ist', async () => {
+    // Dieser Test stand frueher andersherum: Er verlangte eine Nummer, die mit
+    // "00340434" beginnt - dem echten DHL-Format. Damit war die Erfindung
+    // festgeschrieben. Es wurde nie eine Marke gekauft, aber die Nummer landete
+    // auf dem Etikett und damit beim Kaeufer.
+    expect(service.zustellerAngebunden).toBe(false);
+    await expect(service.purchaseShippingLabel()).rejects.toThrow();
+  });
+
+  it('uebernimmt eine selbst eingetragene Sendungsnummer', () => {
+    // Der ehrliche Weg: Marke beim Zusteller kaufen, echte Nummer eintragen.
     const order = service.orders()[0];
-    const res = await service.purchaseShippingLabel(order.id, 'dhl-paket-2kg');
 
-    expect(res.success).toBe(true);
-    expect(res.trackingNumber).toContain('00340434');
-    expect(res.trackingUrl).toContain('dhl.de');
+    service.markAsShipped(order.id, '00340434161094015902', 'dhl');
 
-    const updated = service.orders().find((o) => o.id === order.id);
-    expect(updated?.status).toBe('label_printed');
-    expect(updated?.label_price).toBe(5.49);
-    expect(updated?.tracking_number).toBe(res.trackingNumber);
+    const aktualisiert = service.orders().find((o) => o.id === order.id);
+    expect(aktualisiert?.tracking_number).toBe('00340434161094015902');
   });
 });

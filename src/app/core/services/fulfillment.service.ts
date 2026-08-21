@@ -601,104 +601,35 @@ export class FulfillmentService {
   }
 
   /**
-   * Simulates purchasing a live shipping label via Carrier API (DHL/Hermes).
+   * Ob eine Zusteller-Schnittstelle zum Kauf von Versandmarken angebunden ist.
+   *
+   * Ist sie nicht. Frueher hat diese Stelle 800 ms gewartet und dann eine
+   * Sendungsnummer im echten DHL-Format erfunden (`00340434…`) - ohne dass eine
+   * Marke gekauft oder gedruckt wurde. Diese Nummer landete auf dem
+   * Versandetikett und damit beim Kaeufer, der damit nichts verfolgen konnte.
+   *
+   * Der ehrliche Weg steht daneben und funktioniert: Marke beim Zusteller
+   * kaufen und die echte Nummer ueber "Sendungsnummer erfassen" eintragen.
    */
-  async purchaseShippingLabel(
-    orderOrId: ShippingOrder | string,
-    rateOrId: CarrierRate | string,
-  ): Promise<{
+  readonly zustellerAngebunden = false;
+
+  /**
+   * Kauft eine Versandmarke beim Zusteller.
+   *
+   * Nicht angebunden - meldet das, statt eine Nummer zu erfinden.
+   */
+  async purchaseShippingLabel(): Promise<{
     success: boolean;
     trackingNumber: string;
     trackingUrl: string;
     labelPrice: number;
   }> {
-    let order: ShippingOrder | undefined;
-    if (typeof orderOrId === 'string') {
-      order = this.orders().find((o) => o.id === orderOrId);
-    } else {
-      order = orderOrId;
-    }
-
-    let rate: CarrierRate | undefined;
-    if (typeof rateOrId === 'string') {
-      rate = this.availableRates.find((r) => r.id === rateOrId);
-    } else {
-      rate = rateOrId;
-    }
-
-    if (!order) order = this.orders()[0];
-    if (!rate) rate = this.availableRates[1];
-
-    await new Promise((res) => setTimeout(res, 800));
-
-    let trackingNumber = '';
-    let trackingUrl = '';
-
-    if (rate.carrier === 'dhl') {
-      trackingNumber = `00340434${Math.floor(100000000000 + Math.random() * 900000000000)}`;
-      trackingUrl = `https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=${trackingNumber}`;
-    } else if (rate.carrier === 'hermes') {
-      trackingNumber = `02${Math.floor(100000000000 + Math.random() * 900000000000)}`;
-      trackingUrl = `https://www.myhermes.de/empfangen/sendungsverfolgung/sendungsdetails/?trackingNumber=${trackingNumber}`;
-    } else {
-      trackingNumber = `TRK-${Math.floor(10000000 + Math.random() * 90000000)}`;
-      trackingUrl = `https://www.paketverfolgung.de/?id=${trackingNumber}`;
-    }
-
-    const transactionId = `TXN-${rate.carrier.toUpperCase()}-${Date.now()}`;
-
-    this.orders.update((prev) =>
-      prev.map((o) =>
-        o.id === order!.id
-          ? {
-              ...o,
-              carrier: rate!.carrier,
-              package_type: rate!.name,
-              status: 'label_printed' as ShippingStatus,
-              tracking_number: trackingNumber,
-              tracking_url: trackingUrl,
-              label_price: rate!.price,
-              carrier_transaction_id: transactionId,
-            }
-          : o,
-      ),
+    throw (
+      this.syncStatus?.melde(
+        'Kauf der Versandmarke',
+        new Error('Keine Zusteller-Schnittstelle angebunden'),
+      ) ?? new Error('Keine Zusteller-Schnittstelle angebunden')
     );
-
-    this.persistOrders();
-
-    const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      schreibeImHintergrund(
-        this.supabase.client
-          .from('shipping_orders')
-          .update({
-            carrier: rate.carrier,
-            package_type: rate.name,
-            status: 'label_printed',
-            tracking_number: trackingNumber,
-            tracking_url: trackingUrl,
-            label_price: rate.price,
-            carrier_transaction_id: transactionId,
-          })
-          .eq('id', order.id),
-        'Aktualisieren des Versandauftrags',
-        this.syncStatus,
-      );
-    }
-
-    if (this.webPushService) {
-      this.webPushService.sendNotification(`Versandlabel gekauft (${rate.carrier.toUpperCase()})`, {
-        body: `${rate.name} für ${order.customer.name} gebucht. Sendungsnummer: ${trackingNumber}`,
-        tag: `label-purchase-${order.id}`,
-      });
-    }
-
-    return {
-      success: true,
-      trackingNumber,
-      trackingUrl,
-      labelPrice: rate.price,
-    };
   }
 
   markAsDelivered(orderId: string): void {

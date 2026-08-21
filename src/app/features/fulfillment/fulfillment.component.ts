@@ -156,23 +156,15 @@ export class FulfillmentComponent {
     this.selectedOrderForPurchase.set(null);
   }
 
+  /**
+   * Frueher: Versandmarke "kaufen".
+   *
+   * Es wurde nie eine gekauft - die Sendungsnummer war erfunden. Der Einstieg
+   * ist deshalb ausgeblendet. Gekauft wird beim Zusteller, die echte Nummer
+   * kommt ueber "Sendungsnummer erfassen" herein.
+   */
   async onConfirmPurchaseLabel(): Promise<void> {
-    const order = this.selectedOrderForPurchase();
-    if (!order) return;
-
-    this.isPurchasing.set(true);
-    try {
-      await this.fulfillmentService.purchaseShippingLabel(order.id, this.selectedRateId());
-      this.isPurchasing.set(false);
-      this.isPurchaseModalOpen.set(false);
-      const updatedOrder = this.fulfillmentService.orders().find((o) => o.id === order.id);
-      if (updatedOrder) {
-        this.openLabelModal(updatedOrder);
-      }
-    } catch (e) {
-      this.isPurchasing.set(false);
-      this.logger.error('Carrier label purchase error:', e);
-    }
+    this.isPurchaseModalOpen.set(false);
   }
 
   openLabelModal(order: ShippingOrder): void {

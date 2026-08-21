@@ -386,16 +386,10 @@
           }
 
           <div class="flex flex-wrap items-center gap-2">
-            <!-- Buy Carrier Label Button -->
-            <button
-              type="button"
-              (click)="openPurchaseModal(order)"
-              class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer text-emerald-300 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 shadow-sm"
-              title="DHL / Hermes Versandmarke via Carrier API buchen"
-            >
-              <svg [lucideIcon]="zapIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
-              <span>Label online kaufen</span>
-            </button>
+            <!-- "Label online kaufen" ist ausgeblendet: Es wurde nie eine Marke
+                 gekauft, die Sendungsnummer war erfunden - und landete auf dem
+                 Etikett beim Kaeufer. Marke beim Zusteller kaufen und die echte
+                 Nummer ueber "Sendungsnummer erfassen" eintragen. -->
 
             <!-- Print Label Button -->
             <button
