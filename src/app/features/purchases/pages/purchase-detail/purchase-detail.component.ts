@@ -20,6 +20,7 @@ import {
   LucideBoxes as Boxes,
   LucidePlus as Plus,
   LucideTrash2 as Trash2,
+  LucidePencil as Pencil,
   LucideExternalLink as ExternalLink,
   LucideCoins as Coins,
   LucideReceipt as Receipt,
@@ -55,10 +56,12 @@ import {
   TrackingCarrier,
 } from '../../../../core/models/flipbase.models';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
+import { PurchaseCreateModalComponent } from '../../components/purchase-create-modal/purchase-create-modal.component';
 
 @Component({
   selector: 'app-purchase-detail',
   imports: [
+    PurchaseCreateModalComponent,
     ModalDialogDirective,
     RouterLink,
     ReactiveFormsModule,
@@ -101,6 +104,7 @@ export class PurchaseDetailComponent {
   readonly boxesIcon = Boxes;
   readonly plusIcon = Plus;
   readonly trashIcon = Trash2;
+  readonly editIcon = Pencil;
   readonly linkIcon = ExternalLink;
   readonly coinsIcon = Coins;
   readonly receiptIcon = Receipt;
@@ -120,6 +124,7 @@ export class PurchaseDetailComponent {
   readonly chevronUpIcon = ChevronUp;
 
   readonly isAddingCost = signal<boolean>(false);
+  readonly isEditModalOpen = signal<boolean>(false);
   readonly isAddingItem = signal<boolean>(false);
   readonly isAllocatorOpen = signal<boolean>(false);
   readonly isCropperOpen = signal<boolean>(false);

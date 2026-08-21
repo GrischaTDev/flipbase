@@ -435,6 +435,80 @@ export class PurchaseService {
     this.purchasesRaw.update((list) => list.filter((p) => p.id !== vorlaeufigeId));
   }
 
+  /**
+   * Aendert die Stammangaben eines Einkaufs.
+   *
+   * Bis hierhin liess sich an einem Einkauf nur die Sendungsnummer und der
+   * Verteilungsmodus aendern. Ein Zahlendreher im Preis bedeutete: loeschen und
+   * neu anlegen - und weil die Artikel per Fremdschluessel am Einkauf haengen,
+   * waren sie damit auch weg.
+   *
+   * Die Artikel bleiben unberuehrt. Wer den Einkaufspreis aendert, aendert
+   * damit nicht die bereits verteilten Kosten - das macht der Kostenallokator
+   * bewusst als eigener Schritt.
+   */
+  async updatePurchase(
+    purchaseId: string,
+    updates: {
+      title?: string;
+      purchase_date?: string;
+      purchase_price?: number;
+      source_id?: string | null;
+      supplier_id?: string | null;
+      original_url?: string | null;
+      notes?: string | null;
+    },
+  ): Promise<{ error: Error | null }> {
+    const quelle = updates.source_id
+      ? this.sourcesService.sources().find((s) => s.id === updates.source_id)
+      : undefined;
+    const lieferant = updates.supplier_id
+      ? this.suppliersService.suppliers().find((s) => s.id === updates.supplier_id)
+      : undefined;
+
+    const anwenden = (p: Purchase): Purchase => ({
+      ...p,
+      ...updates,
+      source: updates.source_id === undefined ? p.source : quelle,
+      supplier: updates.supplier_id === undefined ? p.supplier : lieferant,
+      updated_at: new Date().toISOString(),
+    });
+
+    this.purchasesRaw.update((liste) => liste.map((p) => (p.id === purchaseId ? anwenden(p) : p)));
+    this.selectedPurchaseRaw.update((p) => (p && p.id === purchaseId ? anwenden(p) : p));
+
+    const gespeichert = this.mockStore.getPurchases().find((p) => p.id === purchaseId);
+    if (gespeichert) {
+      this.mockStore.savePurchase(anwenden(gespeichert));
+    }
+
+    if (this.mockStore.isDemoMode()) return { error: null };
+
+    try {
+      const { error } = await this.supabase.client
+        .from('purchases')
+        .update({
+          title: updates.title,
+          purchase_date: updates.purchase_date,
+          purchase_price: updates.purchase_price,
+          source_id: updates.source_id,
+          supplier_id: updates.supplier_id,
+          original_url: updates.original_url,
+          notes: updates.notes,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', purchaseId);
+
+      if (error) {
+        return { error: this.syncStatus.melde('Aendern des Einkaufs', error) };
+      }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Aendern des Einkaufs', e) };
+    }
+
+    return { error: null };
+  }
+
   async updatePurchaseTracking(
     purchaseId: string,
     trackingNumber: string | null,

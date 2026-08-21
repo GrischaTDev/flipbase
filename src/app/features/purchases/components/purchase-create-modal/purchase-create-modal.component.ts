@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   LucideDynamicIcon,
@@ -22,6 +31,7 @@ import {
   TrackingCarrier,
 } from '../../../../core/models/flipbase.models';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
+import { Purchase } from '../../../../core/models/flipbase.models';
 
 interface ExtraCostEntry {
   type: string;
@@ -44,6 +54,11 @@ export class PurchaseCreateModalComponent {
 
   readonly closed = output<void>();
   readonly created = output<void>();
+
+  /** Der zu bearbeitende Einkauf - fehlt er, wird ein neuer angelegt. */
+  readonly purchase = input<Purchase | null>(null);
+
+  readonly istBearbeitung = computed(() => this.purchase() !== null);
 
   readonly closeIcon = X;
   readonly plusIcon = Plus;
@@ -138,6 +153,24 @@ export class PurchaseCreateModalComponent {
     }
   }
 
+  constructor() {
+    effect(() => {
+      const vorhandener = this.purchase();
+      if (!vorhandener) return;
+
+      this.form.patchValue({
+        type: vorhandener.type,
+        title: vorhandener.title,
+        source_id: vorhandener.source_id ?? null,
+        supplier_id: vorhandener.supplier_id ?? null,
+        purchase_date: vorhandener.purchase_date,
+        purchase_price: vorhandener.purchase_price,
+        original_url: vorhandener.original_url ?? '',
+        notes: vorhandener.notes ?? '',
+      });
+    });
+  }
+
   async onSubmit(): Promise<void> {
     if (this.form.invalid) return;
 
@@ -163,7 +196,18 @@ export class PurchaseCreateModalComponent {
       single_item_expected_value: f.single_item_expected_value || undefined,
     };
 
-    const { error } = await this.purchaseService.createPurchase(payload);
+    const vorhandener = this.purchase();
+    const { error } = vorhandener
+      ? await this.purchaseService.updatePurchase(vorhandener.id, {
+          title: payload.title,
+          purchase_date: payload.purchase_date,
+          purchase_price: payload.purchase_price,
+          source_id: payload.source_id ?? null,
+          supplier_id: payload.supplier_id ?? null,
+          original_url: payload.original_url ?? null,
+          notes: payload.notes ?? null,
+        })
+      : await this.purchaseService.createPurchase(payload);
     this.isSubmitting.set(false);
 
     if (error) {

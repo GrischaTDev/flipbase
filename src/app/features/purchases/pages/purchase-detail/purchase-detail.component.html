@@ -9,14 +9,25 @@
       <span>Zurück zur Einkaufsübersicht</span>
     </a>
 
-    <button
-      type="button"
-      (click)="onDeletePurchase()"
-      class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-    >
-      <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
-      <span class="hidden sm:inline">Einkauf löschen</span>
-    </button>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="isEditModalOpen.set(true)"
+        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+      >
+        <svg [lucideIcon]="editIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
+        <span>Bearbeiten</span>
+      </button>
+
+      <button
+        type="button"
+        (click)="onDeletePurchase()"
+        class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+      >
+        <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
+        <span class="hidden sm:inline">Einkauf löschen</span>
+      </button>
+    </div>
   </div>
 
   @if (purchaseService.selectedPurchase(); as p) {
@@ -999,5 +1010,13 @@
       (closed)="isCropperOpen.set(false)"
       (imageReady)="onImageCropped($event)"
     ></app-image-cropper-modal>
+  }
+
+  @if (isEditModalOpen() && purchaseService.selectedPurchase(); as einkauf) {
+    <app-purchase-create-modal
+      [purchase]="einkauf"
+      (closed)="isEditModalOpen.set(false)"
+      (created)="isEditModalOpen.set(false)"
+    ></app-purchase-create-modal>
   }
 </div>
