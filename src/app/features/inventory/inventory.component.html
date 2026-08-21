@@ -32,15 +32,11 @@
         }}</span>
       </button>
 
-      <button
-        type="button"
-        (click)="isAiScannerOpen.set(true)"
-        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl font-bold text-xs cursor-pointer select-none text-indigo-300 hover:text-fb-text-primary border-indigo-500/30 bg-indigo-500/10 shadow-sm"
-        title="Visual Sourcing AI (Produkterkennung per Foto)"
-      >
-        <svg [lucideIcon]="cameraIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
-        <span>KI-Foto-Scan</span>
-      </button>
+      <!-- KI-Foto-Scan ist ausgeblendet: Dahinter steckt keine Bilderkennung.
+           Die Funktion hat 500 ms gewartet und das Produkt aus dem Dateinamen
+           geraten, waehrend die Oberflaeche "die KI erkennt Marke, Modell &
+           Marktwert" versprach. Kommt zurueck, sobald eine echte Bilderkennung
+           angebunden ist; Modal und Dienst bleiben dafuer bestehen. -->
 
       <button
         type="button"

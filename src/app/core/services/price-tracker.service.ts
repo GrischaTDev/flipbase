@@ -298,86 +298,24 @@ export class PriceTrackerService {
   }
 
   /**
-   * Scans live marketplace listings across eBay and Kleinanzeigen.
+   * Ob eine echte Marktdatenquelle angebunden ist.
+   *
+   * Solange nicht, aktualisiert der Radar nichts. Vorher hat er die Preise je
+   * Abruf um einen Zufallsfaktor von bis zu vier Prozent verschoben und die
+   * Zahl der Angebote gewuerfelt - und daraus Warnungen wie "unterboten"
+   * abgeleitet. Wer danach seinen Verkaufspreis senkt, reagiert auf Rauschen.
    */
-  async scanMarketLive(targetId?: string): Promise<void> {
-    this.isScanning.set(true);
-    await new Promise((res) => setTimeout(res, 900));
+  readonly marktdatenAngebunden = false;
 
-    const nowStr = new Date().toISOString();
-    const today = nowStr.split('T')[0];
-
-    this.trackedItems.update((list) =>
-      list.map((it) => {
-        if (targetId && it.id !== targetId) return it;
-        if (!it.isTrackingActive) return it;
-
-        const randomFactor = (Math.random() - 0.48) * 0.08;
-        const newAvg = Number(
-          Math.max(10, it.currentMarketAverage * (1 + randomFactor)).toFixed(2),
-        );
-        const newLowest = Number(Math.max(8, newAvg * 0.9).toFixed(2));
-        const diffPercent = Number(
-          (((newLowest - it.currentOurPrice) / it.currentOurPrice) * 100).toFixed(1),
-        );
-
-        let trend: PriceTrend = 'stable';
-        if (diffPercent < -8) trend = 'falling';
-        if (diffPercent > 6) trend = 'rising';
-
-        let alert: PriceAlert = 'none';
-        if (newLowest < it.currentOurPrice * 0.92) {
-          alert = 'undercut';
-        } else if (newAvg > it.currentOurPrice * 1.05) {
-          alert = 'price_surge';
-        }
-
-        const history = [...it.priceHistory];
-        history.push({
-          timestamp: today,
-          avgPrice: newAvg,
-          lowestPrice: newLowest,
-          listingsCount: Math.floor(10 + Math.random() * 25),
-        });
-
-        return {
-          ...it,
-          currentMarketAverage: newAvg,
-          currentMarketLowest: newLowest,
-          recommendedPrice: Number(((newAvg + newLowest) / 2).toFixed(2)),
-          priceTrend: trend,
-          priceDifferencePercent: diffPercent,
-          alertTriggered: alert,
-          lastCheckedAt: nowStr,
-          priceHistory: history.slice(-10),
-        };
-      }),
-    );
-
-    this.persistItems();
-    this.lastScanTimestamp.set(nowStr);
-    this.isScanning.set(false);
-
-    const undercuts = this.trackedItems().filter((t) => t.alertTriggered === 'undercut');
-    if (undercuts.length > 0) {
-      const topUndercut = undercuts[0];
-      if (this.webPushService) {
-        this.webPushService.sendNotification(
-          `Preis-Alarm: ${topUndercut.title.substring(0, 30)}...`,
-          {
-            body: `Konkurrenz bietet für ${topUndercut.currentMarketLowest.toFixed(2)} € an (Dein Preis: ${topUndercut.currentOurPrice.toFixed(2)} €).`,
-            tag: `radar-alert-${topUndercut.id}`,
-          },
-        );
-      }
-      if (this.webhookService) {
-        this.webhookService.addNotification({
-          title: `Konkurrenz-Unterbietung festgestellt`,
-          message: `${topUndercut.title} wird auf ${topUndercut.lowestCompetitorPlatform} für ${topUndercut.currentMarketLowest.toFixed(2)} € unterboten.`,
-          type: 'alert',
-        });
-      }
-    }
+  /**
+   * Holt die aktuellen Marktpreise der beobachteten Artikel.
+   *
+   * Tut derzeit nichts: Es gibt keine angebundene Quelle. Die beobachteten
+   * Artikel und ihre eigenen Preise bleiben erhalten - erfunden war nur der
+   * Marktvergleich.
+   */
+  async scanMarketLive(_targetId?: string): Promise<void> {
+    return;
   }
 
   /**

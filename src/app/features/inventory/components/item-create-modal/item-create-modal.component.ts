@@ -141,7 +141,10 @@ export class ItemCreateModalComponent {
       model: ai.model || this.form.get('model')?.value,
       category: ai.category || this.form.get('category')?.value,
       condition: ai.condition || this.form.get('condition')?.value,
-      expected_value: ai.estimatedMarketPrice || this.form.get('expected_value')?.value,
+      // Der geschaetzte Marktwert wird bewusst nicht uebernommen: Er entsteht
+      // aus einer festen Vorgabe und ein paar Aufschlaegen, nicht aus
+      // Marktdaten. Als ausgefuelltes Feld sieht er aus wie eine Recherche -
+      // und genau dieses Feld traegt spaeter die Margenrechnung.
     });
   }
 

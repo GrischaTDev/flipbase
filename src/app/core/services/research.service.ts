@@ -2,7 +2,6 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
-import { RealProductImageService } from './real-product-image.service';
 import { EbayApiService } from './ebay-api.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { ResearchQuery } from '../models/flipbase.models';
@@ -62,7 +61,6 @@ export class ResearchService {
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService);
-  private readonly realImageService = inject(RealProductImageService);
   private readonly ebayApiService = inject(EbayApiService);
   private readonly profitEngine = new ProfitEngineService();
 
@@ -146,26 +144,38 @@ export class ResearchService {
   /**
    * Executes a market research search using live eBay API / Marketplace Comps with original seller photos.
    */
+  /**
+   * Ob die letzte Recherche echte Marktdaten geliefert hat.
+   *
+   * Die Oberflaeche zeigt danach einen Hinweis statt einer leeren Liste, die
+   * wie ein Suchergebnis aussieht.
+   */
+  readonly marktdatenAngebunden = signal<boolean>(false);
+
   async executeResearch(
     queryText: string,
-    condition = 'used',
+    // Der Zustand floss nur in die frueher erfundenen Vergleichsangebote ein.
+    // Er bleibt in der Signatur, weil die Oberflaeche ihn mitgibt und eine
+    // echte Anbindung ihn wieder brauchen wird.
+    _condition = 'used',
     estimatedCost = 25.0,
     limit = 24,
   ): Promise<{ results: ResearchComparisonItem[]; summary: ResearchSummary }> {
     this.isLoading.set(true);
 
     try {
-      // 1. Attempt live eBay API Sold listings search
-      let comps = await this.ebayApiService.searchSoldItems(queryText, limit);
-
-      // 2. If direct eBay API returns no listings, fetch genuine product photos and simulate realistic comps
-      if (!comps || comps.length === 0) {
-        const realPhotos = await this.realImageService.fetchRealImagesForQuery(
-          queryText,
-          Math.min(limit, 30),
-        );
-        comps = this.generateRealisticComps(queryText, condition, realPhotos, limit);
-      }
+      // Nur echte verkaufte Angebote von eBay.
+      //
+      // Frueher stand hier ein Rueckfall: Lieferte die Schnittstelle nichts,
+      // wurden Vergleichsangebote *erfunden* - Zufallspreise um einen
+      // Schaetzwert, dazu erfundene Titel, Plattformangaben und Verkaufsdaten.
+      // Da die Schnittstelle einen eBay-Schluessel braucht und die zugehoerige
+      // Edge Function auf dem Server gar nicht liegt, war praktisch jede
+      // Recherche erfunden - und darauf wurden Verkaufspreise gestuetzt.
+      //
+      // Lieber keine Zahl als eine ausgedachte.
+      const comps = (await this.ebayApiService.searchSoldItems(queryText, limit)) ?? [];
+      this.marktdatenAngebunden.set(comps.length > 0);
 
       this.currentComparisonItems.set(comps);
       const summary = this.calculateSummary(comps, estimatedCost, queryText);
@@ -308,126 +318,5 @@ export class ResearchService {
     this.currentComparisonItems.update((items) =>
       items.map((it) => (it.id === itemId ? { ...it, isExcluded: !it.isExcluded } : it)),
     );
-  }
-
-  private generateRealisticComps(
-    query: string,
-    condition: string,
-    realPhotos: string[],
-    count = 24,
-  ): ResearchComparisonItem[] {
-    let baseValue = 50.0;
-    const lower = query.toLowerCase();
-
-    if (
-      lower.includes('airpod') ||
-      lower.includes('bose') ||
-      lower.includes('sony') ||
-      lower.includes('audio') ||
-      lower.includes('kopfhörer')
-    ) {
-      baseValue = 110.0;
-    } else if (
-      lower.includes('switch') ||
-      lower.includes('ps5') ||
-      lower.includes('xbox') ||
-      lower.includes('nintendo') ||
-      lower.includes('konsole')
-    ) {
-      baseValue = 220.0;
-    } else if (
-      lower.includes('iphone') ||
-      lower.includes('macbook') ||
-      lower.includes('ipad') ||
-      lower.includes('samsung') ||
-      lower.includes('phone')
-    ) {
-      baseValue = 380.0;
-    } else if (
-      lower.includes('bosch') ||
-      lower.includes('makita') ||
-      lower.includes('werkzeug') ||
-      lower.includes('bohr') ||
-      lower.includes('dewalt')
-    ) {
-      baseValue = 75.0;
-    } else if (
-      lower.includes('lego') ||
-      lower.includes('spielzeug') ||
-      lower.includes('star wars') ||
-      lower.includes('pokemon')
-    ) {
-      baseValue = 85.0;
-    } else if (
-      lower.includes('schuhe') ||
-      lower.includes('sneaker') ||
-      lower.includes('nike') ||
-      lower.includes('adidas') ||
-      lower.includes('jordan')
-    ) {
-      baseValue = 65.0;
-    } else if (
-      lower.includes('fahrrad') ||
-      lower.includes('bike') ||
-      lower.includes('cube') ||
-      lower.includes('mountainbike')
-    ) {
-      baseValue = 140.0;
-    }
-
-    const listingTitleSuffixes = [
-      '– Wie neu in OVP mit Zubehör',
-      'inkl. Originalverpackung & Beleg',
-      '– Top Zustand, kaum genutzt',
-      '– Technisch & optisch einwandfrei',
-      '(Gebraucht mit leichten Gebrauchsspuren)',
-      'inkl. Zubehör (Versand möglich)',
-      '– Voll funktionsfähig / Gepflegt',
-      'OVP vorhanden, Nichtraucherhaushalt',
-      'Kaum gebraucht, sehr guter Zustand',
-      'Komplett-Set mit Kabel & Anleitung',
-      'Funktioniert einwandfrei, schneller Versand',
-      'Neuwertiger Zustand ohne Mängel',
-    ];
-
-    const comps: ResearchComparisonItem[] = [];
-    const platforms: ('ebay_sold' | 'kleinanzeigen' | 'vinted')[] = [
-      'ebay_sold',
-      'ebay_sold',
-      'kleinanzeigen',
-      'ebay_sold',
-      'kleinanzeigen',
-      'vinted',
-      'ebay_sold',
-      'kleinanzeigen',
-    ];
-
-    for (let i = 0; i < count; i++) {
-      const variance = (Math.random() - 0.5) * 0.45; // +/- 22%
-      const price = Number((baseValue * (1 + variance)).toFixed(2));
-      const source = platforms[i % platforms.length];
-      const photoUrl =
-        realPhotos.length > 0
-          ? realPhotos[i % realPhotos.length]
-          : 'https://images.unsplash.com/photo-1526738549149-8e07eca6c147?w=500&auto=format&fit=crop&q=80';
-      const titleSuffix = listingTitleSuffixes[i % listingTitleSuffixes.length];
-
-      comps.push({
-        id: 'comp-' + i + '-' + Math.random().toString(36).substring(2, 7),
-        title: `${query} ${titleSuffix}`,
-        price: Math.max(5, price),
-        source,
-        imageUrl: photoUrl,
-        url:
-          source === 'ebay_sold'
-            ? `https://www.ebay.de/sch/i.html?_nkw=${encodeURIComponent(query)}&LH_Complete=1&LH_Sold=1`
-            : `https://www.kleinanzeigen.de/s-${encodeURIComponent(query)}/k0`,
-        date: new Date(Date.now() - (i % 14) * 86400000).toISOString().split('T')[0],
-        condition: condition || 'used',
-        isExcluded: false,
-      });
-    }
-
-    return comps;
   }
 }

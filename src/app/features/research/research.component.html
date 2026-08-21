@@ -130,8 +130,26 @@
       </div>
     </form>
 
-    <!-- Results Section -->
-    @if (summary(); as s) {
+    <!-- Ohne angebundene Marktdaten gibt es nichts auszuwerten. Frueher standen
+         hier erfundene Vergleichsangebote; eine Auswertung aus Zufallszahlen ist
+         schlimmer als gar keine, weil danach Preise festgelegt werden. -->
+    @if (hasSearched() && !researchService.marktdatenAngebunden()) {
+      <div
+        class="linear-surface rounded-xl p-5 space-y-2 border border-amber-500/30 bg-amber-500/5 animate-fade-in"
+      >
+        <h3 class="text-sm font-bold text-amber-300">Keine Marktdaten verfügbar</h3>
+        <p class="text-xs text-fb-text-secondary leading-relaxed">
+          Für „{{ searchForm.get('query')?.value }}“ liegen keine echten Verkaufsdaten vor. Die
+          Anbindung an eBay ist noch nicht eingerichtet, deshalb kann hier keine Auswertung
+          entstehen.
+        </p>
+        <p class="text-xs text-fb-text-muted leading-relaxed">
+          Die Schnellzugriffe oben führen dich direkt zu den echten Angeboten bei eBay,
+          Kleinanzeigen, Vinted und Idealo – damit kommst du bis auf Weiteres am schnellsten zu
+          einem belastbaren Preis.
+        </p>
+      </div>
+    } @else if (summary(); as s) {
       <div class="space-y-4 animate-fade-in">
         <!-- Quick Action Bar -->
         <div
@@ -383,33 +401,44 @@
           </div>
           <div>
             <h2 class="text-sm font-bold text-fb-text-primary">
-              Live-Konkurrenz-Radar ({{ priceTrackerService.trackedItems().length }} überwachte
-              Artikel)
+              Konkurrenz-Radar ({{ priceTrackerService.trackedItems().length }} überwachte Artikel)
             </h2>
-            <p class="text-xs text-fb-text-muted mt-0.5">
-              Letzter Suchlauf:
-              {{ priceTrackerService.lastScanTimestamp() | date: 'dd.MM.yyyy, HH:mm' }} Uhr
-            </p>
+            @if (priceTrackerService.marktdatenAngebunden) {
+              <p class="text-xs text-fb-text-muted mt-0.5">
+                Letzter Suchlauf:
+                {{ priceTrackerService.lastScanTimestamp() | date: 'dd.MM.yyyy, HH:mm' }} Uhr
+              </p>
+            } @else {
+              <p class="text-xs text-amber-300 mt-0.5">
+                Marktdaten sind nicht angebunden – angezeigte Vergleichswerte werden nicht
+                aktualisiert.
+              </p>
+            }
           </div>
         </div>
 
-        <button
-          type="button"
-          (click)="onScanRadarLive()"
-          [disabled]="priceTrackerService.isScanning()"
-          class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-50"
-        >
-          <svg
-            [lucideIcon]="refreshIcon"
-            class="w-4 h-4"
-            [class.animate-spin]="priceTrackerService.isScanning()"
-          ></svg>
-          <span>{{
-            priceTrackerService.isScanning()
-              ? 'Scanne Plattformen...'
-              : 'Live-Marktpreise jetzt scannen'
-          }}</span>
-        </button>
+        <!-- Ohne Quelle gibt es nichts zu holen. Ein Knopf, der scheinbar
+             etwas abruft und in Wahrheit Zufallszahlen erzeugt hat, ist die
+             schlechtere Variante. -->
+        @if (priceTrackerService.marktdatenAngebunden) {
+          <button
+            type="button"
+            (click)="onScanRadarLive()"
+            [disabled]="priceTrackerService.isScanning()"
+            class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-50"
+          >
+            <svg
+              [lucideIcon]="refreshIcon"
+              class="w-4 h-4"
+              [class.animate-spin]="priceTrackerService.isScanning()"
+            ></svg>
+            <span>{{
+              priceTrackerService.isScanning()
+                ? 'Scanne Plattformen...'
+                : 'Live-Marktpreise jetzt scannen'
+            }}</span>
+          </button>
+        }
       </div>
 
       <!-- Radar KPI Counters -->
