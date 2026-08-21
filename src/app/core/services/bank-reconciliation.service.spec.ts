@@ -221,4 +221,120 @@ describe('BankReconciliationService', () => {
     const updatedOrder = mockStoreOrders().find((o) => o.id === 'ord-book-1');
     expect(updatedOrder?.paymentStatus).toBe('paid');
   });
+
+  describe('Speichern in der Datenbank', () => {
+    /**
+     * Der Kontenabgleich lag frueher nur im Browser-Speicher: Die Tabelle
+     * `bank_transactions` wurde gelesen, aber nie beschrieben. Ein anderes
+     * Geraet zeigte nichts, ein geleerter Browser loeschte alles, und die
+     * naechtliche Sicherung erfasste nichts davon.
+     *
+     * Diese Tests pruefen, was tatsaechlich an die Datenbank geschickt wird -
+     * ohne echte Verbindung, damit sie ueberall laufen.
+     */
+    interface Gesendet {
+      tabelle?: string;
+      geschrieben?: Record<string, unknown>[];
+      behalten?: string;
+    }
+
+    function mitAttrappe(): { gesendet: Gesendet } {
+      const gesendet: Gesendet = {};
+
+      const client = {
+        from(tabelle: string) {
+          gesendet.tabelle = tabelle;
+          return {
+            upsert(zeilen: Record<string, unknown>[]) {
+              gesendet.geschrieben = zeilen;
+              return Promise.resolve({ error: null });
+            },
+            delete() {
+              const kette = {
+                eq: () => kette,
+                not: (_spalte: string, _art: string, wert: string) => {
+                  gesendet.behalten = wert;
+                  return Promise.resolve({ error: null });
+                },
+                then: (ok: (w: { error: null }) => unknown) =>
+                  Promise.resolve({ error: null }).then(ok),
+              };
+              return kette;
+            },
+          };
+        },
+      };
+
+      const s = service as unknown as Record<string, unknown>;
+      s['supabase'] = { client };
+      s['workspaceService'] = { currentWorkspace: () => ({ id: 'ws-1' }) };
+      s['mockStore'] = { isDemoMode: () => false };
+
+      return { gesendet };
+    }
+
+    const beispiel: BankTransaction = {
+      id: '11111111-1111-4111-8111-111111111111',
+      bookingDate: '2026-08-20',
+      counterpartyName: 'Max Mustermann',
+      counterpartyIban: 'DE89 1005 0000 1234 5678 90',
+      purpose: 'Bestellung ORD-1 Webshop',
+      amount: 149.99,
+      currency: 'EUR',
+      sourceFormat: 'csv_sparkasse',
+      status: 'pending',
+    };
+
+    const naechsteRunde = () => new Promise((fertig) => setTimeout(fertig, 0));
+
+    it('schickt die Bewegungen an die Tabelle bank_transactions', async () => {
+      const { gesendet } = mitAttrappe();
+      service.transactions.set([beispiel]);
+
+      service.ignoreTransaction(beispiel.id);
+      await naechsteRunde();
+
+      expect(gesendet.tabelle).toBe('bank_transactions');
+      expect(gesendet.geschrieben?.length).toBe(1);
+    });
+
+    it('uebersetzt die Felder in die Spalten der Tabelle', async () => {
+      const { gesendet } = mitAttrappe();
+      service.transactions.set([beispiel]);
+
+      service.ignoreTransaction(beispiel.id);
+      await naechsteRunde();
+
+      const zeile = gesendet.geschrieben?.[0] ?? {};
+      expect(zeile['workspace_id']).toBe('ws-1');
+      expect(zeile['booking_date']).toBe('2026-08-20');
+      expect(zeile['counterparty_name']).toBe('Max Mustermann');
+      expect(zeile['amount']).toBe(149.99);
+      // Der Status kommt aus der gerade ausgefuehrten Aenderung mit.
+      expect(zeile['status']).toBe('ignored');
+    });
+
+    it('raeumt in der Datenbank nur weg, was es lokal nicht mehr gibt', async () => {
+      const { gesendet } = mitAttrappe();
+      service.transactions.set([beispiel]);
+
+      service.ignoreTransaction(beispiel.id);
+      await naechsteRunde();
+
+      // Die verbliebene Kennung ist ausgenommen - sonst loescht das Aufraeumen
+      // genau das, was gerade geschrieben wurde.
+      expect(gesendet.behalten).toContain(beispiel.id);
+    });
+
+    it('schreibt im Demo-Modus nichts in die Datenbank', async () => {
+      const { gesendet } = mitAttrappe();
+      (service as unknown as Record<string, unknown>)['mockStore'] = { isDemoMode: () => true };
+      service.transactions.set([beispiel]);
+
+      service.ignoreTransaction(beispiel.id);
+      await naechsteRunde();
+
+      expect(gesendet.geschrieben).toBeUndefined();
+    });
+  });
 });
