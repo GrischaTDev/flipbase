@@ -18,6 +18,19 @@
     </div>
 
     <div class="flex items-center gap-2">
+      <!-- Etikett scannen: fuehrt direkt zum Artikel. Erst seit die gedruckten
+           Barcodes echt sind, ergibt das ueberhaupt Sinn - vorher waren die
+           Balken auf dem Etikett gemalt. -->
+      <button
+        type="button"
+        (click)="isScanningLabel.set(true)"
+        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs cursor-pointer select-none text-fb-text-secondary hover:text-fb-text-primary border-fb-border bg-fb-subtle shadow-sm"
+        title="Etikett scannen und Artikel öffnen"
+      >
+        <svg [lucideIcon]="barcodeIcon" class="w-3.5 h-3.5 text-blue-400"></svg>
+        <span class="hidden sm:inline">Etikett scannen</span>
+      </button>
+
       <button
         type="button"
         (click)="openLabelModal()"
@@ -48,6 +61,15 @@
       </button>
     </div>
   </div>
+
+  @if (scanMeldung(); as meldung) {
+    <div
+      class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold animate-fade-in"
+      role="status"
+    >
+      {{ meldung }}
+    </div>
+  }
 
   <!-- Anthrazit KPI Cards Grid -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -524,3 +546,10 @@
     ></app-inventory-label-modal>
   }
 </div>
+
+@if (isScanningLabel()) {
+  <app-barcode-scanner
+    (detected)="onEtikettGescannt($event)"
+    (closed)="isScanningLabel.set(false)"
+  ></app-barcode-scanner>
+}

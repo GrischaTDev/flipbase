@@ -13,12 +13,14 @@ import {
 import { InventoryItem } from '../../../core/models/flipbase.models';
 import { CustomCheckboxComponent } from '../custom-checkbox/custom-checkbox.component';
 import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
+import { BarcodeComponent } from '../barcode/barcode.component';
 
 export type LabelFormat = 'compact' | 'standard' | 'large';
 
 @Component({
   selector: 'app-inventory-label-modal',
   imports: [
+    BarcodeComponent,
     ModalDialogDirective,
     CurrencyPipe,
     DatePipe,

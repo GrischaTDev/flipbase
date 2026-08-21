@@ -223,7 +223,7 @@ export class InventoryService {
       model: payload.model?.trim() || null,
       condition: payload.condition,
       status: payload.status || 'received',
-      sku: payload.sku?.trim() || null,
+      sku: payload.sku?.trim() || this.naechsteArtikelnummer(),
       ean: payload.ean?.trim() || null,
       description: payload.description?.trim() || null,
       allocated_purchase_cost: payload.allocated_purchase_cost || 0,
@@ -490,6 +490,40 @@ export class InventoryService {
         this.syncStatus.melde('Speichern des Aktivitätsprotokolls', e);
       }
     }
+  }
+
+  /**
+   * Vergibt die naechste interne Artikelnummer, z. B. FB-2026-0042.
+   *
+   * Das Feld gab es schon, nur hat es niemand ausgefuellt - es war ein reines
+   * Eingabefeld, und auf dem Etikett stand ersatzweise ein Stueck der internen
+   * Kennung. Eine eigene Nummer ist das, was Warenwirtschaften fuer
+   * Gebrauchtware ueber Seriennummern loesen: Sie macht das einzelne Stueck
+   * ansprechbar - auf dem Etikett, im Regal und in den Aufzeichnungen zu
+   * § 25a.
+   *
+   * Die Nummer zaehlt je Jahr hoch und weicht aus, falls es sie schon gibt.
+   * Das reicht fuer einen Betrieb, in dem eine Person erfasst; bei mehreren
+   * gleichzeitig muesste die Datenbank die Nummer vergeben.
+   */
+  private naechsteArtikelnummer(): string {
+    const jahr = new Date().getFullYear();
+    const praefix = `FB-${jahr}-`;
+
+    const hoechste = this.items()
+      .map((i) => i.sku)
+      .filter((nr): nr is string => !!nr && nr.startsWith(praefix))
+      .map((nr) => Number(nr.slice(praefix.length)))
+      .filter((n) => Number.isFinite(n))
+      .reduce((max, n) => Math.max(max, n), 0);
+
+    const vergeben = new Set(this.items().map((i) => i.sku));
+    let naechste = hoechste + 1;
+    while (vergeben.has(praefix + String(naechste).padStart(4, '0'))) {
+      naechste++;
+    }
+
+    return praefix + String(naechste).padStart(4, '0');
   }
 
   /**

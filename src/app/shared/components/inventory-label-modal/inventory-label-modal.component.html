@@ -151,25 +151,13 @@
                 @if (showBarcode()) {
                   <div class="text-center pt-0.5">
                     <div class="font-mono text-[10px] font-black tracking-widest">
-                      {{ item.sku || 'RF-' + item.id.substring(0, 8) }}
+                      {{ item.sku || 'FB-' + item.id.substring(0, 8).toUpperCase() }}
                     </div>
-                    <!-- Vector Barcode Simulation -->
-                    <div
-                      class="h-5 flex items-center justify-center gap-[1.5px] overflow-hidden my-0.5"
-                    >
-                      <div class="h-full w-[2px] bg-black"></div>
-                      <div class="h-full w-[1px] bg-black"></div>
-                      <div class="h-full w-[3px] bg-black"></div>
-                      <div class="h-full w-[1px] bg-black"></div>
-                      <div class="h-full w-[2px] bg-black"></div>
-                      <div class="h-full w-[4px] bg-black"></div>
-                      <div class="h-full w-[1px] bg-black"></div>
-                      <div class="h-full w-[2px] bg-black"></div>
-                      <div class="h-full w-[3px] bg-black"></div>
-                      <div class="h-full w-[1px] bg-black"></div>
-                      <div class="h-full w-[2px] bg-black"></div>
-                      <div class="h-full w-[1px] bg-black"></div>
-                    </div>
+                    <app-barcode
+                      [wert]="item.sku || 'FB-' + item.id.substring(0, 8).toUpperCase()"
+                      [hoehe]="20"
+                      class="h-5 my-0.5"
+                    ></app-barcode>
                   </div>
                 }
               </div>
@@ -246,7 +234,7 @@
                       <div class="h-full w-[4px] bg-black"></div>
                     </div>
                     <span class="text-[10px] font-mono font-black tracking-wider block mt-0.5">
-                      {{ item.sku || 'SKU-' + item.id.substring(0, 8).toUpperCase() }}
+                      {{ item.sku || 'FB-' + item.id.substring(0, 8).toUpperCase() }}
                     </span>
                   </div>
                 }
@@ -317,7 +305,7 @@
                         <div class="h-full w-[3px] bg-black"></div>
                       </div>
                       <span class="text-xs font-mono font-black tracking-widest">{{
-                        item.sku || 'SKU-' + item.id.substring(0, 8).toUpperCase()
+                        item.sku || 'FB-' + item.id.substring(0, 8).toUpperCase()
                       }}</span>
                     </div>
                   }

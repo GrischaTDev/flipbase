@@ -6,12 +6,13 @@ import {
   signal,
   ViewChild,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
   LucideBoxes as Boxes,
+  LucideBarcode as Barcode,
   LucidePlus as Plus,
   LucideFilter as Filter,
   LucideSearch as Search,
@@ -41,12 +42,14 @@ import {
 } from '../../shared/components/custom-select/custom-select.component';
 import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
+import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner/barcode-scanner.component';
 
 type FilterPreset = string;
 
 @Component({
   selector: 'app-inventory',
   imports: [
+    BarcodeScannerComponent,
     RouterLink,
     CurrencyPipe,
     TranslatePipe,
@@ -64,6 +67,7 @@ type FilterPreset = string;
 })
 export class InventoryComponent {
   readonly inventoryService = inject(InventoryService);
+  private readonly router = inject(Router);
 
   @ViewChild('createModal') createModal?: ItemCreateModalComponent;
 
@@ -80,12 +84,40 @@ export class InventoryComponent {
   readonly checkIcon = CheckCircle2;
   readonly cameraIcon = Camera;
   readonly sparklesIcon = Sparkles;
+  readonly barcodeIcon = Barcode;
   readonly printerIcon = Printer;
   readonly checkSquareIcon = CheckSquare;
   readonly squareIcon = Square;
   readonly storeIcon = Store;
 
   readonly isCreateModalOpen = signal<boolean>(false);
+
+  /** Scanner zum Auffinden eines Artikels ueber sein gedrucktes Etikett. */
+  readonly isScanningLabel = signal<boolean>(false);
+
+  /**
+   * Oeffnet den Artikel, dessen Nummer gescannt wurde.
+   *
+   * Gesucht wird ueber die interne Artikelnummer und ersatzweise ueber die EAN
+   * - ein fremder Barcode auf der Ware selbst soll ebenfalls zum Ziel fuehren.
+   */
+  onEtikettGescannt(code: string): void {
+    this.isScanningLabel.set(false);
+    const gesucht = code.trim().toUpperCase();
+
+    const treffer = this.inventoryService
+      .items()
+      .find((i) => i.sku?.toUpperCase() === gesucht || i.ean?.toUpperCase() === gesucht);
+
+    if (treffer) {
+      this.router.navigate(['/inventory', treffer.id]);
+    } else {
+      this.scanMeldung.set(`Kein Artikel mit der Nummer ${code} gefunden.`);
+      setTimeout(() => this.scanMeldung.set(null), 5000);
+    }
+  }
+
+  readonly scanMeldung = signal<string | null>(null);
   readonly isAiScannerOpen = signal<boolean>(false);
   readonly isLabelModalOpen = signal<boolean>(false);
   readonly searchQuery = signal<string>('');
