@@ -72,23 +72,37 @@ sollte vor allem anderen passieren.
 
 ---
 
-## Schwer: Erfundenes wird als echt ausgegeben
+## Erfundene Daten - erledigt
 
-Dasselbe Muster wie bei der Sendungsverfolgung, die am 20.08. bereinigt wurde.
-Diese Stellen sind noch offen:
+Alle vier Stellen aus der ersten Fassung sind abgeschaltet oder ehrlich
+gemacht. Nichts davon zeigt noch Zahlen, die nach Marktdaten aussehen.
 
-| Funktion                    | Fundstelle                                                                           | Was wirklich passiert                                                                                                                                              |
-| --------------------------- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Versandmarke kaufen         | [fulfillment.service.ts:604](../../src/app/core/services/fulfillment.service.ts)     | Wartet 800 ms und **erfindet eine Sendungsnummer** im echten DHL-Format (`00340434…`). Es wird keine Marke gekauft, nichts gedruckt. Die Nummer wandert an Käufer. |
-| Vergleichspreise (Research) | [research.service.ts:406](../../src/app/core/services/research.service.ts)           | Erzeugt „verkaufte" Angebote mit Zufallspreisen ±22 % um einen Schätzwert, mit erfundenen Titeln, Plattformangaben und Daten. Grundlage für Preisentscheidungen.   |
-| Preis-Radar                 | [price-tracker.service.ts:315](../../src/app/core/services/price-tracker.service.ts) | Marktpreise ändern sich je Abruf um einen **Zufallsfaktor** ±4 %, Angebotszahlen sind Zufall. Daraus entstehen Warnungen wie „unterboten" — aus Rauschen.          |
-| KI-Foto-Scan                | [ai-assistant.service.ts:168](../../src/app/core/services/ai-assistant.service.ts)   | Keine Bilderkennung. Wartet 500 ms „für realistisches Gefühl" und rät das Produkt aus dem **Dateinamen**.                                                          |
+| Funktion                    | Was daraus wurde                                                                                                                 |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Versandmarke kaufen         | Einstieg ausgeblendet, Funktion verweigert. Der ehrliche Weg (Marke beim Zusteller kaufen, echte Nummer eintragen) war schon da. |
+| Vergleichspreise (Research) | Rueckfall entfernt. Ohne Anbindung sagt die Seite das - mit Verweis auf die echten Plattform-Links.                              |
+| Preis-Radar                 | Scan-Knopf weg, Hinweis "Marktdaten sind nicht angebunden". Beobachtete Artikel bleiben.                                         |
+| KI-Foto-Scan                | Beide Einstiege ausgeblendet. Das Autofill daneben bleibt - es liest, was der Nutzer selbst getippt hat.                         |
 
-Zusätzlich in [fulfillment.service.ts:604](../../src/app/core/services/fulfillment.service.ts):
-Wird der Versandauftrag nicht gefunden, greift `if (!order) order = this.orders()[0]`
-— dann wird stillschweigend **ein fremder Auftrag** bearbeitet.
+Nebenbefund: Die eBay-Anbindung haette ohnehin nie funktioniert. Sie braucht
+einen `EBAY_APP_ID`, und die zugehoerige Edge Function liegt gar nicht auf dem
+Server - dort stehen nur `hello` und `main`.
 
----
+## Weitere Funde beim Durchgehen der Bereiche
+
+| Bereich         | Befund                                                                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Steuern & DATEV | `bank_transactions` wurde **nur gelesen, nie geschrieben** (null Zeilen auf dem Server). Der gesamte Kontenabgleich lag im Speicher eines Browsers. Behoben. |
+| Steuern & DATEV | "Demo-Kontoauszug laden" legte sechs erfundene Bankbewegungen an, die sich echten Bestellungen zuordnen liessen. Jetzt nur noch im Demo-Modus.               |
+| Inventar        | Bild-Upload meldete jeden Fehlschlag als Erfolg. Foto war nach dem Neuladen weg, ohne Hinweis. Behoben.                                                      |
+| Analytics       | Die Heatmap wertete Tageszeiten aus, obwohl `sale_date` keine Uhrzeit hat - alle drei Zeitspalten standen immer auf null. Auf Wochentage reduziert.          |
+| Listing Studio  | Der Steuerhinweis stand an vier Stellen fest auf § 25a, obwohl drei Modi einstellbar sind. Wird jetzt aus der Einstellung abgeleitet.                        |
+| Verkaeufe       | Die Verkaufsmeldung ging vor dem Speichern raus - auch nach Discord und Telegram. Jetzt danach.                                                              |
+
+Unauffaellig geblieben: DATEV-Export und Steuerrechnung (20 Tests decken
+Belegdatum, Buchungsrichtung, EXTF-Kopf, Vorsteuer und Formelschutz ab),
+Analytics im Uebrigen, Einstellungen, Deal Calculator, Barcode-Suche (echte
+Open-Food-Facts-Abfrage).
 
 ## Bereits behoben (20./21.08.2026)
 
@@ -97,31 +111,33 @@ Wird der Versandauftrag nicht gefunden, greift `if (!order) order = this.orders(
 | 15 Schreibbefehle wurden nie abgeschickt (fehlendes `await`)           | `c1b0fda` |
 | Lokaler Spiegel als Quelle im angemeldeten Betrieb                     | `246766d` |
 | Sendungsverfolgung erfand Stationen und Zustellprognose                | `f09dca1` |
-| Benachrichtigung verlinkte ins Nichts, „gelesen" wurde nie gespeichert | `4d4bc75` |
+| Benachrichtigung verlinkte ins Nichts, "gelesen" wurde nie gespeichert | `4d4bc75` |
 | Einzelkauf erzeugte keinen Inventar-Artikel                            | `714cbf4` |
 | Einkaufsart in Meldungen falsch benannt                                | `b8ad6fa` |
+| Planungsverweise in der Oberflaeche, Shop als DEMO gekennzeichnet      | `6bd8b1f` |
+| Bild-Upload meldete Fehlschlag als Erfolg                              | `afd338a` |
+| Erfundene Marktdaten abgeschaltet                                      | `8a75b89` |
+| Erfundene Sendungsnummern beim Versand                                 | `b7b2596` |
+| Bankabgleich wird in der Datenbank gespeichert                         | `2817870` |
+| Heatmap ohne Uhrzeit-Auswertung                                        | `dc74b9e` |
+| Steuerhinweis im Inserat aus der Einstellung                           | `7ca3068` |
+| Verkaufsmeldung erst nach dem Speichern                                | `e41f6e2` |
 
----
+## Offen
 
-## Noch nicht abschließend geprüft
-
-- **117 leere `catch`-Blöcke.** Viele davon sind harmlos (Browser-Speicher
-  nicht verfügbar), aber jeder verschluckt im Zweifel einen echten Fehler. Muss
-  einzeln durchgesehen werden.
-- **20 Stellen mit `.then(…)` ohne Fehlerbehandlung.** Werden ausgeführt, aber
-  ein Fehler bleibt unsichtbar.
-- **Behelfskennungen ohne Austausch:** Bei Benachrichtigungen wurde die
-  vorläufige Kennung durch die der Datenbank ersetzt. Rechnungen, Shop-Bestellungen
-  und Einladungen erzeugen ähnliche Kennungen — ob dort getauscht wird, ist offen.
-- **Rechtstexte** (Datenschutz, AGB, Widerrufsbelehrung) im Shop: Inhalt nicht
-  geprüft.
-
----
-
-## Vorgeschlagene Reihenfolge
-
-1. Shop öffentlich sperren (Minuten, beseitigt die rechtliche Aussetzung)
-2. Erfundene Daten entweder abschalten oder klar als Schätzung kennzeichnen —
-   angefangen bei der Versandmarke, weil deren Nummer nach außen geht
-3. Die verbliebenen Fehlerschlucker durchgehen
-4. Erst danach: Funktionen echt anbinden (Zahlungsanbieter, Zusteller, Marktdaten)
+- **Der Shop** bleibt geparkt: erfundenes Impressum, erfundene USt-IdNr.,
+  vorgetaeuschte Bezahlung. Er zieht spaeter auf eine eigene Domain um und ist
+  bis dahin hinter der Anmeldung, im Menue als DEMO gekennzeichnet.
+- **Nicht selbst pruefbar:** Ob der Bankabgleich wirklich in der Datenbank
+  landet, laesst sich nur mit einem angemeldeten Konto sehen. Einmal einen
+  Kontoauszug importieren, dann in `bank_transactions` nachzaehlen.
+- **Zwei Werbeaussagen** im erzeugten Inserat sind Zusagen, die der Verkaeufer
+  ungefragt macht: "Schneller Versand innerhalb von 24 Stunden nach
+  Zahlungseingang" und "Sichere und gepolsterte Verpackung garantiert".
+  Bewusst nicht stillschweigend geaendert - das ist eine Entscheidung des
+  Betreibers, keine Fehlerkorrektur.
+- **Systemnachrichten vom Betreiber** (Wartung, News an alle Kunden) sind ein
+  eigenes Vorhaben und zurueckgestellt.
+- Die verbliebenen leeren `catch`-Bloecke betreffen den Browser-Speicher, Ton,
+  Geraete-APIs und den Research-Verlauf - dort steht nichts vom Nutzer auf dem
+  Spiel.
