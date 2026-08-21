@@ -1,6 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
+import { SyncStatusService } from './sync-status.service';
 import { ItemMedia } from '../models/flipbase.models';
 
 @Injectable({
@@ -9,6 +10,7 @@ import { ItemMedia } from '../models/flipbase.models';
 export class MediaService {
   private readonly supabase = inject(SupabaseService);
   private readonly mockStore = inject(MockDataStoreService);
+  private readonly syncStatus = inject(SyncStatusService, { optional: true });
 
   private readonly localMediaMap = new Map<string, ItemMedia[]>();
 
@@ -93,13 +95,17 @@ export class MediaService {
         .order('created_at', { ascending: false });
 
       const { data, error } = await queryPromise;
-      if (!error && data && data.length > 0) {
+      if (error) {
+        // Ohne Meldung faenden sich einfach keine Bilder - nicht zu
+        // unterscheiden von einem Artikel, der nie welche hatte.
+        this.melde('Laden der Bilder', error);
+      } else if (data && data.length > 0) {
         const medien = data as unknown as ItemMedia[];
         medien.forEach((m) => this.mockStore.saveItemMedia(m));
         return medien;
       }
-    } catch {
-      // offline fallback
+    } catch (e: unknown) {
+      this.melde('Laden der Bilder', e);
     }
 
     return local;
@@ -139,7 +145,14 @@ export class MediaService {
           return;
         }
 
-        // 2. Try Supabase Storage upload in background
+        // 2. In den Speicher der Datenbank hochladen.
+        //
+        // Frueher endete jeder Fehlschlag hier in einem leeren catch mit dem
+        // Vermerk "Local media already saved" - und darunter wurde Erfolg
+        // gemeldet. Angemeldet stimmte beides nicht: Der lokale Spiegel nimmt
+        // nichts auf, also war das Bild nach dem naechsten Laden weg, ohne dass
+        // irgendwo ein Hinweis auftauchte. Bei Artikelfotos ist das verlorene
+        // Arbeit.
         try {
           const { error: uploadError } = await this.supabase.client.storage
             .from('item-media')
@@ -148,7 +161,15 @@ export class MediaService {
               upsert: true,
             });
 
-          if (!uploadError) {
+          if (uploadError) {
+            resolve({
+              data: null,
+              error: this.melde('Hochladen des Bildes', uploadError),
+            });
+            return;
+          }
+
+          {
             if (isPrimary) {
               await this.supabase.client
                 .from('item_media')
@@ -169,24 +190,37 @@ export class MediaService {
               .select()
               .single();
 
-            if (!dbError && inserted) {
-              const cloudMedia = inserted as ItemMedia;
-              this.mockStore.saveItemMedia(cloudMedia);
-              resolve({ data: cloudMedia, error: null });
+            if (dbError || !inserted) {
+              resolve({
+                data: null,
+                error: this.melde('Speichern des Bildeintrags', dbError),
+              });
               return;
             }
-          }
-        } catch {
-          // Local media already saved
-        }
 
-        resolve({ data: localMedia, error: null });
+            const cloudMedia = inserted as ItemMedia;
+            this.mockStore.saveItemMedia(cloudMedia);
+            resolve({ data: cloudMedia, error: null });
+            return;
+          }
+        } catch (e: unknown) {
+          resolve({ data: null, error: this.melde('Hochladen des Bildes', e) });
+          return;
+        }
       };
 
       reader.onerror = () =>
         resolve({ data: null, error: new Error('Datei konnte nicht gelesen werden.') });
       reader.readAsDataURL(file);
     });
+  }
+
+  /** Meldet einen Fehler und liefert ihn zurueck - auch ohne SyncStatus. */
+  private melde(vorgang: string, ursache: unknown): Error {
+    return (
+      this.syncStatus?.melde(vorgang, ursache) ??
+      new Error(`${vorgang} fehlgeschlagen: ${String(ursache)}`)
+    );
   }
 
   /**

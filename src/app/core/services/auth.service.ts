@@ -5,6 +5,7 @@ import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { UserProfile } from '../models/flipbase.models';
 import { environment } from '../../../environments/environment';
+import { SyncStatusService } from './sync-status.service';
 
 /** Speicherschlüssel für den bewusst gewählten Demo-Modus. */
 const DEMO_MODE_KEY = 'flipbase_demo_mode';
@@ -28,6 +29,7 @@ const DEMO_MODE_KEY = 'flipbase_demo_mode';
 })
 export class AuthService {
   private readonly supabase = inject(SupabaseService);
+  private readonly syncStatus = inject(SyncStatusService, { optional: true });
   private readonly mockStore = inject(MockDataStoreService);
   private readonly router = inject(Router);
 
@@ -138,7 +140,11 @@ export class AuthService {
         .eq('id', userId)
         .single();
 
-      if (!error && data) {
+      if (error) {
+        // Die Anmeldung bleibt gueltig, aber Name und Rolle fehlen dann
+        // ueberall - das soll man sehen und nicht raten muessen.
+        this.syncStatus?.melde('Laden des Profils', error);
+      } else if (data) {
         this.profile.set(data as UserProfile);
       }
     } catch {
