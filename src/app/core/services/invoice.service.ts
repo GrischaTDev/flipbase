@@ -7,6 +7,7 @@ import { StoreOrder } from '../models/store.models';
 import { EmailConfirmation, Invoice, InvoiceItem, InvoiceParty } from '../models/invoice.models';
 import { Json } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
+import { SyncStatusService } from './sync-status.service';
 
 const STORAGE_KEY_INVOICES = 'flipbase_generated_invoices';
 const STORAGE_KEY_EMAILS = 'flipbase_sent_emails';
@@ -16,6 +17,7 @@ const STORAGE_KEY_EMAILS = 'flipbase_sent_emails';
 })
 export class InvoiceService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly syncStatus = inject(SyncStatusService, { optional: true });
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
@@ -277,23 +279,48 @@ export class InvoiceService {
         })
         .select()
         .single()
-        .then(({ data: dbInv }) => {
-          if (dbInv) {
-            const itemInserts = invoice.items.map((it) => ({
-              invoice_id: dbInv.id,
-              sku: it.sku || null,
-              title: it.title,
-              condition: it.condition || null,
-              quantity: it.quantity,
-              unit_price: it.unitPrice,
-              total_price: it.totalPrice,
-            }));
-            this.supabase?.client.from('invoice_items').insert(itemInserts);
+        .then(({ data: dbInv, error }) => {
+          if (error || !dbInv) {
+            this.syncStatus?.melde('Speichern der Rechnung', error);
+            return;
           }
+          void this.speicherePositionen(dbInv.id, invoice.items);
         });
     }
 
     return invoice;
+  }
+
+  /**
+   * Schreibt die Positionen einer Rechnung.
+   *
+   * Diese Zeile stand frueher ohne `await` und ohne `.then` da - der
+   * Abfrage-Erbauer von supabase-js schickt dann gar nichts ab. Die Rechnung
+   * kam also ohne ihre Positionen in der Datenbank an, und eine Rechnung ohne
+   * Positionen ist als Beleg wertlos. Aufgefallen ist es nur, weil noch keine
+   * Rechnung erzeugt worden war.
+   */
+  private async speicherePositionen(rechnungsId: string, positionen: InvoiceItem[]): Promise<void> {
+    if (!this.supabase || positionen.length === 0) return;
+
+    try {
+      const { error } = await this.supabase.client.from('invoice_items').insert(
+        positionen.map((it) => ({
+          invoice_id: rechnungsId,
+          sku: it.sku || null,
+          title: it.title,
+          condition: it.condition || null,
+          quantity: it.quantity,
+          unit_price: it.unitPrice,
+          total_price: it.totalPrice,
+        })),
+      );
+      if (error) {
+        this.syncStatus?.melde('Speichern der Rechnungspositionen', error);
+      }
+    } catch (e: unknown) {
+      this.syncStatus?.melde('Speichern der Rechnungspositionen', e);
+    }
   }
 
   /**
@@ -379,19 +406,12 @@ export class InvoiceService {
         })
         .select()
         .single()
-        .then(({ data: dbInv }) => {
-          if (dbInv) {
-            const itemInserts = invoice.items.map((it) => ({
-              invoice_id: dbInv.id,
-              sku: it.sku || null,
-              title: it.title,
-              condition: it.condition || null,
-              quantity: it.quantity,
-              unit_price: it.unitPrice,
-              total_price: it.totalPrice,
-            }));
-            this.supabase?.client.from('invoice_items').insert(itemInserts);
+        .then(({ data: dbInv, error }) => {
+          if (error || !dbInv) {
+            this.syncStatus?.melde('Speichern der Rechnung', error);
+            return;
           }
+          void this.speicherePositionen(dbInv.id, invoice.items);
         });
     }
 

@@ -8,6 +8,8 @@ import { MockDataStoreService } from './mock-data-store.service';
 import { InventoryItem } from '../models/flipbase.models';
 import { Json } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
+import { SyncStatusService } from './sync-status.service';
+import { schreibeImHintergrund } from './supabase-schreiben';
 import {
   CartItem,
   CheckoutCustomerInfo,
@@ -25,6 +27,7 @@ const STORAGE_KEY_ORDERS = 'flipbase_store_orders';
 })
 export class StoreService {
   private readonly supabase = inject(SupabaseService, { optional: true });
+  private readonly syncStatus = inject(SyncStatusService, { optional: true });
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
@@ -408,18 +411,28 @@ export class StoreService {
         })
         .select()
         .single()
-        .then(({ data: dbOrder }) => {
-          if (dbOrder) {
-            const itemInserts = currentCart.map((c) => ({
-              store_order_id: dbOrder.id,
-              inventory_item_id:
-                c.item.id.startsWith('item-') && !c.item.id.includes('demo') ? c.item.id : null,
-              item_title: c.item.title,
-              quantity: c.quantity,
-              price: c.item.expected_value ?? c.item.allocated_purchase_cost * 1.5,
-            }));
-            this.supabase?.client.from('store_order_items').insert(itemInserts);
+        .then(({ data: dbOrder, error }) => {
+          if (error || !dbOrder) {
+            this.syncStatus?.melde('Speichern der Bestellung', error);
+            return;
           }
+          // Die Positionen brauchen ein eigenes `await`, sonst wird die
+          // Anfrage nie abgeschickt - eine Bestellung ohne Positionen sagt
+          // nicht, was bestellt wurde.
+          void schreibeImHintergrund(
+            this.supabase!.client.from('store_order_items').insert(
+              currentCart.map((c) => ({
+                store_order_id: dbOrder.id,
+                inventory_item_id:
+                  c.item.id.startsWith('item-') && !c.item.id.includes('demo') ? c.item.id : null,
+                item_title: c.item.title,
+                quantity: c.quantity,
+                price: c.item.expected_value ?? c.item.allocated_purchase_cost * 1.5,
+              })),
+            ),
+            'Speichern der Bestellpositionen',
+            this.syncStatus,
+          );
         });
     }
 
