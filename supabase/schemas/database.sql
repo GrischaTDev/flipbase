@@ -209,6 +209,9 @@ CREATE TABLE IF NOT EXISTS public.sales (
     external_order_id TEXT,
     external_listing_id TEXT,
     buyer_notes TEXT,
+    -- Retoure: gesetzt, sobald der Verkauf zurueckgegeben wurde.
+    returned_at TIMESTAMPTZ,
+    refund_amount NUMERIC(10,2),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

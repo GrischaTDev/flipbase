@@ -49,7 +49,10 @@ export class DashboardComponent {
 
   // Real-time computed dashboard metrics
   readonly metrics = computed<DashboardMetrics>(() => {
-    const sales = this.salesService.sales();
+    // Zurueckgegebene Verkaeufe zaehlen nicht mehr: Der Artikel steht wieder im
+    // Lager und taucht dort als Wert auf - wuerde der Verkauf weiter zaehlen,
+    // waere derselbe Gegenstand doppelt drin und die Erstattung nirgends.
+    const sales = this.salesService.sales().filter((s) => !s.returned_at);
     const items = this.inventoryService.items();
 
     const realizedProfit = sales.reduce((sum, s) => sum + (s.net_profit || 0), 0);
@@ -62,8 +65,15 @@ export class DashboardComponent {
     );
     const inventoryValue = activeItems.reduce((sum, i) => sum + (Number(i.expected_value) || 0), 0);
 
-    const totalRoi = sales.reduce((sum, s) => sum + (s.roi || 0), 0);
-    const avgRoi = sales.length > 0 ? Number((totalRoi / sales.length).toFixed(1)) : 0;
+    // ROI ueber den gesamten Einsatz, nicht als Mittelwert der Einzelwerte:
+    // Sonst zaehlt eine Huelle fuer 3 Euro mit 300 Prozent genauso schwer wie
+    // eine Konsole fuer 300 Euro mit 10 - und die Zahl sagt nichts darueber,
+    // was das eingesetzte Geld gebracht hat.
+    const eingesetzt = sales.reduce(
+      (sum, s) => sum + ((s.sale_price || 0) - (s.net_profit || 0)),
+      0,
+    );
+    const avgRoi = eingesetzt > 0 ? Number(((realizedProfit / eingesetzt) * 100).toFixed(1)) : 0;
 
     return {
       realized_profit: Number(realizedProfit.toFixed(2)),

@@ -323,6 +323,13 @@ export interface Sale {
   external_order_id?: string | null;
   external_listing_id?: string | null;
   buyer_notes?: string | null;
+  /**
+   * Zeitpunkt der Retoure. Ist er gesetzt, zaehlt der Verkauf nicht mehr als
+   * realisierter Umsatz - der Artikel ist ja wieder da.
+   */
+  returned_at?: string | null;
+  /** Tatsaechlich erstatteter Betrag, kann unter dem Verkaufspreis liegen. */
+  refund_amount?: number | null;
   created_at?: string;
   inventory_item?: InventoryItem;
   net_profit?: number;

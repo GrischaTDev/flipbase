@@ -32,6 +32,20 @@ export class TaxEngineService {
     return this.workspaceService.currentWorkspace()?.tax_mode || 'diff_25a';
   });
 
+  /**
+   * Steuerliche Bemessung je Verkauf.
+   *
+   * **Retouren bleiben hier bewusst enthalten.** Dashboard und Auswertungen
+   * blenden zurueckgegebene Verkaeufe aus - dort geht es um die Frage, was
+   * tatsaechlich verdient wurde. In der Buchhaltung ist das anders: Ein
+   * Verkauf aus dem ersten Quartal verschwindet nicht rueckwirkend, weil im
+   * zweiten eine Gutschrift entsteht. Die Gutschrift gehoert als eigener
+   * Vorgang in den Zeitraum, in dem sie ausgestellt wurde.
+   *
+   * Wie das im DATEV-Buchungsstapel abzubilden ist, gehoert zur
+   * Steuerkanzlei - deshalb wird hier nichts geraten und nichts stillschweigend
+   * herausgefiltert.
+   */
   readonly allTaxCalculations = computed<TaxCalculationResult[]>(() => {
     const sales = this.salesService.sales();
     const items = this.inventoryService.items();

@@ -266,6 +266,48 @@ export class SalesService {
     return { error: null };
   }
 
+  /**
+   * Vermerkt am Verkauf, dass er zurueckgegeben wurde.
+   *
+   * Ohne diesen Vermerk zaehlte ein zurueckgegebener Verkauf weiter mit vollem
+   * Gewinn, waehrend der Artikel gleichzeitig wieder im Lager stand - derselbe
+   * Gegenstand also doppelt. Die Erstattung minderte nichts.
+   */
+  async markiereAlsRetourniert(
+    saleId: string,
+    erstattet: number,
+  ): Promise<{ error: Error | null }> {
+    const zeitpunkt = new Date().toISOString();
+
+    this.sales.update((liste) =>
+      liste.map((s) =>
+        s.id === saleId
+          ? this.enrichSaleMetrics({ ...s, returned_at: zeitpunkt, refund_amount: erstattet })
+          : s,
+      ),
+    );
+
+    const geaendert = this.sales().find((s) => s.id === saleId);
+    if (geaendert) this.mockStore.saveSale(geaendert);
+
+    if (this.mockStore.isDemoMode()) return { error: null };
+
+    try {
+      const { error } = await this.supabase.client
+        .from('sales')
+        .update({ returned_at: zeitpunkt, refund_amount: erstattet })
+        .eq('id', saleId);
+
+      if (error) {
+        return { error: this.syncStatus.melde('Vermerken der Retoure', error) };
+      }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Vermerken der Retoure', e) };
+    }
+
+    return { error: null };
+  }
+
   async deleteSale(saleId: string, inventoryItemId: string): Promise<{ error: Error | null }> {
     this.mockStore.deleteSale(saleId);
     this.sales.update((list) => list.filter((s) => s.id !== saleId));

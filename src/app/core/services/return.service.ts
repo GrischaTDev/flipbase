@@ -9,6 +9,7 @@ import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { MockDataStoreService } from './mock-data-store.service';
+import { SalesService } from './sales.service';
 
 const STORAGE_KEY_RETURNS = 'flipbase_saved_returns';
 
@@ -20,6 +21,7 @@ export class ReturnService {
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly syncStatus = inject(SyncStatusService, { optional: true })!;
   private readonly inventoryService = inject(InventoryService, { optional: true });
+  private readonly salesService = inject(SalesService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly webhookService = inject(WebhookService, { optional: true });
   private readonly webPushService = inject(WebPushService, { optional: true });
@@ -174,11 +176,18 @@ export class ReturnService {
       }
     }
 
-    // 3. Save to state & local storage
+    // 3. Den Verkauf als retourniert vermerken.
+    //
+    // Ohne diesen Schritt zaehlte der Verkauf weiter mit vollem Gewinn,
+    // waehrend der Artikel gleichzeitig wieder im Lager stand - derselbe
+    // Gegenstand doppelt, und die Erstattung minderte nichts.
+    await this.salesService?.markiereAlsRetourniert(payload.sale.id, newReturn.refund_amount);
+
+    // 4. Save to state & local storage
     this.returns.update((prev) => [newReturn, ...prev]);
     this.persistReturns();
 
-    // 4. Save to Supabase
+    // 5. Save to Supabase
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       try {
         const { data: dbReturn, error } = await this.supabase.client

@@ -145,6 +145,18 @@ describe('Bearbeiten vorhandener Daten', () => {
       expect(sales()[0].net_profit).toBeCloseTo(379 - 37.9 - 6.99, 2);
     });
 
+    it('nimmt einen zurueckgegebenen Verkauf aus der Gewinnrechnung', async () => {
+      // Eine Retoure liess den Verkauf frueher unberuehrt: Der Gewinn zaehlte
+      // weiter, waehrend der Artikel schon wieder im Lager lag - derselbe
+      // Gegenstand doppelt.
+      const { dienst, sales } = dienstMit([verkauf]);
+
+      await dienst.markiereAlsRetourniert('s-1', 379);
+
+      expect(sales()[0].returned_at).toBeTruthy();
+      expect(sales()[0].refund_amount).toBe(379);
+    });
+
     it('meldet einen unbekannten Verkauf, statt still nichts zu tun', async () => {
       const { dienst } = dienstMit([verkauf]);
 

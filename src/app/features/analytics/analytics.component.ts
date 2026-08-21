@@ -96,7 +96,9 @@ export class AnalyticsComponent {
   readonly isHoldingMode = signal<boolean>(false);
 
   readonly currentSales = computed(() => {
-    const list = this.salesService.sales();
+    // Zurueckgegebene Verkaeufe fliessen in keine Auswertung ein - der Artikel
+    // ist wieder im Lager, der Gewinn also nicht realisiert.
+    const list = this.salesService.sales().filter((s) => !s.returned_at);
     const range = this.timeRange();
     if (range === 'all') return list;
 

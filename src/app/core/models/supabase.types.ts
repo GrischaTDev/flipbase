@@ -1156,6 +1156,8 @@ export type Database = {
       sales: {
         Row: {
           buyer_notes: string | null
+          returned_at: string | null
+          refund_amount: number | null
           created_at: string
           external_listing_id: string | null
           external_order_id: string | null
@@ -1172,6 +1174,8 @@ export type Database = {
         }
         Insert: {
           buyer_notes?: string | null
+          returned_at?: string | null
+          refund_amount?: number | null
           created_at?: string
           external_listing_id?: string | null
           external_order_id?: string | null
@@ -1188,6 +1192,8 @@ export type Database = {
         }
         Update: {
           buyer_notes?: string | null
+          returned_at?: string | null
+          refund_amount?: number | null
           created_at?: string
           external_listing_id?: string | null
           external_order_id?: string | null
