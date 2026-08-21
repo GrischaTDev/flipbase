@@ -20,7 +20,22 @@ VERZEICHNIS="/opt/flipbase"
 CONTAINER="flipbase-web"
 REGISTRY="ghcr.io"
 
-TAG="${SSH_ORIGINAL_COMMAND:-latest}"
+BEFEHL="${SSH_ORIGINAL_COMMAND:-latest}"
+
+# Angewendete Migrationen auflisten.
+#
+# Eigener Verb statt eines freien Kommandos, damit der Deploy-Schluessel weiter
+# nur genau das kann, was hier steht. Die Pipeline vergleicht die Liste mit den
+# Dateien im Repository und verweigert das Ausliefern, wenn eine fehlt: Code,
+# dessen Spalten in der Datenbank nicht existieren, soll gar nicht erst live
+# gehen. Genau das ist am 21.08.2026 passiert - eine Migration lag wochenlang
+# im Repository und war nie angewendet.
+if [ "$BEFEHL" = "migrationen" ]; then
+  docker exec supabase-db psql -U postgres -d postgres -tAq     -c "select version from supabase_migrations.schema_migrations order by version"
+  exit 0
+fi
+
+TAG="$BEFEHL"
 
 # Die Kennzeichnung landet in einem Docker-Befehl. Sie wird deshalb streng
 # geprueft, statt sie durchzureichen: Der Schluessel darf zwar nur dieses

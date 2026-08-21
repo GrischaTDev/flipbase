@@ -41,6 +41,14 @@ Der Server baut also **nichts** mehr selbst. Er lädt ein fertiges Abbild.
   jedem Push auf die Produktivdatenbank loszulassen, ist ein anderes Kaliber
   als ein Frontend auszutauschen. Das bleibt ein bewusster Schritt über
   `apply-migrations.sh`.
+- **Die Pipeline prüft aber, ob sie gelaufen sind.** Vor dem Ausliefern
+  vergleicht sie die Dateien in `supabase/migrations/` mit dem, was die
+  Datenbank als angewendet meldet, und **bricht ab**, wenn eine fehlt — samt
+  Namen und den beiden nötigen Befehlen. Grund: Am 21.08.2026 lag eine
+  Migration einen Tag lang unangewendet im Repository. Die Anwendung liefert
+  sich selbst aus, Migrationen nicht — also können sie schlicht vergessen
+  werden. Code, dessen Spalten in der Datenbank fehlen, soll gar nicht erst
+  live gehen.
 
 ### Rückfall auf eine ältere Fassung
 

@@ -162,6 +162,38 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
 
+      # Schema first: code whose columns do not exist yet must not ship.
+      #
+      # On 21.08.2026 a migration sat in the repository unapplied - the
+      # application deploys itself, migrations do not, so they can simply be
+      # forgotten. This compares the files in the repository against what the
+      # database reports as applied and stops the deployment naming the
+      # missing ones, instead of shipping code that writes to columns that are
+      # not there.
+      #
+      # Applying them stays a deliberate act: letting every push loose on the
+      # production schema is a different risk class than replacing a frontend.
+      - name: Check that all migrations are applied
+        run: |
+          angewendet="$(ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" migrationen)"
+          fehlend=""
+          for datei in supabase/migrations/*.sql; do
+            version="$(basename "$datei" | cut -d_ -f1)"
+            if ! echo "$angewendet" | grep -qx "$version"; then
+              fehlend="$fehlend $(basename "$datei")"
+            fi
+          done
+          if [ -n "$fehlend" ]; then
+            echo "::error::Nicht angewendete Migrationen - Deployment gestoppt"
+            echo "Diese Migrationen liegen im Repository, sind aber nicht angewendet:"
+            for f in $fehlend; do echo "  $f"; done
+            echo ""
+            echo "Anwenden mit:"
+            echo "  scp supabase/migrations/<datei> $DEPLOY_USER@$DEPLOY_HOST:/opt/flipbase/migrations/"
+            echo "  ssh $DEPLOY_USER@$DEPLOY_HOST \"bash /opt/flipbase/apply-migrations.sh\""
+            exit 1
+          fi
+          echo "Alle Migrationen angewendet."
       # Three deliberate choices here.
       #
       # The key cannot run anything but deploy/deploy.sh on the server: it is
