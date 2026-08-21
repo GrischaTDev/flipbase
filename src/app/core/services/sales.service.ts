@@ -170,8 +170,9 @@ export class SalesService {
       `Verkauft für ${payload.sale_price.toFixed(2)} € auf ${payload.platform}`,
     );
 
-    // Trigger Discord/Telegram/In-App notification
-    this.webhookService.sendSaleNotification(enrichedSale, item?.title || 'Artikel');
+    if (this.mockStore.isDemoMode()) {
+      this.webhookService.sendSaleNotification(enrichedSale, item?.title || 'Artikel');
+    }
 
     if (!this.mockStore.isDemoMode() && !this.mockStore?.isDemoMode()) {
       try {
@@ -200,6 +201,10 @@ export class SalesService {
           const finalSale = this.enrichSaleMetrics({ ...enrichedSale, id: dbSale.id });
           this.mockStore.saveSale(finalSale);
           this.sales.update((list) => [finalSale, ...list.filter((s) => s.id !== enrichedSale.id)]);
+          // Erst melden, wenn der Verkauf wirklich gespeichert ist. Vorher ging
+          // die Meldung auch raus, wenn das Speichern gleich darauf scheiterte -
+          // und ueber Discord und Telegram sogar nach aussen.
+          this.webhookService.sendSaleNotification(finalSale, item?.title || 'Artikel');
           return { data: finalSale, error: null };
         }
       } catch (e: unknown) {
