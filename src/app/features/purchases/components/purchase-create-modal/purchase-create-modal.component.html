@@ -177,7 +177,7 @@
                 [title]="
                   isAddingSource() ? 'Eingabe für neue Quelle schließen' : 'Neue Quelle hinzufügen'
                 "
-                class="flex size-6 items-center justify-center rounded-md border border-fb-line bg-fb-well text-fb-text-muted transition hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+                class="flex size-6 cursor-pointer items-center justify-center rounded-md border border-fb-line bg-fb-well text-fb-text-muted transition hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
                 [class.border-emerald-500/50]="isAddingSource()"
                 [class.bg-emerald-500/10]="isAddingSource()"
                 [class.text-emerald-400]="isAddingSource()"
@@ -203,7 +203,7 @@
                 <button
                   type="button"
                   (click)="saveNewSource()"
-                  class="linear-btn-primary px-2.5 py-1 rounded-md text-xs font-semibold"
+                  class="linear-btn-primary cursor-pointer px-2.5 py-1 rounded-md text-xs font-semibold"
                 >
                   OK
                 </button>
@@ -249,7 +249,7 @@
                     ? 'Eingabe für neuen Lieferanten schließen'
                     : 'Neuen Lieferanten hinzufügen'
                 "
-                class="flex size-6 items-center justify-center rounded-md border border-fb-line bg-fb-well text-fb-text-muted transition hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+                class="flex size-6 cursor-pointer items-center justify-center rounded-md border border-fb-line bg-fb-well text-fb-text-muted transition hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
                 [class.border-emerald-500/50]="isAddingSupplier()"
                 [class.bg-emerald-500/10]="isAddingSupplier()"
                 [class.text-emerald-400]="isAddingSupplier()"
@@ -275,7 +275,7 @@
                 <button
                   type="button"
                   (click)="saveNewSupplier()"
-                  class="linear-btn-primary px-2.5 py-1 rounded-md text-xs font-semibold"
+                  class="linear-btn-primary cursor-pointer px-2.5 py-1 rounded-md text-xs font-semibold"
                 >
                   OK
                 </button>
@@ -367,7 +367,7 @@
             <button
               type="button"
               (click)="addCostRow()"
-              class="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-semibold hover:underline"
+              class="inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:underline"
             >
               <svg [lucideIcon]="plusCircleIcon" class="w-3.5 h-3.5"></svg>
               <span>Kosten hinzufügen</span>
@@ -375,42 +375,58 @@
           </div>
 
           @for (cost of extraCosts(); track $index) {
-            <div class="flex items-center gap-2 p-2 rounded-lg bg-fb-well border border-fb-line">
-              <select
-                [value]="cost.type"
-                (change)="updateCostField($index, 'type', $any($event.target).value)"
-                class="linear-input px-2 py-1 rounded-md text-xs"
-              >
-                <option value="shipping">Versand</option>
-                <option value="travel">Fahrtkosten / Sprit</option>
-                <option value="transport">Spedition / Transport</option>
-                <option value="customs">Zoll</option>
-                <option value="fee">Gebühren</option>
-                <option value="other">Sonstiges</option>
-              </select>
+            <div
+              class="grid grid-cols-1 gap-2 rounded-lg border border-fb-line bg-fb-well p-2 sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1.4fr)_auto] sm:items-end"
+            >
+              <label class="min-w-0 text-[10px] font-semibold text-fb-text-muted">
+                Art
+                <select
+                  [value]="cost.type"
+                  (change)="updateCostField($index, 'type', $any($event.target).value)"
+                  class="linear-input mt-1 w-full cursor-pointer rounded-md px-2 py-1 text-xs"
+                >
+                  <option value="shipping">Versand</option>
+                  <option value="travel">Fahrtkosten / Sprit</option>
+                  <option value="packaging">Verpackungsmaterial</option>
+                  <option value="transport">Spedition / Transport</option>
+                  <option value="customs">Zoll</option>
+                  <option value="import">Zoll / Importabgaben</option>
+                  <option value="fee">Gebühren</option>
+                  <option value="other">Sonstiges</option>
+                </select>
+              </label>
 
-              <input
-                type="number"
-                [value]="cost.amount"
-                (input)="updateCostField($index, 'amount', $any($event.target).value)"
-                placeholder="Betrag €"
-                class="linear-input w-24 px-2 py-1 rounded-md text-xs font-mono font-bold"
-              />
+              <label class="min-w-0 text-[10px] font-semibold text-fb-text-muted">
+                Betrag
+                <input
+                  type="number"
+                  [value]="cost.amount"
+                  (input)="updateCostField($index, 'amount', $any($event.target).value)"
+                  placeholder="0,00 €"
+                  class="linear-input mt-1 w-full rounded-md px-2 py-1 text-xs font-mono font-bold"
+                />
+              </label>
 
-              <input
-                type="text"
-                [value]="cost.description"
-                (input)="updateCostField($index, 'description', $any($event.target).value)"
-                placeholder="Beschreibung (optional)"
-                class="linear-input flex-1 px-2 py-1 rounded-md text-xs"
-              />
+              <label class="min-w-0 text-[10px] font-semibold text-fb-text-muted">
+                Beschreibung
+                <input
+                  type="text"
+                  [value]="cost.description"
+                  (input)="updateCostField($index, 'description', $any($event.target).value)"
+                  placeholder="Optional"
+                  class="linear-input mt-1 w-full rounded-md px-2 py-1 text-xs"
+                />
+              </label>
 
               <button
                 type="button"
                 (click)="removeCostRow($index)"
-                class="p-1 text-fb-text-muted hover:text-rose-400 rounded"
+                aria-label="Zusatzkosten löschen"
+                title="Zusatzkosten löschen"
+                class="inline-flex h-7 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/10 px-2 text-[10px] font-semibold text-rose-400 transition hover:border-rose-400/60 hover:bg-rose-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60"
               >
-                <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
+                <svg [lucideIcon]="trashIcon" aria-hidden="true" class="size-3.5"></svg>
+                <span>Löschen</span>
               </button>
             </div>
           }

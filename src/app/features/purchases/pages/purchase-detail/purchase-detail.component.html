@@ -220,7 +220,10 @@
                 <option value="shipping">Versand / Fracht</option>
                 <option value="travel">Fahrtkosten / Sprit</option>
                 <option value="packaging">Verpackungsmaterial</option>
+                <option value="transport">Spedition / Transport</option>
+                <option value="customs">Zoll</option>
                 <option value="import">Zoll / Importabgaben</option>
+                <option value="fee">Gebühren</option>
                 <option value="other">Sonstiges</option>
               </select>
             </div>
@@ -288,7 +291,32 @@
                 <span
                   class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-400 border border-amber-500/30 uppercase"
                 >
-                  {{ cost.type }}
+                  @switch (cost.type) {
+                    @case ('shipping') {
+                      Versand
+                    }
+                    @case ('travel') {
+                      Fahrtkosten
+                    }
+                    @case ('packaging') {
+                      Verpackung
+                    }
+                    @case ('transport') {
+                      Transport
+                    }
+                    @case ('customs') {
+                      Zoll
+                    }
+                    @case ('import') {
+                      Importabgaben
+                    }
+                    @case ('fee') {
+                      Gebühren
+                    }
+                    @default {
+                      Sonstiges
+                    }
+                  }
                 </span>
                 <span class="text-fb-text-secondary">{{ cost.description || 'Nebenkosten' }}</span>
               </div>

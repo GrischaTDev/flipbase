@@ -264,12 +264,13 @@ export class PurchaseDetailComponent {
     if (!purchase || this.costForm.invalid) return;
 
     const val = this.costForm.getRawValue();
-    await this.purchaseService.addPurchaseCost(
+    const { error } = await this.purchaseService.addPurchaseCost(
       purchase.id,
       val.type,
       val.amount,
       val.description || undefined,
     );
+    if (error) return;
 
     this.costForm.reset({ type: 'shipping', amount: 0, description: '' });
     this.isAddingCost.set(false);

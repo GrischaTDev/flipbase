@@ -604,23 +604,32 @@ export class PurchaseService {
       }));
 
     const summe = zeilen.reduce((acc, z) => acc + z.amount, 0);
+    let gespeicherteZeilen = zeilen.map((zeile, index) => ({
+      ...zeile,
+      id: `cost-${Date.now()}-${index}`,
+    }));
 
     const anwenden = (p: Purchase): Purchase => ({
       ...p,
-      costs: zeilen,
+      costs: gespeicherteZeilen,
       total_purchase_cost: Number((Number(p.purchase_price || 0) + summe).toFixed(2)),
       updated_at: new Date().toISOString(),
     });
 
-    this.purchasesRaw.update((liste) => liste.map((p) => (p.id === purchaseId ? anwenden(p) : p)));
-    this.selectedPurchaseRaw.update((p) => (p && p.id === purchaseId ? anwenden(p) : p));
+    const lokalAktualisieren = (): void => {
+      this.purchasesRaw.update((liste) =>
+        liste.map((p) => (p.id === purchaseId ? anwenden(p) : p)),
+      );
+      this.selectedPurchaseRaw.update((p) => (p && p.id === purchaseId ? anwenden(p) : p));
 
-    const gespeichert = this.mockStore.getPurchases().find((p) => p.id === purchaseId);
-    if (gespeichert) {
-      this.mockStore.savePurchase(anwenden(gespeichert));
+      const gespeichert = this.mockStore.getPurchases().find((p) => p.id === purchaseId);
+      if (gespeichert) this.mockStore.savePurchase(anwenden(gespeichert));
+    };
+
+    if (this.mockStore.isDemoMode()) {
+      lokalAktualisieren();
+      return { error: null };
     }
-
-    if (this.mockStore.isDemoMode()) return { error: null };
 
     try {
       const { error: loeschFehler } = await this.supabase.client
@@ -633,25 +642,36 @@ export class PurchaseService {
       }
 
       if (zeilen.length > 0) {
-        const { error: schreibFehler } = await this.supabase.client.from('purchase_costs').insert(
-          zeilen.map((z) => ({
-            purchase_id: purchaseId,
-            type: z.type,
-            amount: z.amount,
-            description: z.description ?? null,
-          })),
-        );
+        const { data, error: schreibFehler } = await this.supabase.client
+          .from('purchase_costs')
+          .insert(
+            zeilen.map((z) => ({
+              purchase_id: purchaseId,
+              type: z.type,
+              amount: z.amount,
+              description: z.description ?? null,
+            })),
+          )
+          .select('id, purchase_id, type, amount, description, created_at');
 
         if (schreibFehler) {
           return { error: this.syncStatus.melde('Aendern der Zusatzkosten', schreibFehler) };
         }
+
+        gespeicherteZeilen = (data ?? []).map((zeile) => ({
+          ...zeile,
+          amount: Number(zeile.amount),
+        }));
       }
 
-      const einkauf = this.purchasesRaw().find((p) => p.id === purchaseId);
       const { error: summenFehler } = await this.supabase.client
         .from('purchases')
         .update({
-          total_purchase_cost: einkauf?.total_purchase_cost ?? summe,
+          total_purchase_cost: Number(
+            (
+              (this.purchasesRaw().find((p) => p.id === purchaseId)?.purchase_price ?? 0) + summe
+            ).toFixed(2),
+          ),
           updated_at: new Date().toISOString(),
         })
         .eq('id', purchaseId);
@@ -663,6 +683,7 @@ export class PurchaseService {
       return { error: this.syncStatus.melde('Aendern der Zusatzkosten', e) };
     }
 
+    lokalAktualisieren();
     return { error: null };
   }
 
@@ -783,28 +804,56 @@ export class PurchaseService {
     amount: number,
     description?: string,
   ): Promise<{ error: Error | null }> {
-    const current = this.selectedPurchase();
-    if (current && current.id === purchaseId) {
-      const updatedTotal = (current.total_purchase_cost || current.purchase_price) + amount;
-      this.selectedPurchaseRaw.set({ ...current, total_purchase_cost: updatedTotal });
-    }
+    let costId = `cost-${Date.now()}`;
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        const { error } = await this.supabase.client.from('purchase_costs').insert({
-          purchase_id: purchaseId,
-          type,
-          amount,
-          description: description?.trim() || null,
-        });
+        const { data, error } = await this.supabase.client
+          .from('purchase_costs')
+          .insert({
+            purchase_id: purchaseId,
+            type,
+            amount,
+            description: description?.trim() || null,
+          })
+          .select('id')
+          .single();
 
         if (error) {
           return { error: this.syncStatus.melde('Hinzufügen der Einkaufskosten', error) };
         }
+        costId = data.id;
       } catch (e: unknown) {
         return { error: this.syncStatus.melde('Hinzufügen der Einkaufskosten', e) };
       }
     }
+
+    const neueKosten: PurchaseCost = {
+      id: costId,
+      purchase_id: purchaseId,
+      type,
+      amount,
+      description: description?.trim() || null,
+    };
+    const anwenden = (purchase: Purchase): Purchase => ({
+      ...purchase,
+      costs: [...(purchase.costs ?? []), neueKosten],
+      total_purchase_cost: Number(
+        ((purchase.total_purchase_cost || purchase.purchase_price) + amount).toFixed(2),
+      ),
+    });
+
+    this.purchasesRaw.update((purchases) =>
+      purchases.map((purchase) => (purchase.id === purchaseId ? anwenden(purchase) : purchase)),
+    );
+    this.selectedPurchaseRaw.update((purchase) =>
+      purchase?.id === purchaseId ? anwenden(purchase) : purchase,
+    );
+
+    const gespeichert = this.mockStore
+      .getPurchases()
+      .find((purchase) => purchase.id === purchaseId);
+    if (gespeichert) this.mockStore.savePurchase(anwenden(gespeichert));
 
     return { error: null };
   }

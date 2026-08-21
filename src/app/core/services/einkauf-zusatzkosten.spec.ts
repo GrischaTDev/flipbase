@@ -39,9 +39,15 @@ describe('Zusatzkosten und Sendungsangaben', () => {
           protokoll.push({ tabelle, aktion: 'insert', werte });
           const antwort = Promise.resolve({ data: null, error: null });
           return Object.assign(antwort, {
-            select: () => ({
-              single: () => Promise.resolve({ data: { id: 'db-neu' }, error: null }),
-            }),
+            select: () => {
+              const zeilen = (Array.isArray(werte) ? werte : [werte]).map((wert, index) => ({
+                ...((wert ?? {}) as Record<string, unknown>),
+                id: `db-kosten-${index + 1}`,
+              }));
+              return Object.assign(Promise.resolve({ data: zeilen, error: null }), {
+                single: () => Promise.resolve({ data: { id: 'db-neu' }, error: null }),
+              });
+            },
           });
         },
         update: (werte: unknown) => {
@@ -82,6 +88,7 @@ describe('Zusatzkosten und Sendungsangaben', () => {
       dienst: baue<PurchaseService>(PurchaseService.prototype, {
         purchasesRaw,
         selectedPurchaseRaw,
+        selectedPurchase: selectedPurchaseRaw.asReadonly(),
         mockStore: {
           isDemoMode: () => false,
           getPurchases: () => [],
@@ -96,6 +103,40 @@ describe('Zusatzkosten und Sendungsangaben', () => {
   }
 
   describe('Beim Bearbeiten', () => {
+    it('haengt eine neu gebuchte Kostenposition an die bestehende Liste an', async () => {
+      // Der Detaildialog zeigt seine Zeilen aus `selectedPurchase.costs`.
+      // Nur die Gesamtsumme zu aktualisieren laesst dort weiterhin allein
+      // den alten Eintrag stehen und wirkt wie ein Ueberschreiben.
+      const mitVersand: Purchase = {
+        ...einkauf,
+        total_purchase_cost: 242.9,
+        costs: [
+          {
+            id: 'kosten-alt',
+            purchase_id: 'p-1',
+            type: 'shipping',
+            amount: 12.9,
+            description: 'DHL Paket',
+          },
+        ],
+      };
+      const { dienst, selectedPurchaseRaw } = dienstMit([mitVersand]);
+
+      await dienst.addPurchaseCost('p-1', 'travel', 7.1, 'Abholung');
+
+      expect(selectedPurchaseRaw()?.costs).toEqual([
+        mitVersand.costs?.[0],
+        {
+          id: 'db-neu',
+          purchase_id: 'p-1',
+          type: 'travel',
+          amount: 7.1,
+          description: 'Abholung',
+        },
+      ]);
+      expect(selectedPurchaseRaw()?.total_purchase_cost).toBe(250);
+    });
+
     it('schreibt eine nachgetragene Kostenzeile in die Datenbank', async () => {
       // Der gemeldete Fall: Kosten im Bearbeiten-Dialog eintragen, speichern,
       // und nichts passiert.
@@ -152,6 +193,22 @@ describe('Zusatzkosten und Sendungsangaben', () => {
 
       expect(selectedPurchaseRaw()?.costs).toHaveLength(1);
       expect(selectedPurchaseRaw()?.costs?.[0].amount).toBe(19);
+    });
+
+    it('uebernimmt die Datenbank-IDs der ersetzten Kostenzeilen', async () => {
+      // Ohne ID blendet die Detailansicht den Loeschbutton fuer diese Zeile
+      // aus, obwohl die Zeile bereits in der Datenbank gespeichert ist.
+      const { dienst, selectedPurchaseRaw } = dienstMit([einkauf]);
+
+      await dienst.ersetzeZusatzkosten('p-1', [
+        { type: 'shipping', amount: 12.9, description: 'DHL' },
+        { type: 'packaging', amount: 3.5, description: 'Karton' },
+      ]);
+
+      expect(selectedPurchaseRaw()?.costs?.map((kosten) => kosten.id)).toEqual([
+        'db-kosten-1',
+        'db-kosten-2',
+      ]);
     });
 
     it('speichert eine nachgetragene Sendungsnummer', async () => {
