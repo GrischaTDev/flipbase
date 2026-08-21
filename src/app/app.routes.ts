@@ -4,9 +4,17 @@ import { StoreLayoutComponent } from './features/store/store-layout/store-layout
 import { authGuard, guestGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
-  // Public Customer Storefront Routes
+  // Kundenansicht des Shops.
+  //
+  // Bewusst hinter der Anmeldung, obwohl es eine Ladenfront ist: Zahlungen sind
+  // derzeit vorgetaeuscht (jede Zahlung meldet Erfolg, ohne dass Geld fliesst),
+  // und Impressum, USt-IdNr. und Rechtstexte sind Platzhalter. Oeffentlich
+  // erreichbar waere das ein geschaeftsmaessiger Auftritt mit erfundenen
+  // Pflichtangaben. Der Shop zieht spaeter auf eine eigene Domain um; bis dahin
+  // sieht ihn nur, wer angemeldet ist.
   {
     path: 'shop',
+    canActivate: [authGuard],
     component: StoreLayoutComponent,
     children: [
       {

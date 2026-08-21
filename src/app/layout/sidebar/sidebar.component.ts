@@ -25,6 +25,14 @@ interface NavItem {
   labelKey: string;
   label: string;
   icon: LucideIconInput;
+  /**
+   * Kennzeichnet einen Bereich, der noch nicht fuer den Betrieb taugt.
+   *
+   * Sichtbar im Menue, damit beim Ausprobieren klar ist, welche Zahlen man
+   * nicht glauben darf - ein Bereich, der aussieht wie fertig, ist im
+   * Livebetrieb die unangenehmste Sorte Baustelle.
+   */
+  baustelle?: boolean;
 }
 
 @Component({
@@ -45,7 +53,15 @@ export class SidebarComponent {
     { path: '/dashboard', labelKey: 'NAV.DASHBOARD', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/purchases', labelKey: 'NAV.PURCHASES', label: 'Einkäufe', icon: ShoppingBag },
     { path: '/inventory', labelKey: 'NAV.INVENTORY', label: 'Inventar', icon: Boxes },
-    { path: '/shop', labelKey: 'NAV.STORE', label: 'Mein Online-Shop', icon: Store },
+    {
+      path: '/shop',
+      labelKey: 'NAV.STORE',
+      label: 'Mein Online-Shop',
+      icon: Store,
+      // Zahlungen, Impressum und Rechtstexte sind Platzhalter. Der Shop zieht
+      // spaeter ohnehin auf eine eigene Domain um.
+      baustelle: true,
+    },
     { path: '/research', labelKey: 'NAV.RESEARCH', label: 'Research', icon: Search },
     {
       path: '/deal-calculator',

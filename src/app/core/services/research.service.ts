@@ -73,7 +73,7 @@ export class ResearchService {
   constructor() {
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
     // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
-    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // dem dieser fehlt. Bis die Testumgebung auf TestBed mit jsdom
     // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
     // fehl. Danach ersatzlos entfernen.
     try {
@@ -197,7 +197,7 @@ export class ResearchService {
   }
 
   /**
-   * Calculates robust statistics, outlier filtering, and pricing strategies (Kapitel 18 & 19).
+   * Calculates robust statistics, outlier filtering, and pricing strategies.
    */
   calculateSummary(
     items: ResearchComparisonItem[],
@@ -246,7 +246,7 @@ export class ResearchService {
     const p25 = activePrices[p25Index];
     const p75 = activePrices[p75Index];
 
-    // 3 Pricing Strategies (Kapitel 19)
+    // 3 Pricing Strategies
     const quickSalePrice = Math.max(minPrice, Number((medianPrice * 0.85).toFixed(2)));
     const fairMarketPrice = medianPrice;
     const highMarginPrice = Math.min(maxPrice, Number((p75 * 1.05).toFixed(2)));

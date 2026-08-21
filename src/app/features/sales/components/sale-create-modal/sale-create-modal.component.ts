@@ -92,7 +92,7 @@ export class SaleCreateModalComponent {
     return this.inventoryService.items().find((i) => i.id === currentId) || null;
   });
 
-  // Live Calculations (Kapitel 26)
+  // Live Calculations
   readonly liveMetrics = signal<{
     totalCosts: number;
     profit: number;

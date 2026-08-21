@@ -40,7 +40,7 @@ export class AiAssistantService {
   readonly isProcessing = signal<boolean>(false);
 
   /**
-   * Identifies product details, brand, model, condition and defects from raw text or query (Kapitel 13 & 14).
+   * Identifies product details, brand, model, condition and defects from raw text or query.
    */
   async identifyProduct(rawInput: string): Promise<AiProductIdentification> {
     this.isProcessing.set(true);
@@ -265,7 +265,7 @@ export class AiAssistantService {
   }
 
   /**
-   * Enhances listing text (Kapitel 15).
+   * Enhances listing text.
    */
   async enhanceListingCopy(
     rawTitle: string,

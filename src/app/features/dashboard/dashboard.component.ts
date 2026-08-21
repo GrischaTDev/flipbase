@@ -47,7 +47,7 @@ export class DashboardComponent {
   readonly bagIcon = ShoppingBag;
   readonly clockIcon = Clock;
 
-  // Real-time computed dashboard metrics (Kapitel 27)
+  // Real-time computed dashboard metrics
   readonly metrics = computed<DashboardMetrics>(() => {
     const sales = this.salesService.sales();
     const items = this.inventoryService.items();

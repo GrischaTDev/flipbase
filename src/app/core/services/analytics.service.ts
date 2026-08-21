@@ -139,7 +139,7 @@ export class AnalyticsService {
   }
 
   /**
-   * Computes source performance analytics (Kapitel 28).
+   * Computes source performance analytics.
    */
   computeSourcePerformance(purchases: Purchase[], sales: Sale[]): SourcePerformance[] {
     const sourceMap = new Map<
@@ -213,7 +213,7 @@ export class AnalyticsService {
   }
 
   /**
-   * Computes supplier performance analytics and defect rates (Kapitel 28).
+   * Computes supplier performance analytics and defect rates.
    */
   computeSupplierPerformance(
     purchases: Purchase[],
@@ -289,7 +289,7 @@ export class AnalyticsService {
   }
 
   /**
-   * Computes Mystery Pack Statistics (Kapitel 29).
+   * Computes Mystery Pack Statistics.
    */
   computeMysteryPackStats(
     purchases: Purchase[],
@@ -330,7 +330,7 @@ export class AnalyticsService {
   }
 
   /**
-   * Computes Pallet & Lot Dashboard and Break-even Analysis (Kapitel 30).
+   * Computes Pallet & Lot Dashboard and Break-even Analysis.
    */
   computePalletStats(purchases: Purchase[], items: InventoryItem[], sales: Sale[]): PalletStats[] {
     const pallets = purchases.filter((p) => p.type === 'pallet' || p.type === 'lot');
@@ -399,7 +399,7 @@ export class AnalyticsService {
   }
 
   /**
-   * Computes category rankings and sell-through rates (Kapitel 31).
+   * Computes category rankings and sell-through rates.
    */
   computeCategoryRankings(items: InventoryItem[], sales: Sale[]): CategoryRank[] {
     const catMap = new Map<

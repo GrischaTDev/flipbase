@@ -55,7 +55,7 @@ export class InventoryService {
   constructor() {
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
     // Service-Tests erzeugen die Dienste noch mit einem blanken Injector, in
-    // dem dieser fehlt. Bis die Testumgebung in Phase 8 auf TestBed mit jsdom
+    // dem dieser fehlt. Bis die Testumgebung auf TestBed mit jsdom
     // umgestellt ist, bleibt dieser Schutz noetig - ohne ihn schlagen 39 Tests
     // fehl. Danach ersatzlos entfernen.
     try {
