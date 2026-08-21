@@ -10,6 +10,7 @@ import { WebhookService } from './webhook.service';
 import { SyncStatusService } from './sync-status.service';
 import {
   Purchase,
+  PurchaseCost,
   PurchaseType,
   CostAllocationMode,
   InventoryItem,
@@ -285,10 +286,16 @@ export class PurchaseService {
     if (!ws) return { data: null, error: new Error('Kein aktiver Workspace') };
 
     const mode: CostAllocationMode = payload.cost_allocation_mode || 'even';
-    const extraCostsSum = (payload.initial_costs || []).reduce(
-      (acc, c) => acc + Number(c.amount || 0),
-      0,
-    );
+    // Leerzeilen aus dem Formular sind keine Kosten und haetten sonst dauerhaft
+    // mit 0 EUR in der Aufstellung des Einkaufs gestanden.
+    const kostenZeilen: PurchaseCost[] = (payload.initial_costs || [])
+      .filter((c) => Number(c.amount) > 0)
+      .map((c) => ({
+        type: c.type,
+        amount: Number(c.amount),
+        description: c.description?.trim() || null,
+      }));
+    const extraCostsSum = kostenZeilen.reduce((acc, c) => acc + c.amount, 0);
     const totalCost = payload.purchase_price + extraCostsSum;
 
     // Aus den geladenen Stammdaten, nicht aus dem lokalen Spiegel: Der ist im
@@ -320,6 +327,7 @@ export class PurchaseService {
       tracking_status: payload.tracking_status || (payload.tracking_number ? 'in_transit' : null),
       original_url: payload.original_url || null,
       items_count: payload.type === 'single' ? 1 : payload.items_count || 0,
+      costs: kostenZeilen,
       created_at: new Date().toISOString(),
     };
 
@@ -379,6 +387,7 @@ export class PurchaseService {
         // dauerhaft auf eine Kennung gezeigt, die es gleich nicht mehr gibt.
         // Nebeneffekt und richtig so: Scheitert das Speichern, gibt es auch
         // keine Meldung ueber einen Einkauf, den es nicht gibt.
+        await this.legeZusatzkostenAn(finalPurchase.id, kostenZeilen);
         await this.legeEinzelartikelAn(finalPurchase, payload);
         this.webhookService.sendPurchaseNotification(finalPurchase);
         return { data: finalPurchase, error: null };
@@ -389,6 +398,36 @@ export class PurchaseService {
     }
 
     return { data: newPurchase, error: null };
+  }
+
+  /**
+   * Schreibt die im Formular erfassten Zusatzkosten als eigene Zeilen.
+   *
+   * Bis hierhin wurden sie nur zur Gesamtsumme addiert und diese Summe in den
+   * Einkauf geschrieben. Beim naechsten Laden rechnet die Liste die Summe aber
+   * aus Einkaufspreis plus Kostenzeilen neu - und ohne Zeilen kam wieder der
+   * blanke Einkaufspreis heraus. Versand und Fahrtkosten waren damit still
+   * verschwunden, und mit ihnen die Grundlage jeder Margenrechnung.
+   *
+   * Erst hier, nach dem Speichern: Vorher traegt der Einkauf nur eine
+   * Behelfskennung, und der Fremdschluessel zeigte ins Leere.
+   */
+  private async legeZusatzkostenAn(purchaseId: string, zeilen: PurchaseCost[]): Promise<void> {
+    if (zeilen.length === 0) return;
+
+    try {
+      const { error } = await this.supabase.client.from('purchase_costs').insert(
+        zeilen.map((z) => ({
+          purchase_id: purchaseId,
+          type: z.type,
+          amount: z.amount,
+          description: z.description ?? null,
+        })),
+      );
+      if (error) this.syncStatus.melde('Speichern der Zusatzkosten', error);
+    } catch (e: unknown) {
+      this.syncStatus.melde('Speichern der Zusatzkosten', e);
+    }
   }
 
   /**
@@ -460,6 +499,8 @@ export class PurchaseService {
       supplier_id?: string | null;
       original_url?: string | null;
       notes?: string | null;
+      tracking_number?: string | null;
+      tracking_carrier?: TrackingCarrier | null;
     },
   ): Promise<{ error: Error | null }> {
     const quelle = updates.source_id
@@ -469,11 +510,23 @@ export class PurchaseService {
       ? this.suppliersService.suppliers().find((s) => s.id === updates.supplier_id)
       : undefined;
 
+    // Der Sendungsstatus haengt an der Nummer und wird nur angefasst, wenn die
+    // Nummer selbst im Spiel war: Eine nachgetragene Sendung ist unterwegs,
+    // eine geloeschte gibt es nicht mehr. Eine reine Preiskorrektur darf eine
+    // laufende Zustellung dagegen nicht zurueckwerfen.
+    const sendungsStatus: InboundTrackingStatus | undefined =
+      updates.tracking_number === undefined
+        ? undefined
+        : updates.tracking_number?.trim()
+          ? 'in_transit'
+          : 'pending';
+
     const anwenden = (p: Purchase): Purchase => ({
       ...p,
       ...updates,
       source: updates.source_id === undefined ? p.source : quelle,
       supplier: updates.supplier_id === undefined ? p.supplier : lieferant,
+      tracking_status: sendungsStatus ?? p.tracking_status,
       updated_at: new Date().toISOString(),
     });
 
@@ -499,6 +552,14 @@ export class PurchaseService {
           supplier_id: updates.supplier_id,
           original_url: updates.original_url,
           notes: updates.notes,
+          tracking_number:
+            updates.tracking_number === undefined
+              ? undefined
+              : updates.tracking_number?.trim() || null,
+          // Ohne Nummer ergibt ein Dienstleister keinen Sinn - er bliebe sonst
+          // als Rest einer geloeschten Sendung stehen.
+          tracking_carrier: sendungsStatus === 'pending' ? null : updates.tracking_carrier,
+          tracking_status: sendungsStatus,
           updated_at: new Date().toISOString(),
         })
         .eq('id', purchaseId);
@@ -508,6 +569,98 @@ export class PurchaseService {
       }
     } catch (e: unknown) {
       return { error: this.syncStatus.melde('Aendern des Einkaufs', e) };
+    }
+
+    return { error: null };
+  }
+
+  /**
+   * Setzt die Zusatzkosten eines Einkaufs auf genau diese Liste.
+   *
+   * Der Erfassungsdialog kennt keine einzelnen Aenderungen - er schickt immer
+   * alle Zeilen, die im Formular stehen. Deshalb wird ersetzt statt
+   * abgeglichen: erst raeumen, dann schreiben. Ein Abgleich Zeile fuer Zeile
+   * braeuchte stabile Kennungen im Formular, und ohne die stuende nach dem
+   * zweiten Speichern jede Position doppelt da.
+   *
+   * Die Gesamtkosten werden mitgefuehrt. Sie sind zwar beim Laden ohnehin aus
+   * Preis plus Kostenzeilen berechnet, aber bis dahin zeigt die Kachel sonst
+   * den alten Betrag.
+   */
+  async ersetzeZusatzkosten(
+    purchaseId: string,
+    kosten: { type: string; amount: number; description?: string | null }[],
+  ): Promise<{ error: Error | null }> {
+    // Leerzeilen aus dem Formular sind keine Kosten. Sie wegzulassen ist
+    // wichtiger als es aussieht: Eine Zeile mit 0 EUR haette sonst dauerhaft
+    // in der Kostenaufstellung des Einkaufs gestanden.
+    const zeilen: PurchaseCost[] = kosten
+      .filter((k) => Number(k.amount) > 0)
+      .map((k) => ({
+        purchase_id: purchaseId,
+        type: k.type,
+        amount: Number(k.amount),
+        description: k.description?.trim() || null,
+      }));
+
+    const summe = zeilen.reduce((acc, z) => acc + z.amount, 0);
+
+    const anwenden = (p: Purchase): Purchase => ({
+      ...p,
+      costs: zeilen,
+      total_purchase_cost: Number((Number(p.purchase_price || 0) + summe).toFixed(2)),
+      updated_at: new Date().toISOString(),
+    });
+
+    this.purchasesRaw.update((liste) => liste.map((p) => (p.id === purchaseId ? anwenden(p) : p)));
+    this.selectedPurchaseRaw.update((p) => (p && p.id === purchaseId ? anwenden(p) : p));
+
+    const gespeichert = this.mockStore.getPurchases().find((p) => p.id === purchaseId);
+    if (gespeichert) {
+      this.mockStore.savePurchase(anwenden(gespeichert));
+    }
+
+    if (this.mockStore.isDemoMode()) return { error: null };
+
+    try {
+      const { error: loeschFehler } = await this.supabase.client
+        .from('purchase_costs')
+        .delete()
+        .eq('purchase_id', purchaseId);
+
+      if (loeschFehler) {
+        return { error: this.syncStatus.melde('Aendern der Zusatzkosten', loeschFehler) };
+      }
+
+      if (zeilen.length > 0) {
+        const { error: schreibFehler } = await this.supabase.client.from('purchase_costs').insert(
+          zeilen.map((z) => ({
+            purchase_id: purchaseId,
+            type: z.type,
+            amount: z.amount,
+            description: z.description ?? null,
+          })),
+        );
+
+        if (schreibFehler) {
+          return { error: this.syncStatus.melde('Aendern der Zusatzkosten', schreibFehler) };
+        }
+      }
+
+      const einkauf = this.purchasesRaw().find((p) => p.id === purchaseId);
+      const { error: summenFehler } = await this.supabase.client
+        .from('purchases')
+        .update({
+          total_purchase_cost: einkauf?.total_purchase_cost ?? summe,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', purchaseId);
+
+      if (summenFehler) {
+        return { error: this.syncStatus.melde('Aendern der Zusatzkosten', summenFehler) };
+      }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Aendern der Zusatzkosten', e) };
     }
 
     return { error: null };

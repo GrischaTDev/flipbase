@@ -170,9 +170,24 @@
               <button
                 type="button"
                 (click)="isAddingSource.set(!isAddingSource())"
-                class="text-[10px] text-emerald-400 hover:underline font-semibold"
+                [attr.aria-label]="
+                  isAddingSource() ? 'Eingabe für neue Quelle schließen' : 'Neue Quelle hinzufügen'
+                "
+                [attr.aria-expanded]="isAddingSource()"
+                [title]="
+                  isAddingSource() ? 'Eingabe für neue Quelle schließen' : 'Neue Quelle hinzufügen'
+                "
+                class="flex size-6 items-center justify-center rounded-md border border-fb-line bg-fb-well text-fb-text-muted transition hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+                [class.border-emerald-500/50]="isAddingSource()"
+                [class.bg-emerald-500/10]="isAddingSource()"
+                [class.text-emerald-400]="isAddingSource()"
               >
-                + Neu
+                <svg
+                  [lucideIcon]="plusIcon"
+                  aria-hidden="true"
+                  class="size-3.5 transition-transform"
+                  [class.rotate-45]="isAddingSource()"
+                ></svg>
               </button>
             </div>
 
@@ -223,9 +238,28 @@
               <button
                 type="button"
                 (click)="isAddingSupplier.set(!isAddingSupplier())"
-                class="text-[10px] text-emerald-400 hover:underline font-semibold"
+                [attr.aria-label]="
+                  isAddingSupplier()
+                    ? 'Eingabe für neuen Lieferanten schließen'
+                    : 'Neuen Lieferanten hinzufügen'
+                "
+                [attr.aria-expanded]="isAddingSupplier()"
+                [title]="
+                  isAddingSupplier()
+                    ? 'Eingabe für neuen Lieferanten schließen'
+                    : 'Neuen Lieferanten hinzufügen'
+                "
+                class="flex size-6 items-center justify-center rounded-md border border-fb-line bg-fb-well text-fb-text-muted transition hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+                [class.border-emerald-500/50]="isAddingSupplier()"
+                [class.bg-emerald-500/10]="isAddingSupplier()"
+                [class.text-emerald-400]="isAddingSupplier()"
               >
-                + Neu
+                <svg
+                  [lucideIcon]="plusIcon"
+                  aria-hidden="true"
+                  class="size-3.5 transition-transform"
+                  [class.rotate-45]="isAddingSupplier()"
+                ></svg>
               </button>
             </div>
 
@@ -267,7 +301,13 @@
         </div>
 
         <!-- 5. Single Item Specific Fields -->
-        @if (form.get('type')?.value === 'single') {
+        <!--
+          Nur beim Anlegen: Zustand und Marktwert gehoeren zum Artikel, nicht
+          zum Einkauf. Beim Bearbeiten standen hier die Vorgabewerte statt der
+          echten Angaben, und gespeichert wurde ohnehin nichts davon - der
+          Artikel wird im Inventar gepflegt.
+        -->
+        @if (form.get('type')?.value === 'single' && !istBearbeitung()) {
           <div class="p-3.5 rounded-xl bg-fb-well border border-fb-line space-y-2.5">
             <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
               Angaben zum Artikel
@@ -330,7 +370,7 @@
               class="inline-flex items-center gap-1 text-[11px] text-emerald-400 font-semibold hover:underline"
             >
               <svg [lucideIcon]="plusCircleIcon" class="w-3.5 h-3.5"></svg>
-              <span>+ Kosten hinzufügen</span>
+              <span>Kosten hinzufügen</span>
             </button>
           </div>
 

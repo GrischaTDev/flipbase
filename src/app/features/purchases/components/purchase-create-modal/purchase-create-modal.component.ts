@@ -153,10 +153,21 @@ export class PurchaseCreateModalComponent {
     }
   }
 
+  /**
+   * Der Einkauf, dessen Angaben bereits im Formular stehen.
+   *
+   * Bewusst kein Signal: Der Einkauf kommt als abgeleiteter Wert herein und
+   * wird neu berechnet, sobald sich anderswo etwas am Bestand aendert. Ohne
+   * diese Bremse haette jede solche Neuberechnung das Formular
+   * zurueckgesetzt - mitten im Tippen.
+   */
+  private befuelltFuer: string | null = null;
+
   constructor() {
     effect(() => {
       const vorhandener = this.purchase();
-      if (!vorhandener) return;
+      if (!vorhandener || this.befuelltFuer === vorhandener.id) return;
+      this.befuelltFuer = vorhandener.id;
 
       this.form.patchValue({
         type: vorhandener.type,
@@ -167,7 +178,19 @@ export class PurchaseCreateModalComponent {
         purchase_price: vorhandener.purchase_price,
         original_url: vorhandener.original_url ?? '',
         notes: vorhandener.notes ?? '',
+        tracking_number: vorhandener.tracking_number ?? '',
+        tracking_carrier: vorhandener.tracking_carrier ?? null,
       });
+
+      // Ohne die vorhandenen Zeilen waere das Speichern ein Loeschen: Der
+      // Dialog schickt immer die vollstaendige Liste.
+      this.extraCosts.set(
+        (vorhandener.costs ?? []).map((k) => ({
+          type: k.type,
+          amount: Number(k.amount),
+          description: k.description ?? '',
+        })),
+      );
     });
   }
 
@@ -198,16 +221,7 @@ export class PurchaseCreateModalComponent {
 
     const vorhandener = this.purchase();
     const { error } = vorhandener
-      ? await this.purchaseService.updatePurchase(vorhandener.id, {
-          type: payload.type,
-          title: payload.title,
-          purchase_date: payload.purchase_date,
-          purchase_price: payload.purchase_price,
-          source_id: payload.source_id ?? null,
-          supplier_id: payload.supplier_id ?? null,
-          original_url: payload.original_url ?? null,
-          notes: payload.notes ?? null,
-        })
+      ? await this.speichereAenderung(vorhandener.id, payload)
       : await this.purchaseService.createPurchase(payload);
     this.isSubmitting.set(false);
 
@@ -217,5 +231,33 @@ export class PurchaseCreateModalComponent {
       this.created.emit();
       this.closed.emit();
     }
+  }
+
+  /**
+   * Uebernimmt die Aenderungen an einem vorhandenen Einkauf.
+   *
+   * Zwei Schritte, weil die Zusatzkosten in einer eigenen Tabelle stehen. Die
+   * Kosten kommen nur dran, wenn die Stammangaben durchgingen - sonst stuenden
+   * neue Kostenzeilen an einem Einkauf, dessen Aenderung gescheitert ist.
+   */
+  private async speichereAenderung(
+    id: string,
+    payload: CreatePurchasePayload,
+  ): Promise<{ error: Error | null }> {
+    const { error } = await this.purchaseService.updatePurchase(id, {
+      type: payload.type,
+      title: payload.title,
+      purchase_date: payload.purchase_date,
+      purchase_price: payload.purchase_price,
+      source_id: payload.source_id ?? null,
+      supplier_id: payload.supplier_id ?? null,
+      original_url: payload.original_url ?? null,
+      notes: payload.notes ?? null,
+      tracking_number: payload.tracking_number ?? null,
+      tracking_carrier: payload.tracking_carrier ?? null,
+    });
+    if (error) return { error };
+
+    return this.purchaseService.ersetzeZusatzkosten(id, this.extraCosts());
   }
 }
