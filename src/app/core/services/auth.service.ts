@@ -248,6 +248,47 @@ export class AuthService {
     }
   }
 
+  /**
+   * Aendert den angezeigten Namen des eigenen Profils.
+   *
+   * Bis hierhin liess sich das Profil nirgends bearbeiten - der Name kam aus
+   * der Registrierung und blieb, was er war. Die E-Mail-Adresse bleibt
+   * bewusst aussen vor: Sie gehoert zur Anmeldung und braucht eine
+   * Bestaetigung ueber den Posteingang, nicht ein Formularfeld.
+   */
+  async aktualisiereProfil(vollerName: string): Promise<{ error: Error | null }> {
+    const nutzer = this.currentUser();
+    if (!nutzer) return { error: new Error('Nicht angemeldet') };
+
+    const name = vollerName.trim();
+    if (!name) return { error: new Error('Der Name darf nicht leer sein') };
+
+    try {
+      const { data, error } = await this.supabase.client
+        .from('profiles')
+        .update({ full_name: name, updated_at: new Date().toISOString() })
+        .eq('id', nutzer.id)
+        .select()
+        .single();
+
+      if (error) {
+        return {
+          error: this.syncStatus?.melde('Speichern des Profils', error) ?? new Error(error.message),
+        };
+      }
+
+      if (data) {
+        this.profile.set(data as UserProfile);
+      }
+    } catch (e: unknown) {
+      return {
+        error: this.syncStatus?.melde('Speichern des Profils', e) ?? new Error(String(e)),
+      };
+    }
+
+    return { error: null };
+  }
+
   async signOut(): Promise<void> {
     this.isLoading.set(true);
     try {

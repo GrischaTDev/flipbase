@@ -16,6 +16,7 @@ import {
   LucideShieldCheck as ShieldCheck,
   LucideLink2 as Link2,
   LucidePlug as Plug,
+  LucideUser as UserIcon,
   LucideUsers as Users,
   LucideUserPlus as UserPlus,
   LucideMail as Mail,
@@ -53,6 +54,7 @@ import { WebPushService } from '../../core/services/web-push.service';
 import { WorkspaceRole } from '../../core/models/flipbase.models';
 import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-settings',
@@ -64,6 +66,7 @@ import { ConfirmDialogService } from '../../shared/components/confirm-dialog/con
 export class SettingsComponent {
   private readonly dialog = inject(ConfirmDialogService);
   readonly workspaceService = inject(WorkspaceService);
+  readonly auth = inject(AuthService);
   readonly exportService = inject(ExportService);
   readonly salesService = inject(SalesService);
   readonly purchaseService = inject(PurchaseService);
@@ -78,6 +81,7 @@ export class SettingsComponent {
   readonly translate = inject(TranslateService);
 
   readonly settingsIcon = Settings;
+  readonly userIcon = UserIcon;
   readonly cardIcon = CreditCard;
   readonly truckIcon = Truck;
   readonly packageIcon = Package;
@@ -200,6 +204,14 @@ export class SettingsComponent {
   readonly isCreatingWs = signal<boolean>(false);
 
   constructor() {
+    // Namen des eigenen Profils vorbelegen, sobald er geladen ist.
+    effect(() => {
+      const profil = this.auth.profile();
+      if (profil?.full_name) {
+        this.profilForm.patchValue({ fullName: profil.full_name }, { emitEvent: false });
+      }
+    });
+
     effect(() => {
       const ws = this.workspaceService.currentWorkspace();
       if (ws) {
@@ -274,6 +286,31 @@ export class SettingsComponent {
 
     this.carrierSaveSuccess.set(true);
     setTimeout(() => this.carrierSaveSuccess.set(false), 3000);
+  }
+
+  /** Name des eigenen Profils. Die E-Mail gehoert zur Anmeldung und bleibt aussen vor. */
+  readonly profilForm = new FormGroup({
+    fullName: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.minLength(2)],
+    }),
+  });
+
+  readonly istProfilSpeichern = signal<boolean>(false);
+  readonly profilMeldung = signal<{ text: string; fehler: boolean } | null>(null);
+
+  async onSaveProfil(): Promise<void> {
+    if (this.profilForm.invalid) return;
+
+    this.istProfilSpeichern.set(true);
+    this.profilMeldung.set(null);
+
+    const { error } = await this.auth.aktualisiereProfil(this.profilForm.getRawValue().fullName);
+
+    this.istProfilSpeichern.set(false);
+    this.profilMeldung.set(
+      error ? { text: error.message, fehler: true } : { text: 'Name gespeichert.', fehler: false },
+    );
   }
 
   async onSaveSettings(): Promise<void> {
