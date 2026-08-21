@@ -31,64 +31,89 @@
   </div>
 
   @if (purchaseService.selectedPurchase(); as p) {
-    <!-- Purchase Header Banner -->
-    <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div class="flex items-center gap-3">
+    <!--
+      Kopfzeile des Einkaufs.
+
+      Eine Zeile statt vier: Symbol und Art links, Herkunft rechts auf
+      derselben Hoehe. Vorher standen Quelle und Lieferant als Pillen unter dem
+      Titel, waehrend rechts daneben die halbe Breite leer blieb.
+    -->
+    <div class="linear-surface rounded-2xl px-4 py-3.5 shadow-xl">
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
+        <!-- Art, Datum, Titel -->
+        <div class="flex items-center gap-3 min-w-0 flex-1">
           <div
-            class="w-10 h-10 rounded-xl bg-indigo-500/15 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0 shadow-sm"
+            class="w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 shadow-sm"
+            [class]="artStil().kachel"
           >
-            @switch (p.type) {
-              @case ('single') {
-                <svg [lucideIcon]="bagIcon" class="w-5 h-5"></svg>
-              }
-              @case ('mystery_pack') {
-                <svg [lucideIcon]="packageIcon" class="w-5 h-5"></svg>
-              }
-              @case ('lot') {
-                <svg [lucideIcon]="layersIcon" class="w-5 h-5"></svg>
-              }
-              @default {
-                <svg [lucideIcon]="boxesIcon" class="w-5 h-5"></svg>
-              }
-            }
+            <svg [lucideIcon]="artStil().icon" class="w-[18px] h-[18px]"></svg>
           </div>
 
-          <div>
+          <div class="min-w-0">
             <div class="flex items-center gap-2">
               <span
-                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-fb-subtle text-fb-text-secondary border border-fb-border"
+                class="px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold uppercase tracking-wider"
+                [class]="artStil().schild"
               >
-                @switch (p.type) {
-                  @case ('single') {
-                    Einzelkauf
-                  }
-                  @case ('mystery_pack') {
-                    Mystery Pack
-                  }
-                  @case ('lot') {
-                    Lot / Konvolut
-                  }
-                  @default {
-                    Retouren-Palette
-                  }
-                }
+                {{ artStil().bezeichnung }}
               </span>
-              <span class="text-xs text-fb-text-muted font-mono">
+              <span class="text-[11px] text-fb-text-muted font-mono">
                 {{ p.purchase_date | date: 'dd.MM.yyyy' }}
               </span>
             </div>
-            <h1 class="text-base sm:text-lg font-bold text-fb-text-primary mt-1">{{ p.title }}</h1>
+            <!--
+              Erst ab lg gekuerzt: Dort steht die Herkunft daneben und nimmt
+              Platz weg. Auf dem Handy darf der Titel umbrechen - er ist die
+              Hauptinformation der Seite und wurde vorher abgeschnitten.
+            -->
+            <h1
+              class="text-base font-bold text-fb-text-primary mt-0.5 lg:truncate"
+              [title]="p.title"
+            >
+              {{ p.title }}
+            </h1>
           </div>
         </div>
 
-        <!-- External Link if any -->
+        <!-- Herkunft: nutzt die Breite, die vorher leer stand -->
+        @if (p.source || p.supplier) {
+          <dl
+            class="flex items-center gap-5 shrink-0 border-t border-fb-border pt-2.5 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-6"
+          >
+            @if (p.source) {
+              <div class="min-w-0">
+                <dt
+                  class="text-[9px] font-semibold uppercase tracking-wider text-fb-text-muted leading-none"
+                >
+                  Quelle
+                </dt>
+                <dd class="text-xs font-semibold text-fb-text-primary mt-1 truncate">
+                  {{ p.source.name }}
+                </dd>
+              </div>
+            }
+
+            @if (p.supplier) {
+              <div class="min-w-0">
+                <dt
+                  class="text-[9px] font-semibold uppercase tracking-wider text-fb-text-muted leading-none"
+                >
+                  Lieferant
+                </dt>
+                <dd class="text-xs font-semibold text-fb-text-primary mt-1 truncate">
+                  {{ p.supplier.name }}
+                </dd>
+              </div>
+            }
+          </dl>
+        }
+
         @if (p.original_url) {
           <a
             [href]="p.original_url"
             target="_blank"
             rel="noopener noreferrer"
-            class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
+            class="linear-btn-secondary inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0"
           >
             <span>Original-Angebot</span>
             <svg [lucideIcon]="linkIcon" class="w-3.5 h-3.5"></svg>
@@ -96,30 +121,9 @@
         }
       </div>
 
-      <!-- Source & Supplier Tags -->
-      <div class="flex flex-wrap gap-2 text-xs">
-        @if (p.source) {
-          <div
-            class="px-2.5 py-1 rounded-lg bg-fb-subtle border border-fb-border text-fb-text-secondary flex items-center gap-1.5"
-          >
-            <span class="text-fb-text-muted">Quelle:</span>
-            <strong class="text-fb-text-primary">{{ p.source.name }}</strong>
-          </div>
-        }
-
-        @if (p.supplier) {
-          <div
-            class="px-2.5 py-1 rounded-lg bg-fb-subtle border border-fb-border text-fb-text-secondary flex items-center gap-1.5"
-          >
-            <span class="text-fb-text-muted">Lieferant:</span>
-            <strong class="text-fb-text-primary">{{ p.supplier.name }}</strong>
-          </div>
-        }
-      </div>
-
       @if (p.notes) {
         <p
-          class="text-xs text-fb-text-secondary bg-fb-subtle p-3 rounded-xl border border-fb-border"
+          class="text-xs text-fb-text-secondary mt-3 pl-3 border-l-2 border-fb-border leading-relaxed"
         >
           {{ p.notes }}
         </p>
@@ -172,175 +176,6 @@
           {{ purchaseService.purchaseItems().length }} Posten
         </span>
       </div>
-    </div>
-
-    <!-- Extra Costs Section -->
-    <div class="linear-surface rounded-2xl p-4 md:p-5 space-y-4 shadow-xl">
-      <div class="flex items-center justify-between border-b border-fb-border pb-3">
-        <div class="flex items-center gap-2">
-          <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-amber-400"></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-            Nebenkosten (Versand, Fahrt, Gebühren)
-          </h2>
-        </div>
-
-        <button
-          type="button"
-          (click)="isAddingCost.set(!isAddingCost())"
-          class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold text-xs cursor-pointer"
-        >
-          <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
-          <span>Kosten erfassen</span>
-        </button>
-      </div>
-
-      @if (isAddingCost()) {
-        <form
-          [formGroup]="costForm"
-          (ngSubmit)="onAddCost()"
-          class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-3 animate-fade-in"
-        >
-          <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">
-            Nebenkosten zum Einkauf buchen
-          </span>
-
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            <div>
-              <label
-                for="costTypeSelect"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-              >
-                Kostenart
-              </label>
-              <select
-                id="costTypeSelect"
-                formControlName="type"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
-              >
-                <option value="shipping">Versand / Fracht</option>
-                <option value="travel">Fahrtkosten / Sprit</option>
-                <option value="packaging">Verpackungsmaterial</option>
-                <option value="transport">Spedition / Transport</option>
-                <option value="customs">Zoll</option>
-                <option value="import">Zoll / Importabgaben</option>
-                <option value="fee">Gebühren</option>
-                <option value="other">Sonstiges</option>
-              </select>
-            </div>
-
-            <div>
-              <label
-                for="costAmountInput"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-              >
-                Betrag (€)
-              </label>
-              <input
-                id="costAmountInput"
-                type="number"
-                step="0.01"
-                formControlName="amount"
-                placeholder="z.B. 5.99 €"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
-              />
-            </div>
-
-            <div>
-              <label
-                for="costDescInput"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-              >
-                Beschreibung (optional)
-              </label>
-              <input
-                id="costDescInput"
-                type="text"
-                formControlName="description"
-                placeholder="z.B. DHL Paketmarke"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
-              />
-            </div>
-          </div>
-
-          <div class="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              (click)="isAddingCost.set(false)"
-              class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
-            >
-              Abbrechen
-            </button>
-            <button
-              type="submit"
-              [disabled]="costForm.invalid"
-              class="linear-btn-primary px-3.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 cursor-pointer"
-            >
-              Kosten buchen
-            </button>
-          </div>
-        </form>
-      }
-
-      @if (p.costs && p.costs.length > 0) {
-        <div class="space-y-1.5">
-          @for (cost of p.costs; track cost.id) {
-            <div
-              class="p-2.5 rounded-xl bg-fb-subtle border border-fb-border flex items-center justify-between text-xs"
-            >
-              <div class="flex items-center gap-2">
-                <span
-                  class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-400 border border-amber-500/30 uppercase"
-                >
-                  @switch (cost.type) {
-                    @case ('shipping') {
-                      Versand
-                    }
-                    @case ('travel') {
-                      Fahrtkosten
-                    }
-                    @case ('packaging') {
-                      Verpackung
-                    }
-                    @case ('transport') {
-                      Transport
-                    }
-                    @case ('customs') {
-                      Zoll
-                    }
-                    @case ('import') {
-                      Importabgaben
-                    }
-                    @case ('fee') {
-                      Gebühren
-                    }
-                    @default {
-                      Sonstiges
-                    }
-                  }
-                </span>
-                <span class="text-fb-text-secondary">{{ cost.description || 'Nebenkosten' }}</span>
-              </div>
-
-              <div class="flex items-center gap-3">
-                <span class="font-mono font-bold text-fb-text-primary">
-                  {{ cost.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                </span>
-                @if (cost.id) {
-                  <button
-                    type="button"
-                    (click)="onDeleteCost(cost.id)"
-                    class="text-fb-text-muted hover:text-rose-400 p-1 transition cursor-pointer"
-                  >
-                    <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
-                  </button>
-                }
-              </div>
-            </div>
-          }
-        </div>
-      } @else {
-        <p class="text-xs text-fb-text-muted">Keine gesonderten Nebenkosten erfasst.</p>
-      }
     </div>
 
     <!-- Items & Interactive Cost Allocator Section -->
@@ -619,6 +454,180 @@
             Klicke auf "Artikel erfassen", um die Einzelpositionen dieses Einkaufs anzulegen.
           </p>
         </div>
+      }
+    </div>
+
+    <!--
+      Nebenkosten stehen bewusst unter der Artikelliste: Sie werden meist erst
+      nachgetragen, wenn die Ware da ist und ausgepackt wurde. Oben stand der
+      Block als leere Karte zwischen den Kennzahlen und den Artikeln, um die es
+      eigentlich geht.
+    -->
+    <div class="linear-surface rounded-2xl p-4 md:p-5 space-y-4 shadow-xl">
+      <div class="flex items-center justify-between border-b border-fb-border pb-3">
+        <div class="flex items-center gap-2">
+          <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-amber-400"></svg>
+          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
+            Nebenkosten (Versand, Fahrt, Gebühren)
+          </h2>
+        </div>
+
+        <button
+          type="button"
+          (click)="isAddingCost.set(!isAddingCost())"
+          class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold text-xs cursor-pointer"
+        >
+          <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
+          <span>Kosten erfassen</span>
+        </button>
+      </div>
+
+      @if (isAddingCost()) {
+        <form
+          [formGroup]="costForm"
+          (ngSubmit)="onAddCost()"
+          class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-3 animate-fade-in"
+        >
+          <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">
+            Nebenkosten zum Einkauf buchen
+          </span>
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+            <div>
+              <label
+                for="costTypeSelect"
+                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+              >
+                Kostenart
+              </label>
+              <select
+                id="costTypeSelect"
+                formControlName="type"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
+              >
+                <option value="shipping">Versand / Fracht</option>
+                <option value="travel">Fahrtkosten / Sprit</option>
+                <option value="packaging">Verpackungsmaterial</option>
+                <option value="transport">Spedition / Transport</option>
+                <option value="customs">Zoll</option>
+                <option value="import">Zoll / Importabgaben</option>
+                <option value="fee">Gebühren</option>
+                <option value="other">Sonstiges</option>
+              </select>
+            </div>
+
+            <div>
+              <label
+                for="costAmountInput"
+                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+              >
+                Betrag (€)
+              </label>
+              <input
+                id="costAmountInput"
+                type="number"
+                step="0.01"
+                formControlName="amount"
+                placeholder="z.B. 5.99 €"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
+              />
+            </div>
+
+            <div>
+              <label
+                for="costDescInput"
+                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+              >
+                Beschreibung (optional)
+              </label>
+              <input
+                id="costDescInput"
+                type="text"
+                formControlName="description"
+                placeholder="z.B. DHL Paketmarke"
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
+              />
+            </div>
+          </div>
+
+          <div class="flex justify-end gap-2 pt-1">
+            <button
+              type="button"
+              (click)="isAddingCost.set(false)"
+              class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+            >
+              Abbrechen
+            </button>
+            <button
+              type="submit"
+              [disabled]="costForm.invalid"
+              class="linear-btn-primary px-3.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 cursor-pointer"
+            >
+              Kosten buchen
+            </button>
+          </div>
+        </form>
+      }
+
+      @if (p.costs && p.costs.length > 0) {
+        <div class="space-y-1.5">
+          @for (cost of p.costs; track cost.id) {
+            <div
+              class="p-2.5 rounded-xl bg-fb-subtle border border-fb-border flex items-center justify-between text-xs"
+            >
+              <div class="flex items-center gap-2">
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-400 border border-amber-500/30 uppercase"
+                >
+                  @switch (cost.type) {
+                    @case ('shipping') {
+                      Versand
+                    }
+                    @case ('travel') {
+                      Fahrtkosten
+                    }
+                    @case ('packaging') {
+                      Verpackung
+                    }
+                    @case ('transport') {
+                      Transport
+                    }
+                    @case ('customs') {
+                      Zoll
+                    }
+                    @case ('import') {
+                      Importabgaben
+                    }
+                    @case ('fee') {
+                      Gebühren
+                    }
+                    @default {
+                      Sonstiges
+                    }
+                  }
+                </span>
+                <span class="text-fb-text-secondary">{{ cost.description || 'Nebenkosten' }}</span>
+              </div>
+
+              <div class="flex items-center gap-3">
+                <span class="font-mono font-bold text-fb-text-primary">
+                  {{ cost.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                </span>
+                @if (cost.id) {
+                  <button
+                    type="button"
+                    (click)="onDeleteCost(cost.id)"
+                    class="text-fb-text-muted hover:text-rose-400 p-1 transition cursor-pointer"
+                  >
+                    <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <p class="text-xs text-fb-text-muted">Keine gesonderten Nebenkosten erfasst.</p>
       }
     </div>
 

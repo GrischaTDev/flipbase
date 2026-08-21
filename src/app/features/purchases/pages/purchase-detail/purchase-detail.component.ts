@@ -13,6 +13,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
+  LucideIconInput,
   LucideArrowLeft as ArrowLeft,
   LucideShoppingBag as ShoppingBag,
   LucidePackage as Package,
@@ -53,6 +54,7 @@ import {
   CostAllocationMode,
   InboundTrackingStatus,
   ItemCondition,
+  PurchaseType,
   TrackingCarrier,
 } from '../../../../core/models/flipbase.models';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
@@ -102,6 +104,54 @@ export class PurchaseDetailComponent {
   readonly packageIcon = Package;
   readonly layersIcon = Layers;
   readonly boxesIcon = Boxes;
+
+  /**
+   * Symbol, Farbe und Bezeichnung je Einkaufsart.
+   *
+   * Dieselben Sinnbilder und Farben wie im Erfassungsdialog: Wer dort eine
+   * Mystery Box am lila Paket erkennt, erkennt sie hier wieder. Vorher trugen
+   * alle vier Arten dasselbe indigofarbene Symbol, die Art stand nur im
+   * Kleingedruckten daneben.
+   *
+   * Bewusst ein vollstaendiger Record wie `EINKAUFSART_BEZEICHNUNG`: So
+   * verlangt TypeScript fuer jede neue Art auch ein Aussehen. Die Klassen
+   * stehen ausgeschrieben da, weil Tailwind zusammengesetzte Namen nicht
+   * findet und die Farbe sonst stillschweigend fehlte.
+   */
+  private readonly artStile: Record<
+    PurchaseType,
+    { icon: LucideIconInput; bezeichnung: string; kachel: string; schild: string }
+  > = {
+    single: {
+      icon: ShoppingBag,
+      bezeichnung: 'Einzelkauf',
+      kachel: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400',
+      schild: 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300',
+    },
+    mystery_pack: {
+      icon: Package,
+      bezeichnung: 'Mystery Box',
+      kachel: 'bg-purple-500/15 border-purple-500/30 text-purple-400',
+      schild: 'bg-purple-500/10 border-purple-500/25 text-purple-300',
+    },
+    lot: {
+      icon: Layers,
+      bezeichnung: 'Lot / Konvolut',
+      kachel: 'bg-blue-500/15 border-blue-500/30 text-blue-400',
+      schild: 'bg-blue-500/10 border-blue-500/25 text-blue-300',
+    },
+    pallet: {
+      icon: Boxes,
+      bezeichnung: 'Retouren-Palette',
+      kachel: 'bg-amber-500/15 border-amber-500/30 text-amber-400',
+      schild: 'bg-amber-500/10 border-amber-500/25 text-amber-300',
+    },
+  };
+
+  /** Das Aussehen des geoeffneten Einkaufs. */
+  readonly artStil = computed(
+    () => this.artStile[this.purchaseService.selectedPurchase()?.type ?? 'single'],
+  );
   readonly plusIcon = Plus;
   readonly trashIcon = Trash2;
   readonly editIcon = Pencil;
