@@ -1,0 +1,97 @@
+<div class="relative flex items-center">
+  <input
+    type="text"
+    [id]="feldId()"
+    [value]="anzeige()"
+    [placeholder]="platzhalter()"
+    [disabled]="deaktiviert()"
+    (input)="beiEingabe($event)"
+    (blur)="beiEingabe($event)"
+    class="linear-input w-full rounded-lg px-2.5 py-1.5 pr-9 text-xs font-mono"
+    autocomplete="off"
+    inputmode="numeric"
+  />
+
+  <button
+    type="button"
+    tabindex="-1"
+    [disabled]="deaktiviert()"
+    (click)="schalteUm($event)"
+    class="absolute right-1 flex size-6 items-center justify-center rounded-md text-fb-text-muted transition hover:bg-fb-primary/10 hover:text-fb-primary disabled:opacity-40 cursor-pointer"
+    [class.text-fb-primary]="istOffen()"
+    aria-label="Kalender öffnen"
+  >
+    <svg [lucideIcon]="kalenderIcon" class="size-3.5"></svg>
+  </button>
+</div>
+
+@if (istOffen()) {
+  <!--
+    Der Kalender liegt ueber dem Formular statt darin: So schiebt er beim
+    Oeffnen keine Felder auseinander.
+  -->
+  <div
+    class="absolute left-0 top-full z-50 mt-1.5 w-64 rounded-xl border border-fb-border bg-fb-well p-2.5 shadow-2xl animate-fade-in"
+    role="dialog"
+    aria-label="Datum wählen"
+  >
+    <div class="mb-2 flex items-center justify-between">
+      <button
+        type="button"
+        (click)="blaettere(-1)"
+        class="flex size-6 items-center justify-center rounded-md text-fb-text-muted transition hover:bg-fb-surface-hover hover:text-fb-text-primary cursor-pointer"
+        aria-label="Voriger Monat"
+      >
+        <svg [lucideIcon]="zurueckIcon" class="size-3.5"></svg>
+      </button>
+
+      <span class="text-xs font-bold text-fb-text-primary">{{ monatsName() }}</span>
+
+      <button
+        type="button"
+        (click)="blaettere(1)"
+        class="flex size-6 items-center justify-center rounded-md text-fb-text-muted transition hover:bg-fb-surface-hover hover:text-fb-text-primary cursor-pointer"
+        aria-label="Nächster Monat"
+      >
+        <svg [lucideIcon]="weiterIcon" class="size-3.5"></svg>
+      </button>
+    </div>
+
+    <div class="mb-1 grid grid-cols-7 gap-0.5">
+      @for (wt of wochentage; track wt) {
+        <span class="text-center text-[9px] font-semibold uppercase text-fb-text-dimmed">
+          {{ wt }}
+        </span>
+      }
+    </div>
+
+    <div class="grid grid-cols-7 gap-0.5">
+      @for (tag of tage(); track tag.datum) {
+        <button
+          type="button"
+          (click)="waehle(tag)"
+          class="flex h-7 items-center justify-center rounded-md text-[11px] font-medium transition cursor-pointer"
+          [class.text-fb-text-dimmed]="tag.ausserhalb && !tag.gewaehlt"
+          [class.text-fb-text-secondary]="!tag.ausserhalb && !tag.gewaehlt"
+          [class.hover:bg-fb-surface-hover]="!tag.gewaehlt"
+          [class.bg-fb-primary]="tag.gewaehlt"
+          [class.text-fb-on-accent]="tag.gewaehlt"
+          [class.font-bold]="tag.gewaehlt || tag.heute"
+          [class.ring-1]="tag.heute && !tag.gewaehlt"
+          [class.ring-fb-primary]="tag.heute && !tag.gewaehlt"
+          [attr.aria-current]="tag.heute ? 'date' : null"
+        >
+          {{ tag.zahl }}
+        </button>
+      }
+    </div>
+
+    <button
+      type="button"
+      (click)="waehleHeute()"
+      class="mt-2 w-full rounded-md border border-fb-line py-1 text-[11px] font-semibold text-fb-text-secondary transition hover:border-fb-primary/50 hover:text-fb-primary cursor-pointer"
+    >
+      Heute
+    </button>
+  </div>
+}

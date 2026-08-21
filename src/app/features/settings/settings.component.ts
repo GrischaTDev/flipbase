@@ -55,15 +55,54 @@ import { WorkspaceRole } from '../../core/models/flipbase.models';
 import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { AuthService } from '../../core/services/auth.service';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../shared/components/custom-select/custom-select.component';
 
 @Component({
   selector: 'app-settings',
-  imports: [ReactiveFormsModule, TranslatePipe, LucideDynamicIcon, CustomCheckboxComponent],
+  imports: [
+    ReactiveFormsModule,
+    TranslatePipe,
+    LucideDynamicIcon,
+    CustomCheckboxComponent,
+    CustomSelectComponent,
+  ],
   templateUrl: './settings.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsComponent {
+  /**
+   * Vorgaben fuer die eigenen Auswahlfelder.
+   *
+   * Ein natives Auswahlfeld klappt eine Liste auf, die das Betriebssystem
+   * zeichnet - hell, mit fremder Schrift. Deshalb uebernimmt
+   * `app-custom-select`, und die Eintraege stehen hier.
+   */
+  readonly steuermodusOptionen: SelectOption<string>[] = [
+    { value: 'diff_25a', label: '§ 25a Differenzbesteuerung (Gebrauchtwaren)' },
+    { value: 'kleinunternehmer_19', label: '§ 19 Kleinunternehmer (0% USt)' },
+    { value: 'regular_19', label: '19% Regelbesteuerung (Standard)' },
+  ];
+
+  readonly rollenOptionen: SelectOption<WorkspaceRole>[] = [
+    { value: 'admin', label: 'Administrator' },
+    { value: 'member', label: 'Sourcing & Einkauf' },
+    { value: 'fulfillment', label: 'Packstation & Logistik' },
+    { value: 'accountant', label: 'Steuerberater / DATEV' },
+    { value: 'readonly', label: 'Nur-Lesen' },
+  ];
+
+  readonly einladungsrollenOptionen: SelectOption<WorkspaceRole>[] = [
+    { value: 'member', label: 'Sourcing & Einkauf (Einkauf & Inventar)' },
+    { value: 'fulfillment', label: 'Packstation & Logistik (Versand & Sendungsverfolgung)' },
+    { value: 'accountant', label: 'Steuerberater / DATEV (Nur-Lesen auf Finanzen)' },
+    { value: 'readonly', label: 'Nur-Lesen (Reine Ansicht)' },
+    { value: 'admin', label: 'Administrator (Voller Zugriff ohne Inhaber-Rechte)' },
+  ];
+
   private readonly dialog = inject(ConfirmDialogService);
   readonly workspaceService = inject(WorkspaceService);
   readonly auth = inject(AuthService);

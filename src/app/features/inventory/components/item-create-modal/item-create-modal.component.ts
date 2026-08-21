@@ -62,6 +62,22 @@ import { LoggerService } from '../../../../core/services/logger.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ItemCreateModalComponent {
+  /**
+   * Vorgaben fuer die eigenen Auswahlfelder.
+   *
+   * Die Liste haengt am Bestand und aendert sich zur Laufzeit, deshalb ein
+   * berechneter Wert. Ein natives Auswahlfeld klappt eine Liste auf, die das
+   * Betriebssystem zeichnet - hell und mit fremder Schrift; deshalb
+   * uebernimmt `app-custom-select`.
+   */
+  readonly einkaufsOptionen = computed<SelectOption<string>[]>(() => [
+    { value: '', label: '-- Kein Einkauf zugeordnet --' },
+    ...this.purchaseService.purchases().map((p) => ({
+      value: p.id,
+      label: `${p.title} (${new Date(p.purchase_date).toLocaleDateString('de-DE')})`,
+    })),
+  ]);
+
   private readonly inventoryService = inject(InventoryService);
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
@@ -85,7 +101,7 @@ export class ItemCreateModalComponent {
     { value: 'ready', label: 'Bereit', badgeClass: 'bg-amber-400' },
     { value: 'listed', label: 'Gelistet', badgeClass: 'bg-emerald-400' },
     { value: 'sold', label: 'Verkauft', badgeClass: 'bg-purple-400' },
-    { value: 'reserved', label: 'Reserviert', badgeClass: 'bg-slate-400' },
+    { value: 'reserved', label: 'Reserviert', badgeClass: 'bg-fb-neutral' },
     { value: 'defective', label: 'Defekt / Ersatzteil', badgeClass: 'bg-rose-400' },
   ];
 

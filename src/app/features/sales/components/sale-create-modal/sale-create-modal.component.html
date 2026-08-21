@@ -86,20 +86,12 @@
           >
             Verkaufter Artikel
           </label>
-          <select
-            id="saleItem"
+          <app-custom-select
+            [options]="artikelOptionen()"
             formControlName="inventory_item_id"
-            (change)="updateLiveCalculation()"
-            class="linear-input w-full px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer text-fb-text-secondary"
-          >
-            <option value="">-- Artikel aus Inventar auswählen --</option>
-            @for (item of availableItems(); track item.id) {
-              <option [value]="item.id">
-                {{ item.title }} (EK:
-                {{ item.total_item_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }})
-              </option>
-            }
-          </select>
+            (valueChange)="updateLiveCalculation()"
+            placeholder="-- Artikel aus Inventar auswählen --"
+          />
         </div>
 
         <!-- 2. Verkaufspreis & Plattform & Datum -->
@@ -127,18 +119,12 @@
             >
               Verkaufsplattform
             </label>
-            <select
-              id="salePlatform"
+            <app-custom-select
+              [options]="plattformOptionen"
               formControlName="platform"
-              (change)="updateLiveCalculation()"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
-            >
-              <option value="kleinanzeigen">Kleinanzeigen (0% Gebühr)</option>
-              <option value="ebay">eBay (~11% Gebühr)</option>
-              <option value="vinted">Vinted (0% Verkäufer)</option>
-              <option value="direct">Direktverkauf (0%)</option>
-              <option value="other">Andere</option>
-            </select>
+              (valueChange)="updateLiveCalculation()"
+              size="sm"
+            />
           </div>
 
           <div>
@@ -148,12 +134,10 @@
             >
               Verkaufsdatum
             </label>
-            <input
-              id="saleDate"
-              type="date"
+            <app-date-picker
+              feldId="saleDate"
               formControlName="sale_date"
-              (input)="updateLiveCalculation()"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono"
+              (valueChange)="updateLiveCalculation()"
             />
           </div>
         </div>

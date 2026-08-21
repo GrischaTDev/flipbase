@@ -48,6 +48,10 @@ import { InventoryItem } from '../../core/models/flipbase.models';
 
 import { RouterLink } from '@angular/router';
 import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../shared/components/custom-select/custom-select.component';
 
 @Component({
   selector: 'app-listings',
@@ -58,12 +62,28 @@ import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox
     TranslatePipe,
     LucideDynamicIcon,
     CustomCheckboxComponent,
+    CustomSelectComponent,
   ],
   templateUrl: './listings.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ListingsComponent {
+  /**
+   * Vorgaben fuer die eigenen Auswahlfelder.
+   *
+   * Die Liste haengt am Bestand und aendert sich zur Laufzeit, deshalb ein
+   * berechneter Wert. Ein natives Auswahlfeld klappt eine Liste auf, die das
+   * Betriebssystem zeichnet - hell und mit fremder Schrift; deshalb
+   * uebernimmt `app-custom-select`.
+   */
+  readonly artikelOptionen = computed<SelectOption<string>[]>(() =>
+    this.availableItems().map((it) => ({
+      value: it.id,
+      label: `${it.title} (EK: ${(it.total_item_cost ?? 0).toFixed(2).replace('.', ',')} €)`,
+    })),
+  );
+
   readonly listingStudio = inject(ListingStudioService);
   readonly inventoryService = inject(InventoryService);
 

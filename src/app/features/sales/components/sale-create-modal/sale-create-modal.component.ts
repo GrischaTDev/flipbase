@@ -25,15 +25,51 @@ import { InventoryService } from '../../../../core/services/inventory.service';
 import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { Sale } from '../../../../core/models/flipbase.models';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
+import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
 
 @Component({
   selector: 'app-sale-create-modal',
-  imports: [ModalDialogDirective, ReactiveFormsModule, CurrencyPipe, LucideDynamicIcon],
+  imports: [
+    ModalDialogDirective,
+    ReactiveFormsModule,
+    CurrencyPipe,
+    LucideDynamicIcon,
+    CustomSelectComponent,
+    DatePickerComponent,
+  ],
   templateUrl: './sale-create-modal.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SaleCreateModalComponent {
+  /**
+   * Vorgaben fuer die eigenen Auswahlfelder.
+   *
+   * Die Liste haengt am Bestand und aendert sich zur Laufzeit, deshalb ein
+   * berechneter Wert. Ein natives Auswahlfeld klappt eine Liste auf, die das
+   * Betriebssystem zeichnet - hell und mit fremder Schrift; deshalb
+   * uebernimmt `app-custom-select`.
+   */
+  readonly artikelOptionen = computed<SelectOption<string>[]>(() => [
+    { value: '', label: '-- Artikel aus Inventar auswählen --' },
+    ...this.availableItems().map((item) => ({
+      value: item.id,
+      label: `${item.title} (EK: ${(item.total_item_cost ?? 0).toFixed(2).replace('.', ',')} €)`,
+    })),
+  ]);
+
+  readonly plattformOptionen: SelectOption<string>[] = [
+    { value: 'kleinanzeigen', label: 'Kleinanzeigen (0% Gebühr)' },
+    { value: 'ebay', label: 'eBay (~11% Gebühr)' },
+    { value: 'vinted', label: 'Vinted (0% Verkäufer)' },
+    { value: 'direct', label: 'Direktverkauf (0%)' },
+    { value: 'other', label: 'Andere' },
+  ];
+
   readonly preselectedItemId = input<string | null>(null);
 
   private readonly salesService = inject(SalesService);

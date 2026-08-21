@@ -93,17 +93,11 @@
           </div>
         </div>
 
-        <select
+        <app-custom-select
+          [options]="zustandsOptionen"
           formControlName="condition"
-          class="linear-input px-3 py-2 rounded-lg text-xs cursor-pointer text-fb-text-secondary w-auto sm:w-36"
-        >
-          <option value="new">Neu / OVP</option>
-          <option value="like_new">Wie neu</option>
-          <option value="very_good">Sehr gut</option>
-          <option value="used">Gebraucht</option>
-          <option value="heavily_used">Stark gebraucht</option>
-          <option value="defective">Defekt</option>
-        </select>
+          widthClass="w-44"
+        />
 
         <div class="flex items-center gap-1.5 w-auto sm:w-36">
           <input

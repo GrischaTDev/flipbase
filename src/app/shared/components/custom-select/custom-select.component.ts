@@ -12,6 +12,7 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import {
   LucideDynamicIcon,
+  LucideIconInput,
   LucideChevronDown as ChevronDown,
   LucideCheck as Check,
 } from '@lucide/angular';
@@ -21,7 +22,7 @@ export interface SelectOption<T = string> {
   label: string;
   badgeClass?: string;
   colorClass?: string;
-  icon?: any;
+  icon?: LucideIconInput;
   description?: string;
 }
 
@@ -39,6 +40,13 @@ export interface SelectOption<T = string> {
     },
   ],
   host: {
+    /*
+      Ohne dieses `block` ist das eigene Element ein Inline-Element und damit
+      nur so breit wie sein Inhalt - das `w-full` im Inneren bezieht sich dann
+      auf genau diese Breite und bewirkt nichts. Die Felder schrumpfen auf die
+      Laenge des laengsten Eintrags zusammen.
+    */
+    class: 'block',
     '(document:click)': 'onDocumentClick($event)',
     '(document:keydown.escape)': 'closeDropdown()',
     '[class.relative]': 'true',
@@ -56,6 +64,18 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly disabled = input<boolean>(false);
   readonly widthClass = input<string>('w-full');
   readonly openDirection = input<'auto' | 'down' | 'up'>('auto');
+
+  /**
+   * Innenabstand je Groesse.
+   *
+   * `sm` traegt genau die Masse der uebrigen Eingabefelder
+   * (`px-2.5 py-1.5 text-xs`), damit in einer Formularzeile alle Felder
+   * gleich hoch sind. Die Eingabe `size` gab es schon, ausgewertet wurde sie
+   * nicht - die Auswahlfelder waren dadurch hoeher als ihre Nachbarn.
+   */
+  readonly groessenKlasse = computed(() =>
+    this.size() === 'sm' ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-2 text-xs',
+  );
 
   readonly isOpen = signal<boolean>(false);
   readonly isDisabled = signal<boolean>(false);

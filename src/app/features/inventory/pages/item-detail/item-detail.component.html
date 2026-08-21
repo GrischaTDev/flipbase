@@ -471,17 +471,7 @@
               (ngSubmit)="onAddCost()"
               class="p-3 rounded-lg bg-fb-subtle border border-fb-border flex flex-wrap gap-2 items-center animate-fade-in"
             >
-              <select
-                formControlName="type"
-                class="linear-input px-2.5 py-1.5 rounded-lg text-xs cursor-pointer"
-              >
-                <option value="repair">Reparatur</option>
-                <option value="cleaning">Reinigung</option>
-                <option value="spare_parts">Ersatzteile</option>
-                <option value="accessories">Zubehör</option>
-                <option value="packaging">Verpackung</option>
-                <option value="other">Sonstiges</option>
-              </select>
+              <app-custom-select [options]="kostenartOptionen" formControlName="type" size="sm" />
 
               <input
                 type="number"

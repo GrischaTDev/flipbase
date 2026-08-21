@@ -1,11 +1,19 @@
+/*
+  Ueber die volle Breite, nicht nur so breit wie der Inhalt.
+
+  Hier stand `inline-block`, und weil ein :host-Selektor staerker wiegt als
+  eine Utility-Klasse, half auch ein `block` von aussen nichts: Die Felder
+  fuer Quelle und Lieferant schrumpften auf die Laenge ihres laengsten
+  Eintrags und standen unterschiedlich breit nebeneinander. Wer sie schmaler
+  braucht, gibt dem umgebenden Element eine Breite.
+*/
 :host {
-  display: inline-block;
-  vertical-align: middle;
+  display: block;
 }
 
 .custom-select-menu {
   scrollbar-width: thin;
-  scrollbar-color: #373e4d transparent;
+  scrollbar-color: var(--fb-line) transparent;
 
   &::-webkit-scrollbar {
     width: 5px;
@@ -16,11 +24,11 @@
   }
 
   &::-webkit-scrollbar-thumb {
-    background: #373e4d;
+    background: var(--fb-line);
     border-radius: 4px;
   }
 
   &::-webkit-scrollbar-thumb:hover {
-    background: #4b5563;
+    background: var(--fb-border-hover);
   }
 }

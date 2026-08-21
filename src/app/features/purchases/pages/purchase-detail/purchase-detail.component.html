@@ -158,6 +158,9 @@
           class="text-[10px] font-sans font-semibold uppercase tracking-wider text-fb-text-muted block"
           >Gesamtkosten</span
         >
+        <!-- Der Akzent, nicht das Gruen: Gesamtkosten sind der Betrag, auf
+             den es ankommt - aber kein Ertrag. Gruen bleibt der Marge
+             vorbehalten. -->
         <span class="text-xl font-bold text-indigo-400 mt-1 block">
           {{
             p.total_purchase_cost || p.purchase_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
@@ -170,7 +173,8 @@
           class="text-[10px] font-sans font-semibold uppercase tracking-wider text-fb-text-muted block"
           >Artikel</span
         >
-        <span class="text-xl font-bold text-emerald-400 mt-1 block">
+        <!-- Eine Stueckzahl ist weder Ertrag noch Handlung und bleibt neutral. -->
+        <span class="text-xl font-bold text-fb-text-primary mt-1 block">
           {{ purchaseService.purchaseItems().length }} Posten
         </span>
       </div>
@@ -248,18 +252,11 @@
               >
                 Zustand
               </label>
-              <select
-                id="newArticleCondition"
+              <app-custom-select
+                [options]="zustandsOptionen"
                 formControlName="condition"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
-              >
-                <option value="new">Neu / OVP</option>
-                <option value="like_new">Wie neu</option>
-                <option value="very_good">Sehr gut</option>
-                <option value="used">Gebraucht</option>
-                <option value="heavily_used">Stark gebraucht</option>
-                <option value="defective">Defekt / Ersatzteil</option>
-              </select>
+                size="sm"
+              />
             </div>
 
             <div>
@@ -498,20 +495,7 @@
               >
                 Kostenart
               </label>
-              <select
-                id="costTypeSelect"
-                formControlName="type"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
-              >
-                <option value="shipping">Versand / Fracht</option>
-                <option value="travel">Fahrtkosten / Sprit</option>
-                <option value="packaging">Verpackungsmaterial</option>
-                <option value="transport">Spedition / Transport</option>
-                <option value="customs">Zoll</option>
-                <option value="import">Zoll / Importabgaben</option>
-                <option value="fee">Gebühren</option>
-                <option value="other">Sonstiges</option>
-              </select>
+              <app-custom-select [options]="kostenartOptionen" formControlName="type" size="sm" />
             </div>
 
             <div>
@@ -709,17 +693,13 @@
               />
             </div>
             <div class="sm:col-span-4">
-              <select
+              <app-custom-select
+                [options]="dienstleisterOptionen()"
                 [value]="trackingCarrierDraft()"
-                (change)="trackingCarrierDraft.set($any($event.target).value)"
+                (valueChange)="trackingCarrierDraft.set($event)"
                 aria-label="Versanddienstleister"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
-              >
-                <option [ngValue]="null">Auto-Erkennung</option>
-                @for (c of trackingService.carrierOptions; track c.value) {
-                  <option [value]="c.value">{{ c.label }}</option>
-                }
-              </select>
+                size="sm"
+              />
             </div>
           </div>
 
@@ -798,7 +778,7 @@
             <button
               type="button"
               (click)="copyTrackingNumber()"
-              class="p-1 rounded text-fb-text-muted hover:text-fb-text-primary hover:bg-slate-700/50 transition cursor-pointer shrink-0"
+              class="p-1 rounded text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-line/50 transition cursor-pointer shrink-0"
               [title]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
               [attr.aria-label]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
             >
@@ -947,12 +927,12 @@
                 [style.width.%]="alloc.percent_of_total"
                 [style.background-color]="
                   idx % 4 === 0
-                    ? '#6366f1'
+                    ? 'var(--fb-chart-1)'
                     : idx % 4 === 1
-                      ? '#38bdf8'
+                      ? 'var(--fb-chart-2)'
                       : idx % 4 === 2
-                        ? '#10b981'
-                        : '#f59e0b'
+                        ? 'var(--fb-chart-3)'
+                        : 'var(--fb-chart-4)'
                 "
                 [title]="alloc.item.title + ': ' + alloc.percent_of_total.toFixed(1) + '%'"
               ></div>

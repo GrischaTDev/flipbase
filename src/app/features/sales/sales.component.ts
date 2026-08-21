@@ -32,6 +32,10 @@ import { Sale } from '../../core/models/flipbase.models';
 import { Invoice } from '../../core/models/invoice.models';
 import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/return.models';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../shared/components/custom-select/custom-select.component';
 
 @Component({
   selector: 'app-sales',
@@ -44,12 +48,29 @@ import { ConfirmDialogService } from '../../shared/components/confirm-dialog/con
     LucideDynamicIcon,
     SaleCreateModalComponent,
     InvoiceModalComponent,
+    CustomSelectComponent,
   ],
   templateUrl: './sales.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SalesComponent {
+  /**
+   * Vorgaben fuer das eigene Auswahlfeld.
+   *
+   * Ein natives Auswahlfeld klappt eine Liste auf, die das Betriebssystem
+   * zeichnet - hell, mit fremder Schrift. Deshalb uebernimmt
+   * `app-custom-select`, und die Eintraege stehen hier.
+   */
+  readonly retourengrundOptionen: SelectOption<string>[] = [
+    { value: 'buyer_remorse', label: 'Widerruf / Nichtgefallen (14 Tage Gesetz)' },
+    { value: 'defective', label: 'Transportschaden / Defekt' },
+    { value: 'not_as_described', label: 'Zustand weicht von Beschreibung ab' },
+    { value: 'wrong_item', label: 'Falscher Artikel geliefert' },
+    { value: 'lost_in_transit', label: 'Sendungsverlust bei Versanddienstleister' },
+    { value: 'other', label: 'Sonstiges / Kulanz' },
+  ];
+
   private readonly dialog = inject(ConfirmDialogService);
   readonly salesService = inject(SalesService);
   readonly invoiceService = inject(InvoiceService);

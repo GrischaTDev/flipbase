@@ -327,18 +327,11 @@
           >
             Zugehöriger Einkauf (optional)
           </label>
-          <select
-            id="itemPurchaseSelect"
+          <app-custom-select
+            [options]="einkaufsOptionen()"
             formControlName="purchase_id"
-            class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
-          >
-            <option value="">-- Kein Einkauf zugeordnet --</option>
-            @for (p of purchaseService.purchases(); track p.id) {
-              <option [value]="p.id">
-                {{ p.title }} ({{ p.purchase_date | date: 'dd.MM.yy' }})
-              </option>
-            }
-          </select>
+            size="sm"
+          />
         </div>
 
         <div class="flex items-center justify-end gap-2 pt-4 border-t border-fb-border">

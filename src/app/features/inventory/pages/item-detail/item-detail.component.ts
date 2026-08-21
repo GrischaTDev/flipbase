@@ -60,6 +60,22 @@ import { ItemCreateModalComponent } from '../../components/item-create-modal/ite
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ItemDetailComponent {
+  /**
+   * Vorgaben fuer das eigene Auswahlfeld.
+   *
+   * Ein natives Auswahlfeld klappt eine Liste auf, die das Betriebssystem
+   * zeichnet - hell, mit fremder Schrift. Deshalb uebernimmt
+   * `app-custom-select`, und die Eintraege stehen hier.
+   */
+  readonly kostenartOptionen: SelectOption<string>[] = [
+    { value: 'repair', label: 'Reparatur' },
+    { value: 'cleaning', label: 'Reinigung' },
+    { value: 'spare_parts', label: 'Ersatzteile' },
+    { value: 'accessories', label: 'Zubehör' },
+    { value: 'packaging', label: 'Verpackung' },
+    { value: 'other', label: 'Sonstiges' },
+  ];
+
   readonly id = input.required<string>();
 
   private readonly dialog = inject(ConfirmDialogService);

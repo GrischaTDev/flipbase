@@ -45,6 +45,10 @@ import { BankTransaction } from '../../core/models/bank-reconciliation.models';
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import { MockDataStoreService } from '../../core/services/mock-data-store.service';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../shared/components/custom-select/custom-select.component';
 
 export type AccountingTab = 'tax_journal' | 'bank_reconciliation';
 export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
@@ -58,12 +62,51 @@ export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
     DatePipe,
     LucideDynamicIcon,
     CustomSearchInputComponent,
+    CustomSelectComponent,
   ],
   templateUrl: './accounting.component.html',
   styleUrl: './accounting.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AccountingComponent {
+  /**
+   * Vorgaben fuer die eigenen Auswahlfelder.
+   *
+   * Ein natives Auswahlfeld klappt eine Liste auf, die das Betriebssystem
+   * zeichnet - hell, mit fremder Schrift. Deshalb uebernimmt
+   * `app-custom-select`, und die Eintraege stehen hier.
+   */
+  readonly jahresOptionen: SelectOption<number>[] = [
+    { value: 2026, label: '2026' },
+    { value: 2025, label: '2025' },
+    { value: 2024, label: '2024' },
+  ];
+
+  readonly zeitraumOptionen: SelectOption<string>[] = [
+    { value: 'all', label: 'Ganzes Jahr' },
+    { value: 'Q1', label: '1. Quartal (Q1)' },
+    { value: 'Q2', label: '2. Quartal (Q2)' },
+    { value: 'Q3', label: '3. Quartal (Q3)' },
+    { value: 'Q4', label: '4. Quartal (Q4)' },
+    { value: '01', label: 'Januar (01)' },
+    { value: '02', label: 'Februar (02)' },
+    { value: '03', label: 'März (03)' },
+    { value: '04', label: 'April (04)' },
+    { value: '05', label: 'Mai (05)' },
+    { value: '06', label: 'Juni (06)' },
+    { value: '07', label: 'Juli (07)' },
+    { value: '08', label: 'August (08)' },
+    { value: '09', label: 'September (09)' },
+    { value: '10', label: 'Oktober (10)' },
+    { value: '11', label: 'November (11)' },
+    { value: '12', label: 'Dezember (12)' },
+  ];
+
+  readonly kontenrahmenOptionen: SelectOption<string>[] = [
+    { value: 'SKR03', label: 'SKR03' },
+    { value: 'SKR04', label: 'SKR04' },
+  ];
+
   readonly taxEngine = inject(TaxEngineService);
   readonly workspaceService = inject(WorkspaceService);
   readonly taxAdvisorService = inject(TaxAdvisorService);

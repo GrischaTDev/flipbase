@@ -42,6 +42,10 @@ import { BarcodeLookupService } from '../../core/services/barcode-lookup.service
 import { PriceTrackerService } from '../../core/services/price-tracker.service';
 import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner/barcode-scanner.component';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../shared/components/custom-select/custom-select.component';
 
 @Component({
   selector: 'app-research',
@@ -53,12 +57,29 @@ import { ModalDialogDirective } from '../../shared/directives/modal-dialog.direc
     TranslatePipe,
     LucideDynamicIcon,
     BarcodeScannerComponent,
+    CustomSelectComponent,
   ],
   templateUrl: './research.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ResearchComponent {
+  /**
+   * Vorgaben fuer das eigene Auswahlfeld.
+   *
+   * Ein natives Auswahlfeld klappt eine Liste auf, die das Betriebssystem
+   * zeichnet - hell, mit fremder Schrift. Deshalb uebernimmt
+   * `app-custom-select`, und die Eintraege stehen hier.
+   */
+  readonly zustandsOptionen: SelectOption<string>[] = [
+    { value: 'new', label: 'Neu / OVP' },
+    { value: 'like_new', label: 'Wie neu' },
+    { value: 'very_good', label: 'Sehr gut' },
+    { value: 'used', label: 'Gebraucht' },
+    { value: 'heavily_used', label: 'Stark gebraucht' },
+    { value: 'defective', label: 'Defekt' },
+  ];
+
   readonly researchService = inject(ResearchService);
   readonly priceTrackerService = inject(PriceTrackerService);
   private readonly barcodeLookup = inject(BarcodeLookupService);

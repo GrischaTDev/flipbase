@@ -33,15 +33,40 @@ import {
   ShippingStatus,
 } from '../../core/models/fulfillment.models';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../shared/components/custom-select/custom-select.component';
 
 @Component({
   selector: 'app-fulfillment',
-  imports: [ModalDialogDirective, ReactiveFormsModule, CurrencyPipe, DatePipe, LucideDynamicIcon],
+  imports: [
+    ModalDialogDirective,
+    ReactiveFormsModule,
+    CurrencyPipe,
+    DatePipe,
+    LucideDynamicIcon,
+    CustomSelectComponent,
+  ],
   templateUrl: './fulfillment.component.html',
   styleUrl: './fulfillment.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class FulfillmentComponent {
+  /**
+   * Vorgaben fuer das eigene Auswahlfeld.
+   *
+   * Ein natives Auswahlfeld klappt eine Liste auf, die das Betriebssystem
+   * zeichnet - hell, mit fremder Schrift. Deshalb uebernimmt
+   * `app-custom-select`, und die Eintraege stehen hier.
+   */
+  readonly versanddienstOptionen: SelectOption<string>[] = [
+    { value: 'dhl', label: 'DHL Paket / Warenpost' },
+    { value: 'hermes', label: 'Hermes Logistik' },
+    { value: 'dpd', label: 'DPD Deutschland' },
+    { value: 'ups', label: 'UPS Express' },
+  ];
+
   private readonly dialog = inject(ConfirmDialogService);
   readonly fulfillmentService = inject(FulfillmentService);
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb

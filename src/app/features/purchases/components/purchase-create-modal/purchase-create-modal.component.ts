@@ -31,6 +31,12 @@ import {
   TrackingCarrier,
 } from '../../../../core/models/flipbase.models';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
 import { Purchase } from '../../../../core/models/flipbase.models';
 
 interface ExtraCostEntry {
@@ -41,7 +47,14 @@ interface ExtraCostEntry {
 
 @Component({
   selector: 'app-purchase-create-modal',
-  imports: [ModalDialogDirective, ReactiveFormsModule, LucideDynamicIcon],
+  imports: [
+    ModalDialogDirective,
+    ReactiveFormsModule,
+    LucideDynamicIcon,
+    NumberInputComponent,
+    CustomSelectComponent,
+    DatePickerComponent,
+  ],
   templateUrl: './purchase-create-modal.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -69,6 +82,49 @@ export class PurchaseCreateModalComponent {
   readonly layersIcon = Layers;
   readonly boxesIcon = Boxes;
   readonly truckIcon = Truck;
+
+  /**
+   * Die Zustaende als Liste statt als feste Auswahlfeld-Eintraege.
+   *
+   * Ein natives Auswahlfeld klappt eine Liste auf, die das Betriebssystem
+   * zeichnet - in seinen Farben, nicht in denen der Anwendung. Deshalb
+   * uebernimmt `app-custom-select`, und die Eintraege kommen von hier.
+   */
+  readonly kostenartOptionen: SelectOption<string>[] = [
+    { value: 'shipping', label: 'Versand' },
+    { value: 'travel', label: 'Fahrtkosten / Sprit' },
+    { value: 'packaging', label: 'Verpackungsmaterial' },
+    { value: 'transport', label: 'Spedition / Transport' },
+    { value: 'customs', label: 'Zoll' },
+    { value: 'import', label: 'Zoll / Importabgaben' },
+    { value: 'fee', label: 'Gebühren' },
+    { value: 'other', label: 'Sonstiges' },
+  ];
+
+  /** Quellen und Lieferanten kommen aus den Stammdaten und aendern sich zur Laufzeit. */
+  readonly quellenOptionen = computed<SelectOption<string | null>[]>(() => [
+    { value: null, label: '-- Quelle wählen --' },
+    ...this.sourcesService.sources().map((q) => ({ value: q.id, label: q.name })),
+  ]);
+
+  readonly lieferantenOptionen = computed<SelectOption<string | null>[]>(() => [
+    { value: null, label: '-- Optional: Lieferant wählen --' },
+    ...this.suppliersService.suppliers().map((l) => ({ value: l.id, label: l.name })),
+  ]);
+
+  readonly dienstleisterOptionen = computed<SelectOption<string | null>[]>(() => [
+    { value: null, label: 'Auto-Erkennung' },
+    ...this.trackingService.carrierOptions.map((c) => ({ value: c.value, label: c.label })),
+  ]);
+
+  readonly zustandsOptionen: SelectOption<string>[] = [
+    { value: 'new', label: 'Neu / OVP' },
+    { value: 'like_new', label: 'Wie neu' },
+    { value: 'very_good', label: 'Sehr gut' },
+    { value: 'used', label: 'Gebraucht' },
+    { value: 'heavily_used', label: 'Stark gebraucht' },
+    { value: 'defective', label: 'Defekt / Ersatzteil' },
+  ];
 
   readonly isSubmitting = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);

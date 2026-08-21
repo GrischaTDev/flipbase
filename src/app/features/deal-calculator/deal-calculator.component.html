@@ -123,19 +123,12 @@
             >
               Zustand
             </label>
-            <select
-              id="conditionSelect"
+            <app-custom-select
+              [options]="zustandsOptionen"
               formControlName="condition"
-              (change)="runCalculation()"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer text-fb-text-secondary"
-            >
-              <option value="new">Neu / OVP</option>
-              <option value="like_new">Wie neu</option>
-              <option value="very_good">Sehr gut</option>
-              <option value="used">Gebraucht</option>
-              <option value="heavily_used">Stark gebraucht</option>
-              <option value="defective">Defekt / Ersatzteil</option>
-            </select>
+              (valueChange)="runCalculation()"
+              size="sm"
+            />
           </div>
         </div>
       </form>

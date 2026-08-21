@@ -468,39 +468,21 @@
           <div class="flex flex-wrap items-center gap-2 text-xs">
             <span class="text-fb-text-muted font-medium">Besteuerungszeitraum:</span>
 
-            <select
+            <app-custom-select
+              [options]="jahresOptionen"
               [value]="selectedYear()"
-              (change)="selectedYear.set(+$any($event.target).value)"
-              class="input-field text-xs py-1.5 px-3 w-24"
-            >
-              <option [value]="2026">2026</option>
-              <option [value]="2025">2025</option>
-              <option [value]="2024">2024</option>
-            </select>
+              (valueChange)="selectedYear.set($event ?? 2026)"
+              widthClass="w-24"
+              size="sm"
+            />
 
-            <select
+            <app-custom-select
+              [options]="zeitraumOptionen"
               [value]="selectedPeriod()"
-              (change)="selectedPeriod.set($any($event.target).value)"
-              class="input-field text-xs py-1.5 px-3 w-36"
-            >
-              <option value="all">Ganzes Jahr</option>
-              <option value="Q1">1. Quartal (Q1)</option>
-              <option value="Q2">2. Quartal (Q2)</option>
-              <option value="Q3">3. Quartal (Q3)</option>
-              <option value="Q4">4. Quartal (Q4)</option>
-              <option value="01">Januar (01)</option>
-              <option value="02">Februar (02)</option>
-              <option value="03">März (03)</option>
-              <option value="04">April (04)</option>
-              <option value="05">Mai (05)</option>
-              <option value="06">Juni (06)</option>
-              <option value="07">Juli (07)</option>
-              <option value="08">August (08)</option>
-              <option value="09">September (09)</option>
-              <option value="10">Oktober (10)</option>
-              <option value="11">November (11)</option>
-              <option value="12">Dezember (12)</option>
-            </select>
+              (valueChange)="selectedPeriod.set($event ?? 'all')"
+              widthClass="w-40"
+              size="sm"
+            />
           </div>
 
           <!-- Export Actions & Tax Advisor Integration -->
@@ -764,14 +746,11 @@
                 class="block text-[10px] font-bold uppercase tracking-wider text-fb-text-muted mb-1"
                 >Kontenrahmen</label
               >
-              <select
-                id="accoun-kontenrahmen"
+              <app-custom-select
+                [options]="kontenrahmenOptionen"
                 formControlName="skrStandard"
-                class="input-field w-full text-xs font-mono"
-              >
-                <option value="SKR03">SKR03</option>
-                <option value="SKR04">SKR04</option>
-              </select>
+                size="sm"
+              />
             </div>
           </div>
 

@@ -59,6 +59,10 @@ import {
 } from '../../../../core/models/flipbase.models';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { PurchaseCreateModalComponent } from '../../components/purchase-create-modal/purchase-create-modal.component';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
 
 @Component({
   selector: 'app-purchase-detail',
@@ -72,12 +76,49 @@ import { PurchaseCreateModalComponent } from '../../components/purchase-create-m
     TranslatePipe,
     LucideDynamicIcon,
     ImageCropperModalComponent,
+    CustomSelectComponent,
   ],
   templateUrl: './purchase-detail.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseDetailComponent {
+  /**
+   * Vorgaben fuer die eigenen Auswahlfelder.
+   *
+   * Ein natives Auswahlfeld klappt eine Liste auf, die das Betriebssystem
+   * zeichnet - hell, mit fremder Schrift, ohne Bezug zum Rest. Deshalb
+   * uebernimmt `app-custom-select`, und die Eintraege stehen hier.
+   */
+  readonly zustandsOptionen: SelectOption<string>[] = [
+    { value: 'new', label: 'Neu / OVP' },
+    { value: 'like_new', label: 'Wie neu' },
+    { value: 'very_good', label: 'Sehr gut' },
+    { value: 'used', label: 'Gebraucht' },
+    { value: 'heavily_used', label: 'Stark gebraucht' },
+    { value: 'defective', label: 'Defekt / Ersatzteil' },
+  ];
+
+  /** Haengt am Dienst und wird deshalb berechnet. */
+  readonly dienstleisterOptionen = computed<SelectOption<TrackingCarrier | null>[]>(() => [
+    { value: null, label: 'Auto-Erkennung' },
+    ...this.trackingService.carrierOptions.map((c) => ({
+      value: c.value as TrackingCarrier,
+      label: c.label,
+    })),
+  ]);
+
+  readonly kostenartOptionen: SelectOption<string>[] = [
+    { value: 'shipping', label: 'Versand / Fracht' },
+    { value: 'travel', label: 'Fahrtkosten / Sprit' },
+    { value: 'packaging', label: 'Verpackungsmaterial' },
+    { value: 'transport', label: 'Spedition / Transport' },
+    { value: 'customs', label: 'Zoll' },
+    { value: 'import', label: 'Zoll / Importabgaben' },
+    { value: 'fee', label: 'Gebühren' },
+    { value: 'other', label: 'Sonstiges' },
+  ];
+
   readonly id = input.required<string>();
 
   private readonly dialog = inject(ConfirmDialogService);
@@ -125,26 +166,26 @@ export class PurchaseDetailComponent {
     single: {
       icon: ShoppingBag,
       bezeichnung: 'Einzelkauf',
-      kachel: 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400',
-      schild: 'bg-emerald-500/10 border-emerald-500/25 text-emerald-300',
+      kachel: 'bg-fb-art-single/15 border-fb-art-single/30 text-fb-art-single',
+      schild: 'bg-fb-art-single/10 border-fb-art-single/25 text-fb-art-single',
     },
     mystery_pack: {
       icon: Package,
       bezeichnung: 'Mystery Box',
-      kachel: 'bg-purple-500/15 border-purple-500/30 text-purple-400',
-      schild: 'bg-purple-500/10 border-purple-500/25 text-purple-300',
+      kachel: 'bg-fb-art-mystery/15 border-fb-art-mystery/30 text-fb-art-mystery',
+      schild: 'bg-fb-art-mystery/10 border-fb-art-mystery/25 text-fb-art-mystery',
     },
     lot: {
       icon: Layers,
       bezeichnung: 'Lot / Konvolut',
-      kachel: 'bg-blue-500/15 border-blue-500/30 text-blue-400',
-      schild: 'bg-blue-500/10 border-blue-500/25 text-blue-300',
+      kachel: 'bg-fb-art-lot/15 border-fb-art-lot/30 text-fb-art-lot',
+      schild: 'bg-fb-art-lot/10 border-fb-art-lot/25 text-fb-art-lot',
     },
     pallet: {
       icon: Boxes,
       bezeichnung: 'Retouren-Palette',
-      kachel: 'bg-amber-500/15 border-amber-500/30 text-amber-400',
-      schild: 'bg-amber-500/10 border-amber-500/25 text-amber-300',
+      kachel: 'bg-fb-art-pallet/15 border-fb-art-pallet/30 text-fb-art-pallet',
+      schild: 'bg-fb-art-pallet/10 border-fb-art-pallet/25 text-fb-art-pallet',
     },
   };
 

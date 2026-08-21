@@ -1,4 +1,4 @@
-<div class="relative inline-block text-left" [class]="widthClass()">
+<div class="relative text-left" [class]="widthClass()">
   <!-- Trigger Button -->
   @if (variant() === 'pill') {
     <button
@@ -28,7 +28,7 @@
       class="linear-input w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition select-none text-fb-text-secondary"
       [class.opacity-50]="effectiveDisabled()"
       [class.cursor-not-allowed]="effectiveDisabled()"
-      [class.border-indigo-500]="isOpen()"
+      [class.border-fb-primary]="isOpen()"
     >
       <span class="truncate">{{ selectedOption()?.label || placeholder() }}</span>
       <svg
@@ -43,12 +43,11 @@
       type="button"
       (click)="toggleDropdown($event)"
       [disabled]="effectiveDisabled()"
-      class="linear-input w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium cursor-pointer transition select-none text-fb-text-primary"
+      class="linear-input w-full flex items-center justify-between gap-2 rounded-lg font-medium cursor-pointer transition select-none text-fb-text-primary"
+      [class]="groessenKlasse()"
       [class.opacity-50]="effectiveDisabled()"
       [class.cursor-not-allowed]="effectiveDisabled()"
-      [class.border-indigo-500]="isOpen()"
-      [class.ring-1]="isOpen()"
-      [class.ring-indigo-500]="isOpen()"
+      [class.border-fb-primary]="isOpen()"
     >
       <div class="flex items-center gap-2 truncate">
         @if (selectedOption()?.badgeClass) {

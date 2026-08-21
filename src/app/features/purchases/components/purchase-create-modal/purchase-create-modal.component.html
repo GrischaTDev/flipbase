@@ -58,7 +58,7 @@
               [class.border-fb-line]="form.get('type')?.value !== 'single'"
               [class.bg-fb-well]="form.get('type')?.value !== 'single'"
             >
-              <svg [lucideIcon]="bagIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
+              <svg [lucideIcon]="bagIcon" class="w-3.5 h-3.5 text-fb-art-single"></svg>
               <span class="text-xs font-bold text-fb-text-primary">Einzelartikel</span>
               <span class="text-[10px] text-fb-text-muted">1 Kauf → 1 Artikel</span>
             </button>
@@ -72,7 +72,7 @@
               [class.border-fb-line]="form.get('type')?.value !== 'mystery_pack'"
               [class.bg-fb-well]="form.get('type')?.value !== 'mystery_pack'"
             >
-              <svg [lucideIcon]="packageIcon" class="w-3.5 h-3.5 text-purple-400"></svg>
+              <svg [lucideIcon]="packageIcon" class="w-3.5 h-3.5 text-fb-art-mystery"></svg>
               <span class="text-xs font-bold text-fb-text-primary">Mystery Box</span>
               <span class="text-[10px] text-fb-text-muted">Mehrere Artikel</span>
             </button>
@@ -86,7 +86,7 @@
               [class.border-fb-line]="form.get('type')?.value !== 'lot'"
               [class.bg-fb-well]="form.get('type')?.value !== 'lot'"
             >
-              <svg [lucideIcon]="layersIcon" class="w-3.5 h-3.5 text-blue-400"></svg>
+              <svg [lucideIcon]="layersIcon" class="w-3.5 h-3.5 text-fb-art-lot"></svg>
               <span class="text-xs font-bold text-fb-text-primary">Lot / Posten</span>
               <span class="text-[10px] text-fb-text-muted">Konvolut</span>
             </button>
@@ -100,7 +100,7 @@
               [class.border-fb-line]="form.get('type')?.value !== 'pallet'"
               [class.bg-fb-well]="form.get('type')?.value !== 'pallet'"
             >
-              <svg [lucideIcon]="boxesIcon" class="w-3.5 h-3.5 text-amber-400"></svg>
+              <svg [lucideIcon]="boxesIcon" class="w-3.5 h-3.5 text-fb-art-pallet"></svg>
               <span class="text-xs font-bold text-fb-text-primary">Palette</span>
               <span class="text-[10px] text-fb-text-muted">Retourenpalette</span>
             </button>
@@ -133,11 +133,12 @@
             >
               Einkaufspreis (€)
             </label>
-            <input
-              id="purchasePrice"
-              type="number"
+            <app-number-input
+              feldId="purchasePrice"
               formControlName="purchase_price"
-              class="linear-input w-full px-3 py-1.5 rounded-lg text-xs font-mono font-bold"
+              [schritt]="1"
+              [minimum]="0"
+              [alsBetrag]="true"
             />
           </div>
 
@@ -148,12 +149,7 @@
             >
               Kaufdatum
             </label>
-            <input
-              id="purchaseDate"
-              type="date"
-              formControlName="purchase_date"
-              class="linear-input w-full px-3 py-1.5 rounded-lg text-xs font-mono"
-            />
+            <app-date-picker feldId="purchaseDate" formControlName="purchase_date" />
           </div>
         </div>
 
@@ -210,16 +206,12 @@
               </div>
             }
 
-            <select
-              id="purchaseSource"
+            <app-custom-select
+              [options]="quellenOptionen()"
               formControlName="source_id"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
-            >
-              <option [ngValue]="null">-- Quelle wählen --</option>
-              @for (src of sourcesService.sources(); track src.id) {
-                <option [value]="src.id">{{ src.name }}</option>
-              }
-            </select>
+              size="sm"
+              placeholder="-- Quelle wählen --"
+            />
             <p class="text-[10px] text-fb-text-muted mt-1 leading-relaxed">
               <strong class="text-fb-text-secondary">Wo</strong> gekauft: der Kanal, z. B.
               Kleinanzeigen oder Flohmarkt. Die Auswertung zeigt dir später, welcher Kanal die beste
@@ -282,16 +274,12 @@
               </div>
             }
 
-            <select
-              id="purchaseSupplier"
+            <app-custom-select
+              [options]="lieferantenOptionen()"
               formControlName="supplier_id"
-              class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
-            >
-              <option [ngValue]="null">-- Optional: Lieferant wählen --</option>
-              @for (sup of suppliersService.suppliers(); track sup.id) {
-                <option [value]="sup.id">{{ sup.name }}</option>
-              }
-            </select>
+              size="sm"
+              placeholder="-- Optional: Lieferant wählen --"
+            />
             <p class="text-[10px] text-fb-text-muted mt-1 leading-relaxed">
               <strong class="text-fb-text-secondary">Bei wem</strong> gekauft: die Person oder
               Firma. Lohnt sich, wenn du dort wieder kaufst oder reklamieren willst – auf dem
@@ -325,18 +313,12 @@
                 >
                   Zustand
                 </label>
-                <select
-                  id="singleCondition"
+                <app-custom-select
+                  [options]="zustandsOptionen"
                   formControlName="single_item_condition"
-                  class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
-                >
-                  <option value="new">Neu / OVP</option>
-                  <option value="like_new">Wie neu</option>
-                  <option value="very_good">Sehr gut</option>
-                  <option value="used">Gebraucht</option>
-                  <option value="heavily_used">Stark gebraucht</option>
-                  <option value="defective">Defekt / Ersatzteil</option>
-                </select>
+                  size="sm"
+                  placeholder="Zustand wählen"
+                />
               </div>
 
               <div>
@@ -346,12 +328,13 @@
                 >
                   Erwarteter Marktwert (€)
                 </label>
-                <input
-                  id="singleExpectedVal"
-                  type="number"
+                <app-number-input
+                  feldId="singleExpectedVal"
                   formControlName="single_item_expected_value"
-                  placeholder="z.B. 70 €"
-                  class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold text-emerald-400"
+                  platzhalter="z.B. 70 €"
+                  [schritt]="5"
+                  [minimum]="0"
+                  [alsBetrag]="true"
                 />
               </div>
             </div>
@@ -378,34 +361,36 @@
             <div
               class="grid grid-cols-1 gap-2 rounded-lg border border-fb-line bg-fb-well p-2 sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1.4fr)_auto] sm:items-end"
             >
-              <label class="min-w-0 text-[10px] font-semibold text-fb-text-muted">
-                Art
-                <select
+              <div class="min-w-0">
+                <span class="text-[10px] font-semibold text-fb-text-muted">Art</span>
+                <app-custom-select
+                  class="mt-1 block"
+                  [options]="kostenartOptionen"
                   [value]="cost.type"
-                  (change)="updateCostField($index, 'type', $any($event.target).value)"
-                  class="linear-input mt-1 w-full cursor-pointer rounded-md px-2 py-1 text-xs"
-                >
-                  <option value="shipping">Versand</option>
-                  <option value="travel">Fahrtkosten / Sprit</option>
-                  <option value="packaging">Verpackungsmaterial</option>
-                  <option value="transport">Spedition / Transport</option>
-                  <option value="customs">Zoll</option>
-                  <option value="import">Zoll / Importabgaben</option>
-                  <option value="fee">Gebühren</option>
-                  <option value="other">Sonstiges</option>
-                </select>
-              </label>
-
-              <label class="min-w-0 text-[10px] font-semibold text-fb-text-muted">
-                Betrag
-                <input
-                  type="number"
-                  [value]="cost.amount"
-                  (input)="updateCostField($index, 'amount', $any($event.target).value)"
-                  placeholder="0,00 €"
-                  class="linear-input mt-1 w-full rounded-md px-2 py-1 text-xs font-mono font-bold"
+                  (valueChange)="updateCostField($index, 'type', $event)"
+                  size="sm"
                 />
-              </label>
+              </div>
+
+              <!--
+                Kein <label> mehr: Es umschloss vorher das Eingabefeld direkt.
+                Jetzt sitzt dazwischen eine eigene Komponente, und ein Label
+                ohne zugehoeriges Feld waere fuer Screenreader eine leere
+                Beschriftung. Die Zuordnung uebernimmt aria-label am Feld.
+              -->
+              <div class="min-w-0">
+                <span class="text-[10px] font-semibold text-fb-text-muted">Betrag</span>
+                <app-number-input
+                  class="mt-1 block"
+                  [value]="cost.amount"
+                  (valueChange)="updateCostField($index, 'amount', $event)"
+                  platzhalter="0,00 €"
+                  beschriftung="Betrag der Zusatzkosten"
+                  [schritt]="0.5"
+                  [minimum]="0"
+                  [alsBetrag]="true"
+                />
+              </div>
 
               <label class="min-w-0 text-[10px] font-semibold text-fb-text-muted">
                 Beschreibung
@@ -414,7 +399,7 @@
                   [value]="cost.description"
                   (input)="updateCostField($index, 'description', $any($event.target).value)"
                   placeholder="Optional"
-                  class="linear-input mt-1 w-full rounded-md px-2 py-1 text-xs"
+                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
                 />
               </label>
 
@@ -462,15 +447,12 @@
               />
             </div>
             <div class="sm:col-span-4">
-              <select
+              <app-custom-select
+                [options]="dienstleisterOptionen()"
                 formControlName="tracking_carrier"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs cursor-pointer text-fb-text-secondary"
-              >
-                <option [ngValue]="null">Auto-Erkennung</option>
-                @for (c of trackingService.carrierOptions; track c.value) {
-                  <option [value]="c.value">{{ c.label }}</option>
-                }
-              </select>
+                size="sm"
+                placeholder="Auto-Erkennung"
+              />
             </div>
           </div>
         </div>

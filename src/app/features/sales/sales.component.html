@@ -463,18 +463,7 @@
             >
               Grund der Rückabwicklung
             </label>
-            <select
-              id="sales-grund-der-ruckabwicklung"
-              formControlName="reason"
-              class="linear-input w-full px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer"
-            >
-              <option value="buyer_remorse">Widerruf / Nichtgefallen (14 Tage Gesetz)</option>
-              <option value="defective">Transportschaden / Defekt</option>
-              <option value="not_as_described">Zustand weicht von Beschreibung ab</option>
-              <option value="wrong_item">Falscher Artikel geliefert</option>
-              <option value="lost_in_transit">Sendungsverlust bei Versanddienstleister</option>
-              <option value="other">Sonstiges / Kulanz</option>
-            </select>
+            <app-custom-select [options]="retourengrundOptionen" formControlName="reason" />
           </div>
 
           <!-- 2. Refund Amount (Full vs Partial) -->

@@ -161,19 +161,11 @@
           >
             Aus verfügbarem Inventar ({{ availableItems().length }} bereit)
           </label>
-          <select
-            id="itemSelect"
+          <app-custom-select
+            [options]="artikelOptionen()"
             [value]="selectedItemId()"
-            (change)="onSelectItem($any($event.target).value)"
-            class="linear-input w-full px-3 py-2 rounded-xl text-xs font-semibold cursor-pointer"
-          >
-            @for (it of availableItems(); track it.id) {
-              <option [value]="it.id">
-                {{ it.title }} (EK:
-                {{ it.allocated_purchase_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }})
-              </option>
-            }
-          </select>
+            (valueChange)="onSelectItem($event ?? '')"
+          />
         </div>
 
         <!-- Selected Item Card Details -->
