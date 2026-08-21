@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, inject, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   LucideDynamicIcon,
@@ -27,7 +36,7 @@ import {
   CroppedImageResult,
 } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
 import { DatePipe } from '@angular/common';
-import { ItemCondition, ItemStatus } from '../../../../core/models/flipbase.models';
+import { InventoryItem, ItemCondition, ItemStatus } from '../../../../core/models/flipbase.models';
 
 import {
   CustomSelectComponent,
@@ -82,6 +91,17 @@ export class ItemCreateModalComponent {
 
   readonly closed = output<void>();
   readonly created = output<void>();
+
+  /**
+   * Der zu bearbeitende Artikel - fehlt er, wird ein neuer angelegt.
+   *
+   * Bewusst derselbe Dialog fuer beides: Zwei Formulare mit denselben Feldern
+   * laufen mit der Zeit auseinander, und dann fehlt im einen ein Feld, das im
+   * anderen laengst da ist.
+   */
+  readonly item = input<InventoryItem | null>(null);
+
+  readonly istBearbeitung = computed(() => this.item() !== null);
 
   readonly closeIcon = X;
   readonly plusIcon = Plus;
@@ -199,6 +219,29 @@ export class ItemCreateModalComponent {
     this.selectedImageDataUrl.set(null);
   }
 
+  constructor() {
+    effect(() => {
+      const vorhandener = this.item();
+      if (!vorhandener) return;
+
+      this.form.patchValue({
+        purchase_id: vorhandener.purchase_id ?? null,
+        title: vorhandener.title,
+        category: vorhandener.category ?? '',
+        brand: vorhandener.brand ?? '',
+        model: vorhandener.model ?? '',
+        condition: vorhandener.condition,
+        status: vorhandener.status,
+        sku: vorhandener.sku ?? '',
+        ean: vorhandener.ean ?? '',
+        description: vorhandener.description ?? '',
+        condition_notes: vorhandener.condition_notes ?? '',
+        allocated_purchase_cost: vorhandener.allocated_purchase_cost ?? 0,
+        expected_value: vorhandener.expected_value ?? null,
+      });
+    });
+  }
+
   async onSubmit(): Promise<void> {
     if (this.form.invalid) return;
 
@@ -220,6 +263,39 @@ export class ItemCreateModalComponent {
       allocated_purchase_cost: val.allocated_purchase_cost,
       expected_value: val.expected_value || undefined,
     };
+
+    const vorhandener = this.item();
+
+    if (vorhandener) {
+      const { error: aenderFehler } = await this.inventoryService.updateItem(vorhandener.id, {
+        ...payload,
+        // Der Titel ist Pflicht, die uebrigen Felder duerfen bewusst geleert
+        // werden - deshalb null statt undefined, sonst bliebe der alte Wert
+        // stehen und ein geloeschtes Feld waere nicht loeschbar.
+        category: payload.category ?? null,
+        brand: payload.brand ?? null,
+        model: payload.model ?? null,
+        sku: payload.sku ?? null,
+        ean: payload.ean ?? null,
+        description: payload.description ?? null,
+        condition_notes: this.form.getRawValue().condition_notes?.trim() || null,
+        expected_value: payload.expected_value ?? null,
+      });
+
+      if (this.selectedImageFile()) {
+        await this.mediaService.uploadItemMedia(vorhandener.id, this.selectedImageFile()!, true);
+      }
+
+      this.isSubmitting.set(false);
+
+      if (aenderFehler) {
+        this.errorMessage.set(aenderFehler.message);
+      } else {
+        this.created.emit();
+        this.closed.emit();
+      }
+      return;
+    }
 
     const { data: createdItem, error } = await this.inventoryService.createItem(payload);
 

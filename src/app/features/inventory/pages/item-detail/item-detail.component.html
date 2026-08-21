@@ -41,6 +41,15 @@
 
       <button
         type="button"
+        (click)="isEditModalOpen.set(true)"
+        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+      >
+        <svg [lucideIcon]="editIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
+        <span>Bearbeiten</span>
+      </button>
+
+      <button
+        type="button"
         (click)="onDeleteItem()"
         class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold transition cursor-pointer"
         title="Artikel löschen"
@@ -595,5 +604,13 @@
       [items]="[inventoryService.selectedItem()!]"
       (closed)="isLabelModalOpen.set(false)"
     ></app-inventory-label-modal>
+  }
+
+  @if (isEditModalOpen() && inventoryService.selectedItem(); as artikel) {
+    <app-item-create-modal
+      [item]="artikel"
+      (closed)="isEditModalOpen.set(false)"
+      (created)="isEditModalOpen.set(false)"
+    ></app-item-create-modal>
   }
 </div>

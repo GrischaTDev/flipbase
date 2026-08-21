@@ -1,7 +1,7 @@
 <div
   class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto animate-fade-in"
   appModalDialog
-  dialogTitel="Neuen Artikel anlegen"
+  [dialogTitel]="istBearbeitung() ? 'Artikel bearbeiten' : 'Neuen Artikel anlegen'"
   (dialogClose)="closed.emit()"
 >
   <div
@@ -17,9 +17,15 @@
           <svg [lucideIcon]="boxesIcon" class="w-4 h-4"></svg>
         </div>
         <div>
-          <h2 class="text-sm font-bold text-fb-text-primary">Neuen Inventar-Artikel anlegen</h2>
+          <h2 class="text-sm font-bold text-fb-text-primary">
+            {{ istBearbeitung() ? 'Artikel bearbeiten' : 'Neuen Inventar-Artikel anlegen' }}
+          </h2>
           <p class="text-[11px] text-fb-text-muted">
-            Artikel erfassen mit Zustand & Kostenallokation
+            {{
+              istBearbeitung()
+                ? 'Angaben ändern – Zustand, Marktwert und Beschreibung'
+                : 'Artikel erfassen mit Zustand & Kostenallokation'
+            }}
           </p>
         </div>
       </div>
@@ -322,7 +328,13 @@
             [disabled]="form.invalid || isSubmitting()"
             class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition disabled:opacity-40 cursor-pointer"
           >
-            <span>{{ isSubmitting() ? 'Speichere...' : 'Artikel anlegen' }}</span>
+            <span>{{
+              isSubmitting()
+                ? 'Speichere...'
+                : istBearbeitung()
+                  ? 'Änderungen speichern'
+                  : 'Artikel anlegen'
+            }}</span>
           </button>
         </div>
       </form>

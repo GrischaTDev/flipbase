@@ -12,6 +12,7 @@ import {
   LucideSparkles as Sparkles,
   LucideDollarSign as DollarSign,
   LucideTrash2 as Trash2,
+  LucidePencil as Pencil,
   LucidePlus as Plus,
   LucideWrench as Wrench,
   LucideClock as Clock,
@@ -38,10 +39,12 @@ import {
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
+import { ItemCreateModalComponent } from '../../components/item-create-modal/item-create-modal.component';
 
 @Component({
   selector: 'app-item-detail',
   imports: [
+    ItemCreateModalComponent,
     ModalDialogDirective,
     RouterLink,
     ReactiveFormsModule,
@@ -71,6 +74,7 @@ export class ItemDetailComponent {
   readonly sparklesIcon = Sparkles;
   readonly dollarIcon = DollarSign;
   readonly trashIcon = Trash2;
+  readonly editIcon = Pencil;
   readonly plusIcon = Plus;
   readonly wrenchIcon = Wrench;
   readonly clockIcon = Clock;
@@ -87,6 +91,7 @@ export class ItemDetailComponent {
   readonly printerIcon = Printer;
 
   readonly isAddingCost = signal<boolean>(false);
+  readonly isEditModalOpen = signal<boolean>(false);
   readonly isLabelModalOpen = signal<boolean>(false);
   readonly mediaList = signal<ItemMedia[]>([]);
   readonly isUploading = signal<boolean>(false);
