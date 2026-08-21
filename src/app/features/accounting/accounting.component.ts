@@ -44,6 +44,7 @@ import { BankTransaction } from '../../core/models/bank-reconciliation.models';
 
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
+import { MockDataStoreService } from '../../core/services/mock-data-store.service';
 
 export type AccountingTab = 'tax_journal' | 'bank_reconciliation';
 export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
@@ -69,6 +70,10 @@ export class AccountingComponent {
   readonly purchaseService = inject(PurchaseService);
   readonly salesService = inject(SalesService);
   readonly bankService = inject(BankReconciliationService);
+  private readonly mockStore = inject(MockDataStoreService);
+
+  /** Nur im Demo-Modus darf erfundenes Buchungsmaterial geladen werden. */
+  readonly istDemoModus = computed(() => this.mockStore.isDemoMode());
 
   // Tab State
   readonly activeTab = signal<AccountingTab>('tax_journal');

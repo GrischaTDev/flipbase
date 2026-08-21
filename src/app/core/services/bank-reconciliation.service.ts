@@ -7,6 +7,8 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { LoggerService } from './logger.service';
+import { SyncStatusService } from './sync-status.service';
+import { Json } from '../models/supabase.types';
 import {
   BankFormatType,
   BankReconciliationMatch,
@@ -14,6 +16,19 @@ import {
   BankStatementImportResult,
   BankTransaction,
 } from '../models/bank-reconciliation.models';
+
+/**
+ * Kennung fuer eine Bankbewegung.
+ *
+ * Muss eine UUID sein, weil die Spalte `id` in der Datenbank eine ist -
+ * frueher standen hier Zeichenketten wie "tx-csv-3-lz9", die dort nie haetten
+ * ankommen koennen.
+ */
+function neueKennung(): string {
+  return typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
+}
 
 const STORAGE_KEY_BANK_TRANSACTIONS = 'flipbase_bank_transactions';
 
@@ -27,6 +42,7 @@ export class BankReconciliationService {
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
+  private readonly syncStatus = inject(SyncStatusService, { optional: true });
   private readonly storeService = inject(StoreService);
   private readonly salesService = inject(SalesService);
   private readonly purchaseService = inject(PurchaseService);
@@ -66,13 +82,13 @@ export class BankReconciliationService {
           valueDate: t.value_date || undefined,
           counterpartyName: t.counterparty_name,
           counterpartyIban: t.counterparty_iban || undefined,
-          counterpartyBic: t.counterparty_bic || undefined,
+
           purpose: t.purpose,
           amount: Number(t.amount),
           currency: t.currency,
           sourceFormat: t.source_format as BankFormatType,
           status: t.status,
-          match: t.match_data as BankReconciliationMatch | undefined,
+          match: (t.match_json as BankReconciliationMatch) || undefined,
           bookedAt: t.booked_at || undefined,
         }));
         this.transactions.set(mapped);
@@ -132,12 +148,83 @@ export class BankReconciliationService {
     return [];
   }
 
+  /**
+   * Sichert die Bankbewegungen - im Browser **und** in der Datenbank.
+   *
+   * Die Datenbankhaelfte fehlte komplett: Die Tabelle `bank_transactions` wurde
+   * nur gelesen, nie beschrieben. Der gesamte Kontenabgleich - importierte
+   * Auszuege, Zuordnungen, gebuchte Vorgaenge - lag damit allein im
+   * Browser-Speicher eines einzigen Geraets. Ein anderer Rechner zeigte nichts,
+   * ein geleerter Browser loeschte alles, und die naechtliche Sicherung
+   * erfasste nichts davon. Fuer Buchhaltungsdaten ist das der falsche Ort.
+   *
+   * Der Browser-Speicher bleibt als schneller Zwischenspeicher bestehen.
+   */
   private persistTransactions(): void {
     try {
       if (typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_KEY_BANK_TRANSACTIONS, JSON.stringify(this.transactions()));
       }
-    } catch {}
+    } catch {
+      // Ohne Browser-Speicher bleibt die Datenbank die Quelle.
+    }
+
+    void this.speichereInDatenbank();
+  }
+
+  /**
+   * Schreibt den aktuellen Stand in die Datenbank.
+   *
+   * Erst schreiben, dann entfernen, was es nicht mehr gibt: So entsteht kein
+   * Moment, in dem der Bestand leer ist, falls das Schreiben scheitert.
+   */
+  private async speichereInDatenbank(): Promise<void> {
+    const ws = this.workspaceService?.currentWorkspace();
+    if (!this.supabase || !ws || this.mockStore?.isDemoMode()) return;
+
+    const liste = this.transactions();
+
+    try {
+      if (liste.length > 0) {
+        const { error } = await this.supabase.client.from('bank_transactions').upsert(
+          liste.map((t) => ({
+            id: t.id,
+            workspace_id: ws.id,
+            booking_date: t.bookingDate,
+            value_date: t.valueDate || null,
+            counterparty_name: t.counterpartyName,
+            counterparty_iban: t.counterpartyIban || null,
+            purpose: t.purpose,
+            amount: t.amount,
+            currency: t.currency,
+            source_format: t.sourceFormat,
+            status: t.status,
+            // Der Treffer ist ein eigener Typ; die Spalte nimmt beliebiges JSON.
+            match_json: (t.match ?? null) as unknown as Json,
+            booked_at: t.bookedAt || null,
+          })),
+          { onConflict: 'id' },
+        );
+        if (error) {
+          this.syncStatus?.melde('Speichern der Banktransaktionen', error);
+          return;
+        }
+      }
+
+      const vorhandene = liste.map((t) => t.id);
+      const loeschen = this.supabase.client
+        .from('bank_transactions')
+        .delete()
+        .eq('workspace_id', ws.id);
+      const { error: loeschFehler } = await (vorhandene.length > 0
+        ? loeschen.not('id', 'in', `(${vorhandene.join(',')})`)
+        : loeschen);
+      if (loeschFehler) {
+        this.syncStatus?.melde('Aufräumen der Banktransaktionen', loeschFehler);
+      }
+    } catch (e: unknown) {
+      this.syncStatus?.melde('Speichern der Banktransaktionen', e);
+    }
   }
 
   /**
@@ -297,7 +384,7 @@ export class BankReconciliationService {
       if (!bookingDate || isNaN(amount)) continue;
 
       results.push({
-        id: 'tx-csv-' + i + '-' + Date.now().toString(36),
+        id: neueKennung(),
         bookingDate,
         counterpartyName: rawName.trim(),
         counterpartyIban: rawIban?.trim(),
@@ -319,7 +406,6 @@ export class BankReconciliationService {
     const results: BankTransaction[] = [];
     const blocks = content.split(':61:');
 
-    let counter = 1;
     for (let i = 1; i < blocks.length; i++) {
       const block = blocks[i];
       const lines = block.split(/\r?\n/);
@@ -364,7 +450,7 @@ export class BankReconciliationService {
       }
 
       results.push({
-        id: 'tx-mt940-' + counter++ + '-' + Math.random().toString(36).substring(2, 7),
+        id: neueKennung(),
         bookingDate,
         counterpartyName,
         purpose,
@@ -388,9 +474,7 @@ export class BankReconciliationService {
       const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
       const entries = xmlDoc.getElementsByTagName('Ntry');
 
-      for (let i = 0; i < entries.length; i++) {
-        const ntry = entries[i];
-
+      for (const ntry of Array.from(entries)) {
         // Date
         const dtElement = ntry.getElementsByTagName('Dt')[0];
         const rawDate = dtElement?.textContent || new Date().toISOString().split('T')[0];
@@ -417,7 +501,7 @@ export class BankReconciliationService {
         const ustrd = ntry.getElementsByTagName('Ustrd')[0]?.textContent || 'SEPA Zahlung';
 
         results.push({
-          id: 'tx-camt-' + (i + 1) + '-' + Math.random().toString(36).substring(2, 7),
+          id: neueKennung(),
           bookingDate: rawDate,
           counterpartyName,
           counterpartyIban: iban,
