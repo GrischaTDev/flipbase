@@ -11,6 +11,7 @@ import {
   LucideCalendar as Calendar,
   LucidePlus as Plus,
   LucideTrash2 as Trash2,
+  LucidePencil as Pencil,
   LucideTag as Tag,
   LucideClock as Clock,
   LucideArrowUpRight as ArrowUpRight,
@@ -60,6 +61,7 @@ export class SalesComponent {
   readonly calendarIcon = Calendar;
   readonly plusIcon = Plus;
   readonly trashIcon = Trash2;
+  readonly editIcon = Pencil;
   readonly tagIcon = Tag;
   readonly clockIcon = Clock;
   readonly arrowIcon = ArrowUpRight;
@@ -72,6 +74,8 @@ export class SalesComponent {
   readonly alertIcon = AlertTriangle;
 
   readonly isCreateModalOpen = signal<boolean>(false);
+  /** Der Verkauf, der gerade bearbeitet wird - null heisst: keiner. */
+  readonly bearbeiteVerkauf = signal<Sale | null>(null);
   readonly selectedPlatform = signal<string>('all');
   readonly activeInvoice = signal<Invoice | null>(null);
 

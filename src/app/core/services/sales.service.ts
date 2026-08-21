@@ -215,6 +215,57 @@ export class SalesService {
     return { data: enrichedSale, error: null };
   }
 
+  /**
+   * Aendert einen gebuchten Verkauf.
+   *
+   * Bisher liess sich ein Verkauf nur anlegen oder stornieren. Ein falsch
+   * getippter Verkaufspreis oder eine nachtraeglich bekannte Plattformgebuehr
+   * bedeutete: stornieren, den Artikel wieder auf verkaufsbereit setzen und
+   * alles neu erfassen - inklusive verfaelschter Auswertung dazwischen.
+   *
+   * Der zugeordnete Artikel bleibt unberuehrt; nur die Zahlen des Verkaufs
+   * aendern sich. Gewinn und ROI werden neu berechnet.
+   */
+  async updateSale(
+    saleId: string,
+    updates: Partial<CreateSalePayload>,
+  ): Promise<{ error: Error | null }> {
+    const vorhandener = this.sales().find((s) => s.id === saleId);
+    if (!vorhandener) return { error: new Error('Verkauf nicht gefunden') };
+
+    const geaendert = this.enrichSaleMetrics({ ...vorhandener, ...updates });
+
+    this.sales.update((liste) => liste.map((s) => (s.id === saleId ? geaendert : s)));
+    this.mockStore.saveSale(geaendert);
+
+    if (this.mockStore.isDemoMode()) return { error: null };
+
+    try {
+      const { error } = await this.supabase.client
+        .from('sales')
+        .update({
+          platform: updates.platform,
+          sale_price: updates.sale_price,
+          sale_date: updates.sale_date,
+          platform_fee: updates.platform_fee,
+          shipping_cost: updates.shipping_cost,
+          packaging_cost: updates.packaging_cost,
+          other_costs: updates.other_costs,
+          external_order_id: updates.external_order_id?.trim() || null,
+          buyer_notes: updates.buyer_notes?.trim() || null,
+        })
+        .eq('id', saleId);
+
+      if (error) {
+        return { error: this.syncStatus.melde('Aendern des Verkaufs', error) };
+      }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Aendern des Verkaufs', e) };
+    }
+
+    return { error: null };
+  }
+
   async deleteSale(saleId: string, inventoryItemId: string): Promise<{ error: Error | null }> {
     this.mockStore.deleteSale(saleId);
     this.sales.update((list) => list.filter((s) => s.id !== saleId));

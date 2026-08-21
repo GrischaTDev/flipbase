@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   input,
   output,
@@ -23,6 +24,7 @@ import { SalesService, CreateSalePayload } from '../../../../core/services/sales
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
+import { Sale } from '../../../../core/models/flipbase.models';
 
 @Component({
   selector: 'app-sale-create-modal',
@@ -40,6 +42,17 @@ export class SaleCreateModalComponent {
 
   readonly closed = output<void>();
   readonly created = output<void>();
+
+  /** Der zu bearbeitende Verkauf - fehlt er, wird ein neuer gebucht. */
+  readonly sale = input<Sale | null>(null);
+
+  readonly istBearbeitung = computed(() => this.sale() !== null);
+
+  /** Beschriftung der Absende-Schaltflaeche - im Template gehoert keine Logik. */
+  readonly absendeBeschriftung = computed(() => {
+    if (this.isSubmitting()) return 'Speichere...';
+    return this.istBearbeitung() ? 'Änderungen speichern' : 'Verkauf abschließen';
+  });
 
   readonly closeIcon = X;
   readonly plusIcon = Plus;
@@ -111,6 +124,25 @@ export class SaleCreateModalComponent {
     if (preId) {
       this.form.patchValue({ inventory_item_id: preId });
     }
+
+    // Bearbeitung: Werte des vorhandenen Verkaufs uebernehmen.
+    effect(() => {
+      const vorhandener = this.sale();
+      if (!vorhandener) return;
+
+      this.form.patchValue({
+        inventory_item_id: vorhandener.inventory_item_id,
+        platform: vorhandener.platform,
+        sale_price: vorhandener.sale_price,
+        sale_date: vorhandener.sale_date,
+        platform_fee: vorhandener.platform_fee ?? 0,
+        shipping_cost: vorhandener.shipping_cost ?? 0,
+        packaging_cost: vorhandener.packaging_cost ?? 0,
+        other_costs: vorhandener.other_costs ?? 0,
+        external_order_id: vorhandener.external_order_id ?? '',
+        buyer_notes: vorhandener.buyer_notes ?? '',
+      });
+    });
   }
 
   updateLiveCalculation(): void {
@@ -161,7 +193,10 @@ export class SaleCreateModalComponent {
       buyer_notes: f.buyer_notes || null,
     };
 
-    const { error } = await this.salesService.createSale(payload);
+    const vorhandener = this.sale();
+    const { error } = vorhandener
+      ? await this.salesService.updateSale(vorhandener.id, payload)
+      : await this.salesService.createSale(payload);
     this.isSubmitting.set(false);
 
     if (error) {

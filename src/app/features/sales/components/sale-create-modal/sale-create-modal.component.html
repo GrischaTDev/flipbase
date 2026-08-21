@@ -1,7 +1,7 @@
 <div
   class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto animate-fade-in"
   appModalDialog
-  dialogTitel="Verkauf erfassen"
+  [dialogTitel]="istBearbeitung() ? 'Verkauf bearbeiten' : 'Verkauf erfassen'"
   (dialogClose)="closed.emit()"
 >
   <div
@@ -15,7 +15,9 @@
           <svg [lucideIcon]="trendingIcon" class="w-4 h-4"></svg>
         </div>
         <div>
-          <h2 class="text-sm font-bold text-fb-text-primary">Verkauf erfassen</h2>
+          <h2 class="text-sm font-bold text-fb-text-primary">
+            {{ istBearbeitung() ? 'Verkauf bearbeiten' : 'Verkauf erfassen' }}
+          </h2>
           <p class="text-[11px] text-fb-text-muted">Realisierter Gewinn, Plattformgebühren & ROI</p>
         </div>
       </div>
@@ -168,7 +170,7 @@
             <input
               id="saleFee"
               type="number"
-              formControlName="platform_fees"
+              formControlName="platform_fee"
               (input)="updateLiveCalculation()"
               placeholder="0.00"
               class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
@@ -185,7 +187,7 @@
             <input
               id="saleShippingOut"
               type="number"
-              formControlName="shipping_costs"
+              formControlName="shipping_cost"
               (input)="updateLiveCalculation()"
               placeholder="0.00"
               class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
@@ -202,7 +204,7 @@
             <input
               id="salePaymentFees"
               type="number"
-              formControlName="payment_fees"
+              formControlName="other_costs"
               (input)="updateLiveCalculation()"
               placeholder="0.00"
               class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
@@ -221,7 +223,7 @@
           <input
             id="saleNotes"
             type="text"
-            formControlName="notes"
+            formControlName="buyer_notes"
             placeholder="z.B. Käufer hat bar bei Abholung bezahlt..."
             class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
           />
@@ -243,7 +245,7 @@
             class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
           >
             <svg [lucideIcon]="trendingIcon" class="w-3.5 h-3.5"></svg>
-            <span>{{ isSubmitting() ? 'Speichere...' : 'Verkauf abschließen' }}</span>
+            <span>{{ absendeBeschriftung() }}</span>
           </button>
         </div>
       </form>
