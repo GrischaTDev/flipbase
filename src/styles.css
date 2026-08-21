@@ -99,6 +99,53 @@
   --fb-c-cyan-300: #155e75;
   --fb-c-yellow-400: #a16207;
 
+  /* Diagrammfarben.
+     Reihenfolge nach Bedeutung: die erste ist die guenstigste Auspraegung,
+     die letzte die unguenstigste. Sie stehen hier, damit ein Farbwechsel
+     auch die Auswertungen erreicht - vorher standen sie als feste Hex-Werte
+     im Analytics-Dienst und in der Kostenverteilung. */
+  --fb-chart-1: #4f46e5;
+  --fb-chart-2: #047857;
+  --fb-chart-3: #b45309;
+  --fb-chart-4: #be123c;
+
+  /* Neutrale Statusfarbe fuer Zustaende ohne eigene Bedeutung
+     (reserviert, retourniert, archiviert). */
+  --fb-neutral-marker: #94a3b8;
+
+  /* Die vier Einkaufsarten.
+     Eine eigene Reihe und nicht die Bedeutungsfarben: Ein Einzelkauf ist
+     weder ein Gewinn noch eine Warnung, er ist eine Kategorie. Vorher lieh
+     er sich das Gruen der Gewinne - zwei Arten trugen Farbe, zwei fielen ins
+     Grau, und die Reihe wirkte zufaellig. */
+  --fb-art-single: #b45309;
+  --fb-art-mystery: #6b21a8;
+  --fb-art-lot: #1d4ed8;
+  --fb-art-pallet: #0f766e;
+
+  /* Flaechen- und Rahmentoene (500er aufwaerts).
+     Im hellen Design bleiben es die Original-Tailwind-Werte - hier aendert
+     sich also nichts. Sie stehen nur deshalb als Variable da, damit das
+     dunkle Design sie ueberhaupt umbiegen kann. */
+  --fb-c-emerald-500: #10b981;
+  --fb-c-emerald-600: #059669;
+  --fb-c-emerald-700: #047857;
+  --fb-c-emerald-800: #065f46;
+  --fb-c-indigo-500: #6366f1;
+  --fb-c-indigo-600: #4f46e5;
+  --fb-c-indigo-950: #1e1b4b;
+  --fb-c-rose-500: #f43f5e;
+  --fb-c-rose-600: #e11d48;
+  --fb-c-amber-500: #f59e0b;
+  --fb-c-amber-600: #d97706;
+  --fb-c-amber-700: #b45309;
+  --fb-c-blue-500: #3b82f6;
+  --fb-c-blue-600: #2563eb;
+  --fb-c-purple-500: #a855f7;
+  --fb-c-purple-600: #9333ea;
+  --fb-c-cyan-500: #06b6d4;
+  --fb-c-cyan-600: #0891b2;
+
   /* Helle Akzenttoene, die nur auf farbigem Grund vorkommen – dort bleiben
      sie hell, damit der Kontrast erhalten bleibt. */
   --fb-c-emerald-100: #d1fae5;
@@ -107,92 +154,190 @@
 }
 
 html.dark {
-  /* 1. Hintergruende (Anthrazit / Slate) */
-  --fb-bg-app: #282c37;
-  --fb-bg-sidebar: #21252f;
-  --fb-bg-header: #282c37;
-  --fb-bg-surface: #323846;
-  --fb-bg-surface-hover: #3d4454;
-  --fb-bg-subtle: #20242e;
-  --fb-bg-surface-alt: #2c323f;
-  --fb-bg-well: #1e222a;
+  /* --------------------------------------------------------------------
+     PALETTE: Grau mit einem Akzent
+
+     Zwei Farben tragen das dunkle Design:
+       #F89D13  das Orange - der einzige Akzent
+       #505050  das Grau der Vorlage - hier der Rahmen bei Mauszeiger
+
+     Alle Flaechen sind reine Graustufen ohne jeden Farbstich und nur in der
+     Helligkeit gestaffelt. Dadurch gibt es in der Oberflaeche genau eine
+     Farbe, und die bedeutet etwas: Geld und Handlung. Alles andere ordnet
+     sich ueber Helligkeit.
+
+     Eine Umkehrung gegenueber allen bisherigen Entwuerfen: Das Orange ist so
+     hell, dass weisse Schrift darauf nur 2.1:1 erreicht. Auf orangefarbenen
+     Flaechen steht deshalb dunkle Schrift (8.1:1), nicht helle. Wo eine
+     orangefarbene Flaeche helle Schrift tragen muss, kommt die dunkle Stufe
+     zum Zug.
+
+     Neben dem Grau tragen drei Farben eine Aussage, und nur diese drei:
+
+       Orange  #F89D13  Handlung und Hinweis - Schaltflaechen, aktive
+                        Zustaende, der Zaehler an der Glocke, Warnungen
+       Gruen   #57C776  was verdient wurde - Marge, Gewinn, Rendite
+       Rot     #F58C8C  was verloren ging - Verlust, Fehler, Retoure
+
+     Gruen und Orange sind auf denselben Kontrast abgestimmt (6.6:1 auf der
+     Karte): Keine der beiden draengt sich vor die andere.
+
+     Blau und Violett gibt es nicht mehr - sie waren in den Vorlagen blosse
+     Unterscheidungsmerkmale ohne eigene Aussage und sind zu Graustufen
+     geworden. Auch der fruehere Mandelton fuer Hinweise ist weg: Mit 60
+     Prozent Saettigung neben einem Orange mit 94 wirkte er wie ein
+     Fremdkoerper. Hinweise tragen jetzt dasselbe Orange.
+     -------------------------------------------------------------------- */
+
+  /* 1. Hintergruende - reine Graustufen */
+  --fb-bg-app: #1f1f1f;
+  --fb-bg-sidebar: #1a1a1a;
+  --fb-bg-header: #1f1f1f;
+  --fb-bg-surface: #2b2b2b;
+  --fb-bg-surface-hover: #373737;
+  --fb-bg-subtle: #161616;
+  --fb-bg-surface-alt: #252525;
+  --fb-bg-well: #111111;
 
   /* 2. Rahmen & Linien */
-  --fb-border: #444c5c;
-  --fb-border-subtle: #363c4a;
-  --fb-border-hover: #586276;
-  --fb-border-focus: #6366f1;
-  --fb-line: #373e4d;
-  --fb-line-strong: #4a5468;
+  --fb-border: #494949;
+  --fb-border-subtle: #3c3c3c;
+  --fb-border-hover: #505050; /* das Grau der Vorlage */
+  --fb-border-focus: #f89d13; /* der Akzent */
+  --fb-line: #373737;
+  --fb-line-strong: #505050;
 
   /* 3. Textfarben */
-  --fb-text-primary: #ffffff;
-  --fb-text-secondary: #d1d5db;
-  --fb-text-muted: #9ca3af;
-  --fb-text-dimmed: #6b7280;
-  --fb-text-on-accent: #ffffff;
+  --fb-text-primary: #f5f5f5;
+  --fb-text-secondary: #d6d6d6;
+  --fb-text-muted: #a8a8a8;
+  --fb-text-dimmed: #a0a0a0;
+  /* Dunkel, nicht hell: Schrift steht auf der orangefarbenen Flaeche. */
+  --fb-text-on-accent: #1a1a1a;
 
-  /* 4. Primaer-Aktionen (Electric Indigo) */
-  --fb-primary: #6366f1;
-  --fb-primary-hover: #4f46e5;
-  --fb-primary-subtle: rgba(99, 102, 241, 0.15);
-  --fb-primary-border: rgba(99, 102, 241, 0.3);
+  /* 4. Primaer-Aktionen (der Akzent) */
+  --fb-primary: #f89d13;
+  --fb-primary-hover: #fbb040;
+  --fb-primary-subtle: rgba(248, 157, 19, 0.15);
+  --fb-primary-border: rgba(248, 157, 19, 0.35);
 
   /* 5. Finanz- & Statusfarben */
-  --fb-profit: #10b981;
-  --fb-profit-subtle: rgba(16, 185, 129, 0.15);
-  --fb-profit-border: rgba(16, 185, 129, 0.3);
+  --fb-profit: #57c776;
+  --fb-profit-subtle: rgba(87, 199, 118, 0.15);
+  --fb-profit-border: rgba(87, 199, 118, 0.3);
 
-  --fb-accent-amber: #f59e0b;
-  --fb-accent-amber-subtle: rgba(245, 158, 11, 0.15);
-  --fb-accent-amber-border: rgba(245, 158, 11, 0.3);
+  --fb-accent-amber: #f89d13;
+  --fb-accent-amber-subtle: rgba(248, 157, 19, 0.15);
+  --fb-accent-amber-border: rgba(248, 157, 19, 0.3);
 
-  --fb-accent-blue: #38bdf8;
-  --fb-accent-blue-subtle: rgba(56, 189, 248, 0.15);
-  --fb-accent-blue-border: rgba(56, 189, 248, 0.3);
+  --fb-accent-blue: #c4c4c4;
+  --fb-accent-blue-subtle: rgba(196, 196, 196, 0.12);
+  --fb-accent-blue-border: rgba(196, 196, 196, 0.25);
 
-  --fb-accent-purple: #a855f7;
-  --fb-accent-purple-subtle: rgba(168, 85, 247, 0.15);
-  --fb-accent-purple-border: rgba(168, 85, 247, 0.3);
+  --fb-accent-purple: #c4c4c4;
+  --fb-accent-purple-subtle: rgba(196, 196, 196, 0.12);
+  --fb-accent-purple-border: rgba(196, 196, 196, 0.25);
 
-  --fb-accent-rose: #f43f5e;
-  --fb-accent-rose-subtle: rgba(244, 63, 94, 0.15);
-  --fb-accent-rose-border: rgba(244, 63, 94, 0.3);
+  --fb-accent-rose: #f58c8c;
+  --fb-accent-rose-subtle: rgba(245, 140, 140, 0.15);
+  --fb-accent-rose-border: rgba(245, 140, 140, 0.3);
 
-  --fb-accent-indigo: #818cf8;
-  --fb-accent-indigo-subtle: rgba(129, 140, 248, 0.15);
-  --fb-accent-indigo-border: rgba(129, 140, 248, 0.3);
+  --fb-accent-indigo: #f89d13;
+  --fb-accent-indigo-subtle: rgba(248, 157, 19, 0.15);
+  --fb-accent-indigo-border: rgba(248, 157, 19, 0.3);
 
   /* 6. Schatten */
-  --fb-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
-  --fb-shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
-  --fb-shadow-lg: 0 4px 10px -2px rgba(0, 0, 0, 0.25);
+  --fb-shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+  --fb-shadow-md: 0 1px 3px 0 rgba(0, 0, 0, 0.35);
+  --fb-shadow-lg: 0 4px 10px -2px rgba(0, 0, 0, 0.45);
 
-  /* 7. Akzent-Textfarben – hier die Original-Tailwind-Toene */
-  --fb-c-emerald-300: #6ee7b7;
-  --fb-c-emerald-400: #34d399;
-  --fb-c-indigo-300: #a5b4fc;
-  --fb-c-indigo-400: #818cf8;
-  --fb-c-amber-300: #fcd34d;
-  --fb-c-amber-400: #fbbf24;
-  --fb-c-rose-300: #fda4af;
-  --fb-c-rose-400: #fb7185;
-  --fb-c-purple-300: #d8b4fe;
-  --fb-c-purple-400: #c084fc;
-  --fb-c-blue-300: #93c5fd;
-  --fb-c-blue-400: #60a5fa;
-  --fb-c-cyan-300: #67e8f9;
-  --fb-c-yellow-400: #facc15;
+  /* 7. Akzent-Textfarben
+     Smaragd steht in den Vorlagen fuer Marge und Gewinn und bleibt deshalb
+     gruen. Indigo, die Primaerfarbe, traegt das Orange, ebenso Bernstein fuer
+     Hinweise. Blau und Violett werden zu Graustufen. */
+  --fb-c-emerald-300: #8adca0;
+  --fb-c-emerald-400: #57c776;
+  --fb-c-indigo-300: #fbb040;
+  --fb-c-indigo-400: #f89d13;
+  --fb-c-amber-300: #fbb040;
+  --fb-c-amber-400: #f89d13;
+  --fb-c-rose-300: #f8adad;
+  --fb-c-rose-400: #f58c8c;
+  --fb-c-purple-300: #d6d6d6;
+  --fb-c-purple-400: #c4c4c4;
+  --fb-c-blue-300: #d6d6d6;
+  --fb-c-blue-400: #c4c4c4;
+  --fb-c-cyan-300: #d6d6d6;
+  --fb-c-yellow-400: #f89d13;
 
-  --fb-c-emerald-100: #d1fae5;
-  --fb-c-indigo-200: #c7d2fe;
-  --fb-c-amber-200: #fde68a;
+  /* Diagrammfarben: eine Farbe, drei Graustufen - die Reihenfolge zeigt die
+     Bewertung an, das Orange hebt den guenstigsten Fall heraus. */
+  --fb-chart-1: #57c776;
+  --fb-chart-2: #f89d13;
+  --fb-chart-3: #a8a8a8;
+  --fb-chart-4: #f58c8c;
+
+  --fb-neutral-marker: #8a8a8a;
+
+  /* Die vier Einkaufsarten - gleiche Helligkeit, damit sie als Reihe
+     zusammengehoeren, und deutlich genug getrennt, um sie auf einen Blick
+     auseinanderzuhalten. */
+  --fb-art-single: #f89d13;
+  --fb-art-mystery: #ba9ee0;
+  --fb-art-lot: #6fa9d6;
+  --fb-art-pallet: #55bfb5;
+
+  /* Flaechen- und Rahmentoene (500er aufwaerts).
+     Die 500er sind die hellen Toenungen hinter Kacheln und Rahmen, die 600er
+     aufwaerts kraeftige Flaechen mit heller Schrift - deshalb sind die
+     Orangetoene dort abgedunkelt statt aufgehellt. */
+  --fb-c-emerald-500: #45b565;
+  --fb-c-emerald-600: #28683c;
+  --fb-c-emerald-700: #215733;
+  --fb-c-emerald-800: #1b4629;
+  --fb-c-indigo-500: #f89d13;
+  --fb-c-indigo-600: #8a5606;
+  --fb-c-indigo-950: #1a1207;
+  --fb-c-rose-500: #f58c8c;
+  --fb-c-rose-600: #a33b3b;
+  --fb-c-amber-500: #f89d13;
+  --fb-c-amber-600: #8a5606;
+  --fb-c-amber-700: #7a4c05;
+  --fb-c-blue-500: #c4c4c4;
+  --fb-c-blue-600: #4a4a4a;
+  --fb-c-purple-500: #c4c4c4;
+  --fb-c-purple-600: #4a4a4a;
+  --fb-c-cyan-500: #c4c4c4;
+  --fb-c-cyan-600: #4a4a4a;
+
+  --fb-c-emerald-100: #cdeed8;
+  --fb-c-indigo-200: #fbd7a3;
+  --fb-c-amber-200: #fdd9a3;
 }
 
 /* Der oeffentliche Shop ist dauerhaft hell gestaltet, verwendet aber dunkle
    Leisten mit hellen Akzenttoenen. Er bleibt deshalb vom Umschalter
    unberuehrt und behaelt immer die urspruenglichen Tailwind-Farben. */
 .fb-palette-fixed {
+  --fb-c-emerald-500: #10b981;
+  --fb-c-emerald-600: #059669;
+  --fb-c-emerald-700: #047857;
+  --fb-c-emerald-800: #065f46;
+  --fb-c-indigo-500: #6366f1;
+  --fb-c-indigo-600: #4f46e5;
+  --fb-c-indigo-950: #1e1b4b;
+  --fb-c-rose-500: #f43f5e;
+  --fb-c-rose-600: #e11d48;
+  --fb-c-amber-500: #f59e0b;
+  --fb-c-amber-600: #d97706;
+  --fb-c-amber-700: #b45309;
+  --fb-c-blue-500: #3b82f6;
+  --fb-c-blue-600: #2563eb;
+  --fb-c-purple-500: #a855f7;
+  --fb-c-purple-600: #9333ea;
+  --fb-c-cyan-500: #06b6d4;
+  --fb-c-cyan-600: #0891b2;
+
   --fb-c-emerald-300: #6ee7b7;
   --fb-c-emerald-400: #34d399;
   --fb-c-indigo-300: #a5b4fc;
@@ -209,7 +354,21 @@ html.dark {
   --fb-c-yellow-400: #facc15;
 }
 
-@theme {
+/*
+  `inline` ist hier entscheidend und kein Beiwerk.
+
+  Ohne dieses Wort legt Tailwind fuer jeden Eintrag eine eigene Variable an
+  (--color-fb-text-secondary: var(--fb-text-secondary)) und meldet sie dem
+  Browser als typisierte Eigenschaft an. Diese Kette aktualisiert der Browser
+  beim Umschalten des Designs nicht zuverlaessig: Teile der Oberflaeche - etwa
+  der aktive Eintrag in der Seitenleiste - blieben in den Farben des vorherigen
+  Designs stehen, bis die Seite neu geladen wurde.
+
+  Mit `inline` setzt Tailwind den Ausdruck direkt in die Regel
+  (color: var(--fb-text-secondary)). Die Variablen aus :root und html.dark
+  wirken damit sofort - beim Umschalten wie beim Aendern eines Wertes.
+*/
+@theme inline {
   --font-sans:
     'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -261,6 +420,37 @@ html.dark {
   --color-blue-400: var(--fb-c-blue-400);
   --color-cyan-300: var(--fb-c-cyan-300);
   --color-yellow-400: var(--fb-c-yellow-400);
+  --color-emerald-500: var(--fb-c-emerald-500);
+  --color-emerald-600: var(--fb-c-emerald-600);
+  --color-emerald-700: var(--fb-c-emerald-700);
+  --color-emerald-800: var(--fb-c-emerald-800);
+  --color-indigo-500: var(--fb-c-indigo-500);
+  --color-indigo-600: var(--fb-c-indigo-600);
+  --color-indigo-950: var(--fb-c-indigo-950);
+  --color-rose-500: var(--fb-c-rose-500);
+  --color-rose-600: var(--fb-c-rose-600);
+  --color-amber-500: var(--fb-c-amber-500);
+  --color-amber-600: var(--fb-c-amber-600);
+  --color-amber-700: var(--fb-c-amber-700);
+  --color-blue-500: var(--fb-c-blue-500);
+  --color-blue-600: var(--fb-c-blue-600);
+  --color-purple-500: var(--fb-c-purple-500);
+  --color-purple-600: var(--fb-c-purple-600);
+  --color-cyan-500: var(--fb-c-cyan-500);
+  --color-cyan-600: var(--fb-c-cyan-600);
+
+  /* Diagramm- und Neutralfarben als Klassen: bg-fb-chart-1, text-fb-neutral … */
+  --color-fb-chart-1: var(--fb-chart-1);
+  --color-fb-chart-2: var(--fb-chart-2);
+  --color-fb-chart-3: var(--fb-chart-3);
+  --color-fb-chart-4: var(--fb-chart-4);
+  --color-fb-neutral: var(--fb-neutral-marker);
+
+  /* Einkaufsarten: text-fb-art-single, bg-fb-art-lot … */
+  --color-fb-art-single: var(--fb-art-single);
+  --color-fb-art-mystery: var(--fb-art-mystery);
+  --color-fb-art-lot: var(--fb-art-lot);
+  --color-fb-art-pallet: var(--fb-art-pallet);
 }
 
 @layer base {
@@ -389,6 +579,77 @@ html.dark .linear-kpi::before {
   outline: none;
   border-color: var(--fb-border-focus);
   box-shadow: 0 0 0 2px var(--fb-primary-subtle);
+}
+
+/*
+  Vom Browser mitgelieferte Bedienelemente in Eingabefeldern.
+
+  Diese Elemente zeichnet der Browser selbst - in seinen eigenen Farben, die
+  von der Anwendung nichts wissen. In einer dunklen Oberflaeche fallen sie als
+  helle Fremdkoerper auf. Weit anpassen lassen sie sich nicht, aber zwei
+  Eingriffe wirken:
+
+  1. Die Pfeilchen zum Hochzaehlen an Zahlenfeldern verschwinden ganz. An ihre
+     Stelle tritt `app-number-input`, das dieselbe Aufgabe im Design der
+     Anwendung erledigt.
+  2. Das Kalendersymbol an Datumsfeldern wird umgefaerbt. Das Fenster, das
+     sich beim Anklicken oeffnet, gehoert dem Browser und laesst sich von einer
+     Seite aus nicht gestalten - dafuer braeuchte es eine vollstaendig eigene
+     Datumsauswahl.
+*/
+input[type='number'].linear-input::-webkit-outer-spin-button,
+input[type='number'].linear-input::-webkit-inner-spin-button {
+  appearance: none;
+  margin: 0;
+}
+
+input[type='number'].linear-input {
+  appearance: textfield;
+}
+
+input[type='date'].linear-input::-webkit-calendar-picker-indicator,
+input[type='time'].linear-input::-webkit-calendar-picker-indicator,
+input[type='datetime-local'].linear-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  /* Das Symbol ist eine schwarze Grafik des Browsers; invert() macht daraus
+     eine helle, sepia/saturate/hue-rotate faerben sie in den Akzent ein. */
+  filter: invert(64%) sepia(64%) saturate(1200%) hue-rotate(348deg) brightness(101%) contrast(96%);
+  transition: background-color 0.15s ease;
+}
+
+input[type='date'].linear-input::-webkit-calendar-picker-indicator:hover {
+  background-color: var(--fb-primary-subtle);
+}
+
+/* Die Textteile eines Datumsfeldes (Tag, Monat, Jahr) einzeln. */
+input[type='date'].linear-input::-webkit-datetime-edit-text,
+input[type='date'].linear-input::-webkit-datetime-edit-month-field,
+input[type='date'].linear-input::-webkit-datetime-edit-day-field,
+input[type='date'].linear-input::-webkit-datetime-edit-year-field {
+  color: var(--fb-text-primary);
+}
+
+input[type='date'].linear-input::-webkit-datetime-edit-text {
+  color: var(--fb-text-dimmed);
+}
+
+/* Die Liste, die ein natives Auswahlfeld aufklappt, zeichnet das
+   Betriebssystem. Farbe und Schrift lassen sich nur ueber diese beiden
+   Angaben beeinflussen - alles Weitere kann nur eine eigene Komponente,
+   siehe app-custom-select. */
+select.linear-input {
+  color-scheme: dark;
+}
+
+select.linear-input option {
+  background-color: var(--fb-bg-subtle);
+  color: var(--fb-text-primary);
+}
+
+html:not(.dark) select.linear-input {
+  color-scheme: light;
 }
 
 .linear-btn-primary {

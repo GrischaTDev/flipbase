@@ -37,10 +37,10 @@ export const CARRIER_METAS: Record<TrackingCarrier, CarrierMeta> = {
   hermes: {
     id: 'hermes',
     name: 'Hermes',
-    badgeClass: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
-    borderClass: 'border-sky-500/40',
-    textClass: 'text-sky-400',
-    bgClass: 'bg-sky-500/10',
+    badgeClass: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/30',
+    borderClass: 'border-cyan-500/40',
+    textClass: 'text-cyan-300',
+    bgClass: 'bg-cyan-500/10',
     placeholder: 'z.B. H100234567890123456',
   },
   ups: {
@@ -73,19 +73,19 @@ export const CARRIER_METAS: Record<TrackingCarrier, CarrierMeta> = {
   deutsche_post: {
     id: 'deutsche_post',
     name: 'Deutsche Post',
-    badgeClass: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/30',
-    borderClass: 'border-yellow-500/40',
+    badgeClass: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    borderClass: 'border-emerald-500/40',
     textClass: 'text-yellow-400',
-    bgClass: 'bg-yellow-500/10',
+    bgClass: 'bg-emerald-500/10',
     placeholder: 'z.B. RR123456789DE',
   },
   other: {
     id: 'other',
     name: 'Sonstiger Paketdienst',
-    badgeClass: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
-    borderClass: 'border-slate-500/40',
-    textClass: 'text-slate-400',
-    bgClass: 'bg-slate-500/10',
+    badgeClass: 'bg-fb-well text-fb-text-secondary border-fb-line',
+    borderClass: 'border-fb-line',
+    textClass: 'text-fb-text-muted',
+    bgClass: 'bg-fb-well',
     placeholder: 'Sendungsnummer eingeben',
   },
 };
@@ -96,7 +96,7 @@ export const TRACKING_STATUS_CONFIG: Record<
 > = {
   pending: {
     label: 'Angekündigt',
-    badgeClass: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
+    badgeClass: 'bg-fb-well text-fb-text-secondary border-fb-line',
     iconName: 'Clock',
     step: 1,
   },

@@ -10,7 +10,11 @@
     <link rel="manifest" href="manifest.webmanifest" />
 
     <!-- PWA Primary Colors & Apple Touch Meta -->
-    <meta name="theme-color" content="#282c37" />
+    <!--
+      Startwert fuer die Adressleiste, bis die Anwendung laeuft. Danach setzt
+      der Theme-Dienst ihn aus der Design-Variablen --fb-bg-app nach.
+    -->
+    <meta name="theme-color" content="#1f1f1f" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Flipbase" />
@@ -27,9 +31,15 @@
     />
     <link rel="stylesheet" href="fonts/fonts.css" />
   </head>
-  <body
-    class="bg-zinc-950 text-zinc-100 font-sans antialiased selection:bg-emerald-500/30 selection:text-emerald-300"
-  >
+  <!--
+    Grundfarbe und Schriftfarbe stehen bewusst nicht hier, sondern in
+    styles.css unter :root und html.dark. Fest verdrahtete Klassen an dieser
+    Stelle haben den Umschalter ausgehebelt: Die Flaeche hinter der App blieb
+    immer zinc-950, egal welches Design gewaehlt war. Aufgefallen ist es erst,
+    als das dunkle Design einen anderen Grundton bekam - vorher war der
+    Unterschied zum alten Anthrazit zu klein, um ihn zu bemerken.
+  -->
+  <body class="font-sans antialiased selection:bg-emerald-500/30 selection:text-emerald-300">
     <app-root></app-root>
   </body>
 </html>

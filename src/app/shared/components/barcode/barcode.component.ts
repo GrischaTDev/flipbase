@@ -57,6 +57,8 @@ export class BarcodeComponent {
           height: this.hoehe(),
           width: 1.4,
           margin: 0,
+          // Fest und nicht aus dem Design: Ein Strichcode wird optisch
+          // gelesen und braucht den vollen Schwarz-Weiss-Kontrast.
           background: '#ffffff',
           lineColor: '#000000',
         });

@@ -49,10 +49,17 @@ export class ThemeService {
         const theme = this.currentTheme();
         if (typeof document === 'undefined') return;
         document.documentElement.classList.toggle('dark', theme === 'dark');
-        // Adressleiste mobiler Browser mitfaerben
-        document
-          .querySelector('meta[name="theme-color"]')
-          ?.setAttribute('content', theme === 'dark' ? '#282c37' : '#f4f5f7');
+        // Adressleiste mobiler Browser mitfaerben.
+        // Die Farbe wird aus der Design-Variablen gelesen, nicht hier noch
+        // einmal hingeschrieben: Zwei Quellen laufen auseinander, sobald eine
+        // von beiden angefasst wird - genau das war passiert, hier stand noch
+        // das Anthrazit eines frueheren Designs.
+        const grundfarbe = getComputedStyle(document.documentElement)
+          .getPropertyValue('--fb-bg-app')
+          .trim();
+        if (grundfarbe) {
+          document.querySelector('meta[name="theme-color"]')?.setAttribute('content', grundfarbe);
+        }
       });
     } catch {
       // nur Testumgebung ohne Scheduler

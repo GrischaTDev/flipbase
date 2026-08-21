@@ -1,3 +1,7 @@
+// Hinweis: Die Farbwerte in diesem Dienst gehoeren zu HTML, das an
+// fremde Plattformen (eBay & Co.) ausgeliefert wird. Sie stehen bewusst
+// fest und nicht im Design der Anwendung - Farben fuer fremde Plattformen
+// muessen dort funktionieren, nicht hier.
 import { Injectable, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';

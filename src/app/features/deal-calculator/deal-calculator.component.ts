@@ -20,6 +20,10 @@ import {
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { BarcodeLookupService } from '../../core/services/barcode-lookup.service';
 import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner/barcode-scanner.component';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../shared/components/custom-select/custom-select.component';
 
 @Component({
   selector: 'app-deal-calculator',
@@ -29,12 +33,29 @@ import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner
     TranslatePipe,
     LucideDynamicIcon,
     BarcodeScannerComponent,
+    CustomSelectComponent,
   ],
   templateUrl: './deal-calculator.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DealCalculatorComponent {
+  /**
+   * Vorgaben fuer die eigenen Auswahlfelder.
+   *
+   * Ein natives Auswahlfeld klappt eine Liste auf, die das Betriebssystem
+   * zeichnet - hell, mit fremder Schrift. Deshalb uebernimmt
+   * `app-custom-select`, und die Eintraege stehen hier.
+   */
+  readonly zustandsOptionen: SelectOption<string>[] = [
+    { value: 'new', label: 'Neu / OVP' },
+    { value: 'like_new', label: 'Wie neu' },
+    { value: 'very_good', label: 'Sehr gut' },
+    { value: 'used', label: 'Gebraucht' },
+    { value: 'heavily_used', label: 'Stark gebraucht' },
+    { value: 'defective', label: 'Defekt / Bastler' },
+  ];
+
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly barcodeLookup = inject(BarcodeLookupService);
@@ -108,7 +129,7 @@ export class DealCalculatorComponent {
     if (score >= 86) return 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30';
     if (score >= 71) return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
     if (score >= 51) return 'text-amber-500 bg-amber-500/10 border-amber-500/20';
-    if (score >= 31) return 'text-orange-500 bg-orange-500/10 border-orange-500/20';
+    if (score >= 31) return 'text-amber-400 bg-amber-500/10 border-amber-500/20';
     return 'text-rose-500 bg-rose-500/10 border-rose-500/20';
   }
 }

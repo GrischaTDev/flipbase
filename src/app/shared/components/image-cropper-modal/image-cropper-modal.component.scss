@@ -4,7 +4,7 @@
   }
 
   .ngx-ic-cropper {
-    border: 2px solid #10b981 !important;
+    border: 2px solid var(--fb-c-emerald-500) !important;
     box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.65) !important;
   }
 }

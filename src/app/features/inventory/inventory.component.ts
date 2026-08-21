@@ -161,8 +161,8 @@ export class InventoryComponent {
     {
       value: 'reserved',
       label: 'Reserviert',
-      badgeClass: 'bg-slate-400',
-      colorClass: 'bg-[#1e222a] text-slate-300 border-[#373e4d] hover:bg-[#282e3a]',
+      badgeClass: 'bg-fb-neutral',
+      colorClass: 'bg-fb-well text-fb-text-secondary border-fb-line hover:bg-fb-surface-alt',
     },
     {
       value: 'defective',
@@ -173,14 +173,14 @@ export class InventoryComponent {
     {
       value: 'returned',
       label: 'Retourniert',
-      badgeClass: 'bg-slate-400',
-      colorClass: 'bg-[#1e222a] text-slate-300 border-[#373e4d] hover:bg-[#282e3a]',
+      badgeClass: 'bg-fb-neutral',
+      colorClass: 'bg-fb-well text-fb-text-secondary border-fb-line hover:bg-fb-surface-alt',
     },
     {
       value: 'archived',
       label: 'Archiviert',
-      badgeClass: 'bg-slate-400',
-      colorClass: 'bg-[#1e222a] text-slate-300 border-[#373e4d] hover:bg-[#282e3a]',
+      badgeClass: 'bg-fb-neutral',
+      colorClass: 'bg-fb-well text-fb-text-secondary border-fb-line hover:bg-fb-surface-alt',
     },
   ];
 
@@ -190,10 +190,10 @@ export class InventoryComponent {
     { value: 'ready', label: 'Bereit', badgeClass: 'bg-amber-400' },
     { value: 'listed', label: 'Gelistet', badgeClass: 'bg-emerald-400' },
     { value: 'sold', label: 'Verkauft', badgeClass: 'bg-purple-400' },
-    { value: 'reserved', label: 'Reserviert', badgeClass: 'bg-slate-400' },
+    { value: 'reserved', label: 'Reserviert', badgeClass: 'bg-fb-neutral' },
     { value: 'defective', label: 'Defekt / Ersatzteil', badgeClass: 'bg-rose-400' },
-    { value: 'returned', label: 'Retourniert', badgeClass: 'bg-slate-400' },
-    { value: 'archived', label: 'Archiviert', badgeClass: 'bg-slate-400' },
+    { value: 'returned', label: 'Retourniert', badgeClass: 'bg-fb-neutral' },
+    { value: 'archived', label: 'Archiviert', badgeClass: 'bg-fb-neutral' },
   ];
 
   readonly filterConditionOptions: SelectOption<string>[] = [
