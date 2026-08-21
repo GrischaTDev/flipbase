@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { ListingStudioService } from './listing-studio.service';
 import { InventoryItem } from '../models/flipbase.models';
 
-describe('Listing Studio & Multi-Platform Generator (Phase 7)', () => {
+describe('Listing Studio & Multi-Platform Generator', () => {
   let service: ListingStudioService;
 
   beforeEach(() => {
@@ -82,5 +82,35 @@ describe('Listing Studio & Multi-Platform Generator (Phase 7)', () => {
 
     expect(analysis.maxChars).toBe(60);
     expect(analysis.optimizedTitle.length).toBeLessThanOrEqual(60);
+  });
+
+  describe('Steuerhinweis im Inserat', () => {
+    // Der Hinweis stand fest auf § 25a. Ein Inserat ist eine Aussage
+    // gegenueber dem Kaeufer - eine falsche Steuerangabe darin ist keine
+    // Kleinigkeit.
+    function mitModus(modus: string | undefined) {
+      const dienst = Object.create(ListingStudioService.prototype) as ListingStudioService;
+      (dienst as unknown as { workspaceService: unknown }).workspaceService = {
+        currentWorkspace: () => (modus ? { tax_mode: modus } : null),
+      };
+      return dienst;
+    }
+
+    it('nennt die Differenzbesteuerung nur im passenden Modus', () => {
+      const text = mitModus('diff_25a').generateListing(sampleItem, 'kleinanzeigen', 75);
+      expect(text.description).toContain('§ 25a');
+    });
+
+    it('nennt beim Kleinunternehmer den § 19 statt der Differenzbesteuerung', () => {
+      const text = mitModus('kleinunternehmer_19').generateListing(sampleItem, 'kleinanzeigen', 75);
+      expect(text.description).toContain('§ 19');
+      expect(text.description).not.toContain('§ 25a');
+    });
+
+    it('macht ohne bekannten Modus gar keine Steueraussage', () => {
+      const text = mitModus(undefined).generateListing(sampleItem, 'kleinanzeigen', 75);
+      expect(text.description).not.toContain('§ 25a');
+      expect(text.description).not.toContain('§ 19');
+    });
   });
 });

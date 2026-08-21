@@ -301,11 +301,35 @@ export class ListingStudioService {
       `• Schneller Versand innerhalb von 24 Stunden nach Zahlungseingang`,
       `• Barzahlung bei Abholung oder Überweisung / PayPal`,
       `\nRECHTLICHER HINWEIS:`,
-      `Geprüfte Gebrauchtware vom Händler. Differenzbesteuerung gem. § 25a UStG.`,
+      this.steuerhinweis(),
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
     ].filter(Boolean);
 
     return lines.join('\n');
+  }
+
+  /**
+   * Steuerhinweis fuer das Inserat - abgeleitet aus dem eingestellten Modus.
+   *
+   * Stand frueher fest auf "Differenzbesteuerung gem. § 25a UStG", obwohl die
+   * Anwendung drei Modi kennt. Wer als Kleinunternehmer verkauft, haette damit
+   * in jedem Inserat eine falsche Steuerangabe veroeffentlicht - und ein
+   * Inserat ist eine Aussage gegenueber dem Kaeufer, keine interne Notiz.
+   */
+  private steuerhinweis(): string {
+    const modus = this.workspaceService?.currentWorkspace()?.tax_mode;
+
+    switch (modus) {
+      case 'kleinunternehmer_19':
+        return 'Gebrauchtware vom Händler. Kein Ausweis von Umsatzsteuer gem. § 19 UStG (Kleinunternehmerregelung).';
+      case 'regular_19':
+        return 'Gebrauchtware vom Händler. Preis inklusive der gesetzlichen Umsatzsteuer.';
+      case 'diff_25a':
+        return 'Geprüfte Gebrauchtware vom Händler. Differenzbesteuerung gem. § 25a UStG.';
+      default:
+        // Ohne bekannten Modus lieber keine Steueraussage als eine falsche.
+        return 'Gebrauchtware vom Händler.';
+    }
   }
 
   private buildPlatformTitle(
@@ -390,9 +414,7 @@ export class ListingStudioService {
       lines.push(``);
       if (options.isCommercialSeller) {
         lines.push(`Rechtlicher Hinweis:`);
-        lines.push(
-          `Verkauf durch gewerblichen Händler. Differenzbesteuerung gemäß § 25a UStG (kein gesonderter MwSt.-Ausweis).`,
-        );
+        lines.push(this.steuerhinweis());
       } else {
         lines.push(`Rechtlicher Hinweis:`);
         lines.push(
@@ -437,7 +459,7 @@ export class ListingStudioService {
     if (options.includeDisclaimer) {
       lines.push(`RECHTLICHES:`);
       if (options.isCommercialSeller) {
-        lines.push(`Gewerblicher Verkauf mit Rechnung (Differenzbesteuert gem. § 25a UStG).`);
+        lines.push(this.steuerhinweis());
       } else {
         lines.push(`Privatverkauf ohne Garantie und Gewährleistung.`);
       }
@@ -467,7 +489,7 @@ export class ListingStudioService {
     </ul>
     ${item.description ? `<h3 style="color: #4338ca; border-bottom: 2px solid #e0e7ff; padding-bottom: 8px; margin-top: 24px;">Beschreibung</h3><p>${item.description.replace(/\n/g, '<br/>')}</p>` : ''}
     <div style="margin-top: 32px; padding: 16px; background: #f8fafc; border-radius: 8px; font-size: 12px; color: #64748b;">
-      ${options.isCommercialSeller ? 'Gewerblicher Verkauf mit Rechnung (§ 25a UStG Differenzbesteuerung).' : 'Privatverkauf unter Ausschluss jeglicher Sachmängelhaftung.'}
+      ${options.isCommercialSeller ? this.steuerhinweis() : 'Privatverkauf unter Ausschluss jeglicher Sachmängelhaftung.'}
     </div>
   </div>
 </div>`;
@@ -563,7 +585,7 @@ ${this.buildHashtags(item).join(' ')}`.trim();
       lines.push(``);
     }
     lines.push(`• Sofort lieferbar • Sichere Zahlung per Stripe / PayPal / Überweisung`);
-    lines.push(`• Differenzbesteuert gem. § 25a UStG (Gebrauchtwaren)`);
+    lines.push(`• ${this.steuerhinweis()}`);
     return lines.join('\n');
   }
 
