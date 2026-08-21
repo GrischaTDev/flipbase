@@ -46,3 +46,6 @@ Thumbs.db
 # Von der Supabase-CLI erzeugt
 supabase/.temp/
 supabase/.branches/
+
+# Wird bei jedem Build aus package.json und dem Git-Stand erzeugt
+src/app/core/version.ts

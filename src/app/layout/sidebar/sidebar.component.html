@@ -125,16 +125,43 @@
     }
   </nav>
 
-  <!-- Footer Info / Version -->
-  <div class="p-3 border-t border-fb-border-subtle text-xs flex items-center justify-between">
-    <div class="flex items-center gap-1.5">
-      <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
-      <span class="text-[11px] text-fb-text-muted font-medium">Flipbase Core</span>
+  <!-- Fusszeile: Installation und Version -->
+  <div class="p-3 border-t border-fb-border-subtle space-y-2.5">
+    <!--
+      Der Knopf erscheint nur, solange der Browser die Installation anbietet -
+      danach verschwindet er von selbst. Anders als in der Kopfzeile ist er
+      hier auf jedem Geraet erreichbar; dort war er unterhalb von 640 Pixeln
+      ausgeblendet, also genau auf den Geraeten, um die es geht.
+    -->
+    @if (pwaService.isInstallable()) {
+      <button
+        type="button"
+        (click)="pwaService.promptInstall()"
+        class="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-fb-primary text-fb-on-accent text-[11px] font-bold hover:bg-fb-primary-hover transition cursor-pointer shadow-xs"
+        title="Flipbase als App auf deinem Gerät installieren"
+      >
+        <svg [lucideIcon]="smartphoneIcon" class="w-3.5 h-3.5"></svg>
+        <span>App installieren</span>
+      </button>
+    }
+
+    <div class="text-xs flex items-center justify-between">
+      <div class="flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 rounded-full bg-fb-primary animate-pulse"></span>
+        <span class="text-[11px] text-fb-text-muted font-medium">Flipbase Core</span>
+      </div>
+      <!--
+        Nur die Nummer, nicht das Commit-Kurzzeichen: In der Leiste zaehlt,
+        welche Fassung laeuft, nicht welcher Stand sie gebaut hat. Das
+        Kurzzeichen bleibt im Tooltip - dort stoert es niemanden und hilft,
+        wenn doch einmal jemand genau wissen muss, worauf er schaut.
+      -->
+      <span
+        class="px-1.5 py-0.2 rounded bg-fb-surface text-fb-text-secondary border border-fb-border font-mono text-[10px]"
+        [title]="'Stand ' + version.stand + ' · Commit ' + version.commit"
+      >
+        v{{ version.nummer }}
+      </span>
     </div>
-    <span
-      class="px-1.5 py-0.2 rounded bg-fb-surface text-fb-text-secondary border border-fb-border font-mono text-[10px]"
-    >
-      v0.1
-    </span>
   </div>
 </aside>

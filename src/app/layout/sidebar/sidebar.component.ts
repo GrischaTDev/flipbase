@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
@@ -18,7 +18,10 @@ import {
   LucideX as X,
   LucideSparkles as Sparkles,
   LucideTruck as Truck,
+  LucideSmartphone as Smartphone,
 } from '@lucide/angular';
+import { PwaService } from '../../core/services/pwa.service';
+import { VERSION } from '../../core/version';
 
 interface NavItem {
   path: string;
@@ -48,6 +51,18 @@ export class SidebarComponent {
 
   readonly closeIcon = X;
   readonly logoIcon = Sparkles;
+  readonly smartphoneIcon = Smartphone;
+
+  /**
+   * Der Knopf zum Installieren stand bisher in der Kopfzeile - und dort mit
+   * `hidden sm:inline-flex`, war auf dem Handy also unsichtbar. Ausgerechnet
+   * dort, wo man eine App installiert. In der Seitenleiste ist er auf jedem
+   * Geraet erreichbar: am Rechner dauerhaft, auf dem Handy ueber das Menue.
+   */
+  readonly pwaService = inject(PwaService);
+
+  /** Aus Git und package.json erzeugt, siehe scripts/version-generieren.mjs. */
+  readonly version = VERSION;
 
   readonly navItems: NavItem[] = [
     { path: '/dashboard', labelKey: 'NAV.DASHBOARD', label: 'Dashboard', icon: LayoutDashboard },

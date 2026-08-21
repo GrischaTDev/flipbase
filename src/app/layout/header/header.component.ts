@@ -24,7 +24,6 @@ import {
   LucideCheckCheck as CheckCheck,
   LucideTrash2 as Trash2,
   LucideSparkles as Sparkles,
-  LucideSmartphone as Smartphone,
   LucideWifiOff as WifiOff,
   LucideSettings as Settings,
 } from '@lucide/angular';
@@ -85,7 +84,6 @@ export class HeaderComponent {
   readonly CheckCheckIcon = CheckCheck;
   readonly TrashIcon = Trash2;
   readonly SparklesIcon = Sparkles;
-  readonly SmartphoneIcon = Smartphone;
   readonly WifiOffIcon = WifiOff;
 
   currentLanguage = signal<string>('de');

@@ -76,18 +76,12 @@
       </span>
     }
 
-    <!-- PWA Install Button -->
-    @if (pwaService.isInstallable()) {
-      <button
-        type="button"
-        (click)="pwaService.promptInstall()"
-        class="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-indigo-600/15 text-indigo-300 border border-indigo-500/30 text-xs font-bold hover:bg-indigo-600/25 transition cursor-pointer shadow-xs"
-        title="Flipbase als native App auf deinem Gerät installieren"
-      >
-        <svg [lucideIcon]="SmartphoneIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
-        <span>App installieren</span>
-      </button>
-    }
+    <!--
+      Der Knopf zum Installieren steht jetzt in der Fusszeile der
+      Seitenleiste. Hier trug er `hidden sm:inline-flex` und war damit auf
+      dem Handy unsichtbar - dort, wo eine Installation ueberhaupt erst
+      lohnt.
+    -->
 
     <!-- Notification Bell Dropdown -->
     <div class="relative" #notificationContainer>
@@ -100,7 +94,7 @@
         <svg [lucideIcon]="BellIcon" class="w-4 h-4"></svg>
         @if (webhookService.unreadCount() > 0) {
           <span
-            class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-700 text-fb-on-accent text-[10px] font-bold flex items-center justify-center animate-pulse"
+            class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-fb-primary text-fb-on-accent text-[10px] font-bold flex items-center justify-center animate-pulse"
           >
             {{ webhookService.unreadCount() }}
           </span>
