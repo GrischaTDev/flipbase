@@ -12,14 +12,15 @@
  * Datenbank auch dann nicht erreichte, wenn sie lief.
  */
 
-const CACHE_NAME = 'flipbase-os-v2';
+const CACHE_NAME = 'flipbase-os-v3';
 
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
   '/favicon.ico',
-  '/icons/icon.svg',
+  '/icons/icon-192.png',
+  '/images/logo-mark.png',
 ];
 
 /** Dateiendungen, die als statische Anwendungsdateien gelten. */

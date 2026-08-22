@@ -11,10 +11,11 @@ import {
   LucideZap as Zap,
 } from '@lucide/angular';
 import { AuthService } from '../../../core/services/auth.service';
+import { NgOptimizedImage } from '@angular/common';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, LucideDynamicIcon],
+  imports: [ReactiveFormsModule, RouterLink, TranslatePipe, LucideDynamicIcon, NgOptimizedImage],
   templateUrl: './login.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,

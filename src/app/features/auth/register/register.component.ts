@@ -25,6 +25,7 @@ import {
 } from '@lucide/angular';
 import { AuthService } from '../../../core/services/auth.service';
 import { CustomCheckboxComponent } from '../../../shared/components/custom-checkbox/custom-checkbox.component';
+import { NgOptimizedImage } from '@angular/common';
 
 /** Validator to ensure password and confirmPassword match */
 const passwordMatchValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
@@ -42,6 +43,7 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
     TranslatePipe,
     LucideDynamicIcon,
     CustomCheckboxComponent,
+    NgOptimizedImage,
   ],
   templateUrl: './register.component.html',
   host: { class: 'block' },

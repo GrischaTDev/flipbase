@@ -2,11 +2,14 @@
   <div class="max-w-md w-full bg-fb-surface-alt border border-fb-border rounded-3xl p-8 shadow-2xl">
     <!-- Logo & Title -->
     <div class="text-center mb-8">
-      <div
-        class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-emerald-700 text-fb-on-accent mb-3 shadow-lg shadow-emerald-500/20"
-      >
-        <svg [lucideIcon]="logoIcon" class="w-6 h-6"></svg>
-      </div>
+      <img
+        ngSrc="images/logo-mark.png"
+        width="48"
+        height="48"
+        alt="Flipbase"
+        class="fb-logo-mark inline-block w-12 h-12 mb-3"
+        priority
+      />
       <h1 class="text-2xl font-extrabold text-fb-text-primary tracking-tight">Flipbase</h1>
       <p class="text-xs text-fb-text-muted mt-1">Entscheidungs- und Finanzsystem für Reseller</p>
       <h2 class="text-lg font-bold text-fb-text-secondary mt-4">

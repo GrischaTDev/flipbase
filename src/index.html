@@ -6,7 +6,15 @@
     <base href="/" />
     <!-- Kein user-scalable=no: das Sperren des Zooms verstoesst gegen WCAG 1.4.4 (Resize Text, AA) -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <!--
+      Mehrere Groessen statt einer: Der Browser nimmt fuer den Reiter eine
+      kleine, das Lesezeichen und die Kachel auf dem Startbildschirm groessere.
+      Ohne Auswahl skaliert er selbst herunter, und aus den feinen Pfeilen im
+      Zeichen wird Matsch.
+    -->
+    <link rel="icon" type="image/x-icon" href="favicon.ico" sizes="16x16 32x32 48x48" />
+    <link rel="icon" type="image/png" href="icons/icon-96.png" sizes="96x96" />
+    <link rel="icon" type="image/png" href="icons/icon-192.png" sizes="192x192" />
     <link rel="manifest" href="manifest.webmanifest" />
 
     <!-- PWA Primary Colors & Apple Touch Meta -->
@@ -18,7 +26,9 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Flipbase" />
-    <link rel="apple-touch-icon" href="icons/icon.svg" />
+    <!-- Apple erwartet 180 Pixel und legt kein Transparentes auf Weiss - das
+         Symbol hat hier deshalb seinen dunklen Grund fest eingebrannt. -->
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png" />
     <!-- Lokal gehostete Schriften: kein Aufruf an fonts.gstatic.com,
          damit keine Besucher-IP in die USA uebertragen wird (DSGVO) und
          die Typografie auch offline steht. -->

@@ -582,6 +582,23 @@ html.dark .linear-kpi::before {
 }
 
 /*
+  Das freigestellte Zeichen der Marke.
+
+  Es besteht aus Gelb und Orange und steht auf der dunklen Leiste frei und
+  kraeftig da (10:1). Auf hellem Grund faellt dasselbe Gelb auf 1.7:1 - es
+  waere kaum zu erkennen. Im hellen Design bekommt es deshalb den dunklen
+  Traeger, den das Zeichen als App-Symbol ohnehin fest eingebaut hat.
+*/
+.fb-logo-mark {
+  border-radius: 0.375rem;
+}
+
+html:not(.dark) .fb-logo-mark {
+  background-color: #1a1a1a;
+  padding: 2px;
+}
+
+/*
   Vom Browser mitgelieferte Bedienelemente in Eingabefeldern.
 
   Diese Elemente zeichnet der Browser selbst - in seinen eigenen Farben, die

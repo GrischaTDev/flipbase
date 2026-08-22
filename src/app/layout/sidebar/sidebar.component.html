@@ -17,11 +17,19 @@
   <!-- Brand Logo Header -->
   <div class="h-14 flex items-center justify-between px-4 border-b border-fb-border-subtle">
     <div class="flex items-center gap-2.5">
-      <div
-        class="w-6 h-6 rounded-md bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center shadow-xs shadow-indigo-500/25"
-      >
-        <svg [lucideIcon]="logoIcon" class="w-3.5 h-3.5 text-fb-text-primary stroke-[2.5]"></svg>
-      </div>
+      <!--
+        Das Zeichen bringt seinen eigenen dunklen Grund mit und steht deshalb
+        in beiden Designs. Der Schriftzug daneben bleibt Text: So faerbt er
+        sich mit dem Design mit und laesst sich vorlesen und durchsuchen.
+      -->
+      <img
+        ngSrc="images/logo-mark.png"
+        width="24"
+        height="24"
+        alt=""
+        class="fb-logo-mark w-6 h-6"
+        priority
+      />
       <div class="flex items-center gap-1.5">
         <span class="tracking-tight font-bold text-sm text-fb-text-primary">Flipbase</span>
         <span

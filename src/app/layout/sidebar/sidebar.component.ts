@@ -22,6 +22,7 @@ import {
 } from '@lucide/angular';
 import { PwaService } from '../../core/services/pwa.service';
 import { VERSION } from '../../core/version';
+import { NgOptimizedImage } from '@angular/common';
 
 interface NavItem {
   path: string;
@@ -40,7 +41,7 @@ interface NavItem {
 
 @Component({
   selector: 'app-sidebar',
-  imports: [RouterLink, RouterLinkActive, TranslatePipe, LucideDynamicIcon],
+  imports: [RouterLink, RouterLinkActive, TranslatePipe, LucideDynamicIcon, NgOptimizedImage],
   templateUrl: './sidebar.component.html',
   host: { class: 'contents' },
   changeDetection: ChangeDetectionStrategy.OnPush,
