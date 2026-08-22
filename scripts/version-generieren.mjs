@@ -9,6 +9,12 @@
  *
  * Die erzeugte Datei gehoert nicht ins Repository - sonst haette jeder Build
  * eine Aenderung im Arbeitsverzeichnis zur Folge.
+ *
+ * Im Container gibt es kein Git: `.git` steht in `.dockerignore`, und das
+ * soll auch so bleiben. Deshalb haben die Umgebungsvariablen FLIPBASE_COMMIT
+ * und FLIPBASE_COMMIT_DATE Vorrang - die Abspielliste reicht sie beim Bauen
+ * des Abbilds herein. Fehlen sie und fehlt Git, bleibt ein sprechender
+ * Platzhalter stehen, statt dass der Build abbricht.
  */
 import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -29,8 +35,12 @@ function ausGit(befehl, ersatz) {
 }
 
 const paket = JSON.parse(readFileSync(join(wurzel, 'package.json'), 'utf8'));
-const commit = ausGit('git rev-parse --short HEAD', 'ohne-git');
-const stand = ausGit('git log -1 --format=%cs', new Date().toISOString().slice(0, 10));
+const commit =
+  (process.env.FLIPBASE_COMMIT || '').trim().slice(0, 7) ||
+  ausGit('git rev-parse --short HEAD', 'unbekannt');
+const stand =
+  (process.env.FLIPBASE_COMMIT_DATE || '').trim() ||
+  ausGit('git log -1 --format=%cs', new Date().toISOString().slice(0, 10));
 
 const inhalt = `/**
  * Erzeugt von scripts/version-generieren.mjs - nicht von Hand aendern.

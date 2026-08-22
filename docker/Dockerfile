@@ -11,7 +11,21 @@ RUN npm ci --ignore-scripts
 
 # Quellcode kopieren & produktions-Build erstellen
 COPY . .
-RUN npx ng build --configuration production
+
+# Der Commit kommt von aussen herein: `.git` steht in .dockerignore, und das
+# soll es auch, damit das Abbild keine Historie mitschleppt. Ohne diese
+# Angaben traegt die Versionsanzeige einen Platzhalter - der Build laeuft
+# trotzdem durch.
+ARG FLIPBASE_COMMIT=""
+ARG FLIPBASE_COMMIT_DATE=""
+ENV FLIPBASE_COMMIT=$FLIPBASE_COMMIT
+ENV FLIPBASE_COMMIT_DATE=$FLIPBASE_COMMIT_DATE
+
+# `npm run build` statt `npx ng build`: Nur so laeuft der prebuild-Haken mit,
+# der src/app/core/version.ts erzeugt. Diese Datei steht in .gitignore und
+# liegt im Abbild deshalb nicht vor - mit `npx` brach der Build genau daran
+# ab, waehrend er auf jedem Rechner mit vorhandener Datei durchlief.
+RUN npm run build -- --configuration production
 
 # ──────────────────────────────────────────────
 # Stage 2 – Serve mit Nginx

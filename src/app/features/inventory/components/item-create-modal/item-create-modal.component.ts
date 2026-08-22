@@ -35,7 +35,6 @@ import {
   ImageCropperModalComponent,
   CroppedImageResult,
 } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
-import { DatePipe } from '@angular/common';
 import { InventoryItem, ItemCondition, ItemStatus } from '../../../../core/models/flipbase.models';
 
 import {
@@ -50,7 +49,6 @@ import { LoggerService } from '../../../../core/services/logger.service';
   imports: [
     ModalDialogDirective,
     ReactiveFormsModule,
-    DatePipe,
     LucideDynamicIcon,
     BarcodeScannerComponent,
     AiPhotoScannerModalComponent,
