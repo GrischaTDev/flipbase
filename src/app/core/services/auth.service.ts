@@ -6,6 +6,7 @@ import { MockDataStoreService } from './mock-data-store.service';
 import { UserProfile } from '../models/flipbase.models';
 import { environment } from '../../../environments/environment';
 import { SyncStatusService } from './sync-status.service';
+import { LandingHintService } from './landing-hint.service';
 
 /** Speicherschlüssel für den bewusst gewählten Demo-Modus. */
 const DEMO_MODE_KEY = 'flipbase_demo_mode';
@@ -32,6 +33,7 @@ export class AuthService {
   private readonly syncStatus = inject(SyncStatusService, { optional: true });
   private readonly mockStore = inject(MockDataStoreService);
   private readonly router = inject(Router);
+  private readonly landingHint = inject(LandingHintService);
 
   readonly session = signal<AuthSession | null>(null);
   readonly currentUser = signal<User | null>(null);
@@ -118,6 +120,9 @@ export class AuthService {
           this.session.set(null);
           this.currentUser.set(null);
           this.profile.set(null);
+          // Deckt auch den serverseitigen Ablauf und das Abmelden in einem
+          // anderen Tab ab.
+          this.landingHint.abmelden();
         }
       });
     } catch {
@@ -130,6 +135,8 @@ export class AuthService {
     this.currentUser.set(session.user);
     // Eine echte Anmeldung beendet den Demo-Modus.
     this.setDemoMode(false);
+    // Der Landingpage mitteilen, dass hier jemand angemeldet ist.
+    this.landingHint.anmelden();
   }
 
   async loadProfile(userId: string): Promise<void> {
@@ -289,11 +296,32 @@ export class AuthService {
     return { error: null };
   }
 
+  /**
+   * Meldet in **diesem** Browser ab.
+   *
+   * Der Bereich muss ausdruecklich angegeben werden: Supabase meldet ohne
+   * Angabe auf allen Geraeten ab. Wer sich am Handy abmeldet, flog damit auch
+   * am Rechner raus - das erwartet niemand.
+   */
   async signOut(): Promise<void> {
+    await this.beendeSitzung('local');
+  }
+
+  /**
+   * Beendet die Sitzung auf **allen** Geraeten.
+   *
+   * Die schnelle Antwort auf ein verlorenes Geraet: wirkt sofort, statt auf
+   * den Ablauf der Sitzung zu warten.
+   */
+  async abmeldenUeberall(): Promise<void> {
+    await this.beendeSitzung('global');
+  }
+
+  private async beendeSitzung(bereich: 'local' | 'global'): Promise<void> {
     this.isLoading.set(true);
     try {
       try {
-        await this.supabase.client.auth.signOut();
+        await this.supabase.client.auth.signOut({ scope: bereich });
       } catch {
         // Auch ohne erreichbares Backend lokal abmelden.
       }
@@ -301,6 +329,7 @@ export class AuthService {
       this.currentUser.set(null);
       this.profile.set(null);
       this.setDemoMode(false);
+      this.landingHint.abmelden();
       this.router.navigate(['/auth/login']);
     } finally {
       this.isLoading.set(false);
