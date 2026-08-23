@@ -153,12 +153,26 @@ export class AuthService {
         if (session) {
           this.applySession(session);
         } else {
+          const warAngemeldet = !!this.currentUser();
+
           this.session.set(null);
           this.currentUser.set(null);
           this.profile.set(null);
           // Deckt auch den serverseitigen Ablauf und das Abmelden in einem
           // anderen Tab ab.
           this.landingHint.abmelden();
+
+          // Ohne Weiterleitung bliebe die Seite stehen, auf der man gerade ist:
+          // Der Guard prüft nur beim Navigieren, nicht dauernd. Jede weitere
+          // Abfrage liefe dann ohne Token und schlüge mit "permission denied"
+          // fehl - der Nutzer sähe Rechte-Fehler statt der Anmeldeseite.
+          //
+          // Nur wenn zuvor jemand angemeldet war: Beim Start meldet Supabase
+          // INITIAL_SESSION mit null, das darf niemanden von der Anmeldeseite
+          // wegschicken.
+          if (warAngemeldet) {
+            this.router.navigate(['/auth/login']);
+          }
         }
       });
     } catch {
