@@ -9,7 +9,7 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { CropperPosition, ImageCropperComponent, ImageCroppedEvent } from 'ngx-image-cropper';
+import { ImageCropperComponent, ImageCroppedEvent } from 'ngx-image-cropper';
 import { LucideDynamicIcon, LucideRotateCw as RotateCw } from '@lucide/angular';
 import { PlattformProfil, Rechteck } from '../../models/plattform-profile';
 import { safeArea } from '../../services/zuschnitt';
@@ -27,6 +27,7 @@ import { safeArea } from '../../services/zuschnitt';
   imports: [ImageCropperComponent, LucideDynamicIcon],
   templateUrl: './zuschnitt-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '(window:resize)': 'beiFenstergroesse()' },
 })
 export class ZuschnittEditorComponent {
   private readonly elementRef = inject(ElementRef);
@@ -38,7 +39,14 @@ export class ZuschnittEditorComponent {
 
   readonly drehung = signal(0);
   readonly letzterAusschnitt = signal<Rechteck | null>(null);
-  readonly letzteRahmenposition = signal<CropperPosition | null>(null);
+
+  // Wird bei jedem window:resize hochgezaehlt, damit `sichererBereichRahmen`
+  // den Zuschnittrahmen neu aus dem DOM misst. ngx-image-cropper skaliert
+  // seinen Rahmen bei einer Fenstergroessenaenderung selbst neu, feuert dabei
+  // aber kein `imageCropped`-Ereignis - ohne dieses Signal wuerde der
+  // `computed()` das nicht bemerken und weiter mit der Geometrie von vor dem
+  // Resize rechnen.
+  private readonly fenstergroesse = signal(0);
 
   readonly rotateIcon = RotateCw;
 
@@ -55,92 +63,94 @@ export class ZuschnittEditorComponent {
       this.datenUrl();
       this.drehung.set(0);
       this.letzterAusschnitt.set(null);
-      this.letzteRahmenposition.set(null);
     });
+  }
+
+  beiFenstergroesse(): void {
+    this.fenstergroesse.update((n) => n + 1);
   }
 
   /**
    * Die Position des Safe-Area-Rahmens in Anzeigepixeln, fuer die Darstellung
    * ueber dem Cropper.
    *
-   * Der Rahmen wird bewusst aus zwei verschiedenen Rechtecken berechnet:
-   * `letzterAusschnitt` (imagePosition, Pixel des Originalbildes) liefert das
-   * Verhaeltnis der Safe-Area zum Ausschnitt, `letzteRahmenposition`
-   * (cropperPosition, Anzeigepixel) liefert die Flaeche, ueber die dieses
-   * Verhaeltnis gelegt wird. Beide durcheinanderzubringen ist der
-   * naheliegende Fehler: Nur cropperPosition beschreibt die Flaeche, in der
-   * dieser Rahmen tatsaechlich liegt (das Koordinatensystem von
-   * <image-cropper>) - imagePosition wuerde den Rahmen wieder auf den
-   * gesamten Cropper zentrieren statt auf den vom Nutzer gezogenen
-   * Zuschnitt.
+   * Die Flaeche, ueber die der Rahmen gelegt wird, wird direkt aus dem DOM
+   * gemessen (`.ngx-ic-cropper`) statt aus `cropperPosition` abgeleitet:
+   * ngx-image-cropper skaliert seinen Zuschnittrahmen bei einer
+   * Fenstergroessenaenderung selbst neu, feuert dabei aber kein
+   * `imageCropped`-Ereignis. Ein gespeichertes `cropperPosition` wuerde also
+   * nach einem Resize die Geometrie von davor beschreiben, waehrend der
+   * tatsaechliche Rahmen laengst woanders sitzt - der Safe-Area-Rahmen
+   * wuerde vom Zuschnittrahmen abdriften. Die direkte Messung liest immer
+   * die aktuelle Position, unabhaengig davon, ob/wann die Bibliothek ein
+   * Ereignis dazu feuert. `letzterAusschnitt` (imagePosition, Pixel des
+   * Originalbildes) bleibt die Quelle fuer das Verhaeltnis der Safe-Area zum
+   * Ausschnitt - dieser Pfad ist korrekt und wird hier nicht angefasst.
    *
-   * `cropperPosition` (und damit `rahmenposition`) ist relativ zur
-   * gerenderten Bildflaeche innerhalb von <image-cropper> angegeben, nicht
-   * relativ zum umschliessenden `.relative`-Wrapper, an dem der Rahmen per
-   * `position: absolute` haengt. ngx-image-cropper ruecken die Bildflaeche
-   * per eigenem Stylesheet vom Host-Rand ab, deshalb reicht `rahmenposition`
-   * allein nicht - der Versatz zwischen Bildflaeche und Wrapper wird darum
-   * zur Laufzeit gemessen (siehe `versatz()`) statt als fester Pixelwert
-   * angenommen, weil er von der Bibliotheksversion abhaengt.
+   * Haengt bewusst an `fenstergroesse()`, obwohl dessen Wert selbst nicht
+   * gebraucht wird: Nur dadurch wird bei einem Resize neu gemessen, da
+   * `querySelector`/`getBoundingClientRect` von Angular nicht als
+   * Signal-Abhaengigkeit erkannt werden.
    */
   readonly sichererBereichRahmen = computed(() => {
     const ausschnitt = this.letzterAusschnitt();
-    const rahmenposition = this.letzteRahmenposition();
-    if (!ausschnitt || !rahmenposition) return null;
+    this.fenstergroesse();
+    if (!ausschnitt) return null;
+
+    const rahmenRect = this.rahmenRect();
+    if (!rahmenRect) return null;
 
     const sicher = safeArea(ausschnitt, this.profile());
-
-    const rahmenBreite = rahmenposition.x2 - rahmenposition.x1;
-    const rahmenHoehe = rahmenposition.y2 - rahmenposition.y1;
 
     const anteilBreite = sicher.breite / ausschnitt.breite;
     const anteilHoehe = sicher.hoehe / ausschnitt.hoehe;
 
-    const breite = rahmenBreite * anteilBreite;
-    const hoehe = rahmenHoehe * anteilHoehe;
-
-    const versatz = this.versatz();
+    const breite = rahmenRect.breite * anteilBreite;
+    const hoehe = rahmenRect.hoehe * anteilHoehe;
 
     return {
       breite,
       hoehe,
-      links: rahmenposition.x1 + (rahmenBreite - breite) / 2 + versatz.links,
-      oben: rahmenposition.y1 + (rahmenHoehe - hoehe) / 2 + versatz.oben,
+      links: rahmenRect.links + (rahmenRect.breite - breite) / 2,
+      oben: rahmenRect.oben + (rahmenRect.hoehe - hoehe) / 2,
     };
   });
 
   /**
-   * Versatz zwischen der von <image-cropper> gerenderten Bildflaeche
-   * (`.ngx-ic-source-image`) und dem `.relative`-Wrapper, gegen den der
-   * Safe-Area-Rahmen per `position: absolute` positioniert wird. Wird zur
-   * Laufzeit gemessen statt hartkodiert, weil der Versatz aus dem
-   * Stylesheet von ngx-image-cropper stammt und sich mit einer neuen
-   * Bibliotheksversion aendern kann. Faellt auf 0 zurueck, wenn eines der
-   * Elemente (noch) nicht im DOM steht - das erste Zuschnitt-Ereignis kann
-   * eintreffen, bevor das Layout fertig ist.
+   * Position und Groesse des von <image-cropper> gerenderten Zuschnittrahmens
+   * (`.ngx-ic-cropper`), relativ zum umschliessenden `.relative`-Wrapper, an
+   * dem der Safe-Area-Rahmen per `position: absolute` haengt. Wird zur
+   * Laufzeit gemessen statt aus einem Ereignis uebernommen, weil der Rahmen
+   * bei einer Fenstergroessenaenderung ohne Ereignis verschoben wird (siehe
+   * `sichererBereichRahmen`). Faellt auf `null` zurueck, wenn eines der
+   * Elemente (noch) nicht im DOM steht - dann wird kein Rahmen gerendert,
+   * statt mit falschen Werten zu rechnen.
    */
-  private versatz(): { links: number; oben: number } {
+  private rahmenRect(): { links: number; oben: number; breite: number; hoehe: number } | null {
     const host = this.elementRef.nativeElement as HTMLElement;
     const wrapper = host.querySelector<HTMLElement>('.relative');
-    const bild = host.querySelector<HTMLElement>('.ngx-ic-source-image');
-    if (!wrapper || !bild) return { links: 0, oben: 0 };
+    const rahmen = host.querySelector<HTMLElement>('.ngx-ic-cropper');
+    if (!wrapper || !rahmen) return null;
 
     const wrapperRect = wrapper.getBoundingClientRect();
-    const bildRect = bild.getBoundingClientRect();
+    const rahmenRect = rahmen.getBoundingClientRect();
 
     return {
-      links: bildRect.left - wrapperRect.left,
-      oben: bildRect.top - wrapperRect.top,
+      links: rahmenRect.left - wrapperRect.left,
+      oben: rahmenRect.top - wrapperRect.top,
+      breite: rahmenRect.width,
+      hoehe: rahmenRect.height,
     };
   }
 
   beiZuschnitt(ereignis: ImageCroppedEvent): void {
     // imagePosition ist in Pixeln des Originalbildes - fuer die Ableitung
     // der Plattformformate (safeArea/leiteAb) muss darin gerechnet werden,
-    // sonst haengt das Ergebnis von der Fenstergroesse ab. cropperPosition
-    // ist in Anzeigepixeln des <image-cropper>-Elements und wird separat
-    // fuer die Darstellung des Rahmens gespeichert (siehe
-    // sichererBereichRahmen).
+    // sonst haengt das Ergebnis von der Fenstergroesse ab. Die Anzeigeflaeche
+    // des Zuschnittrahmens wird nicht mehr aus diesem Ereignis uebernommen,
+    // sondern bei Bedarf direkt aus dem DOM gemessen (siehe `rahmenRect`) -
+    // ngx-image-cropper aendert sie bei einer Fenstergroessenaenderung ohne
+    // ein neues Ereignis zu feuern.
     const p = ereignis.imagePosition;
     const ausschnitt: Rechteck = {
       x: p.x1,
@@ -150,7 +160,6 @@ export class ZuschnittEditorComponent {
     };
 
     this.letzterAusschnitt.set(ausschnitt);
-    this.letzteRahmenposition.set(ereignis.cropperPosition);
     this.ausschnittGeaendert.emit(ausschnitt);
   }
 
