@@ -149,10 +149,15 @@ Go-Zeitformat. Die Variable weglassen bedeutet "nie"; `0` wird abgelehnt.
 Cookie setzen und löschen.
 
 ```
-flipbase_angemeldet=1; Domain=.flipbase.de; Path=/; Secure; SameSite=Lax; Max-Age=2592000
+flipbase_angemeldet=1; Domain=.flipbase.de; Path=/; Secure; SameSite=Lax; Max-Age=604800
 ```
 
-`Max-Age` entspricht der Timebox (30 Tage). Kein `HttpOnly`, weil die App es
+`Max-Age` sind 7 Tage – bewusst **nicht** die 30-Tage-Timebox. Das Cookie wird
+bei jeder Token-Erneuerung neu gesetzt, die Laufzeit rutscht also staendig
+nach vorn, waehrend die Timebox ab der Anmeldung zaehlt und nicht rutscht. Mit
+30 Tagen wuerde ein aktiver Nutzer ein Cookie tragen, das die Sitzung um fast
+30 Tage ueberlebt. 7 Tage bilden stattdessen die ebenfalls gleitende
+7-Tage-Inaktivitaetsgrenze fast genau nach. Kein `HttpOnly`, weil die App es
 selbst schreibt und löscht. Die Domain kommt aus der Umgebung; ist sie leer,
 tut der Dienst nichts.
 
@@ -217,12 +222,12 @@ Daraus werden zwei getrennte Dinge:
 
 ## Was schiefgehen kann
 
-| Fall                                      | Folge                                            | Umgang                                                                     |
-| ----------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------- |
-| Cookie überlebt die abgelaufene Sitzung   | Knopf sagt "Zur App", es erscheint die Anmeldung | Laufzeit = Timebox; löschen bei jedem Sitzungsende. Folge ist harmlos.     |
-| `templates` fehlt in Caddy                | Die Template-Zeile steht sichtbar auf der Seite  | Nach dem Ausrollen mit und ohne Cookie per `curl` prüfen.                  |
-| Feld in der CI vergessen                  | Cookie wird live nie gesetzt, lokal schon        | Änderung an `ci.yml` gehört zwingend zur Umsetzung.                        |
-| Zwischenspeicher liefert falschen Zustand | Falscher Knopftext                               | `Vary Cookie` plus vorhandenes `Cache-Control: no-cache` auf `index.html`. |
+| Fall                                      | Folge                                            | Umgang                                                                                                                                                                                                                                                            |
+| ----------------------------------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cookie überlebt die abgelaufene Sitzung   | Knopf sagt "Zur App", es erscheint die Anmeldung | Laufzeit = 7 Tage, gleitend wie die Inaktivitätsgrenze; löschen bei jedem Sitzungsende. Folge ist harmlos.                                                                                                                                                        |
+| `templates` fehlt in Caddy                | Die Template-Zeile steht sichtbar auf der Seite  | Nach dem Ausrollen mit und ohne Cookie per `curl` prüfen.                                                                                                                                                                                                         |
+| Feld in der CI vergessen                  | Cookie wird live nie gesetzt, lokal schon        | Änderung an `ci.yml` gehört zwingend zur Umsetzung.                                                                                                                                                                                                               |
+| Zwischenspeicher liefert falschen Zustand | Falscher Knopftext                               | `Vary Cookie` und `Cache-Control: no-cache`, beide über einen Matcher gezielt auf `/` und `/index.html` – ein Matcher auf den exakten Pfad `/index.html` allein hätte nie gegriffen, weil Besucher `/` anfragen und die Auflösung erst im `file_server` passiert. |
 
 ## Prüfung
 
