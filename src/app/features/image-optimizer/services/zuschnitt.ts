@@ -38,17 +38,18 @@ export function schnittmenge(rechtecke: Rechteck[]): Rechteck | null {
 
 /**
  * Der Bereich, in dem das Produkt liegen muss, damit **keine** gewaehlte
- * Plattform es anschneidet.
+ * Plattform es beim Export anschneidet.
  *
- * Plattformen, die einpassen statt zu schneiden (eBay), gehen bewusst nicht
- * ein: Sie schneiden nichts ab und duerfen den Bereich deshalb nicht
- * kuenstlich verkleinern.
+ * `schneidet` ist eine Aussage ueber die Kachel der Trefferliste (`cover`
+ * vs. `contain`), nicht ueber den Export. Der Export schneidet fuer **jede**
+ * Plattform unbedingt auf ihr Zielverhaeltnis zu, auch fuer eBay (1:1).
+ * Deshalb darf `schneidet` diese Berechnung nicht steuern - es gehen alle
+ * uebergebenen Profile ein.
  */
 export function safeArea(ausschnitt: Rechteck, profile: readonly PlattformProfil[]): Rechteck {
-  const schneidende = profile.filter((p) => p.schneidet);
-  if (schneidende.length === 0) return ausschnitt;
+  if (profile.length === 0) return ausschnitt;
 
-  const abgeleitete = schneidende.map((p) => leiteAb(ausschnitt, p.exportVerhaeltnis));
+  const abgeleitete = profile.map((p) => leiteAb(ausschnitt, p.exportVerhaeltnis));
   // Alle abgeleiteten Rechtecke teilen sich den Mittelpunkt des Ausschnitts,
   // eine Schnittmenge existiert deshalb immer.
   return schnittmenge(abgeleitete) ?? ausschnitt;

@@ -130,8 +130,17 @@ entstehen nie Ränder.
 ### Daraus folgt die Safe-Area
 
 Der gestrichelte „empfohlene Produktbereich" ist die **Schnittmenge der
-abgeleiteten Rechtecke aller gewählten Plattformen, die tatsächlich
-schneiden**. eBay geht nicht ein, weil es einpasst statt zu schneiden.
+abgeleiteten Rechtecke aller gewählten Plattformen** – unabhängig davon, ob
+ihre Trefferliste schneidet oder einpasst. `schneidet` beschreibt nämlich nur,
+was die Kachel der Trefferliste mit dem Bild macht; der Export schneidet für
+**jede** Plattform unbedingt auf ihr Zielverhältnis zu, auch für eBay (1:1).
+Eine Plattform, die aus der Safe-Area ausgenommen wäre, könnte also trotzdem
+etwas wegschneiden, das der Nutzer nie geprüft hat.
+
+_Korrektur:_ Der erste Entwurf dieses Dokuments schloss eBay hier aus, weil
+`schneidet: false` ist. Das war falsch – `schneidet` ist eine Aussage über die
+Vorschau-Kachel, nicht über den Export, und der Export beschneidet auch
+eBay-Bilder auf das Quadrat.
 
 Bei Kleinanzeigen (4:3 quer) und Vinted (2:3 hochkant) ist das ein
 vergleichsweise kleiner Bereich in der Mitte – genau deshalb ist er sichtbar.
@@ -177,9 +186,10 @@ der Messung der Trefferliste, nicht aus einer Ansage der Plattform. Die im
 Netz kursierenden 1600 × 1200 passen dazu, sind aber Forenwissen – hier zählt
 die Messung.
 
-**eBay** schneidet nicht. Das 1:1-Format sorgt nur dafür, dass die Kachel
-gefüllt wird statt das Bild darin zu verkleinern. Weil eBay nichts abschneidet,
-schränkt das Profil auch die Safe-Area nicht ein.
+**eBay** schneidet in der Trefferliste nicht. Das 1:1-Format sorgt dort nur
+dafür, dass die Kachel gefüllt wird statt das Bild darin zu verkleinern. Der
+Export schneidet aber auch bei eBay auf das Quadrat zu; das Profil schränkt
+die Safe-Area deshalb genauso ein wie jedes andere.
 
 **Vinted** nennt keine Dateigrössengrenze; das Feld bleibt leer, es wird nur
 auf Qualität komprimiert.

@@ -71,16 +71,17 @@ describe('Schnittmenge', () => {
 });
 
 describe('Safe-Area', () => {
-  it('beruecksichtigt nur Plattformen, die schneiden', () => {
-    // eBay passt ein, statt zu schneiden - es darf den Bereich nicht kleiner
-    // machen als er ohne eBay waere.
-    const mitEbay = safeArea(quadrat, [profil('ebay'), profil('vinted')]);
-    const ohneEbay = safeArea(quadrat, [profil('vinted')]);
-    expect(mitEbay).toEqual(ohneEbay);
+  it('beruecksichtigt auch eBay, weil der Export trotzdem zuschneidet', () => {
+    // eBay passt in der Trefferliste nur ein, aber der Export schneidet auch
+    // bei eBay unbedingt auf 1:1 zu - die Safe-Area muss das widerspiegeln.
+    const breit: Rechteck = { x: 0, y: 0, breite: 1500, hoehe: 1000 };
+    const mitEbay = safeArea(breit, [profil('ebay')]);
+    expect(mitEbay.breite).toBe(1000);
   });
 
-  it('ist der ganze Ausschnitt, wenn keine Plattform schneidet', () => {
-    expect(safeArea(quadrat, [profil('ebay')])).toEqual(quadrat);
+  it('ist bei eBay allein das eingepasste Quadrat', () => {
+    const breit: Rechteck = { x: 0, y: 0, breite: 1500, hoehe: 1000 };
+    expect(safeArea(breit, [profil('ebay')])).toEqual(leiteAb(breit, 1));
   });
 
   it('wird bei quer und hochkant gleichzeitig deutlich kleiner', () => {
