@@ -1,0 +1,44 @@
+<div class="space-y-5">
+  <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-fb-border">
+    <h1 class="text-base font-bold text-fb-text-primary">Bildoptimierer</h1>
+    <p class="text-xs text-fb-text-secondary leading-relaxed">
+      Fotos hineinziehen, einmal den Ausschnitt festlegen – Flipbase erzeugt daraus die Formate der
+      Plattformen. Die Bilder bleiben auf deinem Rechner.
+    </p>
+
+    <div class="flex flex-wrap gap-2">
+      @for (p of profile; track p.id) {
+        <button
+          type="button"
+          (click)="schaltePlattform(p.id)"
+          [attr.aria-pressed]="gewaehlteIds().includes(p.id)"
+          [class.bg-indigo-500\/15]="gewaehlteIds().includes(p.id)"
+          [class.border-indigo-500\/40]="gewaehlteIds().includes(p.id)"
+          class="px-3 py-1.5 rounded-xl text-xs font-semibold border border-fb-border text-fb-text-secondary hover:text-fb-text-primary cursor-pointer"
+        >
+          {{ p.name }}
+          @if (!p.schneidet) {
+            <span class="text-[10px] text-fb-text-muted ml-1">passt ein</span>
+          }
+        </button>
+      }
+    </div>
+
+    <label
+      class="block border-2 border-dashed border-fb-border rounded-2xl p-8 text-center cursor-pointer hover:border-indigo-500/40"
+    >
+      <input
+        type="file"
+        accept="image/*"
+        multiple
+        hidden
+        (change)="nimmDateien($any($event.target).files)"
+      />
+      <span class="text-xs text-fb-text-secondary">Bilder hierher ziehen oder auswählen</span>
+    </label>
+
+    @if (bilder().length > 0) {
+      <p class="text-[11px] text-fb-text-muted">{{ bilder().length }} Bild(er) geladen.</p>
+    }
+  </div>
+</div>

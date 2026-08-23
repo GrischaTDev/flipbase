@@ -124,6 +124,13 @@ export const routes: Routes = [
           import('./features/listings/listings.component').then((m) => m.ListingsComponent),
       },
       {
+        path: 'image-optimizer',
+        loadComponent: () =>
+          import('./features/image-optimizer/image-optimizer.component').then(
+            (m) => m.ImageOptimizerComponent,
+          ),
+      },
+      {
         path: 'sales',
         loadComponent: () =>
           import('./features/sales/sales.component').then((m) => m.SalesComponent),

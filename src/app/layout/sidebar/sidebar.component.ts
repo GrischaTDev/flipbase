@@ -19,6 +19,7 @@ import {
   LucideSparkles as Sparkles,
   LucideTruck as Truck,
   LucideSmartphone as Smartphone,
+  LucideImage as ImageIcon,
 } from '@lucide/angular';
 import { PwaService } from '../../core/services/pwa.service';
 import { VERSION } from '../../core/version';
@@ -86,6 +87,12 @@ export class SidebarComponent {
       icon: Calculator,
     },
     { path: '/listings', labelKey: 'NAV.LISTINGS', label: 'Listing Studio', icon: Tag },
+    {
+      path: '/image-optimizer',
+      labelKey: 'NAV.IMAGE_OPTIMIZER',
+      label: 'Bildoptimierer',
+      icon: ImageIcon,
+    },
     { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: TrendingUp },
     {
       path: '/fulfillment',
