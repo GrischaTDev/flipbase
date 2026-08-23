@@ -221,6 +221,9 @@ export class AuthService {
       }
 
       this.applySession(data.session);
+      // Frische Anmeldung, keine wiederhergestellte Sitzung - das Band dafuer
+      // darf jetzt nicht erscheinen.
+      this.sitzungWiederhergestellt.set(false);
       await this.loadProfile(data.user.id);
       return { error: null };
     } catch (err: unknown) {
@@ -337,6 +340,9 @@ export class AuthService {
       this.currentUser.set(null);
       this.profile.set(null);
       this.setDemoMode(false);
+      // Sonst zeigt die naechste Anmeldung faelschlich das Band einer
+      // "wiederhergestellten" Sitzung, obwohl gerade frisch angemeldet wurde.
+      this.sitzungWiederhergestellt.set(false);
       this.landingHint.abmelden();
       this.router.navigate(['/auth/login']);
     } finally {
