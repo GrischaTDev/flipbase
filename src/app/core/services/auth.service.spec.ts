@@ -8,6 +8,7 @@ import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { LandingHintService } from './landing-hint.service';
 import { SyncStatusService } from './sync-status.service';
+import { SessionChannelService } from './session-channel.service';
 
 /**
  * Verhaltenstest des AuthService mit gefaelschtem Supabase-Client.
@@ -29,6 +30,12 @@ interface Umgebung {
   syncStatus: SyncStatusService;
   /** Protokoll der Aufrufe am Merk-Cookie der Landingpage. */
   cookie: string[];
+  /** Protokoll der Aufrufe am Sitzungskanal. */
+  kanal: string[];
+  /** Loest das Signal aus, das ein anderes Fenster gesendet haette. */
+  signalAbmeldung: () => void;
+  /** Welcher Bereich beim Abmelden an Supabase uebergeben wurde. */
+  bereiche: string[];
 }
 
 function sitzung(): AuthSession {
@@ -44,6 +51,7 @@ function sitzung(): AuthSession {
 function baueUmgebung(getUserFehler: unknown = null): Umgebung {
   const ziele: unknown[][] = [];
   const cookie: string[] = [];
+  const bereiche: string[] = [];
   let rueckruf: ((ereignis: AuthChangeEvent, sitzung: AuthSession | null) => void) | null = null;
 
   const supabase = {
@@ -51,6 +59,10 @@ function baueUmgebung(getUserFehler: unknown = null): Umgebung {
       auth: {
         getSession: async () => ({ data: { session: null } }),
         getUser: async () => ({ data: { user: null }, error: getUserFehler }),
+        signOut: async (optionen?: { scope?: string }) => {
+          bereiche.push(optionen?.scope ?? '(ohne Angabe)');
+          return { error: null };
+        },
         onAuthStateChange: (cb: (e: AuthChangeEvent, s: AuthSession | null) => void) => {
           rueckruf = cb;
           return { data: { subscription: { unsubscribe: () => undefined } } };
@@ -59,12 +71,26 @@ function baueUmgebung(getUserFehler: unknown = null): Umgebung {
     },
   } as unknown as SupabaseService;
 
+  const kanal: string[] = [];
+  let beiAbmeldung: (() => void) | null = null;
+  const sessionChannel = {
+    verbinde: (nutzerId: string, _token: string, handler: () => void) => {
+      kanal.push(`verbinde:${nutzerId}`);
+      beiAbmeldung = handler;
+    },
+    sendeAbmeldung: async (nutzerId: string) => {
+      kanal.push(`sende:${nutzerId}`);
+    },
+    trenne: () => kanal.push('trenne'),
+  } as unknown as SessionChannelService;
+
   const syncStatus = new SyncStatusService();
 
   const injector = Injector.create({
     providers: [
       { provide: SupabaseService, useValue: supabase },
       { provide: SyncStatusService, useValue: syncStatus },
+      { provide: SessionChannelService, useValue: sessionChannel },
       {
         provide: MockDataStoreService,
         useValue: { isDemoMode: signal(false), ensureShowcaseData: () => undefined },
@@ -86,8 +112,11 @@ function baueUmgebung(getUserFehler: unknown = null): Umgebung {
     dienst,
     ziele,
     cookie,
+    kanal,
+    bereiche,
     syncStatus,
     melde: (ereignis, s) => rueckruf?.(ereignis, s),
+    signalAbmeldung: () => beiAbmeldung?.(),
   };
 }
 
@@ -195,5 +224,98 @@ describe('AuthService: Rechte-Fehler als Hinweis auf eine tote Sitzung', () => {
     await Promise.resolve();
 
     expect(umgebung.ziele).toEqual([]);
+  });
+});
+
+/**
+ * Wird eine Sitzung anderswo beendet, kann ein offenes Fenster das von sich
+ * aus nicht bemerken: Sein Token ist gueltig, die Datenbank antwortet ihm
+ * normal. Deshalb sagt die abmeldende Instanz es ueber einen privaten Kanal -
+ * dasselbe Prinzip wie ein Server-Push.
+ */
+describe('AuthService: Sitzungskanal', () => {
+  it('hoert nach dem Anmelden auf dem eigenen Kanal mit', () => {
+    const umgebung = baueUmgebung();
+    umgebung.melde('SIGNED_IN', sitzung());
+
+    expect(umgebung.kanal).toContain('verbinde:nutzer-1');
+  });
+
+  it('schliesst den Kanal, wenn die Sitzung endet', () => {
+    const umgebung = baueUmgebung();
+    umgebung.melde('SIGNED_IN', sitzung());
+    umgebung.melde('SIGNED_OUT', null);
+
+    expect(umgebung.kanal).toContain('trenne');
+  });
+
+  it('sagt beim Abmelden auf allen Geraeten Bescheid, bevor es die Sitzung beendet', async () => {
+    const umgebung = baueUmgebung();
+    umgebung.melde('SIGNED_IN', sitzung());
+    umgebung.kanal.length = 0;
+
+    await umgebung.dienst.abmeldenUeberall();
+
+    // Erst senden, dann trennen - danach duerfte nicht mehr gesendet werden.
+    expect(umgebung.kanal[0]).toBe('sende:nutzer-1');
+    expect(umgebung.kanal).toContain('trenne');
+  });
+
+  it('meldet sich ab, wenn das Signal kommt und die Nachfrage es bestaetigt', async () => {
+    const umgebung = baueUmgebung({ status: 403, message: 'Session not found' });
+    umgebung.melde('SIGNED_IN', sitzung());
+
+    umgebung.signalAbmeldung();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(umgebung.ziele).toEqual([['/auth/login']]);
+  });
+
+  it('bleibt angemeldet, wenn das Signal kommt, die Sitzung aber noch gilt', async () => {
+    const umgebung = baueUmgebung(null);
+    umgebung.melde('SIGNED_IN', sitzung());
+
+    umgebung.signalAbmeldung();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(umgebung.dienst.isAuthenticated()).toBe(true);
+    expect(umgebung.ziele).toEqual([]);
+  });
+});
+
+/**
+ * `supabase.auth.signOut()` verwendet ohne Angabe den Bereich "global" - ein
+ * Aufruf ohne Parameter beendet also jede Sitzung auf jedem Geraet. Genau das
+ * tat der Knopf "Abmelden" im Kopfbereich, ohne es anzukuendigen.
+ */
+describe('AuthService: Reichweite des Abmeldens', () => {
+  it('das normale Abmelden betrifft nur diesen Browser', async () => {
+    const umgebung = baueUmgebung();
+    umgebung.melde('SIGNED_IN', sitzung());
+
+    await umgebung.dienst.signOut();
+
+    expect(umgebung.bereiche).toEqual(['local']);
+  });
+
+  it('fuer alle Geraete gibt es einen eigenen, benannten Weg', async () => {
+    const umgebung = baueUmgebung();
+    umgebung.melde('SIGNED_IN', sitzung());
+
+    await umgebung.dienst.abmeldenUeberall();
+
+    expect(umgebung.bereiche).toEqual(['global']);
+  });
+
+  it('meldet in beiden Faellen lokal ab und fuehrt zur Anmeldeseite', async () => {
+    const umgebung = baueUmgebung();
+    umgebung.melde('SIGNED_IN', sitzung());
+
+    await umgebung.dienst.signOut();
+
+    expect(umgebung.dienst.isAuthenticated()).toBe(false);
+    expect(umgebung.ziele).toContainEqual(['/auth/login']);
   });
 });

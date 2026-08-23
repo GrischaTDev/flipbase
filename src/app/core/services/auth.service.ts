@@ -7,6 +7,7 @@ import { UserProfile } from '../models/flipbase.models';
 import { environment } from '../../../environments/environment';
 import { SyncStatusService } from './sync-status.service';
 import { LandingHintService } from './landing-hint.service';
+import { SessionChannelService } from './session-channel.service';
 
 /** Speicherschlüssel für den bewusst gewählten Demo-Modus. */
 const DEMO_MODE_KEY = 'flipbase_demo_mode';
@@ -49,6 +50,7 @@ export class AuthService {
   private readonly mockStore = inject(MockDataStoreService);
   private readonly router = inject(Router);
   private readonly landingHint = inject(LandingHintService);
+  private readonly sessionChannel = inject(SessionChannelService);
 
   readonly session = signal<AuthSession | null>(null);
   readonly currentUser = signal<User | null>(null);
@@ -148,6 +150,7 @@ export class AuthService {
     // "wiederhergestellten" Sitzung, obwohl gerade frisch angemeldet wurde.
     this.sitzungWiederhergestellt.set(false);
     this.landingHint.abmelden();
+    this.sessionChannel.trenne();
   }
 
   /** Raeumt die Anmeldung lokal ab und fuehrt zur Anmeldeseite. */
@@ -227,6 +230,14 @@ export class AuthService {
     this.setDemoMode(false);
     // Der Landingpage mitteilen, dass hier jemand angemeldet ist.
     this.landingHint.anmelden();
+
+    // Auf dem eigenen Sitzungskanal mithoeren: Wird die Anmeldung anderswo
+    // beendet, koennte dieses Fenster es sonst nicht bemerken - sein Token
+    // bliebe gueltig und die Datenbank antwortete ihm normal weiter.
+    this.sessionChannel.verbinde(session.user.id, session.access_token, () =>
+      // Ein Signal allein meldet niemanden ab, erst die Nachfrage entscheidet.
+      this.pruefeSitzungNach(),
+    );
   }
 
   async loadProfile(userId: string): Promise<void> {
@@ -403,10 +414,17 @@ export class AuthService {
   /**
    * Beendet die Sitzung auf **allen** Geraeten.
    *
-   * Die schnelle Antwort auf ein verlorenes Geraet: wirkt sofort, statt auf
-   * den Ablauf der Sitzung zu warten.
+   * Die anderen Fenster werden zuerst benachrichtigt, denn danach ist die
+   * eigene Sitzung fort und der Kanal nicht mehr beschickbar. Ohne dieses
+   * Signal wuerden sie schlicht weiterlaufen, bis ihr Token ablaeuft: Ein
+   * beendetes Konto merkt man einem gueltigen Token nicht an.
    */
   async abmeldenUeberall(): Promise<void> {
+    const nutzerId = this.currentUser()?.id;
+    if (nutzerId) {
+      await this.sessionChannel.sendeAbmeldung(nutzerId);
+    }
+
     await this.beendeSitzung('global');
   }
 

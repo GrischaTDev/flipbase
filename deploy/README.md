@@ -191,10 +191,24 @@ sind der Branchenstandard für Zugriffstoken (Okta erlaubt 5 Minuten bis
 
 Was in der Praxis passiert, wenn "Von allen Geräten abmelden" gedrückt wird:
 
+- Anderes Gerät **offen und online**: fliegt **sofort** raus. Die abmeldende
+  Instanz schickt vorher ein Signal über einen privaten Realtime-Kanal
+  (`user:<id>:sessions`), das die anderen Fenster empfangen. Nachgemessen:
+  unter drei Sekunden, ohne Klick und ohne Neuladen.
 - Anderes Gerät **lädt neu**: sofort abgemeldet. Die App fragt beim Start
   einmal über `getUser()` nach und bekommt den 403.
-- Anderes Gerät **bleibt offen**: meldet sich **von allein** ab, sobald die
-  Token-Erneuerung fällig wird und scheitert – spätestens nach 15 Minuten.
+- Anderes Gerät **war offline** oder hat das Signal verpasst: meldet sich
+  **von allein** ab, sobald die Token-Erneuerung fällig wird und scheitert –
+  spätestens nach 15 Minuten.
+
+Das Signal ist bewusst nur ein Hinweis, keine Sperre: Es meldet niemanden ab,
+sondern loest eine Nachfrage bei `/auth/v1/user` aus. Erst deren 403
+entscheidet. Wer das Signal ignoriert, behaelt sein Token bis zum Ablauf – die
+harte Grenze bleiben die 15 Minuten.
+
+Der Kanal ist ueber Policies auf `realtime.messages` an die eigene Kennung
+gebunden (Migration `20260823160000_sitzungskanal_freigeben.sql`), niemand
+hoert fremde Kanaele mit.
 
 Wirklich sekundengenau ginge nur mit serverseitig geprüften Sitzungen bei
 jeder Anfrage – eine andere Bauweise, nicht nachrüstbar.
