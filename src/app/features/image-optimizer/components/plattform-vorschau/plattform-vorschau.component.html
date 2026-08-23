@@ -3,18 +3,26 @@
     {{ plattform().name }} · Vorschau
   </p>
 
+  @let position = bildPosition();
+
   @if (plattform().vorschauArt === 'zeile') {
     <!-- Kleinanzeigen zeigt eine Liste: Bild links, Text rechts. -->
     <div class="flex gap-3 p-2 rounded-xl border border-fb-border bg-fb-surface">
       <div
-        class="shrink-0 w-28 rounded-lg overflow-hidden bg-fb-bg"
+        class="relative shrink-0 w-28 rounded-lg overflow-hidden bg-fb-bg"
         [style.aspect-ratio]="seitenverhaeltnis()"
       >
         <img
           [src]="datenUrl()"
           alt="Vorschau des Produktfotos"
           class="w-full h-full"
-          [style.object-fit]="bildAnpassung()"
+          [style.object-fit]="position ? null : bildAnpassung()"
+          [style.position]="position ? 'absolute' : null"
+          [style.width.%]="position ? position.breite : null"
+          [style.height.%]="position ? position.hoehe : null"
+          [style.left.%]="position ? position.links : null"
+          [style.top.%]="position ? position.oben : null"
+          (load)="beiBildLaden($event.target)"
         />
       </div>
       <div class="min-w-0 space-y-1 py-0.5" aria-hidden="true">
@@ -26,12 +34,18 @@
   } @else {
     <!-- eBay und Vinted zeigen ein Raster aus Kacheln. -->
     <div class="w-36 rounded-xl border border-fb-border bg-fb-surface overflow-hidden">
-      <div class="bg-fb-bg" [style.aspect-ratio]="seitenverhaeltnis()">
+      <div class="relative overflow-hidden bg-fb-bg" [style.aspect-ratio]="seitenverhaeltnis()">
         <img
           [src]="datenUrl()"
           alt="Vorschau des Produktfotos"
           class="w-full h-full"
-          [style.object-fit]="bildAnpassung()"
+          [style.object-fit]="position ? null : bildAnpassung()"
+          [style.position]="position ? 'absolute' : null"
+          [style.width.%]="position ? position.breite : null"
+          [style.height.%]="position ? position.hoehe : null"
+          [style.left.%]="position ? position.links : null"
+          [style.top.%]="position ? position.oben : null"
+          (load)="beiBildLaden($event.target)"
         />
       </div>
       <div class="p-2 space-y-1" aria-hidden="true">
