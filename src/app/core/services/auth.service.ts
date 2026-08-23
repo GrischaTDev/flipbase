@@ -12,6 +12,21 @@ import { LandingHintService } from './landing-hint.service';
 const DEMO_MODE_KEY = 'flipbase_demo_mode';
 
 /**
+ * Ob eine Antwort des Auth-Dienstes bedeutet: "Diese Sitzung gibt es nicht
+ * mehr."
+ *
+ * Nur 401 und 403 zählen. Alles andere – vor allem ein nicht erreichbarer
+ * Server, der ohne Statuscode zurückkommt – darf **nicht** zum Abmelden
+ * führen: Sonst wirft ein kurzer Netzausfall den Nutzer aus einer gültigen
+ * Sitzung.
+ */
+export function istSitzungWiderrufen(fehler: unknown): boolean {
+  if (!fehler || typeof fehler !== 'object') return false;
+  const status = (fehler as { status?: unknown }).status;
+  return status === 401 || status === 403;
+}
+
+/**
  * Anmeldung und Sitzungsverwaltung.
  *
  * Wichtige Unterscheidung:
@@ -98,12 +113,25 @@ export class AuthService {
    * Stellt eine bestehende Sitzung wieder her. Schlägt der Aufruf fehl, gilt
    * der Nutzer als nicht angemeldet – es wird **nicht** ersatzweise Zugriff
    * gewährt.
+   *
+   * `getSession()` liest nur den Browser-Speicher und fragt niemanden. Wurde
+   * die Sitzung inzwischen beendet – etwa über "Von allen Geräten abmelden" –
+   * merkt der Browser davon nichts, solange sein Token noch nicht abgelaufen
+   * ist. Deshalb einmal beim Start beim Server nachfragen.
    */
   private async initAuth(): Promise<void> {
     this.isLoading.set(true);
     try {
       const { data } = await this.supabase.client.auth.getSession();
       if (data?.session) {
+        const { error } = await this.supabase.client.auth.getUser();
+        if (istSitzungWiderrufen(error)) {
+          // Supabase räumt die Sitzung dabei selbst weg; hier bleibt nur, den
+          // Hinweis auf der Landingpage zu entfernen und abgemeldet zu bleiben.
+          this.landingHint.abmelden();
+          return;
+        }
+
         this.sitzungWiederhergestellt.set(true);
         this.applySession(data.session);
         await this.loadProfile(data.session.user.id);

@@ -154,8 +154,10 @@ Umgebung des Auth-Containers (`docker-compose.yml` der Supabase-Installation):
 | ------------------------------------ | ------ | ----------------------------------------------------- |
 | `GOTRUE_SESSIONS_TIMEBOX`            | `720h` | 30 Tage ab der Anmeldung, unabhängig von der Nutzung. |
 | `GOTRUE_SESSIONS_INACTIVITY_TIMEOUT` | `168h` | 7 Tage ohne Nutzung.                                  |
+| `GOTRUE_JWT_EXP`                     | `900`  | 15 Minuten Laufzeit des Zugriffstokens (Sekunden).    |
 
-Go-Zeitformat. Die Variable **weglassen** bedeutet "nie"; `0` wird abgelehnt.
+Die beiden Grenzen im Go-Zeitformat. Die Variable **weglassen** bedeutet "nie";
+`0` wird abgelehnt. `GOTRUE_JWT_EXP` zählt dagegen in Sekunden.
 
 Warum diese Werte: Ohne Timebox wird das Refresh-Token endlos erneuert, eine
 Anmeldung lief also nie ab. NIST 800-63B nennt für die Anmeldung nur mit
@@ -165,8 +167,37 @@ ein Rauswurf mitten im Formular Eingaben kostet.
 Die Prüfung greift bei der nächsten Token-Erneuerung, nicht sekundengenau –
 die tatsächliche Dauer kann eine Token-Laufzeit länger sein.
 
-Sofort wirksam abmelden geht über "Von allen Geräten abmelden" in den
-Einstellungen der App.
+### Warum "Von allen Geräten abmelden" nicht sofort wirkt
+
+Das ist keine Schwäche dieser Installation, sondern die Bauweise von JWT:
+Auth0, Cognito und Clerk verhalten sich genauso. Abmelden entwertet das
+**Erneuerungstoken** und löscht die Sitzung; das bereits ausgegebene
+**Zugriffstoken** bleibt bis zu seiner Ablaufzeit gültig, weil niemand beim
+Aussteller nachfragt.
+
+Nachgemessen an dieser Installation, nachdem die Sitzung gelöscht wurde:
+
+| Anfrage mit dem alten Token | Antwort                    |
+| --------------------------- | -------------------------- |
+| `/auth/v1/user`             | 403 – sofort abgewiesen    |
+| `/rest/v1/<tabelle>`        | **200, mit Daten**         |
+| Token erneuern              | 400 – Token nicht gefunden |
+
+Ein abgemeldetes Gerät kann also bis zum Ablauf seines Tokens **weiter Daten
+lesen und schreiben**: PostgREST prüft nur Signatur und Ablaufzeit und weiß
+von gelöschten Sitzungen nichts. Deshalb `GOTRUE_JWT_EXP=900` – 15 Minuten
+sind der Branchenstandard für Zugriffstoken (Okta erlaubt 5 Minuten bis
+24 Stunden und empfiehlt 15).
+
+Was in der Praxis passiert, wenn "Von allen Geräten abmelden" gedrückt wird:
+
+- Anderes Gerät **lädt neu**: sofort abgemeldet. Die App fragt beim Start
+  einmal über `getUser()` nach und bekommt den 403.
+- Anderes Gerät **bleibt offen**: meldet sich **von allein** ab, sobald die
+  Token-Erneuerung fällig wird und scheitert – spätestens nach 15 Minuten.
+
+Wirklich sekundengenau ginge nur mit serverseitig geprüften Sitzungen bei
+jeder Anfrage – eine andere Bauweise, nicht nachrüstbar.
 
 ## Authelia
 
