@@ -58,13 +58,6 @@ export class AuthService {
   readonly isLoading = signal<boolean>(false);
 
   /**
-   * Wahr, wenn die Sitzung beim Start aus dem Browser-Speicher kam - nicht
-   * nach einer frischen Anmeldung. Die Oberflaeche macht daraus einen
-   * Hinweis, damit niemand unbemerkt in einem fremden Konto landet.
-   */
-  readonly sitzungWiederhergestellt = signal<boolean>(false);
-
-  /**
    * Demo-Modus. Standard ist **aus** – er muss auf der Anmeldeseite aktiv
    * gewählt werden.
    */
@@ -146,9 +139,6 @@ export class AuthService {
     this.session.set(null);
     this.currentUser.set(null);
     this.profile.set(null);
-    // Sonst zeigt die naechste Anmeldung faelschlich das Band einer
-    // "wiederhergestellten" Sitzung, obwohl gerade frisch angemeldet wurde.
-    this.sitzungWiederhergestellt.set(false);
     this.landingHint.abmelden();
     this.sessionChannel.trenne();
   }
@@ -182,7 +172,6 @@ export class AuthService {
           return;
         }
 
-        this.sitzungWiederhergestellt.set(true);
         this.applySession(data.session);
         await this.loadProfile(data.session.user.id);
       }
@@ -314,9 +303,6 @@ export class AuthService {
       }
 
       this.applySession(data.session);
-      // Frische Anmeldung, keine wiederhergestellte Sitzung - das Band dafuer
-      // darf jetzt nicht erscheinen.
-      this.sitzungWiederhergestellt.set(false);
       await this.loadProfile(data.user.id);
       return { error: null };
     } catch (err: unknown) {

@@ -160,15 +160,6 @@ describe('AuthService: Sitzungsende bei offener App', () => {
     umgebung.melde('SIGNED_OUT', null);
     expect(umgebung.cookie).toEqual(['anmelden', 'abmelden']);
   });
-
-  it('zeigt nach dem Sitzungsende kein Band einer wiederhergestellten Sitzung', () => {
-    umgebung.melde('SIGNED_IN', sitzung());
-    umgebung.dienst.sitzungWiederhergestellt.set(true);
-
-    umgebung.melde('SIGNED_OUT', null);
-
-    expect(umgebung.dienst.sitzungWiederhergestellt()).toBe(false);
-  });
 });
 
 /**
