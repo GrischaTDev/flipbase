@@ -95,10 +95,19 @@ Backend auszuliefern.
 | `authelia/configuration.yml`    | `/opt/authelia/config/configuration.yml`      |
 | `authelia/passwort-setzen.sh`   | `/opt/authelia/passwort-setzen.sh`            |
 | `authelia/users.example.yml`    | Vorlage für `/opt/authelia/config/users.yml`  |
+| `landing/index.html`            | `/opt/flipbase-landing/index.html`            |
 
 Die beiden Zusatzdateien unter `/opt/supabase` sind in `COMPOSE_FILE` in der
 `.env` eingetragen. Reihenfolge beachten: `docker-compose.caddy.yml` muss vor
 `docker-compose.landing.yml` stehen, und beide nach `docker-compose.yml`.
+
+**Die Landingpage hängt am Caddyfile.** Sie ist eine Caddy-Vorlage und wertet
+im Kopfbereich eine Cookie-Bedingung aus. Ohne einen `flipbase.de`-Block mit
+`templates` in der Ausrollung liefert Caddy diese Bedingung als rohen Text
+aus – sichtbar für jeden Besucher. Deshalb darf die Seite nur zusammen mit
+einem passenden Caddyfile ausgerollt werden. Beim Ausrollen zuerst das
+Caddyfile neu laden, danach erst die Seite kopieren – das gilt auch beim
+Rückfall auf eine ältere Caddyfile-Fassung.
 
 ## Warum eigene Zusatzdateien
 
