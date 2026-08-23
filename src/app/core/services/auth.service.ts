@@ -41,6 +41,13 @@ export class AuthService {
   readonly isLoading = signal<boolean>(false);
 
   /**
+   * Wahr, wenn die Sitzung beim Start aus dem Browser-Speicher kam - nicht
+   * nach einer frischen Anmeldung. Die Oberflaeche macht daraus einen
+   * Hinweis, damit niemand unbemerkt in einem fremden Konto landet.
+   */
+  readonly sitzungWiederhergestellt = signal<boolean>(false);
+
+  /**
    * Demo-Modus. Standard ist **aus** – er muss auf der Anmeldeseite aktiv
    * gewählt werden.
    */
@@ -97,6 +104,7 @@ export class AuthService {
     try {
       const { data } = await this.supabase.client.auth.getSession();
       if (data?.session) {
+        this.sitzungWiederhergestellt.set(true);
         this.applySession(data.session);
         await this.loadProfile(data.session.user.id);
       }

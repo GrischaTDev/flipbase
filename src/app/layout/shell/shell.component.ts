@@ -7,6 +7,7 @@ import { WorkspaceModalComponent } from '../../shared/components/workspace-modal
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { AuthService } from '../../core/services/auth.service';
 import { SyncErrorBannerComponent } from '../../shared/components/sync-error-banner/sync-error-banner.component';
+import { SessionHintBannerComponent } from '../../shared/components/session-hint-banner/session-hint-banner.component';
 import { MockDataStoreService } from '../../core/services/mock-data-store.service';
 
 @Component({
@@ -20,6 +21,7 @@ import { MockDataStoreService } from '../../core/services/mock-data-store.servic
     WorkspaceModalComponent,
     ConfirmDialogComponent,
     SyncErrorBannerComponent,
+    SessionHintBannerComponent,
   ],
   templateUrl: './shell.component.html',
   host: { class: 'block' },
