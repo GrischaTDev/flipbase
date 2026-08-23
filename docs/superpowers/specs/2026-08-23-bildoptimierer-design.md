@@ -36,14 +36,36 @@ Wasserzeichen. Ein Hochkantfoto mit weissen Balken auf 1:1 zu bringen wäre
 also regelwidrig. Daraus folgt die wichtigste Regel des Werkzeugs:
 **schneiden, nie auffüllen.**
 
-**Vinteds Suchraster schneidet das erste Bild hochkant** auf rund 310 × 430
-Punkte, unabhängig davon, was hochgeladen wurde. Ein Querformat verliert dort
-links und rechts genau das, worauf der Käufer schaut. Damit ist belegt, was
-das Werkzeug überhaupt rechtfertigt: **eBay quadratisch, Vinted hochkant** –
-ein Format für alle gibt es nicht.
+**Die Trefferlisten schneiden unterschiedlich** – und das ist der Kern des
+Werkzeugs. Statt es aus Fachbeiträgen abzuschreiben, wurde es am 23.08.2026
+an den echten Seiten nachgemessen (Schreibtisch-Ansicht, Fensterbreite
+1280 px), indem die Kacheln der Trefferliste und ihr `object-fit` ausgelesen
+wurden:
 
-Diese Beobachtung stammt aus Fachbeiträgen, nicht aus Vinteds Hilfe. Sie wird
-deshalb im Profil als „beobachtet" gekennzeichnet, nicht als „offiziell".
+| Plattform     | Kachel    | Verhältnis   | `object-fit` | Folge               |
+| ------------- | --------- | ------------ | ------------ | ------------------- |
+| eBay          | 289 × 289 | 1:1          | `contain`    | **schneidet nicht** |
+| Kleinanzeigen | 200 × 150 | 4:3 quer     | `cover`      | **schneidet**       |
+| Vinted        | 216 × 325 | 2:3 hochkant | `cover`      | **schneidet**       |
+
+Bei Vinted lagen über 150 Kacheln in vier Grössen vor (216 × 325, 212 × 319,
+187 × 281, 108 × 162) – alle mit demselben Verhältnis 0,665. Das ist **2:3**,
+nicht die in Fachbeiträgen genannten 310 × 430 (0,72). Gemessen schlägt
+abgeschrieben.
+
+Daraus folgt die eigentliche Erkenntnis:
+
+- **Geschnitten wird nur bei Kleinanzeigen und Vinted** – und zwar in
+  **entgegengesetzte Richtungen**, quer gegen hochkant. Wer auf beiden
+  einstellt, hat den härtesten Fall.
+- **eBay schneidet nie.** Ein Hochkantfoto wird in der quadratischen Kachel
+  nur _eingepasst_ und wirkt dadurch neben quadratischen Konkurrenzbildern
+  kleiner. Das ist das echte Argument fürs Quadrat – nicht ein Zwang, den es
+  nicht gibt.
+
+Diese Werte sind gemessen, nicht offiziell dokumentiert. Sie stehen deshalb mit
+Messdatum im Profil und lassen sich in einer Zeile nachziehen. Die Ansicht in
+den Mobil-Apps wurde nicht gemessen und kann abweichen.
 
 ## Was im Projekt schon vorhanden ist
 
@@ -107,12 +129,32 @@ entstehen nie Ränder.
 
 ### Daraus folgt die Safe-Area
 
-Der gestrichelte „empfohlene Produktbereich" ist die **Schnittmenge aller
-abgeleiteten Rechtecke** der gewählten Plattformen, jeweils Export- **und**
-Vorschauverhältnis, weil beide schneiden können.
+Der gestrichelte „empfohlene Produktbereich" ist die **Schnittmenge der
+abgeleiteten Rechtecke aller gewählten Plattformen, die tatsächlich
+schneiden**. eBay geht nicht ein, weil es einpasst statt zu schneiden.
 
-Bei eBay (1:1) und Vinted (3:4 Export, 310:430 Raster) ist das der schmalste
-hochkante Bereich. Liegt das Produkt darin, schneidet keine Plattform es an.
+Bei Kleinanzeigen (4:3 quer) und Vinted (2:3 hochkant) ist das ein
+vergleichsweise kleiner Bereich in der Mitte – genau deshalb ist er sichtbar.
+Wer auf beiden Plattformen einstellt, muss sein Produkt dort platzieren; wer
+nur eine bedient, hat viel mehr Luft. Das Werkzeug zeigt diesen Unterschied,
+statt eine pauschale Empfehlung auszusprechen.
+
+## Die Vorschau ist ein Nachbau der Trefferliste
+
+Statt einer abstrakten Kachel zeigt die Vorschau, **wie der Artikel in der
+Trefferliste der Plattform aussieht** – mit dem eigenen Foto in der richtigen
+Bildöffnung, daneben Titel und Preis als Platzhalter. Dann muss niemand aus
+einem Zahlenverhältnis erschliessen, was passiert; man sieht es.
+
+Entscheidend für die Wahrheit dieser Vorschau ist allein die **Bildöffnung**:
+Seitenverhältnis und `object-fit` – beides gemessen, siehe oben. Kleinanzeigen
+als Zeile mit Bild links, eBay und Vinted als Kachel im Raster.
+
+**Bewusst kein originalgetreuer Nachbau.** Keine fremden Logos, Schriften oder
+Farbwelten – die Anordnung reicht zum Wiedererkennen. Zwei Gründe: Für die
+Zuschnitt-Entscheidung trägt nur die Bildöffnung etwas bei, und eine spätere
+Veröffentlichung als öffentliche Seite wäre mit nachgebauten Marken ein
+Rechtsproblem. Die Vorschau ist als Vorschau beschriftet.
 
 ## Plattformprofile
 
@@ -120,19 +162,26 @@ Ein Profil beschreibt: Kennung, Anzeigename, Exportverhältnis, Exportgrösse,
 Grenze für die Dateigrösse, Vorschauverhältnis (die Kachel im Suchergebnis)
 und je Wert eine Herkunft (`offiziell` oder `beobachtet`).
 
-| Profil            | Exportverhältnis          | Exportgrösse       | Grenze | Vorschau (Kachel) |
-| ----------------- | ------------------------- | ------------------ | ------ | ----------------- |
-| **eBay**          | 1:1 (offiziell)           | 1600 × 1600        | 12 MB  | 1:1               |
-| **Vinted**        | 3:4 (beobachtet)          | 1200 × 1600        | –      | 310:430           |
-| **Kleinanzeigen** | **keins** (keine Vorgabe) | längste Kante 1600 | 12 MB  | wie Export        |
+| Profil            | Exportverhältnis    | Exportgrösse | Grenze | Kachel   | schneidet |
+| ----------------- | ------------------- | ------------ | ------ | -------- | --------- |
+| **eBay**          | 1:1 (offiziell)     | 1600 × 1600  | 12 MB  | 1:1      | nein      |
+| **Kleinanzeigen** | 4:3 quer (gemessen) | 1600 × 1200  | 12 MB  | 4:3 quer | **ja**    |
+| **Vinted**        | 2:3 hoch (gemessen) | 1200 × 1800  | –      | 2:3 hoch | **ja**    |
 
-**Kleinanzeigen exportiert den Zuschnitt unverändert im Seitenverhältnis** und
-begrenzt nur Kantenlänge und Dateigrösse. Das ist die ehrliche Umsetzung:
-Kleinanzeigen macht keine Vorgabe, also erfindet Flipbase keine. Das Profil
-nimmt damit auch keinen Einfluss auf die Safe-Area. Wer trotzdem ein
-einheitliches Format möchte, wählt zusätzlich eBay oder Vinted.
+Das Exportverhältnis entspricht überall dem der Kachel. Wer im Werkzeug ein
+Format erzeugt, das die Trefferliste ohnehin herstellt, sieht dort später
+genau sein Bild – nichts wird nachträglich beschnitten.
 
-Vinted nennt keine Dateigrössengrenze; das Feld bleibt leer und es wird nur
+Für **Kleinanzeigen** gibt es keine offizielle Vorgabe; die 4:3 stammen aus
+der Messung der Trefferliste, nicht aus einer Ansage der Plattform. Die im
+Netz kursierenden 1600 × 1200 passen dazu, sind aber Forenwissen – hier zählt
+die Messung.
+
+**eBay** schneidet nicht. Das 1:1-Format sorgt nur dafür, dass die Kachel
+gefüllt wird statt das Bild darin zu verkleinern. Weil eBay nichts abschneidet,
+schränkt das Profil auch die Safe-Area nicht ein.
+
+**Vinted** nennt keine Dateigrössengrenze; das Feld bleibt leer, es wird nur
 auf Qualität komprimiert.
 
 ---
@@ -150,7 +199,7 @@ features/image-optimizer/
 ├── components/
 │   ├── bild-liste/                 Filmleiste, Hauptbild markiert
 │   ├── zuschnitt-editor/           ngx-image-cropper mit variablem Verhältnis
-│   └── plattform-vorschau/         die abgeleiteten Fassungen als Kacheln
+│   └── plattform-vorschau/         Nachbau der Trefferliste je Plattform
 ├── image-optimizer.component.ts    Seite, hält den Zustand
 └── image-optimizer.routes.ts
 ```
@@ -216,12 +265,12 @@ Angezeigt am betroffenen Bild, nicht als Sammelmeldung:
 
 ## Offene Punkte
 
-- Das Vinted-Rasterformat (310 × 430) ist beobachtet, nicht offiziell. Vor der
-  Veröffentlichung als Webtool sollte es an einer echten Vinted-Suche
-  nachgemessen werden.
-- Ob Kleinanzeigen ohne Zielverhältnis in der Praxis angenehm ist, zeigt die
-  Benutzung. Sollte sich ein Verhältnis als sinnvoll erweisen, ist es eine
-  Zeile im Profil.
+- Die Kachelmasse sind am 23.08.2026 in der Schreibtisch-Ansicht gemessen. Die
+  Mobil-Apps wurden nicht geprüft und koennen abweichen; wer viel ueber die App
+  verkauft, sollte das nachmessen. Jede Aenderung ist eine Zeile im Profil.
+- Ob die Safe-Area bei gleichzeitig Kleinanzeigen und Vinted im Alltag zu klein
+  wirkt, zeigt die Benutzung. Falls ja, waere die Antwort ein eigener Zuschnitt
+  je Plattform - der Aufbau laesst das zu, ohne umgebaut zu werden.
 
 ## Quellen
 
