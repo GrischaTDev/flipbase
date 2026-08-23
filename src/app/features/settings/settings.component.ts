@@ -372,7 +372,13 @@ export class SettingsComponent {
     if (!bestaetigt) return;
 
     this.istUeberallAbmelden.set(true);
-    await this.auth.abmeldenUeberall();
+    try {
+      await this.auth.abmeldenUeberall();
+    } finally {
+      // Im Normalfall ist die Komponente danach fort - schlaegt der Aufruf
+      // aber fehl, muss der Knopf wieder bedienbar sein.
+      this.istUeberallAbmelden.set(false);
+    }
   }
 
   async onSaveSettings(): Promise<void> {
