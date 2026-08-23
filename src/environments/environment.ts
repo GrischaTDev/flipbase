@@ -8,4 +8,10 @@ export const environment = {
    * nie Serverdaten. Fuer den Web-Betrieb auf false setzen.
    */
   allowDemoMode: false,
+  /**
+   * Domain des Merk-Cookies, an dem die Landingpage erkennt, dass jemand
+   * angemeldet ist. Der fuehrende Punkt gilt fuer flipbase.de und alle
+   * Unterdomains. Leer bedeutet: kein Cookie, kein Hinweis.
+   */
+  landingHintCookieDomain: '.flipbase.de',
 };

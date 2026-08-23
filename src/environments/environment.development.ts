@@ -8,4 +8,9 @@ export const environment = {
    * nie Serverdaten. Fuer den Web-Betrieb auf false setzen.
    */
   allowDemoMode: true,
+  /**
+   * Lokal gibt es keine gemeinsame Domain zwischen App und Landingpage,
+   * deshalb bleibt das Feld leer und der Dienst tut nichts.
+   */
+  landingHintCookieDomain: '',
 };

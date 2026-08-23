@@ -109,6 +109,11 @@ jobs:
              * never server data. Switched off for the hosted app.
              */
             allowDemoMode: false,
+            /**
+             * Domain of the cookie that tells the landing page someone is
+             * signed in. Holds no token - just a flag.
+             */
+            landingHintCookieDomain: '.flipbase.de',
           };
           EOF
 
