@@ -36,8 +36,8 @@ export class ZuschnittEditorComponent {
   readonly profile = input.required<PlattformProfil[]>();
 
   readonly ausschnittGeaendert = output<Rechteck>();
+  readonly drehen = output<void>();
 
-  readonly drehung = signal(0);
   readonly letzterAusschnitt = signal<Rechteck | null>(null);
 
   // Wird hochgezaehlt, wenn sich die tatsaechliche Box von `.ngx-ic-cropper`
@@ -52,17 +52,15 @@ export class ZuschnittEditorComponent {
   readonly rotateIcon = RotateCw;
 
   constructor() {
-    // Wechselt das Bild (z.B. durch den Filmstreifen), muessen Drehung und
-    // der zuletzt gezogene Rahmen zurueckgesetzt werden - Angular erzeugt
-    // die Komponente bei einer reinen Input-Aenderung nicht neu, sonst
-    // wuerde das neue Foto die Drehung und den Safe-Area-Rahmen des
-    // vorherigen Bildes erben. Der Effect haengt bewusst nur an
-    // `datenUrl()`: die zurueckgesetzten Signale werden hier nur
+    // Wechselt das Bild (z.B. durch den Filmstreifen), muss der zuletzt
+    // gezogene Rahmen zurueckgesetzt werden - Angular erzeugt die Komponente
+    // bei einer reinen Input-Aenderung nicht neu, sonst wuerde das neue Foto
+    // den Safe-Area-Rahmen des vorherigen Bildes erben. Der Effect haengt
+    // bewusst nur an `datenUrl()`: das zurueckgesetzte Signal wird hier nur
     // geschrieben, nie gelesen, damit ein frisches Zuschnitt-Ereignis
     // (beiZuschnitt) diesen Effect nicht erneut auslöst.
     effect(() => {
       this.datenUrl();
-      this.drehung.set(0);
       this.letzterAusschnitt.set(null);
     });
   }
@@ -173,9 +171,5 @@ export class ZuschnittEditorComponent {
 
     this.letzterAusschnitt.set(ausschnitt);
     this.ausschnittGeaendert.emit(ausschnitt);
-  }
-
-  drehe(): void {
-    this.drehung.update((g) => (g + 90) % 360);
   }
 }

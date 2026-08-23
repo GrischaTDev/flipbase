@@ -15,6 +15,12 @@ export interface OptimiererBild {
   readonly datenUrl: string;
   /** Ausschnitt in Originalpixeln. Null, solange nichts gesetzt wurde. */
   readonly ausschnitt: Rechteck | null;
+  /**
+   * Viertelumdrehungen im Uhrzeigersinn, bereits in `datenUrl` eingebrannt.
+   * `datenUrl` zeigt also immer das fertig gedrehte Bild - Editor, Vorschauen
+   * und der Export muessen selbst nichts von einer Drehung wissen.
+   */
+  readonly drehung: 0 | 1 | 2 | 3;
 }
 
 /**
@@ -101,6 +107,7 @@ export class ImageOptimizerComponent {
         datei,
         datenUrl: URL.createObjectURL(datei),
         ausschnitt: null,
+        drehung: 0,
       });
     }
 
@@ -122,6 +129,107 @@ export class ImageOptimizerComponent {
 
   merkeAusschnitt(id: string, ausschnitt: Rechteck): void {
     this.bilder.update((liste) => liste.map((b) => (b.id === id ? { ...b, ausschnitt } : b)));
+  }
+
+  /**
+   * Dreht ein Bild um eine weitere Viertelumdrehung im Uhrzeigersinn.
+   *
+   * Gerendert wird immer aus `datei`, der unveraenderten Originaldatei - nie
+   * aus dem zuletzt gedrehten `datenUrl`. Wuerde man von der vorherigen
+   * Drehung ausgehen, wuerde jede weitere Drehung erneut als JPEG kodieren
+   * und das Bild verlöre bei mehrfachem Drehen sichtbar an Qualitaet.
+   */
+  async drehe(id: string): Promise<void> {
+    const bild = this.bilder().find((b) => b.id === id);
+    if (!bild) return;
+
+    const neueDrehung = ((bild.drehung + 1) % 4) as 0 | 1 | 2 | 3;
+
+    try {
+      const datenUrl = await this.dreheDatei(bild.datei, neueDrehung);
+      URL.revokeObjectURL(bild.datenUrl);
+
+      this.bilder.update((liste) =>
+        liste.map((b) =>
+          b.id === id
+            ? {
+                ...b,
+                datenUrl,
+                drehung: neueDrehung,
+                // Ein vor der Drehung gezogener Ausschnitt bezieht sich auf
+                // die ungedrehte Geometrie und zeigt danach auf einen ganz
+                // anderen Bildbereich - er wird deshalb bewusst verworfen
+                // statt umgerechnet oder uebernommen.
+                ausschnitt: null,
+              }
+            : b,
+        ),
+      );
+    } catch (e: unknown) {
+      this.fehler.set(e instanceof Error ? e.message : 'Das Bild liess sich nicht drehen.');
+    }
+  }
+
+  /**
+   * Rendert `datei` um `viertel` Viertelumdrehungen im Uhrzeigersinn gedreht
+   * in eine neue Zeichenflaeche und liefert die Object-URL des Ergebnisses.
+   * Bei einer ungeraden Anzahl Viertelumdrehungen tauschen Breite und Hoehe
+   * der Zeichenflaeche gegenueber dem Original.
+   */
+  private async dreheDatei(datei: File, viertel: 0 | 1 | 2 | 3): Promise<string> {
+    const quelle = await this.ladeOriginaldatei(datei);
+    const breite = quelle.width;
+    const hoehe = quelle.height;
+    const seitenGetauscht = viertel % 2 === 1;
+
+    const flaeche = document.createElement('canvas');
+    flaeche.width = seitenGetauscht ? hoehe : breite;
+    flaeche.height = seitenGetauscht ? breite : hoehe;
+
+    const stift = flaeche.getContext('2d');
+    if (!stift) throw new Error('Der Browser stellt keine Zeichenflaeche bereit.');
+
+    // Weisser Grund: wie beim Export bliebe sonst ein durchsichtiger
+    // PNG-Bereich als Schwarz stehen, sobald als JPEG kodiert wird.
+    stift.fillStyle = '#ffffff';
+    stift.fillRect(0, 0, flaeche.width, flaeche.height);
+    stift.imageSmoothingQuality = 'high';
+
+    stift.translate(flaeche.width / 2, flaeche.height / 2);
+    stift.rotate((viertel * 90 * Math.PI) / 180);
+    stift.drawImage(quelle, -breite / 2, -hoehe / 2, breite, hoehe);
+
+    if (quelle instanceof ImageBitmap) quelle.close();
+
+    const blob = await new Promise<Blob>((aufloesen, ablehnen) => {
+      flaeche.toBlob(
+        (b) =>
+          b ? aufloesen(b) : ablehnen(new Error('Das gedrehte Bild liess sich nicht erzeugen.')),
+        'image/jpeg',
+        0.92,
+      );
+    });
+
+    return URL.createObjectURL(blob);
+  }
+
+  /**
+   * Laedt die Originaldatei als zeichenbare Quelle fuer die Zeichenflaeche.
+   * `createImageBitmap` wird bevorzugt (dekodiert ausserhalb des UI-Threads);
+   * ohne diese API dient ein `<img>` an einer eigenen, danach wieder
+   * freigegebenen Object-URL als Rueckfallebene.
+   */
+  private async ladeOriginaldatei(datei: File): Promise<ImageBitmap | HTMLImageElement> {
+    if (typeof createImageBitmap === 'function') {
+      return createImageBitmap(datei);
+    }
+
+    const url = URL.createObjectURL(datei);
+    try {
+      return await this.ladeBild(url);
+    } finally {
+      URL.revokeObjectURL(url);
+    }
   }
 
   /** Schiebt ein Bild in der Reihenfolge. Position 0 ist das Hauptbild. */

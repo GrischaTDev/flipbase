@@ -4,7 +4,6 @@
       [imageURL]="datenUrl()"
       [maintainAspectRatio]="false"
       [format]="'jpeg'"
-      [transform]="{ rotate: drehung() }"
       (imageCropped)="beiZuschnitt($event)"
     ></image-cropper>
 
@@ -27,7 +26,7 @@
   <div class="flex items-center gap-2">
     <button
       type="button"
-      (click)="drehe()"
+      (click)="drehen.emit()"
       class="px-2.5 py-1.5 rounded-lg border border-fb-border text-fb-text-secondary hover:text-fb-text-primary cursor-pointer"
       aria-label="Bild drehen"
     >

@@ -51,6 +51,7 @@
         [datenUrl]="bild.datenUrl"
         [profile]="gewaehlteProfile()"
         (ausschnittGeaendert)="merkeAusschnitt(bild.id, $event)"
+        (drehen)="drehe(bild.id)"
       ></app-zuschnitt-editor>
     </div>
 
