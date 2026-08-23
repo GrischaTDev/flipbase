@@ -6,6 +6,7 @@ import {
   ElementRef,
   inject,
   input,
+  OnDestroy,
   output,
   signal,
 } from '@angular/core';
@@ -29,7 +30,7 @@ import { safeArea } from '../../services/zuschnitt';
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '(window:resize)': 'beiFenstergroesse()' },
 })
-export class ZuschnittEditorComponent {
+export class ZuschnittEditorComponent implements OnDestroy {
   private readonly elementRef = inject(ElementRef);
 
   readonly datenUrl = input.required<string>();
@@ -40,13 +41,23 @@ export class ZuschnittEditorComponent {
   readonly drehung = signal(0);
   readonly letzterAusschnitt = signal<Rechteck | null>(null);
 
-  // Wird bei jedem window:resize hochgezaehlt, damit `sichererBereichRahmen`
-  // den Zuschnittrahmen neu aus dem DOM misst. ngx-image-cropper skaliert
-  // seinen Rahmen bei einer Fenstergroessenaenderung selbst neu, feuert dabei
-  // aber kein `imageCropped`-Ereignis - ohne dieses Signal wuerde der
-  // `computed()` das nicht bemerken und weiter mit der Geometrie von vor dem
-  // Resize rechnen.
-  private readonly fenstergroesse = signal(0);
+  // Wird hochgezaehlt, wenn sich die tatsaechliche Box von `.ngx-ic-cropper`
+  // aendert, damit `sichererBereichRahmen` den Zuschnittrahmen neu aus dem
+  // DOM misst. Bewusst nicht mehr "fenstergroesse" genannt: Ausgeloest wird
+  // das nicht mehr durch window:resize, sondern durch einen ResizeObserver
+  // direkt auf dem Rahmen-Element (siehe `beobachteRahmenGroesse`) - der
+  // reagiert auf jede tatsaechliche Groessenaenderung, egal wer sie
+  // ausgeloest hat und in welcher Reihenfolge Event-Handler laufen (auch bei
+  // Ursachen ohne Fenster-Resize, z.B. eine einklappende Sidebar).
+  // ngx-image-cropper skaliert seinen Rahmen bei einer Layoutaenderung selbst
+  // neu, feuert dabei aber kein `imageCropped`-Ereignis - ohne dieses Signal
+  // wuerde der `computed()` das nicht bemerken und weiter mit der alten
+  // Geometrie rechnen. Steht in diesem Browser kein ResizeObserver zur
+  // Verfuegung, uebernimmt `beiFenstergroesse()` (window:resize) ersatzweise.
+  private readonly rahmenVersion = signal(0);
+
+  private readonly resizeObserverUnterstuetzt = typeof ResizeObserver !== 'undefined';
+  private rahmenBeobachter: ResizeObserver | null = null;
 
   readonly rotateIcon = RotateCw;
 
@@ -66,8 +77,23 @@ export class ZuschnittEditorComponent {
     });
   }
 
+  /**
+   * Fallback fuer Browser ohne ResizeObserver. Bleibt im `host`-Objekt
+   * verdrahtet (kein `@HostListener` im Projekt), ist aber ein No-Op, sobald
+   * der ResizeObserver auf `.ngx-ic-cropper` (siehe `beobachteRahmenGroesse`)
+   * aktiv ist - der misst zuverlaessig erst nach der tatsaechlichen
+   * Layoutaenderung, waehrend window:resize vor dem eigenen Re-Layout von
+   * ngx-image-cropper feuern kann und dann noch die alte Rahmengroesse
+   * gemessen haette.
+   */
   beiFenstergroesse(): void {
-    this.fenstergroesse.update((n) => n + 1);
+    if (this.resizeObserverUnterstuetzt) return;
+    this.rahmenVersion.update((n) => n + 1);
+  }
+
+  ngOnDestroy(): void {
+    this.rahmenBeobachter?.disconnect();
+    this.rahmenBeobachter = null;
   }
 
   /**
@@ -87,14 +113,14 @@ export class ZuschnittEditorComponent {
    * Originalbildes) bleibt die Quelle fuer das Verhaeltnis der Safe-Area zum
    * Ausschnitt - dieser Pfad ist korrekt und wird hier nicht angefasst.
    *
-   * Haengt bewusst an `fenstergroesse()`, obwohl dessen Wert selbst nicht
-   * gebraucht wird: Nur dadurch wird bei einem Resize neu gemessen, da
-   * `querySelector`/`getBoundingClientRect` von Angular nicht als
-   * Signal-Abhaengigkeit erkannt werden.
+   * Haengt bewusst an `rahmenVersion()`, obwohl dessen Wert selbst nicht
+   * gebraucht wird: Nur dadurch wird bei einer Groessenaenderung neu
+   * gemessen, da `querySelector`/`getBoundingClientRect` von Angular nicht
+   * als Signal-Abhaengigkeit erkannt werden.
    */
   readonly sichererBereichRahmen = computed(() => {
     const ausschnitt = this.letzterAusschnitt();
-    this.fenstergroesse();
+    this.rahmenVersion();
     if (!ausschnitt) return null;
 
     const rahmenRect = this.rahmenRect();
@@ -161,6 +187,38 @@ export class ZuschnittEditorComponent {
 
     this.letzterAusschnitt.set(ausschnitt);
     this.ausschnittGeaendert.emit(ausschnitt);
+
+    // `.ngx-ic-cropper` existiert erst, nachdem ngx-image-cropper ein erstes
+    // Bild gerendert hat - fruehestens hier ist das Element sicher im DOM,
+    // deshalb wird der ResizeObserver an diesem Punkt (einmalig) angehaengt
+    // statt z.B. in ngAfterViewInit.
+    this.beobachteRahmenGroesse();
+  }
+
+  /**
+   * Haengt einen ResizeObserver an `.ngx-ic-cropper`, damit `rahmenVersion`
+   * immer dann hochgezaehlt wird, wenn sich die Box des Zuschnittrahmens
+   * tatsaechlich aendert - unabhaengig davon, wodurch (Fenster-Resize,
+   * einklappende Sidebar, ...) und unabhaengig von der Reihenfolge, in der
+   * ngx-image-cropper sein eigenes Re-Layout durchfuehrt. Ein
+   * window:resize-Handler wie `beiFenstergroesse()` kann dagegen vor diesem
+   * Re-Layout feuern und misst dann noch die alte Rahmengroesse.
+   *
+   * Idempotent: Ist der Beobachter schon aktiv oder fehlt entweder das
+   * Rahmen-Element oder `ResizeObserver` im Browser, passiert nichts -
+   * `beiFenstergroesse()` uebernimmt dann als Fallback.
+   */
+  private beobachteRahmenGroesse(): void {
+    if (this.rahmenBeobachter || !this.resizeObserverUnterstuetzt) return;
+
+    const host = this.elementRef.nativeElement as HTMLElement;
+    const rahmen = host.querySelector<HTMLElement>('.ngx-ic-cropper');
+    if (!rahmen) return;
+
+    this.rahmenBeobachter = new ResizeObserver(() => {
+      this.rahmenVersion.update((n) => n + 1);
+    });
+    this.rahmenBeobachter.observe(rahmen);
   }
 
   drehe(): void {
