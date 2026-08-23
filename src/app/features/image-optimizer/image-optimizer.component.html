@@ -64,4 +64,32 @@
       }
     </div>
   }
+
+  @if (bilder().length > 0) {
+    <div class="linear-surface rounded-2xl p-5 space-y-3 shadow-xl border border-fb-border">
+      <app-bild-liste
+        [bilder]="bilder()"
+        [aktivesId]="aktivesBildId()"
+        (gewaehlt)="aktivesBildId.set($event)"
+        (entfernt)="entferne($event)"
+        (verschoben)="verschiebe($event.id, $event.richtung)"
+      ></app-bild-liste>
+
+      @for (warnung of warnungen(); track warnung) {
+        <p class="text-[11px] text-amber-300">{{ warnung }}</p>
+      }
+      @if (fehler(); as f) {
+        <p class="text-[11px] text-rose-400">{{ f }}</p>
+      }
+
+      <button
+        type="button"
+        (click)="exportiere()"
+        [disabled]="laeuft() || gewaehlteProfile().length === 0"
+        class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold cursor-pointer disabled:opacity-40"
+      >
+        {{ laeuft() ? 'Erzeuge Bilder...' : 'Bilder exportieren' }}
+      </button>
+    </div>
+  }
 </div>

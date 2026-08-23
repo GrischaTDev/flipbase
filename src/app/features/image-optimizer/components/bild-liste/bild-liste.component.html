@@ -1,0 +1,58 @@
+<div class="flex gap-2 overflow-x-auto pb-1">
+  @for (bild of bilder(); track bild.id; let i = $index) {
+    <div class="relative shrink-0">
+      <button
+        type="button"
+        (click)="gewaehlt.emit(bild.id)"
+        [class.ring-2]="bild.id === aktivesId()"
+        [attr.aria-label]="
+          i === 0 ? 'Bild ' + (i + 1) + ' auswählen (Hauptbild)' : 'Bild ' + (i + 1) + ' auswählen'
+        "
+        class="w-20 h-20 rounded-lg overflow-hidden border border-fb-border ring-indigo-400 cursor-pointer"
+      >
+        <img [src]="bild.datenUrl" alt="" class="w-full h-full object-cover" />
+      </button>
+
+      @if (i === 0) {
+        <span
+          class="absolute bottom-0 left-0 right-0 text-[9px] font-bold text-center bg-indigo-500/80 text-white"
+        >
+          HAUPTBILD
+        </span>
+      }
+
+      <button
+        type="button"
+        (click)="entfernt.emit(bild.id)"
+        class="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-fb-surface border border-fb-border flex items-center justify-center cursor-pointer"
+        aria-label="Bild entfernen"
+      >
+        <svg [lucideIcon]="closeIcon" class="w-3 h-3"></svg>
+      </button>
+
+      <!-- Umsortieren ueber Schaltflaechen statt Ziehen: Das erste Bild ist
+           das Hauptbild, die Reihenfolge muss sich also aendern lassen - und
+           Ziehen ist mit der Tastatur nicht bedienbar. -->
+      <div class="flex justify-center gap-1 pt-1">
+        <button
+          type="button"
+          (click)="verschoben.emit({ id: bild.id, richtung: -1 })"
+          [disabled]="i === 0"
+          class="w-5 h-5 rounded border border-fb-border flex items-center justify-center cursor-pointer disabled:opacity-30"
+          aria-label="Bild nach vorne schieben"
+        >
+          <svg [lucideIcon]="linksIcon" class="w-3 h-3"></svg>
+        </button>
+        <button
+          type="button"
+          (click)="verschoben.emit({ id: bild.id, richtung: 1 })"
+          [disabled]="i === bilder().length - 1"
+          class="w-5 h-5 rounded border border-fb-border flex items-center justify-center cursor-pointer disabled:opacity-30"
+          aria-label="Bild nach hinten schieben"
+        >
+          <svg [lucideIcon]="rechtsIcon" class="w-3 h-3"></svg>
+        </button>
+      </div>
+    </div>
+  }
+</div>
