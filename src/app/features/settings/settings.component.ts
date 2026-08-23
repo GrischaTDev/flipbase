@@ -337,6 +337,7 @@ export class SettingsComponent {
 
   readonly istProfilSpeichern = signal<boolean>(false);
   readonly profilMeldung = signal<{ text: string; fehler: boolean } | null>(null);
+  readonly istUeberallAbmelden = signal(false);
 
   async onSaveProfil(): Promise<void> {
     if (this.profilForm.invalid) return;
@@ -350,6 +351,28 @@ export class SettingsComponent {
     this.profilMeldung.set(
       error ? { text: error.message, fehler: true } : { text: 'Name gespeichert.', fehler: false },
     );
+  }
+
+  /**
+   * Beendet die Sitzung auf allen Geraeten.
+   *
+   * Mit Rueckfrage, weil der Schritt jedes andere Geraet mitnimmt und sich
+   * nicht zuruecknehmen laesst.
+   */
+  async onAbmeldenUeberall(): Promise<void> {
+    const bestaetigt = await this.dialog.frage({
+      titel: 'Von allen Geräten abmelden?',
+      text:
+        'Alle offenen Sitzungen werden beendet – auch auf deinem Handy und auf ' +
+        'fremden Rechnern. Du musst dich überall neu anmelden.',
+      bestaetigenText: 'Überall abmelden',
+      gefahr: true,
+    });
+
+    if (!bestaetigt) return;
+
+    this.istUeberallAbmelden.set(true);
+    await this.auth.abmeldenUeberall();
   }
 
   async onSaveSettings(): Promise<void> {

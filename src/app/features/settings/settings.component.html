@@ -80,6 +80,21 @@
             </button>
           </div>
         </form>
+
+        <div class="pt-3 border-t border-fb-border space-y-2">
+          <p class="text-[10px] text-fb-text-muted leading-relaxed">
+            Gerät verloren oder auf einem fremden Rechner angemeldet geblieben? Damit werden sofort
+            alle Sitzungen beendet – ohne auf den Ablauf zu warten.
+          </p>
+          <button
+            type="button"
+            (click)="onAbmeldenUeberall()"
+            [disabled]="istUeberallAbmelden()"
+            class="px-4 py-1.5 rounded-xl text-xs font-bold cursor-pointer border border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20 disabled:opacity-40"
+          >
+            {{ istUeberallAbmelden() ? 'Melde ab...' : 'Von allen Geräten abmelden' }}
+          </button>
+        </div>
       </div>
 
       <!-- Multi-Workspace & Mandanten-Verwaltung -->
