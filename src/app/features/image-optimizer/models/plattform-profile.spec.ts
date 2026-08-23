@@ -18,20 +18,30 @@ describe('Plattformprofile', () => {
     expect(p.exportHoehe).toBe(1600);
     expect(p.schneidet).toBe(false);
     expect(p.herkunft).toBe('offiziell');
+    expect(p.vorschauArt).toBe('kachel');
+    expect(p.name).toBe('eBay');
   });
 
   it('Kleinanzeigen ist quer und schneidet', () => {
     const p = profil('kleinanzeigen');
     expect(p.exportVerhaeltnis).toBeCloseTo(4 / 3, 5);
+    expect(p.exportBreite).toBe(1600);
+    expect(p.exportHoehe).toBe(1200);
     expect(p.schneidet).toBe(true);
     expect(p.herkunft).toBe('gemessen');
+    expect(p.vorschauArt).toBe('zeile');
+    expect(p.name).toBe('Kleinanzeigen');
   });
 
   it('Vinted ist hochkant und schneidet', () => {
     const p = profil('vinted');
     expect(p.exportVerhaeltnis).toBeCloseTo(2 / 3, 5);
+    expect(p.exportBreite).toBe(1200);
+    expect(p.exportHoehe).toBe(1800);
     expect(p.schneidet).toBe(true);
     expect(p.herkunft).toBe('gemessen');
+    expect(p.vorschauArt).toBe('kachel');
+    expect(p.name).toBe('Vinted');
   });
 
   it('das Kachelverhaeltnis entspricht dem Exportverhaeltnis', () => {
