@@ -53,5 +53,15 @@
         (ausschnittGeaendert)="merkeAusschnitt(bild.id, $event)"
       ></app-zuschnitt-editor>
     </div>
+
+    <div class="flex flex-wrap gap-4">
+      @for (p of gewaehlteProfile(); track p.id) {
+        <app-plattform-vorschau
+          [plattform]="p"
+          [datenUrl]="bild.datenUrl"
+          [ausschnitt]="bild.ausschnitt"
+        ></app-plattform-vorschau>
+      }
+    </div>
   }
 </div>

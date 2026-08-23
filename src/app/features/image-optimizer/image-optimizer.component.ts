@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/c
 import { LucideDynamicIcon, LucideCheck as Check } from '@lucide/angular';
 import { PLATTFORM_PROFILE, PlattformProfil, ProfilId, Rechteck } from './models/plattform-profile';
 import { ZuschnittEditorComponent } from './components/zuschnitt-editor/zuschnitt-editor.component';
+import { PlattformVorschauComponent } from './components/plattform-vorschau/plattform-vorschau.component';
 
 /** Ein hochgeladenes Bild mit seinem Zuschnitt. */
 export interface OptimiererBild {
@@ -21,7 +22,7 @@ export interface OptimiererBild {
  */
 @Component({
   selector: 'app-image-optimizer',
-  imports: [LucideDynamicIcon, ZuschnittEditorComponent],
+  imports: [LucideDynamicIcon, ZuschnittEditorComponent, PlattformVorschauComponent],
   templateUrl: './image-optimizer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

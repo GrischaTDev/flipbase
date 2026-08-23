@@ -1,0 +1,47 @@
+<div class="space-y-1.5">
+  <p class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
+    {{ plattform().name }} · Vorschau
+  </p>
+
+  @if (plattform().vorschauArt === 'zeile') {
+    <!-- Kleinanzeigen zeigt eine Liste: Bild links, Text rechts. -->
+    <div class="flex gap-3 p-2 rounded-xl border border-fb-border bg-fb-surface">
+      <div
+        class="shrink-0 w-28 rounded-lg overflow-hidden bg-fb-bg"
+        [style.aspect-ratio]="seitenverhaeltnis()"
+      >
+        <img
+          [src]="datenUrl()"
+          alt="Vorschau des Produktfotos"
+          class="w-full h-full"
+          [style.object-fit]="bildAnpassung()"
+        />
+      </div>
+      <div class="min-w-0 space-y-1 py-0.5" aria-hidden="true">
+        <div class="h-2.5 w-32 rounded bg-fb-surface-hover"></div>
+        <div class="h-2 w-20 rounded bg-fb-surface-hover"></div>
+        <div class="h-2.5 w-14 rounded bg-emerald-500/30"></div>
+      </div>
+    </div>
+  } @else {
+    <!-- eBay und Vinted zeigen ein Raster aus Kacheln. -->
+    <div class="w-36 rounded-xl border border-fb-border bg-fb-surface overflow-hidden">
+      <div class="bg-fb-bg" [style.aspect-ratio]="seitenverhaeltnis()">
+        <img
+          [src]="datenUrl()"
+          alt="Vorschau des Produktfotos"
+          class="w-full h-full"
+          [style.object-fit]="bildAnpassung()"
+        />
+      </div>
+      <div class="p-2 space-y-1" aria-hidden="true">
+        <div class="h-2.5 w-24 rounded bg-fb-surface-hover"></div>
+        <div class="h-2.5 w-12 rounded bg-emerald-500/30"></div>
+      </div>
+    </div>
+  }
+
+  @if (!plattform().schneidet) {
+    <p class="text-[10px] text-fb-text-muted">Passt ein, schneidet nichts ab.</p>
+  }
+</div>
