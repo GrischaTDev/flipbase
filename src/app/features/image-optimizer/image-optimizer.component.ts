@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import { LucideDynamicIcon, LucideCheck as Check } from '@lucide/angular';
 import { PLATTFORM_PROFILE, PlattformProfil, ProfilId, Rechteck } from './models/plattform-profile';
+import { ZuschnittEditorComponent } from './components/zuschnitt-editor/zuschnitt-editor.component';
 
 /** Ein hochgeladenes Bild mit seinem Zuschnitt. */
 export interface OptimiererBild {
@@ -20,7 +21,7 @@ export interface OptimiererBild {
  */
 @Component({
   selector: 'app-image-optimizer',
-  imports: [LucideDynamicIcon],
+  imports: [LucideDynamicIcon, ZuschnittEditorComponent],
   templateUrl: './image-optimizer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -80,5 +81,9 @@ export class ImageOptimizerComponent {
     if (this.aktivesBildId() === id) {
       this.aktivesBildId.set(this.bilder()[0]?.id ?? null);
     }
+  }
+
+  merkeAusschnitt(id: string, ausschnitt: Rechteck): void {
+    this.bilder.update((liste) => liste.map((b) => (b.id === id ? { ...b, ausschnitt } : b)));
   }
 }

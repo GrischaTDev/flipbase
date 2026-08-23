@@ -44,4 +44,14 @@
       <p class="text-[11px] text-fb-text-muted">{{ bilder().length }} Bild(er) geladen.</p>
     }
   </div>
+
+  @if (aktivesBild(); as bild) {
+    <div class="linear-surface rounded-2xl p-5 shadow-xl border border-fb-border">
+      <app-zuschnitt-editor
+        [datenUrl]="bild.datenUrl"
+        [profile]="gewaehlteProfile()"
+        (ausschnittGeaendert)="merkeAusschnitt(bild.id, $event)"
+      ></app-zuschnitt-editor>
+    </div>
+  }
 </div>
