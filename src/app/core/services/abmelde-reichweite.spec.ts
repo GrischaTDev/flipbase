@@ -25,11 +25,18 @@ const quelle = readFileSync(
  */
 function methode(name: string): string {
   const kopf = quelle.match(new RegExp(`private\\s+(?:async\\s+)?${name}\\s*\\([^)]*\\)[^{]*\\{`));
-  if (!kopf || kopf.index === undefined) return '';
+  if (!kopf || kopf.index === undefined) {
+    throw new Error(`Methode "${name}" nicht in auth.service.ts gefunden - umbenannt?`);
+  }
   const start = kopf.index + kopf[0].length;
   const rest = quelle.slice(start);
   const ende = rest.indexOf('\n  }\n');
-  return ende === -1 ? rest : rest.slice(0, ende);
+  // Ohne gefundenes Ende gaebe es sonst den Rest der ganzen Datei zurueck -
+  // eine Pruefung darauf koennte aus dem falschen Grund durchgehen.
+  if (ende === -1) {
+    throw new Error(`Ende von Methode "${name}" nicht gefunden - Ausschnitt waere unbegrenzt.`);
+  }
+  return rest.slice(0, ende);
 }
 
 describe('Reichweite des Abmeldens', () => {
