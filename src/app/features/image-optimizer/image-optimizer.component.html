@@ -14,8 +14,11 @@
           [attr.aria-pressed]="gewaehlteIds().includes(p.id)"
           [class.bg-indigo-500\/15]="gewaehlteIds().includes(p.id)"
           [class.border-indigo-500\/40]="gewaehlteIds().includes(p.id)"
-          class="px-3 py-1.5 rounded-xl text-xs font-semibold border border-fb-border text-fb-text-secondary hover:text-fb-text-primary cursor-pointer"
+          class="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold border border-fb-border text-fb-text-secondary hover:text-fb-text-primary cursor-pointer"
         >
+          @if (gewaehlteIds().includes(p.id)) {
+            <svg [lucideIcon]="checkIcon" class="w-3 h-3 shrink-0"></svg>
+          }
           {{ p.name }}
           @if (!p.schneidet) {
             <span class="text-[10px] text-fb-text-muted ml-1">passt ein</span>
@@ -25,13 +28,13 @@
     </div>
 
     <label
-      class="block border-2 border-dashed border-fb-border rounded-2xl p-8 text-center cursor-pointer hover:border-indigo-500/40"
+      class="block border-2 border-dashed border-fb-border rounded-2xl p-8 text-center cursor-pointer hover:border-indigo-500/40 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-400/50"
     >
       <input
         type="file"
         accept="image/*"
         multiple
-        hidden
+        class="sr-only"
         (change)="nimmDateien($any($event.target).files)"
       />
       <span class="text-xs text-fb-text-secondary">Bilder hierher ziehen oder auswählen</span>

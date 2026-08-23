@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { LucideDynamicIcon, LucideCheck as Check } from '@lucide/angular';
 import { PLATTFORM_PROFILE, PlattformProfil, ProfilId, Rechteck } from './models/plattform-profile';
 
 /** Ein hochgeladenes Bild mit seinem Zuschnitt. */
@@ -19,12 +20,14 @@ export interface OptimiererBild {
  */
 @Component({
   selector: 'app-image-optimizer',
-  imports: [],
+  imports: [LucideDynamicIcon],
   templateUrl: './image-optimizer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ImageOptimizerComponent {
   readonly profile = PLATTFORM_PROFILE;
+
+  readonly checkIcon = Check;
 
   readonly bilder = signal<OptimiererBild[]>([]);
   readonly gewaehlteIds = signal<ProfilId[]>(['ebay']);
