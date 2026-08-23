@@ -8,15 +8,18 @@
       (imageCropped)="beiZuschnitt($event)"
     ></image-cropper>
 
-    @if (sichererBereichInProzent(); as sicher) {
-      <!-- Der Bereich, den keine gewaehlte Plattform anschneidet. Nur ein
+    @if (sichererBereichRahmen(); as rahmen) {
+      <!-- Der Bereich, den keine gewaehlte Plattform anschneidet. In
+           Anzeigepixeln des Zuschnittrahmens positioniert (nicht in Prozent
+           des umschliessenden Elements), damit er dem vom Nutzer gezogenen
+           Rahmen folgt statt immer mittig im Editor zu haengen. Nur ein
            Hinweis, deshalb ohne Mausereignisse. -->
       <div
         class="absolute border-2 border-dashed border-emerald-400/70 pointer-events-none"
-        [style.width.%]="sicher.breite"
-        [style.height.%]="sicher.hoehe"
-        [style.left.%]="(100 - sicher.breite) / 2"
-        [style.top.%]="(100 - sicher.hoehe) / 2"
+        [style.width.px]="rahmen.breite"
+        [style.height.px]="rahmen.hoehe"
+        [style.left.px]="rahmen.links"
+        [style.top.px]="rahmen.oben"
       ></div>
     }
   </div>
