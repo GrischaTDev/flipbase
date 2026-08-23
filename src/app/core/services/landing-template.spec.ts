@@ -18,7 +18,7 @@ describe('Anmeldehinweis auf der Landingpage', () => {
   });
 
   it('Caddy wertet die Vorlage aus', () => {
-    expect(caddyfile).toMatch(/^\s*templates\s*$/m);
+    expect(caddyfile).toMatch(/^\s*templates(\s+@\w+)?\s*$/m);
   });
 
   it('die Antwort haengt vom Cookie ab und darf nicht blind zwischengespeichert werden', () => {
