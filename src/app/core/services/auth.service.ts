@@ -107,6 +107,53 @@ export class AuthService {
     }
     this.sessionReady = this.initAuth();
     this.watchAuthState();
+
+    // Scheitern Datenabfragen mit Rechte-Fehlern, kann die Anmeldung tot sein,
+    // ohne dass supabase-js es merkt: Es erfaehrt davon erst bei der naechsten
+    // Token-Erneuerung. Bis dahin bliebe die App stehen und sammelte Fehler.
+    this.syncStatus?.beiSitzungsverdacht(() => void this.pruefeSitzungNach());
+  }
+
+  /**
+   * Fragt beim Server nach, ob die Anmeldung noch gilt.
+   *
+   * Wird nur nach einem verdaechtigen Fehlercode aufgerufen. Ein `42501` kann
+   * genauso ein echter Rechte-Fehler sein – deshalb entscheidet nicht der
+   * Fehlercode ueber das Abmelden, sondern die Antwort des Auth-Dienstes.
+   */
+  private async pruefeSitzungNach(): Promise<void> {
+    if (!this.isAuthenticated()) return;
+
+    try {
+      const { error } = await this.supabase.client.auth.getUser();
+      if (istSitzungWiderrufen(error)) {
+        this.verwerfeSitzung();
+      }
+    } catch {
+      // Nicht erreichbar heisst nicht abgemeldet.
+    }
+  }
+
+  /**
+   * Loescht alles, was zu einer Anmeldung gehoert – ohne zu navigieren.
+   *
+   * Steht an einer Stelle, weil jede vergessene Zeile hier bedeutet, dass ein
+   * abgemeldeter Nutzer noch Reste seiner Sitzung sieht.
+   */
+  private leereSitzungsdaten(): void {
+    this.session.set(null);
+    this.currentUser.set(null);
+    this.profile.set(null);
+    // Sonst zeigt die naechste Anmeldung faelschlich das Band einer
+    // "wiederhergestellten" Sitzung, obwohl gerade frisch angemeldet wurde.
+    this.sitzungWiederhergestellt.set(false);
+    this.landingHint.abmelden();
+  }
+
+  /** Raeumt die Anmeldung lokal ab und fuehrt zur Anmeldeseite. */
+  private verwerfeSitzung(): void {
+    this.leereSitzungsdaten();
+    this.router.navigate(['/auth/login']);
   }
 
   /**
@@ -153,25 +200,18 @@ export class AuthService {
         if (session) {
           this.applySession(session);
         } else {
-          const warAngemeldet = !!this.currentUser();
-
-          this.session.set(null);
-          this.currentUser.set(null);
-          this.profile.set(null);
-          // Deckt auch den serverseitigen Ablauf und das Abmelden in einem
-          // anderen Tab ab.
-          this.landingHint.abmelden();
-
-          // Ohne Weiterleitung bliebe die Seite stehen, auf der man gerade ist:
-          // Der Guard prüft nur beim Navigieren, nicht dauernd. Jede weitere
-          // Abfrage liefe dann ohne Token und schlüge mit "permission denied"
-          // fehl - der Nutzer sähe Rechte-Fehler statt der Anmeldeseite.
+          // Deckt den serverseitigen Ablauf und das Abmelden in einem anderen
+          // Tab ab.
           //
-          // Nur wenn zuvor jemand angemeldet war: Beim Start meldet Supabase
-          // INITIAL_SESSION mit null, das darf niemanden von der Anmeldeseite
-          // wegschicken.
-          if (warAngemeldet) {
-            this.router.navigate(['/auth/login']);
+          // Weitergeleitet wird nur, wenn zuvor wirklich jemand angemeldet war:
+          // Ohne Weiterleitung bliebe die Seite stehen, auf der man gerade ist –
+          // der Guard prüft nur beim Navigieren, nicht dauernd. Beim Start
+          // meldet Supabase aber INITIAL_SESSION mit null, und das darf
+          // niemanden von der Anmeldeseite wegschicken.
+          if (this.currentUser()) {
+            this.verwerfeSitzung();
+          } else {
+            this.leereSitzungsdaten();
           }
         }
       });
@@ -378,14 +418,8 @@ export class AuthService {
       } catch {
         // Auch ohne erreichbares Backend lokal abmelden.
       }
-      this.session.set(null);
-      this.currentUser.set(null);
-      this.profile.set(null);
+      this.leereSitzungsdaten();
       this.setDemoMode(false);
-      // Sonst zeigt die naechste Anmeldung faelschlich das Band einer
-      // "wiederhergestellten" Sitzung, obwohl gerade frisch angemeldet wurde.
-      this.sitzungWiederhergestellt.set(false);
-      this.landingHint.abmelden();
       this.router.navigate(['/auth/login']);
     } finally {
       this.isLoading.set(false);

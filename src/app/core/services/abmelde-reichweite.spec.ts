@@ -62,11 +62,9 @@ describe('Reichweite des Abmeldens', () => {
     expect(methode('applySession')).toContain('landingHint.anmelden()');
   });
 
-  it('das Beenden der Sitzung raeumt das Cookie auf', () => {
-    expect(methode('beendeSitzung')).toContain('landingHint.abmelden()');
-  });
-
-  it('ein Ablauf oder ein Abmelden in einem anderen Tab raeumt das Cookie auf', () => {
-    expect(methode('watchAuthState')).toContain('landingHint.abmelden()');
-  });
+  // Dass das Cookie beim Sitzungsende wieder verschwindet, prueft
+  // auth.service.spec.ts am laufenden Dienst statt an der Quelle: Der Aufruf
+  // ist inzwischen in leereSitzungsdaten() zusammengefasst, und eine
+  // Textsuche in beendeSitzung bzw. watchAuthState wuerde beim naechsten
+  // Umbau erneut brechen, ohne dass sich am Verhalten etwas aendert.
 });

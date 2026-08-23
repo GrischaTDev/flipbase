@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { LandingHintService } from './landing-hint.service';
+import { SyncStatusService } from './sync-status.service';
 
 /**
  * Verhaltenstest des AuthService mit gefaelschtem Supabase-Client.
@@ -24,6 +25,10 @@ interface Umgebung {
   melde: (ereignis: AuthChangeEvent, sitzung: AuthSession | null) => void;
   /** Alle Ziele, zu denen der Dienst navigiert hat. */
   ziele: unknown[][];
+  /** Der Fehlerkanal, ueber den die Feature-Dienste ihre Fehlschlaege melden. */
+  syncStatus: SyncStatusService;
+  /** Protokoll der Aufrufe am Merk-Cookie der Landingpage. */
+  cookie: string[];
 }
 
 function sitzung(): AuthSession {
@@ -36,14 +41,16 @@ function sitzung(): AuthSession {
   } as unknown as AuthSession;
 }
 
-function baueUmgebung(): Umgebung {
+function baueUmgebung(getUserFehler: unknown = null): Umgebung {
   const ziele: unknown[][] = [];
+  const cookie: string[] = [];
   let rueckruf: ((ereignis: AuthChangeEvent, sitzung: AuthSession | null) => void) | null = null;
 
   const supabase = {
     client: {
       auth: {
         getSession: async () => ({ data: { session: null } }),
+        getUser: async () => ({ data: { user: null }, error: getUserFehler }),
         onAuthStateChange: (cb: (e: AuthChangeEvent, s: AuthSession | null) => void) => {
           rueckruf = cb;
           return { data: { subscription: { unsubscribe: () => undefined } } };
@@ -52,9 +59,12 @@ function baueUmgebung(): Umgebung {
     },
   } as unknown as SupabaseService;
 
+  const syncStatus = new SyncStatusService();
+
   const injector = Injector.create({
     providers: [
       { provide: SupabaseService, useValue: supabase },
+      { provide: SyncStatusService, useValue: syncStatus },
       {
         provide: MockDataStoreService,
         useValue: { isDemoMode: signal(false), ensureShowcaseData: () => undefined },
@@ -62,7 +72,10 @@ function baueUmgebung(): Umgebung {
       { provide: Router, useValue: { navigate: (befehle: unknown[]) => ziele.push(befehle) } },
       {
         provide: LandingHintService,
-        useValue: { anmelden: () => undefined, abmelden: () => undefined },
+        useValue: {
+          anmelden: () => cookie.push('anmelden'),
+          abmelden: () => cookie.push('abmelden'),
+        },
       },
     ],
   });
@@ -72,6 +85,8 @@ function baueUmgebung(): Umgebung {
   return {
     dienst,
     ziele,
+    cookie,
+    syncStatus,
     melde: (ereignis, s) => rueckruf?.(ereignis, s),
   };
 }
@@ -106,6 +121,79 @@ describe('AuthService: Sitzungsende bei offener App', () => {
     umgebung.melde('TOKEN_REFRESHED', sitzung());
 
     expect(umgebung.dienst.isAuthenticated()).toBe(true);
+    expect(umgebung.ziele).toEqual([]);
+  });
+
+  it('setzt und entfernt dabei das Merk-Cookie der Landingpage', () => {
+    umgebung.melde('SIGNED_IN', sitzung());
+    expect(umgebung.cookie).toEqual(['anmelden']);
+
+    umgebung.melde('SIGNED_OUT', null);
+    expect(umgebung.cookie).toEqual(['anmelden', 'abmelden']);
+  });
+
+  it('zeigt nach dem Sitzungsende kein Band einer wiederhergestellten Sitzung', () => {
+    umgebung.melde('SIGNED_IN', sitzung());
+    umgebung.dienst.sitzungWiederhergestellt.set(true);
+
+    umgebung.melde('SIGNED_OUT', null);
+
+    expect(umgebung.dienst.sitzungWiederhergestellt()).toBe(false);
+  });
+});
+
+/**
+ * Scheitern Datenabfragen mit 42501, weil gar kein Token mehr mitgeht, merkt
+ * supabase-js davon nichts - es erfaehrt erst bei der naechsten Token-
+ * Erneuerung, dass die Sitzung weg ist. Bis dahin blieb die App stehen und
+ * sammelte Rechte-Fehler. Deshalb fragt sie bei solchen Codes nach.
+ *
+ * 42501 kann aber auch ein echter Rechte-Fehler sein. Abgemeldet wird darum
+ * nur, wenn die Nachfrage die Sitzung tatsaechlich als widerrufen meldet.
+ */
+describe('AuthService: Rechte-Fehler als Hinweis auf eine tote Sitzung', () => {
+  it('meldet ab, wenn die Nachfrage die Sitzung als widerrufen meldet', async () => {
+    const umgebung = baueUmgebung({ status: 403, message: 'Session not found' });
+    umgebung.melde('SIGNED_IN', sitzung());
+
+    umgebung.syncStatus.melde('Laden des Profils', { code: '42501' });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(umgebung.ziele).toEqual([['/auth/login']]);
+  });
+
+  it('laesst die Anmeldung in Ruhe, wenn es ein echter Rechte-Fehler war', async () => {
+    const umgebung = baueUmgebung(null);
+    umgebung.melde('SIGNED_IN', sitzung());
+
+    umgebung.syncStatus.melde('Laden eines fremden Workspace', { code: '42501' });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(umgebung.dienst.isAuthenticated()).toBe(true);
+    expect(umgebung.ziele).toEqual([]);
+  });
+
+  it('fragt bei einem abgelaufenen Token ebenfalls nach', async () => {
+    const umgebung = baueUmgebung({ status: 403, message: 'Session not found' });
+    umgebung.melde('SIGNED_IN', sitzung());
+
+    umgebung.syncStatus.melde('Laden der Workspaces', { code: 'PGRST303' });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(umgebung.ziele).toEqual([['/auth/login']]);
+  });
+
+  it('fragt bei harmlosen Fehlern gar nicht erst nach', async () => {
+    const umgebung = baueUmgebung({ status: 403, message: 'Session not found' });
+    umgebung.melde('SIGNED_IN', sitzung());
+
+    umgebung.syncStatus.melde('Einkauf speichern', { code: '23505' });
+    await Promise.resolve();
+    await Promise.resolve();
+
     expect(umgebung.ziele).toEqual([]);
   });
 });

@@ -28,6 +28,21 @@ export interface SyncFehler {
 export class SyncStatusService {
   private naechsteId = 1;
 
+  /**
+   * Fehlercodes, die bedeuten können: Die Anmeldung gilt nicht mehr.
+   *
+   * `42501` kommt, wenn eine Abfrage **ohne** Token durchgeht und damit als
+   * `anon` läuft – die Rolle darf nichts. `PGRST301` und `PGRST303` melden ein
+   * unlesbares oder abgelaufenes Token.
+   *
+   * `42501` kann allerdings genauso ein echter Rechte-Fehler sein. Hier wird
+   * deshalb nur Bescheid gesagt; ob wirklich abgemeldet wird, entscheidet der
+   * `AuthService` nach einer Nachfrage beim Server.
+   */
+  private static readonly SITZUNGS_CODES = new Set(['42501', 'PGRST301', 'PGRST303']);
+
+  private beiVerdacht: (() => void) | null = null;
+
   /** Alle offenen, noch nicht weggeklickten Fehler. */
   readonly fehler = signal<SyncFehler[]>([]);
 
@@ -58,7 +73,20 @@ export class SyncStatusService {
     // Neueste zuerst, und nicht unbegrenzt wachsen lassen.
     this.fehler.update((liste) => [eintrag, ...liste].slice(0, 20));
 
+    if (code && SyncStatusService.SITZUNGS_CODES.has(code)) {
+      this.beiVerdacht?.();
+    }
+
     return new Error(`${vorgang} fehlgeschlagen: ${meldung}`);
+  }
+
+  /**
+   * Hinterlegt, wer benachrichtigt werden will, wenn ein Fehler auf eine
+   * beendete Anmeldung hindeutet. Es gibt genau einen Empfänger – den
+   * `AuthService`.
+   */
+  beiSitzungsverdacht(empfaenger: () => void): void {
+    this.beiVerdacht = empfaenger;
   }
 
   verwerfen(id: number): void {
