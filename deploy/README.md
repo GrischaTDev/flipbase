@@ -136,6 +136,29 @@ docker exec supabase-caddy caddy reload --config /etc/caddy/Caddyfile --adapter 
 cd /opt/supabase && sh run.sh recreate caddy
 ```
 
+## Sitzungsdauer
+
+Supabase Auth erzwingt zwei unabhaengige Grenzen. Beide gehoeren in die
+Umgebung des Auth-Containers (`docker-compose.yml` der Supabase-Installation):
+
+| Variable                             | Wert   | Bedeutung                                              |
+| ------------------------------------ | ------ | ------------------------------------------------------ |
+| `GOTRUE_SESSIONS_TIMEBOX`            | `720h` | 30 Tage ab der Anmeldung, unabhaengig von der Nutzung. |
+| `GOTRUE_SESSIONS_INACTIVITY_TIMEOUT` | `168h` | 7 Tage ohne Nutzung.                                   |
+
+Go-Zeitformat. Die Variable **weglassen** bedeutet "nie"; `0` wird abgelehnt.
+
+Warum diese Werte: Ohne Timebox wird das Refresh-Token endlos erneuert, eine
+Anmeldung lief also nie ab. NIST 800-63B nennt fuer die Anmeldung nur mit
+Passwort 30 Tage als Obergrenze. Kurze Inaktivitaetsgrenzen scheiden aus, weil
+ein Rauswurf mitten im Formular Eingaben kostet.
+
+Die Pruefung greift bei der naechsten Token-Erneuerung, nicht sekundengenau -
+die tatsaechliche Dauer kann eine Token-Laufzeit laenger sein.
+
+Sofort wirksam abmelden geht ueber "Von allen Geraeten abmelden" in den
+Einstellungen der App.
+
 ## Authelia
 
 Sichert Supabase Studio ab. Die API-Pfade unter `api.flipbase.de` bleiben
