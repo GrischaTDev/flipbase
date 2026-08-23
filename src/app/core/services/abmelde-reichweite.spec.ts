@@ -17,13 +17,28 @@ const quelle = readFileSync(
   'utf-8',
 );
 
+/**
+ * Schneidet den Rumpf einer privaten Methode aus der Quelle, damit die
+ * Pruefungen nicht irgendwo in der Datei - etwa an einer Aufrufstelle wie
+ * "this.applySession(...)" - zufaellig fuendig werden, sondern wirklich an
+ * der Definition der Methode ansetzen.
+ */
+function methode(name: string): string {
+  const kopf = quelle.match(new RegExp(`private\\s+(?:async\\s+)?${name}\\s*\\([^)]*\\)[^{]*\\{`));
+  if (!kopf || kopf.index === undefined) return '';
+  const start = kopf.index + kopf[0].length;
+  const rest = quelle.slice(start);
+  const ende = rest.indexOf('\n  }\n');
+  return ende === -1 ? rest : rest.slice(0, ende);
+}
+
 describe('Reichweite des Abmeldens', () => {
   it('kein Aufruf von signOut ohne ausdruecklichen Bereich', () => {
-    expect(quelle).not.toMatch(/auth\.signOut\(\s*\)/);
+    expect(quelle).not.toMatch(/auth\.signOut\(\s*(undefined\s*)?\)/);
   });
 
-  it('der Bereich wird ueberhaupt uebergeben', () => {
-    expect(quelle).toContain('scope: bereich');
+  it('der Bereich wird beim Beenden der Sitzung tatsaechlich uebergeben', () => {
+    expect(methode('beendeSitzung')).toContain('scope: bereich');
   });
 
   it('das normale Abmelden betrifft nur diesen Browser', () => {
@@ -36,9 +51,15 @@ describe('Reichweite des Abmeldens', () => {
     expect(quelle).toContain("beendeSitzung('global')");
   });
 
-  it('der Anmeldezustand wird an allen drei Stellen ans Cookie gemeldet', () => {
-    expect(quelle).toContain('landingHint.anmelden()');
-    // Einmal beim Beenden der Sitzung, einmal wenn Supabase null meldet.
-    expect(quelle.match(/landingHint\.abmelden\(\)/g)?.length).toBeGreaterThanOrEqual(2);
+  it('eine wiederhergestellte Sitzung meldet sich am Cookie an', () => {
+    expect(methode('applySession')).toContain('landingHint.anmelden()');
+  });
+
+  it('das Beenden der Sitzung raeumt das Cookie auf', () => {
+    expect(methode('beendeSitzung')).toContain('landingHint.abmelden()');
+  });
+
+  it('ein Ablauf oder ein Abmelden in einem anderen Tab raeumt das Cookie auf', () => {
+    expect(methode('watchAuthState')).toContain('landingHint.abmelden()');
   });
 });
