@@ -551,7 +551,11 @@
   <body>
     <header class="auf" style="animation-delay: 0.05s">
       <div class="marke">Flipbase <span>Reselling OS</span></div>
+      {{if .Cookie "flipbase_angemeldet"}}
+      <a class="kopf-link" href="https://app.flipbase.de">Zur App →</a>
+      {{else}}
       <a class="kopf-link" href="https://app.flipbase.de">Anmelden →</a>
+      {{ end }}
     </header>
 
     <main>

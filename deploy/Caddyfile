@@ -62,11 +62,15 @@ www.flipbase.de {
 
 flipbase.de {
 	root * /srv/landing
+	templates
 	file_server
 	encode zstd gzip
 
 	header {
 		-server
+		# Die Antwort haengt vom Merk-Cookie ab. Ohne diesen Hinweis koennte ein
+		# Zwischenspeicher den falschen Knopftext ausliefern.
+		Vary Cookie
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
 		Referrer-Policy strict-origin-when-cross-origin

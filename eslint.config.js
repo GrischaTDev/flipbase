@@ -72,6 +72,7 @@ module.exports = tseslint.config(
   },
   {
     files: ['**/*.html'],
+    ignores: ['landing/**/*.html'],
     extends: [...angular.configs.templateRecommended, ...angular.configs.templateAccessibility],
     rules: {},
   },
