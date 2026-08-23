@@ -44,8 +44,8 @@ describe('Merk-Cookie fuer die Landingpage', () => {
     expect(zeile).toContain('SameSite=Lax');
   });
 
-  it('laeuft nach 30 Tagen ab - genauso lange wie die Sitzung selbst', () => {
-    expect(HINWEIS_LAUFZEIT_SEKUNDEN).toBe(30 * 24 * 60 * 60);
+  it('laeuft nach 7 Tagen ab - gleitend wie die Inaktivitaetsgrenze, nicht die 30-Tage-Timebox', () => {
+    expect(HINWEIS_LAUFZEIT_SEKUNDEN).toBe(7 * 24 * 60 * 60);
     expect(anmeldeZeile('.flipbase.de')).toContain(`Max-Age=${HINWEIS_LAUFZEIT_SEKUNDEN}`);
   });
 

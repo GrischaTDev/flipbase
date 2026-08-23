@@ -15,8 +15,16 @@ import { environment } from '../../../environments/environment';
  */
 export const HINWEIS_COOKIE = 'flipbase_angemeldet';
 
-/** Laufzeit in Sekunden. Entspricht der serverseitigen Timebox von 30 Tagen. */
-export const HINWEIS_LAUFZEIT_SEKUNDEN = 30 * 24 * 60 * 60;
+/**
+ * Laufzeit in Sekunden. Absichtlich **nicht** die 30-Tage-Timebox: Das
+ * Cookie wird bei jeder Token-Erneuerung neu gesetzt (applySession() laeuft
+ * dabei jedes Mal), die Laufzeit rutscht also staendig nach vorn - waehrend
+ * die Timebox ab der Anmeldung zaehlt und nicht rutscht. Mit 30 Tagen wuerde
+ * ein aktiver Nutzer ein Cookie tragen, das die eigentliche Sitzung um fast
+ * 30 Tage ueberlebt. 7 Tage bilden stattdessen die ebenfalls gleitende
+ * 7-Tage-Inaktivitaetsgrenze fast genau nach.
+ */
+export const HINWEIS_LAUFZEIT_SEKUNDEN = 7 * 24 * 60 * 60;
 
 /** Baut die Cookie-Zeile fuer eine bestehende Anmeldung. */
 export function anmeldeZeile(domain: string): string | null {
