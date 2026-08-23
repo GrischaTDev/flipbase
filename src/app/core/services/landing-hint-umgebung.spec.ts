@@ -28,6 +28,12 @@ describe('Umgebungsfeld landingHintCookieDomain', () => {
     );
   });
 
+  it('die Produktionsumgebung traegt die echte Domain', () => {
+    expect(lies('src/environments/environment.ts')).toMatch(
+      /landingHintCookieDomain:\s*'\.flipbase\.de'/,
+    );
+  });
+
   it('die CI schreibt das Feld mit der echten Domain in das Abbild', () => {
     expect(lies('.github/workflows/ci.yml')).toMatch(/landingHintCookieDomain:\s*'\.flipbase\.de'/);
   });
