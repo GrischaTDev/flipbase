@@ -1,5 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { LoggerService } from './logger.service';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root',
@@ -83,9 +84,21 @@ export class PwaService {
   }
 
   /**
-   * Registers the background service worker for asset caching.
+   * Registriert den Service Worker, der die Anwendungsdateien zwischenspeichert.
+   *
+   * **Nur im Produktionsbetrieb.** Der Service Worker liefert Skripte nach dem
+   * Muster "erst Cache, dann im Hintergrund auffrischen" aus (`public/sw.js`).
+   * In der Produktion ist das unproblematisch, weil jede Fassung neue
+   * Dateinamen mit Prüfsumme bekommt – die stehen nicht im Cache und werden
+   * geladen.
+   *
+   * In der Entwicklung haben die Dateien dagegen **feste Namen**. Der Cache
+   * traf also immer, und jede Änderung erschien fruehestens beim übernächsten
+   * Laden. Das kostete einen ganzen Debug-Nachmittag: Getestet wurde ein
+   * Stand, den der Entwicklungsserver längst ersetzt hatte.
    */
   async registerServiceWorker(): Promise<void> {
+    if (!environment.production) return;
     if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return;
 
     try {
