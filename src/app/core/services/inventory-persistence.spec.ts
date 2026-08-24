@@ -102,6 +102,44 @@ function erstelleDienst(artikelAntwort: SupabaseAntwort) {
 }
 
 describe('InventoryService – abhängige Schreibvorgänge', () => {
+  it('veröffentlicht einen neuen Artikel nicht während das Datenbank-Insert noch offen ist', async () => {
+    let insertAbschliessen!: (antwort: SupabaseAntwort) => void;
+    const offeneAntwort = new Promise<SupabaseAntwort>((resolve) => {
+      insertAbschliessen = resolve;
+    });
+    const client = {
+      from(tabelle: string) {
+        if (tabelle === 'inventory_items') {
+          return {
+            insert() {
+              return {
+                select() {
+                  return { single: () => offeneAntwort };
+                },
+              };
+            },
+          };
+        }
+        if (tabelle === 'activity_logs') {
+          return { insert: async () => ({ error: null }) };
+        }
+        throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+      },
+    };
+    const { dienst } = injiziereDienst(client);
+
+    const ergebnisPromise = dienst.createItem({
+      title: 'Testartikel',
+      condition: 'used',
+      allocated_purchase_cost: 0,
+    });
+
+    expect(dienst.items()).toEqual([]);
+    insertAbschliessen({ data: gespeicherterArtikel, error: null });
+    await ergebnisPromise;
+    expect(dienst.items()).toEqual([expect.objectContaining({ id: gespeicherterArtikel.id })]);
+  });
+
   it('speichert den Artikel vor dem Aktivitätsprotokoll und verwendet dessen echte ID', async () => {
     const { dienst, aufrufe, syncStatus } = erstelleDienst({
       data: gespeicherterArtikel,
@@ -210,6 +248,38 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     expect(dienst.selectedItem()?.is_public_store).toBeUndefined();
   });
 
+  it('behandelt Updates ohne betroffene Artikelzeile als Fehler', async () => {
+    const client = {
+      from(tabelle: string) {
+        if (tabelle !== 'inventory_items') throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+        return {
+          update(_payload: unknown, optionen?: { count?: string }) {
+            return {
+              eq: async () => ({
+                error: null,
+                count: optionen?.count === 'exact' ? 0 : undefined,
+              }),
+            };
+          },
+        };
+      },
+    };
+    const { dienst, syncStatus } = injiziereDienst(client);
+    dienst.items.set([gespeicherterArtikel]);
+    dienst.selectedItem.set(gespeicherterArtikel);
+
+    const artikelErgebnis = await dienst.updateItem(gespeicherterArtikel.id, {
+      is_public_store: true,
+    });
+    const statusErgebnis = await dienst.updateItemStatus(gespeicherterArtikel.id, 'ready');
+
+    expect(artikelErgebnis.error).toBeInstanceOf(Error);
+    expect(statusErgebnis.error).toBeInstanceOf(Error);
+    expect(dienst.items()[0]).toMatchObject({ status: 'received' });
+    expect(dienst.items()[0].is_public_store).toBeUndefined();
+    expect(syncStatus.fehler()).toHaveLength(2);
+  });
+
   it('übernimmt bei Artikelkosten die Datenbank-ID und protokolliert danach', async () => {
     const gespeicherteKosten: ItemCost = {
       id: '44444444-4444-4444-8444-444444444444',
@@ -316,5 +386,47 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(dienst.items()).toEqual([gespeicherterArtikel]);
     expect(dienst.selectedItem()).toEqual(gespeicherterArtikel);
+  });
+
+  it('behandelt Löschvorgänge ohne betroffene Zeile als Fehler', async () => {
+    const kosten: ItemCost = {
+      id: '44444444-4444-4444-8444-444444444444',
+      inventory_item_id: gespeicherterArtikel.id,
+      type: 'repair',
+      amount: 4.5,
+      description: null,
+      created_at: '2026-08-24T10:02:00.000Z',
+    };
+    const client = {
+      from(tabelle: string) {
+        if (tabelle !== 'item_costs' && tabelle !== 'inventory_items') {
+          throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+        }
+        return {
+          delete(optionen?: { count?: string }) {
+            return {
+              eq: async () => ({
+                error: null,
+                count: optionen?.count === 'exact' ? 0 : undefined,
+              }),
+            };
+          },
+        };
+      },
+    };
+    const { dienst, syncStatus } = injiziereDienst(client);
+    dienst.itemCosts.set([kosten]);
+    dienst.items.set([{ ...gespeicherterArtikel, costs: [kosten] }]);
+    dienst.selectedItem.set(gespeicherterArtikel);
+
+    const kostenErgebnis = await dienst.deleteItemCost(gespeicherterArtikel.id, kosten.id!);
+    const artikelErgebnis = await dienst.deleteItem(gespeicherterArtikel.id);
+
+    expect(kostenErgebnis.error).toBeInstanceOf(Error);
+    expect(artikelErgebnis.error).toBeInstanceOf(Error);
+    expect(dienst.itemCosts()).toEqual([kosten]);
+    expect(dienst.items()).toHaveLength(1);
+    expect(dienst.selectedItem()).toEqual(gespeicherterArtikel);
+    expect(syncStatus.fehler()).toHaveLength(2);
   });
 });

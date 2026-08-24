@@ -26,12 +26,16 @@ function erstelleKomponente(
   const syncStatus = new SyncStatusService();
   const created = { emit: vi.fn() };
   const closed = { emit: vi.fn() };
+  const inventoryService = {
+    createItem: vi.fn(async () => ergebnis),
+    updateItem: vi.fn(async () => ({ error: ergebnis.error })),
+  };
+  const mediaService = {
+    uploadItemMedia: vi.fn(async () => ({ data: null, error: null })),
+  };
   const komponente = Object.create(ItemCreateModalComponent.prototype) as ItemCreateModalComponent;
   Object.assign(komponente, {
-    inventoryService: {
-      createItem: vi.fn(async () => ergebnis),
-      updateItem: vi.fn(async () => ({ error: ergebnis.error })),
-    },
+    inventoryService,
     item: signal<InventoryItem | null>(vorhandenerArtikel),
     form: new FormGroup({
       purchase_id: new FormControl<string | null>(null),
@@ -52,9 +56,7 @@ function erstelleKomponente(
     isSubmitting: signal(false),
     errorMessage: signal<string | null>(null),
     selectedImageFile: signal<File | null>(null),
-    mediaService: {
-      uploadItemMedia: vi.fn(async () => ({ data: null, error: null })),
-    },
+    mediaService,
     logger: { warn: vi.fn() },
     created,
     closed,
@@ -62,7 +64,7 @@ function erstelleKomponente(
     syncStatus,
   });
 
-  return { komponente, toast, syncStatus, created, closed };
+  return { komponente, inventoryService, mediaService, toast, syncStatus, created, closed };
 }
 
 describe('ItemCreateModalComponent – Toast-Rückmeldung', () => {
@@ -178,6 +180,50 @@ describe('ItemCreateModalComponent – Toast-Rückmeldung', () => {
 
     await komponente.onSubmit();
 
+    expect(syncStatus.fehler()).toHaveLength(1);
+    expect(toast.toasts()).toEqual([]);
+  });
+
+  it('schließt nach partiellem Mehrfachanlegen mit genauen Anzahlen und ohne Bild-Upload', async () => {
+    const { komponente, inventoryService, mediaService, toast, created, closed } =
+      erstelleKomponente({ data: artikel, error: null });
+    const zweiterArtikel = { ...artikel, id: '55555555-5555-4555-8555-555555555555' };
+    inventoryService.createItem
+      .mockResolvedValueOnce({ data: artikel, error: null })
+      .mockResolvedValueOnce({ data: null, error: new Error('Zweiter Artikel fehlgeschlagen') })
+      .mockResolvedValueOnce({ data: zweiterArtikel, error: null });
+    komponente.form.controls.anzahl.setValue(3);
+    komponente.selectedImageFile.set(new File(['bild'], 'artikel.jpg', { type: 'image/jpeg' }));
+
+    await komponente.onSubmit();
+
+    expect(created.emit).toHaveBeenCalledOnce();
+    expect(closed.emit).toHaveBeenCalledOnce();
+    expect(mediaService.uploadItemMedia).not.toHaveBeenCalled();
+    expect(toast.toasts()).toHaveLength(1);
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'warning',
+      title: '2 von 3 Artikeln wurden angelegt.',
+      description: '1 Artikel konnte nicht angelegt werden. Das Bild wurde nicht hochgeladen.',
+    });
+  });
+
+  it('erzeugt bei einem zentral gemeldeten Teilfehler keinen zweiten Warn-Toast', async () => {
+    const { komponente, inventoryService, syncStatus, toast, closed } = erstelleKomponente({
+      data: artikel,
+      error: null,
+    });
+    inventoryService.createItem
+      .mockResolvedValueOnce({ data: artikel, error: null })
+      .mockResolvedValueOnce({
+        data: null,
+        error: syncStatus.melde('Speichern des Artikels', new Error('offline')),
+      });
+    komponente.form.controls.anzahl.setValue(2);
+
+    await komponente.onSubmit();
+
+    expect(closed.emit).toHaveBeenCalledOnce();
     expect(syncStatus.fehler()).toHaveLength(1);
     expect(toast.toasts()).toEqual([]);
   });

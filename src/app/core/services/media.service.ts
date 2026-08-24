@@ -169,10 +169,17 @@ export class MediaService {
 
           {
             if (isPrimary) {
-              await this.supabase.client
+              const { error: hauptbildResetFehler } = await this.supabase.client
                 .from('item_media')
                 .update({ is_primary: false })
                 .eq('inventory_item_id', itemId);
+              if (hauptbildResetFehler) {
+                resolve({
+                  data: null,
+                  error: this.melde('Zurücksetzen des bisherigen Hauptbilds', hauptbildResetFehler),
+                });
+                return;
+              }
             }
 
             const { data: inserted, error: dbError } = await this.supabase.client
@@ -243,8 +250,19 @@ export class MediaService {
           return { error: this.melde('Löschen der Bilddatei', storageFehler) };
         }
       }
-      const { error } = await this.supabase.client.from('item_media').delete().eq('id', mediaId);
+      const { error, count } = await this.supabase.client
+        .from('item_media')
+        .delete({ count: 'exact' })
+        .eq('id', mediaId);
       if (error) return { error: this.melde('Löschen des Bildeintrags', error) };
+      if (count === 0) {
+        return {
+          error: this.melde('Löschen des Bildeintrags', {
+            code: 'PGRST116',
+            message: 'Das Bild wurde nicht gefunden.',
+          }),
+        };
+      }
     } catch (err: unknown) {
       return { error: this.melde('Löschen des Bildes', err) };
     }
@@ -271,11 +289,19 @@ export class MediaService {
         return { error: this.melde('Zurücksetzen des bisherigen Hauptbilds', zuruecksetzFehler) };
       }
 
-      const { error } = await this.supabase.client
+      const { error, count } = await this.supabase.client
         .from('item_media')
-        .update({ is_primary: true })
+        .update({ is_primary: true }, { count: 'exact' })
         .eq('id', mediaId);
       if (error) return { error: this.melde('Festlegen des Hauptbilds', error) };
+      if (count === 0) {
+        return {
+          error: this.melde('Festlegen des Hauptbilds', {
+            code: 'PGRST116',
+            message: 'Das Bild wurde nicht gefunden.',
+          }),
+        };
+      }
     } catch (err: unknown) {
       return { error: this.melde('Festlegen des Hauptbilds', err) };
     }

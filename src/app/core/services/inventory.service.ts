@@ -272,11 +272,9 @@ export class InventoryService {
 
     const enriched = this.enrichItemTotals(newItem);
 
-    // 1. Immediately persist locally (instant UI feedback)
-    this.mockStore.saveItem(enriched);
-    this.items.update((list) => [enriched, ...list]);
-
     if (this.mockStore.isDemoMode()) {
+      this.mockStore.saveItem(enriched);
+      this.items.update((list) => [enriched, ...list]);
       const logErgebnis = await this.logActivity(
         newItem.id,
         'received',
@@ -299,7 +297,6 @@ export class InventoryService {
       return { data: enriched, error: null, reportedBySyncStatus: false, problems: [] };
     }
 
-    // 2. Sync to Supabase in background
     try {
       const { data: dbData, error: dbError } = await this.supabase.client
         .from('inventory_items')
@@ -322,8 +319,6 @@ export class InventoryService {
         .single();
 
       if (dbError) {
-        this.mockStore.deleteItem(newItem.id);
-        this.items.update((list) => list.filter((item) => item.id !== newItem.id));
         return {
           data: null,
           error: this.syncStatus.melde('Speichern des Artikels', dbError),
@@ -332,11 +327,8 @@ export class InventoryService {
         };
       } else if (dbData) {
         const finalEnriched = this.enrichItemTotals(dbData);
-        // Vorlaeufigen Eintrag entfernen, sonst bleibt er mit seiner
-        // Behelfs-Kennung im lokalen Spiegel liegen (Duplikat).
-        this.mockStore.deleteItem(newItem.id);
         this.mockStore.saveItem(finalEnriched);
-        this.items.update((list) => [finalEnriched, ...list.filter((i) => i.id !== newItem.id)]);
+        this.items.update((list) => [finalEnriched, ...list]);
         const logErgebnis = await this.logActivity(
           finalEnriched.id,
           'received',
@@ -359,8 +351,6 @@ export class InventoryService {
         return { data: finalEnriched, error: null, reportedBySyncStatus: false, problems: [] };
       }
     } catch (err: unknown) {
-      this.mockStore.deleteItem(newItem.id);
-      this.items.update((list) => list.filter((item) => item.id !== newItem.id));
       return {
         data: null,
         error: this.syncStatus.melde('Erstellen des Artikels', err),
@@ -369,8 +359,6 @@ export class InventoryService {
       };
     }
 
-    this.mockStore.deleteItem(newItem.id);
-    this.items.update((list) => list.filter((item) => item.id !== newItem.id));
     return {
       data: null,
       error: new Error('Der Artikel wurde nicht zurückgegeben'),
@@ -420,13 +408,21 @@ export class InventoryService {
         ...dbUpdates
       } = updates as any;
 
-      const { error } = await this.supabase.client
+      const { error, count } = await this.supabase.client
         .from('inventory_items')
-        .update({ ...dbUpdates, updated_at: new Date().toISOString() })
+        .update({ ...dbUpdates, updated_at: new Date().toISOString() }, { count: 'exact' })
         .eq('id', itemId);
 
       if (error) {
         return { error: this.syncStatus.melde('Aktualisieren des Artikels', error) };
+      }
+      if (count === 0) {
+        return {
+          error: this.syncStatus.melde('Aktualisieren des Artikels', {
+            code: 'PGRST116',
+            message: 'Der Artikel wurde nicht gefunden.',
+          }),
+        };
       }
     } catch (e: unknown) {
       return { error: this.syncStatus.melde('Aktualisieren des Artikels', e) };
@@ -465,13 +461,21 @@ export class InventoryService {
     }
 
     try {
-      const { error } = await this.supabase.client
+      const { error, count } = await this.supabase.client
         .from('inventory_items')
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .update({ status: newStatus, updated_at: new Date().toISOString() }, { count: 'exact' })
         .eq('id', itemId);
 
       if (error) {
         return { error: this.syncStatus.melde('Aktualisieren des Artikelstatus', error) };
+      }
+      if (count === 0) {
+        return {
+          error: this.syncStatus.melde('Aktualisieren des Artikelstatus', {
+            code: 'PGRST116',
+            message: 'Der Artikel wurde nicht gefunden.',
+          }),
+        };
       }
     } catch (e: unknown) {
       return { error: this.syncStatus.melde('Aktualisieren des Artikelstatus', e) };
@@ -572,9 +576,20 @@ export class InventoryService {
 
     if (!this.mockStore.isDemoMode()) {
       try {
-        const { error } = await this.supabase.client.from('item_costs').delete().eq('id', costId);
+        const { error, count } = await this.supabase.client
+          .from('item_costs')
+          .delete({ count: 'exact' })
+          .eq('id', costId);
         if (error) {
           return { error: this.syncStatus.melde('Löschen der Artikelkosten', error) };
+        }
+        if (count === 0) {
+          return {
+            error: this.syncStatus.melde('Löschen der Artikelkosten', {
+              code: 'PGRST116',
+              message: 'Die Artikelkosten wurden nicht gefunden.',
+            }),
+          };
         }
       } catch (e: unknown) {
         return { error: this.syncStatus.melde('Löschen der Artikelkosten', e) };
@@ -699,12 +714,20 @@ export class InventoryService {
   async deleteItem(itemId: string): Promise<{ error: Error | null }> {
     if (!this.mockStore.isDemoMode()) {
       try {
-        const { error } = await this.supabase.client
+        const { error, count } = await this.supabase.client
           .from('inventory_items')
-          .delete()
+          .delete({ count: 'exact' })
           .eq('id', itemId);
         if (error) {
           return { error: this.syncStatus.melde('Löschen des Artikels', error) };
+        }
+        if (count === 0) {
+          return {
+            error: this.syncStatus.melde('Löschen des Artikels', {
+              code: 'PGRST116',
+              message: 'Der Artikel wurde nicht gefunden.',
+            }),
+          };
         }
       } catch (e: unknown) {
         return { error: this.syncStatus.melde('Löschen des Artikels', e) };

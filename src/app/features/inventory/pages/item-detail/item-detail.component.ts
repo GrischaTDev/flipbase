@@ -205,30 +205,56 @@ export class ItemDetailComponent {
     this.uploadError.set(null);
 
     const files = Array.from(input.files);
-    const hasExistingMedia = this.mediaList().length > 0;
+    let brauchtHauptbild = this.mediaList().length === 0;
     let ersterFehler: Error | null = null;
+    const uploadFehler: Error[] = [];
+    let erfolgreicheUploads = 0;
+    let fehlgeschlageneUploads = 0;
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const isPrimary = !hasExistingMedia && i === 0;
+    for (const file of files) {
+      const isPrimary = brauchtHauptbild;
       const { data, error } = await this.mediaService.uploadItemMedia(itemId, file, isPrimary);
       if (error) {
         this.uploadError.set(error.message);
         ersterFehler ??= error;
+        uploadFehler.push(error);
+        fehlgeschlageneUploads++;
       } else if (data) {
         this.mediaList.update((prev) => [data, ...prev]);
+        erfolgreicheUploads++;
+        brauchtHauptbild = false;
+      } else {
+        const fehler = new Error('Das Bild wurde nicht zurückgegeben.');
+        this.uploadError.set(fehler.message);
+        ersterFehler ??= fehler;
+        uploadFehler.push(fehler);
+        fehlgeschlageneUploads++;
       }
     }
 
     this.isUploading.set(false);
     input.value = '';
-    if (ersterFehler) {
+    if (erfolgreicheUploads === 0 && ersterFehler) {
       this.meldeFehlerWennNichtSynchronisiert(
         files.length === 1
           ? 'Bild konnte nicht hochgeladen werden.'
           : 'Bilder konnten nicht hochgeladen werden.',
         ersterFehler,
       );
+      return;
+    }
+    if (fehlgeschlageneUploads > 0) {
+      const title =
+        erfolgreicheUploads === 1
+          ? `1 von ${files.length} Bildern wurde hochgeladen.`
+          : `${erfolgreicheUploads} von ${files.length} Bildern wurden hochgeladen.`;
+      const description =
+        fehlgeschlageneUploads === 1
+          ? '1 Bild konnte nicht hochgeladen werden.'
+          : `${fehlgeschlageneUploads} Bilder konnten nicht hochgeladen werden.`;
+      if (uploadFehler.some((error) => !this.istZentralGemeldet(error))) {
+        this.toast.warning(title, description);
+      }
       return;
     }
     this.toast.success(
@@ -356,9 +382,12 @@ export class ItemDetailComponent {
   }
 
   private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {
-    const zentralGemeldet = this.syncStatus
+    if (!this.istZentralGemeldet(error)) this.toast.error(title, error.message);
+  }
+
+  private istZentralGemeldet(error: Error): boolean {
+    return this.syncStatus
       .fehler()
       .some((eintrag) => error.message === `${eintrag.vorgang} fehlgeschlagen: ${eintrag.meldung}`);
-    if (!zentralGemeldet) this.toast.error(title, error.message);
   }
 }

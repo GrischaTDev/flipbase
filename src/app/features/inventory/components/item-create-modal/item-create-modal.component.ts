@@ -46,6 +46,13 @@ import { LoggerService } from '../../../../core/services/logger.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 
+interface MehrfachAnlageErgebnis {
+  readonly status: 'success' | 'partial' | 'failed';
+  readonly gesamt: number;
+  readonly angelegt: readonly InventoryItem[];
+  readonly fehler: readonly Error[];
+}
+
 @Component({
   selector: 'app-item-create-modal',
   imports: [
@@ -354,26 +361,34 @@ export class ItemCreateModalComponent {
 
     // Mehrfach anlegen: je Stueck ein eigener Artikel mit eigener Nummer.
     const anzahl = Math.max(1, Math.min(200, this.form.getRawValue().anzahl || 1));
-    let letzterFehler: Error | null = null;
-    let ersterArtikel: InventoryItem | null = null;
+    const angelegteArtikel: InventoryItem[] = [];
+    const anlegeFehler: Error[] = [];
 
     for (let i = 0; i < anzahl; i++) {
       const { data, error: fehler } = await this.inventoryService.createItem(payload);
-      if (fehler) {
-        letzterFehler = fehler;
-        break;
-      }
-      if (!ersterArtikel) ersterArtikel = data;
+      if (data) angelegteArtikel.push(data);
+      if (fehler) anlegeFehler.push(fehler);
+      if (!data && !fehler) anlegeFehler.push(new Error('Der Artikel wurde nicht zurückgegeben.'));
     }
 
-    const createdItem = ersterArtikel;
-    const error = letzterFehler;
+    const mehrfachErgebnis: MehrfachAnlageErgebnis = {
+      status:
+        anlegeFehler.length === 0
+          ? 'success'
+          : angelegteArtikel.length === 0
+            ? 'failed'
+            : 'partial',
+      gesamt: anzahl,
+      angelegt: angelegteArtikel,
+      fehler: anlegeFehler,
+    };
 
     let bildFehler: Error | null = null;
-    if (createdItem && this.selectedImageFile()) {
+    const ersterArtikel = mehrfachErgebnis.angelegt[0];
+    if (mehrfachErgebnis.status === 'success' && ersterArtikel && this.selectedImageFile()) {
       try {
         const { error: uploadFehler } = await this.mediaService.uploadItemMedia(
-          createdItem.id,
+          ersterArtikel.id,
           this.selectedImageFile()!,
           true,
         );
@@ -386,25 +401,47 @@ export class ItemCreateModalComponent {
 
     this.isSubmitting.set(false);
 
-    if (error) {
+    if (mehrfachErgebnis.status === 'failed') {
+      const error = mehrfachErgebnis.fehler[0];
       this.errorMessage.set(error.message);
       this.meldeFehlerWennNichtSynchronisiert('Artikel konnte nicht gespeichert werden.', error);
-    } else {
-      if (bildFehler) {
-        if (!this.istZentralGemeldet(bildFehler)) {
-          this.toast.warning(
-            'Artikel wurde angelegt.',
-            'Das Bild konnte nicht hochgeladen werden.',
-          );
-        }
-      } else {
-        this.toast.success(
-          anzahl > 1 ? `${anzahl} Artikel wurden angelegt.` : 'Artikel wurde angelegt.',
-        );
+      return;
+    }
+
+    if (mehrfachErgebnis.status === 'partial') {
+      const gespeichert = mehrfachErgebnis.angelegt.length;
+      const fehlgeschlagen = mehrfachErgebnis.fehler.length;
+      const title =
+        gespeichert === 1
+          ? `1 von ${mehrfachErgebnis.gesamt} Artikeln wurde angelegt.`
+          : `${gespeichert} von ${mehrfachErgebnis.gesamt} Artikeln wurden angelegt.`;
+      const fehlerText =
+        fehlgeschlagen === 1
+          ? '1 Artikel konnte nicht angelegt werden.'
+          : `${fehlgeschlagen} Artikel konnten nicht angelegt werden.`;
+      const bildText = this.selectedImageFile() ? ' Das Bild wurde nicht hochgeladen.' : '';
+      if (mehrfachErgebnis.fehler.some((error) => !this.istZentralGemeldet(error))) {
+        this.toast.warning(title, `${fehlerText}${bildText}`);
       }
       this.created.emit();
       this.closed.emit();
+      return;
     }
+
+    if (bildFehler) {
+      if (!this.istZentralGemeldet(bildFehler)) {
+        this.toast.warning(
+          anzahl > 1 ? `${anzahl} Artikel wurden angelegt.` : 'Artikel wurde angelegt.',
+          'Das Bild konnte nicht hochgeladen werden.',
+        );
+      }
+    } else {
+      this.toast.success(
+        anzahl > 1 ? `${anzahl} Artikel wurden angelegt.` : 'Artikel wurde angelegt.',
+      );
+    }
+    this.created.emit();
+    this.closed.emit();
   }
 
   private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {

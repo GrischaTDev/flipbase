@@ -43,7 +43,13 @@ function erstelleKomponente(error: Error | null = null) {
     deleteItem: vi.fn(async () => ({ error })),
   };
   const mediaService = {
-    uploadItemMedia: vi.fn(async () => ({ data: medium, error })),
+    uploadItemMedia: vi.fn(
+      async (
+        _itemId: string,
+        _file: File,
+        _isPrimary: boolean,
+      ): Promise<{ data: ItemMedia | null; error: Error | null }> => ({ data: medium, error }),
+    ),
     setPrimary: vi.fn(async () => ({ error })),
     deleteMedia: vi.fn(async () => ({ error })),
   };
@@ -106,6 +112,54 @@ describe('ItemDetailComponent – Aktionsmeldungen', () => {
 
     expect(toast.toasts()).toHaveLength(1);
     expect(toast.toasts()[0].title).toBe('Bilder wurden hochgeladen.');
+  });
+
+  it('meldet einen Teil-Upload mit Anzahlen und macht den ersten Erfolg zum Hauptbild', async () => {
+    const { komponente, mediaService, toast } = erstelleKomponente();
+    let aufruf = 0;
+    mediaService.uploadItemMedia.mockImplementation(
+      async (_itemId: string, _file: File, isPrimary: boolean) => {
+        aufruf++;
+        if (aufruf === 1) return { data: null, error: new Error('Erstes Bild fehlgeschlagen') };
+        return { data: { ...medium, is_primary: isPrimary }, error: null };
+      },
+    );
+
+    await komponente.onFilesSelected(
+      dateiEvent([
+        new File(['eins'], 'eins.jpg', { type: 'image/jpeg' }),
+        new File(['zwei'], 'zwei.jpg', { type: 'image/jpeg' }),
+      ]),
+    );
+
+    expect(komponente.mediaList()).toEqual([{ ...medium, is_primary: true }]);
+    expect(toast.toasts()).toHaveLength(1);
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'warning',
+      title: '1 von 2 Bildern wurde hochgeladen.',
+      description: '1 Bild konnte nicht hochgeladen werden.',
+    });
+  });
+
+  it('erzeugt bei einem zentral gemeldeten Upload-Teilfehler keinen zweiten Warn-Toast', async () => {
+    const { komponente, mediaService, syncStatus, toast } = erstelleKomponente();
+    mediaService.uploadItemMedia
+      .mockResolvedValueOnce({ data: medium, error: null })
+      .mockResolvedValueOnce({
+        data: null,
+        error: syncStatus.melde('Hochladen des Bildes', new Error('offline')),
+      });
+
+    await komponente.onFilesSelected(
+      dateiEvent([
+        new File(['eins'], 'eins.jpg', { type: 'image/jpeg' }),
+        new File(['zwei'], 'zwei.jpg', { type: 'image/jpeg' }),
+      ]),
+    );
+
+    expect(komponente.mediaList()).toEqual([medium]);
+    expect(syncStatus.fehler()).toHaveLength(1);
+    expect(toast.toasts()).toEqual([]);
   });
 
   it('übernimmt ein fehlgeschlagenes Bild nicht und meldet einen lokalen Fehler persistent', async () => {
