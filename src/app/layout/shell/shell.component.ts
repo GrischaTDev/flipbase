@@ -6,7 +6,6 @@ import { BottomNavComponent } from '../bottom-nav/bottom-nav.component';
 import { WorkspaceModalComponent } from '../../shared/components/workspace-modal/workspace-modal.component';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { AuthService } from '../../core/services/auth.service';
-import { SyncErrorBannerComponent } from '../../shared/components/sync-error-banner/sync-error-banner.component';
 import { MockDataStoreService } from '../../core/services/mock-data-store.service';
 
 @Component({
@@ -19,7 +18,6 @@ import { MockDataStoreService } from '../../core/services/mock-data-store.servic
     BottomNavComponent,
     WorkspaceModalComponent,
     ConfirmDialogComponent,
-    SyncErrorBannerComponent,
   ],
   templateUrl: './shell.component.html',
   host: { class: 'block' },

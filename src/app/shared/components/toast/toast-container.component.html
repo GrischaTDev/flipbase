@@ -1,0 +1,55 @@
+<section
+  aria-label="Benachrichtigungen"
+  aria-live="polite"
+  class="pointer-events-none fixed right-3 bottom-20 z-[100] flex max-h-[70vh] w-[calc(100vw-1.5rem)] max-w-md flex-col gap-2 overflow-y-auto md:right-6 md:bottom-6"
+>
+  @for (toast of toastService.toasts(); track toast.id) {
+    <article
+      [attr.role]="toast.type === 'error' ? 'alert' : 'status'"
+      class="pointer-events-auto flex items-start gap-3 rounded-xl border px-4 py-3 shadow-2xl backdrop-blur-md motion-reduce:transition-none"
+      [class.border-emerald-500/40]="toast.type === 'success'"
+      [class.bg-emerald-950/95]="toast.type === 'success'"
+      [class.text-emerald-100]="toast.type === 'success'"
+      [class.border-red-500/40]="toast.type === 'error'"
+      [class.bg-red-950/95]="toast.type === 'error'"
+      [class.text-red-100]="toast.type === 'error'"
+      [class.border-amber-500/40]="toast.type === 'warning'"
+      [class.bg-amber-950/95]="toast.type === 'warning'"
+      [class.text-amber-100]="toast.type === 'warning'"
+      [class.border-sky-500/40]="toast.type === 'info'"
+      [class.bg-sky-950/95]="toast.type === 'info'"
+      [class.text-sky-100]="toast.type === 'info'"
+    >
+      @switch (toast.type) {
+        @case ('success') {
+          <svg [lucideIcon]="successIcon" class="mt-0.5 h-5 w-5 shrink-0"></svg>
+        }
+        @case ('error') {
+          <svg [lucideIcon]="errorIcon" class="mt-0.5 h-5 w-5 shrink-0"></svg>
+        }
+        @case ('warning') {
+          <svg [lucideIcon]="warningIcon" class="mt-0.5 h-5 w-5 shrink-0"></svg>
+        }
+        @case ('info') {
+          <svg [lucideIcon]="infoIcon" class="mt-0.5 h-5 w-5 shrink-0"></svg>
+        }
+      }
+
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-semibold">{{ toast.title }}</p>
+        @if (toast.description) {
+          <p class="mt-1 text-xs leading-5 text-current/80">{{ toast.description }}</p>
+        }
+      </div>
+
+      <button
+        type="button"
+        class="-mr-1 -mt-1 inline-flex min-h-8 min-w-8 shrink-0 items-center justify-center rounded-lg text-current/70 transition hover:bg-white/10 hover:text-current focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-current motion-reduce:transition-none"
+        [attr.aria-label]="'Meldung schließen: ' + toast.title"
+        (click)="toastService.dismiss(toast.id)"
+      >
+        <svg [lucideIcon]="closeIcon" class="h-[17px] w-[17px]"></svg>
+      </button>
+    </article>
+  }
+</section>
