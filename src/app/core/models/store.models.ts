@@ -57,6 +57,12 @@ export interface CheckoutCustomerInfo {
   notes?: string;
 }
 
+/** Stabile Kennungen für alle Wiederholungen derselben Checkout-Aktion. */
+export interface CheckoutAttempt {
+  readonly orderId: string;
+  readonly orderNumber: string;
+}
+
 export interface StoreOrder {
   id: string;
   orderNumber: string;

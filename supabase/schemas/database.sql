@@ -1406,7 +1406,7 @@ begin
   from source_orders;
 
   if v_found_count <> cardinality(p_order_ids) then
-    raise exception using errcode = 'PGRST116', message = 'Mindestens eine Sendung wurde nicht gefunden.';
+    raise no_data_found using message = 'Mindestens eine Sendung wurde nicht gefunden.';
   end if;
 
   if v_non_null_sale_count <> v_found_count or v_distinct_sale_count <> 1 then
@@ -1493,7 +1493,7 @@ begin
   for update;
 
   if not found then
-    raise exception using errcode = 'PGRST116', message = 'Das Sammelpaket wurde nicht gefunden.';
+    raise no_data_found using message = 'Das Sammelpaket wurde nicht gefunden.';
   end if;
 
   if jsonb_typeof(v_snapshot) <> 'array' or jsonb_array_length(v_snapshot) = 0 then
@@ -1621,14 +1621,28 @@ begin
     raise exception using errcode = '22023', message = 'Jeder Artikel darf nur einmal in einer Bestellung vorkommen.';
   end if;
 
+  perform inventory.id
+  from public.inventory_items as inventory
+  join jsonb_to_recordset(p_items) as item(inventory_item_id uuid)
+    on item.inventory_item_id = inventory.id
+  where inventory.workspace_id = p_workspace_id
+  order by inventory.id
+  for update of inventory;
+  get diagnostics v_inventory_count = row_count;
+
+  if v_inventory_count <> v_item_count then
+    raise no_data_found using message = 'Mindestens ein bestellter Artikel wurde nicht gefunden.';
+  end if;
+
   select count(*) into v_inventory_count
   from public.inventory_items as inventory
   join jsonb_to_recordset(p_items) as item(inventory_item_id uuid)
     on item.inventory_item_id = inventory.id
-  where inventory.workspace_id = p_workspace_id;
+  where inventory.workspace_id = p_workspace_id
+    and inventory.status in ('ready', 'listed');
 
   if v_inventory_count <> v_item_count then
-    raise no_data_found using message = 'Mindestens ein bestellter Artikel wurde nicht gefunden.';
+    raise no_data_found using message = 'Mindestens ein bestellter Artikel ist nicht mehr verkaufbar.';
   end if;
 
   insert into public.store_orders (
@@ -1690,7 +1704,8 @@ begin
     payment_fee numeric
   )
   where inventory.id = item.inventory_item_id
-    and inventory.workspace_id = p_workspace_id;
+    and inventory.workspace_id = p_workspace_id
+    and inventory.status in ('ready', 'listed');
   get diagnostics v_inventory_count = row_count;
 
   if v_inventory_count <> v_item_count then

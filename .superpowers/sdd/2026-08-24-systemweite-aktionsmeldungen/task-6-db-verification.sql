@@ -157,6 +157,42 @@ set local role authenticated;
 
 do $$
 declare
+  v_bundle_missing boolean := false;
+  v_unbundle_missing boolean := false;
+begin
+  begin
+    perform *
+    from public.bundle_shipping_orders(
+      'f6100000-0000-4000-8000-000000000001',
+      array['f6410000-0000-4000-8000-000000000001', 'f6410000-0000-4000-8000-999999999999']::uuid[],
+      'BUNDLE-MISSING', '2026-08-24', 'test', 'Fehlende Quelle', 'BUNDLE-MISSING', 'used', 10,
+      '{"name":"Missing"}'::jsonb, 'dhl', 'small', array['Vorhanden', 'Fehlt'], 'missing'
+    );
+  exception
+    when no_data_found then
+      v_bundle_missing := true;
+  end;
+
+  begin
+    perform *
+    from public.unbundle_shipping_order(
+      'f6100000-0000-4000-8000-000000000001',
+      'f6480000-0000-4000-8000-999999999999'
+    );
+  exception
+    when no_data_found then
+      v_unbundle_missing := true;
+  end;
+
+  if not v_bundle_missing or not v_unbundle_missing then
+    raise exception 'Nicht-gefunden-Pfade liefern nicht SQLSTATE P0002.';
+  end if;
+  raise notice 'PASS missing contract: Bundle und Unbundle liefern SQLSTATE P0002';
+end;
+$$;
+
+do $$
+declare
   v_bundle public.shipping_orders;
   v_reloaded public.shipping_orders;
   v_expected jsonb;

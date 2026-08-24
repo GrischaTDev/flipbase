@@ -48,6 +48,8 @@ const dbBestellung = {
   created_at: '2026-08-24T10:00:00.000Z',
 };
 
+const versuch = { orderId: dbBestellung.id, orderNumber: dbBestellung.order_number };
+
 interface RpcAntwort {
   readonly data: typeof dbBestellung | null;
   readonly error: Error | null;
@@ -90,7 +92,7 @@ describe('StoreService – bestätigte Bestellpersistenz', () => {
   it('übernimmt und leert erst nach dem atomar bestätigten Datenbankergebnis', async () => {
     const { service } = erstelleService({ data: dbBestellung, error: null });
 
-    const ergebnis = await service.placeOrder(kunde);
+    const ergebnis = await service.placeOrder(kunde, versuch);
 
     expect(ergebnis).toMatchObject({ status: 'success', order: { id: dbBestellung.id } });
     expect(service.orders()).toHaveLength(1);
@@ -100,7 +102,7 @@ describe('StoreService – bestätigte Bestellpersistenz', () => {
   it('behält Warenkorb und lokalen Bestellbestand bei einem direkten Parentfehler', async () => {
     const { service } = erstelleService({ data: null, error: new Error('RLS verweigert') });
 
-    const ergebnis = await service.placeOrder(kunde);
+    const ergebnis = await service.placeOrder(kunde, versuch);
 
     expect(ergebnis).toMatchObject({ status: 'failed', order: null });
     expect(service.orders()).toEqual([]);
@@ -110,7 +112,7 @@ describe('StoreService – bestätigte Bestellpersistenz', () => {
   it('behandelt eine leere RPC-Rückgabe wie einen fehlgeschlagenen Parent', async () => {
     const { service, syncStatus } = erstelleService({ data: null, error: null });
 
-    const ergebnis = await service.placeOrder(kunde);
+    const ergebnis = await service.placeOrder(kunde, versuch);
 
     expect(ergebnis).toMatchObject({ status: 'failed', order: null });
     expect(syncStatus.fehler()).toHaveLength(1);

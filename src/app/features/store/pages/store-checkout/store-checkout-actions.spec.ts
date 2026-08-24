@@ -20,6 +20,12 @@ function fuellePflichtfelder(komponente: StoreCheckoutComponent): void {
   });
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolver) => (resolve = resolver));
+  return { promise, resolve };
+}
+
 describe('StoreCheckoutComponent – Bestellmeldung', () => {
   const placeOrder = vi.fn();
   const navigate = vi.fn();
@@ -130,5 +136,89 @@ describe('StoreCheckoutComponent – Bestellmeldung', () => {
     expect(placeOrder).not.toHaveBeenCalled();
     expect(toast.toasts()).toEqual([]);
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('startet bei einem Doppelclick nur einen Bestellvorgang', async () => {
+    const antwort = deferred<{
+      status: 'success';
+      order: { id: string };
+      error: null;
+      problems: [];
+    }>();
+    placeOrder.mockReturnValueOnce(antwort.promise);
+
+    const ersterAufruf = komponente.onSubmitOrder();
+    const zweiterAufruf = komponente.onSubmitOrder();
+
+    expect(placeOrder).toHaveBeenCalledTimes(1);
+    antwort.resolve({ status: 'success', order: { id: 'order-1' }, error: null, problems: [] });
+    await Promise.all([ersterAufruf, zweiterAufruf]);
+    expect(navigate).toHaveBeenCalledTimes(1);
+  });
+
+  it('verwendet bei einem fachlichen Retry dieselbe Bestell-ID', async () => {
+    placeOrder
+      .mockResolvedValueOnce({
+        status: 'failed',
+        order: null,
+        error: new Error('offline'),
+        problems: [],
+      })
+      .mockResolvedValueOnce({
+        status: 'success',
+        order: { id: 'order-1' },
+        error: null,
+        problems: [],
+      });
+
+    await komponente.onSubmitOrder();
+    await komponente.onSubmitOrder();
+
+    const ersterVersuch = placeOrder.mock.calls[0][1];
+    const zweiterVersuch = placeOrder.mock.calls[1][1];
+    expect(ersterVersuch).toMatchObject({
+      orderId: expect.any(String),
+      orderNumber: expect.any(String),
+    });
+    expect(ersterVersuch).toEqual(zweiterVersuch);
+  });
+
+  it('deutet eine abgelehnte Navigation nicht als Bestellfehler um', async () => {
+    placeOrder.mockResolvedValue({
+      status: 'success',
+      order: { id: 'order-1' },
+      error: null,
+      problems: [],
+    });
+    navigate.mockResolvedValue(false);
+
+    await komponente.onSubmitOrder();
+
+    expect(toast.toasts()).toEqual([
+      expect.objectContaining({ type: 'success', title: 'Bestellung wurde aufgegeben.' }),
+      expect.objectContaining({
+        type: 'info',
+        title: 'Bestellung gespeichert, Seite konnte nicht gewechselt werden.',
+      }),
+    ]);
+  });
+
+  it('meldet eine geworfene Navigation nur als Warnung nach bestätigter Bestellung', async () => {
+    placeOrder.mockResolvedValue({
+      status: 'success',
+      order: { id: 'order-1' },
+      error: null,
+      problems: [],
+    });
+    navigate.mockRejectedValue(new Error('Router blockiert'));
+
+    await komponente.onSubmitOrder();
+
+    expect(toast.toasts().map(({ type }) => type)).toEqual(['success', 'warning']);
+    expect(toast.toasts()[1]).toMatchObject({
+      title: 'Bestellung gespeichert, Seite konnte nicht gewechselt werden.',
+      description: 'Router blockiert',
+    });
+    expect(toast.toasts().some(({ type }) => type === 'error')).toBe(false);
   });
 });

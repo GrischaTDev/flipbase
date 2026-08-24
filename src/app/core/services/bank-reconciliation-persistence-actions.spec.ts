@@ -78,16 +78,18 @@ describe('BankReconciliationService – bestätigte Persistenz', () => {
   let orders: ReturnType<typeof signal<StoreOrder[]>>;
   let rpc: ReturnType<typeof vi.fn>;
   let syncStatus: SyncStatusService;
+  let workspace: ReturnType<typeof signal<{ id: string } | null>>;
 
   beforeEach(() => {
     orders = signal([order]);
     rpc = vi.fn(async () => ({ data: {}, error: null }));
     syncStatus = new SyncStatusService();
+    workspace = signal<{ id: string } | null>({ id: 'ws-1' });
     injector = createEnvironmentInjector(
       [
         provideZonelessChangeDetection(),
         { provide: SupabaseService, useValue: { client: { rpc } } },
-        { provide: WorkspaceService, useValue: { currentWorkspace: signal({ id: 'ws-1' }) } },
+        { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
         { provide: MockDataStoreService, useValue: { isDemoMode: () => false } },
         { provide: SyncStatusService, useValue: syncStatus },
         { provide: StoreService, useValue: { orders } },
@@ -180,5 +182,45 @@ describe('BankReconciliationService – bestätigte Persistenz', () => {
       failedCount: 1,
     });
     expect(service.transactions().map(({ status }) => status)).toEqual(['booked', 'matched']);
+  });
+
+  it('liefert mit Supabase aber ohne Workspace einen zentral gemeldeten Fehler', async () => {
+    workspace.set(null);
+    service.transactions.set([transaction('20000000-0000-4000-8000-000000000007')]);
+
+    const ergebnis = await service.ignoreTransaction(service.transactions()[0].id);
+
+    expect(ergebnis).toMatchObject({
+      status: 'failed',
+      problem: { reportedBySyncStatus: true },
+    });
+    expect(service.transactions()[0].status).toBe('matched');
+    expect(rpc).not.toHaveBeenCalled();
+    expect(syncStatus.fehler()).toHaveLength(1);
+  });
+
+  it('weist eine manuelle Zuordnung mit unbekannter ID ohne DB-Erfolg ab', async () => {
+    const ergebnis = await service.manualAssign('unbekannt', transaction('quelle').match!);
+
+    expect(ergebnis).toMatchObject({
+      status: 'failed',
+      problem: { reportedBySyncStatus: false },
+    });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('dedupliziert denselben zentralen Fehler über den gesamten Buchungs-Batch', async () => {
+    service.transactions.set([
+      transaction('20000000-0000-4000-8000-000000000008'),
+      transaction('20000000-0000-4000-8000-000000000009'),
+    ]);
+    rpc.mockResolvedValue({ data: null, error: new Error('gemeinsamer Netzwerkfehler') });
+
+    const ergebnis = await service.bookAllExactMatches();
+
+    expect(ergebnis).toMatchObject({ status: 'failed', bookedCount: 0, failedCount: 2 });
+    expect(ergebnis.problems).toHaveLength(2);
+    expect(ergebnis.problems.every(({ reportedBySyncStatus }) => reportedBySyncStatus)).toBe(true);
+    expect(syncStatus.fehler()).toHaveLength(1);
   });
 });

@@ -103,7 +103,30 @@ begin
     raise exception 'Idempotenter Checkout-Retry hat Duplikate erzeugt.';
   end if;
 
-  raise notice 'PASS checkout: Parent, Position, Sale, Inventory und Retry atomar';
+  begin
+    perform public.place_store_order(
+      'f7100000-0000-4000-8000-000000000001',
+      'f7300000-0000-4000-8000-000000000099',
+      'RF-TASK7-ANDERE-ID',
+      '{"firstName":"Grace","lastName":"Hopper","paymentMethod":"bank_transfer"}'::jsonb,
+      100, 4.99, 104.99, 'bank_transfer', 'pending', 'REF-TASK7-2', 'pending',
+      '2026-08-24', 'Task-7-Zweitversuch',
+      '[{"inventory_item_id":"f7200000-0000-4000-8000-000000000001","item_title":"Checkout Artikel","quantity":1,"price":100,"payment_fee":0}]'::jsonb
+    );
+    raise exception 'Bereits verkaufter Einzelartikel wurde mit anderer Bestell-ID erneut verkauft.';
+  exception
+    when no_data_found then null;
+  end;
+
+  if (select count(*) from public.store_orders where id in (
+      'f7300000-0000-4000-8000-000000000001',
+      'f7300000-0000-4000-8000-000000000099'
+    )) <> 1
+    or (select count(*) from public.sales where inventory_item_id = 'f7200000-0000-4000-8000-000000000001') <> 1 then
+    raise exception 'Zweiter Checkout hat trotz Sperr-/Statusvertrag Duplikate hinterlassen.';
+  end if;
+
+  raise notice 'PASS checkout: Parent, Position, Sale, Retry und zweite ID atomar geschützt';
 end;
 $$;
 

@@ -17,7 +17,11 @@ import {
   LucideZap as Zap,
 } from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
-import { CheckoutCustomerInfo } from '../../../../core/models/store.models';
+import {
+  CheckoutAttempt,
+  CheckoutCustomerInfo,
+  StoreOrderOutcome,
+} from '../../../../core/models/store.models';
 import { LoggerService } from '../../../../core/services/logger.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
@@ -52,6 +56,7 @@ export class StoreCheckoutComponent {
 
   readonly isSubmitting = signal<boolean>(false);
   readonly isIbanCopied = signal<boolean>(false);
+  private checkoutAttempt: CheckoutAttempt | null = null;
 
   readonly form = new FormGroup({
     firstName: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -104,12 +109,15 @@ export class StoreCheckoutComponent {
   }
 
   async onSubmitOrder(): Promise<void> {
+    if (this.isSubmitting()) return;
+
     if (this.form.invalid || this.storeService.cart().length === 0) {
       this.form.markAllAsTouched();
       return;
     }
 
     this.isSubmitting.set(true);
+    const attempt = (this.checkoutAttempt ??= this.createCheckoutAttempt());
     const val = this.form.getRawValue();
 
     const customerInfo: CheckoutCustomerInfo = {
@@ -135,25 +143,9 @@ export class StoreCheckoutComponent {
       notes: val.notes || undefined,
     };
 
+    let ergebnis: StoreOrderOutcome;
     try {
-      const ergebnis = await this.storeService.placeOrder(customerInfo);
-      if (ergebnis.status === 'failed') {
-        if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
-          this.toast.error('Bestellung konnte nicht aufgegeben werden.', ergebnis.error.message);
-        }
-        return;
-      }
-
-      if (ergebnis.status === 'partial') {
-        this.toast.warning(
-          'Bestellung wurde aufgegeben, aber nicht vollständig nachbearbeitet.',
-          ergebnis.problems.map((problem) => problem.message).join(' '),
-        );
-      } else {
-        this.toast.success('Bestellung wurde aufgegeben.');
-      }
-
-      await this.router.navigate(['/shop/order-success', ergebnis.order.id]);
+      ergebnis = await this.storeService.placeOrder(customerInfo, attempt);
     } catch (error: unknown) {
       this.logger.error('Order submission error:', error);
       if (!this.syncStatus.istZentralGemeldet(error)) {
@@ -166,5 +158,46 @@ export class StoreCheckoutComponent {
     } finally {
       this.isSubmitting.set(false);
     }
+
+    if (ergebnis.status === 'failed') {
+      if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
+        this.toast.error('Bestellung konnte nicht aufgegeben werden.', ergebnis.error.message);
+      }
+      return;
+    }
+
+    this.checkoutAttempt = null;
+    if (ergebnis.status === 'partial') {
+      this.toast.warning(
+        'Bestellung wurde aufgegeben, aber nicht vollständig nachbearbeitet.',
+        ergebnis.problems.map((problem) => problem.message).join(' '),
+      );
+    } else {
+      this.toast.success('Bestellung wurde aufgegeben.');
+    }
+
+    try {
+      const navigiert = await this.router.navigate(['/shop/order-success', ergebnis.order.id]);
+      if (!navigiert) {
+        this.toast.info('Bestellung gespeichert, Seite konnte nicht gewechselt werden.');
+      }
+    } catch (error: unknown) {
+      this.logger.error('Navigation after order submission failed:', error);
+      this.toast.warning(
+        'Bestellung gespeichert, Seite konnte nicht gewechselt werden.',
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+  }
+
+  private createCheckoutAttempt(): CheckoutAttempt {
+    const orderId =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
+    return {
+      orderId,
+      orderNumber: 'RF-' + orderId.replaceAll('-', '').slice(0, 10).toUpperCase(),
+    };
   }
 }

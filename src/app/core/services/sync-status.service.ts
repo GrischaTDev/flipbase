@@ -184,6 +184,7 @@ export class SyncStatusService {
       case '22P02':
         return { meldung: 'Ein Wert hat ein ungültiges Format.', code };
       case 'PGRST116':
+      case 'P0002':
         return { meldung: 'Der Datensatz wurde nicht gefunden.', code };
       case 'PGRST204':
       case 'PGRST200':

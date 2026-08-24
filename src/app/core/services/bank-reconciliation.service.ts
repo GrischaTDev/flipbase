@@ -6,7 +6,7 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { LoggerService } from './logger.service';
-import { SyncStatusService } from './sync-status.service';
+import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
 import { Json } from '../models/supabase.types';
 import {
   BankFormatType,
@@ -181,10 +181,13 @@ export class BankReconciliationService {
     vorgang: string,
   ): Promise<BankMutationResult> {
     const ws = this.workspaceService?.currentWorkspace();
-    if (!this.supabase || !ws || this.mockStore?.isDemoMode()) {
+    if (!this.supabase || this.mockStore?.isDemoMode()) {
       this.transactions.set(liste);
       this.persistLocalCache(liste);
       return { status: 'success', success: true, message: `${vorgang} erfolgreich.` };
+    }
+    if (!ws) {
+      return this.fehlgeschlageneMutation(vorgang, new Error('Kein aktiver Workspace.'));
     }
 
     try {
@@ -218,8 +221,12 @@ export class BankReconciliationService {
     }
   }
 
-  private fehlgeschlageneMutation(vorgang: string, error: unknown): BankMutationResult {
-    const gemeldeterFehler = this.syncStatus?.melde(vorgang, error) ?? error;
+  private fehlgeschlageneMutation(
+    vorgang: string,
+    error: unknown,
+    aktion?: SyncFehlerAktion,
+  ): BankMutationResult {
+    const gemeldeterFehler = this.syncStatus?.melde(vorgang, error, aktion) ?? error;
     return {
       status: 'failed',
       success: false,
@@ -738,6 +745,13 @@ export class BankReconciliationService {
    * Books a single matched transaction. Updates StoreOrder or generates invoice if applicable.
    */
   async bookTransaction(txId: string): Promise<BankMutationResult> {
+    return this.bookTransactionWithinAction(txId);
+  }
+
+  private async bookTransactionWithinAction(
+    txId: string,
+    aktion?: SyncFehlerAktion,
+  ): Promise<BankMutationResult> {
     const list = this.transactions();
     const tx = list.find((t) => t.id === txId);
     if (!tx || !tx.match) {
@@ -754,6 +768,13 @@ export class BankReconciliationService {
 
     const now = new Date().toISOString();
     const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && !this.mockStore?.isDemoMode() && !ws) {
+      return this.fehlgeschlageneMutation(
+        'Buchen der Banktransaktion',
+        new Error('Kein aktiver Workspace.'),
+        aktion,
+      );
+    }
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       try {
         const { data, error } = await this.supabase.client.rpc('book_bank_transaction', {
@@ -766,10 +787,11 @@ export class BankReconciliationService {
           return this.fehlgeschlageneMutation(
             'Buchen der Banktransaktion',
             error ?? new Error('Kein Datenbanktreffer.'),
+            aktion,
           );
         }
       } catch (error: unknown) {
-        return this.fehlgeschlageneMutation('Buchen der Banktransaktion', error);
+        return this.fehlgeschlageneMutation('Buchen der Banktransaktion', error, aktion);
       }
     }
 
@@ -820,28 +842,43 @@ export class BankReconciliationService {
       };
     }
 
-    const results = [];
-    for (const tx of toBook) results.push(await this.bookTransaction(tx.id));
-    const bookedCount = results.filter(({ status }) => status === 'success').length;
-    const failed = results.filter((result) => result.status === 'failed');
-    const failedCount = failed.length;
+    const aktion = this.syncStatus?.neueFehlerAktion();
+    try {
+      const results = [];
+      for (const tx of toBook) {
+        results.push(await this.bookTransactionWithinAction(tx.id, aktion));
+      }
+      const bookedCount = results.filter(({ status }) => status === 'success').length;
+      const failed = results.filter((result) => result.status === 'failed');
+      const failedCount = failed.length;
 
-    return {
-      status: bookedCount === 0 ? 'failed' : failedCount > 0 ? 'partial' : 'success',
-      bookedCount,
-      failedCount,
-      message:
-        failedCount > 0
-          ? `${bookedCount} Transaktionen gebucht, ${failedCount} fehlgeschlagen.`
-          : `${bookedCount} exakte Treffer erfolgreich automatisch gebucht.`,
-      problems: failed.map(({ problem }) => problem),
-    };
+      return {
+        status: bookedCount === 0 ? 'failed' : failedCount > 0 ? 'partial' : 'success',
+        bookedCount,
+        failedCount,
+        message:
+          failedCount > 0
+            ? `${bookedCount} Transaktionen gebucht, ${failedCount} fehlgeschlagen.`
+            : `${bookedCount} exakte Treffer erfolgreich automatisch gebucht.`,
+        problems: failed.map(({ problem }) => problem),
+      };
+    } finally {
+      if (aktion) this.syncStatus?.beendeFehlerAktion(aktion);
+    }
   }
 
   /**
    * Manually assigns an unmatched transaction.
    */
   async manualAssign(txId: string, match: BankReconciliationMatch): Promise<BankMutationResult> {
+    if (!this.transactions().some((tx) => tx.id === txId)) {
+      return {
+        status: 'failed',
+        success: false,
+        message: 'Transaktion nicht gefunden.',
+        problem: { error: new Error('Transaktion nicht gefunden.'), reportedBySyncStatus: false },
+      };
+    }
     const aktualisiert = this.transactions().map((t) =>
       t.id === txId
         ? {

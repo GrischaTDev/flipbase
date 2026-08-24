@@ -10,6 +10,7 @@ import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
 import {
   CartItem,
+  CheckoutAttempt,
   CheckoutCustomerInfo,
   PaymentGatewayConfig,
   StoreOrder,
@@ -345,7 +346,10 @@ export class StoreService {
     };
   }
 
-  async placeOrder(customer: CheckoutCustomerInfo): Promise<StoreOrderOutcome> {
+  async placeOrder(
+    customer: CheckoutCustomerInfo,
+    attempt: CheckoutAttempt,
+  ): Promise<StoreOrderOutcome> {
     const currentCart = this.cart();
     if (currentCart.length === 0) {
       return {
@@ -356,7 +360,6 @@ export class StoreService {
       };
     }
 
-    const orderNumber = 'RF-' + Math.floor(100000 + Math.random() * 900000);
     const subtotal = this.cartSubtotal();
     const shippingCost = customer.shippingMethod === 'pickup' ? 0 : this.cartShippingCost();
     const total = subtotal + shippingCost;
@@ -381,11 +384,8 @@ export class StoreService {
     }
 
     const newOrder: StoreOrder = {
-      id:
-        typeof crypto !== 'undefined' && crypto.randomUUID
-          ? crypto.randomUUID()
-          : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0'),
-      orderNumber,
+      id: attempt.orderId,
+      orderNumber: attempt.orderNumber,
       createdAt: new Date().toISOString(),
       customer,
       items: [...currentCart],

@@ -31,6 +31,7 @@ describe('SyncStatusService – sichtbare Meldung fehlgeschlagener Speichervorg�
       ['fehlendes Pflichtfeld', { code: '23502' }, 'Pflichtfeld'],
       ['ungültiges Format', { code: '22P02' }, 'ungültiges Format'],
       ['nicht gefunden', { code: 'PGRST116' }, 'nicht gefunden'],
+      ['SQL-Funktion ohne Treffer', { code: 'P0002' }, 'nicht gefunden'],
       ['Strukturfehler', { code: 'PGRST204' }, 'Datenbankstruktur'],
     ];
 
