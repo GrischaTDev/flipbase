@@ -8,8 +8,15 @@ import {
   input,
   output,
   signal,
+  untracked,
 } from '@angular/core';
-import { ImageCropperComponent, ImageCroppedEvent } from 'ngx-image-cropper';
+import {
+  CropperPosition,
+  Dimensions,
+  ImageCropperComponent,
+  ImageCroppedEvent,
+  LoadedImage,
+} from 'ngx-image-cropper';
 import { LucideDynamicIcon, LucideRotateCw as RotateCw } from '@lucide/angular';
 import { PlattformProfil, Rechteck } from '../../models/plattform-profile';
 import { safeArea } from '../../services/zuschnitt';
@@ -34,11 +41,28 @@ export class ZuschnittEditorComponent {
 
   readonly datenUrl = input.required<string>();
   readonly profile = input.required<PlattformProfil[]>();
+  /** Der fuer dieses Bild bereits gespeicherte Ausschnitt, in Originalpixeln. */
+  readonly gespeicherterAusschnitt = input<Rechteck | null>(null);
 
   readonly ausschnittGeaendert = output<Rechteck>();
   readonly drehen = output<void>();
 
   readonly letzterAusschnitt = signal<Rechteck | null>(null);
+
+  // Groesse des Originalbildes (aus `imageLoaded`) und der tatsaechlich
+  // angezeigten Flaeche (aus `cropperReady`) - beide werden gebraucht, um
+  // `wiederherstellenZiel` (Originalpixel) in die Anzeigepixel umzurechnen,
+  // die `[cropper]` erwartet. Beide sind erst asynchron nach dem Laden des
+  // Bildes bekannt, deshalb signal statt computed.
+  private readonly originalGroesse = signal<Dimensions | null>(null);
+  private readonly angezeigteGroesse = signal<Dimensions | null>(null);
+
+  // Schnappschuss von `gespeicherterAusschnitt()` zum Zeitpunkt eines
+  // Bildwechsels. Bewusst kein computed auf `gespeicherterAusschnitt()`
+  // direkt: Waehrend der Nutzer zieht, aktualisiert die Elternkomponente
+  // `bild.ausschnitt` bei jedem Zwischenschritt, was sonst bei jedem
+  // Mausschritt einen neuen `[cropper]`-Wert erzeugen wuerde.
+  private readonly wiederherstellenZiel = signal<Rechteck | null>(null);
 
   // Wird hochgezaehlt, wenn sich die tatsaechliche Box von `.ngx-ic-cropper`
   // aendert, damit `sichererBereichRahmen` den Zuschnittrahmen neu aus dem
@@ -56,12 +80,18 @@ export class ZuschnittEditorComponent {
     // gezogene Rahmen zurueckgesetzt werden - Angular erzeugt die Komponente
     // bei einer reinen Input-Aenderung nicht neu, sonst wuerde das neue Foto
     // den Safe-Area-Rahmen des vorherigen Bildes erben. Der Effect haengt
-    // bewusst nur an `datenUrl()`: das zurueckgesetzte Signal wird hier nur
-    // geschrieben, nie gelesen, damit ein frisches Zuschnitt-Ereignis
-    // (beiZuschnitt) diesen Effect nicht erneut auslöst.
+    // bewusst nur an `datenUrl()`: die hier geschriebenen Signale werden nie
+    // in diesem Effect gelesen, damit ein frisches Zuschnitt-Ereignis
+    // (beiZuschnitt) oder ein Zwischenstand von `gespeicherterAusschnitt()`
+    // diesen Effect nicht erneut ausloest. `gespeicherterAusschnitt()` wird
+    // deshalb bewusst mit `untracked` gelesen: Es zaehlt nur der Stand zum
+    // Zeitpunkt des Bildwechsels, nicht jede spaetere Aenderung.
     effect(() => {
       this.datenUrl();
       this.letzterAusschnitt.set(null);
+      this.originalGroesse.set(null);
+      this.angezeigteGroesse.set(null);
+      this.wiederherstellenZiel.set(untracked(this.gespeicherterAusschnitt));
     });
   }
 
@@ -151,6 +181,47 @@ export class ZuschnittEditorComponent {
       breite: rahmenRect.width,
       hoehe: rahmenRect.height,
     };
+  }
+
+  /**
+   * Der gespeicherte Ausschnitt (Originalpixel), umgerechnet in die
+   * Anzeigepixel, die der `[cropper]`-Input der Bibliothek erwartet.
+   *
+   * `undefined`, solange Original- oder Anzeigegroesse noch nicht bekannt
+   * sind, oder wenn es fuer dieses Bild gar keinen gespeicherten Ausschnitt
+   * gibt - dann bleibt es beim eingebauten Verhalten (voller Rahmen).
+   *
+   * Laut Dokumentation der Bibliothek ist genau das der vorgesehene Weg, eine
+   * fruehere Rahmenposition wiederherzustellen: ein neues Objekt auf
+   * `[cropper]` setzen und dabei auf `cropperReady` warten.
+   */
+  readonly cropperEingabe = computed<CropperPosition | undefined>(() => {
+    const ausschnitt = this.wiederherstellenZiel();
+    const original = this.originalGroesse();
+    const angezeigt = this.angezeigteGroesse();
+    if (!ausschnitt || !original || !angezeigt || original.width === 0 || original.height === 0) {
+      return undefined;
+    }
+
+    const breitenVerhaeltnis = angezeigt.width / original.width;
+    const hoehenVerhaeltnis = angezeigt.height / original.height;
+
+    return {
+      x1: ausschnitt.x * breitenVerhaeltnis,
+      y1: ausschnitt.y * hoehenVerhaeltnis,
+      x2: (ausschnitt.x + ausschnitt.breite) * breitenVerhaeltnis,
+      y2: (ausschnitt.y + ausschnitt.hoehe) * hoehenVerhaeltnis,
+    };
+  });
+
+  /** `(imageLoaded)`: liefert die Originalgroesse fuer `cropperEingabe`. */
+  beiBildGeladen(bild: LoadedImage): void {
+    this.originalGroesse.set(bild.original.size);
+  }
+
+  /** `(cropperReady)`: liefert die Anzeigegroesse fuer `cropperEingabe`. */
+  beiCropperBereit(dimensionen: Dimensions): void {
+    this.angezeigteGroesse.set(dimensionen);
   }
 
   beiZuschnitt(ereignis: ImageCroppedEvent): void {

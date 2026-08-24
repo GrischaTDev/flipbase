@@ -50,6 +50,7 @@
       <app-zuschnitt-editor
         [datenUrl]="bild.datenUrl"
         [profile]="gewaehlteProfile()"
+        [gespeicherterAusschnitt]="bild.ausschnitt"
         (ausschnittGeaendert)="merkeAusschnitt(bild.id, $event)"
         (drehen)="drehe(bild.id)"
       ></app-zuschnitt-editor>

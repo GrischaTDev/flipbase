@@ -4,7 +4,10 @@
       [imageURL]="datenUrl()"
       [maintainAspectRatio]="false"
       [format]="'jpeg'"
+      [cropper]="cropperEingabe()"
       (imageCropped)="beiZuschnitt($event)"
+      (imageLoaded)="beiBildGeladen($event)"
+      (cropperReady)="beiCropperBereit($event)"
     ></image-cropper>
 
     @if (sichererBereichRahmen(); as rahmen) {
