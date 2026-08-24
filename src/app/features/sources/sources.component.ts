@@ -20,6 +20,8 @@ import { SourcesService } from '../../core/services/sources.service';
 import { SuppliersService } from '../../core/services/suppliers.service';
 import { istArchiviert } from '../../core/services/stammdaten-filter';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
+import { ToastService } from '../../shared/components/toast/toast.service';
+import { SyncStatusService } from '../../core/services/sync-status.service';
 
 @Component({
   selector: 'app-sources',
@@ -30,6 +32,8 @@ import { ConfirmDialogService } from '../../shared/components/confirm-dialog/con
 })
 export class SourcesComponent {
   private readonly dialog = inject(ConfirmDialogService);
+  private readonly toast = inject(ToastService);
+  private readonly syncStatus = inject(SyncStatusService);
   readonly sourcesService = inject(SourcesService);
   readonly suppliersService = inject(SuppliersService);
 
@@ -94,9 +98,22 @@ export class SourcesComponent {
   async onAddSource(): Promise<void> {
     if (this.sourceForm.invalid) return;
     const name = this.sourceForm.getRawValue().name.trim();
-    await this.sourcesService.createSource(name);
+    let ergebnis: Awaited<ReturnType<SourcesService['createSource']>>;
+    try {
+      ergebnis = await this.sourcesService.createSource(name);
+    } catch (ursache: unknown) {
+      ergebnis = { data: null, error: this.alsError(ursache) };
+    }
+    const { data, error } = ergebnis;
+    if (error || !data) {
+      const ursache = error ?? new Error('Die Quelle wurde nicht zurückgegeben.');
+      this.meldung.set(ursache.message);
+      this.meldeFehlerWennNichtSynchronisiert('Quelle konnte nicht angelegt werden.', ursache);
+      return;
+    }
     this.sourceForm.reset({ name: '' });
     this.isAddingSource.set(false);
+    this.toast.success('Quelle wurde angelegt.');
   }
 
   starteQuelleBearbeiten(id: string, name: string): void {
@@ -113,15 +130,29 @@ export class SourcesComponent {
     });
     if (error) {
       this.meldung.set(error.message);
+      this.meldeFehlerWennNichtSynchronisiert('Quelle konnte nicht gespeichert werden.', error);
       return;
     }
     this.bearbeiteQuelle.set(null);
+    this.toast.success('Quelle wurde gespeichert.');
   }
 
   async archiviereQuelle(id: string, archivieren: boolean): Promise<void> {
     this.meldung.set(null);
     const { error } = await this.sourcesService.setSourceArchiviert(id, archivieren);
-    if (error) this.meldung.set(error.message);
+    if (error) {
+      this.meldung.set(error.message);
+      this.meldeFehlerWennNichtSynchronisiert(
+        archivieren
+          ? 'Quelle konnte nicht archiviert werden.'
+          : 'Quelle konnte nicht wiederhergestellt werden.',
+        error,
+      );
+      return;
+    }
+    this.toast.success(
+      archivieren ? 'Quelle wurde archiviert.' : 'Quelle wurde wiederhergestellt.',
+    );
   }
 
   async onDeleteSource(sourceId: string): Promise<void> {
@@ -136,7 +167,12 @@ export class SourcesComponent {
       return;
     }
     const { error } = await this.sourcesService.deleteSource(sourceId);
-    if (error) this.meldung.set(error.message);
+    if (error) {
+      this.meldung.set(error.message);
+      this.meldeFehlerWennNichtSynchronisiert('Quelle konnte nicht gelöscht werden.', error);
+      return;
+    }
+    this.toast.success('Quelle wurde gelöscht.');
   }
 
   async schalteArchivierteQuellen(): Promise<void> {
@@ -150,9 +186,26 @@ export class SourcesComponent {
   async onAddSupplier(): Promise<void> {
     if (this.supplierForm.invalid) return;
     const { name, contact_info, notes } = this.supplierForm.getRawValue();
-    await this.suppliersService.createSupplier(name, contact_info || undefined, notes || undefined);
+    let ergebnis: Awaited<ReturnType<SuppliersService['createSupplier']>>;
+    try {
+      ergebnis = await this.suppliersService.createSupplier(
+        name,
+        contact_info || undefined,
+        notes || undefined,
+      );
+    } catch (ursache: unknown) {
+      ergebnis = { data: null, error: this.alsError(ursache) };
+    }
+    const { data, error } = ergebnis;
+    if (error || !data) {
+      const ursache = error ?? new Error('Der Lieferant wurde nicht zurückgegeben.');
+      this.meldung.set(ursache.message);
+      this.meldeFehlerWennNichtSynchronisiert('Lieferant konnte nicht angelegt werden.', ursache);
+      return;
+    }
     this.supplierForm.reset({ name: '', contact_info: '', notes: '' });
     this.isAddingSupplier.set(false);
+    this.toast.success('Lieferant wurde angelegt.');
   }
 
   starteLieferantBearbeiten(
@@ -177,15 +230,29 @@ export class SourcesComponent {
     });
     if (error) {
       this.meldung.set(error.message);
+      this.meldeFehlerWennNichtSynchronisiert('Lieferant konnte nicht gespeichert werden.', error);
       return;
     }
     this.bearbeiteLieferant.set(null);
+    this.toast.success('Lieferant wurde gespeichert.');
   }
 
   async archiviereLieferant(id: string, archivieren: boolean): Promise<void> {
     this.meldung.set(null);
     const { error } = await this.suppliersService.setSupplierArchiviert(id, archivieren);
-    if (error) this.meldung.set(error.message);
+    if (error) {
+      this.meldung.set(error.message);
+      this.meldeFehlerWennNichtSynchronisiert(
+        archivieren
+          ? 'Lieferant konnte nicht archiviert werden.'
+          : 'Lieferant konnte nicht wiederhergestellt werden.',
+        error,
+      );
+      return;
+    }
+    this.toast.success(
+      archivieren ? 'Lieferant wurde archiviert.' : 'Lieferant wurde wiederhergestellt.',
+    );
   }
 
   async onDeleteSupplier(supplierId: string): Promise<void> {
@@ -200,7 +267,12 @@ export class SourcesComponent {
       return;
     }
     const { error } = await this.suppliersService.deleteSupplier(supplierId);
-    if (error) this.meldung.set(error.message);
+    if (error) {
+      this.meldung.set(error.message);
+      this.meldeFehlerWennNichtSynchronisiert('Lieferant konnte nicht gelöscht werden.', error);
+      return;
+    }
+    this.toast.success('Lieferant wurde gelöscht.');
   }
 
   async schalteArchivierteLieferanten(): Promise<void> {
@@ -213,5 +285,16 @@ export class SourcesComponent {
     this.bearbeiteQuelle.set(null);
     this.bearbeiteLieferant.set(null);
     this.meldung.set(null);
+  }
+
+  private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {
+    const zentralGemeldet = this.syncStatus
+      .fehler()
+      .some((eintrag) => error.message === `${eintrag.vorgang} fehlgeschlagen: ${eintrag.meldung}`);
+    if (!zentralGemeldet) this.toast.error(title, error.message);
+  }
+
+  private alsError(ursache: unknown): Error {
+    return ursache instanceof Error ? ursache : new Error('Die Aktion ist fehlgeschlagen.');
   }
 }

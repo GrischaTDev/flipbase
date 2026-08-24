@@ -16,7 +16,6 @@ import {
   LucideWallet as Wallet,
   LucideMapPin as MapPin,
   LucideSparkles as Sparkles,
-  LucideCheckCircle2 as CheckCircle2,
   LucideTrash2 as Trash2,
   LucideCamera as Camera,
   LucideRefreshCw as RefreshCw,
@@ -34,6 +33,7 @@ import { OfflineSyncService } from '../../core/services/offline-sync.service';
 import { InboundTrackingService } from '../../core/services/inbound-tracking.service';
 import { PurchaseCreateModalComponent } from './components/purchase-create-modal/purchase-create-modal.component';
 import { PurchaseType } from '../../core/models/flipbase.models';
+import { ToastService } from '../../shared/components/toast/toast.service';
 
 @Component({
   selector: 'app-purchases',
@@ -54,6 +54,7 @@ export class PurchasesComponent {
   readonly purchaseService = inject(PurchaseService);
   readonly offlineSyncService = inject(OfflineSyncService);
   readonly trackingService = inject(InboundTrackingService);
+  private readonly toast = inject(ToastService);
 
   readonly bagIcon = ShoppingBag;
   readonly plusIcon = Plus;
@@ -70,7 +71,6 @@ export class PurchasesComponent {
   readonly storeIcon = Store;
   readonly pinIcon = MapPin;
   readonly sparklesIcon = Sparkles;
-  readonly checkIcon = CheckCircle2;
   readonly trashIcon = Trash2;
   readonly cameraIcon = Camera;
   readonly refreshIcon = RefreshCw;
@@ -82,7 +82,6 @@ export class PurchasesComponent {
   readonly isCreateModalOpen = signal<boolean>(false);
   readonly isFleaMarketModalOpen = signal<boolean>(false);
   readonly activeTab = signal<'all' | PurchaseType>('all');
-  readonly rapidSuccessBanner = signal<string | null>(null);
 
   readonly rapidForm = new FormGroup({
     title: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -156,19 +155,22 @@ export class PurchasesComponent {
     if (this.rapidForm.invalid) return;
     const val = this.rapidForm.getRawValue();
 
-    const created = this.offlineSyncService.recordRapidPurchase({
-      title: val.title.trim(),
-      purchasePrice: val.purchasePrice,
-      estimatedResalePrice: val.estimatedResalePrice,
-      locationName: val.locationName.trim() || undefined,
-      condition: val.condition,
-      notes: val.notes?.trim() || undefined,
-    });
-
-    this.rapidSuccessBanner.set(
-      `"${created.title}" für ${created.purchase_price.toFixed(2)} € gespeichert!`,
-    );
-    setTimeout(() => this.rapidSuccessBanner.set(null), 4000);
+    try {
+      this.offlineSyncService.recordRapidPurchase({
+        title: val.title.trim(),
+        purchasePrice: val.purchasePrice,
+        estimatedResalePrice: val.estimatedResalePrice,
+        locationName: val.locationName.trim() || undefined,
+        condition: val.condition,
+        notes: val.notes?.trim() || undefined,
+      });
+    } catch (error: unknown) {
+      this.toast.error(
+        'Einkauf konnte nicht lokal vorgemerkt werden.',
+        this.beschreibeFehler(error),
+      );
+      return;
+    }
 
     // Reset for next rapid entry while keeping location
     this.rapidForm.patchValue({
@@ -177,19 +179,51 @@ export class PurchasesComponent {
       estimatedResalePrice: 22,
       notes: '',
     });
+    this.toast.success('Einkauf wurde lokal vorgemerkt.');
   }
 
   onSaveWalletConfig(): void {
     const val = this.walletConfigForm.getRawValue();
-    this.offlineSyncService.startCashSession(val.startCash, val.locationName);
+    try {
+      this.offlineSyncService.startCashSession(val.startCash, val.locationName);
+    } catch (error: unknown) {
+      this.toast.error(
+        'Wallet-Konfiguration konnte nicht gespeichert werden.',
+        this.beschreibeFehler(error),
+      );
+      return;
+    }
     this.isEditingWallet.set(false);
+    this.toast.success('Wallet-Konfiguration wurde gespeichert.');
   }
 
   async onSyncNow(): Promise<void> {
-    await this.offlineSyncService.syncToCloud();
+    try {
+      await this.offlineSyncService.syncToCloud();
+      this.toast.success('Offline-Daten wurden synchronisiert.');
+    } catch (error: unknown) {
+      this.toast.error(
+        'Offline-Daten konnten nicht synchronisiert werden.',
+        this.beschreibeFehler(error),
+      );
+    }
   }
 
   onDeletePending(id: string): void {
-    this.offlineSyncService.deletePendingEntry(id);
+    try {
+      this.offlineSyncService.deletePendingEntry(id);
+      this.toast.success('Vorgemerkter Einkauf wurde entfernt.');
+    } catch (error: unknown) {
+      this.toast.error(
+        'Vorgemerkter Einkauf konnte nicht entfernt werden.',
+        this.beschreibeFehler(error),
+      );
+    }
+  }
+
+  private beschreibeFehler(error: unknown): string {
+    return error instanceof Error
+      ? error.message
+      : 'Bitte versuche es erneut. Wenn der Fehler bestehen bleibt, prüfe den lokalen Speicher.';
   }
 }

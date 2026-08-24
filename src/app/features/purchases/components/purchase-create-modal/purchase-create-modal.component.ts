@@ -38,6 +38,8 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { Purchase } from '../../../../core/models/flipbase.models';
+import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { SyncStatusService } from '../../../../core/services/sync-status.service';
 
 interface ExtraCostEntry {
   type: string;
@@ -61,6 +63,8 @@ interface ExtraCostEntry {
 })
 export class PurchaseCreateModalComponent {
   private readonly purchaseService = inject(PurchaseService);
+  private readonly toast = inject(ToastService);
+  private readonly syncStatus = inject(SyncStatusService);
   readonly sourcesService = inject(SourcesService);
   readonly suppliersService = inject(SuppliersService);
   readonly trackingService = inject(InboundTrackingService);
@@ -171,34 +175,58 @@ export class PurchaseCreateModalComponent {
     this.extraCosts.update((costs) => costs.filter((_, i) => i !== index));
   }
 
-  updateCostField(index: number, field: keyof ExtraCostEntry, value: any): void {
+  updateCostField(index: number, field: keyof ExtraCostEntry, value: string | number | null): void {
     this.extraCosts.update((costs) =>
-      costs.map((c, i) =>
-        i === index ? { ...c, [field]: field === 'amount' ? Number(value) || 0 : value } : c,
-      ),
+      costs.map((cost, currentIndex) => {
+        if (currentIndex !== index) return cost;
+        if (field === 'amount') return { ...cost, amount: Number(value) || 0 };
+        return { ...cost, [field]: String(value ?? '') };
+      }),
     );
   }
 
   async saveNewSource(): Promise<void> {
     const name = this.newSourceName().trim();
     if (!name) return;
-    const { data } = await this.sourcesService.createSource(name);
-    if (data) {
-      this.form.patchValue({ source_id: data.id });
-      this.newSourceName.set('');
-      this.isAddingSource.set(false);
+    let ergebnis: Awaited<ReturnType<SourcesService['createSource']>>;
+    try {
+      ergebnis = await this.sourcesService.createSource(name);
+    } catch (ursache: unknown) {
+      ergebnis = { data: null, error: this.alsError(ursache) };
     }
+    const { data, error } = ergebnis;
+    if (error || !data) {
+      const ursache = error ?? new Error('Die Quelle wurde nicht zurückgegeben.');
+      this.errorMessage.set(ursache.message);
+      this.meldeFehlerWennNichtSynchronisiert('Quelle konnte nicht angelegt werden.', ursache);
+      return;
+    }
+    this.form.patchValue({ source_id: data.id });
+    this.newSourceName.set('');
+    this.isAddingSource.set(false);
+    this.toast.success('Quelle wurde angelegt.');
   }
 
   async saveNewSupplier(): Promise<void> {
     const name = this.newSupplierName().trim();
     if (!name) return;
-    const { data } = await this.suppliersService.createSupplier(name);
-    if (data) {
-      this.form.patchValue({ supplier_id: data.id });
-      this.newSupplierName.set('');
-      this.isAddingSupplier.set(false);
+    let ergebnis: Awaited<ReturnType<SuppliersService['createSupplier']>>;
+    try {
+      ergebnis = await this.suppliersService.createSupplier(name);
+    } catch (ursache: unknown) {
+      ergebnis = { data: null, error: this.alsError(ursache) };
     }
+    const { data, error } = ergebnis;
+    if (error || !data) {
+      const ursache = error ?? new Error('Der Lieferant wurde nicht zurückgegeben.');
+      this.errorMessage.set(ursache.message);
+      this.meldeFehlerWennNichtSynchronisiert('Lieferant konnte nicht angelegt werden.', ursache);
+      return;
+    }
+    this.form.patchValue({ supplier_id: data.id });
+    this.newSupplierName.set('');
+    this.isAddingSupplier.set(false);
+    this.toast.success('Lieferant wurde angelegt.');
   }
 
   onTrackingNumberInput(event: Event): void {
@@ -276,14 +304,34 @@ export class PurchaseCreateModalComponent {
     };
 
     const vorhandener = this.purchase();
-    const { error } = vorhandener
-      ? await this.speichereAenderung(vorhandener.id, payload)
-      : await this.purchaseService.createPurchase(payload);
+    let speicherergebnis: { error: Error | null };
+    try {
+      if (vorhandener) {
+        speicherergebnis = await this.speichereAenderung(vorhandener.id, payload);
+      } else {
+        const ergebnis = await this.purchaseService.createPurchase(payload);
+        speicherergebnis = {
+          error:
+            ergebnis.error ??
+            (ergebnis.data ? null : new Error('Der Einkauf wurde nicht zurückgegeben.')),
+        };
+      }
+    } catch (ursache: unknown) {
+      speicherergebnis = { error: this.alsError(ursache) };
+    }
     this.isSubmitting.set(false);
+    const { error } = speicherergebnis;
 
     if (error) {
       this.errorMessage.set(error.message);
+      this.meldeFehlerWennNichtSynchronisiert(
+        vorhandener
+          ? 'Einkauf konnte nicht gespeichert werden.'
+          : 'Einkauf konnte nicht angelegt werden.',
+        error,
+      );
     } else {
+      this.toast.success(vorhandener ? 'Einkauf wurde gespeichert.' : 'Einkauf wurde angelegt.');
       this.created.emit();
       this.closed.emit();
     }
@@ -315,5 +363,16 @@ export class PurchaseCreateModalComponent {
     if (error) return { error };
 
     return this.purchaseService.ersetzeZusatzkosten(id, this.extraCosts());
+  }
+
+  private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {
+    const zentralGemeldet = this.syncStatus
+      .fehler()
+      .some((eintrag) => error.message === `${eintrag.vorgang} fehlgeschlagen: ${eintrag.meldung}`);
+    if (!zentralGemeldet) this.toast.error(title, error.message);
+  }
+
+  private alsError(ursache: unknown): Error {
+    return ursache instanceof Error ? ursache : new Error('Die Aktion ist fehlgeschlagen.');
   }
 }

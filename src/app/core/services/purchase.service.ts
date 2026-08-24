@@ -704,13 +704,7 @@ export class PurchaseService {
       updated_at: new Date().toISOString(),
     };
 
-    this.mockStore.savePurchase(updated);
-    this.purchasesRaw.update((list) => list.map((p) => (p.id === purchaseId ? updated : p)));
-    if (this.selectedPurchase()?.id === purchaseId) {
-      this.selectedPurchaseRaw.set(updated);
-    }
-
-    if (!this.mockStore.isDemoMode() && !this.mockStore?.isDemoMode()) {
+    if (!this.mockStore.isDemoMode()) {
       try {
         const { error } = await this.supabase.client
           .from('purchases')
@@ -736,6 +730,12 @@ export class PurchaseService {
       }
     }
 
+    this.mockStore.savePurchase(updated);
+    this.purchasesRaw.update((list) => list.map((p) => (p.id === purchaseId ? updated : p)));
+    if (this.selectedPurchase()?.id === purchaseId) {
+      this.selectedPurchaseRaw.set(updated);
+    }
+
     return { data: updated, error: null };
   }
 
@@ -746,12 +746,13 @@ export class PurchaseService {
     if (!existing) return { updatedCount: 0, error: new Error('Einkauf nicht gefunden') };
 
     // 1. Update purchase tracking status to delivered
-    await this.updatePurchaseTracking(
+    const { error: trackingError } = await this.updatePurchaseTracking(
       purchaseId,
       existing.tracking_number || null,
       existing.tracking_carrier,
       'delivered',
     );
+    if (trackingError) return { updatedCount: 0, error: trackingError };
 
     // 2. Alle zugehoerigen Artikel auf "eingetroffen" setzen. Die Liste kommt
     // aus dem Inventardienst, der sie auch in der Datenbank nachzieht - frueher
@@ -772,15 +773,6 @@ export class PurchaseService {
   }
 
   async deletePurchase(purchaseId: string): Promise<{ error: Error | null }> {
-    this.mockStore.deletePurchase(purchaseId);
-    this.purchasesRaw.update((list) => list.filter((p) => p.id !== purchaseId));
-    // Die Datenbank raeumt die Artikel per Fremdschluessel mit ab; die Anzeige
-    // muss im selben Moment nachziehen.
-    this.inventory.entferneArtikelZuEinkauf(purchaseId);
-    if (this.selectedPurchase()?.id === purchaseId) {
-      this.selectedPurchaseRaw.set(null);
-    }
-
     if (!this.mockStore.isDemoMode()) {
       try {
         const { error } = await this.supabase.client
@@ -793,6 +785,15 @@ export class PurchaseService {
       } catch (e: unknown) {
         return { error: this.syncStatus.melde('Löschen des Einkaufs', e) };
       }
+    }
+
+    this.mockStore.deletePurchase(purchaseId);
+    this.purchasesRaw.update((list) => list.filter((p) => p.id !== purchaseId));
+    // Die Datenbank raeumt die Artikel per Fremdschluessel mit ab; die Anzeige
+    // muss nach dem bestaetigten Loeschen im selben Moment nachziehen.
+    this.inventory.entferneArtikelZuEinkauf(purchaseId);
+    if (this.selectedPurchase()?.id === purchaseId) {
+      this.selectedPurchaseRaw.set(null);
     }
 
     return { error: null };
@@ -862,6 +863,21 @@ export class PurchaseService {
     purchaseId: string,
     mode: CostAllocationMode,
   ): Promise<{ error: Error | null }> {
+    if (!this.mockStore.isDemoMode()) {
+      try {
+        const { error } = await this.supabase.client
+          .from('purchases')
+          .update({ cost_allocation_mode: mode })
+          .eq('id', purchaseId);
+
+        if (error) {
+          return { error: this.syncStatus.melde('Aktualisieren des Verteilungsmodus', error) };
+        }
+      } catch (e: unknown) {
+        return { error: this.syncStatus.melde('Aktualisieren des Verteilungsmodus', e) };
+      }
+    }
+
     const current = this.selectedPurchase();
     if (current && current.id === purchaseId) {
       const updated = { ...current, cost_allocation_mode: mode };
@@ -878,21 +894,6 @@ export class PurchaseService {
         return p;
       }),
     );
-
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client
-          .from('purchases')
-          .update({ cost_allocation_mode: mode })
-          .eq('id', purchaseId);
-
-        if (error) {
-          return { error: this.syncStatus.melde('Aktualisieren des Verteilungsmodus', error) };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Aktualisieren des Verteilungsmodus', e) };
-      }
-    }
     return { error: null };
   }
 

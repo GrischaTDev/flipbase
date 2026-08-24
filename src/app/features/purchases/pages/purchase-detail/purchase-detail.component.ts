@@ -63,6 +63,8 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
+import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { SyncStatusService } from '../../../../core/services/sync-status.service';
 
 @Component({
   selector: 'app-purchase-detail',
@@ -131,6 +133,8 @@ export class PurchaseDetailComponent {
   private readonly router = inject(Router);
   readonly trackingService = inject(InboundTrackingService);
   private readonly profitEngine = inject(ProfitEngineService);
+  private readonly toast = inject(ToastService);
+  private readonly syncStatus = inject(SyncStatusService);
 
   /** Fortschrittsstufen der Sendungsverfolgung – typisiert, damit der Zugriff auf statusConfig im Template typsicher bleibt. */
   readonly trackingSteps: readonly InboundTrackingStatus[] = [
@@ -339,15 +343,44 @@ export class PurchaseDetailComponent {
       expected_value,
     }));
 
-    await this.purchaseService.redistributeCosts(purchase.id, this.allocatorMode(), itemValues);
+    let ergebnis: { error: Error | null };
+    try {
+      ergebnis = await this.purchaseService.redistributeCosts(
+        purchase.id,
+        this.allocatorMode(),
+        itemValues,
+      );
+    } catch (ursache: unknown) {
+      ergebnis = { error: this.alsError(ursache) };
+    }
     this.isApplyingAllocation.set(false);
+    const { error } = ergebnis;
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert('Kosten konnten nicht verteilt werden.', error);
+      return;
+    }
     this.closeAllocator();
+    this.toast.success('Kosten wurden verteilt.');
   }
 
   async setAllocationMode(mode: CostAllocationMode): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
     if (!purchase) return;
-    await this.purchaseService.updateCostAllocationMode(purchase.id, mode);
+    let ergebnis: { error: Error | null };
+    try {
+      ergebnis = await this.purchaseService.updateCostAllocationMode(purchase.id, mode);
+    } catch (ursache: unknown) {
+      ergebnis = { error: this.alsError(ursache) };
+    }
+    const { error } = ergebnis;
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Verteilmethode konnte nicht geändert werden.',
+        error,
+      );
+      return;
+    }
+    this.toast.success('Verteilmethode wurde geändert.');
   }
 
   async onAddCost(): Promise<void> {
@@ -361,16 +394,28 @@ export class PurchaseDetailComponent {
       val.amount,
       val.description || undefined,
     );
-    if (error) return;
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Nebenkosten konnten nicht gespeichert werden.',
+        error,
+      );
+      return;
+    }
 
     this.costForm.reset({ type: 'shipping', amount: 0, description: '' });
     this.isAddingCost.set(false);
+    this.toast.success('Nebenkosten wurden hinzugefügt.');
   }
 
   async onDeleteCost(costId: string): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
     if (!purchase) return;
-    await this.purchaseService.deletePurchaseCost(costId, purchase.id);
+    const { error } = await this.purchaseService.deletePurchaseCost(costId, purchase.id);
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert('Nebenkosten konnten nicht gelöscht werden.', error);
+      return;
+    }
+    this.toast.success('Nebenkosten wurden gelöscht.');
   }
 
   onImageCropped(result: CroppedImageResult): void {
@@ -395,17 +440,32 @@ export class PurchaseDetailComponent {
       expected_value: val.expected_value || undefined,
     });
 
+    if (res.error) {
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Artikel konnte nicht gespeichert werden.',
+        res.error,
+      );
+      return;
+    }
+
+    let bildFehlgeschlagen = false;
     if (res.data && this.selectedImageFile()) {
       try {
         await this.mediaService.uploadItemMedia(res.data.id, this.selectedImageFile()!, true);
       } catch (err) {
         this.logger.warn('Image upload error on item create in purchase detail:', err);
+        bildFehlgeschlagen = true;
       }
     }
 
     this.removeSelectedImage();
     this.itemForm.reset({ title: '', condition: 'used', expected_value: null });
     this.isAddingItem.set(false);
+    if (bildFehlgeschlagen) {
+      this.toast.warning('Artikel wurde angelegt.', 'Das Bild konnte nicht hochgeladen werden.');
+    } else {
+      this.toast.success('Artikel wurde angelegt.');
+    }
   }
 
   async onDeletePurchase(): Promise<void> {
@@ -418,8 +478,13 @@ export class PurchaseDetailComponent {
       gefahr: true,
     });
     if (bestaetigt) {
-      await this.purchaseService.deletePurchase(purchase.id);
-      this.router.navigate(['/purchases']);
+      const { error } = await this.purchaseService.deletePurchase(purchase.id);
+      if (error) {
+        this.meldeFehlerWennNichtSynchronisiert('Einkauf konnte nicht gelöscht werden.', error);
+        return;
+      }
+      this.toast.success('Einkauf wurde gelöscht.');
+      await this.router.navigate(['/purchases']);
     }
   }
 
@@ -443,13 +508,27 @@ export class PurchaseDetailComponent {
     const p = this.purchaseService.selectedPurchase();
     if (!p) return;
     const num = this.trackingNumberDraft().trim();
-    await this.purchaseService.updatePurchaseTracking(
-      p.id,
-      num || null,
-      this.trackingCarrierDraft(),
-      num ? 'in_transit' : null,
-    );
+    let ergebnis: { error: Error | null };
+    try {
+      ergebnis = await this.purchaseService.updatePurchaseTracking(
+        p.id,
+        num || null,
+        this.trackingCarrierDraft(),
+        num ? 'in_transit' : null,
+      );
+    } catch (ursache: unknown) {
+      ergebnis = { error: this.alsError(ursache) };
+    }
+    const { error } = ergebnis;
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Sendungsverfolgung konnte nicht gespeichert werden.',
+        error,
+      );
+      return;
+    }
     this.isEditingTracking.set(false);
+    this.toast.success('Sendungsverfolgung wurde gespeichert.');
   }
 
   toggleTrackingDetails(): void {
@@ -478,7 +557,32 @@ export class PurchaseDetailComponent {
     const p = this.purchaseService.selectedPurchase();
     if (!p) return;
     this.isMarkingDelivered.set(true);
-    await this.purchaseService.markPurchaseDeliveredAndSyncItems(p.id);
+    let ergebnis: { error: Error | null };
+    try {
+      ergebnis = await this.purchaseService.markPurchaseDeliveredAndSyncItems(p.id);
+    } catch (ursache: unknown) {
+      ergebnis = { error: this.alsError(ursache) };
+    }
     this.isMarkingDelivered.set(false);
+    const { error } = ergebnis;
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Einkauf konnte nicht als zugestellt markiert werden.',
+        error,
+      );
+      return;
+    }
+    this.toast.success('Einkauf wurde als zugestellt markiert.');
+  }
+
+  private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {
+    const zentralGemeldet = this.syncStatus
+      .fehler()
+      .some((eintrag) => error.message === `${eintrag.vorgang} fehlgeschlagen: ${eintrag.meldung}`);
+    if (!zentralGemeldet) this.toast.error(title, error.message);
+  }
+
+  private alsError(ursache: unknown): Error {
+    return ursache instanceof Error ? ursache : new Error('Die Aktion ist fehlgeschlagen.');
   }
 }
