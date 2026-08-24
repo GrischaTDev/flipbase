@@ -9,11 +9,12 @@
 - Verkaufs-, Retouren- und E-Mail-Persistenz erfolgt außerhalb des Demo-Modus zuerst in der Datenbank. Nulltreffer werden als Fehler behandelt.
 - Bestätigte Teilabschlüsse übernehmen den Elternsatz sofort lokal, schließen den Create-Dialog und melden präzise per 6-Sekunden-Warnung statt als Vollerfolg. Dadurch erzeugt ein zweites Absenden keinen weiteren Verkauf oder keine weitere Gutschrift.
 - Fehlende Artikelstatus- und Retourenvermerk-Nachschritte werden als persistente, idempotente Follow-ups gespeichert und beim nächsten Laden der Verkäufe nachgeholt.
+- Die Löschung friert ihren Workspace vor dem Datenbankzugriff ein und verwendet ihn sowohl für die Löschabfrage als auch für den Nachholauftrag. Beschädigte Follow-up-Speicherstände werden zur Laufzeit validiert, zentral sichtbar gemeldet und bereinigt; valide Einträge bleiben erhalten.
 
 ## Tests und Prüfungen
 
-- Gezielte Specs: 22 Tests grün (fünf Task-5-Specs).
-- Vollsuite: 75 Dateien, 532 Tests grün.
+- Gezielte Specs: 25 Tests grün (fünf Task-5-Specs).
+- Vollsuite: 75 Dateien, 535 Tests grün.
 - Typecheck: grün.
 - Prettier: grün.
 - ESLint: keine Fehler; 48 bestehende `any`-Warnungen außerhalb dieses Task-Scope.

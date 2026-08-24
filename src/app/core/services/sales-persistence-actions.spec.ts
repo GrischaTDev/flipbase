@@ -285,6 +285,13 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
       .fn<(_id: string, _status: string, _notes: string) => Promise<{ error: Error | null }>>()
       .mockResolvedValueOnce({ error: new Error('Status nicht gespeichert') })
       .mockResolvedValueOnce({ error: null });
+    const loeschabfrage = {
+      eq: vi.fn(),
+      select: () => ({
+        maybeSingle: async () => ({ data: { id: verkauf.id }, error: null }),
+      }),
+    };
+    loeschabfrage.eq.mockReturnValue(loeschabfrage);
     const dienst = Object.create(SalesService.prototype) as SalesService;
     Object.assign(dienst, {
       workspaceService: { currentWorkspace: () => workspace },
@@ -296,13 +303,7 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
       supabase: {
         client: {
           from: () => ({
-            delete: () => ({
-              eq: () => ({
-                select: () => ({
-                  maybeSingle: async () => ({ data: { id: verkauf.id }, error: null }),
-                }),
-              }),
-            }),
+            delete: () => loeschabfrage,
           }),
         },
       },
@@ -318,5 +319,106 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
     expect(dienst.sales()).toEqual([]);
     expect(updateItemStatus).toHaveBeenCalledTimes(2);
     expect(speicher.get('flipbase_pending_sale_follow_ups')).toBe('[]');
+  });
+
+  it('ordnet einen Nachschritt nach einem Workspace-Wechsel weiterhin dem Workspace der Löschung zu', async () => {
+    const speicher = installiereArbeitsspeicher();
+    const syncStatus = new SyncStatusService();
+    const aktiverWorkspace = signal(workspace);
+    const updateItemStatus = vi
+      .fn<(_id: string, _status: string, _notes: string) => Promise<{ error: Error | null }>>()
+      .mockResolvedValueOnce({ error: new Error('Status nicht gespeichert') })
+      .mockResolvedValueOnce({ error: null });
+    const loeschabfrage = {
+      eq: vi.fn(),
+      select: () => ({
+        maybeSingle: async () => {
+          aktiverWorkspace.set({ id: 'workspace-2', name: 'Anderer Workspace' });
+          return { data: { id: verkauf.id }, error: null };
+        },
+      }),
+    };
+    loeschabfrage.eq.mockReturnValue(loeschabfrage);
+    const dienst = Object.create(SalesService.prototype) as SalesService;
+    Object.assign(dienst, {
+      workspaceService: { currentWorkspace: aktiverWorkspace },
+      inventoryService: { updateItemStatus },
+      mockStore: { isDemoMode: () => false, deleteSale: vi.fn() },
+      syncStatus,
+      sales: signal<Sale[]>([verkauf]),
+      pendingFollowUps: signal([]),
+      supabase: {
+        client: {
+          from: () => ({
+            delete: () => loeschabfrage,
+          }),
+        },
+      },
+    });
+
+    await dienst.deleteSale(verkauf.id, artikel.id);
+    const gespeicherterNachschritt = JSON.parse(
+      speicher.get('flipbase_pending_sale_follow_ups') ?? '[]',
+    ) as { workspaceId: string }[];
+
+    await (
+      dienst as unknown as { retryPendingFollowUps: (workspaceId: string) => Promise<void> }
+    ).retryPendingFollowUps('workspace-2');
+    expect(updateItemStatus).toHaveBeenCalledOnce();
+
+    await (
+      dienst as unknown as { retryPendingFollowUps: (workspaceId: string) => Promise<void> }
+    ).retryPendingFollowUps(workspace.id);
+
+    expect(gespeicherterNachschritt).toEqual([
+      expect.objectContaining({ workspaceId: workspace.id }),
+    ]);
+    expect(loeschabfrage.eq).toHaveBeenNthCalledWith(2, 'workspace_id', workspace.id);
+    expect(updateItemStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it('verwirft beschädigtes Follow-up-JSON und meldet den Speicherfehler zentral', () => {
+    const speicher = installiereArbeitsspeicher();
+    speicher.set('flipbase_pending_sale_follow_ups', '{kein json');
+    const syncStatus = new SyncStatusService();
+    const dienst = Object.create(SalesService.prototype) as SalesService;
+    Object.assign(dienst, { syncStatus });
+
+    const nachschritte = (
+      dienst as unknown as { loadPendingFollowUps: () => unknown[] }
+    ).loadPendingFollowUps();
+
+    expect(nachschritte).toEqual([]);
+    expect(speicher.get('flipbase_pending_sale_follow_ups')).toBe('[]');
+    expect(syncStatus.fehler()).toHaveLength(1);
+  });
+
+  it('verwirft strukturell ungültige Follow-ups und behält valide Einträge im Store', () => {
+    const speicher = installiereArbeitsspeicher();
+    const validerNachschritt = {
+      key: 'inventory_status:item-1',
+      workspaceId: workspace.id,
+      kind: 'inventory_status',
+      inventoryItemId: artikel.id,
+      targetStatus: 'ready',
+      notes: 'Nachholen',
+    };
+    speicher.set(
+      'flipbase_pending_sale_follow_ups',
+      JSON.stringify([validerNachschritt, { key: 'defekt', workspaceId: workspace.id }]),
+    );
+    const syncStatus = new SyncStatusService();
+    const dienst = Object.create(SalesService.prototype) as SalesService;
+    Object.assign(dienst, { syncStatus });
+
+    const nachschritte = (
+      dienst as unknown as { loadPendingFollowUps: () => unknown[] }
+    ).loadPendingFollowUps();
+
+    expect(nachschritte).toEqual([validerNachschritt]);
+    expect(JSON.parse(speicher.get('flipbase_pending_sale_follow_ups') ?? '[]')).toEqual([
+      validerNachschritt,
+    ]);
+    expect(syncStatus.fehler()).toHaveLength(1);
   });
 });

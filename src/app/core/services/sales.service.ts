@@ -9,6 +9,18 @@ import { SyncStatusService } from './sync-status.service';
 import { Sale, InventoryItem, ItemStatus } from '../models/flipbase.models';
 
 const STORAGE_KEY_PENDING_FOLLOW_UPS = 'flipbase_pending_sale_follow_ups';
+const ITEM_STATUSES = new Set<string>([
+  'received',
+  'needs_review',
+  'researched',
+  'ready',
+  'listed',
+  'reserved',
+  'sold',
+  'returned',
+  'archived',
+  'defective',
+]);
 
 export interface CreateSalePayload {
   inventory_item_id: string;
@@ -410,12 +422,14 @@ export class SalesService {
   }
 
   async deleteSale(saleId: string, inventoryItemId: string): Promise<SaleMutationResult> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id ?? '';
     if (!this.mockStore.isDemoMode()) {
       try {
         const { data, error } = await this.supabase.client
           .from('sales')
           .delete()
           .eq('id', saleId)
+          .eq('workspace_id', workspaceId)
           .select('id')
           .maybeSingle();
         if (error || !data) {
@@ -449,7 +463,7 @@ export class SalesService {
         const problem = this.erstelleProblem('inventory_status', error);
         this.uebernehmeLoeschungLokal(saleId);
         this.planeArtikelstatusNachholung(
-          this.workspaceService.currentWorkspace()?.id ?? '',
+          workspaceId,
           inventoryItemId,
           'ready',
           'Verkauf storniert/gelöscht',
@@ -461,7 +475,7 @@ export class SalesService {
       const problem = this.erstelleProblem('inventory_status', error);
       this.uebernehmeLoeschungLokal(saleId);
       this.planeArtikelstatusNachholung(
-        this.workspaceService.currentWorkspace()?.id ?? '',
+        workspaceId,
         inventoryItemId,
         'ready',
         'Verkauf storniert/gelöscht',
@@ -575,9 +589,74 @@ export class SalesService {
   private loadPendingFollowUps(): PendingFollowUp[] {
     try {
       const stored = localStorage.getItem(STORAGE_KEY_PENDING_FOLLOW_UPS);
-      if (stored) return JSON.parse(stored) as PendingFollowUp[];
+      if (!stored) return [];
+
+      const parsed: unknown = JSON.parse(stored);
+      if (!Array.isArray(parsed)) {
+        return this.verwerfeBeschaedigteNachschritte(
+          [],
+          new Error('Gespeicherte Nachschritte haben kein gültiges Listenformat.'),
+        );
+      }
+
+      const valide = parsed.filter((eintrag): eintrag is PendingFollowUp =>
+        this.istGueltigerNachschritt(eintrag),
+      );
+      if (valide.length !== parsed.length) {
+        return this.verwerfeBeschaedigteNachschritte(
+          valide,
+          new Error('Mindestens ein gespeicherter Nachschritt ist unvollständig.'),
+        );
+      }
+      return valide;
+    } catch (error: unknown) {
+      return this.verwerfeBeschaedigteNachschritte(
+        [],
+        error instanceof Error ? error : new Error('Gespeicherte Nachschritte sind beschädigt.'),
+      );
+    }
+  }
+
+  private verwerfeBeschaedigteNachschritte(
+    valide: PendingFollowUp[],
+    error: Error,
+  ): PendingFollowUp[] {
+    this.syncStatus.melde('Laden ausstehender Nachschritte', error);
+    try {
+      localStorage.setItem(STORAGE_KEY_PENDING_FOLLOW_UPS, JSON.stringify(valide));
     } catch {}
-    return [];
+    return valide;
+  }
+
+  private istGueltigerNachschritt(value: unknown): value is PendingFollowUp {
+    if (
+      !this.istObjekt(value) ||
+      typeof value['key'] !== 'string' ||
+      typeof value['workspaceId'] !== 'string'
+    ) {
+      return false;
+    }
+    if (value['kind'] === 'inventory_status') {
+      return (
+        typeof value['inventoryItemId'] === 'string' &&
+        this.istArtikelstatus(value['targetStatus']) &&
+        typeof value['notes'] === 'string'
+      );
+    }
+    return (
+      value['kind'] === 'sale_return_status' &&
+      typeof value['saleId'] === 'string' &&
+      typeof value['refundAmount'] === 'number' &&
+      Number.isFinite(value['refundAmount'])
+    );
+  }
+
+  private istObjekt(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+  }
+
+  private istArtikelstatus(value: unknown): value is ItemStatus {
+    return typeof value === 'string' && ITEM_STATUSES.has(value);
   }
 
   private persistPendingFollowUps(): void {
