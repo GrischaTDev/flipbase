@@ -9,7 +9,7 @@ Stattdessen wurden alle erreichbaren Nutzeraktionen aus den Templates, alle muta
 ## Reproduzierbare Auditbefehle
 
 ```powershell
-# 257 Ereignisbindungen als Einstieg in alle erreichbaren Nutzeraktionen
+# 390 Ereignisbindungen als Einstieg in alle erreichbaren Nutzeraktionen
 rg -n --glob '*.html' '\((click|ngSubmit|submit|change|checkedChange|valueChange)\)=' src/app
 
 # Mutationsbegriffe in Komponenten, Templates und Services
@@ -66,6 +66,7 @@ Jeder Eintrag mit `status: "included"` besitzt einen echten Komponenten-/Service
     ],
     "evidence": [
       "src/app/features/settings/settings-toast-actions.spec.ts",
+      "src/app/core/services/settings-persistence-actions.spec.ts",
       "src/app/shared/components/workspace-modal/workspace-modal-actions.spec.ts"
     ]
   },
@@ -140,15 +141,34 @@ Jeder Eintrag mit `status: "included"` besitzt einen echten Komponenten-/Service
     "status": "included",
     "actions": [
       "SaleCreateModal.onSubmit",
+      "Sales.openInvoiceForSale",
       "Sales.onSubmitReturn",
       "Sales.onDeleteSale",
-      "InvoiceModal.sendEmail"
+      "StoreOrderSuccess.openInvoice",
+      "InvoiceModal.sendEmail/InvoiceService.prepareConfirmationEmail"
     ],
-    "variants": ["create", "update", "partial"],
+    "variants": ["create", "view-existing", "update", "partial", "prepared-not-sent"],
     "evidence": [
       "src/app/features/sales/components/sale-create-modal/sale-create-modal-actions.spec.ts",
       "src/app/features/sales/sales-toast-actions.spec.ts",
-      "src/app/shared/components/invoice-modal/invoice-modal-actions.spec.ts"
+      "src/app/features/store/pages/store-order-success/store-order-success-actions.spec.ts",
+      "src/app/core/services/invoice-persistence-actions.spec.ts",
+      "src/app/shared/components/invoice-modal/invoice-modal-actions.spec.ts",
+      ".superpowers/sdd/2026-08-24-systemweite-aktionsmeldungen/task-8-db-verification.sql"
+    ]
+  },
+  {
+    "feature": "notification-inbox",
+    "status": "included",
+    "actions": [
+      "Header.oeffneBenachrichtigung/markAsRead",
+      "Header.onMarkAllNotificationsRead",
+      "Header.onClearNotifications"
+    ],
+    "variants": ["automatic-no-success-toast", "explicit-success", "failed"],
+    "evidence": [
+      "src/app/layout/header/header-notification-actions.spec.ts",
+      "src/app/core/services/webhook-persistence-actions.spec.ts"
     ]
   },
   {
@@ -249,11 +269,6 @@ Jeder Eintrag mit `status: "included"` besitzt einen echten Komponenten-/Service
     "reason": "Kopieren ist ausdrücklich ausgeschlossen; Drucken öffnet den nativen Dialog und ist in der Anwendung noch nicht abgeschlossen."
   },
   {
-    "category": "notification-inbox-housekeeping",
-    "actions": ["markAsRead", "markAllAsRead", "clearNotifications"],
-    "reason": "Die sichtbare Inbox ist selbst die detaillierte Ergebnisansicht; einzelne Meldungen werden beim Öffnen gelesen. Diese Bedienaktionen gehören nicht zur fachlichen Aktionsmatrix der Tasks 2–7."
-  },
-  {
     "category": "unreachable-or-unavailable",
     "actions": ["Research.onToggleTrackItem", "Fulfillment.purchaseShippingLabel"],
     "reason": "Für onToggleTrackItem existiert keine Templatebindung. Der Versandmarkenkauf ist mangels Zusteller-Schnittstelle deaktiviert und führt keine Mutation aus."
@@ -275,9 +290,9 @@ Das Newsletter-Formular im Demo-Shop besitzt keine Versand- oder Persistenzanbin
 
 ## Gefundene und behobene Lücken
 
-### 1. Doppelte Erfolgsmeldung beim Rechnungsversand
+### 1. Doppelte und sachlich falsche Erfolgsmeldung beim Rechnungsversand
 
-`InvoiceModal.sendEmail` erzeugte nach bestätigtem Versand sowohl den globalen Toast als auch ein lokales grünes Banner mit eigenem Vier-Sekunden-Timer. Ein echter DOM-Verhaltenstest belegte den doppelten sichtbaren Text. Banner, Signal, Icon und Timer wurden entfernt; Ladezustand, Fehlerbehandlung und Toast bleiben erhalten.
+`InvoiceModal.sendEmail` erzeugte sowohl einen globalen Toast als auch ein lokales grünes Banner mit eigenem Vier-Sekunden-Timer. Der Dienst wartete jedoch nur 300 ms und legte einen Datensatz in `email_confirmations` an; ein realer E-Mail-Provider war und ist nicht angebunden. Banner, Signal und Timer wurden entfernt. Zusätzlich wurde die Simulation entfernt und der Dienstpfad wahrheitsgemäß in `prepareConfirmationEmail` umbenannt: Der Datensatz wird DB-first mit Status `draft` gespeichert, Nulltreffer und Fehler verhindern jede lokale Übernahme, und die Oberfläche meldet nun per Info-Toast ausschließlich „für den E-Mail-Versand vorbereitet“. Es gibt keinen Versand-Claim mehr.
 
 ### 2. Zustellstatus ohne Rückmeldung und vorgezogene lokale Mutation
 
@@ -294,6 +309,24 @@ Die Anlage liefert nun ein typisiertes Ergebnis, wartet auf den Insert, fordert 
 ### 4. Radar-Löschung ohne Rückmeldung und lokal vor der Datenbank
 
 `onDeleteTrackItem` entfernte den Eintrag sofort lokal und startete die Datenbanklöschung im Hintergrund. Die Löschung ist nun workspace-gebunden, DB-first, Nulltreffer-sicher und liefert typisierte Sync-Provenienz. Der lokale Eintrag bleibt bei Fehlern erhalten; Erfolg und lokale Fehler werden eindeutig gemeldet. Der Komponenten-Lifecycle endet per `finally`.
+
+### 5. Rechnungserstellung als versteckte, nicht idempotente Mutation
+
+`Sales.openInvoiceForSale` und `StoreOrderSuccess.openInvoice` erzeugten bei jedem Öffnen eine neue lokale Rechnung und starteten getrennte Hintergrund-Inserts für Rechnung und Positionen. Wiederholtes Öffnen konnte dadurch Doppelrechnungen erzeugen; ein Positionsfehler ließ außerdem einen unvollständigen Beleg zurück.
+
+Beide Komponenten warten nun auf ein typisiertes Ergebnis. Der persistente Pfad läuft über `public.create_or_get_invoice`: `security invoker`, leerer `search_path`, RLS-/Workspace-Prüfung, Rechnung und Positionen in einer Transaktion sowie partielle Unique-Indizes auf `(workspace_id, sale_id)` und `(workspace_id, store_order_id)`. Die Antwort unterscheidet `created` von reiner Ansicht. Nur bestätigte Belege mit Positionen werden lokal übernommen und geöffnet; ein Retry liefert denselben Beleg ohne zweiten Erfolgstoast. Die reale Task-8-Fixture bestätigt Idempotenz, RLS, Rechte, Validierung und Rollback.
+
+### 6. Payment-, Carrier- und Webhook-Einstellungen lokal vor der Datenbank
+
+Die drei Einstellungsaktionen meldeten synchron Erfolg, während ihre Upserts nur im Hintergrund liefen. Die Dienste liefern jetzt asynchrone, typisierte Ergebnisse mit `reportedBySyncStatus`, warten auf `upsert(...).select(...).single()`, behandeln Fehler, Nullantwort und fehlenden Workspace und übernehmen lokalen Zustand erst nach bestätigter Rückgabe. Die Komponenten sperren den jeweiligen Speichern-Knopf, warten im `try` und räumen im `finally` auf. Lokale Fehler sind persistent, zentral gemeldete Fehler werden nicht dupliziert. Ein Webhook-Test wird erst nach erfolgreich gespeicherter Konfiguration gesendet.
+
+### 7. Inbox-Aktionen fälschlich ausgeschlossen
+
+`markAsRead`, `markAllAsRead` und `clearNotifications` waren erreichbare Nutzeraktionen und liefen local-first im Hintergrund. Sie sind nun Bestandteil der Matrix. Der `WebhookService` prüft Workspace, Datenbankfehler und `count === 0`, mutiert danach lokal und liefert Sync-Provenienz. Reines Öffnen erzeugt keinen Erfolgstoast; ein Fehler beim automatischen Gelesen-Markieren bleibt sichtbar. Die expliziten Aktionen „alle gelesen“ und „Verlauf löschen“ melden bestätigten Erfolg und persistente lokale Fehler. Header-Ladezustände enden auch bei Exceptions im `finally`.
+
+### 8. Fehlende Komponentenverträge zur zentralen Fehler-Deduplizierung
+
+Fulfillment und Radar besitzen jetzt je einen Komponenten-Regressionsfall mit `reportedBySyncStatus: true`. Beide belegen, dass der Featurepfad keinen zweiten Toast erzeugt; die zentrale Darstellung bleibt allein beim Sync-Toast-Bridge-Pfad.
 
 ## TDD-Nachweis
 
@@ -320,6 +353,38 @@ npm test -- src/app/features/fulfillment/fulfillment-toast-actions.spec.ts src/a
 → 5 Dateien, 36/36 Tests
 ```
 
+### Review-Runde 1 – RED
+
+```text
+npx vitest run src/app/core/services/invoice.service.spec.ts src/app/core/services/invoice-persistence-actions.spec.ts src/app/shared/components/invoice-modal/invoice-modal-actions.spec.ts
+→ 3 Dateien rot, 8 erwartete Fehlschläge: fehlende typed Outcomes/Idempotenz, lokale Vorabmutation und falscher Versand-Toast
+
+npx vitest run src/app/core/services/settings-persistence-actions.spec.ts
+→ 3 erwartete Fehlschläge: fire-and-forget-Upserts, lokale Vorabmutation, kein Workspace-Ergebnis
+
+npx vitest run src/app/core/services/webhook-persistence-actions.spec.ts src/app/layout/header/header-notification-actions.spec.ts
+→ Header rot mit 2 erwarteten Fehlschlägen: kein sichtbarer Markierungsfehler, keine expliziten Aktionshandler
+
+npx vitest run src/app/features/settings/settings-toast-actions.spec.ts
+→ 1 erwarteter Fehlschlag: geworfener Speichervorgang verließ die Komponente ohne Fehler-Toast
+
+npx vitest run src/app/core/services/invoice-persistence-actions.spec.ts
+→ 1 zusätzlicher erwarteter Fehlschlag: persistenter Modus vertraute einem nur lokalen Rechnungs-Cache statt der Datenbank
+```
+
+### Review-Runde 1 – GREEN
+
+```text
+npx vitest run <12 gezielte Review-Testdateien>
+→ 12 Dateien, 75/75 Tests
+
+npm test -- --run
+→ 89 Dateien, 624/624 Tests
+
+task-8-db-verification.sql
+→ PASS: security, anon execute denial, idempotente Rechnung+Position, Validierung/RLS und finaler Rollback
+```
+
 ## Doppelmeldungs- und Legacy-Scan
 
 - Produktionscode enthält kein `saveSuccess`, `publishSuccessMsg`, `bookingFeedback` oder `emailSentMessage` mehr.
@@ -333,16 +398,18 @@ npm test -- src/app/features/fulfillment/fulfillment-toast-actions.spec.ts src/a
 
 | Prüfung | Ergebnis |
 | --- | --- |
-| `npm run format:check` | Grün. Der erste Lauf nannte ausschließlich die zwei geänderten Service-Dateien; nach gezielter Prettier-Formatierung war der vollständige Check grün. |
-| `npm test` | Grün: 84/84 Testdateien, 604/604 Tests. Node meldet die bereits bekannte experimentelle Warnung zur nicht konfigurierten Test-`localStorage`-Datei. |
+| `npm run format:check` | Grün. Der Review-Erstlauf nannte 12 neu geänderte Dateien; nach gezielter Prettier-Formatierung war der vollständige Check grün. |
+| `npm test -- --run` | Grün: 89/89 Testdateien, 624/624 Tests. Node meldet die bereits bekannte experimentelle Warnung zur nicht konfigurierten Test-`localStorage`-Datei. |
 | `npm run typecheck` | Grün: App- und Spec-TypeScript-Prüfung ohne Fehler. |
 | `npm run lint` | Exitcode 0, 0 Fehler. 47 vorbestehende `no-explicit-any`-Warnungen; keine Warnung in einer neu geänderten Zeile. |
 | `npm run build` | Grün. Ausschließlich die akzeptierten vorbestehenden CommonJS-Hinweise für `jszip` und `jsbarcode`. |
 | `task-6-db-verification.sql` | Grün: Rechte/RLS, P0002, UUID-/`sale_id`-Varianten, Rollbacks und Snapshot-Schutz; abschließender Rollback ohne Fixture-Reste. |
 | `task-7-db-verification.sql` | Grün: RPC-Rechte, atomarer/idempotenter Checkout, Rollback und Bankbuchungen. |
 | `task-7-db-concurrency-verification.ps1` | Grün: zwei konkurrierende IDs ergeben exakt eine Bestellung, einen Verkauf und Artikelstatus `sold`. |
+| `task-8-db-verification.sql` | Grün: RPC-Rechte, RLS, atomare Rechnung+Position, idempotenter Retry, Validierung und abschließender Rollback. |
+| `npx supabase db reset` | Grün: alle Migrationen inklusive `20260824215945_idempotent_invoice_generation.sql` und Seed vollständig angewandt. |
 | `npx supabase db lint --local` | Grün: `No schema errors found`. |
 | `npx supabase db advisors --local` | Grün: `No issues found`. |
-| `npx supabase migration list --local` | Grün: alle 17 Migrationen von `20260816000001` bis `20260824205355` lokal angewandt. |
+| `npx supabase migration list --local` | Grün: alle 18 Migrationen von `20260816000001` bis `20260824215945` lokal angewandt. |
 
 `npx supabase status` bestätigte erreichbare lokale DB/API-Dienste. Nur die für diese Prüfungen nicht benötigten optionalen Dienste Image Proxy und Pooler waren gestoppt.

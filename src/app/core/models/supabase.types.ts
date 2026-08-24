@@ -461,8 +461,10 @@ export type Database = {
           payment_due_date: string | null
           payment_method: string | null
           payment_status: string
+          sale_id: string | null
           seller: Json
           shipping_cost: number
+          store_order_id: string | null
           subtotal: number
           tax_clause: string | null
           tax_mode: string
@@ -481,8 +483,10 @@ export type Database = {
           payment_due_date?: string | null
           payment_method?: string | null
           payment_status?: string
+          sale_id?: string | null
           seller?: Json
           shipping_cost?: number
+          store_order_id?: string | null
           subtotal?: number
           tax_clause?: string | null
           tax_mode?: string
@@ -501,8 +505,10 @@ export type Database = {
           payment_due_date?: string | null
           payment_method?: string | null
           payment_status?: string
+          sale_id?: string | null
           seller?: Json
           shipping_cost?: number
+          store_order_id?: string | null
           subtotal?: number
           tax_clause?: string | null
           tax_mode?: string
@@ -510,6 +516,20 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "invoices_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_store_order_id_fkey"
+            columns: ["store_order_id"]
+            isOneToOne: false
+            referencedRelation: "store_orders"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "invoices_workspace_id_fkey"
             columns: ["workspace_id"]
@@ -1827,6 +1847,16 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      create_or_get_invoice: {
+        Args: {
+          p_invoice: Json
+          p_items: Json
+          p_sale_id: string
+          p_store_order_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       create_workspace: { Args: { p_name: string }; Returns: string }
       is_workspace_admin: { Args: { ws_id: string }; Returns: boolean }

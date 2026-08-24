@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { WorkspaceRole } from '../../core/models/flipbase.models';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { SettingsComponent } from './settings.component';
+import { SyncStatusService } from '../../core/services/sync-status.service';
 
 interface SettingsErgebnisse {
   readonly profilError?: Error | null;
@@ -20,6 +21,10 @@ interface SettingsErgebnisse {
   readonly pushPermission?: boolean;
   readonly pushTest?: boolean;
   readonly webhookTest?: { success: boolean; message: string };
+  readonly paymentError?: Error | null;
+  readonly carrierError?: Error | null;
+  readonly webhookConfigError?: Error | null;
+  readonly configReportedBySyncStatus?: boolean;
 }
 
 function erstelleKomponente(ergebnisse: SettingsErgebnisse = {}) {
@@ -68,7 +73,11 @@ function erstelleKomponente(ergebnisse: SettingsErgebnisse = {}) {
     updateSettings: vi.fn(),
   };
   const webhookService = {
-    updateConfig: vi.fn(),
+    updateConfig: vi.fn(async () => ({
+      data: ergebnisse.webhookConfigError ? null : {},
+      error: ergebnisse.webhookConfigError ?? null,
+      reportedBySyncStatus: ergebnisse.configReportedBySyncStatus ?? false,
+    })),
     sendTestNotification: vi.fn(
       async () =>
         ergebnisse.webhookTest ?? {
@@ -88,6 +97,7 @@ function erstelleKomponente(ergebnisse: SettingsErgebnisse = {}) {
   Object.assign(komponente, {
     dialog: { frage: vi.fn(async () => true) },
     toast,
+    syncStatus: new SyncStatusService(),
     workspaceService,
     auth,
     memberService,
@@ -97,14 +107,29 @@ function erstelleKomponente(ergebnisse: SettingsErgebnisse = {}) {
     purchaseService: { purchases: signal([]) },
     inventoryService: { items: signal([]) },
     salesService: { sales: signal([]) },
-    storeService: { updatePaymentsConfig: vi.fn() },
-    fulfillmentService: { updateCarrierConfig: vi.fn() },
+    storeService: {
+      updatePaymentsConfig: vi.fn(async () => ({
+        data: ergebnisse.paymentError ? null : {},
+        error: ergebnisse.paymentError ?? null,
+        reportedBySyncStatus: ergebnisse.configReportedBySyncStatus ?? false,
+      })),
+    },
+    fulfillmentService: {
+      updateCarrierConfig: vi.fn(async () => ({
+        data: ergebnisse.carrierError ? null : {},
+        error: ergebnisse.carrierError ?? null,
+        reportedBySyncStatus: ergebnisse.configReportedBySyncStatus ?? false,
+      })),
+    },
     ebayApiService: { saveConfig: vi.fn() },
     isSaving: signal(false),
     istProfilSpeichern: signal(false),
     isCreatingWs: signal(false),
     isTestingPush: signal(false),
     isTestingWebhook: signal(false),
+    isSavingPaymentConfig: signal(false),
+    isSavingCarrierConfig: signal(false),
+    isSavingWebhookConfig: signal(false),
     isSendingInvite: signal(false),
     isInviteModalOpen: signal(true),
     inviteError: signal<string | null>(null),
@@ -273,10 +298,7 @@ describe('SettingsComponent – zentrale Aktionsmeldungen', () => {
   });
 
   it.each([
-    ['Zahlungsmethoden wurden gespeichert.', (c: SettingsComponent) => c.onSavePaymentConfig()],
-    ['Versanddienstleister wurden gespeichert.', (c: SettingsComponent) => c.onSaveCarrierConfig()],
     ['eBay-Verbindung wurde gespeichert.', (c: SettingsComponent) => c.onSaveEbayConfig()],
-    ['Webhook-Konfiguration wurde gespeichert.', (c: SettingsComponent) => c.onSaveWebhookConfig()],
     [
       'Benachrichtigungseinstellung wurde gespeichert.',
       (c: SettingsComponent) => c.onTogglePushSetting('enabled', true),
@@ -290,6 +312,47 @@ describe('SettingsComponent – zentrale Aktionsmeldungen', () => {
     aktion(komponente);
 
     erwarteEinzelnenToast(toast, 'success', title);
+  });
+
+  it.each([
+    ['Zahlungsmethoden wurden gespeichert.', (c: SettingsComponent) => c.onSavePaymentConfig()],
+    ['Versanddienstleister wurden gespeichert.', (c: SettingsComponent) => c.onSaveCarrierConfig()],
+    ['Webhook-Konfiguration wurde gespeichert.', (c: SettingsComponent) => c.onSaveWebhookConfig()],
+  ])(
+    'bestätigt die persistente Konfiguration erst nach Service-Erfolg mit „%s“',
+    async (title, aktion) => {
+      const { komponente, toast } = erstelleKomponente();
+      await aktion(komponente);
+      erwarteEinzelnenToast(toast, 'success', title);
+    },
+  );
+
+  it('meldet lokale Konfigurationsfehler persistent und zentral gemeldete nicht doppelt', async () => {
+    const lokal = erstelleKomponente({ paymentError: new Error('offline') });
+    await lokal.komponente.onSavePaymentConfig();
+    erwarteEinzelnenToast(
+      lokal.toast,
+      'error',
+      'Zahlungsmethoden konnten nicht gespeichert werden.',
+    );
+    expect(lokal.toast.toasts()[0].persistent).toBe(true);
+
+    const zentral = erstelleKomponente({
+      carrierError: new Error('offline'),
+      configReportedBySyncStatus: true,
+    });
+    await zentral.komponente.onSaveCarrierConfig();
+    expect(zentral.toast.toasts()).toEqual([]);
+  });
+
+  it('setzt Ladezustände auch bei geworfenen Konfigurationsfehlern zurück', async () => {
+    const { komponente, toast } = erstelleKomponente();
+    vi.mocked(komponente.storeService.updatePaymentsConfig).mockRejectedValue(new Error('offline'));
+
+    await komponente.onSavePaymentConfig();
+
+    expect(komponente.isSavingPaymentConfig()).toBe(false);
+    expect(toast.toasts()[0]).toMatchObject({ type: 'error', persistent: true });
   });
 
   it('meldet das Ergebnis der Browser-Berechtigung als Erfolg oder angepinnten Fehler', async () => {

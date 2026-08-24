@@ -121,7 +121,8 @@
             <div class="flex items-center gap-1">
               <button
                 type="button"
-                (click)="webhookService.markAllAsRead()"
+                (click)="onMarkAllNotificationsRead()"
+                [disabled]="isUpdatingNotifications()"
                 class="text-[10px] text-fb-text-muted hover:text-indigo-400 cursor-pointer flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-fb-surface-hover"
                 title="Alle als gelesen markieren"
               >
@@ -130,7 +131,8 @@
               </button>
               <button
                 type="button"
-                (click)="webhookService.clearNotifications()"
+                (click)="onClearNotifications()"
+                [disabled]="isUpdatingNotifications()"
                 class="text-[10px] text-fb-text-muted hover:text-rose-400 cursor-pointer p-1 rounded hover:bg-rose-500/10"
                 title="Verlauf leeren"
               >

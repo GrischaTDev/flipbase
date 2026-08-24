@@ -49,16 +49,16 @@
           (click)="sendEmail()"
           [disabled]="isSendingEmail()"
           class="linear-btn-secondary px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
-          title="Kaufbestätigung & Rechnung per E-Mail an Käufer senden"
+          title="Kaufbestätigung & Rechnung für den E-Mail-Versand vorbereiten"
         >
           @if (isSendingEmail()) {
             <div
               class="w-3.5 h-3.5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"
             ></div>
-            <span>Wird gesendet...</span>
+            <span>Wird vorbereitet...</span>
           } @else {
             <svg [lucideIcon]="sendIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
-            <span>E-Mail senden</span>
+            <span>E-Mail vorbereiten</span>
           }
         </button>
 

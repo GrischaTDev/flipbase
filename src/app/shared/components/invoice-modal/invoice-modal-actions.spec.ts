@@ -65,7 +65,7 @@ function erstelleKomponente() {
   const toast = new ToastService();
   const syncStatus = new SyncStatusService();
   const invoiceService = {
-    sendConfirmationEmail: vi.fn(
+    prepareConfirmationEmail: vi.fn(
       async (): Promise<{
         success: boolean;
         message: string;
@@ -73,7 +73,7 @@ function erstelleKomponente() {
         reportedBySyncStatus: boolean;
       }> => ({
         success: true,
-        message: 'Bestätigung wurde versendet.',
+        message: 'Bestätigung wurde für den Versand vorbereitet.',
         error: null,
         reportedBySyncStatus: false,
       }),
@@ -91,21 +91,21 @@ function erstelleKomponente() {
 }
 
 describe('InvoiceModalComponent – Aktionsmeldungen', () => {
-  it('bestätigt den erfolgreichen Versand einer E-Mail', async () => {
+  it('meldet eine nur gespeicherte E-Mail-Bestätigung wahrheitsgemäß als vorbereitet', async () => {
     const { komponente, toast } = erstelleKomponente();
 
     await komponente.sendEmail();
 
     expect(komponente.isSendingEmail()).toBe(false);
     expect(toast.toasts()[0]).toMatchObject({
-      type: 'success',
-      title: 'Bestätigung wurde per E-Mail versendet.',
+      type: 'info',
+      title: 'Bestätigung wurde für den E-Mail-Versand vorbereitet.',
     });
   });
 
   it('behält den Versandzustand bei einem lokalen Fehler zurück und meldet ihn persistent', async () => {
     const { komponente, invoiceService, toast } = erstelleKomponente();
-    invoiceService.sendConfirmationEmail.mockResolvedValue({
+    invoiceService.prepareConfirmationEmail.mockResolvedValue({
       success: false,
       message: '',
       error: new Error('Postfach nicht erreichbar'),
@@ -117,7 +117,7 @@ describe('InvoiceModalComponent – Aktionsmeldungen', () => {
     expect(komponente.isSendingEmail()).toBe(false);
     expect(toast.toasts()[0]).toMatchObject({
       type: 'error',
-      title: 'Bestätigung konnte nicht per E-Mail versendet werden.',
+      title: 'Bestätigung konnte nicht vorbereitet werden.',
       persistent: true,
     });
   });
@@ -125,7 +125,7 @@ describe('InvoiceModalComponent – Aktionsmeldungen', () => {
   it('erzeugt für einen zentral gemeldeten E-Mail-Fehler keinen zweiten Toast', async () => {
     const { komponente, invoiceService, syncStatus, toast } = erstelleKomponente();
     const fehler = syncStatus.melde('Speichern der E-Mail-Bestätigung', new Error('offline'));
-    invoiceService.sendConfirmationEmail.mockResolvedValue({
+    invoiceService.prepareConfirmationEmail.mockResolvedValue({
       success: false,
       message: '',
       error: fehler,
@@ -139,9 +139,9 @@ describe('InvoiceModalComponent – Aktionsmeldungen', () => {
 
   it('zeigt den Versanderfolg ausschließlich als Toast und nicht zusätzlich im Dialog', async () => {
     const invoiceService = {
-      sendConfirmationEmail: vi.fn(async () => ({
+      prepareConfirmationEmail: vi.fn(async () => ({
         success: true,
-        message: 'Bestätigung wurde versendet.',
+        message: 'Bestätigung wurde für den Versand vorbereitet.',
         error: null,
         reportedBySyncStatus: false,
       })),
@@ -161,7 +161,7 @@ describe('InvoiceModalComponent – Aktionsmeldungen', () => {
     await fixture.componentInstance.sendEmail();
     fixture.detectChanges();
 
-    expect(TestBed.inject(ToastService).toasts()[0]?.type).toBe('success');
+    expect(TestBed.inject(ToastService).toasts()[0]?.type).toBe('info');
     expect((fixture.nativeElement as HTMLElement).textContent).not.toContain(
       'Bestätigung wurde versendet.',
     );

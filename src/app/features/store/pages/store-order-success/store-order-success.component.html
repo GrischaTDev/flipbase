@@ -128,10 +128,13 @@
         <button
           type="button"
           (click)="openInvoice()"
+          [disabled]="isCreatingInvoice()"
           class="px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer bg-white border border-slate-300 text-slate-800 hover:bg-slate-50 shadow-xs transition"
         >
           <svg [lucideIcon]="fileIcon" class="w-4 h-4 text-slate-700"></svg>
-          <span>§ 25a Rechnung drucken</span>
+          <span>{{
+            isCreatingInvoice() ? 'Rechnung wird erstellt...' : '§ 25a Rechnung drucken'
+          }}</span>
         </button>
 
         <a

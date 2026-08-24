@@ -43,6 +43,8 @@ export interface Invoice {
   paymentStatus: 'paid' | 'pending';
   paymentDueDate?: string;
   notes?: string;
+  sourceType?: 'sale' | 'store_order';
+  sourceId?: string;
 }
 
 export interface EmailConfirmation {

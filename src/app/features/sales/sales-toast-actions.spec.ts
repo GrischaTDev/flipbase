@@ -76,15 +76,25 @@ function erstelleKomponente() {
     ),
   };
   const komponente = Object.create(SalesComponent.prototype) as SalesComponent;
+  const invoiceService = {
+    generateInvoiceForSale: vi.fn(async () => ({
+      data: { id: 'invoice-1' },
+      error: null,
+      created: true,
+      reportedBySyncStatus: false,
+    })),
+  };
   Object.assign(komponente, {
     dialog: { frage: vi.fn(async () => true) },
     salesService,
     returnService,
     toast,
     syncStatus,
+    invoiceService,
     selectedSaleForReturn: signal(verkauf),
     isReturnModalOpen: signal(true),
     isProcessingReturn: signal(false),
+    isCreatingInvoice: signal(false),
     activeInvoice: signal(null),
     returnForm: new FormGroup({
       reason: new FormControl('buyer_remorse', {
@@ -100,10 +110,44 @@ function erstelleKomponente() {
       notes: new FormControl(''),
     }),
   });
-  return { komponente, returnService, salesService, syncStatus, toast };
+  return { komponente, invoiceService, returnService, salesService, syncStatus, toast };
 }
 
 describe('SalesComponent – Aktionsmeldungen', () => {
+  it('öffnet eine Rechnung erst nach bestätigter Erstellung und bestätigt nur die Neuerstellung', async () => {
+    const { komponente, invoiceService, toast } = erstelleKomponente();
+
+    await komponente.openInvoiceForSale(verkauf);
+
+    expect(komponente.activeInvoice()).toMatchObject({ id: 'invoice-1' });
+    expect(toast.toasts()[0]).toMatchObject({ type: 'success', title: 'Rechnung wurde erstellt.' });
+
+    invoiceService.generateInvoiceForSale.mockResolvedValue({
+      data: { id: 'invoice-1' },
+      error: null,
+      created: false,
+      reportedBySyncStatus: false,
+    } as never);
+    toast.toasts().forEach((meldung) => toast.dismiss(meldung.id));
+    await komponente.openInvoiceForSale(verkauf);
+    expect(toast.toasts()).toEqual([]);
+  });
+
+  it('öffnet bei fehlgeschlagener Rechnungserstellung keinen Dialog und dedupliziert Sync-Fehler', async () => {
+    const { komponente, invoiceService, syncStatus, toast } = erstelleKomponente();
+    const fehler = syncStatus.melde('Erstellen der Rechnung', new Error('offline'));
+    invoiceService.generateInvoiceForSale.mockResolvedValue({
+      data: null,
+      error: fehler,
+      created: false,
+      reportedBySyncStatus: true,
+    } as never);
+
+    await komponente.openInvoiceForSale(verkauf);
+
+    expect(komponente.activeInvoice()).toBeNull();
+    expect(toast.toasts()).toEqual([]);
+  });
   it('bestätigt eine erfolgreich erfasste Retoure und schließt den Dialog erst dann', async () => {
     const { komponente, toast } = erstelleKomponente();
 

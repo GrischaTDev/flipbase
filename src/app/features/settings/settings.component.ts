@@ -60,6 +60,7 @@ import {
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
 import { ToastService } from '../../shared/components/toast/toast.service';
+import { SyncStatusService } from '../../core/services/sync-status.service';
 
 @Component({
   selector: 'app-settings',
@@ -120,6 +121,7 @@ export class SettingsComponent {
   readonly webPushService = inject(WebPushService);
   readonly translate = inject(TranslateService);
   private readonly toast = inject(ToastService);
+  private readonly syncStatus = inject(SyncStatusService);
 
   readonly settingsIcon = Settings;
   readonly userIcon = UserIcon;
@@ -160,6 +162,9 @@ export class SettingsComponent {
   readonly isSaving = signal<boolean>(false);
 
   readonly isTestingWebhook = signal<boolean>(false);
+  readonly isSavingPaymentConfig = signal(false);
+  readonly isSavingCarrierConfig = signal(false);
+  readonly isSavingWebhookConfig = signal(false);
 
   // Invite modal state
   readonly isInviteModalOpen = signal<boolean>(false);
@@ -289,35 +294,67 @@ export class SettingsComponent {
     });
   }
 
-  onSavePaymentConfig(): void {
+  async onSavePaymentConfig(): Promise<void> {
     const val = this.paymentForm.getRawValue();
-    this.storeService.updatePaymentsConfig({
-      stripeEnabled: !!val.stripeEnabled,
-      stripePublishableKey: val.stripePublishableKey?.trim() || '',
-      paypalEnabled: !!val.paypalEnabled,
-      paypalEmail: val.paypalEmail?.trim() || '',
-      bankTransferEnabled: !!val.bankTransferEnabled,
-      bankIban: val.bankIban?.trim() || '',
-      bankBic: val.bankBic?.trim() || '',
-      bankAccountHolder: val.bankAccountHolder?.trim() || '',
-      cashOnPickupEnabled: !!val.cashOnPickupEnabled,
-    });
-
-    this.toast.success('Zahlungsmethoden wurden gespeichert.');
+    this.isSavingPaymentConfig.set(true);
+    try {
+      const result = await this.storeService.updatePaymentsConfig({
+        stripeEnabled: !!val.stripeEnabled,
+        stripePublishableKey: val.stripePublishableKey?.trim() || '',
+        paypalEnabled: !!val.paypalEnabled,
+        paypalEmail: val.paypalEmail?.trim() || '',
+        bankTransferEnabled: !!val.bankTransferEnabled,
+        bankIban: val.bankIban?.trim() || '',
+        bankBic: val.bankBic?.trim() || '',
+        bankAccountHolder: val.bankAccountHolder?.trim() || '',
+        cashOnPickupEnabled: !!val.cashOnPickupEnabled,
+      });
+      if (result.error || !result.data) {
+        const error = result.error ?? new Error('Keine bestätigten Zahlungsmethoden.');
+        if (!result.reportedBySyncStatus) {
+          this.toast.error('Zahlungsmethoden konnten nicht gespeichert werden.', error.message);
+        }
+        return;
+      }
+      this.toast.success('Zahlungsmethoden wurden gespeichert.');
+    } catch (ursache: unknown) {
+      const error = ursache instanceof Error ? ursache : new Error('Unbekannter Fehler');
+      if (!this.syncStatus.istZentralGemeldet(error)) {
+        this.toast.error('Zahlungsmethoden konnten nicht gespeichert werden.', error.message);
+      }
+    } finally {
+      this.isSavingPaymentConfig.set(false);
+    }
   }
 
-  onSaveCarrierConfig(): void {
+  async onSaveCarrierConfig(): Promise<void> {
     const val = this.carrierForm.getRawValue();
-    this.fulfillmentService.updateCarrierConfig({
-      dhlEnabled: !!val.dhlEnabled,
-      dhlEkp: val.dhlEkp?.trim() || '',
-      dhlApiKey: val.dhlApiKey?.trim() || '',
-      hermesEnabled: !!val.hermesEnabled,
-      hermesClientId: val.hermesClientId?.trim() || '',
-      hermesApiKey: val.hermesApiKey?.trim() || '',
-    });
-
-    this.toast.success('Versanddienstleister wurden gespeichert.');
+    this.isSavingCarrierConfig.set(true);
+    try {
+      const result = await this.fulfillmentService.updateCarrierConfig({
+        dhlEnabled: !!val.dhlEnabled,
+        dhlEkp: val.dhlEkp?.trim() || '',
+        dhlApiKey: val.dhlApiKey?.trim() || '',
+        hermesEnabled: !!val.hermesEnabled,
+        hermesClientId: val.hermesClientId?.trim() || '',
+        hermesApiKey: val.hermesApiKey?.trim() || '',
+      });
+      if (result.error || !result.data) {
+        const error = result.error ?? new Error('Keine bestätigte Carrier-Konfiguration.');
+        if (!result.reportedBySyncStatus) {
+          this.toast.error('Versanddienstleister konnten nicht gespeichert werden.', error.message);
+        }
+        return;
+      }
+      this.toast.success('Versanddienstleister wurden gespeichert.');
+    } catch (ursache: unknown) {
+      const error = ursache instanceof Error ? ursache : new Error('Unbekannter Fehler');
+      if (!this.syncStatus.istZentralGemeldet(error)) {
+        this.toast.error('Versanddienstleister konnten nicht gespeichert werden.', error.message);
+      }
+    } finally {
+      this.isSavingCarrierConfig.set(false);
+    }
   }
 
   /** Name des eigenen Profils. Die E-Mail gehoert zur Anmeldung und bleibt aussen vor. */
@@ -493,14 +530,31 @@ export class SettingsComponent {
     this.toast.success('eBay-Verbindung wurde gespeichert.');
   }
 
-  onSaveWebhookConfig(): void {
-    this.saveWebhookConfig();
-    this.toast.success('Webhook-Konfiguration wurde gespeichert.');
+  async onSaveWebhookConfig(): Promise<void> {
+    this.isSavingWebhookConfig.set(true);
+    try {
+      const result = await this.saveWebhookConfig();
+      if (result.error || !result.data) {
+        const error = result.error ?? new Error('Keine bestätigte Webhook-Konfiguration.');
+        if (!result.reportedBySyncStatus) {
+          this.toast.error('Webhook-Konfiguration konnte nicht gespeichert werden.', error.message);
+        }
+        return;
+      }
+      this.toast.success('Webhook-Konfiguration wurde gespeichert.');
+    } catch (ursache: unknown) {
+      const error = ursache instanceof Error ? ursache : new Error('Unbekannter Fehler');
+      if (!this.syncStatus.istZentralGemeldet(error)) {
+        this.toast.error('Webhook-Konfiguration konnte nicht gespeichert werden.', error.message);
+      }
+    } finally {
+      this.isSavingWebhookConfig.set(false);
+    }
   }
 
-  private saveWebhookConfig(): void {
+  private saveWebhookConfig(): ReturnType<WebhookService['updateConfig']> {
     const val = this.webhookForm.getRawValue();
-    this.webhookService.updateConfig({
+    return this.webhookService.updateConfig({
       discordEnabled: !!val.discordEnabled,
       discordWebhookUrl: val.discordWebhookUrl?.trim() || '',
       telegramEnabled: !!val.telegramEnabled,
@@ -515,15 +569,31 @@ export class SettingsComponent {
   }
 
   async testWebhook(channel: 'discord' | 'telegram' | 'custom'): Promise<void> {
-    this.saveWebhookConfig();
     this.isTestingWebhook.set(true);
-
-    const res = await this.webhookService.sendTestNotification(channel);
-    this.isTestingWebhook.set(false);
-    if (res.success) {
-      this.toast.success('Test-Webhook wurde versendet.');
-    } else {
-      this.toast.error('Test-Webhook konnte nicht versendet werden.', res.message);
+    try {
+      const configResult = await this.saveWebhookConfig();
+      if (configResult.error || !configResult.data) {
+        if (!configResult.reportedBySyncStatus) {
+          this.toast.error(
+            'Webhook-Konfiguration konnte nicht gespeichert werden.',
+            configResult.error?.message,
+          );
+        }
+        return;
+      }
+      const res = await this.webhookService.sendTestNotification(channel);
+      if (res.success) {
+        this.toast.success('Test-Webhook wurde versendet.');
+      } else {
+        this.toast.error('Test-Webhook konnte nicht versendet werden.', res.message);
+      }
+    } catch (ursache: unknown) {
+      const error = ursache instanceof Error ? ursache : new Error('Unbekannter Fehler');
+      if (!this.syncStatus.istZentralGemeldet(error)) {
+        this.toast.error('Test-Webhook konnte nicht versendet werden.', error.message);
+      }
+    } finally {
+      this.isTestingWebhook.set(false);
     }
   }
 

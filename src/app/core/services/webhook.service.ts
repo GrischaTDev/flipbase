@@ -5,11 +5,16 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { LoggerService } from './logger.service';
-import { schreibeImHintergrund } from './supabase-schreiben';
 import { SyncStatusService } from './sync-status.service';
 
 const STORAGE_KEY_CONFIG = 'flipbase_webhook_config';
 const STORAGE_KEY_NOTIFS = 'flipbase_app_notifications';
+
+export interface WebhookMutationResult<T> {
+  readonly data: T | null;
+  readonly error: Error | null;
+  readonly reportedBySyncStatus: boolean;
+}
 
 /**
  * Betrag in deutscher Schreibweise: 21,98 statt 21.98.
@@ -107,6 +112,7 @@ export class WebhookService {
   }
 
   private loadNotifications(): AppNotification[] {
+    if (this.mockStore && !this.mockStore.isDemoMode()) return [];
     try {
       const storage = getStorage();
       const stored = storage?.getItem(STORAGE_KEY_NOTIFS);
@@ -189,39 +195,53 @@ export class WebhookService {
     }
   }
 
-  updateConfig(cfg: Partial<WebhookConfig>): void {
+  async updateConfig(cfg: Partial<WebhookConfig>): Promise<WebhookMutationResult<WebhookConfig>> {
     const updated = { ...this.config(), ...cfg };
+    const ws = this.workspaceService?.currentWorkspace();
+    const persistent = this.istPersistenterModus();
+    if (persistent && !ws)
+      return this.webhookFehler(
+        'Speichern der Webhook-Konfiguration',
+        new Error('Kein aktiver Workspace.'),
+      );
+    if (persistent) {
+      try {
+        const { data, error } = await this.supabase!.client.from('webhook_configs')
+          .upsert(
+            {
+              workspace_id: ws!.id,
+              discord_enabled: updated.discordEnabled,
+              discord_webhook_url: updated.discordWebhookUrl,
+              telegram_enabled: updated.telegramEnabled,
+              telegram_bot_token: updated.telegramBotToken,
+              telegram_chat_id: updated.telegramChatId,
+              custom_webhook_enabled: updated.customWebhookEnabled,
+              custom_webhook_url: updated.customWebhookUrl,
+              notify_on_sale: updated.notifyOnSale,
+              notify_on_purchase: updated.notifyOnPurchase,
+              notify_on_low_margin: updated.notifyOnLowMargin,
+              sound_enabled: updated.soundEnabled,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'workspace_id' },
+          )
+          .select('id')
+          .single();
+        if (error || !data) {
+          return this.webhookFehler(
+            'Speichern der Webhook-Konfiguration',
+            error ?? new Error('Die Datenbank hat keine Webhook-Konfiguration zurückgegeben.'),
+          );
+        }
+      } catch (error: unknown) {
+        return this.webhookFehler('Speichern der Webhook-Konfiguration', error);
+      }
+    }
     this.config.set(updated);
     try {
       getStorage()?.setItem(STORAGE_KEY_CONFIG, JSON.stringify(updated));
     } catch {}
-
-    const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client
-        .from('webhook_configs')
-        .upsert(
-          {
-            workspace_id: ws.id,
-            discord_enabled: updated.discordEnabled,
-            discord_webhook_url: updated.discordWebhookUrl,
-            telegram_enabled: updated.telegramEnabled,
-            telegram_bot_token: updated.telegramBotToken,
-            telegram_chat_id: updated.telegramChatId,
-            custom_webhook_enabled: updated.customWebhookEnabled,
-            custom_webhook_url: updated.customWebhookUrl,
-            notify_on_sale: updated.notifyOnSale,
-            notify_on_purchase: updated.notifyOnPurchase,
-            notify_on_low_margin: updated.notifyOnLowMargin,
-            sound_enabled: updated.soundEnabled,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'workspace_id' },
-        )
-        .then(({ error }) => {
-          if (error) this.logger.error('Fehler beim Speichern der Webhook-Konfiguration:', error);
-        });
-    }
+    return { data: updated, error: null, reportedBySyncStatus: false };
   }
 
   addNotification(n: Omit<AppNotification, 'id' | 'timestamp' | 'read'>): void {
@@ -298,60 +318,105 @@ export class WebhookService {
    * der Glocke blieb stehen, und gespeichert wurde es weder im Browser noch in
    * der Datenbank - nach dem naechsten Laden war alles wieder ungelesen.
    */
-  markAsRead(id: string): void {
+  async markAsRead(id: string): Promise<WebhookMutationResult<AppNotification | null>> {
     const vorher = this.notifications();
-    if (!vorher.some((n) => n.id === id && !n.read)) return;
-
-    const updated = vorher.map((n) => (n.id === id ? { ...n, read: true } : n));
-    this.notifications.set(updated);
-    this.speichereLokal(updated);
-
+    const notification = vorher.find((n) => n.id === id);
+    if (!notification || notification.read) {
+      return { data: notification ?? null, error: null, reportedBySyncStatus: false };
+    }
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      schreibeImHintergrund(
-        this.supabase.client
-          .from('app_notifications')
-          .update({ read: true })
-          .eq('workspace_id', ws.id)
-          .eq('id', id),
+    if (this.istPersistenterModus() && !ws) {
+      return this.webhookFehler(
         'Aktualisieren der Benachrichtigung',
-        this.syncStatus,
+        new Error('Kein aktiver Workspace.'),
       );
     }
+    if (this.istPersistenterModus()) {
+      try {
+        const { error, count } = await this.supabase!.client.from('app_notifications')
+          .update({ read: true }, { count: 'exact' })
+          .eq('workspace_id', ws!.id)
+          .eq('id', id);
+        if (error || count === 0) {
+          return this.webhookFehler(
+            'Aktualisieren der Benachrichtigung',
+            error ?? new Error('Die Benachrichtigung wurde nicht gefunden.'),
+          );
+        }
+      } catch (error: unknown) {
+        return this.webhookFehler('Aktualisieren der Benachrichtigung', error);
+      }
+    }
+    const updatedNotification = { ...notification, read: true };
+    const updated = vorher.map((n) => (n.id === id ? updatedNotification : n));
+    this.notifications.set(updated);
+    this.speichereLokal(updated);
+    return { data: updatedNotification, error: null, reportedBySyncStatus: false };
   }
 
-  markAllAsRead(): void {
+  async markAllAsRead(): Promise<WebhookMutationResult<readonly AppNotification[]>> {
+    const vorher = this.notifications();
+    const ungelesen = vorher.filter((notification) => !notification.read);
+    if (ungelesen.length === 0) {
+      return { data: vorher, error: null, reportedBySyncStatus: false };
+    }
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.istPersistenterModus() && !ws) {
+      return this.webhookFehler(
+        'Aktualisieren der Benachrichtigungen',
+        new Error('Kein aktiver Workspace.'),
+      );
+    }
+    if (this.istPersistenterModus()) {
+      try {
+        const { error, count } = await this.supabase!.client.from('app_notifications')
+          .update({ read: true }, { count: 'exact' })
+          .eq('workspace_id', ws!.id)
+          .eq('read', false);
+        if (error || count === 0) {
+          return this.webhookFehler(
+            'Aktualisieren der Benachrichtigungen',
+            error ?? new Error('Keine Benachrichtigung wurde aktualisiert.'),
+          );
+        }
+      } catch (error: unknown) {
+        return this.webhookFehler('Aktualisieren der Benachrichtigungen', error);
+      }
+    }
     const updated = this.notifications().map((n) => ({ ...n, read: true }));
     this.notifications.set(updated);
     this.speichereLokal(updated);
-
-    const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      schreibeImHintergrund(
-        this.supabase.client
-          .from('app_notifications')
-          .update({ read: true })
-          .eq('workspace_id', ws.id),
-        'Aktualisieren der Benachrichtigung',
-        this.syncStatus,
-      );
-    }
+    return { data: updated, error: null, reportedBySyncStatus: false };
   }
 
-  clearNotifications(): void {
-    this.notifications.set([]);
-    try {
-      getStorage()?.setItem(STORAGE_KEY_NOTIFS, JSON.stringify([]));
-    } catch {}
-
+  async clearNotifications(): Promise<WebhookMutationResult<readonly AppNotification[]>> {
+    const vorher = this.notifications();
+    if (vorher.length === 0) return { data: [], error: null, reportedBySyncStatus: false };
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      schreibeImHintergrund(
-        this.supabase.client.from('app_notifications').delete().eq('workspace_id', ws.id),
-        'Loeschen der Benachrichtigungen',
-        this.syncStatus,
+    if (this.istPersistenterModus() && !ws) {
+      return this.webhookFehler(
+        'Löschen der Benachrichtigungen',
+        new Error('Kein aktiver Workspace.'),
       );
     }
+    if (this.istPersistenterModus()) {
+      try {
+        const { error, count } = await this.supabase!.client.from('app_notifications')
+          .delete({ count: 'exact' })
+          .eq('workspace_id', ws!.id);
+        if (error || count === 0) {
+          return this.webhookFehler(
+            'Löschen der Benachrichtigungen',
+            error ?? new Error('Keine Benachrichtigung wurde gelöscht.'),
+          );
+        }
+      } catch (error: unknown) {
+        return this.webhookFehler('Löschen der Benachrichtigungen', error);
+      }
+    }
+    this.notifications.set([]);
+    this.speichereLokal([]);
+    return { data: [], error: null, reportedBySyncStatus: false };
   }
 
   /**
@@ -534,5 +599,20 @@ export class WebhookService {
       osc.start();
       osc.stop(audioCtx.currentTime + 0.35);
     } catch {}
+  }
+
+  private istPersistenterModus(): boolean {
+    return Boolean(this.supabase && !this.mockStore?.isDemoMode());
+  }
+
+  private webhookFehler<T>(vorgang: string, ursache: unknown): WebhookMutationResult<T> {
+    const error =
+      this.syncStatus?.melde(vorgang, ursache) ??
+      (ursache instanceof Error ? ursache : new Error(String(ursache)));
+    return {
+      data: null,
+      error,
+      reportedBySyncStatus: this.syncStatus?.istZentralGemeldet(error) ?? false,
+    };
   }
 }

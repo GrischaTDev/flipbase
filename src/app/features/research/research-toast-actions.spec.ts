@@ -122,4 +122,17 @@ describe('ResearchComponent – Aktionsmeldungen', () => {
     expect(komponente.isRadarMutationPending()).toBe(false);
     expect(toast.toasts()[0]).toMatchObject({ type: 'error', persistent: true });
   });
+
+  it('erzeugt bei reportedBySyncStatus keinen zweiten Radar-Feature-Toast', async () => {
+    const { komponente, priceTrackerService, toast } = erstelleKomponente(true);
+    priceTrackerService.addTrackedItem.mockResolvedValue({
+      data: null,
+      error: new Error('offline'),
+      reportedBySyncStatus: true,
+    });
+
+    await komponente.onAddCurrentSearchToRadar();
+
+    expect(toast.toasts()).toEqual([]);
+  });
 });

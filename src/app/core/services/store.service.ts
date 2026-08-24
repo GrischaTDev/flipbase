@@ -22,6 +22,12 @@ const STORAGE_KEY_SETTINGS = 'flipbase_store_settings';
 const STORAGE_KEY_CART = 'flipbase_store_cart';
 const STORAGE_KEY_ORDERS = 'flipbase_store_orders';
 
+export interface StoreConfigMutationResult<T> {
+  readonly data: T | null;
+  readonly error: Error | null;
+  readonly reportedBySyncStatus: boolean;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -262,10 +268,63 @@ export class StoreService {
     }
   }
 
-  updatePaymentsConfig(payments: Partial<PaymentGatewayConfig>): void {
-    this.updateSettings({
-      payments: { ...this.storeSettings().payments, ...payments },
-    });
+  async updatePaymentsConfig(
+    payments: Partial<PaymentGatewayConfig>,
+  ): Promise<StoreConfigMutationResult<PaymentGatewayConfig>> {
+    const updatedPayments = { ...this.storeSettings().payments, ...payments };
+    const updatedSettings = { ...this.storeSettings(), payments: updatedPayments };
+    const persistent = Boolean(this.supabase && !this.mockStore?.isDemoMode());
+    const ws = this.workspaceService?.currentWorkspace();
+
+    if (persistent && !ws) return this.storeConfigFehler(new Error('Kein aktiver Workspace.'));
+    if (persistent) {
+      try {
+        const { data, error } = await this.supabase!.client.from('store_settings')
+          .upsert(
+            {
+              workspace_id: ws!.id,
+              store_name: updatedSettings.storeName,
+              tagline: updatedSettings.tagline,
+              shipping_flat_rate: updatedSettings.shippingFlatRate,
+              free_shipping_threshold: updatedSettings.freeShippingThreshold,
+              currency: updatedSettings.currency,
+              payments: updatedPayments as unknown as Json,
+              imprint: updatedSettings.imprint as unknown as Json,
+              notice_text: updatedSettings.noticeText,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'workspace_id' },
+          )
+          .select('payments')
+          .single();
+        if (error || !data) {
+          return this.storeConfigFehler(
+            error ?? new Error('Die Datenbank hat keine Shop-Einstellungen zurückgegeben.'),
+          );
+        }
+      } catch (error: unknown) {
+        return this.storeConfigFehler(error);
+      }
+    }
+
+    this.storeSettings.set(updatedSettings);
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(updatedSettings));
+      }
+    } catch {}
+    return { data: updatedPayments, error: null, reportedBySyncStatus: false };
+  }
+
+  private storeConfigFehler(ursache: unknown): StoreConfigMutationResult<PaymentGatewayConfig> {
+    const error =
+      this.syncStatus?.melde('Speichern der Zahlungsmethoden', ursache) ??
+      (ursache instanceof Error ? ursache : new Error(String(ursache)));
+    return {
+      data: null,
+      error,
+      reportedBySyncStatus: this.syncStatus?.istZentralGemeldet(error) ?? false,
+    };
   }
 
   addToCart(item: InventoryItem, quantity = 1): void {

@@ -48,22 +48,22 @@ export class InvoiceModalComponent {
   async sendEmail(): Promise<void> {
     this.isSendingEmail.set(true);
     try {
-      const res = await this.invoiceService.sendConfirmationEmail(this.invoice());
+      const res = await this.invoiceService.prepareConfirmationEmail(this.invoice());
       if (!res.success || res.error) {
-        const fehler = res.error ?? new Error('Die Bestätigung konnte nicht versendet werden.');
+        const fehler = res.error ?? new Error('Die Bestätigung konnte nicht vorbereitet werden.');
         if (!this.syncStatus.istZentralGemeldet(fehler)) {
-          this.toast.error('Bestätigung konnte nicht per E-Mail versendet werden.', fehler.message);
+          this.toast.error('Bestätigung konnte nicht vorbereitet werden.', fehler.message);
         }
         return;
       }
-      this.toast.success('Bestätigung wurde per E-Mail versendet.');
+      this.toast.info('Bestätigung wurde für den E-Mail-Versand vorbereitet.');
     } catch (ursache: unknown) {
       const fehler =
         ursache instanceof Error
           ? ursache
-          : new Error('Die Bestätigung konnte nicht versendet werden.');
+          : new Error('Die Bestätigung konnte nicht vorbereitet werden.');
       if (!this.syncStatus.istZentralGemeldet(fehler)) {
-        this.toast.error('Bestätigung konnte nicht per E-Mail versendet werden.', fehler.message);
+        this.toast.error('Bestätigung konnte nicht vorbereitet werden.', fehler.message);
       }
     } finally {
       this.isSendingEmail.set(false);

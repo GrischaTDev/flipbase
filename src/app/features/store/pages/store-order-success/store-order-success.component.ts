@@ -18,6 +18,8 @@ import { InvoiceService } from '../../../../core/services/invoice.service';
 import { StoreOrder } from '../../../../core/models/store.models';
 import { Invoice } from '../../../../core/models/invoice.models';
 import { InvoiceModalComponent } from '../../../../shared/components/invoice-modal/invoice-modal.component';
+import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { SyncStatusService } from '../../../../core/services/sync-status.service';
 
 @Component({
   selector: 'app-store-order-success',
@@ -30,6 +32,8 @@ export class StoreOrderSuccessComponent {
   private readonly route = inject(ActivatedRoute);
   readonly storeService = inject(StoreService);
   readonly invoiceService = inject(InvoiceService);
+  private readonly toast = inject(ToastService);
+  private readonly syncStatus = inject(SyncStatusService);
 
   readonly checkIcon = CheckCircle2;
   readonly packageIcon = Package;
@@ -42,6 +46,7 @@ export class StoreOrderSuccessComponent {
   readonly mailIcon = Mail;
 
   readonly activeInvoice = signal<Invoice | null>(null);
+  readonly isCreatingInvoice = signal(false);
 
   readonly order = computed<StoreOrder | null>(() => {
     const id = this.route.snapshot.paramMap.get('orderId');
@@ -49,11 +54,29 @@ export class StoreOrderSuccessComponent {
     return this.storeService.orders().find((o) => o.id === id) || null;
   });
 
-  openInvoice(): void {
+  async openInvoice(): Promise<void> {
     const ord = this.order();
     if (!ord) return;
-    const inv = this.invoiceService.generateInvoiceForOrder(ord);
-    this.activeInvoice.set(inv);
+    this.isCreatingInvoice.set(true);
+    try {
+      const result = await this.invoiceService.generateInvoiceForOrder(ord);
+      if (result.error || !result.data) {
+        const error = result.error ?? new Error('Die Rechnung konnte nicht erstellt werden.');
+        if (!result.reportedBySyncStatus && !this.syncStatus.istZentralGemeldet(error)) {
+          this.toast.error('Rechnung konnte nicht erstellt werden.', error.message);
+        }
+        return;
+      }
+      this.activeInvoice.set(result.data);
+      if (result.created) this.toast.success('Rechnung wurde erstellt.');
+    } catch (ursache: unknown) {
+      const error = ursache instanceof Error ? ursache : new Error('Unbekannter Fehler');
+      if (!this.syncStatus.istZentralGemeldet(error)) {
+        this.toast.error('Rechnung konnte nicht erstellt werden.', error.message);
+      }
+    } finally {
+      this.isCreatingInvoice.set(false);
+    }
   }
 
   closeInvoice(): void {

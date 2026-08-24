@@ -28,6 +28,10 @@ export interface FulfillmentStatusMutationResult extends FulfillmentMutationResu
   readonly reportedBySyncStatus: boolean;
 }
 
+export interface CarrierConfigMutationResult extends FulfillmentMutationResult<CarrierConfig> {
+  readonly reportedBySyncStatus: boolean;
+}
+
 interface FulfillmentRpcClient {
   rpc(
     functionName: 'bundle_shipping_orders' | 'unbundle_shipping_order',
@@ -414,36 +418,63 @@ export class FulfillmentService {
     }
   }
 
-  updateCarrierConfig(cfg: Partial<CarrierConfig>): void {
+  async updateCarrierConfig(cfg: Partial<CarrierConfig>): Promise<CarrierConfigMutationResult> {
     const updated = { ...this.carrierConfig(), ...cfg };
-    this.carrierConfig.set(updated);
+    const ws = this.workspaceService?.currentWorkspace();
+    const persistent = this.istPersistenterModus();
+    if (persistent && !ws) return this.carrierConfigFehler(new Error('Kein aktiver Workspace.'));
+    let confirmed = updated;
+    if (persistent) {
+      try {
+        const { data, error } = await this.supabase!.client.from('carrier_configs')
+          .upsert(
+            {
+              workspace_id: ws!.id,
+              dhl_enabled: updated.dhlEnabled,
+              dhl_ekp: updated.dhlEkp,
+              dhl_api_key: updated.dhlApiKey,
+              hermes_enabled: updated.hermesEnabled,
+              hermes_client_id: updated.hermesClientId,
+              hermes_api_key: updated.hermesApiKey,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'workspace_id' },
+          )
+          .select('*')
+          .single();
+        if (error || !data) {
+          return this.carrierConfigFehler(
+            error ?? new Error('Die Datenbank hat keine Carrier-Konfiguration zurückgegeben.'),
+          );
+        }
+        confirmed = {
+          dhlEnabled: data.dhl_enabled,
+          dhlEkp: data.dhl_ekp || '',
+          dhlApiKey: data.dhl_api_key || '',
+          hermesEnabled: data.hermes_enabled,
+          hermesClientId: data.hermes_client_id || '',
+          hermesApiKey: data.hermes_api_key || '',
+        };
+      } catch (error: unknown) {
+        return this.carrierConfigFehler(error);
+      }
+    }
+    this.carrierConfig.set(confirmed);
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem(STORAGE_KEY_CARRIER_CFG, JSON.stringify(updated));
+        localStorage.setItem(STORAGE_KEY_CARRIER_CFG, JSON.stringify(confirmed));
       }
     } catch {}
+    return { data: confirmed, error: null, reportedBySyncStatus: false };
+  }
 
-    const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client
-        .from('carrier_configs')
-        .upsert(
-          {
-            workspace_id: ws.id,
-            dhl_enabled: updated.dhlEnabled,
-            dhl_ekp: updated.dhlEkp,
-            dhl_api_key: updated.dhlApiKey,
-            hermes_enabled: updated.hermesEnabled,
-            hermes_client_id: updated.hermesClientId,
-            hermes_api_key: updated.hermesApiKey,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'workspace_id' },
-        )
-        .then(({ error }) => {
-          if (error) this.logger.error('Fehler beim Speichern der Carrier-Konfiguration:', error);
-        });
-    }
+  private carrierConfigFehler(ursache: unknown): CarrierConfigMutationResult {
+    const error = this.meldePersistenzfehler('Speichern der Carrier-Konfiguration', ursache);
+    return {
+      data: null,
+      error,
+      reportedBySyncStatus: this.syncStatus?.istZentralGemeldet(error) ?? false,
+    };
   }
 
   getTrackingUrl(carrier: CarrierType, trackingNumber: string): string {

@@ -37,6 +37,8 @@ import { ThemeService } from '../../core/services/theme.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { Workspace } from '../../core/models/flipbase.models';
 import { DatePipe } from '@angular/common';
+import { ToastService } from '../../shared/components/toast/toast.service';
+import { SyncStatusService } from '../../core/services/sync-status.service';
 
 @Component({
   selector: 'app-header',
@@ -58,6 +60,8 @@ export class HeaderComponent {
   readonly themeService = inject(ThemeService);
   readonly pwaService = inject(PwaService);
   private readonly translate = inject(TranslateService);
+  private readonly toast = inject(ToastService);
+  private readonly syncStatus = inject(SyncStatusService);
 
   readonly toggleSidebar = output<void>();
   readonly openCreateWorkspace = output<void>();
@@ -65,6 +69,7 @@ export class HeaderComponent {
   readonly isWorkspaceDropdownOpen = signal<boolean>(false);
   readonly isUserDropdownOpen = signal<boolean>(false);
   readonly isNotificationDropdownOpen = signal<boolean>(false);
+  readonly isUpdatingNotifications = signal(false);
 
   readonly workspaceContainer = viewChild<ElementRef<HTMLElement>>('workspaceContainer');
   readonly notificationContainer = viewChild<ElementRef<HTMLElement>>('notificationContainer');
@@ -131,11 +136,75 @@ export class HeaderComponent {
    * mitzieht und der Zustand das naechste Laden ueberlebt.
    */
   async oeffneBenachrichtigung(notif: AppNotification): Promise<void> {
-    this.webhookService.markAsRead(notif.id);
-    this.isNotificationDropdownOpen.set(false);
+    this.isUpdatingNotifications.set(true);
+    try {
+      const result = await this.webhookService.markAsRead(notif.id);
+      if (result.error && !result.reportedBySyncStatus) {
+        this.toast.error(
+          'Benachrichtigung konnte nicht aktualisiert werden.',
+          result.error.message,
+        );
+      }
+    } catch (ursache: unknown) {
+      const error = ursache instanceof Error ? ursache : new Error('Unbekannter Fehler');
+      if (!this.syncStatus.istZentralGemeldet(error)) {
+        this.toast.error('Benachrichtigung konnte nicht aktualisiert werden.', error.message);
+      }
+    } finally {
+      this.isUpdatingNotifications.set(false);
+      this.isNotificationDropdownOpen.set(false);
+    }
 
     if (!notif.link) {
       await this.dialog.zeigeHinweis(notif.title, notif.details || notif.message);
+    }
+  }
+
+  async onMarkAllNotificationsRead(): Promise<void> {
+    this.isUpdatingNotifications.set(true);
+    try {
+      const result = await this.webhookService.markAllAsRead();
+      if (result.error) {
+        if (!result.reportedBySyncStatus) {
+          this.toast.error(
+            'Benachrichtigungen konnten nicht aktualisiert werden.',
+            result.error.message,
+          );
+        }
+        return;
+      }
+      this.toast.success('Alle Benachrichtigungen wurden als gelesen markiert.');
+    } catch (ursache: unknown) {
+      const error = ursache instanceof Error ? ursache : new Error('Unbekannter Fehler');
+      if (!this.syncStatus.istZentralGemeldet(error)) {
+        this.toast.error('Benachrichtigungen konnten nicht aktualisiert werden.', error.message);
+      }
+    } finally {
+      this.isUpdatingNotifications.set(false);
+    }
+  }
+
+  async onClearNotifications(): Promise<void> {
+    this.isUpdatingNotifications.set(true);
+    try {
+      const result = await this.webhookService.clearNotifications();
+      if (result.error) {
+        if (!result.reportedBySyncStatus) {
+          this.toast.error(
+            'Benachrichtigungsverlauf konnte nicht gelöscht werden.',
+            result.error.message,
+          );
+        }
+        return;
+      }
+      this.toast.success('Benachrichtigungsverlauf wurde gelöscht.');
+    } catch (ursache: unknown) {
+      const error = ursache instanceof Error ? ursache : new Error('Unbekannter Fehler');
+      if (!this.syncStatus.istZentralGemeldet(error)) {
+        this.toast.error('Benachrichtigungsverlauf konnte nicht gelöscht werden.', error.message);
+      }
+    } finally {
+      this.isUpdatingNotifications.set(false);
     }
   }
 

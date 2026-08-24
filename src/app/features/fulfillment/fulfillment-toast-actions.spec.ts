@@ -150,4 +150,17 @@ describe('FulfillmentComponent – Aktionsmeldungen', () => {
       persistent: true,
     });
   });
+
+  it('erzeugt bei reportedBySyncStatus keinen zweiten Feature-Toast', async () => {
+    const { komponente, fulfillmentService, toast } = erstelleKomponente({ error: null });
+    fulfillmentService.markAsDelivered.mockResolvedValue({
+      data: null,
+      error: new Error('offline'),
+      reportedBySyncStatus: true,
+    } as never);
+
+    await komponente.markDelivered(bestellung.id);
+
+    expect(toast.toasts()).toEqual([]);
+  });
 });

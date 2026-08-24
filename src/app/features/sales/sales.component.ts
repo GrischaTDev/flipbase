@@ -103,6 +103,7 @@ export class SalesComponent {
   readonly bearbeiteVerkauf = signal<Sale | null>(null);
   readonly selectedPlatform = signal<string>('all');
   readonly activeInvoice = signal<Invoice | null>(null);
+  readonly isCreatingInvoice = signal(false);
 
   // Return modal state
   readonly isReturnModalOpen = signal<boolean>(false);
@@ -168,9 +169,27 @@ export class SalesComponent {
     this.isCreateModalOpen.set(false);
   }
 
-  openInvoiceForSale(sale: Sale): void {
-    const inv = this.invoiceService.generateInvoiceForSale(sale, sale.inventory_item);
-    this.activeInvoice.set(inv);
+  async openInvoiceForSale(sale: Sale): Promise<void> {
+    this.isCreatingInvoice.set(true);
+    try {
+      const result = await this.invoiceService.generateInvoiceForSale(sale, sale.inventory_item);
+      if (result.error || !result.data) {
+        const error = result.error ?? new Error('Die Rechnung konnte nicht erstellt werden.');
+        if (!result.reportedBySyncStatus && !this.syncStatus.istZentralGemeldet(error)) {
+          this.toast.error('Rechnung konnte nicht erstellt werden.', error.message);
+        }
+        return;
+      }
+      this.activeInvoice.set(result.data);
+      if (result.created) this.toast.success('Rechnung wurde erstellt.');
+    } catch (ursache: unknown) {
+      const error = ursache instanceof Error ? ursache : new Error('Unbekannter Fehler');
+      if (!this.syncStatus.istZentralGemeldet(error)) {
+        this.toast.error('Rechnung konnte nicht erstellt werden.', error.message);
+      }
+    } finally {
+      this.isCreatingInvoice.set(false);
+    }
   }
 
   openCreditNoteForSale(sale: Sale): void {

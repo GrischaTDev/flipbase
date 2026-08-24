@@ -173,7 +173,7 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
       },
     });
 
-    const ergebnis = await dienst.sendConfirmationEmail(rechnung);
+    const ergebnis = await dienst.prepareConfirmationEmail(rechnung);
 
     expect(ergebnis.success).toBe(false);
     expect(ergebnis.error).toBeInstanceOf(Error);

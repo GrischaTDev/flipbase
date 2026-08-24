@@ -16,6 +16,14 @@ export interface EmailConfirmationResult {
   readonly success: boolean;
   readonly message: string;
   readonly error: Error | null;
+  readonly reportedBySyncStatus: boolean;
+}
+
+export interface InvoiceGenerationResult {
+  readonly data: Invoice | null;
+  readonly error: Error | null;
+  readonly created: boolean;
+  readonly reportedBySyncStatus: boolean;
 }
 
 @Injectable({
@@ -146,6 +154,8 @@ export class InvoiceService {
           paymentStatus: inv.payment_status as 'paid' | 'pending',
           paymentDueDate: inv.payment_due_date || undefined,
           notes: inv.notes || undefined,
+          sourceType: inv.sale_id ? 'sale' : inv.store_order_id ? 'store_order' : undefined,
+          sourceId: inv.sale_id || inv.store_order_id || undefined,
         }));
         this.invoices.set(mapped);
         this.persistInvoices();
@@ -207,11 +217,17 @@ export class InvoiceService {
   /**
    * Generates a compliant DIN-A4 invoice for a recorded Flipbase Sale.
    */
-  generateInvoiceForSale(
+  async generateInvoiceForSale(
     sale: Sale,
     item?: InventoryItem,
     buyerInfo?: Partial<InvoiceParty>,
-  ): Invoice {
+  ): Promise<InvoiceGenerationResult> {
+    if (!this.istPersistenterModus()) {
+      const vorhandeneRechnung = this.invoices().find(
+        (invoice) => invoice.sourceType === 'sale' && invoice.sourceId === sale.id,
+      );
+      if (vorhandeneRechnung) return this.rechnungserfolg(vorhandeneRechnung, false);
+    }
     const ws = this.workspaceService?.currentWorkspace();
     const taxMode: TaxMode = item?.tax_mode_override || ws?.tax_mode || 'diff_25a';
     const invoiceNumber =
@@ -257,82 +273,22 @@ export class InvoiceService {
       paymentMethod: sale.platform || 'Online-Zahlung',
       paymentStatus: 'paid',
       notes: sale.buyer_notes || 'Vielen Dank für Ihren Einkauf bei Flipbase!',
+      sourceType: 'sale',
+      sourceId: sale.id,
     };
-
-    this.invoices.update((list) => [invoice, ...list]);
-    this.persistInvoices();
-
-    // Persist to Supabase
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client
-        .from('invoices')
-        .insert({
-          workspace_id: ws.id,
-          invoice_number: invoice.invoiceNumber,
-          order_number: invoice.orderNumber,
-          invoice_date: invoice.invoiceDate,
-          delivery_date: invoice.deliveryDate,
-          seller: invoice.seller as unknown as Json,
-          buyer: invoice.buyer as unknown as Json,
-          subtotal: invoice.subtotal,
-          shipping_cost: invoice.shippingCost,
-          total: invoice.total,
-          tax_mode: invoice.taxMode,
-          tax_clause: invoice.taxClause,
-          payment_method: invoice.paymentMethod,
-          payment_status: invoice.paymentStatus,
-          notes: invoice.notes,
-        })
-        .select()
-        .single()
-        .then(({ data: dbInv, error }) => {
-          if (error || !dbInv) {
-            this.syncStatus?.melde('Speichern der Rechnung', error);
-            return;
-          }
-          void this.speicherePositionen(dbInv.id, invoice.items);
-        });
-    }
-
-    return invoice;
-  }
-
-  /**
-   * Schreibt die Positionen einer Rechnung.
-   *
-   * Diese Zeile stand frueher ohne `await` und ohne `.then` da - der
-   * Abfrage-Erbauer von supabase-js schickt dann gar nichts ab. Die Rechnung
-   * kam also ohne ihre Positionen in der Datenbank an, und eine Rechnung ohne
-   * Positionen ist als Beleg wertlos. Aufgefallen ist es nur, weil noch keine
-   * Rechnung erzeugt worden war.
-   */
-  private async speicherePositionen(rechnungsId: string, positionen: InvoiceItem[]): Promise<void> {
-    if (!this.supabase || positionen.length === 0) return;
-
-    try {
-      const { error } = await this.supabase.client.from('invoice_items').insert(
-        positionen.map((it) => ({
-          invoice_id: rechnungsId,
-          sku: it.sku || null,
-          title: it.title,
-          condition: it.condition || null,
-          quantity: it.quantity,
-          unit_price: it.unitPrice,
-          total_price: it.totalPrice,
-        })),
-      );
-      if (error) {
-        this.syncStatus?.melde('Speichern der Rechnungspositionen', error);
-      }
-    } catch (e: unknown) {
-      this.syncStatus?.melde('Speichern der Rechnungspositionen', e);
-    }
+    return this.speichereOderLeseRechnung(invoice, sale.id, null, ws?.id);
   }
 
   /**
    * Generates a compliant DIN-A4 invoice for a public Webshop Order.
    */
-  generateInvoiceForOrder(order: StoreOrder): Invoice {
+  async generateInvoiceForOrder(order: StoreOrder): Promise<InvoiceGenerationResult> {
+    if (!this.istPersistenterModus()) {
+      const vorhandeneRechnung = this.invoices().find(
+        (invoice) => invoice.sourceType === 'store_order' && invoice.sourceId === order.id,
+      );
+      if (vorhandeneRechnung) return this.rechnungserfolg(vorhandeneRechnung, false);
+    }
     const ws = this.workspaceService?.currentWorkspace();
     const invoiceNumber =
       'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
@@ -383,51 +339,159 @@ export class InvoiceService {
       paymentStatus: order.paymentStatus === 'paid' ? 'paid' : 'pending',
       paymentDueDate: new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0],
       notes: order.customer.notes || 'Vielen Dank für Ihre Bestellung im Flipbase Webshop!',
+      sourceType: 'store_order',
+      sourceId: order.id,
     };
+    return this.speichereOderLeseRechnung(invoice, null, order.id, ws?.id);
+  }
 
-    this.invoices.update((list) => [invoice, ...list]);
-    this.persistInvoices();
-
-    // Persist to Supabase
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client
-        .from('invoices')
-        .insert({
-          workspace_id: ws.id,
-          invoice_number: invoice.invoiceNumber,
-          order_number: invoice.orderNumber,
-          invoice_date: invoice.invoiceDate,
-          delivery_date: invoice.deliveryDate,
-          seller: invoice.seller as unknown as Json,
-          buyer: invoice.buyer as unknown as Json,
-          subtotal: invoice.subtotal,
-          shipping_cost: invoice.shippingCost,
-          total: invoice.total,
-          tax_mode: invoice.taxMode,
-          tax_clause: invoice.taxClause,
-          payment_method: invoice.paymentMethod,
-          payment_status: invoice.paymentStatus,
-          payment_due_date: invoice.paymentDueDate,
-          notes: invoice.notes,
-        })
-        .select()
-        .single()
-        .then(({ data: dbInv, error }) => {
-          if (error || !dbInv) {
-            this.syncStatus?.melde('Speichern der Rechnung', error);
-            return;
-          }
-          void this.speicherePositionen(dbInv.id, invoice.items);
-        });
+  private async speichereOderLeseRechnung(
+    entwurf: Invoice,
+    saleId: string | null,
+    storeOrderId: string | null,
+    workspaceId: string | undefined,
+  ): Promise<InvoiceGenerationResult> {
+    const persistenterModus = this.istPersistenterModus();
+    if (persistenterModus && !workspaceId) {
+      return this.rechnungsfehler(new Error('Kein aktiver Workspace.'));
     }
 
-    return invoice;
+    if (persistenterModus) {
+      try {
+        const { data, error } = await (
+          this.supabase!.client as unknown as {
+            rpc(
+              name: 'create_or_get_invoice',
+              args: Record<string, unknown>,
+            ): Promise<{ data: unknown; error: unknown | null }>;
+          }
+        ).rpc('create_or_get_invoice', {
+          p_workspace_id: workspaceId,
+          p_sale_id: saleId,
+          p_store_order_id: storeOrderId,
+          p_invoice: {
+            invoice_number: entwurf.invoiceNumber,
+            order_number: entwurf.orderNumber,
+            invoice_date: entwurf.invoiceDate,
+            delivery_date: entwurf.deliveryDate,
+            seller: entwurf.seller,
+            buyer: entwurf.buyer,
+            subtotal: entwurf.subtotal,
+            shipping_cost: entwurf.shippingCost,
+            total: entwurf.total,
+            tax_mode: entwurf.taxMode,
+            tax_clause: entwurf.taxClause,
+            payment_method: entwurf.paymentMethod,
+            payment_status: entwurf.paymentStatus,
+            payment_due_date: entwurf.paymentDueDate ?? null,
+            notes: entwurf.notes ?? null,
+          } as unknown as Json,
+          p_items: entwurf.items.map((item) => ({
+            sku: item.sku ?? null,
+            title: item.title,
+            condition: item.condition ?? null,
+            quantity: item.quantity,
+            unit_price: item.unitPrice,
+            total_price: item.totalPrice,
+          })) as unknown as Json,
+        });
+        if (error || !data) {
+          return this.rechnungsfehler(
+            error ?? new Error('Die Datenbank hat keine Rechnung zurückgegeben.'),
+          );
+        }
+        const gespeichert = this.leseRpcRechnung(data);
+        if (!gespeichert) {
+          return this.rechnungsfehler(
+            new Error('Die Datenbank hat keine vollständige Rechnung zurückgegeben.'),
+          );
+        }
+        this.invoices.update((list) => [
+          gespeichert.invoice,
+          ...list.filter((invoice) => invoice.id !== gespeichert.invoice.id),
+        ]);
+        this.persistInvoices();
+        return this.rechnungserfolg(gespeichert.invoice, gespeichert.created);
+      } catch (ursache: unknown) {
+        return this.rechnungsfehler(ursache);
+      }
+    }
+
+    this.invoices.update((list) => [entwurf, ...list]);
+    this.persistInvoices();
+    return this.rechnungserfolg(entwurf, true);
+  }
+
+  private leseRpcRechnung(data: unknown): { invoice: Invoice; created: boolean } | null {
+    if (typeof data !== 'object' || data === null || !('invoice' in data) || !('items' in data)) {
+      return null;
+    }
+    const payload = data as { invoice: Record<string, unknown>; items: unknown; created?: unknown };
+    const db = payload.invoice;
+    if (typeof db?.['id'] !== 'string' || !Array.isArray(payload.items)) return null;
+    const items: InvoiceItem[] = payload.items.map((raw) => {
+      const item = raw as Record<string, unknown>;
+      return {
+        sku: typeof item['sku'] === 'string' ? item['sku'] : undefined,
+        title: String(item['title'] ?? ''),
+        condition: typeof item['condition'] === 'string' ? item['condition'] : undefined,
+        quantity: Number(item['quantity'] ?? 0),
+        unitPrice: Number(item['unit_price'] ?? 0),
+        totalPrice: Number(item['total_price'] ?? 0),
+      };
+    });
+    if (items.length === 0 || items.some((item) => !item.title || item.quantity < 1)) return null;
+    const invoice: Invoice = {
+      id: db['id'],
+      invoiceNumber: String(db['invoice_number'] ?? ''),
+      orderNumber: String(db['order_number'] ?? ''),
+      invoiceDate: String(db['invoice_date'] ?? ''),
+      deliveryDate: String(db['delivery_date'] ?? ''),
+      seller: db['seller'] as unknown as InvoiceParty,
+      buyer: db['buyer'] as unknown as InvoiceParty,
+      items,
+      subtotal: Number(db['subtotal'] ?? 0),
+      shippingCost: Number(db['shipping_cost'] ?? 0),
+      total: Number(db['total'] ?? 0),
+      taxMode: String(db['tax_mode'] ?? 'diff_25a') as TaxMode,
+      taxClause: String(db['tax_clause'] ?? ''),
+      paymentMethod: String(db['payment_method'] ?? ''),
+      paymentStatus: db['payment_status'] === 'pending' ? 'pending' : 'paid',
+      paymentDueDate:
+        typeof db['payment_due_date'] === 'string' ? db['payment_due_date'] : undefined,
+      notes: typeof db['notes'] === 'string' ? db['notes'] : undefined,
+      sourceType: db['sale_id'] ? 'sale' : 'store_order',
+      sourceId: String(db['sale_id'] ?? db['store_order_id'] ?? ''),
+    };
+    if (!invoice.invoiceNumber || !invoice.sourceId) return null;
+    return { invoice, created: payload.created === true };
+  }
+
+  private rechnungserfolg(invoice: Invoice, created: boolean): InvoiceGenerationResult {
+    return { data: invoice, error: null, created, reportedBySyncStatus: false };
+  }
+
+  private istPersistenterModus(): boolean {
+    return Boolean(this.supabase && !this.mockStore?.isDemoMode());
+  }
+
+  private rechnungsfehler(ursache: unknown): InvoiceGenerationResult {
+    const error =
+      this.syncStatus?.melde('Erstellen der Rechnung', ursache) ??
+      (ursache instanceof Error ? ursache : new Error(String(ursache)));
+    return {
+      data: null,
+      error,
+      created: false,
+      reportedBySyncStatus: this.syncStatus?.istZentralGemeldet(error) ?? false,
+    };
   }
 
   /**
-   * Sends a purchase confirmation email and records it in Supabase.
+   * Bereitet eine Kaufbestätigung vor und protokolliert sie in Supabase.
+   * Ein tatsächlicher Versand findet ohne angebundenen E-Mail-Provider nicht statt.
    */
-  async sendConfirmationEmail(
+  async prepareConfirmationEmail(
     invoice: Invoice,
     _trackingUrl?: string,
   ): Promise<EmailConfirmationResult> {
@@ -441,9 +505,9 @@ export class InvoiceService {
             'Speichern der E-Mail-Bestätigung',
             new Error('Kein aktiver Workspace.'),
           ) ?? new Error('Kein aktiver Workspace.'),
+        reportedBySyncStatus: Boolean(this.syncStatus),
       };
     }
-    await new Promise((res) => setTimeout(res, 300));
 
     const emailRecord: EmailConfirmation = {
       id: 'em-' + Math.random().toString(36).substring(2, 8),
@@ -451,7 +515,7 @@ export class InvoiceService {
       recipientName: invoice.buyer.name,
       subject: `Bestell- & Kaufbestätigung: ${invoice.orderNumber} (Rechnung ${invoice.invoiceNumber})`,
       sentAt: new Date().toISOString(),
-      status: 'sent',
+      status: 'draft',
       invoiceNumber: invoice.invoiceNumber,
       orderNumber: invoice.orderNumber,
     };
@@ -465,7 +529,7 @@ export class InvoiceService {
             recipient_email: emailRecord.to,
             recipient_name: emailRecord.recipientName,
             subject: emailRecord.subject,
-            status: 'sent',
+            status: 'draft',
             invoice_number: invoice.invoiceNumber,
             order_number: invoice.orderNumber,
           })
@@ -480,19 +544,22 @@ export class InvoiceService {
                 'Speichern der E-Mail-Bestätigung',
                 error ?? new Error('Die Datenbank hat keine E-Mail-Bestätigung zurückgegeben.'),
               ) ?? new Error('Die E-Mail-Bestätigung konnte nicht gespeichert werden.'),
+            reportedBySyncStatus: Boolean(this.syncStatus),
           };
         }
       } catch (ursache: unknown) {
+        const error =
+          ursache instanceof Error && this.syncStatus?.istZentralGemeldet(ursache)
+            ? ursache
+            : (this.syncStatus?.melde('Speichern der E-Mail-Bestätigung', ursache) ??
+              (ursache instanceof Error
+                ? ursache
+                : new Error('Die E-Mail-Bestätigung konnte nicht gespeichert werden.')));
         return {
           success: false,
           message: '',
-          error:
-            ursache instanceof Error && this.syncStatus?.istZentralGemeldet(ursache)
-              ? ursache
-              : (this.syncStatus?.melde('Speichern der E-Mail-Bestätigung', ursache) ??
-                (ursache instanceof Error
-                  ? ursache
-                  : new Error('Die E-Mail-Bestätigung konnte nicht gespeichert werden.'))),
+          error,
+          reportedBySyncStatus: this.syncStatus?.istZentralGemeldet(error) ?? false,
         };
       }
     }
@@ -502,8 +569,9 @@ export class InvoiceService {
 
     return {
       success: true,
-      message: `Kaufbestätigung und § 25a Rechnung erfolgreich an ${emailRecord.to} gesendet!`,
+      message: `Kaufbestätigung und § 25a Rechnung wurden für ${emailRecord.to} vorbereitet.`,
       error: null,
+      reportedBySyncStatus: false,
     };
   }
 

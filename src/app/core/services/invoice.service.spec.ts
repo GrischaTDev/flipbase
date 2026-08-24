@@ -13,7 +13,7 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
     service = runInInjectionContext(injector, () => new InvoiceService());
   });
 
-  it('should generate a compliant § 25a UStG invoice for a Sale', () => {
+  it('should generate a compliant § 25a UStG invoice for a Sale', async () => {
     const sale: Sale = {
       id: 'sale-1',
       workspace_id: 'ws-1',
@@ -44,7 +44,7 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
       created_at: '2026-08-10',
     };
 
-    const invoice = service.generateInvoiceForSale(sale, item, {
+    const result = await service.generateInvoiceForSale(sale, item, {
       name: 'Max Mustermann',
       street: 'Hauptstraße 1',
       postalCode: '10115',
@@ -52,6 +52,9 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
       email: 'max@beispiel.de',
     });
 
+    expect(result.error).toBeNull();
+    expect(result.created).toBe(true);
+    const invoice = result.data!;
     expect(invoice.invoiceNumber).toContain('RE-2026-');
     expect(invoice.orderNumber).toBe('KA-991122');
     expect(invoice.total).toBe(150.0);
@@ -60,7 +63,7 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
     expect(invoice.buyer.name).toBe('Max Mustermann');
   });
 
-  it('should generate a compliant invoice for a Webshop StoreOrder', () => {
+  it('should generate a compliant invoice for a Webshop StoreOrder', async () => {
     const order: StoreOrder = {
       id: 'order-1',
       orderNumber: 'RF-889900',
@@ -101,7 +104,9 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
       status: 'confirmed',
     };
 
-    const invoice = service.generateInvoiceForOrder(order);
+    const result = await service.generateInvoiceForOrder(order);
+    expect(result.error).toBeNull();
+    const invoice = result.data!;
 
     expect(invoice.orderNumber).toBe('RF-889900');
     expect(invoice.buyer.name).toBe('Anna Schmidt');
@@ -111,7 +116,7 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
     expect(invoice.total).toBe(180.0);
   });
 
-  it('should simulate sending a purchase confirmation email', async () => {
+  it('bereitet eine Kaufbestätigung vor, ohne einen Versand zu behaupten', async () => {
     const sale: Sale = {
       id: 'sale-3',
       workspace_id: 'ws-1',
@@ -128,10 +133,36 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
       holding_duration_days: 2,
     };
 
-    const invoice = service.generateInvoiceForSale(sale);
-    const emailRes = await service.sendConfirmationEmail(invoice);
+    const invoice = (await service.generateInvoiceForSale(sale)).data!;
+    const emailRes = await service.prepareConfirmationEmail(invoice);
 
     expect(emailRes.success).toBe(true);
+    expect(emailRes.message).toContain('vorbereitet');
+    expect(emailRes.message).not.toContain('gesendet');
+    expect(service.sentEmails()[0].status).toBe('draft');
     expect(service.sentEmails().length).toBeGreaterThan(0);
+  });
+
+  it('öffnet dieselbe Verkaufsrechnung wieder, ohne eine zweite zu erzeugen', async () => {
+    const sale = {
+      id: 'sale-repeat',
+      workspace_id: 'ws-1',
+      inventory_item_id: 'item-repeat',
+      sale_price: 50,
+      sale_date: '2026-08-24',
+      platform: 'ebay',
+      platform_fee: 0,
+      shipping_cost: 0,
+      packaging_cost: 0,
+      other_costs: 0,
+    } satisfies Sale;
+
+    const first = await service.generateInvoiceForSale(sale);
+    const second = await service.generateInvoiceForSale(sale);
+
+    expect(first.created).toBe(true);
+    expect(second.created).toBe(false);
+    expect(second.data?.id).toBe(first.data?.id);
+    expect(service.invoices()).toHaveLength(1);
   });
 });
