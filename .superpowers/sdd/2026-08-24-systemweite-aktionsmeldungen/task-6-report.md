@@ -30,3 +30,9 @@ Die drei ungetrackten Plan-/Spezifikationsdateien unter `docs/superpowers/` wurd
 ### Nicht verifizierbarer DB-Schritt
 
 `npx supabase status`, `stop`, `db diff -f atomic_shipping_order_bundles` und `gen types --local` sind blockiert, weil Docker Desktop nicht läuft (`dockerDesktopLinuxEngine`-Pipe fehlt). Daher wurde bewusst keine Migration erzeugt und `supabase.types.ts` nicht verändert. Die versehentlich durch die fehlgeschlagene Typgenerierung überschriebene Datei wurde exakt aus `HEAD` wiederhergestellt. Nach Start von Docker sind Diff, lokale DB-Integrationstests und die Typgenerierung zwingend nachzuholen.
+
+### Review-Runde 2
+
+- Der lokale Reset hat beide generierten Migrationen angewandt. Die zweite Migration revokiert gezielt die durch den globalen Grant erneut vorhandenen `service_role`-Rechte; das ist beabsichtigt.
+- Gemeinsame `sale_id` wird ausschließlich aus gesperrten Quellaufträgen abgeleitet; gemischte oder fehlende Werte werden zu `null`. Der Restore prüft Snapshot-Form, Workspace und die vollständige ID-Menge.
+- `gen types typescript --local` lieferte in dieser lokalen CLI-Konfiguration trotz Reset ein leeres `public`-Schema und zerstörte damit den Typecheck. Die gültige Typdatei wurde aus `HEAD` wiederhergestellt; der Export muss mit korrigierter lokaler CLI-/Schema-Exposition erneut ausgeführt werden.
