@@ -48,6 +48,43 @@ Korrektur ebenfalls rot, weil zusätzlich eine Warnung erzeugt wurde.
 - `npm run format:check`: Exitcode 0.
 - `npm run build`: Exitcode 0; nur die vorbestehenden CommonJS-Warnungen für `jszip` und
   `jsbarcode`.
+
+## Fix-Runde 3
+
+### Status und Korrekturen
+
+Die zwei verbleibenden Findings zur Batch-Deduplizierung sind behoben.
+
+- `SyncStatusService` verwaltet für jede aktive, typisierte Batch-Aktion ein vom sichtbaren
+  Fehlerstatus unabhängiges Seen-Set. Das Schließen oder Verwerfen eines persistenten
+  Sync-Toasts löscht dieses Gedächtnis nicht mehr. `beendeFehlerAktion()` gibt es erst nach dem
+  Abschluss der Aktion frei; eine spätere neue Aktion kann dieselbe Ursache wieder sichtbar
+  melden.
+- Die Batch-Schleifen für Mehrfachanlegen und Mehrfachupload schließen ihren Aktionskontext in
+  `finally` – auch wenn der aufgerufene Service wirft oder ein Ablauf vorzeitig endet.
+- Der Deduplizierungsschlüssel besteht stabil aus Vorgang, technischem Code und fachlich
+  normalisierter Ursache. Gleiche Ursachen werden zusammengefasst; unterschiedliche Ursachen mit
+  identischem unbekannten Fehlercode bleiben getrennt sichtbar. Komponenten vergleichen hierfür
+  weiterhin keine UI-Texte, sondern nutzen die typisierte Fehlerprovenienz.
+
+### TDD-Nachweis
+
+- Red: Ein nach `verwerfen()` erneut gemeldeter identischer Fehler derselben Aktion erschien
+  erneut statt unterdrückt zu bleiben. Zwei fachlich verschiedene Meldungen mit Code `23514`
+  wurden fälschlich zu einem Eintrag zusammengefasst.
+- Green: Direkte SyncStatus-Tests decken Seen-Lebenszyklus, neue Aktion und unterschiedliche
+  Ursachen ab. Create- und Upload-Batchtests prüfen zusätzlich das Lifecycle-Cleanup auf einem
+  geworfenen Service-Fehlerpfad.
+
+### Verifikation
+
+- Fokussierter Task-4-Lauf einschließlich SyncStatus: 6/6 Testdateien, 69/69 Tests, Exitcode 0.
+- Vollsuite: 71/71 Testdateien, 512/512 Tests, Exitcode 0.
+- `npm run typecheck`: Exitcode 0.
+- `npm run lint`: Exitcode 0; 48 vorbestehende Warnungen, keine Fehler.
+- `npm run format:check`: Exitcode 0.
+- `npm run build`: Exitcode 0; nur die vorbestehenden CommonJS-Warnungen für `jszip` und
+  `jsbarcode`.
 - `git diff --cached --check`: ohne Befund vor dem Commit.
 - Commit-Selbstprüfung: zehn Task-4-Dateien, keine fremden Dokumente oder Änderungen.
 

@@ -212,30 +212,34 @@ export class ItemDetailComponent {
     let erfolgreicheUploads = 0;
     let fehlgeschlageneUploads = 0;
 
-    for (const file of files) {
-      const isPrimary = brauchtHauptbild;
-      const { data, error } = await this.mediaService.uploadItemMedia(
-        itemId,
-        file,
-        isPrimary,
-        fehlerAktion,
-      );
-      if (error) {
-        this.uploadError.set(error.message);
-        ersterFehler ??= error;
-        uploadFehler.push(error);
-        fehlgeschlageneUploads++;
-      } else if (data) {
-        this.mediaList.update((prev) => [data, ...prev]);
-        erfolgreicheUploads++;
-        brauchtHauptbild = false;
-      } else {
-        const fehler = new Error('Das Bild wurde nicht zurückgegeben.');
-        this.uploadError.set(fehler.message);
-        ersterFehler ??= fehler;
-        uploadFehler.push(fehler);
-        fehlgeschlageneUploads++;
+    try {
+      for (const file of files) {
+        const isPrimary = brauchtHauptbild;
+        const { data, error } = await this.mediaService.uploadItemMedia(
+          itemId,
+          file,
+          isPrimary,
+          fehlerAktion,
+        );
+        if (error) {
+          this.uploadError.set(error.message);
+          ersterFehler ??= error;
+          uploadFehler.push(error);
+          fehlgeschlageneUploads++;
+        } else if (data) {
+          this.mediaList.update((prev) => [data, ...prev]);
+          erfolgreicheUploads++;
+          brauchtHauptbild = false;
+        } else {
+          const fehler = new Error('Das Bild wurde nicht zurückgegeben.');
+          this.uploadError.set(fehler.message);
+          ersterFehler ??= fehler;
+          uploadFehler.push(fehler);
+          fehlgeschlageneUploads++;
+        }
       }
+    } finally {
+      this.syncStatus.beendeFehlerAktion(fehlerAktion);
     }
 
     this.isUploading.set(false);

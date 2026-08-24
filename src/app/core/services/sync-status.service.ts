@@ -13,13 +13,18 @@ export interface SyncFehler {
   readonly zeitpunkt: string;
   /** Kennung einer zusammengehörigen Nutzeraktion, falls vorhanden. */
   readonly aktionsId?: number;
-  /** Interner, fachlich normalisierter Schlüssel zur Batch-Deduplizierung. */
-  readonly ursachenSchluessel: string;
+  /** Stabiler, fachlich normalisierter Schlüssel zur Batch-Deduplizierung. */
+  readonly deduplizierungsSchluessel: string;
 }
 
 /** Kennzeichnet mehrere technische Vorgänge als eine Nutzeraktion. */
 export interface SyncFehlerAktion {
   readonly id: number;
+}
+
+interface AktiveFehlerAktion {
+  readonly geseheneSchluessel: Set<string>;
+  readonly ersteFehler: Map<string, SyncFehler>;
 }
 
 /** Fehler, der bereits als Sync-Status sichtbar gemacht wurde. */
@@ -45,6 +50,7 @@ export class ZentralGemeldeterFehler extends Error {
 export class SyncStatusService {
   private naechsteId = 1;
   private naechsteAktionsId = 1;
+  private readonly aktiveFehlerAktionen = new Map<number, AktiveFehlerAktion>();
 
   /**
    * Fehlercodes, die bedeuten können: Die Anmeldung gilt nicht mehr.
@@ -79,16 +85,12 @@ export class SyncStatusService {
    */
   melde(vorgang: string, ursache: unknown, aktion?: SyncFehlerAktion): ZentralGemeldeterFehler {
     const { meldung, code } = this.deute(ursache);
-    const ursachenSchluessel = this.ursachenSchluessel(code, meldung);
-    const vorhandener =
-      aktion === undefined
-        ? undefined
-        : this.fehler().find(
-            (eintrag) =>
-              eintrag.aktionsId === aktion.id &&
-              eintrag.vorgang === vorgang &&
-              eintrag.ursachenSchluessel === ursachenSchluessel,
-          );
+    const deduplizierungsSchluessel = this.deduplizierungsSchluessel(vorgang, code, meldung);
+    const aktiveAktion =
+      aktion === undefined ? undefined : this.aktiveFehlerAktionen.get(aktion.id);
+    const vorhandener = aktiveAktion?.geseheneSchluessel.has(deduplizierungsSchluessel)
+      ? aktiveAktion.ersteFehler.get(deduplizierungsSchluessel)
+      : undefined;
 
     if (vorhandener) return new ZentralGemeldeterFehler(vorhandener);
 
@@ -99,8 +101,11 @@ export class SyncStatusService {
       code,
       zeitpunkt: new Date().toISOString(),
       aktionsId: aktion?.id,
-      ursachenSchluessel,
+      deduplizierungsSchluessel,
     };
+
+    aktiveAktion?.geseheneSchluessel.add(deduplizierungsSchluessel);
+    aktiveAktion?.ersteFehler.set(deduplizierungsSchluessel, eintrag);
 
     // Offene Fehler bleiben bis zum ausdrücklichen Schließen erhalten.
     this.fehler.update((liste) => [eintrag, ...liste]);
@@ -114,7 +119,17 @@ export class SyncStatusService {
 
   /** Erstellt einen eindeutigen Kontext für eine zusammenhängende Nutzeraktion. */
   neueFehlerAktion(): SyncFehlerAktion {
-    return { id: this.naechsteAktionsId++ };
+    const aktion = { id: this.naechsteAktionsId++ };
+    this.aktiveFehlerAktionen.set(aktion.id, {
+      geseheneSchluessel: new Set<string>(),
+      ersteFehler: new Map<string, SyncFehler>(),
+    });
+    return aktion;
+  }
+
+  /** Beendet einen Batch und gibt sein internes Deduplizierungsgedächtnis frei. */
+  beendeFehlerAktion(aktion: SyncFehlerAktion): void {
+    this.aktiveFehlerAktionen.delete(aktion.id);
   }
 
   /** Prüft die Herkunft ohne Fehlermeldungstexte vergleichen zu müssen. */
@@ -139,8 +154,12 @@ export class SyncStatusService {
     this.fehler.set([]);
   }
 
-  private ursachenSchluessel(code: string | undefined, meldung: string): string {
-    return code ? `code:${code}` : `meldung:${meldung}`;
+  private deduplizierungsSchluessel(
+    vorgang: string,
+    code: string | undefined,
+    meldung: string,
+  ): string {
+    return JSON.stringify([vorgang, code ?? null, meldung]);
   }
 
   /** Übersetzt technische Fehler in verständliche Sätze. */

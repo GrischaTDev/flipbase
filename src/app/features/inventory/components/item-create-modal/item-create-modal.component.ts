@@ -365,11 +365,19 @@ export class ItemCreateModalComponent {
     const anlegeFehler: Error[] = [];
     const fehlerAktion = this.syncStatus.neueFehlerAktion();
 
-    for (let i = 0; i < anzahl; i++) {
-      const { data, error: fehler } = await this.inventoryService.createItem(payload, fehlerAktion);
-      if (data) angelegteArtikel.push(data);
-      if (fehler) anlegeFehler.push(fehler);
-      if (!data && !fehler) anlegeFehler.push(new Error('Der Artikel wurde nicht zurückgegeben.'));
+    try {
+      for (let i = 0; i < anzahl; i++) {
+        const { data, error: fehler } = await this.inventoryService.createItem(
+          payload,
+          fehlerAktion,
+        );
+        if (data) angelegteArtikel.push(data);
+        if (fehler) anlegeFehler.push(fehler);
+        if (!data && !fehler)
+          anlegeFehler.push(new Error('Der Artikel wurde nicht zurückgegeben.'));
+      }
+    } finally {
+      this.syncStatus.beendeFehlerAktion(fehlerAktion);
     }
 
     const mehrfachErgebnis: MehrfachAnlageErgebnis = {

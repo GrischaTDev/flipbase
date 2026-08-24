@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { FormControl, FormGroup } from '@angular/forms';
 import { describe, expect, it, vi } from 'vitest';
 import { InventoryItem, ItemCondition, ItemStatus } from '../../../../core/models/flipbase.models';
-import { SyncStatusService } from '../../../../core/services/sync-status.service';
+import { SyncFehlerAktion, SyncStatusService } from '../../../../core/services/sync-status.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { ItemCreateModalComponent } from './item-create-modal.component';
 
@@ -283,5 +283,28 @@ describe('ItemCreateModalComponent – Toast-Rückmeldung', () => {
       description: '1 Artikel konnte nicht angelegt werden.',
       persistent: false,
     });
+  });
+
+  it('beendet die zentrale Fehleraktion auch bei einem geworfenen Create-Fehler', async () => {
+    const { komponente, inventoryService, syncStatus } = erstelleKomponente({
+      data: null,
+      error: null,
+    });
+    let aktion: SyncFehlerAktion | undefined;
+    inventoryService.createItem.mockImplementation(
+      async (_payload: unknown, batchAktion?: unknown) => {
+        aktion = batchAktion as SyncFehlerAktion | undefined;
+        syncStatus.melde('Speichern des Artikels', new Error('offline'), aktion);
+        throw new Error('Create abgebrochen');
+      },
+    );
+
+    await expect(komponente.onSubmit()).rejects.toThrow('Create abgebrochen');
+
+    const syncId = syncStatus.fehler()[0].id;
+    syncStatus.verwerfen(syncId);
+    syncStatus.melde('Speichern des Artikels', new Error('offline'), aktion);
+
+    expect(syncStatus.fehler()).toHaveLength(1);
   });
 });

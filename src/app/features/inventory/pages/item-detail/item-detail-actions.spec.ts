@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 import { FormControl, FormGroup } from '@angular/forms';
 import { describe, expect, it, vi } from 'vitest';
 import { InventoryItem, ItemMedia } from '../../../../core/models/flipbase.models';
-import { SyncStatusService } from '../../../../core/services/sync-status.service';
+import { SyncFehlerAktion, SyncStatusService } from '../../../../core/services/sync-status.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { ItemDetailComponent } from './item-detail.component';
 
@@ -354,5 +354,29 @@ describe('ItemDetailComponent – Aktionsmeldungen', () => {
       description: '1 Bild konnte nicht hochgeladen werden.',
       persistent: false,
     });
+  });
+
+  it('beendet die zentrale Fehleraktion auch bei einem geworfenen Upload-Fehler', async () => {
+    const { komponente, mediaService, syncStatus } = erstelleKomponente();
+    let aktion: SyncFehlerAktion | undefined;
+    mediaService.uploadItemMedia.mockImplementation(
+      async (_itemId: string, _file: File, _isPrimary: boolean, batchAktion?: unknown) => {
+        aktion = batchAktion as SyncFehlerAktion | undefined;
+        syncStatus.melde('Hochladen des Bildes', new Error('offline'), aktion);
+        throw new Error('Upload abgebrochen');
+      },
+    );
+
+    await expect(
+      komponente.onFilesSelected(
+        dateiEvent([new File(['bild'], 'bild.jpg', { type: 'image/jpeg' })]),
+      ),
+    ).rejects.toThrow('Upload abgebrochen');
+
+    const syncId = syncStatus.fehler()[0].id;
+    syncStatus.verwerfen(syncId);
+    syncStatus.melde('Hochladen des Bildes', new Error('offline'), aktion);
+
+    expect(syncStatus.fehler()).toHaveLength(1);
   });
 });

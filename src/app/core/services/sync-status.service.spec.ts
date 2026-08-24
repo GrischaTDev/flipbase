@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { SyncStatusService } from './sync-status.service';
+import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
 
 describe('SyncStatusService – sichtbare Meldung fehlgeschlagener Speichervorgänge', () => {
   let service: SyncStatusService;
@@ -106,5 +106,60 @@ describe('SyncStatusService – sichtbare Meldung fehlgeschlagener Speichervorg�
   it('hält die technische Fehlerkennung fest', () => {
     service.melde('Einkauf speichern', { code: '42501', message: 'denied' });
     expect(service.neuesterFehler()?.code).toBe('42501');
+  });
+
+  it('dedupliziert über den Batch-Lebenszyklus und meldet in einer neuen Aktion erneut', () => {
+    const aktion = service.neueFehlerAktion();
+    const erster = service.melde('Speichern des Artikels', new Error('offline'), aktion);
+    service.verwerfen(erster.syncFehler.id);
+
+    service.melde('Speichern des Artikels', new Error('offline'), aktion);
+
+    expect(service.fehler()).toEqual([]);
+
+    const mitLifecycle = service as SyncStatusService & {
+      beendeFehlerAktion(aktion: SyncFehlerAktion): void;
+    };
+    expect(mitLifecycle.beendeFehlerAktion).toBeTypeOf('function');
+    mitLifecycle.beendeFehlerAktion(aktion);
+
+    const spaetereAktion = service.neueFehlerAktion();
+    service.melde('Speichern des Artikels', new Error('offline'), spaetereAktion);
+
+    expect(service.fehler()).toHaveLength(1);
+  });
+
+  it('behält verschiedene fachliche Ursachen mit gleichem Fehlercode getrennt', () => {
+    const aktion = service.neueFehlerAktion();
+    service.melde(
+      'Speichern des Artikels',
+      {
+        code: '23514',
+        message: 'Preis verletzt Check A',
+      },
+      aktion,
+    );
+    service.melde(
+      'Speichern des Artikels',
+      {
+        code: '23514',
+        message: 'Titel verletzt Check B',
+      },
+      aktion,
+    );
+    service.melde(
+      'Speichern des Artikels',
+      {
+        code: '23514',
+        message: 'Preis verletzt Check A',
+      },
+      aktion,
+    );
+
+    expect(service.fehler()).toHaveLength(2);
+    expect(service.fehler().map((fehler) => fehler.meldung)).toEqual([
+      'Titel verletzt Check B',
+      'Preis verletzt Check A',
+    ]);
   });
 });
