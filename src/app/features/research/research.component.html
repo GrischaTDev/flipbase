@@ -586,28 +586,19 @@
 
             <!-- Right: 1-Click Repricing & Actions -->
             <div class="flex items-center gap-2 shrink-0">
-              @if (repricingSuccessId() === item.id) {
-                <div
-                  class="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-bold flex items-center gap-1.5 animate-fade-in"
+              <button
+                type="button"
+                (click)="onApplyRadarPrice(item.id)"
+                class="linear-btn-primary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
+                [title]="'Preis im Inventar auf ' + item.recommendedPrice + ' € anpassen'"
+              >
+                <svg [lucideIcon]="zapIcon" class="w-3.5 h-3.5 text-amber-300"></svg>
+                <span
+                  >Auf
+                  {{ item.recommendedPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  anpassen</span
                 >
-                  <svg [lucideIcon]="checkIcon" class="w-4 h-4"></svg>
-                  <span>Preis angepasst!</span>
-                </div>
-              } @else {
-                <button
-                  type="button"
-                  (click)="onApplyRadarPrice(item.id)"
-                  class="linear-btn-primary px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-md shadow-indigo-500/20"
-                  [title]="'Preis im Inventar auf ' + item.recommendedPrice + ' € anpassen'"
-                >
-                  <svg [lucideIcon]="zapIcon" class="w-3.5 h-3.5 text-amber-300"></svg>
-                  <span
-                    >Auf
-                    {{ item.recommendedPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                    anpassen</span
-                  >
-                </button>
-              }
+              </button>
 
               <button
                 type="button"

@@ -206,11 +206,6 @@ export class FulfillmentComponent {
    * ist deshalb ausgeblendet. Gekauft wird beim Zusteller, die echte Nummer
    * kommt ueber "Sendungsnummer erfassen" herein.
    */
-  async onConfirmPurchaseLabel(): Promise<void> {
-    this.isPurchaseModalOpen.set(false);
-    this.toast.success('Sendungsnummer wurde gespeichert.');
-  }
-
   openLabelModal(order: ShippingOrder): void {
     this.fulfillmentService.selectedOrderForLabel.set(order);
     this.isLabelModalOpen.set(true);

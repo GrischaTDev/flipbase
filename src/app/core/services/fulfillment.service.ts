@@ -25,6 +25,13 @@ export interface FulfillmentMutationResult<T> {
   readonly error: Error | null;
 }
 
+interface FulfillmentRpcClient {
+  rpc(
+    functionName: 'bundle_shipping_orders' | 'unbundle_shipping_order',
+    args: Record<string, unknown>,
+  ): Promise<{ data: unknown; error: unknown | null }>;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -578,29 +585,53 @@ export class FulfillmentService {
     };
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
+    if (this.istPersistenterModus()) {
+      if (!ws || firstOrder.workspace_id !== ws.id) {
+        return {
+          data: null,
+          error: this.meldePersistenzfehler(
+            'Bündeln der Sendungen',
+            new Error('Die Sendungen gehören nicht zum ausgewählten Workspace.'),
+          ),
+        };
+      }
       try {
-        const { error } = await this.supabase.client.from('shipping_orders').insert({
-          workspace_id: ws.id,
-          sale_id: bundledOrder.sale_id || null,
-          order_number: bundledOrder.order_number,
-          order_date: bundledOrder.order_date,
-          platform: bundledOrder.platform,
-          item_title: bundledOrder.item_title,
-          item_sku: bundledOrder.item_sku,
-          item_condition: bundledOrder.item_condition,
-          sale_price: bundledOrder.sale_price,
-          customer: bundledOrder.customer as unknown as Json,
-          carrier: bundledOrder.carrier,
-          package_type: bundledOrder.package_type,
-          status: bundledOrder.status,
-          is_bundled: true,
-          bundled_order_ids: bundledOrder.bundled_order_ids,
-          bundled_item_titles: bundledOrder.bundled_item_titles,
-          notes: bundledOrder.notes,
+        const { data, error } = await this.rpcClient().rpc('bundle_shipping_orders', {
+          p_workspace_id: ws.id,
+          p_order_ids: orderIds,
+          p_order_number: bundledOrder.order_number,
+          p_order_date: bundledOrder.order_date.slice(0, 10),
+          p_platform: bundledOrder.platform,
+          p_item_title: bundledOrder.item_title,
+          p_item_sku: bundledOrder.item_sku ?? null,
+          p_item_condition: bundledOrder.item_condition ?? null,
+          p_sale_price: bundledOrder.sale_price,
+          p_customer: bundledOrder.customer as unknown as Json,
+          p_carrier: bundledOrder.carrier,
+          p_package_type: bundledOrder.package_type,
+          p_bundled_item_titles: itemTitles,
+          p_notes: bundledOrder.notes ?? null,
         });
-        if (error)
+        if (error) {
           return { data: null, error: this.meldePersistenzfehler('Bündeln der Sendungen', error) };
+        }
+        const gespeichertesBündel = this.alsShippingOrder(data);
+        if (!gespeichertesBündel) {
+          return {
+            data: null,
+            error: this.meldePersistenzfehler(
+              'Bündeln der Sendungen',
+              new Error('Die Datenbank hat kein gültiges Sammelpaket zurückgegeben.'),
+            ),
+          };
+        }
+        this.orders.update((prev) => [
+          gespeichertesBündel,
+          ...prev.filter((order) => !orderIds.includes(order.id)),
+        ]);
+        this.persistOrders();
+        this.meldeBündelung(candidate, gespeichertesBündel);
+        return { data: gespeichertesBündel, error: null };
       } catch (error: unknown) {
         return { data: null, error: this.meldePersistenzfehler('Bündeln der Sendungen', error) };
       }
@@ -651,26 +682,43 @@ export class FulfillmentService {
     }));
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
+    if (this.istPersistenterModus()) {
+      if (!ws || bundled.workspace_id !== ws.id) {
+        return {
+          data: null,
+          error: this.meldePersistenzfehler(
+            'Auflösen des Sammelpakets',
+            new Error('Das Sammelpaket gehört nicht zum ausgewählten Workspace.'),
+          ),
+        };
+      }
       try {
-        const { error, count } = await this.supabase.client
-          .from('shipping_orders')
-          .delete({ count: 'exact' })
-          .eq('id', bundledOrderId)
-          .eq('workspace_id', ws.id);
-        if (error)
+        const { data, error } = await this.rpcClient().rpc('unbundle_shipping_order', {
+          p_workspace_id: ws.id,
+          p_bundled_order_id: bundledOrderId,
+        });
+        if (error) {
           return {
             data: null,
             error: this.meldePersistenzfehler('Auflösen des Sammelpakets', error),
           };
-        if (count === 0)
+        }
+        const wiederhergestellteAufträge = this.alsShippingOrders(data);
+        if (!wiederhergestellteAufträge || wiederhergestellteAufträge.length === 0) {
           return {
             data: null,
             error: this.meldePersistenzfehler('Auflösen des Sammelpakets', {
               code: 'PGRST116',
-              message: 'Das Sammelpaket wurde nicht gefunden.',
+              message: 'Die Datenbank hat keine wiederhergestellten Sendungen zurückgegeben.',
             }),
           };
+        }
+        this.orders.update((prev) => [
+          ...wiederhergestellteAufträge,
+          ...prev.filter((order) => order.id !== bundledOrderId),
+        ]);
+        this.persistOrders();
+        return { data: wiederhergestellteAufträge, error: null };
       } catch (error: unknown) {
         return {
           data: null,
@@ -722,6 +770,42 @@ export class FulfillmentService {
   private meldePersistenzfehler(vorgang: string, ursache: unknown): Error {
     if (this.syncStatus) return this.syncStatus.melde(vorgang, ursache);
     return ursache instanceof Error ? ursache : new Error(String(ursache));
+  }
+
+  private istPersistenterModus(): boolean {
+    return this.supabase !== null && this.supabase !== undefined && !this.mockStore?.isDemoMode();
+  }
+
+  private rpcClient(): FulfillmentRpcClient {
+    return this.supabase!.client as unknown as FulfillmentRpcClient;
+  }
+
+  private alsShippingOrder(daten: unknown): ShippingOrder | null {
+    if (
+      typeof daten !== 'object' ||
+      daten === null ||
+      !('id' in daten) ||
+      typeof daten.id !== 'string' ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(daten.id)
+    ) {
+      return null;
+    }
+    return daten as ShippingOrder;
+  }
+
+  private alsShippingOrders(daten: unknown): ShippingOrder[] | null {
+    if (!Array.isArray(daten)) return null;
+    const aufträge = daten.map((eintrag) => this.alsShippingOrder(eintrag));
+    return aufträge.every((eintrag): eintrag is ShippingOrder => eintrag !== null)
+      ? aufträge
+      : null;
+  }
+
+  private meldeBündelung(candidate: BundleCandidate, bündel: ShippingOrder): void {
+    this.webPushService?.sendNotification(`Sammelpaket gebündelt: ${candidate.customerName}`, {
+      body: `${candidate.orders.length} Artikel zu 1 Paket zusammengefasst. Ersparnis: ${candidate.potentialSavings.toFixed(2)} €.`,
+      tag: `bundle-${bündel.id}`,
+    });
   }
 
   markAsDelivered(orderId: string): void {

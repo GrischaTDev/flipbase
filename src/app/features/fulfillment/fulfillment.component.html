@@ -789,9 +789,11 @@
                 <svg [lucideIcon]="zapIcon" class="w-4 h-4"></svg>
               </div>
               <div>
-                <h3 class="text-base font-bold text-fb-text-primary">Versandmarke direkt kaufen</h3>
+                <h3 class="text-base font-bold text-fb-text-primary">
+                  Versandmarkenkauf nicht verfügbar
+                </h3>
                 <p class="text-xs text-fb-text-muted mt-0.5">
-                  Offizielles DHL- oder Hermes-Versandetikett buchen.
+                  Es ist keine Zusteller-Schnittstelle angebunden.
                 </p>
               </div>
             </div>
@@ -875,7 +877,7 @@
             </div>
           </div>
 
-          <!-- Action Buttons -->
+          <!-- Der Kauf ist bewusst deaktiviert, solange keine echte Zusteller-Schnittstelle existiert. -->
           <div class="flex justify-end gap-2 pt-3 border-t border-fb-border">
             <button
               type="button"
@@ -885,22 +887,9 @@
               Abbrechen
             </button>
 
-            <button
-              type="button"
-              (click)="onConfirmPurchaseLabel()"
-              [disabled]="isPurchasing()"
-              class="linear-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-40"
-            >
-              @if (isPurchasing()) {
-                <div
-                  class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
-                ></div>
-                <span>Marke wird gebucht...</span>
-              } @else {
-                <svg [lucideIcon]="zapIcon" class="w-4 h-4"></svg>
-                <span>Jetzt kaufen & Label öffnen</span>
-              }
-            </button>
+            <span class="self-center text-xs text-fb-text-muted">
+              Bitte kaufe die Marke beim Zusteller und erfasse die echte Sendungsnummer.
+            </span>
           </div>
         </div>
       </div>

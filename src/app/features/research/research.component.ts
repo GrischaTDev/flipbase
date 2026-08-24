@@ -124,7 +124,6 @@ export class ResearchComponent {
   readonly selectedPlatformFilter = signal<'all' | 'ebay_sold' | 'kleinanzeigen' | 'vinted'>('all');
   readonly viewMode = signal<'grid' | 'table'>('grid');
   readonly previewImageUrl = signal<string | null>(null);
-  readonly repricingSuccessId = signal<string | null>(null);
 
   readonly searchForm = new FormGroup({
     query: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -221,9 +220,7 @@ export class ResearchComponent {
     try {
       const ok = await this.priceTrackerService.applyRecommendedPrice(id);
       if (!ok) return;
-      this.repricingSuccessId.set(id);
       this.toast.success('Preisempfehlung wurde übernommen.');
-      setTimeout(() => this.repricingSuccessId.set(null), 3000);
     } catch (error: unknown) {
       if (this.syncStatus.istZentralGemeldet(error)) return;
       this.toast.error(

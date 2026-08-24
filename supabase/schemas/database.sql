@@ -324,7 +324,8 @@ CREATE TABLE IF NOT EXISTS public.shipping_orders (
     bundled_order_ids TEXT[] DEFAULT '{}',
     bundled_item_titles TEXT[] DEFAULT '{}',
     shipped_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    bundled_orders_snapshot JSONB
 );
 
 CREATE TABLE IF NOT EXISTS public.carrier_configs (
@@ -1335,6 +1336,157 @@ comment on function public.is_workspace_admin(uuid) is
 comment on function public.create_workspace(text) is
   'Legt einen Workspace an und traegt den Aufrufer als Eigentuemer ein. Einziger erlaubter Weg, einen Workspace zu erzeugen.';
 
+comment on column public.shipping_orders.bundled_orders_snapshot is
+  'Atomarer Snapshot der ursprünglichen Sendungen eines Sammelpakets für dessen Wiederherstellung.';
+
+-- ------------------------------------------------------------------------------
+-- ATOMARE SAMMELPAKETE
+-- ------------------------------------------------------------------------------
+
+create or replace function public.bundle_shipping_orders(
+  p_workspace_id uuid,
+  p_order_ids uuid[],
+  p_order_number text,
+  p_order_date date,
+  p_platform text,
+  p_item_title text,
+  p_item_sku text,
+  p_item_condition text,
+  p_sale_price numeric,
+  p_customer jsonb,
+  p_carrier text,
+  p_package_type text,
+  p_bundled_item_titles text[],
+  p_notes text
+)
+returns public.shipping_orders
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_snapshot jsonb;
+  v_bundled_order public.shipping_orders;
+  v_found_count integer;
+begin
+  if (select auth.uid()) is null
+    or not (select public.is_workspace_member(p_workspace_id)) then
+    raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+
+  if coalesce(cardinality(p_order_ids), 0) < 2
+    or cardinality(p_order_ids) <> (select count(distinct id) from unnest(p_order_ids) as id) then
+    raise exception using errcode = '22023', message = 'Ein Sammelpaket braucht mindestens zwei unterschiedliche Sendungen.';
+  end if;
+
+  with source_orders as (
+    select *
+    from public.shipping_orders
+    where workspace_id = p_workspace_id
+      and id = any(p_order_ids)
+    for update
+  )
+  select count(*), coalesce(jsonb_agg(to_jsonb(source_orders)), '[]'::jsonb)
+  into v_found_count, v_snapshot
+  from source_orders;
+
+  if v_found_count <> cardinality(p_order_ids) then
+    raise exception using errcode = 'PGRST116', message = 'Mindestens eine Sendung wurde nicht gefunden.';
+  end if;
+
+  insert into public.shipping_orders (
+    workspace_id,
+    order_number,
+    order_date,
+    platform,
+    item_title,
+    item_sku,
+    item_condition,
+    sale_price,
+    customer,
+    carrier,
+    package_type,
+    status,
+    notes,
+    is_bundled,
+    bundled_order_ids,
+    bundled_item_titles,
+    bundled_orders_snapshot
+  )
+  values (
+    p_workspace_id,
+    p_order_number,
+    p_order_date,
+    p_platform,
+    p_item_title,
+    p_item_sku,
+    p_item_condition,
+    p_sale_price,
+    p_customer,
+    p_carrier,
+    p_package_type,
+    'ready_to_pack',
+    p_notes,
+    true,
+    p_order_ids::text[],
+    p_bundled_item_titles,
+    v_snapshot
+  )
+  returning * into v_bundled_order;
+
+  delete from public.shipping_orders
+  where workspace_id = p_workspace_id
+    and id = any(p_order_ids);
+
+  return v_bundled_order;
+end;
+$$;
+
+create or replace function public.unbundle_shipping_order(
+  p_workspace_id uuid,
+  p_bundled_order_id uuid
+)
+returns setof public.shipping_orders
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_snapshot jsonb;
+begin
+  if (select auth.uid()) is null
+    or not (select public.is_workspace_member(p_workspace_id)) then
+    raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+
+  select bundled_orders_snapshot
+  into v_snapshot
+  from public.shipping_orders
+  where id = p_bundled_order_id
+    and workspace_id = p_workspace_id
+    and is_bundled = true
+  for update;
+
+  if not found then
+    raise exception using errcode = 'PGRST116', message = 'Das Sammelpaket wurde nicht gefunden.';
+  end if;
+
+  if jsonb_typeof(v_snapshot) <> 'array' or jsonb_array_length(v_snapshot) = 0 then
+    raise exception using errcode = '22023', message = 'Das Sammelpaket enthält keinen wiederherstellbaren Snapshot.';
+  end if;
+
+  delete from public.shipping_orders
+  where id = p_bundled_order_id
+    and workspace_id = p_workspace_id;
+
+  return query
+  insert into public.shipping_orders
+  select (jsonb_populate_record(null::public.shipping_orders, snapshot.order_row)).*
+  from jsonb_array_elements(v_snapshot) as snapshot(order_row)
+  returning *;
+end;
+$$;
+
 -- ------------------------------------------------------------------------------
 -- PERMISSIONS & ROLES
 -- ------------------------------------------------------------------------------
@@ -1356,6 +1508,17 @@ grant usage, select
 grant execute
   on all functions in schema public
   to authenticated, service_role;
+
+revoke execute on function public.bundle_shipping_orders(
+  uuid, uuid[], text, date, text, text, text, text, numeric, jsonb, text, text, text[], text
+) from public, anon, service_role;
+revoke execute on function public.unbundle_shipping_order(uuid, uuid)
+  from public, anon, service_role;
+grant execute on function public.bundle_shipping_orders(
+  uuid, uuid[], text, date, text, text, text, text, numeric, jsonb, text, text, text[], text
+) to authenticated;
+grant execute on function public.unbundle_shipping_order(uuid, uuid)
+  to authenticated;
 
 alter default privileges in schema public
   grant select, insert, update, delete on tables to authenticated;

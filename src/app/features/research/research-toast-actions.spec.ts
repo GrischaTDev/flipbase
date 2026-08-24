@@ -1,5 +1,4 @@
 import '@angular/compiler';
-import { signal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { ResearchComponent } from './research.component';
@@ -11,7 +10,6 @@ function erstelleKomponente(ergebnis: boolean) {
   Object.assign(komponente, {
     priceTrackerService,
     toast,
-    repricingSuccessId: signal<string | null>(null),
   });
   return { komponente, toast };
 }
@@ -26,6 +24,7 @@ describe('ResearchComponent – Aktionsmeldungen', () => {
       type: 'success',
       title: 'Preisempfehlung wurde übernommen.',
     });
+    expect('repricingSuccessId' in komponente).toBe(false);
   });
 
   it('zeigt bei einem Nulltreffer keine Erfolgsmeldung', async () => {
