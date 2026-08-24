@@ -7,7 +7,13 @@ import {
   signal,
 } from '@angular/core';
 import { LucideDynamicIcon, LucideCheck as Check } from '@lucide/angular';
-import { PLATTFORM_PROFILE, PlattformProfil, ProfilId, Rechteck } from './models/plattform-profile';
+import {
+  Groesse,
+  PLATTFORM_PROFILE,
+  PlattformProfil,
+  ProfilId,
+  Rechteck,
+} from './models/plattform-profile';
 import { ZuschnittEditorComponent } from './components/zuschnitt-editor/zuschnitt-editor.component';
 import { PlattformVorschauComponent } from './components/plattform-vorschau/plattform-vorschau.component';
 import { BildListeComponent } from './components/bild-liste/bild-liste.component';
@@ -43,6 +49,29 @@ export interface OptimiererBild {
    * (siehe `HEIC_HINWEIS`). Null, solange das Lesen nicht fehlgeschlagen ist.
    */
   readonly ladefehler: string | null;
+  /**
+   * Groesse von `datenUrl` in Originalpixeln, ermittelt kurz nach dem Lesen
+   * (bzw. neu nach jeder Drehung, weil sich Breite und Hoehe dabei tauschen
+   * koennen). Dient als Ersatz-Ausschnitt (volles Bild) fuer Bilder, die der
+   * Nutzer nie im Editor geoeffnet und deshalb nie zugeschnitten hat - ohne
+   * das blieben Warnungen und Export fuer diese Bilder blind. Null, solange
+   * die Groesse noch nicht bekannt ist (z.B. HEIC oder eine noch laufende
+   * Ermittlung).
+   */
+  readonly naturGroesse: Groesse | null;
+}
+
+/**
+ * Der Ausschnitt, mit dem fuer dieses Bild tatsaechlich gerechnet werden
+ * muss: der vom Nutzer gezogene, oder - falls er das Bild nie geoeffnet hat -
+ * ersatzweise das volle Bild anhand von `naturGroesse`. Von `warnungen()` und
+ * `exportiere()` gemeinsam genutzt, damit beide auf derselben Annahme stehen.
+ * Null nur, wenn weder ein Ausschnitt noch eine bekannte Groesse vorliegt.
+ */
+function effektiverAusschnitt(bild: OptimiererBild): Rechteck | null {
+  if (bild.ausschnitt) return bild.ausschnitt;
+  if (!bild.naturGroesse) return null;
+  return { x: 0, y: 0, breite: bild.naturGroesse.breite, hoehe: bild.naturGroesse.hoehe };
 }
 
 /**
@@ -96,17 +125,22 @@ export class ImageOptimizerComponent {
     const meldungen: string[] = [];
 
     for (const [index, bild] of this.bilder().entries()) {
-      if (!bild.ausschnitt) continue;
+      // Nur die aktive Bildvorschau zeigt je einen Editor - alle anderen
+      // Bilder haben nie einen `ausschnitt` bekommen, wenn der Nutzer sie nie
+      // geoeffnet hat. Ohne diesen Ersatz wuerden zwanzig ungeoeffnete Fotos
+      // stillschweigend in voller Groesse exportiert, ganz ohne Warnung.
+      const ausschnitt = effektiverAusschnitt(bild);
+      if (!ausschnitt) continue;
 
       for (const p of this.gewaehlteProfile()) {
-        if (!reichtAufloesung(bild.ausschnitt, p.exportBreite, p.exportHoehe)) {
+        if (!reichtAufloesung(ausschnitt, p.exportBreite, p.exportHoehe)) {
           // reichtAufloesung prueft bewusst den rohen Ausschnitt (das ist die
           // Aufloesung, die der Nutzer tatsaechlich gezogen hat), aber der
           // Export vergroessert nicht den rohen Ausschnitt, sondern das
           // daraus abgeleitete Rechteck fuer dieses Plattformverhaeltnis -
           // nur dessen Faktor stimmt mit dem ueberein, was tatsaechlich
           // passiert.
-          const abgeleitet = leiteAb(bild.ausschnitt, p.exportVerhaeltnis);
+          const abgeleitet = leiteAb(ausschnitt, p.exportVerhaeltnis);
           const faktor = vergroesserungsfaktor(abgeleitet, p.exportBreite);
           meldungen.push(
             `Bild ${index + 1} für ${p.name}: Der Ausschnitt wird ${faktor.toFixed(1)}-fach ` +
@@ -149,12 +183,49 @@ export class ImageOptimizerComponent {
         ausschnitt: null,
         drehung: 0,
         ladefehler: null,
+        naturGroesse: null,
       });
     }
 
     this.bilder.update((liste) => [...liste, ...neue]);
     if (!this.aktivesBildId() && neue.length > 0) {
       this.aktivesBildId.set(neue[0].id);
+    }
+
+    for (const bild of neue) {
+      void this.ermittleNaturGroesse(bild.id, bild.datenUrl);
+    }
+  }
+
+  /**
+   * Liest Breite und Hoehe von `datenUrl` und traegt sie in `naturGroesse`
+   * ein - fuer Bilder, die der Nutzer (noch) nicht im Editor geoeffnet hat,
+   * ist das die einzige Quelle fuer eine Aufloesungswarnung oder einen
+   * sinnvollen Export-Ausschnitt.
+   *
+   * Schlaegt das Lesen fehl (z.B. HEIC), bleibt `naturGroesse` einfach null -
+   * der Hinweis dazu erscheint bereits, sobald der Nutzer das Bild oeffnet
+   * (siehe `ladenFehlgeschlagen`), hier muss nichts zusaetzlich gemeldet
+   * werden.
+   *
+   * Der Abgleich `b.datenUrl === datenUrl` schuetzt vor einer veralteten
+   * Antwort: Wurde das Bild zwischenzeitlich gedreht, hat `datenUrl` sich
+   * schon geaendert und `drehe()` bereits eine frische `naturGroesse`
+   * gesetzt - die hier noch laufende Messung des alten Standes darf die
+   * neue nicht ueberschreiben.
+   */
+  private async ermittleNaturGroesse(id: string, datenUrl: string): Promise<void> {
+    try {
+      const element = await this.ladeBild(datenUrl);
+      this.bilder.update((liste) =>
+        liste.map((b) =>
+          b.id === id && b.datenUrl === datenUrl
+            ? { ...b, naturGroesse: { breite: element.naturalWidth, hoehe: element.naturalHeight } }
+            : b,
+        ),
+      );
+    } catch {
+      // Siehe Kommentar oben - bewusst kein Fehlerpfad hier.
     }
   }
 
@@ -199,7 +270,7 @@ export class ImageOptimizerComponent {
     const neueDrehung = ((bild.drehung + 1) % 4) as 0 | 1 | 2 | 3;
 
     try {
-      const datenUrl = await this.dreheDatei(bild.datei, neueDrehung);
+      const { datenUrl, groesse } = await this.dreheDatei(bild.datei, neueDrehung);
       URL.revokeObjectURL(bild.datenUrl);
 
       this.bilder.update((liste) =>
@@ -214,6 +285,11 @@ export class ImageOptimizerComponent {
                 // anderen Bildbereich - er wird deshalb bewusst verworfen
                 // statt umgerechnet oder uebernommen.
                 ausschnitt: null,
+                // Bei einer ungeraden Anzahl Umdrehungen tauschen Breite und
+                // Hoehe - die Zeichenflaeche kennt die neue Groesse bereits
+                // genau, eine erneute Messung waere nur eine zweite Dekodierung
+                // desselben Ergebnisses.
+                naturGroesse: groesse,
               }
             : b,
         ),
@@ -225,11 +301,15 @@ export class ImageOptimizerComponent {
 
   /**
    * Rendert `datei` um `viertel` Viertelumdrehungen im Uhrzeigersinn gedreht
-   * in eine neue Zeichenflaeche und liefert die Object-URL des Ergebnisses.
-   * Bei einer ungeraden Anzahl Viertelumdrehungen tauschen Breite und Hoehe
-   * der Zeichenflaeche gegenueber dem Original.
+   * in eine neue Zeichenflaeche und liefert die Object-URL des Ergebnisses
+   * zusammen mit der resultierenden Groesse. Bei einer ungeraden Anzahl
+   * Viertelumdrehungen tauschen Breite und Hoehe der Zeichenflaeche
+   * gegenueber dem Original.
    */
-  private async dreheDatei(datei: File, viertel: 0 | 1 | 2 | 3): Promise<string> {
+  private async dreheDatei(
+    datei: File,
+    viertel: 0 | 1 | 2 | 3,
+  ): Promise<{ datenUrl: string; groesse: Groesse }> {
     const quelle = await this.ladeOriginaldatei(datei);
     const breite = quelle.width;
     const hoehe = quelle.height;
@@ -263,7 +343,10 @@ export class ImageOptimizerComponent {
       );
     });
 
-    return URL.createObjectURL(blob);
+    return {
+      datenUrl: URL.createObjectURL(blob),
+      groesse: { breite: flaeche.width, hoehe: flaeche.height },
+    };
   }
 
   /**
@@ -307,7 +390,12 @@ export class ImageOptimizerComponent {
 
       for (const [index, bild] of this.bilder().entries()) {
         const element = await this.ladeBild(bild.datenUrl);
-        const ausschnitt = bild.ausschnitt ?? {
+        // Dieselbe Herleitung wie in `warnungen()` (effektiverAusschnitt),
+        // damit beide fuer ein nie geoeffnetes Bild vom selben Ausschnitt
+        // ausgehen. Der Rueckgriff auf `element` bleibt als letzte
+        // Absicherung, falls `naturGroesse` ausnahmsweise noch nicht
+        // ermittelt wurde (z.B. Export unmittelbar nach dem Hochladen).
+        const ausschnitt = effektiverAusschnitt(bild) ?? {
           x: 0,
           y: 0,
           breite: element.naturalWidth,

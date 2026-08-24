@@ -6,6 +6,12 @@ export interface Rechteck {
   readonly hoehe: number;
 }
 
+/** Breite und Hoehe eines Bildes in Pixeln, ohne Position. */
+export interface Groesse {
+  readonly breite: number;
+  readonly hoehe: number;
+}
+
 export type ProfilId = 'ebay' | 'kleinanzeigen' | 'vinted';
 
 /**
