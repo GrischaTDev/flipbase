@@ -90,7 +90,7 @@ function erstelleDienste(client: unknown) {
 }
 
 describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
-  it('reicht einen fehlgeschlagenen Aktivitätslog nach dem gespeicherten Artikel hoch', async () => {
+  it('liefert den gespeicherten Einkauf mit einem typisierten Activity-Teilproblem zurück', async () => {
     const aufrufe: { tabelle: string; payload: unknown }[] = [];
     const client = {
       from(tabelle: string) {
@@ -133,8 +133,18 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
       single_item_expected_value: 120,
     });
 
-    expect(ergebnis.error).toBeInstanceOf(Error);
-    expect(ergebnis.data).toBeNull();
+    expect(ergebnis).toMatchObject({
+      status: 'partial',
+      data: { id: gespeicherterEinkauf.id },
+      error: null,
+      problems: [
+        {
+          kind: 'activity_log',
+          reportedBySyncStatus: true,
+          error: expect.any(Error),
+        },
+      ],
+    });
     expect(aufrufe.map(({ tabelle }) => tabelle)).toEqual([
       'purchases',
       'inventory_items',
@@ -144,7 +154,7 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
     expect(syncStatus.hatFehler()).toBe(true);
   });
 
-  it('bricht bei fehlgeschlagenen anfänglichen Zusatzkosten ohne Erfolg ab', async () => {
+  it('liefert den gespeicherten Einkauf bei fehlgeschlagenen Zusatzkosten als partiell zurück', async () => {
     const aufrufe: string[] = [];
     const client = {
       from(tabelle: string) {
@@ -179,8 +189,18 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
       initial_costs: [{ type: 'shipping', amount: 7, description: 'Versand' }],
     });
 
-    expect(ergebnis.error).toBeInstanceOf(Error);
-    expect(ergebnis.data).toBeNull();
+    expect(ergebnis).toMatchObject({
+      status: 'partial',
+      data: { id: gespeicherterEinkauf.id },
+      error: null,
+      problems: [
+        {
+          kind: 'additional_costs',
+          reportedBySyncStatus: true,
+          error: expect.any(Error),
+        },
+      ],
+    });
     expect(aufrufe).toEqual(['purchases', 'purchase_costs']);
   });
 });

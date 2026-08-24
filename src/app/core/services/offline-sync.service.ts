@@ -1,6 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { CashWalletSession, OfflinePurchaseEntry } from '../models/offline-sourcing.models';
-import { PurchaseService } from './purchase.service';
+import { PurchaseCreateProblem, PurchaseService } from './purchase.service';
 import { InventoryService } from './inventory.service';
 import { WorkspaceService } from './workspace.service';
 import { WebPushService } from './web-push.service';
@@ -13,6 +13,13 @@ import { SyncStatusService } from './sync-status.service';
 
 const STORAGE_KEY_OFFLINE_ENTRIES = 'flipbase_offline_purchase_entries';
 const STORAGE_KEY_CASH_WALLET = 'flipbase_flea_market_cash_wallet';
+
+export interface OfflineSyncResult {
+  readonly syncedCount: number;
+  readonly error: Error | null;
+  readonly reportedBySyncStatus: boolean;
+  readonly problems: readonly PurchaseCreateProblem[];
+}
 
 @Injectable({
   providedIn: 'root',
@@ -344,17 +351,33 @@ export class OfflineSyncService {
   /**
    * Synchronizes all pending offline entries to the Supabase Cloud Inventory and Purchases.
    */
-  async syncToCloud(): Promise<{ syncedCount: number; error: Error | null }> {
-    if (this.isSyncing()) return { syncedCount: 0, error: null };
+  async syncToCloud(): Promise<OfflineSyncResult> {
+    if (this.isSyncing()) {
+      return {
+        syncedCount: 0,
+        error: null,
+        reportedBySyncStatus: false,
+        problems: [],
+      };
+    }
     this.isSyncing.set(true);
     try {
       const pending = this.pendingEntries().filter((e) => e.sync_status === 'pending');
-      if (pending.length === 0) return { syncedCount: 0, error: null };
+      if (pending.length === 0) {
+        return {
+          syncedCount: 0,
+          error: null,
+          reportedBySyncStatus: false,
+          problems: [],
+        };
+      }
 
       await new Promise((res) => setTimeout(res, 600));
 
       const synchronisierteIds: string[] = [];
       let ersterFehler: Error | null = null;
+      let ersterFehlerGemeldet = false;
+      const problems: PurchaseCreateProblem[] = [];
       for (const item of pending) {
         if (this.purchaseService) {
           const ergebnis = await this.purchaseService.createPurchase({
@@ -368,10 +391,14 @@ export class OfflineSyncService {
             single_item_expected_value: item.estimated_resale_price,
             notes: `Offline-Erfassung (${item.location_name}): ${item.notes || ''}`,
           });
-          if (ergebnis.error) {
-            ersterFehler ??= ergebnis.error;
+          if (ergebnis.status === 'failed') {
+            if (!ersterFehler) {
+              ersterFehler = ergebnis.error;
+              ersterFehlerGemeldet = ergebnis.reportedBySyncStatus;
+            }
             continue;
           }
+          problems.push(...ergebnis.problems);
         }
         synchronisierteIds.push(item.id);
       }
@@ -403,7 +430,12 @@ export class OfflineSyncService {
         });
       }
 
-      return { syncedCount: synchronisierteIds.length, error: ersterFehler };
+      return {
+        syncedCount: synchronisierteIds.length,
+        error: ersterFehler,
+        reportedBySyncStatus: ersterFehlerGemeldet,
+        problems,
+      };
     } finally {
       this.isSyncing.set(false);
     }

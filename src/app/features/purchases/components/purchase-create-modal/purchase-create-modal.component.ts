@@ -21,7 +21,12 @@ import {
   LucideTrash2 as Trash2,
   LucideTruck as Truck,
 } from '@lucide/angular';
-import { PurchaseService, CreatePurchasePayload } from '../../../../core/services/purchase.service';
+import {
+  beschreibePurchaseProblem,
+  CreatePurchasePayload,
+  CreatePurchaseResult,
+  PurchaseService,
+} from '../../../../core/services/purchase.service';
 import { SourcesService } from '../../../../core/services/sources.service';
 import { SuppliersService } from '../../../../core/services/suppliers.service';
 import { InboundTrackingService } from '../../../../core/services/inbound-tracking.service';
@@ -305,16 +310,13 @@ export class PurchaseCreateModalComponent {
 
     const vorhandener = this.purchase();
     let speicherergebnis: { error: Error | null };
+    let anlegeergebnis: CreatePurchaseResult | null = null;
     try {
       if (vorhandener) {
         speicherergebnis = await this.speichereAenderung(vorhandener.id, payload);
       } else {
-        const ergebnis = await this.purchaseService.createPurchase(payload);
-        speicherergebnis = {
-          error:
-            ergebnis.error ??
-            (ergebnis.data ? null : new Error('Der Einkauf wurde nicht zurückgegeben.')),
-        };
+        anlegeergebnis = await this.purchaseService.createPurchase(payload);
+        speicherergebnis = { error: anlegeergebnis.error };
       }
     } catch (ursache: unknown) {
       speicherergebnis = { error: this.alsError(ursache) };
@@ -322,14 +324,31 @@ export class PurchaseCreateModalComponent {
     this.isSubmitting.set(false);
     const { error } = speicherergebnis;
 
+    if (anlegeergebnis?.status === 'partial') {
+      const ungemeldeteProbleme = anlegeergebnis.problems.filter(
+        (problem) => !problem.reportedBySyncStatus,
+      );
+      if (ungemeldeteProbleme.length > 0) {
+        this.toast.warning(
+          'Einkauf wurde angelegt, aber nicht vollständig.',
+          ungemeldeteProbleme.map(beschreibePurchaseProblem).join('\n'),
+        );
+      }
+      this.created.emit();
+      this.closed.emit();
+      return;
+    }
+
     if (error) {
       this.errorMessage.set(error.message);
-      this.meldeFehlerWennNichtSynchronisiert(
-        vorhandener
-          ? 'Einkauf konnte nicht gespeichert werden.'
-          : 'Einkauf konnte nicht angelegt werden.',
-        error,
-      );
+      if (!anlegeergebnis?.reportedBySyncStatus) {
+        this.meldeFehlerWennNichtSynchronisiert(
+          vorhandener
+            ? 'Einkauf konnte nicht gespeichert werden.'
+            : 'Einkauf konnte nicht angelegt werden.',
+          error,
+        );
+      }
     } else {
       this.toast.success(vorhandener ? 'Einkauf wurde gespeichert.' : 'Einkauf wurde angelegt.');
       this.created.emit();

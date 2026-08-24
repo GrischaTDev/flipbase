@@ -20,14 +20,31 @@ const einkauf: Purchase = {
   created_at: '2026-08-24T10:00:00.000Z',
 };
 
+interface CreateProblem {
+  readonly kind: 'additional_costs' | 'inventory_item' | 'activity_log';
+  readonly error: Error;
+  readonly reportedBySyncStatus: boolean;
+}
+
+interface CreateAntwort {
+  readonly status: 'success' | 'partial' | 'failed';
+  readonly data: Purchase | null;
+  readonly error: Error | null;
+  readonly reportedBySyncStatus: boolean;
+  readonly problems: readonly CreateProblem[];
+}
+
 function erstelleKomponente(vorhandener: Purchase | null = null) {
   const toast = new ToastService();
   const created = { emit: vi.fn() };
   const closed = { emit: vi.fn() };
   const purchaseService = {
-    createPurchase: vi.fn(async (): Promise<{ data: Purchase | null; error: Error | null }> => ({
+    createPurchase: vi.fn(async (): Promise<CreateAntwort> => ({
+      status: 'success',
       data: einkauf,
       error: null,
+      reportedBySyncStatus: false,
+      problems: [],
     })),
     updatePurchase: vi.fn(async (): Promise<{ error: Error | null }> => ({ error: null })),
     ersetzeZusatzkosten: vi.fn(async (): Promise<{ error: Error | null }> => ({ error: null })),
@@ -112,8 +129,11 @@ describe('PurchaseCreateModalComponent – zentrale Aktionsmeldungen', () => {
   it('schließt den Einkaufsdialog bei einem Speicherfehler nicht', async () => {
     const { komponente, toast, created, closed, purchaseService } = erstelleKomponente();
     purchaseService.createPurchase.mockResolvedValue({
+      status: 'failed',
       data: null,
       error: new Error('Kein aktiver Workspace'),
+      reportedBySyncStatus: false,
+      problems: [],
     });
 
     await komponente.onSubmit();
@@ -190,10 +210,68 @@ describe('PurchaseCreateModalComponent – zentrale Aktionsmeldungen', () => {
         ]),
       },
     });
-    purchaseService.createPurchase.mockResolvedValue({ data: null, error });
+    purchaseService.createPurchase.mockResolvedValue({
+      status: 'failed',
+      data: null,
+      error,
+      reportedBySyncStatus: true,
+      problems: [],
+    });
 
     await komponente.onSubmit();
 
+    expect(toast.toasts()).toEqual([]);
+  });
+
+  it('schließt nach persistiertem Einkauf mit Teilproblem ohne grünen Vollerfolg', async () => {
+    const { komponente, toast, created, closed, purchaseService } = erstelleKomponente();
+    purchaseService.createPurchase.mockResolvedValue({
+      status: 'partial',
+      data: einkauf,
+      error: null,
+      reportedBySyncStatus: false,
+      problems: [
+        {
+          kind: 'additional_costs',
+          error: new Error('Speichern der Zusatzkosten fehlgeschlagen'),
+          reportedBySyncStatus: false,
+        },
+      ],
+    });
+
+    await komponente.onSubmit();
+
+    expect(created.emit).toHaveBeenCalledOnce();
+    expect(closed.emit).toHaveBeenCalledOnce();
+    expect(toast.toasts()).toEqual([
+      expect.objectContaining({
+        type: 'warning',
+        title: 'Einkauf wurde angelegt, aber nicht vollständig.',
+        description: expect.stringContaining('Zusatzkosten'),
+      }),
+    ]);
+  });
+
+  it('schließt bei einem zentral gemeldeten Teilproblem ohne zweiten Feature-Toast', async () => {
+    const { komponente, toast, created, closed, purchaseService } = erstelleKomponente();
+    purchaseService.createPurchase.mockResolvedValue({
+      status: 'partial',
+      data: einkauf,
+      error: null,
+      reportedBySyncStatus: true,
+      problems: [
+        {
+          kind: 'activity_log',
+          error: new Error('Speichern des Aktivitätsprotokolls fehlgeschlagen'),
+          reportedBySyncStatus: true,
+        },
+      ],
+    });
+
+    await komponente.onSubmit();
+
+    expect(created.emit).toHaveBeenCalledOnce();
+    expect(closed.emit).toHaveBeenCalledOnce();
     expect(toast.toasts()).toEqual([]);
   });
 

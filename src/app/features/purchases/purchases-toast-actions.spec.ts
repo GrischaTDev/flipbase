@@ -5,6 +5,19 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { PurchasesComponent } from './purchases.component';
 
+interface OfflineProblem {
+  readonly kind: 'additional_costs' | 'inventory_item' | 'activity_log';
+  readonly error: Error;
+  readonly reportedBySyncStatus: boolean;
+}
+
+interface OfflineAntwort {
+  readonly syncedCount: number;
+  readonly error: Error | null;
+  readonly reportedBySyncStatus: boolean;
+  readonly problems: readonly OfflineProblem[];
+}
+
 function erstelleKomponente() {
   const toast = new ToastService();
   const offlineSyncService = {
@@ -14,9 +27,11 @@ function erstelleKomponente() {
       purchase_price: 20,
     })),
     startCashSession: vi.fn(),
-    syncToCloud: vi.fn(async (): Promise<{ syncedCount: number; error: Error | null }> => ({
+    syncToCloud: vi.fn(async (): Promise<OfflineAntwort> => ({
       syncedCount: 1,
       error: null,
+      reportedBySyncStatus: false,
+      problems: [],
     })),
     deletePendingEntry: vi.fn(),
   };
@@ -122,11 +137,76 @@ describe('PurchasesComponent – Offline-Aktionsmeldungen', () => {
     });
   });
 
-  it('meldet nach einem aufgelösten Sync-Fehler keinen falschen Erfolg', async () => {
+  it('meldet einen aufgelösten Sync-Fehler ohne SyncStatus persistent', async () => {
     const sync = erstelleKomponente();
     sync.offlineSyncService.syncToCloud.mockResolvedValue({
       syncedCount: 0,
       error: new Error('Speichern des Einkaufs fehlgeschlagen'),
+      reportedBySyncStatus: false,
+      problems: [],
+    });
+
+    await sync.komponente.onSyncNow();
+
+    expect(sync.toast.toasts()[0]).toMatchObject({
+      type: 'error',
+      title: 'Offline-Daten konnten nicht synchronisiert werden.',
+      description: 'Speichern des Einkaufs fehlgeschlagen',
+      persistent: true,
+    });
+  });
+
+  it('dedupliziert einen aufgelösten, bereits zentral gemeldeten Sync-Fehler', async () => {
+    const sync = erstelleKomponente();
+    sync.offlineSyncService.syncToCloud.mockResolvedValue({
+      syncedCount: 0,
+      error: new Error('Speichern des Einkaufs fehlgeschlagen'),
+      reportedBySyncStatus: true,
+      problems: [],
+    });
+
+    await sync.komponente.onSyncNow();
+
+    expect(sync.toast.toasts()).toEqual([]);
+  });
+
+  it('meldet verarbeitete Offline-Einkäufe mit Teilproblemen als Warnung', async () => {
+    const sync = erstelleKomponente();
+    sync.offlineSyncService.syncToCloud.mockResolvedValue({
+      syncedCount: 1,
+      error: null,
+      reportedBySyncStatus: false,
+      problems: [
+        {
+          kind: 'activity_log',
+          error: new Error('Aktivitätsprotokoll unvollständig'),
+          reportedBySyncStatus: false,
+        },
+      ],
+    });
+
+    await sync.komponente.onSyncNow();
+
+    expect(sync.toast.toasts()[0]).toMatchObject({
+      type: 'warning',
+      title: 'Offline-Daten wurden mit Einschränkungen synchronisiert.',
+      description: expect.stringContaining('Aktivitätsprotokoll'),
+    });
+  });
+
+  it('dedupliziert zentral gemeldete Teilprobleme beim Offline-Sync', async () => {
+    const sync = erstelleKomponente();
+    sync.offlineSyncService.syncToCloud.mockResolvedValue({
+      syncedCount: 1,
+      error: null,
+      reportedBySyncStatus: true,
+      problems: [
+        {
+          kind: 'activity_log',
+          error: new Error('Aktivitätsprotokoll unvollständig'),
+          reportedBySyncStatus: true,
+        },
+      ],
     });
 
     await sync.komponente.onSyncNow();

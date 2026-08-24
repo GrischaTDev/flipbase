@@ -57,22 +57,64 @@ describe('OfflineSyncService & Flea Market Rapid Sourcing (Chapter 28)', () => {
     const res = await service.syncToCloud();
     expect(res).toBeDefined();
     expect(res.error).toBeNull();
+    expect(res.problems).toEqual([]);
     expect(service.isSyncing()).toBe(false);
   });
 
   it('lässt fehlgeschlagene Einkäufe für einen erneuten Sync vorgemerkt', async () => {
     const fehler = new Error('Speichern des Einkaufs fehlgeschlagen');
-    const createPurchase = vi.fn(async () => ({ data: null, error: fehler }));
+    const createPurchase = vi.fn(async () => ({
+      status: 'failed' as const,
+      data: null,
+      error: fehler,
+      reportedBySyncStatus: true,
+      problems: [],
+    }));
     Object.assign(service, { purchaseService: { createPurchase } });
     const vorher = service.pendingEntries().filter((entry) => entry.sync_status === 'pending');
 
     const ergebnis = await service.syncToCloud();
 
-    expect(ergebnis).toEqual({ syncedCount: 0, error: fehler });
+    expect(ergebnis).toEqual({
+      syncedCount: 0,
+      error: fehler,
+      reportedBySyncStatus: true,
+      problems: [],
+    });
     expect(createPurchase).toHaveBeenCalledTimes(vorher.length);
     expect(service.pendingEntries().filter((entry) => entry.sync_status === 'pending')).toEqual(
       vorher,
     );
     expect(service.isSyncing()).toBe(false);
+  });
+
+  it('markiert einen persistierten Teileinkauf als verarbeitet und legt ihn beim Folgesync nicht doppelt an', async () => {
+    const problem = {
+      kind: 'activity_log' as const,
+      error: new Error('Aktivitätsprotokoll unvollständig'),
+      reportedBySyncStatus: true,
+    };
+    const createPurchase = vi.fn(async () => ({
+      status: 'partial' as const,
+      data: { id: 'purchase-1' },
+      error: null,
+      reportedBySyncStatus: true,
+      problems: [problem],
+    }));
+    Object.assign(service, { purchaseService: { createPurchase } });
+    const eintrag = service.pendingEntries().find((entry) => entry.sync_status === 'pending')!;
+    service.pendingEntries.set([eintrag]);
+
+    const ersterSync = await service.syncToCloud();
+    const zweiterSync = await service.syncToCloud();
+
+    expect(ersterSync).toMatchObject({
+      syncedCount: 1,
+      error: null,
+      problems: [problem],
+    });
+    expect(zweiterSync).toMatchObject({ syncedCount: 0, error: null, problems: [] });
+    expect(service.pendingEntries()[0].sync_status).toBe('synced');
+    expect(createPurchase).toHaveBeenCalledOnce();
   });
 });

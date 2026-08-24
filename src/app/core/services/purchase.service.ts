@@ -40,6 +40,46 @@ export interface CreatePurchasePayload {
   single_item_expected_value?: number;
 }
 
+export type PurchaseCreateProblemKind = 'additional_costs' | 'inventory_item' | 'activity_log';
+
+export interface PurchaseCreateProblem {
+  readonly kind: PurchaseCreateProblemKind;
+  readonly error: Error;
+  readonly reportedBySyncStatus: boolean;
+}
+
+export type CreatePurchaseResult =
+  | {
+      readonly status: 'success';
+      readonly data: Purchase;
+      readonly error: null;
+      readonly reportedBySyncStatus: false;
+      readonly problems: readonly [];
+    }
+  | {
+      readonly status: 'partial';
+      readonly data: Purchase;
+      readonly error: null;
+      readonly reportedBySyncStatus: boolean;
+      readonly problems: readonly PurchaseCreateProblem[];
+    }
+  | {
+      readonly status: 'failed';
+      readonly data: null;
+      readonly error: Error;
+      readonly reportedBySyncStatus: boolean;
+      readonly problems: readonly [];
+    };
+
+export function beschreibePurchaseProblem(problem: PurchaseCreateProblem): string {
+  const schritt: Record<PurchaseCreateProblemKind, string> = {
+    additional_costs: 'Zusatzkosten',
+    inventory_item: 'Inventarartikel',
+    activity_log: 'Aktivitätsprotokoll',
+  };
+  return `${schritt[problem.kind]}: ${problem.error.message}`;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -279,11 +319,17 @@ export class PurchaseService {
     }
   }
 
-  async createPurchase(
-    payload: CreatePurchasePayload,
-  ): Promise<{ data: Purchase | null; error: Error | null }> {
+  async createPurchase(payload: CreatePurchasePayload): Promise<CreatePurchaseResult> {
     const ws = this.workspaceService.currentWorkspace();
-    if (!ws) return { data: null, error: new Error('Kein aktiver Workspace') };
+    if (!ws) {
+      return {
+        status: 'failed',
+        data: null,
+        error: new Error('Kein aktiver Workspace'),
+        reportedBySyncStatus: false,
+        problems: [],
+      };
+    }
 
     const mode: CostAllocationMode = payload.cost_allocation_mode || 'even';
     // Leerzeilen aus dem Formular sind keine Kosten und haetten sonst dauerhaft
@@ -336,15 +382,30 @@ export class PurchaseService {
     this.purchasesRaw.update((list) => [newPurchase, ...list]);
 
     if (this.mockStore.isDemoMode()) {
-      const artikelErgebnis = await this.legeEinzelartikelAn(newPurchase, payload);
-      if (artikelErgebnis.error) return { data: null, error: artikelErgebnis.error };
+      const problems = await this.legeEinzelartikelAn(newPurchase, payload);
       this.webhookService.sendPurchaseNotification(newPurchase);
-      return { data: newPurchase, error: null };
+      return problems.length > 0
+        ? {
+            status: 'partial',
+            data: newPurchase,
+            error: null,
+            reportedBySyncStatus: problems.some((problem) => problem.reportedBySyncStatus),
+            problems,
+          }
+        : {
+            status: 'success',
+            data: newPurchase,
+            error: null,
+            reportedBySyncStatus: false,
+            problems: [],
+          };
     }
 
-    // 2. Sync to Supabase
+    // 2. Zuerst nur den Elterneinkauf persistieren. Erst wenn dieser Schritt
+    // bestätigt ist, dürfen nachgelagerte Fehler als Teilprobleme gelten.
+    let dbPur: Pick<Purchase, 'id'> | null;
     try {
-      const { data: dbPur, error: dbError } = await this.supabase.client
+      const { data, error: dbError } = await this.supabase.client
         .from('purchases')
         .insert({
           workspace_id: ws.id,
@@ -368,40 +429,72 @@ export class PurchaseService {
 
       if (dbError) {
         this.verwerfeVorlaeufigenEinkauf(newPurchase.id);
-        return { data: null, error: this.syncStatus.melde('Speichern des Einkaufs', dbError) };
-      } else if (dbPur) {
-        const finalPurchase: Purchase = {
-          ...newPurchase,
-          id: dbPur.id,
+        return {
+          status: 'failed',
+          data: null,
+          error: this.syncStatus.melde('Speichern des Einkaufs', dbError),
+          reportedBySyncStatus: true,
+          problems: [],
         };
-        // Den vorlaeufigen Eintrag entfernen, bevor der endgueltige gespeichert
-        // wird. Sonst bleibt er mit seiner Behelfs-Kennung im lokalen Spiegel
-        // liegen und der Einkauf taucht doppelt auf - auch in jeder Sicherung.
-        this.mockStore.deletePurchase(newPurchase.id);
-        this.mockStore.savePurchase(finalPurchase);
-        this.purchasesRaw.update((list) => [
-          finalPurchase,
-          ...list.filter((p) => p.id !== newPurchase.id && p.id !== finalPurchase.id),
-        ]);
-        // Erst jetzt melden: Die Meldung verlinkt auf den Einkauf, und bis
-        // hierhin traegt er nur eine Behelfskennung. Eine Meldung vorher haette
-        // dauerhaft auf eine Kennung gezeigt, die es gleich nicht mehr gibt.
-        // Nebeneffekt und richtig so: Scheitert das Speichern, gibt es auch
-        // keine Meldung ueber einen Einkauf, den es nicht gibt.
-        const kostenErgebnis = await this.legeZusatzkostenAn(finalPurchase.id, kostenZeilen);
-        if (kostenErgebnis.error) return { data: null, error: kostenErgebnis.error };
-
-        const artikelErgebnis = await this.legeEinzelartikelAn(finalPurchase, payload);
-        if (artikelErgebnis.error) return { data: null, error: artikelErgebnis.error };
-        this.webhookService.sendPurchaseNotification(finalPurchase);
-        return { data: finalPurchase, error: null };
       }
+      dbPur = data;
     } catch (err: unknown) {
       this.verwerfeVorlaeufigenEinkauf(newPurchase.id);
-      return { data: null, error: this.syncStatus.melde('Erstellen des Einkaufs', err) };
+      return {
+        status: 'failed',
+        data: null,
+        error: this.syncStatus.melde('Erstellen des Einkaufs', err),
+        reportedBySyncStatus: true,
+        problems: [],
+      };
     }
 
-    return { data: newPurchase, error: null };
+    if (!dbPur) {
+      this.verwerfeVorlaeufigenEinkauf(newPurchase.id);
+      return {
+        status: 'failed',
+        data: null,
+        error: new Error('Der Einkauf wurde nicht zurückgegeben'),
+        reportedBySyncStatus: false,
+        problems: [],
+      };
+    }
+
+    const finalPurchase: Purchase = { ...newPurchase, id: dbPur.id };
+    this.mockStore.deletePurchase(newPurchase.id);
+    this.mockStore.savePurchase(finalPurchase);
+    this.purchasesRaw.update((list) => [
+      finalPurchase,
+      ...list.filter((p) => p.id !== newPurchase.id && p.id !== finalPurchase.id),
+    ]);
+
+    const problems: PurchaseCreateProblem[] = [];
+    const kostenErgebnis = await this.legeZusatzkostenAn(finalPurchase.id, kostenZeilen);
+    if (kostenErgebnis.error) {
+      problems.push({
+        kind: 'additional_costs',
+        error: kostenErgebnis.error,
+        reportedBySyncStatus: kostenErgebnis.reportedBySyncStatus,
+      });
+    }
+    problems.push(...(await this.legeEinzelartikelAn(finalPurchase, payload)));
+    this.webhookService.sendPurchaseNotification(finalPurchase);
+
+    return problems.length > 0
+      ? {
+          status: 'partial',
+          data: finalPurchase,
+          error: null,
+          reportedBySyncStatus: problems.some((problem) => problem.reportedBySyncStatus),
+          problems,
+        }
+      : {
+          status: 'success',
+          data: finalPurchase,
+          error: null,
+          reportedBySyncStatus: false,
+          problems: [],
+        };
   }
 
   /**
@@ -419,8 +512,8 @@ export class PurchaseService {
   private async legeZusatzkostenAn(
     purchaseId: string,
     zeilen: PurchaseCost[],
-  ): Promise<{ error: Error | null }> {
-    if (zeilen.length === 0) return { error: null };
+  ): Promise<{ error: Error | null; reportedBySyncStatus: boolean }> {
+    if (zeilen.length === 0) return { error: null, reportedBySyncStatus: false };
 
     try {
       const { error } = await this.supabase.client.from('purchase_costs').insert(
@@ -432,13 +525,19 @@ export class PurchaseService {
         })),
       );
       if (error) {
-        return { error: this.syncStatus.melde('Speichern der Zusatzkosten', error) };
+        return {
+          error: this.syncStatus.melde('Speichern der Zusatzkosten', error),
+          reportedBySyncStatus: true,
+        };
       }
     } catch (e: unknown) {
-      return { error: this.syncStatus.melde('Speichern der Zusatzkosten', e) };
+      return {
+        error: this.syncStatus.melde('Speichern der Zusatzkosten', e),
+        reportedBySyncStatus: true,
+      };
     }
 
-    return { error: null };
+    return { error: null, reportedBySyncStatus: false };
   }
 
   /**
@@ -459,10 +558,10 @@ export class PurchaseService {
   private async legeEinzelartikelAn(
     einkauf: Purchase,
     payload: CreatePurchasePayload,
-  ): Promise<{ error: Error | null }> {
-    if (einkauf.type !== 'single') return { error: null };
+  ): Promise<PurchaseCreateProblem[]> {
+    if (einkauf.type !== 'single') return [];
 
-    const { error } = await this.inventory.createItem({
+    const ergebnis = await this.inventory.createItem({
       purchase_id: einkauf.id,
       title: payload.single_item_title?.trim() || einkauf.title,
       category: payload.single_item_category?.trim() || null,
@@ -471,7 +570,20 @@ export class PurchaseService {
       allocated_purchase_cost: einkauf.total_purchase_cost || einkauf.purchase_price,
       expected_value: payload.single_item_expected_value ?? null,
     });
-    return { error };
+    if (ergebnis.error) {
+      return [
+        {
+          kind: 'inventory_item',
+          error: ergebnis.error,
+          reportedBySyncStatus: ergebnis.reportedBySyncStatus,
+        },
+      ];
+    }
+    return ergebnis.problems.map((problem) => ({
+      kind: problem.kind,
+      error: problem.error,
+      reportedBySyncStatus: problem.reportedBySyncStatus,
+    }));
   }
 
   /**

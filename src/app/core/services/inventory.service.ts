@@ -27,6 +27,24 @@ export interface CreateItemPayload {
   expected_value?: number | null;
 }
 
+export interface CreateItemProblem {
+  readonly kind: 'activity_log';
+  readonly error: Error;
+  readonly reportedBySyncStatus: boolean;
+}
+
+export interface CreateItemResult {
+  readonly data: InventoryItem | null;
+  readonly error: Error | null;
+  readonly reportedBySyncStatus: boolean;
+  readonly problems: readonly CreateItemProblem[];
+}
+
+interface ActivityLogResult {
+  readonly error: Error | null;
+  readonly reportedBySyncStatus: boolean;
+}
+
 /**
  * Vorlaeufige Kennung fuer einen neuen Artikel.
  *
@@ -223,11 +241,16 @@ export class InventoryService {
     } as InventoryItem;
   }
 
-  async createItem(
-    payload: CreateItemPayload,
-  ): Promise<{ data: InventoryItem | null; error: Error | null }> {
+  async createItem(payload: CreateItemPayload): Promise<CreateItemResult> {
     const ws = this.workspaceService.currentWorkspace();
-    if (!ws) return { data: null, error: new Error('Kein aktiver Workspace') };
+    if (!ws) {
+      return {
+        data: null,
+        error: new Error('Kein aktiver Workspace'),
+        reportedBySyncStatus: false,
+        problems: [],
+      };
+    }
 
     const newItem: InventoryItem = {
       id: vorlaeufigeKennung(),
@@ -259,8 +282,21 @@ export class InventoryService {
         'received',
         `Artikel angelegt (${newItem.title})`,
       );
-      if (logErgebnis.error) return { data: null, error: logErgebnis.error };
-      return { data: enriched, error: null };
+      if (logErgebnis.error) {
+        return {
+          data: enriched,
+          error: null,
+          reportedBySyncStatus: logErgebnis.reportedBySyncStatus,
+          problems: [
+            {
+              kind: 'activity_log',
+              error: logErgebnis.error,
+              reportedBySyncStatus: logErgebnis.reportedBySyncStatus,
+            },
+          ],
+        };
+      }
+      return { data: enriched, error: null, reportedBySyncStatus: false, problems: [] };
     }
 
     // 2. Sync to Supabase in background
@@ -288,7 +324,12 @@ export class InventoryService {
       if (dbError) {
         this.mockStore.deleteItem(newItem.id);
         this.items.update((list) => list.filter((item) => item.id !== newItem.id));
-        return { data: null, error: this.syncStatus.melde('Speichern des Artikels', dbError) };
+        return {
+          data: null,
+          error: this.syncStatus.melde('Speichern des Artikels', dbError),
+          reportedBySyncStatus: true,
+          problems: [],
+        };
       } else if (dbData) {
         const finalEnriched = this.enrichItemTotals(dbData);
         // Vorlaeufigen Eintrag entfernen, sonst bleibt er mit seiner
@@ -301,16 +342,41 @@ export class InventoryService {
           'received',
           `Artikel angelegt (${finalEnriched.title})`,
         );
-        if (logErgebnis.error) return { data: null, error: logErgebnis.error };
-        return { data: finalEnriched, error: null };
+        if (logErgebnis.error) {
+          return {
+            data: finalEnriched,
+            error: null,
+            reportedBySyncStatus: logErgebnis.reportedBySyncStatus,
+            problems: [
+              {
+                kind: 'activity_log',
+                error: logErgebnis.error,
+                reportedBySyncStatus: logErgebnis.reportedBySyncStatus,
+              },
+            ],
+          };
+        }
+        return { data: finalEnriched, error: null, reportedBySyncStatus: false, problems: [] };
       }
     } catch (err: unknown) {
       this.mockStore.deleteItem(newItem.id);
       this.items.update((list) => list.filter((item) => item.id !== newItem.id));
-      return { data: null, error: this.syncStatus.melde('Erstellen des Artikels', err) };
+      return {
+        data: null,
+        error: this.syncStatus.melde('Erstellen des Artikels', err),
+        reportedBySyncStatus: true,
+        problems: [],
+      };
     }
 
-    return { data: enriched, error: null };
+    this.mockStore.deleteItem(newItem.id);
+    this.items.update((list) => list.filter((item) => item.id !== newItem.id));
+    return {
+      data: null,
+      error: new Error('Der Artikel wurde nicht zurückgegeben'),
+      reportedBySyncStatus: false,
+      problems: [],
+    };
   }
 
   async updateItem(
@@ -491,11 +557,7 @@ export class InventoryService {
     return { error: null };
   }
 
-  async logActivity(
-    itemId: string,
-    action: string,
-    notes?: string,
-  ): Promise<{ error: Error | null }> {
+  async logActivity(itemId: string, action: string, notes?: string): Promise<ActivityLogResult> {
     const wsId = this.workspaceService.currentWorkspace()?.id || 'demo-workspace-1';
     const newLog: ActivityLog = {
       id: `log-${Date.now()}`,
@@ -518,18 +580,20 @@ export class InventoryService {
         if (error) {
           return {
             error: this.syncStatus.melde('Speichern des Aktivitätsprotokolls', error),
+            reportedBySyncStatus: true,
           };
         }
       } catch (e: unknown) {
         return {
           error: this.syncStatus.melde('Speichern des Aktivitätsprotokolls', e),
+          reportedBySyncStatus: true,
         };
       }
     }
 
     this.mockStore.saveActivityLog(newLog);
     this.activityLogs.update((logs) => [newLog, ...logs]);
-    return { error: null };
+    return { error: null, reportedBySyncStatus: false };
   }
 
   /**

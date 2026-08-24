@@ -28,7 +28,7 @@ import {
   LucideStore as Store,
   LucideTruck as Truck,
 } from '@lucide/angular';
-import { PurchaseService } from '../../core/services/purchase.service';
+import { beschreibePurchaseProblem, PurchaseService } from '../../core/services/purchase.service';
 import { OfflineSyncService } from '../../core/services/offline-sync.service';
 import { InboundTrackingService } from '../../core/services/inbound-tracking.service';
 import { PurchaseCreateModalComponent } from './components/purchase-create-modal/purchase-create-modal.component';
@@ -199,10 +199,28 @@ export class PurchasesComponent {
 
   async onSyncNow(): Promise<void> {
     try {
-      const { error } = await this.offlineSyncService.syncToCloud();
-      // Fehler aus createPurchase wurden bereits zentral im SyncStatus
-      // gemeldet. Hier kein zweiter roter Toast und vor allem kein Erfolg.
-      if (error) return;
+      const ergebnis = await this.offlineSyncService.syncToCloud();
+      if (ergebnis.error) {
+        if (!ergebnis.reportedBySyncStatus) {
+          this.toast.error(
+            'Offline-Daten konnten nicht synchronisiert werden.',
+            ergebnis.error.message,
+          );
+        }
+        return;
+      }
+      if (ergebnis.problems.length > 0) {
+        const ungemeldeteProbleme = ergebnis.problems.filter(
+          (problem) => !problem.reportedBySyncStatus,
+        );
+        if (ungemeldeteProbleme.length > 0) {
+          this.toast.warning(
+            'Offline-Daten wurden mit Einschränkungen synchronisiert.',
+            ungemeldeteProbleme.map(beschreibePurchaseProblem).join('\n'),
+          );
+        }
+        return;
+      }
       this.toast.success('Offline-Daten wurden synchronisiert.');
     } catch (error: unknown) {
       this.toast.error(
