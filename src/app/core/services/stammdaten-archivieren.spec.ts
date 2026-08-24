@@ -48,7 +48,10 @@ function baueSourcesService(zustand: Attrappen, verknuepfteEinkaeufe: number): S
 
   // Die Zaehlung selbst braucht eine Datenbank - hier durch einen festen Wert
   // ersetzt, damit die Entscheidung darum herum pruefbar bleibt.
-  dienst.zaehleVerknuepfteEinkaeufe = async () => verknuepfteEinkaeufe;
+  dienst.zaehleVerknuepfteEinkaeufe = async () =>
+    verknuepfteEinkaeufe < 0
+      ? { count: null, error: new Error('Prüfen fehlgeschlagen') }
+      : { count: verknuepfteEinkaeufe, error: null };
 
   return dienst;
 }
@@ -71,7 +74,10 @@ function baueSuppliersService(zustand: Attrappen, verknuepfteEinkaeufe: number):
     workspaceService: { currentWorkspace: () => ({ id: 'ws-1' }) },
   });
 
-  dienst.zaehleVerknuepfteEinkaeufe = async () => verknuepfteEinkaeufe;
+  dienst.zaehleVerknuepfteEinkaeufe = async () =>
+    verknuepfteEinkaeufe < 0
+      ? { count: null, error: new Error('Prüfen fehlgeschlagen') }
+      : { count: verknuepfteEinkaeufe, error: null };
 
   return dienst;
 }

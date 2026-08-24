@@ -3,6 +3,10 @@ import { signal } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastService } from '../../shared/components/toast/toast.service';
+import { Source, Supplier } from '../../core/models/flipbase.models';
+import { SourcesService } from '../../core/services/sources.service';
+import { SuppliersService } from '../../core/services/suppliers.service';
+import { SyncStatusService } from '../../core/services/sync-status.service';
 import { SourcesComponent } from './sources.component';
 
 function erstelleKomponente() {
@@ -72,6 +76,53 @@ function erstelleKomponente() {
 function erwarteErfolg(toast: ToastService, title: string): void {
   expect(toast.toasts()).toHaveLength(1);
   expect(toast.toasts()[0]).toMatchObject({ type: 'success', title });
+}
+
+function erstelleRealeLoeschkette(art: 'quelle' | 'lieferant') {
+  const syncStatus = new SyncStatusService();
+  const client = {
+    from(tabelle: string) {
+      if (tabelle !== 'purchases') throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+      return {
+        select: () => ({
+          eq: async () => ({ count: null, error: { code: '42501', message: 'denied' } }),
+        }),
+      };
+    },
+  };
+
+  if (art === 'quelle') {
+    const eintrag: Source = {
+      id: 'source-1',
+      workspace_id: 'workspace-1',
+      name: 'Flohmarkt',
+      is_default: false,
+      is_active: true,
+    };
+    const dienst = Object.create(SourcesService.prototype) as SourcesService;
+    Object.assign(dienst, {
+      supabase: { client },
+      syncStatus,
+      sources: signal([eintrag]),
+      mockStore: { isDemoMode: signal(false), getPurchases: () => [] },
+    });
+    return { syncStatus, dienst };
+  }
+
+  const eintrag: Supplier = {
+    id: 'supplier-1',
+    workspace_id: 'workspace-1',
+    name: 'Händler',
+    is_active: true,
+  };
+  const dienst = Object.create(SuppliersService.prototype) as SuppliersService;
+  Object.assign(dienst, {
+    supabase: { client },
+    syncStatus,
+    suppliers: signal([eintrag]),
+    mockStore: { isDemoMode: signal(false), getPurchases: () => [] },
+  });
+  return { syncStatus, dienst };
 }
 
 describe('SourcesComponent – zentrale Aktionsmeldungen', () => {
@@ -145,29 +196,25 @@ describe('SourcesComponent – zentrale Aktionsmeldungen', () => {
     });
   });
 
-  it('erzeugt für einen bereits zentral gemeldeten Quellenfehler keinen zweiten Toast', async () => {
-    const { komponente, toast, sourcesService } = erstelleKomponente();
-    const error = new Error(
-      'Archivieren der Quelle fehlgeschlagen: Keine Berechtigung für diesen Workspace.',
-    );
-    Object.assign(komponente, {
-      syncStatus: {
-        fehler: signal([
-          {
-            id: 1,
-            vorgang: 'Archivieren der Quelle',
-            meldung: 'Keine Berechtigung für diesen Workspace.',
-            zeitpunkt: '2026-08-24T10:00:00.000Z',
-          },
-        ]),
-      },
-    });
-    sourcesService.setSourceArchiviert.mockResolvedValue({ error });
+  it.each(['quelle', 'lieferant'] as const)(
+    'erzeugt beim realen Count-Vorprüffehler für %s keinen zweiten Toast',
+    async (art) => {
+      const { komponente, toast } = erstelleKomponente();
+      const kette = erstelleRealeLoeschkette(art);
+      Object.assign(komponente, {
+        syncStatus: kette.syncStatus,
+        ...(art === 'quelle'
+          ? { sourcesService: kette.dienst }
+          : { suppliersService: kette.dienst }),
+      });
 
-    await komponente.archiviereQuelle('source-1', true);
+      if (art === 'quelle') await komponente.onDeleteSource('source-1');
+      else await komponente.onDeleteSupplier('supplier-1');
 
-    expect(toast.toasts()).toEqual([]);
-  });
+      expect(kette.syncStatus.fehler()).toHaveLength(1);
+      expect(toast.toasts()).toEqual([]);
+    },
+  );
 
   it('bestätigt Anlegen und Speichern eines Lieferanten erst nach Erfolg', async () => {
     const angelegt = erstelleKomponente();

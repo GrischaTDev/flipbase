@@ -344,65 +344,69 @@ export class OfflineSyncService {
   /**
    * Synchronizes all pending offline entries to the Supabase Cloud Inventory and Purchases.
    */
-  async syncToCloud(): Promise<{ syncedCount: number }> {
-    if (this.isSyncing()) return { syncedCount: 0 };
+  async syncToCloud(): Promise<{ syncedCount: number; error: Error | null }> {
+    if (this.isSyncing()) return { syncedCount: 0, error: null };
     this.isSyncing.set(true);
+    try {
+      const pending = this.pendingEntries().filter((e) => e.sync_status === 'pending');
+      if (pending.length === 0) return { syncedCount: 0, error: null };
 
-    const pending = this.pendingEntries().filter((e) => e.sync_status === 'pending');
-    if (pending.length === 0) {
-      this.isSyncing.set(false);
-      return { syncedCount: 0 };
-    }
+      await new Promise((res) => setTimeout(res, 600));
 
-    await new Promise((res) => setTimeout(res, 600));
+      const synchronisierteIds: string[] = [];
+      let ersterFehler: Error | null = null;
+      for (const item of pending) {
+        if (this.purchaseService) {
+          const ergebnis = await this.purchaseService.createPurchase({
+            type: 'single',
+            title: item.title,
+            purchase_date: item.captured_at.split('T')[0],
+            purchase_price: item.purchase_price,
+            single_item_title: item.title,
+            single_item_category: item.category,
+            single_item_condition: item.condition,
+            single_item_expected_value: item.estimated_resale_price,
+            notes: `Offline-Erfassung (${item.location_name}): ${item.notes || ''}`,
+          });
+          if (ergebnis.error) {
+            ersterFehler ??= ergebnis.error;
+            continue;
+          }
+        }
+        synchronisierteIds.push(item.id);
+      }
 
-    let count = 0;
-    for (const item of pending) {
-      if (this.purchaseService) {
-        await this.purchaseService.createPurchase({
-          type: 'single',
-          title: item.title,
-          purchase_date: item.captured_at.split('T')[0],
-          purchase_price: item.purchase_price,
-          single_item_title: item.title,
-          single_item_category: item.category,
-          single_item_condition: item.condition,
-          single_item_expected_value: item.estimated_resale_price,
-          notes: `Offline-Erfassung (${item.location_name}): ${item.notes || ''}`,
+      const idMenge = new Set(synchronisierteIds);
+      this.pendingEntries.update((list) =>
+        list.map((entry) => (idMenge.has(entry.id) ? { ...entry, sync_status: 'synced' } : entry)),
+      );
+      this.persistEntries();
+
+      const ws = this.workspaceService?.currentWorkspace();
+      if (synchronisierteIds.length > 0 && this.supabase && ws && !this.mockStore?.isDemoMode()) {
+        schreibeImHintergrund(
+          this.supabase.client
+            .from('offline_purchase_entries')
+            .update({ sync_status: 'synced' })
+            .eq('workspace_id', ws.id)
+            .in('id', synchronisierteIds),
+          'Aktualisieren des Offline-Eintrags',
+          this.syncStatus,
+        );
+      }
+
+      if (synchronisierteIds.length > 0 && this.webhookService) {
+        this.webhookService.addNotification({
+          title: 'Offline-Sync abgeschlossen',
+          message: `${synchronisierteIds.length} Flohmarkt-Einkäufe erfolgreich in den Cloud-Workspace übertragen.`,
+          type: 'system',
         });
       }
-      count++;
+
+      return { syncedCount: synchronisierteIds.length, error: ersterFehler };
+    } finally {
+      this.isSyncing.set(false);
     }
-
-    // Mark all as synced
-    this.pendingEntries.update((list) =>
-      list.map((e) => (e.sync_status === 'pending' ? { ...e, sync_status: 'synced' } : e)),
-    );
-    this.persistEntries();
-    this.isSyncing.set(false);
-
-    const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      schreibeImHintergrund(
-        this.supabase.client
-          .from('offline_purchase_entries')
-          .update({ sync_status: 'synced' })
-          .eq('workspace_id', ws.id)
-          .eq('sync_status', 'pending'),
-        'Aktualisieren des Offline-Eintrags',
-        this.syncStatus,
-      );
-    }
-
-    if (this.webhookService) {
-      this.webhookService.addNotification({
-        title: 'Offline-Sync abgeschlossen',
-        message: `${count} Flohmarkt-Einkäufe erfolgreich in den Cloud-Workspace übertragen.`,
-        type: 'system',
-      });
-    }
-
-    return { syncedCount: count };
   }
 
   deletePendingEntry(id: string): void {

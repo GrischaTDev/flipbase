@@ -252,9 +252,14 @@ export class InventoryService {
     // 1. Immediately persist locally (instant UI feedback)
     this.mockStore.saveItem(enriched);
     this.items.update((list) => [enriched, ...list]);
-    await this.logActivity(newItem.id, 'received', `Artikel angelegt (${newItem.title})`);
 
     if (this.mockStore.isDemoMode()) {
+      const logErgebnis = await this.logActivity(
+        newItem.id,
+        'received',
+        `Artikel angelegt (${newItem.title})`,
+      );
+      if (logErgebnis.error) return { data: null, error: logErgebnis.error };
       return { data: enriched, error: null };
     }
 
@@ -281,6 +286,8 @@ export class InventoryService {
         .single();
 
       if (dbError) {
+        this.mockStore.deleteItem(newItem.id);
+        this.items.update((list) => list.filter((item) => item.id !== newItem.id));
         return { data: null, error: this.syncStatus.melde('Speichern des Artikels', dbError) };
       } else if (dbData) {
         const finalEnriched = this.enrichItemTotals(dbData);
@@ -289,9 +296,17 @@ export class InventoryService {
         this.mockStore.deleteItem(newItem.id);
         this.mockStore.saveItem(finalEnriched);
         this.items.update((list) => [finalEnriched, ...list.filter((i) => i.id !== newItem.id)]);
+        const logErgebnis = await this.logActivity(
+          finalEnriched.id,
+          'received',
+          `Artikel angelegt (${finalEnriched.title})`,
+        );
+        if (logErgebnis.error) return { data: null, error: logErgebnis.error };
         return { data: finalEnriched, error: null };
       }
     } catch (err: unknown) {
+      this.mockStore.deleteItem(newItem.id);
+      this.items.update((list) => list.filter((item) => item.id !== newItem.id));
       return { data: null, error: this.syncStatus.melde('Erstellen des Artikels', err) };
     }
 
@@ -476,7 +491,11 @@ export class InventoryService {
     return { error: null };
   }
 
-  async logActivity(itemId: string, action: string, notes?: string): Promise<void> {
+  async logActivity(
+    itemId: string,
+    action: string,
+    notes?: string,
+  ): Promise<{ error: Error | null }> {
     const wsId = this.workspaceService.currentWorkspace()?.id || 'demo-workspace-1';
     const newLog: ActivityLog = {
       id: `log-${Date.now()}`,
@@ -487,10 +506,7 @@ export class InventoryService {
       created_at: new Date().toISOString(),
     };
 
-    this.mockStore.saveActivityLog(newLog);
-    this.activityLogs.update((logs) => [newLog, ...logs]);
-
-    if (!this.mockStore.isDemoMode() && !this.mockStore?.isDemoMode()) {
+    if (!this.mockStore.isDemoMode()) {
       try {
         const { error } = await this.supabase.client.from('activity_logs').insert({
           workspace_id: wsId,
@@ -500,12 +516,20 @@ export class InventoryService {
         });
 
         if (error) {
-          this.syncStatus.melde('Speichern des Aktivitätsprotokolls', error);
+          return {
+            error: this.syncStatus.melde('Speichern des Aktivitätsprotokolls', error),
+          };
         }
       } catch (e: unknown) {
-        this.syncStatus.melde('Speichern des Aktivitätsprotokolls', e);
+        return {
+          error: this.syncStatus.melde('Speichern des Aktivitätsprotokolls', e),
+        };
       }
     }
+
+    this.mockStore.saveActivityLog(newLog);
+    this.activityLogs.update((logs) => [newLog, ...logs]);
+    return { error: null };
   }
 
   /**

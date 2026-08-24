@@ -103,40 +103,37 @@ export class SourcesService {
       type,
     };
 
-    this.mockStore.saveSource(newSrc);
-    this.sources.update((list) => [...list, newSrc]);
-
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { data: dbSrc, error: dbError } = await this.supabase.client
-          .from('sources')
-          .insert({
-            workspace_id: ws.id,
-            name: name.trim(),
-            is_default: isDefault,
-            is_active: true,
-            type,
-          })
-          .select()
-          .single();
-
-        if (dbError) {
-          return { data: null, error: this.syncStatus.melde('Speichern der Quelle', dbError) };
-        } else if (dbSrc) {
-          const finalSrc: Source = { ...newSrc, id: dbSrc.id };
-          // Vorlaeufigen Eintrag entfernen, sonst bleibt er mit seiner
-          // Behelfs-Kennung im lokalen Spiegel liegen (Duplikat).
-          this.mockStore.deleteSource(newSrc.id);
-          this.mockStore.saveSource(finalSrc);
-          this.sources.update((list) => [finalSrc, ...list.filter((s) => s.id !== newSrc.id)]);
-          return { data: finalSrc, error: null };
-        }
-      } catch (e) {
-        return { data: null, error: this.syncStatus.melde('Anlegen der Quelle', e) };
-      }
+    if (this.mockStore.isDemoMode()) {
+      this.mockStore.saveSource(newSrc);
+      this.sources.update((list) => [...list, newSrc]);
+      return { data: newSrc, error: null };
     }
 
-    return { data: newSrc, error: null };
+    try {
+      const { data: dbSrc, error: dbError } = await this.supabase.client
+        .from('sources')
+        .insert({
+          workspace_id: ws.id,
+          name: name.trim(),
+          is_default: isDefault,
+          is_active: true,
+          type,
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        return { data: null, error: this.syncStatus.melde('Speichern der Quelle', dbError) };
+      }
+      if (!dbSrc) return { data: null, error: new Error('Quelle wurde nicht zurückgegeben') };
+
+      const finalSrc: Source = { ...newSrc, id: dbSrc.id };
+      this.mockStore.saveSource(finalSrc);
+      this.sources.update((list) => [finalSrc, ...list.filter((s) => s.id !== finalSrc.id)]);
+      return { data: finalSrc, error: null };
+    } catch (e) {
+      return { data: null, error: this.syncStatus.melde('Anlegen der Quelle', e) };
+    }
   }
 
   /**
@@ -159,11 +156,13 @@ export class SourcesService {
       return { error: new Error('Der Name darf nicht leer sein') };
     }
 
-    this.sources.update((list) =>
-      list.map((s) => (s.id === sourceId ? { ...s, ...bereinigt } : s)),
-    );
-    const vorhanden = this.sources().find((s) => s.id === sourceId);
-    if (vorhanden) this.mockStore.saveSource(vorhanden);
+    const lokalAnwenden = () => {
+      this.sources.update((list) =>
+        list.map((s) => (s.id === sourceId ? { ...s, ...bereinigt } : s)),
+      );
+      const vorhanden = this.sources().find((s) => s.id === sourceId);
+      if (vorhanden) this.mockStore.saveSource(vorhanden);
+    };
 
     if (!this.mockStore.isDemoMode()) {
       try {
@@ -178,6 +177,7 @@ export class SourcesService {
         return { error: this.syncStatus.melde('Ändern der Quelle', e) };
       }
     }
+    lokalAnwenden();
     return { error: null };
   }
 
@@ -194,18 +194,15 @@ export class SourcesService {
   ): Promise<{ error: Error | null }> {
     const neuerWert = !archiviert;
 
-    // Erst den geaenderten Eintrag im lokalen Spiegel sichern, dann die
-    // Anzeige anpassen. Andersherum waere er aus dem Signal verschwunden,
-    // bevor er gespeichert werden konnte - im Demo-Modus haette das
-    // Archivieren dann nach dem naechsten Laden nicht mehr gegolten.
-    const geaendert = this.sources().find((s) => s.id === sourceId);
-    if (geaendert) this.mockStore.saveSource({ ...geaendert, is_active: neuerWert });
-
-    this.sources.update((list) =>
-      this.zeigeArchivierte()
-        ? list.map((s) => (s.id === sourceId ? { ...s, is_active: neuerWert } : s))
-        : list.filter((s) => s.id !== sourceId),
-    );
+    const lokalAnwenden = () => {
+      const geaendert = this.sources().find((s) => s.id === sourceId);
+      if (geaendert) this.mockStore.saveSource({ ...geaendert, is_active: neuerWert });
+      this.sources.update((list) =>
+        this.zeigeArchivierte()
+          ? list.map((s) => (s.id === sourceId ? { ...s, is_active: neuerWert } : s))
+          : list.filter((s) => s.id !== sourceId),
+      );
+    };
 
     if (!this.mockStore.isDemoMode()) {
       try {
@@ -220,13 +217,19 @@ export class SourcesService {
         return { error: this.syncStatus.melde('Archivieren der Quelle', e) };
       }
     }
+    lokalAnwenden();
     return { error: null };
   }
 
   /** Zählt die Einkäufe, die auf diese Quelle verweisen. */
-  async zaehleVerknuepfteEinkaeufe(sourceId: string): Promise<number> {
+  async zaehleVerknuepfteEinkaeufe(
+    sourceId: string,
+  ): Promise<{ count: number | null; error: Error | null }> {
     if (this.mockStore.isDemoMode()) {
-      return this.mockStore.getPurchases().filter((p) => p.source_id === sourceId).length;
+      return {
+        count: this.mockStore.getPurchases().filter((p) => p.source_id === sourceId).length,
+        error: null,
+      };
     }
     try {
       const { count, error } = await this.supabase.client
@@ -234,15 +237,17 @@ export class SourcesService {
         .select('id', { count: 'exact', head: true })
         .eq('source_id', sourceId);
       if (error) {
-        this.syncStatus.melde('Prüfen der verknüpften Einkäufe', error);
-        // Im Zweifel als verknüpft behandeln - lieber das Löschen verweigern,
-        // als eine Herkunftsangabe unwiederbringlich zu verlieren.
-        return -1;
+        return {
+          count: null,
+          error: this.syncStatus.melde('Prüfen der verknüpften Einkäufe', error),
+        };
       }
-      return count ?? 0;
+      return { count: count ?? 0, error: null };
     } catch (e) {
-      this.syncStatus.melde('Prüfen der verknüpften Einkäufe', e);
-      return -1;
+      return {
+        count: null,
+        error: this.syncStatus.melde('Prüfen der verknüpften Einkäufe', e),
+      };
     }
   }
 
@@ -255,11 +260,9 @@ export class SourcesService {
    * die Sicherung.
    */
   async deleteSource(sourceId: string): Promise<{ error: Error | null }> {
-    const verknuepft = await this.zaehleVerknuepfteEinkaeufe(sourceId);
-
-    if (verknuepft === -1) {
-      return { error: new Error('Die verknüpften Einkäufe liessen sich nicht prüfen') };
-    }
+    const pruefung = await this.zaehleVerknuepfteEinkaeufe(sourceId);
+    if (pruefung.error) return { error: pruefung.error };
+    const verknuepft = pruefung.count ?? 0;
 
     if (verknuepft > 0) {
       return {
@@ -270,8 +273,6 @@ export class SourcesService {
       };
     }
 
-    this.mockStore.deleteSource(sourceId);
-    this.sources.update((list) => list.filter((s) => s.id !== sourceId));
     if (!this.mockStore.isDemoMode()) {
       try {
         const { error } = await this.supabase.client.from('sources').delete().eq('id', sourceId);
@@ -282,6 +283,8 @@ export class SourcesService {
         return { error: this.syncStatus.melde('Löschen der Quelle', e) };
       }
     }
+    this.mockStore.deleteSource(sourceId);
+    this.sources.update((list) => list.filter((s) => s.id !== sourceId));
     return { error: null };
   }
 

@@ -336,7 +336,8 @@ export class PurchaseService {
     this.purchasesRaw.update((list) => [newPurchase, ...list]);
 
     if (this.mockStore.isDemoMode()) {
-      await this.legeEinzelartikelAn(newPurchase, payload);
+      const artikelErgebnis = await this.legeEinzelartikelAn(newPurchase, payload);
+      if (artikelErgebnis.error) return { data: null, error: artikelErgebnis.error };
       this.webhookService.sendPurchaseNotification(newPurchase);
       return { data: newPurchase, error: null };
     }
@@ -387,8 +388,11 @@ export class PurchaseService {
         // dauerhaft auf eine Kennung gezeigt, die es gleich nicht mehr gibt.
         // Nebeneffekt und richtig so: Scheitert das Speichern, gibt es auch
         // keine Meldung ueber einen Einkauf, den es nicht gibt.
-        await this.legeZusatzkostenAn(finalPurchase.id, kostenZeilen);
-        await this.legeEinzelartikelAn(finalPurchase, payload);
+        const kostenErgebnis = await this.legeZusatzkostenAn(finalPurchase.id, kostenZeilen);
+        if (kostenErgebnis.error) return { data: null, error: kostenErgebnis.error };
+
+        const artikelErgebnis = await this.legeEinzelartikelAn(finalPurchase, payload);
+        if (artikelErgebnis.error) return { data: null, error: artikelErgebnis.error };
         this.webhookService.sendPurchaseNotification(finalPurchase);
         return { data: finalPurchase, error: null };
       }
@@ -412,8 +416,11 @@ export class PurchaseService {
    * Erst hier, nach dem Speichern: Vorher traegt der Einkauf nur eine
    * Behelfskennung, und der Fremdschluessel zeigte ins Leere.
    */
-  private async legeZusatzkostenAn(purchaseId: string, zeilen: PurchaseCost[]): Promise<void> {
-    if (zeilen.length === 0) return;
+  private async legeZusatzkostenAn(
+    purchaseId: string,
+    zeilen: PurchaseCost[],
+  ): Promise<{ error: Error | null }> {
+    if (zeilen.length === 0) return { error: null };
 
     try {
       const { error } = await this.supabase.client.from('purchase_costs').insert(
@@ -424,10 +431,14 @@ export class PurchaseService {
           description: z.description ?? null,
         })),
       );
-      if (error) this.syncStatus.melde('Speichern der Zusatzkosten', error);
+      if (error) {
+        return { error: this.syncStatus.melde('Speichern der Zusatzkosten', error) };
+      }
     } catch (e: unknown) {
-      this.syncStatus.melde('Speichern der Zusatzkosten', e);
+      return { error: this.syncStatus.melde('Speichern der Zusatzkosten', e) };
     }
+
+    return { error: null };
   }
 
   /**
@@ -448,10 +459,10 @@ export class PurchaseService {
   private async legeEinzelartikelAn(
     einkauf: Purchase,
     payload: CreatePurchasePayload,
-  ): Promise<void> {
-    if (einkauf.type !== 'single') return;
+  ): Promise<{ error: Error | null }> {
+    if (einkauf.type !== 'single') return { error: null };
 
-    await this.inventory.createItem({
+    const { error } = await this.inventory.createItem({
       purchase_id: einkauf.id,
       title: payload.single_item_title?.trim() || einkauf.title,
       category: payload.single_item_category?.trim() || null,
@@ -460,6 +471,7 @@ export class PurchaseService {
       allocated_purchase_cost: einkauf.total_purchase_cost || einkauf.purchase_price,
       expected_value: payload.single_item_expected_value ?? null,
     });
+    return { error };
   }
 
   /**
@@ -530,15 +542,20 @@ export class PurchaseService {
       updated_at: new Date().toISOString(),
     });
 
-    this.purchasesRaw.update((liste) => liste.map((p) => (p.id === purchaseId ? anwenden(p) : p)));
-    this.selectedPurchaseRaw.update((p) => (p && p.id === purchaseId ? anwenden(p) : p));
+    const lokalAnwenden = () => {
+      this.purchasesRaw.update((liste) =>
+        liste.map((p) => (p.id === purchaseId ? anwenden(p) : p)),
+      );
+      this.selectedPurchaseRaw.update((p) => (p && p.id === purchaseId ? anwenden(p) : p));
 
-    const gespeichert = this.mockStore.getPurchases().find((p) => p.id === purchaseId);
-    if (gespeichert) {
-      this.mockStore.savePurchase(anwenden(gespeichert));
+      const gespeichert = this.mockStore.getPurchases().find((p) => p.id === purchaseId);
+      if (gespeichert) this.mockStore.savePurchase(anwenden(gespeichert));
+    };
+
+    if (this.mockStore.isDemoMode()) {
+      lokalAnwenden();
+      return { error: null };
     }
-
-    if (this.mockStore.isDemoMode()) return { error: null };
 
     try {
       const { error } = await this.supabase.client
@@ -571,6 +588,7 @@ export class PurchaseService {
       return { error: this.syncStatus.melde('Aendern des Einkaufs', e) };
     }
 
+    lokalAnwenden();
     return { error: null };
   }
 
@@ -863,21 +881,36 @@ export class PurchaseService {
     purchaseId: string,
     mode: CostAllocationMode,
   ): Promise<{ error: Error | null }> {
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client
-          .from('purchases')
-          .update({ cost_allocation_mode: mode })
-          .eq('id', purchaseId);
+    const speichern = await this.speichereVerteilungsmodus(purchaseId, mode);
+    if (speichern.error) return speichern;
 
-        if (error) {
-          return { error: this.syncStatus.melde('Aktualisieren des Verteilungsmodus', error) };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Aktualisieren des Verteilungsmodus', e) };
+    this.uebernehmeVerteilungsmodusLokal(purchaseId, mode);
+    return { error: null };
+  }
+
+  private async speichereVerteilungsmodus(
+    purchaseId: string,
+    mode: CostAllocationMode,
+  ): Promise<{ error: Error | null }> {
+    if (this.mockStore.isDemoMode()) return { error: null };
+
+    try {
+      const { error } = await this.supabase.client
+        .from('purchases')
+        .update({ cost_allocation_mode: mode })
+        .eq('id', purchaseId);
+
+      if (error) {
+        return { error: this.syncStatus.melde('Aktualisieren des Verteilungsmodus', error) };
       }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Aktualisieren des Verteilungsmodus', e) };
     }
 
+    return { error: null };
+  }
+
+  private uebernehmeVerteilungsmodusLokal(purchaseId: string, mode: CostAllocationMode): void {
     const current = this.selectedPurchase();
     if (current && current.id === purchaseId) {
       const updated = { ...current, cost_allocation_mode: mode };
@@ -894,7 +927,6 @@ export class PurchaseService {
         return p;
       }),
     );
-    return { error: null };
   }
 
   async redistributeCosts(
@@ -938,10 +970,10 @@ export class PurchaseService {
       }));
     }
 
-    this.inventory.uebernehmeArtikelAenderungen(updatedItems);
-    await this.updateCostAllocationMode(purchaseId, mode);
-
     if (!this.mockStore.isDemoMode()) {
+      const modusErgebnis = await this.speichereVerteilungsmodus(purchaseId, mode);
+      if (modusErgebnis.error) return modusErgebnis;
+
       try {
         for (const it of updatedItems) {
           const { error } = await this.supabase.client
@@ -961,6 +993,8 @@ export class PurchaseService {
       }
     }
 
+    this.inventory.uebernehmeArtikelAenderungen(updatedItems);
+    this.uebernehmeVerteilungsmodusLokal(purchaseId, mode);
     return { error: null };
   }
 

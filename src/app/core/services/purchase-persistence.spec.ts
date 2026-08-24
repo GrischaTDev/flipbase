@@ -58,6 +58,45 @@ describe('PurchaseService – fehlgeschlagenes Löschen', () => {
   });
 });
 
+describe('PurchaseService – fehlgeschlagenes Bearbeiten', () => {
+  it('behält Signal und lokalen Store bei einem Datenbankfehler unverändert', async () => {
+    const purchasesRaw = signal<Purchase[]>([einkauf]);
+    const selectedPurchaseRaw = signal<Purchase | null>(einkauf);
+    let lokal = einkauf;
+    const service = Object.create(PurchaseService.prototype) as PurchaseService;
+    Object.assign(service, {
+      purchasesRaw,
+      selectedPurchaseRaw,
+      sourcesService: { sources: signal([]) },
+      suppliersService: { suppliers: signal([]) },
+      mockStore: {
+        isDemoMode: signal(false),
+        getPurchases: () => [lokal],
+        savePurchase: (wert: Purchase) => {
+          lokal = wert;
+        },
+      },
+      syncStatus: new SyncStatusService(),
+      supabase: {
+        client: {
+          from: () => ({
+            update: () => ({
+              eq: async () => ({ error: { code: '42501', message: 'denied' } }),
+            }),
+          }),
+        },
+      },
+    });
+
+    const ergebnis = await service.updatePurchase(einkauf.id, { title: 'Geändert' });
+
+    expect(ergebnis.error).toBeInstanceOf(Error);
+    expect(purchasesRaw()).toEqual([einkauf]);
+    expect(selectedPurchaseRaw()).toEqual(einkauf);
+    expect(lokal).toEqual(einkauf);
+  });
+});
+
 describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () => {
   it('ändert das Tracking im lokalen Bestand erst nach erfolgreichem Datenbank-Update', async () => {
     const purchasesRaw = signal<Purchase[]>([einkauf]);
@@ -158,5 +197,112 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
     expect(purchasesRaw()).toEqual([einkauf]);
     expect(selectedPurchaseRaw()).toEqual(einkauf);
     expect(lokalSpeichern).not.toHaveBeenCalled();
+  });
+
+  it('bricht die Kostenverteilung bei einem Modusfehler vor allen lokalen Artikeländerungen ab', async () => {
+    const artikel: InventoryItem = {
+      id: 'item-1',
+      workspace_id: einkauf.workspace_id,
+      purchase_id: einkauf.id,
+      title: 'Konsole',
+      condition: 'used',
+      status: 'received',
+      sku: 'SKU-1',
+      allocated_purchase_cost: 31.98,
+      expected_value: 60,
+      created_at: einkauf.created_at,
+    };
+    const purchasesRaw = signal<Purchase[]>([einkauf]);
+    const selectedPurchaseRaw = signal<Purchase | null>(einkauf);
+    const artikelLokalUebernehmen = vi.fn();
+    const tabellen: string[] = [];
+    const service = Object.create(PurchaseService.prototype) as PurchaseService;
+    Object.assign(service, {
+      purchasesRaw,
+      selectedPurchaseRaw,
+      selectedPurchase: () => selectedPurchaseRaw(),
+      purchaseItems: () => [artikel],
+      profitEngine: { allocateCosts: () => [31.98] },
+      inventory: { uebernehmeArtikelAenderungen: artikelLokalUebernehmen },
+      mockStore: {
+        isDemoMode: signal(false),
+        getPurchases: () => [einkauf],
+        savePurchase: vi.fn(),
+      },
+      syncStatus: new SyncStatusService(),
+      supabase: {
+        client: {
+          from: (tabelle: string) => {
+            tabellen.push(tabelle);
+            return {
+              update: () => ({
+                eq: async () => ({ error: { code: '42501', message: 'denied' } }),
+              }),
+            };
+          },
+        },
+      },
+    });
+
+    const ergebnis = await service.redistributeCosts(einkauf.id, 'value_weighted');
+
+    expect(ergebnis.error).toBeInstanceOf(Error);
+    expect(tabellen).toEqual(['purchases']);
+    expect(artikelLokalUebernehmen).not.toHaveBeenCalled();
+    expect(purchasesRaw()).toEqual([einkauf]);
+    expect(selectedPurchaseRaw()).toEqual(einkauf);
+  });
+
+  it('behält alle lokalen Verteilwerte bei, wenn ein Artikel-Update fehlschlägt', async () => {
+    const artikel: InventoryItem = {
+      id: 'item-1',
+      workspace_id: einkauf.workspace_id,
+      purchase_id: einkauf.id,
+      title: 'Konsole',
+      condition: 'used',
+      status: 'received',
+      sku: 'SKU-1',
+      allocated_purchase_cost: 31.98,
+      expected_value: 60,
+      created_at: einkauf.created_at,
+    };
+    const purchasesRaw = signal<Purchase[]>([einkauf]);
+    const selectedPurchaseRaw = signal<Purchase | null>(einkauf);
+    const artikelLokalUebernehmen = vi.fn();
+    const lokalSpeichern = vi.fn();
+    const service = Object.create(PurchaseService.prototype) as PurchaseService;
+    Object.assign(service, {
+      purchasesRaw,
+      selectedPurchaseRaw,
+      selectedPurchase: () => selectedPurchaseRaw(),
+      purchaseItems: () => [artikel],
+      profitEngine: { allocateCosts: () => [31.98] },
+      inventory: { uebernehmeArtikelAenderungen: artikelLokalUebernehmen },
+      mockStore: {
+        isDemoMode: signal(false),
+        getPurchases: () => [einkauf],
+        savePurchase: lokalSpeichern,
+      },
+      syncStatus: new SyncStatusService(),
+      supabase: {
+        client: {
+          from: (tabelle: string) => ({
+            update: () => ({
+              eq: async () => ({
+                error: tabelle === 'inventory_items' ? { code: '42501', message: 'denied' } : null,
+              }),
+            }),
+          }),
+        },
+      },
+    });
+
+    const ergebnis = await service.redistributeCosts(einkauf.id, 'value_weighted');
+
+    expect(ergebnis.error).toBeInstanceOf(Error);
+    expect(artikelLokalUebernehmen).not.toHaveBeenCalled();
+    expect(lokalSpeichern).not.toHaveBeenCalled();
+    expect(purchasesRaw()).toEqual([einkauf]);
+    expect(selectedPurchaseRaw()).toEqual(einkauf);
   });
 });

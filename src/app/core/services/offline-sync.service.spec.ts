@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Injector, runInInjectionContext } from '@angular/core';
 import { OfflineSyncService } from './offline-sync.service';
 
@@ -56,6 +56,23 @@ describe('OfflineSyncService & Flea Market Rapid Sourcing (Chapter 28)', () => {
   it('should synchronize pending entries to cloud', async () => {
     const res = await service.syncToCloud();
     expect(res).toBeDefined();
+    expect(res.error).toBeNull();
+    expect(service.isSyncing()).toBe(false);
+  });
+
+  it('lässt fehlgeschlagene Einkäufe für einen erneuten Sync vorgemerkt', async () => {
+    const fehler = new Error('Speichern des Einkaufs fehlgeschlagen');
+    const createPurchase = vi.fn(async () => ({ data: null, error: fehler }));
+    Object.assign(service, { purchaseService: { createPurchase } });
+    const vorher = service.pendingEntries().filter((entry) => entry.sync_status === 'pending');
+
+    const ergebnis = await service.syncToCloud();
+
+    expect(ergebnis).toEqual({ syncedCount: 0, error: fehler });
+    expect(createPurchase).toHaveBeenCalledTimes(vorher.length);
+    expect(service.pendingEntries().filter((entry) => entry.sync_status === 'pending')).toEqual(
+      vorher,
+    );
     expect(service.isSyncing()).toBe(false);
   });
 });

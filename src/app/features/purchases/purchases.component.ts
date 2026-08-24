@@ -199,7 +199,10 @@ export class PurchasesComponent {
 
   async onSyncNow(): Promise<void> {
     try {
-      await this.offlineSyncService.syncToCloud();
+      const { error } = await this.offlineSyncService.syncToCloud();
+      // Fehler aus createPurchase wurden bereits zentral im SyncStatus
+      // gemeldet. Hier kein zweiter roter Toast und vor allem kein Erfolg.
+      if (error) return;
       this.toast.success('Offline-Daten wurden synchronisiert.');
     } catch (error: unknown) {
       this.toast.error(

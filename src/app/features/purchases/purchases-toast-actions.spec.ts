@@ -14,7 +14,10 @@ function erstelleKomponente() {
       purchase_price: 20,
     })),
     startCashSession: vi.fn(),
-    syncToCloud: vi.fn(async () => ({ syncedCount: 1 })),
+    syncToCloud: vi.fn(async (): Promise<{ syncedCount: number; error: Error | null }> => ({
+      syncedCount: 1,
+      error: null,
+    })),
     deletePendingEntry: vi.fn(),
   };
   const komponente = Object.create(PurchasesComponent.prototype) as PurchasesComponent;
@@ -117,5 +120,17 @@ describe('PurchasesComponent – Offline-Aktionsmeldungen', () => {
       title: 'Offline-Daten konnten nicht synchronisiert werden.',
       persistent: true,
     });
+  });
+
+  it('meldet nach einem aufgelösten Sync-Fehler keinen falschen Erfolg', async () => {
+    const sync = erstelleKomponente();
+    sync.offlineSyncService.syncToCloud.mockResolvedValue({
+      syncedCount: 0,
+      error: new Error('Speichern des Einkaufs fehlgeschlagen'),
+    });
+
+    await sync.komponente.onSyncNow();
+
+    expect(sync.toast.toasts()).toEqual([]);
   });
 });
