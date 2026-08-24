@@ -5,6 +5,7 @@
       [maintainAspectRatio]="false"
       [format]="'jpeg'"
       [cropper]="cropperEingabe()"
+      [resizeToWidth]="32"
       (imageCropped)="beiZuschnitt($event)"
       (imageLoaded)="beiBildGeladen($event)"
       (cropperReady)="beiCropperBereit($event)"

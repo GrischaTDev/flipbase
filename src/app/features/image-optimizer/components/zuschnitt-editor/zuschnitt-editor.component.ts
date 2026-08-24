@@ -225,6 +225,12 @@ export class ZuschnittEditorComponent {
   }
 
   beiZuschnitt(ereignis: ImageCroppedEvent): void {
+    // Die Bibliothek erzeugt fuer jede Zuschnitt-Geste eine Object-URL des
+    // gerenderten Vorschaubildes (`objectUrl`). Gebraucht wird hier nur
+    // `imagePosition`, das gerenderte Bild selbst nie - ungenutzt bliebe die
+    // URL sonst dauerhaft im Speicher stehen, bei jedem Ziehen am Rahmen neu.
+    if (ereignis.objectUrl) URL.revokeObjectURL(ereignis.objectUrl);
+
     // imagePosition ist in Pixeln des Originalbildes - fuer die Ableitung
     // der Plattformformate (safeArea/leiteAb) muss darin gerechnet werden,
     // sonst haengt das Ergebnis von der Fenstergroesse ab. Die Anzeigeflaeche

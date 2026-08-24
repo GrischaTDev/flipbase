@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  inject,
+  signal,
+} from '@angular/core';
 import { LucideDynamicIcon, LucideCheck as Check } from '@lucide/angular';
 import { PLATTFORM_PROFILE, PlattformProfil, ProfilId, Rechteck } from './models/plattform-profile';
 import { ZuschnittEditorComponent } from './components/zuschnitt-editor/zuschnitt-editor.component';
@@ -89,6 +96,17 @@ export class ImageOptimizerComponent {
 
     return meldungen;
   });
+
+  constructor() {
+    // `entferne()` gibt die Object-URL eines Bildes frei, sobald es aus der
+    // Liste geloescht wird - verlaesst der Nutzer die Seite aber vorher,
+    // bleiben alle noch geladenen Fotos in vollem Original in Erinnerung.
+    inject(DestroyRef).onDestroy(() => {
+      for (const bild of this.bilder()) {
+        URL.revokeObjectURL(bild.datenUrl);
+      }
+    });
+  }
 
   schaltePlattform(id: ProfilId): void {
     this.gewaehlteIds.update((ids) =>
