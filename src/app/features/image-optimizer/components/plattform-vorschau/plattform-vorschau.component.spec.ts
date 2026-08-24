@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { ermittleVorschauAusschnitt } from './plattform-vorschau.component';
+import { ermittleVorschauAusschnitt, planeVorschau } from './plattform-vorschau.component';
+import { profil } from '../../models/plattform-profile';
 
 describe('Vorschau-Ausschnitt', () => {
   it('leitet ohne gespeicherten Zuschnitt aus dem mittigen Vollbild ab', () => {
@@ -32,5 +33,13 @@ describe('Vorschau-Ausschnitt', () => {
 
   it('liefert ohne Zuschnitt und ohne Bildgroesse null', () => {
     expect(ermittleVorschauAusschnitt(null, null, 1)).toBeNull();
+  });
+
+  it('behält einen nach rechts verschobenen Ausschnitt im echten Renderplan', () => {
+    const plan = planeVorschau({ x: 1400, y: 200, breite: 800, hoehe: 800 }, null, profil('ebay'));
+
+    expect(plan).not.toBeNull();
+    expect(plan!.quelle).toEqual({ x: 1400, y: 200, breite: 800, hoehe: 800 });
+    expect({ breite: plan!.breite, hoehe: plan!.hoehe }).toEqual({ breite: 800, hoehe: 800 });
   });
 });

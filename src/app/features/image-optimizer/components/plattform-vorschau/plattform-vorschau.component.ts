@@ -1,30 +1,38 @@
-import { ChangeDetectionStrategy, Component, computed, effect, input, signal } from '@angular/core';
-import { PlattformProfil, Rechteck } from '../../models/plattform-profile';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  DestroyRef,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
+import { Groesse, PlattformProfil, Rechteck } from '../../models/plattform-profile';
+import { planeAusgabe, RenderPlan, rendereBild } from '../../services/bild-renderer';
 import { leiteAb } from '../../services/zuschnitt';
 
-/** Ermittelt den sichtbaren Ausschnitt aus gespeichertem Crop oder dem ganzen Bild. */
 export function ermittleVorschauAusschnitt(
   ausschnitt: Rechteck | null,
-  bildgroesse: { breite: number; hoehe: number } | null,
+  bildgroesse: Groesse | null,
   zielverhaeltnis: number,
 ): Rechteck | null {
   const basis =
     ausschnitt ??
     (bildgroesse ? { x: 0, y: 0, breite: bildgroesse.breite, hoehe: bildgroesse.hoehe } : null);
-
   return basis ? leiteAb(basis, zielverhaeltnis) : null;
 }
 
-/**
- * Zeigt, wie das exportierte Bild in der Trefferliste der Plattform
- * aussieht - nicht das ganze Originalfoto, sondern der Ausschnitt daraus,
- * den der Export tatsaechlich erzeugt (`leiteAb`, gleiches Seitenverhaeltnis
- * wie die Kachel).
- *
- * Bewusst **kein** originalgetreuer Nachbau: keine fremden Logos, Schriften
- * oder Farbwelten. Ist noch kein Ausschnitt gewaehlt, dient das volle Bild
- * als Basis und wird auf das Plattform-/Kachelverhaeltnis abgeleitet.
- */
+/** Die Vorschau verwendet exakt denselben Renderplan wie der spätere Export. */
+export function planeVorschau(
+  ausschnitt: Rechteck | null,
+  bildgroesse: Groesse | null,
+  plattform: PlattformProfil,
+): RenderPlan | null {
+  const quelle = ermittleVorschauAusschnitt(ausschnitt, bildgroesse, plattform.exportVerhaeltnis);
+  return quelle ? planeAusgabe(quelle, plattform) : null;
+}
+
 @Component({
   selector: 'app-plattform-vorschau',
   imports: [],
@@ -36,61 +44,70 @@ export class PlattformVorschauComponent {
   readonly datenUrl = input.required<string>();
   readonly ausschnitt = input<Rechteck | null>(null);
 
-  /** Natuerliche Groesse von `datenUrl()`, gelesen aus dem `load`-Ereignis des `<img>`. */
-  readonly bildgroesse = signal<{ breite: number; hoehe: number } | null>(null);
+  readonly vorschauUrl = signal<string | null>(null);
+  readonly ausgabeGroesse = signal<Groesse | null>(null);
+  readonly wirdGerendert = signal(true);
+  readonly vorschauFehler = signal(false);
+  readonly seitenverhaeltnis = computed(() => this.plattform().kachelVerhaeltnis);
+
+  private aktuelleVorschauUrl: string | null = null;
+  private renderVersion = 0;
+  private zerstoert = false;
 
   constructor() {
-    // Die natuerliche Groesse gehoert zu genau einem datenUrl. Ohne dieses
-    // Zuruecksetzen rechnet die Kachel nach einem Bildwechsel - und nach einer
-    // Drehung, bei der Breite und Hoehe tauschen - mit den Massen des vorherigen
-    // Fotos weiter und zeigt verschobene, angeschnittene Bereiche.
+    inject(DestroyRef).onDestroy(() => {
+      this.zerstoert = true;
+      this.renderVersion++;
+      if (this.aktuelleVorschauUrl) URL.revokeObjectURL(this.aktuelleVorschauUrl);
+    });
+
     effect(() => {
-      this.datenUrl();
-      this.bildgroesse.set(null);
+      const url = this.datenUrl();
+      const ausschnitt = this.ausschnitt();
+      const plattform = this.plattform();
+      void this.rendereVorschau(url, ausschnitt, plattform);
     });
   }
 
-  /** `cover` schneidet, `contain` passt ein - genau wie die echte Liste. Nur ohne gewaehlten Ausschnitt relevant. */
-  readonly bildAnpassung = computed(() => (this.plattform().schneidet ? 'cover' : 'contain'));
+  private async rendereVorschau(
+    url: string,
+    ausschnitt: Rechteck | null,
+    plattform: PlattformProfil,
+  ): Promise<void> {
+    const version = ++this.renderVersion;
+    this.wirdGerendert.set(true);
+    this.vorschauFehler.set(false);
 
-  readonly seitenverhaeltnis = computed(() => this.plattform().kachelVerhaeltnis);
+    try {
+      const bild = await this.ladeBild(url);
+      const groesse = { breite: bild.naturalWidth, hoehe: bild.naturalHeight };
+      const plan = planeVorschau(ausschnitt, groesse, plattform);
+      if (!plan) return;
 
-  /**
-   * Das Rechteck des Originalbildes, das die Kachel fuellen soll: Der
-   * gespeicherte Ausschnitt oder ersatzweise das volle Bild wird auf das
-   * Kachelverhaeltnis zugeschnitten (`leiteAb`). Null nur, solange weder ein
-   * Ausschnitt noch die natuerliche Bildgroesse bekannt ist.
-   */
-  readonly abgeleiteterAusschnitt = computed<Rechteck | null>(() => {
-    return ermittleVorschauAusschnitt(
-      this.ausschnitt(),
-      this.bildgroesse(),
-      this.seitenverhaeltnis(),
-    );
-  });
+      const blob = await rendereBild(bild, plan);
+      if (this.zerstoert || version !== this.renderVersion) return;
 
-  /**
-   * Position und Groesse des `<img>` in Prozent der Bildoeffnung: Das Bild
-   * wird so weit vergroessert und verschoben, dass genau das abgeleitete
-   * Rechteck (Pixel des Originalbildes) die Oeffnung fuellt - dieselbe
-   * Rechnung wie beim Positionieren eines Ausschnitts per `background-image`,
-   * nur mit einem absolut positionierten `<img>` statt eines Hintergrunds.
-   */
-  readonly bildPosition = computed(() => {
-    const rechteck = this.abgeleiteterAusschnitt();
-    const groesse = this.bildgroesse();
-    if (!rechteck || !groesse) return null;
+      const neueUrl = URL.createObjectURL(blob);
+      const alteUrl = this.aktuelleVorschauUrl;
+      this.aktuelleVorschauUrl = neueUrl;
+      this.vorschauUrl.set(neueUrl);
+      this.ausgabeGroesse.set({ breite: plan.breite, hoehe: plan.hoehe });
+      if (alteUrl) URL.revokeObjectURL(alteUrl);
+    } catch {
+      if (!this.zerstoert && version === this.renderVersion) {
+        this.vorschauFehler.set(true);
+      }
+    } finally {
+      if (!this.zerstoert && version === this.renderVersion) this.wirdGerendert.set(false);
+    }
+  }
 
-    return {
-      breite: (groesse.breite / rechteck.breite) * 100,
-      hoehe: (groesse.hoehe / rechteck.hoehe) * 100,
-      links: -(rechteck.x / rechteck.breite) * 100,
-      oben: -(rechteck.y / rechteck.hoehe) * 100,
-    };
-  });
-
-  beiBildLaden(bild: EventTarget | null): void {
-    const element = bild as HTMLImageElement;
-    this.bildgroesse.set({ breite: element.naturalWidth, hoehe: element.naturalHeight });
+  private ladeBild(url: string): Promise<HTMLImageElement> {
+    return new Promise((aufloesen, ablehnen) => {
+      const bild = new Image();
+      bild.onload = () => aufloesen(bild);
+      bild.onerror = () => ablehnen(new Error('Die Vorschau ließ sich nicht erzeugen.'));
+      bild.src = url;
+    });
   }
 }

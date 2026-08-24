@@ -19,7 +19,6 @@ import { PlattformVorschauComponent } from './components/plattform-vorschau/plat
 import { BildListeComponent } from './components/bild-liste/bild-liste.component';
 import { BildExportService, dateiName } from './services/bild-export.service';
 import { ZipExportService, ordnerName } from './services/zip-export.service';
-import { leiteAb, reichtAufloesung, vergroesserungsfaktor } from './services/zuschnitt';
 import { setzeZuschnitt, uebernimmAufAlle, Zuschnitte } from './services/zuschnitte';
 import { SchluesselWarteschlange } from './services/async-warteschlange';
 import { erstelleExportSnapshot, ersetzeWennAktuell } from './services/async-zustand';
@@ -153,44 +152,6 @@ export class ImageOptimizerComponent {
     const plattform = this.aktivePlattform();
     if (!bild || !plattform) return null;
     return bild.ausschnitte[plattform.id] ?? null;
-  });
-
-  /** Ob mindestens eine gewaehlte Plattform tatsaechlich beschneidet. */
-  readonly esWirdGeschnitten = computed<boolean>(() =>
-    this.gewaehlteProfile().some((p) => p.schneidet),
-  );
-
-  /** Bilder, deren Ausschnitt fuer mindestens eine Plattform zu klein ist. */
-  readonly warnungen = computed<string[]>(() => {
-    const meldungen: string[] = [];
-
-    for (const [index, bild] of this.bilder().entries()) {
-      const ersatz = vollesBild(bild);
-
-      for (const p of this.gewaehlteProfile()) {
-        // Hat diese Plattform noch keinen eigenen Zuschnitt, gelten dieselben
-        // vollen Bildmasse, die auch der Export verwendet.
-        const ausschnitt = bild.ausschnitte[p.id] ?? ersatz;
-        if (!ausschnitt) continue;
-
-        if (!reichtAufloesung(ausschnitt, p.exportBreite, p.exportHoehe)) {
-          // reichtAufloesung prueft bewusst den rohen Ausschnitt (das ist die
-          // Aufloesung, die der Nutzer tatsaechlich gezogen hat), aber der
-          // Export vergroessert nicht den rohen Ausschnitt, sondern das
-          // daraus abgeleitete Rechteck fuer dieses Plattformverhaeltnis -
-          // nur dessen Faktor stimmt mit dem ueberein, was tatsaechlich
-          // passiert.
-          const abgeleitet = leiteAb(ausschnitt, p.exportVerhaeltnis);
-          const faktor = vergroesserungsfaktor(abgeleitet, p.exportBreite);
-          meldungen.push(
-            `Bild ${index + 1} für ${p.name}: Der Ausschnitt wird ${faktor.toFixed(1)}-fach ` +
-              `vergrößert und kann unscharf werden.`,
-          );
-        }
-      }
-    }
-
-    return meldungen;
   });
 
   constructor() {

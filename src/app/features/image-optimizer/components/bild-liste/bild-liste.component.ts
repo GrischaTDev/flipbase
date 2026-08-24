@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import {
   LucideDynamicIcon,
   LucideX as X,
-  LucideChevronLeft as ChevronLeft,
-  LucideChevronRight as ChevronRight,
+  LucideArrowUp as ArrowUp,
+  LucideArrowDown as ArrowDown,
 } from '@lucide/angular';
 import { OptimiererBild } from '../../image-optimizer.component';
 
@@ -27,6 +27,6 @@ export class BildListeComponent {
   readonly verschoben = output<{ id: string; richtung: -1 | 1 }>();
 
   readonly closeIcon = X;
-  readonly linksIcon = ChevronLeft;
-  readonly rechtsIcon = ChevronRight;
+  readonly linksIcon = ArrowUp;
+  readonly rechtsIcon = ArrowDown;
 }

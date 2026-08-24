@@ -1,82 +1,105 @@
 <div class="space-y-5">
-  <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-fb-border">
-    <h1 class="text-base font-bold text-fb-text-primary">Bildoptimierer</h1>
-    <p class="text-xs text-fb-text-secondary leading-relaxed">
-      Fotos hineinziehen, einmal den Ausschnitt festlegen – Flipbase erzeugt daraus die Formate der
-      Plattformen. Die Bilder bleiben auf deinem Rechner.
-    </p>
+  <section class="linear-surface overflow-hidden rounded-2xl border border-fb-border shadow-xl">
+    <div class="flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+      <div class="max-w-2xl">
+        <p class="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-indigo-300">
+          Produktbilder
+        </p>
+        <h1 class="text-lg font-bold text-fb-text-primary">Bildoptimierer</h1>
+        <p class="mt-1 text-xs leading-relaxed text-fb-text-secondary">
+          Plattform wählen, Ausschnitt festlegen und fertige Bilder herunterladen. Alles bleibt in
+          deinem Browser.
+        </p>
+      </div>
 
-    <div class="flex flex-wrap gap-2">
-      @for (p of profile; track p.id) {
-        <div
-          class="inline-flex items-stretch overflow-hidden rounded-xl border border-fb-border"
-          [class.bg-indigo-500\/15]="gewaehlteIds().includes(p.id)"
-          [class.border-indigo-500\/40]="gewaehlteIds().includes(p.id)"
-        >
-          <button
-            type="button"
-            (click)="waehleArbeitsziel(p.id)"
-            [disabled]="laeuft()"
-            [attr.aria-label]="
-              aktivePlattform()?.id === p.id
-                ? p.name + ' ausgewählt, wird bearbeitet'
-                : gewaehlteIds().includes(p.id)
-                  ? p.name + ' ausgewählt, als Arbeitsziel verwenden'
-                  : p.name + ' auswählen und als Arbeitsziel verwenden'
-            "
-            [attr.aria-current]="aktivePlattform()?.id === p.id ? 'true' : null"
-            class="inline-flex cursor-pointer items-center gap-1 px-3 py-1.5 text-xs font-semibold text-fb-text-secondary hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            @if (gewaehlteIds().includes(p.id)) {
-              <svg [lucideIcon]="checkIcon" class="h-3 w-3 shrink-0" aria-hidden="true"></svg>
-            }
-            {{ p.name }}
-            @if (!p.schneidet) {
-              <span class="ml-1 text-[10px] text-fb-text-muted">passt ein</span>
-            }
-            @if (aktivePlattform()?.id === p.id) {
-              <span class="text-[10px] font-normal opacity-80">· wird bearbeitet</span>
-            }
-          </button>
-
-          @if (aktivePlattform()?.id === p.id && gewaehlteProfile().length > 1) {
-            <button
-              type="button"
-              (click)="schaltePlattform(p.id)"
-              [disabled]="laeuft()"
-              [attr.aria-label]="p.name + ' abwählen'"
-              class="inline-flex cursor-pointer items-center border-l border-indigo-500/30 px-2 text-fb-text-secondary hover:bg-indigo-500/15 hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <svg [lucideIcon]="xIcon" class="h-3 w-3" aria-hidden="true"></svg>
-            </button>
-          }
-        </div>
-      }
+      <label
+        class="inline-flex cursor-pointer items-center justify-center rounded-xl border border-indigo-500/40 bg-indigo-500/15 px-4 py-2.5 text-xs font-bold text-indigo-200 hover:bg-indigo-500/25 focus-within:ring-2 focus-within:ring-indigo-400/50"
+      >
+        <input
+          type="file"
+          accept="image/*"
+          multiple
+          [disabled]="laeuft()"
+          class="sr-only"
+          (change)="nimmDateien($any($event.target).files)"
+        />
+        Bilder hinzufügen
+      </label>
     </div>
 
-    <label
-      class="block border-2 border-dashed border-fb-border rounded-2xl p-8 text-center cursor-pointer hover:border-indigo-500/40 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-400/50"
-    >
-      <input
-        type="file"
-        accept="image/*"
-        multiple
-        [disabled]="laeuft()"
-        class="sr-only"
-        (change)="nimmDateien($any($event.target).files)"
-      />
-      <span class="text-xs text-fb-text-secondary">Bilder hierher ziehen oder auswählen</span>
-    </label>
-
-    @if (bilder().length > 0) {
-      <p class="text-[11px] text-fb-text-muted">{{ bilder().length }} Bild(er) geladen.</p>
-    }
-  </div>
+    <div class="border-t border-fb-border px-5 py-3">
+      <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Exportplattformen">
+        <span class="mr-1 text-[10px] font-bold uppercase tracking-wider text-fb-text-muted"
+          >Arbeitsziel</span
+        >
+        @for (p of profile; track p.id) {
+          <div
+            class="inline-flex items-stretch overflow-hidden rounded-xl border"
+            [class.border-indigo-400/60]="aktivePlattform()?.id === p.id"
+            [class.bg-indigo-500/20]="aktivePlattform()?.id === p.id"
+            [class.border-fb-border]="aktivePlattform()?.id !== p.id"
+          >
+            <button
+              type="button"
+              (click)="waehleArbeitsziel(p.id)"
+              [disabled]="laeuft()"
+              [attr.aria-current]="aktivePlattform()?.id === p.id ? 'true' : null"
+              class="inline-flex cursor-pointer items-center gap-2 px-3 py-2 text-xs font-semibold text-fb-text-secondary hover:bg-fb-surface-hover hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              @if (gewaehlteIds().includes(p.id)) {
+                <svg
+                  [lucideIcon]="checkIcon"
+                  class="h-3.5 w-3.5 text-indigo-300"
+                  aria-hidden="true"
+                ></svg>
+              }
+              <span>{{ p.name }}</span>
+              <span class="text-[10px] font-normal text-fb-text-muted">
+                {{ p.exportVerhaeltnis === 1 ? '1:1' : p.id === 'vinted' ? '2:3' : '4:3' }}
+              </span>
+            </button>
+            @if (aktivePlattform()?.id === p.id && gewaehlteProfile().length > 1) {
+              <button
+                type="button"
+                (click)="schaltePlattform(p.id)"
+                [disabled]="laeuft()"
+                [attr.aria-label]="p.name + ' nicht exportieren'"
+                class="grid w-8 cursor-pointer place-items-center border-l border-indigo-400/25 text-fb-text-muted hover:bg-rose-500/10 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <svg [lucideIcon]="xIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+              </button>
+            }
+          </div>
+        }
+        <span class="ml-auto text-[10px] text-fb-text-muted">{{ bilder().length }} Bild(er)</span>
+      </div>
+    </div>
+  </section>
 
   @if (aktivesBild(); as bild) {
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_11rem]">
-      <div class="linear-surface rounded-2xl border border-fb-border p-5 shadow-xl">
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
+      <section class="linear-surface min-w-0 rounded-2xl border border-fb-border p-4 shadow-xl">
         @if (aktivePlattform(); as plattform) {
+          <header class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
+                Ausschnitt bearbeiten
+              </p>
+              <h2 class="mt-0.5 text-sm font-bold text-fb-text-primary">
+                {{ plattform.name }} · {{ plattform.exportBreite }} × {{ plattform.exportHoehe }} px
+                maximal
+              </h2>
+            </div>
+            <button
+              type="button"
+              (click)="uebernehmen(bild.id)"
+              [disabled]="laeuft() || aktiverAusschnitt() === null || gewaehlteProfile().length < 2"
+              class="cursor-pointer rounded-lg border border-fb-border px-3 py-2 text-[11px] font-semibold text-fb-text-secondary hover:border-indigo-500/40 hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Auf andere Plattformen übernehmen
+            </button>
+          </header>
+
           <app-zuschnitt-editor
             [datenUrl]="bild.datenUrl"
             [verhaeltnis]="plattform.exportVerhaeltnis"
@@ -87,24 +110,16 @@
             (ladenFehlgeschlagen)="beiLadeFehler(bild.id)"
             (bildGeladen)="beiBildGeladen(bild.id)"
           ></app-zuschnitt-editor>
-
-          <button
-            type="button"
-            (click)="uebernehmen(bild.id)"
-            [disabled]="laeuft() || aktiverAusschnitt() === null || gewaehlteProfile().length < 2"
-            [attr.aria-label]="
-              'Zuschnitt von ' +
-              plattform.name +
-              ' auf die anderen ausgewählten Plattformen übernehmen'
-            "
-            class="mt-3 cursor-pointer rounded-xl border border-fb-border px-3 py-1.5 text-xs font-semibold text-fb-text-secondary hover:border-indigo-500/40 hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Auf die anderen Plattformen übernehmen
-          </button>
         }
-      </div>
+      </section>
 
-      <div class="linear-surface rounded-2xl border border-fb-border p-3 shadow-xl">
+      <aside class="linear-surface min-w-0 rounded-2xl border border-fb-border p-3 shadow-xl">
+        <div class="mb-3 flex items-center justify-between px-1">
+          <div>
+            <h2 class="text-xs font-bold text-fb-text-primary">Deine Bilder</h2>
+            <p class="text-[10px] text-fb-text-muted">Reihenfolge bestimmt das Hauptbild</p>
+          </div>
+        </div>
         <app-bild-liste
           [bilder]="bilder()"
           [aktivesId]="aktivesBildId()"
@@ -113,39 +128,71 @@
           (entfernt)="entferne($event)"
           (verschoben)="verschiebe($event.id, $event.richtung)"
         ></app-bild-liste>
+      </aside>
+    </div>
+
+    <section>
+      <div class="mb-3 flex items-end justify-between gap-4">
+        <div>
+          <p class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">Kontrolle</p>
+          <h2 class="text-sm font-bold text-fb-text-primary">Exportvorschau</h2>
+        </div>
+        <p class="text-[10px] text-fb-text-muted">
+          Kleine Bilder werden niemals künstlich vergrößert.
+        </p>
       </div>
-    </div>
+      <div class="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
+        @for (p of gewaehlteProfile(); track p.id) {
+          <app-plattform-vorschau
+            [plattform]="p"
+            [datenUrl]="bild.datenUrl"
+            [ausschnitt]="bild.ausschnitte[p.id] ?? null"
+          ></app-plattform-vorschau>
+        }
+      </div>
+    </section>
 
-    <div class="flex flex-wrap gap-4">
-      @for (p of gewaehlteProfile(); track p.id) {
-        <app-plattform-vorschau
-          [plattform]="p"
-          [datenUrl]="bild.datenUrl"
-          [ausschnitt]="bild.ausschnitte[p.id] ?? null"
-        ></app-plattform-vorschau>
-      }
-    </div>
-
-    <div class="linear-surface rounded-2xl p-5 space-y-3 shadow-xl border border-fb-border">
-      @if (bild.ladefehler) {
-        <p class="text-[11px] text-rose-400">{{ bild.ladefehler }}</p>
-      }
-
-      @for (warnung of warnungen(); track warnung) {
-        <p class="text-[11px] text-amber-300">{{ warnung }}</p>
-      }
-      @if (fehler(); as f) {
-        <p class="text-[11px] text-rose-400">{{ f }}</p>
-      }
+    <section
+      class="linear-surface flex flex-col gap-3 rounded-2xl border border-fb-border p-4 shadow-xl sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div>
+        @if (bild.ladefehler) {
+          <p class="text-[11px] text-rose-400">{{ bild.ladefehler }}</p>
+        } @else if (fehler(); as f) {
+          <p class="text-[11px] text-rose-400">{{ f }}</p>
+        } @else {
+          <p class="text-xs font-semibold text-fb-text-primary">Bereit für den Export</p>
+          <p class="text-[10px] text-fb-text-muted">
+            JPEG mit hoher Qualität, sortiert nach Plattform.
+          </p>
+        }
+      </div>
 
       <button
         type="button"
         (click)="exportiere()"
         [disabled]="laeuft() || drehungenLaufen() || gewaehlteProfile().length === 0"
-        class="linear-btn-primary px-4 py-2 rounded-xl text-xs font-bold cursor-pointer disabled:opacity-40"
+        class="linear-btn-primary cursor-pointer rounded-xl px-5 py-2.5 text-xs font-bold disabled:opacity-40"
       >
-        {{ laeuft() ? 'Erzeuge Bilder...' : 'Bilder exportieren' }}
+        {{ laeuft() ? 'Bilder werden erzeugt …' : 'Bilder exportieren' }}
       </button>
-    </div>
+    </section>
+  } @else {
+    <label
+      class="linear-surface block cursor-pointer rounded-2xl border-2 border-dashed border-fb-border p-12 text-center shadow-xl hover:border-indigo-500/40 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-400/50"
+    >
+      <input
+        type="file"
+        accept="image/*"
+        multiple
+        [disabled]="laeuft()"
+        class="sr-only"
+        (change)="nimmDateien($any($event.target).files)"
+      />
+      <span class="block text-sm font-bold text-fb-text-primary">Produktbilder hier ablegen</span>
+      <span class="mt-1 block text-xs text-fb-text-muted"
+        >oder klicken und mehrere Dateien auswählen</span
+      >
+    </label>
   }
 </div>

@@ -13,10 +13,18 @@ import {
   Dimensions,
   ImageCropperComponent,
   ImageCroppedEvent,
+  ImageTransform,
   LoadedImage,
 } from 'ngx-image-cropper';
-import { LucideDynamicIcon, LucideRotateCw as RotateCw } from '@lucide/angular';
+import {
+  LucideDynamicIcon,
+  LucideLocateFixed as LocateFixed,
+  LucideRotateCw as RotateCw,
+  LucideUndo2 as Undo2,
+} from '@lucide/angular';
 import { Rechteck } from '../../models/plattform-profile';
+import { begrenzeZoom, skaliereAusschnitt } from './editor-transform';
+import { leiteAb } from '../../services/zuschnitt';
 
 /** Legt den Ausschnitt im festen Format der aktiven Plattform fest. */
 @Component({
@@ -62,6 +70,9 @@ export class ZuschnittEditorComponent {
   private letzteDatenUrl: string | null = null;
 
   readonly rotateIcon = RotateCw;
+  readonly centerIcon = LocateFixed;
+  readonly resetIcon = Undo2;
+  readonly transform = signal<ImageTransform>({ scale: 1, translateH: 0, translateV: 0 });
 
   constructor() {
     // Bei einem Bild- oder Plattformwechsel wird der dafuer gespeicherte
@@ -78,6 +89,7 @@ export class ZuschnittEditorComponent {
         this.letzteDatenUrl = datenUrl;
         this.originalGroesse.set(null);
         this.angezeigteGroesse.set(null);
+        this.transform.set({ scale: 1, translateH: 0, translateV: 0 });
       }
 
       this.wiederherstellenZiel.set(untracked(this.gespeicherterAusschnitt));
@@ -100,19 +112,10 @@ export class ZuschnittEditorComponent {
     const ausschnitt = this.wiederherstellenZiel();
     const original = this.originalGroesse();
     const angezeigt = this.angezeigteGroesse();
-    if (!ausschnitt || !original || !angezeigt || original.width === 0 || original.height === 0) {
+    if (!ausschnitt || !original || !angezeigt) {
       return undefined;
     }
-
-    const breitenVerhaeltnis = angezeigt.width / original.width;
-    const hoehenVerhaeltnis = angezeigt.height / original.height;
-
-    return {
-      x1: ausschnitt.x * breitenVerhaeltnis,
-      y1: ausschnitt.y * hoehenVerhaeltnis,
-      x2: (ausschnitt.x + ausschnitt.breite) * breitenVerhaeltnis,
-      y2: (ausschnitt.y + ausschnitt.hoehe) * hoehenVerhaeltnis,
-    };
+    return skaliereAusschnitt(ausschnitt, original, angezeigt);
   });
 
   /** `(imageLoaded)`: liefert die Originalgroesse fuer `cropperEingabe`. */
@@ -145,5 +148,27 @@ export class ZuschnittEditorComponent {
     };
 
     this.ausschnittGeaendert.emit(ausschnitt);
+  }
+
+  beiTransform(transform: ImageTransform): void {
+    this.transform.set({ ...transform, scale: begrenzeZoom(transform.scale ?? 1) });
+  }
+
+  setzeZoom(wert: string): void {
+    const scale = begrenzeZoom(Number(wert));
+    this.transform.update((aktuell) => ({ ...aktuell, scale }));
+  }
+
+  zentriere(): void {
+    this.transform.update((aktuell) => ({ ...aktuell, translateH: 0, translateV: 0 }));
+  }
+
+  zuruecksetzen(): void {
+    this.transform.set({ scale: 1, translateH: 0, translateV: 0 });
+    const original = this.originalGroesse();
+    if (!original) return;
+    this.wiederherstellenZiel.set(
+      leiteAb({ x: 0, y: 0, breite: original.width, hoehe: original.height }, this.verhaeltnis()),
+    );
   }
 }
