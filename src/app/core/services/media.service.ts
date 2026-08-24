@@ -1,7 +1,7 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
-import { SyncStatusService } from './sync-status.service';
+import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
 import { ItemMedia } from '../models/flipbase.models';
 
 @Injectable({
@@ -118,6 +118,7 @@ export class MediaService {
     itemId: string,
     file: File,
     isPrimary = false,
+    fehlerAktion?: SyncFehlerAktion,
   ): Promise<{ data: ItemMedia | null; error: Error | null }> {
     const cleanFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const storagePath = `${itemId}/${Date.now()}_${cleanFileName}`;
@@ -162,7 +163,7 @@ export class MediaService {
           if (uploadError) {
             resolve({
               data: null,
-              error: this.melde('Hochladen des Bildes', uploadError),
+              error: this.melde('Hochladen des Bildes', uploadError, fehlerAktion),
             });
             return;
           }
@@ -176,7 +177,11 @@ export class MediaService {
               if (hauptbildResetFehler) {
                 resolve({
                   data: null,
-                  error: this.melde('Zurücksetzen des bisherigen Hauptbilds', hauptbildResetFehler),
+                  error: this.melde(
+                    'Zurücksetzen des bisherigen Hauptbilds',
+                    hauptbildResetFehler,
+                    fehlerAktion,
+                  ),
                 });
                 return;
               }
@@ -198,7 +203,7 @@ export class MediaService {
             if (dbError || !inserted) {
               resolve({
                 data: null,
-                error: this.melde('Speichern des Bildeintrags', dbError),
+                error: this.melde('Speichern des Bildeintrags', dbError, fehlerAktion),
               });
               return;
             }
@@ -209,7 +214,7 @@ export class MediaService {
             return;
           }
         } catch (e: unknown) {
-          resolve({ data: null, error: this.melde('Hochladen des Bildes', e) });
+          resolve({ data: null, error: this.melde('Hochladen des Bildes', e, fehlerAktion) });
           return;
         }
       };
@@ -221,9 +226,9 @@ export class MediaService {
   }
 
   /** Meldet einen Fehler und liefert ihn zurueck - auch ohne SyncStatus. */
-  private melde(vorgang: string, ursache: unknown): Error {
+  private melde(vorgang: string, ursache: unknown, aktion?: SyncFehlerAktion): Error {
     return (
-      this.syncStatus?.melde(vorgang, ursache) ??
+      this.syncStatus?.melde(vorgang, ursache, aktion) ??
       new Error(`${vorgang} fehlgeschlagen: ${String(ursache)}`)
     );
   }

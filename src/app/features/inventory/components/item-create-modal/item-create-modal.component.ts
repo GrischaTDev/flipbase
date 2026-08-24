@@ -345,7 +345,7 @@ export class ItemCreateModalComponent {
       this.isSubmitting.set(false);
 
       if (bildFehler) {
-        if (!this.istZentralGemeldet(bildFehler)) {
+        if (!this.syncStatus.istZentralGemeldet(bildFehler)) {
           this.toast.warning(
             'Artikel wurde aktualisiert.',
             'Das Bild konnte nicht hochgeladen werden.',
@@ -363,9 +363,10 @@ export class ItemCreateModalComponent {
     const anzahl = Math.max(1, Math.min(200, this.form.getRawValue().anzahl || 1));
     const angelegteArtikel: InventoryItem[] = [];
     const anlegeFehler: Error[] = [];
+    const fehlerAktion = this.syncStatus.neueFehlerAktion();
 
     for (let i = 0; i < anzahl; i++) {
-      const { data, error: fehler } = await this.inventoryService.createItem(payload);
+      const { data, error: fehler } = await this.inventoryService.createItem(payload, fehlerAktion);
       if (data) angelegteArtikel.push(data);
       if (fehler) anlegeFehler.push(fehler);
       if (!data && !fehler) anlegeFehler.push(new Error('Der Artikel wurde nicht zurückgegeben.'));
@@ -400,17 +401,27 @@ export class ItemCreateModalComponent {
     }
 
     this.isSubmitting.set(false);
+    const lokaleAnlegeFehler = mehrfachErgebnis.fehler.filter(
+      (error) => !this.syncStatus.istZentralGemeldet(error),
+    );
 
     if (mehrfachErgebnis.status === 'failed') {
-      const error = mehrfachErgebnis.fehler[0];
+      const error = lokaleAnlegeFehler[0] ?? mehrfachErgebnis.fehler[0];
       this.errorMessage.set(error.message);
+      if (anzahl > 1 && lokaleAnlegeFehler.length > 0) {
+        this.toast.warning(
+          `0 von ${anzahl} Artikeln wurden angelegt.`,
+          this.beschreibeFehlgeschlageneArtikel(lokaleAnlegeFehler.length),
+        );
+        return;
+      }
       this.meldeFehlerWennNichtSynchronisiert('Artikel konnte nicht gespeichert werden.', error);
       return;
     }
 
     if (mehrfachErgebnis.status === 'partial') {
       const gespeichert = mehrfachErgebnis.angelegt.length;
-      const fehlgeschlagen = mehrfachErgebnis.fehler.length;
+      const fehlgeschlagen = lokaleAnlegeFehler.length;
       const title =
         gespeichert === 1
           ? `1 von ${mehrfachErgebnis.gesamt} Artikeln wurde angelegt.`
@@ -420,7 +431,7 @@ export class ItemCreateModalComponent {
           ? '1 Artikel konnte nicht angelegt werden.'
           : `${fehlgeschlagen} Artikel konnten nicht angelegt werden.`;
       const bildText = this.selectedImageFile() ? ' Das Bild wurde nicht hochgeladen.' : '';
-      if (mehrfachErgebnis.fehler.some((error) => !this.istZentralGemeldet(error))) {
+      if (fehlgeschlagen > 0) {
         this.toast.warning(title, `${fehlerText}${bildText}`);
       }
       this.created.emit();
@@ -429,7 +440,7 @@ export class ItemCreateModalComponent {
     }
 
     if (bildFehler) {
-      if (!this.istZentralGemeldet(bildFehler)) {
+      if (!this.syncStatus.istZentralGemeldet(bildFehler)) {
         this.toast.warning(
           anzahl > 1 ? `${anzahl} Artikel wurden angelegt.` : 'Artikel wurde angelegt.',
           'Das Bild konnte nicht hochgeladen werden.',
@@ -445,13 +456,13 @@ export class ItemCreateModalComponent {
   }
 
   private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {
-    if (!this.istZentralGemeldet(error)) this.toast.error(title, error.message);
+    if (!this.syncStatus.istZentralGemeldet(error)) this.toast.error(title, error.message);
   }
 
-  private istZentralGemeldet(error: Error): boolean {
-    return this.syncStatus
-      .fehler()
-      .some((eintrag) => error.message === `${eintrag.vorgang} fehlgeschlagen: ${eintrag.meldung}`);
+  private beschreibeFehlgeschlageneArtikel(anzahl: number): string {
+    return anzahl === 1
+      ? '1 Artikel konnte nicht angelegt werden.'
+      : `${anzahl} Artikel konnten nicht angelegt werden.`;
   }
 
   private alsError(ursache: unknown): Error {

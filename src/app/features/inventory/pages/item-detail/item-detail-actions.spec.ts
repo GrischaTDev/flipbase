@@ -287,4 +287,72 @@ describe('ItemDetailComponent – Aktionsmeldungen', () => {
     expect(syncStatus.fehler()).toHaveLength(1);
     expect(toast.toasts()).toEqual([]);
   });
+
+  it('fasst gleiche zentral gemeldete Fehler eines Mehrfachuploads zusammen', async () => {
+    const { komponente, mediaService, syncStatus, toast } = erstelleKomponente();
+    const meldeMitAktion = syncStatus.melde.bind(syncStatus) as (
+      vorgang: string,
+      ursache: unknown,
+      aktion?: unknown,
+    ) => Error;
+    mediaService.uploadItemMedia.mockImplementation(
+      async (_itemId: string, _file: File, _isPrimary: boolean, aktion?: unknown) => ({
+        data: null,
+        error: meldeMitAktion('Hochladen des Bildes', new Error('offline'), aktion),
+      }),
+    );
+
+    await komponente.onFilesSelected(
+      dateiEvent([
+        new File(['eins'], 'eins.jpg', { type: 'image/jpeg' }),
+        new File(['zwei'], 'zwei.jpg', { type: 'image/jpeg' }),
+        new File(['drei'], 'drei.jpg', { type: 'image/jpeg' }),
+      ]),
+    );
+
+    expect(syncStatus.fehler()).toHaveLength(1);
+    expect(toast.toasts()).toEqual([]);
+  });
+
+  it('zählt in einem gemischten Mehrfachupload nur lokale Fehler in der Warnung', async () => {
+    const { komponente, mediaService, syncStatus, toast } = erstelleKomponente();
+    const meldeMitAktion = syncStatus.melde.bind(syncStatus) as (
+      vorgang: string,
+      ursache: unknown,
+      aktion?: unknown,
+    ) => Error;
+    mediaService.uploadItemMedia
+      .mockResolvedValueOnce({ data: medium, error: null })
+      .mockImplementationOnce(
+        async (_itemId: string, _file: File, _isPrimary: boolean, aktion?: unknown) => ({
+          data: null,
+          error: meldeMitAktion('Hochladen des Bildes', new Error('offline'), aktion),
+        }),
+      )
+      .mockImplementationOnce(
+        async (_itemId: string, _file: File, _isPrimary: boolean, aktion?: unknown) => ({
+          data: null,
+          error: meldeMitAktion('Hochladen des Bildes', new Error('offline'), aktion),
+        }),
+      )
+      .mockResolvedValueOnce({ data: null, error: new Error('Datei ist beschädigt') });
+
+    await komponente.onFilesSelected(
+      dateiEvent([
+        new File(['eins'], 'eins.jpg', { type: 'image/jpeg' }),
+        new File(['zwei'], 'zwei.jpg', { type: 'image/jpeg' }),
+        new File(['drei'], 'drei.jpg', { type: 'image/jpeg' }),
+        new File(['vier'], 'vier.jpg', { type: 'image/jpeg' }),
+      ]),
+    );
+
+    expect(syncStatus.fehler()).toHaveLength(1);
+    expect(toast.toasts()).toHaveLength(1);
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'warning',
+      title: '1 von 4 Bildern wurde hochgeladen.',
+      description: '1 Bild konnte nicht hochgeladen werden.',
+      persistent: false,
+    });
+  });
 });

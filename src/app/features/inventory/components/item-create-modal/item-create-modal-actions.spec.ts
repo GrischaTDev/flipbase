@@ -27,7 +27,7 @@ function erstelleKomponente(
   const created = { emit: vi.fn() };
   const closed = { emit: vi.fn() };
   const inventoryService = {
-    createItem: vi.fn(async () => ergebnis),
+    createItem: vi.fn(async (_payload?: unknown, _aktion?: unknown) => ergebnis),
     updateItem: vi.fn(async () => ({ error: ergebnis.error })),
   };
   const mediaService = {
@@ -226,5 +226,62 @@ describe('ItemCreateModalComponent – Toast-Rückmeldung', () => {
     expect(closed.emit).toHaveBeenCalledOnce();
     expect(syncStatus.fehler()).toHaveLength(1);
     expect(toast.toasts()).toEqual([]);
+  });
+
+  it('fasst gleiche zentral gemeldete Fehler eines Mehrfachanlegens zusammen', async () => {
+    const { komponente, inventoryService, syncStatus, toast } = erstelleKomponente({
+      data: null,
+      error: null,
+    });
+    const meldeMitAktion = syncStatus.melde.bind(syncStatus) as (
+      vorgang: string,
+      ursache: unknown,
+      aktion?: unknown,
+    ) => Error;
+    inventoryService.createItem.mockImplementation(async (_payload: unknown, aktion?: unknown) => ({
+      data: null,
+      error: meldeMitAktion('Speichern des Artikels', new Error('offline'), aktion),
+    }));
+    komponente.form.controls.anzahl.setValue(3);
+
+    await komponente.onSubmit();
+
+    expect(syncStatus.fehler()).toHaveLength(1);
+    expect(toast.toasts()).toEqual([]);
+  });
+
+  it('zählt in einem gemischten Mehrfachanlegen nur lokale Fehler in der Warnung', async () => {
+    const { komponente, inventoryService, syncStatus, toast } = erstelleKomponente({
+      data: artikel,
+      error: null,
+    });
+    const meldeMitAktion = syncStatus.melde.bind(syncStatus) as (
+      vorgang: string,
+      ursache: unknown,
+      aktion?: unknown,
+    ) => Error;
+    inventoryService.createItem
+      .mockResolvedValueOnce({ data: artikel, error: null })
+      .mockImplementationOnce(async (_payload: unknown, aktion?: unknown) => ({
+        data: null,
+        error: meldeMitAktion('Speichern des Artikels', new Error('offline'), aktion),
+      }))
+      .mockImplementationOnce(async (_payload: unknown, aktion?: unknown) => ({
+        data: null,
+        error: meldeMitAktion('Speichern des Artikels', new Error('offline'), aktion),
+      }))
+      .mockResolvedValueOnce({ data: null, error: new Error('Titel ist ungültig') });
+    komponente.form.controls.anzahl.setValue(4);
+
+    await komponente.onSubmit();
+
+    expect(syncStatus.fehler()).toHaveLength(1);
+    expect(toast.toasts()).toHaveLength(1);
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'warning',
+      title: '1 von 4 Artikeln wurde angelegt.',
+      description: '1 Artikel konnte nicht angelegt werden.',
+      persistent: false,
+    });
   });
 });

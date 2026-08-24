@@ -11,6 +11,23 @@ export interface SyncFehler {
   /** Technische Fehlerkennung, falls vorhanden. */
   readonly code?: string;
   readonly zeitpunkt: string;
+  /** Kennung einer zusammengehörigen Nutzeraktion, falls vorhanden. */
+  readonly aktionsId?: number;
+  /** Interner, fachlich normalisierter Schlüssel zur Batch-Deduplizierung. */
+  readonly ursachenSchluessel: string;
+}
+
+/** Kennzeichnet mehrere technische Vorgänge als eine Nutzeraktion. */
+export interface SyncFehlerAktion {
+  readonly id: number;
+}
+
+/** Fehler, der bereits als Sync-Status sichtbar gemacht wurde. */
+export class ZentralGemeldeterFehler extends Error {
+  constructor(readonly syncFehler: SyncFehler) {
+    super(`${syncFehler.vorgang} fehlgeschlagen: ${syncFehler.meldung}`);
+    this.name = 'ZentralGemeldeterFehler';
+  }
 }
 
 /**
@@ -27,6 +44,7 @@ export interface SyncFehler {
 })
 export class SyncStatusService {
   private naechsteId = 1;
+  private naechsteAktionsId = 1;
 
   /**
    * Fehlercodes, die bedeuten können: Die Anmeldung gilt nicht mehr.
@@ -59,8 +77,20 @@ export class SyncStatusService {
    * @param ursache Der Fehler von Supabase oder eine geworfene Ausnahme.
    * @returns Ein `Error` mit verständlichem Text, den der Aufrufer zurückgeben kann.
    */
-  melde(vorgang: string, ursache: unknown): Error {
+  melde(vorgang: string, ursache: unknown, aktion?: SyncFehlerAktion): ZentralGemeldeterFehler {
     const { meldung, code } = this.deute(ursache);
+    const ursachenSchluessel = this.ursachenSchluessel(code, meldung);
+    const vorhandener =
+      aktion === undefined
+        ? undefined
+        : this.fehler().find(
+            (eintrag) =>
+              eintrag.aktionsId === aktion.id &&
+              eintrag.vorgang === vorgang &&
+              eintrag.ursachenSchluessel === ursachenSchluessel,
+          );
+
+    if (vorhandener) return new ZentralGemeldeterFehler(vorhandener);
 
     const eintrag: SyncFehler = {
       id: this.naechsteId++,
@@ -68,6 +98,8 @@ export class SyncStatusService {
       meldung,
       code,
       zeitpunkt: new Date().toISOString(),
+      aktionsId: aktion?.id,
+      ursachenSchluessel,
     };
 
     // Offene Fehler bleiben bis zum ausdrücklichen Schließen erhalten.
@@ -77,7 +109,17 @@ export class SyncStatusService {
       this.beiVerdacht?.();
     }
 
-    return new Error(`${vorgang} fehlgeschlagen: ${meldung}`);
+    return new ZentralGemeldeterFehler(eintrag);
+  }
+
+  /** Erstellt einen eindeutigen Kontext für eine zusammenhängende Nutzeraktion. */
+  neueFehlerAktion(): SyncFehlerAktion {
+    return { id: this.naechsteAktionsId++ };
+  }
+
+  /** Prüft die Herkunft ohne Fehlermeldungstexte vergleichen zu müssen. */
+  istZentralGemeldet(ursache: unknown): ursache is ZentralGemeldeterFehler {
+    return ursache instanceof ZentralGemeldeterFehler;
   }
 
   /**
@@ -95,6 +137,10 @@ export class SyncStatusService {
 
   alleVerwerfen(): void {
     this.fehler.set([]);
+  }
+
+  private ursachenSchluessel(code: string | undefined, meldung: string): string {
+    return code ? `code:${code}` : `meldung:${meldung}`;
   }
 
   /** Übersetzt technische Fehler in verständliche Sätze. */

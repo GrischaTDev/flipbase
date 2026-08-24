@@ -205,6 +205,7 @@ export class ItemDetailComponent {
     this.uploadError.set(null);
 
     const files = Array.from(input.files);
+    const fehlerAktion = this.syncStatus.neueFehlerAktion();
     let brauchtHauptbild = this.mediaList().length === 0;
     let ersterFehler: Error | null = null;
     const uploadFehler: Error[] = [];
@@ -213,7 +214,12 @@ export class ItemDetailComponent {
 
     for (const file of files) {
       const isPrimary = brauchtHauptbild;
-      const { data, error } = await this.mediaService.uploadItemMedia(itemId, file, isPrimary);
+      const { data, error } = await this.mediaService.uploadItemMedia(
+        itemId,
+        file,
+        isPrimary,
+        fehlerAktion,
+      );
       if (error) {
         this.uploadError.set(error.message);
         ersterFehler ??= error;
@@ -234,7 +240,17 @@ export class ItemDetailComponent {
 
     this.isUploading.set(false);
     input.value = '';
+    const lokaleUploadFehler = uploadFehler.filter(
+      (error) => !this.syncStatus.istZentralGemeldet(error),
+    );
     if (erfolgreicheUploads === 0 && ersterFehler) {
+      if (files.length > 1 && lokaleUploadFehler.length > 0) {
+        this.toast.warning(
+          `0 von ${files.length} Bildern wurden hochgeladen.`,
+          this.beschreibeFehlgeschlageneBilder(lokaleUploadFehler.length),
+        );
+        return;
+      }
       this.meldeFehlerWennNichtSynchronisiert(
         files.length === 1
           ? 'Bild konnte nicht hochgeladen werden.'
@@ -248,11 +264,8 @@ export class ItemDetailComponent {
         erfolgreicheUploads === 1
           ? `1 von ${files.length} Bildern wurde hochgeladen.`
           : `${erfolgreicheUploads} von ${files.length} Bildern wurden hochgeladen.`;
-      const description =
-        fehlgeschlageneUploads === 1
-          ? '1 Bild konnte nicht hochgeladen werden.'
-          : `${fehlgeschlageneUploads} Bilder konnten nicht hochgeladen werden.`;
-      if (uploadFehler.some((error) => !this.istZentralGemeldet(error))) {
+      const description = this.beschreibeFehlgeschlageneBilder(lokaleUploadFehler.length);
+      if (lokaleUploadFehler.length > 0) {
         this.toast.warning(title, description);
       }
       return;
@@ -382,12 +395,12 @@ export class ItemDetailComponent {
   }
 
   private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {
-    if (!this.istZentralGemeldet(error)) this.toast.error(title, error.message);
+    if (!this.syncStatus.istZentralGemeldet(error)) this.toast.error(title, error.message);
   }
 
-  private istZentralGemeldet(error: Error): boolean {
-    return this.syncStatus
-      .fehler()
-      .some((eintrag) => error.message === `${eintrag.vorgang} fehlgeschlagen: ${eintrag.meldung}`);
+  private beschreibeFehlgeschlageneBilder(anzahl: number): string {
+    return anzahl === 1
+      ? '1 Bild konnte nicht hochgeladen werden.'
+      : `${anzahl} Bilder konnten nicht hochgeladen werden.`;
   }
 }

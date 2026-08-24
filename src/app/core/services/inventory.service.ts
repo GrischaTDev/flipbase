@@ -3,7 +3,7 @@ import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
 import { MockDataStoreService } from './mock-data-store.service';
-import { SyncStatusService } from './sync-status.service';
+import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
 import {
   InventoryItem,
   ItemCost,
@@ -241,7 +241,10 @@ export class InventoryService {
     } as InventoryItem;
   }
 
-  async createItem(payload: CreateItemPayload): Promise<CreateItemResult> {
+  async createItem(
+    payload: CreateItemPayload,
+    fehlerAktion?: SyncFehlerAktion,
+  ): Promise<CreateItemResult> {
     const ws = this.workspaceService.currentWorkspace();
     if (!ws) {
       return {
@@ -321,7 +324,7 @@ export class InventoryService {
       if (dbError) {
         return {
           data: null,
-          error: this.syncStatus.melde('Speichern des Artikels', dbError),
+          error: this.syncStatus.melde('Speichern des Artikels', dbError, fehlerAktion),
           reportedBySyncStatus: true,
           problems: [],
         };
@@ -353,7 +356,7 @@ export class InventoryService {
     } catch (err: unknown) {
       return {
         data: null,
-        error: this.syncStatus.melde('Erstellen des Artikels', err),
+        error: this.syncStatus.melde('Erstellen des Artikels', err, fehlerAktion),
         reportedBySyncStatus: true,
         problems: [],
       };
