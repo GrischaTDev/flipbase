@@ -49,6 +49,38 @@ Korrektur ebenfalls rot, weil zusätzlich eine Warnung erzeugt wurde.
 - `npm run build`: Exitcode 0; nur die vorbestehenden CommonJS-Warnungen für `jszip` und
   `jsbarcode`.
 
+## Fix-Runde 4
+
+### Korrekturen
+
+- Geworfene Fehler aus `createItem()` und `uploadItemMedia()` werden innerhalb der jeweiligen
+  Batch-Handler abgefangen. Die Handler lösen danach regulär auf, zeigen einen persistenten
+  Feature-Fehler mit Ursache und erzeugen weder Erfolgs- noch Teil-Erfolgs-Warnungen.
+- Die äußeren `finally`-Blöcke beenden weiterhin den Sync-Aktionskontext und setzen zusätzlich
+  `isSubmitting` beziehungsweise `isUploading` garantiert auf `false`; der Upload-Dateieingang
+  wird auch auf dem Throw-Pfad geleert.
+- `InventoryComponent` verwendet für zentrale Fehler ausschließlich
+  `SyncStatusService.istZentralGemeldet()`. Ein nur gleichlautender lokaler `Error` bleibt damit
+  sichtbar, während ein echter typisierter Sync-Fehler keinen zweiten Feature-Toast erzeugt.
+
+### TDD-Nachweis
+
+- Red: Die bisherigen Throw-Tests wurden in UI-Lifecycle-Regressionen überführt und schlugen
+  fehl, weil beide Handler ablehnten. Ein lokaler Fehler mit demselben Text wie ein offener
+  Sync-Fehler wurde fälschlich unterdrückt.
+- Green: Tests sichern nun das reguläre Auflösen, Ladezustands-Reset, Upload-Feld-Cleanup und den
+  persistenten Feature-Toast ab sowie die Unterscheidung lokaler und zentraler Provenienz.
+
+### Verifikation
+
+- Fokussierter Task-4-Lauf einschließlich SyncStatus: 6/6 Testdateien, 70/70 Tests, Exitcode 0.
+- Vollsuite: 71/71 Testdateien, 513/513 Tests, Exitcode 0.
+- `npm run typecheck`: Exitcode 0.
+- `npm run lint`: Exitcode 0; 48 vorbestehende Warnungen, keine Fehler.
+- `npm run format:check`: Exitcode 0.
+- `npm run build`: Exitcode 0; nur die vorbestehenden CommonJS-Warnungen für `jszip` und
+  `jsbarcode`.
+
 ## Fix-Runde 3
 
 ### Status und Korrekturen

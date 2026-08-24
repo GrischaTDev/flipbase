@@ -356,8 +356,8 @@ describe('ItemDetailComponent – Aktionsmeldungen', () => {
     });
   });
 
-  it('beendet die zentrale Fehleraktion auch bei einem geworfenen Upload-Fehler', async () => {
-    const { komponente, mediaService, syncStatus } = erstelleKomponente();
+  it('fängt einen geworfenen Upload-Fehler ab und setzt den Upload-Lifecycle zurück', async () => {
+    const { komponente, mediaService, syncStatus, toast } = erstelleKomponente();
     let aktion: SyncFehlerAktion | undefined;
     mediaService.uploadItemMedia.mockImplementation(
       async (_itemId: string, _file: File, _isPrimary: boolean, batchAktion?: unknown) => {
@@ -367,11 +367,18 @@ describe('ItemDetailComponent – Aktionsmeldungen', () => {
       },
     );
 
-    await expect(
-      komponente.onFilesSelected(
-        dateiEvent([new File(['bild'], 'bild.jpg', { type: 'image/jpeg' })]),
-      ),
-    ).rejects.toThrow('Upload abgebrochen');
+    const event = dateiEvent([new File(['bild'], 'bild.jpg', { type: 'image/jpeg' })]);
+    await expect(komponente.onFilesSelected(event)).resolves.toBeUndefined();
+
+    expect(komponente.isUploading()).toBe(false);
+    expect(komponente.uploadError()).toBe('Upload abgebrochen');
+    expect((event.target as HTMLInputElement).value).toBe('');
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'error',
+      title: 'Bild konnte nicht hochgeladen werden.',
+      description: 'Upload abgebrochen',
+      persistent: true,
+    });
 
     const syncId = syncStatus.fehler()[0].id;
     syncStatus.verwerfen(syncId);

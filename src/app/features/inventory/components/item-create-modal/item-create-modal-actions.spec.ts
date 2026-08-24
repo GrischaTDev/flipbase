@@ -285,8 +285,8 @@ describe('ItemCreateModalComponent – Toast-Rückmeldung', () => {
     });
   });
 
-  it('beendet die zentrale Fehleraktion auch bei einem geworfenen Create-Fehler', async () => {
-    const { komponente, inventoryService, syncStatus } = erstelleKomponente({
+  it('fängt einen geworfenen Create-Fehler ab und setzt den Dialog-Lifecycle zurück', async () => {
+    const { komponente, inventoryService, syncStatus, toast, closed } = erstelleKomponente({
       data: null,
       error: null,
     });
@@ -299,7 +299,17 @@ describe('ItemCreateModalComponent – Toast-Rückmeldung', () => {
       },
     );
 
-    await expect(komponente.onSubmit()).rejects.toThrow('Create abgebrochen');
+    await expect(komponente.onSubmit()).resolves.toBeUndefined();
+
+    expect(komponente.isSubmitting()).toBe(false);
+    expect(komponente.errorMessage()).toBe('Create abgebrochen');
+    expect(closed.emit).not.toHaveBeenCalled();
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'error',
+      title: 'Artikel konnte nicht gespeichert werden.',
+      description: 'Create abgebrochen',
+      persistent: true,
+    });
 
     const syncId = syncStatus.fehler()[0].id;
     syncStatus.verwerfen(syncId);

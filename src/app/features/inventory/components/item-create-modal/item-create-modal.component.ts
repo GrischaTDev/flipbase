@@ -364,6 +364,7 @@ export class ItemCreateModalComponent {
     const angelegteArtikel: InventoryItem[] = [];
     const anlegeFehler: Error[] = [];
     const fehlerAktion = this.syncStatus.neueFehlerAktion();
+    let unerwarteterFehler: Error | null = null;
 
     try {
       for (let i = 0; i < anzahl; i++) {
@@ -376,8 +377,20 @@ export class ItemCreateModalComponent {
         if (!data && !fehler)
           anlegeFehler.push(new Error('Der Artikel wurde nicht zurückgegeben.'));
       }
+    } catch (ursache) {
+      unerwarteterFehler = this.alsError(ursache);
     } finally {
       this.syncStatus.beendeFehlerAktion(fehlerAktion);
+      this.isSubmitting.set(false);
+    }
+
+    if (unerwarteterFehler) {
+      this.errorMessage.set(unerwarteterFehler.message);
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Artikel konnte nicht gespeichert werden.',
+        unerwarteterFehler,
+      );
+      return;
     }
 
     const mehrfachErgebnis: MehrfachAnlageErgebnis = {
@@ -408,7 +421,6 @@ export class ItemCreateModalComponent {
       }
     }
 
-    this.isSubmitting.set(false);
     const lokaleAnlegeFehler = mehrfachErgebnis.fehler.filter(
       (error) => !this.syncStatus.istZentralGemeldet(error),
     );

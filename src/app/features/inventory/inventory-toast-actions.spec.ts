@@ -102,4 +102,27 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
     expect(syncStatus.fehler()).toHaveLength(1);
     expect(toast.toasts()).toEqual([]);
   });
+
+  it('meldet einen lokalen Fehler trotz gleichlautendem zentralen Fehlertext', async () => {
+    const { komponente, inventoryService, syncStatus, toast } = erstelleKomponente({
+      error: null,
+    });
+    const zentralerFehler = syncStatus.melde(
+      'Aktualisieren des Artikelstatus',
+      new Error('offline'),
+    );
+    inventoryService.updateItemStatus.mockResolvedValue({
+      error: new Error(zentralerFehler.message),
+    });
+
+    await komponente.onChangeItemStatus({ ...artikel }, 'ready');
+
+    expect(syncStatus.fehler()).toHaveLength(1);
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'error',
+      title: 'Artikelstatus konnte nicht geändert werden.',
+      description: zentralerFehler.message,
+      persistent: true,
+    });
+  });
 });

@@ -211,6 +211,7 @@ export class ItemDetailComponent {
     const uploadFehler: Error[] = [];
     let erfolgreicheUploads = 0;
     let fehlgeschlageneUploads = 0;
+    let unerwarteterFehler: Error | null = null;
 
     try {
       for (const file of files) {
@@ -238,12 +239,23 @@ export class ItemDetailComponent {
           fehlgeschlageneUploads++;
         }
       }
+    } catch (ursache) {
+      unerwarteterFehler = this.alsError(ursache);
     } finally {
       this.syncStatus.beendeFehlerAktion(fehlerAktion);
+      this.isUploading.set(false);
+      input.value = '';
     }
 
-    this.isUploading.set(false);
-    input.value = '';
+    if (unerwarteterFehler) {
+      this.uploadError.set(unerwarteterFehler.message);
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Bild konnte nicht hochgeladen werden.',
+        unerwarteterFehler,
+      );
+      return;
+    }
+
     const lokaleUploadFehler = uploadFehler.filter(
       (error) => !this.syncStatus.istZentralGemeldet(error),
     );
@@ -406,5 +418,9 @@ export class ItemDetailComponent {
     return anzahl === 1
       ? '1 Bild konnte nicht hochgeladen werden.'
       : `${anzahl} Bilder konnten nicht hochgeladen werden.`;
+  }
+
+  private alsError(ursache: unknown): Error {
+    return ursache instanceof Error ? ursache : new Error('Die Aktion ist fehlgeschlagen.');
   }
 }
