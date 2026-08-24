@@ -383,50 +383,56 @@ export class InventoryService {
     itemId: string,
     updates: Partial<InventoryItem>,
   ): Promise<{ error: Error | null }> {
-    const stored = this.mockStore.getItems().find((i) => i.id === itemId);
-    const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
-    if (base) {
-      const updated = this.enrichItemTotals({ ...base, ...updates });
-      this.mockStore.saveItem(updated);
-    }
-
-    this.items.update((list) =>
-      list.map((item) =>
-        item.id === itemId ? this.enrichItemTotals({ ...item, ...updates }) : item,
-      ),
-    );
-
-    const currentSel = this.selectedItem();
-    if (currentSel && currentSel.id === itemId) {
-      this.selectedItem.set(this.enrichItemTotals({ ...currentSel, ...updates }));
-    }
-
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const {
-          total_item_cost,
-          profit_potential,
-          costs,
-          media,
-          purchase,
-          sale,
-          activity_logs,
-          ...dbUpdates
-        } = updates as any;
-
-        const { error } = await this.supabase.client
-          .from('inventory_items')
-          .update({ ...dbUpdates, updated_at: new Date().toISOString() })
-          .eq('id', itemId);
-
-        if (error) {
-          return { error: this.syncStatus.melde('Aktualisieren des Artikels', error) };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Aktualisieren des Artikels', e) };
+    const aenderungenLokalUebernehmen = (): void => {
+      const stored = this.mockStore.getItems().find((i) => i.id === itemId);
+      const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
+      if (base) {
+        const updated = this.enrichItemTotals({ ...base, ...updates });
+        this.mockStore.saveItem(updated);
       }
+
+      this.items.update((list) =>
+        list.map((item) =>
+          item.id === itemId ? this.enrichItemTotals({ ...item, ...updates }) : item,
+        ),
+      );
+
+      const currentSel = this.selectedItem();
+      if (currentSel && currentSel.id === itemId) {
+        this.selectedItem.set(this.enrichItemTotals({ ...currentSel, ...updates }));
+      }
+    };
+
+    if (this.mockStore.isDemoMode()) {
+      aenderungenLokalUebernehmen();
+      return { error: null };
     }
 
+    try {
+      const {
+        total_item_cost,
+        profit_potential,
+        costs,
+        media,
+        purchase,
+        sale,
+        activity_logs,
+        ...dbUpdates
+      } = updates as any;
+
+      const { error } = await this.supabase.client
+        .from('inventory_items')
+        .update({ ...dbUpdates, updated_at: new Date().toISOString() })
+        .eq('id', itemId);
+
+      if (error) {
+        return { error: this.syncStatus.melde('Aktualisieren des Artikels', error) };
+      }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Aktualisieren des Artikels', e) };
+    }
+
+    aenderungenLokalUebernehmen();
     return { error: null };
   }
 
@@ -435,38 +441,44 @@ export class InventoryService {
     newStatus: ItemStatus,
     notes?: string,
   ): Promise<{ error: Error | null }> {
-    const stored = this.mockStore.getItems().find((i) => i.id === itemId);
-    const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
-    if (base) {
-      const updated = { ...base, status: newStatus };
-      this.mockStore.saveItem(updated);
-    }
-
-    this.items.update((list) =>
-      list.map((item) => (item.id === itemId ? { ...item, status: newStatus } : item)),
-    );
-
-    const currentSel = this.selectedItem();
-    if (currentSel && currentSel.id === itemId) {
-      this.selectedItem.set({ ...currentSel, status: newStatus });
-    }
-
-    await this.logActivity(itemId, newStatus, notes || `Status geändert auf: ${newStatus}`);
-
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client
-          .from('inventory_items')
-          .update({ status: newStatus, updated_at: new Date().toISOString() })
-          .eq('id', itemId);
-
-        if (error) {
-          return { error: this.syncStatus.melde('Aktualisieren des Artikelstatus', error) };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Aktualisieren des Artikelstatus', e) };
+    const statusLokalUebernehmen = (): void => {
+      const stored = this.mockStore.getItems().find((i) => i.id === itemId);
+      const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
+      if (base) {
+        this.mockStore.saveItem({ ...base, status: newStatus });
       }
+
+      this.items.update((list) =>
+        list.map((item) => (item.id === itemId ? { ...item, status: newStatus } : item)),
+      );
+
+      const currentSel = this.selectedItem();
+      if (currentSel && currentSel.id === itemId) {
+        this.selectedItem.set({ ...currentSel, status: newStatus });
+      }
+    };
+
+    if (this.mockStore.isDemoMode()) {
+      statusLokalUebernehmen();
+      await this.logActivity(itemId, newStatus, notes || `Status geändert auf: ${newStatus}`);
+      return { error: null };
     }
+
+    try {
+      const { error } = await this.supabase.client
+        .from('inventory_items')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', itemId);
+
+      if (error) {
+        return { error: this.syncStatus.melde('Aktualisieren des Artikelstatus', error) };
+      }
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Aktualisieren des Artikelstatus', e) };
+    }
+
+    statusLokalUebernehmen();
+    await this.logActivity(itemId, newStatus, notes || `Status geändert auf: ${newStatus}`);
 
     return { error: null };
   }
@@ -486,21 +498,51 @@ export class InventoryService {
       created_at: new Date().toISOString(),
     };
 
-    this.mockStore.saveItemCost(newCost);
-    this.itemCosts.update((costs) => [...costs, newCost]);
+    const kostenLokalUebernehmen = (kosten: ItemCost): void => {
+      this.mockStore.saveItemCost(kosten);
+      this.itemCosts.update((costs) => [...costs, kosten]);
+      this.items.update((list) =>
+        list.map((i) => {
+          if (i.id === itemId) {
+            const updatedCosts = [...(i.costs || []), kosten];
+            const updatedItem = this.enrichItemTotals({ ...i, costs: updatedCosts });
+            this.mockStore.saveItem(updatedItem);
+            return updatedItem;
+          }
+          return i;
+        }),
+      );
+    };
 
-    // Update item costs
-    this.items.update((list) =>
-      list.map((i) => {
-        if (i.id === itemId) {
-          const updatedCosts = [...(i.costs || []), newCost];
-          const updatedItem = this.enrichItemTotals({ ...i, costs: updatedCosts });
-          this.mockStore.saveItem(updatedItem);
-          return updatedItem;
-        }
-        return i;
-      }),
-    );
+    if (this.mockStore.isDemoMode()) {
+      kostenLokalUebernehmen(newCost);
+      await this.logActivity(
+        itemId,
+        'cost_added',
+        `Kosten hinzugefügt: ${amount.toFixed(2)} € (${type})`,
+      );
+      return { error: null };
+    }
+
+    try {
+      const { data, error } = await this.supabase.client
+        .from('item_costs')
+        .insert({
+          inventory_item_id: itemId,
+          type,
+          amount,
+          description: description?.trim() || null,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        return { error: this.syncStatus.melde('Hinzufügen der Artikelkosten', error) };
+      }
+      if (data) kostenLokalUebernehmen(data as ItemCost);
+    } catch (e: unknown) {
+      return { error: this.syncStatus.melde('Hinzufügen der Artikelkosten', e) };
+    }
 
     await this.logActivity(
       itemId,
@@ -508,40 +550,25 @@ export class InventoryService {
       `Kosten hinzugefügt: ${amount.toFixed(2)} € (${type})`,
     );
 
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { error } = await this.supabase.client.from('item_costs').insert({
-          inventory_item_id: itemId,
-          type,
-          amount,
-          description: description?.trim() || null,
-        });
-
-        if (error) {
-          return { error: this.syncStatus.melde('Hinzufügen der Artikelkosten', error) };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Hinzufügen der Artikelkosten', e) };
-      }
-    }
-
     return { error: null };
   }
 
-  async deleteItemCost(costId: string, itemId: string): Promise<{ error: Error | null }> {
-    this.mockStore.deleteItemCost(costId);
-    this.itemCosts.update((costs) => costs.filter((c) => c.id !== costId));
-    this.items.update((list) =>
-      list.map((i) => {
-        if (i.id === itemId) {
-          const updatedCosts = (i.costs || []).filter((c) => c.id !== costId);
-          const updatedItem = this.enrichItemTotals({ ...i, costs: updatedCosts });
-          this.mockStore.saveItem(updatedItem);
-          return updatedItem;
-        }
-        return i;
-      }),
-    );
+  async deleteItemCost(itemId: string, costId: string): Promise<{ error: Error | null }> {
+    const kostenLokalEntfernen = (): void => {
+      this.mockStore.deleteItemCost(costId);
+      this.itemCosts.update((costs) => costs.filter((c) => c.id !== costId));
+      this.items.update((list) =>
+        list.map((i) => {
+          if (i.id === itemId) {
+            const updatedCosts = (i.costs || []).filter((c) => c.id !== costId);
+            const updatedItem = this.enrichItemTotals({ ...i, costs: updatedCosts });
+            this.mockStore.saveItem(updatedItem);
+            return updatedItem;
+          }
+          return i;
+        }),
+      );
+    };
 
     if (!this.mockStore.isDemoMode()) {
       try {
@@ -554,6 +581,7 @@ export class InventoryService {
       }
     }
 
+    kostenLokalEntfernen();
     return { error: null };
   }
 
@@ -669,12 +697,6 @@ export class InventoryService {
   }
 
   async deleteItem(itemId: string): Promise<{ error: Error | null }> {
-    this.mockStore.deleteItem(itemId);
-    this.items.update((list) => list.filter((i) => i.id !== itemId));
-    if (this.selectedItem()?.id === itemId) {
-      this.selectedItem.set(null);
-    }
-
     if (!this.mockStore.isDemoMode()) {
       try {
         const { error } = await this.supabase.client
@@ -687,6 +709,12 @@ export class InventoryService {
       } catch (e: unknown) {
         return { error: this.syncStatus.melde('Löschen des Artikels', e) };
       }
+    }
+
+    this.mockStore.deleteItem(itemId);
+    this.items.update((list) => list.filter((i) => i.id !== itemId));
+    if (this.selectedItem()?.id === itemId) {
+      this.selectedItem.set(null);
     }
 
     return { error: null };

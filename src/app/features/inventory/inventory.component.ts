@@ -46,6 +46,8 @@ import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner/barcode-scanner.component';
 import { NgTemplateOutlet } from '@angular/common';
+import { SyncStatusService } from '../../core/services/sync-status.service';
+import { ToastService } from '../../shared/components/toast/toast.service';
 
 type FilterPreset = string;
 
@@ -72,6 +74,8 @@ type FilterPreset = string;
 export class InventoryComponent {
   readonly inventoryService = inject(InventoryService);
   private readonly router = inject(Router);
+  private readonly syncStatus = inject(SyncStatusService);
+  private readonly toast = inject(ToastService);
 
   @ViewChild('createModal') createModal?: ItemCreateModalComponent;
 
@@ -249,16 +253,28 @@ export class InventoryComponent {
 
   async onChangeItemStatus(item: InventoryItem, newStatus: ItemStatus | null): Promise<void> {
     if (!newStatus || newStatus === item.status) return;
-    await this.inventoryService.updateItemStatus(item.id, newStatus);
+    const { error } = await this.inventoryService.updateItemStatus(item.id, newStatus);
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert('Artikelstatus konnte nicht geändert werden.', error);
+      return;
+    }
+    this.toast.success('Artikelstatus wurde geändert.');
   }
 
   async onTogglePublicStore(item: InventoryItem, event?: Event): Promise<void> {
     event?.stopPropagation();
     event?.preventDefault();
     const nextVal = item.is_public_store === false;
-    await this.inventoryService.updateItem(item.id, {
+    const { error } = await this.inventoryService.updateItem(item.id, {
       is_public_store: nextVal,
     });
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert('Shop-Freigabe konnte nicht geändert werden.', error);
+      return;
+    }
+    this.toast.success(
+      nextVal ? 'Artikel wurde im Shop veröffentlicht.' : 'Artikel wurde aus dem Shop entfernt.',
+    );
   }
 
   /** Welche Gruppen aufgeklappt sind. */
@@ -416,5 +432,12 @@ export class InventoryComponent {
     } else {
       this.selectedStatus.set(preset);
     }
+  }
+
+  private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {
+    const zentralGemeldet = this.syncStatus
+      .fehler()
+      .some((eintrag) => error.message === `${eintrag.vorgang} fehlgeschlagen: ${eintrag.meldung}`);
+    if (!zentralGemeldet) this.toast.error(title, error.message);
   }
 }

@@ -137,10 +137,8 @@ export class MediaService {
           created_at: new Date().toISOString(),
         };
 
-        // 1. Immediately persist locally
-        this.mockStore.saveItemMedia(localMedia);
-
         if (this.mockStore.isDemoMode()) {
+          this.mockStore.saveItemMedia(localMedia);
           resolve({ data: localMedia, error: null });
           return;
         }
@@ -231,20 +229,27 @@ export class MediaService {
     mediaId: string,
     storagePath: string,
   ): Promise<{ error: Error | null }> {
-    this.mockStore.deleteItemMedia(mediaId);
-
-    if (!this.mockStore.isDemoMode() && !this.mockStore?.isDemoMode()) {
-      try {
-        if (!storagePath.startsWith('data:')) {
-          await this.supabase.client.storage.from('item-media').remove([storagePath]);
-        }
-        const { error } = await this.supabase.client.from('item_media').delete().eq('id', mediaId);
-        return { error };
-      } catch (err: unknown) {
-        return { error: err as Error };
-      }
+    if (this.mockStore.isDemoMode()) {
+      this.mockStore.deleteItemMedia(mediaId);
+      return { error: null };
     }
 
+    try {
+      if (!storagePath.startsWith('data:')) {
+        const { error: storageFehler } = await this.supabase.client.storage
+          .from('item-media')
+          .remove([storagePath]);
+        if (storageFehler) {
+          return { error: this.melde('Löschen der Bilddatei', storageFehler) };
+        }
+      }
+      const { error } = await this.supabase.client.from('item_media').delete().eq('id', mediaId);
+      if (error) return { error: this.melde('Löschen des Bildeintrags', error) };
+    } catch (err: unknown) {
+      return { error: this.melde('Löschen des Bildes', err) };
+    }
+
+    this.mockStore.deleteItemMedia(mediaId);
     return { error: null };
   }
 
@@ -252,26 +257,30 @@ export class MediaService {
    * Sets a specific media as the primary thumbnail.
    */
   async setPrimary(itemId: string, mediaId: string): Promise<{ error: Error | null }> {
-    this.mockStore.setItemMediaPrimary(itemId, mediaId);
-
-    if (!this.mockStore.isDemoMode() && !this.mockStore?.isDemoMode()) {
-      try {
-        await this.supabase.client
-          .from('item_media')
-          .update({ is_primary: false })
-          .eq('inventory_item_id', itemId);
-
-        const { error } = await this.supabase.client
-          .from('item_media')
-          .update({ is_primary: true })
-          .eq('id', mediaId);
-
-        return { error };
-      } catch (err: unknown) {
-        return { error: err as Error };
-      }
+    if (this.mockStore.isDemoMode()) {
+      this.mockStore.setItemMediaPrimary(itemId, mediaId);
+      return { error: null };
     }
 
+    try {
+      const { error: zuruecksetzFehler } = await this.supabase.client
+        .from('item_media')
+        .update({ is_primary: false })
+        .eq('inventory_item_id', itemId);
+      if (zuruecksetzFehler) {
+        return { error: this.melde('Zurücksetzen des bisherigen Hauptbilds', zuruecksetzFehler) };
+      }
+
+      const { error } = await this.supabase.client
+        .from('item_media')
+        .update({ is_primary: true })
+        .eq('id', mediaId);
+      if (error) return { error: this.melde('Festlegen des Hauptbilds', error) };
+    } catch (err: unknown) {
+      return { error: this.melde('Festlegen des Hauptbilds', err) };
+    }
+
+    this.mockStore.setItemMediaPrimary(itemId, mediaId);
     return { error: null };
   }
 }

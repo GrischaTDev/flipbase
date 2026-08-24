@@ -43,6 +43,8 @@ import {
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { LoggerService } from '../../../../core/services/logger.service';
+import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { SyncStatusService } from '../../../../core/services/sync-status.service';
 
 @Component({
   selector: 'app-item-create-modal',
@@ -84,6 +86,8 @@ export class ItemCreateModalComponent {
   readonly purchaseService = inject(PurchaseService);
   readonly aiService = inject(AiAssistantService);
   readonly barcodeLookup = inject(BarcodeLookupService);
+  private readonly toast = inject(ToastService);
+  private readonly syncStatus = inject(SyncStatusService);
 
   readonly conditionOptions: SelectOption<ItemCondition>[] = [
     { value: 'new', label: 'Neu / OVP' },
@@ -307,18 +311,44 @@ export class ItemCreateModalComponent {
         expected_value: payload.expected_value ?? null,
       });
 
-      if (this.selectedImageFile()) {
-        await this.mediaService.uploadItemMedia(vorhandener.id, this.selectedImageFile()!, true);
+      if (aenderFehler) {
+        this.isSubmitting.set(false);
+        this.errorMessage.set(aenderFehler.message);
+        this.meldeFehlerWennNichtSynchronisiert(
+          'Artikel konnte nicht aktualisiert werden.',
+          aenderFehler,
+        );
+        return;
       }
 
+      let bildFehler: Error | null = null;
+      if (this.selectedImageFile()) {
+        try {
+          const { error } = await this.mediaService.uploadItemMedia(
+            vorhandener.id,
+            this.selectedImageFile()!,
+            true,
+          );
+          bildFehler = error;
+        } catch (uploadErr) {
+          this.logger.warn('Image upload error on item update:', uploadErr);
+          bildFehler = this.alsError(uploadErr);
+        }
+      }
       this.isSubmitting.set(false);
 
-      if (aenderFehler) {
-        this.errorMessage.set(aenderFehler.message);
+      if (bildFehler) {
+        if (!this.istZentralGemeldet(bildFehler)) {
+          this.toast.warning(
+            'Artikel wurde aktualisiert.',
+            'Das Bild konnte nicht hochgeladen werden.',
+          );
+        }
       } else {
-        this.created.emit();
-        this.closed.emit();
+        this.toast.success('Artikel wurde aktualisiert.');
       }
+      this.created.emit();
+      this.closed.emit();
       return;
     }
 
@@ -339,11 +369,18 @@ export class ItemCreateModalComponent {
     const createdItem = ersterArtikel;
     const error = letzterFehler;
 
+    let bildFehler: Error | null = null;
     if (createdItem && this.selectedImageFile()) {
       try {
-        await this.mediaService.uploadItemMedia(createdItem.id, this.selectedImageFile()!, true);
+        const { error: uploadFehler } = await this.mediaService.uploadItemMedia(
+          createdItem.id,
+          this.selectedImageFile()!,
+          true,
+        );
+        bildFehler = uploadFehler;
       } catch (uploadErr) {
         this.logger.warn('Image upload error on item create:', uploadErr);
+        bildFehler = this.alsError(uploadErr);
       }
     }
 
@@ -351,9 +388,36 @@ export class ItemCreateModalComponent {
 
     if (error) {
       this.errorMessage.set(error.message);
+      this.meldeFehlerWennNichtSynchronisiert('Artikel konnte nicht gespeichert werden.', error);
     } else {
+      if (bildFehler) {
+        if (!this.istZentralGemeldet(bildFehler)) {
+          this.toast.warning(
+            'Artikel wurde angelegt.',
+            'Das Bild konnte nicht hochgeladen werden.',
+          );
+        }
+      } else {
+        this.toast.success(
+          anzahl > 1 ? `${anzahl} Artikel wurden angelegt.` : 'Artikel wurde angelegt.',
+        );
+      }
       this.created.emit();
       this.closed.emit();
     }
+  }
+
+  private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {
+    if (!this.istZentralGemeldet(error)) this.toast.error(title, error.message);
+  }
+
+  private istZentralGemeldet(error: Error): boolean {
+    return this.syncStatus
+      .fehler()
+      .some((eintrag) => error.message === `${eintrag.vorgang} fehlgeschlagen: ${eintrag.meldung}`);
+  }
+
+  private alsError(ursache: unknown): Error {
+    return ursache instanceof Error ? ursache : new Error('Die Aktion ist fehlgeschlagen.');
   }
 }

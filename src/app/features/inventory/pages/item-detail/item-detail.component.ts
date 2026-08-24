@@ -40,6 +40,8 @@ import {
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ItemCreateModalComponent } from '../../components/item-create-modal/item-create-modal.component';
+import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { SyncStatusService } from '../../../../core/services/sync-status.service';
 
 @Component({
   selector: 'app-item-detail',
@@ -82,6 +84,8 @@ export class ItemDetailComponent {
   readonly inventoryService = inject(InventoryService);
   readonly mediaService = inject(MediaService);
   private readonly router = inject(Router);
+  private readonly syncStatus = inject(SyncStatusService);
+  private readonly toast = inject(ToastService);
 
   readonly arrowLeftIcon = ArrowLeft;
   readonly boxesIcon = Boxes;
@@ -202,6 +206,7 @@ export class ItemDetailComponent {
 
     const files = Array.from(input.files);
     const hasExistingMedia = this.mediaList().length > 0;
+    let ersterFehler: Error | null = null;
 
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
@@ -209,6 +214,7 @@ export class ItemDetailComponent {
       const { data, error } = await this.mediaService.uploadItemMedia(itemId, file, isPrimary);
       if (error) {
         this.uploadError.set(error.message);
+        ersterFehler ??= error;
       } else if (data) {
         this.mediaList.update((prev) => [data, ...prev]);
       }
@@ -216,22 +222,44 @@ export class ItemDetailComponent {
 
     this.isUploading.set(false);
     input.value = '';
+    if (ersterFehler) {
+      this.meldeFehlerWennNichtSynchronisiert(
+        files.length === 1
+          ? 'Bild konnte nicht hochgeladen werden.'
+          : 'Bilder konnten nicht hochgeladen werden.',
+        ersterFehler,
+      );
+      return;
+    }
+    this.toast.success(
+      files.length === 1 ? 'Bild wurde hochgeladen.' : 'Bilder wurden hochgeladen.',
+    );
   }
 
   async onSetPrimary(media: ItemMedia): Promise<void> {
     const itemId = this.id();
     if (!itemId) return;
 
-    await this.mediaService.setPrimary(itemId, media.id);
+    const { error } = await this.mediaService.setPrimary(itemId, media.id);
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert('Hauptbild konnte nicht geändert werden.', error);
+      return;
+    }
     this.mediaList.update((prev) => prev.map((m) => ({ ...m, is_primary: m.id === media.id })));
+    this.toast.success('Hauptbild wurde geändert.');
   }
 
   async onDeleteMedia(media: ItemMedia): Promise<void> {
     const itemId = this.id();
     if (!itemId) return;
 
-    await this.mediaService.deleteMedia(itemId, media.id, media.storage_path);
+    const { error } = await this.mediaService.deleteMedia(itemId, media.id, media.storage_path);
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert('Bild konnte nicht gelöscht werden.', error);
+      return;
+    }
     this.mediaList.update((prev) => prev.filter((m) => m.id !== media.id));
+    this.toast.success('Bild wurde gelöscht.');
   }
 
   getMediaUrl(path: string): string {
@@ -242,7 +270,15 @@ export class ItemDetailComponent {
     if (!newStatus) return;
     const item = this.inventoryService.selectedItem();
     if (!item) return;
-    await this.inventoryService.updateItemStatus(item.id, newStatus as ItemStatus);
+    const { error } = await this.inventoryService.updateItemStatus(
+      item.id,
+      newStatus as ItemStatus,
+    );
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert('Artikelstatus konnte nicht geändert werden.', error);
+      return;
+    }
+    this.toast.success('Artikelstatus wurde geändert.');
   }
 
   async onAddCost(): Promise<void> {
@@ -250,29 +286,53 @@ export class ItemDetailComponent {
     if (!item || this.costForm.invalid) return;
 
     const val = this.costForm.getRawValue();
-    await this.inventoryService.addItemCost(
+    const { error } = await this.inventoryService.addItemCost(
       item.id,
       val.type,
       val.amount,
       val.description || undefined,
     );
 
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Artikelkosten konnten nicht gespeichert werden.',
+        error,
+      );
+      return;
+    }
+
     this.costForm.reset({ type: 'repair', amount: 0, description: '' });
     this.isAddingCost.set(false);
+    this.toast.success('Artikelkosten wurden hinzugefügt.');
   }
 
   async onDeleteCost(costId: string): Promise<void> {
     const item = this.inventoryService.selectedItem();
     if (!item) return;
-    await this.inventoryService.deleteItemCost(item.id, costId);
+    const { error } = await this.inventoryService.deleteItemCost(item.id, costId);
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Artikelkosten konnten nicht gelöscht werden.',
+        error,
+      );
+      return;
+    }
+    this.toast.success('Artikelkosten wurden gelöscht.');
   }
 
   async onTogglePublicStore(isPublic: boolean): Promise<void> {
     const item = this.inventoryService.selectedItem();
     if (!item) return;
-    await this.inventoryService.updateItem(item.id, {
+    const { error } = await this.inventoryService.updateItem(item.id, {
       is_public_store: isPublic,
     });
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert('Shop-Freigabe konnte nicht geändert werden.', error);
+      return;
+    }
+    this.toast.success(
+      isPublic ? 'Artikel wurde im Shop veröffentlicht.' : 'Artikel wurde aus dem Shop entfernt.',
+    );
   }
 
   async onDeleteItem(): Promise<void> {
@@ -285,8 +345,20 @@ export class ItemDetailComponent {
       gefahr: true,
     });
     if (bestaetigt) {
-      await this.inventoryService.deleteItem(item.id);
-      this.router.navigate(['/inventory']);
+      const { error } = await this.inventoryService.deleteItem(item.id);
+      if (error) {
+        this.meldeFehlerWennNichtSynchronisiert('Artikel konnte nicht gelöscht werden.', error);
+        return;
+      }
+      this.toast.success('Artikel wurde gelöscht.');
+      await this.router.navigate(['/inventory']);
     }
+  }
+
+  private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {
+    const zentralGemeldet = this.syncStatus
+      .fehler()
+      .some((eintrag) => error.message === `${eintrag.vorgang} fehlgeschlagen: ${eintrag.meldung}`);
+    if (!zentralGemeldet) this.toast.error(title, error.message);
   }
 }
