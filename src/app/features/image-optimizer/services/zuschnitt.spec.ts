@@ -113,6 +113,20 @@ describe('Qualitaetspruefungen', () => {
     expect(vergroesserungsfaktor(quadrat, 1600)).toBeCloseTo(1.6, 5);
     expect(vergroesserungsfaktor(quadrat, 500)).toBeCloseTo(0.5, 5);
   });
+
+  it('misst den Vergroesserungsfaktor am abgeleiteten Rechteck, nicht am rohen Ausschnitt', () => {
+    // Der Export vergroessert nie den rohen Ausschnitt direkt, sondern das
+    // daraus abgeleitete Rechteck fuer das jeweilige Plattformverhaeltnis
+    // (leiteAb). Wer vergroesserungsfaktor faelschlich auf dem rohen
+    // Ausschnitt aufruft, bekommt hier 0.6 statt der tatsaechlichen 1.8.
+    const roh: Rechteck = { x: 0, y: 0, breite: 2000, hoehe: 1000 };
+    const vinted = profil('vinted');
+
+    const abgeleitet = leiteAb(roh, vinted.exportVerhaeltnis);
+    const faktor = vergroesserungsfaktor(abgeleitet, vinted.exportBreite);
+
+    expect(faktor).toBeCloseTo(1.8, 1);
+  });
 });
 
 describe('Alle Profile zusammen', () => {

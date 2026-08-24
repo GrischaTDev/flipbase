@@ -13,7 +13,7 @@ import { PlattformVorschauComponent } from './components/plattform-vorschau/plat
 import { BildListeComponent } from './components/bild-liste/bild-liste.component';
 import { BildExportService, dateiName } from './services/bild-export.service';
 import { ZipExportService, ordnerName } from './services/zip-export.service';
-import { reichtAufloesung, vergroesserungsfaktor } from './services/zuschnitt';
+import { leiteAb, reichtAufloesung, vergroesserungsfaktor } from './services/zuschnitt';
 
 /** Ein hochgeladenes Bild mit seinem Zuschnitt. */
 export interface OptimiererBild {
@@ -85,7 +85,14 @@ export class ImageOptimizerComponent {
 
       for (const p of this.gewaehlteProfile()) {
         if (!reichtAufloesung(bild.ausschnitt, p.exportBreite, p.exportHoehe)) {
-          const faktor = vergroesserungsfaktor(bild.ausschnitt, p.exportBreite);
+          // reichtAufloesung prueft bewusst den rohen Ausschnitt (das ist die
+          // Aufloesung, die der Nutzer tatsaechlich gezogen hat), aber der
+          // Export vergroessert nicht den rohen Ausschnitt, sondern das
+          // daraus abgeleitete Rechteck fuer dieses Plattformverhaeltnis -
+          // nur dessen Faktor stimmt mit dem ueberein, was tatsaechlich
+          // passiert.
+          const abgeleitet = leiteAb(bild.ausschnitt, p.exportVerhaeltnis);
+          const faktor = vergroesserungsfaktor(abgeleitet, p.exportBreite);
           meldungen.push(
             `Bild ${index + 1} für ${p.name}: Der Ausschnitt wird ${faktor.toFixed(1)}-fach ` +
               `vergrößert und kann unscharf werden.`,
