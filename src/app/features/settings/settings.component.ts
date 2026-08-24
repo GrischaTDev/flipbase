@@ -336,10 +336,17 @@ export class SettingsComponent {
 
     this.istProfilSpeichern.set(true);
 
-    const { error } = await this.auth.aktualisiereProfil(this.profilForm.getRawValue().fullName);
+    const { error, reportedBySyncStatus } = await this.auth.aktualisiereProfil(
+      this.profilForm.getRawValue().fullName,
+    );
 
     this.istProfilSpeichern.set(false);
-    if (error) return;
+    if (error) {
+      if (!reportedBySyncStatus) {
+        this.toast.error('Profil konnte nicht gespeichert werden.', error.message);
+      }
+      return;
+    }
 
     this.toast.success('Profil wurde gespeichert.');
   }
@@ -419,12 +426,14 @@ export class SettingsComponent {
       gefahr: true,
     });
     if (bestaetigt) {
-      const { success } = await this.workspaceService.deleteWorkspace(wsId);
+      const { success, reportedBySyncStatus } = await this.workspaceService.deleteWorkspace(wsId);
       if (!success) {
-        this.toast.error(
-          'Workspace konnte nicht gelöscht werden.',
-          'Der einzige Workspace kann nicht gelöscht werden.',
-        );
+        if (!reportedBySyncStatus) {
+          this.toast.error(
+            'Workspace konnte nicht gelöscht werden.',
+            'Der einzige Workspace kann nicht gelöscht werden.',
+          );
+        }
         return;
       }
 

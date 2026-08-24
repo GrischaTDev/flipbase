@@ -244,9 +244,10 @@ describe('Bearbeiten vorhandener Daten', () => {
         currentUser: () => null,
       });
 
-      const { error } = await dienst.aktualisiereProfil('Grischa');
+      const { error, reportedBySyncStatus } = await dienst.aktualisiereProfil('Grischa');
 
       expect(error).toBeInstanceOf(Error);
+      expect(reportedBySyncStatus).toBe(false);
     });
   });
 });

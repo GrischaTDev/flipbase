@@ -8,9 +8,11 @@ import { SettingsComponent } from './settings.component';
 
 interface SettingsErgebnisse {
   readonly profilError?: Error | null;
+  readonly profilReportedBySyncStatus?: boolean;
   readonly settingsError?: Error | null;
   readonly workspaceError?: Error | null;
   readonly deleteSuccess?: boolean;
+  readonly deleteReportedBySyncStatus?: boolean;
   readonly inviteError?: Error | null;
   readonly roleError?: Error | null;
   readonly removeError?: Error | null;
@@ -42,11 +44,17 @@ function erstelleKomponente(ergebnisse: SettingsErgebnisse = {}) {
       data: ergebnisse.workspaceError ? null : workspaceService.currentWorkspace(),
       error: ergebnisse.workspaceError ?? null,
     })),
-    deleteWorkspace: vi.fn(async () => ({ success: ergebnisse.deleteSuccess ?? true })),
+    deleteWorkspace: vi.fn(async () => ({
+      success: ergebnisse.deleteSuccess ?? true,
+      reportedBySyncStatus: ergebnisse.deleteReportedBySyncStatus ?? false,
+    })),
     switchWorkspace: vi.fn(),
   };
   const auth = {
-    aktualisiereProfil: vi.fn(async () => ({ error: ergebnisse.profilError ?? null })),
+    aktualisiereProfil: vi.fn(async () => ({
+      error: ergebnisse.profilError ?? null,
+      reportedBySyncStatus: ergebnisse.profilReportedBySyncStatus ?? false,
+    })),
   };
   const memberService = {
     inviteMember: vi.fn(async () => ({ error: ergebnisse.inviteError ?? null })),
@@ -200,13 +208,31 @@ describe('SettingsComponent – zentrale Aktionsmeldungen', () => {
   });
 
   it('erzeugt bei SyncStatus-gestützten Profil- und Einstellungsfehlern keinen zweiten Toast', async () => {
-    const profil = erstelleKomponente({ profilError: new Error('Sync-Fehler') });
+    const profil = erstelleKomponente({
+      profilError: new Error('Sync-Fehler'),
+      profilReportedBySyncStatus: true,
+    });
     await profil.komponente.onSaveProfil();
     expect(profil.toast.toasts()).toEqual([]);
 
     const einstellungen = erstelleKomponente({ settingsError: new Error('Sync-Fehler') });
     await einstellungen.komponente.onSaveSettings();
     expect(einstellungen.toast.toasts()).toEqual([]);
+  });
+
+  it('meldet einen nicht zentral erfassten Profilfehler persistent', async () => {
+    const { komponente, toast } = erstelleKomponente({
+      profilError: new Error('Nicht angemeldet'),
+      profilReportedBySyncStatus: false,
+    });
+
+    await komponente.onSaveProfil();
+
+    erwarteEinzelnenToast(toast, 'error', 'Profil konnte nicht gespeichert werden.');
+    expect(toast.toasts()[0]).toMatchObject({
+      description: 'Nicht angemeldet',
+      persistent: true,
+    });
   });
 
   it('setzt das Workspace-Formular erst nach erfolgreichem Erstellen zurück', async () => {
@@ -233,6 +259,17 @@ describe('SettingsComponent – zentrale Aktionsmeldungen', () => {
     await fehler.komponente.onDeleteWorkspace('workspace-2');
     erwarteEinzelnenToast(fehler.toast, 'error', 'Workspace konnte nicht gelöscht werden.');
     expect(fehler.toast.toasts()[0].persistent).toBe(true);
+  });
+
+  it('erzeugt bei einem zentral gemeldeten Workspace-Löschfehler keinen zweiten Toast', async () => {
+    const { komponente, toast } = erstelleKomponente({
+      deleteSuccess: false,
+      deleteReportedBySyncStatus: true,
+    });
+
+    await komponente.onDeleteWorkspace('workspace-2');
+
+    expect(toast.toasts()).toEqual([]);
   });
 
   it.each([

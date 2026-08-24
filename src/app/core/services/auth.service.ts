@@ -12,6 +12,11 @@ import { SessionChannelService } from './session-channel.service';
 /** Speicherschlüssel für den bewusst gewählten Demo-Modus. */
 const DEMO_MODE_KEY = 'flipbase_demo_mode';
 
+export interface ProfileUpdateResult {
+  readonly error: Error | null;
+  readonly reportedBySyncStatus: boolean;
+}
+
 /**
  * Ob eine Antwort des Auth-Dienstes bedeutet: "Diese Sitzung gibt es nicht
  * mehr."
@@ -353,12 +358,16 @@ export class AuthService {
    * bewusst aussen vor: Sie gehoert zur Anmeldung und braucht eine
    * Bestaetigung ueber den Posteingang, nicht ein Formularfeld.
    */
-  async aktualisiereProfil(vollerName: string): Promise<{ error: Error | null }> {
+  async aktualisiereProfil(vollerName: string): Promise<ProfileUpdateResult> {
     const nutzer = this.currentUser();
-    if (!nutzer) return { error: new Error('Nicht angemeldet') };
+    if (!nutzer) {
+      return { error: new Error('Nicht angemeldet'), reportedBySyncStatus: false };
+    }
 
     const name = vollerName.trim();
-    if (!name) return { error: new Error('Der Name darf nicht leer sein') };
+    if (!name) {
+      return { error: new Error('Der Name darf nicht leer sein'), reportedBySyncStatus: false };
+    }
 
     try {
       const { data, error } = await this.supabase.client
@@ -369,8 +378,10 @@ export class AuthService {
         .single();
 
       if (error) {
+        const reportedError = this.syncStatus?.melde('Speichern des Profils', error);
         return {
-          error: this.syncStatus?.melde('Speichern des Profils', error) ?? new Error(error.message),
+          error: reportedError ?? new Error(error.message),
+          reportedBySyncStatus: reportedError !== undefined,
         };
       }
 
@@ -378,12 +389,14 @@ export class AuthService {
         this.profile.set(data as UserProfile);
       }
     } catch (e: unknown) {
+      const reportedError = this.syncStatus?.melde('Speichern des Profils', e);
       return {
-        error: this.syncStatus?.melde('Speichern des Profils', e) ?? new Error(String(e)),
+        error: reportedError ?? new Error(String(e)),
+        reportedBySyncStatus: reportedError !== undefined,
       };
     }
 
-    return { error: null };
+    return { error: null, reportedBySyncStatus: false };
   }
 
   /**

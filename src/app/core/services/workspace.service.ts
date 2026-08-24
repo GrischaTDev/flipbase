@@ -243,17 +243,11 @@ export class WorkspaceService {
     return { data: newWs, error: null };
   }
 
-  async deleteWorkspace(workspaceId: string): Promise<{ success: boolean }> {
+  async deleteWorkspace(
+    workspaceId: string,
+  ): Promise<{ success: boolean; reportedBySyncStatus: boolean }> {
     if (this.workspaces().length <= 1) {
-      return { success: false }; // Cannot delete only workspace
-    }
-
-    const filtered = this.workspaces().filter((w) => w.id !== workspaceId);
-    this.workspaces.set(filtered);
-    this.persistWorkspaces();
-
-    if (this.currentWorkspace()?.id === workspaceId) {
-      this.setCurrentWorkspace(filtered[0]);
+      return { success: false, reportedBySyncStatus: false }; // Cannot delete only workspace
     }
 
     if (this.supabase && this.auth?.isAuthenticated() && !this.auth.isDemoMode()) {
@@ -264,13 +258,23 @@ export class WorkspaceService {
           .eq('id', workspaceId);
         if (error) {
           this.syncStatus.melde('Löschen des Workspace', error);
+          return { success: false, reportedBySyncStatus: true };
         }
       } catch (err) {
         this.syncStatus.melde('Löschen des Workspace', err);
+        return { success: false, reportedBySyncStatus: true };
       }
     }
 
-    return { success: true };
+    const filtered = this.workspaces().filter((w) => w.id !== workspaceId);
+    this.workspaces.set(filtered);
+    this.persistWorkspaces();
+
+    if (this.currentWorkspace()?.id === workspaceId) {
+      this.setCurrentWorkspace(filtered[0]);
+    }
+
+    return { success: true, reportedBySyncStatus: false };
   }
 
   /**
