@@ -31,6 +31,7 @@ import { SchluesselWarteschlange } from './services/async-warteschlange';
 import { erstelleExportSnapshot, ersetzeWennAktuell } from './services/async-zustand';
 import { FotoguideZustand } from './services/fotoguide-zustand';
 import { findeAufloesungsproblem, pruefeAusgabe } from './services/plattform-validierung';
+import { ToastService } from '../../shared/components/toast/toast.service';
 
 /**
  * Hinweistext fuer Bilder, die der Browser nicht als Bild dekodieren kann -
@@ -118,6 +119,7 @@ function vollesBild(bild: OptimiererBild): Rechteck | null {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ImageOptimizerComponent {
+  private readonly toast = inject(ToastService);
   private readonly bildExport = inject(BildExportService);
   private readonly zipExport = inject(ZipExportService);
   private readonly drehWarteschlange = new SchluesselWarteschlange<string>();
@@ -584,8 +586,11 @@ export class ImageOptimizerComponent {
 
       const archiv = await this.zipExport.packe(eintraege);
       this.ladeHerunter(archiv, 'flipbase-bilder.zip');
+      this.toast.success('Bilder wurden exportiert.');
     } catch (e: unknown) {
-      this.fehler.set(e instanceof Error ? e.message : 'Der Export ist fehlgeschlagen.');
+      const beschreibung = e instanceof Error ? e.message : 'Der Export ist fehlgeschlagen.';
+      this.fehler.set(beschreibung);
+      this.toast.error('Bilder konnten nicht exportiert werden.', beschreibung);
     } finally {
       this.laeuft.set(false);
     }

@@ -37,6 +37,8 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
+import { SyncStatusService } from '../../core/services/sync-status.service';
+import { ToastService } from '../../shared/components/toast/toast.service';
 
 @Component({
   selector: 'app-fulfillment',
@@ -69,6 +71,8 @@ export class FulfillmentComponent {
 
   private readonly dialog = inject(ConfirmDialogService);
   readonly fulfillmentService = inject(FulfillmentService);
+  private readonly syncStatus = inject(SyncStatusService);
+  private readonly toast = inject(ToastService);
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
@@ -108,7 +112,6 @@ export class FulfillmentComponent {
   readonly isPurchasing = signal<boolean>(false);
 
   readonly isBundling = signal<boolean>(false);
-  readonly bundleSuccessMsg = signal<string | null>(null);
 
   readonly trackingOrderId = signal<string>('');
   readonly trackingForm = new FormGroup({
@@ -151,12 +154,18 @@ export class FulfillmentComponent {
 
   async onBundleCandidate(candidate: BundleCandidate): Promise<void> {
     this.isBundling.set(true);
-    await this.fulfillmentService.bundleOrders(candidate);
-    this.isBundling.set(false);
-    this.bundleSuccessMsg.set(
-      `Sammelpaket für ${candidate.customerName} erfolgreich erstellt! (${candidate.itemsCount} Artikel gebündelt, Ersparnis: ${candidate.potentialSavings.toFixed(2)} €)`,
-    );
-    setTimeout(() => this.bundleSuccessMsg.set(null), 5000);
+    try {
+      const { error } = await this.fulfillmentService.bundleOrders(candidate);
+      if (error) {
+        this.meldeFehler('Sendungen konnten nicht gebündelt werden.', error);
+        return;
+      }
+      this.toast.success('Sendungen wurden gebündelt.');
+    } catch (error: unknown) {
+      this.meldeFehler('Sendungen konnten nicht gebündelt werden.', error);
+    } finally {
+      this.isBundling.set(false);
+    }
   }
 
   async onUnbundleOrder(order: ShippingOrder): Promise<void> {
@@ -166,7 +175,16 @@ export class FulfillmentComponent {
       bestaetigenText: 'Aufteilen',
     });
     if (bestaetigt) {
-      await this.fulfillmentService.unbundleOrder(order.id);
+      try {
+        const { error } = await this.fulfillmentService.unbundleOrder(order.id);
+        if (error) {
+          this.meldeFehler('Sammelpaket konnte nicht aufgelöst werden.', error);
+          return;
+        }
+        this.toast.success('Sammelpaket wurde aufgelöst.');
+      } catch (error: unknown) {
+        this.meldeFehler('Sammelpaket konnte nicht aufgelöst werden.', error);
+      }
     }
   }
 
@@ -190,6 +208,7 @@ export class FulfillmentComponent {
    */
   async onConfirmPurchaseLabel(): Promise<void> {
     this.isPurchaseModalOpen.set(false);
+    this.toast.success('Sendungsnummer wurde gespeichert.');
   }
 
   openLabelModal(order: ShippingOrder): void {
@@ -226,11 +245,24 @@ export class FulfillmentComponent {
     this.trackingOrderId.set('');
   }
 
-  onSaveTracking(): void {
+  async onSaveTracking(): Promise<void> {
     if (this.trackingForm.invalid) return;
     const { carrier, trackingNumber } = this.trackingForm.getRawValue();
-    this.fulfillmentService.markAsShipped(this.trackingOrderId(), trackingNumber, carrier);
-    this.closeTrackingModal();
+    try {
+      const { error } = await this.fulfillmentService.markAsShipped(
+        this.trackingOrderId(),
+        trackingNumber,
+        carrier,
+      );
+      if (error) {
+        this.meldeFehler('Sendungsverfolgung konnte nicht gespeichert werden.', error);
+        return;
+      }
+      this.closeTrackingModal();
+      this.toast.success('Sendungsverfolgung wurde gespeichert.');
+    } catch (error: unknown) {
+      this.meldeFehler('Sendungsverfolgung konnte nicht gespeichert werden.', error);
+    }
   }
 
   markDelivered(orderId: string): void {
@@ -243,5 +275,10 @@ export class FulfillmentComponent {
 
   printCurrentDocument(): void {
     window.print();
+  }
+
+  private meldeFehler(titel: string, error: unknown): void {
+    if (this.syncStatus.istZentralGemeldet(error)) return;
+    this.toast.error(titel, error instanceof Error ? error.message : String(error));
   }
 }

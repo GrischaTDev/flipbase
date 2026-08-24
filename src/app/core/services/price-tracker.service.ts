@@ -327,6 +327,13 @@ export class PriceTrackerService {
 
     const newPrice = tracked.recommendedPrice;
 
+    if (this.inventoryService && tracked.inventory_item_id) {
+      const { error } = await this.inventoryService.updateItem(tracked.inventory_item_id, {
+        expected_value: newPrice,
+      });
+      if (error) throw error;
+    }
+
     this.trackedItems.update((list) =>
       list.map((t) =>
         t.id === trackedItemId
@@ -342,12 +349,6 @@ export class PriceTrackerService {
       ),
     );
     this.persistItems();
-
-    if (this.inventoryService && tracked.inventory_item_id) {
-      await this.inventoryService.updateItem(tracked.inventory_item_id, {
-        expected_value: newPrice,
-      });
-    }
 
     return true;
   }

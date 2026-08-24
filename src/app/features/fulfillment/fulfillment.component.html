@@ -114,25 +114,6 @@
     </button>
   </div>
 
-  <!-- Intelligente Paket-Bündelung & Kombiversand-Banner -->
-  @if (bundleSuccessMsg(); as msg) {
-    <div
-      class="p-4 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs font-semibold flex items-center justify-between animate-fade-in"
-    >
-      <div class="flex items-center gap-2">
-        <svg [lucideIcon]="checkIcon" class="w-4 h-4 text-emerald-400"></svg>
-        <span>{{ msg }}</span>
-      </div>
-      <button
-        type="button"
-        (click)="bundleSuccessMsg.set(null)"
-        class="text-fb-text-muted hover:text-fb-text-primary cursor-pointer"
-      >
-        <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
-      </button>
-    </div>
-  }
-
   @if (fulfillmentService.bundleCandidates().length > 0) {
     <div
       class="linear-surface rounded-2xl p-5 border border-indigo-500/40 bg-indigo-500/5 shadow-2xl space-y-4 animate-fade-in"

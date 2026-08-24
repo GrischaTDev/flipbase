@@ -23,8 +23,11 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
   it('should bundle multiple orders into single combined order', async () => {
     const candidate = service.bundleCandidates()[0];
     const initialOrdersCount = service.orders().length;
-    const bundled = await service.bundleOrders(candidate);
+    const ergebnis = await service.bundleOrders(candidate);
+    const bundled = ergebnis.data;
 
+    expect(ergebnis.error).toBeNull();
+    if (!bundled) throw new Error('Das Sammelpaket fehlt.');
     expect(bundled.is_bundled).toBe(true);
     expect(bundled.item_title).toContain('SAMMELPAKET');
     expect(bundled.bundled_item_titles?.length).toBe(candidate.itemsCount);
@@ -33,9 +36,12 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
 
   it('should unbundle a bundled order back to individual shipments', async () => {
     const candidate = service.bundleCandidates()[0];
-    const bundled = await service.bundleOrders(candidate);
+    const ergebnis = await service.bundleOrders(candidate);
+    const bundled = ergebnis.data;
 
-    await service.unbundleOrder(bundled.id);
+    if (!bundled) throw new Error('Das Sammelpaket fehlt.');
+    const unbundleErgebnis = await service.unbundleOrder(bundled.id);
+    expect(unbundleErgebnis.error).toBeNull();
     expect(service.orders().some((o) => o.id === bundled.id)).toBe(false);
   });
 
@@ -48,12 +54,13 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     await expect(service.purchaseShippingLabel()).rejects.toThrow();
   });
 
-  it('uebernimmt eine selbst eingetragene Sendungsnummer', () => {
+  it('uebernimmt eine selbst eingetragene Sendungsnummer', async () => {
     // Der ehrliche Weg: Marke beim Zusteller kaufen, echte Nummer eintragen.
     const order = service.orders()[0];
 
-    service.markAsShipped(order.id, '00340434161094015902', 'dhl');
+    const ergebnis = await service.markAsShipped(order.id, '00340434161094015902', 'dhl');
 
+    expect(ergebnis.error).toBeNull();
     const aktualisiert = service.orders().find((o) => o.id === order.id);
     expect(aktualisiert?.tracking_number).toBe('00340434161094015902');
   });

@@ -633,16 +633,18 @@ ${this.buildHashtags(item).join(' ')}`.trim();
   async publishToCustomStore(
     itemId: string,
     listingPrice: number,
-  ): Promise<{ success: boolean; url: string }> {
-    if (this.inventoryService) {
-      await this.inventoryService.updateItem(itemId, {
-        is_public_store: true,
-        status: 'ready',
-        expected_value: listingPrice,
-      });
+  ): Promise<{ error: Error | null; url: string | null }> {
+    if (!this.inventoryService) {
+      return { error: new Error('Der Artikelbestand ist nicht verfügbar.'), url: null };
     }
+    const { error } = await this.inventoryService.updateItem(itemId, {
+      is_public_store: true,
+      status: 'ready',
+      expected_value: listingPrice,
+    });
+    if (error) return { error, url: null };
     return {
-      success: true,
+      error: null,
       url: `/shop/item/${itemId}`,
     };
   }
@@ -650,9 +652,15 @@ ${this.buildHashtags(item).join(' ')}`.trim();
   /**
    * Marks item as listed on a specific platform in Flipbase OS!
    */
-  async markItemAsListed(itemId: string, platform: string, listingPrice: number): Promise<void> {
-    if (!this.inventoryService) return;
-    await this.inventoryService.updateItem(itemId, {
+  async markItemAsListed(
+    itemId: string,
+    _platform: string,
+    listingPrice: number,
+  ): Promise<{ error: Error | null }> {
+    if (!this.inventoryService) {
+      return { error: new Error('Der Artikelbestand ist nicht verfügbar.') };
+    }
+    return this.inventoryService.updateItem(itemId, {
       status: 'listed',
       expected_value: listingPrice,
     });

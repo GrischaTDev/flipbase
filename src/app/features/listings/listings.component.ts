@@ -46,17 +46,17 @@ import {
 import { InventoryService } from '../../core/services/inventory.service';
 import { InventoryItem } from '../../core/models/flipbase.models';
 
-import { RouterLink } from '@angular/router';
 import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
+import { SyncStatusService } from '../../core/services/sync-status.service';
+import { ToastService } from '../../shared/components/toast/toast.service';
 
 @Component({
   selector: 'app-listings',
   imports: [
-    RouterLink,
     ReactiveFormsModule,
     CurrencyPipe,
     TranslatePipe,
@@ -86,6 +86,8 @@ export class ListingsComponent {
 
   readonly listingStudio = inject(ListingStudioService);
   readonly inventoryService = inject(InventoryService);
+  private readonly syncStatus = inject(SyncStatusService);
+  private readonly toast = inject(ToastService);
 
   readonly fileIcon = FileText;
   readonly copyIcon = Copy;
@@ -136,7 +138,6 @@ export class ListingsComponent {
   readonly copiedDesc = signal<boolean>(false);
   readonly copiedAll = signal<boolean>(false);
   readonly isMarkingListed = signal<boolean>(false);
-  readonly publishSuccessMsg = signal<string | null>(null);
 
   readonly availableItems = computed<InventoryItem[]>(() => {
     return this.inventoryService
@@ -284,8 +285,22 @@ export class ListingsComponent {
         ? this.customPrice()
         : (item.expected_value ?? item.allocated_purchase_cost * 1.5);
     this.isMarkingListed.set(true);
-    await this.listingStudio.markItemAsListed(item.id, this.selectedPlatform(), price);
-    this.isMarkingListed.set(false);
+    try {
+      const { error } = await this.listingStudio.markItemAsListed(
+        item.id,
+        this.selectedPlatform(),
+        price,
+      );
+      if (error) {
+        this.meldeFehler('Artikel konnte nicht als gelistet markiert werden.', error);
+        return;
+      }
+      this.toast.success('Artikel wurde als gelistet markiert.');
+    } catch (error: unknown) {
+      this.meldeFehler('Artikel konnte nicht als gelistet markiert werden.', error);
+    } finally {
+      this.isMarkingListed.set(false);
+    }
   }
 
   async publishToStore(): Promise<void> {
@@ -297,12 +312,18 @@ export class ListingsComponent {
         ? this.customPrice()
         : (item.expected_value ?? item.allocated_purchase_cost * 1.5);
     this.isMarkingListed.set(true);
-    await this.listingStudio.publishToCustomStore(item.id, price);
-    this.isMarkingListed.set(false);
-    this.publishSuccessMsg.set(
-      `"${item.title}" wurde erfolgreich im Webshop veröffentlicht! (Preis: ${price.toFixed(2)} €)`,
-    );
-    setTimeout(() => this.publishSuccessMsg.set(null), 5000);
+    try {
+      const { error } = await this.listingStudio.publishToCustomStore(item.id, price);
+      if (error) {
+        this.meldeFehler('Artikel konnte nicht im Shop veröffentlicht werden.', error);
+        return;
+      }
+      this.toast.success('Artikel wurde im Shop veröffentlicht.');
+    } catch (error: unknown) {
+      this.meldeFehler('Artikel konnte nicht im Shop veröffentlicht werden.', error);
+    } finally {
+      this.isMarkingListed.set(false);
+    }
   }
 
   openPlatformPublish(): void {
@@ -310,5 +331,10 @@ export class ListingsComponent {
     if (gen?.platformUrl) {
       window.open(gen.platformUrl, '_blank');
     }
+  }
+
+  private meldeFehler(titel: string, error: unknown): void {
+    if (this.syncStatus.istZentralGemeldet(error)) return;
+    this.toast.error(titel, error instanceof Error ? error.message : String(error));
   }
 }

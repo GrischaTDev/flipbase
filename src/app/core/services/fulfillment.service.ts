@@ -20,6 +20,11 @@ import { SyncStatusService } from './sync-status.service';
 const STORAGE_KEY_CARRIER_CFG = 'flipbase_carrier_config';
 const STORAGE_KEY_SHIPPING_ORDERS = 'flipbase_shipping_orders';
 
+export interface FulfillmentMutationResult<T> {
+  readonly data: T | null;
+  readonly error: Error | null;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -456,50 +461,92 @@ export class FulfillmentService {
     };
   }
 
-  markAsShipped(orderId: string, trackingNumber?: string, carrier: CarrierType = 'dhl'): void {
+  async markAsShipped(
+    orderId: string,
+    trackingNumber?: string,
+    carrier: CarrierType = 'dhl',
+  ): Promise<FulfillmentMutationResult<ShippingOrder>> {
+    const vorhandeneBestellung = this.orders().find((order) => order.id === orderId);
+    if (!vorhandeneBestellung) {
+      return {
+        data: null,
+        error: this.meldePersistenzfehler(
+          'Speichern der Sendungsverfolgung',
+          new Error('Die Sendung wurde nicht gefunden.'),
+        ),
+      };
+    }
     const trk = trackingNumber || `TRK-${Date.now()}`;
     const url = this.getTrackingUrl(carrier, trk);
     const shippedAt = new Date().toISOString();
+    const ws = this.workspaceService?.currentWorkspace();
 
-    this.orders.update((prev) =>
-      prev.map((o) =>
-        o.id === orderId
-          ? {
-              ...o,
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
+      try {
+        const { error, count } = await this.supabase.client
+          .from('shipping_orders')
+          .update(
+            {
               carrier,
               tracking_number: trk,
               tracking_url: url,
-              status: 'shipped' as ShippingStatus,
+              status: 'shipped',
               shipped_at: shippedAt,
-            }
-          : o,
-      ),
-    );
-    this.persistOrders();
-
-    const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      schreibeImHintergrund(
-        this.supabase.client
-          .from('shipping_orders')
-          .update({
-            carrier,
-            tracking_number: trk,
-            tracking_url: url,
-            status: 'shipped',
-            shipped_at: shippedAt,
-          })
-          .eq('id', orderId),
-        'Aktualisieren des Versandauftrags',
-        this.syncStatus,
-      );
+            },
+            { count: 'exact' },
+          )
+          .eq('id', orderId)
+          .eq('workspace_id', ws.id);
+        if (error)
+          return {
+            data: null,
+            error: this.meldePersistenzfehler('Speichern der Sendungsverfolgung', error),
+          };
+        if (count === 0)
+          return {
+            data: null,
+            error: this.meldePersistenzfehler('Speichern der Sendungsverfolgung', {
+              code: 'PGRST116',
+              message: 'Die Sendung wurde nicht gefunden.',
+            }),
+          };
+      } catch (error: unknown) {
+        return {
+          data: null,
+          error: this.meldePersistenzfehler('Speichern der Sendungsverfolgung', error),
+        };
+      }
     }
+
+    const aktualisierteBestellung: ShippingOrder = {
+      ...vorhandeneBestellung,
+      carrier,
+      tracking_number: trk,
+      tracking_url: url,
+      status: 'shipped',
+      shipped_at: shippedAt,
+    };
+    this.orders.update((prev) => prev.map((o) => (o.id === orderId ? aktualisierteBestellung : o)));
+    this.persistOrders();
+    return { data: aktualisierteBestellung, error: null };
   }
 
   /**
    * Bundles multiple orders for the same buyer into a single shipping order.
    */
-  async bundleOrders(candidate: BundleCandidate, chosenRate?: CarrierRate): Promise<ShippingOrder> {
+  async bundleOrders(
+    candidate: BundleCandidate,
+    chosenRate?: CarrierRate,
+  ): Promise<FulfillmentMutationResult<ShippingOrder>> {
+    if (candidate.orders.length === 0) {
+      return {
+        data: null,
+        error: this.meldePersistenzfehler(
+          'Bündeln der Sendungen',
+          new Error('Es wurden keine Sendungen zum Bündeln gefunden.'),
+        ),
+      };
+    }
     const rate = chosenRate || candidate.suggestedRate;
     const orderIds = candidate.orders.map((o) => o.id);
     const itemTitles = candidate.orders.map((o) => o.item_title);
@@ -530,13 +577,10 @@ export class FulfillmentService {
       notes: `Kombiversand für ${candidate.customerName}. Portovorteil: ${candidate.potentialSavings.toFixed(2)} €`,
     };
 
-    this.orders.update((prev) => [bundledOrder, ...prev.filter((o) => !orderIds.includes(o.id))]);
-    this.persistOrders();
-
     const ws = this.workspaceService?.currentWorkspace();
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      schreibeImHintergrund(
-        this.supabase.client.from('shipping_orders').insert({
+      try {
+        const { error } = await this.supabase.client.from('shipping_orders').insert({
           workspace_id: ws.id,
           sale_id: bundledOrder.sale_id || null,
           order_number: bundledOrder.order_number,
@@ -554,11 +598,16 @@ export class FulfillmentService {
           bundled_order_ids: bundledOrder.bundled_order_ids,
           bundled_item_titles: bundledOrder.bundled_item_titles,
           notes: bundledOrder.notes,
-        }),
-        'Speichern des Versandauftrags',
-        this.syncStatus,
-      );
+        });
+        if (error)
+          return { data: null, error: this.meldePersistenzfehler('Bündeln der Sendungen', error) };
+      } catch (error: unknown) {
+        return { data: null, error: this.meldePersistenzfehler('Bündeln der Sendungen', error) };
+      }
     }
+
+    this.orders.update((prev) => [bundledOrder, ...prev.filter((o) => !orderIds.includes(o.id))]);
+    this.persistOrders();
 
     if (this.webPushService) {
       this.webPushService.sendNotification(`Sammelpaket gebündelt: ${candidate.customerName}`, {
@@ -567,15 +616,23 @@ export class FulfillmentService {
       });
     }
 
-    return bundledOrder;
+    return { data: bundledOrder, error: null };
   }
 
   /**
    * Unbundles a previously bundled order back to individual shipments.
    */
-  async unbundleOrder(bundledOrderId: string): Promise<void> {
+  async unbundleOrder(bundledOrderId: string): Promise<FulfillmentMutationResult<ShippingOrder[]>> {
     const bundled = this.orders().find((o) => o.id === bundledOrderId);
-    if (!bundled || !bundled.is_bundled || !bundled.bundled_item_titles) return;
+    if (!bundled || !bundled.is_bundled || !bundled.bundled_item_titles) {
+      return {
+        data: null,
+        error: this.meldePersistenzfehler(
+          'Auflösen des Sammelpakets',
+          new Error('Das Sammelpaket wurde nicht gefunden.'),
+        ),
+      };
+    }
 
     const restoredOrders: ShippingOrder[] = bundled.bundled_item_titles.map((title, idx) => ({
       id: `ship-restored-${Date.now()}-${idx}`,
@@ -593,11 +650,41 @@ export class FulfillmentService {
       created_at: new Date().toISOString(),
     }));
 
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
+      try {
+        const { error, count } = await this.supabase.client
+          .from('shipping_orders')
+          .delete({ count: 'exact' })
+          .eq('id', bundledOrderId)
+          .eq('workspace_id', ws.id);
+        if (error)
+          return {
+            data: null,
+            error: this.meldePersistenzfehler('Auflösen des Sammelpakets', error),
+          };
+        if (count === 0)
+          return {
+            data: null,
+            error: this.meldePersistenzfehler('Auflösen des Sammelpakets', {
+              code: 'PGRST116',
+              message: 'Das Sammelpaket wurde nicht gefunden.',
+            }),
+          };
+      } catch (error: unknown) {
+        return {
+          data: null,
+          error: this.meldePersistenzfehler('Auflösen des Sammelpakets', error),
+        };
+      }
+    }
+
     this.orders.update((prev) => [
       ...restoredOrders,
       ...prev.filter((o) => o.id !== bundledOrderId),
     ]);
     this.persistOrders();
+    return { data: restoredOrders, error: null };
   }
 
   /**
@@ -630,6 +717,11 @@ export class FulfillmentService {
         new Error('Keine Zusteller-Schnittstelle angebunden'),
       ) ?? new Error('Keine Zusteller-Schnittstelle angebunden')
     );
+  }
+
+  private meldePersistenzfehler(vorgang: string, ursache: unknown): Error {
+    if (this.syncStatus) return this.syncStatus.melde(vorgang, ursache);
+    return ursache instanceof Error ? ursache : new Error(String(ursache));
   }
 
   markAsDelivered(orderId: string): void {

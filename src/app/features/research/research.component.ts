@@ -46,6 +46,8 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
+import { SyncStatusService } from '../../core/services/sync-status.service';
+import { ToastService } from '../../shared/components/toast/toast.service';
 
 @Component({
   selector: 'app-research',
@@ -82,6 +84,8 @@ export class ResearchComponent {
 
   readonly researchService = inject(ResearchService);
   readonly priceTrackerService = inject(PriceTrackerService);
+  private readonly syncStatus = inject(SyncStatusService);
+  private readonly toast = inject(ToastService);
   private readonly barcodeLookup = inject(BarcodeLookupService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -214,10 +218,18 @@ export class ResearchComponent {
   }
 
   async onApplyRadarPrice(id: string): Promise<void> {
-    const ok = await this.priceTrackerService.applyRecommendedPrice(id);
-    if (ok) {
+    try {
+      const ok = await this.priceTrackerService.applyRecommendedPrice(id);
+      if (!ok) return;
       this.repricingSuccessId.set(id);
+      this.toast.success('Preisempfehlung wurde übernommen.');
       setTimeout(() => this.repricingSuccessId.set(null), 3000);
+    } catch (error: unknown) {
+      if (this.syncStatus.istZentralGemeldet(error)) return;
+      this.toast.error(
+        'Preisempfehlung konnte nicht übernommen werden.',
+        error instanceof Error ? error.message : String(error),
+      );
     }
   }
 

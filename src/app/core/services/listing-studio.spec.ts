@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { ListingStudioService } from './listing-studio.service';
 import { InventoryItem } from '../models/flipbase.models';
 
@@ -112,5 +112,17 @@ describe('Listing Studio & Multi-Platform Generator', () => {
       expect(text.description).not.toContain('§ 25a');
       expect(text.description).not.toContain('§ 19');
     });
+  });
+
+  it('gibt einen Inventarfehler beim Veröffentlichen zurück', async () => {
+    const dienst = Object.create(ListingStudioService.prototype) as ListingStudioService;
+    const fehler = new Error('offline');
+    (dienst as unknown as { inventoryService: unknown }).inventoryService = {
+      updateItem: vi.fn(async () => ({ error: fehler })),
+    };
+
+    const ergebnis = await dienst.publishToCustomStore(sampleItem.id, 75);
+
+    expect(ergebnis).toEqual({ error: fehler, url: null });
   });
 });

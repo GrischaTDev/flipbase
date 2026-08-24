@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Injector, runInInjectionContext } from '@angular/core';
 import { PriceTrackerService } from './price-tracker.service';
 
@@ -48,6 +48,20 @@ describe('PriceTrackerService & Competitor Radar (Chapter 26)', () => {
       expect(updated?.currentOurPrice).toBe(recPrice);
       expect(updated?.alertTriggered).toBe('none');
     }
+  });
+
+  it('übernimmt den Radarpreis bei fehlgeschlagener Inventarpersistenz nicht lokal', async () => {
+    const target = service.trackedItems().find((t) => t.alertTriggered === 'undercut')!;
+    const vorherigerPreis = target.currentOurPrice;
+    const fehler = new Error('offline');
+    (service as unknown as { inventoryService: unknown }).inventoryService = {
+      updateItem: vi.fn(async () => ({ error: fehler })),
+    };
+    service.trackedItems.set([{ ...target, inventory_item_id: 'item-1' }]);
+
+    await expect(service.applyRecommendedPrice(target.id)).rejects.toBe(fehler);
+
+    expect(service.trackedItems()[0].currentOurPrice).toBe(vorherigerPreis);
   });
 
   it('should toggle and delete tracked item', () => {
