@@ -565,7 +565,7 @@ export class FulfillmentService {
     const bundledOrder: ShippingOrder = {
       id: `ship-bundle-${Date.now()}`,
       workspace_id: firstOrder.workspace_id,
-      sale_id: firstOrder.sale_id,
+      sale_id: this.gemeinsameSaleId(candidate.orders),
       order_number: `BUNDLE-${candidate.orders.length}x-${firstOrder.order_number}`,
       order_date: new Date().toISOString(),
       platform: firstOrder.platform,
@@ -806,6 +806,13 @@ export class FulfillmentService {
       body: `${candidate.orders.length} Artikel zu 1 Paket zusammengefasst. Ersparnis: ${candidate.potentialSavings.toFixed(2)} €.`,
       tag: `bundle-${bündel.id}`,
     });
+  }
+
+  private gemeinsameSaleId(aufträge: readonly ShippingOrder[]): string | null {
+    const saleIds = new Set(aufträge.map((auftrag) => auftrag.sale_id).filter(Boolean));
+    return saleIds.size === 1 && aufträge.every((auftrag) => Boolean(auftrag.sale_id))
+      ? (aufträge[0].sale_id ?? null)
+      : null;
   }
 
   markAsDelivered(orderId: string): void {

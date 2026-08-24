@@ -147,4 +147,31 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
       p_bundled_order_id: bündel.id,
     });
   });
+
+  it('behält im Demo-Modus die gemeinsame sale_id eines Sammelpakets', async () => {
+    const ausgang = service.bundleCandidates()[0];
+    const candidate = {
+      ...ausgang,
+      orders: ausgang.orders.map((order) => ({ ...order, sale_id: 'sale-gleich' })),
+    };
+
+    const ergebnis = await service.bundleOrders(candidate);
+
+    expect(ergebnis.data?.sale_id).toBe('sale-gleich');
+  });
+
+  it('setzt die sale_id bei gemischten Quellverkäufen bewusst zurück', async () => {
+    const ausgang = service.bundleCandidates()[0];
+    const candidate = {
+      ...ausgang,
+      orders: ausgang.orders.map((order, index) => ({
+        ...order,
+        sale_id: index === 0 ? 'sale-a' : 'sale-b',
+      })),
+    };
+
+    const ergebnis = await service.bundleOrders(candidate);
+
+    expect(ergebnis.data?.sale_id).toBeNull();
+  });
 });
