@@ -83,16 +83,6 @@
       </div>
     </div>
 
-    <!-- Email Sent Banner -->
-    @if (emailSentMessage()) {
-      <div
-        class="px-5 py-2.5 bg-emerald-500/15 border-b border-emerald-500/30 text-emerald-400 text-xs font-medium flex items-center gap-2 print:hidden animate-fade-in"
-      >
-        <svg [lucideIcon]="checkIcon" class="w-4 h-4"></svg>
-        <span>{{ emailSentMessage() }}</span>
-      </div>
-    }
-
     <!-- Document Body / Printable DIN-A4 Paper Canvas -->
     <div
       class="flex-1 overflow-y-auto p-6 md:p-10 bg-fb-canvas print:p-0 print:bg-white print:overflow-visible flex justify-center"

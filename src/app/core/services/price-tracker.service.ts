@@ -13,10 +13,15 @@ import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { Json } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
-import { schreibeImHintergrund } from './supabase-schreiben';
 import { SyncStatusService } from './sync-status.service';
 
 const STORAGE_KEY_RADAR = 'flipbase_price_radar_items';
+
+export interface PriceTrackerMutationResult<T> {
+  readonly data: T | null;
+  readonly error: Error | null;
+  readonly reportedBySyncStatus: boolean;
+}
 
 @Injectable({
   providedIn: 'root',
@@ -232,18 +237,18 @@ export class PriceTrackerService {
   /**
    * Adds an inventory item or custom query to the Price Radar.
    */
-  addTrackedItem(item: {
+  async addTrackedItem(item: {
     title: string;
     price: number;
     category?: string;
     inventory_item_id?: string;
-  }): PriceTrackedItem {
+  }): Promise<PriceTrackerMutationResult<PriceTrackedItem>> {
     const ws = this.workspaceService?.currentWorkspace();
     const marketAvg = Number((item.price * 0.95).toFixed(2));
     const marketLowest = Number((item.price * 0.88).toFixed(2));
     const today = new Date().toISOString().split('T')[0];
 
-    const newItem: PriceTrackedItem = {
+    let newItem: PriceTrackedItem = {
       id: `track-${Date.now()}`,
       workspace_id: ws?.id || 'ws-1',
       inventory_item_id: item.inventory_item_id,
@@ -266,35 +271,51 @@ export class PriceTrackerService {
       ],
     };
 
-    this.trackedItems.update((list) => [newItem, ...list]);
-    this.persistItems();
-
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      schreibeImHintergrund(
-        this.supabase.client.from('price_tracked_items').insert({
-          workspace_id: ws.id,
-          inventory_item_id: item.inventory_item_id || null,
-          title: newItem.title,
-          category: newItem.category,
-          current_our_price: newItem.currentOurPrice,
-          current_market_average: newItem.currentMarketAverage,
-          current_market_lowest: newItem.currentMarketLowest,
-          recommended_price: newItem.recommendedPrice,
-          lowest_competitor_title: newItem.lowestCompetitorTitle,
-          lowest_competitor_platform: newItem.lowestCompetitorPlatform,
-          lowest_competitor_url: newItem.lowestCompetitorUrl,
-          price_trend: newItem.priceTrend,
-          price_difference_percent: newItem.priceDifferencePercent,
-          alert_triggered: newItem.alertTriggered,
-          is_tracking_active: newItem.isTrackingActive,
-          price_history: newItem.priceHistory as unknown as Json,
-        }),
-        'Speichern der Preisbeobachtung',
-        this.syncStatus,
-      );
+    if (this.istPersistenterModus()) {
+      if (!ws) {
+        return this.mutationsfehler(
+          'Speichern der Preisbeobachtung',
+          new Error('Es ist kein Workspace ausgewählt.'),
+        );
+      }
+      try {
+        const { data, error } = await this.supabase!.client.from('price_tracked_items')
+          .insert({
+            workspace_id: ws.id,
+            inventory_item_id: item.inventory_item_id || null,
+            title: newItem.title,
+            category: newItem.category,
+            current_our_price: newItem.currentOurPrice,
+            current_market_average: newItem.currentMarketAverage,
+            current_market_lowest: newItem.currentMarketLowest,
+            recommended_price: newItem.recommendedPrice,
+            lowest_competitor_title: newItem.lowestCompetitorTitle,
+            lowest_competitor_platform: newItem.lowestCompetitorPlatform,
+            lowest_competitor_url: newItem.lowestCompetitorUrl,
+            price_trend: newItem.priceTrend,
+            price_difference_percent: newItem.priceDifferencePercent,
+            alert_triggered: newItem.alertTriggered,
+            is_tracking_active: newItem.isTrackingActive,
+            price_history: newItem.priceHistory as unknown as Json,
+          })
+          .select('id')
+          .single();
+        if (error) return this.mutationsfehler('Speichern der Preisbeobachtung', error);
+        if (!data?.id) {
+          return this.mutationsfehler(
+            'Speichern der Preisbeobachtung',
+            new Error('Die Datenbank hat keine Preisbeobachtung zurückgegeben.'),
+          );
+        }
+        newItem = { ...newItem, id: data.id };
+      } catch (error: unknown) {
+        return this.mutationsfehler('Speichern der Preisbeobachtung', error);
+      }
     }
 
-    return newItem;
+    this.trackedItems.update((list) => [newItem, ...list]);
+    this.persistItems();
+    return { data: newItem, error: null, reportedBySyncStatus: false };
   }
 
   /**
@@ -360,17 +381,58 @@ export class PriceTrackerService {
     this.persistItems();
   }
 
-  deleteTrackedItem(itemId: string): void {
-    this.trackedItems.update((list) => list.filter((t) => t.id !== itemId));
-    this.persistItems();
-
-    const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      schreibeImHintergrund(
-        this.supabase.client.from('price_tracked_items').delete().eq('id', itemId),
-        'Loeschen der Preisbeobachtung',
-        this.syncStatus,
+  async deleteTrackedItem(itemId: string): Promise<PriceTrackerMutationResult<boolean>> {
+    const vorhandener = this.trackedItems().find((item) => item.id === itemId);
+    if (!vorhandener) {
+      return this.mutationsfehler(
+        'Löschen der Preisbeobachtung',
+        new Error('Die Preisbeobachtung wurde nicht gefunden.'),
       );
     }
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.istPersistenterModus()) {
+      if (!ws || vorhandener.workspace_id !== ws.id) {
+        return this.mutationsfehler(
+          'Löschen der Preisbeobachtung',
+          new Error('Die Preisbeobachtung gehört nicht zum ausgewählten Workspace.'),
+        );
+      }
+      try {
+        const { error, count } = await this.supabase!.client.from('price_tracked_items')
+          .delete({ count: 'exact' })
+          .eq('id', itemId)
+          .eq('workspace_id', ws.id);
+        if (error) return this.mutationsfehler('Löschen der Preisbeobachtung', error);
+        if (count === 0) {
+          return this.mutationsfehler('Löschen der Preisbeobachtung', {
+            code: 'PGRST116',
+            message: 'Die Preisbeobachtung wurde nicht gefunden.',
+          });
+        }
+      } catch (error: unknown) {
+        return this.mutationsfehler('Löschen der Preisbeobachtung', error);
+      }
+    }
+
+    this.trackedItems.update((list) => list.filter((item) => item.id !== itemId));
+    this.persistItems();
+    return { data: true, error: null, reportedBySyncStatus: false };
+  }
+
+  private istPersistenterModus(): boolean {
+    return this.supabase !== null && this.supabase !== undefined && !this.mockStore?.isDemoMode();
+  }
+
+  private mutationsfehler<T>(vorgang: string, ursache: unknown): PriceTrackerMutationResult<T> {
+    const error = this.syncStatus
+      ? this.syncStatus.melde(vorgang, ursache)
+      : ursache instanceof Error
+        ? ursache
+        : new Error(String(ursache));
+    return {
+      data: null,
+      error,
+      reportedBySyncStatus: this.syncStatus?.istZentralGemeldet(error) ?? false,
+    };
   }
 }

@@ -59,6 +59,11 @@ function erstelleKomponente(ergebnis: { readonly error: Error | null }) {
     bundleOrders: vi.fn(async () => ergebnis),
     unbundleOrder: vi.fn(async () => ergebnis),
     markAsShipped: vi.fn(async () => ergebnis),
+    markAsDelivered: vi.fn(async () => ({
+      data: { ...bestellung, status: 'delivered' as const },
+      error: null,
+      reportedBySyncStatus: false,
+    })),
   };
   const dialog = { frage: vi.fn(async () => true) };
   const komponente = Object.create(FulfillmentComponent.prototype) as FulfillmentComponent;
@@ -70,6 +75,7 @@ function erstelleKomponente(ergebnis: { readonly error: Error | null }) {
     isBundling: signal(false),
     isPurchaseModalOpen: signal(true),
     isTrackingModalOpen: signal(true),
+    deliveringOrderId: signal<string | null>(null),
     trackingOrderId: signal(bestellung.id),
     trackingForm: {
       invalid: false,
@@ -116,6 +122,31 @@ describe('FulfillmentComponent – Aktionsmeldungen', () => {
     expect(toast.toasts()[0]).toMatchObject({
       type: 'error',
       title: 'Sendungsverfolgung konnte nicht gespeichert werden.',
+      persistent: true,
+    });
+  });
+
+  it('bestätigt das Zustellen erst nach dem Service-Erfolg', async () => {
+    const { komponente, toast } = erstelleKomponente({ error: null });
+
+    await komponente.markDelivered(bestellung.id);
+
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'success',
+      title: 'Sendung wurde als zugestellt markiert.',
+    });
+  });
+
+  it('beendet den Zustell-Ladezustand auch bei einer geworfenen Ausnahme', async () => {
+    const { komponente, fulfillmentService, toast } = erstelleKomponente({ error: null });
+    fulfillmentService.markAsDelivered.mockRejectedValue(new Error('offline'));
+
+    await komponente.markDelivered(bestellung.id);
+
+    expect(komponente.deliveringOrderId()).toBeNull();
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'error',
+      title: 'Sendung konnte nicht als zugestellt markiert werden.',
       persistent: true,
     });
   });

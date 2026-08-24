@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Injector, runInInjectionContext } from '@angular/core';
 import { FulfillmentService } from './fulfillment.service';
 import { ShippingOrder } from '../models/fulfillment.models';
+import { SyncStatusService } from './sync-status.service';
 
 describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
   let service: FulfillmentService;
@@ -64,6 +65,55 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
     expect(ergebnis.error).toBeNull();
     const aktualisiert = service.orders().find((o) => o.id === order.id);
     expect(aktualisiert?.tracking_number).toBe('00340434161094015902');
+  });
+
+  it('übernimmt den Zustellstatus erst nach bestätigter Datenbankänderung', async () => {
+    const order = { ...service.orders()[0], status: 'shipped' as const };
+    service.orders.set([order]);
+    let bestaetigeDatenbank!: (value: { error: null; count: number }) => void;
+    const datenbankAntwort = new Promise<{ error: null; count: number }>((resolve) => {
+      bestaetigeDatenbank = resolve;
+    });
+    const workspaceEq = vi.fn(() => datenbankAntwort);
+    const idEq = vi.fn(() => ({ eq: workspaceEq }));
+    const update = vi.fn(() => ({ eq: idEq }));
+    Object.assign(service, {
+      supabase: { client: { from: () => ({ update }) } },
+      workspaceService: { currentWorkspace: () => ({ id: order.workspace_id }) },
+      mockStore: { isDemoMode: () => false },
+    });
+
+    const vorgang = service.markAsDelivered(order.id);
+
+    expect(service.orders()[0].status).toBe('shipped');
+    bestaetigeDatenbank({ error: null, count: 1 });
+    const ergebnis = await vorgang;
+
+    expect(ergebnis).toMatchObject({ error: null, reportedBySyncStatus: false });
+    expect(service.orders()[0].status).toBe('delivered');
+  });
+
+  it('meldet einen Zustell-Nulltreffer zentral und lässt den lokalen Status unverändert', async () => {
+    const order = { ...service.orders()[0], status: 'shipped' as const };
+    const syncStatus = new SyncStatusService();
+    service.orders.set([order]);
+    const update = vi.fn(() => ({
+      eq: () => ({
+        eq: async () => ({ error: null, count: 0 }),
+      }),
+    }));
+    Object.assign(service, {
+      supabase: { client: { from: () => ({ update }) } },
+      workspaceService: { currentWorkspace: () => ({ id: order.workspace_id }) },
+      mockStore: { isDemoMode: () => false },
+      syncStatus,
+    });
+
+    const ergebnis = await service.markAsDelivered(order.id);
+
+    expect(ergebnis).toMatchObject({ data: null, reportedBySyncStatus: true });
+    expect(service.orders()[0].status).toBe('shipped');
+    expect(syncStatus.fehler()[0].vorgang).toBe('Markieren der Sendung als zugestellt');
   });
 
   it('übernimmt beim Bündeln ausschließlich die von der RPC zurückgegebene UUID', async () => {

@@ -423,6 +423,7 @@
               <button
                 type="button"
                 (click)="markDelivered(order.id)"
+                [disabled]="deliveringOrderId() !== null"
                 class="linear-btn-secondary px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 cursor-pointer text-emerald-400"
                 title="Als Zugestellt markieren"
               >

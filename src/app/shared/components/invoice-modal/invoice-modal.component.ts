@@ -5,7 +5,6 @@ import {
   LucidePrinter as Printer,
   LucideX as X,
   LucideMail as Mail,
-  LucideCheckCircle2 as CheckCircle2,
   LucideFileText as FileText,
   LucideBuilding as Building,
   LucideUser as User,
@@ -35,14 +34,12 @@ export class InvoiceModalComponent {
   readonly printerIcon = Printer;
   readonly closeIcon = X;
   readonly mailIcon = Mail;
-  readonly checkIcon = CheckCircle2;
   readonly fileIcon = FileText;
   readonly buildingIcon = Building;
   readonly userIcon = User;
   readonly sendIcon = Send;
 
   readonly isSendingEmail = signal<boolean>(false);
-  readonly emailSentMessage = signal<string | null>(null);
 
   printInvoice(): void {
     window.print();
@@ -50,7 +47,6 @@ export class InvoiceModalComponent {
 
   async sendEmail(): Promise<void> {
     this.isSendingEmail.set(true);
-    this.emailSentMessage.set(null);
     try {
       const res = await this.invoiceService.sendConfirmationEmail(this.invoice());
       if (!res.success || res.error) {
@@ -60,9 +56,7 @@ export class InvoiceModalComponent {
         }
         return;
       }
-      this.emailSentMessage.set(res.message);
       this.toast.success('Bestätigung wurde per E-Mail versendet.');
-      setTimeout(() => this.emailSentMessage.set(null), 4000);
     } catch (ursache: unknown) {
       const fehler =
         ursache instanceof Error

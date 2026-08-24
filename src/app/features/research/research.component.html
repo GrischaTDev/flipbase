@@ -162,6 +162,7 @@
             <button
               type="button"
               (click)="onAddCurrentSearchToRadar()"
+              [disabled]="isRadarMutationPending()"
               class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 cursor-pointer text-indigo-300 hover:text-indigo-200"
               title="Diesen Artikel im Konkurrenz-Radar überwachen"
             >
@@ -612,6 +613,7 @@
               <button
                 type="button"
                 (click)="onDeleteTrackItem(item.id)"
+                [disabled]="isRadarMutationPending()"
                 class="p-2 rounded-xl text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
                 title="Aus dem Radar entfernen"
               >

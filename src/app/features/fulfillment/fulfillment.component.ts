@@ -112,6 +112,7 @@ export class FulfillmentComponent {
   readonly isPurchasing = signal<boolean>(false);
 
   readonly isBundling = signal<boolean>(false);
+  readonly deliveringOrderId = signal<string | null>(null);
 
   readonly trackingOrderId = signal<string>('');
   readonly trackingForm = new FormGroup({
@@ -260,8 +261,23 @@ export class FulfillmentComponent {
     }
   }
 
-  markDelivered(orderId: string): void {
-    this.fulfillmentService.markAsDelivered(orderId);
+  async markDelivered(orderId: string): Promise<void> {
+    if (this.deliveringOrderId() !== null) return;
+    this.deliveringOrderId.set(orderId);
+    try {
+      const result = await this.fulfillmentService.markAsDelivered(orderId);
+      if (result.error) {
+        if (!result.reportedBySyncStatus) {
+          this.meldeFehler('Sendung konnte nicht als zugestellt markiert werden.', result.error);
+        }
+        return;
+      }
+      this.toast.success('Sendung wurde als zugestellt markiert.');
+    } catch (error: unknown) {
+      this.meldeFehler('Sendung konnte nicht als zugestellt markiert werden.', error);
+    } finally {
+      this.deliveringOrderId.set(null);
+    }
   }
 
   printDocument(): void {

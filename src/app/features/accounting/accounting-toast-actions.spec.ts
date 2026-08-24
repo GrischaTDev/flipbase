@@ -62,7 +62,6 @@ function erstelleKomponente() {
     bankService,
     taxAdvisorService,
     taxEngine,
-    bookingFeedback: signal<{ success: boolean; message: string } | null>(null),
     emailSentStatus: signal<{ success: boolean; text: string } | null>(null),
     selectedYear: signal(2026),
     selectedPeriod: signal('08'),

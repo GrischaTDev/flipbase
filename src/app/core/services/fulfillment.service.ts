@@ -14,7 +14,6 @@ import {
 import { WebPushService } from './web-push.service';
 import { Json } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
-import { schreibeImHintergrund } from './supabase-schreiben';
 import { SyncStatusService } from './sync-status.service';
 
 const STORAGE_KEY_CARRIER_CFG = 'flipbase_carrier_config';
@@ -23,6 +22,10 @@ const STORAGE_KEY_SHIPPING_ORDERS = 'flipbase_shipping_orders';
 export interface FulfillmentMutationResult<T> {
   readonly data: T | null;
   readonly error: Error | null;
+}
+
+export interface FulfillmentStatusMutationResult extends FulfillmentMutationResult<ShippingOrder> {
+  readonly reportedBySyncStatus: boolean;
 }
 
 interface FulfillmentRpcClient {
@@ -815,39 +818,54 @@ export class FulfillmentService {
       : null;
   }
 
-  markAsDelivered(orderId: string): void {
-    this.updateOrderStatus(orderId, 'delivered');
-  }
-
-  updateOrderStatus(orderId: string, status: ShippingStatus): void {
-    const deliveredAt = status === 'delivered' ? new Date().toISOString() : undefined;
-    const shippedAt = status === 'shipped' ? new Date().toISOString() : undefined;
-
-    this.orders.update((prev) =>
-      prev.map((o) =>
-        o.id === orderId
-          ? {
-              ...o,
-              status,
-              shipped_at: shippedAt || o.shipped_at,
-            }
-          : o,
-      ),
-    );
-    this.persistOrders();
+  async markAsDelivered(orderId: string): Promise<FulfillmentStatusMutationResult> {
+    const vorhandeneBestellung = this.orders().find((order) => order.id === orderId);
+    if (!vorhandeneBestellung) {
+      return this.zustellfehler(new Error('Die Sendung wurde nicht gefunden.'));
+    }
 
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      const dbPayload: any = { status };
-      if (shippedAt) dbPayload.shipped_at = shippedAt;
-      if (deliveredAt) dbPayload.delivered_at = deliveredAt;
-
-      schreibeImHintergrund(
-        this.supabase.client.from('shipping_orders').update(dbPayload).eq('id', orderId),
-        'Aktualisieren des Versandauftrags',
-        this.syncStatus,
-      );
+    if (this.istPersistenterModus()) {
+      if (!ws || vorhandeneBestellung.workspace_id !== ws.id) {
+        return this.zustellfehler(
+          new Error('Die Sendung gehört nicht zum ausgewählten Workspace.'),
+        );
+      }
+      try {
+        const { error, count } = await this.supabase!.client.from('shipping_orders')
+          .update({ status: 'delivered' }, { count: 'exact' })
+          .eq('id', orderId)
+          .eq('workspace_id', ws.id);
+        if (error) return this.zustellfehler(error);
+        if (count === 0) {
+          return this.zustellfehler({
+            code: 'PGRST116',
+            message: 'Die Sendung wurde nicht gefunden.',
+          });
+        }
+      } catch (error: unknown) {
+        return this.zustellfehler(error);
+      }
     }
+
+    const aktualisierteBestellung: ShippingOrder = {
+      ...vorhandeneBestellung,
+      status: 'delivered',
+    };
+    this.orders.update((prev) =>
+      prev.map((order) => (order.id === orderId ? aktualisierteBestellung : order)),
+    );
+    this.persistOrders();
+    return { data: aktualisierteBestellung, error: null, reportedBySyncStatus: false };
+  }
+
+  private zustellfehler(ursache: unknown): FulfillmentStatusMutationResult {
+    const error = this.meldePersistenzfehler('Markieren der Sendung als zugestellt', ursache);
+    return {
+      data: null,
+      error,
+      reportedBySyncStatus: this.syncStatus?.istZentralGemeldet(error) ?? false,
+    };
   }
 
   openLabelModal(order: ShippingOrder): void {

@@ -1,10 +1,34 @@
 import '@angular/compiler';
-import { signal } from '@angular/core';
-import { describe, expect, it, vi } from 'vitest';
+import { signal, ɵresolveComponentResources } from '@angular/core';
+import { registerLocaleData } from '@angular/common';
+import localeDe from '@angular/common/locales/de';
+import { TestBed } from '@angular/core/testing';
+import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Invoice } from '../../../core/models/invoice.models';
+import { InvoiceService } from '../../../core/services/invoice.service';
 import { SyncStatusService } from '../../../core/services/sync-status.service';
 import { ToastService } from '../toast/toast.service';
 import { InvoiceModalComponent } from './invoice-modal.component';
+
+beforeAll(async () => {
+  registerLocaleData(localeDe);
+  TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+  const dateien: Record<string, string> = {
+    './invoice-modal.component.html':
+      'src/app/shared/components/invoice-modal/invoice-modal.component.html',
+    './invoice-modal.component.scss':
+      'src/app/shared/components/invoice-modal/invoice-modal.component.scss',
+  };
+  await ɵresolveComponentResources(async (url) => {
+    const datei = dateien[url];
+    if (!datei) throw new Error(`Unbekannte Test-Ressource: ${url}`);
+    return readFile(resolve(datei), { encoding: 'utf8' });
+  });
+});
+afterAll(() => TestBed.resetTestEnvironment());
 
 const rechnung: Invoice = {
   id: 'invoice-1',
@@ -62,7 +86,6 @@ function erstelleKomponente() {
     syncStatus,
     invoice: signal(rechnung),
     isSendingEmail: signal(false),
-    emailSentMessage: signal<string | null>(null),
   });
   return { komponente, invoiceService, syncStatus, toast };
 }
@@ -92,7 +115,6 @@ describe('InvoiceModalComponent – Aktionsmeldungen', () => {
     await komponente.sendEmail();
 
     expect(komponente.isSendingEmail()).toBe(false);
-    expect(komponente.emailSentMessage()).toBeNull();
     expect(toast.toasts()[0]).toMatchObject({
       type: 'error',
       title: 'Bestätigung konnte nicht per E-Mail versendet werden.',
@@ -113,5 +135,35 @@ describe('InvoiceModalComponent – Aktionsmeldungen', () => {
     await komponente.sendEmail();
 
     expect(toast.toasts()).toEqual([]);
+  });
+
+  it('zeigt den Versanderfolg ausschließlich als Toast und nicht zusätzlich im Dialog', async () => {
+    const invoiceService = {
+      sendConfirmationEmail: vi.fn(async () => ({
+        success: true,
+        message: 'Bestätigung wurde versendet.',
+        error: null,
+        reportedBySyncStatus: false,
+      })),
+    };
+    await TestBed.configureTestingModule({
+      imports: [InvoiceModalComponent],
+      providers: [
+        { provide: InvoiceService, useValue: invoiceService },
+        ToastService,
+        SyncStatusService,
+      ],
+    }).compileComponents();
+    const fixture = TestBed.createComponent(InvoiceModalComponent);
+    Object.assign(fixture.componentInstance, { invoice: signal(rechnung) });
+    fixture.detectChanges();
+
+    await fixture.componentInstance.sendEmail();
+    fixture.detectChanges();
+
+    expect(TestBed.inject(ToastService).toasts()[0]?.type).toBe('success');
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain(
+      'Bestätigung wurde versendet.',
+    );
   });
 });

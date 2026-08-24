@@ -124,6 +124,7 @@ export class ResearchComponent {
   readonly selectedPlatformFilter = signal<'all' | 'ebay_sold' | 'kleinanzeigen' | 'vinted'>('all');
   readonly viewMode = signal<'grid' | 'table'>('grid');
   readonly previewImageUrl = signal<string | null>(null);
+  readonly isRadarMutationPending = signal<boolean>(false);
 
   readonly searchForm = new FormGroup({
     query: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -234,21 +235,59 @@ export class ResearchComponent {
     this.priceTrackerService.toggleTracking(id);
   }
 
-  onDeleteTrackItem(id: string): void {
-    this.priceTrackerService.deleteTrackedItem(id);
+  async onDeleteTrackItem(id: string): Promise<void> {
+    if (this.isRadarMutationPending()) return;
+    this.isRadarMutationPending.set(true);
+    try {
+      const result = await this.priceTrackerService.deleteTrackedItem(id);
+      if (result.error) {
+        if (!result.reportedBySyncStatus) {
+          this.toast.error('Preisbeobachtung konnte nicht gelöscht werden.', result.error.message);
+        }
+        return;
+      }
+      this.toast.success('Preisbeobachtung wurde gelöscht.');
+    } catch (error: unknown) {
+      if (!this.syncStatus.istZentralGemeldet(error)) {
+        this.toast.error(
+          'Preisbeobachtung konnte nicht gelöscht werden.',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    } finally {
+      this.isRadarMutationPending.set(false);
+    }
   }
 
-  onAddCurrentSearchToRadar(): void {
+  async onAddCurrentSearchToRadar(): Promise<void> {
     const f = this.searchForm.getRawValue();
     const s = this.summary();
-    if (!f.query.trim()) return;
+    if (!f.query.trim() || this.isRadarMutationPending()) return;
 
-    this.priceTrackerService.addTrackedItem({
-      title: f.query.trim(),
-      price: s?.medianPrice || f.estimatedCost * 1.5,
-      category: 'Recherche',
-    });
-
-    this.activeTab.set('radar');
+    this.isRadarMutationPending.set(true);
+    try {
+      const result = await this.priceTrackerService.addTrackedItem({
+        title: f.query.trim(),
+        price: s?.medianPrice || f.estimatedCost * 1.5,
+        category: 'Recherche',
+      });
+      if (result.error) {
+        if (!result.reportedBySyncStatus) {
+          this.toast.error('Preisbeobachtung konnte nicht angelegt werden.', result.error.message);
+        }
+        return;
+      }
+      this.activeTab.set('radar');
+      this.toast.success('Preisbeobachtung wurde angelegt.');
+    } catch (error: unknown) {
+      if (!this.syncStatus.istZentralGemeldet(error)) {
+        this.toast.error(
+          'Preisbeobachtung konnte nicht angelegt werden.',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+    } finally {
+      this.isRadarMutationPending.set(false);
+    }
   }
 }
