@@ -59,6 +59,7 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
+import { ToastService } from '../../shared/components/toast/toast.service';
 
 @Component({
   selector: 'app-settings',
@@ -118,6 +119,7 @@ export class SettingsComponent {
   readonly fulfillmentService = inject(FulfillmentService);
   readonly webPushService = inject(WebPushService);
   readonly translate = inject(TranslateService);
+  private readonly toast = inject(ToastService);
 
   readonly settingsIcon = Settings;
   readonly userIcon = UserIcon;
@@ -156,12 +158,8 @@ export class SettingsComponent {
   readonly storeIcon = Store;
 
   readonly isSaving = signal<boolean>(false);
-  readonly saveSuccess = signal<boolean>(false);
-  readonly ebaySaveSuccess = signal<boolean>(false);
-  readonly webhookSaveSuccess = signal<boolean>(false);
 
   readonly isTestingWebhook = signal<boolean>(false);
-  readonly webhookStatusMessage = signal<{ success: boolean; text: string } | null>(null);
 
   // Invite modal state
   readonly isInviteModalOpen = signal<boolean>(false);
@@ -199,9 +197,6 @@ export class SettingsComponent {
     notifyOnPurchase: new FormControl(this.webhookService.config().notifyOnPurchase),
     soundEnabled: new FormControl(this.webhookService.config().soundEnabled),
   });
-
-  readonly paymentSaveSuccess = signal<boolean>(false);
-  readonly carrierSaveSuccess = signal<boolean>(false);
 
   readonly paymentForm = new FormGroup({
     stripeEnabled: new FormControl(true),
@@ -308,8 +303,7 @@ export class SettingsComponent {
       cashOnPickupEnabled: !!val.cashOnPickupEnabled,
     });
 
-    this.paymentSaveSuccess.set(true);
-    setTimeout(() => this.paymentSaveSuccess.set(false), 3000);
+    this.toast.success('Zahlungsmethoden wurden gespeichert.');
   }
 
   onSaveCarrierConfig(): void {
@@ -323,8 +317,7 @@ export class SettingsComponent {
       hermesApiKey: val.hermesApiKey?.trim() || '',
     });
 
-    this.carrierSaveSuccess.set(true);
-    setTimeout(() => this.carrierSaveSuccess.set(false), 3000);
+    this.toast.success('Versanddienstleister wurden gespeichert.');
   }
 
   /** Name des eigenen Profils. Die E-Mail gehoert zur Anmeldung und bleibt aussen vor. */
@@ -336,21 +329,19 @@ export class SettingsComponent {
   });
 
   readonly istProfilSpeichern = signal<boolean>(false);
-  readonly profilMeldung = signal<{ text: string; fehler: boolean } | null>(null);
   readonly istUeberallAbmelden = signal(false);
 
   async onSaveProfil(): Promise<void> {
     if (this.profilForm.invalid) return;
 
     this.istProfilSpeichern.set(true);
-    this.profilMeldung.set(null);
 
     const { error } = await this.auth.aktualisiereProfil(this.profilForm.getRawValue().fullName);
 
     this.istProfilSpeichern.set(false);
-    this.profilMeldung.set(
-      error ? { text: error.message, fehler: true } : { text: 'Name gespeichert.', fehler: false },
-    );
+    if (error) return;
+
+    this.toast.success('Profil wurde gespeichert.');
   }
 
   /**
@@ -390,15 +381,16 @@ export class SettingsComponent {
     this.isSaving.set(true);
     const val = this.settingsForm.getRawValue();
 
-    await this.workspaceService.updateWorkspaceSettings(ws.id, {
+    const { error } = await this.workspaceService.updateWorkspaceSettings(ws.id, {
       name: val.workspaceName,
       min_roi_percent: val.minRoiPercent,
       min_profit_amount: val.minProfitAmount,
     });
 
     this.isSaving.set(false);
-    this.saveSuccess.set(true);
-    setTimeout(() => this.saveSuccess.set(false), 3000);
+    if (error) return;
+
+    this.toast.success('Einstellungen wurden gespeichert.');
   }
 
   async onCreateWorkspace(): Promise<void> {
@@ -407,9 +399,12 @@ export class SettingsComponent {
     if (!name) return;
 
     this.isCreatingWs.set(true);
-    await this.workspaceService.createWorkspace(name);
-    this.newWorkspaceName.reset();
+    const { error } = await this.workspaceService.createWorkspace(name);
     this.isCreatingWs.set(false);
+    if (error) return;
+
+    this.newWorkspaceName.reset();
+    this.toast.success('Workspace wurde erstellt.');
   }
 
   onSwitchWorkspace(wsId: string): void {
@@ -424,27 +419,31 @@ export class SettingsComponent {
       gefahr: true,
     });
     if (bestaetigt) {
-      await this.workspaceService.deleteWorkspace(wsId);
+      const { success } = await this.workspaceService.deleteWorkspace(wsId);
+      if (!success) {
+        this.toast.error(
+          'Workspace konnte nicht gelöscht werden.',
+          'Der einzige Workspace kann nicht gelöscht werden.',
+        );
+        return;
+      }
+
+      this.toast.success('Workspace wurde gelöscht.');
     }
   }
 
   readonly isTestingPush = signal<boolean>(false);
-  readonly pushStatusMessage = signal<{ success: boolean; text: string } | null>(null);
 
   async onRequestPushPermission(): Promise<void> {
     const granted = await this.webPushService.requestPermission();
     if (granted) {
-      this.pushStatusMessage.set({
-        success: true,
-        text: 'Browser-Benachrichtigungen erfolgreich erlaubt!',
-      });
+      this.toast.success('Browser-Benachrichtigungen wurden aktiviert.');
     } else {
-      this.pushStatusMessage.set({
-        success: false,
-        text: 'Berechtigung wurde im Browser verweigert oder blockiert.',
-      });
+      this.toast.error(
+        'Browser-Benachrichtigungen konnten nicht aktiviert werden.',
+        'Berechtigung wurde im Browser verweigert oder blockiert.',
+      );
     }
-    setTimeout(() => this.pushStatusMessage.set(null), 4000);
   }
 
   async onTestWebPush(): Promise<void> {
@@ -453,14 +452,13 @@ export class SettingsComponent {
     this.isTestingPush.set(false);
 
     if (sent) {
-      this.pushStatusMessage.set({ success: true, text: 'Test-Push erfolgreich gesendet!' });
+      this.toast.success('Test-Benachrichtigung wurde versendet.');
     } else {
-      this.pushStatusMessage.set({
-        success: false,
-        text: 'Push konnte nicht angezeigt werden. Bitte Berechtigung im Browser prüfen.',
-      });
+      this.toast.error(
+        'Test-Benachrichtigung konnte nicht versendet werden.',
+        'Push konnte nicht angezeigt werden. Bitte Berechtigung im Browser prüfen.',
+      );
     }
-    setTimeout(() => this.pushStatusMessage.set(null), 4000);
   }
 
   onTogglePushSetting(
@@ -473,6 +471,7 @@ export class SettingsComponent {
     val: boolean,
   ): void {
     this.webPushService.updateSettings({ [key]: val });
+    this.toast.success('Benachrichtigungseinstellung wurde gespeichert.');
   }
 
   onSaveEbayConfig(): void {
@@ -482,11 +481,15 @@ export class SettingsComponent {
       siteId: val.globalId || 'EBAY-DE',
     });
 
-    this.ebaySaveSuccess.set(true);
-    setTimeout(() => this.ebaySaveSuccess.set(false), 3000);
+    this.toast.success('eBay-Verbindung wurde gespeichert.');
   }
 
   onSaveWebhookConfig(): void {
+    this.saveWebhookConfig();
+    this.toast.success('Webhook-Konfiguration wurde gespeichert.');
+  }
+
+  private saveWebhookConfig(): void {
     const val = this.webhookForm.getRawValue();
     this.webhookService.updateConfig({
       discordEnabled: !!val.discordEnabled,
@@ -500,21 +503,19 @@ export class SettingsComponent {
       notifyOnPurchase: !!val.notifyOnPurchase,
       soundEnabled: !!val.soundEnabled,
     });
-
-    this.webhookSaveSuccess.set(true);
-    setTimeout(() => this.webhookSaveSuccess.set(false), 3000);
   }
 
   async testWebhook(channel: 'discord' | 'telegram' | 'custom'): Promise<void> {
-    this.onSaveWebhookConfig();
+    this.saveWebhookConfig();
     this.isTestingWebhook.set(true);
-    this.webhookStatusMessage.set(null);
 
     const res = await this.webhookService.sendTestNotification(channel);
     this.isTestingWebhook.set(false);
-    this.webhookStatusMessage.set({ success: res.success, text: res.message });
-
-    setTimeout(() => this.webhookStatusMessage.set(null), 6000);
+    if (res.success) {
+      this.toast.success('Test-Webhook wurde versendet.');
+    } else {
+      this.toast.error('Test-Webhook konnte nicht versendet werden.', res.message);
+    }
   }
 
   openInviteModal(): void {
@@ -539,13 +540,18 @@ export class SettingsComponent {
 
     if (error) {
       this.inviteError.set(error.message);
-    } else {
-      this.closeInviteModal();
+      return;
     }
+
+    this.toast.success('Einladung wurde versendet.');
+    this.closeInviteModal();
   }
 
   async onUpdateRole(memberId: string, role: WorkspaceRole): Promise<void> {
-    await this.memberService.updateMemberRole(memberId, role);
+    const { error } = await this.memberService.updateMemberRole(memberId, role);
+    if (error) return;
+
+    this.toast.success('Rolle wurde geändert.');
   }
 
   async onRemoveMember(memberId: string): Promise<void> {
@@ -556,12 +562,18 @@ export class SettingsComponent {
       gefahr: true,
     });
     if (bestaetigt) {
-      await this.memberService.removeMember(memberId);
+      const { error } = await this.memberService.removeMember(memberId);
+      if (error) return;
+
+      this.toast.success('Mitglied wurde entfernt.');
     }
   }
 
   async onCancelInvite(inviteId: string): Promise<void> {
-    await this.memberService.cancelInvite(inviteId);
+    const { error } = await this.memberService.cancelInvite(inviteId);
+    if (error) return;
+
+    this.toast.success('Einladung wurde zurückgezogen.');
   }
 
   exportPurchasesCsv(): void {
@@ -571,6 +583,7 @@ export class SettingsComponent {
       `flipbase-einkaeufe-${new Date().toISOString().split('T')[0]}.csv`,
       'text/csv;charset=utf-8;',
     );
+    this.toast.success('Einkäufe wurden exportiert.');
   }
 
   exportInventoryCsv(): void {
@@ -580,6 +593,7 @@ export class SettingsComponent {
       `flipbase-inventar-${new Date().toISOString().split('T')[0]}.csv`,
       'text/csv;charset=utf-8;',
     );
+    this.toast.success('Inventar wurde exportiert.');
   }
 
   exportSalesCsv(): void {
@@ -589,5 +603,6 @@ export class SettingsComponent {
       `flipbase-verkaeufe-${new Date().toISOString().split('T')[0]}.csv`,
       'text/csv;charset=utf-8;',
     );
+    this.toast.success('Verkäufe wurden exportiert.');
   }
 }

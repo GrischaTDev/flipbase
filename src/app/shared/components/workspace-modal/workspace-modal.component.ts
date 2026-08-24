@@ -3,6 +3,7 @@ import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { LucideDynamicIcon, LucideX as X, LucidePlus as Plus } from '@lucide/angular';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
+import { ToastService } from '../toast/toast.service';
 
 @Component({
   selector: 'app-workspace-modal',
@@ -13,6 +14,7 @@ import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.di
 })
 export class WorkspaceModalComponent {
   private readonly workspaceService = inject(WorkspaceService);
+  private readonly toast = inject(ToastService);
 
   readonly closed = output<void>();
   readonly created = output<void>();
@@ -43,9 +45,10 @@ export class WorkspaceModalComponent {
 
     if (error) {
       this.errorMessage.set(error.message);
-    } else {
-      this.created.emit();
-      this.closed.emit();
+      return;
     }
+
+    this.toast.success('Workspace wurde erstellt.');
+    this.created.emit();
   }
 }
