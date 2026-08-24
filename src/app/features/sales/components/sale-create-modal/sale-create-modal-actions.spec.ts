@@ -37,10 +37,18 @@ function erstelleKomponente(bestehenderVerkauf: Sale | null = null) {
   const created = { emit: vi.fn() };
   const closed = { emit: vi.fn() };
   const salesService = {
-    createSale: vi.fn(async (): Promise<{ data: Sale | null; error: Error | null }> => ({
-      data: verkauf,
-      error: null,
-    })),
+    createSale: vi.fn(
+      async (): Promise<{
+        data: Sale | null;
+        error: Error | null;
+        status?: 'success' | 'partial' | 'error';
+        problems?: readonly {
+          kind: 'inventory_status' | 'sale_return_status';
+          error: Error;
+          reportedBySyncStatus: boolean;
+        }[];
+      }> => ({ data: verkauf, error: null }),
+    ),
     updateSale: vi.fn(async (): Promise<{ error: Error | null }> => ({ error: null })),
   };
   const komponente = Object.create(SaleCreateModalComponent.prototype) as SaleCreateModalComponent;
@@ -56,6 +64,7 @@ function erstelleKomponente(bestehenderVerkauf: Sale | null = null) {
     syncStatus,
     sale: signal(bestehenderVerkauf),
     isSubmitting: signal(false),
+    isPersisted: signal(false),
     errorMessage: signal<string | null>(null),
     created,
     closed,
@@ -134,5 +143,34 @@ describe('SaleCreateModalComponent – Aktionsmeldungen', () => {
     await komponente.onSubmit();
 
     expect(toast.toasts()[0].title).toBe('Verkauf wurde gespeichert.');
+  });
+
+  it('schließt nach einem persistierten Teilabschluss und verhindert ein zweites Anlegen', async () => {
+    const { komponente, closed, created, salesService, toast } = erstelleKomponente();
+    salesService.createSale.mockResolvedValue({
+      data: verkauf,
+      error: new Error('Artikelstatus konnte nicht aktualisiert werden'),
+      status: 'partial',
+      problems: [
+        {
+          kind: 'inventory_status',
+          error: new Error('Artikelstatus konnte nicht aktualisiert werden'),
+          reportedBySyncStatus: false,
+        },
+      ],
+    });
+
+    await komponente.onSubmit();
+    await komponente.onSubmit();
+
+    expect(salesService.createSale).toHaveBeenCalledOnce();
+    expect(created.emit).toHaveBeenCalledOnce();
+    expect(closed.emit).toHaveBeenCalledOnce();
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'warning',
+      title: 'Verkauf wurde mit Einschränkungen abgeschlossen.',
+      description: 'Der Artikelstatus wird automatisch nachgeholt.',
+      persistent: false,
+    });
   });
 });

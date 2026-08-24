@@ -33,6 +33,17 @@ import { DatePickerComponent } from '../../../../shared/components/date-picker/d
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 
+interface SaleSubmitResult {
+  readonly data?: Sale | null;
+  readonly error: Error | null;
+  readonly status?: 'success' | 'partial' | 'error';
+  readonly problems?: readonly {
+    readonly kind: 'inventory_status' | 'sale_return_status';
+    readonly error: Error;
+    readonly reportedBySyncStatus: boolean;
+  }[];
+}
+
 @Component({
   selector: 'app-sale-create-modal',
   imports: [
@@ -103,6 +114,7 @@ export class SaleCreateModalComponent {
   readonly shieldIcon = ShieldCheck;
 
   readonly isSubmitting = signal<boolean>(false);
+  readonly isPersisted = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
 
   readonly form = new FormGroup({
@@ -214,7 +226,7 @@ export class SaleCreateModalComponent {
   }
 
   async onSubmit(): Promise<void> {
-    if (this.form.invalid) return;
+    if (this.form.invalid || this.isPersisted()) return;
 
     this.isSubmitting.set(true);
     this.errorMessage.set(null);
@@ -234,7 +246,7 @@ export class SaleCreateModalComponent {
     };
 
     const vorhandener = this.sale();
-    let ergebnis: { error: Error | null; status?: 'success' | 'partial' | 'error' };
+    let ergebnis: SaleSubmitResult;
     try {
       ergebnis = vorhandener
         ? await this.salesService.updateSale(vorhandener.id, payload)
@@ -254,13 +266,19 @@ export class SaleCreateModalComponent {
     if (ergebnis.error) {
       this.errorMessage.set(ergebnis.error.message);
       if (ergebnis.status === 'partial') {
-        if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
+        const ungemeldeteProbleme = (ergebnis.problems ?? []).filter(
+          (problem) => !problem.reportedBySyncStatus,
+        );
+        if (ergebnis.data && ungemeldeteProbleme.length > 0) {
           this.toast.warning(
-            vorhandener
-              ? 'Verkauf wurde nur teilweise gespeichert.'
-              : 'Verkauf wurde nur teilweise abgeschlossen.',
-            ergebnis.error.message,
+            'Verkauf wurde mit Einschränkungen abgeschlossen.',
+            beschreibeTeilprobleme(ungemeldeteProbleme),
           );
+        }
+        if (ergebnis.data) {
+          this.isPersisted.set(true);
+          this.created.emit();
+          this.closed.emit();
         }
         return;
       }
@@ -275,8 +293,18 @@ export class SaleCreateModalComponent {
       return;
     }
 
+    this.isPersisted.set(true);
     this.toast.success(vorhandener ? 'Verkauf wurde gespeichert.' : 'Verkauf wurde abgeschlossen.');
     this.created.emit();
     this.closed.emit();
   }
+}
+
+function beschreibeTeilprobleme(
+  problems: readonly { readonly kind: 'inventory_status' | 'sale_return_status' }[],
+): string {
+  if (problems.some((problem) => problem.kind === 'inventory_status')) {
+    return 'Der Artikelstatus wird automatisch nachgeholt.';
+  }
+  return 'Der Retourenvermerk wird automatisch nachgeholt.';
 }

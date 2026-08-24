@@ -6,7 +6,9 @@ import { InventoryService } from './inventory.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { WebhookService } from './webhook.service';
 import { SyncStatusService } from './sync-status.service';
-import { Sale, InventoryItem } from '../models/flipbase.models';
+import { Sale, InventoryItem, ItemStatus } from '../models/flipbase.models';
+
+const STORAGE_KEY_PENDING_FOLLOW_UPS = 'flipbase_pending_sale_follow_ups';
 
 export interface CreateSalePayload {
   inventory_item_id: string;
@@ -26,6 +28,26 @@ export interface SaleMutationResult {
   readonly data: Sale | null;
   readonly error: Error | null;
   readonly status: 'success' | 'partial' | 'error';
+  readonly problems: readonly SaleFollowUpProblem[];
+}
+
+export type SaleFollowUpKind = 'inventory_status' | 'sale_return_status';
+
+export interface SaleFollowUpProblem {
+  readonly kind: SaleFollowUpKind;
+  readonly error: Error;
+  readonly reportedBySyncStatus: boolean;
+}
+
+interface PendingFollowUp {
+  readonly key: string;
+  readonly workspaceId: string;
+  readonly kind: SaleFollowUpKind;
+  readonly inventoryItemId?: string;
+  readonly targetStatus?: ItemStatus;
+  readonly notes?: string;
+  readonly saleId?: string;
+  readonly refundAmount?: number;
 }
 
 @Injectable({
@@ -42,6 +64,7 @@ export class SalesService {
 
   readonly sales = signal<Sale[]>([]);
   readonly isLoading = signal<boolean>(false);
+  readonly pendingFollowUps = signal<PendingFollowUp[]>(this.loadPendingFollowUps());
 
   constructor() {
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
@@ -95,6 +118,7 @@ export class SalesService {
         const enriched = (data as unknown[]).map((s: any) => this.enrichSaleMetrics(s));
         this.sales.set(enriched);
       }
+      await this.retryPendingFollowUps(workspaceId);
     } catch (err) {
       this.syncStatus.melde('Laden der Verkäufe', err);
       this.sales.set([]);
@@ -140,7 +164,27 @@ export class SalesService {
 
   async createSale(payload: CreateSalePayload): Promise<SaleMutationResult> {
     const ws = this.workspaceService.currentWorkspace();
-    if (!ws) return { data: null, error: new Error('Kein aktiver Workspace'), status: 'error' };
+    if (!ws) {
+      return {
+        data: null,
+        error: new Error('Kein aktiver Workspace'),
+        status: 'error',
+        problems: [],
+      };
+    }
+
+    const bereitsGespeichert = this.sales().find(
+      (sale) => sale.inventory_item_id === payload.inventory_item_id && !sale.returned_at,
+    );
+    if (bereitsGespeichert) {
+      const problems = this.problemsFuerArtikel(ws.id, payload.inventory_item_id);
+      return {
+        data: bereitsGespeichert,
+        error: problems[0]?.error ?? null,
+        status: problems.length > 0 ? 'partial' : 'success',
+        problems,
+      };
+    }
 
     const item = this.inventoryService.items().find((i) => i.id === payload.inventory_item_id);
 
@@ -194,6 +238,7 @@ export class SalesService {
               dbError ?? new Error('Die Datenbank hat keinen Verkauf zurückgegeben.'),
             ),
             status: 'error',
+            problems: [],
           };
         }
         gespeicherterVerkauf = this.enrichSaleMetrics({ ...enrichedSale, id: dbSale.id });
@@ -202,9 +247,12 @@ export class SalesService {
           data: null,
           error: this.syncStatus.melde('Speichern des Verkaufs', e),
           status: 'error',
+          problems: [],
         };
       }
     }
+
+    this.uebernehmeVerkaufLokal(gespeicherterVerkauf);
 
     try {
       const { error } = await this.inventoryService.updateItemStatus(
@@ -212,19 +260,35 @@ export class SalesService {
         'sold',
         `Verkauft für ${payload.sale_price.toFixed(2)} € auf ${payload.platform}`,
       );
-      if (error) return { data: gespeicherterVerkauf, error, status: 'partial' };
+      if (error) {
+        const problem = this.erstelleProblem('inventory_status', error);
+        this.planeArtikelstatusNachholung(
+          ws.id,
+          payload.inventory_item_id,
+          'sold',
+          `Verkauft für ${payload.sale_price.toFixed(2)} € auf ${payload.platform}`,
+        );
+        return { data: gespeicherterVerkauf, error, status: 'partial', problems: [problem] };
+      }
     } catch (e: unknown) {
+      const error = this.syncStatus.melde('Aktualisieren des Artikelstatus', e);
+      const problem = this.erstelleProblem('inventory_status', error);
+      this.planeArtikelstatusNachholung(
+        ws.id,
+        payload.inventory_item_id,
+        'sold',
+        `Verkauft für ${payload.sale_price.toFixed(2)} € auf ${payload.platform}`,
+      );
       return {
         data: gespeicherterVerkauf,
-        error: this.syncStatus.melde('Aktualisieren des Artikelstatus', e),
+        error,
         status: 'partial',
+        problems: [problem],
       };
     }
 
-    this.mockStore.saveSale(gespeicherterVerkauf);
-    this.sales.update((list) => [gespeicherterVerkauf, ...list]);
     this.webhookService.sendSaleNotification(gespeicherterVerkauf, item?.title || 'Artikel');
-    return { data: gespeicherterVerkauf, error: null, status: 'success' };
+    return { data: gespeicherterVerkauf, error: null, status: 'success', problems: [] };
   }
 
   /**
@@ -244,7 +308,12 @@ export class SalesService {
   ): Promise<SaleMutationResult> {
     const vorhandener = this.sales().find((s) => s.id === saleId);
     if (!vorhandener)
-      return { data: null, error: new Error('Verkauf nicht gefunden'), status: 'error' };
+      return {
+        data: null,
+        error: new Error('Verkauf nicht gefunden'),
+        status: 'error',
+        problems: [],
+      };
 
     const geaendert = this.enrichSaleMetrics({ ...vorhandener, ...updates });
 
@@ -275,6 +344,7 @@ export class SalesService {
               error ?? new Error('Der Verkauf wurde nicht gefunden.'),
             ),
             status: 'error',
+            problems: [],
           };
         }
       } catch (e: unknown) {
@@ -282,13 +352,14 @@ export class SalesService {
           data: null,
           error: this.syncStatus.melde('Aendern des Verkaufs', e),
           status: 'error',
+          problems: [],
         };
       }
     }
 
     this.sales.update((liste) => liste.map((s) => (s.id === saleId ? geaendert : s)));
     this.mockStore.saveSale(geaendert);
-    return { data: geaendert, error: null, status: 'success' };
+    return { data: geaendert, error: null, status: 'success', problems: [] };
   }
 
   /**
@@ -355,6 +426,7 @@ export class SalesService {
               error ?? new Error('Der Verkauf wurde nicht gefunden.'),
             ),
             status: 'error',
+            problems: [],
           };
         }
       } catch (e: unknown) {
@@ -362,6 +434,7 @@ export class SalesService {
           data: null,
           error: this.syncStatus.melde('Löschen des Verkaufs', e),
           status: 'error',
+          problems: [],
         };
       }
     }
@@ -372,17 +445,144 @@ export class SalesService {
         'ready',
         'Verkauf storniert/gelöscht',
       );
-      if (error) return { data: null, error, status: 'partial' };
+      if (error) {
+        const problem = this.erstelleProblem('inventory_status', error);
+        this.uebernehmeLoeschungLokal(saleId);
+        this.planeArtikelstatusNachholung(
+          this.workspaceService.currentWorkspace()?.id ?? '',
+          inventoryItemId,
+          'ready',
+          'Verkauf storniert/gelöscht',
+        );
+        return { data: null, error, status: 'partial', problems: [problem] };
+      }
     } catch (e: unknown) {
+      const error = this.syncStatus.melde('Aktualisieren des Artikelstatus', e);
+      const problem = this.erstelleProblem('inventory_status', error);
+      this.uebernehmeLoeschungLokal(saleId);
+      this.planeArtikelstatusNachholung(
+        this.workspaceService.currentWorkspace()?.id ?? '',
+        inventoryItemId,
+        'ready',
+        'Verkauf storniert/gelöscht',
+      );
       return {
         data: null,
-        error: this.syncStatus.melde('Aktualisieren des Artikelstatus', e),
+        error,
         status: 'partial',
+        problems: [problem],
       };
     }
 
+    this.uebernehmeLoeschungLokal(saleId);
+    return { data: null, error: null, status: 'success', problems: [] };
+  }
+
+  planeArtikelstatusNachholung(
+    workspaceId: string,
+    inventoryItemId: string,
+    targetStatus: ItemStatus,
+    notes: string,
+  ): void {
+    this.merkeNachschritt({
+      key: `inventory_status:${inventoryItemId}`,
+      workspaceId,
+      kind: 'inventory_status',
+      inventoryItemId,
+      targetStatus,
+      notes,
+    });
+  }
+
+  planeRetourenvermerkNachholung(workspaceId: string, saleId: string, refundAmount: number): void {
+    this.merkeNachschritt({
+      key: `sale_return_status:${saleId}`,
+      workspaceId,
+      kind: 'sale_return_status',
+      saleId,
+      refundAmount,
+    });
+  }
+
+  async retryPendingFollowUps(workspaceId?: string): Promise<void> {
+    const pending = this.pendingFollowUps().filter(
+      (followUp) => workspaceId === undefined || followUp.workspaceId === workspaceId,
+    );
+    for (const followUp of pending) {
+      const error = await this.fuehreNachschrittAus(followUp);
+      if (!error) this.entferneNachschritt(followUp.key);
+    }
+  }
+
+  private async fuehreNachschrittAus(followUp: PendingFollowUp): Promise<Error | null> {
+    if (followUp.kind === 'inventory_status') {
+      if (!followUp.inventoryItemId || !followUp.targetStatus)
+        return new Error('Ungültiger Nachschritt.');
+      const result = await this.inventoryService.updateItemStatus(
+        followUp.inventoryItemId,
+        followUp.targetStatus,
+        followUp.notes,
+      );
+      return result.error;
+    }
+    if (!followUp.saleId || followUp.refundAmount === undefined)
+      return new Error('Ungültiger Nachschritt.');
+    return (await this.markiereAlsRetourniert(followUp.saleId, followUp.refundAmount)).error;
+  }
+
+  private erstelleProblem(kind: SaleFollowUpKind, error: Error): SaleFollowUpProblem {
+    return { kind, error, reportedBySyncStatus: this.syncStatus.istZentralGemeldet(error) };
+  }
+
+  private problemsFuerArtikel(workspaceId: string, inventoryItemId: string): SaleFollowUpProblem[] {
+    return this.pendingFollowUps()
+      .filter(
+        (followUp) =>
+          followUp.workspaceId === workspaceId &&
+          followUp.kind === 'inventory_status' &&
+          followUp.inventoryItemId === inventoryItemId,
+      )
+      .map(() => ({
+        kind: 'inventory_status',
+        error: new Error('Der Artikelstatus wird automatisch nachgeholt.'),
+        reportedBySyncStatus: false,
+      }));
+  }
+
+  private uebernehmeVerkaufLokal(sale: Sale): void {
+    this.mockStore.saveSale(sale);
+    this.sales.update((list) => [sale, ...list.filter((eintrag) => eintrag.id !== sale.id)]);
+  }
+
+  private uebernehmeLoeschungLokal(saleId: string): void {
     this.mockStore.deleteSale(saleId);
-    this.sales.update((list) => list.filter((s) => s.id !== saleId));
-    return { data: null, error: null, status: 'success' };
+    this.sales.update((list) => list.filter((sale) => sale.id !== saleId));
+  }
+
+  private merkeNachschritt(followUp: PendingFollowUp): void {
+    this.pendingFollowUps.update((list) => [
+      followUp,
+      ...list.filter((eintrag) => eintrag.key !== followUp.key),
+    ]);
+    this.persistPendingFollowUps();
+  }
+
+  private entferneNachschritt(key: string): void {
+    this.pendingFollowUps.update((list) => list.filter((followUp) => followUp.key !== key));
+    this.persistPendingFollowUps();
+  }
+
+  private loadPendingFollowUps(): PendingFollowUp[] {
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY_PENDING_FOLLOW_UPS);
+      if (stored) return JSON.parse(stored) as PendingFollowUp[];
+    } catch {}
+    return [];
+  }
+
+  private persistPendingFollowUps(): void {
+    try {
+      localStorage.setItem(STORAGE_KEY_PENDING_FOLLOW_UPS, JSON.stringify(this.pendingFollowUps()));
+    } catch {}
   }
 }

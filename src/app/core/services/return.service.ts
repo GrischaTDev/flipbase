@@ -17,6 +17,15 @@ export interface ProcessReturnResult {
   readonly status: 'success' | 'partial' | 'error';
   readonly data: ReturnRecord | null;
   readonly error: Error | null;
+  readonly problems: readonly ReturnFollowUpProblem[];
+}
+
+export type ReturnFollowUpKind = 'inventory_status' | 'sale_return_status';
+
+export interface ReturnFollowUpProblem {
+  readonly kind: ReturnFollowUpKind;
+  readonly error: Error;
+  readonly reportedBySyncStatus: boolean;
 }
 
 @Injectable({
@@ -137,6 +146,7 @@ export class ReturnService {
         status: 'error',
         data: null,
         error: this.syncStatus.melde('Speichern der Retoure', new Error('Kein aktiver Workspace.')),
+        problems: [],
       };
     }
     const count = this.returns().length + 1;
@@ -193,6 +203,7 @@ export class ReturnService {
               'Speichern der Retoure',
               error ?? new Error('Die Datenbank hat keine Retoure zurückgegeben.'),
             ),
+            problems: [],
           };
         }
         gespeicherteRetoure = { ...newReturn, id: dbReturn.id };
@@ -201,11 +212,13 @@ export class ReturnService {
           status: 'error',
           data: null,
           error: this.syncStatus.melde('Speichern der Retoure', ursache),
+          problems: [],
         };
       }
     }
 
-    const nachschrittFehler: Error[] = [];
+    this.uebernehmeRetoureLokal(gespeicherteRetoure);
+    const problems: ReturnFollowUpProblem[] = [];
 
     // 2. Synchronize Inventory Stock based on restockAction
     if (this.inventoryService && payload.sale.inventory_item_id) {
@@ -230,9 +243,24 @@ export class ReturnService {
             targetStatus,
             statusLog,
           );
-          if (error) nachschrittFehler.push(error);
+          if (error) {
+            problems.push(this.erstelleProblem('inventory_status', error));
+            this.salesService?.planeArtikelstatusNachholung(
+              ws?.id ?? gespeicherteRetoure.workspace_id,
+              payload.sale.inventory_item_id,
+              targetStatus,
+              statusLog,
+            );
+          }
         } catch (ursache: unknown) {
-          nachschrittFehler.push(this.meldeFehler('Aktualisieren des Artikelstatus', ursache));
+          const error = this.meldeFehler('Aktualisieren des Artikelstatus', ursache);
+          problems.push(this.erstelleProblem('inventory_status', error));
+          this.salesService?.planeArtikelstatusNachholung(
+            ws?.id ?? gespeicherteRetoure.workspace_id,
+            payload.sale.inventory_item_id,
+            targetStatus,
+            statusLog,
+          );
         }
       }
     }
@@ -247,22 +275,32 @@ export class ReturnService {
         payload.sale.id,
         gespeicherteRetoure.refund_amount,
       );
-      if (ergebnis?.error) nachschrittFehler.push(ergebnis.error);
+      if (ergebnis?.error) {
+        problems.push(this.erstelleProblem('sale_return_status', ergebnis.error));
+        this.salesService?.planeRetourenvermerkNachholung(
+          ws?.id ?? gespeicherteRetoure.workspace_id,
+          payload.sale.id,
+          gespeicherteRetoure.refund_amount,
+        );
+      }
     } catch (ursache: unknown) {
-      nachschrittFehler.push(this.meldeFehler('Vermerken der Retoure', ursache));
+      const error = this.meldeFehler('Vermerken der Retoure', ursache);
+      problems.push(this.erstelleProblem('sale_return_status', error));
+      this.salesService?.planeRetourenvermerkNachholung(
+        ws?.id ?? gespeicherteRetoure.workspace_id,
+        payload.sale.id,
+        gespeicherteRetoure.refund_amount,
+      );
     }
 
-    if (nachschrittFehler.length > 0) {
+    if (problems.length > 0) {
       return {
         status: 'partial',
         data: gespeicherteRetoure,
-        error: nachschrittFehler[0],
+        error: problems[0].error,
+        problems,
       };
     }
-
-    // 4. Save to state & local storage
-    this.returns.update((prev) => [gespeicherteRetoure, ...prev]);
-    this.persistReturns();
 
     // 5. Notifications
     if (this.webPushService) {
@@ -280,7 +318,7 @@ export class ReturnService {
       });
     }
 
-    return { status: 'success', data: gespeicherteRetoure, error: null };
+    return { status: 'success', data: gespeicherteRetoure, error: null, problems: [] };
   }
 
   private meldeFehler(vorgang: string, ursache: unknown): Error {
@@ -290,6 +328,22 @@ export class ReturnService {
 
   private alsError(ursache: unknown): Error {
     return ursache instanceof Error ? ursache : new Error('Die Aktion ist fehlgeschlagen.');
+  }
+
+  private erstelleProblem(kind: ReturnFollowUpKind, error: Error): ReturnFollowUpProblem {
+    return {
+      kind,
+      error,
+      reportedBySyncStatus: this.syncStatus?.istZentralGemeldet(error) ?? false,
+    };
+  }
+
+  private uebernehmeRetoureLokal(retoure: ReturnRecord): void {
+    this.returns.update((list) => [
+      retoure,
+      ...list.filter((eintrag) => eintrag.id !== retoure.id),
+    ]);
+    this.persistReturns();
   }
 
   /**

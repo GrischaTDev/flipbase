@@ -239,6 +239,7 @@ export class SalesComponent {
           ursache instanceof Error
             ? ursache
             : new Error('Die Retoure konnte nicht erfasst werden.'),
+        problems: [],
       };
     } finally {
       this.isProcessingReturn.set(false);
@@ -246,8 +247,19 @@ export class SalesComponent {
 
     if (ergebnis.error) {
       if (ergebnis.status === 'partial') {
-        if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
-          this.toast.warning('Retoure wurde mit Einschränkungen erfasst.', ergebnis.error.message);
+        const ungemeldeteProbleme = ergebnis.problems.filter(
+          (problem) => !problem.reportedBySyncStatus,
+        );
+        if (ergebnis.data) {
+          this.closeReturnModal();
+          if (ergebnis.data.creditNoteInvoice)
+            this.activeInvoice.set(ergebnis.data.creditNoteInvoice);
+        }
+        if (ungemeldeteProbleme.length > 0) {
+          this.toast.warning(
+            'Retoure wurde mit Einschränkungen erfasst.',
+            beschreibeRetourenTeilprobleme(ungemeldeteProbleme),
+          );
         }
       } else if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
         this.toast.error('Retoure konnte nicht erfasst werden.', ergebnis.error.message);
@@ -283,13 +295,20 @@ export class SalesComponent {
               ? ursache
               : new Error('Der Verkauf konnte nicht gelöscht werden.'),
           status: 'error',
+          problems: [],
         };
       }
 
       if (ergebnis.error) {
         if (ergebnis.status === 'partial') {
-          if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
-            this.toast.warning('Verkauf wurde nur teilweise gelöscht.', ergebnis.error.message);
+          const ungemeldeteProbleme = ergebnis.problems.filter(
+            (problem) => !problem.reportedBySyncStatus,
+          );
+          if (ungemeldeteProbleme.length > 0) {
+            this.toast.warning(
+              'Verkauf wurde mit Einschränkungen gelöscht.',
+              'Der Artikelstatus „verkaufsbereit“ wird automatisch nachgeholt.',
+            );
           }
         } else if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
           this.toast.error('Verkauf konnte nicht gelöscht werden.', ergebnis.error.message);
@@ -300,4 +319,13 @@ export class SalesComponent {
       this.toast.success('Verkauf wurde gelöscht.');
     }
   }
+}
+
+function beschreibeRetourenTeilprobleme(
+  problems: readonly { readonly kind: 'inventory_status' | 'sale_return_status' }[],
+): string {
+  if (problems.some((problem) => problem.kind === 'inventory_status')) {
+    return 'Der Artikelstatus wird automatisch nachgeholt.';
+  }
+  return 'Der Retourenvermerk wird automatisch nachgeholt.';
 }

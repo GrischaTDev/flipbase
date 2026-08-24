@@ -62,6 +62,11 @@ function erstelleKomponente() {
         data: ReturnRecord | null;
         error: Error | null;
         reportedBySyncStatus: boolean;
+        problems?: readonly {
+          kind: 'inventory_status' | 'sale_return_status';
+          error: Error;
+          reportedBySyncStatus: boolean;
+        }[];
       }> => ({
         status: 'success',
         data: retoure,
@@ -143,5 +148,34 @@ describe('SalesComponent – Aktionsmeldungen', () => {
 
     expect(toast.toasts().some((meldung) => meldung.type === 'success')).toBe(false);
     expect(toast.toasts()[0]).toMatchObject({ type: 'error', persistent: true });
+  });
+
+  it('schließt eine persistierte Teilretoure und verhindert eine zweite Gutschrift', async () => {
+    const { komponente, returnService, toast } = erstelleKomponente();
+    returnService.processReturn.mockResolvedValue({
+      status: 'partial',
+      data: retoure,
+      error: new Error('Retourenvermerk fehlt'),
+      reportedBySyncStatus: false,
+      problems: [
+        {
+          kind: 'sale_return_status',
+          error: new Error('Retourenvermerk fehlt'),
+          reportedBySyncStatus: false,
+        },
+      ],
+    });
+
+    await komponente.onSubmitReturn();
+    await komponente.onSubmitReturn();
+
+    expect(returnService.processReturn).toHaveBeenCalledOnce();
+    expect(komponente.isReturnModalOpen()).toBe(false);
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'warning',
+      title: 'Retoure wurde mit Einschränkungen erfasst.',
+      description: 'Der Retourenvermerk wird automatisch nachgeholt.',
+      persistent: false,
+    });
   });
 });

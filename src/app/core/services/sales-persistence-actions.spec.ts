@@ -1,6 +1,6 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { InventoryItem, Sale } from '../models/flipbase.models';
 import { Invoice } from '../models/invoice.models';
 import { ReturnService } from './return.service';
@@ -61,6 +61,19 @@ const rechnung: Invoice = {
   paymentStatus: 'paid',
 };
 
+function installiereArbeitsspeicher(): Map<string, string> {
+  const werte = new Map<string, string>();
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => werte.get(key) ?? null,
+      setItem: (key: string, value: string) => werte.set(key, value),
+      removeItem: (key: string) => werte.delete(key),
+    },
+  });
+  return werte;
+}
+
 describe('Verkaufsnahe Schreibvorgänge', () => {
   it('legt einen Verkauf bei abgelehnter Datenbankspeicherung nicht lokal an', async () => {
     const syncStatus = new SyncStatusService();
@@ -80,6 +93,7 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
       webhookService: { sendSaleNotification: () => undefined },
       syncStatus,
       sales: signal<Sale[]>([]),
+      pendingFollowUps: signal([]),
       supabase: {
         client: {
           from: () => ({
@@ -164,5 +178,145 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
     expect(ergebnis.success).toBe(false);
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(dienst.sentEmails()).toEqual([]);
+  });
+
+  it('übernimmt einen persistierten Verkauf bei fehlendem Artikelstatus und holt nur den Status nach', async () => {
+    const speicher = installiereArbeitsspeicher();
+    const syncStatus = new SyncStatusService();
+    const updateItemStatus = vi
+      .fn<(_id: string, _status: string, _notes: string) => Promise<{ error: Error | null }>>()
+      .mockResolvedValueOnce({ error: new Error('Status nicht gespeichert') })
+      .mockResolvedValueOnce({ error: null });
+    const salesInsert = vi.fn(async () => ({ data: { id: 'sale-db-1' }, error: null }));
+    const dienst = Object.create(SalesService.prototype) as SalesService;
+    Object.assign(dienst, {
+      workspaceService: { currentWorkspace: () => workspace },
+      inventoryService: { items: signal([artikel]), updateItemStatus },
+      profitEngine: {
+        calculateProfit: () => 30,
+        calculateRoi: () => 150,
+        calculateHoldingDurationDays: () => 0,
+      },
+      mockStore: { isDemoMode: () => false, saveSale: vi.fn() },
+      webhookService: { sendSaleNotification: vi.fn() },
+      syncStatus,
+      sales: signal<Sale[]>([]),
+      pendingFollowUps: signal([]),
+      supabase: {
+        client: {
+          from: () => ({ insert: () => ({ select: () => ({ single: salesInsert }) }) }),
+        },
+      },
+    });
+
+    const ergebnis = await dienst.createSale({
+      inventory_item_id: artikel.id,
+      platform: 'kleinanzeigen',
+      sale_price: 50,
+      sale_date: '2026-08-24',
+    });
+    const zweiterVersuch = await dienst.createSale({
+      inventory_item_id: artikel.id,
+      platform: 'kleinanzeigen',
+      sale_price: 50,
+      sale_date: '2026-08-24',
+    });
+    expect(speicher.get('flipbase_pending_sale_follow_ups')).toContain('inventory_status');
+    await (
+      dienst as unknown as { retryPendingFollowUps?: () => Promise<void> }
+    ).retryPendingFollowUps?.();
+
+    expect(ergebnis).toMatchObject({ status: 'partial', data: { id: 'sale-db-1' } });
+    expect(zweiterVersuch).toMatchObject({ status: 'partial', data: { id: 'sale-db-1' } });
+    expect(dienst.sales().map((sale) => sale.id)).toEqual(['sale-db-1']);
+    expect(salesInsert).toHaveBeenCalledOnce();
+    expect(updateItemStatus).toHaveBeenCalledTimes(2);
+    expect(speicher.get('flipbase_pending_sale_follow_ups')).toBe('[]');
+  });
+
+  it('übernimmt eine persistierte Retoure trotz fehlendem Nachschritt lokal', async () => {
+    const syncStatus = new SyncStatusService();
+    const planeArtikelstatusNachholung = vi.fn();
+    const dienst = Object.create(ReturnService.prototype) as ReturnService;
+    Object.assign(dienst, {
+      workspaceService: { currentWorkspace: () => workspace },
+      mockStore: { isDemoMode: () => false },
+      syncStatus,
+      returns: signal([]),
+      inventoryService: {
+        updateItemStatus: async () => ({ error: new Error('Status nicht gespeichert') }),
+      },
+      salesService: {
+        markiereAlsRetourniert: async () => ({ error: null }),
+        planeArtikelstatusNachholung,
+        planeRetourenvermerkNachholung: vi.fn(),
+      },
+      supabase: {
+        client: {
+          from: () => ({
+            insert: () => ({
+              select: () => ({
+                single: async () => ({ data: { id: 'return-db-1' }, error: null }),
+              }),
+            }),
+          }),
+        },
+      },
+    });
+
+    const ergebnis = await dienst.processReturn({
+      sale: verkauf,
+      item: artikel,
+      reason: 'buyer_remorse',
+      refundAmount: 50,
+      isFullRefund: true,
+      restockAction: 'restock_ready',
+    });
+
+    expect(ergebnis).toMatchObject({ status: 'partial', data: { id: 'return-db-1' } });
+    expect(dienst.returns().map((retoure) => retoure.id)).toEqual(['return-db-1']);
+    expect(planeArtikelstatusNachholung).toHaveBeenCalledOnce();
+  });
+
+  it('entfernt einen in der Datenbank gelöschten Verkauf lokal und holt den Artikelstatus nach', async () => {
+    const speicher = installiereArbeitsspeicher();
+    const syncStatus = new SyncStatusService();
+    const updateItemStatus = vi
+      .fn<(_id: string, _status: string, _notes: string) => Promise<{ error: Error | null }>>()
+      .mockResolvedValueOnce({ error: new Error('Status nicht gespeichert') })
+      .mockResolvedValueOnce({ error: null });
+    const dienst = Object.create(SalesService.prototype) as SalesService;
+    Object.assign(dienst, {
+      workspaceService: { currentWorkspace: () => workspace },
+      inventoryService: { updateItemStatus },
+      mockStore: { isDemoMode: () => false, deleteSale: vi.fn() },
+      syncStatus,
+      sales: signal<Sale[]>([verkauf]),
+      pendingFollowUps: signal([]),
+      supabase: {
+        client: {
+          from: () => ({
+            delete: () => ({
+              eq: () => ({
+                select: () => ({
+                  maybeSingle: async () => ({ data: { id: verkauf.id }, error: null }),
+                }),
+              }),
+            }),
+          }),
+        },
+      },
+    });
+
+    const ergebnis = await dienst.deleteSale(verkauf.id, artikel.id);
+    expect(speicher.get('flipbase_pending_sale_follow_ups')).toContain('inventory_status');
+    await (
+      dienst as unknown as { retryPendingFollowUps?: () => Promise<void> }
+    ).retryPendingFollowUps?.();
+
+    expect(ergebnis.status).toBe('partial');
+    expect(dienst.sales()).toEqual([]);
+    expect(updateItemStatus).toHaveBeenCalledTimes(2);
+    expect(speicher.get('flipbase_pending_sale_follow_ups')).toBe('[]');
   });
 });
