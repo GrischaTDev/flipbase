@@ -6,7 +6,13 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { LucideDynamicIcon, LucideCheck as Check, LucideX as X } from '@lucide/angular';
+import {
+  LucideBookOpen as BookOpen,
+  LucideCircleHelp as CircleHelp,
+  LucideDynamicIcon,
+  LucideCheck as Check,
+  LucideX as X,
+} from '@lucide/angular';
 import {
   Groesse,
   PLATTFORM_PROFILE,
@@ -17,11 +23,14 @@ import {
 import { ZuschnittEditorComponent } from './components/zuschnitt-editor/zuschnitt-editor.component';
 import { PlattformVorschauComponent } from './components/plattform-vorschau/plattform-vorschau.component';
 import { BildListeComponent } from './components/bild-liste/bild-liste.component';
+import { FotoguideComponent } from './components/fotoguide/fotoguide.component';
 import { BildExportService, dateiName } from './services/bild-export.service';
 import { ZipExportService, ordnerName } from './services/zip-export.service';
 import { setzeZuschnitt, uebernimmAufAlle, Zuschnitte } from './services/zuschnitte';
 import { SchluesselWarteschlange } from './services/async-warteschlange';
 import { erstelleExportSnapshot, ersetzeWennAktuell } from './services/async-zustand';
+import { FotoguideZustand } from './services/fotoguide-zustand';
+import { findeAufloesungsproblem, pruefeAusgabe } from './services/plattform-validierung';
 
 /**
  * Hinweistext fuer Bilder, die der Browser nicht als Bild dekodieren kann -
@@ -103,6 +112,7 @@ function vollesBild(bild: OptimiererBild): Rechteck | null {
     ZuschnittEditorComponent,
     PlattformVorschauComponent,
     BildListeComponent,
+    FotoguideComponent,
   ],
   templateUrl: './image-optimizer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -116,7 +126,10 @@ export class ImageOptimizerComponent {
   readonly profile = PLATTFORM_PROFILE;
 
   readonly checkIcon = Check;
+  readonly bookIcon = BookOpen;
+  readonly helpIcon = CircleHelp;
   readonly xIcon = X;
+  readonly fotoguide = new FotoguideZustand();
 
   readonly bilder = signal<OptimiererBild[]>([]);
   readonly gewaehlteIds = signal<ProfilId[]>(['ebay']);
@@ -153,6 +166,24 @@ export class ImageOptimizerComponent {
     if (!bild || !plattform) return null;
     return bild.ausschnitte[plattform.id] ?? null;
   });
+
+  readonly aktiveAusgabePruefung = computed(() => {
+    const bild = this.aktivesBild();
+    const plattform = this.aktivePlattform();
+    if (!bild || !plattform) return null;
+    return pruefeAusgabe(bild.ausschnitte[plattform.id] ?? null, bild.naturGroesse, plattform);
+  });
+
+  readonly aufloesungsproblem = computed(() =>
+    findeAufloesungsproblem(
+      this.bilder().map((bild) => ({
+        name: bild.datei.name,
+        naturGroesse: bild.naturGroesse,
+        ausschnitte: bild.ausschnitte,
+      })),
+      this.gewaehlteProfile(),
+    ),
+  );
 
   constructor() {
     // `entferne()` gibt die Object-URL eines Bildes frei, sobald es aus der
@@ -515,7 +546,7 @@ export class ImageOptimizerComponent {
   }
 
   async exportiere(): Promise<void> {
-    if (this.laeuft() || this.drehungenLaufen()) return;
+    if (this.laeuft() || this.drehungenLaufen() || this.aufloesungsproblem()) return;
 
     this.laeuft.set(true);
     this.fehler.set(null);
@@ -537,6 +568,12 @@ export class ImageOptimizerComponent {
 
         for (const p of snapshot.profile) {
           const ausschnitt = bild.ausschnitte[p.id] ?? ersatz;
+          const pruefung = pruefeAusgabe(ausschnitt, null, p);
+          if (pruefung && !pruefung.istGueltig) {
+            throw new Error(
+              `${bild.datei.name} ist für ${p.name} mit ${pruefung.breite} × ${pruefung.hoehe} px zu klein.`,
+            );
+          }
           eintraege.push({
             ordner: ordnerName(p),
             datei: dateiName(index, p),

@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import * as plattformProfile from './plattform-profile';
 import { PLATTFORM_PROFILE, profil } from './plattform-profile';
 
 /**
@@ -66,5 +67,33 @@ describe('Plattformprofile', () => {
     expect(profil('ebay').maxDateigroesseMB).toBe(12);
     expect(profil('kleinanzeigen').maxDateigroesseMB).toBe(12);
     expect(profil('vinted').maxDateigroesseMB).toBeNull();
+  });
+
+  it('erkennt eine eBay-Ausgabe unter der offiziellen Mindestgroesse', () => {
+    const pruefeMindestgroesse = (
+      plattformProfile as unknown as {
+        pruefeMindestgroesse: (
+          groesse: { breite: number; hoehe: number },
+          p: ReturnType<typeof profil>,
+        ) => boolean;
+      }
+    ).pruefeMindestgroesse;
+
+    expect(pruefeMindestgroesse({ breite: 499, hoehe: 500 }, profil('ebay'))).toBe(false);
+    expect(pruefeMindestgroesse({ breite: 500, hoehe: 500 }, profil('ebay'))).toBe(true);
+  });
+
+  it('blockiert Plattformen ohne bekannte Mindestgroesse nicht', () => {
+    const pruefeMindestgroesse = (
+      plattformProfile as unknown as {
+        pruefeMindestgroesse: (
+          groesse: { breite: number; hoehe: number },
+          p: ReturnType<typeof profil>,
+        ) => boolean;
+      }
+    ).pruefeMindestgroesse;
+
+    expect(pruefeMindestgroesse({ breite: 120, hoehe: 80 }, profil('kleinanzeigen'))).toBe(true);
+    expect(pruefeMindestgroesse({ breite: 120, hoehe: 80 }, profil('vinted'))).toBe(true);
   });
 });

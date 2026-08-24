@@ -29,6 +29,9 @@ export interface PlattformProfil {
   readonly exportVerhaeltnis: number;
   readonly exportBreite: number;
   readonly exportHoehe: number;
+  /** Offizielle Mindestmasse, oder null wenn die Plattform keine nennt. */
+  readonly minBreite: number | null;
+  readonly minHoehe: number | null;
   /** Grenze der Plattform in MB, oder null wenn keine bekannt ist. */
   readonly maxDateigroesseMB: number | null;
   /** Verhaeltnis der Kachel in der Trefferliste. */
@@ -62,6 +65,8 @@ export const PLATTFORM_PROFILE: readonly PlattformProfil[] = [
     exportVerhaeltnis: 1,
     exportBreite: 1600,
     exportHoehe: 1600,
+    minBreite: 500,
+    minHoehe: 500,
     maxDateigroesseMB: 12,
     kachelVerhaeltnis: 1,
     // eBay passt das Bild in die quadratische Kachel ein, statt zu schneiden.
@@ -77,6 +82,8 @@ export const PLATTFORM_PROFILE: readonly PlattformProfil[] = [
     exportVerhaeltnis: 4 / 3,
     exportBreite: 1600,
     exportHoehe: 1200,
+    minBreite: null,
+    minHoehe: null,
     maxDateigroesseMB: 12,
     kachelVerhaeltnis: 4 / 3,
     schneidet: true,
@@ -90,6 +97,8 @@ export const PLATTFORM_PROFILE: readonly PlattformProfil[] = [
     exportVerhaeltnis: 2 / 3,
     exportBreite: 1200,
     exportHoehe: 1800,
+    minBreite: null,
+    minHoehe: null,
     // Vinted nennt keine Grenze; es wird nur auf Qualitaet komprimiert.
     maxDateigroesseMB: null,
     kachelVerhaeltnis: 2 / 3,
@@ -99,6 +108,12 @@ export const PLATTFORM_PROFILE: readonly PlattformProfil[] = [
     gemessenAm: '2026-08-23',
   },
 ];
+
+/** Ob eine fertige Ausgabe die bekannten Mindestmasse der Plattform einhaelt. */
+export function pruefeMindestgroesse(groesse: Groesse, plattform: PlattformProfil): boolean {
+  if (plattform.minBreite === null || plattform.minHoehe === null) return true;
+  return groesse.breite >= plattform.minBreite && groesse.hoehe >= plattform.minHoehe;
+}
 
 /** Holt ein Profil. Wirft, wenn die Kennung unbekannt ist. */
 export function profil(id: ProfilId): PlattformProfil {

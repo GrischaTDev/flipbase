@@ -58,6 +58,14 @@
                 {{ p.exportVerhaeltnis === 1 ? '1:1' : p.id === 'vinted' ? '2:3' : '4:3' }}
               </span>
             </button>
+            <button
+              type="button"
+              (click)="fotoguide.oeffnen(p.id)"
+              [attr.aria-label]="'Hilfe zu ' + p.name"
+              class="grid w-8 cursor-pointer place-items-center border-l border-fb-border text-fb-text-muted hover:bg-indigo-500/10 hover:text-indigo-200 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400"
+            >
+              <svg [lucideIcon]="helpIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+            </button>
             @if (aktivePlattform()?.id === p.id && gewaehlteProfile().length > 1) {
               <button
                 type="button"
@@ -71,7 +79,15 @@
             }
           </div>
         }
-        <span class="ml-auto text-[10px] text-fb-text-muted">{{ bilder().length }} Bild(er)</span>
+        <button
+          type="button"
+          (click)="fotoguide.oeffnen()"
+          class="ml-auto inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-amber-400/25 bg-amber-400/10 px-2.5 py-1.5 text-[10px] font-bold text-amber-200 hover:bg-amber-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+        >
+          <svg [lucideIcon]="bookIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+          Fotoguide
+        </button>
+        <span class="text-[10px] text-fb-text-muted">{{ bilder().length }} Bild(er)</span>
       </div>
     </div>
   </section>
@@ -99,6 +115,23 @@
               Auf andere Plattformen übernehmen
             </button>
           </header>
+
+          @if (aktiveAusgabePruefung(); as pruefung) {
+            @if (!pruefung.istGueltig) {
+              <div
+                class="mb-4 flex gap-2 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-rose-200"
+                role="alert"
+              >
+                <span aria-hidden="true">!</span>
+                <span>
+                  Dieser Ausschnitt ergibt nur {{ pruefung.breite }} × {{ pruefung.hoehe }} px. eBay
+                  verlangt mindestens 500 px an der längsten Seite. Bitte wähle einen größeren
+                  Ausschnitt oder ein höher aufgelöstes Original. Flipbase skaliert nicht künstlich
+                  hoch.
+                </span>
+              </div>
+            }
+          }
 
           <app-zuschnitt-editor
             [datenUrl]="bild.datenUrl"
@@ -158,6 +191,11 @@
       <div>
         @if (bild.ladefehler) {
           <p class="text-[11px] text-rose-400">{{ bild.ladefehler }}</p>
+        } @else if (aufloesungsproblem(); as problem) {
+          <p class="text-[11px] text-rose-300" role="alert">
+            {{ problem.bildName }} ist für {{ problem.plattformName }} mit {{ problem.breite }} ×
+            {{ problem.hoehe }} px zu klein.
+          </p>
         } @else if (fehler(); as f) {
           <p class="text-[11px] text-rose-400">{{ f }}</p>
         } @else {
@@ -171,7 +209,12 @@
       <button
         type="button"
         (click)="exportiere()"
-        [disabled]="laeuft() || drehungenLaufen() || gewaehlteProfile().length === 0"
+        [disabled]="
+          laeuft() ||
+          drehungenLaufen() ||
+          gewaehlteProfile().length === 0 ||
+          aufloesungsproblem() !== null
+        "
         class="linear-btn-primary cursor-pointer rounded-xl px-5 py-2.5 text-xs font-bold disabled:opacity-40"
       >
         {{ laeuft() ? 'Bilder werden erzeugt …' : 'Bilder exportieren' }}
@@ -196,3 +239,7 @@
     </label>
   }
 </div>
+
+@if (fotoguide.istOffen()) {
+  <app-fotoguide [zustand]="fotoguide" (geschlossen)="fotoguide.schliessen()"></app-fotoguide>
+}
