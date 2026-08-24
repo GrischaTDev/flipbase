@@ -46,6 +46,8 @@ export class ZuschnittEditorComponent {
 
   readonly ausschnittGeaendert = output<Rechteck>();
   readonly drehen = output<void>();
+  /** `loadImageFailed` der Bibliothek, durchgereicht - z.B. bei HEIC-Fotos. */
+  readonly ladenFehlgeschlagen = output<void>();
 
   readonly letzterAusschnitt = signal<Rechteck | null>(null);
 

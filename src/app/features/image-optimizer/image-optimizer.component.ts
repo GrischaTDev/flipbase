@@ -15,6 +15,16 @@ import { BildExportService, dateiName } from './services/bild-export.service';
 import { ZipExportService, ordnerName } from './services/zip-export.service';
 import { leiteAb, reichtAufloesung, vergroesserungsfaktor } from './services/zuschnitt';
 
+/**
+ * Hinweistext fuer Bilder, die der Browser nicht als Bild dekodieren kann -
+ * typischerweise HEIC-Fotos vom iPhone. An genau dieser einen Stelle
+ * definiert und sowohl beim Lesen (ueber das `loadImageFailed`-Ereignis des
+ * Editors) als auch beim Export (`ladeBild`) referenziert, damit die beiden
+ * Meldungen nie auseinanderlaufen koennen.
+ */
+export const HEIC_HINWEIS =
+  'Das Bild liess sich nicht lesen. HEIC-Dateien vom iPhone kann der Browser oft nicht öffnen.';
+
 /** Ein hochgeladenes Bild mit seinem Zuschnitt. */
 export interface OptimiererBild {
   readonly id: string;
@@ -28,6 +38,11 @@ export interface OptimiererBild {
    * und der Export muessen selbst nichts von einer Drehung wissen.
    */
   readonly drehung: 0 | 1 | 2 | 3;
+  /**
+   * Hinweis, falls der Cropper dieses Bild beim Lesen nicht anzeigen konnte
+   * (siehe `HEIC_HINWEIS`). Null, solange das Lesen nicht fehlgeschlagen ist.
+   */
+  readonly ladefehler: string | null;
 }
 
 /**
@@ -133,6 +148,7 @@ export class ImageOptimizerComponent {
         datenUrl: URL.createObjectURL(datei),
         ausschnitt: null,
         drehung: 0,
+        ladefehler: null,
       });
     }
 
@@ -154,6 +170,18 @@ export class ImageOptimizerComponent {
 
   merkeAusschnitt(id: string, ausschnitt: Rechteck): void {
     this.bilder.update((liste) => liste.map((b) => (b.id === id ? { ...b, ausschnitt } : b)));
+  }
+
+  /**
+   * `(ladenFehlgeschlagen)` vom Editor: Der Cropper konnte dieses Bild nicht
+   * anzeigen (typischerweise HEIC). Zeigt den Hinweis sofort direkt am
+   * betroffenen Bild, statt den leeren Editor stehen zu lassen und erst beim
+   * Export ueberhaupt zu bemerken, dass etwas fehlt.
+   */
+  beiLadeFehler(id: string): void {
+    this.bilder.update((liste) =>
+      liste.map((b) => (b.id === id ? { ...b, ladefehler: HEIC_HINWEIS } : b)),
+    );
   }
 
   /**
@@ -308,12 +336,7 @@ export class ImageOptimizerComponent {
     return new Promise((aufloesen, ablehnen) => {
       const bild = new Image();
       bild.onload = () => aufloesen(bild);
-      bild.onerror = () =>
-        ablehnen(
-          new Error(
-            'Das Bild liess sich nicht lesen. HEIC-Dateien vom iPhone kann der Browser oft nicht öffnen.',
-          ),
-        );
+      bild.onerror = () => ablehnen(new Error(HEIC_HINWEIS));
       bild.src = url;
     });
   }

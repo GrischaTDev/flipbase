@@ -9,6 +9,7 @@
       (imageCropped)="beiZuschnitt($event)"
       (imageLoaded)="beiBildGeladen($event)"
       (cropperReady)="beiCropperBereit($event)"
+      (loadImageFailed)="ladenFehlgeschlagen.emit()"
     ></image-cropper>
 
     @if (sichererBereichRahmen(); as rahmen) {
