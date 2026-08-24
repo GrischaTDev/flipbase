@@ -6,7 +6,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { LucideDynamicIcon, LucideCheck as Check } from '@lucide/angular';
+import { LucideDynamicIcon, LucideCheck as Check, LucideX as X } from '@lucide/angular';
 import {
   Groesse,
   PLATTFORM_PROFILE,
@@ -20,6 +20,9 @@ import { BildListeComponent } from './components/bild-liste/bild-liste.component
 import { BildExportService, dateiName } from './services/bild-export.service';
 import { ZipExportService, ordnerName } from './services/zip-export.service';
 import { leiteAb, reichtAufloesung, vergroesserungsfaktor } from './services/zuschnitt';
+import { setzeZuschnitt, uebernimmAufAlle, Zuschnitte } from './services/zuschnitte';
+import { SchluesselWarteschlange } from './services/async-warteschlange';
+import { erstelleExportSnapshot, ersetzeWennAktuell } from './services/async-zustand';
 
 /**
  * Hinweistext fuer Bilder, die der Browser nicht als Bild dekodieren kann -
@@ -31,13 +34,13 @@ import { leiteAb, reichtAufloesung, vergroesserungsfaktor } from './services/zus
 export const HEIC_HINWEIS =
   'Das Bild liess sich nicht lesen. HEIC-Dateien vom iPhone kann der Browser oft nicht öffnen.';
 
-/** Ein hochgeladenes Bild mit seinem Zuschnitt. */
+/** Ein hochgeladenes Bild mit seinen plattformspezifischen Zuschnitten. */
 export interface OptimiererBild {
   readonly id: string;
   readonly datei: File;
   readonly datenUrl: string;
-  /** Ausschnitt in Originalpixeln. Null, solange nichts gesetzt wurde. */
-  readonly ausschnitt: Rechteck | null;
+  /** Zuschnitt je Plattform, in Originalpixeln. Leer, solange nichts gesetzt wurde. */
+  readonly ausschnitte: Zuschnitte;
   /**
    * Viertelumdrehungen im Uhrzeigersinn, bereits in `datenUrl` eingebrannt.
    * `datenUrl` zeigt also immer das fertig gedrehte Bild - Editor, Vorschauen
@@ -62,14 +65,10 @@ export interface OptimiererBild {
 }
 
 /**
- * Der Ausschnitt, mit dem fuer dieses Bild tatsaechlich gerechnet werden
- * muss: der vom Nutzer gezogene, oder - falls er das Bild nie geoeffnet hat -
- * ersatzweise das volle Bild anhand von `naturGroesse`. Von `warnungen()` und
- * `exportiere()` gemeinsam genutzt, damit beide auf derselben Annahme stehen.
- * Null nur, wenn weder ein Ausschnitt noch eine bekannte Groesse vorliegt.
+ * Das volle Bild als Ersatz fuer Plattformen ohne eigenen Zuschnitt. Null
+ * nur, solange die natuerliche Groesse noch nicht bekannt ist.
  */
-function effektiverAusschnitt(bild: OptimiererBild): Rechteck | null {
-  if (bild.ausschnitt) return bild.ausschnitt;
+function vollesBild(bild: OptimiererBild): Rechteck | null {
   if (!bild.naturGroesse) return null;
   return { x: 0, y: 0, breite: bild.naturGroesse.breite, hoehe: bild.naturGroesse.hoehe };
 }
@@ -95,16 +94,23 @@ function effektiverAusschnitt(bild: OptimiererBild): Rechteck | null {
 export class ImageOptimizerComponent {
   private readonly bildExport = inject(BildExportService);
   private readonly zipExport = inject(ZipExportService);
+  private readonly drehWarteschlange = new SchluesselWarteschlange<string>();
+  private zerstoert = false;
 
   readonly profile = PLATTFORM_PROFILE;
 
   readonly checkIcon = Check;
+  readonly xIcon = X;
 
   readonly bilder = signal<OptimiererBild[]>([]);
   readonly gewaehlteIds = signal<ProfilId[]>(['ebay']);
   readonly aktivesBildId = signal<string | null>(null);
 
+  /** Die Plattform, fuer die der Editor gerade einen Zuschnitt bearbeitet. */
+  readonly aktivePlattformId = signal<ProfilId | null>('ebay');
+
   readonly laeuft = signal(false);
+  readonly drehungenLaufen = computed(() => this.drehWarteschlange.anzahlAusstehend() > 0);
   readonly fehler = signal<string | null>(null);
 
   readonly gewaehlteProfile = computed<PlattformProfil[]>(() =>
@@ -114,6 +120,23 @@ export class ImageOptimizerComponent {
   readonly aktivesBild = computed<OptimiererBild | null>(
     () => this.bilder().find((b) => b.id === this.aktivesBildId()) ?? null,
   );
+
+  /** Faellt auf die erste gewaehlte Plattform zurueck, falls die aktive entfaellt. */
+  readonly aktivePlattform = computed<PlattformProfil | null>(() => {
+    const gewaehlt = this.gewaehlteProfile();
+    if (gewaehlt.length === 0) return null;
+
+    const aktiv = gewaehlt.find((p) => p.id === this.aktivePlattformId());
+    return aktiv ?? gewaehlt[0];
+  });
+
+  /** Der Zuschnitt des aktiven Bildes fuer die aktive Plattform. */
+  readonly aktiverAusschnitt = computed<Rechteck | null>(() => {
+    const bild = this.aktivesBild();
+    const plattform = this.aktivePlattform();
+    if (!bild || !plattform) return null;
+    return bild.ausschnitte[plattform.id] ?? null;
+  });
 
   /** Ob mindestens eine gewaehlte Plattform tatsaechlich beschneidet. */
   readonly esWirdGeschnitten = computed<boolean>(() =>
@@ -125,14 +148,14 @@ export class ImageOptimizerComponent {
     const meldungen: string[] = [];
 
     for (const [index, bild] of this.bilder().entries()) {
-      // Nur die aktive Bildvorschau zeigt je einen Editor - alle anderen
-      // Bilder haben nie einen `ausschnitt` bekommen, wenn der Nutzer sie nie
-      // geoeffnet hat. Ohne diesen Ersatz wuerden zwanzig ungeoeffnete Fotos
-      // stillschweigend in voller Groesse exportiert, ganz ohne Warnung.
-      const ausschnitt = effektiverAusschnitt(bild);
-      if (!ausschnitt) continue;
+      const ersatz = vollesBild(bild);
 
       for (const p of this.gewaehlteProfile()) {
+        // Hat diese Plattform noch keinen eigenen Zuschnitt, gelten dieselben
+        // vollen Bildmasse, die auch der Export verwendet.
+        const ausschnitt = bild.ausschnitte[p.id] ?? ersatz;
+        if (!ausschnitt) continue;
+
         if (!reichtAufloesung(ausschnitt, p.exportBreite, p.exportHoehe)) {
           // reichtAufloesung prueft bewusst den rohen Ausschnitt (das ist die
           // Aufloesung, die der Nutzer tatsaechlich gezogen hat), aber der
@@ -158,6 +181,7 @@ export class ImageOptimizerComponent {
     // Liste geloescht wird - verlaesst der Nutzer die Seite aber vorher,
     // bleiben alle noch geladenen Fotos in vollem Original in Erinnerung.
     inject(DestroyRef).onDestroy(() => {
+      this.zerstoert = true;
       for (const bild of this.bilder()) {
         URL.revokeObjectURL(bild.datenUrl);
       }
@@ -165,13 +189,61 @@ export class ImageOptimizerComponent {
   }
 
   schaltePlattform(id: ProfilId): void {
+    if (this.laeuft()) return;
+
+    const vorher = this.gewaehlteIds();
+    const wirdGewaehlt = !vorher.includes(id);
+
+    // Mindestens ein Exportziel bleibt immer gewaehlt. Im Template ist der
+    // entsprechende Kreuz-Knopf zusaetzlich gar nicht erst sichtbar.
+    if (!wirdGewaehlt && vorher.length === 1) return;
+
     this.gewaehlteIds.update((ids) =>
       ids.includes(id) ? ids.filter((v) => v !== id) : [...ids, id],
     );
+
+    if (!wirdGewaehlt) {
+      if (this.aktivePlattformId() === id) {
+        this.aktivePlattformId.set(this.gewaehlteIds()[0] ?? null);
+      }
+      return;
+    }
+
+    // Neu dazugewaehlt: aus dem bisherigen Arbeitsziel ableiten, damit fuer
+    // bereits bearbeitete Bilder nicht unbemerkt das Vollbild exportiert wird.
+    const quelle = this.aktivePlattform();
+    if (!quelle) return;
+
+    const gewaehlt = this.gewaehlteProfile();
+    this.bilder.update((liste) =>
+      liste.map((b) => {
+        const rechteck = b.ausschnitte[quelle.id];
+        if (!rechteck) return b;
+        return {
+          ...b,
+          ausschnitte: setzeZuschnitt(b.ausschnitte, quelle.id, rechteck, gewaehlt),
+        };
+      }),
+    );
+  }
+
+  /** Waehlt eine Plattform bei Bedarf aus und setzt sie immer als Arbeitsziel. */
+  waehleArbeitsziel(id: ProfilId): void {
+    if (this.laeuft()) return;
+
+    if (!this.gewaehlteIds().includes(id)) {
+      this.schaltePlattform(id);
+    }
+    this.aktivePlattformId.set(id);
+  }
+
+  setzeAktivesBild(id: string): void {
+    if (this.laeuft()) return;
+    this.aktivesBildId.set(id);
   }
 
   async nimmDateien(dateien: FileList | null): Promise<void> {
-    if (!dateien) return;
+    if (this.laeuft() || !dateien) return;
 
     const neue: OptimiererBild[] = [];
     for (const datei of Array.from(dateien)) {
@@ -180,7 +252,7 @@ export class ImageOptimizerComponent {
         id: crypto.randomUUID(),
         datei,
         datenUrl: URL.createObjectURL(datei),
-        ausschnitt: null,
+        ausschnitte: {},
         drehung: 0,
         ladefehler: null,
         naturGroesse: null,
@@ -212,7 +284,10 @@ export class ImageOptimizerComponent {
    * Antwort: Wurde das Bild zwischenzeitlich gedreht, hat `datenUrl` sich
    * schon geaendert und `drehe()` bereits eine frische `naturGroesse`
    * gesetzt - die hier noch laufende Messung des alten Standes darf die
-   * neue nicht ueberschreiben.
+   * neue nicht ueberschreiben. Die immutable Aktualisierung darf auch waehrend
+   * eines Exports fertig werden: Dessen zuvor kopierter Snapshot bleibt davon
+   * unberuehrt, waehrend die ermittelte Groesse fuer spaetere Exporte erhalten
+   * bleibt.
    */
   private async ermittleNaturGroesse(id: string, datenUrl: string): Promise<void> {
     try {
@@ -230,6 +305,8 @@ export class ImageOptimizerComponent {
   }
 
   entferne(id: string): void {
+    if (this.laeuft()) return;
+
     const betroffen = this.bilder().find((b) => b.id === id);
     if (betroffen) URL.revokeObjectURL(betroffen.datenUrl);
 
@@ -239,8 +316,46 @@ export class ImageOptimizerComponent {
     }
   }
 
-  merkeAusschnitt(id: string, ausschnitt: Rechteck): void {
-    this.bilder.update((liste) => liste.map((b) => (b.id === id ? { ...b, ausschnitt } : b)));
+  merkeAusschnitt(id: string, rechteck: Rechteck): void {
+    if (this.laeuft()) return;
+
+    const plattform = this.aktivePlattform();
+    if (!plattform) return;
+
+    this.bilder.update((liste) =>
+      liste.map((b) =>
+        b.id === id
+          ? {
+              ...b,
+              ausschnitte: setzeZuschnitt(
+                b.ausschnitte,
+                plattform.id,
+                rechteck,
+                this.gewaehlteProfile(),
+              ),
+            }
+          : b,
+      ),
+    );
+  }
+
+  /** Uebertraegt den aktiven Zuschnitt auf alle anderen gewaehlten Plattformen. */
+  uebernehmen(id: string): void {
+    if (this.laeuft()) return;
+
+    const plattform = this.aktivePlattform();
+    if (!plattform) return;
+
+    this.bilder.update((liste) =>
+      liste.map((b) =>
+        b.id === id
+          ? {
+              ...b,
+              ausschnitte: uebernimmAufAlle(b.ausschnitte, plattform.id, this.gewaehlteProfile()),
+            }
+          : b,
+      ),
+    );
   }
 
   /**
@@ -250,6 +365,8 @@ export class ImageOptimizerComponent {
    * Export ueberhaupt zu bemerken, dass etwas fehlt.
    */
   beiLadeFehler(id: string): void {
+    if (this.laeuft()) return;
+
     this.bilder.update((liste) =>
       liste.map((b) => (b.id === id ? { ...b, ladefehler: HEIC_HINWEIS } : b)),
     );
@@ -264,39 +381,59 @@ export class ImageOptimizerComponent {
    * und das Bild verlöre bei mehrfachem Drehen sichtbar an Qualitaet.
    */
   async drehe(id: string): Promise<void> {
-    const bild = this.bilder().find((b) => b.id === id);
-    if (!bild) return;
+    if (this.laeuft() || this.zerstoert) return;
 
-    const neueDrehung = ((bild.drehung + 1) % 4) as 0 | 1 | 2 | 3;
+    return this.drehWarteschlange.einreihen(id, async () => {
+      // Der Drehstand wird absichtlich erst bei Ausfuehrung gelesen. Dadurch
+      // baut jede wartende Drehung auf dem Ergebnis ihrer Vorgaengerin auf.
+      if (this.laeuft() || this.zerstoert) return;
+      const bild = this.bilder().find((eintrag) => eintrag.id === id);
+      if (!bild) return;
 
-    try {
-      const { datenUrl, groesse } = await this.dreheDatei(bild.datei, neueDrehung);
-      URL.revokeObjectURL(bild.datenUrl);
+      const ausgangsUrl = bild.datenUrl;
+      const neueDrehung = ((bild.drehung + 1) % 4) as 0 | 1 | 2 | 3;
 
-      this.bilder.update((liste) =>
-        liste.map((b) =>
-          b.id === id
-            ? {
-                ...b,
-                datenUrl,
-                drehung: neueDrehung,
-                // Ein vor der Drehung gezogener Ausschnitt bezieht sich auf
-                // die ungedrehte Geometrie und zeigt danach auf einen ganz
-                // anderen Bildbereich - er wird deshalb bewusst verworfen
-                // statt umgerechnet oder uebernommen.
-                ausschnitt: null,
-                // Bei einer ungeraden Anzahl Umdrehungen tauschen Breite und
-                // Hoehe - die Zeichenflaeche kennt die neue Groesse bereits
-                // genau, eine erneute Messung waere nur eine zweite Dekodierung
-                // desselben Ergebnisses.
-                naturGroesse: groesse,
-              }
-            : b,
-        ),
-      );
-    } catch (e: unknown) {
-      this.fehler.set(e instanceof Error ? e.message : 'Das Bild liess sich nicht drehen.');
-    }
+      try {
+        const { datenUrl, groesse } = await this.dreheDatei(bild.datei, neueDrehung);
+
+        // Eine vor Exportstart begonnene Drehung darf den bereits erstellten
+        // Snapshot und den waehrenddessen gesperrten Live-Zustand nicht mehr
+        // veraendern. Ihre neu erzeugte URL wird sofort freigegeben.
+        if (this.laeuft() || this.zerstoert) {
+          URL.revokeObjectURL(datenUrl);
+          return;
+        }
+
+        let ersetzteUrl: string | null = null;
+        let uebernommen = false;
+        this.bilder.update((liste) => {
+          const ergebnis = ersetzeWennAktuell(liste, id, ausgangsUrl, (aktuell) => ({
+            ...aktuell,
+            datenUrl,
+            drehung: neueDrehung,
+            // Ein vor der Drehung gezogener Ausschnitt bezieht sich auf
+            // die ungedrehte Geometrie und wird deshalb verworfen.
+            ausschnitte: {},
+            naturGroesse: groesse,
+          }));
+          ersetzteUrl = ergebnis.ersetzteUrl;
+          uebernommen = ergebnis.uebernommen;
+          return ergebnis.liste;
+        });
+
+        if (uebernommen && ersetzteUrl) {
+          URL.revokeObjectURL(ersetzteUrl);
+        } else {
+          // Das Bild wurde entfernt oder bereits durch einen neueren Stand
+          // ersetzt. Das unbenutzte Drehergebnis darf nicht im Speicher bleiben.
+          URL.revokeObjectURL(datenUrl);
+        }
+      } catch (e: unknown) {
+        if (!this.laeuft() && !this.zerstoert) {
+          this.fehler.set(e instanceof Error ? e.message : 'Das Bild liess sich nicht drehen.');
+        }
+      }
+    });
   }
 
   /**
@@ -370,6 +507,8 @@ export class ImageOptimizerComponent {
 
   /** Schiebt ein Bild in der Reihenfolge. Position 0 ist das Hauptbild. */
   verschiebe(id: string, richtung: -1 | 1): void {
+    if (this.laeuft()) return;
+
     this.bilder.update((liste) => {
       const von = liste.findIndex((b) => b.id === id);
       const nach = von + richtung;
@@ -382,27 +521,28 @@ export class ImageOptimizerComponent {
   }
 
   async exportiere(): Promise<void> {
+    if (this.laeuft() || this.drehungenLaufen()) return;
+
     this.laeuft.set(true);
     this.fehler.set(null);
+    const snapshot = erstelleExportSnapshot(this.bilder(), this.gewaehlteProfile());
 
     try {
       const eintraege = [];
 
-      for (const [index, bild] of this.bilder().entries()) {
+      for (const [index, bild] of snapshot.bilder.entries()) {
         const element = await this.ladeBild(bild.datenUrl);
-        // Dieselbe Herleitung wie in `warnungen()` (effektiverAusschnitt),
-        // damit beide fuer ein nie geoeffnetes Bild vom selben Ausschnitt
-        // ausgehen. Der Rueckgriff auf `element` bleibt als letzte
-        // Absicherung, falls `naturGroesse` ausnahmsweise noch nicht
-        // ermittelt wurde (z.B. Export unmittelbar nach dem Hochladen).
-        const ausschnitt = effektiverAusschnitt(bild) ?? {
+        // Letzte Absicherung, falls `naturGroesse` unmittelbar nach dem
+        // Hochladen noch nicht ermittelt wurde.
+        const ersatz = vollesBild(bild) ?? {
           x: 0,
           y: 0,
           breite: element.naturalWidth,
           hoehe: element.naturalHeight,
         };
 
-        for (const p of this.gewaehlteProfile()) {
+        for (const p of snapshot.profile) {
+          const ausschnitt = bild.ausschnitte[p.id] ?? ersatz;
           eintraege.push({
             ordner: ordnerName(p),
             datei: dateiName(index, p),

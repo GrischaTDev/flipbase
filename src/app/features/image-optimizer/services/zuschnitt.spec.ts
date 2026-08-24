@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  leiteAb,
-  reichtAufloesung,
-  safeArea,
-  schnittmenge,
-  vergroesserungsfaktor,
-} from './zuschnitt';
+import { leiteAb, reichtAufloesung, vergroesserungsfaktor } from './zuschnitt';
 import { PLATTFORM_PROFILE, Rechteck, profil } from '../models/plattform-profile';
 
 const quadrat: Rechteck = { x: 100, y: 100, breite: 1000, hoehe: 1000 };
@@ -41,57 +35,6 @@ describe('Ableitung eines Plattformformats', () => {
       expect(r.x + r.breite).toBeLessThanOrEqual(quadrat.x + quadrat.breite + 0.001);
       expect(r.y + r.hoehe).toBeLessThanOrEqual(quadrat.y + quadrat.hoehe + 0.001);
     }
-  });
-});
-
-describe('Schnittmenge', () => {
-  it('von einem Rechteck ist das Rechteck selbst', () => {
-    expect(schnittmenge([quadrat])).toEqual(quadrat);
-  });
-
-  it('von quer und hochkant ist der gemeinsame Kern', () => {
-    const quer = leiteAb(quadrat, 4 / 3);
-    const hoch = leiteAb(quadrat, 2 / 3);
-    const kern = schnittmenge([quer, hoch]);
-
-    expect(kern).not.toBeNull();
-    expect(kern!.breite).toBeCloseTo(hoch.breite, 5);
-    expect(kern!.hoehe).toBeCloseTo(quer.hoehe, 5);
-  });
-
-  it('ist null, wenn sich nichts ueberschneidet', () => {
-    const links: Rechteck = { x: 0, y: 0, breite: 10, hoehe: 10 };
-    const rechts: Rechteck = { x: 100, y: 0, breite: 10, hoehe: 10 };
-    expect(schnittmenge([links, rechts])).toBeNull();
-  });
-
-  it('ist null bei leerer Liste', () => {
-    expect(schnittmenge([])).toBeNull();
-  });
-});
-
-describe('Safe-Area', () => {
-  it('beruecksichtigt auch eBay, weil der Export trotzdem zuschneidet', () => {
-    // eBay passt in der Trefferliste nur ein, aber der Export schneidet auch
-    // bei eBay unbedingt auf 1:1 zu - die Safe-Area muss das widerspiegeln.
-    const breit: Rechteck = { x: 0, y: 0, breite: 1500, hoehe: 1000 };
-    const mitEbay = safeArea(breit, [profil('ebay')]);
-    expect(mitEbay.breite).toBe(1000);
-  });
-
-  it('ist bei eBay allein das eingepasste Quadrat', () => {
-    const breit: Rechteck = { x: 0, y: 0, breite: 1500, hoehe: 1000 };
-    expect(safeArea(breit, [profil('ebay')])).toEqual(leiteAb(breit, 1));
-  });
-
-  it('wird bei quer und hochkant gleichzeitig deutlich kleiner', () => {
-    const beide = safeArea(quadrat, [profil('kleinanzeigen'), profil('vinted')]);
-    expect(beide.breite).toBeLessThan(quadrat.breite);
-    expect(beide.hoehe).toBeLessThan(quadrat.hoehe);
-  });
-
-  it('ist der ganze Ausschnitt, wenn gar keine Plattform gewaehlt ist', () => {
-    expect(safeArea(quadrat, [])).toEqual(quadrat);
   });
 });
 

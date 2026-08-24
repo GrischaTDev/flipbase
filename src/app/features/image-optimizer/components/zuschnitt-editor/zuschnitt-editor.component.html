@@ -1,44 +1,30 @@
 <div class="space-y-3">
-  <div class="relative">
+  <div class="relative flex h-[420px] max-h-[60vh] items-center justify-center overflow-hidden">
     <image-cropper
       [imageURL]="datenUrl()"
-      [maintainAspectRatio]="false"
+      [maintainAspectRatio]="true"
+      [aspectRatio]="verhaeltnis()"
       [format]="'jpeg'"
+      [output]="'base64'"
       [cropper]="cropperEingabe()"
       [resizeToWidth]="32"
+      [disabled]="deaktiviert()"
       (imageCropped)="beiZuschnitt($event)"
       (imageLoaded)="beiBildGeladen($event)"
       (cropperReady)="beiCropperBereit($event)"
       (loadImageFailed)="ladenFehlgeschlagen.emit()"
     ></image-cropper>
-
-    @if (sichererBereichRahmen(); as rahmen) {
-      <!-- Der Bereich, den keine gewaehlte Plattform anschneidet. In
-           Anzeigepixeln des Zuschnittrahmens positioniert (nicht in Prozent
-           des umschliessenden Elements), damit er dem vom Nutzer gezogenen
-           Rahmen folgt statt immer mittig im Editor zu haengen. Nur ein
-           Hinweis, deshalb ohne Mausereignisse. -->
-      <div
-        class="absolute border-2 border-dashed border-emerald-400/70 pointer-events-none"
-        [style.width.px]="rahmen.breite"
-        [style.height.px]="rahmen.hoehe"
-        [style.left.px]="rahmen.links"
-        [style.top.px]="rahmen.oben"
-      ></div>
-    }
   </div>
 
   <div class="flex items-center gap-2">
     <button
       type="button"
       (click)="drehen.emit()"
-      class="px-2.5 py-1.5 rounded-lg border border-fb-border text-fb-text-secondary hover:text-fb-text-primary cursor-pointer"
+      [disabled]="deaktiviert()"
+      class="px-2.5 py-1.5 rounded-lg border border-fb-border text-fb-text-secondary hover:text-fb-text-primary cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
       aria-label="Bild drehen"
     >
       <svg [lucideIcon]="rotateIcon" class="w-3.5 h-3.5"></svg>
     </button>
-    <p class="text-[11px] text-fb-text-muted">
-      Der gestrichelte Bereich wird von keiner gewählten Plattform angeschnitten.
-    </p>
   </div>
 </div>

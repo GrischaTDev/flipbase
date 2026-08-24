@@ -20,6 +20,7 @@ import { OptimiererBild } from '../../image-optimizer.component';
 export class BildListeComponent {
   readonly bilder = input.required<OptimiererBild[]>();
   readonly aktivesId = input<string | null>(null);
+  readonly deaktiviert = input(false);
 
   readonly gewaehlt = output<string>();
   readonly entfernt = output<string>();
