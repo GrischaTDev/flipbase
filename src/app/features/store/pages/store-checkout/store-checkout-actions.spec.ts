@@ -46,7 +46,12 @@ describe('StoreCheckoutComponent – Bestellmeldung', () => {
   });
 
   it('bestätigt die Bestellung vor der Navigation zur Erfolgsseite', async () => {
-    placeOrder.mockResolvedValue({ id: 'order-1' });
+    placeOrder.mockResolvedValue({
+      status: 'success',
+      order: { id: 'order-1' },
+      error: null,
+      problems: [],
+    });
     const toastWarVorNavigation: boolean[] = [];
     navigate.mockImplementation(() => {
       toastWarVorNavigation.push(toast.toasts()[0]?.title === 'Bestellung wurde aufgegeben.');
@@ -64,7 +69,12 @@ describe('StoreCheckoutComponent – Bestellmeldung', () => {
   });
 
   it('meldet eine fehlgeschlagene Bestellung persistent und bleibt im Checkout', async () => {
-    placeOrder.mockRejectedValue(new Error('Artikel nicht mehr verfügbar'));
+    placeOrder.mockResolvedValue({
+      status: 'failed',
+      order: null,
+      error: new Error('Artikel nicht mehr verfügbar'),
+      problems: [],
+    });
 
     await komponente.onSubmitOrder();
 
@@ -80,14 +90,45 @@ describe('StoreCheckoutComponent – Bestellmeldung', () => {
   });
 
   it('erzeugt bei einem bereits zentral gemeldeten Bestellfehler keinen zweiten Toast', async () => {
-    placeOrder.mockRejectedValue(
-      syncStatus.melde('Speichern der Bestellung', new Error('offline')),
-    );
+    placeOrder.mockResolvedValue({
+      status: 'failed',
+      order: null,
+      error: syncStatus.melde('Speichern der Bestellung', new Error('offline')),
+      problems: [],
+    });
 
     await komponente.onSubmitOrder();
 
     expect(navigate).not.toHaveBeenCalled();
     expect(syncStatus.fehler()).toHaveLength(1);
     expect(toast.toasts()).toEqual([]);
+  });
+
+  it('meldet eine bestätigte Bestellung mit Nachschrittproblem als Warnung', async () => {
+    placeOrder.mockResolvedValue({
+      status: 'partial',
+      order: { id: 'order-1' },
+      error: null,
+      problems: [{ message: 'Interne Benachrichtigung fehlgeschlagen.' }],
+    });
+
+    await komponente.onSubmitOrder();
+
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'warning',
+      title: 'Bestellung wurde aufgegeben, aber nicht vollständig nachbearbeitet.',
+      description: 'Interne Benachrichtigung fehlgeschlagen.',
+    });
+    expect(navigate).toHaveBeenCalledWith(['/shop/order-success', 'order-1']);
+  });
+
+  it('zeigt bei einem ungültigen Formular keinen Toast und bestellt nicht', async () => {
+    komponente.form.controls.email.setValue('ungültig');
+
+    await komponente.onSubmitOrder();
+
+    expect(placeOrder).not.toHaveBeenCalled();
+    expect(toast.toasts()).toEqual([]);
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

@@ -288,7 +288,7 @@ export class AccountingComponent {
       const res = await this.bankService.importBankStatementFile(file);
       if (res.success) {
         this.toast.success('Kontoauszug wurde importiert.');
-      } else {
+      } else if (!res.problem?.reportedBySyncStatus) {
         this.toast.error('Kontoauszug konnte nicht importiert werden.', res.message);
       }
     } catch (error: unknown) {
@@ -310,7 +310,7 @@ export class AccountingComponent {
       const res = await this.bankService.bookTransaction(txId);
       if (res.success) {
         this.toast.success('Transaktion wurde gebucht.');
-      } else {
+      } else if (!res.problem.reportedBySyncStatus) {
         this.toast.error('Transaktion konnte nicht gebucht werden.', res.message);
       }
     } catch (error: unknown) {
@@ -320,26 +320,52 @@ export class AccountingComponent {
 
   async onBookAllExactMatches(): Promise<void> {
     try {
-      await this.bankService.bookAllExactMatches();
-      this.toast.success('Passende Transaktionen wurden gebucht.');
+      const result = await this.bankService.bookAllExactMatches();
+      switch (result.status) {
+        case 'success':
+          this.toast.success('Passende Transaktionen wurden gebucht.');
+          break;
+        case 'empty':
+          this.toast.info('Keine passenden Transaktionen gefunden.');
+          break;
+        case 'partial':
+          this.toast.warning('Einige Transaktionen konnten nicht gebucht werden.', result.message);
+          break;
+        case 'failed':
+          if (result.problems.some(({ reportedBySyncStatus }) => !reportedBySyncStatus)) {
+            this.toast.error(
+              'Passende Transaktionen konnten nicht gebucht werden.',
+              result.message,
+            );
+          }
+          break;
+      }
     } catch (error: unknown) {
       this.meldeLokalenFehler('Passende Transaktionen konnten nicht gebucht werden.', error);
     }
   }
 
-  onIgnoreTransaction(txId: string): void {
+  async onIgnoreTransaction(txId: string): Promise<void> {
     try {
-      this.bankService.ignoreTransaction(txId);
-      this.toast.success('Transaktion wurde ignoriert.');
+      const result = await this.bankService.ignoreTransaction(txId);
+      if (result.status === 'success') {
+        this.toast.success('Transaktion wurde ignoriert.');
+      } else if (!result.problem.reportedBySyncStatus) {
+        this.toast.error('Transaktion konnte nicht ignoriert werden.', result.message);
+      }
     } catch (error: unknown) {
       this.meldeLokalenFehler('Transaktion konnte nicht ignoriert werden.', error);
     }
   }
 
-  onResetBankStatement(): void {
+  async onResetBankStatement(): Promise<void> {
     try {
-      this.bankService.resetStatement();
-      this.toast.success('Kontoauszug wurde zurückgesetzt.');
+      const result = await this.bankService.resetStatement();
+      if (result.status === 'success') {
+        this.toast.success('Kontoauszug wurde zurückgesetzt.');
+      } else if (!result.problem.reportedBySyncStatus) {
+        this.toast.error('Kontoauszug konnte nicht zurückgesetzt werden.', result.message);
+      }
     } catch (error: unknown) {
       this.meldeLokalenFehler('Kontoauszug konnte nicht zurückgesetzt werden.', error);
     }
@@ -398,21 +424,19 @@ export class AccountingComponent {
     }
   }
 
-  async onSendEmailToAdvisor(): Promise<void> {
+  async onPrepareReportForAdvisor(): Promise<void> {
     try {
       const val = this.advisorForm.getRawValue();
       this.taxAdvisorService.updateAdvisorConfig(val);
 
       const report = this.advisorReport();
-      const res = await this.taxAdvisorService.sendReportPackageToAdvisor(report, val.advisorEmail);
-
-      if (res.success) {
-        this.toast.success('Bericht wurde an die Steuerberatung versendet.');
-      } else {
-        this.toast.error('Bericht konnte nicht versendet werden.', res.message);
-      }
+      const res = await this.taxAdvisorService.prepareReportPackageForAdvisor(
+        report,
+        val.advisorEmail,
+      );
+      this.toast.info('Berichtspaket wurde vorbereitet.', res.message);
     } catch (error: unknown) {
-      this.meldeLokalenFehler('Bericht konnte nicht versendet werden.', error);
+      this.meldeLokalenFehler('Berichtspaket konnte nicht vorbereitet werden.', error);
     }
   }
 

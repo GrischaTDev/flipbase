@@ -2,7 +2,6 @@ import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { StoreService } from './store.service';
 import { SalesService } from './sales.service';
 import { PurchaseService } from './purchase.service';
-import { InvoiceService } from './invoice.service';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
@@ -11,6 +10,8 @@ import { SyncStatusService } from './sync-status.service';
 import { Json } from '../models/supabase.types';
 import {
   BankFormatType,
+  BankBatchBookingResult,
+  BankMutationResult,
   BankReconciliationMatch,
   BankReconciliationSummary,
   BankStatementImportResult,
@@ -46,7 +47,6 @@ export class BankReconciliationService {
   private readonly storeService = inject(StoreService);
   private readonly salesService = inject(SalesService);
   private readonly purchaseService = inject(PurchaseService);
-  private readonly invoiceService = inject(InvoiceService);
 
   readonly transactions = signal<BankTransaction[]>(this.loadStoredTransactions());
   readonly isProcessing = signal<boolean>(false);
@@ -92,7 +92,7 @@ export class BankReconciliationService {
           bookedAt: t.booked_at || undefined,
         }));
         this.transactions.set(mapped);
-        this.persistTransactions();
+        this.persistLocalCache(mapped);
       }
     } catch (err) {
       this.logger.error('Verbindungsfehler beim Laden der Banktransaktionen:', err);
@@ -160,16 +160,14 @@ export class BankReconciliationService {
    *
    * Der Browser-Speicher bleibt als schneller Zwischenspeicher bestehen.
    */
-  private persistTransactions(): void {
+  private persistLocalCache(liste: BankTransaction[]): void {
     try {
       if (typeof window !== 'undefined') {
-        localStorage.setItem(STORAGE_KEY_BANK_TRANSACTIONS, JSON.stringify(this.transactions()));
+        localStorage.setItem(STORAGE_KEY_BANK_TRANSACTIONS, JSON.stringify(liste));
       }
     } catch {
       // Ohne Browser-Speicher bleibt die Datenbank die Quelle.
     }
-
-    void this.speichereInDatenbank();
   }
 
   /**
@@ -178,53 +176,57 @@ export class BankReconciliationService {
    * Erst schreiben, dann entfernen, was es nicht mehr gibt: So entsteht kein
    * Moment, in dem der Bestand leer ist, falls das Schreiben scheitert.
    */
-  private async speichereInDatenbank(): Promise<void> {
+  private async persistTransactions(
+    liste: BankTransaction[],
+    vorgang: string,
+  ): Promise<BankMutationResult> {
     const ws = this.workspaceService?.currentWorkspace();
-    if (!this.supabase || !ws || this.mockStore?.isDemoMode()) return;
-
-    const liste = this.transactions();
+    if (!this.supabase || !ws || this.mockStore?.isDemoMode()) {
+      this.transactions.set(liste);
+      this.persistLocalCache(liste);
+      return { status: 'success', success: true, message: `${vorgang} erfolgreich.` };
+    }
 
     try {
-      if (liste.length > 0) {
-        const { error } = await this.supabase.client.from('bank_transactions').upsert(
-          liste.map((t) => ({
-            id: t.id,
-            workspace_id: ws.id,
-            booking_date: t.bookingDate,
-            value_date: t.valueDate || null,
-            counterparty_name: t.counterpartyName,
-            counterparty_iban: t.counterpartyIban || null,
-            purpose: t.purpose,
-            amount: t.amount,
-            currency: t.currency,
-            source_format: t.sourceFormat,
-            status: t.status,
-            // Der Treffer ist ein eigener Typ; die Spalte nimmt beliebiges JSON.
-            match_json: (t.match ?? null) as unknown as Json,
-            booked_at: t.bookedAt || null,
-          })),
-          { onConflict: 'id' },
-        );
-        if (error) {
-          this.syncStatus?.melde('Speichern der Banktransaktionen', error);
-          return;
-        }
+      const { data, error } = await this.supabase.client.rpc('replace_bank_transactions', {
+        p_workspace_id: ws.id,
+        p_transactions: liste.map((t) => ({
+          id: t.id,
+          booking_date: t.bookingDate,
+          value_date: t.valueDate || null,
+          counterparty_name: t.counterpartyName,
+          counterparty_iban: t.counterpartyIban || null,
+          purpose: t.purpose,
+          amount: t.amount,
+          currency: t.currency,
+          source_format: t.sourceFormat,
+          status: t.status,
+          // Der Treffer ist ein eigener Typ; die Spalte nimmt beliebiges JSON.
+          match_json: (t.match ?? null) as unknown as Json,
+          booked_at: t.bookedAt || null,
+        })) as unknown as Json,
+      });
+      if (error || data === null || data !== liste.length) {
+        return this.fehlgeschlageneMutation(vorgang, error ?? new Error('Kein Datenbanktreffer.'));
       }
 
-      const vorhandene = liste.map((t) => t.id);
-      const loeschen = this.supabase.client
-        .from('bank_transactions')
-        .delete()
-        .eq('workspace_id', ws.id);
-      const { error: loeschFehler } = await (vorhandene.length > 0
-        ? loeschen.not('id', 'in', `(${vorhandene.join(',')})`)
-        : loeschen);
-      if (loeschFehler) {
-        this.syncStatus?.melde('Aufräumen der Banktransaktionen', loeschFehler);
-      }
+      this.transactions.set(liste);
+      this.persistLocalCache(liste);
+      return { status: 'success', success: true, message: `${vorgang} erfolgreich.` };
     } catch (e: unknown) {
-      this.syncStatus?.melde('Speichern der Banktransaktionen', e);
+      return this.fehlgeschlageneMutation(vorgang, e);
     }
+  }
+
+  private fehlgeschlageneMutation(vorgang: string, error: unknown): BankMutationResult {
+    const gemeldeterFehler = this.syncStatus?.melde(vorgang, error) ?? error;
+    return {
+      status: 'failed',
+      success: false,
+      message:
+        gemeldeterFehler instanceof Error ? gemeldeterFehler.message : String(gemeldeterFehler),
+      problem: { error: gemeldeterFehler, reportedBySyncStatus: Boolean(this.syncStatus) },
+    };
   }
 
   /**
@@ -271,9 +273,23 @@ export class BankReconciliationService {
       // Run automatic matching for all imported transactions
       const matched = parsed.map((tx) => this.runMatchingEngine(tx));
 
-      // Append or set
-      this.transactions.set(matched);
-      this.persistTransactions();
+      const persistenz = await this.persistTransactions(
+        matched,
+        'Importieren der Banktransaktionen',
+      );
+      if (persistenz.status === 'failed') {
+        return {
+          success: false,
+          formatDetected: format,
+          fileName: file.name,
+          transactionCount: 0,
+          totalIncome: 0,
+          totalExpense: 0,
+          matchedCount: 0,
+          message: persistenz.message,
+          problem: persistenz.problem,
+        };
+      }
 
       const matchedCount = matched.filter((t) => t.match && t.match.confidence >= 80).length;
       let totalIncome = 0;
@@ -721,35 +737,65 @@ export class BankReconciliationService {
   /**
    * Books a single matched transaction. Updates StoreOrder or generates invoice if applicable.
    */
-  async bookTransaction(txId: string): Promise<{ success: boolean; message: string }> {
+  async bookTransaction(txId: string): Promise<BankMutationResult> {
     const list = this.transactions();
     const tx = list.find((t) => t.id === txId);
     if (!tx || !tx.match) {
-      return { success: false, message: 'Transaktion oder Zuordnung nicht gefunden.' };
-    }
-
-    // If matching a Store Order, update order payment status to 'paid'
-    if (tx.match.targetType === 'store_order' && tx.match.order) {
-      const order = tx.match.order;
-      this.storeService.orders.update((orders) =>
-        orders.map((o) => (o.id === order.id ? { ...o, paymentStatus: 'paid' as const } : o)),
-      );
-
-      // Also ensure § 25a invoice exists
-      const existingInvoices = this.invoiceService.invoices();
-      const hasInvoice = existingInvoices.some((inv) => inv.orderNumber === order.orderNumber);
-      if (!hasInvoice) {
-        this.invoiceService.generateInvoiceForOrder({ ...order, paymentStatus: 'paid' });
-      }
+      return {
+        status: 'failed',
+        success: false,
+        message: 'Transaktion oder Zuordnung nicht gefunden.',
+        problem: {
+          error: new Error('Transaktion oder Zuordnung nicht gefunden.'),
+          reportedBySyncStatus: false,
+        },
+      };
     }
 
     const now = new Date().toISOString();
-    this.transactions.update((all) =>
-      all.map((t) => (t.id === txId ? { ...t, status: 'booked' as const, bookedAt: now } : t)),
+    const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
+      try {
+        const { data, error } = await this.supabase.client.rpc('book_bank_transaction', {
+          p_workspace_id: ws.id,
+          p_transaction_id: tx.id,
+          p_booked_at: now,
+          p_store_order_id: tx.match.targetType === 'store_order' ? tx.match.targetId : undefined,
+        });
+        if (error || data === null) {
+          return this.fehlgeschlageneMutation(
+            'Buchen der Banktransaktion',
+            error ?? new Error('Kein Datenbanktreffer.'),
+          );
+        }
+      } catch (error: unknown) {
+        return this.fehlgeschlageneMutation('Buchen der Banktransaktion', error);
+      }
+    }
+
+    const aktualisiert = list.map((t) =>
+      t.id === txId ? { ...t, status: 'booked' as const, bookedAt: now } : t,
     );
-    this.persistTransactions();
+    if (!this.supabase || !ws || this.mockStore?.isDemoMode()) {
+      const persistenz = await this.persistTransactions(aktualisiert, 'Buchen der Banktransaktion');
+      if (persistenz.status === 'failed') return persistenz;
+    } else {
+      this.transactions.set(aktualisiert);
+      this.persistLocalCache(aktualisiert);
+    }
+
+    if (tx.match.targetType === 'store_order') {
+      this.storeService.orders.update((orders) =>
+        orders.map((order) =>
+          order.id === tx.match?.targetId
+            ? { ...order, paymentStatus: 'paid' as const, status: 'confirmed' as const }
+            : order,
+        ),
+      );
+    }
 
     return {
+      status: 'success',
       success: true,
       message: `Transaktion "${tx.purpose}" erfolgreich gebucht und mit ${tx.match.targetReference} abgeglichen.`,
     };
@@ -758,56 +804,80 @@ export class BankReconciliationService {
   /**
    * Batch books all transactions with high confidence (>= 90%).
    */
-  async bookAllExactMatches(): Promise<{ bookedCount: number; message: string }> {
+  async bookAllExactMatches(): Promise<BankBatchBookingResult> {
     const list = this.transactions();
     const toBook = list.filter(
       (t) => t.status === 'matched' && t.match && t.match.confidence >= 90,
     );
 
-    for (const tx of toBook) {
-      await this.bookTransaction(tx.id);
+    if (toBook.length === 0) {
+      return {
+        status: 'empty',
+        bookedCount: 0,
+        failedCount: 0,
+        message: 'Keine passenden Transaktionen gefunden.',
+        problems: [],
+      };
     }
 
+    const results = [];
+    for (const tx of toBook) results.push(await this.bookTransaction(tx.id));
+    const bookedCount = results.filter(({ status }) => status === 'success').length;
+    const failed = results.filter((result) => result.status === 'failed');
+    const failedCount = failed.length;
+
     return {
-      bookedCount: toBook.length,
-      message: `${toBook.length} exakte Treffer erfolgreich automatisch gebucht.`,
+      status: bookedCount === 0 ? 'failed' : failedCount > 0 ? 'partial' : 'success',
+      bookedCount,
+      failedCount,
+      message:
+        failedCount > 0
+          ? `${bookedCount} Transaktionen gebucht, ${failedCount} fehlgeschlagen.`
+          : `${bookedCount} exakte Treffer erfolgreich automatisch gebucht.`,
+      problems: failed.map(({ problem }) => problem),
     };
   }
 
   /**
    * Manually assigns an unmatched transaction.
    */
-  manualAssign(txId: string, match: BankReconciliationMatch): void {
-    this.transactions.update((list) =>
-      list.map((t) =>
-        t.id === txId
-          ? {
-              ...t,
-              status: 'matched' as const,
-              match: { ...match, confidence: 100, confidenceLabel: 'manual' as const },
-            }
-          : t,
-      ),
+  async manualAssign(txId: string, match: BankReconciliationMatch): Promise<BankMutationResult> {
+    const aktualisiert = this.transactions().map((t) =>
+      t.id === txId
+        ? {
+            ...t,
+            status: 'matched' as const,
+            match: { ...match, confidence: 100, confidenceLabel: 'manual' as const },
+          }
+        : t,
     );
-    this.persistTransactions();
+    return this.persistTransactions(aktualisiert, 'Zuordnen der Banktransaktion');
   }
 
   /**
    * Ignores a transaction from reconciliation.
    */
-  ignoreTransaction(txId: string): void {
-    this.transactions.update((list) =>
-      list.map((t) => (t.id === txId ? { ...t, status: 'ignored' as const } : t)),
+  async ignoreTransaction(txId: string): Promise<BankMutationResult> {
+    const vorhanden = this.transactions().some((tx) => tx.id === txId);
+    if (!vorhanden) {
+      return {
+        status: 'failed',
+        success: false,
+        message: 'Transaktion nicht gefunden.',
+        problem: { error: new Error('Transaktion nicht gefunden.'), reportedBySyncStatus: false },
+      };
+    }
+    const aktualisiert = this.transactions().map((tx) =>
+      tx.id === txId ? { ...tx, status: 'ignored' as const } : tx,
     );
-    this.persistTransactions();
+    return this.persistTransactions(aktualisiert, 'Ignorieren der Banktransaktion');
   }
 
   /**
    * Resets all loaded transactions.
    */
-  resetStatement(): void {
-    this.transactions.set([]);
-    this.persistTransactions();
+  async resetStatement(): Promise<BankMutationResult> {
+    return this.persistTransactions([], 'Zurücksetzen des Kontoauszugs');
   }
 
   /**
@@ -894,7 +964,7 @@ export class BankReconciliationService {
 
     const matched = demoTx.map((tx) => this.runMatchingEngine(tx));
     this.transactions.set(matched);
-    this.persistTransactions();
+    this.persistLocalCache(matched);
   }
 
   // --- Helper Methods ---

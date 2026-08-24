@@ -1746,6 +1746,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      book_bank_transaction: {
+        Args: {
+          p_booked_at: string
+          p_store_order_id?: string
+          p_transaction_id: string
+          p_workspace_id: string
+        }
+        Returns: {
+          amount: number
+          booked_at: string | null
+          booking_date: string
+          counterparty_iban: string | null
+          counterparty_name: string
+          created_at: string
+          currency: string
+          id: string
+          match_json: Json | null
+          notes: string | null
+          purpose: string
+          source_format: string | null
+          status: string
+          value_date: string | null
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "bank_transactions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       bundle_shipping_orders: {
         Args: {
           p_bundled_item_titles: string[]
@@ -1800,6 +1831,48 @@ export type Database = {
       create_workspace: { Args: { p_name: string }; Returns: string }
       is_workspace_admin: { Args: { ws_id: string }; Returns: boolean }
       is_workspace_member: { Args: { ws_id: string }; Returns: boolean }
+      place_store_order: {
+        Args: {
+          p_buyer_notes: string
+          p_customer: Json
+          p_items: Json
+          p_order_id: string
+          p_order_number: string
+          p_payment_id: string
+          p_payment_method: string
+          p_payment_status: string
+          p_sale_date: string
+          p_shipping_cost: number
+          p_status: string
+          p_subtotal: number
+          p_total: number
+          p_workspace_id: string
+        }
+        Returns: {
+          created_at: string
+          customer: Json
+          id: string
+          order_number: string
+          payment_id: string | null
+          payment_method: string
+          payment_status: string
+          shipping_cost: number
+          status: string
+          subtotal: number
+          total: number
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "store_orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      replace_bank_transactions: {
+        Args: { p_transactions: Json; p_workspace_id: string }
+        Returns: number
+      }
       unbundle_shipping_order: {
         Args: { p_bundled_order_id: string; p_workspace_id: string }
         Returns: {

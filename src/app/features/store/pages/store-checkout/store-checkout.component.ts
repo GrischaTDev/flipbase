@@ -135,10 +135,25 @@ export class StoreCheckoutComponent {
       notes: val.notes || undefined,
     };
 
-    let orderId: string;
     try {
-      const order = await this.storeService.placeOrder(customerInfo);
-      orderId = order.id;
+      const ergebnis = await this.storeService.placeOrder(customerInfo);
+      if (ergebnis.status === 'failed') {
+        if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
+          this.toast.error('Bestellung konnte nicht aufgegeben werden.', ergebnis.error.message);
+        }
+        return;
+      }
+
+      if (ergebnis.status === 'partial') {
+        this.toast.warning(
+          'Bestellung wurde aufgegeben, aber nicht vollständig nachbearbeitet.',
+          ergebnis.problems.map((problem) => problem.message).join(' '),
+        );
+      } else {
+        this.toast.success('Bestellung wurde aufgegeben.');
+      }
+
+      await this.router.navigate(['/shop/order-success', ergebnis.order.id]);
     } catch (error: unknown) {
       this.logger.error('Order submission error:', error);
       if (!this.syncStatus.istZentralGemeldet(error)) {
@@ -151,8 +166,5 @@ export class StoreCheckoutComponent {
     } finally {
       this.isSubmitting.set(false);
     }
-
-    this.toast.success('Bestellung wurde aufgegeben.');
-    await this.router.navigate(['/shop/order-success', orderId]);
   }
 }

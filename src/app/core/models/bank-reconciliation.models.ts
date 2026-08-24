@@ -64,4 +64,27 @@ export interface BankStatementImportResult {
   totalExpense: number;
   matchedCount: number;
   message: string;
+  problem?: BankMutationProblem;
+}
+
+export interface BankMutationProblem {
+  readonly error: unknown;
+  readonly reportedBySyncStatus: boolean;
+}
+
+export type BankMutationResult =
+  | { readonly status: 'success'; readonly success: true; readonly message: string }
+  | {
+      readonly status: 'failed';
+      readonly success: false;
+      readonly message: string;
+      readonly problem: BankMutationProblem;
+    };
+
+export interface BankBatchBookingResult {
+  readonly status: 'success' | 'partial' | 'empty' | 'failed';
+  readonly bookedCount: number;
+  readonly failedCount: number;
+  readonly message: string;
+  readonly problems: readonly BankMutationProblem[];
 }

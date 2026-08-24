@@ -1,6 +1,5 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { InventoryService } from './inventory.service';
-import { SalesService } from './sales.service';
 import { WorkspaceService } from './workspace.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
@@ -9,12 +8,12 @@ import { InventoryItem } from '../models/flipbase.models';
 import { Json } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
-import { schreibeImHintergrund } from './supabase-schreiben';
 import {
   CartItem,
   CheckoutCustomerInfo,
   PaymentGatewayConfig,
   StoreOrder,
+  StoreOrderOutcome,
   StoreSettings,
 } from '../models/store.models';
 
@@ -33,7 +32,6 @@ export class StoreService {
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly inventoryService = inject(InventoryService, { optional: true });
-  private readonly salesService = inject(SalesService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly webPushService = inject(WebPushService, { optional: true });
 
@@ -347,8 +345,17 @@ export class StoreService {
     };
   }
 
-  async placeOrder(customer: CheckoutCustomerInfo): Promise<StoreOrder> {
+  async placeOrder(customer: CheckoutCustomerInfo): Promise<StoreOrderOutcome> {
     const currentCart = this.cart();
+    if (currentCart.length === 0) {
+      return {
+        status: 'failed',
+        order: null,
+        error: new Error('Der Warenkorb ist leer.'),
+        problems: [],
+      };
+    }
+
     const orderNumber = 'RF-' + Math.floor(100000 + Math.random() * 900000);
     const subtotal = this.cartSubtotal();
     const shippingCost = customer.shippingMethod === 'pickup' ? 0 : this.cartShippingCost();
@@ -374,7 +381,10 @@ export class StoreService {
     }
 
     const newOrder: StoreOrder = {
-      id: 'order-' + Math.random().toString(36).substring(2, 9),
+      id:
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0'),
       orderNumber,
       createdAt: new Date().toISOString(),
       customer,
@@ -388,99 +398,104 @@ export class StoreService {
       status: paymentStatus === 'paid' ? 'confirmed' : 'pending',
     };
 
-    // 1. Save order to state
-    this.orders.update((prev) => [newOrder, ...prev]);
-    this.persistOrders();
-
-    // 2. Persist to Supabase
     const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      this.supabase.client
-        .from('store_orders')
-        .insert({
-          workspace_id: ws.id,
-          order_number: newOrder.orderNumber,
-          customer: newOrder.customer as unknown as Json,
-          subtotal: newOrder.subtotal,
-          shipping_cost: newOrder.shippingCost,
-          total: newOrder.total,
-          payment_method: newOrder.paymentMethod,
-          payment_status: newOrder.paymentStatus,
-          payment_id: newOrder.paymentId,
-          status: newOrder.status,
-        })
-        .select()
-        .single()
-        .then(({ data: dbOrder, error }) => {
-          if (error || !dbOrder) {
-            this.syncStatus?.melde('Speichern der Bestellung', error);
-            return;
-          }
-          // Die Positionen brauchen ein eigenes `await`, sonst wird die
-          // Anfrage nie abgeschickt - eine Bestellung ohne Positionen sagt
-          // nicht, was bestellt wurde.
-          void schreibeImHintergrund(
-            this.supabase!.client.from('store_order_items').insert(
-              currentCart.map((c) => ({
-                store_order_id: dbOrder.id,
-                inventory_item_id:
-                  c.item.id.startsWith('item-') && !c.item.id.includes('demo') ? c.item.id : null,
-                item_title: c.item.title,
-                quantity: c.quantity,
-                price: c.item.expected_value ?? c.item.allocated_purchase_cost * 1.5,
-              })),
-            ),
-            'Speichern der Bestellpositionen',
-            this.syncStatus,
+    let bestaetigteBestellung = newOrder;
+    if (this.supabase && !this.mockStore?.isDemoMode()) {
+      if (!ws) return this.fehlgeschlageneBestellung(new Error('Kein aktiver Workspace.'));
+
+      try {
+        const { data, error } = await this.supabase.client.rpc('place_store_order', {
+          p_workspace_id: ws.id,
+          p_order_id: newOrder.id,
+          p_order_number: newOrder.orderNumber,
+          p_customer: newOrder.customer as unknown as Json,
+          p_subtotal: newOrder.subtotal,
+          p_shipping_cost: newOrder.shippingCost,
+          p_total: newOrder.total,
+          p_payment_method: newOrder.paymentMethod,
+          p_payment_status: newOrder.paymentStatus,
+          // PostgreSQL erlaubt hier NULL; der Generator bildet Funktionsargumente
+          // jedoch generell ohne Null-Union ab.
+          p_payment_id: (newOrder.paymentId ?? null) as unknown as string,
+          p_status: newOrder.status,
+          p_sale_date: newOrder.createdAt.slice(0, 10),
+          p_buyer_notes: `Kunde: ${customer.firstName} ${customer.lastName}, Zahlungsart: ${customer.paymentMethod} (${paymentStatus})`,
+          p_items: currentCart.map((cartItem) => {
+            const price =
+              cartItem.item.expected_value ?? cartItem.item.allocated_purchase_cost * 1.5;
+            const paymentFee =
+              customer.paymentMethod === 'stripe_card'
+                ? Number((price * 0.014 + 0.25).toFixed(2))
+                : customer.paymentMethod === 'paypal'
+                  ? Number((price * 0.0249 + 0.35).toFixed(2))
+                  : 0;
+            return {
+              inventory_item_id: cartItem.item.id,
+              item_title: cartItem.item.title,
+              quantity: cartItem.quantity,
+              price,
+              payment_fee: paymentFee,
+            };
+          }) as unknown as Json,
+        });
+
+        if (error || !data) {
+          return this.fehlgeschlageneBestellung(
+            error ?? new Error('Die Datenbank hat keine Bestellung zurückgegeben.'),
           );
-        });
-    }
+        }
 
-    // 3. Automatically synchronize Flipbase inventory
-    for (const cartItem of currentCart) {
-      const price = cartItem.item.expected_value ?? cartItem.item.allocated_purchase_cost * 1.5;
-
-      if (this.inventoryService) {
-        await this.inventoryService.updateItem(cartItem.item.id, {
-          status: 'sold',
-        });
-      }
-
-      let paymentFee = 0;
-      if (customer.paymentMethod === 'stripe_card') {
-        paymentFee = Number((price * 0.014 + 0.25).toFixed(2));
-      } else if (customer.paymentMethod === 'paypal') {
-        paymentFee = Number((price * 0.0249 + 0.35).toFixed(2));
-      }
-
-      if (this.salesService) {
-        await this.salesService.createSale({
-          inventory_item_id: cartItem.item.id,
-          sale_date: new Date().toISOString().split('T')[0],
-          platform: 'custom_store',
-          sale_price: price,
-          platform_fee: 0,
-          shipping_cost: customer.shippingMethod === 'pickup' ? 0 : 4.5,
-          other_costs: paymentFee,
-          external_order_id: orderNumber,
-          buyer_notes: `Kunde: ${customer.firstName} ${customer.lastName}, Zahlungsart: ${customer.paymentMethod} (${paymentStatus})`,
-        });
+        bestaetigteBestellung = {
+          ...newOrder,
+          id: data.id,
+          orderNumber: data.order_number,
+          createdAt: data.created_at,
+          paymentStatus: data.payment_status as StoreOrder['paymentStatus'],
+          status: data.status as StoreOrder['status'],
+        };
+      } catch (error: unknown) {
+        return this.fehlgeschlageneBestellung(error);
       }
     }
 
-    // 4. Clear cart
+    this.orders.update((orders) => {
+      const ohneDuplikat = orders.filter((order) => order.id !== bestaetigteBestellung.id);
+      return [bestaetigteBestellung, ...ohneDuplikat];
+    });
+    this.persistOrders();
     this.clearCart();
     this.isCartOpen.set(false);
 
-    // 5. Trigger Web Push Notification
-    if (this.webPushService) {
-      this.webPushService.triggerShopOrderNotification(
-        orderNumber,
+    try {
+      this.webPushService?.triggerShopOrderNotification(
+        bestaetigteBestellung.orderNumber,
         `${customer.firstName} ${customer.lastName}`,
-        total,
+        bestaetigteBestellung.total,
       );
+    } catch (error: unknown) {
+      const problem = error instanceof Error ? error : new Error(String(error));
+      return {
+        status: 'partial',
+        order: bestaetigteBestellung,
+        error: null,
+        problems: [{ message: 'Interne Benachrichtigung fehlgeschlagen.', error: problem }],
+      };
     }
 
-    return newOrder;
+    return {
+      status: 'success',
+      order: bestaetigteBestellung,
+      error: null,
+      problems: [],
+    };
+  }
+
+  private fehlgeschlageneBestellung(ursache: unknown): StoreOrderOutcome {
+    const error =
+      ursache instanceof Error && this.syncStatus?.istZentralGemeldet(ursache)
+        ? ursache
+        : (this.syncStatus?.melde('Speichern der Bestellung', ursache) ??
+          (ursache instanceof Error ? ursache : new Error(String(ursache))));
+    return { status: 'failed', order: null, error, problems: [] };
   }
 }

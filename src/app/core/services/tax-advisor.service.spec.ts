@@ -110,12 +110,14 @@ describe('TaxAdvisorService & DATEV Export Engine (Chapter 24)', () => {
     expect(journalCsv).toContain('Sony PlayStation 5');
   });
 
-  it('should simulate sending report package to tax advisor', async () => {
+  it('bereitet das Berichtspaket wahrheitsgemäß vor, ohne Versand vorzutäuschen', async () => {
     const report = service.buildMonthlyReport(2026, '08', sampleTaxResults, [], []);
-    const res = await service.sendReportPackageToAdvisor(report, 'kanzlei@test.de');
+    const res = await service.prepareReportPackageForAdvisor(report, 'kanzlei@test.de');
 
-    expect(res.success).toBe(true);
-    expect(service.lastDispatchResult()).toBeDefined();
-    expect(service.lastDispatchResult()?.message).toContain('kanzlei@test.de');
+    expect(res.status).toBe('prepared');
+    expect(res.message).toContain('kanzlei@test.de');
+    expect(res.message).toContain('noch nicht eingerichtet');
+    expect(res.message).not.toMatch(/versendet|übermittelt|übertragen/i);
+    expect(service.lastPreparationResult()).toEqual(res);
   });
 });

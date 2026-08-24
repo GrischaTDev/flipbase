@@ -28,9 +28,9 @@ export class TaxAdvisorService {
   private readonly webPushService = inject(WebPushService, { optional: true });
 
   readonly advisorConfig = signal<TaxAdvisorConfig>(this.loadAdvisorConfig());
-  readonly isSendingEmail = signal<boolean>(false);
-  readonly lastDispatchResult = signal<{
-    success: boolean;
+  readonly isPreparingReport = signal<boolean>(false);
+  readonly lastPreparationResult = signal<{
+    status: 'prepared';
     message: string;
     timestamp: string;
   } | null>(null);
@@ -348,42 +348,43 @@ export class TaxAdvisorService {
   }
 
   /**
-   * Sends the monthly tax report bundle to the tax consultant email address.
+   * Bereitet das Monatspaket lokal vor. Ein externer E-Mail-Versand ist noch
+   * nicht angebunden und wird deshalb weder behauptet noch simuliert.
    */
-  async sendReportPackageToAdvisor(
+  async prepareReportPackageForAdvisor(
     report: MonthlyTaxReport,
     email?: string,
-  ): Promise<{ success: boolean; message: string }> {
-    this.isSendingEmail.set(true);
+  ): Promise<{ status: 'prepared'; message: string; timestamp: string }> {
+    this.isPreparingReport.set(true);
+    try {
+      const cfg = this.advisorConfig();
+      const targetEmail = email || cfg.advisorEmail;
+      const result = {
+        status: 'prepared' as const,
+        message: `Monatspaket für ${report.periodLabel} wurde für ${cfg.firmName} (${targetEmail}) vorbereitet. Ein echter E-Mail-Versand ist noch nicht eingerichtet.`,
+        timestamp: new Date().toISOString(),
+      };
 
-    await new Promise((res) => setTimeout(res, 1000));
+      this.lastPreparationResult.set(result);
 
-    const cfg = this.advisorConfig();
-    const targetEmail = email || cfg.advisorEmail;
-    const result = {
-      success: true,
-      message: `Monatspaket für ${report.periodLabel} erfolgreich an ${cfg.firmName} (${targetEmail}) übermittelt.`,
-      timestamp: new Date().toISOString(),
-    };
+      if (this.webPushService) {
+        this.webPushService.sendNotification('DATEV-Monatspaket vorbereitet', {
+          body: result.message,
+          tag: `tax-preparation-${report.periodKey}`,
+        });
+      }
 
-    this.lastDispatchResult.set(result);
-    this.isSendingEmail.set(false);
+      if (this.webhookService) {
+        this.webhookService.addNotification({
+          title: 'Kanzlei-Monatspaket vorbereitet',
+          message: `${report.periodLabel} (${report.salesCount} Buchungssätze) für ${targetEmail} vorbereitet.`,
+          type: 'system',
+        });
+      }
 
-    if (this.webPushService) {
-      this.webPushService.sendNotification('📤 DATEV-Monatspaket versendet', {
-        body: result.message,
-        tag: `tax-dispatch-${report.periodKey}`,
-      });
+      return result;
+    } finally {
+      this.isPreparingReport.set(false);
     }
-
-    if (this.webhookService) {
-      this.webhookService.addNotification({
-        title: 'Kanzlei-Monatspaket versandt',
-        message: `${report.periodLabel} (${report.salesCount} Buchungssätze) an Steuerberater ${targetEmail} übertragen.`,
-        type: 'system',
-      });
-    }
-
-    return result;
   }
 }

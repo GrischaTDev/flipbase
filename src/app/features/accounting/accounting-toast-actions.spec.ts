@@ -4,26 +4,55 @@ import { describe, expect, it, vi } from 'vitest';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { AccountingComponent } from './accounting.component';
+import {
+  BankBatchBookingResult,
+  BankMutationResult,
+} from '../../core/models/bank-reconciliation.models';
 
 function erstelleKomponente() {
   const toast = new ToastService();
   const syncStatus = new SyncStatusService();
+  const bookTransaction = vi.fn<(id: string) => Promise<BankMutationResult>>(async () => ({
+    status: 'success',
+    success: true,
+    message: 'Gebucht.',
+  }));
+  const bookAllExactMatches = vi.fn<() => Promise<BankBatchBookingResult>>(async () => ({
+    status: 'success',
+    bookedCount: 2,
+    failedCount: 0,
+    message: 'Gebucht.',
+    problems: [],
+  }));
+  const ignoreTransaction = vi.fn<(id: string) => Promise<BankMutationResult>>(async () => ({
+    status: 'success',
+    success: true,
+    message: 'Ignoriert.',
+  }));
+  const resetStatement = vi.fn<() => Promise<BankMutationResult>>(async () => ({
+    status: 'success',
+    success: true,
+    message: 'Zurückgesetzt.',
+  }));
   const bankService = {
     importBankStatementFile: vi.fn(async () => ({
       success: true,
       message: 'Eine Transaktion importiert.',
     })),
     loadDemoStatement: vi.fn(),
-    bookTransaction: vi.fn(async () => ({ success: true, message: 'Gebucht.' })),
-    bookAllExactMatches: vi.fn(async () => ({ bookedCount: 2, message: 'Gebucht.' })),
-    ignoreTransaction: vi.fn(),
-    resetStatement: vi.fn(),
+    bookTransaction,
+    bookAllExactMatches,
+    ignoreTransaction,
+    resetStatement,
   };
   const taxAdvisorService = {
     updateAdvisorConfig: vi.fn(),
     generateDatevExtfCsv: vi.fn(() => 'datev'),
     generateDiffTaxJournalCsv: vi.fn(() => 'journal'),
-    sendReportPackageToAdvisor: vi.fn(async () => ({ success: true, message: 'Versendet.' })),
+    prepareReportPackageForAdvisor: vi.fn(async () => ({
+      status: 'prepared',
+      message: 'Vorbereitet. Ein echter E-Mail-Versand ist noch nicht eingerichtet.',
+    })),
   };
   const taxEngine = { generateEurCsv: vi.fn(() => 'eür') };
   const komponente = Object.create(AccountingComponent.prototype) as AccountingComponent;
@@ -133,8 +162,13 @@ describe('AccountingComponent – Aktionsmeldungen', () => {
   it('meldet eine abgelehnte Buchung persistent mit der Ursache', async () => {
     const { bankService, komponente, toast } = erstelleKomponente();
     bankService.bookTransaction.mockResolvedValue({
+      status: 'failed',
       success: false,
       message: 'Transaktion oder Zuordnung nicht gefunden.',
+      problem: {
+        error: new Error('Transaktion oder Zuordnung nicht gefunden.'),
+        reportedBySyncStatus: false,
+      },
     });
 
     await komponente.onBookTransaction('tx-fehlt');
@@ -158,31 +192,51 @@ describe('AccountingComponent – Aktionsmeldungen', () => {
     });
   });
 
-  it('bestätigt einen erfolgreich versendeten Bericht', async () => {
-    const { komponente, toast } = erstelleKomponente();
+  it('meldet einen Batch ohne Treffer neutral statt als Erfolg', async () => {
+    const { bankService, komponente, toast } = erstelleKomponente();
+    bankService.bookAllExactMatches.mockResolvedValue({
+      status: 'empty',
+      bookedCount: 0,
+      failedCount: 0,
+      message: 'Keine passenden Transaktionen gefunden.',
+      problems: [],
+    });
 
-    await komponente.onSendEmailToAdvisor();
+    await komponente.onBookAllExactMatches();
 
     expect(toast.toasts()[0]).toMatchObject({
-      type: 'success',
-      title: 'Bericht wurde an die Steuerberatung versendet.',
+      type: 'info',
+      title: 'Keine passenden Transaktionen gefunden.',
     });
   });
 
-  it('meldet einen abgelehnten Berichtsversand persistent mit der Ursache', async () => {
-    const { komponente, taxAdvisorService, toast } = erstelleKomponente();
-    taxAdvisorService.sendReportPackageToAdvisor.mockResolvedValue({
-      success: false,
-      message: 'Postfach nicht erreichbar.',
+  it('meldet Batch-Teilerfolg als Warnung mit echten Zählern', async () => {
+    const { bankService, komponente, toast } = erstelleKomponente();
+    bankService.bookAllExactMatches.mockResolvedValue({
+      status: 'partial',
+      bookedCount: 1,
+      failedCount: 1,
+      message: '1 Transaktion gebucht, 1 fehlgeschlagen.',
+      problems: [{ error: new Error('offline'), reportedBySyncStatus: true }],
     });
 
-    await komponente.onSendEmailToAdvisor();
+    await komponente.onBookAllExactMatches();
 
     expect(toast.toasts()[0]).toMatchObject({
-      type: 'error',
-      title: 'Bericht konnte nicht versendet werden.',
-      description: 'Postfach nicht erreichbar.',
-      persistent: true,
+      type: 'warning',
+      title: 'Einige Transaktionen konnten nicht gebucht werden.',
+      description: '1 Transaktion gebucht, 1 fehlgeschlagen.',
+    });
+  });
+
+  it('bestätigt wahrheitsgemäß nur das Vorbereiten des Berichtspakets', async () => {
+    const { komponente, toast } = erstelleKomponente();
+
+    await komponente.onPrepareReportForAdvisor();
+
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'info',
+      title: 'Berichtspaket wurde vorbereitet.',
     });
   });
 
@@ -210,5 +264,21 @@ describe('AccountingComponent – Aktionsmeldungen', () => {
       description: 'Bankdienst nicht erreichbar',
       persistent: true,
     });
+  });
+
+  it('erzeugt für einen zentral gemeldeten Ergebnisfehler keinen zweiten Toast', async () => {
+    const { bankService, komponente, syncStatus, toast } = erstelleKomponente();
+    const error = syncStatus.melde('Ignorieren der Banktransaktion', new Error('offline'));
+    bankService.ignoreTransaction.mockResolvedValue({
+      status: 'failed',
+      success: false,
+      message: error.message,
+      problem: { error, reportedBySyncStatus: true },
+    });
+
+    await komponente.onIgnoreTransaction('tx-1');
+
+    expect(syncStatus.fehler()).toHaveLength(1);
+    expect(toast.toasts()).toEqual([]);
   });
 });

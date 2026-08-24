@@ -486,7 +486,7 @@
               class="btn-primary text-xs py-1.5 px-3.5 flex items-center gap-1.5 cursor-pointer shadow-xs"
             >
               <svg [lucideIcon]="mailIcon" class="w-3.5 h-3.5"></svg>
-              <span>An Steuerberater senden</span>
+              <span>Berichtspaket vorbereiten</span>
             </button>
           </div>
         </div>
@@ -639,7 +639,7 @@
               <svg [lucideIcon]="mailIcon" class="w-4 h-4"></svg>
             </div>
             <h3 class="text-sm font-bold text-fb-text-primary">
-              Monatsabschluss an Steuerberater senden
+              Monatsabschluss für die Steuerberatung vorbereiten
             </h3>
           </div>
           <button
@@ -653,7 +653,7 @@
 
         <form
           [formGroup]="advisorForm"
-          (ngSubmit)="onSendEmailToAdvisor()"
+          (ngSubmit)="onPrepareReportForAdvisor()"
           class="space-y-3.5 text-xs"
         >
           <div>
@@ -675,7 +675,7 @@
             <label
               for="accoun-e-mail-adresse-der"
               class="block text-[10px] font-bold uppercase tracking-wider text-fb-text-muted mb-1"
-              >E-Mail-Adresse der Kanzlei *</label
+              >Vorgesehene E-Mail-Adresse der Kanzlei *</label
             >
             <input
               id="accoun-e-mail-adresse-der"
@@ -733,7 +733,7 @@
             class="p-3 rounded-xl bg-fb-subtle border border-fb-border/40 text-[11px] text-fb-text-muted space-y-1"
           >
             <span class="font-bold text-fb-text-primary block"
-              >Enthaltene Anlagen im ZIP-Paket:</span
+              >Für das Exportpaket vorgesehene Anlagen:</span
             >
             <ul class="list-disc list-inside space-y-0.5">
               <li>DATEV EXTF Buchungsstapel CSV (SKR03/SKR04 Konten 8200/8400)</li>
@@ -760,7 +760,7 @@
               class="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer"
             >
               <svg [lucideIcon]="sendIcon" class="w-3.5 h-3.5"></svg>
-              <span>Exportpaket übermitteln</span>
+              <span>Exportpaket vorbereiten</span>
             </button>
           </div>
         </form>

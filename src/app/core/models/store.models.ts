@@ -71,3 +71,28 @@ export interface StoreOrder {
   paymentId?: string;
   status: 'pending' | 'confirmed' | 'shipped';
 }
+
+export interface StoreOrderProblem {
+  readonly message: string;
+  readonly error: Error;
+}
+
+export type StoreOrderOutcome =
+  | {
+      readonly status: 'success';
+      readonly order: StoreOrder;
+      readonly error: null;
+      readonly problems: readonly [];
+    }
+  | {
+      readonly status: 'partial';
+      readonly order: StoreOrder;
+      readonly error: null;
+      readonly problems: readonly StoreOrderProblem[];
+    }
+  | {
+      readonly status: 'failed';
+      readonly order: null;
+      readonly error: Error;
+      readonly problems: readonly [];
+    };

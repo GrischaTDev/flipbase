@@ -233,35 +233,19 @@ describe('BankReconciliationService', () => {
      * ohne echte Verbindung, damit sie ueberall laufen.
      */
     interface Gesendet {
-      tabelle?: string;
-      geschrieben?: Record<string, unknown>[];
-      behalten?: string;
+      funktion?: string;
+      parameter?: Record<string, unknown>;
     }
 
     function mitAttrappe(): { gesendet: Gesendet } {
       const gesendet: Gesendet = {};
 
       const client = {
-        from(tabelle: string) {
-          gesendet.tabelle = tabelle;
-          return {
-            upsert(zeilen: Record<string, unknown>[]) {
-              gesendet.geschrieben = zeilen;
-              return Promise.resolve({ error: null });
-            },
-            delete() {
-              const kette = {
-                eq: () => kette,
-                not: (_spalte: string, _art: string, wert: string) => {
-                  gesendet.behalten = wert;
-                  return Promise.resolve({ error: null });
-                },
-                then: (ok: (w: { error: null }) => unknown) =>
-                  Promise.resolve({ error: null }).then(ok),
-              };
-              return kette;
-            },
-          };
+        rpc(funktion: string, parameter: Record<string, unknown>) {
+          gesendet.funktion = funktion;
+          gesendet.parameter = parameter;
+          const transaktionen = parameter['p_transactions'] as unknown[];
+          return Promise.resolve({ data: transaktionen.length, error: null });
         },
       };
 
@@ -285,28 +269,24 @@ describe('BankReconciliationService', () => {
       status: 'pending',
     };
 
-    const naechsteRunde = () => new Promise((fertig) => setTimeout(fertig, 0));
-
-    it('schickt die Bewegungen an die Tabelle bank_transactions', async () => {
+    it('schickt die Bewegungen atomar an die Replace-Funktion', async () => {
       const { gesendet } = mitAttrappe();
       service.transactions.set([beispiel]);
 
-      service.ignoreTransaction(beispiel.id);
-      await naechsteRunde();
+      await service.ignoreTransaction(beispiel.id);
 
-      expect(gesendet.tabelle).toBe('bank_transactions');
-      expect(gesendet.geschrieben?.length).toBe(1);
+      expect(gesendet.funktion).toBe('replace_bank_transactions');
+      expect(gesendet.parameter?.['p_transactions']).toHaveLength(1);
     });
 
     it('uebersetzt die Felder in die Spalten der Tabelle', async () => {
       const { gesendet } = mitAttrappe();
       service.transactions.set([beispiel]);
 
-      service.ignoreTransaction(beispiel.id);
-      await naechsteRunde();
+      await service.ignoreTransaction(beispiel.id);
 
-      const zeile = gesendet.geschrieben?.[0] ?? {};
-      expect(zeile['workspace_id']).toBe('ws-1');
+      const zeile = (gesendet.parameter?.['p_transactions'] as Record<string, unknown>[])[0];
+      expect(gesendet.parameter?.['p_workspace_id']).toBe('ws-1');
       expect(zeile['booking_date']).toBe('2026-08-20');
       expect(zeile['counterparty_name']).toBe('Max Mustermann');
       expect(zeile['amount']).toBe(149.99);
@@ -314,16 +294,14 @@ describe('BankReconciliationService', () => {
       expect(zeile['status']).toBe('ignored');
     });
 
-    it('raeumt in der Datenbank nur weg, was es lokal nicht mehr gibt', async () => {
+    it('übergibt beim Zurücksetzen eine leere Liste an dieselbe Transaktion', async () => {
       const { gesendet } = mitAttrappe();
       service.transactions.set([beispiel]);
 
-      service.ignoreTransaction(beispiel.id);
-      await naechsteRunde();
+      await service.resetStatement();
 
-      // Die verbliebene Kennung ist ausgenommen - sonst loescht das Aufraeumen
-      // genau das, was gerade geschrieben wurde.
-      expect(gesendet.behalten).toContain(beispiel.id);
+      expect(gesendet.funktion).toBe('replace_bank_transactions');
+      expect(gesendet.parameter?.['p_transactions']).toEqual([]);
     });
 
     it('schreibt im Demo-Modus nichts in die Datenbank', async () => {
@@ -331,10 +309,9 @@ describe('BankReconciliationService', () => {
       (service as unknown as Record<string, unknown>)['mockStore'] = { isDemoMode: () => true };
       service.transactions.set([beispiel]);
 
-      service.ignoreTransaction(beispiel.id);
-      await naechsteRunde();
+      await service.ignoreTransaction(beispiel.id);
 
-      expect(gesendet.geschrieben).toBeUndefined();
+      expect(gesendet.funktion).toBeUndefined();
     });
   });
 });
