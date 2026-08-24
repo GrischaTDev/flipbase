@@ -1156,8 +1156,6 @@ export type Database = {
       sales: {
         Row: {
           buyer_notes: string | null
-          returned_at: string | null
-          refund_amount: number | null
           created_at: string
           external_listing_id: string | null
           external_order_id: string | null
@@ -1167,6 +1165,8 @@ export type Database = {
           packaging_cost: number
           platform: string
           platform_fee: number
+          refund_amount: number | null
+          returned_at: string | null
           sale_date: string
           sale_price: number
           shipping_cost: number
@@ -1174,8 +1174,6 @@ export type Database = {
         }
         Insert: {
           buyer_notes?: string | null
-          returned_at?: string | null
-          refund_amount?: number | null
           created_at?: string
           external_listing_id?: string | null
           external_order_id?: string | null
@@ -1185,6 +1183,8 @@ export type Database = {
           packaging_cost?: number
           platform: string
           platform_fee?: number
+          refund_amount?: number | null
+          returned_at?: string | null
           sale_date?: string
           sale_price?: number
           shipping_cost?: number
@@ -1192,8 +1192,6 @@ export type Database = {
         }
         Update: {
           buyer_notes?: string | null
-          returned_at?: string | null
-          refund_amount?: number | null
           created_at?: string
           external_listing_id?: string | null
           external_order_id?: string | null
@@ -1203,6 +1201,8 @@ export type Database = {
           packaging_cost?: number
           platform?: string
           platform_fee?: number
+          refund_amount?: number | null
+          returned_at?: string | null
           sale_date?: string
           sale_price?: number
           shipping_cost?: number
@@ -1229,6 +1229,7 @@ export type Database = {
         Row: {
           bundled_item_titles: string[] | null
           bundled_order_ids: string[] | null
+          bundled_orders_snapshot: Json | null
           carrier: string
           carrier_transaction_id: string | null
           created_at: string
@@ -1255,6 +1256,7 @@ export type Database = {
         Insert: {
           bundled_item_titles?: string[] | null
           bundled_order_ids?: string[] | null
+          bundled_orders_snapshot?: Json | null
           carrier?: string
           carrier_transaction_id?: string | null
           created_at?: string
@@ -1281,6 +1283,7 @@ export type Database = {
         Update: {
           bundled_item_titles?: string[] | null
           bundled_order_ids?: string[] | null
+          bundled_orders_snapshot?: Json | null
           carrier?: string
           carrier_transaction_id?: string | null
           created_at?: string
@@ -1690,6 +1693,13 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "workspace_members_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "workspace_members_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
@@ -1736,9 +1746,96 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      bundle_shipping_orders: {
+        Args: {
+          p_bundled_item_titles: string[]
+          p_carrier: string
+          p_customer: Json
+          p_item_condition: string
+          p_item_sku: string
+          p_item_title: string
+          p_notes: string
+          p_order_date: string
+          p_order_ids: string[]
+          p_order_number: string
+          p_package_type: string
+          p_platform: string
+          p_sale_price: number
+          p_workspace_id: string
+        }
+        Returns: {
+          bundled_item_titles: string[] | null
+          bundled_order_ids: string[] | null
+          bundled_orders_snapshot: Json | null
+          carrier: string
+          carrier_transaction_id: string | null
+          created_at: string
+          customer: Json
+          id: string
+          is_bundled: boolean
+          item_condition: string | null
+          item_sku: string | null
+          item_title: string
+          label_price: number | null
+          notes: string | null
+          order_date: string
+          order_number: string
+          package_type: string
+          platform: string
+          sale_id: string | null
+          sale_price: number
+          shipped_at: string | null
+          status: string
+          tracking_number: string | null
+          tracking_url: string | null
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "shipping_orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_workspace: { Args: { p_name: string }; Returns: string }
       is_workspace_admin: { Args: { ws_id: string }; Returns: boolean }
       is_workspace_member: { Args: { ws_id: string }; Returns: boolean }
+      unbundle_shipping_order: {
+        Args: { p_bundled_order_id: string; p_workspace_id: string }
+        Returns: {
+          bundled_item_titles: string[] | null
+          bundled_order_ids: string[] | null
+          bundled_orders_snapshot: Json | null
+          carrier: string
+          carrier_transaction_id: string | null
+          created_at: string
+          customer: Json
+          id: string
+          is_bundled: boolean
+          item_condition: string | null
+          item_sku: string | null
+          item_title: string
+          label_price: number | null
+          notes: string | null
+          order_date: string
+          order_number: string
+          package_type: string
+          platform: string
+          sale_id: string | null
+          sale_price: number
+          shipped_at: string | null
+          status: string
+          tracking_number: string | null
+          tracking_url: string | null
+          workspace_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "shipping_orders"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
     }
     Enums: {
       [_ in never]: never

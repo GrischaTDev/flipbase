@@ -37,7 +37,7 @@ export interface CarrierConfig {
 export interface ShippingOrder {
   id: string;
   workspace_id: string;
-  sale_id: string;
+  sale_id: string | null;
   order_number: string;
   order_date: string;
   platform: string;
