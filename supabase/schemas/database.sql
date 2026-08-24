@@ -1371,6 +1371,7 @@ declare
   v_non_null_sale_count integer;
   v_distinct_sale_count integer;
   v_sale_id uuid;
+  v_sale_ids uuid[];
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -1394,8 +1395,8 @@ begin
     coalesce(jsonb_agg(to_jsonb(source_orders)), '[]'::jsonb),
     count(sale_id),
     count(distinct sale_id),
-    min(sale_id)
-  into v_found_count, v_snapshot, v_non_null_sale_count, v_distinct_sale_count, v_sale_id
+    array_agg(sale_id)
+  into v_found_count, v_snapshot, v_non_null_sale_count, v_distinct_sale_count, v_sale_ids
   from source_orders;
 
   if v_found_count <> cardinality(p_order_ids) then
@@ -1404,6 +1405,8 @@ begin
 
   if v_non_null_sale_count <> v_found_count or v_distinct_sale_count <> 1 then
     v_sale_id := null;
+  else
+    v_sale_id := v_sale_ids[1];
   end if;
 
   insert into public.shipping_orders (

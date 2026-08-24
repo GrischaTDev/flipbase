@@ -362,7 +362,7 @@ export class FulfillmentService {
         const mapped: ShippingOrder[] = (orderRes.data as unknown[]).map((o: any) => ({
           id: o.id,
           workspace_id: o.workspace_id,
-          sale_id: o.sale_id || '',
+          sale_id: o.sale_id,
           order_number: o.order_number,
           order_date: o.order_date,
           platform: o.platform,

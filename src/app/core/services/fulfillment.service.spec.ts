@@ -174,4 +174,39 @@ describe('Fulfillment & Smart Bundling Engine (Chapter 27)', () => {
 
     expect(ergebnis.data?.sale_id).toBeNull();
   });
+
+  it('bewahrt eine leere sale_id beim Reload als null', async () => {
+    const datenbankZeile = {
+      ...service.orders()[0],
+      sale_id: null,
+      customer: service.orders()[0].customer,
+    };
+    const from = vi.fn((table: string) => {
+      if (table === 'shipping_orders') {
+        return {
+          select: () => ({
+            eq: () => ({
+              order: async () => ({ data: [datenbankZeile], error: null }),
+            }),
+          }),
+        };
+      }
+
+      return {
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({ data: null, error: null }),
+          }),
+        }),
+      };
+    });
+    Object.assign(service, {
+      supabase: { client: { from } },
+      mockStore: { isDemoMode: () => false },
+    });
+
+    await service.loadFromSupabase('ws-1');
+
+    expect(service.orders()[0].sale_id).toBeNull();
+  });
 });
