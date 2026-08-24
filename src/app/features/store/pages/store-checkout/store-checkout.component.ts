@@ -19,6 +19,8 @@ import {
 import { StoreService } from '../../../../core/services/store.service';
 import { CheckoutCustomerInfo } from '../../../../core/models/store.models';
 import { LoggerService } from '../../../../core/services/logger.service';
+import { SyncStatusService } from '../../../../core/services/sync-status.service';
+import { ToastService } from '../../../../shared/components/toast/toast.service';
 
 @Component({
   selector: 'app-store-checkout',
@@ -33,6 +35,8 @@ export class StoreCheckoutComponent {
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly router = inject(Router);
+  private readonly syncStatus = inject(SyncStatusService);
+  private readonly toast = inject(ToastService);
 
   readonly backIcon = ArrowLeft;
   readonly shieldIcon = ShieldCheck;
@@ -131,13 +135,24 @@ export class StoreCheckoutComponent {
       notes: val.notes || undefined,
     };
 
+    let orderId: string;
     try {
       const order = await this.storeService.placeOrder(customerInfo);
+      orderId = order.id;
+    } catch (error: unknown) {
+      this.logger.error('Order submission error:', error);
+      if (!this.syncStatus.istZentralGemeldet(error)) {
+        this.toast.error(
+          'Bestellung konnte nicht aufgegeben werden.',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+      return;
+    } finally {
       this.isSubmitting.set(false);
-      this.router.navigate(['/shop/order-success', order.id]);
-    } catch (e) {
-      this.isSubmitting.set(false);
-      this.logger.error('Order submission error:', e);
     }
+
+    this.toast.success('Bestellung wurde aufgegeben.');
+    await this.router.navigate(['/shop/order-success', orderId]);
   }
 }

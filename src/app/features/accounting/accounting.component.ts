@@ -41,6 +41,8 @@ import { BankReconciliationService } from '../../core/services/bank-reconciliati
 import { TaxCalculationResult, TaxMode } from '../../core/models/flipbase.models';
 import { MonthlyTaxReport } from '../../core/models/accounting.models';
 import { BankTransaction } from '../../core/models/bank-reconciliation.models';
+import { SyncStatusService } from '../../core/services/sync-status.service';
+import { ToastService } from '../../shared/components/toast/toast.service';
 
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
@@ -113,6 +115,8 @@ export class AccountingComponent {
   readonly purchaseService = inject(PurchaseService);
   readonly salesService = inject(SalesService);
   readonly bankService = inject(BankReconciliationService);
+  private readonly syncStatus = inject(SyncStatusService);
+  private readonly toast = inject(ToastService);
   private readonly mockStore = inject(MockDataStoreService);
 
   /** Nur im Demo-Modus darf erfundenes Buchungsmaterial geladen werden. */
@@ -158,13 +162,11 @@ export class AccountingComponent {
 
   readonly invoiceModalItem = signal<TaxCalculationResult | null>(null);
   readonly isTaxAdvisorModalOpen = signal<boolean>(false);
-  readonly emailSentStatus = signal<{ success: boolean; text: string } | null>(null);
 
   // Bank Reconciliation State
   readonly bankTxFilter = signal<BankTxFilter>('all');
   readonly bankSearchQuery = signal<string>('');
   readonly isDraggingFile = signal<boolean>(false);
-  readonly bookingFeedback = signal<{ success: boolean; message: string } | null>(null);
   readonly manualAssignTx = signal<BankTransaction | null>(null);
 
   readonly advisorForm = new FormGroup({
@@ -282,45 +284,65 @@ export class AccountingComponent {
   }
 
   private async processBankFile(file: File): Promise<void> {
-    const res = await this.bankService.importBankStatementFile(file);
-    if (res.success) {
-      this.bookingFeedback.set({ success: true, message: res.message });
-    } else {
-      this.bookingFeedback.set({ success: false, message: res.message });
+    try {
+      const res = await this.bankService.importBankStatementFile(file);
+      if (res.success) {
+        this.toast.success('Kontoauszug wurde importiert.');
+      } else {
+        this.toast.error('Kontoauszug konnte nicht importiert werden.', res.message);
+      }
+    } catch (error: unknown) {
+      this.meldeLokalenFehler('Kontoauszug konnte nicht importiert werden.', error);
     }
-    setTimeout(() => this.bookingFeedback.set(null), 6000);
   }
 
   onLoadDemoStatement(): void {
-    this.bankService.loadDemoStatement();
-    this.bookingFeedback.set({
-      success: true,
-      message:
-        'Demo-Kontoauszug (Sparkasse August 2026) geladen und mit Shop-Bestellungen abgeglichen.',
-    });
-    setTimeout(() => this.bookingFeedback.set(null), 5000);
+    try {
+      this.bankService.loadDemoStatement();
+      this.toast.success('Demo-Kontoauszug wurde geladen.');
+    } catch (error: unknown) {
+      this.meldeLokalenFehler('Demo-Kontoauszug konnte nicht geladen werden.', error);
+    }
   }
 
   async onBookTransaction(txId: string): Promise<void> {
-    const res = await this.bankService.bookTransaction(txId);
-    this.bookingFeedback.set(res);
-    setTimeout(() => this.bookingFeedback.set(null), 4000);
+    try {
+      const res = await this.bankService.bookTransaction(txId);
+      if (res.success) {
+        this.toast.success('Transaktion wurde gebucht.');
+      } else {
+        this.toast.error('Transaktion konnte nicht gebucht werden.', res.message);
+      }
+    } catch (error: unknown) {
+      this.meldeLokalenFehler('Transaktion konnte nicht gebucht werden.', error);
+    }
   }
 
   async onBookAllExactMatches(): Promise<void> {
-    const res = await this.bankService.bookAllExactMatches();
-    this.bookingFeedback.set({ success: true, message: res.message });
-    setTimeout(() => this.bookingFeedback.set(null), 5000);
+    try {
+      await this.bankService.bookAllExactMatches();
+      this.toast.success('Passende Transaktionen wurden gebucht.');
+    } catch (error: unknown) {
+      this.meldeLokalenFehler('Passende Transaktionen konnten nicht gebucht werden.', error);
+    }
   }
 
   onIgnoreTransaction(txId: string): void {
-    this.bankService.ignoreTransaction(txId);
+    try {
+      this.bankService.ignoreTransaction(txId);
+      this.toast.success('Transaktion wurde ignoriert.');
+    } catch (error: unknown) {
+      this.meldeLokalenFehler('Transaktion konnte nicht ignoriert werden.', error);
+    }
   }
 
   onResetBankStatement(): void {
-    this.bankService.resetStatement();
-    this.bookingFeedback.set({ success: true, message: 'Kontoauszug-Daten zurückgesetzt.' });
-    setTimeout(() => this.bookingFeedback.set(null), 3000);
+    try {
+      this.bankService.resetStatement();
+      this.toast.success('Kontoauszug wurde zurückgesetzt.');
+    } catch (error: unknown) {
+      this.meldeLokalenFehler('Kontoauszug konnte nicht zurückgesetzt werden.', error);
+    }
   }
 
   openManualAssign(tx: BankTransaction): void {
@@ -334,49 +356,69 @@ export class AccountingComponent {
   // --- Tax Advisor / Export Methods ---
 
   onDownloadDatev(): void {
-    const report = this.advisorReport();
-    const csv = this.taxAdvisorService.generateDatevExtfCsv(report, this.filteredTaxResults());
-    this.downloadFile(
-      csv,
-      `DATEV_Buchungsstapel_${this.selectedYear()}_${this.selectedPeriod()}.csv`,
-      'text/csv;charset=utf-8;',
-    );
+    try {
+      const report = this.advisorReport();
+      const csv = this.taxAdvisorService.generateDatevExtfCsv(report, this.filteredTaxResults());
+      this.downloadFile(
+        csv,
+        `DATEV_Buchungsstapel_${this.selectedYear()}_${this.selectedPeriod()}.csv`,
+        'text/csv;charset=utf-8;',
+      );
+      this.toast.success('DATEV-Buchungsstapel wurde exportiert.');
+    } catch (error: unknown) {
+      this.meldeLokalenFehler('DATEV-Buchungsstapel konnte nicht exportiert werden.', error);
+    }
   }
 
   onDownloadDiffTaxJournal(): void {
-    const csv = this.taxAdvisorService.generateDiffTaxJournalCsv(this.filteredTaxResults());
-    this.downloadFile(
-      csv,
-      `DiffBesteuerung_25a_Journal_${this.selectedYear()}_${this.selectedPeriod()}.csv`,
-      'text/csv;charset=utf-8;',
-    );
+    try {
+      const csv = this.taxAdvisorService.generateDiffTaxJournalCsv(this.filteredTaxResults());
+      this.downloadFile(
+        csv,
+        `DiffBesteuerung_25a_Journal_${this.selectedYear()}_${this.selectedPeriod()}.csv`,
+        'text/csv;charset=utf-8;',
+      );
+      this.toast.success('§-25a-Journal wurde exportiert.');
+    } catch (error: unknown) {
+      this.meldeLokalenFehler('§-25a-Journal konnte nicht exportiert werden.', error);
+    }
   }
 
   onDownloadEur(): void {
-    const csv = this.taxEngine.generateEurCsv(this.filteredTaxResults());
-    this.downloadFile(
-      csv,
-      `EUER_Bericht_${this.selectedYear()}_${this.selectedPeriod()}.csv`,
-      'text/csv;charset=utf-8;',
-    );
+    try {
+      const csv = this.taxEngine.generateEurCsv(this.filteredTaxResults());
+      this.downloadFile(
+        csv,
+        `EUER_Bericht_${this.selectedYear()}_${this.selectedPeriod()}.csv`,
+        'text/csv;charset=utf-8;',
+      );
+      this.toast.success('EÜR-Bericht wurde exportiert.');
+    } catch (error: unknown) {
+      this.meldeLokalenFehler('EÜR-Bericht konnte nicht exportiert werden.', error);
+    }
   }
 
   async onSendEmailToAdvisor(): Promise<void> {
-    const val = this.advisorForm.getRawValue();
-    this.taxAdvisorService.updateAdvisorConfig(val);
+    try {
+      const val = this.advisorForm.getRawValue();
+      this.taxAdvisorService.updateAdvisorConfig(val);
 
-    const report = this.advisorReport();
-    const res = await this.taxAdvisorService.sendReportPackageToAdvisor(report, val.advisorEmail);
+      const report = this.advisorReport();
+      const res = await this.taxAdvisorService.sendReportPackageToAdvisor(report, val.advisorEmail);
 
-    if (res.success) {
-      this.emailSentStatus.set({ success: true, text: res.message });
-    } else {
-      this.emailSentStatus.set({
-        success: false,
-        text: 'Übermittlung an den Steuerberater fehlgeschlagen.',
-      });
+      if (res.success) {
+        this.toast.success('Bericht wurde an die Steuerberatung versendet.');
+      } else {
+        this.toast.error('Bericht konnte nicht versendet werden.', res.message);
+      }
+    } catch (error: unknown) {
+      this.meldeLokalenFehler('Bericht konnte nicht versendet werden.', error);
     }
-    setTimeout(() => this.emailSentStatus.set(null), 5000);
+  }
+
+  private meldeLokalenFehler(title: string, error: unknown): void {
+    if (this.syncStatus.istZentralGemeldet(error)) return;
+    this.toast.error(title, error instanceof Error ? error.message : String(error));
   }
 
   private downloadFile(content: string, filename: string, mimeType: string): void {

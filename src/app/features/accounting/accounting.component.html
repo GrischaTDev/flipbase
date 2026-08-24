@@ -53,31 +53,6 @@
     </div>
   </div>
 
-  <!-- Feedback Banner (Floating Notification) -->
-  @if (bookingFeedback(); as fb) {
-    <div
-      class="p-3.5 rounded-xl text-xs font-medium border animate-fade-in flex items-center justify-between shadow-md"
-      [class.bg-fb-profit/10]="fb.success"
-      [class.border-fb-profit/30]="fb.success"
-      [class.text-fb-profit]="fb.success"
-      [class.bg-rose-500/10]="!fb.success"
-      [class.border-rose-500/30]="!fb.success"
-      [class.text-rose-400]="!fb.success"
-    >
-      <div class="flex items-center gap-2">
-        <svg [lucideIcon]="fb.success ? checkIcon : alertIcon" class="w-4 h-4"></svg>
-        <span>{{ fb.message }}</span>
-      </div>
-      <button
-        type="button"
-        (click)="bookingFeedback.set(null)"
-        class="text-white/60 hover:text-fb-text-primary cursor-pointer"
-      >
-        <svg [lucideIcon]="closeIcon" class="w-3.5 h-3.5"></svg>
-      </button>
-    </div>
-  }
-
   <!-- ========================================================================= -->
   <!-- TAB 1: BANK RECONCILIATION ENGINE (MT940 / CAMT / CSV)                     -->
   <!-- ========================================================================= -->
