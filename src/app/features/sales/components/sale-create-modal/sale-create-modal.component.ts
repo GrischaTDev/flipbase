@@ -30,6 +30,8 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
+import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { SyncStatusService } from '../../../../core/services/sync-status.service';
 
 @Component({
   selector: 'app-sale-create-modal',
@@ -75,6 +77,8 @@ export class SaleCreateModalComponent {
   private readonly salesService = inject(SalesService);
   readonly inventoryService = inject(InventoryService);
   private readonly profitEngine = inject(ProfitEngineService);
+  private readonly toast = inject(ToastService);
+  private readonly syncStatus = inject(SyncStatusService);
 
   readonly closed = output<void>();
   readonly created = output<void>();
@@ -230,16 +234,49 @@ export class SaleCreateModalComponent {
     };
 
     const vorhandener = this.sale();
-    const { error } = vorhandener
-      ? await this.salesService.updateSale(vorhandener.id, payload)
-      : await this.salesService.createSale(payload);
-    this.isSubmitting.set(false);
-
-    if (error) {
-      this.errorMessage.set(error.message);
-    } else {
-      this.created.emit();
-      this.closed.emit();
+    let ergebnis: { error: Error | null; status?: 'success' | 'partial' | 'error' };
+    try {
+      ergebnis = vorhandener
+        ? await this.salesService.updateSale(vorhandener.id, payload)
+        : await this.salesService.createSale(payload);
+    } catch (ursache: unknown) {
+      ergebnis = {
+        error:
+          ursache instanceof Error
+            ? ursache
+            : new Error('Der Verkauf konnte nicht gespeichert werden.'),
+        status: 'error',
+      };
+    } finally {
+      this.isSubmitting.set(false);
     }
+
+    if (ergebnis.error) {
+      this.errorMessage.set(ergebnis.error.message);
+      if (ergebnis.status === 'partial') {
+        if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
+          this.toast.warning(
+            vorhandener
+              ? 'Verkauf wurde nur teilweise gespeichert.'
+              : 'Verkauf wurde nur teilweise abgeschlossen.',
+            ergebnis.error.message,
+          );
+        }
+        return;
+      }
+      if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
+        this.toast.error(
+          vorhandener
+            ? 'Verkauf konnte nicht gespeichert werden.'
+            : 'Verkauf konnte nicht abgeschlossen werden.',
+          ergebnis.error.message,
+        );
+      }
+      return;
+    }
+
+    this.toast.success(vorhandener ? 'Verkauf wurde gespeichert.' : 'Verkauf wurde abgeschlossen.');
+    this.created.emit();
+    this.closed.emit();
   }
 }

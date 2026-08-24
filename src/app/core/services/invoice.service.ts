@@ -12,6 +12,12 @@ import { SyncStatusService } from './sync-status.service';
 const STORAGE_KEY_INVOICES = 'flipbase_generated_invoices';
 const STORAGE_KEY_EMAILS = 'flipbase_sent_emails';
 
+export interface EmailConfirmationResult {
+  readonly success: boolean;
+  readonly message: string;
+  readonly error: Error | null;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -424,8 +430,19 @@ export class InvoiceService {
   async sendConfirmationEmail(
     invoice: Invoice,
     _trackingUrl?: string,
-  ): Promise<{ success: boolean; message: string }> {
+  ): Promise<EmailConfirmationResult> {
     const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && !this.mockStore?.isDemoMode() && !ws) {
+      return {
+        success: false,
+        message: '',
+        error:
+          this.syncStatus?.melde(
+            'Speichern der E-Mail-Bestätigung',
+            new Error('Kein aktiver Workspace.'),
+          ) ?? new Error('Kein aktiver Workspace.'),
+      };
+    }
     await new Promise((res) => setTimeout(res, 300));
 
     const emailRecord: EmailConfirmation = {
@@ -439,28 +456,54 @@ export class InvoiceService {
       orderNumber: invoice.orderNumber,
     };
 
-    this.sentEmails.update((list) => [emailRecord, ...list]);
-    this.persistEmails();
-
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       try {
-        await this.supabase.client.from('email_confirmations').insert({
-          workspace_id: ws.id,
-          recipient_email: emailRecord.to,
-          recipient_name: emailRecord.recipientName,
-          subject: emailRecord.subject,
-          status: 'sent',
-          invoice_number: invoice.invoiceNumber,
-          order_number: invoice.orderNumber,
-        });
-      } catch (err) {
-        this.logger.error('Fehler beim Speichern der E-Mail-Bestätigung in Supabase:', err);
+        const { data, error } = await this.supabase.client
+          .from('email_confirmations')
+          .insert({
+            workspace_id: ws.id,
+            recipient_email: emailRecord.to,
+            recipient_name: emailRecord.recipientName,
+            subject: emailRecord.subject,
+            status: 'sent',
+            invoice_number: invoice.invoiceNumber,
+            order_number: invoice.orderNumber,
+          })
+          .select('id')
+          .maybeSingle();
+        if (error || !data) {
+          return {
+            success: false,
+            message: '',
+            error:
+              this.syncStatus?.melde(
+                'Speichern der E-Mail-Bestätigung',
+                error ?? new Error('Die Datenbank hat keine E-Mail-Bestätigung zurückgegeben.'),
+              ) ?? new Error('Die E-Mail-Bestätigung konnte nicht gespeichert werden.'),
+          };
+        }
+      } catch (ursache: unknown) {
+        return {
+          success: false,
+          message: '',
+          error:
+            ursache instanceof Error && this.syncStatus?.istZentralGemeldet(ursache)
+              ? ursache
+              : (this.syncStatus?.melde('Speichern der E-Mail-Bestätigung', ursache) ??
+                (ursache instanceof Error
+                  ? ursache
+                  : new Error('Die E-Mail-Bestätigung konnte nicht gespeichert werden.'))),
+        };
       }
     }
+
+    this.sentEmails.update((list) => [emailRecord, ...list]);
+    this.persistEmails();
 
     return {
       success: true,
       message: `Kaufbestätigung und § 25a Rechnung erfolgreich an ${emailRecord.to} gesendet!`,
+      error: null,
     };
   }
 

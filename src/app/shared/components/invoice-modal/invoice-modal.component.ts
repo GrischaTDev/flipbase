@@ -14,6 +14,8 @@ import {
 import { Invoice } from '../../../core/models/invoice.models';
 import { InvoiceService } from '../../../core/services/invoice.service';
 import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.directive';
+import { ToastService } from '../toast/toast.service';
+import { SyncStatusService } from '../../../core/services/sync-status.service';
 
 @Component({
   selector: 'app-invoice-modal',
@@ -24,6 +26,8 @@ import { ModalDialogDirective } from '../../../shared/directives/modal-dialog.di
 })
 export class InvoiceModalComponent {
   private readonly invoiceService = inject(InvoiceService);
+  private readonly toast = inject(ToastService);
+  private readonly syncStatus = inject(SyncStatusService);
 
   readonly invoice = input.required<Invoice>();
   readonly closed = output<void>();
@@ -46,12 +50,28 @@ export class InvoiceModalComponent {
 
   async sendEmail(): Promise<void> {
     this.isSendingEmail.set(true);
+    this.emailSentMessage.set(null);
     try {
       const res = await this.invoiceService.sendConfirmationEmail(this.invoice());
-      this.isSendingEmail.set(false);
+      if (!res.success || res.error) {
+        const fehler = res.error ?? new Error('Die Bestätigung konnte nicht versendet werden.');
+        if (!this.syncStatus.istZentralGemeldet(fehler)) {
+          this.toast.error('Bestätigung konnte nicht per E-Mail versendet werden.', fehler.message);
+        }
+        return;
+      }
       this.emailSentMessage.set(res.message);
+      this.toast.success('Bestätigung wurde per E-Mail versendet.');
       setTimeout(() => this.emailSentMessage.set(null), 4000);
-    } catch {
+    } catch (ursache: unknown) {
+      const fehler =
+        ursache instanceof Error
+          ? ursache
+          : new Error('Die Bestätigung konnte nicht versendet werden.');
+      if (!this.syncStatus.istZentralGemeldet(fehler)) {
+        this.toast.error('Bestätigung konnte nicht per E-Mail versendet werden.', fehler.message);
+      }
+    } finally {
       this.isSendingEmail.set(false);
     }
   }

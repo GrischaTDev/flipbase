@@ -13,6 +13,12 @@ import { SalesService } from './sales.service';
 
 const STORAGE_KEY_RETURNS = 'flipbase_saved_returns';
 
+export interface ProcessReturnResult {
+  readonly status: 'success' | 'partial' | 'error';
+  readonly data: ReturnRecord | null;
+  readonly error: Error | null;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -124,8 +130,15 @@ export class ReturnService {
     restockAction: RestockAction;
     buyerName?: string;
     notes?: string;
-  }): Promise<ReturnRecord> {
+  }): Promise<ProcessReturnResult> {
     const ws = this.workspaceService?.currentWorkspace();
+    if (this.supabase && !this.mockStore?.isDemoMode() && !ws) {
+      return {
+        status: 'error',
+        data: null,
+        error: this.syncStatus.melde('Speichern der Retoure', new Error('Kein aktiver Workspace.')),
+      };
+    }
     const count = this.returns().length + 1;
     const creditNoteNumber = `GS-2026-${count.toString().padStart(4, '0')}`;
 
@@ -151,43 +164,7 @@ export class ReturnService {
     const creditInvoice = this.generateCreditNoteInvoice(newReturn, payload.sale, ws || null);
     newReturn.creditNoteInvoice = creditInvoice;
 
-    // 2. Synchronize Inventory Stock based on restockAction
-    if (this.inventoryService && payload.sale.inventory_item_id) {
-      let targetStatus: ItemStatus = 'ready';
-      let statusLog = `Retoure erfasst (${creditNoteNumber})`;
-
-      if (payload.restockAction === 'restock_ready') {
-        targetStatus = 'ready';
-        statusLog = `Wieder eingelagert als verkaufsbereit nach Retoure (${creditNoteNumber})`;
-      } else if (payload.restockAction === 'restock_repair') {
-        targetStatus = 'needs_review';
-        statusLog = `In Reparatur / Aufbereitung übergeben nach Retoure (${creditNoteNumber})`;
-      } else if (payload.restockAction === 'write_off') {
-        targetStatus = 'defective';
-        statusLog = `Als Defekt / Verlust abgeschrieben nach Retoure (${creditNoteNumber})`;
-      }
-
-      if (payload.restockAction !== 'keep_with_buyer') {
-        await this.inventoryService.updateItemStatus(
-          payload.sale.inventory_item_id,
-          targetStatus,
-          statusLog,
-        );
-      }
-    }
-
-    // 3. Den Verkauf als retourniert vermerken.
-    //
-    // Ohne diesen Schritt zaehlte der Verkauf weiter mit vollem Gewinn,
-    // waehrend der Artikel gleichzeitig wieder im Lager stand - derselbe
-    // Gegenstand doppelt, und die Erstattung minderte nichts.
-    await this.salesService?.markiereAlsRetourniert(payload.sale.id, newReturn.refund_amount);
-
-    // 4. Save to state & local storage
-    this.returns.update((prev) => [newReturn, ...prev]);
-    this.persistReturns();
-
-    // 5. Save to Supabase
+    let gespeicherteRetoure = newReturn;
     if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
       try {
         const { data: dbReturn, error } = await this.supabase.client
@@ -208,26 +185,90 @@ export class ReturnService {
           .select()
           .single();
 
-        if (error) {
-          this.syncStatus.melde('Speichern der Retoure', error);
-        } else if (dbReturn) {
-          const finalReturn: ReturnRecord = { ...newReturn, id: dbReturn.id };
-          this.returns.update((list) => [
-            finalReturn,
-            ...list.filter((r) => r.id !== newReturn.id),
-          ]);
-          this.persistReturns();
+        if (error || !dbReturn) {
+          return {
+            status: 'error',
+            data: null,
+            error: this.syncStatus.melde(
+              'Speichern der Retoure',
+              error ?? new Error('Die Datenbank hat keine Retoure zurückgegeben.'),
+            ),
+          };
         }
-      } catch (err) {
-        this.syncStatus.melde('Speichern der Retoure', err);
+        gespeicherteRetoure = { ...newReturn, id: dbReturn.id };
+      } catch (ursache: unknown) {
+        return {
+          status: 'error',
+          data: null,
+          error: this.syncStatus.melde('Speichern der Retoure', ursache),
+        };
       }
     }
+
+    const nachschrittFehler: Error[] = [];
+
+    // 2. Synchronize Inventory Stock based on restockAction
+    if (this.inventoryService && payload.sale.inventory_item_id) {
+      let targetStatus: ItemStatus = 'ready';
+      let statusLog = `Retoure erfasst (${creditNoteNumber})`;
+
+      if (payload.restockAction === 'restock_ready') {
+        targetStatus = 'ready';
+        statusLog = `Wieder eingelagert als verkaufsbereit nach Retoure (${creditNoteNumber})`;
+      } else if (payload.restockAction === 'restock_repair') {
+        targetStatus = 'needs_review';
+        statusLog = `In Reparatur / Aufbereitung übergeben nach Retoure (${creditNoteNumber})`;
+      } else if (payload.restockAction === 'write_off') {
+        targetStatus = 'defective';
+        statusLog = `Als Defekt / Verlust abgeschrieben nach Retoure (${creditNoteNumber})`;
+      }
+
+      if (payload.restockAction !== 'keep_with_buyer') {
+        try {
+          const { error } = await this.inventoryService.updateItemStatus(
+            payload.sale.inventory_item_id,
+            targetStatus,
+            statusLog,
+          );
+          if (error) nachschrittFehler.push(error);
+        } catch (ursache: unknown) {
+          nachschrittFehler.push(this.meldeFehler('Aktualisieren des Artikelstatus', ursache));
+        }
+      }
+    }
+
+    // 3. Den Verkauf als retourniert vermerken.
+    //
+    // Ohne diesen Schritt zaehlte der Verkauf weiter mit vollem Gewinn,
+    // waehrend der Artikel gleichzeitig wieder im Lager stand - derselbe
+    // Gegenstand doppelt, und die Erstattung minderte nichts.
+    try {
+      const ergebnis = await this.salesService?.markiereAlsRetourniert(
+        payload.sale.id,
+        gespeicherteRetoure.refund_amount,
+      );
+      if (ergebnis?.error) nachschrittFehler.push(ergebnis.error);
+    } catch (ursache: unknown) {
+      nachschrittFehler.push(this.meldeFehler('Vermerken der Retoure', ursache));
+    }
+
+    if (nachschrittFehler.length > 0) {
+      return {
+        status: 'partial',
+        data: gespeicherteRetoure,
+        error: nachschrittFehler[0],
+      };
+    }
+
+    // 4. Save to state & local storage
+    this.returns.update((prev) => [gespeicherteRetoure, ...prev]);
+    this.persistReturns();
 
     // 5. Notifications
     if (this.webPushService) {
       this.webPushService.sendNotification(`↩️ Retoure erfasst: ${creditNoteNumber}`, {
         body: `Erstattung von ${payload.refundAmount.toFixed(2)} € gebucht für ${payload.item?.title || 'Artikel'}.`,
-        tag: `return-${newReturn.id}`,
+        tag: `return-${gespeicherteRetoure.id}`,
       });
     }
 
@@ -239,7 +280,16 @@ export class ReturnService {
       });
     }
 
-    return newReturn;
+    return { status: 'success', data: gespeicherteRetoure, error: null };
+  }
+
+  private meldeFehler(vorgang: string, ursache: unknown): Error {
+    if (ursache instanceof Error && this.syncStatus?.istZentralGemeldet(ursache)) return ursache;
+    return this.syncStatus?.melde(vorgang, ursache) ?? this.alsError(ursache);
+  }
+
+  private alsError(ursache: unknown): Error {
+    return ursache instanceof Error ? ursache : new Error('Die Aktion ist fehlgeschlagen.');
   }
 
   /**

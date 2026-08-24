@@ -22,6 +22,12 @@ export interface CreateSalePayload {
   buyer_notes?: string | null;
 }
 
+export interface SaleMutationResult {
+  readonly data: Sale | null;
+  readonly error: Error | null;
+  readonly status: 'success' | 'partial' | 'error';
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -132,11 +138,9 @@ export class SalesService {
     } as Sale;
   }
 
-  async createSale(
-    payload: CreateSalePayload,
-  ): Promise<{ data: Sale | null; error: Error | null }> {
+  async createSale(payload: CreateSalePayload): Promise<SaleMutationResult> {
     const ws = this.workspaceService.currentWorkspace();
-    if (!ws) return { data: null, error: new Error('Kein aktiver Workspace') };
+    if (!ws) return { data: null, error: new Error('Kein aktiver Workspace'), status: 'error' };
 
     const item = this.inventoryService.items().find((i) => i.id === payload.inventory_item_id);
 
@@ -160,21 +164,8 @@ export class SalesService {
 
     const enrichedSale = this.enrichSaleMetrics(rawSale);
 
-    // 1. Immediately persist locally (resilient against page reloads)
-    this.mockStore.saveSale(enrichedSale);
-    this.sales.update((list) => [enrichedSale, ...list]);
-
-    await this.inventoryService.updateItemStatus(
-      payload.inventory_item_id,
-      'sold',
-      `Verkauft für ${payload.sale_price.toFixed(2)} € auf ${payload.platform}`,
-    );
-
-    if (this.mockStore.isDemoMode()) {
-      this.webhookService.sendSaleNotification(enrichedSale, item?.title || 'Artikel');
-    }
-
-    if (!this.mockStore.isDemoMode() && !this.mockStore?.isDemoMode()) {
+    let gespeicherterVerkauf = enrichedSale;
+    if (!this.mockStore.isDemoMode()) {
       try {
         const { data: dbSale, error: dbError } = await this.supabase.client
           .from('sales')
@@ -195,24 +186,45 @@ export class SalesService {
           .select()
           .single();
 
-        if (dbError) {
-          return { data: null, error: this.syncStatus.melde('Speichern des Verkaufs', dbError) };
-        } else if (dbSale) {
-          const finalSale = this.enrichSaleMetrics({ ...enrichedSale, id: dbSale.id });
-          this.mockStore.saveSale(finalSale);
-          this.sales.update((list) => [finalSale, ...list.filter((s) => s.id !== enrichedSale.id)]);
-          // Erst melden, wenn der Verkauf wirklich gespeichert ist. Vorher ging
-          // die Meldung auch raus, wenn das Speichern gleich darauf scheiterte -
-          // und ueber Discord und Telegram sogar nach aussen.
-          this.webhookService.sendSaleNotification(finalSale, item?.title || 'Artikel');
-          return { data: finalSale, error: null };
+        if (dbError || !dbSale) {
+          return {
+            data: null,
+            error: this.syncStatus.melde(
+              'Speichern des Verkaufs',
+              dbError ?? new Error('Die Datenbank hat keinen Verkauf zurückgegeben.'),
+            ),
+            status: 'error',
+          };
         }
+        gespeicherterVerkauf = this.enrichSaleMetrics({ ...enrichedSale, id: dbSale.id });
       } catch (e: unknown) {
-        return { data: null, error: this.syncStatus.melde('Speichern des Verkaufs', e) };
+        return {
+          data: null,
+          error: this.syncStatus.melde('Speichern des Verkaufs', e),
+          status: 'error',
+        };
       }
     }
 
-    return { data: enrichedSale, error: null };
+    try {
+      const { error } = await this.inventoryService.updateItemStatus(
+        payload.inventory_item_id,
+        'sold',
+        `Verkauft für ${payload.sale_price.toFixed(2)} € auf ${payload.platform}`,
+      );
+      if (error) return { data: gespeicherterVerkauf, error, status: 'partial' };
+    } catch (e: unknown) {
+      return {
+        data: gespeicherterVerkauf,
+        error: this.syncStatus.melde('Aktualisieren des Artikelstatus', e),
+        status: 'partial',
+      };
+    }
+
+    this.mockStore.saveSale(gespeicherterVerkauf);
+    this.sales.update((list) => [gespeicherterVerkauf, ...list]);
+    this.webhookService.sendSaleNotification(gespeicherterVerkauf, item?.title || 'Artikel');
+    return { data: gespeicherterVerkauf, error: null, status: 'success' };
   }
 
   /**
@@ -229,41 +241,54 @@ export class SalesService {
   async updateSale(
     saleId: string,
     updates: Partial<CreateSalePayload>,
-  ): Promise<{ error: Error | null }> {
+  ): Promise<SaleMutationResult> {
     const vorhandener = this.sales().find((s) => s.id === saleId);
-    if (!vorhandener) return { error: new Error('Verkauf nicht gefunden') };
+    if (!vorhandener)
+      return { data: null, error: new Error('Verkauf nicht gefunden'), status: 'error' };
 
     const geaendert = this.enrichSaleMetrics({ ...vorhandener, ...updates });
 
-    this.sales.update((liste) => liste.map((s) => (s.id === saleId ? geaendert : s)));
-    this.mockStore.saveSale(geaendert);
+    if (!this.mockStore.isDemoMode()) {
+      try {
+        const { data, error } = await this.supabase.client
+          .from('sales')
+          .update({
+            platform: updates.platform,
+            sale_price: updates.sale_price,
+            sale_date: updates.sale_date,
+            platform_fee: updates.platform_fee,
+            shipping_cost: updates.shipping_cost,
+            packaging_cost: updates.packaging_cost,
+            other_costs: updates.other_costs,
+            external_order_id: updates.external_order_id?.trim() || null,
+            buyer_notes: updates.buyer_notes?.trim() || null,
+          })
+          .eq('id', saleId)
+          .select('id')
+          .maybeSingle();
 
-    if (this.mockStore.isDemoMode()) return { error: null };
-
-    try {
-      const { error } = await this.supabase.client
-        .from('sales')
-        .update({
-          platform: updates.platform,
-          sale_price: updates.sale_price,
-          sale_date: updates.sale_date,
-          platform_fee: updates.platform_fee,
-          shipping_cost: updates.shipping_cost,
-          packaging_cost: updates.packaging_cost,
-          other_costs: updates.other_costs,
-          external_order_id: updates.external_order_id?.trim() || null,
-          buyer_notes: updates.buyer_notes?.trim() || null,
-        })
-        .eq('id', saleId);
-
-      if (error) {
-        return { error: this.syncStatus.melde('Aendern des Verkaufs', error) };
+        if (error || !data) {
+          return {
+            data: null,
+            error: this.syncStatus.melde(
+              'Aendern des Verkaufs',
+              error ?? new Error('Der Verkauf wurde nicht gefunden.'),
+            ),
+            status: 'error',
+          };
+        }
+      } catch (e: unknown) {
+        return {
+          data: null,
+          error: this.syncStatus.melde('Aendern des Verkaufs', e),
+          status: 'error',
+        };
       }
-    } catch (e: unknown) {
-      return { error: this.syncStatus.melde('Aendern des Verkaufs', e) };
     }
 
-    return { error: null };
+    this.sales.update((liste) => liste.map((s) => (s.id === saleId ? geaendert : s)));
+    this.mockStore.saveSale(geaendert);
+    return { data: geaendert, error: null, status: 'success' };
   }
 
   /**
@@ -279,6 +304,28 @@ export class SalesService {
   ): Promise<{ error: Error | null }> {
     const zeitpunkt = new Date().toISOString();
 
+    if (!this.mockStore.isDemoMode()) {
+      try {
+        const { data, error } = await this.supabase.client
+          .from('sales')
+          .update({ returned_at: zeitpunkt, refund_amount: erstattet })
+          .eq('id', saleId)
+          .select('id')
+          .maybeSingle();
+
+        if (error || !data) {
+          return {
+            error: this.syncStatus.melde(
+              'Vermerken der Retoure',
+              error ?? new Error('Der Verkauf wurde nicht gefunden.'),
+            ),
+          };
+        }
+      } catch (e: unknown) {
+        return { error: this.syncStatus.melde('Vermerken der Retoure', e) };
+      }
+    }
+
     this.sales.update((liste) =>
       liste.map((s) =>
         s.id === saleId
@@ -286,49 +333,56 @@ export class SalesService {
           : s,
       ),
     );
-
     const geaendert = this.sales().find((s) => s.id === saleId);
     if (geaendert) this.mockStore.saveSale(geaendert);
-
-    if (this.mockStore.isDemoMode()) return { error: null };
-
-    try {
-      const { error } = await this.supabase.client
-        .from('sales')
-        .update({ returned_at: zeitpunkt, refund_amount: erstattet })
-        .eq('id', saleId);
-
-      if (error) {
-        return { error: this.syncStatus.melde('Vermerken der Retoure', error) };
-      }
-    } catch (e: unknown) {
-      return { error: this.syncStatus.melde('Vermerken der Retoure', e) };
-    }
-
     return { error: null };
   }
 
-  async deleteSale(saleId: string, inventoryItemId: string): Promise<{ error: Error | null }> {
-    this.mockStore.deleteSale(saleId);
-    this.sales.update((list) => list.filter((s) => s.id !== saleId));
-
-    await this.inventoryService.updateItemStatus(
-      inventoryItemId,
-      'ready',
-      'Verkauf storniert/gelöscht',
-    );
-
+  async deleteSale(saleId: string, inventoryItemId: string): Promise<SaleMutationResult> {
     if (!this.mockStore.isDemoMode()) {
       try {
-        const { error } = await this.supabase.client.from('sales').delete().eq('id', saleId);
-        if (error) {
-          return { error: this.syncStatus.melde('Löschen des Verkaufs', error) };
+        const { data, error } = await this.supabase.client
+          .from('sales')
+          .delete()
+          .eq('id', saleId)
+          .select('id')
+          .maybeSingle();
+        if (error || !data) {
+          return {
+            data: null,
+            error: this.syncStatus.melde(
+              'Löschen des Verkaufs',
+              error ?? new Error('Der Verkauf wurde nicht gefunden.'),
+            ),
+            status: 'error',
+          };
         }
       } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Löschen des Verkaufs', e) };
+        return {
+          data: null,
+          error: this.syncStatus.melde('Löschen des Verkaufs', e),
+          status: 'error',
+        };
       }
     }
 
-    return { error: null };
+    try {
+      const { error } = await this.inventoryService.updateItemStatus(
+        inventoryItemId,
+        'ready',
+        'Verkauf storniert/gelöscht',
+      );
+      if (error) return { data: null, error, status: 'partial' };
+    } catch (e: unknown) {
+      return {
+        data: null,
+        error: this.syncStatus.melde('Aktualisieren des Artikelstatus', e),
+        status: 'partial',
+      };
+    }
+
+    this.mockStore.deleteSale(saleId);
+    this.sales.update((list) => list.filter((s) => s.id !== saleId));
+    return { data: null, error: null, status: 'success' };
   }
 }

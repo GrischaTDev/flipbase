@@ -32,6 +32,8 @@ import { Sale } from '../../core/models/flipbase.models';
 import { Invoice } from '../../core/models/invoice.models';
 import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/return.models';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
+import { ToastService } from '../../shared/components/toast/toast.service';
+import { SyncStatusService } from '../../core/services/sync-status.service';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -72,6 +74,8 @@ export class SalesComponent {
   ];
 
   private readonly dialog = inject(ConfirmDialogService);
+  private readonly toast = inject(ToastService);
+  private readonly syncStatus = inject(SyncStatusService);
   readonly salesService = inject(SalesService);
   readonly invoiceService = inject(InvoiceService);
   readonly returnService = inject(ReturnService);
@@ -216,23 +220,44 @@ export class SalesComponent {
     this.isProcessingReturn.set(true);
     const val = this.returnForm.getRawValue();
 
-    const createdReturn = await this.returnService.processReturn({
-      sale,
-      item: sale.inventory_item,
-      reason: val.reason,
-      refundAmount: val.refundAmount,
-      isFullRefund: val.isFullRefund,
-      restockAction: val.restockAction,
-      notes: val.notes?.trim() || undefined,
-    });
-
-    this.isProcessingReturn.set(false);
-    this.closeReturnModal();
-
-    // Automatically open generated credit note invoice for printing/downloading!
-    if (createdReturn.creditNoteInvoice) {
-      this.activeInvoice.set(createdReturn.creditNoteInvoice);
+    let ergebnis: Awaited<ReturnType<ReturnService['processReturn']>>;
+    try {
+      ergebnis = await this.returnService.processReturn({
+        sale,
+        item: sale.inventory_item,
+        reason: val.reason,
+        refundAmount: val.refundAmount,
+        isFullRefund: val.isFullRefund,
+        restockAction: val.restockAction,
+        notes: val.notes?.trim() || undefined,
+      });
+    } catch (ursache: unknown) {
+      ergebnis = {
+        status: 'error',
+        data: null,
+        error:
+          ursache instanceof Error
+            ? ursache
+            : new Error('Die Retoure konnte nicht erfasst werden.'),
+      };
+    } finally {
+      this.isProcessingReturn.set(false);
     }
+
+    if (ergebnis.error) {
+      if (ergebnis.status === 'partial') {
+        if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
+          this.toast.warning('Retoure wurde mit Einschränkungen erfasst.', ergebnis.error.message);
+        }
+      } else if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
+        this.toast.error('Retoure konnte nicht erfasst werden.', ergebnis.error.message);
+      }
+      return;
+    }
+
+    this.closeReturnModal();
+    if (ergebnis.data?.creditNoteInvoice) this.activeInvoice.set(ergebnis.data.creditNoteInvoice);
+    this.toast.success('Retoure wurde erfasst.');
   }
 
   closeInvoice(): void {
@@ -247,7 +272,32 @@ export class SalesComponent {
       gefahr: true,
     });
     if (bestaetigt) {
-      await this.salesService.deleteSale(sale.id, sale.inventory_item_id);
+      let ergebnis: Awaited<ReturnType<SalesService['deleteSale']>>;
+      try {
+        ergebnis = await this.salesService.deleteSale(sale.id, sale.inventory_item_id);
+      } catch (ursache: unknown) {
+        ergebnis = {
+          data: null,
+          error:
+            ursache instanceof Error
+              ? ursache
+              : new Error('Der Verkauf konnte nicht gelöscht werden.'),
+          status: 'error',
+        };
+      }
+
+      if (ergebnis.error) {
+        if (ergebnis.status === 'partial') {
+          if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
+            this.toast.warning('Verkauf wurde nur teilweise gelöscht.', ergebnis.error.message);
+          }
+        } else if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
+          this.toast.error('Verkauf konnte nicht gelöscht werden.', ergebnis.error.message);
+        }
+        return;
+      }
+
+      this.toast.success('Verkauf wurde gelöscht.');
     }
   }
 }

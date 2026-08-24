@@ -45,7 +45,7 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
   it('should process full return, restock ready item and generate credit note invoice', async () => {
     const initialCount = service.returns().length;
 
-    const returnRec = await service.processReturn({
+    const result = await service.processReturn({
       sale: sampleSale,
       item: sampleItem,
       reason: 'buyer_remorse',
@@ -56,20 +56,23 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
       notes: 'OVP noch versiegelt.',
     });
 
-    expect(returnRec.credit_note_number).toContain('GS-2026');
-    expect(returnRec.refund_amount).toBe(150.0);
-    expect(returnRec.is_full_refund).toBe(true);
+    expect(result.status).toBe('success');
+    const returnRec = result.data;
+    expect(returnRec).not.toBeNull();
+    expect(returnRec?.credit_note_number).toContain('GS-2026');
+    expect(returnRec?.refund_amount).toBe(150.0);
+    expect(returnRec?.is_full_refund).toBe(true);
     expect(service.returns().length).toBe(initialCount + 1);
 
     // Verify credit note invoice
-    expect(returnRec.creditNoteInvoice).toBeDefined();
-    expect(returnRec.creditNoteInvoice?.invoiceNumber).toBe(returnRec.credit_note_number);
-    expect(returnRec.creditNoteInvoice?.total).toBe(-150.0);
-    expect(returnRec.creditNoteInvoice?.taxClause).toContain('§ 25a UStG');
+    expect(returnRec?.creditNoteInvoice).toBeDefined();
+    expect(returnRec?.creditNoteInvoice?.invoiceNumber).toBe(returnRec?.credit_note_number);
+    expect(returnRec?.creditNoteInvoice?.total).toBe(-150.0);
+    expect(returnRec?.creditNoteInvoice?.taxClause).toContain('§ 25a UStG');
   });
 
   it('should process partial refund / discount agreement', async () => {
-    const returnRec = await service.processReturn({
+    const result = await service.processReturn({
       sale: sampleSale,
       item: sampleItem,
       reason: 'not_as_described',
@@ -80,9 +83,10 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
       notes: 'Einigung auf 20 € Nachlass wegen kleinem Kratzer.',
     });
 
-    expect(returnRec.refund_amount).toBe(20.0);
-    expect(returnRec.is_full_refund).toBe(false);
-    expect(returnRec.restock_action).toBe('keep_with_buyer');
-    expect(returnRec.creditNoteInvoice?.total).toBe(-20.0);
+    expect(result.status).toBe('success');
+    expect(result.data?.refund_amount).toBe(20.0);
+    expect(result.data?.is_full_refund).toBe(false);
+    expect(result.data?.restock_action).toBe('keep_with_buyer');
+    expect(result.data?.creditNoteInvoice?.total).toBe(-20.0);
   });
 });
