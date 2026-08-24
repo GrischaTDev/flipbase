@@ -54,6 +54,7 @@
         (ausschnittGeaendert)="merkeAusschnitt(bild.id, $event)"
         (drehen)="drehe(bild.id)"
         (ladenFehlgeschlagen)="beiLadeFehler(bild.id)"
+        (bildGeladen)="beiBildGeladen(bild.id)"
       ></app-zuschnitt-editor>
 
       @if (bild.ladefehler) {

@@ -49,6 +49,14 @@ export class ZuschnittEditorComponent {
   /** `loadImageFailed` der Bibliothek, durchgereicht - z.B. bei HEIC-Fotos. */
   readonly ladenFehlgeschlagen = output<void>();
 
+  /**
+   * `imageLoaded` der Bibliothek, durchgereicht. Die Seite loescht damit einen
+   * zuvor gemeldeten Lesefehler wieder: Ohne dieses Gegenstueck bliebe die
+   * Meldung fuer dieses Bild dauerhaft stehen, auch wenn es sich laengst
+   * anzeigen laesst.
+   */
+  readonly bildGeladen = output<void>();
+
   readonly letzterAusschnitt = signal<Rechteck | null>(null);
 
   // Groesse des Originalbildes (aus `imageLoaded`) und der tatsaechlich
@@ -219,6 +227,7 @@ export class ZuschnittEditorComponent {
   /** `(imageLoaded)`: liefert die Originalgroesse fuer `cropperEingabe`. */
   beiBildGeladen(bild: LoadedImage): void {
     this.originalGroesse.set(bild.original.size);
+    this.bildGeladen.emit();
   }
 
   /** `(cropperReady)`: liefert die Anzeigegroesse fuer `cropperEingabe`. */

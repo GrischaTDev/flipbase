@@ -31,6 +31,23 @@ import { leiteAb, reichtAufloesung, vergroesserungsfaktor } from './services/zus
 export const HEIC_HINWEIS =
   'Das Bild liess sich nicht lesen. HEIC-Dateien vom iPhone kann der Browser oft nicht öffnen.';
 
+/**
+ * Hinweistext fuer alle uebrigen Formate, die sich nicht anzeigen liessen.
+ *
+ * Wichtig, dass es diesen zweiten Text gibt: Ein Fehlschlag bei einer PNG- oder
+ * JPEG-Datei mit "HEIC-Dateien vom iPhone" zu erklaeren schickt den Nutzer in
+ * die voellig falsche Richtung - genau das ist im Betrieb passiert.
+ */
+export const LESE_HINWEIS =
+  'Das Bild liess sich nicht anzeigen. Versuche es mit einer anderen Datei oder speichere es vorher als JPEG.';
+
+/** Ob eine Datei ein HEIC/HEIF-Foto ist - danach richtet sich der Hinweistext. */
+export function istHeic(datei: File): boolean {
+  const typ = (datei.type || '').toLowerCase();
+  const name = (datei.name || '').toLowerCase();
+  return typ.includes('heic') || typ.includes('heif') || /\.(heic|heif)$/.test(name);
+}
+
 /** Ein hochgeladenes Bild mit seinem Zuschnitt. */
 export interface OptimiererBild {
   readonly id: string;
@@ -251,7 +268,23 @@ export class ImageOptimizerComponent {
    */
   beiLadeFehler(id: string): void {
     this.bilder.update((liste) =>
-      liste.map((b) => (b.id === id ? { ...b, ladefehler: HEIC_HINWEIS } : b)),
+      liste.map((b) =>
+        b.id === id ? { ...b, ladefehler: istHeic(b.datei) ? HEIC_HINWEIS : LESE_HINWEIS } : b,
+      ),
+    );
+  }
+
+  /**
+   * `(bildGeladen)` vom Editor: Das Bild liess sich doch anzeigen.
+   *
+   * Ohne dieses Zuruecksetzen bleibt ein einmal gemeldeter Lesefehler fuer
+   * dieses Bild fuer immer stehen - auch nach einer Drehung oder einem
+   * erneuten Laden, bei dem alles funktioniert. Im Betrieb stand deshalb eine
+   * Fehlermeldung ueber einem Bild, das sichtbar in Ordnung war.
+   */
+  beiBildGeladen(id: string): void {
+    this.bilder.update((liste) =>
+      liste.map((b) => (b.id === id && b.ladefehler ? { ...b, ladefehler: null } : b)),
     );
   }
 
