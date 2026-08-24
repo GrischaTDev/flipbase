@@ -70,8 +70,8 @@ export class SyncStatusService {
       zeitpunkt: new Date().toISOString(),
     };
 
-    // Neueste zuerst, und nicht unbegrenzt wachsen lassen.
-    this.fehler.update((liste) => [eintrag, ...liste].slice(0, 20));
+    // Offene Fehler bleiben bis zum ausdrücklichen Schließen erhalten.
+    this.fehler.update((liste) => [eintrag, ...liste]);
 
     if (code && SyncStatusService.SITZUNGS_CODES.has(code)) {
       this.beiVerdacht?.();

@@ -62,4 +62,19 @@ describe('ToastSyncBridgeService', () => {
 
     expect(toast.toasts()).toEqual([]);
   });
+
+  it('spiegelt auch mehr als 20 offene Sync-Fehler jeweils genau einmal', () => {
+    for (let nummer = 1; nummer <= 21; nummer++) {
+      syncStatus.melde(`Vorgang ${nummer}`, { message: `Fehler ${nummer}` });
+    }
+    TestBed.flushEffects();
+    TestBed.flushEffects();
+
+    const titel = toast.toasts().map((eintrag) => eintrag.title);
+    expect(syncStatus.fehler()).toHaveLength(21);
+    expect(titel).toHaveLength(21);
+    expect(new Set(titel).size).toBe(21);
+    expect(titel.filter((eintrag) => eintrag === 'Vorgang 1 fehlgeschlagen.')).toHaveLength(1);
+    expect(titel.filter((eintrag) => eintrag === 'Vorgang 21 fehlgeschlagen.')).toHaveLength(1);
+  });
 });

@@ -65,13 +65,14 @@ describe('SyncStatusService – sichtbare Meldung fehlgeschlagener Speichervorg�
     expect(service.anzahl()).toBe(2);
   });
 
-  it('behält höchstens 20 Fehler, damit die Liste nicht unbegrenzt wächst', () => {
+  it('behält alle Fehler, bis sie ausdrücklich geschlossen werden', () => {
     for (let i = 0; i < 30; i++) {
       service.melde(`Vorgang ${i}`, { message: 'x' });
     }
 
-    expect(service.anzahl()).toBe(20);
+    expect(service.anzahl()).toBe(30);
     expect(service.neuesterFehler()?.vorgang).toBe('Vorgang 29');
+    expect(service.fehler().at(-1)?.vorgang).toBe('Vorgang 0');
   });
 
   it('lässt einen einzelnen Fehler schliessen', () => {
