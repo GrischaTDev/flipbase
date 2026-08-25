@@ -246,7 +246,10 @@
                   <button
                     type="button"
                     (click)="openInvoiceForSale(sale)"
-                    class="p-1.5 rounded-lg text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/15 transition cursor-pointer"
+                    [disabled]="isCreatingInvoice()"
+                    [attr.aria-busy]="isCreatingInvoice()"
+                    [attr.aria-disabled]="isCreatingInvoice()"
+                    class="p-1.5 rounded-lg text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/15 transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                     title="§ 25a Differenzbesteuerungs-Rechnung anzeigen"
                   >
                     <svg [lucideIcon]="fileIcon" class="w-3.5 h-3.5"></svg>
@@ -349,7 +352,10 @@
             <button
               type="button"
               (click)="openInvoiceForSale(sale)"
-              class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-indigo-300"
+              [disabled]="isCreatingInvoice()"
+              [attr.aria-busy]="isCreatingInvoice()"
+              [attr.aria-disabled]="isCreatingInvoice()"
+              class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-indigo-300 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <svg [lucideIcon]="fileIcon" class="w-3 h-3"></svg>
               <span>§ 25a Rechnung</span>

@@ -114,6 +114,34 @@ function erstelleKomponente() {
 }
 
 describe('SalesComponent – Aktionsmeldungen', () => {
+  it('startet bei einem Doppelklick nur eine Rechnungserstellung', async () => {
+    const { komponente, invoiceService } = erstelleKomponente();
+    let resolve!: (value: {
+      data: { id: string };
+      error: null;
+      created: boolean;
+      reportedBySyncStatus: boolean;
+    }) => void;
+    invoiceService.generateInvoiceForSale.mockImplementation(
+      () =>
+        new Promise((resolver) => {
+          resolve = resolver;
+        }),
+    );
+
+    const first = komponente.openInvoiceForSale(verkauf);
+    const second = komponente.openInvoiceForSale(verkauf);
+
+    expect(invoiceService.generateInvoiceForSale).toHaveBeenCalledOnce();
+    resolve({
+      data: { id: 'invoice-1' },
+      error: null,
+      created: true,
+      reportedBySyncStatus: false,
+    });
+    await Promise.all([first, second]);
+  });
+
   it('öffnet eine Rechnung erst nach bestätigter Erstellung und bestätigt nur die Neuerstellung', async () => {
     const { komponente, invoiceService, toast } = erstelleKomponente();
 

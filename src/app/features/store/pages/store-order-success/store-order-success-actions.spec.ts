@@ -57,6 +57,34 @@ function erstelleKomponente() {
 }
 
 describe('StoreOrderSuccessComponent – Rechnung', () => {
+  it('startet bei einem Doppelklick nur eine Rechnungserstellung', async () => {
+    const { component, invoiceService } = erstelleKomponente();
+    let resolve!: (value: {
+      data: { id: string };
+      error: null;
+      created: boolean;
+      reportedBySyncStatus: boolean;
+    }) => void;
+    invoiceService.generateInvoiceForOrder.mockImplementation(
+      () =>
+        new Promise((resolver) => {
+          resolve = resolver;
+        }),
+    );
+
+    const first = component.openInvoice();
+    const second = component.openInvoice();
+
+    expect(invoiceService.generateInvoiceForOrder).toHaveBeenCalledOnce();
+    resolve({
+      data: { id: 'invoice-1' },
+      error: null,
+      created: true,
+      reportedBySyncStatus: false,
+    });
+    await Promise.all([first, second]);
+  });
+
   it('öffnet nur eine bestätigte Rechnung und bestätigt nur deren Neuerstellung', async () => {
     const { component, invoiceService, toast } = erstelleKomponente();
     await component.openInvoice();

@@ -22,6 +22,37 @@ const STORAGE_KEY_SETTINGS = 'flipbase_store_settings';
 const STORAGE_KEY_CART = 'flipbase_store_cart';
 const STORAGE_KEY_ORDERS = 'flipbase_store_orders';
 
+function createDefaultStoreSettings(): StoreSettings {
+  return {
+    storeName: 'Flipbase Store & Second Hand Outlet',
+    tagline: 'Geprüfte Gebrauchtware, Elektronik & Schnäppchen mit Käuferschutz',
+    shippingFlatRate: 4.99,
+    freeShippingThreshold: 50.0,
+    currency: 'EUR',
+    payments: {
+      stripeEnabled: true,
+      stripePublishableKey: '',
+      paypalEnabled: true,
+      paypalClientId: '',
+      paypalEmail: 'pay@flipbase-outlet.de',
+      bankTransferEnabled: true,
+      bankIban: 'DE45 5001 0517 5555 6666 77',
+      bankBic: 'HELA DE FF 500',
+      bankAccountHolder: 'Flipbase Reselling GmbH & Co. KG',
+      cashOnPickupEnabled: true,
+    },
+    imprint: {
+      owner: 'Flipbase Reselling',
+      street: 'Musterstraße 12',
+      city: '10115 Berlin',
+      email: 'service@flipbase-store.de',
+      phone: '+49 (0) 30 12345678',
+      vatId: 'DE 123456789 (Differenzbesteuert gem. § 25a UStG)',
+    },
+    noticeText: 'Endpreise inkl. MwSt. (Differenzbesteuerung gem. § 25a UStG bei Gebrauchtwaren)',
+  };
+}
+
 export interface StoreConfigMutationResult<T> {
   readonly data: T | null;
   readonly error: Error | null;
@@ -42,36 +73,9 @@ export class StoreService {
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly webPushService = inject(WebPushService, { optional: true });
 
-  readonly storeSettings = signal<StoreSettings>({
-    storeName: 'Flipbase Store & Second Hand Outlet',
-    tagline: 'Geprüfte Gebrauchtware, Elektronik & Schnäppchen mit Käuferschutz',
-    shippingFlatRate: 4.99,
-    freeShippingThreshold: 50.0,
-    currency: 'EUR',
-    payments: {
-      stripeEnabled: true,
-      // Der veroeffentlichbare Stripe-Schluessel darf im Frontend stehen.
-      // Der geheime Schluessel niemals - der gehoert in eine Edge Function.
-      stripePublishableKey: '',
-      paypalEnabled: true,
-      paypalClientId: '',
-      paypalEmail: 'pay@flipbase-outlet.de',
-      bankTransferEnabled: true,
-      bankIban: 'DE45 5001 0517 5555 6666 77',
-      bankBic: 'HELA DE FF 500',
-      bankAccountHolder: 'Flipbase Reselling GmbH & Co. KG',
-      cashOnPickupEnabled: true,
-    },
-    imprint: {
-      owner: 'Flipbase Reselling',
-      street: 'Musterstraße 12',
-      city: '10115 Berlin',
-      email: 'service@flipbase-store.de',
-      phone: '+49 (0) 30 12345678',
-      vatId: 'DE 123456789 (Differenzbesteuert gem. § 25a UStG)',
-    },
-    noticeText: 'Endpreise inkl. MwSt. (Differenzbesteuerung gem. § 25a UStG bei Gebrauchtwaren)',
-  });
+  readonly storeSettings = signal<StoreSettings>(createDefaultStoreSettings());
+  readonly loadedWorkspaceId = signal<string | null>(null);
+  private loadVersion = 0;
 
   readonly cart = signal<CartItem[]>([]);
   readonly isCartOpen = signal<boolean>(false);
@@ -118,9 +122,7 @@ export class StoreService {
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
-        if (ws) {
-          this.loadFromSupabase(ws.id);
-        }
+        void this.loadFromSupabase(ws?.id ?? '');
       });
     } catch {
       // nur Testumgebung ohne Scheduler
@@ -155,14 +157,26 @@ export class StoreService {
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase || this.mockStore?.isDemoMode()) return;
+    const requestedWorkspaceId = workspaceId.trim();
+    const loadVersion = (this.loadVersion ?? 0) + 1;
+    this.loadVersion = loadVersion;
+    if (!requestedWorkspaceId) {
+      this.resetWorkspaceData();
+      return;
+    }
+    if (!this.isCurrentWorkspace(requestedWorkspaceId)) return;
+    if (!this.supabase || this.mockStore?.isDemoMode()) {
+      this.loadedWorkspaceId.set(requestedWorkspaceId);
+      return;
+    }
+    this.resetWorkspaceData();
 
     try {
       const [settingsRes, ordersRes] = await Promise.all([
         this.supabase.client
           .from('store_settings')
           .select('*')
-          .eq('workspace_id', workspaceId)
+          .eq('workspace_id', requestedWorkspaceId)
           .maybeSingle(),
         this.supabase.client
           .from('store_orders')
@@ -172,22 +186,27 @@ export class StoreService {
             items:store_order_items(*)
           `,
           )
-          .eq('workspace_id', workspaceId)
+          .eq('workspace_id', requestedWorkspaceId)
           .order('created_at', { ascending: false }),
       ]);
 
+      if (!this.isCurrentLoad(requestedWorkspaceId, loadVersion)) return;
+      if (settingsRes.error || ordersRes.error) {
+        throw settingsRes.error ?? ordersRes.error;
+      }
+
       if (settingsRes.data) {
         const d = settingsRes.data;
+        const defaults = createDefaultStoreSettings();
         const loadedSettings: StoreSettings = {
           storeName: d.store_name,
           tagline: d.tagline || '',
           shippingFlatRate: Number(d.shipping_flat_rate || 4.99),
           freeShippingThreshold: Number(d.free_shipping_threshold || 50.0),
           currency: d.currency || 'EUR',
-          payments:
-            (d.payments as unknown as PaymentGatewayConfig) || this.storeSettings().payments,
-          imprint: (d.imprint as any) || this.storeSettings().imprint,
-          noticeText: d.notice_text || this.storeSettings().noticeText,
+          payments: (d.payments as unknown as PaymentGatewayConfig) || defaults.payments,
+          imprint: (d.imprint as any) || defaults.imprint,
+          noticeText: d.notice_text || defaults.noticeText,
         };
         this.storeSettings.set(loadedSettings);
         try {
@@ -197,37 +216,52 @@ export class StoreService {
         } catch {}
       }
 
-      if (ordersRes.data && ordersRes.data.length > 0) {
-        const mappedOrders: StoreOrder[] = (ordersRes.data as unknown[]).map((o: any) => ({
-          id: o.id,
-          orderNumber: o.order_number,
-          createdAt: o.created_at,
-          customer: o.customer as CheckoutCustomerInfo,
-          items: ((o.items || []) as unknown[]).map((it: any) => ({
-            item: {
-              id: it.inventory_item_id || '',
-              workspace_id: o.workspace_id,
-              title: it.item_title,
-              condition: 'Gebraucht',
-              status: 'sold',
-              allocated_purchase_cost: Number(it.price || 0),
-            } as unknown as InventoryItem,
-            quantity: it.quantity,
-          })),
-          subtotal: Number(o.subtotal || 0),
-          shippingCost: Number(o.shipping_cost || 0),
-          total: Number(o.total || 0),
-          paymentMethod: o.payment_method,
-          paymentStatus: o.payment_status,
-          paymentId: o.payment_id || undefined,
-          status: o.status,
-        }));
-        this.orders.set(mappedOrders);
-        this.persistOrders();
-      }
+      const mappedOrders: StoreOrder[] = ((ordersRes.data ?? []) as unknown[]).map((o: any) => ({
+        id: o.id,
+        orderNumber: o.order_number,
+        createdAt: o.created_at,
+        customer: o.customer as CheckoutCustomerInfo,
+        items: ((o.items || []) as unknown[]).map((it: any) => ({
+          item: {
+            id: it.inventory_item_id || '',
+            workspace_id: o.workspace_id,
+            title: it.item_title,
+            condition: 'Gebraucht',
+            status: 'sold',
+            allocated_purchase_cost: Number(it.price || 0),
+          } as unknown as InventoryItem,
+          quantity: it.quantity,
+        })),
+        subtotal: Number(o.subtotal || 0),
+        shippingCost: Number(o.shipping_cost || 0),
+        total: Number(o.total || 0),
+        paymentMethod: o.payment_method,
+        paymentStatus: o.payment_status,
+        paymentId: o.payment_id || undefined,
+        status: o.status,
+      }));
+      this.orders.set(mappedOrders);
+      this.persistOrders();
+      this.loadedWorkspaceId.set(requestedWorkspaceId);
     } catch (err) {
-      this.logger.error('Verbindungsfehler beim Laden der Store-Daten:', err);
+      if (this.isCurrentLoad(requestedWorkspaceId, loadVersion)) {
+        this.logger.error('Verbindungsfehler beim Laden der Store-Daten:', err);
+      }
     }
+  }
+
+  private resetWorkspaceData(): void {
+    this.storeSettings.set(createDefaultStoreSettings());
+    this.orders.set([]);
+    this.loadedWorkspaceId.set(null);
+  }
+
+  private isCurrentWorkspace(workspaceId: string): boolean {
+    return !this.workspaceService || this.workspaceService.currentWorkspace()?.id === workspaceId;
+  }
+
+  private isCurrentLoad(workspaceId: string, loadVersion: number): boolean {
+    return this.loadVersion === loadVersion && this.isCurrentWorkspace(workspaceId);
   }
 
   updateSettings(settings: Partial<StoreSettings>): void {
@@ -271,18 +305,19 @@ export class StoreService {
   async updatePaymentsConfig(
     payments: Partial<PaymentGatewayConfig>,
   ): Promise<StoreConfigMutationResult<PaymentGatewayConfig>> {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id ?? null;
     const updatedPayments = { ...this.storeSettings().payments, ...payments };
     const updatedSettings = { ...this.storeSettings(), payments: updatedPayments };
     const persistent = Boolean(this.supabase && !this.mockStore?.isDemoMode());
-    const ws = this.workspaceService?.currentWorkspace();
 
-    if (persistent && !ws) return this.storeConfigFehler(new Error('Kein aktiver Workspace.'));
+    if (persistent && !workspaceId)
+      return this.storeConfigFehler(new Error('Kein aktiver Workspace.'));
     if (persistent) {
       try {
         const { data, error } = await this.supabase!.client.from('store_settings')
           .upsert(
             {
-              workspace_id: ws!.id,
+              workspace_id: workspaceId!,
               store_name: updatedSettings.storeName,
               tagline: updatedSettings.tagline,
               shipping_flat_rate: updatedSettings.shippingFlatRate,
@@ -304,6 +339,13 @@ export class StoreService {
         }
       } catch (error: unknown) {
         return this.storeConfigFehler(error);
+      }
+      if (!this.isCurrentWorkspace(workspaceId!)) {
+        return {
+          data: null,
+          error: new Error('Der Workspace wurde während des Speicherns gewechselt.'),
+          reportedBySyncStatus: false,
+        };
       }
     }
 

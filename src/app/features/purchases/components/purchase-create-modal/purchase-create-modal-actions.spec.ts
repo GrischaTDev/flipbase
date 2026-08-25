@@ -4,6 +4,7 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Purchase } from '../../../../core/models/flipbase.models';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { PurchaseCreateModalComponent } from './purchase-create-modal.component';
 
 const einkauf: Purchase = {
@@ -76,7 +77,7 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     suppliersService,
     trackingService: { autoDetectCarrier: vi.fn(() => 'dhl') },
     toast,
-    syncStatus: { fehler: signal([]) },
+    syncStatus: new SyncStatusService(),
     created,
     closed,
     isSubmitting: signal(false),
@@ -195,21 +196,12 @@ describe('PurchaseCreateModalComponent – zentrale Aktionsmeldungen', () => {
 
   it('erzeugt für einen zentral gemeldeten Einkaufsfehler keinen zweiten Toast', async () => {
     const { komponente, toast, purchaseService } = erstelleKomponente();
-    const error = new Error(
-      'Speichern des Einkaufs fehlgeschlagen: Keine Berechtigung für diesen Workspace.',
+    const syncStatus = new SyncStatusService();
+    const error = syncStatus.melde(
+      'Speichern des Einkaufs',
+      new Error('Keine Berechtigung für diesen Workspace.'),
     );
-    Object.assign(komponente, {
-      syncStatus: {
-        fehler: signal([
-          {
-            id: 1,
-            vorgang: 'Speichern des Einkaufs',
-            meldung: 'Keine Berechtigung für diesen Workspace.',
-            zeitpunkt: '2026-08-24T10:00:00.000Z',
-          },
-        ]),
-      },
-    });
+    Object.assign(komponente, { syncStatus });
     purchaseService.createPurchase.mockResolvedValue({
       status: 'failed',
       data: null,
@@ -221,6 +213,24 @@ describe('PurchaseCreateModalComponent – zentrale Aktionsmeldungen', () => {
     await komponente.onSubmit();
 
     expect(toast.toasts()).toEqual([]);
+  });
+
+  it('meldet einen neuen lokalen Quellenfehler trotz gleichlautendem älteren Sync-Fehler', async () => {
+    const { komponente, toast, sourcesService } = erstelleKomponente();
+    const syncStatus = new SyncStatusService();
+    const alterFehler = syncStatus.melde('Speichern der Quelle', new Error('offline'));
+    sourcesService.createSource.mockResolvedValue({
+      data: null,
+      error: new Error(alterFehler.message),
+    });
+    Object.assign(komponente, { syncStatus });
+
+    await komponente.saveNewSource();
+
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'error',
+      title: 'Quelle konnte nicht angelegt werden.',
+    });
   });
 
   it('schließt nach persistiertem Einkauf mit Teilproblem ohne grünen Vollerfolg', async () => {

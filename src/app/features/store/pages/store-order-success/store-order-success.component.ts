@@ -55,6 +55,7 @@ export class StoreOrderSuccessComponent {
   });
 
   async openInvoice(): Promise<void> {
+    if (this.isCreatingInvoice()) return;
     const ord = this.order();
     if (!ord) return;
     this.isCreatingInvoice.set(true);

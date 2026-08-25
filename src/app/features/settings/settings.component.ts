@@ -165,6 +165,7 @@ export class SettingsComponent {
   readonly isSavingPaymentConfig = signal(false);
   readonly isSavingCarrierConfig = signal(false);
   readonly isSavingWebhookConfig = signal(false);
+  readonly isLoadingWorkspaceConfig = signal(true);
 
   // Invite modal state
   readonly isInviteModalOpen = signal<boolean>(false);
@@ -264,12 +265,32 @@ export class SettingsComponent {
       }
     });
 
+    effect(() => {
+      const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
+      const configsLoaded =
+        workspaceId !== null &&
+        this.storeService.loadedWorkspaceId() === workspaceId &&
+        this.fulfillmentService.loadedWorkspaceId() === workspaceId &&
+        this.webhookService.loadedWorkspaceId() === workspaceId;
+
+      if (!configsLoaded) {
+        this.isLoadingWorkspaceConfig.set(workspaceId !== null);
+        this.resetWorkspaceConfigForms();
+        return;
+      }
+
+      this.patchWorkspaceConfigForms();
+      this.isLoadingWorkspaceConfig.set(false);
+    });
+
     const cfg = this.ebayApiService.getConfig();
     this.ebayForm.patchValue({
       appId: cfg.appId || '',
       globalId: cfg.siteId || 'EBAY-DE',
     });
+  }
 
+  private patchWorkspaceConfigForms(): void {
     const pm = this.storeService.storeSettings().payments;
     this.paymentForm.patchValue({
       stripeEnabled: pm.stripeEnabled,
@@ -284,17 +305,83 @@ export class SettingsComponent {
     });
 
     const cCfg = this.fulfillmentService.carrierConfig();
-    this.carrierForm.patchValue({
-      dhlEnabled: cCfg.dhlEnabled,
-      dhlEkp: cCfg.dhlEkp,
-      dhlApiKey: cCfg.dhlApiKey,
-      hermesEnabled: cCfg.hermesEnabled,
-      hermesClientId: cCfg.hermesClientId,
-      hermesApiKey: cCfg.hermesApiKey,
-    });
+    this.carrierForm.patchValue(
+      {
+        dhlEnabled: cCfg.dhlEnabled,
+        dhlEkp: cCfg.dhlEkp,
+        dhlApiKey: cCfg.dhlApiKey,
+        hermesEnabled: cCfg.hermesEnabled,
+        hermesClientId: cCfg.hermesClientId,
+        hermesApiKey: cCfg.hermesApiKey,
+      },
+      { emitEvent: false },
+    );
+
+    const webhook = this.webhookService.config();
+    this.webhookForm.patchValue(
+      {
+        discordEnabled: webhook.discordEnabled,
+        discordWebhookUrl: webhook.discordWebhookUrl,
+        telegramEnabled: webhook.telegramEnabled,
+        telegramBotToken: webhook.telegramBotToken,
+        telegramChatId: webhook.telegramChatId,
+        customWebhookEnabled: webhook.customWebhookEnabled,
+        customWebhookUrl: webhook.customWebhookUrl,
+        notifyOnSale: webhook.notifyOnSale,
+        notifyOnPurchase: webhook.notifyOnPurchase,
+        soundEnabled: webhook.soundEnabled,
+      },
+      { emitEvent: false },
+    );
+  }
+
+  private resetWorkspaceConfigForms(): void {
+    this.paymentForm.reset(
+      {
+        stripeEnabled: false,
+        stripePublishableKey: '',
+        paypalEnabled: false,
+        paypalEmail: '',
+        bankTransferEnabled: false,
+        bankName: '',
+        bankIban: '',
+        bankBic: '',
+        bankAccountHolder: '',
+        cashOnPickupEnabled: false,
+      },
+      { emitEvent: false },
+    );
+    this.carrierForm.reset(
+      {
+        dhlEnabled: false,
+        dhlEkp: '',
+        dhlApiKey: '',
+        hermesEnabled: false,
+        hermesClientId: '',
+        hermesApiKey: '',
+      },
+      { emitEvent: false },
+    );
+    this.webhookForm.reset(
+      {
+        discordEnabled: false,
+        discordWebhookUrl: '',
+        telegramEnabled: false,
+        telegramBotToken: '',
+        telegramChatId: '',
+        customWebhookEnabled: false,
+        customWebhookUrl: '',
+        notifyOnSale: true,
+        notifyOnPurchase: true,
+        soundEnabled: true,
+      },
+      { emitEvent: false },
+    );
   }
 
   async onSavePaymentConfig(): Promise<void> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (!workspaceId || this.isLoadingWorkspaceConfig()) return;
     const val = this.paymentForm.getRawValue();
     this.isSavingPaymentConfig.set(true);
     try {
@@ -309,6 +396,7 @@ export class SettingsComponent {
         bankAccountHolder: val.bankAccountHolder?.trim() || '',
         cashOnPickupEnabled: !!val.cashOnPickupEnabled,
       });
+      if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
       if (result.error || !result.data) {
         const error = result.error ?? new Error('Keine bestätigten Zahlungsmethoden.');
         if (!result.reportedBySyncStatus) {
@@ -328,6 +416,8 @@ export class SettingsComponent {
   }
 
   async onSaveCarrierConfig(): Promise<void> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (!workspaceId || this.isLoadingWorkspaceConfig()) return;
     const val = this.carrierForm.getRawValue();
     this.isSavingCarrierConfig.set(true);
     try {
@@ -339,6 +429,7 @@ export class SettingsComponent {
         hermesClientId: val.hermesClientId?.trim() || '',
         hermesApiKey: val.hermesApiKey?.trim() || '',
       });
+      if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
       if (result.error || !result.data) {
         const error = result.error ?? new Error('Keine bestätigte Carrier-Konfiguration.');
         if (!result.reportedBySyncStatus) {
@@ -531,9 +622,12 @@ export class SettingsComponent {
   }
 
   async onSaveWebhookConfig(): Promise<void> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (!workspaceId || this.isLoadingWorkspaceConfig()) return;
     this.isSavingWebhookConfig.set(true);
     try {
       const result = await this.saveWebhookConfig();
+      if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
       if (result.error || !result.data) {
         const error = result.error ?? new Error('Keine bestätigte Webhook-Konfiguration.');
         if (!result.reportedBySyncStatus) {
@@ -569,9 +663,12 @@ export class SettingsComponent {
   }
 
   async testWebhook(channel: 'discord' | 'telegram' | 'custom'): Promise<void> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (!workspaceId || this.isLoadingWorkspaceConfig()) return;
     this.isTestingWebhook.set(true);
     try {
       const configResult = await this.saveWebhookConfig();
+      if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
       if (configResult.error || !configResult.data) {
         if (!configResult.reportedBySyncStatus) {
           this.toast.error(

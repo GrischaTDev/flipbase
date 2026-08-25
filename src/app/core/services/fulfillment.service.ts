@@ -19,6 +19,17 @@ import { SyncStatusService } from './sync-status.service';
 const STORAGE_KEY_CARRIER_CFG = 'flipbase_carrier_config';
 const STORAGE_KEY_SHIPPING_ORDERS = 'flipbase_shipping_orders';
 
+function createDefaultCarrierConfig(): CarrierConfig {
+  return {
+    dhlEnabled: true,
+    dhlEkp: '5001234567',
+    dhlApiKey: '',
+    hermesEnabled: true,
+    hermesClientId: 'HERMES-99421',
+    hermesApiKey: '',
+  };
+}
+
 export interface FulfillmentMutationResult<T> {
   readonly data: T | null;
   readonly error: Error | null;
@@ -111,6 +122,8 @@ export class FulfillmentService {
   ];
 
   readonly carrierConfig = signal<CarrierConfig>(this.loadCarrierConfig());
+  readonly loadedWorkspaceId = signal<string | null>(null);
+  private loadVersion = 0;
   readonly orders = signal<ShippingOrder[]>(this.loadPersistedOrders());
 
   readonly selectedOrderForLabel = signal<ShippingOrder | null>(null);
@@ -186,9 +199,7 @@ export class FulfillmentService {
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
-        if (ws) {
-          this.loadFromSupabase(ws.id);
-        }
+        void this.loadFromSupabase(ws?.id ?? '');
       });
     } catch {
       // nur Testumgebung ohne Scheduler
@@ -336,66 +347,70 @@ export class FulfillmentService {
       }
     } catch {}
 
-    return {
-      dhlEnabled: true,
-      dhlEkp: '5001234567',
-      // Kein Schluessel im Frontend: Traeger-Zugangsdaten gehoeren in
-      // Edge Functions, nicht in eine vom Browser lesbare Tabelle.
-      dhlApiKey: '',
-      hermesEnabled: true,
-      hermesClientId: 'HERMES-99421',
-      hermesApiKey: '',
-    };
+    return createDefaultCarrierConfig();
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase || this.mockStore?.isDemoMode()) return;
+    const requestedWorkspaceId = workspaceId.trim();
+    const loadVersion = (this.loadVersion ?? 0) + 1;
+    this.loadVersion = loadVersion;
+    if (!requestedWorkspaceId) {
+      this.resetWorkspaceData();
+      return;
+    }
+    if (!this.isCurrentWorkspace(requestedWorkspaceId)) return;
+    if (!this.supabase || this.mockStore?.isDemoMode()) {
+      this.loadedWorkspaceId.set(requestedWorkspaceId);
+      return;
+    }
+    this.resetWorkspaceData();
 
     try {
       const [orderRes, cfgRes] = await Promise.all([
         this.supabase.client
           .from('shipping_orders')
           .select('*')
-          .eq('workspace_id', workspaceId)
+          .eq('workspace_id', requestedWorkspaceId)
           .order('created_at', { ascending: false }),
         this.supabase.client
           .from('carrier_configs')
           .select('*')
-          .eq('workspace_id', workspaceId)
+          .eq('workspace_id', requestedWorkspaceId)
           .maybeSingle(),
       ]);
 
-      if (orderRes.data && orderRes.data.length > 0) {
-        const mapped: ShippingOrder[] = (orderRes.data as unknown[]).map((o: any) => ({
-          id: o.id,
-          workspace_id: o.workspace_id,
-          sale_id: o.sale_id,
-          order_number: o.order_number,
-          order_date: o.order_date,
-          platform: o.platform,
-          item_title: o.item_title,
-          item_sku: o.item_sku || undefined,
-          item_condition: o.item_condition || undefined,
-          sale_price: Number(o.sale_price || 0),
-          customer: o.customer as AddressInfo,
-          carrier: o.carrier as CarrierType,
-          package_type: o.package_type,
-          tracking_number: o.tracking_number || undefined,
-          tracking_url: o.tracking_url || undefined,
-          label_price: o.label_price ? Number(o.label_price) : undefined,
-          carrier_transaction_id: o.carrier_transaction_id || undefined,
-          status: o.status as ShippingStatus,
-          created_at: o.created_at,
-          shipped_at: o.shipped_at || undefined,
-          delivered_at: o.delivered_at || undefined,
-          is_bundled: o.is_bundled || false,
-          bundled_order_ids: o.bundled_order_ids || undefined,
-          bundled_item_titles: o.bundled_item_titles || undefined,
-          notes: o.notes || undefined,
-        }));
-        this.orders.set(mapped);
-        this.persistOrders();
-      }
+      if (!this.isCurrentLoad(requestedWorkspaceId, loadVersion)) return;
+      if (orderRes.error || cfgRes.error) throw orderRes.error ?? cfgRes.error;
+
+      const mapped: ShippingOrder[] = ((orderRes.data ?? []) as unknown[]).map((o: any) => ({
+        id: o.id,
+        workspace_id: o.workspace_id,
+        sale_id: o.sale_id,
+        order_number: o.order_number,
+        order_date: o.order_date,
+        platform: o.platform,
+        item_title: o.item_title,
+        item_sku: o.item_sku || undefined,
+        item_condition: o.item_condition || undefined,
+        sale_price: Number(o.sale_price || 0),
+        customer: o.customer as AddressInfo,
+        carrier: o.carrier as CarrierType,
+        package_type: o.package_type,
+        tracking_number: o.tracking_number || undefined,
+        tracking_url: o.tracking_url || undefined,
+        label_price: o.label_price ? Number(o.label_price) : undefined,
+        carrier_transaction_id: o.carrier_transaction_id || undefined,
+        status: o.status as ShippingStatus,
+        created_at: o.created_at,
+        shipped_at: o.shipped_at || undefined,
+        delivered_at: o.delivered_at || undefined,
+        is_bundled: o.is_bundled || false,
+        bundled_order_ids: o.bundled_order_ids || undefined,
+        bundled_item_titles: o.bundled_item_titles || undefined,
+        notes: o.notes || undefined,
+      }));
+      this.orders.set(mapped);
+      this.persistOrders();
 
       if (cfgRes.data) {
         const cfg: CarrierConfig = {
@@ -413,23 +428,41 @@ export class FulfillmentService {
           }
         } catch {}
       }
+      this.loadedWorkspaceId.set(requestedWorkspaceId);
     } catch (err) {
-      this.logger.error('Verbindungsfehler beim Laden der Versanddaten:', err);
+      if (this.isCurrentLoad(requestedWorkspaceId, loadVersion)) {
+        this.logger.error('Verbindungsfehler beim Laden der Versanddaten:', err);
+      }
     }
   }
 
+  private resetWorkspaceData(): void {
+    this.carrierConfig.set(createDefaultCarrierConfig());
+    this.orders.set([]);
+    this.loadedWorkspaceId.set(null);
+  }
+
+  private isCurrentWorkspace(workspaceId: string): boolean {
+    return !this.workspaceService || this.workspaceService.currentWorkspace()?.id === workspaceId;
+  }
+
+  private isCurrentLoad(workspaceId: string, loadVersion: number): boolean {
+    return this.loadVersion === loadVersion && this.isCurrentWorkspace(workspaceId);
+  }
+
   async updateCarrierConfig(cfg: Partial<CarrierConfig>): Promise<CarrierConfigMutationResult> {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id ?? null;
     const updated = { ...this.carrierConfig(), ...cfg };
-    const ws = this.workspaceService?.currentWorkspace();
     const persistent = this.istPersistenterModus();
-    if (persistent && !ws) return this.carrierConfigFehler(new Error('Kein aktiver Workspace.'));
+    if (persistent && !workspaceId)
+      return this.carrierConfigFehler(new Error('Kein aktiver Workspace.'));
     let confirmed = updated;
     if (persistent) {
       try {
         const { data, error } = await this.supabase!.client.from('carrier_configs')
           .upsert(
             {
-              workspace_id: ws!.id,
+              workspace_id: workspaceId!,
               dhl_enabled: updated.dhlEnabled,
               dhl_ekp: updated.dhlEkp,
               dhl_api_key: updated.dhlApiKey,
@@ -457,6 +490,13 @@ export class FulfillmentService {
         };
       } catch (error: unknown) {
         return this.carrierConfigFehler(error);
+      }
+      if (!this.isCurrentWorkspace(workspaceId!)) {
+        return {
+          data: null,
+          error: new Error('Der Workspace wurde während des Speicherns gewechselt.'),
+          reportedBySyncStatus: false,
+        };
       }
     }
     this.carrierConfig.set(confirmed);

@@ -170,6 +170,7 @@ export class SalesComponent {
   }
 
   async openInvoiceForSale(sale: Sale): Promise<void> {
+    if (this.isCreatingInvoice()) return;
     this.isCreatingInvoice.set(true);
     try {
       const result = await this.invoiceService.generateInvoiceForSale(sale, sale.inventory_item);

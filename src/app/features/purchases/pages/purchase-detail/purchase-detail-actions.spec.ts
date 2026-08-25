@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Purchase } from '../../../../core/models/flipbase.models';
+import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { PurchaseDetailComponent } from './purchase-detail.component';
 
@@ -68,7 +69,7 @@ function erstelleKomponente(
     mediaService: { uploadItemMedia: vi.fn() },
     logger: { warn: vi.fn() },
     toast,
-    syncStatus: { fehler: signal([]) },
+    syncStatus: new SyncStatusService(),
   });
 
   return {
@@ -127,26 +128,31 @@ describe('PurchaseDetailComponent – Rückmeldung beim Artikelanlegen', () => {
 
   it('behält die Kostenverteilung bei einem zentral gemeldeten Fehler geöffnet', async () => {
     const { komponente, toast, purchaseService } = erstelleKomponente();
-    const error = new Error('Kostenverteilung fehlgeschlagen: Keine Berechtigung.');
+    const syncStatus = new SyncStatusService();
+    const error = syncStatus.melde('Kostenverteilung', new Error('Keine Berechtigung.'));
     purchaseService.redistributeCosts.mockResolvedValue({ error });
-    Object.assign(komponente, {
-      syncStatus: {
-        fehler: signal([
-          {
-            id: 1,
-            vorgang: 'Kostenverteilung',
-            meldung: 'Keine Berechtigung.',
-            zeitpunkt: '2026-08-24T10:00:00.000Z',
-          },
-        ]),
-      },
-    });
+    Object.assign(komponente, { syncStatus });
 
     await komponente.applyAllocations();
 
     expect(komponente.isApplyingAllocation()).toBe(false);
     expect(komponente.isAllocatorOpen()).toBe(true);
     expect(toast.toasts()).toEqual([]);
+  });
+
+  it('meldet einen neuen lokalen Fehler trotz gleichlautendem älteren Sync-Fehler', async () => {
+    const { komponente, toast, purchaseService } = erstelleKomponente();
+    const syncStatus = new SyncStatusService();
+    const alterFehler = syncStatus.melde('Kostenverteilung', new Error('Keine Berechtigung.'));
+    purchaseService.redistributeCosts.mockResolvedValue({ error: new Error(alterFehler.message) });
+    Object.assign(komponente, { syncStatus });
+
+    await komponente.applyAllocations();
+
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'error',
+      title: 'Kosten konnten nicht verteilt werden.',
+    });
   });
 
   it('schließt die Tracking-Bearbeitung erst nach Erfolg', async () => {

@@ -38,7 +38,7 @@ function erstelleKomponente() {
   Object.assign(komponente, {
     dialog: { frage: vi.fn(async () => true) },
     toast,
-    syncStatus: { fehler: signal([]) },
+    syncStatus: new SyncStatusService(),
     sourcesService,
     suppliersService,
     isAddingSource: signal(true),
@@ -194,6 +194,34 @@ describe('SourcesComponent – zentrale Aktionsmeldungen', () => {
       description: 'Lokaler Dienst ausgefallen',
       persistent: true,
     });
+  });
+
+  it('meldet einen neuen lokalen Quellenfehler trotz gleichlautendem älteren Sync-Fehler', async () => {
+    const { komponente, toast, sourcesService } = erstelleKomponente();
+    const syncStatus = new SyncStatusService();
+    const alterFehler = syncStatus.melde('Speichern der Quelle', new Error('offline'));
+    sourcesService.updateSource.mockResolvedValue({ error: new Error(alterFehler.message) });
+    Object.assign(komponente, { syncStatus });
+
+    await komponente.speichereQuelle('source-1');
+
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'error',
+      title: 'Quelle konnte nicht gespeichert werden.',
+    });
+  });
+
+  it('erzeugt für einen echten zentral gemeldeten Quellenfehler keinen Feature-Toast', async () => {
+    const { komponente, toast, sourcesService } = erstelleKomponente();
+    const syncStatus = new SyncStatusService();
+    sourcesService.updateSource.mockResolvedValue({
+      error: syncStatus.melde('Speichern der Quelle', new Error('offline')),
+    });
+    Object.assign(komponente, { syncStatus });
+
+    await komponente.speichereQuelle('source-1');
+
+    expect(toast.toasts()).toEqual([]);
   });
 
   it.each(['quelle', 'lieferant'] as const)(

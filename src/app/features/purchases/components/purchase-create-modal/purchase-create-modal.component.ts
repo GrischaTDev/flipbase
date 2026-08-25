@@ -385,10 +385,7 @@ export class PurchaseCreateModalComponent {
   }
 
   private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {
-    const zentralGemeldet = this.syncStatus
-      .fehler()
-      .some((eintrag) => error.message === `${eintrag.vorgang} fehlgeschlagen: ${eintrag.meldung}`);
-    if (!zentralGemeldet) this.toast.error(title, error.message);
+    if (!this.syncStatus.istZentralGemeldet(error)) this.toast.error(title, error.message);
   }
 
   private alsError(ursache: unknown): Error {

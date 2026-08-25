@@ -64,9 +64,12 @@ Jeder Eintrag mit `status: "included"` besitzt einen echten Komponenten-/Service
       "exportInventoryCsv",
       "exportSalesCsv"
     ],
+    "variants": ["success", "failed", "workspace-switch", "stale-response"],
     "evidence": [
       "src/app/features/settings/settings-toast-actions.spec.ts",
+      "src/app/features/settings/settings-workspace-config.spec.ts",
       "src/app/core/services/settings-persistence-actions.spec.ts",
+      "src/app/core/services/workspace-config-load-isolation.spec.ts",
       "src/app/shared/components/workspace-modal/workspace-modal-actions.spec.ts"
     ]
   },
@@ -147,7 +150,14 @@ Jeder Eintrag mit `status: "included"` besitzt einen echten Komponenten-/Service
       "StoreOrderSuccess.openInvoice",
       "InvoiceModal.sendEmail/InvoiceService.prepareConfirmationEmail"
     ],
-    "variants": ["create", "view-existing", "update", "partial", "prepared-not-sent"],
+    "variants": [
+      "create",
+      "view-existing",
+      "update",
+      "partial",
+      "prepared-not-sent",
+      "double-click"
+    ],
     "evidence": [
       "src/app/features/sales/components/sale-create-modal/sale-create-modal-actions.spec.ts",
       "src/app/features/sales/sales-toast-actions.spec.ts",
@@ -165,10 +175,17 @@ Jeder Eintrag mit `status: "included"` besitzt einen echten Komponenten-/Service
       "Header.onMarkAllNotificationsRead",
       "Header.onClearNotifications"
     ],
-    "variants": ["automatic-no-success-toast", "explicit-success", "failed"],
+    "variants": [
+      "automatic-no-success-toast",
+      "explicit-success",
+      "failed",
+      "workspace-empty",
+      "stale-response"
+    ],
     "evidence": [
       "src/app/layout/header/header-notification-actions.spec.ts",
-      "src/app/core/services/webhook-persistence-actions.spec.ts"
+      "src/app/core/services/webhook-persistence-actions.spec.ts",
+      "src/app/core/services/workspace-config-load-isolation.spec.ts"
     ]
   },
   {
@@ -184,6 +201,7 @@ Jeder Eintrag mit `status: "included"` besitzt einen echten Komponenten-/Service
     "evidence": [
       "src/app/features/fulfillment/fulfillment-toast-actions.spec.ts",
       "src/app/core/services/fulfillment.service.spec.ts",
+      "src/app/core/services/workspace-config-load-isolation.spec.ts",
       ".superpowers/sdd/2026-08-24-systemweite-aktionsmeldungen/task-6-db-verification.sql"
     ]
   },
@@ -328,6 +346,22 @@ Die drei Einstellungsaktionen meldeten synchron Erfolg, während ihre Upserts nu
 
 Fulfillment und Radar besitzen jetzt je einen Komponenten-Regressionsfall mit `reportedBySyncStatus: true`. Beide belegen, dass der Featurepfad keinen zweiten Toast erzeugt; die zentrale Darstellung bleibt allein beim Sync-Toast-Bridge-Pfad.
 
+### 9. Workspace-übergreifende Konfigurations- und Inbox-Antworten
+
+`StoreService`, `FulfillmentService` und `WebhookService` übernehmen Ladeantworten nur noch, wenn sowohl die am Requeststart eingefrorene Workspace-ID als auch die laufende Load-Version noch aktuell sind. Beim Wechsel werden Store-/Carrier-/Webhook-Konfigurationen und die zugehörigen Listen sofort auf sichere Defaults beziehungsweise `[]` gesetzt. Eine leere Antwort für Workspace B lässt deshalb keine A-Werte stehen; eine verspätete A-Antwort kann B nicht mehr überschreiben. Datenbankfehler markieren die Konfiguration nicht als geladen.
+
+### 10. Settings-Formulare beim Workspacewechsel
+
+Die drei Konfigurationsformulare reagieren auf `currentWorkspace` und die expliziten `loadedWorkspaceId`-Signale der Dienste. Bei einem Wechsel werden insbesondere Publishable Key, Carrier-API-Schlüssel, Telegram-Token und Webhook-URLs sofort geleert. Erst nachdem alle drei Dienste denselben neuen Workspace bestätigt haben, werden dessen Werte gepatcht und Speichern beziehungsweise Webhook-Test wieder freigegeben. Jeder Speichervorgang friert außerdem die Workspace-ID ein und verwirft sein UI-Ergebnis nach einem zwischenzeitlichen Wechsel. Der B-Speichertest belegt, dass während der Ladephase kein A-Payload gesendet und danach ausschließlich der B-Wert verwendet wird.
+
+### 11. Typisierte Fehlerprovenienz statt Textvergleich
+
+`PurchaseDetailComponent`, `PurchaseCreateModalComponent` und `SourcesComponent` vergleichen keine Fehlermeldungstexte mehr mit historischen Sync-Einträgen. Sie verwenden ausschließlich `reportedBySyncStatus` aus typisierten Outcomes beziehungsweise `SyncStatusService.istZentralGemeldet(error)`. Ein neuer lokaler Fehler wird daher auch dann angezeigt, wenn ein älterer Sync-Fehler zufällig denselben Wortlaut besitzt; ein echter `ZentralGemeldeterFehler` erzeugt weiterhin keinen zweiten Feature-Toast.
+
+### 12. Reentrancy-Guard für Rechnungen
+
+`Sales.openInvoiceForSale` und `StoreOrderSuccess.openInvoice` prüfen den gemeinsamen Ladezustand jetzt als erste Anweisung. Die Invoice-Buttons sind währenddessen nativ deaktiviert und tragen `aria-busy`/`aria-disabled`. Die Doppelklick-Regressionsfälle halten die erste Promise offen und bestätigen jeweils exakt einen Service- und damit einen RPC-Aufruf.
+
 ## TDD-Nachweis
 
 ### RED
@@ -385,6 +419,32 @@ task-8-db-verification.sql
 → PASS: security, anon execute denial, idempotente Rechnung+Position, Validierung/RLS und finaler Rollback
 ```
 
+### Review-Runde 2 – RED
+
+```text
+npx vitest run src/app/core/services/workspace-config-load-isolation.spec.ts
+→ 3 erwartete Fehlschläge: B-leer behielt Store-/Carrier-/Webhook-A-Werte; Inbox blieb ebenfalls auf A
+
+npx vitest run src/app/features/settings/settings-toast-actions.spec.ts
+→ 1 erwarteter Fehlschlag: A-Payment-Payload wurde während des Wechsels zu B gespeichert
+
+npx vitest run <PurchaseDetail/PurchaseCreate/Sources-Aktionsspecs>
+→ 3 erwartete Fehlschläge: gleichlautende neue lokale Fehler wurden anhand alter Sync-Texte unterdrückt
+
+npx vitest run <Sales/StoreOrderSuccess-Aktionsspecs>
+→ 2 erwartete Fehlschläge: Doppelklick startete jeweils zwei Rechnungserstellungen
+```
+
+### Review-Runde 2 – GREEN
+
+```text
+npx vitest run <11 gezielte Nacharbeits-Testdateien>
+→ 11 Dateien, 93/93 Tests
+
+npm test -- --run
+→ 91 Dateien, 636/636 Tests
+```
+
 ## Doppelmeldungs- und Legacy-Scan
 
 - Produktionscode enthält kein `saveSuccess`, `publishSuccessMsg`, `bookingFeedback` oder `emailSentMessage` mehr.
@@ -399,7 +459,7 @@ task-8-db-verification.sql
 | Prüfung | Ergebnis |
 | --- | --- |
 | `npm run format:check` | Grün. Der Review-Erstlauf nannte 12 neu geänderte Dateien; nach gezielter Prettier-Formatierung war der vollständige Check grün. |
-| `npm test -- --run` | Grün: 89/89 Testdateien, 624/624 Tests. Node meldet die bereits bekannte experimentelle Warnung zur nicht konfigurierten Test-`localStorage`-Datei. |
+| `npm test -- --run` | Grün: 91/91 Testdateien, 636/636 Tests. Node meldet die bereits bekannte experimentelle Warnung zur nicht konfigurierten Test-`localStorage`-Datei. |
 | `npm run typecheck` | Grün: App- und Spec-TypeScript-Prüfung ohne Fehler. |
 | `npm run lint` | Exitcode 0, 0 Fehler. 47 vorbestehende `no-explicit-any`-Warnungen; keine Warnung in einer neu geänderten Zeile. |
 | `npm run build` | Grün. Ausschließlich die akzeptierten vorbestehenden CommonJS-Hinweise für `jszip` und `jsbarcode`. |
@@ -407,7 +467,7 @@ task-8-db-verification.sql
 | `task-7-db-verification.sql` | Grün: RPC-Rechte, atomarer/idempotenter Checkout, Rollback und Bankbuchungen. |
 | `task-7-db-concurrency-verification.ps1` | Grün: zwei konkurrierende IDs ergeben exakt eine Bestellung, einen Verkauf und Artikelstatus `sold`. |
 | `task-8-db-verification.sql` | Grün: RPC-Rechte, RLS, atomare Rechnung+Position, idempotenter Retry, Validierung und abschließender Rollback. |
-| `npx supabase db reset` | Grün: alle Migrationen inklusive `20260824215945_idempotent_invoice_generation.sql` und Seed vollständig angewandt. |
+| `npx supabase db reset` | In Review-Runde 1 grün; in Runde 2 ohne Schemaänderung nicht erneut erforderlich. |
 | `npx supabase db lint --local` | Grün: `No schema errors found`. |
 | `npx supabase db advisors --local` | Grün: `No issues found`. |
 | `npx supabase migration list --local` | Grün: alle 18 Migrationen von `20260816000001` bis `20260824215945` lokal angewandt. |

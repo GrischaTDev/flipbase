@@ -20,6 +20,47 @@ function supabaseUpsert(antwort: { data: unknown; error: unknown | null }) {
 }
 
 describe('Konfigurationsdienste – DB-first', () => {
+  it('schreibt nach dem Wechsel ausschließlich B-Werte in Workspace B', async () => {
+    const currentWorkspace = signal({ id: 'workspace-b' });
+    const upsert = vi.fn(() => ({
+      select: vi.fn(() => ({
+        single: vi.fn(async () => ({
+          data: { payments: { stripeEnabled: true, stripePublishableKey: 'pk_b' } },
+          error: null,
+        })),
+      })),
+    }));
+    const service = Object.create(StoreService.prototype) as StoreService;
+    Object.assign(service, {
+      storeSettings: signal({
+        storeName: 'B',
+        tagline: '',
+        shippingFlatRate: 4.99,
+        freeShippingThreshold: 50,
+        currency: 'EUR',
+        payments: { stripeEnabled: false, stripePublishableKey: '' },
+        imprint: {},
+        noticeText: '',
+      }),
+      workspaceService: { currentWorkspace },
+      mockStore: { isDemoMode: () => false },
+      supabase: { client: { from: vi.fn(() => ({ upsert })) } },
+    });
+
+    await service.updatePaymentsConfig({
+      stripeEnabled: true,
+      stripePublishableKey: 'pk_b',
+    });
+
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspace_id: 'workspace-b',
+        payments: expect.objectContaining({ stripePublishableKey: 'pk_b' }),
+      }),
+      { onConflict: 'workspace_id' },
+    );
+  });
+
   it('ändert Zahlungsmethoden bei Nulltreffer nicht lokal', async () => {
     const service = Object.create(StoreService.prototype) as StoreService;
     const storeSettings = signal({ payments: { stripeEnabled: false } });

@@ -10,6 +10,22 @@ import { SyncStatusService } from './sync-status.service';
 const STORAGE_KEY_CONFIG = 'flipbase_webhook_config';
 const STORAGE_KEY_NOTIFS = 'flipbase_app_notifications';
 
+function createDefaultWebhookConfig(): WebhookConfig {
+  return {
+    discordEnabled: false,
+    discordWebhookUrl: '',
+    telegramEnabled: false,
+    telegramBotToken: '',
+    telegramChatId: '',
+    customWebhookEnabled: false,
+    customWebhookUrl: '',
+    notifyOnSale: true,
+    notifyOnPurchase: true,
+    notifyOnLowMargin: true,
+    soundEnabled: true,
+  };
+}
+
 export interface WebhookMutationResult<T> {
   readonly data: T | null;
   readonly error: Error | null;
@@ -53,6 +69,8 @@ export class WebhookService {
 
   readonly config = signal<WebhookConfig>(this.loadConfig());
   readonly notifications = signal<AppNotification[]>(this.loadNotifications());
+  readonly loadedWorkspaceId = signal<string | null>(null);
+  private loadVersion = 0;
 
   readonly unreadCount = computed(() => this.notifications().filter((n) => !n.read).length);
 
@@ -65,9 +83,7 @@ export class WebhookService {
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
-        if (ws) {
-          this.loadFromSupabase(ws.id);
-        }
+        void this.loadFromSupabase(ws?.id ?? '');
       });
     } catch {
       // nur Testumgebung ohne Scheduler
@@ -81,19 +97,7 @@ export class WebhookService {
       if (stored) return JSON.parse(stored);
     } catch {}
 
-    return {
-      discordEnabled: false,
-      discordWebhookUrl: '',
-      telegramEnabled: false,
-      telegramBotToken: '',
-      telegramChatId: '',
-      customWebhookEnabled: false,
-      customWebhookUrl: '',
-      notifyOnSale: true,
-      notifyOnPurchase: true,
-      notifyOnLowMargin: true,
-      soundEnabled: true,
-    };
+    return createDefaultWebhookConfig();
   }
 
   /**
@@ -139,22 +143,37 @@ export class WebhookService {
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
-    if (!this.supabase || this.mockStore?.isDemoMode()) return;
+    const requestedWorkspaceId = workspaceId.trim();
+    const loadVersion = (this.loadVersion ?? 0) + 1;
+    this.loadVersion = loadVersion;
+    if (!requestedWorkspaceId) {
+      this.resetWorkspaceData();
+      return;
+    }
+    if (!this.isCurrentWorkspace(requestedWorkspaceId)) return;
+    if (!this.supabase || this.mockStore?.isDemoMode()) {
+      this.loadedWorkspaceId.set(requestedWorkspaceId);
+      return;
+    }
+    this.resetWorkspaceData();
 
     try {
       const [cfgRes, notifRes] = await Promise.all([
         this.supabase.client
           .from('webhook_configs')
           .select('*')
-          .eq('workspace_id', workspaceId)
+          .eq('workspace_id', requestedWorkspaceId)
           .maybeSingle(),
         this.supabase.client
           .from('app_notifications')
           .select('*')
-          .eq('workspace_id', workspaceId)
+          .eq('workspace_id', requestedWorkspaceId)
           .order('created_at', { ascending: false })
           .limit(50),
       ]);
+
+      if (!this.isCurrentLoad(requestedWorkspaceId, loadVersion)) return;
+      if (cfgRes.error || notifRes.error) throw cfgRes.error ?? notifRes.error;
 
       if (cfgRes.data) {
         const d = cfgRes.data;
@@ -177,29 +196,44 @@ export class WebhookService {
         } catch {}
       }
 
-      if (notifRes.data && notifRes.data.length > 0) {
-        const mapped: AppNotification[] = (notifRes.data as unknown[]).map((n: any) => ({
-          id: n.id,
-          type: n.type,
-          title: n.title,
-          message: n.message,
-          timestamp: n.created_at,
-          read: n.read,
-          link: n.link || undefined,
-        }));
-        this.notifications.set(mapped);
-        this.speichereLokal(mapped);
-      }
+      const mapped: AppNotification[] = ((notifRes.data ?? []) as unknown[]).map((n: any) => ({
+        id: n.id,
+        type: n.type,
+        title: n.title,
+        message: n.message,
+        timestamp: n.created_at,
+        read: n.read,
+        link: n.link || undefined,
+      }));
+      this.notifications.set(mapped);
+      this.speichereLokal(mapped);
+      this.loadedWorkspaceId.set(requestedWorkspaceId);
     } catch (err) {
-      this.logger.error('Verbindungsfehler beim Laden der Benachrichtigungen:', err);
+      if (this.isCurrentLoad(requestedWorkspaceId, loadVersion)) {
+        this.logger.error('Verbindungsfehler beim Laden der Benachrichtigungen:', err);
+      }
     }
   }
 
+  private resetWorkspaceData(): void {
+    this.config.set(createDefaultWebhookConfig());
+    this.notifications.set([]);
+    this.loadedWorkspaceId.set(null);
+  }
+
+  private isCurrentWorkspace(workspaceId: string): boolean {
+    return !this.workspaceService || this.workspaceService.currentWorkspace()?.id === workspaceId;
+  }
+
+  private isCurrentLoad(workspaceId: string, loadVersion: number): boolean {
+    return this.loadVersion === loadVersion && this.isCurrentWorkspace(workspaceId);
+  }
+
   async updateConfig(cfg: Partial<WebhookConfig>): Promise<WebhookMutationResult<WebhookConfig>> {
+    const workspaceId = this.workspaceService?.currentWorkspace()?.id ?? null;
     const updated = { ...this.config(), ...cfg };
-    const ws = this.workspaceService?.currentWorkspace();
     const persistent = this.istPersistenterModus();
-    if (persistent && !ws)
+    if (persistent && !workspaceId)
       return this.webhookFehler(
         'Speichern der Webhook-Konfiguration',
         new Error('Kein aktiver Workspace.'),
@@ -209,7 +243,7 @@ export class WebhookService {
         const { data, error } = await this.supabase!.client.from('webhook_configs')
           .upsert(
             {
-              workspace_id: ws!.id,
+              workspace_id: workspaceId!,
               discord_enabled: updated.discordEnabled,
               discord_webhook_url: updated.discordWebhookUrl,
               telegram_enabled: updated.telegramEnabled,
@@ -235,6 +269,13 @@ export class WebhookService {
         }
       } catch (error: unknown) {
         return this.webhookFehler('Speichern der Webhook-Konfiguration', error);
+      }
+      if (!this.isCurrentWorkspace(workspaceId!)) {
+        return {
+          data: null,
+          error: new Error('Der Workspace wurde während des Speicherns gewechselt.'),
+          reportedBySyncStatus: false,
+        };
       }
     }
     this.config.set(updated);

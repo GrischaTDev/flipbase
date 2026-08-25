@@ -73,6 +73,20 @@ function erstelleKomponente(ergebnisse: SettingsErgebnisse = {}) {
     updateSettings: vi.fn(),
   };
   const webhookService = {
+    config: signal({
+      discordEnabled: false,
+      discordWebhookUrl: '',
+      telegramEnabled: false,
+      telegramBotToken: '',
+      telegramChatId: '',
+      customWebhookEnabled: false,
+      customWebhookUrl: '',
+      notifyOnSale: true,
+      notifyOnPurchase: true,
+      notifyOnLowMargin: true,
+      soundEnabled: true,
+    }),
+    loadedWorkspaceId: signal<string | null>('workspace-1'),
     updateConfig: vi.fn(async () => ({
       data: ergebnisse.webhookConfigError ? null : {},
       error: ergebnisse.webhookConfigError ?? null,
@@ -92,6 +106,24 @@ function erstelleKomponente(ergebnisse: SettingsErgebnisse = {}) {
     generateSalesCsv: vi.fn(() => 'sales-csv'),
     downloadFile: vi.fn(),
   };
+  const storeService = {
+    storeSettings: signal({ payments: { stripePublishableKey: '' } }),
+    loadedWorkspaceId: signal<string | null>('workspace-1'),
+    updatePaymentsConfig: vi.fn(async () => ({
+      data: ergebnisse.paymentError ? null : {},
+      error: ergebnisse.paymentError ?? null,
+      reportedBySyncStatus: ergebnisse.configReportedBySyncStatus ?? false,
+    })),
+  };
+  const fulfillmentService = {
+    carrierConfig: signal({ dhlApiKey: '', hermesApiKey: '' }),
+    loadedWorkspaceId: signal<string | null>('workspace-1'),
+    updateCarrierConfig: vi.fn(async () => ({
+      data: ergebnisse.carrierError ? null : {},
+      error: ergebnisse.carrierError ?? null,
+      reportedBySyncStatus: ergebnisse.configReportedBySyncStatus ?? false,
+    })),
+  };
   const komponente = Object.create(SettingsComponent.prototype) as SettingsComponent;
 
   Object.assign(komponente, {
@@ -107,20 +139,8 @@ function erstelleKomponente(ergebnisse: SettingsErgebnisse = {}) {
     purchaseService: { purchases: signal([]) },
     inventoryService: { items: signal([]) },
     salesService: { sales: signal([]) },
-    storeService: {
-      updatePaymentsConfig: vi.fn(async () => ({
-        data: ergebnisse.paymentError ? null : {},
-        error: ergebnisse.paymentError ?? null,
-        reportedBySyncStatus: ergebnisse.configReportedBySyncStatus ?? false,
-      })),
-    },
-    fulfillmentService: {
-      updateCarrierConfig: vi.fn(async () => ({
-        data: ergebnisse.carrierError ? null : {},
-        error: ergebnisse.carrierError ?? null,
-        reportedBySyncStatus: ergebnisse.configReportedBySyncStatus ?? false,
-      })),
-    },
+    storeService,
+    fulfillmentService,
     ebayApiService: { saveConfig: vi.fn() },
     isSaving: signal(false),
     istProfilSpeichern: signal(false),
@@ -130,6 +150,7 @@ function erstelleKomponente(ergebnisse: SettingsErgebnisse = {}) {
     isSavingPaymentConfig: signal(false),
     isSavingCarrierConfig: signal(false),
     isSavingWebhookConfig: signal(false),
+    isLoadingWorkspaceConfig: signal(false),
     isSendingInvite: signal(false),
     isInviteModalOpen: signal(true),
     inviteError: signal<string | null>(null),
@@ -197,7 +218,15 @@ function erstelleKomponente(ergebnisse: SettingsErgebnisse = {}) {
     }),
   });
 
-  return { komponente, toast, workspaceService, memberService, webhookService };
+  return {
+    komponente,
+    toast,
+    workspaceService,
+    memberService,
+    webhookService,
+    storeService,
+    fulfillmentService,
+  };
 }
 
 function erwarteEinzelnenToast(toast: ToastService, type: 'success' | 'error', title: string) {
@@ -353,6 +382,32 @@ describe('SettingsComponent – zentrale Aktionsmeldungen', () => {
 
     expect(komponente.isSavingPaymentConfig()).toBe(false);
     expect(toast.toasts()[0]).toMatchObject({ type: 'error', persistent: true });
+  });
+
+  it('blockiert A-Konfiguration während des Workspace-Wechsels und speichert danach nur B-Werte', async () => {
+    const { komponente, workspaceService, storeService } = erstelleKomponente();
+    komponente.paymentForm.patchValue({ stripePublishableKey: 'pk_workspace_a' });
+    workspaceService.currentWorkspace.set({
+      ...workspaceService.currentWorkspace(),
+      id: 'workspace-2',
+      name: 'Workspace B',
+    });
+    storeService.loadedWorkspaceId.set(null);
+    komponente.isLoadingWorkspaceConfig.set(true);
+
+    await komponente.onSavePaymentConfig();
+
+    expect(storeService.updatePaymentsConfig).not.toHaveBeenCalled();
+
+    komponente.paymentForm.patchValue({ stripePublishableKey: 'pk_workspace_b' });
+    storeService.loadedWorkspaceId.set('workspace-2');
+    komponente.isLoadingWorkspaceConfig.set(false);
+    await komponente.onSavePaymentConfig();
+
+    expect(storeService.updatePaymentsConfig).toHaveBeenCalledOnce();
+    expect(storeService.updatePaymentsConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ stripePublishableKey: 'pk_workspace_b' }),
+    );
   });
 
   it('meldet das Ergebnis der Browser-Berechtigung als Erfolg oder angepinnten Fehler', async () => {
