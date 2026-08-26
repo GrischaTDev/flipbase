@@ -34,6 +34,19 @@ const mengenposition: PurchaseLine = {
   line_total: 24.95,
 };
 
+const einzelposition: PurchaseLine = {
+  id: 'line-individual-1',
+  workspace_id: einkauf.workspace_id,
+  purchase_id: einkauf.id,
+  catalog_product_id: null,
+  title_snapshot: 'Mystery-Fundstück',
+  line_kind: 'individual',
+  ordered_quantity: 1,
+  received_quantity: 0,
+  unit_purchase_price: 12.5,
+  line_total: 12.5,
+};
+
 function erstelleKomponente(
   ergebnis: { data: null; error: Error | null } = {
     data: null,
@@ -47,11 +60,23 @@ function erstelleKomponente(
     error: null as Error | null,
     reportedBySyncStatus: false,
   }));
+  const receiveIndividualPurchaseLine = vi.fn(async () => ({
+    data: { purchaseLine: einzelposition, inventoryItem: null },
+    error: null as Error | null,
+    reportedBySyncStatus: false,
+  }));
   const purchaseService = {
     selectedPurchase: signal<Purchase | null>(einkauf),
     purchaseLines: signal<PurchaseLine[]>([mengenposition]),
+    purchaseItems: signal([]),
     addItemToPurchase,
     receivePurchaseLines,
+    receiveIndividualPurchaseLine,
+    markIndividualPurchaseLineReceived: vi.fn(async () => ({
+      data: einzelposition,
+      error: null as Error | null,
+      reportedBySyncStatus: false,
+    })),
     getPurchaseById: vi.fn(async () => einkauf),
     redistributeCosts: vi.fn(async () => ({ error: null as Error | null })),
     updateCostAllocationMode: vi.fn(async () => ({ error: null as Error | null })),
@@ -103,6 +128,7 @@ function erstelleKomponente(
     toast,
     addItemToPurchase,
     receivePurchaseLines,
+    receiveIndividualPurchaseLine,
     purchaseService,
   };
 }
@@ -248,5 +274,20 @@ describe('PurchaseDetailComponent – Rückmeldung beim Artikelanlegen', () => {
     expect(addItemToPurchase).not.toHaveBeenCalled();
     expect(purchaseService.getPurchaseById).toHaveBeenCalledWith(einkauf.id);
     expect(komponente.stockService.loadPositions).toHaveBeenCalledWith(einkauf.workspace_id);
+  });
+
+  it('bucht einen Einzelartikel atomar ohne nachgelagerte Inventar- oder Positionsmutation', async () => {
+    const { komponente, addItemToPurchase, purchaseService, receiveIndividualPurchaseLine } =
+      erstelleKomponente();
+
+    await komponente.captureIndividualItem(einzelposition);
+
+    expect(receiveIndividualPurchaseLine).toHaveBeenCalledWith(einkauf.id, einzelposition.id, {
+      title: 'Mystery-Fundstück',
+      condition: 'used',
+      allocatedPurchaseCost: 12.5,
+    });
+    expect(addItemToPurchase).not.toHaveBeenCalled();
+    expect(purchaseService.markIndividualPurchaseLineReceived).not.toHaveBeenCalled();
   });
 });

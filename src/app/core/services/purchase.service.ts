@@ -32,6 +32,18 @@ export interface CreatePurchaseLineInput {
   readonly lineTotal: number;
 }
 
+export interface ReceiveIndividualPurchaseLineInput {
+  readonly title: string;
+  readonly condition: ItemCondition;
+  readonly allocatedPurchaseCost: number;
+}
+
+export interface ReceiveIndividualPurchaseResult {
+  readonly purchaseLine: PurchaseLine;
+  readonly inventoryItem: InventoryItem;
+  readonly purchase: Purchase;
+}
+
 export interface CreatePurchasePayload {
   source_id?: string | null;
   supplier_id?: string | null;
@@ -442,6 +454,7 @@ export class PurchaseService {
       tracking_carrier: payload.tracking_carrier || (payload.tracking_number ? 'dhl' : null),
       tracking_status: payload.tracking_status || (payload.tracking_number ? 'in_transit' : null),
       original_url: payload.original_url || null,
+      receiving_status: normalizedLines.data.length > 0 ? 'ordered' : 'received',
       items_count: payload.type === 'single' ? 1 : payload.items_count || 0,
       costs: kostenZeilen,
       created_at: new Date().toISOString(),
@@ -507,6 +520,7 @@ export class PurchaseService {
           tracking_status:
             payload.tracking_status || (payload.tracking_number ? 'in_transit' : 'pending'),
           original_url: payload.original_url || null,
+          receiving_status: normalizedLines.data.length > 0 ? 'ordered' : 'received',
           total_purchase_cost: totalCost,
         })
         .select()
@@ -649,6 +663,18 @@ export class PurchaseService {
       if (this.selectedPurchase()?.id === purchaseId) {
         this.purchaseLinesRaw.update((current) => [...current, ...lines]);
       }
+      const purchase = this.purchases().find((entry) => entry.id === purchaseId);
+      if (purchase) {
+        const allLines = this.mockStore
+          .getPurchaseLines(workspaceId)
+          .filter((line) => line.purchase_id === purchaseId);
+        const hasOpen = allLines.some((line) => line.received_quantity < line.ordered_quantity);
+        const hasReceived = allLines.some((line) => line.received_quantity > 0);
+        this.uebernehmeEinkaufLokal({
+          ...purchase,
+          receiving_status: hasOpen ? (hasReceived ? 'partially_received' : 'ordered') : 'received',
+        });
+      }
       return { data: lines, error: null, reportedBySyncStatus: false };
     }
 
@@ -707,6 +733,18 @@ export class PurchaseService {
         line.lineTotal < 0
       ) {
         return { data: [], error: new Error('Die Einkaufskosten müssen gültige Beträge sein.') };
+      }
+      const unitPurchasePriceCents = Math.round(line.unitPurchasePrice * 100);
+      const lineTotalCents = Math.round(line.lineTotal * 100);
+      if (
+        Math.abs(line.unitPurchasePrice * 100 - unitPurchasePriceCents) > Number.EPSILON ||
+        Math.abs(line.lineTotal * 100 - lineTotalCents) > Number.EPSILON ||
+        lineTotalCents !== line.orderedQuantity * unitPurchasePriceCents
+      ) {
+        return {
+          data: [],
+          error: new Error('Positionssumme und EK je Stück müssen centgenau zusammenpassen.'),
+        };
       }
     }
     return { data: lines, error: null };
@@ -1135,10 +1173,11 @@ export class PurchaseService {
     return this.stockService.receivePurchaseLines(purchaseId, lines);
   }
 
-  async markIndividualPurchaseLineReceived(
+  async receiveIndividualPurchaseLine(
     purchaseId: string,
     purchaseLineId: string,
-  ): Promise<MutationResult<PurchaseLine>> {
+    input: ReceiveIndividualPurchaseLineInput,
+  ): Promise<MutationResult<ReceiveIndividualPurchaseResult>> {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     if (!workspaceId) {
       return {
@@ -1148,38 +1187,47 @@ export class PurchaseService {
       };
     }
 
-    const current = this.purchaseLinesRaw().find(
-      (line) => line.id === purchaseLineId && line.purchase_id === purchaseId,
-    );
-    if (!current || current.line_kind !== 'individual') {
+    if (this.mockStore.isDemoMode()) {
+      const result = this.mockStore.receiveIndividualPurchaseLine(
+        workspaceId,
+        purchaseId,
+        purchaseLineId,
+        { title: input.title, condition: input.condition },
+      );
+      if (result.error || !result.purchaseLine || !result.inventoryItem || !result.purchase) {
+        return {
+          data: null,
+          error: result.error ?? new Error('Der Einzelartikel wurde nicht zurückgegeben.'),
+          reportedBySyncStatus: false,
+        };
+      }
+      this.purchaseLinesRaw.update((lines) =>
+        lines.map((line) => (line.id === purchaseLineId ? result.purchaseLine! : line)),
+      );
+      this.inventory.uebernehmeArtikelAenderungen([result.inventoryItem]);
+      this.uebernehmeEinkaufLokal(result.purchase);
       return {
-        data: null,
-        error: new Error('Die Einzelartikelposition wurde nicht gefunden.'),
+        data: {
+          purchaseLine: result.purchaseLine,
+          inventoryItem: result.inventoryItem,
+          purchase: result.purchase,
+        },
+        error: null,
         reportedBySyncStatus: false,
       };
     }
-    if (current.received_quantity >= 1) {
-      return { data: current, error: null, reportedBySyncStatus: false };
-    }
-
-    const updated: PurchaseLine = { ...current, received_quantity: 1 };
-    if (this.mockStore.isDemoMode()) {
-      this.mockStore.savePurchaseLine(updated);
-      this.purchaseLinesRaw.update((lines) =>
-        lines.map((line) => (line.id === purchaseLineId ? updated : line)),
-      );
-      return { data: updated, error: null, reportedBySyncStatus: false };
-    }
 
     try {
-      const { data, error } = await this.supabase.client
-        .from('purchase_lines')
-        .update({ received_quantity: 1 })
-        .eq('workspace_id', workspaceId)
-        .eq('purchase_id', purchaseId)
-        .eq('id', purchaseLineId)
-        .select()
-        .single();
+      const { data, error } = await this.supabase.client.rpc('receive_individual_purchase_line', {
+        p_workspace_id: workspaceId,
+        p_purchase_id: purchaseId,
+        p_purchase_line_id: purchaseLineId,
+        p_item: {
+          title: input.title,
+          condition: input.condition,
+          allocated_purchase_cost: input.allocatedPurchaseCost,
+        },
+      });
       if (error || !data) {
         const reported = this.syncStatus.melde(
           'Wareneingang für Einzelartikel buchen',
@@ -1187,11 +1235,27 @@ export class PurchaseService {
         );
         return { data: null, error: reported, reportedBySyncStatus: true };
       }
-      const confirmed = data as PurchaseLine;
+      const value = data as Record<string, unknown>;
+      const confirmed = value['purchase_line'] as PurchaseLine;
+      const inventoryItem = value['inventory_item'] as InventoryItem;
+      const purchase = value['purchase'] as Purchase;
+      if (!confirmed || !inventoryItem || !purchase) {
+        return {
+          data: null,
+          error: new Error('Der Einzelartikel-Wareneingang wurde unvollständig zurückgegeben.'),
+          reportedBySyncStatus: false,
+        };
+      }
       this.purchaseLinesRaw.update((lines) =>
         lines.map((line) => (line.id === purchaseLineId ? confirmed : line)),
       );
-      return { data: confirmed, error: null, reportedBySyncStatus: false };
+      this.inventory.uebernehmeArtikelAenderungen([inventoryItem]);
+      this.uebernehmeEinkaufLokal(purchase);
+      return {
+        data: { purchaseLine: confirmed, inventoryItem, purchase },
+        error: null,
+        reportedBySyncStatus: false,
+      };
     } catch (error: unknown) {
       const reported = this.syncStatus.melde('Wareneingang für Einzelartikel buchen', error);
       return { data: null, error: reported, reportedBySyncStatus: true };
@@ -1452,5 +1516,13 @@ export class PurchaseService {
       allocated_purchase_cost: itemData.allocated_purchase_cost || 0,
       expected_value: itemData.expected_value ?? null,
     });
+  }
+
+  private uebernehmeEinkaufLokal(purchase: Purchase): void {
+    this.mockStore.savePurchase(purchase);
+    this.purchasesRaw.update((list) =>
+      list.map((entry) => (entry.id === purchase.id ? purchase : entry)),
+    );
+    if (this.selectedPurchase()?.id === purchase.id) this.selectedPurchaseRaw.set(purchase);
   }
 }

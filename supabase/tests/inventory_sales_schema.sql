@@ -163,6 +163,20 @@ begin
   end;
 
   begin
+    insert into public.purchase_lines (workspace_id, purchase_id, catalog_product_id, title_snapshot, line_kind, ordered_quantity, unit_purchase_price, line_total)
+      values (workspace_one, purchase_one, product_one, 'invalid line total', 'quantity', 2, 5, 10.01);
+    raise exception 'mismatching purchase line total was accepted';
+  exception when check_violation then null;
+  end;
+
+  begin
+    insert into public.purchase_lines (workspace_id, purchase_id, catalog_product_id, title_snapshot, line_kind, ordered_quantity, unit_purchase_price, line_total)
+      values (workspace_one, purchase_one, product_one, 'fractional cent', 'quantity', 1, 1.001, 1);
+    raise exception 'fractional-cent purchase line was accepted';
+  exception when check_violation then null;
+  end;
+
+  begin
     insert into public.sale_lines (workspace_id, sale_id, catalog_product_id, inventory_item_id, title_snapshot, quantity, unit_sale_price, line_total, cost_of_goods_sold, tax_mode)
       values (workspace_one, sale_one, product_one, item_one, 'invalid xor', 1, 10, 10, 5, 'diff_25a');
     raise exception 'sale line XOR violation was accepted';

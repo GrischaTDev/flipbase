@@ -75,6 +75,11 @@ export class PurchaseLineEditorComponent {
     this.emitDrafts();
   }
 
+  updateTitleSnapshot(index: number, titleSnapshot: string): void {
+    this.lineRows.at(index).controls.titleSnapshot.setValue(titleSnapshot);
+    this.emitDrafts();
+  }
+
   recalculate(index: number, changedField: PriceField): void {
     const row = this.lineRows.at(index);
     const quantity = row.controls.orderedQuantity.value;

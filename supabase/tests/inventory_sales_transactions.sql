@@ -9,6 +9,11 @@ declare
   v_purchase_id uuid := gen_random_uuid();
   v_product_id uuid := gen_random_uuid();
   v_purchase_line_id uuid := gen_random_uuid();
+  v_appended_line_id uuid := gen_random_uuid();
+  v_individual_purchase_id uuid := gen_random_uuid();
+  v_individual_line_id uuid := gen_random_uuid();
+  v_individual_item_id uuid;
+  v_receiving_status text;
   v_sale jsonb;
   v_sale_id uuid;
   v_received_quantity integer;
@@ -47,8 +52,8 @@ begin
 
   perform set_config('request.jwt.claim.sub', v_user_id::text, true);
 
-  insert into public.purchases (id, workspace_id, type, title, receiving_status)
-  values (v_purchase_id, v_workspace_id, 'single', 'LED lamp purchase', 'ordered');
+  insert into public.purchases (id, workspace_id, type, title)
+  values (v_purchase_id, v_workspace_id, 'single', 'LED lamp purchase');
 
   insert into public.catalog_products (id, workspace_id, title, tracking_mode)
   values (v_product_id, v_workspace_id, 'LED lamp', 'quantity');
@@ -75,6 +80,12 @@ begin
     24.95
   );
 
+  select receiving_status into v_receiving_status
+  from public.purchases where id = v_purchase_id;
+  if v_receiving_status <> 'ordered' then
+    raise exception 'new open purchase lines must set purchase status to ordered, got %', v_receiving_status;
+  end if;
+
   perform public.receive_purchase_lines(
     v_workspace_id,
     v_purchase_id,
@@ -93,6 +104,61 @@ begin
 
   if v_remaining_quantity <> 5 then
     raise exception 'expected remaining quantity 5 after receipt, got %', v_remaining_quantity;
+  end if;
+
+  insert into public.purchase_lines (
+    id, workspace_id, purchase_id, catalog_product_id, title_snapshot, line_kind,
+    ordered_quantity, unit_purchase_price, line_total
+  ) values (
+    v_appended_line_id, v_workspace_id, v_purchase_id, v_product_id, 'LED lamp refill',
+    'quantity', 1, 4.99, 4.99
+  );
+  select receiving_status into v_receiving_status
+  from public.purchases where id = v_purchase_id;
+  if v_receiving_status <> 'partially_received' then
+    raise exception 'appended open purchase line must set purchase status to partially_received, got %', v_receiving_status;
+  end if;
+
+  insert into public.purchases (id, workspace_id, type, title)
+  values (v_individual_purchase_id, v_workspace_id, 'mystery_pack', 'individual receipt');
+  insert into public.purchase_lines (
+    id, workspace_id, purchase_id, title_snapshot, line_kind,
+    ordered_quantity, unit_purchase_price, line_total
+  ) values (
+    v_individual_line_id, v_workspace_id, v_individual_purchase_id, 'Mystery-Fundstück',
+    'individual', 1, 12.50, 12.50
+  );
+
+  v_individual_item_id := (
+    public.receive_individual_purchase_line(
+      v_workspace_id,
+      v_individual_purchase_id,
+      v_individual_line_id,
+      jsonb_build_object(
+        'title', 'Mystery-Fundstück',
+        'condition', 'used',
+        'allocated_purchase_cost', 12.50
+      )
+    ) -> 'inventory_item' ->> 'id'
+  )::uuid;
+
+  if not exists (
+    select 1 from public.inventory_items
+    where id = v_individual_item_id
+      and purchase_id = v_individual_purchase_id
+      and purchase_line_id = v_individual_line_id
+  ) then
+    raise exception 'individual receipt did not retain inventory provenance';
+  end if;
+  if exists (
+    select 1 from public.stock_lots where purchase_line_id = v_individual_line_id
+  ) then
+    raise exception 'individual receipt created a stock lot';
+  end if;
+  select receiving_status into v_receiving_status
+  from public.purchases where id = v_individual_purchase_id;
+  if v_receiving_status <> 'received' then
+    raise exception 'individual receipt did not complete purchase status, got %', v_receiving_status;
   end if;
 
   v_sale := public.record_sale(

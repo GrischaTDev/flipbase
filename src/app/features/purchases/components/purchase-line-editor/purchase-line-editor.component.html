@@ -116,6 +116,7 @@
                 <input
                   type="text"
                   formControlName="titleSnapshot"
+                  (input)="updateTitleSnapshot($index, $any($event.target).value)"
                   class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
                   placeholder="z. B. Mystery-Fundstück"
                 />

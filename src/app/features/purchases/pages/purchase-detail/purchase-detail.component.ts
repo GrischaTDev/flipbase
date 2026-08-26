@@ -530,28 +530,14 @@ export class PurchaseDetailComponent {
     const purchase = this.purchaseService.selectedPurchase();
     if (!purchase || line.received_quantity > 0) return;
 
-    const existingItem = this.purchaseService
-      .purchaseItems()
-      .find((item) => item.purchase_line_id === line.id);
-    if (!existingItem) {
-      const itemResult = await this.purchaseService.addItemToPurchase(purchase.id, {
-        title: line.title_snapshot,
-        condition: 'used',
-        allocated_purchase_cost: line.line_total,
-        purchase_line_id: line.id,
-      });
-      if (itemResult.error) {
-        this.meldeFehlerWennNichtSynchronisiert(
-          'Artikel konnte nicht gespeichert werden.',
-          itemResult.error,
-        );
-        return;
-      }
-    }
-
-    const receiptResult = await this.purchaseService.markIndividualPurchaseLineReceived(
+    const receiptResult = await this.purchaseService.receiveIndividualPurchaseLine(
       purchase.id,
       line.id,
+      {
+        title: line.title_snapshot,
+        condition: 'used',
+        allocatedPurchaseCost: line.line_total,
+      },
     );
     if (receiptResult.error) {
       this.meldeFehlerWennNichtSynchronisiert(

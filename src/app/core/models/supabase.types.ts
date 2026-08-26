@@ -2375,6 +2375,15 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      receive_individual_purchase_line: {
+        Args: {
+          p_item: Json
+          p_purchase_id: string
+          p_purchase_line_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       receive_purchase_lines: {
         Args: { p_lines: Json; p_purchase_id: string; p_workspace_id: string }
         Returns: Json
@@ -2393,6 +2402,36 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      refresh_purchase_receiving_status: {
+        Args: { p_purchase_id: string; p_workspace_id: string }
+        Returns: {
+          cost_allocation_mode: string
+          created_at: string
+          estimated_delivery: string | null
+          id: string
+          notes: string | null
+          original_url: string | null
+          purchase_date: string
+          purchase_price: number
+          receiving_status: string
+          source_id: string | null
+          supplier_id: string | null
+          title: string
+          total_purchase_cost: number
+          tracking_carrier: string | null
+          tracking_number: string | null
+          tracking_status: string
+          type: string
+          updated_at: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "purchases"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       replace_bank_transactions: {
         Args: { p_transactions: Json; p_workspace_id: string }

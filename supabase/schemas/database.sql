@@ -250,11 +250,12 @@ create table public.purchase_lines (
     line_kind text not null check (line_kind in ('quantity', 'individual')),
     ordered_quantity integer not null check (ordered_quantity > 0),
     received_quantity integer not null default 0 check (received_quantity >= 0 and received_quantity <= ordered_quantity),
-    unit_purchase_price numeric(12,2) not null check (unit_purchase_price >= 0),
-    line_total numeric(12,2) not null check (line_total >= 0),
+    unit_purchase_price numeric not null check (unit_purchase_price >= 0 and scale(unit_purchase_price) <= 2),
+    line_total numeric not null check (line_total >= 0 and scale(line_total) <= 2),
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     check ((line_kind = 'quantity' and catalog_product_id is not null) or line_kind = 'individual'),
+    check (line_total = round(ordered_quantity * unit_purchase_price, 2)),
     unique (workspace_id, id)
 );
 
@@ -1798,6 +1799,68 @@ $$;
 -- ATOMARER SHOP-CHECKOUT UND BANKABGLEICH
 -- ------------------------------------------------------------------------------
 
+create or replace function public.refresh_purchase_receiving_status(
+  p_workspace_id uuid,
+  p_purchase_id uuid
+)
+returns public.purchases
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_purchase public.purchases;
+begin
+  update public.purchases
+  set receiving_status = case
+        when exists (
+          select 1 from public.purchase_lines
+          where workspace_id = p_workspace_id
+            and purchase_id = p_purchase_id
+            and received_quantity < ordered_quantity
+        ) and exists (
+          select 1 from public.purchase_lines
+          where workspace_id = p_workspace_id
+            and purchase_id = p_purchase_id
+            and received_quantity > 0
+        ) then 'partially_received'
+        when exists (
+          select 1 from public.purchase_lines
+          where workspace_id = p_workspace_id
+            and purchase_id = p_purchase_id
+            and received_quantity < ordered_quantity
+        ) then 'ordered'
+        else 'received'
+      end,
+      updated_at = now()
+  where id = p_purchase_id
+    and workspace_id = p_workspace_id
+  returning * into v_purchase;
+
+  return v_purchase;
+end;
+$$;
+
+create or replace function public.sync_purchase_receiving_status()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  perform public.refresh_purchase_receiving_status(
+    coalesce(new.workspace_id, old.workspace_id),
+    coalesce(new.purchase_id, old.purchase_id)
+  );
+  return null;
+end;
+$$;
+
+create trigger purchase_lines_sync_receiving_status
+after insert or update of ordered_quantity, received_quantity or delete
+on public.purchase_lines
+for each row execute function public.sync_purchase_receiving_status();
+
 create or replace function public.receive_purchase_lines(
   p_workspace_id uuid,
   p_purchase_id uuid,
@@ -1922,20 +1985,7 @@ begin
     v_stock_lot_ids := array_append(v_stock_lot_ids, v_stock_lot.id);
   end loop;
 
-  update public.purchases
-  set receiving_status = case
-        when exists (
-          select 1
-          from public.purchase_lines
-          where workspace_id = p_workspace_id
-            and purchase_id = p_purchase_id
-            and received_quantity < ordered_quantity
-        ) then 'partially_received'
-        else 'received'
-      end,
-      updated_at = now()
-  where id = p_purchase_id
-    and workspace_id = p_workspace_id;
+  perform public.refresh_purchase_receiving_status(p_workspace_id, p_purchase_id);
 
   return jsonb_build_object(
     'purchase_lines', coalesce((
@@ -1954,6 +2004,85 @@ $$;
 
 revoke all on function public.receive_purchase_lines(uuid, uuid, jsonb) from public;
 grant execute on function public.receive_purchase_lines(uuid, uuid, jsonb) to authenticated;
+
+create or replace function public.receive_individual_purchase_line(
+  p_workspace_id uuid,
+  p_purchase_id uuid,
+  p_purchase_line_id uuid,
+  p_item jsonb
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_purchase public.purchases;
+  v_purchase_line public.purchase_lines;
+  v_inventory_item public.inventory_items;
+  v_title text;
+  v_condition text;
+begin
+  if (select auth.uid()) is null
+    or not (select public.is_workspace_member(p_workspace_id)) then
+    raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+
+  if p_workspace_id is null
+    or p_purchase_id is null
+    or p_purchase_line_id is null
+    or jsonb_typeof(p_item) <> 'object'
+    or jsonb_typeof(p_item -> 'title') <> 'string'
+    or jsonb_typeof(p_item -> 'condition') <> 'string' then
+    raise exception using errcode = '22023', message = 'Die Einzelartikel-Wareneingangsdaten sind ungültig.';
+  end if;
+
+  v_title := btrim(p_item ->> 'title');
+  v_condition := p_item ->> 'condition';
+  if v_title = '' or v_condition not in ('new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective') then
+    raise exception using errcode = '22023', message = 'Die Einzelartikel-Wareneingangsdaten sind ungültig.';
+  end if;
+
+  select * into v_purchase
+  from public.purchases
+  where id = p_purchase_id and workspace_id = p_workspace_id
+  for update;
+  if not found then
+    raise exception using errcode = 'P0002', message = 'Der Einkauf wurde nicht gefunden.';
+  end if;
+
+  select * into v_purchase_line
+  from public.purchase_lines
+  where id = p_purchase_line_id
+    and workspace_id = p_workspace_id
+    and purchase_id = p_purchase_id
+  for update;
+  if not found or v_purchase_line.line_kind <> 'individual' or v_purchase_line.received_quantity <> 0 then
+    raise exception using errcode = '22023', message = 'Die Einzelartikelposition ist nicht offen.';
+  end if;
+
+  insert into public.inventory_items (
+    workspace_id, purchase_id, purchase_line_id, title, condition, status, allocated_purchase_cost
+  ) values (
+    p_workspace_id, p_purchase_id, p_purchase_line_id, v_title, v_condition, 'received', v_purchase_line.line_total
+  ) returning * into v_inventory_item;
+
+  update public.purchase_lines
+  set received_quantity = 1, updated_at = now()
+  where id = p_purchase_line_id and workspace_id = p_workspace_id
+  returning * into v_purchase_line;
+
+  v_purchase := public.refresh_purchase_receiving_status(p_workspace_id, p_purchase_id);
+  return jsonb_build_object(
+    'purchase_line', to_jsonb(v_purchase_line),
+    'inventory_item', to_jsonb(v_inventory_item),
+    'purchase', to_jsonb(v_purchase)
+  );
+end;
+$$;
+
+revoke all on function public.receive_individual_purchase_line(uuid, uuid, uuid, jsonb) from public;
+grant execute on function public.receive_individual_purchase_line(uuid, uuid, uuid, jsonb) to authenticated;
 
 create or replace function public.record_sale(
   p_workspace_id uuid,

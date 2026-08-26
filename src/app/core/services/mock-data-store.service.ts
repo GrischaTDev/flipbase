@@ -5,6 +5,7 @@ import {
   Supplier,
   Purchase,
   InventoryItem,
+  ItemCondition,
   Sale,
   ActivityLog,
   ItemCost,
@@ -573,6 +574,71 @@ export class MockDataStoreService {
       })),
     ]);
     return { purchaseLines: updatedLines, stockLots: newLots, error: null };
+  }
+
+  receiveIndividualPurchaseLine(
+    workspaceId: string,
+    purchaseId: string,
+    purchaseLineId: string,
+    input: { title: string; condition: ItemCondition },
+  ): {
+    purchaseLine: PurchaseLine | null;
+    inventoryItem: InventoryItem | null;
+    purchase: Purchase | null;
+    error: Error | null;
+  } {
+    const lines = this.getPurchaseLines();
+    const index = lines.findIndex(
+      (line) =>
+        line.id === purchaseLineId &&
+        line.workspace_id === workspaceId &&
+        line.purchase_id === purchaseId &&
+        line.line_kind === 'individual' &&
+        line.received_quantity === 0,
+    );
+    const purchase = this.getPurchases(workspaceId).find((entry) => entry.id === purchaseId);
+    if (index < 0 || !purchase) {
+      return {
+        purchaseLine: null,
+        inventoryItem: null,
+        purchase: null,
+        error: new Error('Die Einzelartikelposition ist nicht offen.'),
+      };
+    }
+
+    const purchaseLine = { ...lines[index], received_quantity: 1 };
+    const inventoryItem: InventoryItem = {
+      id: this.newId('item'),
+      workspace_id: workspaceId,
+      purchase_id: purchaseId,
+      purchase_line_id: purchaseLineId,
+      title: input.title.trim(),
+      condition: input.condition,
+      status: 'received',
+      allocated_purchase_cost: purchaseLine.line_total,
+      created_at: new Date().toISOString(),
+    };
+    lines[index] = purchaseLine;
+    const hasOpen = lines.some(
+      (line) =>
+        line.workspace_id === workspaceId &&
+        line.purchase_id === purchaseId &&
+        line.received_quantity < line.ordered_quantity,
+    );
+    const hasReceived = lines.some(
+      (line) =>
+        line.workspace_id === workspaceId &&
+        line.purchase_id === purchaseId &&
+        line.received_quantity > 0,
+    );
+    const updatedPurchase: Purchase = {
+      ...purchase,
+      receiving_status: hasOpen ? (hasReceived ? 'partially_received' : 'ordered') : 'received',
+    };
+    this.saveWorkspaceRecords(STORAGE_KEY_PURCHASE_LINES, lines);
+    this.saveItem(inventoryItem);
+    this.savePurchase(updatedPurchase);
+    return { purchaseLine, inventoryItem, purchase: updatedPurchase, error: null };
   }
 
   bookQuantitySale(
