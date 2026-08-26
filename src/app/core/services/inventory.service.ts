@@ -14,6 +14,7 @@ import {
 
 export interface CreateItemPayload {
   purchase_id?: string | null;
+  purchase_line_id?: string | null;
   category?: string | null;
   title: string;
   brand?: string | null;
@@ -259,6 +260,7 @@ export class InventoryService {
       id: vorlaeufigeKennung(),
       workspace_id: ws.id,
       purchase_id: payload.purchase_id || null,
+      purchase_line_id: payload.purchase_line_id || null,
       category: payload.category?.trim() || null,
       title: payload.title.trim(),
       brand: payload.brand?.trim() || null,
@@ -306,6 +308,7 @@ export class InventoryService {
         .insert({
           workspace_id: ws.id,
           purchase_id: payload.purchase_id || null,
+          purchase_line_id: payload.purchase_line_id || null,
           category: payload.category?.trim() || null,
           title: payload.title.trim(),
           brand: payload.brand?.trim() || null,

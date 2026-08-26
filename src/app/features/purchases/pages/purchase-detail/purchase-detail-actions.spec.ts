@@ -2,7 +2,7 @@ import '@angular/compiler';
 import { signal } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Purchase } from '../../../../core/models/flipbase.models';
+import { Purchase, PurchaseLine } from '../../../../core/models/flipbase.models';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { PurchaseDetailComponent } from './purchase-detail.component';
@@ -21,6 +21,19 @@ const einkauf: Purchase = {
   created_at: '2026-08-24T10:00:00.000Z',
 };
 
+const mengenposition: PurchaseLine = {
+  id: 'line-1',
+  workspace_id: einkauf.workspace_id,
+  purchase_id: einkauf.id,
+  catalog_product_id: 'product-1',
+  title_snapshot: 'LED-Lampe',
+  line_kind: 'quantity',
+  ordered_quantity: 5,
+  received_quantity: 0,
+  unit_purchase_price: 4.99,
+  line_total: 24.95,
+};
+
 function erstelleKomponente(
   ergebnis: { data: null; error: Error | null } = {
     data: null,
@@ -29,9 +42,17 @@ function erstelleKomponente(
 ) {
   const toast = new ToastService();
   const addItemToPurchase = vi.fn(async () => ergebnis);
+  const receivePurchaseLines = vi.fn(async () => ({
+    data: { purchaseLines: [mengenposition], stockLots: [] },
+    error: null as Error | null,
+    reportedBySyncStatus: false,
+  }));
   const purchaseService = {
     selectedPurchase: signal<Purchase | null>(einkauf),
+    purchaseLines: signal<PurchaseLine[]>([mengenposition]),
     addItemToPurchase,
+    receivePurchaseLines,
+    getPurchaseById: vi.fn(async () => einkauf),
     redistributeCosts: vi.fn(async () => ({ error: null as Error | null })),
     updateCostAllocationMode: vi.fn(async () => ({ error: null as Error | null })),
     updatePurchaseTracking: vi.fn(async () => ({
@@ -58,6 +79,10 @@ function erstelleKomponente(
     selectedImageFile: signal<File | null>(null),
     selectedImageDataUrl: signal<string | null>(null),
     isAddingItem: signal(true),
+    isSavingPurchaseLines: signal(false),
+    isReceivingLines: signal(true),
+    receivingQuantities: signal<Record<string, number>>({ 'line-1': 5 }),
+    purchaseLineDrafts: signal([]),
     isAllocatorOpen: signal(true),
     isApplyingAllocation: signal(false),
     allocatorMode: signal<'even' | 'value_weighted'>('even'),
@@ -70,12 +95,14 @@ function erstelleKomponente(
     logger: { warn: vi.fn() },
     toast,
     syncStatus: new SyncStatusService(),
+    stockService: { loadPositions: vi.fn(async () => undefined) },
   });
 
   return {
     komponente,
     toast,
     addItemToPurchase,
+    receivePurchaseLines,
     purchaseService,
   };
 }
@@ -207,5 +234,19 @@ describe('PurchaseDetailComponent – Rückmeldung beim Artikelanlegen', () => {
       title: 'Einkauf konnte nicht als zugestellt markiert werden.',
       persistent: true,
     });
+  });
+
+  it('bucht fünf Mengenartikel als eine Einkaufsposition statt fünf Inventarartikel', async () => {
+    const { komponente, purchaseService, receivePurchaseLines, addItemToPurchase } =
+      erstelleKomponente();
+
+    await komponente.receivePurchaseLine(mengenposition);
+
+    expect(receivePurchaseLines).toHaveBeenCalledWith(einkauf.id, [
+      { purchaseLineId: 'line-1', receivedQuantity: 5 },
+    ]);
+    expect(addItemToPurchase).not.toHaveBeenCalled();
+    expect(purchaseService.getPurchaseById).toHaveBeenCalledWith(einkauf.id);
+    expect(komponente.stockService.loadPositions).toHaveBeenCalledWith(einkauf.workspace_id);
   });
 });

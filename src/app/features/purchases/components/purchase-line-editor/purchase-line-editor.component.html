@@ -1,0 +1,169 @@
+<section class="space-y-3" aria-labelledby="purchase-line-editor-title">
+  <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <h3
+        id="purchase-line-editor-title"
+        class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
+      >
+        Einkaufspositionen
+      </h3>
+      <p class="text-[11px] text-fb-text-muted">
+        Mengenartikel bleiben eine Position; Einzelstücke werden separat erfasst.
+      </p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <button
+        type="button"
+        (click)="addQuantityLine()"
+        class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
+      >
+        Bestehenden Artikel wählen
+      </button>
+      <button
+        type="button"
+        (click)="isCreatingProduct.set(!isCreatingProduct())"
+        class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
+      >
+        Neuen Bestandsartikel anlegen
+      </button>
+      <button
+        type="button"
+        (click)="addIndividualLine()"
+        class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
+      >
+        Einzelstück / Mystery-Inhalt
+      </button>
+    </div>
+  </div>
+
+  @if (isCreatingProduct()) {
+    <form
+      [formGroup]="productForm"
+      (ngSubmit)="createCatalogProduct()"
+      class="rounded-xl border border-fb-line bg-fb-well p-3"
+    >
+      <label
+        for="newCatalogProductTitle"
+        class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+      >
+        Neuer Bestandsartikel
+      </label>
+      <div class="flex gap-2">
+        <input
+          id="newCatalogProductTitle"
+          type="text"
+          formControlName="title"
+          class="linear-input min-w-0 flex-1 rounded-lg px-2.5 py-1.5 text-xs"
+          placeholder="z. B. LED-Lampe"
+        />
+        <button
+          type="submit"
+          [disabled]="productForm.invalid || isSavingProduct()"
+          class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {{ isSavingProduct() ? 'Speichere…' : 'Anlegen' }}
+        </button>
+      </div>
+      @if (productError()) {
+        <p class="mt-2 text-xs text-rose-400" role="alert">{{ productError() }}</p>
+      }
+    </form>
+  }
+
+  @if (lineRows.length > 0) {
+    <div class="space-y-2">
+      @for (row of lineRows.controls; track $index) {
+        <div class="rounded-xl border border-fb-line bg-fb-well p-3" [formGroup]="row">
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <span class="text-xs font-semibold text-fb-text-primary">
+              {{
+                row.controls.lineKind.value === 'quantity'
+                  ? 'Mengenartikel'
+                  : 'Einzelstück / Mystery-Inhalt'
+              }}
+            </span>
+            <button
+              type="button"
+              (click)="removeLine($index)"
+              class="cursor-pointer text-xs font-semibold text-rose-400 hover:text-rose-300"
+            >
+              Position löschen
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-6">
+            @if (row.controls.lineKind.value === 'quantity') {
+              <label
+                class="sm:col-span-2 text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+              >
+                Artikelstamm
+                <select
+                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                  [value]="row.controls.catalogProductId.value ?? ''"
+                  (change)="selectCatalogProduct($index, $any($event.target).value)"
+                >
+                  <option value="">Artikel wählen</option>
+                  @for (product of quantityProducts(); track product.id) {
+                    <option [value]="product.id">{{ product.title }}</option>
+                  }
+                </select>
+              </label>
+            } @else {
+              <label
+                class="sm:col-span-2 text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+              >
+                Bezeichnung
+                <input
+                  type="text"
+                  formControlName="titleSnapshot"
+                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                  placeholder="z. B. Mystery-Fundstück"
+                />
+              </label>
+            }
+
+            <label class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
+              Menge
+              <input
+                type="number"
+                min="1"
+                formControlName="orderedQuantity"
+                [readonly]="row.controls.lineKind.value === 'individual'"
+                (input)="updateQuantity($index)"
+                class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+              />
+            </label>
+            <label class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
+              EK je Stück
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                formControlName="unitPurchasePrice"
+                (input)="recalculate($index, 'unitPurchasePrice')"
+                class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+              />
+            </label>
+            <label class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
+              Positionssumme
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                formControlName="lineTotal"
+                (input)="recalculate($index, 'lineTotal')"
+                class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+              />
+            </label>
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <p
+      class="rounded-xl border border-dashed border-fb-line px-3 py-4 text-center text-xs text-fb-text-muted"
+    >
+      Noch keine Einkaufspositionen hinzugefügt.
+    </p>
+  }
+</section>
