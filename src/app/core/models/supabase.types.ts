@@ -2375,6 +2375,25 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      receive_purchase_lines: {
+        Args: { p_lines: Json; p_purchase_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      record_sale: {
+        Args: { p_lines: Json; p_sale: Json; p_workspace_id: string }
+        Returns: Json
+      }
+      record_sale_return: {
+        Args: {
+          p_notes: string
+          p_reason: string
+          p_refund_amount: number
+          p_restock: boolean
+          p_sale_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       replace_bank_transactions: {
         Args: { p_transactions: Json; p_workspace_id: string }
         Returns: number
