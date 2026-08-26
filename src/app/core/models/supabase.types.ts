@@ -273,6 +273,59 @@ export type Database = {
           },
         ]
       }
+      catalog_products: {
+        Row: {
+          brand: string | null
+          category: string | null
+          created_at: string
+          ean: string | null
+          id: string
+          is_public_store: boolean
+          listing_price: number | null
+          model: string | null
+          title: string
+          tracking_mode: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          ean?: string | null
+          id?: string
+          is_public_store?: boolean
+          listing_price?: number | null
+          model?: string | null
+          title: string
+          tracking_mode: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          brand?: string | null
+          category?: string | null
+          created_at?: string
+          ean?: string | null
+          id?: string
+          is_public_store?: boolean
+          listing_price?: number | null
+          model?: string | null
+          title?: string
+          tracking_mode?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "catalog_products_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_confirmations: {
         Row: {
           id: string
@@ -334,6 +387,7 @@ export type Database = {
           is_public_store: boolean
           model: string | null
           purchase_id: string | null
+          purchase_line_id: string | null
           sku: string | null
           status: string
           tax_mode_override: string | null
@@ -358,6 +412,7 @@ export type Database = {
           is_public_store?: boolean
           model?: string | null
           purchase_id?: string | null
+          purchase_line_id?: string | null
           sku?: string | null
           status?: string
           tax_mode_override?: string | null
@@ -382,6 +437,7 @@ export type Database = {
           is_public_store?: boolean
           model?: string | null
           purchase_id?: string | null
+          purchase_line_id?: string | null
           sku?: string | null
           status?: string
           tax_mode_override?: string | null
@@ -396,6 +452,13 @@ export type Database = {
             columns: ["purchase_id"]
             isOneToOne: false
             referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_items_purchase_line_id_fkey"
+            columns: ["purchase_line_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_lines"
             referencedColumns: ["id"]
           },
           {
@@ -915,6 +978,73 @@ export type Database = {
           },
         ]
       }
+      purchase_lines: {
+        Row: {
+          catalog_product_id: string | null
+          created_at: string
+          id: string
+          line_kind: string
+          line_total: number
+          ordered_quantity: number
+          purchase_id: string
+          received_quantity: number
+          title_snapshot: string
+          unit_purchase_price: number
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          catalog_product_id?: string | null
+          created_at?: string
+          id?: string
+          line_kind: string
+          line_total: number
+          ordered_quantity: number
+          purchase_id: string
+          received_quantity?: number
+          title_snapshot: string
+          unit_purchase_price: number
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          catalog_product_id?: string | null
+          created_at?: string
+          id?: string
+          line_kind?: string
+          line_total?: number
+          ordered_quantity?: number
+          purchase_id?: string
+          received_quantity?: number
+          title_snapshot?: string
+          unit_purchase_price?: number
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_lines_catalog_product_id_fkey"
+            columns: ["catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_lines_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_lines_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       purchases: {
         Row: {
           cost_allocation_mode: string
@@ -925,6 +1055,7 @@ export type Database = {
           original_url: string | null
           purchase_date: string
           purchase_price: number
+          receiving_status: string
           source_id: string | null
           supplier_id: string | null
           title: string
@@ -945,6 +1076,7 @@ export type Database = {
           original_url?: string | null
           purchase_date?: string
           purchase_price?: number
+          receiving_status?: string
           source_id?: string | null
           supplier_id?: string | null
           title: string
@@ -965,6 +1097,7 @@ export type Database = {
           original_url?: string | null
           purchase_date?: string
           purchase_price?: number
+          receiving_status?: string
           source_id?: string | null
           supplier_id?: string | null
           title?: string
@@ -1173,6 +1306,132 @@ export type Database = {
           },
         ]
       }
+      sale_line_lot_allocations: {
+        Row: {
+          created_at: string
+          id: string
+          quantity: number
+          sale_line_id: string
+          stock_lot_id: string
+          unit_cost: number
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          quantity: number
+          sale_line_id: string
+          stock_lot_id: string
+          unit_cost: number
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          quantity?: number
+          sale_line_id?: string
+          stock_lot_id?: string
+          unit_cost?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_line_lot_allocations_sale_line_id_fkey"
+            columns: ["sale_line_id"]
+            isOneToOne: false
+            referencedRelation: "sale_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_line_lot_allocations_stock_lot_id_fkey"
+            columns: ["stock_lot_id"]
+            isOneToOne: false
+            referencedRelation: "stock_lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_line_lot_allocations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sale_lines: {
+        Row: {
+          catalog_product_id: string | null
+          cost_of_goods_sold: number
+          created_at: string
+          id: string
+          inventory_item_id: string | null
+          line_total: number
+          quantity: number
+          sale_id: string
+          tax_mode: string
+          title_snapshot: string
+          unit_sale_price: number
+          workspace_id: string
+        }
+        Insert: {
+          catalog_product_id?: string | null
+          cost_of_goods_sold: number
+          created_at?: string
+          id?: string
+          inventory_item_id?: string | null
+          line_total: number
+          quantity: number
+          sale_id: string
+          tax_mode: string
+          title_snapshot: string
+          unit_sale_price: number
+          workspace_id: string
+        }
+        Update: {
+          catalog_product_id?: string | null
+          cost_of_goods_sold?: number
+          created_at?: string
+          id?: string
+          inventory_item_id?: string | null
+          line_total?: number
+          quantity?: number
+          sale_id?: string
+          tax_mode?: string
+          title_snapshot?: string
+          unit_sale_price?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_lines_catalog_product_id_fkey"
+            columns: ["catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_lines_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_lines_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_lines_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales: {
         Row: {
           buyer_notes: string | null
@@ -1180,7 +1439,7 @@ export type Database = {
           external_listing_id: string | null
           external_order_id: string | null
           id: string
-          inventory_item_id: string
+          inventory_item_id: string | null
           other_costs: number
           packaging_cost: number
           platform: string
@@ -1189,6 +1448,7 @@ export type Database = {
           returned_at: string | null
           sale_date: string
           sale_price: number
+          sale_price_total: number | null
           shipping_cost: number
           workspace_id: string
         }
@@ -1198,7 +1458,7 @@ export type Database = {
           external_listing_id?: string | null
           external_order_id?: string | null
           id?: string
-          inventory_item_id: string
+          inventory_item_id?: string | null
           other_costs?: number
           packaging_cost?: number
           platform: string
@@ -1207,6 +1467,7 @@ export type Database = {
           returned_at?: string | null
           sale_date?: string
           sale_price?: number
+          sale_price_total?: number | null
           shipping_cost?: number
           workspace_id: string
         }
@@ -1216,7 +1477,7 @@ export type Database = {
           external_listing_id?: string | null
           external_order_id?: string | null
           id?: string
-          inventory_item_id?: string
+          inventory_item_id?: string | null
           other_costs?: number
           packaging_cost?: number
           platform?: string
@@ -1225,6 +1486,7 @@ export type Database = {
           returned_at?: string | null
           sale_date?: string
           sale_price?: number
+          sale_price_total?: number | null
           shipping_cost?: number
           workspace_id?: string
         }
@@ -1375,6 +1637,129 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "sources_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_lots: {
+        Row: {
+          catalog_product_id: string
+          created_at: string
+          id: string
+          purchase_id: string
+          purchase_line_id: string
+          received_at: string
+          received_quantity: number
+          remaining_quantity: number
+          unit_cost: number
+          workspace_id: string
+        }
+        Insert: {
+          catalog_product_id: string
+          created_at?: string
+          id?: string
+          purchase_id: string
+          purchase_line_id: string
+          received_at?: string
+          received_quantity: number
+          remaining_quantity: number
+          unit_cost: number
+          workspace_id: string
+        }
+        Update: {
+          catalog_product_id?: string
+          created_at?: string
+          id?: string
+          purchase_id?: string
+          purchase_line_id?: string
+          received_at?: string
+          received_quantity?: number
+          remaining_quantity?: number
+          unit_cost?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_lots_catalog_product_id_fkey"
+            columns: ["catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_lots_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_lots_purchase_line_id_fkey"
+            columns: ["purchase_line_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_lots_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_movements: {
+        Row: {
+          created_at: string
+          direction: string
+          id: string
+          quantity: number
+          reason: string
+          sale_line_id: string | null
+          stock_lot_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          direction: string
+          id?: string
+          quantity: number
+          reason: string
+          sale_line_id?: string | null
+          stock_lot_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          direction?: string
+          id?: string
+          quantity?: number
+          reason?: string
+          sale_line_id?: string | null
+          stock_lot_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_sale_line_id_fkey"
+            columns: ["sale_line_id"]
+            isOneToOne: false
+            referencedRelation: "sale_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_stock_lot_id_fkey"
+            columns: ["stock_lot_id"]
+            isOneToOne: false
+            referencedRelation: "stock_lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"

@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS public.purchases (
     tracking_number TEXT,
     tracking_carrier TEXT,
     tracking_status TEXT NOT NULL DEFAULT 'pending',
+    receiving_status text not null default 'received' check (receiving_status in ('draft', 'ordered', 'partially_received', 'received', 'archived')),
     total_purchase_cost NUMERIC NOT NULL DEFAULT 0.00,
     estimated_delivery TIMESTAMPTZ,
     notes TEXT,
@@ -198,9 +199,10 @@ CREATE TABLE IF NOT EXISTS public.listing_drafts (
 CREATE TABLE IF NOT EXISTS public.sales (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    inventory_item_id UUID NOT NULL REFERENCES public.inventory_items(id) ON DELETE CASCADE,
+    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE CASCADE,
     platform TEXT NOT NULL,
     sale_price NUMERIC NOT NULL DEFAULT 0.00,
+    sale_price_total numeric(12,2),
     sale_date DATE NOT NULL DEFAULT CURRENT_DATE,
     platform_fee NUMERIC NOT NULL DEFAULT 0.00,
     shipping_cost NUMERIC NOT NULL DEFAULT 0.00,
@@ -213,6 +215,96 @@ CREATE TABLE IF NOT EXISTS public.sales (
     returned_at TIMESTAMPTZ,
     refund_amount NUMERIC(10,2),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ==============================================================================
+-- 6a. catalog, stock lots & sale lines
+-- ==============================================================================
+
+create table public.catalog_products (
+    id uuid primary key default gen_random_uuid(),
+    workspace_id uuid not null references public.workspaces(id) on delete cascade,
+    title text not null,
+    brand text,
+    model text,
+    ean text,
+    category text,
+    tracking_mode text not null check (tracking_mode in ('quantity', 'individual')),
+    is_public_store boolean not null default false,
+    listing_price numeric(12,2) check (listing_price is null or listing_price > 0),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    unique (workspace_id, ean)
+);
+
+create table public.purchase_lines (
+    id uuid primary key default gen_random_uuid(),
+    workspace_id uuid not null references public.workspaces(id) on delete cascade,
+    purchase_id uuid not null references public.purchases(id) on delete cascade,
+    catalog_product_id uuid references public.catalog_products(id) on delete restrict,
+    title_snapshot text not null,
+    line_kind text not null check (line_kind in ('quantity', 'individual')),
+    ordered_quantity integer not null check (ordered_quantity > 0),
+    received_quantity integer not null default 0 check (received_quantity >= 0 and received_quantity <= ordered_quantity),
+    unit_purchase_price numeric(12,2) not null check (unit_purchase_price >= 0),
+    line_total numeric(12,2) not null check (line_total >= 0),
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now(),
+    check ((line_kind = 'quantity' and catalog_product_id is not null) or line_kind = 'individual')
+);
+
+alter table public.inventory_items
+    add column if not exists purchase_line_id uuid references public.purchase_lines(id) on delete set null;
+
+create table public.stock_lots (
+    id uuid primary key default gen_random_uuid(),
+    workspace_id uuid not null references public.workspaces(id) on delete cascade,
+    purchase_id uuid not null references public.purchases(id) on delete restrict,
+    purchase_line_id uuid not null references public.purchase_lines(id) on delete restrict,
+    catalog_product_id uuid not null references public.catalog_products(id) on delete restrict,
+    received_quantity integer not null check (received_quantity > 0),
+    remaining_quantity integer not null check (remaining_quantity >= 0 and remaining_quantity <= received_quantity),
+    unit_cost numeric(12,2) not null check (unit_cost >= 0),
+    received_at timestamptz not null default now(),
+    created_at timestamptz not null default now()
+);
+
+create table public.sale_lines (
+    id uuid primary key default gen_random_uuid(),
+    workspace_id uuid not null references public.workspaces(id) on delete cascade,
+    sale_id uuid not null references public.sales(id) on delete cascade,
+    catalog_product_id uuid references public.catalog_products(id) on delete restrict,
+    inventory_item_id uuid references public.inventory_items(id) on delete restrict,
+    title_snapshot text not null,
+    quantity integer not null check (quantity > 0),
+    unit_sale_price numeric(12,2) not null check (unit_sale_price >= 0),
+    line_total numeric(12,2) not null check (line_total >= 0),
+    cost_of_goods_sold numeric(12,2) not null check (cost_of_goods_sold >= 0),
+    tax_mode text not null check (tax_mode in ('diff_25a', 'kleinunternehmer_19', 'regular_19')),
+    created_at timestamptz not null default now(),
+    check (num_nonnulls(catalog_product_id, inventory_item_id) = 1)
+);
+
+create table public.stock_movements (
+    id uuid primary key default gen_random_uuid(),
+    workspace_id uuid not null references public.workspaces(id) on delete cascade,
+    stock_lot_id uuid not null references public.stock_lots(id) on delete restrict,
+    sale_line_id uuid references public.sale_lines(id) on delete restrict,
+    direction text not null check (direction in ('in', 'out')),
+    quantity integer not null check (quantity > 0),
+    reason text not null check (reason in ('receipt', 'sale', 'return', 'correction', 'damage', 'loss', 'reservation', 'reservation_release')),
+    created_at timestamptz not null default now()
+);
+
+create table public.sale_line_lot_allocations (
+    id uuid primary key default gen_random_uuid(),
+    workspace_id uuid not null references public.workspaces(id) on delete cascade,
+    sale_line_id uuid not null references public.sale_lines(id) on delete restrict,
+    stock_lot_id uuid not null references public.stock_lots(id) on delete restrict,
+    quantity integer not null check (quantity > 0),
+    unit_cost numeric(12,2) not null check (unit_cost >= 0),
+    created_at timestamptz not null default now(),
+    unique (sale_line_id, stock_lot_id)
 );
 
 -- ==============================================================================
@@ -561,6 +653,15 @@ ALTER TABLE public.market_research ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.research_comparables ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.listing_drafts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
+alter table public.catalog_products enable row level security;
+alter table public.purchase_lines enable row level security;
+alter table public.stock_lots enable row level security;
+alter table public.stock_movements enable row level security;
+alter table public.sale_lines enable row level security;
+alter table public.sale_line_lot_allocations enable row level security;
+revoke all on table public.catalog_products, public.purchase_lines, public.stock_lots,
+    public.stock_movements, public.sale_lines, public.sale_line_lot_allocations
+    from anon, public;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.returns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
@@ -1045,6 +1146,62 @@ create policy "Verkauf loeschen"
 on public.sales for delete to authenticated
 using (public.is_workspace_member(workspace_id));
 
+-- catalog_products
+create policy catalog_products_select on public.catalog_products for select to authenticated
+using (public.is_workspace_member(workspace_id));
+create policy catalog_products_insert on public.catalog_products for insert to authenticated
+with check (public.is_workspace_member(workspace_id));
+create policy catalog_products_update on public.catalog_products for update to authenticated
+using (public.is_workspace_member(workspace_id))
+with check (public.is_workspace_member(workspace_id));
+create policy catalog_products_delete on public.catalog_products for delete to authenticated
+using (public.is_workspace_member(workspace_id));
+
+-- purchase_lines
+create policy purchase_lines_select on public.purchase_lines for select to authenticated
+using (public.is_workspace_member(workspace_id));
+create policy purchase_lines_insert on public.purchase_lines for insert to authenticated
+with check (public.is_workspace_member(workspace_id));
+create policy purchase_lines_update on public.purchase_lines for update to authenticated
+using (public.is_workspace_member(workspace_id))
+with check (public.is_workspace_member(workspace_id));
+create policy purchase_lines_delete on public.purchase_lines for delete to authenticated
+using (public.is_workspace_member(workspace_id));
+
+-- stock_lots
+create policy stock_lots_select on public.stock_lots for select to authenticated
+using (public.is_workspace_member(workspace_id));
+create policy stock_lots_insert on public.stock_lots for insert to authenticated
+with check (public.is_workspace_member(workspace_id));
+create policy stock_lots_update on public.stock_lots for update to authenticated
+using (public.is_workspace_member(workspace_id))
+with check (public.is_workspace_member(workspace_id));
+create policy stock_lots_delete on public.stock_lots for delete to authenticated
+using (public.is_workspace_member(workspace_id));
+
+-- stock_movements
+create policy stock_movements_select on public.stock_movements for select to authenticated
+using (public.is_workspace_member(workspace_id));
+create policy stock_movements_insert on public.stock_movements for insert to authenticated
+with check (public.is_workspace_member(workspace_id));
+
+-- sale_lines
+create policy sale_lines_select on public.sale_lines for select to authenticated
+using (public.is_workspace_member(workspace_id));
+create policy sale_lines_insert on public.sale_lines for insert to authenticated
+with check (public.is_workspace_member(workspace_id));
+create policy sale_lines_update on public.sale_lines for update to authenticated
+using (public.is_workspace_member(workspace_id))
+with check (public.is_workspace_member(workspace_id));
+create policy sale_lines_delete on public.sale_lines for delete to authenticated
+using (public.is_workspace_member(workspace_id));
+
+-- sale_line_lot_allocations
+create policy sale_line_lot_allocations_select on public.sale_line_lot_allocations for select to authenticated
+using (public.is_workspace_member(workspace_id));
+create policy sale_line_lot_allocations_insert on public.sale_line_lot_allocations for insert to authenticated
+with check (public.is_workspace_member(workspace_id));
+
 -- activity_logs
 create policy "Verlauf lesen"
 on public.activity_logs for select to authenticated
@@ -1262,6 +1419,8 @@ create index if not exists idx_inventory_items_workspace_id
   on public.inventory_items (workspace_id);
 create index if not exists idx_inventory_items_purchase_id
   on public.inventory_items (purchase_id);
+create index if not exists idx_inventory_items_purchase_line_id
+  on public.inventory_items (purchase_line_id);
 create index if not exists idx_item_costs_item_id
   on public.item_costs (inventory_item_id);
 create index if not exists idx_item_media_item_id
@@ -1276,6 +1435,46 @@ create index if not exists idx_sales_workspace_id
   on public.sales (workspace_id);
 create index if not exists idx_sales_item_id
   on public.sales (inventory_item_id);
+create index if not exists idx_catalog_products_workspace_id
+  on public.catalog_products (workspace_id);
+create index if not exists idx_purchase_lines_workspace_id
+  on public.purchase_lines (workspace_id);
+create index if not exists idx_purchase_lines_purchase_id
+  on public.purchase_lines (purchase_id);
+create index if not exists idx_purchase_lines_catalog_product_id
+  on public.purchase_lines (catalog_product_id);
+create index if not exists idx_stock_lots_workspace_id
+  on public.stock_lots (workspace_id);
+create index if not exists idx_stock_lots_purchase_id
+  on public.stock_lots (purchase_id);
+create index if not exists idx_stock_lots_purchase_line_id
+  on public.stock_lots (purchase_line_id);
+create index if not exists idx_stock_lots_catalog_product_id
+  on public.stock_lots (catalog_product_id);
+create index if not exists idx_stock_lots_workspace_catalog_received
+  on public.stock_lots (workspace_id, catalog_product_id, received_at, id);
+create index if not exists idx_stock_movements_workspace_id
+  on public.stock_movements (workspace_id);
+create index if not exists idx_stock_movements_stock_lot_id
+  on public.stock_movements (stock_lot_id);
+create index if not exists idx_stock_movements_sale_line_id
+  on public.stock_movements (sale_line_id);
+create index if not exists idx_stock_movements_workspace_created
+  on public.stock_movements (workspace_id, created_at desc);
+create index if not exists idx_sale_lines_workspace_id
+  on public.sale_lines (workspace_id);
+create index if not exists idx_sale_lines_sale_id
+  on public.sale_lines (sale_id);
+create index if not exists idx_sale_lines_catalog_product_id
+  on public.sale_lines (catalog_product_id);
+create index if not exists idx_sale_lines_inventory_item_id
+  on public.sale_lines (inventory_item_id);
+create index if not exists idx_sale_line_lot_allocations_workspace_id
+  on public.sale_line_lot_allocations (workspace_id);
+create index if not exists idx_sale_line_lot_allocations_sale_line_id
+  on public.sale_line_lot_allocations (sale_line_id);
+create index if not exists idx_sale_line_lot_allocations_stock_lot_id
+  on public.sale_line_lot_allocations (stock_lot_id);
 create index if not exists idx_activity_logs_workspace_id
   on public.activity_logs (workspace_id);
 create index if not exists idx_activity_logs_item_id
