@@ -89,4 +89,27 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
     expect(result.data?.restock_action).toBe('keep_with_buyer');
     expect(result.data?.creditNoteInvoice?.total).toBe(-20.0);
   });
+
+  it('materializes a confirmed atomic return once with its credit note', () => {
+    const initialCount = service.returns().length;
+
+    const first = service.materializeConfirmedReturn({
+      sale: sampleSale,
+      reason: 'buyer_remorse',
+      refundAmount: 150,
+      isFullRefund: true,
+      restockAction: 'restock_ready',
+    });
+    const duplicate = service.materializeConfirmedReturn({
+      sale: sampleSale,
+      reason: 'buyer_remorse',
+      refundAmount: 150,
+      isFullRefund: true,
+      restockAction: 'restock_ready',
+    });
+
+    expect(first.creditNoteInvoice?.total).toBe(-150);
+    expect(duplicate.id).toBe(first.id);
+    expect(service.returns()).toHaveLength(initialCount + 1);
+  });
 });

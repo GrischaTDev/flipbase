@@ -10,7 +10,7 @@ export interface ReturnRecord {
   id: string;
   workspace_id: string;
   sale_id: string;
-  inventory_item_id: string;
+  inventory_item_id: string | null;
   credit_note_number: string;
   return_date: string;
   reason: ReturnReason;

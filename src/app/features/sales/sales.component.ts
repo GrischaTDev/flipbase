@@ -280,7 +280,21 @@ export class SalesComponent {
       return;
     }
 
+    const confirmedSale: Sale = {
+      ...sale,
+      ...ergebnis.data,
+      inventory_item: ergebnis.data?.inventory_item ?? sale.inventory_item,
+    };
+    const returnRecord = this.returnService.materializeConfirmedReturn({
+      sale: confirmedSale,
+      reason: val.reason,
+      refundAmount: val.refundAmount,
+      isFullRefund: val.isFullRefund,
+      restockAction: val.restockAction,
+      notes: val.notes?.trim() || undefined,
+    });
     this.closeReturnModal();
+    this.activeInvoice.set(returnRecord.creditNoteInvoice ?? null);
     this.toast.success('Retoure wurde erfasst.');
   }
 

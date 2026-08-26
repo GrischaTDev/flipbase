@@ -53,27 +53,17 @@ function erstelleKomponente() {
   const salesService = {
     sales: signal([verkauf]),
     deleteSale: vi.fn(async (): Promise<{ error: Error | null }> => ({ error: null })),
+    recordReturn: vi.fn<
+      () => Promise<{ data: Sale | null; error: Error | null; reportedBySyncStatus: boolean }>
+    >(async () => ({
+      data: { ...verkauf, returned_at: '2026-08-24T12:00:00.000Z', refund_amount: 50 },
+      error: null,
+      reportedBySyncStatus: false,
+    })),
   };
   const returnService = {
     returns: signal<ReturnRecord[]>([]),
-    processReturn: vi.fn(
-      async (): Promise<{
-        status: 'success' | 'partial' | 'error';
-        data: ReturnRecord | null;
-        error: Error | null;
-        reportedBySyncStatus: boolean;
-        problems?: readonly {
-          kind: 'inventory_status' | 'sale_return_status';
-          error: Error;
-          reportedBySyncStatus: boolean;
-        }[];
-      }> => ({
-        status: 'success',
-        data: retoure,
-        error: null,
-        reportedBySyncStatus: false,
-      }),
-    ),
+    materializeConfirmedReturn: vi.fn(() => retoure),
   };
   const komponente = Object.create(SalesComponent.prototype) as SalesComponent;
   const invoiceService = {
@@ -186,9 +176,8 @@ describe('SalesComponent – Aktionsmeldungen', () => {
   });
 
   it('behält den Retourendialog bei einem lokalen Fehler geöffnet und meldet ihn persistent', async () => {
-    const { komponente, returnService, toast } = erstelleKomponente();
-    returnService.processReturn.mockResolvedValue({
-      status: 'error',
+    const { komponente, salesService, toast } = erstelleKomponente();
+    salesService.recordReturn.mockResolvedValue({
       data: null,
       error: new Error('Retoure konnte nicht gespeichert werden'),
       reportedBySyncStatus: false,
@@ -222,32 +211,14 @@ describe('SalesComponent – Aktionsmeldungen', () => {
     expect(toast.toasts()[0]).toMatchObject({ type: 'error', persistent: true });
   });
 
-  it('schließt eine persistierte Teilretoure und verhindert eine zweite Gutschrift', async () => {
-    const { komponente, returnService, toast } = erstelleKomponente();
-    returnService.processReturn.mockResolvedValue({
-      status: 'partial',
-      data: retoure,
-      error: new Error('Retourenvermerk fehlt'),
-      reportedBySyncStatus: false,
-      problems: [
-        {
-          kind: 'sale_return_status',
-          error: new Error('Retourenvermerk fehlt'),
-          reportedBySyncStatus: false,
-        },
-      ],
-    });
+  it('materialisiert nach der atomaren Retoure genau einen Gutschriftbeleg', async () => {
+    const { komponente, returnService, salesService } = erstelleKomponente();
 
     await komponente.onSubmitReturn();
     await komponente.onSubmitReturn();
 
-    expect(returnService.processReturn).toHaveBeenCalledOnce();
+    expect(salesService.recordReturn).toHaveBeenCalledOnce();
+    expect(returnService.materializeConfirmedReturn).toHaveBeenCalledOnce();
     expect(komponente.isReturnModalOpen()).toBe(false);
-    expect(toast.toasts()[0]).toMatchObject({
-      type: 'warning',
-      title: 'Retoure wurde mit Einschränkungen erfasst.',
-      description: 'Der Retourenvermerk wird automatisch nachgeholt.',
-      persistent: false,
-    });
   });
 });

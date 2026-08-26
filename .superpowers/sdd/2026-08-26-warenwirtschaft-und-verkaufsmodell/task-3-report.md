@@ -50,3 +50,10 @@ The build completes successfully. It retains the existing Angular CommonJS optim
 - Confirmed sales and returns refresh `StockService.positions`. The demo store now consumes quantity lots in FIFO order, rejects overselling without writing partial state, and restores lots for restocked returns.
 - Purchase receipts refresh joined lot/product positions after the successful RPC. The first receipt of an existing catalog product therefore uses its persisted product title and store flag instead of the fallback label.
 - The focused service tests pass (3 files, 4 tests), as do `npm run typecheck`, `npm run build`, and `git diff --check`.
+
+## Fix round 2
+
+- `ReturnService.materializeConfirmedReturn` now provides exactly one local `ReturnRecord` with a generated credit-note invoice after the atomic return RPC has succeeded. It does not issue a second database request.
+- The visible return flow materializes this UI record only after `SalesService.recordReturn` reports success and opens the generated credit note as before.
+- Quantity sales are represented with a nullable legacy `inventory_item_id` in the local return record, while the credit note continues to use the sale information itself.
+- Verification: 5 focused test files / 16 tests passed, plus `npm run typecheck`, `npm run build`, and `git diff --check`.

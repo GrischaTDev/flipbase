@@ -128,6 +128,52 @@ export class ReturnService {
   }
 
   /**
+   * Stellt den Belegzustand nach einer bereits atomar gebuchten Retoure lokal
+   * bereit. Diese Methode schreibt bewusst nicht in die Datenbank: Die
+   * Datenbankbuchung wurde zuvor vollständig durch `record_sale_return`
+   * bestätigt und darf nicht ein zweites Mal ausgelöst werden.
+   */
+  materializeConfirmedReturn(input: {
+    sale: Sale;
+    reason: ReturnReason;
+    refundAmount: number;
+    isFullRefund: boolean;
+    restockAction: RestockAction;
+    notes?: string;
+  }): ReturnRecord {
+    const existing = this.returns().find((entry) => entry.sale_id === input.sale.id);
+    if (existing) return existing;
+
+    const workspace = this.workspaceService?.currentWorkspace() ?? null;
+    const returnDate =
+      input.sale.returned_at?.slice(0, 10) ?? new Date().toISOString().slice(0, 10);
+    const returnRecord: ReturnRecord = {
+      id: `atomic-return-${input.sale.id}`,
+      workspace_id: input.sale.workspace_id,
+      sale_id: input.sale.id,
+      inventory_item_id: input.sale.inventory_item_id ?? null,
+      credit_note_number: `GS-${returnDate.slice(0, 4)}-${(this.returns().length + 1).toString().padStart(4, '0')}`,
+      return_date: returnDate,
+      reason: input.reason,
+      refund_amount: Number(input.refundAmount.toFixed(2)),
+      is_full_refund: input.isFullRefund,
+      restock_action: input.restockAction,
+      buyer_name: input.sale.buyer_notes || 'Kunde',
+      notes: input.notes,
+      created_at: input.sale.returned_at ?? new Date().toISOString(),
+      sale: input.sale,
+      inventory_item: input.sale.inventory_item,
+    };
+    returnRecord.creditNoteInvoice = this.generateCreditNoteInvoice(
+      returnRecord,
+      input.sale,
+      workspace,
+    );
+    this.uebernehmeRetoureLokal(returnRecord);
+    return returnRecord;
+  }
+
+  /**
    * Processes a return / refund, updates inventory stock accordingly, and generates a credit note.
    */
   async processReturn(payload: {
