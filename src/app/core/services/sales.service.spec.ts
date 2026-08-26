@@ -1,6 +1,6 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Sale } from '../models/flipbase.models';
 import { SalesService } from './sales.service';
 import { SyncStatusService } from './sync-status.service';
@@ -18,7 +18,11 @@ const sale: Sale = {
   other_costs: 0,
 };
 
-function createService(response: { data: unknown; error: unknown }): SalesService {
+function createService(response: { data: unknown; error: unknown }): {
+  service: SalesService;
+  stockService: { loadPositions: ReturnType<typeof vi.fn> };
+} {
+  const stockService = { loadPositions: vi.fn(async () => undefined) };
   const service = Object.create(SalesService.prototype) as SalesService;
   Object.assign(service, {
     sales: signal<Sale[]>([]),
@@ -31,13 +35,14 @@ function createService(response: { data: unknown; error: unknown }): SalesServic
       calculateHoldingDurationDays: () => 0,
     },
     supabase: { client: { rpc: async () => response } },
+    stockService,
   });
-  return service;
+  return { service, stockService };
 }
 
 describe('SalesService', () => {
   it('übernimmt einen atomar bestätigten Mengenverkauf mit seinen Positionen', async () => {
-    const service = createService({
+    const { service, stockService } = createService({
       data: {
         sale,
         sale_lines: [
@@ -68,10 +73,11 @@ describe('SalesService', () => {
 
     expect(result.error).toBeNull();
     expect(service.sales()[0].lines?.[0].quantity).toBe(2);
+    expect(stockService.loadPositions).toHaveBeenCalledWith('workspace-1');
   });
 
   it('lässt den Verkaufszustand bei unzureichendem Bestand unverändert', async () => {
-    const service = createService({
+    const { service } = createService({
       data: null,
       error: new Error('Nicht genügend verfügbarer Bestand'),
     });

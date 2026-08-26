@@ -133,7 +133,11 @@ export class SalesComponent {
     if (plat === 'all') return list;
     if (plat === 'returned') {
       const returnSaleIds = new Set(this.returnService.returns().map((r) => r.sale_id));
-      return list.filter((s) => returnSaleIds.has(s.id));
+      return list.filter(
+        (sale) =>
+          (sale.returned_at !== null && sale.returned_at !== undefined) ||
+          returnSaleIds.has(sale.id),
+      );
     }
     return list.filter((s) => s.platform === plat);
   });
@@ -160,6 +164,13 @@ export class SalesComponent {
     const totalDays = list.reduce((sum, s) => sum + (s.holding_duration_days || 0), 0);
     return Math.round(totalDays / list.length);
   });
+
+  readonly returnedSalesCount = computed(
+    () =>
+      this.salesService
+        .sales()
+        .filter((sale) => sale.returned_at !== null && sale.returned_at !== undefined).length,
+  );
 
   openCreateModal(): void {
     this.isCreateModalOpen.set(true);
@@ -240,55 +251,36 @@ export class SalesComponent {
     this.isProcessingReturn.set(true);
     const val = this.returnForm.getRawValue();
 
-    let ergebnis: Awaited<ReturnType<ReturnService['processReturn']>>;
+    let ergebnis: Awaited<ReturnType<SalesService['recordReturn']>>;
     try {
-      ergebnis = await this.returnService.processReturn({
-        sale,
-        item: sale.inventory_item,
+      ergebnis = await this.salesService.recordReturn({
+        saleId: sale.id,
         reason: val.reason,
         refundAmount: val.refundAmount,
-        isFullRefund: val.isFullRefund,
-        restockAction: val.restockAction,
+        restock: val.restockAction === 'restock_ready' || val.restockAction === 'restock_repair',
         notes: val.notes?.trim() || undefined,
       });
     } catch (ursache: unknown) {
       ergebnis = {
-        status: 'error',
         data: null,
         error:
           ursache instanceof Error
             ? ursache
             : new Error('Die Retoure konnte nicht erfasst werden.'),
-        problems: [],
+        reportedBySyncStatus: false,
       };
     } finally {
       this.isProcessingReturn.set(false);
     }
 
     if (ergebnis.error) {
-      if (ergebnis.status === 'partial') {
-        const ungemeldeteProbleme = ergebnis.problems.filter(
-          (problem) => !problem.reportedBySyncStatus,
-        );
-        if (ergebnis.data) {
-          this.closeReturnModal();
-          if (ergebnis.data.creditNoteInvoice)
-            this.activeInvoice.set(ergebnis.data.creditNoteInvoice);
-        }
-        if (ungemeldeteProbleme.length > 0) {
-          this.toast.warning(
-            'Retoure wurde mit Einschränkungen erfasst.',
-            beschreibeRetourenTeilprobleme(ungemeldeteProbleme),
-          );
-        }
-      } else if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
+      if (!ergebnis.reportedBySyncStatus && !this.syncStatus.istZentralGemeldet(ergebnis.error)) {
         this.toast.error('Retoure konnte nicht erfasst werden.', ergebnis.error.message);
       }
       return;
     }
 
     this.closeReturnModal();
-    if (ergebnis.data?.creditNoteInvoice) this.activeInvoice.set(ergebnis.data.creditNoteInvoice);
     this.toast.success('Retoure wurde erfasst.');
   }
 
@@ -339,13 +331,4 @@ export class SalesComponent {
       this.toast.success('Verkauf wurde gelöscht.');
     }
   }
-}
-
-function beschreibeRetourenTeilprobleme(
-  problems: readonly { readonly kind: 'inventory_status' | 'sale_return_status' }[],
-): string {
-  if (problems.some((problem) => problem.kind === 'inventory_status')) {
-    return 'Der Artikelstatus wird automatisch nachgeholt.';
-  }
-  return 'Der Retourenvermerk wird automatisch nachgeholt.';
 }

@@ -43,3 +43,10 @@ npm run build
 ```
 
 The build completes successfully. It retains the existing Angular CommonJS optimization warnings for `jszip` and `jsbarcode`.
+
+## Fix round 1
+
+- The visible sales return flow now calls `SalesService.recordReturn`. It no longer invokes the legacy `ReturnService.processReturn` follow-up chain, so quantity sales and individual sales use the same atomic RPC return path.
+- Confirmed sales and returns refresh `StockService.positions`. The demo store now consumes quantity lots in FIFO order, rejects overselling without writing partial state, and restores lots for restocked returns.
+- Purchase receipts refresh joined lot/product positions after the successful RPC. The first receipt of an existing catalog product therefore uses its persisted product title and store flag instead of the fallback label.
+- The focused service tests pass (3 files, 4 tests), as do `npm run typecheck`, `npm run build`, and `git diff --check`.

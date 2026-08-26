@@ -15,6 +15,7 @@ import {
   StockMovement,
 } from '../models/flipbase.models';
 import { MutationResult } from './catalog.service';
+import { StockService } from './stock.service';
 
 const STORAGE_KEY_PENDING_FOLLOW_UPS = 'flipbase_pending_sale_follow_ups';
 const ITEM_STATUSES = new Set<string>([
@@ -117,6 +118,7 @@ export class SalesService {
   private readonly inventoryService = inject(InventoryService);
   private readonly mockStore = inject(MockDataStoreService);
   private readonly webhookService = inject(WebhookService);
+  private readonly stockService = inject(StockService);
 
   readonly sales = signal<Sale[]>([]);
   readonly isLoading = signal<boolean>(false);
@@ -278,12 +280,18 @@ export class SalesService {
       return this.mutationFailure('Verkauf buchen', new Error('Kein aktiver Workspace'));
 
     if (this.mockStore.isDemoMode()) {
-      const result = this.recordDemoSale(workspaceId, input);
+      let result: RecordSaleResult;
+      try {
+        result = this.recordDemoSale(workspaceId, input);
+      } catch (error: unknown) {
+        return this.mutationFailure('Verkauf buchen', error);
+      }
       this.sales.update((sales) => [
         result.sale,
         ...sales.filter((sale) => sale.id !== result.sale.id),
       ]);
       this.mockStore.saveSale(result.sale);
+      await this.stockService.loadPositions(workspaceId);
       return { data: result, error: null, reportedBySyncStatus: false };
     }
 
@@ -320,6 +328,7 @@ export class SalesService {
         result.sale,
         ...sales.filter((sale) => sale.id !== result.sale.id),
       ]);
+      await this.stockService.loadPositions(workspaceId);
       return { data: result, error: null, reportedBySyncStatus: false };
     } catch (error: unknown) {
       return this.mutationFailure('Verkauf buchen', error);
@@ -339,13 +348,23 @@ export class SalesService {
           'Retoure buchen',
           new Error('Der Verkauf wurde nicht gefunden.'),
         );
+      if (existing.returned_at) {
+        return this.mutationFailure(
+          'Retoure buchen',
+          new Error('Der Verkauf wurde bereits retourniert.'),
+        );
+      }
+      const returnResult = this.mockStore.returnQuantitySale(workspaceId, existing, input.restock);
+      if (returnResult.error) return this.mutationFailure('Retoure buchen', returnResult.error);
       const sale = this.enrichSaleMetrics({
         ...existing,
         returned_at: new Date().toISOString(),
         refund_amount: input.refundAmount,
+        stock_movements: returnResult.movements,
       });
       this.sales.update((sales) => sales.map((entry) => (entry.id === sale.id ? sale : entry)));
       this.mockStore.saveSale(sale);
+      await this.stockService.loadPositions(workspaceId);
       return { data: sale, error: null, reportedBySyncStatus: false };
     }
 
@@ -372,6 +391,7 @@ export class SalesService {
         stock_movements: this.arrayValue<StockMovement>(response['stock_movements']),
       });
       this.sales.update((sales) => sales.map((entry) => (entry.id === sale.id ? sale : entry)));
+      await this.stockService.loadPositions(workspaceId);
       return { data: sale, error: null, reportedBySyncStatus: false };
     } catch (error: unknown) {
       return this.mutationFailure('Retoure buchen', error);
@@ -405,7 +425,9 @@ export class SalesService {
       cost_of_goods_sold: 0,
       tax_mode: 'diff_25a',
     }));
-    const total = lines.reduce((sum, line) => sum + line.line_total, 0);
+    const booking = this.mockStore.bookQuantitySale(workspaceId, lines);
+    if (booking.error) throw booking.error;
+    const total = booking.saleLines.reduce((sum, line) => sum + line.line_total, 0);
     const sale = this.enrichSaleMetrics({
       id: saleId,
       workspace_id: workspaceId,
@@ -417,9 +439,16 @@ export class SalesService {
       shipping_cost: input.shippingCost ?? 0,
       packaging_cost: input.packagingCost ?? 0,
       other_costs: input.otherCosts ?? 0,
-      lines,
+      lines: booking.saleLines,
+      lot_allocations: booking.allocations,
+      stock_movements: booking.movements,
     });
-    return { sale, saleLines: lines, lotAllocations: [], stockMovements: [] };
+    return {
+      sale,
+      saleLines: booking.saleLines,
+      lotAllocations: booking.allocations,
+      stockMovements: booking.movements,
+    };
   }
 
   private arrayValue<T>(value: unknown): T[] {

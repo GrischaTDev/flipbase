@@ -13,6 +13,8 @@ import {
   PurchaseLine,
   StockLot,
   StockMovement,
+  SaleLine,
+  SaleLineLotAllocation,
 } from '../models/flipbase.models';
 import type { ReceivePurchaseLineInput } from './stock.service';
 
@@ -571,6 +573,135 @@ export class MockDataStoreService {
       })),
     ]);
     return { purchaseLines: updatedLines, stockLots: newLots, error: null };
+  }
+
+  bookQuantitySale(
+    workspaceId: string,
+    saleLines: readonly SaleLine[],
+  ): {
+    saleLines: SaleLine[];
+    allocations: SaleLineLotAllocation[];
+    movements: StockMovement[];
+    error: Error | null;
+  } {
+    const lots = this.getStockLots();
+    const updatedLots = lots.map((lot) => ({ ...lot }));
+    const allocations: SaleLineLotAllocation[] = [];
+    const movements: StockMovement[] = [];
+    const updatedLines: SaleLine[] = [];
+
+    for (const line of saleLines) {
+      if (!line.catalog_product_id) {
+        updatedLines.push(line);
+        continue;
+      }
+      let remaining = line.quantity;
+      let costOfGoodsSold = 0;
+      const lotsForProduct = updatedLots
+        .filter(
+          (lot) =>
+            lot.workspace_id === workspaceId &&
+            lot.catalog_product_id === line.catalog_product_id &&
+            lot.remaining_quantity > 0,
+        )
+        .sort(
+          (left, right) =>
+            left.received_at.localeCompare(right.received_at) || left.id.localeCompare(right.id),
+        );
+
+      for (const lot of lotsForProduct) {
+        if (remaining === 0) break;
+        const quantity = Math.min(remaining, lot.remaining_quantity);
+        lot.remaining_quantity -= quantity;
+        remaining -= quantity;
+        costOfGoodsSold += quantity * lot.unit_cost;
+        allocations.push({
+          id: this.newId('allocation'),
+          workspace_id: workspaceId,
+          sale_line_id: line.id,
+          stock_lot_id: lot.id,
+          quantity,
+          unit_cost: lot.unit_cost,
+        });
+        movements.push({
+          id: this.newId('movement'),
+          workspace_id: workspaceId,
+          stock_lot_id: lot.id,
+          sale_line_id: line.id,
+          direction: 'out',
+          quantity,
+          reason: 'sale',
+          created_at: new Date().toISOString(),
+        });
+      }
+      if (remaining !== 0) {
+        return {
+          saleLines: [],
+          allocations: [],
+          movements: [],
+          error: new Error('Nicht genügend verfügbarer Bestand'),
+        };
+      }
+      updatedLines.push({ ...line, cost_of_goods_sold: costOfGoodsSold });
+    }
+
+    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_LOTS, updatedLots);
+    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_MOVEMENTS, [
+      ...this.getStockMovements(),
+      ...movements,
+    ]);
+    return { saleLines: updatedLines, allocations, movements, error: null };
+  }
+
+  returnQuantitySale(
+    workspaceId: string,
+    sale: Sale,
+    restock: boolean,
+  ): { movements: StockMovement[]; error: Error | null } {
+    const allocations = sale.lot_allocations ?? [];
+    const lots = this.getStockLots();
+    const updatedLots = lots.map((lot) => ({ ...lot }));
+    const movements: StockMovement[] = [];
+
+    for (const allocation of allocations) {
+      const lot = updatedLots.find(
+        (entry) => entry.id === allocation.stock_lot_id && entry.workspace_id === workspaceId,
+      );
+      if (!lot)
+        return {
+          movements: [],
+          error: new Error('Das zugeordnete Bestandslos wurde nicht gefunden.'),
+        };
+      if (restock) lot.remaining_quantity += allocation.quantity;
+      movements.push({
+        id: this.newId('movement'),
+        workspace_id: workspaceId,
+        stock_lot_id: lot.id,
+        sale_line_id: allocation.sale_line_id,
+        direction: 'in',
+        quantity: allocation.quantity,
+        reason: 'return',
+        created_at: new Date().toISOString(),
+      });
+      if (!restock) {
+        movements.push({
+          id: this.newId('movement'),
+          workspace_id: workspaceId,
+          stock_lot_id: lot.id,
+          sale_line_id: allocation.sale_line_id,
+          direction: 'out',
+          quantity: allocation.quantity,
+          reason: 'damage',
+          created_at: new Date().toISOString(),
+        });
+      }
+    }
+    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_LOTS, updatedLots);
+    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_MOVEMENTS, [
+      ...this.getStockMovements(),
+      ...movements,
+    ]);
+    return { movements, error: null };
   }
 
   private getWorkspaceRecords<T extends { workspace_id: string }>(

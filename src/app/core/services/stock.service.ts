@@ -67,7 +67,7 @@ export class StockService {
     if (this.mockStore.isDemoMode()) {
       const result = this.mockStore.receivePurchaseLines(workspaceId, purchaseId, lines);
       if (result.error) return this.failure('Wareneingang buchen', result.error);
-      this.mergeReceivedLots(result.stockLots);
+      await this.loadPositions(workspaceId);
       return {
         data: { purchaseLines: result.purchaseLines, stockLots: result.stockLots },
         error: null,
@@ -92,7 +92,7 @@ export class StockService {
         );
       }
       const result = this.mapReceiveResult(data as Record<string, unknown>);
-      this.mergeReceivedLots(result.stockLots);
+      await this.loadPositions(workspaceId);
       return { data: result, error: null, reportedBySyncStatus: false };
     } catch (error: unknown) {
       return this.failure('Wareneingang buchen', error);
@@ -104,31 +104,6 @@ export class StockService {
       purchaseLines: this.asArray<PurchaseLine>(value['purchase_lines']),
       stockLots: this.asArray<StockLot>(value['stock_lots']),
     };
-  }
-
-  private mergeReceivedLots(lots: readonly StockLot[]): void {
-    const added = this.aggregateLots(lots);
-    this.positions.update((current) => {
-      const byProduct = new Map(
-        current.map((position) => [position.catalog_product_id, { ...position }]),
-      );
-      for (const position of added) {
-        const existing = byProduct.get(position.catalog_product_id);
-        byProduct.set(
-          position.catalog_product_id,
-          existing
-            ? {
-                ...existing,
-                available_quantity: existing.available_quantity + position.available_quantity,
-                on_hand_quantity: existing.on_hand_quantity + position.on_hand_quantity,
-                oldest_available_unit_cost:
-                  existing.oldest_available_unit_cost ?? position.oldest_available_unit_cost,
-              }
-            : position,
-        );
-      }
-      return [...byProduct.values()];
-    });
   }
 
   private aggregateLots(

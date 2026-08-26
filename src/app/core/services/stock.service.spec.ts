@@ -45,6 +45,37 @@ describe('StockService', () => {
             },
             error: null,
           }),
+          from: () => ({
+            select: () => ({
+              eq: () => ({
+                gt: () => ({
+                  order: () => ({
+                    order: async () => ({
+                      data: [
+                        {
+                          id: 'lot-1',
+                          workspace_id: 'workspace-1',
+                          purchase_id: 'purchase-1',
+                          purchase_line_id: 'line-1',
+                          catalog_product_id: 'product-1',
+                          received_quantity: 5,
+                          remaining_quantity: 5,
+                          unit_cost: 4.99,
+                          received_at: '2026-08-26T10:00:00.000Z',
+                          catalog_product: {
+                            id: 'product-1',
+                            title: 'LED-Lampe',
+                            is_public_store: false,
+                          },
+                        },
+                      ],
+                      error: null,
+                    }),
+                  }),
+                }),
+              }),
+            }),
+          }),
         },
       },
     });
@@ -55,5 +86,6 @@ describe('StockService', () => {
 
     expect(result.error).toBeNull();
     expect(service.positions()[0].available_quantity).toBe(5);
+    expect(service.positions()[0].title).toBe('LED-Lampe');
   });
 });
