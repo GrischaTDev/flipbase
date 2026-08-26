@@ -468,6 +468,13 @@ export type Database = {
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "inventory_items_workspace_purchase_line_fkey"
+            columns: ["workspace_id", "purchase_line_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_lines"
+            referencedColumns: ["workspace_id", "id"]
+          },
         ]
       }
       invoice_items: {
@@ -1037,11 +1044,25 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "purchase_lines_workspace_catalog_product_fkey"
+            columns: ["workspace_id", "catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
             foreignKeyName: "purchase_lines_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_lines_workspace_purchase_fkey"
+            columns: ["workspace_id", "purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["workspace_id", "id"]
           },
         ]
       }
@@ -1356,6 +1377,20 @@ export type Database = {
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "sale_line_lot_allocations_workspace_sale_line_fkey"
+            columns: ["workspace_id", "sale_line_id"]
+            isOneToOne: false
+            referencedRelation: "sale_lines"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "sale_line_lot_allocations_workspace_stock_lot_fkey"
+            columns: ["workspace_id", "stock_lot_id"]
+            isOneToOne: false
+            referencedRelation: "stock_lots"
+            referencedColumns: ["workspace_id", "id"]
+          },
         ]
       }
       sale_lines: {
@@ -1424,11 +1459,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "sale_lines_workspace_catalog_product_fkey"
+            columns: ["workspace_id", "catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
             foreignKeyName: "sale_lines_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_lines_workspace_inventory_item_fkey"
+            columns: ["workspace_id", "inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "sale_lines_workspace_sale_fkey"
+            columns: ["workspace_id", "sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["workspace_id", "id"]
           },
         ]
       }
@@ -1704,11 +1760,32 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "stock_lots_workspace_catalog_product_fkey"
+            columns: ["workspace_id", "catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
             foreignKeyName: "stock_lots_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_lots_workspace_purchase_fkey"
+            columns: ["workspace_id", "purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "stock_lots_workspace_purchase_line_fkey"
+            columns: ["workspace_id", "purchase_line_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_lines"
+            referencedColumns: ["workspace_id", "id"]
           },
         ]
       }
@@ -1764,6 +1841,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_workspace_sale_line_fkey"
+            columns: ["workspace_id", "sale_line_id"]
+            isOneToOne: false
+            referencedRelation: "sale_lines"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "stock_movements_workspace_stock_lot_fkey"
+            columns: ["workspace_id", "stock_lot_id"]
+            isOneToOne: false
+            referencedRelation: "stock_lots"
+            referencedColumns: ["workspace_id", "id"]
           },
         ]
       }

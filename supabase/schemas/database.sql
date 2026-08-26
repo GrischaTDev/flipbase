@@ -85,7 +85,8 @@ CREATE TABLE IF NOT EXISTS public.purchases (
     estimated_delivery TIMESTAMPTZ,
     notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    unique (workspace_id, id)
 );
 
 CREATE TABLE IF NOT EXISTS public.purchase_costs (
@@ -123,7 +124,8 @@ CREATE TABLE IF NOT EXISTS public.inventory_items (
     dimension_width_cm NUMERIC,
     dimension_height_cm NUMERIC,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    unique (workspace_id, id)
 );
 
 CREATE TABLE IF NOT EXISTS public.item_costs (
@@ -214,7 +216,8 @@ CREATE TABLE IF NOT EXISTS public.sales (
     -- Retoure: gesetzt, sobald der Verkauf zurueckgegeben wurde.
     returned_at TIMESTAMPTZ,
     refund_amount NUMERIC(10,2),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    unique (workspace_id, id)
 );
 
 -- ==============================================================================
@@ -234,7 +237,8 @@ create table public.catalog_products (
     listing_price numeric(12,2) check (listing_price is null or listing_price > 0),
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
-    unique (workspace_id, ean)
+    unique (workspace_id, ean),
+    unique (workspace_id, id)
 );
 
 create table public.purchase_lines (
@@ -250,7 +254,8 @@ create table public.purchase_lines (
     line_total numeric(12,2) not null check (line_total >= 0),
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
-    check ((line_kind = 'quantity' and catalog_product_id is not null) or line_kind = 'individual')
+    check ((line_kind = 'quantity' and catalog_product_id is not null) or line_kind = 'individual'),
+    unique (workspace_id, id)
 );
 
 alter table public.inventory_items
@@ -266,7 +271,8 @@ create table public.stock_lots (
     remaining_quantity integer not null check (remaining_quantity >= 0 and remaining_quantity <= received_quantity),
     unit_cost numeric(12,2) not null check (unit_cost >= 0),
     received_at timestamptz not null default now(),
-    created_at timestamptz not null default now()
+    created_at timestamptz not null default now(),
+    unique (workspace_id, id)
 );
 
 create table public.sale_lines (
@@ -282,7 +288,8 @@ create table public.sale_lines (
     cost_of_goods_sold numeric(12,2) not null check (cost_of_goods_sold >= 0),
     tax_mode text not null check (tax_mode in ('diff_25a', 'kleinunternehmer_19', 'regular_19')),
     created_at timestamptz not null default now(),
-    check (num_nonnulls(catalog_product_id, inventory_item_id) = 1)
+    check (num_nonnulls(catalog_product_id, inventory_item_id) = 1),
+    unique (workspace_id, id)
 );
 
 create table public.stock_movements (
@@ -306,6 +313,40 @@ create table public.sale_line_lot_allocations (
     created_at timestamptz not null default now(),
     unique (sale_line_id, stock_lot_id)
 );
+
+alter table public.inventory_items add constraint inventory_items_workspace_purchase_line_fkey
+    foreign key (workspace_id, purchase_line_id) references public.purchase_lines(workspace_id, id) on delete set null;
+alter table public.purchase_lines add constraint purchase_lines_workspace_purchase_fkey
+    foreign key (workspace_id, purchase_id) references public.purchases(workspace_id, id) on delete cascade;
+alter table public.purchase_lines add constraint purchase_lines_workspace_catalog_product_fkey
+    foreign key (workspace_id, catalog_product_id) references public.catalog_products(workspace_id, id) on delete restrict;
+alter table public.stock_lots add constraint stock_lots_workspace_purchase_fkey
+    foreign key (workspace_id, purchase_id) references public.purchases(workspace_id, id) on delete restrict;
+alter table public.stock_lots add constraint stock_lots_workspace_purchase_line_fkey
+    foreign key (workspace_id, purchase_line_id) references public.purchase_lines(workspace_id, id) on delete restrict;
+alter table public.stock_lots add constraint stock_lots_workspace_catalog_product_fkey
+    foreign key (workspace_id, catalog_product_id) references public.catalog_products(workspace_id, id) on delete restrict;
+alter table public.sale_lines add constraint sale_lines_workspace_sale_fkey
+    foreign key (workspace_id, sale_id) references public.sales(workspace_id, id) on delete cascade;
+alter table public.sale_lines add constraint sale_lines_workspace_catalog_product_fkey
+    foreign key (workspace_id, catalog_product_id) references public.catalog_products(workspace_id, id) on delete restrict;
+alter table public.sale_lines add constraint sale_lines_workspace_inventory_item_fkey
+    foreign key (workspace_id, inventory_item_id) references public.inventory_items(workspace_id, id) on delete restrict;
+alter table public.stock_movements add constraint stock_movements_workspace_stock_lot_fkey
+    foreign key (workspace_id, stock_lot_id) references public.stock_lots(workspace_id, id) on delete restrict;
+alter table public.stock_movements add constraint stock_movements_workspace_sale_line_fkey
+    foreign key (workspace_id, sale_line_id) references public.sale_lines(workspace_id, id) on delete restrict;
+alter table public.sale_line_lot_allocations add constraint sale_line_lot_allocations_workspace_sale_line_fkey
+    foreign key (workspace_id, sale_line_id) references public.sale_lines(workspace_id, id) on delete restrict;
+alter table public.sale_line_lot_allocations add constraint sale_line_lot_allocations_workspace_stock_lot_fkey
+    foreign key (workspace_id, stock_lot_id) references public.stock_lots(workspace_id, id) on delete restrict;
+
+comment on table public.catalog_products is 'Artikelstamm je Workspace.';
+comment on table public.purchase_lines is 'Einkaufspositionen je Workspace.';
+comment on table public.stock_lots is 'Bestandslose mit FIFO-Kosten.';
+comment on table public.stock_movements is 'Unveraenderbare Bestandsbewegungen.';
+comment on table public.sale_lines is 'Verkaufspositionen mit Kosten-Snapshot.';
+comment on table public.sale_line_lot_allocations is 'Loszuordnungen mit Kosten-Snapshot.';
 
 -- ==============================================================================
 -- 7. ACTIVITY LOGS
@@ -662,6 +703,12 @@ alter table public.sale_line_lot_allocations enable row level security;
 revoke all on table public.catalog_products, public.purchase_lines, public.stock_lots,
     public.stock_movements, public.sale_lines, public.sale_line_lot_allocations
     from anon, public;
+revoke all on table public.catalog_products, public.purchase_lines, public.stock_lots,
+    public.stock_movements, public.sale_lines, public.sale_line_lot_allocations
+    from authenticated;
+grant select, insert, update, delete on table public.catalog_products, public.purchase_lines,
+    public.stock_lots, public.stock_movements, public.sale_lines,
+    public.sale_line_lot_allocations to authenticated;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.returns ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.invoices ENABLE ROW LEVEL SECURITY;
@@ -1147,59 +1194,59 @@ on public.sales for delete to authenticated
 using (public.is_workspace_member(workspace_id));
 
 -- catalog_products
-create policy catalog_products_select on public.catalog_products for select to authenticated
+create policy "Artikelstamm lesen" on public.catalog_products for select to authenticated
 using (public.is_workspace_member(workspace_id));
-create policy catalog_products_insert on public.catalog_products for insert to authenticated
+create policy "Artikelstamm anlegen" on public.catalog_products for insert to authenticated
 with check (public.is_workspace_member(workspace_id));
-create policy catalog_products_update on public.catalog_products for update to authenticated
+create policy "Artikelstamm aendern" on public.catalog_products for update to authenticated
 using (public.is_workspace_member(workspace_id))
 with check (public.is_workspace_member(workspace_id));
-create policy catalog_products_delete on public.catalog_products for delete to authenticated
+create policy "Artikelstamm loeschen" on public.catalog_products for delete to authenticated
 using (public.is_workspace_member(workspace_id));
 
 -- purchase_lines
-create policy purchase_lines_select on public.purchase_lines for select to authenticated
+create policy "Einkaufspositionen lesen" on public.purchase_lines for select to authenticated
 using (public.is_workspace_member(workspace_id));
-create policy purchase_lines_insert on public.purchase_lines for insert to authenticated
+create policy "Einkaufspositionen anlegen" on public.purchase_lines for insert to authenticated
 with check (public.is_workspace_member(workspace_id));
-create policy purchase_lines_update on public.purchase_lines for update to authenticated
+create policy "Einkaufspositionen aendern" on public.purchase_lines for update to authenticated
 using (public.is_workspace_member(workspace_id))
 with check (public.is_workspace_member(workspace_id));
-create policy purchase_lines_delete on public.purchase_lines for delete to authenticated
+create policy "Einkaufspositionen loeschen" on public.purchase_lines for delete to authenticated
 using (public.is_workspace_member(workspace_id));
 
 -- stock_lots
-create policy stock_lots_select on public.stock_lots for select to authenticated
+create policy "Bestandslose lesen" on public.stock_lots for select to authenticated
 using (public.is_workspace_member(workspace_id));
-create policy stock_lots_insert on public.stock_lots for insert to authenticated
+create policy "Bestandslose anlegen" on public.stock_lots for insert to authenticated
 with check (public.is_workspace_member(workspace_id));
-create policy stock_lots_update on public.stock_lots for update to authenticated
+create policy "Bestandslose aendern" on public.stock_lots for update to authenticated
 using (public.is_workspace_member(workspace_id))
 with check (public.is_workspace_member(workspace_id));
-create policy stock_lots_delete on public.stock_lots for delete to authenticated
+create policy "Bestandslose loeschen" on public.stock_lots for delete to authenticated
 using (public.is_workspace_member(workspace_id));
 
 -- stock_movements
-create policy stock_movements_select on public.stock_movements for select to authenticated
+create policy "Bestandsbewegungen lesen" on public.stock_movements for select to authenticated
 using (public.is_workspace_member(workspace_id));
-create policy stock_movements_insert on public.stock_movements for insert to authenticated
+create policy "Bestandsbewegungen anlegen" on public.stock_movements for insert to authenticated
 with check (public.is_workspace_member(workspace_id));
 
 -- sale_lines
-create policy sale_lines_select on public.sale_lines for select to authenticated
+create policy "Verkaufspositionen lesen" on public.sale_lines for select to authenticated
 using (public.is_workspace_member(workspace_id));
-create policy sale_lines_insert on public.sale_lines for insert to authenticated
+create policy "Verkaufspositionen anlegen" on public.sale_lines for insert to authenticated
 with check (public.is_workspace_member(workspace_id));
-create policy sale_lines_update on public.sale_lines for update to authenticated
+create policy "Verkaufspositionen aendern" on public.sale_lines for update to authenticated
 using (public.is_workspace_member(workspace_id))
 with check (public.is_workspace_member(workspace_id));
-create policy sale_lines_delete on public.sale_lines for delete to authenticated
+create policy "Verkaufspositionen loeschen" on public.sale_lines for delete to authenticated
 using (public.is_workspace_member(workspace_id));
 
 -- sale_line_lot_allocations
-create policy sale_line_lot_allocations_select on public.sale_line_lot_allocations for select to authenticated
+create policy "Loszuordnungen lesen" on public.sale_line_lot_allocations for select to authenticated
 using (public.is_workspace_member(workspace_id));
-create policy sale_line_lot_allocations_insert on public.sale_line_lot_allocations for insert to authenticated
+create policy "Loszuordnungen anlegen" on public.sale_line_lot_allocations for insert to authenticated
 with check (public.is_workspace_member(workspace_id));
 
 -- activity_logs
