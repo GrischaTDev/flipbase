@@ -57,3 +57,9 @@ The build completes successfully. It retains the existing Angular CommonJS optim
 - The visible return flow materializes this UI record only after `SalesService.recordReturn` reports success and opens the generated credit note as before.
 - Quantity sales are represented with a nullable legacy `inventory_item_id` in the local return record, while the credit note continues to use the sale information itself.
 - Verification: 5 focused test files / 16 tests passed, plus `npm run typecheck`, `npm run build`, and `git diff --check`.
+
+## Fix round 3
+
+- `SalesComponent.onSubmitReturn` now exits immediately while a return submission is already in progress, before validation or an RPC can begin.
+- The action test invokes two submissions concurrently against a pending return promise and verifies that exactly one atomic `recordReturn` call and one credit-note materialization occur.
+- Verification: 5 focused test files / 16 tests passed, plus `npm run typecheck`, `npm run build`, and `git diff --check`.

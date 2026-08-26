@@ -211,11 +211,28 @@ describe('SalesComponent – Aktionsmeldungen', () => {
     expect(toast.toasts()[0]).toMatchObject({ type: 'error', persistent: true });
   });
 
-  it('materialisiert nach der atomaren Retoure genau einen Gutschriftbeleg', async () => {
+  it('bucht bei zwei sofort parallelen Retourenaufrufen nur einmal', async () => {
     const { komponente, returnService, salesService } = erstelleKomponente();
+    let resolveReturn!: (value: {
+      data: Sale | null;
+      error: Error | null;
+      reportedBySyncStatus: boolean;
+    }) => void;
+    salesService.recordReturn.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveReturn = resolve;
+        }),
+    );
 
-    await komponente.onSubmitReturn();
-    await komponente.onSubmitReturn();
+    const first = komponente.onSubmitReturn();
+    const second = komponente.onSubmitReturn();
+    resolveReturn({
+      data: { ...verkauf, returned_at: '2026-08-24T12:00:00.000Z', refund_amount: 50 },
+      error: null,
+      reportedBySyncStatus: false,
+    });
+    await Promise.all([first, second]);
 
     expect(salesService.recordReturn).toHaveBeenCalledOnce();
     expect(returnService.materializeConfirmedReturn).toHaveBeenCalledOnce();

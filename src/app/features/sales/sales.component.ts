@@ -244,6 +244,7 @@ export class SalesComponent {
   }
 
   async onSubmitReturn(): Promise<void> {
+    if (this.isProcessingReturn()) return;
     if (this.returnForm.invalid) return;
     const sale = this.selectedSaleForReturn();
     if (!sale) return;
