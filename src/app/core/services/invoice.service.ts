@@ -268,7 +268,8 @@ export class InvoiceService {
 
     const invoiceItems: InvoiceItem[] = [
       {
-        sku: item?.sku || 'SKU-' + sale.inventory_item_id.substring(0, 6).toUpperCase(),
+        sku:
+          item?.sku || 'SKU-' + (sale.inventory_item_id ?? sale.id).substring(0, 6).toUpperCase(),
         title: item?.title || 'Verkaufter Artikel',
         condition: item?.condition || 'Gebraucht',
         quantity: 1,

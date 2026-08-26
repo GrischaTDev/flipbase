@@ -128,7 +128,7 @@ export class TaxEngineService {
 
     return {
       sale_id: sale.id,
-      item_title: item.title || 'Artikel #' + sale.inventory_item_id.substring(0, 6),
+      item_title: item.title || 'Artikel #' + (sale.inventory_item_id ?? sale.id).substring(0, 6),
       sale_date: sale.sale_date,
       tax_mode: taxMode,
       gross_revenue: grossRevenue,

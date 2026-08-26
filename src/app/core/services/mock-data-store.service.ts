@@ -9,7 +9,12 @@ import {
   ActivityLog,
   ItemCost,
   ItemMedia,
+  CatalogProduct,
+  PurchaseLine,
+  StockLot,
+  StockMovement,
 } from '../models/flipbase.models';
+import type { ReceivePurchaseLineInput } from './stock.service';
 
 const DEMO_WS_ID = 'ws-1';
 
@@ -21,6 +26,10 @@ const STORAGE_KEY_SUPPLIERS = 'flipbase_local_suppliers';
 const STORAGE_KEY_ITEM_COSTS = 'flipbase_local_item_costs';
 const STORAGE_KEY_ACTIVITY_LOGS = 'flipbase_local_activity_logs';
 const STORAGE_KEY_MEDIA = 'flipbase_local_media';
+const STORAGE_KEY_CATALOG_PRODUCTS = 'flipbase_local_catalog_products';
+const STORAGE_KEY_PURCHASE_LINES = 'flipbase_local_purchase_lines';
+const STORAGE_KEY_STOCK_LOTS = 'flipbase_local_stock_lots';
+const STORAGE_KEY_STOCK_MOVEMENTS = 'flipbase_local_stock_movements';
 
 function getStorage(): Storage | null {
   try {
@@ -465,6 +474,144 @@ export class MockDataStoreService {
 
   get demoSales(): Sale[] {
     return this.getSales();
+  }
+
+  // --- Mengenartikel, Einkaufspositionen und Lose (nur Demo-Modus) ---
+  getCatalogProducts(workspaceId?: string): CatalogProduct[] {
+    return this.getWorkspaceRecords<CatalogProduct>(STORAGE_KEY_CATALOG_PRODUCTS, workspaceId);
+  }
+
+  saveCatalogProduct(product: CatalogProduct): void {
+    this.saveWorkspaceRecord(STORAGE_KEY_CATALOG_PRODUCTS, product);
+  }
+
+  getPurchaseLines(workspaceId?: string): PurchaseLine[] {
+    return this.getWorkspaceRecords<PurchaseLine>(STORAGE_KEY_PURCHASE_LINES, workspaceId);
+  }
+
+  savePurchaseLine(line: PurchaseLine): void {
+    this.saveWorkspaceRecord(STORAGE_KEY_PURCHASE_LINES, line);
+  }
+
+  getStockLots(workspaceId?: string): StockLot[] {
+    return this.getWorkspaceRecords<StockLot>(STORAGE_KEY_STOCK_LOTS, workspaceId);
+  }
+
+  getStockMovements(workspaceId?: string): StockMovement[] {
+    return this.getWorkspaceRecords<StockMovement>(STORAGE_KEY_STOCK_MOVEMENTS, workspaceId);
+  }
+
+  receivePurchaseLines(
+    workspaceId: string,
+    purchaseId: string,
+    inputs: readonly ReceivePurchaseLineInput[],
+  ): { purchaseLines: PurchaseLine[]; stockLots: StockLot[]; error: Error | null } {
+    const allLines = this.getPurchaseLines();
+    const updatedLines: PurchaseLine[] = [];
+    const newLots: StockLot[] = [];
+
+    for (const input of inputs) {
+      const line = allLines.find(
+        (entry) =>
+          entry.id === input.purchaseLineId &&
+          entry.workspace_id === workspaceId &&
+          entry.purchase_id === purchaseId,
+      );
+      if (!line || line.line_kind !== 'quantity' || !line.catalog_product_id) {
+        return {
+          purchaseLines: [],
+          stockLots: [],
+          error: new Error('Die Einkaufsposition wurde nicht gefunden.'),
+        };
+      }
+      if (
+        !Number.isInteger(input.receivedQuantity) ||
+        input.receivedQuantity <= 0 ||
+        line.received_quantity + input.receivedQuantity > line.ordered_quantity
+      ) {
+        return {
+          purchaseLines: [],
+          stockLots: [],
+          error: new Error('Die empfangene Menge überschreitet die bestellte Menge.'),
+        };
+      }
+      const updated = {
+        ...line,
+        received_quantity: line.received_quantity + input.receivedQuantity,
+      };
+      const lot: StockLot = {
+        id: this.newId('lot'),
+        workspace_id: workspaceId,
+        purchase_id: purchaseId,
+        purchase_line_id: line.id,
+        catalog_product_id: line.catalog_product_id,
+        received_quantity: input.receivedQuantity,
+        remaining_quantity: input.receivedQuantity,
+        unit_cost: line.unit_purchase_price,
+        received_at: input.receivedAt ?? new Date().toISOString(),
+      };
+      const index = allLines.findIndex((entry) => entry.id === line.id);
+      allLines[index] = updated;
+      updatedLines.push(updated);
+      newLots.push(lot);
+    }
+
+    this.saveWorkspaceRecords(STORAGE_KEY_PURCHASE_LINES, allLines);
+    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_LOTS, [...this.getStockLots(), ...newLots]);
+    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_MOVEMENTS, [
+      ...this.getStockMovements(),
+      ...newLots.map((lot): StockMovement => ({
+        id: this.newId('movement'),
+        workspace_id: workspaceId,
+        stock_lot_id: lot.id,
+        direction: 'in',
+        quantity: lot.received_quantity,
+        reason: 'receipt',
+        created_at: lot.received_at,
+      })),
+    ]);
+    return { purchaseLines: updatedLines, stockLots: newLots, error: null };
+  }
+
+  private getWorkspaceRecords<T extends { workspace_id: string }>(
+    key: string,
+    workspaceId?: string,
+  ): T[] {
+    if (!this.isDemoMode()) return [];
+    try {
+      const raw = getStorage()?.getItem(key);
+      const records: T[] = raw ? JSON.parse(raw) : [];
+      return workspaceId
+        ? records.filter((record) => record.workspace_id === workspaceId)
+        : records;
+    } catch {
+      return [];
+    }
+  }
+
+  private saveWorkspaceRecord<T extends { id: string; workspace_id: string }>(
+    key: string,
+    record: T,
+  ): void {
+    if (!this.isDemoMode()) return;
+    const records = this.getWorkspaceRecords<T>(key);
+    const index = records.findIndex((entry) => entry.id === record.id);
+    if (index === -1) records.unshift(record);
+    else records[index] = record;
+    this.saveWorkspaceRecords(key, records);
+  }
+
+  private saveWorkspaceRecords<T>(key: string, records: readonly T[]): void {
+    if (!this.isDemoMode()) return;
+    try {
+      getStorage()?.setItem(key, JSON.stringify(records));
+    } catch {}
+  }
+
+  private newId(prefix: string): string {
+    return typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   }
 
   // --- Purchases Persistent API ---

@@ -141,6 +141,18 @@ export class ReturnService {
     notes?: string;
   }): Promise<ProcessReturnResult> {
     const ws = this.workspaceService?.currentWorkspace();
+    const inventoryItemId = payload.sale.inventory_item_id ?? payload.item?.id;
+    if (!inventoryItemId) {
+      return {
+        status: 'error',
+        data: null,
+        error: this.syncStatus.melde(
+          'Speichern der Retoure',
+          new Error('Mengenverkäufe müssen über den atomaren Retourenpfad gebucht werden.'),
+        ),
+        problems: [],
+      };
+    }
     if (this.supabase && !this.mockStore?.isDemoMode() && !ws) {
       return {
         status: 'error',
@@ -156,7 +168,7 @@ export class ReturnService {
       id: `ret-${Date.now()}`,
       workspace_id: ws?.id || 'ws-1',
       sale_id: payload.sale.id,
-      inventory_item_id: payload.sale.inventory_item_id,
+      inventory_item_id: inventoryItemId,
       credit_note_number: creditNoteNumber,
       return_date: new Date().toISOString().split('T')[0],
       reason: payload.reason,
@@ -182,7 +194,7 @@ export class ReturnService {
           .insert({
             workspace_id: ws.id,
             sale_id: payload.sale.id,
-            inventory_item_id: payload.sale.inventory_item_id,
+            inventory_item_id: inventoryItemId,
             credit_note_number: creditNoteNumber,
             return_date: newReturn.return_date,
             reason: payload.reason,

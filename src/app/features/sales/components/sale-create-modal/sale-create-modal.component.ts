@@ -183,7 +183,7 @@ export class SaleCreateModalComponent {
       if (!vorhandener) return;
 
       this.form.patchValue({
-        inventory_item_id: vorhandener.inventory_item_id,
+        inventory_item_id: vorhandener.inventory_item_id ?? '',
         platform: vorhandener.platform,
         sale_price: vorhandener.sale_price,
         sale_date: vorhandener.sale_date,

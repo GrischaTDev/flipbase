@@ -8,6 +8,8 @@ import { SourcesService } from './sources.service';
 import { SuppliersService } from './suppliers.service';
 import { WebhookService } from './webhook.service';
 import { SyncStatusService } from './sync-status.service';
+import { ReceivePurchaseLineInput, ReceivePurchaseResult, StockService } from './stock.service';
+import { MutationResult } from './catalog.service';
 import {
   Purchase,
   PurchaseCost,
@@ -90,6 +92,7 @@ export class PurchaseService {
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly mockStore = inject(MockDataStoreService);
   private readonly webhookService = inject(WebhookService);
+  private readonly stockService = inject(StockService);
   // Der Inventardienst ist die einzige Quelle fuer Artikel. Diese Richtung der
   // Abhaengigkeit ist bewusst: Der Inventardienst kennt Einkaeufe nicht, sonst
   // haetten beide Dienste einen eigenen - und damit frueher oder spaeter
@@ -900,6 +903,18 @@ export class PurchaseService {
     }
 
     return { updatedCount, error: null };
+  }
+
+  /**
+   * Bucht nur mengenverfolgte Einkaufspositionen ein. Einzelartikel bleiben
+   * absichtlich beim expliziten Inventarfluss und werden nicht als Lose
+   * vervielfacht.
+   */
+  async receivePurchaseLines(
+    purchaseId: string,
+    lines: readonly ReceivePurchaseLineInput[],
+  ): Promise<MutationResult<ReceivePurchaseResult>> {
+    return this.stockService.receivePurchaseLines(purchaseId, lines);
   }
 
   async deletePurchase(purchaseId: string): Promise<{ error: Error | null }> {

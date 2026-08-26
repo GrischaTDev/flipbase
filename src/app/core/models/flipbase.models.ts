@@ -351,6 +351,12 @@ export interface Sale {
   net_profit?: number;
   roi?: number;
   holding_duration_days?: number;
+  /** Persistierte Verkaufspositionen; Altverkäufe werden als eine Position abgebildet. */
+  lines?: SaleLine[];
+  /** FIFO-Losentnahmen der Positionsmenge. */
+  lot_allocations?: SaleLineLotAllocation[];
+  /** Bestandsbewegungen, die durch diesen Verkauf entstanden sind. */
+  stock_movements?: StockMovement[];
 }
 
 export interface CatalogProduct {
