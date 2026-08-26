@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Injector, runInInjectionContext } from '@angular/core';
 import { WebhookService } from './webhook.service';
 import { Sale, Purchase } from '../models/flipbase.models';
@@ -10,6 +10,10 @@ describe('Webhook & Notification Service', () => {
   beforeEach(() => {
     const injector = Injector.create({ providers: [] });
     webhookService = runInInjectionContext(injector, () => new WebhookService());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('should initialize with default config and system notification', () => {
@@ -88,6 +92,22 @@ describe('Webhook & Notification Service', () => {
 
     expect(webhookService.notifications().length).toBe(initialCount + 1);
     expect(webhookService.notifications()[0].title).toContain('Nintendo Switch OVP');
+  });
+
+  it('meldet eine aufgelöste Discord-HTTP-Fehlerantwort als Fehlschlag', async () => {
+    webhookService.config.update((config) => ({
+      ...config,
+      discordWebhookUrl: 'https://discord.com/api/webhooks/123/abc',
+    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(null, { status: 429 })),
+    );
+
+    const result = await webhookService.sendTestNotification('discord');
+
+    expect(result.success).toBe(false);
+    expect(result.message).toContain('HTTP 429');
   });
 
   it('verlinkt die Meldung auf den Einkauf, nicht auf die Uebersicht', () => {

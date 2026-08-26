@@ -5,7 +5,8 @@ import { PurchaseService } from './purchase.service';
 import { SalesService } from './sales.service';
 import { AuthService } from './auth.service';
 import { ProfitEngineService } from './profit-engine.service';
-import { Purchase, Sale } from '../models/flipbase.models';
+import { SyncStatusService } from './sync-status.service';
+import { Purchase, Sale, UserProfile } from '../models/flipbase.models';
 
 /**
  * Bearbeiten von Einkauf, Verkauf und Profil.
@@ -248,6 +249,42 @@ describe('Bearbeiten vorhandener Daten', () => {
 
       expect(error).toBeInstanceOf(Error);
       expect(reportedBySyncStatus).toBe(false);
+    });
+
+    it('meldet eine leere Datenbankantwort als Persistenzfehler und behält das bisherige Profil', async () => {
+      const bisherigesProfil: UserProfile = {
+        id: 'u-1',
+        email: 'grischa@example.com',
+        full_name: 'Bisheriger Name',
+        avatar_url: null,
+      };
+      const profile = signal<UserProfile | null>(bisherigesProfil);
+      const syncStatus = new SyncStatusService();
+      const dienst = baue<AuthService>(AuthService.prototype, {
+        currentUser: () => ({ id: 'u-1' }),
+        profile,
+        syncStatus,
+        supabase: {
+          client: {
+            from: () => ({
+              update: () => ({
+                eq: () => ({
+                  select: () => ({
+                    single: async () => ({ data: null, error: null }),
+                  }),
+                }),
+              }),
+            }),
+          },
+        },
+      });
+
+      const result = await dienst.aktualisiereProfil('Neuer Name');
+
+      expect(result.error).toBeInstanceOf(Error);
+      expect(result.reportedBySyncStatus).toBe(true);
+      expect(profile()).toEqual(bisherigesProfil);
+      expect(syncStatus.hatFehler()).toBe(true);
     });
   });
 });

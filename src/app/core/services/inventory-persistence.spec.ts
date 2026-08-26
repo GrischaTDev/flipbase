@@ -325,6 +325,37 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     expect(dienst.itemCosts().map(({ id }) => id)).toEqual([gespeicherteKosten.id]);
   });
 
+  it('bricht bei leerer Artikelkosten-Antwort vor lokalem Erfolg und Aktivitätsprotokoll ab', async () => {
+    const client = {
+      from(tabelle: string) {
+        if (tabelle === 'item_costs') {
+          return {
+            insert() {
+              return {
+                select() {
+                  return { single: async () => ({ data: null, error: null }) };
+                },
+              };
+            },
+          };
+        }
+        if (tabelle === 'activity_logs') {
+          return { insert: async () => ({ error: null }) };
+        }
+        throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+      },
+    };
+    const { dienst, syncStatus } = injiziereDienst(client);
+    dienst.items.set([gespeicherterArtikel]);
+
+    const ergebnis = await dienst.addItemCost(gespeicherterArtikel.id, 'repair', 4.5, 'Schalter');
+
+    expect(ergebnis.error).toBeInstanceOf(Error);
+    expect(dienst.itemCosts()).toEqual([]);
+    expect(dienst.activityLogs()).toEqual([]);
+    expect(syncStatus.hatFehler()).toBe(true);
+  });
+
   it('behält Artikelkosten bei, wenn das Löschen in der Datenbank fehlschlägt', async () => {
     const kosten: ItemCost = {
       id: '44444444-4444-4444-8444-444444444444',

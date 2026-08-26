@@ -377,17 +377,22 @@ export class AuthService {
         .select()
         .single();
 
-      if (error) {
-        const reportedError = this.syncStatus?.melde('Speichern des Profils', error);
+      if (error || !data) {
+        const reportedError = this.syncStatus?.melde(
+          'Speichern des Profils',
+          error ?? new Error('Die Datenbank hat kein Profil zurückgegeben.'),
+        );
         return {
-          error: reportedError ?? new Error(error.message),
+          error:
+            reportedError ??
+            (error
+              ? new Error(error.message)
+              : new Error('Das Profil konnte nicht gespeichert werden.')),
           reportedBySyncStatus: reportedError !== undefined,
         };
       }
 
-      if (data) {
-        this.profile.set(data as UserProfile);
-      }
+      this.profile.set(data as UserProfile);
     } catch (e: unknown) {
       const reportedError = this.syncStatus?.melde('Speichern des Profils', e);
       return {

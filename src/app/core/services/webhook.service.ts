@@ -581,11 +581,14 @@ export class WebhookService {
             },
           ],
         };
-        await fetch(cfg.discordWebhookUrl, {
+        const res = await fetch(cfg.discordWebhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
         });
+        if (!res.ok) {
+          return { success: false, message: `Discord API Fehler: HTTP ${res.status}` };
+        }
         return { success: true, message: 'Discord-Testnachricht erfolgreich gesendet!' };
       } catch (err: unknown) {
         return {

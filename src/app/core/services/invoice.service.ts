@@ -44,6 +44,7 @@ export class InvoiceService {
   readonly selectedInvoiceForView = signal<Invoice | null>(null);
   readonly isInvoiceModalOpen = signal<boolean>(false);
   readonly isLoading = signal<boolean>(false);
+  private loadVersion = 0;
 
   constructor() {
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
@@ -54,9 +55,7 @@ export class InvoiceService {
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
-        if (ws) {
-          this.loadFromSupabase(ws.id);
-        }
+        void this.loadFromSupabase(ws?.id ?? '');
       });
     } catch {
       // nur Testumgebung ohne Scheduler
@@ -100,7 +99,18 @@ export class InvoiceService {
   }
 
   async loadFromSupabase(workspaceId: string): Promise<void> {
+    const requestedWorkspaceId = workspaceId.trim();
+    if (!requestedWorkspaceId) {
+      this.loadVersion++;
+      this.resetWorkspaceData();
+      this.isLoading.set(false);
+      return;
+    }
+    if (!this.isCurrentWorkspace(requestedWorkspaceId)) return;
     if (!this.supabase || this.mockStore?.isDemoMode()) return;
+
+    const loadVersion = ++this.loadVersion;
+    this.resetWorkspaceData();
 
     this.isLoading.set(true);
     try {
@@ -122,47 +132,47 @@ export class InvoiceService {
           .order('sent_at', { ascending: false }),
       ]);
 
-      if (invRes.data && invRes.data.length > 0) {
-        const mapped: Invoice[] = (invRes.data as unknown[]).map((inv: any) => ({
-          id: inv.id,
-          invoiceNumber: inv.invoice_number,
-          orderNumber: inv.order_number,
-          invoiceDate: inv.invoice_date,
-          deliveryDate: inv.delivery_date,
-          seller: (inv.seller as InvoiceParty) || this.getSellerParty(),
-          buyer: (inv.buyer as InvoiceParty) || {
-            name: 'Kunde',
-            street: '',
-            postalCode: '',
-            city: '',
-            country: 'Deutschland',
-          },
-          items: ((inv.items || []) as unknown[]).map((it: any) => ({
-            sku: it.sku || undefined,
-            title: it.title,
-            condition: it.condition || undefined,
-            quantity: it.quantity,
-            unitPrice: Number(it.unit_price || 0),
-            totalPrice: Number(it.total_price || 0),
-          })),
-          subtotal: Number(inv.subtotal || 0),
-          shippingCost: Number(inv.shipping_cost || 0),
-          total: Number(inv.total || 0),
-          taxMode: inv.tax_mode as TaxMode,
-          taxClause: inv.tax_clause || '',
-          paymentMethod: inv.payment_method || '',
-          paymentStatus: inv.payment_status as 'paid' | 'pending',
-          paymentDueDate: inv.payment_due_date || undefined,
-          notes: inv.notes || undefined,
-          sourceType: inv.sale_id ? 'sale' : inv.store_order_id ? 'store_order' : undefined,
-          sourceId: inv.sale_id || inv.store_order_id || undefined,
-        }));
-        this.invoices.set(mapped);
-        this.persistInvoices();
-      }
+      if (!this.isCurrentRequest(requestedWorkspaceId, loadVersion)) return;
 
-      if (emailRes.data && emailRes.data.length > 0) {
-        const mappedEmails: EmailConfirmation[] = (emailRes.data as unknown[]).map((e: any) => ({
+      const mapped: Invoice[] = ((invRes.data ?? []) as unknown[]).map((inv: any) => ({
+        id: inv.id,
+        invoiceNumber: inv.invoice_number,
+        orderNumber: inv.order_number,
+        invoiceDate: inv.invoice_date,
+        deliveryDate: inv.delivery_date,
+        seller: (inv.seller as InvoiceParty) || this.getSellerParty(),
+        buyer: (inv.buyer as InvoiceParty) || {
+          name: 'Kunde',
+          street: '',
+          postalCode: '',
+          city: '',
+          country: 'Deutschland',
+        },
+        items: ((inv.items || []) as unknown[]).map((it: any) => ({
+          sku: it.sku || undefined,
+          title: it.title,
+          condition: it.condition || undefined,
+          quantity: it.quantity,
+          unitPrice: Number(it.unit_price || 0),
+          totalPrice: Number(it.total_price || 0),
+        })),
+        subtotal: Number(inv.subtotal || 0),
+        shippingCost: Number(inv.shipping_cost || 0),
+        total: Number(inv.total || 0),
+        taxMode: inv.tax_mode as TaxMode,
+        taxClause: inv.tax_clause || '',
+        paymentMethod: inv.payment_method || '',
+        paymentStatus: inv.payment_status as 'paid' | 'pending',
+        paymentDueDate: inv.payment_due_date || undefined,
+        notes: inv.notes || undefined,
+        sourceType: inv.sale_id ? 'sale' : inv.store_order_id ? 'store_order' : undefined,
+        sourceId: inv.sale_id || inv.store_order_id || undefined,
+      }));
+      this.invoices.set(mapped);
+      this.persistInvoices();
+
+      const mappedEmails: EmailConfirmation[] = ((emailRes.data ?? []) as unknown[]).map(
+        (e: any) => ({
           id: e.id,
           to: e.recipient_email,
           recipientName: e.recipient_name,
@@ -171,15 +181,33 @@ export class InvoiceService {
           status: e.status as 'sent' | 'draft',
           invoiceNumber: e.invoice_number || '',
           orderNumber: e.order_number || '',
-        }));
-        this.sentEmails.set(mappedEmails);
-        this.persistEmails();
-      }
+        }),
+      );
+      this.sentEmails.set(mappedEmails);
+      this.persistEmails();
     } catch (err) {
-      this.logger.error('Verbindungsfehler beim Laden der Rechnungen:', err);
+      if (this.isCurrentRequest(requestedWorkspaceId, loadVersion)) {
+        this.logger.error('Verbindungsfehler beim Laden der Rechnungen:', err);
+      }
     } finally {
-      this.isLoading.set(false);
+      if (this.isCurrentRequest(requestedWorkspaceId, loadVersion)) {
+        this.isLoading.set(false);
+      }
     }
+  }
+
+  private resetWorkspaceData(): void {
+    this.invoices.set([]);
+    this.sentEmails.set([]);
+    this.selectedInvoiceForView.set(null);
+  }
+
+  private isCurrentWorkspace(workspaceId: string): boolean {
+    return !this.workspaceService || this.workspaceService.currentWorkspace()?.id === workspaceId;
+  }
+
+  private isCurrentRequest(workspaceId: string, requestVersion: number): boolean {
+    return (this.loadVersion ?? 0) === requestVersion && this.isCurrentWorkspace(workspaceId);
   }
 
   getSellerParty(): InvoiceParty {
@@ -352,6 +380,7 @@ export class InvoiceService {
     workspaceId: string | undefined,
   ): Promise<InvoiceGenerationResult> {
     const persistenterModus = this.istPersistenterModus();
+    const requestVersion = this.loadVersion ?? 0;
     if (persistenterModus && !workspaceId) {
       return this.rechnungsfehler(new Error('Kein aktiver Workspace.'));
     }
@@ -405,6 +434,9 @@ export class InvoiceService {
           return this.rechnungsfehler(
             new Error('Die Datenbank hat keine vollständige Rechnung zurückgegeben.'),
           );
+        }
+        if (!this.isCurrentRequest(workspaceId!, requestVersion)) {
+          return this.veralteteRechnungsanfrage();
         }
         this.invoices.update((list) => [
           gespeichert.invoice,
@@ -487,6 +519,15 @@ export class InvoiceService {
     };
   }
 
+  private veralteteRechnungsanfrage(): InvoiceGenerationResult {
+    return {
+      data: null,
+      error: new Error('Der Workspace wurde während der Rechnungserstellung gewechselt.'),
+      created: false,
+      reportedBySyncStatus: false,
+    };
+  }
+
   /**
    * Bereitet eine Kaufbestätigung vor und protokolliert sie in Supabase.
    * Ein tatsächlicher Versand findet ohne angebundenen E-Mail-Provider nicht statt.
@@ -496,6 +537,7 @@ export class InvoiceService {
     _trackingUrl?: string,
   ): Promise<EmailConfirmationResult> {
     const ws = this.workspaceService?.currentWorkspace();
+    const requestVersion = this.loadVersion ?? 0;
     if (this.supabase && !this.mockStore?.isDemoMode() && !ws) {
       return {
         success: false,
@@ -545,6 +587,16 @@ export class InvoiceService {
                 error ?? new Error('Die Datenbank hat keine E-Mail-Bestätigung zurückgegeben.'),
               ) ?? new Error('Die E-Mail-Bestätigung konnte nicht gespeichert werden.'),
             reportedBySyncStatus: Boolean(this.syncStatus),
+          };
+        }
+        if (!this.isCurrentRequest(ws.id, requestVersion)) {
+          return {
+            success: false,
+            message: '',
+            error: new Error(
+              'Der Workspace wurde während des Speicherns der E-Mail-Bestätigung gewechselt.',
+            ),
+            reportedBySyncStatus: false,
           };
         }
       } catch (ursache: unknown) {

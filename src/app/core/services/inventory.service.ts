@@ -543,10 +543,15 @@ export class InventoryService {
         .select()
         .single();
 
-      if (error) {
-        return { error: this.syncStatus.melde('Hinzufügen der Artikelkosten', error) };
+      if (error || !data) {
+        return {
+          error: this.syncStatus.melde(
+            'Hinzufügen der Artikelkosten',
+            error ?? new Error('Die Datenbank hat keine Artikelkosten zurückgegeben.'),
+          ),
+        };
       }
-      if (data) kostenLokalUebernehmen(data as ItemCost);
+      kostenLokalUebernehmen(data as ItemCost);
     } catch (e: unknown) {
       return { error: this.syncStatus.melde('Hinzufügen der Artikelkosten', e) };
     }
