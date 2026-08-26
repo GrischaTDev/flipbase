@@ -259,7 +259,7 @@ create table public.purchase_lines (
 );
 
 alter table public.inventory_items
-    add column if not exists purchase_line_id uuid references public.purchase_lines(id) on delete set null;
+    add column if not exists purchase_line_id uuid references public.purchase_lines(id) on delete restrict;
 
 create table public.stock_lots (
     id uuid primary key default gen_random_uuid(),
@@ -315,7 +315,7 @@ create table public.sale_line_lot_allocations (
 );
 
 alter table public.inventory_items add constraint inventory_items_workspace_purchase_line_fkey
-    foreign key (workspace_id, purchase_line_id) references public.purchase_lines(workspace_id, id) on delete set null;
+    foreign key (workspace_id, purchase_line_id) references public.purchase_lines(workspace_id, id) on delete restrict;
 alter table public.purchase_lines add constraint purchase_lines_workspace_purchase_fkey
     foreign key (workspace_id, purchase_id) references public.purchases(workspace_id, id) on delete cascade;
 alter table public.purchase_lines add constraint purchase_lines_workspace_catalog_product_fkey

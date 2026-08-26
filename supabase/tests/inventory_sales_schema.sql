@@ -131,6 +131,9 @@ declare
   lot_one uuid := gen_random_uuid();
   item_one uuid := gen_random_uuid();
   sale_one uuid := gen_random_uuid();
+  sale_line_one uuid := gen_random_uuid();
+  line_with_history uuid := gen_random_uuid();
+  item_with_history uuid := gen_random_uuid();
 begin
   insert into public.workspaces (id, name) values (workspace_one, 'schema test one'), (workspace_two, 'schema test two');
   insert into public.purchases (id, workspace_id, type, title) values (purchase_one, workspace_one, 'single', 'test purchase');
@@ -145,6 +148,12 @@ begin
     values (item_one, workspace_one, purchase_one, line_one, 'test item');
   insert into public.sales (id, workspace_id, inventory_item_id, platform, sale_price, sale_price_total)
     values (sale_one, workspace_one, item_one, 'direct', 10, 10);
+  insert into public.sale_lines (id, workspace_id, sale_id, catalog_product_id, title_snapshot, quantity, unit_sale_price, line_total, cost_of_goods_sold, tax_mode)
+    values (sale_line_one, workspace_one, sale_one, product_one, 'valid sale line', 1, 10, 10, 5, 'diff_25a');
+  insert into public.purchase_lines (id, workspace_id, purchase_id, catalog_product_id, title_snapshot, line_kind, ordered_quantity, unit_purchase_price, line_total)
+    values (line_with_history, workspace_one, purchase_one, product_one, 'historical line', 'quantity', 1, 1, 1);
+  insert into public.inventory_items (id, workspace_id, purchase_id, purchase_line_id, title)
+    values (item_with_history, workspace_one, purchase_one, line_with_history, 'historical item');
 
   begin
     insert into public.purchase_lines (workspace_id, purchase_id, catalog_product_id, title_snapshot, line_kind, ordered_quantity, unit_purchase_price, line_total)
@@ -165,6 +174,33 @@ begin
       values (workspace_one, purchase_one, line_one, product_one, 1, 2, 1);
     raise exception 'invalid stock lot quantity was accepted';
   exception when check_violation then null;
+  end;
+
+  begin
+    insert into public.sale_lines (workspace_id, sale_id, catalog_product_id, title_snapshot, quantity, unit_sale_price, line_total, cost_of_goods_sold, tax_mode)
+      values (workspace_one, sale_one, product_one, 'invalid quantity', 0, 10, 10, 5, 'diff_25a');
+    raise exception 'non-positive sale line quantity was accepted';
+  exception when check_violation then null;
+  end;
+
+  begin
+    insert into public.stock_movements (workspace_id, stock_lot_id, sale_line_id, direction, quantity, reason)
+      values (workspace_one, lot_one, sale_line_one, 'out', 0, 'sale');
+    raise exception 'non-positive stock movement quantity was accepted';
+  exception when check_violation then null;
+  end;
+
+  begin
+    insert into public.sale_line_lot_allocations (workspace_id, sale_line_id, stock_lot_id, quantity, unit_cost)
+      values (workspace_one, sale_line_one, lot_one, 0, 5);
+    raise exception 'non-positive allocation quantity was accepted';
+  exception when check_violation then null;
+  end;
+
+  begin
+    delete from public.purchase_lines where id = line_with_history;
+    raise exception 'referenced purchase line was deleted';
+  exception when foreign_key_violation then null;
   end;
 end;
 $$;
