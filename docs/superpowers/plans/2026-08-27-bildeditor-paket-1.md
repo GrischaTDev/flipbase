@@ -14,6 +14,7 @@
 
 - Branch ist `feature/bildeditor-anpassungen`. Es werden **ausschliesslich** Dateien unter `src/app/features/image-optimizer/` geaendert. `app.routes.ts`, `layout/sidebar/` und alles unter `shared/` werden genutzt, aber nie geaendert.
 - **Alle Bezeichner englisch**: Datei-, Ordner-, Klassen-, Typ-, Methoden-, Feld- und Variablennamen. **Deutsch bleiben**: Code-Kommentare, sichtbare Oberflaechentexte, Testbeschreibungen und Commit-Beschreibungen im Fliesstext.
+- Das gilt **auch innerhalb von Tests**: Hilfsfunktionen, lokale Variablen und DOM-Kennungen (`id`, `for`, `aria-labelledby`) werden englisch benannt. Nur der Text in `describe(...)` und `it(...)` bleibt deutsch. Falls ein Codebeispiel in diesem Plan dagegen verstoesst, gilt diese Vorgabe und nicht das Beispiel.
 - **Commit-Nachrichten sind englisch**, Format Conventional Commits (`type(scope): imperative summary`). **Niemals** eine `Co-Authored-By`-Zeile oder eine andere KI-Signatur anhaengen.
 - Jede Komponente: Standalone (kein `standalone: true` im Decorator), `changeDetection: ChangeDetectionStrategy.OnPush`, externes HTML-Template, relative Pfade.
 - Kein `@HostBinding`/`@HostListener` - stattdessen das `host`-Objekt im Decorator.
@@ -325,13 +326,14 @@ import { describe, it, expect } from 'vitest';
 import {
   moveImage,
   removeImage,
+  removeAll,
   markReviewed,
   toggleReviewed,
   reviewedCount,
 } from './image-collection';
 import { OptimizerImage } from '../models/optimizer-image';
 
-function bild(id: string, reviewed = false): OptimizerImage {
+function image(id: string, reviewed = false): OptimizerImage {
   return {
     id,
     file: new File([''], `${id}.jpg`, { type: 'image/jpeg' }),
@@ -346,52 +348,59 @@ function bild(id: string, reviewed = false): OptimizerImage {
 
 describe('Bilderliste verwalten', () => {
   it('entfernt ein Bild und meldet dessen URL zur Freigabe', () => {
-    const ergebnis = removeImage([bild('a'), bild('b')], 'a');
+    const result = removeImage([image('a'), image('b')], 'a');
 
-    expect(ergebnis.list.map((b) => b.id)).toEqual(['b']);
-    expect(ergebnis.revokedUrls).toEqual(['blob:a']);
+    expect(result.list.map((i) => i.id)).toEqual(['b']);
+    expect(result.revokedUrls).toEqual(['blob:a']);
   });
 
   it('meldet nichts zur Freigabe, wenn die Kennung unbekannt ist', () => {
-    const ergebnis = removeImage([bild('a')], 'gibtesnicht');
+    const result = removeImage([image('a')], 'gibtesnicht');
 
-    expect(ergebnis.list.map((b) => b.id)).toEqual(['a']);
-    expect(ergebnis.revokedUrls).toEqual([]);
+    expect(result.list.map((i) => i.id)).toEqual(['a']);
+    expect(result.revokedUrls).toEqual([]);
   });
 
   it('verschiebt ein Bild nach vorne', () => {
-    const liste = moveImage([bild('a'), bild('b'), bild('c')], 'c', -1);
+    const list = moveImage([image('a'), image('b'), image('c')], 'c', -1);
 
-    expect(liste.map((b) => b.id)).toEqual(['a', 'c', 'b']);
+    expect(list.map((i) => i.id)).toEqual(['a', 'c', 'b']);
   });
 
   it('laesst die Liste am Rand unveraendert', () => {
-    const liste = [bild('a'), bild('b')];
+    const list = [image('a'), image('b')];
 
-    expect(moveImage(liste, 'a', -1)).toBe(liste);
-    expect(moveImage(liste, 'b', 1)).toBe(liste);
+    expect(moveImage(list, 'a', -1)).toBe(list);
+    expect(moveImage(list, 'b', 1)).toBe(list);
+  });
+
+  it('entfernt alle Bilder und meldet jede URL zur Freigabe', () => {
+    const result = removeAll([image('a'), image('b')]);
+
+    expect(result.list).toEqual([]);
+    expect(result.revokedUrls).toEqual(['blob:a', 'blob:b']);
   });
 });
 
 describe('Fortschritt', () => {
   it('markiert ein Bild als durchgesehen', () => {
-    expect(markReviewed([bild('a')], 'a')[0].reviewed).toBe(true);
+    expect(markReviewed([image('a')], 'a')[0].reviewed).toBe(true);
   });
 
   it('gibt dieselbe Liste zurueck, wenn sich nichts aendert', () => {
-    const liste = [bild('a', true)];
+    const list = [image('a', true)];
 
-    expect(markReviewed(liste, 'a')).toBe(liste);
+    expect(markReviewed(list, 'a')).toBe(list);
   });
 
   it('schaltet die Markierung in beide Richtungen um', () => {
-    const an = toggleReviewed([bild('a')], 'a');
-    expect(an[0].reviewed).toBe(true);
-    expect(toggleReviewed(an, 'a')[0].reviewed).toBe(false);
+    const enabled = toggleReviewed([image('a')], 'a');
+    expect(enabled[0].reviewed).toBe(true);
+    expect(toggleReviewed(enabled, 'a')[0].reviewed).toBe(false);
   });
 
   it('zaehlt die durchgesehenen Bilder', () => {
-    expect(reviewedCount([bild('a', true), bild('b'), bild('c', true)])).toBe(2);
+    expect(reviewedCount([image('a', true), image('b'), image('c', true)])).toBe(2);
   });
 });
 ```
@@ -657,16 +666,16 @@ EOF
 import { describe, it, expect } from 'vitest';
 import { togglePlatformIn, SelectionState } from './platform-selection';
 
-const leer: SelectionState = { selectedIds: [], workingId: null };
+const empty: SelectionState = { selectedIds: [], workingId: null };
 
 describe('Plattformauswahl', () => {
   it('startet leer', () => {
-    expect(leer.selectedIds).toEqual([]);
-    expect(leer.workingId).toBeNull();
+    expect(empty.selectedIds).toEqual([]);
+    expect(empty.workingId).toBeNull();
   });
 
   it('macht die erste gewaehlte Plattform zum Arbeitsziel', () => {
-    const { state, inheritFrom } = togglePlatformIn(leer, 'ebay');
+    const { state, inheritFrom } = togglePlatformIn(empty, 'ebay');
 
     expect(state.selectedIds).toEqual(['ebay']);
     expect(state.workingId).toBe('ebay');
@@ -674,8 +683,8 @@ describe('Plattformauswahl', () => {
   });
 
   it('meldet beim Hinzuwaehlen das bisherige Arbeitsziel als Zuschnittquelle', () => {
-    const eins = togglePlatformIn(leer, 'ebay').state;
-    const { state, inheritFrom } = togglePlatformIn(eins, 'vinted');
+    const first = togglePlatformIn(empty, 'ebay').state;
+    const { state, inheritFrom } = togglePlatformIn(first, 'vinted');
 
     expect(state.selectedIds).toEqual(['ebay', 'vinted']);
     expect(state.workingId).toBe('ebay');
@@ -683,15 +692,15 @@ describe('Plattformauswahl', () => {
   });
 
   it('waehlt auch die letzte verbliebene Plattform ab', () => {
-    const eins = togglePlatformIn(leer, 'ebay').state;
-    const { state } = togglePlatformIn(eins, 'ebay');
+    const first = togglePlatformIn(empty, 'ebay').state;
+    const { state } = togglePlatformIn(first, 'ebay');
 
     expect(state.selectedIds).toEqual([]);
     expect(state.workingId).toBeNull();
   });
 
   it('laesst beim Abwaehlen des Arbeitsziels die naechste nachruecken', () => {
-    let state = togglePlatformIn(leer, 'ebay').state;
+    let state = togglePlatformIn(empty, 'ebay').state;
     state = togglePlatformIn(state, 'vinted').state;
     state = togglePlatformIn(state, 'ebay').state;
 
@@ -700,7 +709,7 @@ describe('Plattformauswahl', () => {
   });
 
   it('laesst das Arbeitsziel unangetastet, wenn eine andere abgewaehlt wird', () => {
-    let state = togglePlatformIn(leer, 'ebay').state;
+    let state = togglePlatformIn(empty, 'ebay').state;
     state = togglePlatformIn(state, 'vinted').state;
     state = togglePlatformIn(state, 'vinted').state;
 
@@ -708,9 +717,9 @@ describe('Plattformauswahl', () => {
   });
 
   it('meldet beim Abwaehlen nie eine Zuschnittquelle', () => {
-    const eins = togglePlatformIn(leer, 'ebay').state;
+    const first = togglePlatformIn(empty, 'ebay').state;
 
-    expect(togglePlatformIn(eins, 'ebay').inheritFrom).toBeNull();
+    expect(togglePlatformIn(first, 'ebay').inheritFrom).toBeNull();
   });
 });
 ```
@@ -1033,10 +1042,10 @@ An `platform-preview.component.spec.ts` anhaengen:
 ```ts
 describe('Vorschau und Export stimmen ueberein', () => {
   it('liefert fuer jedes Profil einen Plan im Exportverhaeltnis', () => {
-    const quelle = { width: 3000, height: 3000 };
+    const source = { width: 3000, height: 3000 };
 
     for (const p of PLATFORM_PROFILES) {
-      const plan = planPreview(null, quelle, p);
+      const plan = planPreview(null, source, p);
 
       expect(plan, `${p.name} hat keinen Plan`).not.toBeNull();
       expect(plan!.width / plan!.height, `${p.name} weicht ab`).toBeCloseTo(p.exportRatio, 2);
@@ -1235,41 +1244,41 @@ EOF
 import { describe, it, expect } from 'vitest';
 import { splitImageFiles } from './file-drop.directive';
 
-function datei(name: string, type: string): File {
+function file(name: string, type: string): File {
   return new File([''], name, { type });
 }
 
 describe('Dateien sortieren', () => {
   it('trennt Bilder von allem anderen', () => {
-    const ergebnis = splitImageFiles([
-      datei('a.jpg', 'image/jpeg'),
-      datei('b.pdf', 'application/pdf'),
-      datei('c.png', 'image/png'),
-      datei('d.txt', 'text/plain'),
+    const result = splitImageFiles([
+      file('a.jpg', 'image/jpeg'),
+      file('b.pdf', 'application/pdf'),
+      file('c.png', 'image/png'),
+      file('d.txt', 'text/plain'),
     ]);
 
-    expect(ergebnis.images.map((f) => f.name)).toEqual(['a.jpg', 'c.png']);
-    expect(ergebnis.skipped).toBe(2);
+    expect(result.images.map((f) => f.name)).toEqual(['a.jpg', 'c.png']);
+    expect(result.skipped).toBe(2);
   });
 
   it('meldet null uebersprungene, wenn alles Bilder sind', () => {
-    expect(splitImageFiles([datei('a.jpg', 'image/jpeg')]).skipped).toBe(0);
+    expect(splitImageFiles([file('a.jpg', 'image/jpeg')]).skipped).toBe(0);
   });
 
   it('behandelt eine leere Liste', () => {
-    const ergebnis = splitImageFiles([]);
+    const result = splitImageFiles([]);
 
-    expect(ergebnis.images).toEqual([]);
-    expect(ergebnis.skipped).toBe(0);
+    expect(result.images).toEqual([]);
+    expect(result.skipped).toBe(0);
   });
 
   it('erkennt HEIC am Dateinamen, obwohl der Browser keinen Typ meldet', () => {
     // HEIC wird bewusst durchgelassen: Der Nutzer soll die verstaendliche
     // Meldung am Bild sehen, nicht ein stilles Verschwinden erleben.
-    const ergebnis = splitImageFiles([datei('foto.heic', '')]);
+    const result = splitImageFiles([file('foto.heic', '')]);
 
-    expect(ergebnis.images.map((f) => f.name)).toEqual(['foto.heic']);
-    expect(ergebnis.skipped).toBe(0);
+    expect(result.images.map((f) => f.name)).toEqual(['foto.heic']);
+    expect(result.skipped).toBe(0);
   });
 });
 ```
@@ -1747,10 +1756,10 @@ describe('Namen entschaerfen', () => {
   });
 
   it('begrenzt auf 60 Zeichen ohne Bindestrich am Ende', () => {
-    const lang = sanitizeBaseName('a'.repeat(80));
+    const long = sanitizeBaseName('a'.repeat(80));
 
-    expect(lang.length).toBe(60);
-    expect(lang.endsWith('-')).toBe(false);
+    expect(long.length).toBe(60);
+    expect(long.endsWith('-')).toBe(false);
   });
 
   it('liefert eine leere Zeichenkette, wenn nichts Brauchbares uebrig bleibt', () => {
