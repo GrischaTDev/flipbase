@@ -31,18 +31,24 @@ export class StockService {
    */
   readonly lots = signal<StockLot[]>([]);
   readonly movements = signal<StockMovement[]>([]);
+  readonly isLoading = signal(false);
+  readonly loadError = signal<Error | null>(null);
 
   async loadPositions(workspaceId: string): Promise<void> {
-    if (this.mockStore.isDemoMode()) {
-      const lots = this.mockStore
-        .getStockLots(workspaceId)
-        .filter((lot) => lot.remaining_quantity > 0);
-      this.lots.set(lots);
-      this.positions.set(this.aggregateLots(lots, this.mockStore.getCatalogProducts(workspaceId)));
-      return;
-    }
-
+    this.isLoading.set(true);
+    this.loadError.set(null);
     try {
+      if (this.mockStore.isDemoMode()) {
+        const lots = this.mockStore
+          .getStockLots(workspaceId)
+          .filter((lot) => lot.remaining_quantity > 0);
+        this.lots.set(lots);
+        this.positions.set(
+          this.aggregateLots(lots, this.mockStore.getCatalogProducts(workspaceId)),
+        );
+        return;
+      }
+
       const { data, error } = await this.supabase.client
         .from('stock_lots')
         .select('*, catalog_product:catalog_products(id, title, is_public_store)')
@@ -51,14 +57,16 @@ export class StockService {
         .order('received_at', { ascending: true })
         .order('id', { ascending: true });
       if (error) {
-        this.syncStatus.melde('Laden der Bestandspositionen', error);
+        this.loadError.set(this.syncStatus.melde('Laden der Bestandspositionen', error));
         return;
       }
       const lots = (data ?? []) as StockLot[];
       this.lots.set(lots);
       this.positions.set(this.aggregateLots(lots));
     } catch (error: unknown) {
-      this.syncStatus.melde('Laden der Bestandspositionen', error);
+      this.loadError.set(this.syncStatus.melde('Laden der Bestandspositionen', error));
+    } finally {
+      this.isLoading.set(false);
     }
   }
 

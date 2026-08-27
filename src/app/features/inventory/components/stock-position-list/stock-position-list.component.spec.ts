@@ -6,7 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { readFile } from 'node:fs/promises';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { InventoryItem, StockPosition } from '../../../../core/models/flipbase.models';
+import { InventoryItem, StockLot, StockPosition } from '../../../../core/models/flipbase.models';
 import { StockPositionListComponent } from './stock-position-list.component';
 
 TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -18,6 +18,7 @@ beforeAll(async () => {
 function createList(
   positions: readonly StockPosition[],
   individualItems: readonly InventoryItem[] = [],
+  lots: readonly StockLot[] = [],
 ) {
   TestBed.resetTestingModule();
   const fixture = TestBed.configureTestingModule({
@@ -27,6 +28,7 @@ function createList(
   Object.assign(fixture.componentInstance, {
     positions: signal(positions),
     individualItems: signal(individualItems),
+    lots: signal(lots),
   });
   fixture.detectChanges();
   return fixture;
@@ -51,6 +53,18 @@ const einzelstueck: InventoryItem = {
   allocated_purchase_cost: 12,
 };
 
+const lot = (id: string, receivedAt: string, unitCost: number): StockLot => ({
+  id,
+  workspace_id: 'workspace-1',
+  purchase_id: `purchase-${id}`,
+  purchase_line_id: `line-${id}`,
+  catalog_product_id: ledLampe.catalog_product_id,
+  received_quantity: 1,
+  remaining_quantity: 1,
+  unit_cost: unitCost,
+  received_at: receivedAt,
+});
+
 describe('StockPositionListComponent', () => {
   it('zeigt zwei Lose desselben Mengenartikels als eine verfügbare Bestandsposition', () => {
     const fixture = createList(
@@ -66,20 +80,50 @@ describe('StockPositionListComponent', () => {
       [einzelstueck],
     );
 
-    const rows = Array.from(fixture.nativeElement.querySelectorAll('table [data-stock-row]'));
+    const host = fixture.nativeElement as HTMLElement;
+    const rows = Array.from(host.querySelectorAll<HTMLElement>('table [data-stock-row]'));
 
     expect(rows).toHaveLength(1);
     expect(rows[0].textContent).toContain('LED Schreibtischlampe');
     expect(rows[0].textContent).toContain('8 Stück verfügbar');
+    expect(rows[0].textContent).toContain('8 Stück im Bestand');
   });
 
   it('zeigt vorhandene Einzelstücke weiterhin als eigene Zeile mit Menge eins', () => {
     const fixture = createList([], [einzelstueck]);
 
-    const rows = Array.from(fixture.nativeElement.querySelectorAll('table [data-individual-row]'));
+    const host = fixture.nativeElement as HTMLElement;
+    const rows = Array.from(host.querySelectorAll<HTMLElement>('table [data-individual-row]'));
 
     expect(rows).toHaveLength(1);
     expect(rows[0].textContent).toContain('Mystery-Fundstück');
     expect(rows[0].textContent).toContain('1 Stück verfügbar');
+  });
+
+  it('verwendet für den ältesten EK das älteste verfügbare Los statt des günstigsten', () => {
+    const fixture = createList(
+      [{ ...ledLampe, available_quantity: 2, on_hand_quantity: 2, oldest_available_unit_cost: 5 }],
+      [],
+      [lot('old', '2026-08-01T09:00:00.000Z', 10), lot('new', '2026-08-20T09:00:00.000Z', 5)],
+    );
+
+    const row = fixture.nativeElement.querySelector('table [data-stock-row]');
+
+    expect(row.textContent).toContain('10,00 €');
+  });
+
+  it('zeigt Lose auch in der mobilen Bestandskarte aufklappbar an', () => {
+    const fixture = createList([ledLampe], [], [lot('old', '2026-08-01T09:00:00.000Z', 10)]);
+
+    const toggle = fixture.nativeElement.querySelector(
+      '[data-stock-lot-toggle="catalog-led-lamp"]',
+    );
+
+    expect(toggle).not.toBeNull();
+    toggle.click();
+    fixture.detectChanges();
+    expect(
+      fixture.nativeElement.querySelector('[data-mobile-stock-lot="old"]')?.textContent,
+    ).toContain('10,00 €');
   });
 });

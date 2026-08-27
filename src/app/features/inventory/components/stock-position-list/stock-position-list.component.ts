@@ -44,6 +44,9 @@ export class StockPositionListComponent {
       productLots.push(lot);
       lotsByProduct.set(lot.catalog_product_id, productLots);
     }
+    for (const productLots of lotsByProduct.values()) {
+      productLots.sort((left, right) => left.received_at.localeCompare(right.received_at));
+    }
 
     const aggregated = new Map<string, StockPosition>();
     for (const position of this.positions()) {
@@ -55,21 +58,21 @@ export class StockPositionListComponent {
         available_quantity: (existing?.available_quantity ?? 0) + position.available_quantity,
         reserved_quantity: (existing?.reserved_quantity ?? 0) + position.reserved_quantity,
         on_hand_quantity: (existing?.on_hand_quantity ?? 0) + position.on_hand_quantity,
-        oldest_available_unit_cost: this.oldestUnitCost(
-          existing?.oldest_available_unit_cost ?? null,
-          position.oldest_available_unit_cost,
-        ),
+        oldest_available_unit_cost:
+          existing?.oldest_available_unit_cost ?? position.oldest_available_unit_cost,
         is_public_store: existing?.is_public_store ?? position.is_public_store,
       });
     }
 
     return [...aggregated.values()]
-      .map((position) => ({
-        ...position,
-        lots: (lotsByProduct.get(position.catalog_product_id) ?? []).sort((left, right) =>
-          left.received_at.localeCompare(right.received_at),
-        ),
-      }))
+      .map((position) => {
+        const lots = lotsByProduct.get(position.catalog_product_id) ?? [];
+        return {
+          ...position,
+          oldest_available_unit_cost: lots[0]?.unit_cost ?? position.oldest_available_unit_cost,
+          lots,
+        };
+      })
       .sort((left, right) => left.title.localeCompare(right.title, 'de'));
   });
 
@@ -87,11 +90,5 @@ export class StockPositionListComponent {
 
   areLotsOpen(productId: string): boolean {
     return this.openPositionIds().has(productId);
-  }
-
-  private oldestUnitCost(current: number | null, candidate: number | null): number | null {
-    if (current === null) return candidate;
-    if (candidate === null) return current;
-    return Math.min(current, candidate);
   }
 }

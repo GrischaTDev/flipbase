@@ -40,4 +40,31 @@ describe('CatalogService', () => {
     expect(result).toMatchObject({ data: product, error: null, reportedBySyncStatus: false });
     expect(service.products()).toEqual([product]);
   });
+
+  it('stellt einen Ladefehler für die Artikelstammdaten bereit', async () => {
+    const service = Object.create(CatalogService.prototype) as CatalogService;
+    Object.assign(service, {
+      products: signal<CatalogProduct[]>([]),
+      isLoading: signal(false),
+      loadError: signal<Error | null>(null),
+      mockStore: { isDemoMode: signal(false) },
+      syncStatus: new SyncStatusService(),
+      supabase: {
+        client: {
+          from: () => ({
+            select: () => ({
+              eq: () => ({
+                order: async () => ({ data: null, error: new Error('Nicht erreichbar') }),
+              }),
+            }),
+          }),
+        },
+      },
+    });
+
+    await service.loadProducts(product.workspace_id);
+
+    expect(service.isLoading()).toBe(false);
+    expect(service.loadError()?.message).toContain('Nicht erreichbar');
+  });
 });

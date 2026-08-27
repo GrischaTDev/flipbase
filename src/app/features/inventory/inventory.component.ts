@@ -52,6 +52,7 @@ import { ToastService } from '../../shared/components/toast/toast.service';
 import { StockService } from '../../core/services/stock.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { StockPositionListComponent } from './components/stock-position-list/stock-position-list.component';
+import { SaleTargetRouteState } from '../../core/models/sale-target.models';
 
 type FilterPreset = string;
 type InventoryTab = 'stock' | 'individual';
@@ -153,24 +154,31 @@ export class InventoryComponent {
   }
 
   openSaleForStockPosition(position: StockPosition): void {
-    void this.router.navigate(['/sales'], {
-      state: {
-        saleTarget: {
-          kind: 'catalog_product',
-          catalogProductId: position.catalog_product_id,
-          title: position.title,
-          availableQuantity: position.available_quantity,
-        },
+    const state: SaleTargetRouteState = {
+      saleTarget: {
+        kind: 'catalog_product',
+        catalogProductId: position.catalog_product_id,
+        title: position.title,
+        availableQuantity: position.available_quantity,
       },
+    };
+    void this.router.navigate(['/sales'], {
+      state,
     });
   }
 
   openSaleForIndividualItem(item: InventoryItem): void {
+    const state: SaleTargetRouteState = {
+      saleTarget: { kind: 'inventory_item', inventoryItemId: item.id, title: item.title },
+    };
     void this.router.navigate(['/sales'], {
-      state: {
-        saleTarget: { kind: 'inventory_item', inventoryItemId: item.id, title: item.title },
-      },
+      state,
     });
+  }
+
+  reloadStock(): void {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (workspaceId) void this.stockService.loadPositions(workspaceId);
   }
 
   readonly statusOptions: SelectOption<ItemStatus>[] = [

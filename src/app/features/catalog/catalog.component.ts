@@ -68,18 +68,32 @@ export class CatalogComponent {
         this.stockService.positions().map((position) => [position.catalog_product_id, position]),
       ),
   );
+  readonly isLoading = computed(
+    () => this.catalogService.isLoading() || this.stockService.isLoading(),
+  );
+  readonly loadError = computed(
+    () => this.catalogService.loadError() ?? this.stockService.loadError(),
+  );
 
   constructor() {
     effect(() => {
       const workspaceId = this.workspaceService.currentWorkspace()?.id;
       if (!workspaceId) return;
-      void this.catalogService.loadProducts(workspaceId);
-      void this.stockService.loadPositions(workspaceId);
+      void this.reload();
     });
   }
 
   availableStock(product: CatalogProduct): number {
     return this.stockByProduct().get(product.id)?.available_quantity ?? 0;
+  }
+
+  async reload(): Promise<void> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (!workspaceId) return;
+    await Promise.all([
+      this.catalogService.loadProducts(workspaceId),
+      this.stockService.loadPositions(workspaceId),
+    ]);
   }
 
   async createProduct(): Promise<void> {

@@ -29,26 +29,32 @@ export class CatalogService {
   private readonly mockStore = inject(MockDataStoreService);
 
   readonly products = signal<CatalogProduct[]>([]);
+  readonly isLoading = signal(false);
+  readonly loadError = signal<Error | null>(null);
 
   async loadProducts(workspaceId: string): Promise<void> {
-    if (this.mockStore.isDemoMode()) {
-      this.products.set(this.mockStore.getCatalogProducts(workspaceId));
-      return;
-    }
-
+    this.isLoading.set(true);
+    this.loadError.set(null);
     try {
+      if (this.mockStore.isDemoMode()) {
+        this.products.set(this.mockStore.getCatalogProducts(workspaceId));
+        return;
+      }
+
       const { data, error } = await this.supabase.client
         .from('catalog_products')
         .select('*')
         .eq('workspace_id', workspaceId)
         .order('title', { ascending: true });
       if (error) {
-        this.syncStatus.melde('Laden der Artikelstammdaten', error);
+        this.loadError.set(this.syncStatus.melde('Laden der Artikelstammdaten', error));
         return;
       }
       this.products.set((data ?? []).map((product) => this.mapProduct(product)));
     } catch (error: unknown) {
-      this.syncStatus.melde('Laden der Artikelstammdaten', error);
+      this.loadError.set(this.syncStatus.melde('Laden der Artikelstammdaten', error));
+    } finally {
+      this.isLoading.set(false);
     }
   }
 

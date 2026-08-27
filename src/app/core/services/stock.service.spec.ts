@@ -2,7 +2,7 @@ import '@angular/compiler';
 import { signal } from '@angular/core';
 import { describe, expect, it } from 'vitest';
 import { StockService } from './stock.service';
-import { StockPosition } from '../models/flipbase.models';
+import { StockLot, StockPosition } from '../models/flipbase.models';
 import { SyncStatusService } from './sync-status.service';
 
 const position: StockPosition = {
@@ -20,7 +20,10 @@ describe('StockService', () => {
     const service = Object.create(StockService.prototype) as StockService;
     Object.assign(service, {
       positions: signal<StockPosition[]>([]),
+      lots: signal<StockLot[]>([]),
       movements: signal([]),
+      isLoading: signal(false),
+      loadError: signal<Error | null>(null),
       mockStore: { isDemoMode: signal(false) },
       workspaceService: { currentWorkspace: () => ({ id: 'workspace-1' }) },
       syncStatus: new SyncStatusService(),
@@ -87,5 +90,38 @@ describe('StockService', () => {
     expect(result.error).toBeNull();
     expect(service.positions()[0].available_quantity).toBe(5);
     expect(service.positions()[0].title).toBe('LED-Lampe');
+  });
+
+  it('stellt einen Ladefehler für Bestandspositionen bereit', async () => {
+    const service = Object.create(StockService.prototype) as StockService;
+    Object.assign(service, {
+      positions: signal<StockPosition[]>([]),
+      lots: signal<StockLot[]>([]),
+      movements: signal([]),
+      isLoading: signal(false),
+      loadError: signal<Error | null>(null),
+      mockStore: { isDemoMode: signal(false) },
+      syncStatus: new SyncStatusService(),
+      supabase: {
+        client: {
+          from: () => ({
+            select: () => ({
+              eq: () => ({
+                gt: () => ({
+                  order: () => ({
+                    order: async () => ({ data: null, error: new Error('Nicht erreichbar') }),
+                  }),
+                }),
+              }),
+            }),
+          }),
+        },
+      },
+    });
+
+    await service.loadPositions('workspace-1');
+
+    expect(service.isLoading()).toBe(false);
+    expect(service.loadError()?.message).toContain('Nicht erreichbar');
   });
 });
