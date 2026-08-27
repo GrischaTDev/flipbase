@@ -81,6 +81,12 @@ export interface RecordReturnInput {
   readonly notes?: string | null;
 }
 
+export interface RecordReturnResult {
+  readonly sale: Sale;
+  readonly restockedQuantity: number;
+  readonly saleReturnedAt: string;
+}
+
 export interface SaleMutationResult {
   readonly data: Sale | null;
   readonly error: Error | null;
@@ -291,7 +297,7 @@ export class SalesService {
         ...sales.filter((sale) => sale.id !== result.sale.id),
       ]);
       this.mockStore.saveSale(result.sale);
-      await this.stockService.loadPositions(workspaceId);
+      await this.refreshAffectedState(workspaceId);
       return { data: result, error: null, reportedBySyncStatus: false };
     }
 
@@ -328,7 +334,7 @@ export class SalesService {
         result.sale,
         ...sales.filter((sale) => sale.id !== result.sale.id),
       ]);
-      await this.stockService.loadPositions(workspaceId);
+      await this.refreshAffectedState(workspaceId);
       return { data: result, error: null, reportedBySyncStatus: false };
     } catch (error: unknown) {
       return this.mutationFailure('Verkauf buchen', error);
@@ -336,7 +342,7 @@ export class SalesService {
   }
 
   /** Bucht eine Retoure mit optionaler Wiedereinlagerung atomar. */
-  async recordReturn(input: RecordReturnInput): Promise<MutationResult<Sale>> {
+  async recordReturn(input: RecordReturnInput): Promise<MutationResult<RecordReturnResult>> {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     if (!workspaceId)
       return this.mutationFailure('Retoure buchen', new Error('Kein aktiver Workspace'));
@@ -356,16 +362,29 @@ export class SalesService {
       }
       const returnResult = this.mockStore.returnQuantitySale(workspaceId, existing, input.restock);
       if (returnResult.error) return this.mutationFailure('Retoure buchen', returnResult.error);
+      const saleReturnedAt = new Date().toISOString();
       const sale = this.enrichSaleMetrics({
         ...existing,
-        returned_at: new Date().toISOString(),
+        returned_at: saleReturnedAt,
         refund_amount: input.refundAmount,
         stock_movements: returnResult.movements,
       });
       this.sales.update((sales) => sales.map((entry) => (entry.id === sale.id ? sale : entry)));
       this.mockStore.saveSale(sale);
-      await this.stockService.loadPositions(workspaceId);
-      return { data: sale, error: null, reportedBySyncStatus: false };
+      await this.refreshAffectedState(workspaceId);
+      return {
+        data: {
+          sale,
+          restockedQuantity: input.restock
+            ? returnResult.movements
+                .filter((movement) => movement.direction === 'in' && movement.reason === 'return')
+                .reduce((sum, movement) => sum + movement.quantity, 0)
+            : 0,
+          saleReturnedAt,
+        },
+        error: null,
+        reportedBySyncStatus: false,
+      };
     }
 
     try {
@@ -391,8 +410,16 @@ export class SalesService {
         stock_movements: this.arrayValue<StockMovement>(response['stock_movements']),
       });
       this.sales.update((sales) => sales.map((entry) => (entry.id === sale.id ? sale : entry)));
-      await this.stockService.loadPositions(workspaceId);
-      return { data: sale, error: null, reportedBySyncStatus: false };
+      await this.refreshAffectedState(workspaceId);
+      return {
+        data: {
+          sale,
+          restockedQuantity: Number(response['restocked_quantity'] ?? 0),
+          saleReturnedAt: sale.returned_at ?? new Date().toISOString(),
+        },
+        error: null,
+        reportedBySyncStatus: false,
+      };
     } catch (error: unknown) {
       return this.mutationFailure('Retoure buchen', error);
     }
@@ -453,6 +480,12 @@ export class SalesService {
 
   private arrayValue<T>(value: unknown): T[] {
     return Array.isArray(value) ? (value as T[]) : [];
+  }
+
+  /** Aktualisiert erst nach erfolgreicher RPC-Antwort die betroffenen Ansichten. */
+  private async refreshAffectedState(workspaceId: string): Promise<void> {
+    await this.stockService.loadPositions(workspaceId);
+    await this.inventoryService?.loadInventory(workspaceId);
   }
 
   private mutationFailure<T>(operation: string, cause: unknown): MutationResult<T> {

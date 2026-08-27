@@ -1,5 +1,7 @@
+import '@angular/compiler';
 import { describe, it, expect } from 'vitest';
 import { InventoryItem, Sale } from '../models/flipbase.models';
+import { TaxEngineService } from './tax-engine.service';
 
 describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
   // Pure function test directly without DI overhead
@@ -71,5 +73,45 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
     };
     expect(datevRecord.konto).toBe('8200');
     expect(datevRecord.gegenkonto).toBe('1200');
+  });
+
+  it('summiert die persistierten Verkaufskosten statt den aktuellen Artikelwert zu verwenden', () => {
+    const service = Object.create(TaxEngineService.prototype) as TaxEngineService;
+    const saleWithPersistedLines: Sale = {
+      ...dummySale,
+      sale_price: 39.96,
+      lines: [
+        {
+          id: 'line-1',
+          sale_id: dummySale.id,
+          catalog_product_id: 'product-1',
+          title_snapshot: 'LED-Lampe',
+          quantity: 2,
+          unit_sale_price: 19.98,
+          line_total: 39.96,
+          cost_of_goods_sold: 12.5,
+          tax_mode: 'diff_25a',
+        },
+        {
+          id: 'line-2',
+          sale_id: dummySale.id,
+          inventory_item_id: 'item-2',
+          title_snapshot: 'Adapter',
+          quantity: 1,
+          unit_sale_price: 0,
+          line_total: 0,
+          cost_of_goods_sold: 3.5,
+          tax_mode: 'regular_19',
+        },
+      ],
+    };
+
+    const calculation = service.calculateSaleTax(saleWithPersistedLines, {
+      ...dummyItem,
+      allocated_purchase_cost: 999,
+    });
+
+    expect(calculation.total_purchase_cost).toBe(16);
+    expect(calculation.tax_mode).toBe('diff_25a');
   });
 });

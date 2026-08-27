@@ -21,8 +21,10 @@ const sale: Sale = {
 function createService(response: { data: unknown; error: unknown }): {
   service: SalesService;
   stockService: { loadPositions: ReturnType<typeof vi.fn> };
+  rpc: ReturnType<typeof vi.fn>;
 } {
   const stockService = { loadPositions: vi.fn(async () => undefined) };
+  const rpc = vi.fn(async () => response);
   const service = Object.create(SalesService.prototype) as SalesService;
   Object.assign(service, {
     sales: signal<Sale[]>([]),
@@ -34,22 +36,22 @@ function createService(response: { data: unknown; error: unknown }): {
       calculateRoi: () => 0,
       calculateHoldingDurationDays: () => 0,
     },
-    supabase: { client: { rpc: async () => response } },
+    supabase: { client: { rpc } },
     stockService,
   });
-  return { service, stockService };
+  return { service, stockService, rpc };
 }
 
 describe('SalesService', () => {
   it('übernimmt einen atomar bestätigten Mengenverkauf mit seinen Positionen', async () => {
-    const { service, stockService } = createService({
+    const { service, stockService, rpc } = createService({
       data: {
         sale,
         sale_lines: [
           {
             id: 'sale-line-1',
             sale_id: sale.id,
-            catalog_product_id: 'product-1',
+            catalog_product_id: 'led-lamp-1',
             title_snapshot: 'LED-Lampe',
             quantity: 2,
             unit_sale_price: 9.99,
@@ -65,15 +67,33 @@ describe('SalesService', () => {
       error: null,
     });
 
-    const result = await service.recordSale({
-      platform: 'vinted',
+    const payload = {
+      platform: 'ebay',
       saleDate: '2026-08-26',
-      lines: [{ catalogProductId: 'product-1', quantity: 2, unitSalePrice: 9.99 }],
-    });
+      lines: [{ catalogProductId: 'led-lamp-1', quantity: 2, unitSalePrice: 9.99 }],
+    };
+    const result = await service.recordSale(payload);
 
+    expect(payload.lines).toEqual([
+      { catalogProductId: 'led-lamp-1', quantity: 2, unitSalePrice: 9.99 },
+    ]);
+    expect(payload.platform).toBe('ebay');
+    expect(payload.saleDate).toBe('2026-08-26');
     expect(result.error).toBeNull();
     expect(service.sales()[0].lines?.[0].quantity).toBe(2);
     expect(stockService.loadPositions).toHaveBeenCalledWith('workspace-1');
+    expect(rpc).toHaveBeenCalledWith(
+      'record_sale',
+      expect.objectContaining({
+        p_lines: [
+          expect.objectContaining({
+            catalog_product_id: 'led-lamp-1',
+            quantity: 2,
+            unit_sale_price: 9.99,
+          }),
+        ],
+      }),
+    );
   });
 
   it('lässt den Verkaufszustand bei unzureichendem Bestand unverändert', async () => {
@@ -92,5 +112,30 @@ describe('SalesService', () => {
 
     expect(result.error?.message).toContain('Nicht genügend verfügbarer Bestand');
     expect(service.sales()).toEqual([existing]);
+  });
+
+  it('gibt die wiedereingelagerte Menge und den Retourenzeitpunkt zurück', async () => {
+    const { service } = createService({
+      data: {
+        sale: { ...sale, returned_at: '2026-08-27T10:00:00.000Z', refund_amount: 19.98 },
+        sale_lines: [],
+        lot_allocations: [],
+        stock_movements: [],
+        restocked_quantity: 2,
+      },
+      error: null,
+    });
+
+    const returnResult = (
+      await service.recordReturn({
+        saleId: sale.id,
+        reason: 'buyer_remorse',
+        refundAmount: 19.98,
+        restock: true,
+      })
+    ).data!;
+
+    expect(returnResult.restockedQuantity).toBe(2);
+    expect(returnResult.saleReturnedAt).toBeTruthy();
   });
 });

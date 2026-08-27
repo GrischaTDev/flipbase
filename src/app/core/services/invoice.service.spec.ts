@@ -116,6 +116,49 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
     expect(invoice.total).toBe(180.0);
   });
 
+  it('erzeugt zwei Rechnungspositionen aus zwei persistierten Verkaufspositionen', async () => {
+    const sale = {
+      id: 'sale-lines',
+      workspace_id: 'ws-1',
+      sale_price: 29.97,
+      sale_date: '2026-08-26',
+      platform: 'ebay',
+      platform_fee: 0,
+      shipping_cost: 0,
+      packaging_cost: 0,
+      other_costs: 0,
+      lines: [
+        {
+          id: 'line-1',
+          sale_id: 'sale-lines',
+          catalog_product_id: 'lamp-1',
+          title_snapshot: 'LED-Lampe',
+          quantity: 2,
+          unit_sale_price: 9.99,
+          line_total: 19.98,
+          cost_of_goods_sold: 8,
+          tax_mode: 'diff_25a',
+        },
+        {
+          id: 'line-2',
+          sale_id: 'sale-lines',
+          inventory_item_id: 'adapter-1',
+          title_snapshot: 'Adapter',
+          quantity: 1,
+          unit_sale_price: 9.99,
+          line_total: 9.99,
+          cost_of_goods_sold: 3,
+          tax_mode: 'diff_25a',
+        },
+      ],
+    } satisfies Sale;
+
+    const result = await service.generateInvoiceForSale(sale);
+
+    expect(result.data?.items).toHaveLength(2);
+    expect(result.data?.items.map((entry) => entry.quantity)).toEqual([2, 1]);
+  });
+
   it('bereitet eine Kaufbestätigung vor, ohne einen Versand zu behaupten', async () => {
     const sale: Sale = {
       id: 'sale-3',

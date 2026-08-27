@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -34,6 +34,7 @@ import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/ret
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
+import { SaleTarget, SaleTargetRouteState } from '../../core/models/sale-target.models';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -76,6 +77,7 @@ export class SalesComponent {
   private readonly dialog = inject(ConfirmDialogService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
+  private readonly router = inject(Router);
   readonly salesService = inject(SalesService);
   readonly invoiceService = inject(InvoiceService);
   readonly returnService = inject(ReturnService);
@@ -99,6 +101,7 @@ export class SalesComponent {
   readonly alertIcon = AlertTriangle;
 
   readonly isCreateModalOpen = signal<boolean>(false);
+  readonly createSaleTarget = signal<SaleTarget | null>(null);
   /** Der Verkauf, der gerade bearbeitet wird - null heisst: keiner. */
   readonly bearbeiteVerkauf = signal<Sale | null>(null);
   readonly selectedPlatform = signal<string>('all');
@@ -172,12 +175,23 @@ export class SalesComponent {
         .filter((sale) => sale.returned_at !== null && sale.returned_at !== undefined).length,
   );
 
+  constructor() {
+    const state = (this.router.getCurrentNavigation()?.extras.state ??
+      history.state) as Partial<SaleTargetRouteState>;
+    if (state.saleTarget) {
+      this.createSaleTarget.set(state.saleTarget);
+      this.isCreateModalOpen.set(true);
+    }
+  }
+
   openCreateModal(): void {
+    this.createSaleTarget.set(null);
     this.isCreateModalOpen.set(true);
   }
 
   closeCreateModal(): void {
     this.isCreateModalOpen.set(false);
+    this.createSaleTarget.set(null);
   }
 
   async openInvoiceForSale(sale: Sale): Promise<void> {
@@ -218,6 +232,18 @@ export class SalesComponent {
     return this.returnService.returns().find((r) => r.sale_id === saleId);
   }
 
+  saleQuantity(sale: Sale): number {
+    return sale.lines?.reduce((sum, line) => sum + line.quantity, 0) ?? 1;
+  }
+
+  saleTitle(sale: Sale): string {
+    return (
+      sale.lines?.map((line) => line.title_snapshot).join(', ') ||
+      sale.inventory_item?.title ||
+      'Artikel'
+    );
+  }
+
   openReturnModal(sale: Sale): void {
     this.selectedSaleForReturn.set(sale);
     this.returnForm.patchValue({
@@ -252,13 +278,15 @@ export class SalesComponent {
     this.isProcessingReturn.set(true);
     const val = this.returnForm.getRawValue();
 
-    let ergebnis: Awaited<ReturnType<SalesService['recordReturn']>>;
+    let ergebnis: Awaited<ReturnType<ReturnService['processReturn']>>;
     try {
-      ergebnis = await this.salesService.recordReturn({
-        saleId: sale.id,
+      ergebnis = await this.returnService.processReturn({
+        sale,
+        item: sale.inventory_item,
         reason: val.reason,
         refundAmount: val.refundAmount,
-        restock: val.restockAction === 'restock_ready' || val.restockAction === 'restock_repair',
+        isFullRefund: val.isFullRefund,
+        restockAction: val.restockAction,
         notes: val.notes?.trim() || undefined,
       });
     } catch (ursache: unknown) {
@@ -268,34 +296,22 @@ export class SalesComponent {
           ursache instanceof Error
             ? ursache
             : new Error('Die Retoure konnte nicht erfasst werden.'),
-        reportedBySyncStatus: false,
+        status: 'error',
+        problems: [],
       };
     } finally {
       this.isProcessingReturn.set(false);
     }
 
     if (ergebnis.error) {
-      if (!ergebnis.reportedBySyncStatus && !this.syncStatus.istZentralGemeldet(ergebnis.error)) {
+      if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
         this.toast.error('Retoure konnte nicht erfasst werden.', ergebnis.error.message);
       }
       return;
     }
 
-    const confirmedSale: Sale = {
-      ...sale,
-      ...ergebnis.data,
-      inventory_item: ergebnis.data?.inventory_item ?? sale.inventory_item,
-    };
-    const returnRecord = this.returnService.materializeConfirmedReturn({
-      sale: confirmedSale,
-      reason: val.reason,
-      refundAmount: val.refundAmount,
-      isFullRefund: val.isFullRefund,
-      restockAction: val.restockAction,
-      notes: val.notes?.trim() || undefined,
-    });
     this.closeReturnModal();
-    this.activeInvoice.set(returnRecord.creditNoteInvoice ?? null);
+    this.activeInvoice.set(ergebnis.data?.creditNoteInvoice ?? null);
     this.toast.success('Retoure wurde erfasst.');
   }
 

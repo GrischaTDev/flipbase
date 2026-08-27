@@ -257,7 +257,9 @@ export class InvoiceService {
       if (vorhandeneRechnung) return this.rechnungserfolg(vorhandeneRechnung, false);
     }
     const ws = this.workspaceService?.currentWorkspace();
-    const taxMode: TaxMode = item?.tax_mode_override || ws?.tax_mode || 'diff_25a';
+    const persistedLines = sale.lines ?? [];
+    const taxMode: TaxMode =
+      persistedLines[0]?.tax_mode || item?.tax_mode_override || ws?.tax_mode || 'diff_25a';
     const invoiceNumber =
       'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
     const orderNumber =
@@ -266,17 +268,32 @@ export class InvoiceService {
     const shippingCost = sale.shipping_cost || 0;
     const total = salePrice;
 
-    const invoiceItems: InvoiceItem[] = [
-      {
-        sku:
-          item?.sku || 'SKU-' + (sale.inventory_item_id ?? sale.id).substring(0, 6).toUpperCase(),
-        title: item?.title || 'Verkaufter Artikel',
-        condition: item?.condition || 'Gebraucht',
-        quantity: 1,
-        unitPrice: salePrice - shippingCost,
-        totalPrice: salePrice - shippingCost,
-      },
-    ];
+    const invoiceItems: InvoiceItem[] =
+      persistedLines.length > 0
+        ? persistedLines.map((line) => ({
+            sku:
+              line.inventory_item_id ||
+              line.catalog_product_id ||
+              `SKU-${sale.id.substring(0, 6).toUpperCase()}`,
+            title: line.title_snapshot,
+            condition:
+              line.inventory_item_id === sale.inventory_item_id ? item?.condition : undefined,
+            quantity: line.quantity,
+            unitPrice: line.unit_sale_price,
+            totalPrice: line.line_total,
+          }))
+        : [
+            {
+              sku:
+                item?.sku ||
+                'SKU-' + (sale.inventory_item_id ?? sale.id).substring(0, 6).toUpperCase(),
+              title: item?.title || 'Verkaufter Artikel',
+              condition: item?.condition || 'Gebraucht',
+              quantity: 1,
+              unitPrice: salePrice - shippingCost,
+              totalPrice: salePrice - shippingCost,
+            },
+          ];
 
     const invoice: Invoice = {
       id: 'inv-' + Math.random().toString(36).substring(2, 9),

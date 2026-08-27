@@ -5,6 +5,7 @@ import { InventoryService } from './inventory.service';
 import {
   InventoryItem,
   Sale,
+  SaleLine,
   TaxCalculationResult,
   TaxMode,
   TaxPeriodSummary,
@@ -51,12 +52,17 @@ export class TaxEngineService {
     const items = this.inventoryService.items();
     const defaultMode = this.currentTaxMode();
 
-    return sales.map((sale) => {
+    return sales.flatMap((sale) => {
+      const persistedLines = sale.lines ?? [];
       const item =
         sale.inventory_item ||
         items.find((i) => i.id === sale.inventory_item_id) ||
         ({} as InventoryItem);
-      return this.calculateSaleTax(sale, item, defaultMode);
+      if (persistedLines.length === 0) return [this.calculateSaleTax(sale, item, defaultMode)];
+
+      return persistedLines.map((line) =>
+        this.calculateSaleTax(this.saleForLine(sale, line), item, defaultMode),
+      );
     });
   });
 
@@ -68,11 +74,15 @@ export class TaxEngineService {
     item: InventoryItem,
     defaultTaxMode: TaxMode = 'diff_25a',
   ): TaxCalculationResult {
-    const taxMode = item.tax_mode_override || defaultTaxMode;
+    const persistedLines = sale.lines ?? [];
+    const taxMode = persistedLines[0]?.tax_mode || item.tax_mode_override || defaultTaxMode;
     const grossRevenue = sale.sale_price;
 
     const directItemCosts = item.costs?.reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
-    const totalPurchaseCost = (item.allocated_purchase_cost || 0) + directItemCosts;
+    const totalPurchaseCost =
+      persistedLines.length > 0
+        ? persistedLines.reduce((sum, line) => sum + Number(line.cost_of_goods_sold || 0), 0)
+        : (item.allocated_purchase_cost || 0) + directItemCosts;
     const grossMargin = grossRevenue - totalPurchaseCost;
 
     let taxBase = 0;
@@ -128,7 +138,13 @@ export class TaxEngineService {
 
     return {
       sale_id: sale.id,
-      item_title: item.title || 'Artikel #' + (sale.inventory_item_id ?? sale.id).substring(0, 6),
+      item_title:
+        persistedLines
+          .map((line) => line.title_snapshot)
+          .filter(Boolean)
+          .join(', ') ||
+        item.title ||
+        'Artikel #' + (sale.inventory_item_id ?? sale.id).substring(0, 6),
       sale_date: sale.sale_date,
       tax_mode: taxMode,
       gross_revenue: grossRevenue,
@@ -140,6 +156,16 @@ export class TaxEngineService {
       net_tax_liability: netTaxLiability,
       net_profit_after_tax: netProfitAfterTax,
       invoice_clause: invoiceClause,
+    };
+  }
+
+  /** Bildet eine persistierte Verkaufsposition als eigenständigen Steuerfall ab. */
+  private saleForLine(sale: Sale, line: SaleLine): Sale {
+    return {
+      ...sale,
+      inventory_item_id: line.inventory_item_id ?? sale.inventory_item_id,
+      sale_price: line.line_total,
+      lines: [line],
     };
   }
 
