@@ -4,10 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { ImageOptimizerComponent } from './image-optimizer.component';
 
-function erstelleKomponente(packe: () => Promise<Blob>) {
+function createComponent(pack: () => Promise<Blob>) {
   const toast = new ToastService();
-  const komponente = Object.create(ImageOptimizerComponent.prototype) as ImageOptimizerComponent;
-  Object.assign(komponente, {
+  const component = Object.create(ImageOptimizerComponent.prototype) as ImageOptimizerComponent;
+  Object.assign(component, {
     toast,
     isBusy: signal(false),
     rotationsPending: () => false,
@@ -15,17 +15,17 @@ function erstelleKomponente(packe: () => Promise<Blob>) {
     images: signal([]),
     selectedPlatforms: signal([]),
     error: signal<string | null>(null),
-    zipExport: { pack: vi.fn(packe) },
+    zipExport: { pack: vi.fn(pack) },
     download: vi.fn(),
   });
-  return { komponente, toast };
+  return { component, toast };
 }
 
 describe('ImageOptimizerComponent – Aktionsmeldungen', () => {
   it('bestätigt einen abgeschlossenen Export', async () => {
-    const { komponente, toast } = erstelleKomponente(async () => new Blob());
+    const { component, toast } = createComponent(async () => new Blob());
 
-    await komponente.exportImages();
+    await component.exportImages();
 
     expect(toast.toasts()[0]).toMatchObject({
       type: 'success',
@@ -34,11 +34,11 @@ describe('ImageOptimizerComponent – Aktionsmeldungen', () => {
   });
 
   it('meldet einen Exportfehler persistent mit der Ausnahmebeschreibung', async () => {
-    const { komponente, toast } = erstelleKomponente(async () => {
+    const { component, toast } = createComponent(async () => {
       throw new Error('ZIP konnte nicht erstellt werden');
     });
 
-    await komponente.exportImages();
+    await component.exportImages();
 
     expect(toast.toasts()[0]).toMatchObject({
       type: 'error',

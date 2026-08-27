@@ -16,19 +16,19 @@ export type Crops = Partial<Record<PlatformId, Rect>>;
  */
 export function setCrop(
   before: Crops,
-  plattform: PlatformId,
-  rechteck: Rect,
+  platform: PlatformId,
+  rect: Rect,
   selected: readonly PlatformProfile[],
 ): Crops {
-  const nachher: Crops = { ...before, [plattform]: rechteck };
+  const after: Crops = { ...before, [platform]: rect };
 
   for (const p of selected) {
-    if (p.id === plattform) continue;
-    if (nachher[p.id]) continue;
-    nachher[p.id] = deriveRect(rechteck, p.exportRatio);
+    if (p.id === platform) continue;
+    if (after[p.id]) continue;
+    after[p.id] = deriveRect(rect, p.exportRatio);
   }
 
-  return nachher;
+  return after;
 }
 
 /**
@@ -40,14 +40,14 @@ export function applyCropToAll(
   sourceId: PlatformId,
   selected: readonly PlatformProfile[],
 ): Crops {
-  const rechteck = before[sourceId];
-  if (!rechteck) return before;
+  const rect = before[sourceId];
+  if (!rect) return before;
 
-  const nachher: Crops = { ...before };
+  const after: Crops = { ...before };
   for (const p of selected) {
     if (p.id === sourceId) continue;
-    nachher[p.id] = deriveRect(rechteck, p.exportRatio);
+    after[p.id] = deriveRect(rect, p.exportRatio);
   }
 
-  return nachher;
+  return after;
 }

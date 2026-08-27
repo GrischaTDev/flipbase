@@ -9,25 +9,29 @@ import { Rect } from '../models/platform-profile';
  * geprueft hat - und es entstehen nie Raender, die eBay ohnehin verbietet.
  */
 export function deriveRect(rect: Rect, ratio: number): Rect {
-  const eigenes = rect.width / rect.height;
+  const ownRatio = rect.width / rect.height;
 
-  const breite = eigenes > ratio ? rect.height * ratio : rect.width;
-  const hoehe = eigenes > ratio ? rect.height : rect.width / ratio;
+  const width = ownRatio > ratio ? rect.height * ratio : rect.width;
+  const height = ownRatio > ratio ? rect.height : rect.width / ratio;
 
   return {
-    x: rect.x + (rect.width - breite) / 2,
-    y: rect.y + (rect.height - hoehe) / 2,
-    width: breite,
-    height: hoehe,
+    x: rect.x + (rect.width - width) / 2,
+    y: rect.y + (rect.height - height) / 2,
+    width,
+    height,
   };
 }
 
 /** Ob der Ausschnitt genug Pixel fuer die Zielgroesse mitbringt. */
-export function hasEnoughResolution(rect: Rect, zielBreite: number, zielHoehe: number): boolean {
-  return rect.width >= zielBreite && rect.height >= zielHoehe;
+export function hasEnoughResolution(
+  rect: Rect,
+  targetWidth: number,
+  targetHeight: number,
+): boolean {
+  return rect.width >= targetWidth && rect.height >= targetHeight;
 }
 
 /** Um welchen Faktor der Ausschnitt hochgerechnet wird. Ueber 1 heisst: unschaerfer. */
-export function upscaleFactor(rect: Rect, zielBreite: number): number {
-  return zielBreite / rect.width;
+export function upscaleFactor(rect: Rect, targetWidth: number): number {
+  return targetWidth / rect.width;
 }

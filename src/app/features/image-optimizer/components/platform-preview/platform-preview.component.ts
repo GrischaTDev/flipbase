@@ -13,24 +13,23 @@ import { planOutput, RenderPlan, renderImage } from '../../services/image-render
 import { deriveRect } from '../../services/crop';
 
 export function resolvePreviewRect(
-  ausschnitt: Rect | null,
-  bildgroesse: Size | null,
-  zielverhaeltnis: number,
+  crop: Rect | null,
+  imageSize: Size | null,
+  targetRatio: number,
 ): Rect | null {
   const basis =
-    ausschnitt ??
-    (bildgroesse ? { x: 0, y: 0, width: bildgroesse.width, height: bildgroesse.height } : null);
-  return basis ? deriveRect(basis, zielverhaeltnis) : null;
+    crop ?? (imageSize ? { x: 0, y: 0, width: imageSize.width, height: imageSize.height } : null);
+  return basis ? deriveRect(basis, targetRatio) : null;
 }
 
 /** Die Vorschau verwendet exakt denselben Renderplan wie der spätere Export. */
 export function planPreview(
-  ausschnitt: Rect | null,
-  bildgroesse: Size | null,
-  plattform: PlatformProfile,
+  crop: Rect | null,
+  imageSize: Size | null,
+  platform: PlatformProfile,
 ): RenderPlan | null {
-  const quelle = resolvePreviewRect(ausschnitt, bildgroesse, plattform.exportRatio);
-  return quelle ? planOutput(quelle, plattform) : null;
+  const source = resolvePreviewRect(crop, imageSize, platform.exportRatio);
+  return source ? planOutput(source, platform) : null;
 }
 
 @Component({
@@ -63,36 +62,36 @@ export class PlatformPreviewComponent {
 
     effect(() => {
       const url = this.datenUrl();
-      const ausschnitt = this.ausschnitt();
-      const plattform = this.plattform();
-      void this.renderPreview(url, ausschnitt, plattform);
+      const crop = this.ausschnitt();
+      const platform = this.plattform();
+      void this.renderPreview(url, crop, platform);
     });
   }
 
   private async renderPreview(
     url: string,
-    ausschnitt: Rect | null,
-    plattform: PlatformProfile,
+    crop: Rect | null,
+    platform: PlatformProfile,
   ): Promise<void> {
     const version = ++this.renderVersion;
     this.isRendering.set(true);
     this.hasPreviewError.set(false);
 
     try {
-      const bild = await this.loadImage(url);
-      const groesse = { width: bild.naturalWidth, height: bild.naturalHeight };
-      const plan = planPreview(ausschnitt, groesse, plattform);
+      const image = await this.loadImage(url);
+      const size = { width: image.naturalWidth, height: image.naturalHeight };
+      const plan = planPreview(crop, size, platform);
       if (!plan) return;
 
-      const blob = await renderImage(bild, plan);
+      const blob = await renderImage(image, plan);
       if (this.zerstoert || version !== this.renderVersion) return;
 
-      const neueUrl = URL.createObjectURL(blob);
-      const alteUrl = this.aktuelleVorschauUrl;
-      this.aktuelleVorschauUrl = neueUrl;
-      this.previewUrl.set(neueUrl);
+      const newUrl = URL.createObjectURL(blob);
+      const oldUrl = this.aktuelleVorschauUrl;
+      this.aktuelleVorschauUrl = newUrl;
+      this.previewUrl.set(newUrl);
       this.outputSize.set({ width: plan.width, height: plan.height });
-      if (alteUrl) URL.revokeObjectURL(alteUrl);
+      if (oldUrl) URL.revokeObjectURL(oldUrl);
     } catch {
       if (!this.zerstoert && version === this.renderVersion) {
         this.hasPreviewError.set(true);
@@ -103,11 +102,11 @@ export class PlatformPreviewComponent {
   }
 
   private loadImage(url: string): Promise<HTMLImageElement> {
-    return new Promise((aufloesen, ablehnen) => {
-      const bild = new Image();
-      bild.onload = () => aufloesen(bild);
-      bild.onerror = () => ablehnen(new Error('Die Vorschau ließ sich nicht erzeugen.'));
-      bild.src = url;
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('Die Vorschau ließ sich nicht erzeugen.'));
+      image.src = url;
     });
   }
 }

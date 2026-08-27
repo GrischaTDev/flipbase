@@ -9,8 +9,8 @@ export interface ZipEntry {
 }
 
 /** Der Ordner, in dem die Bilder einer Plattform liegen. */
-export function folderName(plattform: PlatformProfile): string {
-  return plattform.name;
+export function folderName(platform: PlatformProfile): string {
+  return platform.name;
 }
 
 @Injectable({
@@ -24,13 +24,13 @@ export class ZipExportService {
    * und waehlt alles darin aus. Alle Bilder in einem Verzeichnis waeren beim
    * Hochladen ein Suchspiel.
    */
-  async pack(eintraege: ZipEntry[]): Promise<Blob> {
-    const archiv = new JSZip();
+  async pack(entries: ZipEntry[]): Promise<Blob> {
+    const archive = new JSZip();
 
-    for (const eintrag of eintraege) {
-      archiv.folder(eintrag.folder)?.file(eintrag.file, eintrag.data);
+    for (const entry of entries) {
+      archive.folder(entry.folder)?.file(entry.file, entry.data);
     }
 
-    return archiv.generateAsync({ type: 'blob' });
+    return archive.generateAsync({ type: 'blob' });
   }
 }

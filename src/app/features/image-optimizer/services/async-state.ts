@@ -8,14 +8,14 @@ interface IdentifiedImage {
 }
 
 /** Kopiert den fuer einen Export relevanten Zustand an genau einem Zeitpunkt. */
-export function createExportSnapshot<TBild extends WithCrops, TProfil>(
-  bilder: readonly TBild[],
-  profile: readonly TProfil[],
-): { bilder: TBild[]; profile: TProfil[] } {
+export function createExportSnapshot<TImage extends WithCrops, TProfile>(
+  images: readonly TImage[],
+  profile: readonly TProfile[],
+): { images: TImage[]; profile: TProfile[] } {
   return {
-    bilder: bilder.map((bild) => ({
-      ...bild,
-      crops: { ...bild.crops },
+    images: images.map((image) => ({
+      ...image,
+      crops: { ...image.crops },
     })),
     profile: [...profile],
   };
@@ -25,18 +25,18 @@ export function createExportSnapshot<TBild extends WithCrops, TProfil>(
  * Uebernimmt ein asynchrones Ergebnis nur, solange exakt seine Ausgangs-URL
  * noch aktuell ist. So kann der Aufrufer unbenutzte Ergebnis-URLs freigeben.
  */
-export function replaceIfCurrent<TBild extends IdentifiedImage>(
-  list: TBild[],
+export function replaceIfCurrent<TImage extends IdentifiedImage>(
+  list: TImage[],
   id: string,
-  erwarteteUrl: string,
-  aktualisiere: (bild: TBild) => TBild,
-): { list: TBild[]; replacedUrl: string | null; applied: boolean } {
-  const index = list.findIndex((bild) => bild.id === id && bild.dataUrl === erwarteteUrl);
+  expectedUrl: string,
+  update: (image: TImage) => TImage,
+): { list: TImage[]; replacedUrl: string | null; applied: boolean } {
+  const index = list.findIndex((image) => image.id === id && image.dataUrl === expectedUrl);
   if (index === -1) {
     return { list, replacedUrl: null, applied: false };
   }
 
-  const neu = [...list];
-  neu[index] = aktualisiere(list[index]);
-  return { list: neu, replacedUrl: erwarteteUrl, applied: true };
+  const updated = [...list];
+  updated[index] = update(list[index]);
+  return { list: updated, replacedUrl: expectedUrl, applied: true };
 }

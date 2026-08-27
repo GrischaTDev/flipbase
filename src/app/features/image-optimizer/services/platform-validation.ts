@@ -13,8 +13,8 @@ export interface OutputCheck extends Size {
 
 export interface CheckableImage {
   readonly name: string;
-  readonly naturGroesse: Size | null;
-  readonly ausschnitte: Partial<Record<PlatformId, Rect>>;
+  readonly naturalSize: Size | null;
+  readonly crops: Partial<Record<PlatformId, Rect>>;
 }
 
 export interface ResolutionIssue extends Size {
@@ -24,38 +24,32 @@ export interface ResolutionIssue extends Size {
 
 /** Prueft die echte, nicht hochskalierte Exportgroesse einer Plattformfassung. */
 export function checkOutput(
-  ausschnitt: Rect | null,
-  bildgroesse: Size | null,
-  plattform: PlatformProfile,
+  crop: Rect | null,
+  size: Size | null,
+  platform: PlatformProfile,
 ): OutputCheck | null {
-  const quelle =
-    ausschnitt ??
-    (bildgroesse ? { x: 0, y: 0, width: bildgroesse.width, height: bildgroesse.height } : null);
-  if (!quelle) return null;
+  const source = crop ?? (size ? { x: 0, y: 0, width: size.width, height: size.height } : null);
+  if (!source) return null;
 
-  const plan = planOutput(quelle, plattform);
-  const groesse = { width: plan.width, height: plan.height };
-  return { ...groesse, isValid: meetsMinimumSize(groesse, plattform) };
+  const plan = planOutput(source, platform);
+  const outputSize = { width: plan.width, height: plan.height };
+  return { ...outputSize, isValid: meetsMinimumSize(outputSize, platform) };
 }
 
 /** Findet das erste Bild, das eine gewaehlte Plattform nicht annehmen wuerde. */
 export function findResolutionIssue(
-  bilder: readonly CheckableImage[],
+  images: readonly CheckableImage[],
   profile: readonly PlatformProfile[],
 ): ResolutionIssue | null {
-  for (const bild of bilder) {
-    for (const plattform of profile) {
-      const pruefung = checkOutput(
-        bild.ausschnitte[plattform.id] ?? null,
-        bild.naturGroesse,
-        plattform,
-      );
-      if (pruefung && !pruefung.isValid) {
+  for (const image of images) {
+    for (const platform of profile) {
+      const check = checkOutput(image.crops[platform.id] ?? null, image.naturalSize, platform);
+      if (check && !check.isValid) {
         return {
-          imageName: bild.name,
-          platformName: plattform.name,
-          width: pruefung.width,
-          height: pruefung.height,
+          imageName: image.name,
+          platformName: platform.name,
+          width: check.width,
+          height: check.height,
         };
       }
     }

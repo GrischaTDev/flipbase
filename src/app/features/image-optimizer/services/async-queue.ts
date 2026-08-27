@@ -5,33 +5,33 @@ export class KeyedQueue<TKey> {
   private readonly lastTask = new Map<TKey, Promise<void>>();
   readonly pendingCount = signal(0);
 
-  enqueue<T>(schluessel: TKey, aufgabe: () => Promise<T>): Promise<T> {
-    this.pendingCount.update((anzahl) => anzahl + 1);
+  enqueue<T>(key: TKey, task: () => Promise<T>): Promise<T> {
+    this.pendingCount.update((count) => count + 1);
 
-    const vorher = this.lastTask.get(schluessel) ?? Promise.resolve();
-    const ergebnis = vorher.then(aufgabe);
-    const mitAktuellemZaehler = ergebnis.then(
-      (wert) => {
-        this.pendingCount.update((anzahl) => anzahl - 1);
-        return wert;
+    const previous = this.lastTask.get(key) ?? Promise.resolve();
+    const result = previous.then(task);
+    const withUpdatedCount = result.then(
+      (value) => {
+        this.pendingCount.update((count) => count - 1);
+        return value;
       },
-      (fehler: unknown) => {
-        this.pendingCount.update((anzahl) => anzahl - 1);
-        throw fehler;
+      (error: unknown) => {
+        this.pendingCount.update((count) => count - 1);
+        throw error;
       },
     );
-    const abgeschlossen = mitAktuellemZaehler.then(
+    const settled = withUpdatedCount.then(
       () => undefined,
       () => undefined,
     );
 
-    this.lastTask.set(schluessel, abgeschlossen);
-    void abgeschlossen.then(() => {
-      if (this.lastTask.get(schluessel) === abgeschlossen) {
-        this.lastTask.delete(schluessel);
+    this.lastTask.set(key, settled);
+    void settled.then(() => {
+      if (this.lastTask.get(key) === settled) {
+        this.lastTask.delete(key);
       }
     });
 
-    return mitAktuellemZaehler;
+    return withUpdatedCount;
   }
 }

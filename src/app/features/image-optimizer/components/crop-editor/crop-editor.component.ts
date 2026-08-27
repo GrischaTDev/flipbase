@@ -109,58 +109,58 @@ export class CropEditorComponent {
    * `[cropper]` setzen und dabei auf `cropperReady` warten.
    */
   readonly cropperInput = computed<CropperPosition | undefined>(() => {
-    const ausschnitt = this.wiederherstellenZiel();
+    const crop = this.wiederherstellenZiel();
     const original = this.originalGroesse();
-    const angezeigt = this.angezeigteGroesse();
-    if (!ausschnitt || !original || !angezeigt) {
+    const displayed = this.angezeigteGroesse();
+    if (!crop || !original || !displayed) {
       return undefined;
     }
-    return scaleCropToDisplay(ausschnitt, original, angezeigt);
+    return scaleCropToDisplay(crop, original, displayed);
   });
 
   /** `(imageLoaded)`: liefert die Originalgroesse fuer `cropperInput`. */
-  beiBildGeladen(bild: LoadedImage): void {
-    this.originalGroesse.set(bild.original.size);
+  beiBildGeladen(image: LoadedImage): void {
+    this.originalGroesse.set(image.original.size);
     this.imageLoadedEvent.emit();
   }
 
   /** `(cropperReady)`: liefert die Anzeigegroesse fuer `cropperInput`. */
-  beiCropperBereit(dimensionen: Dimensions): void {
-    this.angezeigteGroesse.set(dimensionen);
+  beiCropperBereit(dimensions: Dimensions): void {
+    this.angezeigteGroesse.set(dimensions);
   }
 
-  beiZuschnitt(ereignis: ImageCroppedEvent): void {
+  beiZuschnitt(event: ImageCroppedEvent): void {
     // Die Bibliothek erzeugt fuer jede Zuschnitt-Geste eine Object-URL des
     // gerenderten Vorschaubildes (`objectUrl`). Gebraucht wird hier nur
     // `imagePosition`, das gerenderte Bild selbst nie - ungenutzt bliebe die
     // URL sonst dauerhaft im Speicher stehen, bei jedem Ziehen am Rahmen neu.
-    if (ereignis.objectUrl) URL.revokeObjectURL(ereignis.objectUrl);
+    if (event.objectUrl) URL.revokeObjectURL(event.objectUrl);
     if (this.disabled()) return;
 
     // imagePosition ist in Pixeln des Originalbildes. So bleibt der
     // gespeicherte Zuschnitt unabhaengig von der Fenstergroesse.
-    const p = ereignis.imagePosition;
-    const ausschnitt: Rect = {
+    const p = event.imagePosition;
+    const crop: Rect = {
       x: p.x1,
       y: p.y1,
       width: p.x2 - p.x1,
       height: p.y2 - p.y1,
     };
 
-    this.cropChanged.emit(ausschnitt);
+    this.cropChanged.emit(crop);
   }
 
   beiTransform(transform: ImageTransform): void {
     this.transform.set({ ...transform, scale: clampZoom(transform.scale ?? 1) });
   }
 
-  setZoom(wert: string): void {
-    const scale = clampZoom(Number(wert));
-    this.transform.update((aktuell) => ({ ...aktuell, scale }));
+  setZoom(value: string): void {
+    const scale = clampZoom(Number(value));
+    this.transform.update((current) => ({ ...current, scale }));
   }
 
   center(): void {
-    this.transform.update((aktuell) => ({ ...aktuell, translateH: 0, translateV: 0 }));
+    this.transform.update((current) => ({ ...current, translateH: 0, translateV: 0 }));
   }
 
   reset(): void {

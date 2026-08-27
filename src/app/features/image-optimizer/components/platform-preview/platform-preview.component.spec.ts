@@ -13,9 +13,9 @@ describe('Vorschau-Ausschnitt', () => {
   });
 
   it('verwendet einen gespeicherten Zuschnitt auch ohne bekannte Bildgroesse', () => {
-    const ausschnitt = { x: 100, y: 200, width: 600, height: 600 };
+    const crop = { x: 100, y: 200, width: 600, height: 600 };
 
-    expect(resolvePreviewRect(ausschnitt, null, 4 / 3)).toEqual({
+    expect(resolvePreviewRect(crop, null, 4 / 3)).toEqual({
       x: 100,
       y: 275,
       width: 600,
@@ -24,9 +24,9 @@ describe('Vorschau-Ausschnitt', () => {
   });
 
   it('bevorzugt den gespeicherten Zuschnitt vor dem Vollbild', () => {
-    const ausschnitt = { x: 100, y: 200, width: 600, height: 600 };
+    const crop = { x: 100, y: 200, width: 600, height: 600 };
 
-    expect(resolvePreviewRect(ausschnitt, { width: 3000, height: 2000 }, 1)).toEqual(ausschnitt);
+    expect(resolvePreviewRect(crop, { width: 3000, height: 2000 }, 1)).toEqual(crop);
   });
 
   it('liefert ohne Zuschnitt und ohne Bildgroesse null', () => {

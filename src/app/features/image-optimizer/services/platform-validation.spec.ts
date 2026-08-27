@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { platformById } from '../models/platform-profile';
-import * as validierung from './platform-validation';
+import * as validation from './platform-validation';
 import { checkOutput } from './platform-validation';
 
 describe('Plattform-Ausgabepruefung', () => {
@@ -37,12 +37,12 @@ describe('Plattform-Ausgabepruefung', () => {
 
   it('liefert das erste zu kleine Bild als Exporthindernis', () => {
     const findResolutionIssue = (
-      validierung as unknown as {
+      validation as unknown as {
         findResolutionIssue: (
-          bilder: readonly {
+          images: readonly {
             name: string;
-            naturGroesse: { width: number; height: number } | null;
-            ausschnitte: Record<string, never>;
+            naturalSize: { width: number; height: number } | null;
+            crops: Record<string, never>;
           }[],
           profile: readonly ReturnType<typeof platformById>[],
         ) => { imageName: string; platformName: string; width: number; height: number } | null;
@@ -52,8 +52,8 @@ describe('Plattform-Ausgabepruefung', () => {
     expect(
       findResolutionIssue(
         [
-          { name: 'gross.jpg', naturGroesse: { width: 1200, height: 1200 }, ausschnitte: {} },
-          { name: 'klein.jpg', naturGroesse: { width: 420, height: 420 }, ausschnitte: {} },
+          { name: 'gross.jpg', naturalSize: { width: 1200, height: 1200 }, crops: {} },
+          { name: 'klein.jpg', naturalSize: { width: 420, height: 420 }, crops: {} },
         ],
         [platformById('ebay')],
       ),

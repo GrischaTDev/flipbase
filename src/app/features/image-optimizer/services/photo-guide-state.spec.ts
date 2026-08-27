@@ -3,29 +3,29 @@ import { PhotoGuideState } from './photo-guide-state';
 
 describe('Fotoguide-Zustand', () => {
   it('oeffnet den allgemeinen Fotoguide bei den Aufnahme-Tipps', () => {
-    const zustand = new PhotoGuideState();
+    const state = new PhotoGuideState();
 
-    zustand.open();
+    state.open();
 
-    expect(zustand.isOpen()).toBe(true);
-    expect(zustand.activeTab()).toBe('aufnehmen');
+    expect(state.isOpen()).toBe(true);
+    expect(state.activeTab()).toBe('aufnehmen');
   });
 
   it('oeffnet die Plattform-Hilfe direkt im angeklickten Tab', () => {
-    const zustand = new PhotoGuideState();
+    const state = new PhotoGuideState();
 
-    zustand.open('vinted');
+    state.open('vinted');
 
-    expect(zustand.isOpen()).toBe(true);
-    expect(zustand.activeTab()).toBe('vinted');
+    expect(state.isOpen()).toBe(true);
+    expect(state.activeTab()).toBe('vinted');
   });
 
   it('schliesst den Fotoguide wieder', () => {
-    const zustand = new PhotoGuideState();
-    zustand.open('ebay');
+    const state = new PhotoGuideState();
+    state.open('ebay');
 
-    zustand.close();
+    state.close();
 
-    expect(zustand.isOpen()).toBe(false);
+    expect(state.isOpen()).toBe(false);
   });
 });

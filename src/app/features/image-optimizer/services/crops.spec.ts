@@ -2,39 +2,39 @@ import { describe, it, expect } from 'vitest';
 import { setCrop, applyCropToAll, Crops } from './crops';
 import { Rect, platformById } from '../models/platform-profile';
 
-const alle = [platformById('ebay'), platformById('kleinanzeigen'), platformById('vinted')];
-const quer: Rect = { x: 0, y: 0, width: 1500, height: 1000 };
+const all = [platformById('ebay'), platformById('kleinanzeigen'), platformById('vinted')];
+const wide: Rect = { x: 0, y: 0, width: 1500, height: 1000 };
 
 describe('Zuschnitt einer Plattform setzen', () => {
   it('legt den Zuschnitt genau dieser Plattform ab', () => {
-    const nachher = setCrop({}, 'ebay', quer, alle);
-    expect(nachher.ebay).toEqual(quer);
+    const after = setCrop({}, 'ebay', wide, all);
+    expect(after.ebay).toEqual(wide);
   });
 
   it('fuellt leere Plattformen aus dem neuen Zuschnitt ab', () => {
     // Ein Bild soll nach einer einzigen Geste fuer alle Plattformen fertig
     // sein - sonst muss man dreimal dasselbe tun.
-    const nachher = setCrop({}, 'ebay', quer, alle);
+    const after = setCrop({}, 'ebay', wide, all);
 
-    expect(nachher.vinted).toBeDefined();
-    expect(nachher.vinted!.width / nachher.vinted!.height).toBeCloseTo(2 / 3, 5);
-    expect(nachher.kleinanzeigen!.width / nachher.kleinanzeigen!.height).toBeCloseTo(4 / 3, 5);
+    expect(after.vinted).toBeDefined();
+    expect(after.vinted!.width / after.vinted!.height).toBeCloseTo(2 / 3, 5);
+    expect(after.kleinanzeigen!.width / after.kleinanzeigen!.height).toBeCloseTo(4 / 3, 5);
   });
 
   it('laesst bereits angepasste Plattformen unangetastet', () => {
-    const eigener: Rect = { x: 10, y: 20, width: 300, height: 450 };
-    const vorher: Crops = { vinted: eigener };
+    const own: Rect = { x: 10, y: 20, width: 300, height: 450 };
+    const before: Crops = { vinted: own };
 
-    const nachher = setCrop(vorher, 'ebay', quer, alle);
+    const after = setCrop(before, 'ebay', wide, all);
 
-    expect(nachher.vinted).toEqual(eigener);
+    expect(after.vinted).toEqual(own);
   });
 
   it('fuellt nur gewaehlte Plattformen ab', () => {
-    const nachher = setCrop({}, 'ebay', quer, [platformById('ebay'), platformById('vinted')]);
+    const after = setCrop({}, 'ebay', wide, [platformById('ebay'), platformById('vinted')]);
 
-    expect(nachher.kleinanzeigen).toBeUndefined();
-    expect(nachher.vinted).toBeDefined();
+    expect(after.kleinanzeigen).toBeUndefined();
+    expect(after.vinted).toBeDefined();
   });
 });
 
@@ -42,22 +42,22 @@ describe('Auf die anderen Plattformen uebernehmen', () => {
   it('ueberschreibt auch bereits angepasste Zuschnitte', () => {
     // Bewusst: Der Knopf heisst so, und ein halbherziges Uebernehmen waere
     // schwerer zu verstehen als ein vollstaendiges.
-    const eigener: Rect = { x: 10, y: 20, width: 300, height: 450 };
-    const vorher: Crops = { ebay: quer, vinted: eigener };
+    const own: Rect = { x: 10, y: 20, width: 300, height: 450 };
+    const before: Crops = { ebay: wide, vinted: own };
 
-    const nachher = applyCropToAll(vorher, 'ebay', alle);
+    const after = applyCropToAll(before, 'ebay', all);
 
-    expect(nachher.vinted).not.toEqual(eigener);
-    expect(nachher.vinted!.width / nachher.vinted!.height).toBeCloseTo(2 / 3, 5);
+    expect(after.vinted).not.toEqual(own);
+    expect(after.vinted!.width / after.vinted!.height).toBeCloseTo(2 / 3, 5);
   });
 
   it('laesst die Quelle selbst unveraendert', () => {
-    const nachher = applyCropToAll({ ebay: quer }, 'ebay', alle);
-    expect(nachher.ebay).toEqual(quer);
+    const after = applyCropToAll({ ebay: wide }, 'ebay', all);
+    expect(after.ebay).toEqual(wide);
   });
 
   it('tut nichts, wenn die Quelle keinen Zuschnitt hat', () => {
-    const vorher: Crops = { vinted: quer };
-    expect(applyCropToAll(vorher, 'ebay', alle)).toEqual(vorher);
+    const before: Crops = { vinted: wide };
+    expect(applyCropToAll(before, 'ebay', all)).toEqual(before);
   });
 });

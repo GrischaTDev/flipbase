@@ -13,40 +13,40 @@ export interface RenderPlan {
  * Große Quellen werden auf die Plattformgrenze verkleinert, kleine behalten
  * ihre natürliche Auflösung.
  */
-export function planOutput(ausschnitt: Rect, plattform: PlatformProfile): RenderPlan {
-  const quelle = deriveRect(ausschnitt, plattform.exportRatio);
-  const faktor = Math.min(
+export function planOutput(crop: Rect, platform: PlatformProfile): RenderPlan {
+  const source = deriveRect(crop, platform.exportRatio);
+  const factor = Math.min(
     1,
-    plattform.exportWidth / quelle.width,
-    plattform.exportHeight / quelle.height,
+    platform.exportWidth / source.width,
+    platform.exportHeight / source.height,
   );
 
   return {
-    source: quelle,
-    width: Math.max(1, Math.round(quelle.width * faktor)),
-    height: Math.max(1, Math.round(quelle.height * faktor)),
+    source,
+    width: Math.max(1, Math.round(source.width * factor)),
+    height: Math.max(1, Math.round(source.height * factor)),
   };
 }
 
 /** Rendert einen Plan als JPEG. Diese Funktion ist die einzige Canvas-Ausgabe für Vorschau und Export. */
 export async function renderImage(
-  bild: CanvasImageSource,
+  image: CanvasImageSource,
   plan: RenderPlan,
   quality = 0.92,
 ): Promise<Blob> {
-  const flaeche = document.createElement('canvas');
-  flaeche.width = plan.width;
-  flaeche.height = plan.height;
+  const canvas = document.createElement('canvas');
+  canvas.width = plan.width;
+  canvas.height = plan.height;
 
-  const stift = flaeche.getContext('2d');
-  if (!stift) throw new Error('Der Browser stellt keine Zeichenfläche bereit.');
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Der Browser stellt keine Zeichenfläche bereit.');
 
-  stift.fillStyle = '#ffffff';
-  stift.fillRect(0, 0, flaeche.width, flaeche.height);
-  stift.imageSmoothingEnabled = true;
-  stift.imageSmoothingQuality = 'high';
-  stift.drawImage(
-    bild,
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = 'high';
+  context.drawImage(
+    image,
     plan.source.x,
     plan.source.y,
     plan.source.width,
@@ -57,10 +57,9 @@ export async function renderImage(
     plan.height,
   );
 
-  return new Promise<Blob>((aufloesen, ablehnen) => {
-    flaeche.toBlob(
-      (blob) =>
-        blob ? aufloesen(blob) : ablehnen(new Error('Das Bild ließ sich nicht erzeugen.')),
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('Das Bild ließ sich nicht erzeugen.'))),
       'image/jpeg',
       quality,
     );
