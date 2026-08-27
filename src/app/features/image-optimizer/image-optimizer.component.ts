@@ -13,22 +13,24 @@ import {
   LucideCheck as Check,
   LucideX as X,
 } from '@lucide/angular';
-import {
-  Size,
-  PLATFORM_PROFILES,
-  PlatformProfile,
-  PlatformId,
-  Rect,
-} from './models/platform-profile';
+import { PLATFORM_PROFILES, PlatformProfile, PlatformId, Rect } from './models/platform-profile';
+import { OptimizerImage, fullImageRect } from './models/optimizer-image';
 import { CropEditorComponent } from './components/crop-editor/crop-editor.component';
 import { PlatformPreviewComponent } from './components/platform-preview/platform-preview.component';
 import { ImageListComponent } from './components/image-list/image-list.component';
 import { PhotoGuideComponent } from './components/photo-guide/photo-guide.component';
 import { ImageExportService, fileName } from './services/image-export.service';
 import { ZipExportService, folderName } from './services/zip-export.service';
-import { setCrop, applyCropToAll, Crops } from './services/crops';
+import { setCrop } from './services/crops';
 import { KeyedQueue } from './services/async-queue';
 import { createExportSnapshot, replaceIfCurrent } from './services/async-state';
+import {
+  removeImage as removeImageFrom,
+  moveImage as moveImageIn,
+  saveCropIn,
+  applyCropToAllIn,
+} from './services/image-collection';
+import { ImageRotationService } from './services/image-rotation.service';
 import { PhotoGuideState } from './services/photo-guide-state';
 import { findResolutionIssue, checkOutput } from './services/platform-validation';
 import { ToastService } from '../../shared/components/toast/toast.service';
@@ -60,45 +62,6 @@ export function isHeic(file: File): boolean {
   return type.includes('heic') || type.includes('heif') || /\.(heic|heif)$/.test(name);
 }
 
-/** Ein hochgeladenes Bild mit seinen plattformspezifischen Zuschnitten. */
-export interface OptimizerImage {
-  readonly id: string;
-  readonly file: File;
-  readonly dataUrl: string;
-  /** Zuschnitt je Plattform, in Originalpixeln. Leer, solange nichts gesetzt wurde. */
-  readonly crops: Crops;
-  /**
-   * Viertelumdrehungen im Uhrzeigersinn, bereits in `dataUrl` eingebrannt.
-   * `dataUrl` zeigt also immer das fertig gedrehte Bild - Editor, Vorschauen
-   * und der Export muessen selbst nichts von einer Drehung wissen.
-   */
-  readonly rotation: 0 | 1 | 2 | 3;
-  /**
-   * Hinweis, falls der Cropper dieses Bild beim Lesen nicht anzeigen konnte
-   * (siehe `HEIC_HINT`). Null, solange das Lesen nicht fehlgeschlagen ist.
-   */
-  readonly loadError: string | null;
-  /**
-   * Groesse von `dataUrl` in Originalpixeln, ermittelt kurz nach dem Lesen
-   * (bzw. neu nach jeder Drehung, weil sich Breite und Hoehe dabei tauschen
-   * koennen). Dient als Ersatz-Ausschnitt (volles Bild) fuer Bilder, die der
-   * Nutzer nie im Editor geoeffnet und deshalb nie zugeschnitten hat - ohne
-   * das blieben Warnungen und Export fuer diese Bilder blind. Null, solange
-   * die Groesse noch nicht bekannt ist (z.B. HEIC oder eine noch laufende
-   * Ermittlung).
-   */
-  readonly naturalSize: Size | null;
-}
-
-/**
- * Das volle Bild als Ersatz fuer Plattformen ohne eigenen Zuschnitt. Null
- * nur, solange die natuerliche Groesse noch nicht bekannt ist.
- */
-function fullImageRect(image: OptimizerImage): Rect | null {
-  if (!image.naturalSize) return null;
-  return { x: 0, y: 0, width: image.naturalSize.width, height: image.naturalSize.height };
-}
-
 /**
  * Bereitet Produktfotos fuer die Verkaufsplattformen auf.
  *
@@ -122,6 +85,7 @@ export class ImageOptimizerComponent {
   private readonly toast = inject(ToastService);
   private readonly imageExport = inject(ImageExportService);
   private readonly zipExport = inject(ZipExportService);
+  private readonly rotation = inject(ImageRotationService);
   private readonly rotationQueue = new KeyedQueue<string>();
   private destroyed = false;
 
@@ -267,6 +231,7 @@ export class ImageOptimizerComponent {
         rotation: 0,
         loadError: null,
         naturalSize: null,
+        reviewed: false,
       });
     }
 
@@ -318,10 +283,10 @@ export class ImageOptimizerComponent {
   removeImage(id: string): void {
     if (this.isBusy()) return;
 
-    const found = this.images().find((b) => b.id === id);
-    if (found) URL.revokeObjectURL(found.dataUrl);
+    const result = removeImageFrom(this.images(), id);
+    this.images.set([...result.list]);
+    result.revokedUrls.forEach((url) => URL.revokeObjectURL(url));
 
-    this.images.update((list) => list.filter((b) => b.id !== id));
     if (this.activeImageId() === id) {
       this.activeImageId.set(this.images()[0]?.id ?? null);
     }
@@ -333,16 +298,9 @@ export class ImageOptimizerComponent {
     const platform = this.workingPlatform();
     if (!platform) return;
 
-    this.images.update((list) =>
-      list.map((b) =>
-        b.id === id
-          ? {
-              ...b,
-              crops: setCrop(b.crops, platform.id, rect, this.selectedPlatforms()),
-            }
-          : b,
-      ),
-    );
+    this.images.set([
+      ...saveCropIn(this.images(), id, platform.id, rect, this.selectedPlatforms()),
+    ]);
   }
 
   /** Uebertraegt den aktiven Zuschnitt auf alle anderen gewaehlten Plattformen. */
@@ -352,16 +310,9 @@ export class ImageOptimizerComponent {
     const platform = this.workingPlatform();
     if (!platform) return;
 
-    this.images.update((list) =>
-      list.map((b) =>
-        b.id === id
-          ? {
-              ...b,
-              crops: applyCropToAll(b.crops, platform.id, this.selectedPlatforms()),
-            }
-          : b,
-      ),
-    );
+    this.images.set([
+      ...applyCropToAllIn(this.images(), id, platform.id, this.selectedPlatforms()),
+    ]);
   }
 
   /**
@@ -416,7 +367,7 @@ export class ImageOptimizerComponent {
       const newRotation = ((image.rotation + 1) % 4) as 0 | 1 | 2 | 3;
 
       try {
-        const { dataUrl, size } = await this.rotateFile(image.file, newRotation);
+        const { dataUrl, size } = await this.rotation.rotate(image.file, newRotation);
 
         // Eine vor Exportstart begonnene Drehung darf den bereits erstellten
         // Snapshot und den waehrenddessen gesperrten Live-Zustand nicht mehr
@@ -458,87 +409,11 @@ export class ImageOptimizerComponent {
     });
   }
 
-  /**
-   * Rendert `file` um `quarterTurns` Viertelumdrehungen im Uhrzeigersinn gedreht
-   * in eine neue Zeichenflaeche und liefert die Object-URL des Ergebnisses
-   * zusammen mit der resultierenden Groesse. Bei einer ungeraden Anzahl
-   * Viertelumdrehungen tauschen Breite und Hoehe der Zeichenflaeche
-   * gegenueber dem Original.
-   */
-  private async rotateFile(
-    file: File,
-    quarterTurns: 0 | 1 | 2 | 3,
-  ): Promise<{ dataUrl: string; size: Size }> {
-    const source = await this.loadOriginalFile(file);
-    const width = source.width;
-    const height = source.height;
-    const sidesSwapped = quarterTurns % 2 === 1;
-
-    const canvas = document.createElement('canvas');
-    canvas.width = sidesSwapped ? height : width;
-    canvas.height = sidesSwapped ? width : height;
-
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('Der Browser stellt keine Zeichenflaeche bereit.');
-
-    // Weisser Grund: wie beim Export bliebe sonst ein durchsichtiger
-    // PNG-Bereich als Schwarz stehen, sobald als JPEG kodiert wird.
-    context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.imageSmoothingQuality = 'high';
-
-    context.translate(canvas.width / 2, canvas.height / 2);
-    context.rotate((quarterTurns * 90 * Math.PI) / 180);
-    context.drawImage(source, -width / 2, -height / 2, width, height);
-
-    if (source instanceof ImageBitmap) source.close();
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (b) => (b ? resolve(b) : reject(new Error('Das gedrehte Bild liess sich nicht erzeugen.'))),
-        'image/jpeg',
-        0.92,
-      );
-    });
-
-    return {
-      dataUrl: URL.createObjectURL(blob),
-      size: { width: canvas.width, height: canvas.height },
-    };
-  }
-
-  /**
-   * Laedt die Originaldatei als zeichenbare Quelle fuer die Zeichenflaeche.
-   * `createImageBitmap` wird bevorzugt (dekodiert ausserhalb des UI-Threads);
-   * ohne diese API dient ein `<img>` an einer eigenen, danach wieder
-   * freigegebenen Object-URL als Rueckfallebene.
-   */
-  private async loadOriginalFile(file: File): Promise<ImageBitmap | HTMLImageElement> {
-    if (typeof createImageBitmap === 'function') {
-      return createImageBitmap(file);
-    }
-
-    const url = URL.createObjectURL(file);
-    try {
-      return await this.loadImage(url);
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-  }
-
   /** Schiebt ein Bild in der Reihenfolge. Position 0 ist das Hauptbild. */
   moveImage(id: string, direction: -1 | 1): void {
     if (this.isBusy()) return;
 
-    this.images.update((list) => {
-      const from = list.findIndex((b) => b.id === id);
-      const to = from + direction;
-      if (from === -1 || to < 0 || to >= list.length) return list;
-
-      const updated = [...list];
-      [updated[from], updated[to]] = [updated[to], updated[from]];
-      return updated;
-    });
+    this.images.set([...moveImageIn(this.images(), id, direction)]);
   }
 
   async exportImages(): Promise<void> {

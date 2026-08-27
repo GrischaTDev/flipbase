@@ -5,7 +5,7 @@ import {
   LucideArrowUp as ArrowUp,
   LucideArrowDown as ArrowDown,
 } from '@lucide/angular';
-import { OptimizerImage } from '../../image-optimizer.component';
+import { OptimizerImage } from '../../models/optimizer-image';
 
 /**
  * Die Filmleiste. Das erste Bild ist das Hauptbild - bei eBay das Bild im
