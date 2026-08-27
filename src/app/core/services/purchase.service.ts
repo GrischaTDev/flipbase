@@ -32,6 +32,20 @@ export interface CreatePurchaseLineInput {
   readonly lineTotal: number;
 }
 
+/**
+ * Wandelt einen Geldbetrag in ganze Cent um, ohne typische binäre
+ * Gleitkommaartefakte wie bei 0,07 als Dezimalbruch zu verwerfen.
+ */
+export function toExactCents(value: number): number | null {
+  if (!Number.isFinite(value)) return null;
+  const scaled = value * 100;
+  const cents = Math.round(scaled);
+  const floatingPointTolerance = Number.EPSILON * Math.max(1, Math.abs(scaled)) * 8;
+  return Number.isSafeInteger(cents) && Math.abs(scaled - cents) <= floatingPointTolerance
+    ? cents
+    : null;
+}
+
 export interface ReceiveIndividualPurchaseLineInput {
   readonly title: string;
   readonly condition: ItemCondition;
@@ -734,11 +748,11 @@ export class PurchaseService {
       ) {
         return { data: [], error: new Error('Die Einkaufskosten müssen gültige Beträge sein.') };
       }
-      const unitPurchasePriceCents = Math.round(line.unitPurchasePrice * 100);
-      const lineTotalCents = Math.round(line.lineTotal * 100);
+      const unitPurchasePriceCents = toExactCents(line.unitPurchasePrice);
+      const lineTotalCents = toExactCents(line.lineTotal);
       if (
-        Math.abs(line.unitPurchasePrice * 100 - unitPurchasePriceCents) > Number.EPSILON ||
-        Math.abs(line.lineTotal * 100 - lineTotalCents) > Number.EPSILON ||
+        unitPurchasePriceCents === null ||
+        lineTotalCents === null ||
         lineTotalCents !== line.orderedQuantity * unitPurchasePriceCents
       ) {
         return {

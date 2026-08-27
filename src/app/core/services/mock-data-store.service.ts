@@ -635,9 +635,27 @@ export class MockDataStoreService {
       ...purchase,
       receiving_status: hasOpen ? (hasReceived ? 'partially_received' : 'ordered') : 'received',
     };
-    this.saveWorkspaceRecords(STORAGE_KEY_PURCHASE_LINES, lines);
-    this.saveItem(inventoryItem);
-    this.savePurchase(updatedPurchase);
+    const allItems = this.getItems();
+    const itemIndex = allItems.findIndex((item) => item.id === inventoryItem.id);
+    if (itemIndex === -1) allItems.unshift(inventoryItem);
+    else allItems[itemIndex] = inventoryItem;
+    const allPurchases = this.getPurchases();
+    const purchaseIndex = allPurchases.findIndex((entry) => entry.id === updatedPurchase.id);
+    if (purchaseIndex === -1) allPurchases.unshift(updatedPurchase);
+    else allPurchases[purchaseIndex] = updatedPurchase;
+    const persistenceError = this.saveRecordsAtomically([
+      { key: STORAGE_KEY_PURCHASE_LINES, records: lines },
+      { key: STORAGE_KEY_ITEMS, records: allItems },
+      { key: STORAGE_KEY_PURCHASES, records: allPurchases },
+    ]);
+    if (persistenceError) {
+      return {
+        purchaseLine: null,
+        inventoryItem: null,
+        purchase: null,
+        error: persistenceError,
+      };
+    }
     return { purchaseLine, inventoryItem, purchase: updatedPurchase, error: null };
   }
 
@@ -803,6 +821,42 @@ export class MockDataStoreService {
     try {
       getStorage()?.setItem(key, JSON.stringify(records));
     } catch {}
+  }
+
+  private saveRecordsAtomically(
+    records: readonly { key: string; records: readonly unknown[] }[],
+  ): Error | null {
+    if (!this.isDemoMode()) return null;
+    const storage = getStorage();
+    if (!storage) return null;
+
+    let changes: { key: string; previous: string | null; value: string }[];
+    try {
+      changes = records.map(({ key, records: value }) => ({
+        key,
+        previous: storage.getItem(key),
+        value: JSON.stringify(value),
+      }));
+    } catch (error: unknown) {
+      return error instanceof Error
+        ? error
+        : new Error('Der lokale Wareneingang konnte nicht vorbereitet werden.');
+    }
+
+    try {
+      for (const change of changes) storage.setItem(change.key, change.value);
+      return null;
+    } catch (error: unknown) {
+      for (const change of changes) {
+        try {
+          if (change.previous === null) storage.removeItem(change.key);
+          else storage.setItem(change.key, change.previous);
+        } catch {}
+      }
+      return error instanceof Error
+        ? error
+        : new Error('Der lokale Wareneingang konnte nicht gespeichert werden.');
+    }
   }
 
   private newId(prefix: string): string {

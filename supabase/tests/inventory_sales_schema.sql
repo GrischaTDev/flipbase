@@ -177,6 +177,20 @@ begin
   end;
 
   begin
+    insert into public.purchase_lines (workspace_id, purchase_id, catalog_product_id, title_snapshot, line_kind, ordered_quantity, unit_purchase_price, line_total)
+      values (workspace_one, purchase_one, product_one, 'NaN unit cost', 'quantity', 1, 'NaN'::numeric, 1);
+    raise exception 'NaN unit purchase price was accepted';
+  exception when check_violation then null;
+  end;
+
+  begin
+    insert into public.purchase_lines (workspace_id, purchase_id, catalog_product_id, title_snapshot, line_kind, ordered_quantity, unit_purchase_price, line_total)
+      values (workspace_one, purchase_one, product_one, 'NaN total', 'quantity', 1, 1, 'NaN'::numeric);
+    raise exception 'NaN line total was accepted';
+  exception when check_violation then null;
+  end;
+
+  begin
     insert into public.sale_lines (workspace_id, sale_id, catalog_product_id, inventory_item_id, title_snapshot, quantity, unit_sale_price, line_total, cost_of_goods_sold, tax_mode)
       values (workspace_one, sale_one, product_one, item_one, 'invalid xor', 1, 10, 10, 5, 'diff_25a');
     raise exception 'sale line XOR violation was accepted';
