@@ -1901,13 +1901,13 @@ export class OptimizerHeaderComponent {
   <div class="flex flex-col gap-3 sm:flex-row sm:items-end">
     <div class="flex flex-col gap-1">
       <label
-        for="export-basisname"
+        for="export-base-name"
         class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted"
       >
         Dateiname
       </label>
       <input
-        id="export-basisname"
+        id="export-base-name"
         type="text"
         [value]="baseName()"
         [disabled]="disabled()"
