@@ -138,24 +138,11 @@
     </div>
 
     <section>
-      <div class="mb-3 flex items-end justify-between gap-4">
-        <div>
-          <p class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">Kontrolle</p>
-          <h2 class="text-sm font-bold text-fb-text-primary">Exportvorschau</h2>
-        </div>
-        <p class="text-[10px] text-fb-text-muted">
-          Kleine Bilder werden niemals künstlich vergrößert.
-        </p>
-      </div>
-      <div class="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
-        @for (p of selectedPlatforms(); track p.id) {
-          <app-platform-preview
-            [platform]="p"
-            [dataUrl]="image.dataUrl"
-            [crop]="image.crops[p.id] ?? null"
-          ></app-platform-preview>
-        }
-      </div>
+      <app-preview-grid
+        [platforms]="selectedPlatforms()"
+        [dataUrl]="image.dataUrl"
+        [crops]="image.crops"
+      ></app-preview-grid>
     </section>
 
     <section

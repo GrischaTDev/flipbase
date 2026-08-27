@@ -14,7 +14,7 @@ import {
 import { PLATFORM_PROFILES, PlatformProfile, PlatformId, Rect } from './models/platform-profile';
 import { OptimizerImage, fullImageRect } from './models/optimizer-image';
 import { CropEditorComponent } from './components/crop-editor/crop-editor.component';
-import { PlatformPreviewComponent } from './components/platform-preview/platform-preview.component';
+import { PreviewGridComponent } from './components/preview-grid/preview-grid.component';
 import { ImageListComponent } from './components/image-list/image-list.component';
 import { PhotoGuideComponent } from './components/photo-guide/photo-guide.component';
 import { PlatformSelectorComponent } from './components/platform-selector/platform-selector.component';
@@ -75,7 +75,7 @@ export function isHeic(file: File): boolean {
   imports: [
     LucideDynamicIcon,
     CropEditorComponent,
-    PlatformPreviewComponent,
+    PreviewGridComponent,
     ImageListComponent,
     PhotoGuideComponent,
     PlatformSelectorComponent,

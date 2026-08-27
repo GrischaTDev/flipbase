@@ -1,7 +1,6 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  computed,
   DestroyRef,
   effect,
   inject,
@@ -47,7 +46,6 @@ export class PlatformPreviewComponent {
   readonly outputSize = signal<Size | null>(null);
   readonly isRendering = signal(true);
   readonly hasPreviewError = signal(false);
-  readonly tileAspectRatio = computed(() => this.platform().tileRatio);
 
   private currentPreviewUrl: string | null = null;
   private renderVersion = 0;

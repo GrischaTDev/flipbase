@@ -13,16 +13,13 @@
     </span>
   </header>
 
-  <div class="flex min-h-52 flex-1 items-center justify-center bg-black/30 p-4">
-    <div
-      class="relative max-h-64 w-full max-w-56 overflow-hidden rounded-xl bg-black/40 shadow-lg"
-      [style.aspect-ratio]="tileAspectRatio()"
-    >
+  <div class="flex flex-1 items-center justify-center bg-black/30 p-4">
+    <div class="relative flex h-64 w-full items-center justify-center">
       @if (previewUrl(); as url) {
         <img
           [src]="url"
           alt="Exportvorschau des Produktfotos für {{ platform().name }}"
-          class="h-full w-full object-cover"
+          class="max-h-full max-w-full rounded-xl object-contain shadow-lg"
         />
       }
       @if (isRendering()) {
