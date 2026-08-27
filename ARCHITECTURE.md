@@ -6,7 +6,7 @@ Dieses Dokument beschreibt die interne Architektur, Entwurfsmuster, Service-Schi
 
 ## 1. 📐 Grundlegende Entwurfsprinzipien
 
-1. **Angular 21 Zoneless Signals Architecture**:
+1. **Angular 22 Zoneless Signals Architecture**:
    - Die gesamte Anwendung nutzt `provideZonelessChangeDetection()`.
    - Zustandsverwaltung erfolgt 100% über reaktive Angular Signals (`signal()`, `computed()`, `effect()`).
    - Alle Komponenten sind Standalone und setzen `changeDetection: ChangeDetectionStrategy.OnPush`.

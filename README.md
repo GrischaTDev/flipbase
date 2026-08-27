@@ -8,7 +8,7 @@
 
 ## 🌟 Übersicht & Kernfunktionalitäten
 
-Flipbase ist eine moderne, hochperformante **Angular 21 Standalone Web-Applikation (Zoneless Signals Architecture)** mit **Tailwind CSS 4**, die den gesamten Lifecycle eines Reselling-Geschäfts digitalisiert:
+Flipbase ist eine moderne, hochperformante **Angular 22 Standalone Web-Applikation (Zoneless Signals Architecture)** mit **Tailwind CSS 4**, die den gesamten Lifecycle eines Reselling-Geschäfts digitalisiert:
 
 ### 1. 🔍 Recherche & Konkurrenz-Radar ([`/research`](http://localhost:4200/research))
 
@@ -62,7 +62,7 @@ Flipbase ist eine moderne, hochperformante **Angular 21 Standalone Web-Applikati
 
 ## 🛠️ Technologie-Stack & Architektur
 
-- **Framework**: Angular 21 (Standalone Components, `provideZonelessChangeDetection()`, Signal-based State Management).
+- **Framework**: Angular 22 (Standalone Components, `provideZonelessChangeDetection()`, Signal-based State Management).
 - **Styling**: Tailwind CSS 4 mit linearem Dark Canvas Theme (`#282c37`/`#323846`, Electric Indigo & Emerald Green Akzente).
 - **Testing**: Vitest mit **22/22 Test-Suiten und 86/86 bestandenen Unit-Tests**.
 - **Internationalisierung**: `@ngx-translate/core` mit synchronem deutschen Sprachpaket.
