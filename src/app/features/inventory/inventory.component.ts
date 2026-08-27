@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   inject,
   signal,
   ViewChild,
@@ -37,7 +38,7 @@ import { ItemCreateModalComponent } from './components/item-create-modal/item-cr
 import { AiPhotoScannerModalComponent } from '../../shared/components/ai-photo-scanner-modal/ai-photo-scanner-modal.component';
 import { InventoryLabelModalComponent } from '../../shared/components/inventory-label-modal/inventory-label-modal.component';
 import { AiVisualScanResult } from '../../core/services/ai-assistant.service';
-import { InventoryItem, ItemStatus } from '../../core/models/flipbase.models';
+import { InventoryItem, ItemStatus, StockPosition } from '../../core/models/flipbase.models';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -48,8 +49,12 @@ import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner
 import { NgTemplateOutlet } from '@angular/common';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
+import { StockService } from '../../core/services/stock.service';
+import { WorkspaceService } from '../../core/services/workspace.service';
+import { StockPositionListComponent } from './components/stock-position-list/stock-position-list.component';
 
 type FilterPreset = string;
+type InventoryTab = 'stock' | 'individual';
 
 @Component({
   selector: 'app-inventory',
@@ -66,6 +71,7 @@ type FilterPreset = string;
     CustomSelectComponent,
     CustomCheckboxComponent,
     CustomSearchInputComponent,
+    StockPositionListComponent,
   ],
   templateUrl: './inventory.component.html',
   host: { class: 'block' },
@@ -73,7 +79,9 @@ type FilterPreset = string;
 })
 export class InventoryComponent {
   readonly inventoryService = inject(InventoryService);
+  readonly stockService = inject(StockService);
   private readonly router = inject(Router);
+  private readonly workspaceService = inject(WorkspaceService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly toast = inject(ToastService);
 
@@ -101,6 +109,7 @@ export class InventoryComponent {
   readonly storeIcon = Store;
 
   readonly isCreateModalOpen = signal<boolean>(false);
+  readonly activeTab = signal<InventoryTab>('stock');
 
   /** Scanner zum Auffinden eines Artikels ueber sein gedrucktes Etikett. */
   readonly isScanningLabel = signal<boolean>(false);
@@ -136,6 +145,34 @@ export class InventoryComponent {
   readonly activePreset = signal<FilterPreset>('all');
   readonly selectedItemIds = signal<Set<string>>(new Set());
 
+  constructor() {
+    effect(() => {
+      const workspaceId = this.workspaceService.currentWorkspace()?.id;
+      if (workspaceId) void this.stockService.loadPositions(workspaceId);
+    });
+  }
+
+  openSaleForStockPosition(position: StockPosition): void {
+    void this.router.navigate(['/sales'], {
+      state: {
+        saleTarget: {
+          kind: 'catalog_product',
+          catalogProductId: position.catalog_product_id,
+          title: position.title,
+          availableQuantity: position.available_quantity,
+        },
+      },
+    });
+  }
+
+  openSaleForIndividualItem(item: InventoryItem): void {
+    void this.router.navigate(['/sales'], {
+      state: {
+        saleTarget: { kind: 'inventory_item', inventoryItemId: item.id, title: item.title },
+      },
+    });
+  }
+
   readonly statusOptions: SelectOption<ItemStatus>[] = [
     {
       value: 'received',
@@ -155,12 +192,6 @@ export class InventoryComponent {
       badgeClass: 'bg-emerald-400',
       colorClass:
         'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25',
-    },
-    {
-      value: 'sold',
-      label: 'Verkauft',
-      badgeClass: 'bg-purple-400',
-      colorClass: 'bg-purple-500/15 text-purple-300 border-purple-500/30 hover:bg-purple-500/25',
     },
     {
       value: 'reserved',
@@ -193,7 +224,6 @@ export class InventoryComponent {
     { value: 'received', label: 'Auf Lager', badgeClass: 'bg-blue-400' },
     { value: 'ready', label: 'Bereit', badgeClass: 'bg-amber-400' },
     { value: 'listed', label: 'Gelistet', badgeClass: 'bg-emerald-400' },
-    { value: 'sold', label: 'Verkauft', badgeClass: 'bg-purple-400' },
     { value: 'reserved', label: 'Reserviert', badgeClass: 'bg-fb-neutral' },
     { value: 'defective', label: 'Defekt / Ersatzteil', badgeClass: 'bg-rose-400' },
     { value: 'returned', label: 'Retourniert', badgeClass: 'bg-fb-neutral' },

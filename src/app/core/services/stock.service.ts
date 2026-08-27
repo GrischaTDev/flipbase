@@ -25,16 +25,20 @@ export class StockService {
   private readonly mockStore = inject(MockDataStoreService);
 
   readonly positions = signal<StockPosition[]>([]);
+  /**
+   * Lose bleiben bewusst Provenienzdaten. Die Bestandsansicht zeigt sie nur
+   * auf Nachfrage unter der einen aggregierten Artikelposition.
+   */
+  readonly lots = signal<StockLot[]>([]);
   readonly movements = signal<StockMovement[]>([]);
 
   async loadPositions(workspaceId: string): Promise<void> {
     if (this.mockStore.isDemoMode()) {
-      this.positions.set(
-        this.aggregateLots(
-          this.mockStore.getStockLots(workspaceId),
-          this.mockStore.getCatalogProducts(workspaceId),
-        ),
-      );
+      const lots = this.mockStore
+        .getStockLots(workspaceId)
+        .filter((lot) => lot.remaining_quantity > 0);
+      this.lots.set(lots);
+      this.positions.set(this.aggregateLots(lots, this.mockStore.getCatalogProducts(workspaceId)));
       return;
     }
 
@@ -50,7 +54,9 @@ export class StockService {
         this.syncStatus.melde('Laden der Bestandspositionen', error);
         return;
       }
-      this.positions.set(this.aggregateLots(data ?? []));
+      const lots = (data ?? []) as StockLot[];
+      this.lots.set(lots);
+      this.positions.set(this.aggregateLots(lots));
     } catch (error: unknown) {
       this.syncStatus.melde('Laden der Bestandspositionen', error);
     }

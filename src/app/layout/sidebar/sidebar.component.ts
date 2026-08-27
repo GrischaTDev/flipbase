@@ -7,6 +7,7 @@ import {
   LucideLayoutDashboard as LayoutDashboard,
   LucideShoppingBag as ShoppingBag,
   LucideBoxes as Boxes,
+  LucideBookOpen as BookOpen,
   LucideSearch as Search,
   LucideCalculator as Calculator,
   LucideTag as Tag,
@@ -70,6 +71,7 @@ export class SidebarComponent {
     { path: '/dashboard', labelKey: 'NAV.DASHBOARD', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/purchases', labelKey: 'NAV.PURCHASES', label: 'Einkäufe', icon: ShoppingBag },
     { path: '/inventory', labelKey: 'NAV.INVENTORY', label: 'Inventar', icon: Boxes },
+    { path: '/catalog', labelKey: 'NAV.CATALOG', label: 'Artikelstamm', icon: BookOpen },
     {
       path: '/shop',
       labelKey: 'NAV.STORE',

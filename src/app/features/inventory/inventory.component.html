@@ -62,570 +62,621 @@
     </div>
   </div>
 
-  @if (scanMeldung(); as meldung) {
-    <div
-      class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold animate-fade-in"
-      role="status"
+  <div
+    class="linear-surface flex w-fit items-center gap-1 rounded-xl p-1"
+    role="tablist"
+    aria-label="Inventaransicht"
+  >
+    <button
+      type="button"
+      role="tab"
+      [attr.aria-selected]="activeTab() === 'stock'"
+      (click)="activeTab.set('stock')"
+      class="rounded-lg px-3 py-1.5 text-xs font-semibold transition"
+      [class.bg-fb-line]="activeTab() === 'stock'"
+      [class.text-fb-text-primary]="activeTab() === 'stock'"
+      [class.text-fb-text-secondary]="activeTab() !== 'stock'"
     >
-      {{ meldung }}
-    </div>
-  }
-
-  <!-- Anthrazit KPI Cards Grid -->
-  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-    <div class="linear-kpi p-4 rounded-xl">
-      <div class="flex items-center justify-between">
-        <span class="text-[11px] font-semibold text-fb-text-muted">Artikel im Filter</span>
-        <div
-          class="w-6 h-6 rounded-md bg-fb-line flex items-center justify-center text-fb-text-secondary"
-        >
-          <svg [lucideIcon]="boxesIcon" class="w-3.5 h-3.5"></svg>
-        </div>
-      </div>
-      <div class="text-2xl font-bold font-mono tracking-tight text-fb-text-primary mt-2">
-        {{ filteredItems().length }}
-      </div>
-      <span class="text-[10px] text-fb-text-muted mt-0.5 block"
-        >von {{ inventoryService.items().length }} Gesamteinträgen</span
-      >
-    </div>
-
-    <div class="linear-kpi p-4 rounded-xl">
-      <div class="flex items-center justify-between">
-        <span class="text-[11px] font-semibold text-fb-text-muted">Gebundenes Kapital</span>
-        <div
-          class="w-6 h-6 rounded-md bg-amber-500/15 flex items-center justify-center text-amber-400"
-        >
-          <svg [lucideIcon]="coinsIcon" class="w-3.5 h-3.5"></svg>
-        </div>
-      </div>
-      <div class="text-2xl font-bold font-mono tracking-tight text-fb-text-primary mt-2">
-        {{ totalTiedCapital() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-      </div>
-      <span class="text-[10px] text-fb-text-muted mt-0.5 block"
-        >Ø
-        {{
-          totalTiedCapital() / (filteredItems().length || 1)
-            | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-        }}
-        pro Artikel</span
-      >
-    </div>
-
-    <div class="linear-kpi p-4 rounded-xl">
-      <div class="flex items-center justify-between">
-        <span class="text-[11px] font-semibold text-fb-text-muted">Geschätzter Marktwert</span>
-        <div
-          class="w-6 h-6 rounded-md bg-blue-500/15 flex items-center justify-center text-blue-400"
-        >
-          <svg [lucideIcon]="tagIcon" class="w-3.5 h-3.5"></svg>
-        </div>
-      </div>
-      <div class="text-2xl font-bold font-mono tracking-tight text-fb-text-primary mt-2">
-        {{ totalExpectedValue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-      </div>
-      <span class="text-[10px] text-fb-text-muted mt-0.5 block">Erwarteter Gesamterlös</span>
-    </div>
-
-    <div class="linear-kpi p-4 rounded-xl border-emerald-500/40">
-      <div class="flex items-center justify-between">
-        <span class="text-[11px] font-semibold text-emerald-400">Gewinnpotenzial</span>
-        <div
-          class="w-6 h-6 rounded-md bg-emerald-500/15 flex items-center justify-center text-emerald-400"
-        >
-          <svg [lucideIcon]="trendingIcon" class="w-3.5 h-3.5"></svg>
-        </div>
-      </div>
-      <div class="text-2xl font-bold font-mono tracking-tight text-emerald-400 mt-2">
-        {{ totalProfitPotential() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-      </div>
-      <span class="text-[10px] text-emerald-400/80 mt-0.5 block font-medium">
-        +{{
-          totalTiedCapital() > 0
-            ? ((totalProfitPotential() / totalTiedCapital()) * 100).toFixed(0)
-            : 0
-        }}% Ertragspotenzial
-      </span>
-    </div>
+      Bestand ({{ stockService.positions().length }})
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [attr.aria-selected]="activeTab() === 'individual'"
+      (click)="activeTab.set('individual')"
+      class="rounded-lg px-3 py-1.5 text-xs font-semibold transition"
+      [class.bg-fb-line]="activeTab() === 'individual'"
+      [class.text-fb-text-primary]="activeTab() === 'individual'"
+      [class.text-fb-text-secondary]="activeTab() !== 'individual'"
+    >
+      Einzelstücke ({{ inventoryService.items().length }})
+    </button>
   </div>
 
-  <!-- Search & Segmented Presets Bar -->
-  <div class="linear-surface rounded-xl p-3.5 space-y-3">
-    <!-- Segmented Presets Bar -->
-    <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-      <button
-        type="button"
-        (click)="activePreset.set('all')"
-        class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
-        [class.bg-fb-line]="activePreset() === 'all'"
-        [class.text-fb-text-primary]="activePreset() === 'all'"
-        [class.border]="activePreset() === 'all'"
-        [class.border-fb-line-strong]="activePreset() === 'all'"
-        [class.text-fb-text-secondary]="activePreset() !== 'all'"
-        [class.hover:bg-fb-surface-alt]="activePreset() !== 'all'"
-        [class.hover:text-fb-text-primary]="activePreset() !== 'all'"
+  @if (activeTab() === 'stock') {
+    <app-stock-position-list
+      [positions]="stockService.positions()"
+      [lots]="stockService.lots()"
+      (sell)="openSaleForStockPosition($event)"
+    ></app-stock-position-list>
+  } @else {
+    @if (scanMeldung(); as meldung) {
+      <div
+        class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-semibold animate-fade-in"
+        role="status"
       >
-        Alle ({{ inventoryService.items().length }})
-      </button>
-
-      <button
-        type="button"
-        (click)="activePreset.set('needs_research')"
-        class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
-        [class.bg-fb-line]="activePreset() === 'needs_research'"
-        [class.text-fb-text-primary]="activePreset() === 'needs_research'"
-        [class.border]="activePreset() === 'needs_research'"
-        [class.border-fb-line-strong]="activePreset() === 'needs_research'"
-        [class.text-fb-text-secondary]="activePreset() !== 'needs_research'"
-        [class.hover:bg-fb-surface-alt]="activePreset() !== 'needs_research'"
-        [class.hover:text-fb-text-primary]="activePreset() !== 'needs_research'"
-      >
-        Noch recherchieren
-      </button>
-
-      <button
-        type="button"
-        (click)="activePreset.set('unlisted')"
-        class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
-        [class.bg-fb-line]="activePreset() === 'unlisted'"
-        [class.text-fb-text-primary]="activePreset() === 'unlisted'"
-        [class.border]="activePreset() === 'unlisted'"
-        [class.border-fb-line-strong]="activePreset() === 'unlisted'"
-        [class.text-fb-text-secondary]="activePreset() !== 'unlisted'"
-        [class.hover:bg-fb-surface-alt]="activePreset() !== 'unlisted'"
-        [class.hover:text-fb-text-primary]="activePreset() !== 'unlisted'"
-      >
-        Nicht gelistet
-      </button>
-
-      <button
-        type="button"
-        (click)="activePreset.set('high_margin')"
-        class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
-        [class.bg-fb-line]="activePreset() === 'high_margin'"
-        [class.text-fb-text-primary]="activePreset() === 'high_margin'"
-        [class.border]="activePreset() === 'high_margin'"
-        [class.border-fb-line-strong]="activePreset() === 'high_margin'"
-        [class.text-fb-text-secondary]="activePreset() !== 'high_margin'"
-        [class.hover:bg-fb-surface-alt]="activePreset() !== 'high_margin'"
-        [class.hover:text-fb-text-primary]="activePreset() !== 'high_margin'"
-      >
-        Hohe Marge (≥ 30 €)
-      </button>
-
-      <button
-        type="button"
-        (click)="activePreset.set('defective')"
-        class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
-        [class.bg-fb-line]="activePreset() === 'defective'"
-        [class.text-fb-text-primary]="activePreset() === 'defective'"
-        [class.border]="activePreset() === 'defective'"
-        [class.border-fb-line-strong]="activePreset() === 'defective'"
-        [class.text-fb-text-secondary]="activePreset() !== 'defective'"
-        [class.hover:bg-fb-surface-alt]="activePreset() !== 'defective'"
-        [class.hover:text-fb-text-primary]="activePreset() !== 'defective'"
-      >
-        Defekt / Bastler
-      </button>
-
-      <button
-        type="button"
-        (click)="activePreset.set('store_public')"
-        class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
-        [class.bg-amber-600]="activePreset() === 'store_public'"
-        [class.text-fb-text-primary]="activePreset() === 'store_public'"
-        [class.border]="activePreset() === 'store_public'"
-        [class.border-amber-500]="activePreset() === 'store_public'"
-        [class.text-amber-300]="activePreset() !== 'store_public'"
-        [class.hover:bg-fb-surface-alt]="activePreset() !== 'store_public'"
-        [class.hover:text-fb-text-primary]="activePreset() !== 'store_public'"
-      >
-        <svg [lucideIcon]="storeIcon" class="w-3 h-3 text-amber-400"></svg>
-        <span>Im Webshop ({{ storePublishedCount() }})</span>
-      </button>
-    </div>
-
-    <!-- Search Input & Filters -->
-    <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
-      <div class="sm:col-span-6">
-        <app-custom-search-input
-          placeholder="Artikel, Marke, Modell oder SKU suchen..."
-          [(value)]="searchQuery"
-        ></app-custom-search-input>
+        {{ meldung }}
       </div>
+    }
 
-      <div class="sm:col-span-3">
-        <app-custom-select
-          variant="filter"
-          [options]="filterConditionOptions"
-          [(value)]="selectedCondition"
-        ></app-custom-select>
-      </div>
-
-      <div class="sm:col-span-3">
-        <app-custom-select
-          variant="filter"
-          [options]="filterStatusOptions"
-          [(value)]="selectedStatus"
-        ></app-custom-select>
-      </div>
-    </div>
-  </div>
-
-  <!-- Anthrazit Data Table View -->
-  @if (filteredItems().length > 0) {
-    <div class="linear-surface rounded-xl overflow-visible hidden md:block">
-      <table class="linear-table">
-        <thead
-          class="bg-fb-well text-fb-text-secondary uppercase font-semibold text-[10px] tracking-wider"
+    <!-- Anthrazit KPI Cards Grid -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <div class="linear-kpi p-4 rounded-xl">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-semibold text-fb-text-muted">Artikel im Filter</span>
+          <div
+            class="w-6 h-6 rounded-md bg-fb-line flex items-center justify-center text-fb-text-secondary"
+          >
+            <svg [lucideIcon]="boxesIcon" class="w-3.5 h-3.5"></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-bold font-mono tracking-tight text-fb-text-primary mt-2">
+          {{ filteredItems().length }}
+        </div>
+        <span class="text-[10px] text-fb-text-muted mt-0.5 block"
+          >von {{ inventoryService.items().length }} Gesamteinträgen</span
         >
-          <tr>
-            <th class="py-2.5 px-3 w-8 text-center rounded-tl-xl border-b border-fb-line">
-              <div class="flex items-center justify-center">
-                <app-custom-checkbox
-                  [checked]="isAllSelected()"
-                  [indeterminate]="isIndeterminate()"
-                  (checkedChange)="toggleSelectAll()"
-                  size="md"
-                  ariaLabel="Alle Artikel auswählen"
-                ></app-custom-checkbox>
-              </div>
-            </th>
-            <th class="py-2.5 px-4 font-semibold border-b border-fb-line">Produkt & Details</th>
-            <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Zustand</th>
-            <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Status</th>
-            <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Quelle</th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
-              Gesamtkosten
-            </th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">Marktwert</th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
-              Gewinnpotenzial
-            </th>
-            <th
-              class="py-2.5 px-4 font-semibold text-center w-12 rounded-tr-xl border-b border-fb-line"
-            ></th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-fb-line">
-          <!-- Gleiche Stuecke stehen als eine Zeile da; die einzelnen Artikel
+      </div>
+
+      <div class="linear-kpi p-4 rounded-xl">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-semibold text-fb-text-muted">Gebundenes Kapital</span>
+          <div
+            class="w-6 h-6 rounded-md bg-amber-500/15 flex items-center justify-center text-amber-400"
+          >
+            <svg [lucideIcon]="coinsIcon" class="w-3.5 h-3.5"></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-bold font-mono tracking-tight text-fb-text-primary mt-2">
+          {{ totalTiedCapital() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        </div>
+        <span class="text-[10px] text-fb-text-muted mt-0.5 block"
+          >Ø
+          {{
+            totalTiedCapital() / (filteredItems().length || 1)
+              | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+          }}
+          pro Artikel</span
+        >
+      </div>
+
+      <div class="linear-kpi p-4 rounded-xl">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-semibold text-fb-text-muted">Geschätzter Marktwert</span>
+          <div
+            class="w-6 h-6 rounded-md bg-blue-500/15 flex items-center justify-center text-blue-400"
+          >
+            <svg [lucideIcon]="tagIcon" class="w-3.5 h-3.5"></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-bold font-mono tracking-tight text-fb-text-primary mt-2">
+          {{ totalExpectedValue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        </div>
+        <span class="text-[10px] text-fb-text-muted mt-0.5 block">Erwarteter Gesamterlös</span>
+      </div>
+
+      <div class="linear-kpi p-4 rounded-xl border-emerald-500/40">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-semibold text-emerald-400">Gewinnpotenzial</span>
+          <div
+            class="w-6 h-6 rounded-md bg-emerald-500/15 flex items-center justify-center text-emerald-400"
+          >
+            <svg [lucideIcon]="trendingIcon" class="w-3.5 h-3.5"></svg>
+          </div>
+        </div>
+        <div class="text-2xl font-bold font-mono tracking-tight text-emerald-400 mt-2">
+          {{ totalProfitPotential() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        </div>
+        <span class="text-[10px] text-emerald-400/80 mt-0.5 block font-medium">
+          +{{
+            totalTiedCapital() > 0
+              ? ((totalProfitPotential() / totalTiedCapital()) * 100).toFixed(0)
+              : 0
+          }}% Ertragspotenzial
+        </span>
+      </div>
+    </div>
+
+    <!-- Search & Segmented Presets Bar -->
+    <div class="linear-surface rounded-xl p-3.5 space-y-3">
+      <!-- Segmented Presets Bar -->
+      <div class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+        <button
+          type="button"
+          (click)="activePreset.set('all')"
+          class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
+          [class.bg-fb-line]="activePreset() === 'all'"
+          [class.text-fb-text-primary]="activePreset() === 'all'"
+          [class.border]="activePreset() === 'all'"
+          [class.border-fb-line-strong]="activePreset() === 'all'"
+          [class.text-fb-text-secondary]="activePreset() !== 'all'"
+          [class.hover:bg-fb-surface-alt]="activePreset() !== 'all'"
+          [class.hover:text-fb-text-primary]="activePreset() !== 'all'"
+        >
+          Alle ({{ inventoryService.items().length }})
+        </button>
+
+        <button
+          type="button"
+          (click)="activePreset.set('needs_research')"
+          class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
+          [class.bg-fb-line]="activePreset() === 'needs_research'"
+          [class.text-fb-text-primary]="activePreset() === 'needs_research'"
+          [class.border]="activePreset() === 'needs_research'"
+          [class.border-fb-line-strong]="activePreset() === 'needs_research'"
+          [class.text-fb-text-secondary]="activePreset() !== 'needs_research'"
+          [class.hover:bg-fb-surface-alt]="activePreset() !== 'needs_research'"
+          [class.hover:text-fb-text-primary]="activePreset() !== 'needs_research'"
+        >
+          Noch recherchieren
+        </button>
+
+        <button
+          type="button"
+          (click)="activePreset.set('unlisted')"
+          class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
+          [class.bg-fb-line]="activePreset() === 'unlisted'"
+          [class.text-fb-text-primary]="activePreset() === 'unlisted'"
+          [class.border]="activePreset() === 'unlisted'"
+          [class.border-fb-line-strong]="activePreset() === 'unlisted'"
+          [class.text-fb-text-secondary]="activePreset() !== 'unlisted'"
+          [class.hover:bg-fb-surface-alt]="activePreset() !== 'unlisted'"
+          [class.hover:text-fb-text-primary]="activePreset() !== 'unlisted'"
+        >
+          Nicht gelistet
+        </button>
+
+        <button
+          type="button"
+          (click)="activePreset.set('high_margin')"
+          class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
+          [class.bg-fb-line]="activePreset() === 'high_margin'"
+          [class.text-fb-text-primary]="activePreset() === 'high_margin'"
+          [class.border]="activePreset() === 'high_margin'"
+          [class.border-fb-line-strong]="activePreset() === 'high_margin'"
+          [class.text-fb-text-secondary]="activePreset() !== 'high_margin'"
+          [class.hover:bg-fb-surface-alt]="activePreset() !== 'high_margin'"
+          [class.hover:text-fb-text-primary]="activePreset() !== 'high_margin'"
+        >
+          Hohe Marge (≥ 30 €)
+        </button>
+
+        <button
+          type="button"
+          (click)="activePreset.set('defective')"
+          class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer"
+          [class.bg-fb-line]="activePreset() === 'defective'"
+          [class.text-fb-text-primary]="activePreset() === 'defective'"
+          [class.border]="activePreset() === 'defective'"
+          [class.border-fb-line-strong]="activePreset() === 'defective'"
+          [class.text-fb-text-secondary]="activePreset() !== 'defective'"
+          [class.hover:bg-fb-surface-alt]="activePreset() !== 'defective'"
+          [class.hover:text-fb-text-primary]="activePreset() !== 'defective'"
+        >
+          Defekt / Bastler
+        </button>
+
+        <button
+          type="button"
+          (click)="activePreset.set('store_public')"
+          class="px-3 py-1 rounded-md text-xs font-semibold transition cursor-pointer flex items-center gap-1.5"
+          [class.bg-amber-600]="activePreset() === 'store_public'"
+          [class.text-fb-text-primary]="activePreset() === 'store_public'"
+          [class.border]="activePreset() === 'store_public'"
+          [class.border-amber-500]="activePreset() === 'store_public'"
+          [class.text-amber-300]="activePreset() !== 'store_public'"
+          [class.hover:bg-fb-surface-alt]="activePreset() !== 'store_public'"
+          [class.hover:text-fb-text-primary]="activePreset() !== 'store_public'"
+        >
+          <svg [lucideIcon]="storeIcon" class="w-3 h-3 text-amber-400"></svg>
+          <span>Im Webshop ({{ storePublishedCount() }})</span>
+        </button>
+      </div>
+
+      <!-- Search Input & Filters -->
+      <div class="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
+        <div class="sm:col-span-6">
+          <app-custom-search-input
+            placeholder="Artikel, Marke, Modell oder SKU suchen..."
+            [(value)]="searchQuery"
+          ></app-custom-search-input>
+        </div>
+
+        <div class="sm:col-span-3">
+          <app-custom-select
+            variant="filter"
+            [options]="filterConditionOptions"
+            [(value)]="selectedCondition"
+          ></app-custom-select>
+        </div>
+
+        <div class="sm:col-span-3">
+          <app-custom-select
+            variant="filter"
+            [options]="filterStatusOptions"
+            [(value)]="selectedStatus"
+          ></app-custom-select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Anthrazit Data Table View -->
+    @if (filteredItems().length > 0) {
+      <div class="linear-surface rounded-xl overflow-visible hidden md:block">
+        <table class="linear-table">
+          <thead
+            class="bg-fb-well text-fb-text-secondary uppercase font-semibold text-[10px] tracking-wider"
+          >
+            <tr>
+              <th class="py-2.5 px-3 w-8 text-center rounded-tl-xl border-b border-fb-line">
+                <div class="flex items-center justify-center">
+                  <app-custom-checkbox
+                    [checked]="isAllSelected()"
+                    [indeterminate]="isIndeterminate()"
+                    (checkedChange)="toggleSelectAll()"
+                    size="md"
+                    ariaLabel="Alle Artikel auswählen"
+                  ></app-custom-checkbox>
+                </div>
+              </th>
+              <th class="py-2.5 px-4 font-semibold border-b border-fb-line">Produkt & Details</th>
+              <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Zustand</th>
+              <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Status</th>
+              <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Quelle</th>
+              <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+                Gesamtkosten
+              </th>
+              <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+                Marktwert
+              </th>
+              <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+                Gewinnpotenzial
+              </th>
+              <th
+                class="py-2.5 px-4 font-semibold text-center w-12 rounded-tr-xl border-b border-fb-line"
+              ></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-fb-line">
+            <!-- Gleiche Stuecke stehen als eine Zeile da; die einzelnen Artikel
                darunter, sobald man aufklappt. Zusammengefasst wird nur die
                Anzeige - jedes Stueck bleibt ein eigener Artikel. -->
-          @for (gruppe of gruppierteArtikel(); track gruppe.schluessel) {
-            @if (gruppe.stuecke.length === 1) {
-              <ng-container
-                *ngTemplateOutlet="artikelZeile; context: { $implicit: gruppe.stuecke[0] }"
-              ></ng-container>
-            } @else {
-              <tr class="hover:bg-fb-surface-alt transition bg-fb-subtle/40">
-                <td class="py-3 px-3 text-center">
-                  <button
-                    type="button"
-                    (click)="toggleGruppe(gruppe.schluessel)"
-                    class="p-1 rounded-md text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
-                    [attr.aria-expanded]="istGruppeOffen(gruppe.schluessel)"
-                    [attr.aria-label]="
-                      (istGruppeOffen(gruppe.schluessel) ? 'Einklappen: ' : 'Aufklappen: ') +
-                      gruppe.stuecke[0].title
-                    "
-                  >
-                    <svg
-                      [lucideIcon]="
-                        istGruppeOffen(gruppe.schluessel) ? chevronUpIcon : chevronDownIcon
+            @for (gruppe of gruppierteArtikel(); track gruppe.schluessel) {
+              @if (gruppe.stuecke.length === 1) {
+                <ng-container
+                  *ngTemplateOutlet="artikelZeile; context: { $implicit: gruppe.stuecke[0] }"
+                ></ng-container>
+              } @else {
+                <tr class="hover:bg-fb-surface-alt transition bg-fb-subtle/40">
+                  <td class="py-3 px-3 text-center">
+                    <button
+                      type="button"
+                      (click)="toggleGruppe(gruppe.schluessel)"
+                      class="p-1 rounded-md text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
+                      [attr.aria-expanded]="istGruppeOffen(gruppe.schluessel)"
+                      [attr.aria-label]="
+                        (istGruppeOffen(gruppe.schluessel) ? 'Einklappen: ' : 'Aufklappen: ') +
+                        gruppe.stuecke[0].title
                       "
-                      class="w-4 h-4"
-                    ></svg>
-                  </button>
-                </td>
-                <td class="py-3 px-4">
-                  <button
-                    type="button"
-                    (click)="toggleGruppe(gruppe.schluessel)"
-                    class="text-left font-semibold text-fb-text-primary hover:text-emerald-400 transition cursor-pointer"
-                  >
-                    {{ gruppe.stuecke[0].title }}
-                  </button>
-                  <div class="text-[10px] text-fb-text-muted mt-0.5 font-mono">
-                    {{ gruppe.stuecke.length }} Stück
-                  </div>
-                </td>
-                <td class="py-3 px-3">
-                  <span
-                    class="px-2 py-0.5 rounded text-[10px] font-mono bg-fb-subtle text-fb-text-secondary border border-fb-border"
-                  >
+                    >
+                      <svg
+                        [lucideIcon]="
+                          istGruppeOffen(gruppe.schluessel) ? chevronUpIcon : chevronDownIcon
+                        "
+                        class="w-4 h-4"
+                      ></svg>
+                    </button>
+                  </td>
+                  <td class="py-3 px-4">
+                    <button
+                      type="button"
+                      (click)="toggleGruppe(gruppe.schluessel)"
+                      class="text-left font-semibold text-fb-text-primary hover:text-emerald-400 transition cursor-pointer"
+                    >
+                      {{ gruppe.stuecke[0].title }}
+                    </button>
+                    <div class="text-[10px] text-fb-text-muted mt-0.5 font-mono">
+                      {{ gruppe.stuecke.length }} Stück
+                    </div>
+                  </td>
+                  <td class="py-3 px-3">
+                    <span
+                      class="px-2 py-0.5 rounded text-[10px] font-mono bg-fb-subtle text-fb-text-secondary border border-fb-border"
+                    >
+                      {{
+                        'INVENTORY.CONDITIONS.' + gruppe.stuecke[0].condition.toUpperCase()
+                          | translate
+                      }}
+                    </span>
+                  </td>
+                  <td class="py-3 px-3">
+                    <span class="text-[10px] font-mono text-fb-text-secondary">
+                      {{
+                        'INVENTORY.STATUSES.' + gruppe.stuecke[0].status.toUpperCase() | translate
+                      }}
+                    </span>
+                  </td>
+                  <td class="py-3 px-3 text-[11px] text-fb-text-muted">—</td>
+                  <td class="py-3 px-3 text-right font-mono font-bold text-fb-text-primary">
                     {{
-                      'INVENTORY.CONDITIONS.' + gruppe.stuecke[0].condition.toUpperCase()
-                        | translate
+                      gruppenSumme(gruppe.stuecke, 'allocated_purchase_cost')
+                        | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
                     }}
-                  </span>
-                </td>
-                <td class="py-3 px-3">
-                  <span class="text-[10px] font-mono text-fb-text-secondary">
-                    {{ 'INVENTORY.STATUSES.' + gruppe.stuecke[0].status.toUpperCase() | translate }}
-                  </span>
-                </td>
-                <td class="py-3 px-3 text-[11px] text-fb-text-muted">—</td>
-                <td class="py-3 px-3 text-right font-mono font-bold text-fb-text-primary">
-                  {{
-                    gruppenSumme(gruppe.stuecke, 'allocated_purchase_cost')
-                      | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                  }}
-                </td>
-                <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
-                  {{
-                    gruppenSumme(gruppe.stuecke, 'expected_value')
-                      | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                  }}
-                </td>
-                <td class="py-3 px-3 text-right font-mono text-emerald-400">—</td>
-                <td class="py-3 px-4"></td>
-              </tr>
+                  </td>
+                  <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
+                    {{
+                      gruppenSumme(gruppe.stuecke, 'expected_value')
+                        | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                    }}
+                  </td>
+                  <td class="py-3 px-3 text-right font-mono text-emerald-400">—</td>
+                  <td class="py-3 px-4"></td>
+                </tr>
 
-              @if (istGruppeOffen(gruppe.schluessel)) {
-                @for (item of gruppe.stuecke; track item.id) {
-                  <ng-container
-                    *ngTemplateOutlet="artikelZeile; context: { $implicit: item }"
-                  ></ng-container>
+                @if (istGruppeOffen(gruppe.schluessel)) {
+                  @for (item of gruppe.stuecke; track item.id) {
+                    <ng-container
+                      *ngTemplateOutlet="artikelZeile; context: { $implicit: item }"
+                    ></ng-container>
+                  }
                 }
               }
             }
-          }
-        </tbody>
-        <ng-template #artikelZeile let-item>
-          <tr
-            class="hover:bg-fb-surface-alt transition group"
-            [class.bg-indigo-500/5]="isItemSelected(item.id)"
-          >
-            <td class="py-3 px-3 text-center group-last:rounded-bl-xl">
-              <div class="flex items-center justify-center">
-                <app-custom-checkbox
-                  [checked]="isItemSelected(item.id)"
-                  (checkedChange)="toggleSelectItem(item.id)"
-                  size="md"
-                  [ariaLabel]="'Artikel ' + item.title + ' auswählen'"
-                ></app-custom-checkbox>
-              </div>
-            </td>
-            <td class="py-3 px-4">
-              <a
-                [routerLink]="['/inventory', item.id]"
-                class="font-semibold text-fb-text-primary hover:text-emerald-400 transition block line-clamp-1"
-              >
-                {{ item.title }}
-              </a>
-              <div class="flex items-center gap-2 mt-0.5 text-[11px] text-fb-text-muted">
-                <span>{{ item.brand || item.category || 'Keine Kategorie' }}</span>
-                @if (item.model) {
-                  <span>•</span>
-                  <span class="font-mono text-fb-text-muted">{{ item.model }}</span>
-                }
-                @if (item.is_public_store !== false && item.status !== 'sold') {
-                  <span>•</span>
-                  <span class="text-amber-300 font-semibold flex items-center gap-0.5">
-                    <svg [lucideIcon]="storeIcon" class="w-3 h-3 text-amber-400"></svg>
-                    <span>Webshop</span>
-                  </span>
-                }
-              </div>
-            </td>
-
-            <td class="py-3 px-3">
-              <span
-                class="px-2 py-0.5 rounded text-[10px] font-semibold bg-fb-well text-fb-text-secondary border border-fb-line"
-              >
-                {{ 'INVENTORY.CONDITIONS.' + item.condition.toUpperCase() | translate }}
-              </span>
-            </td>
-
-            <td class="py-2 px-3">
-              <app-custom-select
-                variant="pill"
-                [options]="statusOptions"
-                [value]="item.status"
-                (valueChange)="onChangeItemStatus(item, $event)"
-              ></app-custom-select>
-            </td>
-
-            <td class="py-3 px-3 text-fb-text-muted text-[11px]">
-              {{ item.purchase?.source?.name || 'Direktkauf' }}
-            </td>
-
-            <td class="py-3 px-3 text-right font-mono font-semibold text-fb-text-secondary">
-              {{ item.total_item_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-            </td>
-
-            <td class="py-3 px-3 text-right font-mono font-semibold text-blue-400">
-              {{
-                item.expected_value
-                  ? (item.expected_value | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
-                  : '-'
-              }}
-            </td>
-
-            <td class="py-3 px-3 text-right font-mono font-bold text-emerald-400">
-              @if (item.profit_potential !== undefined) {
-                +{{ item.profit_potential | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-              } @else {
-                -
-              }
-            </td>
-
-            <td class="py-3 px-4 text-center group-last:rounded-br-xl">
-              <div class="flex items-center justify-center gap-1">
-                <button
-                  type="button"
-                  (click)="onTogglePublicStore(item, $event)"
-                  class="p-1 rounded hover:bg-fb-line transition cursor-pointer"
-                  [title]="
-                    item.is_public_store !== false
-                      ? 'Im Webshop aktiv (Klicken zum Deaktivieren)'
-                      : 'Im Webshop aktivieren'
-                  "
-                >
-                  <svg
-                    [lucideIcon]="storeIcon"
-                    class="w-3.5 h-3.5"
-                    [class.text-amber-400]="item.is_public_store !== false"
-                    [class.text-fb-text-dimmed]="item.is_public_store === false"
-                  ></svg>
-                </button>
-
+          </tbody>
+          <ng-template #artikelZeile let-item>
+            <tr
+              class="hover:bg-fb-surface-alt transition group"
+              [class.bg-indigo-500/5]="isItemSelected(item.id)"
+            >
+              <td class="py-3 px-3 text-center group-last:rounded-bl-xl">
+                <div class="flex items-center justify-center">
+                  <app-custom-checkbox
+                    [checked]="isItemSelected(item.id)"
+                    (checkedChange)="toggleSelectItem(item.id)"
+                    size="md"
+                    [ariaLabel]="'Artikel ' + item.title + ' auswählen'"
+                  ></app-custom-checkbox>
+                </div>
+              </td>
+              <td class="py-3 px-4">
                 <a
                   [routerLink]="['/inventory', item.id]"
-                  class="p-1 rounded text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-line transition inline-flex items-center justify-center cursor-pointer"
+                  class="font-semibold text-fb-text-primary hover:text-emerald-400 transition block line-clamp-1"
                 >
-                  <svg [lucideIcon]="arrowRightIcon" class="w-3.5 h-3.5"></svg>
+                  {{ item.title }}
                 </a>
-              </div>
-            </td>
-          </tr>
-        </ng-template>
-      </table>
-    </div>
+                <div class="flex items-center gap-2 mt-0.5 text-[11px] text-fb-text-muted">
+                  <span>{{ item.brand || item.category || 'Keine Kategorie' }}</span>
+                  @if (item.model) {
+                    <span>•</span>
+                    <span class="font-mono text-fb-text-muted">{{ item.model }}</span>
+                  }
+                  @if (item.is_public_store !== false && item.status !== 'sold') {
+                    <span>•</span>
+                    <span class="text-amber-300 font-semibold flex items-center gap-0.5">
+                      <svg [lucideIcon]="storeIcon" class="w-3 h-3 text-amber-400"></svg>
+                      <span>Webshop</span>
+                    </span>
+                  }
+                </div>
+              </td>
 
-    <!-- Mobile Card View -->
-    <div class="space-y-2 md:hidden">
-      @for (item of filteredItems(); track item.id) {
-        <a
-          [routerLink]="['/inventory', item.id]"
-          class="linear-card-interactive p-3.5 rounded-xl block space-y-2.5"
-        >
-          <div class="flex items-start justify-between gap-2">
-            <div>
-              <h3 class="text-xs font-semibold text-fb-text-primary line-clamp-1">
-                {{ item.title }}
-              </h3>
-              <p class="text-[11px] text-fb-text-muted">
-                {{ item.brand || item.category || 'Keine Kategorie' }}
-              </p>
-            </div>
-            <span
-              class="px-2 py-0.5 rounded text-[10px] font-semibold border"
-              [class.bg-blue-500/15]="item.status === 'received'"
-              [class.text-blue-400]="item.status === 'received'"
-              [class.border-blue-500/30]="item.status === 'received'"
-              [class.bg-amber-500/15]="item.status === 'ready'"
-              [class.text-amber-400]="item.status === 'ready'"
-              [class.border-amber-500/30]="item.status === 'ready'"
-              [class.bg-emerald-500/15]="item.status === 'listed'"
-              [class.text-emerald-400]="item.status === 'listed'"
-              [class.border-emerald-500/30]="item.status === 'listed'"
-              [class.bg-purple-500/15]="item.status === 'sold'"
-              [class.text-purple-300]="item.status === 'sold'"
-              [class.border-purple-500/30]="item.status === 'sold'"
-              [class.bg-rose-500/15]="item.status === 'defective'"
-              [class.text-rose-400]="item.status === 'defective'"
-              [class.border-rose-500/30]="item.status === 'defective'"
-              [class.bg-fb-well]="
-                item.status === 'reserved' ||
-                item.status === 'returned' ||
-                item.status === 'archived'
-              "
-              [class.text-fb-text-secondary]="
-                item.status === 'reserved' ||
-                item.status === 'returned' ||
-                item.status === 'archived'
-              "
-              [class.border-fb-line]="
-                item.status === 'reserved' ||
-                item.status === 'returned' ||
-                item.status === 'archived'
-              "
-            >
-              {{ 'INVENTORY.STATUSES.' + item.status.toUpperCase() | translate }}
-            </span>
-          </div>
+              <td class="py-3 px-3">
+                <span
+                  class="px-2 py-0.5 rounded text-[10px] font-semibold bg-fb-well text-fb-text-secondary border border-fb-line"
+                >
+                  {{ 'INVENTORY.CONDITIONS.' + item.condition.toUpperCase() | translate }}
+                </span>
+              </td>
 
-          <div
-            class="flex items-center justify-between text-xs pt-2 border-t border-fb-line font-mono"
-          >
-            <div>
-              <span class="text-[10px] text-fb-text-muted font-sans block">Kosten</span>
-              <strong class="text-fb-text-secondary">{{
-                item.total_item_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-              }}</strong>
-            </div>
+              <td class="py-2 px-3">
+                <app-custom-select
+                  variant="pill"
+                  [options]="statusOptions"
+                  [value]="item.status"
+                  (valueChange)="onChangeItemStatus(item, $event)"
+                ></app-custom-select>
+              </td>
 
-            <div class="text-right">
-              <span class="text-[10px] text-fb-text-muted font-sans block">Potenzial</span>
-              <strong class="text-emerald-400">
+              <td class="py-3 px-3 text-fb-text-muted text-[11px]">
+                {{ item.purchase?.source?.name || 'Direktkauf' }}
+              </td>
+
+              <td class="py-3 px-3 text-right font-mono font-semibold text-fb-text-secondary">
+                {{ item.total_item_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              </td>
+
+              <td class="py-3 px-3 text-right font-mono font-semibold text-blue-400">
                 {{
-                  item.profit_potential !== undefined
-                    ? '+' + (item.profit_potential | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                  item.expected_value
+                    ? (item.expected_value | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
                     : '-'
                 }}
-              </strong>
-            </div>
-          </div>
-        </a>
-      }
-    </div>
-  } @else {
-    <!-- Empty State -->
-    <div class="linear-surface rounded-xl p-10 text-center">
-      <div
-        class="w-10 h-10 rounded-lg bg-fb-well border border-fb-line text-fb-text-muted mx-auto flex items-center justify-center mb-3"
-      >
-        <svg [lucideIcon]="boxesIcon" class="w-5 h-5"></svg>
+              </td>
+
+              <td class="py-3 px-3 text-right font-mono font-bold text-emerald-400">
+                @if (item.profit_potential !== undefined) {
+                  +{{ item.profit_potential | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                } @else {
+                  -
+                }
+              </td>
+
+              <td class="py-3 px-4 text-center group-last:rounded-br-xl">
+                <div class="flex items-center justify-center gap-1">
+                  <button
+                    type="button"
+                    (click)="onTogglePublicStore(item, $event)"
+                    class="p-1 rounded hover:bg-fb-line transition cursor-pointer"
+                    [title]="
+                      item.is_public_store !== false
+                        ? 'Im Webshop aktiv (Klicken zum Deaktivieren)'
+                        : 'Im Webshop aktivieren'
+                    "
+                  >
+                    <svg
+                      [lucideIcon]="storeIcon"
+                      class="w-3.5 h-3.5"
+                      [class.text-amber-400]="item.is_public_store !== false"
+                      [class.text-fb-text-dimmed]="item.is_public_store === false"
+                    ></svg>
+                  </button>
+
+                  <a
+                    [routerLink]="['/inventory', item.id]"
+                    class="p-1 rounded text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-line transition inline-flex items-center justify-center cursor-pointer"
+                  >
+                    <svg [lucideIcon]="arrowRightIcon" class="w-3.5 h-3.5"></svg>
+                  </a>
+                  <button
+                    type="button"
+                    (click)="openSaleForIndividualItem(item)"
+                    class="p-1 rounded text-fb-text-muted hover:bg-fb-line hover:text-emerald-400 transition inline-flex items-center justify-center cursor-pointer"
+                    [attr.aria-label]="item.title + ' verkaufen'"
+                  >
+                    <svg [lucideIcon]="trendingIcon" class="w-3.5 h-3.5"></svg>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </ng-template>
+        </table>
       </div>
-      <h3 class="text-sm font-bold text-fb-text-secondary">Keine Artikel gefunden</h3>
-      <p class="text-xs text-fb-text-muted max-w-sm mx-auto mt-1 mb-4">
-        Passe deine Filter an oder lege einen neuen Artikel in deinem Inventar an.
-      </p>
-      <button
-        type="button"
-        (click)="openCreateModal()"
-        class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs transition cursor-pointer"
-      >
-        <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
-        <span>Artikel anlegen</span>
-      </button>
-    </div>
-  }
 
-  <!-- Create Modal -->
-  @if (isCreateModalOpen()) {
-    <app-item-create-modal
-      #createModal
-      (closed)="isCreateModalOpen.set(false)"
-      (created)="isCreateModalOpen.set(false)"
-    ></app-item-create-modal>
-  }
+      <!-- Mobile Card View -->
+      <div class="space-y-2 md:hidden">
+        @for (item of filteredItems(); track item.id) {
+          <a
+            [routerLink]="['/inventory', item.id]"
+            class="linear-card-interactive p-3.5 rounded-xl block space-y-2.5"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <h3 class="text-xs font-semibold text-fb-text-primary line-clamp-1">
+                  {{ item.title }}
+                </h3>
+                <p class="text-[11px] text-fb-text-muted">
+                  {{ item.brand || item.category || 'Keine Kategorie' }}
+                </p>
+              </div>
+              <span
+                class="px-2 py-0.5 rounded text-[10px] font-semibold border"
+                [class.bg-blue-500/15]="item.status === 'received'"
+                [class.text-blue-400]="item.status === 'received'"
+                [class.border-blue-500/30]="item.status === 'received'"
+                [class.bg-amber-500/15]="item.status === 'ready'"
+                [class.text-amber-400]="item.status === 'ready'"
+                [class.border-amber-500/30]="item.status === 'ready'"
+                [class.bg-emerald-500/15]="item.status === 'listed'"
+                [class.text-emerald-400]="item.status === 'listed'"
+                [class.border-emerald-500/30]="item.status === 'listed'"
+                [class.bg-purple-500/15]="item.status === 'sold'"
+                [class.text-purple-300]="item.status === 'sold'"
+                [class.border-purple-500/30]="item.status === 'sold'"
+                [class.bg-rose-500/15]="item.status === 'defective'"
+                [class.text-rose-400]="item.status === 'defective'"
+                [class.border-rose-500/30]="item.status === 'defective'"
+                [class.bg-fb-well]="
+                  item.status === 'reserved' ||
+                  item.status === 'returned' ||
+                  item.status === 'archived'
+                "
+                [class.text-fb-text-secondary]="
+                  item.status === 'reserved' ||
+                  item.status === 'returned' ||
+                  item.status === 'archived'
+                "
+                [class.border-fb-line]="
+                  item.status === 'reserved' ||
+                  item.status === 'returned' ||
+                  item.status === 'archived'
+                "
+              >
+                {{ 'INVENTORY.STATUSES.' + item.status.toUpperCase() | translate }}
+              </span>
+            </div>
 
-  <!-- AI Photo Scanner Modal -->
-  @if (isAiScannerOpen()) {
-    <app-ai-photo-scanner-modal
-      (closed)="isAiScannerOpen.set(false)"
-      (productDetected)="onAiProductDetected($event)"
-    ></app-ai-photo-scanner-modal>
-  }
+            <div
+              class="flex items-center justify-between text-xs pt-2 border-t border-fb-line font-mono"
+            >
+              <div>
+                <span class="text-[10px] text-fb-text-muted font-sans block">Kosten</span>
+                <strong class="text-fb-text-secondary">{{
+                  item.total_item_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                }}</strong>
+              </div>
 
-  <!-- Inventory Labels Modal -->
-  @if (isLabelModalOpen()) {
-    <app-inventory-label-modal
-      [items]="itemsToPrint()"
-      (closed)="closeLabelModal()"
-    ></app-inventory-label-modal>
+              <div class="text-right">
+                <span class="text-[10px] text-fb-text-muted font-sans block">Potenzial</span>
+                <strong class="text-emerald-400">
+                  {{
+                    item.profit_potential !== undefined
+                      ? '+' + (item.profit_potential | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
+                      : '-'
+                  }}
+                </strong>
+              </div>
+            </div>
+          </a>
+        }
+      </div>
+    } @else {
+      <!-- Empty State -->
+      <div class="linear-surface rounded-xl p-10 text-center">
+        <div
+          class="w-10 h-10 rounded-lg bg-fb-well border border-fb-line text-fb-text-muted mx-auto flex items-center justify-center mb-3"
+        >
+          <svg [lucideIcon]="boxesIcon" class="w-5 h-5"></svg>
+        </div>
+        <h3 class="text-sm font-bold text-fb-text-secondary">Keine Artikel gefunden</h3>
+        <p class="text-xs text-fb-text-muted max-w-sm mx-auto mt-1 mb-4">
+          Passe deine Filter an oder lege einen neuen Artikel in deinem Inventar an.
+        </p>
+        <button
+          type="button"
+          (click)="openCreateModal()"
+          class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs transition cursor-pointer"
+        >
+          <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
+          <span>Artikel anlegen</span>
+        </button>
+      </div>
+    }
+
+    <!-- Create Modal -->
+    @if (isCreateModalOpen()) {
+      <app-item-create-modal
+        #createModal
+        (closed)="isCreateModalOpen.set(false)"
+        (created)="isCreateModalOpen.set(false)"
+      ></app-item-create-modal>
+    }
+
+    <!-- AI Photo Scanner Modal -->
+    @if (isAiScannerOpen()) {
+      <app-ai-photo-scanner-modal
+        (closed)="isAiScannerOpen.set(false)"
+        (productDetected)="onAiProductDetected($event)"
+      ></app-ai-photo-scanner-modal>
+    }
+
+    <!-- Inventory Labels Modal -->
+    @if (isLabelModalOpen()) {
+      <app-inventory-label-modal
+        [items]="itemsToPrint()"
+        (closed)="closeLabelModal()"
+      ></app-inventory-label-modal>
+    }
   }
 </div>
 

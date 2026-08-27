@@ -107,6 +107,11 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'catalog',
+        loadComponent: () =>
+          import('./features/catalog/catalog.component').then((m) => m.CatalogComponent),
+      },
+      {
         path: 'research',
         loadComponent: () =>
           import('./features/research/research.component').then((m) => m.ResearchComponent),
