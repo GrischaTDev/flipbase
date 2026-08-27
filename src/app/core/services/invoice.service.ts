@@ -2,7 +2,7 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 import { WorkspaceService } from './workspace.service';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
-import { InventoryItem, Sale, TaxMode } from '../models/flipbase.models';
+import { InventoryItem, Sale, SaleLine, TaxMode } from '../models/flipbase.models';
 import { StoreOrder } from '../models/store.models';
 import { EmailConfirmation, Invoice, InvoiceItem, InvoiceParty } from '../models/invoice.models';
 import { Json } from '../models/supabase.types';
@@ -257,7 +257,7 @@ export class InvoiceService {
       if (vorhandeneRechnung) return this.rechnungserfolg(vorhandeneRechnung, false);
     }
     const ws = this.workspaceService?.currentWorkspace();
-    const persistedLines = sale.lines ?? [];
+    const persistedLines = sale.has_persisted_lines === false ? [] : (sale.lines ?? []);
     const taxMode: TaxMode =
       persistedLines[0]?.tax_mode || item?.tax_mode_override || ws?.tax_mode || 'diff_25a';
     const invoiceNumber =
@@ -270,18 +270,25 @@ export class InvoiceService {
 
     const invoiceItems: InvoiceItem[] =
       persistedLines.length > 0
-        ? persistedLines.map((line) => ({
-            sku:
-              line.inventory_item_id ||
-              line.catalog_product_id ||
-              `SKU-${sale.id.substring(0, 6).toUpperCase()}`,
-            title: line.title_snapshot,
-            condition:
-              line.inventory_item_id === sale.inventory_item_id ? item?.condition : undefined,
-            quantity: line.quantity,
-            unitPrice: line.unit_sale_price,
-            totalPrice: line.line_total,
-          }))
+        ? persistedLines.map((line, index) => {
+            const lineSubtotal = this.invoiceLineSubtotal(
+              salePrice - shippingCost,
+              persistedLines,
+              index,
+            );
+            return {
+              sku:
+                line.inventory_item_id ||
+                line.catalog_product_id ||
+                `SKU-${sale.id.substring(0, 6).toUpperCase()}`,
+              title: line.title_snapshot,
+              condition:
+                line.inventory_item_id === sale.inventory_item_id ? item?.condition : undefined,
+              quantity: line.quantity,
+              unitPrice: Number((lineSubtotal / line.quantity).toFixed(2)),
+              totalPrice: lineSubtotal,
+            };
+          })
         : [
             {
               sku:
@@ -323,6 +330,21 @@ export class InvoiceService {
       sourceId: sale.id,
     };
     return this.speichereOderLeseRechnung(invoice, sale.id, null, ws?.id);
+  }
+
+  private invoiceLineSubtotal(subtotal: number, lines: readonly SaleLine[], index: number): number {
+    const totalLineValue = lines.reduce((sum, line) => sum + line.line_total, 0);
+    if (totalLineValue <= 0) return index === lines.length - 1 ? subtotal : 0;
+    if (index === lines.length - 1) {
+      const earlier = lines
+        .slice(0, index)
+        .reduce(
+          (sum, line) => sum + Number((subtotal * (line.line_total / totalLineValue)).toFixed(2)),
+          0,
+        );
+      return Number((subtotal - earlier).toFixed(2));
+    }
+    return Number((subtotal * (lines[index].line_total / totalLineValue)).toFixed(2));
   }
 
   /**

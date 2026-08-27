@@ -202,8 +202,10 @@ export class ReturnService {
       saleId: payload.sale.id,
       refundAmount: payload.refundAmount,
       restock,
+      restockAction: payload.restockAction,
       reason: payload.reason,
       notes: payload.notes ?? null,
+      buyerName: payload.buyerName ?? null,
     });
     if (booking.error || !booking.data) {
       return { status: 'error', data: null, error: booking.error, problems: [] };
@@ -214,14 +216,16 @@ export class ReturnService {
       ...booking.data.sale,
       inventory_item: booking.data.sale.inventory_item ?? payload.sale.inventory_item,
     };
-    const gespeicherteRetoure = this.materializeConfirmedReturn({
-      sale: confirmedSale,
-      reason: payload.reason,
-      refundAmount: payload.refundAmount,
-      isFullRefund: payload.isFullRefund,
-      restockAction: payload.restockAction,
-      notes: payload.notes,
-    });
+    const gespeicherteRetoure = booking.data.returnRecord
+      ? this.materializePersistedReturn(booking.data.returnRecord, confirmedSale)
+      : this.materializeConfirmedReturn({
+          sale: confirmedSale,
+          reason: payload.reason,
+          refundAmount: payload.refundAmount,
+          isFullRefund: payload.isFullRefund,
+          restockAction: payload.restockAction,
+          notes: payload.notes,
+        });
 
     // 5. Notifications
     if (this.webPushService) {
@@ -268,6 +272,24 @@ export class ReturnService {
       ...list.filter((eintrag) => eintrag.id !== retoure.id),
     ]);
     this.persistReturns();
+  }
+
+  /** Ergänzt eine vom RPC erzeugte Retoure nur noch um die lokale Belegansicht. */
+  private materializePersistedReturn(returnRecord: ReturnRecord, sale: Sale): ReturnRecord {
+    const existing = this.returns().find((entry) => entry.id === returnRecord.id);
+    if (existing) return existing;
+    const materialized: ReturnRecord = {
+      ...returnRecord,
+      sale,
+      inventory_item: sale.inventory_item,
+    };
+    materialized.creditNoteInvoice = this.generateCreditNoteInvoice(
+      materialized,
+      sale,
+      this.workspaceService?.currentWorkspace() ?? null,
+    );
+    this.uebernehmeRetoureLokal(materialized);
+    return materialized;
   }
 
   /**

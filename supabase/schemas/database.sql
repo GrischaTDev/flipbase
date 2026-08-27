@@ -370,7 +370,7 @@ CREATE TABLE IF NOT EXISTS public.returns (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
     sale_id UUID NOT NULL REFERENCES public.sales(id) ON DELETE CASCADE,
-    inventory_item_id UUID NOT NULL REFERENCES public.inventory_items(id) ON DELETE CASCADE,
+    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE CASCADE,
     credit_note_number TEXT NOT NULL,
     return_date DATE NOT NULL DEFAULT CURRENT_DATE,
     reason TEXT NOT NULL,
@@ -2393,7 +2393,9 @@ create or replace function public.record_sale_return(
   p_refund_amount numeric,
   p_restock boolean,
   p_reason text,
-  p_notes text
+  p_notes text,
+  p_restock_action text,
+  p_buyer_name text
 )
 returns jsonb
 language plpgsql
@@ -2409,6 +2411,9 @@ declare
   v_return_movement_ids uuid[] := array[]::uuid[];
   v_stock_lot_ids uuid[] := array[]::uuid[];
   v_movement_id uuid;
+  v_return public.returns;
+  v_return_inventory_item_id uuid;
+  v_restocked_quantity integer := 0;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -2420,7 +2425,9 @@ begin
     or p_refund_amount is null
     or p_refund_amount < 0
     or p_restock is null
-    or nullif(trim(p_reason), '') is null then
+    or nullif(trim(p_reason), '') is null
+    or p_restock_action is null
+    or p_restock_action not in ('restock_ready', 'restock_repair', 'write_off', 'keep_with_buyer') then
     raise exception using errcode = '22023', message = 'Die Retourendaten sind ungültig.';
   end if;
 
@@ -2437,6 +2444,14 @@ begin
   if v_sale.returned_at is not null then
     raise exception using errcode = '22023', message = 'Der Verkauf wurde bereits retourniert.';
   end if;
+
+  select sale_line.inventory_item_id into v_return_inventory_item_id
+  from public.sale_lines as sale_line
+  where sale_line.workspace_id = p_workspace_id
+    and sale_line.sale_id = p_sale_id
+    and sale_line.inventory_item_id is not null
+  order by sale_line.id
+  limit 1;
 
   for v_sale_line in
     select *
@@ -2466,6 +2481,7 @@ begin
           set remaining_quantity = remaining_quantity + v_allocation.quantity
           where id = v_stock_lot.id
             and workspace_id = p_workspace_id;
+          v_restocked_quantity := v_restocked_quantity + v_allocation.quantity;
         end if;
 
         insert into public.stock_movements (
@@ -2525,6 +2541,9 @@ begin
           updated_at = now()
       where id = v_inventory_item.id
         and workspace_id = p_workspace_id;
+      if p_restock then
+        v_restocked_quantity := v_restocked_quantity + 1;
+      end if;
     end if;
   end loop;
 
@@ -2535,8 +2554,36 @@ begin
     and workspace_id = p_workspace_id
   returning * into v_sale;
 
+  insert into public.returns (
+    workspace_id,
+    sale_id,
+    inventory_item_id,
+    credit_note_number,
+    return_date,
+    reason,
+    refund_amount,
+    is_full_refund,
+    restock_action,
+    buyer_name,
+    notes
+  ) values (
+    p_workspace_id,
+    p_sale_id,
+    v_return_inventory_item_id,
+    'GS-' || to_char(current_date, 'YYYY') || '-' || upper(substr(gen_random_uuid()::text, 1, 8)),
+    current_date,
+    p_reason,
+    p_refund_amount,
+    p_refund_amount >= v_sale.sale_price,
+    p_restock_action,
+    nullif(trim(p_buyer_name), ''),
+    nullif(trim(p_notes), '')
+  )
+  returning * into v_return;
+
   return jsonb_build_object(
     'sale', to_jsonb(v_sale),
+    'return', to_jsonb(v_return),
     'sale_lines', coalesce((
       select jsonb_agg(to_jsonb(sale_line) order by sale_line.id)
       from public.sale_lines as sale_line
@@ -2565,13 +2612,14 @@ begin
     ), '[]'::jsonb),
     'reason', p_reason,
     'notes', p_notes,
-    'restocked', p_restock
+    'restocked', p_restock,
+    'restocked_quantity', v_restocked_quantity
   );
 end;
 $$;
 
-revoke all on function public.record_sale_return(uuid, uuid, numeric, boolean, text, text) from public;
-grant execute on function public.record_sale_return(uuid, uuid, numeric, boolean, text, text) to authenticated;
+revoke all on function public.record_sale_return(uuid, uuid, numeric, boolean, text, text, text, text) from public;
+grant execute on function public.record_sale_return(uuid, uuid, numeric, boolean, text, text, text, text) to authenticated;
 
 create or replace function public.place_store_order(
   p_workspace_id uuid,

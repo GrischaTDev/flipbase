@@ -122,6 +122,20 @@ describe('SalesService', () => {
         lot_allocations: [],
         stock_movements: [],
         restocked_quantity: 2,
+        return: {
+          id: 'return-1',
+          workspace_id: 'workspace-1',
+          sale_id: sale.id,
+          inventory_item_id: null,
+          credit_note_number: 'GS-2026-0001',
+          return_date: '2026-08-27',
+          reason: 'buyer_remorse',
+          refund_amount: 19.98,
+          is_full_refund: true,
+          restock_action: 'restock_ready',
+          notes: 'OVP',
+          created_at: '2026-08-27T10:00:00.000Z',
+        },
       },
       error: null,
     });
@@ -132,10 +146,46 @@ describe('SalesService', () => {
         reason: 'buyer_remorse',
         refundAmount: 19.98,
         restock: true,
+        restockAction: 'restock_ready',
+        buyerName: 'Max Mustermann',
+        notes: 'OVP',
       })
     ).data!;
 
     expect(returnResult.restockedQuantity).toBe(2);
     expect(returnResult.saleReturnedAt).toBeTruthy();
+    expect(returnResult.returnRecord?.credit_note_number).toBe('GS-2026-0001');
+  });
+
+  it('berechnet Mengenverkaufs-Kennzahlen aus den persistierten COGS', () => {
+    const service = Object.create(SalesService.prototype) as SalesService;
+    Object.assign(service, {
+      profitEngine: {
+        calculateProfit: (revenue: number, costs: number) => revenue - costs,
+        calculateRoi: (profit: number, costs: number) => (costs === 0 ? 0 : (profit / costs) * 100),
+        calculateHoldingDurationDays: () => 0,
+      },
+    });
+
+    const enriched = service.enrichSaleMetrics({
+      ...sale,
+      sale_price: 40,
+      inventory_item: { allocated_purchase_cost: 999, costs: [] },
+      lines: [
+        {
+          id: 'line-1',
+          sale_id: sale.id,
+          title_snapshot: 'LED-Lampe',
+          quantity: 2,
+          unit_sale_price: 20,
+          line_total: 40,
+          cost_of_goods_sold: 15,
+          tax_mode: 'diff_25a',
+        },
+      ],
+    });
+
+    expect(enriched.net_profit).toBe(25);
+    expect(enriched.roi).toBeCloseTo(166.67, 2);
   });
 });

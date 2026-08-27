@@ -353,6 +353,8 @@ export interface Sale {
   holding_duration_days?: number;
   /** Persistierte Verkaufspositionen; Altverkäufe werden als eine Position abgebildet. */
   lines?: SaleLine[];
+  /** Kennzeichnet echte Datenbankpositionen gegenüber einem Anzeige-Fallback für Altverkäufe. */
+  has_persisted_lines?: boolean;
   /** FIFO-Losentnahmen der Positionsmenge. */
   lot_allocations?: SaleLineLotAllocation[];
   /** Bestandsbewegungen, die durch diesen Verkauf entstanden sind. */

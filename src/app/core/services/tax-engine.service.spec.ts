@@ -114,4 +114,72 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
     expect(calculation.total_purchase_cost).toBe(16);
     expect(calculation.tax_mode).toBe('diff_25a');
   });
+
+  it('verteilt gemeinsame Verkaufskosten einmalig auf die Positions-Steuerfälle', () => {
+    const service = Object.create(TaxEngineService.prototype) as TaxEngineService;
+    const saleWithTwoLines: Sale = {
+      ...dummySale,
+      sale_price: 30,
+      platform_fee: 3,
+      shipping_cost: 2,
+      packaging_cost: 1,
+      other_costs: 4,
+      lines: [
+        {
+          id: 'line-1',
+          sale_id: dummySale.id,
+          title_snapshot: 'A',
+          quantity: 1,
+          unit_sale_price: 10,
+          line_total: 10,
+          cost_of_goods_sold: 4,
+          tax_mode: 'diff_25a',
+        },
+        {
+          id: 'line-2',
+          sale_id: dummySale.id,
+          title_snapshot: 'B',
+          quantity: 1,
+          unit_sale_price: 20,
+          line_total: 20,
+          cost_of_goods_sold: 8,
+          tax_mode: 'diff_25a',
+        },
+      ],
+    };
+
+    const calculations = service.calculateSaleLineTaxes(saleWithTwoLines, dummyItem);
+
+    expect(calculations).toHaveLength(2);
+    expect(calculations.reduce((sum, entry) => sum + entry.gross_revenue, 0)).toBe(30);
+    expect(calculations.reduce((sum, entry) => sum + entry.net_profit_after_tax, 0)).toBeCloseTo(
+      service.calculateSaleTax(saleWithTwoLines, dummyItem).net_profit_after_tax,
+      2,
+    );
+  });
+
+  it('erhält den Steuer-Modus eines historischen Einzelverkaufs trotz Display-Fallback', () => {
+    const service = Object.create(TaxEngineService.prototype) as TaxEngineService;
+    const historicSale = {
+      ...dummySale,
+      lines: [
+        {
+          id: 'fallback',
+          sale_id: dummySale.id,
+          title_snapshot: 'Gameboy',
+          quantity: 1,
+          unit_sale_price: 80,
+          line_total: 80,
+          cost_of_goods_sold: 0,
+          tax_mode: 'diff_25a',
+        },
+      ],
+      has_persisted_lines: false,
+    } as Sale & { has_persisted_lines: boolean };
+
+    expect(
+      service.calculateSaleTax(historicSale, { ...dummyItem, tax_mode_override: 'regular_19' })
+        .tax_mode,
+    ).toBe('regular_19');
+  });
 });

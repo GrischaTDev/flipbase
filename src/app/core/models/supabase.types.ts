@@ -1263,7 +1263,7 @@ export type Database = {
           created_at: string
           credit_note_number: string
           id: string
-          inventory_item_id: string
+          inventory_item_id: string | null
           is_full_refund: boolean
           notes: string | null
           reason: string
@@ -1278,7 +1278,7 @@ export type Database = {
           created_at?: string
           credit_note_number: string
           id?: string
-          inventory_item_id: string
+          inventory_item_id?: string | null
           is_full_refund?: boolean
           notes?: string | null
           reason: string
@@ -1293,7 +1293,7 @@ export type Database = {
           created_at?: string
           credit_note_number?: string
           id?: string
-          inventory_item_id?: string
+          inventory_item_id?: string | null
           is_full_refund?: boolean
           notes?: string | null
           reason?: string
@@ -2394,10 +2394,12 @@ export type Database = {
       }
       record_sale_return: {
         Args: {
+          p_buyer_name: string
           p_notes: string
           p_reason: string
           p_refund_amount: number
           p_restock: boolean
+          p_restock_action: string
           p_sale_id: string
           p_workspace_id: string
         }

@@ -16,6 +16,7 @@ import {
 } from '../models/flipbase.models';
 import { MutationResult } from './catalog.service';
 import { StockService } from './stock.service';
+import { ReturnRecord } from '../models/return.models';
 
 const STORAGE_KEY_PENDING_FOLLOW_UPS = 'flipbase_pending_sale_follow_ups';
 const ITEM_STATUSES = new Set<string>([
@@ -77,12 +78,15 @@ export interface RecordReturnInput {
   readonly saleId: string;
   readonly refundAmount: number;
   readonly restock: boolean;
+  readonly restockAction?: 'restock_ready' | 'restock_repair' | 'write_off' | 'keep_with_buyer';
   readonly reason: string;
   readonly notes?: string | null;
+  readonly buyerName?: string | null;
 }
 
 export interface RecordReturnResult {
   readonly sale: Sale;
+  readonly returnRecord?: ReturnRecord;
   readonly restockedQuantity: number;
   readonly saleReturnedAt: string;
 }
@@ -200,12 +204,15 @@ export class SalesService {
     const item = raw.inventory_item as InventoryItem | undefined;
     const salePrice = Number(raw.sale_price || 0);
 
-    const itemPurchaseCost = Number(item?.allocated_purchase_cost || 0);
-    const itemExtraCosts = (item?.costs || []).reduce(
-      (sum: number, c: any) => sum + Number(c.amount || 0),
-      0,
-    );
-    const totalItemBasisCost = itemPurchaseCost + itemExtraCosts;
+    const persistedLines = raw.has_persisted_lines === false ? [] : (raw.lines ?? []);
+    const totalItemBasisCost =
+      persistedLines.length > 0
+        ? persistedLines.reduce(
+            (sum: number, line: SaleLine) => sum + Number(line.cost_of_goods_sold || 0),
+            0,
+          )
+        : Number(item?.allocated_purchase_cost || 0) +
+          (item?.costs || []).reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0);
 
     const fee = Number(raw.platform_fee || 0);
     const shipping = Number(raw.shipping_cost || 0);
@@ -271,6 +278,7 @@ export class SalesService {
     return this.enrichSaleMetrics({
       ...sale,
       lines,
+      has_persisted_lines: persistedLines.length > 0,
       lot_allocations: allocations,
       stock_movements: movements,
     });
@@ -375,6 +383,7 @@ export class SalesService {
       return {
         data: {
           sale,
+          returnRecord: undefined,
           restockedQuantity: input.restock
             ? returnResult.movements
                 .filter((movement) => movement.direction === 'in' && movement.reason === 'return')
@@ -395,6 +404,9 @@ export class SalesService {
         p_restock: input.restock,
         p_reason: input.reason,
         p_notes: input.notes ?? '',
+        p_restock_action:
+          input.restockAction ?? (input.restock ? 'restock_ready' : 'keep_with_buyer'),
+        p_buyer_name: input.buyerName ?? '',
       });
       if (error || !data || typeof data !== 'object') {
         return this.mutationFailure(
@@ -406,6 +418,7 @@ export class SalesService {
       const sale = this.enrichSaleMetrics({
         ...(response['sale'] as Sale),
         lines: this.arrayValue<SaleLine>(response['sale_lines']),
+        has_persisted_lines: true,
         lot_allocations: this.arrayValue<SaleLineLotAllocation>(response['lot_allocations']),
         stock_movements: this.arrayValue<StockMovement>(response['stock_movements']),
       });
@@ -414,6 +427,7 @@ export class SalesService {
       return {
         data: {
           sale,
+          returnRecord: this.returnRecordValue(response['return']),
           restockedQuantity: Number(response['restocked_quantity'] ?? 0),
           saleReturnedAt: sale.returned_at ?? new Date().toISOString(),
         },
@@ -432,6 +446,7 @@ export class SalesService {
     const sale = this.enrichSaleMetrics({
       ...(value['sale'] as Sale),
       lines,
+      has_persisted_lines: true,
       lot_allocations: allocations,
       stock_movements: movements,
     });
@@ -467,6 +482,7 @@ export class SalesService {
       packaging_cost: input.packagingCost ?? 0,
       other_costs: input.otherCosts ?? 0,
       lines: booking.saleLines,
+      has_persisted_lines: true,
       lot_allocations: booking.allocations,
       stock_movements: booking.movements,
     });
@@ -480,6 +496,32 @@ export class SalesService {
 
   private arrayValue<T>(value: unknown): T[] {
     return Array.isArray(value) ? (value as T[]) : [];
+  }
+
+  private returnRecordValue(value: unknown): ReturnRecord | undefined {
+    if (!value || typeof value !== 'object') return undefined;
+    const record = value as Record<string, unknown>;
+    if (typeof record['id'] !== 'string' || typeof record['credit_note_number'] !== 'string') {
+      return undefined;
+    }
+    return {
+      id: record['id'],
+      workspace_id: String(record['workspace_id'] ?? ''),
+      sale_id: String(record['sale_id'] ?? ''),
+      inventory_item_id:
+        typeof record['inventory_item_id'] === 'string' ? record['inventory_item_id'] : null,
+      credit_note_number: record['credit_note_number'],
+      return_date: String(record['return_date'] ?? ''),
+      reason: String(record['reason'] ?? 'other') as ReturnRecord['reason'],
+      refund_amount: Number(record['refund_amount'] ?? 0),
+      is_full_refund: Boolean(record['is_full_refund']),
+      restock_action: String(
+        record['restock_action'] ?? 'keep_with_buyer',
+      ) as ReturnRecord['restock_action'],
+      buyer_name: typeof record['buyer_name'] === 'string' ? record['buyer_name'] : undefined,
+      notes: typeof record['notes'] === 'string' ? record['notes'] : undefined,
+      created_at: String(record['created_at'] ?? ''),
+    };
   }
 
   /** Aktualisiert erst nach erfolgreicher RPC-Antwort die betroffenen Ansichten. */

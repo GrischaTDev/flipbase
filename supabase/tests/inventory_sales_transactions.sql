@@ -21,6 +21,7 @@ declare
   v_sale_line_count integer;
   v_sale_count integer;
   v_cogs numeric(12, 2);
+  v_return_result jsonb;
 begin
   insert into auth.users (
     id,
@@ -226,14 +227,16 @@ begin
     raise exception 'oversell created a partial sale or changed stock';
   end if;
 
-  perform public.record_sale_return(
+  select public.record_sale_return(
     v_workspace_id,
     v_sale_id,
     19.98,
     true,
     'customer return',
-    'full return'
-  );
+    'full return',
+    'restock_ready',
+    'Test buyer'
+  ) into v_return_result;
 
   select remaining_quantity
   into v_remaining_quantity
@@ -243,6 +246,19 @@ begin
 
   if v_remaining_quantity <> 5 then
     raise exception 'expected remaining quantity 5 after full return, got %', v_remaining_quantity;
+  end if;
+
+  if not exists (
+    select 1
+    from public.returns
+    where workspace_id = v_workspace_id
+      and sale_id = v_sale_id
+      and reason = 'customer return'
+      and notes = 'full return'
+      and buyer_name = 'Test buyer'
+      and credit_note_number = v_return_result -> 'return' ->> 'credit_note_number'
+  ) then
+    raise exception 'expected atomic return metadata to be persisted';
   end if;
 end;
 $$;
