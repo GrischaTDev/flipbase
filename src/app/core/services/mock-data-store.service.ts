@@ -33,6 +33,18 @@ const STORAGE_KEY_CATALOG_PRODUCTS = 'flipbase_local_catalog_products';
 const STORAGE_KEY_PURCHASE_LINES = 'flipbase_local_purchase_lines';
 const STORAGE_KEY_STOCK_LOTS = 'flipbase_local_stock_lots';
 const STORAGE_KEY_STOCK_MOVEMENTS = 'flipbase_local_stock_movements';
+const STORAGE_KEY_RECEIPT_JOURNAL = 'flipbase_local_individual_receipt_journal';
+
+interface AtomicStorageChange {
+  readonly key: string;
+  readonly previous: string | null;
+  readonly value: string;
+}
+
+interface ReceiptJournal {
+  readonly phase: 'prepared' | 'committed';
+  readonly changes: readonly Pick<AtomicStorageChange, 'key' | 'previous'>[];
+}
 
 function getStorage(): Storage | null {
   try {
@@ -180,7 +192,7 @@ export class MockDataStoreService {
 
   private sicherLesen(schluessel: string): unknown[] {
     try {
-      const roh = getStorage()?.getItem(schluessel);
+      const roh = this.readStorageValue(schluessel);
       const wert: unknown = roh ? JSON.parse(roh) : [];
       return Array.isArray(wert) ? wert : [];
     } catch {
@@ -794,7 +806,7 @@ export class MockDataStoreService {
   ): T[] {
     if (!this.isDemoMode()) return [];
     try {
-      const raw = getStorage()?.getItem(key);
+      const raw = this.readStorageValue(key);
       const records: T[] = raw ? JSON.parse(raw) : [];
       return workspaceId
         ? records.filter((record) => record.workspace_id === workspaceId)
@@ -828,9 +840,14 @@ export class MockDataStoreService {
   ): Error | null {
     if (!this.isDemoMode()) return null;
     const storage = getStorage();
-    if (!storage) return null;
+    if (!storage) return new Error('Der lokale Speicher ist nicht verfügbar.');
 
-    let changes: { key: string; previous: string | null; value: string }[];
+    const pendingRecovery = this.recoverPendingReceipt(storage);
+    if (pendingRecovery) {
+      return new Error('Ein vorheriger lokaler Wareneingang wird noch wiederhergestellt.');
+    }
+
+    let changes: AtomicStorageChange[];
     try {
       changes = records.map(({ key, records: value }) => ({
         key,
@@ -844,19 +861,109 @@ export class MockDataStoreService {
     }
 
     try {
+      storage.setItem(
+        STORAGE_KEY_RECEIPT_JOURNAL,
+        JSON.stringify({
+          phase: 'prepared',
+          changes: changes.map(({ key, previous }) => ({ key, previous })),
+        } satisfies ReceiptJournal),
+      );
       for (const change of changes) storage.setItem(change.key, change.value);
-      return null;
     } catch (error: unknown) {
-      for (const change of changes) {
-        try {
-          if (change.previous === null) storage.removeItem(change.key);
-          else storage.setItem(change.key, change.previous);
-        } catch {}
-      }
+      this.recoverPendingReceipt(storage);
       return error instanceof Error
         ? error
         : new Error('Der lokale Wareneingang konnte nicht gespeichert werden.');
     }
+
+    try {
+      storage.setItem(
+        STORAGE_KEY_RECEIPT_JOURNAL,
+        JSON.stringify({
+          phase: 'committed',
+          changes: changes.map(({ key, previous }) => ({ key, previous })),
+        } satisfies ReceiptJournal),
+      );
+    } catch (error: unknown) {
+      this.recoverPendingReceipt(storage);
+      return error instanceof Error
+        ? error
+        : new Error('Der lokale Wareneingang konnte nicht abgeschlossen werden.');
+    }
+
+    try {
+      storage.removeItem(STORAGE_KEY_RECEIPT_JOURNAL);
+    } catch {}
+    return null;
+  }
+
+  private readStorageValue(key: string): string | null {
+    const storage = getStorage();
+    if (!storage) return null;
+
+    const recoverySnapshot = this.recoverPendingReceipt(storage);
+    if (recoverySnapshot?.has(key)) return recoverySnapshot.get(key) ?? null;
+    return storage.getItem(key);
+  }
+
+  private recoverPendingReceipt(storage: Storage): ReadonlyMap<string, string | null> | null {
+    let journal: ReceiptJournal | null;
+    try {
+      journal = this.readReceiptJournal(storage);
+    } catch {
+      return null;
+    }
+    if (!journal) return null;
+
+    if (journal.phase === 'committed') {
+      try {
+        storage.removeItem(STORAGE_KEY_RECEIPT_JOURNAL);
+      } catch {}
+      return null;
+    }
+
+    const snapshot = new Map(journal.changes.map((change) => [change.key, change.previous]));
+    let recovered = true;
+    for (const change of journal.changes) {
+      try {
+        if (change.previous === null) storage.removeItem(change.key);
+        else storage.setItem(change.key, change.previous);
+      } catch {
+        recovered = false;
+      }
+    }
+    if (recovered) {
+      try {
+        storage.removeItem(STORAGE_KEY_RECEIPT_JOURNAL);
+      } catch {}
+    }
+    return snapshot;
+  }
+
+  private readReceiptJournal(storage: Storage): ReceiptJournal | null {
+    const raw = storage.getItem(STORAGE_KEY_RECEIPT_JOURNAL);
+    if (!raw) return null;
+    const value: unknown = JSON.parse(raw);
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      !('phase' in value) ||
+      (value.phase !== 'prepared' && value.phase !== 'committed') ||
+      !('changes' in value) ||
+      !Array.isArray(value.changes) ||
+      !value.changes.every(
+        (change: unknown) =>
+          !!change &&
+          typeof change === 'object' &&
+          'key' in change &&
+          typeof change.key === 'string' &&
+          'previous' in change &&
+          (typeof change.previous === 'string' || change.previous === null),
+      )
+    ) {
+      return null;
+    }
+    return value as ReceiptJournal;
   }
 
   private newId(prefix: string): string {
@@ -869,7 +976,7 @@ export class MockDataStoreService {
   getPurchases(workspaceId?: string): Purchase[] {
     if (!this.isDemoMode()) return [];
     try {
-      const stored = getStorage()?.getItem(STORAGE_KEY_PURCHASES);
+      const stored = this.readStorageValue(STORAGE_KEY_PURCHASES);
       if (stored) {
         const list: Purchase[] = JSON.parse(stored);
         return workspaceId
@@ -922,7 +1029,7 @@ export class MockDataStoreService {
   getItems(workspaceId?: string): InventoryItem[] {
     if (!this.isDemoMode()) return [];
     try {
-      const stored = getStorage()?.getItem(STORAGE_KEY_ITEMS);
+      const stored = this.readStorageValue(STORAGE_KEY_ITEMS);
       if (stored) {
         const list: InventoryItem[] = JSON.parse(stored);
         return workspaceId
