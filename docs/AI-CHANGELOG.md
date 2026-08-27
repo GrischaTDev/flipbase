@@ -18,6 +18,29 @@ Dieses Projekt wird teilweise mit KI-Assistenten entwickelt. **Jede** von einer 
 **Verifiziert durch:** <Build / Tests / manuell – mit Ergebnis>
 ```
 
+## Namenskonvention im Code
+
+> **Alle Bezeichner werden englisch geschrieben** – Datei-, Ordner-, Komponenten-,
+> Klassen-, Methoden- und Variablennamen. Deutsch bleibt ausschliesslich fuer
+> Code-Kommentare, sichtbare Oberflaechentexte und die Kommunikation mit dem Nutzer.
+> Commit-Nachrichten sind ebenfalls englisch.
+
+**Offene Aufgabe fuer alle KI-Assistenten:** Grosse Teile des Bestands sind noch
+deutsch benannt (`nimmDateien`, `Rechteck`, `bild-liste`, `zuschnitte` und viele
+weitere, quer durch `core/services/` und die Features). Das Projekt soll spaeter
+**vollstaendig auf englische Bezeichner umgestellt** werden.
+
+Diese Umstellung ist bewusst **zurueckgestellt**, solange die Warenwirtschaft
+(Branch `codex/inventory-sales`) laeuft: Sie fasst viele Kern-Dateien an, und ein
+projektweites Umbenennen wuerde das Zusammenfuehren unmoeglich machen. Wenn es
+soweit ist, gehoert die Umbenennung in einen **eigenen, rein mechanischen Commit**
+ohne Logikaenderung – nur dann beweisen gruene Tests und ein sauberer Build, dass
+nichts kaputtgegangen ist.
+
+Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen.**
+
+---
+
 ## 2026-08-19 – Claude Opus 5 (Anthropic) – Vollständige Umstellung auf Supabase
 
 **Art:** Refactoring, Aufräumen
