@@ -10,8 +10,6 @@ import {
   LucideBookOpen as BookOpen,
   LucideCircleHelp as CircleHelp,
   LucideDynamicIcon,
-  LucideCheck as Check,
-  LucideX as X,
 } from '@lucide/angular';
 import { PLATFORM_PROFILES, PlatformProfile, PlatformId, Rect } from './models/platform-profile';
 import { OptimizerImage, fullImageRect } from './models/optimizer-image';
@@ -19,6 +17,8 @@ import { CropEditorComponent } from './components/crop-editor/crop-editor.compon
 import { PlatformPreviewComponent } from './components/platform-preview/platform-preview.component';
 import { ImageListComponent } from './components/image-list/image-list.component';
 import { PhotoGuideComponent } from './components/photo-guide/photo-guide.component';
+import { PlatformSelectorComponent } from './components/platform-selector/platform-selector.component';
+import { PlatformTabsComponent } from './components/platform-tabs/platform-tabs.component';
 import { ImageExportService, fileName } from './services/image-export.service';
 import { ZipExportService, folderName } from './services/zip-export.service';
 import { setCrop } from './services/crops';
@@ -33,6 +33,7 @@ import {
 import { ImageRotationService } from './services/image-rotation.service';
 import { PhotoGuideState } from './services/photo-guide-state';
 import { findResolutionIssue, checkOutput } from './services/platform-validation';
+import { togglePlatformIn } from './services/platform-selection';
 import { ToastService } from '../../shared/components/toast/toast.service';
 
 /**
@@ -77,6 +78,8 @@ export function isHeic(file: File): boolean {
     PlatformPreviewComponent,
     ImageListComponent,
     PhotoGuideComponent,
+    PlatformSelectorComponent,
+    PlatformTabsComponent,
   ],
   templateUrl: './image-optimizer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -89,41 +92,34 @@ export class ImageOptimizerComponent {
   private readonly rotationQueue = new KeyedQueue<string>();
   private destroyed = false;
 
-  readonly profile = PLATFORM_PROFILES;
+  readonly profiles = PLATFORM_PROFILES;
 
-  readonly checkIcon = Check;
   readonly bookIcon = BookOpen;
   readonly helpIcon = CircleHelp;
-  readonly xIcon = X;
   readonly photoGuide = new PhotoGuideState();
 
   readonly images = signal<OptimizerImage[]>([]);
-  readonly selectedPlatformIds = signal<PlatformId[]>(['ebay']);
+  readonly selectedPlatformIds = signal<readonly PlatformId[]>([]);
   readonly activeImageId = signal<string | null>(null);
 
   /** Die Plattform, fuer die der Editor gerade einen Zuschnitt bearbeitet. */
-  readonly workingPlatformId = signal<PlatformId | null>('ebay');
+  readonly workingPlatformId = signal<PlatformId | null>(null);
 
   readonly isBusy = signal(false);
   readonly rotationsPending = computed(() => this.rotationQueue.pendingCount() > 0);
   readonly error = signal<string | null>(null);
 
   readonly selectedPlatforms = computed<PlatformProfile[]>(() =>
-    this.profile.filter((p) => this.selectedPlatformIds().includes(p.id)),
+    this.profiles.filter((p) => this.selectedPlatformIds().includes(p.id)),
   );
 
   readonly activeImage = computed<OptimizerImage | null>(
     () => this.images().find((b) => b.id === this.activeImageId()) ?? null,
   );
 
-  /** Faellt auf die erste gewaehlte Plattform zurueck, falls die aktive entfaellt. */
-  readonly workingPlatform = computed<PlatformProfile | null>(() => {
-    const selected = this.selectedPlatforms();
-    if (selected.length === 0) return null;
-
-    const active = selected.find((p) => p.id === this.workingPlatformId());
-    return active ?? selected[0];
-  });
+  readonly workingPlatform = computed<PlatformProfile | null>(
+    () => this.selectedPlatforms().find((p) => p.id === this.workingPlatformId()) ?? null,
+  );
 
   /** Der Zuschnitt des aktiven Bildes fuer die aktive Plattform. */
   readonly activeCrop = computed<Rect | null>(() => {
@@ -166,49 +162,31 @@ export class ImageOptimizerComponent {
   togglePlatform(id: PlatformId): void {
     if (this.isBusy()) return;
 
-    const before = this.selectedPlatformIds();
-    const willBeSelected = !before.includes(id);
-
-    // Mindestens ein Exportziel bleibt immer gewaehlt. Im Template ist der
-    // entsprechende Kreuz-Knopf zusaetzlich gar nicht erst sichtbar.
-    if (!willBeSelected && before.length === 1) return;
-
-    this.selectedPlatformIds.update((ids) =>
-      ids.includes(id) ? ids.filter((v) => v !== id) : [...ids, id],
+    const { state, inheritFrom } = togglePlatformIn(
+      { selectedIds: this.selectedPlatformIds(), workingId: this.workingPlatformId() },
+      id,
     );
-
-    if (!willBeSelected) {
-      if (this.workingPlatformId() === id) {
-        this.workingPlatformId.set(this.selectedPlatformIds()[0] ?? null);
-      }
-      return;
-    }
+    this.selectedPlatformIds.set(state.selectedIds);
+    this.workingPlatformId.set(state.workingId);
 
     // Neu dazugewaehlt: aus dem bisherigen Arbeitsziel ableiten, damit fuer
     // bereits bearbeitete Bilder nicht unbemerkt das Vollbild exportiert wird.
-    const source = this.workingPlatform();
-    if (!source) return;
-
+    if (!inheritFrom) return;
     const selected = this.selectedPlatforms();
     this.images.update((list) =>
-      list.map((b) => {
-        const rect = b.crops[source.id];
-        if (!rect) return b;
-        return {
-          ...b,
-          crops: setCrop(b.crops, source.id, rect, selected),
-        };
-      }),
+      list.map((image) =>
+        image.crops[inheritFrom]
+          ? {
+              ...image,
+              crops: setCrop(image.crops, inheritFrom, image.crops[inheritFrom]!, selected),
+            }
+          : image,
+      ),
     );
   }
 
-  /** Waehlt eine Plattform bei Bedarf aus und setzt sie immer als Arbeitsziel. */
-  selectWorkingPlatform(id: PlatformId): void {
+  setWorkingPlatform(id: PlatformId): void {
     if (this.isBusy()) return;
-
-    if (!this.selectedPlatformIds().includes(id)) {
-      this.togglePlatform(id);
-    }
     this.workingPlatformId.set(id);
   }
 

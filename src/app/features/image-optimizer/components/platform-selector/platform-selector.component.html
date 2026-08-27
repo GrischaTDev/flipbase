@@ -1,0 +1,39 @@
+<div class="flex flex-wrap items-center gap-2" role="group" aria-label="Exportplattformen">
+  <span class="mr-1 text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
+    Plattformen
+  </span>
+  @for (p of platforms(); track p.id) {
+    <div
+      class="inline-flex items-stretch overflow-hidden rounded-xl border"
+      [class.border-indigo-400/60]="isSelected(p.id)"
+      [class.bg-indigo-500/20]="isSelected(p.id)"
+      [class.border-fb-border]="!isSelected(p.id)"
+    >
+      <button
+        type="button"
+        (click)="toggled.emit(p.id)"
+        [disabled]="disabled()"
+        [attr.aria-pressed]="isSelected(p.id)"
+        class="inline-flex cursor-pointer items-center gap-2 px-3 py-2 text-xs font-semibold text-fb-text-secondary hover:bg-fb-surface-hover hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        @if (isSelected(p.id)) {
+          <svg
+            [lucideIcon]="checkIcon"
+            class="h-3.5 w-3.5 text-indigo-300"
+            aria-hidden="true"
+          ></svg>
+        }
+        <span>{{ p.name }}</span>
+        <span class="text-[10px] font-normal text-fb-text-muted">{{ ratioLabel(p) }}</span>
+      </button>
+      <button
+        type="button"
+        (click)="helpRequested.emit(p.id)"
+        [attr.aria-label]="'Hilfe zu ' + p.name"
+        class="grid w-8 cursor-pointer place-items-center border-l border-fb-border text-fb-text-muted hover:bg-indigo-500/10 hover:text-indigo-200 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400"
+      >
+        <svg [lucideIcon]="helpIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+      </button>
+    </div>
+  }
+</div>
