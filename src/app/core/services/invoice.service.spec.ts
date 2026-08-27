@@ -200,7 +200,7 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
     expect(invoice.total).toBe(30);
   });
 
-  it('weist bei Mengenpositionen einen centgenauen Rundungsausgleich aus', async () => {
+  it('teilt Mengenpositionen ohne negativen Rundungsausgleich centgenau auf', async () => {
     const sale = {
       id: 'sale-quantity-rounding',
       workspace_id: 'ws-1',
@@ -226,14 +226,24 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
     } satisfies Sale;
 
     const invoice = (await service.generateInvoiceForSale(sale)).data!;
-    const productLine = invoice.items.find((item) => item.title === 'LED-Lampe')!;
-    const adjustment = invoice.items.find((item) => item.title === 'Rundungsausgleich')!;
-
-    expect(productLine).toMatchObject({ quantity: 2, unitPrice: 9.67, totalPrice: 19.34 });
-    expect(adjustment).toMatchObject({ quantity: 1, unitPrice: -0.01, totalPrice: -0.01 });
+    expect(invoice.items).toEqual([
+      expect.objectContaining({
+        title: 'LED-Lampe (Preisgruppe 1)',
+        quantity: 1,
+        unitPrice: 9.66,
+        totalPrice: 9.66,
+      }),
+      expect.objectContaining({
+        title: 'LED-Lampe (Preisgruppe 2)',
+        quantity: 1,
+        unitPrice: 9.67,
+        totalPrice: 9.67,
+      }),
+    ]);
     expect(invoice.items.every((item) => item.unitPrice * item.quantity === item.totalPrice)).toBe(
       true,
     );
+    expect(invoice.items.every((item) => item.unitPrice >= 0 && item.totalPrice >= 0)).toBe(true);
     expect(invoice.items.reduce((sum, item) => sum + item.totalPrice, 0)).toBe(invoice.subtotal);
     expect(invoice.subtotal + invoice.shippingCost).toBe(invoice.total);
   });

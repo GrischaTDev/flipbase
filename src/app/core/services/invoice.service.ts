@@ -320,33 +320,43 @@ export class InvoiceService {
     lines: readonly SaleLine[],
   ): InvoiceItem[] {
     const subtotal = sale.sale_price - (sale.shipping_cost || 0);
-    let adjustmentCents = 0;
-    const items: InvoiceItem[] = lines.map((line, index) => {
+    return lines.flatMap((line, index) => {
       const lineSubtotalCents = this.toCents(this.invoiceLineSubtotal(subtotal, lines, index));
-      const unitPriceCents = Math.round(lineSubtotalCents / line.quantity);
-      const displayedTotalCents = unitPriceCents * line.quantity;
-      adjustmentCents += lineSubtotalCents - displayedTotalCents;
-      return {
-        sku:
-          line.inventory_item_id ||
-          line.catalog_product_id ||
-          `SKU-${sale.id.substring(0, 6).toUpperCase()}`,
-        title: line.title_snapshot,
+      const groups = this.quantityPriceGroups(lineSubtotalCents, line.quantity);
+      const sku =
+        line.inventory_item_id ||
+        line.catalog_product_id ||
+        `SKU-${sale.id.substring(0, 6).toUpperCase()}`;
+      return groups.map((group, groupIndex) => ({
+        sku,
+        title:
+          groups.length === 1
+            ? line.title_snapshot
+            : `${line.title_snapshot} (Preisgruppe ${groupIndex + 1})`,
         condition: line.inventory_item_id === sale.inventory_item_id ? item?.condition : undefined,
-        quantity: line.quantity,
-        unitPrice: unitPriceCents / 100,
-        totalPrice: displayedTotalCents / 100,
-      };
+        quantity: group.quantity,
+        unitPrice: group.unitPriceCents / 100,
+        totalPrice: (group.unitPriceCents * group.quantity) / 100,
+      }));
     });
-    if (adjustmentCents !== 0) {
-      items.push({
-        title: 'Rundungsausgleich',
-        quantity: 1,
-        unitPrice: adjustmentCents / 100,
-        totalPrice: adjustmentCents / 100,
-      });
+  }
+
+  /** Teilt Rest-Cents auf höchstens zwei nichtnegative Preisgruppen derselben Position auf. */
+  private quantityPriceGroups(
+    totalCents: number,
+    quantity: number,
+  ): readonly { quantity: number; unitPriceCents: number }[] {
+    const baseUnitPriceCents = Math.floor(totalCents / quantity);
+    const higherPriceQuantity = totalCents % quantity;
+    const lowerPriceQuantity = quantity - higherPriceQuantity;
+    const groups: { quantity: number; unitPriceCents: number }[] = [];
+    if (lowerPriceQuantity > 0) {
+      groups.push({ quantity: lowerPriceQuantity, unitPriceCents: baseUnitPriceCents });
     }
-    return items;
+    if (higherPriceQuantity > 0) {
+      groups.push({ quantity: higherPriceQuantity, unitPriceCents: baseUnitPriceCents + 1 });
+    }
+    return groups;
   }
 
   private invoiceLineSubtotal(subtotal: number, lines: readonly SaleLine[], index: number): number {
