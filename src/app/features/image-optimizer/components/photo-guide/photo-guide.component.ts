@@ -27,8 +27,8 @@ import { PhotoGuideTab, PhotoGuideState } from '../../services/photo-guide-state
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PhotoGuideComponent implements AfterViewInit {
-  readonly zustand = input.required<PhotoGuideState>();
-  readonly geschlossen = output<void>();
+  readonly state = input.required<PhotoGuideState>();
+  readonly closed = output<void>();
   readonly tabs: readonly { id: PhotoGuideTab; label: string }[] = [
     { id: 'aufnehmen', label: 'Fotos aufnehmen' },
     { id: 'ebay', label: 'eBay' },
@@ -51,16 +51,16 @@ export class PhotoGuideComponent implements AfterViewInit {
     this.dialog().nativeElement.showModal();
   }
 
-  schliessen(): void {
+  close(): void {
     this.dialog().nativeElement.close();
   }
 
-  beiAbbrechen(event: Event): void {
+  onCancel(event: Event): void {
     event.preventDefault();
-    this.schliessen();
+    this.close();
   }
 
-  beiHintergrundKlick(event: PointerEvent): void {
-    if (event.target === this.dialog().nativeElement) this.schliessen();
+  onBackdropClick(event: PointerEvent): void {
+    if (event.target === this.dialog().nativeElement) this.close();
   }
 }

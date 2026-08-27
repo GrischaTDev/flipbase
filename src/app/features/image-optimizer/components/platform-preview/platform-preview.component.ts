@@ -39,31 +39,31 @@ export function planPreview(
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PlatformPreviewComponent {
-  readonly plattform = input.required<PlatformProfile>();
-  readonly datenUrl = input.required<string>();
-  readonly ausschnitt = input<Rect | null>(null);
+  readonly platform = input.required<PlatformProfile>();
+  readonly dataUrl = input.required<string>();
+  readonly crop = input<Rect | null>(null);
 
   readonly previewUrl = signal<string | null>(null);
   readonly outputSize = signal<Size | null>(null);
   readonly isRendering = signal(true);
   readonly hasPreviewError = signal(false);
-  readonly seitenverhaeltnis = computed(() => this.plattform().tileRatio);
+  readonly tileAspectRatio = computed(() => this.platform().tileRatio);
 
-  private aktuelleVorschauUrl: string | null = null;
+  private currentPreviewUrl: string | null = null;
   private renderVersion = 0;
-  private zerstoert = false;
+  private destroyed = false;
 
   constructor() {
     inject(DestroyRef).onDestroy(() => {
-      this.zerstoert = true;
+      this.destroyed = true;
       this.renderVersion++;
-      if (this.aktuelleVorschauUrl) URL.revokeObjectURL(this.aktuelleVorschauUrl);
+      if (this.currentPreviewUrl) URL.revokeObjectURL(this.currentPreviewUrl);
     });
 
     effect(() => {
-      const url = this.datenUrl();
-      const crop = this.ausschnitt();
-      const platform = this.plattform();
+      const url = this.dataUrl();
+      const crop = this.crop();
+      const platform = this.platform();
       void this.renderPreview(url, crop, platform);
     });
   }
@@ -84,20 +84,20 @@ export class PlatformPreviewComponent {
       if (!plan) return;
 
       const blob = await renderImage(image, plan);
-      if (this.zerstoert || version !== this.renderVersion) return;
+      if (this.destroyed || version !== this.renderVersion) return;
 
       const newUrl = URL.createObjectURL(blob);
-      const oldUrl = this.aktuelleVorschauUrl;
-      this.aktuelleVorschauUrl = newUrl;
+      const oldUrl = this.currentPreviewUrl;
+      this.currentPreviewUrl = newUrl;
       this.previewUrl.set(newUrl);
       this.outputSize.set({ width: plan.width, height: plan.height });
       if (oldUrl) URL.revokeObjectURL(oldUrl);
     } catch {
-      if (!this.zerstoert && version === this.renderVersion) {
+      if (!this.destroyed && version === this.renderVersion) {
         this.hasPreviewError.set(true);
       }
     } finally {
-      if (!this.zerstoert && version === this.renderVersion) this.isRendering.set(false);
+      if (!this.destroyed && version === this.renderVersion) this.isRendering.set(false);
     }
   }
 

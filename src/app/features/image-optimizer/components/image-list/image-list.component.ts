@@ -27,6 +27,6 @@ export class ImageListComponent {
   readonly moved = output<{ id: string; direction: -1 | 1 }>();
 
   readonly closeIcon = X;
-  readonly linksIcon = ArrowUp;
-  readonly rechtsIcon = ArrowDown;
+  readonly moveUpIcon = ArrowUp;
+  readonly moveDownIcon = ArrowDown;
 }

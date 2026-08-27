@@ -24,10 +24,10 @@
         --cropper-resize-square-bg: rgb(238 242 255);
         --cropper-resize-square-border: 2px solid rgb(79 70 229);
       "
-      (imageCropped)="beiZuschnitt($event)"
-      (transformChange)="beiTransform($event)"
-      (imageLoaded)="beiBildGeladen($event)"
-      (cropperReady)="beiCropperBereit($event)"
+      (imageCropped)="onCropped($event)"
+      (transformChange)="onTransform($event)"
+      (imageLoaded)="onImageLoaded($event)"
+      (cropperReady)="onCropperReady($event)"
       (loadImageFailed)="loadFailed.emit()"
     ></image-cropper>
   </div>

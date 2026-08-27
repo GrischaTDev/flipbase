@@ -5,8 +5,8 @@ import { planOutput, renderImage } from './image-renderer';
 
 /** Name einer Exportdatei. Index 0 ist das Hauptbild. */
 export function fileName(index: number, _platform: PlatformProfile): string {
-  const nummer = String(index + 1).padStart(2, '0');
-  return index === 0 ? `${nummer}-main.jpg` : `${nummer}.jpg`;
+  const sequence = String(index + 1).padStart(2, '0');
+  return index === 0 ? `${sequence}-main.jpg` : `${sequence}.jpg`;
 }
 
 @Injectable({

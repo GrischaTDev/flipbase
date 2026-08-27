@@ -92,23 +92,23 @@
     </div>
   </section>
 
-  @if (activeImage(); as bild) {
+  @if (activeImage(); as image) {
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
       <section class="linear-surface min-w-0 rounded-2xl border border-fb-border p-4 shadow-xl">
-        @if (workingPlatform(); as plattform) {
+        @if (workingPlatform(); as platform) {
           <header class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
                 Ausschnitt bearbeiten
               </p>
               <h2 class="mt-0.5 text-sm font-bold text-fb-text-primary">
-                {{ plattform.name }} · {{ plattform.exportWidth }} × {{ plattform.exportHeight }} px
+                {{ platform.name }} · {{ platform.exportWidth }} × {{ platform.exportHeight }} px
                 maximal
               </h2>
             </div>
             <button
               type="button"
-              (click)="applyToAll(bild.id)"
+              (click)="applyToAll(image.id)"
               [disabled]="isBusy() || activeCrop() === null || selectedPlatforms().length < 2"
               class="cursor-pointer rounded-lg border border-fb-border px-3 py-2 text-[11px] font-semibold text-fb-text-secondary hover:border-indigo-500/40 hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
             >
@@ -116,15 +116,15 @@
             </button>
           </header>
 
-          @if (activeOutputCheck(); as pruefung) {
-            @if (!pruefung.isValid) {
+          @if (activeOutputCheck(); as check) {
+            @if (!check.isValid) {
               <div
                 class="mb-4 flex gap-2 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-rose-200"
                 role="alert"
               >
                 <span aria-hidden="true">!</span>
                 <span>
-                  Dieser Ausschnitt ergibt nur {{ pruefung.width }} × {{ pruefung.height }} px. eBay
+                  Dieser Ausschnitt ergibt nur {{ check.width }} × {{ check.height }} px. eBay
                   verlangt mindestens 500 px an der längsten Seite. Bitte wähle einen größeren
                   Ausschnitt oder ein höher aufgelöstes Original. Flipbase skaliert nicht künstlich
                   hoch.
@@ -134,14 +134,14 @@
           }
 
           <app-crop-editor
-            [dataUrl]="bild.dataUrl"
-            [ratio]="plattform.exportRatio"
+            [dataUrl]="image.dataUrl"
+            [ratio]="platform.exportRatio"
             [storedCrop]="activeCrop()"
             [disabled]="isBusy()"
-            (cropChanged)="saveCrop(bild.id, $event)"
-            (rotateRequested)="rotate(bild.id)"
-            (loadFailed)="onLoadFailed(bild.id)"
-            (imageLoadedEvent)="onImageLoaded(bild.id)"
+            (cropChanged)="saveCrop(image.id, $event)"
+            (rotateRequested)="rotate(image.id)"
+            (loadFailed)="onLoadFailed(image.id)"
+            (imageLoadedEvent)="onImageLoaded(image.id)"
           ></app-crop-editor>
         }
       </section>
@@ -177,9 +177,9 @@
       <div class="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
         @for (p of selectedPlatforms(); track p.id) {
           <app-platform-preview
-            [plattform]="p"
-            [datenUrl]="bild.dataUrl"
-            [ausschnitt]="bild.crops[p.id] ?? null"
+            [platform]="p"
+            [dataUrl]="image.dataUrl"
+            [crop]="image.crops[p.id] ?? null"
           ></app-platform-preview>
         }
       </div>
@@ -189,8 +189,8 @@
       class="linear-surface flex flex-col gap-3 rounded-2xl border border-fb-border p-4 shadow-xl sm:flex-row sm:items-center sm:justify-between"
     >
       <div>
-        @if (bild.loadError) {
-          <p class="text-[11px] text-rose-400">{{ bild.loadError }}</p>
+        @if (image.loadError) {
+          <p class="text-[11px] text-rose-400">{{ image.loadError }}</p>
         } @else if (resolutionIssue(); as problem) {
           <p class="text-[11px] text-rose-300" role="alert">
             {{ problem.imageName }} ist für {{ problem.platformName }} mit {{ problem.width }} ×
@@ -241,5 +241,5 @@
 </div>
 
 @if (photoGuide.isOpen()) {
-  <app-photo-guide [zustand]="photoGuide" (geschlossen)="photoGuide.close()"></app-photo-guide>
+  <app-photo-guide [state]="photoGuide" (closed)="photoGuide.close()"></app-photo-guide>
 }

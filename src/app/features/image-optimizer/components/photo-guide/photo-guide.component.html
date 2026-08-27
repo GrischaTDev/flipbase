@@ -2,9 +2,9 @@
   #dialog
   aria-labelledby="fotoguide-titel"
   class="m-auto max-h-[min(90dvh,52rem)] w-[min(94vw,58rem)] overflow-hidden rounded-2xl border border-fb-border bg-fb-surface p-0 text-fb-text-primary shadow-2xl backdrop:bg-slate-950/80"
-  (cancel)="beiAbbrechen($event)"
-  (close)="geschlossen.emit()"
-  (pointerdown)="beiHintergrundKlick($event)"
+  (cancel)="onCancel($event)"
+  (close)="closed.emit()"
+  (pointerdown)="onBackdropClick($event)"
 >
   <div class="flex max-h-[min(90dvh,52rem)] flex-col">
     <header class="relative overflow-hidden border-b border-fb-border px-5 py-4 sm:px-6">
@@ -37,7 +37,7 @@
           type="button"
           aria-label="Fotoguide schließen"
           class="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-lg border border-fb-border text-fb-text-muted hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-          (click)="schliessen()"
+          (click)="close()"
         >
           <svg [lucideIcon]="xIcon" class="h-4 w-4" aria-hidden="true"></svg>
         </button>
@@ -51,12 +51,12 @@
       @for (tab of tabs; track tab.id) {
         <button
           type="button"
-          [attr.aria-pressed]="zustand().activeTab() === tab.id"
-          [class.bg-indigo-500/15]="zustand().activeTab() === tab.id"
-          [class.text-indigo-200]="zustand().activeTab() === tab.id"
-          [class.text-fb-text-muted]="zustand().activeTab() !== tab.id"
+          [attr.aria-pressed]="state().activeTab() === tab.id"
+          [class.bg-indigo-500/15]="state().activeTab() === tab.id"
+          [class.text-indigo-200]="state().activeTab() === tab.id"
+          [class.text-fb-text-muted]="state().activeTab() !== tab.id"
           class="shrink-0 cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
-          (click)="zustand().selectTab(tab.id)"
+          (click)="state().selectTab(tab.id)"
         >
           {{ tab.label }}
         </button>
@@ -64,7 +64,7 @@
     </nav>
 
     <div class="overflow-y-auto px-5 py-5 sm:px-6">
-      @switch (zustand().activeTab()) {
+      @switch (state().activeTab()) {
         @case ('aufnehmen') {
           <div class="space-y-5">
             <section>
@@ -143,7 +143,7 @@
 
             <div class="grid gap-2 sm:grid-cols-2">
               @for (
-                tipp of [
+                tip of [
                   'Original in höchster Auflösung verwenden',
                   'Neutraler, ruhiger Hintergrund',
                   'Gleichmäßiges Tageslicht ohne harten Blitz',
@@ -151,7 +151,7 @@
                   'Details aus mehreren Blickwinkeln fotografieren',
                   'Mängel ehrlich und gut erkennbar zeigen',
                 ];
-                track tipp
+                track tip
               ) {
                 <div
                   class="flex items-start gap-2 rounded-lg border border-fb-border bg-slate-950/20 p-2.5"
@@ -161,7 +161,7 @@
                     class="mt-0.5 h-4 w-4 shrink-0 text-emerald-400"
                     aria-hidden="true"
                   ></svg>
-                  <span class="text-[11px] leading-relaxed text-fb-text-secondary">{{ tipp }}</span>
+                  <span class="text-[11px] leading-relaxed text-fb-text-secondary">{{ tip }}</span>
                 </div>
               }
             </div>

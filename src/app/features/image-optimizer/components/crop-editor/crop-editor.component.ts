@@ -55,19 +55,19 @@ export class CropEditorComponent {
 
   // Groesse des Originalbildes (aus `imageLoaded`) und der tatsaechlich
   // angezeigten Flaeche (aus `cropperReady`) - beide werden gebraucht, um
-  // `wiederherstellenZiel` (Originalpixel) in die Anzeigepixel umzurechnen,
+  // `restoreTarget` (Originalpixel) in die Anzeigepixel umzurechnen,
   // die `[cropper]` erwartet. Beide sind erst asynchron nach dem Laden des
   // Bildes bekannt, deshalb signal statt computed.
-  private readonly originalGroesse = signal<Dimensions | null>(null);
-  private readonly angezeigteGroesse = signal<Dimensions | null>(null);
+  private readonly originalSize = signal<Dimensions | null>(null);
+  private readonly displayedSize = signal<Dimensions | null>(null);
 
   // Schnappschuss von `storedCrop()` zum Zeitpunkt eines Bild-
   // oder Plattformwechsels. Bewusst kein computed auf dem Input direkt:
   // Waehrend der Nutzer zieht, aktualisiert die Elternkomponente den
   // Plattform-Zuschnitt bei jedem Zwischenschritt, was sonst bei jedem
   // Mausschritt einen neuen `[cropper]`-Wert erzeugen wuerde.
-  private readonly wiederherstellenZiel = signal<Rect | null>(null);
-  private letzteDatenUrl: string | null = null;
+  private readonly restoreTarget = signal<Rect | null>(null);
+  private lastDataUrl: string | null = null;
 
   readonly rotateIcon = RotateCw;
   readonly centerIcon = LocateFixed;
@@ -85,14 +85,14 @@ export class CropEditorComponent {
       const dataUrl = this.dataUrl();
       this.ratio();
 
-      if (dataUrl !== this.letzteDatenUrl) {
-        this.letzteDatenUrl = dataUrl;
-        this.originalGroesse.set(null);
-        this.angezeigteGroesse.set(null);
+      if (dataUrl !== this.lastDataUrl) {
+        this.lastDataUrl = dataUrl;
+        this.originalSize.set(null);
+        this.displayedSize.set(null);
         this.transform.set({ scale: 1, translateH: 0, translateV: 0 });
       }
 
-      this.wiederherstellenZiel.set(untracked(this.storedCrop));
+      this.restoreTarget.set(untracked(this.storedCrop));
     });
   }
 
@@ -109,9 +109,9 @@ export class CropEditorComponent {
    * `[cropper]` setzen und dabei auf `cropperReady` warten.
    */
   readonly cropperInput = computed<CropperPosition | undefined>(() => {
-    const crop = this.wiederherstellenZiel();
-    const original = this.originalGroesse();
-    const displayed = this.angezeigteGroesse();
+    const crop = this.restoreTarget();
+    const original = this.originalSize();
+    const displayed = this.displayedSize();
     if (!crop || !original || !displayed) {
       return undefined;
     }
@@ -119,17 +119,17 @@ export class CropEditorComponent {
   });
 
   /** `(imageLoaded)`: liefert die Originalgroesse fuer `cropperInput`. */
-  beiBildGeladen(image: LoadedImage): void {
-    this.originalGroesse.set(image.original.size);
+  onImageLoaded(image: LoadedImage): void {
+    this.originalSize.set(image.original.size);
     this.imageLoadedEvent.emit();
   }
 
   /** `(cropperReady)`: liefert die Anzeigegroesse fuer `cropperInput`. */
-  beiCropperBereit(dimensions: Dimensions): void {
-    this.angezeigteGroesse.set(dimensions);
+  onCropperReady(dimensions: Dimensions): void {
+    this.displayedSize.set(dimensions);
   }
 
-  beiZuschnitt(event: ImageCroppedEvent): void {
+  onCropped(event: ImageCroppedEvent): void {
     // Die Bibliothek erzeugt fuer jede Zuschnitt-Geste eine Object-URL des
     // gerenderten Vorschaubildes (`objectUrl`). Gebraucht wird hier nur
     // `imagePosition`, das gerenderte Bild selbst nie - ungenutzt bliebe die
@@ -150,7 +150,7 @@ export class CropEditorComponent {
     this.cropChanged.emit(crop);
   }
 
-  beiTransform(transform: ImageTransform): void {
+  onTransform(transform: ImageTransform): void {
     this.transform.set({ ...transform, scale: clampZoom(transform.scale ?? 1) });
   }
 
@@ -165,9 +165,9 @@ export class CropEditorComponent {
 
   reset(): void {
     this.transform.set({ scale: 1, translateH: 0, translateV: 0 });
-    const original = this.originalGroesse();
+    const original = this.originalSize();
     if (!original) return;
-    this.wiederherstellenZiel.set(
+    this.restoreTarget.set(
       deriveRect({ x: 0, y: 0, width: original.width, height: original.height }, this.ratio()),
     );
   }
