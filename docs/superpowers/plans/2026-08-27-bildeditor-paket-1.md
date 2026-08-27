@@ -274,7 +274,7 @@ EOF
 **Interfaces:**
 
 - Consumes: `Rect`, `Size`, `PlatformProfile`, `PlatformId`, `Crops`, `setCrop`, `applyCropToAll` (Task 1)
-- Produces: `OptimizerImage`, `fullImageRect(image)`, `addImages(list, newImages)`, `removeImage(list, id)`, `moveImage(list, id, direction)`, `saveCropIn(list, id, platformId, rect, selected)`, `applyCropToAllIn(list, id, platformId, selected)`, `markReviewed(list, id)`, `toggleReviewed(list, id)`, `reviewedCount(list)`, `ImageRotationService.rotate(file, quarters)`
+- Produces: `OptimizerImage`, `fullImageRect(image)`, `removeImage(list, id)`, `moveImage(list, id, direction)`, `saveCropIn(list, id, platformId, rect, selected)`, `applyCropToAllIn(list, id, platformId, selected)`, `markReviewed(list, id)`, `toggleReviewed(list, id)`, `reviewedCount(list)`, `ImageRotationService.rotate(file, quarters)`
 
 - [ ] **Step 1: Modelldatei anlegen**
 
@@ -417,13 +417,6 @@ import { applyCropToAll, setCrop } from './crops';
 export interface RemovalResult {
   readonly list: readonly OptimizerImage[];
   readonly revokedUrls: readonly string[];
-}
-
-export function addImages(
-  list: readonly OptimizerImage[],
-  added: readonly OptimizerImage[],
-): readonly OptimizerImage[] {
-  return added.length === 0 ? list : [...list, ...added];
 }
 
 export function removeImage(list: readonly OptimizerImage[], id: string): RemovalResult {
@@ -1512,14 +1505,15 @@ addFiles(files: readonly File[]): void {
 
 Im Template die aeussere `<div class="space-y-5">` mit der Direktive versehen und die Ablageflaeche einhaengen:
 
-```html
-<div
-  class="space-y-5"
-  appFileDrop
-  [disabled]="isBusy()"
-  (filesDropped)="addFiles($event)"
-  (dragActiveChanged)="isDragActive.set($event)"
-></div>
+Das ist das **umschliessende** Element der ganzen Seite; sein schliessendes
+`</div>` steht unveraendert am Dateiende. Nur die Attribute kommen hinzu:
+
+```text
+<div class="space-y-5"
+     appFileDrop
+     [disabled]="isBusy()"
+     (filesDropped)="addFiles($event)"
+     (dragActiveChanged)="isDragActive.set($event)">
 ```
 
 Der bisherige `@else`-Zweig mit dem gestrichelten Kasten wird durch die Komponente ersetzt:
@@ -1534,6 +1528,29 @@ Der bisherige `@else`-Zweig mit dem gestrichelten Kasten wird durch die Komponen
 ```
 
 Die Komponente wird **ausserhalb** des `@if (activeImage(); as image)`-Blocks eingehaengt, damit die Ueberlagerung auch bei geladenen Bildern erscheint.
+
+**Der Knopf "Bilder hinzufuegen" im Kopfbereich muss in diesem Schritt mit
+umgestellt werden.** Er ruft bisher `addFiles($any($event.target).files)` und
+uebergibt damit eine `FileList`. Ab jetzt erwartet `addFiles` ein Feld; die
+`FileList` hat kein `filter`, und `splitImageFiles` wuerde zur Laufzeit
+abstuerzen. Das `$any()` im Template verbirgt den Fehler vor der Typpruefung -
+er faellt erst beim Klicken auf. Der Kopfbereich wird erst in Task 7 zu einer
+eigenen Komponente, bis dahin gilt:
+
+```ts
+/** Wandelt die FileList des Dateifeldes in ein Feld und leert das Feld danach. */
+onFileInput(target: EventTarget | null): void {
+  const input = target as HTMLInputElement | null;
+  const files = Array.from(input?.files ?? []);
+  if (files.length > 0) this.addFiles(files);
+  // Ohne das Leeren feuert `change` nicht erneut, wenn dieselbe Datei
+  // ein zweites Mal ausgewaehlt wird.
+  if (input) input.value = '';
+}
+```
+
+Im Template beide verbliebenen Dateifelder auf `(change)="onFileInput($event.target)"`
+umstellen und das `$any()` entfernen.
 
 - [ ] **Step 7: Tests laufen lassen**
 
