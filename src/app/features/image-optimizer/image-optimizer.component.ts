@@ -14,23 +14,23 @@ import {
   LucideX as X,
 } from '@lucide/angular';
 import {
-  Groesse,
-  PLATTFORM_PROFILE,
-  PlattformProfil,
-  ProfilId,
-  Rechteck,
-} from './models/plattform-profile';
-import { ZuschnittEditorComponent } from './components/zuschnitt-editor/zuschnitt-editor.component';
-import { PlattformVorschauComponent } from './components/plattform-vorschau/plattform-vorschau.component';
-import { BildListeComponent } from './components/bild-liste/bild-liste.component';
-import { FotoguideComponent } from './components/fotoguide/fotoguide.component';
-import { BildExportService, dateiName } from './services/bild-export.service';
-import { ZipExportService, ordnerName } from './services/zip-export.service';
-import { setzeZuschnitt, uebernimmAufAlle, Zuschnitte } from './services/zuschnitte';
-import { SchluesselWarteschlange } from './services/async-warteschlange';
-import { erstelleExportSnapshot, ersetzeWennAktuell } from './services/async-zustand';
-import { FotoguideZustand } from './services/fotoguide-zustand';
-import { findeAufloesungsproblem, pruefeAusgabe } from './services/plattform-validierung';
+  Size,
+  PLATFORM_PROFILES,
+  PlatformProfile,
+  PlatformId,
+  Rect,
+} from './models/platform-profile';
+import { CropEditorComponent } from './components/crop-editor/crop-editor.component';
+import { PlatformPreviewComponent } from './components/platform-preview/platform-preview.component';
+import { ImageListComponent } from './components/image-list/image-list.component';
+import { PhotoGuideComponent } from './components/photo-guide/photo-guide.component';
+import { BildExportService, fileName } from './services/image-export.service';
+import { ZipExportService, folderName } from './services/zip-export.service';
+import { setCrop, applyCropToAll, Crops } from './services/crops';
+import { KeyedQueue } from './services/async-queue';
+import { createExportSnapshot, replaceIfCurrent } from './services/async-state';
+import { PhotoGuideState } from './services/photo-guide-state';
+import { findResolutionIssue, checkOutput } from './services/platform-validation';
 import { ToastService } from '../../shared/components/toast/toast.service';
 
 /**
@@ -40,7 +40,7 @@ import { ToastService } from '../../shared/components/toast/toast.service';
  * Editors) als auch beim Export (`ladeBild`) referenziert, damit die beiden
  * Meldungen nie auseinanderlaufen koennen.
  */
-export const HEIC_HINWEIS =
+export const HEIC_HINT =
   'Das Bild liess sich nicht lesen. HEIC-Dateien vom iPhone kann der Browser oft nicht öffnen.';
 
 /**
@@ -50,34 +50,34 @@ export const HEIC_HINWEIS =
  * JPEG-Datei mit "HEIC-Dateien vom iPhone" zu erklaeren schickt den Nutzer in
  * die voellig falsche Richtung - genau das ist im Betrieb passiert.
  */
-export const LESE_HINWEIS =
+export const READ_HINT =
   'Das Bild liess sich nicht anzeigen. Versuche es mit einer anderen Datei oder speichere es vorher als JPEG.';
 
 /** Ob eine Datei ein HEIC/HEIF-Foto ist - danach richtet sich der Hinweistext. */
-export function istHeic(datei: File): boolean {
+export function isHeic(datei: File): boolean {
   const typ = (datei.type || '').toLowerCase();
   const name = (datei.name || '').toLowerCase();
   return typ.includes('heic') || typ.includes('heif') || /\.(heic|heif)$/.test(name);
 }
 
 /** Ein hochgeladenes Bild mit seinen plattformspezifischen Zuschnitten. */
-export interface OptimiererBild {
+export interface OptimizerImage {
   readonly id: string;
-  readonly datei: File;
-  readonly datenUrl: string;
+  readonly file: File;
+  readonly dataUrl: string;
   /** Zuschnitt je Plattform, in Originalpixeln. Leer, solange nichts gesetzt wurde. */
-  readonly ausschnitte: Zuschnitte;
+  readonly crops: Crops;
   /**
    * Viertelumdrehungen im Uhrzeigersinn, bereits in `datenUrl` eingebrannt.
    * `datenUrl` zeigt also immer das fertig gedrehte Bild - Editor, Vorschauen
    * und der Export muessen selbst nichts von einer Drehung wissen.
    */
-  readonly drehung: 0 | 1 | 2 | 3;
+  readonly rotation: 0 | 1 | 2 | 3;
   /**
    * Hinweis, falls der Cropper dieses Bild beim Lesen nicht anzeigen konnte
    * (siehe `HEIC_HINWEIS`). Null, solange das Lesen nicht fehlgeschlagen ist.
    */
-  readonly ladefehler: string | null;
+  readonly loadError: string | null;
   /**
    * Groesse von `datenUrl` in Originalpixeln, ermittelt kurz nach dem Lesen
    * (bzw. neu nach jeder Drehung, weil sich Breite und Hoehe dabei tauschen
@@ -87,16 +87,16 @@ export interface OptimiererBild {
    * die Groesse noch nicht bekannt ist (z.B. HEIC oder eine noch laufende
    * Ermittlung).
    */
-  readonly naturGroesse: Groesse | null;
+  readonly naturalSize: Size | null;
 }
 
 /**
  * Das volle Bild als Ersatz fuer Plattformen ohne eigenen Zuschnitt. Null
  * nur, solange die natuerliche Groesse noch nicht bekannt ist.
  */
-function vollesBild(bild: OptimiererBild): Rechteck | null {
-  if (!bild.naturGroesse) return null;
-  return { x: 0, y: 0, breite: bild.naturGroesse.breite, hoehe: bild.naturGroesse.hoehe };
+function fullImageRect(bild: OptimizerImage): Rect | null {
+  if (!bild.naturalSize) return null;
+  return { x: 0, y: 0, width: bild.naturalSize.width, height: bild.naturalSize.height };
 }
 
 /**
@@ -110,10 +110,10 @@ function vollesBild(bild: OptimiererBild): Rechteck | null {
   selector: 'app-image-optimizer',
   imports: [
     LucideDynamicIcon,
-    ZuschnittEditorComponent,
-    PlattformVorschauComponent,
-    BildListeComponent,
-    FotoguideComponent,
+    CropEditorComponent,
+    PlatformPreviewComponent,
+    ImageListComponent,
+    PhotoGuideComponent,
   ],
   templateUrl: './image-optimizer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -122,68 +122,68 @@ export class ImageOptimizerComponent {
   private readonly toast = inject(ToastService);
   private readonly bildExport = inject(BildExportService);
   private readonly zipExport = inject(ZipExportService);
-  private readonly drehWarteschlange = new SchluesselWarteschlange<string>();
-  private zerstoert = false;
+  private readonly rotationQueue = new KeyedQueue<string>();
+  private destroyed = false;
 
-  readonly profile = PLATTFORM_PROFILE;
+  readonly profile = PLATFORM_PROFILES;
 
   readonly checkIcon = Check;
   readonly bookIcon = BookOpen;
   readonly helpIcon = CircleHelp;
   readonly xIcon = X;
-  readonly fotoguide = new FotoguideZustand();
+  readonly photoGuide = new PhotoGuideState();
 
-  readonly bilder = signal<OptimiererBild[]>([]);
-  readonly gewaehlteIds = signal<ProfilId[]>(['ebay']);
-  readonly aktivesBildId = signal<string | null>(null);
+  readonly images = signal<OptimizerImage[]>([]);
+  readonly selectedPlatformIds = signal<PlatformId[]>(['ebay']);
+  readonly activeImageId = signal<string | null>(null);
 
   /** Die Plattform, fuer die der Editor gerade einen Zuschnitt bearbeitet. */
-  readonly aktivePlattformId = signal<ProfilId | null>('ebay');
+  readonly workingPlatformId = signal<PlatformId | null>('ebay');
 
-  readonly laeuft = signal(false);
-  readonly drehungenLaufen = computed(() => this.drehWarteschlange.anzahlAusstehend() > 0);
-  readonly fehler = signal<string | null>(null);
+  readonly isBusy = signal(false);
+  readonly rotationsPending = computed(() => this.rotationQueue.pendingCount() > 0);
+  readonly error = signal<string | null>(null);
 
-  readonly gewaehlteProfile = computed<PlattformProfil[]>(() =>
-    this.profile.filter((p) => this.gewaehlteIds().includes(p.id)),
+  readonly selectedPlatforms = computed<PlatformProfile[]>(() =>
+    this.profile.filter((p) => this.selectedPlatformIds().includes(p.id)),
   );
 
-  readonly aktivesBild = computed<OptimiererBild | null>(
-    () => this.bilder().find((b) => b.id === this.aktivesBildId()) ?? null,
+  readonly activeImage = computed<OptimizerImage | null>(
+    () => this.images().find((b) => b.id === this.activeImageId()) ?? null,
   );
 
   /** Faellt auf die erste gewaehlte Plattform zurueck, falls die aktive entfaellt. */
-  readonly aktivePlattform = computed<PlattformProfil | null>(() => {
-    const gewaehlt = this.gewaehlteProfile();
+  readonly workingPlatform = computed<PlatformProfile | null>(() => {
+    const gewaehlt = this.selectedPlatforms();
     if (gewaehlt.length === 0) return null;
 
-    const aktiv = gewaehlt.find((p) => p.id === this.aktivePlattformId());
+    const aktiv = gewaehlt.find((p) => p.id === this.workingPlatformId());
     return aktiv ?? gewaehlt[0];
   });
 
   /** Der Zuschnitt des aktiven Bildes fuer die aktive Plattform. */
-  readonly aktiverAusschnitt = computed<Rechteck | null>(() => {
-    const bild = this.aktivesBild();
-    const plattform = this.aktivePlattform();
+  readonly activeCrop = computed<Rect | null>(() => {
+    const bild = this.activeImage();
+    const plattform = this.workingPlatform();
     if (!bild || !plattform) return null;
-    return bild.ausschnitte[plattform.id] ?? null;
+    return bild.crops[plattform.id] ?? null;
   });
 
-  readonly aktiveAusgabePruefung = computed(() => {
-    const bild = this.aktivesBild();
-    const plattform = this.aktivePlattform();
+  readonly activeOutputCheck = computed(() => {
+    const bild = this.activeImage();
+    const plattform = this.workingPlatform();
     if (!bild || !plattform) return null;
-    return pruefeAusgabe(bild.ausschnitte[plattform.id] ?? null, bild.naturGroesse, plattform);
+    return checkOutput(bild.crops[plattform.id] ?? null, bild.naturalSize, plattform);
   });
 
-  readonly aufloesungsproblem = computed(() =>
-    findeAufloesungsproblem(
-      this.bilder().map((bild) => ({
-        name: bild.datei.name,
-        naturGroesse: bild.naturGroesse,
-        ausschnitte: bild.ausschnitte,
+  readonly resolutionIssue = computed(() =>
+    findResolutionIssue(
+      this.images().map((bild) => ({
+        name: bild.file.name,
+        naturGroesse: bild.naturalSize,
+        ausschnitte: bild.crops,
       })),
-      this.gewaehlteProfile(),
+      this.selectedPlatforms(),
     ),
   );
 
@@ -192,91 +192,91 @@ export class ImageOptimizerComponent {
     // Liste geloescht wird - verlaesst der Nutzer die Seite aber vorher,
     // bleiben alle noch geladenen Fotos in vollem Original in Erinnerung.
     inject(DestroyRef).onDestroy(() => {
-      this.zerstoert = true;
-      for (const bild of this.bilder()) {
-        URL.revokeObjectURL(bild.datenUrl);
+      this.destroyed = true;
+      for (const bild of this.images()) {
+        URL.revokeObjectURL(bild.dataUrl);
       }
     });
   }
 
-  schaltePlattform(id: ProfilId): void {
-    if (this.laeuft()) return;
+  togglePlatform(id: PlatformId): void {
+    if (this.isBusy()) return;
 
-    const vorher = this.gewaehlteIds();
+    const vorher = this.selectedPlatformIds();
     const wirdGewaehlt = !vorher.includes(id);
 
     // Mindestens ein Exportziel bleibt immer gewaehlt. Im Template ist der
     // entsprechende Kreuz-Knopf zusaetzlich gar nicht erst sichtbar.
     if (!wirdGewaehlt && vorher.length === 1) return;
 
-    this.gewaehlteIds.update((ids) =>
+    this.selectedPlatformIds.update((ids) =>
       ids.includes(id) ? ids.filter((v) => v !== id) : [...ids, id],
     );
 
     if (!wirdGewaehlt) {
-      if (this.aktivePlattformId() === id) {
-        this.aktivePlattformId.set(this.gewaehlteIds()[0] ?? null);
+      if (this.workingPlatformId() === id) {
+        this.workingPlatformId.set(this.selectedPlatformIds()[0] ?? null);
       }
       return;
     }
 
     // Neu dazugewaehlt: aus dem bisherigen Arbeitsziel ableiten, damit fuer
     // bereits bearbeitete Bilder nicht unbemerkt das Vollbild exportiert wird.
-    const quelle = this.aktivePlattform();
+    const quelle = this.workingPlatform();
     if (!quelle) return;
 
-    const gewaehlt = this.gewaehlteProfile();
-    this.bilder.update((liste) =>
+    const gewaehlt = this.selectedPlatforms();
+    this.images.update((liste) =>
       liste.map((b) => {
-        const rechteck = b.ausschnitte[quelle.id];
+        const rechteck = b.crops[quelle.id];
         if (!rechteck) return b;
         return {
           ...b,
-          ausschnitte: setzeZuschnitt(b.ausschnitte, quelle.id, rechteck, gewaehlt),
+          crops: setCrop(b.crops, quelle.id, rechteck, gewaehlt),
         };
       }),
     );
   }
 
   /** Waehlt eine Plattform bei Bedarf aus und setzt sie immer als Arbeitsziel. */
-  waehleArbeitsziel(id: ProfilId): void {
-    if (this.laeuft()) return;
+  selectWorkingPlatform(id: PlatformId): void {
+    if (this.isBusy()) return;
 
-    if (!this.gewaehlteIds().includes(id)) {
-      this.schaltePlattform(id);
+    if (!this.selectedPlatformIds().includes(id)) {
+      this.togglePlatform(id);
     }
-    this.aktivePlattformId.set(id);
+    this.workingPlatformId.set(id);
   }
 
-  setzeAktivesBild(id: string): void {
-    if (this.laeuft()) return;
-    this.aktivesBildId.set(id);
+  setActiveImage(id: string): void {
+    if (this.isBusy()) return;
+    this.activeImageId.set(id);
   }
 
-  async nimmDateien(dateien: FileList | null): Promise<void> {
-    if (this.laeuft() || !dateien) return;
+  async addFiles(dateien: FileList | null): Promise<void> {
+    if (this.isBusy() || !dateien) return;
 
-    const neue: OptimiererBild[] = [];
+    const neue: OptimizerImage[] = [];
     for (const datei of Array.from(dateien)) {
       if (!datei.type.startsWith('image/')) continue;
       neue.push({
         id: crypto.randomUUID(),
-        datei,
-        datenUrl: URL.createObjectURL(datei),
-        ausschnitte: {},
-        drehung: 0,
-        ladefehler: null,
-        naturGroesse: null,
+        file: datei,
+        dataUrl: URL.createObjectURL(datei),
+        crops: {},
+        rotation: 0,
+        loadError: null,
+        naturalSize: null,
       });
     }
 
-    this.bilder.update((liste) => [...liste, ...neue]);
-    if (!this.aktivesBildId() && neue.length > 0) {
-      this.aktivesBildId.set(neue[0].id);
+    this.images.update((liste) => [...liste, ...neue]);
+    if (!this.activeImageId() && neue.length > 0) {
+      this.activeImageId.set(neue[0].id);
     }
 
     for (const bild of neue) {
-      void this.ermittleNaturGroesse(bild.id, bild.datenUrl);
+      void this.measureNaturalSize(bild.id, bild.dataUrl);
     }
   }
 
@@ -300,13 +300,13 @@ export class ImageOptimizerComponent {
    * unberuehrt, waehrend die ermittelte Groesse fuer spaetere Exporte erhalten
    * bleibt.
    */
-  private async ermittleNaturGroesse(id: string, datenUrl: string): Promise<void> {
+  private async measureNaturalSize(id: string, datenUrl: string): Promise<void> {
     try {
-      const element = await this.ladeBild(datenUrl);
-      this.bilder.update((liste) =>
+      const element = await this.loadImage(datenUrl);
+      this.images.update((liste) =>
         liste.map((b) =>
-          b.id === id && b.datenUrl === datenUrl
-            ? { ...b, naturGroesse: { breite: element.naturalWidth, hoehe: element.naturalHeight } }
+          b.id === id && b.dataUrl === datenUrl
+            ? { ...b, naturalSize: { width: element.naturalWidth, height: element.naturalHeight } }
             : b,
         ),
       );
@@ -315,35 +315,30 @@ export class ImageOptimizerComponent {
     }
   }
 
-  entferne(id: string): void {
-    if (this.laeuft()) return;
+  removeImage(id: string): void {
+    if (this.isBusy()) return;
 
-    const betroffen = this.bilder().find((b) => b.id === id);
-    if (betroffen) URL.revokeObjectURL(betroffen.datenUrl);
+    const betroffen = this.images().find((b) => b.id === id);
+    if (betroffen) URL.revokeObjectURL(betroffen.dataUrl);
 
-    this.bilder.update((liste) => liste.filter((b) => b.id !== id));
-    if (this.aktivesBildId() === id) {
-      this.aktivesBildId.set(this.bilder()[0]?.id ?? null);
+    this.images.update((liste) => liste.filter((b) => b.id !== id));
+    if (this.activeImageId() === id) {
+      this.activeImageId.set(this.images()[0]?.id ?? null);
     }
   }
 
-  merkeAusschnitt(id: string, rechteck: Rechteck): void {
-    if (this.laeuft()) return;
+  saveCrop(id: string, rechteck: Rect): void {
+    if (this.isBusy()) return;
 
-    const plattform = this.aktivePlattform();
+    const plattform = this.workingPlatform();
     if (!plattform) return;
 
-    this.bilder.update((liste) =>
+    this.images.update((liste) =>
       liste.map((b) =>
         b.id === id
           ? {
               ...b,
-              ausschnitte: setzeZuschnitt(
-                b.ausschnitte,
-                plattform.id,
-                rechteck,
-                this.gewaehlteProfile(),
-              ),
+              crops: setCrop(b.crops, plattform.id, rechteck, this.selectedPlatforms()),
             }
           : b,
       ),
@@ -351,18 +346,18 @@ export class ImageOptimizerComponent {
   }
 
   /** Uebertraegt den aktiven Zuschnitt auf alle anderen gewaehlten Plattformen. */
-  uebernehmen(id: string): void {
-    if (this.laeuft()) return;
+  applyToAll(id: string): void {
+    if (this.isBusy()) return;
 
-    const plattform = this.aktivePlattform();
+    const plattform = this.workingPlatform();
     if (!plattform) return;
 
-    this.bilder.update((liste) =>
+    this.images.update((liste) =>
       liste.map((b) =>
         b.id === id
           ? {
               ...b,
-              ausschnitte: uebernimmAufAlle(b.ausschnitte, plattform.id, this.gewaehlteProfile()),
+              crops: applyCropToAll(b.crops, plattform.id, this.selectedPlatforms()),
             }
           : b,
       ),
@@ -375,12 +370,12 @@ export class ImageOptimizerComponent {
    * betroffenen Bild, statt den leeren Editor stehen zu lassen und erst beim
    * Export ueberhaupt zu bemerken, dass etwas fehlt.
    */
-  beiLadeFehler(id: string): void {
-    if (this.laeuft()) return;
+  onLoadFailed(id: string): void {
+    if (this.isBusy()) return;
 
-    this.bilder.update((liste) =>
+    this.images.update((liste) =>
       liste.map((b) =>
-        b.id === id ? { ...b, ladefehler: istHeic(b.datei) ? HEIC_HINWEIS : LESE_HINWEIS } : b,
+        b.id === id ? { ...b, loadError: isHeic(b.file) ? HEIC_HINT : READ_HINT } : b,
       ),
     );
   }
@@ -393,9 +388,9 @@ export class ImageOptimizerComponent {
    * erneuten Laden, bei dem alles funktioniert. Im Betrieb stand deshalb eine
    * Fehlermeldung ueber einem Bild, das sichtbar in Ordnung war.
    */
-  beiBildGeladen(id: string): void {
-    this.bilder.update((liste) =>
-      liste.map((b) => (b.id === id && b.ladefehler ? { ...b, ladefehler: null } : b)),
+  onImageLoaded(id: string): void {
+    this.images.update((liste) =>
+      liste.map((b) => (b.id === id && b.loadError ? { ...b, loadError: null } : b)),
     );
   }
 
@@ -407,45 +402,45 @@ export class ImageOptimizerComponent {
    * Drehung ausgehen, wuerde jede weitere Drehung erneut als JPEG kodieren
    * und das Bild verlöre bei mehrfachem Drehen sichtbar an Qualitaet.
    */
-  async drehe(id: string): Promise<void> {
-    if (this.laeuft() || this.zerstoert) return;
+  async rotate(id: string): Promise<void> {
+    if (this.isBusy() || this.destroyed) return;
 
-    return this.drehWarteschlange.einreihen(id, async () => {
+    return this.rotationQueue.enqueue(id, async () => {
       // Der Drehstand wird absichtlich erst bei Ausfuehrung gelesen. Dadurch
       // baut jede wartende Drehung auf dem Ergebnis ihrer Vorgaengerin auf.
-      if (this.laeuft() || this.zerstoert) return;
-      const bild = this.bilder().find((eintrag) => eintrag.id === id);
+      if (this.isBusy() || this.destroyed) return;
+      const bild = this.images().find((eintrag) => eintrag.id === id);
       if (!bild) return;
 
-      const ausgangsUrl = bild.datenUrl;
-      const neueDrehung = ((bild.drehung + 1) % 4) as 0 | 1 | 2 | 3;
+      const ausgangsUrl = bild.dataUrl;
+      const neueDrehung = ((bild.rotation + 1) % 4) as 0 | 1 | 2 | 3;
 
       try {
-        const { datenUrl, groesse } = await this.dreheDatei(bild.datei, neueDrehung);
+        const { datenUrl, groesse } = await this.rotateFile(bild.file, neueDrehung);
 
         // Eine vor Exportstart begonnene Drehung darf den bereits erstellten
         // Snapshot und den waehrenddessen gesperrten Live-Zustand nicht mehr
         // veraendern. Ihre neu erzeugte URL wird sofort freigegeben.
-        if (this.laeuft() || this.zerstoert) {
+        if (this.isBusy() || this.destroyed) {
           URL.revokeObjectURL(datenUrl);
           return;
         }
 
         let ersetzteUrl: string | null = null;
         let uebernommen = false;
-        this.bilder.update((liste) => {
-          const ergebnis = ersetzeWennAktuell(liste, id, ausgangsUrl, (aktuell) => ({
+        this.images.update((liste) => {
+          const ergebnis = replaceIfCurrent(liste, id, ausgangsUrl, (aktuell) => ({
             ...aktuell,
-            datenUrl,
-            drehung: neueDrehung,
+            dataUrl: datenUrl,
+            rotation: neueDrehung,
             // Ein vor der Drehung gezogener Ausschnitt bezieht sich auf
             // die ungedrehte Geometrie und wird deshalb verworfen.
-            ausschnitte: {},
-            naturGroesse: groesse,
+            crops: {},
+            naturalSize: groesse,
           }));
-          ersetzteUrl = ergebnis.ersetzteUrl;
-          uebernommen = ergebnis.uebernommen;
-          return ergebnis.liste;
+          ersetzteUrl = ergebnis.replacedUrl;
+          uebernommen = ergebnis.applied;
+          return ergebnis.list;
         });
 
         if (uebernommen && ersetzteUrl) {
@@ -456,8 +451,8 @@ export class ImageOptimizerComponent {
           URL.revokeObjectURL(datenUrl);
         }
       } catch (e: unknown) {
-        if (!this.laeuft() && !this.zerstoert) {
-          this.fehler.set(e instanceof Error ? e.message : 'Das Bild liess sich nicht drehen.');
+        if (!this.isBusy() && !this.destroyed) {
+          this.error.set(e instanceof Error ? e.message : 'Das Bild liess sich nicht drehen.');
         }
       }
     });
@@ -470,11 +465,11 @@ export class ImageOptimizerComponent {
    * Viertelumdrehungen tauschen Breite und Hoehe der Zeichenflaeche
    * gegenueber dem Original.
    */
-  private async dreheDatei(
+  private async rotateFile(
     datei: File,
     viertel: 0 | 1 | 2 | 3,
-  ): Promise<{ datenUrl: string; groesse: Groesse }> {
-    const quelle = await this.ladeOriginaldatei(datei);
+  ): Promise<{ datenUrl: string; groesse: Size }> {
+    const quelle = await this.loadOriginalFile(datei);
     const breite = quelle.width;
     const hoehe = quelle.height;
     const seitenGetauscht = viertel % 2 === 1;
@@ -509,7 +504,7 @@ export class ImageOptimizerComponent {
 
     return {
       datenUrl: URL.createObjectURL(blob),
-      groesse: { breite: flaeche.width, hoehe: flaeche.height },
+      groesse: { width: flaeche.width, height: flaeche.height },
     };
   }
 
@@ -519,24 +514,24 @@ export class ImageOptimizerComponent {
    * ohne diese API dient ein `<img>` an einer eigenen, danach wieder
    * freigegebenen Object-URL als Rueckfallebene.
    */
-  private async ladeOriginaldatei(datei: File): Promise<ImageBitmap | HTMLImageElement> {
+  private async loadOriginalFile(datei: File): Promise<ImageBitmap | HTMLImageElement> {
     if (typeof createImageBitmap === 'function') {
       return createImageBitmap(datei);
     }
 
     const url = URL.createObjectURL(datei);
     try {
-      return await this.ladeBild(url);
+      return await this.loadImage(url);
     } finally {
       URL.revokeObjectURL(url);
     }
   }
 
   /** Schiebt ein Bild in der Reihenfolge. Position 0 ist das Hauptbild. */
-  verschiebe(id: string, richtung: -1 | 1): void {
-    if (this.laeuft()) return;
+  moveImage(id: string, richtung: -1 | 1): void {
+    if (this.isBusy()) return;
 
-    this.bilder.update((liste) => {
+    this.images.update((liste) => {
       const von = liste.findIndex((b) => b.id === id);
       const nach = von + richtung;
       if (von === -1 || nach < 0 || nach >= liste.length) return liste;
@@ -547,65 +542,65 @@ export class ImageOptimizerComponent {
     });
   }
 
-  async exportiere(): Promise<void> {
-    if (this.laeuft() || this.drehungenLaufen() || this.aufloesungsproblem()) return;
+  async exportImages(): Promise<void> {
+    if (this.isBusy() || this.rotationsPending() || this.resolutionIssue()) return;
 
-    this.laeuft.set(true);
-    this.fehler.set(null);
-    const snapshot = erstelleExportSnapshot(this.bilder(), this.gewaehlteProfile());
+    this.isBusy.set(true);
+    this.error.set(null);
+    const snapshot = createExportSnapshot(this.images(), this.selectedPlatforms());
 
     try {
       const eintraege = [];
 
       for (const [index, bild] of snapshot.bilder.entries()) {
-        const element = await this.ladeBild(bild.datenUrl);
+        const element = await this.loadImage(bild.dataUrl);
         // Letzte Absicherung, falls `naturGroesse` unmittelbar nach dem
         // Hochladen noch nicht ermittelt wurde.
-        const ersatz = vollesBild(bild) ?? {
+        const ersatz = fullImageRect(bild) ?? {
           x: 0,
           y: 0,
-          breite: element.naturalWidth,
-          hoehe: element.naturalHeight,
+          width: element.naturalWidth,
+          height: element.naturalHeight,
         };
 
         for (const p of snapshot.profile) {
-          const ausschnitt = bild.ausschnitte[p.id] ?? ersatz;
-          const pruefung = pruefeAusgabe(ausschnitt, null, p);
-          if (pruefung && !pruefung.istGueltig) {
+          const ausschnitt = bild.crops[p.id] ?? ersatz;
+          const pruefung = checkOutput(ausschnitt, null, p);
+          if (pruefung && !pruefung.isValid) {
             throw new Error(
-              `${bild.datei.name} ist für ${p.name} mit ${pruefung.breite} × ${pruefung.hoehe} px zu klein.`,
+              `${bild.file.name} ist für ${p.name} mit ${pruefung.width} × ${pruefung.height} px zu klein.`,
             );
           }
           eintraege.push({
-            ordner: ordnerName(p),
-            datei: dateiName(index, p),
-            daten: await this.bildExport.erzeuge(element, ausschnitt, p),
+            folder: folderName(p),
+            file: fileName(index, p),
+            data: await this.bildExport.create(element, ausschnitt, p),
           });
         }
       }
 
-      const archiv = await this.zipExport.packe(eintraege);
-      this.ladeHerunter(archiv, 'flipbase-bilder.zip');
+      const archiv = await this.zipExport.pack(eintraege);
+      this.download(archiv, 'flipbase-bilder.zip');
       this.toast.success('Bilder wurden exportiert.');
     } catch (e: unknown) {
       const beschreibung = e instanceof Error ? e.message : 'Der Export ist fehlgeschlagen.';
-      this.fehler.set(beschreibung);
+      this.error.set(beschreibung);
       this.toast.error('Bilder konnten nicht exportiert werden.', beschreibung);
     } finally {
-      this.laeuft.set(false);
+      this.isBusy.set(false);
     }
   }
 
-  private ladeBild(url: string): Promise<HTMLImageElement> {
+  private loadImage(url: string): Promise<HTMLImageElement> {
     return new Promise((aufloesen, ablehnen) => {
       const bild = new Image();
       bild.onload = () => aufloesen(bild);
-      bild.onerror = () => ablehnen(new Error(HEIC_HINWEIS));
+      bild.onerror = () => ablehnen(new Error(HEIC_HINT));
       bild.src = url;
     });
   }
 
-  private ladeHerunter(daten: Blob, name: string): void {
+  private download(daten: Blob, name: string): void {
     const url = URL.createObjectURL(daten);
     const verweis = document.createElement('a');
     verweis.href = url;

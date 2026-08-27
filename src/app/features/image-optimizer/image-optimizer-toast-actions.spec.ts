@@ -9,14 +9,14 @@ function erstelleKomponente(packe: () => Promise<Blob>) {
   const komponente = Object.create(ImageOptimizerComponent.prototype) as ImageOptimizerComponent;
   Object.assign(komponente, {
     toast,
-    laeuft: signal(false),
-    drehungenLaufen: () => false,
-    aufloesungsproblem: () => false,
-    bilder: signal([]),
-    gewaehlteProfile: signal([]),
-    fehler: signal<string | null>(null),
-    zipExport: { packe: vi.fn(packe) },
-    ladeHerunter: vi.fn(),
+    isBusy: signal(false),
+    rotationsPending: () => false,
+    resolutionIssue: () => false,
+    images: signal([]),
+    selectedPlatforms: signal([]),
+    error: signal<string | null>(null),
+    zipExport: { pack: vi.fn(packe) },
+    download: vi.fn(),
   });
   return { komponente, toast };
 }
@@ -25,7 +25,7 @@ describe('ImageOptimizerComponent – Aktionsmeldungen', () => {
   it('bestätigt einen abgeschlossenen Export', async () => {
     const { komponente, toast } = erstelleKomponente(async () => new Blob());
 
-    await komponente.exportiere();
+    await komponente.exportImages();
 
     expect(toast.toasts()[0]).toMatchObject({
       type: 'success',
@@ -38,7 +38,7 @@ describe('ImageOptimizerComponent – Aktionsmeldungen', () => {
       throw new Error('ZIP konnte nicht erstellt werden');
     });
 
-    await komponente.exportiere();
+    await komponente.exportImages();
 
     expect(toast.toasts()[0]).toMatchObject({
       type: 'error',

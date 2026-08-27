@@ -1,0 +1,51 @@
+<article
+  class="flex h-full flex-col overflow-hidden rounded-2xl border border-fb-border bg-fb-surface"
+>
+  <header class="flex items-center justify-between gap-3 border-b border-fb-border px-3 py-2.5">
+    <div>
+      <h3 class="text-xs font-bold text-fb-text-primary">{{ plattform().name }}</h3>
+      <p class="text-[10px] text-fb-text-muted">
+        {{ plattform().exportWidth }} × {{ plattform().exportHeight }} px maximal
+      </p>
+    </div>
+    <span class="rounded-full bg-indigo-500/15 px-2 py-1 text-[10px] font-semibold text-indigo-300">
+      {{ plattform().exportRatio === 1 ? '1:1' : plattform().id === 'vinted' ? '2:3' : '4:3' }}
+    </span>
+  </header>
+
+  <div class="flex min-h-52 flex-1 items-center justify-center bg-black/30 p-4">
+    <div
+      class="relative max-h-64 w-full max-w-56 overflow-hidden rounded-xl bg-black/40 shadow-lg"
+      [style.aspect-ratio]="seitenverhaeltnis()"
+    >
+      @if (previewUrl(); as url) {
+        <img
+          [src]="url"
+          alt="Exportvorschau des Produktfotos für {{ plattform().name }}"
+          class="h-full w-full object-cover"
+        />
+      }
+      @if (isRendering()) {
+        <div class="absolute inset-0 grid place-items-center bg-black/35" aria-live="polite">
+          <span class="text-[10px] font-medium text-white/70">Vorschau wird aktualisiert …</span>
+        </div>
+      } @else if (hasPreviewError()) {
+        <div
+          class="absolute inset-0 grid place-items-center bg-black/35 px-4 text-center"
+          role="status"
+        >
+          <span class="text-[10px] font-medium text-rose-200">Vorschau nicht verfügbar</span>
+        </div>
+      }
+    </div>
+  </div>
+
+  <footer class="flex items-center justify-between gap-3 border-t border-fb-border px-3 py-2.5">
+    <span class="text-[10px] text-fb-text-muted">Tatsächliche Ausgabe</span>
+    @if (outputSize(); as groesse) {
+      <span class="text-[11px] font-semibold text-fb-text-secondary">
+        {{ groesse.width }} × {{ groesse.height }} px
+      </span>
+    }
+  </footer>
+</article>

@@ -1,15 +1,15 @@
 import { Injectable } from '@angular/core';
 import JSZip from 'jszip';
-import { PlattformProfil } from '../models/plattform-profile';
+import { PlatformProfile } from '../models/platform-profile';
 
-export interface ZipEintrag {
-  readonly ordner: string;
-  readonly datei: string;
-  readonly daten: Blob;
+export interface ZipEntry {
+  readonly folder: string;
+  readonly file: string;
+  readonly data: Blob;
 }
 
 /** Der Ordner, in dem die Bilder einer Plattform liegen. */
-export function ordnerName(plattform: PlattformProfil): string {
+export function folderName(plattform: PlatformProfile): string {
   return plattform.name;
 }
 
@@ -24,11 +24,11 @@ export class ZipExportService {
    * und waehlt alles darin aus. Alle Bilder in einem Verzeichnis waeren beim
    * Hochladen ein Suchspiel.
    */
-  async packe(eintraege: ZipEintrag[]): Promise<Blob> {
+  async pack(eintraege: ZipEntry[]): Promise<Blob> {
     const archiv = new JSZip();
 
     for (const eintrag of eintraege) {
-      archiv.folder(eintrag.ordner)?.file(eintrag.datei, eintrag.daten);
+      archiv.folder(eintrag.folder)?.file(eintrag.file, eintrag.data);
     }
 
     return archiv.generateAsync({ type: 'blob' });

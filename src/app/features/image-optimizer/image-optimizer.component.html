@@ -19,9 +19,9 @@
           type="file"
           accept="image/*"
           multiple
-          [disabled]="laeuft()"
+          [disabled]="isBusy()"
           class="sr-only"
-          (change)="nimmDateien($any($event.target).files)"
+          (change)="addFiles($any($event.target).files)"
         />
         Bilder hinzufügen
       </label>
@@ -35,18 +35,18 @@
         @for (p of profile; track p.id) {
           <div
             class="inline-flex items-stretch overflow-hidden rounded-xl border"
-            [class.border-indigo-400/60]="aktivePlattform()?.id === p.id"
-            [class.bg-indigo-500/20]="aktivePlattform()?.id === p.id"
-            [class.border-fb-border]="aktivePlattform()?.id !== p.id"
+            [class.border-indigo-400/60]="workingPlatform()?.id === p.id"
+            [class.bg-indigo-500/20]="workingPlatform()?.id === p.id"
+            [class.border-fb-border]="workingPlatform()?.id !== p.id"
           >
             <button
               type="button"
-              (click)="waehleArbeitsziel(p.id)"
-              [disabled]="laeuft()"
-              [attr.aria-current]="aktivePlattform()?.id === p.id ? 'true' : null"
+              (click)="selectWorkingPlatform(p.id)"
+              [disabled]="isBusy()"
+              [attr.aria-current]="workingPlatform()?.id === p.id ? 'true' : null"
               class="inline-flex cursor-pointer items-center gap-2 px-3 py-2 text-xs font-semibold text-fb-text-secondary hover:bg-fb-surface-hover hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
             >
-              @if (gewaehlteIds().includes(p.id)) {
+              @if (selectedPlatformIds().includes(p.id)) {
                 <svg
                   [lucideIcon]="checkIcon"
                   class="h-3.5 w-3.5 text-indigo-300"
@@ -55,22 +55,22 @@
               }
               <span>{{ p.name }}</span>
               <span class="text-[10px] font-normal text-fb-text-muted">
-                {{ p.exportVerhaeltnis === 1 ? '1:1' : p.id === 'vinted' ? '2:3' : '4:3' }}
+                {{ p.exportRatio === 1 ? '1:1' : p.id === 'vinted' ? '2:3' : '4:3' }}
               </span>
             </button>
             <button
               type="button"
-              (click)="fotoguide.oeffnen(p.id)"
+              (click)="photoGuide.open(p.id)"
               [attr.aria-label]="'Hilfe zu ' + p.name"
               class="grid w-8 cursor-pointer place-items-center border-l border-fb-border text-fb-text-muted hover:bg-indigo-500/10 hover:text-indigo-200 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-indigo-400"
             >
               <svg [lucideIcon]="helpIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
             </button>
-            @if (aktivePlattform()?.id === p.id && gewaehlteProfile().length > 1) {
+            @if (workingPlatform()?.id === p.id && selectedPlatforms().length > 1) {
               <button
                 type="button"
-                (click)="schaltePlattform(p.id)"
-                [disabled]="laeuft()"
+                (click)="togglePlatform(p.id)"
+                [disabled]="isBusy()"
                 [attr.aria-label]="p.name + ' nicht exportieren'"
                 class="grid w-8 cursor-pointer place-items-center border-l border-indigo-400/25 text-fb-text-muted hover:bg-rose-500/10 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
               >
@@ -81,50 +81,50 @@
         }
         <button
           type="button"
-          (click)="fotoguide.oeffnen()"
+          (click)="photoGuide.open()"
           class="ml-auto inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-amber-400/25 bg-amber-400/10 px-2.5 py-1.5 text-[10px] font-bold text-amber-200 hover:bg-amber-400/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
         >
           <svg [lucideIcon]="bookIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
           Fotoguide
         </button>
-        <span class="text-[10px] text-fb-text-muted">{{ bilder().length }} Bild(er)</span>
+        <span class="text-[10px] text-fb-text-muted">{{ images().length }} Bild(er)</span>
       </div>
     </div>
   </section>
 
-  @if (aktivesBild(); as bild) {
+  @if (activeImage(); as bild) {
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_16rem]">
       <section class="linear-surface min-w-0 rounded-2xl border border-fb-border p-4 shadow-xl">
-        @if (aktivePlattform(); as plattform) {
+        @if (workingPlatform(); as plattform) {
           <header class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
                 Ausschnitt bearbeiten
               </p>
               <h2 class="mt-0.5 text-sm font-bold text-fb-text-primary">
-                {{ plattform.name }} · {{ plattform.exportBreite }} × {{ plattform.exportHoehe }} px
+                {{ plattform.name }} · {{ plattform.exportWidth }} × {{ plattform.exportHeight }} px
                 maximal
               </h2>
             </div>
             <button
               type="button"
-              (click)="uebernehmen(bild.id)"
-              [disabled]="laeuft() || aktiverAusschnitt() === null || gewaehlteProfile().length < 2"
+              (click)="applyToAll(bild.id)"
+              [disabled]="isBusy() || activeCrop() === null || selectedPlatforms().length < 2"
               class="cursor-pointer rounded-lg border border-fb-border px-3 py-2 text-[11px] font-semibold text-fb-text-secondary hover:border-indigo-500/40 hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
             >
               Auf andere Plattformen übernehmen
             </button>
           </header>
 
-          @if (aktiveAusgabePruefung(); as pruefung) {
-            @if (!pruefung.istGueltig) {
+          @if (activeOutputCheck(); as pruefung) {
+            @if (!pruefung.isValid) {
               <div
                 class="mb-4 flex gap-2 rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2.5 text-[11px] leading-relaxed text-rose-200"
                 role="alert"
               >
                 <span aria-hidden="true">!</span>
                 <span>
-                  Dieser Ausschnitt ergibt nur {{ pruefung.breite }} × {{ pruefung.hoehe }} px. eBay
+                  Dieser Ausschnitt ergibt nur {{ pruefung.width }} × {{ pruefung.height }} px. eBay
                   verlangt mindestens 500 px an der längsten Seite. Bitte wähle einen größeren
                   Ausschnitt oder ein höher aufgelöstes Original. Flipbase skaliert nicht künstlich
                   hoch.
@@ -133,16 +133,16 @@
             }
           }
 
-          <app-zuschnitt-editor
-            [datenUrl]="bild.datenUrl"
-            [verhaeltnis]="plattform.exportVerhaeltnis"
-            [gespeicherterAusschnitt]="aktiverAusschnitt()"
-            [deaktiviert]="laeuft()"
-            (ausschnittGeaendert)="merkeAusschnitt(bild.id, $event)"
-            (drehen)="drehe(bild.id)"
-            (ladenFehlgeschlagen)="beiLadeFehler(bild.id)"
-            (bildGeladen)="beiBildGeladen(bild.id)"
-          ></app-zuschnitt-editor>
+          <app-crop-editor
+            [dataUrl]="bild.dataUrl"
+            [ratio]="plattform.exportRatio"
+            [storedCrop]="activeCrop()"
+            [disabled]="isBusy()"
+            (cropChanged)="saveCrop(bild.id, $event)"
+            (rotateRequested)="rotate(bild.id)"
+            (loadFailed)="onLoadFailed(bild.id)"
+            (imageLoadedEvent)="onImageLoaded(bild.id)"
+          ></app-crop-editor>
         }
       </section>
 
@@ -153,14 +153,14 @@
             <p class="text-[10px] text-fb-text-muted">Reihenfolge bestimmt das Hauptbild</p>
           </div>
         </div>
-        <app-bild-liste
-          [bilder]="bilder()"
-          [aktivesId]="aktivesBildId()"
-          [deaktiviert]="laeuft()"
-          (gewaehlt)="setzeAktivesBild($event)"
-          (entfernt)="entferne($event)"
-          (verschoben)="verschiebe($event.id, $event.richtung)"
-        ></app-bild-liste>
+        <app-image-list
+          [images]="images()"
+          [activeId]="activeImageId()"
+          [disabled]="isBusy()"
+          (selected)="setActiveImage($event)"
+          (removed)="removeImage($event)"
+          (moved)="moveImage($event.id, $event.direction)"
+        ></app-image-list>
       </aside>
     </div>
 
@@ -175,12 +175,12 @@
         </p>
       </div>
       <div class="grid grid-cols-1 items-stretch gap-4 md:grid-cols-2 xl:grid-cols-3">
-        @for (p of gewaehlteProfile(); track p.id) {
-          <app-plattform-vorschau
+        @for (p of selectedPlatforms(); track p.id) {
+          <app-platform-preview
             [plattform]="p"
-            [datenUrl]="bild.datenUrl"
-            [ausschnitt]="bild.ausschnitte[p.id] ?? null"
-          ></app-plattform-vorschau>
+            [datenUrl]="bild.dataUrl"
+            [ausschnitt]="bild.crops[p.id] ?? null"
+          ></app-platform-preview>
         }
       </div>
     </section>
@@ -189,14 +189,14 @@
       class="linear-surface flex flex-col gap-3 rounded-2xl border border-fb-border p-4 shadow-xl sm:flex-row sm:items-center sm:justify-between"
     >
       <div>
-        @if (bild.ladefehler) {
-          <p class="text-[11px] text-rose-400">{{ bild.ladefehler }}</p>
-        } @else if (aufloesungsproblem(); as problem) {
+        @if (bild.loadError) {
+          <p class="text-[11px] text-rose-400">{{ bild.loadError }}</p>
+        } @else if (resolutionIssue(); as problem) {
           <p class="text-[11px] text-rose-300" role="alert">
-            {{ problem.bildName }} ist für {{ problem.plattformName }} mit {{ problem.breite }} ×
-            {{ problem.hoehe }} px zu klein.
+            {{ problem.imageName }} ist für {{ problem.platformName }} mit {{ problem.width }} ×
+            {{ problem.height }} px zu klein.
           </p>
-        } @else if (fehler(); as f) {
+        } @else if (error(); as f) {
           <p class="text-[11px] text-rose-400">{{ f }}</p>
         } @else {
           <p class="text-xs font-semibold text-fb-text-primary">Bereit für den Export</p>
@@ -208,16 +208,16 @@
 
       <button
         type="button"
-        (click)="exportiere()"
+        (click)="exportImages()"
         [disabled]="
-          laeuft() ||
-          drehungenLaufen() ||
-          gewaehlteProfile().length === 0 ||
-          aufloesungsproblem() !== null
+          isBusy() ||
+          rotationsPending() ||
+          selectedPlatforms().length === 0 ||
+          resolutionIssue() !== null
         "
         class="linear-btn-primary cursor-pointer rounded-xl px-5 py-2.5 text-xs font-bold disabled:opacity-40"
       >
-        {{ laeuft() ? 'Bilder werden erzeugt …' : 'Bilder exportieren' }}
+        {{ isBusy() ? 'Bilder werden erzeugt …' : 'Bilder exportieren' }}
       </button>
     </section>
   } @else {
@@ -228,9 +228,9 @@
         type="file"
         accept="image/*"
         multiple
-        [disabled]="laeuft()"
+        [disabled]="isBusy()"
         class="sr-only"
-        (change)="nimmDateien($any($event.target).files)"
+        (change)="addFiles($any($event.target).files)"
       />
       <span class="block text-sm font-bold text-fb-text-primary">Produktbilder hier ablegen</span>
       <span class="mt-1 block text-xs text-fb-text-muted"
@@ -240,6 +240,6 @@
   }
 </div>
 
-@if (fotoguide.istOffen()) {
-  <app-fotoguide [zustand]="fotoguide" (geschlossen)="fotoguide.schliessen()"></app-fotoguide>
+@if (photoGuide.isOpen()) {
+  <app-photo-guide [zustand]="photoGuide" (geschlossen)="photoGuide.close()"></app-photo-guide>
 }
