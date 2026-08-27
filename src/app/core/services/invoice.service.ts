@@ -270,25 +270,7 @@ export class InvoiceService {
 
     const invoiceItems: InvoiceItem[] =
       persistedLines.length > 0
-        ? persistedLines.map((line, index) => {
-            const lineSubtotal = this.invoiceLineSubtotal(
-              salePrice - shippingCost,
-              persistedLines,
-              index,
-            );
-            return {
-              sku:
-                line.inventory_item_id ||
-                line.catalog_product_id ||
-                `SKU-${sale.id.substring(0, 6).toUpperCase()}`,
-              title: line.title_snapshot,
-              condition:
-                line.inventory_item_id === sale.inventory_item_id ? item?.condition : undefined,
-              quantity: line.quantity,
-              unitPrice: Number((lineSubtotal / line.quantity).toFixed(2)),
-              totalPrice: lineSubtotal,
-            };
-          })
+        ? this.invoiceItemsForPersistedLines(sale, item, persistedLines)
         : [
             {
               sku:
@@ -332,19 +314,63 @@ export class InvoiceService {
     return this.speichereOderLeseRechnung(invoice, sale.id, null, ws?.id);
   }
 
+  private invoiceItemsForPersistedLines(
+    sale: Sale,
+    item: InventoryItem | undefined,
+    lines: readonly SaleLine[],
+  ): InvoiceItem[] {
+    const subtotal = sale.sale_price - (sale.shipping_cost || 0);
+    let adjustmentCents = 0;
+    const items: InvoiceItem[] = lines.map((line, index) => {
+      const lineSubtotalCents = this.toCents(this.invoiceLineSubtotal(subtotal, lines, index));
+      const unitPriceCents = Math.round(lineSubtotalCents / line.quantity);
+      const displayedTotalCents = unitPriceCents * line.quantity;
+      adjustmentCents += lineSubtotalCents - displayedTotalCents;
+      return {
+        sku:
+          line.inventory_item_id ||
+          line.catalog_product_id ||
+          `SKU-${sale.id.substring(0, 6).toUpperCase()}`,
+        title: line.title_snapshot,
+        condition: line.inventory_item_id === sale.inventory_item_id ? item?.condition : undefined,
+        quantity: line.quantity,
+        unitPrice: unitPriceCents / 100,
+        totalPrice: displayedTotalCents / 100,
+      };
+    });
+    if (adjustmentCents !== 0) {
+      items.push({
+        title: 'Rundungsausgleich',
+        quantity: 1,
+        unitPrice: adjustmentCents / 100,
+        totalPrice: adjustmentCents / 100,
+      });
+    }
+    return items;
+  }
+
   private invoiceLineSubtotal(subtotal: number, lines: readonly SaleLine[], index: number): number {
-    const totalLineValue = lines.reduce((sum, line) => sum + line.line_total, 0);
-    if (totalLineValue <= 0) return index === lines.length - 1 ? subtotal : 0;
+    const subtotalCents = this.toCents(subtotal);
+    const totalLineValueCents = lines.reduce((sum, line) => sum + this.toCents(line.line_total), 0);
+    if (totalLineValueCents <= 0) return index === lines.length - 1 ? subtotalCents / 100 : 0;
     if (index === lines.length - 1) {
       const earlier = lines
         .slice(0, index)
         .reduce(
-          (sum, line) => sum + Number((subtotal * (line.line_total / totalLineValue)).toFixed(2)),
+          (sum, line) =>
+            sum + Math.round((subtotalCents * this.toCents(line.line_total)) / totalLineValueCents),
           0,
         );
-      return Number((subtotal - earlier).toFixed(2));
+      return (subtotalCents - earlier) / 100;
     }
-    return Number((subtotal * (lines[index].line_total / totalLineValue)).toFixed(2));
+    return (
+      Math.round((subtotalCents * this.toCents(lines[index].line_total)) / totalLineValueCents) /
+      100
+    );
+  }
+
+  private toCents(value: number): number {
+    return Math.round(value * 100);
   }
 
   /**

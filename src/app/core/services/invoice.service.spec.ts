@@ -200,6 +200,44 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
     expect(invoice.total).toBe(30);
   });
 
+  it('weist bei Mengenpositionen einen centgenauen Rundungsausgleich aus', async () => {
+    const sale = {
+      id: 'sale-quantity-rounding',
+      workspace_id: 'ws-1',
+      sale_price: 24.33,
+      sale_date: '2026-08-26',
+      platform: 'ebay',
+      platform_fee: 0,
+      shipping_cost: 5,
+      packaging_cost: 0,
+      other_costs: 0,
+      lines: [
+        {
+          id: 'line-quantity-rounding',
+          sale_id: 'sale-quantity-rounding',
+          title_snapshot: 'LED-Lampe',
+          quantity: 2,
+          unit_sale_price: 9.665,
+          line_total: 19.33,
+          cost_of_goods_sold: 8,
+          tax_mode: 'diff_25a',
+        },
+      ],
+    } satisfies Sale;
+
+    const invoice = (await service.generateInvoiceForSale(sale)).data!;
+    const productLine = invoice.items.find((item) => item.title === 'LED-Lampe')!;
+    const adjustment = invoice.items.find((item) => item.title === 'Rundungsausgleich')!;
+
+    expect(productLine).toMatchObject({ quantity: 2, unitPrice: 9.67, totalPrice: 19.34 });
+    expect(adjustment).toMatchObject({ quantity: 1, unitPrice: -0.01, totalPrice: -0.01 });
+    expect(invoice.items.every((item) => item.unitPrice * item.quantity === item.totalPrice)).toBe(
+      true,
+    );
+    expect(invoice.items.reduce((sum, item) => sum + item.totalPrice, 0)).toBe(invoice.subtotal);
+    expect(invoice.subtotal + invoice.shippingCost).toBe(invoice.total);
+  });
+
   it('erhält bei historischen Display-Fallbacks den Override und die Legacy-Position', async () => {
     const historicSale = {
       id: 'sale-legacy',
