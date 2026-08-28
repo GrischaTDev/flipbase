@@ -466,6 +466,43 @@ export interface DashboardMetrics {
   average_roi_percent: number;
 }
 
+/** Zeitraum, der im Verkaufsbericht einheitlich auf Kennzahlen, Diagramm und Tabelle wirkt. */
+export type DashboardRange = 'today' | 'last_7_days' | 'month' | 'year';
+
+export interface DashboardTimePoint {
+  /** Maschinenlesbarer Beginn des Tages bzw. Monats im lokalen Kalender. */
+  date: string;
+  /** Kurze, im Diagramm sichtbare Beschriftung. */
+  label: string;
+  revenue: number;
+  expenses: number;
+  realizedProfit: number;
+}
+
+export interface DashboardSaleRow {
+  saleId: string;
+  date: string;
+  articles: string;
+  quantity: number;
+  platform: string;
+  revenue: number;
+  costOfGoodsSold: number;
+  profit: number;
+}
+
+export interface DashboardReport {
+  /** Auszahlungen fuer im Zeitraum erfasste Einkaeufe, nicht der Lagerwert. */
+  expenses: number;
+  /** Umsatz aus noch nicht retournierten, bestaetigten Verkaeufen. */
+  revenue: number;
+  /** Umsatz minus COGS sowie Verkaufsnebenkosten; kein prognostizierter Wert. */
+  realizedProfit: number;
+  /** Anschaffungswert der aktuell vorhandenen Ware. */
+  inventoryCostValue: number;
+  points: readonly DashboardTimePoint[];
+  rows: readonly DashboardSaleRow[];
+}
+
 export interface TaxCalculationResult {
   sale_id: string;
   item_title: string;
