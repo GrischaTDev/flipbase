@@ -1,6 +1,8 @@
 import { PlatformId, PlatformProfile, Rect } from '../models/platform-profile';
 import { OptimizerImage } from '../models/optimizer-image';
 import { applyCropToAll, setCrop } from './crops';
+import { Adjustments } from '../models/image-adjustments';
+import { clampAdjustments } from './adjustments';
 
 /**
  * Ergebnis einer Entfernung. Die Object-URLs werden bewusst nur **gemeldet**
@@ -85,4 +87,23 @@ export function toggleReviewed(
 
 export function reviewedCount(list: readonly OptimizerImage[]): number {
   return list.filter((image) => image.reviewed).length;
+}
+
+export function setAdjustmentsIn(
+  list: readonly OptimizerImage[],
+  id: string,
+  values: Adjustments,
+): readonly OptimizerImage[] {
+  const safe = clampAdjustments(values);
+  return list.map((image) => (image.id === id ? { ...image, adjustments: safe } : image));
+}
+
+/** Uebertraegt eine Einstellung auf jedes Bild - alle Fotos eines Artikels
+ *  entstehen meist im selben Licht. */
+export function applyAdjustmentsToAll(
+  list: readonly OptimizerImage[],
+  values: Adjustments,
+): readonly OptimizerImage[] {
+  const safe = clampAdjustments(values);
+  return list.map((image) => ({ ...image, adjustments: safe }));
 }

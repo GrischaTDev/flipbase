@@ -1,0 +1,53 @@
+<div class="linear-surface rounded-2xl border border-fb-border p-4 shadow-xl">
+  <div class="mb-3 flex items-center justify-between gap-3">
+    <div>
+      <p class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">Bildwirkung</p>
+      <h2 class="text-sm font-bold text-fb-text-primary">Farbe und Belichtung</h2>
+    </div>
+    <div class="flex items-center gap-2">
+      <button
+        type="button"
+        (click)="applyToAllRequested.emit()"
+        [disabled]="disabled() || !canApplyToAll()"
+        class="cursor-pointer rounded-lg border border-fb-border px-3 py-1.5 text-[11px] font-semibold text-fb-text-secondary hover:border-indigo-500/40 hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Auf alle Bilder übernehmen
+      </button>
+      <button
+        type="button"
+        (click)="resetRequested.emit()"
+        [disabled]="disabled() || isUntouched()"
+        class="cursor-pointer rounded-lg px-3 py-1.5 text-[11px] font-semibold text-fb-text-muted hover:bg-fb-surface-hover hover:text-fb-text-primary disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Zurücksetzen
+      </button>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    @for (slider of sliders; track slider.key) {
+      <div class="flex items-center gap-3">
+        <label
+          [attr.for]="'adjust-' + slider.key"
+          class="w-24 shrink-0 text-[11px] font-semibold text-fb-text-secondary"
+        >
+          {{ slider.label }}
+        </label>
+        <input
+          [id]="'adjust-' + slider.key"
+          type="range"
+          [min]="range(slider.key).min"
+          [max]="range(slider.key).max"
+          [step]="slider.step"
+          [value]="valueOf(slider.key)"
+          [disabled]="disabled()"
+          (input)="onSlider(slider.key, $any($event.target).value)"
+          class="h-1.5 flex-1 cursor-pointer accent-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
+        />
+        <span class="w-12 text-right text-[10px] tabular-nums text-fb-text-muted">
+          {{ percentOf(slider.key) }} %
+        </span>
+      </div>
+    }
+  </div>
+</div>

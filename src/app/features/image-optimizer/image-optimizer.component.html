@@ -126,7 +126,16 @@
       </aside>
     </div>
 
-    <section>
+    <section class="space-y-4">
+      <app-adjustment-controls
+        [adjustments]="image.adjustments"
+        [disabled]="isBusy()"
+        [canApplyToAll]="images().length > 1"
+        (changed)="setAdjustments($event)"
+        (resetRequested)="resetAdjustments()"
+        (applyToAllRequested)="applyAdjustmentsToAllImages()"
+      ></app-adjustment-controls>
+
       <app-preview-grid
         [platforms]="selectedPlatforms()"
         [dataUrl]="image.dataUrl"

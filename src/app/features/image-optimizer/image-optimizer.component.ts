@@ -13,9 +13,11 @@ import {
 } from '@lucide/angular';
 import { PLATFORM_PROFILES, PlatformProfile, PlatformId, Rect } from './models/platform-profile';
 import { OptimizerImage, fullImageRect } from './models/optimizer-image';
+import { Adjustments } from './models/image-adjustments';
 import { defaultAdjustments, toFilterString } from './services/adjustments';
 import { CropEditorComponent } from './components/crop-editor/crop-editor.component';
 import { PreviewGridComponent } from './components/preview-grid/preview-grid.component';
+import { AdjustmentControlsComponent } from './components/adjustment-controls/adjustment-controls.component';
 import { ImageListComponent } from './components/image-list/image-list.component';
 import { PhotoGuideComponent } from './components/photo-guide/photo-guide.component';
 import { PlatformSelectorComponent } from './components/platform-selector/platform-selector.component';
@@ -39,6 +41,8 @@ import {
   markReviewed,
   toggleReviewed as toggleReviewedIn,
   reviewedCount as countReviewed,
+  setAdjustmentsIn,
+  applyAdjustmentsToAll,
 } from './services/image-collection';
 import { ImageRotationService } from './services/image-rotation.service';
 import { PhotoGuideState } from './services/photo-guide-state';
@@ -96,6 +100,7 @@ export function isHeic(file: File): boolean {
     OptimizerHeaderComponent,
     ExportBarComponent,
     FileDropDirective,
+    AdjustmentControlsComponent,
   ],
   templateUrl: './image-optimizer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -512,6 +517,27 @@ export class ImageOptimizerComponent {
     if (this.isBusy()) return;
 
     this.images.set([...moveImageIn(this.images(), id, direction)]);
+  }
+
+  setAdjustments(values: Adjustments): void {
+    if (this.isBusy()) return;
+    const id = this.activeImageId();
+    if (!id) return;
+    this.images.update((list) => [...setAdjustmentsIn(list, id, values)]);
+  }
+
+  resetAdjustments(): void {
+    this.setAdjustments(defaultAdjustments());
+  }
+
+  /** Uebertraegt die Werte des aktiven Bildes auf alle Bilder - alle Fotos
+   *  eines Artikels entstehen meist im selben Licht. */
+  applyAdjustmentsToAllImages(): void {
+    if (this.isBusy()) return;
+    const image = this.activeImage();
+    if (!image) return;
+    this.images.update((list) => [...applyAdjustmentsToAll(list, image.adjustments)]);
+    this.toast.success('Farbe und Belichtung wurden auf alle Bilder übernommen.');
   }
 
   async exportImages(): Promise<void> {

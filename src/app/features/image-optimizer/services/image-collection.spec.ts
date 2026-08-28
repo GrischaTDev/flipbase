@@ -6,9 +6,11 @@ import {
   markReviewed,
   toggleReviewed,
   reviewedCount,
+  setAdjustmentsIn,
+  applyAdjustmentsToAll,
 } from './image-collection';
 import { OptimizerImage } from '../models/optimizer-image';
-import { defaultAdjustments } from './adjustments';
+import { defaultAdjustments, toFilterString } from './adjustments';
 
 function image(id: string, reviewed = false): OptimizerImage {
   return {
@@ -79,5 +81,46 @@ describe('Fortschritt', () => {
 
   it('zaehlt die durchgesehenen Bilder', () => {
     expect(reviewedCount([image('a', true), image('b'), image('c', true)])).toBe(2);
+  });
+});
+
+const bright = { ...defaultAdjustments(), brightness: 1.3 };
+
+describe('Anpassungen in der Liste', () => {
+  it('setzt die Werte nur am gemeinten Bild', () => {
+    const list = setAdjustmentsIn([image('a'), image('b')], 'a', bright);
+
+    expect(list[0].adjustments.brightness).toBe(1.3);
+    expect(list[1].adjustments.brightness).toBe(1);
+  });
+
+  it('begrenzt dabei unbrauchbare Werte', () => {
+    const list = setAdjustmentsIn([image('a')], 'a', { ...defaultAdjustments(), brightness: 99 });
+
+    expect(list[0].adjustments.brightness).toBe(1.5);
+  });
+
+  it('uebertraegt die Werte auf jedes Bild', () => {
+    const list = applyAdjustmentsToAll([image('a'), image('b'), image('c')], bright);
+
+    expect(list.map((entry) => entry.adjustments.brightness)).toEqual([1.3, 1.3, 1.3]);
+  });
+
+  it('laesst die Liste unveraendert, wenn die Kennung unbekannt ist', () => {
+    const list = [image('a')];
+
+    expect(setAdjustmentsIn(list, 'gibtesnicht', bright)[0].adjustments.brightness).toBe(1);
+  });
+
+  it('aendert die Vorschau- und Export-Filterkette, wenn sich die Einstellung aendert', () => {
+    // Deckt die Lecke aus Task 3 ab: Der Filterausdruck, den Vorschau und
+    // Export tatsaechlich verwenden (siehe `activeFilter` in der Smart
+    // Component und `exportImages`), hatte bisher keinen Test.
+    const list = setAdjustmentsIn([image('a')], 'a', bright);
+    const before = toFilterString(defaultAdjustments());
+    const after = toFilterString(list[0].adjustments);
+
+    expect(after).not.toBe(before);
+    expect(after).toContain('brightness(1.3)');
   });
 });
