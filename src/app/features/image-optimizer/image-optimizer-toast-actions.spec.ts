@@ -15,6 +15,7 @@ function createComponent(pack: () => Promise<Blob>) {
     images: signal([]),
     selectedPlatforms: signal([]),
     error: signal<string | null>(null),
+    baseName: () => '',
     zipExport: { pack: vi.fn(pack) },
     download: vi.fn(),
   });

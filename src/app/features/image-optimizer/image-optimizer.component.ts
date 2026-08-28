@@ -20,9 +20,12 @@ import { PhotoGuideComponent } from './components/photo-guide/photo-guide.compon
 import { PlatformSelectorComponent } from './components/platform-selector/platform-selector.component';
 import { PlatformTabsComponent } from './components/platform-tabs/platform-tabs.component';
 import { DropZoneComponent } from './components/drop-zone/drop-zone.component';
+import { OptimizerHeaderComponent } from './components/optimizer-header/optimizer-header.component';
+import { ExportBarComponent, ExportStatus } from './components/export-bar/export-bar.component';
 import { FileDropDirective, splitImageFiles } from './directives/file-drop.directive';
-import { ImageExportService, fileName } from './services/image-export.service';
+import { ImageExportService } from './services/image-export.service';
 import { ZipExportService, folderName } from './services/zip-export.service';
+import { archiveName, exportFileName, sanitizeBaseName } from './services/file-name';
 import { setCrop } from './services/crops';
 import { KeyedQueue } from './services/async-queue';
 import { createExportSnapshot, replaceIfCurrent } from './services/async-state';
@@ -85,6 +88,8 @@ export function isHeic(file: File): boolean {
     PlatformSelectorComponent,
     PlatformTabsComponent,
     DropZoneComponent,
+    OptimizerHeaderComponent,
+    ExportBarComponent,
     FileDropDirective,
   ],
   templateUrl: './image-optimizer.component.html',
@@ -108,6 +113,10 @@ export class ImageOptimizerComponent {
   readonly images = signal<OptimizerImage[]>([]);
   readonly selectedPlatformIds = signal<readonly PlatformId[]>([]);
   readonly activeImageId = signal<string | null>(null);
+
+  /** Rohe Eingabe des Grundnamens; {@link baseName} liefert die entschaerfte Fassung. */
+  readonly baseNameInput = signal('');
+  readonly baseName = computed(() => sanitizeBaseName(this.baseNameInput()));
 
   /** Die Plattform, fuer die der Editor gerade einen Zuschnitt bearbeitet. */
   readonly workingPlatformId = signal<PlatformId | null>(null);
@@ -158,6 +167,50 @@ export class ImageOptimizerComponent {
   // TODO(Task 8): Durch die tatsaechliche Zaehlung ersetzen, sobald der
   // Nutzer Bilder als durchgesehen markieren kann.
   readonly reviewedCount = computed(() => 0);
+
+  /**
+   * Welcher Hinweis in der Exportleiste erscheint. Die Entscheidung faellt
+   * hier in der Smart Component, damit die Exportleiste selbst frei von
+   * Fallunterscheidungen bleibt.
+   */
+  readonly exportStatus = computed<ExportStatus>(() => {
+    const image = this.activeImage();
+    if (image?.loadError) return { kind: 'error', title: image.loadError, detail: null };
+
+    const issue = this.resolutionIssue();
+    if (issue) {
+      return {
+        kind: 'error',
+        title: `${issue.imageName} ist für ${issue.platformName} mit ${issue.width} × ${issue.height} px zu klein.`,
+        detail: null,
+      };
+    }
+
+    const failure = this.error();
+    if (failure) return { kind: 'error', title: failure, detail: null };
+
+    if (this.selectedPlatforms().length === 0) {
+      return {
+        kind: 'error',
+        title: 'Noch keine Plattform gewählt',
+        detail: 'Wähle oben mindestens eine aus.',
+      };
+    }
+
+    return {
+      kind: 'ready',
+      title: 'Bereit für den Export',
+      detail: 'JPEG mit hoher Qualität, sortiert nach Plattform.',
+    };
+  });
+
+  readonly canExport = computed(
+    () =>
+      !this.rotationsPending() &&
+      this.selectedPlatforms().length > 0 &&
+      this.images().length > 0 &&
+      this.resolutionIssue() === null,
+  );
 
   constructor() {
     // `removeImage()` gibt die Object-URL eines Bildes frei, sobald es aus der
@@ -241,16 +294,6 @@ export class ImageOptimizerComponent {
     for (const image of added) {
       void this.measureNaturalSize(image.id, image.dataUrl);
     }
-  }
-
-  /** Wandelt die FileList des Dateifeldes in ein Feld und leert das Feld danach. */
-  onFileInput(target: EventTarget | null): void {
-    const input = target as HTMLInputElement | null;
-    const files = Array.from(input?.files ?? []);
-    if (files.length > 0) this.addFiles(files);
-    // Ohne das Leeren feuert `change` nicht erneut, wenn dieselbe Datei
-    // ein zweites Mal ausgewaehlt wird.
-    if (input) input.value = '';
   }
 
   /**
@@ -481,14 +524,14 @@ export class ImageOptimizerComponent {
           }
           entries.push({
             folder: folderName(p),
-            file: fileName(index, p),
+            file: exportFileName(index, this.baseName()),
             data: await this.imageExport.create(element, crop, p),
           });
         }
       }
 
       const archive = await this.zipExport.pack(entries);
-      this.download(archive, 'flipbase-bilder.zip');
+      this.download(archive, archiveName(this.baseName()));
       this.toast.success('Bilder wurden exportiert.');
     } catch (e: unknown) {
       const description = e instanceof Error ? e.message : 'Der Export ist fehlgeschlagen.';

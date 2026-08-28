@@ -3,12 +3,6 @@ import imageCompression from 'browser-image-compression';
 import { PlatformProfile, Rect } from '../models/platform-profile';
 import { planOutput, renderImage } from './image-renderer';
 
-/** Name einer Exportdatei. Index 0 ist das Hauptbild. */
-export function fileName(index: number, _platform: PlatformProfile): string {
-  const sequence = String(index + 1).padStart(2, '0');
-  return index === 0 ? `${sequence}-main.jpg` : `${sequence}.jpg`;
-}
-
 @Injectable({
   providedIn: 'root',
 })
