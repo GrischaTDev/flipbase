@@ -28,11 +28,16 @@ export function planOutput(crop: Rect, platform: PlatformProfile): RenderPlan {
   };
 }
 
-/** Rendert einen Plan als JPEG. Diese Funktion ist die einzige Canvas-Ausgabe für Vorschau und Export. */
+/**
+ * Rendert einen Plan als JPEG. Diese Funktion ist die einzige Canvas-Ausgabe
+ * für Vorschau und Export - ein hier gesetzter Filter wirkt deshalb
+ * zwangsläufig in beiden, und sie können nicht auseinanderlaufen.
+ */
 export async function renderImage(
   image: CanvasImageSource,
   plan: RenderPlan,
   quality = 0.92,
+  filter = '',
 ): Promise<Blob> {
   const canvas = document.createElement('canvas');
   canvas.width = plan.width;
@@ -41,10 +46,16 @@ export async function renderImage(
   const context = canvas.getContext('2d');
   if (!context) throw new Error('Der Browser stellt keine Zeichenfläche bereit.');
 
+  // Der weiße Grund wird bewusst OHNE Filter gezeichnet. Stünde der Filter
+  // schon, färbte brightness(0.6) auch ihn ein, und jedes Bild bekäme einen
+  // grauen Rand statt eines weißen. Der Grund existiert nur deshalb, weil
+  // durchsichtige Bereiche beim JPEG-Kodieren sonst schwarz würden.
   context.fillStyle = '#ffffff';
   context.fillRect(0, 0, canvas.width, canvas.height);
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
+
+  if (filter) context.filter = filter;
   context.drawImage(
     image,
     plan.source.x,
@@ -56,6 +67,7 @@ export async function renderImage(
     plan.width,
     plan.height,
   );
+  if (filter) context.filter = 'none';
 
   return new Promise<Blob>((resolve, reject) => {
     canvas.toBlob(
