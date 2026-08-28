@@ -33,12 +33,27 @@
       aria-describedby="revenue-chart-summary"
     >
       <title>Umsatz, Ausgaben und realisierter Gewinn im gewählten Zeitraum</title>
-      <line x1="40" y1="226" x2="984" y2="226" stroke="currentColor" class="text-fb-line"></line>
+      <line
+        x1="40"
+        [attr.y1]="chart().zeroY"
+        x2="984"
+        [attr.y2]="chart().zeroY"
+        stroke="currentColor"
+        class="text-fb-text-muted"
+        stroke-dasharray="4 4"
+        data-chart-zero-line
+        aria-label="Nulllinie bei 0 Euro"
+      ></line>
       <line x1="40" y1="20" x2="40" y2="226" stroke="currentColor" class="text-fb-line"></line>
       <text x="4" y="26" class="fill-fb-text-muted text-[10px]">
         {{ chart().maxValue | number: '1.0-0' }} €
       </text>
-      <text x="11" y="226" class="fill-fb-text-muted text-[10px]">0 €</text>
+      <text x="11" [attr.y]="chart().zeroLabelY" class="fill-fb-text-muted text-[10px]">0 €</text>
+      @if (chart().minValue < 0) {
+        <text x="4" y="226" class="fill-fb-text-muted text-[10px]">
+          {{ chart().minValue | number: '1.0-0' }} €
+        </text>
+      }
       @for (label of chart().labels; track label.x) {
         <text
           [attr.x]="label.x"

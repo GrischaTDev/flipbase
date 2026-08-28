@@ -11,7 +11,10 @@ interface ChartSeries {
 
 interface ChartGeometry {
   readonly series: readonly ChartSeries[];
+  readonly minValue: number;
   readonly maxValue: number;
+  readonly zeroY: number;
+  readonly zeroLabelY: number;
   readonly labels: readonly { readonly x: number; readonly label: string }[];
 }
 
@@ -30,13 +33,19 @@ export class RevenueChartComponent {
 
   private toChart(points: readonly DashboardTimePoint[]): ChartGeometry {
     const values = points.flatMap((point) => [point.revenue, point.expenses, point.realizedProfit]);
-    const maxValue = Math.max(1, ...values.map((value) => Math.abs(value)));
+    const observedMin = Math.min(0, ...values);
+    const observedMax = Math.max(0, ...values);
+    // Bei einer reinen Nullreihe braucht die Projektion trotzdem eine Hoehe.
+    // Die Nulllinie bleibt dann - wie bei positiven Daten - am unteren Rand.
+    const minValue = observedMin;
+    const maxValue = observedMax === observedMin ? observedMax + 1 : observedMax;
     const padding = { left: 40, right: 16, top: 20, bottom: 34 };
     const width = 1000 - padding.left - padding.right;
     const height = 260 - padding.top - padding.bottom;
     const denominator = Math.max(points.length - 1, 1);
     const xFor = (index: number) => padding.left + (index / denominator) * width;
-    const yFor = (value: number) => padding.top + height - (value / maxValue) * height;
+    const yFor = (value: number) =>
+      padding.top + height - ((value - minValue) / (maxValue - minValue)) * height;
     const pathFor = (key: ChartSeries['key']) =>
       points
         .map((point, index) => `${index === 0 ? 'M' : 'L'} ${xFor(index)} ${yFor(point[key])}`)
@@ -44,7 +53,10 @@ export class RevenueChartComponent {
 
     const step = Math.max(1, Math.ceil(points.length / 6));
     return {
+      minValue,
       maxValue,
+      zeroY: yFor(0),
+      zeroLabelY: Math.min(padding.top + height - 4, Math.max(padding.top + 11, yFor(0) - 5)),
       series: [
         { key: 'revenue', label: 'Umsatz', color: '#60a5fa', path: pathFor('revenue') },
         { key: 'expenses', label: 'Ausgaben', color: '#fbbf24', path: pathFor('expenses') },

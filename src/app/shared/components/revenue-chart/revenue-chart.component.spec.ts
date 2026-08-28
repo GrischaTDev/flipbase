@@ -31,4 +31,47 @@ describe('RevenueChartComponent', () => {
     expect(host.querySelector('svg title')?.textContent).toContain('Umsatz');
     expect(host.querySelector('#revenue-chart-summary table')?.textContent).toContain('24.95');
   });
+
+  it('legt die Nulllinie bei gemischten Werten innerhalb der Zeichenflaeche an und zeichnet Verluste sichtbar', () => {
+    const mixedPoints: readonly DashboardTimePoint[] = [
+      { date: '2026-08-27', label: '27.08.', revenue: 120, expenses: 20, realizedProfit: 40 },
+      { date: '2026-08-28', label: '28.08.', revenue: 0, expenses: 30, realizedProfit: -25 },
+    ];
+    TestBed.resetTestingModule();
+    const fixture = TestBed.configureTestingModule({
+      imports: [RevenueChartComponent],
+    }).createComponent(RevenueChartComponent);
+    Object.assign(fixture.componentInstance, { points: signal(mixedPoints) });
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const zeroLine = host.querySelector<SVGLineElement>('[data-chart-zero-line]');
+    const zeroY = Number(zeroLine?.getAttribute('y1'));
+    const profitPath = fixture.componentInstance.chart().series[2].path;
+    const coordinates = [...profitPath.matchAll(/[-+]?\d*\.?\d+/g)].map((entry) =>
+      Number(entry[0]),
+    );
+    const yCoordinates = coordinates.filter((_, index) => index % 2 === 1);
+
+    expect(zeroLine?.getAttribute('aria-label')).toBe('Nulllinie bei 0 Euro');
+    expect(zeroY).toBeGreaterThan(20);
+    expect(zeroY).toBeLessThan(226);
+    expect(Math.max(...yCoordinates)).toBeLessThanOrEqual(226);
+    expect(Math.min(...yCoordinates)).toBeGreaterThanOrEqual(20);
+  });
+
+  it('behält die Nulllinie für positive und leere Reihen am unteren Rand der Zeichenflaeche', () => {
+    for (const data of [points, []] as const) {
+      TestBed.resetTestingModule();
+      const fixture = TestBed.configureTestingModule({
+        imports: [RevenueChartComponent],
+      }).createComponent(RevenueChartComponent);
+      Object.assign(fixture.componentInstance, { points: signal(data) });
+      fixture.detectChanges();
+
+      const host = fixture.nativeElement as HTMLElement;
+      const zeroLine = host.querySelector<SVGLineElement>('[data-chart-zero-line]');
+      expect(Number(zeroLine?.getAttribute('y1'))).toBe(226);
+    }
+  });
 });
