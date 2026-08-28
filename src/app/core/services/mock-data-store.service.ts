@@ -509,6 +509,24 @@ export class MockDataStoreService {
     this.saveWorkspaceRecord(STORAGE_KEY_PURCHASE_LINES, line);
   }
 
+  /**
+   * Speichert einen neuen Demo-Einkauf gemeinsam mit seinen ersten Positionen.
+   * Der Journal-gestützte Schreibvorgang stellt bei Speicherfehlern den
+   * vorherigen Zustand wieder her, damit kein positionsloser Einkauf entsteht.
+   */
+  savePurchaseWithLines(purchase: Purchase, lines: readonly PurchaseLine[]): Error | null {
+    if (!this.isDemoMode()) return new Error('Der Demo-Modus ist nicht aktiv.');
+
+    const purchases = this.upsertRecord(this.getPurchases(), purchase);
+    let purchaseLines = this.getPurchaseLines();
+    for (const line of lines) purchaseLines = this.upsertRecord(purchaseLines, line);
+
+    return this.saveRecordsAtomically([
+      { key: STORAGE_KEY_PURCHASES, records: purchases },
+      { key: STORAGE_KEY_PURCHASE_LINES, records: purchaseLines },
+    ]);
+  }
+
   getStockLots(workspaceId?: string): StockLot[] {
     return this.getWorkspaceRecords<StockLot>(STORAGE_KEY_STOCK_LOTS, workspaceId);
   }
@@ -827,6 +845,12 @@ export class MockDataStoreService {
     if (index === -1) records.unshift(record);
     else records[index] = record;
     this.saveWorkspaceRecords(key, records);
+  }
+
+  private upsertRecord<T extends { id: string }>(records: readonly T[], record: T): T[] {
+    const index = records.findIndex((entry) => entry.id === record.id);
+    if (index === -1) return [record, ...records];
+    return records.map((entry, current) => (current === index ? record : entry));
   }
 
   private saveWorkspaceRecords<T>(key: string, records: readonly T[]): void {

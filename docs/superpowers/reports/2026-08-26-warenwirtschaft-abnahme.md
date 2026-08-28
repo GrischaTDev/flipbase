@@ -65,6 +65,34 @@ wenn vor dem Serviceaufruf keine sichere Browser-UUID erzeugt werden kann.
 Die interaktive Wiederholungsprüfung im Browser bleibt beim Controller
 ausstehend.
 
+## Nachtrag: Demo-Einkauf mit Mengenpositionen
+
+Die Browserprüfung fand außerdem einen fehlerhaften Übergang beim Anlegen eines
+Demo-Einkaufs mit einer vorhandenen Mengenposition (`5 × 4,99 EUR`). Das Modal
+übergab die Position korrekt. Danach speicherten die getrennten LocalStorage-
+Schreibwege Einkauf und Position jedoch unabhängig und unterdrückten
+Speicherfehler. Dadurch war ein positionsloser Einkauf mit falscher
+Erfolgsmeldung möglich. Die Demo-Persistenz schreibt Eltern-Einkauf und erste
+Positionen jetzt journalgestützt atomar und übernimmt die Signale erst nach
+erfolgreichem Speichern.
+
+Die Einkaufsübersicht und Detailansicht zählen offene Mengenpositionen nach
+bestellter Menge, nicht nur bereits angelegte Inventarartikel. Der 5er-Einkauf
+zeigt damit fünf Positionen vor dem Wareneingang, kann später erneut geladen
+und vollständig eingebucht werden. Auch nach dem Wareneingang bleibt es bei
+fünf: Der Demo- und der Supabase-Ladepfad beziehen die Einkaufspositionen ein,
+ohne Lose oder verknüpfte Einzelartikel doppelt zu zählen. Positionslose
+Demo-Einzelkäufe legen weiterhin ihren Inventarartikel an.
+
+Der Backendpfad wurde separat geprüft: Er übergibt die Startpositionen erst mit
+der bestätigten finalen Einkaufs-ID und meldet einen Positionsfehler nicht als
+vollen Erfolg.
+
+Zusätzlich ist der Checkout ohne `crypto.randomUUID` und ohne
+`crypto.getRandomValues` abgedeckt: Die Bestellung wird nicht aufgerufen, der
+Fehler bleibt sichtbar, der Submit-Zustand wird beendet und die Formulardaten
+bleiben erhalten.
+
 ## Ausgeführte Prüfungen
 
 | Befehl                                                                                         | Ergebnis                                                                                                        |
@@ -82,15 +110,18 @@ ausstehend.
 | `npm run build`                                                                                | PASS; bekannte Bundle- und CommonJS-Warnungen, siehe unten.                                                     |
 | `git diff --check`                                                                             | PASS: keine Whitespace-Fehler.                                                                                  |
 | Gezielte HTTP-Demo-Regressionssuiten (Befehl unten)                                            | PASS: 8 Testdateien, 41 Tests; sichere Fallback-UUID, Demo-Katalog und Submit-Fehlerzustand.                    |
+| Gezielte Einkaufszählungs-, Persistenz- und Checkout-Regressionssuiten (Befehl unten)          | PASS: 8 Testdateien, 43 Tests.                                                                                  |
 
 ```powershell
 npm test -- --run src/app/core/utils/client-identity.spec.ts src/app/core/services/catalog.service.spec.ts src/app/features/catalog/catalog.component.spec.ts src/app/features/store/pages/store-checkout/store-checkout-actions.spec.ts src/app/core/services/purchase-create-persistence.spec.ts src/app/core/services/mock-data-store-individual-receipt.spec.ts src/app/core/services/inventory-persistence.spec.ts src/app/core/services/bank-reconciliation.service.spec.ts
+
+npm test -- --run src/app/features/purchases/pages/purchase-detail/purchase-detail-actions.spec.ts src/app/core/services/purchase-demo-create.spec.ts src/app/core/services/purchase-quantity-count.spec.ts src/app/core/services/purchase-create-persistence.spec.ts src/app/features/purchases/components/purchase-create-modal/purchase-create-modal-actions.spec.ts src/app/features/store/pages/store-checkout/store-checkout-actions.spec.ts src/app/core/services/mock-data-store-individual-receipt.spec.ts src/app/core/services/stock.service.spec.ts
 ```
 
 ## Bekannte Vorbefunde und Bedenken
 
 - Der Production-Build bleibt erfolgreich, warnt aber weiterhin wegen eines
-  um 15,50 kB überschrittenen Initial-Budgets und der CommonJS-Abhängigkeiten
+  um 16,31 kB überschrittenen Initial-Budgets und der CommonJS-Abhängigkeiten
   `jszip` sowie `jsbarcode`.
 - Es wurde ausschließlich die lokale Supabase-Datenbank zurückgesetzt und
   geprüft. Es gab keine Remote- oder Produktionsmigration und keine

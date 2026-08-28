@@ -169,7 +169,10 @@ export class PurchaseService {
     const p = this.selectedPurchaseRaw();
     if (!p) return null;
     if (!this.inventory.istGeladen()) return p;
-    return { ...p, items_count: this.zaehleArtikel(p, this.inventory.items()) };
+    return {
+      ...p,
+      items_count: this.zaehleArtikel(p, this.inventory.items(), this.purchaseLinesRaw()),
+    };
   });
 
   /** Die Artikel des geoeffneten Einkaufs - direkt aus der Inventarliste. */
@@ -184,16 +187,28 @@ export class PurchaseService {
   readonly purchaseLines = computed<PurchaseLine[]>(() => this.purchaseLinesRaw());
 
   /**
-   * Zaehlt die Artikel eines Einkaufs.
-   *
-   * Frueher galt ein Einzelkauf als ein Artikel, auch ohne Inventareintrag -
-   * eine Notluege, weil beim Anlegen keiner erzeugt wurde. Seit
-   * `legeEinzelartikelAn` das nachholt, zaehlt hier schlicht, was es gibt.
-   * Einzelkaeufe von frueher stehen deshalb auf 0, bis ein Artikel erfasst
-   * wird; die Detailseite zeigte dort ohnehin schon eine leere Liste.
+   * Zaehlt fachliche Einkaufspositionen. Eine Position bleibt auch nach dem
+   * Wareneingang genau einmal enthalten: Mengenpositionen über ihre bestellte
+   * Menge, Einzelpositionen über die Positionsmenge. Nur alte Inventarartikel
+   * ohne passende Einkaufsposition kommen zusätzlich hinzu.
    */
-  private zaehleArtikel(einkauf: Purchase, items: InventoryItem[]): number {
-    return items.filter((i) => i.purchase_id === einkauf.id).length;
+  private zaehleArtikel(
+    einkauf: Purchase,
+    items: readonly InventoryItem[],
+    lines: readonly PurchaseLine[] = [],
+  ): number {
+    const purchaseItems = items.filter((item) => item.purchase_id === einkauf.id);
+    const purchaseLines = lines.filter((line) => line.purchase_id === einkauf.id);
+    if (purchaseLines.length === 0) {
+      return Math.max(purchaseItems.length, einkauf.items_count ?? 0);
+    }
+
+    const representedLineIds = new Set(purchaseLines.map((line) => line.id));
+    const positionCount = purchaseLines.reduce((count, line) => count + line.ordered_quantity, 0);
+    const legacyItemCount = purchaseItems.filter(
+      (item) => !item.purchase_line_id || !representedLineIds.has(item.purchase_line_id),
+    ).length;
+    return positionCount + legacyItemCount;
   }
 
   constructor() {
@@ -223,6 +238,7 @@ export class PurchaseService {
     if (this.mockStore.isDemoMode()) {
       const localPurchases = this.mockStore.getPurchases(workspaceId);
       const localItems = this.mockStore.getItems(workspaceId);
+      const localPurchaseLines = this.mockStore.getPurchaseLines(workspaceId);
       const localSources = this.mockStore.getSources();
       const localSuppliers = this.mockStore.getSuppliers();
 
@@ -237,7 +253,7 @@ export class PurchaseService {
           ...p,
           source,
           supplier,
-          items_count: this.zaehleArtikel(p, matchingItems),
+          items_count: this.zaehleArtikel(p, matchingItems, localPurchaseLines),
         } as Purchase;
       });
       this.purchasesRaw.set(enrichedLocal);
@@ -254,7 +270,8 @@ export class PurchaseService {
           source:sources(*),
           supplier:suppliers(*),
           costs:purchase_costs(*),
-          items:inventory_items(id, purchase_id, title, status, allocated_purchase_cost, expected_value)
+          items:inventory_items(id, purchase_id, purchase_line_id, title, status, allocated_purchase_cost, expected_value),
+          purchase_lines!purchase_lines_purchase_id_fkey(*)
         `,
         )
         .eq('workspace_id', workspaceId)
@@ -273,7 +290,11 @@ export class PurchaseService {
           const totalCost = Number(p.purchase_price || 0) + costsSum;
           return {
             ...p,
-            items_count: this.zaehleArtikel(p, (p.items || []) as InventoryItem[]),
+            items_count: this.zaehleArtikel(
+              p,
+              (p.items || []) as InventoryItem[],
+              (p.purchase_lines || []) as PurchaseLine[],
+            ),
             total_purchase_cost: Number(totalCost.toFixed(2)),
           } as Purchase;
         });
@@ -299,6 +320,7 @@ export class PurchaseService {
       : undefined;
     if (existing) {
       const items = this.mockStore.getItems().filter((i) => i.purchase_id === id);
+      const lines = this.mockStore.getPurchaseLines().filter((line) => line.purchase_id === id);
       const localSources = this.mockStore.getSources();
       const localSuppliers = this.mockStore.getSuppliers();
       const source =
@@ -313,13 +335,11 @@ export class PurchaseService {
         ...existing,
         source,
         supplier,
-        items_count: this.zaehleArtikel(existing, items),
+        items_count: this.zaehleArtikel(existing, items, lines),
       };
       this.selectedPurchaseRaw.set(enriched);
       this.purchaseItemsFallback.set(items);
-      this.purchaseLinesRaw.set(
-        this.mockStore.getPurchaseLines().filter((line) => line.purchase_id === id),
-      );
+      this.purchaseLinesRaw.set(lines);
       return enriched;
     }
 
@@ -333,7 +353,8 @@ export class PurchaseService {
           source:sources(*),
           supplier:suppliers(*),
           costs:purchase_costs(*),
-          items:inventory_items(*)
+          items:inventory_items(*),
+          purchase_lines!purchase_lines_purchase_id_fkey(*)
         `,
         )
         .eq('id', id)
@@ -356,6 +377,8 @@ export class PurchaseService {
         items_count: this.zaehleArtikel(
           data as unknown as Purchase,
           (data.items || []) as InventoryItem[],
+          ((data as unknown as { purchase_lines?: PurchaseLine[] }).purchase_lines ||
+            []) as PurchaseLine[],
         ),
         total_purchase_cost: Number(totalCost.toFixed(2)),
       };
@@ -470,31 +493,34 @@ export class PurchaseService {
       tracking_status: payload.tracking_status || (payload.tracking_number ? 'in_transit' : null),
       original_url: payload.original_url || null,
       receiving_status: normalizedLines.data.length > 0 ? 'ordered' : 'received',
-      items_count: payload.type === 'single' ? 1 : payload.items_count || 0,
+      items_count:
+        normalizedLines.data.reduce((count, line) => count + line.orderedQuantity, 0) ||
+        payload.items_count ||
+        0,
       costs: kostenZeilen,
       created_at: new Date().toISOString(),
     };
 
-    // 1. Immediately persist locally
-    this.mockStore.savePurchase(newPurchase);
-    this.purchasesRaw.update((list) => [newPurchase, ...list]);
-
     if (this.mockStore.isDemoMode()) {
-      const lineResult = await this.createPurchaseLines(newPurchase.id, normalizedLines.data);
-      const problems: PurchaseCreateProblem[] = [];
-      if (lineResult.error) {
-        problems.push({
-          kind: 'purchase_lines',
-          error: lineResult.error,
-          reportedBySyncStatus: lineResult.reportedBySyncStatus,
-        });
+      const lines = this.createLocalPurchaseLines(ws.id, newPurchase.id, normalizedLines.data);
+      const persistenceError = this.mockStore.savePurchaseWithLines(newPurchase, lines);
+      if (persistenceError) {
+        return {
+          status: 'failed',
+          data: null,
+          error: persistenceError,
+          reportedBySyncStatus: false,
+          problems: [],
+        };
       }
-      problems.push(
-        ...(await this.legeEinzelartikelAn(
-          newPurchase,
-          payload,
-          lineResult.data?.find((line) => line.line_kind === 'individual')?.id,
-        )),
+      this.purchasesRaw.update((list) => [newPurchase, ...list]);
+      if (this.selectedPurchase()?.id === newPurchase.id) {
+        this.purchaseLinesRaw.update((current) => [...current, ...lines]);
+      }
+      const problems = await this.legeEinzelartikelAn(
+        newPurchase,
+        payload,
+        lines.find((line) => line.line_kind === 'individual')?.id,
       );
       this.webhookService.sendPurchaseNotification(newPurchase);
       return problems.length > 0
@@ -513,6 +539,12 @@ export class PurchaseService {
             problems: [],
           };
     }
+
+    // Der lokale Spiegel aktualisiert sich erst nach dem bestätigten
+    // Datenbank-Einkauf. Die folgenden Positionszeilen erhalten dessen finale
+    // ID; ein Fehler wird als Teilproblem, nie als voller Erfolg zurückgegeben.
+    this.mockStore.savePurchase(newPurchase);
+    this.purchasesRaw.update((list) => [newPurchase, ...list]);
 
     // 2. Zuerst nur den Elterneinkauf persistieren. Erst wenn dieser Schritt
     // bestätigt ist, dürfen nachgelagerte Fehler als Teilprobleme gelten.
@@ -659,18 +691,7 @@ export class PurchaseService {
     }));
 
     if (this.mockStore.isDemoMode()) {
-      const lines = rows.map((row): PurchaseLine => ({
-        id: createLocalDemoId('line'),
-        workspace_id: row.workspace_id,
-        purchase_id: row.purchase_id,
-        catalog_product_id: row.catalog_product_id,
-        title_snapshot: row.title_snapshot,
-        line_kind: row.line_kind,
-        ordered_quantity: row.ordered_quantity,
-        received_quantity: row.received_quantity,
-        unit_purchase_price: row.unit_purchase_price,
-        line_total: row.line_total,
-      }));
+      const lines = this.createLocalPurchaseLines(workspaceId, purchaseId, normalized.data);
       lines.forEach((line) => this.mockStore.savePurchaseLine(line));
       if (this.selectedPurchase()?.id === purchaseId) {
         this.purchaseLinesRaw.update((current) => [...current, ...lines]);
@@ -711,6 +732,25 @@ export class PurchaseService {
       const reported = this.syncStatus.melde('Speichern der Einkaufspositionen', error);
       return { data: null, error: reported, reportedBySyncStatus: true };
     }
+  }
+
+  private createLocalPurchaseLines(
+    workspaceId: string,
+    purchaseId: string,
+    inputs: readonly CreatePurchaseLineInput[],
+  ): PurchaseLine[] {
+    return inputs.map((line) => ({
+      id: createLocalDemoId('line'),
+      workspace_id: workspaceId,
+      purchase_id: purchaseId,
+      catalog_product_id: line.catalogProductId,
+      title_snapshot: line.titleSnapshot,
+      line_kind: line.lineKind,
+      ordered_quantity: line.orderedQuantity,
+      received_quantity: 0,
+      unit_purchase_price: line.unitPurchasePrice,
+      line_total: line.lineTotal,
+    }));
   }
 
   private normalizePurchaseLines(inputs: readonly CreatePurchaseLineInput[]): {

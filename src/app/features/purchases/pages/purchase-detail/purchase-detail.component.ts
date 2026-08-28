@@ -267,7 +267,7 @@ export class PurchaseDetailComponent {
   );
   readonly visibleItemCount = computed(() => {
     const quantityCount = this.quantityPurchaseLines().reduce(
-      (sum, line) => sum + line.received_quantity,
+      (sum, line) => sum + line.ordered_quantity,
       0,
     );
     return this.purchaseService.purchaseItems().length + quantityCount;

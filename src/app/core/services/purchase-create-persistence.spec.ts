@@ -80,6 +80,7 @@ function erstelleDienste(client: unknown) {
     mockStore,
     purchasesRaw: signal<Purchase[]>([]),
     selectedPurchaseRaw: signal<Purchase | null>(null),
+    selectedPurchase: () => null,
     sourcesService: { sources: signal([]) },
     suppliersService: { suppliers: signal([]) },
     inventory,
@@ -90,6 +91,140 @@ function erstelleDienste(client: unknown) {
 }
 
 describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
+  it('übergibt initiale Mengenpositionen erst mit der bestätigten Datenbank-ID', async () => {
+    const aufrufe: { tabelle: string; payload: unknown }[] = [];
+    const finalerEinkauf = { ...gespeicherterEinkauf, id: '44444444-4444-4444-8444-444444444444' };
+    const client = {
+      from(tabelle: string) {
+        return {
+          insert(payload: unknown) {
+            aufrufe.push({ tabelle, payload });
+            if (tabelle === 'purchases') {
+              return {
+                select: () => ({ single: async () => ({ data: finalerEinkauf, error: null }) }),
+              };
+            }
+            if (tabelle === 'purchase_lines') {
+              return {
+                select: async () => ({
+                  data: [
+                    {
+                      id: 'line-1',
+                      workspace_id: workspace.id,
+                      purchase_id: finalerEinkauf.id,
+                      catalog_product_id: 'catalog-1',
+                      title_snapshot: 'LED-Lampe',
+                      line_kind: 'quantity',
+                      ordered_quantity: 5,
+                      received_quantity: 0,
+                      unit_purchase_price: 4.99,
+                      line_total: 24.95,
+                    },
+                  ],
+                  error: null,
+                }),
+              };
+            }
+            throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+          },
+        };
+      },
+    };
+    const { purchase } = erstelleDienste(client);
+
+    const ergebnis = await purchase.createPurchase({
+      type: 'lot',
+      title: 'Nachkauf LED-Lampe Abnahme',
+      purchase_date: '2026-08-28',
+      purchase_price: 24.95,
+      purchase_lines: [
+        {
+          catalogProductId: 'catalog-1',
+          titleSnapshot: 'LED-Lampe',
+          lineKind: 'quantity',
+          orderedQuantity: 5,
+          unitPurchasePrice: 4.99,
+          lineTotal: 24.95,
+        },
+      ],
+    });
+
+    expect(ergebnis).toMatchObject({ status: 'success', data: { id: finalerEinkauf.id } });
+    expect(aufrufe.map(({ tabelle }) => tabelle)).toEqual(['purchases', 'purchase_lines']);
+    expect(aufrufe[1].payload).toEqual([
+      expect.objectContaining({
+        workspace_id: workspace.id,
+        purchase_id: finalerEinkauf.id,
+        catalog_product_id: 'catalog-1',
+        ordered_quantity: 5,
+        unit_purchase_price: 4.99,
+        line_total: 24.95,
+      }),
+    ]);
+  });
+
+  it('meldet einen Fehler der initialen Positionen als Teilproblem statt als Erfolg', async () => {
+    const aufrufe: { tabelle: string; payload: unknown }[] = [];
+    const finalerEinkauf = { ...gespeicherterEinkauf, id: '44444444-4444-4444-8444-444444444444' };
+    const client = {
+      from(tabelle: string) {
+        return {
+          insert(payload: unknown) {
+            aufrufe.push({ tabelle, payload });
+            if (tabelle === 'purchases') {
+              return {
+                select: () => ({ single: async () => ({ data: finalerEinkauf, error: null }) }),
+              };
+            }
+            if (tabelle === 'purchase_lines') {
+              return {
+                select: async () => ({
+                  data: null,
+                  error: { code: '23503', message: 'catalog product missing' },
+                }),
+              };
+            }
+            throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+          },
+        };
+      },
+    };
+    const { purchase } = erstelleDienste(client);
+
+    const ergebnis = await purchase.createPurchase({
+      type: 'lot',
+      title: 'Nachkauf LED-Lampe Abnahme',
+      purchase_date: '2026-08-28',
+      purchase_price: 24.95,
+      purchase_lines: [
+        {
+          catalogProductId: 'catalog-1',
+          titleSnapshot: 'LED-Lampe',
+          lineKind: 'quantity',
+          orderedQuantity: 5,
+          unitPurchasePrice: 4.99,
+          lineTotal: 24.95,
+        },
+      ],
+    });
+
+    expect(ergebnis).toMatchObject({
+      status: 'partial',
+      data: { id: finalerEinkauf.id },
+      error: null,
+      problems: [
+        {
+          kind: 'purchase_lines',
+          reportedBySyncStatus: true,
+          error: expect.any(Error),
+        },
+      ],
+    });
+    expect(aufrufe[1].payload).toEqual([
+      expect.objectContaining({ purchase_id: finalerEinkauf.id }),
+    ]);
+  });
+
   it('liefert den gespeicherten Einkauf mit einem typisierten Activity-Teilproblem zurück', async () => {
     const aufrufe: { tabelle: string; payload: unknown }[] = [];
     const client = {
