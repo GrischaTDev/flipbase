@@ -16,7 +16,10 @@ import {
   StoreOrder,
   StoreOrderOutcome,
   StoreSettings,
+  SellableItemRef,
 } from '../models/store.models';
+import { CatalogService } from './catalog.service';
+import { StockService } from './stock.service';
 
 const STORAGE_KEY_SETTINGS = 'flipbase_store_settings';
 const STORAGE_KEY_CART = 'flipbase_store_cart';
@@ -70,6 +73,8 @@ export class StoreService {
   private readonly logger = inject(LoggerService, { optional: true }) ?? new LoggerService();
   private readonly mockStore = inject(MockDataStoreService, { optional: true });
   private readonly inventoryService = inject(InventoryService, { optional: true });
+  private readonly catalogService = inject(CatalogService, { optional: true });
+  private readonly stockService = inject(StockService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly webPushService = inject(WebPushService, { optional: true });
 
@@ -78,15 +83,49 @@ export class StoreService {
   private loadVersion = 0;
 
   readonly cart = signal<CartItem[]>([]);
+  readonly cartWarning = signal<string | null>(null);
   readonly isCartOpen = signal<boolean>(false);
   readonly orders = signal<StoreOrder[]>([]);
 
   // Computed public store inventory: active non-sold items
-  readonly publicProducts = computed<InventoryItem[]>(() => {
-    if (!this.inventoryService) return [];
-    return this.inventoryService
-      .items()
-      .filter((i) => i.status !== 'sold' && i.status !== 'returned' && i.status !== 'archived');
+  readonly publicProducts = computed<SellableItemRef[]>(() => {
+    const quantityProducts = (this.catalogService?.products() ?? []).flatMap((product) => {
+      const availableQuantity = (this.stockService?.positions() ?? [])
+        .filter((position) => position.catalog_product_id === product.id)
+        .reduce((total, position) => total + position.available_quantity, 0);
+      if (
+        product.tracking_mode !== 'quantity' ||
+        !product.is_public_store ||
+        availableQuantity <= 0 ||
+        !product.listing_price ||
+        product.listing_price <= 0
+      ) {
+        return [];
+      }
+      return [
+        {
+          kind: 'catalog_product' as const,
+          id: product.id,
+          title: product.title,
+          availableQuantity,
+          unitPrice: product.listing_price,
+          brand: product.brand,
+          model: product.model,
+          category: product.category,
+          sku: product.ean,
+        },
+      ];
+    });
+    const individualItems = (this.inventoryService?.items() ?? [])
+      .filter(
+        (item) =>
+          item.is_public_store &&
+          item.status !== 'sold' &&
+          item.status !== 'returned' &&
+          item.status !== 'archived',
+      )
+      .map((item) => this.toSellableItem(item));
+    return [...quantityProducts, ...individualItems];
   });
 
   readonly cartItemCount = computed(() => {
@@ -95,8 +134,7 @@ export class StoreService {
 
   readonly cartSubtotal = computed(() => {
     return this.cart().reduce((sum, i) => {
-      const price = i.item.expected_value ?? i.item.allocated_purchase_cost * 1.5;
-      return sum + price * i.quantity;
+      return sum + this.cartItemUnitPrice(i) * i.quantity;
     }, 0);
   });
 
@@ -122,7 +160,12 @@ export class StoreService {
     try {
       effect(() => {
         const ws = this.workspaceService?.currentWorkspace();
-        void this.loadFromSupabase(ws?.id ?? '');
+        const workspaceId = ws?.id ?? '';
+        void this.loadFromSupabase(workspaceId);
+        if (workspaceId) {
+          void this.catalogService?.loadProducts(workspaceId);
+          void this.stockService?.loadPositions(workspaceId);
+        }
       });
     } catch {
       // nur Testumgebung ohne Scheduler
@@ -223,14 +266,13 @@ export class StoreService {
         customer: o.customer as CheckoutCustomerInfo,
         items: ((o.items || []) as unknown[]).map((it: any) => ({
           item: {
-            id: it.inventory_item_id || '',
-            workspace_id: o.workspace_id,
+            kind: it.catalog_product_id ? 'catalog_product' : 'inventory_item',
+            id: it.catalog_product_id ?? it.inventory_item_id ?? '',
             title: it.item_title,
-            condition: 'Gebraucht',
-            status: 'sold',
-            allocated_purchase_cost: Number(it.price || 0),
-          } as unknown as InventoryItem,
-          quantity: it.quantity,
+            availableQuantity: Number(it.quantity ?? 1),
+          },
+          quantity: Number(it.quantity ?? 1),
+          unitPrice: Number(it.price ?? 0),
         })),
         subtotal: Number(o.subtotal || 0),
         shippingCost: Number(o.shipping_cost || 0),
@@ -369,16 +411,46 @@ export class StoreService {
     };
   }
 
-  addToCart(item: InventoryItem, quantity = 1): void {
+  addToCart(item: SellableItemRef | InventoryItem, quantity = 1): void {
+    const sellable = this.toSellableItem(item);
+    const requestedQuantity = Math.floor(quantity);
+    if (requestedQuantity <= 0) return;
     const current = this.cart();
-    const existing = current.find((i) => i.item.id === item.id);
+    const existing = current.find((entry) => {
+      const existingItem = this.toSellableItem(entry.item);
+      return existingItem.kind === sellable.kind && existingItem.id === sellable.id;
+    });
+    const requestedTotal = (existing?.quantity ?? 0) + requestedQuantity;
+    const nextQuantity = Math.min(requestedTotal, sellable.availableQuantity);
+
+    if (nextQuantity <= 0) {
+      this.cartWarning.set(`${sellable.title} ist nicht mehr verfügbar.`);
+      return;
+    }
+    this.cartWarning.set(
+      nextQuantity < requestedTotal
+        ? `Nur ${sellable.availableQuantity} Stück von „${sellable.title}“ sind verfügbar.`
+        : null,
+    );
 
     if (existing) {
       this.cart.update((items) =>
-        items.map((i) => (i.item.id === item.id ? { ...i, quantity: i.quantity + quantity } : i)),
+        items.map((entry) =>
+          this.toSellableItem(entry.item).kind === sellable.kind &&
+          this.toSellableItem(entry.item).id === sellable.id
+            ? {
+                item: sellable,
+                quantity: nextQuantity,
+                unitPrice: this.cartItemUnitPrice(entry),
+              }
+            : entry,
+        ),
       );
     } else {
-      this.cart.update((items) => [...items, { item, quantity }]);
+      this.cart.update((items) => [
+        ...items,
+        { item: sellable, quantity: nextQuantity, unitPrice: this.unitPriceFor(sellable, item) },
+      ]);
     }
     this.persistCart();
   }
@@ -388,7 +460,20 @@ export class StoreService {
       this.removeFromCart(itemId);
       return;
     }
-    this.cart.update((items) => items.map((i) => (i.item.id === itemId ? { ...i, quantity } : i)));
+    const cartItem = this.cart().find((entry) => entry.item.id === itemId);
+    if (!cartItem) return;
+    const sellable = this.toSellableItem(cartItem.item);
+    const nextQuantity = Math.min(Math.floor(quantity), sellable.availableQuantity);
+    this.cartWarning.set(
+      nextQuantity < quantity
+        ? `Nur ${sellable.availableQuantity} Stück von „${sellable.title}“ sind verfügbar.`
+        : null,
+    );
+    this.cart.update((items) =>
+      items.map((entry) =>
+        entry.item.id === itemId ? { ...entry, quantity: nextQuantity } : entry,
+      ),
+    );
     this.persistCart();
   }
 
@@ -399,6 +484,7 @@ export class StoreService {
 
   clearCart(): void {
     this.cart.set([]);
+    this.cartWarning.set(null);
     this.persistCart();
   }
 
@@ -522,8 +608,8 @@ export class StoreService {
           p_sale_date: newOrder.createdAt.slice(0, 10),
           p_buyer_notes: `Kunde: ${customer.firstName} ${customer.lastName}, Zahlungsart: ${customer.paymentMethod} (${paymentStatus})`,
           p_items: currentCart.map((cartItem) => {
-            const price =
-              cartItem.item.expected_value ?? cartItem.item.allocated_purchase_cost * 1.5;
+            const item = this.toSellableItem(cartItem.item);
+            const price = this.cartItemUnitPrice(cartItem);
             const paymentFee =
               customer.paymentMethod === 'stripe_card'
                 ? Number((price * 0.014 + 0.25).toFixed(2))
@@ -531,8 +617,9 @@ export class StoreService {
                   ? Number((price * 0.0249 + 0.35).toFixed(2))
                   : 0;
             return {
-              inventory_item_id: cartItem.item.id,
-              item_title: cartItem.item.title,
+              catalog_product_id: item.kind === 'catalog_product' ? item.id : null,
+              inventory_item_id: item.kind === 'inventory_item' ? item.id : null,
+              item_title: item.title,
               quantity: cartItem.quantity,
               price,
               payment_fee: paymentFee,
@@ -598,5 +685,45 @@ export class StoreService {
         : (this.syncStatus?.melde('Speichern der Bestellung', ursache) ??
           (ursache instanceof Error ? ursache : new Error(String(ursache))));
     return { status: 'failed', order: null, error, problems: [] };
+  }
+
+  private toSellableItem(item: SellableItemRef | InventoryItem): SellableItemRef {
+    if ('kind' in item) return item;
+    return {
+      kind: 'inventory_item',
+      id: item.id,
+      title: item.title,
+      availableQuantity: 1,
+      unitPrice: item.expected_value ?? item.allocated_purchase_cost * 1.5,
+      brand: item.brand,
+      model: item.model,
+      category: item.category,
+      sku: item.sku,
+      condition: item.condition,
+      media: item.media,
+      created_at: item.created_at,
+    };
+  }
+
+  private unitPriceFor(sellable: SellableItemRef, source: SellableItemRef | InventoryItem): number {
+    if (sellable.unitPrice !== undefined) return sellable.unitPrice;
+    if (sellable.kind === 'catalog_product') {
+      return (
+        this.catalogService?.products().find((product) => product.id === sellable.id)
+          ?.listing_price ?? 0
+      );
+    }
+    if ('kind' in source) return 0;
+    return source.expected_value ?? source.allocated_purchase_cost * 1.5;
+  }
+
+  cartItemUnitPrice(cartItem: CartItem): number {
+    return (
+      cartItem.unitPrice ?? this.unitPriceFor(this.toSellableItem(cartItem.item), cartItem.item)
+    );
+  }
+
+  cartItemAvailableQuantity(cartItem: CartItem): number {
+    return this.toSellableItem(cartItem.item).availableQuantity;
   }
 }

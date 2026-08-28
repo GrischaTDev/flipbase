@@ -500,10 +500,15 @@ CREATE TABLE IF NOT EXISTS public.store_order_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     store_order_id UUID NOT NULL REFERENCES public.store_orders(id) ON DELETE CASCADE,
     inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE SET NULL,
+    catalog_product_id UUID REFERENCES public.catalog_products(id) ON DELETE SET NULL,
     item_title TEXT NOT NULL,
     price NUMERIC NOT NULL DEFAULT 0.00,
-    quantity INTEGER NOT NULL DEFAULT 1
+    quantity INTEGER NOT NULL DEFAULT 1,
+    check (num_nonnulls(catalog_product_id, inventory_item_id) = 1)
 );
+
+alter table public.store_order_items
+  add column if not exists catalog_product_id uuid references public.catalog_products(id) on delete set null;
 
 alter table public.invoices
   drop constraint if exists invoices_store_order_id_fkey,
@@ -1549,6 +1554,7 @@ CREATE INDEX IF NOT EXISTS idx_carrier_configs_workspace_id ON public.carrier_co
 
 CREATE INDEX IF NOT EXISTS idx_store_orders_workspace_id ON public.store_orders(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_store_order_items_order_id ON public.store_order_items(store_order_id);
+CREATE INDEX IF NOT EXISTS idx_store_order_items_catalog_product_id ON public.store_order_items(catalog_product_id);
 CREATE INDEX IF NOT EXISTS idx_store_settings_workspace_id ON public.store_settings(workspace_id);
 
 create unique index if not exists idx_store_orders_workspace_order_number
@@ -2645,7 +2651,7 @@ as $$
 declare
   v_order public.store_orders;
   v_item_count integer;
-  v_inventory_count integer;
+  v_reference_count integer;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -2670,7 +2676,10 @@ begin
       or nullif(trim(item.value ->> 'item_title'), '') is null
       or coalesce((item.value ->> 'quantity')::integer, 0) < 1
       or coalesce((item.value ->> 'price')::numeric, -1) < 0
-      or nullif(item.value ->> 'inventory_item_id', '') is null
+      or num_nonnulls(
+        nullif(item.value ->> 'catalog_product_id', ''),
+        nullif(item.value ->> 'inventory_item_id', '')
+      ) <> 1
   ) then
     raise exception using errcode = '22023', message = 'Mindestens eine Bestellposition ist ungültig.';
   end if;
@@ -2688,9 +2697,13 @@ begin
     return v_order;
   end if;
 
-  select count(*), count(distinct item.inventory_item_id)
-  into v_item_count, v_inventory_count
+  select count(*), count(distinct coalesce(
+    'catalog_product:' || item.catalog_product_id::text,
+    'inventory_item:' || item.inventory_item_id::text
+  ))
+  into v_item_count, v_reference_count
   from jsonb_to_recordset(p_items) as item(
+    catalog_product_id uuid,
     inventory_item_id uuid,
     item_title text,
     quantity integer,
@@ -2698,32 +2711,8 @@ begin
     payment_fee numeric
   );
 
-  if v_inventory_count <> v_item_count then
+  if v_reference_count <> v_item_count then
     raise exception using errcode = '22023', message = 'Jeder Artikel darf nur einmal in einer Bestellung vorkommen.';
-  end if;
-
-  perform inventory.id
-  from public.inventory_items as inventory
-  join jsonb_to_recordset(p_items) as item(inventory_item_id uuid)
-    on item.inventory_item_id = inventory.id
-  where inventory.workspace_id = p_workspace_id
-  order by inventory.id
-  for update of inventory;
-  get diagnostics v_inventory_count = row_count;
-
-  if v_inventory_count <> v_item_count then
-    raise no_data_found using message = 'Mindestens ein bestellter Artikel wurde nicht gefunden.';
-  end if;
-
-  select count(*) into v_inventory_count
-  from public.inventory_items as inventory
-  join jsonb_to_recordset(p_items) as item(inventory_item_id uuid)
-    on item.inventory_item_id = inventory.id
-  where inventory.workspace_id = p_workspace_id
-    and inventory.status in ('ready', 'listed');
-
-  if v_inventory_count <> v_item_count then
-    raise no_data_found using message = 'Mindestens ein bestellter Artikel ist nicht mehr verkaufbar.';
   end if;
 
   insert into public.store_orders (
@@ -2757,6 +2746,7 @@ begin
   insert into public.store_order_items (
     store_order_id,
     inventory_item_id,
+    catalog_product_id,
     item_title,
     price,
     quantity
@@ -2764,10 +2754,12 @@ begin
   select
     v_order.id,
     item.inventory_item_id,
+    item.catalog_product_id,
     item.item_title,
     item.price,
     item.quantity
   from jsonb_to_recordset(p_items) as item(
+    catalog_product_id uuid,
     inventory_item_id uuid,
     item_title text,
     quantity integer,
@@ -2780,24 +2772,31 @@ begin
     jsonb_build_object(
       'platform', 'custom_store',
       'sale_date', p_sale_date,
-      'shipping_cost', p_shipping_cost / v_item_count,
-      'other_costs', coalesce(item.payment_fee, 0),
+      'shipping_cost', p_shipping_cost,
+      'other_costs', coalesce((
+        select sum(coalesce((item.value ->> 'payment_fee')::numeric, 0))
+        from jsonb_array_elements(p_items) as item(value)
+      ), 0),
       'external_order_id', p_order_number,
       'buyer_notes', p_buyer_notes
     ),
-    jsonb_build_array(jsonb_build_object(
-      'inventory_item_id', item.inventory_item_id,
-      'title_snapshot', item.item_title,
-      'quantity', item.quantity,
-      'unit_sale_price', item.price
-    ))
-  )
-  from jsonb_to_recordset(p_items) as item(
-    inventory_item_id uuid,
-    item_title text,
-    quantity integer,
-    price numeric,
-    payment_fee numeric
+    (
+      select jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
+        'catalog_product_id', item.catalog_product_id,
+        'inventory_item_id', item.inventory_item_id,
+        'title_snapshot', item.item_title,
+        'quantity', item.quantity,
+        'unit_sale_price', item.price
+      )))
+      from jsonb_to_recordset(p_items) as item(
+        catalog_product_id uuid,
+        inventory_item_id uuid,
+        item_title text,
+        quantity integer,
+        price numeric,
+        payment_fee numeric
+      )
+    )
   );
 
   return v_order;

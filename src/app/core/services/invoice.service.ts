@@ -399,7 +399,11 @@ export class InvoiceService {
     const taxMode: TaxMode = 'diff_25a';
 
     const invoiceItems: InvoiceItem[] = order.items.map((cartItem) => {
-      const price = cartItem.item.expected_value ?? cartItem.item.allocated_purchase_cost * 1.5;
+      const price =
+        cartItem.unitPrice ??
+        ('kind' in cartItem.item
+          ? (cartItem.item.unitPrice ?? 0)
+          : (cartItem.item.expected_value ?? cartItem.item.allocated_purchase_cost * 1.5));
       return {
         sku: cartItem.item.sku || undefined,
         title: cartItem.item.title,
