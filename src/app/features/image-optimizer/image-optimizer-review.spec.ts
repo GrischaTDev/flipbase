@@ -2,6 +2,7 @@ import '@angular/compiler';
 import { signal } from '@angular/core';
 import { describe, expect, it } from 'vitest';
 import { OptimizerImage } from './models/optimizer-image';
+import { pendingMetadata } from './models/image-metadata';
 import { ImageOptimizerComponent } from './image-optimizer.component';
 import { reviewedCount as countReviewed } from './services/image-collection';
 import { defaultAdjustments } from './services/adjustments';
@@ -17,6 +18,7 @@ function image(id: string, overrides: Partial<OptimizerImage> = {}): OptimizerIm
     naturalSize: null,
     reviewed: false,
     adjustments: defaultAdjustments(),
+    metadata: pendingMetadata(),
     ...overrides,
   };
 }
@@ -29,6 +31,10 @@ function createComponent(images: OptimizerImage[], activeId: string | null = nul
     images: imagesSignal,
     activeImageId: signal(activeId),
     reviewedCount: () => countReviewed(imagesSignal()),
+    // `addFiles` liest im Hintergrund Metadaten; ein Stub genuegt, damit dieser
+    // Aufruf nicht an einem fehlenden echten Service scheitert (siehe Test
+    // "zaehlt das nach dem ersten Hochladen automatisch geoeffnete Bild").
+    metadataReader: { read: () => Promise.resolve(pendingMetadata()) },
   });
   return component;
 }

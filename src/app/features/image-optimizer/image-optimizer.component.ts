@@ -14,10 +14,13 @@ import {
 import { PLATFORM_PROFILES, PlatformProfile, PlatformId, Rect } from './models/platform-profile';
 import { OptimizerImage, fullImageRect } from './models/optimizer-image';
 import { Adjustments } from './models/image-adjustments';
+import { pendingMetadata } from './models/image-metadata';
 import { defaultAdjustments, toFilterString } from './services/adjustments';
+import { MetadataReaderService } from './services/metadata-reader.service';
 import { CropEditorComponent } from './components/crop-editor/crop-editor.component';
 import { PreviewGridComponent } from './components/preview-grid/preview-grid.component';
 import { AdjustmentControlsComponent } from './components/adjustment-controls/adjustment-controls.component';
+import { MetadataPanelComponent } from './components/metadata-panel/metadata-panel.component';
 import { ImageListComponent } from './components/image-list/image-list.component';
 import { PhotoGuideComponent } from './components/photo-guide/photo-guide.component';
 import { PlatformSelectorComponent } from './components/platform-selector/platform-selector.component';
@@ -101,6 +104,7 @@ export function isHeic(file: File): boolean {
     ExportBarComponent,
     FileDropDirective,
     AdjustmentControlsComponent,
+    MetadataPanelComponent,
   ],
   templateUrl: './image-optimizer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -111,6 +115,7 @@ export class ImageOptimizerComponent {
   private readonly imageExport = inject(ImageExportService);
   private readonly zipExport = inject(ZipExportService);
   private readonly rotation = inject(ImageRotationService);
+  private readonly metadataReader = inject(MetadataReaderService);
   private readonly rotationQueue = new KeyedQueue<string>();
   private destroyed = false;
 
@@ -310,6 +315,7 @@ export class ImageOptimizerComponent {
       naturalSize: null,
       reviewed: false,
       adjustments: defaultAdjustments(),
+      metadata: pendingMetadata(),
     }));
 
     this.images.update((list) => [...list, ...added]);
@@ -319,6 +325,7 @@ export class ImageOptimizerComponent {
 
     for (const image of added) {
       void this.measureNaturalSize(image.id, image.dataUrl);
+      void this.readMetadata(image.id, image.file);
     }
   }
 
@@ -355,6 +362,19 @@ export class ImageOptimizerComponent {
     } catch {
       // Siehe Kommentar oben - bewusst kein Fehlerpfad hier.
     }
+  }
+
+  /**
+   * Liest die Metadaten im Hintergrund, nach demselben Muster wie die
+   * Bildgroesse. Gelesen wird aus `file`: Die Originaldatei aendert sich nie,
+   * also kann hier - anders als bei der Groesse - keine veraltete Antwort
+   * einen neueren Stand ueberschreiben.
+   */
+  private async readMetadata(id: string, file: File): Promise<void> {
+    const metadata = await this.metadataReader.read(file);
+    this.images.update((list) =>
+      list.map((image) => (image.id === id ? { ...image, metadata } : image)),
+    );
   }
 
   removeImage(id: string): void {

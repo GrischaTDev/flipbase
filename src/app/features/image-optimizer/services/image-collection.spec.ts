@@ -10,6 +10,7 @@ import {
   applyAdjustmentsToAll,
 } from './image-collection';
 import { OptimizerImage } from '../models/optimizer-image';
+import { pendingMetadata } from '../models/image-metadata';
 import { defaultAdjustments } from './adjustments';
 
 function image(id: string, reviewed = false): OptimizerImage {
@@ -23,6 +24,7 @@ function image(id: string, reviewed = false): OptimizerImage {
     naturalSize: { width: 2000, height: 1500 },
     reviewed,
     adjustments: defaultAdjustments(),
+    metadata: pendingMetadata(),
   };
 }
 

@@ -1,5 +1,6 @@
 import { Crops } from '../services/crops';
 import { Adjustments } from './image-adjustments';
+import { ImageMetadata } from './image-metadata';
 import { Rect, Size } from './platform-profile';
 
 /** Ein hochgeladenes Bild mit seinen plattformspezifischen Zuschnitten. */
@@ -30,6 +31,12 @@ export interface OptimizerImage {
    * in `dataUrl` gerechnet - so bleibt Zuruecksetzen verlustfrei.
    */
   readonly adjustments: Adjustments;
+  /**
+   * Metadaten der Originaldatei. Gelesen wird aus `file`, nicht aus
+   * `dataUrl` - eine Drehung erzeugt zwar eine neue `dataUrl`, laesst `file`
+   * aber unberuehrt, sodass der Stand nicht veralten kann.
+   */
+  readonly metadata: ImageMetadata;
 }
 
 /** Das volle Bild als Ersatz fuer Plattformen ohne eigenen Zuschnitt. */
