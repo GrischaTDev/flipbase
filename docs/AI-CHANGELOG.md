@@ -74,8 +74,8 @@ Die Abwehr des Browserverhaltens (`preventDefault`) stand hinter der `disabled()
 **Verifiziert durch:**
 
 - `npm run typecheck` → **sauber**
-- `npx vitest run` → **97 Testdateien, 690 Tests bestanden** (vorher 636)
-- `npm run build` → **erfolgreich**, `main.js` 180 kB, `styles.css` 120 kB
+- `npx vitest run` → **97 Testdateien, 693 Tests bestanden** (vorher 636)
+- `npm run build` → **erfolgreich**, Initial-Bundle 1,29 MB roh / **213,24 kB übertragen**
 - `git diff --name-only master...HEAD` → außerhalb von `features/image-optimizer/` nur `README.md` und `ARCHITECTURE.md` (Versionsangabe), kein Quelltext
 
 **Im Browser abgenommen** (Demo-Modus, drei Testbilder plus eine PDF):
@@ -100,12 +100,26 @@ Die Abwehr des Browserverhaltens (`preventDefault`) stand hinter der `disabled()
 | leeres Namensfeld             | `flipbase-bilder.zip` mit `01-main.jpg`, `02.jpg`, `03.jpg`                             |
 | Alle entfernen                | Rückfrage mit Startfokus auf „Abbrechen", danach 3 → 0 Bilder, Auswahl und Name bleiben |
 
+**Aus der Gesamtprüfung nachgezogen:**
+
+Eine abschließende Prüfung des ganzen Zweigs fand drei Dinge, die die neun Einzelprüfungen strukturell nicht sehen konnten, weil jede nur ihren eigenen Ausschnitt sah:
+
+1. **Die Drop-Abwehr hing am Element statt an der Seite.** Der Drag-Handler saß auf dem Wurzelelement des Bildoptimierers, das in einer auf `max-w-7xl` begrenzten, zentrierten Spalte liegt. Wer neben diese Spalte fallen ließ – auf die Seitenleiste, den Kopfbereich, die Ränder (bei 1920 px rund 190 px je Seite) – bei dem lief `preventDefault` nie, der Browser verließ die Seite und nahm alle Bilder, Zuschnitte, den Namen und die Auswahl mit. Derselbe Datenverlust, den wir in Task 5 über den Zeitpfad geschlossen hatten, nur über die Geometrie erreicht. Die Ereignisse liegen jetzt auf dem Dokument.
+2. **Das Seitenverhältnis-Etikett war zweimal umgesetzt**, und die Fassung in der Vorschau prüfte fest auf `vinted`. Ein künftiges viertes Hochkantformat hätte „4:3" neben ein Hochkantbild geschrieben. Jetzt eine Funktion in `platform-profile.ts`, von beiden Stellen genutzt.
+3. **Jeder Lesefehler beim Export meldete den HEIC-Hinweis**, obwohl `READ_HINT` genau dafür existiert – und ein Kommentar behauptete die Übereinstimmung, die es nicht gab. Behoben, Kommentar korrigiert.
+
+Zusätzlich behoben: Die Reiterleiste versprach mit `role="tablist"` eine Tastaturbedienung, die sie nicht hat (jetzt `role="group"` mit `aria-pressed`, wie die Auswahlreihe); die deutschen DOM-Kennungen `bild-zoom` und `fotoguide-titel`; ein ungetesteter Zweig der Namenskürzung; `split('')` → `[...input]`; ein `ImageBitmap`, das bei einem Fehlerpfad nicht freigegeben wurde; doppelter Meldungstext für denselben Zustand.
+
 **Offen:**
 
 - **Nicht Bestandteil:** Metadaten anzeigen/entfernen sowie Farbe, Belichtung und Filter. Beides ist als Paket 2 verabredet. Hinweis: Der Export entfernt schon heute sämtliche Metadaten, weil die Canvas-Ausgabe sie technisch verwirft – nur weiß das bisher niemand.
-- Die Reiterleiste hat `role="tab"` ohne `aria-controls`, der Editorbereich kein `role="tabpanel"`.
-- Zwei DOM-Kennungen sind noch deutsch: `fotoguide-titel` und `bild-zoom`.
-- `sanitizeBaseName` zerlegt mit `split('')` Surrogatpaare. Hier folgenlos, `[...input]` wäre sauberer.
+- **Die Hauptkomponente ist nicht so weit geschrumpft wie geplant.** Der Plan nannte rund 250 Zeilen; sie liegt bei etwa 570 (vorher 616). Die Auslagerung hat vor allem _Markup_ verschoben (Template von 245 auf 157 Zeilen, dazu sechs neue Komponenten), während die Orchestrierung blieb und drei neue Funktionen dazukamen. Der nächste sinnvolle Schnitt wäre ein Speicher für die Bilderliste samt URL-Freigabe.
+- Fünf der neuen Präsentationskomponenten haben keine eigenen Komponententests.
+- Die Testhilfen ersetzen `computed`-Eigenschaften durch eigene Funktionen; die Verdrahtung dieser `computed`s ist dadurch nicht selbst geprüft. Ursache ist, dass `TestBed` in diesem Vitest-Setup keine Signal-Inputs über eine Host-Komponente binden kann (NG0303).
+- `file-drop.directive.spec.ts` setzt ein Signal-Input über Angulars internen `Symbol(SIGNAL)`-Knoten. Bewusst so, mit lautem Abbruch, falls Angular das ändert.
+- In `image-collection.ts` liefern manche reinen Funktionen bei unbekannter Kennung dieselbe Referenz zurück, andere ein neues Feld. Folgenlos, weil alle Aufrufstellen das Ergebnis ohnehin kopieren – aber uneinheitlich.
+- Die Zeichenketten-Werte `'zeile'`, `'kachel'`, `'offiziell'`, `'gemessen'`, `'aufnehmen'` sind noch deutsch. Sie sind Teil exportierter Typen, keine Oberflächentexte.
+- **Keine AXE-Prüfung protokolliert.** Die Barrierefreiheit wurde am Markup geprüft (Rollen, `aria-pressed`, `aria-live`, Beschriftungen), ein AXE-Lauf steht aus.
 - Der Bau meldet weiterhin, dass `jszip` und `jsbarcode` kein ESM sind. Bestand, nicht neu.
 - **Projektweit offen:** Der übrige Quelltext ist weiterhin deutsch benannt. Die Umstellung wartet, bis die Warenwirtschaft zusammengeführt ist – siehe Abschnitt „Namenskonvention im Code" oben.
 
