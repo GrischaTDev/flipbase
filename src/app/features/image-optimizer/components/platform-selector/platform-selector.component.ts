@@ -4,7 +4,7 @@ import {
   LucideCheck as Check,
   LucideCircleHelp as CircleHelp,
 } from '@lucide/angular';
-import { PlatformId, PlatformProfile } from '../../models/platform-profile';
+import { PlatformId, PlatformProfile, ratioLabel } from '../../models/platform-profile';
 
 /** Waehlt die Exportziele aus. Ein Klick genuegt in beide Richtungen. */
 @Component({
@@ -28,8 +28,8 @@ export class PlatformSelectorComponent {
     return this.selectedIds().includes(id);
   }
 
+  /** Templates koennen keine freien Funktionen aufrufen, deshalb die Weiterleitung. */
   ratioLabel(platform: PlatformProfile): string {
-    if (platform.exportRatio === 1) return '1:1';
-    return platform.exportRatio < 1 ? '2:3' : '4:3';
+    return ratioLabel(platform);
   }
 }

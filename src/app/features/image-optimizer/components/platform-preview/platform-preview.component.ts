@@ -7,7 +7,7 @@ import {
   input,
   signal,
 } from '@angular/core';
-import { Size, PlatformProfile, Rect } from '../../models/platform-profile';
+import { Size, PlatformProfile, Rect, ratioLabel } from '../../models/platform-profile';
 import { planOutput, RenderPlan, renderImage } from '../../services/image-renderer';
 import { deriveRect } from '../../services/crop';
 
@@ -97,6 +97,11 @@ export class PlatformPreviewComponent {
     } finally {
       if (!this.destroyed && version === this.renderVersion) this.isRendering.set(false);
     }
+  }
+
+  /** Templates koennen keine freien Funktionen aufrufen, deshalb die Weiterleitung. */
+  ratioLabel(platform: PlatformProfile): string {
+    return ratioLabel(platform);
   }
 
   private loadImage(url: string): Promise<HTMLImageElement> {

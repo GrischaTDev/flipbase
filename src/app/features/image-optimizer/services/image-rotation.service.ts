@@ -22,28 +22,35 @@ export class ImageRotationService {
     canvas.width = swapped ? height : width;
     canvas.height = swapped ? width : height;
 
-    const pen = canvas.getContext('2d');
-    if (!pen) throw new Error('Der Browser stellt keine Zeichenflaeche bereit.');
+    let blob: Blob;
+    try {
+      const pen = canvas.getContext('2d');
+      if (!pen) throw new Error('Der Browser stellt keine Zeichenflaeche bereit.');
 
-    // Weisser Grund: wie beim Export bliebe sonst ein durchsichtiger
-    // PNG-Bereich als Schwarz stehen, sobald als JPEG kodiert wird.
-    pen.fillStyle = '#ffffff';
-    pen.fillRect(0, 0, canvas.width, canvas.height);
-    pen.imageSmoothingQuality = 'high';
+      // Weisser Grund: wie beim Export bliebe sonst ein durchsichtiger
+      // PNG-Bereich als Schwarz stehen, sobald als JPEG kodiert wird.
+      pen.fillStyle = '#ffffff';
+      pen.fillRect(0, 0, canvas.width, canvas.height);
+      pen.imageSmoothingQuality = 'high';
 
-    pen.translate(canvas.width / 2, canvas.height / 2);
-    pen.rotate((quarters * 90 * Math.PI) / 180);
-    pen.drawImage(source, -width / 2, -height / 2, width, height);
+      pen.translate(canvas.width / 2, canvas.height / 2);
+      pen.rotate((quarters * 90 * Math.PI) / 180);
+      pen.drawImage(source, -width / 2, -height / 2, width, height);
 
-    if (source instanceof ImageBitmap) source.close();
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob(
-        (b) => (b ? resolve(b) : reject(new Error('Das gedrehte Bild liess sich nicht erzeugen.'))),
-        'image/jpeg',
-        0.92,
-      );
-    });
+      blob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          (b) =>
+            b ? resolve(b) : reject(new Error('Das gedrehte Bild liess sich nicht erzeugen.')),
+          'image/jpeg',
+          0.92,
+        );
+      });
+    } finally {
+      // Ohne `finally` wuerde ein fehlender 2D-Kontext das ImageBitmap nie
+      // freigeben - mehrere zehn MB Speicher ausserhalb des JS-Heaps pro
+      // gescheiterter Drehung eines grossen Fotos.
+      if (source instanceof ImageBitmap) source.close();
+    }
 
     return {
       dataUrl: URL.createObjectURL(blob),

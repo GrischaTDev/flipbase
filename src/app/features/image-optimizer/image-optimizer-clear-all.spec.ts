@@ -20,17 +20,17 @@ function image(id: string, dataUrl: string): OptimizerImage {
 
 function createComponent(confirmed: boolean, images: OptimizerImage[]) {
   const toast = new ToastService();
-  const frage = vi.fn().mockResolvedValue(confirmed);
+  const confirmMock = vi.fn().mockResolvedValue(confirmed);
   const component = Object.create(ImageOptimizerComponent.prototype) as ImageOptimizerComponent;
   Object.assign(component, {
     toast,
-    confirm: { frage },
+    confirm: { frage: confirmMock },
     isBusy: signal(false),
     images: signal(images),
     activeImageId: signal(images[0]?.id ?? null),
     error: signal<string | null>(null),
   });
-  return { component, toast, frage };
+  return { component, toast, confirmMock };
 }
 
 describe('ImageOptimizerComponent – Alle Bilder entfernen', () => {
@@ -51,11 +51,11 @@ describe('ImageOptimizerComponent – Alle Bilder entfernen', () => {
 
   it('entfernt nach Bestätigung alle Bilder und gibt jede Object-URL frei', async () => {
     const images = [image('a', 'blob:a'), image('b', 'blob:b')];
-    const { component, toast, frage } = createComponent(true, images);
+    const { component, toast, confirmMock } = createComponent(true, images);
 
     await component.clearAllImages();
 
-    expect(frage).toHaveBeenCalledWith(
+    expect(confirmMock).toHaveBeenCalledWith(
       expect.objectContaining({ titel: 'Alle Bilder entfernen?', gefahr: true }),
     );
     expect(component.images()).toEqual([]);
@@ -70,11 +70,11 @@ describe('ImageOptimizerComponent – Alle Bilder entfernen', () => {
 
   it('entfernt bei Abbruch nichts und gibt keine Object-URL frei', async () => {
     const images = [image('a', 'blob:a')];
-    const { component, toast, frage } = createComponent(false, images);
+    const { component, toast, confirmMock } = createComponent(false, images);
 
     await component.clearAllImages();
 
-    expect(frage).toHaveBeenCalledTimes(1);
+    expect(confirmMock).toHaveBeenCalledTimes(1);
     expect(component.images()).toEqual(images);
     expect(component.activeImageId()).toBe('a');
     expect(revokeObjectURL).not.toHaveBeenCalled();
@@ -82,21 +82,21 @@ describe('ImageOptimizerComponent – Alle Bilder entfernen', () => {
   });
 
   it('fragt bei einer leeren Liste erst gar nicht nach', async () => {
-    const { component, frage } = createComponent(true, []);
+    const { component, confirmMock } = createComponent(true, []);
 
     await component.clearAllImages();
 
-    expect(frage).not.toHaveBeenCalled();
+    expect(confirmMock).not.toHaveBeenCalled();
   });
 
   it('fragt waehrend eines laufenden Exports nicht nach', async () => {
     const images = [image('a', 'blob:a')];
-    const { component, frage } = createComponent(true, images);
+    const { component, confirmMock } = createComponent(true, images);
     Object.assign(component, { isBusy: signal(true) });
 
     await component.clearAllImages();
 
-    expect(frage).not.toHaveBeenCalled();
+    expect(confirmMock).not.toHaveBeenCalled();
     expect(component.images()).toEqual(images);
   });
 

@@ -9,7 +9,7 @@
       </p>
     </div>
     <span class="rounded-full bg-indigo-500/15 px-2 py-1 text-[10px] font-semibold text-indigo-300">
-      {{ platform().exportRatio === 1 ? '1:1' : platform().id === 'vinted' ? '2:3' : '4:3' }}
+      {{ ratioLabel(platform()) }}
     </span>
   </header>
 

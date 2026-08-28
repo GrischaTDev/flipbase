@@ -50,8 +50,9 @@ import { ConfirmDialogService } from '../../shared/components/confirm-dialog/con
  * Hinweistext fuer Bilder, die der Browser nicht als Bild dekodieren kann -
  * typischerweise HEIC-Fotos vom iPhone. An genau dieser einen Stelle
  * definiert und sowohl beim Lesen (ueber das `loadFailed`-Ereignis des
- * Editors) als auch beim Export (`loadImage`) referenziert, damit die beiden
- * Meldungen nie auseinanderlaufen koennen.
+ * Editors) als auch beim Export (`loadImage`, wenn die betroffene Datei
+ * tatsaechlich HEIC ist) referenziert, damit die beiden Meldungen fuer
+ * denselben Fall nie auseinanderlaufen koennen.
  */
 export const HEIC_HINT =
   'Das Bild liess sich nicht lesen. HEIC-Dateien vom iPhone kann der Browser oft nicht öffnen.';
@@ -191,11 +192,10 @@ export class ImageOptimizerComponent {
     if (failure) return { kind: 'error', title: failure, detail: null };
 
     if (this.selectedPlatforms().length === 0) {
-      return {
-        kind: 'error',
-        title: 'Noch keine Plattform gewählt',
-        detail: 'Wähle oben mindestens eine aus.',
-      };
+      // Die ausfuehrliche Erklaerung dazu steht bereits im Editorbereich
+      // (siehe Template); hier reicht der kurze Titel, um die Meldung nicht
+      // zweimal mit unterschiedlichem Wortlaut zu zeigen.
+      return { kind: 'error', title: 'Noch keine Plattform gewählt', detail: null };
     }
 
     return {
@@ -258,6 +258,11 @@ export class ImageOptimizerComponent {
 
   setActiveImage(id: string): void {
     if (this.isBusy()) return;
+    this.activateImage(id);
+  }
+
+  /** Setzt das aktive Bild und markiert es als durchgesehen. */
+  private activateImage(id: string): void {
     this.activeImageId.set(id);
     this.images.update((list) => [...markReviewed(list, id)]);
   }
@@ -296,8 +301,7 @@ export class ImageOptimizerComponent {
 
     this.images.update((list) => [...list, ...added]);
     if (!this.activeImageId() && added.length > 0) {
-      this.activeImageId.set(added[0].id);
-      this.images.update((list) => [...markReviewed(list, added[0].id)]);
+      this.activateImage(added[0].id);
     }
 
     for (const image of added) {
@@ -513,7 +517,7 @@ export class ImageOptimizerComponent {
       const entries = [];
 
       for (const [index, image] of snapshot.images.entries()) {
-        const element = await this.loadImage(image.dataUrl);
+        const element = await this.loadImage(image.dataUrl, image.file);
         // Letzte Absicherung, falls `naturalSize` unmittelbar nach dem
         // Hochladen noch nicht ermittelt wurde.
         const fallback = fullImageRect(image) ?? {
@@ -551,11 +555,15 @@ export class ImageOptimizerComponent {
     }
   }
 
-  private loadImage(url: string): Promise<HTMLImageElement> {
+  /**
+   * `file` ist nur beim Export bekannt (siehe `exportImages`); `measureNaturalSize`
+   * hat keine Datei zur Hand und bekommt deshalb den allgemeineren Hinweis.
+   */
+  private loadImage(url: string, file?: File): Promise<HTMLImageElement> {
     return new Promise((resolve, reject) => {
       const image = new Image();
       image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error(HEIC_HINT));
+      image.onerror = () => reject(new Error(file && isHeic(file) ? HEIC_HINT : READ_HINT));
       image.src = url;
     });
   }

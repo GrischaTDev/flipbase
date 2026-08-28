@@ -14,8 +14,8 @@ const MAX_LENGTH = 60;
  * bisherige Nummerierung greift statt eines Namens aus lauter Bindestrichen.
  */
 export function sanitizeBaseName(input: string): string {
-  return (
-    input
+  return [
+    ...input
       .replace(/ä/g, 'ae')
       .replace(/ö/g, 'oe')
       .replace(/ü/g, 'ue')
@@ -23,22 +23,22 @@ export function sanitizeBaseName(input: string): string {
       .replace(/Ö/g, 'Oe')
       .replace(/Ü/g, 'Ue')
       .replace(/ß/g, 'ss')
-      .normalize('NFD')
-      // Zerlegt "é" in "e" + Akzent und entfernt dann den Akzent. Die Umlaute
-      // oben laufen absichtlich vorher: "ä" soll "ae" werden, nicht "a".
-      .split('')
-      .filter((character) => {
-        const code = character.codePointAt(0) ?? 0;
-        return code < 0x0300 || code > 0x036f;
-      })
-      .join('')
-      .toLowerCase()
-      .replace(/[^a-z0-9_]+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, MAX_LENGTH)
-      .replace(/-+$/g, '')
-  );
+      .normalize('NFD'),
+    // Zerlegt "é" in "e" + Akzent und entfernt dann den Akzent. Die Umlaute
+    // oben laufen absichtlich vorher: "ä" soll "ae" werden, nicht "a".
+    // `[...]` statt `.split('')`, damit Surrogatpaare nicht auseinandergerissen werden.
+  ]
+    .filter((character) => {
+      const code = character.codePointAt(0) ?? 0;
+      return code < 0x0300 || code > 0x036f;
+    })
+    .join('')
+    .toLowerCase()
+    .replace(/[^a-z0-9_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, MAX_LENGTH)
+    .replace(/-+$/g, '');
 }
 
 /**

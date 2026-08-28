@@ -109,6 +109,12 @@ export const PLATFORM_PROFILES: readonly PlatformProfile[] = [
   },
 ];
 
+/** Das Seitenverhaeltnis als kurzer Text fuer die Oberflaeche. */
+export function ratioLabel(platform: PlatformProfile): string {
+  if (platform.exportRatio === 1) return '1:1';
+  return platform.exportRatio < 1 ? '2:3' : '4:3';
+}
+
 /** Ob eine fertige Ausgabe die bekannten Mindestmasse der Plattform einhaelt. */
 export function meetsMinimumSize(size: Size, platform: PlatformProfile): boolean {
   if (platform.minWidth === null || platform.minHeight === null) return true;

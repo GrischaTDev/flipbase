@@ -14,7 +14,7 @@ function file(name: string, type: string): File {
  * mit `types: ['Files']` angehaengt - genau das, worauf `carriesFiles` prueft.
  */
 function createFileEvent(type: string, files: readonly File[] = []): Event {
-  const event = new Event(type, { cancelable: true });
+  const event = new Event(type, { cancelable: true, bubbles: true });
   Object.defineProperty(event, 'dataTransfer', {
     configurable: true,
     value: { types: ['Files'], files },
@@ -104,6 +104,31 @@ describe('FileDropDirective', () => {
     directive.onDragOver(event as DragEvent);
 
     expect(preventDefault).toHaveBeenCalled();
+  });
+
+  it('verhindert die Browser-Standardaktion bei dragover auch ausserhalb der eigenen Box im DOM', () => {
+    // Regressionsschutz fuer die Bindung auf `document`: Die Direktive sitzt
+    // in einem zentrierten Bereich der Seite und deckt nicht die ganze
+    // Flaeche ab. Ohne die Bindung auf `document` wuerde ein Ablegen ausserhalb
+    // dieser Box nie preventDefault() ausloesen, und der Browser wuerde die
+    // Seite verlassen, um die Datei selbst zu oeffnen.
+    const directive = createDirective();
+    const outside = document.createElement('div');
+    document.body.appendChild(outside);
+    const listener = (event: Event) => directive.onDragOver(event as DragEvent);
+    document.addEventListener('dragover', listener);
+
+    try {
+      const event = createFileEvent('dragover');
+      const preventDefault = vi.spyOn(event, 'preventDefault');
+
+      outside.dispatchEvent(event);
+
+      expect(preventDefault).toHaveBeenCalled();
+    } finally {
+      document.removeEventListener('dragover', listener);
+      outside.remove();
+    }
   });
 
   it('verhindert die Browser-Standardaktion bei drop auch waehrend eines laufenden Exports', () => {

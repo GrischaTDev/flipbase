@@ -1,10 +1,9 @@
 @if (platforms().length > 1) {
-  <div class="flex flex-wrap items-center gap-1" role="tablist" aria-label="Arbeitsziel">
+  <div class="flex flex-wrap items-center gap-1" role="group" aria-label="Arbeitsziel">
     @for (p of platforms(); track p.id) {
       <button
         type="button"
-        role="tab"
-        [attr.aria-selected]="p.id === activeId()"
+        [attr.aria-pressed]="p.id === activeId()"
         (click)="selected.emit(p.id)"
         [disabled]="disabled()"
         class="cursor-pointer rounded-lg px-3 py-1.5 text-[11px] font-semibold disabled:cursor-not-allowed disabled:opacity-40"

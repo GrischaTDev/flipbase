@@ -25,6 +25,10 @@ describe('Namen entschaerfen', () => {
     expect(long.endsWith('-')).toBe(false);
   });
 
+  it('laesst nach dem Schnitt keinen Bindestrich am Ende stehen', () => {
+    expect(sanitizeBaseName('a'.repeat(59) + ' bbbb')).toBe('a'.repeat(59));
+  });
+
   it('liefert eine leere Zeichenkette, wenn nichts Brauchbares uebrig bleibt', () => {
     expect(sanitizeBaseName('🎉🎉')).toBe('');
     expect(sanitizeBaseName('   ')).toBe('');

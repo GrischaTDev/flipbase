@@ -25,14 +25,24 @@ export function splitImageFiles(files: readonly File[]): FileSplit {
  *
  * Liegt auf der gesamten Arbeitsflaeche, damit auch bei bereits geladenen
  * Bildern abgelegt werden kann - genau der Fall, der im Alltag zaehlt.
+ *
+ * Die Ereignisse haengen bewusst am `document`, nicht am eigenen Host-Element:
+ * Dieses sitzt in einem zentrierten `max-w-7xl`-Bereich und deckt bei
+ * breiten Bildschirmen nur einen Teil der Seite ab. Ein Ablegen ueber der
+ * Kopfzeile, der Seitenleiste oder den Raendern daneben wuerde `onDragOver`
+ * nie erreichen - `preventDefault()` bliebe aus, der Browser oeffnete die
+ * Datei stattdessen selbst und die gesamte Seite mit allen geladenen
+ * Bildern, Zuschnitten und der Plattformauswahl waere weg. Die Direktive
+ * existiert ohnehin nur, waehrend die Route des Bildoptimierers gemountet
+ * ist, `carriesFiles()` filtert weiterhin auf echte Datei-Drags.
  */
 @Directive({
   selector: '[appFileDrop]',
   host: {
-    '(dragenter)': 'onDragEnter($event)',
-    '(dragover)': 'onDragOver($event)',
-    '(dragleave)': 'onDragLeave($event)',
-    '(drop)': 'onDrop($event)',
+    '(document:dragenter)': 'onDragEnter($event)',
+    '(document:dragover)': 'onDragOver($event)',
+    '(document:dragleave)': 'onDragLeave($event)',
+    '(document:drop)': 'onDrop($event)',
     '(document:paste)': 'onPaste($event)',
   },
 })
@@ -48,9 +58,11 @@ export class FileDropDirective {
    */
   private depth = 0;
 
+  /** Siehe `onDragOver`: Die Abwehr steht auch hier vor jeder Bedingung. */
   onDragEnter(event: DragEvent): void {
-    if (this.disabled() || !this.carriesFiles(event)) return;
+    if (!this.carriesFiles(event)) return;
     event.preventDefault();
+    if (this.disabled()) return;
     this.depth++;
     if (this.depth === 1) this.dragActiveChanged.emit(true);
   }
@@ -74,9 +86,10 @@ export class FileDropDirective {
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
   }
 
+  /** Siehe `onDragOver`: Die Abwehr steht auch hier vor jeder Bedingung. */
   onDragLeave(event: DragEvent): void {
-    if (this.disabled()) return;
     event.preventDefault();
+    if (this.disabled()) return;
     this.depth = Math.max(0, this.depth - 1);
     if (this.depth === 0) this.dragActiveChanged.emit(false);
   }

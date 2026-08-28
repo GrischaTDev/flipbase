@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import * as platformProfile from './platform-profile';
-import { PLATFORM_PROFILES, platformById } from './platform-profile';
+import { PLATFORM_PROFILES, platformById, ratioLabel } from './platform-profile';
 
 /**
  * Die Werte stammen aus einer Messung an den echten Trefferlisten
@@ -81,6 +81,12 @@ describe('Plattformprofile', () => {
 
     expect(meetsMinimumSize({ width: 499, height: 500 }, platformById('ebay'))).toBe(false);
     expect(meetsMinimumSize({ width: 500, height: 500 }, platformById('ebay'))).toBe(true);
+  });
+
+  it('gibt fuer jedes Profil das richtige Seitenverhaeltnis als Text', () => {
+    expect(ratioLabel(platformById('ebay'))).toBe('1:1');
+    expect(ratioLabel(platformById('kleinanzeigen'))).toBe('4:3');
+    expect(ratioLabel(platformById('vinted'))).toBe('2:3');
   });
 
   it('blockiert Plattformen ohne bekannte Mindestgroesse nicht', () => {
