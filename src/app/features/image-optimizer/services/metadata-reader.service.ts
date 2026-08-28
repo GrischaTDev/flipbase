@@ -2,17 +2,28 @@ import { Injectable } from '@angular/core';
 import { AiProvenance, ImageMetadata, pendingMetadata } from '../models/image-metadata';
 import { hasContentCredential } from './c2pa-detection';
 
-/** Nur diese Felder werden ausgelesen - nicht die Voreinstellung der Bibliothek. */
-const WANTED_FIELDS = [
-  'latitude',
-  'longitude',
-  'Make',
-  'Model',
-  'DateTimeOriginal',
-  'CreateDate',
-  'Software',
-  'digitalSourceType',
-];
+/**
+ * `pick` (Filterung nach einzelnen Feldnamen) wurde ausprobiert und funktioniert
+ * hier nicht: GPS-Koordinaten (`latitude`/`longitude`) sind abgeleitete Werte,
+ * die `exifr` erst berechnet, wenn die rohen `GPSLatitude`/`GPSLongitude`-Tags
+ * durchgelassen wurden - `pick` filtert aber nur die rohen Tags, nicht die
+ * abgeleiteten. Und XMP (fuer `DigitalSourceType`) wird ganz uebersprungen,
+ * wenn es nicht per Segment aktiviert ist. Deshalb werden hier ganze Segmente
+ * aktiviert statt einzelner Felder. Bitte nicht wieder auf `pick` "aufraeumen" -
+ * das wurde gemessen und bringt GPS und XMP zum Verschwinden.
+ * (`ifd0` fehlt bewusst: laut den exifr-Typen kann dieses Segment nicht
+ * abgeschaltet werden, es wird also immer mitgelesen.)
+ */
+const PARSE_OPTIONS = {
+  tiff: true,
+  exif: true,
+  gps: true,
+  xmp: true,
+  iptc: false,
+  icc: false,
+  jfif: false,
+  ihdr: false,
+};
 
 /**
  * Kapselt `exifr` vollstaendig. Kein anderer Teil des Codes kennt die
@@ -38,7 +49,11 @@ export class MetadataReaderService {
       // nachgeladen wird. So bleibt der Editor-Chunk innerhalb seines Budgets.
       // Bitte nicht zu einem statischen Import "aufraeumen".
       const { default: exifr } = await import('exifr');
-      const raw = (await exifr.parse(file, { pick: WANTED_FIELDS })) ?? {};
+      const raw = (await exifr.parse(file, PARSE_OPTIONS)) ?? {};
+      // Wenn exifr nichts Brauchbares findet, liefert es `{ errors: [...] }`
+      // statt eines echten Feldes zurueck - das ist "geprueft und leer", kein
+      // Fehlschlag. `errors` selbst ist kein Metadatenfeld und darf nirgends
+      // als eines gelesen werden.
       const bytes = new Uint8Array(await file.arrayBuffer());
 
       return {
@@ -82,8 +97,11 @@ function readDate(raw: Record<string, unknown>): string | null {
 }
 
 function readAi(raw: Record<string, unknown>, bytes: Uint8Array): AiProvenance {
+  // `exifr` liefert das XMP-Feld als `DigitalSourceType` (grosses D) -
+  // `digitalSourceType` wird zusaetzlich akzeptiert, kommt aber in der
+  // Praxis von der Bibliothek nicht vor.
   return {
     contentCredential: hasContentCredential(bytes),
-    declaredSource: text(raw['digitalSourceType']),
+    declaredSource: text(raw['DigitalSourceType'] ?? raw['digitalSourceType']),
   };
 }

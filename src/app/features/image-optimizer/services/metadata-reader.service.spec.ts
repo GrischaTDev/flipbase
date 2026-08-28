@@ -19,6 +19,12 @@ describe('Metadaten lesen', () => {
 
   it('uebersetzt GPS, Kamera und Datum', async () => {
     parseMock.mockResolvedValue({
+      // Rohe Tags plus die von exifr daraus abgeleiteten latitude/longitude -
+      // genau die Form, die die Bibliothek bei { gps: true } tatsaechlich liefert.
+      GPSLatitude: [52, 30, 0],
+      GPSLatitudeRef: 'N',
+      GPSLongitude: [13, 24, 0],
+      GPSLongitudeRef: 'E',
       latitude: 52.5,
       longitude: 13.4,
       Make: 'Apple',
@@ -66,11 +72,29 @@ describe('Metadaten lesen', () => {
   });
 
   it('erkennt eine erklaerte KI-Herkunft aus XMP', async () => {
-    parseMock.mockResolvedValue({ digitalSourceType: 'trainedAlgorithmicMedia' });
+    // exifr liefert das XMP-Feld als DigitalSourceType (grosses D).
+    parseMock.mockResolvedValue({ DigitalSourceType: 'trainedAlgorithmicMedia' });
 
     const result = await reader.read(jpegFile());
 
     expect(result.ai.declaredSource).toBe('trainedAlgorithmicMedia');
+  });
+
+  it('meldet read mit leeren Feldern, wenn exifr nur errors liefert', async () => {
+    // So sieht die Antwort aus, wenn exifr eine Datei ohne brauchbare
+    // Metadaten anschaut: kein echtes Feld, nur { errors: [...] }. Das ist
+    // "geprueft und leer", kein Fehlschlag.
+    parseMock.mockResolvedValue({ errors: [{}] });
+
+    const result = await reader.read(jpegFile());
+
+    expect(result.status).toBe('read');
+    expect(result.gps).toBeNull();
+    expect(result.cameraMake).toBeNull();
+    expect(result.cameraModel).toBeNull();
+    expect(result.capturedAt).toBeNull();
+    expect(result.software).toBeNull();
+    expect(result.ai.declaredSource).toBeNull();
   });
 
   it('meldet einen fehlenden GPS-Teilwert als kein GPS', async () => {
