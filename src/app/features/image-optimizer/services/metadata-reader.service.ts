@@ -1,5 +1,4 @@
 import { Injectable } from '@angular/core';
-import exifr from 'exifr';
 import { AiProvenance, ImageMetadata, pendingMetadata } from '../models/image-metadata';
 import { hasContentCredential } from './c2pa-detection';
 
@@ -34,6 +33,11 @@ export class MetadataReaderService {
     if (!isJpeg(file)) return { ...base, status: 'unsupported' };
 
     try {
+      // Dynamischer Import: `exifr` (nur wegen XMP-Parser die volle "full"-Variante)
+      // wandert dadurch in einen eigenen Chunk, der erst beim tatsaechlichen Lesen
+      // nachgeladen wird. So bleibt der Editor-Chunk innerhalb seines Budgets.
+      // Bitte nicht zu einem statischen Import "aufraeumen".
+      const { default: exifr } = await import('exifr');
       const raw = (await exifr.parse(file, { pick: WANTED_FIELDS })) ?? {};
       const bytes = new Uint8Array(await file.arrayBuffer());
 
