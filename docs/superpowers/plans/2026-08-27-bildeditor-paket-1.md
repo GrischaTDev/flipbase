@@ -1351,11 +1351,20 @@ export class FileDropDirective {
 
   /**
    * Ohne `preventDefault` gilt das Ablegen als nicht erlaubt und der Browser
-   * oeffnet die Datei stattdessen in einem neuen Tab - die Arbeit waere weg.
+   * oeffnet die abgelegte Datei stattdessen selbst - die Seite wird verlassen
+   * und die Arbeit ist weg.
+   *
+   * Deshalb geschieht die Abwehr **immer**, sobald Dateien im Spiel sind, und
+   * ausdruecklich auch waehrend eines laufenden Exports. `disabled()`
+   * unterdrueckt nur die *Wirkung* - Ueberlagerung und Weitergabe der Dateien -,
+   * niemals die Abwehr selbst. Stuende `disabled()` davor, wuerde genau der
+   * Fall eintreten, den dieser Kommentar beschreibt: Wer waehrend des Exports
+   * ein Bild fallen laesst, verliert den laufenden Export.
    */
   onDragOver(event: DragEvent): void {
-    if (this.disabled() || !this.carriesFiles(event)) return;
+    if (!this.carriesFiles(event)) return;
     event.preventDefault();
+    if (this.disabled()) return;
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
   }
 
@@ -1366,11 +1375,12 @@ export class FileDropDirective {
     if (this.depth === 0) this.dragActiveChanged.emit(false);
   }
 
+  /** Siehe `onDragOver`: Die Abwehr steht auch hier vor jeder Bedingung. */
   onDrop(event: DragEvent): void {
-    if (this.disabled()) return;
     event.preventDefault();
     this.depth = 0;
     this.dragActiveChanged.emit(false);
+    if (this.disabled()) return;
 
     const files = Array.from(event.dataTransfer?.files ?? []);
     if (files.length > 0) this.filesDropped.emit(files);
