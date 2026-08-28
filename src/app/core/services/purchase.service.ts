@@ -475,7 +475,7 @@ export class PurchaseService {
       : undefined;
 
     const newPurchase: Purchase = {
-      id: `pur-${Date.now()}`,
+      id: this.mockStore.isDemoMode() ? createLocalDemoId('purchase') : `pur-${Date.now()}`,
       workspace_id: ws.id,
       source_id: payload.source_id || null,
       supplier_id: payload.supplier_id || null,

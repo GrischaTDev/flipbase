@@ -85,6 +85,7 @@ describe('PurchaseService – Demo-Einkauf mit Startpositionen', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('speichert Einkauf und Mengenposition dauerhaft für Detailansicht und Wareneingang', async () => {
@@ -170,5 +171,24 @@ describe('PurchaseService – Demo-Einkauf mit Startpositionen', () => {
         allocated_purchase_cost: 19.99,
       }),
     );
+  });
+
+  it('trennt zwei Demo-Einkäufe samt Positionen auch in derselben Millisekunde', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_787_936_400_000);
+    vi.stubGlobal('crypto', undefined);
+    const store = erstelleStore();
+    const { service } = erstelleDienst(store);
+
+    const first = await service.createPurchase(payload);
+    const second = await service.createPurchase({ ...payload, title: 'Zweiter LED-Nachkauf' });
+
+    expect(first.status).toBe('success');
+    expect(second.status).toBe('success');
+    expect(first.data?.id).not.toBe(second.data?.id);
+    expect(store.getPurchases(workspace.id)).toHaveLength(2);
+    const lines = store.getPurchaseLines(workspace.id);
+    expect(lines).toHaveLength(2);
+    expect(lines.filter((line) => line.purchase_id === first.data?.id)).toHaveLength(1);
+    expect(lines.filter((line) => line.purchase_id === second.data?.id)).toHaveLength(1);
   });
 });

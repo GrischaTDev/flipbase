@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnInit,
   computed,
   inject,
   output,
@@ -37,7 +38,7 @@ type PriceField = 'unitPurchasePrice' | 'lineTotal';
   templateUrl: './purchase-line-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PurchaseLineEditorComponent {
+export class PurchaseLineEditorComponent implements OnInit {
   readonly catalogService = inject(CatalogService);
   private readonly workspaceService = inject(WorkspaceService);
 
@@ -46,6 +47,10 @@ export class PurchaseLineEditorComponent {
   readonly isCreatingProduct = signal(false);
   readonly isSavingProduct = signal(false);
   readonly productError = signal<string | null>(null);
+  readonly catalogContextError = signal<string | null>(null);
+  readonly catalogLoadError = computed(
+    () => this.catalogContextError() ?? this.catalogService.loadError()?.message ?? null,
+  );
   readonly productForm = new FormGroup({
     title: new FormControl('', {
       nonNullable: true,
@@ -56,6 +61,20 @@ export class PurchaseLineEditorComponent {
   readonly quantityProducts = computed(() =>
     this.catalogService.products().filter((product) => product.tracking_mode === 'quantity'),
   );
+
+  ngOnInit(): void {
+    void this.loadCatalogProducts();
+  }
+
+  async loadCatalogProducts(): Promise<void> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (!workspaceId) {
+      this.catalogContextError.set('Kein aktiver Workspace ausgewählt.');
+      return;
+    }
+    this.catalogContextError.set(null);
+    await this.catalogService.loadProducts(workspaceId);
+  }
 
   addQuantityLine(): void {
     this.lineRows.push(this.createLine('quantity'));

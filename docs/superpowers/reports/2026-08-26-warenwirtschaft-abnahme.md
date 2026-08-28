@@ -93,6 +93,20 @@ Zusätzlich ist der Checkout ohne `crypto.randomUUID` und ohne
 Fehler bleibt sichtbar, der Submit-Zustand wird beendet und die Formulardaten
 bleiben erhalten.
 
+## Nachtrag: direkter Katalogzugriff und eindeutige Demo-Einkäufe
+
+Der Einkaufspositionseditor lädt den Artikelstamm beim Öffnen nun selbst für
+den aktiven Workspace. Damit steht ein persistierter Mengenartikel wie die
+LED-Lampe auch dann sofort zur Auswahl, wenn seit dem App-Start noch keine
+Artikelstammseite besucht wurde. Während des Ladens ist die Auswahl gesperrt;
+Fehler werden direkt am Editor mit einer Wiederholen-Aktion angezeigt. Das gilt
+für Demo-Daten und den Supabase-Ladepfad gleichermaßen.
+
+Demo-Einkäufe verwenden für ihre Elternkennung jetzt denselben kollisionsfesten
+lokalen ID-Generator wie ihre Positionen. Zwei Einkäufe innerhalb derselben
+Millisekunde bleiben dadurch getrennte Datensätze; ihre Einkaufspositionen
+verweisen jeweils auf den richtigen Eltern-Einkauf.
+
 ## Ausgeführte Prüfungen
 
 | Befehl                                                                                         | Ergebnis                                                                                                        |
@@ -111,17 +125,20 @@ bleiben erhalten.
 | `git diff --check`                                                                             | PASS: keine Whitespace-Fehler.                                                                                  |
 | Gezielte HTTP-Demo-Regressionssuiten (Befehl unten)                                            | PASS: 8 Testdateien, 41 Tests; sichere Fallback-UUID, Demo-Katalog und Submit-Fehlerzustand.                    |
 | Gezielte Einkaufszählungs-, Persistenz- und Checkout-Regressionssuiten (Befehl unten)          | PASS: 8 Testdateien, 43 Tests.                                                                                  |
+| Gezielte Katalog-Direkteinstiegs-, Modal- und Einkaufsregressionssuiten (Befehl unten)         | PASS: 9 Testdateien, 55 Tests.                                                                                  |
 
 ```powershell
 npm test -- --run src/app/core/utils/client-identity.spec.ts src/app/core/services/catalog.service.spec.ts src/app/features/catalog/catalog.component.spec.ts src/app/features/store/pages/store-checkout/store-checkout-actions.spec.ts src/app/core/services/purchase-create-persistence.spec.ts src/app/core/services/mock-data-store-individual-receipt.spec.ts src/app/core/services/inventory-persistence.spec.ts src/app/core/services/bank-reconciliation.service.spec.ts
 
 npm test -- --run src/app/features/purchases/pages/purchase-detail/purchase-detail-actions.spec.ts src/app/core/services/purchase-demo-create.spec.ts src/app/core/services/purchase-quantity-count.spec.ts src/app/core/services/purchase-create-persistence.spec.ts src/app/features/purchases/components/purchase-create-modal/purchase-create-modal-actions.spec.ts src/app/features/store/pages/store-checkout/store-checkout-actions.spec.ts src/app/core/services/mock-data-store-individual-receipt.spec.ts src/app/core/services/stock.service.spec.ts
+
+npm test -- --run src/app/features/purchases/components/purchase-line-editor/purchase-line-editor.component.spec.ts src/app/features/purchases/components/purchase-create-modal/purchase-create-modal-actions.spec.ts src/app/core/services/purchase-demo-create.spec.ts src/app/core/services/purchase-create-persistence.spec.ts src/app/core/services/purchase-persistence.spec.ts src/app/core/services/purchase-line-money.spec.ts src/app/core/services/purchase-cost-allocation.spec.ts src/app/features/purchases/pages/purchase-detail/purchase-detail-actions.spec.ts src/app/features/purchases/purchases-toast-actions.spec.ts
 ```
 
 ## Bekannte Vorbefunde und Bedenken
 
 - Der Production-Build bleibt erfolgreich, warnt aber weiterhin wegen eines
-  um 16,31 kB überschrittenen Initial-Budgets und der CommonJS-Abhängigkeiten
+  um 16,35 kB überschrittenen Initial-Budgets und der CommonJS-Abhängigkeiten
   `jszip` sowie `jsbarcode`.
 - Es wurde ausschließlich die lokale Supabase-Datenbank zurückgesetzt und
   geprüft. Es gab keine Remote- oder Produktionsmigration und keine

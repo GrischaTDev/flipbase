@@ -15,7 +15,8 @@
       <button
         type="button"
         (click)="addQuantityLine()"
-        class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
+        [disabled]="catalogService.isLoading()"
+        class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-wait disabled:opacity-50"
       >
         Bestehenden Artikel wählen
       </button>
@@ -35,6 +36,24 @@
       </button>
     </div>
   </div>
+
+  @if (catalogService.isLoading()) {
+    <p class="text-xs text-fb-text-muted" role="status">Artikelstamm wird geladen…</p>
+  } @else if (catalogLoadError(); as error) {
+    <div
+      class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-2"
+      role="alert"
+    >
+      <p class="text-xs text-rose-300">Artikelstamm konnte nicht geladen werden: {{ error }}</p>
+      <button
+        type="button"
+        (click)="loadCatalogProducts()"
+        class="linear-btn-secondary rounded-lg px-2.5 py-1 text-xs font-semibold"
+      >
+        Erneut versuchen
+      </button>
+    </div>
+  }
 
   @if (isCreatingProduct()) {
     <form
@@ -99,10 +118,13 @@
                 Artikelstamm
                 <select
                   class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                  [disabled]="catalogService.isLoading()"
                   [value]="row.controls.catalogProductId.value ?? ''"
                   (change)="selectCatalogProduct($index, $any($event.target).value)"
                 >
-                  <option value="">Artikel wählen</option>
+                  <option value="">
+                    {{ catalogService.isLoading() ? 'Artikel werden geladen…' : 'Artikel wählen' }}
+                  </option>
                   @for (product of quantityProducts(); track product.id) {
                     <option [value]="product.id">{{ product.title }}</option>
                   }
