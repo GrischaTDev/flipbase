@@ -35,6 +35,9 @@ import {
   moveImage as moveImageIn,
   saveCropIn,
   applyCropToAllIn,
+  markReviewed,
+  toggleReviewed as toggleReviewedIn,
+  reviewedCount as countReviewed,
 } from './services/image-collection';
 import { ImageRotationService } from './services/image-rotation.service';
 import { PhotoGuideState } from './services/photo-guide-state';
@@ -164,9 +167,7 @@ export class ImageOptimizerComponent {
     ),
   );
 
-  // TODO(Task 8): Durch die tatsaechliche Zaehlung ersetzen, sobald der
-  // Nutzer Bilder als durchgesehen markieren kann.
-  readonly reviewedCount = computed(() => 0);
+  readonly reviewedCount = computed(() => countReviewed(this.images()));
 
   /**
    * Welcher Hinweis in der Exportleiste erscheint. Die Entscheidung faellt
@@ -258,6 +259,13 @@ export class ImageOptimizerComponent {
   setActiveImage(id: string): void {
     if (this.isBusy()) return;
     this.activeImageId.set(id);
+    this.images.update((list) => [...markReviewed(list, id)]);
+  }
+
+  /** Schaltet die Markierung "durchgesehen" fuer ein Bild von Hand um. */
+  toggleReviewed(id: string): void {
+    if (this.isBusy()) return;
+    this.images.update((list) => [...toggleReviewedIn(list, id)]);
   }
 
   addFiles(files: readonly File[]): void {
@@ -289,6 +297,7 @@ export class ImageOptimizerComponent {
     this.images.update((list) => [...list, ...added]);
     if (!this.activeImageId() && added.length > 0) {
       this.activeImageId.set(added[0].id);
+      this.images.update((list) => [...markReviewed(list, added[0].id)]);
     }
 
     for (const image of added) {

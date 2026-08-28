@@ -27,6 +27,7 @@ export class ImageListComponent {
   readonly removed = output<string>();
   readonly moved = output<{ id: string; direction: -1 | 1 }>();
   readonly clearAllRequested = output<void>();
+  readonly reviewToggled = output<string>();
 
   readonly closeIcon = X;
   readonly moveUpIcon = ArrowUp;
