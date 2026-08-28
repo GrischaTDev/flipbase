@@ -3,6 +3,7 @@ import { CatalogProduct, TrackingMode } from '../models/flipbase.models';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
+import { createLocalDemoId } from '../utils/client-identity';
 
 export interface MutationResult<T> {
   readonly data: T | null;
@@ -61,7 +62,7 @@ export class CatalogService {
   async createProduct(input: CreateCatalogProductInput): Promise<MutationResult<CatalogProduct>> {
     if (this.mockStore.isDemoMode()) {
       const product: CatalogProduct = {
-        id: crypto.randomUUID(),
+        id: createLocalDemoId('catalog'),
         workspace_id: input.workspaceId,
         title: input.title.trim(),
         tracking_mode: input.trackingMode,

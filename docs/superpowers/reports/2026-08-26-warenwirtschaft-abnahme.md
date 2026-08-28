@@ -47,6 +47,24 @@ Die SQL-Verträge liefen lokal gegen den Supabase-Postgres-Container. Die
 interaktive Browser-Endabnahme ist ausstehend und wird vom Controller
 übernommen; diese Dokumentation behauptet keine manuelle UI-Prüfung.
 
+## Nachtrag: HTTP-Demo-Modus
+
+Bei der Controller-Browserprüfung über eine HTTP-Adresse ohne
+`crypto.randomUUID` wurde beim Anlegen eines Katalogartikels ein Defekt
+gefunden: Der Demo-Service brach ab und der Dialog blieb auf „Speichere…“.
+Die ID-Erzeugung ist jetzt zentralisiert. Datenbank-, Checkout- und andere
+sicherheitsrelevante Kennungen verwenden `randomUUID` oder den
+kryptografischen Browser-Fallback `getRandomValues`; ohne beides wird kein
+schwacher Ersatzwert erzeugt. Die ausdrücklich getrennte lokale Demo-/temporäre
+Kennung darf dagegen ausschließlich für Demo- und kurzlebige Clientdaten einen
+nicht-kryptografischen Fallback verwenden.
+
+Der Katalogdialog fängt geworfene Servicefehler ab und beendet seinen
+Speicherzustand zuverlässig. Der Checkout schützt seinen Submit-Zustand auch,
+wenn vor dem Serviceaufruf keine sichere Browser-UUID erzeugt werden kann.
+Die interaktive Wiederholungsprüfung im Browser bleibt beim Controller
+ausstehend.
+
 ## Ausgeführte Prüfungen
 
 | Befehl                                                                                         | Ergebnis                                                                                                        |
@@ -63,6 +81,11 @@ interaktive Browser-Endabnahme ist ausstehend und wird vom Controller
 | `npm run format:check`                                                                         | PASS: alle Dateien entsprechen Prettier.                                                                        |
 | `npm run build`                                                                                | PASS; bekannte Bundle- und CommonJS-Warnungen, siehe unten.                                                     |
 | `git diff --check`                                                                             | PASS: keine Whitespace-Fehler.                                                                                  |
+| Gezielte HTTP-Demo-Regressionssuiten (Befehl unten)                                            | PASS: 8 Testdateien, 41 Tests; sichere Fallback-UUID, Demo-Katalog und Submit-Fehlerzustand.                    |
+
+```powershell
+npm test -- --run src/app/core/utils/client-identity.spec.ts src/app/core/services/catalog.service.spec.ts src/app/features/catalog/catalog.component.spec.ts src/app/features/store/pages/store-checkout/store-checkout-actions.spec.ts src/app/core/services/purchase-create-persistence.spec.ts src/app/core/services/mock-data-store-individual-receipt.spec.ts src/app/core/services/inventory-persistence.spec.ts src/app/core/services/bank-reconciliation.service.spec.ts
+```
 
 ## Bekannte Vorbefunde und Bedenken
 

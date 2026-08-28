@@ -106,21 +106,33 @@ export class CatalogComponent {
 
     this.isSaving.set(true);
     this.saveError.set(null);
-    const value = this.productForm.getRawValue();
-    const result = await this.catalogService.createProduct({
-      workspaceId,
-      title: value.title,
-      ean: value.ean.trim() || null,
-      trackingMode: value.trackingMode,
-      isPublicStore: value.isPublicStore,
-    });
-    this.isSaving.set(false);
+    try {
+      const value = this.productForm.getRawValue();
+      const result = await this.catalogService.createProduct({
+        workspaceId,
+        title: value.title,
+        ean: value.ean.trim() || null,
+        trackingMode: value.trackingMode,
+        isPublicStore: value.isPublicStore,
+      });
 
-    if (result.error) {
-      this.saveError.set(result.error.message);
-      return;
+      if (result.error) {
+        this.saveError.set(result.error.message);
+        return;
+      }
+      this.productForm.reset({
+        title: '',
+        ean: '',
+        trackingMode: 'quantity',
+        isPublicStore: false,
+      });
+      this.isCreateOpen.set(false);
+    } catch (error: unknown) {
+      this.saveError.set(
+        error instanceof Error ? error.message : 'Der Artikel konnte nicht angelegt werden.',
+      );
+    } finally {
+      this.isSaving.set(false);
     }
-    this.productForm.reset({ title: '', ean: '', trackingMode: 'quantity', isPublicStore: false });
-    this.isCreateOpen.set(false);
   }
 }

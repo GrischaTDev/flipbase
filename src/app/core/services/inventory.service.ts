@@ -4,6 +4,7 @@ import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
+import { createLocalDemoId } from '../utils/client-identity';
 import {
   InventoryItem,
   ItemCost,
@@ -57,9 +58,7 @@ interface ActivityLogResult {
  * Die endgueltige Kennung vergibt anschliessend die Datenbank.
  */
 function vorlaeufigeKennung(): string {
-  return typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return createLocalDemoId('item');
 }
 
 @Injectable({

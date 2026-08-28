@@ -8,6 +8,7 @@ import { SourcesService } from './sources.service';
 import { SuppliersService } from './suppliers.service';
 import { WebhookService } from './webhook.service';
 import { SyncStatusService } from './sync-status.service';
+import { createLocalDemoId } from '../utils/client-identity';
 import { ReceivePurchaseLineInput, ReceivePurchaseResult, StockService } from './stock.service';
 import { MutationResult } from './catalog.service';
 import {
@@ -659,10 +660,7 @@ export class PurchaseService {
 
     if (this.mockStore.isDemoMode()) {
       const lines = rows.map((row): PurchaseLine => ({
-        id:
-          typeof crypto !== 'undefined' && crypto.randomUUID
-            ? crypto.randomUUID()
-            : `line-${Date.now()}-${Math.random()}`,
+        id: createLocalDemoId('line'),
         workspace_id: row.workspace_id,
         purchase_id: row.purchase_id,
         catalog_product_id: row.catalog_product_id,

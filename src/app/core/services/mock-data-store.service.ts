@@ -18,6 +18,7 @@ import {
   SaleLineLotAllocation,
 } from '../models/flipbase.models';
 import type { ReceivePurchaseLineInput } from './stock.service';
+import { createLocalDemoId } from '../utils/client-identity';
 
 const DEMO_WS_ID = 'ws-1';
 
@@ -967,9 +968,7 @@ export class MockDataStoreService {
   }
 
   private newId(prefix: string): string {
-    return typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    return createLocalDemoId(prefix);
   }
 
   // --- Purchases Persistent API ---
