@@ -488,7 +488,9 @@ EOF
 - Modify: `src/app/features/image-optimizer/models/optimizer-image.ts`
 - Modify: `src/app/features/image-optimizer/components/platform-preview/platform-preview.component.ts`
 - Modify: `src/app/features/image-optimizer/components/preview-grid/preview-grid.component.{ts,html}`
+- Modify: `src/app/features/image-optimizer/services/image-export.service.ts`
 - Modify: `src/app/features/image-optimizer/image-optimizer.component.{ts,html}`
+- Modify: alle bestehenden `*.spec.ts`, die ein `OptimizerImage` bauen (die Typpruefung zeigt sie)
 
 **Interfaces:**
 
@@ -621,8 +623,8 @@ EOF
 
 - Create: `src/app/features/image-optimizer/components/adjustment-controls/adjustment-controls.component.{ts,html}`
 - Modify: `src/app/features/image-optimizer/image-optimizer.component.{ts,html}`
-- Create: `src/app/features/image-optimizer/services/adjustments-collection.spec.ts`
 - Modify: `src/app/features/image-optimizer/services/image-collection.ts`
+- Modify: `src/app/features/image-optimizer/services/image-collection.spec.ts`
 
 **Interfaces:**
 
@@ -631,27 +633,9 @@ EOF
 
 - [ ] **Step 1: Den fehlschlagenden Test fuer die Listenfunktionen schreiben**
 
+An `services/image-collection.spec.ts` **anhaengen**. Die Datei hat bereits eine Hilfsfunktion `image(id, reviewed)`, die seit Task 3 auch `adjustments` setzt – sie wird wiederverwendet, keine zweite daneben stellen. Die Import-Zeile oben um `applyAdjustmentsToAll` und `setAdjustmentsIn` ergaenzen und `defaultAdjustments` aus `./adjustments` dazunehmen.
+
 ```ts
-// src/app/features/image-optimizer/services/adjustments-collection.spec.ts
-import { describe, it, expect } from 'vitest';
-import { applyAdjustmentsToAll, setAdjustmentsIn } from './image-collection';
-import { defaultAdjustments } from './adjustments';
-import { OptimizerImage } from '../models/optimizer-image';
-
-function image(id: string): OptimizerImage {
-  return {
-    id,
-    file: new File([''], `${id}.jpg`, { type: 'image/jpeg' }),
-    dataUrl: `blob:${id}`,
-    crops: {},
-    rotation: 0,
-    loadError: null,
-    naturalSize: { width: 2000, height: 1500 },
-    reviewed: false,
-    adjustments: defaultAdjustments(),
-  };
-}
-
 const bright = { ...defaultAdjustments(), brightness: 1.3 };
 
 describe('Anpassungen in der Liste', () => {
@@ -684,7 +668,7 @@ describe('Anpassungen in der Liste', () => {
 
 - [ ] **Step 2: Test laufen lassen, Fehlschlag bestaetigen**
 
-Run: `npx vitest run src/app/features/image-optimizer/services/adjustments-collection.spec.ts`
+Run: `npx vitest run src/app/features/image-optimizer/services/image-collection.spec.ts`
 Expected: FAIL, `setAdjustmentsIn` ist kein Export von `./image-collection`.
 
 - [ ] **Step 3: Listenfunktionen ergaenzen**
@@ -717,8 +701,8 @@ export function applyAdjustmentsToAll(
 
 - [ ] **Step 4: Test laufen lassen, Erfolg bestaetigen**
 
-Run: `npx vitest run src/app/features/image-optimizer/services/adjustments-collection.spec.ts`
-Expected: PASS, 4 Tests.
+Run: `npx vitest run src/app/features/image-optimizer/services/image-collection.spec.ts`
+Expected: PASS. Die vier neuen Tests plus die bestehenden der Datei.
 
 - [ ] **Step 5: Reglerkomponente anlegen**
 
@@ -1626,7 +1610,7 @@ Run: `npm run typecheck`
 Expected: sauber.
 
 Run: `npx vitest run`
-Expected: alle Testdateien gruen. Die Zahl muss ueber dem Stand vor Task 1 liegen (neu: `adjustments.spec.ts` 9, `image-renderer.spec.ts` +3, `adjustments-collection.spec.ts` 4, `c2pa-detection.spec.ts` 5, `metadata-reader.service.spec.ts` 6).
+Expected: alle Testdateien gruen. Die Zahl muss ueber dem Stand vor Task 1 liegen (neu: `adjustments.spec.ts` 9, `image-renderer.spec.ts` +3, `image-collection.spec.ts` +4, `c2pa-detection.spec.ts` 5, `metadata-reader.service.spec.ts` 6).
 
 Run: `npm run lint`
 Expected: keine Fehler unter `src/app/features/image-optimizer/`.
