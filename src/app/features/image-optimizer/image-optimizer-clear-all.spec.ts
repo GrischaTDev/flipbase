@@ -5,7 +5,7 @@ import { ToastService } from '../../shared/components/toast/toast.service';
 import { OptimizerImage } from './models/optimizer-image';
 import { ImageOptimizerComponent } from './image-optimizer.component';
 
-function bild(id: string, dataUrl: string): OptimizerImage {
+function image(id: string, dataUrl: string): OptimizerImage {
   return {
     id,
     file: new File([''], `${id}.jpg`, { type: 'image/jpeg' }),
@@ -18,16 +18,16 @@ function bild(id: string, dataUrl: string): OptimizerImage {
   };
 }
 
-function createComponent(bestaetigt: boolean, bilder: OptimizerImage[]) {
+function createComponent(confirmed: boolean, images: OptimizerImage[]) {
   const toast = new ToastService();
-  const frage = vi.fn().mockResolvedValue(bestaetigt);
+  const frage = vi.fn().mockResolvedValue(confirmed);
   const component = Object.create(ImageOptimizerComponent.prototype) as ImageOptimizerComponent;
   Object.assign(component, {
     toast,
     confirm: { frage },
     isBusy: signal(false),
-    images: signal(bilder),
-    activeImageId: signal(bilder[0]?.id ?? null),
+    images: signal(images),
+    activeImageId: signal(images[0]?.id ?? null),
     error: signal<string | null>(null),
   });
   return { component, toast, frage };
@@ -50,8 +50,8 @@ describe('ImageOptimizerComponent – Alle Bilder entfernen', () => {
   });
 
   it('entfernt nach Bestätigung alle Bilder und gibt jede Object-URL frei', async () => {
-    const bilder = [bild('a', 'blob:a'), bild('b', 'blob:b')];
-    const { component, toast, frage } = createComponent(true, bilder);
+    const images = [image('a', 'blob:a'), image('b', 'blob:b')];
+    const { component, toast, frage } = createComponent(true, images);
 
     await component.clearAllImages();
 
@@ -69,13 +69,13 @@ describe('ImageOptimizerComponent – Alle Bilder entfernen', () => {
   });
 
   it('entfernt bei Abbruch nichts und gibt keine Object-URL frei', async () => {
-    const bilder = [bild('a', 'blob:a')];
-    const { component, toast, frage } = createComponent(false, bilder);
+    const images = [image('a', 'blob:a')];
+    const { component, toast, frage } = createComponent(false, images);
 
     await component.clearAllImages();
 
     expect(frage).toHaveBeenCalledTimes(1);
-    expect(component.images()).toEqual(bilder);
+    expect(component.images()).toEqual(images);
     expect(component.activeImageId()).toBe('a');
     expect(revokeObjectURL).not.toHaveBeenCalled();
     expect(toast.toasts()).toEqual([]);
@@ -90,13 +90,23 @@ describe('ImageOptimizerComponent – Alle Bilder entfernen', () => {
   });
 
   it('fragt waehrend eines laufenden Exports nicht nach', async () => {
-    const bilder = [bild('a', 'blob:a')];
-    const { component, frage } = createComponent(true, bilder);
+    const images = [image('a', 'blob:a')];
+    const { component, frage } = createComponent(true, images);
     Object.assign(component, { isBusy: signal(true) });
 
     await component.clearAllImages();
 
     expect(frage).not.toHaveBeenCalled();
-    expect(component.images()).toEqual(bilder);
+    expect(component.images()).toEqual(images);
+  });
+
+  it('loescht eine zuvor angezeigte Fehlermeldung, wenn alle Bilder entfernt werden', async () => {
+    const images = [image('a', 'blob:a')];
+    const { component } = createComponent(true, images);
+    Object.assign(component, { error: signal<string | null>('Vorheriger Fehler') });
+
+    await component.clearAllImages();
+
+    expect(component.error()).toBeNull();
   });
 });

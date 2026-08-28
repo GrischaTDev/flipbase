@@ -308,14 +308,14 @@ export class ImageOptimizerComponent {
   async clearAllImages(): Promise<void> {
     if (this.isBusy() || this.images().length === 0) return;
 
-    const anzahl = this.images().length;
-    const bestaetigt = await this.confirm.frage({
+    const count = this.images().length;
+    const confirmed = await this.confirm.frage({
       titel: 'Alle Bilder entfernen?',
-      text: `${anzahl} Bild(er) werden aus dem Bildoptimierer entfernt. Die Dateien auf deinem Rechner bleiben unberührt. Bereits gesetzte Ausschnitte gehen verloren.`,
+      text: `${count} Bild(er) werden aus dem Bildoptimierer entfernt. Die Dateien auf deinem Rechner bleiben unberührt. Bereits gesetzte Ausschnitte gehen verloren.`,
       bestaetigenText: 'Alle entfernen',
       gefahr: true,
     });
-    if (!bestaetigt) return;
+    if (!confirmed) return;
 
     const result = removeAll(this.images());
     this.images.set([...result.list]);
