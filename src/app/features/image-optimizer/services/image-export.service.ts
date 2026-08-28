@@ -14,9 +14,14 @@ export class ImageExportService {
    * verbietet hinzugefuegte Raender, und ein Rand um ein Produktfoto sieht
    * ohnehin nach Amateur aus.
    */
-  async create(image: HTMLImageElement, crop: Rect, platform: PlatformProfile): Promise<Blob> {
+  async create(
+    image: HTMLImageElement,
+    crop: Rect,
+    platform: PlatformProfile,
+    filter = '',
+  ): Promise<Blob> {
     const plan = planOutput(crop, platform);
-    const raw = await renderImage(image, plan);
+    const raw = await renderImage(image, plan, 0.92, filter);
 
     if (platform.maxFileSizeMB === null) return raw;
     if (raw.size <= platform.maxFileSizeMB * 1024 * 1024) return raw;

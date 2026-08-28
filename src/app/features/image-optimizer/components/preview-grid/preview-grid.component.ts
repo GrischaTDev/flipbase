@@ -14,4 +14,5 @@ export class PreviewGridComponent {
   readonly platforms = input.required<readonly PlatformProfile[]>();
   readonly dataUrl = input.required<string>();
   readonly crops = input.required<Crops>();
+  readonly filter = input('');
 }

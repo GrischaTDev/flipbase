@@ -8,6 +8,7 @@ import {
   reviewedCount,
 } from './image-collection';
 import { OptimizerImage } from '../models/optimizer-image';
+import { defaultAdjustments } from './adjustments';
 
 function image(id: string, reviewed = false): OptimizerImage {
   return {
@@ -19,6 +20,7 @@ function image(id: string, reviewed = false): OptimizerImage {
     loadError: null,
     naturalSize: { width: 2000, height: 1500 },
     reviewed,
+    adjustments: defaultAdjustments(),
   };
 }
 

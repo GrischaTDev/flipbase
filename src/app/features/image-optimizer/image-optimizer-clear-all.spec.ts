@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { OptimizerImage } from './models/optimizer-image';
 import { ImageOptimizerComponent } from './image-optimizer.component';
+import { defaultAdjustments } from './services/adjustments';
 
 function image(id: string, dataUrl: string): OptimizerImage {
   return {
@@ -15,6 +16,7 @@ function image(id: string, dataUrl: string): OptimizerImage {
     loadError: null,
     naturalSize: null,
     reviewed: false,
+    adjustments: defaultAdjustments(),
   };
 }
 

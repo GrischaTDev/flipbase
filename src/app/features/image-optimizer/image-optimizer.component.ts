@@ -13,6 +13,7 @@ import {
 } from '@lucide/angular';
 import { PLATFORM_PROFILES, PlatformProfile, PlatformId, Rect } from './models/platform-profile';
 import { OptimizerImage, fullImageRect } from './models/optimizer-image';
+import { defaultAdjustments, toFilterString } from './services/adjustments';
 import { CropEditorComponent } from './components/crop-editor/crop-editor.component';
 import { PreviewGridComponent } from './components/preview-grid/preview-grid.component';
 import { ImageListComponent } from './components/image-list/image-list.component';
@@ -137,6 +138,12 @@ export class ImageOptimizerComponent {
   readonly activeImage = computed<OptimizerImage | null>(
     () => this.images().find((b) => b.id === this.activeImageId()) ?? null,
   );
+
+  /** Filterausdruck des aktiven Bildes fuer die Exportvorschau. */
+  readonly activeFilter = computed(() => {
+    const image = this.activeImage();
+    return image ? toFilterString(image.adjustments) : '';
+  });
 
   readonly workingPlatform = computed<PlatformProfile | null>(
     () => this.selectedPlatforms().find((p) => p.id === this.workingPlatformId()) ?? null,
@@ -297,6 +304,7 @@ export class ImageOptimizerComponent {
       loadError: null,
       naturalSize: null,
       reviewed: false,
+      adjustments: defaultAdjustments(),
     }));
 
     this.images.update((list) => [...list, ...added]);
@@ -538,7 +546,12 @@ export class ImageOptimizerComponent {
           entries.push({
             folder: folderName(p),
             file: exportFileName(index, this.baseName()),
-            data: await this.imageExport.create(element, crop, p),
+            data: await this.imageExport.create(
+              element,
+              crop,
+              p,
+              toFilterString(image.adjustments),
+            ),
           });
         }
       }

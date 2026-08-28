@@ -1,4 +1,5 @@
 import { Crops } from '../services/crops';
+import { Adjustments } from './image-adjustments';
 import { Rect, Size } from './platform-profile';
 
 /** Ein hochgeladenes Bild mit seinen plattformspezifischen Zuschnitten. */
@@ -24,6 +25,11 @@ export interface OptimizerImage {
    * daran haengender Marker waere sofort nach dem Anklicken gesetzt.
    */
   readonly reviewed: boolean;
+  /**
+   * Farb- und Belichtungswerte. Werden erst beim Rendern angewandt und nie
+   * in `dataUrl` gerechnet - so bleibt Zuruecksetzen verlustfrei.
+   */
+  readonly adjustments: Adjustments;
 }
 
 /** Das volle Bild als Ersatz fuer Plattformen ohne eigenen Zuschnitt. */

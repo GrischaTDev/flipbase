@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { OptimizerImage } from './models/optimizer-image';
 import { ImageOptimizerComponent } from './image-optimizer.component';
 import { reviewedCount as countReviewed } from './services/image-collection';
+import { defaultAdjustments } from './services/adjustments';
 
 function image(id: string, overrides: Partial<OptimizerImage> = {}): OptimizerImage {
   return {
@@ -15,6 +16,7 @@ function image(id: string, overrides: Partial<OptimizerImage> = {}): OptimizerIm
     loadError: null,
     naturalSize: null,
     reviewed: false,
+    adjustments: defaultAdjustments(),
     ...overrides,
   };
 }

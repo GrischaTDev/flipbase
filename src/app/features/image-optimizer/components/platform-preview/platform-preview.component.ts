@@ -41,6 +41,8 @@ export class PlatformPreviewComponent {
   readonly platform = input.required<PlatformProfile>();
   readonly dataUrl = input.required<string>();
   readonly crop = input<Rect | null>(null);
+  /** Filterausdruck fuer die Zeichenflaeche. Leer heisst: kein Filter. */
+  readonly filter = input('');
 
   readonly previewUrl = signal<string | null>(null);
   readonly outputSize = signal<Size | null>(null);
@@ -62,7 +64,8 @@ export class PlatformPreviewComponent {
       const url = this.dataUrl();
       const crop = this.crop();
       const platform = this.platform();
-      void this.renderPreview(url, crop, platform);
+      const filter = this.filter();
+      void this.renderPreview(url, crop, platform, filter);
     });
   }
 
@@ -70,6 +73,7 @@ export class PlatformPreviewComponent {
     url: string,
     crop: Rect | null,
     platform: PlatformProfile,
+    filter: string,
   ): Promise<void> {
     const version = ++this.renderVersion;
     this.isRendering.set(true);
@@ -81,7 +85,7 @@ export class PlatformPreviewComponent {
       const plan = planPreview(crop, size, platform);
       if (!plan) return;
 
-      const blob = await renderImage(image, plan);
+      const blob = await renderImage(image, plan, 0.92, filter);
       if (this.destroyed || version !== this.renderVersion) return;
 
       const newUrl = URL.createObjectURL(blob);
