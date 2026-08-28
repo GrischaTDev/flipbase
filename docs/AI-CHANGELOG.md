@@ -41,6 +41,66 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-08-28 – Claude Opus 5 (Anthropic) – Bildoptimierer Paket 2
+
+**Art:** Feature, Bugfix
+
+**Betroffen:** `src/app/features/image-optimizer/`, dazu `package.json`/`package-lock.json` für `exifr`
+
+**Was:**
+
+Die beiden Punkte, die in Paket 1 bewusst zurückgestellt wurden. Spezifikation und Plan liegen unter `docs/superpowers/`.
+
+1. **Metadaten werden angezeigt.** Nach dem Hochladen liest Flipbase im Hintergrund aus, was in der Datei steckt: GPS-Koordinaten, Kamera, Aufnahmedatum, Software und ein etwaiger KI-Herkunftsnachweis. Bilder mit Standortdaten tragen einen Hinweis auf ihrer Kachel in der Bilderliste – der eigentliche Alltagsnutzen, weil ein zu Hause aufgenommenes Handyfoto sonst die eigene Adresse in jede Anzeige trägt.
+
+2. **Farbe und Belichtung.** Vier Regler je Bild (Helligkeit, Kontrast, Sättigung, Graustufen), dazu Zurücksetzen und „Auf alle Bilder übernehmen". Die Werte werden **nie ins Bild gerechnet**, sondern erst beim Rendern angewandt – deshalb ist Zurücksetzen verlustfrei und mehrfaches Verstellen kostet keine Qualität.
+
+**Warum es zwangsläufig übereinstimmt:** `renderImage()` ist die einzige Canvas-Ausgabe des Werkzeugs und wird von Vorschau **und** Export benutzt. Ein dort gesetzter Filter wirkt in beiden; sie können gar nicht auseinanderlaufen.
+
+**Bewusst nicht gebaut:** Metadaten **schreiben** – die Plattformen rechnen hochgeladene Bilder neu durch und verwerfen alles Eingebettete, ein Urheberfeld wäre nur auf der eigenen Festplatte wirksam. Und **Entfernen von KI-Wasserzeichen**: Die Pixel-Verfahren überstehen Neukodieren, Zuschneiden und Skalieren bauartbedingt, was sie beschädigt zerstört auch das Produktfoto, und ein Werkzeug dafür wäre darauf angelegt, KI-Bilder als echte Artikelfotos auszugeben.
+
+**Zwei Fehler, die erst die Abnahme im Browser gefunden hat:**
+
+1. **GPS wäre nie erkannt worden.** Der Leser rief `exifr.parse(file, { pick: ['latitude', 'longitude', …] })`. Gemessen an einem JPEG mit gültigem EXIF-GPS: Diese Feldauswahl liefert **nichts**. `pick` filtert nach rohen EXIF-Tags, nicht nach den abgeleiteten Namen. Dasselbe beim zweiten KI-Signal: XMP wird nur mit `xmp: true` gelesen, und das Feld heißt `DigitalSourceType` mit großem D. Die Unit-Tests konnten das nicht finden, weil sie `exifr` nachbilden und dabei die im Plan **erfundenen** Feldnamen fütterten – die Attrappe bestätigte die Erfindung. Behoben durch ausdrückliche Segmentauswahl statt `pick`; die Attrappen enthalten jetzt die tatsächlich gemessenen Formen.
+
+2. **Der Text über den Export war zu weit gefasst.** Er sagte „Die Exportdateien enthalten keine Metadaten". Gemessen: **null APP1-Segmente**, also kein EXIF, kein XMP, kein GPS – aber ein ICC-Farbprofil und ein JFIF-Kopf, die die Zeichenfläche beim Kodieren anlegt. In einer Funktion, deren ganzer Zweck Ehrlichkeit über Dateiinhalte ist, darf so ein Satz nicht stehen. Er nennt jetzt genau, was entfernt wird und was bleibt.
+
+**Bündelgröße:** Der erste Einbau ließ den Chunk des Bildoptimierers um **80,66 kB** wachsen und riss damit die im Plan gesetzte Grenze von 80 kB. Ein Wechsel auf eine kleinere `exifr`-Variante schied aus – nur `full` enthält den XMP-Parser, `lite` und `mini` haben die Option, aber abgeschaltet. Stattdessen wird `exifr` jetzt per dynamischem Import geladen: Es liegt in einem eigenen Chunk und wird erst geholt, wenn wirklich Metadaten gelesen werden. Wachstum damit **6,54 kB** statt 80,66 kB, bei vollem Funktionsumfang.
+
+**Verifiziert durch:**
+
+- `npm run typecheck` → **sauber**
+- `npx vitest run` → **102 Testdateien, 729 Tests bestanden** (vorher 693)
+- `npm run build` → **erfolgreich**; `image-optimizer-component` 172,97 kB roh (vorher 166,43 kB), `exifr` in eigenem Chunk 74,10 kB roh / 22,65 kB übertragen; Initial-Bundle unverändert 213,83 kB übertragen
+- `git diff --name-only` → außerhalb von `features/image-optimizer/` nur `package.json` und `package-lock.json`
+
+**Im Browser abgenommen** (Demo-Modus, selbst gebaute JPEGs mit echtem EXIF-GPS bzw. XMP):
+
+| Prüfung                                 | Ergebnis                                                                             |
+| --------------------------------------- | ------------------------------------------------------------------------------------ |
+| Foto mit GPS                            | Panel zeigt `52.50000, 13.40000`, Kachel trägt den GPS-Hinweis mit Screenreader-Text |
+| Datei ohne Metadaten                    | „Diese Datei enthält keine Metadaten."                                               |
+| PNG                                     | „Nur JPEG-Dateien werden ausgewertet."                                               |
+| Keine Behauptung zur KI-Unerkennbarkeit | nirgends im Oberflächentext                                                          |
+| Export eines GPS-Fotos                  | **0 APP1-Segmente**, kein EXIF, kein XMP, kein GPS                                   |
+| Regler bewegt die Vorschau              | mittlere Helligkeit 128 → 76 bei `brightness(0.6)`                                   |
+| Weißer Grund bei abdunkelndem Filter    | Randpixel **255, 255, 255**; Bildmitte korrekt auf 31, 61, 123 abgedunkelt           |
+| Verstellen und Zurücksetzen             | Exportdatei **byteweise identisch** mit der unveränderten                            |
+| Verändertes Bild                        | Exportdatei unterscheidet sich – die Anpassung erreicht den Export                   |
+| Auf alle übernehmen                     | alle drei Bilder auf 1.4                                                             |
+| `aria-valuetext`                        | „100 %" statt Rohwert „1"                                                            |
+
+**Offen:**
+
+- Die Felder **Kamera, Modell, Software und Aufnahmedatum** sind durch Überlegung abgedeckt, nicht durch Messung – meine Testdateien trugen nur GPS bzw. XMP. Sie sind gewöhnliche EXIF-Tags und kommen mit der gesetzten Segmentauswahl durch, aber ein echtes Kamerafoto wäre der bessere Beleg.
+- Der Zuschnitt-Editor zeigt die Farbanpassung **nicht** live – ein Filter dort würde auch Rahmen und Abdunklung der Cropper-Bibliothek einfärben. Beurteilt wird die Farbe an den Vorschaukarten, die exakt den Exportweg gehen.
+- **Weißabgleich beziehungsweise Wärme** fehlt weiterhin. Er verlangt eine Farbmatrix statt der einfachen Filter und wäre ein eigener Nachtrag.
+- **Schärfen** ist über diesen Weg nicht erreichbar.
+- `image-optimizer-review.spec.ts` umgeht den Konstruktor und braucht bei jeder neuen Abhängigkeit einen weiteren Stub. Die neueren Tests nutzen `TestBed.runInInjectionContext` und die echten `computed()`; die ältere Datei sollte nachziehen.
+- Keine **AXE-Prüfung** protokolliert. Beschriftungen, `aria-valuetext`, `aria-pressed` und Screenreader-Texte wurden am Markup geprüft, ein Werkzeuglauf steht aus.
+
+---
+
 ## 2026-08-28 – Claude Opus 5 (Anthropic) – Bildoptimierer Paket 1
 
 **Art:** Feature, Bugfix, Refactoring
