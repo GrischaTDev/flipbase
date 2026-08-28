@@ -93,7 +93,9 @@ Ein bloßes Suchen nach der Zeichenfolge `c2pa` in der ganzen Datei wäre falsch
 
 Eine Komponente `components/metadata-panel/` unterhalb des Editors, für das jeweils aktive Bild. Sie zeigt die gefundenen Angaben und darunter den Satz:
 
-> **Diese Angaben werden beim Export entfernt.** Die Exportdateien enthalten keine Metadaten.
+> **Diese Angaben werden beim Export entfernt.** Die Exportdateien enthalten weder EXIF- noch
+> XMP- oder Herkunftsdaten. Erhalten bleibt nur ein Farbprofil, das der Browser fuer die richtige
+> Farbdarstellung anlegt.
 
 Das ist wahr und gilt schon heute.
 

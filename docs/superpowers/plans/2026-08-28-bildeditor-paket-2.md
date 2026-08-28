@@ -1663,7 +1663,9 @@ Expected: Vorschau und Exportdatei liegen im selben Bereich und deutlich unter d
 
 4. **Weisser Grund bleibt weiss.** Ein Bild exportieren, dessen Ausschnitt schmaler ist als das Zielformat, bei `brightness` 0,6. Die Randpixel muessen `255,255,255` sein.
 5. **Zuruecksetzen erzeugt dieselbe Datei.** Einmal ohne jede Anpassung exportieren, dann verstellen, zuruecksetzen, erneut exportieren. Die beiden Archive byteweise vergleichen.
-6. Die Exportdateien enthalten keine Metadaten - durch Auslesen einer Exportdatei belegen.
+6. Die Exportdateien enthalten weder EXIF- noch XMP- oder Herkunftsdaten - durch Auslesen einer
+   Exportdatei belegen. Ein ICC-Farbprofil und ein JFIF-Kopf bleiben, weil die Zeichenflaeche sie
+   beim Kodieren anlegt; der Text in der Oberflaeche sagt das ausdruecklich.
 7. Nirgends in der Oberflaeche steht, ein Bild sei nach dem Export nicht mehr als KI-Bild erkennbar.
 
 - [ ] **Step 5: Abnahme dokumentieren**
