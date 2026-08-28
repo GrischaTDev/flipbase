@@ -19,6 +19,8 @@ import { ImageListComponent } from './components/image-list/image-list.component
 import { PhotoGuideComponent } from './components/photo-guide/photo-guide.component';
 import { PlatformSelectorComponent } from './components/platform-selector/platform-selector.component';
 import { PlatformTabsComponent } from './components/platform-tabs/platform-tabs.component';
+import { DropZoneComponent } from './components/drop-zone/drop-zone.component';
+import { FileDropDirective, splitImageFiles } from './directives/file-drop.directive';
 import { ImageExportService, fileName } from './services/image-export.service';
 import { ZipExportService, folderName } from './services/zip-export.service';
 import { setCrop } from './services/crops';
@@ -80,6 +82,8 @@ export function isHeic(file: File): boolean {
     PhotoGuideComponent,
     PlatformSelectorComponent,
     PlatformTabsComponent,
+    DropZoneComponent,
+    FileDropDirective,
   ],
   templateUrl: './image-optimizer.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -108,6 +112,7 @@ export class ImageOptimizerComponent {
   readonly isBusy = signal(false);
   readonly rotationsPending = computed(() => this.rotationQueue.pendingCount() > 0);
   readonly error = signal<string | null>(null);
+  readonly isDragActive = signal(false);
 
   readonly selectedPlatforms = computed<PlatformProfile[]>(() =>
     this.profiles.filter((p) => this.selectedPlatformIds().includes(p.id)),
@@ -195,32 +200,50 @@ export class ImageOptimizerComponent {
     this.activeImageId.set(id);
   }
 
-  async addFiles(files: FileList | null): Promise<void> {
-    if (this.isBusy() || !files) return;
+  addFiles(files: readonly File[]): void {
+    if (this.isBusy() || files.length === 0) return;
 
-    const newImages: OptimizerImage[] = [];
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith('image/')) continue;
-      newImages.push({
-        id: crypto.randomUUID(),
-        file: file,
-        dataUrl: URL.createObjectURL(file),
-        crops: {},
-        rotation: 0,
-        loadError: null,
-        naturalSize: null,
-        reviewed: false,
-      });
+    const { images, skipped } = splitImageFiles(files);
+
+    if (skipped > 0) {
+      const text = skipped === 1 ? '1 Datei übersprungen' : `${skipped} Dateien übersprungen`;
+      if (images.length === 0) {
+        this.toast.warning('Keine Bilder dabei', `${text}, weil es keine Bilder sind.`);
+      } else {
+        this.toast.info('Nicht alles war ein Bild', `${text}, weil es keine Bilder sind.`);
+      }
+    }
+    if (images.length === 0) return;
+
+    const added: OptimizerImage[] = images.map((file) => ({
+      id: crypto.randomUUID(),
+      file,
+      dataUrl: URL.createObjectURL(file),
+      crops: {},
+      rotation: 0,
+      loadError: null,
+      naturalSize: null,
+      reviewed: false,
+    }));
+
+    this.images.update((list) => [...list, ...added]);
+    if (!this.activeImageId() && added.length > 0) {
+      this.activeImageId.set(added[0].id);
     }
 
-    this.images.update((list) => [...list, ...newImages]);
-    if (!this.activeImageId() && newImages.length > 0) {
-      this.activeImageId.set(newImages[0].id);
-    }
-
-    for (const image of newImages) {
+    for (const image of added) {
       void this.measureNaturalSize(image.id, image.dataUrl);
     }
+  }
+
+  /** Wandelt die FileList des Dateifeldes in ein Feld und leert das Feld danach. */
+  onFileInput(target: EventTarget | null): void {
+    const input = target as HTMLInputElement | null;
+    const files = Array.from(input?.files ?? []);
+    if (files.length > 0) this.addFiles(files);
+    // Ohne das Leeren feuert `change` nicht erneut, wenn dieselbe Datei
+    // ein zweites Mal ausgewaehlt wird.
+    if (input) input.value = '';
   }
 
   /**
