@@ -41,6 +41,76 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-08-28 – Claude Opus 5 (Anthropic) – Bildoptimierer Paket 1
+
+**Art:** Feature, Bugfix, Refactoring
+
+**Betroffen:** `src/app/features/image-optimizer/` (vollständig), sowie `README.md` und `ARCHITECTURE.md` (nur Versionsangabe)
+
+**Was:**
+
+Sieben Änderungswünsche von Grischa am Bildoptimierer, in neun Schritten umgesetzt. Spezifikation und Plan liegen unter `docs/superpowers/`.
+
+1. **Der Ordner ist jetzt englisch benannt** – Dateien, Klassen, Typen, Methoden, Felder, Variablen. Deutsch bleiben Kommentare, Oberflächentexte und Testbeschreibungen. Bewusst als erster, rein mechanischer Commit ohne Verhaltensänderung, damit grüne Tests und eine saubere Typprüfung allein beweisen, dass nichts kaputtging.
+
+2. **Plattformauswahl neu gebaut.** Vorher trug ein Knopf zwei Bedeutungen – Exportziel und Zuschnittziel. Dadurch ließ sich eine Plattform erst abwählen, wenn sie bereits Arbeitsziel war **und** eine zweite ausgewählt war: drei Klicks und ein Umweg über eine fremde Plattform. Auswahl ist jetzt ein einfacher Umschalter ohne Mindestanzahl, das Arbeitsziel wanderte in eine eigene Reiterleiste über den Editor. Beim Öffnen ist nichts vorgewählt; an der Stelle des Editors steht der Hinweis, eine Plattform zu wählen.
+
+3. **Die Vinted-Vorschau schnitt ab.** Der Rahmen gab das Seitenverhältnis vor, war aber auf 224 × 256 px begrenzt. Vinted ist 2:3 und bräuchte bei 224 px Breite 336 px Höhe – das Kästchen wurde gestaucht, und `object-cover` schnitt oben und unten weg. eBay und Kleinanzeigen blieben unter der Grenze, deshalb fiel nur Vinted auf. Statt die Grenze anzuheben gibt der Rahmen jetzt gar kein Verhältnis mehr vor: Das gerenderte Bild stammt aus derselben Planungsfunktion wie der Export und bringt das richtige Verhältnis mit. Ein Test hält die Annahme fest, auf der das beruht.
+
+4. **Drag & Drop und Zwischenablage.** Die leere Fläche versprach seit jeher „Produktbilder hier ablegen“, ohne dass ein Handler existierte – und sie verschwand, sobald das erste Bild geladen war. Jetzt lässt sich auf der ganzen Arbeitsfläche ablegen, in beiden Zuständen, dazu Strg+V. Übersprungene Nicht-Bilder werden gemeldet statt still verworfen.
+
+5. **Alle Bilder entfernen** über den vorhandenen Rückfragedialog mit Gefahrenkennzeichnung. Jede Object-URL wird freigegeben; Plattformauswahl und Grundname bleiben bewusst stehen.
+
+6. **Eigener Dateiname.** Bisher hieß jedes Archiv `flipbase-bilder.zip` mit `01-main.jpg` darin – drei Artikel hintereinander ergaben drei ununterscheidbare Downloads. Ein optionaler Grundname geht jetzt jedem Dateinamen voran und benennt das Archiv. Leeres Feld erzeugt exakt die alten Namen.
+
+7. **Fortschrittsanzeige.** Jedes Bild führt eine Markierung „durchgesehen“, gesetzt sobald es im Editor stand, von Hand umschaltbar, dazu ein Zähler. Bewusst **nicht** an den Zuschnitt gekoppelt: Der Cropper meldet den ersten Zuschnitt schon beim Laden, und das Drehen verwirft Zuschnitte – ein daran hängender Marker hätte jedes angeklickte Bild sofort als fertig gezeigt und wäre beim Drehen zurückgesprungen.
+
+**Nebenbei aufgeräumt:** Die Hauptkomponente wurde nach Smart/Dumb zerlegt – sechs neue Präsentationskomponenten, dazu reine Funktionen für Listenverwaltung, Auswahl und Namensbildung sowie ein Dienst für die Canvas-Drehung.
+
+**Ein Fehler, der Arbeit gekostet hätte:**
+
+Die Abwehr des Browserverhaltens (`preventDefault`) stand hinter der `disabled()`-Abfrage. `disabled` ist an den laufenden Export gebunden. Wer während eines Exports ein Bild fallen ließ, dessen Browser hätte die Seite verlassen und den Export mitgerissen. Der Fehler stand so im Plan, obwohl der Kommentar direkt darüber das Gegenteil verlangte. Plan und Code korrigiert, mit Rot/Grün-Nachweis.
+
+**Verifiziert durch:**
+
+- `npm run typecheck` → **sauber**
+- `npx vitest run` → **97 Testdateien, 690 Tests bestanden** (vorher 636)
+- `npm run build` → **erfolgreich**, `main.js` 180 kB, `styles.css` 120 kB
+- `git diff --name-only master...HEAD` → außerhalb von `features/image-optimizer/` nur `README.md` und `ARCHITECTURE.md` (Versionsangabe), kein Quelltext
+
+**Im Browser abgenommen** (Demo-Modus, drei Testbilder plus eine PDF):
+
+| Prüfung                       | Ergebnis                                                                                |
+| ----------------------------- | --------------------------------------------------------------------------------------- |
+| Vorauswahl beim Öffnen        | keine Plattform gewählt, Hinweis erscheint sobald Bilder da sind                        |
+| eBay abwählen                 | **ein Klick** (vorher drei plus Umweg)                                                  |
+| letzte Plattform abwählen     | möglich (vorher gesperrt)                                                               |
+| Reiterwechsel                 | Arbeitsziel wechselt, Auswahl unverändert                                               |
+| Vinted-Vorschau               | angezeigt 0,668 gegen 0,667 Soll, `object-fit: contain`                                 |
+| eBay / Kleinanzeigen          | 1,000 / 1,332 gegen 1,000 / 1,333 Soll                                                  |
+| Kartenhöhe im Raster          | alle drei exakt 380 px, kein Springen                                                   |
+| Nicht-Bild abgelegt           | „1 Datei übersprungen, weil es keine Bilder sind."                                      |
+| Ablegen mit geladenen Bildern | funktioniert, Überlagerung erscheint                                                    |
+| Strg+V                        | fügt ein                                                                                |
+| `dragover`                    | wird abgewehrt                                                                          |
+| Markierung nach Drehen        | bleibt (2 von 3)                                                                        |
+| Markierung nach Verschieben   | bleibt                                                                                  |
+| Handschalter                  | funktioniert in beide Richtungen                                                        |
+| Name `Größe 42/43 Äpfel*`     | Archiv `groesse-42-43-aepfel.zip`, Dateien `groesse-42-43-aepfel-01-main.jpg`           |
+| leeres Namensfeld             | `flipbase-bilder.zip` mit `01-main.jpg`, `02.jpg`, `03.jpg`                             |
+| Alle entfernen                | Rückfrage mit Startfokus auf „Abbrechen", danach 3 → 0 Bilder, Auswahl und Name bleiben |
+
+**Offen:**
+
+- **Nicht Bestandteil:** Metadaten anzeigen/entfernen sowie Farbe, Belichtung und Filter. Beides ist als Paket 2 verabredet. Hinweis: Der Export entfernt schon heute sämtliche Metadaten, weil die Canvas-Ausgabe sie technisch verwirft – nur weiß das bisher niemand.
+- Die Reiterleiste hat `role="tab"` ohne `aria-controls`, der Editorbereich kein `role="tabpanel"`.
+- Zwei DOM-Kennungen sind noch deutsch: `fotoguide-titel` und `bild-zoom`.
+- `sanitizeBaseName` zerlegt mit `split('')` Surrogatpaare. Hier folgenlos, `[...input]` wäre sauberer.
+- Der Bau meldet weiterhin, dass `jszip` und `jsbarcode` kein ESM sind. Bestand, nicht neu.
+- **Projektweit offen:** Der übrige Quelltext ist weiterhin deutsch benannt. Die Umstellung wartet, bis die Warenwirtschaft zusammengeführt ist – siehe Abschnitt „Namenskonvention im Code" oben.
+
+---
+
 ## 2026-08-19 – Claude Opus 5 (Anthropic) – Vollständige Umstellung auf Supabase
 
 **Art:** Refactoring, Aufräumen
