@@ -4,6 +4,7 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { describe, expect, it, vi } from 'vitest';
 import { InventoryItem, Sale } from '../../core/models/flipbase.models';
 import { ReturnRecord } from '../../core/models/return.models';
+import { ProcessReturnResult } from '../../core/services/return.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { SalesComponent } from './sales.component';
@@ -53,17 +54,15 @@ function erstelleKomponente() {
   const salesService = {
     sales: signal([verkauf]),
     deleteSale: vi.fn(async (): Promise<{ error: Error | null }> => ({ error: null })),
-    recordReturn: vi.fn<
-      () => Promise<{ data: Sale | null; error: Error | null; reportedBySyncStatus: boolean }>
-    >(async () => ({
-      data: { ...verkauf, returned_at: '2026-08-24T12:00:00.000Z', refund_amount: 50 },
-      error: null,
-      reportedBySyncStatus: false,
-    })),
   };
   const returnService = {
     returns: signal<ReturnRecord[]>([]),
-    materializeConfirmedReturn: vi.fn(() => retoure),
+    processReturn: vi.fn<() => Promise<ProcessReturnResult>>(async () => ({
+      status: 'success' as const,
+      data: retoure,
+      error: null,
+      problems: [],
+    })),
   };
   const komponente = Object.create(SalesComponent.prototype) as SalesComponent;
   const invoiceService = {
@@ -176,11 +175,12 @@ describe('SalesComponent – Aktionsmeldungen', () => {
   });
 
   it('behält den Retourendialog bei einem lokalen Fehler geöffnet und meldet ihn persistent', async () => {
-    const { komponente, salesService, toast } = erstelleKomponente();
-    salesService.recordReturn.mockResolvedValue({
+    const { komponente, returnService, toast } = erstelleKomponente();
+    returnService.processReturn.mockResolvedValue({
+      status: 'error',
       data: null,
       error: new Error('Retoure konnte nicht gespeichert werden'),
-      reportedBySyncStatus: false,
+      problems: [],
     });
 
     await komponente.onSubmitReturn();
@@ -212,15 +212,11 @@ describe('SalesComponent – Aktionsmeldungen', () => {
   });
 
   it('bucht bei zwei sofort parallelen Retourenaufrufen nur einmal', async () => {
-    const { komponente, returnService, salesService } = erstelleKomponente();
-    let resolveReturn!: (value: {
-      data: Sale | null;
-      error: Error | null;
-      reportedBySyncStatus: boolean;
-    }) => void;
-    salesService.recordReturn.mockImplementationOnce(
+    const { komponente, returnService } = erstelleKomponente();
+    let resolveReturn!: (value: ProcessReturnResult) => void;
+    returnService.processReturn.mockImplementationOnce(
       () =>
-        new Promise((resolve) => {
+        new Promise<ProcessReturnResult>((resolve) => {
           resolveReturn = resolve;
         }),
     );
@@ -228,14 +224,14 @@ describe('SalesComponent – Aktionsmeldungen', () => {
     const first = komponente.onSubmitReturn();
     const second = komponente.onSubmitReturn();
     resolveReturn({
-      data: { ...verkauf, returned_at: '2026-08-24T12:00:00.000Z', refund_amount: 50 },
+      status: 'success',
+      data: retoure,
       error: null,
-      reportedBySyncStatus: false,
+      problems: [],
     });
     await Promise.all([first, second]);
 
-    expect(salesService.recordReturn).toHaveBeenCalledOnce();
-    expect(returnService.materializeConfirmedReturn).toHaveBeenCalledOnce();
+    expect(returnService.processReturn).toHaveBeenCalledOnce();
     expect(komponente.isReturnModalOpen()).toBe(false);
   });
 });

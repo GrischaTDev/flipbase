@@ -365,7 +365,13 @@ select
   sale.sale_price,
   sale.sale_price,
   item.allocated_purchase_cost,
-  coalesce(item.tax_mode_override, workspace.tax_mode)
+  case
+    when item.tax_mode_override in ('diff_25a', 'kleinunternehmer_19', 'regular_19')
+      then item.tax_mode_override
+    when workspace.tax_mode in ('diff_25a', 'kleinunternehmer_19', 'regular_19')
+      then workspace.tax_mode
+    else 'diff_25a'
+  end
 from public.sales as sale
 join public.inventory_items as item
   on item.id = sale.inventory_item_id

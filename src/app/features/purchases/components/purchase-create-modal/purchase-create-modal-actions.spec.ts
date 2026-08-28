@@ -87,6 +87,7 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     newSourceName: signal('Flohmarkt'),
     newSupplierName: signal('Lieferant GmbH'),
     extraCosts: signal([]),
+    purchaseLines: signal([]),
     form: new FormGroup({
       type: new FormControl<'single'>('single', { nonNullable: true }),
       title: new FormControl('Konsole', {
