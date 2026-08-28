@@ -202,13 +202,13 @@ Alle neuen Komponenten sind Dumb Components mit `input()`/`output()`. Die Dienst
 
 ## Prüfung
 
-| Prüfung                           | Gegenstand                                                                                                                           |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `adjustments.spec.ts`             | Standardwerte, Begrenzung, leerer Filterausdruck bei Standard, korrekter Ausdruck bei Abweichung                                     |
-| `c2pa-detection.spec.ts`          | Selbst gebaute Bytefolgen: mit Nachweis, ohne, mit `c2pa` an einer Stelle außerhalb eines APP11-Segments (darf **nicht** anschlagen) |
-| `metadata-reader.service.spec.ts` | Die Übersetzung von Bibliotheksergebnis nach `ImageMetadata`, alle vier Zustände, Fehler werden gefangen                             |
-| `image-renderer.spec.ts`          | Der weiße Grund bleibt weiß, wenn ein abdunkelnder Filter gesetzt ist                                                                |
-| Ein echtes JPEG als Prüfdatei     | Ein kleines, mitgeliefertes Bild mit bekannten GPS-Werten belegt, dass die Bibliothek richtig angebunden ist                         |
+| Prüfung                                         | Gegenstand                                                                                                                                                                          |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `adjustments.spec.ts`                           | Standardwerte, Begrenzung, leerer Filterausdruck bei Standard, korrekter Ausdruck bei Abweichung                                                                                    |
+| `c2pa-detection.spec.ts`                        | Selbst gebaute Bytefolgen: mit Nachweis, ohne, mit `c2pa` an einer Stelle außerhalb eines APP11-Segments (darf **nicht** anschlagen)                                                |
+| `metadata-reader.service.spec.ts`               | Die Übersetzung von Bibliotheksergebnis nach `ImageMetadata`, alle vier Zustände, Fehler werden gefangen                                                                            |
+| `image-renderer.spec.ts`                        | Der weiße Grund bleibt weiß, wenn ein abdunkelnder Filter gesetzt ist                                                                                                               |
+| Ein echtes Foto mit GPS, in der Browser-Abnahme | Belegt, dass die Bibliothek richtig angebunden ist. Bewusst kein mitgeliefertes Binaerbild: Ein von Hand gebauter EXIF-Bytestrom haette viele Fehlerquellen und wenig Aussagekraft. |
 
 Die Trennung ist beabsichtigt: Unsere eigene Übersetzungsschicht wird mit erfundenen Bibliotheksergebnissen geprüft, die Anbindung selbst mit genau einer echten Datei. Ein nachgebauter Bytestrom würde bei einem Parser wenig beweisen.
 
