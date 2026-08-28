@@ -90,6 +90,16 @@ Die beiden Punkte, die in Paket 1 bewusst zurückgestellt wurden. Spezifikation 
 | Auf alle übernehmen                     | alle drei Bilder auf 1.4                                                             |
 | `aria-valuetext`                        | „100 %" statt Rohwert „1"                                                            |
 
+**Aus der Gesamtpruefung nachgezogen:**
+
+Die abschliessende Pruefung des ganzen Zweigs fand funf Befunde, drei davon in derselben Ecke wie der Beinahe-Unfall oben: Saetze, die mehr ueber die Datei behaupten, als der Code angesehen hat.
+
+1. **"Diese Datei enthaelt keine Metadaten" war eine Aussage ueber die ganze Datei**, geprueft wird aber nur ein Siebtel davon - IPTC und ICC sind ausdruecklich abgeschaltet. Ein aus Photoshop oder Canva exportiertes JPEG traegt oft Urheberfelder, aber weder GPS noch Kameradaten; dem Nutzer waere gesagt worden, es enthalte nichts. Der Text nennt jetzt, was tatsaechlich ausgewertet wurde.
+2. **Der Wasserzeichen-Vorbehalt fehlte bei der haeufigsten KI-Bildsorte.** Er erschien nur bei einem C2PA-Nachweis. Bilder aus Gemini oder Imagen tragen aber ein Pixel-Wasserzeichen plus die XMP-Herkunftsangabe, oft ohne Manifest - ausgerechnet dort stand der Hinweis nicht. Jetzt bei jedem KI-Signal.
+3. **"Erhalten bleibt nur ein Farbprofil"** verschwieg den JFIF-Kopf, den dieselbe Messung gefunden hatte.
+4. **Der Regler loeste bei jeder Mausbewegung drei volle Neuberechnungen aus**, und ein 35 Prozent schwarzes Overlay stand dabei durchgehend ueber der Vorschau - der Nutzer beurteilte seine Helligkeitseinstellung also durch einen Schleier. Mir war das entgangen, weil ich den Regler in der Abnahme gesetzt statt gezogen hatte. Jetzt entprellt, Overlay erst nach 150 ms. **Nachgemessen durch echtes Ziehen:** Overlay in 1 von 39 Proben sichtbar statt durchgehend; Helligkeit nach dem Loslassen 78, exakt der erwartete Wert.
+5. **Jede hochgeladene Datei wurde vollstaendig in den Speicher gelesen**, alle gleichzeitig - 40 Handyfotos ergaeben eine Spitze von rund 200 MB. Unnoetig, weil die C2PA-Erkennung ohnehin am Bilddatenstrom abbricht. Jetzt werden nur die ersten zwei Megabyte gelesen.
+
 **Offen:**
 
 - Die Felder **Kamera, Modell, Software und Aufnahmedatum** sind durch Überlegung abgedeckt, nicht durch Messung – meine Testdateien trugen nur GPS bzw. XMP. Sie sind gewöhnliche EXIF-Tags und kommen mit der gesetzten Segmentauswahl durch, aber ein echtes Kamerafoto wäre der bessere Beleg.

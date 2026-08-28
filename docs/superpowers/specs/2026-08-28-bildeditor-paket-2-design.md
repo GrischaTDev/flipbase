@@ -60,7 +60,11 @@ export interface ImageMetadata {
 Die vier Zustände sind fachlich verschieden und dürfen nicht zusammenfallen:
 
 - `pending` – noch nicht ausgewertet
-- `read` – ausgewertet; sind alle Felder leer, enthält die Datei **nachweislich** nichts
+- `read` – ausgewertet; sind alle Felder leer, enthält die Datei **keine der ausgewerteten
+  Angaben**. Bewusst nicht „nichts“: Gelesen werden nur GPS, Kamera, Aufnahmedatum, Software,
+  XMP-Herkunft und C2PA. IPTC und ICC sind abgeschaltet. Ein aus einem Bildbearbeitungsprogramm
+  exportiertes JPEG kann Urheberfelder tragen, die hier nicht auftauchen – der Text darf das
+  nicht wegreden.
 - `unsupported` – kein JPEG, es wurde nicht ausgewertet
 - `failed` – Auswertung fehlgeschlagen
 
@@ -94,8 +98,8 @@ Ein bloßes Suchen nach der Zeichenfolge `c2pa` in der ganzen Datei wäre falsch
 Eine Komponente `components/metadata-panel/` unterhalb des Editors, für das jeweils aktive Bild. Sie zeigt die gefundenen Angaben und darunter den Satz:
 
 > **Diese Angaben werden beim Export entfernt.** Die Exportdateien enthalten weder EXIF- noch
-> XMP- oder Herkunftsdaten. Erhalten bleibt nur ein Farbprofil, das der Browser fuer die richtige
-> Farbdarstellung anlegt.
+> XMP- oder Herkunftsdaten. Erhalten bleiben nur ein Farbprofil und ein technischer Dateikopf,
+> die der Browser beim Speichern anlegt.
 
 Das ist wahr und gilt schon heute.
 
@@ -103,7 +107,9 @@ Das ist wahr und gilt schon heute.
 
 > Unsichtbare Wasserzeichen im Bild selbst bleiben erhalten. Sie lassen sich durch Zuschneiden oder Neuspeichern nicht entfernen.
 
-Je Status eine eigene Formulierung: bei `read` ohne Funde „Keine Metadaten enthalten"; bei `unsupported` „Nur JPEG-Dateien werden ausgewertet"; bei `failed` „Die Metadaten ließen sich nicht lesen".
+Je Status eine eigene Formulierung: bei `read` ohne Funde „Keine der ausgewerteten Angaben gefunden – weder Standort, Kamera, Aufnahmedatum, Software noch Herkunftsnachweis"; bei `unsupported` „Nur JPEG-Dateien werden ausgewertet"; bei `failed` „Die Metadaten ließen sich nicht lesen".
+
+Der Vorbehalt zu unsichtbaren Wasserzeichen erscheint bei **jedem** KI-Signal, nicht nur bei einem C2PA-Nachweis. Bilder aus Gemini oder Imagen tragen typischerweise ein Pixel-Wasserzeichen plus die XMP-Herkunftsangabe, oft ohne Manifest – gerade dort darf der Hinweis nicht fehlen.
 
 ### GPS-Hinweis in der Bilderliste
 
@@ -219,7 +225,7 @@ Am Ende einmal Typprüfung, vollständige Suite, Produktionsbau und eine Abnahme
 ## Abnahmekriterien
 
 1. Ein Foto mit GPS zeigt die Koordinaten im Metadatenfeld und einen Hinweis auf seiner Kachel in der Bilderliste.
-2. Ein Foto ohne Metadaten zeigt „Keine Metadaten enthalten" – unterscheidbar von „ließen sich nicht lesen".
+2. Ein Foto ohne die ausgewerteten Angaben sagt genau das – unterscheidbar von „ließen sich nicht lesen". Es behauptet **nicht**, die Datei enthalte gar keine Metadaten.
 3. Eine PNG-Datei zeigt „Nur JPEG-Dateien werden ausgewertet" und erzeugt keinen Fehler.
 4. Eine beschädigte Datei erzeugt `failed` und stört den Editor nicht.
 5. Ein Bild mit C2PA-Nachweis wird als solches ausgewiesen, samt Hinweis auf verbleibende unsichtbare Wasserzeichen.
