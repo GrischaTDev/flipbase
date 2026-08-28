@@ -1,3 +1,18 @@
+@if (images().length > 0) {
+  <div class="mb-3 flex items-center justify-between gap-2 px-1">
+    <p class="text-[10px] text-fb-text-muted" aria-live="polite">
+      {{ reviewedCount() }} von {{ images().length }} durchgesehen
+    </p>
+    <button
+      type="button"
+      (click)="clearAllRequested.emit()"
+      [disabled]="disabled()"
+      class="cursor-pointer rounded-lg px-2 py-1 text-[10px] font-semibold text-fb-text-muted hover:bg-rose-500/15 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      Alle entfernen
+    </button>
+  </div>
+}
 <div
   class="flex gap-3 overflow-x-auto pb-2 lg:max-h-[560px] lg:flex-col lg:overflow-x-visible lg:overflow-y-auto lg:pr-1"
 >

@@ -135,10 +135,12 @@
         <app-image-list
           [images]="images()"
           [activeId]="activeImageId()"
+          [reviewedCount]="reviewedCount()"
           [disabled]="isBusy()"
           (selected)="setActiveImage($event)"
           (removed)="removeImage($event)"
           (moved)="moveImage($event.id, $event.direction)"
+          (clearAllRequested)="clearAllImages()"
         ></app-image-list>
       </aside>
     </div>

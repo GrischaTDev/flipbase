@@ -21,10 +21,12 @@ export class ImageListComponent {
   readonly images = input.required<OptimizerImage[]>();
   readonly activeId = input<string | null>(null);
   readonly disabled = input(false);
+  readonly reviewedCount = input(0);
 
   readonly selected = output<string>();
   readonly removed = output<string>();
   readonly moved = output<{ id: string; direction: -1 | 1 }>();
+  readonly clearAllRequested = output<void>();
 
   readonly closeIcon = X;
   readonly moveUpIcon = ArrowUp;

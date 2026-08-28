@@ -28,6 +28,7 @@ import { KeyedQueue } from './services/async-queue';
 import { createExportSnapshot, replaceIfCurrent } from './services/async-state';
 import {
   removeImage as removeImageFrom,
+  removeAll,
   moveImage as moveImageIn,
   saveCropIn,
   applyCropToAllIn,
@@ -37,6 +38,7 @@ import { PhotoGuideState } from './services/photo-guide-state';
 import { findResolutionIssue, checkOutput } from './services/platform-validation';
 import { togglePlatformIn } from './services/platform-selection';
 import { ToastService } from '../../shared/components/toast/toast.service';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 
 /**
  * Hinweistext fuer Bilder, die der Browser nicht als Bild dekodieren kann -
@@ -90,6 +92,7 @@ export function isHeic(file: File): boolean {
 })
 export class ImageOptimizerComponent {
   private readonly toast = inject(ToastService);
+  private readonly confirm = inject(ConfirmDialogService);
   private readonly imageExport = inject(ImageExportService);
   private readonly zipExport = inject(ZipExportService);
   private readonly rotation = inject(ImageRotationService);
@@ -151,6 +154,10 @@ export class ImageOptimizerComponent {
       this.selectedPlatforms(),
     ),
   );
+
+  // TODO(Task 8): Durch die tatsaechliche Zaehlung ersetzen, sobald der
+  // Nutzer Bilder als durchgesehen markieren kann.
+  readonly reviewedCount = computed(() => 0);
 
   constructor() {
     // `removeImage()` gibt die Object-URL eines Bildes frei, sobald es aus der
@@ -291,6 +298,32 @@ export class ImageOptimizerComponent {
     if (this.activeImageId() === id) {
       this.activeImageId.set(this.images()[0]?.id ?? null);
     }
+  }
+
+  /**
+   * Entfernt alle Bilder auf einmal - nach Rueckfrage, weil der Schritt nicht
+   * umkehrbar ist. Plattformauswahl, Arbeitsziel und Grundname bleiben
+   * bewusst stehen: Der naechste Artikel wird meist genauso exportiert.
+   */
+  async clearAllImages(): Promise<void> {
+    if (this.isBusy() || this.images().length === 0) return;
+
+    const anzahl = this.images().length;
+    const bestaetigt = await this.confirm.frage({
+      titel: 'Alle Bilder entfernen?',
+      text: `${anzahl} Bild(er) werden aus dem Bildoptimierer entfernt. Die Dateien auf deinem Rechner bleiben unberührt. Bereits gesetzte Ausschnitte gehen verloren.`,
+      bestaetigenText: 'Alle entfernen',
+      gefahr: true,
+    });
+    if (!bestaetigt) return;
+
+    const result = removeAll(this.images());
+    this.images.set([...result.list]);
+    result.revokedUrls.forEach((url) => URL.revokeObjectURL(url));
+    this.activeImageId.set(null);
+    this.error.set(null);
+
+    this.toast.success('Alle Bilder wurden entfernt.');
   }
 
   saveCrop(id: string, rect: Rect): void {
