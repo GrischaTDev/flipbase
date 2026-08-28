@@ -49,14 +49,23 @@ export class PlatformPreviewComponent {
   readonly isRendering = signal(true);
   readonly hasPreviewError = signal(false);
 
+  /** Buendelt Reglerbewegungen: erst nach dieser Ruhezeit wird tatsaechlich gerendert. */
+  private static readonly RENDER_DEBOUNCE_MS = 120;
+  /** Das Overlay erscheint nur, wenn ein Rendervorgang laenger als das hier dauert. */
+  private static readonly OVERLAY_DELAY_MS = 150;
+
   private currentPreviewUrl: string | null = null;
   private renderVersion = 0;
   private destroyed = false;
+  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private overlayTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor() {
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
       this.renderVersion++;
+      if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+      if (this.overlayTimer !== null) clearTimeout(this.overlayTimer);
       if (this.currentPreviewUrl) URL.revokeObjectURL(this.currentPreviewUrl);
     });
 
@@ -65,8 +74,27 @@ export class PlatformPreviewComponent {
       const crop = this.crop();
       const platform = this.platform();
       const filter = this.filter();
-      void this.renderPreview(url, crop, platform, filter);
+      this.scheduleRender(url, crop, platform, filter);
     });
+  }
+
+  /**
+   * Ein Regler feuert `(input)` bei jeder Mausbewegung. Ohne Buendelung
+   * wuerde jede dieser Bewegungen einen vollen Decode+Encode-Durchlauf
+   * ausloesen. Ein neuer Aufruf innerhalb der Ruhezeit verwirft deshalb den
+   * noch nicht gestarteten vorherigen - gerendert wird erst der letzte Stand.
+   */
+  private scheduleRender(
+    url: string,
+    crop: Rect | null,
+    platform: PlatformProfile,
+    filter: string,
+  ): void {
+    if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
+    this.debounceTimer = setTimeout(() => {
+      this.debounceTimer = null;
+      void this.renderPreview(url, crop, platform, filter);
+    }, PlatformPreviewComponent.RENDER_DEBOUNCE_MS);
   }
 
   private async renderPreview(
@@ -76,8 +104,16 @@ export class PlatformPreviewComponent {
     filter: string,
   ): Promise<void> {
     const version = ++this.renderVersion;
-    this.isRendering.set(true);
     this.hasPreviewError.set(false);
+
+    // Das dunkle Overlay wird erst gesetzt, wenn der Rendervorgang spuerbar
+    // dauert. Eine schnelle Aktualisierung soll die zuletzt gueltige
+    // Vorschau nicht kurz hinter einem Schleier verstecken - genau das war
+    // beim Ziehen eines Reglers vorher staendig der Fall.
+    this.overlayTimer = setTimeout(() => {
+      this.overlayTimer = null;
+      if (!this.destroyed && version === this.renderVersion) this.isRendering.set(true);
+    }, PlatformPreviewComponent.OVERLAY_DELAY_MS);
 
     try {
       const image = await this.loadImage(url);
@@ -99,6 +135,10 @@ export class PlatformPreviewComponent {
         this.hasPreviewError.set(true);
       }
     } finally {
+      if (this.overlayTimer !== null) {
+        clearTimeout(this.overlayTimer);
+        this.overlayTimer = null;
+      }
       if (!this.destroyed && version === this.renderVersion) this.isRendering.set(false);
     }
   }

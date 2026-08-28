@@ -13,6 +13,12 @@ export class MetadataPanelComponent {
 
   readonly isEmpty = computed(() => !hasAnyMetadata(this.metadata()));
 
+  /** Irgendein KI-Signal - Nachweis oder erklaerte Herkunft. */
+  readonly hasAiSignal = computed(() => {
+    const ai = this.metadata().ai;
+    return ai.contentCredential || ai.declaredSource !== null;
+  });
+
   readonly coordinates = computed(() => {
     const gps = this.metadata().gps;
     if (!gps) return null;

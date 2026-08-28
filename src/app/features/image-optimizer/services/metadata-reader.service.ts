@@ -54,7 +54,14 @@ export class MetadataReaderService {
       // statt eines echten Feldes zurueck - das ist "geprueft und leer", kein
       // Fehlschlag. `errors` selbst ist kein Metadatenfeld und darf nirgends
       // als eines gelesen werden.
-      const bytes = new Uint8Array(await file.arrayBuffer());
+      //
+      // Nur die ersten 2 MB werden gelesen, nicht die ganze Datei: Die
+      // C2PA-Erkennung (`hasContentCredential`) durchsucht ohnehin nur die
+      // APP-Segmente vor dem Bilddatenstrom und bricht bei `START_OF_SCAN`
+      // ab - alles, was sie sehen kann, steht im Dateikopf. Bei vielen
+      // gleichzeitig hochgeladenen Fotos verhindert das einen Speicher-Peak
+      // in Höhe der Gesamtgröße aller Dateien.
+      const bytes = new Uint8Array(await file.slice(0, 2 * 1024 * 1024).arrayBuffer());
 
       return {
         status: 'read',
