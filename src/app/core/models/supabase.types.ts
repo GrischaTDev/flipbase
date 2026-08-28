@@ -1860,6 +1860,7 @@ export type Database = {
       }
       store_order_items: {
         Row: {
+          catalog_product_id: string | null
           id: string
           inventory_item_id: string | null
           item_title: string
@@ -1868,6 +1869,7 @@ export type Database = {
           store_order_id: string
         }
         Insert: {
+          catalog_product_id?: string | null
           id?: string
           inventory_item_id?: string | null
           item_title: string
@@ -1876,6 +1878,7 @@ export type Database = {
           store_order_id: string
         }
         Update: {
+          catalog_product_id?: string | null
           id?: string
           inventory_item_id?: string | null
           item_title?: string
@@ -1884,6 +1887,13 @@ export type Database = {
           store_order_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "store_order_items_catalog_product_id_fkey"
+            columns: ["catalog_product_id"]
+            isOneToOne: false
+            referencedRelation: "catalog_products"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "store_order_items_inventory_item_id_fkey"
             columns: ["inventory_item_id"]
