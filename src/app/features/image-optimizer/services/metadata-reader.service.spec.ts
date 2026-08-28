@@ -80,4 +80,14 @@ describe('Metadaten lesen', () => {
 
     expect(result.gps).toBeNull();
   });
+
+  it('erkennt JPEG am Dateinamen, wenn der Browser keinen Typ meldet', async () => {
+    parseMock.mockResolvedValue({});
+    const untyped = new File([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], 'foto.jpeg', { type: '' });
+
+    const result = await reader.read(untyped);
+
+    expect(result.status).toBe('read');
+    expect(parseMock).toHaveBeenCalled();
+  });
 });
