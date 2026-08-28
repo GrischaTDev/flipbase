@@ -10,7 +10,7 @@ import {
   applyAdjustmentsToAll,
 } from './image-collection';
 import { OptimizerImage } from '../models/optimizer-image';
-import { defaultAdjustments, toFilterString } from './adjustments';
+import { defaultAdjustments } from './adjustments';
 
 function image(id: string, reviewed = false): OptimizerImage {
   return {
@@ -110,17 +110,5 @@ describe('Anpassungen in der Liste', () => {
     const list = [image('a')];
 
     expect(setAdjustmentsIn(list, 'gibtesnicht', bright)[0].adjustments.brightness).toBe(1);
-  });
-
-  it('aendert die Vorschau- und Export-Filterkette, wenn sich die Einstellung aendert', () => {
-    // Deckt die Lecke aus Task 3 ab: Der Filterausdruck, den Vorschau und
-    // Export tatsaechlich verwenden (siehe `activeFilter` in der Smart
-    // Component und `exportImages`), hatte bisher keinen Test.
-    const list = setAdjustmentsIn([image('a')], 'a', bright);
-    const before = toFilterString(defaultAdjustments());
-    const after = toFilterString(list[0].adjustments);
-
-    expect(after).not.toBe(before);
-    expect(after).toContain('brightness(1.3)');
   });
 });

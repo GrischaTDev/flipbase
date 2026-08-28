@@ -40,6 +40,7 @@
           [max]="range(slider.key).max"
           [step]="slider.step"
           [value]="valueOf(slider.key)"
+          [attr.aria-valuetext]="percentOf(slider.key) + ' %'"
           [disabled]="disabled()"
           (input)="onSlider(slider.key, $any($event.target).value)"
           class="h-1.5 flex-1 cursor-pointer accent-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
