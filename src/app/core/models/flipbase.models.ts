@@ -203,9 +203,10 @@ export type ItemStatus =
   | 'defective';
 
 export type InventoryItemSaleState =
-  | 'available'
+  | 'no_active_sale'
   | 'sold'
   | 'legacy_sold_unverified'
+  | 'legacy_sale_header_without_line'
   | 'sale_status_conflict'
   | 'multiple_active_sales';
 

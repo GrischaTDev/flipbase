@@ -411,34 +411,87 @@ comment on table public.sale_line_lot_allocations is 'Loszuordnungen mit Kosten-
 create or replace view public.inventory_item_sale_states
 with (security_invoker = true)
 as
+with active_line_sales as (
+  select
+    sale_line.workspace_id,
+    sale_line.inventory_item_id,
+    sale.id as sale_id
+  from public.sale_lines as sale_line
+  join public.sales as sale
+    on sale.workspace_id = sale_line.workspace_id
+   and sale.id = sale_line.sale_id
+  where sale_line.inventory_item_id is not null
+    and sale.returned_at is null
+    and sale.voided_at is null
+),
+active_legacy_header_sales as (
+  select
+    sale.workspace_id,
+    sale.inventory_item_id,
+    sale.id as sale_id
+  from public.sales as sale
+  where sale.inventory_item_id is not null
+    and sale.returned_at is null
+    and sale.voided_at is null
+),
+active_item_sales as (
+  select workspace_id, inventory_item_id, sale_id
+  from active_line_sales
+  union
+  select workspace_id, inventory_item_id, sale_id
+  from active_legacy_header_sales
+),
+active_item_sale_summaries as (
+  select
+    active_item_sale.workspace_id,
+    active_item_sale.inventory_item_id,
+    count(*) as active_sale_count,
+    case
+      when count(*) = 1 then (array_agg(active_item_sale.sale_id))[1]
+      else null
+    end as active_sale_id
+  from active_item_sales as active_item_sale
+  group by active_item_sale.workspace_id, active_item_sale.inventory_item_id
+),
+legacy_headers_without_line as (
+  select distinct
+    active_legacy_header_sale.workspace_id,
+    active_legacy_header_sale.inventory_item_id
+  from active_legacy_header_sales as active_legacy_header_sale
+  where not exists (
+    select 1
+    from public.sale_lines as sale_line
+    where sale_line.workspace_id = active_legacy_header_sale.workspace_id
+      and sale_line.sale_id = active_legacy_header_sale.sale_id
+      and sale_line.inventory_item_id = active_legacy_header_sale.inventory_item_id
+  )
+)
 select
   inventory_item.id as inventory_item_id,
   inventory_item.workspace_id,
-  count(distinct sale.id) as active_sale_count,
+  coalesce(active_item_sale_summary.active_sale_count, 0) as active_sale_count,
+  active_item_sale_summary.active_sale_id,
   case
-    when count(distinct sale.id) = 1
-      then (array_agg(distinct sale.id) filter (where sale.id is not null))[1]
-    else null
-  end as active_sale_id,
-  case
-    when count(distinct sale.id) > 1 then 'multiple_active_sales'
-    when inventory_item.status = 'sold' and count(distinct sale.id) = 0
+    when coalesce(active_item_sale_summary.active_sale_count, 0) > 1
+      then 'multiple_active_sales'
+    when legacy_header_without_line.inventory_item_id is not null
+      then 'legacy_sale_header_without_line'
+    when inventory_item.status = 'sold'
+      and coalesce(active_item_sale_summary.active_sale_count, 0) = 0
       then 'legacy_sold_unverified'
-    when inventory_item.status <> 'sold' and count(distinct sale.id) > 0
+    when inventory_item.status <> 'sold'
+      and coalesce(active_item_sale_summary.active_sale_count, 0) > 0
       then 'sale_status_conflict'
-    when count(distinct sale.id) = 1 then 'sold'
-    else 'available'
+    when active_item_sale_summary.active_sale_count = 1 then 'sold'
+    else 'no_active_sale'
   end as sale_state
 from public.inventory_items as inventory_item
-left join public.sale_lines as sale_line
-  on sale_line.workspace_id = inventory_item.workspace_id
- and sale_line.inventory_item_id = inventory_item.id
-left join public.sales as sale
-  on sale.workspace_id = inventory_item.workspace_id
- and sale.id = sale_line.sale_id
- and sale.returned_at is null
- and sale.voided_at is null
-group by inventory_item.id, inventory_item.workspace_id, inventory_item.status;
+left join active_item_sale_summaries as active_item_sale_summary
+  on active_item_sale_summary.workspace_id = inventory_item.workspace_id
+ and active_item_sale_summary.inventory_item_id = inventory_item.id
+left join legacy_headers_without_line as legacy_header_without_line
+  on legacy_header_without_line.workspace_id = inventory_item.workspace_id
+ and legacy_header_without_line.inventory_item_id = inventory_item.id;
 
 comment on view public.inventory_item_sale_states is
   'Klassifiziert den bestandswirksamen Verkaufszustand sichtbarer Einzelartikel.';
@@ -1565,9 +1618,6 @@ create index if not exists idx_sales_workspace_id
   on public.sales (workspace_id);
 create index if not exists idx_sales_item_id
   on public.sales (inventory_item_id);
-create index if not exists idx_sales_active_sale_state
-  on public.sales (id)
-  where returned_at is null and voided_at is null;
 create index if not exists idx_catalog_products_workspace_id
   on public.catalog_products (workspace_id);
 create index if not exists idx_purchase_lines_workspace_id

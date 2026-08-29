@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(18);
+select plan(19);
 
 \set main_workspace_id '82000000-0000-4000-8000-000000000001'
 \set foreign_workspace_id '82000000-0000-4000-8000-000000000002'
@@ -16,6 +16,8 @@ select plan(18);
 \set foreign_item_id '82000000-0000-4000-8000-000000000010'
 \set valid_sale_id '82000000-0000-4000-8000-000000000011'
 \set conflict_sale_id '82000000-0000-4000-8000-000000000012'
+\set legacy_header_item_id '82000000-0000-4000-8000-000000000018'
+\set legacy_header_sale_id '82000000-0000-4000-8000-000000000019'
 
 insert into auth.users (
   id, aud, role, email, encrypted_password, raw_app_meta_data,
@@ -61,6 +63,7 @@ values
   (:'orphan_item_id'::uuid, :'main_workspace_id'::uuid, 'Legacy orphan item', 'sold'),
   (:'conflict_item_id'::uuid, :'main_workspace_id'::uuid, 'Sale status conflict', 'ready'),
   (:'multiple_item_id'::uuid, :'main_workspace_id'::uuid, 'Multiple active sales', 'sold'),
+  (:'legacy_header_item_id'::uuid, :'main_workspace_id'::uuid, 'Legacy header only', 'sold'),
   (:'foreign_item_id'::uuid, :'foreign_workspace_id'::uuid, 'Foreign item', 'ready');
 
 insert into public.sales (
@@ -152,6 +155,19 @@ insert into public.sales (
     'direct',
     10,
     10,
+    current_date,
+    null,
+    null,
+    null,
+    null
+  ),
+  (
+    :'legacy_header_sale_id'::uuid,
+    :'main_workspace_id'::uuid,
+    :'legacy_header_item_id'::uuid,
+    'direct',
+    18,
+    18,
     current_date,
     null,
     null,
@@ -271,9 +287,15 @@ select is(
 );
 
 select is(
+  (select sale_state from public.inventory_item_sale_states where inventory_item_id = :'legacy_header_item_id'),
+  'legacy_sale_header_without_line',
+  'aktiver Legacy-Verkaufskopf ohne Position bleibt als Integritätsfall sichtbar'
+);
+
+select is(
   (select active_sale_count from public.inventory_item_sale_states where inventory_item_id = :'valid_item_id'),
   1::bigint,
-  'genau ein bestandswirksamer Verkauf wird erkannt'
+  'derselbe bestandswirksame Verkauf über Kopf und Position wird nur einmal gezählt'
 );
 
 select is(
@@ -290,7 +312,7 @@ select is(
 
 select is(
   (select sale_state from public.inventory_item_sale_states where inventory_item_id = :'available_item_id'),
-  'available',
+  'no_active_sale',
   'retournierte und stornierte Verkäufe sind nicht bestandswirksam'
 );
 
