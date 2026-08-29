@@ -253,12 +253,18 @@ export class WorkspaceService {
 
     if (this.supabase && this.auth?.isAuthenticated() && !this.auth.isDemoMode()) {
       try {
-        const { error } = await this.supabase.client
+        const { data, error } = await this.supabase.client
           .from('workspaces')
           .delete()
-          .eq('id', workspaceId);
-        if (error) {
-          this.syncStatus.melde('Löschen des Workspace', error);
+          .eq('id', workspaceId)
+          .select('id')
+          .maybeSingle();
+        if (error || !data) {
+          this.syncStatus.melde(
+            'Löschen des Workspace',
+            error ??
+              new Error('Die Löschung des Workspace wurde von der Datenbank nicht bestätigt.'),
+          );
           return { success: false, reportedBySyncStatus: true };
         }
       } catch (err) {

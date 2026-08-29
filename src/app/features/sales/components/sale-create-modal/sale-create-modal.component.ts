@@ -18,7 +18,8 @@ import {
   LucideX as X,
 } from '@lucide/angular';
 import { Sale } from '../../../../core/models/flipbase.models';
-import { SaleTarget } from '../../../../core/models/sale-target.models';
+import { LegacySaleReconciliation, SaleTarget } from '../../../../core/models/sale-target.models';
+import { isSellableInventoryItem } from '../../../../core/models/inventory-sellability';
 import {
   CreateSalePayload,
   RecordSaleInput,
@@ -58,6 +59,7 @@ type SaleLineForm = FormGroup<{
 })
 export class SaleCreateModalComponent {
   readonly saleTarget = input<SaleTarget | null>(null);
+  readonly legacyReconciliation = input<LegacySaleReconciliation | null>(null);
   readonly preselectedItemId = input<string | null>(null);
   readonly sale = input<Sale | null>(null);
   readonly closed = output<void>();
@@ -92,29 +94,40 @@ export class SaleCreateModalComponent {
     { value: 'direct', label: 'Direktverkauf' },
     { value: 'other', label: 'Andere' },
   ];
-  readonly targetOptions = computed<SelectOption<string>[]>(() => [
-    { value: '', label: '-- Artikel auswählen --' },
-    ...this.stockService
-      .positions()
-      .filter((position) => position.available_quantity > 0)
-      .map((position) => ({
+  readonly targetOptions = computed<SelectOption<string>[]>(() => {
+    const reconciliationTarget = this.legacyReconciliation() ? this.saleTarget() : null;
+    if (reconciliationTarget) {
+      return [
+        {
+          value: this.targetValue(reconciliationTarget),
+          label: `${reconciliationTarget.title} · ungeklärter Altbestand`,
+        },
+      ];
+    }
+    return [
+      { value: '', label: '-- Artikel auswählen --' },
+      ...this.stockService
+        .positions()
+        .filter((position) => position.available_quantity > 0)
+        .map((position) => ({
+          value: this.targetValue({
+            kind: 'catalog_product',
+            catalogProductId: position.catalog_product_id,
+            title: position.title,
+            availableQuantity: position.available_quantity,
+          }),
+          label: `${position.title} · Mengenbestand: ${position.available_quantity}`,
+        })),
+      ...this.availableItems().map((item) => ({
         value: this.targetValue({
-          kind: 'catalog_product',
-          catalogProductId: position.catalog_product_id,
-          title: position.title,
-          availableQuantity: position.available_quantity,
+          kind: 'inventory_item',
+          inventoryItemId: item.id,
+          title: item.title,
         }),
-        label: `${position.title} · Mengenbestand: ${position.available_quantity}`,
+        label: `${item.title} · Einzelstück`,
       })),
-    ...this.availableItems().map((item) => ({
-      value: this.targetValue({
-        kind: 'inventory_item',
-        inventoryItemId: item.id,
-        title: item.title,
-      }),
-      label: `${item.title} · Einzelstück`,
-    })),
-  ]);
+    ];
+  });
 
   readonly form = new FormGroup({
     lines: new FormArray<SaleLineForm>([this.createLineForm()]),
@@ -132,12 +145,11 @@ export class SaleCreateModalComponent {
     otherCosts: new FormControl(0, { nonNullable: true }),
     externalOrderId: new FormControl('', { nonNullable: true }),
     buyerNotes: new FormControl('', { nonNullable: true }),
+    reconciliationReason: new FormControl('', { nonNullable: true }),
   });
   readonly lines = this.form.controls.lines;
   readonly availableItems = computed(() =>
-    this.inventoryService
-      .items()
-      .filter((item) => item.status !== 'sold' && item.status !== 'archived'),
+    this.inventoryService.items().filter(isSellableInventoryItem),
   );
   private readonly formValue = toSignal(this.form.valueChanges, {
     initialValue: this.form.getRawValue(),
@@ -202,9 +214,17 @@ export class SaleCreateModalComponent {
     this.errorMessage.set(null);
     try {
       const existing = this.sale();
+      const reconciliation = this.legacyReconciliation();
+      const input = this.recordSalePayload();
       const result = existing
         ? await this.salesService.updateSale(existing.id, this.legacyUpdatePayload())
-        : await this.salesService.recordSale(this.recordSalePayload());
+        : reconciliation
+          ? await this.salesService.recordLegacySale(
+              reconciliation.inventoryItemId,
+              this.validatedLegacyInput(reconciliation, input),
+              this.form.controls.reconciliationReason.value,
+            )
+          : await this.salesService.recordSale(input);
       if (result.error) throw result.error;
       this.isPersisted.set(true);
       this.toast.success(existing ? 'Verkauf wurde gespeichert.' : 'Verkauf wurde abgeschlossen.');
@@ -269,6 +289,22 @@ export class SaleCreateModalComponent {
             };
       }),
     };
+  }
+
+  private validatedLegacyInput(
+    reconciliation: LegacySaleReconciliation,
+    input: RecordSaleInput,
+  ): RecordSaleInput {
+    const line = input.lines[0];
+    if (
+      input.lines.length !== 1 ||
+      line?.inventoryItemId !== reconciliation.inventoryItemId ||
+      line.quantity !== 1 ||
+      !this.form.controls.reconciliationReason.value.trim()
+    ) {
+      throw new Error('Der Legacy-Verkaufsnachtrag ist unvollständig oder wurde verändert.');
+    }
+    return input;
   }
   private legacyUpdatePayload(): CreateSalePayload {
     const raw = this.form.getRawValue();

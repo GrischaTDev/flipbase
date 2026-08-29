@@ -1,18 +1,28 @@
 import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import {
   LucideChevronDown as ChevronDown,
   LucideChevronUp as ChevronUp,
   LucideShoppingCart as ShoppingCart,
   LucidePackageOpen as PackageOpen,
+  LucideArrowRight as ArrowRight,
+  LucidePrinter as Printer,
+  LucideStore as Store,
   LucideDynamicIcon,
 } from '@lucide/angular';
 import {
   InventoryItem,
+  ItemStatus,
   StockLot,
   StockMovement,
   StockPosition,
 } from '../../../../core/models/flipbase.models';
+import {
+  hasInventoryIntegrityConflict,
+  isInventoryItemMutationLocked,
+  isSellableInventoryItem,
+} from '../../../../core/models/inventory-sellability';
 
 interface DisplayPosition extends StockPosition {
   readonly lots: readonly StockLot[];
@@ -20,7 +30,7 @@ interface DisplayPosition extends StockPosition {
 
 @Component({
   selector: 'app-stock-position-list',
-  imports: [CurrencyPipe, DatePipe, LucideDynamicIcon],
+  imports: [RouterLink, CurrencyPipe, DatePipe, LucideDynamicIcon],
   templateUrl: './stock-position-list.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -29,18 +39,38 @@ export class StockPositionListComponent {
   readonly positions = input.required<readonly StockPosition[]>();
   readonly lots = input<readonly StockLot[]>([]);
   readonly movements = input<readonly StockMovement[]>([]);
-  /**
-   * Kompatibilitaetseingabe fuer Aufrufer, die Einzelstuecke zusammen mit
-   * Mengenpositionen anzeigen. Die Inventarseite trennt beides in Tabs.
-   */
   readonly individualItems = input<readonly InventoryItem[]>([]);
+  readonly selectedItemIds = input<ReadonlySet<string>>(new Set());
   readonly sell = output<StockPosition>();
+  readonly sellIndividual = output<InventoryItem>();
+  readonly selectionChanged = output<string>();
+  readonly labelIndividual = output<InventoryItem>();
+  readonly storeToggle = output<InventoryItem>();
+  readonly statusChange = output<{ readonly item: InventoryItem; readonly status: ItemStatus }>();
+  readonly restoreLegacy = output<{ readonly item: InventoryItem; readonly reason: string }>();
+  readonly reconcileSale = output<InventoryItem>();
 
   readonly chevronDownIcon = ChevronDown;
   readonly chevronUpIcon = ChevronUp;
   readonly shoppingCartIcon = ShoppingCart;
   readonly packageOpenIcon = PackageOpen;
+  readonly arrowRightIcon = ArrowRight;
+  readonly printerIcon = Printer;
+  readonly storeIcon = Store;
   readonly openPositionIds = signal<ReadonlySet<string>>(new Set());
+  readonly legacyReasons = signal<Readonly<Record<string, string>>>({});
+
+  readonly statusOptions: readonly { readonly value: ItemStatus; readonly label: string }[] = [
+    { value: 'received', label: 'Auf Lager' },
+    { value: 'needs_review', label: 'Prüfung nötig' },
+    { value: 'researched', label: 'Recherchiert' },
+    { value: 'ready', label: 'Bereit' },
+    { value: 'listed', label: 'Gelistet' },
+    { value: 'reserved', label: 'Reserviert' },
+    { value: 'defective', label: 'Defekt' },
+    { value: 'returned', label: 'Retourniert' },
+    { value: 'archived', label: 'Archiviert' },
+  ];
 
   readonly displayPositions = computed<readonly DisplayPosition[]>(() => {
     const lotsByProduct = new Map<string, StockLot[]>();
@@ -96,6 +126,52 @@ export class StockPositionListComponent {
       };
     });
   });
+
+  isSellable(item: InventoryItem): boolean {
+    return isSellableInventoryItem(item);
+  }
+
+  isMutationLocked(item: InventoryItem): boolean {
+    return isInventoryItemMutationLocked(item);
+  }
+
+  hasIntegrityConflict(item: InventoryItem): boolean {
+    return hasInventoryIntegrityConflict(item);
+  }
+
+  isItemSelected(itemId: string): boolean {
+    return this.selectedItemIds().has(itemId);
+  }
+
+  setLegacyReason(itemId: string, event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.legacyReasons.update((reasons) => ({ ...reasons, [itemId]: value }));
+  }
+
+  legacyReason(itemId: string): string {
+    return this.legacyReasons()[itemId] ?? '';
+  }
+
+  emitStatusChange(item: InventoryItem, status: ItemStatus | null): void {
+    if (status && !this.isMutationLocked(item)) this.statusChange.emit({ item, status });
+  }
+
+  emitStoreToggle(item: InventoryItem): void {
+    if (!this.isMutationLocked(item)) this.storeToggle.emit(item);
+  }
+
+  emitIndividualSale(item: InventoryItem): void {
+    if (this.isSellable(item)) this.sellIndividual.emit(item);
+  }
+
+  emitStatusChangeFromEvent(item: InventoryItem, event: Event): void {
+    this.emitStatusChange(item, (event.target as HTMLSelectElement).value as ItemStatus);
+  }
+
+  emitRestoreLegacy(item: InventoryItem): void {
+    const reason = this.legacyReason(item.id).trim();
+    if (reason) this.restoreLegacy.emit({ item, reason });
+  }
 
   movementReason(reason: StockMovement['reason']): string {
     switch (reason) {

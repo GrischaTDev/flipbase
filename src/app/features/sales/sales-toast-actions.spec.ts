@@ -1,6 +1,8 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
+import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { InventoryItem, Sale } from '../../core/models/flipbase.models';
 import { ReturnRecord } from '../../core/models/return.models';
@@ -53,7 +55,6 @@ function erstelleKomponente() {
   const syncStatus = new SyncStatusService();
   const salesService = {
     sales: signal([verkauf]),
-    deleteSale: vi.fn(async (): Promise<{ error: Error | null }> => ({ error: null })),
   };
   const returnService = {
     returns: signal<ReturnRecord[]>([]),
@@ -193,22 +194,17 @@ describe('SalesComponent – Aktionsmeldungen', () => {
     });
   });
 
-  it('bestätigt das Löschen eines Verkaufs erst nach Erfolg', async () => {
-    const { komponente, toast } = erstelleKomponente();
+  it('bietet für gebuchte Verkäufe nur den Retouren- und keinen Editier- oder Löschpfad an', async () => {
+    const template = await readFile(resolve('src/app/features/sales/sales.component.html'), {
+      encoding: 'utf8',
+    });
+    const root = new DOMParser().parseFromString(template, 'text/html');
 
-    await komponente.onDeleteSale(verkauf);
-
-    expect(toast.toasts()[0]).toMatchObject({ type: 'success', title: 'Verkauf wurde gelöscht.' });
-  });
-
-  it('navigiert nach fehlgeschlagenem Löschen nicht weiter und meldet keinen Erfolg', async () => {
-    const { komponente, salesService, toast } = erstelleKomponente();
-    salesService.deleteSale.mockResolvedValue({ error: new Error('Löschen fehlgeschlagen') });
-
-    await komponente.onDeleteSale(verkauf);
-
-    expect(toast.toasts().some((meldung) => meldung.type === 'success')).toBe(false);
-    expect(toast.toasts()[0]).toMatchObject({ type: 'error', persistent: true });
+    expect('onDeleteSale' in SalesComponent.prototype).toBe(false);
+    expect(root.querySelector('button[title="Retoure / Gutschrift erfassen"]')).not.toBeNull();
+    expect(root.querySelector('button[title="Verkauf bearbeiten"]')).toBeNull();
+    expect(root.querySelector('button[title="Verkauf stornieren"]')).toBeNull();
+    expect(root.body.textContent).toContain('dokumentierten Korrekturvorgang');
   });
 
   it('bucht bei zwei sofort parallelen Retourenaufrufen nur einmal', async () => {

@@ -1,6 +1,7 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
 import { FormControl, FormGroup } from '@angular/forms';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { InventoryItem, ItemMedia } from '../../../../core/models/flipbase.models';
 import { SyncFehlerAktion, SyncStatusService } from '../../../../core/services/sync-status.service';
@@ -41,7 +42,9 @@ function erstelleKomponente(error: Error | null = null) {
     deleteItemCost: vi.fn(async () => ({ error })),
     updateItem: vi.fn(async () => ({ error })),
     deleteItem: vi.fn(async () => ({ error })),
+    resolveLegacySoldItem: vi.fn(async () => ({ error })),
   };
+  const dialog = { frage: vi.fn(async () => true) };
   const mediaService = {
     uploadItemMedia: vi.fn(
       async (
@@ -61,18 +64,19 @@ function erstelleKomponente(error: Error | null = null) {
     mediaList: signal<ItemMedia[]>([]),
     isUploading: signal(false),
     uploadError: signal<string | null>(null),
+    legacyReason: signal(''),
     isAddingCost: signal(true),
     costForm: new FormGroup({
       type: new FormControl<'repair'>('repair', { nonNullable: true }),
       amount: new FormControl(4, { nonNullable: true }),
       description: new FormControl('Reparatur', { nonNullable: true }),
     }),
-    dialog: { frage: vi.fn(async () => true) },
+    dialog,
     router: { navigate },
     syncStatus,
     toast,
   });
-  return { komponente, inventoryService, mediaService, syncStatus, toast, navigate };
+  return { komponente, inventoryService, mediaService, dialog, syncStatus, toast, navigate };
 }
 
 function dateiEvent(dateien: File[]): Event {
@@ -82,6 +86,95 @@ function dateiEvent(dateien: File[]): Event {
 }
 
 describe('ItemDetailComponent – Aktionsmeldungen', () => {
+  it('zeigt sold und Legacy-Konflikte schreibgeschützt statt als Statusauswahl', () => {
+    const template = readFileSync(
+      'src/app/features/inventory/pages/item-detail/item-detail.component.html',
+      'utf8',
+    );
+
+    expect(template).toContain('data-item-status-badge');
+    expect(template).toContain("item.sale_state === 'legacy_sold_unverified'");
+    expect(template).toContain("item.sale_state === 'legacy_sale_header_without_line'");
+    expect(template).toContain('Korrektur erforderlich');
+  });
+
+  it('nimmt einen ungeklärten Altartikel nur mit Grund und Bestätigung zurück', async () => {
+    const { komponente, inventoryService, dialog, toast } = erstelleKomponente();
+    inventoryService.selectedItem.set({
+      ...artikel,
+      status: 'sold',
+      sale_state: 'legacy_sold_unverified',
+    });
+    const legacyActions = komponente as unknown as {
+      legacyReason: { set(value: string): void };
+      onRestoreLegacySoldItem(): Promise<void>;
+    };
+    legacyActions.legacyReason.set('Historischer Verkauf fehlt');
+
+    await legacyActions.onRestoreLegacySoldItem();
+
+    expect(dialog.frage).toHaveBeenCalledOnce();
+    expect(inventoryService.resolveLegacySoldItem).toHaveBeenCalledWith(
+      artikel.id,
+      'Historischer Verkauf fehlt',
+    );
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'success',
+      title: 'Artikel wurde wieder in den Bestand aufgenommen.',
+    });
+  });
+
+  it('trägt einen ungeklärten Verkauf mit explizitem Legacy-Route-State nach', () => {
+    const { komponente, inventoryService, navigate } = erstelleKomponente();
+    inventoryService.selectedItem.set({
+      ...artikel,
+      status: 'sold',
+      sale_state: 'legacy_sold_unverified',
+    });
+    const legacyActions = komponente as unknown as { openLegacySaleReconciliation(): void };
+
+    legacyActions.openLegacySaleReconciliation();
+
+    expect(navigate).toHaveBeenCalledWith(['/sales'], {
+      state: {
+        legacyReconciliation: {
+          kind: 'legacy_sold_unverified',
+          inventoryItemId: artikel.id,
+        },
+        saleTarget: {
+          kind: 'inventory_item',
+          inventoryItemId: artikel.id,
+          title: artikel.title,
+        },
+      },
+    });
+  });
+
+  it.each([
+    ['sold', 'sold'],
+    ['legacy sold', 'legacy_sold_unverified'],
+    ['header without line', 'legacy_sale_header_without_line'],
+    ['status conflict', 'sale_status_conflict'],
+    ['multiple sales', 'multiple_active_sales'],
+  ] as const)('blockiert direkte Mutationshandler für %s', async (_label, saleState) => {
+    const { komponente, inventoryService, dialog, navigate, toast } = erstelleKomponente();
+    inventoryService.selectedItem.set({
+      ...artikel,
+      status: 'sold',
+      sale_state: saleState,
+    });
+
+    await komponente.onChangeStatus('ready');
+    await komponente.onTogglePublicStore(true);
+    await komponente.onDeleteItem();
+
+    expect(inventoryService.updateItemStatus).not.toHaveBeenCalled();
+    expect(inventoryService.updateItem).not.toHaveBeenCalled();
+    expect(inventoryService.deleteItem).not.toHaveBeenCalled();
+    expect(dialog.frage).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(toast.toasts()).toEqual([]);
+  });
   it('meldet einen erfolgreichen Medien-Upload', async () => {
     const { komponente, toast } = erstelleKomponente();
 

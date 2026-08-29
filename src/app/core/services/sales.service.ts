@@ -6,30 +6,11 @@ import { InventoryService } from './inventory.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { WebhookService } from './webhook.service';
 import { SyncStatusService } from './sync-status.service';
-import {
-  Sale,
-  ItemStatus,
-  SaleLine,
-  SaleLineLotAllocation,
-  StockMovement,
-} from '../models/flipbase.models';
+import { Sale, SaleLine, SaleLineLotAllocation, StockMovement } from '../models/flipbase.models';
 import { MutationResult } from './catalog.service';
 import { StockService } from './stock.service';
 import { ReturnRecord } from '../models/return.models';
-
-const STORAGE_KEY_PENDING_FOLLOW_UPS = 'flipbase_pending_sale_follow_ups';
-const ITEM_STATUSES = new Set<string>([
-  'received',
-  'needs_review',
-  'researched',
-  'ready',
-  'listed',
-  'reserved',
-  'sold',
-  'returned',
-  'archived',
-  'defective',
-]);
+import { createLocalDemoId } from '../utils/client-identity';
 
 export interface CreateSalePayload {
   inventory_item_id: string;
@@ -73,6 +54,18 @@ export interface RecordSaleResult {
   readonly stockMovements: readonly StockMovement[];
 }
 
+interface LegacySaleRpcClient {
+  rpc(
+    name: 'record_legacy_inventory_sale',
+    parameters: {
+      p_workspace_id: string;
+      p_inventory_item_id: string;
+      p_sale: Record<string, unknown>;
+      p_reason: string;
+    },
+  ): PromiseLike<{ data: Record<string, unknown> | null; error: Error | null }>;
+}
+
 export interface RecordReturnInput {
   readonly saleId: string;
   readonly refundAmount: number;
@@ -94,26 +87,7 @@ export interface SaleMutationResult {
   readonly data: Sale | null;
   readonly error: Error | null;
   readonly status: 'success' | 'partial' | 'error';
-  readonly problems: readonly SaleFollowUpProblem[];
-}
-
-export type SaleFollowUpKind = 'inventory_status' | 'sale_return_status';
-
-export interface SaleFollowUpProblem {
-  readonly kind: SaleFollowUpKind;
-  readonly error: Error;
-  readonly reportedBySyncStatus: boolean;
-}
-
-interface PendingFollowUp {
-  readonly key: string;
-  readonly workspaceId: string;
-  readonly kind: SaleFollowUpKind;
-  readonly inventoryItemId?: string;
-  readonly targetStatus?: ItemStatus;
-  readonly notes?: string;
-  readonly saleId?: string;
-  readonly refundAmount?: number;
+  readonly problems: readonly [];
 }
 
 @Injectable({
@@ -127,11 +101,14 @@ export class SalesService {
   private readonly inventoryService = inject(InventoryService);
   private readonly mockStore = inject(MockDataStoreService);
   private readonly webhookService = inject(WebhookService);
+
+  private get legacySaleClient(): LegacySaleRpcClient {
+    return this.supabase.client as unknown as LegacySaleRpcClient;
+  }
   private readonly stockService = inject(StockService);
 
   readonly sales = signal<Sale[]>([]);
   readonly isLoading = signal<boolean>(false);
-  readonly pendingFollowUps = signal<PendingFollowUp[]>(this.loadPendingFollowUps());
 
   constructor() {
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
@@ -190,7 +167,6 @@ export class SalesService {
         const enriched = (data as unknown[]).map((sale) => this.mapLoadedSale(sale));
         this.sales.set(enriched);
       }
-      await this.retryPendingFollowUps(workspaceId);
     } catch (err) {
       this.syncStatus.melde('Laden der Verkäufe', err);
       this.sales.set([]);
@@ -311,7 +287,6 @@ export class SalesService {
         result.sale,
         ...sales.filter((sale) => sale.id !== result.sale.id),
       ]);
-      this.mockStore.saveSale(result.sale);
       await this.refreshAffectedState(workspaceId);
       return { data: result, error: null, reportedBySyncStatus: false };
     }
@@ -356,6 +331,63 @@ export class SalesService {
     }
   }
 
+  async recordLegacySale(
+    inventoryItemId: string,
+    input: RecordSaleInput,
+    reason: string,
+  ): Promise<MutationResult<RecordSaleResult>> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    const line = input.lines[0];
+    if (
+      !workspaceId ||
+      !reason.trim() ||
+      input.lines.length !== 1 ||
+      line?.inventoryItemId !== inventoryItemId ||
+      line.quantity !== 1
+    ) {
+      return this.mutationFailure(
+        'Legacy-Verkauf nachtragen',
+        new Error('Der Legacy-Verkaufsnachtrag ist ungültig.'),
+      );
+    }
+
+    try {
+      const { data, error } = await this.legacySaleClient.rpc('record_legacy_inventory_sale', {
+        p_workspace_id: workspaceId,
+        p_inventory_item_id: inventoryItemId,
+        p_sale: {
+          platform: input.platform,
+          sale_date: input.saleDate,
+          unit_sale_price: line.unitSalePrice,
+          platform_fee: input.platformFee ?? 0,
+          shipping_cost: input.shippingCost ?? 0,
+          packaging_cost: input.packagingCost ?? 0,
+          other_costs: input.otherCosts ?? 0,
+          external_order_id: input.externalOrderId ?? null,
+          external_listing_id: input.externalListingId ?? null,
+          buyer_notes: input.buyerNotes ?? null,
+          title_snapshot: line.titleSnapshot ?? null,
+        },
+        p_reason: reason.trim(),
+      });
+      if (error || !data) {
+        return this.mutationFailure(
+          'Legacy-Verkauf nachtragen',
+          error ?? new Error('Der Verkauf wurde nicht zurückgegeben.'),
+        );
+      }
+      const result = this.mapRecordSaleResult(data);
+      this.sales.update((sales) => [
+        result.sale,
+        ...sales.filter((sale) => sale.id !== result.sale.id),
+      ]);
+      await this.refreshAffectedState(workspaceId);
+      return { data: result, error: null, reportedBySyncStatus: false };
+    } catch (error: unknown) {
+      return this.mutationFailure('Legacy-Verkauf nachtragen', error);
+    }
+  }
+
   /** Bucht eine Retoure mit optionaler Wiedereinlagerung atomar. */
   async recordReturn(input: RecordReturnInput): Promise<MutationResult<RecordReturnResult>> {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
@@ -381,30 +413,33 @@ export class SalesService {
         Number(existing.refund_amount ?? 0) + input.refundAmount,
       );
       const isFullRefund = totalRefund >= saleTotal;
-      const returnResult = isFullRefund
-        ? this.mockStore.returnQuantitySale(workspaceId, existing, input.restock)
-        : { movements: [] as StockMovement[], error: null };
-      if (returnResult.error) return this.mutationFailure('Retoure buchen', returnResult.error);
       const saleReturnedAt = isFullRefund ? new Date().toISOString() : null;
-      const sale = this.enrichSaleMetrics({
+      const saleDraft: Sale = {
         ...existing,
         returned_at: saleReturnedAt,
         refund_amount: totalRefund,
+      };
+      const returnResult = isFullRefund
+        ? this.mockStore.returnSaleAtomically(workspaceId, saleDraft, input.restock)
+        : { sale: saleDraft, movements: [] as StockMovement[], restockedQuantity: 0, error: null };
+      if (returnResult.error || !returnResult.sale) {
+        return this.mutationFailure(
+          'Retoure buchen',
+          returnResult.error ?? new Error('Die Demo-Retoure wurde nicht gespeichert.'),
+        );
+      }
+      const sale = this.enrichSaleMetrics({
+        ...returnResult.sale,
         stock_movements: returnResult.movements,
       });
+      if (!isFullRefund) this.mockStore.saveSale(sale);
       this.sales.update((sales) => sales.map((entry) => (entry.id === sale.id ? sale : entry)));
-      this.mockStore.saveSale(sale);
       await this.refreshAffectedState(workspaceId);
       return {
         data: {
           sale,
           returnRecord: undefined,
-          restockedQuantity:
-            isFullRefund && input.restock
-              ? returnResult.movements
-                  .filter((movement) => movement.direction === 'in' && movement.reason === 'return')
-                  .reduce((sum, movement) => sum + movement.quantity, 0)
-              : 0,
+          restockedQuantity: returnResult.restockedQuantity,
           saleReturnedAt,
         },
         error: null,
@@ -470,9 +505,9 @@ export class SalesService {
   }
 
   private recordDemoSale(workspaceId: string, input: RecordSaleInput): RecordSaleResult {
-    const saleId = `sale-${Date.now()}`;
-    const lines: SaleLine[] = input.lines.map((line, index) => ({
-      id: `sale-line-${Date.now()}-${index}`,
+    const saleId = createLocalDemoId('sale');
+    const lines: SaleLine[] = input.lines.map((line) => ({
+      id: createLocalDemoId('sale-line'),
       sale_id: saleId,
       catalog_product_id: line.catalogProductId ?? null,
       inventory_item_id: line.inventoryItemId ?? null,
@@ -483,10 +518,8 @@ export class SalesService {
       cost_of_goods_sold: 0,
       tax_mode: 'diff_25a',
     }));
-    const booking = this.mockStore.bookQuantitySale(workspaceId, lines);
-    if (booking.error) throw booking.error;
-    const total = booking.saleLines.reduce((sum, line) => sum + line.line_total, 0);
-    const sale = this.enrichSaleMetrics({
+    const total = lines.reduce((sum, line) => sum + line.line_total, 0);
+    const saleDraft: Sale = {
       id: saleId,
       workspace_id: workspaceId,
       platform: input.platform,
@@ -500,11 +533,12 @@ export class SalesService {
       external_order_id: input.externalOrderId ?? null,
       external_listing_id: input.externalListingId ?? null,
       buyer_notes: input.buyerNotes ?? null,
-      lines: booking.saleLines,
-      has_persisted_lines: true,
-      lot_allocations: booking.allocations,
-      stock_movements: booking.movements,
-    });
+      lines,
+    };
+    const booking = this.mockStore.bookSaleAtomically(workspaceId, saleDraft, lines);
+    if (booking.error) throw booking.error;
+    if (!booking.sale) throw new Error('Der Demo-Verkauf wurde nicht gespeichert.');
+    const sale = this.enrichSaleMetrics(booking.sale);
     return {
       sale,
       saleLines: booking.saleLines,
@@ -584,393 +618,42 @@ export class SalesService {
     };
   }
 
-  /**
-   * Aendert einen gebuchten Verkauf.
-   *
-   * Bisher liess sich ein Verkauf nur anlegen oder stornieren. Ein falsch
-   * getippter Verkaufspreis oder eine nachtraeglich bekannte Plattformgebuehr
-   * bedeutete: stornieren, den Artikel wieder auf verkaufsbereit setzen und
-   * alles neu erfassen - inklusive verfaelschter Auswertung dazwischen.
-   *
-   * Der zugeordnete Artikel bleibt unberuehrt; nur die Zahlen des Verkaufs
-   * aendern sich. Gewinn und ROI werden neu berechnet.
-   */
+  /** Gebuchte Verkäufe bleiben bis zu einem dokumentierten Korrekturvorgang unverändert. */
   async updateSale(
     saleId: string,
     updates: Partial<CreateSalePayload>,
   ): Promise<SaleMutationResult> {
-    const vorhandener = this.sales().find((s) => s.id === saleId);
-    if (!vorhandener)
+    void updates;
+    if (!this.sales().some((sale) => sale.id === saleId)) {
       return {
         data: null,
         error: new Error('Verkauf nicht gefunden'),
         status: 'error',
         problems: [],
       };
-
-    const persistedLineTotal = (vorhandener.lines ?? []).reduce(
-      (sum, line) => sum + Number(line.line_total || 0),
-      0,
-    );
-    if (
-      vorhandener.has_persisted_lines &&
-      updates.sale_price !== undefined &&
-      Math.abs(updates.sale_price - persistedLineTotal) > 0.001
-    ) {
-      return {
-        data: null,
-        error: new Error(
-          'Der Preis gebuchter Verkaufspositionen kann nicht nachträglich geändert werden.',
-        ),
-        status: 'error',
-        problems: [],
-      };
     }
 
-    const geaendert = this.enrichSaleMetrics({ ...vorhandener, ...updates });
-
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { data, error } = await this.supabase.client
-          .from('sales')
-          .update({
-            platform: updates.platform,
-            sale_price: updates.sale_price,
-            sale_price_total: updates.sale_price,
-            sale_date: updates.sale_date,
-            platform_fee: updates.platform_fee,
-            shipping_cost: updates.shipping_cost,
-            packaging_cost: updates.packaging_cost,
-            other_costs: updates.other_costs,
-            external_order_id: updates.external_order_id?.trim() || null,
-            buyer_notes: updates.buyer_notes?.trim() || null,
-          })
-          .eq('id', saleId)
-          .select('id')
-          .maybeSingle();
-
-        if (error || !data) {
-          return {
-            data: null,
-            error: this.syncStatus.melde(
-              'Aendern des Verkaufs',
-              error ?? new Error('Der Verkauf wurde nicht gefunden.'),
-            ),
-            status: 'error',
-            problems: [],
-          };
-        }
-      } catch (e: unknown) {
-        return {
-          data: null,
-          error: this.syncStatus.melde('Aendern des Verkaufs', e),
-          status: 'error',
-          problems: [],
-        };
-      }
-    }
-
-    this.sales.update((liste) => liste.map((s) => (s.id === saleId ? geaendert : s)));
-    this.mockStore.saveSale(geaendert);
-    return { data: geaendert, error: null, status: 'success', problems: [] };
+    return {
+      data: null,
+      error: new Error(
+        'Gebuchte Verkäufe können nicht frei geändert werden. Erfassungsfehler benötigen einen dokumentierten Korrekturvorgang.',
+      ),
+      status: 'error',
+      problems: [],
+    };
   }
 
-  /**
-   * Vermerkt am Verkauf, dass er zurueckgegeben wurde.
-   *
-   * Ohne diesen Vermerk zaehlte ein zurueckgegebener Verkauf weiter mit vollem
-   * Gewinn, waehrend der Artikel gleichzeitig wieder im Lager stand - derselbe
-   * Gegenstand also doppelt. Die Erstattung minderte nichts.
-   */
+  /** @deprecated Retouren werden ausschließlich mit recordReturn atomar gebucht. */
   async markiereAlsRetourniert(
     saleId: string,
     erstattet: number,
   ): Promise<{ error: Error | null }> {
-    const zeitpunkt = new Date().toISOString();
-
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { data, error } = await this.supabase.client
-          .from('sales')
-          .update({ returned_at: zeitpunkt, refund_amount: erstattet })
-          .eq('id', saleId)
-          .select('id')
-          .maybeSingle();
-
-        if (error || !data) {
-          return {
-            error: this.syncStatus.melde(
-              'Vermerken der Retoure',
-              error ?? new Error('Der Verkauf wurde nicht gefunden.'),
-            ),
-          };
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Vermerken der Retoure', e) };
-      }
-    }
-
-    this.sales.update((liste) =>
-      liste.map((s) =>
-        s.id === saleId
-          ? this.enrichSaleMetrics({ ...s, returned_at: zeitpunkt, refund_amount: erstattet })
-          : s,
+    void saleId;
+    void erstattet;
+    return {
+      error: new Error(
+        'Direkte Retourenvermerke sind gesperrt. Verwende den atomaren Retourenpfad „Retoure erfassen“.',
       ),
-    );
-    const geaendert = this.sales().find((s) => s.id === saleId);
-    if (geaendert) this.mockStore.saveSale(geaendert);
-    return { error: null };
-  }
-
-  async deleteSale(saleId: string, inventoryItemId?: string | null): Promise<SaleMutationResult> {
-    if (!inventoryItemId) {
-      return {
-        data: null,
-        error: new Error('Mengenverkäufe müssen über den atomaren Retourenpfad gebucht werden.'),
-        status: 'error',
-        problems: [],
-      };
-    }
-    const workspaceId = this.workspaceService.currentWorkspace()?.id ?? '';
-    if (!this.mockStore.isDemoMode()) {
-      try {
-        const { data, error } = await this.supabase.client
-          .from('sales')
-          .delete()
-          .eq('id', saleId)
-          .eq('workspace_id', workspaceId)
-          .select('id')
-          .maybeSingle();
-        if (error || !data) {
-          return {
-            data: null,
-            error: this.syncStatus.melde(
-              'Löschen des Verkaufs',
-              error ?? new Error('Der Verkauf wurde nicht gefunden.'),
-            ),
-            status: 'error',
-            problems: [],
-          };
-        }
-      } catch (e: unknown) {
-        return {
-          data: null,
-          error: this.syncStatus.melde('Löschen des Verkaufs', e),
-          status: 'error',
-          problems: [],
-        };
-      }
-    }
-
-    try {
-      const { error } = await this.inventoryService.updateItemStatus(
-        inventoryItemId,
-        'ready',
-        'Verkauf storniert/gelöscht',
-      );
-      if (error) {
-        const problem = this.erstelleProblem('inventory_status', error);
-        this.uebernehmeLoeschungLokal(saleId);
-        this.planeArtikelstatusNachholung(
-          workspaceId,
-          inventoryItemId,
-          'ready',
-          'Verkauf storniert/gelöscht',
-        );
-        return { data: null, error, status: 'partial', problems: [problem] };
-      }
-    } catch (e: unknown) {
-      const error = this.syncStatus.melde('Aktualisieren des Artikelstatus', e);
-      const problem = this.erstelleProblem('inventory_status', error);
-      this.uebernehmeLoeschungLokal(saleId);
-      this.planeArtikelstatusNachholung(
-        workspaceId,
-        inventoryItemId,
-        'ready',
-        'Verkauf storniert/gelöscht',
-      );
-      return {
-        data: null,
-        error,
-        status: 'partial',
-        problems: [problem],
-      };
-    }
-
-    this.uebernehmeLoeschungLokal(saleId);
-    return { data: null, error: null, status: 'success', problems: [] };
-  }
-
-  planeArtikelstatusNachholung(
-    workspaceId: string,
-    inventoryItemId: string,
-    targetStatus: ItemStatus,
-    notes: string,
-  ): void {
-    this.merkeNachschritt({
-      key: `inventory_status:${inventoryItemId}`,
-      workspaceId,
-      kind: 'inventory_status',
-      inventoryItemId,
-      targetStatus,
-      notes,
-    });
-  }
-
-  planeRetourenvermerkNachholung(workspaceId: string, saleId: string, refundAmount: number): void {
-    this.merkeNachschritt({
-      key: `sale_return_status:${saleId}`,
-      workspaceId,
-      kind: 'sale_return_status',
-      saleId,
-      refundAmount,
-    });
-  }
-
-  async retryPendingFollowUps(workspaceId?: string): Promise<void> {
-    const pending = this.pendingFollowUps().filter(
-      (followUp) => workspaceId === undefined || followUp.workspaceId === workspaceId,
-    );
-    for (const followUp of pending) {
-      const error = await this.fuehreNachschrittAus(followUp);
-      if (!error) this.entferneNachschritt(followUp.key);
-    }
-  }
-
-  private async fuehreNachschrittAus(followUp: PendingFollowUp): Promise<Error | null> {
-    if (followUp.kind === 'inventory_status') {
-      if (!followUp.inventoryItemId || !followUp.targetStatus)
-        return new Error('Ungültiger Nachschritt.');
-      const result = await this.inventoryService.updateItemStatus(
-        followUp.inventoryItemId,
-        followUp.targetStatus,
-        followUp.notes,
-      );
-      return result.error;
-    }
-    if (!followUp.saleId || followUp.refundAmount === undefined)
-      return new Error('Ungültiger Nachschritt.');
-    return (await this.markiereAlsRetourniert(followUp.saleId, followUp.refundAmount)).error;
-  }
-
-  private erstelleProblem(kind: SaleFollowUpKind, error: Error): SaleFollowUpProblem {
-    return { kind, error, reportedBySyncStatus: this.syncStatus.istZentralGemeldet(error) };
-  }
-
-  private problemsFuerArtikel(workspaceId: string, inventoryItemId: string): SaleFollowUpProblem[] {
-    return this.pendingFollowUps()
-      .filter(
-        (followUp) =>
-          followUp.workspaceId === workspaceId &&
-          followUp.kind === 'inventory_status' &&
-          followUp.inventoryItemId === inventoryItemId,
-      )
-      .map(() => ({
-        kind: 'inventory_status',
-        error: new Error('Der Artikelstatus wird automatisch nachgeholt.'),
-        reportedBySyncStatus: false,
-      }));
-  }
-
-  private uebernehmeVerkaufLokal(sale: Sale): void {
-    this.mockStore.saveSale(sale);
-    this.sales.update((list) => [sale, ...list.filter((eintrag) => eintrag.id !== sale.id)]);
-  }
-
-  private uebernehmeLoeschungLokal(saleId: string): void {
-    this.mockStore.deleteSale(saleId);
-    this.sales.update((list) => list.filter((sale) => sale.id !== saleId));
-  }
-
-  private merkeNachschritt(followUp: PendingFollowUp): void {
-    this.pendingFollowUps.update((list) => [
-      followUp,
-      ...list.filter((eintrag) => eintrag.key !== followUp.key),
-    ]);
-    this.persistPendingFollowUps();
-  }
-
-  private entferneNachschritt(key: string): void {
-    this.pendingFollowUps.update((list) => list.filter((followUp) => followUp.key !== key));
-    this.persistPendingFollowUps();
-  }
-
-  private loadPendingFollowUps(): PendingFollowUp[] {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY_PENDING_FOLLOW_UPS);
-      if (!stored) return [];
-
-      const parsed: unknown = JSON.parse(stored);
-      if (!Array.isArray(parsed)) {
-        return this.verwerfeBeschaedigteNachschritte(
-          [],
-          new Error('Gespeicherte Nachschritte haben kein gültiges Listenformat.'),
-        );
-      }
-
-      const valide = parsed.filter((eintrag): eintrag is PendingFollowUp =>
-        this.istGueltigerNachschritt(eintrag),
-      );
-      if (valide.length !== parsed.length) {
-        return this.verwerfeBeschaedigteNachschritte(
-          valide,
-          new Error('Mindestens ein gespeicherter Nachschritt ist unvollständig.'),
-        );
-      }
-      return valide;
-    } catch (error: unknown) {
-      return this.verwerfeBeschaedigteNachschritte(
-        [],
-        error instanceof Error ? error : new Error('Gespeicherte Nachschritte sind beschädigt.'),
-      );
-    }
-  }
-
-  private verwerfeBeschaedigteNachschritte(
-    valide: PendingFollowUp[],
-    error: Error,
-  ): PendingFollowUp[] {
-    this.syncStatus.melde('Laden ausstehender Nachschritte', error);
-    try {
-      localStorage.setItem(STORAGE_KEY_PENDING_FOLLOW_UPS, JSON.stringify(valide));
-    } catch {}
-    return valide;
-  }
-
-  private istGueltigerNachschritt(value: unknown): value is PendingFollowUp {
-    if (
-      !this.istObjekt(value) ||
-      typeof value['key'] !== 'string' ||
-      typeof value['workspaceId'] !== 'string'
-    ) {
-      return false;
-    }
-    if (value['kind'] === 'inventory_status') {
-      return (
-        typeof value['inventoryItemId'] === 'string' &&
-        this.istArtikelstatus(value['targetStatus']) &&
-        typeof value['notes'] === 'string'
-      );
-    }
-    return (
-      value['kind'] === 'sale_return_status' &&
-      typeof value['saleId'] === 'string' &&
-      typeof value['refundAmount'] === 'number' &&
-      Number.isFinite(value['refundAmount'])
-    );
-  }
-
-  private istObjekt(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null;
-  }
-
-  private istArtikelstatus(value: unknown): value is ItemStatus {
-    return typeof value === 'string' && ITEM_STATUSES.has(value);
-  }
-
-  private persistPendingFollowUps(): void {
-    try {
-      localStorage.setItem(STORAGE_KEY_PENDING_FOLLOW_UPS, JSON.stringify(this.pendingFollowUps()));
-    } catch {}
+    };
   }
 }

@@ -181,6 +181,7 @@ describe('PurchaseLineEditorComponent', () => {
     editor.addQuantityLine();
 
     const row = editor.lineRows.at(0);
+    expect(row.controls.orderedQuantity.value).toBe(1);
     row.patchValue({ orderedQuantity: 5, unitPurchasePrice: 4.99 });
     editor.recalculate(0, 'unitPurchasePrice');
 

@@ -45,6 +45,7 @@ import {
 } from '../../core/services/listing-studio.service';
 import { InventoryService } from '../../core/services/inventory.service';
 import { InventoryItem } from '../../core/models/flipbase.models';
+import { isSellableInventoryItem } from '../../core/models/inventory-sellability';
 
 import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 import {
@@ -140,9 +141,7 @@ export class ListingsComponent {
   readonly isMarkingListed = signal<boolean>(false);
 
   readonly availableItems = computed<InventoryItem[]>(() => {
-    return this.inventoryService
-      .items()
-      .filter((i) => i.status !== 'sold' && i.status !== 'returned' && i.status !== 'archived');
+    return this.inventoryService.items().filter(isSellableInventoryItem);
   });
 
   readonly selectedItem = computed<InventoryItem | null>(() => {

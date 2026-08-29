@@ -1,10 +1,20 @@
 import '@angular/compiler';
-import { signal } from '@angular/core';
+import { provideZonelessChangeDetection, signal } from '@angular/core';
+import { Router } from '@angular/router';
+import { TestBed } from '@angular/core/testing';
+import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { InventoryItem, ItemStatus } from '../../core/models/flipbase.models';
+import { InventoryService } from '../../core/services/inventory.service';
+import { StockService } from '../../core/services/stock.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
+import { WorkspaceService } from '../../core/services/workspace.service';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { InventoryComponent } from './inventory.component';
+
+TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 
 const artikel: InventoryItem = {
   id: '22222222-2222-4222-8222-222222222222',
@@ -40,6 +50,76 @@ function klickEvent(): Event {
 }
 
 describe('InventoryComponent – Aktionsmeldungen', () => {
+  it('verwendet eine gemeinsame Ansicht ohne Bestand- und Einzelstück-Tabs', () => {
+    const template = readFileSync('src/app/features/inventory/inventory.component.html', 'utf8');
+
+    expect(template).not.toContain('role="tablist"');
+    expect(template).not.toContain('activeTab');
+    expect(template).toContain('[individualItems]="filteredItems()"');
+    expect(template).toContain('[positions]="filteredStockPositions()"');
+    expect(template).toContain('Altdaten prüfen');
+  });
+
+  it('zählt im gefilterten Bestand nur zentral verkaufbare Einzelstücke', () => {
+    const items = signal<InventoryItem[]>([
+      { ...artikel, id: 'ready', status: 'ready', sale_state: 'no_active_sale' },
+      { ...artikel, id: 'listed', status: 'listed', sale_state: 'no_active_sale' },
+      { ...artikel, id: 'sold', status: 'sold', sale_state: 'sold' },
+      { ...artikel, id: 'legacy', status: 'sold', sale_state: 'legacy_sold_unverified' },
+      {
+        ...artikel,
+        id: 'header-without-line',
+        status: 'sold',
+        sale_state: 'legacy_sale_header_without_line',
+      },
+      {
+        ...artikel,
+        id: 'multiple-sales',
+        status: 'sold',
+        sale_state: 'multiple_active_sales',
+      },
+      {
+        ...artikel,
+        id: 'status-conflict',
+        status: 'ready',
+        sale_state: 'sale_status_conflict',
+      },
+    ]);
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: InventoryService, useValue: { items } },
+        {
+          provide: StockService,
+          useValue: {
+            positions: signal([
+              {
+                catalog_product_id: 'catalog-1',
+                title: 'Mengenartikel',
+                available_quantity: 5,
+                reserved_quantity: 0,
+                on_hand_quantity: 5,
+                oldest_available_unit_cost: 2,
+                is_public_store: false,
+              },
+            ]),
+            loadPositions: vi.fn(),
+          },
+        },
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        { provide: ConfirmDialogService, useValue: { frage: vi.fn() } },
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal(null) } },
+        { provide: SyncStatusService, useValue: new SyncStatusService() },
+        { provide: ToastService, useValue: new ToastService() },
+      ],
+    });
+
+    const komponente = TestBed.runInInjectionContext(() => new InventoryComponent());
+
+    expect(komponente.filteredUnitCount()).toBe(7);
+  });
+
   it('bestätigt einen erfolgreichen Statuswechsel', async () => {
     const { komponente, toast } = erstelleKomponente({ error: null });
 
@@ -123,6 +203,53 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
       title: 'Artikelstatus konnte nicht geändert werden.',
       description: zentralerFehler.message,
       persistent: true,
+    });
+  });
+
+  it('bestätigt die Rücknahme eines ungeklärten Altartikels und verlangt einen Grund', async () => {
+    const { komponente, inventoryService, toast } = erstelleKomponente({ error: null });
+    const resolveLegacySoldItem = vi.fn(async () => ({ error: null }));
+    Object.assign(inventoryService, { resolveLegacySoldItem });
+    Object.assign(komponente, { dialog: { frage: vi.fn(async () => true) } });
+    const legacy = {
+      ...artikel,
+      status: 'sold' as const,
+      sale_state: 'legacy_sold_unverified' as const,
+    };
+
+    await komponente.onRestoreLegacyItem({ item: legacy, reason: 'Historischer Verkauf fehlt' });
+
+    expect(resolveLegacySoldItem).toHaveBeenCalledWith(legacy.id, 'Historischer Verkauf fehlt');
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'success',
+      title: 'Artikel wurde wieder in den Bestand aufgenommen.',
+    });
+  });
+
+  it('kennzeichnet Verkauf nachtragen ausdrücklich als Legacy-Abgleich im Route-State', async () => {
+    const navigate = vi.fn(async () => true);
+    const komponente = Object.create(InventoryComponent.prototype) as InventoryComponent;
+    Object.assign(komponente, { router: { navigate } });
+    const legacy = {
+      ...artikel,
+      status: 'sold' as const,
+      sale_state: 'legacy_sold_unverified' as const,
+    };
+
+    komponente.openLegacySaleReconciliation(legacy);
+
+    expect(navigate).toHaveBeenCalledWith(['/sales'], {
+      state: {
+        legacyReconciliation: {
+          kind: 'legacy_sold_unverified',
+          inventoryItemId: artikel.id,
+        },
+        saleTarget: {
+          kind: 'inventory_item',
+          inventoryItemId: legacy.id,
+          title: legacy.title,
+        },
+      },
     });
   });
 });

@@ -5,6 +5,7 @@ import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { InventoryItem } from '../models/flipbase.models';
+import { isSellableInventoryItem } from '../models/inventory-sellability';
 import { Json, Tables } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
@@ -121,13 +122,7 @@ export class StoreService {
       ];
     });
     const individualItems = (this.inventoryService?.items() ?? [])
-      .filter(
-        (item) =>
-          item.is_public_store &&
-          item.status !== 'sold' &&
-          item.status !== 'returned' &&
-          item.status !== 'archived',
-      )
+      .filter((item) => item.is_public_store && isSellableInventoryItem(item))
       .map((item) => this.toSellableItem(item));
     return [...quantityProducts, ...individualItems];
   });

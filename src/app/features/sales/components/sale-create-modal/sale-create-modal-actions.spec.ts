@@ -4,7 +4,13 @@ import { TestBed } from '@angular/core/testing';
 import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { describe, expect, it, vi } from 'vitest';
-import { InventoryItem, Sale, StockPosition } from '../../../../core/models/flipbase.models';
+import {
+  InventoryItem,
+  InventoryItemSaleState,
+  ItemStatus,
+  Sale,
+  StockPosition,
+} from '../../../../core/models/flipbase.models';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
 import { SalesService } from '../../../../core/services/sales.service';
@@ -58,6 +64,7 @@ function erstelleKomponente(bestehenderVerkauf: Sale | null = null) {
         error: null,
       }),
     ),
+    recordLegacySale: vi.fn(async () => ({ data: { sale: verkauf }, error: null })),
     updateSale: vi.fn(async () => ({ data: verkauf, error: null })),
   };
   const komponente = Object.create(SaleCreateModalComponent.prototype) as SaleCreateModalComponent;
@@ -69,6 +76,7 @@ function erstelleKomponente(bestehenderVerkauf: Sale | null = null) {
     toast,
     syncStatus,
     sale: signal(bestehenderVerkauf),
+    legacyReconciliation: signal(null),
     isSubmitting: signal(false),
     isPersisted: signal(false),
     errorMessage: signal<string | null>(null),
@@ -101,6 +109,7 @@ function erstelleKomponente(bestehenderVerkauf: Sale | null = null) {
       otherCosts: new FormControl(0, { nonNullable: true }),
       externalOrderId: new FormControl('', { nonNullable: true }),
       buyerNotes: new FormControl('', { nonNullable: true }),
+      reconciliationReason: new FormControl('', { nonNullable: true }),
     }),
   });
   Object.assign(komponente, { lines: komponente.form.controls.lines });
@@ -113,6 +122,62 @@ function erstelleKomponente(bestehenderVerkauf: Sale | null = null) {
 }
 
 describe('SaleCreateModalComponent – Aktionsmeldungen', () => {
+  it('bietet exakt ready oder listed ohne aktiven Verkauf an und behandelt fehlenden Zustand fail-closed', () => {
+    TestBed.resetTestingModule();
+    const statuses: readonly ItemStatus[] = [
+      'received',
+      'needs_review',
+      'researched',
+      'ready',
+      'listed',
+      'reserved',
+      'sold',
+      'defective',
+      'returned',
+      'archived',
+    ];
+    const saleStates: readonly (InventoryItemSaleState | undefined)[] = [
+      'no_active_sale',
+      'sold',
+      'legacy_sold_unverified',
+      'legacy_sale_header_without_line',
+      'sale_status_conflict',
+      'multiple_active_sales',
+      undefined,
+    ];
+    const items = statuses.flatMap((status) =>
+      saleStates.map((saleState) => ({
+        ...artikel,
+        id: `${status}-${saleState ?? 'missing'}`,
+        status,
+        sale_state: saleState,
+      })),
+    );
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
+        { provide: InventoryService, useValue: { items: signal(items) } },
+        { provide: StockService, useValue: { positions: signal([]) } },
+        {
+          provide: ProfitEngineService,
+          useValue: { calculateProfit: vi.fn(() => 0), calculateRoi: vi.fn(() => 0) },
+        },
+        { provide: ToastService, useValue: new ToastService() },
+        { provide: SyncStatusService, useValue: new SyncStatusService() },
+      ],
+    });
+    const component = TestBed.runInInjectionContext(() => new SaleCreateModalComponent());
+
+    try {
+      expect(component.availableItems().map(({ id }) => id)).toEqual([
+        'ready-no_active_sale',
+        'listed-no_active_sale',
+      ]);
+    } finally {
+      TestBed.resetTestingModule();
+    }
+  });
+
   it('aktualisiert Gesamtpreis, Live-Kennzahlen und Legacy-Payload bei Formänderungen', () => {
     TestBed.configureTestingModule({
       providers: [
@@ -169,6 +234,31 @@ describe('SaleCreateModalComponent – Aktionsmeldungen', () => {
     expect(payload.saleDate).toBe('2026-08-26');
     expect(created.emit).toHaveBeenCalledOnce();
     expect(closed.emit).toHaveBeenCalledOnce();
+  });
+
+  it('verwendet für ungeklärten Altbestand ausschließlich den protokollierten Legacy-Adapter', async () => {
+    const { komponente, salesService } = erstelleKomponente();
+    Object.assign(komponente, {
+      legacyReconciliation: signal({
+        kind: 'legacy_sold_unverified',
+        inventoryItemId: artikel.id,
+      }),
+    });
+    komponente.lines.at(0).controls.target.setValue(`inventory:${artikel.id}`);
+    komponente.lines.at(0).controls.quantity.setValue(1);
+    komponente.lines.at(0).controls.unitSalePrice.setValue(50);
+    komponente.form.controls.reconciliationReason.setValue('Beleg im Papierarchiv geprüft');
+
+    await komponente.onSubmit();
+
+    expect(salesService.recordLegacySale).toHaveBeenCalledWith(
+      artikel.id,
+      expect.objectContaining({
+        lines: [expect.objectContaining({ inventoryItemId: artikel.id })],
+      }),
+      'Beleg im Papierarchiv geprüft',
+    );
+    expect(salesService.recordSale).not.toHaveBeenCalled();
   });
 
   it('behält den Dialog bei einem lokalen Speicherfehler offen und meldet ihn persistent', async () => {

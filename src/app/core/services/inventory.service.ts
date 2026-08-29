@@ -11,7 +11,11 @@ import {
   ItemStatus,
   ItemCondition,
   ActivityLog,
+  InventoryItemSaleState,
+  Sale,
 } from '../models/flipbase.models';
+import type { TablesUpdate } from '../models/supabase.types';
+import { isInventoryItemMutationLocked } from '../models/inventory-sellability';
 
 export interface CreateItemPayload {
   purchase_id?: string | null;
@@ -47,6 +51,42 @@ interface ActivityLogResult {
   readonly reportedBySyncStatus: boolean;
 }
 
+interface InventorySaleStateRow {
+  readonly inventory_item_id: string;
+  readonly workspace_id: string;
+  readonly sale_state: InventoryItemSaleState;
+  readonly active_sale_count: number;
+  readonly active_sale_id: string | null;
+}
+
+interface QueryError {
+  readonly code?: string;
+  readonly message: string;
+}
+
+interface InventoryIntegrityClient {
+  from(table: 'inventory_item_sale_states'): {
+    select(columns: string): {
+      eq(
+        column: string,
+        value: string,
+      ): PromiseLike<{ data: InventorySaleStateRow[] | null; error: QueryError | null }>;
+    };
+  };
+  rpc(
+    name: 'resolve_legacy_sold_item',
+    parameters: {
+      p_workspace_id: string;
+      p_inventory_item_id: string;
+      p_action: 'restore_stock';
+      p_reason: string;
+    },
+  ): PromiseLike<{
+    data: { inventory_item: InventoryItem } | null;
+    error: QueryError | null;
+  }>;
+}
+
 /**
  * Vorlaeufige Kennung fuer einen neuen Artikel.
  *
@@ -71,11 +111,31 @@ export class InventoryService {
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly mockStore = inject(MockDataStoreService);
 
+  private get integrityClient(): InventoryIntegrityClient {
+    return this.supabase.client as unknown as InventoryIntegrityClient;
+  }
+
   readonly items = signal<InventoryItem[]>([]);
   readonly selectedItem = signal<InventoryItem | null>(null);
   readonly itemCosts = signal<ItemCost[]>([]);
   readonly activityLogs = signal<ActivityLog[]>([]);
   readonly isLoading = signal<boolean>(false);
+
+  private isMutationLocked(itemId: string): boolean {
+    const selected = this.selectedItem();
+    const item =
+      this.items().find((candidate) => candidate.id === itemId) ??
+      (selected?.id === itemId ? selected : null);
+    return !!item && isInventoryItemMutationLocked(item);
+  }
+
+  private lockedMutationResult(): { error: Error } {
+    return {
+      error: new Error(
+        'Verkaufte oder widersprüchliche Inventardaten dürfen nur über einen dokumentierten Korrekturvorgang geändert werden.',
+      ),
+    };
+  }
 
   /**
    * Ob die Artikelliste dieses Arbeitsbereichs vollstaendig geladen ist.
@@ -112,7 +172,10 @@ export class InventoryService {
 
   async loadInventory(workspaceId: string): Promise<void> {
     if (this.mockStore.isDemoMode()) {
-      const localItems = this.mockStore.getItems(workspaceId).map((i) => this.enrichItemTotals(i));
+      const localItems = this.classifyDemoSaleStates(
+        this.mockStore.getItems(workspaceId),
+        this.mockStore.getSales(workspaceId),
+      ).map((i) => this.enrichItemTotals(i));
       this.items.set(localItems);
       this.istGeladen.set(true);
       return;
@@ -137,9 +200,24 @@ export class InventoryService {
         this.syncStatus.melde('Laden des Inventars', error);
         this.items.set([]);
       } else if (data) {
-        const enriched = (data as unknown as InventoryItem[]).map((item) =>
-          this.enrichItemTotals(item),
+        const { data: saleStates, error: saleStateError } = await this.integrityClient
+          .from('inventory_item_sale_states')
+          .select('inventory_item_id, workspace_id, sale_state, active_sale_count, active_sale_id')
+          .eq('workspace_id', workspaceId);
+
+        if (saleStateError) {
+          this.syncStatus.melde('Laden der Inventar-Verkaufszustände', saleStateError);
+          this.items.set([]);
+          return;
+        }
+
+        const statesByItemId = new Map(
+          (saleStates ?? []).map((saleState) => [saleState.inventory_item_id, saleState]),
         );
+        const enriched = (data as unknown as InventoryItem[]).map((item) => {
+          const saleState = statesByItemId.get(item.id);
+          return this.enrichItemTotals(saleState ? this.mergeSaleState(item, saleState) : item);
+        });
         this.items.set(enriched);
         this.istGeladen.set(true);
       }
@@ -152,9 +230,21 @@ export class InventoryService {
   }
 
   async getItemById(itemId: string): Promise<InventoryItem | null> {
-    const existing =
-      this.mockStore.getItems().find((i) => i.id === itemId) ||
-      this.items().find((i) => i.id === itemId);
+    const signalItem = this.items().find((item) => item.id === itemId);
+    let existing: InventoryItem | undefined;
+
+    if (this.mockStore.isDemoMode()) {
+      const rawItem = this.mockStore.getItems().find((item) => item.id === itemId) ?? signalItem;
+      existing =
+        signalItem?.sale_state !== undefined
+          ? signalItem
+          : rawItem
+            ? this.classifyDemoSaleStates([rawItem], this.mockStore.getSales())[0]
+            : undefined;
+    } else if (signalItem?.sale_state !== undefined) {
+      existing = signalItem;
+    }
+
     if (existing) {
       const enriched = this.enrichItemTotals(existing);
       this.selectedItem.set(enriched);
@@ -184,7 +274,32 @@ export class InventoryService {
         return null;
       }
 
-      const item = this.enrichItemTotals(data as unknown as InventoryItem);
+      const { data: saleStates, error: saleStateError } = await this.integrityClient
+        .from('inventory_item_sale_states')
+        .select('inventory_item_id, workspace_id, sale_state, active_sale_count, active_sale_id')
+        .eq('inventory_item_id', itemId);
+
+      if (saleStateError) {
+        this.syncStatus.melde('Laden des Inventar-Verkaufszustands', saleStateError);
+        this.selectedItem.set(null);
+        return null;
+      }
+
+      const rawItem = data as unknown as InventoryItem;
+      const saleState = (saleStates ?? []).find(
+        (state) =>
+          state.inventory_item_id === itemId && state.workspace_id === rawItem.workspace_id,
+      );
+      if (!saleState) {
+        this.syncStatus.melde(
+          'Laden des Inventar-Verkaufszustands',
+          new Error('Für den Artikel wurde kein sicherer Verkaufszustand zurückgegeben.'),
+        );
+        this.selectedItem.set(null);
+        return null;
+      }
+
+      const item = this.enrichItemTotals(this.mergeSaleState(rawItem, saleState));
       this.selectedItem.set(item);
       this.itemCosts.set((data.costs || []) as ItemCost[]);
 
@@ -196,6 +311,15 @@ export class InventoryService {
     } finally {
       this.isLoading.set(false);
     }
+  }
+
+  private mergeSaleState(item: InventoryItem, saleState: InventorySaleStateRow): InventoryItem {
+    return {
+      ...item,
+      sale_state: saleState.sale_state,
+      active_sale_count: saleState.active_sale_count,
+      active_sale_id: saleState.active_sale_id,
+    };
   }
 
   async loadActivityLogs(itemId: string): Promise<void> {
@@ -241,6 +365,104 @@ export class InventoryService {
       total_item_cost: totalCost,
       profit_potential: profitPotential,
     } as InventoryItem;
+  }
+
+  private classifyDemoSaleStates(items: InventoryItem[], sales: Sale[]): InventoryItem[] {
+    const activeSalesByItem = new Map<string, Set<string>>();
+    const legacyHeadersWithoutLine = new Set<string>();
+
+    const addSale = (itemId: string, saleId: string): void => {
+      const saleIds = activeSalesByItem.get(itemId) ?? new Set<string>();
+      saleIds.add(saleId);
+      activeSalesByItem.set(itemId, saleIds);
+    };
+
+    for (const sale of sales) {
+      if (sale.returned_at || sale.voided_at) continue;
+
+      const persistedLines = sale.has_persisted_lines === false ? [] : (sale.lines ?? []);
+      for (const line of persistedLines) {
+        if (line.inventory_item_id) addSale(line.inventory_item_id, sale.id);
+      }
+
+      if (sale.inventory_item_id) {
+        addSale(sale.inventory_item_id, sale.id);
+        const hasMatchingLine = persistedLines.some(
+          (line) => line.inventory_item_id === sale.inventory_item_id,
+        );
+        if (!hasMatchingLine) legacyHeadersWithoutLine.add(sale.inventory_item_id);
+      }
+    }
+
+    return items.map((item) => {
+      const activeSaleIds = [...(activeSalesByItem.get(item.id) ?? [])];
+      const activeSaleCount = activeSaleIds.length;
+      let saleState: InventoryItemSaleState;
+
+      if (activeSaleCount > 1) saleState = 'multiple_active_sales';
+      else if (legacyHeadersWithoutLine.has(item.id)) {
+        saleState = 'legacy_sale_header_without_line';
+      } else if (item.status === 'sold' && activeSaleCount === 0) {
+        saleState = 'legacy_sold_unverified';
+      } else if (item.status !== 'sold' && activeSaleCount > 0) {
+        saleState = 'sale_status_conflict';
+      } else if (activeSaleCount === 1) saleState = 'sold';
+      else saleState = 'no_active_sale';
+
+      return {
+        ...item,
+        sale_state: saleState,
+        active_sale_count: activeSaleCount,
+        active_sale_id: activeSaleCount === 1 ? activeSaleIds[0] : null,
+      };
+    });
+  }
+
+  async resolveLegacySoldItem(itemId: string, reason: string): Promise<{ error: Error | null }> {
+    const workspace = this.workspaceService.currentWorkspace();
+    if (!workspace) return { error: new Error('Kein aktiver Workspace') };
+
+    if (this.mockStore.isDemoMode()) {
+      return { error: new Error('Die Altbestandsklärung benötigt eine Datenbankverbindung.') };
+    }
+
+    try {
+      const { data, error } = await this.integrityClient.rpc('resolve_legacy_sold_item', {
+        p_workspace_id: workspace.id,
+        p_inventory_item_id: itemId,
+        p_action: 'restore_stock',
+        p_reason: reason,
+      });
+
+      if (error || !data?.inventory_item) {
+        return {
+          error: this.syncStatus.melde(
+            'Klärung des historischen Inventarstatus',
+            error ?? new Error('Die Datenbank hat keinen geklärten Artikel zurückgegeben.'),
+          ),
+        };
+      }
+
+      const mergeResolvedItem = (current: InventoryItem): InventoryItem =>
+        this.enrichItemTotals({
+          ...current,
+          ...data.inventory_item,
+          sale_state: 'no_active_sale',
+          active_sale_count: 0,
+          active_sale_id: null,
+        });
+
+      this.items.update((items) =>
+        items.map((item) => (item.id === itemId ? mergeResolvedItem(item) : item)),
+      );
+      const selected = this.selectedItem();
+      if (selected?.id === itemId) this.selectedItem.set(mergeResolvedItem(selected));
+      return { error: null };
+    } catch (error: unknown) {
+      return {
+        error: this.syncStatus.melde('Klärung des historischen Inventarstatus', error),
+      };
+    }
   }
 
   async createItem(
@@ -378,6 +600,7 @@ export class InventoryService {
     itemId: string,
     updates: Partial<InventoryItem>,
   ): Promise<{ error: Error | null }> {
+    if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
     const aenderungenLokalUebernehmen = (): void => {
       const stored = this.mockStore.getItems().find((i) => i.id === itemId);
       const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
@@ -411,15 +634,23 @@ export class InventoryService {
         media,
         purchase,
         sale,
+        sale_state: _saleState,
+        active_sale_count: _activeSaleCount,
+        active_sale_id: _activeSaleId,
         activity_logs,
         notes: _notes,
         condition_notes: _conditionNotes,
         ...dbUpdates
       } = updates as Partial<InventoryItem> & { activity_logs?: ActivityLog[] };
 
+      const payload: TablesUpdate<'inventory_items'> = {
+        ...dbUpdates,
+        updated_at: new Date().toISOString(),
+      };
+
       const { error, count } = await this.supabase.client
         .from('inventory_items')
-        .update({ ...dbUpdates, updated_at: new Date().toISOString() }, { count: 'exact' })
+        .update(payload, { count: 'exact' })
         .eq('id', itemId);
 
       if (error) {
@@ -446,6 +677,7 @@ export class InventoryService {
     newStatus: ItemStatus,
     notes?: string,
   ): Promise<{ error: Error | null }> {
+    if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
     const statusLokalUebernehmen = (): void => {
       const stored = this.mockStore.getItems().find((i) => i.id === itemId);
       const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
@@ -502,6 +734,7 @@ export class InventoryService {
     amount: number,
     description?: string,
   ): Promise<{ error: Error | null }> {
+    if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
     const newCost: ItemCost = {
       id: `cost-${Date.now()}`,
       inventory_item_id: itemId,
@@ -572,6 +805,7 @@ export class InventoryService {
   }
 
   async deleteItemCost(itemId: string, costId: string): Promise<{ error: Error | null }> {
+    if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
     const kostenLokalEntfernen = (): void => {
       this.mockStore.deleteItemCost(costId);
       this.itemCosts.update((costs) => costs.filter((c) => c.id !== costId));
@@ -726,6 +960,7 @@ export class InventoryService {
   }
 
   async deleteItem(itemId: string): Promise<{ error: Error | null }> {
+    if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
     if (!this.mockStore.isDemoMode()) {
       try {
         const { error, count } = await this.supabase.client

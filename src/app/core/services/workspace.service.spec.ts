@@ -54,7 +54,7 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
     expect(delRes.success).toBe(true);
   });
 
-  it('behält Workspace und Fehlerergebnis bei fehlgeschlagener Datenbanklöschung', async () => {
+  it('behält einen gefüllten Workspace bei Datenbankablehnung vollständig lokal und meldet den Grund', async () => {
     const ersterWorkspace: Workspace = {
       id: '11111111-1111-4111-8111-111111111111',
       name: 'Erster Workspace',
@@ -78,7 +78,18 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
             client: {
               from: vi.fn(() => ({
                 delete: vi.fn(() => ({
-                  eq: vi.fn(async () => ({ error: new Error('Datenbank nicht erreichbar') })),
+                  eq: vi.fn(() => ({
+                    select: vi.fn(() => ({
+                      maybeSingle: vi.fn(async () => ({
+                        data: null,
+                        error: {
+                          code: 'P0001',
+                          message:
+                            'Workspace enthält Geschäftsdaten und kann nicht gelöscht werden. Erfasste Belege und Buchungen müssen erhalten bleiben.',
+                        },
+                      })),
+                    })),
+                  })),
                 })),
               })),
             },
@@ -104,6 +115,52 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
     expect(produktivService.workspaces()).toEqual([ersterWorkspace, zweiterWorkspace]);
     expect(produktivService.currentWorkspace()).toEqual(zweiterWorkspace);
     expect(syncStatus.fehler()).toHaveLength(1);
+    expect(syncStatus.fehler()[0]?.meldung).toContain('Geschäftsdaten');
+  });
+
+  it('entfernt lokal nichts, wenn die Datenbank keine gelöschte Workspace-Zeile bestätigt', async () => {
+    const ersterWorkspace = service.workspaces()[0]!;
+    const zweiterWorkspace: Workspace = {
+      ...ersterWorkspace,
+      id: '33333333-3333-4333-8333-333333333333',
+      name: 'Nicht bestätigter Workspace',
+    };
+    const syncStatus = new SyncStatusService();
+    const injector = Injector.create({
+      providers: [
+        {
+          provide: SupabaseService,
+          useValue: {
+            client: {
+              from: () => ({
+                delete: () => ({
+                  eq: () => ({
+                    select: () => ({
+                      maybeSingle: async () => ({ data: null, error: null }),
+                    }),
+                  }),
+                }),
+              }),
+            },
+          },
+        },
+        {
+          provide: AuthService,
+          useValue: { isAuthenticated: () => true, isDemoMode: () => false },
+        },
+        { provide: SyncStatusService, useValue: syncStatus },
+      ],
+    });
+    const produktivService = runInInjectionContext(injector, () => new WorkspaceService());
+    produktivService.workspaces.set([ersterWorkspace, zweiterWorkspace]);
+    produktivService.currentWorkspace.set(zweiterWorkspace);
+
+    const result = await produktivService.deleteWorkspace(zweiterWorkspace.id);
+
+    expect(result).toEqual({ success: false, reportedBySyncStatus: true });
+    expect(produktivService.workspaces()).toEqual([ersterWorkspace, zweiterWorkspace]);
+    expect(produktivService.currentWorkspace()).toEqual(zweiterWorkspace);
+    expect(syncStatus.fehler()[0]?.meldung).toContain('nicht bestätigt');
   });
 
   it('should calculate consolidated holding summary across workspaces', () => {

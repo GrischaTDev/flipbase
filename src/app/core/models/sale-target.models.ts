@@ -16,7 +16,13 @@ export type SaleTarget =
       readonly title: string;
     };
 
+export interface LegacySaleReconciliation {
+  readonly kind: 'legacy_sold_unverified';
+  readonly inventoryItemId: string;
+}
+
 /** Route-State-Vertrag zwischen Inventar und dem Verkaufsdialog (Aufgabe 6). */
 export interface SaleTargetRouteState {
   readonly saleTarget: SaleTarget;
+  readonly legacyReconciliation?: LegacySaleReconciliation;
 }

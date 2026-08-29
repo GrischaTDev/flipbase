@@ -31,7 +31,9 @@ import {
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { MediaService } from '../../../../core/services/media.service';
 import { InventoryLabelModalComponent } from '../../../../shared/components/inventory-label-modal/inventory-label-modal.component';
-import { ItemMedia, ItemStatus } from '../../../../core/models/flipbase.models';
+import { InventoryItem, ItemMedia, ItemStatus } from '../../../../core/models/flipbase.models';
+import { isInventoryItemMutationLocked } from '../../../../core/models/inventory-sellability';
+import { SaleTargetRouteState } from '../../../../core/models/sale-target.models';
 
 import {
   CustomSelectComponent,
@@ -62,6 +64,9 @@ import { SyncStatusService } from '../../../../core/services/sync-status.service
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ItemDetailComponent {
+  isMutationLocked(item: InventoryItem): boolean {
+    return isInventoryItemMutationLocked(item);
+  }
   /**
    * Vorgaben fuer das eigene Auswahlfeld.
    *
@@ -117,6 +122,7 @@ export class ItemDetailComponent {
   readonly isUploading = signal<boolean>(false);
   readonly uploadError = signal<string | null>(null);
   readonly previewModalUrl = signal<string | null>(null);
+  readonly legacyReason = signal('');
 
   readonly costForm = new FormGroup({
     type: new FormControl('repair', { nonNullable: true, validators: [Validators.required] }),
@@ -189,6 +195,8 @@ export class ItemDetailComponent {
   }
 
   async onFilesSelected(event: Event): Promise<void> {
+    const selected = this.inventoryService.selectedItem();
+    if (!selected || this.isMutationLocked(selected)) return;
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
 
@@ -286,6 +294,8 @@ export class ItemDetailComponent {
   }
 
   async onSetPrimary(media: ItemMedia): Promise<void> {
+    const selected = this.inventoryService.selectedItem();
+    if (!selected || this.isMutationLocked(selected)) return;
     const itemId = this.id();
     if (!itemId) return;
 
@@ -299,6 +309,8 @@ export class ItemDetailComponent {
   }
 
   async onDeleteMedia(media: ItemMedia): Promise<void> {
+    const selected = this.inventoryService.selectedItem();
+    if (!selected || this.isMutationLocked(selected)) return;
     const itemId = this.id();
     if (!itemId) return;
 
@@ -318,7 +330,7 @@ export class ItemDetailComponent {
   async onChangeStatus(newStatus: string | null): Promise<void> {
     if (!newStatus) return;
     const item = this.inventoryService.selectedItem();
-    if (!item) return;
+    if (!item || this.isMutationLocked(item)) return;
     const { error } = await this.inventoryService.updateItemStatus(
       item.id,
       newStatus as ItemStatus,
@@ -330,9 +342,49 @@ export class ItemDetailComponent {
     this.toast.success('Artikelstatus wurde geändert.');
   }
 
+  onLegacyReasonInput(event: Event): void {
+    this.legacyReason.set((event.target as HTMLInputElement).value);
+  }
+
+  async onRestoreLegacySoldItem(): Promise<void> {
+    const item = this.inventoryService.selectedItem();
+    const reason = this.legacyReason().trim();
+    if (!item || item.sale_state !== 'legacy_sold_unverified' || !reason) return;
+
+    const confirmed = await this.dialog.frage({
+      titel: 'Artikel wieder in Bestand nehmen?',
+      text: `„${item.title}“ wird nach dokumentierter Prüfung wieder auf „Bereit“ gesetzt. Grund: ${reason}`,
+      bestaetigenText: 'Wieder in Bestand nehmen',
+    });
+    if (!confirmed) return;
+
+    const { error } = await this.inventoryService.resolveLegacySoldItem(item.id, reason);
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert('Altbestand konnte nicht geklärt werden.', error);
+      return;
+    }
+    this.legacyReason.set('');
+    this.toast.success('Artikel wurde wieder in den Bestand aufgenommen.');
+  }
+
+  openLegacySaleReconciliation(): void {
+    const item = this.inventoryService.selectedItem();
+    if (!item || item.sale_state !== 'legacy_sold_unverified') return;
+    const state: SaleTargetRouteState = {
+      legacyReconciliation: {
+        kind: 'legacy_sold_unverified',
+        inventoryItemId: item.id,
+      },
+      saleTarget: { kind: 'inventory_item', inventoryItemId: item.id, title: item.title },
+    };
+    void this.router.navigate(['/sales'], {
+      state,
+    });
+  }
+
   async onAddCost(): Promise<void> {
     const item = this.inventoryService.selectedItem();
-    if (!item || this.costForm.invalid) return;
+    if (!item || this.isMutationLocked(item) || this.costForm.invalid) return;
 
     const val = this.costForm.getRawValue();
     const { error } = await this.inventoryService.addItemCost(
@@ -357,7 +409,7 @@ export class ItemDetailComponent {
 
   async onDeleteCost(costId: string): Promise<void> {
     const item = this.inventoryService.selectedItem();
-    if (!item) return;
+    if (!item || this.isMutationLocked(item)) return;
     const { error } = await this.inventoryService.deleteItemCost(item.id, costId);
     if (error) {
       this.meldeFehlerWennNichtSynchronisiert(
@@ -371,7 +423,7 @@ export class ItemDetailComponent {
 
   async onTogglePublicStore(isPublic: boolean): Promise<void> {
     const item = this.inventoryService.selectedItem();
-    if (!item) return;
+    if (!item || this.isMutationLocked(item)) return;
     const { error } = await this.inventoryService.updateItem(item.id, {
       is_public_store: isPublic,
     });
@@ -386,7 +438,7 @@ export class ItemDetailComponent {
 
   async onDeleteItem(): Promise<void> {
     const item = this.inventoryService.selectedItem();
-    if (!item) return;
+    if (!item || this.isMutationLocked(item)) return;
     const bestaetigt = await this.dialog.frage({
       titel: 'Artikel löschen?',
       text: `„${item.title}“ wird endgültig gelöscht. Das lässt sich nicht rückgängig machen.`,
@@ -402,6 +454,12 @@ export class ItemDetailComponent {
       this.toast.success('Artikel wurde gelöscht.');
       await this.router.navigate(['/inventory']);
     }
+  }
+
+  openEditModal(): void {
+    const item = this.inventoryService.selectedItem();
+    if (!item || this.isMutationLocked(item)) return;
+    this.isEditModalOpen.set(true);
   }
 
   private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {

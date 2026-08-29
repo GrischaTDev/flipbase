@@ -40,6 +40,23 @@
           {{ error }}
         </div>
       }
+      @if (legacyReconciliation()) {
+        <section class="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3">
+          <label
+            for="reconciliation-reason"
+            class="mb-1 block text-xs font-semibold text-amber-200"
+          >
+            Dokumentierter Grund für den Legacy-Nachtrag
+          </label>
+          <input
+            id="reconciliation-reason"
+            type="text"
+            formControlName="reconciliationReason"
+            required
+            class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs"
+          />
+        </section>
+      }
       <section
         class="grid grid-cols-1 gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-xs sm:grid-cols-3"
       >
@@ -71,13 +88,15 @@
           <h3 class="text-xs font-bold uppercase tracking-wide text-fb-text-secondary">
             Verkaufspositionen
           </h3>
-          <button
-            type="button"
-            (click)="addLine()"
-            class="inline-flex items-center gap-1 rounded-lg border border-indigo-500/35 px-2 py-1 text-[11px] font-semibold text-indigo-300 hover:bg-indigo-500/15"
-          >
-            <svg [lucideIcon]="plusIcon" class="h-3 w-3"></svg>Position
-          </button>
+          @if (!legacyReconciliation()) {
+            <button
+              type="button"
+              (click)="addLine()"
+              class="inline-flex items-center gap-1 rounded-lg border border-indigo-500/35 px-2 py-1 text-[11px] font-semibold text-indigo-300 hover:bg-indigo-500/15"
+            >
+              <svg [lucideIcon]="plusIcon" class="h-3 w-3"></svg>Position
+            </button>
+          }
         </div>
         <div formArrayName="lines" class="space-y-3">
           @for (line of lines.controls; track $index; let index = $index) {
@@ -127,7 +146,7 @@
                 <button
                   type="button"
                   (click)="removeLine(index)"
-                  [disabled]="lines.length === 1"
+                  [disabled]="lines.length === 1 || !!legacyReconciliation()"
                   class="self-end rounded-lg p-2 text-fb-text-muted hover:bg-rose-500/15 hover:text-rose-300 disabled:opacity-30"
                   aria-label="Position entfernen"
                 >

@@ -19,6 +19,7 @@ import {
 } from '../models/flipbase.models';
 import type { ReceivePurchaseLineInput } from './stock.service';
 import { createLocalDemoId } from '../utils/client-identity';
+import { isSellableInventoryItem } from '../models/inventory-sellability';
 
 const DEMO_WS_ID = 'ws-1';
 
@@ -691,10 +692,12 @@ export class MockDataStoreService {
     return { purchaseLine, inventoryItem, purchase: updatedPurchase, error: null };
   }
 
-  bookQuantitySale(
+  bookSaleAtomically(
     workspaceId: string,
+    sale: Sale,
     saleLines: readonly SaleLine[],
   ): {
+    sale: Sale | null;
     saleLines: SaleLine[];
     allocations: SaleLineLotAllocation[];
     movements: StockMovement[];
@@ -702,13 +705,48 @@ export class MockDataStoreService {
   } {
     const lots = this.getStockLots();
     const updatedLots = lots.map((lot) => ({ ...lot }));
+    const items = this.getItems();
+    const updatedItems = items.map((item) => ({ ...item }));
+    const activeSales = this.getSales(workspaceId).filter(
+      (sale) => !sale.returned_at && !sale.voided_at,
+    );
     const allocations: SaleLineLotAllocation[] = [];
     const movements: StockMovement[] = [];
     const updatedLines: SaleLine[] = [];
 
     for (const line of saleLines) {
       if (!line.catalog_product_id) {
-        updatedLines.push(line);
+        if (!line.inventory_item_id || line.quantity !== 1) {
+          return {
+            sale: null,
+            saleLines: [],
+            allocations: [],
+            movements: [],
+            error: new Error('Eine Einzelartikelposition ist ungültig.'),
+          };
+        }
+        const item = updatedItems.find(
+          (entry) => entry.id === line.inventory_item_id && entry.workspace_id === workspaceId,
+        );
+        const alreadySold = activeSales.some(
+          (sale) =>
+            sale.inventory_item_id === line.inventory_item_id ||
+            sale.lines?.some((saleLine) => saleLine.inventory_item_id === line.inventory_item_id),
+        );
+        if (!item || !isSellableInventoryItem(item) || alreadySold) {
+          return {
+            sale: null,
+            saleLines: [],
+            allocations: [],
+            movements: [],
+            error: new Error('Der Einzelartikel ist nicht verkaufbar.'),
+          };
+        }
+        item.status = 'sold';
+        item.sale_state = 'sold';
+        item.active_sale_count = 1;
+        item.active_sale_id = line.sale_id;
+        updatedLines.push({ ...line, cost_of_goods_sold: item.allocated_purchase_cost });
         continue;
       }
       let remaining = line.quantity;
@@ -769,6 +807,7 @@ export class MockDataStoreService {
       }
       if (remaining !== 0) {
         return {
+          sale: null,
           saleLines: [],
           allocations: [],
           movements: [],
@@ -778,34 +817,90 @@ export class MockDataStoreService {
       updatedLines.push({ ...line, cost_of_goods_sold: Number(costOfGoodsSold.toFixed(2)) });
     }
 
-    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_LOTS, updatedLots);
-    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_MOVEMENTS, [
-      ...this.getStockMovements(),
-      ...movements,
+    const persistedSale: Sale = {
+      ...sale,
+      sale_price: updatedLines.reduce((sum, line) => sum + line.line_total, 0),
+      sale_price_total: updatedLines.reduce((sum, line) => sum + line.line_total, 0),
+      lines: updatedLines,
+      has_persisted_lines: true,
+      lot_allocations: allocations,
+      stock_movements: movements,
+    };
+    const persistenceError = this.saveRecordsAtomically([
+      { key: STORAGE_KEY_ITEMS, records: updatedItems },
+      { key: STORAGE_KEY_STOCK_LOTS, records: updatedLots },
+      {
+        key: STORAGE_KEY_STOCK_MOVEMENTS,
+        records: [...this.getStockMovements(), ...movements],
+      },
+      { key: STORAGE_KEY_SALES, records: this.upsertRecord(this.getSales(), persistedSale) },
     ]);
-    return { saleLines: updatedLines, allocations, movements, error: null };
+    if (persistenceError) {
+      return {
+        sale: null,
+        saleLines: [],
+        allocations: [],
+        movements: [],
+        error: persistenceError,
+      };
+    }
+    return { sale: persistedSale, saleLines: updatedLines, allocations, movements, error: null };
   }
 
-  returnQuantitySale(
+  returnSaleAtomically(
     workspaceId: string,
     sale: Sale,
     restock: boolean,
-  ): { movements: StockMovement[]; error: Error | null } {
+  ): {
+    sale: Sale | null;
+    movements: StockMovement[];
+    restockedQuantity: number;
+    error: Error | null;
+  } {
     const allocations = sale.lot_allocations ?? [];
     const lots = this.getStockLots();
     const updatedLots = lots.map((lot) => ({ ...lot }));
+    const items = this.getItems();
+    const updatedItems = items.map((item) => ({ ...item }));
     const movements: StockMovement[] = [];
+    let restockedQuantity = 0;
+
+    for (const line of sale.lines ?? []) {
+      if (line.catalog_product_id || !line.inventory_item_id) continue;
+      const item = updatedItems.find(
+        (entry) => entry.id === line.inventory_item_id && entry.workspace_id === workspaceId,
+      );
+      if (!item) {
+        return {
+          sale: null,
+          movements: [],
+          restockedQuantity: 0,
+          error: new Error('Der retournierte Einzelartikel wurde nicht gefunden.'),
+        };
+      }
+      item.status = restock ? 'ready' : 'returned';
+      item.sale_state = 'no_active_sale';
+      item.active_sale_count = 0;
+      item.active_sale_id = null;
+      if (restock) restockedQuantity += 1;
+    }
 
     for (const allocation of allocations) {
       const lot = updatedLots.find(
         (entry) => entry.id === allocation.stock_lot_id && entry.workspace_id === workspaceId,
       );
-      if (!lot)
+      if (!lot) {
         return {
+          sale: null,
           movements: [],
+          restockedQuantity: 0,
           error: new Error('Das zugeordnete Bestandslos wurde nicht gefunden.'),
         };
-      if (restock) lot.remaining_quantity += allocation.quantity;
+      }
+      if (restock) {
+        lot.remaining_quantity += allocation.quantity;
+        restockedQuantity += allocation.quantity;
+      }
       movements.push({
         id: this.newId('movement'),
         workspace_id: workspaceId,
@@ -829,12 +924,21 @@ export class MockDataStoreService {
         });
       }
     }
-    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_LOTS, updatedLots);
-    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_MOVEMENTS, [
-      ...this.getStockMovements(),
-      ...movements,
+
+    const persistedSale: Sale = { ...sale, stock_movements: movements };
+    const persistenceError = this.saveRecordsAtomically([
+      { key: STORAGE_KEY_ITEMS, records: updatedItems },
+      { key: STORAGE_KEY_STOCK_LOTS, records: updatedLots },
+      {
+        key: STORAGE_KEY_STOCK_MOVEMENTS,
+        records: [...this.getStockMovements(), ...movements],
+      },
+      { key: STORAGE_KEY_SALES, records: this.upsertRecord(this.getSales(), persistedSale) },
     ]);
-    return { movements, error: null };
+    if (persistenceError) {
+      return { sale: null, movements: [], restockedQuantity: 0, error: persistenceError };
+    }
+    return { sale: persistedSale, movements, restockedQuantity, error: null };
   }
 
   private getWorkspaceRecords<T extends { workspace_id: string }>(

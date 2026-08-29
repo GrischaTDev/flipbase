@@ -1,7 +1,7 @@
 import '@angular/compiler';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { describe, expect, it } from 'vitest';
-import { InventoryItem, ItemCost, Workspace } from '../models/flipbase.models';
+import { InventoryItem, ItemCost, Sale, Workspace } from '../models/flipbase.models';
 import { InventoryService } from './inventory.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { ProfitEngineService } from './profit-engine.service';
@@ -41,9 +41,9 @@ interface SupabaseAntwort {
   readonly error: { code: string; message: string } | null;
 }
 
-function injiziereDienst(client: unknown) {
-  const mockStore = new MockDataStoreService();
-  mockStore.isDemoMode.set(false);
+function injiziereDienst(client: unknown, bereitgestellterMockStore?: MockDataStoreService) {
+  const mockStore = bereitgestellterMockStore ?? new MockDataStoreService();
+  if (!bereitgestellterMockStore) mockStore.isDemoMode.set(false);
   const syncStatus = new SyncStatusService();
   const injector = Injector.create({
     providers: [
@@ -102,6 +102,446 @@ function erstelleDienst(artikelAntwort: SupabaseAntwort) {
 }
 
 describe('InventoryService – abhängige Schreibvorgänge', () => {
+  it('merged den bestandswirksamen View-Zustand anhand der Artikel-ID', async () => {
+    let updatePayload: Record<string, unknown> | null = null;
+    const client = {
+      from(tabelle: string) {
+        if (tabelle === 'inventory_items') {
+          return {
+            select() {
+              return {
+                eq() {
+                  return {
+                    order: async () => ({ data: [gespeicherterArtikel], error: null }),
+                  };
+                },
+              };
+            },
+            update(payload: unknown) {
+              updatePayload = payload as Record<string, unknown>;
+              return { eq: async () => ({ error: null, count: 1 }) };
+            },
+          };
+        }
+        if (tabelle === 'inventory_item_sale_states') {
+          return {
+            select() {
+              return {
+                eq: async () => ({
+                  data: [
+                    {
+                      inventory_item_id: gespeicherterArtikel.id,
+                      workspace_id: workspace.id,
+                      sale_state: 'legacy_sold_unverified',
+                      active_sale_count: 0,
+                      active_sale_id: null,
+                    },
+                  ],
+                  error: null,
+                }),
+              };
+            },
+          };
+        }
+        throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+      },
+    };
+    const { dienst } = injiziereDienst(client);
+
+    await dienst.loadInventory(workspace.id);
+
+    expect(dienst.items()[0]).toMatchObject({
+      id: gespeicherterArtikel.id,
+      sale_state: 'legacy_sold_unverified',
+      active_sale_count: 0,
+      active_sale_id: null,
+    });
+    expect(dienst.items()[0]).not.toHaveProperty('inventory_item_id');
+
+    const sellableItem = {
+      ...dienst.items()[0],
+      status: 'ready' as const,
+      sale_state: 'no_active_sale' as const,
+    };
+    dienst.items.set([sellableItem]);
+    await dienst.updateItem(gespeicherterArtikel.id, sellableItem);
+
+    expect(updatePayload).not.toHaveProperty('inventory_item_id');
+    expect(updatePayload).not.toHaveProperty('sale_state');
+    expect(updatePayload).not.toHaveProperty('active_sale_count');
+    expect(updatePayload).not.toHaveProperty('active_sale_id');
+  });
+
+  it('blockiert generische Service-Mutationen für verkaufte und widersprüchliche Artikel', async () => {
+    const { dienst } = injiziereDienst({
+      from: () => {
+        throw new Error('Datenbankzugriff darf nicht stattfinden');
+      },
+    });
+    const lockedItem: InventoryItem = {
+      ...gespeicherterArtikel,
+      status: 'sold',
+      sale_state: 'multiple_active_sales',
+    };
+    dienst.items.set([lockedItem]);
+    dienst.selectedItem.set(lockedItem);
+
+    const results = await Promise.all([
+      dienst.updateItem(lockedItem.id, { title: 'Manipuliert' }),
+      dienst.updateItemStatus(lockedItem.id, 'ready'),
+      dienst.addItemCost(lockedItem.id, 'other', 1),
+      dienst.deleteItemCost(lockedItem.id, 'cost-1'),
+      dienst.deleteItem(lockedItem.id),
+    ]);
+
+    expect(results.every(({ error }) => error?.message.includes('Korrekturvorgang'))).toBe(true);
+    expect(dienst.items()[0]).toEqual(lockedItem);
+  });
+
+  it('klassifiziert Demo-Artikel aus persistierten Positionen und Legacy-Köpfen', async () => {
+    const lineItem = { ...gespeicherterArtikel, id: 'demo-line', status: 'sold' as const };
+    const legacyItem = { ...gespeicherterArtikel, id: 'demo-header', status: 'sold' as const };
+    const sales: Sale[] = [
+      {
+        id: 'sale-line',
+        workspace_id: workspace.id,
+        inventory_item_id: lineItem.id,
+        platform: 'direct',
+        sale_price: 20,
+        sale_date: '2026-08-29',
+        platform_fee: 0,
+        shipping_cost: 0,
+        packaging_cost: 0,
+        other_costs: 0,
+        lines: [
+          {
+            id: 'line',
+            sale_id: 'sale-line',
+            inventory_item_id: lineItem.id,
+            title_snapshot: 'Line',
+            quantity: 1,
+            unit_sale_price: 20,
+            line_total: 20,
+            cost_of_goods_sold: 5,
+            tax_mode: 'diff_25a',
+          },
+        ],
+      },
+      {
+        id: 'sale-header',
+        workspace_id: workspace.id,
+        inventory_item_id: legacyItem.id,
+        platform: 'direct',
+        sale_price: 18,
+        sale_date: '2026-08-29',
+        platform_fee: 0,
+        shipping_cost: 0,
+        packaging_cost: 0,
+        other_costs: 0,
+        lines: [],
+      },
+    ];
+    const demoStore = {
+      isDemoMode: signal(true),
+      getItems: () => [lineItem, legacyItem],
+      getSales: () => sales,
+    } as unknown as MockDataStoreService;
+    const { dienst } = injiziereDienst({}, demoStore);
+
+    await dienst.loadInventory(workspace.id);
+
+    expect(dienst.items().find(({ id }) => id === lineItem.id)?.sale_state).toBe('sold');
+    expect(dienst.items().find(({ id }) => id === legacyItem.id)?.sale_state).toBe(
+      'legacy_sale_header_without_line',
+    );
+  });
+
+  it.each([
+    ['ungeklärten Altbestand', 'legacy_sold_unverified', 'sold', 0, null],
+    [
+      'Legacy-Verkaufskopf ohne Position',
+      'legacy_sale_header_without_line',
+      'sold',
+      1,
+      '55555555-5555-4555-8555-555555555551',
+    ],
+    ['mehrere aktive Verkäufe', 'multiple_active_sales', 'sold', 2, null],
+    ['Statuskonflikt', 'sale_status_conflict', 'ready', 1, '55555555-5555-4555-8555-555555555552'],
+  ] as const)(
+    'merged beim kalten Supabase-Detailaufruf %s und blockiert generische Mutationen',
+    async (_label, saleState, status, activeSaleCount, activeSaleId) => {
+      const rawItem: InventoryItem = { ...gespeicherterArtikel, status };
+      const client = {
+        from(tabelle: string) {
+          if (tabelle === 'inventory_items') {
+            return {
+              select() {
+                return {
+                  eq() {
+                    return { single: async () => ({ data: rawItem, error: null }) };
+                  },
+                };
+              },
+              update() {
+                return { eq: async () => ({ error: null, count: 1 }) };
+              },
+            };
+          }
+          if (tabelle === 'inventory_item_sale_states') {
+            return {
+              select() {
+                return {
+                  eq: async () => ({
+                    data: [
+                      {
+                        inventory_item_id: rawItem.id,
+                        workspace_id: workspace.id,
+                        sale_state: saleState,
+                        active_sale_count: activeSaleCount,
+                        active_sale_id: activeSaleId,
+                      },
+                    ],
+                    error: null,
+                  }),
+                };
+              },
+            };
+          }
+          if (tabelle === 'activity_logs') {
+            return {
+              select() {
+                return {
+                  eq() {
+                    return { order: async () => ({ data: [], error: null }) };
+                  },
+                };
+              },
+              insert: async () => ({ error: null }),
+            };
+          }
+          throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+        },
+      };
+      const { dienst } = injiziereDienst(client);
+
+      const detail = await dienst.getItemById(rawItem.id);
+      const mutation = await dienst.updateItemStatus(rawItem.id, 'ready');
+
+      expect(detail).toMatchObject({
+        id: rawItem.id,
+        sale_state: saleState,
+        active_sale_count: activeSaleCount,
+        active_sale_id: activeSaleId,
+      });
+      expect(dienst.selectedItem()).toEqual(detail);
+      expect(mutation.error?.message).toContain('Korrekturvorgang');
+    },
+  );
+
+  it('veröffentlicht beim kalten Supabase-Detailaufruf keinen Artikel ohne sicheren View-Zustand', async () => {
+    const client = {
+      from(tabelle: string) {
+        if (tabelle === 'inventory_items') {
+          return {
+            select() {
+              return {
+                eq() {
+                  return {
+                    single: async () => ({ data: gespeicherterArtikel, error: null }),
+                  };
+                },
+              };
+            },
+          };
+        }
+        if (tabelle === 'inventory_item_sale_states') {
+          return {
+            select() {
+              return {
+                eq: async () => ({
+                  data: null,
+                  error: { code: '42501', message: 'view denied' },
+                }),
+              };
+            },
+          };
+        }
+        throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+      },
+    };
+    const { dienst, syncStatus } = injiziereDienst(client);
+
+    const detail = await dienst.getItemById(gespeicherterArtikel.id);
+
+    expect(detail).toBeNull();
+    expect(dienst.selectedItem()).toBeNull();
+    expect(syncStatus.hatFehler()).toBe(true);
+  });
+
+  it.each([
+    ['legacy_sold_unverified', 'demo-legacy'],
+    ['legacy_sale_header_without_line', 'demo-header'],
+    ['multiple_active_sales', 'demo-multiple'],
+    ['sale_status_conflict', 'demo-conflict'],
+  ] as const)(
+    'klassifiziert beim kalten Demo-Detailaufruf %s aus Rohdaten und Verkäufen',
+    async (expectedSaleState, itemId) => {
+      const status = expectedSaleState === 'sale_status_conflict' ? 'ready' : 'sold';
+      const rawItem: InventoryItem = { ...gespeicherterArtikel, id: itemId, status };
+      const lineFor = (saleId: string): NonNullable<Sale['lines']>[number] => ({
+        id: `line-${saleId}`,
+        sale_id: saleId,
+        inventory_item_id: itemId,
+        title_snapshot: rawItem.title,
+        quantity: 1,
+        unit_sale_price: 20,
+        line_total: 20,
+        cost_of_goods_sold: 5,
+        tax_mode: 'diff_25a',
+      });
+      let sales: Sale[] = [];
+      if (expectedSaleState === 'legacy_sale_header_without_line') {
+        sales = [
+          {
+            id: 'sale-header',
+            workspace_id: workspace.id,
+            inventory_item_id: itemId,
+            platform: 'direct',
+            sale_price: 20,
+            sale_date: '2026-08-29',
+            platform_fee: 0,
+            shipping_cost: 0,
+            packaging_cost: 0,
+            other_costs: 0,
+            lines: [],
+          },
+        ];
+      } else if (
+        expectedSaleState === 'multiple_active_sales' ||
+        expectedSaleState === 'sale_status_conflict'
+      ) {
+        const saleIds =
+          expectedSaleState === 'multiple_active_sales' ? ['sale-one', 'sale-two'] : ['sale-one'];
+        sales = saleIds.map((saleId) => ({
+          id: saleId,
+          workspace_id: workspace.id,
+          inventory_item_id: null,
+          platform: 'direct',
+          sale_price: 20,
+          sale_date: '2026-08-29',
+          platform_fee: 0,
+          shipping_cost: 0,
+          packaging_cost: 0,
+          other_costs: 0,
+          lines: [lineFor(saleId)],
+        }));
+      }
+      const demoStore = {
+        isDemoMode: signal(true),
+        getItems: () => [rawItem],
+        getSales: () => sales,
+        getItemCosts: () => [],
+        getActivityLogs: () => [],
+      } as unknown as MockDataStoreService;
+      const { dienst } = injiziereDienst({}, demoStore);
+
+      const detail = await dienst.getItemById(itemId);
+
+      expect(detail?.sale_state).toBe(expectedSaleState);
+      expect(dienst.selectedItem()?.sale_state).toBe(expectedSaleState);
+    },
+  );
+
+  it('bevorzugt beim Demo-Detailaufruf einen bereits sicher klassifizierten Signal-Eintrag', async () => {
+    const rawItem: InventoryItem = {
+      ...gespeicherterArtikel,
+      id: 'demo-signal',
+      status: 'sold',
+    };
+    const classifiedItem: InventoryItem = {
+      ...rawItem,
+      sale_state: 'multiple_active_sales',
+      active_sale_count: 2,
+      active_sale_id: null,
+    };
+    const demoStore = {
+      isDemoMode: signal(true),
+      getItems: () => [rawItem],
+      getSales: () => [],
+      getItemCosts: () => [],
+      getActivityLogs: () => [],
+    } as unknown as MockDataStoreService;
+    const { dienst } = injiziereDienst({}, demoStore);
+    dienst.items.set([classifiedItem]);
+
+    const detail = await dienst.getItemById(rawItem.id);
+
+    expect(detail).toMatchObject({
+      sale_state: 'multiple_active_sales',
+      active_sale_count: 2,
+      active_sale_id: null,
+    });
+  });
+
+  it('aktualisiert lokale Signale erst nach bestätigter Legacy-Klärung', async () => {
+    let rpcAntwortAufloesen!: (wert: unknown) => void;
+    const offeneAntwort = new Promise((resolve) => {
+      rpcAntwortAufloesen = resolve;
+    });
+    const client = { rpc: () => offeneAntwort };
+    const { dienst } = injiziereDienst(client);
+    const legacyItem: InventoryItem = {
+      ...gespeicherterArtikel,
+      status: 'sold',
+      sale_state: 'legacy_sold_unverified',
+      active_sale_count: 0,
+      active_sale_id: null,
+    };
+    dienst.items.set([legacyItem]);
+    dienst.selectedItem.set(legacyItem);
+
+    const klaerung = dienst.resolveLegacySoldItem(legacyItem.id, 'Historisch nicht belegbar');
+    expect(dienst.items()[0].status).toBe('sold');
+
+    rpcAntwortAufloesen({
+      data: { inventory_item: { ...legacyItem, status: 'ready' } },
+      error: null,
+    });
+    const ergebnis = await klaerung;
+
+    expect(ergebnis.error).toBeNull();
+    expect(dienst.items()[0]).toMatchObject({
+      status: 'ready',
+      sale_state: 'no_active_sale',
+      active_sale_count: 0,
+      active_sale_id: null,
+    });
+    expect(dienst.selectedItem()?.status).toBe('ready');
+  });
+
+  it('behält lokale Signale bei, wenn die Legacy-Klärung scheitert', async () => {
+    const client = {
+      rpc: async () => ({
+        data: null,
+        error: { code: '22023', message: 'Korrektur erforderlich' },
+      }),
+    };
+    const { dienst } = injiziereDienst(client);
+    const legacyItem: InventoryItem = {
+      ...gespeicherterArtikel,
+      status: 'sold',
+      sale_state: 'legacy_sold_unverified',
+    };
+    dienst.items.set([legacyItem]);
+    dienst.selectedItem.set(legacyItem);
+
+    const ergebnis = await dienst.resolveLegacySoldItem(legacyItem.id, 'Versuch');
+
+    expect(ergebnis.error).toBeInstanceOf(Error);
+    expect(dienst.items()[0]).toEqual(legacyItem);
+    expect(dienst.selectedItem()).toEqual(legacyItem);
+  });
+
   it('veröffentlicht einen neuen Artikel nicht während das Datenbank-Insert noch offen ist', async () => {
     let insertAbschliessen!: (antwort: SupabaseAntwort) => void;
     const offeneAntwort = new Promise<SupabaseAntwort>((resolve) => {
@@ -246,6 +686,42 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(dienst.items()[0].is_public_store).toBeUndefined();
     expect(dienst.selectedItem()?.is_public_store).toBeUndefined();
+  });
+
+  it('sendet abgeleitete Verkaufszustände nicht an inventory_items', async () => {
+    let gesendeterPayload: Record<string, unknown> | null = null;
+    const client = {
+      from(tabelle: string) {
+        if (tabelle !== 'inventory_items') throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+        return {
+          update(payload: unknown) {
+            gesendeterPayload = payload as Record<string, unknown>;
+            return {
+              async eq() {
+                return { error: null, count: 1 };
+              },
+            };
+          },
+        };
+      },
+    };
+    const { dienst } = injiziereDienst(client);
+
+    const ergebnis = await dienst.updateItem(gespeicherterArtikel.id, {
+      title: 'Aktualisierter Titel',
+      sale_state: 'sold',
+      active_sale_count: 1,
+      active_sale_id: '55555555-5555-4555-8555-555555555555',
+    });
+
+    expect(ergebnis.error).toBeNull();
+    expect(gesendeterPayload).toMatchObject({
+      title: 'Aktualisierter Titel',
+      updated_at: expect.any(String),
+    });
+    expect(gesendeterPayload).not.toHaveProperty('sale_state');
+    expect(gesendeterPayload).not.toHaveProperty('active_sale_count');
+    expect(gesendeterPayload).not.toHaveProperty('active_sale_id');
   });
 
   it('behandelt Updates ohne betroffene Artikelzeile als Fehler', async () => {
