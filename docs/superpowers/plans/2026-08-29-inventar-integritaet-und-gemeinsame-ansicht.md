@@ -1,5 +1,7 @@
 # Inventar-Integrität und gemeinsame Ansicht – Implementierungsplan
 
+> **Status 2026-08-29:** Nach Task 1 durch rechtliches und technisches Red-Team teilweise abgelöst. Task 1 wurde umgesetzt. Die bisherigen Tasks 2–7 werden **nicht** ausgeführt, weil der darin geplante pauschale Stornopfad FIFO-Kosten, Perioden- und Beleglogik falsch behandeln könnte. Verbindliche Fortsetzung: `2026-08-29-inventar-integritaet-und-gemeinsame-ansicht-p0.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development` to implement this plan task-by-task. Each task uses test-driven development and receives a separate correctness review before the next task starts.
 
 **Goal:** Mengenartikel und einzeln nachverfolgte Artikel erscheinen in einer Inventartabelle; `sold` ist aus wirksamen Verkäufen abgeleitet, historische Inkonsistenzen werden ohne erfundene Daten geklärt und Verkäufe werden storniert statt gelöscht.
