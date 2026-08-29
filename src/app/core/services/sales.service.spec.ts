@@ -43,6 +43,40 @@ function createService(response: { data: unknown; error: unknown }): {
 }
 
 describe('SalesService', () => {
+  it('disambiguiert beim Laden alle Verkaufsbeziehungen mit mehreren Fremdschlüsseln', async () => {
+    const selects: string[] = [];
+    const result = { data: [], error: null };
+    let orderCount = 0;
+    const query = {
+      select: (columns: string) => {
+        selects.push(columns);
+        return query;
+      },
+      eq: () => query,
+      order: () => (++orderCount === 2 ? Promise.resolve(result) : query),
+    };
+    const service = Object.create(SalesService.prototype) as SalesService;
+    Object.assign(service, {
+      sales: signal<Sale[]>([]),
+      isLoading: signal(false),
+      mockStore: { isDemoMode: signal(false) },
+      supabase: { client: { from: () => query } },
+      syncStatus: { melde: vi.fn() },
+      retryPendingFollowUps: vi.fn(async () => undefined),
+    });
+
+    await service.loadSales('workspace-1');
+
+    expect(selects).toHaveLength(1);
+    expect(selects[0]).toContain('sale_lines:sale_lines!sale_lines_sale_id_fkey(');
+    expect(selects[0]).toContain(
+      'lot_allocations:sale_line_lot_allocations!sale_line_lot_allocations_sale_line_id_fkey(*)',
+    );
+    expect(selects[0]).toContain(
+      'stock_movements:stock_movements!stock_movements_sale_line_id_fkey(*)',
+    );
+  });
+
   it('lehnt Preisänderungen an persistierten Verkaufspositionen ohne atomaren Positionsadapter ab', async () => {
     const { service, rpc } = createService({ data: null, error: null });
     const persistedSale: Sale = {

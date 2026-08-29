@@ -56,7 +56,9 @@ export class StockService {
       const [lotResult, movementResult] = await Promise.all([
         this.supabase.client
           .from('stock_lots')
-          .select('*, catalog_product:catalog_products(id, title, is_public_store)')
+          .select(
+            '*, catalog_product:catalog_products!stock_lots_catalog_product_id_fkey(id, title, is_public_store)',
+          )
           .eq('workspace_id', workspaceId)
           .order('received_at', { ascending: true })
           .order('id', { ascending: true }),

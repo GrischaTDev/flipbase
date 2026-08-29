@@ -6,6 +6,43 @@ import { StockLot, StockMovement, StockPosition } from '../models/flipbase.model
 import { SyncStatusService } from './sync-status.service';
 
 describe('StockService', () => {
+  it('disambiguiert beim Laden die Katalogbeziehung der Bestandslose', async () => {
+    const selectsByTable = new Map<string, string>();
+    const from = (table: string) => {
+      const query = {
+        select: (columns: string) => {
+          selectsByTable.set(table, columns);
+          return query;
+        },
+        eq: () => query,
+        order: () => query,
+        then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
+          Promise.resolve({ data: [], error: null }).then(resolve),
+      };
+      return query;
+    };
+    const service = Object.create(StockService.prototype) as StockService;
+    Object.assign(service, {
+      positions: signal<StockPosition[]>([]),
+      lots: signal<StockLot[]>([]),
+      movements: signal<StockMovement[]>([]),
+      isLoading: signal(false),
+      loadError: signal<Error | null>(null),
+      loadedWorkspaceId: signal<string | null>(null),
+      loadRequestId: 0,
+      mockStore: { isDemoMode: signal(false) },
+      workspaceService: { currentWorkspace: () => ({ id: 'workspace-1' }) },
+      syncStatus: new SyncStatusService(),
+      supabase: { client: { from } },
+    });
+
+    await service.loadPositions('workspace-1');
+
+    expect(selectsByTable.get('stock_lots')).toContain(
+      'catalog_product:catalog_products!stock_lots_catalog_product_id_fkey(',
+    );
+  });
+
   it('übernimmt den durch den Wareneingang bestätigten Mengenbestand', async () => {
     const service = Object.create(StockService.prototype) as StockService;
     Object.assign(service, {

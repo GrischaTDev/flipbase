@@ -172,10 +172,10 @@ export class SalesService {
             purchase:purchases(*, source:sources(*), supplier:suppliers(*)),
             costs:item_costs(*)
           ),
-          sale_lines:sale_lines(
+          sale_lines:sale_lines!sale_lines_sale_id_fkey(
             *,
-            lot_allocations:sale_line_lot_allocations(*),
-            stock_movements:stock_movements(*)
+            lot_allocations:sale_line_lot_allocations!sale_line_lot_allocations_sale_line_id_fkey(*),
+            stock_movements:stock_movements!stock_movements_sale_line_id_fkey(*)
           )
         `,
         )
