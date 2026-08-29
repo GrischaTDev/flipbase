@@ -11,6 +11,8 @@ const RANGES: Record<keyof Adjustments, AdjustmentRange> = {
   contrast: { min: 0.5, max: 1.5, standard: 1 },
   saturation: { min: 0, max: 2, standard: 1 },
   grayscale: { min: 0, max: 1, standard: 0 },
+  warmth: { min: -1, max: 1, standard: 0 },
+  sharpness: { min: 0, max: 1, standard: 0 },
 };
 
 /** Grenzen und Standardwert eines Reglers - auch von der Oberflaeche genutzt. */
@@ -19,7 +21,7 @@ export function adjustmentRange(key: keyof Adjustments): AdjustmentRange {
 }
 
 export function defaultAdjustments(): Adjustments {
-  return { brightness: 1, contrast: 1, saturation: 1, grayscale: 0 };
+  return { brightness: 1, contrast: 1, saturation: 1, grayscale: 0, warmth: 0, sharpness: 0 };
 }
 
 /**
@@ -41,6 +43,8 @@ export function clampAdjustments(values: Adjustments): Adjustments {
     contrast: limit('contrast'),
     saturation: limit('saturation'),
     grayscale: limit('grayscale'),
+    warmth: limit('warmth'),
+    sharpness: limit('sharpness'),
   };
 }
 
@@ -50,7 +54,9 @@ export function isDefault(values: Adjustments): boolean {
     values.brightness === standard.brightness &&
     values.contrast === standard.contrast &&
     values.saturation === standard.saturation &&
-    values.grayscale === standard.grayscale
+    values.grayscale === standard.grayscale &&
+    values.warmth === standard.warmth &&
+    values.sharpness === standard.sharpness
   );
 }
 
@@ -65,7 +71,13 @@ export function isDefault(values: Adjustments): boolean {
  */
 export function toFilterString(values: Adjustments): string {
   const safe = clampAdjustments(values);
-  if (isDefault(safe)) return '';
+  const standard = defaultAdjustments();
+  const cssIsNeutral =
+    safe.brightness === standard.brightness &&
+    safe.contrast === standard.contrast &&
+    safe.saturation === standard.saturation &&
+    safe.grayscale === standard.grayscale;
+  if (cssIsNeutral) return '';
 
   return [
     `brightness(${safe.brightness})`,
@@ -73,4 +85,38 @@ export function toFilterString(values: Adjustments): string {
     `saturate(${safe.saturation})`,
     `grayscale(${safe.grayscale})`,
   ].join(' ');
+}
+
+/**
+ * Die vollstaendige Bildwirkung eines Bildes: was der Browser als CSS-Filter
+ * erledigt, und was auf den Pixeln gerechnet werden muss.
+ *
+ * Beides zusammen in **einem** Objekt, weil Vorschau und Export denselben Weg
+ * nehmen. Zwei getrennte Wege waeren zwei Gelegenheiten, auseinanderzulaufen.
+ */
+export interface Look {
+  /** CSS-Filterausdruck; leer, wenn dort nichts zu tun ist. */
+  readonly filter: string;
+  /** -1 bis 1, 0 = neutral. */
+  readonly warmth: number;
+  /** 0 bis 1, 0 = neutral. */
+  readonly sharpness: number;
+}
+
+export function toLook(values: Adjustments): Look {
+  const safe = clampAdjustments(values);
+  return {
+    filter: toFilterString(safe),
+    warmth: safe.warmth,
+    sharpness: safe.sharpness,
+  };
+}
+
+/**
+ * Vergleich nach Werten. Die Vorschau haengt an einem Signal; ohne diesen
+ * Vergleich wuerde jedes neu gebaute Objekt einen vollen Renderdurchlauf
+ * ausloesen, auch wenn sich kein Wert geaendert hat.
+ */
+export function looksEqual(a: Look, b: Look): boolean {
+  return a.filter === b.filter && a.warmth === b.warmth && a.sharpness === b.sharpness;
 }

@@ -8,7 +8,8 @@ import {
   signal,
 } from '@angular/core';
 import { Size, PlatformProfile, Rect, ratioLabel } from '../../models/platform-profile';
-import { planOutput, RenderPlan, renderImage } from '../../services/image-renderer';
+import { NEUTRAL_LOOK, planOutput, RenderPlan, renderImage } from '../../services/image-renderer';
+import { Look } from '../../services/adjustments';
 import { deriveRect } from '../../services/crop';
 
 export function resolvePreviewRect(
@@ -41,8 +42,11 @@ export class PlatformPreviewComponent {
   readonly platform = input.required<PlatformProfile>();
   readonly dataUrl = input.required<string>();
   readonly crop = input<Rect | null>(null);
-  /** Filterausdruck fuer die Zeichenflaeche. Leer heisst: kein Filter. */
-  readonly filter = input('');
+  /**
+   * Die vollstaendige Bildwirkung: CSS-Filter plus Waerme und Schaerfe.
+   * Als ein Wert, damit Vorschau und Export nicht auseinanderlaufen koennen.
+   */
+  readonly look = input<Look>(NEUTRAL_LOOK);
 
   readonly previewUrl = signal<string | null>(null);
   readonly outputSize = signal<Size | null>(null);
@@ -73,8 +77,8 @@ export class PlatformPreviewComponent {
       const url = this.dataUrl();
       const crop = this.crop();
       const platform = this.platform();
-      const filter = this.filter();
-      this.scheduleRender(url, crop, platform, filter);
+      const look = this.look();
+      this.scheduleRender(url, crop, platform, look);
     });
   }
 
@@ -88,12 +92,12 @@ export class PlatformPreviewComponent {
     url: string,
     crop: Rect | null,
     platform: PlatformProfile,
-    filter: string,
+    look: Look,
   ): void {
     if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(() => {
       this.debounceTimer = null;
-      void this.renderPreview(url, crop, platform, filter);
+      void this.renderPreview(url, crop, platform, look);
     }, PlatformPreviewComponent.RENDER_DEBOUNCE_MS);
   }
 
@@ -101,7 +105,7 @@ export class PlatformPreviewComponent {
     url: string,
     crop: Rect | null,
     platform: PlatformProfile,
-    filter: string,
+    look: Look,
   ): Promise<void> {
     const version = ++this.renderVersion;
     this.hasPreviewError.set(false);
@@ -121,7 +125,7 @@ export class PlatformPreviewComponent {
       const plan = planPreview(crop, size, platform);
       if (!plan) return;
 
-      const blob = await renderImage(image, plan, 0.92, filter);
+      const blob = await renderImage(image, plan, 0.92, look);
       if (this.destroyed || version !== this.renderVersion) return;
 
       const newUrl = URL.createObjectURL(blob);

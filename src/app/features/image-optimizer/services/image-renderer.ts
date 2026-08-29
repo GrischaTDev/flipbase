@@ -1,5 +1,7 @@
 import { PlatformProfile, Rect } from '../models/platform-profile';
 import { deriveRect } from './crop';
+import { Look } from './adjustments';
+import { applySharpening, applyWarmth } from './pixel-adjustments';
 
 /** Vollständiger, von Vorschau und Export gemeinsam verwendeter Renderplan. */
 export interface RenderPlan {
@@ -30,14 +32,14 @@ export function planOutput(crop: Rect, platform: PlatformProfile): RenderPlan {
 
 /**
  * Rendert einen Plan als JPEG. Diese Funktion ist die einzige Canvas-Ausgabe
- * für Vorschau und Export - ein hier gesetzter Filter wirkt deshalb
+ * für Vorschau und Export - eine hier angewandte Bildwirkung gilt deshalb
  * zwangsläufig in beiden, und sie können nicht auseinanderlaufen.
  */
 export async function renderImage(
   image: CanvasImageSource,
   plan: RenderPlan,
   quality = 0.92,
-  filter = '',
+  look: Look = { filter: '', warmth: 0, sharpness: 0 },
 ): Promise<Blob> {
   const canvas = document.createElement('canvas');
   canvas.width = plan.width;
@@ -55,8 +57,61 @@ export async function renderImage(
   context.imageSmoothingEnabled = true;
   context.imageSmoothingQuality = 'high';
 
-  if (filter) context.filter = filter;
-  context.drawImage(
+  const needsPixels = look.warmth !== 0 || look.sharpness !== 0;
+
+  if (needsPixels) {
+    // Wärme und Schärfe rechnen auf Pixeln, und zwar auf einer eigenen Fläche,
+    // die nur das Bild enthält. Auf der fertigen Ausgabe gerechnet wäre der
+    // weiße Grund längst mit eingebrannt - Wärme würde ihn mit einfärben, und
+    // ein freigestelltes Produktfoto bekäme statt des von eBay verlangten
+    // reinen Weiß einen warmen Rand.
+    drawWithLook(context, image, plan, look);
+  } else {
+    if (look.filter) context.filter = look.filter;
+    context.drawImage(
+      image,
+      plan.source.x,
+      plan.source.y,
+      plan.source.width,
+      plan.source.height,
+      0,
+      0,
+      plan.width,
+      plan.height,
+    );
+    if (look.filter) context.filter = 'none';
+  }
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => (blob ? resolve(blob) : reject(new Error('Das Bild ließ sich nicht erzeugen.'))),
+      'image/jpeg',
+      quality,
+    );
+  });
+}
+
+/**
+ * Zeichnet das Bild auf eine eigene Fläche, rechnet dort die Pixelwirkungen
+ * und legt das Ergebnis erst danach auf den weißen Grund.
+ */
+function drawWithLook(
+  target: CanvasRenderingContext2D,
+  image: CanvasImageSource,
+  plan: RenderPlan,
+  look: Look,
+): void {
+  const layer = document.createElement('canvas');
+  layer.width = plan.width;
+  layer.height = plan.height;
+
+  const layerContext = layer.getContext('2d');
+  if (!layerContext) throw new Error('Der Browser stellt keine Zeichenfläche bereit.');
+
+  layerContext.imageSmoothingEnabled = true;
+  layerContext.imageSmoothingQuality = 'high';
+  if (look.filter) layerContext.filter = look.filter;
+  layerContext.drawImage(
     image,
     plan.source.x,
     plan.source.y,
@@ -67,13 +122,18 @@ export async function renderImage(
     plan.width,
     plan.height,
   );
-  if (filter) context.filter = 'none';
+  if (look.filter) layerContext.filter = 'none';
 
-  return new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error('Das Bild ließ sich nicht erzeugen.'))),
-      'image/jpeg',
-      quality,
-    );
-  });
+  const pixels = layerContext.getImageData(0, 0, plan.width, plan.height);
+  applyWarmth(pixels.data, look.warmth);
+  // Zuletzt geschärft, wie in jedem Bildbearbeitungsprogramm: Erst steht die
+  // Farbe fest, dann werden die Kanten darauf betont. Umgekehrt würde eine
+  // spätere Kontrastanhebung die Schärfungssäume mit verstärken.
+  applySharpening(pixels.data, plan.width, plan.height, look.sharpness);
+  layerContext.putImageData(pixels, 0, 0);
+
+  target.drawImage(layer, 0, 0);
 }
+
+/** Nur zur Klarheit an der Aufrufstelle - die neutrale Bildwirkung. */
+export const NEUTRAL_LOOK: Look = { filter: '', warmth: 0, sharpness: 0 };

@@ -26,28 +26,39 @@
 
   <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
     @for (slider of sliders; track slider.key) {
-      <div class="flex items-center gap-3">
-        <label
-          [attr.for]="'adjust-' + slider.key"
-          class="w-24 shrink-0 text-[11px] font-semibold text-fb-text-secondary"
-        >
-          {{ slider.label }}
-        </label>
-        <input
-          [id]="'adjust-' + slider.key"
-          type="range"
-          [min]="range(slider.key).min"
-          [max]="range(slider.key).max"
-          [step]="slider.step"
-          [value]="valueOf(slider.key)"
-          [attr.aria-valuetext]="percentOf(slider.key) + ' %'"
-          [disabled]="disabled()"
-          (input)="onSlider(slider.key, $any($event.target).value)"
-          class="h-1.5 flex-1 cursor-pointer accent-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
-        />
-        <span class="w-12 text-right text-[10px] tabular-nums text-fb-text-muted">
-          {{ percentOf(slider.key) }} %
-        </span>
+      <div>
+        <div class="flex items-center gap-3">
+          <label
+            [attr.for]="'adjust-' + slider.key"
+            class="w-24 shrink-0 text-[11px] font-semibold text-fb-text-secondary"
+          >
+            {{ slider.label }}
+          </label>
+          <input
+            [id]="'adjust-' + slider.key"
+            type="range"
+            [min]="range(slider.key).min"
+            [max]="range(slider.key).max"
+            [step]="slider.step"
+            [value]="valueOf(slider.key)"
+            [attr.aria-valuetext]="displayOf(slider)"
+            [attr.aria-describedby]="slider.hint ? 'adjust-hint-' + slider.key : null"
+            [disabled]="disabled()"
+            (input)="onSlider(slider.key, $any($event.target).value)"
+            class="h-1.5 flex-1 cursor-pointer accent-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
+          />
+          <span class="w-14 text-right text-[10px] tabular-nums text-fb-text-muted">
+            {{ displayOf(slider) }}
+          </span>
+        </div>
+        @if (slider.hint) {
+          <p
+            [id]="'adjust-hint-' + slider.key"
+            class="mt-1 pl-27 text-[10px] leading-snug text-fb-text-muted"
+          >
+            {{ slider.hint }}
+          </p>
+        }
       </div>
     }
   </div>

@@ -15,4 +15,11 @@ export interface Adjustments {
   readonly saturation: number;
   /** 0 bis 1, Standard 0. */
   readonly grayscale: number;
+  /**
+   * Weissabgleich von -1 (kuehl) bis 1 (warm), Standard 0. Gegen den
+   * Blaustich von Tageslicht im Schatten und den Gelbstich von Gluehlampen.
+   */
+  readonly warmth: number;
+  /** 0 bis 1, Standard 0. Unscharfe Maske; hebt Kanten und Stoffstruktur. */
+  readonly sharpness: number;
 }

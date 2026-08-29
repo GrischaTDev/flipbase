@@ -15,7 +15,7 @@ import { PLATFORM_PROFILES, PlatformProfile, PlatformId, Rect } from './models/p
 import { OptimizerImage, fullImageRect } from './models/optimizer-image';
 import { Adjustments } from './models/image-adjustments';
 import { pendingMetadata } from './models/image-metadata';
-import { defaultAdjustments, toFilterString } from './services/adjustments';
+import { defaultAdjustments, looksEqual, toLook } from './services/adjustments';
 import { MetadataReaderService } from './services/metadata-reader.service';
 import { CropEditorComponent } from './components/crop-editor/crop-editor.component';
 import { PreviewGridComponent } from './components/preview-grid/preview-grid.component';
@@ -150,11 +150,21 @@ export class ImageOptimizerComponent {
     () => this.images().find((b) => b.id === this.activeImageId()) ?? null,
   );
 
-  /** Filterausdruck des aktiven Bildes fuer die Exportvorschau. */
-  readonly activeFilter = computed(() => {
-    const image = this.activeImage();
-    return image ? toFilterString(image.adjustments) : '';
-  });
+  /**
+   * Bildwirkung des aktiven Bildes fuer die Exportvorschau.
+   *
+   * Der eigene Vergleich ist wichtig: `computed` prueft sonst mit `Object.is`,
+   * und ein jedes Mal neu gebautes Objekt gilt damit immer als geaendert. Die
+   * Vorschau wuerde bei jeder Aenderung an der Bilderliste neu rendern - auch
+   * beim blossen Umschalten der Marke "durchgesehen".
+   */
+  readonly activeLook = computed(
+    () => {
+      const image = this.activeImage();
+      return toLook(image ? image.adjustments : defaultAdjustments());
+    },
+    { equal: looksEqual },
+  );
 
   readonly workingPlatform = computed<PlatformProfile | null>(
     () => this.selectedPlatforms().find((p) => p.id === this.workingPlatformId()) ?? null,
@@ -593,12 +603,7 @@ export class ImageOptimizerComponent {
           entries.push({
             folder: folderName(p),
             file: exportFileName(index, this.baseName()),
-            data: await this.imageExport.create(
-              element,
-              crop,
-              p,
-              toFilterString(image.adjustments),
-            ),
+            data: await this.imageExport.create(element, crop, p, toLook(image.adjustments)),
           });
         }
       }

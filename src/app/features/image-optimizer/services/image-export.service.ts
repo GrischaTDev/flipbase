@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import imageCompression from 'browser-image-compression';
 import { PlatformProfile, Rect } from '../models/platform-profile';
-import { planOutput, renderImage } from './image-renderer';
+import { NEUTRAL_LOOK, planOutput, renderImage } from './image-renderer';
+import { Look } from './adjustments';
 
 @Injectable({
   providedIn: 'root',
@@ -18,10 +19,10 @@ export class ImageExportService {
     image: HTMLImageElement,
     crop: Rect,
     platform: PlatformProfile,
-    filter = '',
+    look: Look = NEUTRAL_LOOK,
   ): Promise<Blob> {
     const plan = planOutput(crop, platform);
-    const raw = await renderImage(image, plan, 0.92, filter);
+    const raw = await renderImage(image, plan, 0.92, look);
 
     if (platform.maxFileSizeMB === null) return raw;
     if (raw.size <= platform.maxFileSizeMB * 1024 * 1024) return raw;

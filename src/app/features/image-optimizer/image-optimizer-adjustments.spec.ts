@@ -10,7 +10,7 @@ const brightened: Adjustments = { ...defaultAdjustments(), brightness: 1.3 };
 
 /**
  * Erzeugt die echte Komponente ueber den echten Konstruktor, statt einzelne
- * Signale per `Object.assign` unterzuschieben. Nur so bleibt `activeFilter`
+ * Signale per `Object.assign` unterzuschieben. Nur so bleibt `activeLook`
  * das tatsaechliche `computed()` aus der Komponente - genau das soll dieser
  * Test pruefen, nicht eine im Test nachgebaute Kopie davon.
  */
@@ -39,7 +39,7 @@ describe('ImageOptimizerComponent – Farbe und Belichtung', () => {
     const component = createComponent();
     addTwoImages(component);
 
-    expect(component.activeFilter()).toBe('');
+    expect(component.activeLook().filter).toBe('');
   });
 
   it('aendert die Filterkette des aktiven Bildes, sobald Anpassungen gesetzt werden', () => {
@@ -48,7 +48,7 @@ describe('ImageOptimizerComponent – Farbe und Belichtung', () => {
 
     component.setAdjustments(brightened);
 
-    expect(component.activeFilter()).toBe(toFilterString(brightened));
+    expect(component.activeLook().filter).toBe(toFilterString(brightened));
   });
 
   it('wirkt sich nur auf das aktive Bild aus - ein zweites Bild bleibt unveraendert', () => {
@@ -62,7 +62,7 @@ describe('ImageOptimizerComponent – Farbe und Belichtung', () => {
     );
 
     component.setActiveImage(secondId);
-    expect(component.activeFilter()).toBe('');
+    expect(component.activeLook().filter).toBe('');
   });
 
   it('uebertraegt beim "Auf alle anwenden" die Werte des aktiven Bildes auf jedes Bild', () => {
@@ -88,7 +88,7 @@ describe('ImageOptimizerComponent – Farbe und Belichtung', () => {
 
     component.setAdjustments(brightened);
 
-    expect(component.activeFilter()).toBe('');
+    expect(component.activeLook().filter).toBe('');
     expect(component.images().every((entry) => entry.adjustments.brightness === 1)).toBe(true);
   });
 });
