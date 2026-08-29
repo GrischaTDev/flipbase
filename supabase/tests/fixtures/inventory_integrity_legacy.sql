@@ -12,13 +12,6 @@
 \set conflict_sale_id '82000000-0000-4000-8000-000000000012'
 \set legacy_header_item_id '82000000-0000-4000-8000-000000000018'
 \set legacy_header_sale_id '82000000-0000-4000-8000-000000000019'
-\set move_source_item_id '82000000-0000-4000-8000-000000000030'
-\set move_target_item_id '82000000-0000-4000-8000-000000000031'
-\set sellable_item_id '82000000-0000-4000-8000-000000000032'
-\set direct_item_id '82000000-0000-4000-8000-000000000033'
-\set move_source_sale_id '82000000-0000-4000-8000-000000000034'
-\set move_source_line_id '82000000-0000-4000-8000-000000000035'
-
 insert into auth.users (
   id, aud, role, email, encrypted_password, raw_app_meta_data,
   raw_user_meta_data, created_at, updated_at
@@ -52,24 +45,18 @@ values
   (:'conflict_item_id'::uuid, :'main_workspace_id'::uuid, 'Sale status conflict', 'ready'),
   (:'multiple_item_id'::uuid, :'main_workspace_id'::uuid, 'Multiple active sales', 'sold'),
   (:'legacy_header_item_id'::uuid, :'main_workspace_id'::uuid, 'Legacy header only', 'sold'),
-  (:'move_source_item_id'::uuid, :'main_workspace_id'::uuid, 'Move source', 'sold'),
-  (:'move_target_item_id'::uuid, :'main_workspace_id'::uuid, 'Move target', 'ready'),
-  (:'sellable_item_id'::uuid, :'main_workspace_id'::uuid, 'Sellable item', 'ready'),
-  (:'direct_item_id'::uuid, :'main_workspace_id'::uuid, 'Direct mutation item', 'ready'),
   (:'foreign_item_id'::uuid, :'foreign_workspace_id'::uuid, 'Foreign orphan', 'sold');
 
 insert into public.sales (
   id, workspace_id, inventory_item_id, platform, sale_price,
-  sale_price_total, sale_date, returned_at, voided_at, voided_by, void_reason
+  sale_price_total, sale_date, returned_at
 ) values
-  (:'valid_sale_id'::uuid, :'main_workspace_id'::uuid, :'valid_item_id'::uuid, 'direct', 25, 25, current_date, null, null, null, null),
-  (:'conflict_sale_id'::uuid, :'main_workspace_id'::uuid, :'conflict_item_id'::uuid, 'direct', 20, 20, current_date, null, null, null, null),
-  ('82000000-0000-4000-8000-000000000013', :'main_workspace_id'::uuid, :'multiple_item_id'::uuid, 'direct', 30, 30, current_date, null, null, null, null),
-  ('82000000-0000-4000-8000-000000000014', :'main_workspace_id'::uuid, :'multiple_item_id'::uuid, 'direct', 30, 30, current_date, null, null, null, null),
-  ('82000000-0000-4000-8000-000000000015', :'main_workspace_id'::uuid, :'available_item_id'::uuid, 'direct', 15, 15, current_date, now(), null, null, null),
-  ('82000000-0000-4000-8000-000000000016', :'main_workspace_id'::uuid, :'available_item_id'::uuid, 'direct', 15, 15, current_date, null, now(), :'main_user_id'::uuid, 'Teststorno'),
-  (:'legacy_header_sale_id'::uuid, :'main_workspace_id'::uuid, :'legacy_header_item_id'::uuid, 'direct', 18, 18, current_date, null, null, null, null),
-  (:'move_source_sale_id'::uuid, :'main_workspace_id'::uuid, null, 'direct', 19, 19, current_date, null, null, null, null);
+  (:'valid_sale_id'::uuid, :'main_workspace_id'::uuid, :'valid_item_id'::uuid, 'direct', 25, 25, current_date, null),
+  (:'conflict_sale_id'::uuid, :'main_workspace_id'::uuid, :'conflict_item_id'::uuid, 'direct', 20, 20, current_date, null),
+  ('82000000-0000-4000-8000-000000000013', :'main_workspace_id'::uuid, :'multiple_item_id'::uuid, 'direct', 30, 30, current_date, null),
+  ('82000000-0000-4000-8000-000000000014', :'main_workspace_id'::uuid, :'multiple_item_id'::uuid, 'direct', 30, 30, current_date, null),
+  ('82000000-0000-4000-8000-000000000015', :'main_workspace_id'::uuid, :'available_item_id'::uuid, 'direct', 15, 15, current_date, now()),
+  (:'legacy_header_sale_id'::uuid, :'main_workspace_id'::uuid, :'legacy_header_item_id'::uuid, 'direct', 18, 18, current_date, null);
 
 insert into public.sale_lines (
   id, workspace_id, sale_id, inventory_item_id, title_snapshot,
@@ -79,6 +66,4 @@ insert into public.sale_lines (
   ('82000000-0000-4000-8000-000000000022', :'main_workspace_id'::uuid, :'conflict_sale_id'::uuid, :'conflict_item_id'::uuid, 'Sale status conflict', 1, 20, 20, 8, 'diff_25a'),
   ('82000000-0000-4000-8000-000000000023', :'main_workspace_id'::uuid, '82000000-0000-4000-8000-000000000013', :'multiple_item_id'::uuid, 'Multiple active sales', 1, 30, 30, 12, 'diff_25a'),
   ('82000000-0000-4000-8000-000000000024', :'main_workspace_id'::uuid, '82000000-0000-4000-8000-000000000014', :'multiple_item_id'::uuid, 'Multiple active sales', 1, 30, 30, 12, 'diff_25a'),
-  ('82000000-0000-4000-8000-000000000025', :'main_workspace_id'::uuid, '82000000-0000-4000-8000-000000000015', :'available_item_id'::uuid, 'Returned sale', 1, 15, 15, 6, 'diff_25a'),
-  ('82000000-0000-4000-8000-000000000026', :'main_workspace_id'::uuid, '82000000-0000-4000-8000-000000000016', :'available_item_id'::uuid, 'Voided sale', 1, 15, 15, 6, 'diff_25a'),
-  (:'move_source_line_id'::uuid, :'main_workspace_id'::uuid, :'move_source_sale_id'::uuid, :'move_source_item_id'::uuid, 'Move source', 1, 19, 19, 7, 'diff_25a');
+  ('82000000-0000-4000-8000-000000000025', :'main_workspace_id'::uuid, '82000000-0000-4000-8000-000000000015', :'available_item_id'::uuid, 'Returned sale', 1, 15, 15, 6, 'diff_25a');

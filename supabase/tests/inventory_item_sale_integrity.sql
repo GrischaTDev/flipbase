@@ -2,7 +2,14 @@
 
 begin;
 
-select plan(43);
+select plan(45);
+
+\set move_source_item_id '82000000-0000-4000-8000-000000000030'
+\set move_target_item_id '82000000-0000-4000-8000-000000000031'
+\set sellable_item_id '82000000-0000-4000-8000-000000000032'
+\set direct_item_id '82000000-0000-4000-8000-000000000033'
+\set move_source_sale_id '82000000-0000-4000-8000-000000000034'
+\set move_source_line_id '82000000-0000-4000-8000-000000000035'
 
 alter table public.inventory_items disable trigger protect_inventory_item_sold_status;
 alter table public.inventory_items disable trigger inventory_item_sale_integrity_on_insert;
@@ -17,6 +24,31 @@ alter table public.inventory_items enable trigger inventory_item_sale_integrity_
 alter table public.inventory_items enable trigger inventory_item_sale_integrity_on_status;
 alter table public.sale_lines enable trigger inventory_item_sale_integrity_on_sale_line;
 alter table public.sales enable trigger inventory_item_sale_integrity_on_sale;
+
+select set_config('flipbase.allow_inventory_sold_transition', 'on', true);
+
+insert into public.inventory_items (id, workspace_id, title, status)
+values
+  (:'move_source_item_id'::uuid, :'main_workspace_id'::uuid, 'Move source', 'sold'),
+  (:'move_target_item_id'::uuid, :'main_workspace_id'::uuid, 'Move target', 'ready'),
+  (:'sellable_item_id'::uuid, :'main_workspace_id'::uuid, 'Sellable item', 'ready'),
+  (:'direct_item_id'::uuid, :'main_workspace_id'::uuid, 'Direct mutation item', 'ready');
+
+insert into public.sales (
+  id, workspace_id, inventory_item_id, platform, sale_price,
+  sale_price_total, sale_date, returned_at, voided_at, voided_by, void_reason
+) values
+  ('82000000-0000-4000-8000-000000000016', :'main_workspace_id'::uuid, :'available_item_id'::uuid, 'direct', 15, 15, current_date, null, now(), :'main_user_id'::uuid, 'Teststorno'),
+  (:'move_source_sale_id'::uuid, :'main_workspace_id'::uuid, null, 'direct', 19, 19, current_date, null, null, null, null);
+
+insert into public.sale_lines (
+  id, workspace_id, sale_id, inventory_item_id, title_snapshot,
+  quantity, unit_sale_price, line_total, cost_of_goods_sold, tax_mode
+) values
+  ('82000000-0000-4000-8000-000000000026', :'main_workspace_id'::uuid, '82000000-0000-4000-8000-000000000016', :'available_item_id'::uuid, 'Voided sale', 1, 15, 15, 6, 'diff_25a'),
+  (:'move_source_line_id'::uuid, :'main_workspace_id'::uuid, :'move_source_sale_id'::uuid, :'move_source_item_id'::uuid, 'Move source', 1, 19, 19, 7, 'diff_25a');
+
+select set_config('flipbase.allow_inventory_sold_transition', '', true);
 
 select has_column('public', 'sales', 'voided_at', 'sales has a void timestamp');
 select has_column('public', 'sales', 'voided_by', 'sales records who voided it');
@@ -44,6 +76,35 @@ select is((select sale_state from public.inventory_item_sale_states where invent
 select is((select sale_state from public.inventory_item_sale_states where inventory_item_id = :'conflict_item_id'), 'sale_status_conflict', 'Verkauf ohne sold-Status ist Konflikt');
 select is((select active_sale_count from public.inventory_item_sale_states where inventory_item_id = :'multiple_item_id'), 2::bigint, 'mehrere aktive Verkäufe werden gezählt');
 select is((select sale_state from public.inventory_item_sale_states where inventory_item_id = :'multiple_item_id'), 'multiple_active_sales', 'mehrere aktive Verkäufe sind Konflikt');
+
+create function pg_temp.commit_legacy_metadata_update() returns void language plpgsql as $$
+begin
+  update public.sales
+  set buyer_notes = 'Metadatenkorrektur'
+  where id = '82000000-0000-4000-8000-000000000019';
+  set constraints all immediate;
+  set constraints all deferred;
+end;
+$$;
+
+create function pg_temp.commit_legacy_relevant_state_update() returns void language plpgsql as $$
+begin
+  update public.sales
+  set returned_at = now()
+  where id = '82000000-0000-4000-8000-000000000019';
+  set constraints all immediate;
+end;
+$$;
+
+select lives_ok(
+  'select pg_temp.commit_legacy_metadata_update()',
+  'irrelevante Verkaufsmetadaten dürfen trotz vorhandener Legacy-Inkonsistenz committet werden'
+);
+select throws_ok(
+  'select pg_temp.commit_legacy_relevant_state_update()',
+  '23514', 'Inventarstatus und bestandswirksame Verkaufsposition stimmen nicht ueberein.',
+  'bestandswirksame Zustandsänderung prüft den Legacy-Datensatz'
+);
 
 select has_table('public', 'inventory_reconciliation_events', 'Klärungsjournal existiert');
 select is((select relrowsecurity from pg_class where oid = 'public.inventory_reconciliation_events'::regclass), true, 'Klärungsjournal hat RLS');

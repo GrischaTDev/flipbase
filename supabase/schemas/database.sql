@@ -2752,7 +2752,8 @@ deferrable initially deferred
 for each row execute function public.check_sale_line_inventory_integrity();
 
 create constraint trigger inventory_item_sale_integrity_on_sale
-after insert or update or delete on public.sales
+after insert or delete or update of workspace_id, inventory_item_id, returned_at, voided_at
+on public.sales
 deferrable initially deferred
 for each row execute function public.check_sale_inventory_integrity();
 

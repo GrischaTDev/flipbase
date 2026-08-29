@@ -199,7 +199,16 @@ export class InventoryService {
         );
         const enriched = (data as unknown as InventoryItem[]).map((item) => {
           const saleState = statesByItemId.get(item.id);
-          return this.enrichItemTotals(saleState ? { ...item, ...saleState } : item);
+          return this.enrichItemTotals(
+            saleState
+              ? {
+                  ...item,
+                  sale_state: saleState.sale_state,
+                  active_sale_count: saleState.active_sale_count,
+                  active_sale_id: saleState.active_sale_id,
+                }
+              : item,
+          );
         });
         this.items.set(enriched);
         this.istGeladen.set(true);

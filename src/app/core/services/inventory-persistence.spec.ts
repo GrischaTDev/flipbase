@@ -103,6 +103,7 @@ function erstelleDienst(artikelAntwort: SupabaseAntwort) {
 
 describe('InventoryService – abhängige Schreibvorgänge', () => {
   it('merged den bestandswirksamen View-Zustand anhand der Artikel-ID', async () => {
+    let updatePayload: Record<string, unknown> | null = null;
     const client = {
       from(tabelle: string) {
         if (tabelle === 'inventory_items') {
@@ -115,6 +116,10 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
                   };
                 },
               };
+            },
+            update(payload: unknown) {
+              updatePayload = payload as Record<string, unknown>;
+              return { eq: async () => ({ error: null, count: 1 }) };
             },
           };
         }
@@ -151,6 +156,14 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
       active_sale_count: 0,
       active_sale_id: null,
     });
+    expect(dienst.items()[0]).not.toHaveProperty('inventory_item_id');
+
+    await dienst.updateItem(gespeicherterArtikel.id, dienst.items()[0]);
+
+    expect(updatePayload).not.toHaveProperty('inventory_item_id');
+    expect(updatePayload).not.toHaveProperty('sale_state');
+    expect(updatePayload).not.toHaveProperty('active_sale_count');
+    expect(updatePayload).not.toHaveProperty('active_sale_id');
   });
 
   it('klassifiziert Demo-Artikel aus persistierten Positionen und Legacy-Köpfen', async () => {
