@@ -10,7 +10,8 @@
     }
     @case ('unsupported') {
       <p class="text-[11px] text-fb-text-muted">
-        Nur JPEG-Dateien werden ausgewertet. Über diese Datei ist nichts bekannt.
+        Aus diesem Dateiformat werden keine Metadaten gelesen. Ausgewertet werden JPEG, PNG, WebP,
+        HEIC/AVIF und TIFF. Über diese Datei ist nichts bekannt.
       </p>
     }
     @case ('failed') {
@@ -21,10 +22,18 @@
     }
     @case ('read') {
       @if (isEmpty()) {
-        <p class="text-[11px] text-fb-text-muted">
-          Keine der ausgewerteten Angaben gefunden – weder Standort, Kamera, Aufnahmedatum, Software
-          noch Herkunftsnachweis.
-        </p>
+        @if (credentialChecked()) {
+          <p class="text-[11px] text-fb-text-muted">
+            Keine der ausgewerteten Angaben gefunden – weder Standort, Kamera, Aufnahmedatum,
+            Software noch Herkunftsnachweis.
+          </p>
+        } @else {
+          <p class="text-[11px] text-fb-text-muted">
+            Keine der ausgewerteten Angaben gefunden – weder Standort, Kamera, Aufnahmedatum noch
+            Software. Ob ein KI-Herkunftsnachweis vorliegt, wird in diesem Dateiformat nicht
+            geprüft.
+          </p>
+        }
       } @else {
         <dl class="space-y-2 text-[11px]">
           @if (coordinates(); as position) {
@@ -61,7 +70,7 @@
               <dd class="text-right text-fb-text-secondary">{{ source }}</dd>
             </div>
           }
-          @if (metadata().ai.contentCredential) {
+          @if (hasContentCredential()) {
             <div class="rounded-lg border border-fb-border px-3 py-2">
               <dt class="font-bold text-fb-text-primary">KI-Herkunftsnachweis</dt>
               <dd class="mt-0.5 leading-relaxed text-fb-text-secondary">

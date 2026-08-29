@@ -1,6 +1,13 @@
 import { Injectable } from '@angular/core';
-import { AiProvenance, ImageMetadata, pendingMetadata } from '../models/image-metadata';
-import { hasContentCredential } from './c2pa-detection';
+import {
+  AiProvenance,
+  ContentCredentialState,
+  ImageMetadata,
+  pendingMetadata,
+} from '../models/image-metadata';
+import { hasJpegContentCredential, hasPngContentCredential } from './c2pa-detection';
+import { detectFormat, ImageFormat } from './image-format';
+import { readDigitalSourceType, readWebpChunks } from './webp-metadata';
 
 /**
  * `pick` (Filterung nach einzelnen Feldnamen) wurde ausprobiert und funktioniert
@@ -25,6 +32,17 @@ const PARSE_OPTIONS = {
   ihdr: false,
 };
 
+/** Reicht fuer jede Formatsignatur - die laengste braucht 20 Byte. */
+const SIGNATURE_BYTES = 32;
+
+/**
+ * Fuer die Suche nach dem Herkunftsnachweis. Bei JPEG stehen die APP-Segmente
+ * vor dem Bilddatenstrom, bei PNG steht der `caBX`-Chunk vor den Bilddaten -
+ * beides liegt also im Dateikopf. Bei vielen gleichzeitig hochgeladenen Fotos
+ * verhindert die Grenze einen Speicher-Peak in Hoehe der Gesamtgroesse.
+ */
+const HEADER_BYTES = 2 * 1024 * 1024;
+
 /**
  * Kapselt `exifr` vollstaendig. Kein anderer Teil des Codes kennt die
  * Bibliothek - waere sie eines Tages zu ersetzen, betrifft das nur diese
@@ -41,36 +59,54 @@ export class MetadataReaderService {
   async read(file: File): Promise<ImageMetadata> {
     const base = pendingMetadata();
 
-    if (!isJpeg(file)) return { ...base, status: 'unsupported' };
-
     try {
+      const signature = new Uint8Array(await file.slice(0, SIGNATURE_BYTES).arrayBuffer());
+      const format = detectFormat(signature);
+
+      if (format === 'unknown') return { ...base, status: 'unsupported' };
+
       // Dynamischer Import: `exifr` (nur wegen XMP-Parser die volle "full"-Variante)
       // wandert dadurch in einen eigenen Chunk, der erst beim tatsaechlichen Lesen
       // nachgeladen wird. So bleibt der Editor-Chunk innerhalb seines Budgets.
       // Bitte nicht zu einem statischen Import "aufraeumen".
       const { default: exifr } = await import('exifr');
-      const raw = (await exifr.parse(file, PARSE_OPTIONS)) ?? {};
+
+      // WebP kann `exifr` nicht - gemessen, die Bibliothek quittiert es mit
+      // "Unknown file format". Die Chunks holen wir selbst heraus und reichen
+      // den darin liegenden rohen TIFF-Block an `exifr` weiter.
+      if (format === 'webp') {
+        // Ganze Datei: Laut WebP-Spezifikation stehen `EXIF` und `XMP `
+        // **hinter** den Bilddaten. Wer nur den Kopf liest, findet sie nie.
+        const all = new Uint8Array(await file.arrayBuffer());
+        const chunks = readWebpChunks(all);
+        const raw = chunks.exif
+          ? ((await exifr.parse(chunks.exif, PARSE_OPTIONS)) ?? {})
+          : ({} as Record<string, unknown>);
+
+        return {
+          ...fieldsFrom(raw),
+          status: 'read',
+          ai: {
+            contentCredential: chunks.hasContentCredential ? 'present' : 'absent',
+            declaredSource: chunks.xmp ? readDigitalSourceType(chunks.xmp) : null,
+          },
+        };
+      }
+
       // Wenn exifr nichts Brauchbares findet, liefert es `{ errors: [...] }`
       // statt eines echten Feldes zurueck - das ist "geprueft und leer", kein
       // Fehlschlag. `errors` selbst ist kein Metadatenfeld und darf nirgends
       // als eines gelesen werden.
-      //
-      // Nur die ersten 2 MB werden gelesen, nicht die ganze Datei: Die
-      // C2PA-Erkennung (`hasContentCredential`) durchsucht ohnehin nur die
-      // APP-Segmente vor dem Bilddatenstrom und bricht bei `START_OF_SCAN`
-      // ab - alles, was sie sehen kann, steht im Dateikopf. Bei vielen
-      // gleichzeitig hochgeladenen Fotos verhindert das einen Speicher-Peak
-      // in Höhe der Gesamtgröße aller Dateien.
-      const bytes = new Uint8Array(await file.slice(0, 2 * 1024 * 1024).arrayBuffer());
+      const raw = (await exifr.parse(file, PARSE_OPTIONS)) ?? {};
+      const header = new Uint8Array(await file.slice(0, HEADER_BYTES).arrayBuffer());
 
       return {
+        ...fieldsFrom(raw),
         status: 'read',
-        gps: readGps(raw),
-        cameraMake: text(raw['Make']),
-        cameraModel: text(raw['Model']),
-        capturedAt: readDate(raw),
-        software: text(raw['Software']),
-        ai: readAi(raw, bytes),
+        ai: {
+          contentCredential: credentialState(format, header),
+          declaredSource: declaredSourceFrom(raw),
+        },
       };
     } catch {
       // Bewusst kein Fehlerpfad nach aussen - siehe Kommentar oben.
@@ -79,10 +115,25 @@ export class MetadataReaderService {
   }
 }
 
-function isJpeg(file: File): boolean {
-  const type = (file.type || '').toLowerCase();
-  if (type === 'image/jpeg' || type === 'image/jpg') return true;
-  return /\.(jpe?g)$/i.test(file.name);
+/**
+ * Wo der Nachweis nicht gesucht wird, wird das auch gesagt. "Nicht gefunden"
+ * waere hier eine Behauptung ueber etwas, wonach niemand gesehen hat.
+ */
+function credentialState(format: ImageFormat, header: Uint8Array): ContentCredentialState {
+  if (format === 'jpeg') return hasJpegContentCredential(header) ? 'present' : 'absent';
+  if (format === 'png') return hasPngContentCredential(header) ? 'present' : 'absent';
+  return 'unchecked';
+}
+
+/** Die Felder, die aus jedem Format gleich gelesen werden. */
+function fieldsFrom(raw: Record<string, unknown>): Omit<ImageMetadata, 'status' | 'ai'> {
+  return {
+    gps: readGps(raw),
+    cameraMake: text(raw['Make']),
+    cameraModel: text(raw['Model']),
+    capturedAt: readDate(raw),
+    software: text(raw['Software']),
+  };
 }
 
 function text(value: unknown): string | null {
@@ -103,12 +154,11 @@ function readDate(raw: Record<string, unknown>): string | null {
   return value.toISOString();
 }
 
-function readAi(raw: Record<string, unknown>, bytes: Uint8Array): AiProvenance {
-  // `exifr` liefert das XMP-Feld als `DigitalSourceType` (grosses D) -
-  // `digitalSourceType` wird zusaetzlich akzeptiert, kommt aber in der
-  // Praxis von der Bibliothek nicht vor.
-  return {
-    contentCredential: hasContentCredential(bytes),
-    declaredSource: text(raw['DigitalSourceType'] ?? raw['digitalSourceType']),
-  };
+/**
+ * `exifr` liefert das XMP-Feld als `DigitalSourceType` (grosses D) -
+ * `digitalSourceType` wird zusaetzlich akzeptiert, kommt aber in der Praxis
+ * von der Bibliothek nicht vor.
+ */
+function declaredSourceFrom(raw: Record<string, unknown>): AiProvenance['declaredSource'] {
+  return text(raw['DigitalSourceType'] ?? raw['digitalSourceType']);
 }

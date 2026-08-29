@@ -5,9 +5,22 @@
  */
 export type MetadataStatus = 'pending' | 'read' | 'unsupported' | 'failed';
 
+/**
+ * `present` und `absent` sind Aussagen, `unchecked` ist das Eingestaendnis,
+ * nicht nachgesehen zu haben.
+ *
+ * Der Nachweis liegt je Containerformat woanders: bei JPEG in einem
+ * APP11-Segment, bei PNG in einem `caBX`-Chunk, bei WebP in einem
+ * `C2PA`-Chunk. Fuer HEIC/AVIF und TIFF ist er hier **nicht** implementiert -
+ * dort steckt er in ISOBMFF-Boxen bzw. einem TIFF-Tag, und ohne echte
+ * Beispieldateien waere jede Umsetzung geraten. In diesen Faellen sagt die
+ * Anzeige, dass nicht nachgesehen wurde, statt "nichts gefunden" zu melden.
+ */
+export type ContentCredentialState = 'present' | 'absent' | 'unchecked';
+
 export interface AiProvenance {
   /** Ein C2PA-Nachweis liegt vor. Nur festgestellt, nicht geprueft. */
-  readonly contentCredential: boolean;
+  readonly contentCredential: ContentCredentialState;
   /** XMP `digitalSourceType`, etwa `trainedAlgorithmicMedia`. */
   readonly declaredSource: string | null;
 }
@@ -31,7 +44,7 @@ export function pendingMetadata(): ImageMetadata {
     cameraModel: null,
     capturedAt: null,
     software: null,
-    ai: { contentCredential: false, declaredSource: null },
+    ai: { contentCredential: 'unchecked', declaredSource: null },
   };
 }
 
@@ -43,7 +56,7 @@ export function hasAnyMetadata(metadata: ImageMetadata): boolean {
     metadata.cameraModel !== null ||
     metadata.capturedAt !== null ||
     metadata.software !== null ||
-    metadata.ai.contentCredential ||
+    metadata.ai.contentCredential === 'present' ||
     metadata.ai.declaredSource !== null
   );
 }

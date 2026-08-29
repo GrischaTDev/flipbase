@@ -3,7 +3,7 @@ const APP11 = 0xeb;
 const START_OF_SCAN = 0xda;
 
 /**
- * Stellt fest, ob die Datei einen C2PA-Herkunftsnachweis traegt.
+ * Stellt fest, ob eine **JPEG**-Datei einen C2PA-Herkunftsnachweis traegt.
  *
  * Bewusst **nur Feststellung, keine Pruefung**: Ob die Signatur gueltig ist
  * und von wem sie stammt, beantwortet dieser Code nicht. Die offizielle
@@ -14,7 +14,7 @@ const START_OF_SCAN = 0xda;
  * Dateiname oder ein Kommentar koennte die Zeichenfolge `c2pa` sonst
  * faelschlich ausloesen.
  */
-export function hasContentCredential(bytes: Uint8Array): boolean {
+export function hasJpegContentCredential(bytes: Uint8Array): boolean {
   if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== START_OF_IMAGE) return false;
 
   let offset = 2;
@@ -54,6 +54,51 @@ function containsC2paLabel(bytes: Uint8Array, start: number, end: number): boole
       }
     }
     if (matches) return true;
+  }
+
+  return false;
+}
+
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+/**
+ * Stellt fest, ob eine **PNG**-Datei einen C2PA-Herkunftsnachweis traegt.
+ *
+ * In PNG liegt das Manifest in einem eigenen Chunk namens `caBX`. Wie bei
+ * JPEG wird ueber die Chunk-Struktur gesucht und nicht ueber die ganze Datei:
+ * Ein Dateiname oder ein Textchunk koennte die Zeichenfolge sonst faelschlich
+ * ausloesen.
+ */
+export function hasPngContentCredential(bytes: Uint8Array): boolean {
+  if (bytes.length < PNG_SIGNATURE.length) return false;
+  for (let index = 0; index < PNG_SIGNATURE.length; index += 1) {
+    if (bytes[index] !== PNG_SIGNATURE[index]) return false;
+  }
+
+  let offset = PNG_SIGNATURE.length;
+
+  // Chunk: 4 Byte Laenge, 4 Byte Name, Daten, 4 Byte Pruefsumme.
+  while (offset + 8 <= bytes.length) {
+    const length =
+      ((bytes[offset] << 24) |
+        (bytes[offset + 1] << 16) |
+        (bytes[offset + 2] << 8) |
+        bytes[offset + 3]) >>>
+      0;
+
+    let name = '';
+    for (let index = 0; index < 4; index += 1) {
+      name += String.fromCharCode(bytes[offset + 4 + index]);
+    }
+
+    if (name === 'caBX') return true;
+    if (name === 'IEND') return false;
+
+    // Eine Laengenangabe hinter dem Dateiende heisst: abgeschnitten oder
+    // kaputt. Dann abbrechen statt weiterzuraten.
+    const next = offset + 8 + length + 4;
+    if (length > bytes.length || next <= offset) return false;
+    offset = next;
   }
 
   return false;

@@ -16,8 +16,19 @@ export class MetadataPanelComponent {
   /** Irgendein KI-Signal - Nachweis oder erklaerte Herkunft. */
   readonly hasAiSignal = computed(() => {
     const ai = this.metadata().ai;
-    return ai.contentCredential || ai.declaredSource !== null;
+    return ai.contentCredential === 'present' || ai.declaredSource !== null;
   });
+
+  readonly hasContentCredential = computed(
+    () => this.metadata().ai.contentCredential === 'present',
+  );
+
+  /**
+   * Ob ueberhaupt nach einem Herkunftsnachweis gesucht wurde. Bei HEIC/AVIF
+   * und TIFF wird das nicht getan - der Satz "kein Nachweis gefunden" waere
+   * dort eine Behauptung ueber etwas, wonach niemand gesehen hat.
+   */
+  readonly credentialChecked = computed(() => this.metadata().ai.contentCredential !== 'unchecked');
 
   readonly coordinates = computed(() => {
     const gps = this.metadata().gps;

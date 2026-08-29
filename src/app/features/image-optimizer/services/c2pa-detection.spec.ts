@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hasContentCredential } from './c2pa-detection';
+import { hasJpegContentCredential, hasPngContentCredential } from './c2pa-detection';
 
 /** Baut ein minimales JPEG mit beliebigen Segmenten. */
 function jpeg(segments: readonly { marker: number; payload: Uint8Array }[]): Uint8Array {
@@ -41,13 +41,13 @@ describe('C2PA-Herkunftsnachweis feststellen', () => {
   it('erkennt einen Nachweis in einem APP11-Segment', () => {
     const file = jpeg([{ marker: 0xeb, payload: jumbfBox('c2pa') }]);
 
-    expect(hasContentCredential(file)).toBe(true);
+    expect(hasJpegContentCredential(file)).toBe(true);
   });
 
   it('meldet nichts bei einem gewoehnlichen Foto', () => {
     const file = jpeg([{ marker: 0xe1, payload: new Uint8Array(ascii('Exif\0\0')) }]);
 
-    expect(hasContentCredential(file)).toBe(false);
+    expect(hasJpegContentCredential(file)).toBe(false);
   });
 
   it('faellt nicht auf die Zeichenfolge in einem fremden Segment herein', () => {
@@ -56,14 +56,96 @@ describe('C2PA-Herkunftsnachweis feststellen', () => {
     // ganze Datei.
     const file = jpeg([{ marker: 0xfe, payload: new Uint8Array(ascii('foto-c2pa-jumb.jpg')) }]);
 
-    expect(hasContentCredential(file)).toBe(false);
+    expect(hasJpegContentCredential(file)).toBe(false);
   });
 
   it('meldet nichts bei einer Datei, die kein JPEG ist', () => {
-    expect(hasContentCredential(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toBe(false);
+    expect(hasJpegContentCredential(new Uint8Array([0x89, 0x50, 0x4e, 0x47]))).toBe(false);
   });
 
   it('kommt mit einer abgeschnittenen Datei zurecht', () => {
-    expect(hasContentCredential(new Uint8Array([0xff, 0xd8, 0xff, 0xeb]))).toBe(false);
+    expect(hasJpegContentCredential(new Uint8Array([0xff, 0xd8, 0xff, 0xeb]))).toBe(false);
+  });
+});
+
+/** Baut ein minimales PNG mit beliebigen Chunks (Pruefsumme wird nicht geprueft). */
+function png(chunks: readonly { name: string; data: readonly number[] }[]): Uint8Array {
+  const parts: number[] = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
+  for (const chunk of chunks) {
+    const size = chunk.data.length;
+    parts.push((size >> 24) & 0xff, (size >> 16) & 0xff, (size >> 8) & 0xff, size & 0xff);
+    parts.push(...ascii(chunk.name));
+    parts.push(...chunk.data);
+    parts.push(0, 0, 0, 0);
+  }
+
+  return new Uint8Array(parts);
+}
+
+describe('C2PA in PNG feststellen', () => {
+  it('erkennt einen Nachweis im caBX-Chunk', () => {
+    const file = png([
+      { name: 'IHDR', data: new Array(13).fill(0) },
+      { name: 'caBX', data: ascii('jumbfc2pa') },
+      { name: 'IEND', data: [] },
+    ]);
+
+    expect(hasPngContentCredential(file)).toBe(true);
+  });
+
+  it('meldet nichts bei einem gewoehnlichen PNG', () => {
+    const file = png([
+      { name: 'IHDR', data: new Array(13).fill(0) },
+      { name: 'IDAT', data: [1, 2, 3, 4] },
+      { name: 'IEND', data: [] },
+    ]);
+
+    expect(hasPngContentCredential(file)).toBe(false);
+  });
+
+  it('faellt nicht auf die Zeichenfolge in einem Textchunk herein', () => {
+    const file = png([
+      { name: 'IHDR', data: new Array(13).fill(0) },
+      { name: 'tEXt', data: ascii('Kommentar\u0000erzeugt mit caBX und c2pa') },
+      { name: 'IEND', data: [] },
+    ]);
+
+    expect(hasPngContentCredential(file)).toBe(false);
+  });
+
+  it('meldet nichts bei einer Datei, die kein PNG ist', () => {
+    expect(hasPngContentCredential(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe(false);
+  });
+
+  it('kommt mit einer abgeschnittenen Datei zurecht', () => {
+    const file = png([{ name: 'caBX', data: ascii('jumbf') }]).slice(0, 12);
+
+    expect(() => hasPngContentCredential(file)).not.toThrow();
+    expect(hasPngContentCredential(file)).toBe(false);
+  });
+
+  it('haelt einer unsinnigen Laengenangabe stand', () => {
+    const bad = new Uint8Array([
+      0x89,
+      0x50,
+      0x4e,
+      0x47,
+      0x0d,
+      0x0a,
+      0x1a,
+      0x0a,
+      0xff,
+      0xff,
+      0xff,
+      0xff,
+      ...ascii('IDAT'),
+      1,
+      2,
+      3,
+    ]);
+
+    expect(() => hasPngContentCredential(bad)).not.toThrow();
+    expect(hasPngContentCredential(bad)).toBe(false);
   });
 });

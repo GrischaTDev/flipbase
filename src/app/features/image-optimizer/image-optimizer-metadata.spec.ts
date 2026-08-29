@@ -17,7 +17,7 @@ const withGps: ImageMetadata = {
   cameraModel: 'iPhone 15',
   capturedAt: null,
   software: null,
-  ai: { contentCredential: false, declaredSource: null },
+  ai: { contentCredential: 'absent', declaredSource: null },
 };
 
 /**
@@ -38,7 +38,7 @@ function pendingLikeRead(): ImageMetadata {
     cameraModel: null,
     capturedAt: null,
     software: null,
-    ai: { contentCredential: false, declaredSource: null },
+    ai: { contentCredential: 'absent', declaredSource: null },
   };
 }
 
