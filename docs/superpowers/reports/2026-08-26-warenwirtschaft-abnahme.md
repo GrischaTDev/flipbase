@@ -169,15 +169,16 @@ noch einmal gegen Datenbank und Demo-Modus geprüft:
 
 | Befehl                                                                                         | Ergebnis                                                                                                        |
 | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `npx supabase db reset --local`                                                                | Erfolgreich; alle Migrationen einschließlich `20260828101500_backfill_legacy_sale_lines.sql` angewendet.        |
+| `npx supabase db reset --local`                                                                | Erfolgreich; alle Migrationen bis `20260829062330_backfill_allocated_lot_costs.sql` angewendet.                 |
 | `npx supabase gen types typescript --local > src/app/core/models/supabase.types.ts`            | Erfolgreich; keine Typänderung aus der reinen Datenmigration.                                                   |
 | `npx supabase db diff --local`                                                                 | Erfolgreich: `No schema changes found`.                                                                         |
 | `Get-Content -Raw supabase/tests/inventory_sales_schema.sql \| docker exec ... psql ...`       | PASS: `BEGIN`, fünf `DO`, `ROLLBACK`.                                                                           |
 | `Get-Content -Raw supabase/tests/inventory_sales_transactions.sql \| docker exec ... psql ...` | PASS: `BEGIN`, `DO`, `ROLLBACK`.                                                                                |
 | `.\supabase\tests\run_inventory_sales_legacy_migration.ps1`                                    | PASS: echte Migration zweimal per `\i` ausgeführt; `BEGIN`, `DO`, `INSERT 0 7`, `INSERT 0 0`, `DO`, `ROLLBACK`. |
 | Zentraler Mengen-/Einzelverkauf-/Shop-Checkoutvertrag im lokalen Container                     | PASS: `BEGIN`, `DO`, `ROLLBACK`.                                                                                |
+| `supabase/tests/inventory_sales_final_review.sql`                                              | PASS: exakte Split-COGS, Kosten-Neuverteilung, Teilgutschriften und gesperrte Direktzugriffe.                   |
 | `npm run typecheck`                                                                            | PASS.                                                                                                           |
-| `npm test -- --run`                                                                            | PASS: 101 Testdateien, 685 Tests.                                                                               |
+| `npm test -- --run`                                                                            | PASS: 106 Testdateien, 718 Tests.                                                                               |
 | `npm run format:check`                                                                         | PASS: alle Dateien entsprechen Prettier.                                                                        |
 | `npm run build`                                                                                | PASS; bekannte Bundle- und CommonJS-Warnungen, siehe unten.                                                     |
 | `git diff --check`                                                                             | PASS: keine Whitespace-Fehler.                                                                                  |
@@ -199,7 +200,7 @@ npm test -- --run src/app/core/services/catalog.service.spec.ts src/app/features
 ## Bekannte Vorbefunde und Bedenken
 
 - Der Production-Build bleibt erfolgreich, warnt aber weiterhin wegen eines
-  um 16,61 kB überschrittenen Initial-Budgets und der CommonJS-Abhängigkeiten
+  um 34,73 kB überschrittenen Initial-Budgets und der CommonJS-Abhängigkeiten
   `jszip` sowie `jsbarcode`.
 - Es wurde ausschließlich die lokale Supabase-Datenbank zurückgesetzt und
   geprüft. Es gab keine Remote- oder Produktionsmigration und keine
