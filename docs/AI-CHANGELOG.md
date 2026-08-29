@@ -48,6 +48,62 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-08-30 – Claude Opus 5 (Anthropic) – Alle Metadaten statt sechs ausgewaehlter
+
+**Art:** Feature + Bugfix (Barrierefreiheit)
+**Betroffen:** `services/metadata-fields.ts` (neu), `metadata-reader.service.ts`,
+`models/image-metadata.ts`, `components/metadata-panel/`, `components/platform-selector/`,
+`components/image-list/`
+
+Die Anzeige zeigte **sechs handverlesene Felder** und warf alles Uebrige weg, obwohl es
+bereits gelesen war. Bei einer Datei, die zufaellig keines dieser sechs trug, blieb ein
+einzelner Kasten uebrig – das sah aus, als koenne die Funktion nichts. Der Nutzer hat das
+zu Recht beanstandet.
+
+### Zwei Ursachen
+
+**IPTC, ICC und JFIF waren beim Lesen abgeschaltet.** Damit blieben Titel, Urheber,
+Copyright und Bildunterschrift unsichtbar – genau die Angaben, die man vor dem Hochladen
+sehen will. Jetzt sind alle Segmente an.
+
+**Und die sechs Felder waren eine fremde Auswahl.** An einer nachgebauten Kameradatei
+gemessen: **39 Eintraege statt fuenf.**
+
+`cameraMake`, `cameraModel`, `capturedAt` und `software` sind aus dem Modell verschwunden –
+die Liste deckt sie ab, und zwei Quellen fuer dieselbe Angabe waeren eine zu viel. `gps`
+bleibt eigenstaendig: Der Aufnahmeort ist der einzige Eintrag mit einer Folge fuer den
+Nutzer, er wird hervorgehoben und traegt den Hinweis in der Bilderliste.
+
+### Lesbar machen, ohne Bedeutung zu erfinden
+
+Datum in deutscher Schreibweise, Dezimalkomma, Wahrheitswerte als ja/nein, kurze Bytefolgen
+als Zahlen, grosse Binaerbloecke (Miniaturansichten) gar nicht. Die drei **genormten**
+Aufzaehlungen `ColorSpace`, `ResolutionUnit` und `JFIFVersion` bekommen ihren Klartext –
+"Farbraum: 1" sagt niemandem etwas. Ein Wert ausserhalb der Norm bleibt die rohe Zahl.
+
+### Nebenbefund: zwei Kontrastfehler, die ich vorher uebersehen hatte
+
+Beim Nachpruefen mit AXE kamen zwei echte Verstoesse heraus. Mein Rundgang am 29.08. lief
+ueber den **leeren** Editor – beide Abzeichen erscheinen erst mit geladenem Bild und
+gewaehlter Plattform:
+
+| Stelle                                         | vorher | jetzt  |
+| ---------------------------------------------- | ------ | ------ |
+| Weisse Schrift auf dem AKTIV-Abzeichen         | 2,14:1 | 9,82:1 |
+| Seitenverhaeltnis im gewaehlten Plattform-Chip | 4,04:1 | 6,62:1 |
+
+**Lehre fuer kommende AXE-Laeufe:** Eine Seite im Ausgangszustand zu pruefen sagt wenig.
+Zustaende mit Daten, Auswahl und geoeffneten Bereichen muessen mit.
+
+**Verifiziert durch:** 947 Tests gruen, Typen, ESLint, Prettier und Produktionsbau sauber.
+Im Browser mit einer nachgebauten Kameradatei (EXIF, IPTC, JFIF, ICC): 39 Eintraege,
+darunter Titel, Bildunterschrift, Stichwoerter, Urheber, Copyright, Objektiv, Belichtung,
+ISO und die rohen GPS-Tags. Farbraum steht als "sRGB" da, JFIFVersion als "1.1", und die
+Aufloesungseinheit bleibt bei ihrem rohen `0`, weil 0 kein genormter Wert ist. AXE mit
+geladenem Bild und gewaehlter Plattform: null Verstoesse.
+
+---
+
 ## 2026-08-30 – Claude Opus 5 (Anthropic) – Metadaten aus mehr als nur JPEG
 
 **Art:** Feature
