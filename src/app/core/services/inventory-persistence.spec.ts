@@ -1,7 +1,7 @@
 import '@angular/compiler';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { describe, expect, it } from 'vitest';
-import { InventoryItem, ItemCost, Workspace } from '../models/flipbase.models';
+import { InventoryItem, ItemCost, Sale, Workspace } from '../models/flipbase.models';
 import { InventoryService } from './inventory.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { ProfitEngineService } from './profit-engine.service';
@@ -41,9 +41,9 @@ interface SupabaseAntwort {
   readonly error: { code: string; message: string } | null;
 }
 
-function injiziereDienst(client: unknown) {
-  const mockStore = new MockDataStoreService();
-  mockStore.isDemoMode.set(false);
+function injiziereDienst(client: unknown, bereitgestellterMockStore?: MockDataStoreService) {
+  const mockStore = bereitgestellterMockStore ?? new MockDataStoreService();
+  if (!bereitgestellterMockStore) mockStore.isDemoMode.set(false);
   const syncStatus = new SyncStatusService();
   const injector = Injector.create({
     providers: [
@@ -102,6 +102,174 @@ function erstelleDienst(artikelAntwort: SupabaseAntwort) {
 }
 
 describe('InventoryService – abhängige Schreibvorgänge', () => {
+  it('merged den bestandswirksamen View-Zustand anhand der Artikel-ID', async () => {
+    const client = {
+      from(tabelle: string) {
+        if (tabelle === 'inventory_items') {
+          return {
+            select() {
+              return {
+                eq() {
+                  return {
+                    order: async () => ({ data: [gespeicherterArtikel], error: null }),
+                  };
+                },
+              };
+            },
+          };
+        }
+        if (tabelle === 'inventory_item_sale_states') {
+          return {
+            select() {
+              return {
+                eq: async () => ({
+                  data: [
+                    {
+                      inventory_item_id: gespeicherterArtikel.id,
+                      workspace_id: workspace.id,
+                      sale_state: 'legacy_sold_unverified',
+                      active_sale_count: 0,
+                      active_sale_id: null,
+                    },
+                  ],
+                  error: null,
+                }),
+              };
+            },
+          };
+        }
+        throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+      },
+    };
+    const { dienst } = injiziereDienst(client);
+
+    await dienst.loadInventory(workspace.id);
+
+    expect(dienst.items()[0]).toMatchObject({
+      id: gespeicherterArtikel.id,
+      sale_state: 'legacy_sold_unverified',
+      active_sale_count: 0,
+      active_sale_id: null,
+    });
+  });
+
+  it('klassifiziert Demo-Artikel aus persistierten Positionen und Legacy-Köpfen', async () => {
+    const lineItem = { ...gespeicherterArtikel, id: 'demo-line', status: 'sold' as const };
+    const legacyItem = { ...gespeicherterArtikel, id: 'demo-header', status: 'sold' as const };
+    const sales: Sale[] = [
+      {
+        id: 'sale-line',
+        workspace_id: workspace.id,
+        inventory_item_id: lineItem.id,
+        platform: 'direct',
+        sale_price: 20,
+        sale_date: '2026-08-29',
+        platform_fee: 0,
+        shipping_cost: 0,
+        packaging_cost: 0,
+        other_costs: 0,
+        lines: [
+          {
+            id: 'line',
+            sale_id: 'sale-line',
+            inventory_item_id: lineItem.id,
+            title_snapshot: 'Line',
+            quantity: 1,
+            unit_sale_price: 20,
+            line_total: 20,
+            cost_of_goods_sold: 5,
+            tax_mode: 'diff_25a',
+          },
+        ],
+      },
+      {
+        id: 'sale-header',
+        workspace_id: workspace.id,
+        inventory_item_id: legacyItem.id,
+        platform: 'direct',
+        sale_price: 18,
+        sale_date: '2026-08-29',
+        platform_fee: 0,
+        shipping_cost: 0,
+        packaging_cost: 0,
+        other_costs: 0,
+        lines: [],
+      },
+    ];
+    const demoStore = {
+      isDemoMode: signal(true),
+      getItems: () => [lineItem, legacyItem],
+      getSales: () => sales,
+    } as unknown as MockDataStoreService;
+    const { dienst } = injiziereDienst({}, demoStore);
+
+    await dienst.loadInventory(workspace.id);
+
+    expect(dienst.items().find(({ id }) => id === lineItem.id)?.sale_state).toBe('sold');
+    expect(dienst.items().find(({ id }) => id === legacyItem.id)?.sale_state).toBe(
+      'legacy_sale_header_without_line',
+    );
+  });
+
+  it('aktualisiert lokale Signale erst nach bestätigter Legacy-Klärung', async () => {
+    let rpcAntwortAufloesen!: (wert: unknown) => void;
+    const offeneAntwort = new Promise((resolve) => {
+      rpcAntwortAufloesen = resolve;
+    });
+    const client = { rpc: () => offeneAntwort };
+    const { dienst } = injiziereDienst(client);
+    const legacyItem: InventoryItem = {
+      ...gespeicherterArtikel,
+      status: 'sold',
+      sale_state: 'legacy_sold_unverified',
+      active_sale_count: 0,
+      active_sale_id: null,
+    };
+    dienst.items.set([legacyItem]);
+    dienst.selectedItem.set(legacyItem);
+
+    const klaerung = dienst.resolveLegacySoldItem(legacyItem.id, 'Historisch nicht belegbar');
+    expect(dienst.items()[0].status).toBe('sold');
+
+    rpcAntwortAufloesen({
+      data: { inventory_item: { ...legacyItem, status: 'ready' } },
+      error: null,
+    });
+    const ergebnis = await klaerung;
+
+    expect(ergebnis.error).toBeNull();
+    expect(dienst.items()[0]).toMatchObject({
+      status: 'ready',
+      sale_state: 'no_active_sale',
+      active_sale_count: 0,
+      active_sale_id: null,
+    });
+    expect(dienst.selectedItem()?.status).toBe('ready');
+  });
+
+  it('behält lokale Signale bei, wenn die Legacy-Klärung scheitert', async () => {
+    const client = {
+      rpc: async () => ({
+        data: null,
+        error: { code: '22023', message: 'Korrektur erforderlich' },
+      }),
+    };
+    const { dienst } = injiziereDienst(client);
+    const legacyItem: InventoryItem = {
+      ...gespeicherterArtikel,
+      status: 'sold',
+      sale_state: 'legacy_sold_unverified',
+    };
+    dienst.items.set([legacyItem]);
+    dienst.selectedItem.set(legacyItem);
+
+    const ergebnis = await dienst.resolveLegacySoldItem(legacyItem.id, 'Versuch');
+
+    expect(ergebnis.error).toBeInstanceOf(Error);
+    expect(dienst.items()[0]).toEqual(legacyItem);
+    expect(dienst.selectedItem()).toEqual(legacyItem);
+  });
+
   it('veröffentlicht einen neuen Artikel nicht während das Datenbank-Insert noch offen ist', async () => {
     let insertAbschliessen!: (antwort: SupabaseAntwort) => void;
     const offeneAntwort = new Promise<SupabaseAntwort>((resolve) => {

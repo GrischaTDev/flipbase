@@ -496,6 +496,28 @@ left join legacy_headers_without_line as legacy_header_without_line
 comment on view public.inventory_item_sale_states is
   'Klassifiziert den bestandswirksamen Verkaufszustand sichtbarer Einzelartikel.';
 
+create table public.inventory_reconciliation_events (
+    id uuid primary key default gen_random_uuid(),
+    workspace_id uuid not null references public.workspaces(id) on delete restrict,
+    inventory_item_id uuid not null,
+    actor_id uuid not null references auth.users(id) on delete restrict,
+    event_type text not null check (event_type in ('restore_stock')),
+    previous_status text not null,
+    new_status text not null,
+    reason text not null check (nullif(trim(reason), '') is not null),
+    created_at timestamptz not null default now(),
+    foreign key (workspace_id, inventory_item_id)
+      references public.inventory_items(workspace_id, id) on delete restrict
+);
+
+comment on table public.inventory_reconciliation_events is
+  'Unveraenderliches Journal fuer ausdrueckliche Klaerungen historischer Inventarzustaende.';
+
+create index inventory_reconciliation_events_workspace_id_idx
+  on public.inventory_reconciliation_events(workspace_id);
+create index inventory_reconciliation_events_inventory_item_id_idx
+  on public.inventory_reconciliation_events(inventory_item_id);
+
 -- ==============================================================================
 -- 7. ACTIVITY LOGS
 -- ==============================================================================
@@ -841,6 +863,7 @@ ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.purchase_costs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
+alter table public.inventory_reconciliation_events enable row level security;
 ALTER TABLE public.item_costs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.item_media ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.market_research ENABLE ROW LEVEL SECURITY;
@@ -1138,6 +1161,10 @@ with check (public.is_workspace_member(workspace_id));
 create policy "Artikel loeschen"
 on public.inventory_items for delete to authenticated
 using (public.is_workspace_member(workspace_id));
+
+create policy "Inventarklaerungen lesen"
+  on public.inventory_reconciliation_events for select to authenticated
+  using (public.is_workspace_member(workspace_id));
 
 -- item_costs
 create policy "Artikelkosten lesen"
@@ -2529,6 +2556,294 @@ $$;
 revoke all on function public.receive_individual_purchase_line(uuid, uuid, uuid, jsonb) from public;
 grant execute on function public.receive_individual_purchase_line(uuid, uuid, uuid, jsonb) to authenticated;
 
+create or replace function public.protect_inventory_item_sold_status()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if (
+      (tg_op = 'INSERT' and new.status = 'sold')
+      or (tg_op = 'UPDATE' and old.status is distinct from new.status
+        and (old.status = 'sold' or new.status = 'sold'))
+    ) and not (
+      current_user = 'postgres'
+      and coalesce(current_setting('flipbase.allow_inventory_sold_transition', true), '') = 'on'
+    ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Der Verkaufsstatus darf nur ueber eine gepruefte Buchungsfunktion geaendert werden.';
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger protect_inventory_item_sold_status
+before insert or update of status on public.inventory_items
+for each row execute function public.protect_inventory_item_sold_status();
+
+create or replace function public.prevent_inventory_reconciliation_event_mutation()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  raise exception using
+    errcode = '42501',
+    message = 'Inventarklaerungsereignisse sind unveraenderlich.';
+end;
+$$;
+
+create trigger prevent_inventory_reconciliation_event_mutation
+before update or delete on public.inventory_reconciliation_events
+for each row execute function public.prevent_inventory_reconciliation_event_mutation();
+
+create or replace function public.validate_inventory_item_sale_integrity(p_inventory_item_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_status text;
+  v_active_line_sale_count bigint;
+  v_active_legacy_header_count bigint;
+begin
+  if p_inventory_item_id is null then
+    return;
+  end if;
+
+  select inventory_item.status
+  into v_status
+  from public.inventory_items as inventory_item
+  where inventory_item.id = p_inventory_item_id
+  for update;
+
+  if not found then
+    return;
+  end if;
+
+  select count(distinct sale.id)
+  into v_active_line_sale_count
+  from public.sale_lines as sale_line
+  join public.sales as sale
+    on sale.id = sale_line.sale_id
+   and sale.workspace_id = sale_line.workspace_id
+  where sale_line.inventory_item_id = p_inventory_item_id
+    and sale.returned_at is null
+    and sale.voided_at is null;
+
+  select count(*)
+  into v_active_legacy_header_count
+  from public.sales as sale
+  where sale.inventory_item_id = p_inventory_item_id
+    and sale.returned_at is null
+    and sale.voided_at is null
+    and not exists (
+      select 1
+      from public.sale_lines as sale_line
+      where sale_line.workspace_id = sale.workspace_id
+        and sale_line.sale_id = sale.id
+        and sale_line.inventory_item_id = p_inventory_item_id
+    );
+
+  if v_active_legacy_header_count > 0 then
+    raise exception using
+      errcode = '23514',
+      message = 'Ein bestandswirksamer Verkaufskopf benoetigt eine passende Verkaufsposition.';
+  end if;
+
+  if v_active_line_sale_count > 1 then
+    raise exception using
+      errcode = '23514',
+      message = 'Ein Einzelstueck darf nur einen bestandswirksamen Verkauf haben.';
+  end if;
+
+  if (v_status = 'sold' and v_active_line_sale_count <> 1)
+    or (v_status <> 'sold' and v_active_line_sale_count <> 0) then
+    raise exception using
+      errcode = '23514',
+      message = 'Inventarstatus und bestandswirksame Verkaufsposition stimmen nicht ueberein.';
+  end if;
+end;
+$$;
+
+create or replace function public.check_inventory_item_sale_integrity()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform public.validate_inventory_item_sale_integrity(new.id);
+  return new;
+end;
+$$;
+
+create or replace function public.check_sale_line_inventory_integrity()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if tg_op <> 'INSERT' then
+    perform public.validate_inventory_item_sale_integrity(old.inventory_item_id);
+  end if;
+  if tg_op <> 'DELETE'
+    and (tg_op = 'INSERT' or new.inventory_item_id is distinct from old.inventory_item_id) then
+    perform public.validate_inventory_item_sale_integrity(new.inventory_item_id);
+  end if;
+  return coalesce(new, old);
+end;
+$$;
+
+create or replace function public.check_sale_inventory_integrity()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_inventory_item_id uuid;
+  v_old_sale_id uuid;
+  v_new_sale_id uuid;
+begin
+  if tg_op <> 'INSERT' then
+    v_old_sale_id := old.id;
+    perform public.validate_inventory_item_sale_integrity(old.inventory_item_id);
+  end if;
+  if tg_op <> 'DELETE' then
+    v_new_sale_id := new.id;
+    if tg_op = 'INSERT' or new.inventory_item_id is distinct from old.inventory_item_id then
+      perform public.validate_inventory_item_sale_integrity(new.inventory_item_id);
+    end if;
+  end if;
+
+  for v_inventory_item_id in
+    select distinct sale_line.inventory_item_id
+    from public.sale_lines as sale_line
+    where sale_line.inventory_item_id is not null
+      and sale_line.sale_id in (v_old_sale_id, v_new_sale_id)
+  loop
+    perform public.validate_inventory_item_sale_integrity(v_inventory_item_id);
+  end loop;
+
+  return coalesce(new, old);
+end;
+$$;
+
+create constraint trigger inventory_item_sale_integrity_on_insert
+after insert on public.inventory_items
+deferrable initially deferred
+for each row execute function public.check_inventory_item_sale_integrity();
+
+create constraint trigger inventory_item_sale_integrity_on_status
+after update of status on public.inventory_items
+deferrable initially deferred
+for each row execute function public.check_inventory_item_sale_integrity();
+
+create constraint trigger inventory_item_sale_integrity_on_sale_line
+after insert or update or delete on public.sale_lines
+deferrable initially deferred
+for each row execute function public.check_sale_line_inventory_integrity();
+
+create constraint trigger inventory_item_sale_integrity_on_sale
+after insert or update or delete on public.sales
+deferrable initially deferred
+for each row execute function public.check_sale_inventory_integrity();
+
+revoke execute on function public.protect_inventory_item_sold_status() from public, anon, authenticated;
+revoke execute on function public.prevent_inventory_reconciliation_event_mutation() from public, anon, authenticated;
+revoke execute on function public.validate_inventory_item_sale_integrity(uuid) from public, anon, authenticated;
+revoke execute on function public.check_inventory_item_sale_integrity() from public, anon, authenticated;
+revoke execute on function public.check_sale_line_inventory_integrity() from public, anon, authenticated;
+revoke execute on function public.check_sale_inventory_integrity() from public, anon, authenticated;
+
+create or replace function public.resolve_legacy_sold_item(
+  p_workspace_id uuid,
+  p_inventory_item_id uuid,
+  p_action text,
+  p_reason text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor_id uuid := (select auth.uid());
+  v_inventory_item public.inventory_items;
+  v_event public.inventory_reconciliation_events;
+  v_sale_state text;
+begin
+  if v_actor_id is null
+    or not (select public.is_workspace_member(p_workspace_id)) then
+    raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+
+  if p_action <> 'restore_stock'
+    or nullif(trim(p_reason), '') is null then
+    raise exception using errcode = '22023', message = 'Aktion und Begruendung sind erforderlich.';
+  end if;
+
+  select *
+  into v_inventory_item
+  from public.inventory_items
+  where id = p_inventory_item_id
+    and workspace_id = p_workspace_id
+  for update;
+
+  if not found then
+    raise no_data_found using message = 'Der Inventarartikel wurde nicht gefunden.';
+  end if;
+
+  select sale_state
+  into v_sale_state
+  from public.inventory_item_sale_states
+  where inventory_item_id = p_inventory_item_id
+    and workspace_id = p_workspace_id;
+
+  if v_sale_state = 'legacy_sale_header_without_line' then
+    raise exception using errcode = '22023', message = 'Korrektur erforderlich: Der Verkaufskopf besitzt keine passende Position.';
+  end if;
+
+  if v_sale_state <> 'legacy_sold_unverified' then
+    raise exception using errcode = '22023', message = 'Nur ungepruefter verkaufter Altbestand kann zurueckgesetzt werden.';
+  end if;
+
+  perform set_config('flipbase.allow_inventory_sold_transition', 'on', true);
+
+  update public.inventory_items
+  set status = 'ready', updated_at = now()
+  where id = p_inventory_item_id
+    and workspace_id = p_workspace_id
+  returning * into v_inventory_item;
+
+  insert into public.inventory_reconciliation_events (
+    workspace_id, inventory_item_id, actor_id, event_type,
+    previous_status, new_status, reason
+  ) values (
+    p_workspace_id, p_inventory_item_id, v_actor_id, 'restore_stock',
+    'sold', 'ready', trim(p_reason)
+  )
+  returning * into v_event;
+
+  return jsonb_build_object(
+    'inventory_item', to_jsonb(v_inventory_item),
+    'event', to_jsonb(v_event)
+  );
+end;
+$$;
+
+revoke execute on function public.resolve_legacy_sold_item(uuid, uuid, text, text)
+  from public, anon, service_role;
+grant execute on function public.resolve_legacy_sold_item(uuid, uuid, text, text)
+  to authenticated;
+
 create or replace function public.record_sale(
   p_workspace_id uuid,
   p_sale jsonb,
@@ -2768,9 +3083,26 @@ begin
         raise exception using errcode = 'P0002', message = 'Der Einzelartikel wurde nicht gefunden.';
       end if;
 
-      if v_inventory_item.status in ('sold', 'archived') then
+      if v_inventory_item.status not in ('ready', 'listed')
+        or exists (
+          select 1
+          from public.sales as existing_sale
+          left join public.sale_lines as existing_line
+            on existing_line.workspace_id = existing_sale.workspace_id
+           and existing_line.sale_id = existing_sale.id
+          where existing_sale.workspace_id = p_workspace_id
+            and existing_sale.id <> v_sale.id
+            and existing_sale.returned_at is null
+            and existing_sale.voided_at is null
+            and (
+              existing_sale.inventory_item_id = v_inventory_item.id
+              or existing_line.inventory_item_id = v_inventory_item.id
+            )
+        ) then
         raise exception using errcode = '22023', message = 'Der Einzelartikel ist nicht verkaufbar.';
       end if;
+
+      perform set_config('flipbase.allow_inventory_sold_transition', 'on', true);
 
       update public.inventory_items
       set status = 'sold',
@@ -3004,6 +3336,8 @@ begin
       if not found then
         raise exception using errcode = 'P0002', message = 'Der retournierte Einzelartikel wurde nicht gefunden.';
       end if;
+
+      perform set_config('flipbase.allow_inventory_sold_transition', 'on', true);
 
       update public.inventory_items
       set status = case when p_restock then 'ready' else 'returned' end,
@@ -3593,6 +3927,10 @@ revoke insert, update, delete
     public.sale_line_lot_allocations
   from authenticated;
 
+revoke insert, update, delete, truncate, references, trigger
+  on public.inventory_reconciliation_events
+  from authenticated;
+
 grant all
   on all tables in schema public
   to service_role;
@@ -3614,6 +3952,23 @@ grant usage, select
 grant execute
   on all functions in schema public
   to authenticated, service_role;
+
+revoke execute on function public.protect_inventory_item_sold_status()
+  from public, anon, authenticated, service_role;
+revoke execute on function public.prevent_inventory_reconciliation_event_mutation()
+  from public, anon, authenticated, service_role;
+revoke execute on function public.validate_inventory_item_sale_integrity(uuid)
+  from public, anon, authenticated, service_role;
+revoke execute on function public.check_inventory_item_sale_integrity()
+  from public, anon, authenticated, service_role;
+revoke execute on function public.check_sale_line_inventory_integrity()
+  from public, anon, authenticated, service_role;
+revoke execute on function public.check_sale_inventory_integrity()
+  from public, anon, authenticated, service_role;
+revoke execute on function public.resolve_legacy_sold_item(uuid, uuid, text, text)
+  from public, anon, service_role;
+grant execute on function public.resolve_legacy_sold_item(uuid, uuid, text, text)
+  to authenticated;
 
 revoke execute on function public.bundle_shipping_orders(
   uuid, uuid[], text, date, text, text, text, text, numeric, jsonb, text, text, text[], text
