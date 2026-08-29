@@ -105,7 +105,7 @@ CREATE TABLE IF NOT EXISTS public.purchase_costs (
 CREATE TABLE IF NOT EXISTS public.inventory_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    purchase_id UUID REFERENCES public.purchases(id) ON DELETE CASCADE,
+    purchase_id UUID REFERENCES public.purchases(id) ON DELETE RESTRICT,
     category TEXT,
     title TEXT NOT NULL,
     brand TEXT,
@@ -201,7 +201,7 @@ CREATE TABLE IF NOT EXISTS public.listing_drafts (
 CREATE TABLE IF NOT EXISTS public.sales (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE CASCADE,
+    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE RESTRICT,
     platform TEXT NOT NULL,
     sale_price NUMERIC NOT NULL DEFAULT 0.00,
     sale_price_total numeric(12,2),
@@ -259,7 +259,7 @@ create table public.catalog_products (
 create table public.purchase_lines (
     id uuid primary key default gen_random_uuid(),
     workspace_id uuid not null references public.workspaces(id) on delete cascade,
-    purchase_id uuid not null references public.purchases(id) on delete cascade,
+    purchase_id uuid not null references public.purchases(id) on delete restrict,
     catalog_product_id uuid references public.catalog_products(id) on delete restrict,
     title_snapshot text not null,
     line_kind text not null check (line_kind in ('quantity', 'individual')),
@@ -295,7 +295,7 @@ create table public.stock_lots (
 create table public.sale_lines (
     id uuid primary key default gen_random_uuid(),
     workspace_id uuid not null references public.workspaces(id) on delete cascade,
-    sale_id uuid not null references public.sales(id) on delete cascade,
+    sale_id uuid not null references public.sales(id) on delete restrict,
     catalog_product_id uuid references public.catalog_products(id) on delete restrict,
     inventory_item_id uuid references public.inventory_items(id) on delete restrict,
     title_snapshot text not null,
@@ -335,7 +335,7 @@ create table public.sale_line_lot_allocations (
 alter table public.inventory_items add constraint inventory_items_workspace_purchase_line_fkey
     foreign key (workspace_id, purchase_line_id) references public.purchase_lines(workspace_id, id) on delete restrict;
 alter table public.purchase_lines add constraint purchase_lines_workspace_purchase_fkey
-    foreign key (workspace_id, purchase_id) references public.purchases(workspace_id, id) on delete cascade;
+    foreign key (workspace_id, purchase_id) references public.purchases(workspace_id, id) on delete restrict;
 alter table public.purchase_lines add constraint purchase_lines_workspace_catalog_product_fkey
     foreign key (workspace_id, catalog_product_id) references public.catalog_products(workspace_id, id) on delete restrict;
 alter table public.stock_lots add constraint stock_lots_workspace_purchase_fkey
@@ -345,7 +345,7 @@ alter table public.stock_lots add constraint stock_lots_workspace_purchase_line_
 alter table public.stock_lots add constraint stock_lots_workspace_catalog_product_fkey
     foreign key (workspace_id, catalog_product_id) references public.catalog_products(workspace_id, id) on delete restrict;
 alter table public.sale_lines add constraint sale_lines_workspace_sale_fkey
-    foreign key (workspace_id, sale_id) references public.sales(workspace_id, id) on delete cascade;
+    foreign key (workspace_id, sale_id) references public.sales(workspace_id, id) on delete restrict;
 alter table public.sale_lines add constraint sale_lines_workspace_catalog_product_fkey
     foreign key (workspace_id, catalog_product_id) references public.catalog_products(workspace_id, id) on delete restrict;
 alter table public.sale_lines add constraint sale_lines_workspace_inventory_item_fkey
@@ -538,8 +538,8 @@ CREATE TABLE IF NOT EXISTS public.activity_logs (
 CREATE TABLE IF NOT EXISTS public.returns (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    sale_id UUID NOT NULL REFERENCES public.sales(id) ON DELETE CASCADE,
-    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE CASCADE,
+    sale_id UUID NOT NULL REFERENCES public.sales(id) ON DELETE RESTRICT,
+    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE RESTRICT,
     credit_note_number TEXT NOT NULL,
     return_date DATE NOT NULL DEFAULT CURRENT_DATE,
     reason TEXT NOT NULL,
@@ -608,7 +608,7 @@ CREATE TABLE IF NOT EXISTS public.email_confirmations (
 CREATE TABLE IF NOT EXISTS public.shipping_orders (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
-    sale_id UUID REFERENCES public.sales(id) ON DELETE SET NULL,
+    sale_id UUID REFERENCES public.sales(id) ON DELETE RESTRICT,
     order_number TEXT NOT NULL,
     order_date DATE NOT NULL DEFAULT CURRENT_DATE,
     platform TEXT NOT NULL,
@@ -998,6 +998,39 @@ begin
 end;
 $$;
 
+create or replace function public.prevent_workspace_with_business_data_deletion()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if exists (select 1 from public.purchases where workspace_id = old.id)
+    or exists (select 1 from public.inventory_items where workspace_id = old.id)
+    or exists (select 1 from public.sales where workspace_id = old.id)
+    or exists (select 1 from public.inventory_reconciliation_events where workspace_id = old.id)
+    or exists (select 1 from public.activity_logs where workspace_id = old.id)
+    or exists (select 1 from public.returns where workspace_id = old.id)
+    or exists (select 1 from public.invoices where workspace_id = old.id)
+    or exists (select 1 from public.email_confirmations where workspace_id = old.id)
+    or exists (select 1 from public.shipping_orders where workspace_id = old.id)
+    or exists (select 1 from public.store_orders where workspace_id = old.id)
+    or exists (select 1 from public.bank_transactions where workspace_id = old.id)
+    or exists (select 1 from public.offline_purchase_entries where workspace_id = old.id)
+    or exists (select 1 from public.cash_wallet_sessions where workspace_id = old.id) then
+    raise exception using
+      errcode = 'P0001',
+      message = 'Workspace enthält Geschäftsdaten und kann nicht gelöscht werden. Erfasste Belege und Buchungen müssen erhalten bleiben.';
+  end if;
+
+  return old;
+end;
+$$;
+
+create trigger prevent_workspace_with_business_data_deletion
+before delete on public.workspaces
+for each row execute function public.prevent_workspace_with_business_data_deletion();
+
 -- ------------------------------------------------------------------------------
 -- POLICIES
 -- ------------------------------------------------------------------------------
@@ -1361,19 +1394,6 @@ create policy "Verkaeufe lesen"
 on public.sales for select to authenticated
 using (public.is_workspace_member(workspace_id));
 
-create policy "Verkauf anlegen"
-on public.sales for insert to authenticated
-with check (public.is_workspace_member(workspace_id));
-
-create policy "Verkauf aendern"
-on public.sales for update to authenticated
-using (public.is_workspace_member(workspace_id))
-with check (public.is_workspace_member(workspace_id));
-
-create policy "Verkauf loeschen"
-on public.sales for delete to authenticated
-using (public.is_workspace_member(workspace_id));
-
 -- catalog_products
 create policy "Artikelstamm lesen" on public.catalog_products for select to authenticated
 using (public.is_workspace_member(workspace_id));
@@ -1428,14 +1448,6 @@ using (public.is_workspace_member(workspace_id));
 -- returns
 CREATE POLICY returns_select ON public.returns FOR SELECT TO authenticated
     USING (public.is_workspace_member(workspace_id));
-CREATE POLICY returns_insert ON public.returns FOR INSERT TO authenticated
-    WITH CHECK (public.is_workspace_member(workspace_id));
-CREATE POLICY returns_update ON public.returns FOR UPDATE TO authenticated
-    USING (public.is_workspace_member(workspace_id))
-    WITH CHECK (public.is_workspace_member(workspace_id));
-CREATE POLICY returns_delete ON public.returns FOR DELETE TO authenticated
-    USING (public.is_workspace_member(workspace_id));
-
 -- invoices
 CREATE POLICY invoices_select ON public.invoices FOR SELECT TO authenticated
     USING (public.is_workspace_member(workspace_id));
@@ -3924,8 +3936,8 @@ grant select, insert, update, delete
 -- Buchungstabellen sind für Clients nur lesbar. Änderungen erfolgen
 -- ausschließlich über die validierten, transaktionalen RPC-Funktionen.
 revoke insert, update, delete
-  on public.stock_lots, public.stock_movements, public.sale_lines,
-    public.sale_line_lot_allocations
+  on public.sales, public.returns, public.stock_lots, public.stock_movements,
+    public.sale_lines, public.sale_line_lot_allocations
   from authenticated;
 
 revoke insert, update, delete, truncate, references, trigger
@@ -3966,9 +3978,20 @@ revoke execute on function public.check_sale_line_inventory_integrity()
   from public, anon, authenticated, service_role;
 revoke execute on function public.check_sale_inventory_integrity()
   from public, anon, authenticated, service_role;
+revoke execute on function public.prevent_workspace_with_business_data_deletion()
+  from public, anon, authenticated, service_role;
 revoke execute on function public.resolve_legacy_sold_item(uuid, uuid, text, text)
   from public, anon, service_role;
 grant execute on function public.resolve_legacy_sold_item(uuid, uuid, text, text)
+  to authenticated;
+
+revoke execute on function public.record_sale(uuid, jsonb, jsonb)
+  from public, anon, service_role;
+revoke execute on function public.record_sale_return(uuid, uuid, numeric, boolean, text, text, text, text)
+  from public, anon, service_role;
+grant execute on function public.record_sale(uuid, jsonb, jsonb)
+  to authenticated;
+grant execute on function public.record_sale_return(uuid, uuid, numeric, boolean, text, text, text, text)
   to authenticated;
 
 revoke execute on function public.bundle_shipping_orders(

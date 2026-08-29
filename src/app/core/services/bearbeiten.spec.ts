@@ -189,35 +189,34 @@ describe('Bearbeiten vorhandener Daten', () => {
       };
     }
 
-    it('rechnet den Gewinn nach einer Preiskorrektur neu', async () => {
+    it('lehnt eine freie Preiskorrektur ab und lässt den Verkauf unverändert', async () => {
       const { dienst, sales } = dienstMit([verkauf]);
 
-      await dienst.updateSale('s-1', { sale_price: 399 });
+      const { error } = await dienst.updateSale('s-1', { sale_price: 399 });
 
-      expect(sales()[0].sale_price).toBe(399);
-      expect(sales()[0].net_profit).toBe(399);
+      expect(error?.message).toContain('Korrekturvorgang');
+      expect(sales()).toEqual([verkauf]);
     });
 
-    it('zieht nachgetragene Gebuehren vom Gewinn ab', async () => {
-      // Genau der Fall, der durch die nicht gebundenen Formularfelder monatelang
-      // unmoeglich war: Gebuehren nachtragen, damit die Marge stimmt.
+    it('lehnt frei nachgetragene Gebühren ab und lässt den Verkauf unverändert', async () => {
       const { dienst, sales } = dienstMit([verkauf]);
 
-      await dienst.updateSale('s-1', { platform_fee: 37.9, shipping_cost: 6.99 });
+      const { error } = await dienst.updateSale('s-1', {
+        platform_fee: 37.9,
+        shipping_cost: 6.99,
+      });
 
-      expect(sales()[0].net_profit).toBeCloseTo(379 - 37.9 - 6.99, 2);
+      expect(error?.message).toContain('Korrekturvorgang');
+      expect(sales()).toEqual([verkauf]);
     });
 
-    it('nimmt einen zurueckgegebenen Verkauf aus der Gewinnrechnung', async () => {
-      // Eine Retoure liess den Verkauf frueher unberuehrt: Der Gewinn zaehlte
-      // weiter, waehrend der Artikel schon wieder im Lager lag - derselbe
-      // Gegenstand doppelt.
+    it('lehnt den direkten Retourenvermerk ab und lässt den Verkauf unverändert', async () => {
       const { dienst, sales } = dienstMit([verkauf]);
 
-      await dienst.markiereAlsRetourniert('s-1', 379);
+      const { error } = await dienst.markiereAlsRetourniert('s-1', 379);
 
-      expect(sales()[0].returned_at).toBeTruthy();
-      expect(sales()[0].refund_amount).toBe(379);
+      expect(error?.message).toContain('atomaren Retourenpfad');
+      expect(sales()).toEqual([verkauf]);
     });
 
     it('meldet einen unbekannten Verkauf, statt still nichts zu tun', async () => {

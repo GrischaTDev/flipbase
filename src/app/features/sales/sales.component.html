@@ -24,6 +24,17 @@
     </div>
   </div>
 
+  <div
+    role="note"
+    class="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
+  >
+    <svg [lucideIcon]="alertIcon" class="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true"></svg>
+    <p>
+      Gebuchte Verkäufe bleiben unverändert erhalten. Tatsächlich zurückgekehrte Ware wird über
+      „Retoure erfassen“ gebucht; Erfassungsfehler benötigen einen dokumentierten Korrekturvorgang.
+    </p>
+  </div>
+
   <!-- KPI Cards Grid -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
     <div class="linear-kpi p-4 rounded-xl">
@@ -289,24 +300,6 @@
                       <svg [lucideIcon]="returnIcon" class="w-3.5 h-3.5"></svg>
                     </button>
                   }
-
-                  <button
-                    type="button"
-                    (click)="bearbeiteVerkauf.set(sale)"
-                    class="p-1.5 rounded-lg text-fb-text-muted hover:text-indigo-400 hover:bg-indigo-500/10 transition cursor-pointer"
-                    title="Verkauf bearbeiten"
-                  >
-                    <svg [lucideIcon]="editIcon" class="w-3.5 h-3.5"></svg>
-                  </button>
-
-                  <button
-                    type="button"
-                    (click)="onDeleteSale(sale)"
-                    class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
-                    title="Verkauf stornieren"
-                  >
-                    <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
-                  </button>
                 </div>
               </td>
             </tr>
@@ -433,14 +426,6 @@
       [saleTarget]="createSaleTarget()"
       (closed)="closeCreateModal()"
       (created)="closeCreateModal()"
-    ></app-sale-create-modal>
-  }
-
-  @if (bearbeiteVerkauf(); as verkauf) {
-    <app-sale-create-modal
-      [sale]="verkauf"
-      (closed)="bearbeiteVerkauf.set(null)"
-      (created)="bearbeiteVerkauf.set(null)"
     ></app-sale-create-modal>
   }
 

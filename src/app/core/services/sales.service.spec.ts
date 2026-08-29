@@ -100,7 +100,7 @@ describe('SalesService', () => {
 
     const result = await service.updateSale(sale.id, { sale_price: 29.98 });
 
-    expect(result.error?.message).toContain('Verkaufspositionen');
+    expect(result.error?.message).toContain('Korrekturvorgang');
     expect(service.sales()).toEqual([persistedSale]);
     expect(rpc).not.toHaveBeenCalled();
   });

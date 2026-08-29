@@ -10,8 +10,6 @@ import {
   LucideDollarSign as DollarSign,
   LucideCalendar as Calendar,
   LucidePlus as Plus,
-  LucideTrash2 as Trash2,
-  LucidePencil as Pencil,
   LucideTag as Tag,
   LucideClock as Clock,
   LucideArrowUpRight as ArrowUpRight,
@@ -31,7 +29,6 @@ import { InvoiceModalComponent } from '../../shared/components/invoice-modal/inv
 import { Sale } from '../../core/models/flipbase.models';
 import { Invoice } from '../../core/models/invoice.models';
 import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/return.models';
-import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { SaleTarget, SaleTargetRouteState } from '../../core/models/sale-target.models';
@@ -74,7 +71,6 @@ export class SalesComponent {
     { value: 'other', label: 'Sonstiges / Kulanz' },
   ];
 
-  private readonly dialog = inject(ConfirmDialogService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly router = inject(Router);
@@ -87,8 +83,6 @@ export class SalesComponent {
   readonly dollarIcon = DollarSign;
   readonly calendarIcon = Calendar;
   readonly plusIcon = Plus;
-  readonly trashIcon = Trash2;
-  readonly editIcon = Pencil;
   readonly tagIcon = Tag;
   readonly clockIcon = Clock;
   readonly arrowIcon = ArrowUpRight;
@@ -102,8 +96,6 @@ export class SalesComponent {
 
   readonly isCreateModalOpen = signal<boolean>(false);
   readonly createSaleTarget = signal<SaleTarget | null>(null);
-  /** Der Verkauf, der gerade bearbeitet wird - null heisst: keiner. */
-  readonly bearbeiteVerkauf = signal<Sale | null>(null);
   readonly selectedPlatform = signal<string>('all');
   readonly activeInvoice = signal<Invoice | null>(null);
   readonly isCreatingInvoice = signal(false);
@@ -317,49 +309,5 @@ export class SalesComponent {
 
   closeInvoice(): void {
     this.activeInvoice.set(null);
-  }
-
-  async onDeleteSale(sale: Sale): Promise<void> {
-    const bestaetigt = await this.dialog.frage({
-      titel: 'Verkauf stornieren?',
-      text: 'Der Verkauf wird entfernt und der Artikel wieder auf „verkaufsbereit“ gesetzt.',
-      bestaetigenText: 'Stornieren',
-      gefahr: true,
-    });
-    if (bestaetigt) {
-      let ergebnis: Awaited<ReturnType<SalesService['deleteSale']>>;
-      try {
-        ergebnis = await this.salesService.deleteSale(sale.id, sale.inventory_item_id);
-      } catch (ursache: unknown) {
-        ergebnis = {
-          data: null,
-          error:
-            ursache instanceof Error
-              ? ursache
-              : new Error('Der Verkauf konnte nicht gelöscht werden.'),
-          status: 'error',
-          problems: [],
-        };
-      }
-
-      if (ergebnis.error) {
-        if (ergebnis.status === 'partial') {
-          const ungemeldeteProbleme = ergebnis.problems.filter(
-            (problem) => !problem.reportedBySyncStatus,
-          );
-          if (ungemeldeteProbleme.length > 0) {
-            this.toast.warning(
-              'Verkauf wurde mit Einschränkungen gelöscht.',
-              'Der Artikelstatus „verkaufsbereit“ wird automatisch nachgeholt.',
-            );
-          }
-        } else if (!this.syncStatus.istZentralGemeldet(ergebnis.error)) {
-          this.toast.error('Verkauf konnte nicht gelöscht werden.', ergebnis.error.message);
-        }
-        return;
-      }
-
-      this.toast.success('Verkauf wurde gelöscht.');
-    }
   }
 }
