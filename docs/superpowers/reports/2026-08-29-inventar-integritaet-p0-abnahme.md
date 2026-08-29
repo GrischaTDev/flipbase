@@ -56,9 +56,11 @@ schließt auch diese Wege:
 - `place_store_order`, `create_or_get_invoice` und `book_bank_transaction` sind
   die alleinigen Schreibwege. Sie laufen mit festem leerem `search_path` und
   prüfen Authentifizierung sowie Workspace-Mitgliedschaft ausdrücklich.
-- Fünf zusammengesetzte Fremdschlüssel koppeln Rechnungs- und
-  Store-Bestellbeziehungen an denselben Workspace. Cross-Workspace-Verweise
-  werden dadurch auch bei privilegierten Datenbankpfaden abgewiesen.
+- Die vorhandenen Workspace-Schlüssel koppeln Rechnungsbeziehungen direkt;
+  vier zusätzliche Constraint-Trigger prüfen Store-Bestellpositionen gegen den
+  Workspace von Bestellung, Inventarartikel und Katalogprodukt. Dadurch bleiben
+  bestehende Zeilen unverändert und Cross-Workspace-Verweise werden auch bei
+  privilegierten Datenbankpfaden abgewiesen.
 - Authentifizierte Negativtests belegen die gesperrten direkten Schreibwege;
   Positivtests belegen weiterhin alle drei erlaubten RPCs.
 
@@ -89,6 +91,8 @@ Der geprüfte Ablauf war:
 | Inventarartikel      |     8 | `...0005`, `...0006`, `...0007`, `...0008`, `...0009`, `...0010`, `...0017`, `...0018` |
 | Verkäufe             |     6 | `...0011`, `...0012`, `...0013`, `...0014`, `...0015`, `...0019`                       |
 | Verkaufspositionen   |     5 | `...0021`, `...0022`, `...0023`, `...0024`, `...0025`                                  |
+| Store-Bestellungen   |     1 | `...0026`                                                                              |
+| Store-Positionen     |     1 | `...0027`                                                                              |
 
 Alle verkürzten IDs besitzen den festen Präfix
 `82000000-0000-4000-8000-00000000`.
@@ -99,12 +103,18 @@ Alle verkürzten IDs besitzen den festen Präfix
 | `sales.sale_price_total`        | 138,00 |  138,00 |
 | `sale_lines.line_total`         | 120,00 |  120,00 |
 | `sale_lines.cost_of_goods_sold` |  48,00 |   48,00 |
+| `store_orders.subtotal`         |  19,90 |   19,90 |
+| `store_orders.shipping_cost`    |   4,99 |    4,99 |
+| `store_orders.total`            |  24,89 |   24,89 |
+| `store_order_items.line_value`  |  19,90 |   19,90 |
 
 | Deterministischer MD5-Hash | Vorher = Nachher                   |
 | -------------------------- | ---------------------------------- |
 | `inventory_items`          | `5553450f63e0062f7dadff79eee4aea8` |
 | `sales`                    | `18e8ede98623e409f9e6dc186ef04a59` |
 | `sale_lines`               | `4c6b9048dc7f4a2c387ca5fbc8909d05` |
+| `store_orders`             | `a00989986aaefc6b8c279f5c99f64447` |
+| `store_order_items`        | `4a2f3cf9e2307c886de115a6df0b862e` |
 
 Die acht erwarteten View-Zustände wurden ohne Abweichung bestätigt:
 
@@ -130,7 +140,7 @@ Migration aufgebaut und mit `supabase/seed.sql` befüllt. Der Clean-Install war
 erfolgreich.
 
 Die Supabase-Typen wurden anschließend aus der lokalen Datenbank neu erzeugt.
-Die Datei ist strikt gültiges UTF-8 ohne BOM; geprüft wurden 88.503 Bytes und
+Die Datei ist strikt gültiges UTF-8 ohne BOM; geprüft wurden 88.215 Bytes und
 der Präfix `101,120,112` (`exp`). Die Typen enthalten das Journal, die
 Sale-State-View, alle drei Stornofelder und die beiden engen Legacy-RPCs.
 
@@ -144,7 +154,7 @@ ihrer festen Fixture-IDs jeweils nach einem sauberen lokalen Reset ausgeführt.
 
 | Prüfung                                                        | Ergebnis                                                                                                                         |
 | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `business_record_immutability.sql`                             | PASS, 75/75                                                                                                                      |
+| `business_record_immutability.sql`                             | PASS, 81/81                                                                                                                      |
 | `inventory_item_sale_integrity.sql`                            | PASS, 63/63                                                                                                                      |
 | `inventory_sales_schema.sql` per `psql`                        | PASS, Transaktion zurückgerollt                                                                                                  |
 | `inventory_sales_transactions.sql` per `psql`                  | PASS, Transaktion zurückgerollt                                                                                                  |

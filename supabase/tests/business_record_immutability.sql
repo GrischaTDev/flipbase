@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(75);
+select plan(81);
 
 \set user_id '83000000-0000-4000-8000-000000000001'
 \set business_workspace_id '83000000-0000-4000-8000-000000000002'
@@ -65,7 +65,8 @@ insert into public.inventory_items (id, workspace_id, purchase_id, title, status
   ('83000000-0000-4000-8000-000000000021', :'business_workspace_id'::uuid, null, 'Header child', 'sold'),
   ('83000000-0000-4000-8000-000000000022', :'business_workspace_id'::uuid, null, 'Line child', 'sold'),
   ('83000000-0000-4000-8000-000000000023', :'business_workspace_id'::uuid, null, 'Direct mutation item', 'sold'),
-  ('83000000-0000-4000-8000-000000000024', :'event_workspace_id'::uuid, null, 'Reconciled item', 'ready');
+  ('83000000-0000-4000-8000-000000000024', :'event_workspace_id'::uuid, null, 'Reconciled item', 'ready'),
+  ('83000000-0000-4000-8000-000000000025', :'business_workspace_id'::uuid, null, 'Store workspace guard item', 'ready');
 
 insert into public.catalog_products (id, workspace_id, title, tracking_mode) values (
   '83000000-0000-4000-8000-000000000100',
@@ -232,10 +233,9 @@ insert into public.store_orders (
 );
 
 insert into public.store_order_items (
-  id, workspace_id, store_order_id, inventory_item_id, item_title, price, quantity
+  id, store_order_id, inventory_item_id, item_title, price, quantity
 ) values (
   '83000000-0000-4000-8000-000000000091',
-  :'business_workspace_id'::uuid,
   '83000000-0000-4000-8000-000000000090',
   '83000000-0000-4000-8000-000000000020',
   'Booked store order item',
@@ -244,11 +244,10 @@ insert into public.store_order_items (
 );
 
 insert into public.store_order_items (
-  id, workspace_id, store_order_id, inventory_item_id, catalog_product_id, item_title, price, quantity
+  id, store_order_id, inventory_item_id, catalog_product_id, item_title, price, quantity
 ) values
   (
     '83000000-0000-4000-8000-000000000093',
-    :'business_workspace_id'::uuid,
     '83000000-0000-4000-8000-000000000092',
     '83000000-0000-4000-8000-000000000020',
     null,
@@ -258,11 +257,19 @@ insert into public.store_order_items (
   ),
   (
     '83000000-0000-4000-8000-000000000094',
-    :'business_workspace_id'::uuid,
     '83000000-0000-4000-8000-000000000092',
     null,
     '83000000-0000-4000-8000-000000000103',
     'Store referenced quantity product',
+    10,
+    1
+  ),
+  (
+    '83000000-0000-4000-8000-000000000108',
+    '83000000-0000-4000-8000-000000000092',
+    '83000000-0000-4000-8000-000000000025',
+    null,
+    'Store workspace guard individual item',
     10,
     1
   );
@@ -371,15 +378,54 @@ select is(
     from pg_constraint
     where conname in (
       'invoices_workspace_sale_fkey',
-      'invoices_workspace_store_order_fkey',
-      'store_order_items_workspace_order_fkey',
-      'store_order_items_workspace_inventory_item_fkey',
-      'store_order_items_workspace_catalog_product_fkey'
+      'invoices_workspace_store_order_fkey'
     )
       and contype = 'f'
   ),
-  5::bigint,
-  'fünf zusammengesetzte Fremdschlüssel sichern die Workspace-Referenzen'
+  2::bigint,
+  'zwei zusammengesetzte Fremdschlüssel sichern die Rechnungsquellen'
+);
+
+select is(
+  (
+    select count(*)
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'store_order_items'
+      and column_name = 'workspace_id'
+  ),
+  0::bigint,
+  'Store-Bestellpositionen erhalten beim Upgrade keine neue Workspace-Spalte'
+);
+
+select is(
+  (
+    select count(*)
+    from pg_trigger as trigger
+    where trigger.tgname in (
+      'store_order_item_workspace_integrity_on_item',
+      'store_order_item_workspace_integrity_on_order',
+      'store_order_item_workspace_integrity_on_inventory_item',
+      'store_order_item_workspace_integrity_on_catalog_product'
+    )
+      and trigger.tgenabled <> 'D'
+      and trigger.tgconstraint <> 0
+  ),
+  4::bigint,
+  'vier aktive Constraint-Trigger sichern Store-Positionen und ihre Workspace-Quellen'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_proc as procedure
+    join pg_namespace as namespace on namespace.oid = procedure.pronamespace
+    where namespace.nspname = 'public'
+      and procedure.proname = 'check_store_order_item_workspace_integrity'
+      and procedure.prosecdef
+      and procedure.proconfig @> array['search_path=""']
+  ),
+  'Workspace-Constraint-Funktion läuft als SECURITY DEFINER mit leerem search_path'
 );
 
 select ok(has_function_privilege('authenticated', 'public.record_sale(uuid,jsonb,jsonb)', 'execute'), 'authenticated darf record_sale ausführen');
@@ -450,28 +496,24 @@ select throws_ok(
   '23503', null, 'Rechnung kann keine Store-Bestellung eines anderen Workspace referenzieren'
 );
 select throws_ok(
-  case
-    when exists (
-      select 1 from information_schema.columns
-      where table_schema = 'public' and table_name = 'store_order_items' and column_name = 'workspace_id'
-    ) then
-      $$insert into public.store_order_items (id, workspace_id, store_order_id, inventory_item_id, item_title, price, quantity) values ('83000000-0000-4000-8000-000000000105', '83000000-0000-4000-8000-000000000002', '83000000-0000-4000-8000-000000000092', '83000000-0000-4000-8000-000000000024', 'Cross inventory', 1, 1)$$
-    else
-      $$insert into public.store_order_items (id, store_order_id, inventory_item_id, item_title, price, quantity) values ('83000000-0000-4000-8000-000000000105', '83000000-0000-4000-8000-000000000092', '83000000-0000-4000-8000-000000000024', 'Cross inventory', 1, 1)$$
-  end,
-  '23503', null, 'Store-Position kann keinen Einzelartikel eines anderen Workspace referenzieren'
+  $$insert into public.store_order_items (id, store_order_id, inventory_item_id, item_title, price, quantity) values ('83000000-0000-4000-8000-000000000105', '83000000-0000-4000-8000-000000000092', '83000000-0000-4000-8000-000000000024', 'Cross inventory', 1, 1)$$,
+  '23503', 'Workspace der Store-Bestellposition ist inkonsistent.', 'Store-Position kann keinen Einzelartikel eines anderen Workspace referenzieren'
 );
 select throws_ok(
-  case
-    when exists (
-      select 1 from information_schema.columns
-      where table_schema = 'public' and table_name = 'store_order_items' and column_name = 'workspace_id'
-    ) then
-      $$insert into public.store_order_items (id, workspace_id, store_order_id, catalog_product_id, item_title, price, quantity) values ('83000000-0000-4000-8000-000000000106', '83000000-0000-4000-8000-000000000002', '83000000-0000-4000-8000-000000000092', '83000000-0000-4000-8000-000000000104', 'Cross catalog', 1, 1)$$
-    else
-      $$insert into public.store_order_items (id, store_order_id, catalog_product_id, item_title, price, quantity) values ('83000000-0000-4000-8000-000000000106', '83000000-0000-4000-8000-000000000092', '83000000-0000-4000-8000-000000000104', 'Cross catalog', 1, 1)$$
-  end,
-  '23503', null, 'Store-Position kann keinen Artikelstamm eines anderen Workspace referenzieren'
+  $$insert into public.store_order_items (id, store_order_id, catalog_product_id, item_title, price, quantity) values ('83000000-0000-4000-8000-000000000106', '83000000-0000-4000-8000-000000000092', '83000000-0000-4000-8000-000000000104', 'Cross catalog', 1, 1)$$,
+  '23503', 'Workspace der Store-Bestellposition ist inkonsistent.', 'Store-Position kann keinen Artikelstamm eines anderen Workspace referenzieren'
+);
+select throws_ok(
+  $$update public.store_orders set workspace_id = '83000000-0000-4000-8000-000000000005' where id = '83000000-0000-4000-8000-000000000092'$$,
+  '23503', 'Workspace der Store-Bestellposition ist inkonsistent.', 'Store-Bestellung kann nicht nachträglich von ihren Positionen getrennt werden'
+);
+select throws_ok(
+  $$update public.inventory_items set workspace_id = '83000000-0000-4000-8000-000000000005' where id = '83000000-0000-4000-8000-000000000025'$$,
+  '23503', 'Workspace der Store-Bestellposition ist inkonsistent.', 'Einzelartikel kann nicht nachträglich von seiner Store-Position getrennt werden'
+);
+select throws_ok(
+  $$update public.catalog_products set workspace_id = '83000000-0000-4000-8000-000000000005' where id = '83000000-0000-4000-8000-000000000103'$$,
+  '23503', 'Workspace der Store-Bestellposition ist inkonsistent.', 'Artikelstamm kann nicht nachträglich von seiner Store-Position getrennt werden'
 );
 
 set local role authenticated;

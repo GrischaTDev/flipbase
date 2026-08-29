@@ -13,6 +13,8 @@
 \set conflict_sale_id '82000000-0000-4000-8000-000000000012'
 \set legacy_header_item_id '82000000-0000-4000-8000-000000000018'
 \set legacy_header_sale_id '82000000-0000-4000-8000-000000000019'
+\set legacy_store_order_id '82000000-0000-4000-8000-000000000026'
+\set legacy_store_order_item_id '82000000-0000-4000-8000-000000000027'
 insert into auth.users (
   id, aud, role, email, encrypted_password, raw_app_meta_data,
   raw_user_meta_data, created_at, updated_at
@@ -48,6 +50,37 @@ values
   (:'multiple_item_id'::uuid, :'main_workspace_id'::uuid, 'Multiple active sales', 'sold'),
   (:'legacy_header_item_id'::uuid, :'main_workspace_id'::uuid, 'Legacy header only', 'sold'),
   (:'foreign_item_id'::uuid, :'foreign_workspace_id'::uuid, 'Foreign orphan', 'sold');
+
+insert into public.store_orders (
+  id, workspace_id, order_number, customer, subtotal, shipping_cost, total,
+  payment_method, payment_status, payment_id, status, created_at
+) values (
+  :'legacy_store_order_id'::uuid,
+  :'main_workspace_id'::uuid,
+  'LEGACY-STORE-ORDER-1',
+  '{"email":"legacy-store@example.test","name":"Legacy Store Customer"}'::jsonb,
+  19.90,
+  4.99,
+  24.89,
+  'bank_transfer',
+  'paid',
+  'legacy-payment-1',
+  'confirmed',
+  '2026-08-29T08:00:00Z'::timestamptz
+);
+
+insert into public.store_order_items (
+  id, store_order_id, inventory_item_id, catalog_product_id,
+  item_title, price, quantity
+) values (
+  :'legacy_store_order_item_id'::uuid,
+  :'legacy_store_order_id'::uuid,
+  :'available_item_id'::uuid,
+  null,
+  'Legacy store order item',
+  19.90,
+  1
+);
 
 insert into public.sales (
   id, workspace_id, inventory_item_id, platform, sale_price,

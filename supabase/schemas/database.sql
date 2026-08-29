@@ -670,23 +670,13 @@ CREATE TABLE IF NOT EXISTS public.store_orders (
 
 CREATE TABLE IF NOT EXISTS public.store_order_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    store_order_id UUID NOT NULL,
-    inventory_item_id UUID,
-    catalog_product_id UUID,
+    store_order_id UUID NOT NULL REFERENCES public.store_orders(id) ON DELETE RESTRICT,
+    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE RESTRICT,
+    catalog_product_id UUID REFERENCES public.catalog_products(id) ON DELETE RESTRICT,
     item_title TEXT NOT NULL,
     price NUMERIC NOT NULL DEFAULT 0.00,
     quantity INTEGER NOT NULL DEFAULT 1,
-    workspace_id UUID NOT NULL,
-    check (num_nonnulls(catalog_product_id, inventory_item_id) = 1),
-    constraint store_order_items_workspace_order_fkey
-      foreign key (workspace_id, store_order_id)
-      references public.store_orders(workspace_id, id) on delete restrict,
-    constraint store_order_items_workspace_inventory_item_fkey
-      foreign key (workspace_id, inventory_item_id)
-      references public.inventory_items(workspace_id, id) on delete restrict,
-    constraint store_order_items_workspace_catalog_product_fkey
-      foreign key (workspace_id, catalog_product_id)
-      references public.catalog_products(workspace_id, id) on delete restrict
+    check (num_nonnulls(catalog_product_id, inventory_item_id) = 1)
 );
 
 alter table public.store_order_items
@@ -1705,7 +1695,6 @@ CREATE INDEX IF NOT EXISTS idx_carrier_configs_workspace_id ON public.carrier_co
 CREATE INDEX IF NOT EXISTS idx_store_orders_workspace_id ON public.store_orders(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_store_order_items_order_id ON public.store_order_items(store_order_id);
 CREATE INDEX IF NOT EXISTS idx_store_order_items_catalog_product_id ON public.store_order_items(catalog_product_id);
-create index if not exists idx_store_order_items_workspace_id on public.store_order_items(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_store_settings_workspace_id ON public.store_settings(workspace_id);
 
 create unique index if not exists idx_store_orders_workspace_order_number
@@ -3604,6 +3593,109 @@ $$;
 revoke all on function public.record_sale_return(uuid, uuid, numeric, boolean, text, text, text, text) from public;
 grant execute on function public.record_sale_return(uuid, uuid, numeric, boolean, text, text, text, text) to authenticated;
 
+create or replace function public.check_store_order_item_workspace_integrity()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_workspace_mismatch boolean := false;
+begin
+  if tg_table_name = 'store_order_items' then
+    select exists (
+      select 1
+      from public.store_orders as store_order
+      where store_order.id = new.store_order_id
+        and (
+          new.inventory_item_id is not null
+          and not exists (
+            select 1
+            from public.inventory_items as inventory_item
+            where inventory_item.id = new.inventory_item_id
+              and inventory_item.workspace_id = store_order.workspace_id
+          )
+          or new.catalog_product_id is not null
+          and not exists (
+            select 1
+            from public.catalog_products as catalog_product
+            where catalog_product.id = new.catalog_product_id
+              and catalog_product.workspace_id = store_order.workspace_id
+          )
+        )
+    ) into v_workspace_mismatch;
+  elsif tg_table_name = 'store_orders'
+    and new.workspace_id is distinct from old.workspace_id then
+    select exists (
+      select 1
+      from public.store_order_items as store_item
+      where store_item.store_order_id = new.id
+        and (
+          store_item.inventory_item_id is not null
+          and not exists (
+            select 1
+            from public.inventory_items as inventory_item
+            where inventory_item.id = store_item.inventory_item_id
+              and inventory_item.workspace_id = new.workspace_id
+          )
+          or store_item.catalog_product_id is not null
+          and not exists (
+            select 1
+            from public.catalog_products as catalog_product
+            where catalog_product.id = store_item.catalog_product_id
+              and catalog_product.workspace_id = new.workspace_id
+          )
+        )
+    ) into v_workspace_mismatch;
+  elsif tg_table_name = 'inventory_items'
+    and new.workspace_id is distinct from old.workspace_id then
+    select exists (
+      select 1
+      from public.store_order_items as store_item
+      join public.store_orders as store_order on store_order.id = store_item.store_order_id
+      where store_item.inventory_item_id = new.id
+        and store_order.workspace_id <> new.workspace_id
+    ) into v_workspace_mismatch;
+  elsif tg_table_name = 'catalog_products'
+    and new.workspace_id is distinct from old.workspace_id then
+    select exists (
+      select 1
+      from public.store_order_items as store_item
+      join public.store_orders as store_order on store_order.id = store_item.store_order_id
+      where store_item.catalog_product_id = new.id
+        and store_order.workspace_id <> new.workspace_id
+    ) into v_workspace_mismatch;
+  end if;
+
+  if v_workspace_mismatch then
+    raise foreign_key_violation using
+      message = 'Workspace der Store-Bestellposition ist inkonsistent.',
+      constraint = 'store_order_items_workspace_integrity';
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke execute on function public.check_store_order_item_workspace_integrity()
+  from public, anon, authenticated, service_role;
+
+create constraint trigger store_order_item_workspace_integrity_on_item
+after insert or update on public.store_order_items
+for each row execute function public.check_store_order_item_workspace_integrity();
+
+create constraint trigger store_order_item_workspace_integrity_on_order
+after update on public.store_orders
+for each row execute function public.check_store_order_item_workspace_integrity();
+
+create constraint trigger store_order_item_workspace_integrity_on_inventory_item
+after update on public.inventory_items
+for each row execute function public.check_store_order_item_workspace_integrity();
+
+create constraint trigger store_order_item_workspace_integrity_on_catalog_product
+after update on public.catalog_products
+for each row execute function public.check_store_order_item_workspace_integrity();
+
 create or replace function public.place_store_order(
   p_workspace_id uuid,
   p_order_id uuid,
@@ -3760,7 +3852,6 @@ begin
   returning * into v_order;
 
   insert into public.store_order_items (
-    workspace_id,
     store_order_id,
     inventory_item_id,
     catalog_product_id,
@@ -3769,7 +3860,6 @@ begin
     quantity
   )
   select
-    p_workspace_id,
     v_order.id,
     item.inventory_item_id,
     item.catalog_product_id,
@@ -4204,6 +4294,8 @@ revoke execute on function public.check_inventory_item_sale_integrity()
 revoke execute on function public.check_sale_line_inventory_integrity()
   from public, anon, authenticated, service_role;
 revoke execute on function public.check_sale_inventory_integrity()
+  from public, anon, authenticated, service_role;
+revoke execute on function public.check_store_order_item_workspace_integrity()
   from public, anon, authenticated, service_role;
 revoke execute on function public.prevent_workspace_with_business_data_deletion()
   from public, anon, authenticated, service_role;

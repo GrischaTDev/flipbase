@@ -2010,7 +2010,6 @@ export type Database = {
           price: number
           quantity: number
           store_order_id: string
-          workspace_id: string
         }
         Insert: {
           catalog_product_id?: string | null
@@ -2020,7 +2019,6 @@ export type Database = {
           price?: number
           quantity?: number
           store_order_id: string
-          workspace_id: string
         }
         Update: {
           catalog_product_id?: string | null
@@ -2030,36 +2028,35 @@ export type Database = {
           price?: number
           quantity?: number
           store_order_id?: string
-          workspace_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "store_order_items_workspace_catalog_product_fkey"
-            columns: ["workspace_id", "catalog_product_id"]
+            foreignKeyName: "store_order_items_catalog_product_id_fkey"
+            columns: ["catalog_product_id"]
             isOneToOne: false
             referencedRelation: "catalog_products"
-            referencedColumns: ["workspace_id", "id"]
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "store_order_items_workspace_inventory_item_fkey"
-            columns: ["workspace_id", "inventory_item_id"]
+            foreignKeyName: "store_order_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_item_sale_states"
-            referencedColumns: ["workspace_id", "inventory_item_id"]
+            referencedColumns: ["inventory_item_id"]
           },
           {
-            foreignKeyName: "store_order_items_workspace_inventory_item_fkey"
-            columns: ["workspace_id", "inventory_item_id"]
+            foreignKeyName: "store_order_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
-            referencedColumns: ["workspace_id", "id"]
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "store_order_items_workspace_order_fkey"
-            columns: ["workspace_id", "store_order_id"]
+            foreignKeyName: "store_order_items_store_order_id_fkey"
+            columns: ["store_order_id"]
             isOneToOne: false
             referencedRelation: "store_orders"
-            referencedColumns: ["workspace_id", "id"]
+            referencedColumns: ["id"]
           },
         ]
       }

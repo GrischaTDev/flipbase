@@ -96,6 +96,14 @@ with fixture_workspaces as (
   select sale_line.*
   from public.sale_lines as sale_line
   where sale_line.workspace_id in (select id from fixture_workspaces)
+), store_order_rows as (
+  select store_order.*
+  from public.store_orders as store_order
+  where store_order.workspace_id in (select id from fixture_workspaces)
+), store_order_item_rows as (
+  select store_item.*
+  from public.store_order_items as store_item
+  join store_order_rows as store_order on store_order.id = store_item.store_order_id
 )
 select jsonb_build_object(
   'counts', jsonb_build_object(
@@ -103,18 +111,28 @@ select jsonb_build_object(
     'workspace_members', (select count(*) from public.workspace_members where workspace_id in (select id from fixture_workspaces)),
     'inventory_items', (select count(*) from inventory_rows),
     'sales', (select count(*) from sale_rows),
-    'sale_lines', (select count(*) from sale_line_rows)
+    'sale_lines', (select count(*) from sale_line_rows),
+    'store_orders', (select count(*) from store_order_rows),
+    'store_order_items', (select count(*) from store_order_item_rows)
   ),
   'ids', jsonb_build_object(
     'inventory_items', (select jsonb_agg(id order by id) from inventory_rows),
     'sales', (select jsonb_agg(id order by id) from sale_rows),
-    'sale_lines', (select jsonb_agg(id order by id) from sale_line_rows)
+    'sale_lines', (select jsonb_agg(id order by id) from sale_line_rows),
+    'store_orders', (select jsonb_agg(id order by id) from store_order_rows),
+    'store_order_items', (select jsonb_agg(id order by id) from store_order_item_rows)
   ),
   'sums', jsonb_build_object(
     'sale_price', (select coalesce(sum(sale_price), 0) from sale_rows),
     'sale_price_total', (select coalesce(sum(sale_price_total), 0) from sale_rows),
     'line_total', (select coalesce(sum(line_total), 0) from sale_line_rows),
-    'cost_of_goods_sold', (select coalesce(sum(cost_of_goods_sold), 0) from sale_line_rows)
+    'cost_of_goods_sold', (select coalesce(sum(cost_of_goods_sold), 0) from sale_line_rows),
+    'store_order_subtotal', (select coalesce(sum(subtotal), 0) from store_order_rows),
+    'store_order_shipping_cost', (select coalesce(sum(shipping_cost), 0) from store_order_rows),
+    'store_order_total', (select coalesce(sum(total), 0) from store_order_rows),
+    'store_order_item_price', (select coalesce(sum(price), 0) from store_order_item_rows),
+    'store_order_item_quantity', (select coalesce(sum(quantity), 0) from store_order_item_rows),
+    'store_order_item_line_value', (select coalesce(sum(price * quantity), 0) from store_order_item_rows)
   ),
   'hashes', jsonb_build_object(
     'inventory_items', (select md5(coalesce(string_agg(
@@ -125,7 +143,15 @@ select jsonb_build_object(
     ), '')) from sale_rows),
     'sale_lines', (select md5(coalesce(string_agg(
       concat_ws('|', id, workspace_id, sale_id, inventory_item_id, title_snapshot, quantity, unit_sale_price, line_total, cost_of_goods_sold, tax_mode), E'\n' order by id
-    ), '')) from sale_line_rows)
+    ), '')) from sale_line_rows),
+    'store_orders', md5(coalesce((
+      select jsonb_agg(to_jsonb(store_order) order by store_order.id)::text
+      from store_order_rows as store_order
+    ), '[]')),
+    'store_order_items', md5(coalesce((
+      select jsonb_agg(to_jsonb(store_item) order by store_item.id)::text
+      from store_order_item_rows as store_item
+    ), '[]'))
   )
 )::text;
 "@

@@ -165,6 +165,93 @@ $function$;
 REVOKE EXECUTE ON FUNCTION public.check_sale_line_inventory_integrity()
   FROM PUBLIC, anon, authenticated, service_role;
 
+create or replace function public.check_store_order_item_workspace_integrity()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_workspace_mismatch boolean := false;
+begin
+  if tg_table_name = 'store_order_items' then
+    select exists (
+      select 1
+      from public.store_orders as store_order
+      where store_order.id = new.store_order_id
+        and (
+          new.inventory_item_id is not null
+          and not exists (
+            select 1
+            from public.inventory_items as inventory_item
+            where inventory_item.id = new.inventory_item_id
+              and inventory_item.workspace_id = store_order.workspace_id
+          )
+          or new.catalog_product_id is not null
+          and not exists (
+            select 1
+            from public.catalog_products as catalog_product
+            where catalog_product.id = new.catalog_product_id
+              and catalog_product.workspace_id = store_order.workspace_id
+          )
+        )
+    ) into v_workspace_mismatch;
+  elsif tg_table_name = 'store_orders'
+    and new.workspace_id is distinct from old.workspace_id then
+    select exists (
+      select 1
+      from public.store_order_items as store_item
+      where store_item.store_order_id = new.id
+        and (
+          store_item.inventory_item_id is not null
+          and not exists (
+            select 1
+            from public.inventory_items as inventory_item
+            where inventory_item.id = store_item.inventory_item_id
+              and inventory_item.workspace_id = new.workspace_id
+          )
+          or store_item.catalog_product_id is not null
+          and not exists (
+            select 1
+            from public.catalog_products as catalog_product
+            where catalog_product.id = store_item.catalog_product_id
+              and catalog_product.workspace_id = new.workspace_id
+          )
+        )
+    ) into v_workspace_mismatch;
+  elsif tg_table_name = 'inventory_items'
+    and new.workspace_id is distinct from old.workspace_id then
+    select exists (
+      select 1
+      from public.store_order_items as store_item
+      join public.store_orders as store_order on store_order.id = store_item.store_order_id
+      where store_item.inventory_item_id = new.id
+        and store_order.workspace_id <> new.workspace_id
+    ) into v_workspace_mismatch;
+  elsif tg_table_name = 'catalog_products'
+    and new.workspace_id is distinct from old.workspace_id then
+    select exists (
+      select 1
+      from public.store_order_items as store_item
+      join public.store_orders as store_order on store_order.id = store_item.store_order_id
+      where store_item.catalog_product_id = new.id
+        and store_order.workspace_id <> new.workspace_id
+    ) into v_workspace_mismatch;
+  end if;
+
+  if v_workspace_mismatch then
+    raise foreign_key_violation using
+      message = 'Workspace der Store-Bestellposition ist inkonsistent.',
+      constraint = 'store_order_items_workspace_integrity';
+  end if;
+
+  return new;
+end;
+$function$;
+
+revoke execute on function public.check_store_order_item_workspace_integrity()
+  from public, anon, authenticated, service_role;
+
 CREATE OR REPLACE FUNCTION public.place_store_order (
   p_workspace_id   uuid,
   p_order_id       uuid,
@@ -321,7 +408,6 @@ begin
   returning * into v_order;
 
   insert into public.store_order_items (
-    workspace_id,
     store_order_id,
     inventory_item_id,
     catalog_product_id,
@@ -330,7 +416,6 @@ begin
     quantity
   )
   select
-    p_workspace_id,
     v_order.id,
     item.inventory_item_id,
     item.catalog_product_id,
@@ -1651,32 +1736,59 @@ CREATE CONSTRAINT TRIGGER inventory_item_sale_integrity_on_sale
 ALTER TABLE public.shipping_orders
   ADD CONSTRAINT shipping_orders_sale_id_fkey FOREIGN KEY (sale_id) REFERENCES public.sales(id) ON DELETE RESTRICT;
 
-ALTER TABLE public.store_order_items
-  ADD COLUMN workspace_id uuid;
+alter table public.store_order_items
+  add constraint store_order_items_catalog_product_id_fkey foreign key (catalog_product_id) references public.catalog_products(id) on delete restrict;
 
--- Vorhandene Positionen übernehmen ausschließlich den Workspace ihres bereits
--- per Fremdschlüssel gesicherten Bestellkopfs; fachliche Referenzen werden nicht
--- erfunden oder umgehängt.
-UPDATE public.store_order_items AS store_item
-SET workspace_id = store_order.workspace_id
-FROM public.store_orders AS store_order
-WHERE store_order.id = store_item.store_order_id;
+alter table public.store_order_items
+  add constraint store_order_items_inventory_item_id_fkey foreign key (inventory_item_id) references public.inventory_items(id) on delete restrict;
 
-ALTER TABLE public.store_order_items
-  ALTER COLUMN workspace_id SET NOT NULL;
+alter table public.store_order_items
+  add constraint store_order_items_store_order_id_fkey foreign key (store_order_id) references public.store_orders(id) on delete restrict;
 
-ALTER TABLE public.store_order_items
-  ADD CONSTRAINT store_order_items_workspace_catalog_product_fkey FOREIGN KEY (workspace_id, catalog_product_id) REFERENCES public.catalog_products(workspace_id, id)
-    ON DELETE RESTRICT;
+-- Reject inconsistent legacy references without rewriting valid business rows.
+do $block$
+begin
+  if exists (
+    select 1
+    from public.store_order_items as store_item
+    join public.store_orders as store_order on store_order.id = store_item.store_order_id
+    where store_item.inventory_item_id is not null
+      and not exists (
+        select 1
+        from public.inventory_items as inventory_item
+        where inventory_item.id = store_item.inventory_item_id
+          and inventory_item.workspace_id = store_order.workspace_id
+      )
+      or store_item.catalog_product_id is not null
+      and not exists (
+        select 1
+        from public.catalog_products as catalog_product
+        where catalog_product.id = store_item.catalog_product_id
+          and catalog_product.workspace_id = store_order.workspace_id
+      )
+  ) then
+    raise foreign_key_violation using
+      message = 'Workspace der Store-Bestellposition ist inkonsistent.',
+      constraint = 'store_order_items_workspace_integrity';
+  end if;
+end;
+$block$;
 
-ALTER TABLE public.store_order_items
-  ADD CONSTRAINT store_order_items_workspace_inventory_item_fkey FOREIGN KEY (workspace_id, inventory_item_id) REFERENCES public.inventory_items(workspace_id, id)
-    ON DELETE RESTRICT;
+create constraint trigger store_order_item_workspace_integrity_on_item
+after insert or update on public.store_order_items
+for each row execute function public.check_store_order_item_workspace_integrity();
 
-ALTER TABLE public.store_order_items
-  ADD CONSTRAINT store_order_items_workspace_order_fkey FOREIGN KEY (workspace_id, store_order_id) REFERENCES public.store_orders(workspace_id, id) ON DELETE RESTRICT;
+create constraint trigger store_order_item_workspace_integrity_on_order
+after update on public.store_orders
+for each row execute function public.check_store_order_item_workspace_integrity();
 
-CREATE INDEX idx_store_order_items_workspace_id ON public.store_order_items (workspace_id);
+create constraint trigger store_order_item_workspace_integrity_on_inventory_item
+after update on public.inventory_items
+for each row execute function public.check_store_order_item_workspace_integrity();
+
+create constraint trigger store_order_item_workspace_integrity_on_catalog_product
+after update on public.catalog_products
+for each row execute function public.check_store_order_item_workspace_integrity();
 
 REVOKE DELETE, INSERT, UPDATE ON public.store_order_items, public.store_orders FROM authenticated;
 
