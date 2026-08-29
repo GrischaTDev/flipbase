@@ -17,7 +17,7 @@ import {
   LucideTrendingUp as TrendingUp,
   LucideX as X,
 } from '@lucide/angular';
-import { Sale, StockPosition } from '../../../../core/models/flipbase.models';
+import { Sale } from '../../../../core/models/flipbase.models';
 import { SaleTarget } from '../../../../core/models/sale-target.models';
 import {
   CreateSalePayload,

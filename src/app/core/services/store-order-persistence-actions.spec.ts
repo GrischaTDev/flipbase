@@ -1,7 +1,6 @@
 import '@angular/compiler';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { describe, expect, it, vi } from 'vitest';
-import { InventoryItem } from '../models/flipbase.models';
 import { CartItem, CheckoutCustomerInfo } from '../models/store.models';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SalesService } from './sales.service';

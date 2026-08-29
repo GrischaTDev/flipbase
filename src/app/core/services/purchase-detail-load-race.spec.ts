@@ -60,7 +60,10 @@ function purchaseLine(purchaseId: string): PurchaseLine {
 }
 
 function erstelleDienst() {
-  type QueryResult<T> = { data: T; error: null };
+  interface QueryResult<T> {
+    data: T;
+    error: null;
+  }
   const purchaseRequests = new Map<string, Deferred<QueryResult<ReturnType<typeof purchase>>>>();
   const lineRequests = new Map<string, Deferred<QueryResult<PurchaseLine[]>>>();
   const syncStatus = { melde: vi.fn((_context: string, error: unknown) => error) };

@@ -1,7 +1,7 @@
 import { Injectable, effect, inject, signal } from '@angular/core';
 import { RestockAction, ReturnReason, ReturnRecord } from '../models/return.models';
 import { Invoice } from '../models/invoice.models';
-import { InventoryItem, ItemStatus, Sale, Workspace } from '../models/flipbase.models';
+import { InventoryItem, Sale, Workspace } from '../models/flipbase.models';
 import { InventoryService } from './inventory.service';
 import { WorkspaceService } from './workspace.service';
 import { WebhookService } from './webhook.service';

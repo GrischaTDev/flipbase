@@ -22,14 +22,14 @@ export interface PurchaseLineDraft {
   readonly lineTotal: number;
 }
 
-type PurchaseLineControls = {
+interface PurchaseLineControls {
   catalogProductId: FormControl<string | null>;
   titleSnapshot: FormControl<string>;
   lineKind: FormControl<TrackingMode>;
   orderedQuantity: FormControl<number>;
   unitPurchasePrice: FormControl<number>;
   lineTotal: FormControl<number>;
-};
+}
 
 type PriceField = 'unitPurchasePrice' | 'lineTotal';
 

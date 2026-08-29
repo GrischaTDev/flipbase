@@ -356,7 +356,7 @@ describe('Zusatzkosten und Sendungsangaben', () => {
       // Der Einkauf laeuft bis zur Antwort der Datenbank unter einer
       // Behelfskennung. Wuerden die Kosten daran haengen, zeigte der
       // Fremdschluessel ins Leere.
-      const { dienst, protokoll } = anlegeDienst();
+      const { dienst } = anlegeDienst();
 
       const ergebnis = await dienst.createPurchase({
         type: 'lot',

@@ -17,11 +17,7 @@ import {
   LucideZap as Zap,
 } from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
-import {
-  CheckoutAttempt,
-  CheckoutCustomerInfo,
-  StoreOrderOutcome,
-} from '../../../../core/models/store.models';
+import { CheckoutAttempt, CheckoutCustomerInfo } from '../../../../core/models/store.models';
 import { LoggerService } from '../../../../core/services/logger.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';

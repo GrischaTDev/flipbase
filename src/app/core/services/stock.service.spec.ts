@@ -5,16 +5,6 @@ import { StockService } from './stock.service';
 import { StockLot, StockMovement, StockPosition } from '../models/flipbase.models';
 import { SyncStatusService } from './sync-status.service';
 
-const position: StockPosition = {
-  catalog_product_id: 'product-1',
-  title: 'LED-Lampe',
-  available_quantity: 5,
-  reserved_quantity: 0,
-  on_hand_quantity: 5,
-  oldest_available_unit_cost: 4.99,
-  is_public_store: false,
-};
-
 describe('StockService', () => {
   it('übernimmt den durch den Wareneingang bestätigten Mengenbestand', async () => {
     const service = Object.create(StockService.prototype) as StockService;
@@ -130,7 +120,10 @@ describe('StockService', () => {
   });
 
   it('ignoriert eine verspätete Antwort des zuvor aktiven Workspace', async () => {
-    type QueryResult<T> = { data: T; error: Error | null };
+    interface QueryResult<T> {
+      data: T;
+      error: Error | null;
+    }
     const currentWorkspace = signal({ id: 'workspace-1' });
     const lotResolvers = new Map<string, (result: QueryResult<StockLot[]>) => void>();
     const movementResolvers = new Map<string, (result: QueryResult<StockMovement[]>) => void>();

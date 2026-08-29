@@ -84,8 +84,8 @@
             <div [formGroupName]="index" class="rounded-xl border border-fb-line bg-fb-well/60 p-3">
               <div class="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_8rem_9rem_auto]">
                 <div>
-                  <label class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
-                    >Artikel</label
+                  <span class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
+                    >Artikel</span
                   ><app-custom-select
                     [options]="targetOptions()"
                     formControlName="target"
@@ -145,13 +145,13 @@
       </section>
       <section class="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <div>
-          <label class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
-            >Plattform</label
+          <span class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
+            >Plattform</span
           ><app-custom-select [options]="plattformOptionen" formControlName="platform" size="sm" />
         </div>
         <div>
-          <label class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
-            >Verkaufsdatum</label
+          <span class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
+            >Verkaufsdatum</span
           ><app-date-picker feldId="sale-date" formControlName="saleDate" />
         </div>
         <div>
