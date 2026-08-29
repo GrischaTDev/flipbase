@@ -2,11 +2,12 @@
   <!-- Back Button & Top Actions -->
   <div class="flex items-center justify-between pb-1">
     <a
-      routerLink="/inventory"
+      [routerLink]="backLink().commands"
+      data-item-back-link
       class="inline-flex items-center gap-1.5 text-xs font-semibold text-fb-text-muted hover:text-fb-text-primary transition"
     >
       <svg [lucideIcon]="arrowLeftIcon" class="w-3.5 h-3.5"></svg>
-      <span>Zurück zum Inventar</span>
+      <span>{{ backLink().label }}</span>
     </a>
 
     <div class="flex items-center gap-2">

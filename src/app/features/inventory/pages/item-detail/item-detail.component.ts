@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
@@ -45,6 +53,16 @@ import { ItemCreateModalComponent } from '../../components/item-create-modal/ite
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 
+type ItemDetailBackLink =
+  | {
+      readonly commands: ['/purchases', string];
+      readonly label: 'Zurück zum Einkauf';
+    }
+  | {
+      readonly commands: ['/inventory'];
+      readonly label: 'Zurück zum Inventar';
+    };
+
 @Component({
   selector: 'app-item-detail',
   imports: [
@@ -84,6 +102,7 @@ export class ItemDetailComponent {
   ];
 
   readonly id = input.required<string>();
+  readonly fromPurchaseId = input<string | null>(null);
 
   private readonly dialog = inject(ConfirmDialogService);
   readonly inventoryService = inject(InventoryService);
@@ -91,6 +110,17 @@ export class ItemDetailComponent {
   private readonly router = inject(Router);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly toast = inject(ToastService);
+
+  readonly backLink = computed<ItemDetailBackLink>(() => {
+    const item = this.inventoryService.selectedItem();
+    const purchaseId = this.fromPurchaseId();
+    const isValidatedPurchase =
+      item?.id === this.id() && !!purchaseId && item.purchase_id === purchaseId;
+
+    return isValidatedPurchase
+      ? { commands: ['/purchases', purchaseId], label: 'Zurück zum Einkauf' }
+      : { commands: ['/inventory'], label: 'Zurück zum Inventar' };
+  });
 
   readonly arrowLeftIcon = ArrowLeft;
   readonly boxesIcon = Boxes;
