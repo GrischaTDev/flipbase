@@ -580,7 +580,7 @@ CREATE TABLE IF NOT EXISTS public.invoices (
 
 CREATE TABLE IF NOT EXISTS public.invoice_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    invoice_id UUID NOT NULL REFERENCES public.invoices(id) ON DELETE CASCADE,
+    invoice_id UUID NOT NULL REFERENCES public.invoices(id) ON DELETE RESTRICT,
     sku TEXT,
     title TEXT NOT NULL,
     condition TEXT,
@@ -667,9 +667,9 @@ CREATE TABLE IF NOT EXISTS public.store_orders (
 
 CREATE TABLE IF NOT EXISTS public.store_order_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    store_order_id UUID NOT NULL REFERENCES public.store_orders(id) ON DELETE CASCADE,
-    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE SET NULL,
-    catalog_product_id UUID REFERENCES public.catalog_products(id) ON DELETE SET NULL,
+    store_order_id UUID NOT NULL REFERENCES public.store_orders(id) ON DELETE RESTRICT,
+    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE RESTRICT,
+    catalog_product_id UUID REFERENCES public.catalog_products(id) ON DELETE RESTRICT,
     item_title TEXT NOT NULL,
     price NUMERIC NOT NULL DEFAULT 0.00,
     quantity INTEGER NOT NULL DEFAULT 1,
@@ -677,7 +677,7 @@ CREATE TABLE IF NOT EXISTS public.store_order_items (
 );
 
 alter table public.store_order_items
-  add column if not exists catalog_product_id uuid references public.catalog_products(id) on delete set null;
+  add column if not exists catalog_product_id uuid references public.catalog_products(id) on delete restrict;
 
 alter table public.invoices
   drop constraint if exists invoices_store_order_id_fkey,
@@ -1456,9 +1456,6 @@ CREATE POLICY invoices_insert ON public.invoices FOR INSERT TO authenticated
 CREATE POLICY invoices_update ON public.invoices FOR UPDATE TO authenticated
     USING (public.is_workspace_member(workspace_id))
     WITH CHECK (public.is_workspace_member(workspace_id));
-CREATE POLICY invoices_delete ON public.invoices FOR DELETE TO authenticated
-    USING (public.is_workspace_member(workspace_id));
-
 -- invoice_items
 CREATE POLICY invoice_items_select ON public.invoice_items FOR SELECT TO authenticated
     USING (EXISTS (SELECT 1 FROM public.invoices i WHERE i.id = invoice_items.invoice_id AND public.is_workspace_member(i.workspace_id)));
@@ -1467,9 +1464,6 @@ CREATE POLICY invoice_items_insert ON public.invoice_items FOR INSERT TO authent
 CREATE POLICY invoice_items_update ON public.invoice_items FOR UPDATE TO authenticated
     USING (EXISTS (SELECT 1 FROM public.invoices i WHERE i.id = invoice_items.invoice_id AND public.is_workspace_member(i.workspace_id)))
     WITH CHECK (EXISTS (SELECT 1 FROM public.invoices i WHERE i.id = invoice_items.invoice_id AND public.is_workspace_member(i.workspace_id)));
-CREATE POLICY invoice_items_delete ON public.invoice_items FOR DELETE TO authenticated
-    USING (EXISTS (SELECT 1 FROM public.invoices i WHERE i.id = invoice_items.invoice_id AND public.is_workspace_member(i.workspace_id)));
-
 -- email_confirmations
 CREATE POLICY email_confirmations_select ON public.email_confirmations FOR SELECT TO authenticated
     USING (public.is_workspace_member(workspace_id));
@@ -1511,9 +1505,6 @@ CREATE POLICY store_orders_insert ON public.store_orders FOR INSERT TO authentic
 CREATE POLICY store_orders_update ON public.store_orders FOR UPDATE TO authenticated
     USING (public.is_workspace_member(workspace_id))
     WITH CHECK (public.is_workspace_member(workspace_id));
-CREATE POLICY store_orders_delete ON public.store_orders FOR DELETE TO authenticated
-    USING (public.is_workspace_member(workspace_id));
-
 -- store_order_items
 CREATE POLICY store_order_items_select ON public.store_order_items FOR SELECT TO authenticated
     USING (EXISTS (SELECT 1 FROM public.store_orders o WHERE o.id = store_order_items.store_order_id AND public.is_workspace_member(o.workspace_id)));
@@ -1522,9 +1513,6 @@ CREATE POLICY store_order_items_insert ON public.store_order_items FOR INSERT TO
 CREATE POLICY store_order_items_update ON public.store_order_items FOR UPDATE TO authenticated
     USING (EXISTS (SELECT 1 FROM public.store_orders o WHERE o.id = store_order_items.store_order_id AND public.is_workspace_member(o.workspace_id)))
     WITH CHECK (EXISTS (SELECT 1 FROM public.store_orders o WHERE o.id = store_order_items.store_order_id AND public.is_workspace_member(o.workspace_id)));
-CREATE POLICY store_order_items_delete ON public.store_order_items FOR DELETE TO authenticated
-    USING (EXISTS (SELECT 1 FROM public.store_orders o WHERE o.id = store_order_items.store_order_id AND public.is_workspace_member(o.workspace_id)));
-
 -- store_settings
 CREATE POLICY store_settings_select ON public.store_settings FOR SELECT TO authenticated
     USING (public.is_workspace_member(workspace_id));
@@ -3938,6 +3926,13 @@ grant select, insert, update, delete
 revoke insert, update, delete
   on public.sales, public.returns, public.stock_lots, public.stock_movements,
     public.sale_lines, public.sale_line_lot_allocations
+  from authenticated;
+
+-- Gebuchte Rechnungen und Store-Bestellungen besitzen noch keinen fachlich
+-- belastbaren Entwurfsstatus. Bis zu einem expliziten Korrekturprozess bleiben
+-- Kopf und Positionen deshalb vollständig erhalten.
+revoke delete
+  on public.invoices, public.invoice_items, public.store_orders, public.store_order_items
   from authenticated;
 
 revoke insert, update, delete, truncate, references, trigger
