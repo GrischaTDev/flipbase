@@ -25,7 +25,12 @@
     </div>
   </div>
 
-  <div class="overflow-x-auto rounded-lg border border-fb-line bg-fb-well/40 p-2">
+  <div
+    class="overflow-x-auto rounded-lg border border-fb-line bg-fb-well/40 p-2"
+    tabindex="0"
+    role="group"
+    aria-label="Diagrammbereich, waagerecht scrollbar"
+  >
     <svg
       class="min-w-[560px] w-full h-auto"
       viewBox="0 0 1000 260"
@@ -42,7 +47,6 @@
         class="text-fb-text-muted"
         stroke-dasharray="4 4"
         data-chart-zero-line
-        aria-label="Nulllinie bei 0 Euro"
       ></line>
       <line x1="40" y1="20" x2="40" y2="226" stroke="currentColor" class="text-fb-line"></line>
       <text x="4" y="26" class="fill-fb-text-muted text-[10px]">

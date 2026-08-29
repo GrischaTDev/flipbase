@@ -3,7 +3,7 @@
   <button
     type="button"
     class="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden"
-    aria-label="Menü schließen"
+    [attr.aria-label]="'NAV.CLOSE_MENU' | translate"
     (click)="closed.emit()"
   ></button>
 }
@@ -43,6 +43,7 @@
     <button
       type="button"
       (click)="closed.emit()"
+      [attr.aria-label]="'NAV.CLOSE_MENU' | translate"
       class="md:hidden p-1 rounded-md text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
     >
       <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>

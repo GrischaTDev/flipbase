@@ -490,6 +490,7 @@
 
             <input
               type="text"
+              aria-label="Inseratstitel"
               [value]="currentTitle()"
               (input)="onTitleInput($event)"
               class="linear-input w-full p-3 rounded-xl font-bold text-sm text-fb-text-primary"
@@ -550,6 +551,7 @@
             } @else {
               <textarea
                 rows="14"
+                aria-label="Artikelbeschreibung"
                 [value]="currentDesc()"
                 (input)="onDescInput($event)"
                 class="linear-input w-full p-4 rounded-xl text-xs text-fb-text-secondary font-mono leading-relaxed resize-y"

@@ -421,10 +421,17 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <svg [lucideIcon]="botIcon" class="w-4 h-4 text-indigo-400"></svg>
-              <strong class="text-xs text-fb-text-primary">Discord Webhook</strong>
+              <strong id="setting-discord-title" class="text-xs text-fb-text-primary"
+                >Discord Webhook</strong
+              >
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" formControlName="discordEnabled" class="sr-only peer" />
+              <input
+                type="checkbox"
+                formControlName="discordEnabled"
+                aria-labelledby="setting-discord-title"
+                class="sr-only peer"
+              />
               <div
                 class="w-9 h-5 bg-fb-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-fb-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-fb-border"
               ></div>
@@ -458,10 +465,17 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-2">
               <svg [lucideIcon]="sendIcon" class="w-4 h-4 text-blue-400"></svg>
-              <strong class="text-xs text-fb-text-primary">Telegram Bot</strong>
+              <strong id="setting-telegram-title" class="text-xs text-fb-text-primary"
+                >Telegram Bot</strong
+              >
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" formControlName="telegramEnabled" class="sr-only peer" />
+              <input
+                type="checkbox"
+                formControlName="telegramEnabled"
+                aria-labelledby="setting-telegram-title"
+                class="sr-only peer"
+              />
               <div
                 class="w-9 h-5 bg-fb-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-fb-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-fb-border"
               ></div>
@@ -560,12 +574,17 @@
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <svg [lucideIcon]="cardIcon" class="w-4 h-4 text-indigo-400"></svg>
-                <strong class="text-xs text-fb-text-primary"
+                <strong id="setting-stripe-title" class="text-xs text-fb-text-primary"
                   >Stripe (Kreditkarte / Apple Pay)</strong
                 >
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="stripeEnabled" class="sr-only peer" />
+                <input
+                  type="checkbox"
+                  formControlName="stripeEnabled"
+                  aria-labelledby="setting-stripe-title"
+                  class="sr-only peer"
+                />
                 <div
                   class="w-9 h-5 bg-fb-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-fb-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-fb-border"
                 ></div>
@@ -585,10 +604,17 @@
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <svg [lucideIcon]="cardIcon" class="w-4 h-4 text-blue-400"></svg>
-                <strong class="text-xs text-fb-text-primary">PayPal Express</strong>
+                <strong id="setting-paypal-title" class="text-xs text-fb-text-primary"
+                  >PayPal Express</strong
+                >
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="paypalEnabled" class="sr-only peer" />
+                <input
+                  type="checkbox"
+                  formControlName="paypalEnabled"
+                  aria-labelledby="setting-paypal-title"
+                  class="sr-only peer"
+                />
                 <div
                   class="w-9 h-5 bg-fb-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-fb-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-fb-border"
                 ></div>
@@ -608,12 +634,17 @@
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <svg [lucideIcon]="landmarkIcon" class="w-4 h-4 text-emerald-400"></svg>
-                <strong class="text-xs text-fb-text-primary"
+                <strong id="setting-bank-transfer-title" class="text-xs text-fb-text-primary"
                   >Banküberweisung (SEPA Vorkasse)</strong
                 >
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="bankTransferEnabled" class="sr-only peer" />
+                <input
+                  type="checkbox"
+                  formControlName="bankTransferEnabled"
+                  aria-labelledby="setting-bank-transfer-title"
+                  class="sr-only peer"
+                />
                 <div
                   class="w-9 h-5 bg-fb-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-fb-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600 border border-fb-border"
                 ></div>
@@ -692,12 +723,17 @@
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <svg [lucideIcon]="truckIcon" class="w-4 h-4 text-amber-400"></svg>
-                <strong class="text-xs text-fb-text-primary"
+                <strong id="setting-dhl-title" class="text-xs text-fb-text-primary"
                   >DHL Geschäftskundenversand (GKP)</strong
                 >
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="dhlEnabled" class="sr-only peer" />
+                <input
+                  type="checkbox"
+                  formControlName="dhlEnabled"
+                  aria-labelledby="setting-dhl-title"
+                  class="sr-only peer"
+                />
                 <div
                   class="w-9 h-5 bg-fb-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-fb-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600 border border-fb-border"
                 ></div>
@@ -724,10 +760,17 @@
             <div class="flex items-center justify-between">
               <div class="flex items-center gap-2">
                 <svg [lucideIcon]="truckIcon" class="w-4 h-4 text-blue-400"></svg>
-                <strong class="text-xs text-fb-text-primary">Hermes Versand-API</strong>
+                <strong id="setting-hermes-title" class="text-xs text-fb-text-primary"
+                  >Hermes Versand-API</strong
+                >
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
-                <input type="checkbox" formControlName="hermesEnabled" class="sr-only peer" />
+                <input
+                  type="checkbox"
+                  formControlName="hermesEnabled"
+                  aria-labelledby="setting-hermes-title"
+                  class="sr-only peer"
+                />
                 <div
                   class="w-9 h-5 bg-fb-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-fb-border after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600 border border-fb-border"
                 ></div>

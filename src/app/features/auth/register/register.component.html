@@ -217,7 +217,7 @@
           <app-custom-checkbox
             formControlName="acceptTerms"
             size="md"
-            ariaLabel="AGB und Datenschutzerklärung akzeptieren"
+            [ariaLabel]="'AUTH.ACCEPT_TERMS_ARIA' | translate"
             class="mt-0.5 shrink-0"
           ></app-custom-checkbox>
           <span class="text-xs text-fb-text-muted leading-relaxed cursor-pointer select-none">
@@ -235,7 +235,7 @@
               (click)="$event.preventDefault()"
               class="text-emerald-700 dark:text-emerald-400 underline hover:text-emerald-800 dark:hover:text-emerald-300 font-semibold"
             >
-              {{ 'AUTH.PRIVACY_LINK' | translate }} </a
+              {{ 'AUTH.PRIVACY_LINK' | translate }}</a
             >.
           </span>
         </div>

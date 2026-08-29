@@ -53,7 +53,11 @@ describe('RevenueChartComponent', () => {
     );
     const yCoordinates = coordinates.filter((_, index) => index % 2 === 1);
 
-    expect(zeroLine?.getAttribute('aria-label')).toBe('Nulllinie bei 0 Euro');
+    // Kein aria-label auf der Linie: <line> hat keine Rolle, die einen Namen
+    // traegt, deshalb ist das Attribut dort laut ARIA unzulaessig (AXE-Regel
+    // aria-prohibited-attr). Das Diagramm ist als role="img" mit <title> und
+    // der Datentabelle beschrieben - die Linie braucht keinen eigenen Namen.
+    expect(zeroLine?.hasAttribute('aria-label')).toBe(false);
     expect(zeroY).toBeGreaterThan(20);
     expect(zeroY).toBeLessThan(226);
     expect(Math.max(...yCoordinates)).toBeLessThanOrEqual(226);
