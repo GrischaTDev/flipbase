@@ -18,7 +18,11 @@ import {
   StockMovement,
   StockPosition,
 } from '../../../../core/models/flipbase.models';
-import { isSellableInventoryItem } from '../../../../core/models/inventory-sellability';
+import {
+  hasInventoryIntegrityConflict,
+  isInventoryItemMutationLocked,
+  isSellableInventoryItem,
+} from '../../../../core/models/inventory-sellability';
 
 interface DisplayPosition extends StockPosition {
   readonly lots: readonly StockLot[];
@@ -127,6 +131,14 @@ export class StockPositionListComponent {
     return isSellableInventoryItem(item);
   }
 
+  isMutationLocked(item: InventoryItem): boolean {
+    return isInventoryItemMutationLocked(item);
+  }
+
+  hasIntegrityConflict(item: InventoryItem): boolean {
+    return hasInventoryIntegrityConflict(item);
+  }
+
   isItemSelected(itemId: string): boolean {
     return this.selectedItemIds().has(itemId);
   }
@@ -141,7 +153,15 @@ export class StockPositionListComponent {
   }
 
   emitStatusChange(item: InventoryItem, status: ItemStatus | null): void {
-    if (status) this.statusChange.emit({ item, status });
+    if (status && !this.isMutationLocked(item)) this.statusChange.emit({ item, status });
+  }
+
+  emitStoreToggle(item: InventoryItem): void {
+    if (!this.isMutationLocked(item)) this.storeToggle.emit(item);
+  }
+
+  emitIndividualSale(item: InventoryItem): void {
+    if (this.isSellable(item)) this.sellIndividual.emit(item);
   }
 
   emitStatusChangeFromEvent(item: InventoryItem, event: Event): void {

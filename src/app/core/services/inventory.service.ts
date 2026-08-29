@@ -15,6 +15,7 @@ import {
   Sale,
 } from '../models/flipbase.models';
 import type { TablesUpdate } from '../models/supabase.types';
+import { isInventoryItemMutationLocked } from '../models/inventory-sellability';
 
 export interface CreateItemPayload {
   purchase_id?: string | null;
@@ -119,6 +120,22 @@ export class InventoryService {
   readonly itemCosts = signal<ItemCost[]>([]);
   readonly activityLogs = signal<ActivityLog[]>([]);
   readonly isLoading = signal<boolean>(false);
+
+  private isMutationLocked(itemId: string): boolean {
+    const selected = this.selectedItem();
+    const item =
+      this.items().find((candidate) => candidate.id === itemId) ??
+      (selected?.id === itemId ? selected : null);
+    return !!item && isInventoryItemMutationLocked(item);
+  }
+
+  private lockedMutationResult(): { error: Error } {
+    return {
+      error: new Error(
+        'Verkaufte oder widersprüchliche Inventardaten dürfen nur über einen dokumentierten Korrekturvorgang geändert werden.',
+      ),
+    };
+  }
 
   /**
    * Ob die Artikelliste dieses Arbeitsbereichs vollstaendig geladen ist.
@@ -546,6 +563,7 @@ export class InventoryService {
     itemId: string,
     updates: Partial<InventoryItem>,
   ): Promise<{ error: Error | null }> {
+    if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
     const aenderungenLokalUebernehmen = (): void => {
       const stored = this.mockStore.getItems().find((i) => i.id === itemId);
       const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
@@ -622,6 +640,7 @@ export class InventoryService {
     newStatus: ItemStatus,
     notes?: string,
   ): Promise<{ error: Error | null }> {
+    if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
     const statusLokalUebernehmen = (): void => {
       const stored = this.mockStore.getItems().find((i) => i.id === itemId);
       const base = stored || this.items().find((i) => i.id === itemId) || this.selectedItem();
@@ -678,6 +697,7 @@ export class InventoryService {
     amount: number,
     description?: string,
   ): Promise<{ error: Error | null }> {
+    if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
     const newCost: ItemCost = {
       id: `cost-${Date.now()}`,
       inventory_item_id: itemId,
@@ -748,6 +768,7 @@ export class InventoryService {
   }
 
   async deleteItemCost(itemId: string, costId: string): Promise<{ error: Error | null }> {
+    if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
     const kostenLokalEntfernen = (): void => {
       this.mockStore.deleteItemCost(costId);
       this.itemCosts.update((costs) => costs.filter((c) => c.id !== costId));
@@ -902,6 +923,7 @@ export class InventoryService {
   }
 
   async deleteItem(itemId: string): Promise<{ error: Error | null }> {
+    if (this.isMutationLocked(itemId)) return this.lockedMutationResult();
     if (!this.mockStore.isDemoMode()) {
       try {
         const { error, count } = await this.supabase.client

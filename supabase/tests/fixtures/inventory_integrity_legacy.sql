@@ -5,6 +5,7 @@
 \set available_item_id '82000000-0000-4000-8000-000000000005'
 \set valid_item_id '82000000-0000-4000-8000-000000000006'
 \set orphan_item_id '82000000-0000-4000-8000-000000000007'
+\set legacy_record_item_id '82000000-0000-4000-8000-000000000017'
 \set conflict_item_id '82000000-0000-4000-8000-000000000008'
 \set multiple_item_id '82000000-0000-4000-8000-000000000009'
 \set foreign_item_id '82000000-0000-4000-8000-000000000010'
@@ -42,6 +43,7 @@ values
   (:'available_item_id'::uuid, :'main_workspace_id'::uuid, 'Available item', 'ready'),
   (:'valid_item_id'::uuid, :'main_workspace_id'::uuid, 'Valid sold item', 'sold'),
   (:'orphan_item_id'::uuid, :'main_workspace_id'::uuid, 'Legacy orphan item', 'sold'),
+  (:'legacy_record_item_id'::uuid, :'main_workspace_id'::uuid, 'Legacy sale to record', 'sold'),
   (:'conflict_item_id'::uuid, :'main_workspace_id'::uuid, 'Sale status conflict', 'ready'),
   (:'multiple_item_id'::uuid, :'main_workspace_id'::uuid, 'Multiple active sales', 'sold'),
   (:'legacy_header_item_id'::uuid, :'main_workspace_id'::uuid, 'Legacy header only', 'sold'),

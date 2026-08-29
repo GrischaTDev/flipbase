@@ -424,6 +424,7 @@
   @if (isCreateModalOpen()) {
     <app-sale-create-modal
       [saleTarget]="createSaleTarget()"
+      [legacyReconciliation]="legacySaleReconciliation()"
       (closed)="closeCreateModal()"
       (created)="closeCreateModal()"
     ></app-sale-create-modal>

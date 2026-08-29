@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(45);
+select plan(58);
 
 \set move_source_item_id '82000000-0000-4000-8000-000000000030'
 \set move_target_item_id '82000000-0000-4000-8000-000000000031'
@@ -117,6 +117,8 @@ select ok(
 );
 select ok(not has_function_privilege('anon', 'public.resolve_legacy_sold_item(uuid,uuid,text,text)', 'execute'), 'anon darf Klärungs-RPC nicht ausführen');
 select ok(has_function_privilege('authenticated', 'public.resolve_legacy_sold_item(uuid,uuid,text,text)', 'execute'), 'authenticated darf Klärungs-RPC ausführen');
+select ok(not has_function_privilege('anon', 'public.record_legacy_inventory_sale(uuid,uuid,jsonb,text)', 'execute'), 'anon darf Legacy-Verkauf nicht nachtragen');
+select ok(has_function_privilege('authenticated', 'public.record_legacy_inventory_sale(uuid,uuid,jsonb,text)', 'execute'), 'authenticated darf engen Legacy-Nachtrag ausführen');
 select is(
   (select count(*) from pg_trigger where tgname in ('inventory_item_sale_integrity_on_insert', 'inventory_item_sale_integrity_on_status', 'inventory_item_sale_integrity_on_sale_line', 'inventory_item_sale_integrity_on_sale') and tgdeferrable and tginitdeferred),
   4::bigint,
@@ -200,6 +202,44 @@ select lives_ok('select pg_temp.commit_record_sale()', 'record_sale bleibt atoma
 select is((select status from public.inventory_items where id = :'sellable_item_id'), 'sold', 'record_sale setzt den Status');
 select is((select count(*) from public.sale_lines where inventory_item_id = :'sellable_item_id'), 1::bigint, 'record_sale schreibt genau eine Position');
 select is((select sale_state from public.inventory_item_sale_states where inventory_item_id = :'sellable_item_id'), 'sold', 'record_sale erzeugt konsistenten Zustand');
+
+select throws_ok(
+  format('select public.record_legacy_inventory_sale(%L, %L, %L::jsonb, %L)', :'main_workspace_id', :'valid_item_id', '{"platform":"direct","sale_date":"2026-08-29","unit_sale_price":25}', 'Regulär verkauft'),
+  '22023', 'Legacy-Verkaufsnachtrag ist nur fuer ungepruefte sold-Altdaten zulaessig.', 'regulär verkauft wird abgelehnt'
+);
+select throws_ok(
+  format('select public.record_legacy_inventory_sale(%L, %L, %L::jsonb, %L)', :'main_workspace_id', :'legacy_header_item_id', '{"platform":"direct","sale_date":"2026-08-29","unit_sale_price":18}', 'Kopf ohne Position'),
+  '22023', 'Legacy-Verkaufsnachtrag ist nur fuer ungepruefte sold-Altdaten zulaessig.', 'Kopf ohne Position wird abgelehnt'
+);
+select throws_ok(
+  format('select public.record_legacy_inventory_sale(%L, %L, %L::jsonb, %L)', :'main_workspace_id', :'multiple_item_id', '{"platform":"direct","sale_date":"2026-08-29","unit_sale_price":30}', 'Mehrere Verkäufe'),
+  '22023', 'Legacy-Verkaufsnachtrag ist nur fuer ungepruefte sold-Altdaten zulaessig.', 'mehrere aktive Verkäufe werden abgelehnt'
+);
+select throws_ok(
+  format('select public.record_legacy_inventory_sale(%L, %L, %L::jsonb, %L)', :'main_workspace_id', :'available_item_id', '{"platform":"direct","sale_date":"2026-08-29","unit_sale_price":15}', 'Nicht sold'),
+  '22023', 'Legacy-Verkaufsnachtrag ist nur fuer ungepruefte sold-Altdaten zulaessig.', 'nicht verkauftes Einzelstück wird abgelehnt'
+);
+select throws_ok(
+  format('select public.record_legacy_inventory_sale(%L, %L, %L::jsonb, %L)', :'main_workspace_id', :'legacy_record_item_id', '{"platform":"direct","sale_date":"2026-08-29","unit_sale_price":22}', '   '),
+  '22023', 'Ein dokumentierter Klaerungsgrund ist erforderlich.', 'Legacy-Nachtrag verlangt einen Grund'
+);
+select throws_ok(
+  format(
+    'select public.record_sale(%L, %L::jsonb, %L::jsonb)',
+    :'main_workspace_id',
+    '{"platform":"direct","sale_date":"2026-08-29"}',
+    '[{"inventory_item_id":"82000000-0000-4000-8000-000000000017","quantity":1,"unit_sale_price":22}]'
+  ),
+  '23514', 'Ein bestandswirksamer Verkaufskopf benoetigt eine passende Verkaufsposition.', 'regulärer Verkaufs-RPC erhält keinen sold-Bypass'
+);
+select lives_ok(
+  format('select public.record_legacy_inventory_sale(%L, %L, %L::jsonb, %L)', :'main_workspace_id', :'legacy_record_item_id', '{"platform":"direct","sale_date":"2026-08-29","unit_sale_price":22}', 'Originalbeleg geprüft'),
+  'ungeprüfter sold-Altbestand kann atomar nachgetragen werden'
+);
+select is((select sale_state from public.inventory_item_sale_states where inventory_item_id = :'legacy_record_item_id'), 'sold', 'Legacy-Nachtrag endet konsistent sold');
+select is((select count(*) from public.sale_lines where inventory_item_id = :'legacy_record_item_id'), 1::bigint, 'Legacy-Nachtrag schreibt genau eine Position');
+select is((select count(*) from public.inventory_reconciliation_events where inventory_item_id = :'legacy_record_item_id' and event_type = 'record_legacy_sale' and reason = 'Originalbeleg geprüft' and actor_id = :'main_user_id'), 1::bigint, 'Legacy-Nachtrag wird protokolliert');
+select is((select count(*) from public.sales where inventory_item_id = :'legacy_record_item_id'), 1::bigint, 'Legacy-Nachtrag schreibt genau einen Verkaufskopf');
 
 select throws_ok(
   format('select public.resolve_legacy_sold_item(%L, %L, %L, %L)', :'main_workspace_id', :'orphan_item_id', 'restore_stock', '   '),

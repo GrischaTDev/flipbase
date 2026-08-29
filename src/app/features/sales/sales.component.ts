@@ -31,7 +31,11 @@ import { Invoice } from '../../core/models/invoice.models';
 import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/return.models';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
-import { SaleTarget, SaleTargetRouteState } from '../../core/models/sale-target.models';
+import {
+  LegacySaleReconciliation,
+  SaleTarget,
+  SaleTargetRouteState,
+} from '../../core/models/sale-target.models';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -96,6 +100,7 @@ export class SalesComponent {
 
   readonly isCreateModalOpen = signal<boolean>(false);
   readonly createSaleTarget = signal<SaleTarget | null>(null);
+  readonly legacySaleReconciliation = signal<LegacySaleReconciliation | null>(null);
   readonly selectedPlatform = signal<string>('all');
   readonly activeInvoice = signal<Invoice | null>(null);
   readonly isCreatingInvoice = signal(false);
@@ -172,18 +177,21 @@ export class SalesComponent {
       history.state) as Partial<SaleTargetRouteState>;
     if (state.saleTarget) {
       this.createSaleTarget.set(state.saleTarget);
+      this.legacySaleReconciliation.set(state.legacyReconciliation ?? null);
       this.isCreateModalOpen.set(true);
     }
   }
 
   openCreateModal(): void {
     this.createSaleTarget.set(null);
+    this.legacySaleReconciliation.set(null);
     this.isCreateModalOpen.set(true);
   }
 
   closeCreateModal(): void {
     this.isCreateModalOpen.set(false);
     this.createSaleTarget.set(null);
+    this.legacySaleReconciliation.set(null);
   }
 
   async openInvoiceForSale(sale: Sale): Promise<void> {

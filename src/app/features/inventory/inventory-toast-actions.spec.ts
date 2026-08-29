@@ -1,11 +1,20 @@
 import '@angular/compiler';
-import { signal } from '@angular/core';
+import { provideZonelessChangeDetection, signal } from '@angular/core';
+import { Router } from '@angular/router';
+import { TestBed } from '@angular/core/testing';
+import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { InventoryItem, ItemStatus } from '../../core/models/flipbase.models';
+import { InventoryService } from '../../core/services/inventory.service';
+import { StockService } from '../../core/services/stock.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
+import { WorkspaceService } from '../../core/services/workspace.service';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { InventoryComponent } from './inventory.component';
+
+TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 
 const artikel: InventoryItem = {
   id: '22222222-2222-4222-8222-222222222222',
@@ -49,6 +58,66 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
     expect(template).toContain('[individualItems]="filteredItems()"');
     expect(template).toContain('[positions]="filteredStockPositions()"');
     expect(template).toContain('Altdaten prüfen');
+  });
+
+  it('zählt im gefilterten Bestand nur zentral verkaufbare Einzelstücke', () => {
+    const items = signal<InventoryItem[]>([
+      { ...artikel, id: 'ready', status: 'ready', sale_state: 'no_active_sale' },
+      { ...artikel, id: 'listed', status: 'listed', sale_state: 'no_active_sale' },
+      { ...artikel, id: 'sold', status: 'sold', sale_state: 'sold' },
+      { ...artikel, id: 'legacy', status: 'sold', sale_state: 'legacy_sold_unverified' },
+      {
+        ...artikel,
+        id: 'header-without-line',
+        status: 'sold',
+        sale_state: 'legacy_sale_header_without_line',
+      },
+      {
+        ...artikel,
+        id: 'multiple-sales',
+        status: 'sold',
+        sale_state: 'multiple_active_sales',
+      },
+      {
+        ...artikel,
+        id: 'status-conflict',
+        status: 'ready',
+        sale_state: 'sale_status_conflict',
+      },
+    ]);
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: InventoryService, useValue: { items } },
+        {
+          provide: StockService,
+          useValue: {
+            positions: signal([
+              {
+                catalog_product_id: 'catalog-1',
+                title: 'Mengenartikel',
+                available_quantity: 5,
+                reserved_quantity: 0,
+                on_hand_quantity: 5,
+                oldest_available_unit_cost: 2,
+                is_public_store: false,
+              },
+            ]),
+            loadPositions: vi.fn(),
+          },
+        },
+        { provide: Router, useValue: { navigate: vi.fn() } },
+        { provide: ConfirmDialogService, useValue: { frage: vi.fn() } },
+        { provide: WorkspaceService, useValue: { currentWorkspace: signal(null) } },
+        { provide: SyncStatusService, useValue: new SyncStatusService() },
+        { provide: ToastService, useValue: new ToastService() },
+      ],
+    });
+
+    const komponente = TestBed.runInInjectionContext(() => new InventoryComponent());
+
+    expect(komponente.filteredUnitCount()).toBe(7);
   });
 
   it('bestätigt einen erfolgreichen Statuswechsel', async () => {
@@ -171,7 +240,10 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
 
     expect(navigate).toHaveBeenCalledWith(['/sales'], {
       state: {
-        legacyReconciliation: true,
+        legacyReconciliation: {
+          kind: 'legacy_sold_unverified',
+          inventoryItemId: artikel.id,
+        },
         saleTarget: {
           kind: 'inventory_item',
           inventoryItemId: legacy.id,

@@ -58,6 +58,7 @@ function erstelleKomponente(bestehenderVerkauf: Sale | null = null) {
         error: null,
       }),
     ),
+    recordLegacySale: vi.fn(async () => ({ data: { sale: verkauf }, error: null })),
     updateSale: vi.fn(async () => ({ data: verkauf, error: null })),
   };
   const komponente = Object.create(SaleCreateModalComponent.prototype) as SaleCreateModalComponent;
@@ -69,6 +70,7 @@ function erstelleKomponente(bestehenderVerkauf: Sale | null = null) {
     toast,
     syncStatus,
     sale: signal(bestehenderVerkauf),
+    legacyReconciliation: signal(null),
     isSubmitting: signal(false),
     isPersisted: signal(false),
     errorMessage: signal<string | null>(null),
@@ -101,6 +103,7 @@ function erstelleKomponente(bestehenderVerkauf: Sale | null = null) {
       otherCosts: new FormControl(0, { nonNullable: true }),
       externalOrderId: new FormControl('', { nonNullable: true }),
       buyerNotes: new FormControl('', { nonNullable: true }),
+      reconciliationReason: new FormControl('', { nonNullable: true }),
     }),
   });
   Object.assign(komponente, { lines: komponente.form.controls.lines });
@@ -169,6 +172,31 @@ describe('SaleCreateModalComponent – Aktionsmeldungen', () => {
     expect(payload.saleDate).toBe('2026-08-26');
     expect(created.emit).toHaveBeenCalledOnce();
     expect(closed.emit).toHaveBeenCalledOnce();
+  });
+
+  it('verwendet für ungeklärten Altbestand ausschließlich den protokollierten Legacy-Adapter', async () => {
+    const { komponente, salesService } = erstelleKomponente();
+    Object.assign(komponente, {
+      legacyReconciliation: signal({
+        kind: 'legacy_sold_unverified',
+        inventoryItemId: artikel.id,
+      }),
+    });
+    komponente.lines.at(0).controls.target.setValue(`inventory:${artikel.id}`);
+    komponente.lines.at(0).controls.quantity.setValue(1);
+    komponente.lines.at(0).controls.unitSalePrice.setValue(50);
+    komponente.form.controls.reconciliationReason.setValue('Beleg im Papierarchiv geprüft');
+
+    await komponente.onSubmit();
+
+    expect(salesService.recordLegacySale).toHaveBeenCalledWith(
+      artikel.id,
+      expect.objectContaining({
+        lines: [expect.objectContaining({ inventoryItemId: artikel.id })],
+      }),
+      'Beleg im Papierarchiv geprüft',
+    );
+    expect(salesService.recordSale).not.toHaveBeenCalled();
   });
 
   it('behält den Dialog bei einem lokalen Speicherfehler offen und meldet ihn persistent', async () => {

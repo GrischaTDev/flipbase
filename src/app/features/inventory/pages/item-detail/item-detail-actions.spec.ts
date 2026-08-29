@@ -137,7 +137,10 @@ describe('ItemDetailComponent – Aktionsmeldungen', () => {
 
     expect(navigate).toHaveBeenCalledWith(['/sales'], {
       state: {
-        legacyReconciliation: true,
+        legacyReconciliation: {
+          kind: 'legacy_sold_unverified',
+          inventoryItemId: artikel.id,
+        },
         saleTarget: {
           kind: 'inventory_item',
           inventoryItemId: artikel.id,
@@ -145,6 +148,32 @@ describe('ItemDetailComponent – Aktionsmeldungen', () => {
         },
       },
     });
+  });
+
+  it.each([
+    ['sold', 'sold'],
+    ['legacy sold', 'legacy_sold_unverified'],
+    ['header without line', 'legacy_sale_header_without_line'],
+    ['status conflict', 'sale_status_conflict'],
+    ['multiple sales', 'multiple_active_sales'],
+  ] as const)('blockiert direkte Mutationshandler für %s', async (_label, saleState) => {
+    const { komponente, inventoryService, dialog, navigate, toast } = erstelleKomponente();
+    inventoryService.selectedItem.set({
+      ...artikel,
+      status: 'sold',
+      sale_state: saleState,
+    });
+
+    await komponente.onChangeStatus('ready');
+    await komponente.onTogglePublicStore(true);
+    await komponente.onDeleteItem();
+
+    expect(inventoryService.updateItemStatus).not.toHaveBeenCalled();
+    expect(inventoryService.updateItem).not.toHaveBeenCalled();
+    expect(inventoryService.deleteItem).not.toHaveBeenCalled();
+    expect(dialog.frage).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+    expect(toast.toasts()).toEqual([]);
   });
   it('meldet einen erfolgreichen Medien-Upload', async () => {
     const { komponente, toast } = erstelleKomponente();

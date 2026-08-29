@@ -501,7 +501,7 @@ create table public.inventory_reconciliation_events (
     workspace_id uuid not null references public.workspaces(id) on delete restrict,
     inventory_item_id uuid not null,
     actor_id uuid not null references auth.users(id) on delete restrict,
-    event_type text not null check (event_type in ('restore_stock')),
+    event_type text not null check (event_type in ('restore_stock', 'record_legacy_sale')),
     previous_status text not null,
     new_status text not null,
     reason text not null check (nullif(trim(reason), '') is not null),
@@ -2845,6 +2845,125 @@ revoke execute on function public.resolve_legacy_sold_item(uuid, uuid, text, tex
 grant execute on function public.resolve_legacy_sold_item(uuid, uuid, text, text)
   to authenticated;
 
+create or replace function public.record_legacy_inventory_sale(
+  p_workspace_id uuid,
+  p_inventory_item_id uuid,
+  p_sale jsonb,
+  p_reason text
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor_id uuid := (select auth.uid());
+  v_inventory_item public.inventory_items;
+  v_sale public.sales;
+  v_sale_line public.sale_lines;
+  v_event public.inventory_reconciliation_events;
+  v_sale_state text;
+  v_unit_sale_price numeric(12, 2);
+  v_workspace_tax_mode text;
+begin
+  if v_actor_id is null
+    or not (select public.is_workspace_member(p_workspace_id)) then
+    raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+
+  if nullif(trim(p_reason), '') is null then
+    raise exception using errcode = '22023', message = 'Ein dokumentierter Klaerungsgrund ist erforderlich.';
+  end if;
+
+  if jsonb_typeof(p_sale) <> 'object'
+    or nullif(trim(p_sale ->> 'platform'), '') is null
+    or (p_sale ->> 'sale_date') !~ '^\d{4}-\d{2}-\d{2}$'
+    or jsonb_typeof(p_sale -> 'unit_sale_price') <> 'number'
+    or (p_sale ->> 'unit_sale_price')::numeric <= 0 then
+    raise exception using errcode = '22023', message = 'Die Verkaufsdaten sind ungueltig.';
+  end if;
+
+  select *
+  into v_inventory_item
+  from public.inventory_items
+  where id = p_inventory_item_id
+    and workspace_id = p_workspace_id
+  for update;
+
+  if not found then
+    raise no_data_found using message = 'Der Inventarartikel wurde nicht gefunden.';
+  end if;
+
+  select sale_state
+  into v_sale_state
+  from public.inventory_item_sale_states
+  where inventory_item_id = p_inventory_item_id
+    and workspace_id = p_workspace_id;
+
+  if v_sale_state <> 'legacy_sold_unverified' then
+    raise exception using errcode = '22023', message = 'Legacy-Verkaufsnachtrag ist nur fuer ungepruefte sold-Altdaten zulaessig.';
+  end if;
+
+  select tax_mode into v_workspace_tax_mode
+  from public.workspaces
+  where id = p_workspace_id;
+  v_unit_sale_price := (p_sale ->> 'unit_sale_price')::numeric(12, 2);
+
+  insert into public.sales (
+    workspace_id, inventory_item_id, platform, sale_price, sale_price_total, sale_date,
+    platform_fee, shipping_cost, packaging_cost, other_costs,
+    external_order_id, external_listing_id, buyer_notes
+  ) values (
+    p_workspace_id, null, trim(p_sale ->> 'platform'),
+    v_unit_sale_price, v_unit_sale_price, (p_sale ->> 'sale_date')::date,
+    coalesce((p_sale ->> 'platform_fee')::numeric, 0),
+    coalesce((p_sale ->> 'shipping_cost')::numeric, 0),
+    coalesce((p_sale ->> 'packaging_cost')::numeric, 0),
+    coalesce((p_sale ->> 'other_costs')::numeric, 0),
+    nullif(trim(p_sale ->> 'external_order_id'), ''),
+    nullif(trim(p_sale ->> 'external_listing_id'), ''),
+    nullif(trim(p_sale ->> 'buyer_notes'), '')
+  ) returning * into v_sale;
+
+  insert into public.sale_lines (
+    workspace_id, sale_id, inventory_item_id, title_snapshot, quantity,
+    unit_sale_price, line_total, cost_of_goods_sold, tax_mode
+  ) values (
+    p_workspace_id, v_sale.id, p_inventory_item_id,
+    coalesce(nullif(trim(p_sale ->> 'title_snapshot'), ''), v_inventory_item.title),
+    1, v_unit_sale_price, v_unit_sale_price,
+    v_inventory_item.allocated_purchase_cost, v_workspace_tax_mode
+  ) returning * into v_sale_line;
+
+  update public.sales
+  set inventory_item_id = p_inventory_item_id
+  where id = v_sale.id
+    and workspace_id = p_workspace_id
+  returning * into v_sale;
+
+  insert into public.inventory_reconciliation_events (
+    workspace_id, inventory_item_id, actor_id, event_type,
+    previous_status, new_status, reason
+  ) values (
+    p_workspace_id, p_inventory_item_id, v_actor_id, 'record_legacy_sale',
+    'sold', 'sold', trim(p_reason)
+  ) returning * into v_event;
+
+  return jsonb_build_object(
+    'sale', to_jsonb(v_sale),
+    'sale_lines', jsonb_build_array(to_jsonb(v_sale_line)),
+    'lot_allocations', '[]'::jsonb,
+    'stock_movements', '[]'::jsonb,
+    'event', to_jsonb(v_event)
+  );
+end;
+$$;
+
+revoke execute on function public.record_legacy_inventory_sale(uuid, uuid, jsonb, text)
+  from public, anon, service_role;
+grant execute on function public.record_legacy_inventory_sale(uuid, uuid, jsonb, text)
+  to authenticated;
+
 create or replace function public.record_sale(
   p_workspace_id uuid,
   p_sale jsonb,
@@ -3978,6 +4097,11 @@ revoke execute on function public.prevent_workspace_with_business_data_deletion(
 revoke execute on function public.resolve_legacy_sold_item(uuid, uuid, text, text)
   from public, anon, service_role;
 grant execute on function public.resolve_legacy_sold_item(uuid, uuid, text, text)
+  to authenticated;
+
+revoke execute on function public.record_legacy_inventory_sale(uuid, uuid, jsonb, text)
+  from public, anon, service_role;
+grant execute on function public.record_legacy_inventory_sale(uuid, uuid, jsonb, text)
   to authenticated;
 
 revoke execute on function public.record_sale(uuid, jsonb, jsonb)

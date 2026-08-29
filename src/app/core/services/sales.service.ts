@@ -53,6 +53,18 @@ export interface RecordSaleResult {
   readonly stockMovements: readonly StockMovement[];
 }
 
+interface LegacySaleRpcClient {
+  rpc(
+    name: 'record_legacy_inventory_sale',
+    parameters: {
+      p_workspace_id: string;
+      p_inventory_item_id: string;
+      p_sale: Record<string, unknown>;
+      p_reason: string;
+    },
+  ): PromiseLike<{ data: Record<string, unknown> | null; error: Error | null }>;
+}
+
 export interface RecordReturnInput {
   readonly saleId: string;
   readonly refundAmount: number;
@@ -88,6 +100,10 @@ export class SalesService {
   private readonly inventoryService = inject(InventoryService);
   private readonly mockStore = inject(MockDataStoreService);
   private readonly webhookService = inject(WebhookService);
+
+  private get legacySaleClient(): LegacySaleRpcClient {
+    return this.supabase.client as unknown as LegacySaleRpcClient;
+  }
   private readonly stockService = inject(StockService);
 
   readonly sales = signal<Sale[]>([]);
@@ -312,6 +328,63 @@ export class SalesService {
       return { data: result, error: null, reportedBySyncStatus: false };
     } catch (error: unknown) {
       return this.mutationFailure('Verkauf buchen', error);
+    }
+  }
+
+  async recordLegacySale(
+    inventoryItemId: string,
+    input: RecordSaleInput,
+    reason: string,
+  ): Promise<MutationResult<RecordSaleResult>> {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    const line = input.lines[0];
+    if (
+      !workspaceId ||
+      !reason.trim() ||
+      input.lines.length !== 1 ||
+      line?.inventoryItemId !== inventoryItemId ||
+      line.quantity !== 1
+    ) {
+      return this.mutationFailure(
+        'Legacy-Verkauf nachtragen',
+        new Error('Der Legacy-Verkaufsnachtrag ist ungültig.'),
+      );
+    }
+
+    try {
+      const { data, error } = await this.legacySaleClient.rpc('record_legacy_inventory_sale', {
+        p_workspace_id: workspaceId,
+        p_inventory_item_id: inventoryItemId,
+        p_sale: {
+          platform: input.platform,
+          sale_date: input.saleDate,
+          unit_sale_price: line.unitSalePrice,
+          platform_fee: input.platformFee ?? 0,
+          shipping_cost: input.shippingCost ?? 0,
+          packaging_cost: input.packagingCost ?? 0,
+          other_costs: input.otherCosts ?? 0,
+          external_order_id: input.externalOrderId ?? null,
+          external_listing_id: input.externalListingId ?? null,
+          buyer_notes: input.buyerNotes ?? null,
+          title_snapshot: line.titleSnapshot ?? null,
+        },
+        p_reason: reason.trim(),
+      });
+      if (error || !data) {
+        return this.mutationFailure(
+          'Legacy-Verkauf nachtragen',
+          error ?? new Error('Der Verkauf wurde nicht zurückgegeben.'),
+        );
+      }
+      const result = this.mapRecordSaleResult(data);
+      this.sales.update((sales) => [
+        result.sale,
+        ...sales.filter((sale) => sale.id !== result.sale.id),
+      ]);
+      await this.refreshAffectedState(workspaceId);
+      return { data: result, error: null, reportedBySyncStatus: false };
+    } catch (error: unknown) {
+      return this.mutationFailure('Legacy-Verkauf nachtragen', error);
     }
   }
 

@@ -235,6 +235,14 @@
                   >
                     Korrektur erforderlich
                   </span>
+                } @else if (hasIntegrityConflict(item)) {
+                  <span
+                    data-item-status-badge
+                    data-integrity-conflict
+                    class="inline-flex rounded-full border border-rose-500/40 bg-rose-500/15 px-2 py-0.5 text-[10px] font-semibold text-rose-300"
+                  >
+                    Integrität prüfen
+                  </span>
                 } @else if (item.sale_state === 'sold' || item.status === 'sold') {
                   <span
                     data-item-status-badge
@@ -242,17 +250,6 @@
                     class="inline-flex rounded-full border border-purple-500/40 bg-purple-500/15 px-2 py-0.5 text-[10px] font-semibold text-purple-300"
                   >
                     Verkauft
-                  </span>
-                } @else if (
-                  item.sale_state === 'sale_status_conflict' ||
-                  item.sale_state === 'multiple_active_sales' ||
-                  !item.sale_state
-                ) {
-                  <span
-                    data-item-status-badge
-                    class="inline-flex rounded-full border border-rose-500/40 bg-rose-500/15 px-2 py-0.5 text-[10px] font-semibold text-rose-300"
-                  >
-                    Integrität prüfen
                   </span>
                 } @else {
                   <div data-item-status>
@@ -282,24 +279,26 @@
                 </span>
               </td>
               <td class="px-3 py-3 text-center">
-                <button
-                  data-item-store-toggle
-                  type="button"
-                  (click)="storeToggle.emit(item)"
-                  class="rounded-lg p-1.5 transition hover:bg-fb-line"
-                  [attr.aria-label]="
-                    item.is_public_store !== false
-                      ? item.title + ' aus dem Webshop entfernen'
-                      : item.title + ' im Webshop veröffentlichen'
-                  "
-                >
-                  <svg
-                    [lucideIcon]="storeIcon"
-                    class="h-4 w-4"
-                    [class.text-amber-400]="item.is_public_store !== false"
-                    [class.text-fb-text-muted]="item.is_public_store === false"
-                  ></svg>
-                </button>
+                @if (!isMutationLocked(item)) {
+                  <button
+                    data-item-store-toggle
+                    type="button"
+                    (click)="emitStoreToggle(item)"
+                    class="rounded-lg p-1.5 transition hover:bg-fb-line"
+                    [attr.aria-label]="
+                      item.is_public_store !== false
+                        ? item.title + ' aus dem Webshop entfernen'
+                        : item.title + ' im Webshop veröffentlichen'
+                    "
+                  >
+                    <svg
+                      [lucideIcon]="storeIcon"
+                      class="h-4 w-4"
+                      [class.text-amber-400]="item.is_public_store !== false"
+                      [class.text-fb-text-muted]="item.is_public_store === false"
+                    ></svg>
+                  </button>
+                }
               </td>
               <td class="px-3 py-3 text-right">
                 <div class="flex items-center justify-end gap-1.5">
@@ -324,7 +323,7 @@
                     <button
                       data-item-sell
                       type="button"
-                      (click)="sellIndividual.emit(item)"
+                      (click)="emitIndividualSale(item)"
                       class="linear-btn-primary inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
                       [attr.aria-label]="item.title + ' verkaufen'"
                     >

@@ -185,6 +185,32 @@ describe('SalesService', () => {
     );
   });
 
+  it('ruft für den Legacy-Nachtrag nur den eng begrenzten protokollierten RPC auf', async () => {
+    const { service, rpc } = createService({
+      data: { sale, sale_lines: [], lot_allocations: [], stock_movements: [] },
+      error: null,
+    });
+
+    await service.recordLegacySale(
+      'legacy-item-1',
+      {
+        platform: 'direct',
+        saleDate: '2026-08-26',
+        lines: [{ inventoryItemId: 'legacy-item-1', quantity: 1, unitSalePrice: 19.98 }],
+      },
+      'Originalbeleg geprüft',
+    );
+
+    expect(rpc).toHaveBeenCalledWith(
+      'record_legacy_inventory_sale',
+      expect.objectContaining({
+        p_inventory_item_id: 'legacy-item-1',
+        p_reason: 'Originalbeleg geprüft',
+      }),
+    );
+    expect(rpc).not.toHaveBeenCalledWith('record_sale', expect.anything());
+  });
+
   it('lässt den Verkaufszustand bei unzureichendem Bestand unverändert', async () => {
     const { service } = createService({
       data: null,

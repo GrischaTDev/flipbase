@@ -28,6 +28,10 @@ import { InventoryLabelModalComponent } from '../../shared/components/inventory-
 import { AiVisualScanResult } from '../../core/services/ai-assistant.service';
 import { InventoryItem, ItemStatus, StockPosition } from '../../core/models/flipbase.models';
 import {
+  isInventoryItemMutationLocked,
+  isSellableInventoryItem,
+} from '../../core/models/inventory-sellability';
+import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
@@ -140,6 +144,7 @@ export class InventoryComponent {
   }
 
   openSaleForIndividualItem(item: InventoryItem): void {
+    if (!isSellableInventoryItem(item)) return;
     const state: SaleTargetRouteState = {
       saleTarget: { kind: 'inventory_item', inventoryItemId: item.id, title: item.title },
     };
@@ -262,11 +267,11 @@ export class InventoryComponent {
   readonly filteredUnitCount = computed(
     () =>
       this.filteredStockPositions().reduce((sum, position) => sum + position.on_hand_quantity, 0) +
-      this.filteredItems().length,
+      this.filteredItems().filter(isSellableInventoryItem).length,
   );
 
   async onChangeItemStatus(item: InventoryItem, newStatus: ItemStatus | null): Promise<void> {
-    if (!newStatus || newStatus === item.status) return;
+    if (!newStatus || newStatus === item.status || isInventoryItemMutationLocked(item)) return;
     const { error } = await this.inventoryService.updateItemStatus(item.id, newStatus);
     if (error) {
       this.meldeFehlerWennNichtSynchronisiert('Artikelstatus konnte nicht geändert werden.', error);
@@ -278,6 +283,7 @@ export class InventoryComponent {
   async onTogglePublicStore(item: InventoryItem, event?: Event): Promise<void> {
     event?.stopPropagation();
     event?.preventDefault();
+    if (isInventoryItemMutationLocked(item)) return;
     const nextVal = item.is_public_store === false;
     const { error } = await this.inventoryService.updateItem(item.id, {
       is_public_store: nextVal,
@@ -353,11 +359,15 @@ export class InventoryComponent {
 
   openLegacySaleReconciliation(item: InventoryItem): void {
     if (item.sale_state !== 'legacy_sold_unverified') return;
-    void this.router.navigate(['/sales'], {
-      state: {
-        legacyReconciliation: true,
-        saleTarget: { kind: 'inventory_item', inventoryItemId: item.id, title: item.title },
+    const state: SaleTargetRouteState = {
+      legacyReconciliation: {
+        kind: 'legacy_sold_unverified',
+        inventoryItemId: item.id,
       },
+      saleTarget: { kind: 'inventory_item', inventoryItemId: item.id, title: item.title },
+    };
+    void this.router.navigate(['/sales'], {
+      state,
     });
   }
 

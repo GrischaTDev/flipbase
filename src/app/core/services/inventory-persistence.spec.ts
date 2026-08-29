@@ -158,12 +158,44 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     });
     expect(dienst.items()[0]).not.toHaveProperty('inventory_item_id');
 
-    await dienst.updateItem(gespeicherterArtikel.id, dienst.items()[0]);
+    const sellableItem = {
+      ...dienst.items()[0],
+      status: 'ready' as const,
+      sale_state: 'no_active_sale' as const,
+    };
+    dienst.items.set([sellableItem]);
+    await dienst.updateItem(gespeicherterArtikel.id, sellableItem);
 
     expect(updatePayload).not.toHaveProperty('inventory_item_id');
     expect(updatePayload).not.toHaveProperty('sale_state');
     expect(updatePayload).not.toHaveProperty('active_sale_count');
     expect(updatePayload).not.toHaveProperty('active_sale_id');
+  });
+
+  it('blockiert generische Service-Mutationen für verkaufte und widersprüchliche Artikel', async () => {
+    const { dienst } = injiziereDienst({
+      from: () => {
+        throw new Error('Datenbankzugriff darf nicht stattfinden');
+      },
+    });
+    const lockedItem: InventoryItem = {
+      ...gespeicherterArtikel,
+      status: 'sold',
+      sale_state: 'multiple_active_sales',
+    };
+    dienst.items.set([lockedItem]);
+    dienst.selectedItem.set(lockedItem);
+
+    const results = await Promise.all([
+      dienst.updateItem(lockedItem.id, { title: 'Manipuliert' }),
+      dienst.updateItemStatus(lockedItem.id, 'ready'),
+      dienst.addItemCost(lockedItem.id, 'other', 1),
+      dienst.deleteItemCost(lockedItem.id, 'cost-1'),
+      dienst.deleteItem(lockedItem.id),
+    ]);
+
+    expect(results.every(({ error }) => error?.message.includes('Korrekturvorgang'))).toBe(true);
+    expect(dienst.items()[0]).toEqual(lockedItem);
   });
 
   it('klassifiziert Demo-Artikel aus persistierten Positionen und Legacy-Köpfen', async () => {

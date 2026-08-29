@@ -192,6 +192,44 @@ describe('StockPositionListComponent', () => {
     expect(row.querySelector('[data-item-sell]')).toBeNull();
   });
 
+  it('zeigt einen Mehrfachverkauf als Integritätskonflikt vor dem sold-Fallback', () => {
+    const fixture = createList(
+      [],
+      [
+        {
+          ...einzelstueck,
+          status: 'sold',
+          sale_state: 'multiple_active_sales',
+          active_sale_count: 2,
+        },
+      ],
+    );
+    const row = fixture.nativeElement.querySelector('[data-individual-row]') as HTMLElement;
+
+    expect(row.querySelector('[data-integrity-conflict]')?.textContent).toContain(
+      'Integrität prüfen',
+    );
+    expect(row.querySelector('[data-sold-badge]')).toBeNull();
+    expect(row.querySelector('[data-item-status]')).toBeNull();
+    expect(row.querySelector('[data-item-store-toggle]')).toBeNull();
+    expect(row.querySelector('[data-item-sell]')).toBeNull();
+  });
+
+  it.each([
+    ['sold', 'sold'],
+    ['legacy sold', 'legacy_sold_unverified'],
+    ['header without line', 'legacy_sale_header_without_line'],
+    ['status conflict', 'sale_status_conflict'],
+    ['multiple sales', 'multiple_active_sales'],
+  ] as const)('blendet direkte Mutationen für %s aus', (_label, saleState) => {
+    const fixture = createList([], [{ ...einzelstueck, status: 'sold', sale_state: saleState }]);
+    const row = fixture.nativeElement.querySelector('[data-individual-row]') as HTMLElement;
+
+    expect(row.querySelector('[data-item-status]')).toBeNull();
+    expect(row.querySelector('[data-item-store-toggle]')).toBeNull();
+    expect(row.querySelector('[data-item-sell]')).toBeNull();
+  });
+
   it('bietet bei ungeklärtem sold beide Klärungswege mit Pflichtgrund an', () => {
     const fixture = createList(
       [],
@@ -245,7 +283,7 @@ describe('StockPositionListComponent', () => {
     expect(statusChange).not.toHaveBeenCalled();
   });
 
-  it('hat zugängliche Labels, Fokusziele und Tabellenstruktur', async () => {
+  it('besteht den strukturellen AXE-Check; Farbkontrast bleibt im DOM-Test ungeprüft', async () => {
     const fixture = createList(
       [{ ...ledLampe, available_quantity: 5, on_hand_quantity: 5 }],
       [einzelstueck],
