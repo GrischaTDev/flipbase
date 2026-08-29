@@ -202,6 +202,13 @@ export type ItemStatus =
   | 'archived'
   | 'defective';
 
+export type InventoryItemSaleState =
+  | 'available'
+  | 'sold'
+  | 'legacy_sold_unverified'
+  | 'sale_status_conflict'
+  | 'multiple_active_sales';
+
 export interface ItemCost {
   id?: string;
   inventory_item_id?: string;
@@ -249,6 +256,9 @@ export interface InventoryItem {
   dimension_height_cm?: number | null;
   created_at?: string;
   updated_at?: string;
+  sale_state?: InventoryItemSaleState;
+  active_sale_count?: number;
+  active_sale_id?: string | null;
   purchase?: Purchase;
   costs?: ItemCost[];
   media?: ItemMedia[];
@@ -348,6 +358,9 @@ export interface Sale {
   /** Tatsaechlich erstatteter Betrag, kann unter dem Verkaufspreis liegen. */
   refund_amount?: number | null;
   created_at?: string;
+  voided_at?: string | null;
+  voided_by?: string | null;
+  void_reason?: string | null;
   inventory_item?: InventoryItem;
   net_profit?: number;
   roi?: number;

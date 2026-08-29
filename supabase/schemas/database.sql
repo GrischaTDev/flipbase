@@ -217,6 +217,21 @@ CREATE TABLE IF NOT EXISTS public.sales (
     returned_at TIMESTAMPTZ,
     refund_amount NUMERIC(10,2),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    voided_at TIMESTAMPTZ,
+    voided_by UUID,
+    void_reason TEXT,
+    CONSTRAINT sales_void_reason_when_voided CHECK (
+      (
+        voided_at IS NULL
+        AND voided_by IS NULL
+        AND void_reason IS NULL
+      )
+      OR (
+        voided_at IS NOT NULL
+        AND voided_by IS NOT NULL
+        AND NULLIF(TRIM(void_reason), '') IS NOT NULL
+      )
+    ),
     unique (workspace_id, id)
 );
 
@@ -392,6 +407,41 @@ comment on table public.stock_lots is 'Bestandslose mit FIFO-Kosten.';
 comment on table public.stock_movements is 'Unveraenderbare Bestandsbewegungen.';
 comment on table public.sale_lines is 'Verkaufspositionen mit Kosten-Snapshot.';
 comment on table public.sale_line_lot_allocations is 'Loszuordnungen mit Kosten-Snapshot.';
+
+create or replace view public.inventory_item_sale_states
+with (security_invoker = true)
+as
+select
+  inventory_item.id as inventory_item_id,
+  inventory_item.workspace_id,
+  count(distinct sale.id) as active_sale_count,
+  case
+    when count(distinct sale.id) = 1
+      then (array_agg(distinct sale.id) filter (where sale.id is not null))[1]
+    else null
+  end as active_sale_id,
+  case
+    when count(distinct sale.id) > 1 then 'multiple_active_sales'
+    when inventory_item.status = 'sold' and count(distinct sale.id) = 0
+      then 'legacy_sold_unverified'
+    when inventory_item.status <> 'sold' and count(distinct sale.id) > 0
+      then 'sale_status_conflict'
+    when count(distinct sale.id) = 1 then 'sold'
+    else 'available'
+  end as sale_state
+from public.inventory_items as inventory_item
+left join public.sale_lines as sale_line
+  on sale_line.workspace_id = inventory_item.workspace_id
+ and sale_line.inventory_item_id = inventory_item.id
+left join public.sales as sale
+  on sale.workspace_id = inventory_item.workspace_id
+ and sale.id = sale_line.sale_id
+ and sale.returned_at is null
+ and sale.voided_at is null
+group by inventory_item.id, inventory_item.workspace_id, inventory_item.status;
+
+comment on view public.inventory_item_sale_states is
+  'Klassifiziert den bestandswirksamen Verkaufszustand sichtbarer Einzelartikel.';
 
 -- ==============================================================================
 -- 7. ACTIVITY LOGS
@@ -1515,6 +1565,9 @@ create index if not exists idx_sales_workspace_id
   on public.sales (workspace_id);
 create index if not exists idx_sales_item_id
   on public.sales (inventory_item_id);
+create index if not exists idx_sales_active_sale_state
+  on public.sales (id)
+  where returned_at is null and voided_at is null;
 create index if not exists idx_catalog_products_workspace_id
   on public.catalog_products (workspace_id);
 create index if not exists idx_purchase_lines_workspace_id
@@ -3493,6 +3546,16 @@ revoke insert, update, delete
 grant all
   on all tables in schema public
   to service_role;
+
+revoke all
+  on public.inventory_item_sale_states
+  from public, anon;
+revoke all
+  on public.inventory_item_sale_states
+  from authenticated;
+grant select
+  on public.inventory_item_sale_states
+  to authenticated;
 
 grant usage, select
   on all sequences in schema public
