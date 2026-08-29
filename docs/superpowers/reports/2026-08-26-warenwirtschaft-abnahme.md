@@ -107,6 +107,22 @@ lokalen ID-Generator wie ihre Positionen. Zwei Einkäufe innerhalb derselben
 Millisekunde bleiben dadurch getrennte Datensätze; ihre Einkaufspositionen
 verweisen jeweils auf den richtigen Eltern-Einkauf.
 
+## Nachtrag: Positions-Reload und Workspace-Rennen
+
+Die Persistenzprüfung bildet jetzt den vollständigen Neustart nach: Einkauf
+anlegen, neue Store- und Serviceinstanz erzeugen, Detail laden und anschließend
+Wareneingang buchen. Dabei bleibt exakt eine Mengenposition mit `5` bestellt
+und `0` eingegangen erhalten. Die Detailseite reagiert zusätzlich auf einen
+später verfügbaren oder gewechselten Workspace und Demo-Kontext. Verspätete
+Antworten eines alten Kontexts dürfen den aktuellen Detailzustand nicht mehr
+überschreiben. Ein gespeicherter `items_count` kaschiert bei einem ausdrücklich
+geladenen, aber leeren Positionssatz keine fehlenden Datensätze mehr.
+
+Der Katalogladevorgang ist ebenfalls kontextgebunden: Er wird pro Workspace
+dedupliziert, ignoriert verspätete Antworten und bietet ausschließlich Produkte
+des aktiven Workspace an. Bei fehlgeschlagenem Laden bleiben fremde gecachte
+Produkte unsichtbar und die Auswahl gesperrt.
+
 ## Ausgeführte Prüfungen
 
 | Befehl                                                                                         | Ergebnis                                                                                                        |
@@ -126,6 +142,7 @@ verweisen jeweils auf den richtigen Eltern-Einkauf.
 | Gezielte HTTP-Demo-Regressionssuiten (Befehl unten)                                            | PASS: 8 Testdateien, 41 Tests; sichere Fallback-UUID, Demo-Katalog und Submit-Fehlerzustand.                    |
 | Gezielte Einkaufszählungs-, Persistenz- und Checkout-Regressionssuiten (Befehl unten)          | PASS: 8 Testdateien, 43 Tests.                                                                                  |
 | Gezielte Katalog-Direkteinstiegs-, Modal- und Einkaufsregressionssuiten (Befehl unten)         | PASS: 9 Testdateien, 55 Tests.                                                                                  |
+| Gezielte Positions-Reload-, Workspace-Race- und Einkaufsregressionssuiten (Befehl unten)       | PASS: 11 Testdateien, 62 Tests.                                                                                 |
 
 ```powershell
 npm test -- --run src/app/core/utils/client-identity.spec.ts src/app/core/services/catalog.service.spec.ts src/app/features/catalog/catalog.component.spec.ts src/app/features/store/pages/store-checkout/store-checkout-actions.spec.ts src/app/core/services/purchase-create-persistence.spec.ts src/app/core/services/mock-data-store-individual-receipt.spec.ts src/app/core/services/inventory-persistence.spec.ts src/app/core/services/bank-reconciliation.service.spec.ts
@@ -133,12 +150,14 @@ npm test -- --run src/app/core/utils/client-identity.spec.ts src/app/core/servic
 npm test -- --run src/app/features/purchases/pages/purchase-detail/purchase-detail-actions.spec.ts src/app/core/services/purchase-demo-create.spec.ts src/app/core/services/purchase-quantity-count.spec.ts src/app/core/services/purchase-create-persistence.spec.ts src/app/features/purchases/components/purchase-create-modal/purchase-create-modal-actions.spec.ts src/app/features/store/pages/store-checkout/store-checkout-actions.spec.ts src/app/core/services/mock-data-store-individual-receipt.spec.ts src/app/core/services/stock.service.spec.ts
 
 npm test -- --run src/app/features/purchases/components/purchase-line-editor/purchase-line-editor.component.spec.ts src/app/features/purchases/components/purchase-create-modal/purchase-create-modal-actions.spec.ts src/app/core/services/purchase-demo-create.spec.ts src/app/core/services/purchase-create-persistence.spec.ts src/app/core/services/purchase-persistence.spec.ts src/app/core/services/purchase-line-money.spec.ts src/app/core/services/purchase-cost-allocation.spec.ts src/app/features/purchases/pages/purchase-detail/purchase-detail-actions.spec.ts src/app/features/purchases/purchases-toast-actions.spec.ts
+
+npm test -- --run src/app/core/services/catalog.service.spec.ts src/app/features/purchases/components/purchase-line-editor/purchase-line-editor.component.spec.ts src/app/core/services/purchase-demo-create.spec.ts src/app/core/services/purchase-quantity-count.spec.ts src/app/core/services/purchase-create-persistence.spec.ts src/app/features/purchases/components/purchase-create-modal/purchase-create-modal-actions.spec.ts src/app/features/purchases/pages/purchase-detail/purchase-detail-actions.spec.ts src/app/core/services/purchase-persistence.spec.ts src/app/core/services/purchase-line-money.spec.ts src/app/core/services/purchase-cost-allocation.spec.ts src/app/features/purchases/purchases-toast-actions.spec.ts
 ```
 
 ## Bekannte Vorbefunde und Bedenken
 
 - Der Production-Build bleibt erfolgreich, warnt aber weiterhin wegen eines
-  um 16,35 kB überschrittenen Initial-Budgets und der CommonJS-Abhängigkeiten
+  um 16,61 kB überschrittenen Initial-Budgets und der CommonJS-Abhängigkeiten
   `jszip` sowie `jsbarcode`.
 - Es wurde ausschließlich die lokale Supabase-Datenbank zurückgesetzt und
   geprüft. Es gab keine Remote- oder Produktionsmigration und keine

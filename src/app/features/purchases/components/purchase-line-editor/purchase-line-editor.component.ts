@@ -1,8 +1,8 @@
 import {
   ChangeDetectionStrategy,
   Component,
-  OnInit,
   computed,
+  effect,
   inject,
   output,
   signal,
@@ -38,7 +38,7 @@ type PriceField = 'unitPurchasePrice' | 'lineTotal';
   templateUrl: './purchase-line-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PurchaseLineEditorComponent implements OnInit {
+export class PurchaseLineEditorComponent {
   readonly catalogService = inject(CatalogService);
   private readonly workspaceService = inject(WorkspaceService);
 
@@ -51,6 +51,13 @@ export class PurchaseLineEditorComponent implements OnInit {
   readonly catalogLoadError = computed(
     () => this.catalogContextError() ?? this.catalogService.loadError()?.message ?? null,
   );
+  readonly activeWorkspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? null);
+  readonly catalogSelectionDisabled = computed(
+    () =>
+      this.catalogService.isLoading() ||
+      !!this.catalogLoadError() ||
+      this.catalogService.loadedWorkspaceId() !== this.activeWorkspaceId(),
+  );
   readonly productForm = new FormGroup({
     title: new FormControl('', {
       nonNullable: true,
@@ -59,19 +66,42 @@ export class PurchaseLineEditorComponent implements OnInit {
   });
 
   readonly quantityProducts = computed(() =>
-    this.catalogService.products().filter((product) => product.tracking_mode === 'quantity'),
+    this.catalogService
+      .products()
+      .filter(
+        (product) =>
+          product.tracking_mode === 'quantity' && product.workspace_id === this.activeWorkspaceId(),
+      ),
   );
 
-  ngOnInit(): void {
-    void this.loadCatalogProducts();
+  private lastRequestedWorkspaceId: string | null = null;
+
+  constructor() {
+    effect(() => {
+      const workspaceId = this.activeWorkspaceId();
+      if (!workspaceId) {
+        this.lastRequestedWorkspaceId = null;
+        this.catalogContextError.set('Kein aktiver Workspace ausgewählt.');
+        return;
+      }
+      void this.loadCatalogProducts();
+    });
   }
 
-  async loadCatalogProducts(): Promise<void> {
-    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+  async loadCatalogProducts(force = false): Promise<void> {
+    const workspaceId = this.activeWorkspaceId();
     if (!workspaceId) {
       this.catalogContextError.set('Kein aktiver Workspace ausgewählt.');
       return;
     }
+    if (
+      !force &&
+      this.lastRequestedWorkspaceId === workspaceId &&
+      (this.catalogService.isLoading() || this.catalogService.loadedWorkspaceId() === workspaceId)
+    ) {
+      return;
+    }
+    this.lastRequestedWorkspaceId = workspaceId;
     this.catalogContextError.set(null);
     await this.catalogService.loadProducts(workspaceId);
   }

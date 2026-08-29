@@ -72,6 +72,8 @@ import {
   PurchaseLineEditorComponent,
 } from '../../components/purchase-line-editor/purchase-line-editor.component';
 import { PurchaseLine } from '../../../../core/models/flipbase.models';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { MockDataStoreService } from '../../../../core/services/mock-data-store.service';
 
 @Component({
   selector: 'app-purchase-detail',
@@ -144,6 +146,8 @@ export class PurchaseDetailComponent {
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
+  private readonly workspaceService = inject(WorkspaceService);
+  private readonly mockStore = inject(MockDataStoreService);
 
   /** Fortschrittsstufen der Sendungsverfolgung – typisiert, damit der Zugriff auf statusConfig im Template typsicher bleibt. */
   readonly trackingSteps: readonly InboundTrackingStatus[] = [
@@ -329,8 +333,10 @@ export class PurchaseDetailComponent {
   constructor() {
     effect(() => {
       const purchaseId = this.id();
-      if (purchaseId) {
-        this.purchaseService.getPurchaseById(purchaseId);
+      const workspaceId = this.workspaceService.currentWorkspace()?.id;
+      this.mockStore.isDemoMode();
+      if (purchaseId && workspaceId) {
+        void this.purchaseService.getPurchaseById(purchaseId);
       }
     });
   }

@@ -148,6 +148,7 @@ export class PurchaseService {
   /** Artikel aus der Detailabfrage - nur Rueckfallebene, solange das Inventar laedt. */
   private readonly purchaseItemsFallback = signal<InventoryItem[]>([]);
   private readonly purchaseLinesRaw = signal<PurchaseLine[]>([]);
+  private detailLoadRequestId = 0;
   readonly isLoading = signal<boolean>(false);
 
   /**
@@ -162,7 +163,10 @@ export class PurchaseService {
     const liste = this.purchasesRaw();
     if (!this.inventory.istGeladen()) return liste;
     const items = this.inventory.items();
-    return liste.map((p) => ({ ...p, items_count: this.zaehleArtikel(p, items) }));
+    return liste.map((p) => ({
+      ...p,
+      items_count: this.zaehleArtikel(p, items, p.purchase_lines ?? []),
+    }));
   });
 
   readonly selectedPurchase = computed<Purchase | null>(() => {
@@ -200,6 +204,13 @@ export class PurchaseService {
     const purchaseItems = items.filter((item) => item.purchase_id === einkauf.id);
     const purchaseLines = lines.filter((line) => line.purchase_id === einkauf.id);
     if (purchaseLines.length === 0) {
+      if (
+        einkauf.purchase_lines !== undefined &&
+        (einkauf.receiving_status === 'ordered' ||
+          einkauf.receiving_status === 'partially_received')
+      ) {
+        return purchaseItems.length;
+      }
       return Math.max(purchaseItems.length, einkauf.items_count ?? 0);
     }
 
@@ -244,6 +255,7 @@ export class PurchaseService {
 
       const enrichedLocal = localPurchases.map((p) => {
         const matchingItems = localItems.filter((i) => i.purchase_id === p.id);
+        const matchingLines = localPurchaseLines.filter((line) => line.purchase_id === p.id);
         const source =
           p.source || (p.source_id ? localSources.find((s) => s.id === p.source_id) : undefined);
         const supplier =
@@ -253,7 +265,12 @@ export class PurchaseService {
           ...p,
           source,
           supplier,
-          items_count: this.zaehleArtikel(p, matchingItems, localPurchaseLines),
+          purchase_lines: matchingLines,
+          items_count: this.zaehleArtikel(
+            { ...p, purchase_lines: matchingLines },
+            matchingItems,
+            matchingLines,
+          ),
         } as Purchase;
       });
       this.purchasesRaw.set(enrichedLocal);
@@ -309,6 +326,8 @@ export class PurchaseService {
   }
 
   async getPurchaseById(id: string): Promise<Purchase | null> {
+    const requestId = Number.isFinite(this.detailLoadRequestId) ? this.detailLoadRequestId + 1 : 1;
+    this.detailLoadRequestId = requestId;
     // Die lokale Abkürzung gilt nur im Demo-Modus. Für angemeldete Nutzer muss
     // die Datenbank gefragt werden: Die zugehörigen Artikel stehen seit der
     // Umstellung auf „Datenbank zuerst" nicht mehr im lokalen Spiegel, wodurch
@@ -335,8 +354,10 @@ export class PurchaseService {
         ...existing,
         source,
         supplier,
-        items_count: this.zaehleArtikel(existing, items, lines),
+        purchase_lines: lines,
+        items_count: this.zaehleArtikel({ ...existing, purchase_lines: lines }, items, lines),
       };
+      if (requestId !== this.detailLoadRequestId) return null;
       this.selectedPurchaseRaw.set(enriched);
       this.purchaseItemsFallback.set(items);
       this.purchaseLinesRaw.set(lines);
@@ -359,6 +380,8 @@ export class PurchaseService {
         )
         .eq('id', id)
         .single();
+
+      if (requestId !== this.detailLoadRequestId) return null;
 
       if (error || !data) {
         if (error) this.syncStatus.melde('Abrufen des Einkaufs', error);
@@ -385,7 +408,7 @@ export class PurchaseService {
 
       this.selectedPurchaseRaw.set(enriched);
       this.purchaseItemsFallback.set((data.items || []) as InventoryItem[]);
-      await this.loadPurchaseLines(id);
+      await this.loadPurchaseLines(id, requestId);
       return enriched;
     } catch (err) {
       this.syncStatus.melde('GetPurchaseById', err);
@@ -395,19 +418,22 @@ export class PurchaseService {
     }
   }
 
-  async loadPurchaseLines(purchaseId: string): Promise<void> {
+  async loadPurchaseLines(purchaseId: string, detailRequestId?: number): Promise<void> {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     if (!workspaceId) {
-      this.purchaseLinesRaw.set([]);
+      if (detailRequestId === undefined || detailRequestId === this.detailLoadRequestId) {
+        this.purchaseLinesRaw.set([]);
+      }
       return;
     }
 
     if (this.mockStore.isDemoMode()) {
-      this.purchaseLinesRaw.set(
-        this.mockStore
-          .getPurchaseLines(workspaceId)
-          .filter((line) => line.purchase_id === purchaseId),
-      );
+      const lines = this.mockStore
+        .getPurchaseLines(workspaceId)
+        .filter((line) => line.purchase_id === purchaseId);
+      if (detailRequestId === undefined || detailRequestId === this.detailLoadRequestId) {
+        this.purchaseLinesRaw.set(lines);
+      }
       return;
     }
 
@@ -422,7 +448,9 @@ export class PurchaseService {
         this.syncStatus.melde('Laden der Einkaufspositionen', error);
         return;
       }
-      this.purchaseLinesRaw.set((data ?? []) as PurchaseLine[]);
+      if (detailRequestId === undefined || detailRequestId === this.detailLoadRequestId) {
+        this.purchaseLinesRaw.set((data ?? []) as PurchaseLine[]);
+      }
     } catch (error: unknown) {
       this.syncStatus.melde('Laden der Einkaufspositionen', error);
     }

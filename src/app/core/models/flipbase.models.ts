@@ -185,6 +185,7 @@ export interface Purchase {
   items_count?: number;
   total_purchase_cost?: number;
   items?: InventoryItem[];
+  purchase_lines?: PurchaseLine[];
 }
 
 export type ItemCondition =

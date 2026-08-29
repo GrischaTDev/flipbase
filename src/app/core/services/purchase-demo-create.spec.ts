@@ -126,6 +126,33 @@ describe('PurchaseService – Demo-Einkauf mit Startpositionen', () => {
     });
   });
 
+  it('lädt die persistierte Mengenposition nach einer vollständig neuen Serviceinstanz', async () => {
+    const initialStore = erstelleStore();
+    const { service: initialService } = erstelleDienst(initialStore);
+    const result = await initialService.createPurchase(payload);
+    expect(result).toMatchObject({ status: 'success', error: null });
+
+    const reloadedStore = erstelleStore();
+    const { service: reloadedService, purchaseLinesRaw } = erstelleDienst(reloadedStore);
+    const detail = await reloadedService.getPurchaseById(result.data!.id);
+
+    expect(detail).toMatchObject({ id: result.data!.id, items_count: 5 });
+    expect(purchaseLinesRaw()).toEqual([
+      expect.objectContaining({
+        purchase_id: result.data!.id,
+        catalog_product_id: 'catalog-led',
+        line_kind: 'quantity',
+        ordered_quantity: 5,
+        received_quantity: 0,
+      }),
+    ]);
+    const receipt = reloadedStore.receivePurchaseLines(workspace.id, result.data!.id, [
+      { purchaseLineId: purchaseLinesRaw()[0].id, receivedQuantity: 5 },
+    ]);
+    expect(receipt.error).toBeNull();
+    expect(receipt.stockLots).toHaveLength(1);
+  });
+
   it('meldet einen Persistenzfehler ohne Einkauf oder Position teilweise zu speichern', async () => {
     const store = erstelleStore();
     const { service, purchasesRaw, selectedPurchaseRaw, purchaseLinesRaw } = erstelleDienst(store);

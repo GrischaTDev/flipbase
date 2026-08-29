@@ -15,7 +15,7 @@
       <button
         type="button"
         (click)="addQuantityLine()"
-        [disabled]="catalogService.isLoading()"
+        [disabled]="catalogSelectionDisabled()"
         class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-wait disabled:opacity-50"
       >
         Bestehenden Artikel wählen
@@ -47,7 +47,7 @@
       <p class="text-xs text-rose-300">Artikelstamm konnte nicht geladen werden: {{ error }}</p>
       <button
         type="button"
-        (click)="loadCatalogProducts()"
+        (click)="loadCatalogProducts(true)"
         class="linear-btn-secondary rounded-lg px-2.5 py-1 text-xs font-semibold"
       >
         Erneut versuchen
@@ -118,7 +118,7 @@
                 Artikelstamm
                 <select
                   class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
-                  [disabled]="catalogService.isLoading()"
+                  [disabled]="catalogSelectionDisabled()"
                   [value]="row.controls.catalogProductId.value ?? ''"
                   (change)="selectCatalogProduct($index, $any($event.target).value)"
                 >

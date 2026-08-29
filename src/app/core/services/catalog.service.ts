@@ -32,13 +32,18 @@ export class CatalogService {
   readonly products = signal<CatalogProduct[]>([]);
   readonly isLoading = signal(false);
   readonly loadError = signal<Error | null>(null);
+  readonly loadedWorkspaceId = signal<string | null>(null);
+  private loadRequestId = 0;
 
   async loadProducts(workspaceId: string): Promise<void> {
+    const requestId = ++this.loadRequestId;
     this.isLoading.set(true);
     this.loadError.set(null);
     try {
       if (this.mockStore.isDemoMode()) {
+        if (requestId !== this.loadRequestId) return;
         this.products.set(this.mockStore.getCatalogProducts(workspaceId));
+        this.loadedWorkspaceId.set(workspaceId);
         return;
       }
 
@@ -47,15 +52,18 @@ export class CatalogService {
         .select('*')
         .eq('workspace_id', workspaceId)
         .order('title', { ascending: true });
+      if (requestId !== this.loadRequestId) return;
       if (error) {
         this.loadError.set(this.syncStatus.melde('Laden der Artikelstammdaten', error));
         return;
       }
       this.products.set((data ?? []).map((product) => this.mapProduct(product)));
+      this.loadedWorkspaceId.set(workspaceId);
     } catch (error: unknown) {
+      if (requestId !== this.loadRequestId) return;
       this.loadError.set(this.syncStatus.melde('Laden der Artikelstammdaten', error));
     } finally {
-      this.isLoading.set(false);
+      if (requestId === this.loadRequestId) this.isLoading.set(false);
     }
   }
 

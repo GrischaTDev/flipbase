@@ -1,9 +1,35 @@
 import '@angular/compiler';
-import { computed, signal } from '@angular/core';
+import { ɵresolveComponentResources, signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { FormArray } from '@angular/forms';
-import { describe, expect, it, vi } from 'vitest';
-import { CatalogProduct } from '../../../../core/models/flipbase.models';
+import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
+import { readFile } from 'node:fs/promises';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { CatalogProduct, Workspace } from '../../../../core/models/flipbase.models';
+import { CatalogService } from '../../../../core/services/catalog.service';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { PurchaseLineEditorComponent } from './purchase-line-editor.component';
+
+TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
+beforeAll(async () => {
+  await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
+});
+
+const workspaceOne: Workspace = {
+  id: 'workspace-1',
+  name: 'Workspace 1',
+  currency: 'EUR',
+  min_roi_percent: 30,
+  min_profit_amount: 15,
+};
+const workspaceTwo: Workspace = { ...workspaceOne, id: 'workspace-2', name: 'Workspace 2' };
+const ledProduct: CatalogProduct = {
+  id: 'catalog-led',
+  workspace_id: workspaceOne.id,
+  title: 'LED-Lampe',
+  tracking_mode: 'quantity',
+  is_public_store: false,
+};
 
 function erstelleEditor() {
   const linesChanged = { emit: vi.fn() };
@@ -18,41 +44,91 @@ function erstelleEditor() {
 }
 
 describe('PurchaseLineEditorComponent', () => {
-  it('lädt beim frischen Einstieg den persistierten Artikelstamm des aktiven Workspace', async () => {
-    const { editor } = erstelleEditor();
+  it('lädt nach verspätetem Workspace und bei Wechsel jeden aktuellen Artikelstamm genau einmal', async () => {
+    TestBed.resetTestingModule();
     const products = signal<CatalogProduct[]>([]);
-    const persistedProduct: CatalogProduct = {
-      id: 'catalog-led',
-      workspace_id: 'workspace-1',
-      title: 'LED-Lampe',
-      tracking_mode: 'quantity',
-      is_public_store: false,
-    };
+    const isLoading = signal(false);
+    const loadError = signal<Error | null>(null);
+    const loadedWorkspaceId = signal<string | null>(null);
+    const currentWorkspace = signal<Workspace | null>(null);
     const loadProducts = vi.fn(async (workspaceId: string) => {
-      if (workspaceId === persistedProduct.workspace_id) products.set([persistedProduct]);
+      isLoading.set(true);
+      products.set(
+        workspaceId === workspaceOne.id
+          ? [ledProduct]
+          : [{ ...ledProduct, id: 'catalog-chair', workspace_id: workspaceTwo.id, title: 'Stuhl' }],
+      );
+      loadedWorkspaceId.set(workspaceId);
+      isLoading.set(false);
     });
-    Object.assign(editor, {
-      catalogService: {
-        products,
-        isLoading: signal(false),
-        loadError: signal<Error | null>(null),
-        loadProducts,
-      },
-      workspaceService: {
-        currentWorkspace: signal({ id: persistedProduct.workspace_id }),
-      },
-      catalogContextError: signal<string | null>(null),
-      quantityProducts: computed(() =>
-        products().filter((product) => product.tracking_mode === 'quantity'),
-      ),
-    });
+    const fixture = TestBed.configureTestingModule({
+      imports: [PurchaseLineEditorComponent],
+      providers: [
+        {
+          provide: CatalogService,
+          useValue: {
+            products,
+            isLoading,
+            loadError,
+            loadedWorkspaceId,
+            loadProducts,
+            createProduct: vi.fn(),
+          },
+        },
+        { provide: WorkspaceService, useValue: { currentWorkspace } },
+      ],
+    }).createComponent(PurchaseLineEditorComponent);
+    fixture.detectChanges();
+    expect(loadProducts).not.toHaveBeenCalled();
 
-    (editor as unknown as { ngOnInit(): void }).ngOnInit();
+    currentWorkspace.set(workspaceOne);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(loadProducts).toHaveBeenCalledWith(workspaceOne.id));
+    expect(fixture.componentInstance.quantityProducts()).toEqual([ledProduct]);
 
-    await vi.waitFor(() =>
-      expect(loadProducts).toHaveBeenCalledWith(persistedProduct.workspace_id),
-    );
-    expect(editor.quantityProducts()).toEqual([persistedProduct]);
+    currentWorkspace.set(workspaceTwo);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(loadProducts).toHaveBeenCalledWith(workspaceTwo.id));
+    expect(loadProducts.mock.calls.map(([workspaceId]) => workspaceId)).toEqual([
+      workspaceOne.id,
+      workspaceTwo.id,
+    ]);
+    expect(fixture.componentInstance.quantityProducts().map((product) => product.title)).toEqual([
+      'Stuhl',
+    ]);
+  });
+
+  it('sperrt nach fehlgeschlagenem Laden fremde gecachte Workspace-Produkte', async () => {
+    TestBed.resetTestingModule();
+    const products = signal<CatalogProduct[]>([
+      { ...ledProduct, workspace_id: workspaceTwo.id, title: 'Fremde LED-Lampe' },
+    ]);
+    const loadError = signal<Error | null>(null);
+    const fixture = TestBed.configureTestingModule({
+      imports: [PurchaseLineEditorComponent],
+      providers: [
+        {
+          provide: CatalogService,
+          useValue: {
+            products,
+            isLoading: signal(false),
+            loadError,
+            loadedWorkspaceId: signal<string | null>(workspaceTwo.id),
+            loadProducts: vi.fn(async () => loadError.set(new Error('Katalog nicht erreichbar'))),
+            createProduct: vi.fn(),
+          },
+        },
+        {
+          provide: WorkspaceService,
+          useValue: { currentWorkspace: signal<Workspace | null>(workspaceOne) },
+        },
+      ],
+    }).createComponent(PurchaseLineEditorComponent);
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(loadError()).not.toBeNull());
+    expect(fixture.componentInstance.catalogSelectionDisabled()).toBe(true);
+    expect(fixture.componentInstance.quantityProducts()).toEqual([]);
+    expect(fixture.componentInstance.catalogLoadError()).toContain('Katalog nicht erreichbar');
   });
 
   it('berechnet die Positionssumme einer Mengenposition aus Menge und EK je Stück', () => {
