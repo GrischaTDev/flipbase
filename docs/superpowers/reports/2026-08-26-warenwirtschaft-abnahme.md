@@ -145,6 +145,26 @@ dedupliziert, ignoriert verspätete Antworten und bietet ausschließlich Produkt
 des aktiven Workspace an. Bei fehlgeschlagenem Laden bleiben fremde gecachte
 Produkte unsichtbar und die Auswahl gesperrt.
 
+## Abschlussprüfung des Gesamtbranches
+
+Der abschließende unabhängige Branch-Review wurde nach zwei Korrekturrunden
+mit `APPROVED` beendet. Dabei wurden insbesondere folgende Integritätsfälle
+noch einmal gegen Datenbank und Demo-Modus geprüft:
+
+- Drei getrennte Einzelverkäufe aus einem Los mit Gesamtkosten von `30,04 EUR`
+  ergeben zusammen exakt `30,04 EUR` COGS; Rundungsreste gehen nicht verloren.
+- Nachträglich erfasste Einkaufspositionen erhalten vor dem Wareneingang ihren
+  korrekten Anteil bereits vorhandener Zusatzkosten. Nach dem Wareneingang ist
+  diese strukturelle Änderung gesperrt.
+- Teilgutschriften reduzieren Umsatz und Gewinn, erzeugen aber ohne physische
+  Rücknahme keine falsche Bestandsbewegung und keinen Retourenstatus.
+- Direkte Schreibrechte auf Bestandslose, Bestandsbewegungen,
+  Verkaufspositionen und deren Loszuordnungen sind entzogen. Buchungen laufen
+  ausschließlich über die workspace-gesicherten Transaktionsfunktionen.
+- Shop-Checkout, manueller Verkauf und Demo-Modus verwenden dieselbe zentrale
+  FIFO- und Kostenlogik. Öffentliche Angebote benötigen einen positiven,
+  gespeicherten Verkaufspreis.
+
 ## Ausgeführte Prüfungen
 
 | Befehl                                                                                         | Ergebnis                                                                                                        |
