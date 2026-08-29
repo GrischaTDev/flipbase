@@ -44,8 +44,8 @@ Die lokale SQL-Akzeptanz deckte den fachlichen Ablauf mit einer LED-Lampe ab:
    werden atomar bestätigt.
 
 Die SQL-Verträge liefen lokal gegen den Supabase-Postgres-Container. Die
-interaktive Browser-Endabnahme ist ausstehend und wird vom Controller
-übernommen; diese Dokumentation behauptet keine manuelle UI-Prüfung.
+interaktive Browser-Endabnahme wurde anschließend im Demo-Modus durchgeführt
+und ist weiter unten dokumentiert.
 
 ## Nachtrag: HTTP-Demo-Modus
 
@@ -62,8 +62,8 @@ nicht-kryptografischen Fallback verwenden.
 Der Katalogdialog fängt geworfene Servicefehler ab und beendet seinen
 Speicherzustand zuverlässig. Der Checkout schützt seinen Submit-Zustand auch,
 wenn vor dem Serviceaufruf keine sichere Browser-UUID erzeugt werden kann.
-Die interaktive Wiederholungsprüfung im Browser bleibt beim Controller
-ausstehend.
+Die interaktive Wiederholungsprüfung im Browser wurde nach der Korrektur
+erfolgreich durchgeführt.
 
 ## Nachtrag: Demo-Einkauf mit Mengenpositionen
 
@@ -83,6 +83,28 @@ und vollständig eingebucht werden. Auch nach dem Wareneingang bleibt es bei
 fünf: Der Demo- und der Supabase-Ladepfad beziehen die Einkaufspositionen ein,
 ohne Lose oder verknüpfte Einzelartikel doppelt zu zählen. Positionslose
 Demo-Einzelkäufe legen weiterhin ihren Inventarartikel an.
+
+## Interaktive Browser-Endabnahme
+
+Der vollständige Mengenartikel-Ablauf wurde im Demo-Modus über die echte
+Anwendungsoberfläche geprüft:
+
+1. Den Artikelstamm `LED-Lampe Abnahme` direkt aus der Einkaufsanlage auswählen.
+2. Einen Nachkauf mit `5 × 4,99 EUR` anlegen und die Detailseite neu laden.
+3. Den Wareneingang über alle fünf Stück buchen und Bestand `5` bestätigen.
+4. Zwei Stück zu je `9,99 EUR` über Kleinanzeigen verkaufen und Bestand `3`
+   bestätigen.
+5. Verkaufsliste und Dashboard prüfen: Umsatz `19,98 EUR`, COGS `9,98 EUR`
+   und realisierter Gewinn `10,00 EUR` wurden korrekt angezeigt.
+6. Den Verkauf vollständig retournieren: Bestand wieder `5`; Umsatz und
+   realisierter Gewinn des retournierten Verkaufs werden im Dashboard nicht
+   mehr als realisiert ausgewiesen.
+
+Mystery-Einzelverkauf und Shop-Checkout wurden nicht zusätzlich mit künstlichen
+UI-Daten wiederholt. Beide Abläufe sind durch den zentralen lokalen
+SQL-Akzeptanzvertrag abgedeckt; der dabei verwendete Abnahmeartikel hatte
+bewusst keinen öffentlichen Shop-Verkaufspreis und wurde deshalb nicht im Shop
+angeboten.
 
 Der Backendpfad wurde separat geprüft: Er übergibt die Startpositionen erst mit
 der bestätigten finalen Einkaufs-ID und meldet einen Positionsfehler nicht als
@@ -162,5 +184,5 @@ npm test -- --run src/app/core/services/catalog.service.spec.ts src/app/features
 - Es wurde ausschließlich die lokale Supabase-Datenbank zurückgesetzt und
   geprüft. Es gab keine Remote- oder Produktionsmigration und keine
   Produktionsdatenänderung.
-- Die interaktive Browser-Endabnahme ist noch ausstehend und liegt beim
-  Controller.
+- Die interaktive Browser-Endabnahme ist abgeschlossen. Mystery-Einzelverkauf
+  und Shop-Checkout sind zusätzlich durch den zentralen SQL-Vertrag abgedeckt.
