@@ -109,7 +109,6 @@ export class ItemCreateModalComponent {
     { value: 'received', label: 'Auf Lager', badgeClass: 'bg-blue-400' },
     { value: 'ready', label: 'Bereit', badgeClass: 'bg-amber-400' },
     { value: 'listed', label: 'Gelistet', badgeClass: 'bg-emerald-400' },
-    { value: 'sold', label: 'Verkauft', badgeClass: 'bg-purple-400' },
     { value: 'reserved', label: 'Reserviert', badgeClass: 'bg-fb-neutral' },
     { value: 'defective', label: 'Defekt / Ersatzteil', badgeClass: 'bg-rose-400' },
   ];

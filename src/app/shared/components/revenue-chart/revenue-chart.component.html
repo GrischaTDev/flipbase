@@ -1,0 +1,105 @@
+<section class="space-y-3" aria-labelledby="revenue-chart-heading">
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    <div>
+      <h2
+        id="revenue-chart-heading"
+        class="text-xs font-bold uppercase tracking-[0.16em] text-fb-text-secondary"
+      >
+        Zahlungsstrom im Zeitraum
+      </h2>
+      <p class="mt-1 text-[11px] text-fb-text-muted">
+        Ausgaben folgen dem Einkaufsdatum; Gewinn folgt ausschließlich bestätigten
+        Verkaufspositionen.
+      </p>
+    </div>
+    <div
+      class="flex flex-wrap gap-x-3 gap-y-1 text-[10px] font-semibold text-fb-text-secondary"
+      aria-label="Diagrammlegende"
+    >
+      @for (series of chart().series; track series.key) {
+        <span class="inline-flex items-center gap-1.5">
+          <span class="h-2 w-2 rounded-full" [style.background-color]="series.color"></span>
+          {{ series.label }}
+        </span>
+      }
+    </div>
+  </div>
+
+  <div class="overflow-x-auto rounded-lg border border-fb-line bg-fb-well/40 p-2">
+    <svg
+      class="min-w-[560px] w-full h-auto"
+      viewBox="0 0 1000 260"
+      role="img"
+      aria-describedby="revenue-chart-summary"
+    >
+      <title>Umsatz, Ausgaben und realisierter Gewinn im gewählten Zeitraum</title>
+      <line
+        x1="40"
+        [attr.y1]="chart().zeroY"
+        x2="984"
+        [attr.y2]="chart().zeroY"
+        stroke="currentColor"
+        class="text-fb-text-muted"
+        stroke-dasharray="4 4"
+        data-chart-zero-line
+        aria-label="Nulllinie bei 0 Euro"
+      ></line>
+      <line x1="40" y1="20" x2="40" y2="226" stroke="currentColor" class="text-fb-line"></line>
+      <text x="4" y="26" class="fill-fb-text-muted text-[10px]">
+        {{ chart().maxValue | number: '1.0-0' }} €
+      </text>
+      <text x="11" [attr.y]="chart().zeroLabelY" class="fill-fb-text-muted text-[10px]">0 €</text>
+      @if (chart().minValue < 0) {
+        <text x="4" y="226" class="fill-fb-text-muted text-[10px]">
+          {{ chart().minValue | number: '1.0-0' }} €
+        </text>
+      }
+      @for (label of chart().labels; track label.x) {
+        <text
+          [attr.x]="label.x"
+          y="248"
+          text-anchor="middle"
+          class="fill-fb-text-muted text-[10px]"
+        >
+          {{ label.label }}
+        </text>
+      }
+      @for (series of chart().series; track series.key) {
+        <path
+          [attr.d]="series.path"
+          fill="none"
+          [attr.stroke]="series.color"
+          stroke-width="3"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        ></path>
+      }
+    </svg>
+  </div>
+
+  <div id="revenue-chart-summary" class="sr-only">
+    <table>
+      <caption>
+        Tabellarische Zusammenfassung des Diagramms
+      </caption>
+      <thead>
+        <tr>
+          <th>Zeitraum</th>
+          <th>Umsatz</th>
+          <th>Ausgaben</th>
+          <th>Realisierter Gewinn</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (point of points(); track point.date) {
+          <tr>
+            <th>{{ point.label }}</th>
+            <td>{{ point.revenue | number: '1.2-2' }} €</td>
+            <td>{{ point.expenses | number: '1.2-2' }} €</td>
+            <td>{{ point.realizedProfit | number: '1.2-2' }} €</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+</section>

@@ -6,6 +6,7 @@ import {
   inject,
   input,
   signal,
+  viewChild,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -65,6 +66,14 @@ import {
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
+import { StockService } from '../../../../core/services/stock.service';
+import {
+  PurchaseLineDraft,
+  PurchaseLineEditorComponent,
+} from '../../components/purchase-line-editor/purchase-line-editor.component';
+import { PurchaseLine } from '../../../../core/models/flipbase.models';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { MockDataStoreService } from '../../../../core/services/mock-data-store.service';
 
 @Component({
   selector: 'app-purchase-detail',
@@ -79,6 +88,7 @@ import { SyncStatusService } from '../../../../core/services/sync-status.service
     LucideDynamicIcon,
     ImageCropperModalComponent,
     CustomSelectComponent,
+    PurchaseLineEditorComponent,
   ],
   templateUrl: './purchase-detail.component.html',
   host: { class: 'block' },
@@ -125,6 +135,7 @@ export class PurchaseDetailComponent {
 
   private readonly dialog = inject(ConfirmDialogService);
   readonly purchaseService = inject(PurchaseService);
+  readonly stockService = inject(StockService);
 
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
@@ -135,6 +146,8 @@ export class PurchaseDetailComponent {
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
+  private readonly workspaceService = inject(WorkspaceService);
+  private readonly mockStore = inject(MockDataStoreService);
 
   /** Fortschrittsstufen der Sendungsverfolgung – typisiert, damit der Zugriff auf statusConfig im Template typsicher bleibt. */
   readonly trackingSteps: readonly InboundTrackingStatus[] = [
@@ -221,6 +234,11 @@ export class PurchaseDetailComponent {
   readonly isAddingCost = signal<boolean>(false);
   readonly isEditModalOpen = signal<boolean>(false);
   readonly isAddingItem = signal<boolean>(false);
+  readonly isSavingPurchaseLines = signal<boolean>(false);
+  readonly isReceivingLines = signal<boolean>(false);
+  readonly receivingQuantities = signal<Record<string, number>>({});
+  readonly purchaseLineDrafts = signal<readonly PurchaseLineDraft[]>([]);
+  readonly purchaseLineEditor = viewChild(PurchaseLineEditorComponent);
   readonly isAllocatorOpen = signal<boolean>(false);
   readonly isCropperOpen = signal<boolean>(false);
   readonly selectedImageFile = signal<File | null>(null);
@@ -243,6 +261,20 @@ export class PurchaseDetailComponent {
       p.tracking_carrier,
       p.tracking_status,
     );
+  });
+
+  readonly quantityPurchaseLines = computed(() =>
+    this.purchaseService.purchaseLines().filter((line) => line.line_kind === 'quantity'),
+  );
+  readonly individualPurchaseLines = computed(() =>
+    this.purchaseService.purchaseLines().filter((line) => line.line_kind === 'individual'),
+  );
+  readonly visibleItemCount = computed(() => {
+    const quantityCount = this.quantityPurchaseLines().reduce(
+      (sum, line) => sum + line.ordered_quantity,
+      0,
+    );
+    return this.purchaseService.purchaseItems().length + quantityCount;
   });
 
   // Lot Allocator interactive state
@@ -301,8 +333,10 @@ export class PurchaseDetailComponent {
   constructor() {
     effect(() => {
       const purchaseId = this.id();
-      if (purchaseId) {
-        this.purchaseService.getPurchaseById(purchaseId);
+      const workspaceId = this.workspaceService.currentWorkspace()?.id;
+      this.mockStore.isDemoMode();
+      if (purchaseId && workspaceId) {
+        void this.purchaseService.getPurchaseById(purchaseId);
       }
     });
   }
@@ -427,6 +461,100 @@ export class PurchaseDetailComponent {
   removeSelectedImage(): void {
     this.selectedImageFile.set(null);
     this.selectedImageDataUrl.set(null);
+  }
+
+  onPurchaseLineDraftsChanged(lines: readonly PurchaseLineDraft[]): void {
+    this.purchaseLineDrafts.set(lines);
+  }
+
+  async savePurchaseLines(): Promise<void> {
+    const purchase = this.purchaseService.selectedPurchase();
+    const lines = this.purchaseLineDrafts();
+    if (!purchase || lines.length === 0 || this.isSavingPurchaseLines()) return;
+
+    this.isSavingPurchaseLines.set(true);
+    const result = await this.purchaseService.createPurchaseLines(purchase.id, lines);
+    this.isSavingPurchaseLines.set(false);
+    if (result.error) {
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Einkaufspositionen konnten nicht gespeichert werden.',
+        result.error,
+      );
+      return;
+    }
+
+    await this.purchaseService.getPurchaseById(purchase.id);
+    this.purchaseLineDrafts.set([]);
+    this.purchaseLineEditor()?.clear();
+    this.toast.success('Einkaufspositionen wurden gespeichert.');
+  }
+
+  startReceivingLines(): void {
+    const quantities = this.quantityPurchaseLines().reduce<Record<string, number>>(
+      (result, line) => {
+        result[line.id] = Math.max(0, line.ordered_quantity - line.received_quantity);
+        return result;
+      },
+      {},
+    );
+    this.receivingQuantities.set(quantities);
+    this.isReceivingLines.set(true);
+  }
+
+  updateReceivingQuantity(lineId: string, value: number): void {
+    this.receivingQuantities.update((quantities) => ({
+      ...quantities,
+      [lineId]: Math.max(0, Math.floor(value || 0)),
+    }));
+  }
+
+  async receivePurchaseLine(line: PurchaseLine): Promise<void> {
+    const purchase = this.purchaseService.selectedPurchase();
+    const nowReceived = this.receivingQuantities()[line.id] ?? 0;
+    const remaining = line.ordered_quantity - line.received_quantity;
+    if (!purchase || nowReceived < 1 || nowReceived > remaining) return;
+
+    const result = await this.purchaseService.receivePurchaseLines(purchase.id, [
+      { purchaseLineId: line.id, receivedQuantity: nowReceived },
+    ]);
+    if (result.error) {
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Wareneingang konnte nicht gebucht werden.',
+        result.error,
+      );
+      return;
+    }
+
+    await Promise.all([
+      this.purchaseService.getPurchaseById(purchase.id),
+      this.stockService.loadPositions(purchase.workspace_id),
+    ]);
+    this.toast.success('Wareneingang wurde gebucht.');
+  }
+
+  async captureIndividualItem(line: PurchaseLine): Promise<void> {
+    const purchase = this.purchaseService.selectedPurchase();
+    if (!purchase || line.received_quantity > 0) return;
+
+    const receiptResult = await this.purchaseService.receiveIndividualPurchaseLine(
+      purchase.id,
+      line.id,
+      {
+        title: line.title_snapshot,
+        condition: 'used',
+        allocatedPurchaseCost: line.line_total,
+      },
+    );
+    if (receiptResult.error) {
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Wareneingang für den Einzelartikel konnte nicht gebucht werden.',
+        receiptResult.error,
+      );
+      return;
+    }
+
+    await this.purchaseService.getPurchaseById(purchase.id);
+    this.toast.success('Einzelartikel wurde erfasst.');
   }
 
   async onAddItem(): Promise<void> {

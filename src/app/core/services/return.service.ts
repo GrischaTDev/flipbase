@@ -128,6 +128,52 @@ export class ReturnService {
   }
 
   /**
+   * Stellt den Belegzustand nach einer bereits atomar gebuchten Retoure lokal
+   * bereit. Diese Methode schreibt bewusst nicht in die Datenbank: Die
+   * Datenbankbuchung wurde zuvor vollständig durch `record_sale_return`
+   * bestätigt und darf nicht ein zweites Mal ausgelöst werden.
+   */
+  materializeConfirmedReturn(input: {
+    sale: Sale;
+    reason: ReturnReason;
+    refundAmount: number;
+    isFullRefund: boolean;
+    restockAction: RestockAction;
+    notes?: string;
+  }): ReturnRecord {
+    const existing = this.returns().find((entry) => entry.sale_id === input.sale.id);
+    if (existing) return existing;
+
+    const workspace = this.workspaceService?.currentWorkspace() ?? null;
+    const returnDate =
+      input.sale.returned_at?.slice(0, 10) ?? new Date().toISOString().slice(0, 10);
+    const returnRecord: ReturnRecord = {
+      id: `atomic-return-${input.sale.id}`,
+      workspace_id: input.sale.workspace_id,
+      sale_id: input.sale.id,
+      inventory_item_id: input.sale.inventory_item_id ?? null,
+      credit_note_number: `GS-${returnDate.slice(0, 4)}-${(this.returns().length + 1).toString().padStart(4, '0')}`,
+      return_date: returnDate,
+      reason: input.reason,
+      refund_amount: Number(input.refundAmount.toFixed(2)),
+      is_full_refund: input.isFullRefund,
+      restock_action: input.restockAction,
+      buyer_name: input.sale.buyer_notes || 'Kunde',
+      notes: input.notes,
+      created_at: input.sale.returned_at ?? new Date().toISOString(),
+      sale: input.sale,
+      inventory_item: input.sale.inventory_item,
+    };
+    returnRecord.creditNoteInvoice = this.generateCreditNoteInvoice(
+      returnRecord,
+      input.sale,
+      workspace,
+    );
+    this.uebernehmeRetoureLokal(returnRecord);
+    return returnRecord;
+  }
+
+  /**
    * Processes a return / refund, updates inventory stock accordingly, and generates a credit note.
    */
   async processReturn(payload: {
@@ -140,179 +186,61 @@ export class ReturnService {
     buyerName?: string;
     notes?: string;
   }): Promise<ProcessReturnResult> {
-    const ws = this.workspaceService?.currentWorkspace();
-    if (this.supabase && !this.mockStore?.isDemoMode() && !ws) {
+    if (!this.salesService) {
       return {
         status: 'error',
         data: null,
-        error: this.syncStatus.melde('Speichern der Retoure', new Error('Kein aktiver Workspace.')),
+        error: this.syncStatus.melde('Speichern der Retoure', new Error('Verkaufsservice fehlt.')),
         problems: [],
       };
     }
-    const count = this.returns().length + 1;
-    const creditNoteNumber = `GS-2026-${count.toString().padStart(4, '0')}`;
 
-    const newReturn: ReturnRecord = {
-      id: `ret-${Date.now()}`,
-      workspace_id: ws?.id || 'ws-1',
-      sale_id: payload.sale.id,
-      inventory_item_id: payload.sale.inventory_item_id,
-      credit_note_number: creditNoteNumber,
-      return_date: new Date().toISOString().split('T')[0],
+    const restock =
+      payload.isFullRefund &&
+      (payload.restockAction === 'restock_ready' || payload.restockAction === 'restock_repair');
+    const booking = await this.salesService.recordReturn({
+      saleId: payload.sale.id,
+      refundAmount: payload.refundAmount,
+      restock,
+      restockAction: payload.restockAction,
       reason: payload.reason,
-      refund_amount: Number(payload.refundAmount.toFixed(2)),
-      is_full_refund: payload.isFullRefund,
-      restock_action: payload.restockAction,
-      buyer_name: payload.buyerName || payload.sale.buyer_notes || 'Kunde',
-      notes: payload.notes,
-      created_at: new Date().toISOString(),
-      sale: payload.sale,
-      inventory_item: payload.item,
+      notes: payload.notes ?? null,
+      buyerName: payload.buyerName ?? null,
+    });
+    if (booking.error || !booking.data) {
+      return { status: 'error', data: null, error: booking.error, problems: [] };
+    }
+
+    const confirmedSale: Sale = {
+      ...payload.sale,
+      ...booking.data.sale,
+      inventory_item: booking.data.sale.inventory_item ?? payload.sale.inventory_item,
     };
-
-    // 1. Generate credit note invoice
-    const creditInvoice = this.generateCreditNoteInvoice(newReturn, payload.sale, ws || null);
-    newReturn.creditNoteInvoice = creditInvoice;
-
-    let gespeicherteRetoure = newReturn;
-    if (this.supabase && ws && !this.mockStore?.isDemoMode()) {
-      try {
-        const { data: dbReturn, error } = await this.supabase.client
-          .from('returns')
-          .insert({
-            workspace_id: ws.id,
-            sale_id: payload.sale.id,
-            inventory_item_id: payload.sale.inventory_item_id,
-            credit_note_number: creditNoteNumber,
-            return_date: newReturn.return_date,
-            reason: payload.reason,
-            refund_amount: newReturn.refund_amount,
-            is_full_refund: payload.isFullRefund,
-            restock_action: payload.restockAction,
-            buyer_name: newReturn.buyer_name,
-            notes: payload.notes || null,
-          })
-          .select()
-          .single();
-
-        if (error || !dbReturn) {
-          return {
-            status: 'error',
-            data: null,
-            error: this.syncStatus.melde(
-              'Speichern der Retoure',
-              error ?? new Error('Die Datenbank hat keine Retoure zurückgegeben.'),
-            ),
-            problems: [],
-          };
-        }
-        gespeicherteRetoure = { ...newReturn, id: dbReturn.id };
-      } catch (ursache: unknown) {
-        return {
-          status: 'error',
-          data: null,
-          error: this.syncStatus.melde('Speichern der Retoure', ursache),
-          problems: [],
-        };
-      }
-    }
-
-    this.uebernehmeRetoureLokal(gespeicherteRetoure);
-    const problems: ReturnFollowUpProblem[] = [];
-
-    // 2. Synchronize Inventory Stock based on restockAction
-    if (this.inventoryService && payload.sale.inventory_item_id) {
-      let targetStatus: ItemStatus = 'ready';
-      let statusLog = `Retoure erfasst (${creditNoteNumber})`;
-
-      if (payload.restockAction === 'restock_ready') {
-        targetStatus = 'ready';
-        statusLog = `Wieder eingelagert als verkaufsbereit nach Retoure (${creditNoteNumber})`;
-      } else if (payload.restockAction === 'restock_repair') {
-        targetStatus = 'needs_review';
-        statusLog = `In Reparatur / Aufbereitung übergeben nach Retoure (${creditNoteNumber})`;
-      } else if (payload.restockAction === 'write_off') {
-        targetStatus = 'defective';
-        statusLog = `Als Defekt / Verlust abgeschrieben nach Retoure (${creditNoteNumber})`;
-      }
-
-      if (payload.restockAction !== 'keep_with_buyer') {
-        try {
-          const { error } = await this.inventoryService.updateItemStatus(
-            payload.sale.inventory_item_id,
-            targetStatus,
-            statusLog,
-          );
-          if (error) {
-            problems.push(this.erstelleProblem('inventory_status', error));
-            this.salesService?.planeArtikelstatusNachholung(
-              ws?.id ?? gespeicherteRetoure.workspace_id,
-              payload.sale.inventory_item_id,
-              targetStatus,
-              statusLog,
-            );
-          }
-        } catch (ursache: unknown) {
-          const error = this.meldeFehler('Aktualisieren des Artikelstatus', ursache);
-          problems.push(this.erstelleProblem('inventory_status', error));
-          this.salesService?.planeArtikelstatusNachholung(
-            ws?.id ?? gespeicherteRetoure.workspace_id,
-            payload.sale.inventory_item_id,
-            targetStatus,
-            statusLog,
-          );
-        }
-      }
-    }
-
-    // 3. Den Verkauf als retourniert vermerken.
-    //
-    // Ohne diesen Schritt zaehlte der Verkauf weiter mit vollem Gewinn,
-    // waehrend der Artikel gleichzeitig wieder im Lager stand - derselbe
-    // Gegenstand doppelt, und die Erstattung minderte nichts.
-    try {
-      const ergebnis = await this.salesService?.markiereAlsRetourniert(
-        payload.sale.id,
-        gespeicherteRetoure.refund_amount,
-      );
-      if (ergebnis?.error) {
-        problems.push(this.erstelleProblem('sale_return_status', ergebnis.error));
-        this.salesService?.planeRetourenvermerkNachholung(
-          ws?.id ?? gespeicherteRetoure.workspace_id,
-          payload.sale.id,
-          gespeicherteRetoure.refund_amount,
-        );
-      }
-    } catch (ursache: unknown) {
-      const error = this.meldeFehler('Vermerken der Retoure', ursache);
-      problems.push(this.erstelleProblem('sale_return_status', error));
-      this.salesService?.planeRetourenvermerkNachholung(
-        ws?.id ?? gespeicherteRetoure.workspace_id,
-        payload.sale.id,
-        gespeicherteRetoure.refund_amount,
-      );
-    }
-
-    if (problems.length > 0) {
-      return {
-        status: 'partial',
-        data: gespeicherteRetoure,
-        error: problems[0].error,
-        problems,
-      };
-    }
+    const gespeicherteRetoure = booking.data.returnRecord
+      ? this.materializePersistedReturn(booking.data.returnRecord, confirmedSale)
+      : this.materializeConfirmedReturn({
+          sale: confirmedSale,
+          reason: payload.reason,
+          refundAmount: payload.refundAmount,
+          isFullRefund: payload.isFullRefund,
+          restockAction: payload.restockAction,
+          notes: payload.notes,
+        });
 
     // 5. Notifications
     if (this.webPushService) {
-      this.webPushService.sendNotification(`↩️ Retoure erfasst: ${creditNoteNumber}`, {
-        body: `Erstattung von ${payload.refundAmount.toFixed(2)} € gebucht für ${payload.item?.title || 'Artikel'}.`,
-        tag: `return-${gespeicherteRetoure.id}`,
-      });
+      this.webPushService.sendNotification(
+        `↩️ Retoure erfasst: ${gespeicherteRetoure.credit_note_number}`,
+        {
+          body: `Erstattung von ${payload.refundAmount.toFixed(2)} € gebucht für ${payload.item?.title || 'Artikel'}.`,
+          tag: `return-${gespeicherteRetoure.id}`,
+        },
+      );
     }
 
     if (this.webhookService) {
       this.webhookService.addNotification({
-        title: `↩️ Retoure & Gutschrift ${creditNoteNumber}`,
+        title: `↩️ Retoure & Gutschrift ${gespeicherteRetoure.credit_note_number}`,
         message: `${payload.refundAmount.toFixed(2)} € Erstattung (${payload.reason}) für ${payload.item?.title || 'Artikel'}.`,
         type: 'alert',
       });
@@ -344,6 +272,24 @@ export class ReturnService {
       ...list.filter((eintrag) => eintrag.id !== retoure.id),
     ]);
     this.persistReturns();
+  }
+
+  /** Ergänzt eine vom RPC erzeugte Retoure nur noch um die lokale Belegansicht. */
+  private materializePersistedReturn(returnRecord: ReturnRecord, sale: Sale): ReturnRecord {
+    const existing = this.returns().find((entry) => entry.id === returnRecord.id);
+    if (existing) return existing;
+    const materialized: ReturnRecord = {
+      ...returnRecord,
+      sale,
+      inventory_item: sale.inventory_item,
+    };
+    materialized.creditNoteInvoice = this.generateCreditNoteInvoice(
+      materialized,
+      sale,
+      this.workspaceService?.currentWorkspace() ?? null,
+    );
+    this.uebernehmeRetoureLokal(materialized);
+    return materialized;
   }
 
   /**

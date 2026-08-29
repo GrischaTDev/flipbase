@@ -30,7 +30,7 @@ import {
   LucideZap as Zap,
 } from '@lucide/angular';
 import { StoreService } from '../../../../core/services/store.service';
-import { InventoryItem } from '../../../../core/models/flipbase.models';
+import { SellableItemRef } from '../../../../core/models/store.models';
 
 interface FaqItem {
   question: string;
@@ -138,8 +138,8 @@ export class StoreCatalogComponent {
 
     // Sorting
     return items.sort((a, b) => {
-      const priceA = a.expected_value ?? a.allocated_purchase_cost * 1.5;
-      const priceB = b.expected_value ?? b.allocated_purchase_cost * 1.5;
+      const priceA = this.getItemPrice(a);
+      const priceB = this.getItemPrice(b);
       const origA = this.getOriginalPrice(a);
       const origB = this.getOriginalPrice(b);
       const savingsA = origA - priceA;
@@ -208,7 +208,7 @@ export class StoreCatalogComponent {
     },
   ];
 
-  getConditionBadge(condition: string): { label: string; class: string } {
+  getConditionBadge(condition?: string): { label: string; class: string } {
     switch (condition) {
       case 'new':
         return { label: 'Neu & OVP', class: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
@@ -228,11 +228,11 @@ export class StoreCatalogComponent {
     }
   }
 
-  getItemPrice(item: InventoryItem): number {
-    return item.expected_value ?? item.allocated_purchase_cost * 1.5;
+  getItemPrice(item: SellableItemRef): number {
+    return item.unitPrice ?? 0;
   }
 
-  getOriginalPrice(item: InventoryItem): number {
+  getOriginalPrice(item: SellableItemRef): number {
     const price = this.getItemPrice(item);
     // Estimated MSRP multiplier based on condition
     switch (item.condition) {
@@ -247,14 +247,14 @@ export class StoreCatalogComponent {
     }
   }
 
-  getDiscountPercent(item: InventoryItem): number {
+  getDiscountPercent(item: SellableItemRef): number {
     const orig = this.getOriginalPrice(item);
     const curr = this.getItemPrice(item);
     if (orig <= curr) return 0;
     return Math.round(((orig - curr) / orig) * 100);
   }
 
-  getItemThumbnail(item: InventoryItem): string | null {
+  getItemThumbnail(item: SellableItemRef): string | null {
     if (item.media && item.media.length > 0) {
       const primary = item.media.find((m) => m.is_primary) || item.media[0];
       return primary.storage_path;
@@ -262,7 +262,7 @@ export class StoreCatalogComponent {
     return null;
   }
 
-  onAddToCart(item: InventoryItem, event?: Event): void {
+  onAddToCart(item: SellableItemRef, event?: Event): void {
     if (event) event.stopPropagation();
     this.storeService.addToCart(item, 1);
     this.addedItemId.set(item.id);

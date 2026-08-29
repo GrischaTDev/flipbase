@@ -32,6 +32,7 @@ import { erstelleExportSnapshot, ersetzeWennAktuell } from './services/async-zus
 import { FotoguideZustand } from './services/fotoguide-zustand';
 import { findeAufloesungsproblem, pruefeAusgabe } from './services/plattform-validierung';
 import { ToastService } from '../../shared/components/toast/toast.service';
+import { createLocalDemoId } from '../../core/utils/client-identity';
 
 /**
  * Hinweistext fuer Bilder, die der Browser nicht als Bild dekodieren kann -
@@ -260,7 +261,7 @@ export class ImageOptimizerComponent {
     for (const datei of Array.from(dateien)) {
       if (!datei.type.startsWith('image/')) continue;
       neue.push({
-        id: crypto.randomUUID(),
+        id: createLocalDemoId('image'),
         datei,
         datenUrl: URL.createObjectURL(datei),
         ausschnitte: {},

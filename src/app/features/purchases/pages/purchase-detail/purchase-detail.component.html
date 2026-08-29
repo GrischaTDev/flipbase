@@ -175,7 +175,7 @@
         >
         <!-- Eine Stueckzahl ist weder Ertrag noch Handlung und bleibt neutral. -->
         <span class="text-xl font-bold text-fb-text-primary mt-1 block">
-          {{ purchaseService.purchaseItems().length }} Posten
+          {{ visibleItemCount() }} Posten
         </span>
       </div>
     </div>
@@ -187,10 +187,10 @@
       >
         <div>
           <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-            Enthaltene Inventar-Artikel
+            Einkaufspositionen &amp; Inventar
           </h2>
           <p class="text-[11px] text-fb-text-muted">
-            Alle Artikel, die diesem Einkauf zugeordnet sind
+            Mengenartikel werden als Lose gebucht, Einzelstücke als Inventarartikel.
           </p>
         </div>
 
@@ -206,154 +206,120 @@
             <span>Kostenallokator Studio</span>
           </button>
 
-          <button
-            type="button"
-            (click)="isAddingItem.set(!isAddingItem())"
-            class="linear-btn-primary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs cursor-pointer shadow-md shadow-indigo-500/20"
-          >
-            <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
-            <span>Artikel erfassen</span>
-          </button>
+          @if (quantityPurchaseLines().length > 0) {
+            <button
+              type="button"
+              (click)="startReceivingLines()"
+              class="linear-btn-primary inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold shadow-md shadow-indigo-500/20 cursor-pointer"
+            >
+              <svg [lucideIcon]="checkIcon" class="size-3.5"></svg>
+              <span>Wareneingang buchen</span>
+            </button>
+          }
         </div>
       </div>
 
-      <!-- Quick Add Item Form -->
-      @if (isAddingItem()) {
-        <form
-          [formGroup]="itemForm"
-          (ngSubmit)="onAddItem()"
-          class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-3 animate-fade-in"
-        >
-          <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">
-            Neuen Artikel zum Einkauf hinzufügen
-          </span>
-
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            <div class="sm:col-span-1">
-              <label
-                for="newArticleTitle"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-              >
-                Titel / Modell *
-              </label>
-              <input
-                id="newArticleTitle"
-                type="text"
-                formControlName="title"
-                placeholder="z.B. Super Nintendo Konsole"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
-              />
-            </div>
-
-            <div>
-              <label
-                for="newArticleCondition"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-              >
-                Zustand
-              </label>
-              <app-custom-select
-                [options]="zustandsOptionen"
-                formControlName="condition"
-                size="sm"
-              />
-            </div>
-
-            <div>
-              <label
-                for="newArticleExpectedValue"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-              >
-                Geschätzter Marktwert (€)
-              </label>
-              <input
-                id="newArticleExpectedValue"
-                type="number"
-                formControlName="expected_value"
-                placeholder="z.B. 80 €"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
-              />
-            </div>
-          </div>
-
-          <!-- 1:1 Image Preview / Crop Button in Mystery Box Item Form -->
-          <div
-            class="p-2.5 rounded-lg bg-fb-surface border border-fb-border flex flex-wrap items-center justify-between gap-2.5"
+      <app-purchase-line-editor (linesChanged)="onPurchaseLineDraftsChanged($event)" />
+      @if (purchaseLineDrafts().length > 0) {
+        <div class="flex justify-end">
+          <button
+            type="button"
+            (click)="savePurchaseLines()"
+            [disabled]="isSavingPurchaseLines()"
+            class="linear-btn-primary cursor-pointer rounded-lg px-3.5 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <div class="flex items-center gap-2">
-              @if (selectedImageDataUrl()) {
-                <div
-                  class="w-10 h-10 rounded-md overflow-hidden bg-black/40 border border-emerald-500/40 shrink-0 relative aspect-square"
-                >
-                  <img
-                    [src]="selectedImageDataUrl()"
-                    alt="Vorschau"
-                    class="w-full h-full object-cover"
-                  />
-                </div>
-                <div>
-                  <span class="text-xs font-semibold text-fb-text-primary block"
-                    >Foto zugeschnitten</span
-                  >
-                  <span class="text-[10px] text-emerald-400 font-mono">1:1 Fix & Komprimiert</span>
-                </div>
-              } @else {
-                <div
-                  class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center"
-                >
-                  <svg [lucideIcon]="imageIcon" class="w-4 h-4"></svg>
-                </div>
-                <div>
-                  <span class="text-xs font-semibold text-fb-text-primary block"
-                    >Produktfoto (Optional)</span
-                  >
-                  <span class="text-[10px] text-fb-text-muted">Im festen 1:1-Quadrat</span>
-                </div>
-              }
-            </div>
+            {{ isSavingPurchaseLines() ? 'Speichere…' : 'Positionen speichern' }}
+          </button>
+        </div>
+      }
 
-            <div class="flex items-center gap-2">
-              @if (selectedImageDataUrl()) {
-                <button
-                  type="button"
-                  (click)="removeSelectedImage()"
-                  class="p-1 rounded-md text-fb-text-muted hover:text-rose-400 text-xs transition cursor-pointer"
-                  title="Foto entfernen"
-                >
-                  <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
-                </button>
-              }
-
-              <button
-                type="button"
-                (click)="isCropperOpen.set(true)"
-                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition cursor-pointer"
-              >
-                <svg [lucideIcon]="cropIcon" class="w-3 h-3 text-emerald-400"></svg>
-                <span>{{
-                  selectedImageDataUrl() ? 'Zuschnitt anpassen' : 'Foto zuschneiden (1:1)'
-                }}</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="flex justify-end gap-2 pt-1">
+      @if (isReceivingLines()) {
+        <section
+          class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3"
+          aria-labelledby="receipt-title"
+        >
+          <div class="mb-2 flex items-center justify-between gap-2">
+            <h3 id="receipt-title" class="text-xs font-bold text-emerald-300">
+              Wareneingang buchen
+            </h3>
             <button
               type="button"
-              (click)="isAddingItem.set(false)"
-              class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+              (click)="isReceivingLines.set(false)"
+              class="cursor-pointer text-xs font-semibold text-fb-text-muted hover:text-fb-text-primary"
             >
-              Abbrechen
-            </button>
-            <button
-              type="submit"
-              [disabled]="itemForm.invalid"
-              class="linear-btn-primary px-3.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 cursor-pointer"
-            >
-              Artikel anlegen
+              Schließen
             </button>
           </div>
-        </form>
+          <div class="space-y-2">
+            @for (line of quantityPurchaseLines(); track line.id) {
+              <div
+                class="grid grid-cols-1 items-end gap-2 rounded-lg border border-fb-line bg-fb-well p-2 sm:grid-cols-[minmax(0,1fr)_5rem_6rem_6rem_auto]"
+              >
+                <span class="text-xs font-semibold text-fb-text-primary">{{
+                  line.title_snapshot
+                }}</span>
+                <span class="text-[11px] text-fb-text-muted"
+                  >Bestellt: {{ line.ordered_quantity }}</span
+                >
+                <span class="text-[11px] text-fb-text-muted"
+                  >Eingegangen: {{ line.received_quantity }}</span
+                >
+                <label class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+                  >Jetzt eingang
+                  <input
+                    type="number"
+                    min="0"
+                    [max]="line.ordered_quantity - line.received_quantity"
+                    [value]="receivingQuantities()[line.id]"
+                    (input)="updateReceivingQuantity(line.id, $any($event.target).valueAsNumber)"
+                    class="linear-input mt-1 w-full rounded-lg px-2 py-1.5 text-xs"
+                  />
+                </label>
+                <button
+                  type="button"
+                  (click)="receivePurchaseLine(line)"
+                  [disabled]="receivingQuantities()[line.id] < 1"
+                  class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Buchen
+                </button>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      @if (individualPurchaseLines().length > 0) {
+        <section class="space-y-2" aria-labelledby="individual-lines-title">
+          <h3
+            id="individual-lines-title"
+            class="text-xs font-bold uppercase tracking-wider text-fb-text-secondary"
+          >
+            Einzelstücke / Mystery-Inhalte
+          </h3>
+          @for (line of individualPurchaseLines(); track line.id) {
+            <div
+              class="flex flex-col gap-2 rounded-xl border border-fb-line bg-fb-well p-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div>
+                <p class="text-xs font-semibold text-fb-text-primary">{{ line.title_snapshot }}</p>
+                <p class="text-[11px] text-fb-text-muted">
+                  {{ line.line_total | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }} ·
+                  {{ line.received_quantity ? 'Erfasst' : 'Offen' }}
+                </p>
+              </div>
+              @if (!line.received_quantity) {
+                <button
+                  type="button"
+                  (click)="captureIndividualItem(line)"
+                  class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
+                >
+                  Artikel erfassen
+                </button>
+              }
+            </div>
+          }
+        </section>
       }
 
       <!-- Items List -->

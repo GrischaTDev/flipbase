@@ -4,6 +4,7 @@ import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
+import { createLocalDemoId } from '../utils/client-identity';
 import {
   InventoryItem,
   ItemCost,
@@ -14,6 +15,7 @@ import {
 
 export interface CreateItemPayload {
   purchase_id?: string | null;
+  purchase_line_id?: string | null;
   category?: string | null;
   title: string;
   brand?: string | null;
@@ -56,9 +58,7 @@ interface ActivityLogResult {
  * Die endgueltige Kennung vergibt anschliessend die Datenbank.
  */
 function vorlaeufigeKennung(): string {
-  return typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return createLocalDemoId('item');
 }
 
 @Injectable({
@@ -259,6 +259,7 @@ export class InventoryService {
       id: vorlaeufigeKennung(),
       workspace_id: ws.id,
       purchase_id: payload.purchase_id || null,
+      purchase_line_id: payload.purchase_line_id || null,
       category: payload.category?.trim() || null,
       title: payload.title.trim(),
       brand: payload.brand?.trim() || null,
@@ -306,6 +307,7 @@ export class InventoryService {
         .insert({
           workspace_id: ws.id,
           purchase_id: payload.purchase_id || null,
+          purchase_line_id: payload.purchase_line_id || null,
           category: payload.category?.trim() || null,
           title: payload.title.trim(),
           brand: payload.brand?.trim() || null,

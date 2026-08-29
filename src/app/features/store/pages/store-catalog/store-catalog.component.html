@@ -285,6 +285,10 @@
                     Du sparst
                     {{ origPrice - currPrice | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                   </span>
+                  <span class="text-[10px] text-slate-500 block">
+                    {{ item.availableQuantity }}
+                    {{ item.availableQuantity === 1 ? 'Stück verfügbar' : 'Stück verfügbar' }}
+                  </span>
                 </div>
 
                 <button
@@ -309,6 +313,14 @@
 
   <!-- 4. Interaktiver Produkt-Katalog mit Filter & Suche -->
   <section id="catalog-section" class="space-y-6 pt-4">
+    @if (storeService.cartWarning(); as warning) {
+      <p
+        class="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-900"
+        role="status"
+      >
+        {{ warning }}
+      </p>
+    }
     <div
       class="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-200"
     >
@@ -503,6 +515,10 @@
                     }
                   </div>
                   <span class="text-[10px] text-slate-400 block"> inkl. USt. gem. § 25a UStG </span>
+                  <span class="text-[10px] text-slate-500 block">
+                    {{ item.availableQuantity }}
+                    {{ item.availableQuantity === 1 ? 'Stück verfügbar' : 'Stück verfügbar' }}
+                  </span>
                 </div>
 
                 <button

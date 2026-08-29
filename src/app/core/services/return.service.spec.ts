@@ -1,6 +1,6 @@
 import '@angular/compiler';
-import { describe, it, expect, beforeEach } from 'vitest';
-import { Injector, runInInjectionContext } from '@angular/core';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { ReturnService } from './return.service';
 import { InventoryItem, Sale } from '../models/flipbase.models';
 
@@ -10,6 +10,23 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
   beforeEach(() => {
     const injector = Injector.create({ providers: [] });
     service = runInInjectionContext(injector, () => new ReturnService());
+    Object.assign(service, {
+      salesService: {
+        recordReturn: vi.fn(async (input: { refundAmount: number }) => ({
+          data: {
+            sale: {
+              ...sampleSale,
+              returned_at: '2026-08-27T10:00:00.000Z',
+              refund_amount: input.refundAmount,
+            },
+            restockedQuantity: 1,
+            saleReturnedAt: '2026-08-27T10:00:00.000Z',
+          },
+          error: null,
+          reportedBySyncStatus: false,
+        })),
+      },
+    });
   });
 
   const sampleSale: Sale = {
@@ -88,5 +105,69 @@ describe('ReturnService & Credit Note Engine (Chapter 25)', () => {
     expect(result.data?.is_full_refund).toBe(false);
     expect(result.data?.restock_action).toBe('keep_with_buyer');
     expect(result.data?.creditNoteInvoice?.total).toBe(-20.0);
+  });
+
+  it('materializes a confirmed atomic return once with its credit note', () => {
+    const initialCount = service.returns().length;
+
+    const first = service.materializeConfirmedReturn({
+      sale: sampleSale,
+      reason: 'buyer_remorse',
+      refundAmount: 150,
+      isFullRefund: true,
+      restockAction: 'restock_ready',
+    });
+    const duplicate = service.materializeConfirmedReturn({
+      sale: sampleSale,
+      reason: 'buyer_remorse',
+      refundAmount: 150,
+      isFullRefund: true,
+      restockAction: 'restock_ready',
+    });
+
+    expect(first.creditNoteInvoice?.total).toBe(-150);
+    expect(duplicate.id).toBe(first.id);
+    expect(service.returns()).toHaveLength(initialCount + 1);
+  });
+
+  it('lädt atomar persistierte Retouren mit Gutschriftmetadaten nach einem Reload', async () => {
+    const reloaded = Object.create(ReturnService.prototype) as ReturnService;
+    const data = [
+      {
+        id: 'return-reload',
+        workspace_id: 'ws-1',
+        sale_id: 'sale-99',
+        inventory_item_id: null,
+        credit_note_number: 'GS-2026-RELOAD',
+        return_date: '2026-08-27',
+        reason: 'buyer_remorse',
+        refund_amount: 150,
+        is_full_refund: true,
+        restock_action: 'restock_ready',
+        buyer_name: 'Lisa',
+        notes: 'OVP',
+        created_at: '2026-08-27T10:00:00.000Z',
+      },
+    ];
+    const query = {
+      select: () => query,
+      eq: () => query,
+      order: async () => ({ data, error: null }),
+    };
+    Object.assign(reloaded, {
+      supabase: { client: { from: () => query } },
+      mockStore: { isDemoMode: () => false },
+      syncStatus: { melde: vi.fn() },
+      returns: signal([]),
+      isLoading: signal(false),
+    });
+
+    await reloaded.loadReturns('ws-1');
+
+    expect(reloaded.returns()[0]).toMatchObject({
+      credit_note_number: 'GS-2026-RELOAD',
+      notes: 'OVP',
+      inventory_item_id: null,
+    });
   });
 });

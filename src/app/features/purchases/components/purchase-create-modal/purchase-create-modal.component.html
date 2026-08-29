@@ -153,6 +153,10 @@
           </div>
         </div>
 
+        @if (!istBearbeitung()) {
+          <app-purchase-line-editor (linesChanged)="onPurchaseLinesChanged($event)" />
+        }
+
         <!-- 4. Einkaufsquelle & Lieferant mit Schnellanlage -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>

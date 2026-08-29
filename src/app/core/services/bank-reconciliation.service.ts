@@ -8,6 +8,7 @@ import { MockDataStoreService } from './mock-data-store.service';
 import { LoggerService } from './logger.service';
 import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
 import { Json } from '../models/supabase.types';
+import { createSecureClientUuid } from '../utils/client-identity';
 import {
   BankFormatType,
   BankBatchBookingResult,
@@ -26,9 +27,7 @@ import {
  * ankommen koennen.
  */
 function neueKennung(): string {
-  return typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : '00000000-0000-4000-8000-' + Date.now().toString(16).padStart(12, '0');
+  return createSecureClientUuid();
 }
 
 const STORAGE_KEY_BANK_TRANSACTIONS = 'flipbase_bank_transactions';
