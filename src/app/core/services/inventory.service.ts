@@ -12,6 +12,7 @@ import {
   ItemCondition,
   ActivityLog,
 } from '../models/flipbase.models';
+import type { TablesUpdate } from '../models/supabase.types';
 
 export interface CreateItemPayload {
   purchase_id?: string | null;
@@ -411,15 +412,23 @@ export class InventoryService {
         media,
         purchase,
         sale,
+        sale_state: _saleState,
+        active_sale_count: _activeSaleCount,
+        active_sale_id: _activeSaleId,
         activity_logs,
         notes: _notes,
         condition_notes: _conditionNotes,
         ...dbUpdates
       } = updates as Partial<InventoryItem> & { activity_logs?: ActivityLog[] };
 
+      const payload: TablesUpdate<'inventory_items'> = {
+        ...dbUpdates,
+        updated_at: new Date().toISOString(),
+      };
+
       const { error, count } = await this.supabase.client
         .from('inventory_items')
-        .update({ ...dbUpdates, updated_at: new Date().toISOString() }, { count: 'exact' })
+        .update(payload, { count: 'exact' })
         .eq('id', itemId);
 
       if (error) {

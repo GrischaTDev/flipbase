@@ -248,6 +248,42 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     expect(dienst.selectedItem()?.is_public_store).toBeUndefined();
   });
 
+  it('sendet abgeleitete Verkaufszustände nicht an inventory_items', async () => {
+    let gesendeterPayload: Record<string, unknown> | null = null;
+    const client = {
+      from(tabelle: string) {
+        if (tabelle !== 'inventory_items') throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+        return {
+          update(payload: unknown) {
+            gesendeterPayload = payload as Record<string, unknown>;
+            return {
+              async eq() {
+                return { error: null, count: 1 };
+              },
+            };
+          },
+        };
+      },
+    };
+    const { dienst } = injiziereDienst(client);
+
+    const ergebnis = await dienst.updateItem(gespeicherterArtikel.id, {
+      title: 'Aktualisierter Titel',
+      sale_state: 'sold',
+      active_sale_count: 1,
+      active_sale_id: '55555555-5555-4555-8555-555555555555',
+    });
+
+    expect(ergebnis.error).toBeNull();
+    expect(gesendeterPayload).toMatchObject({
+      title: 'Aktualisierter Titel',
+      updated_at: expect.any(String),
+    });
+    expect(gesendeterPayload).not.toHaveProperty('sale_state');
+    expect(gesendeterPayload).not.toHaveProperty('active_sale_count');
+    expect(gesendeterPayload).not.toHaveProperty('active_sale_id');
+  });
+
   it('behandelt Updates ohne betroffene Artikelzeile als Fehler', async () => {
     const client = {
       from(tabelle: string) {
