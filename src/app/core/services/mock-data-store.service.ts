@@ -692,10 +692,12 @@ export class MockDataStoreService {
     return { purchaseLine, inventoryItem, purchase: updatedPurchase, error: null };
   }
 
-  bookQuantitySale(
+  bookSaleAtomically(
     workspaceId: string,
+    sale: Sale,
     saleLines: readonly SaleLine[],
   ): {
+    sale: Sale | null;
     saleLines: SaleLine[];
     allocations: SaleLineLotAllocation[];
     movements: StockMovement[];
@@ -716,6 +718,7 @@ export class MockDataStoreService {
       if (!line.catalog_product_id) {
         if (!line.inventory_item_id || line.quantity !== 1) {
           return {
+            sale: null,
             saleLines: [],
             allocations: [],
             movements: [],
@@ -732,6 +735,7 @@ export class MockDataStoreService {
         );
         if (!item || !isSellableInventoryItem(item) || alreadySold) {
           return {
+            sale: null,
             saleLines: [],
             allocations: [],
             movements: [],
@@ -803,6 +807,7 @@ export class MockDataStoreService {
       }
       if (remaining !== 0) {
         return {
+          sale: null,
           saleLines: [],
           allocations: [],
           movements: [],
@@ -812,6 +817,15 @@ export class MockDataStoreService {
       updatedLines.push({ ...line, cost_of_goods_sold: Number(costOfGoodsSold.toFixed(2)) });
     }
 
+    const persistedSale: Sale = {
+      ...sale,
+      sale_price: updatedLines.reduce((sum, line) => sum + line.line_total, 0),
+      sale_price_total: updatedLines.reduce((sum, line) => sum + line.line_total, 0),
+      lines: updatedLines,
+      has_persisted_lines: true,
+      lot_allocations: allocations,
+      stock_movements: movements,
+    };
     const persistenceError = this.saveRecordsAtomically([
       { key: STORAGE_KEY_ITEMS, records: updatedItems },
       { key: STORAGE_KEY_STOCK_LOTS, records: updatedLots },
@@ -819,11 +833,18 @@ export class MockDataStoreService {
         key: STORAGE_KEY_STOCK_MOVEMENTS,
         records: [...this.getStockMovements(), ...movements],
       },
+      { key: STORAGE_KEY_SALES, records: this.upsertRecord(this.getSales(), persistedSale) },
     ]);
     if (persistenceError) {
-      return { saleLines: [], allocations: [], movements: [], error: persistenceError };
+      return {
+        sale: null,
+        saleLines: [],
+        allocations: [],
+        movements: [],
+        error: persistenceError,
+      };
     }
-    return { saleLines: updatedLines, allocations, movements, error: null };
+    return { sale: persistedSale, saleLines: updatedLines, allocations, movements, error: null };
   }
 
   returnQuantitySale(

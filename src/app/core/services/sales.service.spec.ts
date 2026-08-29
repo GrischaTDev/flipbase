@@ -112,6 +112,36 @@ describe('SalesService', () => {
     expect(mockStore.getSales('workspace-1')).toEqual([]);
   });
 
+  it('rollt den gesamten Demo-Verkauf zurück, wenn nur der Sales-Key nicht geschrieben werden kann', async () => {
+    const { mockStore, service } = createDemoService();
+    const originalSetItem = globalThis.localStorage.setItem.bind(globalThis.localStorage);
+    let salesWriteFailed = false;
+    const setItem = vi
+      .spyOn(globalThis.localStorage, 'setItem')
+      .mockImplementation((key: string, value: string) => {
+        if (key === 'flipbase_local_sales' && !salesWriteFailed) {
+          salesWriteFailed = true;
+          throw new Error('sales write failed');
+        }
+        originalSetItem(key, value);
+      });
+
+    try {
+      const result = await service.recordSale(demoSaleInput);
+
+      expect(result.error?.message).toContain('sales write failed');
+      expect(service.sales()).toEqual([]);
+      expect(mockStore.getItems('workspace-1')[0]).toMatchObject({
+        status: 'ready',
+        sale_state: 'no_active_sale',
+      });
+      expect(mockStore.getSales('workspace-1')).toEqual([]);
+      expect(mockStore.getStockMovements()).toEqual([]);
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+
   it('disambiguiert beim Laden alle Verkaufsbeziehungen mit mehreren Fremdschlüsseln', async () => {
     const selects: string[] = [];
     const result = { data: [], error: null };

@@ -286,7 +286,6 @@ export class SalesService {
         result.sale,
         ...sales.filter((sale) => sale.id !== result.sale.id),
       ]);
-      this.mockStore.saveSale(result.sale);
       await this.refreshAffectedState(workspaceId);
       return { data: result, error: null, reportedBySyncStatus: false };
     }
@@ -515,10 +514,8 @@ export class SalesService {
       cost_of_goods_sold: 0,
       tax_mode: 'diff_25a',
     }));
-    const booking = this.mockStore.bookQuantitySale(workspaceId, lines);
-    if (booking.error) throw booking.error;
-    const total = booking.saleLines.reduce((sum, line) => sum + line.line_total, 0);
-    const sale = this.enrichSaleMetrics({
+    const total = lines.reduce((sum, line) => sum + line.line_total, 0);
+    const saleDraft: Sale = {
       id: saleId,
       workspace_id: workspaceId,
       platform: input.platform,
@@ -532,11 +529,12 @@ export class SalesService {
       external_order_id: input.externalOrderId ?? null,
       external_listing_id: input.externalListingId ?? null,
       buyer_notes: input.buyerNotes ?? null,
-      lines: booking.saleLines,
-      has_persisted_lines: true,
-      lot_allocations: booking.allocations,
-      stock_movements: booking.movements,
-    });
+      lines,
+    };
+    const booking = this.mockStore.bookSaleAtomically(workspaceId, saleDraft, lines);
+    if (booking.error) throw booking.error;
+    if (!booking.sale) throw new Error('Der Demo-Verkauf wurde nicht gespeichert.');
+    const sale = this.enrichSaleMetrics(booking.sale);
     return {
       sale,
       saleLines: booking.saleLines,

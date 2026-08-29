@@ -10,10 +10,9 @@ if ($containerNames.Count -ne 1) {
 
 $containerName = $containerNames[0]
 $workspaceId = '83000000-0000-4000-8000-000000000001'
-$itemId = '83000000-0000-4000-8000-000000000002'
-$firstSaleId = '83000000-0000-4000-8000-000000000003'
-$secondSaleId = '83000000-0000-4000-8000-000000000004'
-$lockKey = 83000000
+$itemAId = '83000000-0000-4000-8000-000000000002'
+$itemBId = '83000000-0000-4000-8000-000000000003'
+$userId = '83000000-0000-4000-8000-000000000004'
 $barrierTimeoutSeconds = 10
 $workerTimeoutSeconds = 15
 $tempDirectory = Join-Path ([System.IO.Path]::GetTempPath()) "flipbase-inventory-concurrency-$([guid]::NewGuid())"
@@ -85,7 +84,7 @@ function Wait-ForProcess {
   }
 }
 
-function Start-InteractiveBarrier {
+function Start-InteractiveSession {
   $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
   $startInfo.FileName = 'docker'
   $startInfo.UseShellExecute = $false
@@ -100,7 +99,7 @@ function Start-InteractiveBarrier {
   $process = [System.Diagnostics.Process]::new()
   $process.StartInfo = $startInfo
   if (-not $process.Start()) {
-    throw 'Die Barriere-Session konnte nicht gestartet werden.'
+    throw 'Die Sperrsession konnte nicht gestartet werden.'
   }
   return $process
 }
@@ -124,12 +123,14 @@ delete from public.sales where workspace_id = '$workspaceId';
 delete from public.inventory_items where workspace_id = '$workspaceId';
 delete from public.workspace_members where workspace_id = '$workspaceId';
 delete from public.workspaces where id = '$workspaceId';
+delete from auth.users where id = '$userId';
 commit;
 "@ | Set-Content -LiteralPath $cleanupFile -Encoding utf8
   Invoke-PsqlFile -InputFile $cleanupFile -OutputFile $cleanupOutput -ErrorFile $cleanupError
 }
 
-$barrier = $null
+$gateA = $null
+$gateB = $null
 $first = $null
 $second = $null
 
@@ -140,25 +141,45 @@ try {
   $setupOutput = Join-Path $resolvedTempDirectory 'setup.out'
   $setupError = Join-Path $resolvedTempDirectory 'setup.err'
   @"
+insert into auth.users (
+  id, aud, role, email, encrypted_password, raw_app_meta_data,
+  raw_user_meta_data, created_at, updated_at
+) values (
+  '$userId', 'authenticated', 'authenticated', 'inventory-concurrency@example.test',
+  'not-used-by-this-test', '{}'::jsonb, '{}'::jsonb, now(), now()
+);
+insert into public.profiles (id, email)
+values ('$userId', 'inventory-concurrency@example.test')
+on conflict (id) do nothing;
 insert into public.workspaces (id, name) values ('$workspaceId', 'inventory concurrency test');
+insert into public.workspace_members (workspace_id, user_id, role)
+values ('$workspaceId', '$userId', 'owner');
 insert into public.inventory_items (id, workspace_id, title, status)
-values ('$itemId', '$workspaceId', 'Concurrent item', 'ready');
+values
+  ('$itemAId', '$workspaceId', 'Concurrent item A', 'ready'),
+  ('$itemBId', '$workspaceId', 'Concurrent item B', 'ready');
 "@ | Set-Content -LiteralPath $setupFile -Encoding utf8
   Invoke-PsqlFile -InputFile $setupFile -OutputFile $setupOutput -ErrorFile $setupError
 
   function Write-WorkerSql {
-    param([string] $Path, [string] $SaleId)
+    param(
+      [Parameter(Mandatory)] [string] $Path,
+      [Parameter(Mandatory)] [string] $ApplicationName,
+      [Parameter(Mandatory)] [string] $OrderNumber,
+      [Parameter(Mandatory)] [string] $FirstItemId,
+      [Parameter(Mandatory)] [string] $SecondItemId
+    )
     @"
 \set VERBOSITY verbose
+set application_name = '$ApplicationName';
 begin;
-select pg_advisory_xact_lock_shared($lockKey);
-select set_config('flipbase.allow_inventory_sold_transition', 'on', true);
-update public.inventory_items set status = 'sold' where id = '$itemId';
-insert into public.sales (id, workspace_id, platform, sale_price, sale_price_total, sale_date)
-values ('$SaleId', '$workspaceId', 'direct', 10, 10, current_date);
-insert into public.sale_lines (workspace_id, sale_id, inventory_item_id, title_snapshot, quantity, unit_sale_price, line_total, cost_of_goods_sold, tax_mode)
-values ('$workspaceId', '$SaleId', '$itemId', 'Concurrent item', 1, 10, 10, 4, 'diff_25a');
-set constraints all immediate;
+set local role authenticated;
+set local request.jwt.claim.sub = '$userId';
+select public.record_sale(
+  '$workspaceId',
+  '{"platform":"direct","sale_date":"2026-08-29","external_order_id":"$OrderNumber"}'::jsonb,
+  '[{"inventory_item_id":"$FirstItemId","quantity":1,"unit_sale_price":10},{"inventory_item_id":"$SecondItemId","quantity":1,"unit_sale_price":20}]'::jsonb
+);
 commit;
 "@ | Set-Content -LiteralPath $Path -Encoding utf8
   }
@@ -169,51 +190,56 @@ commit;
   $secondOutput = Join-Path $resolvedTempDirectory 'second.out'
   $firstError = Join-Path $resolvedTempDirectory 'first.err'
   $secondError = Join-Path $resolvedTempDirectory 'second.err'
-  Write-WorkerSql -Path $firstFile -SaleId $firstSaleId
-  Write-WorkerSql -Path $secondFile -SaleId $secondSaleId
+  Write-WorkerSql -Path $firstFile -ApplicationName 'flipbase-rpc-worker-a' -OrderNumber 'RPC-A-B' -FirstItemId $itemAId -SecondItemId $itemBId
+  Write-WorkerSql -Path $secondFile -ApplicationName 'flipbase-rpc-worker-b' -OrderNumber 'RPC-B-A' -FirstItemId $itemBId -SecondItemId $itemAId
 
-  $barrier = Start-InteractiveBarrier
-  $barrier.StandardInput.WriteLine("select pg_advisory_lock($lockKey);")
-  $barrier.StandardInput.Flush()
-  Wait-ForScalar -Sql "select count(*) from pg_locks where locktype = 'advisory' and objid = $lockKey and mode = 'ExclusiveLock' and granted" -Expected '1' -Description 'die bestätigte exklusive Barriere'
+  $gateA = Start-InteractiveSession
+  $gateA.StandardInput.WriteLine("set application_name = 'flipbase-gate-a'; begin; select id from public.inventory_items where id = '$itemAId' for update;")
+  $gateA.StandardInput.Flush()
+  $gateB = Start-InteractiveSession
+  $gateB.StandardInput.WriteLine("set application_name = 'flipbase-gate-b'; begin; select id from public.inventory_items where id = '$itemBId' for update;")
+  $gateB.StandardInput.Flush()
+  Wait-ForScalar -Sql "select count(*) from pg_stat_activity where application_name in ('flipbase-gate-a', 'flipbase-gate-b') and state = 'idle in transaction'" -Expected '2' -Description 'beide bestätigten Zeilensperren'
 
   $first = Invoke-PsqlFile -InputFile $firstFile -OutputFile $firstOutput -ErrorFile $firstError -AsProcess
   $second = Invoke-PsqlFile -InputFile $secondFile -OutputFile $secondOutput -ErrorFile $secondError -AsProcess
-  Wait-ForScalar -Sql "select count(*) from pg_locks where locktype = 'advisory' and objid = $lockKey and mode = 'ShareLock' and not granted" -Expected '2' -Description 'zwei gleichzeitig wartende Worker'
+  Wait-ForScalar -Sql "select count(*) from pg_stat_activity where application_name in ('flipbase-rpc-worker-a', 'flipbase-rpc-worker-b') and wait_event_type = 'Lock'" -Expected '2' -Description 'beide auf ihrer ersten Artikelsperre wartenden RPCs'
 
-  $barrier.StandardInput.WriteLine("select pg_advisory_unlock($lockKey);")
-  $barrier.StandardInput.WriteLine('\q')
-  $barrier.StandardInput.Close()
+  $gateA.StandardInput.WriteLine('commit; \q')
+  $gateA.StandardInput.Close()
+  Wait-ForProcess -Process $gateA -Description 'Freigabe von Artikel A'
+  Wait-ForScalar -Sql "select count(*) from pg_stat_activity where application_name in ('flipbase-rpc-worker-a', 'flipbase-rpc-worker-b') and wait_event_type = 'Lock'" -Expected '2' -Description 'die geordnete zweite Sperrphase'
 
-  Wait-ForProcess -Process $barrier -Description 'das Freigeben der Barriere'
-  if ($barrier.ExitCode -ne 0) {
-    throw "Die Barriere-Session ist fehlgeschlagen: $($barrier.StandardError.ReadToEnd())"
-  }
-  Wait-ForProcess -Process $first -Description 'Worker 1'
-  Wait-ForProcess -Process $second -Description 'Worker 2'
+  $gateB.StandardInput.WriteLine('commit; \q')
+  $gateB.StandardInput.Close()
+  Wait-ForProcess -Process $gateB -Description 'Freigabe von Artikel B'
+  Wait-ForProcess -Process $first -Description 'RPC-Worker A'
+  Wait-ForProcess -Process $second -Description 'RPC-Worker B'
 
   $workerExitCodes = @($first.ExitCode, $second.ExitCode)
   $successfulCommits = @($workerExitCodes | Where-Object { $_ -eq 0 }).Count
   if ($successfulCommits -ne 1) {
-    throw "Erwartet wurde genau ein erfolgreicher Commit, tatsächlich: $successfulCommits. Exit-Codes: $($first.ExitCode), $($second.ExitCode)"
+    throw "Erwartet wurde genau ein erfolgreicher RPC-Commit, tatsächlich: $successfulCommits. Exit-Codes: $($first.ExitCode), $($second.ExitCode)"
   }
 
   $loserErrorFile = if ($first.ExitCode -ne 0) { $firstError } else { $secondError }
   $loserError = Get-Content -Raw -LiteralPath $loserErrorFile
-  $expectedIntegrityError = 'ERROR:\s+23514:\s+Ein Einzelstueck darf nur einen bestandswirksamen Verkauf haben\.'
-  if ($loserError -notmatch $expectedIntegrityError) {
-    throw "Der Verlierer lieferte nicht den erwarteten Integritätsfehler 23514. Ausgabe: $loserError"
+  if ($loserError -match '40P01|deadlock detected') {
+    throw "Der Verlierer endete mit einem Deadlock statt einem Fachfehler. Ausgabe: $loserError"
+  }
+  if ($loserError -notmatch 'ERROR:\s+22023:\s+Der Einzelartikel ist nicht verkaufbar\.') {
+    throw "Der Verlierer lieferte nicht den erwarteten Fachfehler 22023. Ausgabe: $loserError"
   }
 
-  $verification = Invoke-PsqlScalar -Sql "select active_sale_count::text || ':' || coalesce(active_sale_id::text, '') from public.inventory_item_sale_states where inventory_item_id = '$itemId'"
-  if ($verification -notmatch "^1:($firstSaleId|$secondSaleId)$") {
-    throw "Erwartet wurde genau eine bestandswirksame Verkaufs-ID. Ausgabe: $verification"
+  $verification = Invoke-PsqlScalar -Sql "select (select count(*) from public.sales where workspace_id = '$workspaceId' and external_order_id in ('RPC-A-B', 'RPC-B-A'))::text || ':' || (select count(*) from public.sale_lines where workspace_id = '$workspaceId' and inventory_item_id in ('$itemAId', '$itemBId'))::text || ':' || (select count(*) from public.inventory_item_sale_states where inventory_item_id in ('$itemAId', '$itemBId') and sale_state = 'sold')::text || ':' || (select count(distinct active_sale_id) from public.inventory_item_sale_states where inventory_item_id in ('$itemAId', '$itemBId'))::text"
+  if ($verification -ne '1:2:2:1') {
+    throw "Der RPC-Verkauf war nicht atomar. Erwartet: 1:2:2:1, erhalten: $verification"
   }
 
-  Write-Host 'Concurrency-Harness grün: zwei wartende Sessions bestätigt; Verlierer 23514; genau eine bestandswirksame Verkaufs-ID.'
+  Write-Host 'RPC-Concurrency-Harness grün: invertierte Positionen, kein 40P01, genau ein atomarer Verkauf und ein Fachfehler 22023.'
 }
 finally {
-  foreach ($process in @($first, $second, $barrier)) {
+  foreach ($process in @($first, $second, $gateA, $gateB)) {
     if ($null -ne $process -and -not $process.HasExited) {
       $process.Kill($true)
       $process.WaitForExit()

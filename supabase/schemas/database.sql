@@ -3020,37 +3020,61 @@ begin
     raise exception using errcode = 'P0002', message = 'Der Workspace wurde nicht gefunden.';
   end if;
 
-  -- Lock and validate every individual item before the sale header exists. This
-  -- keeps the shared sale-state view authoritative without mistaking the new
-  -- header for a pre-existing legacy header.
+  -- Validate every line before taking locks or writing the sale header.
   for v_input_line in
     select element.value
     from jsonb_array_elements(p_lines) as element(value)
   loop
-    if jsonb_typeof(v_input_line) = 'object'
-      and jsonb_typeof(v_input_line -> 'inventory_item_id') = 'string'
-      and nullif(trim(v_input_line ->> 'inventory_item_id'), '') is not null then
-      v_inventory_item_id := (v_input_line ->> 'inventory_item_id')::uuid;
+    if jsonb_typeof(v_input_line) <> 'object'
+      or jsonb_typeof(v_input_line -> 'quantity') <> 'number'
+      or (v_input_line ->> 'quantity') !~ '^[1-9][0-9]*$'
+      or jsonb_typeof(v_input_line -> 'unit_sale_price') <> 'number'
+      or (v_input_line ->> 'unit_sale_price')::numeric <= 0
+      or num_nonnulls(
+        nullif(trim(v_input_line ->> 'catalog_product_id'), ''),
+        nullif(trim(v_input_line ->> 'inventory_item_id'), '')
+      ) <> 1
+      or (
+        nullif(trim(v_input_line ->> 'catalog_product_id'), '') is not null
+        and jsonb_typeof(v_input_line -> 'catalog_product_id') <> 'string'
+      )
+      or (
+        nullif(trim(v_input_line ->> 'inventory_item_id'), '') is not null
+        and jsonb_typeof(v_input_line -> 'inventory_item_id') <> 'string'
+      ) then
+      raise exception using errcode = '22023', message = 'Eine Verkaufsposition ist ungültig.';
+    end if;
+  end loop;
 
-      select * into v_inventory_item
-      from public.inventory_items
-      where id = v_inventory_item_id
-        and workspace_id = p_workspace_id
-      for update;
+  -- Resolve unique UUIDs first and lock them in one stable order. This avoids
+  -- client-controlled lock ordering for multi-item sales.
+  for v_inventory_item_id in
+    select candidate.inventory_item_id
+    from (
+      select distinct (element.value ->> 'inventory_item_id')::uuid as inventory_item_id
+      from jsonb_array_elements(p_lines) as element(value)
+      where nullif(trim(element.value ->> 'inventory_item_id'), '') is not null
+    ) as candidate
+    order by candidate.inventory_item_id
+  loop
+    select * into v_inventory_item
+    from public.inventory_items
+    where id = v_inventory_item_id
+      and workspace_id = p_workspace_id
+    for update;
 
-      if not found then
-        raise exception using errcode = 'P0002', message = 'Der Einzelartikel wurde nicht gefunden.';
-      end if;
+    if not found then
+      raise exception using errcode = 'P0002', message = 'Der Einzelartikel wurde nicht gefunden.';
+    end if;
 
-      select sale_state into v_sale_state
-      from public.inventory_item_sale_states
-      where inventory_item_id = v_inventory_item.id
-        and workspace_id = p_workspace_id;
+    select sale_state into v_sale_state
+    from public.inventory_item_sale_states
+    where inventory_item_id = v_inventory_item.id
+      and workspace_id = p_workspace_id;
 
-      if v_inventory_item.status not in ('ready', 'listed')
-        or v_sale_state is distinct from 'no_active_sale' then
-        raise exception using errcode = '22023', message = 'Der Einzelartikel ist nicht verkaufbar.';
-      end if;
+    if v_inventory_item.status not in ('ready', 'listed')
+      or v_sale_state is distinct from 'no_active_sale' then
+      raise exception using errcode = '22023', message = 'Der Einzelartikel ist nicht verkaufbar.';
     end if;
   end loop;
 

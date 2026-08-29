@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(62);
+select plan(63);
 
 \set move_source_item_id '82000000-0000-4000-8000-000000000030'
 \set move_target_item_id '82000000-0000-4000-8000-000000000031'
@@ -181,6 +181,17 @@ select throws_ok('select pg_temp.commit_sale_line_move_checks_new()', '23514', n
 
 set local role authenticated;
 set local request.jwt.claim.sub = :'main_user_id';
+
+select throws_ok(
+  format(
+    'select public.record_sale(%L, %L::jsonb, %L::jsonb)',
+    :'main_workspace_id',
+    '{"platform":"direct","sale_date":"2026-08-29"}',
+    '[{"inventory_item_id":123,"quantity":1,"unit_sale_price":20}]'
+  ),
+  '22023', 'Eine Verkaufsposition ist ungültig.',
+  'record_sale validiert Einzelstück-IDs vor Sperren und Kopfanlage als nichtleere Zeichenketten'
+);
 
 select throws_ok(
   format(
