@@ -142,6 +142,137 @@ describe('SalesService', () => {
     }
   });
 
+  it.each([
+    { restock: true, expectedStatus: 'ready', expectedRestockedQuantity: 1 },
+    { restock: false, expectedStatus: 'returned', expectedRestockedQuantity: 0 },
+  ] as const)(
+    'setzt einen vollständig retournierten Demo-Einzelartikel bei Wiedereinlagerung=$restock auf $expectedStatus',
+    async ({ restock, expectedStatus, expectedRestockedQuantity }) => {
+      const { mockStore, service } = createDemoService();
+      const booking = await service.recordSale(demoSaleInput);
+
+      const result = await service.recordReturn({
+        saleId: booking.data!.sale.id,
+        refundAmount: 25,
+        restock,
+        reason: 'buyer_remorse',
+      });
+
+      expect(result.error).toBeNull();
+      expect(result.data).toMatchObject({
+        restockedQuantity: expectedRestockedQuantity,
+        sale: { refund_amount: 25 },
+      });
+      expect(result.data?.saleReturnedAt).toBeTruthy();
+      expect(mockStore.getItems('workspace-1')[0]).toMatchObject({
+        status: expectedStatus,
+        sale_state: 'no_active_sale',
+        active_sale_count: 0,
+        active_sale_id: null,
+      });
+      expect(mockStore.getSales('workspace-1')[0]).toMatchObject({
+        id: booking.data!.sale.id,
+        refund_amount: 25,
+        returned_at: result.data!.saleReturnedAt,
+      });
+      expect(mockStore.getSales('workspace-1')[0].lines?.[0].inventory_item_id).toBe('demo-item-1');
+    },
+  );
+
+  it('rollt eine Demo-Vollretoure bei einem Fehler am Sales-Key vollständig zurück', async () => {
+    const { mockStore, service } = createDemoService();
+    const booking = await service.recordSale(demoSaleInput);
+    const originalSetItem = globalThis.localStorage.setItem.bind(globalThis.localStorage);
+    const movementsBefore = mockStore.getStockMovements('workspace-1');
+    let salesWriteFailed = false;
+    const setItem = vi
+      .spyOn(globalThis.localStorage, 'setItem')
+      .mockImplementation((key: string, value: string) => {
+        if (key === 'flipbase_local_sales' && !salesWriteFailed) {
+          salesWriteFailed = true;
+          throw new Error('return sales write failed');
+        }
+        originalSetItem(key, value);
+      });
+
+    try {
+      const result = await service.recordReturn({
+        saleId: booking.data!.sale.id,
+        refundAmount: 25,
+        restock: true,
+        reason: 'buyer_remorse',
+      });
+
+      expect(result.data).toBeNull();
+      expect(result.error?.message).toContain('return sales write failed');
+      expect(mockStore.getItems('workspace-1')[0]).toMatchObject({
+        status: 'sold',
+        sale_state: 'sold',
+        active_sale_count: 1,
+        active_sale_id: booking.data!.sale.id,
+      });
+      expect(mockStore.getSales('workspace-1')[0]).not.toHaveProperty('returned_at');
+      expect(mockStore.getSales('workspace-1')[0]).not.toHaveProperty('refund_amount');
+      expect(mockStore.getStockMovements('workspace-1')).toEqual(movementsBefore);
+      expect(service.sales()[0]).not.toHaveProperty('returned_at');
+    } finally {
+      setItem.mockRestore();
+    }
+  });
+
+  it('behält bei identischer Uhrzeit zwei Verkäufe verschiedener Demo-Einzelartikel samt Beziehungen', async () => {
+    const { mockStore, service } = createDemoService();
+    mockStore.saveItem({
+      id: 'demo-item-2',
+      workspace_id: 'workspace-1',
+      title: 'Zweites Demo-Einzelstück',
+      condition: 'used',
+      status: 'ready',
+      sale_state: 'no_active_sale',
+      allocated_purchase_cost: 12,
+    });
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_788_000_000_000);
+
+    try {
+      const first = await service.recordSale(demoSaleInput);
+      const second = await service.recordSale({
+        ...demoSaleInput,
+        lines: [
+          {
+            inventoryItemId: 'demo-item-2',
+            titleSnapshot: 'Zweites Demo-Einzelstück',
+            quantity: 1,
+            unitSalePrice: 30,
+          },
+        ],
+      });
+
+      expect(first.error).toBeNull();
+      expect(second.error).toBeNull();
+      expect(first.data!.sale.id).not.toBe(second.data!.sale.id);
+      expect(first.data!.saleLines[0].id).not.toBe(second.data!.saleLines[0].id);
+
+      const sales = mockStore.getSales('workspace-1');
+      expect(sales).toHaveLength(2);
+      expect(new Set(sales.map((entry) => entry.id)).size).toBe(2);
+      expect(sales.map((entry) => entry.lines?.[0].inventory_item_id).sort()).toEqual([
+        'demo-item-1',
+        'demo-item-2',
+      ]);
+      expect(
+        mockStore
+          .getItems('workspace-1')
+          .map((item) => ({ id: item.id, saleId: item.active_sale_id, saleState: item.sale_state }))
+          .sort((left, right) => left.id.localeCompare(right.id)),
+      ).toEqual([
+        { id: 'demo-item-1', saleId: first.data!.sale.id, saleState: 'sold' },
+        { id: 'demo-item-2', saleId: second.data!.sale.id, saleState: 'sold' },
+      ]);
+    } finally {
+      now.mockRestore();
+    }
+  });
+
   it('disambiguiert beim Laden alle Verkaufsbeziehungen mit mehreren Fremdschlüsseln', async () => {
     const selects: string[] = [];
     const result = { data: [], error: null };

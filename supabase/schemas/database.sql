@@ -573,9 +573,11 @@ CREATE TABLE IF NOT EXISTS public.invoices (
     payment_status TEXT NOT NULL DEFAULT 'paid',
     payment_due_date DATE,
     notes TEXT,
-    sale_id UUID REFERENCES public.sales(id) ON DELETE RESTRICT,
+    sale_id UUID,
     store_order_id UUID,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    constraint invoices_workspace_sale_fkey foreign key (workspace_id, sale_id)
+      references public.sales(workspace_id, id) on delete restrict
 );
 
 CREATE TABLE IF NOT EXISTS public.invoice_items (
@@ -662,18 +664,29 @@ CREATE TABLE IF NOT EXISTS public.store_orders (
     payment_status TEXT NOT NULL DEFAULT 'pending',
     payment_id TEXT,
     status TEXT NOT NULL DEFAULT 'pending',
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    unique (workspace_id, id)
 );
 
 CREATE TABLE IF NOT EXISTS public.store_order_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    store_order_id UUID NOT NULL REFERENCES public.store_orders(id) ON DELETE RESTRICT,
-    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE RESTRICT,
-    catalog_product_id UUID REFERENCES public.catalog_products(id) ON DELETE RESTRICT,
+    store_order_id UUID NOT NULL,
+    inventory_item_id UUID,
+    catalog_product_id UUID,
     item_title TEXT NOT NULL,
     price NUMERIC NOT NULL DEFAULT 0.00,
     quantity INTEGER NOT NULL DEFAULT 1,
-    check (num_nonnulls(catalog_product_id, inventory_item_id) = 1)
+    workspace_id UUID NOT NULL,
+    check (num_nonnulls(catalog_product_id, inventory_item_id) = 1),
+    constraint store_order_items_workspace_order_fkey
+      foreign key (workspace_id, store_order_id)
+      references public.store_orders(workspace_id, id) on delete restrict,
+    constraint store_order_items_workspace_inventory_item_fkey
+      foreign key (workspace_id, inventory_item_id)
+      references public.inventory_items(workspace_id, id) on delete restrict,
+    constraint store_order_items_workspace_catalog_product_fkey
+      foreign key (workspace_id, catalog_product_id)
+      references public.catalog_products(workspace_id, id) on delete restrict
 );
 
 alter table public.store_order_items
@@ -681,8 +694,8 @@ alter table public.store_order_items
 
 alter table public.invoices
   drop constraint if exists invoices_store_order_id_fkey,
-  add constraint invoices_store_order_id_fkey foreign key (store_order_id)
-    references public.store_orders(id) on delete restrict;
+  add constraint invoices_workspace_store_order_fkey foreign key (workspace_id, store_order_id)
+    references public.store_orders(workspace_id, id) on delete restrict;
 
 CREATE TABLE IF NOT EXISTS public.store_settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1451,19 +1464,9 @@ CREATE POLICY returns_select ON public.returns FOR SELECT TO authenticated
 -- invoices
 CREATE POLICY invoices_select ON public.invoices FOR SELECT TO authenticated
     USING (public.is_workspace_member(workspace_id));
-CREATE POLICY invoices_insert ON public.invoices FOR INSERT TO authenticated
-    WITH CHECK (public.is_workspace_member(workspace_id));
-CREATE POLICY invoices_update ON public.invoices FOR UPDATE TO authenticated
-    USING (public.is_workspace_member(workspace_id))
-    WITH CHECK (public.is_workspace_member(workspace_id));
 -- invoice_items
 CREATE POLICY invoice_items_select ON public.invoice_items FOR SELECT TO authenticated
     USING (EXISTS (SELECT 1 FROM public.invoices i WHERE i.id = invoice_items.invoice_id AND public.is_workspace_member(i.workspace_id)));
-CREATE POLICY invoice_items_insert ON public.invoice_items FOR INSERT TO authenticated
-    WITH CHECK (EXISTS (SELECT 1 FROM public.invoices i WHERE i.id = invoice_items.invoice_id AND public.is_workspace_member(i.workspace_id)));
-CREATE POLICY invoice_items_update ON public.invoice_items FOR UPDATE TO authenticated
-    USING (EXISTS (SELECT 1 FROM public.invoices i WHERE i.id = invoice_items.invoice_id AND public.is_workspace_member(i.workspace_id)))
-    WITH CHECK (EXISTS (SELECT 1 FROM public.invoices i WHERE i.id = invoice_items.invoice_id AND public.is_workspace_member(i.workspace_id)));
 -- email_confirmations
 CREATE POLICY email_confirmations_select ON public.email_confirmations FOR SELECT TO authenticated
     USING (public.is_workspace_member(workspace_id));
@@ -1500,19 +1503,9 @@ CREATE POLICY carrier_configs_delete ON public.carrier_configs FOR DELETE TO aut
 -- store_orders
 CREATE POLICY store_orders_select ON public.store_orders FOR SELECT TO authenticated
     USING (public.is_workspace_member(workspace_id));
-CREATE POLICY store_orders_insert ON public.store_orders FOR INSERT TO authenticated
-    WITH CHECK (public.is_workspace_member(workspace_id));
-CREATE POLICY store_orders_update ON public.store_orders FOR UPDATE TO authenticated
-    USING (public.is_workspace_member(workspace_id))
-    WITH CHECK (public.is_workspace_member(workspace_id));
 -- store_order_items
 CREATE POLICY store_order_items_select ON public.store_order_items FOR SELECT TO authenticated
     USING (EXISTS (SELECT 1 FROM public.store_orders o WHERE o.id = store_order_items.store_order_id AND public.is_workspace_member(o.workspace_id)));
-CREATE POLICY store_order_items_insert ON public.store_order_items FOR INSERT TO authenticated
-    WITH CHECK (EXISTS (SELECT 1 FROM public.store_orders o WHERE o.id = store_order_items.store_order_id AND public.is_workspace_member(o.workspace_id)));
-CREATE POLICY store_order_items_update ON public.store_order_items FOR UPDATE TO authenticated
-    USING (EXISTS (SELECT 1 FROM public.store_orders o WHERE o.id = store_order_items.store_order_id AND public.is_workspace_member(o.workspace_id)))
-    WITH CHECK (EXISTS (SELECT 1 FROM public.store_orders o WHERE o.id = store_order_items.store_order_id AND public.is_workspace_member(o.workspace_id)));
 -- store_settings
 CREATE POLICY store_settings_select ON public.store_settings FOR SELECT TO authenticated
     USING (public.is_workspace_member(workspace_id));
@@ -1712,6 +1705,7 @@ CREATE INDEX IF NOT EXISTS idx_carrier_configs_workspace_id ON public.carrier_co
 CREATE INDEX IF NOT EXISTS idx_store_orders_workspace_id ON public.store_orders(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_store_order_items_order_id ON public.store_order_items(store_order_id);
 CREATE INDEX IF NOT EXISTS idx_store_order_items_catalog_product_id ON public.store_order_items(catalog_product_id);
+create index if not exists idx_store_order_items_workspace_id on public.store_order_items(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_store_settings_workspace_id ON public.store_settings(workspace_id);
 
 create unique index if not exists idx_store_orders_workspace_order_number
@@ -3628,7 +3622,7 @@ create or replace function public.place_store_order(
 )
 returns public.store_orders
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $$
 declare
@@ -3766,6 +3760,7 @@ begin
   returning * into v_order;
 
   insert into public.store_order_items (
+    workspace_id,
     store_order_id,
     inventory_item_id,
     catalog_product_id,
@@ -3774,6 +3769,7 @@ begin
     quantity
   )
   select
+    p_workspace_id,
     v_order.id,
     item.inventory_item_id,
     item.catalog_product_id,
@@ -3966,7 +3962,7 @@ create or replace function public.book_bank_transaction(
 )
 returns public.bank_transactions
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $$
 declare
@@ -4022,7 +4018,7 @@ create or replace function public.create_or_get_invoice(
 )
 returns jsonb
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $$
 declare
@@ -4037,6 +4033,17 @@ begin
 
   if (p_sale_id is null) = (p_store_order_id is null) then
     raise exception using errcode = '22023', message = 'Genau eine Rechnungsquelle ist erforderlich.';
+  end if;
+
+  if coalesce(jsonb_typeof(p_invoice), 'null') <> 'object'
+    or nullif(btrim(p_invoice ->> 'invoice_number'), '') is null
+    or nullif(btrim(p_invoice ->> 'order_number'), '') is null
+    or nullif(p_invoice ->> 'invoice_date', '') is null
+    or nullif(p_invoice ->> 'delivery_date', '') is null
+    or coalesce((p_invoice ->> 'subtotal')::numeric, -1) < 0
+    or coalesce((p_invoice ->> 'shipping_cost')::numeric, 0) < 0
+    or coalesce((p_invoice ->> 'total')::numeric, -1) < 0 then
+    raise exception using errcode = '22023', message = 'Die Rechnungsdaten sind ungültig.';
   end if;
 
   if coalesce(jsonb_typeof(p_items), 'null') <> 'array'
@@ -4151,10 +4158,9 @@ revoke insert, update, delete
     public.sale_lines, public.sale_line_lot_allocations
   from authenticated;
 
--- Gebuchte Rechnungen und Store-Bestellungen besitzen noch keinen fachlich
--- belastbaren Entwurfsstatus. Bis zu einem expliziten Korrekturprozess bleiben
--- Kopf und Positionen deshalb vollständig erhalten.
-revoke delete
+-- Gebuchte Rechnungen und Store-Bestellungen werden ausschließlich durch die
+-- geprüften RPCs geschrieben und bleiben danach vollständig erhalten.
+revoke insert, update, delete
   on public.invoices, public.invoice_items, public.store_orders, public.store_order_items
   from authenticated;
 

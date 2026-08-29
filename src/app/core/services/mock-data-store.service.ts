@@ -847,26 +847,60 @@ export class MockDataStoreService {
     return { sale: persistedSale, saleLines: updatedLines, allocations, movements, error: null };
   }
 
-  returnQuantitySale(
+  returnSaleAtomically(
     workspaceId: string,
     sale: Sale,
     restock: boolean,
-  ): { movements: StockMovement[]; error: Error | null } {
+  ): {
+    sale: Sale | null;
+    movements: StockMovement[];
+    restockedQuantity: number;
+    error: Error | null;
+  } {
     const allocations = sale.lot_allocations ?? [];
     const lots = this.getStockLots();
     const updatedLots = lots.map((lot) => ({ ...lot }));
+    const items = this.getItems();
+    const updatedItems = items.map((item) => ({ ...item }));
     const movements: StockMovement[] = [];
+    let restockedQuantity = 0;
+
+    for (const line of sale.lines ?? []) {
+      if (line.catalog_product_id || !line.inventory_item_id) continue;
+      const item = updatedItems.find(
+        (entry) => entry.id === line.inventory_item_id && entry.workspace_id === workspaceId,
+      );
+      if (!item) {
+        return {
+          sale: null,
+          movements: [],
+          restockedQuantity: 0,
+          error: new Error('Der retournierte Einzelartikel wurde nicht gefunden.'),
+        };
+      }
+      item.status = restock ? 'ready' : 'returned';
+      item.sale_state = 'no_active_sale';
+      item.active_sale_count = 0;
+      item.active_sale_id = null;
+      if (restock) restockedQuantity += 1;
+    }
 
     for (const allocation of allocations) {
       const lot = updatedLots.find(
         (entry) => entry.id === allocation.stock_lot_id && entry.workspace_id === workspaceId,
       );
-      if (!lot)
+      if (!lot) {
         return {
+          sale: null,
           movements: [],
+          restockedQuantity: 0,
           error: new Error('Das zugeordnete Bestandslos wurde nicht gefunden.'),
         };
-      if (restock) lot.remaining_quantity += allocation.quantity;
+      }
+      if (restock) {
+        lot.remaining_quantity += allocation.quantity;
+        restockedQuantity += allocation.quantity;
+      }
       movements.push({
         id: this.newId('movement'),
         workspace_id: workspaceId,
@@ -890,12 +924,21 @@ export class MockDataStoreService {
         });
       }
     }
-    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_LOTS, updatedLots);
-    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_MOVEMENTS, [
-      ...this.getStockMovements(),
-      ...movements,
+
+    const persistedSale: Sale = { ...sale, stock_movements: movements };
+    const persistenceError = this.saveRecordsAtomically([
+      { key: STORAGE_KEY_ITEMS, records: updatedItems },
+      { key: STORAGE_KEY_STOCK_LOTS, records: updatedLots },
+      {
+        key: STORAGE_KEY_STOCK_MOVEMENTS,
+        records: [...this.getStockMovements(), ...movements],
+      },
+      { key: STORAGE_KEY_SALES, records: this.upsertRecord(this.getSales(), persistedSale) },
     ]);
-    return { movements, error: null };
+    if (persistenceError) {
+      return { sale: null, movements: [], restockedQuantity: 0, error: persistenceError };
+    }
+    return { sale: persistedSale, movements, restockedQuantity, error: null };
   }
 
   private getWorkspaceRecords<T extends { workspace_id: string }>(

@@ -652,25 +652,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "invoices_sale_id_fkey"
-            columns: ["sale_id"]
-            isOneToOne: false
-            referencedRelation: "sales"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "invoices_store_order_id_fkey"
-            columns: ["store_order_id"]
-            isOneToOne: false
-            referencedRelation: "store_orders"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "invoices_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invoices_workspace_sale_fkey"
+            columns: ["workspace_id", "sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "invoices_workspace_store_order_fkey"
+            columns: ["workspace_id", "store_order_id"]
+            isOneToOne: false
+            referencedRelation: "store_orders"
+            referencedColumns: ["workspace_id", "id"]
           },
         ]
       }
@@ -2010,6 +2010,7 @@ export type Database = {
           price: number
           quantity: number
           store_order_id: string
+          workspace_id: string
         }
         Insert: {
           catalog_product_id?: string | null
@@ -2019,6 +2020,7 @@ export type Database = {
           price?: number
           quantity?: number
           store_order_id: string
+          workspace_id: string
         }
         Update: {
           catalog_product_id?: string | null
@@ -2028,35 +2030,36 @@ export type Database = {
           price?: number
           quantity?: number
           store_order_id?: string
+          workspace_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "store_order_items_catalog_product_id_fkey"
-            columns: ["catalog_product_id"]
+            foreignKeyName: "store_order_items_workspace_catalog_product_fkey"
+            columns: ["workspace_id", "catalog_product_id"]
             isOneToOne: false
             referencedRelation: "catalog_products"
-            referencedColumns: ["id"]
+            referencedColumns: ["workspace_id", "id"]
           },
           {
-            foreignKeyName: "store_order_items_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
+            foreignKeyName: "store_order_items_workspace_inventory_item_fkey"
+            columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_item_sale_states"
-            referencedColumns: ["inventory_item_id"]
+            referencedColumns: ["workspace_id", "inventory_item_id"]
           },
           {
-            foreignKeyName: "store_order_items_inventory_item_id_fkey"
-            columns: ["inventory_item_id"]
+            foreignKeyName: "store_order_items_workspace_inventory_item_fkey"
+            columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
-            referencedColumns: ["id"]
+            referencedColumns: ["workspace_id", "id"]
           },
           {
-            foreignKeyName: "store_order_items_store_order_id_fkey"
-            columns: ["store_order_id"]
+            foreignKeyName: "store_order_items_workspace_order_fkey"
+            columns: ["workspace_id", "store_order_id"]
             isOneToOne: false
             referencedRelation: "store_orders"
-            referencedColumns: ["id"]
+            referencedColumns: ["workspace_id", "id"]
           },
         ]
       }

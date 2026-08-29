@@ -10,6 +10,7 @@ import { Sale, SaleLine, SaleLineLotAllocation, StockMovement } from '../models/
 import { MutationResult } from './catalog.service';
 import { StockService } from './stock.service';
 import { ReturnRecord } from '../models/return.models';
+import { createLocalDemoId } from '../utils/client-identity';
 
 export interface CreateSalePayload {
   inventory_item_id: string;
@@ -412,30 +413,33 @@ export class SalesService {
         Number(existing.refund_amount ?? 0) + input.refundAmount,
       );
       const isFullRefund = totalRefund >= saleTotal;
-      const returnResult = isFullRefund
-        ? this.mockStore.returnQuantitySale(workspaceId, existing, input.restock)
-        : { movements: [] as StockMovement[], error: null };
-      if (returnResult.error) return this.mutationFailure('Retoure buchen', returnResult.error);
       const saleReturnedAt = isFullRefund ? new Date().toISOString() : null;
-      const sale = this.enrichSaleMetrics({
+      const saleDraft: Sale = {
         ...existing,
         returned_at: saleReturnedAt,
         refund_amount: totalRefund,
+      };
+      const returnResult = isFullRefund
+        ? this.mockStore.returnSaleAtomically(workspaceId, saleDraft, input.restock)
+        : { sale: saleDraft, movements: [] as StockMovement[], restockedQuantity: 0, error: null };
+      if (returnResult.error || !returnResult.sale) {
+        return this.mutationFailure(
+          'Retoure buchen',
+          returnResult.error ?? new Error('Die Demo-Retoure wurde nicht gespeichert.'),
+        );
+      }
+      const sale = this.enrichSaleMetrics({
+        ...returnResult.sale,
         stock_movements: returnResult.movements,
       });
+      if (!isFullRefund) this.mockStore.saveSale(sale);
       this.sales.update((sales) => sales.map((entry) => (entry.id === sale.id ? sale : entry)));
-      this.mockStore.saveSale(sale);
       await this.refreshAffectedState(workspaceId);
       return {
         data: {
           sale,
           returnRecord: undefined,
-          restockedQuantity:
-            isFullRefund && input.restock
-              ? returnResult.movements
-                  .filter((movement) => movement.direction === 'in' && movement.reason === 'return')
-                  .reduce((sum, movement) => sum + movement.quantity, 0)
-              : 0,
+          restockedQuantity: returnResult.restockedQuantity,
           saleReturnedAt,
         },
         error: null,
@@ -501,9 +505,9 @@ export class SalesService {
   }
 
   private recordDemoSale(workspaceId: string, input: RecordSaleInput): RecordSaleResult {
-    const saleId = `sale-${Date.now()}`;
-    const lines: SaleLine[] = input.lines.map((line, index) => ({
-      id: `sale-line-${Date.now()}-${index}`,
+    const saleId = createLocalDemoId('sale');
+    const lines: SaleLine[] = input.lines.map((line) => ({
+      id: createLocalDemoId('sale-line'),
       sale_id: saleId,
       catalog_product_id: line.catalogProductId ?? null,
       inventory_item_id: line.inventoryItemId ?? null,

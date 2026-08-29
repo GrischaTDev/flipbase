@@ -46,6 +46,22 @@ Der erste Drift-Test zeigte die Journal-Restgrants noch als RED; nach der
 Korrektur meldet `npx supabase db diff --local` exakt
 `No schema changes found`.
 
+Ein abschließender Cross-Task-Review fand darüber hinaus noch offene direkte
+`insert`-/`update`-Wege für Rechnungen und Store-Bestellungen. Der finale Stand
+schließt auch diese Wege:
+
+- `invoices`, `invoice_items`, `store_orders` und `store_order_items` sind für
+  authentifizierte Clients read-only; direkte Inserts, Updates und Deletes sind
+  entzogen und die früheren Schreib-Policies entfernt.
+- `place_store_order`, `create_or_get_invoice` und `book_bank_transaction` sind
+  die alleinigen Schreibwege. Sie laufen mit festem leerem `search_path` und
+  prüfen Authentifizierung sowie Workspace-Mitgliedschaft ausdrücklich.
+- Fünf zusammengesetzte Fremdschlüssel koppeln Rechnungs- und
+  Store-Bestellbeziehungen an denselben Workspace. Cross-Workspace-Verweise
+  werden dadurch auch bei privilegierten Datenbankpfaden abgewiesen.
+- Authentifizierte Negativtests belegen die gesperrten direkten Schreibwege;
+  Positivtests belegen weiterhin alle drei erlaubten RPCs.
+
 ## Reproduzierbare Upgrade-Probe
 
 `supabase/tests/inventory_integrity_upgrade.ps1` arbeitet fail-fast, bestimmt
@@ -114,7 +130,7 @@ Migration aufgebaut und mit `supabase/seed.sql` befüllt. Der Clean-Install war
 erfolgreich.
 
 Die Supabase-Typen wurden anschließend aus der lokalen Datenbank neu erzeugt.
-Die Datei ist strikt gültiges UTF-8 ohne BOM; geprüft wurden 88.178 Bytes und
+Die Datei ist strikt gültiges UTF-8 ohne BOM; geprüft wurden 88.503 Bytes und
 der Präfix `101,120,112` (`exp`). Die Typen enthalten das Journal, die
 Sale-State-View, alle drei Stornofelder und die beiden engen Legacy-RPCs.
 
@@ -123,11 +139,12 @@ Sale-State-View, alle drei Stornofelder und die beiden engen Legacy-RPCs.
 `npx supabase test db` wurde bewusst **nicht ohne Dateipfad** ausgeführt. In
 diesem Repository liegen Fixtures und Review-Skripte neben den echten pgTAP-
 Dateien; ein Verzeichnis-Bulk-Lauf würde Nicht-pgTAP-Dateien fälschlich als
-Tests behandeln. Die echten pgTAP-Dateien wurden deshalb einzeln ausgeführt.
+Tests behandeln. Die echten pgTAP-Dateien wurden deshalb einzeln und wegen
+ihrer festen Fixture-IDs jeweils nach einem sauberen lokalen Reset ausgeführt.
 
 | Prüfung                                                        | Ergebnis                                                                                                                         |
 | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `business_record_immutability.sql`                             | PASS, 49/49                                                                                                                      |
+| `business_record_immutability.sql`                             | PASS, 75/75                                                                                                                      |
 | `inventory_item_sale_integrity.sql`                            | PASS, 63/63                                                                                                                      |
 | `inventory_sales_schema.sql` per `psql`                        | PASS, Transaktion zurückgerollt                                                                                                  |
 | `inventory_sales_transactions.sql` per `psql`                  | PASS, Transaktion zurückgerollt                                                                                                  |
@@ -163,7 +180,7 @@ Performance-Advisors melden keine Probleme.
 | Gezielter Item-Detail-Test nach Build-Fix `71a2d52` | PASS: 1 Testdatei, 25 Tests                                                   |
 | `npm run typecheck`                                 | PASS                                                                          |
 | `npm run lint`                                      | PASS                                                                          |
-| `npm test -- --run`                                 | PASS: 117 Testdateien, 847 Tests                                              |
+| `npm test -- --run`                                 | PASS: 117 Testdateien, 861 Tests                                              |
 | `npm run format:check`                              | PASS                                                                          |
 | `npm run build`                                     | PASS; bekannte Warnung wegen ungenutztem `RouterLink` im `InventoryComponent` |
 | `git diff --check`                                  | PASS                                                                          |
@@ -174,6 +191,14 @@ Der getrennte Commit `71a2d52` entfernte ausschließlich den dort unerreichbaren
 Zweig. Anschließend wurden der gezielte Item-Detail-Test (25/25), Typecheck,
 Formatcheck, die vollständige Vitest-Suite und der Production-Build frisch und
 erfolgreich ausgeführt. Der Task-6-Commit enthält keine UI-Datei.
+
+Der abschließende Cross-Task-Review ergänzte 14 weitere Regressionstests. Sie
+belegen den fail-closed Sale-State beim kalten Detailaufruf, atomare
+Demo-Vollretouren mit und ohne Wiedereinlagerung, vollständigen Rollback bei
+einem Storage-Fehler sowie kollisionsfreie Demo-Verkaufs- und Positions-IDs bei
+identischer Systemzeit. Der Detail-Ladepfad verwendet nun denselben
+Sale-State-Merge wie die Inventarliste; Demo-Retouren schreiben Verkauf,
+Artikelstatus, Lose und Bewegungen gemeinsam.
 
 ## Produktionsschutz
 

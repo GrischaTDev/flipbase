@@ -216,16 +216,7 @@ export class InventoryService {
         );
         const enriched = (data as unknown as InventoryItem[]).map((item) => {
           const saleState = statesByItemId.get(item.id);
-          return this.enrichItemTotals(
-            saleState
-              ? {
-                  ...item,
-                  sale_state: saleState.sale_state,
-                  active_sale_count: saleState.active_sale_count,
-                  active_sale_id: saleState.active_sale_id,
-                }
-              : item,
-          );
+          return this.enrichItemTotals(saleState ? this.mergeSaleState(item, saleState) : item);
         });
         this.items.set(enriched);
         this.istGeladen.set(true);
@@ -239,9 +230,21 @@ export class InventoryService {
   }
 
   async getItemById(itemId: string): Promise<InventoryItem | null> {
-    const existing =
-      this.mockStore.getItems().find((i) => i.id === itemId) ||
-      this.items().find((i) => i.id === itemId);
+    const signalItem = this.items().find((item) => item.id === itemId);
+    let existing: InventoryItem | undefined;
+
+    if (this.mockStore.isDemoMode()) {
+      const rawItem = this.mockStore.getItems().find((item) => item.id === itemId) ?? signalItem;
+      existing =
+        signalItem?.sale_state !== undefined
+          ? signalItem
+          : rawItem
+            ? this.classifyDemoSaleStates([rawItem], this.mockStore.getSales())[0]
+            : undefined;
+    } else if (signalItem?.sale_state !== undefined) {
+      existing = signalItem;
+    }
+
     if (existing) {
       const enriched = this.enrichItemTotals(existing);
       this.selectedItem.set(enriched);
@@ -271,7 +274,32 @@ export class InventoryService {
         return null;
       }
 
-      const item = this.enrichItemTotals(data as unknown as InventoryItem);
+      const { data: saleStates, error: saleStateError } = await this.integrityClient
+        .from('inventory_item_sale_states')
+        .select('inventory_item_id, workspace_id, sale_state, active_sale_count, active_sale_id')
+        .eq('inventory_item_id', itemId);
+
+      if (saleStateError) {
+        this.syncStatus.melde('Laden des Inventar-Verkaufszustands', saleStateError);
+        this.selectedItem.set(null);
+        return null;
+      }
+
+      const rawItem = data as unknown as InventoryItem;
+      const saleState = (saleStates ?? []).find(
+        (state) =>
+          state.inventory_item_id === itemId && state.workspace_id === rawItem.workspace_id,
+      );
+      if (!saleState) {
+        this.syncStatus.melde(
+          'Laden des Inventar-Verkaufszustands',
+          new Error('Für den Artikel wurde kein sicherer Verkaufszustand zurückgegeben.'),
+        );
+        this.selectedItem.set(null);
+        return null;
+      }
+
+      const item = this.enrichItemTotals(this.mergeSaleState(rawItem, saleState));
       this.selectedItem.set(item);
       this.itemCosts.set((data.costs || []) as ItemCost[]);
 
@@ -283,6 +311,15 @@ export class InventoryService {
     } finally {
       this.isLoading.set(false);
     }
+  }
+
+  private mergeSaleState(item: InventoryItem, saleState: InventorySaleStateRow): InventoryItem {
+    return {
+      ...item,
+      sale_state: saleState.sale_state,
+      active_sale_count: saleState.active_sale_count,
+      active_sale_id: saleState.active_sale_id,
+    };
   }
 
   async loadActivityLogs(itemId: string): Promise<void> {

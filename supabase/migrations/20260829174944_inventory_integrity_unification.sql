@@ -16,6 +16,12 @@ ALTER TABLE public.inventory_items
 ALTER TABLE public.invoice_items
   DROP CONSTRAINT invoice_items_invoice_id_fkey;
 
+ALTER TABLE public.invoices
+  DROP CONSTRAINT invoices_sale_id_fkey;
+
+ALTER TABLE public.invoices
+  DROP CONSTRAINT invoices_store_order_id_fkey;
+
 ALTER TABLE public.purchase_lines
   DROP CONSTRAINT purchase_lines_purchase_id_fkey;
 
@@ -51,7 +57,15 @@ ALTER TABLE public.store_order_items
 
 DROP POLICY invoice_items_delete ON public.invoice_items;
 
+DROP POLICY invoice_items_insert ON public.invoice_items;
+
+DROP POLICY invoice_items_update ON public.invoice_items;
+
 DROP POLICY invoices_delete ON public.invoices;
+
+DROP POLICY invoices_insert ON public.invoices;
+
+DROP POLICY invoices_update ON public.invoices;
 
 DROP POLICY returns_delete ON public.returns;
 
@@ -67,7 +81,15 @@ DROP POLICY "Verkauf loeschen" ON public.sales;
 
 DROP POLICY store_order_items_delete ON public.store_order_items;
 
+DROP POLICY store_order_items_insert ON public.store_order_items;
+
+DROP POLICY store_order_items_update ON public.store_order_items;
+
 DROP POLICY store_orders_delete ON public.store_orders;
+
+DROP POLICY store_orders_insert ON public.store_orders;
+
+DROP POLICY store_orders_update ON public.store_orders;
 
 CREATE FUNCTION public.check_inventory_item_sale_integrity()
   RETURNS TRIGGER
@@ -161,6 +183,7 @@ CREATE OR REPLACE FUNCTION public.place_store_order (
 )
   RETURNS public.store_orders
   LANGUAGE plpgsql
+  SECURITY DEFINER
   SET search_path TO ''
   AS $function$
 declare
@@ -298,6 +321,7 @@ begin
   returning * into v_order;
 
   insert into public.store_order_items (
+    workspace_id,
     store_order_id,
     inventory_item_id,
     catalog_product_id,
@@ -306,6 +330,7 @@ begin
     quantity
   )
   select
+    p_workspace_id,
     v_order.id,
     item.inventory_item_id,
     item.catalog_product_id,
@@ -354,6 +379,137 @@ begin
   );
 
   return v_order;
+end;
+$function$;
+
+ALTER FUNCTION public.book_bank_transaction(uuid, uuid, timestamp WITH time zone, uuid) SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION public.create_or_get_invoice (
+  p_workspace_id   uuid,
+  p_sale_id        uuid,
+  p_store_order_id uuid,
+  p_invoice        jsonb,
+  p_items          jsonb
+)
+  RETURNS jsonb
+  LANGUAGE plpgsql
+  SECURITY DEFINER
+  SET search_path TO ''
+  AS $function$
+declare
+  v_invoice public.invoices;
+  v_created boolean := false;
+  v_items jsonb;
+begin
+  if (select auth.uid()) is null
+    or not (select public.is_workspace_member(p_workspace_id)) then
+    raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+
+  if (p_sale_id is null) = (p_store_order_id is null) then
+    raise exception using errcode = '22023', message = 'Genau eine Rechnungsquelle ist erforderlich.';
+  end if;
+
+  if coalesce(jsonb_typeof(p_invoice), 'null') <> 'object'
+    or nullif(btrim(p_invoice ->> 'invoice_number'), '') is null
+    or nullif(btrim(p_invoice ->> 'order_number'), '') is null
+    or nullif(p_invoice ->> 'invoice_date', '') is null
+    or nullif(p_invoice ->> 'delivery_date', '') is null
+    or coalesce((p_invoice ->> 'subtotal')::numeric, -1) < 0
+    or coalesce((p_invoice ->> 'shipping_cost')::numeric, 0) < 0
+    or coalesce((p_invoice ->> 'total')::numeric, -1) < 0 then
+    raise exception using errcode = '22023', message = 'Die Rechnungsdaten sind ungültig.';
+  end if;
+
+  if coalesce(jsonb_typeof(p_items), 'null') <> 'array'
+    or jsonb_array_length(p_items) = 0
+    or exists (
+      select 1
+      from jsonb_array_elements(p_items) as item(value)
+      where nullif(btrim(item.value ->> 'title'), '') is null
+        or coalesce((item.value ->> 'quantity')::integer, 0) < 1
+        or coalesce((item.value ->> 'unit_price')::numeric, -1) < 0
+        or coalesce((item.value ->> 'total_price')::numeric, -1) < 0
+    ) then
+    raise exception using errcode = '22023', message = 'Mindestens eine Rechnungsposition ist ungültig.';
+  end if;
+
+  if p_sale_id is not null and not exists (
+    select 1 from public.sales
+    where id = p_sale_id and workspace_id = p_workspace_id
+  ) then
+    raise no_data_found using message = 'Der Verkauf wurde nicht gefunden.';
+  end if;
+
+  if p_store_order_id is not null and not exists (
+    select 1 from public.store_orders
+    where id = p_store_order_id and workspace_id = p_workspace_id
+  ) then
+    raise no_data_found using message = 'Die Shop-Bestellung wurde nicht gefunden.';
+  end if;
+
+  insert into public.invoices (
+    workspace_id, invoice_number, order_number, invoice_date, delivery_date,
+    seller, buyer, subtotal, shipping_cost, total, tax_mode, tax_clause,
+    payment_method, payment_status, payment_due_date, notes, sale_id, store_order_id
+  ) values (
+    p_workspace_id,
+    p_invoice ->> 'invoice_number',
+    p_invoice ->> 'order_number',
+    (p_invoice ->> 'invoice_date')::date,
+    (p_invoice ->> 'delivery_date')::date,
+    coalesce(p_invoice -> 'seller', '{}'::jsonb),
+    coalesce(p_invoice -> 'buyer', '{}'::jsonb),
+    coalesce((p_invoice ->> 'subtotal')::numeric, 0),
+    coalesce((p_invoice ->> 'shipping_cost')::numeric, 0),
+    coalesce((p_invoice ->> 'total')::numeric, 0),
+    coalesce(p_invoice ->> 'tax_mode', 'diff_25a'),
+    p_invoice ->> 'tax_clause',
+    p_invoice ->> 'payment_method',
+    coalesce(p_invoice ->> 'payment_status', 'paid'),
+    nullif(p_invoice ->> 'payment_due_date', '')::date,
+    p_invoice ->> 'notes',
+    p_sale_id,
+    p_store_order_id
+  )
+  on conflict do nothing
+  returning * into v_invoice;
+
+  if found then
+    v_created := true;
+    insert into public.invoice_items (
+      invoice_id, sku, title, condition, quantity, unit_price, total_price
+    )
+    select
+      v_invoice.id,
+      nullif(item.value ->> 'sku', ''),
+      item.value ->> 'title',
+      nullif(item.value ->> 'condition', ''),
+      (item.value ->> 'quantity')::integer,
+      (item.value ->> 'unit_price')::numeric,
+      (item.value ->> 'total_price')::numeric
+    from jsonb_array_elements(p_items) as item(value);
+  else
+    select * into v_invoice
+    from public.invoices
+    where workspace_id = p_workspace_id
+      and ((p_sale_id is not null and sale_id = p_sale_id)
+        or (p_store_order_id is not null and store_order_id = p_store_order_id));
+    if not found then
+      raise no_data_found using message = 'Die Rechnung konnte nicht gelesen werden.';
+    end if;
+  end if;
+
+  select coalesce(jsonb_agg(to_jsonb(item) order by item.id), '[]'::jsonb)
+  into v_items
+  from public.invoice_items as item
+  where item.invoice_id = v_invoice.id;
+
+  return jsonb_build_object(
+    'invoice', to_jsonb(v_invoice),
+    'items', v_items,
+    'created', v_created
+  );
 end;
 $function$;
 
@@ -1433,9 +1589,16 @@ CREATE POLICY "Inventarklaerungen lesen" ON public.inventory_reconciliation_even
 ALTER TABLE public.invoice_items
   ADD CONSTRAINT invoice_items_invoice_id_fkey FOREIGN KEY (invoice_id) REFERENCES public.invoices(id) ON DELETE RESTRICT;
 
-REVOKE DELETE ON public.invoice_items FROM authenticated;
+ALTER TABLE public.invoices
+  ADD CONSTRAINT invoices_workspace_sale_fkey FOREIGN KEY (workspace_id, sale_id) REFERENCES public.sales(workspace_id, id) ON DELETE RESTRICT;
 
-REVOKE DELETE ON public.invoices FROM authenticated;
+ALTER TABLE public.store_orders
+  ADD CONSTRAINT store_orders_workspace_id_id_key UNIQUE (workspace_id, id);
+
+ALTER TABLE public.invoices
+  ADD CONSTRAINT invoices_workspace_store_order_fkey FOREIGN KEY (workspace_id, store_order_id) REFERENCES public.store_orders(workspace_id, id) ON DELETE RESTRICT;
+
+REVOKE DELETE, INSERT, UPDATE ON public.invoice_items, public.invoices FROM authenticated;
 
 ALTER TABLE public.purchase_lines
   ADD CONSTRAINT purchase_lines_purchase_id_fkey FOREIGN KEY (purchase_id) REFERENCES public.purchases(id) ON DELETE RESTRICT;
@@ -1489,17 +1652,33 @@ ALTER TABLE public.shipping_orders
   ADD CONSTRAINT shipping_orders_sale_id_fkey FOREIGN KEY (sale_id) REFERENCES public.sales(id) ON DELETE RESTRICT;
 
 ALTER TABLE public.store_order_items
-  ADD CONSTRAINT store_order_items_catalog_product_id_fkey FOREIGN KEY (catalog_product_id) REFERENCES public.catalog_products(id) ON DELETE RESTRICT;
+  ADD COLUMN workspace_id uuid;
+
+-- Vorhandene Positionen übernehmen ausschließlich den Workspace ihres bereits
+-- per Fremdschlüssel gesicherten Bestellkopfs; fachliche Referenzen werden nicht
+-- erfunden oder umgehängt.
+UPDATE public.store_order_items AS store_item
+SET workspace_id = store_order.workspace_id
+FROM public.store_orders AS store_order
+WHERE store_order.id = store_item.store_order_id;
 
 ALTER TABLE public.store_order_items
-  ADD CONSTRAINT store_order_items_inventory_item_id_fkey FOREIGN KEY (inventory_item_id) REFERENCES public.inventory_items(id) ON DELETE RESTRICT;
+  ALTER COLUMN workspace_id SET NOT NULL;
 
 ALTER TABLE public.store_order_items
-  ADD CONSTRAINT store_order_items_store_order_id_fkey FOREIGN KEY (store_order_id) REFERENCES public.store_orders(id) ON DELETE RESTRICT;
+  ADD CONSTRAINT store_order_items_workspace_catalog_product_fkey FOREIGN KEY (workspace_id, catalog_product_id) REFERENCES public.catalog_products(workspace_id, id)
+    ON DELETE RESTRICT;
 
-REVOKE DELETE ON public.store_order_items FROM authenticated;
+ALTER TABLE public.store_order_items
+  ADD CONSTRAINT store_order_items_workspace_inventory_item_fkey FOREIGN KEY (workspace_id, inventory_item_id) REFERENCES public.inventory_items(workspace_id, id)
+    ON DELETE RESTRICT;
 
-REVOKE DELETE ON public.store_orders FROM authenticated;
+ALTER TABLE public.store_order_items
+  ADD CONSTRAINT store_order_items_workspace_order_fkey FOREIGN KEY (workspace_id, store_order_id) REFERENCES public.store_orders(workspace_id, id) ON DELETE RESTRICT;
+
+CREATE INDEX idx_store_order_items_workspace_id ON public.store_order_items (workspace_id);
+
+REVOKE DELETE, INSERT, UPDATE ON public.store_order_items, public.store_orders FROM authenticated;
 
 CREATE TRIGGER prevent_workspace_with_business_data_deletion
   BEFORE DELETE ON public.workspaces

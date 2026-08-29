@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(49);
+select plan(75);
 
 \set user_id '83000000-0000-4000-8000-000000000001'
 \set business_workspace_id '83000000-0000-4000-8000-000000000002'
@@ -76,6 +76,11 @@ insert into public.catalog_products (id, workspace_id, title, tracking_mode) val
   '83000000-0000-4000-8000-000000000103',
   :'business_workspace_id'::uuid,
   'Store referenced product',
+  'quantity'
+), (
+  '83000000-0000-4000-8000-000000000104',
+  :'invoice_workspace_id'::uuid,
+  'Foreign store product',
   'quantity'
 );
 
@@ -202,12 +207,35 @@ insert into public.store_orders (
   'bank_transfer',
   'paid',
   'paid'
+), (
+  '83000000-0000-4000-8000-000000000095',
+  :'invoice_workspace_id'::uuid,
+  'STORE-FOREIGN-1',
+  '{"email":"foreign@example.test"}'::jsonb,
+  10,
+  0,
+  10,
+  'bank_transfer',
+  'paid',
+  'paid'
+), (
+  '83000000-0000-4000-8000-000000000096',
+  :'business_workspace_id'::uuid,
+  'STORE-BANK-1',
+  '{"email":"bank@example.test"}'::jsonb,
+  10,
+  0,
+  10,
+  'bank_transfer',
+  'pending',
+  'pending'
 );
 
 insert into public.store_order_items (
-  id, store_order_id, inventory_item_id, item_title, price, quantity
+  id, workspace_id, store_order_id, inventory_item_id, item_title, price, quantity
 ) values (
   '83000000-0000-4000-8000-000000000091',
+  :'business_workspace_id'::uuid,
   '83000000-0000-4000-8000-000000000090',
   '83000000-0000-4000-8000-000000000020',
   'Booked store order item',
@@ -216,10 +244,11 @@ insert into public.store_order_items (
 );
 
 insert into public.store_order_items (
-  id, store_order_id, inventory_item_id, catalog_product_id, item_title, price, quantity
+  id, workspace_id, store_order_id, inventory_item_id, catalog_product_id, item_title, price, quantity
 ) values
   (
     '83000000-0000-4000-8000-000000000093',
+    :'business_workspace_id'::uuid,
     '83000000-0000-4000-8000-000000000092',
     '83000000-0000-4000-8000-000000000020',
     null,
@@ -229,6 +258,7 @@ insert into public.store_order_items (
   ),
   (
     '83000000-0000-4000-8000-000000000094',
+    :'business_workspace_id'::uuid,
     '83000000-0000-4000-8000-000000000092',
     null,
     '83000000-0000-4000-8000-000000000103',
@@ -236,6 +266,18 @@ insert into public.store_order_items (
     10,
     1
   );
+
+insert into public.bank_transactions (
+  id, workspace_id, booking_date, counterparty_name, purpose, amount, status
+) values (
+  '83000000-0000-4000-8000-000000000120',
+  :'business_workspace_id'::uuid,
+  current_date,
+  'Store customer',
+  'STORE-BANK-1',
+  10,
+  'pending'
+);
 
 insert into public.inventory_reconciliation_events (
   id, workspace_id, inventory_item_id, actor_id, event_type,
@@ -273,11 +315,19 @@ select ok(
   'authenticated hat keine direkten Schreibrechte auf returns'
 );
 select ok(
-  not has_table_privilege('authenticated', 'public.invoices', 'delete')
+  not has_table_privilege('authenticated', 'public.invoices', 'insert')
+  and not has_table_privilege('authenticated', 'public.invoices', 'update')
+  and not has_table_privilege('authenticated', 'public.invoices', 'delete')
+  and not has_table_privilege('authenticated', 'public.invoice_items', 'insert')
+  and not has_table_privilege('authenticated', 'public.invoice_items', 'update')
   and not has_table_privilege('authenticated', 'public.invoice_items', 'delete')
+  and not has_table_privilege('authenticated', 'public.store_orders', 'insert')
+  and not has_table_privilege('authenticated', 'public.store_orders', 'update')
   and not has_table_privilege('authenticated', 'public.store_orders', 'delete')
+  and not has_table_privilege('authenticated', 'public.store_order_items', 'insert')
+  and not has_table_privilege('authenticated', 'public.store_order_items', 'update')
   and not has_table_privilege('authenticated', 'public.store_order_items', 'delete'),
-  'authenticated hat keine direkten Löschrechte auf gebuchte Rechnungs- und Bestellketten'
+  'authenticated hat keine direkten Schreibrechte auf gebuchte Rechnungs- und Bestellketten'
 );
 select is(
   (select count(*) from pg_policies where schemaname = 'public' and tablename = 'sales' and cmd <> 'SELECT'),
@@ -295,21 +345,58 @@ select is(
     from pg_policies
     where schemaname = 'public'
       and tablename in ('invoices', 'invoice_items', 'store_orders', 'store_order_items')
-      and cmd = 'DELETE'
+      and cmd <> 'SELECT'
   ),
   0::bigint,
-  'gebuchte Rechnungs- und Bestellketten besitzen keine Client-Löschpolicy'
+  'gebuchte Rechnungs- und Bestellketten besitzen keine Client-Schreibpolicy'
+);
+
+select is(
+  (
+    select count(*)
+    from pg_proc as procedure
+    join pg_namespace as namespace on namespace.oid = procedure.pronamespace
+    where namespace.nspname = 'public'
+      and procedure.proname in ('place_store_order', 'create_or_get_invoice', 'book_bank_transaction')
+      and procedure.prosecdef
+      and procedure.proconfig @> array['search_path=""']
+  ),
+  3::bigint,
+  'die drei geprüften Schreib-RPCs laufen als SECURITY DEFINER mit leerem search_path'
+);
+
+select is(
+  (
+    select count(*)
+    from pg_constraint
+    where conname in (
+      'invoices_workspace_sale_fkey',
+      'invoices_workspace_store_order_fkey',
+      'store_order_items_workspace_order_fkey',
+      'store_order_items_workspace_inventory_item_fkey',
+      'store_order_items_workspace_catalog_product_fkey'
+    )
+      and contype = 'f'
+  ),
+  5::bigint,
+  'fünf zusammengesetzte Fremdschlüssel sichern die Workspace-Referenzen'
 );
 
 select ok(has_function_privilege('authenticated', 'public.record_sale(uuid,jsonb,jsonb)', 'execute'), 'authenticated darf record_sale ausführen');
 select ok(has_function_privilege('authenticated', 'public.record_sale_return(uuid,uuid,numeric,boolean,text,text,text,text)', 'execute'), 'authenticated darf record_sale_return ausführen');
 select ok(has_function_privilege('authenticated', 'public.place_store_order(uuid,uuid,text,jsonb,numeric,numeric,numeric,text,text,text,text,date,text,jsonb)', 'execute'), 'authenticated darf place_store_order ausführen');
+select ok(has_function_privilege('authenticated', 'public.create_or_get_invoice(uuid,uuid,uuid,jsonb,jsonb)', 'execute'), 'authenticated darf create_or_get_invoice ausführen');
+select ok(has_function_privilege('authenticated', 'public.book_bank_transaction(uuid,uuid,timestamptz,uuid)', 'execute'), 'authenticated darf book_bank_transaction ausführen');
 select ok(not has_function_privilege('anon', 'public.record_sale(uuid,jsonb,jsonb)', 'execute'), 'anon darf record_sale nicht ausführen');
 select ok(not has_function_privilege('anon', 'public.record_sale_return(uuid,uuid,numeric,boolean,text,text,text,text)', 'execute'), 'anon darf record_sale_return nicht ausführen');
 select ok(not has_function_privilege('anon', 'public.place_store_order(uuid,uuid,text,jsonb,numeric,numeric,numeric,text,text,text,text,date,text,jsonb)', 'execute'), 'anon darf place_store_order nicht ausführen');
+select ok(not has_function_privilege('anon', 'public.create_or_get_invoice(uuid,uuid,uuid,jsonb,jsonb)', 'execute'), 'anon darf create_or_get_invoice nicht ausführen');
+select ok(not has_function_privilege('anon', 'public.book_bank_transaction(uuid,uuid,timestamptz,uuid)', 'execute'), 'anon darf book_bank_transaction nicht ausführen');
 select ok(not has_function_privilege('service_role', 'public.record_sale(uuid,jsonb,jsonb)', 'execute'), 'service_role erhält kein record_sale-Clientrecht');
 select ok(not has_function_privilege('service_role', 'public.record_sale_return(uuid,uuid,numeric,boolean,text,text,text,text)', 'execute'), 'service_role erhält kein record_sale_return-Clientrecht');
 select ok(not has_function_privilege('service_role', 'public.place_store_order(uuid,uuid,text,jsonb,numeric,numeric,numeric,text,text,text,text,date,text,jsonb)', 'execute'), 'service_role erhält kein place_store_order-Clientrecht');
+select ok(not has_function_privilege('service_role', 'public.create_or_get_invoice(uuid,uuid,uuid,jsonb,jsonb)', 'execute'), 'service_role erhält kein create_or_get_invoice-Clientrecht');
+select ok(not has_function_privilege('service_role', 'public.book_bank_transaction(uuid,uuid,timestamptz,uuid)', 'execute'), 'service_role erhält kein book_bank_transaction-Clientrecht');
 
 -- These checks bypass client grants on purpose and prove that parent deletion
 -- cannot silently cascade booked history away.
@@ -354,8 +441,74 @@ select throws_ok(
   '23503', null, 'Store-Bestellung mit Position kann nicht indirekt gelöscht werden'
 );
 
+select throws_ok(
+  $$insert into public.invoices (id, workspace_id, invoice_number, order_number, seller, buyer, subtotal, total, sale_id) values ('83000000-0000-4000-8000-000000000063', '83000000-0000-4000-8000-000000000002', 'RE-CROSS-SALE', 'ORDER-CROSS-SALE', '{}'::jsonb, '{}'::jsonb, 1, 1, '83000000-0000-4000-8000-000000000035')$$,
+  '23503', null, 'Rechnung kann keinen Verkauf eines anderen Workspace referenzieren'
+);
+select throws_ok(
+  $$insert into public.invoices (id, workspace_id, invoice_number, order_number, seller, buyer, subtotal, total, store_order_id) values ('83000000-0000-4000-8000-000000000064', '83000000-0000-4000-8000-000000000002', 'RE-CROSS-ORDER', 'ORDER-CROSS-ORDER', '{}'::jsonb, '{}'::jsonb, 1, 1, '83000000-0000-4000-8000-000000000095')$$,
+  '23503', null, 'Rechnung kann keine Store-Bestellung eines anderen Workspace referenzieren'
+);
+select throws_ok(
+  case
+    when exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'store_order_items' and column_name = 'workspace_id'
+    ) then
+      $$insert into public.store_order_items (id, workspace_id, store_order_id, inventory_item_id, item_title, price, quantity) values ('83000000-0000-4000-8000-000000000105', '83000000-0000-4000-8000-000000000002', '83000000-0000-4000-8000-000000000092', '83000000-0000-4000-8000-000000000024', 'Cross inventory', 1, 1)$$
+    else
+      $$insert into public.store_order_items (id, store_order_id, inventory_item_id, item_title, price, quantity) values ('83000000-0000-4000-8000-000000000105', '83000000-0000-4000-8000-000000000092', '83000000-0000-4000-8000-000000000024', 'Cross inventory', 1, 1)$$
+  end,
+  '23503', null, 'Store-Position kann keinen Einzelartikel eines anderen Workspace referenzieren'
+);
+select throws_ok(
+  case
+    when exists (
+      select 1 from information_schema.columns
+      where table_schema = 'public' and table_name = 'store_order_items' and column_name = 'workspace_id'
+    ) then
+      $$insert into public.store_order_items (id, workspace_id, store_order_id, catalog_product_id, item_title, price, quantity) values ('83000000-0000-4000-8000-000000000106', '83000000-0000-4000-8000-000000000002', '83000000-0000-4000-8000-000000000092', '83000000-0000-4000-8000-000000000104', 'Cross catalog', 1, 1)$$
+    else
+      $$insert into public.store_order_items (id, store_order_id, catalog_product_id, item_title, price, quantity) values ('83000000-0000-4000-8000-000000000106', '83000000-0000-4000-8000-000000000092', '83000000-0000-4000-8000-000000000104', 'Cross catalog', 1, 1)$$
+  end,
+  '23503', null, 'Store-Position kann keinen Artikelstamm eines anderen Workspace referenzieren'
+);
+
 set local role authenticated;
 set local request.jwt.claim.sub = :'user_id';
+
+select throws_ok(
+  $$insert into public.invoices (id, workspace_id, invoice_number, order_number, seller, buyer, subtotal, total) values ('83000000-0000-4000-8000-000000000065', '83000000-0000-4000-8000-000000000002', 'RE-DIRECT', 'ORDER-DIRECT', '{}'::jsonb, '{}'::jsonb, 1, 1)$$,
+  '42501', null, 'Client kann Rechnungskopf nicht direkt anlegen'
+);
+select throws_ok(
+  $$update public.invoices set notes = 'Direkte Änderung' where id = '83000000-0000-4000-8000-000000000060'$$,
+  '42501', null, 'Client kann Rechnungskopf nicht direkt ändern'
+);
+select throws_ok(
+  $$insert into public.invoice_items (id, invoice_id, title, quantity, unit_price, total_price) values ('83000000-0000-4000-8000-000000000066', '83000000-0000-4000-8000-000000000060', 'Direkte Position', 1, 1, 1)$$,
+  '42501', null, 'Client kann Rechnungsposition nicht direkt anlegen'
+);
+select throws_ok(
+  $$update public.invoice_items set title = 'Direkte Änderung' where id = '83000000-0000-4000-8000-000000000062'$$,
+  '42501', null, 'Client kann Rechnungsposition nicht direkt ändern'
+);
+select throws_ok(
+  $$insert into public.store_orders (id, workspace_id, order_number, customer, subtotal, shipping_cost, total) values ('83000000-0000-4000-8000-000000000097', '83000000-0000-4000-8000-000000000002', 'STORE-DIRECT', '{}'::jsonb, 1, 0, 1)$$,
+  '42501', null, 'Client kann Store-Bestellkopf nicht direkt anlegen'
+);
+select throws_ok(
+  $$update public.store_orders set total = 999 where id = '83000000-0000-4000-8000-000000000090'$$,
+  '42501', null, 'Client kann Store-Bestellkopf nicht direkt ändern'
+);
+select throws_ok(
+  $$insert into public.store_order_items (id, store_order_id, inventory_item_id, item_title, price, quantity) values ('83000000-0000-4000-8000-000000000098', '83000000-0000-4000-8000-000000000090', '83000000-0000-4000-8000-000000000020', 'Direkte Store-Position', 1, 1)$$,
+  '42501', null, 'Client kann Store-Bestellposition nicht direkt anlegen'
+);
+select throws_ok(
+  $$update public.store_order_items set price = 999 where id = '83000000-0000-4000-8000-000000000091'$$,
+  '42501', null, 'Client kann Store-Bestellposition nicht direkt ändern'
+);
 
 select throws_ok(
   format('insert into public.sales (workspace_id, platform, sale_price, sale_date) values (%L, %L, 1, current_date)', :'business_workspace_id', 'direct'),
@@ -400,6 +553,74 @@ select throws_ok(
 select throws_ok(
   $$delete from public.store_order_items where id = '83000000-0000-4000-8000-000000000091'$$,
   '42501', null, 'Client kann gebuchte Bestellposition nicht direkt löschen'
+);
+
+select throws_ok(
+  $$select public.create_or_get_invoice(
+    '83000000-0000-4000-8000-000000000002',
+    '83000000-0000-4000-8000-000000000035',
+    null,
+    '{"invoice_number":"RE-CROSS-RPC","order_number":"ORDER-CROSS-RPC","invoice_date":"2026-08-29","delivery_date":"2026-08-29","subtotal":1,"total":1}'::jsonb,
+    '[{"title":"Cross RPC","quantity":1,"unit_price":1,"total_price":1}]'::jsonb
+  )$$,
+  'P0002', 'Der Verkauf wurde nicht gefunden.', 'Rechnungs-RPC lehnt eine Workspace-fremde Quelle ab'
+);
+select throws_ok(
+  $$select public.place_store_order(
+    '83000000-0000-4000-8000-000000000002',
+    '83000000-0000-4000-8000-000000000107',
+    'STORE-CROSS-RPC',
+    '{"email":"cross@example.test"}'::jsonb,
+    1, 0, 1, 'bank_transfer', 'paid', null, 'paid', '2026-08-29', null,
+    '[{"inventory_item_id":"83000000-0000-4000-8000-000000000024","item_title":"Cross RPC","quantity":1,"price":1,"payment_fee":0}]'::jsonb
+  )$$,
+  'P0002', 'Der Einzelartikel wurde nicht gefunden.', 'Store-RPC lehnt eine Workspace-fremde Position ab'
+);
+
+select lives_ok(
+  $$select public.create_or_get_invoice(
+    '83000000-0000-4000-8000-000000000002',
+    '83000000-0000-4000-8000-000000000030',
+    null,
+    '{"invoice_number":"RE-RPC-1","order_number":"ORDER-RPC-1","invoice_date":"2026-08-29","delivery_date":"2026-08-29","subtotal":30,"total":30}'::jsonb,
+    '[{"title":"RPC invoice item","quantity":1,"unit_price":30,"total_price":30}]'::jsonb
+  )$$,
+  'authenticated kann Rechnung und Position über create_or_get_invoice schreiben'
+);
+select is(
+  (
+    select count(*)
+    from public.invoices as invoice
+    join public.invoice_items as item on item.invoice_id = invoice.id
+    where invoice.workspace_id = :'business_workspace_id'::uuid
+      and invoice.sale_id = '83000000-0000-4000-8000-000000000030'
+      and invoice.invoice_number = 'RE-RPC-1'
+      and item.title = 'RPC invoice item'
+  ),
+  1::bigint,
+  'Rechnungs-RPC persistiert genau einen konsistenten Kopf mit Position'
+);
+
+select lives_ok(
+  $$select public.book_bank_transaction(
+    '83000000-0000-4000-8000-000000000002',
+    '83000000-0000-4000-8000-000000000120',
+    '2026-08-29T12:00:00Z',
+    '83000000-0000-4000-8000-000000000096'
+  )$$,
+  'authenticated kann den legitimen Zahlungsabgleich per RPC buchen'
+);
+select ok(
+  (
+    select status = 'booked' and booked_at = '2026-08-29T12:00:00Z'::timestamptz
+    from public.bank_transactions
+    where id = '83000000-0000-4000-8000-000000000120'
+  ) and (
+    select payment_status = 'paid' and status = 'confirmed'
+    from public.store_orders
+    where id = '83000000-0000-4000-8000-000000000096'
+  ),
+  'Zahlungs-RPC aktualisiert Transaktion und passende Store-Bestellung atomar'
 );
 
 select lives_ok(
