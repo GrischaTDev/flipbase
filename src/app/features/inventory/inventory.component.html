@@ -117,6 +117,7 @@
       <app-stock-position-list
         [positions]="stockService.positions()"
         [lots]="stockService.lots()"
+        [movements]="stockService.movements()"
         (sell)="openSaleForStockPosition($event)"
       ></app-stock-position-list>
     }

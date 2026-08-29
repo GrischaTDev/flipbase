@@ -91,42 +91,105 @@ function erstelleDienste(client: unknown) {
 }
 
 describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
+  it('legt Einkauf, Zusatzkosten und Positionen produktiv in genau einer RPC an', async () => {
+    const rpc = vi.fn(async () => ({
+      data: {
+        purchase: gespeicherterEinkauf,
+        purchase_costs: [
+          {
+            id: 'cost-1',
+            purchase_id: gespeicherterEinkauf.id,
+            type: 'shipping',
+            amount: 0.05,
+            description: 'Versand',
+          },
+        ],
+        purchase_lines: [
+          {
+            id: 'line-1',
+            workspace_id: workspace.id,
+            purchase_id: gespeicherterEinkauf.id,
+            catalog_product_id: 'catalog-1',
+            title_snapshot: 'LED-Lampe',
+            line_kind: 'quantity',
+            ordered_quantity: 3,
+            received_quantity: 0,
+            unit_purchase_price: 4.99,
+            line_total: 14.97,
+            allocated_additional_cost: 0.05,
+          },
+        ],
+      },
+      error: null,
+    }));
+    const { purchase } = erstelleDienste({ rpc });
+
+    const ergebnis = await purchase.createPurchase({
+      type: 'lot',
+      title: 'LED-Lampen',
+      purchase_date: '2026-08-29',
+      purchase_price: 14.97,
+      cost_allocation_mode: 'even',
+      initial_costs: [{ type: 'shipping', amount: 0.05, description: 'Versand' }],
+      purchase_lines: [
+        {
+          catalogProductId: 'catalog-1',
+          titleSnapshot: 'LED-Lampe',
+          lineKind: 'quantity',
+          orderedQuantity: 3,
+          unitPurchasePrice: 4.99,
+          lineTotal: 14.97,
+        },
+      ],
+    });
+
+    expect(ergebnis).toMatchObject({ status: 'success', data: { id: gespeicherterEinkauf.id } });
+    expect(rpc).toHaveBeenCalledOnce();
+    expect(rpc).toHaveBeenCalledWith('create_purchase', {
+      p_workspace_id: workspace.id,
+      p_purchase: expect.objectContaining({
+        title: 'LED-Lampen',
+        purchase_price: 14.97,
+        cost_allocation_mode: 'even',
+      }),
+      p_expenses: [{ type: 'shipping', amount: 0.05, description: 'Versand' }],
+      p_lines: [
+        expect.objectContaining({
+          catalog_product_id: 'catalog-1',
+          ordered_quantity: 3,
+          line_total: 14.97,
+        }),
+      ],
+    });
+  });
+
   it('übergibt initiale Mengenpositionen erst mit der bestätigten Datenbank-ID', async () => {
     const aufrufe: { tabelle: string; payload: unknown }[] = [];
     const finalerEinkauf = { ...gespeicherterEinkauf, id: '44444444-4444-4444-8444-444444444444' };
     const client = {
-      from(tabelle: string) {
+      rpc: async (_name: string, payload: unknown) => {
+        aufrufe.push({ tabelle: 'create_purchase', payload });
         return {
-          insert(payload: unknown) {
-            aufrufe.push({ tabelle, payload });
-            if (tabelle === 'purchases') {
-              return {
-                select: () => ({ single: async () => ({ data: finalerEinkauf, error: null }) }),
-              };
-            }
-            if (tabelle === 'purchase_lines') {
-              return {
-                select: async () => ({
-                  data: [
-                    {
-                      id: 'line-1',
-                      workspace_id: workspace.id,
-                      purchase_id: finalerEinkauf.id,
-                      catalog_product_id: 'catalog-1',
-                      title_snapshot: 'LED-Lampe',
-                      line_kind: 'quantity',
-                      ordered_quantity: 5,
-                      received_quantity: 0,
-                      unit_purchase_price: 4.99,
-                      line_total: 24.95,
-                    },
-                  ],
-                  error: null,
-                }),
-              };
-            }
-            throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+          data: {
+            purchase: finalerEinkauf,
+            purchase_costs: [],
+            purchase_lines: [
+              {
+                id: 'line-1',
+                workspace_id: workspace.id,
+                purchase_id: finalerEinkauf.id,
+                catalog_product_id: 'catalog-1',
+                title_snapshot: 'LED-Lampe',
+                line_kind: 'quantity',
+                ordered_quantity: 5,
+                received_quantity: 0,
+                unit_purchase_price: 4.99,
+                line_total: 24.95,
+                allocated_additional_cost: 0,
+              },
+            ],
           },
+          error: null,
         };
       },
     };
@@ -150,44 +213,28 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
     });
 
     expect(ergebnis).toMatchObject({ status: 'success', data: { id: finalerEinkauf.id } });
-    expect(aufrufe.map(({ tabelle }) => tabelle)).toEqual(['purchases', 'purchase_lines']);
-    expect(aufrufe[1].payload).toEqual([
+    expect(aufrufe.map(({ tabelle }) => tabelle)).toEqual(['create_purchase']);
+    expect(aufrufe[0].payload).toEqual(
       expect.objectContaining({
-        workspace_id: workspace.id,
-        purchase_id: finalerEinkauf.id,
-        catalog_product_id: 'catalog-1',
-        ordered_quantity: 5,
-        unit_purchase_price: 4.99,
-        line_total: 24.95,
+        p_workspace_id: workspace.id,
+        p_lines: [
+          expect.objectContaining({
+            catalog_product_id: 'catalog-1',
+            ordered_quantity: 5,
+            unit_purchase_price: 4.99,
+            line_total: 24.95,
+          }),
+        ],
       }),
-    ]);
+    );
   });
 
-  it('meldet einen Fehler der initialen Positionen als Teilproblem statt als Erfolg', async () => {
-    const aufrufe: { tabelle: string; payload: unknown }[] = [];
-    const finalerEinkauf = { ...gespeicherterEinkauf, id: '44444444-4444-4444-8444-444444444444' };
+  it('rollt bei einem Fehler der initialen Positionen den gesamten Einkauf zurück', async () => {
     const client = {
-      from(tabelle: string) {
-        return {
-          insert(payload: unknown) {
-            aufrufe.push({ tabelle, payload });
-            if (tabelle === 'purchases') {
-              return {
-                select: () => ({ single: async () => ({ data: finalerEinkauf, error: null }) }),
-              };
-            }
-            if (tabelle === 'purchase_lines') {
-              return {
-                select: async () => ({
-                  data: null,
-                  error: { code: '23503', message: 'catalog product missing' },
-                }),
-              };
-            }
-            throw new Error(`Unerwartete Tabelle: ${tabelle}`);
-          },
-        };
-      },
+      rpc: async () => ({
+        data: null,
+        error: { code: '23503', message: 'catalog product missing' },
+      }),
     };
     const { purchase } = erstelleDienste(client);
 
@@ -209,36 +256,24 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
     });
 
     expect(ergebnis).toMatchObject({
-      status: 'partial',
-      data: { id: finalerEinkauf.id },
-      error: null,
-      problems: [
-        {
-          kind: 'purchase_lines',
-          reportedBySyncStatus: true,
-          error: expect.any(Error),
-        },
-      ],
+      status: 'failed',
+      data: null,
+      error: expect.any(Error),
+      problems: [],
     });
-    expect(aufrufe[1].payload).toEqual([
-      expect.objectContaining({ purchase_id: finalerEinkauf.id }),
-    ]);
   });
 
   it('liefert den gespeicherten Einkauf mit einem typisierten Activity-Teilproblem zurück', async () => {
     const aufrufe: { tabelle: string; payload: unknown }[] = [];
     const client = {
+      rpc: async () => ({
+        data: { purchase: gespeicherterEinkauf, purchase_costs: [], purchase_lines: [] },
+        error: null,
+      }),
       from(tabelle: string) {
         return {
           insert(payload: unknown) {
             aufrufe.push({ tabelle, payload });
-            if (tabelle === 'purchases') {
-              return {
-                select: () => ({
-                  single: async () => ({ data: gespeicherterEinkauf, error: null }),
-                }),
-              };
-            }
             if (tabelle === 'inventory_items') {
               return {
                 select: () => ({
@@ -280,39 +315,14 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
         },
       ],
     });
-    expect(aufrufe.map(({ tabelle }) => tabelle)).toEqual([
-      'purchases',
-      'inventory_items',
-      'activity_logs',
-    ]);
-    expect(aufrufe[2].payload).toMatchObject({ inventory_item_id: gespeicherterArtikel.id });
+    expect(aufrufe.map(({ tabelle }) => tabelle)).toEqual(['inventory_items', 'activity_logs']);
+    expect(aufrufe[1].payload).toMatchObject({ inventory_item_id: gespeicherterArtikel.id });
     expect(syncStatus.hatFehler()).toBe(true);
   });
 
-  it('liefert den gespeicherten Einkauf bei fehlgeschlagenen Zusatzkosten als partiell zurück', async () => {
-    const aufrufe: string[] = [];
+  it('rollt bei fehlgeschlagenen Zusatzkosten den gesamten Einkauf zurück', async () => {
     const client = {
-      from(tabelle: string) {
-        return {
-          insert() {
-            aufrufe.push(tabelle);
-            if (tabelle === 'purchases') {
-              return {
-                select: () => ({
-                  single: async () => ({
-                    data: { ...gespeicherterEinkauf, type: 'mystery_pack' },
-                    error: null,
-                  }),
-                }),
-              };
-            }
-            if (tabelle === 'purchase_costs') {
-              return Promise.resolve({ error: { code: '42501', message: 'denied' } });
-            }
-            throw new Error(`Unerwartete Tabelle: ${tabelle}`);
-          },
-        };
-      },
+      rpc: async () => ({ data: null, error: { code: '42501', message: 'denied' } }),
     };
     const { purchase } = erstelleDienste(client);
 
@@ -325,17 +335,10 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
     });
 
     expect(ergebnis).toMatchObject({
-      status: 'partial',
-      data: { id: gespeicherterEinkauf.id },
-      error: null,
-      problems: [
-        {
-          kind: 'additional_costs',
-          reportedBySyncStatus: true,
-          error: expect.any(Error),
-        },
-      ],
+      status: 'failed',
+      data: null,
+      error: expect.any(Error),
+      problems: [],
     });
-    expect(aufrufe).toEqual(['purchases', 'purchase_costs']);
   });
 });

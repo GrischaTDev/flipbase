@@ -576,20 +576,10 @@ export class PurchaseService {
           };
     }
 
-    // Der lokale Spiegel aktualisiert sich erst nach dem bestätigten
-    // Datenbank-Einkauf. Die folgenden Positionszeilen erhalten dessen finale
-    // ID; ein Fehler wird als Teilproblem, nie als voller Erfolg zurückgegeben.
-    this.mockStore.savePurchase(newPurchase);
-    this.purchasesRaw.update((list) => [newPurchase, ...list]);
-
-    // 2. Zuerst nur den Elterneinkauf persistieren. Erst wenn dieser Schritt
-    // bestätigt ist, dürfen nachgelagerte Fehler als Teilprobleme gelten.
-    let dbPur: Pick<Purchase, 'id'> | null;
     try {
-      const { data, error: dbError } = await this.supabase.client
-        .from('purchases')
-        .insert({
-          workspace_id: ws.id,
+      const { data, error } = await this.supabase.client.rpc('create_purchase', {
+        p_workspace_id: ws.id,
+        p_purchase: {
           source_id: payload.source_id || null,
           supplier_id: payload.supplier_id || null,
           type: payload.type,
@@ -603,94 +593,92 @@ export class PurchaseService {
           tracking_status:
             payload.tracking_status || (payload.tracking_number ? 'in_transit' : 'pending'),
           original_url: payload.original_url || null,
-          receiving_status: normalizedLines.data.length > 0 ? 'ordered' : 'received',
           total_purchase_cost: totalCost,
-        })
-        .select()
-        .single();
-
-      if (dbError) {
-        this.verwerfeVorlaeufigenEinkauf(newPurchase.id);
+        },
+        p_expenses: kostenZeilen.map((cost) => ({
+          type: cost.type,
+          amount: cost.amount,
+          description: cost.description,
+        })),
+        p_lines: normalizedLines.data.map((line) => ({
+          catalog_product_id: line.catalogProductId,
+          title_snapshot: line.titleSnapshot,
+          line_kind: line.lineKind,
+          ordered_quantity: line.orderedQuantity,
+          unit_purchase_price: line.unitPurchasePrice,
+          line_total: line.lineTotal,
+        })),
+      });
+      if (error || !data || typeof data !== 'object') {
+        const reported = this.syncStatus.melde(
+          'Speichern des Einkaufs',
+          error ?? new Error('Der Einkauf wurde nicht zurückgegeben.'),
+        );
         return {
           status: 'failed',
           data: null,
-          error: this.syncStatus.melde('Speichern des Einkaufs', dbError),
+          error: reported,
           reportedBySyncStatus: true,
           problems: [],
         };
       }
-      dbPur = data;
-    } catch (err: unknown) {
-      this.verwerfeVorlaeufigenEinkauf(newPurchase.id);
+
+      const response = data as unknown as Record<string, unknown>;
+      const dbPurchase = response['purchase'] as Purchase | undefined;
+      if (!dbPurchase?.id) throw new Error('Der Einkauf wurde nicht zurückgegeben.');
+      const lines = Array.isArray(response['purchase_lines'])
+        ? (response['purchase_lines'] as PurchaseLine[])
+        : [];
+      const costs = Array.isArray(response['purchase_costs'])
+        ? (response['purchase_costs'] as PurchaseCost[])
+        : [];
+      const finalPurchase: Purchase = {
+        ...newPurchase,
+        ...dbPurchase,
+        source,
+        supplier,
+        costs,
+        purchase_lines: lines,
+        items_count: lines.reduce((count, line) => count + line.ordered_quantity, 0),
+      };
+      this.mockStore.savePurchase(finalPurchase);
+      this.purchasesRaw.update((list) => [
+        finalPurchase,
+        ...list.filter((purchase) => purchase.id !== finalPurchase.id),
+      ]);
+      if (this.selectedPurchase()?.id === finalPurchase.id) this.purchaseLinesRaw.set(lines);
+
+      const problems = await this.legeEinzelartikelAn(
+        finalPurchase,
+        payload,
+        lines.find((line) => line.line_kind === 'individual')?.id,
+      );
+      this.webhookService.sendPurchaseNotification(finalPurchase);
+      return problems.length > 0
+        ? {
+            status: 'partial',
+            data: finalPurchase,
+            error: null,
+            reportedBySyncStatus: problems.some((problem) => problem.reportedBySyncStatus),
+            problems,
+          }
+        : {
+            status: 'success',
+            data: finalPurchase,
+            error: null,
+            reportedBySyncStatus: false,
+            problems: [],
+          };
+    } catch (error: unknown) {
+      const reported = this.syncStatus.melde('Erstellen des Einkaufs', error);
       return {
         status: 'failed',
         data: null,
-        error: this.syncStatus.melde('Erstellen des Einkaufs', err),
+        error: reported,
         reportedBySyncStatus: true,
         problems: [],
       };
     }
-
-    if (!dbPur) {
-      this.verwerfeVorlaeufigenEinkauf(newPurchase.id);
-      return {
-        status: 'failed',
-        data: null,
-        error: new Error('Der Einkauf wurde nicht zurückgegeben'),
-        reportedBySyncStatus: false,
-        problems: [],
-      };
-    }
-
-    const finalPurchase: Purchase = { ...newPurchase, id: dbPur.id };
-    this.mockStore.deletePurchase(newPurchase.id);
-    this.mockStore.savePurchase(finalPurchase);
-    this.purchasesRaw.update((list) => [
-      finalPurchase,
-      ...list.filter((p) => p.id !== newPurchase.id && p.id !== finalPurchase.id),
-    ]);
-
-    const problems: PurchaseCreateProblem[] = [];
-    const kostenErgebnis = await this.legeZusatzkostenAn(finalPurchase.id, kostenZeilen);
-    if (kostenErgebnis.error) {
-      problems.push({
-        kind: 'additional_costs',
-        error: kostenErgebnis.error,
-        reportedBySyncStatus: kostenErgebnis.reportedBySyncStatus,
-      });
-    }
-    const lineResult = await this.createPurchaseLines(finalPurchase.id, normalizedLines.data);
-    if (lineResult.error) {
-      problems.push({
-        kind: 'purchase_lines',
-        error: lineResult.error,
-        reportedBySyncStatus: lineResult.reportedBySyncStatus,
-      });
-    }
-    problems.push(
-      ...(await this.legeEinzelartikelAn(
-        finalPurchase,
-        payload,
-        lineResult.data?.find((line) => line.line_kind === 'individual')?.id,
-      )),
-    );
-    this.webhookService.sendPurchaseNotification(finalPurchase);
-
-    return problems.length > 0
-      ? {
-          status: 'partial',
-          data: finalPurchase,
-          error: null,
-          reportedBySyncStatus: problems.some((problem) => problem.reportedBySyncStatus),
-          problems,
-        }
-      : {
-          status: 'success',
-          data: finalPurchase,
-          error: null,
-          reportedBySyncStatus: false,
-          problems: [],
-        };
   }
 
   async createPurchaseLines(

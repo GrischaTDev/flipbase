@@ -7,7 +7,12 @@ import {
   LucidePackageOpen as PackageOpen,
   LucideDynamicIcon,
 } from '@lucide/angular';
-import { InventoryItem, StockLot, StockPosition } from '../../../../core/models/flipbase.models';
+import {
+  InventoryItem,
+  StockLot,
+  StockMovement,
+  StockPosition,
+} from '../../../../core/models/flipbase.models';
 
 interface DisplayPosition extends StockPosition {
   readonly lots: readonly StockLot[];
@@ -23,6 +28,7 @@ interface DisplayPosition extends StockPosition {
 export class StockPositionListComponent {
   readonly positions = input.required<readonly StockPosition[]>();
   readonly lots = input<readonly StockLot[]>([]);
+  readonly movements = input<readonly StockMovement[]>([]);
   /**
    * Kompatibilitaetseingabe fuer Aufrufer, die Einzelstuecke zusammen mit
    * Mengenpositionen anzeigen. Die Inventarseite trennt beides in Tabs.
@@ -75,6 +81,36 @@ export class StockPositionListComponent {
       })
       .sort((left, right) => left.title.localeCompare(right.title, 'de'));
   });
+
+  readonly movementRows = computed(() => {
+    const lotById = new Map(this.lots().map((lot) => [lot.id, lot]));
+    return this.movements().map((movement) => {
+      const lot = lotById.get(movement.stock_lot_id) as
+        (StockLot & { catalog_product?: { title?: string } | null }) | undefined;
+      const position = this.positions().find(
+        (entry) => entry.catalog_product_id === lot?.catalog_product_id,
+      );
+      return {
+        ...movement,
+        title: lot?.catalog_product?.title ?? position?.title ?? 'Unbekannter Artikel',
+      };
+    });
+  });
+
+  movementReason(reason: StockMovement['reason']): string {
+    switch (reason) {
+      case 'receipt':
+        return 'Wareneingang';
+      case 'sale':
+        return 'Verkauf';
+      case 'return':
+        return 'Rückgabe';
+      case 'damage':
+        return 'Beschädigung';
+      default:
+        return 'Korrektur';
+    }
+  }
 
   toggleLots(productId: string): void {
     this.openPositionIds.update((ids) => {

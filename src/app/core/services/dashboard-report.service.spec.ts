@@ -103,4 +103,70 @@ describe('DashboardReportService', () => {
     expect(report.realizedProfit).toBe(0);
     expect(report.rows).toEqual([]);
   });
+
+  it('zieht eine Teilgutschrift ohne Warenrückgabe finanziell von Umsatz und Gewinn ab', () => {
+    const report = createService().createReportForRecords(
+      'last_7_days',
+      'all',
+      {
+        purchases: [],
+        sales: [
+          {
+            ...sale,
+            returned_at: '2026-08-28T10:00:00.000Z',
+            refund_amount: 5,
+          },
+        ],
+        inventoryItems: [],
+        stockLots: [],
+      },
+      now,
+    );
+
+    expect(report.revenue).toBe(14.98);
+    expect(report.realizedProfit).toBe(4);
+    expect(report.rows).toEqual([
+      expect.objectContaining({ saleId: sale.id, revenue: 14.98, profit: 4 }),
+    ]);
+  });
+
+  it('aggregiert Tagesbuchungen im Jahresbericht in den passenden Monats-Bucket', () => {
+    const report = createService().createReportForRecords(
+      'year',
+      'all',
+      {
+        purchases: [receipt],
+        sales: [
+          sale,
+          {
+            ...sale,
+            id: 'sale-2',
+            sale_date: '2026-08-03',
+            sale_price: 10,
+            sale_price_total: 10,
+            lines: [
+              {
+                ...sale.lines![0],
+                id: 'line-2',
+                sale_id: 'sale-2',
+                quantity: 1,
+                unit_sale_price: 10,
+                line_total: 10,
+                cost_of_goods_sold: 4,
+              },
+            ],
+          },
+        ],
+        inventoryItems: [],
+        stockLots: [],
+      },
+      now,
+    );
+
+    const august = report.points.find((point) => point.date === '2026-08-01');
+    expect(august).toMatchObject({ revenue: 29.98, expenses: 24.95, realizedProfit: 14 });
+    expect(report.revenue).toBe(29.98);
+    expect(report.expenses).toBe(24.95);
+    expect(report.realizedProfit).toBe(14);
+  });
 });

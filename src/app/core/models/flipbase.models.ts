@@ -388,6 +388,7 @@ export interface PurchaseLine {
   received_quantity: number;
   unit_purchase_price: number;
   line_total: number;
+  allocated_additional_cost?: number;
   created_at?: string;
   updated_at?: string;
 }

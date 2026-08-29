@@ -19,9 +19,9 @@ select
   item.id,
   item.title,
   1,
-  sale.sale_price,
-  sale.sale_price,
-  item.allocated_purchase_cost,
+  greatest(0, least(9999999999.99, sale.sale_price)),
+  greatest(0, least(9999999999.99, sale.sale_price)),
+  greatest(0, least(9999999999.99, item.allocated_purchase_cost)),
   case
     when item.tax_mode_override in ('diff_25a', 'kleinunternehmer_19', 'regular_19')
       then item.tax_mode_override

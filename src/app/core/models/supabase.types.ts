@@ -987,6 +987,7 @@ export type Database = {
       }
       purchase_lines: {
         Row: {
+          allocated_additional_cost: number
           catalog_product_id: string | null
           created_at: string
           id: string
@@ -1001,6 +1002,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          allocated_additional_cost?: number
           catalog_product_id?: string | null
           created_at?: string
           id?: string
@@ -1015,6 +1017,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          allocated_additional_cost?: number
           catalog_product_id?: string | null
           created_at?: string
           id?: string
@@ -2340,6 +2343,15 @@ export type Database = {
           p_items: Json
           p_sale_id: string
           p_store_order_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      create_purchase: {
+        Args: {
+          p_expenses?: Json
+          p_lines?: Json
+          p_purchase: Json
           p_workspace_id: string
         }
         Returns: Json

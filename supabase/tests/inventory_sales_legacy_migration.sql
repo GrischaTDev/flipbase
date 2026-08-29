@@ -44,7 +44,9 @@ begin
     (v_workspace_default, 'valid regular override', 'sold', 1, 'regular_19'),
     (v_workspace_klein, 'invalid override fallback', 'sold', 1, 'historischer freitext'),
     (v_workspace_invalid, 'invalid workspace fallback', 'sold', 1, null),
-    (v_workspace_invalid, 'override beats invalid workspace', 'sold', 1, 'regular_19');
+    (v_workspace_invalid, 'override beats invalid workspace', 'sold', 1, 'regular_19'),
+    (v_workspace_default, 'negative legacy money', 'sold', -12.34, null),
+    (v_workspace_default, 'oversized legacy money', 'sold', 100000000000000000000, null);
 
   insert into public.sales (
     workspace_id, inventory_item_id, platform, sale_price, sale_price_total, sale_date
@@ -59,6 +61,22 @@ begin
     'invalid workspace fallback',
     'override beats invalid workspace'
   );
+
+  insert into public.sales (
+    workspace_id, inventory_item_id, platform, sale_price, sale_price_total, sale_date
+  )
+  select
+    item.workspace_id,
+    item.id,
+    'ebay',
+    case item.title
+      when 'negative legacy money' then -29.99
+      else 100000000000000000000
+    end,
+    null,
+    '2026-08-20'
+  from public.inventory_items as item
+  where item.title in ('negative legacy money', 'oversized legacy money');
 end;
 $$;
 
@@ -127,6 +145,26 @@ begin
     raise exception 'legacy tax mode fallback did not produce the documented valid value';
   end if;
 
+  if not exists (
+    select 1
+    from public.sale_lines as line
+    join public.inventory_items as item on item.id = line.inventory_item_id
+    where item.title = 'negative legacy money'
+      and line.unit_sale_price = 0
+      and line.line_total = 0
+      and line.cost_of_goods_sold = 0
+  ) or not exists (
+    select 1
+    from public.sale_lines as line
+    join public.inventory_items as item on item.id = line.inventory_item_id
+    where item.title = 'oversized legacy money'
+      and line.unit_sale_price = 9999999999.99
+      and line.line_total = 9999999999.99
+      and line.cost_of_goods_sold = 9999999999.99
+  ) then
+    raise exception 'legacy monetary values were not clamped to sale-line bounds';
+  end if;
+
   select count(*) into v_line_count
   from public.sale_lines as line
   join public.inventory_items as item on item.id = line.inventory_item_id
@@ -137,9 +175,11 @@ begin
     'valid regular override',
     'invalid override fallback',
     'invalid workspace fallback',
-    'override beats invalid workspace'
+    'override beats invalid workspace',
+    'negative legacy money',
+    'oversized legacy money'
   );
-  if v_line_count <> 7 then
+  if v_line_count <> 9 then
     raise exception 'legacy sale-line migration is not idempotent, got % rows', v_line_count;
   end if;
 

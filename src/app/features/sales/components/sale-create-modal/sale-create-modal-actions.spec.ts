@@ -1,11 +1,19 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
+import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { InventoryItem, Sale, StockPosition } from '../../../../core/models/flipbase.models';
+import { InventoryService } from '../../../../core/services/inventory.service';
+import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
+import { SalesService } from '../../../../core/services/sales.service';
+import { StockService } from '../../../../core/services/stock.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SaleCreateModalComponent } from './sale-create-modal.component';
+
+TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 
 const artikel: InventoryItem = {
   id: 'item-1',
@@ -105,6 +113,47 @@ function erstelleKomponente(bestehenderVerkauf: Sale | null = null) {
 }
 
 describe('SaleCreateModalComponent – Aktionsmeldungen', () => {
+  it('aktualisiert Gesamtpreis, Live-Kennzahlen und Legacy-Payload bei Formänderungen', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
+        { provide: InventoryService, useValue: { items: signal([artikel]) } },
+        { provide: StockService, useValue: { positions: signal([position]) } },
+        {
+          provide: ProfitEngineService,
+          useValue: {
+            calculateProfit: (revenue: number, costs: number) => revenue - costs,
+            calculateRoi: (profit: number, costs: number) =>
+              costs === 0 ? 0 : (profit / costs) * 100,
+          },
+        },
+        { provide: ToastService, useValue: new ToastService() },
+        { provide: SyncStatusService, useValue: new SyncStatusService() },
+      ],
+    });
+    const komponente = TestBed.runInInjectionContext(() => new SaleCreateModalComponent());
+    const line = komponente.lines.at(0);
+    line.controls.target.setValue(`inventory:${artikel.id}`);
+    line.controls.unitSalePrice.setValue(50);
+
+    expect(komponente.totalPrice()).toBe(50);
+    expect(komponente.liveMetrics()).toMatchObject({ totalCosts: 20, profit: 30 });
+
+    line.controls.unitSalePrice.setValue(65);
+    komponente.form.controls.platformFee.setValue(5);
+
+    expect(komponente.totalPrice()).toBe(65);
+    expect(komponente.liveMetrics()).toMatchObject({ totalCosts: 25, profit: 40 });
+    expect(
+      (
+        komponente as unknown as {
+          legacyUpdatePayload: () => { sale_price: number };
+        }
+      ).legacyUpdatePayload().sale_price,
+    ).toBe(65);
+    TestBed.resetTestingModule();
+  });
+
   it('übergibt einen Mengenverkauf mit Plattform und Datum an den atomaren Adapter', async () => {
     const { komponente, salesService, created, closed } = erstelleKomponente();
     await komponente.onSubmit();

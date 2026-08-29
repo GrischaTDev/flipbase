@@ -78,7 +78,7 @@ export class DashboardReportService {
 
       const amount = this.purchaseAmount(purchase);
       expenses += amount;
-      this.addToPoint(pointByDate, this.dateKey(date), { expenses: amount });
+      this.addToPoint(pointByDate, this.bucketKey(date, window), { expenses: amount });
     }
 
     const rows: DashboardSaleRow[] = [];
@@ -99,7 +99,7 @@ export class DashboardReportService {
       rows.push(row);
       revenue += row.revenue;
       realizedProfit += row.profit;
-      this.addToPoint(pointByDate, this.dateKey(date), {
+      this.addToPoint(pointByDate, this.bucketKey(date, window), {
         revenue: row.revenue,
         realizedProfit: row.profit,
       });
@@ -122,7 +122,7 @@ export class DashboardReportService {
 
   private saleRow(sale: Sale): DashboardSaleRow {
     const lines = sale.lines?.filter((line) => line.quantity > 0) ?? [];
-    const revenue = this.saleRevenue(sale, lines);
+    const revenue = Math.max(0, this.saleRevenue(sale, lines) - this.number(sale.refund_amount));
     const costOfGoodsSold = this.costOfGoodsSold(sale, lines);
     const sellingCosts =
       this.number(sale.platform_fee) +
@@ -233,7 +233,9 @@ export class DashboardReportService {
 
   private isSaleActiveAt(sale: Sale, end: Date): boolean {
     const returnedAt = sale.returned_at ? this.calendarDate(sale.returned_at) : null;
-    return !returnedAt || returnedAt > end;
+    if (!returnedAt || returnedAt > end) return true;
+    const refund = this.number(sale.refund_amount);
+    return refund > 0 && refund < this.saleRevenue(sale, sale.lines ?? []);
   }
 
   private isInWindow(date: Date, window: DateWindow): boolean {
@@ -256,6 +258,12 @@ export class DashboardReportService {
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${date.getFullYear()}-${month}-${day}`;
+  }
+
+  private bucketKey(date: Date, window: DateWindow): string {
+    return window.bucket === 'month'
+      ? this.dateKey(new Date(date.getFullYear(), date.getMonth(), 1))
+      : this.dateKey(date);
   }
 
   private number(value: number | null | undefined): number {

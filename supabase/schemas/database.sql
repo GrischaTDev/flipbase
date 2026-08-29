@@ -252,6 +252,7 @@ create table public.purchase_lines (
     received_quantity integer not null default 0 check (received_quantity >= 0 and received_quantity <= ordered_quantity and received_quantity::numeric <> 'NaN'::numeric),
     unit_purchase_price numeric not null check (unit_purchase_price <> 'NaN'::numeric and unit_purchase_price >= 0 and scale(unit_purchase_price) <= 2),
     line_total numeric not null check (line_total <> 'NaN'::numeric and line_total >= 0 and scale(line_total) <= 2),
+    allocated_additional_cost numeric(12,2) not null default 0 check (allocated_additional_cost >= 0),
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
     check ((line_kind = 'quantity' and catalog_product_id is not null) or line_kind = 'individual'),
@@ -270,7 +271,7 @@ create table public.stock_lots (
     catalog_product_id uuid not null references public.catalog_products(id) on delete restrict,
     received_quantity integer not null check (received_quantity > 0),
     remaining_quantity integer not null check (remaining_quantity >= 0 and remaining_quantity <= received_quantity),
-    unit_cost numeric(12,2) not null check (unit_cost >= 0),
+    unit_cost numeric(18,6) not null check (unit_cost >= 0),
     received_at timestamptz not null default now(),
     created_at timestamptz not null default now(),
     unique (workspace_id, id)
@@ -310,7 +311,7 @@ create table public.sale_line_lot_allocations (
     sale_line_id uuid not null references public.sale_lines(id) on delete restrict,
     stock_lot_id uuid not null references public.stock_lots(id) on delete restrict,
     quantity integer not null check (quantity > 0),
-    unit_cost numeric(12,2) not null check (unit_cost >= 0),
+    unit_cost numeric(18,6) not null check (unit_cost >= 0),
     created_at timestamptz not null default now(),
     unique (sale_line_id, stock_lot_id)
 );
@@ -754,8 +755,9 @@ revoke all on table public.catalog_products, public.purchase_lines, public.stock
 revoke all on table public.catalog_products, public.purchase_lines, public.stock_lots,
     public.stock_movements, public.sale_lines, public.sale_line_lot_allocations
     from authenticated;
-grant select, insert, update, delete on table public.catalog_products, public.purchase_lines,
-    public.stock_lots, public.stock_movements, public.sale_lines,
+grant select, insert, update, delete on table public.catalog_products, public.purchase_lines
+    to authenticated;
+grant select on table public.stock_lots, public.stock_movements, public.sale_lines,
     public.sale_line_lot_allocations to authenticated;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.returns ENABLE ROW LEVEL SECURITY;
@@ -1266,36 +1268,18 @@ using (public.is_workspace_member(workspace_id));
 -- stock_lots
 create policy "Bestandslose lesen" on public.stock_lots for select to authenticated
 using (public.is_workspace_member(workspace_id));
-create policy "Bestandslose anlegen" on public.stock_lots for insert to authenticated
-with check (public.is_workspace_member(workspace_id));
-create policy "Bestandslose aendern" on public.stock_lots for update to authenticated
-using (public.is_workspace_member(workspace_id))
-with check (public.is_workspace_member(workspace_id));
-create policy "Bestandslose loeschen" on public.stock_lots for delete to authenticated
-using (public.is_workspace_member(workspace_id));
 
 -- stock_movements
 create policy "Bestandsbewegungen lesen" on public.stock_movements for select to authenticated
 using (public.is_workspace_member(workspace_id));
-create policy "Bestandsbewegungen anlegen" on public.stock_movements for insert to authenticated
-with check (public.is_workspace_member(workspace_id));
 
 -- sale_lines
 create policy "Verkaufspositionen lesen" on public.sale_lines for select to authenticated
-using (public.is_workspace_member(workspace_id));
-create policy "Verkaufspositionen anlegen" on public.sale_lines for insert to authenticated
-with check (public.is_workspace_member(workspace_id));
-create policy "Verkaufspositionen aendern" on public.sale_lines for update to authenticated
-using (public.is_workspace_member(workspace_id))
-with check (public.is_workspace_member(workspace_id));
-create policy "Verkaufspositionen loeschen" on public.sale_lines for delete to authenticated
 using (public.is_workspace_member(workspace_id));
 
 -- sale_line_lot_allocations
 create policy "Loszuordnungen lesen" on public.sale_line_lot_allocations for select to authenticated
 using (public.is_workspace_member(workspace_id));
-create policy "Loszuordnungen anlegen" on public.sale_line_lot_allocations for insert to authenticated
-with check (public.is_workspace_member(workspace_id));
 
 -- activity_logs
 create policy "Verlauf lesen"
@@ -1909,6 +1893,175 @@ after insert or update of ordered_quantity, received_quantity or delete
 on public.purchase_lines
 for each row execute function public.sync_purchase_receiving_status();
 
+create or replace function public.create_purchase(
+  p_workspace_id uuid,
+  p_purchase jsonb,
+  p_expenses jsonb default '[]'::jsonb,
+  p_lines jsonb default '[]'::jsonb
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_purchase public.purchases;
+  v_expense jsonb;
+  v_line jsonb;
+  v_line_id uuid;
+  v_line_ids uuid[] := array[]::uuid[];
+  v_total_expense_cents bigint;
+  v_manual_cents bigint;
+  v_mode text;
+begin
+  if (select auth.uid()) is null
+    or not (select public.is_workspace_member(p_workspace_id)) then
+    raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+
+  if p_workspace_id is null
+    or jsonb_typeof(p_purchase) <> 'object'
+    or jsonb_typeof(p_expenses) <> 'array'
+    or jsonb_typeof(p_lines) <> 'array'
+    or nullif(btrim(p_purchase ->> 'title'), '') is null then
+    raise exception using errcode = '22023', message = 'Die Einkaufsdaten sind ungültig.';
+  end if;
+
+  v_mode := coalesce(nullif(p_purchase ->> 'cost_allocation_mode', ''), 'even');
+  if v_mode not in ('manual', 'even', 'value_weighted') then
+    raise exception using errcode = '22023', message = 'Die Kostenverteilung ist ungültig.';
+  end if;
+
+  insert into public.purchases (
+    workspace_id, source_id, supplier_id, type, title, purchase_date,
+    purchase_price, cost_allocation_mode, notes, tracking_number,
+    tracking_carrier, tracking_status, original_url, receiving_status,
+    total_purchase_cost
+  ) values (
+    p_workspace_id,
+    nullif(p_purchase ->> 'source_id', '')::uuid,
+    nullif(p_purchase ->> 'supplier_id', '')::uuid,
+    p_purchase ->> 'type',
+    btrim(p_purchase ->> 'title'),
+    (p_purchase ->> 'purchase_date')::date,
+    coalesce((p_purchase ->> 'purchase_price')::numeric, 0),
+    v_mode,
+    nullif(btrim(p_purchase ->> 'notes'), ''),
+    nullif(btrim(p_purchase ->> 'tracking_number'), ''),
+    nullif(p_purchase ->> 'tracking_carrier', ''),
+    coalesce(nullif(p_purchase ->> 'tracking_status', ''), 'pending'),
+    nullif(p_purchase ->> 'original_url', ''),
+    case when jsonb_array_length(p_lines) > 0 then 'ordered' else 'received' end,
+    coalesce((p_purchase ->> 'total_purchase_cost')::numeric,
+      coalesce((p_purchase ->> 'purchase_price')::numeric, 0))
+  ) returning * into v_purchase;
+
+  for v_expense in select value from jsonb_array_elements(p_expenses) loop
+    if coalesce((v_expense ->> 'amount')::numeric, 0) <= 0 then
+      raise exception using errcode = '22023', message = 'Zusatzkosten müssen positiv sein.';
+    end if;
+    insert into public.purchase_costs (purchase_id, type, amount, description)
+    values (
+      v_purchase.id,
+      coalesce(nullif(btrim(v_expense ->> 'type'), ''), 'other'),
+      (v_expense ->> 'amount')::numeric,
+      nullif(btrim(v_expense ->> 'description'), '')
+    );
+  end loop;
+
+  for v_line in select value from jsonb_array_elements(p_lines) loop
+    insert into public.purchase_lines (
+      workspace_id, purchase_id, catalog_product_id, title_snapshot,
+      line_kind, ordered_quantity, received_quantity, unit_purchase_price,
+      line_total, allocated_additional_cost
+    ) values (
+      p_workspace_id,
+      v_purchase.id,
+      nullif(v_line ->> 'catalog_product_id', '')::uuid,
+      btrim(v_line ->> 'title_snapshot'),
+      v_line ->> 'line_kind',
+      (v_line ->> 'ordered_quantity')::integer,
+      0,
+      (v_line ->> 'unit_purchase_price')::numeric,
+      (v_line ->> 'line_total')::numeric,
+      case when v_mode = 'manual'
+        then coalesce((v_line ->> 'allocated_additional_cost')::numeric, 0)
+        else 0
+      end
+    ) returning id into v_line_id;
+    v_line_ids := array_append(v_line_ids, v_line_id);
+  end loop;
+
+  select coalesce(round(sum(cost.amount) * 100), 0)::bigint
+  into v_total_expense_cents
+  from public.purchase_costs as cost
+  where cost.purchase_id = v_purchase.id;
+
+  if cardinality(v_line_ids) = 0 then
+    null;
+  elsif v_mode = 'manual' then
+    select coalesce(round(sum(line.allocated_additional_cost) * 100), 0)::bigint
+    into v_manual_cents
+    from public.purchase_lines as line
+    where line.id = any(v_line_ids);
+    if v_manual_cents <> v_total_expense_cents then
+      raise exception using errcode = '22023', message = 'Die manuelle Kostenverteilung stimmt nicht mit den Zusatzkosten überein.';
+    end if;
+  elsif v_total_expense_cents > 0 then
+    with weights as (
+      select
+        line.id,
+        ids.ordinality,
+        case
+          when v_mode = 'value_weighted' and totals.value_total > 0 then line.line_total
+          else line.ordered_quantity::numeric
+        end as weight
+      from unnest(v_line_ids) with ordinality as ids(id, ordinality)
+      join public.purchase_lines as line on line.id = ids.id
+      cross join (
+        select sum(candidate.line_total) as value_total
+        from public.purchase_lines as candidate
+        where candidate.id = any(v_line_ids)
+      ) as totals
+    ), shares as (
+      select
+        weights.*,
+        v_total_expense_cents::numeric * weight / nullif(sum(weight) over (), 0) as exact_cents
+      from weights
+    ), ranked as (
+      select
+        shares.*,
+        floor(exact_cents)::bigint as floor_cents,
+        row_number() over (order by exact_cents - floor(exact_cents) desc, ordinality) as remainder_rank,
+        v_total_expense_cents - sum(floor(exact_cents)::bigint) over () as remainder_cents
+      from shares
+    )
+    update public.purchase_lines as line
+    set allocated_additional_cost = (
+      ranked.floor_cents + case when ranked.remainder_rank <= ranked.remainder_cents then 1 else 0 end
+    )::numeric / 100
+    from ranked
+    where line.id = ranked.id;
+  end if;
+
+  return jsonb_build_object(
+    'purchase', to_jsonb(v_purchase),
+    'purchase_costs', coalesce((
+      select jsonb_agg(to_jsonb(cost) order by cost.created_at, cost.id)
+      from public.purchase_costs as cost where cost.purchase_id = v_purchase.id
+    ), '[]'::jsonb),
+    'purchase_lines', coalesce((
+      select jsonb_agg(to_jsonb(line) order by ids.ordinality)
+      from unnest(v_line_ids) with ordinality as ids(id, ordinality)
+      join public.purchase_lines as line on line.id = ids.id
+    ), '[]'::jsonb)
+  );
+end;
+$$;
+
+revoke all on function public.create_purchase(uuid, jsonb, jsonb, jsonb) from public;
+grant execute on function public.create_purchase(uuid, jsonb, jsonb, jsonb) to authenticated;
+
 create or replace function public.receive_purchase_lines(
   p_workspace_id uuid,
   p_purchase_id uuid,
@@ -1916,7 +2069,7 @@ create or replace function public.receive_purchase_lines(
 )
 returns jsonb
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $$
 declare
@@ -2010,7 +2163,8 @@ begin
       v_purchase_line.catalog_product_id,
       v_received_quantity,
       v_received_quantity,
-      v_purchase_line.unit_purchase_price,
+      (v_purchase_line.line_total + v_purchase_line.allocated_additional_cost)
+        / v_purchase_line.ordered_quantity,
       v_received_at
     )
     returning * into v_stock_lot;
@@ -2061,7 +2215,7 @@ create or replace function public.receive_individual_purchase_line(
 )
 returns jsonb
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $$
 declare
@@ -2139,7 +2293,7 @@ create or replace function public.record_sale(
 )
 returns jsonb
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $$
 declare
@@ -2447,7 +2601,7 @@ create or replace function public.record_sale_return(
 )
 returns jsonb
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $$
 declare
@@ -2462,6 +2616,9 @@ declare
   v_return public.returns;
   v_return_inventory_item_id uuid;
   v_restocked_quantity integer := 0;
+  v_sale_total numeric;
+  v_total_refund numeric;
+  v_is_full_refund boolean;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -2493,7 +2650,12 @@ begin
     raise exception using errcode = '22023', message = 'Der Verkauf wurde bereits retourniert.';
   end if;
 
-  select sale_line.inventory_item_id into v_return_inventory_item_id
+  v_sale_total := coalesce(v_sale.sale_price_total, v_sale.sale_price, 0);
+  v_total_refund := least(v_sale_total, coalesce(v_sale.refund_amount, 0) + p_refund_amount);
+  v_is_full_refund := v_total_refund >= v_sale_total;
+
+  if v_is_full_refund then
+    select sale_line.inventory_item_id into v_return_inventory_item_id
   from public.sale_lines as sale_line
   where sale_line.workspace_id = p_workspace_id
     and sale_line.sale_id = p_sale_id
@@ -2501,12 +2663,12 @@ begin
   order by sale_line.id
   limit 1;
 
-  for v_sale_line in
-    select *
-    from public.sale_lines
-    where workspace_id = p_workspace_id
-      and sale_id = p_sale_id
-  loop
+    for v_sale_line in
+      select *
+      from public.sale_lines
+      where workspace_id = p_workspace_id
+        and sale_id = p_sale_id
+    loop
     if v_sale_line.catalog_product_id is not null then
       for v_allocation in
         select *
@@ -2593,11 +2755,12 @@ begin
         v_restocked_quantity := v_restocked_quantity + 1;
       end if;
     end if;
-  end loop;
+    end loop;
+  end if;
 
   update public.sales
-  set returned_at = now(),
-      refund_amount = p_refund_amount
+  set returned_at = case when v_is_full_refund then now() else null end,
+      refund_amount = v_total_refund
   where id = p_sale_id
     and workspace_id = p_workspace_id
   returning * into v_sale;
@@ -2622,7 +2785,7 @@ begin
     current_date,
     p_reason,
     p_refund_amount,
-    p_refund_amount >= v_sale.sale_price,
+    v_is_full_refund,
     p_restock_action,
     nullif(trim(p_buyer_name), ''),
     nullif(trim(p_notes), '')
@@ -3163,6 +3326,13 @@ grant usage on schema public to authenticated, service_role;
 grant select, insert, update, delete
   on all tables in schema public
   to authenticated;
+
+-- Buchungstabellen sind für Clients nur lesbar. Änderungen erfolgen
+-- ausschließlich über die validierten, transaktionalen RPC-Funktionen.
+revoke insert, update, delete
+  on public.stock_lots, public.stock_movements, public.sale_lines,
+    public.sale_line_lot_allocations
+  from authenticated;
 
 grant all
   on all tables in schema public

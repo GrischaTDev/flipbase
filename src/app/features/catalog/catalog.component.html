@@ -140,7 +140,9 @@
   @if (isCreateOpen()) {
     <div
       class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      role="presentation"
+      appModalDialog
+      dialogTitel="Artikelstamm anlegen"
+      (dialogClose)="closeCreateDialog()"
     >
       <form
         [formGroup]="productForm"
@@ -196,6 +198,23 @@
               class="h-4 w-4 rounded border-fb-line"
             />Im öffentlichen Shop anzeigen</label
           >
+          @if (productForm.controls.isPublicStore.value) {
+            <label
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+              >Shoppreis<input
+                formControlName="listingPrice"
+                type="number"
+                inputmode="decimal"
+                min="0.01"
+                step="0.01"
+                class="linear-input mt-1 w-full rounded-lg px-3 py-2 text-xs"
+            /></label>
+            @if (productForm.hasError('publicListingPrice')) {
+              <p class="text-xs text-rose-400" role="alert">
+                Für öffentliche Artikel ist ein positiver Shoppreis erforderlich.
+              </p>
+            }
+          }
           @if (saveError()) {
             <p role="alert" class="text-xs text-rose-400">{{ saveError() }}</p>
           }

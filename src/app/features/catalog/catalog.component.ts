@@ -6,7 +6,14 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  AbstractControl,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  ValidationErrors,
+  Validators,
+} from '@angular/forms';
 import {
   LucideDynamicIcon,
   LucidePlus as Plus,
@@ -17,10 +24,11 @@ import { CatalogProduct, TrackingMode } from '../../core/models/flipbase.models'
 import { CatalogService } from '../../core/services/catalog.service';
 import { StockService } from '../../core/services/stock.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 
 @Component({
   selector: 'app-catalog',
-  imports: [ReactiveFormsModule, LucideDynamicIcon],
+  imports: [ReactiveFormsModule, LucideDynamicIcon, ModalDialogDirective],
   templateUrl: './catalog.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -37,18 +45,30 @@ export class CatalogComponent {
   readonly isCreateOpen = signal(false);
   readonly isSaving = signal(false);
   readonly saveError = signal<string | null>(null);
-  readonly productForm = new FormGroup({
-    title: new FormControl('', {
-      nonNullable: true,
-      validators: [Validators.required, Validators.minLength(2)],
-    }),
-    ean: new FormControl('', { nonNullable: true }),
-    trackingMode: new FormControl<TrackingMode>('quantity', {
-      nonNullable: true,
-      validators: [Validators.required],
-    }),
-    isPublicStore: new FormControl(false, { nonNullable: true }),
-  });
+  static publicListingPriceValidator(control: AbstractControl): ValidationErrors | null {
+    const isPublic = Boolean(control.get('isPublicStore')?.value);
+    const price = Number(control.get('listingPrice')?.value);
+    return isPublic && (!Number.isFinite(price) || price <= 0)
+      ? { publicListingPrice: true }
+      : null;
+  }
+
+  readonly productForm = new FormGroup(
+    {
+      title: new FormControl('', {
+        nonNullable: true,
+        validators: [Validators.required, Validators.minLength(2)],
+      }),
+      ean: new FormControl('', { nonNullable: true }),
+      trackingMode: new FormControl<TrackingMode>('quantity', {
+        nonNullable: true,
+        validators: [Validators.required],
+      }),
+      isPublicStore: new FormControl(false, { nonNullable: true }),
+      listingPrice: new FormControl<number | null>(null),
+    },
+    { validators: CatalogComponent.publicListingPriceValidator },
+  );
 
   readonly filteredProducts = computed(() => {
     const query = this.searchQuery().trim().toLocaleLowerCase('de');
@@ -114,6 +134,7 @@ export class CatalogComponent {
         ean: value.ean.trim() || null,
         trackingMode: value.trackingMode,
         isPublicStore: value.isPublicStore,
+        listingPrice: value.isPublicStore ? value.listingPrice : null,
       });
 
       if (result.error) {
@@ -125,6 +146,7 @@ export class CatalogComponent {
         ean: '',
         trackingMode: 'quantity',
         isPublicStore: false,
+        listingPrice: null,
       });
       this.isCreateOpen.set(false);
     } catch (error: unknown) {
@@ -134,5 +156,9 @@ export class CatalogComponent {
     } finally {
       this.isSaving.set(false);
     }
+  }
+
+  closeCreateDialog(): void {
+    this.isCreateOpen.set(false);
   }
 }

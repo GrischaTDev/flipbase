@@ -6,7 +6,12 @@ import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { readFile } from 'node:fs/promises';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { InventoryItem, StockLot, StockPosition } from '../../../../core/models/flipbase.models';
+import {
+  InventoryItem,
+  StockLot,
+  StockMovement,
+  StockPosition,
+} from '../../../../core/models/flipbase.models';
 import { StockPositionListComponent } from './stock-position-list.component';
 
 TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
@@ -19,6 +24,7 @@ function createList(
   positions: readonly StockPosition[],
   individualItems: readonly InventoryItem[] = [],
   lots: readonly StockLot[] = [],
+  movements: readonly StockMovement[] = [],
 ) {
   TestBed.resetTestingModule();
   const fixture = TestBed.configureTestingModule({
@@ -29,6 +35,7 @@ function createList(
     positions: signal(positions),
     individualItems: signal(individualItems),
     lots: signal(lots),
+    movements: signal(movements),
   });
   fixture.detectChanges();
   return fixture;
@@ -125,5 +132,70 @@ describe('StockPositionListComponent', () => {
     expect(
       fixture.nativeElement.querySelector('[data-mobile-stock-lot="old"]')?.textContent,
     ).toContain('10,00 €');
+  });
+
+  it('zeigt die vollständige Bewegungshistorie auch für ein ausverkauftes Los zugänglich an', () => {
+    const soldLot = {
+      ...lot('sold', '2026-08-01T09:00:00.000Z', 10),
+      remaining_quantity: 0,
+      catalog_product: {
+        id: ledLampe.catalog_product_id,
+        title: ledLampe.title,
+        is_public_store: true,
+      },
+    };
+    const movements: StockMovement[] = [
+      {
+        id: 'movement-receipt',
+        workspace_id: 'workspace-1',
+        stock_lot_id: soldLot.id,
+        direction: 'in',
+        quantity: 2,
+        reason: 'receipt',
+        created_at: '2026-08-01T09:00:00.000Z',
+      },
+      {
+        id: 'movement-sale',
+        workspace_id: 'workspace-1',
+        stock_lot_id: soldLot.id,
+        sale_line_id: 'sale-line-1',
+        direction: 'out',
+        quantity: 2,
+        reason: 'sale',
+        created_at: '2026-08-20T09:00:00.000Z',
+      },
+      {
+        id: 'movement-correction',
+        workspace_id: 'workspace-1',
+        stock_lot_id: soldLot.id,
+        direction: 'in',
+        quantity: 1,
+        reason: 'correction',
+        created_at: '2026-08-21T09:00:00.000Z',
+      },
+      {
+        id: 'movement-return',
+        workspace_id: 'workspace-1',
+        stock_lot_id: soldLot.id,
+        sale_line_id: 'sale-line-1',
+        direction: 'in',
+        quantity: 1,
+        reason: 'return',
+        created_at: '2026-08-22T09:00:00.000Z',
+      },
+    ];
+    const fixture = createList([], [], [soldLot], movements);
+    const history = fixture.nativeElement.querySelector('[data-stock-movement-history]');
+
+    expect(history).not.toBeNull();
+    expect(history.getAttribute('aria-labelledby')).toBe('stock-movement-history-title');
+    expect(history.textContent).toContain('LED Schreibtischlampe');
+    expect(history.textContent).toContain('Wareneingang');
+    expect(history.textContent).toContain('Verkauf');
+    expect(history.textContent).toContain('Korrektur');
+    expect(history.textContent).toContain('Rückgabe');
+    expect(history.querySelector('caption')?.textContent).toContain(
+      'vollständige Bewegungshistorie',
+    );
   });
 });

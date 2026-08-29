@@ -10,6 +10,7 @@ import {
 } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { toSignal } from '@angular/core/rxjs-interop';
 import {
   LucideDynamicIcon,
   LucidePlus as Plus,
@@ -138,13 +139,18 @@ export class SaleCreateModalComponent {
       .items()
       .filter((item) => item.status !== 'sold' && item.status !== 'archived'),
   );
-  readonly totalPrice = computed(() =>
-    this.lines.controls.reduce(
+  private readonly formValue = toSignal(this.form.valueChanges, {
+    initialValue: this.form.getRawValue(),
+  });
+  readonly totalPrice = computed(() => {
+    this.formValue();
+    return this.lines.controls.reduce(
       (sum, line) => sum + line.controls.quantity.value * line.controls.unitSalePrice.value,
       0,
-    ),
-  );
+    );
+  });
   readonly liveMetrics = computed(() => {
+    this.formValue();
     const raw = this.form.getRawValue();
     const totalCosts = Number(
       (

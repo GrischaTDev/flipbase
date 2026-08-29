@@ -43,6 +43,61 @@ function createService(response: { data: unknown; error: unknown }): {
 }
 
 describe('SalesService', () => {
+  it('lehnt Preisänderungen an persistierten Verkaufspositionen ohne atomaren Positionsadapter ab', async () => {
+    const { service, rpc } = createService({ data: null, error: null });
+    const persistedSale: Sale = {
+      ...sale,
+      has_persisted_lines: true,
+      lines: [
+        {
+          id: 'sale-line-1',
+          sale_id: sale.id,
+          catalog_product_id: 'led-lamp-1',
+          title_snapshot: 'LED-Lampe',
+          quantity: 2,
+          unit_sale_price: 9.99,
+          line_total: 19.98,
+          cost_of_goods_sold: 9.98,
+          tax_mode: 'diff_25a',
+        },
+      ],
+    };
+    service.sales.set([persistedSale]);
+
+    const result = await service.updateSale(sale.id, { sale_price: 29.98 });
+
+    expect(result.error?.message).toContain('Verkaufspositionen');
+    expect(service.sales()).toEqual([persistedSale]);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('verwendet für persistierte Positionen deren Summe als kanonischen Verkaufspreis', () => {
+    const { service } = createService({ data: null, error: null });
+
+    const enriched = service.enrichSaleMetrics({
+      ...sale,
+      sale_price: 99,
+      sale_price_total: 99,
+      has_persisted_lines: true,
+      lines: [
+        {
+          id: 'sale-line-1',
+          sale_id: sale.id,
+          catalog_product_id: 'led-lamp-1',
+          title_snapshot: 'LED-Lampe',
+          quantity: 2,
+          unit_sale_price: 9.99,
+          line_total: 19.98,
+          cost_of_goods_sold: 9.98,
+          tax_mode: 'diff_25a',
+        },
+      ],
+    });
+
+    expect(enriched.sale_price).toBe(19.98);
+    expect(enriched.sale_price_total).toBe(19.98);
+  });
+
   it('übernimmt einen atomar bestätigten Mengenverkauf mit seinen Positionen', async () => {
     const { service, stockService, rpc } = createService({
       data: {

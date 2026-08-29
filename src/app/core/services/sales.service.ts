@@ -88,7 +88,7 @@ export interface RecordReturnResult {
   readonly sale: Sale;
   readonly returnRecord?: ReturnRecord;
   readonly restockedQuantity: number;
-  readonly saleReturnedAt: string;
+  readonly saleReturnedAt: string | null;
 }
 
 export interface SaleMutationResult {
@@ -202,9 +202,15 @@ export class SalesService {
 
   public enrichSaleMetrics(raw: any): Sale {
     const item = raw.inventory_item as InventoryItem | undefined;
-    const salePrice = Number(raw.sale_price || 0);
-
     const persistedLines = raw.has_persisted_lines === false ? [] : (raw.lines ?? []);
+    const persistedLineTotal = persistedLines.reduce(
+      (sum: number, line: SaleLine) => sum + Number(line.line_total || 0),
+      0,
+    );
+    const salePrice =
+      persistedLines.length > 0
+        ? persistedLineTotal
+        : Number(raw.sale_price_total ?? raw.sale_price ?? 0);
     const totalItemBasisCost =
       persistedLines.length > 0
         ? persistedLines.reduce(
@@ -232,6 +238,8 @@ export class SalesService {
 
     return {
       ...raw,
+      sale_price: salePrice,
+      sale_price_total: salePrice,
       net_profit: netProfit,
       roi: roi,
       holding_duration_days: holdingDays,
@@ -368,13 +376,21 @@ export class SalesService {
           new Error('Der Verkauf wurde bereits retourniert.'),
         );
       }
-      const returnResult = this.mockStore.returnQuantitySale(workspaceId, existing, input.restock);
+      const saleTotal = Number(existing.sale_price_total ?? existing.sale_price ?? 0);
+      const totalRefund = Math.min(
+        saleTotal,
+        Number(existing.refund_amount ?? 0) + input.refundAmount,
+      );
+      const isFullRefund = totalRefund >= saleTotal;
+      const returnResult = isFullRefund
+        ? this.mockStore.returnQuantitySale(workspaceId, existing, input.restock)
+        : { movements: [] as StockMovement[], error: null };
       if (returnResult.error) return this.mutationFailure('Retoure buchen', returnResult.error);
-      const saleReturnedAt = new Date().toISOString();
+      const saleReturnedAt = isFullRefund ? new Date().toISOString() : null;
       const sale = this.enrichSaleMetrics({
         ...existing,
         returned_at: saleReturnedAt,
-        refund_amount: input.refundAmount,
+        refund_amount: totalRefund,
         stock_movements: returnResult.movements,
       });
       this.sales.update((sales) => sales.map((entry) => (entry.id === sale.id ? sale : entry)));
@@ -384,11 +400,12 @@ export class SalesService {
         data: {
           sale,
           returnRecord: undefined,
-          restockedQuantity: input.restock
-            ? returnResult.movements
-                .filter((movement) => movement.direction === 'in' && movement.reason === 'return')
-                .reduce((sum, movement) => sum + movement.quantity, 0)
-            : 0,
+          restockedQuantity:
+            isFullRefund && input.restock
+              ? returnResult.movements
+                  .filter((movement) => movement.direction === 'in' && movement.reason === 'return')
+                  .reduce((sum, movement) => sum + movement.quantity, 0)
+              : 0,
           saleReturnedAt,
         },
         error: null,
@@ -429,7 +446,7 @@ export class SalesService {
           sale,
           returnRecord: this.returnRecordValue(response['return']),
           restockedQuantity: Number(response['restocked_quantity'] ?? 0),
-          saleReturnedAt: sale.returned_at ?? new Date().toISOString(),
+          saleReturnedAt: sale.returned_at ?? null,
         },
         error: null,
         reportedBySyncStatus: false,
@@ -481,6 +498,9 @@ export class SalesService {
       shipping_cost: input.shippingCost ?? 0,
       packaging_cost: input.packagingCost ?? 0,
       other_costs: input.otherCosts ?? 0,
+      external_order_id: input.externalOrderId ?? null,
+      external_listing_id: input.externalListingId ?? null,
+      buyer_notes: input.buyerNotes ?? null,
       lines: booking.saleLines,
       has_persisted_lines: true,
       lot_allocations: booking.allocations,
@@ -589,6 +609,25 @@ export class SalesService {
         problems: [],
       };
 
+    const persistedLineTotal = (vorhandener.lines ?? []).reduce(
+      (sum, line) => sum + Number(line.line_total || 0),
+      0,
+    );
+    if (
+      vorhandener.has_persisted_lines &&
+      updates.sale_price !== undefined &&
+      Math.abs(updates.sale_price - persistedLineTotal) > 0.001
+    ) {
+      return {
+        data: null,
+        error: new Error(
+          'Der Preis gebuchter Verkaufspositionen kann nicht nachträglich geändert werden.',
+        ),
+        status: 'error',
+        problems: [],
+      };
+    }
+
     const geaendert = this.enrichSaleMetrics({ ...vorhandener, ...updates });
 
     if (!this.mockStore.isDemoMode()) {
@@ -598,6 +637,7 @@ export class SalesService {
           .update({
             platform: updates.platform,
             sale_price: updates.sale_price,
+            sale_price_total: updates.sale_price,
             sale_date: updates.sale_date,
             platform_fee: updates.platform_fee,
             shipping_cost: updates.shipping_cost,

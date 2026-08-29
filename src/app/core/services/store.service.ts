@@ -20,6 +20,7 @@ import {
 } from '../models/store.models';
 import { CatalogService } from './catalog.service';
 import { StockService } from './stock.service';
+import { SalesService } from './sales.service';
 
 const STORAGE_KEY_SETTINGS = 'flipbase_store_settings';
 const STORAGE_KEY_CART = 'flipbase_store_cart';
@@ -75,6 +76,7 @@ export class StoreService {
   private readonly inventoryService = inject(InventoryService, { optional: true });
   private readonly catalogService = inject(CatalogService, { optional: true });
   private readonly stockService = inject(StockService, { optional: true });
+  private readonly salesService = inject(SalesService, { optional: true });
   private readonly workspaceService = inject(WorkspaceService, { optional: true });
   private readonly webPushService = inject(WebPushService, { optional: true });
 
@@ -641,9 +643,37 @@ export class StoreService {
           paymentStatus: data.payment_status as StoreOrder['paymentStatus'],
           status: data.status as StoreOrder['status'],
         };
+        await Promise.all([
+          this.salesService?.loadSales(ws.id),
+          this.stockService?.loadPositions(ws.id),
+        ]);
       } catch (error: unknown) {
         return this.fehlgeschlageneBestellung(error);
       }
+    } else if (this.mockStore?.isDemoMode()) {
+      if (!ws) return this.fehlgeschlageneBestellung(new Error('Kein aktiver Workspace.'));
+      if (!this.salesService) {
+        return this.fehlgeschlageneBestellung(
+          new Error('Der zentrale Verkaufsdienst ist nicht verfügbar.'),
+        );
+      }
+      const saleResult = await this.salesService.recordSale({
+        platform: 'custom_store',
+        saleDate: newOrder.createdAt.slice(0, 10),
+        externalOrderId: newOrder.id,
+        buyerNotes: `Kunde: ${customer.firstName} ${customer.lastName}`,
+        lines: currentCart.map((cartItem) => {
+          const item = this.toSellableItem(cartItem.item);
+          return {
+            catalogProductId: item.kind === 'catalog_product' ? item.id : undefined,
+            inventoryItemId: item.kind === 'inventory_item' ? item.id : undefined,
+            titleSnapshot: item.title,
+            quantity: cartItem.quantity,
+            unitSalePrice: this.cartItemUnitPrice(cartItem),
+          };
+        }),
+      });
+      if (saleResult.error) return this.fehlgeschlageneBestellung(saleResult.error);
     }
 
     this.orders.update((orders) => {

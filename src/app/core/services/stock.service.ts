@@ -33,40 +33,55 @@ export class StockService {
   readonly movements = signal<StockMovement[]>([]);
   readonly isLoading = signal(false);
   readonly loadError = signal<Error | null>(null);
+  readonly loadedWorkspaceId = signal<string | null>(null);
+  private loadRequestId = 0;
 
   async loadPositions(workspaceId: string): Promise<void> {
+    const requestId = ++this.loadRequestId;
     this.isLoading.set(true);
     this.loadError.set(null);
     try {
       if (this.mockStore.isDemoMode()) {
-        const lots = this.mockStore
-          .getStockLots(workspaceId)
-          .filter((lot) => lot.remaining_quantity > 0);
+        const lots = this.mockStore.getStockLots(workspaceId);
+        if (!this.isCurrentLoad(requestId, workspaceId)) return;
         this.lots.set(lots);
+        this.movements.set(this.mockStore.getStockMovements(workspaceId));
         this.positions.set(
           this.aggregateLots(lots, this.mockStore.getCatalogProducts(workspaceId)),
         );
+        this.loadedWorkspaceId.set(workspaceId);
         return;
       }
 
-      const { data, error } = await this.supabase.client
-        .from('stock_lots')
-        .select('*, catalog_product:catalog_products(id, title, is_public_store)')
-        .eq('workspace_id', workspaceId)
-        .gt('remaining_quantity', 0)
-        .order('received_at', { ascending: true })
-        .order('id', { ascending: true });
+      const [lotResult, movementResult] = await Promise.all([
+        this.supabase.client
+          .from('stock_lots')
+          .select('*, catalog_product:catalog_products(id, title, is_public_store)')
+          .eq('workspace_id', workspaceId)
+          .order('received_at', { ascending: true })
+          .order('id', { ascending: true }),
+        this.supabase.client
+          .from('stock_movements')
+          .select('*')
+          .eq('workspace_id', workspaceId)
+          .order('created_at', { ascending: false }),
+      ]);
+      if (!this.isCurrentLoad(requestId, workspaceId)) return;
+      const error = lotResult.error ?? movementResult.error;
       if (error) {
         this.loadError.set(this.syncStatus.melde('Laden der Bestandspositionen', error));
         return;
       }
-      const lots = (data ?? []) as StockLot[];
+      const lots = (lotResult.data ?? []) as StockLot[];
       this.lots.set(lots);
+      this.movements.set((movementResult.data ?? []) as StockMovement[]);
       this.positions.set(this.aggregateLots(lots));
+      this.loadedWorkspaceId.set(workspaceId);
     } catch (error: unknown) {
+      if (!this.isCurrentLoad(requestId, workspaceId)) return;
       this.loadError.set(this.syncStatus.melde('Laden der Bestandspositionen', error));
     } finally {
-      this.isLoading.set(false);
+      if (requestId === this.loadRequestId) this.isLoading.set(false);
     }
   }
 
@@ -148,6 +163,13 @@ export class StockService {
 
   private asArray<T>(value: unknown): T[] {
     return Array.isArray(value) ? (value as T[]) : [];
+  }
+
+  private isCurrentLoad(requestId: number, workspaceId: string): boolean {
+    return (
+      requestId === this.loadRequestId &&
+      this.workspaceService.currentWorkspace()?.id === workspaceId
+    );
   }
 
   private failure<T>(operation: string, cause: unknown): MutationResult<T> {

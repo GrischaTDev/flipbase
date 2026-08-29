@@ -209,3 +209,50 @@
     </p>
   </div>
 }
+
+@if (movementRows().length > 0) {
+  <section
+    data-stock-movement-history
+    aria-labelledby="stock-movement-history-title"
+    class="linear-surface mt-4 overflow-hidden rounded-xl"
+  >
+    <div class="border-b border-fb-line px-4 py-3">
+      <h2 id="stock-movement-history-title" class="text-sm font-semibold text-fb-text-primary">
+        Bestandsbewegungen
+      </h2>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="linear-table w-full">
+        <caption class="sr-only">
+          vollständige Bewegungshistorie aller Bestandslose
+        </caption>
+        <thead class="bg-fb-well text-[10px] uppercase tracking-wider text-fb-text-secondary">
+          <tr>
+            <th class="px-3 py-2 text-left">Datum</th>
+            <th class="px-3 py-2 text-left">Artikel</th>
+            <th class="px-3 py-2 text-left">Vorgang</th>
+            <th class="px-3 py-2 text-right">Menge</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-fb-line">
+          @for (movement of movementRows(); track movement.id) {
+            <tr>
+              <td class="px-3 py-2 text-xs text-fb-text-muted">
+                {{ movement.created_at | date: 'dd.MM.yyyy HH:mm' }}
+              </td>
+              <td class="px-3 py-2 text-xs font-semibold text-fb-text-primary">
+                {{ movement.title }}
+              </td>
+              <td class="px-3 py-2 text-xs text-fb-text-secondary">
+                {{ movementReason(movement.reason) }}
+              </td>
+              <td class="px-3 py-2 text-right font-mono text-xs">
+                {{ movement.direction === 'in' ? '+' : '−' }}{{ movement.quantity }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+}
