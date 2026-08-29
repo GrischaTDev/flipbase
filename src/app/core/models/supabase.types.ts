@@ -64,6 +64,13 @@ export type Database = {
             foreignKeyName: "activity_logs_inventory_item_id_fkey"
             columns: ["inventory_item_id"]
             isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["inventory_item_id"]
+          },
+          {
+            foreignKeyName: "activity_logs_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
             referencedRelation: "inventory_items"
             referencedColumns: ["id"]
           },
@@ -477,6 +484,64 @@ export type Database = {
           },
         ]
       }
+      inventory_reconciliation_events: {
+        Row: {
+          actor_id: string
+          created_at: string
+          event_type: string
+          id: string
+          inventory_item_id: string
+          new_status: string
+          previous_status: string
+          reason: string
+          workspace_id: string
+        }
+        Insert: {
+          actor_id: string
+          created_at?: string
+          event_type: string
+          id?: string
+          inventory_item_id: string
+          new_status: string
+          previous_status: string
+          reason: string
+          workspace_id: string
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          event_type?: string
+          id?: string
+          inventory_item_id?: string
+          new_status?: string
+          previous_status?: string
+          reason?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_reconciliation_even_workspace_id_inventory_item__fkey"
+            columns: ["workspace_id", "inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["workspace_id", "inventory_item_id"]
+          },
+          {
+            foreignKeyName: "inventory_reconciliation_even_workspace_id_inventory_item__fkey"
+            columns: ["workspace_id", "inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_items"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "inventory_reconciliation_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       invoice_items: {
         Row: {
           condition: string | null
@@ -639,6 +704,13 @@ export type Database = {
             foreignKeyName: "item_costs_inventory_item_id_fkey"
             columns: ["inventory_item_id"]
             isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["inventory_item_id"]
+          },
+          {
+            foreignKeyName: "item_costs_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
             referencedRelation: "inventory_items"
             referencedColumns: ["id"]
           },
@@ -676,6 +748,13 @@ export type Database = {
           storage_path?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "item_media_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["inventory_item_id"]
+          },
           {
             foreignKeyName: "item_media_inventory_item_id_fkey"
             columns: ["inventory_item_id"]
@@ -720,6 +799,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "listing_drafts_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["inventory_item_id"]
+          },
           {
             foreignKeyName: "listing_drafts_inventory_item_id_fkey"
             columns: ["inventory_item_id"]
@@ -770,6 +856,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "market_research_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["inventory_item_id"]
+          },
           {
             foreignKeyName: "market_research_inventory_item_id_fkey"
             columns: ["inventory_item_id"]
@@ -907,6 +1000,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "price_tracked_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["inventory_item_id"]
+          },
           {
             foreignKeyName: "price_tracked_items_inventory_item_id_fkey"
             columns: ["inventory_item_id"]
@@ -1311,6 +1411,13 @@ export type Database = {
             foreignKeyName: "returns_inventory_item_id_fkey"
             columns: ["inventory_item_id"]
             isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["inventory_item_id"]
+          },
+          {
+            foreignKeyName: "returns_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
             referencedRelation: "inventory_items"
             referencedColumns: ["id"]
           },
@@ -1454,6 +1561,13 @@ export type Database = {
             foreignKeyName: "sale_lines_inventory_item_id_fkey"
             columns: ["inventory_item_id"]
             isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["inventory_item_id"]
+          },
+          {
+            foreignKeyName: "sale_lines_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
             referencedRelation: "inventory_items"
             referencedColumns: ["id"]
           },
@@ -1477,6 +1591,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_lines_workspace_inventory_item_fkey"
+            columns: ["workspace_id", "inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["workspace_id", "inventory_item_id"]
           },
           {
             foreignKeyName: "sale_lines_workspace_inventory_item_fkey"
@@ -1512,6 +1633,9 @@ export type Database = {
           sale_price: number
           sale_price_total: number | null
           shipping_cost: number
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
           workspace_id: string
         }
         Insert: {
@@ -1531,6 +1655,9 @@ export type Database = {
           sale_price?: number
           sale_price_total?: number | null
           shipping_cost?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
           workspace_id: string
         }
         Update: {
@@ -1550,9 +1677,19 @@ export type Database = {
           sale_price?: number
           sale_price_total?: number | null
           shipping_cost?: number
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["inventory_item_id"]
+          },
           {
             foreignKeyName: "sales_inventory_item_id_fkey"
             columns: ["inventory_item_id"]
@@ -1899,6 +2036,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "catalog_products"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_order_items_inventory_item_id_fkey"
+            columns: ["inventory_item_id"]
+            isOneToOne: false
+            referencedRelation: "inventory_item_sale_states"
+            referencedColumns: ["inventory_item_id"]
           },
           {
             foreignKeyName: "store_order_items_inventory_item_id_fkey"
@@ -2255,7 +2399,24 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      inventory_item_sale_states: {
+        Row: {
+          active_sale_count: number | null
+          active_sale_id: string | null
+          inventory_item_id: string | null
+          sale_state: string | null
+          workspace_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_items_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       add_purchase_lines: {
@@ -2417,6 +2578,15 @@ export type Database = {
         Args: { p_lines: Json; p_purchase_id: string; p_workspace_id: string }
         Returns: Json
       }
+      record_legacy_inventory_sale: {
+        Args: {
+          p_inventory_item_id: string
+          p_reason: string
+          p_sale: Json
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       record_sale: {
         Args: { p_lines: Json; p_sale: Json; p_workspace_id: string }
         Returns: Json
@@ -2468,6 +2638,15 @@ export type Database = {
         Args: { p_transactions: Json; p_workspace_id: string }
         Returns: number
       }
+      resolve_legacy_sold_item: {
+        Args: {
+          p_action: string
+          p_inventory_item_id: string
+          p_reason: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       unbundle_shipping_order: {
         Args: { p_bundled_order_id: string; p_workspace_id: string }
         Returns: {
@@ -2503,6 +2682,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      validate_inventory_item_sale_integrity: {
+        Args: { p_inventory_item_id: string }
+        Returns: undefined
       }
     }
     Enums: {

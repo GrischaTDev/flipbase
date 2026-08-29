@@ -4158,9 +4158,12 @@ revoke delete
   on public.invoices, public.invoice_items, public.store_orders, public.store_order_items
   from authenticated;
 
-revoke insert, update, delete, truncate, references, trigger
+revoke all
   on public.inventory_reconciliation_events
-  from authenticated;
+  from public, anon, authenticated;
+grant select
+  on public.inventory_reconciliation_events
+  to authenticated;
 
 grant all
   on all tables in schema public
