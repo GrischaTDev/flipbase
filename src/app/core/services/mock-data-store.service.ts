@@ -19,6 +19,7 @@ import {
 } from '../models/flipbase.models';
 import type { ReceivePurchaseLineInput } from './stock.service';
 import { createLocalDemoId } from '../utils/client-identity';
+import { isSellableInventoryItem } from '../models/inventory-sellability';
 
 const DEMO_WS_ID = 'ws-1';
 
@@ -702,13 +703,46 @@ export class MockDataStoreService {
   } {
     const lots = this.getStockLots();
     const updatedLots = lots.map((lot) => ({ ...lot }));
+    const items = this.getItems();
+    const updatedItems = items.map((item) => ({ ...item }));
+    const activeSales = this.getSales(workspaceId).filter(
+      (sale) => !sale.returned_at && !sale.voided_at,
+    );
     const allocations: SaleLineLotAllocation[] = [];
     const movements: StockMovement[] = [];
     const updatedLines: SaleLine[] = [];
 
     for (const line of saleLines) {
       if (!line.catalog_product_id) {
-        updatedLines.push(line);
+        if (!line.inventory_item_id || line.quantity !== 1) {
+          return {
+            saleLines: [],
+            allocations: [],
+            movements: [],
+            error: new Error('Eine Einzelartikelposition ist ungültig.'),
+          };
+        }
+        const item = updatedItems.find(
+          (entry) => entry.id === line.inventory_item_id && entry.workspace_id === workspaceId,
+        );
+        const alreadySold = activeSales.some(
+          (sale) =>
+            sale.inventory_item_id === line.inventory_item_id ||
+            sale.lines?.some((saleLine) => saleLine.inventory_item_id === line.inventory_item_id),
+        );
+        if (!item || !isSellableInventoryItem(item) || alreadySold) {
+          return {
+            saleLines: [],
+            allocations: [],
+            movements: [],
+            error: new Error('Der Einzelartikel ist nicht verkaufbar.'),
+          };
+        }
+        item.status = 'sold';
+        item.sale_state = 'sold';
+        item.active_sale_count = 1;
+        item.active_sale_id = line.sale_id;
+        updatedLines.push({ ...line, cost_of_goods_sold: item.allocated_purchase_cost });
         continue;
       }
       let remaining = line.quantity;
@@ -778,11 +812,17 @@ export class MockDataStoreService {
       updatedLines.push({ ...line, cost_of_goods_sold: Number(costOfGoodsSold.toFixed(2)) });
     }
 
-    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_LOTS, updatedLots);
-    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_MOVEMENTS, [
-      ...this.getStockMovements(),
-      ...movements,
+    const persistenceError = this.saveRecordsAtomically([
+      { key: STORAGE_KEY_ITEMS, records: updatedItems },
+      { key: STORAGE_KEY_STOCK_LOTS, records: updatedLots },
+      {
+        key: STORAGE_KEY_STOCK_MOVEMENTS,
+        records: [...this.getStockMovements(), ...movements],
+      },
     ]);
+    if (persistenceError) {
+      return { saleLines: [], allocations: [], movements: [], error: persistenceError };
+    }
     return { saleLines: updatedLines, allocations, movements, error: null };
   }
 

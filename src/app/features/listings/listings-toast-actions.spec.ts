@@ -1,7 +1,15 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { describe, expect, it, vi } from 'vitest';
-import { InventoryItem } from '../../core/models/flipbase.models';
+import {
+  InventoryItem,
+  InventoryItemSaleState,
+  ItemStatus,
+} from '../../core/models/flipbase.models';
+import { InventoryService } from '../../core/services/inventory.service';
+import { ListingStudioService } from '../../core/services/listing-studio.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { ListingsComponent } from './listings.component';
@@ -17,6 +25,8 @@ const artikel: InventoryItem = {
   allocated_purchase_cost: 10,
   created_at: '2026-08-24T10:00:00.000Z',
 };
+
+TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 
 function erstelleKomponente(ergebnis: { readonly error: Error | null }) {
   const toast = new ToastService();
@@ -40,6 +50,57 @@ function erstelleKomponente(ergebnis: { readonly error: Error | null }) {
 }
 
 describe('ListingsComponent – Aktionsmeldungen', () => {
+  it('stellt dieselbe vollständige Verkaufbarkeitsmatrix wie der Verkaufsdialog bereit', () => {
+    const statuses: readonly ItemStatus[] = [
+      'received',
+      'needs_review',
+      'researched',
+      'ready',
+      'listed',
+      'reserved',
+      'sold',
+      'defective',
+      'returned',
+      'archived',
+    ];
+    const states: readonly (InventoryItemSaleState | undefined)[] = [
+      'no_active_sale',
+      'sold',
+      'legacy_sold_unverified',
+      'legacy_sale_header_without_line',
+      'sale_status_conflict',
+      'multiple_active_sales',
+      undefined,
+    ];
+    const items = statuses.flatMap((status) =>
+      states.map((saleState) => ({
+        ...artikel,
+        id: `${status}-${saleState ?? 'missing'}`,
+        status,
+        sale_state: saleState,
+      })),
+    );
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: InventoryService, useValue: { items: signal(items) } },
+        { provide: ListingStudioService, useValue: {} },
+        { provide: SyncStatusService, useValue: new SyncStatusService() },
+        { provide: ToastService, useValue: new ToastService() },
+      ],
+    });
+    const component = TestBed.runInInjectionContext(() => new ListingsComponent());
+
+    try {
+      expect(component.availableItems().map(({ id }) => id)).toEqual([
+        'ready-no_active_sale',
+        'listed-no_active_sale',
+      ]);
+    } finally {
+      TestBed.resetTestingModule();
+    }
+  });
+
   it('bestätigt das Markieren als gelistet erst nach Erfolg', async () => {
     const { komponente, toast } = erstelleKomponente({ error: null });
 

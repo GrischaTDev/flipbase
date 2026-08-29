@@ -2996,6 +2996,7 @@ declare
   v_sale_total numeric(12, 2) := 0;
   v_sale_line_ids uuid[] := array[]::uuid[];
   v_stock_lot_ids uuid[] := array[]::uuid[];
+  v_sale_state text;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -3018,6 +3019,40 @@ begin
   if not found then
     raise exception using errcode = 'P0002', message = 'Der Workspace wurde nicht gefunden.';
   end if;
+
+  -- Lock and validate every individual item before the sale header exists. This
+  -- keeps the shared sale-state view authoritative without mistaking the new
+  -- header for a pre-existing legacy header.
+  for v_input_line in
+    select element.value
+    from jsonb_array_elements(p_lines) as element(value)
+  loop
+    if jsonb_typeof(v_input_line) = 'object'
+      and jsonb_typeof(v_input_line -> 'inventory_item_id') = 'string'
+      and nullif(trim(v_input_line ->> 'inventory_item_id'), '') is not null then
+      v_inventory_item_id := (v_input_line ->> 'inventory_item_id')::uuid;
+
+      select * into v_inventory_item
+      from public.inventory_items
+      where id = v_inventory_item_id
+        and workspace_id = p_workspace_id
+      for update;
+
+      if not found then
+        raise exception using errcode = 'P0002', message = 'Der Einzelartikel wurde nicht gefunden.';
+      end if;
+
+      select sale_state into v_sale_state
+      from public.inventory_item_sale_states
+      where inventory_item_id = v_inventory_item.id
+        and workspace_id = p_workspace_id;
+
+      if v_inventory_item.status not in ('ready', 'listed')
+        or v_sale_state is distinct from 'no_active_sale' then
+        raise exception using errcode = '22023', message = 'Der Einzelartikel ist nicht verkaufbar.';
+      end if;
+    end if;
+  end loop;
 
   if jsonb_array_length(p_lines) = 1
     and jsonb_typeof(p_lines -> 0 -> 'inventory_item_id') = 'string' then
@@ -3361,6 +3396,12 @@ begin
     raise exception using errcode = '22023', message = 'Der Verkauf wurde bereits retourniert.';
   end if;
 
+  if v_sale.voided_at is not null
+    or v_sale.voided_by is not null
+    or v_sale.void_reason is not null then
+    raise exception using errcode = '22023', message = 'Ein aufgehobener Verkauf kann nicht retourniert werden.';
+  end if;
+
   v_sale_total := coalesce(v_sale.sale_price_total, v_sale.sale_price, 0);
   v_total_refund := least(v_sale_total, coalesce(v_sale.refund_amount, 0) + p_refund_amount);
   v_is_full_refund := v_total_refund >= v_sale_total;
@@ -3568,6 +3609,9 @@ set search_path = ''
 as $$
 declare
   v_order public.store_orders;
+  v_inventory_item public.inventory_items;
+  v_inventory_item_id uuid;
+  v_sale_state text;
   v_item_count integer;
   v_reference_count integer;
 begin
@@ -3632,6 +3676,42 @@ begin
   if v_reference_count <> v_item_count then
     raise exception using errcode = '22023', message = 'Jeder Artikel darf nur einmal in einer Bestellung vorkommen.';
   end if;
+
+  -- Lock in stable order so concurrent checkout requests cannot sell the same
+  -- individual item and cannot deadlock when an order contains several items.
+  for v_inventory_item_id in
+    select distinct item.inventory_item_id
+    from jsonb_to_recordset(p_items) as item(
+      catalog_product_id uuid,
+      inventory_item_id uuid,
+      item_title text,
+      quantity integer,
+      price numeric,
+      payment_fee numeric
+    )
+    where item.inventory_item_id is not null
+    order by item.inventory_item_id
+  loop
+    select * into v_inventory_item
+    from public.inventory_items
+    where id = v_inventory_item_id
+      and workspace_id = p_workspace_id
+    for update;
+
+    if not found then
+      raise exception using errcode = 'P0002', message = 'Der Einzelartikel wurde nicht gefunden.';
+    end if;
+
+    select sale_state into v_sale_state
+    from public.inventory_item_sale_states
+    where inventory_item_id = v_inventory_item.id
+      and workspace_id = p_workspace_id;
+
+    if v_inventory_item.status not in ('ready', 'listed')
+      or v_sale_state is distinct from 'no_active_sale' then
+      raise exception using errcode = '22023', message = 'Der Einzelartikel ist nicht verkaufbar.';
+    end if;
+  end loop;
 
   insert into public.store_orders (
     id,

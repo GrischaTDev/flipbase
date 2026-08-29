@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(58);
+select plan(62);
 
 \set move_source_item_id '82000000-0000-4000-8000-000000000030'
 \set move_target_item_id '82000000-0000-4000-8000-000000000031'
@@ -183,6 +183,55 @@ set local role authenticated;
 set local request.jwt.claim.sub = :'main_user_id';
 
 select throws_ok(
+  format(
+    'select public.record_sale_return(%L, %L, 15, false, %L, %L, %L, %L)',
+    :'main_workspace_id',
+    '82000000-0000-4000-8000-000000000016',
+    'other',
+    'Bereits aufgehobener Verkauf',
+    'keep_with_buyer',
+    ''
+  ),
+  '22023', 'Ein aufgehobener Verkauf kann nicht retourniert werden.',
+  'record_sale_return lehnt vorbereitete Stornofelder ab'
+);
+
+select throws_ok(
+  format(
+    'select public.record_sale(%L, %L::jsonb, %L::jsonb)',
+    :'main_workspace_id',
+    '{"platform":"direct","sale_date":"2026-08-29"}',
+    '[{"inventory_item_id":"82000000-0000-4000-8000-000000000008","quantity":1,"unit_sale_price":20}]'
+  ),
+  '22023', 'Der Einzelartikel ist nicht verkaufbar.',
+  'record_sale lehnt einen aktiven Verkauf trotz verkaufbarem Status ab'
+);
+
+select throws_ok(
+  format(
+    'select public.place_store_order(%L, %L, %L, %L::jsonb, 20, 0, 20, %L, %L, %L, %L, %L::date, %L, %L::jsonb)',
+    :'main_workspace_id',
+    '82000000-0000-4000-8000-000000000036',
+    'STORE-CONFLICT-1',
+    '{"name":"Test","email":"test@example.test"}',
+    'bank_transfer',
+    'paid',
+    'payment-conflict-1',
+    'confirmed',
+    '2026-08-29',
+    '',
+    '[{"inventory_item_id":"82000000-0000-4000-8000-000000000008","item_title":"Sale status conflict","quantity":1,"price":20,"payment_fee":0}]'
+  ),
+  '22023', 'Der Einzelartikel ist nicht verkaufbar.',
+  'place_store_order lehnt einen aktiven Verkauf serverseitig ab'
+);
+select is(
+  (select count(*) from public.store_orders where id = '82000000-0000-4000-8000-000000000036'),
+  0::bigint,
+  'abgelehnte Store-Bestellung hinterlässt keinen Bestellungskopf'
+);
+
+select throws_ok(
   format('update public.inventory_items set status = %L where id = %L', 'ready', :'orphan_item_id'),
   '42501', null, 'direkter Wechsel aus sold wird geschützt'
 );
@@ -230,7 +279,7 @@ select throws_ok(
     '{"platform":"direct","sale_date":"2026-08-29"}',
     '[{"inventory_item_id":"82000000-0000-4000-8000-000000000017","quantity":1,"unit_sale_price":22}]'
   ),
-  '23514', 'Ein bestandswirksamer Verkaufskopf benoetigt eine passende Verkaufsposition.', 'regulärer Verkaufs-RPC erhält keinen sold-Bypass'
+  '22023', 'Der Einzelartikel ist nicht verkaufbar.', 'regulärer Verkaufs-RPC erhält keinen sold-Bypass'
 );
 select lives_ok(
   format('select public.record_legacy_inventory_sale(%L, %L, %L::jsonb, %L)', :'main_workspace_id', :'legacy_record_item_id', '{"platform":"direct","sale_date":"2026-08-29","unit_sale_price":22}', 'Originalbeleg geprüft'),

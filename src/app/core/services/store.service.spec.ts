@@ -1,8 +1,9 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Injector, runInInjectionContext } from '@angular/core';
+import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { StoreService } from './store.service';
-import { InventoryItem } from '../models/flipbase.models';
+import { InventoryItem, InventoryItemSaleState, ItemStatus } from '../models/flipbase.models';
+import { InventoryService } from './inventory.service';
 
 describe('Store & Live Checkout Service', () => {
   let storeService: StoreService;
@@ -18,6 +19,52 @@ describe('Store & Live Checkout Service', () => {
     expect(settings.payments.stripeEnabled).toBe(true);
     expect(settings.payments.paypalEnabled).toBe(true);
     expect(settings.payments.bankTransferEnabled).toBe(true);
+  });
+
+  it('veröffentlicht Einzelstücke nur für ready oder listed plus no_active_sale', () => {
+    const statuses: readonly ItemStatus[] = [
+      'received',
+      'needs_review',
+      'researched',
+      'ready',
+      'listed',
+      'reserved',
+      'sold',
+      'defective',
+      'returned',
+      'archived',
+    ];
+    const states: readonly (InventoryItemSaleState | undefined)[] = [
+      'no_active_sale',
+      'sold',
+      'legacy_sold_unverified',
+      'legacy_sale_header_without_line',
+      'sale_status_conflict',
+      'multiple_active_sales',
+      undefined,
+    ];
+    const items = statuses.flatMap((status) =>
+      states.map((saleState) => ({
+        id: `${status}-${saleState ?? 'missing'}`,
+        workspace_id: 'ws-1',
+        title: 'Matrixartikel',
+        condition: 'used' as const,
+        status,
+        sale_state: saleState,
+        is_public_store: true,
+        allocated_purchase_cost: 10,
+        expected_value: 20,
+      })),
+    );
+    const injector = Injector.create({
+      providers: [{ provide: InventoryService, useValue: { items: signal(items) } }],
+    });
+    const service = runInInjectionContext(injector, () => new StoreService());
+
+    expect(service.publicProducts().map(({ id }) => id)).toEqual([
+      'ready-no_active_sale',
+      'listed-no_active_sale',
+    ]);
   });
 
   it('should calculate cart totals and shipping costs correctly', () => {

@@ -19,6 +19,7 @@ import {
 } from '@lucide/angular';
 import { Sale } from '../../../../core/models/flipbase.models';
 import { LegacySaleReconciliation, SaleTarget } from '../../../../core/models/sale-target.models';
+import { isSellableInventoryItem } from '../../../../core/models/inventory-sellability';
 import {
   CreateSalePayload,
   RecordSaleInput,
@@ -148,9 +149,7 @@ export class SaleCreateModalComponent {
   });
   readonly lines = this.form.controls.lines;
   readonly availableItems = computed(() =>
-    this.inventoryService
-      .items()
-      .filter((item) => item.status !== 'sold' && item.status !== 'archived'),
+    this.inventoryService.items().filter(isSellableInventoryItem),
   );
   private readonly formValue = toSignal(this.form.valueChanges, {
     initialValue: this.form.getRawValue(),

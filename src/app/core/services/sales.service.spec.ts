@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { Sale } from '../models/flipbase.models';
 import { SalesService } from './sales.service';
 import { SyncStatusService } from './sync-status.service';
+import { MockDataStoreService } from './mock-data-store.service';
 
 const sale: Sale = {
   id: 'sale-1',
@@ -42,7 +43,75 @@ function createService(response: { data: unknown; error: unknown }): {
   return { service, stockService, rpc };
 }
 
+function createDemoService(saleState: 'no_active_sale' | null = 'no_active_sale') {
+  localStorage.clear();
+  const mockStore = new MockDataStoreService();
+  mockStore.isDemoMode.set(true);
+  mockStore.saveItem({
+    id: 'demo-item-1',
+    workspace_id: 'workspace-1',
+    title: 'Demo-Einzelstück',
+    condition: 'used',
+    status: 'ready',
+    sale_state: saleState ?? undefined,
+    allocated_purchase_cost: 10,
+  });
+  const service = Object.create(SalesService.prototype) as SalesService;
+  Object.assign(service, {
+    sales: signal<Sale[]>([]),
+    mockStore,
+    syncStatus: new SyncStatusService(),
+    workspaceService: { currentWorkspace: () => ({ id: 'workspace-1' }) },
+    profitEngine: {
+      calculateProfit: () => 0,
+      calculateRoi: () => 0,
+      calculateHoldingDurationDays: () => 0,
+    },
+    stockService: { loadPositions: vi.fn(async () => undefined) },
+    inventoryService: { loadInventory: vi.fn(async () => undefined) },
+  });
+  return { mockStore, service };
+}
+
+const demoSaleInput = {
+  platform: 'direct',
+  saleDate: '2026-08-29',
+  lines: [
+    {
+      inventoryItemId: 'demo-item-1',
+      titleSnapshot: 'Demo-Einzelstück',
+      quantity: 1,
+      unitSalePrice: 25,
+    },
+  ],
+};
+
 describe('SalesService', () => {
+  it('setzt einen bestätigten Demo-Einzelverkauf wie Supabase auf sold und verhindert den Doppelverkauf', async () => {
+    const { mockStore, service } = createDemoService();
+
+    const first = await service.recordSale(demoSaleInput);
+    const second = await service.recordSale(demoSaleInput);
+
+    expect(first.error).toBeNull();
+    expect(mockStore.getItems('workspace-1')[0]).toMatchObject({
+      status: 'sold',
+      sale_state: 'sold',
+    });
+    expect(second.error?.message).toContain('nicht verkaufbar');
+    expect(mockStore.getSales('workspace-1')).toHaveLength(1);
+  });
+
+  it('behandelt auch im Demo-Verkauf einen fehlenden Sale-State fail-closed', async () => {
+    const { mockStore, service } = createDemoService(null);
+
+    const result = await service.recordSale(demoSaleInput);
+
+    expect(result.error?.message).toContain('nicht verkaufbar');
+    expect(mockStore.getItems('workspace-1')[0].status).toBe('ready');
+    expect(mockStore.getSales('workspace-1')).toEqual([]);
+  });
+
   it('disambiguiert beim Laden alle Verkaufsbeziehungen mit mehreren Fremdschlüsseln', async () => {
     const selects: string[] = [];
     const result = { data: [], error: null };
