@@ -26,18 +26,75 @@ Dieses Projekt wird teilweise mit KI-Assistenten entwickelt. **Jede** von einer 
 > Commit-Nachrichten sind ebenfalls englisch.
 
 **Offene Aufgabe fuer alle KI-Assistenten:** Grosse Teile des Bestands sind noch
-deutsch benannt (`nimmDateien`, `Rechteck`, `bild-liste`, `zuschnitte` und viele
-weitere, quer durch `core/services/` und die Features). Das Projekt soll spaeter
+deutsch benannt (`speicher-migration.ts`, `stammdaten-filter.ts`,
+`supabase-schreiben.ts`, `erstelleDienst`, `erstelleKomponente` und viele weitere,
+quer durch `core/services/` und die uebrigen Features). Das Projekt soll spaeter
 **vollstaendig auf englische Bezeichner umgestellt** werden.
 
-Diese Umstellung ist bewusst **zurueckgestellt**, solange die Warenwirtschaft
-(Branch `codex/inventory-sales`) laeuft: Sie fasst viele Kern-Dateien an, und ein
-projektweites Umbenennen wuerde das Zusammenfuehren unmoeglich machen. Wenn es
-soweit ist, gehoert die Umbenennung in einen **eigenen, rein mechanischen Commit**
-ohne Logikaenderung – nur dann beweisen gruene Tests und ein sauberer Build, dass
-nichts kaputtgegangen ist.
+Die Sperre ist seit dem 29.08.2026 aufgehoben: Die Warenwirtschaft ist in
+`master` zusammengefuehrt, und die beiden Bildeditor-Pakete sind hinterher.
+Es steht also **kein langlebiger Zweig mehr offen**, den ein projektweites
+Umbenennen zerstoeren wuerde - das war der einzige Grund fuer das Zurueckstellen.
+
+Die Umbenennung gehoert in einen **eigenen, rein mechanischen Commit** ohne
+Logikaenderung. Nur dann beweisen gruene Tests und ein sauberer Build, dass
+nichts kaputtgegangen ist. Bereits vollstaendig englisch benannt ist der Ordner
+`src/app/features/image-optimizer/`; er taugt als Vorlage. Noch deutsch sind
+unter anderem `core/services/speicher-migration.ts`, `stammdaten-filter.ts` und
+`supabase-schreiben.ts` sowie viele Feld- und Methodennamen quer durch `core/`
+und die uebrigen Features.
 
 Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen.**
+
+---
+
+## 2026-08-29 – Claude Opus 5 (Anthropic) – Bildeditor veroeffentlicht
+
+**Art:** Konfiguration (Zusammenfuehrung) + Bugfix
+**Betroffen:** `master`, `src/app/features/image-optimizer/image-optimizer.component.ts`, `docs/AI-CHANGELOG.md`
+
+**Was:** Beide Bildeditor-Pakete sind in `master` zusammengefuehrt und
+ausgeliefert. Vorher habe ich die Warenwirtschaft aus `master` in die Zweige
+geholt und geprueft, was der parallele Lauf angefasst hat.
+
+**Der einzige Konflikt lag in `addFiles`** – und er war inhaltlich wichtig, nicht
+nur textlich. Die Warenwirtschaft hatte dort `crypto.randomUUID()` durch
+`createLocalDemoId('image')` ersetzt, weil `randomUUID` in unsicheren Kontexten
+(reines HTTP) nicht existiert und das Hinzufuegen von Bildern sonst mit einem
+Fehler abbricht. Mein Zweig hatte dieselbe Zeile beim Umbau auf englische
+Bezeichner neu geschrieben und haette die Korrektur wieder ueberschrieben.
+Uebernommen wurde die Korrektur, behalten wurden die englischen Namen, der
+Durchgesehen-Marker und die Nicht-Bild-Meldung.
+
+**Was ich an der Warenwirtschaft geprueft habe:**
+
+- **Zeilensicherheit:** 6 neue Tabellen, 6-mal `enable row level security`,
+  Policies je Operation und Rolle getrennt, kein `for all`.
+- **`security definer`-Funktionen:** alle mit `set search_path = ''`, und
+  **jede** prueft am Anfang `auth.uid()` und `is_workspace_member(p_workspace_id)`
+  und wirft sonst `42501`. Das ist der entscheidende Punkt, weil diese Funktionen
+  die Zeilensicherheit umgehen: Ohne die Pruefung koennte ein angemeldeter Nutzer
+  eine fremde Workspace-Kennung uebergeben.
+- **Schreibrechte:** direkte `insert/update/delete` auf `stock_lots`,
+  `stock_movements`, `sale_lines` und `sale_line_lot_allocations` sind
+  `authenticated` entzogen – Buchungen laufen nur ueber die RPCs.
+- **Angular-Konventionen:** keine Inline-Templates, kein `standalone: true`,
+  kein `ngClass`/`ngStyle`, keine `*ngIf`/`*ngFor`, keine Konstruktor-Injektion,
+  kein `any`, kein `@HostBinding`/`@HostListener`. Sauber.
+
+**Kleine Anmerkung ohne Handlungsbedarf:** Die neuen RPCs bekommen kein
+ausdrueckliches `revoke execute ... from anon`. Ein anonymer Aufruf scheitert
+trotzdem an der `auth.uid()`-Pruefung in der Funktion selbst; ein Entzug waere
+nur eine zweite Verteidigungslinie.
+
+**Verifiziert durch:** Typpruefung fehlerfrei, **116 Testdateien / 806 Tests
+gruen**, Prettier und ESLint sauber, Produktionsbau erfolgreich. Startbuendel
+710,15 kB gegen die von der Warenwirtschaft verschaerfte Warnschwelle von 900 kB;
+`image-optimizer-component` liegt bei 174,37 kB als eigenes, nachgeladenes Stueck.
+Im Browser nachgesehen: Bildoptimierer laedt, zwei Bilder ueber den Dateidialog
+hinzugefuegt (also genau durch die Konfliktstelle), Plattformwahl, Fortschritt
+„1 von 2 durchgesehen", Farb- und Belichtungsregler sowie die Metadatenanzeige
+alle da, Konsole ohne Fehler.
 
 ---
 
