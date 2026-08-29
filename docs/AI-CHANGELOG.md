@@ -48,6 +48,78 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-08-30 – Claude Opus 5 (Anthropic) – Metadaten aus mehr als nur JPEG
+
+**Art:** Feature
+**Betroffen:** `src/app/features/image-optimizer/services/` (neu: `image-format.ts`,
+`webp-metadata.ts`), `metadata-reader.service.ts`, `c2pa-detection.ts`,
+`models/image-metadata.ts`, `components/metadata-panel/`
+
+Bisher wurde **nur JPEG** ausgewertet. Damit fielen ausgerechnet die haeufigsten Faelle
+durch: iPhone-Fotos sind **HEIC**, KI-Bilder aus Gemini oder DALL·E kommen als **PNG**, im
+Netz gespeicherte Bilder sind oft **WebP**. Bei allen dreien behauptete die Anzeige, es sei
+nichts bekannt – obwohl in einem HEIC vom iPhone der Aufnahmeort steckt.
+
+### Erst gemessen, dann gebaut
+
+`exifr` 7.1.3 bringt Parser fuer JPEG, PNG, TIFF und HEIF mit. An selbst gebauten
+Testdateien geprueft:
+
+| Format      | Ergebnis                                          |
+| ----------- | ------------------------------------------------- |
+| JPEG        | alle Felder (Ausgangspunkt)                       |
+| **PNG**     | **alle Felder** – EXIF aus `eXIf`, XMP aus `iTXt` |
+| TIFF        | EXIF-Felder                                       |
+| HEIC / HEIF | Format erkannt                                    |
+| **WebP**    | **`Unknown file format`** – kann `exifr` nicht    |
+
+### WebP wird selbst aufgemacht
+
+Die RIFF-Chunks werden durchgegangen. Der `EXIF`-Chunk enthaelt einen **rohen TIFF-Block**
+und wird als solcher an `exifr` weitergereicht – so bleibt die Auswertung der Felder an einer
+einzigen Stelle statt in zwei Fassungen. `XMP ` und `C2PA` kommen aus den eigenen Chunks.
+Wichtig: Laut Spezifikation stehen diese Chunks **hinter** den Bilddaten, deshalb wird bei
+WebP die ganze Datei gelesen und nicht nur der Kopf.
+
+### Format an den Bytes, nicht an der Endung
+
+Endung und MIME-Typ luegen regelmaessig – aus WhatsApp gespeicherte Dateien heissen `.jpg`
+und sind PNG. Bei HEIC/AVIF entscheiden die **kompatiblen Marken** ab Byte 16, nicht die
+Hauptmarke ab Byte 8; so macht es `exifr` in seinem eigenen `canHandle`, und gemessen: eine
+Datei mit Hauptmarke `avif`, die `avif` nicht in der Liste fuehrt, wird abgelehnt. Wuerde
+hier die Hauptmarke genuegen, meldete die Anzeige ein lesbares Format und das Lesen schluege
+danach fehl.
+
+### Der Herkunftsnachweis hat jetzt drei Zustaende
+
+Er liegt je Format woanders: JPEG im APP11-Segment, PNG im `caBX`-Chunk, WebP im
+`C2PA`-Chunk – **alle drei werden gesucht**. Fuer HEIC/AVIF und TIFF steckt er in
+ISOBMFF-Boxen bzw. einem TIFF-Tag; ohne echte Beispieldateien waere jede Umsetzung geraten,
+also wird dort nicht gesucht. Genau deshalb `unchecked` als dritter Zustand: „nicht
+gefunden" waere eine Behauptung ueber etwas, wonach niemand gesehen hat.
+
+### Ein Test war gruen aus dem falschen Grund
+
+Der bestehende Test „wertet Nicht-JPEG gar nicht erst aus" benutzte eine **zwei Byte lange**
+PNG-Attrappe. Er blieb auch nach der Umstellung gruen – aber nicht, weil PNG abgelehnt wird,
+sondern weil zwei Byte kein Format ergeben. Ersetzt durch Tests mit vollstaendigen
+Dateikoepfen.
+
+**Verifiziert durch:** `npm run verify` vollstaendig gruen (927 Tests). Im Browser mit
+echten, dort erzeugten Dateien gegengelesen: PNG mit `eXIf` und `iTXt`-XMP liefert Standort
+52,5/13,4, Kamera, Aufnahmedatum, Software und die erklaerte KI-Herkunft samt GPS-Hinweis in
+der Bilderliste; WebP mit `EXIF`-, `XMP `- und `C2PA`-Chunk dieselben Felder plus den
+Herkunftsnachweis, den `exifr` gar nicht finden koennte; blankes PNG, HEIC-Kopf und GIF
+liefern drei **unterschiedliche**, jeweils zutreffende Saetze. AXE ueber die Seite: null
+Verstoesse.
+
+**Offen:** Nicht mit einer echten AVIF-Datei geprueft – der Browser kodiert kein AVIF. Die
+Erkennungsregel ist Zeile fuer Zeile dieselbe wie in `exifr`s `canHandle` und an
+synthetischen Dateien in beide Richtungen gemessen. C2PA in HEIC/AVIF und TIFF wird bewusst
+nicht gesucht (siehe oben).
+
+---
+
 ## 2026-08-29 – Claude Opus 5 (Anthropic) – Weissabgleich, Schaerfen und Barrierefreiheit
 
 **Art:** Feature + Bugfix (Barrierefreiheit, i18n)
