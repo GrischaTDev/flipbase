@@ -53,6 +53,7 @@ import { findResolutionIssue, checkOutput } from './services/platform-validation
 import { togglePlatformIn } from './services/platform-selection';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
+import { createLocalDemoId } from '../../core/utils/client-identity';
 
 /**
  * Hinweistext fuer Bilder, die der Browser nicht als Bild dekodieren kann -
@@ -306,7 +307,7 @@ export class ImageOptimizerComponent {
     if (images.length === 0) return;
 
     const added: OptimizerImage[] = images.map((file) => ({
-      id: crypto.randomUUID(),
+      id: createLocalDemoId('image'),
       file,
       dataUrl: URL.createObjectURL(file),
       crops: {},

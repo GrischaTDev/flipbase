@@ -11,7 +11,7 @@ import { WebhookService } from './webhook.service';
 import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
-import { Json } from '../models/supabase.types';
+import { Json, Tables } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
 
@@ -94,7 +94,7 @@ export class PriceTrackerService {
         .order('created_at', { ascending: false });
 
       if (!error && data && data.length > 0) {
-        const mapped: PriceTrackedItem[] = (data as unknown[]).map((t: any) => ({
+        const mapped: PriceTrackedItem[] = (data as Tables<'price_tracked_items'>[]).map((t) => ({
           id: t.id,
           workspace_id: t.workspace_id,
           inventory_item_id: t.inventory_item_id || undefined,
@@ -105,14 +105,15 @@ export class PriceTrackerService {
           currentMarketLowest: Number(t.current_market_lowest || 0),
           recommendedPrice: Number(t.recommended_price || 0),
           lowestCompetitorTitle: t.lowest_competitor_title || undefined,
-          lowestCompetitorPlatform: t.lowest_competitor_platform || 'kleinanzeigen',
+          lowestCompetitorPlatform: (t.lowest_competitor_platform || 'kleinanzeigen') as
+            'ebay' | 'kleinanzeigen' | 'vinted',
           lowestCompetitorUrl: t.lowest_competitor_url || undefined,
           priceTrend: t.price_trend as PriceTrend,
           priceDifferencePercent: Number(t.price_difference_percent || 0),
           alertTriggered: t.alert_triggered as PriceAlert,
           lastCheckedAt: t.last_checked_at || new Date().toISOString(),
           isTrackingActive: t.is_tracking_active,
-          priceHistory: (t.price_history as PricePoint[]) || [],
+          priceHistory: (t.price_history as unknown as PricePoint[]) || [],
         }));
         this.trackedItems.set(mapped);
         this.persistItems();

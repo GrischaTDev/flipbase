@@ -66,7 +66,7 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
 
   private mediaStream: MediaStream | null = null;
   private animationFrameId: number | null = null;
-  private barcodeDetector: any = null;
+  private barcodeDetector: BarcodeDetector | null = null;
 
   async ngOnInit(): Promise<void> {
     await this.initBarcodeDetector();
@@ -133,7 +133,7 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
   private checkTorchSupport(): void {
     const track = this.mediaStream?.getVideoTracks()[0];
     if (track) {
-      const capabilities: any = track.getCapabilities ? track.getCapabilities() : {};
+      const capabilities = track.getCapabilities() as MediaTrackCapabilities & { torch?: boolean };
       this.hasTorch.set(!!capabilities.torch);
     }
   }
@@ -144,9 +144,12 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
 
     try {
       const newState = !this.isTorchOn();
-      await (track as any).applyConstraints({
+      const constraints = {
         advanced: [{ torch: newState }],
-      });
+      } as MediaTrackConstraints & {
+        advanced: (MediaTrackConstraintSet & { torch: boolean })[];
+      };
+      await track.applyConstraints(constraints);
       this.isTorchOn.set(newState);
     } catch (e) {
       this.logger.warn('Torch toggle failed', e);
@@ -160,7 +163,8 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
 
   private startDetectionLoop(): void {
     const video = this.videoRef()?.nativeElement;
-    if (!video || !this.barcodeDetector) return;
+    const barcodeDetector = this.barcodeDetector;
+    if (!video || !barcodeDetector) return;
 
     const detect = async () => {
       if (!this.isScanning() || !video || video.readyState < 2) {
@@ -169,7 +173,7 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
       }
 
       try {
-        const barcodes = await this.barcodeDetector.detect(video);
+        const barcodes = await barcodeDetector.detect(video);
         if (barcodes && barcodes.length > 0) {
           const raw = barcodes[0].rawValue;
           if (raw && raw.trim()) {

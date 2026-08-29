@@ -110,6 +110,19 @@ export const EINKAUFSART_BEZEICHNUNG: Record<PurchaseType, string> = {
   pallet: 'Palette',
 };
 export type CostAllocationMode = 'manual' | 'even' | 'value_weighted';
+export type PurchaseReceivingStatus =
+  'draft' | 'ordered' | 'partially_received' | 'received' | 'archived';
+
+export type TrackingMode = 'quantity' | 'individual';
+export type StockMovementReason =
+  | 'receipt'
+  | 'sale'
+  | 'return'
+  | 'correction'
+  | 'damage'
+  | 'loss'
+  | 'reservation'
+  | 'reservation_release';
 
 export interface PurchaseCost {
   id?: string;
@@ -161,6 +174,7 @@ export interface Purchase {
   tracking_number?: string | null;
   tracking_carrier?: TrackingCarrier | null;
   tracking_status?: InboundTrackingStatus | null;
+  receiving_status?: PurchaseReceivingStatus;
   estimated_delivery?: string | null;
   notes?: string | null;
   created_at?: string;
@@ -171,6 +185,7 @@ export interface Purchase {
   items_count?: number;
   total_purchase_cost?: number;
   items?: InventoryItem[];
+  purchase_lines?: PurchaseLine[];
 }
 
 export type ItemCondition =
@@ -212,6 +227,7 @@ export interface InventoryItem {
   id: string;
   workspace_id: string;
   purchase_id?: string | null;
+  purchase_line_id?: string | null;
   category?: string | null;
   title: string;
   brand?: string | null;
@@ -312,9 +328,10 @@ export interface ListingDraft {
 export interface Sale {
   id: string;
   workspace_id: string;
-  inventory_item_id: string;
+  inventory_item_id?: string | null;
   platform: 'ebay' | 'kleinanzeigen' | 'vinted' | 'direct' | 'custom_store' | string;
   sale_price: number;
+  sale_price_total?: number | null;
   sale_date: string;
   platform_fee: number;
   shipping_cost: number;
@@ -335,6 +352,103 @@ export interface Sale {
   net_profit?: number;
   roi?: number;
   holding_duration_days?: number;
+  /** Persistierte Verkaufspositionen; Altverkäufe werden als eine Position abgebildet. */
+  lines?: SaleLine[];
+  /** Kennzeichnet echte Datenbankpositionen gegenüber einem Anzeige-Fallback für Altverkäufe. */
+  has_persisted_lines?: boolean;
+  /** FIFO-Losentnahmen der Positionsmenge. */
+  lot_allocations?: SaleLineLotAllocation[];
+  /** Bestandsbewegungen, die durch diesen Verkauf entstanden sind. */
+  stock_movements?: StockMovement[];
+}
+
+export interface CatalogProduct {
+  id: string;
+  workspace_id: string;
+  title: string;
+  brand?: string | null;
+  model?: string | null;
+  ean?: string | null;
+  category?: string | null;
+  tracking_mode: TrackingMode;
+  is_public_store: boolean;
+  listing_price?: number | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface PurchaseLine {
+  id: string;
+  workspace_id: string;
+  purchase_id: string;
+  catalog_product_id?: string | null;
+  title_snapshot: string;
+  line_kind: TrackingMode;
+  ordered_quantity: number;
+  received_quantity: number;
+  unit_purchase_price: number;
+  line_total: number;
+  allocated_additional_cost?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface StockLot {
+  id: string;
+  workspace_id: string;
+  purchase_id: string;
+  purchase_line_id: string;
+  catalog_product_id: string;
+  received_quantity: number;
+  remaining_quantity: number;
+  unit_cost: number;
+  received_at: string;
+  created_at?: string;
+}
+
+export interface StockMovement {
+  id: string;
+  workspace_id: string;
+  stock_lot_id: string;
+  sale_line_id?: string | null;
+  direction: 'in' | 'out';
+  quantity: number;
+  reason: StockMovementReason;
+  created_at?: string;
+}
+
+export interface SaleLine {
+  id: string;
+  sale_id: string;
+  catalog_product_id?: string | null;
+  inventory_item_id?: string | null;
+  title_snapshot: string;
+  quantity: number;
+  unit_sale_price: number;
+  line_total: number;
+  cost_of_goods_sold: number;
+  tax_mode: TaxMode;
+}
+
+export interface SaleLineLotAllocation {
+  id: string;
+  workspace_id: string;
+  sale_line_id: string;
+  stock_lot_id: string;
+  quantity: number;
+  unit_cost: number;
+  allocated_cost?: number;
+  created_at?: string;
+}
+
+export interface StockPosition {
+  catalog_product_id: string;
+  title: string;
+  available_quantity: number;
+  reserved_quantity: number;
+  on_hand_quantity: number;
+  oldest_available_unit_cost: number | null;
+  is_public_store: boolean;
 }
 
 export interface ActivityLog {
@@ -353,6 +467,43 @@ export interface DashboardMetrics {
   inventory_value: number;
   active_items_count: number;
   average_roi_percent: number;
+}
+
+/** Zeitraum, der im Verkaufsbericht einheitlich auf Kennzahlen, Diagramm und Tabelle wirkt. */
+export type DashboardRange = 'today' | 'last_7_days' | 'month' | 'year';
+
+export interface DashboardTimePoint {
+  /** Maschinenlesbarer Beginn des Tages bzw. Monats im lokalen Kalender. */
+  date: string;
+  /** Kurze, im Diagramm sichtbare Beschriftung. */
+  label: string;
+  revenue: number;
+  expenses: number;
+  realizedProfit: number;
+}
+
+export interface DashboardSaleRow {
+  saleId: string;
+  date: string;
+  articles: string;
+  quantity: number;
+  platform: string;
+  revenue: number;
+  costOfGoodsSold: number;
+  profit: number;
+}
+
+export interface DashboardReport {
+  /** Auszahlungen fuer im Zeitraum erfasste Einkaeufe, nicht der Lagerwert. */
+  expenses: number;
+  /** Umsatz aus noch nicht retournierten, bestaetigten Verkaeufen. */
+  revenue: number;
+  /** Umsatz minus COGS sowie Verkaufsnebenkosten; kein prognostizierter Wert. */
+  realizedProfit: number;
+  /** Anschaffungswert der aktuell vorhandenen Ware. */
+  inventoryCostValue: number;
+  points: readonly DashboardTimePoint[];
+  rows: readonly DashboardSaleRow[];
 }
 
 export interface TaxCalculationResult {

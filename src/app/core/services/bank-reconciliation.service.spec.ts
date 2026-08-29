@@ -15,6 +15,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { BankTransaction } from '../models/bank-reconciliation.models';
 import { StoreOrder } from '../models/store.models';
 import { Purchase, Sale } from '../models/flipbase.models';
+import { Invoice } from '../models/invoice.models';
 
 describe('BankReconciliationService', () => {
   let service: BankReconciliationService;
@@ -34,9 +35,9 @@ describe('BankReconciliationService', () => {
 
     const mockStoreService = {
       orders: mockStoreOrders,
-      updatePaymentStatus: (orderId: string, status: string) => {
+      updatePaymentStatus: (orderId: string, status: StoreOrder['paymentStatus']) => {
         mockStoreOrders.update((orders) =>
-          orders.map((o) => (o.id === orderId ? { ...o, paymentStatus: status as any } : o)),
+          orders.map((o) => (o.id === orderId ? { ...o, paymentStatus: status } : o)),
         );
       },
     };
@@ -50,7 +51,7 @@ describe('BankReconciliationService', () => {
     };
 
     const mockInvoiceService = {
-      invoices: signal<any[]>([]),
+      invoices: signal<Invoice[]>([]),
       createInvoiceFromStoreOrder: () => ({ id: 'inv-1', invoiceNumber: 'RE-2026-001' }),
       generateInvoiceForOrder: () => ({ id: 'inv-1', invoiceNumber: 'RE-2026-001' }),
     };
@@ -64,7 +65,7 @@ describe('BankReconciliationService', () => {
         { provide: InvoiceService, useValue: mockInvoiceService },
         BankReconciliationService,
       ],
-      null as any,
+      null as unknown as EnvironmentInjector,
     );
 
     service = runInInjectionContext(injector, () => new BankReconciliationService());

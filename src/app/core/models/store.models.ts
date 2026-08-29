@@ -32,10 +32,36 @@ export interface StoreSettings {
   noticeText?: string;
 }
 
-export interface CartItem {
+/** Einheitliche Referenz für Mengenprodukte und nachverfolgte Einzelstücke im Shop. */
+export interface SellableItemRef {
+  readonly kind: 'catalog_product' | 'inventory_item';
+  readonly id: string;
+  readonly title: string;
+  readonly availableQuantity: number;
+  readonly unitPrice?: number;
+  readonly brand?: string | null;
+  readonly model?: string | null;
+  readonly category?: string | null;
+  readonly sku?: string | null;
+  readonly condition?: InventoryItem['condition'];
+  readonly media?: InventoryItem['media'];
+  readonly created_at?: string;
+}
+
+export interface SellableCartItem {
+  item: SellableItemRef;
+  quantity: number;
+  unitPrice: number;
+}
+
+/** Kompatibilität für vor dem Mengenartikelmodell gespeicherte Warenkörbe. */
+export interface LegacyCartItem {
   item: InventoryItem;
   quantity: number;
+  unitPrice?: number;
 }
+
+export type CartItem = SellableCartItem | LegacyCartItem;
 
 export interface CheckoutCustomerInfo {
   firstName: string;

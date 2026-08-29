@@ -8,6 +8,7 @@ import {
   InventoryItem,
   Purchase,
   Sale,
+  TaxMode,
   Workspace,
   WorkspaceSummary,
 } from '../models/flipbase.models';
@@ -165,7 +166,7 @@ export class WorkspaceService {
       min_profit_amount?: number;
       name?: string;
       currency?: string;
-      tax_mode?: any;
+      tax_mode?: TaxMode;
     },
   ): Promise<{ error: Error | null }> {
     const currentList = this.workspaces();

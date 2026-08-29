@@ -1,5 +1,5 @@
 import { Observable, of } from 'rxjs';
-import { TranslateLoader } from '@ngx-translate/core';
+import { TranslateLoader, TranslationObject } from '@ngx-translate/core';
 
 export const TRANSLATIONS_DE = {
   // Direct platform string lookups for dynamic templates
@@ -17,6 +17,7 @@ export const TRANSLATIONS_DE = {
     DASHBOARD: 'Dashboard',
     PURCHASES: 'Einkäufe',
     INVENTORY: 'Inventar',
+    CATALOG: 'Artikelstamm',
     STORE: 'Mein Online-Shop',
     RESEARCH: 'Research',
     DEAL_CALCULATOR: 'Deal Calculator',
@@ -318,6 +319,7 @@ export const TRANSLATIONS_EN = {
     DASHBOARD: 'Dashboard',
     PURCHASES: 'Purchases',
     INVENTORY: 'Inventory',
+    CATALOG: 'Catalog',
     STORE: 'My Online Shop',
     RESEARCH: 'Research',
     DEAL_CALCULATOR: 'Deal Calculator',
@@ -593,7 +595,7 @@ export const TRANSLATIONS_EN = {
 };
 
 export class SyncTranslateLoader implements TranslateLoader {
-  getTranslation(lang: string): Observable<Record<string, any>> {
+  getTranslation(lang: string): Observable<TranslationObject> {
     if (lang === 'en') {
       return of(TRANSLATIONS_EN);
     }

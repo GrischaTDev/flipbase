@@ -35,7 +35,7 @@ export class WebPushService {
   private checkSupportAndPermission(): void {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       this.isSupported.set(true);
-      this.permission.set(Notification.permission as any);
+      this.permission.set(Notification.permission);
     } else {
       this.isSupported.set(false);
       this.permission.set('unsupported');
@@ -77,7 +77,7 @@ export class WebPushService {
 
     try {
       const res = await Notification.requestPermission();
-      this.permission.set(res as any);
+      this.permission.set(res);
       return res === 'granted';
     } catch {
       return false;

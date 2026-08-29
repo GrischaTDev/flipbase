@@ -15,6 +15,7 @@ import { WebPushService } from './web-push.service';
 import { Json } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
+import { Tables } from '../models/supabase.types';
 
 const STORAGE_KEY_CARRIER_CFG = 'flipbase_carrier_config';
 const STORAGE_KEY_SHIPPING_ORDERS = 'flipbase_shipping_orders';
@@ -382,33 +383,34 @@ export class FulfillmentService {
       if (!this.isCurrentLoad(requestedWorkspaceId, loadVersion)) return;
       if (orderRes.error || cfgRes.error) throw orderRes.error ?? cfgRes.error;
 
-      const mapped: ShippingOrder[] = ((orderRes.data ?? []) as unknown[]).map((o: any) => ({
-        id: o.id,
-        workspace_id: o.workspace_id,
-        sale_id: o.sale_id,
-        order_number: o.order_number,
-        order_date: o.order_date,
-        platform: o.platform,
-        item_title: o.item_title,
-        item_sku: o.item_sku || undefined,
-        item_condition: o.item_condition || undefined,
-        sale_price: Number(o.sale_price || 0),
-        customer: o.customer as AddressInfo,
-        carrier: o.carrier as CarrierType,
-        package_type: o.package_type,
-        tracking_number: o.tracking_number || undefined,
-        tracking_url: o.tracking_url || undefined,
-        label_price: o.label_price ? Number(o.label_price) : undefined,
-        carrier_transaction_id: o.carrier_transaction_id || undefined,
-        status: o.status as ShippingStatus,
-        created_at: o.created_at,
-        shipped_at: o.shipped_at || undefined,
-        delivered_at: o.delivered_at || undefined,
-        is_bundled: o.is_bundled || false,
-        bundled_order_ids: o.bundled_order_ids || undefined,
-        bundled_item_titles: o.bundled_item_titles || undefined,
-        notes: o.notes || undefined,
-      }));
+      const mapped: ShippingOrder[] = ((orderRes.data ?? []) as Tables<'shipping_orders'>[]).map(
+        (o) => ({
+          id: o.id,
+          workspace_id: o.workspace_id,
+          sale_id: o.sale_id,
+          order_number: o.order_number,
+          order_date: o.order_date,
+          platform: o.platform,
+          item_title: o.item_title,
+          item_sku: o.item_sku || undefined,
+          item_condition: o.item_condition || undefined,
+          sale_price: Number(o.sale_price || 0),
+          customer: o.customer as unknown as AddressInfo,
+          carrier: o.carrier as CarrierType,
+          package_type: o.package_type,
+          tracking_number: o.tracking_number || undefined,
+          tracking_url: o.tracking_url || undefined,
+          label_price: o.label_price ? Number(o.label_price) : undefined,
+          carrier_transaction_id: o.carrier_transaction_id || undefined,
+          status: o.status as ShippingStatus,
+          created_at: o.created_at,
+          shipped_at: o.shipped_at || undefined,
+          is_bundled: o.is_bundled || false,
+          bundled_order_ids: o.bundled_order_ids || undefined,
+          bundled_item_titles: o.bundled_item_titles || undefined,
+          notes: o.notes || undefined,
+        }),
+      );
       this.orders.set(mapped);
       this.persistOrders();
 

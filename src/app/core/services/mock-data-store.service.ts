@@ -5,11 +5,20 @@ import {
   Supplier,
   Purchase,
   InventoryItem,
+  ItemCondition,
   Sale,
   ActivityLog,
   ItemCost,
   ItemMedia,
+  CatalogProduct,
+  PurchaseLine,
+  StockLot,
+  StockMovement,
+  SaleLine,
+  SaleLineLotAllocation,
 } from '../models/flipbase.models';
+import type { ReceivePurchaseLineInput } from './stock.service';
+import { createLocalDemoId } from '../utils/client-identity';
 
 const DEMO_WS_ID = 'ws-1';
 
@@ -21,6 +30,22 @@ const STORAGE_KEY_SUPPLIERS = 'flipbase_local_suppliers';
 const STORAGE_KEY_ITEM_COSTS = 'flipbase_local_item_costs';
 const STORAGE_KEY_ACTIVITY_LOGS = 'flipbase_local_activity_logs';
 const STORAGE_KEY_MEDIA = 'flipbase_local_media';
+const STORAGE_KEY_CATALOG_PRODUCTS = 'flipbase_local_catalog_products';
+const STORAGE_KEY_PURCHASE_LINES = 'flipbase_local_purchase_lines';
+const STORAGE_KEY_STOCK_LOTS = 'flipbase_local_stock_lots';
+const STORAGE_KEY_STOCK_MOVEMENTS = 'flipbase_local_stock_movements';
+const STORAGE_KEY_RECEIPT_JOURNAL = 'flipbase_local_individual_receipt_journal';
+
+interface AtomicStorageChange {
+  readonly key: string;
+  readonly previous: string | null;
+  readonly value: string;
+}
+
+interface ReceiptJournal {
+  readonly phase: 'prepared' | 'committed';
+  readonly changes: readonly Pick<AtomicStorageChange, 'key' | 'previous'>[];
+}
 
 function getStorage(): Storage | null {
   try {
@@ -168,7 +193,7 @@ export class MockDataStoreService {
 
   private sicherLesen(schluessel: string): unknown[] {
     try {
-      const roh = getStorage()?.getItem(schluessel);
+      const roh = this.readStorageValue(schluessel);
       const wert: unknown = roh ? JSON.parse(roh) : [];
       return Array.isArray(wert) ? wert : [];
     } catch {
@@ -467,11 +492,532 @@ export class MockDataStoreService {
     return this.getSales();
   }
 
+  // --- Mengenartikel, Einkaufspositionen und Lose (nur Demo-Modus) ---
+  getCatalogProducts(workspaceId?: string): CatalogProduct[] {
+    return this.getWorkspaceRecords<CatalogProduct>(STORAGE_KEY_CATALOG_PRODUCTS, workspaceId);
+  }
+
+  saveCatalogProduct(product: CatalogProduct): void {
+    this.saveWorkspaceRecord(STORAGE_KEY_CATALOG_PRODUCTS, product);
+  }
+
+  getPurchaseLines(workspaceId?: string): PurchaseLine[] {
+    return this.getWorkspaceRecords<PurchaseLine>(STORAGE_KEY_PURCHASE_LINES, workspaceId);
+  }
+
+  savePurchaseLine(line: PurchaseLine): void {
+    this.saveWorkspaceRecord(STORAGE_KEY_PURCHASE_LINES, line);
+  }
+
+  /**
+   * Speichert einen neuen Demo-Einkauf gemeinsam mit seinen ersten Positionen.
+   * Der Journal-gestützte Schreibvorgang stellt bei Speicherfehlern den
+   * vorherigen Zustand wieder her, damit kein positionsloser Einkauf entsteht.
+   */
+  savePurchaseWithLines(purchase: Purchase, lines: readonly PurchaseLine[]): Error | null {
+    if (!this.isDemoMode()) return new Error('Der Demo-Modus ist nicht aktiv.');
+
+    const purchases = this.upsertRecord(this.getPurchases(), purchase);
+    let purchaseLines = this.getPurchaseLines();
+    for (const line of lines) purchaseLines = this.upsertRecord(purchaseLines, line);
+
+    return this.saveRecordsAtomically([
+      { key: STORAGE_KEY_PURCHASES, records: purchases },
+      { key: STORAGE_KEY_PURCHASE_LINES, records: purchaseLines },
+    ]);
+  }
+
+  getStockLots(workspaceId?: string): StockLot[] {
+    return this.getWorkspaceRecords<StockLot>(STORAGE_KEY_STOCK_LOTS, workspaceId);
+  }
+
+  getStockMovements(workspaceId?: string): StockMovement[] {
+    return this.getWorkspaceRecords<StockMovement>(STORAGE_KEY_STOCK_MOVEMENTS, workspaceId);
+  }
+
+  receivePurchaseLines(
+    workspaceId: string,
+    purchaseId: string,
+    inputs: readonly ReceivePurchaseLineInput[],
+  ): { purchaseLines: PurchaseLine[]; stockLots: StockLot[]; error: Error | null } {
+    const allLines = this.getPurchaseLines();
+    const updatedLines: PurchaseLine[] = [];
+    const newLots: StockLot[] = [];
+
+    for (const input of inputs) {
+      const line = allLines.find(
+        (entry) =>
+          entry.id === input.purchaseLineId &&
+          entry.workspace_id === workspaceId &&
+          entry.purchase_id === purchaseId,
+      );
+      if (!line || line.line_kind !== 'quantity' || !line.catalog_product_id) {
+        return {
+          purchaseLines: [],
+          stockLots: [],
+          error: new Error('Die Einkaufsposition wurde nicht gefunden.'),
+        };
+      }
+      if (
+        !Number.isInteger(input.receivedQuantity) ||
+        input.receivedQuantity <= 0 ||
+        line.received_quantity + input.receivedQuantity > line.ordered_quantity
+      ) {
+        return {
+          purchaseLines: [],
+          stockLots: [],
+          error: new Error('Die empfangene Menge überschreitet die bestellte Menge.'),
+        };
+      }
+      const updated = {
+        ...line,
+        received_quantity: line.received_quantity + input.receivedQuantity,
+      };
+      const lot: StockLot = {
+        id: this.newId('lot'),
+        workspace_id: workspaceId,
+        purchase_id: purchaseId,
+        purchase_line_id: line.id,
+        catalog_product_id: line.catalog_product_id,
+        received_quantity: input.receivedQuantity,
+        remaining_quantity: input.receivedQuantity,
+        unit_cost:
+          (line.line_total + Number(line.allocated_additional_cost ?? 0)) / line.ordered_quantity,
+        received_at: input.receivedAt ?? new Date().toISOString(),
+      };
+      const index = allLines.findIndex((entry) => entry.id === line.id);
+      allLines[index] = updated;
+      updatedLines.push(updated);
+      newLots.push(lot);
+    }
+
+    this.saveWorkspaceRecords(STORAGE_KEY_PURCHASE_LINES, allLines);
+    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_LOTS, [...this.getStockLots(), ...newLots]);
+    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_MOVEMENTS, [
+      ...this.getStockMovements(),
+      ...newLots.map((lot): StockMovement => ({
+        id: this.newId('movement'),
+        workspace_id: workspaceId,
+        stock_lot_id: lot.id,
+        direction: 'in',
+        quantity: lot.received_quantity,
+        reason: 'receipt',
+        created_at: lot.received_at,
+      })),
+    ]);
+    return { purchaseLines: updatedLines, stockLots: newLots, error: null };
+  }
+
+  receiveIndividualPurchaseLine(
+    workspaceId: string,
+    purchaseId: string,
+    purchaseLineId: string,
+    input: { title: string; condition: ItemCondition },
+  ): {
+    purchaseLine: PurchaseLine | null;
+    inventoryItem: InventoryItem | null;
+    purchase: Purchase | null;
+    error: Error | null;
+  } {
+    const lines = this.getPurchaseLines();
+    const index = lines.findIndex(
+      (line) =>
+        line.id === purchaseLineId &&
+        line.workspace_id === workspaceId &&
+        line.purchase_id === purchaseId &&
+        line.line_kind === 'individual' &&
+        line.received_quantity === 0,
+    );
+    const purchase = this.getPurchases(workspaceId).find((entry) => entry.id === purchaseId);
+    if (index < 0 || !purchase) {
+      return {
+        purchaseLine: null,
+        inventoryItem: null,
+        purchase: null,
+        error: new Error('Die Einzelartikelposition ist nicht offen.'),
+      };
+    }
+
+    const purchaseLine = { ...lines[index], received_quantity: 1 };
+    const inventoryItem: InventoryItem = {
+      id: this.newId('item'),
+      workspace_id: workspaceId,
+      purchase_id: purchaseId,
+      purchase_line_id: purchaseLineId,
+      title: input.title.trim(),
+      condition: input.condition,
+      status: 'received',
+      allocated_purchase_cost: purchaseLine.line_total,
+      created_at: new Date().toISOString(),
+    };
+    lines[index] = purchaseLine;
+    const hasOpen = lines.some(
+      (line) =>
+        line.workspace_id === workspaceId &&
+        line.purchase_id === purchaseId &&
+        line.received_quantity < line.ordered_quantity,
+    );
+    const hasReceived = lines.some(
+      (line) =>
+        line.workspace_id === workspaceId &&
+        line.purchase_id === purchaseId &&
+        line.received_quantity > 0,
+    );
+    const updatedPurchase: Purchase = {
+      ...purchase,
+      receiving_status: hasOpen ? (hasReceived ? 'partially_received' : 'ordered') : 'received',
+    };
+    const allItems = this.getItems();
+    const itemIndex = allItems.findIndex((item) => item.id === inventoryItem.id);
+    if (itemIndex === -1) allItems.unshift(inventoryItem);
+    else allItems[itemIndex] = inventoryItem;
+    const allPurchases = this.getPurchases();
+    const purchaseIndex = allPurchases.findIndex((entry) => entry.id === updatedPurchase.id);
+    if (purchaseIndex === -1) allPurchases.unshift(updatedPurchase);
+    else allPurchases[purchaseIndex] = updatedPurchase;
+    const persistenceError = this.saveRecordsAtomically([
+      { key: STORAGE_KEY_PURCHASE_LINES, records: lines },
+      { key: STORAGE_KEY_ITEMS, records: allItems },
+      { key: STORAGE_KEY_PURCHASES, records: allPurchases },
+    ]);
+    if (persistenceError) {
+      return {
+        purchaseLine: null,
+        inventoryItem: null,
+        purchase: null,
+        error: persistenceError,
+      };
+    }
+    return { purchaseLine, inventoryItem, purchase: updatedPurchase, error: null };
+  }
+
+  bookQuantitySale(
+    workspaceId: string,
+    saleLines: readonly SaleLine[],
+  ): {
+    saleLines: SaleLine[];
+    allocations: SaleLineLotAllocation[];
+    movements: StockMovement[];
+    error: Error | null;
+  } {
+    const lots = this.getStockLots();
+    const updatedLots = lots.map((lot) => ({ ...lot }));
+    const allocations: SaleLineLotAllocation[] = [];
+    const movements: StockMovement[] = [];
+    const updatedLines: SaleLine[] = [];
+
+    for (const line of saleLines) {
+      if (!line.catalog_product_id) {
+        updatedLines.push(line);
+        continue;
+      }
+      let remaining = line.quantity;
+      let costOfGoodsSold = 0;
+      const lotsForProduct = updatedLots
+        .filter(
+          (lot) =>
+            lot.workspace_id === workspaceId &&
+            lot.catalog_product_id === line.catalog_product_id &&
+            lot.remaining_quantity > 0,
+        )
+        .sort(
+          (left, right) =>
+            left.received_at.localeCompare(right.received_at) || left.id.localeCompare(right.id),
+        );
+
+      for (const lot of lotsForProduct) {
+        if (remaining === 0) break;
+        const quantity = Math.min(remaining, lot.remaining_quantity);
+        const previousAllocatedCost = [
+          ...this.getSales(workspaceId).flatMap((sale) => sale.lot_allocations ?? []),
+          ...allocations,
+        ]
+          .filter((allocation) => allocation.stock_lot_id === lot.id)
+          .reduce(
+            (sum, allocation) =>
+              sum + (allocation.allocated_cost ?? allocation.quantity * allocation.unit_cost),
+            0,
+          );
+        const allocatedCost = Number(
+          (quantity === lot.remaining_quantity
+            ? Number((lot.unit_cost * lot.received_quantity).toFixed(2)) - previousAllocatedCost
+            : quantity * lot.unit_cost
+          ).toFixed(2),
+        );
+        lot.remaining_quantity -= quantity;
+        remaining -= quantity;
+        costOfGoodsSold += allocatedCost;
+        allocations.push({
+          id: this.newId('allocation'),
+          workspace_id: workspaceId,
+          sale_line_id: line.id,
+          stock_lot_id: lot.id,
+          quantity,
+          unit_cost: lot.unit_cost,
+          allocated_cost: allocatedCost,
+        });
+        movements.push({
+          id: this.newId('movement'),
+          workspace_id: workspaceId,
+          stock_lot_id: lot.id,
+          sale_line_id: line.id,
+          direction: 'out',
+          quantity,
+          reason: 'sale',
+          created_at: new Date().toISOString(),
+        });
+      }
+      if (remaining !== 0) {
+        return {
+          saleLines: [],
+          allocations: [],
+          movements: [],
+          error: new Error('Nicht genügend verfügbarer Bestand'),
+        };
+      }
+      updatedLines.push({ ...line, cost_of_goods_sold: Number(costOfGoodsSold.toFixed(2)) });
+    }
+
+    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_LOTS, updatedLots);
+    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_MOVEMENTS, [
+      ...this.getStockMovements(),
+      ...movements,
+    ]);
+    return { saleLines: updatedLines, allocations, movements, error: null };
+  }
+
+  returnQuantitySale(
+    workspaceId: string,
+    sale: Sale,
+    restock: boolean,
+  ): { movements: StockMovement[]; error: Error | null } {
+    const allocations = sale.lot_allocations ?? [];
+    const lots = this.getStockLots();
+    const updatedLots = lots.map((lot) => ({ ...lot }));
+    const movements: StockMovement[] = [];
+
+    for (const allocation of allocations) {
+      const lot = updatedLots.find(
+        (entry) => entry.id === allocation.stock_lot_id && entry.workspace_id === workspaceId,
+      );
+      if (!lot)
+        return {
+          movements: [],
+          error: new Error('Das zugeordnete Bestandslos wurde nicht gefunden.'),
+        };
+      if (restock) lot.remaining_quantity += allocation.quantity;
+      movements.push({
+        id: this.newId('movement'),
+        workspace_id: workspaceId,
+        stock_lot_id: lot.id,
+        sale_line_id: allocation.sale_line_id,
+        direction: 'in',
+        quantity: allocation.quantity,
+        reason: 'return',
+        created_at: new Date().toISOString(),
+      });
+      if (!restock) {
+        movements.push({
+          id: this.newId('movement'),
+          workspace_id: workspaceId,
+          stock_lot_id: lot.id,
+          sale_line_id: allocation.sale_line_id,
+          direction: 'out',
+          quantity: allocation.quantity,
+          reason: 'damage',
+          created_at: new Date().toISOString(),
+        });
+      }
+    }
+    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_LOTS, updatedLots);
+    this.saveWorkspaceRecords(STORAGE_KEY_STOCK_MOVEMENTS, [
+      ...this.getStockMovements(),
+      ...movements,
+    ]);
+    return { movements, error: null };
+  }
+
+  private getWorkspaceRecords<T extends { workspace_id: string }>(
+    key: string,
+    workspaceId?: string,
+  ): T[] {
+    if (!this.isDemoMode()) return [];
+    try {
+      const raw = this.readStorageValue(key);
+      const records: T[] = raw ? JSON.parse(raw) : [];
+      return workspaceId
+        ? records.filter((record) => record.workspace_id === workspaceId)
+        : records;
+    } catch {
+      return [];
+    }
+  }
+
+  private saveWorkspaceRecord<T extends { id: string; workspace_id: string }>(
+    key: string,
+    record: T,
+  ): void {
+    if (!this.isDemoMode()) return;
+    const records = this.getWorkspaceRecords<T>(key);
+    const index = records.findIndex((entry) => entry.id === record.id);
+    if (index === -1) records.unshift(record);
+    else records[index] = record;
+    this.saveWorkspaceRecords(key, records);
+  }
+
+  private upsertRecord<T extends { id: string }>(records: readonly T[], record: T): T[] {
+    const index = records.findIndex((entry) => entry.id === record.id);
+    if (index === -1) return [record, ...records];
+    return records.map((entry, current) => (current === index ? record : entry));
+  }
+
+  private saveWorkspaceRecords<T>(key: string, records: readonly T[]): void {
+    if (!this.isDemoMode()) return;
+    try {
+      getStorage()?.setItem(key, JSON.stringify(records));
+    } catch {}
+  }
+
+  private saveRecordsAtomically(
+    records: readonly { key: string; records: readonly unknown[] }[],
+  ): Error | null {
+    if (!this.isDemoMode()) return null;
+    const storage = getStorage();
+    if (!storage) return new Error('Der lokale Speicher ist nicht verfügbar.');
+
+    const pendingRecovery = this.recoverPendingReceipt(storage);
+    if (pendingRecovery) {
+      return new Error('Ein vorheriger lokaler Wareneingang wird noch wiederhergestellt.');
+    }
+
+    let changes: AtomicStorageChange[];
+    try {
+      changes = records.map(({ key, records: value }) => ({
+        key,
+        previous: storage.getItem(key),
+        value: JSON.stringify(value),
+      }));
+    } catch (error: unknown) {
+      return error instanceof Error
+        ? error
+        : new Error('Der lokale Wareneingang konnte nicht vorbereitet werden.');
+    }
+
+    try {
+      storage.setItem(
+        STORAGE_KEY_RECEIPT_JOURNAL,
+        JSON.stringify({
+          phase: 'prepared',
+          changes: changes.map(({ key, previous }) => ({ key, previous })),
+        } satisfies ReceiptJournal),
+      );
+      for (const change of changes) storage.setItem(change.key, change.value);
+    } catch (error: unknown) {
+      this.recoverPendingReceipt(storage);
+      return error instanceof Error
+        ? error
+        : new Error('Der lokale Wareneingang konnte nicht gespeichert werden.');
+    }
+
+    try {
+      storage.setItem(
+        STORAGE_KEY_RECEIPT_JOURNAL,
+        JSON.stringify({
+          phase: 'committed',
+          changes: changes.map(({ key, previous }) => ({ key, previous })),
+        } satisfies ReceiptJournal),
+      );
+    } catch (error: unknown) {
+      this.recoverPendingReceipt(storage);
+      return error instanceof Error
+        ? error
+        : new Error('Der lokale Wareneingang konnte nicht abgeschlossen werden.');
+    }
+
+    try {
+      storage.removeItem(STORAGE_KEY_RECEIPT_JOURNAL);
+    } catch {}
+    return null;
+  }
+
+  private readStorageValue(key: string): string | null {
+    const storage = getStorage();
+    if (!storage) return null;
+
+    const recoverySnapshot = this.recoverPendingReceipt(storage);
+    if (recoverySnapshot?.has(key)) return recoverySnapshot.get(key) ?? null;
+    return storage.getItem(key);
+  }
+
+  private recoverPendingReceipt(storage: Storage): ReadonlyMap<string, string | null> | null {
+    let journal: ReceiptJournal | null;
+    try {
+      journal = this.readReceiptJournal(storage);
+    } catch {
+      return null;
+    }
+    if (!journal) return null;
+
+    if (journal.phase === 'committed') {
+      try {
+        storage.removeItem(STORAGE_KEY_RECEIPT_JOURNAL);
+      } catch {}
+      return null;
+    }
+
+    const snapshot = new Map(journal.changes.map((change) => [change.key, change.previous]));
+    let recovered = true;
+    for (const change of journal.changes) {
+      try {
+        if (change.previous === null) storage.removeItem(change.key);
+        else storage.setItem(change.key, change.previous);
+      } catch {
+        recovered = false;
+      }
+    }
+    if (recovered) {
+      try {
+        storage.removeItem(STORAGE_KEY_RECEIPT_JOURNAL);
+      } catch {}
+    }
+    return snapshot;
+  }
+
+  private readReceiptJournal(storage: Storage): ReceiptJournal | null {
+    const raw = storage.getItem(STORAGE_KEY_RECEIPT_JOURNAL);
+    if (!raw) return null;
+    const value: unknown = JSON.parse(raw);
+    if (
+      !value ||
+      typeof value !== 'object' ||
+      !('phase' in value) ||
+      (value.phase !== 'prepared' && value.phase !== 'committed') ||
+      !('changes' in value) ||
+      !Array.isArray(value.changes) ||
+      !value.changes.every(
+        (change: unknown) =>
+          !!change &&
+          typeof change === 'object' &&
+          'key' in change &&
+          typeof change.key === 'string' &&
+          'previous' in change &&
+          (typeof change.previous === 'string' || change.previous === null),
+      )
+    ) {
+      return null;
+    }
+    return value as ReceiptJournal;
+  }
+
+  private newId(prefix: string): string {
+    return createLocalDemoId(prefix);
+  }
+
   // --- Purchases Persistent API ---
   getPurchases(workspaceId?: string): Purchase[] {
     if (!this.isDemoMode()) return [];
     try {
-      const stored = getStorage()?.getItem(STORAGE_KEY_PURCHASES);
+      const stored = this.readStorageValue(STORAGE_KEY_PURCHASES);
       if (stored) {
         const list: Purchase[] = JSON.parse(stored);
         return workspaceId
@@ -524,7 +1070,7 @@ export class MockDataStoreService {
   getItems(workspaceId?: string): InventoryItem[] {
     if (!this.isDemoMode()) return [];
     try {
-      const stored = getStorage()?.getItem(STORAGE_KEY_ITEMS);
+      const stored = this.readStorageValue(STORAGE_KEY_ITEMS);
       if (stored) {
         const list: InventoryItem[] = JSON.parse(stored);
         return workspaceId
@@ -836,7 +1382,7 @@ export class MockDataStoreService {
   }
 
   // Helper with 800ms timeout
-  async withTimeout<T>(promiseLike: any, fallback: T, ms = 800): Promise<T> {
+  async withTimeout<T>(promiseLike: T | PromiseLike<T>, fallback: T, ms = 800): Promise<T> {
     const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms));
     try {
       return await Promise.race([Promise.resolve(promiseLike), timeout]);

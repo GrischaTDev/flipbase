@@ -2,7 +2,7 @@ import '@angular/compiler';
 import { signal } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { Purchase } from '../../../../core/models/flipbase.models';
+import { Purchase, PurchaseType } from '../../../../core/models/flipbase.models';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { PurchaseCreateModalComponent } from './purchase-create-modal.component';
@@ -87,8 +87,9 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     newSourceName: signal('Flohmarkt'),
     newSupplierName: signal('Lieferant GmbH'),
     extraCosts: signal([]),
+    purchaseLines: signal([]),
     form: new FormGroup({
-      type: new FormControl<'single'>('single', { nonNullable: true }),
+      type: new FormControl<PurchaseType>('single', { nonNullable: true }),
       title: new FormControl('Konsole', {
         nonNullable: true,
         validators: [Validators.required, Validators.minLength(2)],
@@ -179,6 +180,40 @@ describe('PurchaseCreateModalComponent – zentrale Aktionsmeldungen', () => {
       type: 'success',
       title: 'Einkauf wurde angelegt.',
     });
+  });
+
+  it('übergibt die vollständige Mengenposition beim Anlegen an den Dienst', async () => {
+    const { komponente, purchaseService } = erstelleKomponente();
+    komponente.form.controls.type.setValue('lot');
+    komponente.onPurchaseLinesChanged([
+      {
+        catalogProductId: 'catalog-led',
+        titleSnapshot: 'LED-Lampe',
+        lineKind: 'quantity',
+        orderedQuantity: 5,
+        unitPurchasePrice: 4.99,
+        lineTotal: 24.95,
+      },
+    ]);
+
+    await komponente.onSubmit();
+
+    expect(purchaseService.createPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'lot',
+        purchase_price: 24.95,
+        purchase_lines: [
+          {
+            catalogProductId: 'catalog-led',
+            titleSnapshot: 'LED-Lampe',
+            lineKind: 'quantity',
+            orderedQuantity: 5,
+            unitPurchasePrice: 4.99,
+            lineTotal: 24.95,
+          },
+        ],
+      }),
+    );
   });
 
   it('bestätigt das Speichern eines vorhandenen Einkaufs', async () => {

@@ -5,7 +5,7 @@ import {
   LucideLayoutDashboard as LayoutDashboard,
   LucideShoppingBag as ShoppingBag,
   LucideBoxes as Boxes,
-  LucideSearch as Search,
+  LucideTrendingUp as TrendingUp,
   LucideMenu as Menu,
 } from '@lucide/angular';
 
@@ -22,6 +22,6 @@ export class BottomNavComponent {
   readonly DashboardIcon = LayoutDashboard;
   readonly PurchasesIcon = ShoppingBag;
   readonly InventoryIcon = Boxes;
-  readonly ResearchIcon = Search;
+  readonly SalesIcon = TrendingUp;
   readonly MenuIcon = Menu;
 }
