@@ -1,7 +1,7 @@
 import '@angular/compiler';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LoggerService } from '../../../../core/services/logger.service';
 import { StoreService } from '../../../../core/services/store.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
@@ -49,6 +49,10 @@ describe('StoreCheckoutComponent – Bestellmeldung', () => {
     });
     komponente = runInInjectionContext(injector, () => new StoreCheckoutComponent());
     fuellePflichtfelder(komponente);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('bestätigt die Bestellung vor der Navigation zur Erfolgsseite', async () => {
@@ -154,6 +158,21 @@ describe('StoreCheckoutComponent – Bestellmeldung', () => {
     antwort.resolve({ status: 'success', order: { id: 'order-1' }, error: null, problems: [] });
     await Promise.all([ersterAufruf, zweiterAufruf]);
     expect(navigate).toHaveBeenCalledTimes(1);
+  });
+
+  it('hält den Checkout bei fehlender sicherer Browser-UUID offen', async () => {
+    vi.stubGlobal('crypto', {});
+
+    await komponente.onSubmitOrder();
+
+    expect(placeOrder).not.toHaveBeenCalled();
+    expect(komponente.isSubmitting()).toBe(false);
+    expect(komponente.form.controls.firstName.value).toBe('Ada');
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'error',
+      title: 'Bestellung konnte nicht aufgegeben werden.',
+      persistent: true,
+    });
   });
 
   it('verwendet bei einem fachlichen Retry dieselbe Bestell-ID', async () => {

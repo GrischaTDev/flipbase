@@ -42,6 +42,17 @@ import { InventoryService } from '../../core/services/inventory.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ConsolidatedHoldingSummary } from '../../core/models/flipbase.models';
 
+type AnalyticsSection =
+  | 'overview'
+  | 'cohorts'
+  | 'platforms'
+  | 'velocity'
+  | 'heatmap'
+  | 'sources'
+  | 'categories'
+  | 'speed'
+  | 'holding';
+
 @Component({
   selector: 'app-analytics',
   imports: [CurrencyPipe, LucideDynamicIcon],
@@ -81,17 +92,7 @@ export class AnalyticsComponent {
   readonly moonIcon = Moon;
 
   readonly timeRange = signal<AnalyticsTimeRange>('30d');
-  readonly activeSection = signal<
-    | 'overview'
-    | 'cohorts'
-    | 'platforms'
-    | 'velocity'
-    | 'heatmap'
-    | 'sources'
-    | 'categories'
-    | 'speed'
-    | 'holding'
-  >('overview');
+  readonly activeSection = signal<AnalyticsSection>('overview');
 
   readonly isHoldingMode = signal<boolean>(false);
 
@@ -192,7 +193,7 @@ export class AnalyticsComponent {
     this.timeRange.set(range);
   }
 
-  setSection(section: any): void {
+  setSection(section: AnalyticsSection): void {
     this.activeSection.set(section);
   }
 

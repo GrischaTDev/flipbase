@@ -180,18 +180,23 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
     expect(dienst.sentEmails()).toEqual([]);
   });
 
-  it('übernimmt einen persistierten Verkauf bei fehlendem Artikelstatus und holt nur den Status nach', async () => {
-    const speicher = installiereArbeitsspeicher();
+  it('übernimmt einen atomar persistierten Verkauf ohne lokalen Status-Nachschritt', async () => {
+    installiereArbeitsspeicher();
     const syncStatus = new SyncStatusService();
-    const updateItemStatus = vi
-      .fn<(_id: string, _status: string, _notes: string) => Promise<{ error: Error | null }>>()
-      .mockResolvedValueOnce({ error: new Error('Status nicht gespeichert') })
-      .mockResolvedValueOnce({ error: null });
-    const salesInsert = vi.fn(async () => ({ data: { id: 'sale-db-1' }, error: null }));
+    const recordSale = vi.fn(async () => ({
+      data: {
+        sale: { ...verkauf, id: 'sale-db-1' },
+        sale_lines: [],
+        lot_allocations: [],
+        stock_movements: [],
+      },
+      error: null,
+    }));
     const dienst = Object.create(SalesService.prototype) as SalesService;
     Object.assign(dienst, {
       workspaceService: { currentWorkspace: () => workspace },
-      inventoryService: { items: signal([artikel]), updateItemStatus },
+      inventoryService: { items: signal([artikel]), loadInventory: vi.fn(async () => undefined) },
+      stockService: { loadPositions: vi.fn(async () => undefined) },
       profitEngine: {
         calculateProfit: () => 30,
         calculateRoi: () => 150,
@@ -203,9 +208,7 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
       sales: signal<Sale[]>([]),
       pendingFollowUps: signal([]),
       supabase: {
-        client: {
-          from: () => ({ insert: () => ({ select: () => ({ single: salesInsert }) }) }),
-        },
+        client: { rpc: recordSale },
       },
     });
 
@@ -215,23 +218,10 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
       sale_price: 50,
       sale_date: '2026-08-24',
     });
-    const zweiterVersuch = await dienst.createSale({
-      inventory_item_id: artikel.id,
-      platform: 'kleinanzeigen',
-      sale_price: 50,
-      sale_date: '2026-08-24',
-    });
-    expect(speicher.get('flipbase_pending_sale_follow_ups')).toContain('inventory_status');
-    await (
-      dienst as unknown as { retryPendingFollowUps?: () => Promise<void> }
-    ).retryPendingFollowUps?.();
-
-    expect(ergebnis).toMatchObject({ status: 'partial', data: { id: 'sale-db-1' } });
-    expect(zweiterVersuch).toMatchObject({ status: 'partial', data: { id: 'sale-db-1' } });
+    expect(ergebnis).toMatchObject({ error: null, data: { id: 'sale-db-1' } });
     expect(dienst.sales().map((sale) => sale.id)).toEqual(['sale-db-1']);
-    expect(salesInsert).toHaveBeenCalledOnce();
-    expect(updateItemStatus).toHaveBeenCalledTimes(2);
-    expect(speicher.get('flipbase_pending_sale_follow_ups')).toBe('[]');
+    expect(recordSale).toHaveBeenCalledOnce();
+    expect(dienst.pendingFollowUps()).toEqual([]);
   });
 
   it('übernimmt eine persistierte Retoure trotz fehlendem Nachschritt lokal', async () => {
@@ -243,24 +233,29 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
       mockStore: { isDemoMode: () => false },
       syncStatus,
       returns: signal([]),
-      inventoryService: {
-        updateItemStatus: async () => ({ error: new Error('Status nicht gespeichert') }),
-      },
       salesService: {
-        markiereAlsRetourniert: async () => ({ error: null }),
-        planeArtikelstatusNachholung,
-        planeRetourenvermerkNachholung: vi.fn(),
-      },
-      supabase: {
-        client: {
-          from: () => ({
-            insert: () => ({
-              select: () => ({
-                single: async () => ({ data: { id: 'return-db-1' }, error: null }),
-              }),
-            }),
-          }),
-        },
+        recordReturn: async () => ({
+          data: {
+            sale: { ...verkauf, returned_at: '2026-08-24T12:00:00.000Z' },
+            returnRecord: {
+              id: 'return-db-1',
+              workspace_id: workspace.id,
+              sale_id: verkauf.id,
+              inventory_item_id: artikel.id,
+              credit_note_number: 'GS-2026-0001',
+              return_date: '2026-08-24',
+              reason: 'buyer_remorse',
+              refund_amount: 50,
+              is_full_refund: true,
+              restock_action: 'restock_ready',
+              created_at: '2026-08-24T12:00:00.000Z',
+            },
+            restockedQuantity: 1,
+            saleReturnedAt: '2026-08-24T12:00:00.000Z',
+          },
+          error: null,
+          reportedBySyncStatus: false,
+        }),
       },
     });
 
@@ -273,9 +268,9 @@ describe('Verkaufsnahe Schreibvorgänge', () => {
       restockAction: 'restock_ready',
     });
 
-    expect(ergebnis).toMatchObject({ status: 'partial', data: { id: 'return-db-1' } });
+    expect(ergebnis).toMatchObject({ status: 'success', data: { id: 'return-db-1' } });
     expect(dienst.returns().map((retoure) => retoure.id)).toEqual(['return-db-1']);
-    expect(planeArtikelstatusNachholung).toHaveBeenCalledOnce();
+    expect(planeArtikelstatusNachholung).not.toHaveBeenCalled();
   });
 
   it('entfernt einen in der Datenbank gelöschten Verkauf lokal und holt den Artikelstatus nach', async () => {

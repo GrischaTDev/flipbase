@@ -1,6 +1,4 @@
 import { Routes } from '@angular/router';
-import { ShellComponent } from './layout/shell/shell.component';
-import { StoreLayoutComponent } from './features/store/store-layout/store-layout.component';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
@@ -15,7 +13,10 @@ export const routes: Routes = [
   {
     path: 'shop',
     canActivate: [authGuard],
-    component: StoreLayoutComponent,
+    loadComponent: () =>
+      import('./features/store/store-layout/store-layout.component').then(
+        (m) => m.StoreLayoutComponent,
+      ),
     children: [
       {
         path: '',
@@ -74,7 +75,7 @@ export const routes: Routes = [
   // Protected Admin OS Dashboard & Workspace
   {
     path: '',
-    component: ShellComponent,
+    loadComponent: () => import('./layout/shell/shell.component').then((m) => m.ShellComponent),
     canActivate: [authGuard],
     children: [
       {
@@ -105,6 +106,11 @@ export const routes: Routes = [
           import('./features/inventory/pages/item-detail/item-detail.component').then(
             (m) => m.ItemDetailComponent,
           ),
+      },
+      {
+        path: 'catalog',
+        loadComponent: () =>
+          import('./features/catalog/catalog.component').then((m) => m.CatalogComponent),
       },
       {
         path: 'research',

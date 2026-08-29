@@ -4,6 +4,7 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { describe, expect, it, vi } from 'vitest';
 import { InventoryItem, Sale } from '../../core/models/flipbase.models';
 import { ReturnRecord } from '../../core/models/return.models';
+import { ProcessReturnResult } from '../../core/services/return.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { SalesComponent } from './sales.component';
@@ -56,24 +57,12 @@ function erstelleKomponente() {
   };
   const returnService = {
     returns: signal<ReturnRecord[]>([]),
-    processReturn: vi.fn(
-      async (): Promise<{
-        status: 'success' | 'partial' | 'error';
-        data: ReturnRecord | null;
-        error: Error | null;
-        reportedBySyncStatus: boolean;
-        problems?: readonly {
-          kind: 'inventory_status' | 'sale_return_status';
-          error: Error;
-          reportedBySyncStatus: boolean;
-        }[];
-      }> => ({
-        status: 'success',
-        data: retoure,
-        error: null,
-        reportedBySyncStatus: false,
-      }),
-    ),
+    processReturn: vi.fn<() => Promise<ProcessReturnResult>>(async () => ({
+      status: 'success' as const,
+      data: retoure,
+      error: null,
+      problems: [],
+    })),
   };
   const komponente = Object.create(SalesComponent.prototype) as SalesComponent;
   const invoiceService = {
@@ -191,7 +180,7 @@ describe('SalesComponent – Aktionsmeldungen', () => {
       status: 'error',
       data: null,
       error: new Error('Retoure konnte nicht gespeichert werden'),
-      reportedBySyncStatus: false,
+      problems: [],
     });
 
     await komponente.onSubmitReturn();
@@ -222,32 +211,27 @@ describe('SalesComponent – Aktionsmeldungen', () => {
     expect(toast.toasts()[0]).toMatchObject({ type: 'error', persistent: true });
   });
 
-  it('schließt eine persistierte Teilretoure und verhindert eine zweite Gutschrift', async () => {
-    const { komponente, returnService, toast } = erstelleKomponente();
-    returnService.processReturn.mockResolvedValue({
-      status: 'partial',
-      data: retoure,
-      error: new Error('Retourenvermerk fehlt'),
-      reportedBySyncStatus: false,
-      problems: [
-        {
-          kind: 'sale_return_status',
-          error: new Error('Retourenvermerk fehlt'),
-          reportedBySyncStatus: false,
-        },
-      ],
-    });
+  it('bucht bei zwei sofort parallelen Retourenaufrufen nur einmal', async () => {
+    const { komponente, returnService } = erstelleKomponente();
+    let resolveReturn!: (value: ProcessReturnResult) => void;
+    returnService.processReturn.mockImplementationOnce(
+      () =>
+        new Promise<ProcessReturnResult>((resolve) => {
+          resolveReturn = resolve;
+        }),
+    );
 
-    await komponente.onSubmitReturn();
-    await komponente.onSubmitReturn();
+    const first = komponente.onSubmitReturn();
+    const second = komponente.onSubmitReturn();
+    resolveReturn({
+      status: 'success',
+      data: retoure,
+      error: null,
+      problems: [],
+    });
+    await Promise.all([first, second]);
 
     expect(returnService.processReturn).toHaveBeenCalledOnce();
     expect(komponente.isReturnModalOpen()).toBe(false);
-    expect(toast.toasts()[0]).toMatchObject({
-      type: 'warning',
-      title: 'Retoure wurde mit Einschränkungen erfasst.',
-      description: 'Der Retourenvermerk wird automatisch nachgeholt.',
-      persistent: false,
-    });
   });
 });

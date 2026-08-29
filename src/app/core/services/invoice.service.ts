@@ -2,15 +2,17 @@ import { Injectable, effect, inject, signal } from '@angular/core';
 import { WorkspaceService } from './workspace.service';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
-import { InventoryItem, Sale, TaxMode } from '../models/flipbase.models';
+import { InventoryItem, Sale, SaleLine, TaxMode } from '../models/flipbase.models';
 import { StoreOrder } from '../models/store.models';
 import { EmailConfirmation, Invoice, InvoiceItem, InvoiceParty } from '../models/invoice.models';
-import { Json } from '../models/supabase.types';
+import { Json, Tables } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
 
 const STORAGE_KEY_INVOICES = 'flipbase_generated_invoices';
 const STORAGE_KEY_EMAILS = 'flipbase_sent_emails';
+
+type InvoiceQueryRow = Tables<'invoices'> & { items: Tables<'invoice_items'>[] };
 
 export interface EmailConfirmationResult {
   readonly success: boolean;
@@ -134,21 +136,21 @@ export class InvoiceService {
 
       if (!this.isCurrentRequest(requestedWorkspaceId, loadVersion)) return;
 
-      const mapped: Invoice[] = ((invRes.data ?? []) as unknown[]).map((inv: any) => ({
+      const mapped: Invoice[] = ((invRes.data ?? []) as InvoiceQueryRow[]).map((inv) => ({
         id: inv.id,
         invoiceNumber: inv.invoice_number,
         orderNumber: inv.order_number,
         invoiceDate: inv.invoice_date,
         deliveryDate: inv.delivery_date,
-        seller: (inv.seller as InvoiceParty) || this.getSellerParty(),
-        buyer: (inv.buyer as InvoiceParty) || {
+        seller: (inv.seller as unknown as InvoiceParty) || this.getSellerParty(),
+        buyer: (inv.buyer as unknown as InvoiceParty) || {
           name: 'Kunde',
           street: '',
           postalCode: '',
           city: '',
           country: 'Deutschland',
         },
-        items: ((inv.items || []) as unknown[]).map((it: any) => ({
+        items: (inv.items || []).map((it) => ({
           sku: it.sku || undefined,
           title: it.title,
           condition: it.condition || undefined,
@@ -171,18 +173,18 @@ export class InvoiceService {
       this.invoices.set(mapped);
       this.persistInvoices();
 
-      const mappedEmails: EmailConfirmation[] = ((emailRes.data ?? []) as unknown[]).map(
-        (e: any) => ({
-          id: e.id,
-          to: e.recipient_email,
-          recipientName: e.recipient_name,
-          subject: e.subject,
-          sentAt: e.sent_at,
-          status: e.status as 'sent' | 'draft',
-          invoiceNumber: e.invoice_number || '',
-          orderNumber: e.order_number || '',
-        }),
-      );
+      const mappedEmails: EmailConfirmation[] = (
+        (emailRes.data ?? []) as Tables<'email_confirmations'>[]
+      ).map((e) => ({
+        id: e.id,
+        to: e.recipient_email,
+        recipientName: e.recipient_name,
+        subject: e.subject,
+        sentAt: e.sent_at,
+        status: e.status as 'sent' | 'draft',
+        invoiceNumber: e.invoice_number || '',
+        orderNumber: e.order_number || '',
+      }));
       this.sentEmails.set(mappedEmails);
       this.persistEmails();
     } catch (err) {
@@ -257,7 +259,9 @@ export class InvoiceService {
       if (vorhandeneRechnung) return this.rechnungserfolg(vorhandeneRechnung, false);
     }
     const ws = this.workspaceService?.currentWorkspace();
-    const taxMode: TaxMode = item?.tax_mode_override || ws?.tax_mode || 'diff_25a';
+    const persistedLines = sale.has_persisted_lines === false ? [] : (sale.lines ?? []);
+    const taxMode: TaxMode =
+      persistedLines[0]?.tax_mode || item?.tax_mode_override || ws?.tax_mode || 'diff_25a';
     const invoiceNumber =
       'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
     const orderNumber =
@@ -266,16 +270,21 @@ export class InvoiceService {
     const shippingCost = sale.shipping_cost || 0;
     const total = salePrice;
 
-    const invoiceItems: InvoiceItem[] = [
-      {
-        sku: item?.sku || 'SKU-' + sale.inventory_item_id.substring(0, 6).toUpperCase(),
-        title: item?.title || 'Verkaufter Artikel',
-        condition: item?.condition || 'Gebraucht',
-        quantity: 1,
-        unitPrice: salePrice - shippingCost,
-        totalPrice: salePrice - shippingCost,
-      },
-    ];
+    const invoiceItems: InvoiceItem[] =
+      persistedLines.length > 0
+        ? this.invoiceItemsForPersistedLines(sale, item, persistedLines)
+        : [
+            {
+              sku:
+                item?.sku ||
+                'SKU-' + (sale.inventory_item_id ?? sale.id).substring(0, 6).toUpperCase(),
+              title: item?.title || 'Verkaufter Artikel',
+              condition: item?.condition || 'Gebraucht',
+              quantity: 1,
+              unitPrice: salePrice - shippingCost,
+              totalPrice: salePrice - shippingCost,
+            },
+          ];
 
     const invoice: Invoice = {
       id: 'inv-' + Math.random().toString(36).substring(2, 9),
@@ -307,6 +316,75 @@ export class InvoiceService {
     return this.speichereOderLeseRechnung(invoice, sale.id, null, ws?.id);
   }
 
+  private invoiceItemsForPersistedLines(
+    sale: Sale,
+    item: InventoryItem | undefined,
+    lines: readonly SaleLine[],
+  ): InvoiceItem[] {
+    const subtotal = sale.sale_price - (sale.shipping_cost || 0);
+    return lines.flatMap((line, index) => {
+      const lineSubtotalCents = this.toCents(this.invoiceLineSubtotal(subtotal, lines, index));
+      const groups = this.quantityPriceGroups(lineSubtotalCents, line.quantity);
+      const sku =
+        line.inventory_item_id ||
+        line.catalog_product_id ||
+        `SKU-${sale.id.substring(0, 6).toUpperCase()}`;
+      return groups.map((group, groupIndex) => ({
+        sku,
+        title:
+          groups.length === 1
+            ? line.title_snapshot
+            : `${line.title_snapshot} (Preisgruppe ${groupIndex + 1})`,
+        condition: line.inventory_item_id === sale.inventory_item_id ? item?.condition : undefined,
+        quantity: group.quantity,
+        unitPrice: group.unitPriceCents / 100,
+        totalPrice: (group.unitPriceCents * group.quantity) / 100,
+      }));
+    });
+  }
+
+  /** Teilt Rest-Cents auf höchstens zwei nichtnegative Preisgruppen derselben Position auf. */
+  private quantityPriceGroups(
+    totalCents: number,
+    quantity: number,
+  ): readonly { quantity: number; unitPriceCents: number }[] {
+    const baseUnitPriceCents = Math.floor(totalCents / quantity);
+    const higherPriceQuantity = totalCents % quantity;
+    const lowerPriceQuantity = quantity - higherPriceQuantity;
+    const groups: { quantity: number; unitPriceCents: number }[] = [];
+    if (lowerPriceQuantity > 0) {
+      groups.push({ quantity: lowerPriceQuantity, unitPriceCents: baseUnitPriceCents });
+    }
+    if (higherPriceQuantity > 0) {
+      groups.push({ quantity: higherPriceQuantity, unitPriceCents: baseUnitPriceCents + 1 });
+    }
+    return groups;
+  }
+
+  private invoiceLineSubtotal(subtotal: number, lines: readonly SaleLine[], index: number): number {
+    const subtotalCents = this.toCents(subtotal);
+    const totalLineValueCents = lines.reduce((sum, line) => sum + this.toCents(line.line_total), 0);
+    if (totalLineValueCents <= 0) return index === lines.length - 1 ? subtotalCents / 100 : 0;
+    if (index === lines.length - 1) {
+      const earlier = lines
+        .slice(0, index)
+        .reduce(
+          (sum, line) =>
+            sum + Math.round((subtotalCents * this.toCents(line.line_total)) / totalLineValueCents),
+          0,
+        );
+      return (subtotalCents - earlier) / 100;
+    }
+    return (
+      Math.round((subtotalCents * this.toCents(lines[index].line_total)) / totalLineValueCents) /
+      100
+    );
+  }
+
+  private toCents(value: number): number {
+    return Math.round(value * 100);
+  }
+
   /**
    * Generates a compliant DIN-A4 invoice for a public Webshop Order.
    */
@@ -323,7 +401,11 @@ export class InvoiceService {
     const taxMode: TaxMode = 'diff_25a';
 
     const invoiceItems: InvoiceItem[] = order.items.map((cartItem) => {
-      const price = cartItem.item.expected_value ?? cartItem.item.allocated_purchase_cost * 1.5;
+      const price =
+        cartItem.unitPrice ??
+        ('kind' in cartItem.item
+          ? (cartItem.item.unitPrice ?? 0)
+          : (cartItem.item.expected_value ?? cartItem.item.allocated_purchase_cost * 1.5));
       return {
         sku: cartItem.item.sku || undefined,
         title: cartItem.item.title,

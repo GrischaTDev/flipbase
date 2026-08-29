@@ -7,6 +7,7 @@ import {
   LucideLayoutDashboard as LayoutDashboard,
   LucideShoppingBag as ShoppingBag,
   LucideBoxes as Boxes,
+  LucideBookOpen as BookOpen,
   LucideSearch as Search,
   LucideCalculator as Calculator,
   LucideTag as Tag,
@@ -68,8 +69,10 @@ export class SidebarComponent {
 
   readonly navItems: NavItem[] = [
     { path: '/dashboard', labelKey: 'NAV.DASHBOARD', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: TrendingUp },
     { path: '/purchases', labelKey: 'NAV.PURCHASES', label: 'Einkäufe', icon: ShoppingBag },
     { path: '/inventory', labelKey: 'NAV.INVENTORY', label: 'Inventar', icon: Boxes },
+    { path: '/catalog', labelKey: 'NAV.CATALOG', label: 'Artikelstamm', icon: BookOpen },
     {
       path: '/shop',
       labelKey: 'NAV.STORE',
@@ -93,7 +96,6 @@ export class SidebarComponent {
       label: 'Bildoptimierer',
       icon: ImageIcon,
     },
-    { path: '/sales', labelKey: 'NAV.SALES', label: 'Verkäufe', icon: TrendingUp },
     {
       path: '/fulfillment',
       labelKey: 'NAV.FULFILLMENT',

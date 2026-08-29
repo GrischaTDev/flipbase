@@ -5,6 +5,7 @@ import { InventoryService } from './inventory.service';
 import {
   InventoryItem,
   Sale,
+  SaleLine,
   TaxCalculationResult,
   TaxMode,
   TaxPeriodSummary,
@@ -51,12 +52,12 @@ export class TaxEngineService {
     const items = this.inventoryService.items();
     const defaultMode = this.currentTaxMode();
 
-    return sales.map((sale) => {
+    return sales.flatMap((sale) => {
       const item =
         sale.inventory_item ||
         items.find((i) => i.id === sale.inventory_item_id) ||
         ({} as InventoryItem);
-      return this.calculateSaleTax(sale, item, defaultMode);
+      return this.calculateSaleLineTaxes(sale, item, defaultMode);
     });
   });
 
@@ -68,11 +69,15 @@ export class TaxEngineService {
     item: InventoryItem,
     defaultTaxMode: TaxMode = 'diff_25a',
   ): TaxCalculationResult {
-    const taxMode = item.tax_mode_override || defaultTaxMode;
+    const persistedLines = this.persistedLinesForSale(sale);
+    const taxMode = persistedLines[0]?.tax_mode || item.tax_mode_override || defaultTaxMode;
     const grossRevenue = sale.sale_price;
 
     const directItemCosts = item.costs?.reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
-    const totalPurchaseCost = (item.allocated_purchase_cost || 0) + directItemCosts;
+    const totalPurchaseCost =
+      persistedLines.length > 0
+        ? persistedLines.reduce((sum, line) => sum + Number(line.cost_of_goods_sold || 0), 0)
+        : (item.allocated_purchase_cost || 0) + directItemCosts;
     const grossMargin = grossRevenue - totalPurchaseCost;
 
     let taxBase = 0;
@@ -128,7 +133,13 @@ export class TaxEngineService {
 
     return {
       sale_id: sale.id,
-      item_title: item.title || 'Artikel #' + sale.inventory_item_id.substring(0, 6),
+      item_title:
+        persistedLines
+          .map((line) => line.title_snapshot)
+          .filter(Boolean)
+          .join(', ') ||
+        item.title ||
+        'Artikel #' + (sale.inventory_item_id ?? sale.id).substring(0, 6),
       sale_date: sale.sale_date,
       tax_mode: taxMode,
       gross_revenue: grossRevenue,
@@ -141,6 +152,92 @@ export class TaxEngineService {
       net_profit_after_tax: netProfitAfterTax,
       invoice_clause: invoiceClause,
     };
+  }
+
+  /**
+   * Teilt gemeinsame Verkaufskosten centgenau auf echte Verkaufspositionen auf.
+   * Die letzte Position erhält jeweils den Rundungsrest, damit die Summe wieder
+   * exakt dem ursprünglichen Verkauf entspricht.
+   */
+  calculateSaleLineTaxes(
+    sale: Sale,
+    item: InventoryItem,
+    defaultTaxMode: TaxMode = 'diff_25a',
+  ): TaxCalculationResult[] {
+    const lines = this.persistedLinesForSale(sale);
+    if (lines.length === 0) return [this.calculateSaleTax(sale, item, defaultTaxMode)];
+    const lineResults = lines.map((line, index) =>
+      this.calculateSaleTax(this.saleForLine(sale, line, lines, index), item, defaultTaxMode),
+    );
+    if (new Set(lines.map((line) => line.tax_mode)).size !== 1) return lineResults;
+    return this.reconcileLineTotals(lineResults, this.calculateSaleTax(sale, item, defaultTaxMode));
+  }
+
+  /** Bildet eine persistierte Verkaufsposition als eigenständigen Steuerfall ab. */
+  private saleForLine(sale: Sale, line: SaleLine, lines: readonly SaleLine[], index: number): Sale {
+    return {
+      ...sale,
+      inventory_item_id: line.inventory_item_id ?? sale.inventory_item_id,
+      sale_price: line.line_total,
+      platform_fee: this.allocatedSaleCost(sale.platform_fee || 0, lines, index),
+      shipping_cost: this.allocatedSaleCost(sale.shipping_cost || 0, lines, index),
+      packaging_cost: this.allocatedSaleCost(sale.packaging_cost || 0, lines, index),
+      other_costs: this.allocatedSaleCost(sale.other_costs || 0, lines, index),
+      lines: [line],
+      has_persisted_lines: true,
+    };
+  }
+
+  private persistedLinesForSale(sale: Sale): readonly SaleLine[] {
+    return sale.has_persisted_lines === false ? [] : (sale.lines ?? []);
+  }
+
+  private allocatedSaleCost(total: number, lines: readonly SaleLine[], index: number): number {
+    const revenue = lines.reduce((sum, line) => sum + line.line_total, 0);
+    if (revenue <= 0) return index === lines.length - 1 ? total : 0;
+    if (index === lines.length - 1) {
+      const allocatedEarlier = lines
+        .slice(0, index)
+        .reduce((sum, line) => sum + Number((total * (line.line_total / revenue)).toFixed(2)), 0);
+      return Number((total - allocatedEarlier).toFixed(2));
+    }
+    return Number((total * (lines[index].line_total / revenue)).toFixed(2));
+  }
+
+  private reconcileLineTotals(
+    lineResults: readonly TaxCalculationResult[],
+    saleTotal: TaxCalculationResult,
+  ): TaxCalculationResult[] {
+    if (lineResults.length < 2) return [...lineResults];
+    const fields: (keyof Pick<
+      TaxCalculationResult,
+      | 'gross_revenue'
+      | 'total_purchase_cost'
+      | 'gross_margin'
+      | 'tax_base'
+      | 'vat_amount'
+      | 'input_tax_deductible'
+      | 'net_tax_liability'
+      | 'net_profit_after_tax'
+    >)[] = [
+      'gross_revenue',
+      'total_purchase_cost',
+      'gross_margin',
+      'tax_base',
+      'vat_amount',
+      'input_tax_deductible',
+      'net_tax_liability',
+      'net_profit_after_tax',
+    ];
+    const lastIndex = lineResults.length - 1;
+    const last = { ...lineResults[lastIndex] };
+    for (const field of fields) {
+      const earlier = lineResults
+        .slice(0, lastIndex)
+        .reduce((sum, result) => sum + result[field], 0);
+      last[field] = Number((saleTotal[field] - earlier).toFixed(2));
+    }
+    return [...lineResults.slice(0, lastIndex), last];
   }
 
   /**

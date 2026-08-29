@@ -5,6 +5,14 @@ import { AuthService } from './auth.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SyncStatusService } from './sync-status.service';
 import { WorkspaceInvite, WorkspaceMember, WorkspaceRole } from '../models/flipbase.models';
+import { Tables } from '../models/supabase.types';
+
+type WorkspaceMemberQueryRow = Pick<
+  Tables<'workspace_members'>,
+  'id' | 'workspace_id' | 'user_id' | 'role' | 'created_at'
+> & {
+  profile: Pick<Tables<'profiles'>, 'email' | 'full_name'> | null;
+};
 
 @Injectable({
   providedIn: 'root',
@@ -108,7 +116,7 @@ export class WorkspaceMemberService {
       if (error) {
         this.syncStatus.melde('Laden der Workspace-Mitglieder', error);
       } else if (data && data.length > 0) {
-        const mapped: WorkspaceMember[] = (data as unknown[]).map((m: any) => ({
+        const mapped: WorkspaceMember[] = (data as WorkspaceMemberQueryRow[]).map((m) => ({
           id: m.id,
           workspace_id: m.workspace_id,
           user_id: m.user_id,

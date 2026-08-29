@@ -148,12 +148,6 @@ export class ItemDetailComponent {
         'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30',
     },
     {
-      value: 'sold',
-      label: 'Verkauft',
-      badgeClass: 'bg-purple-400',
-      colorClass: 'bg-purple-500/20 text-purple-300 border-purple-500/50 hover:bg-purple-500/30',
-    },
-    {
       value: 'reserved',
       label: 'Reserviert',
       badgeClass: 'bg-slate-400',

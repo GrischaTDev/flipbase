@@ -4,6 +4,7 @@ import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
+import { createLocalDemoId } from '../utils/client-identity';
 import {
   InventoryItem,
   ItemCost,
@@ -14,6 +15,7 @@ import {
 
 export interface CreateItemPayload {
   purchase_id?: string | null;
+  purchase_line_id?: string | null;
   category?: string | null;
   title: string;
   brand?: string | null;
@@ -56,9 +58,7 @@ interface ActivityLogResult {
  * Die endgueltige Kennung vergibt anschliessend die Datenbank.
  */
 function vorlaeufigeKennung(): string {
-  return typeof crypto !== 'undefined' && crypto.randomUUID
-    ? crypto.randomUUID()
-    : `item-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return createLocalDemoId('item');
 }
 
 @Injectable({
@@ -137,7 +137,9 @@ export class InventoryService {
         this.syncStatus.melde('Laden des Inventars', error);
         this.items.set([]);
       } else if (data) {
-        const enriched = (data as unknown[]).map((item: any) => this.enrichItemTotals(item));
+        const enriched = (data as unknown as InventoryItem[]).map((item) =>
+          this.enrichItemTotals(item),
+        );
         this.items.set(enriched);
         this.istGeladen.set(true);
       }
@@ -182,7 +184,7 @@ export class InventoryService {
         return null;
       }
 
-      const item = this.enrichItemTotals(data);
+      const item = this.enrichItemTotals(data as unknown as InventoryItem);
       this.selectedItem.set(item);
       this.itemCosts.set((data.costs || []) as ItemCost[]);
 
@@ -223,9 +225,9 @@ export class InventoryService {
     }
   }
 
-  public enrichItemTotals(raw: any): InventoryItem {
+  public enrichItemTotals(raw: InventoryItem): InventoryItem {
     const additionalCostsSum = (raw.costs || []).reduce(
-      (sum: number, c: any) => sum + Number(c.amount || 0),
+      (sum, cost) => sum + Number(cost.amount || 0),
       0,
     );
     const purchaseCost = Number(raw.allocated_purchase_cost || 0);
@@ -259,6 +261,7 @@ export class InventoryService {
       id: vorlaeufigeKennung(),
       workspace_id: ws.id,
       purchase_id: payload.purchase_id || null,
+      purchase_line_id: payload.purchase_line_id || null,
       category: payload.category?.trim() || null,
       title: payload.title.trim(),
       brand: payload.brand?.trim() || null,
@@ -306,6 +309,7 @@ export class InventoryService {
         .insert({
           workspace_id: ws.id,
           purchase_id: payload.purchase_id || null,
+          purchase_line_id: payload.purchase_line_id || null,
           category: payload.category?.trim() || null,
           title: payload.title.trim(),
           brand: payload.brand?.trim() || null,
@@ -329,7 +333,7 @@ export class InventoryService {
           problems: [],
         };
       } else if (dbData) {
-        const finalEnriched = this.enrichItemTotals(dbData);
+        const finalEnriched = this.enrichItemTotals(dbData as unknown as InventoryItem);
         this.mockStore.saveItem(finalEnriched);
         this.items.update((list) => [finalEnriched, ...list]);
         const logErgebnis = await this.logActivity(
@@ -408,8 +412,10 @@ export class InventoryService {
         purchase,
         sale,
         activity_logs,
+        notes: _notes,
+        condition_notes: _conditionNotes,
         ...dbUpdates
-      } = updates as any;
+      } = updates as Partial<InventoryItem> & { activity_logs?: ActivityLog[] };
 
       const { error, count } = await this.supabase.client
         .from('inventory_items')

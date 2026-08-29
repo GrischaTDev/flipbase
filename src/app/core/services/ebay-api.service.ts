@@ -11,6 +11,35 @@ export interface EbayApiConfig {
   useEdgeFunction?: boolean;
 }
 
+interface MarketplaceSearchItem {
+  itemId?: string;
+  title?: string;
+  price?: string | number;
+  imageUrl?: string;
+  galleryURL?: string;
+  viewItemURL?: string;
+  url?: string;
+  endTime?: string;
+  conditionDisplayName?: string;
+  condition?: string;
+}
+
+interface EbayFindingItem {
+  itemId?: string[];
+  title?: string[];
+  galleryURL?: string[];
+  viewItemURL?: string[];
+  sellingStatus?: { currentPrice?: { __value__?: string }[] }[];
+  listingInfo?: { endTime?: string[] }[];
+  condition?: { conditionDisplayName?: string[] }[];
+}
+
+interface EbayFindingResponse {
+  findCompletedItemsResponse?: {
+    searchResult?: { item?: EbayFindingItem[] }[];
+  }[];
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -67,13 +96,13 @@ export class EbayApiService {
       });
 
       if (!error && data && Array.isArray(data.items) && data.items.length > 0) {
-        return data.items.map((it: any) => ({
+        return (data.items as MarketplaceSearchItem[]).map((it) => ({
           id: it.itemId || 'ebay-' + Math.random().toString(36).substring(2, 7),
-          title: it.title,
+          title: it.title || cleanQ,
           price: Number(it.price) || 0,
           source: 'ebay_sold' as const,
-          imageUrl: it.imageUrl || it.galleryURL,
-          url: it.viewItemURL || it.url,
+          imageUrl: it.imageUrl || it.galleryURL || '',
+          url: it.viewItemURL || it.url || '',
           date: it.endTime
             ? new Date(it.endTime).toISOString().split('T')[0]
             : new Date().toISOString().split('T')[0],
@@ -91,9 +120,9 @@ export class EbayApiService {
         const ebayUrl = `https://svcs.ebay.com/services/search/FindingService/v1?OPERATION-NAME=findCompletedItems&SERVICE-VERSION=1.13.0&SECURITY-APPNAME=${this.config.appId}&RESPONSE-DATA-FORMAT=JSON&REST-PAYLOAD&keywords=${encodeURIComponent(cleanQ)}&GLOBAL-ID=${this.config.siteId || 'EBAY-DE'}&itemFilter(0).name=SoldItemsOnly&itemFilter(0).value=true&paginationInput.entriesPerPage=${limit}`;
         const res = await fetch(ebayUrl);
         if (res.ok) {
-          const json = await res.json();
+          const json = (await res.json()) as EbayFindingResponse;
           const items = json?.findCompletedItemsResponse?.[0]?.searchResult?.[0]?.item || [];
-          return items.map((it: any) => {
+          return items.map((it) => {
             const priceVal = parseFloat(it.sellingStatus?.[0]?.currentPrice?.[0]?.__value__ || '0');
             return {
               id: it.itemId?.[0] || 'ebay-' + Math.random().toString(36).substring(2, 7),

@@ -22,16 +22,69 @@
     >
       @switch (toast.type) {
         @case ('success') {
-          <svg [lucideIcon]="successIcon" class="mt-0.5 h-5 w-5 shrink-0"></svg>
+          <svg
+            aria-hidden="true"
+            class="mt-0.5 h-5 w-5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="m9 12 2 2 4-4"></path>
+          </svg>
         }
         @case ('error') {
-          <svg [lucideIcon]="errorIcon" class="mt-0.5 h-5 w-5 shrink-0"></svg>
+          <svg
+            aria-hidden="true"
+            class="mt-0.5 h-5 w-5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="m15 9-6 6"></path>
+            <path d="m9 9 6 6"></path>
+          </svg>
         }
         @case ('warning') {
-          <svg [lucideIcon]="warningIcon" class="mt-0.5 h-5 w-5 shrink-0"></svg>
+          <svg
+            aria-hidden="true"
+            class="mt-0.5 h-5 w-5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="m21.73 18-8-14a2 2 0 0 0-3.46 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"
+            ></path>
+            <path d="M12 9v4"></path>
+            <path d="M12 17h.01"></path>
+          </svg>
         }
         @case ('info') {
-          <svg [lucideIcon]="infoIcon" class="mt-0.5 h-5 w-5 shrink-0"></svg>
+          <svg
+            aria-hidden="true"
+            class="mt-0.5 h-5 w-5 shrink-0"
+            fill="none"
+            stroke="currentColor"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            viewBox="0 0 24 24"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <path d="M12 16v-4"></path>
+            <path d="M12 8h.01"></path>
+          </svg>
         }
       }
 
@@ -48,7 +101,19 @@
         [attr.aria-label]="'Meldung schließen: ' + toast.title"
         (click)="toastService.dismiss(toast.id)"
       >
-        <svg [lucideIcon]="closeIcon" class="h-[17px] w-[17px]"></svg>
+        <svg
+          aria-hidden="true"
+          class="h-[17px] w-[17px]"
+          fill="none"
+          stroke="currentColor"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          viewBox="0 0 24 24"
+        >
+          <path d="M18 6 6 18"></path>
+          <path d="m6 6 12 12"></path>
+        </svg>
       </button>
     </article>
   }

@@ -45,6 +45,10 @@ import {
 import { Purchase } from '../../../../core/models/flipbase.models';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
+import {
+  PurchaseLineDraft,
+  PurchaseLineEditorComponent,
+} from '../purchase-line-editor/purchase-line-editor.component';
 
 interface ExtraCostEntry {
   type: string;
@@ -61,6 +65,7 @@ interface ExtraCostEntry {
     NumberInputComponent,
     CustomSelectComponent,
     DatePickerComponent,
+    PurchaseLineEditorComponent,
   ],
   templateUrl: './purchase-create-modal.component.html',
   host: { class: 'contents' },
@@ -146,6 +151,7 @@ export class PurchaseCreateModalComponent {
 
   // Additional costs list
   readonly extraCosts = signal<ExtraCostEntry[]>([]);
+  readonly purchaseLines = signal<readonly PurchaseLineDraft[]>([]);
 
   readonly form = new FormGroup({
     type: new FormControl<PurchaseType>('single', { nonNullable: true }),
@@ -306,6 +312,7 @@ export class PurchaseCreateModalComponent {
       initial_costs: this.extraCosts().filter((c) => c.amount > 0),
       single_item_condition: f.single_item_condition,
       single_item_expected_value: f.single_item_expected_value || undefined,
+      purchase_lines: this.purchaseLines(),
     };
 
     const vorhandener = this.purchase();
@@ -354,6 +361,12 @@ export class PurchaseCreateModalComponent {
       this.created.emit();
       this.closed.emit();
     }
+  }
+
+  onPurchaseLinesChanged(lines: readonly PurchaseLineDraft[]): void {
+    this.purchaseLines.set(lines);
+    const lineTotal = lines.reduce((total, line) => total + line.lineTotal, 0);
+    if (lineTotal > 0) this.form.controls.purchase_price.setValue(Number(lineTotal.toFixed(2)));
   }
 
   /**

@@ -1,16 +1,13 @@
 import '@angular/compiler';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { AnalyticsService } from './analytics.service';
-import { ProfitEngineService } from './profit-engine.service';
 import { Purchase, Sale, InventoryItem } from '../models/flipbase.models';
 
 describe('Analytics & Break-Even Engine (Phase 5)', () => {
   let analyticsService: AnalyticsService;
 
   beforeEach(() => {
-    const profitEngine = new ProfitEngineService();
     analyticsService = new AnalyticsService();
-    (analyticsService as any).profitEngine = profitEngine;
   });
 
   it('should calculate sell-through rate accurately', () => {

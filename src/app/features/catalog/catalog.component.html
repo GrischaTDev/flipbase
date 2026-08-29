@@ -1,0 +1,240 @@
+<div class="space-y-4 animate-fade-in">
+  <header
+    class="flex flex-col gap-3 border-b border-fb-line pb-3 sm:flex-row sm:items-center sm:justify-between"
+  >
+    <div>
+      <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">Artikelstamm</h1>
+      <p class="mt-0.5 text-xs text-fb-text-muted">
+        Zentrale Artikeldefinitionen für Mengenartikel und Einzelstücke.
+      </p>
+    </div>
+    <button
+      type="button"
+      (click)="isCreateOpen.set(true)"
+      class="linear-btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
+    >
+      <svg [lucideIcon]="plusIcon" class="h-3.5 w-3.5"></svg>
+      Artikel anlegen
+    </button>
+  </header>
+
+  <div class="linear-surface rounded-xl p-3">
+    <label class="relative block">
+      <span class="sr-only">Artikelstamm durchsuchen</span>
+      <svg
+        [lucideIcon]="searchIcon"
+        class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-fb-text-muted"
+      ></svg>
+      <input
+        [value]="searchQuery()"
+        (input)="searchQuery.set($any($event.target).value)"
+        type="search"
+        placeholder="Titel, EAN, Marke oder Modell suchen..."
+        class="linear-input w-full rounded-lg py-2 pl-9 pr-3 text-xs"
+      />
+    </label>
+  </div>
+
+  @if (isLoading()) {
+    <div class="linear-surface rounded-xl px-5 py-10 text-center" role="status">
+      <p class="text-sm font-semibold text-fb-text-secondary">Artikelstamm wird geladen…</p>
+      <p class="mt-1 text-xs text-fb-text-muted">Bestandspositionen werden abgeglichen.</p>
+    </div>
+  } @else if (loadError(); as error) {
+    <div
+      class="linear-surface rounded-xl border border-rose-500/30 px-5 py-8 text-center"
+      role="alert"
+    >
+      <h2 class="text-sm font-semibold text-rose-300">Artikelstamm konnte nicht geladen werden</h2>
+      <p class="mt-1 text-xs text-fb-text-muted">{{ error.message }}</p>
+      <button
+        type="button"
+        (click)="reload()"
+        class="linear-btn-secondary mt-4 rounded-lg px-3 py-1.5 text-xs font-semibold"
+      >
+        Erneut versuchen
+      </button>
+    </div>
+  } @else if (filteredProducts().length > 0) {
+    <div class="linear-surface overflow-hidden rounded-xl">
+      <div class="hidden overflow-x-auto md:block">
+        <table class="linear-table min-w-full">
+          <thead
+            class="bg-fb-well text-[10px] font-semibold uppercase tracking-wider text-fb-text-secondary"
+          >
+            <tr>
+              <th class="border-b border-fb-line px-4 py-2.5 text-left">Artikel</th>
+              <th class="border-b border-fb-line px-3 py-2.5 text-left">EAN</th>
+              <th class="border-b border-fb-line px-3 py-2.5 text-left">Nachverfolgung</th>
+              <th class="border-b border-fb-line px-3 py-2.5 text-right">Verfügbar</th>
+              <th class="border-b border-fb-line px-4 py-2.5 text-right">Webshop</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-fb-line">
+            @for (product of filteredProducts(); track product.id) {
+              <tr class="transition hover:bg-fb-surface-alt">
+                <td class="px-4 py-3">
+                  <p class="font-semibold text-fb-text-primary">{{ product.title }}</p>
+                  @if (product.brand || product.model) {
+                    <p class="mt-0.5 text-[10px] text-fb-text-muted">
+                      {{ product.brand }} {{ product.model }}
+                    </p>
+                  }
+                </td>
+                <td class="px-3 py-3 font-mono text-xs text-fb-text-secondary">
+                  {{ product.ean || '—' }}
+                </td>
+                <td class="px-3 py-3">
+                  <span
+                    class="rounded border border-fb-line bg-fb-well px-2 py-0.5 text-[10px] font-semibold text-fb-text-secondary"
+                    >{{
+                      product.tracking_mode === 'quantity' ? 'Mengenartikel' : 'Einzelstück'
+                    }}</span
+                  >
+                </td>
+                <td class="px-3 py-3 text-right font-mono font-bold text-emerald-400">
+                  {{ availableStock(product) }} Stück
+                </td>
+                <td class="px-4 py-3 text-right">
+                  <span
+                    class="text-xs font-semibold"
+                    [class.text-emerald-400]="product.is_public_store"
+                    [class.text-fb-text-muted]="!product.is_public_store"
+                    >{{ product.is_public_store ? 'Öffentlich' : 'Intern' }}</span
+                  >
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="space-y-2 p-2 md:hidden">
+        @for (product of filteredProducts(); track product.id) {
+          <article class="rounded-lg border border-fb-line bg-fb-well p-3">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h2 class="text-sm font-semibold text-fb-text-primary">{{ product.title }}</h2>
+                <p class="mt-0.5 font-mono text-[10px] text-fb-text-muted">
+                  EAN {{ product.ean || '—' }}
+                </p>
+              </div>
+              <span class="font-mono text-xs font-bold text-emerald-400"
+                >{{ availableStock(product) }} Stück</span
+              >
+            </div>
+            <p class="mt-2 text-[11px] text-fb-text-secondary">
+              {{ product.tracking_mode === 'quantity' ? 'Mengenartikel' : 'Einzelstück' }} ·
+              {{ product.is_public_store ? 'Im Webshop' : 'Nur intern' }}
+            </p>
+          </article>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="linear-surface rounded-xl px-5 py-10 text-center">
+      <h2 class="text-sm font-semibold text-fb-text-secondary">Keine Artikelstammdaten gefunden</h2>
+      <p class="mt-1 text-xs text-fb-text-muted">Lege einen Artikel an oder passe die Suche an.</p>
+    </div>
+  }
+
+  @if (isCreateOpen()) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      appModalDialog
+      dialogTitel="Artikelstamm anlegen"
+      (dialogClose)="closeCreateDialog()"
+    >
+      <form
+        [formGroup]="productForm"
+        (ngSubmit)="createProduct()"
+        class="linear-surface w-full max-w-md rounded-xl border border-fb-line p-5 shadow-2xl"
+        aria-labelledby="catalog-create-title"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 id="catalog-create-title" class="text-base font-bold text-fb-text-primary">
+              Artikelstamm anlegen
+            </h2>
+            <p class="mt-0.5 text-xs text-fb-text-muted">
+              Mengenartikel werden beim Wareneingang als Lose geführt.
+            </p>
+          </div>
+          <button
+            type="button"
+            (click)="isCreateOpen.set(false)"
+            class="rounded-md p-1 text-fb-text-muted hover:bg-fb-line hover:text-fb-text-primary"
+            aria-label="Dialog schließen"
+          >
+            <svg [lucideIcon]="closeIcon" class="h-4 w-4"></svg>
+          </button>
+        </div>
+        <div class="mt-4 space-y-3">
+          <label class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+            >Titel<input
+              formControlName="title"
+              type="text"
+              class="linear-input mt-1 w-full rounded-lg px-3 py-2 text-xs"
+          /></label>
+          <label class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+            >EAN<input
+              formControlName="ean"
+              type="text"
+              inputmode="numeric"
+              class="linear-input mt-1 w-full rounded-lg px-3 py-2 text-xs"
+          /></label>
+          <label class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+            >Nachverfolgung<select
+              formControlName="trackingMode"
+              class="linear-input mt-1 w-full rounded-lg px-3 py-2 text-xs"
+            >
+              <option value="quantity">Mengenartikel</option>
+              <option value="individual">Einzelstück</option>
+            </select></label
+          >
+          <label class="flex items-center gap-2 text-xs text-fb-text-secondary"
+            ><input
+              formControlName="isPublicStore"
+              type="checkbox"
+              class="h-4 w-4 rounded border-fb-line"
+            />Im öffentlichen Shop anzeigen</label
+          >
+          @if (productForm.controls.isPublicStore.value) {
+            <label
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+              >Shoppreis<input
+                formControlName="listingPrice"
+                type="number"
+                inputmode="decimal"
+                min="0.01"
+                step="0.01"
+                class="linear-input mt-1 w-full rounded-lg px-3 py-2 text-xs"
+            /></label>
+            @if (productForm.hasError('publicListingPrice')) {
+              <p class="text-xs text-rose-400" role="alert">
+                Für öffentliche Artikel ist ein positiver Shoppreis erforderlich.
+              </p>
+            }
+          }
+          @if (saveError()) {
+            <p role="alert" class="text-xs text-rose-400">{{ saveError() }}</p>
+          }
+        </div>
+        <div class="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            (click)="isCreateOpen.set(false)"
+            class="linear-btn-secondary rounded-lg px-3 py-2 text-xs font-semibold"
+          >
+            Abbrechen</button
+          ><button
+            type="submit"
+            [disabled]="productForm.invalid || isSaving()"
+            class="linear-btn-primary rounded-lg px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {{ isSaving() ? 'Speichere…' : 'Anlegen' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+</div>

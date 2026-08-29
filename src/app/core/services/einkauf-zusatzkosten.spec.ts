@@ -26,7 +26,7 @@ describe('Zusatzkosten und Sendungsangaben', () => {
 
   interface Eintrag {
     tabelle: string;
-    aktion: 'insert' | 'update' | 'delete';
+    aktion: 'insert' | 'update' | 'delete' | 'rpc';
     werte: unknown;
   }
 
@@ -34,6 +34,23 @@ describe('Zusatzkosten und Sendungsangaben', () => {
   function datenbankDoppel() {
     const protokoll: Eintrag[] = [];
     const client = {
+      rpc: (funktion: string, payload: Record<string, unknown>) => {
+        protokoll.push({ tabelle: funktion, aktion: 'rpc', werte: payload });
+        const purchase = payload['p_purchase'] as Record<string, unknown>;
+        const expenses = (payload['p_expenses'] as Record<string, unknown>[]) ?? [];
+        return Promise.resolve({
+          data: {
+            purchase: { ...purchase, id: 'db-neu', workspace_id: 'ws-1' },
+            purchase_lines: [],
+            purchase_costs: expenses.map((expense, index) => ({
+              ...expense,
+              id: `db-kosten-${index + 1}`,
+              purchase_id: 'db-neu',
+            })),
+          },
+          error: null,
+        });
+      },
       from: (tabelle: string) => ({
         insert: (werte: unknown) => {
           protokoll.push({ tabelle, aktion: 'insert', werte });
@@ -285,12 +302,14 @@ describe('Zusatzkosten und Sendungsangaben', () => {
     function anlegeDienst() {
       const { protokoll, client } = datenbankDoppel();
       const purchasesRaw = signal<Purchase[]>([]);
+      const selectedPurchaseRaw = signal<Purchase | null>(null);
       return {
         protokoll,
         purchasesRaw,
         dienst: baue<PurchaseService>(PurchaseService.prototype, {
           purchasesRaw,
-          selectedPurchaseRaw: signal<Purchase | null>(null),
+          selectedPurchaseRaw,
+          selectedPurchase: selectedPurchaseRaw.asReadonly(),
           workspaceService: { currentWorkspace: () => ({ id: 'ws-1' }) },
           mockStore: {
             isDemoMode: () => false,
@@ -308,7 +327,7 @@ describe('Zusatzkosten und Sendungsangaben', () => {
       };
     }
 
-    it('legt die erfassten Zusatzkosten als eigene Zeilen an', async () => {
+    it('übergibt die erfassten Zusatzkosten an die atomare Einkaufstransaktion', async () => {
       // Bis hierhin wurden sie nur zur Gesamtsumme addiert. Weil die Liste
       // beim Laden aus Preis plus Kostenzeilen neu rechnet, war der Betrag
       // nach dem naechsten Aufruf wieder verschwunden.
@@ -325,21 +344,21 @@ describe('Zusatzkosten und Sendungsangaben', () => {
         ],
       });
 
-      const eingefuegt = zeilen(protokoll, 'purchase_costs', 'insert');
-      expect(eingefuegt).toHaveLength(1);
-      expect(eingefuegt[0].werte).toEqual([
-        { purchase_id: 'db-neu', type: 'shipping', amount: 12.9, description: 'DHL' },
-        { purchase_id: 'db-neu', type: 'travel', amount: 7.1, description: null },
+      const aufruf = zeilen(protokoll, 'create_purchase', 'rpc');
+      expect(aufruf).toHaveLength(1);
+      expect((aufruf[0].werte as { p_expenses: unknown[] }).p_expenses).toEqual([
+        { type: 'shipping', amount: 12.9, description: 'DHL' },
+        { type: 'travel', amount: 7.1, description: null },
       ]);
     });
 
-    it('haengt die Kostenzeilen an die endgueltige Kennung, nicht an die vorlaeufige', async () => {
+    it('übernimmt die Kostenzeilen mit der endgültigen Einkaufskennung', async () => {
       // Der Einkauf laeuft bis zur Antwort der Datenbank unter einer
       // Behelfskennung. Wuerden die Kosten daran haengen, zeigte der
       // Fremdschluessel ins Leere.
-      const { dienst, protokoll } = anlegeDienst();
+      const { dienst } = anlegeDienst();
 
-      await dienst.createPurchase({
+      const ergebnis = await dienst.createPurchase({
         type: 'lot',
         title: 'Konvolut',
         purchase_date: '2026-08-21',
@@ -347,10 +366,7 @@ describe('Zusatzkosten und Sendungsangaben', () => {
         initial_costs: [{ type: 'shipping', amount: 5 }],
       });
 
-      const werte = zeilen(protokoll, 'purchase_costs', 'insert')[0].werte as {
-        purchase_id: string;
-      }[];
-      expect(werte[0].purchase_id).toBe('db-neu');
+      expect(ergebnis.data?.costs?.[0].purchase_id).toBe('db-neu');
     });
 
     it('schreibt keine Kostenzeile ohne Betrag', async () => {
@@ -364,7 +380,8 @@ describe('Zusatzkosten und Sendungsangaben', () => {
         initial_costs: [{ type: 'shipping', amount: 0 }],
       });
 
-      expect(zeilen(protokoll, 'purchase_costs', 'insert')).toHaveLength(0);
+      const aufruf = zeilen(protokoll, 'create_purchase', 'rpc');
+      expect((aufruf[0].werte as { p_expenses: unknown[] }).p_expenses).toEqual([]);
     });
   });
 });

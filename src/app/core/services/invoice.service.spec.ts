@@ -116,6 +116,183 @@ describe('Invoice & Email Confirmation Service (§ 25a UStG Engine)', () => {
     expect(invoice.total).toBe(180.0);
   });
 
+  it('erzeugt zwei Rechnungspositionen aus zwei persistierten Verkaufspositionen', async () => {
+    const sale = {
+      id: 'sale-lines',
+      workspace_id: 'ws-1',
+      sale_price: 29.97,
+      sale_date: '2026-08-26',
+      platform: 'ebay',
+      platform_fee: 0,
+      shipping_cost: 0,
+      packaging_cost: 0,
+      other_costs: 0,
+      lines: [
+        {
+          id: 'line-1',
+          sale_id: 'sale-lines',
+          catalog_product_id: 'lamp-1',
+          title_snapshot: 'LED-Lampe',
+          quantity: 2,
+          unit_sale_price: 9.99,
+          line_total: 19.98,
+          cost_of_goods_sold: 8,
+          tax_mode: 'diff_25a',
+        },
+        {
+          id: 'line-2',
+          sale_id: 'sale-lines',
+          inventory_item_id: 'adapter-1',
+          title_snapshot: 'Adapter',
+          quantity: 1,
+          unit_sale_price: 9.99,
+          line_total: 9.99,
+          cost_of_goods_sold: 3,
+          tax_mode: 'diff_25a',
+        },
+      ],
+    } satisfies Sale;
+
+    const result = await service.generateInvoiceForSale(sale);
+
+    expect(result.data?.items).toHaveLength(2);
+    expect(result.data?.items.map((entry) => entry.quantity)).toEqual([2, 1]);
+  });
+
+  it('hält Positionen, Zwischensumme, Versand und Gesamtbetrag bei Versandkosten konsistent', async () => {
+    const sale = {
+      id: 'sale-shipping',
+      workspace_id: 'ws-1',
+      sale_price: 30,
+      sale_date: '2026-08-26',
+      platform: 'ebay',
+      platform_fee: 0,
+      shipping_cost: 5,
+      packaging_cost: 0,
+      other_costs: 0,
+      lines: [
+        {
+          id: 'line-1',
+          sale_id: 'sale-shipping',
+          title_snapshot: 'A',
+          quantity: 1,
+          unit_sale_price: 10,
+          line_total: 10,
+          cost_of_goods_sold: 4,
+          tax_mode: 'diff_25a',
+        },
+        {
+          id: 'line-2',
+          sale_id: 'sale-shipping',
+          title_snapshot: 'B',
+          quantity: 1,
+          unit_sale_price: 20,
+          line_total: 20,
+          cost_of_goods_sold: 8,
+          tax_mode: 'diff_25a',
+        },
+      ],
+    } satisfies Sale;
+    const invoice = (await service.generateInvoiceForSale(sale)).data!;
+
+    expect(invoice.items.reduce((sum, entry) => sum + entry.totalPrice, 0)).toBe(invoice.subtotal);
+    expect(invoice.subtotal + invoice.shippingCost).toBe(invoice.total);
+    expect(invoice.total).toBe(30);
+  });
+
+  it('teilt Mengenpositionen ohne negativen Rundungsausgleich centgenau auf', async () => {
+    const sale = {
+      id: 'sale-quantity-rounding',
+      workspace_id: 'ws-1',
+      sale_price: 24.33,
+      sale_date: '2026-08-26',
+      platform: 'ebay',
+      platform_fee: 0,
+      shipping_cost: 5,
+      packaging_cost: 0,
+      other_costs: 0,
+      lines: [
+        {
+          id: 'line-quantity-rounding',
+          sale_id: 'sale-quantity-rounding',
+          title_snapshot: 'LED-Lampe',
+          quantity: 2,
+          unit_sale_price: 9.665,
+          line_total: 19.33,
+          cost_of_goods_sold: 8,
+          tax_mode: 'diff_25a',
+        },
+      ],
+    } satisfies Sale;
+
+    const invoice = (await service.generateInvoiceForSale(sale)).data!;
+    expect(invoice.items).toEqual([
+      expect.objectContaining({
+        title: 'LED-Lampe (Preisgruppe 1)',
+        quantity: 1,
+        unitPrice: 9.66,
+        totalPrice: 9.66,
+      }),
+      expect.objectContaining({
+        title: 'LED-Lampe (Preisgruppe 2)',
+        quantity: 1,
+        unitPrice: 9.67,
+        totalPrice: 9.67,
+      }),
+    ]);
+    expect(invoice.items.every((item) => item.unitPrice * item.quantity === item.totalPrice)).toBe(
+      true,
+    );
+    expect(invoice.items.every((item) => item.unitPrice >= 0 && item.totalPrice >= 0)).toBe(true);
+    expect(invoice.items.reduce((sum, item) => sum + item.totalPrice, 0)).toBe(invoice.subtotal);
+    expect(invoice.subtotal + invoice.shippingCost).toBe(invoice.total);
+  });
+
+  it('erhält bei historischen Display-Fallbacks den Override und die Legacy-Position', async () => {
+    const historicSale = {
+      id: 'sale-legacy',
+      workspace_id: 'ws-1',
+      inventory_item_id: 'item-legacy',
+      sale_price: 50,
+      sale_date: '2026-08-26',
+      platform: 'ebay',
+      platform_fee: 0,
+      shipping_cost: 5,
+      packaging_cost: 0,
+      other_costs: 0,
+      lines: [
+        {
+          id: 'fallback',
+          sale_id: 'sale-legacy',
+          title_snapshot: 'Altartikel',
+          quantity: 1,
+          unit_sale_price: 50,
+          line_total: 50,
+          cost_of_goods_sold: 0,
+          tax_mode: 'diff_25a',
+        },
+      ],
+      has_persisted_lines: false,
+    } as Sale & { has_persisted_lines: boolean };
+    const invoice = (
+      await service.generateInvoiceForSale(historicSale, {
+        ...({
+          id: 'item-legacy',
+          workspace_id: 'ws-1',
+          title: 'Altartikel',
+          condition: 'used',
+          status: 'sold',
+          allocated_purchase_cost: 10,
+        } satisfies InventoryItem),
+        tax_mode_override: 'regular_19',
+      })
+    ).data!;
+
+    expect(invoice.taxMode).toBe('regular_19');
+    expect(invoice.items).toHaveLength(1);
+    expect(invoice.items[0].totalPrice).toBe(45);
+  });
+
   it('bereitet eine Kaufbestätigung vor, ohne einen Versand zu behaupten', async () => {
     const sale: Sale = {
       id: 'sale-3',

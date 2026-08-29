@@ -1,87 +1,66 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { TranslatePipe } from '@ngx-translate/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import {
-  LucideDynamicIcon,
-  LucideTrendingUp as TrendingUp,
-  LucideCoins as Coins,
-  LucideBoxes as Boxes,
-  LucidePercent as Percent,
-  LucidePlusCircle as PlusCircle,
-  LucideSearch as Search,
-  LucideCalculator as Calculator,
   LucideArrowUpRight as ArrowUpRight,
-  LucideLightbulb as Lightbulb,
-  LucideShoppingBag as ShoppingBag,
-  LucideClock as Clock,
+  LucideBoxes as Boxes,
+  LucideCoins as Coins,
+  LucideDynamicIcon,
+  LucideReceiptText as ReceiptText,
+  LucideTrendingUp as TrendingUp,
 } from '@lucide/angular';
-import { WorkspaceService } from '../../core/services/workspace.service';
+import { DashboardRange } from '../../core/models/flipbase.models';
+import {
+  DashboardPlatform,
+  DashboardReportService,
+} from '../../core/services/dashboard-report.service';
 import { SalesService } from '../../core/services/sales.service';
-import { InventoryService } from '../../core/services/inventory.service';
-import { PurchaseService } from '../../core/services/purchase.service';
-import { DashboardMetrics } from '../../core/models/flipbase.models';
+import { RevenueChartComponent } from '../../shared/components/revenue-chart/revenue-chart.component';
+
+interface RangeOption {
+  readonly value: DashboardRange;
+  readonly label: string;
+}
 
 @Component({
   selector: 'app-dashboard',
-  imports: [RouterLink, CurrencyPipe, DatePipe, TranslatePipe, LucideDynamicIcon],
+  imports: [CurrencyPipe, DatePipe, RouterLink, LucideDynamicIcon, RevenueChartComponent],
   templateUrl: './dashboard.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardComponent {
-  readonly workspaceService = inject(WorkspaceService);
+  private readonly reportService = inject(DashboardReportService);
   readonly salesService = inject(SalesService);
-  readonly inventoryService = inject(InventoryService);
-  readonly purchaseService = inject(PurchaseService);
+
+  readonly range = signal<DashboardRange>('month');
+  readonly platform = signal<DashboardPlatform>('all');
+
+  readonly rangeOptions: readonly RangeOption[] = [
+    { value: 'today', label: 'Heute' },
+    { value: 'last_7_days', label: '7 Tage' },
+    { value: 'month', label: 'Monat' },
+    { value: 'year', label: 'Jahr' },
+  ];
+
+  readonly platformOptions = computed(() =>
+    [...new Set(this.salesService.sales().map((sale) => sale.platform))].sort((a, b) =>
+      a.localeCompare(b, 'de'),
+    ),
+  );
+  readonly report = computed(() => this.reportService.createReport(this.range(), this.platform()));
 
   readonly trendingIcon = TrendingUp;
   readonly coinsIcon = Coins;
+  readonly receiptIcon = ReceiptText;
   readonly boxesIcon = Boxes;
-  readonly percentIcon = Percent;
-  readonly plusIcon = PlusCircle;
-  readonly searchIcon = Search;
-  readonly calcIcon = Calculator;
   readonly arrowIcon = ArrowUpRight;
-  readonly lightbulbIcon = Lightbulb;
-  readonly bagIcon = ShoppingBag;
-  readonly clockIcon = Clock;
 
-  // Real-time computed dashboard metrics
-  readonly metrics = computed<DashboardMetrics>(() => {
-    // Zurueckgegebene Verkaeufe zaehlen nicht mehr: Der Artikel steht wieder im
-    // Lager und taucht dort als Wert auf - wuerde der Verkauf weiter zaehlen,
-    // waere derselbe Gegenstand doppelt drin und die Erstattung nirgends.
-    const sales = this.salesService.sales().filter((s) => !s.returned_at);
-    const items = this.inventoryService.items();
+  setRange(range: DashboardRange): void {
+    this.range.set(range);
+  }
 
-    const realizedProfit = sales.reduce((sum, s) => sum + (s.net_profit || 0), 0);
-    const totalRevenue = sales.reduce((sum, s) => sum + (s.sale_price || 0), 0);
-
-    const activeItems = items.filter((i) => i.status !== 'sold' && i.status !== 'archived');
-    const tiedCapital = activeItems.reduce(
-      (sum, i) => sum + (i.total_item_cost ?? i.allocated_purchase_cost),
-      0,
-    );
-    const inventoryValue = activeItems.reduce((sum, i) => sum + (Number(i.expected_value) || 0), 0);
-
-    // ROI ueber den gesamten Einsatz, nicht als Mittelwert der Einzelwerte:
-    // Sonst zaehlt eine Huelle fuer 3 Euro mit 300 Prozent genauso schwer wie
-    // eine Konsole fuer 300 Euro mit 10 - und die Zahl sagt nichts darueber,
-    // was das eingesetzte Geld gebracht hat.
-    const eingesetzt = sales.reduce(
-      (sum, s) => sum + ((s.sale_price || 0) - (s.net_profit || 0)),
-      0,
-    );
-    const avgRoi = eingesetzt > 0 ? Number(((realizedProfit / eingesetzt) * 100).toFixed(1)) : 0;
-
-    return {
-      realized_profit: Number(realizedProfit.toFixed(2)),
-      total_revenue: Number(totalRevenue.toFixed(2)),
-      tied_capital: Number(tiedCapital.toFixed(2)),
-      inventory_value: Number(inventoryValue.toFixed(2)),
-      active_items_count: activeItems.length,
-      average_roi_percent: avgRoi,
-    };
-  });
+  setPlatform(platform: string): void {
+    this.platform.set(platform || 'all');
+  }
 }

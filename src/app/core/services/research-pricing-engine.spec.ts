@@ -8,7 +8,8 @@ describe('Research & Pricing Engine (Phase 6)', () => {
 
   beforeEach(() => {
     researchService = Object.create(ResearchService.prototype);
-    (researchService as any).profitEngine = new ProfitEngineService();
+    (researchService as unknown as { profitEngine: ProfitEngineService }).profitEngine =
+      new ProfitEngineService();
   });
 
   it('should calculate accurate statistical metrics and exclude outliers (Chapter 18)', () => {

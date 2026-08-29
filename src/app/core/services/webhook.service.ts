@@ -1,14 +1,19 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
-import { WebhookConfig, AppNotification } from '../models/webhook.models';
+import { WebhookConfig, AppNotification, AppNotificationType } from '../models/webhook.models';
 import { Sale, Purchase, EINKAUFSART_BEZEICHNUNG } from '../models/flipbase.models';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
+import { Tables } from '../models/supabase.types';
 
 const STORAGE_KEY_CONFIG = 'flipbase_webhook_config';
 const STORAGE_KEY_NOTIFS = 'flipbase_app_notifications';
+
+interface WindowWithWebkitAudio extends Window {
+  readonly webkitAudioContext?: typeof AudioContext;
+}
 
 function createDefaultWebhookConfig(): WebhookConfig {
   return {
@@ -196,9 +201,11 @@ export class WebhookService {
         } catch {}
       }
 
-      const mapped: AppNotification[] = ((notifRes.data ?? []) as unknown[]).map((n: any) => ({
+      const mapped: AppNotification[] = (
+        (notifRes.data ?? []) as Tables<'app_notifications'>[]
+      ).map((n) => ({
         id: n.id,
-        type: n.type,
+        type: n.type as AppNotificationType,
         title: n.title,
         message: n.message,
         timestamp: n.created_at,
@@ -630,7 +637,10 @@ export class WebhookService {
   private playChimeSound(): void {
     try {
       if (typeof window === 'undefined') return;
-      const audioCtx = new ((window as any).AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextClass =
+        window.AudioContext || (window as WindowWithWebkitAudio).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const audioCtx = new AudioContextClass();
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       osc.type = 'sine';

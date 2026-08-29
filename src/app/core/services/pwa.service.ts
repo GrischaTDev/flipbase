@@ -2,6 +2,15 @@ import { Injectable, inject, signal } from '@angular/core';
 import { LoggerService } from './logger.service';
 import { environment } from '../../../environments/environment';
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt(): Promise<void>;
+  readonly userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
+}
+
+interface NavigatorWithStandalone extends Navigator {
+  readonly standalone?: boolean;
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -18,7 +27,7 @@ export class PwaService {
   );
   readonly swRegistered = signal<boolean>(false);
 
-  private deferredPrompt: any = null;
+  private deferredPrompt: BeforeInstallPromptEvent | null = null;
 
   constructor() {
     this.initPwaListeners();
@@ -31,7 +40,7 @@ export class PwaService {
     // Check if already in standalone mode (installed)
     if (
       window.matchMedia('(display-mode: standalone)').matches ||
-      (window.navigator as any).standalone === true
+      (window.navigator as NavigatorWithStandalone).standalone === true
     ) {
       this.isInstalled.set(true);
     }
@@ -39,7 +48,7 @@ export class PwaService {
     // Capture browser install prompt
     window.addEventListener('beforeinstallprompt', (e: Event) => {
       e.preventDefault();
-      this.deferredPrompt = e;
+      this.deferredPrompt = e as BeforeInstallPromptEvent;
       this.isInstallable.set(true);
     });
 
