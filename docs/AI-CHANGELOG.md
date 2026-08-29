@@ -48,6 +48,91 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-08-29 – Claude Opus 5 (Anthropic) – Weissabgleich, Schaerfen und Barrierefreiheit
+
+**Art:** Feature + Bugfix (Barrierefreiheit, i18n)
+**Betroffen:** `src/app/features/image-optimizer/`, `src/app/core/i18n/translations.ts`,
+`src/app/features/settings/`, `src/app/features/listings/`, `src/app/layout/sidebar/`,
+`src/app/shared/components/revenue-chart/`, `package.json`
+
+### Weissabgleich und Schaerfen
+
+Die beiden Punkte, die in Paket 2 offen blieben. Beide lassen sich **nicht** als CSS-Filter
+ausdruecken: Weissabgleich braucht eine Farbmatrix, Schaerfen eine Faltung.
+
+Naheliegend waere gewesen, sie als SVG-Filter an die Zeichenflaeche zu haengen
+(`ctx.filter = 'url(#...)'`). **Safari unterstuetzt das nicht** – auf dem iPhone waere
+stillschweigend nichts passiert, ohne Fehler, ohne Hinweis. Deshalb wird direkt auf den
+Pixeln gerechnet: ueberall gleich, und als reine Funktionen pruefbar, obwohl jsdom gar
+keine Zeichenflaeche hat.
+
+**Der Kern ist die Zwischenebene im Renderer.** Der weisse Grund existiert nur, um
+Durchsichtigkeit zu ersetzen, damit JPEG sie nicht schwarz macht. Wuerde die Waerme auf der
+fertigen Ausgabe rechnen, faerbte sie diesen Grund mit ein – ein freigestelltes
+Produktfoto bekaeme statt des von eBay verlangten reinen Weiss einen warmen Rand. Die
+Pixelschritte laufen deshalb auf einer eigenen Flaeche, die nur das Bild enthaelt; erst das
+Ergebnis wird auf den Grund gelegt. Aus demselben Grund fassen beide Funktionen **nur voll
+deckende Pixel** an: Hinter durchsichtigen Stellen liegen oft schwarze Farbwerte, die eine
+Faltung als dunklen Saum an jede freigestellte Kante ziehen wuerde.
+
+Ohne Waerme und Schaerfe wird **keine** Zwischenebene angelegt. Der bisherige Weg laeuft
+unveraendert, und die Zusicherung „Zuruecksetzen liefert dieselbe Datei" bleibt erhalten.
+
+Filterausdruck und Pixelwerte reisen jetzt als **ein** Objekt (`Look`) durch die Kette statt
+als zwei getrennte Werte – zwei Wege waeren zwei Gelegenheiten, dass Vorschau und Export
+auseinanderlaufen.
+
+**Kosten, gemessen:** Waerme 18 ms, Schaerfen 513 ms je Bild bei 1600×1600. Ein Export
+mit vielen Bildern und mehreren Plattformen dauert mit Schaerfe spuerbar laenger.
+
+### Barrierefreiheit: der protokollierte AXE-Lauf
+
+Der Lauf ueber alle dreizehn Hauptseiten fand **elf echte Verstoesse**:
+
+| Seite          | Regel                         | Was fehlte                                        |
+| -------------- | ----------------------------- | ------------------------------------------------- |
+| Einstellungen  | `label` (kritisch, 7×)        | Schalter in einem `<label>` ohne Text – kein Name |
+| Listing Studio | `label` (kritisch, 2×)        | Titel- und Beschreibungsfeld ohne Namen           |
+| Seitenleiste   | `button-name` (kritisch)      | Schliessen-Knopf, Symbol `aria-hidden`            |
+| Dashboard      | `aria-prohibited-attr`        | `aria-label` auf `<line>` – dort unzulaessig      |
+| Dashboard      | `scrollable-region-focusable` | Diagramm mit der Maus scrollbar, mit Tab nicht    |
+
+Bei den sieben Schaltern verweist jeder per `aria-labelledby` auf den vorhandenen sichtbaren
+Titel, statt den Text zu verdoppeln – eine Quelle, die beim Uebersetzen nicht vergessen
+werden kann. Im Listing Studio dagegen bewusst `aria-label`: Die Ueberschrift enthaelt die
+Zeichenzahl, ein Screenreader wuerde den Feldnamen sonst bei jedem Tastendruck neu vorlesen.
+
+Die fuenf Faelle, die AXE beim Farbkontrast unentschieden laesst, von Hand nachgerechnet:
+**9,4:1 und 13,6:1** gegen geforderte 4,5:1.
+
+### Uebersetzungen: warum es so lange unbemerkt blieb
+
+Elf Schluessel im `AUTH`-Block fehlten auf Englisch; ngx-translate schrieb woertlich
+`AUTH.ACCEPT_TERMS` neben das Haekchen. Der Grund war ein **zu schwacher Test**: Der
+Sprachvergleich prueft nur die oberste Ebene, und `AUTH` war ja in beiden Sprachen da. Der
+Test vergleicht jetzt alle Pfade bis in die Tiefe und lehnt leere Texte ab.
+
+### Neu: `npm run verify`
+
+Beim Umbau ist mir ein Fehler durch Typpruefung, ESLint **und** Tests hindurchgerutscht und
+erst beim Bau aufgefallen: `tsc` prueft keine Angular-Vorlagen, und eine Bindung an einen
+Eingang, den es nicht gibt, ist ein reiner Vorlagenfehler. `npm run verify` fuehrt jetzt
+genau die CI-Kette lokal aus (Format, Lint, Typen, Tests, Bau).
+
+**Verifiziert durch:** `npm run verify` vollstaendig gruen – 833 Tests, Produktionsbau
+erfolgreich, Startbuendel 710,90 kB gegen 900 kB Warnschwelle. Im Browser an der
+Exportvorschau nachgemessen: Waerme +1 hebt 176 auf 220 rot und senkt auf 132 blau (genau
+die Faktoren 1,25 und 0,75), bei -1 gespiegelt, Gruen bleibt. Schaerfe 1 verstaerkt den
+Kantensprung von 128 auf 222, die Flaeche daneben bleibt exakt bei 176. An einem
+freigestellten PNG bleibt der Grund unter voller Waerme exakt 255/255/255. Nach Verstellen
+und Zuruecksetzen wieder 10559 Bytes mit derselben Pruefsumme. Regler ueber 31 Proben
+tatsaechlich gezogen: kein Overlay. AXE ueber alle dreizehn Seiten: vorher elf Verstoesse,
+jetzt null.
+
+**Offen:** nichts aus Paket 2 mehr.
+
+---
+
 ## 2026-08-29 – Claude Opus 5 (Anthropic) – Bildeditor veroeffentlicht
 
 **Art:** Konfiguration (Zusammenfuehrung) + Bugfix
@@ -161,10 +246,10 @@ Die abschliessende Pruefung des ganzen Zweigs fand funf Befunde, drei davon in d
 
 - Die Felder **Kamera, Modell, Software und Aufnahmedatum** sind durch Überlegung abgedeckt, nicht durch Messung – meine Testdateien trugen nur GPS bzw. XMP. Sie sind gewöhnliche EXIF-Tags und kommen mit der gesetzten Segmentauswahl durch, aber ein echtes Kamerafoto wäre der bessere Beleg.
 - Der Zuschnitt-Editor zeigt die Farbanpassung **nicht** live – ein Filter dort würde auch Rahmen und Abdunklung der Cropper-Bibliothek einfärben. Beurteilt wird die Farbe an den Vorschaukarten, die exakt den Exportweg gehen.
-- **Weißabgleich beziehungsweise Wärme** fehlt weiterhin. Er verlangt eine Farbmatrix statt der einfachen Filter und wäre ein eigener Nachtrag.
-- **Schärfen** ist über diesen Weg nicht erreichbar.
+- ~~**Weißabgleich beziehungsweise Wärme** fehlt weiterhin.~~ Am 29.08.2026 nachgetragen – nicht über eine Farbmatrix im Filter, sondern als Rechnung auf den Pixeln, weil Safari keine SVG-Filter an der Zeichenfläche unterstützt.
+- ~~**Schärfen** ist über diesen Weg nicht erreichbar.~~ Am 29.08.2026 als unscharfe Maske auf den Pixeln nachgetragen.
 - `image-optimizer-review.spec.ts` umgeht den Konstruktor und braucht bei jeder neuen Abhängigkeit einen weiteren Stub. Die neueren Tests nutzen `TestBed.runInInjectionContext` und die echten `computed()`; die ältere Datei sollte nachziehen.
-- Keine **AXE-Prüfung** protokolliert. Beschriftungen, `aria-valuetext`, `aria-pressed` und Screenreader-Texte wurden am Markup geprüft, ein Werkzeuglauf steht aus.
+- ~~Keine **AXE-Prüfung** protokolliert.~~ Am 29.08.2026 nachgeholt, über alle dreizehn Hauptseiten. Elf echte Verstöße gefunden und behoben – keiner davon im Bildoptimierer, aber sieben in den Einstellungen und zwei im Listing Studio.
 
 ---
 
