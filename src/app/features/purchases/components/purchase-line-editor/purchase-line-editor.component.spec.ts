@@ -131,6 +131,51 @@ describe('PurchaseLineEditorComponent', () => {
     expect(fixture.componentInstance.catalogLoadError()).toContain('Katalog nicht erreichbar');
   });
 
+  it('wiederholt einen fehlgeschlagenen Katalogabruf erst nach explizitem Retry', async () => {
+    TestBed.resetTestingModule();
+    const isLoading = signal(false);
+    const loadError = signal<Error | null>(null);
+    const loadProducts = vi.fn(async () => {
+      // Der echte Dienst kann seinen Ladezustand synchron prüfen. Dieser Read
+      // darf nicht versehentlich zur Abhängigkeit des Komponenten-Effects werden.
+      void isLoading();
+      if (loadProducts.mock.calls.length > 3) return;
+      isLoading.set(true);
+      await Promise.resolve();
+      loadError.set(new Error('Katalog nicht erreichbar'));
+      isLoading.set(false);
+    });
+    const fixture = TestBed.configureTestingModule({
+      imports: [PurchaseLineEditorComponent],
+      providers: [
+        {
+          provide: CatalogService,
+          useValue: {
+            products: signal<CatalogProduct[]>([]),
+            isLoading,
+            loadError,
+            loadedWorkspaceId: signal<string | null>(null),
+            loadProducts,
+            createProduct: vi.fn(),
+          },
+        },
+        {
+          provide: WorkspaceService,
+          useValue: { currentWorkspace: signal<Workspace | null>(workspaceOne) },
+        },
+      ],
+    }).createComponent(PurchaseLineEditorComponent);
+
+    fixture.detectChanges();
+    await vi.waitFor(() => expect(fixture.componentInstance.catalogLoadError()).not.toBeNull());
+    await Promise.resolve();
+    fixture.detectChanges();
+    expect(loadProducts).toHaveBeenCalledTimes(1);
+
+    await fixture.componentInstance.loadCatalogProducts(true);
+    expect(loadProducts).toHaveBeenCalledTimes(2);
+  });
+
   it('berechnet die Positionssumme einer Mengenposition aus Menge und EK je Stück', () => {
     const { editor } = erstelleEditor();
     editor.addQuantityLine();

@@ -6,6 +6,7 @@ import {
   inject,
   output,
   signal,
+  untracked,
 } from '@angular/core';
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CatalogService } from '../../../../core/services/catalog.service';
@@ -84,7 +85,9 @@ export class PurchaseLineEditorComponent {
         this.catalogContextError.set('Kein aktiver Workspace ausgewählt.');
         return;
       }
-      void this.loadCatalogProducts();
+      untracked(() => {
+        void this.loadCatalogProducts();
+      });
     });
   }
 

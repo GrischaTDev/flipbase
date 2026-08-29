@@ -411,10 +411,14 @@ export class PurchaseService {
       await this.loadPurchaseLines(id, requestId);
       return enriched;
     } catch (err) {
-      this.syncStatus.melde('GetPurchaseById', err);
+      if (requestId === this.detailLoadRequestId) {
+        this.syncStatus.melde('GetPurchaseById', err);
+      }
       return null;
     } finally {
-      this.isLoading.set(false);
+      if (requestId === this.detailLoadRequestId) {
+        this.isLoading.set(false);
+      }
     }
   }
 
@@ -445,14 +449,18 @@ export class PurchaseService {
         .eq('purchase_id', purchaseId)
         .order('created_at', { ascending: true });
       if (error) {
-        this.syncStatus.melde('Laden der Einkaufspositionen', error);
+        if (detailRequestId === undefined || detailRequestId === this.detailLoadRequestId) {
+          this.syncStatus.melde('Laden der Einkaufspositionen', error);
+        }
         return;
       }
       if (detailRequestId === undefined || detailRequestId === this.detailLoadRequestId) {
         this.purchaseLinesRaw.set((data ?? []) as PurchaseLine[]);
       }
     } catch (error: unknown) {
-      this.syncStatus.melde('Laden der Einkaufspositionen', error);
+      if (detailRequestId === undefined || detailRequestId === this.detailLoadRequestId) {
+        this.syncStatus.melde('Laden der Einkaufspositionen', error);
+      }
     }
   }
 
