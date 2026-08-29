@@ -14,23 +14,11 @@ import {
   LucideDynamicIcon,
   LucideBoxes as Boxes,
   LucideBarcode as Barcode,
-  LucideChevronDown as ChevronDown,
-  LucideChevronUp as ChevronUp,
   LucidePlus as Plus,
-  LucideFilter as Filter,
-  LucideSearch as Search,
   LucideTag as Tag,
-  LucideEye as Eye,
-  LucideArrowRight as ArrowRight,
   LucideTrendingUp as TrendingUp,
   LucideCoins as Coins,
-  LucideShieldCheck as ShieldCheck,
-  LucideCheckCircle2 as CheckCircle2,
-  LucideCamera as Camera,
-  LucideSparkles as Sparkles,
   LucidePrinter as Printer,
-  LucideCheckSquare as CheckSquare,
-  LucideSquare as Square,
   LucideStore as Store,
 } from '@lucide/angular';
 import { InventoryService } from '../../core/services/inventory.service';
@@ -43,24 +31,21 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
-import { CustomCheckboxComponent } from '../../shared/components/custom-checkbox/custom-checkbox.component';
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { BarcodeScannerComponent } from '../../shared/components/barcode-scanner/barcode-scanner.component';
-import { NgTemplateOutlet } from '@angular/common';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { StockService } from '../../core/services/stock.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { StockPositionListComponent } from './components/stock-position-list/stock-position-list.component';
 import { SaleTargetRouteState } from '../../core/models/sale-target.models';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 
 type FilterPreset = string;
-type InventoryTab = 'stock' | 'individual';
 
 @Component({
   selector: 'app-inventory',
   imports: [
-    NgTemplateOutlet,
     BarcodeScannerComponent,
     RouterLink,
     CurrencyPipe,
@@ -70,7 +55,6 @@ type InventoryTab = 'stock' | 'individual';
     AiPhotoScannerModalComponent,
     InventoryLabelModalComponent,
     CustomSelectComponent,
-    CustomCheckboxComponent,
     CustomSearchInputComponent,
     StockPositionListComponent,
   ],
@@ -82,6 +66,7 @@ export class InventoryComponent {
   readonly inventoryService = inject(InventoryService);
   readonly stockService = inject(StockService);
   private readonly router = inject(Router);
+  private readonly dialog = inject(ConfirmDialogService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly toast = inject(ToastService);
@@ -90,27 +75,14 @@ export class InventoryComponent {
 
   readonly boxesIcon = Boxes;
   readonly plusIcon = Plus;
-  readonly filterIcon = Filter;
-  readonly searchIcon = Search;
   readonly tagIcon = Tag;
-  readonly eyeIcon = Eye;
-  readonly arrowRightIcon = ArrowRight;
   readonly trendingIcon = TrendingUp;
   readonly coinsIcon = Coins;
-  readonly shieldIcon = ShieldCheck;
-  readonly checkIcon = CheckCircle2;
-  readonly cameraIcon = Camera;
-  readonly sparklesIcon = Sparkles;
   readonly barcodeIcon = Barcode;
-  readonly chevronDownIcon = ChevronDown;
-  readonly chevronUpIcon = ChevronUp;
   readonly printerIcon = Printer;
-  readonly checkSquareIcon = CheckSquare;
-  readonly squareIcon = Square;
   readonly storeIcon = Store;
 
   readonly isCreateModalOpen = signal<boolean>(false);
-  readonly activeTab = signal<InventoryTab>('stock');
 
   /** Scanner zum Auffinden eines Artikels ueber sein gedrucktes Etikett. */
   readonly isScanningLabel = signal<boolean>(false);
@@ -181,61 +153,18 @@ export class InventoryComponent {
     if (workspaceId) void this.stockService.loadPositions(workspaceId);
   }
 
-  readonly statusOptions: SelectOption<ItemStatus>[] = [
-    {
-      value: 'received',
-      label: 'Auf Lager',
-      badgeClass: 'bg-blue-400',
-      colorClass: 'bg-blue-500/15 text-blue-300 border-blue-500/30 hover:bg-blue-500/25',
-    },
-    {
-      value: 'ready',
-      label: 'Bereit',
-      badgeClass: 'bg-amber-400',
-      colorClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/25',
-    },
-    {
-      value: 'listed',
-      label: 'Gelistet',
-      badgeClass: 'bg-emerald-400',
-      colorClass:
-        'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25',
-    },
-    {
-      value: 'reserved',
-      label: 'Reserviert',
-      badgeClass: 'bg-fb-neutral',
-      colorClass: 'bg-fb-well text-fb-text-secondary border-fb-line hover:bg-fb-surface-alt',
-    },
-    {
-      value: 'defective',
-      label: 'Defekt',
-      badgeClass: 'bg-rose-400',
-      colorClass: 'bg-rose-500/15 text-rose-300 border-rose-500/30 hover:bg-rose-500/25',
-    },
-    {
-      value: 'returned',
-      label: 'Retourniert',
-      badgeClass: 'bg-fb-neutral',
-      colorClass: 'bg-fb-well text-fb-text-secondary border-fb-line hover:bg-fb-surface-alt',
-    },
-    {
-      value: 'archived',
-      label: 'Archiviert',
-      badgeClass: 'bg-fb-neutral',
-      colorClass: 'bg-fb-well text-fb-text-secondary border-fb-line hover:bg-fb-surface-alt',
-    },
-  ];
-
   readonly filterStatusOptions: SelectOption<string>[] = [
     { value: 'all', label: 'Alle Status' },
     { value: 'received', label: 'Auf Lager', badgeClass: 'bg-blue-400' },
+    { value: 'needs_review', label: 'Prüfung nötig', badgeClass: 'bg-amber-400' },
+    { value: 'researched', label: 'Recherchiert', badgeClass: 'bg-indigo-400' },
     { value: 'ready', label: 'Bereit', badgeClass: 'bg-amber-400' },
     { value: 'listed', label: 'Gelistet', badgeClass: 'bg-emerald-400' },
     { value: 'reserved', label: 'Reserviert', badgeClass: 'bg-fb-neutral' },
     { value: 'defective', label: 'Defekt / Ersatzteil', badgeClass: 'bg-rose-400' },
     { value: 'returned', label: 'Retourniert', badgeClass: 'bg-fb-neutral' },
     { value: 'archived', label: 'Archiviert', badgeClass: 'bg-fb-neutral' },
+    { value: 'sold', label: 'Verkauft', badgeClass: 'bg-purple-400' },
   ];
 
   readonly filterConditionOptions: SelectOption<string>[] = [
@@ -272,8 +201,34 @@ export class InventoryComponent {
     }
 
     const preset = this.activePreset();
-    if (preset === 'store_public') {
-      list = list.filter((item) => item.is_public_store !== false && item.status !== 'sold');
+    switch (preset) {
+      case 'needs_research':
+        list = list.filter((item) =>
+          ['received', 'needs_review', 'researched'].includes(item.status),
+        );
+        break;
+      case 'unlisted':
+        list = list.filter((item) => item.status !== 'listed' && item.status !== 'sold');
+        break;
+      case 'high_margin':
+        list = list.filter((item) => (item.profit_potential ?? 0) >= 30);
+        break;
+      case 'defective':
+        list = list.filter((item) => item.status === 'defective');
+        break;
+      case 'store_public':
+        list = list.filter((item) => item.is_public_store !== false && item.status !== 'sold');
+        break;
+      case 'legacy_review':
+        list = list.filter((item) =>
+          [
+            'legacy_sold_unverified',
+            'legacy_sale_header_without_line',
+            'sale_status_conflict',
+            'multiple_active_sales',
+          ].includes(item.sale_state ?? ''),
+        );
+        break;
     }
 
     const cond = this.selectedCondition();
@@ -288,6 +243,27 @@ export class InventoryComponent {
 
     return list;
   });
+
+  readonly filteredStockPositions = computed(() => {
+    if (
+      this.selectedCondition() !== 'all' ||
+      this.selectedStatus() !== 'all' ||
+      this.activePreset() !== 'all'
+    ) {
+      return [];
+    }
+    const query = this.searchQuery().toLowerCase().trim();
+    if (!query) return this.stockService.positions();
+    return this.stockService
+      .positions()
+      .filter((position) => position.title.toLowerCase().includes(query));
+  });
+
+  readonly filteredUnitCount = computed(
+    () =>
+      this.filteredStockPositions().reduce((sum, position) => sum + position.on_hand_quantity, 0) +
+      this.filteredItems().length,
+  );
 
   async onChangeItemStatus(item: InventoryItem, newStatus: ItemStatus | null): Promise<void> {
     if (!newStatus || newStatus === item.status) return;
@@ -313,68 +289,6 @@ export class InventoryComponent {
     this.toast.success(
       nextVal ? 'Artikel wurde im Shop veröffentlicht.' : 'Artikel wurde aus dem Shop entfernt.',
     );
-  }
-
-  /** Welche Gruppen aufgeklappt sind. */
-  readonly offeneGruppen = signal<Set<string>>(new Set());
-
-  /**
-   * Fasst gleiche Stuecke zu einer Zeile zusammen.
-   *
-   * Jedes Stueck bleibt ein eigener Artikel - das verlangt die Einzeldifferenz
-   * nach § 25a und ist noetig, damit jedes seinen eigenen Zustand, Preis und
-   * Verkauf haben kann. Nur die Anzeige fasst zusammen, damit zwanzig gleiche
-   * Handyhuellen nicht zwanzig Zeilen belegen. Genau so loesen es
-   * Warenwirtschaften fuer Gebrauchtware ueber ihre Seriennummern.
-   *
-   * Der Status gehoert bewusst zum Gruppenschluessel: Sind drei verkauft und
-   * zwei auf Lager, sollen das zwei Zeilen sein - sonst verschwindet die
-   * Information, die man beim Blick auf die Liste sucht.
-   */
-  readonly gruppierteArtikel = computed(() => {
-    const gruppen = new Map<string, { schluessel: string; stuecke: InventoryItem[] }>();
-
-    for (const artikel of this.filteredItems()) {
-      const schluessel = [
-        artikel.title.trim().toLowerCase(),
-        artikel.condition,
-        artikel.status,
-        artikel.purchase_id ?? '',
-      ].join('|');
-
-      const vorhandene = gruppen.get(schluessel);
-      if (vorhandene) {
-        vorhandene.stuecke.push(artikel);
-      } else {
-        gruppen.set(schluessel, { schluessel, stuecke: [artikel] });
-      }
-    }
-
-    return [...gruppen.values()];
-  });
-
-  istGruppeOffen(schluessel: string): boolean {
-    return this.offeneGruppen().has(schluessel);
-  }
-
-  toggleGruppe(schluessel: string): void {
-    this.offeneGruppen.update((offen) => {
-      const neu = new Set(offen);
-      if (neu.has(schluessel)) {
-        neu.delete(schluessel);
-      } else {
-        neu.add(schluessel);
-      }
-      return neu;
-    });
-  }
-
-  /** Summe eines Feldes ueber alle Stuecke einer Gruppe. */
-  gruppenSumme(
-    stuecke: InventoryItem[],
-    feld: 'allocated_purchase_cost' | 'expected_value',
-  ): number {
-    return stuecke.reduce((summe, s) => summe + (Number(s[feld]) || 0), 0);
   }
 
   readonly totalTiedCapital = computed(() =>
@@ -409,6 +323,42 @@ export class InventoryComponent {
       next.add(id);
     }
     this.selectedItemIds.set(next);
+  }
+
+  openSingleLabel(item: InventoryItem): void {
+    this.selectedItemIds.set(new Set([item.id]));
+    this.openLabelModal();
+  }
+
+  async onRestoreLegacyItem(action: {
+    readonly item: InventoryItem;
+    readonly reason: string;
+  }): Promise<void> {
+    const reason = action.reason.trim();
+    if (!reason || action.item.sale_state !== 'legacy_sold_unverified') return;
+    const confirmed = await this.dialog.frage({
+      titel: 'Artikel wieder in Bestand nehmen?',
+      text: `„${action.item.title}“ wird nach dokumentierter Prüfung wieder auf „Bereit“ gesetzt. Grund: ${reason}`,
+      bestaetigenText: 'Wieder in Bestand nehmen',
+    });
+    if (!confirmed) return;
+
+    const { error } = await this.inventoryService.resolveLegacySoldItem(action.item.id, reason);
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert('Altbestand konnte nicht geklärt werden.', error);
+      return;
+    }
+    this.toast.success('Artikel wurde wieder in den Bestand aufgenommen.');
+  }
+
+  openLegacySaleReconciliation(item: InventoryItem): void {
+    if (item.sale_state !== 'legacy_sold_unverified') return;
+    void this.router.navigate(['/sales'], {
+      state: {
+        legacyReconciliation: true,
+        saleTarget: { kind: 'inventory_item', inventoryItemId: item.id, title: item.title },
+      },
+    });
   }
 
   toggleSelectAll(): void {

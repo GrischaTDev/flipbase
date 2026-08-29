@@ -1,5 +1,6 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
+import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { InventoryItem, ItemStatus } from '../../core/models/flipbase.models';
 import { SyncStatusService } from '../../core/services/sync-status.service';
@@ -40,6 +41,16 @@ function klickEvent(): Event {
 }
 
 describe('InventoryComponent – Aktionsmeldungen', () => {
+  it('verwendet eine gemeinsame Ansicht ohne Bestand- und Einzelstück-Tabs', () => {
+    const template = readFileSync('src/app/features/inventory/inventory.component.html', 'utf8');
+
+    expect(template).not.toContain('role="tablist"');
+    expect(template).not.toContain('activeTab');
+    expect(template).toContain('[individualItems]="filteredItems()"');
+    expect(template).toContain('[positions]="filteredStockPositions()"');
+    expect(template).toContain('Altdaten prüfen');
+  });
+
   it('bestätigt einen erfolgreichen Statuswechsel', async () => {
     const { komponente, toast } = erstelleKomponente({ error: null });
 
@@ -123,6 +134,50 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
       title: 'Artikelstatus konnte nicht geändert werden.',
       description: zentralerFehler.message,
       persistent: true,
+    });
+  });
+
+  it('bestätigt die Rücknahme eines ungeklärten Altartikels und verlangt einen Grund', async () => {
+    const { komponente, inventoryService, toast } = erstelleKomponente({ error: null });
+    const resolveLegacySoldItem = vi.fn(async () => ({ error: null }));
+    Object.assign(inventoryService, { resolveLegacySoldItem });
+    Object.assign(komponente, { dialog: { frage: vi.fn(async () => true) } });
+    const legacy = {
+      ...artikel,
+      status: 'sold' as const,
+      sale_state: 'legacy_sold_unverified' as const,
+    };
+
+    await komponente.onRestoreLegacyItem({ item: legacy, reason: 'Historischer Verkauf fehlt' });
+
+    expect(resolveLegacySoldItem).toHaveBeenCalledWith(legacy.id, 'Historischer Verkauf fehlt');
+    expect(toast.toasts()[0]).toMatchObject({
+      type: 'success',
+      title: 'Artikel wurde wieder in den Bestand aufgenommen.',
+    });
+  });
+
+  it('kennzeichnet Verkauf nachtragen ausdrücklich als Legacy-Abgleich im Route-State', async () => {
+    const navigate = vi.fn(async () => true);
+    const komponente = Object.create(InventoryComponent.prototype) as InventoryComponent;
+    Object.assign(komponente, { router: { navigate } });
+    const legacy = {
+      ...artikel,
+      status: 'sold' as const,
+      sale_state: 'legacy_sold_unverified' as const,
+    };
+
+    komponente.openLegacySaleReconciliation(legacy);
+
+    expect(navigate).toHaveBeenCalledWith(['/sales'], {
+      state: {
+        legacyReconciliation: true,
+        saleTarget: {
+          kind: 'inventory_item',
+          inventoryItemId: legacy.id,
+          title: legacy.title,
+        },
+      },
     });
   });
 });

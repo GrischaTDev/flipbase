@@ -1,11 +1,14 @@
 import '@angular/compiler';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { registerLocaleData } from '@angular/common';
+import { provideRouter } from '@angular/router';
 import localeDe from '@angular/common/locales/de';
 import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { readFile } from 'node:fs/promises';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { resolve } from 'node:path';
+import axe from 'axe-core';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   InventoryItem,
   StockLot,
@@ -17,7 +20,22 @@ import { StockPositionListComponent } from './stock-position-list.component';
 TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 beforeAll(async () => {
   registerLocaleData(localeDe);
-  await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
+  const resources: Record<string, string> = {
+    './stock-position-list.component.html':
+      'src/app/features/inventory/components/stock-position-list/stock-position-list.component.html',
+  };
+  await ɵresolveComponentResources((url) => {
+    const resource = resources[url];
+    if (!resource) throw new Error(`Unbekannte Test-Ressource: ${url}`);
+    return readFile(resolve(resource), 'utf8');
+  });
+});
+beforeEach(() => {
+  TestBed.resetTestingModule();
+  TestBed.configureTestingModule({
+    imports: [StockPositionListComponent],
+    providers: [provideRouter([])],
+  });
 });
 
 function createList(
@@ -26,16 +44,14 @@ function createList(
   lots: readonly StockLot[] = [],
   movements: readonly StockMovement[] = [],
 ) {
-  TestBed.resetTestingModule();
-  const fixture = TestBed.configureTestingModule({
-    imports: [StockPositionListComponent],
-  }).createComponent(StockPositionListComponent);
+  const fixture = TestBed.createComponent(StockPositionListComponent);
 
   Object.assign(fixture.componentInstance, {
     positions: signal(positions),
     individualItems: signal(individualItems),
     lots: signal(lots),
     movements: signal(movements),
+    selectedItemIds: signal<ReadonlySet<string>>(new Set()),
   });
   fixture.detectChanges();
   return fixture;
@@ -56,8 +72,11 @@ const einzelstueck: InventoryItem = {
   workspace_id: 'workspace-1',
   title: 'Mystery-Fundstück',
   condition: 'used',
-  status: 'received',
+  status: 'ready',
+  sale_state: 'no_active_sale',
   allocated_purchase_cost: 12,
+  total_item_cost: 12,
+  is_public_store: false,
 };
 
 const lot = (id: string, receivedAt: string, unitCost: number): StockLot => ({
@@ -73,7 +92,19 @@ const lot = (id: string, receivedAt: string, unitCost: number): StockLot => ({
 });
 
 describe('StockPositionListComponent', () => {
-  it('zeigt zwei Lose desselben Mengenartikels als eine verfügbare Bestandsposition', () => {
+  it('zeigt Mengenposition fünf und Einzelstück eins in derselben Inventartabelle', () => {
+    const fixture = createList(
+      [{ ...ledLampe, available_quantity: 5, on_hand_quantity: 5 }],
+      [einzelstueck],
+    );
+    const table = fixture.nativeElement.querySelector('[data-unified-inventory-table]');
+
+    expect(table).not.toBeNull();
+    expect(table.querySelector('[data-stock-row]')?.textContent).toContain('5 Stück');
+    expect(table.querySelector('[data-individual-row]')?.textContent).toContain('1 Stück');
+  });
+
+  it('zeigt aggregierte Stückzahlen statt der Anzahl von Datenzeilen', () => {
     const fixture = createList(
       [
         ledLampe,
@@ -88,7 +119,9 @@ describe('StockPositionListComponent', () => {
     );
 
     const host = fixture.nativeElement as HTMLElement;
-    const rows = Array.from(host.querySelectorAll<HTMLElement>('table [data-stock-row]'));
+    const rows = Array.from(
+      host.querySelectorAll<HTMLElement>('[data-unified-inventory-table] [data-stock-row]'),
+    );
 
     expect(rows).toHaveLength(1);
     expect(rows[0].textContent).toContain('LED Schreibtischlampe');
@@ -96,15 +129,23 @@ describe('StockPositionListComponent', () => {
     expect(rows[0].textContent).toContain('8 Stück im Bestand');
   });
 
-  it('zeigt vorhandene Einzelstücke weiterhin als eigene Zeile mit Menge eins', () => {
+  it('erhält Details, Verkauf, Auswahl, Etiketten, Store und Status für Einzelstücke', () => {
     const fixture = createList([], [einzelstueck]);
 
     const host = fixture.nativeElement as HTMLElement;
-    const rows = Array.from(host.querySelectorAll<HTMLElement>('table [data-individual-row]'));
+    const rows = Array.from(
+      host.querySelectorAll<HTMLElement>('[data-unified-inventory-table] [data-individual-row]'),
+    );
 
     expect(rows).toHaveLength(1);
     expect(rows[0].textContent).toContain('Mystery-Fundstück');
     expect(rows[0].textContent).toContain('1 Stück verfügbar');
+    expect(rows[0].querySelector('[data-item-details]')).not.toBeNull();
+    expect(rows[0].querySelector('[data-item-select]')).not.toBeNull();
+    expect(rows[0].querySelector('[data-item-label]')).not.toBeNull();
+    expect(rows[0].querySelector('[data-item-store-toggle]')).not.toBeNull();
+    expect(rows[0].querySelector('[data-item-status]')).not.toBeNull();
+    expect(rows[0].querySelector('[data-item-sell]')).not.toBeNull();
   });
 
   it('verwendet für den ältesten EK das älteste verfügbare Los statt des günstigsten', () => {
@@ -119,19 +160,102 @@ describe('StockPositionListComponent', () => {
     expect(row.textContent).toContain('10,00 €');
   });
 
-  it('zeigt Lose auch in der mobilen Bestandskarte aufklappbar an', () => {
+  it('nennt die aufklappbare Herkunft Wareneingänge und Einstandskosten', () => {
     const fixture = createList([ledLampe], [], [lot('old', '2026-08-01T09:00:00.000Z', 10)]);
 
     const toggle = fixture.nativeElement.querySelector(
-      '[data-stock-lot-toggle="catalog-led-lamp"]',
+      '[data-stock-origin-toggle="catalog-led-lamp"]',
     );
 
     expect(toggle).not.toBeNull();
+    expect(toggle.textContent).toContain('Wareneingänge und Einstandskosten');
+    expect((fixture.nativeElement as HTMLElement).innerHTML).not.toMatch(/\bLose\b/);
     toggle.click();
     fixture.detectChanges();
-    expect(
-      fixture.nativeElement.querySelector('[data-mobile-stock-lot="old"]')?.textContent,
-    ).toContain('10,00 €');
+    expect(fixture.nativeElement.querySelector('[data-stock-origin="old"]')?.textContent).toContain(
+      '10,00 €',
+    );
+  });
+
+  it('zeigt einen gebuchten Verkauf fest als verkauft und niemals als leere Statusauswahl', () => {
+    const fixture = createList(
+      [],
+      [{ ...einzelstueck, status: 'sold', sale_state: 'sold', active_sale_count: 1 }],
+    );
+    const row = fixture.nativeElement.querySelector('[data-individual-row]') as HTMLElement;
+
+    const badge = row.querySelector('[data-sold-badge]');
+    expect(badge).not.toBeNull();
+    expect(badge?.textContent).toContain('Verkauft');
+    expect(row.querySelector('[data-item-status]')).toBeNull();
+    expect(row.textContent).not.toContain('Status bitte wählen');
+    expect(row.querySelector('[data-item-sell]')).toBeNull();
+  });
+
+  it('bietet bei ungeklärtem sold beide Klärungswege mit Pflichtgrund an', () => {
+    const fixture = createList(
+      [],
+      [{ ...einzelstueck, status: 'sold', sale_state: 'legacy_sold_unverified' }],
+    );
+    const row = fixture.nativeElement.querySelector('[data-individual-row]') as HTMLElement;
+
+    expect(row.querySelector('label[for="legacy-reason-inventory-mystery-1"]')).not.toBeNull();
+    expect(row.querySelector('[data-restore-stock]')?.textContent).toContain(
+      'Wieder in Bestand nehmen',
+    );
+    expect(row.querySelector('[data-reconcile-sale]')?.textContent).toContain('Verkauf nachtragen');
+  });
+
+  it('zeigt beim Legacy-Verkaufskopf nur Korrektur erforderlich und keinen neuen Verkauf', () => {
+    const fixture = createList(
+      [],
+      [{ ...einzelstueck, status: 'sold', sale_state: 'legacy_sale_header_without_line' }],
+    );
+    const row = fixture.nativeElement.querySelector('[data-individual-row]') as HTMLElement;
+
+    expect(row.textContent).toContain('Korrektur erforderlich');
+    expect(row.querySelector('[data-item-sell]')).toBeNull();
+    expect(row.querySelector('[data-restore-stock]')).toBeNull();
+    expect(row.querySelector('[data-reconcile-sale]')).toBeNull();
+  });
+
+  it('gibt die vollständigen Einzelstückaktionen als typisierte Ereignisse aus', () => {
+    const fixture = createList([], [einzelstueck]);
+    const selectionChanged = vi.fn();
+    const storeToggle = vi.fn();
+    const statusChange = vi.fn();
+    const sellIndividual = vi.fn();
+    expect(fixture.componentInstance.selectionChanged).toBeDefined();
+    expect(fixture.componentInstance.storeToggle).toBeDefined();
+    expect(fixture.componentInstance.statusChange).toBeDefined();
+    expect(fixture.componentInstance.sellIndividual).toBeDefined();
+    fixture.componentInstance.selectionChanged.subscribe(selectionChanged);
+    fixture.componentInstance.storeToggle.subscribe(storeToggle);
+    fixture.componentInstance.statusChange.subscribe(statusChange);
+    fixture.componentInstance.sellIndividual.subscribe(sellIndividual);
+
+    fixture.nativeElement.querySelector('[data-item-select] input')?.click();
+    fixture.nativeElement.querySelector('[data-item-store-toggle]')?.click();
+    fixture.nativeElement.querySelector('[data-item-sell]')?.click();
+    fixture.detectChanges();
+
+    expect(selectionChanged).toHaveBeenCalledWith(einzelstueck.id);
+    expect(storeToggle).toHaveBeenCalledWith(einzelstueck);
+    expect(sellIndividual).toHaveBeenCalledWith(einzelstueck);
+    expect(statusChange).not.toHaveBeenCalled();
+  });
+
+  it('hat zugängliche Labels, Fokusziele und Tabellenstruktur', async () => {
+    const fixture = createList(
+      [{ ...ledLampe, available_quantity: 5, on_hand_quantity: 5 }],
+      [einzelstueck],
+      [lot('old', '2026-08-01T09:00:00.000Z', 10)],
+    );
+
+    const result = await axe.run(fixture.nativeElement as HTMLElement, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    expect(result.violations).toEqual([]);
   });
 
   it('zeigt die vollständige Bewegungshistorie auch für ein ausverkauftes Los zugänglich an', () => {
@@ -197,5 +321,6 @@ describe('StockPositionListComponent', () => {
     expect(history.querySelector('caption')?.textContent).toContain(
       'vollständige Bewegungshistorie',
     );
+    expect(history.querySelector('caption')?.textContent).not.toContain('Lose');
   });
 });

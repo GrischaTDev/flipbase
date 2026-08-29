@@ -103,17 +103,50 @@
           </div>
         </div>
 
-        <!-- Prominente, farbige Status-Auswahl -->
         <div class="flex flex-col sm:items-end gap-1 shrink-0">
           <span class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >Status</span
           >
-          <app-custom-select
-            variant="pill"
-            [options]="statusOptions"
-            [value]="item.status"
-            (valueChange)="onChangeStatus($event)"
-          ></app-custom-select>
+          @if (item.sale_state === 'legacy_sale_header_without_line') {
+            <span
+              data-item-status-badge
+              class="rounded-full border border-rose-500/40 bg-rose-500/15 px-3 py-1 text-xs font-bold text-rose-300"
+            >
+              Korrektur erforderlich
+            </span>
+          } @else if (item.sale_state === 'legacy_sold_unverified') {
+            <span
+              data-item-status-badge
+              class="rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-200"
+            >
+              Altdaten prüfen
+            </span>
+          } @else if (item.sale_state === 'sold' || item.status === 'sold') {
+            <span
+              data-item-status-badge
+              class="rounded-full border border-purple-500/40 bg-purple-500/15 px-3 py-1 text-xs font-bold text-purple-200"
+            >
+              Verkauft
+            </span>
+          } @else if (
+            item.sale_state === 'sale_status_conflict' ||
+            item.sale_state === 'multiple_active_sales' ||
+            item.sale_state === 'missing_inventory_item'
+          ) {
+            <span
+              data-item-status-badge
+              class="rounded-full border border-rose-500/40 bg-rose-500/15 px-3 py-1 text-xs font-bold text-rose-300"
+            >
+              Integrität prüfen
+            </span>
+          } @else {
+            <app-custom-select
+              variant="pill"
+              [options]="statusOptions"
+              [value]="item.status"
+              (valueChange)="onChangeStatus($event)"
+            ></app-custom-select>
+          }
         </div>
       </div>
 
@@ -163,6 +196,67 @@
         </div>
       </div>
     </div>
+
+    @if (item.sale_state === 'legacy_sold_unverified') {
+      <section
+        class="linear-surface space-y-3 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4"
+        aria-labelledby="legacy-sold-title"
+      >
+        <div>
+          <h2 id="legacy-sold-title" class="text-sm font-bold text-amber-200">Altdaten prüfen</h2>
+          <p class="mt-1 text-xs text-fb-text-muted">
+            Für diesen historischen Artikel ist kein belastbarer Verkauf verknüpft. Entscheide nach
+            Prüfung, ob er wieder im Bestand ist oder der Verkauf nachgetragen werden muss.
+          </p>
+        </div>
+        <div>
+          <label
+            for="item-detail-legacy-reason"
+            class="mb-1 block text-xs font-semibold text-fb-text-secondary"
+          >
+            Prüfgrund für die Bestandsrücknahme
+          </label>
+          <input
+            id="item-detail-legacy-reason"
+            type="text"
+            [value]="legacyReason()"
+            (input)="onLegacyReasonInput($event)"
+            class="w-full rounded-lg border border-fb-line bg-fb-well px-3 py-2 text-sm text-fb-text-primary outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30"
+            autocomplete="off"
+          />
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <button
+            type="button"
+            (click)="onRestoreLegacySoldItem()"
+            [disabled]="legacyReason().trim().length === 0"
+            class="linear-btn-secondary rounded-lg px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Wieder in Bestand nehmen
+          </button>
+          <button
+            type="button"
+            (click)="openLegacySaleReconciliation()"
+            class="linear-btn-primary rounded-lg px-3 py-2 text-xs font-semibold"
+          >
+            Verkauf nachtragen
+          </button>
+        </div>
+      </section>
+    } @else if (item.sale_state === 'legacy_sale_header_without_line') {
+      <section
+        class="linear-surface rounded-xl border border-rose-500/30 bg-rose-500/5 p-4"
+        aria-labelledby="legacy-header-title"
+      >
+        <h2 id="legacy-header-title" class="text-sm font-bold text-rose-300">
+          Korrektur erforderlich
+        </h2>
+        <p class="mt-1 text-xs text-fb-text-muted">
+          Der vorhandene historische Verkauf hat keine Artikelposition. Dieser Datensatz muss
+          geprüft werden; hier kann kein neuer Verkauf gestartet werden.
+        </p>
+      </section>
+    }
 
     <!-- Webshop & Online-Store Veröffentlichung -->
     <div

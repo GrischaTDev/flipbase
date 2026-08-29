@@ -117,6 +117,7 @@ export class ItemDetailComponent {
   readonly isUploading = signal<boolean>(false);
   readonly uploadError = signal<string | null>(null);
   readonly previewModalUrl = signal<string | null>(null);
+  readonly legacyReason = signal('');
 
   readonly costForm = new FormGroup({
     type: new FormControl('repair', { nonNullable: true, validators: [Validators.required] }),
@@ -328,6 +329,42 @@ export class ItemDetailComponent {
       return;
     }
     this.toast.success('Artikelstatus wurde geändert.');
+  }
+
+  onLegacyReasonInput(event: Event): void {
+    this.legacyReason.set((event.target as HTMLInputElement).value);
+  }
+
+  async onRestoreLegacySoldItem(): Promise<void> {
+    const item = this.inventoryService.selectedItem();
+    const reason = this.legacyReason().trim();
+    if (!item || item.sale_state !== 'legacy_sold_unverified' || !reason) return;
+
+    const confirmed = await this.dialog.frage({
+      titel: 'Artikel wieder in Bestand nehmen?',
+      text: `„${item.title}“ wird nach dokumentierter Prüfung wieder auf „Bereit“ gesetzt. Grund: ${reason}`,
+      bestaetigenText: 'Wieder in Bestand nehmen',
+    });
+    if (!confirmed) return;
+
+    const { error } = await this.inventoryService.resolveLegacySoldItem(item.id, reason);
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert('Altbestand konnte nicht geklärt werden.', error);
+      return;
+    }
+    this.legacyReason.set('');
+    this.toast.success('Artikel wurde wieder in den Bestand aufgenommen.');
+  }
+
+  openLegacySaleReconciliation(): void {
+    const item = this.inventoryService.selectedItem();
+    if (!item || item.sale_state !== 'legacy_sold_unverified') return;
+    void this.router.navigate(['/sales'], {
+      state: {
+        legacyReconciliation: true,
+        saleTarget: { kind: 'inventory_item', inventoryItemId: item.id, title: item.title },
+      },
+    });
   }
 
   async onAddCost(): Promise<void> {
