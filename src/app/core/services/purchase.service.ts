@@ -31,6 +31,7 @@ export interface CreatePurchaseLineInput {
   readonly orderedQuantity: number;
   readonly unitPurchasePrice: number;
   readonly lineTotal: number;
+  readonly allocatedAdditionalCost?: number;
 }
 
 /**
@@ -538,7 +539,10 @@ export class PurchaseService {
     };
 
     if (this.mockStore.isDemoMode()) {
-      const lines = this.createLocalPurchaseLines(ws.id, newPurchase.id, normalizedLines.data);
+      const lines = this.allocateLocalPurchaseCosts(
+        newPurchase,
+        this.createLocalPurchaseLines(ws.id, newPurchase.id, normalizedLines.data),
+      );
       const persistenceError = this.mockStore.savePurchaseWithLines(newPurchase, lines);
       if (persistenceError) {
         return {
@@ -607,6 +611,7 @@ export class PurchaseService {
           ordered_quantity: line.orderedQuantity,
           unit_purchase_price: line.unitPurchasePrice,
           line_total: line.lineTotal,
+          allocated_additional_cost: line.allocatedAdditionalCost ?? 0,
         })),
       });
       if (error || !data || typeof data !== 'object') {
@@ -703,8 +708,6 @@ export class PurchaseService {
     }
 
     const rows = normalized.data.map((line) => ({
-      workspace_id: workspaceId,
-      purchase_id: purchaseId,
       catalog_product_id: line.catalogProductId,
       title_snapshot: line.titleSnapshot,
       line_kind: line.lineKind,
@@ -712,42 +715,72 @@ export class PurchaseService {
       received_quantity: 0,
       unit_purchase_price: line.unitPurchasePrice,
       line_total: line.lineTotal,
+      allocated_additional_cost: line.allocatedAdditionalCost ?? 0,
     }));
 
     if (this.mockStore.isDemoMode()) {
-      const lines = this.createLocalPurchaseLines(workspaceId, purchaseId, normalized.data);
-      lines.forEach((line) => this.mockStore.savePurchaseLine(line));
-      if (this.selectedPurchase()?.id === purchaseId) {
-        this.purchaseLinesRaw.update((current) => [...current, ...lines]);
-      }
       const purchase = this.purchases().find((entry) => entry.id === purchaseId);
       if (purchase) {
-        const allLines = this.mockStore
+        const existingLines = this.mockStore
           .getPurchaseLines(workspaceId)
           .filter((line) => line.purchase_id === purchaseId);
+        if (existingLines.some((line) => line.received_quantity > 0)) {
+          return {
+            data: null,
+            error: new Error(
+              'Nach dem ersten Wareneingang können keine Positionen ergänzt werden.',
+            ),
+            reportedBySyncStatus: false,
+          };
+        }
+        const insertedLines = this.createLocalPurchaseLines(
+          workspaceId,
+          purchaseId,
+          normalized.data,
+        );
+        const allLines = this.allocateLocalPurchaseCosts(purchase, [
+          ...existingLines,
+          ...insertedLines,
+        ]);
+        allLines.forEach((line) => this.mockStore.savePurchaseLine(line));
+        if (this.selectedPurchase()?.id === purchaseId) this.purchaseLinesRaw.set(allLines);
         const hasOpen = allLines.some((line) => line.received_quantity < line.ordered_quantity);
         const hasReceived = allLines.some((line) => line.received_quantity > 0);
         this.uebernehmeEinkaufLokal({
           ...purchase,
           receiving_status: hasOpen ? (hasReceived ? 'partially_received' : 'ordered') : 'received',
         });
+        const insertedIds = new Set(insertedLines.map((line) => line.id));
+        return {
+          data: allLines.filter((line) => insertedIds.has(line.id)),
+          error: null,
+          reportedBySyncStatus: false,
+        };
       }
-      return { data: lines, error: null, reportedBySyncStatus: false };
+      return {
+        data: null,
+        error: new Error('Der Einkauf wurde nicht gefunden.'),
+        reportedBySyncStatus: false,
+      };
     }
 
     try {
-      const { data, error } = await this.supabase.client
-        .from('purchase_lines')
-        .insert(rows)
-        .select();
-      if (error || !data) {
+      const { data, error } = await this.supabase.client.rpc('add_purchase_lines', {
+        p_workspace_id: workspaceId,
+        p_purchase_id: purchaseId,
+        p_lines: rows,
+      });
+      if (error || !data || typeof data !== 'object') {
         const reported = this.syncStatus.melde(
           'Speichern der Einkaufspositionen',
           error ?? new Error('Die Einkaufspositionen wurden nicht zurückgegeben.'),
         );
         return { data: null, error: reported, reportedBySyncStatus: true };
       }
-      const lines = data as PurchaseLine[];
+      const response = data as unknown as Record<string, unknown>;
+      const lines = Array.isArray(response['purchase_lines'])
+        ? (response['purchase_lines'] as PurchaseLine[])
+        : [];
       if (this.selectedPurchase()?.id === purchaseId) {
         this.purchaseLinesRaw.update((current) => [...current, ...lines]);
       }
@@ -774,6 +807,41 @@ export class PurchaseService {
       received_quantity: 0,
       unit_purchase_price: line.unitPurchasePrice,
       line_total: line.lineTotal,
+      allocated_additional_cost: line.allocatedAdditionalCost ?? 0,
+    }));
+  }
+
+  private allocateLocalPurchaseCosts(
+    purchase: Purchase,
+    lines: readonly PurchaseLine[],
+  ): PurchaseLine[] {
+    if (lines.length === 0) return [];
+    if (purchase.cost_allocation_mode === 'manual') return lines.map((line) => ({ ...line }));
+    const totalCents = Math.round(
+      (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0) * 100,
+    );
+    const valueTotal = lines.reduce((sum, line) => sum + line.line_total, 0);
+    const weights = lines.map((line) =>
+      purchase.cost_allocation_mode === 'value_weighted' && valueTotal > 0
+        ? line.line_total
+        : line.ordered_quantity,
+    );
+    const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
+    const shares = weights.map((weight, index) => {
+      const exact = weightTotal > 0 ? (totalCents * weight) / weightTotal : 0;
+      return { index, cents: Math.floor(exact), fraction: exact - Math.floor(exact) };
+    });
+    let remainder = totalCents - shares.reduce((sum, share) => sum + share.cents, 0);
+    for (const share of [...shares].sort(
+      (left, right) => right.fraction - left.fraction || left.index - right.index,
+    )) {
+      if (remainder <= 0) break;
+      share.cents += 1;
+      remainder -= 1;
+    }
+    return lines.map((line, index) => ({
+      ...line,
+      allocated_additional_cost: shares[index].cents / 100,
     }));
   }
 

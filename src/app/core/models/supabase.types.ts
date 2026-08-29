@@ -1332,6 +1332,7 @@ export type Database = {
       }
       sale_line_lot_allocations: {
         Row: {
+          allocated_cost: number
           created_at: string
           id: string
           quantity: number
@@ -1341,6 +1342,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          allocated_cost?: number
           created_at?: string
           id?: string
           quantity: number
@@ -1350,6 +1352,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          allocated_cost?: number
           created_at?: string
           id?: string
           quantity?: number
@@ -2255,6 +2258,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      add_purchase_lines: {
+        Args: { p_lines: Json; p_purchase_id: string; p_workspace_id: string }
+        Returns: Json
+      }
       book_bank_transaction: {
         Args: {
           p_booked_at: string

@@ -312,6 +312,7 @@ create table public.sale_line_lot_allocations (
     stock_lot_id uuid not null references public.stock_lots(id) on delete restrict,
     quantity integer not null check (quantity > 0),
     unit_cost numeric(18,6) not null check (unit_cost >= 0),
+    allocated_cost numeric(12,2) not null default 0 check (allocated_cost >= 0),
     created_at timestamptz not null default now(),
     unique (sale_line_id, stock_lot_id)
 );
@@ -2062,6 +2063,145 @@ $$;
 revoke all on function public.create_purchase(uuid, jsonb, jsonb, jsonb) from public;
 grant execute on function public.create_purchase(uuid, jsonb, jsonb, jsonb) to authenticated;
 
+create or replace function public.add_purchase_lines(
+  p_workspace_id uuid,
+  p_purchase_id uuid,
+  p_lines jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_purchase public.purchases;
+  v_line jsonb;
+  v_line_id uuid;
+  v_inserted_ids uuid[] := array[]::uuid[];
+  v_all_line_ids uuid[];
+  v_total_expense_cents bigint;
+  v_manual_cents bigint;
+begin
+  if (select auth.uid()) is null
+    or not (select public.is_workspace_member(p_workspace_id)) then
+    raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+  if p_purchase_id is null
+    or jsonb_typeof(p_lines) <> 'array'
+    or jsonb_array_length(p_lines) = 0 then
+    raise exception using errcode = '22023', message = 'Die Einkaufspositionen sind ungültig.';
+  end if;
+
+  select * into v_purchase
+  from public.purchases
+  where id = p_purchase_id and workspace_id = p_workspace_id
+  for update;
+  if not found then
+    raise exception using errcode = 'P0002', message = 'Der Einkauf wurde nicht gefunden.';
+  end if;
+  if exists (
+    select 1 from public.purchase_lines
+    where purchase_id = p_purchase_id and workspace_id = p_workspace_id
+      and received_quantity > 0
+  ) then
+    raise exception using errcode = '22023', message = 'Nach dem ersten Wareneingang können keine Positionen ergänzt werden.';
+  end if;
+
+  for v_line in select value from jsonb_array_elements(p_lines) loop
+    insert into public.purchase_lines (
+      workspace_id, purchase_id, catalog_product_id, title_snapshot,
+      line_kind, ordered_quantity, received_quantity, unit_purchase_price,
+      line_total, allocated_additional_cost
+    ) values (
+      p_workspace_id,
+      p_purchase_id,
+      nullif(v_line ->> 'catalog_product_id', '')::uuid,
+      btrim(v_line ->> 'title_snapshot'),
+      v_line ->> 'line_kind',
+      (v_line ->> 'ordered_quantity')::integer,
+      0,
+      (v_line ->> 'unit_purchase_price')::numeric,
+      (v_line ->> 'line_total')::numeric,
+      case when v_purchase.cost_allocation_mode = 'manual'
+        then coalesce((v_line ->> 'allocated_additional_cost')::numeric, 0)
+        else 0
+      end
+    ) returning id into v_line_id;
+    v_inserted_ids := array_append(v_inserted_ids, v_line_id);
+  end loop;
+
+  select array_agg(line.id order by line.created_at, line.id)
+  into v_all_line_ids
+  from public.purchase_lines as line
+  where line.purchase_id = p_purchase_id and line.workspace_id = p_workspace_id;
+  select coalesce(round(sum(cost.amount) * 100), 0)::bigint
+  into v_total_expense_cents
+  from public.purchase_costs as cost
+  where cost.purchase_id = p_purchase_id;
+
+  if v_purchase.cost_allocation_mode = 'manual' then
+    select coalesce(round(sum(line.allocated_additional_cost) * 100), 0)::bigint
+    into v_manual_cents
+    from public.purchase_lines as line
+    where line.id = any(v_all_line_ids);
+    if v_manual_cents <> v_total_expense_cents then
+      raise exception using errcode = '22023', message = 'Die manuelle Kostenverteilung stimmt nicht mit den Zusatzkosten überein.';
+    end if;
+  else
+    update public.purchase_lines
+    set allocated_additional_cost = 0
+    where id = any(v_all_line_ids);
+
+    if v_total_expense_cents > 0 then
+      with weights as (
+        select
+          line.id,
+          ids.ordinality,
+          case
+            when v_purchase.cost_allocation_mode = 'value_weighted'
+              and totals.value_total > 0 then line.line_total
+            else line.ordered_quantity::numeric
+          end as weight
+        from unnest(v_all_line_ids) with ordinality as ids(id, ordinality)
+        join public.purchase_lines as line on line.id = ids.id
+        cross join (
+          select sum(candidate.line_total) as value_total
+          from public.purchase_lines as candidate
+          where candidate.id = any(v_all_line_ids)
+        ) as totals
+      ), shares as (
+        select weights.*,
+          v_total_expense_cents::numeric * weight / nullif(sum(weight) over (), 0) as exact_cents
+        from weights
+      ), ranked as (
+        select shares.*,
+          floor(exact_cents)::bigint as floor_cents,
+          row_number() over (order by exact_cents - floor(exact_cents) desc, ordinality) as remainder_rank,
+          v_total_expense_cents - sum(floor(exact_cents)::bigint) over () as remainder_cents
+        from shares
+      )
+      update public.purchase_lines as line
+      set allocated_additional_cost = (
+        ranked.floor_cents + case when ranked.remainder_rank <= ranked.remainder_cents then 1 else 0 end
+      )::numeric / 100
+      from ranked
+      where line.id = ranked.id;
+    end if;
+  end if;
+
+  return jsonb_build_object(
+    'purchase_lines', coalesce((
+      select jsonb_agg(to_jsonb(line) order by line.created_at, line.id)
+      from public.purchase_lines as line
+      where line.id = any(v_inserted_ids)
+    ), '[]'::jsonb)
+  );
+end;
+$$;
+
+revoke all on function public.add_purchase_lines(uuid, uuid, jsonb) from public;
+grant execute on function public.add_purchase_lines(uuid, uuid, jsonb) to authenticated;
+
 create or replace function public.receive_purchase_lines(
   p_workspace_id uuid,
   p_purchase_id uuid,
@@ -2313,6 +2453,8 @@ declare
   v_line_cogs numeric(12, 2);
   v_remaining_quantity integer;
   v_allocated_quantity integer;
+  v_allocation_cost numeric(12,2);
+  v_previously_allocated_cost numeric(12,2);
   v_sale_total numeric(12, 2) := 0;
   v_sale_line_ids uuid[] := array[]::uuid[];
   v_stock_lot_ids uuid[] := array[]::uuid[];
@@ -2445,6 +2587,18 @@ begin
 
         v_allocated_quantity := least(v_remaining_quantity, v_stock_lot.remaining_quantity);
 
+        select coalesce(sum(allocation.allocated_cost), 0)
+        into v_previously_allocated_cost
+        from public.sale_line_lot_allocations as allocation
+        where allocation.stock_lot_id = v_stock_lot.id;
+
+        v_allocation_cost := case
+          when v_allocated_quantity = v_stock_lot.remaining_quantity then
+            round(v_stock_lot.unit_cost * v_stock_lot.received_quantity, 2)
+              - v_previously_allocated_cost
+          else round(v_allocated_quantity * v_stock_lot.unit_cost, 2)
+        end;
+
         update public.stock_lots
         set remaining_quantity = remaining_quantity - v_allocated_quantity
         where id = v_stock_lot.id
@@ -2455,13 +2609,15 @@ begin
           sale_line_id,
           stock_lot_id,
           quantity,
-          unit_cost
+          unit_cost,
+          allocated_cost
         ) values (
           p_workspace_id,
           v_sale_line.id,
           v_stock_lot.id,
           v_allocated_quantity,
-          v_stock_lot.unit_cost
+          v_stock_lot.unit_cost,
+          v_allocation_cost
         );
 
         insert into public.stock_movements (
@@ -2480,7 +2636,7 @@ begin
           'sale'
         );
 
-        v_line_cogs := v_line_cogs + v_allocated_quantity * v_stock_lot.unit_cost;
+        v_line_cogs := v_line_cogs + v_allocation_cost;
         v_remaining_quantity := v_remaining_quantity - v_allocated_quantity;
         v_stock_lot_ids := array_append(v_stock_lot_ids, v_stock_lot.id);
       end loop;

@@ -48,6 +48,7 @@ declare
   v_first_line_id uuid;
   v_first_sale jsonb;
   v_first_sale_id uuid;
+  v_sale_index integer;
   v_first_lot_id uuid;
   v_individual_item_id uuid := '81000000-0000-4000-8000-000000000005';
   v_individual_sale jsonb;
@@ -58,6 +59,9 @@ declare
   v_cogs numeric;
   v_returned_at timestamptz;
   v_item_status text;
+  v_late_purchase jsonb;
+  v_late_purchase_id uuid;
+  v_late_line_id uuid;
 begin
   v_purchase_result := public.create_purchase(
     v_workspace_id,
@@ -136,21 +140,52 @@ begin
     raise exception 'stock-lot unit cost excludes allocated expenses: %', v_unit_cost;
   end if;
 
-  v_first_sale := public.record_sale(
-    v_workspace_id,
-    jsonb_build_object('platform', 'direct', 'sale_date', '2026-08-29'),
-    jsonb_build_array(jsonb_build_object(
-      'catalog_product_id', '81000000-0000-4000-8000-000000000003',
-      'quantity', 3,
-      'unit_sale_price', 20
-    ))
-  );
-  v_first_sale_id := (v_first_sale -> 'sale' ->> 'id')::uuid;
+  for v_sale_index in 1..3 loop
+    v_first_sale := public.record_sale(
+      v_workspace_id,
+      jsonb_build_object('platform', 'direct', 'sale_date', '2026-08-29'),
+      jsonb_build_array(jsonb_build_object(
+        'catalog_product_id', '81000000-0000-4000-8000-000000000003',
+        'quantity', 1,
+        'unit_sale_price', 20
+      ))
+    );
+    v_first_sale_id := (v_first_sale -> 'sale' ->> 'id')::uuid;
+  end loop;
 
-  select cost_of_goods_sold into v_cogs
-  from public.sale_lines where sale_id = v_first_sale_id;
+  select sum(cost_of_goods_sold) into v_cogs
+  from public.sale_lines
+  where catalog_product_id = '81000000-0000-4000-8000-000000000003';
   if v_cogs <> 30.04 then
-    raise exception 'FIFO COGS excludes allocated expenses: %', v_cogs;
+    raise exception 'split FIFO COGS loses allocated expense cents: %', v_cogs;
+  end if;
+
+  v_late_purchase := public.create_purchase(
+    v_workspace_id,
+    jsonb_build_object(
+      'type', 'lot', 'title', 'Position später ergänzt',
+      'purchase_date', '2026-08-29', 'purchase_price', 10,
+      'total_purchase_cost', 11, 'cost_allocation_mode', 'even'
+    ),
+    jsonb_build_array(jsonb_build_object('type', 'shipping', 'amount', 1)),
+    '[]'::jsonb
+  );
+  v_late_purchase_id := (v_late_purchase -> 'purchase' ->> 'id')::uuid;
+  v_late_line_id := (
+    public.add_purchase_lines(
+      v_workspace_id,
+      v_late_purchase_id,
+      jsonb_build_array(jsonb_build_object(
+        'catalog_product_id', '81000000-0000-4000-8000-000000000004',
+        'title_snapshot', 'Einzelpack', 'line_kind', 'quantity',
+        'ordered_quantity', 1, 'unit_purchase_price', 10, 'line_total', 10
+      ))
+    ) -> 'purchase_lines' -> 0 ->> 'id'
+  )::uuid;
+  if (
+    select allocated_additional_cost from public.purchase_lines where id = v_late_line_id
+  ) <> 1 then
+    raise exception 'late purchase line did not inherit existing expenses';
   end if;
 
   insert into public.inventory_items (

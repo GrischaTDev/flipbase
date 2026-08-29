@@ -437,6 +437,7 @@ export interface SaleLineLotAllocation {
   stock_lot_id: string;
   quantity: number;
   unit_cost: number;
+  allocated_cost?: number;
   created_at?: string;
 }
 

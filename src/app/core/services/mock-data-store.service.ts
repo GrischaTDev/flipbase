@@ -581,7 +581,8 @@ export class MockDataStoreService {
         catalog_product_id: line.catalog_product_id,
         received_quantity: input.receivedQuantity,
         remaining_quantity: input.receivedQuantity,
-        unit_cost: line.unit_purchase_price,
+        unit_cost:
+          (line.line_total + Number(line.allocated_additional_cost ?? 0)) / line.ordered_quantity,
         received_at: input.receivedAt ?? new Date().toISOString(),
       };
       const index = allLines.findIndex((entry) => entry.id === line.id);
@@ -727,9 +728,25 @@ export class MockDataStoreService {
       for (const lot of lotsForProduct) {
         if (remaining === 0) break;
         const quantity = Math.min(remaining, lot.remaining_quantity);
+        const previousAllocatedCost = [
+          ...this.getSales(workspaceId).flatMap((sale) => sale.lot_allocations ?? []),
+          ...allocations,
+        ]
+          .filter((allocation) => allocation.stock_lot_id === lot.id)
+          .reduce(
+            (sum, allocation) =>
+              sum + (allocation.allocated_cost ?? allocation.quantity * allocation.unit_cost),
+            0,
+          );
+        const allocatedCost = Number(
+          (quantity === lot.remaining_quantity
+            ? Number((lot.unit_cost * lot.received_quantity).toFixed(2)) - previousAllocatedCost
+            : quantity * lot.unit_cost
+          ).toFixed(2),
+        );
         lot.remaining_quantity -= quantity;
         remaining -= quantity;
-        costOfGoodsSold += quantity * lot.unit_cost;
+        costOfGoodsSold += allocatedCost;
         allocations.push({
           id: this.newId('allocation'),
           workspace_id: workspaceId,
@@ -737,6 +754,7 @@ export class MockDataStoreService {
           stock_lot_id: lot.id,
           quantity,
           unit_cost: lot.unit_cost,
+          allocated_cost: allocatedCost,
         });
         movements.push({
           id: this.newId('movement'),
@@ -757,7 +775,7 @@ export class MockDataStoreService {
           error: new Error('Nicht genügend verfügbarer Bestand'),
         };
       }
-      updatedLines.push({ ...line, cost_of_goods_sold: costOfGoodsSold });
+      updatedLines.push({ ...line, cost_of_goods_sold: Number(costOfGoodsSold.toFixed(2)) });
     }
 
     this.saveWorkspaceRecords(STORAGE_KEY_STOCK_LOTS, updatedLots);
