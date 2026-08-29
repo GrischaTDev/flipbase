@@ -1382,7 +1382,7 @@ export class MockDataStoreService {
   }
 
   // Helper with 800ms timeout
-  async withTimeout<T>(promiseLike: any, fallback: T, ms = 800): Promise<T> {
+  async withTimeout<T>(promiseLike: T | PromiseLike<T>, fallback: T, ms = 800): Promise<T> {
     const timeout = new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms));
     try {
       return await Promise.race([Promise.resolve(promiseLike), timeout]);

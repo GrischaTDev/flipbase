@@ -7,7 +7,7 @@ import { WorkspaceService } from './workspace.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { LoggerService } from './logger.service';
 import { SyncFehlerAktion, SyncStatusService } from './sync-status.service';
-import { Json } from '../models/supabase.types';
+import { Json, Tables } from '../models/supabase.types';
 import { createSecureClientUuid } from '../utils/client-identity';
 import {
   BankFormatType,
@@ -17,6 +17,7 @@ import {
   BankReconciliationSummary,
   BankStatementImportResult,
   BankTransaction,
+  BankTransactionStatus,
 } from '../models/bank-reconciliation.models';
 
 /**
@@ -75,7 +76,7 @@ export class BankReconciliationService {
         .order('booking_date', { ascending: false });
 
       if (!error && data && data.length > 0) {
-        const mapped: BankTransaction[] = (data as unknown[]).map((t: any) => ({
+        const mapped: BankTransaction[] = (data as Tables<'bank_transactions'>[]).map((t) => ({
           id: t.id,
           bookingDate: t.booking_date,
           valueDate: t.value_date || undefined,
@@ -86,8 +87,8 @@ export class BankReconciliationService {
           amount: Number(t.amount),
           currency: t.currency,
           sourceFormat: t.source_format as BankFormatType,
-          status: t.status,
-          match: (t.match_json as BankReconciliationMatch) || undefined,
+          status: t.status as BankTransactionStatus,
+          match: (t.match_json as unknown as BankReconciliationMatch) || undefined,
           bookedAt: t.booked_at || undefined,
         }));
         this.transactions.set(mapped);

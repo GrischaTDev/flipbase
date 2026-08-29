@@ -5,7 +5,7 @@ import { WebPushService } from './web-push.service';
 import { SupabaseService } from './supabase.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { InventoryItem } from '../models/flipbase.models';
-import { Json } from '../models/supabase.types';
+import { Json, Tables } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
 import {
@@ -25,6 +25,8 @@ import { SalesService } from './sales.service';
 const STORAGE_KEY_SETTINGS = 'flipbase_store_settings';
 const STORAGE_KEY_CART = 'flipbase_store_cart';
 const STORAGE_KEY_ORDERS = 'flipbase_store_orders';
+
+type StoreOrderQueryRow = Tables<'store_orders'> & { items: Tables<'store_order_items'>[] };
 
 function createDefaultStoreSettings(): StoreSettings {
   return {
@@ -250,7 +252,7 @@ export class StoreService {
           freeShippingThreshold: Number(d.free_shipping_threshold || 50.0),
           currency: d.currency || 'EUR',
           payments: (d.payments as unknown as PaymentGatewayConfig) || defaults.payments,
-          imprint: (d.imprint as any) || defaults.imprint,
+          imprint: (d.imprint as unknown as StoreSettings['imprint']) || defaults.imprint,
           noticeText: d.notice_text || defaults.noticeText,
         };
         this.storeSettings.set(loadedSettings);
@@ -261,29 +263,31 @@ export class StoreService {
         } catch {}
       }
 
-      const mappedOrders: StoreOrder[] = ((ordersRes.data ?? []) as unknown[]).map((o: any) => ({
-        id: o.id,
-        orderNumber: o.order_number,
-        createdAt: o.created_at,
-        customer: o.customer as CheckoutCustomerInfo,
-        items: ((o.items || []) as unknown[]).map((it: any) => ({
-          item: {
-            kind: it.catalog_product_id ? 'catalog_product' : 'inventory_item',
-            id: it.catalog_product_id ?? it.inventory_item_id ?? '',
-            title: it.item_title,
-            availableQuantity: Number(it.quantity ?? 1),
-          },
-          quantity: Number(it.quantity ?? 1),
-          unitPrice: Number(it.price ?? 0),
-        })),
-        subtotal: Number(o.subtotal || 0),
-        shippingCost: Number(o.shipping_cost || 0),
-        total: Number(o.total || 0),
-        paymentMethod: o.payment_method,
-        paymentStatus: o.payment_status,
-        paymentId: o.payment_id || undefined,
-        status: o.status,
-      }));
+      const mappedOrders: StoreOrder[] = ((ordersRes.data ?? []) as StoreOrderQueryRow[]).map(
+        (o) => ({
+          id: o.id,
+          orderNumber: o.order_number,
+          createdAt: o.created_at,
+          customer: o.customer as unknown as CheckoutCustomerInfo,
+          items: (o.items || []).map((it) => ({
+            item: {
+              kind: it.catalog_product_id ? 'catalog_product' : 'inventory_item',
+              id: it.catalog_product_id ?? it.inventory_item_id ?? '',
+              title: it.item_title,
+              availableQuantity: Number(it.quantity ?? 1),
+            },
+            quantity: Number(it.quantity ?? 1),
+            unitPrice: Number(it.price ?? 0),
+          })),
+          subtotal: Number(o.subtotal || 0),
+          shippingCost: Number(o.shipping_cost || 0),
+          total: Number(o.total || 0),
+          paymentMethod: o.payment_method as StoreOrder['paymentMethod'],
+          paymentStatus: o.payment_status as StoreOrder['paymentStatus'],
+          paymentId: o.payment_id || undefined,
+          status: o.status as StoreOrder['status'],
+        }),
+      );
       this.orders.set(mappedOrders);
       this.persistOrders();
       this.loadedWorkspaceId.set(requestedWorkspaceId);

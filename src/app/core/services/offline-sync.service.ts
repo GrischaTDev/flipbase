@@ -10,6 +10,7 @@ import { MockDataStoreService } from './mock-data-store.service';
 import { LoggerService } from './logger.service';
 import { schreibeImHintergrund } from './supabase-schreiben';
 import { SyncStatusService } from './sync-status.service';
+import { Tables } from '../models/supabase.types';
 
 const STORAGE_KEY_OFFLINE_ENTRIES = 'flipbase_offline_purchase_entries';
 const STORAGE_KEY_CASH_WALLET = 'flipbase_flea_market_cash_wallet';
@@ -116,7 +117,9 @@ export class OfflineSyncService {
       ]);
 
       if (entriesRes.data && entriesRes.data.length > 0) {
-        const mapped: OfflinePurchaseEntry[] = (entriesRes.data as unknown[]).map((e: any) => ({
+        const mapped: OfflinePurchaseEntry[] = (
+          entriesRes.data as Tables<'offline_purchase_entries'>[]
+        ).map((e) => ({
           id: e.id,
           workspace_id: e.workspace_id,
           title: e.title,

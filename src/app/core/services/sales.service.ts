@@ -8,7 +8,6 @@ import { WebhookService } from './webhook.service';
 import { SyncStatusService } from './sync-status.service';
 import {
   Sale,
-  InventoryItem,
   ItemStatus,
   SaleLine,
   SaleLineLotAllocation,
@@ -200,8 +199,8 @@ export class SalesService {
     }
   }
 
-  public enrichSaleMetrics(raw: any): Sale {
-    const item = raw.inventory_item as InventoryItem | undefined;
+  public enrichSaleMetrics(raw: Sale): Sale {
+    const item = raw.inventory_item;
     const persistedLines = raw.has_persisted_lines === false ? [] : (raw.lines ?? []);
     const persistedLineTotal = persistedLines.reduce(
       (sum: number, line: SaleLine) => sum + Number(line.line_total || 0),
@@ -218,7 +217,7 @@ export class SalesService {
             0,
           )
         : Number(item?.allocated_purchase_cost || 0) +
-          (item?.costs || []).reduce((sum: number, c: any) => sum + Number(c.amount || 0), 0);
+          (item?.costs || []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0);
 
     const fee = Number(raw.platform_fee || 0);
     const shipping = Number(raw.shipping_cost || 0);

@@ -300,11 +300,8 @@ export class PurchaseService {
         this.syncStatus.melde('Laden der Einkäufe', error);
         this.purchasesRaw.set([]);
       } else if (data) {
-        const enriched = (data as unknown[]).map((p: any) => {
-          const costsSum = (p.costs || []).reduce(
-            (acc: number, c: any) => acc + Number(c.amount || 0),
-            0,
-          );
+        const enriched = (data as unknown as Purchase[]).map((p) => {
+          const costsSum = (p.costs || []).reduce((acc, cost) => acc + Number(cost.amount || 0), 0);
           const totalCost = Number(p.purchase_price || 0) + costsSum;
           return {
             ...p,
@@ -389,26 +386,26 @@ export class PurchaseService {
         return null;
       }
 
-      const costsSum = (data.costs || []).reduce(
-        (acc: number, c: any) => acc + Number(c.amount || 0),
+      const purchase = data as unknown as Purchase;
+      const costsSum = (purchase.costs || []).reduce(
+        (acc, cost) => acc + Number(cost.amount || 0),
         0,
       );
-      const totalCost = Number(data.purchase_price || 0) + costsSum;
+      const totalCost = Number(purchase.purchase_price || 0) + costsSum;
 
       const enriched: Purchase = {
-        ...(data as any),
-        type: data.type as PurchaseType,
+        ...purchase,
+        type: purchase.type as PurchaseType,
         items_count: this.zaehleArtikel(
-          data as unknown as Purchase,
-          (data.items || []) as InventoryItem[],
-          ((data as unknown as { purchase_lines?: PurchaseLine[] }).purchase_lines ||
-            []) as PurchaseLine[],
+          purchase,
+          purchase.items || [],
+          purchase.purchase_lines || [],
         ),
         total_purchase_cost: Number(totalCost.toFixed(2)),
       };
 
       this.selectedPurchaseRaw.set(enriched);
-      this.purchaseItemsFallback.set((data.items || []) as InventoryItem[]);
+      this.purchaseItemsFallback.set(purchase.items || []);
       await this.loadPurchaseLines(id, requestId);
       return enriched;
     } catch (err) {

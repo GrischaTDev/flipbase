@@ -1,5 +1,14 @@
 import { Injectable } from '@angular/core';
 
+interface MediaWikiImagePage {
+  imageinfo?: { thumburl?: string; url?: string }[];
+  thumbnail?: { source?: string };
+}
+
+interface MediaWikiSearchResponse {
+  query?: { pages?: Record<string, MediaWikiImagePage> };
+}
+
 @Injectable({
   providedIn: 'root',
 })
@@ -30,9 +39,9 @@ export class RealProductImageService {
             `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=${Math.min(limit + 10, 50)}&gsrnamespace=6&prop=imageinfo&iiprop=url|thumburl&iiurlwidth=600&format=json&origin=*`,
           );
           if (res.ok) {
-            const data = await res.json();
+            const data = (await res.json()) as MediaWikiSearchResponse;
             const pages = data?.query?.pages || {};
-            for (const p of Object.values<any>(pages)) {
+            for (const p of Object.values(pages)) {
               const u = p.imageinfo?.[0]?.thumburl || p.imageinfo?.[0]?.url;
               if (
                 u &&
@@ -62,9 +71,9 @@ export class RealProductImageService {
             `https://de.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=12&prop=pageimages&pithumbsize=600&format=json&origin=*`,
           );
           if (res.ok) {
-            const data = await res.json();
+            const data = (await res.json()) as MediaWikiSearchResponse;
             const pages = data?.query?.pages || {};
-            for (const p of Object.values<any>(pages)) {
+            for (const p of Object.values(pages)) {
               const src = p.thumbnail?.source;
               if (src && !src.endsWith('.svg') && !src.endsWith('.png.svg')) {
                 photos.push(src);
@@ -83,9 +92,9 @@ export class RealProductImageService {
             `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${cleanQ}&gsrlimit=12&prop=pageimages&pithumbsize=600&format=json&origin=*`,
           );
           if (res.ok) {
-            const data = await res.json();
+            const data = (await res.json()) as MediaWikiSearchResponse;
             const pages = data?.query?.pages || {};
-            for (const p of Object.values<any>(pages)) {
+            for (const p of Object.values(pages)) {
               const src = p.thumbnail?.source;
               if (src && !src.endsWith('.svg') && !src.endsWith('.png.svg')) {
                 photos.push(src);

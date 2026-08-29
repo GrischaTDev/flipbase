@@ -5,12 +5,14 @@ import { MockDataStoreService } from './mock-data-store.service';
 import { InventoryItem, Sale, SaleLine, TaxMode } from '../models/flipbase.models';
 import { StoreOrder } from '../models/store.models';
 import { EmailConfirmation, Invoice, InvoiceItem, InvoiceParty } from '../models/invoice.models';
-import { Json } from '../models/supabase.types';
+import { Json, Tables } from '../models/supabase.types';
 import { LoggerService } from './logger.service';
 import { SyncStatusService } from './sync-status.service';
 
 const STORAGE_KEY_INVOICES = 'flipbase_generated_invoices';
 const STORAGE_KEY_EMAILS = 'flipbase_sent_emails';
+
+type InvoiceQueryRow = Tables<'invoices'> & { items: Tables<'invoice_items'>[] };
 
 export interface EmailConfirmationResult {
   readonly success: boolean;
@@ -134,21 +136,21 @@ export class InvoiceService {
 
       if (!this.isCurrentRequest(requestedWorkspaceId, loadVersion)) return;
 
-      const mapped: Invoice[] = ((invRes.data ?? []) as unknown[]).map((inv: any) => ({
+      const mapped: Invoice[] = ((invRes.data ?? []) as InvoiceQueryRow[]).map((inv) => ({
         id: inv.id,
         invoiceNumber: inv.invoice_number,
         orderNumber: inv.order_number,
         invoiceDate: inv.invoice_date,
         deliveryDate: inv.delivery_date,
-        seller: (inv.seller as InvoiceParty) || this.getSellerParty(),
-        buyer: (inv.buyer as InvoiceParty) || {
+        seller: (inv.seller as unknown as InvoiceParty) || this.getSellerParty(),
+        buyer: (inv.buyer as unknown as InvoiceParty) || {
           name: 'Kunde',
           street: '',
           postalCode: '',
           city: '',
           country: 'Deutschland',
         },
-        items: ((inv.items || []) as unknown[]).map((it: any) => ({
+        items: (inv.items || []).map((it) => ({
           sku: it.sku || undefined,
           title: it.title,
           condition: it.condition || undefined,
@@ -171,18 +173,18 @@ export class InvoiceService {
       this.invoices.set(mapped);
       this.persistInvoices();
 
-      const mappedEmails: EmailConfirmation[] = ((emailRes.data ?? []) as unknown[]).map(
-        (e: any) => ({
-          id: e.id,
-          to: e.recipient_email,
-          recipientName: e.recipient_name,
-          subject: e.subject,
-          sentAt: e.sent_at,
-          status: e.status as 'sent' | 'draft',
-          invoiceNumber: e.invoice_number || '',
-          orderNumber: e.order_number || '',
-        }),
-      );
+      const mappedEmails: EmailConfirmation[] = (
+        (emailRes.data ?? []) as Tables<'email_confirmations'>[]
+      ).map((e) => ({
+        id: e.id,
+        to: e.recipient_email,
+        recipientName: e.recipient_name,
+        subject: e.subject,
+        sentAt: e.sent_at,
+        status: e.status as 'sent' | 'draft',
+        invoiceNumber: e.invoice_number || '',
+        orderNumber: e.order_number || '',
+      }));
       this.sentEmails.set(mappedEmails);
       this.persistEmails();
     } catch (err) {

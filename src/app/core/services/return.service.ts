@@ -10,6 +10,7 @@ import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SalesService } from './sales.service';
+import { Tables } from '../models/supabase.types';
 
 const STORAGE_KEY_RETURNS = 'flipbase_saved_returns';
 
@@ -111,11 +112,13 @@ export class ReturnService {
       if (error) {
         this.syncStatus.melde('Laden der Retouren', error);
       } else if (data && data.length > 0) {
-        const mapped: ReturnRecord[] = (data as unknown[]).map((r: any) => ({
+        const mapped: ReturnRecord[] = (data as Tables<'returns'>[]).map((r) => ({
           ...r,
           reason: r.reason as ReturnReason,
           restock_action: r.restock_action as RestockAction,
           refund_amount: Number(r.refund_amount || 0),
+          buyer_name: r.buyer_name || undefined,
+          notes: r.notes || undefined,
         }));
         this.returns.set(mapped);
         this.persistReturns();

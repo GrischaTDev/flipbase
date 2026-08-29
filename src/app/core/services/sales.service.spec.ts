@@ -225,7 +225,15 @@ describe('SalesService', () => {
     const enriched = service.enrichSaleMetrics({
       ...sale,
       sale_price: 40,
-      inventory_item: { allocated_purchase_cost: 999, costs: [] },
+      inventory_item: {
+        id: 'item-1',
+        workspace_id: sale.workspace_id,
+        title: 'LED-Lampe',
+        condition: 'new',
+        status: 'sold',
+        allocated_purchase_cost: 999,
+        costs: [],
+      },
       lines: [
         {
           id: 'line-1',
