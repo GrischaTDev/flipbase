@@ -7,6 +7,7 @@ import {
 } from '../models/image-metadata';
 import { hasJpegContentCredential, hasPngContentCredential } from './c2pa-detection';
 import { detectFormat, ImageFormat } from './image-format';
+import { toFields } from './metadata-fields';
 import { readDigitalSourceType, readWebpChunks } from './webp-metadata';
 
 /**
@@ -20,16 +21,22 @@ import { readDigitalSourceType, readWebpChunks } from './webp-metadata';
  * das wurde gemessen und bringt GPS und XMP zum Verschwinden.
  * (`ifd0` fehlt bewusst: laut den exifr-Typen kann dieses Segment nicht
  * abgeschaltet werden, es wird also immer mitgelesen.)
+ *
+ * **Alle** Segmente sind eingeschaltet, auch IPTC, ICC und JFIF. Vorher waren
+ * sie aus, und damit blieben Titel, Urheber, Copyright und Bildunterschrift
+ * unsichtbar - genau die Angaben, die ein Nutzer vor dem Hochladen sehen will.
+ * An einer nachgebauten Kameradatei gemessen: 32 Schluessel statt der zuvor
+ * angezeigten fuenf.
  */
 const PARSE_OPTIONS = {
   tiff: true,
   exif: true,
   gps: true,
   xmp: true,
-  iptc: false,
-  icc: false,
-  jfif: false,
-  ihdr: false,
+  iptc: true,
+  icc: true,
+  jfif: true,
+  ihdr: true,
 };
 
 /** Reicht fuer jede Formatsignatur - die laengste braucht 20 Byte. */
@@ -82,13 +89,18 @@ export class MetadataReaderService {
         const raw = chunks.exif
           ? ((await exifr.parse(chunks.exif, PARSE_OPTIONS)) ?? {})
           : ({} as Record<string, unknown>);
+        const declaredSource = chunks.xmp ? readDigitalSourceType(chunks.xmp) : null;
 
         return {
-          ...fieldsFrom(raw),
           status: 'read',
+          gps: readGps(raw),
+          // Die erklaerte Herkunft kommt bei WebP aus dem XMP-Chunk und nicht
+          // von exifr - sie muss deshalb von Hand in die Liste, sonst fehlte
+          // sie dort als einziges Feld.
+          fields: toFields(declaredSource ? { ...raw, DigitalSourceType: declaredSource } : raw),
           ai: {
             contentCredential: chunks.hasContentCredential ? 'present' : 'absent',
-            declaredSource: chunks.xmp ? readDigitalSourceType(chunks.xmp) : null,
+            declaredSource,
           },
         };
       }
@@ -101,8 +113,9 @@ export class MetadataReaderService {
       const header = new Uint8Array(await file.slice(0, HEADER_BYTES).arrayBuffer());
 
       return {
-        ...fieldsFrom(raw),
         status: 'read',
+        gps: readGps(raw),
+        fields: toFields(raw),
         ai: {
           contentCredential: credentialState(format, header),
           declaredSource: declaredSourceFrom(raw),
@@ -125,17 +138,6 @@ function credentialState(format: ImageFormat, header: Uint8Array): ContentCreden
   return 'unchecked';
 }
 
-/** Die Felder, die aus jedem Format gleich gelesen werden. */
-function fieldsFrom(raw: Record<string, unknown>): Omit<ImageMetadata, 'status' | 'ai'> {
-  return {
-    gps: readGps(raw),
-    cameraMake: text(raw['Make']),
-    cameraModel: text(raw['Model']),
-    capturedAt: readDate(raw),
-    software: text(raw['Software']),
-  };
-}
-
 function text(value: unknown): string | null {
   return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
 }
@@ -146,12 +148,6 @@ function readGps(raw: Record<string, unknown>): ImageMetadata['gps'] {
   const longitude = raw['longitude'];
   if (typeof latitude !== 'number' || typeof longitude !== 'number') return null;
   return { latitude, longitude };
-}
-
-function readDate(raw: Record<string, unknown>): string | null {
-  const value = raw['DateTimeOriginal'] ?? raw['CreateDate'];
-  if (!(value instanceof Date) || Number.isNaN(value.getTime())) return null;
-  return value.toISOString();
 }
 
 /**

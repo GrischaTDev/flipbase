@@ -1,7 +1,12 @@
 <section class="linear-surface rounded-2xl border border-fb-border p-4 shadow-xl">
-  <div class="mb-3">
-    <p class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">Herkunft</p>
-    <h2 class="text-sm font-bold text-fb-text-primary">Metadaten der Datei</h2>
+  <div class="mb-3 flex items-end justify-between gap-3">
+    <div>
+      <p class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">Herkunft</p>
+      <h2 class="text-sm font-bold text-fb-text-primary">Metadaten der Datei</h2>
+    </div>
+    @if (metadata().status === 'read' && fields().length > 0) {
+      <p class="text-[10px] tabular-nums text-fb-text-muted">{{ fieldCountLabel() }}</p>
+    }
   </div>
 
   @switch (metadata().status) {
@@ -24,62 +29,47 @@
       @if (isEmpty()) {
         @if (credentialChecked()) {
           <p class="text-[11px] text-fb-text-muted">
-            Keine der ausgewerteten Angaben gefunden – weder Standort, Kamera, Aufnahmedatum,
-            Software noch Herkunftsnachweis.
+            Keine Metadaten gefunden – weder Standort oder Kameraangaben noch Urheber, Software oder
+            Herkunftsnachweis.
           </p>
         } @else {
           <p class="text-[11px] text-fb-text-muted">
-            Keine der ausgewerteten Angaben gefunden – weder Standort, Kamera, Aufnahmedatum noch
-            Software. Ob ein KI-Herkunftsnachweis vorliegt, wird in diesem Dateiformat nicht
-            geprüft.
+            Keine Metadaten gefunden – weder Standort noch Kameraangaben, Urheber oder Software. Ob
+            ein KI-Herkunftsnachweis vorliegt, wird in diesem Dateiformat nicht geprüft.
           </p>
         }
       } @else {
-        <dl class="space-y-2 text-[11px]">
-          @if (coordinates(); as position) {
-            <div
-              class="flex flex-col gap-0.5 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2"
-            >
-              <dt class="font-bold text-amber-200">Standort der Aufnahme</dt>
-              <dd class="tabular-nums text-amber-100">{{ position }}</dd>
-            </div>
-          }
-          @if (metadata().cameraMake || metadata().cameraModel) {
-            <div class="flex justify-between gap-3">
-              <dt class="text-fb-text-muted">Kamera</dt>
-              <dd class="text-right text-fb-text-secondary">
-                {{ metadata().cameraMake }} {{ metadata().cameraModel }}
-              </dd>
-            </div>
-          }
-          @if (capturedLabel(); as captured) {
-            <div class="flex justify-between gap-3">
-              <dt class="text-fb-text-muted">Aufgenommen</dt>
-              <dd class="text-right text-fb-text-secondary">{{ captured }}</dd>
-            </div>
-          }
-          @if (metadata().software; as software) {
-            <div class="flex justify-between gap-3">
-              <dt class="text-fb-text-muted">Software</dt>
-              <dd class="text-right text-fb-text-secondary">{{ software }}</dd>
-            </div>
-          }
-          @if (metadata().ai.declaredSource; as source) {
-            <div class="flex justify-between gap-3">
-              <dt class="text-fb-text-muted">Angegebene Herkunft</dt>
-              <dd class="text-right text-fb-text-secondary">{{ source }}</dd>
-            </div>
-          }
-          @if (hasContentCredential()) {
-            <div class="rounded-lg border border-fb-border px-3 py-2">
-              <dt class="font-bold text-fb-text-primary">KI-Herkunftsnachweis</dt>
-              <dd class="mt-0.5 leading-relaxed text-fb-text-secondary">
-                Die Datei trägt einen Content-Credential-Eintrag. Ob er gültig ist, prüft Flipbase
-                nicht.
-              </dd>
-            </div>
-          }
-        </dl>
+        @if (coordinates(); as position) {
+          <div
+            class="mb-3 flex flex-col gap-0.5 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-[11px]"
+          >
+            <p class="font-bold text-amber-200">Standort der Aufnahme</p>
+            <p class="tabular-nums text-amber-100">{{ position }}</p>
+          </div>
+        }
+
+        @if (fields().length > 0) {
+          <dl class="divide-y divide-fb-border/60 text-[11px]">
+            @for (field of fields(); track field.key) {
+              <div class="flex justify-between gap-4 py-1.5">
+                <dt class="shrink-0 text-fb-text-muted">{{ field.label }}</dt>
+                <dd class="min-w-0 break-words text-right text-fb-text-secondary">
+                  {{ field.value }}
+                </dd>
+              </div>
+            }
+          </dl>
+        }
+
+        @if (hasContentCredential()) {
+          <div class="mt-3 rounded-lg border border-fb-border px-3 py-2 text-[11px]">
+            <p class="font-bold text-fb-text-primary">KI-Herkunftsnachweis</p>
+            <p class="mt-0.5 leading-relaxed text-fb-text-secondary">
+              Die Datei trägt einen Content-Credential-Eintrag. Ob er gültig ist, prüft Flipbase
+              nicht.
+            </p>
+          </div>
+        }
       }
 
       @if (!isEmpty()) {

@@ -13,10 +13,10 @@ function jpegFile(name: string): File {
 const withGps: ImageMetadata = {
   status: 'read',
   gps: { latitude: 52.5, longitude: 13.4 },
-  cameraMake: 'Apple',
-  cameraModel: 'iPhone 15',
-  capturedAt: null,
-  software: null,
+  fields: [
+    { key: 'Make', label: 'Kamerahersteller', value: 'Apple' },
+    { key: 'Model', label: 'Kameramodell', value: 'iPhone 15' },
+  ],
   ai: { contentCredential: 'absent', declaredSource: null },
 };
 
@@ -34,10 +34,7 @@ function pendingLikeRead(): ImageMetadata {
   return {
     status: 'read',
     gps: null,
-    cameraMake: null,
-    cameraModel: null,
-    capturedAt: null,
-    software: null,
+    fields: [],
     ai: { contentCredential: 'absent', declaredSource: null },
   };
 }

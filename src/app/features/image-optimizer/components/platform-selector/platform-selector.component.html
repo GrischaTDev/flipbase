@@ -24,7 +24,12 @@
           ></svg>
         }
         <span>{{ p.name }}</span>
-        <span class="text-[10px] font-normal text-fb-text-muted">{{ ratioLabel(p) }}</span>
+        <!--
+          Bewusst text-fb-text-secondary statt -muted: Auf dem bernsteinfarbenen
+          Grund des gewaehlten Chips kommt das gedaempfte Grau nur auf 4,04:1 und
+          reisst die geforderten 4,5:1. Gemessen; mit -secondary sind es 6,62:1.
+        -->
+        <span class="text-[10px] font-normal text-fb-text-secondary">{{ ratioLabel(p) }}</span>
       </button>
       <button
         type="button"

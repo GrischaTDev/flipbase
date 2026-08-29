@@ -30,15 +30,17 @@ export class MetadataPanelComponent {
    */
   readonly credentialChecked = computed(() => this.metadata().ai.contentCredential !== 'unchecked');
 
+  readonly fields = computed(() => this.metadata().fields);
+
+  /** "1 Eintrag" statt "1 Einträge" - der Zaehler steht sichtbar ueber der Liste. */
+  readonly fieldCountLabel = computed(() => {
+    const count = this.fields().length;
+    return count === 1 ? '1 Eintrag' : `${count} Einträge`;
+  });
+
   readonly coordinates = computed(() => {
     const gps = this.metadata().gps;
     if (!gps) return null;
     return `${gps.latitude.toFixed(5)}, ${gps.longitude.toFixed(5)}`;
-  });
-
-  readonly capturedLabel = computed(() => {
-    const value = this.metadata().capturedAt;
-    if (!value) return null;
-    return new Date(value).toLocaleString('de-DE');
   });
 }

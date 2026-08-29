@@ -4,6 +4,11 @@ const parseMock = vi.fn();
 vi.mock('exifr', () => ({ default: { parse: (...args: unknown[]) => parseMock(...args) } }));
 
 import { MetadataReaderService } from './metadata-reader.service';
+import { ImageMetadata } from '../models/image-metadata';
+
+/** Wert eines Eintrags aus der vollstaendigen Liste. */
+const feld = (result: ImageMetadata, key: string) =>
+  result.fields.find((entry) => entry.key === key)?.value ?? null;
 
 const ascii = (text: string) => [...text].map((c) => c.charCodeAt(0));
 
@@ -131,10 +136,34 @@ describe('Metadaten lesen', () => {
 
     expect(result.status).toBe('read');
     expect(result.gps).toEqual({ latitude: 52.5, longitude: 13.4 });
-    expect(result.cameraMake).toBe('Apple');
-    expect(result.cameraModel).toBe('iPhone 15');
-    expect(result.capturedAt).toBe('2026-05-01T10:00:00.000Z');
-    expect(result.software).toBe('iOS 19');
+    expect(feld(result, 'Make')).toBe('Apple');
+    expect(feld(result, 'Model')).toBe('iPhone 15');
+    expect(feld(result, 'DateTimeOriginal')).toMatch(/1\.5\.2026/);
+    expect(feld(result, 'Software')).toBe('iOS 19');
+  });
+
+  // Der eigentliche Punkt: Es wird nichts mehr weggeworfen. Frueher blieben
+  // von jeder Datei nur fuenf handverlesene Felder uebrig.
+  it('reicht jeden Eintrag durch, auch die frueher verworfenen', async () => {
+    parseMock.mockResolvedValue({
+      Make: 'Apple',
+      ISO: 400,
+      LensModel: 'Weitwinkel',
+      Byline: 'Grischa',
+      CopyrightNotice: '(c) 2026',
+      Keywords: 'sneaker',
+    });
+
+    const result = await reader.read(fileOf(JPEG, 'foto.jpg', 'image/jpeg'));
+
+    expect(result.fields.map((entry) => entry.key).sort()).toEqual([
+      'Byline',
+      'CopyrightNotice',
+      'ISO',
+      'Keywords',
+      'LensModel',
+      'Make',
+    ]);
   });
 
   it('meldet read mit leeren Feldern, wenn die Datei nichts enthaelt', async () => {
@@ -144,7 +173,7 @@ describe('Metadaten lesen', () => {
 
     expect(result.status).toBe('read');
     expect(result.gps).toBeNull();
-    expect(result.cameraMake).toBeNull();
+    expect(result.fields).toEqual([]);
   });
 
   it('verschluckt jeden Fehler und meldet failed', async () => {
@@ -175,7 +204,8 @@ describe('Metadaten lesen', () => {
 
     expect(result.status).toBe('read');
     expect(result.gps).toBeNull();
-    expect(result.software).toBeNull();
+    // `errors` ist exifrs Fehlerkanal und darf nicht als Eintrag auftauchen.
+    expect(result.fields).toEqual([]);
     expect(result.ai.declaredSource).toBeNull();
   });
 
@@ -264,7 +294,7 @@ describe('WebP eigenstaendig auswerten', () => {
 
     const result = await reader.read(file);
 
-    expect(result.cameraMake).toBe('WebPKamera');
+    expect(feld(result, 'Make')).toBe('WebPKamera');
     const uebergeben = parseMock.mock.calls[0][0] as Uint8Array;
     expect(uebergeben).toBeInstanceOf(Uint8Array);
     expect([...uebergeben]).toEqual(tiffBlock);
@@ -286,6 +316,9 @@ describe('WebP eigenstaendig auswerten', () => {
     const result = await reader.read(file);
 
     expect(result.ai.declaredSource).toBe('trainedAlgorithmicMedia');
+    // Sie kommt aus dem XMP-Chunk und nicht von exifr - sie muss trotzdem in
+    // der Liste stehen, sonst fehlte sie dort als einziges Feld.
+    expect(feld(result, 'DigitalSourceType')).toBe('trainedAlgorithmicMedia');
   });
 
   it('erkennt den C2PA-Chunk', async () => {
@@ -339,7 +372,7 @@ describe('Herkunftsnachweis: gefunden, nicht gefunden, nicht nachgesehen', () =>
     const result = await reader.read(fileOf(heicBytes(), 'foto.heic'));
 
     expect(result.status).toBe('read');
-    expect(result.cameraMake).toBeNull();
+    expect(result.fields).toEqual([]);
     expect(result.ai.contentCredential).toBe('unchecked');
   });
 });

@@ -1,3 +1,5 @@
+import { MetadataField } from '../services/metadata-fields';
+
 /**
  * `read` heisst: nachgesehen. Sind dann alle Felder leer, enthaelt die Datei
  * nachweislich nichts. `failed` heisst: konnte nicht nachsehen. Das sind fuer
@@ -27,12 +29,19 @@ export interface AiProvenance {
 
 export interface ImageMetadata {
   readonly status: MetadataStatus;
+  /**
+   * Bleibt neben `fields` ein eigenes Feld: Der Aufnahmeort ist der einzige
+   * Eintrag mit einer Folge fuer den Nutzer - er landet sonst mit der eigenen
+   * Adresse in einer oeffentlichen Anzeige. Deshalb wird er hervorgehoben und
+   * traegt den Hinweis in der Bilderliste.
+   */
   readonly gps: { readonly latitude: number; readonly longitude: number } | null;
-  readonly cameraMake: string | null;
-  readonly cameraModel: string | null;
-  /** ISO 8601, oder null. */
-  readonly capturedAt: string | null;
-  readonly software: string | null;
+  /**
+   * **Alles**, was in der Datei steht - nicht eine Auswahl davon. Wer wissen
+   * will, was er da hochlaedt, will die ganze Liste sehen und nicht das, was
+   * jemand anderes fuer wichtig hielt.
+   */
+  readonly fields: readonly MetadataField[];
   readonly ai: AiProvenance;
 }
 
@@ -40,10 +49,7 @@ export function pendingMetadata(): ImageMetadata {
   return {
     status: 'pending',
     gps: null,
-    cameraMake: null,
-    cameraModel: null,
-    capturedAt: null,
-    software: null,
+    fields: [],
     ai: { contentCredential: 'unchecked', declaredSource: null },
   };
 }
@@ -52,11 +58,7 @@ export function pendingMetadata(): ImageMetadata {
 export function hasAnyMetadata(metadata: ImageMetadata): boolean {
   return (
     metadata.gps !== null ||
-    metadata.cameraMake !== null ||
-    metadata.cameraModel !== null ||
-    metadata.capturedAt !== null ||
-    metadata.software !== null ||
-    metadata.ai.contentCredential === 'present' ||
-    metadata.ai.declaredSource !== null
+    metadata.fields.length > 0 ||
+    metadata.ai.contentCredential === 'present'
   );
 }
