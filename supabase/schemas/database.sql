@@ -210,6 +210,8 @@ CREATE TABLE IF NOT EXISTS public.sales (
     shipping_cost NUMERIC NOT NULL DEFAULT 0.00,
     packaging_cost NUMERIC NOT NULL DEFAULT 0.00,
     other_costs NUMERIC NOT NULL DEFAULT 0.00,
+    shipping_revenue numeric(12,2) not null default 0 check (shipping_revenue >= 0 and shipping_revenue <> 'NaN'::numeric),
+    shipping_mode text check (shipping_mode is null or shipping_mode in ('seller_arranged', 'platform_prepaid', 'pickup')),
     external_order_id TEXT,
     external_listing_id TEXT,
     buyer_notes TEXT,
@@ -232,6 +234,17 @@ CREATE TABLE IF NOT EXISTS public.sales (
         AND NULLIF(TRIM(void_reason), '') IS NOT NULL
       )
     ),
+    unique (workspace_id, id)
+);
+
+create table public.sale_cost_entries (
+    id uuid primary key default gen_random_uuid(),
+    workspace_id uuid not null references public.workspaces(id) on delete cascade,
+    sale_id uuid not null references public.sales(id) on delete cascade,
+    category text not null check (category in ('packaging', 'payment_fee', 'promotion', 'other')),
+    description text,
+    amount numeric(12,2) not null check (amount >= 0 and amount <> 'NaN'::numeric),
+    created_at timestamptz not null default now(),
     unique (workspace_id, id)
 );
 
@@ -346,6 +359,8 @@ alter table public.stock_lots add constraint stock_lots_workspace_catalog_produc
     foreign key (workspace_id, catalog_product_id) references public.catalog_products(workspace_id, id) on delete restrict;
 alter table public.sale_lines add constraint sale_lines_workspace_sale_fkey
     foreign key (workspace_id, sale_id) references public.sales(workspace_id, id) on delete restrict;
+alter table public.sale_cost_entries add constraint sale_cost_entries_workspace_sale_fkey
+    foreign key (workspace_id, sale_id) references public.sales(workspace_id, id) on delete cascade;
 alter table public.sale_lines add constraint sale_lines_workspace_catalog_product_fkey
     foreign key (workspace_id, catalog_product_id) references public.catalog_products(workspace_id, id) on delete restrict;
 alter table public.sale_lines add constraint sale_lines_workspace_inventory_item_fkey
@@ -407,6 +422,7 @@ comment on table public.stock_lots is 'Bestandslose mit FIFO-Kosten.';
 comment on table public.stock_movements is 'Unveraenderbare Bestandsbewegungen.';
 comment on table public.sale_lines is 'Verkaufspositionen mit Kosten-Snapshot.';
 comment on table public.sale_line_lot_allocations is 'Loszuordnungen mit Kosten-Snapshot.';
+comment on table public.sale_cost_entries is 'Strukturierte zusätzliche Verkaufskosten je Verkauf.';
 
 create or replace view public.inventory_item_sale_states
 with (security_invoker = true)
@@ -873,6 +889,10 @@ ALTER TABLE public.market_research ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.research_comparables ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.listing_drafts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
+alter table public.sale_cost_entries enable row level security;
+revoke all on table public.sale_cost_entries from anon, public;
+revoke all on table public.sale_cost_entries from authenticated;
+grant select, insert, update, delete on table public.sale_cost_entries to authenticated;
 alter table public.catalog_products enable row level security;
 alter table public.purchase_lines enable row level security;
 alter table public.stock_lots enable row level security;
@@ -1397,6 +1417,24 @@ create policy "Verkaeufe lesen"
 on public.sales for select to authenticated
 using (public.is_workspace_member(workspace_id));
 
+-- sale_cost_entries
+create policy "Verkaufskosten lesen"
+on public.sale_cost_entries for select to authenticated
+using ((select public.is_workspace_member(workspace_id)));
+
+create policy "Verkaufskosten anlegen"
+on public.sale_cost_entries for insert to authenticated
+with check ((select public.is_workspace_member(workspace_id)));
+
+create policy "Verkaufskosten aendern"
+on public.sale_cost_entries for update to authenticated
+using ((select public.is_workspace_member(workspace_id)))
+with check ((select public.is_workspace_member(workspace_id)));
+
+create policy "Verkaufskosten loeschen"
+on public.sale_cost_entries for delete to authenticated
+using ((select public.is_workspace_member(workspace_id)));
+
 -- catalog_products
 create policy "Artikelstamm lesen" on public.catalog_products for select to authenticated
 using (public.is_workspace_member(workspace_id));
@@ -1628,6 +1666,10 @@ create index if not exists idx_sales_workspace_id
   on public.sales (workspace_id);
 create index if not exists idx_sales_item_id
   on public.sales (inventory_item_id);
+create index if not exists idx_sale_cost_entries_workspace_id
+  on public.sale_cost_entries (workspace_id);
+create index if not exists idx_sale_cost_entries_sale_id
+  on public.sale_cost_entries (sale_id);
 create index if not exists idx_catalog_products_workspace_id
   on public.catalog_products (workspace_id);
 create index if not exists idx_purchase_lines_workspace_id
@@ -2848,6 +2890,13 @@ declare
   v_sale_state text;
   v_unit_sale_price numeric(12, 2);
   v_workspace_tax_mode text;
+  v_shipping_revenue numeric(12,2) := 0;
+  v_shipping_mode text;
+  v_cost_entries jsonb := '[]'::jsonb;
+  v_cost_entry jsonb;
+  v_packaging_cost numeric(12,2) := 0;
+  v_other_costs numeric(12,2) := 0;
+  v_money_key text;
 begin
   if v_actor_id is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -2865,6 +2914,71 @@ begin
     or (p_sale ->> 'unit_sale_price')::numeric <= 0 then
     raise exception using errcode = '22023', message = 'Die Verkaufsdaten sind ungueltig.';
   end if;
+
+  foreach v_money_key in array array['platform_fee', 'shipping_cost', 'shipping_revenue', 'packaging_cost', 'other_costs'] loop
+    if p_sale ? v_money_key
+      and (
+        jsonb_typeof(p_sale -> v_money_key) <> 'number'
+        or (p_sale ->> v_money_key) !~ '^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$'
+        or (p_sale ->> v_money_key)::numeric < 0
+      ) then
+      raise exception using errcode = '22023', message = 'Die Verkaufsbeträge sind ungültig.';
+    end if;
+  end loop;
+
+  if p_sale ? 'shipping_mode'
+    and jsonb_typeof(p_sale -> 'shipping_mode') <> 'null'
+    and (
+      jsonb_typeof(p_sale -> 'shipping_mode') <> 'string'
+      or p_sale ->> 'shipping_mode' not in ('seller_arranged', 'platform_prepaid', 'pickup')
+    ) then
+    raise exception using errcode = '22023', message = 'Die Versandabwicklung ist ungültig.';
+  end if;
+
+  if p_sale ? 'cost_entries' then
+    if jsonb_typeof(p_sale -> 'cost_entries') <> 'array' then
+      raise exception using errcode = '22023', message = 'Die zusätzlichen Verkaufskosten sind ungültig.';
+    end if;
+    v_cost_entries := p_sale -> 'cost_entries';
+  else
+    v_cost_entries := jsonb_strip_nulls(jsonb_build_array(
+      case when coalesce((p_sale ->> 'packaging_cost')::numeric, 0) > 0
+        then jsonb_build_object('category', 'packaging', 'amount', (p_sale ->> 'packaging_cost')::numeric)
+      end,
+      case when coalesce((p_sale ->> 'other_costs')::numeric, 0) > 0
+        then jsonb_build_object('category', 'other', 'amount', (p_sale ->> 'other_costs')::numeric)
+      end
+    ));
+    select coalesce(jsonb_agg(value), '[]'::jsonb)
+    into v_cost_entries
+    from jsonb_array_elements(v_cost_entries) as entry(value)
+    where value <> 'null'::jsonb;
+  end if;
+
+  if jsonb_array_length(v_cost_entries) > 50 then
+    raise exception using errcode = '22023', message = 'Es sind höchstens 50 zusätzliche Verkaufskosten erlaubt.';
+  end if;
+
+  for v_cost_entry in select value from jsonb_array_elements(v_cost_entries) as entry(value) loop
+    if jsonb_typeof(v_cost_entry) <> 'object'
+      or jsonb_typeof(v_cost_entry -> 'category') <> 'string'
+      or v_cost_entry ->> 'category' not in ('packaging', 'payment_fee', 'promotion', 'other')
+      or (v_cost_entry ? 'description' and jsonb_typeof(v_cost_entry -> 'description') not in ('string', 'null'))
+      or jsonb_typeof(v_cost_entry -> 'amount') <> 'number'
+      or (v_cost_entry ->> 'amount') !~ '^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$'
+      or (v_cost_entry ->> 'amount')::numeric < 0 then
+      raise exception using errcode = '22023', message = 'Eine zusätzliche Verkaufskostenzeile ist ungültig.';
+    end if;
+
+    if v_cost_entry ->> 'category' = 'packaging' then
+      v_packaging_cost := v_packaging_cost + (v_cost_entry ->> 'amount')::numeric;
+    else
+      v_other_costs := v_other_costs + (v_cost_entry ->> 'amount')::numeric;
+    end if;
+  end loop;
+
+  v_shipping_revenue := coalesce((p_sale ->> 'shipping_revenue')::numeric, 0);
+  v_shipping_mode := nullif(p_sale ->> 'shipping_mode', '');
 
   select *
   into v_inventory_item
@@ -2894,19 +3008,33 @@ begin
 
   insert into public.sales (
     workspace_id, inventory_item_id, platform, sale_price, sale_price_total, sale_date,
-    platform_fee, shipping_cost, packaging_cost, other_costs,
+    platform_fee, shipping_cost, packaging_cost, other_costs, shipping_revenue, shipping_mode,
     external_order_id, external_listing_id, buyer_notes
   ) values (
     p_workspace_id, null, trim(p_sale ->> 'platform'),
-    v_unit_sale_price, v_unit_sale_price, (p_sale ->> 'sale_date')::date,
+    v_unit_sale_price + v_shipping_revenue, v_unit_sale_price + v_shipping_revenue, (p_sale ->> 'sale_date')::date,
     coalesce((p_sale ->> 'platform_fee')::numeric, 0),
     coalesce((p_sale ->> 'shipping_cost')::numeric, 0),
-    coalesce((p_sale ->> 'packaging_cost')::numeric, 0),
-    coalesce((p_sale ->> 'other_costs')::numeric, 0),
+    v_packaging_cost,
+    v_other_costs,
+    v_shipping_revenue,
+    v_shipping_mode,
     nullif(trim(p_sale ->> 'external_order_id'), ''),
     nullif(trim(p_sale ->> 'external_listing_id'), ''),
     nullif(trim(p_sale ->> 'buyer_notes'), '')
   ) returning * into v_sale;
+
+  for v_cost_entry in select value from jsonb_array_elements(v_cost_entries) as entry(value) loop
+    insert into public.sale_cost_entries (
+      workspace_id, sale_id, category, description, amount
+    ) values (
+      p_workspace_id,
+      v_sale.id,
+      v_cost_entry ->> 'category',
+      nullif(trim(v_cost_entry ->> 'description'), ''),
+      (v_cost_entry ->> 'amount')::numeric
+    );
+  end loop;
 
   insert into public.sale_lines (
     workspace_id, sale_id, inventory_item_id, title_snapshot, quantity,
@@ -2934,6 +3062,11 @@ begin
 
   return jsonb_build_object(
     'sale', to_jsonb(v_sale),
+    'cost_entries', coalesce((
+      select jsonb_agg(to_jsonb(cost_entry) order by cost_entry.id)
+      from public.sale_cost_entries as cost_entry
+      where cost_entry.sale_id = v_sale.id
+    ), '[]'::jsonb),
     'sale_lines', jsonb_build_array(to_jsonb(v_sale_line)),
     'lot_allocations', '[]'::jsonb,
     'stock_movements', '[]'::jsonb,
@@ -2977,6 +3110,13 @@ declare
   v_allocation_cost numeric(12,2);
   v_previously_allocated_cost numeric(12,2);
   v_sale_total numeric(12, 2) := 0;
+  v_shipping_revenue numeric(12,2) := 0;
+  v_shipping_mode text;
+  v_cost_entries jsonb := '[]'::jsonb;
+  v_cost_entry jsonb;
+  v_packaging_cost numeric(12,2) := 0;
+  v_other_costs numeric(12,2) := 0;
+  v_money_key text;
   v_sale_line_ids uuid[] := array[]::uuid[];
   v_stock_lot_ids uuid[] := array[]::uuid[];
   v_sale_state text;
@@ -2994,6 +3134,71 @@ begin
     or (p_sale ->> 'sale_date') !~ '^\d{4}-\d{2}-\d{2}$' then
     raise exception using errcode = '22023', message = 'Die Verkaufsdaten sind ungültig.';
   end if;
+
+  foreach v_money_key in array array['platform_fee', 'shipping_cost', 'shipping_revenue', 'packaging_cost', 'other_costs'] loop
+    if p_sale ? v_money_key
+      and (
+        jsonb_typeof(p_sale -> v_money_key) <> 'number'
+        or (p_sale ->> v_money_key) !~ '^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$'
+        or (p_sale ->> v_money_key)::numeric < 0
+      ) then
+      raise exception using errcode = '22023', message = 'Die Verkaufsbeträge sind ungültig.';
+    end if;
+  end loop;
+
+  if p_sale ? 'shipping_mode'
+    and jsonb_typeof(p_sale -> 'shipping_mode') <> 'null'
+    and (
+      jsonb_typeof(p_sale -> 'shipping_mode') <> 'string'
+      or p_sale ->> 'shipping_mode' not in ('seller_arranged', 'platform_prepaid', 'pickup')
+    ) then
+    raise exception using errcode = '22023', message = 'Die Versandabwicklung ist ungültig.';
+  end if;
+
+  if p_sale ? 'cost_entries' then
+    if jsonb_typeof(p_sale -> 'cost_entries') <> 'array' then
+      raise exception using errcode = '22023', message = 'Die zusätzlichen Verkaufskosten sind ungültig.';
+    end if;
+    v_cost_entries := p_sale -> 'cost_entries';
+  else
+    v_cost_entries := jsonb_strip_nulls(jsonb_build_array(
+      case when coalesce((p_sale ->> 'packaging_cost')::numeric, 0) > 0
+        then jsonb_build_object('category', 'packaging', 'amount', (p_sale ->> 'packaging_cost')::numeric)
+      end,
+      case when coalesce((p_sale ->> 'other_costs')::numeric, 0) > 0
+        then jsonb_build_object('category', 'other', 'amount', (p_sale ->> 'other_costs')::numeric)
+      end
+    ));
+    select coalesce(jsonb_agg(value), '[]'::jsonb)
+    into v_cost_entries
+    from jsonb_array_elements(v_cost_entries) as entry(value)
+    where value <> 'null'::jsonb;
+  end if;
+
+  if jsonb_array_length(v_cost_entries) > 50 then
+    raise exception using errcode = '22023', message = 'Es sind höchstens 50 zusätzliche Verkaufskosten erlaubt.';
+  end if;
+
+  for v_cost_entry in select value from jsonb_array_elements(v_cost_entries) as entry(value) loop
+    if jsonb_typeof(v_cost_entry) <> 'object'
+      or jsonb_typeof(v_cost_entry -> 'category') <> 'string'
+      or v_cost_entry ->> 'category' not in ('packaging', 'payment_fee', 'promotion', 'other')
+      or (v_cost_entry ? 'description' and jsonb_typeof(v_cost_entry -> 'description') not in ('string', 'null'))
+      or jsonb_typeof(v_cost_entry -> 'amount') <> 'number'
+      or (v_cost_entry ->> 'amount') !~ '^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$'
+      or (v_cost_entry ->> 'amount')::numeric < 0 then
+      raise exception using errcode = '22023', message = 'Eine zusätzliche Verkaufskostenzeile ist ungültig.';
+    end if;
+
+    if v_cost_entry ->> 'category' = 'packaging' then
+      v_packaging_cost := v_packaging_cost + (v_cost_entry ->> 'amount')::numeric;
+    else
+      v_other_costs := v_other_costs + (v_cost_entry ->> 'amount')::numeric;
+    end if;
+  end loop;
+
+  v_shipping_revenue := coalesce((p_sale ->> 'shipping_revenue')::numeric, 0);
+  v_shipping_mode := nullif(p_sale ->> 'shipping_mode', '');
 
   select * into v_workspace
   from public.workspaces
@@ -3077,6 +3282,8 @@ begin
     shipping_cost,
     packaging_cost,
     other_costs,
+    shipping_revenue,
+    shipping_mode,
     external_order_id,
     external_listing_id,
     buyer_notes
@@ -3089,13 +3296,27 @@ begin
     (p_sale ->> 'sale_date')::date,
     coalesce((p_sale ->> 'platform_fee')::numeric, 0),
     coalesce((p_sale ->> 'shipping_cost')::numeric, 0),
-    coalesce((p_sale ->> 'packaging_cost')::numeric, 0),
-    coalesce((p_sale ->> 'other_costs')::numeric, 0),
+    v_packaging_cost,
+    v_other_costs,
+    v_shipping_revenue,
+    v_shipping_mode,
     nullif(trim(p_sale ->> 'external_order_id'), ''),
     nullif(trim(p_sale ->> 'external_listing_id'), ''),
     nullif(trim(p_sale ->> 'buyer_notes'), '')
   )
   returning * into v_sale;
+
+  for v_cost_entry in select value from jsonb_array_elements(v_cost_entries) as entry(value) loop
+    insert into public.sale_cost_entries (
+      workspace_id, sale_id, category, description, amount
+    ) values (
+      p_workspace_id,
+      v_sale.id,
+      v_cost_entry ->> 'category',
+      nullif(trim(v_cost_entry ->> 'description'), ''),
+      (v_cost_entry ->> 'amount')::numeric
+    );
+  end loop;
 
   for v_input_line in
     select element.value
@@ -3303,14 +3524,19 @@ begin
   end loop;
 
   update public.sales
-  set sale_price = v_sale_total,
-      sale_price_total = v_sale_total
+  set sale_price = v_sale_total + v_shipping_revenue,
+      sale_price_total = v_sale_total + v_shipping_revenue
   where id = v_sale.id
     and workspace_id = p_workspace_id
   returning * into v_sale;
 
   return jsonb_build_object(
     'sale', to_jsonb(v_sale),
+    'cost_entries', coalesce((
+      select jsonb_agg(to_jsonb(cost_entry) order by cost_entry.id)
+      from public.sale_cost_entries as cost_entry
+      where cost_entry.sale_id = v_sale.id
+    ), '[]'::jsonb),
     'sale_lines', coalesce((
       select jsonb_agg(to_jsonb(sale_line) order by sale_line.id)
       from public.sale_lines as sale_line

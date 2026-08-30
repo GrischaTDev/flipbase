@@ -23,6 +23,12 @@ declare
   v_sale_line_count integer;
   v_sale_count integer;
   v_cogs numeric(12, 2);
+  v_sale_revenue numeric(12, 2);
+  v_shipping_revenue numeric(12, 2);
+  v_shipping_cost numeric(12, 2);
+  v_packaging_cost numeric(12, 2);
+  v_other_costs numeric(12, 2);
+  v_cost_entry_count integer;
   v_return_result jsonb;
 begin
   insert into auth.users (
@@ -166,12 +172,23 @@ begin
 
   v_sale := public.record_sale(
     v_workspace_id,
-    jsonb_build_object('platform', 'direct', 'sale_date', '2026-08-26'),
+    jsonb_build_object(
+      'platform', 'ebay',
+      'sale_date', '2026-08-26',
+      'shipping_revenue', 2.99,
+      'shipping_mode', 'seller_arranged',
+      'shipping_cost', 5.19,
+      'platform_fee', 7.70,
+      'cost_entries', jsonb_build_array(
+        jsonb_build_object('category', 'packaging', 'description', 'Karton', 'amount', 0.45),
+        jsonb_build_object('category', 'promotion', 'description', 'Angebot hervorheben', 'amount', 1.25)
+      )
+    ),
     jsonb_build_array(jsonb_build_object(
       'catalog_product_id', v_product_id,
       'title_snapshot', 'LED lamp',
-      'quantity', 2,
-      'unit_sale_price', 9.99
+      'quantity', 1,
+      'unit_sale_price', 39.99
     ))
   );
   v_sale_id := (v_sale -> 'sale' ->> 'id')::uuid;
@@ -182,8 +199,8 @@ begin
   where workspace_id = v_workspace_id
     and purchase_line_id = v_purchase_line_id;
 
-  if v_remaining_quantity <> 3 then
-    raise exception 'expected remaining quantity 3 after sale, got %', v_remaining_quantity;
+  if v_remaining_quantity <> 4 then
+    raise exception 'expected remaining quantity 4 after sale, got %', v_remaining_quantity;
   end if;
 
   select count(*), coalesce(sum(cost_of_goods_sold), 0)
@@ -192,9 +209,78 @@ begin
   where workspace_id = v_workspace_id
     and sale_id = v_sale_id;
 
-  if v_sale_line_count <> 1 or v_cogs <> 9.98 then
-    raise exception 'expected one sale line and COGS 9.98, got % lines and % COGS', v_sale_line_count, v_cogs;
+  if v_sale_line_count <> 1 or v_cogs <> 4.99 then
+    raise exception 'expected one sale line and COGS 4.99, got % lines and % COGS', v_sale_line_count, v_cogs;
   end if;
+
+  select sale_price_total, shipping_revenue, shipping_cost, packaging_cost, other_costs
+  into v_sale_revenue, v_shipping_revenue, v_shipping_cost, v_packaging_cost, v_other_costs
+  from public.sales
+  where id = v_sale_id;
+
+  select count(*) into v_cost_entry_count
+  from public.sale_cost_entries
+  where sale_id = v_sale_id;
+
+  if v_sale_revenue <> 42.98
+    or v_shipping_revenue <> 2.99
+    or v_shipping_cost <> 5.19
+    or v_packaging_cost <> 0.45
+    or v_other_costs <> 1.25
+    or v_cost_entry_count <> 2 then
+    raise exception 'sale did not persist separated shipping revenue and expenses';
+  end if;
+
+  begin
+    perform public.record_sale(
+      v_workspace_id,
+      jsonb_build_object(
+        'platform', 'direct', 'sale_date', '2026-08-26',
+        'cost_entries', jsonb_build_array(jsonb_build_object('category', 'unsupported', 'amount', 1))
+      ),
+      jsonb_build_array(jsonb_build_object(
+        'catalog_product_id', v_product_id, 'title_snapshot', 'LED lamp',
+        'quantity', 1, 'unit_sale_price', 9.99
+      ))
+    );
+    raise exception 'unsupported sale cost category was accepted';
+  exception when sqlstate '22023' then null;
+  end;
+
+  begin
+    perform public.record_sale(
+      v_workspace_id,
+      jsonb_build_object(
+        'platform', 'direct', 'sale_date', '2026-08-26',
+        'shipping_revenue', -0.01
+      ),
+      jsonb_build_array(jsonb_build_object(
+        'catalog_product_id', v_product_id, 'title_snapshot', 'LED lamp',
+        'quantity', 1, 'unit_sale_price', 9.99
+      ))
+    );
+    raise exception 'negative shipping revenue was accepted';
+  exception when sqlstate '22023' then null;
+  end;
+
+  begin
+    perform public.record_sale(
+      v_workspace_id,
+      jsonb_build_object(
+        'platform', 'direct', 'sale_date', '2026-08-26',
+        'cost_entries', (
+          select jsonb_agg(jsonb_build_object('category', 'other', 'amount', 1))
+          from generate_series(1, 51)
+        )
+      ),
+      jsonb_build_array(jsonb_build_object(
+        'catalog_product_id', v_product_id, 'title_snapshot', 'LED lamp',
+        'quantity', 1, 'unit_sale_price', 9.99
+      ))
+    );
+    raise exception 'more than 50 sale cost entries were accepted';
+  exception when sqlstate '22023' then null;
+  end;
 
   begin
     perform public.record_sale(
@@ -203,7 +289,7 @@ begin
       jsonb_build_array(jsonb_build_object(
         'catalog_product_id', v_product_id,
         'title_snapshot', 'LED lamp',
-        'quantity', 4,
+        'quantity', 5,
         'unit_sale_price', 9.99
       ))
     );
@@ -225,14 +311,14 @@ begin
   where workspace_id = v_workspace_id
     and purchase_line_id = v_purchase_line_id;
 
-  if v_sale_count <> 1 or v_remaining_quantity <> 3 then
+  if v_sale_count <> 1 or v_remaining_quantity <> 4 then
     raise exception 'oversell created a partial sale or changed stock';
   end if;
 
   select public.record_sale_return(
     v_workspace_id,
     v_sale_id,
-    19.98,
+    42.98,
     true,
     'customer return',
     'full return',

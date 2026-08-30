@@ -415,6 +415,84 @@ describe('SalesService', () => {
     );
   });
 
+  it('übergibt Käufer-Versand und strukturierte Zusatzkosten getrennt an die Verkaufs-RPC', async () => {
+    const { service, rpc } = createService({
+      data: {
+        sale: {
+          ...sale,
+          sale_price: 42.98,
+          sale_price_total: 42.98,
+          shipping_revenue: 2.99,
+          shipping_mode: 'seller_arranged',
+          shipping_cost: 5.19,
+          packaging_cost: 0.45,
+          other_costs: 1.25,
+        },
+        sale_lines: [
+          {
+            id: 'sale-line-1',
+            sale_id: sale.id,
+            catalog_product_id: 'led-lamp-1',
+            title_snapshot: 'LED-Lampe',
+            quantity: 1,
+            unit_sale_price: 39.99,
+            line_total: 39.99,
+            cost_of_goods_sold: 9.98,
+            tax_mode: 'diff_25a',
+          },
+        ],
+        cost_entries: [
+          { category: 'packaging', description: 'Karton', amount: 0.45 },
+          { category: 'promotion', description: 'Angebot hervorheben', amount: 1.25 },
+        ],
+        lot_allocations: [],
+        stock_movements: [],
+      },
+      error: null,
+    });
+
+    const result = await service.recordSale({
+      platform: 'ebay',
+      saleDate: '2026-08-26',
+      shippingRevenue: 2.99,
+      shippingMode: 'seller_arranged',
+      shippingCost: 5.19,
+      additionalCosts: [
+        { category: 'packaging', description: 'Karton', amount: 0.45 },
+        { category: 'promotion', description: 'Angebot hervorheben', amount: 1.25 },
+      ],
+      lines: [{ catalogProductId: 'led-lamp-1', quantity: 1, unitSalePrice: 39.99 }],
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.data?.sale).toMatchObject({
+      sale_price: 42.98,
+      shipping_revenue: 2.99,
+      shipping_mode: 'seller_arranged',
+      shipping_cost: 5.19,
+      packaging_cost: 0.45,
+      other_costs: 1.25,
+      cost_entries: [
+        { category: 'packaging', description: 'Karton', amount: 0.45 },
+        { category: 'promotion', description: 'Angebot hervorheben', amount: 1.25 },
+      ],
+    });
+    expect(rpc).toHaveBeenCalledWith(
+      'record_sale',
+      expect.objectContaining({
+        p_sale: expect.objectContaining({
+          shipping_revenue: 2.99,
+          shipping_mode: 'seller_arranged',
+          shipping_cost: 5.19,
+          cost_entries: [
+            { category: 'packaging', description: 'Karton', amount: 0.45 },
+            { category: 'promotion', description: 'Angebot hervorheben', amount: 1.25 },
+          ],
+        }),
+      }),
+    );
+  });
+
   it('ruft für den Legacy-Nachtrag nur den eng begrenzten protokollierten RPC auf', async () => {
     const { service, rpc } = createService({
       data: { sale, sale_lines: [], lot_allocations: [], stock_movements: [] },
