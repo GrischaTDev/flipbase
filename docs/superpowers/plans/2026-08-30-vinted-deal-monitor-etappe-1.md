@@ -1006,7 +1006,7 @@ Create `services/sniper/test/vinted/normalizer.spec.ts`:
 ```ts
 import { describe, expect, it } from 'vitest';
 import fixture from '../fixtures/vinted-catalog.json' with { type: 'json' };
-import { VintedCatalogSchema } from '../../src/vinted/schema.js';
+import { VintedCatalogSchema, type VintedItem } from '../../src/vinted/schema.js';
 import { normalizeVintedItem } from '../../src/vinted/normalizer.js';
 
 const parsed = VintedCatalogSchema.parse(fixture);
@@ -1027,11 +1027,28 @@ describe('normalizeVintedItem', () => {
   });
 
   it('never carries a seller field into the listing', () => {
-    const listing = normalizeVintedItem(firstItem);
+    // Der Eingabewert muss den user-Block WIRKLICH tragen. Wer hier
+    // VintedCatalogSchema.parse(...) verwendet, testet nichts: Zod entfernt
+    // unbekannte Schluessel, der Block waere also schon weg, bevor der
+    // Normalizer laeuft, und die Zusicherungen koennten gar nicht scheitern.
+    // Der Cast bildet einen kuenftigen Zustand ab, in dem `user` im Schema
+    // steht - dann muss der Normalizer ihn immer noch fallen lassen.
+    const itemWithSeller = {
+      ...firstItem,
+      user: {
+        id: 4711,
+        login: 'seller_0',
+        profile_url: 'https://www.vinted.de/member/4711-seller-0',
+        photo: { url: 'https://images.example/avatar.jpg' },
+      },
+    } as VintedItem;
+
+    const listing = normalizeVintedItem(itemWithSeller);
     const serialised = JSON.stringify(listing);
 
     expect(serialised).not.toContain('seller_0');
     expect(serialised).not.toContain('profile_url');
+    expect(serialised).not.toContain('avatar.jpg');
     expect(Object.keys(listing)).not.toContain('user');
   });
 
