@@ -39,6 +39,11 @@ describe('normalizeVintedItem', () => {
 
     expect(serialised).not.toContain('seller_0');
     expect(serialised).not.toContain('profile_url');
+    // Die Kennung und das Profilfoto gehoeren zu den vier Feldern, die die
+    // Projektregel ausdruecklich nennt. Ohne diese beiden Zusicherungen bliebe
+    // etwa `imageUrl: item.user?.photo?.url ?? item.photo?.url` unentdeckt.
+    expect(serialised).not.toContain('4711');
+    expect(serialised).not.toContain('avatar.jpg');
     expect(Object.keys(listing)).not.toContain('user');
   });
 
