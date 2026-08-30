@@ -181,6 +181,7 @@ function convertYamlNode(node) {
 
     if (/^[+-]?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/.test(node.value)) {
       const numberValue = Number(node.value);
+      const hasFractionOrExponent = /[.eE]/.test(node.value);
       const significantDigits = node.value
         .replace(/^[+-]/, '')
         .replace(/[eE].*$/, '')
@@ -188,8 +189,8 @@ function convertYamlNode(node) {
         .replace(/^0+/, '').length;
       if (
         Number.isFinite(numberValue) &&
-        (Number.isSafeInteger(numberValue) ||
-          (!Number.isInteger(numberValue) && significantDigits <= 15))
+        ((!hasFractionOrExponent && Number.isSafeInteger(numberValue)) ||
+          (hasFractionOrExponent && !Number.isInteger(numberValue) && significantDigits <= 15))
       ) {
         return numberValue;
       }
@@ -466,6 +467,9 @@ quotedNumber: '15'
 plainNull: null
 quotedNull: 'null'
 unsafeNumber: 9007199254740992
+roundedInteger: 15.0000000000000001
+roundedSafeIntegerLimit: 9007199254740991.1
+underflow: 1e-400
 expression: ${expression}
 cron: '17 2 * * *'
 `);
@@ -478,6 +482,9 @@ cron: '17 2 * * *'
     plainNull: null,
     quotedNull: 'null',
     unsafeNumber: '9007199254740992',
+    roundedInteger: '15.0000000000000001',
+    roundedSafeIntegerLimit: '9007199254740991.1',
+    underflow: '1e-400',
     expression: '${{ matrix.browser }}',
     cron: '17 2 * * *',
   });
@@ -493,6 +500,17 @@ for (const [name, original, replacement] of [
     "persist-credentials: 'false'",
   ],
   ['ungequotiertes numerisches Action-Input', "node-version: '22'", 'node-version: 22'],
+  [
+    'einen auf den Timeout gerundeten Dezimalwert',
+    'timeout-minutes: 15',
+    'timeout-minutes: 15.0000000000000001',
+  ],
+  [
+    'einen auf die sichere Ganzzahlgrenze gerundeten Dezimalwert',
+    'timeout-minutes: 15',
+    'timeout-minutes: 9007199254740991.1',
+  ],
+  ['einen auf null unterlaufenden Exponenten', 'timeout-minutes: 15', 'timeout-minutes: 1e-400'],
 ]) {
   test(`weist ${name} zurück`, async () => {
     const source = await readFile(workflowPath, 'utf8');

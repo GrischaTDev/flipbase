@@ -240,6 +240,28 @@ Die erwarteten Workflowobjekte verwenden nun echte Typen: `fail-fast` und
 Nightly-Vertrag läuft 39/39, der gesamte Workflow-Vertrag 69/69 grün. Der
 produktive Workflow blieb unverändert.
 
+### Hauptagent-Nachkorrektur nach Fixrunde 3
+
+Die unabhängige Schlussprüfung fand noch einen Präzisionsrandfall: JavaScript
+rundete `15.0000000000000001` auf `15`, `9007199254740991.1` auf die sichere
+Ganzzahlgrenze und `1e-400` auf `0`. Dadurch konnte die bisherige
+`Number.isSafeInteger()`-Prüfung erst nach dem Präzisionsverlust anschlagen.
+
+Die Normalisierung unterscheidet deshalb jetzt vor der Konvertierung zwischen
+lexikalischen Ganzzahlen und Literalen mit Dezimalpunkt oder Exponent. Nur eine
+lexikalische Ganzzahl darf den Safe-Integer-Pfad verwenden. Dezimal-/Exponent-
+Literale werden ausschließlich übernommen, wenn das Ergebnis endlich, nicht
+ganzzahlig und mit höchstens 15 signifikanten Ziffern darstellbar ist. Die drei
+genannten Rundungs-/Unterlauffälle bleiben Strings und können keinen erwarteten
+numerischen Workflowwert mehr imitieren.
+
+RED: Vor der Korrektur wurden alle drei Literale zu den Zahlen `15`,
+`9007199254740991` beziehungsweise `0` normalisiert. GREEN: Der direkte
+Scalar-Vertrag und drei echte Timeout-Quelltextmutanten weisen sie als Strings
+beziehungsweise als unzulässige Workflowwerte zurück. Der Nightly-Vertrag ist
+42/42, der gesamte Workflow-Vertrag 72/72 grün. Prettier und `git diff --check`
+sind grün; der produktive Nightly-Workflow blieb unverändert.
+
 ## Browser und Datenbank
 
 - Standard-Chromium: 5/5 grün in 10,818 Sekunden.
