@@ -171,6 +171,46 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
     );
   });
 
+  it('verteilt Käufer-Versand centgenau auf die Steuerpositionen', () => {
+    const saleWithShippingRevenue: Sale = {
+      ...dummySale,
+      sale_price: 42.98,
+      sale_price_total: 42.98,
+      shipping_revenue: 2.99,
+      shipping_cost: 5.19,
+      platform_fee: 7.7,
+      lines: [
+        {
+          id: 'line-1',
+          sale_id: dummySale.id,
+          title_snapshot: 'A',
+          quantity: 1,
+          unit_sale_price: 10,
+          line_total: 10,
+          cost_of_goods_sold: 4,
+          tax_mode: 'diff_25a',
+        },
+        {
+          id: 'line-2',
+          sale_id: dummySale.id,
+          title_snapshot: 'B',
+          quantity: 1,
+          unit_sale_price: 29.99,
+          line_total: 29.99,
+          cost_of_goods_sold: 8,
+          tax_mode: 'diff_25a',
+        },
+      ],
+    };
+
+    const calculations = service.calculateSaleLineTaxes(saleWithShippingRevenue, dummyItem);
+
+    expect(calculations.map((calculation) => calculation.gross_revenue)).toEqual([10.75, 32.23]);
+    expect(calculations.reduce((sum, calculation) => sum + calculation.gross_revenue, 0)).toBe(
+      42.98,
+    );
+  });
+
   it('erhält den Steuer-Modus eines historischen Einzelverkaufs trotz Display-Fallback', () => {
     const historicSale = {
       ...dummySale,

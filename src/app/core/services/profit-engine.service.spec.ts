@@ -20,6 +20,17 @@ describe('ProfitEngineService (Deterministic Logic)', () => {
     expect(roi).toBe(185);
   });
 
+  it('berechnet Marge und Kapitalrendite aus Brutto-Verkaufserlös und Kostenbasis', () => {
+    // eBay: 39,99 € Positionen + 2,99 € Käufer-Versand, 5,19 € Porto und 7,70 € Gebühr.
+    const grossRevenue = 42.98;
+    const sellingCosts = 5.19 + 7.7;
+    const profitBeforeGoodsCost = service.calculateProfit(grossRevenue, sellingCosts);
+
+    expect(profitBeforeGoodsCost).toBe(30.09);
+    expect(service.calculateMargin(profitBeforeGoodsCost, grossRevenue)).toBe(70.01);
+    expect(service.calculateRoi(profitBeforeGoodsCost, sellingCosts)).toBe(233.44);
+  });
+
   it('verteilt Kosten gleichmäßig: 1.600 € auf 100 Artikel ergibt 16 € je Artikel', () => {
     const anteile = service.allocateCosts(1600, new Array(100).fill(1));
 
@@ -78,9 +89,10 @@ describe('ProfitEngineService (Deterministic Logic)', () => {
     },
   );
 
-  it('begrenzt Grenzwerte, Verluste und fehlendes Kapital fachlich', () => {
-    expect(service.calculateRoi(10, 0)).toBe(0);
-    expect(service.calculateRoi(10, -5)).toBe(0);
+  it('liefert bei fehlender Erlös- oder Kostenbasis keine irreführende Prozentzahl', () => {
+    expect(service.calculateMargin(10, 0)).toBeNull();
+    expect(service.calculateRoi(10, 0)).toBeNull();
+    expect(service.calculateRoi(10, -5)).toBeNull();
     expect(service.calculateHoldingDurationDays('2026-08-15', '2026-08-01')).toBe(0);
     expect(service.calculateMaxBuyPrice(10, 8, 30, 15)).toBe(0);
     expect(service.calculateDealScore(-10, -20, -5, -1)).toBe(0);

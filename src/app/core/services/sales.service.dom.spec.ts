@@ -112,6 +112,34 @@ describe('SalesService', () => {
     expect(mockStore.getSales('workspace-1')).toEqual([]);
   });
 
+  it('erstattet bei einer vollständigen Retoure den Bruttoerlös inklusive Käufer-Versand', async () => {
+    const { mockStore, service } = createDemoService();
+    const booking = await service.recordSale({
+      ...demoSaleInput,
+      shippingRevenue: 2.99,
+      lines: [{ ...demoSaleInput.lines[0], unitSalePrice: 39.99 }],
+    });
+    const persistedSale = {
+      ...booking.data!.sale,
+      sale_price: 39.99,
+      sale_price_total: 39.99,
+      shipping_revenue: 2.99,
+    };
+    mockStore.saveSale(persistedSale);
+    service.sales.set([persistedSale]);
+
+    const result = await service.recordReturn({
+      saleId: persistedSale.id,
+      refundAmount: 42.98,
+      restock: true,
+      reason: 'buyer_remorse',
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.data?.sale.refund_amount).toBe(42.98);
+    expect(result.data?.saleReturnedAt).not.toBeNull();
+  });
+
   it('rollt den gesamten Demo-Verkauf zurück, wenn nur der Sales-Key nicht geschrieben werden kann', async () => {
     const { mockStore, service } = createDemoService();
     const originalSetItem = globalThis.localStorage.setItem.bind(globalThis.localStorage);

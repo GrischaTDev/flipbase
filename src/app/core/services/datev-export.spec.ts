@@ -171,6 +171,12 @@ describe('DATEV-Buchungsstapel & Steuerberechnung', () => {
 
       expect(felder[0]).toBe('1234,50');
     });
+
+    it('bucht den Brutto-Verkaufserlös einschließlich Käufer-Versand', () => {
+      const { buchungen } = zerlege(engine.generateDatevCsv([ergebnis({ gross_revenue: 42.98 })]));
+
+      expect(buchungen[0].split(';')[0]).toBe('42,98');
+    });
   });
 
   describe('Reingewinn nach Steuern (Audit 4.6)', () => {

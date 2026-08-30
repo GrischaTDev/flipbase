@@ -92,6 +92,29 @@ describe('TaxAdvisorService & DATEV Export Engine (Chapter 24)', () => {
     expect(report.accountBalances.some((b) => b.accountNumber === '8200')).toBe(true);
   });
 
+  it('übernimmt den Brutto-Verkaufserlös inklusive Käufer-Versand in den Monatsbericht', () => {
+    const report = service.buildMonthlyReport(
+      2026,
+      '08',
+      [{ ...sampleTaxResults[0], gross_revenue: 42.98, gross_margin: 12.98 }],
+      [],
+      [
+        {
+          id: 'shipping-sale',
+          sale_price: 42.98,
+          shipping_revenue: 2.99,
+          platform_fee: 7.7,
+          shipping_cost: 5.19,
+          packaging_cost: 0,
+          other_costs: 0,
+        } as Sale,
+      ],
+    );
+
+    expect(report.grossRevenue).toBe(42.98);
+    expect(report.operatingExpenses).toBe(12.89);
+  });
+
   it('should generate valid DATEV EXTF Buchungsstapel CSV', () => {
     const report = service.buildMonthlyReport(2026, '08', sampleTaxResults, [], []);
     const csv = service.generateDatevExtfCsv(report, sampleTaxResults);

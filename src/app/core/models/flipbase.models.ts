@@ -380,7 +380,7 @@ export interface Sale {
   void_reason?: string | null;
   inventory_item?: InventoryItem;
   net_profit?: number;
-  roi?: number;
+  roi?: number | null;
   holding_duration_days?: number;
   /** Persistierte Verkaufspositionen; Altverkäufe werden als eine Position abgebildet. */
   lines?: SaleLine[];

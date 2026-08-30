@@ -62,6 +62,30 @@ describe('DashboardReportService', () => {
     expect(report.rows[0]).toMatchObject({ quantity: 2, costOfGoodsSold: 9.98, profit: 9 });
   });
 
+  it('zählt Käufer-Versand bei persistierten Positionen zum Umsatz und Gewinn', () => {
+    const saleWithShippingRevenue: Sale = {
+      ...sale,
+      sale_price: 42.98,
+      sale_price_total: 42.98,
+      shipping_revenue: 2.99,
+      shipping_cost: 5.19,
+      platform_fee: 7.7,
+      lines: [
+        { ...sale.lines![0], line_total: 39.99, unit_sale_price: 19.995, cost_of_goods_sold: 10 },
+      ],
+    };
+
+    const report = createService().createReportForRecords(
+      'last_7_days',
+      'all',
+      { purchases: [], sales: [saleWithShippingRevenue], inventoryItems: [], stockLots: [] },
+      now,
+    );
+
+    expect(report.revenue).toBe(42.98);
+    expect(report.realizedProfit).toBe(20.09);
+  });
+
   it.each([
     ['today', 1],
     ['last_7_days', 7],

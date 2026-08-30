@@ -17,6 +17,7 @@ describe('ExportService (Phase 10: CSV & JSON Backup)', () => {
         inventory_item_id: 'item-1',
         platform: 'kleinanzeigen',
         sale_price: 75.0,
+        shipping_revenue: 2.99,
         sale_date: '2026-08-16',
         platform_fee: 0,
         shipping_cost: 6.99,
@@ -41,6 +42,9 @@ describe('ExportService (Phase 10: CSV & JSON Backup)', () => {
     const csv = exportService.generateSalesCsv(mockSales);
 
     expect(csv).toContain('Verkaufsdatum;Artikel;Plattform');
+    expect(csv).toContain('Verkaufserlös brutto (€)');
+    expect(csv).toContain('Versand vom Käufer (€)');
+    expect(csv).toContain('Tatsächliche Versandkosten (€)');
     expect(csv).toContain('2026-08-16');
     expect(csv).toContain('"Bosch Akkuschrauber; Modell 18V"'); // Escaped semicolon
     expect(csv).toContain('75.00');

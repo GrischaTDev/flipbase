@@ -71,7 +71,7 @@ export class TaxEngineService {
   ): TaxCalculationResult {
     const persistedLines = this.persistedLinesForSale(sale);
     const taxMode = persistedLines[0]?.tax_mode || item.tax_mode_override || defaultTaxMode;
-    const grossRevenue = sale.sale_price;
+    const grossRevenue = sale.sale_price_total ?? sale.sale_price;
 
     const directItemCosts = item.costs?.reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
     const totalPurchaseCost =
@@ -178,7 +178,11 @@ export class TaxEngineService {
     return {
       ...sale,
       inventory_item_id: line.inventory_item_id ?? sale.inventory_item_id,
-      sale_price: line.line_total,
+      sale_price:
+        line.line_total + this.allocatedSaleAmount(sale.shipping_revenue ?? 0, lines, index),
+      sale_price_total:
+        line.line_total + this.allocatedSaleAmount(sale.shipping_revenue ?? 0, lines, index),
+      shipping_revenue: this.allocatedSaleAmount(sale.shipping_revenue ?? 0, lines, index),
       platform_fee: this.allocatedSaleCost(sale.platform_fee || 0, lines, index),
       shipping_cost: this.allocatedSaleCost(sale.shipping_cost || 0, lines, index),
       packaging_cost: this.allocatedSaleCost(sale.packaging_cost || 0, lines, index),
@@ -193,6 +197,10 @@ export class TaxEngineService {
   }
 
   private allocatedSaleCost(total: number, lines: readonly SaleLine[], index: number): number {
+    return this.allocatedSaleAmount(total, lines, index);
+  }
+
+  private allocatedSaleAmount(total: number, lines: readonly SaleLine[], index: number): number {
     const revenue = lines.reduce((sum, line) => sum + line.line_total, 0);
     if (revenue <= 0) return index === lines.length - 1 ? total : 0;
     if (index === lines.length - 1) {

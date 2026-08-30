@@ -436,7 +436,7 @@ export class SalesService {
           new Error('Der Verkauf wurde bereits retourniert.'),
         );
       }
-      const saleTotal = Number(existing.sale_price_total ?? existing.sale_price ?? 0);
+      const saleTotal = this.grossSaleRevenue(existing);
       const totalRefund = Math.min(
         saleTotal,
         Number(existing.refund_amount ?? 0) + input.refundAmount,
@@ -532,6 +532,15 @@ export class SalesService {
       stock_movements: movements,
     });
     return { sale, saleLines: lines, lotAllocations: allocations, stockMovements: movements };
+  }
+
+  private grossSaleRevenue(sale: Sale): number {
+    const lines = sale.has_persisted_lines === false ? [] : (sale.lines ?? []);
+    if (lines.length > 0) {
+      const positionTotal = lines.reduce((sum, line) => sum + Number(line.line_total || 0), 0);
+      return Math.round((positionTotal + Number(sale.shipping_revenue ?? 0)) * 100) / 100;
+    }
+    return Number(sale.sale_price_total ?? sale.sale_price ?? 0);
   }
 
   private recordDemoSale(workspaceId: string, input: RecordSaleInput): RecordSaleResult {

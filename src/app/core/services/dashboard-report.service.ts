@@ -147,7 +147,10 @@ export class DashboardReportService {
 
   private saleRevenue(sale: Sale, lines: readonly SaleLine[]): number {
     const persistedRevenue = lines.reduce((sum, line) => sum + this.number(line.line_total), 0);
-    return persistedRevenue || this.number(sale.sale_price_total ?? sale.sale_price);
+    if (persistedRevenue > 0) {
+      return persistedRevenue + this.number(sale.shipping_revenue);
+    }
+    return this.number(sale.sale_price_total ?? sale.sale_price);
   }
 
   private costOfGoodsSold(sale: Sale, lines: readonly SaleLine[]): number {
