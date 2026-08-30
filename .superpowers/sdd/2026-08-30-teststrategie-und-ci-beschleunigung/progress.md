@@ -2,27 +2,27 @@
 
 ## Preflight
 
-| Bezug | Produziert / konsumiert | Befund |
-| --- | --- | --- |
-| Task 1 intern | Audit, Split-Konfiguration und manueller Benchmark | Konsistent; der Split ist erst nach Task 2 ausfuehrbar. |
-| Task 2 intern | Benennt 20 Angular- und 13 DOM-Dateien um | Konsistent; die exakte Testzahl 1.039 bleibt das Gate. |
-| Task 3 intern | Waehlt Angular-Builder oder Fallback und setzt stabile Skripte | Lokaler Vergleich ist moeglich, die vorgeschriebene kalte CI-Messung benoetigt einen Push. |
-| Task 4 intern | Konsolidiert schwere Spec-Dateien | Konsistent, sofern Szenario- und Testfallzahl vor jeder Gruppe erfasst werden. |
-| Task 5 intern | Ersetzt vier tautologische Steuerpruefungen | Konsistent; TDD-Mutationsnachweis ist zwingend. |
-| Task 6 intern | Parallelisiert Quality, Unit, Image und Deploy-Gates | Workflow kann lokal validiert werden; echte Gate-Wirkung benoetigt einen PR-Lauf. |
-| Task 7 intern | Repariert pgTAP-Struktur und fuegt Datenbank-Gate hinzu | Konsistent; lokale DB nur transaktional, keine Produktion. |
-| Task 8 intern | Fuegt vier Dateien mit fuenf Browser-Smoke-Szenarien hinzu | Konsistent; alter A11y-Quelltexttest erst nach gruenem Browserersatz entfernen. |
-| Task 9 intern | Coverage-Boden und Nightly-Suite | Konsistent; Coverage-Schwellen werden gegen den gemessenen Stand rot/gruen validiert. |
-| Task 10 intern | Rollout-Abnahme | Externe PR-, GitHub- und Produktionslaeufe sind nicht allein im Worktree ausfuehrbar. |
-| Task 1 → Task 2 | Split-Konfiguration konsumiert Dateikategorien | Kein Konflikt; Ausfuehrung des Splits folgt nach der Umbenennung. |
-| Task 2 → Task 3 | Kategorien werden von beiden Runnern konsumiert | Kein Konflikt. |
-| Task 3 → Task 4 | Finaler Runner misst Konsolidierung | Kein Konflikt; Task 4 darf die fachliche Fallzahl nicht reduzieren. |
-| Task 3 → Task 6 | Oeffentliche Testskripte steuern CI-Matrix | Kein Konflikt. |
-| Task 5 → Task 9 | Echte Steuerpruefungen tragen Coverage | Kein Konflikt. |
-| Task 6 → Task 7 | `ci.yml` erhaelt Datenbank-Gate | Sequentielle Erweiterung erforderlich. |
-| Task 7 → Task 8 | `ci.yml` erhaelt Browser-Gate | Sequentielle Erweiterung erforderlich. |
-| Task 3/7/8 → Task 9 | Runner, DB und Browser werden im Nightly konsumiert | Kein Konflikt. |
-| Task 6/7/8/9 → Task 10 | Fertige Gates werden extern abgenommen | Lokale Umsetzung endet vor Push/PR/Deployment, falls keine ausdrueckliche Freigabe vorliegt. |
+| Bezug                  | Produziert / konsumiert                                        | Befund                                                                                       |
+| ---------------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Task 1 intern          | Audit, Split-Konfiguration und manueller Benchmark             | Konsistent; der Split ist erst nach Task 2 ausfuehrbar.                                      |
+| Task 2 intern          | Benennt 20 Angular- und 13 DOM-Dateien um                      | Konsistent; die exakte Testzahl 1.039 bleibt das Gate.                                       |
+| Task 3 intern          | Waehlt Angular-Builder oder Fallback und setzt stabile Skripte | Lokaler Vergleich ist moeglich, die vorgeschriebene kalte CI-Messung benoetigt einen Push.   |
+| Task 4 intern          | Konsolidiert schwere Spec-Dateien                              | Konsistent, sofern Szenario- und Testfallzahl vor jeder Gruppe erfasst werden.               |
+| Task 5 intern          | Ersetzt vier tautologische Steuerpruefungen                    | Konsistent; TDD-Mutationsnachweis ist zwingend.                                              |
+| Task 6 intern          | Parallelisiert Quality, Unit, Image und Deploy-Gates           | Workflow kann lokal validiert werden; echte Gate-Wirkung benoetigt einen PR-Lauf.            |
+| Task 7 intern          | Repariert pgTAP-Struktur und fuegt Datenbank-Gate hinzu        | Konsistent; lokale DB nur transaktional, keine Produktion.                                   |
+| Task 8 intern          | Fuegt vier Dateien mit fuenf Browser-Smoke-Szenarien hinzu     | Konsistent; alter A11y-Quelltexttest erst nach gruenem Browserersatz entfernen.              |
+| Task 9 intern          | Coverage-Boden und Nightly-Suite                               | Konsistent; Coverage-Schwellen werden gegen den gemessenen Stand rot/gruen validiert.        |
+| Task 10 intern         | Rollout-Abnahme                                                | Externe PR-, GitHub- und Produktionslaeufe sind nicht allein im Worktree ausfuehrbar.        |
+| Task 1 → Task 2        | Split-Konfiguration konsumiert Dateikategorien                 | Kein Konflikt; Ausfuehrung des Splits folgt nach der Umbenennung.                            |
+| Task 2 → Task 3        | Kategorien werden von beiden Runnern konsumiert                | Kein Konflikt.                                                                               |
+| Task 3 → Task 4        | Finaler Runner misst Konsolidierung                            | Kein Konflikt; Task 4 darf die fachliche Fallzahl nicht reduzieren.                          |
+| Task 3 → Task 6        | Oeffentliche Testskripte steuern CI-Matrix                     | Kein Konflikt.                                                                               |
+| Task 5 → Task 9        | Echte Steuerpruefungen tragen Coverage                         | Kein Konflikt.                                                                               |
+| Task 6 → Task 7        | `ci.yml` erhaelt Datenbank-Gate                                | Sequentielle Erweiterung erforderlich.                                                       |
+| Task 7 → Task 8        | `ci.yml` erhaelt Browser-Gate                                  | Sequentielle Erweiterung erforderlich.                                                       |
+| Task 3/7/8 → Task 9    | Runner, DB und Browser werden im Nightly konsumiert            | Kein Konflikt.                                                                               |
+| Task 6/7/8/9 → Task 10 | Fertige Gates werden extern abgenommen                         | Lokale Umsetzung endet vor Push/PR/Deployment, falls keine ausdrueckliche Freigabe vorliegt. |
 
 Ruling: Externe `workflow_dispatch`-, PR-, Push- und Produktionsschritte werden bis zur ausdruecklichen Freigabe nicht ausgefuehrt; lokal werden Struktur, Syntax und Verhalten vollstaendig vorbereitet — Grund ist die externe Nebenwirkung — Kosten bei falscher Entscheidung: CI-Median und p95 bleiben bis zur Freigabe vorlaeufig.
 
@@ -30,7 +30,7 @@ Ruling: Der Angular-Runner wird lokal nur vorlaeufig gewaehlt und der Benchmark-
 
 Ruling: Task 10 wird bis zu den externen Schritten umgesetzt und dokumentiert dann `No-Go/pending external evidence`, statt Messwerte zu erfinden — Grund ist die Nachweispflicht — Kosten bei falscher Entscheidung: Abschlussbericht ist vor dem PR bewusst vorlaeufig.
 
-Baseline: Commit 2d0e0d7; `npm test` gruen mit 131 Dateien und 1.039 Tests; 41,93 s Vitest-Dauer. Bekannte `localStorage`-Warnungen sind Gegenstand von Task 3.
+Baseline aus Task 1: Commit 2d0e0d7; `npm run test:current` gruen mit 131 Dateien und 1.039 Tests; belegte Vitest-Dauer 26,37 s (`task-1-report.md`), keine Wall-Clock-Messung. Bekannte `localStorage`-Warnungen sind Gegenstand von Task 3.
 
 Task 1: complete (commits 2d0e0d7..c29df1b, review clean)
 
@@ -91,3 +91,7 @@ Task 9 Hauptagent-Nachkorrektur: complete locally (lexikalische Präzisionsprüf
 Task 10 Ruling: Die lokale Rollout-Abnahme kann fachliche Mutationen und den strukturierten Workflowvertrag belegen, aber externe PR-, Registry- und Produktionswirkung nicht ersetzen. Da der Feature-Branch auf GitHub fehlt, liegen 0/5 neue PR-Läufe vor; p95 und Runner-Minuten werden nicht extrapoliert. Docker bleibt wegen der fehlenden `dockerDesktopLinuxEngine`-Pipe blockiert, daher bleibt die dynamische RLS-Mutation `BLOCKED` — Grund ist die verbindliche Nachweispflicht ohne Push-/Deploy-Autorisierung — Kosten bei falscher Entscheidung: Ein verfrühtes GO würde ungeprüfte Scheduler-, DB- und Produktionswirkung akzeptieren.
 
 Task 10: complete locally / production NO-GO (Steuermutant 2/14 rot, Doppelverkaufsmutant 1/16 rot, Playwright-Navigationsmutant 1/1 rot einschließlich Retry; nach normalen Reverts 14/14, 16/16 und 1/1 grün; RLS BLOCKED; lokaler CI-Workflowvertrag 16/16; temporärer Worktree exakt auf `7293435`, final ohne Diff und verifiziert entfernt; GitHub read-only 0/5 Feature-Runs; keine externen Aktionen)
+
+Task 10 Fixrunde 1 Ruling: Der serielle Rückfallpunkt `0768233` ist nur Topologiereferenz und niemals Revert-Ziel. Ein späterer Rollback ist ein neuer, normaler Commit mit exklusivem Diff auf `.github/workflows/ci.yml`; er erhält alle heutigen Fachtests/Gates und das SHA-only-Image. Ein reines Nightly-Budgetproblem wird separat ausschließlich über `.github/workflows/quality-nightly.yml` pausiert. Runnerbudget wird erst bei mindestens fünf vergleichbaren historischen PR-Läufen mit positiven GitHub-Billable-Gesamtwerten aus der festen Kohorte bestimmt (`B = Median`, `T = 1,2 × B`); jeder der fünf neuen Läufe muss einzeln `R_ni ≤ T` erfüllen, während Gate-p95 separat ≤ 3 Minuten bleibt — Grund ist, dass Wandzeiten und ein einzelner alter Push-Lauf weder Billable-Budget noch Rollback-Sicherheit belegen — Kosten bei falscher Entscheidung: pauschale Commit-Reverts könnten Fachschutz entfernen und unbelegte Minutenwerte ein falsches Produktions-Go erzeugen.
+
+Task 10 Fixrunde 1: complete locally / production NO-GO (Task-1-Baseline auf belegte Vitest-Dauer 26,37 s korrigiert; Rollback-Checkbox offen bis zur praktischen pfadbegrenzten Validierung; Baseline- und neue Runner-Minuten-Kohorten operationalisiert; keine Code-/Workflowänderung und kein externer Lauf)

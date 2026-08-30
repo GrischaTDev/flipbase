@@ -65,7 +65,7 @@ Sie sind keine GitHub-Runner-Zeiten.
 
 | Prüfung                              | Tatsächlicher lokaler Wert                                                                | Einordnung                                                                 |
 | ------------------------------------ | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Ausgangslauf                         | 131 Dateien, 1.039 Tests, 41,93 s                                                         | Baseline vor dem Umbau                                                     |
+| Ausgangslauf Task 1                  | 131 Dateien, 1.039 Tests, Vitest-Dauer 26,37 s                                            | Quelle: `task-1-report.md`; keine Wall-Clock-Messung                       |
 | Runnervergleich                      | Angular-Fallback: 20 Dateien/148 Tests, Median 13,321 s; Angular-Builder: Median 19,042 s | Fallback lokal vorläufig gewählt; kalte CI-Messung offen                   |
 | Konsolidierter Gesamtlauf Task 4     | 117 Dateien, 1.039 Tests, Median 19,825 s                                                 | Testfallzahl erhalten                                                      |
 | Finaler paralleler `npm test` Task 9 | 116 Dateien, 1.070 Vitest-Tests, 17,406 s                                                 | Node 89/747, DOM 9/92, Angular 18/231                                      |
@@ -95,15 +95,49 @@ Der jüngste sichtbare Lauf des alten Workflows ist nur historischer Vergleich:
 Die abgefragte `gh`-Ausgabe liefert Job-Wandzeiten, aber keine belastbaren
 abgerechneten Runner-Minuten. Deshalb wird hierfür kein Wert abgeleitet.
 
+### Runner-Minuten-Budget
+
+Vor einem GO müssen mindestens fünf vergleichbare historische PR-Läufe
+vorliegen. Daraus werden ohne Rosinenpickerei die fünf jüngsten
+aufeinanderfolgenden gültigen Läufe vor dem ersten neuen Lauf als feste
+Baseline-Kohorte festgelegt. Vergleichbar bedeutet:
+gleiches Repository, GitHub-PR-Ereignis, GitHub-hosted Ubuntu-Runnerklasse,
+erfolgreicher vollständiger damaliger Pflichtumfang und dieselbe belastbare
+Abrechnungsquelle. Als Gesamt-Runner-Minuten eines Laufs zählt ausschließlich
+der von GitHub bereitgestellte positive Billable-Gesamtwert über alle Jobs;
+Job-Wandzeit, Workflowdauer und Warteschlangenzeit sind kein Ersatz.
+
+| Baseline-Slot | Run-ID / URL | Commit-SHA | Pflichtumfang | Billable Gesamt-Runner-Minuten |
+| ------------: | ------------ | ---------- | ------------- | -----------------------------: |
+|             1 | offen        | offen      | offen         |                          offen |
+|             2 | offen        | offen      | offen         |                          offen |
+|             3 | offen        | offen      | offen         |                          offen |
+|             4 | offen        | offen      | offen         |                          offen |
+|             5 | offen        | offen      | offen         |                          offen |
+
+Für die fünf vorab festgelegten positiven Werte `R_b1` bis `R_b5` gilt:
+
+- Baseline `B = Median(R_b1, R_b2, R_b3, R_b4, R_b5)`;
+- Budgetgrenze `T = 1,2 × B`;
+- jeder der fünf neuen, aufeinanderfolgenden PR-Läufe muss einen echten
+  positiven Billable-Gesamtwert `R_n1` bis `R_n5` besitzen;
+- konservative Vergleichsregel: **für jeden** neuen Lauf gilt `R_ni ≤ T`.
+
+Ein Baseline- oder neuer Wert `0`, `null`, `unavailable`, eine aus Wandzeiten
+abgeleitete Zahl oder weniger als fünf vergleichbare Baseline-Läufe ist selbst
+ein `NO-GO`. Aktuell sind 0/5 Baseline-Slots belastbar; deshalb sind weder `B`
+noch `T` berechnet. Der Laufzeit-p95 des langsamsten Pflicht-Gates bleibt davon
+unabhängig und muss separat aus den fünf neuen PR-Läufen ≤ 3 Minuten sein.
+
 ### Fünf geforderte neue PR-Läufe
 
-| Slot | Run-ID / URL | Event | Commit-SHA | Pflichtjobs und Ergebnisse | Start / Ende | Laufzeiten | Runner-Minuten |
-| ---: | ------------ | ----- | ---------- | -------------------------- | ------------ | ---------- | -------------- |
-|    1 | offen        | offen | offen      | offen                      | offen        | offen      | offen          |
-|    2 | offen        | offen | offen      | offen                      | offen        | offen      | offen          |
-|    3 | offen        | offen | offen      | offen                      | offen        | offen      | offen          |
-|    4 | offen        | offen | offen      | offen                      | offen        | offen      | offen          |
-|    5 | offen        | offen | offen      | offen                      | offen        | offen      | offen          |
+| Slot | Run-ID / URL | Event | Commit-SHA | Pflichtjobs und Ergebnisse | Start / Ende | Gate-Laufzeiten | Billable Gesamt-Runner-Minuten `R_ni` | Budget `R_ni ≤ T` |
+| ---: | ------------ | ----- | ---------- | -------------------------- | ------------ | --------------- | ------------------------------------: | ----------------- |
+|    1 | offen        | offen | offen      | offen                      | offen        | offen           |                                 offen | offen             |
+|    2 | offen        | offen | offen      | offen                      | offen        | offen           |                                 offen | offen             |
+|    3 | offen        | offen | offen      | offen                      | offen        | offen           |                                 offen | offen             |
+|    4 | offen        | offen | offen      | offen                      | offen        | offen           |                                 offen | offen             |
+|    5 | offen        | offen | offen      | offen                      | offen        | offen           |                                 offen | offen             |
 
 p95 wird erst nach fünf echten vollständig grünen Läufen aus dem jeweils
 langsamsten Pflicht-Gate berechnet. Bei 0/5 gibt es weder Ersatzwert noch
@@ -165,14 +199,18 @@ Ablauf wurde jetzt nicht ausgeführt.
 - [x] Steuer-, Doppelverkaufs- und Navigationsmutation auf Ziel-Ebene rot und
       nach Revert grün.
 - [x] Lokaler Workflowvertrag einschließlich Negativfixtures grün.
-- [x] Rollback-Trigger und selektiver Rückfall dokumentiert.
+- [ ] Pfadbegrenzter Rollback wurde in einem isolierten Branch/Worktree
+      tatsächlich ausgeführt, mit exakt einem Dateidiff validiert und durch
+      Quick-, DB- und Browser-Gates bestätigt.
 - [ ] Dynamische Supabase-/RLS-Tests in einem erreichbaren lokalen oder
       ephemeren Stack vollständig grün.
 - [ ] Keine Critical/Important Review-Findings offen.
 - [ ] Fünf aufeinanderfolgende neue PR-Läufe vollständig grün.
 - [ ] p95 des langsamsten Pflicht-Gates aus genau diesen fünf Läufen ≤ 3 min.
-- [ ] Runner-Minuten je Produktionslauf höchstens 120 % des dokumentierten
-      Budgets aus dem historischen Lauf `33299028439`.
+- [ ] Fünf vergleichbare historische PR-Läufe liefern positive Billable-Werte;
+      `B` und `T = 1,2 × B` sind dokumentiert.
+- [ ] Alle fünf neuen PR-Läufe besitzen positive Billable-Gesamtwerte und
+      erfüllen einzeln `R_ni ≤ T`.
 - [ ] Externer Negativ-PR belegt roten Shard, `deploy=skipped` und kein
       `latest`.
 
@@ -203,14 +241,17 @@ Ablauf wurde jetzt nicht ausgeführt.
 
 ## Produktionsmessplan
 
-1. Vor Merge PR-Run-ID, Jobnamen, Start-/Endzeiten, Ergebnisse, Testzahlen und
-   von GitHub gelieferte Runner-Minuten erfassen.
-2. Unmittelbar vor Merge UTC-Zeit und Merge-SHA festhalten.
-3. Im Push-Lauf Gate-Ende, Image-Ende, Deploy-Start und den ersten bestätigten
+1. Vor Merge die fünf historischen Baseline-PR-Läufe festlegen, ihre positiven
+   Billable-Gesamtwerte erfassen und daraus `B` und `T = 1,2 × B` berechnen.
+2. Für jeden neuen PR-Lauf Run-ID, Jobnamen, Start-/Endzeiten, Ergebnisse,
+   Testzahlen und den positiven Billable-Gesamtwert erfassen; jeden Wert
+   einzeln gegen `T` prüfen.
+3. Unmittelbar vor Merge UTC-Zeit und Merge-SHA festhalten.
+4. Im Push-Lauf Gate-Ende, Image-Ende, Deploy-Start und den ersten bestätigten
    Zeitpunkt `healthz=ok` erfassen.
-4. Container-Health, Startseite HTTP 200 und die ausgelieferte
+5. Container-Health, Startseite HTTP 200 und die ausgelieferte
    Commit-Anzeige gegen den Merge-SHA prüfen.
-5. Merge-zu-Health-Dauer ohne Warteschlangenzeit-Uminterpretation aus den
+6. Merge-zu-Health-Dauer ohne Warteschlangenzeit-Uminterpretation aus den
    realen Zeitstempeln berechnen und zusammen mit der Run-URL dokumentieren.
 
 ## Rollback-Trigger
@@ -220,7 +261,8 @@ Rollback wird ausgelöst bei:
 - fachlichem Gate-Bypass oder rotem kritischem Nutzerweg;
 - Flake-Rate > 5 %;
 - PR-p95 > 3 Minuten;
-- Runner-Minuten > 120 % des dokumentierten Budgets;
+- fehlende/0/unverfügbare Billable-Werte, weniger als fünf vergleichbare
+  Baseline-PR-Läufe oder mindestens ein neuer Lauf mit `R_ni > T`;
 - roter Migration, Datenbank- oder RLS-Prüfung;
 - `healthz` nicht `ok`, Startseite nicht HTTP 200 oder ausgeliefertem falschen
   Commit-SHA;
@@ -228,21 +270,46 @@ Rollback wird ausgelöst bei:
 
 ## Rollback-Ablauf
 
-Der historische Rückfallpunkt der alten seriellen Pipeline ist `0768233`.
-Es erfolgt **kein** Hard Reset. Vor einem Rückfall wird der CI-/Runner-Umbau im
-Commitbereich nach `0768233` inhaltlich abgegrenzt. Ausschließlich diese
-Konfigurations-/Runner-Commits werden durch normale Revert-Commits
-zurückgenommen. Neue fachliche Regressionstests für Steuer, Verkauf,
-Inventarintegrität, RLS und Browserwege bleiben bestehen oder werden vorab
-separat erhalten/cherry-picked. Danach laufen erneut Quick-Gates,
-Datenbank-Gate und Chromium-Smokes; erst nach grüner Prüfung darf ein erneuter
-Rollout erwogen werden.
+`0768233` ist ausschließlich die Referenz für die frühere serielle Topologie,
+nicht das Ziel eines Reverts. Es erfolgt weder ein Hard Reset noch ein Revert
+irgendeines Task-Commits. Der spätere Rollback wird in einem isolierten
+Branch/Worktree auf dem dann betroffenen Release-HEAD als neuer, normaler
+Rollback-Commit vorbereitet:
+
+1. Ausschließlich `.github/workflows/ci.yml` ändern und die Topologie nach dem
+   Vorbild von `0768233` wieder seriell ordnen.
+2. Trotz serieller Reihenfolge bleiben alle heutigen fachlichen Prüfungen und
+   Gates aktiv: Quality, Node/DOM/Angular, `test-gate`, Changes-Erkennung,
+   Datenbank plus `database-gate`, Chromium-`browser-smoke`, Image und Deploy.
+3. Das Image bleibt unveränderlich und ausschließlich SHA-getaggt. `latest`
+   darf nicht zurückkehren; Deploy bleibt von allen Pflicht-Gates abhängig.
+4. Vor dem Commit muss `git diff --name-only` exakt eine Zeile liefern:
+   `.github/workflows/ci.yml`. Jede weitere Datei bricht den Rollback ab.
+5. Insbesondere fachliche Tests, Supportskripte, Produktfixes, `package.json`,
+   `package-lock.json`, Vitest-/Playwright-Konfigurationen und
+   `.github/workflows/quality-nightly.yml` bleiben unverändert.
+6. Danach alle Quick-Gates (`npm run format:check`, `npm run lint`,
+   `npm run typecheck`, `npm test`, `npm run build`), den lokalen
+   Datenbank-Gate-Satz mit `npm run test:db` und die Chromium-Browser-Smokes
+   mit `npm run test:e2e` ausführen. Erst nach dokumentierter grüner
+   Validierung darf die offene Rollback-Checkbox gesetzt werden.
+
+Ist ausschließlich das Nightly-Runnerbudget zu hoch, wird die produktive
+CI-Topologie nicht zurückgerollt. Die geplante Nightly-Ausführung darf nur mit
+einem eigenen, bewusst reviewten Commit pausiert werden, dessen
+`git diff --name-only` exakt
+`.github/workflows/quality-nightly.yml` ausgibt. Dieser Commit entfernt oder
+pausiert nur den Zeitplan; der manuelle Einstieg und alle Tests/Supportskripte
+bleiben erhalten. Auch dafür werden keine bestehenden Commits revertiert. Die
+spätere Reaktivierung erfolgt in einem weiteren eigenen Commit.
 
 ## Offene Risiken und Bedingungen für ein späteres GO
 
-Offen sind 5/5 neue PR-Läufe, p95, Runner-Minutenbudget, der echte rote
-GitHub-Shard, dynamische Supabase-/RLS-Abnahme, Reviewfreigabe, Firefox/WebKit
-im echten Nightly und der vollständige Produktionslauf. Ein späteres GO ist
-nur möglich, wenn alle sechs offiziellen Abnahmekriterien kumulativ belegt
-sind. Bis dahin bleibt die operative Entscheidung unverändert:
+Offen sind 5/5 belastbare Baseline-PR-Läufe für `B`/`T`, 5/5 neue PR-Läufe,
+p95, der Einzelvergleich jedes neuen Billable-Gesamtwerts mit `T`, die
+praktische Rollback-Validierung, der echte rote GitHub-Shard, dynamische
+Supabase-/RLS-Abnahme, Reviewfreigabe, Firefox/WebKit im echten Nightly und der
+vollständige Produktionslauf. Ein späteres GO ist nur möglich, wenn alle sechs
+offiziellen Abnahmekriterien kumulativ belegt sind. Bis dahin bleibt die
+operative Entscheidung unverändert:
 **NO-GO für Produktion**.

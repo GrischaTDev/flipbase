@@ -13,6 +13,31 @@ Negativlauf noch Produktionslauf autorisiert oder ausgeführt wurden.
 Es gab keinen Push, PR, Merge, `workflow_dispatch` oder Deployment. GitHub
 wurde ausschließlich read-only abgefragt.
 
+## Fixrunde 1 — Important Findings
+
+Die drei Dokumentationsbefunde wurden gegen die vorhandenen Nachweise geprüft
+und ohne Code-, Workflow- oder externe Änderung korrigiert:
+
+1. Die bisherige unbelegte Zeitangabe wurde entfernt. `task-1-report.md` belegt
+   für `npm run test:current` 131 Dateien, 1.039 Tests und ausschließlich die
+   **Vitest-Dauer 26,37 s**; sie wird nicht als Wall-Clock-Zeit bezeichnet.
+2. Rollback ist nicht mehr als erledigt markiert. Ein späterer Rollback darf
+   keinen Task-Commit revertieren und ändert als neuer normaler Commit
+   ausschließlich `.github/workflows/ci.yml`. `0768233` dient nur als
+   Topologiereferenz. Alle heutigen Fachtests/Gates und das SHA-only-Image
+   bleiben erhalten; `git diff --name-only` muss exakt die Workflowdatei
+   liefern. Erst Quick-, DB- und Browser-Gates validieren den Rollback. Ein
+   reines Nightly-Budgetproblem wird in einem separaten pfadbegrenzten Commit
+   ausschließlich über `.github/workflows/quality-nightly.yml` behandelt.
+3. Das Runnerbudget braucht mindestens fünf vergleichbare historische
+   PR-Läufe mit positiven, von GitHub gelieferten Billable-Gesamtwerten. Die
+   fünf jüngsten aufeinanderfolgenden gültigen Läufe bilden ohne
+   Rosinenpickerei die feste Kohorte. Aus ihnen wird
+   `B = Median(R_b1..R_b5)` und `T = 1,2 × B` berechnet. Jeder der fünf neuen
+   PR-Läufe muss einen positiven Gesamtwert besitzen und einzeln `R_ni ≤ T`
+   erfüllen. 0/unverfügbar, Wandzeit-Ersatz oder weniger als fünf Baselines
+   bleibt `NO-GO`; Gate-p95 ≤ 3 Minuten wird separat geprüft.
+
 ## Ausgangsstand und Worktree-Sicherheit
 
 - Feature-Worktree:
@@ -136,8 +161,9 @@ Ergebnisse:
 Der Abnahmebericht enthält Executive Summary, Task-1-bis-9-Scope,
 Testpyramide/Gates, lokale Messwerte, fünf offene PR-Slots, vier
 Mutationsnachweise, Workflow-Negativstatus, Pre-/Deploy-/Post-Checklisten,
-Produktionsmessplan, vorab definierte Rollback-Trigger, selektiven
-Rollback-Ablauf sowie die Bedingungen für ein späteres GO.
+Produktionsmessplan, vorab definierte Rollback-Trigger, einen ausschließlich
+pfadbegrenzten und noch offenen Rollback-Ablauf sowie die Bedingungen für ein
+späteres GO.
 
 `docs/AI-CHANGELOG.md` erhält als obersten Eintrag nach der Regelsektion Modell
 `Codex GPT-5.6`, Art `Konfiguration + Tests + Doku`, den Gesamtscope und nur
@@ -148,17 +174,33 @@ Frische finale Verifikation:
 - `npm run format:check`: Exit 0;
 - `npm run test:workflow`: Exit 0, 72/72 grün;
 - `git diff --check`: Exit 0;
-- Inhaltsaudit: exakt fünf offene PR-Zeilen, klare NO-GO-Aussage und keine
-  TODO-/TBD- oder Produktions-Go-Platzhalter.
+- Inhaltsaudit: exakt fünf offene Zeilen für die neuen PR-Läufe, klare
+  NO-GO-Aussage und keine TODO-/TBD- oder Produktions-Go-Platzhalter.
 
 Commit-Nachricht: `docs: record test strategy rollout evidence`. Der Hash des
 Commits kann nicht in seinem eigenen Inhalt stehen und wird dem Hauptagenten
 separat gemeldet.
 
+### Fixrunde 1 — finale Verifikation
+
+- `npm run format:check`: Exit 0;
+- `git diff --check`: Exit 0;
+- Änderungsumfang: ausschließlich Abnahmebericht, KI-Changelog,
+  `task-10-report.md` und `progress.md`; kein Code oder Workflow;
+- Inhaltsaudit: kein unbelegter Altwert, belegte Vitest-Dauer 26,37 s,
+  Rollback-Checkbox offen, exakte Rollbackpfade, SHA-only-Regel sowie
+  Baseline-/Schwellen-/Einzellaufregel vorhanden.
+
+Fixcommit-Nachricht: `docs: harden rollout budget and rollback rules`. Der
+Commit-Hash wird dem Hauptagenten separat gemeldet.
+
 ## Offene Punkte
 
 - fünf aufeinanderfolgende neue PR-Läufe und daraus p95 ≤ 3 Minuten;
-- tatsächliche GitHub-Runner-Minuten innerhalb des Budgets;
+- fünf vergleichbare historische PR-Läufe mit positiven Billable-Werten für
+  `B`/`T` und fünf positive neue Werte mit jeweils `R_ni ≤ T`;
+- praktische Validierung des ausschließlich auf `.github/workflows/ci.yml`
+  begrenzten Rollback-Commits;
 - externer roter Shard mit `deploy=skipped` und ohne `latest`;
 - dynamische Supabase-/RLS-Abnahme;
 - Critical/Important-Reviewfreigabe;

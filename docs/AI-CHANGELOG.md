@@ -48,6 +48,34 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-08-30 – Codex GPT-5.6 – Rollout-Budget und Rückfallregeln gehärtet
+
+**Art:** Doku
+
+**Betroffen:**
+`docs/superpowers/reports/2026-08-30-teststrategie-und-ci-abnahme.md`,
+Task-10-Bericht und SDD-Ledger
+
+**Was:** Drei Review-Befunde in der Rollout-Abnahme korrigiert. Die Baseline
+nennt jetzt nur die in Task 1 belegte Vitest-Dauer 26,37 s. Das Runnerbudget
+verlangt mindestens fünf vergleichbare historische PR-Läufe, legt daraus eine
+feste Fünferkohorte fest, berechnet deren Median `B` und die Grenze
+`T = 1,2 × B` und prüft jeden der fünf neuen Billable-Gesamtwerte einzeln gegen
+`T`. Der Rollback bleibt offen, bis ein isoliert ausgeführter Commit mit
+exklusivem Diff auf `.github/workflows/ci.yml` alle Quick-, DB- und
+Browser-Gates bestanden hat. Er erhält sämtliche heutigen Fachtests/Gates und
+das SHA-only-Image; `0768233` ist nur Topologiereferenz. Eine Nightly-Pause
+erfolgt bei Bedarf in einem eigenen Commit ausschließlich an
+`.github/workflows/quality-nightly.yml`.
+
+**Warum:** Wandzeiten oder ein einzelner historischer Push-Lauf belegen keine
+Billable-Runnergrenze. Ein pauschaler Commit-Revert könnte neue fachliche Tests,
+Supportskripte oder Sicherheitsgates entfernen.
+
+**Verifiziert durch:** Quellenabgleich mit `task-1-report.md`, Suche nach dem
+unbelegten Altwert, Dokument-Formatprüfung und Git-Diff-Check. Keine Code- oder
+Workflowänderung, kein externer Lauf und weiterhin **NO-GO für Produktion**.
+
 ## 2026-08-30 – Codex GPT-5.6 – Teststrategie und CI-Rollout lokal abgenommen
 
 **Art:** Konfiguration + Tests + Doku
