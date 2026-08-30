@@ -116,17 +116,7 @@ function assertChangesSecurity(changes) {
     PUSH_BEFORE_SHA: '${{ github.event.before }}',
     HEAD_SHA: '${{ github.sha }}',
   });
-  assertContainsPatterns(filter.run, [
-    /set -euo pipefail/,
-    /EVENT_NAME" = "pull_request"/,
-    /PR_BASE_SHA/,
-    /PUSH_BEFORE_SHA/,
-    /0000000000000000000000000000000000000000/,
-    /git rev-parse --verify "\$\{HEAD_SHA\}\^"/,
-    /echo "supabase=true" >> "\$GITHUB_OUTPUT"/,
-    /git cat-file -e "\$\{base_sha\}\^\{commit\}"/,
-    /git diff --name-only "\$base_sha" "\$HEAD_SHA" -- supabase\//,
-  ]);
+  assert.equal(filter.run, 'node scripts/detect-supabase-changes.mjs');
 }
 
 function assertDatabaseSecurity(database) {
@@ -191,15 +181,7 @@ function securityFixtures() {
             PUSH_BEFORE_SHA: '${{ github.event.before }}',
             HEAD_SHA: '${{ github.sha }}',
           },
-          run: `set -euo pipefail
-if [ "$EVENT_NAME" = "pull_request" ]; then base_sha="$PR_BASE_SHA"; fi
-base_sha="$PUSH_BEFORE_SHA"
-zero_sha="0000000000000000000000000000000000000000"
-git rev-parse --verify "\${HEAD_SHA}^"
-echo "supabase=true" >> "$GITHUB_OUTPUT"
-git cat-file -e "\${base_sha}^{commit}"
-git diff --name-only "$base_sha" "$HEAD_SHA" -- supabase/
-`,
+          run: 'node scripts/detect-supabase-changes.mjs',
         },
       ],
     },
@@ -245,16 +227,6 @@ test('weist eine Image-Bedingung zurück, die auch Pull Requests zulässt', () =
   image.if = "github.event_name == 'push' || github.event_name == 'pull_request'";
 
   assert.throws(() => assertImageTriggerSecurity(image), /image\.if/);
-});
-
-test('weist einen Change-Detector zurück, der einen Git-Fehler als keine Änderung behandelt', () => {
-  const { changes } = securityFixtures();
-  findStep(changes, 'Detect Supabase changes').run = findStep(
-    changes,
-    'Detect Supabase changes',
-  ).run.replace('set -euo pipefail', 'set +e');
-
-  assert.throws(() => assertChangesSecurity(changes));
 });
 
 test('weist ein Datenbank-Gate zurück, das einen fehlgeschlagenen Changes-Job durchlässt', () => {

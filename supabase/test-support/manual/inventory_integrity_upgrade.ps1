@@ -20,6 +20,8 @@ if ($currentIndex -lt 1 -or $currentIndex -ne ($migrationFiles.Count - 1)) {
 $previousMigration = $migrationFiles[$currentIndex - 1]
 $previousVersion = $previousMigration.BaseName.Split('_')[0]
 $currentVersion = $currentMigration.BaseName.Split('_')[0]
+. (Join-Path $PSScriptRoot 'inventory_integrity_upgrade_commands.ps1')
+$supabaseCommands = Get-InventoryUpgradeSupabaseCommands -WorktreePath $worktreePath -PreviousVersion $previousVersion
 
 if (-not (Test-Path -LiteralPath $fixturePath)) {
   throw "Legacy-Fixture nicht gefunden: $fixturePath"
@@ -163,9 +165,7 @@ select jsonb_build_object(
 
 try {
   Write-Host "Upgrade-Probe: Reset auf $previousVersion ($($previousMigration.Name))"
-  Invoke-CheckedCommand -Executable 'npx' -Arguments @(
-    'supabase', 'db', 'reset', '--local', '--version', $previousVersion, '--no-seed'
-  ) -Description 'Reset auf die unmittelbare Vorgaengerversion'
+  Invoke-CheckedCommand -Executable 'npx' -Arguments $supabaseCommands.Reset -Description 'Reset auf die unmittelbare Vorgaengerversion'
 
   $containerName = Resolve-DatabaseContainer
   Invoke-CheckedCommand -Executable 'docker' -Arguments @(
@@ -178,9 +178,7 @@ try {
   $beforeSnapshot = Capture-LegacySnapshot -OutputPath $beforeFile
   Write-Host "Vorher-Snapshot: $beforeSnapshot"
 
-  Invoke-CheckedCommand -Executable 'npx' -Arguments @(
-    'supabase', 'migration', 'up', '--local'
-  ) -Description 'Anwenden der Inventar-Integritaetsmigration'
+  Invoke-CheckedCommand -Executable 'npx' -Arguments $supabaseCommands.Migrate -Description 'Anwenden der Inventar-Integritaetsmigration'
 
   $containerName = Resolve-DatabaseContainer
   $afterSnapshot = Capture-LegacySnapshot -OutputPath $afterFile

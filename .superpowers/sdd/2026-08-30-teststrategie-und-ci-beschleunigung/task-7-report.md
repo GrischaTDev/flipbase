@@ -64,10 +64,10 @@ abschließende Prüfung meldeten jeweils die fehlende Pipe
 
 Die abschließenden Originalbefehle lieferten:
 
-| Befehl | Exitcode | Tatsächlicher Fehler |
-| --- | ---: | --- |
-| `npx supabase start` | 1 | `LegacyDockerLifecycleInspectError`; Docker-API-Pipe fehlt |
-| `npm run test:db` | 1 | `LegacyDbConnectError`; `ECONNREFUSED 127.0.0.1:54352` |
+| Befehl               | Exitcode | Tatsächlicher Fehler                                       |
+| -------------------- | -------: | ---------------------------------------------------------- |
+| `npx supabase start` |        1 | `LegacyDockerLifecycleInspectError`; Docker-API-Pipe fehlt |
+| `npm run test:db`    |        1 | `LegacyDbConnectError`; `ECONNREFUSED 127.0.0.1:54352`     |
 
 Docker Desktop wurde nicht erneut gestartet. Es wurden keine grünen
 Datenbankergebnisse erfunden.
@@ -76,13 +76,13 @@ Datenbankergebnisse erfunden.
 
 Verschoben wurden:
 
-| Vorher | Nachher |
-| --- | --- |
-| `supabase/tests/fixtures/inventory_integrity_legacy.sql` | `supabase/test-support/fixtures/inventory_integrity_legacy.sql` |
-| `supabase/tests/inventory_sales_legacy_migration.sql` | `supabase/test-support/manual/inventory_sales_legacy_migration.sql` |
-| `supabase/tests/inventory_integrity_upgrade.ps1` | `supabase/test-support/manual/inventory_integrity_upgrade.ps1` |
+| Vorher                                                    | Nachher                                                                 |
+| --------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `supabase/tests/fixtures/inventory_integrity_legacy.sql`  | `supabase/test-support/fixtures/inventory_integrity_legacy.sql`         |
+| `supabase/tests/inventory_sales_legacy_migration.sql`     | `supabase/test-support/manual/inventory_sales_legacy_migration.sql`     |
+| `supabase/tests/inventory_integrity_upgrade.ps1`          | `supabase/test-support/manual/inventory_integrity_upgrade.ps1`          |
 | `supabase/tests/run_inventory_sales_legacy_migration.ps1` | `supabase/test-support/manual/run_inventory_sales_legacy_migration.ps1` |
-| `supabase/tests/concurrency/inventory_double_sale.ps1` | `supabase/test-support/manual/inventory_double_sale.ps1` |
+| `supabase/tests/concurrency/inventory_double_sale.ps1`    | `supabase/test-support/manual/inventory_double_sale.ps1`                |
 
 Die offizielle CLI mountet nur `supabase/tests`. Daher kopiert der npm-Hook
 `pretest:db` das kanonische Support-Fixture unmittelbar vor dem Lauf nach
@@ -109,15 +109,15 @@ wurde nicht ausgeführt, da es den lokalen Stack zurücksetzen würde.
 Die statische Inventur zählt ausschließlich echte, am Zeilenanfang
 aufgerufene pgTAP-Assertions. Plan und Anzahl stimmen exakt überein:
 
-| Automatische Testdatei | Plan | Assertions |
-| --- | ---: | ---: |
-| `business_record_immutability.sql` | 81 | 81 |
-| `inventory_item_sale_integrity.sql` | 63 | 63 |
-| `inventory_sales_final_review.sql` | 3 | 3 |
-| `inventory_sales_schema.sql` | 5 | 5 |
-| `inventory_sales_transactions.sql` | 1 | 1 |
-| `rls_inventory_sales.test.sql` | 61 | 61 |
-| **Gesamt** | **214** | **214** |
+| Automatische Testdatei              |    Plan | Assertions |
+| ----------------------------------- | ------: | ---------: |
+| `business_record_immutability.sql`  |      81 |         81 |
+| `inventory_item_sale_integrity.sql` |      63 |         63 |
+| `inventory_sales_final_review.sql`  |       3 |          3 |
+| `inventory_sales_schema.sql`        |       5 |          5 |
+| `inventory_sales_transactions.sql`  |       1 |          1 |
+| `rls_inventory_sales.test.sql`      |      61 |         61 |
+| **Gesamt**                          | **214** |    **214** |
 
 Jede dieser sechs Dateien besitzt `\set ON_ERROR_STOP on`, `begin`, den
 exakten Plan, mindestens eine echte pgTAP-Assertion, `finish()` und `rollback`.
@@ -132,13 +132,13 @@ an. Die Rollen werden real mit `set local role authenticated` beziehungsweise
 `anon` gesetzt; die Benutzeridentität kommt aus der lokalen JWT-Claim
 `request.jwt.claim.sub`.
 
-| Tabelle | Eigenes Mitglied | Fremdes Mitglied | `anon` |
-| --- | --- | --- | --- |
-| `inventory_items` | Lesen sowie zulässiges Insert/Update/Delete erfolgreich | Select 0 Zeilen; Insert `42501`; leises Update/Delete wird zusätzlich als unveränderte beziehungsweise vorhandene Zeile geprüft | Select und Insert/Update/Delete jeweils `42501` |
-| `stock_lots` | Lesen erfolgreich; direkte Schreibrechte fehlen, eigener Direkt-Insert `42501` | Select 0 Zeilen; Insert/Update/Delete `42501` | Select und Insert/Update/Delete `42501` |
-| `stock_movements` | Lesen erfolgreich; direkte Schreibrechte fehlen, eigener Direkt-Insert `42501` | Select 0 Zeilen; Insert/Update/Delete `42501` | Select und Insert/Update/Delete `42501` |
-| `sales` | Lesen erfolgreich; direkte Schreibrechte fehlen, eigener Direkt-Insert `42501` | Select 0 Zeilen; Insert/Update/Delete `42501` | Select und Insert/Update/Delete `42501` |
-| `sale_lines` | Lesen erfolgreich; direkte Schreibrechte fehlen, eigener Direkt-Insert `42501` | Select 0 Zeilen; Insert/Update/Delete `42501` | Select und Insert/Update/Delete `42501` |
+| Tabelle           | Eigenes Mitglied                                                               | Fremdes Mitglied                                                                                                                | `anon`                                          |
+| ----------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `inventory_items` | Lesen sowie zulässiges Insert/Update/Delete erfolgreich                        | Select 0 Zeilen; Insert `42501`; leises Update/Delete wird zusätzlich als unveränderte beziehungsweise vorhandene Zeile geprüft | Select und Insert/Update/Delete jeweils `42501` |
+| `stock_lots`      | Lesen erfolgreich; direkte Schreibrechte fehlen, eigener Direkt-Insert `42501` | Select 0 Zeilen; Insert/Update/Delete `42501`                                                                                   | Select und Insert/Update/Delete `42501`         |
+| `stock_movements` | Lesen erfolgreich; direkte Schreibrechte fehlen, eigener Direkt-Insert `42501` | Select 0 Zeilen; Insert/Update/Delete `42501`                                                                                   | Select und Insert/Update/Delete `42501`         |
+| `sales`           | Lesen erfolgreich; direkte Schreibrechte fehlen, eigener Direkt-Insert `42501` | Select 0 Zeilen; Insert/Update/Delete `42501`                                                                                   | Select und Insert/Update/Delete `42501`         |
+| `sale_lines`      | Lesen erfolgreich; direkte Schreibrechte fehlen, eigener Direkt-Insert `42501` | Select 0 Zeilen; Insert/Update/Delete `42501`                                                                                   | Select und Insert/Update/Delete `42501`         |
 
 Für alle fünf Tabellen wird zusätzlich `relrowsecurity = true` geprüft. Die
 vier Buchungstabellen sind absichtlich nur über die vorhandenen Fach-RPCs
@@ -163,16 +163,15 @@ Dieser Nachweis bleibt offen und ist keine grüne Abnahme.
 Vor dem Workflow-Umbau wurde der strukturierte Vertrag erweitert und mit
 `npm run test:workflow` rot ausgeführt: 7 Tests bestanden, 3 scheiterten. Die
 Fehler nannten genau die fehlenden Jobs `changes`, `database`,
-`database-gate` und die fehlende Deploy-Abhängigkeit. Nach der Implementierung
-meldet der Vertrag 11/11 grün.
+`database-gate` und die fehlende Deploy-Abhängigkeit. Nach der ersten
+Implementierung meldete der Vertrag 11/11 grün.
 
 Die Negativfixtures weisen zurück:
 
-1. einen Change-Detector ohne `set -euo pipefail`;
-2. ein Gate, das einen fehlgeschlagenen Changes-Job durchlässt;
-3. ein Gate, das bei `supabase=true` ein übersprungenes Database-Ergebnis
+1. ein Gate, das einen fehlgeschlagenen Changes-Job durchlässt;
+2. ein Gate, das bei `supabase=true` ein übersprungenes Database-Ergebnis
    akzeptiert;
-4. die bereits vorhandenen Test-/Image-/Deploy-Bypässe.
+3. die bereits vorhandenen Test-/Image-/Deploy-Bypässe.
 
 Der Change-Detector verwendet bei Pull Requests
 `github.event.pull_request.base.sha`, bei Pushes `github.event.before` und
@@ -183,38 +182,38 @@ Changes-Job mit Fehler statt `false` auszugeben.
 
 Die Gate-Wahrheitstabelle lautet:
 
-| `changes` | `supabase` | `database` | `database-gate` |
-| --- | --- | --- | --- |
-| `success` | `true` | `success` | `success` |
-| `success` | `true` | `failure`, `cancelled` oder `skipped` | `failure` |
-| `success` | `false` | `skipped` | `success` |
-| `success` | `false` | anderer Zustand | `failure` |
-| nicht `success` | beliebig/leer | beliebig | `failure` |
+| `changes`       | `supabase`    | `database`                            | `database-gate` |
+| --------------- | ------------- | ------------------------------------- | --------------- |
+| `success`       | `true`        | `success`                             | `success`       |
+| `success`       | `true`        | `failure`, `cancelled` oder `skipped` | `failure`       |
+| `success`       | `false`       | `skipped`                             | `success`       |
+| `success`       | `false`       | anderer Zustand                       | `failure`       |
+| nicht `success` | beliebig/leer | beliebig                              | `failure`       |
 
 `deploy.needs` enthält `database-gate`; der Deploy-Ausdruck verlangt dessen
 Ergebnis ausdrücklich als `success`.
 
 ## Prüfergebnisse
 
-| Prüfung | Ergebnis |
-| --- | --- |
-| Workflowvertrag vor Implementierung | Erwartetes RED: 7 grün, 3 fehlgeschlagen |
-| Fixture-Kopiervertrag vor Implementierung | Erwartetes RED: `ERR_MODULE_NOT_FOUND` |
-| `npm run test:workflow` | Grün: 11/11 einschließlich Negativfixtures |
-| pgTAP-Rahmen-/Planzählung | Statisch grün: 6 Dateien, 214/214 Assertions |
-| Fixture-Vorbereitung und Hashvergleich | Grün; Quelle und `.inc` identisch |
-| PowerShell-Parser | Grün: 3/3 Dateien syntaktisch gültig |
-| `npm run format:check` | Grün |
-| `npm run lint` | Grün |
-| `npm run typecheck` | Grün |
-| `npm test` | Grün: Node 90/717, DOM 9/92, Angular 18/230; insgesamt 117 Dateien und 1.039 Vitest-Fälle; Orchestrator 8 grün/3 Windows-Skips |
-| `npm run build` | Grün; Build in 5,709 Sekunden |
-| `npx prettier --check .github/workflows/ci.yml` | Grün |
-| `git diff --check` | Grün |
-| `npx supabase start` | Blockiert: Exit 1, Docker-Engine nicht erreichbar |
-| `npm run test:db` zweimal | Blockiert vor erstem Lauf; keine DB-Ergebnisse |
-| RLS-Test separat/gemeinsam | Blockiert; keine DB-Ergebnisse |
-| Restdatenprüfung | Blockiert; lokaler Postgres nicht erreichbar |
+| Prüfung                                    | Ergebnis                                                                                                                       |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| Workflowvertrag vor Implementierung        | Erwartetes RED: 7 grün, 3 fehlgeschlagen                                                                                       |
+| Fixture-Kopiervertrag vor Implementierung  | Erwartetes RED: `ERR_MODULE_NOT_FOUND`                                                                                         |
+| `npm run test:workflow`                    | Grün: 20/20 einschließlich echter Git-Fixtures und Negativfixtures                                                             |
+| pgTAP-Rahmen-/Planzählung                  | Statisch grün: 6 Dateien, 214/214 Assertions                                                                                   |
+| Fixture-Vorbereitung und Hashvergleich     | Grün; Quelle und `.inc` identisch                                                                                              |
+| PowerShell-Parser                          | Grün: 4/4 Dateien syntaktisch gültig                                                                                           |
+| `npm run format:check`                     | Grün                                                                                                                           |
+| `npm run lint`                             | Grün                                                                                                                           |
+| `npm run typecheck`                        | Grün                                                                                                                           |
+| `npm test`                                 | Grün: Node 90/717, DOM 9/92, Angular 18/230; insgesamt 117 Dateien und 1.039 Vitest-Fälle; Orchestrator 8 grün/3 Windows-Skips |
+| `npm run build`                            | Grün; Build in 5,645 Sekunden                                                                                                  |
+| Prettier für Workflow, Skripte und Bericht | Grün                                                                                                                           |
+| `git diff --check`                         | Grün                                                                                                                           |
+| `npx supabase start`                       | Blockiert: Exit 1, Docker-Engine nicht erreichbar                                                                              |
+| `npm run test:db` zweimal                  | Blockiert vor erstem Lauf; keine DB-Ergebnisse                                                                                 |
+| RLS-Test separat/gemeinsam                 | Blockiert; keine DB-Ergebnisse                                                                                                 |
+| Restdatenprüfung                           | Blockiert; lokaler Postgres nicht erreichbar                                                                                   |
 
 ## Offene Bedenken
 
@@ -225,3 +224,87 @@ Ergebnis ausdrücklich als `success`.
 - Es wurde gemäß Brief kein externer Workflow, Push, Pull Request, Deployment
   oder Zugriff auf eine verknüpfte beziehungsweise produktive Datenbank
   ausgeführt. Die echte GitHub-Gate-Wirkung bleibt daher externe Evidenz.
+
+## Fixrunde 1 – Review-Findings
+
+Fix-Commit:
+
+- Betreff: `fix(test): harden database gate support tooling`
+- Der Hash wird nach dem separaten Commit im Task-Handoff genannt.
+
+### Worktree-gebundenes Upgrade-Harness
+
+Die Supabase-CLI 2.114.0 wurde lokal mit `db reset --help` und
+`migration up --help` geprüft. Beide Befehle akzeptieren den globalen Schalter
+`--workdir <Pfad>`.
+
+Ein gemeinsamer PowerShell-Command-Builder erzeugt nun die tatsächlich vom
+Harness verwendeten Argumentlisten:
+
+- `supabase --workdir <absoluter Worktree> db reset --local --version <Version> --no-seed`;
+- `supabase --workdir <absoluter Worktree> migration up --local`.
+
+Der Vertragstest lädt diesen Builder aus einem fremden temporären CWD und
+vergleicht beide vollständigen Argumentlisten mit unabhängig festgelegten
+Literalen. Dabei wird kein Reset, keine Migration und kein Docker-Befehl
+ausgeführt. Das RED scheiterte am fehlenden Builder, das GREEN bestätigt beide
+absolut an diesen Worktree gebundenen CLI-Aufrufe. Alle vier manuellen
+PowerShell-Dateien bestehen zusätzlich den Parsercheck.
+
+### Echter Change-Detector
+
+Die frühere Regex-Prüfung des eingebetteten Shelltexts wurde entfernt. Der
+Workflow ruft jetzt direkt `node scripts/detect-supabase-changes.mjs` mit den
+vier GitHub-Kontextwerten auf. Der Detector verwendet `execFile` mit getrennten
+Git-Argumenten und akzeptiert für Commitwerte ausschließlich 40-stellige
+Hex-SHAs; Shell-Injection über Eventwerte findet nicht statt. `fetch-depth: 0`
+bleibt im Workflowvertrag vorgeschrieben.
+
+Sieben Verhaltenstests erzeugen echte temporäre Git-Repositories und prüfen:
+
+1. Pull Request verwendet nur `pull_request.base.sha`, selbst wenn
+   `event.before` auf HEAD zeigt;
+2. Push verwendet nur `event.before`, selbst wenn die PR-Basis abweicht;
+3. Null-SHA verwendet den direkten Vorgänger;
+4. erster Commit ohne Vorgänger entscheidet konservativ `true`;
+5. nicht auflösbare Force-Push-Basis beendet den Detector ohne Ausgabe mit
+   Fehlerstatus;
+6. Supabase-Diff ergibt `supabase=true`;
+7. reiner Nicht-Supabase-Diff ergibt `supabase=false`.
+
+Damit würde insbesondere die alte fehlerhafte Fixture, die nach der
+PR-Basiswahl nochmals die Push-Basis zuwies, im ersten Szenario rot werden. Im
+RED fehlte der neue Detector; sechs positive Fälle scheiterten. Nach der
+Implementierung sind alle sieben Fälle grün.
+
+### Atomare Fixture-Vorbereitung
+
+Das Support-Fixture wird zuerst in eine eindeutig benannte temporäre Datei im
+selben Zielverzeichnis kopiert und erst danach atomar auf die `.inc`-Datei
+umbenannt. Fehler entfernen ausschließlich die eigene temporäre Datei.
+Windows kann bei mehreren gleichzeitigen Ziel-Replacements kurzzeitig
+`EACCES`/`EPERM` melden; dafür gibt es zehn begrenzte Rename-Versuche mit
+ansteigender Wartezeit.
+
+Der Hardlink-Vertrag war gegen das alte direkte `copyFile` rot: Der Alias auf
+die vorherige Zieldatei enthielt danach fälschlich bereits den neuen Inhalt.
+Nach dem atomaren Replace behält der Alias vollständig den alten Inhalt,
+während das Ziel vollständig neu ist. Zwölf parallele Vorbereitungen führten
+zunächst zu einem realen Windows-`EPERM`; nach dem begrenzten Retry sind alle
+grün, der SHA-256 entspricht exakt der Quelle und es bleibt keine temporäre
+Datei zurück.
+
+### Endabnahme der Fixrunde
+
+- `npm run test:workflow`: 20/20 grün;
+- PowerShell-Parser: 4/4 Dateien grün;
+- `npm run format:check`, `npm run lint` und `npm run typecheck`: grün;
+- `npm test`: 117 Dateien und 1.039 Tests grün, dazu 8 grüne
+  Orchestrator-Fälle und 3 erwartete Windows-Skips;
+- `npm run build`: grün in 5,645 Sekunden;
+- Prettier und `git diff --check`: grün.
+
+Die Docker-Engine blieb unverändert nicht erreichbar. Deshalb wurden in der
+Fixrunde weder ein Reset noch eine Migration oder ein DB-Test ausgeführt; der
+bereits dokumentierte reale DB-Blocker und die ausstehenden zwei DB-Läufe
+bleiben bestehen.

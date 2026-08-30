@@ -21,7 +21,7 @@
     "test:angular-fallback": "vitest run --project=angular",
     "test:stress": "vitest run --project=node --sequence.shuffle",
     "test:orchestrator": "node --test scripts/run-test-suites.test.mjs",
-    "test:workflow": "node --test scripts/ci-workflow.test.mjs scripts/db-test-fixture.test.mjs",
+    "test:workflow": "node --test scripts/ci-workflow.test.mjs scripts/db-test-fixture.test.mjs scripts/detect-supabase-changes.test.mjs scripts/inventory-upgrade-harness.test.mjs",
     "test:coverage": "vitest run --coverage",
     "test:split": "vitest run --config vitest.split.config.ts",
     "test:audit": "node scripts/test-suite-audit.mjs",
