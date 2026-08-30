@@ -11,6 +11,7 @@ import { MutationResult } from './catalog.service';
 import { StockService } from './stock.service';
 import { ReturnRecord } from '../models/return.models';
 import { createLocalDemoId } from '../utils/client-identity';
+import { INVENTORY_RECONCILIATION_AUDIT_REASONS } from '../models/inventory-reconciliation';
 
 export interface CreateSalePayload {
   inventory_item_id: string;
@@ -334,20 +335,19 @@ export class SalesService {
   async recordLegacySale(
     inventoryItemId: string,
     input: RecordSaleInput,
-    reason: string,
   ): Promise<MutationResult<RecordSaleResult>> {
+    const operation = 'Historischen Verkauf nachtragen';
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     const line = input.lines[0];
     if (
       !workspaceId ||
-      !reason.trim() ||
       input.lines.length !== 1 ||
       line?.inventoryItemId !== inventoryItemId ||
       line.quantity !== 1
     ) {
       return this.mutationFailure(
-        'Legacy-Verkauf nachtragen',
-        new Error('Der Legacy-Verkaufsnachtrag ist ungültig.'),
+        operation,
+        new Error('Der historische Verkaufsnachtrag ist ungültig.'),
       );
     }
 
@@ -368,13 +368,13 @@ export class SalesService {
           buyer_notes: input.buyerNotes ?? null,
           title_snapshot: line.titleSnapshot ?? null,
         },
-        p_reason: reason.trim(),
+        p_reason: INVENTORY_RECONCILIATION_AUDIT_REASONS.recordSale,
       });
       if (error || !data) {
-        return this.mutationFailure(
-          'Legacy-Verkauf nachtragen',
-          error ?? new Error('Der Verkauf wurde nicht zurückgegeben.'),
-        );
+        const visibleError = error?.message.includes('Legacy')
+          ? new Error('Der historische Verkauf konnte nicht nachgetragen werden.', { cause: error })
+          : (error ?? new Error('Der Verkauf wurde nicht zurückgegeben.'));
+        return this.mutationFailure(operation, visibleError);
       }
       const result = this.mapRecordSaleResult(data);
       this.sales.update((sales) => [
@@ -384,7 +384,7 @@ export class SalesService {
       await this.refreshAffectedState(workspaceId);
       return { data: result, error: null, reportedBySyncStatus: false };
     } catch (error: unknown) {
-      return this.mutationFailure('Legacy-Verkauf nachtragen', error);
+      return this.mutationFailure(operation, error);
     }
   }
 

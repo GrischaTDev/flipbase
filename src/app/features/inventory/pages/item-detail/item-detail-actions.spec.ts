@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { FormControl, FormGroup } from '@angular/forms';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
@@ -35,6 +35,7 @@ function erstelleKomponente(error: Error | null = null) {
   const toast = new ToastService();
   const syncStatus = new SyncStatusService();
   const navigate = vi.fn(async () => true);
+  const routeId = signal(artikel.id);
   const inventoryService = {
     selectedItem: signal<InventoryItem | null>({ ...artikel }),
     updateItemStatus: vi.fn(async () => ({ error })),
@@ -46,6 +47,7 @@ function erstelleKomponente(error: Error | null = null) {
   };
   const dialog = { frage: vi.fn(async () => true) };
   const mediaService = {
+    loadItemMedia: vi.fn(async (_itemId: string): Promise<ItemMedia[]> => []),
     uploadItemMedia: vi.fn(
       async (
         _itemId: string,
@@ -56,16 +58,23 @@ function erstelleKomponente(error: Error | null = null) {
     setPrimary: vi.fn(async () => ({ error })),
     deleteMedia: vi.fn(async () => ({ error })),
   };
+  const currentItem = computed<InventoryItem | null>(() => {
+    const selectedItem = inventoryService.selectedItem();
+    return selectedItem?.id === routeId() ? selectedItem : null;
+  });
   const komponente = Object.create(ItemDetailComponent.prototype) as ItemDetailComponent;
   Object.assign(komponente, {
-    id: signal(artikel.id),
+    id: routeId,
+    currentItem,
     inventoryService,
     mediaService,
     mediaList: signal<ItemMedia[]>([]),
     isUploading: signal(false),
     uploadError: signal<string | null>(null),
-    legacyReason: signal(''),
     isAddingCost: signal(true),
+    isEditModalOpen: signal(false),
+    isLabelModalOpen: signal(false),
+    previewModalUrl: signal<string | null>(null),
     costForm: new FormGroup({
       type: new FormControl<'repair'>('repair', { nonNullable: true }),
       amount: new FormControl(4, { nonNullable: true }),
@@ -76,7 +85,24 @@ function erstelleKomponente(error: Error | null = null) {
     syncStatus,
     toast,
   });
-  return { komponente, inventoryService, mediaService, dialog, syncStatus, toast, navigate };
+  return {
+    komponente,
+    inventoryService,
+    mediaService,
+    dialog,
+    syncStatus,
+    toast,
+    navigate,
+    routeId,
+  };
+}
+
+function verzoegerteAntwort<T>() {
+  let resolve!: (wert: T) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
 }
 
 function dateiEvent(dateien: File[]): Event {
@@ -86,7 +112,81 @@ function dateiEvent(dateien: File[]): Event {
 }
 
 describe('ItemDetailComponent – Aktionsmeldungen', () => {
-  it('zeigt sold und Legacy-Konflikte schreibgeschützt statt als Statusauswahl', () => {
+  it('verwirft verspätet geladene Medien einer vorherigen Artikelroute', async () => {
+    const { komponente, inventoryService, mediaService, routeId } = erstelleKomponente();
+    const zweiterArtikel = {
+      ...artikel,
+      id: '44444444-4444-4444-8444-444444444444',
+      title: 'Zweiter Artikel',
+    };
+    const zweitesMedium = {
+      ...medium,
+      id: '55555555-5555-4555-8555-555555555555',
+      inventory_item_id: zweiterArtikel.id,
+    };
+    const ersteAntwort = verzoegerteAntwort<ItemMedia[]>();
+    const zweiteAntwort = verzoegerteAntwort<ItemMedia[]>();
+    mediaService.loadItemMedia.mockImplementation((itemId: string) =>
+      itemId === artikel.id ? ersteAntwort.promise : zweiteAntwort.promise,
+    );
+
+    const erstesLaden = komponente.loadMedia(artikel.id);
+    routeId.set(zweiterArtikel.id);
+    inventoryService.selectedItem.set(zweiterArtikel);
+    const zweitesLaden = komponente.loadMedia(zweiterArtikel.id);
+
+    zweiteAntwort.resolve([zweitesMedium]);
+    await zweitesLaden;
+    ersteAntwort.resolve([medium]);
+    await erstesLaden;
+
+    expect(komponente.mediaList()).toEqual([zweitesMedium]);
+  });
+
+  it('übernimmt keine Medien, die nicht zum geladenen Artikel gehören', async () => {
+    const { komponente, mediaService } = erstelleKomponente();
+    const fremdesMedium = {
+      ...medium,
+      inventory_item_id: '44444444-4444-4444-8444-444444444444',
+    };
+    mediaService.loadItemMedia.mockResolvedValue([medium, fremdesMedium]);
+
+    await komponente.loadMedia(artikel.id);
+
+    expect(komponente.mediaList()).toEqual([medium]);
+  });
+
+  it('schließt artikelbezogene Dialoge und verwirft Formulare beim Route-Wechsel', () => {
+    const { komponente } = erstelleKomponente();
+    const routeState = komponente as unknown as { resetRouteLocalState(): void };
+    komponente.isEditModalOpen.set(true);
+    komponente.isLabelModalOpen.set(true);
+    komponente.isAddingCost.set(true);
+    komponente.previewModalUrl.set('data:image/jpeg;base64,bild');
+    komponente.uploadError.set('Alter Fehler');
+    komponente.mediaList.set([medium]);
+    komponente.costForm.setValue({
+      type: 'repair',
+      amount: 99,
+      description: 'Eingabe für den alten Artikel',
+    });
+
+    routeState.resetRouteLocalState();
+
+    expect(komponente.isEditModalOpen()).toBe(false);
+    expect(komponente.isLabelModalOpen()).toBe(false);
+    expect(komponente.isAddingCost()).toBe(false);
+    expect(komponente.previewModalUrl()).toBeNull();
+    expect(komponente.uploadError()).toBeNull();
+    expect(komponente.mediaList()).toEqual([]);
+    expect(komponente.costForm.getRawValue()).toEqual({
+      type: 'repair',
+      amount: 0,
+      description: '',
+    });
+  });
+
+  it('zeigt verkaufte und ungeklärte Zustände schreibgeschützt statt als Statusauswahl', () => {
     const template = readFileSync(
       'src/app/features/inventory/pages/item-detail/item-detail.component.html',
       'utf8',
@@ -96,28 +196,37 @@ describe('ItemDetailComponent – Aktionsmeldungen', () => {
     expect(template).toContain("item.sale_state === 'legacy_sold_unverified'");
     expect(template).toContain("item.sale_state === 'legacy_sale_header_without_line'");
     expect(template).toContain('Korrektur erforderlich');
+    expect(template).toContain('Verkaufsstatus klären');
+    expect(template).toContain('Artikel ist noch vorhanden');
+    expect(template).toContain('Verkauf nachtragen');
+    expect(template).not.toContain('Altdaten prüfen');
+    expect(template).not.toContain('Prüfgrund');
+    expect(template).not.toMatch(/<input[^>]+legacy-reason/);
   });
 
-  it('nimmt einen ungeklärten Altartikel nur mit Grund und Bestätigung zurück', async () => {
+  it('nimmt einen ungeklärten Artikel nur nach Bestätigung wieder in den Bestand auf', async () => {
     const { komponente, inventoryService, dialog, toast } = erstelleKomponente();
     inventoryService.selectedItem.set({
       ...artikel,
       status: 'sold',
       sale_state: 'legacy_sold_unverified',
     });
-    const legacyActions = komponente as unknown as {
-      legacyReason: { set(value: string): void };
-      onRestoreLegacySoldItem(): Promise<void>;
-    };
-    legacyActions.legacyReason.set('Historischer Verkauf fehlt');
+    dialog.frage.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 
-    await legacyActions.onRestoreLegacySoldItem();
+    await komponente.onRestoreLegacySoldItem();
 
-    expect(dialog.frage).toHaveBeenCalledOnce();
-    expect(inventoryService.resolveLegacySoldItem).toHaveBeenCalledWith(
-      artikel.id,
-      'Historischer Verkauf fehlt',
+    expect(inventoryService.resolveLegacySoldItem).not.toHaveBeenCalled();
+
+    await komponente.onRestoreLegacySoldItem();
+
+    expect(dialog.frage).toHaveBeenCalledTimes(2);
+    expect(dialog.frage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        titel: 'Artikel wieder in Bestand nehmen?',
+        bestaetigenText: 'Artikel ist noch vorhanden',
+      }),
     );
+    expect(inventoryService.resolveLegacySoldItem).toHaveBeenCalledWith(artikel.id);
     expect(toast.toasts()[0]).toMatchObject({
       type: 'success',
       title: 'Artikel wurde wieder in den Bestand aufgenommen.',
@@ -148,6 +257,58 @@ describe('ItemDetailComponent – Aktionsmeldungen', () => {
         },
       },
     });
+  });
+
+  it('führt für einen veralteten Artikel weder Bestandsrücknahme noch Verkaufsnachtrag aus', async () => {
+    const { komponente, inventoryService, dialog, navigate, routeId } = erstelleKomponente();
+    const staleItem = {
+      ...artikel,
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      title: 'Alter Artikel',
+      status: 'sold' as const,
+      sale_state: 'legacy_sold_unverified' as const,
+    };
+    routeId.set('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+    inventoryService.selectedItem.set(staleItem);
+
+    await komponente.onRestoreLegacySoldItem();
+    komponente.openLegacySaleReconciliation();
+
+    expect(dialog.frage).not.toHaveBeenCalled();
+    expect(inventoryService.resolveLegacySoldItem).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('prüft nach einer Bestätigung erneut Route, Artikel-ID und Verkaufsstatus', async () => {
+    const { komponente, inventoryService, dialog, routeId } = erstelleKomponente();
+    inventoryService.selectedItem.set({
+      ...artikel,
+      status: 'sold',
+      sale_state: 'legacy_sold_unverified',
+    });
+    let bestaetigen: (wert: boolean) => void = () => undefined;
+    dialog.frage.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          bestaetigen = resolve;
+        }),
+    );
+
+    const ruecknahme = komponente.onRestoreLegacySoldItem();
+
+    expect(dialog.frage).toHaveBeenCalledOnce();
+    routeId.set('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+    inventoryService.selectedItem.set({
+      ...artikel,
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      title: 'Neuer Artikel',
+      status: 'sold',
+      sale_state: 'legacy_sold_unverified',
+    });
+    bestaetigen(true);
+    await ruecknahme;
+
+    expect(inventoryService.resolveLegacySoldItem).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -280,6 +441,44 @@ describe('ItemDetailComponent – Aktionsmeldungen', () => {
 
     expect(komponente.mediaList()[0].is_primary).toBe(true);
     expect(toast.toasts()[0].title).toBe('Hauptbild wurde geändert.');
+  });
+
+  it('bearbeitet kein Medium eines anderen Artikels', async () => {
+    const { komponente, mediaService, toast } = erstelleKomponente();
+    const fremdesMedium = {
+      ...medium,
+      inventory_item_id: '44444444-4444-4444-8444-444444444444',
+    };
+    komponente.mediaList.set([fremdesMedium]);
+
+    await komponente.onSetPrimary(fremdesMedium);
+    await komponente.onDeleteMedia(fremdesMedium);
+
+    expect(mediaService.setPrimary).not.toHaveBeenCalled();
+    expect(mediaService.deleteMedia).not.toHaveBeenCalled();
+    expect(toast.toasts()).toEqual([]);
+  });
+
+  it('ändert nach einem Route-Wechsel keinen Medienzustand der neuen Seite', async () => {
+    const { komponente, inventoryService, mediaService, routeId, toast } = erstelleKomponente();
+    const antwort = verzoegerteAntwort<{ error: Error | null }>();
+    mediaService.setPrimary.mockReturnValue(antwort.promise);
+    komponente.mediaList.set([{ ...medium, is_primary: false }]);
+
+    const aenderung = komponente.onSetPrimary(medium);
+    const zweiterArtikel = {
+      ...artikel,
+      id: '44444444-4444-4444-8444-444444444444',
+      title: 'Zweiter Artikel',
+    };
+    routeId.set(zweiterArtikel.id);
+    inventoryService.selectedItem.set(zweiterArtikel);
+    komponente.mediaList.set([]);
+    antwort.resolve({ error: null });
+    await aenderung;
+
+    expect(komponente.mediaList()).toEqual([]);
+    expect(toast.toasts()).toEqual([]);
   });
 
   it('behält das bisherige Hauptbild bei einem Fehler bei', async () => {

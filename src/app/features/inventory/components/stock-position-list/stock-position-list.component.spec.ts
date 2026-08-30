@@ -230,18 +230,30 @@ describe('StockPositionListComponent', () => {
     expect(row.querySelector('[data-item-sell]')).toBeNull();
   });
 
-  it('bietet bei ungeklärtem sold beide Klärungswege mit Pflichtgrund an', () => {
+  it('bietet bei ungeklärtem Verkauf beide Klärungswege ohne manuelle Grundangabe an', () => {
     const fixture = createList(
       [],
       [{ ...einzelstueck, status: 'sold', sale_state: 'legacy_sold_unverified' }],
     );
-    const row = fixture.nativeElement.querySelector('[data-individual-row]') as HTMLElement;
+    const host = fixture.nativeElement as HTMLElement;
+    const row = host.querySelector('[data-individual-row]') as HTMLElement;
+    const restoreLegacy = vi.fn();
+    fixture.componentInstance.restoreLegacy.subscribe(restoreLegacy);
 
-    expect(row.querySelector('label[for="legacy-reason-inventory-mystery-1"]')).not.toBeNull();
-    expect(row.querySelector('[data-restore-stock]')?.textContent).toContain(
-      'Wieder in Bestand nehmen',
-    );
+    expect(row.textContent).toContain('Verkaufsstatus klären');
+    expect(row.textContent).toContain('Artikel ist noch vorhanden');
     expect(row.querySelector('[data-reconcile-sale]')?.textContent).toContain('Verkauf nachtragen');
+    expect(row.textContent).not.toContain('Altdaten prüfen');
+    expect(row.textContent).not.toContain('Prüfgrund');
+    expect(host.querySelector('input[id*="legacy-reason"]')).toBeNull();
+
+    row.querySelector<HTMLElement>('[data-restore-stock]')?.click();
+
+    expect(restoreLegacy).toHaveBeenCalledWith({
+      ...einzelstueck,
+      status: 'sold',
+      sale_state: 'legacy_sold_unverified',
+    });
   });
 
   it('zeigt beim Legacy-Verkaufskopf nur Korrektur erforderlich und keinen neuen Verkauf', () => {

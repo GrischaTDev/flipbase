@@ -346,6 +346,7 @@
                   <td class="p-3 font-semibold text-fb-text-primary group-last:rounded-bl-xl">
                     <a
                       [routerLink]="['/inventory', item.id]"
+                      [queryParams]="{ fromPurchaseId: p.id }"
                       class="hover:text-indigo-400 transition"
                     >
                       {{ item.title }}
@@ -398,6 +399,7 @@
                   <td class="p-3 text-right group-last:rounded-br-xl">
                     <a
                       [routerLink]="['/inventory', item.id]"
+                      [queryParams]="{ fromPurchaseId: p.id }"
                       class="text-indigo-400 hover:text-indigo-300 font-semibold text-xs"
                     >
                       Details &rarr;
@@ -462,7 +464,12 @@
               >
                 Kostenart
               </label>
-              <app-custom-select [options]="kostenartOptionen" formControlName="type" size="sm" />
+              <app-custom-select
+                ariaLabel="Kostenart"
+                [options]="kostenartOptionen"
+                formControlName="type"
+                size="sm"
+              />
             </div>
 
             <div>
@@ -661,10 +668,10 @@
             </div>
             <div class="sm:col-span-4">
               <app-custom-select
+                ariaLabel="Versanddienstleister"
                 [options]="dienstleisterOptionen()"
                 [value]="trackingCarrierDraft()"
                 (valueChange)="trackingCarrierDraft.set($event)"
-                aria-label="Versanddienstleister"
                 size="sm"
               />
             </div>

@@ -111,7 +111,7 @@
           { value: 'high_margin', label: 'Hohe Marge' },
           { value: 'defective', label: 'Defekt / Bastler' },
           { value: 'store_public', label: 'Im Webshop (' + storePublishedCount() + ')' },
-          { value: 'legacy_review', label: 'Altdaten prüfen' },
+          { value: 'legacy_review', label: 'Verkaufsstatus klären' },
         ];
         track preset.value
       ) {
@@ -140,6 +140,7 @@
       </div>
       <div class="sm:col-span-3">
         <app-custom-select
+          ariaLabel="Zustand filtern"
           variant="filter"
           [options]="filterConditionOptions"
           [(value)]="selectedCondition"
@@ -147,6 +148,7 @@
       </div>
       <div class="sm:col-span-3">
         <app-custom-select
+          ariaLabel="Status filtern"
           variant="filter"
           [options]="filterStatusOptions"
           [(value)]="selectedStatus"

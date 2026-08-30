@@ -421,24 +421,39 @@ describe('SalesService', () => {
       error: null,
     });
 
-    await service.recordLegacySale(
-      'legacy-item-1',
-      {
-        platform: 'direct',
-        saleDate: '2026-08-26',
-        lines: [{ inventoryItemId: 'legacy-item-1', quantity: 1, unitSalePrice: 19.98 }],
-      },
-      'Originalbeleg geprüft',
-    );
+    const recordSaleRpc = vi.spyOn(service, 'recordSale');
+    await service.recordLegacySale('legacy-item-1', {
+      platform: 'direct',
+      saleDate: '2026-08-26',
+      lines: [{ inventoryItemId: 'legacy-item-1', quantity: 1, unitSalePrice: 19.98 }],
+    });
 
     expect(rpc).toHaveBeenCalledWith(
       'record_legacy_inventory_sale',
       expect.objectContaining({
         p_inventory_item_id: 'legacy-item-1',
-        p_reason: 'Originalbeleg geprüft',
+        p_reason: 'Historische Statuskorrektur: Verkauf nachgetragen.',
       }),
     );
-    expect(rpc).not.toHaveBeenCalledWith('record_sale', expect.anything());
+    expect(recordSaleRpc).not.toHaveBeenCalled();
+  });
+
+  it('verdeckt technische Fehler beim historischen Verkaufsnachtrag', async () => {
+    const { service } = createService({
+      data: null,
+      error: new Error('Legacy-Datensatz ist unvollständig'),
+    });
+
+    const result = await service.recordLegacySale('legacy-item-1', {
+      platform: 'direct',
+      saleDate: '2026-08-26',
+      lines: [{ inventoryItemId: 'legacy-item-1', quantity: 1, unitSalePrice: 19.98 }],
+    });
+
+    expect(result.error?.message).toContain(
+      'Der historische Verkauf konnte nicht nachgetragen werden.',
+    );
+    expect(result.error?.message).not.toContain('Legacy');
   });
 
   it('lässt den Verkaufszustand bei unzureichendem Bestand unverändert', async () => {

@@ -109,7 +109,7 @@ export const TRANSLATIONS_DE = {
     NEW_PURCHASE: 'Neuer Einkauf',
     TYPE_SINGLE: 'Einzelartikel',
     TYPE_MYSTERY: 'Mystery Pack / Box',
-    TYPE_LOT: 'Lot / Posten',
+    TYPE_LOT: 'Konvolut',
     TYPE_PALLET: 'Palette / Retouren',
     PURCHASE_PRICE: 'Einkaufspreis',
     COSTS: 'Zusatzkosten',

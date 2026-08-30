@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, effect, inject, input, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
@@ -45,6 +53,16 @@ import { ItemCreateModalComponent } from '../../components/item-create-modal/ite
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 
+type ItemDetailBackLink =
+  | {
+      readonly commands: ['/purchases', string];
+      readonly label: 'Zurück zum Einkauf';
+    }
+  | {
+      readonly commands: ['/inventory'];
+      readonly label: 'Zurück zum Inventar';
+    };
+
 @Component({
   selector: 'app-item-detail',
   imports: [
@@ -84,6 +102,7 @@ export class ItemDetailComponent {
   ];
 
   readonly id = input.required<string>();
+  readonly fromPurchaseId = input<string | null>(null);
 
   private readonly dialog = inject(ConfirmDialogService);
   readonly inventoryService = inject(InventoryService);
@@ -91,6 +110,22 @@ export class ItemDetailComponent {
   private readonly router = inject(Router);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly toast = inject(ToastService);
+
+  readonly currentItem = computed<InventoryItem | null>(() => {
+    const item = this.inventoryService.selectedItem();
+    return item?.id === this.id() ? item : null;
+  });
+
+  readonly backLink = computed<ItemDetailBackLink>(() => {
+    const item = this.currentItem();
+    const purchaseId = this.fromPurchaseId();
+    const isValidatedPurchase =
+      item?.id === this.id() && !!purchaseId && item.purchase_id === purchaseId;
+
+    return isValidatedPurchase
+      ? { commands: ['/purchases', purchaseId], label: 'Zurück zum Einkauf' }
+      : { commands: ['/inventory'], label: 'Zurück zum Inventar' };
+  });
 
   readonly arrowLeftIcon = ArrowLeft;
   readonly boxesIcon = Boxes;
@@ -122,7 +157,6 @@ export class ItemDetailComponent {
   readonly isUploading = signal<boolean>(false);
   readonly uploadError = signal<string | null>(null);
   readonly previewModalUrl = signal<string | null>(null);
-  readonly legacyReason = signal('');
 
   readonly costForm = new FormGroup({
     type: new FormControl('repair', { nonNullable: true, validators: [Validators.required] }),
@@ -182,6 +216,7 @@ export class ItemDetailComponent {
   constructor() {
     effect(() => {
       const itemId = this.id();
+      this.resetRouteLocalState();
       if (itemId) {
         this.inventoryService.getItemById(itemId);
         this.loadMedia(itemId);
@@ -190,18 +225,20 @@ export class ItemDetailComponent {
   }
 
   async loadMedia(itemId: string): Promise<void> {
+    if (this.id() !== itemId) return;
+    this.mediaList.set([]);
     const list = await this.mediaService.loadItemMedia(itemId);
-    this.mediaList.set(list);
+    if (this.id() !== itemId) return;
+    this.mediaList.set(list.filter((medium) => medium.inventory_item_id === itemId));
   }
 
   async onFilesSelected(event: Event): Promise<void> {
-    const selected = this.inventoryService.selectedItem();
-    if (!selected || this.isMutationLocked(selected)) return;
+    const item = this.currentItem();
+    if (!item || this.isMutationLocked(item)) return;
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
 
-    const itemId = this.id();
-    if (!itemId) return;
+    const itemId = item.id;
 
     this.isUploading.set(true);
     this.uploadError.set(null);
@@ -225,17 +262,23 @@ export class ItemDetailComponent {
           fehlerAktion,
         );
         if (error) {
-          this.uploadError.set(error.message);
+          if (this.isCurrentRouteItem(itemId)) this.uploadError.set(error.message);
           ersterFehler ??= error;
           uploadFehler.push(error);
           fehlgeschlageneUploads++;
-        } else if (data) {
-          this.mediaList.update((prev) => [data, ...prev]);
+        } else if (data?.inventory_item_id === itemId) {
+          if (this.isCurrentRouteItem(itemId)) {
+            this.mediaList.update((prev) => [data, ...prev]);
+          }
           erfolgreicheUploads++;
           brauchtHauptbild = false;
         } else {
-          const fehler = new Error('Das Bild wurde nicht zurückgegeben.');
-          this.uploadError.set(fehler.message);
+          const fehler = new Error(
+            data
+              ? 'Das Bild wurde einem anderen Artikel zugeordnet.'
+              : 'Das Bild wurde nicht zurückgegeben.',
+          );
+          if (this.isCurrentRouteItem(itemId)) this.uploadError.set(fehler.message);
           ersterFehler ??= fehler;
           uploadFehler.push(fehler);
           fehlgeschlageneUploads++;
@@ -245,9 +288,11 @@ export class ItemDetailComponent {
       unerwarteterFehler = this.alsError(ursache);
     } finally {
       this.syncStatus.beendeFehlerAktion(fehlerAktion);
-      this.isUploading.set(false);
+      if (this.isCurrentRouteItem(itemId)) this.isUploading.set(false);
       input.value = '';
     }
+
+    if (!this.isCurrentRouteItem(itemId)) return;
 
     if (unerwarteterFehler) {
       this.uploadError.set(unerwarteterFehler.message);
@@ -294,12 +339,11 @@ export class ItemDetailComponent {
   }
 
   async onSetPrimary(media: ItemMedia): Promise<void> {
-    const selected = this.inventoryService.selectedItem();
-    if (!selected || this.isMutationLocked(selected)) return;
-    const itemId = this.id();
-    if (!itemId) return;
+    const item = this.currentItem();
+    if (!item || this.isMutationLocked(item) || !this.isOwnedMedia(item.id, media)) return;
 
-    const { error } = await this.mediaService.setPrimary(itemId, media.id);
+    const { error } = await this.mediaService.setPrimary(item.id, media.id);
+    if (!this.isOwnedMedia(item.id, media)) return;
     if (error) {
       this.meldeFehlerWennNichtSynchronisiert('Hauptbild konnte nicht geändert werden.', error);
       return;
@@ -309,12 +353,11 @@ export class ItemDetailComponent {
   }
 
   async onDeleteMedia(media: ItemMedia): Promise<void> {
-    const selected = this.inventoryService.selectedItem();
-    if (!selected || this.isMutationLocked(selected)) return;
-    const itemId = this.id();
-    if (!itemId) return;
+    const item = this.currentItem();
+    if (!item || this.isMutationLocked(item) || !this.isOwnedMedia(item.id, media)) return;
 
-    const { error } = await this.mediaService.deleteMedia(itemId, media.id, media.storage_path);
+    const { error } = await this.mediaService.deleteMedia(item.id, media.id);
+    if (!this.isOwnedMedia(item.id, media)) return;
     if (error) {
       this.meldeFehlerWennNichtSynchronisiert('Bild konnte nicht gelöscht werden.', error);
       return;
@@ -329,7 +372,7 @@ export class ItemDetailComponent {
 
   async onChangeStatus(newStatus: string | null): Promise<void> {
     if (!newStatus) return;
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || this.isMutationLocked(item)) return;
     const { error } = await this.inventoryService.updateItemStatus(
       item.id,
@@ -342,33 +385,27 @@ export class ItemDetailComponent {
     this.toast.success('Artikelstatus wurde geändert.');
   }
 
-  onLegacyReasonInput(event: Event): void {
-    this.legacyReason.set((event.target as HTMLInputElement).value);
-  }
-
   async onRestoreLegacySoldItem(): Promise<void> {
-    const item = this.inventoryService.selectedItem();
-    const reason = this.legacyReason().trim();
-    if (!item || item.sale_state !== 'legacy_sold_unverified' || !reason) return;
+    const item = this.currentItem();
+    if (!item || item.sale_state !== 'legacy_sold_unverified') return;
 
     const confirmed = await this.dialog.frage({
       titel: 'Artikel wieder in Bestand nehmen?',
-      text: `„${item.title}“ wird nach dokumentierter Prüfung wieder auf „Bereit“ gesetzt. Grund: ${reason}`,
-      bestaetigenText: 'Wieder in Bestand nehmen',
+      text: `„${item.title}“ wird auf „Bereit“ gesetzt. Die Korrektur wird automatisch dokumentiert.`,
+      bestaetigenText: 'Artikel ist noch vorhanden',
     });
-    if (!confirmed) return;
+    if (!confirmed || !this.isCurrentItem(item)) return;
 
-    const { error } = await this.inventoryService.resolveLegacySoldItem(item.id, reason);
+    const { error } = await this.inventoryService.resolveLegacySoldItem(item.id);
     if (error) {
-      this.meldeFehlerWennNichtSynchronisiert('Altbestand konnte nicht geklärt werden.', error);
+      this.meldeFehlerWennNichtSynchronisiert('Verkaufsstatus konnte nicht geklärt werden.', error);
       return;
     }
-    this.legacyReason.set('');
     this.toast.success('Artikel wurde wieder in den Bestand aufgenommen.');
   }
 
   openLegacySaleReconciliation(): void {
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || item.sale_state !== 'legacy_sold_unverified') return;
     const state: SaleTargetRouteState = {
       legacyReconciliation: {
@@ -383,7 +420,7 @@ export class ItemDetailComponent {
   }
 
   async onAddCost(): Promise<void> {
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || this.isMutationLocked(item) || this.costForm.invalid) return;
 
     const val = this.costForm.getRawValue();
@@ -408,7 +445,7 @@ export class ItemDetailComponent {
   }
 
   async onDeleteCost(costId: string): Promise<void> {
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || this.isMutationLocked(item)) return;
     const { error } = await this.inventoryService.deleteItemCost(item.id, costId);
     if (error) {
@@ -422,7 +459,7 @@ export class ItemDetailComponent {
   }
 
   async onTogglePublicStore(isPublic: boolean): Promise<void> {
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || this.isMutationLocked(item)) return;
     const { error } = await this.inventoryService.updateItem(item.id, {
       is_public_store: isPublic,
@@ -437,7 +474,7 @@ export class ItemDetailComponent {
   }
 
   async onDeleteItem(): Promise<void> {
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || this.isMutationLocked(item)) return;
     const bestaetigt = await this.dialog.frage({
       titel: 'Artikel löschen?',
@@ -445,21 +482,51 @@ export class ItemDetailComponent {
       bestaetigenText: 'Löschen',
       gefahr: true,
     });
-    if (bestaetigt) {
-      const { error } = await this.inventoryService.deleteItem(item.id);
-      if (error) {
-        this.meldeFehlerWennNichtSynchronisiert('Artikel konnte nicht gelöscht werden.', error);
-        return;
-      }
-      this.toast.success('Artikel wurde gelöscht.');
-      await this.router.navigate(['/inventory']);
+    if (!bestaetigt || !this.isCurrentItem(item)) return;
+
+    const { error } = await this.inventoryService.deleteItem(item.id);
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert('Artikel konnte nicht gelöscht werden.', error);
+      return;
     }
+    this.toast.success('Artikel wurde gelöscht.');
+    await this.router.navigate(['/inventory']);
   }
 
   openEditModal(): void {
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || this.isMutationLocked(item)) return;
     this.isEditModalOpen.set(true);
+  }
+
+  private isCurrentItem(item: InventoryItem): boolean {
+    const currentItem = this.currentItem();
+    return currentItem?.id === item.id && currentItem.sale_state === item.sale_state;
+  }
+
+  private isCurrentRouteItem(itemId: string): boolean {
+    return this.currentItem()?.id === itemId;
+  }
+
+  private isOwnedMedia(itemId: string, media: ItemMedia): boolean {
+    return (
+      this.isCurrentRouteItem(itemId) &&
+      media.inventory_item_id === itemId &&
+      this.mediaList().some(
+        (candidate) => candidate.id === media.id && candidate.inventory_item_id === itemId,
+      )
+    );
+  }
+
+  private resetRouteLocalState(): void {
+    this.isAddingCost.set(false);
+    this.isEditModalOpen.set(false);
+    this.isLabelModalOpen.set(false);
+    this.mediaList.set([]);
+    this.isUploading.set(false);
+    this.uploadError.set(null);
+    this.previewModalUrl.set(null);
+    this.costForm.reset({ type: 'repair', amount: 0, description: '' });
   }
 
   private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {

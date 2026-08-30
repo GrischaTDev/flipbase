@@ -226,6 +226,7 @@
               Zustand
             </span>
             <app-custom-select
+              ariaLabel="Zustand"
               formControlName="condition"
               [options]="conditionOptions"
             ></app-custom-select>
@@ -238,6 +239,7 @@
               Status
             </span>
             <app-custom-select
+              ariaLabel="Status"
               formControlName="status"
               [options]="statusOptions"
             ></app-custom-select>
@@ -328,6 +330,7 @@
             Zugehöriger Einkauf (optional)
           </label>
           <app-custom-select
+            ariaLabel="Zugehöriger Einkauf"
             [options]="einkaufsOptionen()"
             formControlName="purchase_id"
             size="sm"

@@ -1,6 +1,6 @@
 import '@angular/compiler';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { InventoryItem, ItemCost, Sale, Workspace } from '../models/flipbase.models';
 import { InventoryService } from './inventory.service';
 import { MockDataStoreService } from './mock-data-store.service';
@@ -61,6 +61,14 @@ function injiziereDienst(client: unknown, bereitgestellterMockStore?: MockDataSt
   };
 }
 
+function verzoegerteAntwort<T>() {
+  let resolve!: (wert: T) => void;
+  const promise = new Promise<T>((promiseResolve) => {
+    resolve = promiseResolve;
+  });
+  return { promise, resolve };
+}
+
 function erstelleDienst(artikelAntwort: SupabaseAntwort) {
   const aufrufe: { tabelle: string; payload: unknown }[] = [];
 
@@ -102,6 +110,103 @@ function erstelleDienst(artikelAntwort: SupabaseAntwort) {
 }
 
 describe('InventoryService – abhängige Schreibvorgänge', () => {
+  it('lässt bei überlappenden Detailaufrufen nur den neuesten Artikel samt Kosten und Verlauf gewinnen', async () => {
+    const artikelA = {
+      ...gespeicherterArtikel,
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      title: 'Artikel A',
+      costs: [{ id: 'kosten-a', type: 'repair', amount: 11 }],
+    };
+    const artikelB = {
+      ...gespeicherterArtikel,
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      title: 'Artikel B',
+      costs: [{ id: 'kosten-b', type: 'cleaning', amount: 22 }],
+    };
+    const antwortA = verzoegerteAntwort<{ data: typeof artikelA; error: null }>();
+    const antwortB = verzoegerteAntwort<{ data: typeof artikelB; error: null }>();
+    const antworten = new Map([
+      [artikelA.id, antwortA],
+      [artikelB.id, antwortB],
+    ]);
+    const client = {
+      from(tabelle: string) {
+        if (tabelle === 'inventory_items') {
+          return {
+            select() {
+              return {
+                eq(_spalte: string, itemId: string) {
+                  return {
+                    single: () => antworten.get(itemId)?.promise,
+                  };
+                },
+              };
+            },
+          };
+        }
+        if (tabelle === 'inventory_item_sale_states') {
+          return {
+            select() {
+              return {
+                eq: async (_spalte: string, itemId: string) => ({
+                  data: [
+                    {
+                      inventory_item_id: itemId,
+                      workspace_id: workspace.id,
+                      sale_state: 'no_active_sale',
+                      active_sale_count: 0,
+                      active_sale_id: null,
+                    },
+                  ],
+                  error: null,
+                }),
+              };
+            },
+          };
+        }
+        if (tabelle === 'activity_logs') {
+          return {
+            select() {
+              return {
+                eq(_spalte: string, itemId: string) {
+                  return {
+                    order: async () => ({
+                      data: [
+                        {
+                          id: `verlauf-${itemId}`,
+                          workspace_id: workspace.id,
+                          inventory_item_id: itemId,
+                          action: `Verlauf ${itemId}`,
+                          created_at: '2026-08-30T12:00:00.000Z',
+                        },
+                      ],
+                      error: null,
+                    }),
+                  };
+                },
+              };
+            },
+          };
+        }
+        throw new Error(`Unerwartete Tabelle: ${tabelle}`);
+      },
+    };
+    const { dienst } = injiziereDienst(client);
+
+    const ladenA = dienst.getItemById(artikelA.id);
+    const ladenB = dienst.getItemById(artikelB.id);
+    antwortB.resolve({ data: artikelB, error: null });
+    await ladenB;
+    antwortA.resolve({ data: artikelA, error: null });
+    await ladenA;
+
+    expect(dienst.selectedItem()?.id).toBe(artikelB.id);
+    expect(dienst.itemCosts()).toEqual(artikelB.costs);
+    expect(dienst.activityLogs()).toEqual([
+      expect.objectContaining({ inventory_item_id: artikelB.id }),
+    ]);
+  });
+
   it('merged den bestandswirksamen View-Zustand anhand der Artikel-ID', async () => {
     let updatePayload: Record<string, unknown> | null = null;
     const client = {
@@ -488,7 +593,8 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     const offeneAntwort = new Promise((resolve) => {
       rpcAntwortAufloesen = resolve;
     });
-    const client = { rpc: () => offeneAntwort };
+    const rpc = vi.fn(() => offeneAntwort);
+    const client = { rpc };
     const { dienst } = injiziereDienst(client);
     const legacyItem: InventoryItem = {
       ...gespeicherterArtikel,
@@ -500,7 +606,13 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     dienst.items.set([legacyItem]);
     dienst.selectedItem.set(legacyItem);
 
-    const klaerung = dienst.resolveLegacySoldItem(legacyItem.id, 'Historisch nicht belegbar');
+    const klaerung = dienst.resolveLegacySoldItem(legacyItem.id);
+    expect(rpc).toHaveBeenCalledWith('resolve_legacy_sold_item', {
+      p_workspace_id: workspace.id,
+      p_inventory_item_id: legacyItem.id,
+      p_action: 'restore_stock',
+      p_reason: 'Historische Statuskorrektur: Artikel ist noch vorhanden.',
+    });
     expect(dienst.items()[0].status).toBe('sold');
 
     rpcAntwortAufloesen({
@@ -535,7 +647,7 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     dienst.items.set([legacyItem]);
     dienst.selectedItem.set(legacyItem);
 
-    const ergebnis = await dienst.resolveLegacySoldItem(legacyItem.id, 'Versuch');
+    const ergebnis = await dienst.resolveLegacySoldItem(legacyItem.id);
 
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(dienst.items()[0]).toEqual(legacyItem);

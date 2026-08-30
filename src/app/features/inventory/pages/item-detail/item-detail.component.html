@@ -2,11 +2,12 @@
   <!-- Back Button & Top Actions -->
   <div class="flex items-center justify-between pb-1">
     <a
-      routerLink="/inventory"
+      [routerLink]="backLink().commands"
+      data-item-back-link
       class="inline-flex items-center gap-1.5 text-xs font-semibold text-fb-text-muted hover:text-fb-text-primary transition"
     >
       <svg [lucideIcon]="arrowLeftIcon" class="w-3.5 h-3.5"></svg>
-      <span>Zurück zum Inventar</span>
+      <span>{{ backLink().label }}</span>
     </a>
 
     <div class="flex items-center gap-2">
@@ -21,7 +22,7 @@
       </button>
 
       <a
-        [routerLink]="['/shop/item', inventoryService.selectedItem()?.id]"
+        [routerLink]="['/shop/item', currentItem()?.id]"
         target="_blank"
         class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-indigo-300 hover:text-fb-text-primary"
         title="Im Online-Shop ansehen"
@@ -32,14 +33,14 @@
 
       <a
         [routerLink]="['/research']"
-        [queryParams]="{ query: inventoryService.selectedItem()?.title }"
+        [queryParams]="{ query: currentItem()?.title }"
         class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
       >
         <svg [lucideIcon]="searchIcon" class="w-3.5 h-3.5 text-emerald-400"></svg>
         <span>Market Research</span>
       </a>
 
-      @if (inventoryService.selectedItem(); as actionItem) {
+      @if (currentItem(); as actionItem) {
         @if (!isMutationLocked(actionItem)) {
           <button
             type="button"
@@ -63,7 +64,7 @@
     </div>
   </div>
 
-  @if (inventoryService.selectedItem(); as item) {
+  @if (currentItem(); as item) {
     <!-- Main Item Card -->
     <div class="linear-surface rounded-xl p-5 space-y-5">
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -123,7 +124,7 @@
               data-item-status-badge
               class="rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-200"
             >
-              Altdaten prüfen
+              Verkaufsstatus klären
             </span>
           } @else if (
             item.sale_state === 'sale_status_conflict' ||
@@ -145,6 +146,7 @@
             </span>
           } @else {
             <app-custom-select
+              ariaLabel="Artikelstatus"
               variant="pill"
               [options]="statusOptions"
               [value]="item.status"
@@ -207,36 +209,20 @@
         aria-labelledby="legacy-sold-title"
       >
         <div>
-          <h2 id="legacy-sold-title" class="text-sm font-bold text-amber-200">Altdaten prüfen</h2>
+          <h2 id="legacy-sold-title" class="text-sm font-bold text-amber-200">
+            Verkaufsstatus klären
+          </h2>
           <p class="mt-1 text-xs text-fb-text-muted">
-            Für diesen historischen Artikel ist kein belastbarer Verkauf verknüpft. Entscheide nach
-            Prüfung, ob er wieder im Bestand ist oder der Verkauf nachgetragen werden muss.
+            Dieser Artikel ist als verkauft markiert, aber es gibt noch keinen zugehörigen Verkauf.
           </p>
-        </div>
-        <div>
-          <label
-            for="item-detail-legacy-reason"
-            class="mb-1 block text-xs font-semibold text-fb-text-secondary"
-          >
-            Prüfgrund für die Bestandsrücknahme
-          </label>
-          <input
-            id="item-detail-legacy-reason"
-            type="text"
-            [value]="legacyReason()"
-            (input)="onLegacyReasonInput($event)"
-            class="w-full rounded-lg border border-fb-line bg-fb-well px-3 py-2 text-sm text-fb-text-primary outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30"
-            autocomplete="off"
-          />
         </div>
         <div class="flex flex-wrap gap-2">
           <button
             type="button"
             (click)="onRestoreLegacySoldItem()"
-            [disabled]="legacyReason().trim().length === 0"
-            class="linear-btn-secondary rounded-lg px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            class="linear-btn-secondary rounded-lg px-3 py-2 text-xs font-semibold"
           >
-            Wieder in Bestand nehmen
+            Artikel ist noch vorhanden
           </button>
           <button
             type="button"
@@ -577,7 +563,12 @@
               (ngSubmit)="onAddCost()"
               class="p-3 rounded-lg bg-fb-subtle border border-fb-border flex flex-wrap gap-2 items-center animate-fade-in"
             >
-              <app-custom-select [options]="kostenartOptionen" formControlName="type" size="sm" />
+              <app-custom-select
+                ariaLabel="Kostenart"
+                [options]="kostenartOptionen"
+                formControlName="type"
+                size="sm"
+              />
 
               <input
                 type="number"
@@ -697,14 +688,14 @@
   }
 
   <!-- Inventory Single Label Modal -->
-  @if (isLabelModalOpen() && inventoryService.selectedItem()) {
+  @if (isLabelModalOpen() && currentItem()) {
     <app-inventory-label-modal
-      [items]="[inventoryService.selectedItem()!]"
+      [items]="[currentItem()!]"
       (closed)="isLabelModalOpen.set(false)"
     ></app-inventory-label-modal>
   }
 
-  @if (isEditModalOpen() && inventoryService.selectedItem(); as artikel) {
+  @if (isEditModalOpen() && currentItem(); as artikel) {
     @if (!isMutationLocked(artikel)) {
       <app-item-create-modal
         [item]="artikel"

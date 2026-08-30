@@ -1,5 +1,12 @@
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import {
   LucideArrowUpRight as ArrowUpRight,
@@ -15,6 +22,10 @@ import {
   DashboardReportService,
 } from '../../core/services/dashboard-report.service';
 import { SalesService } from '../../core/services/sales.service';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../shared/components/custom-select/custom-select.component';
 import { RevenueChartComponent } from '../../shared/components/revenue-chart/revenue-chart.component';
 
 interface RangeOption {
@@ -24,7 +35,14 @@ interface RangeOption {
 
 @Component({
   selector: 'app-dashboard',
-  imports: [CurrencyPipe, DatePipe, RouterLink, LucideDynamicIcon, RevenueChartComponent],
+  imports: [
+    CurrencyPipe,
+    DatePipe,
+    RouterLink,
+    LucideDynamicIcon,
+    CustomSelectComponent,
+    RevenueChartComponent,
+  ],
   templateUrl: './dashboard.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -43,11 +61,12 @@ export class DashboardComponent {
     { value: 'year', label: 'Jahr' },
   ];
 
-  readonly platformOptions = computed(() =>
-    [...new Set(this.salesService.sales().map((sale) => sale.platform))].sort((a, b) =>
-      a.localeCompare(b, 'de'),
-    ),
-  );
+  readonly platformSelectOptions = computed<readonly SelectOption<DashboardPlatform>[]>(() => [
+    { value: 'all', label: 'Alle Plattformen' },
+    ...[...new Set(this.salesService.sales().map((sale) => sale.platform))]
+      .sort((a, b) => a.localeCompare(b, 'de'))
+      .map((value) => ({ value, label: value })),
+  ]);
   readonly report = computed(() => this.reportService.createReport(this.range(), this.platform()));
 
   readonly trendingIcon = TrendingUp;
@@ -56,11 +75,20 @@ export class DashboardComponent {
   readonly boxesIcon = Boxes;
   readonly arrowIcon = ArrowUpRight;
 
+  constructor() {
+    effect(() => {
+      const current = this.platform();
+      if (!this.platformSelectOptions().some((option) => option.value === current)) {
+        this.platform.set('all');
+      }
+    });
+  }
+
   setRange(range: DashboardRange): void {
     this.range.set(range);
   }
 
-  setPlatform(platform: string): void {
-    this.platform.set(platform || 'all');
+  setPlatform(platform: DashboardPlatform | null): void {
+    this.platform.set(platform ?? 'all');
   }
 }

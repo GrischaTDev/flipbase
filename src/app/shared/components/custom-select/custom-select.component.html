@@ -2,9 +2,20 @@
   <!-- Trigger Button -->
   @if (variant() === 'pill') {
     <button
+      #trigger
       type="button"
+      role="combobox"
+      aria-haspopup="listbox"
       (click)="toggleDropdown($event)"
+      (keydown)="onTriggerKeydown($event)"
+      (blur)="onTriggerBlur()"
       [disabled]="effectiveDisabled()"
+      [id]="resolvedTriggerId()"
+      [attr.aria-label]="ariaLabel()"
+      [attr.aria-expanded]="isOpen()"
+      [attr.aria-controls]="isOpen() ? listboxId() : null"
+      [attr.aria-activedescendant]="activeDescendantId()"
+      [attr.aria-disabled]="effectiveDisabled()"
       class="inline-flex items-center justify-between gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition cursor-pointer shadow-sm outline-none select-none max-w-full"
       [class.opacity-50]="effectiveDisabled()"
       [class.cursor-not-allowed]="effectiveDisabled()"
@@ -22,9 +33,20 @@
     </button>
   } @else if (variant() === 'filter') {
     <button
+      #trigger
       type="button"
+      role="combobox"
+      aria-haspopup="listbox"
       (click)="toggleDropdown($event)"
+      (keydown)="onTriggerKeydown($event)"
+      (blur)="onTriggerBlur()"
       [disabled]="effectiveDisabled()"
+      [id]="resolvedTriggerId()"
+      [attr.aria-label]="ariaLabel()"
+      [attr.aria-expanded]="isOpen()"
+      [attr.aria-controls]="isOpen() ? listboxId() : null"
+      [attr.aria-activedescendant]="activeDescendantId()"
+      [attr.aria-disabled]="effectiveDisabled()"
       class="linear-input w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition select-none text-fb-text-secondary"
       [class.opacity-50]="effectiveDisabled()"
       [class.cursor-not-allowed]="effectiveDisabled()"
@@ -40,9 +62,20 @@
   } @else {
     <!-- Default Form Select Variant -->
     <button
+      #trigger
       type="button"
+      role="combobox"
+      aria-haspopup="listbox"
       (click)="toggleDropdown($event)"
+      (keydown)="onTriggerKeydown($event)"
+      (blur)="onTriggerBlur()"
       [disabled]="effectiveDisabled()"
+      [id]="resolvedTriggerId()"
+      [attr.aria-label]="ariaLabel()"
+      [attr.aria-expanded]="isOpen()"
+      [attr.aria-controls]="isOpen() ? listboxId() : null"
+      [attr.aria-activedescendant]="activeDescendantId()"
+      [attr.aria-disabled]="effectiveDisabled()"
       class="linear-input w-full flex items-center justify-between gap-2 rounded-lg font-medium cursor-pointer transition select-none text-fb-text-primary"
       [class]="groessenKlasse()"
       [class.opacity-50]="effectiveDisabled()"
@@ -68,6 +101,8 @@
   <!-- Floating Dropdown Panel -->
   @if (isOpen()) {
     <div
+      role="listbox"
+      [id]="listboxId()"
       class="custom-select-menu absolute z-50 min-w-[160px] max-w-[320px] w-full rounded-xl bg-fb-well border border-fb-line shadow-2xl ring-1 ring-white/5 py-1.5 max-h-60 overflow-y-auto outline-none animate-in fade-in zoom-in-95 duration-100"
       [class.bottom-full]="isDropUp()"
       [class.mb-1.5]="isDropUp()"
@@ -77,12 +112,21 @@
       [class.left-0]="variant() !== 'pill'"
     >
       <div class="space-y-0.5 px-1">
-        @for (option of options(); track option.value) {
+        @for (option of options(); track option.value; let index = $index) {
           @let isSelected = value() === option.value;
+          @let isActive = activeIndex() === index;
           <button
             type="button"
+            role="option"
+            tabindex="-1"
             (click)="selectOption(option, $event)"
+            [disabled]="effectiveDisabled()"
+            [id]="optionId(index)"
+            [attr.aria-selected]="isSelected"
+            [attr.aria-disabled]="effectiveDisabled()"
             class="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition cursor-pointer select-none"
+            [class.ring-1]="isActive"
+            [class.ring-indigo-400/60]="isActive"
             [class.bg-indigo-600/20]="isSelected"
             [class.text-indigo-300]="isSelected"
             [class.font-bold]="isSelected"

@@ -14,12 +14,14 @@
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
         <div
           class="inline-flex rounded-lg border border-fb-line bg-fb-well p-1"
+          role="group"
           aria-label="Zeitraum wählen"
         >
           @for (option of rangeOptions; track option.value) {
             <button
               type="button"
               (click)="setRange(option.value)"
+              [attr.aria-pressed]="range() === option.value"
               [class.bg-fb-surface]="range() === option.value"
               [class.text-fb-text-primary]="range() === option.value"
               [class.shadow-sm]="range() === option.value"
@@ -29,19 +31,15 @@
             </button>
           }
         </div>
-        <label class="sr-only" for="dashboard-platform">Plattform filtern</label>
-        <select
-          #platformFilter
-          id="dashboard-platform"
+        <app-custom-select
+          triggerId="dashboard-platform"
+          ariaLabel="Plattform filtern"
+          variant="filter"
+          widthClass="w-52"
+          [options]="platformSelectOptions()"
           [value]="platform()"
-          (change)="setPlatform(platformFilter.value)"
-          class="rounded-lg border border-fb-line bg-fb-well px-3 py-2 text-xs font-semibold text-fb-text-secondary outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/25"
-        >
-          <option value="all">Alle Plattformen</option>
-          @for (option of platformOptions(); track option) {
-            <option [value]="option">{{ option }}</option>
-          }
-        </select>
+          (valueChange)="setPlatform($event)"
+        />
       </div>
     </div>
   </header>

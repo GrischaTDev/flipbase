@@ -100,7 +100,7 @@ export class SaleCreateModalComponent {
       return [
         {
           value: this.targetValue(reconciliationTarget),
-          label: `${reconciliationTarget.title} · ungeklärter Altbestand`,
+          label: `${reconciliationTarget.title} · ungeklärter Verkaufsstatus`,
         },
       ];
     }
@@ -145,7 +145,6 @@ export class SaleCreateModalComponent {
     otherCosts: new FormControl(0, { nonNullable: true }),
     externalOrderId: new FormControl('', { nonNullable: true }),
     buyerNotes: new FormControl('', { nonNullable: true }),
-    reconciliationReason: new FormControl('', { nonNullable: true }),
   });
   readonly lines = this.form.controls.lines;
   readonly availableItems = computed(() =>
@@ -222,7 +221,6 @@ export class SaleCreateModalComponent {
           ? await this.salesService.recordLegacySale(
               reconciliation.inventoryItemId,
               this.validatedLegacyInput(reconciliation, input),
-              this.form.controls.reconciliationReason.value,
             )
           : await this.salesService.recordSale(input);
       if (result.error) throw result.error;
@@ -299,10 +297,9 @@ export class SaleCreateModalComponent {
     if (
       input.lines.length !== 1 ||
       line?.inventoryItemId !== reconciliation.inventoryItemId ||
-      line.quantity !== 1 ||
-      !this.form.controls.reconciliationReason.value.trim()
+      line.quantity !== 1
     ) {
-      throw new Error('Der Legacy-Verkaufsnachtrag ist unvollständig oder wurde verändert.');
+      throw new Error('Der historische Verkaufsnachtrag ist unvollständig oder wurde verändert.');
     }
     return input;
   }

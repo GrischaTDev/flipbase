@@ -194,7 +194,7 @@ export class PurchaseDetailComponent {
     },
     lot: {
       icon: Layers,
-      bezeichnung: 'Lot / Konvolut',
+      bezeichnung: 'Konvolut',
       kachel: 'bg-fb-art-lot/15 border-fb-art-lot/30 text-fb-art-lot',
       schild: 'bg-fb-art-lot/10 border-fb-art-lot/25 text-fb-art-lot',
     },

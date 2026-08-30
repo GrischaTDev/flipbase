@@ -16,6 +16,7 @@ import {
 } from '../models/flipbase.models';
 import type { TablesUpdate } from '../models/supabase.types';
 import { isInventoryItemMutationLocked } from '../models/inventory-sellability';
+import { INVENTORY_RECONCILIATION_AUDIT_REASONS } from '../models/inventory-reconciliation';
 
 export interface CreateItemPayload {
   purchase_id?: string | null;
@@ -120,6 +121,7 @@ export class InventoryService {
   readonly itemCosts = signal<ItemCost[]>([]);
   readonly activityLogs = signal<ActivityLog[]>([]);
   readonly isLoading = signal<boolean>(false);
+  private itemDetailRequestId = 0;
 
   private isMutationLocked(itemId: string): boolean {
     const selected = this.selectedItem();
@@ -230,6 +232,12 @@ export class InventoryService {
   }
 
   async getItemById(itemId: string): Promise<InventoryItem | null> {
+    const requestId = ++this.itemDetailRequestId;
+    this.isLoading.set(true);
+    this.selectedItem.set(null);
+    this.itemCosts.set([]);
+    this.activityLogs.set([]);
+
     const signalItem = this.items().find((item) => item.id === itemId);
     let existing: InventoryItem | undefined;
 
@@ -247,14 +255,16 @@ export class InventoryService {
 
     if (existing) {
       const enriched = this.enrichItemTotals(existing);
-      this.selectedItem.set(enriched);
-      const costs = this.mockStore.getItemCosts(itemId);
-      this.itemCosts.set(costs.length > 0 ? costs : enriched.costs || []);
-      await this.loadActivityLogs(itemId);
+      if (this.isCurrentItemDetailRequest(requestId)) {
+        this.selectedItem.set(enriched);
+        const costs = this.mockStore.getItemCosts(itemId);
+        this.itemCosts.set(costs.length > 0 ? costs : enriched.costs || []);
+      }
+      await this.loadActivityLogs(itemId, requestId);
+      if (this.isCurrentItemDetailRequest(requestId)) this.isLoading.set(false);
       return enriched;
     }
 
-    this.isLoading.set(true);
     try {
       const { data, error } = await this.supabase.client
         .from('inventory_items')
@@ -269,6 +279,7 @@ export class InventoryService {
         .eq('id', itemId)
         .single();
 
+      if (!this.isCurrentItemDetailRequest(requestId)) return null;
       if (error || !data) {
         if (error) this.syncStatus.melde('Abrufen des Artikels', error);
         return null;
@@ -279,6 +290,7 @@ export class InventoryService {
         .select('inventory_item_id, workspace_id, sale_state, active_sale_count, active_sale_id')
         .eq('inventory_item_id', itemId);
 
+      if (!this.isCurrentItemDetailRequest(requestId)) return null;
       if (saleStateError) {
         this.syncStatus.melde('Laden des Inventar-Verkaufszustands', saleStateError);
         this.selectedItem.set(null);
@@ -303,14 +315,20 @@ export class InventoryService {
       this.selectedItem.set(item);
       this.itemCosts.set((data.costs || []) as ItemCost[]);
 
-      await this.loadActivityLogs(itemId);
+      await this.loadActivityLogs(itemId, requestId);
       return item;
     } catch (err) {
-      this.syncStatus.melde('GetItemById', err);
+      if (this.isCurrentItemDetailRequest(requestId)) {
+        this.syncStatus.melde('GetItemById', err);
+      }
       return null;
     } finally {
-      this.isLoading.set(false);
+      if (this.isCurrentItemDetailRequest(requestId)) this.isLoading.set(false);
     }
+  }
+
+  private isCurrentItemDetailRequest(requestId: number): boolean {
+    return this.itemDetailRequestId === requestId;
   }
 
   private mergeSaleState(item: InventoryItem, saleState: InventorySaleStateRow): InventoryItem {
@@ -322,9 +340,9 @@ export class InventoryService {
     };
   }
 
-  async loadActivityLogs(itemId: string): Promise<void> {
+  private async loadActivityLogs(itemId: string, requestId: number): Promise<void> {
     const localLogs = this.mockStore.getActivityLogs(itemId);
-    if (localLogs.length > 0) {
+    if (localLogs.length > 0 && this.isCurrentItemDetailRequest(requestId)) {
       this.activityLogs.set(localLogs);
     }
 
@@ -339,13 +357,16 @@ export class InventoryService {
         .eq('inventory_item_id', itemId)
         .order('created_at', { ascending: false });
 
+      if (!this.isCurrentItemDetailRequest(requestId)) return;
       if (error) {
         this.syncStatus.melde('Laden der Aktivitätsprotokolle', error);
       } else if (data && data.length > 0) {
         this.activityLogs.set(data as ActivityLog[]);
       }
     } catch (err) {
-      this.syncStatus.melde('Laden der Aktivitätsprotokolle', err);
+      if (this.isCurrentItemDetailRequest(requestId)) {
+        this.syncStatus.melde('Laden der Aktivitätsprotokolle', err);
+      }
     }
   }
 
@@ -418,12 +439,16 @@ export class InventoryService {
     });
   }
 
-  async resolveLegacySoldItem(itemId: string, reason: string): Promise<{ error: Error | null }> {
+  async resolveLegacySoldItem(itemId: string): Promise<{ error: Error | null }> {
     const workspace = this.workspaceService.currentWorkspace();
     if (!workspace) return { error: new Error('Kein aktiver Workspace') };
 
     if (this.mockStore.isDemoMode()) {
-      return { error: new Error('Die Altbestandsklärung benötigt eine Datenbankverbindung.') };
+      return {
+        error: new Error(
+          'Die Klärung des historischen Verkaufs benötigt eine Datenbankverbindung.',
+        ),
+      };
     }
 
     try {
@@ -431,7 +456,7 @@ export class InventoryService {
         p_workspace_id: workspace.id,
         p_inventory_item_id: itemId,
         p_action: 'restore_stock',
-        p_reason: reason,
+        p_reason: INVENTORY_RECONCILIATION_AUDIT_REASONS.restoreStock,
       });
 
       if (error || !data?.inventory_item) {
