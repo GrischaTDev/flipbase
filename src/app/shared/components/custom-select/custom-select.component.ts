@@ -2,7 +2,10 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  Injector,
+  afterNextRender,
   computed,
+  effect,
   forwardRef,
   inject,
   input,
@@ -56,7 +59,8 @@ let nextCustomSelectId = 0;
   },
 })
 export class CustomSelectComponent<T = string> implements ControlValueAccessor {
-  private readonly elementRef = inject(ElementRef);
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
   private readonly instanceId = ++nextCustomSelectId;
 
@@ -105,6 +109,27 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   private onTouched: () => void = () => undefined;
 
   readonly effectiveDisabled = computed(() => this.disabled() || this.isDisabled());
+
+  private readonly closeWhenDisabled = effect(() => {
+    if (this.effectiveDisabled() && this.isOpen()) this.closeDropdown(false);
+  });
+
+  private readonly reconcileActiveIndex = effect(() => {
+    const options = this.options();
+    if (!this.isOpen()) return;
+
+    const currentIndex = this.activeIndex();
+    if (options.length === 0) {
+      if (currentIndex !== -1) this.setActiveIndex(-1);
+      return;
+    }
+    if (currentIndex >= 0 && currentIndex < options.length) return;
+
+    const selectedIndex = options.findIndex((option) => option.value === this.value());
+    this.setActiveIndex(
+      selectedIndex >= 0 ? selectedIndex : Math.min(Math.max(currentIndex, 0), options.length - 1),
+    );
+  });
 
   readonly selectedOption = computed(() => {
     const val = this.value();
@@ -181,6 +206,11 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   setActiveIndex(index: number): void {
     const lastIndex = this.options().length - 1;
     this.activeIndex.set(lastIndex < 0 ? -1 : Math.min(Math.max(index, 0), lastIndex));
+    this.scrollActiveOptionIntoViewAfterRender();
+  }
+
+  onTriggerBlur(): void {
+    this.onTouched();
   }
 
   selectActiveOption(): void {
@@ -242,5 +272,23 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
     if (!this.elementRef.nativeElement.contains(target)) {
       this.closeDropdown(false);
     }
+  }
+
+  private scrollActiveOptionIntoViewAfterRender(): void {
+    afterNextRender(
+      {
+        write: () => {
+          if (!this.isOpen()) return;
+          const option =
+            this.elementRef.nativeElement.querySelectorAll<HTMLElement>('[role="option"]')[
+              this.activeIndex()
+            ];
+          option?.scrollIntoView?.({
+            block: 'nearest',
+          });
+        },
+      },
+      { injector: this.injector },
+    );
   }
 }

@@ -242,6 +242,27 @@ describe('CustomSelectComponent', () => {
     expect(activeIndexOf(fixtureWithoutSelection)).toBe(0);
   });
 
+  it('scrollt die per Tastatur aktivierte Option einer langen Liste in den sichtbaren Bereich', async () => {
+    const longOptions = Array.from({ length: 12 }, (_, index) => ({
+      value: `platform-${index}`,
+      label: `Plattform ${index}`,
+    }));
+    const fixture = createSelect({ options: longOptions });
+    keydown(fixture, 'ArrowDown');
+    const lastOption = optionElements(fixture)[11];
+    const scrollIntoView = vi.fn<(options?: ScrollIntoViewOptions) => void>();
+    Object.defineProperty(lastOption, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+
+    keydown(fixture, 'End');
+    await fixture.whenRenderingDone();
+
+    expect(triggerOf(fixture).getAttribute('aria-activedescendant')).toBe(lastOption?.id);
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+  });
+
   it('öffnet mit ArrowUp ohne Auswahl am Ende und navigiert rückwärts mit Startbegrenzung', () => {
     const fixture = createSelect();
 
@@ -281,21 +302,51 @@ describe('CustomSelectComponent', () => {
     expect(optionElements(fixture)).toEqual([]);
   });
 
-  it('verweist nach signalbasiertem Schrumpfen nie auf eine fehlende aktive Option', () => {
+  it.each(['Enter', ' '] as const)(
+    'korrigiert nach signalbasiertem Schrumpfen den aktiven Index und wählt mit %s',
+    (key) => {
+      const fixture = createSelect({ value: 'vinted' });
+      const onChange = vi.fn<(value: string | null) => void>();
+      fixture.componentInstance.registerOnChange(onChange);
+      keydown(fixture, 'ArrowDown');
+
+      fixture.componentRef.setInput('options', options.slice(0, 1));
+      fixture.detectChanges();
+
+      expect(activeIndexOf(fixture)).toBe(0);
+      expect(triggerOf(fixture).getAttribute('aria-activedescendant')).toBe(
+        optionElements(fixture)[0]?.id,
+      );
+
+      keydown(fixture, key);
+
+      expect(fixture.componentInstance.value()).toBe('all');
+      expect(onChange).toHaveBeenCalledOnce();
+      expect(onChange).toHaveBeenCalledWith('all');
+    },
+  );
+
+  it('folgt nach signalbasiertem Schrumpfen einer erhaltenen Auswahl an ihren neuen Index', () => {
     const fixture = createSelect({ value: 'vinted' });
     keydown(fixture, 'ArrowDown');
-    expect(triggerOf(fixture).getAttribute('aria-activedescendant')).toBe(
-      optionElements(fixture)[2]?.id,
-    );
 
-    fixture.componentRef.setInput('options', options.slice(0, 1));
+    fixture.componentRef.setInput('options', [options[2], options[0]]);
     fixture.detectChanges();
 
-    expect(triggerOf(fixture).hasAttribute('aria-activedescendant')).toBe(false);
+    expect(activeIndexOf(fixture)).toBe(0);
+    expect(triggerOf(fixture).getAttribute('aria-activedescendant')).toBe(
+      optionElements(fixture)[0]?.id,
+    );
+  });
+
+  it('setzt den aktiven Index beim Leeren einer geöffneten Optionsliste auf -1', () => {
+    const fixture = createSelect({ value: 'vinted' });
+    keydown(fixture, 'ArrowDown');
 
     fixture.componentRef.setInput('options', []);
     fixture.detectChanges();
 
+    expect(activeIndexOf(fixture)).toBe(-1);
     expect(triggerOf(fixture).hasAttribute('aria-activedescendant')).toBe(false);
   });
 
@@ -354,6 +405,20 @@ describe('CustomSelectComponent', () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
+  it('meldet Fokus und anschließendes Verlassen ohne Öffnen als berührt', () => {
+    const fixture = createSelect();
+    const onTouched = vi.fn<() => void>();
+    fixture.componentInstance.registerOnTouched(onTouched);
+
+    triggerOf(fixture).focus();
+    triggerOf(fixture).blur();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.isOpen()).toBe(false);
+    expect(fixture.componentInstance.value()).toBeNull();
+    expect(onTouched).toHaveBeenCalledOnce();
+  });
+
   it('wählt per Pointer genau einmal und stellt den Triggerfokus wieder her', async () => {
     const fixture = createSelect();
     const onChange = vi.fn<(value: string | null) => void>();
@@ -389,26 +454,30 @@ describe('CustomSelectComponent', () => {
   });
 
   it.each(['Input', 'CVA'] as const)(
-    'blockiert Öffnen und Auswahl im deaktivierten %s-Zustand',
+    'schließt bei dynamischer %s-Deaktivierung ohne Fokusrestauration und blockiert weitere Aktionen',
     (source) => {
       const fixture = createSelect();
       const onChange = vi.fn<(value: string | null) => void>();
       fixture.componentInstance.registerOnChange(onChange);
+      const outsideButton = document.createElement('button');
+      document.body.append(outsideButton);
 
       triggerOf(fixture).click();
       fixture.detectChanges();
+      expect(activeIndexOf(fixture)).toBe(0);
+      outsideButton.focus();
       if (source === 'Input') fixture.componentRef.setInput('disabled', true);
       else fixture.componentInstance.setDisabledState(true);
       fixture.detectChanges();
+
+      expect(fixture.componentInstance.isOpen()).toBe(false);
+      expect(activeIndexOf(fixture)).toBe(-1);
+      expect(document.activeElement).toBe(outsideButton);
+
       keydown(fixture, 'Enter');
-      expect(fixture.componentInstance.isOpen()).toBe(true);
-      optionElements(fixture)[1]?.click();
-      fixture.detectChanges();
 
       expect(fixture.componentInstance.value()).toBeNull();
       expect(onChange).not.toHaveBeenCalled();
-      fixture.componentInstance.closeDropdown(false);
-      fixture.detectChanges();
       triggerOf(fixture).dispatchEvent(
         new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }),
       );
@@ -416,6 +485,7 @@ describe('CustomSelectComponent', () => {
       expect(fixture.componentInstance.isOpen()).toBe(false);
       expect(triggerOf(fixture).disabled).toBe(true);
       expect(triggerOf(fixture).getAttribute('aria-disabled')).toBe('true');
+      outsideButton.remove();
     },
   );
 
