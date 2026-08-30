@@ -102,6 +102,25 @@ describe('SalesService', () => {
     expect(mockStore.getSales('workspace-1')).toHaveLength(1);
   });
 
+  it('persistiert den Demo-Bruttoerlös einschließlich Käufer-Versand', async () => {
+    const { mockStore, service } = createDemoService();
+
+    const booking = await service.recordSale({
+      ...demoSaleInput,
+      shippingRevenue: 2.99,
+      lines: [{ ...demoSaleInput.lines[0], unitSalePrice: 39.99 }],
+    });
+
+    expect(booking.error).toBeNull();
+    expect(mockStore.getSales('workspace-1')).toEqual([
+      expect.objectContaining({
+        sale_price: 42.98,
+        sale_price_total: 42.98,
+        shipping_revenue: 2.99,
+      }),
+    ]);
+  });
+
   it('behandelt auch im Demo-Verkauf einen fehlenden Sale-State fail-closed', async () => {
     const { mockStore, service } = createDemoService(null);
 

@@ -209,6 +209,18 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
     expect(calculations.reduce((sum, calculation) => sum + calculation.gross_revenue, 0)).toBe(
       42.98,
     );
+    expect(calculations).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ shipping_revenue: 0.75, shipping_cost: 1.3 }),
+        expect.objectContaining({ shipping_revenue: 2.24, shipping_cost: 3.89 }),
+      ]),
+    );
+    expect(calculations.reduce((sum, calculation) => sum + calculation.shipping_revenue, 0)).toBe(
+      2.99,
+    );
+    expect(calculations.reduce((sum, calculation) => sum + calculation.shipping_cost, 0)).toBe(
+      5.19,
+    );
   });
 
   it('erhält den Steuer-Modus eines historischen Einzelverkaufs trotz Display-Fallback', () => {
@@ -405,8 +417,22 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
     const accountIndex = service.datevSpalten.indexOf('Konto');
     const revenueAccountIndex = service.datevSpalten.indexOf('Gegenkonto (ohne BU-Schlüssel)');
 
-    expect(datevRows.map((row) => row[accountIndex])).toEqual(['1800', '1800', '1800']);
-    expect(datevRows.map((row) => row[revenueAccountIndex])).toEqual(['4200', '4185', '4400']);
+    expect(datevRows.map((row) => row[accountIndex])).toEqual([
+      '1800',
+      '6740',
+      '1800',
+      '6740',
+      '1800',
+      '6740',
+    ]);
+    expect(datevRows.map((row) => row[revenueAccountIndex])).toEqual([
+      '4200',
+      '1800',
+      '4185',
+      '1800',
+      '4400',
+      '1800',
+    ]);
     expect(service.generateEurCsv(results)).toContain(
       '"\'=HYPERLINK(""https://invalid.example"")"',
     );

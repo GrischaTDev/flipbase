@@ -544,6 +544,8 @@ export interface TaxCalculationResult {
   sale_date: string;
   tax_mode: TaxMode;
   gross_revenue: number;
+  shipping_revenue: number;
+  shipping_cost: number;
   total_purchase_cost: number;
   gross_margin: number;
   tax_base: number;
