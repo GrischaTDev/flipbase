@@ -256,7 +256,6 @@ describe('SaleCreateModalComponent – Aktionsmeldungen', () => {
       expect.objectContaining({
         lines: [expect.objectContaining({ inventoryItemId: artikel.id })],
       }),
-      'Beleg im Papierarchiv geprüft',
     );
     expect(salesService.recordSale).not.toHaveBeenCalled();
   });

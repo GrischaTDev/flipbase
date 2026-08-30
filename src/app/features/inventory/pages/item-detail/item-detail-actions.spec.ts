@@ -114,10 +114,7 @@ describe('ItemDetailComponent – Aktionsmeldungen', () => {
     await legacyActions.onRestoreLegacySoldItem();
 
     expect(dialog.frage).toHaveBeenCalledOnce();
-    expect(inventoryService.resolveLegacySoldItem).toHaveBeenCalledWith(
-      artikel.id,
-      'Historischer Verkauf fehlt',
-    );
+    expect(inventoryService.resolveLegacySoldItem).toHaveBeenCalledWith(artikel.id);
     expect(toast.toasts()[0]).toMatchObject({
       type: 'success',
       title: 'Artikel wurde wieder in den Bestand aufgenommen.',

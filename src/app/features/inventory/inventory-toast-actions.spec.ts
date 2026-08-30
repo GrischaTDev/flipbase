@@ -219,7 +219,7 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
 
     await komponente.onRestoreLegacyItem({ item: legacy, reason: 'Historischer Verkauf fehlt' });
 
-    expect(resolveLegacySoldItem).toHaveBeenCalledWith(legacy.id, 'Historischer Verkauf fehlt');
+    expect(resolveLegacySoldItem).toHaveBeenCalledWith(legacy.id);
     expect(toast.toasts()[0]).toMatchObject({
       type: 'success',
       title: 'Artikel wurde wieder in den Bestand aufgenommen.',
