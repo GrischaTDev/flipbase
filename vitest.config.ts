@@ -37,7 +37,7 @@ export default defineConfig({
           environment: 'jsdom',
           include: ['src/**/*.angular.spec.ts'],
           setupFiles: ['src/test-setup.ts', 'src/test-setup.angular-fallback.ts'],
-          pool: 'vmThreads',
+          pool: 'forks',
           isolate: true,
           vmMemoryLimit: '1GB',
         },
