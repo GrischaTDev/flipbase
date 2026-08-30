@@ -1,10 +1,22 @@
 import '@angular/compiler';
+import { Injector, runInInjectionContext } from '@angular/core';
 import { describe, it, expect } from 'vitest';
 import { InventoryItem, Sale } from '../models/flipbase.models';
+import { InventoryService } from './inventory.service';
+import { SalesService } from './sales.service';
 import { TaxEngineService } from './tax-engine.service';
+import { WorkspaceService } from './workspace.service';
 
 describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
-  // Pure function test directly without DI overhead
+  const injector = Injector.create({
+    providers: [
+      { provide: WorkspaceService, useValue: {} },
+      { provide: SalesService, useValue: {} },
+      { provide: InventoryService, useValue: {} },
+    ],
+  });
+  const service = runInInjectionContext(injector, () => new TaxEngineService());
+
   const dummyItem: InventoryItem = {
     id: 'item-1',
     workspace_id: 'ws-1',
@@ -31,52 +43,54 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
     other_costs: 0,
   };
 
-  it('should correctly calculate § 25a Differenzbesteuerung on positive margin', () => {
-    // Total Purchase Cost = 30 + 5 = 35.0 €
-    // Gross Margin = 80 - 35 = 45.0 €
-    // Tax Base = 45.0 €
-    // VAT (19% from gross margin) = 45.0 / 1.19 * 0.19 = 7.1848... -> 7.18 €
-    const totalEK = dummyItem.allocated_purchase_cost + 5.0; // 35 €
-    const margin = dummySale.sale_price - totalEK; // 45 €
-    const vat = (margin / 1.19) * 0.19;
+  it('berechnet § 25a-Umsatzsteuer aus der positiven Marge', () => {
+    const result = service.calculateSaleTax(dummySale, dummyItem, 'diff_25a');
 
-    expect(margin).toBe(45.0);
-    expect(vat).toBeCloseTo(7.18, 2);
+    expect(result.gross_margin).toBe(45);
+    expect(result.tax_base).toBe(45);
+    expect(result.vat_amount).toBeCloseTo(7.18, 2);
+    expect(result.tax_mode).toBe('diff_25a');
   });
 
-  it('should charge 0 € VAT under § 25a when item is sold at a loss', () => {
+  it('begrenzt die § 25a-Bemessungsgrundlage bei einem Verlust auf null', () => {
     const lossSale: Sale = {
       ...dummySale,
-      sale_price: 25.0, // Purchased for 35 €, sold for 25 € -> -10 € loss
+      sale_price: 25,
     };
-    const totalEK = 35.0;
-    const margin = lossSale.sale_price - totalEK; // -10 €
-    const taxBase = Math.max(0, margin);
-    const vat = (taxBase / 1.19) * 0.19;
+    const result = service.calculateSaleTax(lossSale, dummyItem, 'diff_25a');
 
-    expect(taxBase).toBe(0);
-    expect(vat).toBe(0);
+    expect(result.gross_margin).toBe(-10);
+    expect(result.tax_base).toBe(0);
+    expect(result.vat_amount).toBe(0);
   });
 
-  it('should charge 0 € VAT under § 19 UStG Kleinunternehmer', () => {
-    const vat = 0;
-    const clause = 'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerstatus).';
-    expect(vat).toBe(0);
-    expect(clause).toContain('§ 19 UStG');
+  it('weist für Kleinunternehmer weder Steuer noch Vorsteuer oder Zahllast aus', () => {
+    const result = service.calculateSaleTax(dummySale, dummyItem, 'kleinunternehmer_19');
+
+    expect(result.vat_amount).toBe(0);
+    expect(result.input_tax_deductible).toBe(0);
+    expect(result.net_tax_liability).toBe(0);
+    expect(result.invoice_clause).toBe(
+      'Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerstatus).',
+    );
   });
 
-  it('should format valid DATEV CSV with correct SKR03 accounts', () => {
-    const datevRecord = {
-      umsatz: '80,00',
-      konto: '8200', // Erlöse § 25a
-      gegenkonto: '1200',
-    };
-    expect(datevRecord.konto).toBe('8200');
-    expect(datevRecord.gegenkonto).toBe('1200');
+  it('exportiert einen § 25a-Verkauf mit den SKR03-Konten Bank 1200 und Erlöse 8200', () => {
+    const taxResult = service.calculateSaleTax(dummySale, dummyItem, 'diff_25a');
+    const [, headerLine, bookingLine] = service.generateDatevCsv([taxResult]).split('\r\n');
+    const header = headerLine.split(';');
+    const booking = bookingLine.split(';');
+    const bankkontoIndex = service.datevSpalten.indexOf('Konto');
+    const erloeskontoIndex = service.datevSpalten.indexOf('Gegenkonto (ohne BU-Schlüssel)');
+
+    expect(header).toEqual(service.datevSpalten);
+    expect(booking).toHaveLength(service.datevSpalten.length);
+    expect(booking[bankkontoIndex]).toBe('1200');
+    expect(booking[erloeskontoIndex]).toBe('8200');
+    expect(booking[service.datevSpalten.indexOf('Belegdatum')]).toBe('1502');
   });
 
   it('summiert die persistierten Verkaufskosten statt den aktuellen Artikelwert zu verwenden', () => {
-    const service = Object.create(TaxEngineService.prototype) as TaxEngineService;
     const saleWithPersistedLines: Sale = {
       ...dummySale,
       sale_price: 39.96,
@@ -116,7 +130,6 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
   });
 
   it('verteilt gemeinsame Verkaufskosten einmalig auf die Positions-Steuerfälle', () => {
-    const service = Object.create(TaxEngineService.prototype) as TaxEngineService;
     const saleWithTwoLines: Sale = {
       ...dummySale,
       sale_price: 30,
@@ -159,7 +172,6 @@ describe('TaxEngineService (§ 25a Differenzbesteuerung & DATEV)', () => {
   });
 
   it('erhält den Steuer-Modus eines historischen Einzelverkaufs trotz Display-Fallback', () => {
-    const service = Object.create(TaxEngineService.prototype) as TaxEngineService;
     const historicSale = {
       ...dummySale,
       lines: [
