@@ -8,6 +8,7 @@ import {
   input,
   model,
   signal,
+  viewChild,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import {
@@ -25,6 +26,8 @@ export interface SelectOption<T = string> {
   icon?: LucideIconInput;
   description?: string;
 }
+
+let nextCustomSelectId = 0;
 
 @Component({
   selector: 'app-custom-select',
@@ -48,15 +51,16 @@ export interface SelectOption<T = string> {
     */
     class: 'block',
     '(document:click)': 'onDocumentClick($event)',
-    '(document:keydown.escape)': 'closeDropdown()',
     '[class.relative]': 'true',
     '[class.z-50]': 'isOpen()',
   },
 })
 export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   private readonly elementRef = inject(ElementRef);
+  private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
+  private readonly instanceId = ++nextCustomSelectId;
 
-  readonly options = input.required<SelectOption<T>[]>();
+  readonly options = input.required<readonly SelectOption<T>[]>();
   readonly value = model<T | null>(null);
   readonly placeholder = input<string>('Bitte wählen...');
   readonly variant = input<'default' | 'pill' | 'filter'>('default');
@@ -64,6 +68,8 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly disabled = input<boolean>(false);
   readonly widthClass = input<string>('w-full');
   readonly openDirection = input<'auto' | 'down' | 'up'>('auto');
+  readonly ariaLabel = input.required<string>();
+  readonly triggerId = input<string>('');
 
   /**
    * Innenabstand je Groesse.
@@ -80,6 +86,15 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly isOpen = signal<boolean>(false);
   readonly isDisabled = signal<boolean>(false);
   readonly isDropUp = signal<boolean>(false);
+  readonly activeIndex = signal(-1);
+
+  readonly resolvedTriggerId = computed(
+    () => this.triggerId() || `custom-select-trigger-${this.instanceId}`,
+  );
+  readonly listboxId = computed(() => `${this.resolvedTriggerId()}-listbox`);
+  readonly activeDescendantId = computed(() =>
+    this.isOpen() && this.activeIndex() >= 0 ? this.optionId(this.activeIndex()) : null,
+  );
 
   readonly chevronIcon = ChevronDown;
   readonly checkIcon = Check;
@@ -119,24 +134,36 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
     }
     if (this.effectiveDisabled()) return;
 
-    if (!this.isOpen()) {
-      if (this.openDirection() === 'auto') {
-        const rect = this.elementRef.nativeElement.getBoundingClientRect();
-        const spaceBelow = window.innerHeight - rect.bottom;
-        // If less than 240px below and there's enough space above, open upwards
-        this.isDropUp.set(spaceBelow < 240 && rect.top > spaceBelow);
-      } else {
-        this.isDropUp.set(this.openDirection() === 'up');
-      }
-      this.isOpen.set(true);
-      this.onTouched();
-    } else {
-      this.isOpen.set(false);
-    }
+    if (!this.isOpen()) this.openDropdown('selected');
+    else this.closeDropdown();
   }
 
-  closeDropdown(): void {
+  openDropdown(initial: 'selected' | 'first' | 'last'): void {
+    if (this.effectiveDisabled()) return;
+
+    if (this.openDirection() === 'auto') {
+      const rect = this.elementRef.nativeElement.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      // If less than 240px below and there's enough space above, open upwards
+      this.isDropUp.set(spaceBelow < 240 && rect.top > spaceBelow);
+    } else {
+      this.isDropUp.set(this.openDirection() === 'up');
+    }
+
+    const selectedIndex = this.options().findIndex((option) => option.value === this.value());
+    const fallbackIndex = initial === 'last' ? this.options().length - 1 : 0;
+    this.setActiveIndex(selectedIndex >= 0 ? selectedIndex : fallbackIndex);
+    this.isOpen.set(true);
+    this.onTouched();
+  }
+
+  closeDropdown(restoreFocus = true): void {
     this.isOpen.set(false);
+    this.activeIndex.set(-1);
+    if (!restoreFocus) return;
+
+    const trigger = this.trigger().nativeElement;
+    queueMicrotask(() => trigger.focus());
   }
 
   selectOption(option: SelectOption<T>, event?: MouseEvent): void {
@@ -151,11 +178,69 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
     this.closeDropdown();
   }
 
+  setActiveIndex(index: number): void {
+    const lastIndex = this.options().length - 1;
+    this.activeIndex.set(lastIndex < 0 ? -1 : Math.min(Math.max(index, 0), lastIndex));
+  }
+
+  selectActiveOption(): void {
+    if (this.effectiveDisabled()) return;
+    const option = this.options()[this.activeIndex()];
+    if (option) this.selectOption(option);
+  }
+
+  optionId(index: number): string {
+    return `${this.listboxId()}-option-${index}`;
+  }
+
+  onTriggerKeydown(event: KeyboardEvent): void {
+    if (this.effectiveDisabled()) return;
+
+    if (event.key === 'Tab') {
+      if (this.isOpen()) this.closeDropdown(false);
+      return;
+    }
+
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      if (this.isOpen()) this.selectActiveOption();
+      else this.openDropdown('selected');
+      return;
+    }
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (this.isOpen()) this.setActiveIndex(this.activeIndex() + 1);
+      else this.openDropdown('first');
+      return;
+    }
+
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      if (this.isOpen()) this.setActiveIndex(this.activeIndex() - 1);
+      else this.openDropdown('last');
+      return;
+    }
+
+    if (!this.isOpen()) return;
+
+    if (event.key === 'Home') {
+      event.preventDefault();
+      this.setActiveIndex(0);
+    } else if (event.key === 'End') {
+      event.preventDefault();
+      this.setActiveIndex(this.options().length - 1);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.closeDropdown();
+    }
+  }
+
   onDocumentClick(event: MouseEvent): void {
     if (!this.isOpen()) return;
     const target = event.target as HTMLElement;
     if (!this.elementRef.nativeElement.contains(target)) {
-      this.closeDropdown();
+      this.closeDropdown(false);
     }
   }
 }
