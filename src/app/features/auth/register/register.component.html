@@ -220,22 +220,15 @@
             [ariaLabel]="'AUTH.ACCEPT_TERMS_ARIA' | translate"
             class="mt-0.5 shrink-0"
           ></app-custom-checkbox>
-          <span class="text-xs text-fb-text-muted leading-relaxed cursor-pointer select-none">
+          <span class="text-xs text-fb-text-muted leading-relaxed select-none">
             {{ 'AUTH.ACCEPT_TERMS' | translate }}
-            <a
-              href="#"
-              (click)="$event.preventDefault()"
-              class="text-emerald-700 dark:text-emerald-400 underline hover:text-emerald-800 dark:hover:text-emerald-300 font-semibold"
-            >
+            <span class="text-emerald-700 dark:text-emerald-400 underline font-semibold">
               {{ 'AUTH.TERMS_LINK' | translate }}
-            </a>
+            </span>
             {{ 'AUTH.AND' | translate }}
-            <a
-              href="#"
-              (click)="$event.preventDefault()"
-              class="text-emerald-700 dark:text-emerald-400 underline hover:text-emerald-800 dark:hover:text-emerald-300 font-semibold"
-            >
-              {{ 'AUTH.PRIVACY_LINK' | translate }}</a
+            <span class="text-emerald-700 dark:text-emerald-400 underline font-semibold">{{
+              'AUTH.PRIVACY_LINK' | translate
+            }}</span
             >.
           </span>
         </div>

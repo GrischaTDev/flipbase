@@ -475,6 +475,27 @@ html.dark {
     border-radius: 4px;
   }
 
+  /* interaction-cursors:start */
+  :where(
+    button:not(:disabled):not([aria-disabled='true']),
+    a[href]:not([aria-disabled='true']),
+    summary,
+    select:not(:disabled):not([aria-disabled='true']),
+    input:not(:disabled):not([aria-disabled='true']):is(
+        [type='button'],
+        [type='submit'],
+        [type='reset'],
+        [type='checkbox'],
+        [type='radio'],
+        [type='file'],
+        [type='range'],
+        [type='color'],
+        [type='image']
+      )
+  ) {
+    cursor: pointer;
+  }
+
   /* Sprunglink zum Hauptinhalt – nur sichtbar, wenn er den Fokus hat. */
   .fb-skip-link {
     position: absolute;
@@ -510,6 +531,22 @@ html.dark {
     background: var(--fb-border-hover);
   }
 }
+
+@layer utilities {
+  :where(button, input, select, textarea):disabled,
+  :where(button, input, select, textarea)[aria-disabled='true'],
+  :where(
+    [role='button'],
+    [role='link'],
+    [role='checkbox'],
+    [role='option'],
+    [role='combobox']
+  )[aria-disabled='true'],
+  a[aria-disabled='true'] {
+    cursor: not-allowed;
+  }
+}
+/* interaction-cursors:end */
 
 /* UI-Hilfsklassen, gebunden an die zentralen Variablen */
 .linear-surface {
