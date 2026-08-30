@@ -9,7 +9,14 @@ import {
   signal,
 } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
-import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  FormArray,
+  FormControl,
+  FormGroup,
+  ReactiveFormsModule,
+  ValidatorFn,
+  Validators,
+} from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
   LucideDynamicIcon,
@@ -17,7 +24,7 @@ import {
   LucideTrendingUp as TrendingUp,
   LucideX as X,
 } from '@lucide/angular';
-import { Sale } from '../../../../core/models/flipbase.models';
+import { Sale, SaleCostCategory, ShippingMode } from '../../../../core/models/flipbase.models';
 import { LegacySaleReconciliation, SaleTarget } from '../../../../core/models/sale-target.models';
 import { isSellableInventoryItem } from '../../../../core/models/inventory-sellability';
 import {
@@ -41,6 +48,12 @@ type SaleLineForm = FormGroup<{
   target: FormControl<string>;
   quantity: FormControl<number>;
   unitSalePrice: FormControl<number>;
+}>;
+
+type AdditionalCostForm = FormGroup<{
+  category: FormControl<SaleCostCategory>;
+  description: FormControl<string>;
+  amount: FormControl<number>;
 }>;
 
 @Component({
@@ -94,6 +107,17 @@ export class SaleCreateModalComponent {
     { value: 'direct', label: 'Direktverkauf' },
     { value: 'other', label: 'Andere' },
   ];
+  readonly versandOptionen: SelectOption<ShippingMode>[] = [
+    { value: 'seller_arranged', label: 'Eigener Versand' },
+    { value: 'platform_prepaid', label: 'Versandschein der Plattform' },
+    { value: 'pickup', label: 'Abholung' },
+  ];
+  readonly kostenKategorieOptionen: SelectOption<SaleCostCategory>[] = [
+    { value: 'packaging', label: 'Verpackung' },
+    { value: 'payment_fee', label: 'Zahlungsgebühr' },
+    { value: 'promotion', label: 'Verkaufsförderung' },
+    { value: 'other', label: 'Sonstige Kosten' },
+  ];
   readonly targetOptions = computed<SelectOption<string>[]>(() => {
     const reconciliationTarget = this.legacyReconciliation() ? this.saleTarget() : null;
     if (reconciliationTarget) {
@@ -141,12 +165,16 @@ export class SaleCreateModalComponent {
     }),
     platformFee: new FormControl(0, { nonNullable: true }),
     shippingCost: new FormControl(0, { nonNullable: true }),
+    shippingRevenue: new FormControl(0, { nonNullable: true }),
+    shippingMode: new FormControl<ShippingMode>('pickup', { nonNullable: true }),
+    additionalCosts: new FormArray<AdditionalCostForm>([]),
     packagingCost: new FormControl(0, { nonNullable: true }),
     otherCosts: new FormControl(0, { nonNullable: true }),
     externalOrderId: new FormControl('', { nonNullable: true }),
     buyerNotes: new FormControl('', { nonNullable: true }),
   });
   readonly lines = this.form.controls.lines;
+  readonly additionalCosts = this.form.controls.additionalCosts;
   readonly availableItems = computed(() =>
     this.inventoryService.items().filter(isSellableInventoryItem),
   );
@@ -160,23 +188,40 @@ export class SaleCreateModalComponent {
       0,
     );
   });
+  readonly grossRevenue = computed(() => {
+    this.formValue();
+    return Number((this.totalPrice() + this.form.controls.shippingRevenue.value).toFixed(2));
+  });
   readonly liveMetrics = computed(() => {
     this.formValue();
     const raw = this.form.getRawValue();
-    const totalCosts = Number(
-      (
-        this.lines.controls.reduce((sum, line) => sum + this.lineCost(line), 0) +
-        raw.platformFee +
-        raw.shippingCost +
-        raw.packagingCost +
-        raw.otherCosts
-      ).toFixed(2),
-    );
-    const profit = this.profitEngine.calculateProfit(this.totalPrice(), totalCosts);
-    return { totalCosts, profit, roi: this.profitEngine.calculateRoi(profit, totalCosts) };
+    const costOfGoods = this.lines.controls.reduce((sum, line) => sum + this.lineCost(line), 0);
+    const additionalCosts = this.additionalCostTotal();
+    const sellingCosts = Number((raw.platformFee + raw.shippingCost + additionalCosts).toFixed(2));
+    const totalCosts = Number((costOfGoods + sellingCosts).toFixed(2));
+    const profit = this.profitEngine.calculateProfit(this.grossRevenue(), totalCosts);
+    return {
+      costOfGoods,
+      sellingCosts,
+      totalCosts,
+      profit,
+      margin: this.profitEngine.calculateMargin(profit, this.grossRevenue()),
+      roi: this.profitEngine.calculateRoi(profit, totalCosts),
+    };
   });
 
+  private isApplyingShippingDefault = false;
+  private hasExplicitShippingMode = false;
+
   constructor() {
+    this.form.controls.platform.valueChanges.subscribe((platform) =>
+      this.applyShippingDefault(platform),
+    );
+    this.form.controls.shippingMode.valueChanges.subscribe((mode) => {
+      if (!this.isApplyingShippingDefault) this.hasExplicitShippingMode = true;
+      this.enforceShippingMode(mode);
+    });
+    this.enforceShippingMode(this.form.controls.shippingMode.value);
     effect(() => {
       const existing = this.sale();
       if (existing) {
@@ -190,6 +235,12 @@ export class SaleCreateModalComponent {
 
   addLine(): void {
     this.lines.push(this.createLineForm());
+  }
+  addAdditionalCost(): void {
+    this.additionalCosts.push(this.createAdditionalCostForm());
+  }
+  removeAdditionalCost(index: number): void {
+    this.additionalCosts.removeAt(index);
   }
   removeLine(index: number): void {
     if (this.lines.length > 1) this.lines.removeAt(index);
@@ -257,15 +308,41 @@ export class SaleCreateModalComponent {
       }),
     });
   }
+  private createAdditionalCostForm(): AdditionalCostForm {
+    return new FormGroup(
+      {
+        category: new FormControl<SaleCostCategory>('packaging', { nonNullable: true }),
+        description: new FormControl('', { nonNullable: true }),
+        amount: new FormControl(0, {
+          nonNullable: true,
+          validators: [Validators.required, Validators.min(0)],
+        }),
+      },
+      { validators: this.otherCostDescriptionRequired() },
+    );
+  }
   private recordSalePayload(): RecordSaleInput {
     const raw = this.form.getRawValue();
+    const additionalCosts = raw.additionalCosts.map((cost) => ({
+      category: cost.category,
+      description: cost.description.trim() || null,
+      amount: cost.amount,
+    }));
     return {
       platform: raw.platform,
       saleDate: raw.saleDate,
       platformFee: raw.platformFee,
       shippingCost: raw.shippingCost,
-      packagingCost: raw.packagingCost,
-      otherCosts: raw.otherCosts,
+      shippingRevenue: raw.shippingRevenue,
+      shippingMode: raw.shippingMode,
+      additionalCosts,
+      packagingCost: this.costTotalFor('packaging'),
+      otherCosts: Number(
+        additionalCosts
+          .filter((cost) => cost.category !== 'packaging')
+          .reduce((sum, cost) => sum + cost.amount, 0)
+          .toFixed(2),
+      ),
       externalOrderId: raw.externalOrderId.trim() || null,
       buyerNotes: raw.buyerNotes.trim() || null,
       lines: this.lines.controls.map((line) => {
@@ -311,17 +388,18 @@ export class SaleCreateModalComponent {
     return {
       inventory_item_id: target.inventoryItemId,
       platform: raw.platform,
-      sale_price: this.totalPrice(),
+      sale_price: this.grossRevenue(),
       sale_date: raw.saleDate,
       platform_fee: raw.platformFee,
       shipping_cost: raw.shippingCost,
-      packaging_cost: raw.packagingCost,
-      other_costs: raw.otherCosts,
+      packaging_cost: this.costTotalFor('packaging'),
+      other_costs: this.costTotalExcept('packaging'),
       external_order_id: raw.externalOrderId.trim() || null,
       buyer_notes: raw.buyerNotes.trim() || null,
     };
   }
   private fillExistingSale(sale: Sale): void {
+    this.hasExplicitShippingMode = true;
     const sources = sale.lines?.length
       ? sale.lines.map((line) => ({
           target: line.catalog_product_id
@@ -365,6 +443,8 @@ export class SaleCreateModalComponent {
       saleDate: sale.sale_date,
       platformFee: sale.platform_fee ?? 0,
       shippingCost: sale.shipping_cost ?? 0,
+      shippingRevenue: sale.shipping_revenue ?? 0,
+      shippingMode: sale.shipping_mode ?? this.shippingDefaultFor(sale.platform),
       packagingCost: sale.packaging_cost ?? 0,
       otherCosts: sale.other_costs ?? 0,
       externalOrderId: sale.external_order_id ?? '',
@@ -399,6 +479,61 @@ export class SaleCreateModalComponent {
       );
     const item = this.inventoryService.items().find((entry) => entry.id === target.inventoryItemId);
     return (item?.total_item_cost ?? item?.allocated_purchase_cost ?? 0) * quantity;
+  }
+  private additionalCostTotal(): number {
+    return Number(
+      this.additionalCosts.controls
+        .reduce((sum, cost) => sum + cost.controls.amount.value, 0)
+        .toFixed(2),
+    );
+  }
+  private costTotalFor(category: SaleCostCategory): number {
+    return Number(
+      this.additionalCosts.controls
+        .filter((cost) => cost.controls.category.value === category)
+        .reduce((sum, cost) => sum + cost.controls.amount.value, 0)
+        .toFixed(2),
+    );
+  }
+  private costTotalExcept(category: SaleCostCategory): number {
+    return Number(
+      this.additionalCosts.controls
+        .filter((cost) => cost.controls.category.value !== category)
+        .reduce((sum, cost) => sum + cost.controls.amount.value, 0)
+        .toFixed(2),
+    );
+  }
+  private otherCostDescriptionRequired(): ValidatorFn {
+    return (control) => {
+      const value = control.value as { category?: SaleCostCategory; description?: string };
+      return value.category === 'other' && !value.description?.trim()
+        ? { otherCostDescriptionRequired: true }
+        : null;
+    };
+  }
+  private applyShippingDefault(platform: string): void {
+    if (this.hasExplicitShippingMode) return;
+    this.isApplyingShippingDefault = true;
+    try {
+      this.form.controls.shippingMode.setValue(this.shippingDefaultFor(platform));
+    } finally {
+      this.isApplyingShippingDefault = false;
+    }
+  }
+  private shippingDefaultFor(platform: string): ShippingMode {
+    if (platform === 'vinted') return 'platform_prepaid';
+    if (platform === 'kleinanzeigen' || platform === 'direct') return 'pickup';
+    return 'seller_arranged';
+  }
+  private enforceShippingMode(mode: ShippingMode): void {
+    if (mode === 'seller_arranged') {
+      this.form.controls.shippingRevenue.enable({ emitEvent: false });
+      this.form.controls.shippingCost.enable({ emitEvent: false });
+      return;
+    }
+    this.form.patchValue({ shippingRevenue: 0, shippingCost: 0 }, { emitEvent: false });
+    this.form.controls.shippingRevenue.disable({ emitEvent: false });
+    this.form.controls.shippingCost.disable({ emitEvent: false });
   }
   private preselectedTarget(): SaleTarget | null {
     const item = this.inventoryService
