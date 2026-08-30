@@ -444,7 +444,11 @@ export class InventoryService {
     if (!workspace) return { error: new Error('Kein aktiver Workspace') };
 
     if (this.mockStore.isDemoMode()) {
-      return { error: new Error('Die Altbestandsklärung benötigt eine Datenbankverbindung.') };
+      return {
+        error: new Error(
+          'Die Klärung des historischen Verkaufs benötigt eine Datenbankverbindung.',
+        ),
+      };
     }
 
     try {

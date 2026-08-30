@@ -100,7 +100,7 @@ export class SaleCreateModalComponent {
       return [
         {
           value: this.targetValue(reconciliationTarget),
-          label: `${reconciliationTarget.title} · ungeklärter Altbestand`,
+          label: `${reconciliationTarget.title} · ungeklärter Verkaufsstatus`,
         },
       ];
     }

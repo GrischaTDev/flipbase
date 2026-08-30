@@ -23,6 +23,18 @@ describe('SyncStatusService – sichtbare Meldung fehlgeschlagener Speichervorg�
     expect(fehler.message).toContain('Einkauf speichern');
   });
 
+  it('bewahrt die ursprüngliche technische Ursache für die Diagnose', () => {
+    const datenbankfehler = new Error('Legacy constraint failed');
+    const sichtbarerFehler = new Error('Der historische Verkauf konnte nicht gespeichert werden.', {
+      cause: datenbankfehler,
+    });
+
+    const fehler = service.melde('Nachtragen des historischen Verkaufs', sichtbarerFehler);
+
+    expect(fehler.cause).toBe(sichtbarerFehler);
+    expect((fehler.cause as Error).cause).toBe(datenbankfehler);
+  });
+
   describe('Übersetzung technischer Fehler', () => {
     const faelle: readonly [string, unknown, string][] = [
       ['fehlende Berechtigung', { code: '42501' }, 'Keine Berechtigung'],

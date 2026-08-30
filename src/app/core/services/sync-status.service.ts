@@ -29,8 +29,11 @@ interface AktiveFehlerAktion {
 
 /** Fehler, der bereits als Sync-Status sichtbar gemacht wurde. */
 export class ZentralGemeldeterFehler extends Error {
-  constructor(readonly syncFehler: SyncFehler) {
-    super(`${syncFehler.vorgang} fehlgeschlagen: ${syncFehler.meldung}`);
+  constructor(
+    readonly syncFehler: SyncFehler,
+    options?: ErrorOptions,
+  ) {
+    super(`${syncFehler.vorgang} fehlgeschlagen: ${syncFehler.meldung}`, options);
     this.name = 'ZentralGemeldeterFehler';
   }
 }
@@ -92,7 +95,7 @@ export class SyncStatusService {
       ? aktiveAktion.ersteFehler.get(deduplizierungsSchluessel)
       : undefined;
 
-    if (vorhandener) return new ZentralGemeldeterFehler(vorhandener);
+    if (vorhandener) return new ZentralGemeldeterFehler(vorhandener, { cause: ursache });
 
     const eintrag: SyncFehler = {
       id: this.naechsteId++,
@@ -114,7 +117,7 @@ export class SyncStatusService {
       this.beiVerdacht?.();
     }
 
-    return new ZentralGemeldeterFehler(eintrag);
+    return new ZentralGemeldeterFehler(eintrag, { cause: ursache });
   }
 
   /** Erstellt einen eindeutigen Kontext für eine zusammenhängende Nutzeraktion. */

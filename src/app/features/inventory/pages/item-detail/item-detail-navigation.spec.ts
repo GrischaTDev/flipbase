@@ -8,7 +8,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { provideRouter, Routes, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { InventoryItem } from '../../../../core/models/flipbase.models';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { MediaService } from '../../../../core/services/media.service';
@@ -47,25 +47,37 @@ async function resolveItemResources(): Promise<void> {
   });
 }
 
+interface ItemDetailComponentDefinition {
+  readonly ɵcmp: {
+    declaredInputs: Record<string, string>;
+    inputs: Record<string, [string, number, null]>;
+  };
+}
+
+const itemDetailDefinition = ItemDetailComponent as unknown as ItemDetailComponentDefinition;
+let urspruenglicheInputs: Record<string, [string, number, null]>;
+let urspruenglicheDeclaredInputs: Record<string, string>;
+
 beforeAll(async () => {
   registerLocaleData(localeDe);
   await resolveItemResources();
-  const definition = ItemDetailComponent as unknown as {
-    ɵcmp: {
-      declaredInputs: Record<string, string>;
-      inputs: Record<string, [string, number, null]>;
-    };
-  };
-  definition.ɵcmp.inputs = {
-    ...definition.ɵcmp.inputs,
+  urspruenglicheInputs = itemDetailDefinition.ɵcmp.inputs;
+  urspruenglicheDeclaredInputs = itemDetailDefinition.ɵcmp.declaredInputs;
+  itemDetailDefinition.ɵcmp.inputs = {
+    ...itemDetailDefinition.ɵcmp.inputs,
     id: ['id', 1, null],
     fromPurchaseId: ['fromPurchaseId', 1, null],
   };
-  definition.ɵcmp.declaredInputs = {
-    ...definition.ɵcmp.declaredInputs,
+  itemDetailDefinition.ɵcmp.declaredInputs = {
+    ...itemDetailDefinition.ɵcmp.declaredInputs,
     id: 'id',
     fromPurchaseId: 'fromPurchaseId',
   };
+});
+
+afterAll(() => {
+  itemDetailDefinition.ɵcmp.inputs = urspruenglicheInputs;
+  itemDetailDefinition.ɵcmp.declaredInputs = urspruenglicheDeclaredInputs;
 });
 
 const purchase = { id: 'purchase-1' };
