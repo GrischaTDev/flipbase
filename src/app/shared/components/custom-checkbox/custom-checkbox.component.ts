@@ -25,8 +25,6 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
   host: {
     '[class.inline-flex]': 'true',
     '[class.items-center]': 'true',
-    '[class.cursor-pointer]': '!effectiveDisabled()',
-    '[class.cursor-not-allowed]': 'effectiveDisabled()',
     '[class.opacity-40]': 'effectiveDisabled()',
   },
 })

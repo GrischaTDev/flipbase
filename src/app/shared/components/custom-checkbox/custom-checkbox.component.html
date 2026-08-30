@@ -1,11 +1,12 @@
 <button
   type="button"
   role="checkbox"
+  [disabled]="effectiveDisabled()"
   [attr.aria-checked]="indeterminate() ? 'mixed' : checked()"
   [attr.aria-disabled]="effectiveDisabled()"
   [attr.aria-label]="ariaLabel() || label() || 'Checkbox'"
   [id]="id() || null"
-  class="relative inline-flex items-center gap-2 select-none group cursor-pointer"
+  class="relative inline-flex items-center gap-2 select-none group"
   (click)="toggle($event)"
   (blur)="onBlur()"
 >
