@@ -6,7 +6,7 @@ import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
 import { SalesService } from '../../../../core/services/sales.service';
@@ -19,20 +19,59 @@ import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog
 import { SaleCreateModalComponent } from './sale-create-modal.component';
 
 TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-type InputDefinition = {
-  inputs: Record<string, [string, number, null]>;
+type AngularInputMetadata = {
+  inputs: Record<string, unknown>;
   declaredInputs: Record<string, string>;
 };
 
-function exposeInputs(definition: InputDefinition, names: readonly string[]): void {
-  definition.inputs = {
-    ...definition.inputs,
-    ...Object.fromEntries(names.map((name) => [name, [name, 1, null] as [string, number, null]])),
+type MetadataSnapshot = {
+  readonly metadata: AngularInputMetadata;
+  readonly inputs: Record<string, unknown>;
+  readonly declaredInputs: Record<string, string>;
+};
+
+let metadataSnapshots: MetadataSnapshot[] = [];
+
+function bridgeInputMetadata(metadata: AngularInputMetadata, names: readonly string[]): void {
+  metadataSnapshots.push({
+    metadata,
+    inputs: metadata.inputs,
+    declaredInputs: metadata.declaredInputs,
+  });
+  metadata.inputs = {
+    ...metadata.inputs,
+    ...Object.fromEntries(names.map((name) => [name, [name, 1, null]])),
   };
-  definition.declaredInputs = {
-    ...definition.declaredInputs,
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
     ...Object.fromEntries(names.map((name) => [name, name])),
   };
+}
+
+function installTestLocalInputBridges(): void {
+  bridgeInputMetadata(
+    (SaleCreateModalComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp,
+    ['saleTarget', 'legacyReconciliation'],
+  );
+  bridgeInputMetadata((CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp, [
+    'options',
+    'placeholder',
+    'size',
+  ]);
+  bridgeInputMetadata((DatePickerComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp, [
+    'feldId',
+  ]);
+  bridgeInputMetadata((ModalDialogDirective as unknown as { ɵdir: AngularInputMetadata }).ɵdir, [
+    'dialogTitel',
+  ]);
+}
+
+function restoreInputMetadata(): void {
+  for (const snapshot of metadataSnapshots) {
+    snapshot.metadata.inputs = snapshot.inputs;
+    snapshot.metadata.declaredInputs = snapshot.declaredInputs;
+  }
+  metadataSnapshots = [];
 }
 
 async function resolveTemplateResources(): Promise<void> {
@@ -48,15 +87,14 @@ async function resolveTemplateResources(): Promise<void> {
 beforeAll(async () => {
   registerLocaleData(localeDe);
   await resolveTemplateResources();
-  exposeInputs((CustomSelectComponent as unknown as { ɵcmp: InputDefinition }).ɵcmp, [
-    'options',
-    'placeholder',
-    'size',
-  ]);
-  exposeInputs((DatePickerComponent as unknown as { ɵcmp: InputDefinition }).ɵcmp, ['feldId']);
-  exposeInputs((ModalDialogDirective as unknown as { ɵdir: InputDefinition }).ɵdir, [
-    'dialogTitel',
-  ]);
+});
+beforeEach(() => installTestLocalInputBridges());
+afterEach(() => {
+  try {
+    TestBed.resetTestingModule();
+  } finally {
+    restoreInputMetadata();
+  }
 });
 
 describe('SaleCreateModalComponent – historische Verkaufskorrektur', () => {
@@ -81,19 +119,26 @@ describe('SaleCreateModalComponent – historische Verkaufskorrektur', () => {
     await resolveTemplateResources();
     await TestBed.compileComponents();
     const fixture = TestBed.createComponent(SaleCreateModalComponent);
-    Object.assign(fixture.componentInstance, {
-      saleTarget: signal({
-        kind: 'inventory_item' as const,
-        inventoryItemId: 'item-1',
-        title: 'Testartikel',
-      }),
-      legacyReconciliation: signal({
-        kind: 'legacy_sold_unverified' as const,
-        inventoryItemId: 'item-1',
-      }),
+    fixture.componentRef.setInput('saleTarget', {
+      kind: 'inventory_item',
+      inventoryItemId: 'item-1',
+      title: 'Testartikel',
+    });
+    fixture.componentRef.setInput('legacyReconciliation', {
+      kind: 'legacy_sold_unverified',
+      inventoryItemId: 'item-1',
     });
     fixture.detectChanges();
 
+    expect(fixture.componentInstance.saleTarget()).toEqual({
+      kind: 'inventory_item',
+      inventoryItemId: 'item-1',
+      title: 'Testartikel',
+    });
+    expect(fixture.componentInstance.legacyReconciliation()).toEqual({
+      kind: 'legacy_sold_unverified',
+      inventoryItemId: 'item-1',
+    });
     const host = fixture.nativeElement as HTMLElement;
     expect(host.textContent).toContain('Historischen Verkauf nachtragen');
     expect(host.textContent).toContain('Diese Korrektur wird automatisch protokolliert.');
