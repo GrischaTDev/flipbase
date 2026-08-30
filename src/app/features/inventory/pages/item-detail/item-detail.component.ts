@@ -111,8 +111,13 @@ export class ItemDetailComponent {
   private readonly syncStatus = inject(SyncStatusService);
   private readonly toast = inject(ToastService);
 
-  readonly backLink = computed<ItemDetailBackLink>(() => {
+  readonly currentItem = computed<InventoryItem | null>(() => {
     const item = this.inventoryService.selectedItem();
+    return item?.id === this.id() ? item : null;
+  });
+
+  readonly backLink = computed<ItemDetailBackLink>(() => {
+    const item = this.currentItem();
     const purchaseId = this.fromPurchaseId();
     const isValidatedPurchase =
       item?.id === this.id() && !!purchaseId && item.purchase_id === purchaseId;
@@ -224,13 +229,12 @@ export class ItemDetailComponent {
   }
 
   async onFilesSelected(event: Event): Promise<void> {
-    const selected = this.inventoryService.selectedItem();
-    if (!selected || this.isMutationLocked(selected)) return;
+    const item = this.currentItem();
+    if (!item || this.isMutationLocked(item)) return;
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
 
-    const itemId = this.id();
-    if (!itemId) return;
+    const itemId = item.id;
 
     this.isUploading.set(true);
     this.uploadError.set(null);
@@ -323,12 +327,10 @@ export class ItemDetailComponent {
   }
 
   async onSetPrimary(media: ItemMedia): Promise<void> {
-    const selected = this.inventoryService.selectedItem();
-    if (!selected || this.isMutationLocked(selected)) return;
-    const itemId = this.id();
-    if (!itemId) return;
+    const item = this.currentItem();
+    if (!item || this.isMutationLocked(item)) return;
 
-    const { error } = await this.mediaService.setPrimary(itemId, media.id);
+    const { error } = await this.mediaService.setPrimary(item.id, media.id);
     if (error) {
       this.meldeFehlerWennNichtSynchronisiert('Hauptbild konnte nicht geändert werden.', error);
       return;
@@ -338,12 +340,10 @@ export class ItemDetailComponent {
   }
 
   async onDeleteMedia(media: ItemMedia): Promise<void> {
-    const selected = this.inventoryService.selectedItem();
-    if (!selected || this.isMutationLocked(selected)) return;
-    const itemId = this.id();
-    if (!itemId) return;
+    const item = this.currentItem();
+    if (!item || this.isMutationLocked(item)) return;
 
-    const { error } = await this.mediaService.deleteMedia(itemId, media.id, media.storage_path);
+    const { error } = await this.mediaService.deleteMedia(item.id, media.id, media.storage_path);
     if (error) {
       this.meldeFehlerWennNichtSynchronisiert('Bild konnte nicht gelöscht werden.', error);
       return;
@@ -358,7 +358,7 @@ export class ItemDetailComponent {
 
   async onChangeStatus(newStatus: string | null): Promise<void> {
     if (!newStatus) return;
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || this.isMutationLocked(item)) return;
     const { error } = await this.inventoryService.updateItemStatus(
       item.id,
@@ -372,7 +372,7 @@ export class ItemDetailComponent {
   }
 
   async onRestoreLegacySoldItem(): Promise<void> {
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || item.sale_state !== 'legacy_sold_unverified') return;
 
     const confirmed = await this.dialog.frage({
@@ -380,7 +380,7 @@ export class ItemDetailComponent {
       text: `„${item.title}“ wird auf „Bereit“ gesetzt. Die Korrektur wird automatisch dokumentiert.`,
       bestaetigenText: 'Artikel ist noch vorhanden',
     });
-    if (!confirmed) return;
+    if (!confirmed || !this.isCurrentItem(item)) return;
 
     const { error } = await this.inventoryService.resolveLegacySoldItem(item.id);
     if (error) {
@@ -391,7 +391,7 @@ export class ItemDetailComponent {
   }
 
   openLegacySaleReconciliation(): void {
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || item.sale_state !== 'legacy_sold_unverified') return;
     const state: SaleTargetRouteState = {
       legacyReconciliation: {
@@ -406,7 +406,7 @@ export class ItemDetailComponent {
   }
 
   async onAddCost(): Promise<void> {
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || this.isMutationLocked(item) || this.costForm.invalid) return;
 
     const val = this.costForm.getRawValue();
@@ -431,7 +431,7 @@ export class ItemDetailComponent {
   }
 
   async onDeleteCost(costId: string): Promise<void> {
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || this.isMutationLocked(item)) return;
     const { error } = await this.inventoryService.deleteItemCost(item.id, costId);
     if (error) {
@@ -445,7 +445,7 @@ export class ItemDetailComponent {
   }
 
   async onTogglePublicStore(isPublic: boolean): Promise<void> {
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || this.isMutationLocked(item)) return;
     const { error } = await this.inventoryService.updateItem(item.id, {
       is_public_store: isPublic,
@@ -460,7 +460,7 @@ export class ItemDetailComponent {
   }
 
   async onDeleteItem(): Promise<void> {
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || this.isMutationLocked(item)) return;
     const bestaetigt = await this.dialog.frage({
       titel: 'Artikel löschen?',
@@ -468,21 +468,26 @@ export class ItemDetailComponent {
       bestaetigenText: 'Löschen',
       gefahr: true,
     });
-    if (bestaetigt) {
-      const { error } = await this.inventoryService.deleteItem(item.id);
-      if (error) {
-        this.meldeFehlerWennNichtSynchronisiert('Artikel konnte nicht gelöscht werden.', error);
-        return;
-      }
-      this.toast.success('Artikel wurde gelöscht.');
-      await this.router.navigate(['/inventory']);
+    if (!bestaetigt || !this.isCurrentItem(item)) return;
+
+    const { error } = await this.inventoryService.deleteItem(item.id);
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert('Artikel konnte nicht gelöscht werden.', error);
+      return;
     }
+    this.toast.success('Artikel wurde gelöscht.');
+    await this.router.navigate(['/inventory']);
   }
 
   openEditModal(): void {
-    const item = this.inventoryService.selectedItem();
+    const item = this.currentItem();
     if (!item || this.isMutationLocked(item)) return;
     this.isEditModalOpen.set(true);
+  }
+
+  private isCurrentItem(item: InventoryItem): boolean {
+    const currentItem = this.currentItem();
+    return currentItem?.id === item.id && currentItem.sale_state === item.sale_state;
   }
 
   private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {

@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { FormControl, FormGroup } from '@angular/forms';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
@@ -35,6 +35,7 @@ function erstelleKomponente(error: Error | null = null) {
   const toast = new ToastService();
   const syncStatus = new SyncStatusService();
   const navigate = vi.fn(async () => true);
+  const routeId = signal(artikel.id);
   const inventoryService = {
     selectedItem: signal<InventoryItem | null>({ ...artikel }),
     updateItemStatus: vi.fn(async () => ({ error })),
@@ -56,9 +57,14 @@ function erstelleKomponente(error: Error | null = null) {
     setPrimary: vi.fn(async () => ({ error })),
     deleteMedia: vi.fn(async () => ({ error })),
   };
+  const currentItem = computed<InventoryItem | null>(() => {
+    const selectedItem = inventoryService.selectedItem();
+    return selectedItem?.id === routeId() ? selectedItem : null;
+  });
   const komponente = Object.create(ItemDetailComponent.prototype) as ItemDetailComponent;
   Object.assign(komponente, {
-    id: signal(artikel.id),
+    id: routeId,
+    currentItem,
     inventoryService,
     mediaService,
     mediaList: signal<ItemMedia[]>([]),
@@ -75,7 +81,16 @@ function erstelleKomponente(error: Error | null = null) {
     syncStatus,
     toast,
   });
-  return { komponente, inventoryService, mediaService, dialog, syncStatus, toast, navigate };
+  return {
+    komponente,
+    inventoryService,
+    mediaService,
+    dialog,
+    syncStatus,
+    toast,
+    navigate,
+    routeId,
+  };
 }
 
 function dateiEvent(dateien: File[]): Event {
@@ -156,6 +171,58 @@ describe('ItemDetailComponent – Aktionsmeldungen', () => {
         },
       },
     });
+  });
+
+  it('führt für einen veralteten Artikel weder Bestandsrücknahme noch Verkaufsnachtrag aus', async () => {
+    const { komponente, inventoryService, dialog, navigate, routeId } = erstelleKomponente();
+    const staleItem = {
+      ...artikel,
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      title: 'Alter Artikel',
+      status: 'sold' as const,
+      sale_state: 'legacy_sold_unverified' as const,
+    };
+    routeId.set('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+    inventoryService.selectedItem.set(staleItem);
+
+    await komponente.onRestoreLegacySoldItem();
+    komponente.openLegacySaleReconciliation();
+
+    expect(dialog.frage).not.toHaveBeenCalled();
+    expect(inventoryService.resolveLegacySoldItem).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('prüft nach einer Bestätigung erneut Route, Artikel-ID und Verkaufsstatus', async () => {
+    const { komponente, inventoryService, dialog, routeId } = erstelleKomponente();
+    inventoryService.selectedItem.set({
+      ...artikel,
+      status: 'sold',
+      sale_state: 'legacy_sold_unverified',
+    });
+    let bestaetigen: (wert: boolean) => void = () => undefined;
+    dialog.frage.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          bestaetigen = resolve;
+        }),
+    );
+
+    const ruecknahme = komponente.onRestoreLegacySoldItem();
+
+    expect(dialog.frage).toHaveBeenCalledOnce();
+    routeId.set('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+    inventoryService.selectedItem.set({
+      ...artikel,
+      id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      title: 'Neuer Artikel',
+      status: 'sold',
+      sale_state: 'legacy_sold_unverified',
+    });
+    bestaetigen(true);
+    await ruecknahme;
+
+    expect(inventoryService.resolveLegacySoldItem).not.toHaveBeenCalled();
   });
 
   it.each([
