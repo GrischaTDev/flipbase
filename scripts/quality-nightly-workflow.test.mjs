@@ -13,6 +13,131 @@ const setupNodeSha = '820762786026740c76f36085b0efc47a31fe5020';
 const uploadSha = '043fb46d1a93c77aae656e7c1c64a875d1fc6a0a';
 const failureUploadIf = '${{ failure() || cancelled() }}';
 
+function nodeSetupSteps() {
+  return [
+    {
+      name: 'Check out repository',
+      uses: `actions/checkout@${checkoutSha}`,
+      with: { 'persist-credentials': 'false' },
+    },
+    {
+      name: 'Set up Node',
+      uses: `actions/setup-node@${setupNodeSha}`,
+      with: {
+        'node-version': '22',
+        cache: 'npm',
+        'cache-dependency-path': 'package-lock.json',
+      },
+    },
+    { name: 'Install dependencies', run: 'npm ci' },
+  ];
+}
+
+function expectedJobSteps() {
+  return {
+    coverage: [
+      ...nodeSetupSteps(),
+      { name: 'Run full coverage', run: 'npm run test:coverage' },
+      {
+        name: 'Upload coverage report',
+        if: '${{ always() }}',
+        uses: `actions/upload-artifact@${uploadSha}`,
+        with: {
+          name: 'nightly-coverage',
+          path: 'coverage/',
+          'if-no-files-found': 'ignore',
+          'retention-days': '7',
+        },
+      },
+    ],
+    'node-stress': [
+      ...nodeSetupSteps(),
+      {
+        name: 'Run 20 shuffled Node suites',
+        env: {
+          GITHUB_RUN_ID: '${{ github.run_id }}',
+          GITHUB_RUN_ATTEMPT: '${{ github.run_attempt }}',
+        },
+        shell: 'bash',
+        run: 'npm run test:stress:20 2>&1 | tee node-stress.log',
+      },
+      {
+        name: 'Upload stress failure log',
+        if: failureUploadIf,
+        uses: `actions/upload-artifact@${uploadSha}`,
+        with: {
+          name: 'nightly-node-stress-failure',
+          path: 'node-stress.log',
+          'if-no-files-found': 'ignore',
+          'retention-days': '7',
+        },
+      },
+    ],
+    'database-full': [
+      ...nodeSetupSteps(),
+      { name: 'Start local Supabase', run: 'npx supabase start' },
+      {
+        name: 'Run pgTAP suite',
+        shell: 'bash',
+        run: 'npm run test:db 2>&1 | tee -a database-full.log',
+      },
+      {
+        name: 'Run immediate upgrade harness',
+        shell: 'bash',
+        run: 'pwsh -NoProfile -File supabase/test-support/manual/inventory_integrity_upgrade.ps1 2>&1 | tee -a database-full.log',
+      },
+      {
+        name: 'Run legacy sale-line migration harness',
+        shell: 'bash',
+        run: 'pwsh -NoProfile -File supabase/test-support/manual/run_inventory_sales_legacy_migration.ps1 2>&1 | tee -a database-full.log',
+      },
+      {
+        name: 'Run parallel sale harness',
+        shell: 'bash',
+        run: 'pwsh -NoProfile -File supabase/test-support/manual/inventory_double_sale.ps1 2>&1 | tee -a database-full.log',
+      },
+      {
+        name: 'Stop local Supabase',
+        if: '${{ always() }}',
+        run: 'npx supabase stop --no-backup',
+      },
+      {
+        name: 'Upload database failure logs',
+        if: failureUploadIf,
+        uses: `actions/upload-artifact@${uploadSha}`,
+        with: {
+          name: 'nightly-database-failure',
+          path: 'database-full.log\nsupabase/.temp/logs/\n',
+          'if-no-files-found': 'ignore',
+          'retention-days': '7',
+        },
+      },
+    ],
+    'browser-matrix': [
+      ...nodeSetupSteps(),
+      {
+        name: 'Install selected browser',
+        run: 'npx playwright install --with-deps ${{ matrix.browser }}',
+      },
+      {
+        name: 'Run selected browser smoke tests',
+        run: 'npm run test:e2e:nightly -- --project=${{ matrix.browser }}',
+      },
+      {
+        name: 'Upload browser failure artifacts',
+        if: failureUploadIf,
+        uses: `actions/upload-artifact@${uploadSha}`,
+        with: {
+          name: 'nightly-browser-${{ matrix.browser }}-failure',
+          path: 'playwright-report/\ntest-results/\n',
+          'if-no-files-found': 'ignore',
+          'retention-days': '7',
+        },
+      },
+    ],
+  };
+}
+
 function convertYamlNode(node) {
   if (!node || typeof node !== 'object') return undefined;
   if (node.type === 'mapping') {
@@ -54,6 +179,87 @@ function assertPinnedActions(jobs) {
   }
 }
 
+function assertExactStepAllowlists(jobs) {
+  for (const [jobName, expectedSteps] of Object.entries(expectedJobSteps())) {
+    const actualSteps = jobs[jobName].steps;
+    assert.equal(
+      actualSteps.length,
+      expectedSteps.length,
+      `${jobName} darf ausschließlich ${expectedSteps.length} freigegebene Schritte enthalten`,
+    );
+    for (const [index, expectedStep] of expectedSteps.entries()) {
+      assert.deepEqual(
+        actualSteps[index],
+        expectedStep,
+        `${jobName}.steps[${index}] muss vollständig der Allowlist entsprechen`,
+      );
+    }
+  }
+}
+
+function assertUploadAllowlists(jobs) {
+  const expected = {
+    coverage: { name: 'Upload coverage report', if: '${{ always() }}' },
+    'node-stress': { name: 'Upload stress failure log', if: failureUploadIf },
+    'database-full': { name: 'Upload database failure logs', if: failureUploadIf },
+    'browser-matrix': { name: 'Upload browser failure artifacts', if: failureUploadIf },
+  };
+  for (const [jobName, policy] of Object.entries(expected)) {
+    const uploads = jobs[jobName].steps.filter((candidate) =>
+      candidate.uses?.startsWith('actions/upload-artifact@'),
+    );
+    assert.equal(uploads.length, 1, `${jobName} darf genau einen Artefakt-Upload enthalten`);
+    assert.equal(uploads[0].name, policy.name);
+    assert.equal(uploads[0].if, policy.if);
+    assert.equal(uploads[0].uses, `actions/upload-artifact@${uploadSha}`);
+    assert.equal(uploads[0].with['retention-days'], '7');
+  }
+}
+
+function assertDatabaseLocalOnly(database) {
+  const allowedRuns = expectedJobSteps()
+    ['database-full'].filter((candidate) => candidate.run)
+    .map((candidate) => candidate.run);
+  const actualRuns = database.steps
+    .filter((candidate) => candidate.run)
+    .map((candidate) => candidate.run);
+  assert.deepEqual(
+    actualRuns,
+    allowedRuns,
+    'database-full darf nur lokale freigegebene Befehle ausführen',
+  );
+
+  const forbiddenCommand =
+    /--linked|\bsupabase\s+link\b|\bsupabase\s+db\s+push\b|https?:\/\/[^\s"']*\.supabase\.co\b/i;
+  for (const command of actualRuns) assert.doesNotMatch(command, forbiddenCommand);
+  const serialized = JSON.stringify(database);
+  assert.doesNotMatch(
+    serialized,
+    /SUPABASE_(?:URL|DB_URL|SERVICE_ROLE_KEY)|SERVICE_ROLE_KEY|PRODUCTION/i,
+  );
+}
+
+function assertSelectedBrowserOnly(browser) {
+  const installSteps = browser.steps.filter((candidate) =>
+    candidate.run?.includes('playwright install'),
+  );
+  const browserRuns = browser.steps.filter((candidate) =>
+    candidate.run?.includes('test:e2e:nightly'),
+  );
+  assert.deepEqual(installSteps, [
+    {
+      name: 'Install selected browser',
+      run: 'npx playwright install --with-deps ${{ matrix.browser }}',
+    },
+  ]);
+  assert.deepEqual(browserRuns, [
+    {
+      name: 'Run selected browser smoke tests',
+      run: 'npm run test:e2e:nightly -- --project=${{ matrix.browser }}',
+    },
+  ]);
+}
+
 function assertNodeSetup(job) {
   assert.equal(step(job, 'Check out repository').uses, `actions/checkout@${checkoutSha}`);
   assert.equal(step(job, 'Check out repository').with['persist-credentials'], 'false');
@@ -90,6 +296,8 @@ function assertNightlyWorkflow(workflow) {
   ]);
   for (const job of Object.values(jobs)) assert.equal(job.needs, undefined);
   assertPinnedActions(jobs);
+  assertExactStepAllowlists(jobs);
+  assertUploadAllowlists(jobs);
 
   assertNodeSetup(jobs.coverage);
   assert.equal(step(jobs.coverage, 'Run full coverage').run, 'npm run test:coverage');
@@ -105,6 +313,7 @@ function assertNightlyWorkflow(workflow) {
   assertUpload(step(jobs['node-stress'], 'Upload stress failure log'), failureUploadIf);
 
   const database = jobs['database-full'];
+  assertDatabaseLocalOnly(database);
   assertNodeSetup(database);
   assert.equal(step(database, 'Start local Supabase').run, 'npx supabase start');
   const pgTap = step(database, 'Run pgTAP suite');
@@ -135,6 +344,7 @@ function assertNightlyWorkflow(workflow) {
   assertUpload(step(database, 'Upload database failure logs'), failureUploadIf);
 
   const browser = jobs['browser-matrix'];
+  assertSelectedBrowserOnly(browser);
   assertNodeSetup(browser);
   assert.equal(browser.strategy['fail-fast'], 'false');
   assert.deepEqual(browser.strategy.matrix.browser, ['chromium', 'firefox', 'webkit']);
@@ -147,13 +357,23 @@ function assertNightlyWorkflow(workflow) {
     'npm run test:e2e:nightly -- --project=${{ matrix.browser }}',
   );
   assertUpload(step(browser, 'Upload browser failure artifacts'), failureUploadIf);
-
-  const serialized = JSON.stringify(workflow);
-  assert.doesNotMatch(serialized, /--linked|SUPABASE_(URL|DB_URL)|api\.flipbase\.de/);
 }
 
 async function loadNightlyWorkflow() {
   return parseWorkflow(await readFile(workflowPath, 'utf8'));
+}
+
+function extraUploadStep(name) {
+  return {
+    name,
+    if: '${{ always() }}',
+    uses: `actions/upload-artifact@${uploadSha}`,
+    with: {
+      name: 'unexpected-artifact',
+      path: 'unexpected/',
+      'retention-days': '7',
+    },
+  };
 }
 
 test('erzwingt die vollständige fail-closed Nightly-Matrix', async () => {
@@ -201,6 +421,68 @@ for (const [name, mutate] of [
   [
     'eine Pipeline ohne Pipefail-Shell',
     (workflow) => delete step(workflow.jobs['database-full'], 'Run pgTAP suite').shell,
+  ],
+  [
+    'einen zusätzlichen Datenbank-Push',
+    (workflow) =>
+      workflow.jobs['database-full'].steps.push({
+        name: 'Push database',
+        run: 'npx supabase db push',
+      }),
+  ],
+  [
+    'ein zusätzliches Supabase-Link-Kommando',
+    (workflow) =>
+      workflow.jobs['database-full'].steps.push({
+        name: 'Link database',
+        run: 'npx supabase link --project-ref production',
+      }),
+  ],
+  [
+    'eine beliebige Supabase-Remote-URL',
+    (workflow) =>
+      workflow.jobs['database-full'].steps.push({
+        name: 'Probe remote database',
+        run: 'curl https://projekt.supabase.co',
+      }),
+  ],
+  [
+    'eine Service-Role-Umgebungsvariable',
+    (workflow) =>
+      (step(workflow.jobs['database-full'], 'Start local Supabase').env = {
+        SUPABASE_SERVICE_ROLE_KEY: '${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}',
+      }),
+  ],
+  [
+    'einen zusätzlichen Stress-Upload mit always()',
+    (workflow) =>
+      workflow.jobs['node-stress'].steps.push(extraUploadStep('Upload extra stress artifact')),
+  ],
+  [
+    'einen zusätzlichen Datenbank-Upload mit always()',
+    (workflow) =>
+      workflow.jobs['database-full'].steps.push(extraUploadStep('Upload extra database artifact')),
+  ],
+  [
+    'einen zusätzlichen Browser-Upload mit always()',
+    (workflow) =>
+      workflow.jobs['browser-matrix'].steps.push(extraUploadStep('Upload extra browser artifact')),
+  ],
+  [
+    'die Installation aller Browser',
+    (workflow) =>
+      (step(workflow.jobs['browser-matrix'], 'Install selected browser').run =
+        'npx playwright install --with-deps'),
+  ],
+  [
+    'einen Browserlauf ohne ausgewähltes Projekt',
+    (workflow) =>
+      (step(workflow.jobs['browser-matrix'], 'Run selected browser smoke tests').run =
+        'npm run test:e2e:nightly'),
+  ],
+  [
+    'einen beliebigen zusätzlichen Schritt',
+    (workflow) => workflow.jobs.coverage.steps.push({ name: 'Unexpected step', run: 'echo extra' }),
   ],
 ]) {
   test(`weist ${name} zurück`, async () => {

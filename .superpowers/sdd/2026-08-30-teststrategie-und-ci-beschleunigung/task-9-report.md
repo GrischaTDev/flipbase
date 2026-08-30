@@ -126,6 +126,44 @@ Action-Tags, nur einen Stresslauf, fehlendes WebKit, `continue-on-error`,
 linked/produktionsnahes Supabase, Erfolgs-Upload von Fehlerartefakten,
 fehlenden DB-Cleanup und fehlende Pipefail-Shell.
 
+### Fixrunde 1: exakte Nightly-Allowlist
+
+Das Review-Finding war berechtigt: Der ursprüngliche Vertrag suchte die
+erwarteten Schritte überwiegend über deren Namen. Ein zusätzlicher Schritt
+konnte deshalb neben den geprüften Schritten stehen und unbemerkt ausgeführt
+werden.
+
+RED: Zehn neue Negativfixtures wurden zuerst gegen den unveränderten Vertrag
+ausgeführt. Acht Angriffe wurden fälschlich akzeptiert: zusätzlicher
+`supabase db push`, `supabase link`, eine beliebige
+`https://projekt.supabase.co`-URL, eine Service-Role-Umgebungsvariable, je ein
+zusätzlicher `upload-artifact`-Schritt mit `always()` in Stress, Datenbank und
+Browser sowie ein beliebiger zusätzlicher Coverage-Schritt. Ergebnis: 11/19
+grün und 8/19 erwartungsgemäß rot. Die bereits vorhandenen exakten
+Browserbefehle lehnten die Installation aller Browser und einen E2E-Lauf ohne
+`--project=${{ matrix.browser }}` schon vor der Korrektur ab.
+
+GREEN: Jeder der vier Jobs besitzt nun eine positionsgebundene, vollständige
+Schritt-Allowlist. Der Vertrag vergleicht Schrittanzahl und das gesamte
+Schrittobjekt einschließlich `name`, `uses` oder `run` sowie aller erlaubten
+`if`-, `shell`-, `env`- und `with`-Felder. Die exakten Schrittzahlen sind
+5/5/10/6 für Coverage, Stress, Datenbank und Browser. Zusätzliche Felder,
+Schritte, Uploads oder Befehle brechen damit fail-closed ab.
+
+Zusätzlich wird jeder `uses`-Wert auf eine volle SHA geprüft. Coverage darf
+genau den definierten Coverage-Upload mit `always()` besitzen; Stress,
+Datenbank und Browser dürfen jeweils nur ihren definierten Fehlerupload mit
+`failure() || cancelled()` und sieben Tagen Aufbewahrung besitzen. Die
+Datenbankbefehle werden vollständig mit der lokalen Befehls-Allowlist
+verglichen; `db push`, `--linked`, `supabase link`, beliebige
+`*.supabase.co`-URLs und Produktions-/Service-Role-Umgebungsvariablen werden
+zusätzlich ausdrücklich abgewiesen. Im Browserjob sind genau ein Install- und
+ein Testschritt erlaubt, beide ausschließlich für `${{ matrix.browser }}`.
+
+Der legitime Nightly-Vertrag ist mit allen 19/19 Fällen grün; der gesamte
+Workflow-Vertrag läuft nach der Erweiterung 49/49 grün. Der produktive
+Nightly-Workflow musste nicht verändert werden.
+
 ## Browser und Datenbank
 
 - Standard-Chromium: 5/5 grün in 10,818 Sekunden.
@@ -156,6 +194,14 @@ fehlenden DB-Cleanup und fehlende Pipefail-Shell.
 | `npm run build` | grün; 13,852 s inklusive parallelem Coverage-Lauf |
 | beide Workflow-Dateien per Prettier | grün |
 | `git diff --check` | grün |
+
+Fixrunde 1 wurde zusätzlich am finalen Stand mit `npm run test:workflow`
+(49/49), `npm run format:check`, `npm run lint`, `npm run typecheck`, beiden
+Workflow-Dateien per Prettier, `git diff --check`, `npm test` (116 Dateien,
+1.070 Tests) und `npm run build` (6,951 s) abgenommen. Coverage, 20er-Stress,
+Browsermatrix und lokale Datenbank wurden nicht erneut ausgeführt, weil die
+Fixrunde ausschließlich den lokalen Workflow-Vertrag und seine Dokumentation
+ändert; die ursprünglichen Task-9-Nachweise bleiben unverändert.
 
 Commit-Nachweis: genau ein Task-Commit mit der Nachricht
 `test: enforce coverage floors and nightly full checks`; der unvermeidlich
