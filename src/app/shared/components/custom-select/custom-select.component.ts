@@ -91,6 +91,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly isDisabled = signal<boolean>(false);
   readonly isDropUp = signal<boolean>(false);
   readonly activeIndex = signal(-1);
+  private readonly activeOption = signal<SelectOption<T> | null>(null);
 
   readonly resolvedTriggerId = computed(
     () => this.triggerId() || `custom-select-trigger-${this.instanceId}`,
@@ -123,7 +124,15 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
       if (currentIndex !== -1) this.setActiveIndex(-1);
       return;
     }
-    if (currentIndex >= 0 && currentIndex < options.length) return;
+
+    const currentActiveOption = this.activeOption();
+    const retainedIndex = currentActiveOption
+      ? options.findIndex((option) => option.value === currentActiveOption.value)
+      : -1;
+    if (retainedIndex >= 0) {
+      if (currentIndex !== retainedIndex) this.setActiveIndex(retainedIndex);
+      return;
+    }
 
     const selectedIndex = options.findIndex((option) => option.value === this.value());
     this.setActiveIndex(
@@ -185,7 +194,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
 
   closeDropdown(restoreFocus = true): void {
     this.isOpen.set(false);
-    this.activeIndex.set(-1);
+    this.clearActiveOption();
     if (!restoreFocus) return;
 
     const trigger = this.trigger().nativeElement;
@@ -205,7 +214,14 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
 
   setActiveIndex(index: number): void {
     const lastIndex = this.options().length - 1;
-    this.activeIndex.set(lastIndex < 0 ? -1 : Math.min(Math.max(index, 0), lastIndex));
+    const nextIndex = lastIndex < 0 ? -1 : Math.min(Math.max(index, 0), lastIndex);
+    if (nextIndex < 0) {
+      this.clearActiveOption();
+      return;
+    }
+
+    this.activeIndex.set(nextIndex);
+    this.activeOption.set(this.options()[nextIndex] ?? null);
     this.scrollActiveOptionIntoViewAfterRender();
   }
 
@@ -277,7 +293,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   private scrollActiveOptionIntoViewAfterRender(): void {
     afterNextRender(
       {
-        write: () => {
+        mixedReadWrite: () => {
           if (!this.isOpen()) return;
           const option =
             this.elementRef.nativeElement.querySelectorAll<HTMLElement>('[role="option"]')[
@@ -290,5 +306,10 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
       },
       { injector: this.injector },
     );
+  }
+
+  private clearActiveOption(): void {
+    this.activeIndex.set(-1);
+    this.activeOption.set(null);
   }
 }

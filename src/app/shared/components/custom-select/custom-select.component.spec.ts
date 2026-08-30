@@ -326,6 +326,42 @@ describe('CustomSelectComponent', () => {
     },
   );
 
+  it.each(['Enter', ' '] as const)(
+    'bewahrt nach Entfernen einer vorherigen Option den aktiven Wert und wählt mit %s nie den alten Index',
+    (key) => {
+      const initialOptions: readonly SelectOption<string>[] = [
+        { value: 'a', label: 'A' },
+        { value: 'b', label: 'B' },
+        { value: 'c', label: 'C' },
+      ];
+      const fixture = createSelect({ options: initialOptions });
+      const onChange = vi.fn<(value: string | null) => void>();
+      fixture.componentInstance.registerOnChange(onChange);
+      keydown(fixture, 'ArrowDown');
+      keydown(fixture, 'ArrowDown');
+      expect(activeIndexOf(fixture)).toBe(1);
+
+      fixture.componentRef.setInput('options', [
+        { value: 'b', label: 'B neu' },
+        { value: 'c', label: 'C neu' },
+      ]);
+      fixture.detectChanges();
+
+      expect(activeIndexOf(fixture)).toBe(0);
+      expect(triggerOf(fixture).getAttribute('aria-activedescendant')).toBe(
+        optionElements(fixture)[0]?.id,
+      );
+      expect(optionElements(fixture)[0]?.textContent).toContain('B neu');
+
+      keydown(fixture, key);
+
+      expect(fixture.componentInstance.value()).toBe('b');
+      expect(onChange).toHaveBeenCalledOnce();
+      expect(onChange).toHaveBeenCalledWith('b');
+      expect(onChange).not.toHaveBeenCalledWith('c');
+    },
+  );
+
   it('folgt nach signalbasiertem Schrumpfen einer erhaltenen Auswahl an ihren neuen Index', () => {
     const fixture = createSelect({ value: 'vinted' });
     keydown(fixture, 'ArrowDown');
@@ -436,6 +472,30 @@ describe('CustomSelectComponent', () => {
     expect(onChange).toHaveBeenCalledWith('vinted');
     expect(fixture.componentInstance.isOpen()).toBe(false);
     expect(document.activeElement).toBe(triggerOf(fixture));
+  });
+
+  it('löst nach Pointer-Auswahl und Schließen keinen späteren Scroll aus', async () => {
+    const fixture = createSelect();
+    triggerOf(fixture).click();
+    fixture.detectChanges();
+    const scrollCalls = optionElements(fixture).map(() =>
+      vi.fn<(options?: ScrollIntoViewOptions) => void>(),
+    );
+    optionElements(fixture).forEach((option, index) => {
+      Object.defineProperty(option, 'scrollIntoView', {
+        configurable: true,
+        value: scrollCalls[index],
+      });
+    });
+
+    optionElements(fixture)[1]?.click();
+    fixture.detectChanges();
+    await fixture.whenRenderingDone();
+
+    expect(fixture.componentInstance.isOpen()).toBe(false);
+    expect(scrollCalls.every((scrollIntoView) => scrollIntoView.mock.calls.length === 0)).toBe(
+      true,
+    );
   });
 
   it('schließt bei einem Außenklick ohne Wertänderung', () => {
