@@ -46,13 +46,40 @@ export default defineConfig({
 
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html'],
+      reporter: ['text', 'json-summary', 'html'],
       reportsDirectory: 'coverage',
       include: ['src/app/**/*.ts'],
+      thresholds: {
+        statements: 56,
+        branches: 49,
+        functions: 55,
+        lines: 57,
+        'src/app/core/services/profit-engine.service.ts': {
+          statements: 95,
+          branches: 90,
+        },
+        'src/app/core/services/tax-engine.service.ts': {
+          statements: 95,
+          branches: 90,
+        },
+        'src/app/core/models/inventory-sellability.ts': {
+          statements: 95,
+          branches: 90,
+        },
+      },
       exclude: [
         'src/app/**/*.spec.ts',
         'src/app/**/*.routes.ts',
-        'src/app/core/models/**',
+        'src/app/core/models/accounting.models.ts',
+        'src/app/core/models/bank-reconciliation.models.ts',
+        'src/app/core/models/fulfillment.models.ts',
+        'src/app/core/models/invoice.models.ts',
+        'src/app/core/models/offline-sourcing.models.ts',
+        'src/app/core/models/price-tracker.models.ts',
+        'src/app/core/models/return.models.ts',
+        'src/app/core/models/sale-target.models.ts',
+        'src/app/core/models/store.models.ts',
+        'src/app/core/models/webhook.models.ts',
         'src/app/core/i18n/**',
       ],
     },
