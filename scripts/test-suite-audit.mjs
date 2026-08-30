@@ -21,15 +21,47 @@ const node = files.filter(
   (path) => !path.endsWith('.dom.spec.ts') && !path.endsWith('.angular.spec.ts'),
 );
 
-const browserMarker =
-  /\b(TestBed|ComponentFixture|window|document|DOMParser|HTMLElement|FileReader|ImageData)\b/;
-const unclassified = [];
+const forbiddenInNode =
+  /\b(TestBed|ComponentFixture|window|document|DOMParser|HTMLElement|HTMLCanvasElement|FileReader|File|Blob|Image|ImageData|ResizeObserver|localStorage|navigator)\b/;
+const documentedNodeFixtures = new Map([
+  [
+    'src/app/core/services/bank-reconciliation.service.spec.ts',
+    'prüft localStorage nur defensiv und benötigt keine Browser-Speicherimplementierung',
+  ],
+  [
+    'src/app/core/services/demo-data-isolation.spec.ts',
+    'installiert eine eigene Speicherattrappe auf globalThis',
+  ],
+  [
+    'src/app/core/services/landing-hint.service.spec.ts',
+    'injiziert ein lokales Dokument-Double statt ein Browser-Dokument zu verwenden',
+  ],
+  [
+    'src/app/features/accounting/accounting-toast-actions.spec.ts',
+    'reicht File nur als Ereignisfixture an eine Attrappe weiter',
+  ],
+  [
+    'src/app/features/purchases/pages/purchase-detail/purchase-detail-actions.spec.ts',
+    'enthält File ausschließlich als TypeScript-Typ',
+  ],
+  [
+    'src/app/features/image-optimizer/image-optimizer-toast-actions.spec.ts',
+    'verwendet Blob nur als Node-kompatible Exportfixture',
+  ],
+]);
+const violations = [];
 for (const path of node) {
-  if (browserMarker.test(await readFile(path, 'utf8'))) unclassified.push(path);
+  const relativePath = path.slice(process.cwd().length + 1).replaceAll('\\', '/');
+  if (
+    forbiddenInNode.test(await readFile(path, 'utf8')) &&
+    !documentedNodeFixtures.has(relativePath)
+  ) {
+    violations.push(relativePath);
+  }
 }
 
-if (node.length + dom.length + angular.length !== files.length || unclassified.length) {
-  throw new Error(`Unklassifizierte Testdateien:\n${unclassified.join('\n')}`);
+if (node.length + dom.length + angular.length !== files.length || violations.length) {
+  throw new Error(`Node-Tests mit Browserzugriff:\n${violations.join('\n')}`);
 }
 
 console.log(
