@@ -2,6 +2,8 @@
 
 begin;
 
+select plan(3);
+
 do $$
 declare
   v_workspace_id uuid := '81000000-0000-4000-8000-000000000001';
@@ -36,6 +38,8 @@ begin
   perform set_config('request.jwt.claim.sub', v_user_id::text, true);
 end;
 $$;
+
+select pass('Fixtures für die abschließende Bestandsprüfung sind vollständig angelegt');
 
 set local role authenticated;
 set local request.jwt.claim.sub = '81000000-0000-4000-8000-000000000002';
@@ -239,6 +243,8 @@ begin
 end;
 $$;
 
+select pass('atomare Einkauf-, Verkauf- und Retourenabläufe bestehen die Abschlussprüfung');
+
 reset role;
 
 do $$
@@ -266,4 +272,7 @@ begin
 end;
 $$;
 
+select pass('direkte Client-Schreibrechte auf Buchungstabellen bleiben entzogen');
+
+select * from finish();
 rollback;

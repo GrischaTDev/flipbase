@@ -27,6 +27,11 @@ ENV FLIPBASE_COMMIT_DATE=$FLIPBASE_COMMIT_DATE
 # ab, waehrend er auf jedem Rechner mit vorhandener Datei durchlief.
 RUN npm run build -- --configuration production
 
+# Die öffentlich prüfbare Metadatendatei enthält ausschließlich die Git-SHA
+# dieses Builds. Der Deployment-Job vergleicht sie nach dem Rollout mit
+# github.sha und erkennt dadurch auch einen gesunden, aber veralteten Container.
+RUN node scripts/write-deployment-metadata.mjs /app/dist/flipbase/browser/deployment.json
+
 # ──────────────────────────────────────────────
 # Stage 2 – Serve mit Nginx
 # ──────────────────────────────────────────────

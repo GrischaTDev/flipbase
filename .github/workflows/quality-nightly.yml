@@ -1,0 +1,152 @@
+name: Nightly full quality checks
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+      timezone: Europe/Berlin
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  coverage:
+    name: Full coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run full coverage
+        run: npm run test:coverage
+      - name: Upload coverage report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: nightly-coverage
+          path: coverage/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  node-stress:
+    name: Node order stress
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Run 20 shuffled Node suites
+        env:
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT: ${{ github.run_attempt }}
+        shell: bash
+        run: npm run test:stress:20 2>&1 | tee node-stress.log
+      - name: Upload stress failure log
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: nightly-node-stress-failure
+          path: node-stress.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  database-full:
+    name: Full local database checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Start local Supabase
+        run: npx supabase start
+      - name: Run pgTAP suite
+        shell: bash
+        run: npm run test:db 2>&1 | tee -a database-full.log
+      - name: Run immediate upgrade harness
+        shell: bash
+        run: pwsh -NoProfile -File supabase/test-support/manual/inventory_integrity_upgrade.ps1 2>&1 | tee -a database-full.log
+      - name: Run legacy sale-line migration harness
+        shell: bash
+        run: pwsh -NoProfile -File supabase/test-support/manual/run_inventory_sales_legacy_migration.ps1 2>&1 | tee -a database-full.log
+      - name: Run parallel sale harness
+        shell: bash
+        run: pwsh -NoProfile -File supabase/test-support/manual/inventory_double_sale.ps1 2>&1 | tee -a database-full.log
+      - name: Stop local Supabase
+        if: ${{ always() }}
+        run: npx supabase stop --no-backup
+      - name: Upload database failure logs
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: nightly-database-failure
+          path: |
+            database-full.log
+            supabase/.temp/logs/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  browser-matrix:
+    name: Browser smoke (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Install selected browser
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Run selected browser smoke tests
+        run: npm run test:e2e:nightly -- --project=${{ matrix.browser }}
+      - name: Upload browser failure artifacts
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: nightly-browser-${{ matrix.browser }}-failure
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7

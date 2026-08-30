@@ -268,6 +268,22 @@ export class MockDataStoreService {
         total_purchase_cost: 310.0,
         created_at: '2026-08-15T09:15:00.000Z',
       },
+      {
+        id: 'pur-demo-5',
+        workspace_id: DEMO_WS_ID,
+        type: 'lot',
+        title: '5× USB-C Ladegerät 30 W Händlerposten',
+        purchase_date: '2026-08-17',
+        purchase_price: 40.0,
+        shipping_cost: 0.0,
+        source_id: 'src-6',
+        supplier_id: 'sup-3',
+        cost_allocation_mode: 'manual',
+        receiving_status: 'received',
+        items_count: 5,
+        total_purchase_cost: 40.0,
+        created_at: '2026-08-17T09:15:00.000Z',
+      },
     ];
 
     const demoItems: InventoryItem[] = [
@@ -329,6 +345,9 @@ export class MockDataStoreService {
         expected_value: 35.0,
         total_item_cost: 20.0,
         profit_potential: 15.0,
+        sale_state: 'no_active_sale',
+        active_sale_count: 0,
+        active_sale_id: null,
         created_at: '2026-08-11T11:07:00.000Z',
       },
       {
@@ -413,6 +432,7 @@ export class MockDataStoreService {
         id: 'sale-demo-1',
         workspace_id: DEMO_WS_ID,
         inventory_item_id: 'item-demo-1',
+        inventory_item: demoItems[0],
         sale_date: '2026-08-14',
         platform: 'ebay',
         sale_price: 379.0,
@@ -422,8 +442,8 @@ export class MockDataStoreService {
         other_costs: 0.0,
         external_order_id: 'EBAY-994812-DE',
         buyer_notes: 'Zahlung per eBay Managed Payments erhalten. Sendung per DHL Paket versandt.',
-        net_profit: 102.61,
-        roi: 43.3,
+        net_profit: 95.62,
+        roi: 33.74,
         holding_duration_days: 6,
         created_at: '2026-08-14T18:00:00.000Z',
       },
@@ -431,6 +451,7 @@ export class MockDataStoreService {
         id: 'sale-demo-2',
         workspace_id: DEMO_WS_ID,
         inventory_item_id: 'item-demo-3',
+        inventory_item: demoItems[2],
         sale_date: '2026-08-16',
         platform: 'kleinanzeigen',
         sale_price: 110.0,
@@ -441,7 +462,7 @@ export class MockDataStoreService {
         external_order_id: 'KA-88129-BERLIN',
         buyer_notes: 'Sicher bezahlen Funktion Kleinanzeigen genutzt.',
         net_profit: 59.5,
-        roi: 132.2,
+        roi: 117.82,
         holding_duration_days: 5,
         created_at: '2026-08-16T12:30:00.000Z',
       },
@@ -449,6 +470,7 @@ export class MockDataStoreService {
         id: 'sale-demo-3',
         workspace_id: DEMO_WS_ID,
         inventory_item_id: 'item-demo-6',
+        inventory_item: demoItems[5],
         sale_date: '2026-08-18',
         platform: 'vinted',
         sale_price: 135.0,
@@ -459,9 +481,64 @@ export class MockDataStoreService {
         external_order_id: 'VINTED-772184-FR',
         buyer_notes: 'Verkauf über Vinted System nach Frankreich.',
         net_profit: 98.65,
-        roi: 327.1,
+        roi: 271.39,
         holding_duration_days: 5,
         created_at: '2026-08-18T15:45:00.000Z',
+      },
+    ];
+
+    const demoCatalogProducts: CatalogProduct[] = [
+      {
+        id: 'catalog-demo-usb-c-charger',
+        workspace_id: DEMO_WS_ID,
+        title: 'USB-C Ladegerät 30 W',
+        brand: 'Anker',
+        category: 'Elektronik-Zubehör',
+        tracking_mode: 'quantity',
+        is_public_store: true,
+        listing_price: 24.9,
+        created_at: '2026-08-17T09:20:00.000Z',
+      },
+    ];
+    const demoPurchaseLines: PurchaseLine[] = [
+      {
+        id: 'purchase-line-demo-usb-c-charger',
+        workspace_id: DEMO_WS_ID,
+        purchase_id: 'pur-demo-5',
+        catalog_product_id: 'catalog-demo-usb-c-charger',
+        title_snapshot: 'USB-C Ladegerät 30 W',
+        line_kind: 'quantity',
+        ordered_quantity: 5,
+        received_quantity: 5,
+        unit_purchase_price: 8,
+        line_total: 40,
+        allocated_additional_cost: 0,
+        created_at: '2026-08-17T09:20:00.000Z',
+      },
+    ];
+    const demoStockLots: StockLot[] = [
+      {
+        id: 'stock-lot-demo-usb-c-charger',
+        workspace_id: DEMO_WS_ID,
+        purchase_id: 'pur-demo-5',
+        purchase_line_id: 'purchase-line-demo-usb-c-charger',
+        catalog_product_id: 'catalog-demo-usb-c-charger',
+        received_quantity: 5,
+        remaining_quantity: 5,
+        unit_cost: 8,
+        received_at: '2026-08-17T09:30:00.000Z',
+        created_at: '2026-08-17T09:30:00.000Z',
+      },
+    ];
+    const demoStockMovements: StockMovement[] = [
+      {
+        id: 'stock-movement-demo-usb-c-charger',
+        workspace_id: DEMO_WS_ID,
+        stock_lot_id: 'stock-lot-demo-usb-c-charger',
+        direction: 'in',
+        quantity: 5,
+        reason: 'receipt',
+        created_at: '2026-08-17T09:30:00.000Z',
       },
     ];
 
@@ -470,6 +547,10 @@ export class MockDataStoreService {
     storage.setItem(STORAGE_KEY_SALES, JSON.stringify(demoSales));
     storage.setItem(STORAGE_KEY_SOURCES, JSON.stringify(this.defaultSources));
     storage.setItem(STORAGE_KEY_SUPPLIERS, JSON.stringify(this.defaultSuppliers));
+    storage.setItem(STORAGE_KEY_CATALOG_PRODUCTS, JSON.stringify(demoCatalogProducts));
+    storage.setItem(STORAGE_KEY_PURCHASE_LINES, JSON.stringify(demoPurchaseLines));
+    storage.setItem(STORAGE_KEY_STOCK_LOTS, JSON.stringify(demoStockLots));
+    storage.setItem(STORAGE_KEY_STOCK_MOVEMENTS, JSON.stringify(demoStockMovements));
   }
 
   // In-memory accessor for backwards compatibility with tests

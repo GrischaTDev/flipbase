@@ -101,6 +101,15 @@
             }
           },
           "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "tsconfig.spec.json",
+            "buildTarget": "flipbase:build:development",
+            "include": ["src/**/*.angular.spec.ts"],
+            "setupFiles": ["src/test-setup.ts"]
+          }
         }
       }
     }

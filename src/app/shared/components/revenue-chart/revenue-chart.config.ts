@@ -1,4 +1,4 @@
-import type { ChartConfiguration } from 'chart.js';
+import type { ChartConfiguration, TooltipModel } from 'chart.js';
 import type { DashboardTimePoint } from '../../../core/models/flipbase.models';
 import type { AppTheme } from '../../../core/services/theme.service';
 
@@ -68,6 +68,7 @@ export function createRevenueChartConfiguration(
   points: readonly DashboardTimePoint[],
   theme: AppTheme,
   reducedMotion: boolean,
+  showExternalTooltip?: (tooltip: TooltipModel<'line'>) => void,
 ): ChartConfiguration<'line', number[], string> {
   const palette = revenueChartPalette(theme);
 
@@ -100,6 +101,8 @@ export function createRevenueChartConfiguration(
           display: false,
         },
         tooltip: {
+          enabled: !showExternalTooltip,
+          external: showExternalTooltip ? ({ tooltip }) => showExternalTooltip(tooltip) : undefined,
           backgroundColor: palette.tooltipBackground,
           bodyColor: palette.tooltipText,
           borderColor: palette.tooltipBorder,

@@ -48,6 +48,119 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-08-30 – Codex GPT-5.6 – Docker- und RLS-Abnahme nachgeholt
+
+**Art:** Analyse | Test | Doku
+
+**Betroffen:** Lokaler Docker-/Supabase-Teststack und
+`docs/superpowers/reports/2026-08-30-teststrategie-und-ci-abnahme.md`
+
+**Was:** Nach dem erfolgreichen Start von Docker Desktop wurden alle zuvor
+blockierten Nachweise ausgeführt. Der normale pgTAP-Lauf bestand mit 6 Dateien
+und 214 Tests. Eine ausschließlich lokale, temporäre RLS-Mutation öffnete die
+Inventar-Lesepolicy für fremde Workspaces; zwei Sicherheitsprüfungen wurden wie
+erwartet rot. Eine zweite temporäre SQL-Datei stellte die Policy im selben Lauf
+wieder her, beide Dateien wurden entfernt und der unveränderte Lauf war danach
+erneut mit 214/214 Tests grün. Zusätzlich wurde das Produktionsimage mit der
+vollständigen Commit-SHA gebaut und in einem temporären Container über Nginx,
+Startseite, `/healthz` und `/deployment.json` geprüft.
+
+**Warum:** Die lokale Docker-Engine war während der ersten Abnahme nicht
+erreichbar. Damit blieben Datenbank, RLS-Mutation und der reale Containerbuild
+zunächst ohne dynamischen Nachweis.
+
+**Verifiziert durch:** `npm run test:db` 214/214 grün; kontrollierte Mutation
+2/216 rot; Wiederherstellung und erneuter Endlauf 214/214 grün; Dockerimage
+`flipbase:teststrategie-ci-899c2af` erfolgreich gebaut; Nginx-Konfiguration,
+Startseite, `healthz=ok` und SHA
+`899c2afbac79aaf9748aded381a4484a309c5b81` bestätigt. Keine Produktionsdaten
+oder externen Systeme verändert.
+
+## 2026-08-30 – Codex GPT-5.6 – Abschlusslücken der Teststrategie geschlossen
+
+**Art:** Bugfix | Konfiguration | Barrierefreiheit
+
+**Betroffen:** CI-Workflow, Deployment-Metadaten, Revenue-Chart, Workflow- und
+Browser-Tests sowie Abnahmebericht
+
+**Was:** Die abschließende Branch-Prüfung hat drei wichtige Lücken geschlossen.
+Workflow-Verträge und Suite-Audit laufen nun verpflichtend in `npm run verify`
+und im Quality-Job. Der manuelle Benchmark besitzt nur lesenden Repository-Zugriff.
+Das Deployment veröffentlicht die vollständige Build-SHA in `/deployment.json`,
+prüft Startseite und öffentlichen Healthcheck und vergleicht die ausgelieferte
+SHA exakt mit `github.sha`. Der Revenue-Chart besitzt einen
+fokussierbaren Tastaturregler mit Pfeil-, Pos1-, Ende- und Escape-Bedienung sowie
+Screenreader-Werten. Komponenten- und Browsertests decken den Tastaturweg ab.
+
+**Warum:** Die neuen Sicherheitsverträge dürfen nicht außerhalb der Pflicht-Gates
+liegen. Ein statischer Healthcheck kann einen alten Container nicht erkennen,
+und eine reine Mausinteraktion erfüllt die verbindliche WCAG-AA-Anforderung
+nicht.
+
+**Verifiziert durch:** `npm run verify` vollständig grün, 80/80
+Workflow-Verträge, Audit über 116 Testdateien, 1.071/1.071 Vitest-Tests,
+6/6 Chromium-Smokes, Production-Build und Coverage über allen Schwellwerten.
+Der Docker-Daemon bleibt lokal nicht erreichbar; deshalb kein dynamischer
+Supabase-/RLS-Lauf und weiterhin **NO-GO für Produktion**.
+
+## 2026-08-30 – Codex GPT-5.6 – Rollout-Budget und Rückfallregeln gehärtet
+
+**Art:** Doku
+
+**Betroffen:**
+`docs/superpowers/reports/2026-08-30-teststrategie-und-ci-abnahme.md`,
+Task-10-Bericht und SDD-Ledger
+
+**Was:** Drei Review-Befunde in der Rollout-Abnahme korrigiert. Die Baseline
+nennt jetzt nur die in Task 1 belegte Vitest-Dauer 26,37 s. Das Runnerbudget
+verlangt mindestens fünf vergleichbare historische PR-Läufe, legt daraus eine
+feste Fünferkohorte fest, berechnet deren Median `B` und die Grenze
+`T = 1,2 × B` und prüft jeden der fünf neuen Billable-Gesamtwerte einzeln gegen
+`T`. Der Rollback bleibt offen, bis ein isoliert ausgeführter Commit mit
+exklusivem Diff auf `.github/workflows/ci.yml` alle Quick-, DB- und
+Browser-Gates bestanden hat. Er erhält sämtliche heutigen Fachtests/Gates und
+das SHA-only-Image; `0768233` ist nur Topologiereferenz. Eine Nightly-Pause
+erfolgt bei Bedarf in einem eigenen Commit ausschließlich an
+`.github/workflows/quality-nightly.yml`.
+
+**Warum:** Wandzeiten oder ein einzelner historischer Push-Lauf belegen keine
+Billable-Runnergrenze. Ein pauschaler Commit-Revert könnte neue fachliche Tests,
+Supportskripte oder Sicherheitsgates entfernen.
+
+**Verifiziert durch:** Quellenabgleich mit `task-1-report.md`, Suche nach dem
+unbelegten Altwert, Dokument-Formatprüfung und Git-Diff-Check. Keine Code- oder
+Workflowänderung, kein externer Lauf und weiterhin **NO-GO für Produktion**.
+
+## 2026-08-30 – Codex GPT-5.6 – Teststrategie und CI-Rollout lokal abgenommen
+
+**Art:** Konfiguration + Tests + Doku
+
+**Betroffen:** gesamte Teststrategie von Node/DOM/Angular über Coverage, Supabase,
+Playwright und GitHub Actions bis zum Rollback; Abschlussbericht unter
+`docs/superpowers/reports/2026-08-30-teststrategie-und-ci-abnahme.md`
+
+**Was:** Den Umbau der Test- und CI-Pipeline am finalen Feature-Stand
+`7293435` lokal abgenommen. Drei kontrollierte Produktmutationen wurden in
+einem eigenen temporären Worktree dynamisch auf der vorgesehenen Ebene rot
+belegt und jeweils durch normale Revert-Commits neutralisiert: falscher
+Steuerfaktor, Doppelverkauf eines Demo-Einzelstücks und falsche
+Einkaufs-Rücknavigation. Der strukturierte CI-Vertrag wurde einschließlich
+seiner Negativfixtures geprüft. GitHub-Bestand, fünf offene PR-Lauf-Slots,
+Deploy-Checklisten, Produktionsmessplan und selektiver Rollback sind
+dokumentiert.
+
+**Warum:** Ein lokaler grüner Umbau ist noch keine Produktionsfreigabe. Die
+Abnahme trennt belegte lokale Sicherheit strikt von noch fehlender externer
+Scheduler-, Datenbank-, Registry- und Produktionswirkung und verhindert damit
+erfundene p95-/Runner-/Live-Aussagen.
+
+**Verifiziert durch:** Steuer-Mutant 2/14 rot, Verkaufs-Mutant 1/16 rot,
+Playwright-Navigationsmutant 1/1 rot einschließlich Retry; nach Revert 14/14,
+16/16 und 1/1 grün. Lokaler CI-Workflowvertrag 16/16 grün. Docker/RLS ist wegen
+fehlender `dockerDesktopLinuxEngine`-Pipe `BLOCKED`; GitHub read-only zeigt
+0/5 neue Feature-PR-Läufe. Kein Push, PR, Merge, `workflow_dispatch` oder
+Deployment. Entscheidung: **NO-GO für Produktion**.
+
 ## 2026-08-30 – Claude Opus 5 (Anthropic) – Alle Metadaten statt sechs ausgewaehlter
 
 **Art:** Feature + Bugfix (Barrierefreiheit)

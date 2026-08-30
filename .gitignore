@@ -36,6 +36,9 @@ yarn-error.log
 .sass-cache/
 /connect.lock
 /coverage
+/playwright-report/
+/test-results/
+/blob-report/
 /libpeerconnection.log
 testem.log
 /typings
@@ -48,6 +51,7 @@ Thumbs.db
 # Von der Supabase-CLI erzeugt
 supabase/.temp/
 supabase/.branches/
+supabase/tests/.generated/
 
 # Wird bei jedem Build aus package.json und dem Git-Stand erzeugt
 src/app/core/version.ts

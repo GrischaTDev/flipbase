@@ -97,6 +97,62 @@ describe('Beispieldaten dürfen nur im Demo-Modus entstehen', () => {
     expect(titel.length).toBeGreaterThan(0);
   });
 
+  it('führt den Demo-Mengenposten als eigenen vollständig konsistenten Einkauf', () => {
+    const store = neuerStore();
+    store.isDemoMode.set(true);
+    store.ensureShowcaseData();
+
+    const product = store
+      .getCatalogProducts()
+      .find((entry) => entry.title === 'USB-C Ladegerät 30 W');
+    expect(product).toBeDefined();
+
+    const line = store.getPurchaseLines().find((entry) => entry.catalog_product_id === product?.id);
+    expect(line).toMatchObject({
+      line_kind: 'quantity',
+      ordered_quantity: 5,
+      received_quantity: 5,
+      unit_purchase_price: 8,
+      line_total: 40,
+    });
+
+    const purchase = store.getPurchases().find((entry) => entry.id === line?.purchase_id);
+    expect(purchase).toMatchObject({
+      type: 'lot',
+      items_count: 5,
+      purchase_price: 40,
+      shipping_cost: 0,
+      total_purchase_cost: 40,
+      receiving_status: 'received',
+    });
+    expect(purchase?.title).toContain('USB-C Ladegerät');
+
+    const lot = store.getStockLots().find((entry) => entry.purchase_line_id === line?.id);
+    expect(lot).toMatchObject({
+      purchase_id: purchase?.id,
+      catalog_product_id: product?.id,
+      received_quantity: 5,
+      remaining_quantity: 5,
+      unit_cost: 8,
+    });
+    expect(store.getStockMovements().filter((entry) => entry.stock_lot_id === lot?.id)).toEqual([
+      expect.objectContaining({ direction: 'in', quantity: 5, reason: 'receipt' }),
+    ]);
+  });
+
+  it('verknüpft Demo-Verkäufe mit ihrer Kostenbasis für den sichtbaren Gewinn', () => {
+    const store = neuerStore();
+    store.isDemoMode.set(true);
+    store.ensureShowcaseData();
+
+    const sale = store.getSales().find((entry) => entry.id === 'sale-demo-1');
+    expect(sale).toMatchObject({ net_profit: 95.62, roi: 33.74 });
+    expect(sale?.inventory_item).toMatchObject({
+      id: 'item-demo-1',
+      allocated_purchase_cost: 236.99,
+    });
+  });
+
   describe('Schreibsperre ausserhalb des Demo-Modus', () => {
     // Seit der Umstellung auf Supabase ist die Datenbank die alleinige Quelle
     // der Wahrheit. Der lokale Speicher darf sich bei angemeldeten Nutzern

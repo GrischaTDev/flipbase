@@ -28,10 +28,32 @@ env:
   CONTAINER: flipbase-web
 
 jobs:
-  verify:
-    name: Verify
+  changes:
+    name: Detect database changes
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
+    outputs:
+      supabase: ${{ steps.filter.outputs.supabase }}
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Detect Supabase changes
+        id: filter
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: node scripts/detect-supabase-changes.mjs
+
+  quality:
+    name: Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -60,15 +82,169 @@ jobs:
       - name: Check types
         run: npm run typecheck
 
-      - name: Test
-        run: npm test
+      - name: Test workflow contracts
+        run: npm run test:workflow
+
+      - name: Audit test suite classification
+        run: npm run test:audit
 
       - name: Build
         run: npm run build
 
+  unit:
+    name: Unit ${{ matrix.suite }} ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: node
+            shard: 1/2
+          - suite: node
+            shard: 2/2
+          - suite: dom
+            shard: 1/1
+          - suite: angular
+            shard: 1/1
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # npm's pretest:node lifecycle protects the orchestrator contracts during
+      # local runs. CI calls the shard-only script below, so these contracts run
+      # exactly once instead of once per Node shard.
+      - name: Test orchestrator contracts once
+        if: matrix.suite == 'node' && matrix.shard == '1/2'
+        run: npm run test:orchestrator
+
+      - name: Run test suite
+        env:
+          SUITE: ${{ matrix.suite }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          if [ "$SUITE" = "node" ]; then
+            npm run test:node:shard -- --shard="$SHARD"
+          else
+            npm run "test:$SUITE" -- --shard="$SHARD"
+          fi
+
+  test-gate:
+    name: Test gate
+    if: ${{ always() }}
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every unit shard
+        env:
+          RESULT: ${{ needs.unit.result }}
+        run: test "$RESULT" = "success"
+
+  database:
+    name: Database
+    if: ${{ needs.changes.outputs.supabase == 'true' }}
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Start local Supabase
+        run: npx supabase start
+
+      - name: Test database
+        run: npm run test:db
+
+      - name: Stop local Supabase
+        if: ${{ always() }}
+        run: npx supabase stop --no-backup
+
+  database-gate:
+    name: Database gate
+    if: ${{ always() }}
+    needs: [changes, database]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require the matching database result
+        env:
+          CHANGES_RESULT: ${{ needs.changes.result }}
+          SUPABASE_CHANGED: ${{ needs.changes.outputs.supabase }}
+          DATABASE_RESULT: ${{ needs.database.result }}
+        run: |
+          test "$CHANGES_RESULT" = "success"
+          if [ "$SUPABASE_CHANGED" = "true" ]; then
+            test "$DATABASE_RESULT" = "success"
+          else
+            test "$SUPABASE_CHANGED" = "false"
+            test "$DATABASE_RESULT" = "skipped"
+          fi
+
+  browser-smoke:
+    name: Browser smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser smoke tests
+        run: npm run test:e2e
+
+      - name: Upload browser failure artifacts
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-smoke-failure
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
   image:
     name: Publish image
-    needs: verify
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -83,8 +259,8 @@ jobs:
         with:
           persist-credentials: false
 
-      # Every build gets its own immutable tag next to "latest". That tag is
-      # what makes a rollback a one-liner instead of a rebuild.
+      # Every build gets its own immutable tag. That tag is what makes a
+      # rollback a one-liner instead of a rebuild.
       - name: Determine image tag
         id: tag
         run: echo "value=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
@@ -140,9 +316,7 @@ jobs:
           context: .
           file: docker/Dockerfile
           push: true
-          tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ steps.tag.outputs.value }}
+          tags: ${{ env.IMAGE }}:${{ steps.tag.outputs.value }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           # Reicht den Stand ins Abbild: Im Container gibt es kein Git, die
@@ -153,7 +327,8 @@ jobs:
 
   deploy:
     name: Deploy to production
-    needs: image
+    needs: [quality, test-gate, database-gate, browser-smoke, image]
+    if: ${{ github.event_name == 'push' && always() && needs.quality.result == 'success' && needs.test-gate.result == 'success' && needs.database-gate.result == 'success' && needs.browser-smoke.result == 'success' && needs.image.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Read access to the package, so the server can be handed a token that is
@@ -244,5 +419,11 @@ jobs:
           printf '%s' "$REGISTRY_TOKEN" \
             | ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" "$TAG"
 
-      - name: Check the public address
-        run: curl --fail --silent --show-error --retry 5 --retry-delay 3 https://app.flipbase.de/healthz
+      # Container-Health allein beweist nicht, dass der Reverse Proxy schon
+      # genau dieses Build ausliefert. Die Prüfung verlangt deshalb HTTP 200
+      # von der öffentlichen Startseite und dieselbe vollständige SHA, die
+      # diesen Workflow ausgelöst hat.
+      - name: Verify the public deployment
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: node scripts/verify-public-deployment.mjs --base-url https://app.flipbase.de --expected-commit "$EXPECTED_COMMIT"

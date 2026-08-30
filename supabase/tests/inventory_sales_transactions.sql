@@ -2,6 +2,8 @@
 
 begin;
 
+select plan(1);
+
 do $$
 declare
   v_workspace_id uuid := gen_random_uuid();
@@ -263,4 +265,7 @@ begin
 end;
 $$;
 
+select pass('atomare Bestands- und Verkaufstransaktionen enden fachlich konsistent');
+
+select * from finish();
 rollback;

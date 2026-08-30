@@ -55,4 +55,44 @@ describe('ProfitEngineService (Deterministic Logic)', () => {
     expect(result.verdict).toBeDefined();
     expect(result.expectedProfit).toBe(37); // 70 - (25 + 8) = 37 €
   });
+
+  it.each([
+    {
+      askingPrice: 10,
+      fairMarketValue: 100,
+      confidence: 100,
+      score: 95,
+      verdict: 'very_attractive',
+    },
+    { askingPrice: 25, fairMarketValue: 70, confidence: 90, score: 81, verdict: 'good' },
+    { askingPrice: 49.5, fairMarketValue: 80, confidence: 0, score: 51, verdict: 'acceptable' },
+    { askingPrice: 60, fairMarketValue: 80, confidence: 0, score: 36, verdict: 'weak' },
+    { askingPrice: 70, fairMarketValue: 80, confidence: 0, score: 24, verdict: 'bad' },
+  ] as const)(
+    'ordnet einen Deal mit Score $score als $verdict ein',
+    ({ askingPrice, fairMarketValue, confidence, score, verdict }) => {
+      const result = service.evaluateDeal(askingPrice, fairMarketValue, 0, 30, 15, confidence);
+
+      expect(result.dealScore).toBe(score);
+      expect(result.verdict).toBe(verdict);
+    },
+  );
+
+  it('begrenzt Grenzwerte, Verluste und fehlendes Kapital fachlich', () => {
+    expect(service.calculateRoi(10, 0)).toBe(0);
+    expect(service.calculateRoi(10, -5)).toBe(0);
+    expect(service.calculateHoldingDurationDays('2026-08-15', '2026-08-01')).toBe(0);
+    expect(service.calculateMaxBuyPrice(10, 8, 30, 15)).toBe(0);
+    expect(service.calculateDealScore(-10, -20, -5, -1)).toBe(0);
+    expect(service.calculateDealScore(200, 200, 200, 200)).toBe(100);
+  });
+
+  it.each([
+    { prices: null, expected: { median: 0, min: 0, max: 0, count: 0 } },
+    { prices: [Number.NaN, -1, 0], expected: { median: 0, min: 0, max: 0, count: 0 } },
+    { prices: [10, 20], expected: { median: 15, min: 10, max: 20, count: 2 } },
+    { prices: [10, 10, 10, 10, 1000], expected: { median: 10, min: 10, max: 10, count: 4 } },
+  ])('liefert robuste Marktstatistik für $prices', ({ prices, expected }) => {
+    expect(service.calculateRobustMarketStats(prices as number[])).toEqual(expected);
+  });
 });
