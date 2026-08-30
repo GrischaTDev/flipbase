@@ -3,9 +3,17 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import * as prettier from 'prettier';
+import { parsers as yamlParsers } from 'prettier/plugins/yaml';
 
 const workflowPath = fileURLToPath(new URL('../.github/workflows/ci.yml', import.meta.url));
+const expectedExpressions = Object.freeze({
+  testGateIf: '${{ always() }}',
+  testGateResult: '${{ needs.unit.result }}',
+  imageIf: "github.event_name == 'push'",
+  deployIf:
+    "${{ github.event_name == 'push' && always() && needs.quality.result == 'success' && needs.test-gate.result == 'success' && needs.image.result == 'success' }}",
+});
+const expectedGateCommand = 'test "$RESULT" = "success"';
 
 function convertYamlNode(node) {
   if (!node || typeof node !== 'object') return undefined;
@@ -35,7 +43,9 @@ function convertYamlNode(node) {
 
 async function loadWorkflow() {
   const source = await readFile(workflowPath, 'utf8');
-  const { ast } = await prettier.__debug.parse(source, { parser: 'yaml' });
+  // Der YAML-Parser bildet nur die Dokumentstruktur ab. GitHub-Ausdrücke
+  // bleiben opaque Skalare und werden unten vollständig als Strings geprüft.
+  const ast = await yamlParsers.yaml.parse(source, { filepath: workflowPath });
   return convertYamlNode(ast);
 }
 
@@ -43,9 +53,87 @@ function findStep(job, name) {
   return job.steps.find((step) => step.name === name);
 }
 
-function expressionContainsAll(expression, fragments) {
-  for (const fragment of fragments) assert.match(expression, fragment);
+function assertContainsPatterns(value, patterns) {
+  for (const pattern of patterns) assert.match(value, pattern);
 }
+
+function normalizeExpressionWhitespace(expression) {
+  assert.equal(typeof expression, 'string');
+  return expression.replace(/\s+/g, ' ').trim();
+}
+
+function assertExactExpression(actual, expected, label) {
+  assert.equal(
+    normalizeExpressionWhitespace(actual),
+    normalizeExpressionWhitespace(expected),
+    `${label} muss dem vollständigen Sicherheitsausdruck entsprechen`,
+  );
+}
+
+function assertTestGateSecurity(gate) {
+  assertExactExpression(gate.if, expectedExpressions.testGateIf, 'test-gate.if');
+  assert.equal(gate.needs, 'unit');
+
+  const gateStep = findStep(gate, 'Require every unit shard');
+  assert.ok(gateStep, 'Der Ergebnisprüfschritt des Test-Gates fehlt');
+  assertExactExpression(
+    gateStep.env.RESULT,
+    expectedExpressions.testGateResult,
+    'test-gate RESULT',
+  );
+  assert.equal(gateStep.run, expectedGateCommand);
+}
+
+function assertImageTriggerSecurity(image) {
+  assertExactExpression(image.if, expectedExpressions.imageIf, 'image.if');
+}
+
+function assertDeploySecurity(deploy) {
+  assert.deepEqual(deploy.needs, ['quality', 'test-gate', 'image']);
+  assertExactExpression(deploy.if, expectedExpressions.deployIf, 'deploy.if');
+}
+
+function securityFixtures() {
+  return {
+    testGate: {
+      if: expectedExpressions.testGateIf,
+      needs: 'unit',
+      steps: [
+        {
+          name: 'Require every unit shard',
+          env: { RESULT: expectedExpressions.testGateResult },
+          run: expectedGateCommand,
+        },
+      ],
+    },
+    image: { if: expectedExpressions.imageIf },
+    deploy: {
+      needs: ['quality', 'test-gate', 'image'],
+      if: expectedExpressions.deployIf,
+    },
+  };
+}
+
+test('weist eine permissive Deploy-Erweiterung mit || true zurück', () => {
+  const { deploy } = securityFixtures();
+  deploy.if = deploy.if.replace(' }}', ' || true }}');
+
+  assert.throws(() => assertDeploySecurity(deploy), /deploy\.if/);
+});
+
+test('weist ein Test-Gate zurück, das Fehler nur indirekt ausschließt', () => {
+  const { testGate } = securityFixtures();
+  findStep(testGate, 'Require every unit shard').run = 'test "$RESULT" != "failure"';
+
+  assert.throws(() => assertTestGateSecurity(testGate));
+});
+
+test('weist eine Image-Bedingung zurück, die auch Pull Requests zulässt', () => {
+  const { image } = securityFixtures();
+  image.if = "github.event_name == 'push' || github.event_name == 'pull_request'";
+
+  assert.throws(() => assertImageTriggerSecurity(image), /image\.if/);
+});
 
 test('parallelisiert Quality und die vollständige Unit-Matrix hinter einem Test-Gate', async () => {
   const { jobs } = await loadWorkflow();
@@ -72,17 +160,13 @@ test('parallelisiert Quality und die vollständige Unit-Matrix hinter einem Test
   assert.equal(orchestrator.run, 'npm run test:orchestrator');
 
   const suites = findStep(unit, 'Run test suite');
-  expressionContainsAll(suites.run, [
+  assertContainsPatterns(suites.run, [
     /npm run test:node:shard -- --shard="\$SHARD"/,
     /npm run "test:\$SUITE" -- --shard="\$SHARD"/,
   ]);
 
   const gate = jobs['test-gate'];
-  assert.equal(gate.if, '${{ always() }}');
-  assert.equal(gate.needs, 'unit');
-  const gateStep = findStep(gate, 'Require every unit shard');
-  assert.equal(gateStep.env.RESULT, '${{ needs.unit.result }}');
-  assert.equal(gateStep.run, 'test "$RESULT" = "success"');
+  assertTestGateSecurity(gate);
 });
 
 test('baut nur bei Push parallel ein unveränderliches Kandidatenimage', async () => {
@@ -90,7 +174,7 @@ test('baut nur bei Push parallel ein unveränderliches Kandidatenimage', async (
   const image = jobs.image;
 
   assert.equal(image.needs, undefined);
-  assert.equal(image.if, "github.event_name == 'push'");
+  assertImageTriggerSecurity(image);
   const tagStep = findStep(image, 'Determine image tag');
   assert.match(tagStep.run, /sha-\$\{GITHUB_SHA::7\}/);
 
@@ -98,7 +182,7 @@ test('baut nur bei Push parallel ein unveränderliches Kandidatenimage', async (
   assert.equal(buildStep.with.tags, '${{ env.IMAGE }}:${{ steps.tag.outputs.value }}');
   assert.equal(buildStep.with['cache-from'], 'type=gha');
   assert.equal(buildStep.with['cache-to'], 'type=gha,mode=max');
-  expressionContainsAll(buildStep.with['build-args'], [
+  assertContainsPatterns(buildStep.with['build-args'], [
     /FLIPBASE_COMMIT=\$\{\{ github\.sha \}\}/,
     /FLIPBASE_COMMIT_DATE=\$\{\{ github\.event\.repository\.updated_at \}\}/,
   ]);
@@ -112,14 +196,7 @@ test('deployt nur nach allen erfolgreichen Gates und behält die Sicherheitsprü
   const { jobs } = await loadWorkflow();
   const deploy = jobs.deploy;
 
-  assert.deepEqual(deploy.needs, ['quality', 'test-gate', 'image']);
-  expressionContainsAll(deploy.if, [
-    /github\.event_name == 'push'/,
-    /always\(\)/,
-    /needs\.quality\.result == 'success'/,
-    /needs\.test-gate\.result == 'success'/,
-    /needs\.image\.result == 'success'/,
-  ]);
+  assertDeploySecurity(deploy);
 
   assert.ok(findStep(deploy, 'Set up SSH'));
   assert.ok(findStep(deploy, 'Check that all migrations are applied'));
