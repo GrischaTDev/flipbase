@@ -18,8 +18,9 @@ Bei jedem Push auf `master` läuft [`.github/workflows/ci.yml`](../.github/workf
    Container Registry, zweifach gekennzeichnet: `latest` und `sha-<kurz>`.
 3. **Deploy** – meldet sich per SSH am Server an und startet
    `/opt/flipbase/deploy.sh`, das genau diese Kennzeichnung lädt, den Container
-   austauscht und wartet, bis er sich gesund meldet. Danach prüft die Pipeline
-   noch `https://app.flipbase.de/healthz` von außen.
+   austauscht und wartet, bis er sich gesund meldet. Danach verlangt die
+   Pipeline von der öffentlichen Startseite HTTP 200 und vergleicht die dort
+   ausgelieferte vollständige Build-SHA mit dem auslösenden Git-Commit.
 
 Der Server baut also **nichts** mehr selbst. Er lädt ein fertiges Abbild.
 

@@ -402,6 +402,11 @@ test('parallelisiert Quality und die vollständige Unit-Matrix hinter einem Test
 test('führt Workflow-Verträge und Suite-Audit im lokalen Verify-Gate aus', async () => {
   const packageScripts = await loadPackageScripts();
 
+  assert.match(
+    packageScripts['test:workflow'],
+    /scripts\/deployment-metadata\.test\.mjs/,
+    'Der öffentliche Deployment-Nachweis muss Teil der Workflow-Vertragstests sein',
+  );
   assert.equal(
     packageScripts.verify,
     'npm run format:check && npm run lint && npm run typecheck && npm run test:workflow && npm run test:audit && npm test && npm run build',
@@ -456,8 +461,12 @@ test('deployt nur nach allen erfolgreichen Gates und behält die Sicherheitsprü
   const deployment = findStep(deploy, 'Deploy the image and wait for the container to be healthy');
   assert.equal(deployment.env.TAG, '${{ needs.image.outputs.tag }}');
   assert.match(deployment.run, /ssh .*"\$TAG"/);
-  const publicHealth = findStep(deploy, 'Check the public address');
-  assert.match(publicHealth.run, /curl --fail .*https:\/\/app\.flipbase\.de\/healthz/);
+  const publicDeployment = findStep(deploy, 'Verify the public deployment');
+  assert.deepEqual(publicDeployment.env, { EXPECTED_COMMIT: '${{ github.sha }}' });
+  assert.equal(
+    publicDeployment.run,
+    'node scripts/verify-public-deployment.mjs --base-url https://app.flipbase.de --expected-commit "$EXPECTED_COMMIT"',
+  );
 
   for (const job of Object.values(jobs)) {
     for (const step of job.steps ?? []) {

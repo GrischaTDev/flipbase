@@ -419,5 +419,11 @@ jobs:
           printf '%s' "$REGISTRY_TOKEN" \
             | ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" "$TAG"
 
-      - name: Check the public address
-        run: curl --fail --silent --show-error --retry 5 --retry-delay 3 https://app.flipbase.de/healthz
+      # Container-Health allein beweist nicht, dass der Reverse Proxy schon
+      # genau dieses Build ausliefert. Die Prüfung verlangt deshalb HTTP 200
+      # von der öffentlichen Startseite und dieselbe vollständige SHA, die
+      # diesen Workflow ausgelöst hat.
+      - name: Verify the public deployment
+        env:
+          EXPECTED_COMMIT: ${{ github.sha }}
+        run: node scripts/verify-public-deployment.mjs --base-url https://app.flipbase.de --expected-commit "$EXPECTED_COMMIT"
