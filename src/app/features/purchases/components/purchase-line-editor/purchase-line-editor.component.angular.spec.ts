@@ -2,15 +2,12 @@ import '@angular/compiler';
 import { ɵresolveComponentResources, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormArray } from '@angular/forms';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { readFile } from 'node:fs/promises';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { CatalogProduct, Workspace } from '../../../../core/models/flipbase.models';
 import { CatalogService } from '../../../../core/services/catalog.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { PurchaseLineEditorComponent } from './purchase-line-editor.component';
-
-TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 beforeAll(async () => {
   await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
 });

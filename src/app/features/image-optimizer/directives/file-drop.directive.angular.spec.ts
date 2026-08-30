@@ -1,6 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { FileDropDirective, splitImageFiles } from './file-drop.directive';
 
 function file(name: string, type: string): File {
@@ -52,11 +51,6 @@ function setDisabled(directive: FileDropDirective, value: boolean): void {
   if (!signalSymbol) throw new Error('Signal-Knoten von `disabled` nicht gefunden.');
   (directive.disabled as unknown as Record<symbol, { value: boolean }>)[signalSymbol].value = value;
 }
-
-beforeAll(() => {
-  TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-});
-afterAll(() => TestBed.resetTestEnvironment());
 
 describe('Dateien sortieren', () => {
   it('trennt Bilder von allem anderen', () => {

@@ -2,7 +2,6 @@ import '@angular/compiler';
 import { provideZonelessChangeDetection, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { InventoryItem, ItemStatus } from '../../core/models/flipbase.models';
@@ -13,8 +12,6 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { InventoryComponent } from './inventory.component';
-
-TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 
 const artikel: InventoryItem = {
   id: '22222222-2222-4222-8222-222222222222',

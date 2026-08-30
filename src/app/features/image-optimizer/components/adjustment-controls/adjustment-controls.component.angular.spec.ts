@@ -2,13 +2,10 @@ import '@angular/compiler';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { ɵresolveComponentResources, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { readFile } from 'node:fs/promises';
 import { AdjustmentControlsComponent } from './adjustment-controls.component';
 import { defaultAdjustments } from '../../services/adjustments';
 import { Adjustments } from '../../models/image-adjustments';
-
-TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 beforeAll(async () => {
   await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
 });

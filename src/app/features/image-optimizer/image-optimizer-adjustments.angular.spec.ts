@@ -1,7 +1,6 @@
 import '@angular/compiler';
 import { TestBed } from '@angular/core/testing';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { ImageOptimizerComponent } from './image-optimizer.component';
 import { Adjustments } from './models/image-adjustments';
 import { defaultAdjustments, toFilterString } from './services/adjustments';
@@ -28,11 +27,6 @@ function addTwoImages(component: ImageOptimizerComponent): { firstId: string; se
   const [first, second] = component.images();
   return { firstId: first.id, secondId: second.id };
 }
-
-beforeAll(() => {
-  TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-});
-afterAll(() => TestBed.resetTestEnvironment());
 
 describe('ImageOptimizerComponent – Farbe und Belichtung', () => {
   it('liefert eine leere Filterkette, solange das aktive Bild unveraendert ist', () => {

@@ -44,10 +44,16 @@ function createTestLocalStorage(): Storage {
   };
 }
 
-beforeEach(() => {
+function installTestLocalStorage(): void {
   Object.defineProperty(globalThis, 'localStorage', {
     configurable: true,
     writable: true,
     value: createTestLocalStorage(),
   });
+}
+
+installTestLocalStorage();
+
+beforeEach(() => {
+  installTestLocalStorage();
 });

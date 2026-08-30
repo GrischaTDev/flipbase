@@ -1,14 +1,11 @@
 import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import axe from 'axe-core';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CustomCheckboxComponent } from './custom-checkbox.component';
-
-TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;

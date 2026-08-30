@@ -4,7 +4,6 @@ import localeDe from '@angular/common/locales/de';
 import { EventEmitter, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { provideRouter } from '@angular/router';
 import axe from 'axe-core';
 import { readFile } from 'node:fs/promises';
@@ -16,8 +15,6 @@ import { SalesService } from '../../core/services/sales.service';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { RevenueChartComponent } from '../../shared/components/revenue-chart/revenue-chart.component';
 import { DashboardComponent } from './dashboard.component';
-
-TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;

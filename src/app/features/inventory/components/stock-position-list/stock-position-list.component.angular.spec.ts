@@ -4,7 +4,6 @@ import { registerLocaleData } from '@angular/common';
 import { provideRouter } from '@angular/router';
 import localeDe from '@angular/common/locales/de';
 import { TestBed } from '@angular/core/testing';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import axe from 'axe-core';
@@ -16,8 +15,6 @@ import {
   StockPosition,
 } from '../../../../core/models/flipbase.models';
 import { StockPositionListComponent } from './stock-position-list.component';
-
-TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 beforeAll(async () => {
   registerLocaleData(localeDe);
   const resources: Record<string, string> = {

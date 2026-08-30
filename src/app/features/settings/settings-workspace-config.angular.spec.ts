@@ -2,9 +2,8 @@ import '@angular/compiler';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormBuilder } from '@angular/forms';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { TranslateService } from '@ngx-translate/core';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../core/services/auth.service';
 import { EbayApiService } from '../../core/services/ebay-api.service';
 import { ExportService } from '../../core/services/export.service';
@@ -22,10 +21,7 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { SettingsComponent } from './settings.component';
-
-beforeAll(() => TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting()));
 afterEach(() => TestBed.resetTestingModule());
-afterAll(() => TestBed.resetTestEnvironment());
 
 describe('SettingsComponent – Workspace-Konfiguration', () => {
   it('leert A-Geheimnisse sofort und patcht erst die geladene B-Konfiguration', () => {

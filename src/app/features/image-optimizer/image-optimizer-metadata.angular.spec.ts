@@ -1,7 +1,6 @@
 import '@angular/compiler';
 import { TestBed } from '@angular/core/testing';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
-import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ImageOptimizerComponent } from './image-optimizer.component';
 import { MetadataReaderService } from './services/metadata-reader.service';
 import { ImageMetadata } from './models/image-metadata';
@@ -53,11 +52,7 @@ function createComponent(): ImageOptimizerComponent {
   return TestBed.runInInjectionContext(() => new ImageOptimizerComponent());
 }
 
-beforeAll(() => {
-  TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-});
 afterEach(() => TestBed.resetTestingModule());
-afterAll(() => TestBed.resetTestEnvironment());
 
 describe('ImageOptimizerComponent – Metadaten auslesen', () => {
   it('startet mit "pending" und traegt nach dem Lesen die Metadaten am richtigen Bild ein', async () => {

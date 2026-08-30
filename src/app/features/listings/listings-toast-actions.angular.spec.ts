@@ -1,7 +1,6 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { describe, expect, it, vi } from 'vitest';
 import {
   InventoryItem,
@@ -25,8 +24,6 @@ const artikel: InventoryItem = {
   allocated_purchase_cost: 10,
   created_at: '2026-08-24T10:00:00.000Z',
 };
-
-TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 
 function erstelleKomponente(ergebnis: { readonly error: Error | null }) {
   const toast = new ToastService();

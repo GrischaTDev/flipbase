@@ -2,7 +2,6 @@ import '@angular/compiler';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { describe, expect, it, vi } from 'vitest';
 import {
   InventoryItem,
@@ -18,8 +17,6 @@ import { StockService } from '../../../../core/services/stock.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SaleCreateModalComponent } from './sale-create-modal.component';
-
-TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 
 const artikel: InventoryItem = {
   id: 'item-1',

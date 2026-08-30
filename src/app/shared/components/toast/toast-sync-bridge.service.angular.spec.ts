@@ -1,18 +1,9 @@
 import '@angular/compiler';
 import { TestBed } from '@angular/core/testing';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SyncStatusService } from '../../../core/services/sync-status.service';
 import { ToastService } from './toast.service';
 import { ToastSyncBridgeService } from './toast-sync-bridge.service';
-
-beforeAll(() => {
-  TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-});
-
-afterAll(() => {
-  TestBed.resetTestEnvironment();
-});
 
 describe('ToastSyncBridgeService', () => {
   let syncStatus: SyncStatusService;

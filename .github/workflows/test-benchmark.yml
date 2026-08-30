@@ -8,7 +8,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        runner: [current, split]
+        runner: [angular-builder, angular-fallback]
         sample: [1, 2, 3]
     runs-on: ubuntu-latest
     timeout-minutes: 15

@@ -3,7 +3,6 @@ import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import { ElementRef, LOCALE_ID, ɵresolveComponentResources, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import axe from 'axe-core';
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
@@ -15,8 +14,6 @@ import {
   RevenueLineChart,
 } from './revenue-chart.chart';
 import { RevenueChartComponent } from './revenue-chart.component';
-
-TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 beforeAll(async () => {
   registerLocaleData(localeDe);
   await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));

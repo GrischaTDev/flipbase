@@ -1,7 +1,6 @@
 import '@angular/compiler';
 import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -23,8 +22,6 @@ import { ConfirmDialogService } from '../../../../shared/components/confirm-dial
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { provideTranslateService } from '@ngx-translate/core';
 import { PurchaseDetailComponent } from './purchase-detail.component';
-
-TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 beforeAll(async () => {
   registerLocaleData(localeDe);
   const resources: Record<string, string> = {

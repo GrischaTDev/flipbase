@@ -3,7 +3,6 @@ import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { provideRouter, Routes, withComponentInputBinding } from '@angular/router';
@@ -17,8 +16,6 @@ import { ConfirmDialogService } from '../../../../shared/components/confirm-dial
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { ItemDetailComponent } from './item-detail.component';
 import { provideTranslateService } from '@ngx-translate/core';
-
-TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 const resources: Record<string, string> = {
   './item-detail.component.html':
     'src/app/features/inventory/pages/item-detail/item-detail.component.html',

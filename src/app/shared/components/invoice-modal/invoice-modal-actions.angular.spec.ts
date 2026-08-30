@@ -3,10 +3,9 @@ import { signal, ɵresolveComponentResources } from '@angular/core';
 import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import { TestBed } from '@angular/core/testing';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { Invoice } from '../../../core/models/invoice.models';
 import { InvoiceService } from '../../../core/services/invoice.service';
 import { SyncStatusService } from '../../../core/services/sync-status.service';
@@ -15,7 +14,6 @@ import { InvoiceModalComponent } from './invoice-modal.component';
 
 beforeAll(async () => {
   registerLocaleData(localeDe);
-  TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
   const dateien: Record<string, string> = {
     './invoice-modal.component.html':
       'src/app/shared/components/invoice-modal/invoice-modal.component.html',
@@ -28,7 +26,6 @@ beforeAll(async () => {
     return readFile(resolve(datei), { encoding: 'utf8' });
   });
 });
-afterAll(() => TestBed.resetTestEnvironment());
 
 const rechnung: Invoice = {
   id: 'invoice-1',

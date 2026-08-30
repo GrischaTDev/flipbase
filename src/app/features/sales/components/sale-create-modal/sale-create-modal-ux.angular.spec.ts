@@ -3,7 +3,6 @@ import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,8 +16,6 @@ import { CustomSelectComponent } from '../../../../shared/components/custom-sele
 import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { SaleCreateModalComponent } from './sale-create-modal.component';
-
-TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
   declaredInputs: Record<string, string>;
