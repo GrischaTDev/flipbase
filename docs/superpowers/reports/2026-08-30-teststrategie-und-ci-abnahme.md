@@ -24,9 +24,10 @@ grün und belegt fail-closed Test-, Image- und Deploy-Bedingungen.
 
 Ein Produktions-Go ist trotzdem nicht zulässig. Der Feature-Branch existiert
 auf GitHub noch nicht, daher gibt es 0/5 geforderte neue PR-Läufe, keinen echten
-externen roten Shard und keinen Produktionslauf der neuen Pipeline. Der lokale
-Docker-Server ist nicht erreichbar; die dynamische RLS-Mutation bleibt deshalb
-`BLOCKED`. p95, tatsächliche Runner-Minuten der neuen Pipeline und
+externen roten Shard und keinen Produktionslauf der neuen Pipeline. Docker,
+der vollständige lokale pgTAP-Lauf, die kontrollierte RLS-Mutation und das
+Produktionsimage sind inzwischen lokal erfolgreich nachgewiesen. p95,
+tatsächliche Runner-Minuten der neuen Pipeline und
 Merge-zu-öffentlichem SHA-Nachweis können nicht seriös berechnet werden. Es gab keinen Push,
 Pull Request, Merge, `workflow_dispatch` oder Deployment.
 
@@ -82,7 +83,8 @@ Sie sind keine GitHub-Runner-Zeiten.
 | Firefox/WebKit                   | nicht lokal ausgeführt                                                                    | Nightly-Konfiguration listet die Smoke-Fälle; keine Ergebnisbehauptung |
 | Build                            | 6,664 s im finalen `npm run verify`                                                       | lokaler Production-Build grün                                          |
 | Workflowvertrag final            | 80/80                                                                                     | einschließlich Healthcheck, Deployment-Metadaten und öffentlicher SHA  |
-| Datenbank/Docker                 | `docker info`: Server nicht erreichbar                                                    | fehlende `dockerDesktopLinuxEngine`-Pipe; kein DB-Lauf                 |
+| Datenbank/RLS                    | 6 Dateien, 214/214 pgTAP-Tests grün; kontrollierter Fremdzugriff 2 Tests rot              | Wiederherstellung im selben Negativlauf, danach 214/214 erneut grün    |
+| Docker-Produktionsimage          | Image `flipbase:teststrategie-ci-899c2af` erfolgreich gebaut                              | Nginx, Startseite, `healthz=ok` und vollständige Commit-SHA geprüft    |
 
 ## Read-only GitHub-Bestandsaufnahme
 
@@ -151,19 +153,19 @@ Extrapolation.
 
 ## Kontrollierte Fehlernachweise
 
-Alle Mutationen liefen in
+Die drei Code-/UI-Mutationen liefen in
 `K:\GitHub\Repos\flipbase\.worktrees\teststrategie-ci-task10-mutations`,
 detached und exakt auf `7293435b9a2d93f14e36d53aab66d62cddfc2fa9`.
 Abhängigkeiten wurden dort mit `npm ci` installiert. Jeder Mutant erhielt einen
 eigenen Commit und einen normalen Revert-Commit. Der finale Diff gegen die Basis
 war leer; danach wurde nur dieser verifizierte Worktree entfernt.
 
-| Fehler                    | Status      | Mutation / Revert     | Vorgesehene Ebene und dynamisches Ergebnis                                                                                                                                       |
-| ------------------------- | ----------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Falscher Steuerfaktor     | **PASS**    | `7660280` / `bde302a` | `tax-engine.service.ts`: Divisor 1,19 → 1,20. Gezielter Node-Tax-Test Exit 1, 2/14 rot; nach Revert 14/14 grün.                                                                  |
-| Doppelverkauf Einzelstück | **PASS**    | `6ec3980` / `36084ff` | zentrale Demo-Buchungssperre logisch umgangen. Gezielter `SalesService`-DOM-Test Exit 1, 1/16 rot; nach Revert 16/16 grün.                                                       |
-| RLS fremder Workspace     | **BLOCKED** | kein Mutationscommit  | Begrenztes `docker info` fand keinen Docker-Server (`//./pipe/dockerDesktopLinuxEngine` fehlt). Kein Supabase-Start, keine Simulation und kein Produktionsersatz.                |
-| Falsche Rücknavigation    | **PASS**    | `6215950` / `74e0d6b` | echter Item-Back-Link auf `/inventory`. Exakter Playwright-Test Exit 1: erwartet `/purchases/pur-demo-2`, erhalten `/inventory`; auch Retry rot. Nach Revert 1/1 grün in 22,9 s. |
+| Fehler                    | Status   | Mutation / Revert     | Vorgesehene Ebene und dynamisches Ergebnis                                                                                                                                                       |
+| ------------------------- | -------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Falscher Steuerfaktor     | **PASS** | `7660280` / `bde302a` | `tax-engine.service.ts`: Divisor 1,19 → 1,20. Gezielter Node-Tax-Test Exit 1, 2/14 rot; nach Revert 14/14 grün.                                                                                  |
+| Doppelverkauf Einzelstück | **PASS** | `6ec3980` / `36084ff` | zentrale Demo-Buchungssperre logisch umgangen. Gezielter `SalesService`-DOM-Test Exit 1, 1/16 rot; nach Revert 16/16 grün.                                                                       |
+| RLS fremder Workspace     | **PASS** | temporäre SQL-Dateien | `Inventar lesen` lokal kurz auf `using (true)` gesetzt: Fremdzugriff auf Inventar und Verkaufszustände wurde mit 2/216 roten Tests erkannt. Restore-Datei grün; danach unverändert 214/214 grün. |
+| Falsche Rücknavigation    | **PASS** | `6215950` / `74e0d6b` | echter Item-Back-Link auf `/inventory`. Exakter Playwright-Test Exit 1: erwartet `/purchases/pur-demo-2`, erhalten `/inventory`; auch Retry rot. Nach Revert 1/1 grün in 22,9 s.                 |
 
 Ein erster, nicht gewerteter Navigations-Vorversuch (`6f55adf`) wurde bereits
 durch den Angular-Typvertrag vor Playwright blockiert und normal mit `72e3b70`
@@ -202,15 +204,15 @@ Ablauf wurde jetzt nicht ausgeführt.
 
 - [x] Feature-Stand und Ausgangscommit eindeutig dokumentiert.
 - [x] Lokale Testpyramide, Coverage, Stress und Chromium-Nachweise dokumentiert.
-- [x] Steuer-, Doppelverkaufs- und Navigationsmutation auf Ziel-Ebene rot und
+- [x] Steuer-, Doppelverkaufs-, RLS- und Navigationsmutation auf Ziel-Ebene rot und
       nach Revert grün.
 - [x] Lokaler Workflowvertrag einschließlich Negativfixtures grün.
 - [ ] Pfadbegrenzter Rollback wurde in einem isolierten Branch/Worktree
       tatsächlich ausgeführt, mit exakt einem Dateidiff validiert und durch
       Quick-, DB- und Browser-Gates bestätigt.
-- [ ] Dynamische Supabase-/RLS-Tests in einem erreichbaren lokalen oder
+- [x] Dynamische Supabase-/RLS-Tests in einem erreichbaren lokalen oder
       ephemeren Stack vollständig grün.
-- [ ] Keine Critical/Important Review-Findings offen.
+- [x] Keine Critical/Important Review-Findings offen.
 - [ ] Fünf aufeinanderfolgende neue PR-Läufe vollständig grün.
 - [ ] p95 des langsamsten Pflicht-Gates aus genau diesen fünf Läufen ≤ 3 min.
 - [ ] Fünf vergleichbare historische PR-Läufe liefern positive Billable-Werte;
@@ -313,8 +315,8 @@ spätere Reaktivierung erfolgt in einem weiteren eigenen Commit.
 
 Offen sind 5/5 belastbare Baseline-PR-Läufe für `B`/`T`, 5/5 neue PR-Läufe,
 p95, der Einzelvergleich jedes neuen Billable-Gesamtwerts mit `T`, die
-praktische Rollback-Validierung, der echte rote GitHub-Shard, dynamische
-Supabase-/RLS-Abnahme, Reviewfreigabe, Firefox/WebKit im echten Nightly und der
+praktische Rollback-Validierung, der echte rote GitHub-Shard, die externe
+Reviewfreigabe, Firefox/WebKit im echten Nightly und der
 vollständige Produktionslauf. Ein späteres GO ist nur möglich, wenn alle sechs
 offiziellen Abnahmekriterien kumulativ belegt sind. Bis dahin bleibt die
 operative Entscheidung unverändert:

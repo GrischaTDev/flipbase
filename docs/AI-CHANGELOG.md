@@ -48,6 +48,34 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-08-30 – Codex GPT-5.6 – Docker- und RLS-Abnahme nachgeholt
+
+**Art:** Analyse | Test | Doku
+
+**Betroffen:** Lokaler Docker-/Supabase-Teststack und
+`docs/superpowers/reports/2026-08-30-teststrategie-und-ci-abnahme.md`
+
+**Was:** Nach dem erfolgreichen Start von Docker Desktop wurden alle zuvor
+blockierten Nachweise ausgeführt. Der normale pgTAP-Lauf bestand mit 6 Dateien
+und 214 Tests. Eine ausschließlich lokale, temporäre RLS-Mutation öffnete die
+Inventar-Lesepolicy für fremde Workspaces; zwei Sicherheitsprüfungen wurden wie
+erwartet rot. Eine zweite temporäre SQL-Datei stellte die Policy im selben Lauf
+wieder her, beide Dateien wurden entfernt und der unveränderte Lauf war danach
+erneut mit 214/214 Tests grün. Zusätzlich wurde das Produktionsimage mit der
+vollständigen Commit-SHA gebaut und in einem temporären Container über Nginx,
+Startseite, `/healthz` und `/deployment.json` geprüft.
+
+**Warum:** Die lokale Docker-Engine war während der ersten Abnahme nicht
+erreichbar. Damit blieben Datenbank, RLS-Mutation und der reale Containerbuild
+zunächst ohne dynamischen Nachweis.
+
+**Verifiziert durch:** `npm run test:db` 214/214 grün; kontrollierte Mutation
+2/216 rot; Wiederherstellung und erneuter Endlauf 214/214 grün; Dockerimage
+`flipbase:teststrategie-ci-899c2af` erfolgreich gebaut; Nginx-Konfiguration,
+Startseite, `healthz=ok` und SHA
+`899c2afbac79aaf9748aded381a4484a309c5b81` bestätigt. Keine Produktionsdaten
+oder externen Systeme verändert.
+
 ## 2026-08-30 – Codex GPT-5.6 – Abschlusslücken der Teststrategie geschlossen
 
 **Art:** Bugfix | Konfiguration | Barrierefreiheit
