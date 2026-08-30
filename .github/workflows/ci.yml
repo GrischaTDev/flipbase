@@ -28,10 +28,10 @@ env:
   CONTAINER: flipbase-web
 
 jobs:
-  verify:
-    name: Verify
+  quality:
+    name: Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 5
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -60,15 +60,73 @@ jobs:
       - name: Check types
         run: npm run typecheck
 
-      - name: Test
-        run: npm test
-
       - name: Build
         run: npm run build
 
+  unit:
+    name: Unit ${{ matrix.suite }} ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: node
+            shard: 1/2
+          - suite: node
+            shard: 2/2
+          - suite: dom
+            shard: 1/1
+          - suite: angular
+            shard: 1/1
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # npm's pretest:node lifecycle protects the orchestrator contracts during
+      # local runs. CI calls the shard-only script below, so these contracts run
+      # exactly once instead of once per Node shard.
+      - name: Test orchestrator contracts once
+        if: matrix.suite == 'node' && matrix.shard == '1/2'
+        run: npm run test:orchestrator
+
+      - name: Run test suite
+        env:
+          SUITE: ${{ matrix.suite }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          if [ "$SUITE" = "node" ]; then
+            npm run test:node:shard -- --shard="$SHARD"
+          else
+            npm run "test:$SUITE" -- --shard="$SHARD"
+          fi
+
+  test-gate:
+    name: Test gate
+    if: ${{ always() }}
+    needs: unit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every unit shard
+        env:
+          RESULT: ${{ needs.unit.result }}
+        run: test "$RESULT" = "success"
+
   image:
     name: Publish image
-    needs: verify
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -83,8 +141,8 @@ jobs:
         with:
           persist-credentials: false
 
-      # Every build gets its own immutable tag next to "latest". That tag is
-      # what makes a rollback a one-liner instead of a rebuild.
+      # Every build gets its own immutable tag. That tag is what makes a
+      # rollback a one-liner instead of a rebuild.
       - name: Determine image tag
         id: tag
         run: echo "value=sha-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
@@ -140,9 +198,7 @@ jobs:
           context: .
           file: docker/Dockerfile
           push: true
-          tags: |
-            ${{ env.IMAGE }}:latest
-            ${{ env.IMAGE }}:${{ steps.tag.outputs.value }}
+          tags: ${{ env.IMAGE }}:${{ steps.tag.outputs.value }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           # Reicht den Stand ins Abbild: Im Container gibt es kein Git, die
@@ -153,7 +209,8 @@ jobs:
 
   deploy:
     name: Deploy to production
-    needs: image
+    needs: [quality, test-gate, image]
+    if: ${{ github.event_name == 'push' && always() && needs.quality.result == 'success' && needs.test-gate.result == 'success' && needs.image.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Read access to the package, so the server can be handed a token that is
