@@ -1,7 +1,7 @@
 # Einkaufs-, Bestandskosten- und Prüfprotokoll-Design
 
-**Datum:** 2026-08-31  
-**Status:** fachlich und technisch im Dialog freigegeben; Umsetzungsplan und Implementierung ausstehend  
+**Datum:** 2026-08-31
+**Status:** fachlich und technisch im Dialog freigegeben; Umsetzungspläne erstellt, Implementierung ausstehend
 **Ersetzt bzw. präzisiert:** die Kostenverteilung, Mystery-Box-Erfassung, Inventarbezeichnungen, Verkaufskennzahlen, Einstellungsstruktur und Altdatenbehandlung aus den Designs vom 26.08.2026 und 29.08.2026
 
 ## Ziel
@@ -109,11 +109,11 @@ Gleiche Artikel mit identischem Zustand und gleicher wirtschaftlicher Behandlung
 
 Alle Kostenverteilungen werden auf Cent genau gespeichert. Rundungsreste werden deterministisch verteilt. Die Summe aller Kostenanteile muss immer exakt den Gesamtkosten des Einkaufs entsprechen.
 
-Beispiel für 100,00 € auf sechs Stück:
+Beispiel für 100,00 € auf sechs Stück nach dem Largest-Remainder-Verfahren:
 
 ```text
-5 × 16,67 €
-1 × 16,65 €
+4 × 16,67 €
+2 × 16,66 €
 = 100,00 €
 ```
 
