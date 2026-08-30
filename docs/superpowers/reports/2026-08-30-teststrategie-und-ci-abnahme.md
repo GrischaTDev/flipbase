@@ -2,7 +2,7 @@
 
 **Stand:** 30.08.2026
 
-**Geprüfter Commit:** `7293435b9a2d93f14e36d53aab66d62cddfc2fa9`
+**Geprüfter Code-Commit:** `7ab39b7`
 
 **Branch:** `codex/teststrategie-ci-beschleunigung`
 
@@ -10,73 +10,79 @@
 
 ## Executive Summary
 
-Der lokale Umbau der Teststrategie ist fachlich und strukturell weitgehend
+Der lokale Umbau der Teststrategie ist fachlich und strukturell
 abgenommen. Drei kontrollierte Produktfehler wurden dynamisch auf der
 vorgesehenen Ebene rot: falscher Steuerfaktor im Node-Test, Doppelverkauf eines
 Demo-Einzelstücks im Verkaufsservice-Test und falsche Einkaufs-Rücknavigation
 im konkreten Chromium-Playwright-Test. Nach normalen Revert-Commits waren die
-drei unveränderten Zieltests wieder grün. Der lokale CI-Workflowvertrag ist mit
-16/16 Fällen grün und belegt fail-closed Test-, Image- und Deploy-Bedingungen.
+drei unveränderten Zieltests wieder grün. Die abschließende Gesamtprüfung fand
+und schloss drei weitere Lücken: Workflow-Verträge und Suite-Audit sind nun
+Pflicht-Gates, der Chart-Tooltip ist auch per Tastatur erreichbar und das
+Deployment vergleicht die öffentlich ausgelieferte Build-SHA exakt mit dem
+GitHub-Commit. Der vollständige lokale Workflowvertrag ist mit 78/78 Fällen
+grün und belegt fail-closed Test-, Image- und Deploy-Bedingungen.
 
 Ein Produktions-Go ist trotzdem nicht zulässig. Der Feature-Branch existiert
 auf GitHub noch nicht, daher gibt es 0/5 geforderte neue PR-Läufe, keinen echten
 externen roten Shard und keinen Produktionslauf der neuen Pipeline. Der lokale
 Docker-Server ist nicht erreichbar; die dynamische RLS-Mutation bleibt deshalb
 `BLOCKED`. p95, tatsächliche Runner-Minuten der neuen Pipeline und
-Merge-zu-`healthz=ok` können nicht seriös berechnet werden. Es gab keinen Push,
+Merge-zu-öffentlichem SHA-Nachweis können nicht seriös berechnet werden. Es gab keinen Push,
 Pull Request, Merge, `workflow_dispatch` oder Deployment.
 
-## Scope und Commits der Tasks 1–9
+## Scope und Commits der Umsetzung
 
 Ausgangspunkt der Strategie war `2d0e0d7`; der alte serielle
 Produktions-Workflow ist historisch unter `0768233` erreichbar. Die lokale
 Abnahme bezieht sich auf folgenden, zusammenhängenden Feature-Stand:
 
-| Task | Inhalt                                                 | Commits                                               |
-| ---- | ------------------------------------------------------ | ----------------------------------------------------- |
-| 1    | Reproduzierbarer Runnervergleich                       | `c29df1b`                                             |
-| 2    | Trennung Node, DOM und Angular                         | `78472d6`                                             |
-| 3    | Gemessener Runner und robuster Parallel-Orchestrator   | `eca0fdd`, `b101ee3`, `eba2e1b`, `092ea77`, `1ed0cf9` |
-| 4    | Konsolidierung und gehärteter Suite-Audit              | `0043dc8`, `e2d0682`                                  |
-| 5    | Produktionsnahe Steuerverträge                         | `70d86d1`                                             |
-| 6    | Parallele CI-Gates und gehärteter Workflowvertrag      | `c2edafd`, `efd6101`                                  |
-| 7    | Supabase-/pgTAP-Gate und Support-Härtung               | `d2d410f`, `ea86e9f`                                  |
-| 8    | Kritische Browserwege und Stabilitätskorrekturen       | `8dddae0`, `7d76e87`, `592e817`                       |
-| 9    | Coverage, Stress, Nightly und fail-closed YAML-Vertrag | `76b47bf`, `de5cdcf`, `ff2eb1a`, `63709b7`, `7293435` |
+| Task   | Inhalt                                                 | Commits                                               |
+| ------ | ------------------------------------------------------ | ----------------------------------------------------- |
+| 1      | Reproduzierbarer Runnervergleich                       | `c29df1b`                                             |
+| 2      | Trennung Node, DOM und Angular                         | `78472d6`                                             |
+| 3      | Gemessener Runner und robuster Parallel-Orchestrator   | `eca0fdd`, `b101ee3`, `eba2e1b`, `092ea77`, `1ed0cf9` |
+| 4      | Konsolidierung und gehärteter Suite-Audit              | `0043dc8`, `e2d0682`                                  |
+| 5      | Produktionsnahe Steuerverträge                         | `70d86d1`                                             |
+| 6      | Parallele CI-Gates und gehärteter Workflowvertrag      | `c2edafd`, `efd6101`                                  |
+| 7      | Supabase-/pgTAP-Gate und Support-Härtung               | `d2d410f`, `ea86e9f`                                  |
+| 8      | Kritische Browserwege und Stabilitätskorrekturen       | `8dddae0`, `7d76e87`, `592e817`                       |
+| 9      | Coverage, Stress, Nightly und fail-closed YAML-Vertrag | `76b47bf`, `de5cdcf`, `ff2eb1a`, `63709b7`, `7293435` |
+| 10     | Lokale Rollout-Abnahme und Mutationsnachweise          | `4deb246`, `cc20188`, `c3544d8`                       |
+| Review | Pflicht-Verträge, Tastaturzugang und öffentliche SHA   | `4828158`, `ecbf2d1`, `7ab39b7`                       |
 
 ## Testpyramide und Gate-Mapping
 
-| Ebene         | Risiko / Inhalt                                        | Lokaler Einstieg                      | CI-Gate                                                                   |
-| ------------- | ------------------------------------------------------ | ------------------------------------- | ------------------------------------------------------------------------- |
-| Node          | Geld, Steuer, Bestand, reine Services und Modelle      | `npm run test:node`                   | Unit-Matrix, zwei Node-Shards, danach `test-gate`                         |
-| DOM           | Browser-APIs ohne vollständigen Nutzerweg              | `npm run test:dom`                    | Unit-Matrix, danach `test-gate`                                           |
-| Angular       | Komponenten und Templates                              | `npm run test:angular`                | Unit-Matrix, danach `test-gate`                                           |
-| Quality       | Format, Lint, Typen und Produktionsbuild               | einzelne npm-Skripte                  | `quality`                                                                 |
-| Datenbank     | Migrationen, Integrität und RLS                        | `npm run test:db` gegen lokalen Stack | bedingtes `database` plus `database-gate`                                 |
-| Browser-Smoke | fünf kritische Demo-Nutzerwege                         | `npm run test:e2e`                    | paralleles `browser-smoke`                                                |
-| Image         | unveränderliches Kandidatenimage                       | nicht lokal gepusht                   | nur Push, ausschließlich `sha-<commit>`                                   |
-| Deployment    | Migration, Container, öffentlicher Healthcheck und SHA | nicht lokal ausgeführt                | braucht `quality`, `test-gate`, `database-gate`, `browser-smoke`, `image` |
-| Nightly       | Coverage, 20 Seeds, vollständige DB und drei Browser   | einzeln lokal prüfbar                 | unabhängig, nicht Teil des normalen Deploy-Gates                          |
+| Ebene         | Risiko / Inhalt                                         | Lokaler Einstieg                      | CI-Gate                                                                   |
+| ------------- | ------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------- |
+| Node          | Geld, Steuer, Bestand, reine Services und Modelle       | `npm run test:node`                   | Unit-Matrix, zwei Node-Shards, danach `test-gate`                         |
+| DOM           | Browser-APIs ohne vollständigen Nutzerweg               | `npm run test:dom`                    | Unit-Matrix, danach `test-gate`                                           |
+| Angular       | Komponenten und Templates                               | `npm run test:angular`                | Unit-Matrix, danach `test-gate`                                           |
+| Quality       | Format, Lint, Typen, Workflow-Verträge, Audit und Build | `npm run verify`                      | `quality`                                                                 |
+| Datenbank     | Migrationen, Integrität und RLS                         | `npm run test:db` gegen lokalen Stack | bedingtes `database` plus `database-gate`                                 |
+| Browser-Smoke | sechs kritische Demo-Nutzerwege                         | `npm run test:e2e`                    | paralleles `browser-smoke`                                                |
+| Image         | unveränderliches Kandidatenimage                        | nicht lokal gepusht                   | nur Push, ausschließlich `sha-<commit>`                                   |
+| Deployment    | Migration, Container, öffentlicher Healthcheck und SHA  | nicht lokal ausgeführt                | braucht `quality`, `test-gate`, `database-gate`, `browser-smoke`, `image` |
+| Nightly       | Coverage, 20 Seeds, vollständige DB und drei Browser    | einzeln lokal prüfbar                 | unabhängig, nicht Teil des normalen Deploy-Gates                          |
 
 ## Tatsächlich lokale Messwerte
 
 Die Werte stammen aus den Task-1-bis-9-Berichten und deren gespeicherten Logs.
 Sie sind keine GitHub-Runner-Zeiten.
 
-| Prüfung                              | Tatsächlicher lokaler Wert                                                                | Einordnung                                                                 |
-| ------------------------------------ | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| Ausgangslauf Task 1                  | 131 Dateien, 1.039 Tests, Vitest-Dauer 26,37 s                                            | Quelle: `task-1-report.md`; keine Wall-Clock-Messung                       |
-| Runnervergleich                      | Angular-Fallback: 20 Dateien/148 Tests, Median 13,321 s; Angular-Builder: Median 19,042 s | Fallback lokal vorläufig gewählt; kalte CI-Messung offen                   |
-| Konsolidierter Gesamtlauf Task 4     | 117 Dateien, 1.039 Tests, Median 19,825 s                                                 | Testfallzahl erhalten                                                      |
-| Finaler paralleler `npm test` Task 9 | 116 Dateien, 1.070 Vitest-Tests, 17,406 s                                                 | Node 89/747, DOM 9/92, Angular 18/231                                      |
-| Coverage final                       | global 56,59/49,95/56,02/57,99 %                                                          | Statements/Branches/Functions/Lines                                        |
-| Kritische Coverage                   | Profit 100/96,07 %, Tax 99,17/93,81 %, Sellability 100/100 %                              | Statements/Branches                                                        |
-| 20er-Stresslauf                      | Seeds 20260830–20260849, je 89 Dateien/747 Node-Tests; 163,469 s gesamt                   | 20/20 grün                                                                 |
-| Chromium-Smoke Task 9                | 5/5 in 10,818 s                                                                           | lokaler Standardlauf                                                       |
-| Firefox/WebKit                       | nicht lokal ausgeführt                                                                    | Nightly-Konfiguration listet 5 Fälle je Browser; keine Ergebnisbehauptung  |
-| Build                                | 13,852 s im Task-9-Hauptlauf; 6,746 s in der letzten reinen Workflow-Fixrunde             | beide lokal grün, unterschiedliche Arbeitsstände/Cachebedingungen          |
-| Workflowvertrag final                | 72/72                                                                                     | Stand `7293435`; Task-10-Teilmenge `ci-workflow.test.mjs` zusätzlich 16/16 |
-| Datenbank/Docker                     | `docker info`: Server nicht erreichbar                                                    | fehlende `dockerDesktopLinuxEngine`-Pipe; kein DB-Lauf                     |
+| Prüfung                          | Tatsächlicher lokaler Wert                                                                | Einordnung                                                             |
+| -------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| Ausgangslauf Task 1              | 131 Dateien, 1.039 Tests, Vitest-Dauer 26,37 s                                            | Quelle: `task-1-report.md`; keine Wall-Clock-Messung                   |
+| Runnervergleich                  | Angular-Fallback: 20 Dateien/148 Tests, Median 13,321 s; Angular-Builder: Median 19,042 s | Fallback lokal vorläufig gewählt; kalte CI-Messung offen               |
+| Konsolidierter Gesamtlauf Task 4 | 117 Dateien, 1.039 Tests, Median 19,825 s                                                 | Testfallzahl erhalten                                                  |
+| Finaler paralleler `npm test`    | 116 Dateien, 1.071 Vitest-Tests                                                           | Node 89/747, DOM 9/92, Angular 18/232                                  |
+| Coverage final                   | global 56,68/50,00/56,09/58,08 %                                                          | Statements/Branches/Functions/Lines                                    |
+| Kritische Coverage               | Profit 100/96,07 %, Tax 99,17/93,81 %, Sellability 100/100 %                              | Statements/Branches                                                    |
+| 20er-Stresslauf                  | Seeds 20260830–20260849, je 89 Dateien/747 Node-Tests; 163,469 s gesamt                   | 20/20 grün                                                             |
+| Chromium-Smoke final             | 6/6 in 18,5 s                                                                             | Maus- und Tastaturweg enthalten                                        |
+| Firefox/WebKit                   | nicht lokal ausgeführt                                                                    | Nightly-Konfiguration listet die Smoke-Fälle; keine Ergebnisbehauptung |
+| Build                            | 6,892 s im finalen `npm run verify`                                                       | lokaler Production-Build grün                                          |
+| Workflowvertrag final            | 78/78                                                                                     | einschließlich Deployment-Metadaten und öffentlicher SHA-Prüfung       |
+| Datenbank/Docker                 | `docker info`: Server nicht erreichbar                                                    | fehlende `dockerDesktopLinuxEngine`-Pipe; kein DB-Lauf                 |
 
 ## Read-only GitHub-Bestandsaufnahme
 
