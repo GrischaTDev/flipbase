@@ -48,6 +48,28 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-08-30 – Codex GPT-5.6 – Verkaufsversand und Rendite abgenommen
+
+**Art:** Doku | Test
+
+**Betroffen:** Verkaufsbuchung, Versandtrennung, Renditekennzahlen, DATEV-Export
+und `docs/superpowers/reports/2026-08-30-verkaufsversand-und-rendite-abnahme.md`
+
+**Was:** Die zusammengefuehrten Aenderungen an Verkaufsversand, strukturierten
+Kosten, Kennzahlen, Rechnung, Retoure und Exporten vollstaendig lokal
+abgenommen. Der Nachweis dokumentiert die fachlichen Formeln, Plattform-Startwerte,
+DATEV-Konten und die Kompatibilitaet von Altdaten.
+
+**Warum:** Käufer-Versand und tatsaechliches Porto muessen durchgaengig getrennt
+bleiben, ohne historische Verkaufssummen nachtraeglich zu veraendern.
+
+**Verifiziert durch:** Prettier, ESLint und TypeScript fehlerfrei; 80/80
+Workflow-Tests; Suite-Audit mit 116 Dateien, 992 Testdefinitionen und 2.458
+Assertions; 1.087 Unit-Tests ohne Fehler (754 Node, 95 DOM, 238 Angular);
+Produktions-Build erfolgreich; pgTAP 223/223; `git diff --check` fehlerfrei.
+
+---
+
 ## 2026-08-30 – Codex GPT-5.6 – Docker- und RLS-Abnahme nachgeholt
 
 **Art:** Analyse | Test | Doku
