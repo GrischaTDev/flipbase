@@ -5,6 +5,7 @@ import { pathToFileURL } from 'node:url';
 
 const defaultTimeoutMs = 15 * 60 * 1000;
 const defaultTerminationGraceMs = 5000;
+const defaultHelperTimeoutMs = 5000;
 
 export async function resolveNpmCliPath(options = {}) {
   const env = options.env ?? process.env;
@@ -74,14 +75,14 @@ function pipeWithLabel(source, destination, label) {
   });
 }
 
-function startSuite(suite, stdout, stderr, children) {
+function startSuite(suite, stdout, stderr, children, platform) {
   let child;
   try {
     child = spawn(suite.command, suite.args, {
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
-      detached: process.platform !== 'win32',
+      detached: platform !== 'win32',
     });
   } catch (error) {
     stderr.write(`[${suite.label}] Start fehlgeschlagen: ${error.message}\n`);
@@ -116,88 +117,47 @@ function startSuite(suite, stdout, stderr, children) {
   });
 }
 
-function runCommand(command, args) {
+export function runCommandWithTimeout(command, args, options = {}) {
+  const timeoutMs = options.timeoutMs ?? defaultHelperTimeoutMs;
   return new Promise((resolveCommand) => {
     let stdout = '';
     let child;
+    let settled = false;
+    let timedOut = false;
+    let timeout;
+    const settle = (result) => {
+      if (settled) return;
+      settled = true;
+      if (timeout) clearTimeout(timeout);
+      resolveCommand(result);
+    };
     try {
       child = spawn(command, args, {
         shell: false,
         stdio: ['ignore', 'pipe', 'ignore'],
         windowsHide: true,
       });
-    } catch {
-      resolveCommand({ code: 1, stdout });
+    } catch (error) {
+      settle({ code: 1, error, stdout, timedOut: false });
       return;
     }
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk) => {
       stdout += chunk;
     });
-    child.once('error', () => resolveCommand({ code: 1, stdout }));
-    child.once('close', (code) => resolveCommand({ code: code ?? 1, stdout }));
+    child.once('error', (error) => settle({ code: 1, error, stdout, timedOut }));
+    child.once('close', (code) => settle({ code: timedOut ? 1 : (code ?? 1), stdout, timedOut }));
+    timeout = setTimeout(() => {
+      timedOut = true;
+      child.kill('SIGKILL');
+      child.stdout.destroy();
+      child.unref();
+      settle({ code: 1, stdout, timedOut: true });
+    }, timeoutMs);
   });
 }
 
-async function collectWindowsProcessTree(rootPid) {
-  const script = [
-    `$rootProcessId = ${rootPid}`,
-    '$processes = @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId)',
-    '$pending = [System.Collections.Generic.Queue[int]]::new()',
-    '$found = [System.Collections.Generic.HashSet[int]]::new()',
-    '$pending.Enqueue($rootProcessId)',
-    'while ($pending.Count -gt 0) {',
-    '  $current = $pending.Dequeue()',
-    '  if ($found.Add($current)) {',
-    '    foreach ($process in $processes) {',
-    '      if ([int]$process.ParentProcessId -eq $current) {',
-    '        $pending.Enqueue([int]$process.ProcessId)',
-    '      }',
-    '    }',
-    '  }',
-    '}',
-    '[Console]::Out.Write((@($found) -join ","))',
-  ].join('\n');
-  const result = await runCommand('powershell.exe', [
-    '-NoLogo',
-    '-NoProfile',
-    '-NonInteractive',
-    '-Command',
-    script,
-  ]);
-  const processIds = result.stdout
-    .trim()
-    .split(',')
-    .map(Number)
-    .filter((processId) => Number.isInteger(processId) && processId > 0);
-  return processIds.length ? processIds : [rootPid];
-}
-
-async function createTerminationTarget(child) {
-  if (process.platform === 'win32') {
-    return {
-      platform: 'win32',
-      root: child,
-      processIds: await collectWindowsProcessTree(child.pid),
-    };
-  }
-  return { platform: 'posix', root: child, processGroupId: child.pid };
-}
-
-async function terminateTarget(target, signal, force) {
-  if (target.platform === 'win32') {
-    if (!force) {
-      await runCommand('taskkill.exe', ['/pid', String(target.root.pid), '/f']);
-      return;
-    }
-    await Promise.all(
-      [...target.processIds]
-        .reverse()
-        .map((processId) => runCommand('taskkill.exe', ['/pid', String(processId), '/t', '/f'])),
-    );
-    return;
-  }
-
+function terminatePosixTarget(target, signal, force) {
   try {
     process.kill(-target.processGroupId, force ? 'SIGKILL' : signal);
   } catch {
@@ -211,8 +171,11 @@ export async function runSuites(suites, options = {}) {
   const stdout = options.stdout ?? process.stdout;
   const stderr = options.stderr ?? process.stderr;
   const signalSource = options.signalSource ?? process;
+  const platform = options.platform ?? process.platform;
+  const commandRunner = options.commandRunner ?? runCommandWithTimeout;
   const timeoutMs = parseTimeout(options.timeoutMs ?? process.env.FLIPBASE_TEST_TIMEOUT_MS);
   const terminationGraceMs = options.terminationGraceMs ?? defaultTerminationGraceMs;
+  const helperTimeoutMs = options.helperTimeoutMs ?? defaultHelperTimeoutMs;
   const children = new Set();
   let terminationExitCode = null;
   let terminationPromise;
@@ -223,15 +186,36 @@ export async function runSuites(suites, options = {}) {
     terminationExitCode = exitCode;
     stderr.write(`[runner] ${message}\n`);
     const roots = [...children];
-    terminationPromise = (async () => {
-      const targets = await Promise.all(roots.map(createTerminationTarget));
-      await Promise.all(targets.map((target) => terminateTarget(target, signal, false)));
-      await new Promise((resolveGracePeriod) => {
-        forceTimer = setTimeout(resolveGracePeriod, terminationGraceMs);
-      });
-      stderr.write('[runner] Schonfrist abgelaufen; erzwungene Prozessbaum-Beendigung.\n');
-      await Promise.all(targets.map((target) => terminateTarget(target, signal, true)));
-    })();
+    if (platform === 'win32') {
+      terminationPromise = Promise.all(
+        roots.map(async (root) => {
+          let result;
+          try {
+            result = await commandRunner('taskkill.exe', ['/pid', String(root.pid), '/t', '/f'], {
+              timeoutMs: helperTimeoutMs,
+            });
+          } catch (error) {
+            result = { code: 1, error, timedOut: false };
+          }
+          if (result.code === 0) return;
+          const reason = result.timedOut
+            ? `Zeitlimit von ${helperTimeoutMs} ms überschritten`
+            : `Exitcode ${result.code}`;
+          stderr.write(`[runner] taskkill fehlgeschlagen (${reason}); Root wird direkt beendet.\n`);
+          if (root.exitCode === null && root.signalCode === null) root.kill('SIGKILL');
+        }),
+      );
+    } else {
+      const targets = roots.map((root) => ({ root, processGroupId: root.pid }));
+      terminationPromise = (async () => {
+        for (const target of targets) terminatePosixTarget(target, signal, false);
+        await new Promise((resolveGracePeriod) => {
+          forceTimer = setTimeout(resolveGracePeriod, terminationGraceMs);
+        });
+        stderr.write('[runner] Schonfrist abgelaufen; erzwungene Prozessbaum-Beendigung.\n');
+        for (const target of targets) terminatePosixTarget(target, signal, true);
+      })();
+    }
   };
   const onSigint = () =>
     terminateAll('SIGINT', 130, 'SIGINT empfangen; Testprozesse werden beendet.');
@@ -253,7 +237,7 @@ export async function runSuites(suites, options = {}) {
 
   try {
     const exitCodes = await Promise.all(
-      suites.map((suite) => startSuite(suite, stdout, stderr, children)),
+      suites.map((suite) => startSuite(suite, stdout, stderr, children, platform)),
     );
     if (terminationPromise) await terminationPromise;
     if (terminationExitCode !== null) return terminationExitCode;

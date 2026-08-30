@@ -60,12 +60,18 @@ vollständigen Prozessbäume bei `SIGINT`, `SIGTERM` oder nach dem standardmäß
 Zeitlimit von 15 Minuten. Ein abweichendes positives Zeitlimit in Millisekunden
 kann über `FLIPBASE_TEST_TIMEOUT_MS` gesetzt werden.
 
-Die zweistufige Beendigung behält ihre ursprünglichen Ziele auch dann, wenn der
-direkte npm-Prozess während der Schonfrist bereits endet: Unter POSIX bleibt die
-ursprüngliche Prozessgruppen-ID erhalten; unter Windows werden Root- und
-Nachkommen-PIDs vor der ersten Stufe erfasst. Der referenzierte Grace-Timer hält
-den Standalone-Runner bis zur abschließenden `SIGKILL`- beziehungsweise
-`taskkill /t /f`-Stufe am Leben.
+Unter POSIX behält die zweistufige Beendigung ihre ursprüngliche
+Prozessgruppen-ID auch dann, wenn der direkte npm-Prozess während der Schonfrist
+bereits endet. Der referenzierte Grace-Timer hält den Standalone-Runner bis zur
+abschließenden `SIGKILL`-Stufe am Leben.
+
+Unter Windows gibt es bewusst keine verzögerte zweite Stufe: Jeder noch bekannte
+Root-Prozessbaum wird bei Abbruch oder Timeout genau einmal sofort mit
+`taskkill /pid <root> /t /f` beendet. Dadurch werden weder PIDs gespeichert noch
+nach einer Schonfrist möglicherweise wiederverwendete PIDs erneut adressiert.
+Jeder `taskkill`-Hilfsprozess besitzt ein unabhängiges Zeitlimit von fünf
+Sekunden; Fehler oder Zeitüberschreitungen werden gemeldet und können den Runner
+nicht unbegrenzt blockieren.
 
 Zusätzliche Argumente an `npm test` werden absichtlich mit Exitcode 2 abgelehnt,
 weil eine mehrdeutige Weitergabe an drei Prozesse fehleranfällig wäre. Eine

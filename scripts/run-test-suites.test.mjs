@@ -21,6 +21,7 @@ const fakeNpmCli = fileURLToPath(new URL('./fixtures/fake-npm-cli.mjs', import.m
 const signalHarness = fileURLToPath(
   new URL('./fixtures/runner-signal-harness.mjs', import.meta.url),
 );
+const hangingHelper = fileURLToPath(new URL('./fixtures/hanging-helper.mjs', import.meta.url));
 const runnerScript = fileURLToPath(new URL('./run-test-suites.mjs', import.meta.url));
 
 function capture(stream) {
@@ -162,7 +163,11 @@ test('beendet bei einem Timeout den vollständigen Prozessbaum', async () => {
 
     assert.equal(exitCode, 1);
     assert.match(readStderr(), /Zeitlimit von 2000 ms/);
-    assert.match(readStderr(), /erzwungene Prozessbaum-Beendigung/);
+    if (process.platform === 'win32') {
+      assert.doesNotMatch(readStderr(), /erzwungene Prozessbaum-Beendigung/);
+    } else {
+      assert.match(readStderr(), /erzwungene Prozessbaum-Beendigung/);
+    }
     const heartbeatAfterExit = await readFile(heartbeatPath, 'utf8');
     await new Promise((resolve) => setTimeout(resolve, 150));
     assert.equal(await readFile(heartbeatPath, 'utf8'), heartbeatAfterExit);
@@ -176,34 +181,63 @@ for (const [signal, expectedExitCode] of [
   ['SIGINT', 130],
   ['SIGTERM', 143],
 ]) {
-  test(`reicht ${signal} weiter und erzwingt danach das Ende des ignorierenden Enkels`, async () => {
-    const temporaryDirectory = await mkdtemp(join(tmpdir(), 'flipbase-runner-signal-'));
+  test(
+    `reicht ${signal} weiter und erzwingt danach das Ende des ignorierenden Enkels`,
+    { skip: process.platform === 'win32' },
+    async () => {
+      const temporaryDirectory = await mkdtemp(join(tmpdir(), 'flipbase-runner-signal-'));
+      const heartbeatPath = join(temporaryDirectory, 'heartbeat.txt');
+      const signalSource = new EventEmitter();
+      const stdout = new PassThrough();
+      const stderr = new PassThrough();
+      const readStderr = capture(stderr);
+      const ready = waitForMatch(stdout, /tree-ready/);
+      const parentExited = waitForMatch(stdout, /\[signal\] beendet/);
+
+      try {
+        const result = runner.runSuites(
+          [
+            {
+              label: 'signal',
+              command: process.execPath,
+              args: [processTreeFixture, heartbeatPath, '5000'],
+            },
+          ],
+          { stdout, stderr, signalSource, terminationGraceMs: 1000 },
+        );
+        await ready;
+        signalSource.emit(signal);
+        await parentExited;
+        const heartbeatAfterParentExit = await readFile(heartbeatPath, 'utf8');
+        await waitForFileChange(heartbeatPath, heartbeatAfterParentExit);
+
+        assert.equal(await result, expectedExitCode);
+        assert.match(readStderr(), /erzwungene Prozessbaum-Beendigung/);
+        const heartbeatAfterForce = await readFile(heartbeatPath, 'utf8');
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        assert.equal(await readFile(heartbeatPath, 'utf8'), heartbeatAfterForce);
+      } finally {
+        await unlink(heartbeatPath).catch(() => undefined);
+        await rmdir(temporaryDirectory).catch(() => undefined);
+      }
+    },
+  );
+}
+
+test(
+  'hält als Standalone-Prozess die Force-Stufe bis zum Ende am Leben',
+  { skip: process.platform === 'win32' },
+  async () => {
+    const temporaryDirectory = await mkdtemp(join(tmpdir(), 'flipbase-runner-harness-'));
     const heartbeatPath = join(temporaryDirectory, 'heartbeat.txt');
-    const signalSource = new EventEmitter();
-    const stdout = new PassThrough();
-    const stderr = new PassThrough();
-    const readStderr = capture(stderr);
-    const ready = waitForMatch(stdout, /tree-ready/);
-    const parentExited = waitForMatch(stdout, /\[signal\] beendet/);
+    const child = spawn(process.execPath, [signalHarness, heartbeatPath], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const readStderr = capture(child.stderr);
 
     try {
-      const result = runner.runSuites(
-        [
-          {
-            label: 'signal',
-            command: process.execPath,
-            args: [processTreeFixture, heartbeatPath, '5000'],
-          },
-        ],
-        { stdout, stderr, signalSource, terminationGraceMs: 1000 },
-      );
-      await ready;
-      signalSource.emit(signal);
-      await parentExited;
-      const heartbeatAfterParentExit = await readFile(heartbeatPath, 'utf8');
-      await waitForFileChange(heartbeatPath, heartbeatAfterParentExit);
-
-      assert.equal(await result, expectedExitCode);
+      const exitCode = await new Promise((resolve) => child.once('close', resolve));
+      assert.equal(exitCode, 143);
       assert.match(readStderr(), /erzwungene Prozessbaum-Beendigung/);
       const heartbeatAfterForce = await readFile(heartbeatPath, 'utf8');
       await new Promise((resolve) => setTimeout(resolve, 150));
@@ -212,28 +246,52 @@ for (const [signal, expectedExitCode] of [
       await unlink(heartbeatPath).catch(() => undefined);
       await rmdir(temporaryDirectory).catch(() => undefined);
     }
-  });
-}
+  },
+);
 
-test('hält als Standalone-Prozess die Force-Stufe bis zum Ende am Leben', async () => {
-  const temporaryDirectory = await mkdtemp(join(tmpdir(), 'flipbase-runner-harness-'));
-  const heartbeatPath = join(temporaryDirectory, 'heartbeat.txt');
-  const child = spawn(process.execPath, [signalHarness, heartbeatPath], {
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  const readStderr = capture(child.stderr);
+test('verwendet unter Windows genau einen sofortigen harten Root-Baum-Abbruch', async () => {
+  const signalSource = new EventEmitter();
+  const stdout = new PassThrough();
+  const stderr = new PassThrough();
+  const ready = waitForMatch(stdout, /windows-out/);
+  const commandCalls = [];
+  const commandRunner = async (command, args, options) => {
+    commandCalls.push({ command, args, options });
+    const processId = Number(args[args.indexOf('/pid') + 1]);
+    process.kill(processId, 'SIGKILL');
+    return { code: 0, stdout: '', timedOut: false };
+  };
 
-  try {
-    const exitCode = await new Promise((resolve) => child.once('close', resolve));
-    assert.equal(exitCode, 143);
-    assert.match(readStderr(), /erzwungene Prozessbaum-Beendigung/);
-    const heartbeatAfterForce = await readFile(heartbeatPath, 'utf8');
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    assert.equal(await readFile(heartbeatPath, 'utf8'), heartbeatAfterForce);
-  } finally {
-    await unlink(heartbeatPath).catch(() => undefined);
-    await rmdir(temporaryDirectory).catch(() => undefined);
-  }
+  const result = runner.runSuites([suite('windows', 5000)], {
+    stdout,
+    stderr,
+    signalSource,
+    platform: 'win32',
+    commandRunner,
+    helperTimeoutMs: 50,
+    terminationGraceMs: 25,
+  });
+  await ready;
+  signalSource.emit('SIGTERM');
+
+  assert.equal(await result, 143);
+  assert.equal(commandCalls.length, 1);
+  assert.equal(commandCalls[0].command, 'taskkill.exe');
+  assert.deepEqual(commandCalls[0].args.slice(0, 1), ['/pid']);
+  assert.deepEqual(commandCalls[0].args.slice(2), ['/t', '/f']);
+  assert.deepEqual(commandCalls[0].options, { timeoutMs: 50 });
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(commandCalls.length, 1);
+});
+
+test('beendet einen hängenden Hilfsprozess nach seinem eigenen Timeout', async () => {
+  assert.equal(typeof runner.runCommandWithTimeout, 'function');
+  const result = await runner.runCommandWithTimeout(process.execPath, [hangingHelper], {
+    timeoutMs: 75,
+  });
+
+  assert.equal(result.code, 1);
+  assert.equal(result.timedOut, true);
 });
 
 test('lehnt zusätzliche Argumente mit einer verständlichen Alternative ab', async () => {
