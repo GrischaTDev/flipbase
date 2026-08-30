@@ -37,7 +37,9 @@
 **Dienst (alles neu):**
 
 - Create `services/sniper/package.json`: eigene Abhängigkeiten und Skripte.
-- Create `services/sniper/tsconfig.json`: strict, `NodeNext`.
+- Create `services/sniper/tsconfig.json`: strict, `NodeNext`, nur Typprüfung.
+- Create `services/sniper/tsconfig.build.json`: erzeugt `dist/` für den Betrieb.
+- Create `services/sniper/.gitignore`: `dist/`, `node_modules/`, `.env`.
 - Create `services/sniper/vitest.config.ts`: Node-Umgebung, nur Unit-Tests.
 - Create `services/sniper/vitest.integration.config.ts`: nur Integrationstests gegen die lokale Datenbank.
 - Create `services/sniper/.env.example`: benötigte Umgebungsvariablen.
@@ -236,7 +238,7 @@ npm run supabase:start
 Danach:
 
 ```bash
-psql "$(supabase status --output json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).DB_URL")" -v ON_ERROR_STOP=1 -f supabase/tests/vinted_deal_monitor_schema.sql
+npx supabase db query --local -f supabase/tests/vinted_deal_monitor_schema.sql
 ```
 
 Erwartung: FEHLER `sniper_queries is missing required columns` – die Tabelle existiert noch nicht.
@@ -344,7 +346,7 @@ npm run supabase:reset
 ```
 
 ```bash
-psql "$(supabase status --output json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).DB_URL")" -v ON_ERROR_STOP=1 -f supabase/tests/vinted_deal_monitor_schema.sql
+npx supabase db query --local -f supabase/tests/vinted_deal_monitor_schema.sql
 ```
 
 Erwartung: kein Fehler, Ausgabe endet mit `ROLLBACK`.
@@ -362,7 +364,7 @@ git commit -m "feat(sniper): add collector tables for the Vinted deal monitor"
 
 **Files:**
 
-- Create: `services/sniper/package.json`, `services/sniper/tsconfig.json`, `services/sniper/vitest.config.ts`, `services/sniper/vitest.integration.config.ts`, `services/sniper/.env.example`, `services/sniper/src/config.ts`, `services/sniper/src/log.ts`
+- Create: `services/sniper/package.json`, `services/sniper/tsconfig.json`, `services/sniper/tsconfig.build.json`, `services/sniper/.gitignore`, `services/sniper/vitest.config.ts`, `services/sniper/vitest.integration.config.ts`, `services/sniper/.env.example`, `services/sniper/src/config.ts`, `services/sniper/src/log.ts`
 - Test: `services/sniper/test/config.spec.ts`
 
 **Interfaces:**
@@ -381,7 +383,8 @@ Create `services/sniper/package.json`:
   "engines": { "node": ">=22" },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "start": "node --experimental-strip-types src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
     "test": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
     "typecheck": "tsc --noEmit",
@@ -420,6 +423,31 @@ Create `services/sniper/tsconfig.json`:
   "include": ["src/**/*.ts", "test/**/*.ts", "vitest.config.ts", "vitest.integration.config.ts"]
 }
 ```
+
+Create `services/sniper/tsconfig.build.json`:
+
+```json
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "dist"
+  },
+  "include": ["src/**/*.ts"]
+}
+```
+
+Create `services/sniper/.gitignore`:
+
+```gitignore
+dist/
+node_modules/
+.env
+```
+
+Die `/dist`-Regel der Wurzel ist auf das Stammverzeichnis verankert und greift hier nicht.
+
+**Warum ein Bauschritt und kein `node --experimental-strip-types`:** Node kann TypeScript zwar direkt ausführen, löst dabei aber `./config.js` nicht auf `config.ts` auf – das ist gemessen und schlägt mit `ERR_MODULE_NOT_FOUND` fehl. Die Alternative wären `.ts`-Endungen in allen Importen; ein normaler `tsc`-Lauf ist die kleinere Überraschung und kommt ohne experimentelle Schalter aus. `npm run dev` bleibt bei `tsx`, das die Auflösung übernimmt.
 
 Create `services/sniper/vitest.config.ts`:
 
@@ -2539,20 +2567,20 @@ while (!controller.signal.aborted) {
 log.info('stopped');
 ```
 
-- [ ] **Step 2: Typecheck und alle Unit-Tests laufen lassen**
+- [ ] **Step 2: Typecheck, Bau und alle Unit-Tests laufen lassen**
 
 ```bash
-cd services/sniper && npm run typecheck && npm test
+cd services/sniper && npm run typecheck && npm run build && ls dist/index.js && npm test
 ```
 
-Erwartung: kein Typfehler, 40 Tests bestanden.
+Erwartung: kein Typfehler, `dist/index.js` existiert, 40 Tests bestanden. Der Bau muss hier laufen, weil er im Betriebsabbild verwendet wird – Node löst `./config.js` nicht auf `config.ts` auf, ein direkter Start der TypeScript-Dateien scheitert also.
 
 - [ ] **Step 3: Standardprofil anlegen und echten Rauchtest fahren**
 
 Im Repo-Stammverzeichnis, bei laufender lokaler Datenbank:
 
 ```bash
-psql "$(supabase status --output json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).DB_URL")" -c "insert into public.sniper_queries (query_key, search_text, price_to, is_standard, poll_interval_ms) values ('vinted|search=nike air max|catalog=-|brand=-|price_to=50', 'nike air max', 50, true, 60000) on conflict (query_key) do nothing;"
+npx supabase db query --local "insert into public.sniper_queries (query_key, search_text, price_to, is_standard, poll_interval_ms) values ('vinted|search=nike air max|catalog=-|brand=-|price_to=50', 'nike air max', 50, true, 60000) on conflict (query_key) do nothing;"
 ```
 
 Dann den Dienst starten:
@@ -2566,7 +2594,7 @@ Erwartung: eine erste Zeile `... info cycle polled=1 new=0 seeded=1 failed=0 ski
 Prüfen, dass Artikel angekommen sind und keine Verkäuferdaten enthalten:
 
 ```bash
-psql "$(supabase status --output json | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).DB_URL")" -c "select count(*), min(first_seen_at), max(total_price) from public.sniper_listings;"
+npx supabase db query --local "select count(*), min(first_seen_at), max(total_price) from public.sniper_listings;"
 ```
 
 Dienst mit Strg+C beenden. Erwartung: `shutdown_requested` gefolgt von `stopped`, kein abgebrochener Request.
@@ -2753,20 +2781,30 @@ Erwartung: `503` vor der ersten Runde, danach `200`.
 Create `services/sniper/Dockerfile`:
 
 ```dockerfile
-FROM node:22-alpine
+FROM node:22-alpine AS build
 
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
+RUN npm ci
+
+COPY tsconfig.json tsconfig.build.json ./
+COPY src ./src
+RUN npm run build
+
+FROM node:22-alpine
+
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
 
-COPY tsconfig.json ./
-COPY src ./src
+COPY --from=build /app/dist ./dist
 
 EXPOSE 8080
 
-# Node fuehrt TypeScript seit 22.6 direkt aus; ein Build-Schritt entfaellt.
-CMD ["node", "--experimental-strip-types", "src/index.ts"]
+CMD ["node", "dist/index.js"]
 ```
 
 In `deploy/docker-compose.app.yml` den Dienst ergänzen (die Datei ist prettier-ignoriert, die Einrückung der bestehenden Dienste übernehmen):
