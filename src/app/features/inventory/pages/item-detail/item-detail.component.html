@@ -124,7 +124,7 @@
               data-item-status-badge
               class="rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-200"
             >
-              Altdaten prüfen
+              Verkaufsstatus klären
             </span>
           } @else if (
             item.sale_state === 'sale_status_conflict' ||
@@ -208,36 +208,20 @@
         aria-labelledby="legacy-sold-title"
       >
         <div>
-          <h2 id="legacy-sold-title" class="text-sm font-bold text-amber-200">Altdaten prüfen</h2>
+          <h2 id="legacy-sold-title" class="text-sm font-bold text-amber-200">
+            Verkaufsstatus klären
+          </h2>
           <p class="mt-1 text-xs text-fb-text-muted">
-            Für diesen historischen Artikel ist kein belastbarer Verkauf verknüpft. Entscheide nach
-            Prüfung, ob er wieder im Bestand ist oder der Verkauf nachgetragen werden muss.
+            Dieser Artikel ist als verkauft markiert, aber es gibt noch keinen zugehörigen Verkauf.
           </p>
-        </div>
-        <div>
-          <label
-            for="item-detail-legacy-reason"
-            class="mb-1 block text-xs font-semibold text-fb-text-secondary"
-          >
-            Prüfgrund für die Bestandsrücknahme
-          </label>
-          <input
-            id="item-detail-legacy-reason"
-            type="text"
-            [value]="legacyReason()"
-            (input)="onLegacyReasonInput($event)"
-            class="w-full rounded-lg border border-fb-line bg-fb-well px-3 py-2 text-sm text-fb-text-primary outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/30"
-            autocomplete="off"
-          />
         </div>
         <div class="flex flex-wrap gap-2">
           <button
             type="button"
             (click)="onRestoreLegacySoldItem()"
-            [disabled]="legacyReason().trim().length === 0"
-            class="linear-btn-secondary rounded-lg px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            class="linear-btn-secondary rounded-lg px-3 py-2 text-xs font-semibold"
           >
-            Wieder in Bestand nehmen
+            Artikel ist noch vorhanden
           </button>
           <button
             type="button"

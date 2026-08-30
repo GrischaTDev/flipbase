@@ -336,22 +336,18 @@ export class InventoryComponent {
     this.openLabelModal();
   }
 
-  async onRestoreLegacyItem(action: {
-    readonly item: InventoryItem;
-    readonly reason: string;
-  }): Promise<void> {
-    const reason = action.reason.trim();
-    if (!reason || action.item.sale_state !== 'legacy_sold_unverified') return;
+  async onRestoreLegacyItem(item: InventoryItem): Promise<void> {
+    if (item.sale_state !== 'legacy_sold_unverified') return;
     const confirmed = await this.dialog.frage({
       titel: 'Artikel wieder in Bestand nehmen?',
-      text: `„${action.item.title}“ wird nach dokumentierter Prüfung wieder auf „Bereit“ gesetzt. Grund: ${reason}`,
-      bestaetigenText: 'Wieder in Bestand nehmen',
+      text: `„${item.title}“ wird auf „Bereit“ gesetzt. Die Korrektur wird automatisch dokumentiert.`,
+      bestaetigenText: 'Artikel ist noch vorhanden',
     });
     if (!confirmed) return;
 
-    const { error } = await this.inventoryService.resolveLegacySoldItem(action.item.id);
+    const { error } = await this.inventoryService.resolveLegacySoldItem(item.id);
     if (error) {
-      this.meldeFehlerWennNichtSynchronisiert('Altbestand konnte nicht geklärt werden.', error);
+      this.meldeFehlerWennNichtSynchronisiert('Verkaufsstatus konnte nicht geklärt werden.', error);
       return;
     }
     this.toast.success('Artikel wurde wieder in den Bestand aufgenommen.');

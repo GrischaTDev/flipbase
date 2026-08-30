@@ -192,31 +192,21 @@
                     data-item-status-badge
                     class="inline-flex rounded-full border border-amber-500/40 bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-300"
                   >
-                    Altdaten prüfen
+                    Verkaufsstatus klären
                   </span>
                   <div class="mt-2 w-64 space-y-2">
-                    <label
-                      [for]="'legacy-reason-' + item.id"
-                      class="block text-[10px] font-semibold text-fb-text-secondary"
-                    >
-                      Grund der Klärung
-                    </label>
-                    <input
-                      [id]="'legacy-reason-' + item.id"
-                      type="text"
-                      [value]="legacyReason(item.id)"
-                      (input)="setLegacyReason(item.id, $event)"
-                      class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs"
-                    />
+                    <p class="text-[10px] text-fb-text-muted">
+                      Dieser Artikel ist als verkauft markiert, aber es gibt noch keinen zugehörigen
+                      Verkauf.
+                    </p>
                     <div class="flex flex-wrap gap-1.5">
                       <button
                         data-restore-stock
                         type="button"
                         (click)="emitRestoreLegacy(item)"
-                        [disabled]="!legacyReason(item.id).trim()"
-                        class="linear-btn-secondary rounded-lg px-2 py-1 text-[10px] font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                        class="linear-btn-secondary rounded-lg px-2 py-1 text-[10px] font-semibold"
                       >
-                        Wieder in Bestand nehmen
+                        Artikel ist noch vorhanden
                       </button>
                       <button
                         data-reconcile-sale

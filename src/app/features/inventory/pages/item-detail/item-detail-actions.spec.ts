@@ -64,7 +64,6 @@ function erstelleKomponente(error: Error | null = null) {
     mediaList: signal<ItemMedia[]>([]),
     isUploading: signal(false),
     uploadError: signal<string | null>(null),
-    legacyReason: signal(''),
     isAddingCost: signal(true),
     costForm: new FormGroup({
       type: new FormControl<'repair'>('repair', { nonNullable: true }),
@@ -86,7 +85,7 @@ function dateiEvent(dateien: File[]): Event {
 }
 
 describe('ItemDetailComponent – Aktionsmeldungen', () => {
-  it('zeigt sold und Legacy-Konflikte schreibgeschützt statt als Statusauswahl', () => {
+  it('zeigt verkaufte und ungeklärte Zustände schreibgeschützt statt als Statusauswahl', () => {
     const template = readFileSync(
       'src/app/features/inventory/pages/item-detail/item-detail.component.html',
       'utf8',
@@ -96,24 +95,36 @@ describe('ItemDetailComponent – Aktionsmeldungen', () => {
     expect(template).toContain("item.sale_state === 'legacy_sold_unverified'");
     expect(template).toContain("item.sale_state === 'legacy_sale_header_without_line'");
     expect(template).toContain('Korrektur erforderlich');
+    expect(template).toContain('Verkaufsstatus klären');
+    expect(template).toContain('Artikel ist noch vorhanden');
+    expect(template).toContain('Verkauf nachtragen');
+    expect(template).not.toContain('Altdaten prüfen');
+    expect(template).not.toContain('Prüfgrund');
+    expect(template).not.toMatch(/<input[^>]+legacy-reason/);
   });
 
-  it('nimmt einen ungeklärten Altartikel nur mit Grund und Bestätigung zurück', async () => {
+  it('nimmt einen ungeklärten Artikel nur nach Bestätigung wieder in den Bestand auf', async () => {
     const { komponente, inventoryService, dialog, toast } = erstelleKomponente();
     inventoryService.selectedItem.set({
       ...artikel,
       status: 'sold',
       sale_state: 'legacy_sold_unverified',
     });
-    const legacyActions = komponente as unknown as {
-      legacyReason: { set(value: string): void };
-      onRestoreLegacySoldItem(): Promise<void>;
-    };
-    legacyActions.legacyReason.set('Historischer Verkauf fehlt');
+    dialog.frage.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 
-    await legacyActions.onRestoreLegacySoldItem();
+    await komponente.onRestoreLegacySoldItem();
 
-    expect(dialog.frage).toHaveBeenCalledOnce();
+    expect(inventoryService.resolveLegacySoldItem).not.toHaveBeenCalled();
+
+    await komponente.onRestoreLegacySoldItem();
+
+    expect(dialog.frage).toHaveBeenCalledTimes(2);
+    expect(dialog.frage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        titel: 'Artikel wieder in Bestand nehmen?',
+        bestaetigenText: 'Artikel ist noch vorhanden',
+      }),
+    );
     expect(inventoryService.resolveLegacySoldItem).toHaveBeenCalledWith(artikel.id);
     expect(toast.toasts()[0]).toMatchObject({
       type: 'success',

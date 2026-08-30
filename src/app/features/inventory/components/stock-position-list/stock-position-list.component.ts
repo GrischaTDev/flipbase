@@ -47,7 +47,7 @@ export class StockPositionListComponent {
   readonly labelIndividual = output<InventoryItem>();
   readonly storeToggle = output<InventoryItem>();
   readonly statusChange = output<{ readonly item: InventoryItem; readonly status: ItemStatus }>();
-  readonly restoreLegacy = output<{ readonly item: InventoryItem; readonly reason: string }>();
+  readonly restoreLegacy = output<InventoryItem>();
   readonly reconcileSale = output<InventoryItem>();
 
   readonly chevronDownIcon = ChevronDown;
@@ -58,7 +58,6 @@ export class StockPositionListComponent {
   readonly printerIcon = Printer;
   readonly storeIcon = Store;
   readonly openPositionIds = signal<ReadonlySet<string>>(new Set());
-  readonly legacyReasons = signal<Readonly<Record<string, string>>>({});
 
   readonly statusOptions: readonly { readonly value: ItemStatus; readonly label: string }[] = [
     { value: 'received', label: 'Auf Lager' },
@@ -143,15 +142,6 @@ export class StockPositionListComponent {
     return this.selectedItemIds().has(itemId);
   }
 
-  setLegacyReason(itemId: string, event: Event): void {
-    const value = (event.target as HTMLInputElement).value;
-    this.legacyReasons.update((reasons) => ({ ...reasons, [itemId]: value }));
-  }
-
-  legacyReason(itemId: string): string {
-    return this.legacyReasons()[itemId] ?? '';
-  }
-
   emitStatusChange(item: InventoryItem, status: ItemStatus | null): void {
     if (status && !this.isMutationLocked(item)) this.statusChange.emit({ item, status });
   }
@@ -169,8 +159,7 @@ export class StockPositionListComponent {
   }
 
   emitRestoreLegacy(item: InventoryItem): void {
-    const reason = this.legacyReason(item.id).trim();
-    if (reason) this.restoreLegacy.emit({ item, reason });
+    if (item.sale_state === 'legacy_sold_unverified') this.restoreLegacy.emit(item);
   }
 
   movementReason(reason: StockMovement['reason']): string {

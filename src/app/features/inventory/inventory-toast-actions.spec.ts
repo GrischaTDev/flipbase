@@ -35,11 +35,13 @@ function erstelleKomponente(ergebnis: { readonly error: Error | null }) {
     items: signal<InventoryItem[]>([{ ...artikel }]),
     updateItemStatus: vi.fn(async (_id: string, _status: ItemStatus) => ergebnis),
     updateItem: vi.fn(async () => ergebnis),
+    resolveLegacySoldItem: vi.fn(async () => ergebnis),
   };
+  const dialog = { frage: vi.fn(async () => true) };
   const komponente = Object.create(InventoryComponent.prototype) as InventoryComponent;
-  Object.assign(komponente, { inventoryService, toast, syncStatus });
+  Object.assign(komponente, { inventoryService, toast, syncStatus, dialog });
 
-  return { komponente, inventoryService, syncStatus, toast };
+  return { komponente, inventoryService, dialog, syncStatus, toast };
 }
 
 function klickEvent(): Event {
@@ -57,7 +59,8 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
     expect(template).not.toContain('activeTab');
     expect(template).toContain('[individualItems]="filteredItems()"');
     expect(template).toContain('[positions]="filteredStockPositions()"');
-    expect(template).toContain('Altdaten prüfen');
+    expect(template).toContain('Verkaufsstatus klären');
+    expect(template).not.toContain('Altdaten prüfen');
   });
 
   it('zählt im gefilterten Bestand nur zentral verkaufbare Einzelstücke', () => {
@@ -206,20 +209,28 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
     });
   });
 
-  it('bestätigt die Rücknahme eines ungeklärten Altartikels und verlangt einen Grund', async () => {
-    const { komponente, inventoryService, toast } = erstelleKomponente({ error: null });
-    const resolveLegacySoldItem = vi.fn(async () => ({ error: null }));
-    Object.assign(inventoryService, { resolveLegacySoldItem });
-    Object.assign(komponente, { dialog: { frage: vi.fn(async () => true) } });
+  it('nimmt einen ungeklärten Artikel nur nach Bestätigung wieder in den Bestand auf', async () => {
+    const { komponente, inventoryService, dialog, toast } = erstelleKomponente({ error: null });
     const legacy = {
       ...artikel,
       status: 'sold' as const,
       sale_state: 'legacy_sold_unverified' as const,
     };
+    dialog.frage.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 
-    await komponente.onRestoreLegacyItem({ item: legacy, reason: 'Historischer Verkauf fehlt' });
+    await komponente.onRestoreLegacyItem(legacy);
 
-    expect(resolveLegacySoldItem).toHaveBeenCalledWith(legacy.id);
+    expect(inventoryService.resolveLegacySoldItem).not.toHaveBeenCalled();
+
+    await komponente.onRestoreLegacyItem(legacy);
+
+    expect(dialog.frage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        titel: 'Artikel wieder in Bestand nehmen?',
+        bestaetigenText: 'Artikel ist noch vorhanden',
+      }),
+    );
+    expect(inventoryService.resolveLegacySoldItem).toHaveBeenCalledWith(legacy.id);
     expect(toast.toasts()[0]).toMatchObject({
       type: 'success',
       title: 'Artikel wurde wieder in den Bestand aufgenommen.',
