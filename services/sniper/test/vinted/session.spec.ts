@@ -178,4 +178,62 @@ describe('VintedSession', () => {
     // Two fetches were needed because we invalidated the first one
     expect(fetchFn).toHaveBeenCalledTimes(2);
   });
+
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((r) => {
+      resolve = r;
+    });
+    return { promise, resolve };
+  }
+
+  it('does not let a stale warm-up wipe out a newer pending warm-up', async () => {
+    // Nachstellung des Befunds: A startet die Aufwaermung (Generation 0), wird
+    // dann invalidiert, B startet eine neue Aufwaermung (Generation 1). Wenn
+    // A's Antwort zuerst eintrifft, darf ihr `finally` nicht das `pending` von
+    // B loeschen - sonst startet C faelschlich eine dritte Anfrage.
+    const responses = [deferred<Response>(), deferred<Response>(), deferred<Response>()];
+    let callCount = 0;
+    const fetchFn = vi.fn<typeof fetch>().mockImplementation(() => {
+      const index = callCount++;
+      return responses[index]!.promise;
+    });
+
+    const session = new VintedSession(options, fetchFn);
+
+    // Caller A starts warm-up (generation 0) -> pending = P1, fetch #1
+    const callA = session.cookieHeader();
+
+    // invalidate() -> cookie = undefined, pending = undefined, generation = 1
+    session.invalidate();
+
+    // Caller B starts warm-up (generation 1) -> pending = P2, fetch #2
+    const callB = session.cookieHeader();
+
+    // P1 resolves (stale generation): warmUp correctly skips caching, but a
+    // buggy `finally` would clear this.pending even though it now holds P2.
+    responses[0]!.resolve(homepage('stale'));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    await new Promise((r) => setImmediate(r));
+
+    // Caller C arrives before P2 resolves - it must still see B's pending
+    // warm-up and share it rather than starting fetch #3.
+    const callC = session.cookieHeader();
+
+    // Only now resolve B's response.
+    responses[1]!.resolve(homepage('fresh'));
+    // Safety net: if the bug is present, callC triggers a third fetch that
+    // would otherwise hang forever unresolved. Resolving it with a distinct
+    // value turns a would-be timeout into a loud, readable assertion failure.
+    responses[2]!.resolve(homepage('unexpected-third'));
+
+    const [resultA, resultB, resultC] = await Promise.all([callA, callB, callC]);
+
+    expect(resultA).toBe('access_token_web=stale');
+    expect(resultB).toBe('access_token_web=fresh');
+    expect(resultC).toBe('access_token_web=fresh');
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
 });

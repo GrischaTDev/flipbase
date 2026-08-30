@@ -29,11 +29,14 @@ export class VintedSession {
   async cookieHeader(): Promise<string> {
     if (this.cookie !== undefined) return this.cookie;
 
-    this.pending ??= this.warmUp();
+    const current = (this.pending ??= this.warmUp());
     try {
-      return await this.pending;
+      return await current;
     } finally {
-      this.pending = undefined;
+      // Nur das eigene Promise loeschen: eine ueberholte Aufwaermung, die erst
+      // nach invalidate() + neuem Aufruf aufloest, darf nicht das pending des
+      // inzwischen gestarteten neuen Aufrufs wegwischen.
+      if (this.pending === current) this.pending = undefined;
     }
   }
 
@@ -53,6 +56,10 @@ export class VintedSession {
     if (gen === this.generation) {
       this.cookie = extracted;
     }
+    // Wer schon vor invalidate() auf cookieHeader() wartete, bekommt trotzdem
+    // diesen (ueberholten) Wert zurueck statt eines Fehlers - das ist gewollt:
+    // es ist ein echter Wert aus einer echten Antwort, er wird nur nicht mehr
+    // fuer kuenftige Aufrufe zwischengespeichert.
     return extracted;
   }
 
