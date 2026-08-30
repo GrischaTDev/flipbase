@@ -95,4 +95,87 @@ describe('VintedSession', () => {
 
     expect(await session.cookieHeader()).toBe('anon_id=b');
   });
+
+  it('shares a single fetch across concurrent calls', async () => {
+    const resolveFetch = vi.fn<(response: Response) => void>();
+    const fetchPromise = new Promise<Response>((resolve) => {
+      resolveFetch.mockImplementation(resolve);
+    });
+    const fetchFn = vi.fn<typeof fetch>().mockReturnValue(fetchPromise);
+    const session = new VintedSession(options, fetchFn);
+
+    // Start two concurrent calls without awaiting
+    const promise1 = session.cookieHeader();
+    const promise2 = session.cookieHeader();
+
+    // Verify fetch was called exactly once before resolving
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+
+    // Resolve the fetch with a response
+    resolveFetch(homepage('shared-cookie'));
+
+    const [result1, result2] = await Promise.all([promise1, promise2]);
+
+    expect(result1).toBe('access_token_web=shared-cookie');
+    expect(result2).toBe('access_token_web=shared-cookie');
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries after a failed warm-up', async () => {
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(homepage('recovered'));
+    const session = new VintedSession(options, fetchFn);
+
+    // First attempt fails
+    await expect(session.cookieHeader()).rejects.toBeInstanceOf(VintedHttpError);
+
+    // Second attempt succeeds with a fresh fetch
+    expect(await session.cookieHeader()).toBe('access_token_web=recovered');
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('invalidate clears in-flight warm-up so concurrent calls do not reuse it', async () => {
+    const resolveFetch1 = vi.fn<(response: Response) => void>();
+    const resolveFetch2 = vi.fn<(response: Response) => void>();
+    const fetchPromise1 = new Promise<Response>((resolve) => {
+      resolveFetch1.mockImplementation(resolve);
+    });
+    const fetchPromise2 = new Promise<Response>((resolve) => {
+      resolveFetch2.mockImplementation(resolve);
+    });
+
+    let callCount = 0;
+    const fetchFn = vi.fn<typeof fetch>().mockImplementation(() => {
+      callCount++;
+      return callCount === 1 ? fetchPromise1 : fetchPromise2;
+    });
+
+    const session = new VintedSession(options, fetchFn);
+
+    // Start first warm-up
+    const warmUp1 = session.cookieHeader();
+
+    // Invalidate before the fetch resolves
+    session.invalidate();
+
+    // Start second warm-up immediately after invalidation
+    const warmUp2 = session.cookieHeader();
+
+    // Resolve the first fetch
+    resolveFetch1(homepage('stale'));
+
+    // Resolve the second fetch
+    resolveFetch2(homepage('fresh'));
+
+    const result1 = await warmUp1;
+    const result2 = await warmUp2;
+
+    // Both should have resolved, but second call should get its own fresh cookie
+    expect(result1).toBe('access_token_web=stale');
+    expect(result2).toBe('access_token_web=fresh');
+    // Two fetches were needed because we invalidated the first one
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+  });
 });

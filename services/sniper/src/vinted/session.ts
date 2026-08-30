@@ -18,6 +18,8 @@ export interface SessionOptions {
  */
 export class VintedSession {
   private cookie: string | undefined;
+  private pending: Promise<string> | undefined;
+  private generation = 0;
 
   constructor(
     private readonly options: SessionOptions,
@@ -27,6 +29,16 @@ export class VintedSession {
   async cookieHeader(): Promise<string> {
     if (this.cookie !== undefined) return this.cookie;
 
+    this.pending ??= this.warmUp();
+    try {
+      return await this.pending;
+    } finally {
+      this.pending = undefined;
+    }
+  }
+
+  private async warmUp(): Promise<string> {
+    const gen = this.generation;
     const response = await this.fetchFn(this.options.baseUrl, {
       headers: {
         Accept: 'text/html,application/xhtml+xml',
@@ -36,12 +48,18 @@ export class VintedSession {
 
     if (!response.ok) throw new VintedHttpError(response.status);
 
-    this.cookie = extractCookieHeader(response.headers);
-    return this.cookie;
+    const extracted = extractCookieHeader(response.headers);
+    // Only cache if this generation is still valid
+    if (gen === this.generation) {
+      this.cookie = extracted;
+    }
+    return extracted;
   }
 
   invalidate(): void {
     this.cookie = undefined;
+    this.pending = undefined;
+    this.generation++;
   }
 }
 
