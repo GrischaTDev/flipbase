@@ -200,6 +200,43 @@ jobs:
             test "$DATABASE_RESULT" = "skipped"
           fi
 
+  browser-smoke:
+    name: Browser smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser smoke tests
+        run: npm run test:e2e
+
+      - name: Upload browser failure artifacts
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: browser-smoke-failure
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
   image:
     name: Publish image
     if: github.event_name == 'push'
@@ -284,8 +321,8 @@ jobs:
 
   deploy:
     name: Deploy to production
-    needs: [quality, test-gate, database-gate, image]
-    if: ${{ github.event_name == 'push' && always() && needs.quality.result == 'success' && needs.test-gate.result == 'success' && needs.database-gate.result == 'success' && needs.image.result == 'success' }}
+    needs: [quality, test-gate, database-gate, browser-smoke, image]
+    if: ${{ github.event_name == 'push' && always() && needs.quality.result == 'success' && needs.test-gate.result == 'success' && needs.database-gate.result == 'success' && needs.browser-smoke.result == 'success' && needs.image.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Read access to the package, so the server can be handed a token that is

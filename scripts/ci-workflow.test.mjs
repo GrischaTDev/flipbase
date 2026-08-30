@@ -14,11 +14,13 @@ const expectedExpressions = Object.freeze({
   databaseGateChangesResult: '${{ needs.changes.result }}',
   databaseGateChanged: '${{ needs.changes.outputs.supabase }}',
   databaseGateDatabaseResult: '${{ needs.database.result }}',
+  browserUploadIf: '${{ failure() || cancelled() }}',
   imageIf: "github.event_name == 'push'",
   deployIf:
-    "${{ github.event_name == 'push' && always() && needs.quality.result == 'success' && needs.test-gate.result == 'success' && needs.database-gate.result == 'success' && needs.image.result == 'success' }}",
+    "${{ github.event_name == 'push' && always() && needs.quality.result == 'success' && needs.test-gate.result == 'success' && needs.database-gate.result == 'success' && needs.browser-smoke.result == 'success' && needs.image.result == 'success' }}",
 });
 const expectedGateCommand = 'test "$RESULT" = "success"';
+const uploadArtifactSha = '043fb46d1a93c77aae656e7c1c64a875d1fc6a0a';
 const expectedDatabaseGateCommand = `test "$CHANGES_RESULT" = "success"
 if [ "$SUPABASE_CHANGED" = "true" ]; then
   test "$DATABASE_RESULT" = "success"
@@ -147,8 +149,33 @@ function assertDatabaseGateSecurity(gate) {
   assert.equal(step.run, expectedDatabaseGateCommand);
 }
 
+function assertBrowserSmokeSecurity(browserSmoke) {
+  const checkout = findStep(browserSmoke, 'Check out repository');
+  assert.equal(checkout.with['persist-credentials'], 'false');
+
+  const setupNode = findStep(browserSmoke, 'Set up Node');
+  assert.equal(setupNode.with['node-version'], '${{ env.NODE_VERSION }}');
+  assert.equal(findStep(browserSmoke, 'Install dependencies').run, 'npm ci');
+  assert.equal(
+    findStep(browserSmoke, 'Install Chromium').run,
+    'npx playwright install --with-deps chromium',
+  );
+  assert.equal(findStep(browserSmoke, 'Run browser smoke tests').run, 'npm run test:e2e');
+
+  const upload = findStep(browserSmoke, 'Upload browser failure artifacts');
+  assertExactExpression(upload.if, expectedExpressions.browserUploadIf, 'browser upload.if');
+  assert.equal(upload.uses, `actions/upload-artifact@${uploadArtifactSha}`);
+  assert.equal(upload.with.path, 'playwright-report/\ntest-results/\n');
+}
+
 function assertDeploySecurity(deploy) {
-  assert.deepEqual(deploy.needs, ['quality', 'test-gate', 'database-gate', 'image']);
+  assert.deepEqual(deploy.needs, [
+    'quality',
+    'test-gate',
+    'database-gate',
+    'browser-smoke',
+    'image',
+  ]);
   assertExactExpression(deploy.if, expectedExpressions.deployIf, 'deploy.if');
 }
 
@@ -200,9 +227,30 @@ function securityFixtures() {
         },
       ],
     },
+    browserSmoke: {
+      steps: [
+        {
+          name: 'Check out repository',
+          with: { 'persist-credentials': 'false' },
+        },
+        {
+          name: 'Set up Node',
+          with: { 'node-version': '${{ env.NODE_VERSION }}' },
+        },
+        { name: 'Install dependencies', run: 'npm ci' },
+        { name: 'Install Chromium', run: 'npx playwright install --with-deps chromium' },
+        { name: 'Run browser smoke tests', run: 'npm run test:e2e' },
+        {
+          name: 'Upload browser failure artifacts',
+          if: expectedExpressions.browserUploadIf,
+          uses: `actions/upload-artifact@${uploadArtifactSha}`,
+          with: { path: 'playwright-report/\ntest-results/\n' },
+        },
+      ],
+    },
     image: { if: expectedExpressions.imageIf },
     deploy: {
-      needs: ['quality', 'test-gate', 'database-gate', 'image'],
+      needs: ['quality', 'test-gate', 'database-gate', 'browser-smoke', 'image'],
       if: expectedExpressions.deployIf,
     },
   };
@@ -245,10 +293,33 @@ test('weist ein Datenbank-Gate zurück, das skipped bei Supabase-Änderungen akz
   assert.throws(() => assertDatabaseGateSecurity(databaseGate));
 });
 
+test('weist ein Deploy-Gate ohne verpflichtenden Browser-Smoke zurück', () => {
+  const { deploy } = securityFixtures();
+  deploy.needs = deploy.needs.filter((need) => need !== 'browser-smoke');
+
+  assert.throws(() => assertDeploySecurity(deploy));
+});
+
+test('weist einen beweglichen Tag für den Browser-Artefakt-Upload zurück', () => {
+  const { browserSmoke } = securityFixtures();
+  findStep(browserSmoke, 'Upload browser failure artifacts').uses =
+    'actions/upload-artifact@v7.0.1';
+
+  assert.throws(() => assertBrowserSmokeSecurity(browserSmoke));
+});
+
+test('weist einen Browser-Artefakt-Upload bei Erfolg zurück', () => {
+  const { browserSmoke } = securityFixtures();
+  findStep(browserSmoke, 'Upload browser failure artifacts').if = '${{ success() }}';
+
+  assert.throws(() => assertBrowserSmokeSecurity(browserSmoke), /browser upload\.if/);
+});
+
 test('parallelisiert Quality und die vollständige Unit-Matrix hinter einem Test-Gate', async () => {
   const { jobs } = await loadWorkflow();
 
   assert.deepEqual(Object.keys(jobs).sort(), [
+    'browser-smoke',
     'changes',
     'database',
     'database-gate',
@@ -294,6 +365,12 @@ test('erkennt Supabase-Änderungen vollständig und führt den lokalen Datenbank
   assertChangesSecurity(jobs.changes);
   assertDatabaseSecurity(jobs.database);
   assertDatabaseGateSecurity(jobs['database-gate']);
+});
+
+test('führt Chromium als paralleles Pflicht-Gate mit reinen Fehlerartefakten aus', async () => {
+  const { jobs } = await loadWorkflow();
+
+  assertBrowserSmokeSecurity(jobs['browser-smoke']);
 });
 
 test('baut nur bei Push parallel ein unveränderliches Kandidatenimage', async () => {

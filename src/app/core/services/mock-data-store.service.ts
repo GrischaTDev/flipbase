@@ -329,6 +329,9 @@ export class MockDataStoreService {
         expected_value: 35.0,
         total_item_cost: 20.0,
         profit_potential: 15.0,
+        sale_state: 'no_active_sale',
+        active_sale_count: 0,
+        active_sale_id: null,
         created_at: '2026-08-11T11:07:00.000Z',
       },
       {
@@ -465,11 +468,69 @@ export class MockDataStoreService {
       },
     ];
 
+    const demoCatalogProducts: CatalogProduct[] = [
+      {
+        id: 'catalog-demo-usb-c-charger',
+        workspace_id: DEMO_WS_ID,
+        title: 'USB-C Ladegerät 30 W',
+        brand: 'Anker',
+        category: 'Elektronik-Zubehör',
+        tracking_mode: 'quantity',
+        is_public_store: true,
+        listing_price: 24.9,
+        created_at: '2026-08-15T09:20:00.000Z',
+      },
+    ];
+    const demoPurchaseLines: PurchaseLine[] = [
+      {
+        id: 'purchase-line-demo-usb-c-charger',
+        workspace_id: DEMO_WS_ID,
+        purchase_id: 'pur-demo-4',
+        catalog_product_id: 'catalog-demo-usb-c-charger',
+        title_snapshot: 'USB-C Ladegerät 30 W',
+        line_kind: 'quantity',
+        ordered_quantity: 5,
+        received_quantity: 5,
+        unit_purchase_price: 8,
+        line_total: 40,
+        created_at: '2026-08-15T09:20:00.000Z',
+      },
+    ];
+    const demoStockLots: StockLot[] = [
+      {
+        id: 'stock-lot-demo-usb-c-charger',
+        workspace_id: DEMO_WS_ID,
+        purchase_id: 'pur-demo-4',
+        purchase_line_id: 'purchase-line-demo-usb-c-charger',
+        catalog_product_id: 'catalog-demo-usb-c-charger',
+        received_quantity: 5,
+        remaining_quantity: 5,
+        unit_cost: 8,
+        received_at: '2026-08-15T09:30:00.000Z',
+        created_at: '2026-08-15T09:30:00.000Z',
+      },
+    ];
+    const demoStockMovements: StockMovement[] = [
+      {
+        id: 'stock-movement-demo-usb-c-charger',
+        workspace_id: DEMO_WS_ID,
+        stock_lot_id: 'stock-lot-demo-usb-c-charger',
+        direction: 'in',
+        quantity: 5,
+        reason: 'receipt',
+        created_at: '2026-08-15T09:30:00.000Z',
+      },
+    ];
+
     storage.setItem(STORAGE_KEY_PURCHASES, JSON.stringify(demoPurchases));
     storage.setItem(STORAGE_KEY_ITEMS, JSON.stringify(demoItems));
     storage.setItem(STORAGE_KEY_SALES, JSON.stringify(demoSales));
     storage.setItem(STORAGE_KEY_SOURCES, JSON.stringify(this.defaultSources));
     storage.setItem(STORAGE_KEY_SUPPLIERS, JSON.stringify(this.defaultSuppliers));
+    storage.setItem(STORAGE_KEY_CATALOG_PRODUCTS, JSON.stringify(demoCatalogProducts));
+    storage.setItem(STORAGE_KEY_PURCHASE_LINES, JSON.stringify(demoPurchaseLines));
+    storage.setItem(STORAGE_KEY_STOCK_LOTS, JSON.stringify(demoStockLots));
+    storage.setItem(STORAGE_KEY_STOCK_MOVEMENTS, JSON.stringify(demoStockMovements));
   }
 
   // In-memory accessor for backwards compatibility with tests
