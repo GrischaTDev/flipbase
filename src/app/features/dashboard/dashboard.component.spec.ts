@@ -49,6 +49,7 @@ const createReport = vi.fn(() => emptyReport);
 let customSelectInputMetadataSnapshot: AngularInputMetadata | null = null;
 let revenueChartInputMetadataSnapshot: AngularInputMetadata | null = null;
 let customSelectValueChangeDescriptor: PropertyDescriptor | undefined;
+let revenueChartInitializeDescriptor: PropertyDescriptor | undefined;
 
 beforeAll(async () => {
   registerLocaleData(localeDe);
@@ -119,6 +120,18 @@ beforeEach(() => {
     ...revenueChartMetadata.declaredInputs,
     points: 'points',
   };
+  const revenueChartPrototype = RevenueChartComponent.prototype as unknown as Record<
+    string,
+    unknown
+  >;
+  revenueChartInitializeDescriptor = Object.getOwnPropertyDescriptor(
+    revenueChartPrototype,
+    'initializeChart',
+  );
+  Object.defineProperty(revenueChartPrototype, 'initializeChart', {
+    configurable: true,
+    value: () => undefined,
+  });
 
   sales.set([]);
   createReport.mockClear();
@@ -165,6 +178,21 @@ afterEach(() => {
       revenueChartMetadata.outputs = revenueChartInputMetadataSnapshot.outputs;
       revenueChartInputMetadataSnapshot = null;
     }
+
+    const revenueChartPrototype = RevenueChartComponent.prototype as unknown as Record<
+      string,
+      unknown
+    >;
+    if (revenueChartInitializeDescriptor) {
+      Object.defineProperty(
+        revenueChartPrototype,
+        'initializeChart',
+        revenueChartInitializeDescriptor,
+      );
+    } else {
+      delete revenueChartPrototype['initializeChart'];
+    }
+    revenueChartInitializeDescriptor = undefined;
   }
 });
 
@@ -179,6 +207,19 @@ function createDashboard() {
 }
 
 describe('DashboardComponent', () => {
+  it('isoliert den Chart-Lifecycle im Dashboard-Header-Test ohne Angular-Laufzeitfehler', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    try {
+      const fixture = createDashboard();
+      await fixture.whenStable();
+
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it('erstellt eindeutige, deutsch sortierte Plattformoptionen für den Shared Select', () => {
     sales.set([sale('vinted'), sale('ebay'), sale('vinted')]);
 
