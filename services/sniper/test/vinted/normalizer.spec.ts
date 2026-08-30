@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fixture from '../fixtures/vinted-catalog.json' with { type: 'json' };
+import type { VintedItem } from '../../src/vinted/schema.js';
 import { VintedCatalogSchema } from '../../src/vinted/schema.js';
 import { normalizeVintedItem } from '../../src/vinted/normalizer.js';
 
@@ -21,7 +22,19 @@ describe('normalizeVintedItem', () => {
   });
 
   it('never carries a seller field into the listing', () => {
-    const listing = normalizeVintedItem(firstItem);
+    // Simulate a scenario where the schema includes a user field. The normalizer
+    // must drop it even if present in the input, preserving privacy.
+    const itemWithSeller = {
+      ...firstItem,
+      user: {
+        id: 4711,
+        login: 'seller_0',
+        profile_url: 'https://www.vinted.de/member/4711-seller-0',
+        photo: { url: 'https://images.example/avatar.jpg' },
+      },
+    } as VintedItem;
+
+    const listing = normalizeVintedItem(itemWithSeller);
     const serialised = JSON.stringify(listing);
 
     expect(serialised).not.toContain('seller_0');
