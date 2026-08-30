@@ -55,12 +55,15 @@ export class QueryScheduler {
     // Die aelteste Abfrage zuerst - das Budget entscheidet bei Knappheit nach
     // Wartezeit, nicht nach Paket.
     for (const query of await this.deps.queries.dueQueries(now)) {
-      // Ein Slot steht hier fuer einen Abfrage-Durchlauf, nicht fuer eine
-      // einzelne HTTP-Anfrage: collect() kann durch Session-Aufwaermen und
-      // 401-Wiederholung ein bis vier Anfragen ausloesen, im Regelfall aber
-      // genau eine. `RequestBudget` bleibt bewusst eine grobe Drosselung auf
-      // Ebene der Durchlaeufe, keine exakte HTTP-Buchhaltung.
-      if (!this.deps.budget.tryConsume()) {
+      // `hasCapacity()` fragt hier nur um Erlaubnis - sie zaehlt selbst
+      // nichts mit. Die tatsaechlichen HTTP-Anfragen, die ein einzelner
+      // collect()-Aufruf ausloesen kann (Session-Aufwaermen, Wiederholungen
+      // bei 5xx, Neuaufwaermen bei 401 mit eigener Wiederholung), werden auf
+      // der Transportebene gezaehlt: `countingFetch` (runtime/counting-
+      // fetch.ts) umschliesst die fetch-Funktion und ruft fuer jede
+      // tatsaechlich abgeschickte Anfrage `budget.record()`. So spiegelt das
+      // Budget echte Anfragen wider, nicht Abfrage-Durchlaeufe.
+      if (!this.deps.budget.hasCapacity()) {
         report.skippedForBudget += 1;
         continue;
       }

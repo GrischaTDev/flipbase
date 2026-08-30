@@ -6,31 +6,34 @@ describe('RequestBudget', () => {
     const now = 0;
     const budget = new RequestBudget(3, () => now);
 
-    expect(budget.tryConsume()).toBe(true);
-    expect(budget.tryConsume()).toBe(true);
-    expect(budget.tryConsume()).toBe(true);
-    expect(budget.tryConsume()).toBe(false);
+    expect(budget.hasCapacity()).toBe(true);
+    budget.record();
+    expect(budget.hasCapacity()).toBe(true);
+    budget.record();
+    expect(budget.hasCapacity()).toBe(true);
+    budget.record();
+    expect(budget.hasCapacity()).toBe(false);
   });
 
   it('frees a slot once its minute has passed', () => {
     let now = 0;
     const budget = new RequestBudget(2, () => now);
 
-    budget.tryConsume();
+    budget.record();
     now = 30_000;
-    budget.tryConsume();
-    expect(budget.tryConsume()).toBe(false);
+    budget.record();
+    expect(budget.hasCapacity()).toBe(false);
 
     now = 60_001;
-    expect(budget.tryConsume()).toBe(true);
+    expect(budget.hasCapacity()).toBe(true);
   });
 
   it('reports usage as a ratio', () => {
     const now = 0;
     const budget = new RequestBudget(4, () => now);
 
-    budget.tryConsume();
-    budget.tryConsume();
+    budget.record();
+    budget.record();
 
     expect(budget.usageRatio()).toBe(0.5);
   });
@@ -39,20 +42,21 @@ describe('RequestBudget', () => {
     let now = 0;
     const budget = new RequestBudget(1, () => now);
 
-    expect(budget.tryConsume()).toBe(true);
+    expect(budget.hasCapacity()).toBe(true);
+    budget.record();
 
     // Genau 60_000ms spaeter: cutoff = 0, gespeicherter Zeitstempel = 0.
     // Nur mit einer inklusiven Grenze (<=) gilt der Eintrag als abgelaufen.
     now = 60_000;
-    expect(budget.tryConsume()).toBe(true);
+    expect(budget.hasCapacity()).toBe(true);
   });
 
   it('drops usageRatio back to zero once the window has fully passed', () => {
     let now = 0;
     const budget = new RequestBudget(2, () => now);
 
-    budget.tryConsume();
-    budget.tryConsume();
+    budget.record();
+    budget.record();
     expect(budget.usageRatio()).toBe(1);
 
     now = 60_000;
@@ -79,22 +83,70 @@ describe('RequestBudget', () => {
     let now = 60_000;
     const budget = new RequestBudget(2, () => now);
 
-    expect(budget.tryConsume()).toBe(true); // timestamp 60_000 stored
+    expect(budget.hasCapacity()).toBe(true);
+    budget.record(); // timestamp 60_000 stored
 
     now = 0; // clock moves backwards (e.g. an NTP correction)
-    expect(budget.tryConsume()).toBe(true); // timestamp 0 stored -> array holds [60_000, 0]
+    expect(budget.hasCapacity()).toBe(true);
+    budget.record(); // timestamp 0 stored -> array holds [60_000, 0]
 
-    // cutoff = 0: the second (smaller, later-pushed) entry is exactly expired,
-    // but the first (larger, earlier-pushed) entry is still valid. A prune
-    // that only inspects the front of the array stops immediately because
-    // the front (60_000) is not expired, leaving the expired entry stuck
-    // behind it and the slot lost.
+    // cutoff = 0: the second (smaller, later-recorded) entry is exactly
+    // expired, but the first (larger, earlier-recorded) entry is still
+    // valid. A prune that only inspects the front of the array stops
+    // immediately because the front (60_000) is not expired, leaving the
+    // expired entry stuck behind it and the slot lost.
     now = 60_000;
-    expect(budget.tryConsume()).toBe(true);
+    expect(budget.hasCapacity()).toBe(true);
 
     // cutoff = 60_000: now the remaining original entry is exactly expired too.
     now = 120_000;
-    expect(budget.tryConsume()).toBe(true);
-    expect(budget.tryConsume()).toBe(true);
+    expect(budget.hasCapacity()).toBe(true);
+    budget.record();
+    expect(budget.hasCapacity()).toBe(true);
+  });
+
+  it('hasCapacity() records nothing: calling it repeatedly never consumes', () => {
+    const now = 0;
+    const budget = new RequestBudget(1, () => now);
+
+    expect(budget.hasCapacity()).toBe(true);
+    expect(budget.hasCapacity()).toBe(true);
+    expect(budget.hasCapacity()).toBe(true);
+
+    // Only record() should ever fill the slot; hasCapacity() alone must
+    // never have consumed it above.
+    budget.record();
+    expect(budget.hasCapacity()).toBe(false);
+  });
+
+  it('lets record() exceed the configured maximum so hasCapacity() then refuses', () => {
+    const now = 0;
+    const budget = new RequestBudget(2, () => now);
+
+    // Drei echte Anfragen sind schon raus - im Kleinen genau das Szenario aus
+    // dem Fehlerbericht: ein einzelner collect()-Aufruf kann mehr Anfragen
+    // ausloesen, als das Budget an Kapazitaet hatte. record() darf das nicht
+    // verweigern, weil die Anfragen bereits passiert sind.
+    budget.record();
+    budget.record();
+    budget.record();
+
+    expect(budget.usageRatio()).toBeCloseTo(1.5);
+    expect(budget.hasCapacity()).toBe(false);
+  });
+
+  it('frees the window after the minute passes even from an over-capacity state', () => {
+    let now = 0;
+    const budget = new RequestBudget(2, () => now);
+
+    budget.record();
+    budget.record();
+    budget.record();
+    expect(budget.hasCapacity()).toBe(false);
+    expect(budget.usageRatio()).toBeCloseTo(1.5);
+
+    now = 60_001;
+    expect(budget.hasCapacity()).toBe(true);
+    expect(budget.usageRatio()).toBe(0);
   });
 });
