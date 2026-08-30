@@ -165,7 +165,7 @@ Produktionsmessplan, vorab definierte Rollback-Trigger, einen ausschließlich
 pfadbegrenzten und noch offenen Rollback-Ablauf sowie die Bedingungen für ein
 späteres GO.
 
-`docs/AI-CHANGELOG.md` erhält als obersten Eintrag nach der Regelsektion Modell
+Der ursprüngliche Task-10-Eintrag dokumentiert im historischen Kontext Modell
 `Codex GPT-5.6`, Art `Konfiguration + Tests + Doku`, den Gesamtscope und nur
 belegte lokale Ergebnisse.
 
