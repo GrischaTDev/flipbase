@@ -255,10 +255,12 @@ describe('RevenueChartComponent Barrierefreiheit', () => {
     );
     await fixture.whenStable();
     const host = fixture.nativeElement as HTMLElement;
-    const legendEntries = () => [
-      ...host.querySelectorAll<HTMLElement>('[aria-label="Diagrammlegende"] > span'),
-    ];
+    const legend = host.querySelector<HTMLUListElement>('ul[aria-label="Diagrammlegende"]');
+    const legendEntries = () => [...(legend?.querySelectorAll<HTMLElement>(':scope > li') ?? [])];
 
+    expect(legend).not.toBeNull();
+    expect(host.querySelector('div[aria-label="Diagrammlegende"]')).toBeNull();
+    expect(legendEntries()).toHaveLength(3);
     expect(legendEntries().map((entry) => entry.textContent?.trim())).toEqual([
       'Umsatz',
       'Ausgaben',
