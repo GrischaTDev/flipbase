@@ -57,9 +57,10 @@ Browser-Tests sowie Abnahmebericht
 
 **Was:** Die abschließende Branch-Prüfung hat drei wichtige Lücken geschlossen.
 Workflow-Verträge und Suite-Audit laufen nun verpflichtend in `npm run verify`
-und im Quality-Job. Das Deployment veröffentlicht die vollständige Build-SHA in
-`/deployment.json`, prüft die öffentliche Startseite auf HTTP 200 und vergleicht
-die ausgelieferte SHA exakt mit `github.sha`. Der Revenue-Chart besitzt einen
+und im Quality-Job. Der manuelle Benchmark besitzt nur lesenden Repository-Zugriff.
+Das Deployment veröffentlicht die vollständige Build-SHA in `/deployment.json`,
+prüft Startseite und öffentlichen Healthcheck und vergleicht die ausgelieferte
+SHA exakt mit `github.sha`. Der Revenue-Chart besitzt einen
 fokussierbaren Tastaturregler mit Pfeil-, Pos1-, Ende- und Escape-Bedienung sowie
 Screenreader-Werten. Komponenten- und Browsertests decken den Tastaturweg ab.
 
@@ -68,7 +69,7 @@ liegen. Ein statischer Healthcheck kann einen alten Container nicht erkennen,
 und eine reine Mausinteraktion erfüllt die verbindliche WCAG-AA-Anforderung
 nicht.
 
-**Verifiziert durch:** `npm run verify` vollständig grün, 78/78
+**Verifiziert durch:** `npm run verify` vollständig grün, 80/80
 Workflow-Verträge, Audit über 116 Testdateien, 1.071/1.071 Vitest-Tests,
 6/6 Chromium-Smokes, Production-Build und Coverage über allen Schwellwerten.
 Der Docker-Daemon bleibt lokal nicht erreichbar; deshalb kein dynamischer

@@ -2,7 +2,7 @@
 
 **Stand:** 30.08.2026
 
-**Geprüfter Code-Commit:** `7ab39b7`
+**Geprüfter Code-Commit:** `0713cf3`
 
 **Branch:** `codex/teststrategie-ci-beschleunigung`
 
@@ -19,7 +19,7 @@ drei unveränderten Zieltests wieder grün. Die abschließende Gesamtprüfung fa
 und schloss drei weitere Lücken: Workflow-Verträge und Suite-Audit sind nun
 Pflicht-Gates, der Chart-Tooltip ist auch per Tastatur erreichbar und das
 Deployment vergleicht die öffentlich ausgelieferte Build-SHA exakt mit dem
-GitHub-Commit. Der vollständige lokale Workflowvertrag ist mit 78/78 Fällen
+GitHub-Commit. Der vollständige lokale Workflowvertrag ist mit 80/80 Fällen
 grün und belegt fail-closed Test-, Image- und Deploy-Bedingungen.
 
 Ein Produktions-Go ist trotzdem nicht zulässig. Der Feature-Branch existiert
@@ -48,7 +48,7 @@ Abnahme bezieht sich auf folgenden, zusammenhängenden Feature-Stand:
 | 8      | Kritische Browserwege und Stabilitätskorrekturen       | `8dddae0`, `7d76e87`, `592e817`                       |
 | 9      | Coverage, Stress, Nightly und fail-closed YAML-Vertrag | `76b47bf`, `de5cdcf`, `ff2eb1a`, `63709b7`, `7293435` |
 | 10     | Lokale Rollout-Abnahme und Mutationsnachweise          | `4deb246`, `cc20188`, `c3544d8`                       |
-| Review | Pflicht-Verträge, Tastaturzugang und öffentliche SHA   | `4828158`, `ecbf2d1`, `7ab39b7`                       |
+| Review | Pflicht-Verträge, Tastaturzugang und öffentliche SHA   | `4828158`, `ecbf2d1`, `7ab39b7`, `0713cf3`            |
 
 ## Testpyramide und Gate-Mapping
 
@@ -80,8 +80,8 @@ Sie sind keine GitHub-Runner-Zeiten.
 | 20er-Stresslauf                  | Seeds 20260830–20260849, je 89 Dateien/747 Node-Tests; 163,469 s gesamt                   | 20/20 grün                                                             |
 | Chromium-Smoke final             | 6/6 in 18,5 s                                                                             | Maus- und Tastaturweg enthalten                                        |
 | Firefox/WebKit                   | nicht lokal ausgeführt                                                                    | Nightly-Konfiguration listet die Smoke-Fälle; keine Ergebnisbehauptung |
-| Build                            | 6,892 s im finalen `npm run verify`                                                       | lokaler Production-Build grün                                          |
-| Workflowvertrag final            | 78/78                                                                                     | einschließlich Deployment-Metadaten und öffentlicher SHA-Prüfung       |
+| Build                            | 6,664 s im finalen `npm run verify`                                                       | lokaler Production-Build grün                                          |
+| Workflowvertrag final            | 80/80                                                                                     | einschließlich Healthcheck, Deployment-Metadaten und öffentlicher SHA  |
 | Datenbank/Docker                 | `docker info`: Server nicht erreichbar                                                    | fehlende `dockerDesktopLinuxEngine`-Pipe; kein DB-Lauf                 |
 
 ## Read-only GitHub-Bestandsaufnahme
@@ -171,7 +171,7 @@ revertiert. Er ersetzt den gültigen Browsernachweis nicht.
 
 ## Deployment-Gate-Negativstatus
 
-`node --test scripts/ci-workflow.test.mjs` lief lokal mit 16/16 Fällen grün.
+`node --test scripts/ci-workflow.test.mjs` lief lokal mit 17/17 Fällen grün.
 Die strukturierten Negativfixtures weisen insbesondere zurück:
 
 - ein Test-Gate, das nur `!= failure` statt exakt `success` verlangt;
