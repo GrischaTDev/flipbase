@@ -266,8 +266,8 @@ export class InvoiceService {
       'RE-' + new Date().getFullYear() + '-' + Math.floor(1000 + Math.random() * 9000);
     const orderNumber =
       sale.external_order_id || 'ORD-' + Math.floor(100000 + Math.random() * 900000);
-    const salePrice = sale.sale_price;
-    const shippingCost = sale.shipping_cost || 0;
+    const salePrice = sale.sale_price_total ?? sale.sale_price;
+    const shippingCost = sale.shipping_revenue ?? 0;
     const total = salePrice;
 
     const invoiceItems: InvoiceItem[] =
@@ -321,7 +321,7 @@ export class InvoiceService {
     item: InventoryItem | undefined,
     lines: readonly SaleLine[],
   ): InvoiceItem[] {
-    const subtotal = sale.sale_price - (sale.shipping_cost || 0);
+    const subtotal = lines.reduce((sum, line) => sum + line.line_total, 0);
     return lines.flatMap((line, index) => {
       const lineSubtotalCents = this.toCents(this.invoiceLineSubtotal(subtotal, lines, index));
       const groups = this.quantityPriceGroups(lineSubtotalCents, line.quantity);

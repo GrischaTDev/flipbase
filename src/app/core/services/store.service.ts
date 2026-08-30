@@ -21,13 +21,27 @@ import {
 } from '../models/store.models';
 import { CatalogService } from './catalog.service';
 import { StockService } from './stock.service';
-import { SalesService } from './sales.service';
+import { RecordSaleInput, RecordSaleLineInput, SalesService } from './sales.service';
 
 const STORAGE_KEY_SETTINGS = 'flipbase_store_settings';
 const STORAGE_KEY_CART = 'flipbase_store_cart';
 const STORAGE_KEY_ORDERS = 'flipbase_store_orders';
 
 type StoreOrderQueryRow = Tables<'store_orders'> & { items: Tables<'store_order_items'>[] };
+
+interface StoreSaleLine {
+  readonly line: RecordSaleLineInput;
+  readonly paymentFee: number;
+}
+
+function storePaymentFee(
+  paymentMethod: CheckoutCustomerInfo['paymentMethod'],
+  unitPrice: number,
+): number {
+  if (paymentMethod === 'stripe_card') return Number((unitPrice * 0.014 + 0.25).toFixed(2));
+  if (paymentMethod === 'paypal') return Number((unitPrice * 0.0249 + 0.35).toFixed(2));
+  return 0;
+}
 
 function createDefaultStoreSettings(): StoreSettings {
   return {
@@ -586,6 +600,35 @@ export class StoreService {
       status: paymentStatus === 'paid' ? 'confirmed' : 'pending',
     };
 
+    const saleLines: readonly StoreSaleLine[] = currentCart.map((cartItem) => {
+      const item = this.toSellableItem(cartItem.item);
+      const unitSalePrice = this.cartItemUnitPrice(cartItem);
+      return {
+        line: {
+          catalogProductId: item.kind === 'catalog_product' ? item.id : undefined,
+          inventoryItemId: item.kind === 'inventory_item' ? item.id : undefined,
+          titleSnapshot: item.title,
+          quantity: cartItem.quantity,
+          unitSalePrice,
+        },
+        paymentFee: storePaymentFee(customer.paymentMethod, unitSalePrice),
+      };
+    });
+    const buyerNotes = `Kunde: ${customer.firstName} ${customer.lastName}, Zahlungsart: ${customer.paymentMethod} (${paymentStatus})`;
+    const saleInput: RecordSaleInput = {
+      platform: 'custom_store',
+      saleDate: newOrder.createdAt.slice(0, 10),
+      shippingRevenue: newOrder.shippingCost,
+      shippingMode: customer.shippingMethod === 'pickup' ? 'pickup' : 'seller_arranged',
+      shippingCost: 0,
+      additionalCosts: saleLines
+        .filter(({ paymentFee }) => paymentFee > 0)
+        .map(({ paymentFee }) => ({ category: 'payment_fee', amount: paymentFee })),
+      externalOrderId: newOrder.orderNumber,
+      buyerNotes,
+      lines: saleLines.map(({ line }) => line),
+    };
+
     const ws = this.workspaceService?.currentWorkspace();
     let bestaetigteBestellung = newOrder;
     if (this.supabase && !this.mockStore?.isDemoMode()) {
@@ -606,23 +649,15 @@ export class StoreService {
           // jedoch generell ohne Null-Union ab.
           p_payment_id: (newOrder.paymentId ?? null) as unknown as string,
           p_status: newOrder.status,
-          p_sale_date: newOrder.createdAt.slice(0, 10),
-          p_buyer_notes: `Kunde: ${customer.firstName} ${customer.lastName}, Zahlungsart: ${customer.paymentMethod} (${paymentStatus})`,
-          p_items: currentCart.map((cartItem) => {
-            const item = this.toSellableItem(cartItem.item);
-            const price = this.cartItemUnitPrice(cartItem);
-            const paymentFee =
-              customer.paymentMethod === 'stripe_card'
-                ? Number((price * 0.014 + 0.25).toFixed(2))
-                : customer.paymentMethod === 'paypal'
-                  ? Number((price * 0.0249 + 0.35).toFixed(2))
-                  : 0;
+          p_sale_date: saleInput.saleDate,
+          p_buyer_notes: buyerNotes,
+          p_items: saleLines.map(({ line, paymentFee }) => {
             return {
-              catalog_product_id: item.kind === 'catalog_product' ? item.id : null,
-              inventory_item_id: item.kind === 'inventory_item' ? item.id : null,
-              item_title: item.title,
-              quantity: cartItem.quantity,
-              price,
+              catalog_product_id: line.catalogProductId ?? null,
+              inventory_item_id: line.inventoryItemId ?? null,
+              item_title: line.titleSnapshot,
+              quantity: line.quantity,
+              price: line.unitSalePrice,
               payment_fee: paymentFee,
             };
           }) as unknown as Json,
@@ -656,22 +691,7 @@ export class StoreService {
           new Error('Der zentrale Verkaufsdienst ist nicht verfügbar.'),
         );
       }
-      const saleResult = await this.salesService.recordSale({
-        platform: 'custom_store',
-        saleDate: newOrder.createdAt.slice(0, 10),
-        externalOrderId: newOrder.id,
-        buyerNotes: `Kunde: ${customer.firstName} ${customer.lastName}`,
-        lines: currentCart.map((cartItem) => {
-          const item = this.toSellableItem(cartItem.item);
-          return {
-            catalogProductId: item.kind === 'catalog_product' ? item.id : undefined,
-            inventoryItemId: item.kind === 'inventory_item' ? item.id : undefined,
-            titleSnapshot: item.title,
-            quantity: cartItem.quantity,
-            unitSalePrice: this.cartItemUnitPrice(cartItem),
-          };
-        }),
-      });
+      const saleResult = await this.salesService.recordSale(saleInput);
       if (saleResult.error) return this.fehlgeschlageneBestellung(saleResult.error);
     }
 

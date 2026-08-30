@@ -27,11 +27,19 @@ export class ProfitEngineService {
   }
 
   /**
+   * Calculates the profit margin in percent based on gross revenue.
+   */
+  calculateMargin(profit: number, revenue: number): number | null {
+    if (revenue <= 0) return null;
+    return Number(((profit / revenue) * 100).toFixed(2));
+  }
+
+  /**
    * Deterministically calculates ROI in percent.
    * ROI = (Profit / Invested Capital) * 100
    */
-  calculateRoi(profit: number, investedCapital: number): number {
-    if (investedCapital <= 0) return 0;
+  calculateRoi(profit: number, investedCapital: number): number | null {
+    if (investedCapital <= 0) return null;
     return Number(((profit / investedCapital) * 100).toFixed(2));
   }
 
@@ -168,7 +176,7 @@ export class ProfitEngineService {
     const recommendedListingPrice = Number((fairMarketValue * 1.12).toFixed(2));
     const totalInvested = askingPrice + estimatedCosts;
     const expectedProfit = this.calculateProfit(fairMarketValue, totalInvested);
-    const expectedRoiPercent = this.calculateRoi(expectedProfit, totalInvested);
+    const expectedRoiPercent = this.calculateRoi(expectedProfit, totalInvested) ?? 0;
     const maxBuyPrice = this.calculateMaxBuyPrice(
       fairMarketValue,
       estimatedCosts,

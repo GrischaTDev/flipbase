@@ -25,7 +25,7 @@
       <button
         type="button"
         (click)="closed.emit()"
-        class="rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-fb-text-primary"
+        class="cursor-pointer rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-fb-text-primary"
         aria-label="Dialog schließen"
       >
         <svg [lucideIcon]="closeIcon" class="h-4 w-4"></svg>
@@ -47,29 +47,60 @@
         </section>
       }
       <section
-        class="grid grid-cols-1 gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-xs sm:grid-cols-3"
+        aria-label="Kennzahlen zum Verkauf"
+        class="grid grid-cols-2 gap-3 rounded-xl border border-emerald-500/25 bg-emerald-500/10 p-3 text-xs sm:grid-cols-3"
       >
         <div>
           <span class="block text-[10px] font-semibold uppercase text-fb-text-muted"
-            >Verkaufssumme</span
+            >Verkaufserlös</span
           ><strong class="text-sm text-emerald-400">{{
-            totalPrice() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+            grossRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
           }}</strong>
         </div>
         <div>
           <span class="block text-[10px] font-semibold uppercase text-fb-text-muted"
-            >Gesamtkosten</span
+            >Wareneinsatz</span
           ><strong class="text-sm text-fb-text-primary">{{
-            liveMetrics().totalCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+            liveMetrics().costOfGoods | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
           }}</strong>
         </div>
         <div>
           <span class="block text-[10px] font-semibold uppercase text-fb-text-muted"
-            >Gewinn / ROI</span
-          ><strong class="text-sm text-emerald-400"
-            >{{ liveMetrics().profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }} ·
-            {{ liveMetrics().roi }} %</strong
-          >
+            >Verkaufskosten</span
+          ><strong class="text-sm text-fb-text-primary">{{
+            liveMetrics().sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+          }}</strong>
+        </div>
+        <div>
+          <span class="block text-[10px] font-semibold uppercase text-fb-text-muted">Gewinn</span
+          ><strong class="text-sm text-emerald-400">{{
+            liveMetrics().profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+          }}</strong>
+        </div>
+        <div>
+          <span class="block text-[10px] font-semibold uppercase text-fb-text-muted"
+            >Gewinnmarge</span
+          ><strong class="text-sm text-emerald-400">
+            @if (liveMetrics().margin === null) {
+              –
+            } @else {
+              {{ liveMetrics().margin }} %
+            }
+          </strong>
+        </div>
+        <div>
+          <span class="block text-[10px] font-semibold uppercase text-fb-text-muted"
+            >Kapitalrendite</span
+          ><strong class="text-sm text-emerald-400">
+            @if (liveMetrics().roi === null) {
+              –
+            } @else {
+              {{ liveMetrics().roi }} %
+            }
+          </strong>
+          <p class="mt-1 text-[10px] text-fb-text-muted" id="capital-return-help">
+            Gewinn ÷ eingesetztes Kapital × 100
+          </p>
         </div>
       </section>
       <section>
@@ -81,7 +112,7 @@
             <button
               type="button"
               (click)="addLine()"
-              class="inline-flex items-center gap-1 rounded-lg border border-indigo-500/35 px-2 py-1 text-[11px] font-semibold text-indigo-300 hover:bg-indigo-500/15"
+              class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-indigo-500/35 px-2 py-1 text-[11px] font-semibold text-indigo-300 hover:bg-indigo-500/15"
             >
               <svg [lucideIcon]="plusIcon" class="h-3 w-3"></svg>Position
             </button>
@@ -137,7 +168,7 @@
                   type="button"
                   (click)="removeLine(index)"
                   [disabled]="lines.length === 1 || !!legacyReconciliation()"
-                  class="self-end rounded-lg p-2 text-fb-text-muted hover:bg-rose-500/15 hover:text-rose-300 disabled:opacity-30"
+                  class="self-end cursor-pointer rounded-lg p-2 text-fb-text-muted hover:bg-rose-500/15 hover:text-rose-300 disabled:cursor-not-allowed disabled:opacity-30"
                   aria-label="Position entfernen"
                 >
                   <svg [lucideIcon]="closeIcon" class="h-4 w-4"></svg>
@@ -152,86 +183,336 @@
           }
         </div>
       </section>
-      <section class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div>
-          <span class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
-            >Plattform</span
-          ><app-custom-select
-            ariaLabel="Verkaufsplattform"
-            [options]="plattformOptionen"
-            formControlName="platform"
-            size="sm"
-          />
+      <section
+        aria-labelledby="einnahmen-heading"
+        class="rounded-xl border border-fb-line bg-fb-well/50 p-3"
+      >
+        <h3
+          id="einnahmen-heading"
+          class="text-xs font-bold uppercase tracking-wide text-fb-text-secondary"
+        >
+          Einnahmen
+        </h3>
+        <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <span class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
+              >Plattform</span
+            >
+            <app-custom-select
+              ariaLabel="Verkaufsplattform"
+              [options]="plattformOptionen"
+              formControlName="platform"
+              size="sm"
+            />
+          </div>
+          <div>
+            <span class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
+              >Verkaufsdatum</span
+            >
+            <app-date-picker feldId="sale-date" formControlName="saleDate" />
+          </div>
+          <div>
+            <span class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
+              >Versandabwicklung</span
+            >
+            <app-custom-select
+              ariaLabel="Versandabwicklung"
+              [options]="versandAuswahl()"
+              formControlName="shippingMode"
+              size="sm"
+            />
+          </div>
+          <div>
+            <label
+              for="shipping-revenue"
+              class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
+            >
+              Versand vom Käufer erhalten (€)
+            </label>
+            <input
+              id="shipping-revenue"
+              type="number"
+              min="0"
+              step="0.01"
+              formControlName="shippingRevenue"
+              [attr.aria-invalid]="
+                form.controls.shippingRevenue.touched && form.controls.shippingRevenue.invalid
+                  ? 'true'
+                  : null
+              "
+              [attr.aria-describedby]="
+                'shipping-revenue-help' +
+                (form.controls.shippingRevenue.touched &&
+                form.controls.shippingRevenue.hasError('min')
+                  ? ' shipping-revenue-error'
+                  : '')
+              "
+              class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <p id="shipping-revenue-help" class="mt-1 text-[10px] text-fb-text-muted">
+              Erhöht den Verkaufserlös.
+            </p>
+            @if (
+              form.controls.shippingRevenue.touched && form.controls.shippingRevenue.hasError('min')
+            ) {
+              <p id="shipping-revenue-error" role="alert" class="mt-1 text-[10px] text-rose-300">
+                Der Versand-Erlös darf nicht negativ sein.
+              </p>
+            }
+          </div>
         </div>
-        <div>
-          <span class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
-            >Verkaufsdatum</span
-          ><app-date-picker feldId="sale-date" formControlName="saleDate" />
-        </div>
-        <div>
-          <label
-            for="platform-fee"
-            class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
-            >Plattformgebühr (€)</label
-          ><input
-            id="platform-fee"
-            type="number"
-            min="0"
-            step="0.01"
-            formControlName="platformFee"
-            class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono"
-          />
+        <p class="mt-3 text-xs text-fb-text-secondary">
+          Brutto-Verkaufserlös:
+          <strong class="font-mono text-emerald-400">{{
+            grossRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+          }}</strong>
+        </p>
+      </section>
+      <section
+        aria-labelledby="verkaufskosten-heading"
+        class="rounded-xl border border-fb-line bg-fb-well/50 p-3"
+      >
+        <h3
+          id="verkaufskosten-heading"
+          class="text-xs font-bold uppercase tracking-wide text-fb-text-secondary"
+        >
+          Verkaufskosten
+        </h3>
+        <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <label
+              for="platform-fee"
+              class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
+            >
+              Plattformgebühr (€)
+            </label>
+            <input
+              id="platform-fee"
+              type="number"
+              min="0"
+              step="0.01"
+              formControlName="platformFee"
+              [attr.aria-invalid]="
+                form.controls.platformFee.touched && form.controls.platformFee.invalid
+                  ? 'true'
+                  : null
+              "
+              [attr.aria-describedby]="
+                form.controls.platformFee.touched && form.controls.platformFee.hasError('min')
+                  ? 'platform-fee-error'
+                  : null
+              "
+              class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono"
+            />
+            @if (form.controls.platformFee.touched && form.controls.platformFee.hasError('min')) {
+              <p id="platform-fee-error" role="alert" class="mt-1 text-[10px] text-rose-300">
+                Die Plattformgebühr darf nicht negativ sein.
+              </p>
+            }
+          </div>
+          <div>
+            <label
+              for="shipping-cost"
+              class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
+            >
+              Tatsächliche Versandkosten (€)
+            </label>
+            <input
+              id="shipping-cost"
+              type="number"
+              min="0"
+              step="0.01"
+              formControlName="shippingCost"
+              [attr.aria-invalid]="
+                form.controls.shippingCost.touched && form.controls.shippingCost.invalid
+                  ? 'true'
+                  : null
+              "
+              [attr.aria-describedby]="
+                'shipping-cost-help' +
+                (form.controls.shippingCost.touched && form.controls.shippingCost.hasError('min')
+                  ? ' shipping-cost-error'
+                  : '')
+              "
+              class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <p id="shipping-cost-help" class="mt-1 text-[10px] text-fb-text-muted">
+              Aufwand für Porto oder Versandetikett.
+            </p>
+            @if (form.controls.shippingCost.touched && form.controls.shippingCost.hasError('min')) {
+              <p id="shipping-cost-error" role="alert" class="mt-1 text-[10px] text-rose-300">
+                Die tatsächlichen Versandkosten dürfen nicht negativ sein.
+              </p>
+            }
+          </div>
         </div>
       </section>
-      <details class="rounded-xl border border-fb-line bg-fb-well/50 p-3">
-        <summary class="cursor-pointer text-xs font-semibold text-fb-text-secondary">
-          Weitere Kosten und Notiz
-        </summary>
-        <div class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <input
-            aria-label="Versandkosten"
-            type="number"
-            min="0"
-            step="0.01"
-            formControlName="shippingCost"
-            placeholder="Versandkosten (€)"
-            class="linear-input rounded-lg px-2.5 py-1.5 text-xs font-mono"
-          /><input
-            aria-label="Verpackungskosten"
-            type="number"
-            min="0"
-            step="0.01"
-            formControlName="packagingCost"
-            placeholder="Verpackung (€)"
-            class="linear-input rounded-lg px-2.5 py-1.5 text-xs font-mono"
-          /><input
-            aria-label="Weitere Kosten"
-            type="number"
-            min="0"
-            step="0.01"
-            formControlName="otherCosts"
-            placeholder="Weitere Kosten (€)"
-            class="linear-input rounded-lg px-2.5 py-1.5 text-xs font-mono"
-          />
+      <section
+        aria-labelledby="additional-costs-heading"
+        class="rounded-xl border border-fb-line bg-fb-well/50 p-3"
+      >
+        <div class="flex items-center justify-between gap-3">
+          <h3
+            id="additional-costs-heading"
+            class="text-xs font-bold uppercase tracking-wide text-fb-text-secondary"
+          >
+            Zusätzliche Kosten
+          </h3>
+          <button
+            type="button"
+            (click)="addAdditionalCost()"
+            class="inline-flex cursor-pointer items-center gap-1 rounded-lg border border-indigo-500/35 px-2 py-1 text-[11px] font-semibold text-indigo-300 hover:bg-indigo-500/15"
+          >
+            <svg [lucideIcon]="plusIcon" class="h-3 w-3"></svg>Kosten hinzufügen
+          </button>
         </div>
+        <div formArrayName="additionalCosts" class="mt-3 space-y-3">
+          @for (cost of additionalCosts.controls; track $index; let index = $index) {
+            <div
+              [formGroupName]="index"
+              class="grid grid-cols-1 gap-3 rounded-lg border border-fb-line p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_8rem_auto]"
+            >
+              <div>
+                <span class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
+                  >Kategorie</span
+                >
+                <app-custom-select
+                  [ariaLabel]="'Kategorie für zusätzliche Kosten ' + (index + 1)"
+                  [options]="kostenKategorieOptionen"
+                  formControlName="category"
+                  size="sm"
+                />
+              </div>
+              <div>
+                <label
+                  [for]="'cost-description-' + index"
+                  class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
+                  >{{
+                    cost.controls.category.value === 'other'
+                      ? 'Beschreibung'
+                      : 'Beschreibung (optional)'
+                  }}</label
+                >
+                <input
+                  [id]="'cost-description-' + index"
+                  type="text"
+                  formControlName="description"
+                  [attr.aria-required]="cost.controls.category.value === 'other'"
+                  [attr.aria-invalid]="
+                    cost.controls.category.value === 'other' &&
+                    cost.controls.description.touched &&
+                    cost.hasError('otherCostDescriptionRequired')
+                  "
+                  [attr.aria-describedby]="
+                    cost.controls.category.value === 'other'
+                      ? 'cost-description-help-' +
+                        index +
+                        (cost.controls.description.touched &&
+                        cost.hasError('otherCostDescriptionRequired')
+                          ? ' cost-description-error-' + index
+                          : '')
+                      : null
+                  "
+                  class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs"
+                />
+                @if (cost.controls.category.value === 'other') {
+                  <p
+                    [id]="'cost-description-help-' + index"
+                    class="mt-1 text-[10px] text-fb-text-muted"
+                  >
+                    Für sonstige Kosten ist eine Beschreibung erforderlich.
+                  </p>
+                  @if (
+                    cost.controls.description.touched &&
+                    cost.hasError('otherCostDescriptionRequired')
+                  ) {
+                    <p
+                      [id]="'cost-description-error-' + index"
+                      role="alert"
+                      class="mt-1 text-[10px] text-rose-300"
+                    >
+                      Bitte beschreiben Sie diese sonstigen Kosten.
+                    </p>
+                  }
+                }
+              </div>
+              <div>
+                <label
+                  [for]="'cost-amount-' + index"
+                  class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
+                  >Betrag (€)</label
+                >
+                <input
+                  [id]="'cost-amount-' + index"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  formControlName="amount"
+                  [attr.aria-invalid]="
+                    cost.controls.amount.touched && cost.controls.amount.invalid ? 'true' : null
+                  "
+                  [attr.aria-describedby]="
+                    cost.controls.amount.touched && cost.controls.amount.hasError('min')
+                      ? 'cost-amount-error-' + index
+                      : null
+                  "
+                  class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono"
+                />
+                @if (cost.controls.amount.touched && cost.controls.amount.hasError('min')) {
+                  <p
+                    [id]="'cost-amount-error-' + index"
+                    role="alert"
+                    class="mt-1 text-[10px] text-rose-300"
+                  >
+                    Der Betrag darf nicht negativ sein.
+                  </p>
+                }
+              </div>
+              <button
+                type="button"
+                (click)="removeAdditionalCost(index)"
+                class="self-end cursor-pointer rounded-lg p-2 text-fb-text-muted hover:bg-rose-500/15 hover:text-rose-300 disabled:cursor-not-allowed"
+                [attr.aria-label]="'Zusätzliche Kosten ' + (index + 1) + ' entfernen'"
+              >
+                <svg [lucideIcon]="closeIcon" class="h-4 w-4"></svg>
+              </button>
+            </div>
+          }
+        </div>
+      </section>
+      <section
+        aria-labelledby="notiz-heading"
+        class="rounded-xl border border-fb-line bg-fb-well/50 p-3"
+      >
+        <h3
+          id="notiz-heading"
+          class="text-xs font-bold uppercase tracking-wide text-fb-text-secondary"
+        >
+          Notiz
+        </h3>
+        <label
+          for="buyer-notes"
+          class="mt-3 block text-[10px] font-semibold uppercase text-fb-text-muted"
+          >Notiz zum Verkauf (optional)</label
+        >
         <input
+          id="buyer-notes"
           type="text"
           formControlName="buyerNotes"
-          placeholder="Notiz zum Verkauf (optional)"
-          class="linear-input mt-3 w-full rounded-lg px-2.5 py-1.5 text-xs"
+          class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
         />
-      </details>
+      </section>
       <footer class="flex justify-end gap-2 border-t border-fb-line pt-4">
         <button
           type="button"
           (click)="closed.emit()"
-          class="linear-btn-secondary rounded-lg px-4 py-1.5 text-xs font-semibold"
+          class="linear-btn-secondary cursor-pointer rounded-lg px-4 py-1.5 text-xs font-semibold"
         >
           Abbrechen</button
         ><button
           type="submit"
-          [disabled]="form.invalid || isSubmitting()"
-          class="linear-btn-primary inline-flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold disabled:opacity-40"
+          [disabled]="isSubmitting() || isPersisted()"
+          class="linear-btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
         >
           <svg [lucideIcon]="trendingIcon" class="h-3.5 w-3.5"></svg>{{ absendeBeschriftung() }}
         </button>

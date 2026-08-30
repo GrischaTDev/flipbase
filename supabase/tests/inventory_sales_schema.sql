@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(5);
+select plan(6);
 
 do $$
 declare
@@ -86,9 +86,54 @@ select pass('sale_lines besitzt alle benötigten Spalten');
 
 do $$
 declare
+  required_sales_columns text[] := array['shipping_revenue', 'shipping_mode'];
+  missing_sales_columns text[];
+begin
+  select array_agg(required.column_name order by required.column_name)
+  into missing_sales_columns
+  from unnest(required_sales_columns) as required(column_name)
+  where not exists (
+    select 1
+    from information_schema.columns as column_info
+    where column_info.table_schema = 'public'
+      and column_info.table_name = 'sales'
+      and column_info.column_name = required.column_name
+  );
+
+  if missing_sales_columns is not null then
+    raise exception 'sales is missing required shipping columns: %', missing_sales_columns;
+  end if;
+
+  if not exists (
+    select 1
+    from information_schema.tables
+    where table_schema = 'public'
+      and table_name = 'sale_cost_entries'
+  ) then
+    raise exception 'sale_cost_entries table is missing';
+  end if;
+
+  if not exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'public.sales'::regclass
+      and lower(pg_get_constraintdef(oid)) like '%shipping_mode%'
+      and lower(pg_get_constraintdef(oid)) like '%seller_arranged%'
+      and lower(pg_get_constraintdef(oid)) like '%platform_prepaid%'
+      and lower(pg_get_constraintdef(oid)) like '%pickup%'
+  ) then
+    raise exception 'sales must restrict shipping_mode to the supported values';
+  end if;
+end;
+$$;
+
+select pass('Verkäufe speichern Versand-Erlös und strukturierte Kosten fachlich getrennt');
+
+do $$
+declare
   table_name text;
 begin
-  foreach table_name in array array['catalog_products', 'purchase_lines', 'stock_lots', 'stock_movements', 'sale_lines', 'sale_line_lot_allocations'] loop
+  foreach table_name in array array['catalog_products', 'purchase_lines', 'stock_lots', 'stock_movements', 'sale_lines', 'sale_line_lot_allocations', 'sale_cost_entries'] loop
     if not exists (
       select 1 from pg_class as relation
       join pg_namespace as schema on schema.oid = relation.relnamespace
@@ -105,6 +150,17 @@ begin
       and cmd in ('UPDATE', 'DELETE')
   ) then
     raise exception 'movement and allocation history must not have update or delete policies';
+  end if;
+
+  if (
+    select count(*)
+    from pg_policies
+    where schemaname = 'public'
+      and tablename = 'sale_cost_entries'
+      and roles = array['authenticated'::name]
+      and cmd in ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
+  ) <> 4 then
+    raise exception 'sale_cost_entries must define one authenticated policy per operation';
   end if;
 
   if exists (

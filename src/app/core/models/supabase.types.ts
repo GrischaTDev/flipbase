@@ -1437,6 +1437,58 @@ export type Database = {
           },
         ]
       }
+      sale_cost_entries: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          sale_id: string
+          workspace_id: string
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          sale_id: string
+          workspace_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          sale_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_cost_entries_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_cost_entries_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_cost_entries_workspace_sale_fkey"
+            columns: ["workspace_id", "sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       sale_line_lot_allocations: {
         Row: {
           allocated_cost: number
@@ -1633,6 +1685,8 @@ export type Database = {
           sale_price: number
           sale_price_total: number | null
           shipping_cost: number
+          shipping_mode: string | null
+          shipping_revenue: number
           void_reason: string | null
           voided_at: string | null
           voided_by: string | null
@@ -1655,6 +1709,8 @@ export type Database = {
           sale_price?: number
           sale_price_total?: number | null
           shipping_cost?: number
+          shipping_mode?: string | null
+          shipping_revenue?: number
           void_reason?: string | null
           voided_at?: string | null
           voided_by?: string | null
@@ -1677,6 +1733,8 @@ export type Database = {
           sale_price?: number
           sale_price_total?: number | null
           shipping_cost?: number
+          shipping_mode?: string | null
+          shipping_revenue?: number
           void_reason?: string | null
           voided_at?: string | null
           voided_by?: string | null

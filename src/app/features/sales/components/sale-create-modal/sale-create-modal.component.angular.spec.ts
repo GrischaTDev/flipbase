@@ -80,7 +80,11 @@ describe('SaleCreateModalComponent', () => {
         salesService,
         inventoryService: { items: signal([artikel]) },
         stockService: { positions: signal([position]) },
-        profitEngine: { calculateProfit: vi.fn(() => 30), calculateRoi: vi.fn(() => 150) },
+        profitEngine: {
+          calculateProfit: vi.fn(() => 30),
+          calculateMargin: vi.fn(() => 60),
+          calculateRoi: vi.fn(() => 150),
+        },
         toast,
         syncStatus,
         sale: signal(bestehenderVerkauf),
@@ -119,13 +123,21 @@ describe('SaleCreateModalComponent', () => {
           }),
           platformFee: new FormControl(0, { nonNullable: true }),
           shippingCost: new FormControl(0, { nonNullable: true }),
+          shippingRevenue: new FormControl(0, { nonNullable: true }),
+          shippingMode: new FormControl('seller_arranged', { nonNullable: true }),
+          additionalCosts: new FormArray([]),
           packagingCost: new FormControl(0, { nonNullable: true }),
           otherCosts: new FormControl(0, { nonNullable: true }),
           externalOrderId: new FormControl('', { nonNullable: true }),
           buyerNotes: new FormControl('', { nonNullable: true }),
         }),
       });
-      Object.assign(komponente, { lines: komponente.form.controls.lines });
+      Object.assign(komponente, {
+        lines: komponente.form.controls.lines,
+        additionalCosts: komponente.form.controls.additionalCosts,
+        grossRevenue: () =>
+          komponente.totalPrice() + komponente.form.controls.shippingRevenue.value,
+      });
       if (bestehenderVerkauf) {
         komponente.lines.at(0).controls.target.setValue(`inventory:${artikel.id}`);
         komponente.lines.at(0).controls.quantity.setValue(1);
@@ -173,7 +185,11 @@ describe('SaleCreateModalComponent', () => {
             { provide: StockService, useValue: { positions: signal([]) } },
             {
               provide: ProfitEngineService,
-              useValue: { calculateProfit: vi.fn(() => 0), calculateRoi: vi.fn(() => 0) },
+              useValue: {
+                calculateProfit: vi.fn(() => 0),
+                calculateMargin: vi.fn(() => 0),
+                calculateRoi: vi.fn(() => 0),
+              },
             },
             { provide: ToastService, useValue: new ToastService() },
             { provide: SyncStatusService, useValue: new SyncStatusService() },
@@ -200,9 +216,12 @@ describe('SaleCreateModalComponent', () => {
             {
               provide: ProfitEngineService,
               useValue: {
-                calculateProfit: (revenue: number, costs: number) => revenue - costs,
+                calculateProfit: (revenue: number, costs: number) =>
+                  Number((revenue - costs).toFixed(2)),
+                calculateMargin: (profit: number, revenue: number) =>
+                  revenue === 0 ? null : Number(((profit / revenue) * 100).toFixed(2)),
                 calculateRoi: (profit: number, costs: number) =>
-                  costs === 0 ? 0 : (profit / costs) * 100,
+                  costs === 0 ? null : Number(((profit / costs) * 100).toFixed(2)),
               },
             },
             { provide: ToastService, useValue: new ToastService() },
@@ -230,6 +249,225 @@ describe('SaleCreateModalComponent', () => {
           ).legacyUpdatePayload().sale_price,
         ).toBe(65);
         TestBed.resetTestingModule();
+      });
+
+      it('setzt Versandvorgaben nur beim Plattformwechsel und bewahrt den vollständigen Verkaufspayload', () => {
+        TestBed.configureTestingModule({
+          providers: [
+            { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
+            { provide: InventoryService, useValue: { items: signal([artikel]) } },
+            { provide: StockService, useValue: { positions: signal([position]) } },
+            {
+              provide: ProfitEngineService,
+              useValue: {
+                calculateProfit: (revenue: number, costs: number) =>
+                  Number((revenue - costs).toFixed(2)),
+                calculateMargin: (profit: number, revenue: number) =>
+                  revenue === 0 ? null : Number(((profit / revenue) * 100).toFixed(2)),
+                calculateRoi: (profit: number, costs: number) =>
+                  costs === 0 ? null : Number(((profit / costs) * 100).toFixed(2)),
+              },
+            },
+            { provide: ToastService, useValue: new ToastService() },
+            { provide: SyncStatusService, useValue: new SyncStatusService() },
+          ],
+        });
+        try {
+          const component = TestBed.runInInjectionContext(() => new SaleCreateModalComponent());
+          const shippingMode = component.form.get('shippingMode');
+          const shippingRevenue = component.form.get('shippingRevenue');
+          const additionalCosts = component.form.get('additionalCosts') as FormArray;
+          const line = component.lines.at(0);
+          line.controls.target.setValue(`catalog:${ledLampId}`);
+          line.controls.unitSalePrice.setValue(39.99);
+
+          component.form.controls.platform.setValue('ebay');
+          expect(shippingMode?.value).toBe('seller_arranged');
+          shippingRevenue?.setValue(2.99);
+          component.form.controls.shippingCost.setValue(5.19);
+          component.form.controls.platformFee.setValue(7.7);
+          (component as unknown as { addAdditionalCost(): void }).addAdditionalCost();
+          expect(additionalCosts.length).toBe(1);
+          (
+            component as unknown as { removeAdditionalCost(index: number): void }
+          ).removeAdditionalCost(0);
+          expect(additionalCosts.length).toBe(0);
+          (component as unknown as { addAdditionalCost(): void }).addAdditionalCost();
+          additionalCosts
+            .at(0)
+            .setValue({ category: 'other', description: 'Verkaufsförderung', amount: 1 });
+
+          component.form.controls.platform.setValue('vinted');
+          expect(shippingMode?.value).toBe('platform_prepaid');
+          expect(shippingRevenue?.value).toBe(0);
+          expect(component.form.controls.shippingCost.value).toBe(0);
+
+          shippingMode?.setValue('seller_arranged');
+          shippingRevenue?.setValue(2.99);
+          component.form.controls.shippingCost.setValue(5.19);
+          component.form.controls.platform.setValue('ebay');
+          expect(shippingMode?.value).toBe('seller_arranged');
+          expect(shippingRevenue?.value).toBe(2.99);
+
+          expect((component as unknown as { grossRevenue(): number }).grossRevenue()).toBe(42.98);
+          expect(component.liveMetrics()).toMatchObject({ profit: 25.09, margin: 58.38 });
+          const payload = (
+            component as unknown as { recordSalePayload(): RecordSaleInput }
+          ).recordSalePayload();
+          expect(payload).toMatchObject({
+            shippingRevenue: 2.99,
+            shippingMode: 'seller_arranged',
+            additionalCosts: [{ category: 'other', description: 'Verkaufsförderung', amount: 1 }],
+          });
+        } finally {
+          TestBed.resetTestingModule();
+        }
+      });
+
+      it('bewahrt unbekannten Legacy-Versand für Vinted und Kleinanzeigen unverändert und editierbar', () => {
+        TestBed.configureTestingModule({
+          providers: [
+            { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
+            { provide: InventoryService, useValue: { items: signal([artikel]) } },
+            { provide: StockService, useValue: { positions: signal([position]) } },
+            {
+              provide: ProfitEngineService,
+              useValue: {
+                calculateProfit: (revenue: number, costs: number) => revenue - costs,
+                calculateMargin: () => null,
+                calculateRoi: () => null,
+              },
+            },
+            { provide: ToastService, useValue: new ToastService() },
+            { provide: SyncStatusService, useValue: new SyncStatusService() },
+          ],
+        });
+        try {
+          const component = TestBed.runInInjectionContext(() => new SaleCreateModalComponent());
+          const fillExistingSale = component as unknown as { fillExistingSale(sale: Sale): void };
+          for (const platform of ['vinted', 'kleinanzeigen'] as const) {
+            fillExistingSale.fillExistingSale({
+              ...verkauf,
+              platform,
+              shipping_cost: 5.19,
+              shipping_revenue: 2.99,
+              shipping_mode: null,
+            });
+            expect(component.form.controls.shippingMode.value).toBe('unknown');
+            expect(component.form.controls.shippingCost.value).toBe(5.19);
+            expect(component.form.controls.shippingRevenue.value).toBe(2.99);
+            expect(component.form.controls.shippingCost.disabled).toBe(false);
+            expect(component.form.controls.shippingRevenue.disabled).toBe(false);
+            expect(
+              (component as unknown as { recordSalePayload(): RecordSaleInput }).recordSalePayload()
+                .shippingMode,
+            ).toBeUndefined();
+          }
+        } finally {
+          TestBed.resetTestingModule();
+        }
+      });
+
+      it('übernimmt strukturierte Zusatzkosten eines bestehenden Verkaufs in Kennzahlen und Summen', () => {
+        TestBed.configureTestingModule({
+          providers: [
+            { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
+            { provide: InventoryService, useValue: { items: signal([artikel]) } },
+            { provide: StockService, useValue: { positions: signal([position]) } },
+            {
+              provide: ProfitEngineService,
+              useValue: {
+                calculateProfit: (revenue: number, costs: number) => revenue - costs,
+                calculateMargin: () => null,
+                calculateRoi: () => null,
+              },
+            },
+            { provide: ToastService, useValue: new ToastService() },
+            { provide: SyncStatusService, useValue: new SyncStatusService() },
+          ],
+        });
+        try {
+          const component = TestBed.runInInjectionContext(() => new SaleCreateModalComponent());
+          (component as unknown as { fillExistingSale(sale: Sale): void }).fillExistingSale({
+            ...verkauf,
+            cost_entries: [
+              {
+                id: 'cost-1',
+                workspace_id: 'workspace-1',
+                sale_id: verkauf.id,
+                category: 'packaging',
+                description: 'Karton',
+                amount: 2.5,
+              },
+              {
+                id: 'cost-2',
+                workspace_id: 'workspace-1',
+                sale_id: verkauf.id,
+                category: 'promotion',
+                description: 'Anzeige',
+                amount: 1.2,
+              },
+            ],
+          });
+
+          expect(component.additionalCosts.getRawValue()).toEqual([
+            { category: 'packaging', description: 'Karton', amount: 2.5 },
+            { category: 'promotion', description: 'Anzeige', amount: 1.2 },
+          ]);
+          expect(component.liveMetrics().sellingCosts).toBe(3.7);
+          expect(
+            (
+              component as unknown as {
+                legacyUpdatePayload(): { packaging_cost: number; other_costs: number };
+              }
+            ).legacyUpdatePayload(),
+          ).toMatchObject({ packaging_cost: 2.5, other_costs: 1.2 });
+        } finally {
+          TestBed.resetTestingModule();
+        }
+      });
+
+      it('synthetisiert aggregierte Legacy-Zusatzkosten, wenn Kostenzeilen fehlen', () => {
+        TestBed.configureTestingModule({
+          providers: [
+            { provide: SalesService, useValue: { recordSale: vi.fn(), updateSale: vi.fn() } },
+            { provide: InventoryService, useValue: { items: signal([artikel]) } },
+            { provide: StockService, useValue: { positions: signal([position]) } },
+            {
+              provide: ProfitEngineService,
+              useValue: {
+                calculateProfit: (revenue: number, costs: number) => revenue - costs,
+                calculateMargin: () => null,
+                calculateRoi: () => null,
+              },
+            },
+            { provide: ToastService, useValue: new ToastService() },
+            { provide: SyncStatusService, useValue: new SyncStatusService() },
+          ],
+        });
+        try {
+          const component = TestBed.runInInjectionContext(() => new SaleCreateModalComponent());
+          (component as unknown as { fillExistingSale(sale: Sale): void }).fillExistingSale({
+            ...verkauf,
+            packaging_cost: 3,
+            other_costs: 4,
+          });
+
+          expect(component.additionalCosts.getRawValue()).toEqual([
+            { category: 'packaging', description: '', amount: 3 },
+            { category: 'other', description: 'Übernommene Altdaten-Kosten', amount: 4 },
+          ]);
+          expect(component.liveMetrics().sellingCosts).toBe(7);
+          expect(
+            (
+              component as unknown as {
+                legacyUpdatePayload(): { packaging_cost: number; other_costs: number };
+              }
+            ).legacyUpdatePayload(),
+          ).toMatchObject({ packaging_cost: 3, other_costs: 4 });
+        } finally {
+          TestBed.resetTestingModule();
+        }
       });
 
       it('übergibt einen Mengenverkauf mit Plattform und Datum an den atomaren Adapter', async () => {
@@ -455,6 +693,37 @@ describe('SaleCreateModalComponent', () => {
       }
     });
 
+    async function erstelleGerendertenDialog() {
+      const salesService = {
+        recordSale: vi.fn(async () => ({ data: null, error: null })),
+        recordLegacySale: vi.fn(async () => ({ data: null, error: null })),
+        updateSale: vi.fn(async () => ({ data: null, error: null })),
+      };
+      TestBed.configureTestingModule({
+        imports: [SaleCreateModalComponent],
+        providers: [
+          { provide: SalesService, useValue: salesService },
+          { provide: InventoryService, useValue: { items: signal([]) } },
+          { provide: StockService, useValue: { positions: signal([]) } },
+          {
+            provide: ProfitEngineService,
+            useValue: {
+              calculateProfit: () => 0,
+              calculateMargin: () => null,
+              calculateRoi: () => null,
+            },
+          },
+          { provide: ToastService, useValue: new ToastService() },
+          { provide: SyncStatusService, useValue: new SyncStatusService() },
+        ],
+      });
+      await TestBed.compileComponents();
+      const fixture = TestBed.createComponent(SaleCreateModalComponent);
+      fixture.componentInstance.form.controls.shippingMode.setValue('seller_arranged');
+      fixture.detectChanges();
+      return { fixture, salesService };
+    }
+
     describe('SaleCreateModalComponent – historische Verkaufskorrektur', () => {
       it('zeigt den automatischen Protokollhinweis ohne manuelles Grundfeld', async () => {
         TestBed.configureTestingModule({
@@ -468,7 +737,11 @@ describe('SaleCreateModalComponent', () => {
             { provide: StockService, useValue: { positions: signal([]) } },
             {
               provide: ProfitEngineService,
-              useValue: { calculateProfit: () => 0, calculateRoi: () => 0 },
+              useValue: {
+                calculateProfit: () => 0,
+                calculateMargin: () => null,
+                calculateRoi: () => null,
+              },
             },
             { provide: ToastService, useValue: new ToastService() },
             { provide: SyncStatusService, useValue: new SyncStatusService() },
@@ -503,6 +776,149 @@ describe('SaleCreateModalComponent', () => {
         expect(host.textContent).not.toContain('Dokumentierter Grund');
         expect(host.textContent).not.toContain('Legacy');
         expect(host.querySelector('#reconciliation-reason')).toBeNull();
+      });
+
+      it('zeigt dauerhaft beschriftete Einnahmen, Kosten, Notiz und verständliche Kennzahlen', async () => {
+        TestBed.configureTestingModule({
+          imports: [SaleCreateModalComponent],
+          providers: [
+            {
+              provide: SalesService,
+              useValue: { recordSale: vi.fn(), recordLegacySale: vi.fn(), updateSale: vi.fn() },
+            },
+            { provide: InventoryService, useValue: { items: signal([]) } },
+            { provide: StockService, useValue: { positions: signal([]) } },
+            {
+              provide: ProfitEngineService,
+              useValue: {
+                calculateProfit: () => 0,
+                calculateMargin: () => null,
+                calculateRoi: () => null,
+              },
+            },
+            { provide: ToastService, useValue: new ToastService() },
+            { provide: SyncStatusService, useValue: new SyncStatusService() },
+          ],
+        });
+        await TestBed.compileComponents();
+        const fixture = TestBed.createComponent(SaleCreateModalComponent);
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        expect(host.textContent).toContain('Einnahmen');
+        expect(host.textContent).toContain('Verkaufskosten');
+        expect(host.textContent).toContain('Zusätzliche Kosten');
+        expect(host.textContent).toContain('Notiz');
+        expect(host.textContent).toContain('Kapitalrendite');
+        expect(host.textContent).toContain('Gewinn ÷ eingesetztes Kapital × 100');
+        expect(host.textContent).toContain('Gewinnmarge');
+        expect(host.textContent).toContain('–');
+        expect(host.querySelector('details')).toBeNull();
+        expect(host.querySelector('label[for="shipping-revenue"]')).not.toBeNull();
+        expect(host.querySelector('label[for="shipping-cost"]')).not.toBeNull();
+        fixture.componentInstance.form.controls.shippingMode.setValue('seller_arranged');
+        fixture.detectChanges();
+        expect((host.querySelector('#shipping-revenue') as HTMLInputElement).disabled).toBe(false);
+        expect((host.querySelector('#shipping-cost') as HTMLInputElement).disabled).toBe(false);
+        fixture.componentInstance.form.controls.shippingMode.setValue('pickup');
+        fixture.detectChanges();
+        expect((host.querySelector('#shipping-revenue') as HTMLInputElement).disabled).toBe(true);
+        expect((host.querySelector('#shipping-cost') as HTMLInputElement).disabled).toBe(true);
+      });
+
+      it('kennzeichnet die fehlende Beschreibung für sonstige Kosten nach Berührung zugänglich', async () => {
+        TestBed.configureTestingModule({
+          imports: [SaleCreateModalComponent],
+          providers: [
+            {
+              provide: SalesService,
+              useValue: { recordSale: vi.fn(), recordLegacySale: vi.fn(), updateSale: vi.fn() },
+            },
+            { provide: InventoryService, useValue: { items: signal([]) } },
+            { provide: StockService, useValue: { positions: signal([]) } },
+            {
+              provide: ProfitEngineService,
+              useValue: {
+                calculateProfit: () => 0,
+                calculateMargin: () => null,
+                calculateRoi: () => null,
+              },
+            },
+            { provide: ToastService, useValue: new ToastService() },
+            { provide: SyncStatusService, useValue: new SyncStatusService() },
+          ],
+        });
+        await TestBed.compileComponents();
+        const fixture = TestBed.createComponent(SaleCreateModalComponent);
+        fixture.componentInstance.addAdditionalCost();
+        const cost = fixture.componentInstance.additionalCosts.at(0);
+        cost.controls.category.setValue('other');
+        cost.controls.description.markAsTouched();
+        fixture.detectChanges();
+
+        const description = fixture.nativeElement.querySelector(
+          '#cost-description-0',
+        ) as HTMLInputElement;
+        expect(description.getAttribute('aria-required')).toBe('true');
+        expect(description.getAttribute('aria-invalid')).toBe('true');
+        expect(description.getAttribute('aria-describedby')).toContain('cost-description-error-0');
+        expect(fixture.nativeElement.textContent).toContain(
+          'Bitte beschreiben Sie diese sonstigen Kosten.',
+        );
+      });
+
+      it('kennzeichnet negative Geldbeträge sichtbar und mit den zugehörigen ARIA-Fehlern', async () => {
+        const { fixture } = await erstelleGerendertenDialog();
+        const component = fixture.componentInstance;
+        component.addAdditionalCost();
+        component.form.controls.shippingRevenue.setValue(-1);
+        component.form.controls.platformFee.setValue(-2);
+        component.form.controls.shippingCost.setValue(-3);
+        component.additionalCosts.at(0).controls.amount.setValue(-4);
+        component.form.markAllAsTouched();
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const assertions = [
+          ['#shipping-revenue', 'shipping-revenue-error'],
+          ['#platform-fee', 'platform-fee-error'],
+          ['#shipping-cost', 'shipping-cost-error'],
+          ['#cost-amount-0', 'cost-amount-error-0'],
+        ] as const;
+        for (const [selector, errorId] of assertions) {
+          const input = host.querySelector(selector) as HTMLInputElement;
+          expect(input.getAttribute('aria-invalid')).toBe('true');
+          expect(input.getAttribute('aria-describedby')).toContain(errorId);
+        }
+        expect(host.textContent).toContain('Der Versand-Erlös darf nicht negativ sein.');
+        expect(host.textContent).toContain('Die Plattformgebühr darf nicht negativ sein.');
+        expect(host.textContent).toContain(
+          'Die tatsächlichen Versandkosten dürfen nicht negativ sein.',
+        );
+        expect(host.textContent).toContain('Der Betrag darf nicht negativ sein.');
+      });
+
+      it('lässt invalides Absenden zu, markiert alle Felder und fokussiert das erste fehlerhafte Feld', async () => {
+        const { fixture, salesService } = await erstelleGerendertenDialog();
+        const component = fixture.componentInstance;
+        component.lines.at(0).controls.target.setValue('catalog:test-product');
+        component.lines.at(0).controls.unitSalePrice.setValue(1);
+        component.form.controls.shippingRevenue.setValue(-1);
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const submitButton = host.querySelector('button[type="submit"]') as HTMLButtonElement;
+        expect(submitButton.disabled).toBe(false);
+
+        await component.onSubmit();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const shippingRevenue = host.querySelector('#shipping-revenue') as HTMLInputElement;
+        expect(component.form.controls.shippingRevenue.touched).toBe(true);
+        expect(shippingRevenue.getAttribute('aria-invalid')).toBe('true');
+        expect(document.activeElement).toBe(shippingRevenue);
+        expect(salesService.recordSale).not.toHaveBeenCalled();
       });
     });
   });

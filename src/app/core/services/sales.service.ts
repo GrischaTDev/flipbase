@@ -6,7 +6,15 @@ import { InventoryService } from './inventory.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { WebhookService } from './webhook.service';
 import { SyncStatusService } from './sync-status.service';
-import { Sale, SaleLine, SaleLineLotAllocation, StockMovement } from '../models/flipbase.models';
+import {
+  Sale,
+  SaleCostCategory,
+  SaleCostEntry,
+  SaleLine,
+  SaleLineLotAllocation,
+  ShippingMode,
+  StockMovement,
+} from '../models/flipbase.models';
 import { MutationResult } from './catalog.service';
 import { StockService } from './stock.service';
 import { ReturnRecord } from '../models/return.models';
@@ -35,11 +43,20 @@ export interface RecordSaleLineInput {
   readonly unitSalePrice: number;
 }
 
+export interface RecordSaleCostInput {
+  readonly category: SaleCostCategory;
+  readonly description?: string | null;
+  readonly amount: number;
+}
+
 export interface RecordSaleInput {
   readonly platform: string;
   readonly saleDate: string;
   readonly platformFee?: number;
   readonly shippingCost?: number;
+  readonly shippingRevenue?: number;
+  readonly shippingMode?: ShippingMode | null;
+  readonly additionalCosts?: readonly RecordSaleCostInput[];
   readonly packagingCost?: number;
   readonly otherCosts?: number;
   readonly externalOrderId?: string | null;
@@ -154,7 +171,8 @@ export class SalesService {
             *,
             lot_allocations:sale_line_lot_allocations!sale_line_lot_allocations_sale_line_id_fkey(*),
             stock_movements:stock_movements!stock_movements_sale_line_id_fkey(*)
-          )
+          ),
+          cost_entries:sale_cost_entries!sale_cost_entries_sale_id_fkey(*)
         `,
         )
         .eq('workspace_id', workspaceId)
@@ -183,9 +201,10 @@ export class SalesService {
       (sum: number, line: SaleLine) => sum + Number(line.line_total || 0),
       0,
     );
+    const shippingRevenue = Number(raw.shipping_revenue ?? 0);
     const salePrice =
       persistedLines.length > 0
-        ? persistedLineTotal
+        ? Math.round((persistedLineTotal + shippingRevenue) * 100) / 100
         : Number(raw.sale_price_total ?? raw.sale_price ?? 0);
     const totalItemBasisCost =
       persistedLines.length > 0
@@ -300,8 +319,13 @@ export class SalesService {
           sale_date: input.saleDate,
           platform_fee: input.platformFee ?? 0,
           shipping_cost: input.shippingCost ?? 0,
-          packaging_cost: input.packagingCost ?? 0,
-          other_costs: input.otherCosts ?? 0,
+          shipping_revenue: input.shippingRevenue ?? 0,
+          shipping_mode: input.shippingMode ?? null,
+          cost_entries: this.saleCostInputs(input).map((cost) => ({
+            category: cost.category,
+            description: cost.description ?? null,
+            amount: cost.amount,
+          })),
           external_order_id: input.externalOrderId ?? null,
           external_listing_id: input.externalListingId ?? null,
           buyer_notes: input.buyerNotes ?? null,
@@ -361,8 +385,13 @@ export class SalesService {
           unit_sale_price: line.unitSalePrice,
           platform_fee: input.platformFee ?? 0,
           shipping_cost: input.shippingCost ?? 0,
-          packaging_cost: input.packagingCost ?? 0,
-          other_costs: input.otherCosts ?? 0,
+          shipping_revenue: input.shippingRevenue ?? 0,
+          shipping_mode: input.shippingMode ?? null,
+          cost_entries: this.saleCostInputs(input).map((cost) => ({
+            category: cost.category,
+            description: cost.description ?? null,
+            amount: cost.amount,
+          })),
           external_order_id: input.externalOrderId ?? null,
           external_listing_id: input.externalListingId ?? null,
           buyer_notes: input.buyerNotes ?? null,
@@ -407,7 +436,7 @@ export class SalesService {
           new Error('Der Verkauf wurde bereits retourniert.'),
         );
       }
-      const saleTotal = Number(existing.sale_price_total ?? existing.sale_price ?? 0);
+      const saleTotal = this.grossSaleRevenue(existing);
       const totalRefund = Math.min(
         saleTotal,
         Number(existing.refund_amount ?? 0) + input.refundAmount,
@@ -496,12 +525,22 @@ export class SalesService {
     const movements = this.arrayValue<StockMovement>(value['stock_movements']);
     const sale = this.enrichSaleMetrics({
       ...(value['sale'] as Sale),
+      cost_entries: this.arrayValue<SaleCostEntry>(value['cost_entries']),
       lines,
       has_persisted_lines: true,
       lot_allocations: allocations,
       stock_movements: movements,
     });
     return { sale, saleLines: lines, lotAllocations: allocations, stockMovements: movements };
+  }
+
+  private grossSaleRevenue(sale: Sale): number {
+    const lines = sale.has_persisted_lines === false ? [] : (sale.lines ?? []);
+    if (lines.length > 0) {
+      const positionTotal = lines.reduce((sum, line) => sum + Number(line.line_total || 0), 0);
+      return Math.round((positionTotal + Number(sale.shipping_revenue ?? 0)) * 100) / 100;
+    }
+    return Number(sale.sale_price_total ?? sale.sale_price ?? 0);
   }
 
   private recordDemoSale(workspaceId: string, input: RecordSaleInput): RecordSaleResult {
@@ -518,22 +557,41 @@ export class SalesService {
       cost_of_goods_sold: 0,
       tax_mode: 'diff_25a',
     }));
-    const total = lines.reduce((sum, line) => sum + line.line_total, 0);
+    const lineTotal = lines.reduce((sum, line) => sum + line.line_total, 0);
+    const costEntries: SaleCostEntry[] = this.saleCostInputs(input).map((entry) => ({
+      id: createLocalDemoId('sale-cost'),
+      workspace_id: workspaceId,
+      sale_id: saleId,
+      category: entry.category,
+      description: entry.description ?? null,
+      amount: entry.amount,
+    }));
+    const packagingCost = costEntries
+      .filter((entry) => entry.category === 'packaging')
+      .reduce((sum, entry) => sum + entry.amount, 0);
+    const otherCosts = costEntries
+      .filter((entry) => entry.category !== 'packaging')
+      .reduce((sum, entry) => sum + entry.amount, 0);
+    const shippingRevenue = input.shippingRevenue ?? 0;
+    const grossRevenue = lineTotal + shippingRevenue;
     const saleDraft: Sale = {
       id: saleId,
       workspace_id: workspaceId,
       platform: input.platform,
-      sale_price: total,
-      sale_price_total: total,
+      sale_price: grossRevenue,
+      sale_price_total: grossRevenue,
       sale_date: input.saleDate,
       platform_fee: input.platformFee ?? 0,
       shipping_cost: input.shippingCost ?? 0,
-      packaging_cost: input.packagingCost ?? 0,
-      other_costs: input.otherCosts ?? 0,
+      packaging_cost: packagingCost,
+      other_costs: otherCosts,
+      shipping_revenue: shippingRevenue,
+      shipping_mode: input.shippingMode ?? null,
       external_order_id: input.externalOrderId ?? null,
       external_listing_id: input.externalListingId ?? null,
       buyer_notes: input.buyerNotes ?? null,
       lines,
+      cost_entries: costEntries,
     };
     const booking = this.mockStore.bookSaleAtomically(workspaceId, saleDraft, lines);
     if (booking.error) throw booking.error;
@@ -549,6 +607,19 @@ export class SalesService {
 
   private arrayValue<T>(value: unknown): T[] {
     return Array.isArray(value) ? (value as T[]) : [];
+  }
+
+  private saleCostInputs(input: RecordSaleInput): readonly RecordSaleCostInput[] {
+    if (input.additionalCosts) return input.additionalCosts;
+
+    const costs: RecordSaleCostInput[] = [];
+    if ((input.packagingCost ?? 0) > 0) {
+      costs.push({ category: 'packaging', amount: input.packagingCost! });
+    }
+    if ((input.otherCosts ?? 0) > 0) {
+      costs.push({ category: 'other', amount: input.otherCosts! });
+    }
+    return costs;
   }
 
   private returnRecordValue(value: unknown): ReturnRecord | undefined {
@@ -597,6 +668,7 @@ export class SalesService {
       saleDate: payload.sale_date,
       platformFee: payload.platform_fee,
       shippingCost: payload.shipping_cost,
+      shippingRevenue: 0,
       packagingCost: payload.packaging_cost,
       otherCosts: payload.other_costs,
       externalOrderId: payload.external_order_id,

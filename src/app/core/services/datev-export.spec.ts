@@ -7,6 +7,11 @@ import { SalesService } from './sales.service';
 import { InventoryService } from './inventory.service';
 import { TaxCalculationResult } from '../models/flipbase.models';
 
+interface DatevShippingBasis {
+  shipping_revenue: number;
+  shipping_cost: number;
+}
+
 /**
  * Prüft den DATEV-Buchungsstapel und die Steuerberechnung.
  *
@@ -32,8 +37,8 @@ describe('DATEV-Buchungsstapel & Steuerberechnung', () => {
   });
 
   const ergebnis = (
-    ueberschreibungen: Partial<TaxCalculationResult> = {},
-  ): TaxCalculationResult => ({
+    ueberschreibungen: Partial<TaxCalculationResult & DatevShippingBasis> = {},
+  ): TaxCalculationResult & DatevShippingBasis => ({
     sale_id: 'a1b2c3d4-e5f6-0000-0000-000000000001',
     item_title: 'Sony PlayStation 5',
     sale_date: '2026-08-17',
@@ -47,6 +52,8 @@ describe('DATEV-Buchungsstapel & Steuerberechnung', () => {
     net_tax_liability: 17.56,
     net_profit_after_tax: 90.84,
     invoice_clause: '',
+    shipping_revenue: 0,
+    shipping_cost: 0,
     ...ueberschreibungen,
   });
 
@@ -171,6 +178,57 @@ describe('DATEV-Buchungsstapel & Steuerberechnung', () => {
 
       expect(felder[0]).toBe('1234,50');
     });
+
+    it('bucht den Brutto-Verkaufserlös einschließlich Käufer-Versand', () => {
+      const { buchungen } = zerlege(engine.generateDatevCsv([ergebnis({ gross_revenue: 42.98 })]));
+
+      expect(buchungen[0].split(';')[0]).toBe('42,98');
+    });
+
+    it.each([
+      {
+        skrStandard: 'SKR03' as const,
+        bankkonto: '1200',
+        frachtkonto: '4730',
+        erloeskonto: '8200',
+      },
+      {
+        skrStandard: 'SKR04' as const,
+        bankkonto: '1800',
+        frachtkonto: '6740',
+        erloeskonto: '4200',
+      },
+    ])(
+      'trennt Warenumsatz, Käufer-Versand und Ausgangsfracht für $skrStandard',
+      ({ skrStandard, bankkonto, frachtkonto, erloeskonto }) => {
+        const { buchungen } = zerlege(
+          engine.generateDatevCsv(
+            [ergebnis({ gross_revenue: 42.98, shipping_revenue: 2.99, shipping_cost: 5.19 })],
+            { skrStandard },
+          ),
+        );
+        const konto = engine.datevSpalten.indexOf('Konto');
+        const gegenkonto = engine.datevSpalten.indexOf('Gegenkonto (ohne BU-Schlüssel)');
+        const sollHaben = engine.datevSpalten.indexOf('Soll/Haben-Kennzeichen');
+        const datum = engine.datevSpalten.indexOf('Belegdatum');
+        const beleg = engine.datevSpalten.indexOf('Belegfeld 1');
+        const text = engine.datevSpalten.indexOf('Buchungstext');
+        const rows = buchungen.map((booking) => booking.split(';'));
+
+        expect(rows).toHaveLength(3);
+        expect(rows.map((row) => row[0])).toEqual(['39,99', '2,99', '5,19']);
+        expect(rows.map((row) => row[konto])).toEqual([bankkonto, bankkonto, frachtkonto]);
+        expect(rows.map((row) => row[gegenkonto])).toEqual([erloeskonto, erloeskonto, bankkonto]);
+        expect(rows.map((row) => row[sollHaben])).toEqual(['S', 'S', 'S']);
+        expect(rows.map((row) => row[datum])).toEqual(['1708', '1708', '1708']);
+        expect(new Set(rows.map((row) => row[beleg]))).toEqual(new Set(['a1b2c3d4-e5f']));
+        expect(rows.map((row) => row[text])).toEqual([
+          'Verkauf Sony PlayStation 5',
+          'Käufer-Versand Sony PlayStation 5',
+          'Ausgangsfracht Sony PlayStation 5',
+        ]);
+      },
+    );
   });
 
   describe('Reingewinn nach Steuern (Audit 4.6)', () => {

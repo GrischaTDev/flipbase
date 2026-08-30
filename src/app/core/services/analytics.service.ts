@@ -195,7 +195,8 @@ export class AnalyticsService {
 
     const results: SourcePerformance[] = [];
     for (const [name, val] of sourceMap.entries()) {
-      const roi = val.invested > 0 ? this.profitEngine.calculateRoi(val.profit, val.invested) : 0;
+      const roi =
+        val.invested > 0 ? (this.profitEngine.calculateRoi(val.profit, val.invested) ?? 0) : 0;
       const avgHolding = val.salesCount > 0 ? Math.round(val.totalHoldingDays / val.salesCount) : 0;
 
       results.push({

@@ -102,6 +102,25 @@ describe('SalesService', () => {
     expect(mockStore.getSales('workspace-1')).toHaveLength(1);
   });
 
+  it('persistiert den Demo-Bruttoerlös einschließlich Käufer-Versand', async () => {
+    const { mockStore, service } = createDemoService();
+
+    const booking = await service.recordSale({
+      ...demoSaleInput,
+      shippingRevenue: 2.99,
+      lines: [{ ...demoSaleInput.lines[0], unitSalePrice: 39.99 }],
+    });
+
+    expect(booking.error).toBeNull();
+    expect(mockStore.getSales('workspace-1')).toEqual([
+      expect.objectContaining({
+        sale_price: 42.98,
+        sale_price_total: 42.98,
+        shipping_revenue: 2.99,
+      }),
+    ]);
+  });
+
   it('behandelt auch im Demo-Verkauf einen fehlenden Sale-State fail-closed', async () => {
     const { mockStore, service } = createDemoService(null);
 
@@ -110,6 +129,34 @@ describe('SalesService', () => {
     expect(result.error?.message).toContain('nicht verkaufbar');
     expect(mockStore.getItems('workspace-1')[0].status).toBe('ready');
     expect(mockStore.getSales('workspace-1')).toEqual([]);
+  });
+
+  it('erstattet bei einer vollständigen Retoure den Bruttoerlös inklusive Käufer-Versand', async () => {
+    const { mockStore, service } = createDemoService();
+    const booking = await service.recordSale({
+      ...demoSaleInput,
+      shippingRevenue: 2.99,
+      lines: [{ ...demoSaleInput.lines[0], unitSalePrice: 39.99 }],
+    });
+    const persistedSale = {
+      ...booking.data!.sale,
+      sale_price: 39.99,
+      sale_price_total: 39.99,
+      shipping_revenue: 2.99,
+    };
+    mockStore.saveSale(persistedSale);
+    service.sales.set([persistedSale]);
+
+    const result = await service.recordReturn({
+      saleId: persistedSale.id,
+      refundAmount: 42.98,
+      restock: true,
+      reason: 'buyer_remorse',
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.data?.sale.refund_amount).toBe(42.98);
+    expect(result.data?.saleReturnedAt).not.toBeNull();
   });
 
   it('rollt den gesamten Demo-Verkauf zurück, wenn nur der Sales-Key nicht geschrieben werden kann', async () => {
@@ -411,6 +458,84 @@ describe('SalesService', () => {
             unit_sale_price: 9.99,
           }),
         ],
+      }),
+    );
+  });
+
+  it('übergibt Käufer-Versand und strukturierte Zusatzkosten getrennt an die Verkaufs-RPC', async () => {
+    const { service, rpc } = createService({
+      data: {
+        sale: {
+          ...sale,
+          sale_price: 42.98,
+          sale_price_total: 42.98,
+          shipping_revenue: 2.99,
+          shipping_mode: 'seller_arranged',
+          shipping_cost: 5.19,
+          packaging_cost: 0.45,
+          other_costs: 1.25,
+        },
+        sale_lines: [
+          {
+            id: 'sale-line-1',
+            sale_id: sale.id,
+            catalog_product_id: 'led-lamp-1',
+            title_snapshot: 'LED-Lampe',
+            quantity: 1,
+            unit_sale_price: 39.99,
+            line_total: 39.99,
+            cost_of_goods_sold: 9.98,
+            tax_mode: 'diff_25a',
+          },
+        ],
+        cost_entries: [
+          { category: 'packaging', description: 'Karton', amount: 0.45 },
+          { category: 'promotion', description: 'Angebot hervorheben', amount: 1.25 },
+        ],
+        lot_allocations: [],
+        stock_movements: [],
+      },
+      error: null,
+    });
+
+    const result = await service.recordSale({
+      platform: 'ebay',
+      saleDate: '2026-08-26',
+      shippingRevenue: 2.99,
+      shippingMode: 'seller_arranged',
+      shippingCost: 5.19,
+      additionalCosts: [
+        { category: 'packaging', description: 'Karton', amount: 0.45 },
+        { category: 'promotion', description: 'Angebot hervorheben', amount: 1.25 },
+      ],
+      lines: [{ catalogProductId: 'led-lamp-1', quantity: 1, unitSalePrice: 39.99 }],
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.data?.sale).toMatchObject({
+      sale_price: 42.98,
+      shipping_revenue: 2.99,
+      shipping_mode: 'seller_arranged',
+      shipping_cost: 5.19,
+      packaging_cost: 0.45,
+      other_costs: 1.25,
+      cost_entries: [
+        { category: 'packaging', description: 'Karton', amount: 0.45 },
+        { category: 'promotion', description: 'Angebot hervorheben', amount: 1.25 },
+      ],
+    });
+    expect(rpc).toHaveBeenCalledWith(
+      'record_sale',
+      expect.objectContaining({
+        p_sale: expect.objectContaining({
+          shipping_revenue: 2.99,
+          shipping_mode: 'seller_arranged',
+          shipping_cost: 5.19,
+          cost_entries: [
+            { category: 'packaging', description: 'Karton', amount: 0.45 },
+            { category: 'promotion', description: 'Angebot hervorheben', amount: 1.25 },
+          ],
+        }),
       }),
     );
   });

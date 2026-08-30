@@ -336,6 +336,20 @@ export interface ListingDraft {
   updated_at?: string;
 }
 
+export type ShippingMode = 'seller_arranged' | 'platform_prepaid' | 'pickup';
+
+export type SaleCostCategory = 'packaging' | 'payment_fee' | 'promotion' | 'other';
+
+export interface SaleCostEntry {
+  id: string;
+  workspace_id: string;
+  sale_id: string;
+  category: SaleCostCategory;
+  description?: string | null;
+  amount: number;
+  created_at?: string;
+}
+
 export interface Sale {
   id: string;
   workspace_id: string;
@@ -348,6 +362,8 @@ export interface Sale {
   shipping_cost: number;
   packaging_cost: number;
   other_costs: number;
+  shipping_revenue?: number;
+  shipping_mode?: ShippingMode | null;
   external_order_id?: string | null;
   external_listing_id?: string | null;
   buyer_notes?: string | null;
@@ -364,7 +380,7 @@ export interface Sale {
   void_reason?: string | null;
   inventory_item?: InventoryItem;
   net_profit?: number;
-  roi?: number;
+  roi?: number | null;
   holding_duration_days?: number;
   /** Persistierte Verkaufspositionen; Altverkäufe werden als eine Position abgebildet. */
   lines?: SaleLine[];
@@ -374,6 +390,8 @@ export interface Sale {
   lot_allocations?: SaleLineLotAllocation[];
   /** Bestandsbewegungen, die durch diesen Verkauf entstanden sind. */
   stock_movements?: StockMovement[];
+  /** Strukturierte Zusatzkosten, die innerhalb der Verkaufstransaktion persistiert wurden. */
+  cost_entries?: SaleCostEntry[];
 }
 
 export interface CatalogProduct {
@@ -526,6 +544,8 @@ export interface TaxCalculationResult {
   sale_date: string;
   tax_mode: TaxMode;
   gross_revenue: number;
+  shipping_revenue: number;
+  shipping_cost: number;
   total_purchase_cost: number;
   gross_margin: number;
   tax_base: number;

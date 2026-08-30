@@ -71,7 +71,9 @@ export class TaxEngineService {
   ): TaxCalculationResult {
     const persistedLines = this.persistedLinesForSale(sale);
     const taxMode = persistedLines[0]?.tax_mode || item.tax_mode_override || defaultTaxMode;
-    const grossRevenue = sale.sale_price;
+    const grossRevenue = sale.sale_price_total ?? sale.sale_price;
+    const shippingRevenue = sale.shipping_revenue ?? 0;
+    const shippingCost = sale.shipping_cost || 0;
 
     const directItemCosts = item.costs?.reduce((sum, c) => sum + (c.amount || 0), 0) || 0;
     const totalPurchaseCost =
@@ -88,7 +90,7 @@ export class TaxEngineService {
     // Operating expenses Vorsteuer (e.g. fees, shipping paid with 19% VAT)
     const operatingCosts =
       (sale.platform_fee || 0) +
-      (sale.shipping_cost || 0) +
+      shippingCost +
       (sale.packaging_cost || 0) +
       (sale.other_costs || 0);
 
@@ -143,6 +145,8 @@ export class TaxEngineService {
       sale_date: sale.sale_date,
       tax_mode: taxMode,
       gross_revenue: grossRevenue,
+      shipping_revenue: shippingRevenue,
+      shipping_cost: shippingCost,
       total_purchase_cost: totalPurchaseCost,
       gross_margin: grossMargin,
       tax_base: taxBase,
@@ -178,7 +182,11 @@ export class TaxEngineService {
     return {
       ...sale,
       inventory_item_id: line.inventory_item_id ?? sale.inventory_item_id,
-      sale_price: line.line_total,
+      sale_price:
+        line.line_total + this.allocatedSaleAmount(sale.shipping_revenue ?? 0, lines, index),
+      sale_price_total:
+        line.line_total + this.allocatedSaleAmount(sale.shipping_revenue ?? 0, lines, index),
+      shipping_revenue: this.allocatedSaleAmount(sale.shipping_revenue ?? 0, lines, index),
       platform_fee: this.allocatedSaleCost(sale.platform_fee || 0, lines, index),
       shipping_cost: this.allocatedSaleCost(sale.shipping_cost || 0, lines, index),
       packaging_cost: this.allocatedSaleCost(sale.packaging_cost || 0, lines, index),
@@ -193,6 +201,10 @@ export class TaxEngineService {
   }
 
   private allocatedSaleCost(total: number, lines: readonly SaleLine[], index: number): number {
+    return this.allocatedSaleAmount(total, lines, index);
+  }
+
+  private allocatedSaleAmount(total: number, lines: readonly SaleLine[], index: number): number {
     const revenue = lines.reduce((sum, line) => sum + line.line_total, 0);
     if (revenue <= 0) return index === lines.length - 1 ? total : 0;
     if (index === lines.length - 1) {
@@ -212,6 +224,8 @@ export class TaxEngineService {
     const fields: (keyof Pick<
       TaxCalculationResult,
       | 'gross_revenue'
+      | 'shipping_revenue'
+      | 'shipping_cost'
       | 'total_purchase_cost'
       | 'gross_margin'
       | 'tax_base'
@@ -221,6 +235,8 @@ export class TaxEngineService {
       | 'net_profit_after_tax'
     >)[] = [
       'gross_revenue',
+      'shipping_revenue',
+      'shipping_cost',
       'total_purchase_cost',
       'gross_margin',
       'tax_base',
@@ -380,35 +396,74 @@ export class TaxEngineService {
     const skr04 = optionen.skrStandard === 'SKR04';
     const bankkonto = skr04 ? '1800' : '1200';
 
-    const zeilen = taxResults.map((r) => {
+    const zeilen = taxResults.flatMap((r) => {
       // Erlöskonten nach SKR03 bzw. SKR04
       let erloeskonto = skr04 ? '4200' : '8200'; // § 25a Differenzbesteuerung
       if (r.tax_mode === 'kleinunternehmer_19') erloeskonto = skr04 ? '4185' : '8195';
       if (r.tax_mode === 'regular_19') erloeskonto = skr04 ? '4400' : '8400';
 
-      const buchungstext = this.schuetzeVorFormel(
-        `Verkauf ${r.item_title.replace(/[;"\r\n]/g, ' ')}`.substring(0, 60),
-      );
+      const artikel = r.item_title.replace(/[;"\r\n]/g, ' ');
+      const warenumsatz = Number((r.gross_revenue - r.shipping_revenue).toFixed(2));
+      const ausgangsfrachtkonto = skr04 ? '6740' : '4730';
+      const buchungen: string[] = [];
 
-      return [
-        Math.abs(r.gross_revenue).toFixed(2).replace('.', ','), // Umsatz
-        'S', // Soll/Haben-Kennzeichen
-        'EUR', // WKZ Umsatz
-        '', // Kurs
-        '', // Basis-Umsatz
-        '', // WKZ Basis-Umsatz
-        bankkonto, // Konto: Bank
-        erloeskonto, // Gegenkonto: Erlöse
-        '', // BU-Schlüssel
-        this.alsBelegdatum(r.sale_date), // Belegdatum (TTMM)
-        r.sale_id.substring(0, 12), // Belegfeld 1
-        '', // Belegfeld 2
-        '', // Skonto
-        buchungstext, // Buchungstext
-      ].join(';');
+      if (warenumsatz !== 0) {
+        buchungen.push(
+          this.datevBuchungszeile(warenumsatz, bankkonto, erloeskonto, r, `Verkauf ${artikel}`),
+        );
+      }
+      if (r.shipping_revenue > 0) {
+        buchungen.push(
+          this.datevBuchungszeile(
+            r.shipping_revenue,
+            bankkonto,
+            erloeskonto,
+            r,
+            `Käufer-Versand ${artikel}`,
+          ),
+        );
+      }
+      if (r.shipping_cost > 0) {
+        buchungen.push(
+          this.datevBuchungszeile(
+            r.shipping_cost,
+            ausgangsfrachtkonto,
+            bankkonto,
+            r,
+            `Ausgangsfracht ${artikel}`,
+          ),
+        );
+      }
+
+      return buchungen;
     });
 
     return [this.baueExtfKopf(taxResults), this.datevSpalten.join(';'), ...zeilen].join('\r\n');
+  }
+
+  private datevBuchungszeile(
+    amount: number,
+    konto: string,
+    gegenkonto: string,
+    result: TaxCalculationResult,
+    text: string,
+  ): string {
+    return [
+      Math.abs(amount).toFixed(2).replace('.', ','),
+      'S',
+      'EUR',
+      '',
+      '',
+      '',
+      konto,
+      gegenkonto,
+      '',
+      this.alsBelegdatum(result.sale_date),
+      result.sale_id.substring(0, 12),
+      '',
+      '',
+      this.schuetzeVorFormel(text.substring(0, 60)),
+    ].join(';');
   }
 
   /**

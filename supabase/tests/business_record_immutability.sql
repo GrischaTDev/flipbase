@@ -670,7 +670,7 @@ select lives_ok(
     '83000000-0000-4000-8000-000000000002',
     '83000000-0000-4000-8000-000000000110',
     'STORE-ATOMIC-1',
-    '{"email":"atomic@example.test"}'::jsonb,
+    '{"email":"atomic@example.test","shippingMethod":"dhl_standard"}'::jsonb,
     19.98,
     4.99,
     24.97,
@@ -705,7 +705,10 @@ select is(
     where sale.workspace_id = :'business_workspace_id'::uuid
       and sale.external_order_id = 'STORE-ATOMIC-1'
       and sale.platform = 'custom_store'
-      and sale.sale_price_total = 19.98
+      and sale.sale_price_total = 24.97
+      and sale.shipping_revenue = 4.99
+      and sale.shipping_cost = 0
+      and sale.shipping_mode = 'seller_arranged'
       and sale_line.catalog_product_id = '83000000-0000-4000-8000-000000000100'
       and sale_line.quantity = 2
       and sale_line.line_total = 19.98

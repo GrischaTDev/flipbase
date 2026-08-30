@@ -23,7 +23,21 @@ declare
   v_sale_line_count integer;
   v_sale_count integer;
   v_cogs numeric(12, 2);
+  v_sale_revenue numeric(12, 2);
+  v_shipping_revenue numeric(12, 2);
+  v_shipping_cost numeric(12, 2);
+  v_packaging_cost numeric(12, 2);
+  v_other_costs numeric(12, 2);
+  v_cost_entry_count integer;
   v_return_result jsonb;
+  v_store_order_id uuid := gen_random_uuid();
+  v_pickup_order_id uuid := gen_random_uuid();
+  v_store_sale_id uuid;
+  v_store_order_total numeric(12, 2);
+  v_store_shipping_mode text;
+  v_pickup_shipping_mode text;
+  v_payment_fee_category text;
+  v_payment_fee_rollup numeric(12, 2);
 begin
   insert into auth.users (
     id,
@@ -166,12 +180,23 @@ begin
 
   v_sale := public.record_sale(
     v_workspace_id,
-    jsonb_build_object('platform', 'direct', 'sale_date', '2026-08-26'),
+    jsonb_build_object(
+      'platform', 'ebay',
+      'sale_date', '2026-08-26',
+      'shipping_revenue', 2.99,
+      'shipping_mode', 'seller_arranged',
+      'shipping_cost', 5.19,
+      'platform_fee', 7.70,
+      'cost_entries', jsonb_build_array(
+        jsonb_build_object('category', 'packaging', 'description', 'Karton', 'amount', 0.45),
+        jsonb_build_object('category', 'promotion', 'description', 'Angebot hervorheben', 'amount', 1.25)
+      )
+    ),
     jsonb_build_array(jsonb_build_object(
       'catalog_product_id', v_product_id,
       'title_snapshot', 'LED lamp',
-      'quantity', 2,
-      'unit_sale_price', 9.99
+      'quantity', 1,
+      'unit_sale_price', 39.99
     ))
   );
   v_sale_id := (v_sale -> 'sale' ->> 'id')::uuid;
@@ -182,8 +207,8 @@ begin
   where workspace_id = v_workspace_id
     and purchase_line_id = v_purchase_line_id;
 
-  if v_remaining_quantity <> 3 then
-    raise exception 'expected remaining quantity 3 after sale, got %', v_remaining_quantity;
+  if v_remaining_quantity <> 4 then
+    raise exception 'expected remaining quantity 4 after sale, got %', v_remaining_quantity;
   end if;
 
   select count(*), coalesce(sum(cost_of_goods_sold), 0)
@@ -192,9 +217,78 @@ begin
   where workspace_id = v_workspace_id
     and sale_id = v_sale_id;
 
-  if v_sale_line_count <> 1 or v_cogs <> 9.98 then
-    raise exception 'expected one sale line and COGS 9.98, got % lines and % COGS', v_sale_line_count, v_cogs;
+  if v_sale_line_count <> 1 or v_cogs <> 4.99 then
+    raise exception 'expected one sale line and COGS 4.99, got % lines and % COGS', v_sale_line_count, v_cogs;
   end if;
+
+  select sale_price_total, shipping_revenue, shipping_cost, packaging_cost, other_costs
+  into v_sale_revenue, v_shipping_revenue, v_shipping_cost, v_packaging_cost, v_other_costs
+  from public.sales
+  where id = v_sale_id;
+
+  select count(*) into v_cost_entry_count
+  from public.sale_cost_entries
+  where sale_id = v_sale_id;
+
+  if v_sale_revenue <> 42.98
+    or v_shipping_revenue <> 2.99
+    or v_shipping_cost <> 5.19
+    or v_packaging_cost <> 0.45
+    or v_other_costs <> 1.25
+    or v_cost_entry_count <> 2 then
+    raise exception 'sale did not persist separated shipping revenue and expenses';
+  end if;
+
+  begin
+    perform public.record_sale(
+      v_workspace_id,
+      jsonb_build_object(
+        'platform', 'direct', 'sale_date', '2026-08-26',
+        'cost_entries', jsonb_build_array(jsonb_build_object('category', 'unsupported', 'amount', 1))
+      ),
+      jsonb_build_array(jsonb_build_object(
+        'catalog_product_id', v_product_id, 'title_snapshot', 'LED lamp',
+        'quantity', 1, 'unit_sale_price', 9.99
+      ))
+    );
+    raise exception 'unsupported sale cost category was accepted';
+  exception when sqlstate '22023' then null;
+  end;
+
+  begin
+    perform public.record_sale(
+      v_workspace_id,
+      jsonb_build_object(
+        'platform', 'direct', 'sale_date', '2026-08-26',
+        'shipping_revenue', -0.01
+      ),
+      jsonb_build_array(jsonb_build_object(
+        'catalog_product_id', v_product_id, 'title_snapshot', 'LED lamp',
+        'quantity', 1, 'unit_sale_price', 9.99
+      ))
+    );
+    raise exception 'negative shipping revenue was accepted';
+  exception when sqlstate '22023' then null;
+  end;
+
+  begin
+    perform public.record_sale(
+      v_workspace_id,
+      jsonb_build_object(
+        'platform', 'direct', 'sale_date', '2026-08-26',
+        'cost_entries', (
+          select jsonb_agg(jsonb_build_object('category', 'other', 'amount', 1))
+          from generate_series(1, 51)
+        )
+      ),
+      jsonb_build_array(jsonb_build_object(
+        'catalog_product_id', v_product_id, 'title_snapshot', 'LED lamp',
+        'quantity', 1, 'unit_sale_price', 9.99
+      ))
+    );
+    raise exception 'more than 50 sale cost entries were accepted';
+  exception when sqlstate '22023' then null;
+  end;
 
   begin
     perform public.record_sale(
@@ -203,7 +297,7 @@ begin
       jsonb_build_array(jsonb_build_object(
         'catalog_product_id', v_product_id,
         'title_snapshot', 'LED lamp',
-        'quantity', 4,
+        'quantity', 5,
         'unit_sale_price', 9.99
       ))
     );
@@ -225,14 +319,14 @@ begin
   where workspace_id = v_workspace_id
     and purchase_line_id = v_purchase_line_id;
 
-  if v_sale_count <> 1 or v_remaining_quantity <> 3 then
+  if v_sale_count <> 1 or v_remaining_quantity <> 4 then
     raise exception 'oversell created a partial sale or changed stock';
   end if;
 
   select public.record_sale_return(
     v_workspace_id,
     v_sale_id,
-    19.98,
+    42.98,
     true,
     'customer return',
     'full return',
@@ -261,6 +355,142 @@ begin
       and credit_note_number = v_return_result -> 'return' ->> 'credit_note_number'
   ) then
     raise exception 'expected atomic return metadata to be persisted';
+  end if;
+
+  begin
+    perform public.place_store_order(
+      v_workspace_id,
+      gen_random_uuid(),
+      'STORE-NEGATIVE-PAYMENT-FEE-1',
+      jsonb_build_object('email', 'store@example.test'),
+      39.99,
+      0,
+      39.99,
+      'bank_transfer',
+      'paid',
+      null,
+      'paid',
+      '2026-08-26',
+      null,
+      jsonb_build_array(jsonb_build_object(
+        'catalog_product_id', v_product_id,
+        'item_title', 'LED lamp',
+        'quantity', 1,
+        'price', 39.99,
+        'payment_fee', -0.01
+      ))
+    );
+    raise exception 'negative store payment fee was accepted';
+  exception when sqlstate '22023' then null;
+  end;
+
+  if exists (
+    select 1
+    from public.store_orders
+    where workspace_id = v_workspace_id
+      and order_number = 'STORE-NEGATIVE-PAYMENT-FEE-1'
+  ) or exists (
+    select 1
+    from public.sales
+    where workspace_id = v_workspace_id
+      and external_order_id = 'STORE-NEGATIVE-PAYMENT-FEE-1'
+  ) then
+    raise exception 'negative store payment fee left a partial checkout';
+  end if;
+
+  perform public.place_store_order(
+    v_workspace_id,
+    v_store_order_id,
+    'STORE-PAYMENT-FEE-1',
+    jsonb_build_object('email', 'store@example.test', 'shippingMethod', 'dhl_standard'),
+    39.99,
+    4.99,
+    44.98,
+    'bank_transfer',
+    'paid',
+    null,
+    'paid',
+    '2026-08-26',
+    null,
+    jsonb_build_array(jsonb_build_object(
+      'catalog_product_id', v_product_id,
+      'item_title', 'LED lamp',
+      'quantity', 1,
+      'price', 39.99,
+      'payment_fee', 1.23
+    ))
+  );
+
+  select
+    sale.id,
+    sale.other_costs,
+    store_order.total,
+    sale.sale_price_total,
+    sale.shipping_revenue,
+    sale.shipping_cost,
+    sale.shipping_mode
+  into
+    v_store_sale_id,
+    v_payment_fee_rollup,
+    v_store_order_total,
+    v_sale_revenue,
+    v_shipping_revenue,
+    v_shipping_cost,
+    v_store_shipping_mode
+  from public.sales as sale
+  join public.store_orders as store_order
+    on store_order.workspace_id = sale.workspace_id
+    and store_order.order_number = sale.external_order_id
+  where sale.workspace_id = v_workspace_id
+    and sale.external_order_id = 'STORE-PAYMENT-FEE-1';
+
+  if v_store_order_total <> 44.98
+    or v_sale_revenue <> v_store_order_total
+    or v_shipping_revenue <> 4.99
+    or v_shipping_cost <> 0
+    or v_store_shipping_mode <> 'seller_arranged' then
+    raise exception 'store shipping revenue was not separated from seller shipping costs';
+  end if;
+
+  select category
+  into v_payment_fee_category
+  from public.sale_cost_entries
+  where sale_id = v_store_sale_id;
+
+  if v_payment_fee_category <> 'payment_fee' or v_payment_fee_rollup <> 1.23 then
+    raise exception 'store payment fee was not persisted as payment_fee with the correct rollup';
+  end if;
+
+  perform public.place_store_order(
+    v_workspace_id,
+    v_pickup_order_id,
+    'STORE-PICKUP-1',
+    jsonb_build_object('email', 'pickup@example.test', 'shippingMethod', 'pickup'),
+    9.99,
+    0,
+    9.99,
+    'cash_on_pickup',
+    'pending',
+    null,
+    'pending',
+    '2026-08-26',
+    null,
+    jsonb_build_array(jsonb_build_object(
+      'catalog_product_id', v_product_id,
+      'item_title', 'LED lamp',
+      'quantity', 1,
+      'price', 9.99
+    ))
+  );
+
+  select shipping_mode
+  into v_pickup_shipping_mode
+  from public.sales
+  where workspace_id = v_workspace_id
+    and external_order_id = 'STORE-PICKUP-1';
+
+  if v_pickup_shipping_mode <> 'pickup' then
+    raise exception 'store pickup was not persisted with pickup shipping mode';
   end if;
 end;
 $$;

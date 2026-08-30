@@ -898,10 +898,12 @@ export class MockDataStoreService {
       updatedLines.push({ ...line, cost_of_goods_sold: Number(costOfGoodsSold.toFixed(2)) });
     }
 
+    const lineRevenue = updatedLines.reduce((sum, line) => sum + line.line_total, 0);
+    const grossRevenue = Number((lineRevenue + Number(sale.shipping_revenue ?? 0)).toFixed(2));
     const persistedSale: Sale = {
       ...sale,
-      sale_price: updatedLines.reduce((sum, line) => sum + line.line_total, 0),
-      sale_price_total: updatedLines.reduce((sum, line) => sum + line.line_total, 0),
+      sale_price: grossRevenue,
+      sale_price_total: grossRevenue,
       lines: updatedLines,
       has_persisted_lines: true,
       lot_allocations: allocations,

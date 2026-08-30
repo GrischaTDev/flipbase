@@ -272,7 +272,7 @@ export class ResearchService {
         description: 'Schneller Abverkauf für sofortigen Cashflow innerhalb weniger Tage.',
         recommendedPrice: quickSalePrice,
         estimatedProfit: quickProfit,
-        estimatedRoi: this.profitEngine.calculateRoi(quickProfit, baseCosts),
+        estimatedRoi: this.profitEngine.calculateRoi(quickProfit, baseCosts) ?? 0,
         turnaroundDays: '1 - 5 Tage',
       },
       {
@@ -281,7 +281,7 @@ export class ResearchService {
         description: 'Optimale Balance aus gesunder Marge und realistischer Verkaufszeit.',
         recommendedPrice: fairMarketPrice,
         estimatedProfit: fairProfit,
-        estimatedRoi: this.profitEngine.calculateRoi(fairProfit, baseCosts),
+        estimatedRoi: this.profitEngine.calculateRoi(fairProfit, baseCosts) ?? 0,
         turnaroundDays: '7 - 14 Tage',
       },
       {
@@ -290,7 +290,7 @@ export class ResearchService {
         description: 'Für Top-Zustände & geduldige Verkäufer mit Fokus auf Höchstpreise.',
         recommendedPrice: highMarginPrice,
         estimatedProfit: highProfit,
-        estimatedRoi: this.profitEngine.calculateRoi(highProfit, baseCosts),
+        estimatedRoi: this.profitEngine.calculateRoi(highProfit, baseCosts) ?? 0,
         turnaroundDays: '14 - 30+ Tage',
       },
     ];
