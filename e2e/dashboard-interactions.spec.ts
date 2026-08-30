@@ -18,10 +18,15 @@ test('filtert das Dashboard über den Shared Select und zeigt den Chart-Tooltip'
     name: 'Umsatz, Ausgaben und realisierter Gewinn im gewählten Zeitraum',
   });
   await expect(chart).toBeVisible();
-  await page.mouse.move(0, 0);
-  const withoutTooltip = await chart.screenshot();
   const box = await chart.boundingBox();
   expect(box).not.toBeNull();
-  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
-  await expect.poll(async () => (await chart.screenshot()).equals(withoutTooltip)).toBe(false);
+
+  const tooltip = page.getByRole('status').filter({ hasText: 'Umsatz:' });
+  // 14.08. ist Punkt 14 von 30; 45,5 % trifft ihn inklusive der sichtbaren
+  // Achsenränder, ohne Chart- oder Canvas-Interna auszulesen.
+  await page.mouse.move(box!.x + box!.width * 0.455, box!.y + box!.height / 2);
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText('14.08.');
+  await expect(tooltip).toContainText(/Umsatz: 379,00\s€/);
+  await expect(tooltip).toContainText(/Realisierter Gewinn: 95,62\s€/);
 });

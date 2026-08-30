@@ -216,6 +216,47 @@ describe('RevenueChartComponent lifecycle', () => {
 });
 
 describe('RevenueChartComponent Barrierefreiheit', () => {
+  it('gibt den aktiven Chart-Punkt sichtbar und als Live-Status im DOM aus', async () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue(createMediaQueryDouble().mediaQueryList);
+    const { chart } = createChartDouble();
+    const fixture = createFixture(
+      signal<AppTheme>('light'),
+      vi.fn(() => chart),
+    );
+    await fixture.whenStable();
+    const external = fixture.componentInstance.configuration().options?.plugins?.tooltip?.external;
+    expect(external).toBeTypeOf('function');
+
+    external?.call(
+      {} as never,
+      {
+        chart,
+        tooltip: {
+          opacity: 1,
+          title: ['27.08.'],
+          body: [{ lines: ['Umsatz: 19,98 €'] }, { lines: ['Realisierter Gewinn: 9,00 €'] }],
+          caretX: 120,
+          caretY: 80,
+        },
+      } as never,
+    );
+    fixture.detectChanges();
+
+    const status = fixture.nativeElement.querySelector('[role="status"]') as HTMLElement;
+    expect(status).not.toBeNull();
+    expect(status.getAttribute('aria-live')).toBe('polite');
+    expect(status.getAttribute('aria-atomic')).toBe('true');
+    expect(status.textContent).toContain('27.08.');
+    expect(status.textContent).toContain('Umsatz: 19,98 €');
+    expect(status.textContent).toContain('Realisierter Gewinn: 9,00 €');
+    expect(status.style.left).toBe('128px');
+    expect(status.style.top).toBe('88px');
+
+    external?.call({} as never, { chart, tooltip: { opacity: 0 } } as never);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="status"]')).toBeNull();
+  });
+
   it('rendert genau einen beschrifteten Canvas in einer stabilen Zeichenflaeche und kein SVG', async () => {
     vi.spyOn(window, 'matchMedia').mockReturnValue(createMediaQueryDouble().mediaQueryList);
     const { chart } = createChartDouble();

@@ -24,7 +24,11 @@ test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar', asyn
   await page.getByRole('button', { name: 'Verkauf abschließen' }).click();
 
   await expect(page.getByRole('heading', { name: 'Verkauf erfassen' })).toBeHidden();
-  await expect(page.getByRole('row').filter({ hasText: saleItem })).toHaveCount(1);
+  await expect(page).toHaveURL(/\/sales$/);
+  await expect(page.getByRole('heading', { name: 'Verkäufe' })).toBeVisible();
+  const recordedSales = page.getByRole('row').filter({ hasText: saleItem });
+  await expect(recordedSales).toHaveCount(1);
+  await expect(recordedSales).toContainText('35,00 €');
 
   await page.goto('/inventory');
   const soldRow = page.getByRole('row').filter({ hasText: saleItem });

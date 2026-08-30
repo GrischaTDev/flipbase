@@ -36,6 +36,23 @@
       aria-label="Umsatz, Ausgaben und realisierter Gewinn im gewählten Zeitraum"
       aria-describedby="revenue-chart-summary"
     ></canvas>
+    @if (activeTooltip(); as tooltip) {
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        class="pointer-events-none absolute z-10 min-w-48 -translate-x-1/2 -translate-y-full rounded-md border border-fb-line bg-fb-surface px-3 py-2 text-xs text-fb-text-primary shadow-lg"
+        [style.left.px]="tooltip.left"
+        [style.top.px]="tooltip.top"
+      >
+        <p class="font-semibold">{{ tooltip.title }}</p>
+        <ul class="mt-1 space-y-0.5">
+          @for (line of tooltip.lines; track line) {
+            <li>{{ line }}</li>
+          }
+        </ul>
+      </div>
+    }
   </div>
 
   <div id="revenue-chart-summary" class="sr-only">

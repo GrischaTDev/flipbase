@@ -12,7 +12,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
-import type { ChartConfiguration } from 'chart.js';
+import type { ChartConfiguration, TooltipModel } from 'chart.js';
 import { DashboardTimePoint } from '../../../core/models/flipbase.models';
 import { ThemeService } from '../../../core/services/theme.service';
 import { REVENUE_CHART_FACTORY, RevenueLineChart } from './revenue-chart.chart';
@@ -21,6 +21,13 @@ import {
   createRevenueChartConfiguration,
   revenueChartPalette,
 } from './revenue-chart.config';
+
+interface VisibleRevenueTooltip {
+  readonly title: string;
+  readonly lines: readonly string[];
+  readonly left: number;
+  readonly top: number;
+}
 
 /** Zahlungsstrom-Diagramm mit vollstaendiger tabellarischer Alternative. */
 @Component({
@@ -33,6 +40,7 @@ import {
 export class RevenueChartComponent {
   readonly points = input.required<readonly DashboardTimePoint[]>();
   readonly canvas = viewChild.required<ElementRef<HTMLCanvasElement>>('canvas');
+  readonly activeTooltip = signal<VisibleRevenueTooltip | null>(null);
 
   private readonly themeService = inject(ThemeService);
   private readonly factory = inject(REVENUE_CHART_FACTORY);
@@ -47,6 +55,7 @@ export class RevenueChartComponent {
       this.points(),
       this.themeService.currentTheme(),
       this.prefersReducedMotion(),
+      this.handleExternalTooltip,
     ),
   );
   readonly legendSeries = computed(() => {
@@ -86,6 +95,27 @@ export class RevenueChartComponent {
 
   private readonly handleMotionPreferenceChange = (event: MediaQueryListEvent): void => {
     this.prefersReducedMotion.set(event.matches);
+  };
+
+  private readonly handleExternalTooltip = (tooltip: TooltipModel<'line'>): void => {
+    if (tooltip.opacity === 0) {
+      this.activeTooltip.set(null);
+      return;
+    }
+
+    const title = tooltip.title[0];
+    const lines = tooltip.body.flatMap((entry) => entry.lines);
+    if (!title || lines.length === 0) {
+      this.activeTooltip.set(null);
+      return;
+    }
+
+    this.activeTooltip.set({
+      title,
+      lines,
+      left: tooltip.caretX + 8,
+      top: tooltip.caretY + 8,
+    });
   };
 
   private initializeChart(): void {

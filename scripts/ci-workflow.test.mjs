@@ -21,6 +21,8 @@ const expectedExpressions = Object.freeze({
 });
 const expectedGateCommand = 'test "$RESULT" = "success"';
 const uploadArtifactSha = '043fb46d1a93c77aae656e7c1c64a875d1fc6a0a';
+const checkoutSha = '3d3c42e5aac5ba805825da76410c181273ba90b1';
+const setupNodeSha = '820762786026740c76f36085b0efc47a31fe5020';
 const expectedDatabaseGateCommand = `test "$CHANGES_RESULT" = "success"
 if [ "$SUPABASE_CHANGED" = "true" ]; then
   test "$DATABASE_RESULT" = "success"
@@ -150,10 +152,13 @@ function assertDatabaseGateSecurity(gate) {
 }
 
 function assertBrowserSmokeSecurity(browserSmoke) {
+  assert.equal(browserSmoke.needs, undefined, 'browser-smoke muss parallel starten');
   const checkout = findStep(browserSmoke, 'Check out repository');
+  assert.equal(checkout.uses, `actions/checkout@${checkoutSha}`);
   assert.equal(checkout.with['persist-credentials'], 'false');
 
   const setupNode = findStep(browserSmoke, 'Set up Node');
+  assert.equal(setupNode.uses, `actions/setup-node@${setupNodeSha}`);
   assert.equal(setupNode.with['node-version'], '${{ env.NODE_VERSION }}');
   assert.equal(findStep(browserSmoke, 'Install dependencies').run, 'npm ci');
   assert.equal(
@@ -231,10 +236,12 @@ function securityFixtures() {
       steps: [
         {
           name: 'Check out repository',
+          uses: `actions/checkout@${checkoutSha}`,
           with: { 'persist-credentials': 'false' },
         },
         {
           name: 'Set up Node',
+          uses: `actions/setup-node@${setupNodeSha}`,
           with: { 'node-version': '${{ env.NODE_VERSION }}' },
         },
         { name: 'Install dependencies', run: 'npm ci' },
@@ -304,6 +311,27 @@ test('weist einen beweglichen Tag für den Browser-Artefakt-Upload zurück', () 
   const { browserSmoke } = securityFixtures();
   findStep(browserSmoke, 'Upload browser failure artifacts').uses =
     'actions/upload-artifact@v7.0.1';
+
+  assert.throws(() => assertBrowserSmokeSecurity(browserSmoke));
+});
+
+test('weist eine Abhängigkeit des parallelen Browser-Smoke-Jobs zurück', () => {
+  const { browserSmoke } = securityFixtures();
+  browserSmoke.needs = 'quality';
+
+  assert.throws(() => assertBrowserSmokeSecurity(browserSmoke), /parallel/);
+});
+
+test('weist einen beweglichen Checkout-Tag im Browser-Smoke-Job zurück', () => {
+  const { browserSmoke } = securityFixtures();
+  findStep(browserSmoke, 'Check out repository').uses = 'actions/checkout@v7.0.1';
+
+  assert.throws(() => assertBrowserSmokeSecurity(browserSmoke));
+});
+
+test('weist einen beweglichen Setup-Node-Tag im Browser-Smoke-Job zurück', () => {
+  const { browserSmoke } = securityFixtures();
+  findStep(browserSmoke, 'Set up Node').uses = 'actions/setup-node@v7.0.0';
 
   assert.throws(() => assertBrowserSmokeSecurity(browserSmoke));
 });

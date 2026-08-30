@@ -14,7 +14,9 @@ test('zeigt Rechtshinweise ohne unechte Sprungziele in der Registrierung', async
   await page.getByRole('link', { name: 'Registrieren' }).click();
 
   await expect(page).toHaveURL(/\/auth\/register$/);
-  await expect(page.getByText('AGB', { exact: true })).toBeVisible();
-  await expect(page.getByText('Datenschutzerklärung', { exact: true })).toBeVisible();
-  await expect(page.locator('a[href="#"]')).toHaveCount(0);
+  for (const legalNotice of ['AGB', 'Datenschutzerklärung']) {
+    await expect(page.getByText(legalNotice, { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: legalNotice, exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: legalNotice, exact: true })).toHaveCount(0);
+  }
 });
