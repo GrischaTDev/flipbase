@@ -40,14 +40,6 @@ const documentedNodeFixtures = new Map([
     'src/app/features/accounting/accounting-toast-actions.spec.ts',
     'reicht File nur als Ereignisfixture an eine Attrappe weiter',
   ],
-  [
-    'src/app/features/purchases/pages/purchase-detail/purchase-detail-actions.spec.ts',
-    'enthält File ausschließlich als TypeScript-Typ',
-  ],
-  [
-    'src/app/features/image-optimizer/image-optimizer-toast-actions.spec.ts',
-    'verwendet Blob nur als Node-kompatible Exportfixture',
-  ],
 ]);
 const violations = [];
 for (const path of node) {
