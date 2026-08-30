@@ -3,6 +3,9 @@ name: Test runner benchmark
 on:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   benchmark:
     strategy:

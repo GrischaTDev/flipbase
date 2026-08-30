@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url';
 import { parsers as yamlParsers } from 'prettier/plugins/yaml';
 
 const workflowPath = fileURLToPath(new URL('../.github/workflows/ci.yml', import.meta.url));
+const benchmarkWorkflowPath = fileURLToPath(
+  new URL('../.github/workflows/test-benchmark.yml', import.meta.url),
+);
 const packagePath = fileURLToPath(new URL('../package.json', import.meta.url));
 const expectedExpressions = Object.freeze({
   testGateIf: '${{ always() }}',
@@ -66,6 +69,17 @@ async function loadWorkflow() {
   const ast = await yamlParsers.yaml.parse(source, { filepath: workflowPath });
   return convertYamlNode(ast);
 }
+
+async function loadBenchmarkWorkflow() {
+  const source = await readFile(benchmarkWorkflowPath, 'utf8');
+  const ast = await yamlParsers.yaml.parse(source, { filepath: benchmarkWorkflowPath });
+  return convertYamlNode(ast);
+}
+
+test('begrenzt den manuellen Benchmark auf lesenden Repository-Zugriff', async () => {
+  const workflow = await loadBenchmarkWorkflow();
+  assert.deepEqual(workflow.permissions, { contents: 'read' });
+});
 
 async function loadPackageScripts() {
   return JSON.parse(await readFile(packagePath, 'utf8')).scripts;

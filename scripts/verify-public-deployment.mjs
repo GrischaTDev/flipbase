@@ -41,9 +41,15 @@ async function requireOkResponse(url, label) {
 
 async function verify() {
   const rootUrl = new URL('/', baseUrl);
+  const healthUrl = new URL('/healthz', baseUrl);
   const metadataUrl = new URL('/deployment.json', baseUrl);
 
   await requireOkResponse(rootUrl, 'Startseite');
+  const healthResponse = await requireOkResponse(healthUrl, 'Healthcheck');
+  const healthStatus = (await healthResponse.text()).trim();
+  if (healthStatus !== 'ok') {
+    throw new Error(`Healthcheck liefert "${healthStatus}" statt "ok".`);
+  }
   const metadataResponse = await requireOkResponse(metadataUrl, 'Deployment-Metadaten');
 
   let metadata;

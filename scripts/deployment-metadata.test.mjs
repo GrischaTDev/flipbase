@@ -78,6 +78,12 @@ test('bestätigt öffentliche Startseite und exakt ausgelieferte Build-SHA', asy
         return;
       }
 
+      if (request.url === '/healthz') {
+        response.writeHead(200, { 'content-type': 'text/plain' });
+        response.end('ok');
+        return;
+      }
+
       response.writeHead(404).end();
     },
     async (baseUrl) => {
@@ -101,10 +107,18 @@ test('stoppt bei einer anderen öffentlich ausgelieferten SHA', async () => {
 
   await withServer(
     (request, response) => {
-      response.writeHead(200, {
-        'content-type': request.url === '/' ? 'text/html' : 'application/json',
-      });
-      response.end(request.url === '/' ? '<!doctype html>' : JSON.stringify({ commit: oldCommit }));
+      if (request.url === '/') {
+        response.writeHead(200, { 'content-type': 'text/html' });
+        response.end('<!doctype html>');
+        return;
+      }
+      if (request.url === '/healthz') {
+        response.writeHead(200, { 'content-type': 'text/plain' });
+        response.end('ok');
+        return;
+      }
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ commit: oldCommit }));
     },
     async (baseUrl) => {
       await assert.rejects(
@@ -146,6 +160,39 @@ test('stoppt, wenn die öffentliche Startseite nicht mit HTTP 200 antwortet', as
           '1',
         ]),
         /Startseite antwortet mit HTTP 503 statt 200/,
+      );
+    },
+  );
+});
+
+test('stoppt, wenn der öffentliche Healthcheck nicht exakt ok liefert', async () => {
+  await withServer(
+    (request, response) => {
+      if (request.url === '/') {
+        response.writeHead(200, { 'content-type': 'text/html' });
+        response.end('<!doctype html>');
+        return;
+      }
+      if (request.url === '/healthz') {
+        response.writeHead(200, { 'content-type': 'text/plain' });
+        response.end('starting');
+        return;
+      }
+      response.writeHead(200, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ commit }));
+    },
+    async (baseUrl) => {
+      await assert.rejects(
+        execFileAsync(process.execPath, [
+          verifyDeploymentScript,
+          '--base-url',
+          baseUrl,
+          '--expected-commit',
+          commit,
+          '--attempts',
+          '1',
+        ]),
+        /Healthcheck liefert "starting" statt "ok"/,
       );
     },
   );
