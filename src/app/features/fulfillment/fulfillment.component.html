@@ -725,7 +725,11 @@
             >
               Versanddienstleister
             </label>
-            <app-custom-select [options]="versanddienstOptionen" formControlName="carrier" />
+            <app-custom-select
+              ariaLabel="Versanddienstleister"
+              [options]="versanddienstOptionen"
+              formControlName="carrier"
+            />
           </div>
 
           <div>

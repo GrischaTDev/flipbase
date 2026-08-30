@@ -444,6 +444,7 @@
             <span class="text-fb-text-muted font-medium">Besteuerungszeitraum:</span>
 
             <app-custom-select
+              ariaLabel="Steuerjahr"
               [options]="jahresOptionen"
               [value]="selectedYear()"
               (valueChange)="selectedYear.set($event ?? 2026)"
@@ -452,6 +453,7 @@
             />
 
             <app-custom-select
+              ariaLabel="Besteuerungszeitraum"
               [options]="zeitraumOptionen"
               [value]="selectedPeriod()"
               (valueChange)="selectedPeriod.set($event ?? 'all')"
@@ -722,6 +724,7 @@
                 >Kontenrahmen</label
               >
               <app-custom-select
+                ariaLabel="Kontenrahmen"
                 [options]="kontenrahmenOptionen"
                 formControlName="skrStandard"
                 size="sm"

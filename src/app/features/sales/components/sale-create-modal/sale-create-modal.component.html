@@ -95,6 +95,7 @@
                   <span class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
                     >Artikel</span
                   ><app-custom-select
+                    [ariaLabel]="'Artikel für Verkaufsposition ' + (index + 1)"
                     [options]="targetOptions()"
                     formControlName="target"
                     (valueChange)="onTargetChange(index, $event)"
@@ -155,7 +156,12 @@
         <div>
           <span class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"
             >Plattform</span
-          ><app-custom-select [options]="plattformOptionen" formControlName="platform" size="sm" />
+          ><app-custom-select
+            ariaLabel="Verkaufsplattform"
+            [options]="plattformOptionen"
+            formControlName="platform"
+            size="sm"
+          />
         </div>
         <div>
           <span class="mb-1 block text-[10px] font-semibold uppercase text-fb-text-muted"

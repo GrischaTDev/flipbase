@@ -475,7 +475,11 @@
             >
               Grund der Rückabwicklung
             </label>
-            <app-custom-select [options]="retourengrundOptionen" formControlName="reason" />
+            <app-custom-select
+              ariaLabel="Grund der Rückabwicklung"
+              [options]="retourengrundOptionen"
+              formControlName="reason"
+            />
           </div>
 
           <!-- 2. Refund Amount (Full vs Partial) -->

@@ -146,6 +146,7 @@
             </span>
           } @else {
             <app-custom-select
+              ariaLabel="Artikelstatus"
               variant="pill"
               [options]="statusOptions"
               [value]="item.status"
@@ -562,7 +563,12 @@
               (ngSubmit)="onAddCost()"
               class="p-3 rounded-lg bg-fb-subtle border border-fb-border flex flex-wrap gap-2 items-center animate-fade-in"
             >
-              <app-custom-select [options]="kostenartOptionen" formControlName="type" size="sm" />
+              <app-custom-select
+                ariaLabel="Kostenart"
+                [options]="kostenartOptionen"
+                formControlName="type"
+                size="sm"
+              />
 
               <input
                 type="number"

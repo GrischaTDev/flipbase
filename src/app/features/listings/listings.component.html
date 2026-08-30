@@ -142,6 +142,7 @@
             Aus verfügbarem Inventar ({{ availableItems().length }} bereit)
           </label>
           <app-custom-select
+            ariaLabel="Inventarartikel"
             [options]="artikelOptionen()"
             [value]="selectedItemId()"
             (valueChange)="onSelectItem($event ?? '')"

@@ -140,6 +140,7 @@
       </div>
       <div class="sm:col-span-3">
         <app-custom-select
+          ariaLabel="Zustand filtern"
           variant="filter"
           [options]="filterConditionOptions"
           [(value)]="selectedCondition"
@@ -147,6 +148,7 @@
       </div>
       <div class="sm:col-span-3">
         <app-custom-select
+          ariaLabel="Status filtern"
           variant="filter"
           [options]="filterStatusOptions"
           [(value)]="selectedStatus"

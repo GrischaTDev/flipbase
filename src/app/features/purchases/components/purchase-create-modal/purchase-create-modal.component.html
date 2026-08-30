@@ -211,6 +211,7 @@
             }
 
             <app-custom-select
+              ariaLabel="Bezugsquelle"
               [options]="quellenOptionen()"
               formControlName="source_id"
               size="sm"
@@ -279,6 +280,7 @@
             }
 
             <app-custom-select
+              ariaLabel="Lieferant"
               [options]="lieferantenOptionen()"
               formControlName="supplier_id"
               size="sm"
@@ -318,6 +320,7 @@
                   Zustand
                 </label>
                 <app-custom-select
+                  ariaLabel="Zustand"
                   [options]="zustandsOptionen"
                   formControlName="single_item_condition"
                   size="sm"
@@ -368,6 +371,7 @@
               <div class="min-w-0">
                 <span class="text-[10px] font-semibold text-fb-text-muted">Art</span>
                 <app-custom-select
+                  ariaLabel="Kostenart"
                   class="mt-1 block"
                   [options]="kostenartOptionen"
                   [value]="cost.type"
@@ -452,6 +456,7 @@
             </div>
             <div class="sm:col-span-4">
               <app-custom-select
+                ariaLabel="Versanddienstleister"
                 [options]="dienstleisterOptionen()"
                 formControlName="tracking_carrier"
                 size="sm"

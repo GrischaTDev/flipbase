@@ -93,7 +93,9 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   );
   readonly listboxId = computed(() => `${this.resolvedTriggerId()}-listbox`);
   readonly activeDescendantId = computed(() =>
-    this.isOpen() && this.activeIndex() >= 0 ? this.optionId(this.activeIndex()) : null,
+    this.isOpen() && this.activeIndex() >= 0 && this.activeIndex() < this.options().length
+      ? this.optionId(this.activeIndex())
+      : null,
   );
 
   readonly chevronIcon = ChevronDown;
@@ -129,7 +131,6 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
 
   toggleDropdown(event?: MouseEvent): void {
     if (event) {
-      event.stopPropagation();
       event.preventDefault();
     }
     if (this.effectiveDisabled()) return;
@@ -168,7 +169,6 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
 
   selectOption(option: SelectOption<T>, event?: MouseEvent): void {
     if (event) {
-      event.stopPropagation();
       event.preventDefault();
     }
     if (this.effectiveDisabled()) return;

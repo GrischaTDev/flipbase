@@ -194,6 +194,20 @@ describe('CustomSelectComponent', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  it('schließt eine offene Instanz, wenn der Trigger einer anderen Instanz geklickt wird', () => {
+    const first = createSelect();
+    const second = createSelect();
+    triggerOf(first).click();
+    first.detectChanges();
+
+    triggerOf(second).click();
+    first.detectChanges();
+    second.detectChanges();
+
+    expect(first.componentInstance.isOpen()).toBe(false);
+    expect(second.componentInstance.isOpen()).toBe(true);
+  });
+
   it.each([
     ['Enter', 'vinted', 2],
     [' ', null, 0],
@@ -265,6 +279,24 @@ describe('CustomSelectComponent', () => {
     expect(activeIndexOf(fixture)).toBe(-1);
     expect(triggerOf(fixture).hasAttribute('aria-activedescendant')).toBe(false);
     expect(optionElements(fixture)).toEqual([]);
+  });
+
+  it('verweist nach signalbasiertem Schrumpfen nie auf eine fehlende aktive Option', () => {
+    const fixture = createSelect({ value: 'vinted' });
+    keydown(fixture, 'ArrowDown');
+    expect(triggerOf(fixture).getAttribute('aria-activedescendant')).toBe(
+      optionElements(fixture)[2]?.id,
+    );
+
+    fixture.componentRef.setInput('options', options.slice(0, 1));
+    fixture.detectChanges();
+
+    expect(triggerOf(fixture).hasAttribute('aria-activedescendant')).toBe(false);
+
+    fixture.componentRef.setInput('options', []);
+    fixture.detectChanges();
+
+    expect(triggerOf(fixture).hasAttribute('aria-activedescendant')).toBe(false);
   });
 
   it.each(['Enter', ' '] as const)(

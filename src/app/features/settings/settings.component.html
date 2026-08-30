@@ -225,7 +225,11 @@
             >
               Steuer-Modus
             </label>
-            <app-custom-select [options]="steuermodusOptionen" formControlName="taxMode" />
+            <app-custom-select
+              ariaLabel="Steuer-Modus"
+              [options]="steuermodusOptionen"
+              formControlName="taxMode"
+            />
           </div>
         </div>
 
@@ -332,6 +336,7 @@
               <div class="flex items-center gap-2">
                 @if (member.role !== 'owner') {
                   <app-custom-select
+                    [ariaLabel]="'Rolle von ' + (member.email || 'Workspace-Mitglied')"
                     [options]="rollenOptionen"
                     [value]="member.role"
                     (valueChange)="onUpdateRole(member.id, $event ?? 'readonly')"
@@ -1155,7 +1160,11 @@
             >
               Rolle & Berechtigung *
             </label>
-            <app-custom-select [options]="einladungsrollenOptionen" formControlName="role" />
+            <app-custom-select
+              ariaLabel="Einladungsrolle"
+              [options]="einladungsrollenOptionen"
+              formControlName="role"
+            />
           </div>
 
           <div class="flex justify-end gap-2 pt-2 border-t border-fb-border">
