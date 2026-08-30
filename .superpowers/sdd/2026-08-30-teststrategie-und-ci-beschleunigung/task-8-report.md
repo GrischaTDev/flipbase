@@ -66,10 +66,12 @@ kein Deployment.
    Verkaufsschaltfläche.
 5. **Dashboardinteraktion:** Combobox „Plattform filtern“, Option „ebay“ und
    Canvas-Rolle `img` mit dem Namen „Umsatz, Ausgaben und realisierter Gewinn im
-   gewählten Zeitraum“. Eine Mausbewegung auf den deterministischen Punkt
-   14.08. öffnet den externen sichtbaren DOM-Tooltip mit `role="status"`,
-   `aria-live="polite"`, 379,00 € Umsatz und 95,62 € realisiertem Gewinn.
-   Der Test liest weder Pixel noch Canvas- oder Chart.js-Interna aus.
+   gewählten Zeitraum“. Eine begrenzte Folge echter Mausbewegungen sucht den
+   deterministischen Punkt 14.08. ausschließlich über das sichtbare
+   zugängliche Tooltip-Feedback. Der externe DOM-Tooltip zeigt
+   `role="status"`, `aria-live="polite"`, 379,00 € Umsatz und 95,62 €
+   realisierten Gewinn. Der Test liest weder Pixel noch Canvas- oder
+   Chart.js-Interna aus.
 
 Keine Auswahl verwendet Tailwind-Klassen, generierte CSS-Klassen oder fragile
 DOM-Pfade. Jeder Test erhält einen eigenen Browserkontext und erzeugt seinen
@@ -138,12 +140,14 @@ verloren.
 
 ## Zwei abschließende Browserläufe
 
-- Lauf 1 der Fixrunde: 5/5 grün, 10,0 Sekunden.
-- Lauf 2 der Fixrunde: 5/5 grün, 9,9 Sekunden.
+- Lauf 1 der zweiten Fixrunde: 5/5 grün, 10,3 Sekunden.
+- Lauf 2 der zweiten Fixrunde: 5/5 grün, 10,1 Sekunden.
 
-Die Webserver-Prozesse meldeten lediglich die bekannte Node-Warnung, dass
-`NO_COLOR` wegen `FORCE_COLOR` ignoriert wird; es gab keine Anwendungs- oder
-Browserfehler.
+Die Webserver-Prozesse meldeten die bekannte Node-Warnung, dass `NO_COLOR`
+wegen `FORCE_COLOR` ignoriert wird. Beim Dashboard-Filter erscheint weiterhin
+Angulars bestehende Performancewarnung `NG0956` zur Identitätsverfolgung einer
+Dreierliste; sie beeinflusst den Nutzerweg nicht und ist nicht Gegenstand
+dieses zeitbezogenen Testfixes. Es gab keine Browserfehler.
 
 ## Vollständige Abnahme
 
@@ -196,3 +200,25 @@ Browserfehler.
   den exakten Pins liefen 27/27 Fälle grün. Drei neue Negativfixtures weisen
   `browser-smoke.needs: quality` sowie bewegliche Tags von Checkout und
   Setup-Node ausdrücklich zurück.
+
+## Review-Fixrunde 2: deterministische Browserzeit
+
+- **RED am 01.09.2026:** Mit simulierter Berliner Browserzeit
+  `2026-09-01T12:00:00+02:00` und damit ohne August-Freeze war der bestehende
+  Test rot: Die erwartete Meldung „1 bestätigte Verkäufe im gewählten Zeitraum“
+  fehlte, weil das Standard-Monatsfenster bereits September war. Damit ist die
+  zuvor kalendarisch versteckte Kopplung reproduziert.
+- **GREEN im Demo-Zeitraum:** `page.clock.setFixedTime()` setzt die Browserzeit
+  jetzt vor `startDemoMode()` und damit vor der ersten Navigation auf
+  `2026-08-30T12:00:00+02:00`; der Browserkontext verwendet explizit
+  `Europe/Berlin`. Timer bleiben gemäß der offiziellen einfachen
+  Playwright-Clock-API aktiv.
+- **Robuste Interaktion:** Die starre einzelne Position von 45,5 % wurde
+  entfernt. Der Test bewegt die Maus höchstens 61-mal von 5 % bis 95 % über
+  die sichtbare Diagrammbreite und stoppt nur, wenn der zugängliche
+  Live-Tooltip den Zieltag 14.08. meldet. Umsatz und Gewinn werden danach
+  weiterhin exakt geprüft.
+- **Abnahme:** Der gezielte Fall lief 1/1 grün; danach liefen zwei vollständige
+  Chromium-Suiten mit 5/5 in 10,3 s und 5/5 in 10,1 s. `format:check`, `lint`,
+  `typecheck` und `git diff --check` waren grün.
+- Separater Review-Fix-Commit: `fix(test): freeze dashboard smoke test time`.

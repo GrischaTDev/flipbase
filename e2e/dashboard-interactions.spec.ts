@@ -2,9 +2,12 @@ import { expect, test } from '@playwright/test';
 
 import { startDemoMode } from './support/demo';
 
+test.use({ timezoneId: 'Europe/Berlin' });
+
 test('filtert das Dashboard über den Shared Select und zeigt den Chart-Tooltip', async ({
   page,
 }) => {
+  await page.clock.setFixedTime(new Date('2026-08-30T12:00:00+02:00'));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await startDemoMode(page);
 
@@ -22,10 +25,16 @@ test('filtert das Dashboard über den Shared Select und zeigt den Chart-Tooltip'
   expect(box).not.toBeNull();
 
   const tooltip = page.getByRole('status').filter({ hasText: 'Umsatz:' });
-  // 14.08. ist Punkt 14 von 30; 45,5 % trifft ihn inklusive der sichtbaren
-  // Achsenränder, ohne Chart- oder Canvas-Interna auszulesen.
-  await page.mouse.move(box!.x + box!.width * 0.455, box!.y + box!.height / 2);
-  await expect(tooltip).toBeVisible();
+  let targetFound = false;
+  for (let step = 0; step <= 60 && !targetFound; step += 1) {
+    await page.mouse.move(
+      box!.x + box!.width * (0.05 + (step / 60) * 0.9),
+      box!.y + box!.height / 2,
+    );
+    targetFound = (await tooltip.textContent().catch(() => null))?.includes('14.08.') ?? false;
+  }
+
+  expect(targetFound).toBe(true);
   await expect(tooltip).toContainText('14.08.');
   await expect(tooltip).toContainText(/Umsatz: 379,00\s€/);
   await expect(tooltip).toContainText(/Realisierter Gewinn: 95,62\s€/);
