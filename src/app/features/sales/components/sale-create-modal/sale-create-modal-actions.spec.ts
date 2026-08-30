@@ -13,7 +13,7 @@ import {
 } from '../../../../core/models/flipbase.models';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
-import { SalesService } from '../../../../core/services/sales.service';
+import { RecordSaleInput, SalesService } from '../../../../core/services/sales.service';
 import { StockService } from '../../../../core/services/stock.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
@@ -109,7 +109,6 @@ function erstelleKomponente(bestehenderVerkauf: Sale | null = null) {
       otherCosts: new FormControl(0, { nonNullable: true }),
       externalOrderId: new FormControl('', { nonNullable: true }),
       buyerNotes: new FormControl('', { nonNullable: true }),
-      reconciliationReason: new FormControl('', { nonNullable: true }),
     }),
   });
   Object.assign(komponente, { lines: komponente.form.controls.lines });
@@ -236,7 +235,7 @@ describe('SaleCreateModalComponent – Aktionsmeldungen', () => {
     expect(closed.emit).toHaveBeenCalledOnce();
   });
 
-  it('verwendet für ungeklärten Altbestand ausschließlich den protokollierten Legacy-Adapter', async () => {
+  it('verwendet für ungeklärten Altbestand ausschließlich den protokollierten Verkaufsadapter', async () => {
     const { komponente, salesService } = erstelleKomponente();
     Object.assign(komponente, {
       legacyReconciliation: signal({
@@ -247,17 +246,49 @@ describe('SaleCreateModalComponent – Aktionsmeldungen', () => {
     komponente.lines.at(0).controls.target.setValue(`inventory:${artikel.id}`);
     komponente.lines.at(0).controls.quantity.setValue(1);
     komponente.lines.at(0).controls.unitSalePrice.setValue(50);
-    komponente.form.controls.reconciliationReason.setValue('Beleg im Papierarchiv geprüft');
 
     await komponente.onSubmit();
 
     expect(salesService.recordLegacySale).toHaveBeenCalledWith(
       artikel.id,
       expect.objectContaining({
-        lines: [expect.objectContaining({ inventoryItemId: artikel.id })],
+        lines: [expect.objectContaining({ inventoryItemId: artikel.id, quantity: 1 })],
       }),
     );
     expect(salesService.recordSale).not.toHaveBeenCalled();
+  });
+
+  it('lehnt einen historischen Verkaufsnachtrag mit mehreren Positionen ab', () => {
+    const { komponente } = erstelleKomponente();
+
+    expect(() =>
+      validiereHistorischenVerkauf(komponente, artikel.id, {
+        ...gueltigerHistorischerInput(),
+        lines: [gueltigerHistorischerInput().lines[0], gueltigerHistorischerInput().lines[0]],
+      }),
+    ).toThrow('Der historische Verkaufsnachtrag ist unvollständig oder wurde verändert.');
+  });
+
+  it('lehnt einen historischen Verkaufsnachtrag für einen anderen Artikel ab', () => {
+    const { komponente } = erstelleKomponente();
+
+    expect(() =>
+      validiereHistorischenVerkauf(komponente, artikel.id, {
+        ...gueltigerHistorischerInput(),
+        lines: [{ ...gueltigerHistorischerInput().lines[0], inventoryItemId: 'item-2' }],
+      }),
+    ).toThrow('Der historische Verkaufsnachtrag ist unvollständig oder wurde verändert.');
+  });
+
+  it('lehnt einen historischen Verkaufsnachtrag mit einer Menge ungleich eins ab', () => {
+    const { komponente } = erstelleKomponente();
+
+    expect(() =>
+      validiereHistorischenVerkauf(komponente, artikel.id, {
+        ...gueltigerHistorischerInput(),
+        lines: [{ ...gueltigerHistorischerInput().lines[0], quantity: 2 }],
+      }),
+    ).toThrow('Der historische Verkaufsnachtrag ist unvollständig oder wurde verändert.');
   });
 
   it('behält den Dialog bei einem lokalen Speicherfehler offen und meldet ihn persistent', async () => {
@@ -291,3 +322,36 @@ describe('SaleCreateModalComponent – Aktionsmeldungen', () => {
     expect(toast.toasts()[0].title).toBe('Verkauf wurde gespeichert.');
   });
 });
+
+function gueltigerHistorischerInput(): RecordSaleInput {
+  return {
+    platform: 'ebay',
+    saleDate: '2026-08-26',
+    lines: [
+      {
+        inventoryItemId: artikel.id,
+        titleSnapshot: artikel.title,
+        quantity: 1,
+        unitSalePrice: 50,
+      },
+    ],
+  };
+}
+
+function validiereHistorischenVerkauf(
+  komponente: SaleCreateModalComponent,
+  inventoryItemId: string,
+  input: RecordSaleInput,
+): RecordSaleInput {
+  return (
+    komponente as unknown as {
+      validatedLegacyInput(
+        reconciliation: {
+          readonly kind: 'legacy_sold_unverified';
+          readonly inventoryItemId: string;
+        },
+        value: RecordSaleInput,
+      ): RecordSaleInput;
+    }
+  ).validatedLegacyInput({ kind: 'legacy_sold_unverified', inventoryItemId }, input);
+}
