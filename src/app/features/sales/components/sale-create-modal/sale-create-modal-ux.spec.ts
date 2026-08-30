@@ -19,16 +19,16 @@ import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog
 import { SaleCreateModalComponent } from './sale-create-modal.component';
 
 TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-type AngularInputMetadata = {
+interface AngularInputMetadata {
   inputs: Record<string, unknown>;
   declaredInputs: Record<string, string>;
-};
+}
 
-type MetadataSnapshot = {
+interface MetadataSnapshot {
   readonly metadata: AngularInputMetadata;
   readonly inputs: Record<string, unknown>;
   readonly declaredInputs: Record<string, string>;
-};
+}
 
 let metadataSnapshots: MetadataSnapshot[] = [];
 
