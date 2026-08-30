@@ -755,7 +755,7 @@ describe('PurchaseService', () => {
 
       beforeEach(() => {
         memoryStorage = createMemoryStorage();
-        vi.stubGlobal(['local', 'Storage'].join(''), memoryStorage);
+        vi.stubGlobal('localStorage', memoryStorage);
       });
 
       afterEach(() => {

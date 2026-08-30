@@ -1,7 +1,7 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { ImageOptimizerComponent } from './image-optimizer.component';
 import { Adjustments } from './models/image-adjustments';
@@ -13,7 +13,7 @@ import { MetadataReaderService } from './services/metadata-reader.service';
 
 describe('ImageOptimizerComponent', () => {
   describe('Anpassungen', () => {
-    afterEach(() => TestBed.resetTestingModule());
+    beforeAll(() => TestBed.resetTestingModule());
 
     const brightened: Adjustments = { ...defaultAdjustments(), brightness: 1.3 };
 
@@ -212,6 +212,8 @@ describe('ImageOptimizerComponent', () => {
   });
 
   describe('Metadaten', () => {
+    beforeAll(() => TestBed.resetTestingModule());
+
     function jpegFile(name: string): File {
       return new File([''], name, { type: 'image/jpeg' });
     }
@@ -258,8 +260,6 @@ describe('ImageOptimizerComponent', () => {
       });
       return TestBed.runInInjectionContext(() => new ImageOptimizerComponent());
     }
-
-    afterEach(() => TestBed.resetTestingModule());
 
     describe('ImageOptimizerComponent – Metadaten auslesen', () => {
       it('startet mit "pending" und traegt nach dem Lesen die Metadaten am richtigen Bild ein', async () => {

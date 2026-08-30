@@ -1,5 +1,6 @@
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
+import ts from 'typescript';
 
 const root = join(process.cwd(), 'src');
 
@@ -20,35 +21,140 @@ const angular = files.filter((path) => path.endsWith('.angular.spec.ts'));
 const node = files.filter(
   (path) => !path.endsWith('.dom.spec.ts') && !path.endsWith('.angular.spec.ts'),
 );
+const sources = new Map(
+  await Promise.all(files.map(async (path) => [path, await readFile(path, 'utf8')])),
+);
+
+function countTestSyntax(path, source) {
+  const sourceFile = ts.createSourceFile(
+    path,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const counts = { direct: 0, each: 0, assertions: 0 };
+
+  function isTestIdentifier(node) {
+    return ts.isIdentifier(node) && (node.text === 'it' || node.text === 'test');
+  }
+
+  function isEachFactory(node) {
+    const expression = ts.isCallExpression(node)
+      ? node.expression
+      : ts.isTaggedTemplateExpression(node)
+        ? node.tag
+        : null;
+    return (
+      expression !== null &&
+      ts.isPropertyAccessExpression(expression) &&
+      isTestIdentifier(expression.expression) &&
+      expression.name.text === 'each'
+    );
+  }
+
+  function visit(node) {
+    if (ts.isCallExpression(node)) {
+      if (isTestIdentifier(node.expression)) counts.direct++;
+      else if (isEachFactory(node.expression)) counts.each++;
+
+      if (ts.isIdentifier(node.expression) && node.expression.text === 'expect') {
+        counts.assertions++;
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return counts;
+}
+
+const syntaxCounts = { direct: 0, each: 0, assertions: 0 };
+for (const [path, source] of sources) {
+  const counts = countTestSyntax(path, source);
+  syntaxCounts.direct += counts.direct;
+  syntaxCounts.each += counts.each;
+  syntaxCounts.assertions += counts.assertions;
+}
 
 const forbiddenInNode =
-  /\b(TestBed|ComponentFixture|window|document|DOMParser|HTMLElement|HTMLCanvasElement|FileReader|File|Blob|Image|ImageData|ResizeObserver|localStorage|navigator)\b/;
+  /\b(TestBed|ComponentFixture|window|document|DOMParser|HTMLElement|HTMLCanvasElement|FileReader|File|Blob|Image|ImageData|ResizeObserver|localStorage|navigator)\b/g;
 const documentedNodeFixtures = new Map([
   [
     'src/app/core/services/bank-reconciliation.service.spec.ts',
-    'prüft localStorage nur defensiv und benötigt keine Browser-Speicherimplementierung',
+    [
+      {
+        marker: 'localStorage',
+        line: /globalThis\.localStorage/,
+        reason: 'prüft den optionalen globalen Speicher nur defensiv',
+      },
+    ],
   ],
   [
     'src/app/core/services/demo-data-isolation.spec.ts',
-    'installiert eine eigene Speicherattrappe auf globalThis',
+    [
+      {
+        marker: 'localStorage',
+        line: /\.localStorage = attrappe/,
+        reason: 'installiert eine eigene Speicherattrappe auf globalThis',
+      },
+    ],
   ],
   [
     'src/app/core/services/landing-hint.service.spec.ts',
-    'injiziert ein lokales Dokument-Double statt ein Browser-Dokument zu verwenden',
+    [
+      {
+        marker: 'document',
+        line: /document\.cookie in jsdom/,
+        reason: 'erläutert im Kommentar das durch DOCUMENT ersetzte Browserverhalten',
+      },
+    ],
   ],
   [
     'src/app/features/accounting/accounting-toast-actions.spec.ts',
-    'reicht File nur als Ereignisfixture an eine Attrappe weiter',
+    [
+      {
+        marker: 'File',
+        line: /new File\(/,
+        reason: 'reicht eine von Node bereitgestellte File-Fixture an eine Attrappe weiter',
+      },
+    ],
+  ],
+  [
+    'src/app/core/services/purchase.service.spec.ts',
+    [
+      {
+        marker: 'localStorage',
+        line: /vi\.stubGlobal\('localStorage', memoryStorage\)/,
+        reason: 'installiert pro Test ein lokales Storage-Testdouble',
+      },
+    ],
   ],
 ]);
 const violations = [];
+const matchedAllowances = new Set();
 for (const path of node) {
   const relativePath = path.slice(process.cwd().length + 1).replaceAll('\\', '/');
-  if (
-    forbiddenInNode.test(await readFile(path, 'utf8')) &&
-    !documentedNodeFixtures.has(relativePath)
-  ) {
-    violations.push(relativePath);
+  const source = sources.get(path);
+  const allowances = documentedNodeFixtures.get(relativePath) ?? [];
+  for (const [lineIndex, line] of source.split(/\r?\n/u).entries()) {
+    for (const match of line.matchAll(forbiddenInNode)) {
+      const allowanceIndex = allowances.findIndex(
+        (allowance) => allowance.marker === match[0] && allowance.line.test(line),
+      );
+      if (allowanceIndex === -1) {
+        violations.push(`${relativePath}:${lineIndex + 1} (${match[0]})`);
+      } else {
+        matchedAllowances.add(`${relativePath}:${allowanceIndex}`);
+      }
+    }
+  }
+}
+for (const [path, allowances] of documentedNodeFixtures) {
+  for (const [index, allowance] of allowances.entries()) {
+    if (!matchedAllowances.has(`${path}:${index}`)) {
+      violations.push(`${path} (dokumentierte Ausnahme ohne passende Stelle: ${allowance.marker})`);
+    }
   }
 }
 
@@ -62,5 +168,11 @@ console.log(
     node: node.length,
     dom: dom.length,
     angular: angular.length,
+    testDefinitions: {
+      direct: syntaxCounts.direct,
+      each: syntaxCounts.each,
+      total: syntaxCounts.direct + syntaxCounts.each,
+    },
+    assertions: syntaxCounts.assertions,
   }),
 );
