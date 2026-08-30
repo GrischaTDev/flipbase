@@ -26,6 +26,11 @@ aus; es wurden keine Docker-Daten verändert oder gelöscht.
   <https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax>
 - `actions/upload-artifact` bleibt vollständig auf
   `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` gepinnt.
+- Prettiers öffentlicher YAML-Parser delegiert an `yaml-unist-parser`:
+  <https://github.com/prettier/prettier/blob/main/src/language-yaml/parser-yaml.js>.
+  Dessen öffentliche AST-Typen unterscheiden `plain`, `quoteSingle` und
+  `quoteDouble` und liefern für Literale einen Stringwert:
+  <https://github.com/prettier/yaml-unist-parser/blob/main/src/types.ts>.
 
 ## Coverage RED/GREEN
 
@@ -199,6 +204,42 @@ Der legitime Nightly-Vertrag läuft nach Fixrunde 2 mit 33/33 Fällen, der
 gesamte Workflow-Vertrag mit 63/63 Fällen grün. Der produktive
 Nightly-Workflow blieb erneut unverändert.
 
+### Fixrunde 3: typgerechte YAML-Skalare
+
+Das dritte Review-Finding traf den Konverter zwischen Prettiers YAML-AST und
+dem geprüften Workflowobjekt: Er gab jeden Scalar-`value` als String zurück.
+Dadurch waren beispielsweise ungequotiertes `false` und gequotetes `'false'`
+für den Vertrag ununterscheidbar.
+
+Die Untersuchung erfolgte mit Prettier 3.9.6 ausschließlich über den
+öffentlichen Parser aus `prettier/plugins/yaml`. Die AST-Knoten liefern
+`type`, `tag` und `value`; Plain-, einfach und doppelt gequotete Skalare sind
+durch die öffentlichen Knotentypen eindeutig unterscheidbar. Private
+`__debug`-APIs wurden nicht verwendet.
+
+RED: Ein direkter Scalar-Vertrag verlangte für ungequotiertes `false`, `15`
+und `null` die Werte `false`, `15` und `null`, während die entsprechenden
+gequoteten Werte, eine unsichere Ganzzahl, `${{ matrix.browser }}` und der
+Cron-Ausdruck Strings bleiben müssen. Zusätzlich wurden fünf echte
+Workflow-Quelltextmutanten geprüft: `'false'` bei `fail-fast`, `'15'` bei
+`timeout-minutes`, `'7'` bei `retention-days`, `'false'` bei
+`persist-credentials` und ungequotiertes `22` bei `node-version`. Alle sechs
+neuen Verträge wurden erwartungsgemäß rot; Ergebnis 33/39 grün und 6/39 rot.
+
+GREEN: Nur ungetaggte `plain`-Knoten werden konservativ normalisiert. Die
+YAML-Boolean- und Nullschreibweisen werden zu `boolean` beziehungsweise
+`null`. Dezimalzahlen werden nur übernommen, wenn sie endlich und als sichere
+Ganzzahl beziehungsweise mit höchstens 15 signifikanten Ziffern
+vertretbar sind. Gequotete/getaggte Werte, unsichere Zahlen,
+GitHub-Ausdrücke, Cron und Action-Inputs mit bewusstem Stringvertrag werden
+nicht semantisch ausgewertet.
+
+Die erwarteten Workflowobjekte verwenden nun echte Typen: `fail-fast` und
+`persist-credentials` sind `false`, Timeouts und `retention-days` sind Zahlen;
+`node-version: '22'`, Cron und GitHub-Ausdrücke bleiben Strings. Der legitime
+Nightly-Vertrag läuft 39/39, der gesamte Workflow-Vertrag 69/69 grün. Der
+produktive Workflow blieb unverändert.
+
 ## Browser und Datenbank
 
 - Standard-Chromium: 5/5 grün in 10,818 Sekunden.
@@ -245,6 +286,14 @@ Workflow-Dateien per Prettier, `git diff --check`, `npm test` (116 Dateien,
 Browsermatrix und lokale Datenbank wurden nicht erneut ausgeführt, weil auch
 diese Fixrunde ausschließlich den lokalen Workflow-Vertrag und seine
 Dokumentation ändert; die ursprünglichen Task-9-Nachweise bleiben unverändert.
+
+Fixrunde 3 wurde mit `npm run test:workflow` (69/69),
+`npm run format:check`, `npm run lint`, `npm run typecheck`, beiden
+Workflow-Dateien per Prettier, `git diff --check`, `npm test` (116 Dateien,
+1.070 Tests) und `npm run build` (6,746 s) abgenommen. Coverage, 20er-Stress,
+Browsermatrix und lokale Datenbank wurden nicht erneut ausgeführt, weil die
+Fixrunde ausschließlich den lokalen Workflowvertrag und seine Dokumentation
+ändert; die ursprünglichen Task-9-Nachweise bleiben unverändert.
 
 Commit-Nachweis: genau ein Task-Commit mit der Nachricht
 `test: enforce coverage floors and nightly full checks`; der unvermeidlich

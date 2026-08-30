@@ -16,22 +16,22 @@ const jobMetadata = {
   coverage: {
     name: 'Full coverage',
     'runs-on': 'ubuntu-latest',
-    'timeout-minutes': '10',
+    'timeout-minutes': 10,
   },
   'node-stress': {
     name: 'Node order stress',
     'runs-on': 'ubuntu-latest',
-    'timeout-minutes': '15',
+    'timeout-minutes': 15,
   },
   'database-full': {
     name: 'Full local database checks',
     'runs-on': 'ubuntu-latest',
-    'timeout-minutes': '20',
+    'timeout-minutes': 20,
   },
   'browser-matrix': {
     name: 'Browser smoke (${{ matrix.browser }})',
     'runs-on': 'ubuntu-latest',
-    'timeout-minutes': '15',
+    'timeout-minutes': 15,
   },
 };
 
@@ -40,7 +40,7 @@ function nodeSetupSteps() {
     {
       name: 'Check out repository',
       uses: `actions/checkout@${checkoutSha}`,
-      with: { 'persist-credentials': 'false' },
+      with: { 'persist-credentials': false },
     },
     {
       name: 'Set up Node',
@@ -68,7 +68,7 @@ function expectedJobSteps() {
           name: 'nightly-coverage',
           path: 'coverage/',
           'if-no-files-found': 'ignore',
-          'retention-days': '7',
+          'retention-days': 7,
         },
       },
     ],
@@ -91,7 +91,7 @@ function expectedJobSteps() {
           name: 'nightly-node-stress-failure',
           path: 'node-stress.log',
           'if-no-files-found': 'ignore',
-          'retention-days': '7',
+          'retention-days': 7,
         },
       },
     ],
@@ -131,7 +131,7 @@ function expectedJobSteps() {
           name: 'nightly-database-failure',
           path: 'database-full.log\nsupabase/.temp/logs/\n',
           'if-no-files-found': 'ignore',
-          'retention-days': '7',
+          'retention-days': 7,
         },
       },
     ],
@@ -153,7 +153,7 @@ function expectedJobSteps() {
           name: 'nightly-browser-${{ matrix.browser }}-failure',
           path: 'playwright-report/\ntest-results/\n',
           'if-no-files-found': 'ignore',
-          'retention-days': '7',
+          'retention-days': 7,
         },
       },
     ],
@@ -173,7 +173,29 @@ function convertYamlNode(node) {
   if (node.type === 'sequence' || node.type === 'flowSequence') {
     return node.children.map(convertYamlNode);
   }
-  if (Object.hasOwn(node, 'value')) return node.value;
+  if (Object.hasOwn(node, 'value')) {
+    if (node.type !== 'plain' || node.tag !== null) return node.value;
+    if (['true', 'True', 'TRUE'].includes(node.value)) return true;
+    if (['false', 'False', 'FALSE'].includes(node.value)) return false;
+    if (['null', 'Null', 'NULL', '~'].includes(node.value)) return null;
+
+    if (/^[+-]?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$/.test(node.value)) {
+      const numberValue = Number(node.value);
+      const significantDigits = node.value
+        .replace(/^[+-]/, '')
+        .replace(/[eE].*$/, '')
+        .replace('.', '')
+        .replace(/^0+/, '').length;
+      if (
+        Number.isFinite(numberValue) &&
+        (Number.isSafeInteger(numberValue) ||
+          (!Number.isInteger(numberValue) && significantDigits <= 15))
+      ) {
+        return numberValue;
+      }
+    }
+    return node.value;
+  }
   const children = (node.children ?? [])
     .map(convertYamlNode)
     .filter((value) => value !== undefined);
@@ -219,7 +241,7 @@ function assertExactWorkflowShape(workflow) {
   const strategy = workflow.jobs['browser-matrix'].strategy;
   assertExactKeys(strategy, ['fail-fast', 'matrix'], 'Browser-Strategy');
   assertExactKeys(strategy.matrix, ['browser'], 'Browser-Matrix');
-  assert.equal(strategy['fail-fast'], 'false');
+  assert.equal(strategy['fail-fast'], false);
   assert.deepEqual(strategy.matrix.browser, ['chromium', 'firefox', 'webkit']);
 }
 
@@ -281,7 +303,7 @@ function assertUploadAllowlists(jobs) {
     assert.equal(uploads[0].name, policy.name);
     assert.equal(uploads[0].if, policy.if);
     assert.equal(uploads[0].uses, `actions/upload-artifact@${uploadSha}`);
-    assert.equal(uploads[0].with['retention-days'], '7');
+    assert.equal(uploads[0].with['retention-days'], 7);
   }
 }
 
@@ -331,7 +353,7 @@ function assertSelectedBrowserOnly(browser) {
 
 function assertNodeSetup(job) {
   assert.equal(step(job, 'Check out repository').uses, `actions/checkout@${checkoutSha}`);
-  assert.equal(step(job, 'Check out repository').with['persist-credentials'], 'false');
+  assert.equal(step(job, 'Check out repository').with['persist-credentials'], false);
   assert.equal(step(job, 'Set up Node').uses, `actions/setup-node@${setupNodeSha}`);
   assert.equal(step(job, 'Set up Node').with['node-version'], '22');
   assert.equal(step(job, 'Install dependencies').run, 'npm ci');
@@ -340,7 +362,7 @@ function assertNodeSetup(job) {
 function assertUpload(upload, expectedIf) {
   assert.equal(upload.uses, `actions/upload-artifact@${uploadSha}`);
   assert.equal(upload.if, expectedIf);
-  assert.equal(upload.with['retention-days'], '7');
+  assert.equal(upload.with['retention-days'], 7);
 }
 
 function assertFailClosedPipeline(pipelineStep) {
@@ -417,7 +439,7 @@ function assertNightlyWorkflow(workflow) {
   const browser = jobs['browser-matrix'];
   assertSelectedBrowserOnly(browser);
   assertNodeSetup(browser);
-  assert.equal(browser.strategy['fail-fast'], 'false');
+  assert.equal(browser.strategy['fail-fast'], false);
   assert.deepEqual(browser.strategy.matrix.browser, ['chromium', 'firefox', 'webkit']);
   assert.equal(
     step(browser, 'Install selected browser').run,
@@ -434,6 +456,53 @@ async function loadNightlyWorkflow() {
   return parseWorkflow(await readFile(workflowPath, 'utf8'));
 }
 
+test('normalisiert ausschließlich sichere ungequotierte YAML-Skalare', async () => {
+  const expression = '$' + '{{ matrix.browser }}';
+  const workflow = await parseWorkflow(`
+plainFalse: false
+quotedFalse: 'false'
+plainNumber: 15
+quotedNumber: '15'
+plainNull: null
+quotedNull: 'null'
+unsafeNumber: 9007199254740992
+expression: ${expression}
+cron: '17 2 * * *'
+`);
+
+  assert.deepEqual(workflow, {
+    plainFalse: false,
+    quotedFalse: 'false',
+    plainNumber: 15,
+    quotedNumber: '15',
+    plainNull: null,
+    quotedNull: 'null',
+    unsafeNumber: '9007199254740992',
+    expression: '${{ matrix.browser }}',
+    cron: '17 2 * * *',
+  });
+});
+
+for (const [name, original, replacement] of [
+  ['gequotetes fail-fast', 'fail-fast: false', "fail-fast: 'false'"],
+  ['gequoteten Job-Timeout', 'timeout-minutes: 15', "timeout-minutes: '15'"],
+  ['gequotierte Artefakt-Aufbewahrung', 'retention-days: 7', "retention-days: '7'"],
+  [
+    'gequotiertes boolesches Action-Input',
+    'persist-credentials: false',
+    "persist-credentials: 'false'",
+  ],
+  ['ungequotiertes numerisches Action-Input', "node-version: '22'", 'node-version: 22'],
+]) {
+  test(`weist ${name} zurück`, async () => {
+    const source = await readFile(workflowPath, 'utf8');
+    const mutatedSource = source.replace(original, replacement);
+    assert.notEqual(mutatedSource, source, `Fixture muss ${original} ersetzen`);
+    const workflow = await parseWorkflow(mutatedSource);
+    assert.throws(() => assertNightlyWorkflow(workflow));
+  });
+}
+
 function extraUploadStep(name) {
   return {
     name,
@@ -442,7 +511,7 @@ function extraUploadStep(name) {
     with: {
       name: 'unexpected-artifact',
       path: 'unexpected/',
-      'retention-days': '7',
+      'retention-days': 7,
     },
   };
 }
