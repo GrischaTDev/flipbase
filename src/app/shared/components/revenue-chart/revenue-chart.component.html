@@ -36,6 +36,23 @@
       aria-label="Umsatz, Ausgaben und realisierter Gewinn im gewählten Zeitraum"
       aria-describedby="revenue-chart-summary"
     ></canvas>
+    <div
+      role="slider"
+      aria-label="Datenpunkt im Zahlungsstrom-Diagramm auswählen"
+      aria-orientation="horizontal"
+      aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home End Escape"
+      aria-describedby="revenue-chart-keyboard-help revenue-chart-summary"
+      class="pointer-events-none absolute inset-2 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+      [attr.tabindex]="points().length > 0 ? 0 : -1"
+      [attr.aria-disabled]="points().length === 0"
+      [attr.aria-valuemin]="1"
+      [attr.aria-valuemax]="keyboardPointMaximum()"
+      [attr.aria-valuenow]="keyboardPointValue()"
+      [attr.aria-valuetext]="keyboardPointDescription()"
+      (focus)="handleKeyboardFocus()"
+      (blur)="handleKeyboardBlur()"
+      (keydown)="handleKeyboardNavigation($event)"
+    ></div>
     @if (activeTooltip(); as tooltip) {
       <div
         role="status"
@@ -54,6 +71,11 @@
       </div>
     }
   </div>
+
+  <p id="revenue-chart-keyboard-help" class="sr-only">
+    Mit den Pfeiltasten zwischen Datenpunkten wechseln. Pos1 und Ende springen zum ersten oder
+    letzten Datenpunkt. Escape schließt die Detailanzeige.
+  </p>
 
   <div id="revenue-chart-summary" class="sr-only">
     <table>

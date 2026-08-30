@@ -415,6 +415,59 @@ describe('RevenueChartComponent Barrierefreiheit', () => {
     await fixture.whenStable();
 
     expect(host.querySelectorAll('#revenue-chart-summary tbody tr')).toHaveLength(0);
+    const navigator = host.querySelector<HTMLElement>('[role="slider"]');
+    expect(navigator?.tabIndex).toBe(-1);
+    expect(navigator?.getAttribute('aria-disabled')).toBe('true');
+    expect(navigator?.hasAttribute('aria-valuenow')).toBe(false);
+    expect(navigator?.getAttribute('aria-valuetext')).toBe('Keine Datenpunkte verfügbar');
+  });
+
+  it('macht alle Datenpunkte ueber einen semantischen Tastaturregler erreichbar', async () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue(createMediaQueryDouble().mediaQueryList);
+    const { chart } = createChartDouble();
+    const fixture = createFixture(
+      signal<AppTheme>('light'),
+      vi.fn(() => chart),
+    );
+    await fixture.whenStable();
+    const host = fixture.nativeElement as HTMLElement;
+    const navigator = host.querySelector<HTMLElement>(
+      '[role="slider"][aria-label="Datenpunkt im Zahlungsstrom-Diagramm auswählen"]',
+    );
+
+    expect(navigator).not.toBeNull();
+    expect(navigator?.tabIndex).toBe(0);
+    expect(navigator?.getAttribute('aria-valuemin')).toBe('1');
+    expect(navigator?.getAttribute('aria-valuemax')).toBe('2');
+    expect(navigator?.getAttribute('aria-valuenow')).toBe('1');
+    expect(navigator?.getAttribute('aria-valuetext')).toMatch(
+      /^27\.08\.: Umsatz 19,98\s€, Ausgaben 24,95\s€, realisierter Gewinn 9,00\s€$/,
+    );
+    expect(navigator?.getAttribute('aria-describedby')).toBe(
+      'revenue-chart-keyboard-help revenue-chart-summary',
+    );
+
+    navigator?.focus();
+    navigator?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    fixture.detectChanges();
+
+    expect(document.activeElement).toBe(navigator);
+    expect(navigator?.getAttribute('aria-valuenow')).toBe('2');
+    expect(navigator?.getAttribute('aria-valuetext')).toMatch(
+      /^28\.08\.: Umsatz 0,00\s€, Ausgaben 0,00\s€, realisierter Gewinn 0,00\s€$/,
+    );
+    const status = host.querySelector<HTMLElement>('[role="status"]');
+    expect(status?.textContent).toContain('28.08.');
+    expect(status?.textContent).toMatch(/Umsatz: 0,00\s€/);
+
+    navigator?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+    fixture.detectChanges();
+    expect(navigator?.getAttribute('aria-valuenow')).toBe('1');
+    expect(host.querySelector<HTMLElement>('[role="status"]')?.textContent).toContain('27.08.');
+
+    navigator?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+    expect(host.querySelector('[role="status"]')).toBeNull();
   });
 
   it('besteht den automatisierten Axe-Test ohne jsdom-Farbkontrastpruefung', async () => {

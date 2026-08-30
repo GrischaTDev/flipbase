@@ -39,3 +39,30 @@ test('filtert das Dashboard über den Shared Select und zeigt den Chart-Tooltip'
   await expect(tooltip).toContainText(/Umsatz: 379,00\s€/);
   await expect(tooltip).toContainText(/Realisierter Gewinn: 95,62\s€/);
 });
+
+test('erkundet die Diagrammdaten vollstaendig mit der Tastatur', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-08-30T12:00:00+02:00'));
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await startDemoMode(page);
+
+  const navigator = page.getByRole('slider', {
+    name: 'Datenpunkt im Zahlungsstrom-Diagramm auswählen',
+  });
+  const tooltip = page.getByRole('status').filter({ hasText: 'Umsatz:' });
+  await navigator.focus();
+  await expect(navigator).toBeFocused();
+  await expect(navigator).toHaveAttribute('aria-valuenow', '1');
+  await expect(navigator).toHaveAttribute('aria-valuetext', /01\.08\.: Umsatz 0,00\s€/);
+
+  await navigator.press('End');
+  await expect(navigator).toHaveAttribute('aria-valuenow', '30');
+  await expect(navigator).toHaveAttribute('aria-valuetext', /30\.08\.: Umsatz 0,00\s€/);
+  await expect(tooltip).toContainText('30.08.');
+
+  await navigator.press('ArrowLeft');
+  await expect(navigator).toHaveAttribute('aria-valuenow', '29');
+  await expect(tooltip).toContainText('29.08.');
+
+  await navigator.press('Escape');
+  await expect(tooltip).toHaveCount(0);
+});
