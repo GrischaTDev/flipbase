@@ -30,6 +30,10 @@ declare
   v_other_costs numeric(12, 2);
   v_cost_entry_count integer;
   v_return_result jsonb;
+  v_store_order_id uuid := gen_random_uuid();
+  v_store_sale_id uuid;
+  v_payment_fee_category text;
+  v_payment_fee_rollup numeric(12, 2);
 begin
   insert into auth.users (
     id,
@@ -347,6 +351,44 @@ begin
       and credit_note_number = v_return_result -> 'return' ->> 'credit_note_number'
   ) then
     raise exception 'expected atomic return metadata to be persisted';
+  end if;
+
+  perform public.place_store_order(
+    v_workspace_id,
+    v_store_order_id,
+    'STORE-PAYMENT-FEE-1',
+    jsonb_build_object('email', 'store@example.test'),
+    39.99,
+    0,
+    39.99,
+    'bank_transfer',
+    'paid',
+    null,
+    'paid',
+    '2026-08-26',
+    null,
+    jsonb_build_array(jsonb_build_object(
+      'catalog_product_id', v_product_id,
+      'item_title', 'LED lamp',
+      'quantity', 1,
+      'price', 39.99,
+      'payment_fee', 1.23
+    ))
+  );
+
+  select id, other_costs
+  into v_store_sale_id, v_payment_fee_rollup
+  from public.sales
+  where workspace_id = v_workspace_id
+    and external_order_id = 'STORE-PAYMENT-FEE-1';
+
+  select category
+  into v_payment_fee_category
+  from public.sale_cost_entries
+  where sale_id = v_store_sale_id;
+
+  if v_payment_fee_category <> 'payment_fee' or v_payment_fee_rollup <> 1.23 then
+    raise exception 'store payment fee was not persisted as payment_fee with the correct rollup';
   end if;
 end;
 $$;

@@ -1,3 +1,6 @@
+-- Purpose: separate buyer-paid shipping revenue from sale expenses and persist structured sale costs.
+-- Affected: public.sales.shipping_revenue, public.sales.shipping_mode, public.sale_cost_entries.
+
 -- Migration unit 1: schema_changes
 -- Transaction mode: transactional
 -- Boundary reason: default

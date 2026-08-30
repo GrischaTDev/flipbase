@@ -892,7 +892,6 @@ ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
 alter table public.sale_cost_entries enable row level security;
 revoke all on table public.sale_cost_entries from anon, public;
 revoke all on table public.sale_cost_entries from authenticated;
-grant select, insert, update, delete on table public.sale_cost_entries to authenticated;
 alter table public.catalog_products enable row level security;
 alter table public.purchase_lines enable row level security;
 alter table public.stock_lots enable row level security;
@@ -4107,10 +4106,21 @@ begin
       'platform', 'custom_store',
       'sale_date', p_sale_date,
       'shipping_cost', p_shipping_cost,
-      'other_costs', coalesce((
-        select sum(coalesce((item.value ->> 'payment_fee')::numeric, 0))
-        from jsonb_array_elements(p_items) as item(value)
-      ), 0),
+      'cost_entries', coalesce((
+        select jsonb_agg(jsonb_build_object(
+          'category', 'payment_fee',
+          'amount', item.payment_fee
+        ))
+        from jsonb_to_recordset(p_items) as item(
+          catalog_product_id uuid,
+          inventory_item_id uuid,
+          item_title text,
+          quantity integer,
+          price numeric,
+          payment_fee numeric
+        )
+        where coalesce(item.payment_fee, 0) > 0
+      ), '[]'::jsonb),
       'external_order_id', p_order_number,
       'buyer_notes', p_buyer_notes
     ),
@@ -4471,7 +4481,7 @@ grant select, insert, update, delete
 -- ausschließlich über die validierten, transaktionalen RPC-Funktionen.
 revoke insert, update, delete
   on public.sales, public.returns, public.stock_lots, public.stock_movements,
-    public.sale_lines, public.sale_line_lot_allocations
+    public.sale_lines, public.sale_line_lot_allocations, public.sale_cost_entries
   from authenticated;
 
 -- Gebuchte Rechnungen und Store-Bestellungen werden ausschließlich durch die

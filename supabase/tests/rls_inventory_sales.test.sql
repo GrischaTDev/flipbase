@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(65);
+select plan(69);
 
 \set owner_user_id '84000000-0000-4000-8000-000000000001'
 \set foreign_user_id '84000000-0000-4000-8000-000000000002'
@@ -231,6 +231,10 @@ select is((select count(*) from pg_class where oid = 'public.sale_cost_entries':
 set local role authenticated;
 set local request.jwt.claim.sub = :'owner_user_id';
 select is((select count(*) from public.sale_cost_entries where id = '84000000-0000-4000-8000-000000000090'), 1::bigint, 'Mitglied liest die eigene Verkaufs-Kostenzeile');
+select ok(not has_table_privilege('authenticated', 'public.sale_cost_entries', 'insert') and not has_table_privilege('authenticated', 'public.sale_cost_entries', 'update') and not has_table_privilege('authenticated', 'public.sale_cost_entries', 'delete'), 'Verkaufskosten sind nur über Fach-RPCs schreibbar');
+select throws_ok($$insert into public.sale_cost_entries (id, workspace_id, sale_id, category, amount) values ('84000000-0000-4000-8000-000000000092', '84000000-0000-4000-8000-000000000003', '84000000-0000-4000-8000-000000000060', 'other', 1)$$, '42501', null, 'Mitglied kann die eigene Verkaufs-Kostenzeile nicht direkt anlegen');
+select throws_ok($$update public.sale_cost_entries set amount = 0.50 where id = '84000000-0000-4000-8000-000000000090'$$, '42501', null, 'Mitglied kann die eigene Verkaufs-Kostenzeile nicht direkt ändern');
+select throws_ok($$delete from public.sale_cost_entries where id = '84000000-0000-4000-8000-000000000090'$$, '42501', null, 'Mitglied kann die eigene Verkaufs-Kostenzeile nicht direkt löschen');
 set local request.jwt.claim.sub = :'foreign_user_id';
 select is((select count(*) from public.sale_cost_entries where id = '84000000-0000-4000-8000-000000000090'), 0::bigint, 'Fremdes Mitglied sieht keine Verkaufs-Kostenzeile');
 set local role anon;
