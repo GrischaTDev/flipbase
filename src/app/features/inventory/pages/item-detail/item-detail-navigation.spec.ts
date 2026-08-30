@@ -6,7 +6,8 @@ import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
-import { provideRouter } from '@angular/router';
+import { provideRouter, Routes, withComponentInputBinding } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { InventoryItem } from '../../../../core/models/flipbase.models';
 import { InventoryService } from '../../../../core/services/inventory.service';
@@ -18,22 +19,22 @@ import { ItemDetailComponent } from './item-detail.component';
 import { provideTranslateService } from '@ngx-translate/core';
 
 TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
-beforeAll(async () => {
-  registerLocaleData(localeDe);
-  const resources: Record<string, string> = {
-    './item-detail.component.html':
-      'src/app/features/inventory/pages/item-detail/item-detail.component.html',
-    './custom-select.component.html':
-      'src/app/shared/components/custom-select/custom-select.component.html',
-    './custom-checkbox.component.html':
-      'src/app/shared/components/custom-checkbox/custom-checkbox.component.html',
-    './custom-checkbox.component.scss':
-      'src/app/shared/components/custom-checkbox/custom-checkbox.component.scss',
-    './inventory-label-modal.component.html':
-      'src/app/shared/components/inventory-label-modal/inventory-label-modal.component.html',
-    './item-create-modal.component.html':
-      'src/app/features/inventory/components/item-create-modal/item-create-modal.component.html',
-  };
+const resources: Record<string, string> = {
+  './item-detail.component.html':
+    'src/app/features/inventory/pages/item-detail/item-detail.component.html',
+  './custom-select.component.html':
+    'src/app/shared/components/custom-select/custom-select.component.html',
+  './custom-checkbox.component.html':
+    'src/app/shared/components/custom-checkbox/custom-checkbox.component.html',
+  './custom-checkbox.component.scss':
+    'src/app/shared/components/custom-checkbox/custom-checkbox.component.scss',
+  './inventory-label-modal.component.html':
+    'src/app/shared/components/inventory-label-modal/inventory-label-modal.component.html',
+  './item-create-modal.component.html':
+    'src/app/features/inventory/components/item-create-modal/item-create-modal.component.html',
+};
+
+async function resolveItemResources(): Promise<void> {
   await ɵresolveComponentResources((url) => {
     const resource = resources[url];
     if (resource) return readFile(resolve(resource), 'utf8');
@@ -44,6 +45,27 @@ beforeAll(async () => {
       return readFile(resolve('src/app', matches[0]), 'utf8');
     });
   });
+}
+
+beforeAll(async () => {
+  registerLocaleData(localeDe);
+  await resolveItemResources();
+  const definition = ItemDetailComponent as unknown as {
+    ɵcmp: {
+      declaredInputs: Record<string, string>;
+      inputs: Record<string, [string, number, null]>;
+    };
+  };
+  definition.ɵcmp.inputs = {
+    ...definition.ɵcmp.inputs,
+    id: ['id', 1, null],
+    fromPurchaseId: ['fromPurchaseId', 1, null],
+  };
+  definition.ɵcmp.declaredInputs = {
+    ...definition.ɵcmp.declaredInputs,
+    id: 'id',
+    fromPurchaseId: 'fromPurchaseId',
+  };
 });
 
 const purchase = { id: 'purchase-1' };
@@ -58,6 +80,8 @@ const item: InventoryItem = {
   allocated_purchase_cost: 10,
 };
 
+const routes: Routes = [{ path: 'inventory/:id', component: ItemDetailComponent }];
+
 let selectedItem = signal<InventoryItem | null>(null);
 
 beforeEach(() => {
@@ -71,9 +95,8 @@ beforeEach(() => {
 
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
-    imports: [ItemDetailComponent],
     providers: [
-      provideRouter([]),
+      provideRouter(routes, withComponentInputBinding()),
       provideTranslateService(),
       { provide: InventoryService, useValue: inventoryService },
       { provide: MediaService, useValue: { loadItemMedia: async () => [] } },
@@ -84,26 +107,17 @@ beforeEach(() => {
   });
 });
 
-async function createFixture(
-  initialItem: InventoryItem | null,
-  fromPurchaseId: string | null = purchase.id,
-) {
+async function createHarness(initialItem: InventoryItem | null) {
   selectedItem.set(initialItem);
-  const fixture = TestBed.createComponent(ItemDetailComponent);
-  Object.assign(fixture.componentInstance, {
-    id: signal(item.id),
-    fromPurchaseId: signal(fromPurchaseId),
-  });
-  fixture.detectChanges();
-  await fixture.whenStable();
-  return fixture;
+  return RouterTestingHarness.create();
 }
 
 describe('ItemDetailComponent – Einkaufs-Rücknavigation', () => {
   it('verlinkt bei passendem Einkaufs-Kontext zum tatsächlichen Einkauf', async () => {
-    const fixture = await createFixture(item);
+    const harness = await createHarness(item);
+    await harness.navigateByUrl(`/inventory/${item.id}?fromPurchaseId=${purchase.id}`);
 
-    const root = fixture.nativeElement as HTMLElement;
+    const root = harness.routeNativeElement as HTMLElement;
     expect(root.textContent).toContain('Zurück zum Einkauf');
     expect(root.querySelector<HTMLAnchorElement>('[data-item-back-link]')?.pathname).toBe(
       `/purchases/${purchase.id}`,
@@ -111,32 +125,39 @@ describe('ItemDetailComponent – Einkaufs-Rücknavigation', () => {
   });
 
   it('fällt bei einem fremden Einkaufs-Kontext auf das Inventar zurück', async () => {
-    const fixture = await createFixture(item, 'fremder-einkauf');
+    const harness = await createHarness(item);
+    await harness.navigateByUrl(`/inventory/${item.id}?fromPurchaseId=fremder-einkauf`);
 
-    expect(fixture.nativeElement.textContent).toContain('Zurück zum Inventar');
+    expect(harness.routeNativeElement!.textContent).toContain('Zurück zum Inventar');
   });
 
   it('fällt bei einer vom Pfad abweichenden geladenen Artikel-ID auf das Inventar zurück', async () => {
-    const fixture = await createFixture(item);
+    const harness = await createHarness(item);
     selectedItem.set({ ...item, id: 'stale-item', purchase_id: purchase.id });
-    fixture.detectChanges();
+    await harness.navigateByUrl(`/inventory/${item.id}?fromPurchaseId=${purchase.id}`);
 
-    expect(fixture.nativeElement.textContent).toContain('Zurück zum Inventar');
+    expect(harness.routeNativeElement!.textContent).toContain('Zurück zum Inventar');
   });
 
   it('fällt ohne Einkaufs-Parameter auf das Inventar zurück', async () => {
-    const fixture = await createFixture(item, null);
+    const harness = await createHarness(item);
+    await harness.navigateByUrl(`/inventory/${item.id}`);
 
-    expect(fixture.nativeElement.textContent).toContain('Zurück zum Inventar');
+    expect(harness.routeNativeElement!.textContent).toContain('Zurück zum Inventar');
   });
 
   it('zeigt bis zum Nachladen keinen ungeprüften Einkaufs-Rücksprung', async () => {
-    const fixture = await createFixture(null);
-    expect(fixture.nativeElement.textContent).toContain('Zurück zum Inventar');
+    const harness = await createHarness(null);
+    await harness.navigateByUrl(`/inventory/${item.id}?fromPurchaseId=${purchase.id}`);
+    expect(harness.routeNativeElement!.textContent).toContain('Zurück zum Inventar');
 
     selectedItem.set(item);
-    fixture.detectChanges();
+    harness.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('Zurück zum Einkauf');
+    const root = harness.routeNativeElement as HTMLElement;
+    expect(root.textContent).toContain('Zurück zum Einkauf');
+    expect(root.querySelector<HTMLAnchorElement>('[data-item-back-link]')?.pathname).toBe(
+      `/purchases/${purchase.id}`,
+    );
   });
 });
