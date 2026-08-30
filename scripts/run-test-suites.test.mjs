@@ -294,6 +294,49 @@ test('beendet einen hängenden Hilfsprozess nach seinem eigenen Timeout', async 
   assert.equal(result.timedOut, true);
 });
 
+test('schließt bei einem fehlgeschlagenen Windows-Helfer offene Suite-Pipes', async () => {
+  const signalSource = new EventEmitter();
+  const stdout = new PassThrough();
+  const stderr = new PassThrough();
+  const suiteStdout = new PassThrough();
+  const suiteStderr = new PassThrough();
+  const fakeChild = new EventEmitter();
+  Object.assign(fakeChild, {
+    pid: 4242,
+    exitCode: null,
+    signalCode: null,
+    stdout: suiteStdout,
+    stderr: suiteStderr,
+    kill: () => true,
+  });
+  const result = runner.runSuites(
+    [{ label: 'windows-helper-error', command: process.execPath, args: [] }],
+    {
+      stdout,
+      stderr,
+      signalSource,
+      platform: 'win32',
+      spawnProcess: () => fakeChild,
+      commandRunner: async () => ({ code: 1, stdout: '', timedOut: true }),
+      helperTimeoutMs: 50,
+    },
+  );
+
+  signalSource.emit('SIGTERM');
+
+  let deadline;
+  const exitCode = await Promise.race([
+    result,
+    new Promise((_, reject) => {
+      deadline = setTimeout(
+        () => reject(new Error('Runner blieb wegen offener Suite-Pipes hängen.')),
+        500,
+      );
+    }),
+  ]).finally(() => clearTimeout(deadline));
+  assert.equal(exitCode, 143);
+});
+
 test('lehnt zusätzliche Argumente mit einer verständlichen Alternative ab', async () => {
   const child = spawn(process.execPath, [runnerScript, '--changed-files'], {
     env: { ...process.env, npm_execpath: fakeNpmCli },

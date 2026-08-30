@@ -75,10 +75,10 @@ function pipeWithLabel(source, destination, label) {
   });
 }
 
-function startSuite(suite, stdout, stderr, children, platform) {
+function startSuite(suite, stdout, stderr, children, activeSuites, platform, spawnProcess) {
   let child;
   try {
-    child = spawn(suite.command, suite.args, {
+    child = spawnProcess(suite.command, suite.args, {
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
@@ -93,26 +93,34 @@ function startSuite(suite, stdout, stderr, children, platform) {
 
   return new Promise((resolveSuite) => {
     let settled = false;
-
-    pipeWithLabel(child.stdout, stdout, suite.label);
-    pipeWithLabel(child.stderr, stderr, suite.label);
-
-    child.once('error', (error) => {
-      stderr.write(`[${suite.label}] Start fehlgeschlagen: ${error.message}\n`);
-      if (!settled) {
-        settled = true;
-        children.delete(child);
-        resolveSuite(1);
-      }
-    });
-    child.once('close', (code, signal) => {
+    const settleSuite = (exitCode) => {
       if (settled) return;
       settled = true;
       children.delete(child);
+      activeSuites.delete(child);
+      resolveSuite(exitCode);
+    };
+
+    pipeWithLabel(child.stdout, stdout, suite.label);
+    pipeWithLabel(child.stderr, stderr, suite.label);
+    activeSuites.set(child, {
+      forceClose: () => {
+        child.stdout.destroy();
+        child.stderr.destroy();
+        settleSuite(1);
+      },
+    });
+
+    child.once('error', (error) => {
+      stderr.write(`[${suite.label}] Start fehlgeschlagen: ${error.message}\n`);
+      settleSuite(1);
+    });
+    child.once('close', (code, signal) => {
+      if (settled) return;
       const exitCode = code ?? 1;
       const suffix = signal ? `, Signal ${signal}` : '';
       stdout.write(`[${suite.label}] beendet (Exitcode ${exitCode}${suffix})\n`);
-      resolveSuite(exitCode);
+      settleSuite(exitCode);
     });
   });
 }
@@ -173,10 +181,12 @@ export async function runSuites(suites, options = {}) {
   const signalSource = options.signalSource ?? process;
   const platform = options.platform ?? process.platform;
   const commandRunner = options.commandRunner ?? runCommandWithTimeout;
+  const spawnProcess = options.spawnProcess ?? spawn;
   const timeoutMs = parseTimeout(options.timeoutMs ?? process.env.FLIPBASE_TEST_TIMEOUT_MS);
   const terminationGraceMs = options.terminationGraceMs ?? defaultTerminationGraceMs;
   const helperTimeoutMs = options.helperTimeoutMs ?? defaultHelperTimeoutMs;
   const children = new Set();
+  const activeSuites = new Map();
   let terminationExitCode = null;
   let terminationPromise;
   let forceTimer;
@@ -197,12 +207,16 @@ export async function runSuites(suites, options = {}) {
           } catch (error) {
             result = { code: 1, error, timedOut: false };
           }
-          if (result.code === 0) return;
-          const reason = result.timedOut
-            ? `Zeitlimit von ${helperTimeoutMs} ms überschritten`
-            : `Exitcode ${result.code}`;
-          stderr.write(`[runner] taskkill fehlgeschlagen (${reason}); Root wird direkt beendet.\n`);
-          if (root.exitCode === null && root.signalCode === null) root.kill('SIGKILL');
+          if (result.code !== 0) {
+            const reason = result.timedOut
+              ? `Zeitlimit von ${helperTimeoutMs} ms überschritten`
+              : `Exitcode ${result.code}`;
+            stderr.write(
+              `[runner] taskkill fehlgeschlagen (${reason}); Root wird direkt beendet.\n`,
+            );
+            if (root.exitCode === null && root.signalCode === null) root.kill('SIGKILL');
+          }
+          activeSuites.get(root)?.forceClose();
         }),
       );
     } else {
@@ -237,7 +251,9 @@ export async function runSuites(suites, options = {}) {
 
   try {
     const exitCodes = await Promise.all(
-      suites.map((suite) => startSuite(suite, stdout, stderr, children, platform)),
+      suites.map((suite) =>
+        startSuite(suite, stdout, stderr, children, activeSuites, platform, spawnProcess),
+      ),
     );
     if (terminationPromise) await terminationPromise;
     if (terminationExitCode !== null) return terminationExitCode;
