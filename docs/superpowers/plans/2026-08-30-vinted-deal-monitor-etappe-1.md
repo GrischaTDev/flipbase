@@ -1838,7 +1838,19 @@ export class RequestBudget {
 cd services/sniper && npm test
 ```
 
-Erwartung: 39 Tests bestanden.
+Erwartung: 45 Tests bestanden.
+
+> **Nachtrag aus der Prüfung (Commit `9bb3fd2`):** Vier Befunde, alle behoben, dazu
+> sechs weitere Tests. Der wichtigste betraf den oben gezeigten Test selbst: Bei
+> `now = 60_001` ist `cutoff = 1` und der Zeitstempel `0`, also bestehen sowohl
+> `<=` als auch `<` — der Test konnte die beiden Operatoren gar nicht
+> unterscheiden. Erst eine Zusicherung bei exakt `60_000` legt die Semantik fest
+> (ein genau `WINDOW_MS` alter Eintrag gilt als abgelaufen). Ebenfalls behoben:
+> `usageRatio()` rief `prune()`, ohne dass ein Test das bemerkt hätte;
+> `maxPerMinute = 0` lieferte `NaN` in eine künftige Logzeile; und `prune()` setzte
+> stillschweigend eine monotone Uhr voraus, obwohl `Date.now()` das nicht zusagt.
+> Der Code oben zeigt noch die Fassung vor diesen Korrekturen — maßgeblich ist
+> `services/sniper/src/runtime/budget.ts`.
 
 - [ ] **Step 5: Commit**
 
@@ -2599,7 +2611,7 @@ export class QueryScheduler {
 cd services/sniper && npm test
 ```
 
-Erwartung: 46 Tests bestanden.
+Erwartung: 52 Tests bestanden.
 
 - [ ] **Step 5: Commit**
 
@@ -2685,7 +2697,7 @@ log.info('stopped');
 cd services/sniper && npm run typecheck && npm run build && ls dist/index.js && npm test
 ```
 
-Erwartung: kein Typfehler, `dist/index.js` existiert, 46 Tests bestanden. Der Bau muss hier laufen, weil er im Betriebsabbild verwendet wird – Node löst `./config.js` nicht auf `config.ts` auf, ein direkter Start der TypeScript-Dateien scheitert also.
+Erwartung: kein Typfehler, `dist/index.js` existiert, 52 Tests bestanden. Der Bau muss hier laufen, weil er im Betriebsabbild verwendet wird – Node löst `./config.js` nicht auf `config.ts` auf, ein direkter Start der TypeScript-Dateien scheitert also.
 
 - [ ] **Step 3: Standardprofil anlegen und echten Rauchtest fahren**
 
@@ -2878,7 +2890,7 @@ healthServer.close();
 ```
 
 Run: `cd services/sniper && npm test`
-Erwartung: 50 Tests bestanden.
+Erwartung: 56 Tests bestanden.
 
 Endpunkt prüfen, während `npm run dev` läuft:
 
@@ -3010,7 +3022,7 @@ git commit -m "feat(sniper): run the collector as a service with a health endpoi
 
 Nach Task 11 gilt Etappe 1 als erledigt, wenn:
 
-- `cd services/sniper && npm test` grün ist (50 Tests),
+- `cd services/sniper && npm test` grün ist (56 Tests),
 - `cd services/sniper && npm run test:integration` grün ist (10 Tests),
 - der Datenbanktest `supabase/tests/vinted_deal_monitor_schema.sql` ohne Fehler durchläuft,
 - der Dienst mindestens eine Stunde lokal lief und `select count(*) from public.sniper_listings` wächst,
