@@ -453,4 +453,3 @@
   ```
 
   Do not commit `dist`, stats files or temporary reports. Do not create an empty commit.
-

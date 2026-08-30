@@ -510,4 +510,3 @@
   ```
 
   Do not create an empty commit when verification needs no correction.
-
