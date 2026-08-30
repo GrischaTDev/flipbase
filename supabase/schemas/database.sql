@@ -4116,7 +4116,12 @@ begin
     jsonb_build_object(
       'platform', 'custom_store',
       'sale_date', p_sale_date,
-      'shipping_cost', p_shipping_cost,
+      'shipping_revenue', p_shipping_cost,
+      'shipping_cost', 0,
+      'shipping_mode', case
+        when p_customer ->> 'shippingMethod' = 'pickup' then 'pickup'
+        else 'seller_arranged'
+      end,
       'cost_entries', coalesce((
         select jsonb_agg(jsonb_build_object(
           'category', 'payment_fee',

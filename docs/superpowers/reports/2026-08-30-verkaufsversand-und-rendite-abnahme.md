@@ -62,8 +62,8 @@ git diff --check
 | `npm run lint`          | erfolgreich, 0 ESLint-Fehler                                                                    |
 | `npm run typecheck`     | erfolgreich, 0 TypeScript-Fehler                                                                |
 | `npm run test:workflow` | 80/80 Tests bestanden                                                                           |
-| `npm run test:audit`    | 116 Dateien, 992 Testdefinitionen, 2.458 Assertions                                             |
-| `npm test`              | 1.087 Tests bestanden: 754 Node, 95 DOM, 238 Angular; 3 Node-Tests erwartungsgemäß übersprungen |
+| `npm run test:audit`    | 116 Dateien, 995 Testdefinitionen, 2.471 Assertions                                             |
+| `npm test`              | 1.091 Tests bestanden: 754 Node, 97 DOM, 240 Angular; 3 Node-Tests erwartungsgemäß übersprungen |
 | `npm run build`         | Produktions-Build erfolgreich                                                                   |
 | `npm run test:db`       | 6 pgTAP-Dateien, 223/223 Tests bestanden                                                        |
 | `git diff --check`      | erfolgreich, keine Leerraumfehler                                                               |

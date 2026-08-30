@@ -31,7 +31,11 @@ declare
   v_cost_entry_count integer;
   v_return_result jsonb;
   v_store_order_id uuid := gen_random_uuid();
+  v_pickup_order_id uuid := gen_random_uuid();
   v_store_sale_id uuid;
+  v_store_order_total numeric(12, 2);
+  v_store_shipping_mode text;
+  v_pickup_shipping_mode text;
   v_payment_fee_category text;
   v_payment_fee_rollup numeric(12, 2);
 begin
@@ -398,10 +402,10 @@ begin
     v_workspace_id,
     v_store_order_id,
     'STORE-PAYMENT-FEE-1',
-    jsonb_build_object('email', 'store@example.test'),
+    jsonb_build_object('email', 'store@example.test', 'shippingMethod', 'dhl_standard'),
     39.99,
-    0,
-    39.99,
+    4.99,
+    44.98,
     'bank_transfer',
     'paid',
     null,
@@ -417,11 +421,36 @@ begin
     ))
   );
 
-  select id, other_costs
-  into v_store_sale_id, v_payment_fee_rollup
-  from public.sales
-  where workspace_id = v_workspace_id
-    and external_order_id = 'STORE-PAYMENT-FEE-1';
+  select
+    sale.id,
+    sale.other_costs,
+    store_order.total,
+    sale.sale_price_total,
+    sale.shipping_revenue,
+    sale.shipping_cost,
+    sale.shipping_mode
+  into
+    v_store_sale_id,
+    v_payment_fee_rollup,
+    v_store_order_total,
+    v_sale_revenue,
+    v_shipping_revenue,
+    v_shipping_cost,
+    v_store_shipping_mode
+  from public.sales as sale
+  join public.store_orders as store_order
+    on store_order.workspace_id = sale.workspace_id
+    and store_order.order_number = sale.external_order_id
+  where sale.workspace_id = v_workspace_id
+    and sale.external_order_id = 'STORE-PAYMENT-FEE-1';
+
+  if v_store_order_total <> 44.98
+    or v_sale_revenue <> v_store_order_total
+    or v_shipping_revenue <> 4.99
+    or v_shipping_cost <> 0
+    or v_store_shipping_mode <> 'seller_arranged' then
+    raise exception 'store shipping revenue was not separated from seller shipping costs';
+  end if;
 
   select category
   into v_payment_fee_category
@@ -430,6 +459,38 @@ begin
 
   if v_payment_fee_category <> 'payment_fee' or v_payment_fee_rollup <> 1.23 then
     raise exception 'store payment fee was not persisted as payment_fee with the correct rollup';
+  end if;
+
+  perform public.place_store_order(
+    v_workspace_id,
+    v_pickup_order_id,
+    'STORE-PICKUP-1',
+    jsonb_build_object('email', 'pickup@example.test', 'shippingMethod', 'pickup'),
+    9.99,
+    0,
+    9.99,
+    'cash_on_pickup',
+    'pending',
+    null,
+    'pending',
+    '2026-08-26',
+    null,
+    jsonb_build_array(jsonb_build_object(
+      'catalog_product_id', v_product_id,
+      'item_title', 'LED lamp',
+      'quantity', 1,
+      'price', 9.99
+    ))
+  );
+
+  select shipping_mode
+  into v_pickup_shipping_mode
+  from public.sales
+  where workspace_id = v_workspace_id
+    and external_order_id = 'STORE-PICKUP-1';
+
+  if v_pickup_shipping_mode <> 'pickup' then
+    raise exception 'store pickup was not persisted with pickup shipping mode';
   end if;
 end;
 $$;

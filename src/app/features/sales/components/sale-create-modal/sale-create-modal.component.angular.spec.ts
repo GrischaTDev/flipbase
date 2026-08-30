@@ -693,6 +693,37 @@ describe('SaleCreateModalComponent', () => {
       }
     });
 
+    async function erstelleGerendertenDialog() {
+      const salesService = {
+        recordSale: vi.fn(async () => ({ data: null, error: null })),
+        recordLegacySale: vi.fn(async () => ({ data: null, error: null })),
+        updateSale: vi.fn(async () => ({ data: null, error: null })),
+      };
+      TestBed.configureTestingModule({
+        imports: [SaleCreateModalComponent],
+        providers: [
+          { provide: SalesService, useValue: salesService },
+          { provide: InventoryService, useValue: { items: signal([]) } },
+          { provide: StockService, useValue: { positions: signal([]) } },
+          {
+            provide: ProfitEngineService,
+            useValue: {
+              calculateProfit: () => 0,
+              calculateMargin: () => null,
+              calculateRoi: () => null,
+            },
+          },
+          { provide: ToastService, useValue: new ToastService() },
+          { provide: SyncStatusService, useValue: new SyncStatusService() },
+        ],
+      });
+      await TestBed.compileComponents();
+      const fixture = TestBed.createComponent(SaleCreateModalComponent);
+      fixture.componentInstance.form.controls.shippingMode.setValue('seller_arranged');
+      fixture.detectChanges();
+      return { fixture, salesService };
+    }
+
     describe('SaleCreateModalComponent – historische Verkaufskorrektur', () => {
       it('zeigt den automatischen Protokollhinweis ohne manuelles Grundfeld', async () => {
         TestBed.configureTestingModule({
@@ -834,6 +865,60 @@ describe('SaleCreateModalComponent', () => {
         expect(fixture.nativeElement.textContent).toContain(
           'Bitte beschreiben Sie diese sonstigen Kosten.',
         );
+      });
+
+      it('kennzeichnet negative Geldbeträge sichtbar und mit den zugehörigen ARIA-Fehlern', async () => {
+        const { fixture } = await erstelleGerendertenDialog();
+        const component = fixture.componentInstance;
+        component.addAdditionalCost();
+        component.form.controls.shippingRevenue.setValue(-1);
+        component.form.controls.platformFee.setValue(-2);
+        component.form.controls.shippingCost.setValue(-3);
+        component.additionalCosts.at(0).controls.amount.setValue(-4);
+        component.form.markAllAsTouched();
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const assertions = [
+          ['#shipping-revenue', 'shipping-revenue-error'],
+          ['#platform-fee', 'platform-fee-error'],
+          ['#shipping-cost', 'shipping-cost-error'],
+          ['#cost-amount-0', 'cost-amount-error-0'],
+        ] as const;
+        for (const [selector, errorId] of assertions) {
+          const input = host.querySelector(selector) as HTMLInputElement;
+          expect(input.getAttribute('aria-invalid')).toBe('true');
+          expect(input.getAttribute('aria-describedby')).toContain(errorId);
+        }
+        expect(host.textContent).toContain('Der Versand-Erlös darf nicht negativ sein.');
+        expect(host.textContent).toContain('Die Plattformgebühr darf nicht negativ sein.');
+        expect(host.textContent).toContain(
+          'Die tatsächlichen Versandkosten dürfen nicht negativ sein.',
+        );
+        expect(host.textContent).toContain('Der Betrag darf nicht negativ sein.');
+      });
+
+      it('lässt invalides Absenden zu, markiert alle Felder und fokussiert das erste fehlerhafte Feld', async () => {
+        const { fixture, salesService } = await erstelleGerendertenDialog();
+        const component = fixture.componentInstance;
+        component.lines.at(0).controls.target.setValue('catalog:test-product');
+        component.lines.at(0).controls.unitSalePrice.setValue(1);
+        component.form.controls.shippingRevenue.setValue(-1);
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const submitButton = host.querySelector('button[type="submit"]') as HTMLButtonElement;
+        expect(submitButton.disabled).toBe(false);
+
+        await component.onSubmit();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const shippingRevenue = host.querySelector('#shipping-revenue') as HTMLInputElement;
+        expect(component.form.controls.shippingRevenue.touched).toBe(true);
+        expect(shippingRevenue.getAttribute('aria-invalid')).toBe('true');
+        expect(document.activeElement).toBe(shippingRevenue);
+        expect(salesService.recordSale).not.toHaveBeenCalled();
       });
     });
   });

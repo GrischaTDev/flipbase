@@ -1,6 +1,9 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   effect,
   inject,
@@ -86,6 +89,8 @@ export class SaleCreateModalComponent {
   private readonly profitEngine = inject(ProfitEngineService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
+  private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef, { optional: true });
+  private readonly injector = inject(Injector);
 
   readonly closeIcon = X;
   readonly plusIcon = Plus;
@@ -165,9 +170,9 @@ export class SaleCreateModalComponent {
       nonNullable: true,
       validators: [Validators.required],
     }),
-    platformFee: new FormControl(0, { nonNullable: true }),
-    shippingCost: new FormControl(0, { nonNullable: true }),
-    shippingRevenue: new FormControl(0, { nonNullable: true }),
+    platformFee: new FormControl(0, { nonNullable: true, validators: [Validators.min(0)] }),
+    shippingCost: new FormControl(0, { nonNullable: true, validators: [Validators.min(0)] }),
+    shippingRevenue: new FormControl(0, { nonNullable: true, validators: [Validators.min(0)] }),
     shippingMode: new FormControl<ShippingFormMode>('pickup', { nonNullable: true }),
     additionalCosts: new FormArray<AdditionalCostForm>([]),
     packagingCost: new FormControl(0, { nonNullable: true }),
@@ -269,7 +274,12 @@ export class SaleCreateModalComponent {
   }
 
   async onSubmit(): Promise<void> {
-    if (this.form.invalid || this.isPersisted()) return;
+    if (this.isPersisted()) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      this.focusFirstInvalidField();
+      return;
+    }
     this.isSubmitting.set(true);
     this.errorMessage.set(null);
     try {
@@ -303,6 +313,14 @@ export class SaleCreateModalComponent {
     } finally {
       this.isSubmitting.set(false);
     }
+  }
+
+  private focusFirstInvalidField(): void {
+    afterNextRender(
+      () =>
+        this.elementRef?.nativeElement.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus(),
+      { injector: this.injector },
+    );
   }
 
   private createLineForm(): SaleLineForm {

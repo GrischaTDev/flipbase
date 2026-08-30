@@ -235,12 +235,30 @@
               min="0"
               step="0.01"
               formControlName="shippingRevenue"
-              aria-describedby="shipping-revenue-help"
+              [attr.aria-invalid]="
+                form.controls.shippingRevenue.touched && form.controls.shippingRevenue.invalid
+                  ? 'true'
+                  : null
+              "
+              [attr.aria-describedby]="
+                'shipping-revenue-help' +
+                (form.controls.shippingRevenue.touched &&
+                form.controls.shippingRevenue.hasError('min')
+                  ? ' shipping-revenue-error'
+                  : '')
+              "
               class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono disabled:cursor-not-allowed disabled:opacity-50"
             />
             <p id="shipping-revenue-help" class="mt-1 text-[10px] text-fb-text-muted">
               Erhöht den Verkaufserlös.
             </p>
+            @if (
+              form.controls.shippingRevenue.touched && form.controls.shippingRevenue.hasError('min')
+            ) {
+              <p id="shipping-revenue-error" role="alert" class="mt-1 text-[10px] text-rose-300">
+                Der Versand-Erlös darf nicht negativ sein.
+              </p>
+            }
           </div>
         </div>
         <p class="mt-3 text-xs text-fb-text-secondary">
@@ -274,8 +292,23 @@
               min="0"
               step="0.01"
               formControlName="platformFee"
+              [attr.aria-invalid]="
+                form.controls.platformFee.touched && form.controls.platformFee.invalid
+                  ? 'true'
+                  : null
+              "
+              [attr.aria-describedby]="
+                form.controls.platformFee.touched && form.controls.platformFee.hasError('min')
+                  ? 'platform-fee-error'
+                  : null
+              "
               class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono"
             />
+            @if (form.controls.platformFee.touched && form.controls.platformFee.hasError('min')) {
+              <p id="platform-fee-error" role="alert" class="mt-1 text-[10px] text-rose-300">
+                Die Plattformgebühr darf nicht negativ sein.
+              </p>
+            }
           </div>
           <div>
             <label
@@ -290,12 +323,27 @@
               min="0"
               step="0.01"
               formControlName="shippingCost"
-              aria-describedby="shipping-cost-help"
+              [attr.aria-invalid]="
+                form.controls.shippingCost.touched && form.controls.shippingCost.invalid
+                  ? 'true'
+                  : null
+              "
+              [attr.aria-describedby]="
+                'shipping-cost-help' +
+                (form.controls.shippingCost.touched && form.controls.shippingCost.hasError('min')
+                  ? ' shipping-cost-error'
+                  : '')
+              "
               class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono disabled:cursor-not-allowed disabled:opacity-50"
             />
             <p id="shipping-cost-help" class="mt-1 text-[10px] text-fb-text-muted">
               Aufwand für Porto oder Versandetikett.
             </p>
+            @if (form.controls.shippingCost.touched && form.controls.shippingCost.hasError('min')) {
+              <p id="shipping-cost-error" role="alert" class="mt-1 text-[10px] text-rose-300">
+                Die tatsächlichen Versandkosten dürfen nicht negativ sein.
+              </p>
+            }
           </div>
         </div>
       </section>
@@ -400,8 +448,25 @@
                   min="0"
                   step="0.01"
                   formControlName="amount"
+                  [attr.aria-invalid]="
+                    cost.controls.amount.touched && cost.controls.amount.invalid ? 'true' : null
+                  "
+                  [attr.aria-describedby]="
+                    cost.controls.amount.touched && cost.controls.amount.hasError('min')
+                      ? 'cost-amount-error-' + index
+                      : null
+                  "
                   class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs font-mono"
                 />
+                @if (cost.controls.amount.touched && cost.controls.amount.hasError('min')) {
+                  <p
+                    [id]="'cost-amount-error-' + index"
+                    role="alert"
+                    class="mt-1 text-[10px] text-rose-300"
+                  >
+                    Der Betrag darf nicht negativ sein.
+                  </p>
+                }
               </div>
               <button
                 type="button"
@@ -446,7 +511,7 @@
           Abbrechen</button
         ><button
           type="submit"
-          [disabled]="form.invalid || isSubmitting()"
+          [disabled]="isSubmitting() || isPersisted()"
           class="linear-btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-4 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
         >
           <svg [lucideIcon]="trendingIcon" class="h-3.5 w-3.5"></svg>{{ absendeBeschriftung() }}

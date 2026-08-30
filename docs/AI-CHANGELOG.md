@@ -50,7 +50,7 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ## 2026-08-30 – Codex GPT-5.6 – Verkaufsversand und Rendite abgenommen
 
-**Art:** Doku | Test
+**Art:** Analyse | Doku
 
 **Betroffen:** Verkaufsbuchung, Versandtrennung, Renditekennzahlen, DATEV-Export
 und `docs/superpowers/reports/2026-08-30-verkaufsversand-und-rendite-abnahme.md`
@@ -65,7 +65,7 @@ bleiben, ohne historische Verkaufssummen nachtraeglich zu veraendern.
 
 **Verifiziert durch:** Prettier, ESLint und TypeScript fehlerfrei; 80/80
 Workflow-Tests; Suite-Audit mit 116 Dateien, 992 Testdefinitionen und 2.458
-Assertions; 1.087 Unit-Tests ohne Fehler (754 Node, 95 DOM, 238 Angular);
+Assertions; 1.087 Tests bestanden (754 Node, 95 DOM, 238 Angular), 3 Node-Tests erwartungsgemäß übersprungen;
 Produktions-Build erfolgreich; pgTAP 223/223; `git diff --check` fehlerfrei.
 
 ---
