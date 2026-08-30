@@ -353,6 +353,47 @@ begin
     raise exception 'expected atomic return metadata to be persisted';
   end if;
 
+  begin
+    perform public.place_store_order(
+      v_workspace_id,
+      gen_random_uuid(),
+      'STORE-NEGATIVE-PAYMENT-FEE-1',
+      jsonb_build_object('email', 'store@example.test'),
+      39.99,
+      0,
+      39.99,
+      'bank_transfer',
+      'paid',
+      null,
+      'paid',
+      '2026-08-26',
+      null,
+      jsonb_build_array(jsonb_build_object(
+        'catalog_product_id', v_product_id,
+        'item_title', 'LED lamp',
+        'quantity', 1,
+        'price', 39.99,
+        'payment_fee', -0.01
+      ))
+    );
+    raise exception 'negative store payment fee was accepted';
+  exception when sqlstate '22023' then null;
+  end;
+
+  if exists (
+    select 1
+    from public.store_orders
+    where workspace_id = v_workspace_id
+      and order_number = 'STORE-NEGATIVE-PAYMENT-FEE-1'
+  ) or exists (
+    select 1
+    from public.sales
+    where workspace_id = v_workspace_id
+      and external_order_id = 'STORE-NEGATIVE-PAYMENT-FEE-1'
+  ) then
+    raise exception 'negative store payment fee left a partial checkout';
+  end if;
+
   perform public.place_store_order(
     v_workspace_id,
     v_store_order_id,

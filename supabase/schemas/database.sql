@@ -3973,6 +3973,17 @@ begin
       or nullif(trim(item.value ->> 'item_title'), '') is null
       or coalesce((item.value ->> 'quantity')::integer, 0) < 1
       or coalesce((item.value ->> 'price')::numeric, -1) < 0
+      or case
+        when item.value ? 'payment_fee'
+          and jsonb_typeof(item.value -> 'payment_fee') <> 'null' then
+          case jsonb_typeof(item.value -> 'payment_fee')
+            when 'number' then
+              (item.value ->> 'payment_fee')::numeric < 0
+              or (item.value ->> 'payment_fee')::numeric <> trunc((item.value ->> 'payment_fee')::numeric, 2)
+            else true
+          end
+        else false
+      end
       or num_nonnulls(
         nullif(item.value ->> 'catalog_product_id', ''),
         nullif(item.value ->> 'inventory_item_id', '')

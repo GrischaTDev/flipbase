@@ -1,5 +1,5 @@
--- Purpose: restrict sale cost writes to validated RPCs and preserve structured store payment fees.
--- Affected: public.place_store_order, authenticated write privileges on public.sale_cost_entries.
+-- Purpose: reject invalid store payment fees before atomic checkout writes.
+-- Affected: public.place_store_order payment_fee validation.
 
 -- Migration unit 1: schema_changes
 -- Transaction mode: transactional
@@ -59,6 +59,17 @@ begin
       or nullif(trim(item.value ->> 'item_title'), '') is null
       or coalesce((item.value ->> 'quantity')::integer, 0) < 1
       or coalesce((item.value ->> 'price')::numeric, -1) < 0
+      or case
+        when item.value ? 'payment_fee'
+          and jsonb_typeof(item.value -> 'payment_fee') <> 'null' then
+          case jsonb_typeof(item.value -> 'payment_fee')
+            when 'number' then
+              (item.value ->> 'payment_fee')::numeric < 0
+              or (item.value ->> 'payment_fee')::numeric <> trunc((item.value ->> 'payment_fee')::numeric, 2)
+            else true
+          end
+        else false
+      end
       or num_nonnulls(
         nullif(item.value ->> 'catalog_product_id', ''),
         nullif(item.value ->> 'inventory_item_id', '')
@@ -232,7 +243,3 @@ begin
   return v_order;
 end;
 $function$;
-
-REVOKE MAINTAIN, REFERENCES, TRIGGER, TRUNCATE ON public.sale_cost_entries FROM anon;
-
-REVOKE DELETE, INSERT, MAINTAIN, REFERENCES, TRIGGER, TRUNCATE, UPDATE ON public.sale_cost_entries FROM authenticated;
