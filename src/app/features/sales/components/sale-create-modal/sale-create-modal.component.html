@@ -217,7 +217,7 @@
             >
             <app-custom-select
               ariaLabel="Versandabwicklung"
-              [options]="versandOptionen"
+              [options]="versandAuswahl()"
               formControlName="shippingMode"
               size="sm"
             />
@@ -349,9 +349,20 @@
                   [id]="'cost-description-' + index"
                   type="text"
                   formControlName="description"
+                  [attr.aria-required]="cost.controls.category.value === 'other'"
+                  [attr.aria-invalid]="
+                    cost.controls.category.value === 'other' &&
+                    cost.controls.description.touched &&
+                    cost.hasError('otherCostDescriptionRequired')
+                  "
                   [attr.aria-describedby]="
                     cost.controls.category.value === 'other'
-                      ? 'cost-description-help-' + index
+                      ? 'cost-description-help-' +
+                        index +
+                        (cost.controls.description.touched &&
+                        cost.hasError('otherCostDescriptionRequired')
+                          ? ' cost-description-error-' + index
+                          : '')
                       : null
                   "
                   class="linear-input w-full rounded-lg px-2.5 py-1.5 text-xs"
@@ -363,6 +374,18 @@
                   >
                     Für sonstige Kosten ist eine Beschreibung erforderlich.
                   </p>
+                  @if (
+                    cost.controls.description.touched &&
+                    cost.hasError('otherCostDescriptionRequired')
+                  ) {
+                    <p
+                      [id]="'cost-description-error-' + index"
+                      role="alert"
+                      class="mt-1 text-[10px] text-rose-300"
+                    >
+                      Bitte beschreiben Sie diese sonstigen Kosten.
+                    </p>
+                  }
                 }
               </div>
               <div>

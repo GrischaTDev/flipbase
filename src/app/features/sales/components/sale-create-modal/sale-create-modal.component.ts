@@ -56,6 +56,8 @@ type AdditionalCostForm = FormGroup<{
   amount: FormControl<number>;
 }>;
 
+type ShippingFormMode = ShippingMode | 'unknown';
+
 @Component({
   selector: 'app-sale-create-modal',
   imports: [
@@ -166,7 +168,7 @@ export class SaleCreateModalComponent {
     platformFee: new FormControl(0, { nonNullable: true }),
     shippingCost: new FormControl(0, { nonNullable: true }),
     shippingRevenue: new FormControl(0, { nonNullable: true }),
-    shippingMode: new FormControl<ShippingMode>('pickup', { nonNullable: true }),
+    shippingMode: new FormControl<ShippingFormMode>('pickup', { nonNullable: true }),
     additionalCosts: new FormArray<AdditionalCostForm>([]),
     packagingCost: new FormControl(0, { nonNullable: true }),
     otherCosts: new FormControl(0, { nonNullable: true }),
@@ -180,6 +182,14 @@ export class SaleCreateModalComponent {
   );
   private readonly formValue = toSignal(this.form.valueChanges, {
     initialValue: this.form.getRawValue(),
+  });
+  readonly versandAuswahl = computed<SelectOption<ShippingFormMode>[]>(() => {
+    this.formValue();
+    const options: SelectOption<ShippingFormMode>[] = [...this.versandOptionen];
+    if (this.form.controls.shippingMode.value === 'unknown') {
+      options.push({ value: 'unknown', label: 'Nicht bekannt (Altdaten)' });
+    }
+    return options;
   });
   readonly totalPrice = computed(() => {
     this.formValue();
@@ -308,12 +318,16 @@ export class SaleCreateModalComponent {
       }),
     });
   }
-  private createAdditionalCostForm(): AdditionalCostForm {
+  private createAdditionalCostForm(
+    value: Partial<{ category: SaleCostCategory; description: string; amount: number }> = {},
+  ): AdditionalCostForm {
     return new FormGroup(
       {
-        category: new FormControl<SaleCostCategory>('packaging', { nonNullable: true }),
-        description: new FormControl('', { nonNullable: true }),
-        amount: new FormControl(0, {
+        category: new FormControl<SaleCostCategory>(value.category ?? 'packaging', {
+          nonNullable: true,
+        }),
+        description: new FormControl(value.description ?? '', { nonNullable: true }),
+        amount: new FormControl(value.amount ?? 0, {
           nonNullable: true,
           validators: [Validators.required, Validators.min(0)],
         }),
@@ -334,7 +348,7 @@ export class SaleCreateModalComponent {
       platformFee: raw.platformFee,
       shippingCost: raw.shippingCost,
       shippingRevenue: raw.shippingRevenue,
-      shippingMode: raw.shippingMode,
+      shippingMode: raw.shippingMode === 'unknown' ? undefined : raw.shippingMode,
       additionalCosts,
       packagingCost: this.costTotalFor('packaging'),
       otherCosts: Number(
@@ -438,13 +452,40 @@ export class SaleCreateModalComponent {
       this.lines.push(line);
     });
     if (this.lines.length === 0) this.addLine();
+    this.additionalCosts.clear();
+    if (sale.cost_entries?.length) {
+      sale.cost_entries.forEach((cost) => {
+        this.additionalCosts.push(
+          this.createAdditionalCostForm({
+            category: cost.category,
+            description: cost.description ?? '',
+            amount: cost.amount,
+          }),
+        );
+      });
+    } else {
+      if ((sale.packaging_cost ?? 0) > 0) {
+        this.additionalCosts.push(
+          this.createAdditionalCostForm({ category: 'packaging', amount: sale.packaging_cost }),
+        );
+      }
+      if ((sale.other_costs ?? 0) > 0) {
+        this.additionalCosts.push(
+          this.createAdditionalCostForm({
+            category: 'other',
+            description: 'Übernommene Altdaten-Kosten',
+            amount: sale.other_costs,
+          }),
+        );
+      }
+    }
     this.form.patchValue({
       platform: sale.platform,
       saleDate: sale.sale_date,
       platformFee: sale.platform_fee ?? 0,
       shippingCost: sale.shipping_cost ?? 0,
       shippingRevenue: sale.shipping_revenue ?? 0,
-      shippingMode: sale.shipping_mode ?? this.shippingDefaultFor(sale.platform),
+      shippingMode: sale.shipping_mode ?? 'unknown',
       packagingCost: sale.packaging_cost ?? 0,
       otherCosts: sale.other_costs ?? 0,
       externalOrderId: sale.external_order_id ?? '',
@@ -525,8 +566,8 @@ export class SaleCreateModalComponent {
     if (platform === 'kleinanzeigen' || platform === 'direct') return 'pickup';
     return 'seller_arranged';
   }
-  private enforceShippingMode(mode: ShippingMode): void {
-    if (mode === 'seller_arranged') {
+  private enforceShippingMode(mode: ShippingFormMode): void {
+    if (mode === 'seller_arranged' || mode === 'unknown') {
       this.form.controls.shippingRevenue.enable({ emitEvent: false });
       this.form.controls.shippingCost.enable({ emitEvent: false });
       return;
