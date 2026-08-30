@@ -1,28 +1,65 @@
 import { spawn } from 'node:child_process';
-import { resolve } from 'node:path';
+import { access, constants } from 'node:fs/promises';
+import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-function npmSuite(label, script) {
-  if (process.env.npm_execpath) {
-    return {
-      label,
-      command: process.execPath,
-      args: [process.env.npm_execpath, 'run', '--silent', script],
-    };
+const defaultTimeoutMs = 15 * 60 * 1000;
+const defaultTerminationGraceMs = 5000;
+
+export async function resolveNpmCliPath(options = {}) {
+  const env = options.env ?? process.env;
+  const execPath = options.execPath ?? process.execPath;
+  const candidates = [
+    env.npm_execpath,
+    join(dirname(execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    env.APPDATA && join(env.APPDATA, 'npm', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    join(dirname(dirname(execPath)), 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    env.npm_config_prefix &&
+      join(env.npm_config_prefix, 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+  ].filter(Boolean);
+
+  for (const candidate of [...new Set(candidates)]) {
+    try {
+      await access(candidate, constants.R_OK);
+      return candidate;
+    } catch {
+      // Der nächste installationsübliche npm-Pfad wird geprüft.
+    }
   }
 
-  return {
-    label,
-    command: process.platform === 'win32' ? 'npm.cmd' : 'npm',
-    args: ['run', '--silent', script],
-  };
+  throw new Error(
+    'npm-cli.js wurde nicht gefunden. Bitte Node.js inklusive npm installieren oder npm_execpath setzen.',
+  );
 }
 
-const defaultSuites = [
-  npmSuite('node', 'test:node'),
-  npmSuite('dom', 'test:dom'),
-  npmSuite('angular', 'test:angular'),
-];
+async function createDefaultSuites() {
+  const npmCliPath = await resolveNpmCliPath();
+  const npmSuite = (label, script) => ({
+    label,
+    command: process.execPath,
+    args: [npmCliPath, 'run', '--silent', script],
+  });
+
+  return [
+    npmSuite('node', 'test:node'),
+    npmSuite('dom', 'test:dom'),
+    npmSuite('angular', 'test:angular'),
+  ];
+}
+
+function parseTimeout(value) {
+  if (value === undefined || value === '') return defaultTimeoutMs;
+  const timeoutMs = Number(value);
+  if (
+    !/^\d+$/.test(String(value)) ||
+    !Number.isSafeInteger(timeoutMs) ||
+    timeoutMs <= 0 ||
+    timeoutMs > 2_147_483_647
+  ) {
+    throw new Error('FLIPBASE_TEST_TIMEOUT_MS muss eine positive Ganzzahl bis 2147483647 sein.');
+  }
+  return timeoutMs;
+}
 
 function pipeWithLabel(source, destination, label) {
   let remainder = '';
@@ -37,13 +74,23 @@ function pipeWithLabel(source, destination, label) {
   });
 }
 
-function runSuite(suite, stdout, stderr) {
-  return new Promise((resolveSuite) => {
-    const child = spawn(suite.command, suite.args, {
+function startSuite(suite, stdout, stderr, children) {
+  let child;
+  try {
+    child = spawn(suite.command, suite.args, {
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
+      detached: process.platform !== 'win32',
     });
+  } catch (error) {
+    stderr.write(`[${suite.label}] Start fehlgeschlagen: ${error.message}\n`);
+    return Promise.resolve(1);
+  }
+
+  children.add(child);
+
+  return new Promise((resolveSuite) => {
     let settled = false;
 
     pipeWithLabel(child.stdout, stdout, suite.label);
@@ -53,12 +100,14 @@ function runSuite(suite, stdout, stderr) {
       stderr.write(`[${suite.label}] Start fehlgeschlagen: ${error.message}\n`);
       if (!settled) {
         settled = true;
+        children.delete(child);
         resolveSuite(1);
       }
     });
     child.once('close', (code, signal) => {
       if (settled) return;
       settled = true;
+      children.delete(child);
       const exitCode = code ?? 1;
       const suffix = signal ? `, Signal ${signal}` : '';
       stdout.write(`[${suite.label}] beendet (Exitcode ${exitCode}${suffix})\n`);
@@ -67,15 +116,96 @@ function runSuite(suite, stdout, stderr) {
   });
 }
 
-export async function runSuites(suites = defaultSuites, streams = {}) {
-  const stdout = streams.stdout ?? process.stdout;
-  const stderr = streams.stderr ?? process.stderr;
-  const exitCodes = await Promise.all(suites.map((suite) => runSuite(suite, stdout, stderr)));
-  return exitCodes.every((exitCode) => exitCode === 0) ? 0 : 1;
+function terminateProcessTree(child, signal, force = false) {
+  if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
+
+  if (process.platform === 'win32') {
+    const taskkill = spawn(
+      'taskkill.exe',
+      ['/pid', String(child.pid), '/t', ...(force ? ['/f'] : [])],
+      { shell: false, stdio: 'ignore', windowsHide: true },
+    );
+    taskkill.once('error', () => child.kill(signal));
+    return;
+  }
+
+  try {
+    process.kill(-child.pid, force ? 'SIGKILL' : signal);
+  } catch {
+    child.kill(force ? 'SIGKILL' : signal);
+  }
+}
+
+export async function runSuites(suites, options = {}) {
+  const stdout = options.stdout ?? process.stdout;
+  const stderr = options.stderr ?? process.stderr;
+  const signalSource = options.signalSource ?? process;
+  const timeoutMs = parseTimeout(options.timeoutMs ?? process.env.FLIPBASE_TEST_TIMEOUT_MS);
+  const terminationGraceMs = options.terminationGraceMs ?? defaultTerminationGraceMs;
+  const children = new Set();
+  let terminationExitCode = null;
+  let forceTimer;
+
+  const terminateAll = (signal, exitCode, message) => {
+    if (terminationExitCode !== null) return;
+    terminationExitCode = exitCode;
+    stderr.write(`[runner] ${message}\n`);
+    for (const child of children) terminateProcessTree(child, signal);
+    forceTimer = setTimeout(() => {
+      for (const child of children) terminateProcessTree(child, signal, true);
+    }, terminationGraceMs);
+    forceTimer.unref();
+  };
+  const onSigint = () =>
+    terminateAll('SIGINT', 130, 'SIGINT empfangen; Testprozesse werden beendet.');
+  const onSigterm = () =>
+    terminateAll('SIGTERM', 143, 'SIGTERM empfangen; Testprozesse werden beendet.');
+  signalSource.on('SIGINT', onSigint);
+  signalSource.on('SIGTERM', onSigterm);
+
+  const timeout = setTimeout(
+    () =>
+      terminateAll(
+        'SIGTERM',
+        1,
+        `Zeitlimit von ${timeoutMs} ms überschritten; Testprozesse werden beendet.`,
+      ),
+    timeoutMs,
+  );
+  timeout.unref();
+
+  try {
+    const exitCodes = await Promise.all(
+      suites.map((suite) => startSuite(suite, stdout, stderr, children)),
+    );
+    if (terminationExitCode !== null) return terminationExitCode;
+    return exitCodes.every((exitCode) => exitCode === 0) ? 0 : 1;
+  } finally {
+    clearTimeout(timeout);
+    if (forceTimer) clearTimeout(forceTimer);
+    signalSource.off('SIGINT', onSigint);
+    signalSource.off('SIGTERM', onSigterm);
+  }
 }
 
 const entryPoint = process.argv[1]
   ? pathToFileURL(resolve(process.argv[1])).href === import.meta.url
   : false;
 
-if (entryPoint) process.exitCode = await runSuites();
+if (entryPoint) {
+  const additionalArguments = process.argv.slice(2);
+  if (additionalArguments.length) {
+    process.stderr.write(
+      `Zusätzliche Argumente für npm test werden nicht unterstützt: ${additionalArguments.join(' ')}\n` +
+        'Nutze stattdessen npm run test:node -- <Argumente>, npm run test:dom -- <Argumente> oder npm run test:angular -- <Argumente>.\n',
+    );
+    process.exitCode = 2;
+  } else {
+    try {
+      process.exitCode = await runSuites(await createDefaultSuites());
+    } catch (error) {
+      process.stderr.write(`[runner] Start fehlgeschlagen: ${error.message}\n`);
+      process.exitCode = 2;
+    }
+  }
+}

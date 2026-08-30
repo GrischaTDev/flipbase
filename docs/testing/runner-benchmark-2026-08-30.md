@@ -52,3 +52,25 @@ CI-Median nicht langsamer als der Fallback ist und der parallele Gesamtlauf das
 lokale Zeitbudget erfüllt. Bis dahin bleiben auch `angular.json`,
 `vitest.split.config.ts` und der Benchmark-Workflow als messbare
 Vergleichsinfrastruktur erhalten.
+
+## Vertrag des parallelen Gesamtlaufs
+
+`npm test` startet Node, DOM und Angular parallel. Der Orchestrator beendet die
+vollständigen Prozessbäume bei `SIGINT`, `SIGTERM` oder nach dem standardmäßigen
+Zeitlimit von 15 Minuten. Ein abweichendes positives Zeitlimit in Millisekunden
+kann über `FLIPBASE_TEST_TIMEOUT_MS` gesetzt werden.
+
+Zusätzliche Argumente an `npm test` werden absichtlich mit Exitcode 2 abgelehnt,
+weil eine mehrdeutige Weitergabe an drei Prozesse fehleranfällig wäre. Eine
+einzelne Gruppe kann stattdessen eindeutig aufgerufen werden:
+
+```text
+npm run test:node -- <Vitest-Argumente>
+npm run test:dom -- <Vitest-Argumente>
+npm run test:angular -- <Vitest-Argumente>
+```
+
+Die Orchestrator-Verträge laufen über `test:orchestrator` und automatisch vor
+`test:node`. Dadurch werden sie sowohl bei einem gezielten Node-Lauf als auch bei
+jedem regulären `npm test` genau einmal geprüft, ohne den Orchestrator rekursiv
+aufzurufen.
