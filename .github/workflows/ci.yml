@@ -82,6 +82,12 @@ jobs:
       - name: Check types
         run: npm run typecheck
 
+      - name: Test workflow contracts
+        run: npm run test:workflow
+
+      - name: Audit test suite classification
+        run: npm run test:audit
+
       - name: Build
         run: npm run build
 

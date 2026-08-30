@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { parsers as yamlParsers } from 'prettier/plugins/yaml';
 
 const workflowPath = fileURLToPath(new URL('../.github/workflows/ci.yml', import.meta.url));
+const packagePath = fileURLToPath(new URL('../package.json', import.meta.url));
 const expectedExpressions = Object.freeze({
   testGateIf: '${{ always() }}',
   testGateResult: '${{ needs.unit.result }}',
@@ -64,6 +65,10 @@ async function loadWorkflow() {
   // bleiben opaque Skalare und werden unten vollständig als Strings geprüft.
   const ast = await yamlParsers.yaml.parse(source, { filepath: workflowPath });
   return convertYamlNode(ast);
+}
+
+async function loadPackageScripts() {
+  return JSON.parse(await readFile(packagePath, 'utf8')).scripts;
 }
 
 function findStep(job, name) {
@@ -360,9 +365,16 @@ test('parallelisiert Quality und die vollständige Unit-Matrix hinter einem Test
   assert.equal(jobs.quality['timeout-minutes'], '5');
   assert.deepEqual(
     jobs.quality.steps.filter((step) => step.run).map((step) => step.run),
-    ['npm ci', 'npm run format:check', 'npm run lint', 'npm run typecheck', 'npm run build'],
+    [
+      'npm ci',
+      'npm run format:check',
+      'npm run lint',
+      'npm run typecheck',
+      'npm run test:workflow',
+      'npm run test:audit',
+      'npm run build',
+    ],
   );
-
   const unit = jobs.unit;
   assert.equal(unit['timeout-minutes'], '5');
   assert.equal(unit.strategy['fail-fast'], 'false');
@@ -385,6 +397,15 @@ test('parallelisiert Quality und die vollständige Unit-Matrix hinter einem Test
 
   const gate = jobs['test-gate'];
   assertTestGateSecurity(gate);
+});
+
+test('führt Workflow-Verträge und Suite-Audit im lokalen Verify-Gate aus', async () => {
+  const packageScripts = await loadPackageScripts();
+
+  assert.equal(
+    packageScripts.verify,
+    'npm run format:check && npm run lint && npm run typecheck && npm run test:workflow && npm run test:audit && npm test && npm run build',
+  );
 });
 
 test('erkennt Supabase-Änderungen vollständig und führt den lokalen Datenbanktest bedingt aus', async () => {
