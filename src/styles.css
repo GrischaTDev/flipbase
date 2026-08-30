@@ -475,27 +475,6 @@ html.dark {
     border-radius: 4px;
   }
 
-  /* interaction-cursors:start */
-  :where(
-    button:not(:disabled):not([aria-disabled='true']),
-    a[href]:not([aria-disabled='true']),
-    summary,
-    select:not(:disabled):not([aria-disabled='true']),
-    input:not(:disabled):not([aria-disabled='true']):is(
-        [type='button'],
-        [type='submit'],
-        [type='reset'],
-        [type='checkbox'],
-        [type='radio'],
-        [type='file'],
-        [type='range'],
-        [type='color'],
-        [type='image']
-      )
-  ) {
-    cursor: pointer;
-  }
-
   /* Sprunglink zum Hauptinhalt – nur sichtbar, wenn er den Fokus hat. */
   .fb-skip-link {
     position: absolute;
@@ -529,6 +508,29 @@ html.dark {
   }
   ::-webkit-scrollbar-thumb:hover {
     background: var(--fb-border-hover);
+  }
+}
+
+/* interaction-cursors:start */
+@layer base {
+  :where(
+    button:not(:disabled):not([aria-disabled='true']),
+    a[href]:not([aria-disabled='true']),
+    summary,
+    select:not(:disabled):not([aria-disabled='true']),
+    input:not(:disabled):not([aria-disabled='true']):is(
+        [type='button'],
+        [type='submit'],
+        [type='reset'],
+        [type='checkbox'],
+        [type='radio'],
+        [type='file'],
+        [type='range'],
+        [type='color'],
+        [type='image']
+      )
+  ) {
+    cursor: pointer;
   }
 }
 
