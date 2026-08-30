@@ -1353,13 +1353,18 @@ export class VintedSession {
   async cookieHeader(): Promise<string> {
     if (this.cookie !== undefined) return this.cookie;
 
-    this.pending ??= this.warmUp();
+    const current = (this.pending ??= this.warmUp());
     try {
-      return await this.pending;
+      return await current;
     } finally {
+      // Nur das EIGENE Promise loeschen. Bedingungsloses Zuruecksetzen wischt
+      // sonst den Eintrag eines inzwischen gestarteten neuen Aufwaermens weg:
+      // A startet (P1) -> invalidate() -> B startet (P2) -> P1 loest aus und
+      // As finally loescht P2 -> ein dritter Aufrufer sieht nichts und stoesst
+      // eine dritte Anfrage an. Nachgebaut und ausgefuehrt: 1 -> 2 -> 3.
       // Auch im Fehlerfall zuruecksetzen, sonst wuerde ein einmal
       // gescheitertes Aufwaermen jeden weiteren Versuch vergiften.
-      this.pending = undefined;
+      if (this.pending === current) this.pending = undefined;
     }
   }
 
@@ -1422,15 +1427,18 @@ function extractCookieHeader(headers: Headers): string {
 cd services/sniper && npm test
 ```
 
-Erwartung: 27 Tests bestanden.
+Erwartung: 28 Tests bestanden.
 
-> **Nachtrag aus der Prüfung (Commit `922bb06`):** Zu den sieben oben gezeigten
-> Tests kamen drei weitere hinzu, die den geteilten Aufwärmvorgang absichern:
+> **Nachtrag aus zwei Prüfrunden (Commits `922bb06` und `72dcd74`):** Zu den sieben
+> oben gezeigten Tests kamen vier weitere hinzu, die den geteilten Aufwärmvorgang absichern:
 > zwei gleichzeitige `cookieHeader()`-Aufrufe lösen genau eine Anfrage aus,
 > ein gescheitertes Aufwärmen wird nicht zwischengespeichert, und `invalidate()`
 > während eines laufenden Aufwärmens verwirft dessen Ergebnis. Gegen die
 > ursprüngliche Fassung scheitert der erste dieser Tests mit zwei statt einer
-> Anfrage. Der Code oben zeigt bereits den korrigierten Stand; die drei Tests
+> Anfrage. Der vierte Test deckt einen Fehler ab, der erst im ersten Fix entstand:
+> das `finally` loeschte `pending` bedingungslos und wischte damit den Eintrag eines
+> inzwischen gestarteten neuen Aufwaermens weg - ein dritter Aufrufer stiess dann eine
+> dritte Anfrage an. Der Code oben zeigt den Stand nach beiden Fixes; die vier Tests
 > stehen in `services/sniper/test/vinted/session.spec.ts`.
 
 - [ ] **Step 5: Commit**
@@ -1708,7 +1716,7 @@ export class VintedCollector {
 cd services/sniper && npm test
 ```
 
-Erwartung: 35 Tests bestanden.
+Erwartung: 36 Tests bestanden.
 
 - [ ] **Step 5: Commit**
 
@@ -1830,7 +1838,7 @@ export class RequestBudget {
 cd services/sniper && npm test
 ```
 
-Erwartung: 38 Tests bestanden.
+Erwartung: 39 Tests bestanden.
 
 - [ ] **Step 5: Commit**
 
@@ -2591,7 +2599,7 @@ export class QueryScheduler {
 cd services/sniper && npm test
 ```
 
-Erwartung: 45 Tests bestanden.
+Erwartung: 46 Tests bestanden.
 
 - [ ] **Step 5: Commit**
 
@@ -2677,7 +2685,7 @@ log.info('stopped');
 cd services/sniper && npm run typecheck && npm run build && ls dist/index.js && npm test
 ```
 
-Erwartung: kein Typfehler, `dist/index.js` existiert, 45 Tests bestanden. Der Bau muss hier laufen, weil er im Betriebsabbild verwendet wird – Node löst `./config.js` nicht auf `config.ts` auf, ein direkter Start der TypeScript-Dateien scheitert also.
+Erwartung: kein Typfehler, `dist/index.js` existiert, 46 Tests bestanden. Der Bau muss hier laufen, weil er im Betriebsabbild verwendet wird – Node löst `./config.js` nicht auf `config.ts` auf, ein direkter Start der TypeScript-Dateien scheitert also.
 
 - [ ] **Step 3: Standardprofil anlegen und echten Rauchtest fahren**
 
@@ -2870,7 +2878,7 @@ healthServer.close();
 ```
 
 Run: `cd services/sniper && npm test`
-Erwartung: 49 Tests bestanden.
+Erwartung: 50 Tests bestanden.
 
 Endpunkt prüfen, während `npm run dev` läuft:
 
@@ -3002,7 +3010,7 @@ git commit -m "feat(sniper): run the collector as a service with a health endpoi
 
 Nach Task 11 gilt Etappe 1 als erledigt, wenn:
 
-- `cd services/sniper && npm test` grün ist (49 Tests),
+- `cd services/sniper && npm test` grün ist (50 Tests),
 - `cd services/sniper && npm run test:integration` grün ist (10 Tests),
 - der Datenbanktest `supabase/tests/vinted_deal_monitor_schema.sql` ohne Fehler durchläuft,
 - der Dienst mindestens eine Stunde lokal lief und `select count(*) from public.sniper_listings` wächst,
