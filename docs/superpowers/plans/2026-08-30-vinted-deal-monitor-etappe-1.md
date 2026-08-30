@@ -2407,7 +2407,10 @@ describe('QueryScheduler', () => {
   });
 
   it('skips a query when the budget is exhausted', async () => {
-    const budget = new RequestBudget(0, () => NOW.getTime());
+    // RequestBudget lehnt 0 als Kapazitaet ab (RangeError, siehe Task 8), also
+    // wird das einzige Kontingent hier schon vor dem Lauf verbraucht.
+    const budget = new RequestBudget(1, () => NOW.getTime());
+    budget.tryConsume();
     const { scheduler, collector } = build(makeQuery(), { budget });
 
     const report = await scheduler.runOnce(NOW);
