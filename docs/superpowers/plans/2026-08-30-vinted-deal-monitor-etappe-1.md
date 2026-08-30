@@ -21,7 +21,7 @@
 - **Höchstens Seite 1 mit 96 Artikeln je Abfrage.** `per_page=96`; mehr liefert Vinted nicht, tiefer blättern ist in dieser Etappe ausgeschlossen.
 - **Kein Test darf echte Anfragen an Vinted stellen.** `fetch` wird überall eingespeist. Einzige Ausnahme ist das bewusst manuell ausgeführte Aufzeichnungsskript aus Task 4.
 - **Einlese-Lauf.** Die erste Runde einer Abfrage schreibt nur und meldet nichts als neu.
-- **Anfragebudget.** Der Dienst überschreitet nie die konfigurierte Zahl an Anfragen je Minute, unabhängig davon, wie viele Abfragen fällig sind.
+- **Anfragebudget.** Der Dienst überschreitet die konfigurierte Zahl echter HTTP-Anfragen je Minute höchstens um die Anfragen einer bereits laufenden Abfrage. Gezählt wird in der Transportebene (`countingFetch`), nicht beim Abfragedurchlauf — sonst würde eine Abfrage mit Wiederholungen bis zu sechsmal so viel Verkehr erzeugen wie gezählt.
 - Jeder Task folgt RED → GREEN → Refactor und endet mit einem eigenen Commit.
 
 ---
@@ -55,7 +55,8 @@
 - Create `services/sniper/src/vinted/session.ts`: Cookies halten, bei 401 neu aufwärmen.
 - Create `services/sniper/src/vinted/collector.ts`: eine Abfrage ausführen, Fehler klassifizieren.
 - Create `services/sniper/src/vinted/errors.ts`: `RateLimitedError`, `ForbiddenError`, `UnauthorizedError`, `VintedHttpError`.
-- Create `services/sniper/src/runtime/budget.ts`: `RequestBudget`.
+- Create `services/sniper/src/runtime/budget.ts`: `RequestBudget` mit `hasCapacity()` und `record()`.
+- Create `services/sniper/src/runtime/counting-fetch.ts`: zählt jede ausgehende Anfrage.
 - Create `services/sniper/src/runtime/scheduler.ts`: `QueryScheduler`, Einlese-Lauf, Fehlerreaktion.
 - Create `services/sniper/src/store/supabase.ts`: Client mit Service-Role-Schlüssel.
 - Create `services/sniper/src/store/query.store.ts`: fällige Abfragen lesen, Zustand fortschreiben.
@@ -2614,7 +2615,7 @@ export class QueryScheduler {
 cd services/sniper && npm test
 ```
 
-Erwartung: 52 Tests bestanden.
+Erwartung: 62 Tests bestanden.
 
 - [ ] **Step 5: Commit**
 
@@ -2647,6 +2648,7 @@ import 'dotenv/config';
 import { loadConfig } from './config.js';
 import { createLogger } from './log.js';
 import { RequestBudget } from './runtime/budget.js';
+import { countingFetch } from './runtime/counting-fetch.js';
 import { QueryScheduler } from './runtime/scheduler.js';
 import { ListingStore } from './store/listing.store.js';
 import { QueryStore } from './store/query.store.js';
@@ -2658,13 +2660,21 @@ const config = loadConfig(process.env);
 const log = createLogger();
 const client = createSupabaseClient(config);
 const sessionOptions = { baseUrl: config.vintedBaseUrl, userAgent: config.userAgent };
-const session = new VintedSession(sessionOptions);
+const budget = new RequestBudget(config.requestsPerMinute);
+
+// Jede ausgehende Anfrage meldet sich selbst beim Budget - Aufwaermung,
+// Katalogabfrage, 5xx-Wiederholung und Neuaufwaermen nach 401 gleichermassen.
+// Deshalb bekommen Sitzung UND Sammler dieselbe umschlossene fetch-Funktion;
+// wer sie umgeht, zaehlt nicht mit.
+const counted = countingFetch(fetch, () => budget.record());
+
+const session = new VintedSession(sessionOptions, counted);
 
 const scheduler = new QueryScheduler({
   queries: new QueryStore(client),
-  collector: new VintedCollector(sessionOptions, session),
+  collector: new VintedCollector(sessionOptions, session, counted),
   listings: new ListingStore(client),
-  budget: new RequestBudget(config.requestsPerMinute),
+  budget,
   log,
 });
 
@@ -2700,7 +2710,7 @@ log.info('stopped');
 cd services/sniper && npm run typecheck && npm run build && ls dist/index.js && npm test
 ```
 
-Erwartung: kein Typfehler, `dist/index.js` existiert, 52 Tests bestanden. Der Bau muss hier laufen, weil er im Betriebsabbild verwendet wird – Node löst `./config.js` nicht auf `config.ts` auf, ein direkter Start der TypeScript-Dateien scheitert also.
+Erwartung: kein Typfehler, `dist/index.js` existiert, 62 Tests bestanden. Der Bau muss hier laufen, weil er im Betriebsabbild verwendet wird – Node löst `./config.js` nicht auf `config.ts` auf, ein direkter Start der TypeScript-Dateien scheitert also.
 
 - [ ] **Step 3: Standardprofil anlegen und echten Rauchtest fahren**
 
@@ -2874,12 +2884,11 @@ SNIPER_HEALTH_PORT=8080
 In `services/sniper/src/index.ts` einbauen: nach dem Erzeugen des Budgets den Zustand anlegen, den Server starten, im Schleifenkörper die Runde melden und beim Beenden schließen.
 
 ```ts
-const budget = new RequestBudget(config.requestsPerMinute);
 const health = createHealthState(() => budget.usageRatio());
 const healthServer = startHealthServer(config.healthPort, health);
 ```
 
-Das `budget: new RequestBudget(config.requestsPerMinute)` im `QueryScheduler` wird durch `budget` ersetzt. Im Schleifenkörper nach `runOnce`:
+`budget` ist oben bereits angelegt und wird im `QueryScheduler` unverändert übergeben. Im Schleifenkörper nach `runOnce`:
 
 ```ts
 const report = await scheduler.runOnce(new Date());
@@ -2893,7 +2902,7 @@ healthServer.close();
 ```
 
 Run: `cd services/sniper && npm test`
-Erwartung: 56 Tests bestanden.
+Erwartung: 66 Tests bestanden.
 
 Endpunkt prüfen, während `npm run dev` läuft:
 
@@ -3025,7 +3034,7 @@ git commit -m "feat(sniper): run the collector as a service with a health endpoi
 
 Nach Task 11 gilt Etappe 1 als erledigt, wenn:
 
-- `cd services/sniper && npm test` grün ist (56 Tests),
+- `cd services/sniper && npm test` grün ist (66 Tests),
 - `cd services/sniper && npm run test:integration` grün ist (10 Tests),
 - der Datenbanktest `supabase/tests/vinted_deal_monitor_schema.sql` ohne Fehler durchläuft,
 - der Dienst mindestens eine Stunde lokal lief und `select count(*) from public.sniper_listings` wächst,

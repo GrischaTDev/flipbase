@@ -202,6 +202,10 @@ Zwei Größen wirken zusammen und dürfen nicht verwechselt werden:
 
 Der Sollwert bestimmt also, wann eine Abfrage fällig wird; das Budget entscheidet, wer bei Knappheit zuerst drankommt. Ohne diese Trennung bremst ein Arbeitsbereich mit vielen Filtern alle anderen aus und das Sperrrisiko wächst ungeplant.
 
+**Gezählt werden echte HTTP-Anfragen, nicht Abfragedurchläufe.** Das ist keine Wortklauberei: Eine Abfrage löst je nach Lage eine bis sechs Anfragen aus — Sitzungsaufwärmung, bis zu zwei Wiederholungen bei Serverfehlern, bei einem 401 ein Neuaufwärmen samt Wiederholung mit eigenem Wiederholungskontingent. Würde das Budget Durchläufe zählen, könnten aus eingestellten 30 bis zu 180 werden, und zwar ausgerechnet dann, wenn Vinted ohnehin schon mit Fehlern antwortet.
+
+Der Taktgeber fragt deshalb nur um Erlaubnis (`hasCapacity()`); gezählt wird eine Ebene tiefer: `countingFetch` umschließt die `fetch`-Funktion, die Sitzung und Sammler gemeinsam benutzen, und meldet jede abgeschickte Anfrage — auch eine, die anschließend scheitert, denn sie hat den Rechner verlassen und zählt bei Vinted mit. Überschritten wird die Obergrenze dadurch höchstens noch um die Anfragen einer bereits laufenden Abfrage. Die Auslastung wird ungekappt protokolliert; ein Wert über 1 macht genau diese Überschreitung sichtbar, statt sie auf 1,0 zu glätten.
+
 Vorschlag als Ausgangswert:
 
 | `plan`    | eigene Filter |                Takt |
