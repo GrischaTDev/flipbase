@@ -16,6 +16,7 @@ import {
 } from '../models/flipbase.models';
 import type { TablesUpdate } from '../models/supabase.types';
 import { isInventoryItemMutationLocked } from '../models/inventory-sellability';
+import { INVENTORY_RECONCILIATION_AUDIT_REASONS } from '../models/inventory-reconciliation';
 
 export interface CreateItemPayload {
   purchase_id?: string | null;
@@ -418,7 +419,7 @@ export class InventoryService {
     });
   }
 
-  async resolveLegacySoldItem(itemId: string, reason: string): Promise<{ error: Error | null }> {
+  async resolveLegacySoldItem(itemId: string): Promise<{ error: Error | null }> {
     const workspace = this.workspaceService.currentWorkspace();
     if (!workspace) return { error: new Error('Kein aktiver Workspace') };
 
@@ -431,7 +432,7 @@ export class InventoryService {
         p_workspace_id: workspace.id,
         p_inventory_item_id: itemId,
         p_action: 'restore_stock',
-        p_reason: reason,
+        p_reason: INVENTORY_RECONCILIATION_AUDIT_REASONS.restoreStock,
       });
 
       if (error || !data?.inventory_item) {

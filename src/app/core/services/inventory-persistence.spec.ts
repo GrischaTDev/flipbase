@@ -1,6 +1,6 @@
 import '@angular/compiler';
 import { Injector, runInInjectionContext, signal } from '@angular/core';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { InventoryItem, ItemCost, Sale, Workspace } from '../models/flipbase.models';
 import { InventoryService } from './inventory.service';
 import { MockDataStoreService } from './mock-data-store.service';
@@ -488,7 +488,8 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     const offeneAntwort = new Promise((resolve) => {
       rpcAntwortAufloesen = resolve;
     });
-    const client = { rpc: () => offeneAntwort };
+    const rpc = vi.fn(() => offeneAntwort);
+    const client = { rpc };
     const { dienst } = injiziereDienst(client);
     const legacyItem: InventoryItem = {
       ...gespeicherterArtikel,
@@ -500,7 +501,13 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     dienst.items.set([legacyItem]);
     dienst.selectedItem.set(legacyItem);
 
-    const klaerung = dienst.resolveLegacySoldItem(legacyItem.id, 'Historisch nicht belegbar');
+    const klaerung = dienst.resolveLegacySoldItem(legacyItem.id);
+    expect(rpc).toHaveBeenCalledWith('resolve_legacy_sold_item', {
+      p_workspace_id: workspace.id,
+      p_inventory_item_id: legacyItem.id,
+      p_action: 'restore_stock',
+      p_reason: 'Historische Statuskorrektur: Artikel ist noch vorhanden.',
+    });
     expect(dienst.items()[0].status).toBe('sold');
 
     rpcAntwortAufloesen({
@@ -535,7 +542,7 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     dienst.items.set([legacyItem]);
     dienst.selectedItem.set(legacyItem);
 
-    const ergebnis = await dienst.resolveLegacySoldItem(legacyItem.id, 'Versuch');
+    const ergebnis = await dienst.resolveLegacySoldItem(legacyItem.id);
 
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(dienst.items()[0]).toEqual(legacyItem);

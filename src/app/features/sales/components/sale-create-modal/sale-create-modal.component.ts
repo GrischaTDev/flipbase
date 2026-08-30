@@ -222,7 +222,6 @@ export class SaleCreateModalComponent {
           ? await this.salesService.recordLegacySale(
               reconciliation.inventoryItemId,
               this.validatedLegacyInput(reconciliation, input),
-              this.form.controls.reconciliationReason.value,
             )
           : await this.salesService.recordSale(input);
       if (result.error) throw result.error;

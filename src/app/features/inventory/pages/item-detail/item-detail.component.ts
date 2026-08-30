@@ -388,7 +388,7 @@ export class ItemDetailComponent {
     });
     if (!confirmed) return;
 
-    const { error } = await this.inventoryService.resolveLegacySoldItem(item.id, reason);
+    const { error } = await this.inventoryService.resolveLegacySoldItem(item.id);
     if (error) {
       this.meldeFehlerWennNichtSynchronisiert('Altbestand konnte nicht geklärt werden.', error);
       return;
