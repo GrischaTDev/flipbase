@@ -48,6 +48,36 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-08-30 – Codex GPT-5.6 – Teststrategie und CI-Rollout lokal abgenommen
+
+**Art:** Konfiguration + Tests + Doku
+
+**Betroffen:** gesamte Teststrategie von Node/DOM/Angular über Coverage, Supabase,
+Playwright und GitHub Actions bis zum Rollback; Abschlussbericht unter
+`docs/superpowers/reports/2026-08-30-teststrategie-und-ci-abnahme.md`
+
+**Was:** Den Umbau der Test- und CI-Pipeline am finalen Feature-Stand
+`7293435` lokal abgenommen. Drei kontrollierte Produktmutationen wurden in
+einem eigenen temporären Worktree dynamisch auf der vorgesehenen Ebene rot
+belegt und jeweils durch normale Revert-Commits neutralisiert: falscher
+Steuerfaktor, Doppelverkauf eines Demo-Einzelstücks und falsche
+Einkaufs-Rücknavigation. Der strukturierte CI-Vertrag wurde einschließlich
+seiner Negativfixtures geprüft. GitHub-Bestand, fünf offene PR-Lauf-Slots,
+Deploy-Checklisten, Produktionsmessplan und selektiver Rollback sind
+dokumentiert.
+
+**Warum:** Ein lokaler grüner Umbau ist noch keine Produktionsfreigabe. Die
+Abnahme trennt belegte lokale Sicherheit strikt von noch fehlender externer
+Scheduler-, Datenbank-, Registry- und Produktionswirkung und verhindert damit
+erfundene p95-/Runner-/Live-Aussagen.
+
+**Verifiziert durch:** Steuer-Mutant 2/14 rot, Verkaufs-Mutant 1/16 rot,
+Playwright-Navigationsmutant 1/1 rot einschließlich Retry; nach Revert 14/14,
+16/16 und 1/1 grün. Lokaler CI-Workflowvertrag 16/16 grün. Docker/RLS ist wegen
+fehlender `dockerDesktopLinuxEngine`-Pipe `BLOCKED`; GitHub read-only zeigt
+0/5 neue Feature-PR-Läufe. Kein Push, PR, Merge, `workflow_dispatch` oder
+Deployment. Entscheidung: **NO-GO für Produktion**.
+
 ## 2026-08-30 – Claude Opus 5 (Anthropic) – Alle Metadaten statt sechs ausgewaehlter
 
 **Art:** Feature + Bugfix (Barrierefreiheit)
