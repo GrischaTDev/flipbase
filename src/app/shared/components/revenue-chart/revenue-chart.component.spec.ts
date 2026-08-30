@@ -1,7 +1,10 @@
 import '@angular/compiler';
-import { ElementRef, ɵresolveComponentResources, signal } from '@angular/core';
+import { registerLocaleData } from '@angular/common';
+import localeDe from '@angular/common/locales/de';
+import { ElementRef, LOCALE_ID, ɵresolveComponentResources, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { BrowserTestingModule, platformBrowserTesting } from '@angular/platform-browser/testing';
+import axe from 'axe-core';
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { DashboardTimePoint } from '../../../core/models/flipbase.models';
@@ -15,6 +18,7 @@ import { RevenueChartComponent } from './revenue-chart.component';
 
 TestBed.initTestEnvironment(BrowserTestingModule, platformBrowserTesting());
 beforeAll(async () => {
+  registerLocaleData(localeDe);
   await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
 });
 
@@ -87,6 +91,7 @@ function createFixture(
   const fixture = TestBed.configureTestingModule({
     imports: [RevenueChartComponent],
     providers: [
+      { provide: LOCALE_ID, useValue: 'de' },
       { provide: REVENUE_CHART_FACTORY, useValue: factory },
       { provide: ThemeService, useValue: { currentTheme: theme } },
     ],
@@ -210,5 +215,181 @@ describe('RevenueChartComponent lifecycle', () => {
     expect(mediaQuery.removeEventListener).toHaveBeenCalledTimes(1);
     expect(mediaQuery.removeEventListener).toHaveBeenCalledWith('change', registeredListener);
     expect(destroy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('RevenueChartComponent Barrierefreiheit', () => {
+  it('rendert genau einen beschrifteten Canvas in einer stabilen Zeichenflaeche und kein SVG', async () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue(createMediaQueryDouble().mediaQueryList);
+    const { chart } = createChartDouble();
+    const fixture = createFixture(
+      signal<AppTheme>('light'),
+      vi.fn(() => chart),
+    );
+    await fixture.whenStable();
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelectorAll('canvas')).toHaveLength(1);
+    expect(host.querySelector('svg')).toBeNull();
+    const canvas = host.querySelector('canvas') as HTMLCanvasElement;
+    expect(canvas.hidden).toBe(false);
+    expect(canvas.hasAttribute('aria-hidden')).toBe(false);
+    expect(canvas.hasAttribute('tabindex')).toBe(false);
+    expect(canvas.getAttribute('role')).toBe('img');
+    expect(canvas.getAttribute('aria-label')).toBe(
+      'Umsatz, Ausgaben und realisierter Gewinn im gewählten Zeitraum',
+    );
+    expect(canvas.getAttribute('aria-describedby')).toBe('revenue-chart-summary');
+    expect(canvas.parentElement?.classList.contains('relative')).toBe(true);
+    expect(canvas.parentElement?.classList.contains('h-[260px]')).toBe(true);
+    expect(canvas.parentElement?.classList.contains('w-full')).toBe(true);
+  });
+
+  it('zeigt alle drei Reihen in einer themereaktiven visuellen Legende', async () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue(createMediaQueryDouble().mediaQueryList);
+    const theme = signal<AppTheme>('light');
+    const { chart } = createChartDouble();
+    const fixture = createFixture(
+      theme,
+      vi.fn(() => chart),
+    );
+    await fixture.whenStable();
+    const host = fixture.nativeElement as HTMLElement;
+    const legendEntries = () => [
+      ...host.querySelectorAll<HTMLElement>('[aria-label="Diagrammlegende"] > span'),
+    ];
+
+    expect(legendEntries().map((entry) => entry.textContent?.trim())).toEqual([
+      'Umsatz',
+      'Ausgaben',
+      'Realisierter Gewinn',
+    ]);
+    expect(
+      legendEntries().map(
+        (entry) =>
+          entry.querySelector<HTMLElement>('[data-chart-legend-indicator]')?.style.backgroundColor,
+      ),
+    ).toEqual(['rgb(29, 78, 216)', 'rgb(180, 83, 9)', 'rgb(4, 120, 87)']);
+
+    theme.set('dark');
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(
+      legendEntries().map(
+        (entry) =>
+          entry.querySelector<HTMLElement>('[data-chart-legend-indicator]')?.style.backgroundColor,
+      ),
+    ).toEqual(['rgb(196, 196, 196)', 'rgb(248, 157, 19)', 'rgb(87, 199, 118)']);
+  });
+
+  it('enthaelt eine vollstaendige externe Datentabelle ohne interaktive Elemente', async () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue(createMediaQueryDouble().mediaQueryList);
+    const { chart } = createChartDouble();
+    const fixture = createFixture(
+      signal<AppTheme>('light'),
+      vi.fn(() => chart),
+    );
+    await fixture.whenStable();
+    const host = fixture.nativeElement as HTMLElement;
+    const canvas = host.querySelector('canvas') as HTMLCanvasElement;
+    const summary = host.querySelector('#revenue-chart-summary') as HTMLElement;
+    const table = summary.querySelector('table') as HTMLTableElement;
+
+    expect(summary.contains(canvas)).toBe(false);
+    expect(table.caption?.textContent?.trim()).toBe('Tabellarische Zusammenfassung des Diagramms');
+    expect(
+      [...table.querySelectorAll<HTMLTableCellElement>('thead th')].map((header) => ({
+        text: header.textContent?.trim(),
+        scope: header.getAttribute('scope'),
+      })),
+    ).toEqual([
+      { text: 'Zeitraum', scope: 'col' },
+      { text: 'Umsatz', scope: 'col' },
+      { text: 'Ausgaben', scope: 'col' },
+      { text: 'Realisierter Gewinn', scope: 'col' },
+    ]);
+    expect(
+      [...table.querySelectorAll<HTMLTableCellElement>('tbody th')].map((header) => ({
+        text: header.textContent?.trim(),
+        scope: header.getAttribute('scope'),
+      })),
+    ).toEqual([
+      { text: '27.08.', scope: 'row' },
+      { text: '28.08.', scope: 'row' },
+    ]);
+    expect(
+      summary.querySelectorAll(
+        'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      ),
+    ).toHaveLength(0);
+  });
+
+  it('synchronisiert Reihenfolge und Werte der Tabellenzeilen exakt mit neuen Punkten', async () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue(createMediaQueryDouble().mediaQueryList);
+    const chartPoints = signal<readonly DashboardTimePoint[]>(points);
+    const { chart } = createChartDouble();
+    const fixture = createFixture(
+      signal<AppTheme>('light'),
+      vi.fn(() => chart),
+      chartPoints,
+    );
+    await fixture.whenStable();
+    const host = fixture.nativeElement as HTMLElement;
+
+    chartPoints.set([
+      {
+        date: '2026-08-30',
+        label: '30.08.',
+        revenue: 1234.5,
+        expenses: 11.25,
+        realizedProfit: 1223.25,
+      },
+      {
+        date: '2026-08-29',
+        label: '29.08.',
+        revenue: 50,
+        expenses: 75.75,
+        realizedProfit: -25.75,
+      },
+    ]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const tableRows = [
+      ...host.querySelectorAll<HTMLTableRowElement>('#revenue-chart-summary tbody tr'),
+    ];
+    expect(
+      tableRows.map((row) =>
+        [...row.querySelectorAll<HTMLTableCellElement>('th, td')].map((cell) =>
+          cell.textContent?.trim(),
+        ),
+      ),
+    ).toEqual([
+      ['30.08.', '1.234,50 €', '11,25 €', '1.223,25 €'],
+      ['29.08.', '50,00 €', '75,75 €', '-25,75 €'],
+    ]);
+
+    chartPoints.set([]);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect(host.querySelectorAll('#revenue-chart-summary tbody tr')).toHaveLength(0);
+  });
+
+  it('besteht den automatisierten Axe-Test ohne jsdom-Farbkontrastpruefung', async () => {
+    vi.spyOn(window, 'matchMedia').mockReturnValue(createMediaQueryDouble().mediaQueryList);
+    const { chart } = createChartDouble();
+    const fixture = createFixture(
+      signal<AppTheme>('light'),
+      vi.fn(() => chart),
+    );
+    await fixture.whenStable();
+
+    const result = await axe.run(fixture.nativeElement, {
+      rules: { 'color-contrast': { enabled: false } },
+    });
+
+    expect(result.violations).toEqual([]);
   });
 });
