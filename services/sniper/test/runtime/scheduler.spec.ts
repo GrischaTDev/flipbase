@@ -41,6 +41,44 @@ function makeListing(externalId: string): MarketplaceListing {
   };
 }
 
+/**
+ * Fuer Faelle mit mehreren faelligen Abfragen, bei denen `build()` (eine
+ * einzelne Abfrage) nicht ausreicht - insbesondere fuer den Nachweis, dass
+ * eine fehlschlagende Abfrage die naechste nicht mit sich reisst.
+ */
+function buildMany(
+  queries: SniperQuery[],
+  overrides: {
+    queries?: Partial<Record<'markPolled' | 'markSeeded' | 'deactivate', ReturnType<typeof vi.fn>>>;
+    collector?: { collect: ReturnType<typeof vi.fn> };
+    listings?: { saveNew: ReturnType<typeof vi.fn> };
+  } = {},
+) {
+  const queryStore = {
+    dueQueries: vi.fn().mockResolvedValue(queries),
+    markPolled: vi.fn().mockResolvedValue(undefined),
+    markSeeded: vi.fn().mockResolvedValue(undefined),
+    deactivate: vi.fn().mockResolvedValue(undefined),
+    ...overrides.queries,
+  };
+  const collector = overrides.collector ?? {
+    collect: vi.fn().mockResolvedValue([makeListing('a')]),
+  };
+  const listings = overrides.listings ?? { saveNew: vi.fn().mockResolvedValue([makeListing('a')]) };
+  const log = { info: vi.fn(), error: vi.fn() };
+  const budget = new RequestBudget(10, () => NOW.getTime());
+
+  const scheduler = new QueryScheduler({
+    queries: queryStore,
+    collector,
+    listings,
+    budget,
+    log,
+  } as never);
+
+  return { scheduler, queries: queryStore, collector, listings, log };
+}
+
 function build(query: SniperQuery, overrides: Record<string, unknown> = {}) {
   const queries = {
     dueQueries: vi.fn().mockResolvedValue([query]),
@@ -138,5 +176,88 @@ describe('QueryScheduler', () => {
     await scheduler.runOnce(NOW);
 
     expect(listings.saveNew).not.toHaveBeenCalled();
+  });
+
+  it('does not deactivate a query on a generic failure below the threshold', async () => {
+    // Ohne diesen Test wuerde eine Implementierung, die bei jedem generischen
+    // Fehlschlag deaktiviert (statt erst ab MAX_CONSECUTIVE_FAILURES), die
+    // ganze Suite trotzdem bestehen - siehe Finding 2 der Review.
+    const collector = { collect: vi.fn().mockRejectedValue(new Error('network down')) };
+    const { scheduler, queries } = build(makeQuery({ consecutiveFailures: 0 }), { collector });
+
+    await scheduler.runOnce(NOW);
+
+    expect(queries.markPolled).toHaveBeenCalledWith('q1', 'failed');
+    expect(queries.deactivate).not.toHaveBeenCalled();
+  });
+
+  describe('cycle containment', () => {
+    it('keeps the cycle going when listings.saveNew rejects for one query', async () => {
+      const failing = makeQuery({ id: 'q-fail' });
+      const healthy = makeQuery({ id: 'q-ok' });
+      const listings = {
+        saveNew: vi
+          .fn()
+          .mockRejectedValueOnce(new Error('write failed'))
+          .mockResolvedValueOnce([makeListing('a')]),
+      };
+      const { scheduler, queries, collector } = buildMany([failing, healthy], { listings });
+
+      const report = await scheduler.runOnce(NOW);
+
+      expect(collector.collect).toHaveBeenCalledTimes(2);
+      expect(listings.saveNew).toHaveBeenCalledTimes(2);
+      expect(queries.markPolled).toHaveBeenCalledWith('q-ok', 'ok');
+      expect(report.failed).toBe(1);
+      expect(report.polled).toBe(1);
+    });
+
+    it('keeps the cycle going when queries.markPolled rejects for one query', async () => {
+      const failing = makeQuery({ id: 'q-fail' });
+      const healthy = makeQuery({ id: 'q-ok' });
+      const markPolled = vi
+        .fn()
+        .mockRejectedValueOnce(new Error('write failed'))
+        .mockResolvedValue(undefined);
+      const { scheduler, queries, collector } = buildMany([failing, healthy], {
+        queries: { markPolled },
+      });
+
+      const report = await scheduler.runOnce(NOW);
+
+      expect(collector.collect).toHaveBeenCalledTimes(2);
+      expect(queries.markPolled).toHaveBeenCalledTimes(2);
+      expect(queries.markPolled).toHaveBeenNthCalledWith(1, 'q-fail', 'ok');
+      expect(queries.markPolled).toHaveBeenNthCalledWith(2, 'q-ok', 'ok');
+      expect(report.failed).toBe(1);
+    });
+
+    it('finishes the cycle even when the store rejects on every call', async () => {
+      // Die erste Abfrage scheitert schon in collect() (loest handleFailure()
+      // aus, die selbst report.failed hochzaehlt), die zweite waere gesund -
+      // aber markPolled() lehnt jeden Aufruf ab. Das Rueckfallnetz darf weder
+      // die schon gezaehlte erste Abfrage doppelt zaehlen, noch am kaputten
+      // Store fuer die zweite Abfrage scheitern.
+      const failing = makeQuery({ id: 'q-fail' });
+      const healthy = makeQuery({ id: 'q-ok' });
+      const markPolled = vi.fn().mockRejectedValue(new Error('store is down'));
+      const markSeeded = vi.fn().mockRejectedValue(new Error('store is down'));
+      const deactivate = vi.fn().mockRejectedValue(new Error('store is down'));
+      const collector = {
+        collect: vi
+          .fn()
+          .mockRejectedValueOnce(new Error('network down'))
+          .mockResolvedValueOnce([makeListing('a')]),
+      };
+      const { scheduler } = buildMany([failing, healthy], {
+        collector,
+        queries: { markPolled, markSeeded, deactivate },
+      });
+
+      const report = await scheduler.runOnce(NOW);
+
+      expect(collector.collect).toHaveBeenCalledTimes(2);
+      expect(report.failed).toBe(2);
+    });
   });
 });

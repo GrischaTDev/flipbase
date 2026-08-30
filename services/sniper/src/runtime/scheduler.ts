@@ -65,7 +65,30 @@ export class QueryScheduler {
         continue;
       }
 
-      await this.pollOne(query, report);
+      // Rueckfallnetz: Alles, was aus pollOne() ungefangen durchschlaegt - ein
+      // Speicherfehler nach erfolgreichem collect(), oder ein Fehler beim
+      // Aufzeichnen eines bereits erkannten Fehlschlags in handleFailure() -
+      // darf nicht den ganzen Durchlauf mitreissen. Eine Abfrage bleibt eine
+      // Abfrage; die naechste faellige soll trotzdem noch drankommen.
+      //
+      // Es wird hier bewusst kein erneuter Store-Aufruf versucht: War der
+      // Store selbst der Grund fuer den Fehler, wuerde ein weiterer Versuch
+      // denselben Fehler nur wiederholen und koennte so das Rueckfallnetz
+      // selbst zum Absturz bringen. `failedBefore` verhindert lediglich eine
+      // doppelte Zaehlung, wenn handleFailure() den Fehlschlag schon erfasst
+      // hatte, bevor sein eigener Store-Aufruf ebenfalls scheiterte.
+      const failedBefore = report.failed;
+      try {
+        await this.pollOne(query, report);
+      } catch (error) {
+        if (report.failed === failedBefore) {
+          report.failed += 1;
+        }
+        this.deps.log.error('cycle_failed_unhandled', {
+          query: query.id,
+          reason: error instanceof Error ? error.message : String(error),
+        });
+      }
     }
 
     this.deps.log.info('cycle', {
