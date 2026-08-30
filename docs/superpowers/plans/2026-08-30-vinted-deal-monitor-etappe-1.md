@@ -872,7 +872,7 @@ cd services/sniper && npm run record:fixture
 
 Erwartung: `recorded 3 items to .../test/fixtures/vinted-catalog.json`.
 
-Danach die Datei öffnen und prüfen, dass jeder `user`-Block genau `seller_0`, `seller_1`, `seller_2` enthält und kein `photo` mit echter Adresse. Falls Vinted mit 401 antwortet: Aufruf einmal wiederholen, das ist der bekannte sporadische Fehler aus der Spec.
+Danach die Datei öffnen und prüfen, dass jeder `user`-Block genau `seller_0`, `seller_1`, `seller_2` enthält und kein `photo` mit echter Adresse. Falls Vinted mit 401 antwortet: Der Grund ist bekannt – die Startseite setzt `access_token_web` zweimal, erst leer, dann echt. Das Skript nimmt je Name den letzten Wert; bleibt trotzdem ein 401, den Aufruf einmal wiederholen.
 
 - [ ] **Step 3: Fehlschlagenden Vertragstest schreiben**
 
@@ -1145,7 +1145,7 @@ git commit -m "feat(sniper): normalize catalog items and drop all seller data"
 
 - Produces: `class VintedSession` mit `cookieHeader(): Promise<string>` und `invalidate(): void`; Typen `FetchLike`, `Sleep`; Fehlerklassen `RateLimitedError`, `ForbiddenError`, `UnauthorizedError`, `VintedHttpError`.
 
-**Warum:** Die Messung zeigte einen sporadischen HTTP 401 bei rund 25 Anfragen. Der Fremdentwurf wärmt genau einmal auf und behandelt 401 überhaupt nicht – der Monitor läuft danach still ins Leere.
+**Warum:** Vinted setzt `access_token_web` in derselben Antwort zweimal – zuerst leer, dann echt. Wer die Set-Cookie-Werte stumpf aneinanderhängt, schickt den leeren zuerst und bekommt 401. Am 30.08.2026 gemessen: naiv zusammengefügt 401, dedupliziert 200. Der Fremdentwurf fügt naiv zusammen, wärmt genau einmal auf und behandelt 401 überhaupt nicht – der Monitor läuft danach still ins Leere. Diese Klasse ist damit an der Quelle behoben; das Neuaufwärmen bleibt als zweite Absicherung.
 
 - [ ] **Step 1: Fehlschlagenden Test schreiben**
 
@@ -1218,6 +1218,37 @@ describe('VintedSession', () => {
 
     expect(await session.cookieHeader()).toBe('access_token_web=a; anon_id=b');
   });
+
+  it('keeps the last value when Vinted sets a cookie twice', async () => {
+    // Gemessen am 30.08.2026: Die Startseite invalidiert access_token_web
+    // zuerst mit einem leeren Wert und setzt danach den echten Token. Wer die
+    // Werte stumpf aneinanderhaengt, schickt den leeren zuerst und bekommt 401.
+    const response = new Response('<html></html>', { status: 200 });
+    response.headers.append(
+      'set-cookie',
+      'access_token_web=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+    );
+    response.headers.append('set-cookie', 'anon_id=b; Path=/');
+    response.headers.append('set-cookie', 'access_token_web=real-token; Path=/');
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(response);
+    const session = new VintedSession(options, fetchFn);
+
+    const header = await session.cookieHeader();
+
+    expect(header).toContain('access_token_web=real-token');
+    expect(header).not.toContain('access_token_web=;');
+    expect(header).toContain('anon_id=b');
+  });
+
+  it('drops a malformed cookie without a name', async () => {
+    const response = new Response('<html></html>', { status: 200 });
+    response.headers.append('set-cookie', '=orphan; Path=/');
+    response.headers.append('set-cookie', 'anon_id=b; Path=/');
+    const fetchFn = vi.fn<typeof fetch>().mockResolvedValue(response);
+    const session = new VintedSession(options, fetchFn);
+
+    expect(await session.cookieHeader()).toBe('anon_id=b');
+  });
 });
 ```
 
@@ -1280,9 +1311,9 @@ export interface SessionOptions {
 }
 
 /**
- * Haelt die anonymen Cookies der Vinted-Startseite. Ein HTTP 401 tritt
- * sporadisch auf; der Sammler ruft dann `invalidate()` und wiederholt die
- * Runde einmal mit frischen Cookies.
+ * Haelt die anonymen Cookies der Vinted-Startseite. Bleibt trotzdem ein 401
+ * uebrig, ruft der Sammler `invalidate()` und wiederholt die Runde einmal
+ * mit frischen Cookies.
  */
 export class VintedSession {
   private cookie: string | undefined;
@@ -1313,12 +1344,29 @@ export class VintedSession {
   }
 }
 
+/**
+ * Vinted setzt `access_token_web` in derselben Antwort ZWEIMAL: zuerst leer
+ * (Invalidierung), danach den echten Token. Wer alle Set-Cookie-Werte stumpf
+ * aneinanderhaengt, schickt den leeren zuerst - der Server nimmt den ersten
+ * und antwortet mit 401. Deshalb gewinnt hier je Name der LETZTE Wert.
+ *
+ * Am 30.08.2026 gemessen: naiv zusammengefuegt -> 401, dedupliziert -> 200,
+ * bei identischer Aufwaermung.
+ */
 function extractCookieHeader(headers: Headers): string {
-  return headers
-    .getSetCookie()
-    .map((cookie) => cookie.split(';', 1)[0]?.trim())
-    .filter((cookie): cookie is string => Boolean(cookie))
-    .join('; ');
+  const latest = new Map<string, string>();
+
+  for (const raw of headers.getSetCookie()) {
+    const pair = raw.split(';', 1)[0]?.trim();
+    if (!pair) continue;
+
+    const separator = pair.indexOf('=');
+    if (separator <= 0) continue;
+
+    latest.set(pair.slice(0, separator), pair.slice(separator + 1));
+  }
+
+  return [...latest].map(([name, value]) => `${name}=${value}`).join('; ');
 }
 ```
 
@@ -1328,7 +1376,7 @@ function extractCookieHeader(headers: Headers): string {
 cd services/sniper && npm test
 ```
 
-Erwartung: 22 Tests bestanden.
+Erwartung: 24 Tests bestanden.
 
 - [ ] **Step 5: Commit**
 
@@ -1543,7 +1591,8 @@ export class VintedCollector {
     try {
       return await this.collectOnce(query);
     } catch (error) {
-      // Der 401 tritt sporadisch auf. Genau ein Neuaufwaermen, danach
+      // Die Hauptursache fuer 401 ist im Cookie-Zusammenbau behoben. Falls
+      // doch einer durchkommt: genau ein Neuaufwaermen, danach
       // uebernimmt der Taktgeber - endloses Wiederholen wuerde nur Anfragen
       // verbrennen und das Sperrrisiko erhoehen.
       if (!(error instanceof UnauthorizedError)) throw error;
@@ -1604,7 +1653,7 @@ export class VintedCollector {
 cd services/sniper && npm test
 ```
 
-Erwartung: 30 Tests bestanden.
+Erwartung: 32 Tests bestanden.
 
 - [ ] **Step 5: Commit**
 
@@ -1726,7 +1775,7 @@ export class RequestBudget {
 cd services/sniper && npm test
 ```
 
-Erwartung: 33 Tests bestanden.
+Erwartung: 35 Tests bestanden.
 
 - [ ] **Step 5: Commit**
 
@@ -2487,7 +2536,7 @@ export class QueryScheduler {
 cd services/sniper && npm test
 ```
 
-Erwartung: 40 Tests bestanden.
+Erwartung: 42 Tests bestanden.
 
 - [ ] **Step 5: Commit**
 
@@ -2573,7 +2622,7 @@ log.info('stopped');
 cd services/sniper && npm run typecheck && npm run build && ls dist/index.js && npm test
 ```
 
-Erwartung: kein Typfehler, `dist/index.js` existiert, 40 Tests bestanden. Der Bau muss hier laufen, weil er im Betriebsabbild verwendet wird – Node löst `./config.js` nicht auf `config.ts` auf, ein direkter Start der TypeScript-Dateien scheitert also.
+Erwartung: kein Typfehler, `dist/index.js` existiert, 42 Tests bestanden. Der Bau muss hier laufen, weil er im Betriebsabbild verwendet wird – Node löst `./config.js` nicht auf `config.ts` auf, ein direkter Start der TypeScript-Dateien scheitert also.
 
 - [ ] **Step 3: Standardprofil anlegen und echten Rauchtest fahren**
 
@@ -2766,7 +2815,7 @@ healthServer.close();
 ```
 
 Run: `cd services/sniper && npm test`
-Erwartung: 44 Tests bestanden.
+Erwartung: 46 Tests bestanden.
 
 Endpunkt prüfen, während `npm run dev` läuft:
 
@@ -2854,7 +2903,8 @@ keine Zustellung, keine Oberfläche.
 - Eine Seite je Abfrage, höchstens 96 Artikel. Mehr liefert Vinted nicht.
 - Der Katalog hinkt der Veröffentlichung rund 10 bis 15 Sekunden hinterher.
   Ein Takt unter 5 Sekunden bringt deshalb nichts.
-- HTTP 401 tritt sporadisch auf. Der Sammler wärmt die Sitzung dann einmal neu
+- HTTP 401 entsteht vor allem, wenn man alle `Set-Cookie`-Werte stumpf zusammenfügt;
+  die Startseite setzt `access_token_web` zweimal. Der Sammler wärmt die Sitzung sonst einmal neu
   auf; erst der zweite 401 in Folge gilt als Fehler.
 - Vinteds Bedingungen untersagen automatisierte Zugriffe. Siehe Spec, Abschnitt
   „Offene Punkte und Risiken".
@@ -2897,7 +2947,7 @@ git commit -m "feat(sniper): run the collector as a service with a health endpoi
 
 Nach Task 11 gilt Etappe 1 als erledigt, wenn:
 
-- `cd services/sniper && npm test` grün ist (44 Tests),
+- `cd services/sniper && npm test` grün ist (46 Tests),
 - `cd services/sniper && npm run test:integration` grün ist (10 Tests),
 - der Datenbanktest `supabase/tests/vinted_deal_monitor_schema.sql` ohne Fehler durchläuft,
 - der Dienst mindestens eine Stunde lokal lief und `select count(*) from public.sniper_listings` wächst,

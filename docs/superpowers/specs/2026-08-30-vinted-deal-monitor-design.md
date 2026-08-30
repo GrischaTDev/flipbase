@@ -28,7 +28,7 @@ Alle Werte am 30.08.2026 direkt gegen `https://www.vinted.de/api/v2/catalog/item
 | Katalog ohne Cookies                            | HTTP 401 `invalid_authentication_token`                                  |
 | Katalog mit Cookies                             | HTTP 200, echte Daten                                                    |
 | Eingefrorene Sitzung, 14 Minuten im Minutentakt | durchgehend HTTP 200                                                     |
-| Sporadischer Ausfall                            | ein HTTP 401 bei rund 25 Anfragen, Ursache nicht isolierbar              |
+| Ursache der 401-Antworten                       | Startseite setzt `access_token_web` zweimal: erst leer, dann echt        |
 
 ### Stabilität der Antwort
 
@@ -291,6 +291,6 @@ Redis, BullMQ, die Verfolgung neu entstehender Artikelkennungen, KI-Bewertung, a
 
 1. **Rechtlich.** Vinteds Bedingungen untersagen automatisierte Zugriffe in Abschnitt 6. Als kostenpflichtiges Angebot kommen das Datenbankherstellerrecht und die gewerbliche Dimension hinzu. Vor der ersten Rechnung sollte das anwaltlich geprüft werden; dieser Entwurf ersetzt das nicht.
 2. **Betriebsrisiko.** Die Quelle kann jederzeit brechen. Das Feature wird deshalb im Paket als solches gekennzeichnet und nicht als Kernversprechen beworben.
-3. **Der sporadische 401** ist nicht erklärt. Die Behandlung fängt ihn ab, die Häufigkeit im Dauerbetrieb ist unbekannt und muss beobachtet werden.
+3. **Die 401-Antworten sind erklärt.** Nachtrag vom 30.08.2026: Die Startseite setzt `access_token_web` in derselben Antwort zweimal – zuerst leer als Invalidierung, danach den echten Token. Wer alle `Set-Cookie`-Werte stumpf aneinanderhängt, sendet den leeren zuerst und erhält 401; je Name den letzten Wert zu nehmen liefert 200. Die frühere Beschreibung als „sporadisch, Ursache nicht isolierbar" war falsch – die frühere Messung lief über einen Cookie-Jar, der den Doppeleintrag von sich aus korrekt überschreibt. Ob darüber hinaus noch echte Zufalls-401 auftreten, muss der Dauerbetrieb zeigen; das Neuaufwärmen bleibt als zweite Absicherung.
 4. **Kein Vollständigkeitsversprechen.** Auch enge Abfragen sind zu 98 Prozent stabil, nicht zu 100. Marketingaussagen müssen das aushalten.
 5. **Skalierungsgrenze.** Etwa 100 verschiedene Abfragen im Minutentakt entsprechen knapp zwei Anfragen je Sekunde. Ab etwa 1.000 muss der Takt sinken oder der Ausgang verteilt werden.
