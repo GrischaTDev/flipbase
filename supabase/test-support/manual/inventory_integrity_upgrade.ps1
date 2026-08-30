@@ -1,9 +1,9 @@
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$worktreePath = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..')).Path
+$worktreePath = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..\..')).Path
 $migrationDirectory = Join-Path $worktreePath 'supabase\migrations'
-$fixturePath = Join-Path $PSScriptRoot 'fixtures\inventory_integrity_legacy.sql'
+$fixturePath = Join-Path $PSScriptRoot '..\fixtures\inventory_integrity_legacy.sql'
 $migrationFiles = @(Get-ChildItem -LiteralPath $migrationDirectory -Filter '*.sql' | Sort-Object Name)
 $currentMigrations = @($migrationFiles | Where-Object { $_.Name -match '^\d{14}_inventory_integrity_unification\.sql$' })
 

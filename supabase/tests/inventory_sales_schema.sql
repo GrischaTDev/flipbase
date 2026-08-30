@@ -1,4 +1,8 @@
+\set ON_ERROR_STOP on
+
 begin;
+
+select plan(5);
 
 do $$
 declare
@@ -23,6 +27,8 @@ begin
   end if;
 end;
 $$;
+
+select pass('catalog_products besitzt alle benötigten Spalten');
 
 do $$
 declare
@@ -49,6 +55,8 @@ begin
 end;
 $$;
 
+select pass('stock_lots besitzt alle benötigten Spalten');
+
 do $$
 declare
   required_columns text[] := array[
@@ -73,6 +81,8 @@ begin
   end if;
 end;
 $$;
+
+select pass('sale_lines besitzt alle benötigten Spalten');
 
 do $$
 declare
@@ -119,6 +129,8 @@ begin
   end if;
 end;
 $$;
+
+select pass('RLS-, Policy-, Rechte- und Constraint-Verträge sind vollständig');
 
 do $$
 declare
@@ -233,4 +245,7 @@ begin
 end;
 $$;
 
+select pass('Workspace- und Werte-Constraints lehnen ungültige Fachdaten ab');
+
+select * from finish();
 rollback;

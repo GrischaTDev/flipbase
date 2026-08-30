@@ -17,7 +17,9 @@ alter table public.inventory_items disable trigger inventory_item_sale_integrity
 alter table public.sale_lines disable trigger inventory_item_sale_integrity_on_sale_line;
 alter table public.sales disable trigger inventory_item_sale_integrity_on_sale;
 
-\ir fixtures/inventory_integrity_legacy.sql
+-- Only supabase/tests is mounted into the pg_prove container. The npm pretest
+-- hook copies the canonical support fixture here with a non-test extension.
+\ir .generated/inventory_integrity_legacy.sql.inc
 
 alter table public.inventory_items enable trigger protect_inventory_item_sold_status;
 alter table public.inventory_items enable trigger inventory_item_sale_integrity_on_insert;

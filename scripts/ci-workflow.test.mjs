@@ -9,11 +9,24 @@ const workflowPath = fileURLToPath(new URL('../.github/workflows/ci.yml', import
 const expectedExpressions = Object.freeze({
   testGateIf: '${{ always() }}',
   testGateResult: '${{ needs.unit.result }}',
+  databaseIf: "${{ needs.changes.outputs.supabase == 'true' }}",
+  databaseGateIf: '${{ always() }}',
+  databaseGateChangesResult: '${{ needs.changes.result }}',
+  databaseGateChanged: '${{ needs.changes.outputs.supabase }}',
+  databaseGateDatabaseResult: '${{ needs.database.result }}',
   imageIf: "github.event_name == 'push'",
   deployIf:
-    "${{ github.event_name == 'push' && always() && needs.quality.result == 'success' && needs.test-gate.result == 'success' && needs.image.result == 'success' }}",
+    "${{ github.event_name == 'push' && always() && needs.quality.result == 'success' && needs.test-gate.result == 'success' && needs.database-gate.result == 'success' && needs.image.result == 'success' }}",
 });
 const expectedGateCommand = 'test "$RESULT" = "success"';
+const expectedDatabaseGateCommand = `test "$CHANGES_RESULT" = "success"
+if [ "$SUPABASE_CHANGED" = "true" ]; then
+  test "$DATABASE_RESULT" = "success"
+else
+  test "$SUPABASE_CHANGED" = "false"
+  test "$DATABASE_RESULT" = "skipped"
+fi
+`;
 
 function convertYamlNode(node) {
   if (!node || typeof node !== 'object') return undefined;
@@ -88,8 +101,64 @@ function assertImageTriggerSecurity(image) {
   assertExactExpression(image.if, expectedExpressions.imageIf, 'image.if');
 }
 
+function assertChangesSecurity(changes) {
+  assert.equal(changes.outputs.supabase, '${{ steps.filter.outputs.supabase }}');
+
+  const checkout = findStep(changes, 'Check out repository history');
+  assert.equal(checkout.with['fetch-depth'], '0');
+  assert.equal(checkout.with['persist-credentials'], 'false');
+
+  const filter = findStep(changes, 'Detect Supabase changes');
+  assert.equal(filter.id, 'filter');
+  assert.deepEqual(filter.env, {
+    EVENT_NAME: '${{ github.event_name }}',
+    PR_BASE_SHA: '${{ github.event.pull_request.base.sha }}',
+    PUSH_BEFORE_SHA: '${{ github.event.before }}',
+    HEAD_SHA: '${{ github.sha }}',
+  });
+  assertContainsPatterns(filter.run, [
+    /set -euo pipefail/,
+    /EVENT_NAME" = "pull_request"/,
+    /PR_BASE_SHA/,
+    /PUSH_BEFORE_SHA/,
+    /0000000000000000000000000000000000000000/,
+    /git rev-parse --verify "\$\{HEAD_SHA\}\^"/,
+    /echo "supabase=true" >> "\$GITHUB_OUTPUT"/,
+    /git cat-file -e "\$\{base_sha\}\^\{commit\}"/,
+    /git diff --name-only "\$base_sha" "\$HEAD_SHA" -- supabase\//,
+  ]);
+}
+
+function assertDatabaseSecurity(database) {
+  assertExactExpression(database.if, expectedExpressions.databaseIf, 'database.if');
+  assert.equal(database.needs, 'changes');
+
+  const checkout = findStep(database, 'Check out repository');
+  assert.equal(checkout.with['persist-credentials'], 'false');
+  assert.ok(findStep(database, 'Install dependencies'));
+  assert.equal(findStep(database, 'Start local Supabase').run, 'npx supabase start');
+  assert.equal(findStep(database, 'Test database').run, 'npm run test:db');
+
+  const cleanup = findStep(database, 'Stop local Supabase');
+  assertExactExpression(cleanup.if, '${{ always() }}', 'database cleanup.if');
+  assert.equal(cleanup.run, 'npx supabase stop --no-backup');
+}
+
+function assertDatabaseGateSecurity(gate) {
+  assertExactExpression(gate.if, expectedExpressions.databaseGateIf, 'database-gate.if');
+  assert.deepEqual(gate.needs, ['changes', 'database']);
+
+  const step = findStep(gate, 'Require the matching database result');
+  assert.deepEqual(step.env, {
+    CHANGES_RESULT: expectedExpressions.databaseGateChangesResult,
+    SUPABASE_CHANGED: expectedExpressions.databaseGateChanged,
+    DATABASE_RESULT: expectedExpressions.databaseGateDatabaseResult,
+  });
+  assert.equal(step.run, expectedDatabaseGateCommand);
+}
+
 function assertDeploySecurity(deploy) {
-  assert.deepEqual(deploy.needs, ['quality', 'test-gate', 'image']);
+  assert.deepEqual(deploy.needs, ['quality', 'test-gate', 'database-gate', 'image']);
   assertExactExpression(deploy.if, expectedExpressions.deployIf, 'deploy.if');
 }
 
@@ -106,9 +175,52 @@ function securityFixtures() {
         },
       ],
     },
+    changes: {
+      outputs: { supabase: '${{ steps.filter.outputs.supabase }}' },
+      steps: [
+        {
+          name: 'Check out repository history',
+          with: { 'fetch-depth': '0', 'persist-credentials': 'false' },
+        },
+        {
+          name: 'Detect Supabase changes',
+          id: 'filter',
+          env: {
+            EVENT_NAME: '${{ github.event_name }}',
+            PR_BASE_SHA: '${{ github.event.pull_request.base.sha }}',
+            PUSH_BEFORE_SHA: '${{ github.event.before }}',
+            HEAD_SHA: '${{ github.sha }}',
+          },
+          run: `set -euo pipefail
+if [ "$EVENT_NAME" = "pull_request" ]; then base_sha="$PR_BASE_SHA"; fi
+base_sha="$PUSH_BEFORE_SHA"
+zero_sha="0000000000000000000000000000000000000000"
+git rev-parse --verify "\${HEAD_SHA}^"
+echo "supabase=true" >> "$GITHUB_OUTPUT"
+git cat-file -e "\${base_sha}^{commit}"
+git diff --name-only "$base_sha" "$HEAD_SHA" -- supabase/
+`,
+        },
+      ],
+    },
+    databaseGate: {
+      if: expectedExpressions.databaseGateIf,
+      needs: ['changes', 'database'],
+      steps: [
+        {
+          name: 'Require the matching database result',
+          env: {
+            CHANGES_RESULT: expectedExpressions.databaseGateChangesResult,
+            SUPABASE_CHANGED: expectedExpressions.databaseGateChanged,
+            DATABASE_RESULT: expectedExpressions.databaseGateDatabaseResult,
+          },
+          run: expectedDatabaseGateCommand,
+        },
+      ],
+    },
     image: { if: expectedExpressions.imageIf },
     deploy: {
-      needs: ['quality', 'test-gate', 'image'],
+      needs: ['quality', 'test-gate', 'database-gate', 'image'],
       if: expectedExpressions.deployIf,
     },
   };
@@ -135,10 +247,45 @@ test('weist eine Image-Bedingung zurück, die auch Pull Requests zulässt', () =
   assert.throws(() => assertImageTriggerSecurity(image), /image\.if/);
 });
 
+test('weist einen Change-Detector zurück, der einen Git-Fehler als keine Änderung behandelt', () => {
+  const { changes } = securityFixtures();
+  findStep(changes, 'Detect Supabase changes').run = findStep(
+    changes,
+    'Detect Supabase changes',
+  ).run.replace('set -euo pipefail', 'set +e');
+
+  assert.throws(() => assertChangesSecurity(changes));
+});
+
+test('weist ein Datenbank-Gate zurück, das einen fehlgeschlagenen Changes-Job durchlässt', () => {
+  const { databaseGate } = securityFixtures();
+  findStep(databaseGate, 'Require the matching database result').run =
+    'test "$DATABASE_RESULT" != "failure"';
+
+  assert.throws(() => assertDatabaseGateSecurity(databaseGate));
+});
+
+test('weist ein Datenbank-Gate zurück, das skipped bei Supabase-Änderungen akzeptiert', () => {
+  const { databaseGate } = securityFixtures();
+  findStep(databaseGate, 'Require the matching database result').run =
+    expectedDatabaseGateCommand.replace('= "success"', '= "skipped"');
+
+  assert.throws(() => assertDatabaseGateSecurity(databaseGate));
+});
+
 test('parallelisiert Quality und die vollständige Unit-Matrix hinter einem Test-Gate', async () => {
   const { jobs } = await loadWorkflow();
 
-  assert.deepEqual(Object.keys(jobs).sort(), ['deploy', 'image', 'quality', 'test-gate', 'unit']);
+  assert.deepEqual(Object.keys(jobs).sort(), [
+    'changes',
+    'database',
+    'database-gate',
+    'deploy',
+    'image',
+    'quality',
+    'test-gate',
+    'unit',
+  ]);
   assert.equal(jobs.quality['timeout-minutes'], '5');
   assert.deepEqual(
     jobs.quality.steps.filter((step) => step.run).map((step) => step.run),
@@ -167,6 +314,14 @@ test('parallelisiert Quality und die vollständige Unit-Matrix hinter einem Test
 
   const gate = jobs['test-gate'];
   assertTestGateSecurity(gate);
+});
+
+test('erkennt Supabase-Änderungen vollständig und führt den lokalen Datenbanktest bedingt aus', async () => {
+  const { jobs } = await loadWorkflow();
+
+  assertChangesSecurity(jobs.changes);
+  assertDatabaseSecurity(jobs.database);
+  assertDatabaseGateSecurity(jobs['database-gate']);
 });
 
 test('baut nur bei Push parallel ein unveränderliches Kandidatenimage', async () => {

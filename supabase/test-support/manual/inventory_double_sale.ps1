@@ -4,7 +4,7 @@ $worktreePath = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..\..'))
 $containerNames = @(
   docker ps --filter "label=com.supabase.cli.workdir=$worktreePath" --filter 'name=supabase_db_' --format '{{.Names}}'
 )
-if ($containerNames.Count -ne 1) {
+if ($LASTEXITCODE -ne 0 -or $containerNames.Count -ne 1) {
   throw "Erwartet wurde genau ein laufender lokaler Supabase-Datenbankcontainer für $worktreePath. Gefunden: $($containerNames.Count)"
 }
 
