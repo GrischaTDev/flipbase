@@ -164,6 +164,41 @@ Der legitime Nightly-Vertrag ist mit allen 19/19 Fällen grün; der gesamte
 Workflow-Vertrag läuft nach der Erweiterung 49/49 grün. Der produktive
 Nightly-Workflow musste nicht verändert werden.
 
+### Fixrunde 2: vollständige Workflow- und Job-Allowlist
+
+Das zweite Review-Finding belegte eine weitere Lücke: Die Schritte waren zwar
+vollständig erlaubt, zusätzliche Schlüssel am Workflow, an Jobs oder an der
+Browserstrategie wurden aber noch nicht fail-closed geprüft.
+
+RED: 14 neue Negativfixtures wurden vor der Korrektur ausgeführt. Zwölf
+Manipulationen wurden fälschlich akzeptiert: `permissions: write-all` am
+Browserjob, job- und top-level Secrets, globale `defaults` und `concurrency`,
+Job-`services`, Job-`secrets`, ein Job-`container`, ein Job-`if`, ein
+Strategy-Zusatz, Matrix-`include` und eine zusätzliche Matrix-Achse. Ergebnis:
+21/33 grün und 12/33 erwartungsgemäß rot. Jobweites `continue-on-error` sowie
+eine Remote-URL in einem bestehenden Coverage-Schritt wurden bereits von den
+vorhandenen Prüfungen abgewiesen.
+
+GREEN: Das Workflow-Top-Level erlaubt exakt `name`, `on`, `permissions` und
+`jobs`. Jeder normale Job erlaubt ausschließlich `name`, `runs-on`,
+`timeout-minutes` und `steps`; nur `browser-matrix` besitzt zusätzlich
+`strategy`. Namen, Runner und Timeouts werden ebenfalls auf ihre definierten
+Werte geprüft. Dadurch sind insbesondere jobweite Rechte, Umgebungsvariablen,
+Secrets, Container, Services, Bedingungen, `continue-on-error`, `needs` und
+beliebige weitere Felder ausgeschlossen.
+
+Die Browserstrategie erlaubt exakt `fail-fast` und `matrix`; die Matrix exakt
+die Achse `browser` mit `chromium`, `firefox` und `webkit`. `include`, weitere
+Achsen oder sonstige Strategy-Felder brechen ab. Vor der Strukturprüfung wird
+außerdem die Serialisierung aller vier Jobs auf HTTP(S)-Remote-URLs,
+GitHub-Secrets-Kontexte sowie Supabase-, Datenbank-, Service-Role- und
+Produktionsvariablen geprüft. Die legitimen Kontexte `github.run_id`,
+`github.run_attempt` und `matrix.browser` bleiben erlaubt.
+
+Der legitime Nightly-Vertrag läuft nach Fixrunde 2 mit 33/33 Fällen, der
+gesamte Workflow-Vertrag mit 63/63 Fällen grün. Der produktive
+Nightly-Workflow blieb erneut unverändert.
+
 ## Browser und Datenbank
 
 - Standard-Chromium: 5/5 grün in 10,818 Sekunden.
@@ -202,6 +237,14 @@ Workflow-Dateien per Prettier, `git diff --check`, `npm test` (116 Dateien,
 Browsermatrix und lokale Datenbank wurden nicht erneut ausgeführt, weil die
 Fixrunde ausschließlich den lokalen Workflow-Vertrag und seine Dokumentation
 ändert; die ursprünglichen Task-9-Nachweise bleiben unverändert.
+
+Fixrunde 2 wurde mit `npm run test:workflow` (63/63),
+`npm run format:check`, `npm run lint`, `npm run typecheck`, beiden
+Workflow-Dateien per Prettier, `git diff --check`, `npm test` (116 Dateien,
+1.070 Tests) und `npm run build` (6,814 s) abgenommen. Coverage, 20er-Stress,
+Browsermatrix und lokale Datenbank wurden nicht erneut ausgeführt, weil auch
+diese Fixrunde ausschließlich den lokalen Workflow-Vertrag und seine
+Dokumentation ändert; die ursprünglichen Task-9-Nachweise bleiben unverändert.
 
 Commit-Nachweis: genau ein Task-Commit mit der Nachricht
 `test: enforce coverage floors and nightly full checks`; der unvermeidlich

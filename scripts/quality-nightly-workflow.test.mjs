@@ -12,6 +12,28 @@ const checkoutSha = '3d3c42e5aac5ba805825da76410c181273ba90b1';
 const setupNodeSha = '820762786026740c76f36085b0efc47a31fe5020';
 const uploadSha = '043fb46d1a93c77aae656e7c1c64a875d1fc6a0a';
 const failureUploadIf = '${{ failure() || cancelled() }}';
+const jobMetadata = {
+  coverage: {
+    name: 'Full coverage',
+    'runs-on': 'ubuntu-latest',
+    'timeout-minutes': '10',
+  },
+  'node-stress': {
+    name: 'Node order stress',
+    'runs-on': 'ubuntu-latest',
+    'timeout-minutes': '15',
+  },
+  'database-full': {
+    name: 'Full local database checks',
+    'runs-on': 'ubuntu-latest',
+    'timeout-minutes': '20',
+  },
+  'browser-matrix': {
+    name: 'Browser smoke (${{ matrix.browser }})',
+    'runs-on': 'ubuntu-latest',
+    'timeout-minutes': '15',
+  },
+};
 
 function nodeSetupSteps() {
   return [
@@ -169,6 +191,53 @@ function step(job, name) {
   return job.steps.find((candidate) => candidate.name === name);
 }
 
+function assertExactKeys(value, expectedKeys, label) {
+  assert.deepEqual(
+    Object.keys(value).sort(),
+    [...expectedKeys].sort(),
+    `${label} darf ausschließlich die freigegebenen Schlüssel enthalten`,
+  );
+}
+
+function assertExactWorkflowShape(workflow) {
+  assertExactKeys(workflow, ['name', 'on', 'permissions', 'jobs'], 'Workflow');
+  assert.equal(workflow.name, 'Nightly full quality checks');
+  assertExactKeys(workflow.on, ['schedule', 'workflow_dispatch'], 'Workflow-Trigger');
+  assertExactKeys(workflow.permissions, ['contents'], 'Workflow-Berechtigungen');
+  assertExactKeys(workflow.jobs, Object.keys(jobMetadata), 'Workflow-Jobs');
+
+  for (const [jobName, expectedMetadata] of Object.entries(jobMetadata)) {
+    const job = workflow.jobs[jobName];
+    const expectedKeys = ['name', 'runs-on', 'timeout-minutes', 'steps'];
+    if (jobName === 'browser-matrix') expectedKeys.push('strategy');
+    assertExactKeys(job, expectedKeys, `Job ${jobName}`);
+    assert.equal(job.name, expectedMetadata.name);
+    assert.equal(job['runs-on'], expectedMetadata['runs-on']);
+    assert.equal(job['timeout-minutes'], expectedMetadata['timeout-minutes']);
+  }
+
+  const strategy = workflow.jobs['browser-matrix'].strategy;
+  assertExactKeys(strategy, ['fail-fast', 'matrix'], 'Browser-Strategy');
+  assertExactKeys(strategy.matrix, ['browser'], 'Browser-Matrix');
+  assert.equal(strategy['fail-fast'], 'false');
+  assert.deepEqual(strategy.matrix.browser, ['chromium', 'firefox', 'webkit']);
+}
+
+function assertNoRemoteOrProductionCredentials(jobs) {
+  const serialized = JSON.stringify(jobs);
+  assert.doesNotMatch(serialized, /https?:\/\//i, 'Nightly-Jobs dürfen keine Remote-URL enthalten');
+  assert.doesNotMatch(
+    serialized,
+    /\$\{\{\s*secrets\./i,
+    'Nightly-Jobs dürfen keinen GitHub-Secrets-Kontext verwenden',
+  );
+  assert.doesNotMatch(
+    serialized,
+    /\b(?:SUPABASE_(?:URL|DB_URL|SERVICE_ROLE_KEY)|DATABASE_URL|SERVICE_ROLE_KEY|PRODUCTION_[A-Z0-9_]*|PROD_[A-Z0-9_]*)\b/i,
+    'Nightly-Jobs dürfen keine Produktions- oder privilegierten Variablen verwenden',
+  );
+}
+
 function assertPinnedActions(jobs) {
   for (const job of Object.values(jobs)) {
     assert.equal(job['continue-on-error'], undefined);
@@ -280,6 +349,8 @@ function assertFailClosedPipeline(pipelineStep) {
 }
 
 function assertNightlyWorkflow(workflow) {
+  assertNoRemoteOrProductionCredentials(workflow.jobs);
+  assertExactWorkflowShape(workflow);
   assert.deepEqual(workflow.permissions, { contents: 'read' });
   assert.deepEqual(Object.keys(workflow.on).sort(), ['schedule', 'workflow_dispatch']);
   assert.equal(workflow.on.schedule.length, 1);
@@ -483,6 +554,57 @@ for (const [name, mutate] of [
   [
     'einen beliebigen zusätzlichen Schritt',
     (workflow) => workflow.jobs.coverage.steps.push({ name: 'Unexpected step', run: 'echo extra' }),
+  ],
+  [
+    'jobweite Schreibrechte in der Browsermatrix',
+    (workflow) => (workflow.jobs['browser-matrix'].permissions = 'write-all'),
+  ],
+  [
+    'ein jobweites Service-Role-Secret außerhalb des Datenbankjobs',
+    (workflow) =>
+      (workflow.jobs['node-stress'].env = {
+        SUPABASE_SERVICE_ROLE_KEY: '${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}',
+      }),
+  ],
+  [
+    'ein globales Secret',
+    (workflow) =>
+      (workflow.env = {
+        PRODUCTION_TOKEN: '${{ secrets.PRODUCTION_TOKEN }}',
+      }),
+  ],
+  ['globale Defaults', (workflow) => (workflow.defaults = { run: { shell: 'bash' } })],
+  ['globale Concurrency', (workflow) => (workflow.concurrency = { group: 'nightly' })],
+  [
+    'jobweite Services',
+    (workflow) => (workflow.jobs.coverage.services = { postgres: { image: 'postgres:18' } }),
+  ],
+  ['jobweite Secrets', (workflow) => (workflow.jobs.coverage.secrets = 'inherit')],
+  ['einen jobweiten Container', (workflow) => (workflow.jobs.coverage.container = 'node:22')],
+  ['eine jobweite Bedingung', (workflow) => (workflow.jobs.coverage.if = '${{ success() }}')],
+  [
+    'jobweites continue-on-error',
+    (workflow) => (workflow.jobs.coverage['continue-on-error'] = 'true'),
+  ],
+  [
+    'einen Strategy-Zusatz',
+    (workflow) => (workflow.jobs['browser-matrix'].strategy['max-parallel'] = '1'),
+  ],
+  [
+    'ein Matrix-Include',
+    (workflow) =>
+      (workflow.jobs['browser-matrix'].strategy.matrix.include = [{ browser: 'chromium' }]),
+  ],
+  [
+    'eine zusätzliche Matrix-Achse',
+    (workflow) => (workflow.jobs['browser-matrix'].strategy.matrix.os = ['ubuntu-latest']),
+  ],
+  [
+    'eine Remote-URL außerhalb des Datenbankjobs',
+    (workflow) =>
+      (step(workflow.jobs.coverage, 'Run full coverage').env = {
+        REPORT_URL: 'https://reports.example.com',
+      }),
   ],
 ]) {
   test(`weist ${name} zurück`, async () => {
