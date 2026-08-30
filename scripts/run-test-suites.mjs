@@ -116,23 +116,94 @@ function startSuite(suite, stdout, stderr, children) {
   });
 }
 
-function terminateProcessTree(child, signal, force = false) {
-  if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
+function runCommand(command, args) {
+  return new Promise((resolveCommand) => {
+    let stdout = '';
+    let child;
+    try {
+      child = spawn(command, args, {
+        shell: false,
+        stdio: ['ignore', 'pipe', 'ignore'],
+        windowsHide: true,
+      });
+    } catch {
+      resolveCommand({ code: 1, stdout });
+      return;
+    }
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.once('error', () => resolveCommand({ code: 1, stdout }));
+    child.once('close', (code) => resolveCommand({ code: code ?? 1, stdout }));
+  });
+}
 
+async function collectWindowsProcessTree(rootPid) {
+  const script = [
+    `$rootProcessId = ${rootPid}`,
+    '$processes = @(Get-CimInstance Win32_Process | Select-Object ProcessId, ParentProcessId)',
+    '$pending = [System.Collections.Generic.Queue[int]]::new()',
+    '$found = [System.Collections.Generic.HashSet[int]]::new()',
+    '$pending.Enqueue($rootProcessId)',
+    'while ($pending.Count -gt 0) {',
+    '  $current = $pending.Dequeue()',
+    '  if ($found.Add($current)) {',
+    '    foreach ($process in $processes) {',
+    '      if ([int]$process.ParentProcessId -eq $current) {',
+    '        $pending.Enqueue([int]$process.ProcessId)',
+    '      }',
+    '    }',
+    '  }',
+    '}',
+    '[Console]::Out.Write((@($found) -join ","))',
+  ].join('\n');
+  const result = await runCommand('powershell.exe', [
+    '-NoLogo',
+    '-NoProfile',
+    '-NonInteractive',
+    '-Command',
+    script,
+  ]);
+  const processIds = result.stdout
+    .trim()
+    .split(',')
+    .map(Number)
+    .filter((processId) => Number.isInteger(processId) && processId > 0);
+  return processIds.length ? processIds : [rootPid];
+}
+
+async function createTerminationTarget(child) {
   if (process.platform === 'win32') {
-    const taskkill = spawn(
-      'taskkill.exe',
-      ['/pid', String(child.pid), '/t', ...(force ? ['/f'] : [])],
-      { shell: false, stdio: 'ignore', windowsHide: true },
+    return {
+      platform: 'win32',
+      root: child,
+      processIds: await collectWindowsProcessTree(child.pid),
+    };
+  }
+  return { platform: 'posix', root: child, processGroupId: child.pid };
+}
+
+async function terminateTarget(target, signal, force) {
+  if (target.platform === 'win32') {
+    if (!force) {
+      await runCommand('taskkill.exe', ['/pid', String(target.root.pid), '/f']);
+      return;
+    }
+    await Promise.all(
+      [...target.processIds]
+        .reverse()
+        .map((processId) => runCommand('taskkill.exe', ['/pid', String(processId), '/t', '/f'])),
     );
-    taskkill.once('error', () => child.kill(signal));
     return;
   }
 
   try {
-    process.kill(-child.pid, force ? 'SIGKILL' : signal);
+    process.kill(-target.processGroupId, force ? 'SIGKILL' : signal);
   } catch {
-    child.kill(force ? 'SIGKILL' : signal);
+    if (target.root.exitCode === null && target.root.signalCode === null) {
+      target.root.kill(force ? 'SIGKILL' : signal);
+    }
   }
 }
 
@@ -144,17 +215,23 @@ export async function runSuites(suites, options = {}) {
   const terminationGraceMs = options.terminationGraceMs ?? defaultTerminationGraceMs;
   const children = new Set();
   let terminationExitCode = null;
+  let terminationPromise;
   let forceTimer;
 
   const terminateAll = (signal, exitCode, message) => {
     if (terminationExitCode !== null) return;
     terminationExitCode = exitCode;
     stderr.write(`[runner] ${message}\n`);
-    for (const child of children) terminateProcessTree(child, signal);
-    forceTimer = setTimeout(() => {
-      for (const child of children) terminateProcessTree(child, signal, true);
-    }, terminationGraceMs);
-    forceTimer.unref();
+    const roots = [...children];
+    terminationPromise = (async () => {
+      const targets = await Promise.all(roots.map(createTerminationTarget));
+      await Promise.all(targets.map((target) => terminateTarget(target, signal, false)));
+      await new Promise((resolveGracePeriod) => {
+        forceTimer = setTimeout(resolveGracePeriod, terminationGraceMs);
+      });
+      stderr.write('[runner] Schonfrist abgelaufen; erzwungene Prozessbaum-Beendigung.\n');
+      await Promise.all(targets.map((target) => terminateTarget(target, signal, true)));
+    })();
   };
   const onSigint = () =>
     terminateAll('SIGINT', 130, 'SIGINT empfangen; Testprozesse werden beendet.');
@@ -178,6 +255,7 @@ export async function runSuites(suites, options = {}) {
     const exitCodes = await Promise.all(
       suites.map((suite) => startSuite(suite, stdout, stderr, children)),
     );
+    if (terminationPromise) await terminationPromise;
     if (terminationExitCode !== null) return terminationExitCode;
     return exitCodes.every((exitCode) => exitCode === 0) ? 0 : 1;
   } finally {

@@ -60,6 +60,13 @@ vollständigen Prozessbäume bei `SIGINT`, `SIGTERM` oder nach dem standardmäß
 Zeitlimit von 15 Minuten. Ein abweichendes positives Zeitlimit in Millisekunden
 kann über `FLIPBASE_TEST_TIMEOUT_MS` gesetzt werden.
 
+Die zweistufige Beendigung behält ihre ursprünglichen Ziele auch dann, wenn der
+direkte npm-Prozess während der Schonfrist bereits endet: Unter POSIX bleibt die
+ursprüngliche Prozessgruppen-ID erhalten; unter Windows werden Root- und
+Nachkommen-PIDs vor der ersten Stufe erfasst. Der referenzierte Grace-Timer hält
+den Standalone-Runner bis zur abschließenden `SIGKILL`- beziehungsweise
+`taskkill /t /f`-Stufe am Leben.
+
 Zusätzliche Argumente an `npm test` werden absichtlich mit Exitcode 2 abgelehnt,
 weil eine mehrdeutige Weitergabe an drei Prozesse fehleranfällig wäre. Eine
 einzelne Gruppe kann stattdessen eindeutig aufgerufen werden:
@@ -73,4 +80,5 @@ npm run test:angular -- <Vitest-Argumente>
 Die Orchestrator-Verträge laufen über `test:orchestrator` und automatisch vor
 `test:node`. Dadurch werden sie sowohl bei einem gezielten Node-Lauf als auch bei
 jedem regulären `npm test` genau einmal geprüft, ohne den Orchestrator rekursiv
-aufzurufen.
+aufzurufen. Ihre Parallelitäts- und Signaltests verwenden bestätigte
+Datei-/Ausgabebarrieren statt knapper Annahmen über die Laufzeit.
