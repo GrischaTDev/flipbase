@@ -57,6 +57,7 @@ function installTestLocalInputBridges(): void {
     'options',
     'placeholder',
     'size',
+    'ariaLabel',
   ]);
   bridgeInputMetadata((DatePickerComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp, [
     'feldId',

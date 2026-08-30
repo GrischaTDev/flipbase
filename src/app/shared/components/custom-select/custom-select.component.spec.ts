@@ -66,12 +66,12 @@ afterEach(() => {
   try {
     TestBed.resetTestingModule();
   } finally {
-    if (!inputMetadataSnapshot) return;
-
-    const metadata = (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
-    metadata.inputs = inputMetadataSnapshot.inputs;
-    metadata.declaredInputs = inputMetadataSnapshot.declaredInputs;
-    inputMetadataSnapshot = null;
+    if (inputMetadataSnapshot) {
+      const metadata = (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+      metadata.inputs = inputMetadataSnapshot.inputs;
+      metadata.declaredInputs = inputMetadataSnapshot.declaredInputs;
+      inputMetadataSnapshot = null;
+    }
   }
 });
 

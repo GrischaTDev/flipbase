@@ -137,13 +137,13 @@ afterEach(() => {
   try {
     TestBed.resetTestingModule();
   } finally {
-    if (!customSelectInputMetadataSnapshot) return;
-
-    const metadata = (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
-    metadata.inputs = customSelectInputMetadataSnapshot.inputs;
-    metadata.declaredInputs = customSelectInputMetadataSnapshot.declaredInputs;
-    metadata.outputs = customSelectInputMetadataSnapshot.outputs;
-    customSelectInputMetadataSnapshot = null;
+    if (customSelectInputMetadataSnapshot) {
+      const metadata = (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+      metadata.inputs = customSelectInputMetadataSnapshot.inputs;
+      metadata.declaredInputs = customSelectInputMetadataSnapshot.declaredInputs;
+      metadata.outputs = customSelectInputMetadataSnapshot.outputs;
+      customSelectInputMetadataSnapshot = null;
+    }
 
     if (customSelectValueChangeDescriptor) {
       Object.defineProperty(
@@ -156,15 +156,15 @@ afterEach(() => {
     }
     customSelectValueChangeDescriptor = undefined;
 
-    if (!revenueChartInputMetadataSnapshot) return;
-
-    const revenueChartMetadata = (
-      RevenueChartComponent as unknown as { ɵcmp: AngularInputMetadata }
-    ).ɵcmp;
-    revenueChartMetadata.inputs = revenueChartInputMetadataSnapshot.inputs;
-    revenueChartMetadata.declaredInputs = revenueChartInputMetadataSnapshot.declaredInputs;
-    revenueChartMetadata.outputs = revenueChartInputMetadataSnapshot.outputs;
-    revenueChartInputMetadataSnapshot = null;
+    if (revenueChartInputMetadataSnapshot) {
+      const revenueChartMetadata = (
+        RevenueChartComponent as unknown as { ɵcmp: AngularInputMetadata }
+      ).ɵcmp;
+      revenueChartMetadata.inputs = revenueChartInputMetadataSnapshot.inputs;
+      revenueChartMetadata.declaredInputs = revenueChartInputMetadataSnapshot.declaredInputs;
+      revenueChartMetadata.outputs = revenueChartInputMetadataSnapshot.outputs;
+      revenueChartInputMetadataSnapshot = null;
+    }
   }
 });
 

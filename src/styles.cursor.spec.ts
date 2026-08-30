@@ -25,13 +25,13 @@ describe('globaler Cursorvertrag', () => {
       'image',
     ]) {
       expect(cursorContract).toMatch(
-        new RegExp(`input[^}]+\\[type=['\"]${type}['\"]\\][^}]+cursor:\\s*pointer`, 's'),
+        new RegExp(`input[^}]+\\[type=['"]${type}['"]\\][^}]+cursor:\\s*pointer`, 's'),
       );
     }
 
     for (const type of ['text', 'date', 'email', 'number']) {
       expect(cursorContract).not.toMatch(
-        new RegExp(`input[^}]+\\[type=['\"]${type}['\"]\\][^}]+cursor:\\s*pointer`, 's'),
+        new RegExp(`input[^}]+\\[type=['"]${type}['"]\\][^}]+cursor:\\s*pointer`, 's'),
       );
     }
 
@@ -44,7 +44,7 @@ describe('globaler Cursorvertrag', () => {
     expect(cursorContract).toMatch(
       /:where\(button, input, select, textarea\)\[aria-disabled="true"\][^}]+cursor:\s*not-allowed/s,
     );
-    expect(cursorContract).toMatch(/\[aria-disabled=['\"]true['\"]\][^}]+cursor:\s*not-allowed/s);
+    expect(cursorContract).toMatch(/\[aria-disabled=['"]true['"]\][^}]+cursor:\s*not-allowed/s);
   });
 
   it('umschließt ausschließlich die dedizierten Cursor-Layer', () => {
