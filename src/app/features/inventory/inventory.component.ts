@@ -7,7 +7,7 @@ import {
   signal,
   ViewChild,
 } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { CurrencyPipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
@@ -51,7 +51,6 @@ type FilterPreset = string;
   selector: 'app-inventory',
   imports: [
     BarcodeScannerComponent,
-    RouterLink,
     CurrencyPipe,
     TranslatePipe,
     LucideDynamicIcon,

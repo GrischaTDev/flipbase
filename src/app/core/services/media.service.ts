@@ -236,17 +236,35 @@ export class MediaService {
   /**
    * Deletes a media item from storage and database.
    */
-  async deleteMedia(
-    itemId: string,
-    mediaId: string,
-    storagePath: string,
-  ): Promise<{ error: Error | null }> {
+  async deleteMedia(itemId: string, mediaId: string): Promise<{ error: Error | null }> {
     if (this.mockStore.isDemoMode()) {
+      const medium = this.mockStore
+        .getItemMedia(itemId)
+        .find((candidate) => candidate.id === mediaId);
+      if (!medium) {
+        return {
+          error: this.melde('Löschen des Bildes', new Error('Das Bild wurde nicht gefunden.')),
+        };
+      }
       this.mockStore.deleteItemMedia(mediaId);
       return { error: null };
     }
 
     try {
+      const { data: medium, error: leseFehler } = await this.supabase.client
+        .from('item_media')
+        .select('storage_path')
+        .eq('id', mediaId)
+        .eq('inventory_item_id', itemId)
+        .maybeSingle();
+      if (leseFehler) return { error: this.melde('Prüfen des Bildeintrags', leseFehler) };
+      if (!medium) {
+        return {
+          error: this.melde('Prüfen des Bildeintrags', new Error('Das Bild wurde nicht gefunden.')),
+        };
+      }
+
+      const storagePath = medium.storage_path;
       if (!storagePath.startsWith('data:')) {
         const { error: storageFehler } = await this.supabase.client.storage
           .from('item-media')
@@ -258,7 +276,8 @@ export class MediaService {
       const { error, count } = await this.supabase.client
         .from('item_media')
         .delete({ count: 'exact' })
-        .eq('id', mediaId);
+        .eq('id', mediaId)
+        .eq('inventory_item_id', itemId);
       if (error) return { error: this.melde('Löschen des Bildeintrags', error) };
       if (count === 0) {
         return {
@@ -281,11 +300,35 @@ export class MediaService {
    */
   async setPrimary(itemId: string, mediaId: string): Promise<{ error: Error | null }> {
     if (this.mockStore.isDemoMode()) {
+      const medium = this.mockStore
+        .getItemMedia(itemId)
+        .find((candidate) => candidate.id === mediaId);
+      if (!medium) {
+        return {
+          error: this.melde(
+            'Festlegen des Hauptbilds',
+            new Error('Das Bild wurde nicht gefunden.'),
+          ),
+        };
+      }
       this.mockStore.setItemMediaPrimary(itemId, mediaId);
       return { error: null };
     }
 
     try {
+      const { data: medium, error: leseFehler } = await this.supabase.client
+        .from('item_media')
+        .select('id')
+        .eq('id', mediaId)
+        .eq('inventory_item_id', itemId)
+        .maybeSingle();
+      if (leseFehler) return { error: this.melde('Prüfen des Hauptbilds', leseFehler) };
+      if (!medium) {
+        return {
+          error: this.melde('Prüfen des Hauptbilds', new Error('Das Bild wurde nicht gefunden.')),
+        };
+      }
+
       const { error: zuruecksetzFehler } = await this.supabase.client
         .from('item_media')
         .update({ is_primary: false })
@@ -297,7 +340,8 @@ export class MediaService {
       const { error, count } = await this.supabase.client
         .from('item_media')
         .update({ is_primary: true }, { count: 'exact' })
-        .eq('id', mediaId);
+        .eq('id', mediaId)
+        .eq('inventory_item_id', itemId);
       if (error) return { error: this.melde('Festlegen des Hauptbilds', error) };
       if (count === 0) {
         return {

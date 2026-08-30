@@ -36,22 +36,89 @@ function injiziereDienst(client: unknown) {
   };
 }
 
+function erstelleFilterQuery<T>(antwort: T, filter: [string, string][] = []) {
+  const query = {
+    eq(spalte: string, wert: string) {
+      filter.push([spalte, wert]);
+      return query;
+    },
+    maybeSingle: async () => antwort,
+    then<TResult1 = T, TResult2 = never>(
+      onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | null,
+      onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
+    ): Promise<TResult1 | TResult2> {
+      return Promise.resolve(antwort).then(onfulfilled, onrejected);
+    },
+  };
+  return query;
+}
+
 describe('MediaService – bestätigte lokale Zustandsänderungen', () => {
+  it('löscht im Demo-Modus kein Medium eines anderen Artikels', async () => {
+    const { dienst, mockStore } = injiziereDienst({});
+    mockStore.isDemoMode.set(true);
+    vi.spyOn(mockStore, 'getItemMedia').mockImplementation((itemId?: string) =>
+      itemId === gespeichertesMedium.inventory_item_id ? [gespeichertesMedium] : [],
+    );
+    const lokalLoeschen = vi.spyOn(mockStore, 'deleteItemMedia');
+
+    const ergebnis = await dienst.deleteMedia('fremder-artikel', gespeichertesMedium.id);
+
+    expect(ergebnis.error).toBeInstanceOf(Error);
+    expect(lokalLoeschen).not.toHaveBeenCalled();
+  });
+
+  it('verwendet beim Cloud-Löschen nur den kanonischen Pfad und begrenzt Lesen und Löschen auf den Artikel', async () => {
+    const leseFilter: [string, string][] = [];
+    const loeschFilter: [string, string][] = [];
+    const remove = vi.fn(async () => ({ data: null, error: null }));
+    const leseQuery = erstelleFilterQuery(
+      { data: { storage_path: 'artikel-1/kanonisch.jpg' }, error: null },
+      leseFilter,
+    );
+    const loeschQuery = erstelleFilterQuery({ error: null, count: 1 }, loeschFilter);
+    const client = {
+      storage: { from: () => ({ remove }) },
+      from: () => ({
+        select: () => leseQuery,
+        delete: () => loeschQuery,
+      }),
+    };
+    const { dienst } = injiziereDienst(client);
+
+    const ergebnis = await dienst.deleteMedia('artikel-1', 'medium-1');
+
+    expect(ergebnis.error).toBeNull();
+    expect(leseFilter).toEqual([
+      ['id', 'medium-1'],
+      ['inventory_item_id', 'artikel-1'],
+    ]);
+    expect(remove).toHaveBeenCalledWith(['artikel-1/kanonisch.jpg']);
+    expect(loeschFilter).toEqual([
+      ['id', 'medium-1'],
+      ['inventory_item_id', 'artikel-1'],
+    ]);
+  });
+
   it('entfernt lokale Medien erst nach erfolgreichem Löschen im Backend', async () => {
+    const leseQuery = erstelleFilterQuery({
+      data: { storage_path: 'artikel-1/bild.jpg' },
+      error: null,
+    });
+    const loeschQuery = erstelleFilterQuery({
+      error: { code: '42501', message: 'denied' },
+      count: null,
+    });
     const client = {
       storage: {
         from: () => ({ remove: vi.fn(async () => ({ data: null, error: null })) }),
       },
-      from: () => ({
-        delete: () => ({
-          eq: async () => ({ error: { code: '42501', message: 'denied' } }),
-        }),
-      }),
+      from: () => ({ select: () => leseQuery, delete: () => loeschQuery }),
     };
     const { dienst, mockStore, syncStatus } = injiziereDienst(client);
     const lokalLoeschen = vi.spyOn(mockStore, 'deleteItemMedia');
 
-    const ergebnis = await dienst.deleteMedia('artikel-1', 'medium-1', 'artikel/bild.jpg');
+    const ergebnis = await dienst.deleteMedia('artikel-1', 'medium-1');
 
     expect(ergebnis.error).toBeInstanceOf(Error);
     expect(lokalLoeschen).not.toHaveBeenCalled();
@@ -60,16 +127,16 @@ describe('MediaService – bestätigte lokale Zustandsänderungen', () => {
 
   it('ändert das lokale Hauptbild nicht, wenn schon das Zurücksetzen fehlschlägt', async () => {
     const zweitesUpdate = vi.fn();
+    const leseQuery = erstelleFilterQuery({ data: { id: 'medium-1' }, error: null });
     const client = {
       from: () => ({
+        select: () => leseQuery,
         update(payload: { is_primary: boolean }) {
           if (payload.is_primary) {
             zweitesUpdate();
-            return { eq: async () => ({ error: null }) };
+            return erstelleFilterQuery({ error: null, count: 1 });
           }
-          return {
-            eq: async () => ({ error: { code: '42501', message: 'denied' } }),
-          };
+          return erstelleFilterQuery({ error: { code: '42501', message: 'denied' } });
         },
       }),
     };
@@ -85,16 +152,11 @@ describe('MediaService – bestätigte lokale Zustandsänderungen', () => {
   });
 
   it('behandelt ein nicht gefundenes Zielmedium beim Hauptbildwechsel als Fehler', async () => {
+    const update = vi.fn();
     const client = {
       from: () => ({
-        update(payload: { is_primary: boolean }, optionen?: { count?: string }) {
-          return {
-            eq: async () => ({
-              error: null,
-              count: payload.is_primary && optionen?.count === 'exact' ? 0 : undefined,
-            }),
-          };
-        },
+        select: () => erstelleFilterQuery({ data: null, error: null }),
+        update,
       }),
     };
     const { dienst, mockStore, syncStatus } = injiziereDienst(client);
@@ -103,32 +165,65 @@ describe('MediaService – bestätigte lokale Zustandsänderungen', () => {
     const ergebnis = await dienst.setPrimary('artikel-1', 'medium-fehlt');
 
     expect(ergebnis.error).toBeInstanceOf(Error);
+    expect(update).not.toHaveBeenCalled();
     expect(lokalFestlegen).not.toHaveBeenCalled();
     expect(syncStatus.fehler()).toHaveLength(1);
   });
 
   it('behandelt ein nicht gefundenes Medium beim Löschen als Fehler', async () => {
+    const remove = vi.fn(async () => ({ data: null, error: null }));
+    const loeschen = vi.fn();
     const client = {
       storage: {
-        from: () => ({ remove: async () => ({ data: null, error: null }) }),
+        from: () => ({ remove }),
       },
       from: () => ({
-        delete: (optionen?: { count?: string }) => ({
-          eq: async () => ({
-            error: null,
-            count: optionen?.count === 'exact' ? 0 : undefined,
-          }),
-        }),
+        select: () => erstelleFilterQuery({ data: null, error: null }),
+        delete: loeschen,
       }),
     };
     const { dienst, mockStore, syncStatus } = injiziereDienst(client);
     const lokalLoeschen = vi.spyOn(mockStore, 'deleteItemMedia');
 
-    const ergebnis = await dienst.deleteMedia('artikel-1', 'medium-fehlt', 'artikel-1/bild.jpg');
+    const ergebnis = await dienst.deleteMedia('artikel-1', 'medium-fehlt');
 
     expect(ergebnis.error).toBeInstanceOf(Error);
+    expect(remove).not.toHaveBeenCalled();
+    expect(loeschen).not.toHaveBeenCalled();
     expect(lokalLoeschen).not.toHaveBeenCalled();
     expect(syncStatus.fehler()).toHaveLength(1);
+  });
+
+  it('begrenzt den Hauptbildwechsel beim Lesen und Schreiben auf den Artikel', async () => {
+    const leseFilter: [string, string][] = [];
+    const resetFilter: [string, string][] = [];
+    const zielFilter: [string, string][] = [];
+    const client = {
+      from: () => ({
+        select: () => erstelleFilterQuery({ data: { id: 'medium-1' }, error: null }, leseFilter),
+        update(payload: { is_primary: boolean }) {
+          return payload.is_primary
+            ? erstelleFilterQuery({ error: null, count: 1 }, zielFilter)
+            : erstelleFilterQuery({ error: null }, resetFilter);
+        },
+      }),
+    };
+    const { dienst, mockStore } = injiziereDienst(client);
+    const lokalFestlegen = vi.spyOn(mockStore, 'setItemMediaPrimary');
+
+    const ergebnis = await dienst.setPrimary('artikel-1', 'medium-1');
+
+    expect(ergebnis.error).toBeNull();
+    expect(leseFilter).toEqual([
+      ['id', 'medium-1'],
+      ['inventory_item_id', 'artikel-1'],
+    ]);
+    expect(resetFilter).toEqual([['inventory_item_id', 'artikel-1']]);
+    expect(zielFilter).toEqual([
+      ['id', 'medium-1'],
+      ['inventory_item_id', 'artikel-1'],
+    ]);
+    expect(lokalFestlegen).toHaveBeenCalledWith('artikel-1', 'medium-1');
   });
 
   it('bricht einen primären Upload ab, wenn das bisherige Hauptbild nicht zurückgesetzt wird', async () => {

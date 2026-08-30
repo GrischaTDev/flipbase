@@ -216,6 +216,7 @@ export class ItemDetailComponent {
   constructor() {
     effect(() => {
       const itemId = this.id();
+      this.resetRouteLocalState();
       if (itemId) {
         this.inventoryService.getItemById(itemId);
         this.loadMedia(itemId);
@@ -224,8 +225,11 @@ export class ItemDetailComponent {
   }
 
   async loadMedia(itemId: string): Promise<void> {
+    if (this.id() !== itemId) return;
+    this.mediaList.set([]);
     const list = await this.mediaService.loadItemMedia(itemId);
-    this.mediaList.set(list);
+    if (this.id() !== itemId) return;
+    this.mediaList.set(list.filter((medium) => medium.inventory_item_id === itemId));
   }
 
   async onFilesSelected(event: Event): Promise<void> {
@@ -258,17 +262,23 @@ export class ItemDetailComponent {
           fehlerAktion,
         );
         if (error) {
-          this.uploadError.set(error.message);
+          if (this.isCurrentRouteItem(itemId)) this.uploadError.set(error.message);
           ersterFehler ??= error;
           uploadFehler.push(error);
           fehlgeschlageneUploads++;
-        } else if (data) {
-          this.mediaList.update((prev) => [data, ...prev]);
+        } else if (data?.inventory_item_id === itemId) {
+          if (this.isCurrentRouteItem(itemId)) {
+            this.mediaList.update((prev) => [data, ...prev]);
+          }
           erfolgreicheUploads++;
           brauchtHauptbild = false;
         } else {
-          const fehler = new Error('Das Bild wurde nicht zurückgegeben.');
-          this.uploadError.set(fehler.message);
+          const fehler = new Error(
+            data
+              ? 'Das Bild wurde einem anderen Artikel zugeordnet.'
+              : 'Das Bild wurde nicht zurückgegeben.',
+          );
+          if (this.isCurrentRouteItem(itemId)) this.uploadError.set(fehler.message);
           ersterFehler ??= fehler;
           uploadFehler.push(fehler);
           fehlgeschlageneUploads++;
@@ -278,9 +288,11 @@ export class ItemDetailComponent {
       unerwarteterFehler = this.alsError(ursache);
     } finally {
       this.syncStatus.beendeFehlerAktion(fehlerAktion);
-      this.isUploading.set(false);
+      if (this.isCurrentRouteItem(itemId)) this.isUploading.set(false);
       input.value = '';
     }
+
+    if (!this.isCurrentRouteItem(itemId)) return;
 
     if (unerwarteterFehler) {
       this.uploadError.set(unerwarteterFehler.message);
@@ -328,9 +340,10 @@ export class ItemDetailComponent {
 
   async onSetPrimary(media: ItemMedia): Promise<void> {
     const item = this.currentItem();
-    if (!item || this.isMutationLocked(item)) return;
+    if (!item || this.isMutationLocked(item) || !this.isOwnedMedia(item.id, media)) return;
 
     const { error } = await this.mediaService.setPrimary(item.id, media.id);
+    if (!this.isOwnedMedia(item.id, media)) return;
     if (error) {
       this.meldeFehlerWennNichtSynchronisiert('Hauptbild konnte nicht geändert werden.', error);
       return;
@@ -341,9 +354,10 @@ export class ItemDetailComponent {
 
   async onDeleteMedia(media: ItemMedia): Promise<void> {
     const item = this.currentItem();
-    if (!item || this.isMutationLocked(item)) return;
+    if (!item || this.isMutationLocked(item) || !this.isOwnedMedia(item.id, media)) return;
 
-    const { error } = await this.mediaService.deleteMedia(item.id, media.id, media.storage_path);
+    const { error } = await this.mediaService.deleteMedia(item.id, media.id);
+    if (!this.isOwnedMedia(item.id, media)) return;
     if (error) {
       this.meldeFehlerWennNichtSynchronisiert('Bild konnte nicht gelöscht werden.', error);
       return;
@@ -488,6 +502,31 @@ export class ItemDetailComponent {
   private isCurrentItem(item: InventoryItem): boolean {
     const currentItem = this.currentItem();
     return currentItem?.id === item.id && currentItem.sale_state === item.sale_state;
+  }
+
+  private isCurrentRouteItem(itemId: string): boolean {
+    return this.currentItem()?.id === itemId;
+  }
+
+  private isOwnedMedia(itemId: string, media: ItemMedia): boolean {
+    return (
+      this.isCurrentRouteItem(itemId) &&
+      media.inventory_item_id === itemId &&
+      this.mediaList().some(
+        (candidate) => candidate.id === media.id && candidate.inventory_item_id === itemId,
+      )
+    );
+  }
+
+  private resetRouteLocalState(): void {
+    this.isAddingCost.set(false);
+    this.isEditModalOpen.set(false);
+    this.isLabelModalOpen.set(false);
+    this.mediaList.set([]);
+    this.isUploading.set(false);
+    this.uploadError.set(null);
+    this.previewModalUrl.set(null);
+    this.costForm.reset({ type: 'repair', amount: 0, description: '' });
   }
 
   private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {
