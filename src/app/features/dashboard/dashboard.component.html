@@ -65,13 +65,17 @@
       </div>
       <p
         class="mt-3 font-mono text-2xl font-bold tracking-tight"
-        [class.text-emerald-400]="report().resultAfterDirectCosts >= 0"
-        [class.text-rose-400]="report().resultAfterDirectCosts < 0"
+        [class.text-emerald-400]="(report().resultAfterDirectCosts ?? 0) >= 0"
+        [class.text-rose-400]="(report().resultAfterDirectCosts ?? 0) < 0"
       >
-        {{ report().resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        @if (report().resultAfterDirectCosts === null) {
+          <span class="font-sans text-base text-amber-300">Kosten noch offen</span>
+        } @else {
+          {{ report().resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        }
       </p>
       <p class="mt-1 text-[10px] text-fb-text-muted">
-        Verkaufserlös minus Wareneinsatz und Verkaufskosten
+        Nur vollständig belegte Verkäufe werden summiert
       </p>
     </div>
     <div class="linear-kpi rounded-xl border border-fb-line p-4">

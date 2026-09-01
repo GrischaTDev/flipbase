@@ -86,6 +86,7 @@ export class DashboardReportService {
     const rows: DashboardSaleRow[] = [];
     let revenue = 0;
     let resultAfterDirectCosts = 0;
+    let hasUnknownResult = false;
     let soldItems = 0;
     for (const sale of records.sales) {
       const date = this.calendarDate(sale.sale_date);
@@ -101,7 +102,11 @@ export class DashboardReportService {
       const row = this.saleRow(sale);
       rows.push(row);
       revenue += row.revenue;
-      resultAfterDirectCosts += row.resultAfterDirectCosts ?? 0;
+      if (row.resultAfterDirectCosts === null) {
+        hasUnknownResult = true;
+      } else {
+        resultAfterDirectCosts += row.resultAfterDirectCosts;
+      }
       soldItems += row.quantity;
       this.addToPoint(pointByDate, this.bucketKey(date, window), {
         revenue: row.revenue,
@@ -114,7 +119,7 @@ export class DashboardReportService {
     const margins = rows
       .map((row) => row.marginPercent)
       .filter((margin): margin is number => margin !== null);
-    const roundedResult = this.money(resultAfterDirectCosts);
+    const roundedResult = hasUnknownResult ? null : this.money(resultAfterDirectCosts);
 
     return {
       expenses: this.money(expenses),

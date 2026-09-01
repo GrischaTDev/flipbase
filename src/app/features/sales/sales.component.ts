@@ -191,10 +191,13 @@ export class SalesComponent {
 
   // KPI Calculations
   readonly totalRealizedProfit = computed(() => {
-    return this.filteredSales().reduce(
-      (sum, sale) => sum + (this.saleMetrics(sale).resultAfterDirectCosts ?? 0),
-      0,
-    );
+    let total = 0;
+    for (const sale of this.filteredSales()) {
+      const result = this.saleMetrics(sale).resultAfterDirectCosts;
+      if (result === null) return null;
+      total += result;
+    }
+    return total;
   });
 
   readonly totalRevenue = computed(() => {

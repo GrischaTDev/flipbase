@@ -562,8 +562,8 @@ export interface DashboardReport {
   /** Umsatz aus noch nicht retournierten, bestaetigten Verkaeufen. */
   revenue: number;
   /** Verkaufserlös minus Wareneinsatz und direkte Verkaufskosten; kein Prognosewert. */
-  realizedProfit: number;
-  resultAfterDirectCosts: number;
+  realizedProfit: number | null;
+  resultAfterDirectCosts: number | null;
   soldItems: number;
   averageMarginPercent: number | null;
   /** Anschaffungswert der aktuell vorhandenen Ware. */

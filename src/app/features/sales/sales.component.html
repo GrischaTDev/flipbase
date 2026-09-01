@@ -37,19 +37,23 @@
 
   <!-- KPI Cards Grid -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-    <div class="linear-kpi p-4 rounded-xl">
+    <div class="linear-kpi p-4 rounded-xl" data-testid="sales-result-kpi">
       <span class="text-[11px] font-semibold text-fb-text-muted block"
         >Ergebnis nach direkten Kosten</span
       >
       <span
         class="text-2xl font-bold font-mono tracking-tight mt-2 block"
-        [class.text-emerald-400]="totalRealizedProfit() >= 0"
-        [class.text-rose-400]="totalRealizedProfit() < 0"
+        [class.text-emerald-400]="(totalRealizedProfit() ?? 0) >= 0"
+        [class.text-rose-400]="(totalRealizedProfit() ?? 0) < 0"
       >
-        {{ totalRealizedProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        @if (totalRealizedProfit() === null) {
+          <span class="font-sans text-base text-amber-300">Kosten noch offen</span>
+        } @else {
+          {{ totalRealizedProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        }
       </span>
       <span class="text-[10px] text-fb-text-muted mt-0.5 block"
-        >Verkaufserlös minus Wareneinsatz und Verkaufskosten</span
+        >Nur vollständig belegte Verkäufe werden summiert</span
       >
     </div>
 

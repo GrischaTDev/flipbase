@@ -128,7 +128,7 @@ describe('DashboardReportService', () => {
       resultAfterDirectCosts: null,
       marginPercent: null,
     });
-    expect(report.resultAfterDirectCosts).toBe(0);
+    expect(report.resultAfterDirectCosts).toBeNull();
     expect(report.averageMarginPercent).toBeNull();
   });
 

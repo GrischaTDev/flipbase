@@ -168,6 +168,9 @@ describe('SalesComponent – verlinkter Verkauf', () => {
 
     const harness = await RouterTestingHarness.create('/sales');
     expect(harness.routeNativeElement?.textContent).toContain('Kosten noch offen');
+    expect(
+      harness.routeNativeElement?.querySelector('[data-testid="sales-result-kpi"]')?.textContent,
+    ).toContain('Kosten noch offen');
   });
 
   it('navigiert vom Einkaufsdetail und markiert den Verkauf erst nach autoritativem Laden', async () => {
