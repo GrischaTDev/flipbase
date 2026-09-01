@@ -48,6 +48,54 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-01 – Claude Opus 5 (Anthropic) – Zeitplan-Pruefungen verschlankt
+
+**Art:** Konfiguration | Refactoring | Bugfix
+
+**Betroffen:** `.github/workflows/ci.yml`, `.github/workflows/quality-nightly.yml`,
+`scripts/ci-workflow.test.mjs` und `scripts/quality-nightly-workflow.test.mjs`
+(geloescht), `vitest.coverage-critical.config.ts` (neu),
+`e2e/dashboard-interactions.spec.ts`, `package.json`, `eslint.config.js`,
+`.gitignore`
+
+**Was:** Der naechtliche Durchgang kostete rund 28 Runner-Minuten pro Nacht und
+war seit seiner Einfuehrung in jeder Nacht rot. Fuenf Aenderungen: `actionlint`
+ersetzt 1192 Zeilen selbstgeschriebener YAML-Zusicherungen; der Chromium-Auftrag
+entfaellt, weil er dieselben sechs Tests fuhr wie `ci.yml` bei jedem Push; der
+Zeitplan ist in einen taeglichen und einen woechentlichen Takt geteilt; die
+Abdeckung der drei Geld-Dateien laeuft taeglich in Sekunden, die vollstaendige
+Messung woechentlich; ein Waechter ueberspringt den Durchgang, wenn sich master
+nicht bewegt hat. Die beiden Migrations-Harnesse stehen nicht mehr im Zeitplan -
+sie pruefen je eine laengst ausgelieferte Migration, also eine einmalige Abnahme.
+
+**Warum:** Ein Zeitplan, der jede Nacht rot meldet, wird nach zwei Wochen
+ignoriert und ist dann schlechter als keiner. Von den beiden roten Auftraegen
+war einer ein veraltetes Harness, der andere ein Testfehler. Gleichzeitig ging
+ein Drittel der Minuten fuer Dubletten drauf. Der Testbestand selbst wurde nicht
+angetastet: 128 Testdateien und 867 Faelle auf rund 37.000 Zeilen Quellcode sind
+mit einem Verhaeltnis von 0,5:1 eher unter- als ueberdurchschnittlich.
+
+**Verifiziert durch:**
+
+- `npm run verify` → **Exitcode 0** (ohne Pipe gemessen, mit vorhandenem
+  `coverage-critical/`)
+- `actionlint` ueber alle drei Workflow-Dateien → **Exitcode 0**; Gegenprobe mit
+  falschem Runner-Label → **Exitcode 3**, der Schritt kann also wirklich scheitern
+- `npm run test:coverage:critical` → 754 Tests, alle drei Dateien im Bericht,
+  **15 s** statt neun Minuten; mit unerreichbarer 100-%-Grenze → **Exitcode 1**
+  mit Datei und Ist-Wert
+- Playwright **WebKit 6/6** und **Chromium 6/6**
+- Waechter-Logik in allen fuenf Faellen richtig (Lauf von Hand, taeglich 2 h und
+  72 h, woechentlich 72 h und 240 h)
+
+**Nicht geaendert:** Kein Anwendungscode. Firefox ist lokal nicht installiert und
+wurde nicht nachgefahren; beide Testaenderungen sind engine-neutral, aber dafuer
+gibt es keinen Beleg. Der Waechter im Integritaets-Harness verlangt weiterhin,
+die neueste Migration zu sein - von Hand aufgerufen scheitert das Skript also
+nach wie vor.
+
+---
+
 ## 2026-08-30 – Codex GPT-5.6 – Verkaufsversand und Rendite abgenommen
 
 **Art:** Analyse | Doku
