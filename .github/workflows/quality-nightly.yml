@@ -1,9 +1,17 @@
-name: Nightly full quality checks
+name: Scheduled full quality checks
 
+# Zwei Takte in einer Datei. Jeder Zeitplan startet genau die Auftraege, die
+# zu ihm gehoeren - erkennbar an github.event.schedule. Ein Lauf von Hand
+# laesst beide Bedingungen zu und faehrt damit alles.
+#
+# Cron ist bei GitHub Actions immer UTC; einen timezone-Schluessel gibt es
+# nicht. Die Zeiten unten sind so gewaehlt, dass sie in Berlin nachts liegen.
 on:
   schedule:
-    - cron: '17 2 * * *'
-      timezone: Europe/Berlin
+    # 02:17 Berlin (Sommerzeit) - taeglich
+    - cron: '17 0 * * *'
+    # 03:17 Berlin (Sommerzeit) - zusaetzlich sonntags
+    - cron: '17 1 * * 0'
   workflow_dispatch:
 
 permissions:
@@ -12,6 +20,9 @@ permissions:
 jobs:
   coverage:
     name: Full coverage
+    # Taeglich. Die Schwellen in vitest.config.ts sind ein echtes Gate,
+    # besonders die 95 % auf Steuer- und Gewinn-Engine.
+    if: ${{ github.event.schedule != '17 1 * * 0' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -38,8 +49,83 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  browser-webkit:
+    name: Browser smoke (webkit)
+    # Taeglich, weil WebKit die einzige Engine ist, die in keinem anderen
+    # Lauf vorkommt. Chromium hat frueher hier ein zweites Mal dieselben
+    # sechs Tests gefahren, die ci.yml schon bei jedem Push durchlaeuft -
+    # das war reine Dublette und ist ersatzlos gestrichen.
+    if: ${{ github.event.schedule != '17 1 * * 0' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Install WebKit
+        run: npx playwright install --with-deps webkit
+      - name: Run WebKit smoke tests
+        run: npm run test:e2e:nightly -- --project=webkit
+      - name: Upload browser failure artifacts
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: nightly-browser-webkit-failure
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  browser-firefox:
+    name: Browser smoke (firefox)
+    # Woechentlich. Gecko bricht selten etwas, das Chromium nicht auch
+    # bricht - einmal pro Woche faengt das frueh genug ab.
+    if: ${{ github.event.schedule != '17 0 * * *' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Install Firefox
+        run: npx playwright install --with-deps firefox
+      - name: Run Firefox smoke tests
+        run: npm run test:e2e:nightly -- --project=firefox
+      - name: Upload browser failure artifacts
+        if: ${{ failure() || cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: nightly-browser-firefox-failure
+          path: |
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
+          retention-days: 7
+
   node-stress:
     name: Node order stress
+    # Woechentlich. Reihenfolgeabhaengige Tests entstehen nur, wenn sich die
+    # Suite-Struktur aendert - dafuer braucht es keine Tagesaufloesung.
+    if: ${{ github.event.schedule != '17 0 * * *' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -72,6 +158,16 @@ jobs:
 
   database-full:
     name: Full local database checks
+    # Woechentlich. pgTAP laeuft in ci.yml ohnehin, sobald sich supabase/
+    # aendert; der Zusatznutzen hier ist die Nebenlaeufigkeitsprobe.
+    #
+    # Die beiden Migrations-Harnesse (inventory_integrity_upgrade und
+    # run_inventory_sales_legacy_migration) sind hier bewusst nicht mehr
+    # dabei. Sie pruefen je eine bestimmte, laengst ausgelieferte Migration
+    # gegen einen Legacy-Datenbestand - eine einmalige Abnahme, kein
+    # wiederkehrendes Merkmal. Als Werkzeuge von Hand bleiben sie unter
+    # supabase/test-support/manual/ erhalten.
+    if: ${{ github.event.schedule != '17 0 * * *' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -92,12 +188,6 @@ jobs:
       - name: Run pgTAP suite
         shell: bash
         run: npm run test:db 2>&1 | tee -a database-full.log
-      - name: Run immediate upgrade harness
-        shell: bash
-        run: pwsh -NoProfile -File supabase/test-support/manual/inventory_integrity_upgrade.ps1 2>&1 | tee -a database-full.log
-      - name: Run legacy sale-line migration harness
-        shell: bash
-        run: pwsh -NoProfile -File supabase/test-support/manual/run_inventory_sales_legacy_migration.ps1 2>&1 | tee -a database-full.log
       - name: Run parallel sale harness
         shell: bash
         run: pwsh -NoProfile -File supabase/test-support/manual/inventory_double_sale.ps1 2>&1 | tee -a database-full.log
@@ -112,41 +202,5 @@ jobs:
           path: |
             database-full.log
             supabase/.temp/logs/
-          if-no-files-found: ignore
-          retention-days: 7
-
-  browser-matrix:
-    name: Browser smoke (${{ matrix.browser }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        browser: [chromium, firefox, webkit]
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          persist-credentials: false
-      - name: Set up Node
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: '22'
-          cache: npm
-          cache-dependency-path: package-lock.json
-      - name: Install dependencies
-        run: npm ci
-      - name: Install selected browser
-        run: npx playwright install --with-deps ${{ matrix.browser }}
-      - name: Run selected browser smoke tests
-        run: npm run test:e2e:nightly -- --project=${{ matrix.browser }}
-      - name: Upload browser failure artifacts
-        if: ${{ failure() || cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: nightly-browser-${{ matrix.browser }}-failure
-          path: |
-            playwright-report/
-            test-results/
           if-no-files-found: ignore
           retention-days: 7
