@@ -2,12 +2,12 @@
   <!-- Back Button & Top Actions -->
   <div class="flex items-center justify-between pb-1">
     <a
-      [routerLink]="backLink().commands"
       data-item-back-link
-      class="inline-flex items-center gap-1.5 text-xs font-semibold text-fb-text-muted hover:text-fb-text-primary transition"
+      [routerLink]="backTarget()"
+      class="inline-flex cursor-pointer items-center gap-1.5 rounded text-xs font-semibold text-fb-text-muted transition hover:text-fb-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
     >
       <svg [lucideIcon]="arrowLeftIcon" class="w-3.5 h-3.5"></svg>
-      <span>{{ backLink().label }}</span>
+      <span>{{ backLabel() }}</span>
     </a>
 
     <div class="flex items-center gap-2">
@@ -88,7 +88,7 @@
               <span
                 class="px-2 py-0.5 rounded text-[10px] font-mono font-medium bg-fb-subtle text-fb-text-secondary border border-fb-border"
               >
-                {{ 'INVENTORY.CONDITIONS.' + item.condition.toUpperCase() | translate }}
+                {{ item.condition | itemConditionLabel }}
               </span>
 
               @if (item.category) {
@@ -112,46 +112,32 @@
           <span class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >Status</span
           >
-          @if (item.sale_state === 'legacy_sale_header_without_line') {
-            <span
-              data-item-status-badge
-              class="rounded-full border border-rose-500/40 bg-rose-500/15 px-3 py-1 text-xs font-bold text-rose-300"
-            >
-              Korrektur erforderlich
-            </span>
-          } @else if (item.sale_state === 'legacy_sold_unverified') {
-            <span
-              data-item-status-badge
-              class="rounded-full border border-amber-500/40 bg-amber-500/15 px-3 py-1 text-xs font-bold text-amber-200"
-            >
-              Verkaufsstatus klären
-            </span>
-          } @else if (
-            item.sale_state === 'sale_status_conflict' ||
-            item.sale_state === 'multiple_active_sales'
-          ) {
-            <span
-              data-item-status-badge
-              data-integrity-conflict
-              class="rounded-full border border-rose-500/40 bg-rose-500/15 px-3 py-1 text-xs font-bold text-rose-300"
-            >
-              Integrität prüfen
-            </span>
-          } @else if (item.sale_state === 'sold' || item.status === 'sold') {
-            <span
-              data-item-status-badge
-              class="rounded-full border border-purple-500/40 bg-purple-500/15 px-3 py-1 text-xs font-bold text-purple-200"
-            >
-              Verkauft
-            </span>
-          } @else {
-            <app-custom-select
-              ariaLabel="Artikelstatus"
-              variant="pill"
-              [options]="statusOptions"
-              [value]="item.status"
-              (valueChange)="onChangeStatus($event)"
-            ></app-custom-select>
+          @if (detailPresentation(); as row) {
+            @if (row.status.kind === 'editable') {
+              <app-custom-select
+                ariaLabel="Artikelstatus"
+                variant="pill"
+                [options]="statusOptions"
+                [value]="row.status.value"
+                (valueChange)="onChangeStatus($event)"
+              ></app-custom-select>
+            } @else {
+              <span
+                data-item-status-badge
+                [attr.data-integrity-conflict]="row.status.kind === 'conflict' ? '' : null"
+                class="inline-flex min-h-7 items-center rounded-full border px-3 py-1 text-xs font-bold"
+                [class.border-purple-500/40]="row.status.kind === 'sold'"
+                [class.bg-purple-500/15]="row.status.kind === 'sold'"
+                [class.text-purple-200]="row.status.kind === 'sold'"
+                [class.border-amber-500/40]="row.status.kind === 'review'"
+                [class.bg-amber-500/15]="row.status.kind === 'review'"
+                [class.text-amber-200]="row.status.kind === 'review'"
+                [class.border-rose-500/40]="row.status.kind === 'conflict'"
+                [class.bg-rose-500/15]="row.status.kind === 'conflict'"
+                [class.text-rose-300]="row.status.kind === 'conflict'"
+                >{{ row.status.label }}</span
+              >
+            }
           }
         </div>
       </div>
@@ -160,10 +146,10 @@
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-fb-border font-mono">
         <div class="linear-kpi p-3 rounded-lg">
           <span class="text-[10px] uppercase font-sans font-medium text-fb-text-muted block"
-            >Anschaffung (EK)</span
+            >Kostenanteil</span
           >
           <span class="text-base font-bold text-fb-text-primary mt-1 block">
-            {{ item.allocated_purchase_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            <app-cost-state [state]="purchaseCostShareState()" />
           </span>
         </div>
 
@@ -172,32 +158,33 @@
             >Zusatzkosten</span
           >
           <span class="text-base font-bold text-amber-400 mt-1 block">
-            {{
-              (item.total_item_cost || item.allocated_purchase_cost) - item.allocated_purchase_cost
-                | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-            }}
+            <app-cost-state [state]="additionalCostState()" />
           </span>
         </div>
 
         <div class="linear-kpi p-3 rounded-lg">
           <span class="text-[10px] uppercase font-sans font-medium text-fb-text-muted block"
-            >Gesamtkosten</span
+            >Gesamt</span
           >
           <span class="text-base font-bold text-fb-text-primary mt-1 block">
-            {{ item.total_item_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            @if (detailPresentation(); as row) {
+              <app-cost-state [state]="row.costPerUnit" />
+            } @else {
+              <app-cost-state />
+            }
           </span>
         </div>
 
-        <div class="linear-kpi p-3 rounded-lg border-emerald-500/40">
-          <span class="text-[10px] uppercase font-sans font-medium text-emerald-400 block"
-            >Gewinnpotenzial</span
+        <div class="linear-kpi p-3 rounded-lg">
+          <span class="text-[10px] uppercase font-sans font-medium text-fb-text-muted block"
+            >Bestandswert</span
           >
-          <span class="text-base font-bold text-emerald-400 mt-1 block">
-            {{
-              item.profit_potential !== undefined
-                ? '+' + (item.profit_potential | currency: 'EUR' : 'symbol' : '1.2-2' : 'de')
-                : 'Offen'
-            }}
+          <span class="text-base font-bold text-fb-text-primary mt-1 block">
+            @if (detailPresentation(); as row) {
+              <app-cost-state [state]="row.inventoryValue" />
+            } @else {
+              <app-cost-state />
+            }
           </span>
         </div>
       </div>
@@ -246,6 +233,61 @@
           geprüft werden; hier kann kein neuer Verkauf gestartet werden.
         </p>
       </section>
+    }
+
+    @if (detailPresentation(); as row) {
+      @if (row.salesState === 'loading') {
+        <section class="linear-surface rounded-xl p-4 text-xs text-fb-text-muted" role="status">
+          Verkaufsdaten werden geladen…
+        </section>
+      } @else if (row.salesState === 'error') {
+        <section
+          class="linear-surface rounded-xl border border-rose-500/30 p-4 text-xs text-rose-300"
+          role="alert"
+        >
+          Verkaufsdaten konnten nicht geladen werden.
+        </section>
+      } @else if (row.sales.length > 0) {
+        <section class="linear-surface rounded-xl p-4" aria-labelledby="item-sales-title">
+          <h2
+            id="item-sales-title"
+            class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
+          >
+            Verkaufsbezug
+          </h2>
+          <div class="mt-3 space-y-2">
+            @for (sale of row.sales; track sale.id) {
+              <article
+                [attr.data-sale-state]="sale.state"
+                class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-fb-line bg-fb-well p-3"
+              >
+                <div>
+                  <p class="text-xs font-semibold text-fb-text-primary">
+                    {{ sale.stateLabel }} · {{ sale.saleDate | date: 'dd.MM.yyyy' }}
+                  </p>
+                  <p class="mt-0.5 text-[11px] text-fb-text-muted">
+                    {{ sale.revenueLabel }}
+                    {{ sale.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    @if (sale.directResult !== null) {
+                      · Ergebnis
+                      {{ sale.directResult | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                    } @else if (sale.showResultInSale) {
+                      · Ergebnis im Verkauf ansehen
+                    }
+                  </p>
+                </div>
+                <a
+                  data-item-sale-link
+                  [routerLink]="['/sales']"
+                  [queryParams]="{ saleId: sale.id }"
+                  class="linear-btn-secondary rounded-lg px-3 py-1.5 text-xs font-semibold"
+                  >Verkauf öffnen</a
+                >
+              </article>
+            }
+          </div>
+        </section>
+      }
     }
 
     <!-- Webshop & Online-Store Veröffentlichung -->
@@ -516,8 +558,7 @@
                   {{ item.purchase.title }}
                 </a>
                 <p class="text-[11px] text-fb-text-muted mt-0.5 font-mono">
-                  Gekauft am {{ item.purchase.purchase_date | date: 'dd.MM.yyyy' }} • Typ:
-                  {{ item.purchase.type }}
+                  Gekauft am {{ item.purchase.purchase_date | date: 'dd.MM.yyyy' }}
                 </p>
               </div>
 
@@ -529,9 +570,19 @@
               </a>
             </div>
           } @else {
-            <p class="text-xs text-fb-text-muted">
-              Dieser Artikel wurde direkt ohne verknüpften Einkauf angelegt.
-            </p>
+            @if (detailPresentation(); as row) {
+              @switch (row.originState) {
+                @case ('loading') {
+                  <p class="text-xs text-fb-text-muted" role="status">Herkunft wird geladen…</p>
+                }
+                @case ('error') {
+                  <p class="text-xs font-semibold text-rose-300">Herkunft nicht verfügbar.</p>
+                }
+                @case ('not_linked') {
+                  <p class="text-xs text-fb-text-muted">Kein Einkauf verknüpft.</p>
+                }
+              }
+            }
           }
         </div>
 

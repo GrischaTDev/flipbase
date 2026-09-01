@@ -1,0 +1,162 @@
+@if (rows().length > 0) {
+  <div data-purchase-detail-table class="overflow-x-auto">
+    <table class="linear-table min-w-[56rem]">
+      <thead
+        class="bg-fb-subtle text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+      >
+        <tr>
+          <th class="rounded-tl-xl border-b border-fb-border p-3">Artikel</th>
+          <th class="border-b border-fb-border p-3 text-right">Menge</th>
+          @if (isMystery()) {
+            <th class="border-b border-fb-border p-3">Zustand</th>
+            <th class="border-b border-fb-border p-3 text-right">Geschätzter Marktwert</th>
+            <th class="border-b border-fb-border p-3 text-right">Kostenanteil pro Stück</th>
+          } @else {
+            <th class="border-b border-fb-border p-3 text-right">Einkaufspreis pro Stück</th>
+            <th class="border-b border-fb-border p-3 text-right">Zusätzlicher Kostenanteil</th>
+            <th class="border-b border-fb-border p-3 text-right">Gesamtkosten pro Stück</th>
+          }
+          <th class="border-b border-fb-border p-3 text-right">Verfügbar</th>
+          <th class="rounded-tr-xl border-b border-fb-border p-3 text-right">Verkauft</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-fb-border">
+        @for (row of rows(); track row.id) {
+          <tr class="transition hover:bg-fb-surface-hover">
+            <td class="p-3 font-semibold text-fb-text-primary">
+              <div class="space-y-1.5">
+                <span>{{ row.title }}</span>
+                @if (row.inventoryItemLinks.length > 0) {
+                  <div class="flex flex-wrap gap-1.5 text-[11px] font-normal">
+                    @for (itemLink of row.inventoryItemLinks; track itemLink.id) {
+                      <a
+                        data-purchase-item-link
+                        [routerLink]="['/inventory', itemLink.id]"
+                        [queryParams]="{ returnTo: '/purchases/' + purchaseId() }"
+                        [attr.aria-label]="itemLink.label + ' von ' + row.title + ' öffnen'"
+                        class="cursor-pointer rounded-md border border-indigo-400/30 bg-indigo-400/10 px-2 py-0.5 text-indigo-300 transition hover:border-indigo-300/50 hover:text-indigo-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                      >
+                        {{ itemLink.label }}
+                      </a>
+                    }
+                  </div>
+                }
+
+                @if (row.salesState === 'error') {
+                  <p class="text-[11px] font-normal text-rose-300">
+                    Verkaufsdaten konnten nicht geladen werden
+                  </p>
+                } @else if (row.salesState === 'loading') {
+                  <p class="text-[11px] font-normal text-fb-text-muted">
+                    Verkaufsdaten werden geladen …
+                  </p>
+                } @else {
+                  @for (sale of row.recordedSales ?? []; track sale.id) {
+                    <div
+                      [attr.data-recorded-sale]="sale.status"
+                      class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] font-normal"
+                    >
+                      @if (sale.status === 'returned') {
+                        <span
+                          class="rounded-full bg-amber-400/15 px-2 py-0.5 font-semibold text-amber-300"
+                        >
+                          Retourniert
+                        </span>
+                      } @else if (sale.status === 'voided') {
+                        <span
+                          class="rounded-full bg-slate-400/15 px-2 py-0.5 font-semibold text-slate-300"
+                        >
+                          Storniert
+                        </span>
+                      } @else {
+                        @if (sale.revenue !== null) {
+                          <span class="text-fb-text-muted">
+                            Verkaufserlös:
+                            {{ sale.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                          </span>
+                        }
+                        @if (sale.directResult !== null) {
+                          <span
+                            class="font-semibold"
+                            [class.text-emerald-400]="sale.directResult >= 0"
+                            [class.text-rose-400]="sale.directResult < 0"
+                          >
+                            Ergebnis:
+                            {{ sale.directResult | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                          </span>
+                        }
+                      }
+                      <a
+                        data-purchase-sale-link
+                        [routerLink]="['/sales']"
+                        [queryParams]="{ saleId: sale.id }"
+                        class="cursor-pointer rounded text-indigo-300 transition hover:text-indigo-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                      >
+                        Zum Verkauf
+                      </a>
+                    </div>
+                  }
+                }
+
+                @if (row.captureRemaining > 0) {
+                  <button
+                    type="button"
+                    data-capture-individual
+                    (click)="captureIndividual.emit(row.id)"
+                    class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                  >
+                    Artikel erfassen
+                  </button>
+                }
+              </div>
+            </td>
+            <td class="p-3 text-right font-mono text-fb-text-primary">{{ row.quantity }}</td>
+            @if (row.kind === 'mystery') {
+              <td class="p-3 text-fb-text-secondary">
+                {{ row.condition | itemConditionLabel }}
+              </td>
+              <td class="p-3 text-right font-mono text-fb-text-secondary">
+                @if (row.estimatedMarketValue === null) {
+                  Nicht angegeben
+                } @else {
+                  {{ row.estimatedMarketValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                }
+              </td>
+              <td class="p-3 text-right font-mono font-bold">
+                <app-cost-state [state]="row.allocatedCostPerUnit" />
+              </td>
+            } @else {
+              <td class="p-3 text-right font-mono font-bold">
+                <app-cost-state [state]="row.unitPurchasePrice" />
+              </td>
+              <td class="p-3 text-right font-mono font-bold">
+                <app-cost-state [state]="row.additionalCostPerUnit" />
+              </td>
+              <td class="p-3 text-right font-mono font-bold">
+                <app-cost-state [state]="row.totalCostPerUnit" />
+              </td>
+            }
+            <td class="p-3 text-right font-mono font-bold text-fb-text-primary">
+              @if (row.quantityState === 'error') {
+                Bestandsdaten konnten nicht geladen werden
+              } @else if (row.quantityState === 'loading') {
+                Wird geladen …
+              } @else {
+                {{ row.availableUnits }}
+              }
+            </td>
+            <td class="p-3 text-right font-mono font-bold text-fb-text-primary">
+              @if (row.quantityState === 'error') {
+                Bestandsdaten konnten nicht geladen werden
+              } @else if (row.quantityState === 'loading') {
+                Wird geladen …
+              } @else {
+                {{ row.soldUnits }}
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}

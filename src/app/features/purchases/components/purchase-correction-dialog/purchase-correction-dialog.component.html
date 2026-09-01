@@ -1,0 +1,188 @@
+<div
+  class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-md sm:p-6"
+  appModalDialog
+  dialogTitel="Einkauf korrigieren"
+  (dialogClose)="closed.emit()"
+>
+  <section
+    class="linear-surface my-auto flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-fb-line shadow-2xl"
+  >
+    <header class="flex items-center justify-between border-b border-fb-line bg-fb-well p-5">
+      <div>
+        <h2 class="text-sm font-bold text-fb-text-primary">Einkauf korrigieren</h2>
+        <p class="mt-1 text-xs text-fb-text-muted">
+          Die Änderung wird protokolliert und betroffene Verkaufsergebnisse werden neu berechnet.
+        </p>
+      </div>
+      <button
+        type="button"
+        (click)="closed.emit()"
+        class="cursor-pointer rounded-lg px-2 py-1 text-fb-text-muted hover:bg-fb-line hover:text-fb-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+        aria-label="Dialog schließen"
+      >
+        ×
+      </button>
+    </header>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" class="flex-1 space-y-4 overflow-y-auto p-5">
+      @if (errorMessage()) {
+        <p
+          role="alert"
+          class="rounded-lg border border-rose-500/30 bg-rose-500/15 p-3 text-xs text-rose-300"
+        >
+          {{ errorMessage() }}
+        </p>
+      }
+
+      <div>
+        <label
+          for="correctionReason"
+          class="mb-1 block text-xs font-semibold text-fb-text-secondary"
+          >Grund der Korrektur</label
+        >
+        <textarea
+          id="correctionReason"
+          formControlName="reason"
+          rows="3"
+          class="linear-input w-full rounded-lg px-3 py-2 text-sm"
+          aria-describedby="correctionReasonHint"
+        ></textarea>
+        <p id="correctionReasonHint" class="mt-1 text-[11px] text-fb-text-muted">
+          Beschreibe kurz und verständlich, was berichtigt wird.
+        </p>
+      </div>
+
+      @if (purchase().type === 'mystery_pack') {
+        <div>
+          <label
+            for="correctedPurchasePrice"
+            class="mb-1 block text-xs font-semibold text-fb-text-secondary"
+            >Kaufpreis der Mystery Box</label
+          >
+          <app-number-input
+            feldId="correctedPurchasePrice"
+            formControlName="purchasePrice"
+            [minimum]="0"
+            [alsBetrag]="true"
+          />
+        </div>
+      }
+
+      <section formArrayName="lines" aria-labelledby="correctionLinesTitle" class="space-y-3">
+        <h3
+          id="correctionLinesTitle"
+          class="text-xs font-bold uppercase tracking-wider text-fb-text-muted"
+        >
+          Einkaufspositionen
+        </h3>
+        @for (row of lineRows.controls; track row.controls.id.value; let index = $index) {
+          <div
+            [formGroupName]="index"
+            class="grid grid-cols-1 gap-3 rounded-xl border border-fb-line bg-fb-well p-3 sm:grid-cols-2"
+          >
+            <div>
+              <label
+                [for]="'correctionLineTitle-' + index"
+                class="mb-1 block text-xs text-fb-text-muted"
+                >Artikel</label
+              >
+              <input
+                [id]="'correctionLineTitle-' + index"
+                formControlName="title"
+                class="linear-input w-full rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            @if (row.controls.priceMode.value === 'priced') {
+              <div>
+                <label
+                  [for]="'correctionLinePrice-' + index"
+                  class="mb-1 block text-xs text-fb-text-muted"
+                  >Einkaufspreis pro Stück</label
+                >
+                <app-number-input
+                  [feldId]="'correctionLinePrice-' + index"
+                  formControlName="unitPrice"
+                  [minimum]="0"
+                  [alsBetrag]="true"
+                  (input)="recalculateLine(index)"
+                />
+              </div>
+            } @else {
+              <div>
+                <label
+                  [for]="'correctionMarketValue-' + index"
+                  class="mb-1 block text-xs text-fb-text-muted"
+                  >Geschätzter Marktwert (optional)</label
+                >
+                <app-number-input
+                  [feldId]="'correctionMarketValue-' + index"
+                  formControlName="marketValue"
+                  [minimum]="0"
+                  [alsBetrag]="true"
+                />
+              </div>
+            }
+          </div>
+        }
+      </section>
+
+      <section formArrayName="costs" aria-labelledby="correctionCostsTitle" class="space-y-3">
+        <h3
+          id="correctionCostsTitle"
+          class="text-xs font-bold uppercase tracking-wider text-fb-text-muted"
+        >
+          Zusätzliche Einkaufskosten
+        </h3>
+        @for (row of costRows.controls; track row.controls.id.value; let index = $index) {
+          <div
+            [formGroupName]="index"
+            class="grid grid-cols-1 gap-3 rounded-xl border border-fb-line bg-fb-well p-3 sm:grid-cols-2"
+          >
+            <div>
+              <label
+                [for]="'correctionCostDescription-' + index"
+                class="mb-1 block text-xs text-fb-text-muted"
+                >Beschreibung</label
+              >
+              <input
+                [id]="'correctionCostDescription-' + index"
+                formControlName="description"
+                class="linear-input w-full rounded-lg px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label
+                [for]="'correctionCostAmount-' + index"
+                class="mb-1 block text-xs text-fb-text-muted"
+                >Betrag</label
+              >
+              <app-number-input
+                [feldId]="'correctionCostAmount-' + index"
+                formControlName="amount"
+                [minimum]="0"
+                [alsBetrag]="true"
+              />
+            </div>
+          </div>
+        }
+      </section>
+
+      <footer class="flex justify-end gap-2 border-t border-fb-line pt-4">
+        <button
+          type="button"
+          (click)="closed.emit()"
+          class="linear-btn-secondary cursor-pointer rounded-lg px-4 py-2 text-xs font-semibold"
+        >
+          Abbrechen
+        </button>
+        <button
+          type="submit"
+          [disabled]="form.invalid || isSubmitting()"
+          class="linear-btn-primary cursor-pointer rounded-lg px-4 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {{ isSubmitting() ? 'Korrigiere...' : 'Korrektur speichern' }}
+        </button>
+      </footer>
+    </form>
+  </section>
+</div>

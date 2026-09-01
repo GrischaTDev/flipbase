@@ -120,7 +120,7 @@
                   class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
                   [disabled]="catalogSelectionDisabled()"
                   [value]="row.controls.catalogProductId.value ?? ''"
-                  (change)="selectCatalogProduct($index, $any($event.target).value)"
+                  (change)="selectCatalogProductFromEvent($index, $event)"
                 >
                   <option value="">
                     {{ catalogService.isLoading() ? 'Artikel werden geladen…' : 'Artikel wählen' }}
@@ -138,7 +138,7 @@
                 <input
                   type="text"
                   formControlName="titleSnapshot"
-                  (input)="updateTitleSnapshot($index, $any($event.target).value)"
+                  (input)="updateTitleSnapshotFromEvent($index, $event)"
                   class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
                   placeholder="z. B. Mystery-Fundstück"
                 />
@@ -156,32 +156,67 @@
                 class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
               />
             </label>
-            <label class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
-              EK je Stück
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                formControlName="unitPurchasePrice"
-                (input)="recalculate($index, 'unitPurchasePrice')"
-                class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+            <div class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
+              Zustand
+              <span class="ml-1 normal-case text-fb-text-secondary">
+                ({{ row.controls.condition.value | itemConditionLabel }})
+              </span>
+              <app-custom-select
+                formControlName="condition"
+                [options]="conditionOptions"
+                [ariaLabel]="'Zustand: ' + (row.controls.condition.value | itemConditionLabel)"
+                placeholder="Zustand wählen"
+                size="sm"
+                class="mt-1 w-full"
               />
-            </label>
-            <label class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
-              Positionssumme
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                formControlName="lineTotal"
-                (input)="recalculate($index, 'lineTotal')"
-                class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
-              />
-            </label>
+            </div>
+            @if (isMysteryPurchase()) {
+              <label
+                class="sm:col-span-2 text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+              >
+                Geschätzter Marktwert (optional)
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  formControlName="estimatedMarketValue"
+                  (input)="updateEstimatedMarketValue($index, $event)"
+                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                />
+              </label>
+            } @else {
+              <label class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
+                Einkaufspreis pro Stück
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  formControlName="unitPurchasePrice"
+                  (input)="recalculate($index, 'unitPurchasePrice')"
+                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                />
+              </label>
+              <label class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
+                Gesamt
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  formControlName="lineTotal"
+                  (input)="recalculate($index, 'lineTotal')"
+                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                />
+              </label>
+            }
           </div>
         </div>
       }
     </div>
+    @if (isMysteryPurchase()) {
+      <p class="text-xs text-fb-text-muted">
+        Die Gesamtkosten werden beim Abschließen gleichmäßig auf alle erfassten Stücke verteilt.
+      </p>
+    }
   } @else {
     <p
       class="rounded-xl border border-dashed border-fb-line px-3 py-4 text-center text-xs text-fb-text-muted"

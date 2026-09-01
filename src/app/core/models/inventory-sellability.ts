@@ -17,7 +17,11 @@ export function isSellableInventoryItem(item: InventoryItemSellability): boolean
 }
 
 export function isInventoryItemMutationLocked(item: InventoryItemSellability): boolean {
-  return item.status === 'sold' || (!!item.sale_state && lockedSaleStates.has(item.sale_state));
+  return (
+    item.status === 'sold' ||
+    hasInventoryIntegrityConflict(item) ||
+    (!!item.sale_state && lockedSaleStates.has(item.sale_state))
+  );
 }
 
 export function hasInventoryIntegrityConflict(item: InventoryItemSellability): boolean {

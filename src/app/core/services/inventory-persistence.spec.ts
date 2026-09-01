@@ -25,6 +25,7 @@ const gespeicherterArtikel: InventoryItem = {
   title: 'Testartikel',
   condition: 'used',
   status: 'received',
+  sale_state: 'no_active_sale',
   sku: null,
   category: null,
   brand: null,
@@ -134,57 +135,69 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
         if (tabelle === 'inventory_items') {
           return {
             select() {
-              return {
-                eq(_spalte: string, itemId: string) {
-                  return {
-                    single: () => antworten.get(itemId)?.promise,
-                  };
+              let itemId = '';
+              const query = {
+                eq(spalte: string, wert: string) {
+                  if (spalte === 'id') itemId = wert;
+                  return query;
                 },
+                single: () => antworten.get(itemId)?.promise,
               };
+              return query;
             },
           };
         }
         if (tabelle === 'inventory_item_sale_states') {
           return {
             select() {
-              return {
-                eq: async (_spalte: string, itemId: string) => ({
-                  data: [
-                    {
-                      inventory_item_id: itemId,
-                      workspace_id: workspace.id,
-                      sale_state: 'no_active_sale',
-                      active_sale_count: 0,
-                      active_sale_id: null,
-                    },
-                  ],
-                  error: null,
-                }),
+              let itemId = '';
+              const query = {
+                eq(spalte: string, wert: string) {
+                  if (spalte === 'inventory_item_id') itemId = wert;
+                  return query;
+                },
+                then(resolve: (value: unknown) => void) {
+                  resolve({
+                    data: [
+                      {
+                        inventory_item_id: itemId,
+                        workspace_id: workspace.id,
+                        sale_state: 'no_active_sale',
+                        active_sale_count: 0,
+                        active_sale_id: null,
+                      },
+                    ],
+                    error: null,
+                  });
+                },
               };
+              return query;
             },
           };
         }
         if (tabelle === 'activity_logs') {
           return {
             select() {
-              return {
-                eq(_spalte: string, itemId: string) {
-                  return {
-                    order: async () => ({
-                      data: [
-                        {
-                          id: `verlauf-${itemId}`,
-                          workspace_id: workspace.id,
-                          inventory_item_id: itemId,
-                          action: `Verlauf ${itemId}`,
-                          created_at: '2026-08-30T12:00:00.000Z',
-                        },
-                      ],
-                      error: null,
-                    }),
-                  };
+              let itemId = '';
+              const query = {
+                eq(spalte: string, wert: string) {
+                  if (spalte === 'inventory_item_id') itemId = wert;
+                  return query;
                 },
+                order: async () => ({
+                  data: [
+                    {
+                      id: `verlauf-${itemId}`,
+                      workspace_id: workspace.id,
+                      inventory_item_id: itemId,
+                      action: `Verlauf ${itemId}`,
+                      created_at: '2026-08-30T12:00:00.000Z',
+                    },
+                  ],
+                  error: null,
+                }),
               };
+              return query;
             },
           };
         }
@@ -205,6 +218,41 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     expect(dienst.activityLogs()).toEqual([
       expect.objectContaining({ inventory_item_id: artikelB.id }),
     ]);
+  });
+
+  it('verknüpft einen Demo-Artikel im Detail mit seinem finalisierten Einkauf', async () => {
+    const mockStore = new MockDataStoreService();
+    mockStore.isDemoMode.set(true);
+    mockStore.savePurchase({
+      id: gespeicherterArtikel.purchase_id!,
+      workspace_id: workspace.id,
+      type: 'mystery_pack',
+      title: 'Finalisierte Mystery Box',
+      purchase_date: '2026-09-01',
+      purchase_price: 100,
+      total_purchase_cost: 100,
+      cost_allocation_mode: 'even',
+      receiving_status: 'received',
+      entry_status: 'finalized',
+      finalized_at: '2026-09-01T10:00:00.000Z',
+    });
+    mockStore.saveItem({
+      ...gespeicherterArtikel,
+      allocated_purchase_cost: 16.67,
+      status: 'ready',
+    });
+    const { dienst } = injiziereDienst({}, mockStore);
+
+    const detail = await dienst.getItemById(gespeicherterArtikel.id);
+
+    expect(detail).toMatchObject({
+      allocated_purchase_cost: 16.67,
+      purchase: {
+        id: gespeicherterArtikel.purchase_id,
+        workspace_id: workspace.id,
+        entry_status: 'finalized',
+      },
+    });
   });
 
   it('merged den bestandswirksamen View-Zustand anhand der Artikel-ID', async () => {
@@ -303,6 +351,32 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
     expect(dienst.items()[0]).toEqual(lockedItem);
   });
 
+  it('blockiert generische Service-Mutationen auch bei fehlendem Verkaufszustand', async () => {
+    const { dienst } = injiziereDienst({
+      from: () => {
+        throw new Error('Datenbankzugriff darf nicht stattfinden');
+      },
+    });
+    const lockedItem: InventoryItem = {
+      ...gespeicherterArtikel,
+      status: 'ready',
+      sale_state: undefined,
+    };
+    dienst.items.set([lockedItem]);
+    dienst.selectedItem.set(lockedItem);
+
+    const results = await Promise.all([
+      dienst.updateItem(lockedItem.id, { title: 'Manipuliert' }),
+      dienst.updateItemStatus(lockedItem.id, 'listed'),
+      dienst.addItemCost(lockedItem.id, 'other', 1),
+      dienst.deleteItemCost(lockedItem.id, 'cost-1'),
+      dienst.deleteItem(lockedItem.id),
+    ]);
+
+    expect(results.every(({ error }) => error?.message.includes('Korrekturvorgang'))).toBe(true);
+    expect(dienst.items()[0]).toEqual(lockedItem);
+  });
+
   it('klassifiziert Demo-Artikel aus persistierten Positionen und Legacy-Köpfen', async () => {
     const lineItem = { ...gespeicherterArtikel, id: 'demo-line', status: 'sold' as const };
     const legacyItem = { ...gespeicherterArtikel, id: 'demo-header', status: 'sold' as const };
@@ -381,11 +455,11 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
           if (tabelle === 'inventory_items') {
             return {
               select() {
-                return {
-                  eq() {
-                    return { single: async () => ({ data: rawItem, error: null }) };
-                  },
+                const query = {
+                  eq: () => query,
+                  single: async () => ({ data: rawItem, error: null }),
                 };
+                return query;
               },
               update() {
                 return { eq: async () => ({ error: null, count: 1 }) };
@@ -395,31 +469,45 @@ describe('InventoryService – abhängige Schreibvorgänge', () => {
           if (tabelle === 'inventory_item_sale_states') {
             return {
               select() {
-                return {
-                  eq: async () => ({
-                    data: [
-                      {
-                        inventory_item_id: rawItem.id,
-                        workspace_id: workspace.id,
-                        sale_state: saleState,
-                        active_sale_count: activeSaleCount,
-                        active_sale_id: activeSaleId,
-                      },
-                    ],
-                    error: null,
-                  }),
+                const query = {
+                  eq: () => query,
+                  then: (
+                    onfulfilled: (value: {
+                      data: {
+                        inventory_item_id: string;
+                        workspace_id: string;
+                        sale_state: typeof saleState;
+                        active_sale_count: number;
+                        active_sale_id: string | null;
+                      }[];
+                      error: null;
+                    }) => unknown,
+                  ) =>
+                    Promise.resolve({
+                      data: [
+                        {
+                          inventory_item_id: rawItem.id,
+                          workspace_id: workspace.id,
+                          sale_state: saleState,
+                          active_sale_count: activeSaleCount,
+                          active_sale_id: activeSaleId,
+                        },
+                      ],
+                      error: null,
+                    }).then(onfulfilled),
                 };
+                return query;
               },
             };
           }
           if (tabelle === 'activity_logs') {
             return {
               select() {
-                return {
-                  eq() {
-                    return { order: async () => ({ data: [], error: null }) };
-                  },
+                const query = {
+                  eq: () => query,
+                  order: async () => ({ data: [], error: null }),
                 };
+                return query;
               },
               insert: async () => ({ error: null }),
             };

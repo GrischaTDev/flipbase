@@ -218,4 +218,53 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
     expect(holding.totalNetProfit).toBeGreaterThanOrEqual(80);
     expect(holding.workspaceSummaries.length).toBe(holding.workspacesCount);
   });
+
+  it('zählt unbekannte Draftkosten nicht als bestätigtes investiertes Kapital', () => {
+    const workspace = service.workspaces()[0]!;
+    service.workspaces.set([workspace]);
+
+    const holding = service.getConsolidatedHoldingSummary(
+      [],
+      [
+        {
+          id: 'purchase-known',
+          workspace_id: workspace.id,
+          type: 'single',
+          title: 'Bekannter Einkauf',
+          purchase_date: '2026-08-30',
+          purchase_price: 10,
+          total_purchase_cost: null,
+          shipping_cost: 2,
+          other_costs: 3,
+          costs: [{ type: 'travel', amount: 4 }],
+          cost_allocation_mode: 'even',
+        },
+        {
+          id: 'purchase-unknown',
+          workspace_id: workspace.id,
+          type: 'single',
+          title: 'Unbekannter Draft',
+          purchase_date: '2026-08-31',
+          purchase_price: null,
+          total_purchase_cost: null,
+          shipping_cost: 5,
+          cost_allocation_mode: 'even',
+        },
+        {
+          id: 'purchase-free',
+          workspace_id: workspace.id,
+          type: 'single',
+          title: 'Kostenlos mit Versand',
+          purchase_date: '2026-08-31',
+          purchase_price: 0,
+          total_purchase_cost: null,
+          shipping_cost: 2,
+          cost_allocation_mode: 'even',
+        },
+      ],
+      [],
+    );
+
+    expect(holding.totalCapitalInvested).toBe(21);
+  });
 });

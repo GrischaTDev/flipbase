@@ -77,6 +77,7 @@ export class DashboardReportService {
       if (!date || !this.isInWindow(date, window)) continue;
 
       const amount = this.purchaseAmount(purchase);
+      if (amount === null) continue;
       expenses += amount;
       this.addToPoint(pointByDate, this.bucketKey(date, window), { expenses: amount });
     }
@@ -162,7 +163,8 @@ export class DashboardReportService {
     );
   }
 
-  private purchaseAmount(purchase: Purchase): number {
+  private purchaseAmount(purchase: Purchase): number | null {
+    if (purchase.purchase_price === null) return null;
     if (purchase.total_purchase_cost !== undefined && purchase.total_purchase_cost !== null) {
       return this.number(purchase.total_purchase_cost);
     }

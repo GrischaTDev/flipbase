@@ -1,4 +1,4 @@
-import { Injectable, effect, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
 import { ProfitEngineService } from './profit-engine.service';
@@ -65,13 +65,17 @@ interface QueryError {
   readonly message: string;
 }
 
+interface InventorySaleStateQuery extends PromiseLike<{
+  data: InventorySaleStateRow[] | null;
+  error: QueryError | null;
+}> {
+  eq(column: string, value: string): InventorySaleStateQuery;
+}
+
 interface InventoryIntegrityClient {
   from(table: 'inventory_item_sale_states'): {
     select(columns: string): {
-      eq(
-        column: string,
-        value: string,
-      ): PromiseLike<{ data: InventorySaleStateRow[] | null; error: QueryError | null }>;
+      eq(column: string, value: string): InventorySaleStateQuery;
     };
   };
   rpc(
@@ -121,7 +125,10 @@ export class InventoryService {
   readonly itemCosts = signal<ItemCost[]>([]);
   readonly activityLogs = signal<ActivityLog[]>([]);
   readonly isLoading = signal<boolean>(false);
-  private itemDetailRequestId = 0;
+  readonly loadError = signal<Error | null>(null);
+  readonly loadedWorkspaceId = signal<string | null>(null);
+  private loadRequestId = 0;
+  private detailLoadRequestId = 0;
 
   private isMutationLocked(itemId: string): boolean {
     const selected = this.selectedItem();
@@ -146,7 +153,14 @@ export class InventoryService {
    * duerfen - etwa fuer die Artikelanzahl eines Einkaufs. Ohne diese
    * Unterscheidung wuerde waehrend des Ladens ueberall kurz "0" stehen.
    */
-  readonly istGeladen = signal<boolean>(false);
+  readonly istGeladen = computed(() => {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    return (
+      workspaceId !== undefined &&
+      this.loadedWorkspaceId() === workspaceId &&
+      this.loadError() === null
+    );
+  });
 
   constructor() {
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
@@ -157,14 +171,15 @@ export class InventoryService {
     try {
       effect(() => {
         const ws = this.workspaceService.currentWorkspace();
+        this.resetItemDetail();
         if (ws) {
           this.loadInventory(ws.id);
         } else {
-          this.istGeladen.set(false);
+          this.loadRequestId += 1;
+          this.isLoading.set(false);
+          this.loadError.set(null);
+          this.loadedWorkspaceId.set(null);
           this.items.set([]);
-          this.selectedItem.set(null);
-          this.itemCosts.set([]);
-          this.activityLogs.set([]);
         }
       });
     } catch {
@@ -173,18 +188,28 @@ export class InventoryService {
   }
 
   async loadInventory(workspaceId: string): Promise<void> {
-    if (this.mockStore.isDemoMode()) {
-      const localItems = this.classifyDemoSaleStates(
-        this.mockStore.getItems(workspaceId),
-        this.mockStore.getSales(workspaceId),
-      ).map((i) => this.enrichItemTotals(i));
-      this.items.set(localItems);
-      this.istGeladen.set(true);
-      return;
-    }
-
+    // Ein verspäteter Mutations-Refresh für Workspace A darf den bereits
+    // geladenen Bestand des inzwischen aktiven Workspace B nicht einmal kurz
+    // leeren. Die nachgelagerten Request-IDs schützen Antworten; diese Prüfung
+    // schützt zusätzlich schon den Start eines veralteten Requests.
+    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+    const requestId = ++this.loadRequestId;
     this.isLoading.set(true);
+    this.loadError.set(null);
+    this.loadedWorkspaceId.set(null);
+    this.items.set([]);
     try {
+      if (this.mockStore.isDemoMode()) {
+        const localItems = this.classifyDemoSaleStates(
+          this.mockStore.getItems(workspaceId),
+          this.mockStore.getSales(workspaceId),
+        ).map((i) => this.enrichItemTotals(i));
+        if (!this.isCurrentLoad(requestId, workspaceId)) return;
+        this.items.set(localItems);
+        this.loadedWorkspaceId.set(workspaceId);
+        return;
+      }
+
       const { data, error } = await this.supabase.client
         .from('inventory_items')
         .select(
@@ -198,18 +223,22 @@ export class InventoryService {
         .eq('workspace_id', workspaceId)
         .order('created_at', { ascending: false });
 
+      if (!this.isCurrentLoad(requestId, workspaceId)) return;
+
       if (error) {
-        this.syncStatus.melde('Laden des Inventars', error);
-        this.items.set([]);
+        this.loadError.set(this.syncStatus.melde('Laden des Inventars', error));
       } else if (data) {
         const { data: saleStates, error: saleStateError } = await this.integrityClient
           .from('inventory_item_sale_states')
           .select('inventory_item_id, workspace_id, sale_state, active_sale_count, active_sale_id')
           .eq('workspace_id', workspaceId);
 
+        if (!this.isCurrentLoad(requestId, workspaceId)) return;
+
         if (saleStateError) {
-          this.syncStatus.melde('Laden der Inventar-Verkaufszustände', saleStateError);
-          this.items.set([]);
+          this.loadError.set(
+            this.syncStatus.melde('Laden der Inventar-Verkaufszustände', saleStateError),
+          );
           return;
         }
 
@@ -221,47 +250,105 @@ export class InventoryService {
           return this.enrichItemTotals(saleState ? this.mergeSaleState(item, saleState) : item);
         });
         this.items.set(enriched);
-        this.istGeladen.set(true);
+        this.loadedWorkspaceId.set(workspaceId);
       }
-    } catch (err) {
-      this.syncStatus.melde('Laden des Inventars', err);
-      this.items.set([]);
+    } catch (err: unknown) {
+      if (!this.isCurrentLoad(requestId, workspaceId)) return;
+      this.loadError.set(this.syncStatus.melde('Laden des Inventars', err));
     } finally {
-      this.isLoading.set(false);
+      if (requestId === this.loadRequestId) this.isLoading.set(false);
     }
   }
 
-  async getItemById(itemId: string): Promise<InventoryItem | null> {
-    const requestId = ++this.itemDetailRequestId;
-    this.isLoading.set(true);
+  private isCurrentLoad(requestId: number, workspaceId: string): boolean {
+    return (
+      requestId === this.loadRequestId &&
+      this.workspaceService.currentWorkspace()?.id === workspaceId
+    );
+  }
+
+  private resetItemDetail(): void {
+    this.detailLoadRequestId += 1;
     this.selectedItem.set(null);
     this.itemCosts.set([]);
     this.activityLogs.set([]);
+  }
 
-    const signalItem = this.items().find((item) => item.id === itemId);
+  private isCurrentDetailLoad(requestId: number, workspaceId: string): boolean {
+    return (
+      requestId === this.detailLoadRequestId &&
+      this.workspaceService.currentWorkspace()?.id === workspaceId
+    );
+  }
+
+  async getItemById(itemId: string): Promise<InventoryItem | null> {
+    const requestId = ++this.detailLoadRequestId;
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    this.selectedItem.set(null);
+    this.itemCosts.set([]);
+    this.activityLogs.set([]);
+    if (!workspaceId) return null;
+    this.isLoading.set(true);
+    const signalItem = this.items().find(
+      (item) => item.id === itemId && item.workspace_id === workspaceId,
+    );
     let existing: InventoryItem | undefined;
 
     if (this.mockStore.isDemoMode()) {
-      const rawItem = this.mockStore.getItems().find((item) => item.id === itemId) ?? signalItem;
+      const rawItem =
+        this.mockStore
+          .getItems(workspaceId)
+          .find((item) => item.id === itemId && item.workspace_id === workspaceId) ?? signalItem;
+      const classifiedItem = rawItem
+        ? this.classifyDemoSaleStates(
+            [{ ...(signalItem ?? {}), ...rawItem }],
+            this.mockStore.getSales(workspaceId),
+          )[0]
+        : undefined;
       existing =
-        signalItem?.sale_state !== undefined
-          ? signalItem
-          : rawItem
-            ? this.classifyDemoSaleStates([rawItem], this.mockStore.getSales())[0]
-            : undefined;
+        classifiedItem && signalItem?.sale_state !== undefined
+          ? {
+              ...classifiedItem,
+              sale_state: signalItem.sale_state,
+              active_sale_count: signalItem.active_sale_count,
+              active_sale_id: signalItem.active_sale_id,
+            }
+          : classifiedItem;
+      const linkedPurchase = existing?.purchase_id
+        ? (this.mockStore.getPurchases?.(workspaceId) ?? []).find(
+            (purchase) =>
+              purchase.id === existing?.purchase_id && purchase.workspace_id === workspaceId,
+          )
+        : undefined;
+      if (existing && linkedPurchase) {
+        const source =
+          linkedPurchase.source ??
+          (linkedPurchase.source_id
+            ? (this.mockStore.getSources?.(workspaceId) ?? []).find(
+                (entry) => entry.id === linkedPurchase.source_id,
+              )
+            : undefined);
+        const supplier =
+          linkedPurchase.supplier ??
+          (linkedPurchase.supplier_id
+            ? (this.mockStore.getSuppliers?.(workspaceId) ?? []).find(
+                (entry) => entry.id === linkedPurchase.supplier_id,
+              )
+            : undefined);
+        existing = { ...existing, purchase: { ...linkedPurchase, source, supplier } };
+      }
     } else if (signalItem?.sale_state !== undefined) {
       existing = signalItem;
     }
 
     if (existing) {
       const enriched = this.enrichItemTotals(existing);
-      if (this.isCurrentItemDetailRequest(requestId)) {
-        this.selectedItem.set(enriched);
-        const costs = this.mockStore.getItemCosts(itemId);
-        this.itemCosts.set(costs.length > 0 ? costs : enriched.costs || []);
-      }
-      await this.loadActivityLogs(itemId, requestId);
-      if (this.isCurrentItemDetailRequest(requestId)) this.isLoading.set(false);
+      const costs = this.mockStore.getItemCosts(itemId);
+      await this.loadActivityLogs(itemId, workspaceId, requestId);
+      if (!this.isCurrentDetailLoad(requestId, workspaceId)) return null;
+      this.selectedItem.set(enriched);
+      this.itemCosts.set(costs.length > 0 ? costs : enriched.costs || []);
+      this.isLoading.set(false);
       return enriched;
     }
 
@@ -276,28 +363,32 @@ export class InventoryService {
           media:item_media(*)
         `,
         )
+        .eq('workspace_id', workspaceId)
         .eq('id', itemId)
         .single();
 
-      if (!this.isCurrentItemDetailRequest(requestId)) return null;
+      if (!this.isCurrentDetailLoad(requestId, workspaceId)) return null;
       if (error || !data) {
         if (error) this.syncStatus.melde('Abrufen des Artikels', error);
         return null;
       }
 
+      const rawItem = data as unknown as InventoryItem;
+      if (rawItem.workspace_id !== workspaceId) return null;
+
       const { data: saleStates, error: saleStateError } = await this.integrityClient
         .from('inventory_item_sale_states')
         .select('inventory_item_id, workspace_id, sale_state, active_sale_count, active_sale_id')
+        .eq('workspace_id', workspaceId)
         .eq('inventory_item_id', itemId);
 
-      if (!this.isCurrentItemDetailRequest(requestId)) return null;
+      if (!this.isCurrentDetailLoad(requestId, workspaceId)) return null;
       if (saleStateError) {
         this.syncStatus.melde('Laden des Inventar-Verkaufszustands', saleStateError);
         this.selectedItem.set(null);
         return null;
       }
 
-      const rawItem = data as unknown as InventoryItem;
       const saleState = (saleStates ?? []).find(
         (state) =>
           state.inventory_item_id === itemId && state.workspace_id === rawItem.workspace_id,
@@ -312,23 +403,20 @@ export class InventoryService {
       }
 
       const item = this.enrichItemTotals(this.mergeSaleState(rawItem, saleState));
+      await this.loadActivityLogs(itemId, workspaceId, requestId);
+      if (!this.isCurrentDetailLoad(requestId, workspaceId)) return null;
       this.selectedItem.set(item);
       this.itemCosts.set((data.costs || []) as ItemCost[]);
 
-      await this.loadActivityLogs(itemId, requestId);
       return item;
     } catch (err) {
-      if (this.isCurrentItemDetailRequest(requestId)) {
+      if (this.isCurrentDetailLoad(requestId, workspaceId)) {
         this.syncStatus.melde('GetItemById', err);
       }
       return null;
     } finally {
-      if (this.isCurrentItemDetailRequest(requestId)) this.isLoading.set(false);
+      if (requestId === this.detailLoadRequestId) this.isLoading.set(false);
     }
-  }
-
-  private isCurrentItemDetailRequest(requestId: number): boolean {
-    return this.itemDetailRequestId === requestId;
   }
 
   private mergeSaleState(item: InventoryItem, saleState: InventorySaleStateRow): InventoryItem {
@@ -340,10 +428,20 @@ export class InventoryService {
     };
   }
 
-  private async loadActivityLogs(itemId: string, requestId: number): Promise<void> {
-    const localLogs = this.mockStore.getActivityLogs(itemId);
-    if (localLogs.length > 0 && this.isCurrentItemDetailRequest(requestId)) {
-      this.activityLogs.set(localLogs);
+  async loadActivityLogs(
+    itemId: string,
+    workspaceId = this.workspaceService.currentWorkspace()?.id,
+    detailRequestId?: number,
+  ): Promise<void> {
+    if (!workspaceId) return;
+    const isCurrent = (): boolean =>
+      this.workspaceService.currentWorkspace()?.id === workspaceId &&
+      (detailRequestId === undefined || this.isCurrentDetailLoad(detailRequestId, workspaceId));
+    const localLogs = this.mockStore
+      .getActivityLogs(itemId)
+      .filter((log) => log.workspace_id === workspaceId);
+    if (localLogs.length > 0) {
+      if (isCurrent()) this.activityLogs.set(localLogs);
     }
 
     if (this.mockStore.isDemoMode()) {
@@ -354,19 +452,18 @@ export class InventoryService {
       const { data, error } = await this.supabase.client
         .from('activity_logs')
         .select('*')
+        .eq('workspace_id', workspaceId)
         .eq('inventory_item_id', itemId)
         .order('created_at', { ascending: false });
 
-      if (!this.isCurrentItemDetailRequest(requestId)) return;
+      if (!isCurrent()) return;
       if (error) {
         this.syncStatus.melde('Laden der Aktivitätsprotokolle', error);
       } else if (data && data.length > 0) {
         this.activityLogs.set(data as ActivityLog[]);
       }
     } catch (err) {
-      if (this.isCurrentItemDetailRequest(requestId)) {
-        this.syncStatus.melde('Laden der Aktivitätsprotokolle', err);
-      }
+      if (isCurrent()) this.syncStatus.melde('Laden der Aktivitätsprotokolle', err);
     }
   }
 

@@ -86,6 +86,50 @@ describe('DashboardReportService', () => {
     expect(report.realizedProfit).toBe(20.09);
   });
 
+  it('schließt unbekannte Draftkosten aus bestätigten Ausgaben aus und behält echte Nullpreise', () => {
+    const report = createService().createReportForRecords(
+      'last_7_days',
+      'all',
+      {
+        purchases: [
+          receipt,
+          {
+            ...receipt,
+            id: 'purchase-unknown',
+            purchase_price: null,
+            total_purchase_cost: null,
+            shipping_cost: 5,
+            other_costs: 7,
+          },
+          {
+            ...receipt,
+            id: 'purchase-free',
+            purchase_price: 0,
+            total_purchase_cost: null,
+            shipping_cost: 2,
+            other_costs: 0,
+          },
+          {
+            ...receipt,
+            id: 'purchase-priced-draft',
+            purchase_price: 10,
+            total_purchase_cost: null,
+            shipping_cost: 1,
+            other_costs: 2,
+            costs: [{ type: 'travel', amount: 3 }],
+          },
+        ],
+        sales: [],
+        inventoryItems: [],
+        stockLots: [],
+      },
+      now,
+    );
+
+    expect(report.expenses).toBe(42.95);
+    expect(report.points.find((point) => point.date === '2026-08-26')?.expenses).toBe(42.95);
+  });
+
   it.each([
     ['today', 1],
     ['last_7_days', 7],

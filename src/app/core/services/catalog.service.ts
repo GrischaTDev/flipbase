@@ -4,12 +4,9 @@ import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 import { createLocalDemoId } from '../utils/client-identity';
+import { MutationResult } from '../models/mutation-result.model';
 
-export interface MutationResult<T> {
-  readonly data: T | null;
-  readonly error: Error | null;
-  readonly reportedBySyncStatus: boolean;
-}
+export type { MutationResult } from '../models/mutation-result.model';
 
 export interface CreateCatalogProductInput {
   readonly workspaceId: string;

@@ -19,7 +19,7 @@
             {{ istBearbeitung() ? 'Einkauf bearbeiten' : 'Neuen Einkauf erfassen' }}
           </h2>
           <p class="text-[11px] text-fb-text-muted">
-            Einzelkauf, Mystery Box oder Palette mit Nebenkosten
+            Normaler Einkauf, Mystery Box oder größerer Warenposten mit Zusatzkosten
           </p>
         </div>
       </div>
@@ -59,8 +59,10 @@
               [class.bg-fb-well]="form.get('type')?.value !== 'single'"
             >
               <svg [lucideIcon]="bagIcon" class="w-3.5 h-3.5 text-fb-art-single"></svg>
-              <span class="text-xs font-bold text-fb-text-primary">Einzelartikel</span>
-              <span class="text-[10px] text-fb-text-muted">1 Kauf → 1 Artikel</span>
+              <span class="text-xs font-bold text-fb-text-primary">Normaler Einkauf</span>
+              <span class="text-[10px] text-fb-text-muted"
+                >Eine oder mehrere Artikelpositionen</span
+              >
             </button>
 
             <button
@@ -154,7 +156,10 @@
         </div>
 
         @if (!istBearbeitung()) {
-          <app-purchase-line-editor (linesChanged)="onPurchaseLinesChanged($event)" />
+          <app-purchase-line-editor
+            [purchaseType]="form.controls.type.value"
+            (linesChanged)="onPurchaseLinesChanged($event)"
+          />
         }
 
         <!-- 4. Einkaufsquelle & Lieferant mit Schnellanlage -->
@@ -301,14 +306,16 @@
           echten Angaben, und gespeichert wurde ohnehin nichts davon - der
           Artikel wird im Inventar gepflegt.
         -->
-        @if (form.get('type')?.value === 'single' && !istBearbeitung()) {
+        @if (
+          form.get('type')?.value === 'single' && !istBearbeitung() && purchaseLines().length === 0
+        ) {
           <div class="p-3.5 rounded-xl bg-fb-well border border-fb-line space-y-2.5">
             <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
               Angaben zum Artikel
             </span>
             <p class="text-[10px] text-fb-text-muted leading-relaxed">
-              Aus einem Einzelkauf wird ein Artikel im Inventar – mit dem Titel des Einkaufs und den
-              gesamten Einkaufskosten.
+              Ohne Einkaufsposition wird aus diesem Einkauf ein einzelner Inventarartikel. Für
+              mehrere oder mengenbasierte Artikel nutze oben die Einkaufspositionen.
             </p>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -333,7 +340,7 @@
                   for="singleExpectedVal"
                   class="block text-[10px] font-semibold text-fb-text-muted mb-1"
                 >
-                  Erwarteter Marktwert (€)
+                  Geschätzter Marktwert (€)
                 </label>
                 <app-number-input
                   feldId="singleExpectedVal"
@@ -348,82 +355,51 @@
           </div>
         }
 
-        <!-- 6. Zusatzkosten (Versand, Fahrt, Gebühren) -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
-              Zusatzkosten (Versand, Fahrtkosten, Zoll)
-            </span>
-            <button
-              type="button"
-              (click)="addCostRow()"
-              class="inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:underline"
-            >
-              <svg [lucideIcon]="plusCircleIcon" class="w-3.5 h-3.5"></svg>
-              <span>Kosten hinzufügen</span>
-            </button>
+        <app-purchase-cost-editor
+          [purchaseType]="form.controls.type.value"
+          [initialCosts]="initialCostDrafts()"
+          [purchaseLineOptions]="purchaseLineOptions()"
+          (costsChanged)="onCostsChanged($event)"
+          (validityChanged)="areAdditionalCostsValid.set($event)"
+        />
+
+        <section
+          aria-label="Kostenübersicht"
+          class="grid grid-cols-1 gap-2 rounded-xl border border-fb-line bg-fb-well p-3 text-xs sm:grid-cols-3"
+        >
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
+              Einkauf
+            </p>
+            <p class="mt-1 font-mono font-bold text-fb-text-primary">
+              @if (purchaseBasePrice() !== null) {
+                {{ purchaseBasePrice()! | currency: 'EUR' : 'symbol' : '1.2-2' : 'de-DE' }}
+              } @else {
+                –
+              }
+            </p>
           </div>
-
-          @for (cost of extraCosts(); track $index) {
-            <div
-              class="grid grid-cols-1 gap-2 rounded-lg border border-fb-line bg-fb-well p-2 sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1.4fr)_auto] sm:items-end"
-            >
-              <div class="min-w-0">
-                <span class="text-[10px] font-semibold text-fb-text-muted">Art</span>
-                <app-custom-select
-                  ariaLabel="Kostenart"
-                  class="mt-1 block"
-                  [options]="kostenartOptionen"
-                  [value]="cost.type"
-                  (valueChange)="updateCostField($index, 'type', $event)"
-                  size="sm"
-                />
-              </div>
-
-              <!--
-                Kein <label> mehr: Es umschloss vorher das Eingabefeld direkt.
-                Jetzt sitzt dazwischen eine eigene Komponente, und ein Label
-                ohne zugehoeriges Feld waere fuer Screenreader eine leere
-                Beschriftung. Die Zuordnung uebernimmt aria-label am Feld.
-              -->
-              <div class="min-w-0">
-                <span class="text-[10px] font-semibold text-fb-text-muted">Betrag</span>
-                <app-number-input
-                  class="mt-1 block"
-                  [value]="cost.amount"
-                  (valueChange)="updateCostField($index, 'amount', $event)"
-                  platzhalter="0,00 €"
-                  beschriftung="Betrag der Zusatzkosten"
-                  [schritt]="0.5"
-                  [minimum]="0"
-                  [alsBetrag]="true"
-                />
-              </div>
-
-              <label class="min-w-0 text-[10px] font-semibold text-fb-text-muted">
-                Beschreibung
-                <input
-                  type="text"
-                  [value]="cost.description"
-                  (input)="updateCostField($index, 'description', $any($event.target).value)"
-                  placeholder="Optional"
-                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
-                />
-              </label>
-
-              <button
-                type="button"
-                (click)="removeCostRow($index)"
-                aria-label="Zusatzkosten löschen"
-                title="Zusatzkosten löschen"
-                class="inline-flex h-7 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/10 px-2 text-[10px] font-semibold text-rose-400 transition hover:border-rose-400/60 hover:bg-rose-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60"
-              >
-                <svg [lucideIcon]="trashIcon" aria-hidden="true" class="size-3.5"></svg>
-                <span>Löschen</span>
-              </button>
-            </div>
-          }
-        </div>
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
+              Zusätzliche Kosten
+            </p>
+            <p class="mt-1 font-mono font-bold text-fb-text-primary">
+              {{ additionalCostsTotal() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de-DE' }}
+            </p>
+          </div>
+          <div class="border-t border-fb-line pt-2 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+              Gesamtkosten
+            </p>
+            <p class="mt-1 font-mono font-bold text-emerald-300">
+              @if (totalCosts() !== null) {
+                {{ totalCosts()! | currency: 'EUR' : 'symbol' : '1.2-2' : 'de-DE' }}
+              } @else {
+                –
+              }
+            </p>
+          </div>
+        </section>
 
         <!-- Inbound Sendungsverfolgung (Tracking) -->
         <div class="p-3 rounded-xl bg-fb-well border border-fb-line space-y-2.5">
@@ -476,20 +452,44 @@
             Abbrechen
           </button>
 
-          <button
-            type="submit"
-            [disabled]="form.invalid || isSubmitting()"
-            class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
-          >
-            <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
-            <span>{{
-              isSubmitting()
-                ? 'Speichere...'
-                : istBearbeitung()
-                  ? 'Änderungen speichern'
-                  : 'Einkauf speichern'
-            }}</span>
-          </button>
+          @if (!istBearbeitung()) {
+            <button
+              type="submit"
+              [disabled]="form.invalid || isSubmitting()"
+              class="linear-btn-secondary px-4 py-1.5 rounded-lg font-semibold text-xs transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Als Entwurf speichern
+            </button>
+            <button
+              type="button"
+              (click)="onFinalize()"
+              [disabled]="form.invalid || !areAdditionalCostsValid() || isSubmitting()"
+              class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <svg [lucideIcon]="checkIcon" class="w-3.5 h-3.5"></svg>
+              <span>{{ isSubmitting() ? 'Schließe ab...' : 'Erfassung abschließen' }}</span>
+            </button>
+          } @else {
+            <button
+              type="submit"
+              [disabled]="form.invalid || isSubmitting()"
+              class="linear-btn-secondary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
+              <span>{{ isSubmitting() ? 'Speichere...' : 'Änderungen speichern' }}</span>
+            </button>
+            @if (purchase()?.entry_status !== 'finalized') {
+              <button
+                type="button"
+                (click)="onFinalize()"
+                [disabled]="form.invalid || !areAdditionalCostsValid() || isSubmitting()"
+                class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <svg [lucideIcon]="checkIcon" class="w-3.5 h-3.5"></svg>
+                <span>{{ isSubmitting() ? 'Schließe ab...' : 'Erfassung abschließen' }}</span>
+              </button>
+            }
+          }
         </div>
       </form>
     </div>

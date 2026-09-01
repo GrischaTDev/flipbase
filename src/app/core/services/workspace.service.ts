@@ -310,7 +310,7 @@ export class WorkspaceService {
         .reduce((sum, i) => sum + (i.allocated_purchase_cost || 0), 0);
 
       const invested = wsPurchases.reduce(
-        (sum, p) => sum + (p.purchase_price || 0) + (p.shipping_cost || 0),
+        (sum, purchase) => sum + (this.purchaseCostPreview(purchase) ?? 0),
         0,
       );
       const revenue = wsSales.reduce((sum, s) => sum + (s.sale_price || 0), 0);
@@ -350,5 +350,18 @@ export class WorkspaceService {
       averageRoi: Number(averageRoi.toFixed(1)),
       workspaceSummaries: summaries,
     };
+  }
+
+  private purchaseCostPreview(purchase: Purchase): number | null {
+    if (purchase.purchase_price === null) return null;
+    if (purchase.total_purchase_cost !== undefined && purchase.total_purchase_cost !== null) {
+      return purchase.total_purchase_cost;
+    }
+    return (
+      purchase.purchase_price +
+      (purchase.shipping_cost || 0) +
+      (purchase.other_costs || 0) +
+      (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0)
+    );
   }
 }

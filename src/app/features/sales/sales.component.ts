@@ -1,5 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import {
+  afterRenderEffect,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  signal,
+} from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -40,6 +49,14 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
+import { WorkspaceService } from '../../core/services/workspace.service';
+
+const SALE_TARGET_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
+
+function validatedSaleTargetId(value: string | null): string | null {
+  if (!value || !SALE_TARGET_ID_PATTERN.test(value)) return null;
+  return value;
+}
 
 @Component({
   selector: 'app-sales',
@@ -78,6 +95,9 @@ export class SalesComponent {
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly workspaceService = inject(WorkspaceService);
   readonly salesService = inject(SalesService);
   readonly invoiceService = inject(InvoiceService);
   readonly returnService = inject(ReturnService);
@@ -104,6 +124,31 @@ export class SalesComponent {
   readonly selectedPlatform = signal<string>('all');
   readonly activeInvoice = signal<Invoice | null>(null);
   readonly isCreatingInvoice = signal(false);
+  private readonly queryParams = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
+  private lastFocusedSaleId: string | null = null;
+
+  readonly requestedSaleId = computed(() =>
+    validatedSaleTargetId(this.queryParams().get('saleId')),
+  );
+  readonly highlightedSaleId = computed(() => {
+    const saleId = this.requestedSaleId();
+    const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
+    if (
+      !saleId ||
+      !workspaceId ||
+      this.salesService.loadError() ||
+      this.salesService.loadedWorkspaceId() !== workspaceId
+    ) {
+      return null;
+    }
+    return this.salesService
+      .sales()
+      .some((sale) => sale.id === saleId && sale.workspace_id === workspaceId)
+      ? saleId
+      : null;
+  });
 
   // Return modal state
   readonly isReturnModalOpen = signal<boolean>(false);
@@ -174,12 +219,33 @@ export class SalesComponent {
 
   constructor() {
     const state = (this.router.getCurrentNavigation()?.extras.state ??
-      history.state) as Partial<SaleTargetRouteState>;
+      globalThis.history?.state ??
+      {}) as Partial<SaleTargetRouteState>;
     if (state.saleTarget) {
       this.createSaleTarget.set(state.saleTarget);
       this.legacySaleReconciliation.set(state.legacyReconciliation ?? null);
       this.isCreateModalOpen.set(true);
     }
+
+    afterRenderEffect({
+      write: () => {
+        const saleId = this.highlightedSaleId();
+        if (!saleId) {
+          this.lastFocusedSaleId = null;
+          return;
+        }
+        if (this.lastFocusedSaleId === saleId) return;
+
+        const desktop = globalThis.matchMedia?.('(min-width: 768px)').matches ?? true;
+        const prefix = desktop ? 'sale-desktop-' : 'sale-mobile-';
+        const target = this.host.nativeElement.querySelector<HTMLElement>(`#${prefix}${saleId}`);
+        if (!target) return;
+
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        this.lastFocusedSaleId = saleId;
+      },
+    });
   }
 
   openCreateModal(): void {

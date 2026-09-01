@@ -14,31 +14,57 @@ import {
 import {
   InventoryItem,
   ItemStatus,
+  Purchase,
+  Sale,
   StockLot,
   StockMovement,
   StockPosition,
 } from '../../../../core/models/flipbase.models';
 import {
-  hasInventoryIntegrityConflict,
   isInventoryItemMutationLocked,
   isSellableInventoryItem,
 } from '../../../../core/models/inventory-sellability';
-
-interface DisplayPosition extends StockPosition {
-  readonly lots: readonly StockLot[];
-}
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
+import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
+import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
+import type { InventoryPresentationRow } from '../../models/inventory-presentation.models';
+import { editableItemStatusOptions } from '../../models/item-status-options';
+import {
+  buildInventoryPresentation,
+  InventorySourceState,
+} from '../../utils/inventory-presentation';
 
 @Component({
   selector: 'app-stock-position-list',
-  imports: [RouterLink, CurrencyPipe, DatePipe, LucideDynamicIcon],
+  imports: [
+    RouterLink,
+    CurrencyPipe,
+    DatePipe,
+    LucideDynamicIcon,
+    CustomSelectComponent,
+    CostStateComponent,
+    ItemConditionLabelPipe,
+  ],
   templateUrl: './stock-position-list.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StockPositionListComponent {
+  readonly presentationRows = input<readonly InventoryPresentationRow[] | null>(null);
   readonly positions = input.required<readonly StockPosition[]>();
   readonly lots = input<readonly StockLot[]>([]);
   readonly movements = input<readonly StockMovement[]>([]);
+  readonly purchases = input<readonly Purchase[]>([]);
+  readonly sales = input<readonly Sale[]>([]);
+  readonly workspaceId = input('');
+  readonly inventoryState = input<InventorySourceState>('known');
+  readonly stockState = input<InventorySourceState>('known');
+  readonly stockWorkspaceId = input<string | null | undefined>(undefined);
+  readonly purchaseState = input<InventorySourceState>('known');
+  readonly salesState = input<InventorySourceState>('known');
   readonly individualItems = input<readonly InventoryItem[]>([]);
   readonly selectedItemIds = input<ReadonlySet<string>>(new Set());
   readonly sell = output<StockPosition>();
@@ -59,57 +85,26 @@ export class StockPositionListComponent {
   readonly storeIcon = Store;
   readonly openPositionIds = signal<ReadonlySet<string>>(new Set());
 
-  readonly statusOptions: readonly { readonly value: ItemStatus; readonly label: string }[] = [
-    { value: 'received', label: 'Auf Lager' },
-    { value: 'needs_review', label: 'Prüfung nötig' },
-    { value: 'researched', label: 'Recherchiert' },
-    { value: 'ready', label: 'Bereit' },
-    { value: 'listed', label: 'Gelistet' },
-    { value: 'reserved', label: 'Reserviert' },
-    { value: 'defective', label: 'Defekt' },
-    { value: 'returned', label: 'Retourniert' },
-    { value: 'archived', label: 'Archiviert' },
-  ];
+  readonly statusOptions: SelectOption<ItemStatus>[] = [...editableItemStatusOptions];
 
-  readonly displayPositions = computed<readonly DisplayPosition[]>(() => {
-    const lotsByProduct = new Map<string, StockLot[]>();
-    for (const lot of this.lots()) {
-      if (lot.remaining_quantity <= 0) continue;
-      const productLots = lotsByProduct.get(lot.catalog_product_id) ?? [];
-      productLots.push(lot);
-      lotsByProduct.set(lot.catalog_product_id, productLots);
-    }
-    for (const productLots of lotsByProduct.values()) {
-      productLots.sort((left, right) => left.received_at.localeCompare(right.received_at));
-    }
+  readonly presentation = computed(() =>
+    buildInventoryPresentation({
+      workspaceId: this.workspaceId() || this.detectWorkspaceId(),
+      inventoryState: this.inventoryState(),
+      stockState: this.stockState(),
+      stockWorkspaceId: this.stockWorkspaceId(),
+      purchaseState: this.purchaseState(),
+      salesState: this.salesState(),
+      individualItems: this.individualItems(),
+      positions: this.positions(),
+      lots: this.lots(),
+      movements: this.movements(),
+      purchases: this.purchases(),
+      sales: this.sales(),
+    }),
+  );
 
-    const aggregated = new Map<string, StockPosition>();
-    for (const position of this.positions()) {
-      if (position.available_quantity <= 0) continue;
-      const existing = aggregated.get(position.catalog_product_id);
-      aggregated.set(position.catalog_product_id, {
-        ...position,
-        title: existing?.title ?? position.title,
-        available_quantity: (existing?.available_quantity ?? 0) + position.available_quantity,
-        reserved_quantity: (existing?.reserved_quantity ?? 0) + position.reserved_quantity,
-        on_hand_quantity: (existing?.on_hand_quantity ?? 0) + position.on_hand_quantity,
-        oldest_available_unit_cost:
-          existing?.oldest_available_unit_cost ?? position.oldest_available_unit_cost,
-        is_public_store: existing?.is_public_store ?? position.is_public_store,
-      });
-    }
-
-    return [...aggregated.values()]
-      .map((position) => {
-        const lots = lotsByProduct.get(position.catalog_product_id) ?? [];
-        return {
-          ...position,
-          oldest_available_unit_cost: lots[0]?.unit_cost ?? position.oldest_available_unit_cost,
-          lots,
-        };
-      })
-      .sort((left, right) => left.title.localeCompare(right.title, 'de'));
-  });
+  readonly rows = computed(() => this.presentationRows() ?? this.presentation().rows);
 
   readonly movementRows = computed(() => {
     const lotById = new Map(this.lots().map((lot) => [lot.id, lot]));
@@ -134,10 +129,6 @@ export class StockPositionListComponent {
     return isInventoryItemMutationLocked(item);
   }
 
-  hasIntegrityConflict(item: InventoryItem): boolean {
-    return hasInventoryIntegrityConflict(item);
-  }
-
   isItemSelected(itemId: string): boolean {
     return this.selectedItemIds().has(itemId);
   }
@@ -154,10 +145,6 @@ export class StockPositionListComponent {
     if (this.isSellable(item)) this.sellIndividual.emit(item);
   }
 
-  emitStatusChangeFromEvent(item: InventoryItem, event: Event): void {
-    this.emitStatusChange(item, (event.target as HTMLSelectElement).value as ItemStatus);
-  }
-
   emitRestoreLegacy(item: InventoryItem): void {
     if (item.sale_state === 'legacy_sold_unverified') this.restoreLegacy.emit(item);
   }
@@ -172,7 +159,13 @@ export class StockPositionListComponent {
         return 'Rückgabe';
       case 'damage':
         return 'Beschädigung';
-      default:
+      case 'loss':
+        return 'Verlust';
+      case 'reservation':
+        return 'Reservierung';
+      case 'reservation_release':
+        return 'Reservierung aufgehoben';
+      case 'correction':
         return 'Korrektur';
     }
   }
@@ -191,5 +184,27 @@ export class StockPositionListComponent {
 
   areLotsOpen(productId: string): boolean {
     return this.openPositionIds().has(productId);
+  }
+
+  stockPosition(row: InventoryPresentationRow): StockPosition {
+    return {
+      catalog_product_id: row.actionId,
+      title: row.title,
+      available_quantity: row.quantity.available,
+      reserved_quantity: row.quantity.reserved,
+      on_hand_quantity: row.quantity.available + row.quantity.reserved,
+      oldest_available_unit_cost: row.costPerUnit.kind === 'known' ? row.costPerUnit.amount : null,
+      is_public_store: row.isPublicStore,
+    };
+  }
+
+  private detectWorkspaceId(): string {
+    return (
+      this.individualItems()[0]?.workspace_id ??
+      this.lots()[0]?.workspace_id ??
+      this.sales()[0]?.workspace_id ??
+      this.purchases()[0]?.workspace_id ??
+      ''
+    );
   }
 }

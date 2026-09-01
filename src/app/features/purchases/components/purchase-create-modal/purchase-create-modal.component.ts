@@ -8,6 +8,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { CurrencyPipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   LucideDynamicIcon,
@@ -17,9 +18,8 @@ import {
   LucidePackage as Package,
   LucideLayers as Layers,
   LucideBoxes as Boxes,
-  LucidePlusCircle as PlusCircle,
-  LucideTrash2 as Trash2,
   LucideTruck as Truck,
+  LucideCheckCircle2 as CheckCircle2,
 } from '@lucide/angular';
 import {
   beschreibePurchaseProblem,
@@ -45,15 +45,31 @@ import {
 import { Purchase } from '../../../../core/models/flipbase.models';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
+import { PurchaseCostingService } from '../../../../core/services/purchase-costing.service';
 import {
+  isPricedPurchaseLineDraft,
   PurchaseLineDraft,
   PurchaseLineEditorComponent,
 } from '../purchase-line-editor/purchase-line-editor.component';
+import {
+  PurchaseCostDraft,
+  PurchaseCostEditorComponent,
+  PurchaseCostType,
+} from '../purchase-cost-editor/purchase-cost-editor.component';
 
-interface ExtraCostEntry {
-  type: string;
-  amount: number;
-  description: string;
+const purchaseCostTypes = new Set<PurchaseCostType>([
+  'shipping',
+  'travel',
+  'packaging',
+  'transport',
+  'customs',
+  'import',
+  'fee',
+  'other',
+]);
+
+function isPurchaseCostType(value: string): value is PurchaseCostType {
+  return purchaseCostTypes.has(value as PurchaseCostType);
 }
 
 @Component({
@@ -66,6 +82,8 @@ interface ExtraCostEntry {
     CustomSelectComponent,
     DatePickerComponent,
     PurchaseLineEditorComponent,
+    PurchaseCostEditorComponent,
+    CurrencyPipe,
   ],
   templateUrl: './purchase-create-modal.component.html',
   host: { class: 'contents' },
@@ -75,6 +93,7 @@ export class PurchaseCreateModalComponent {
   private readonly purchaseService = inject(PurchaseService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
+  private readonly purchaseCostingService = inject(PurchaseCostingService);
   readonly sourcesService = inject(SourcesService);
   readonly suppliersService = inject(SuppliersService);
   readonly trackingService = inject(InboundTrackingService);
@@ -89,31 +108,12 @@ export class PurchaseCreateModalComponent {
 
   readonly closeIcon = X;
   readonly plusIcon = Plus;
-  readonly plusCircleIcon = PlusCircle;
-  readonly trashIcon = Trash2;
   readonly bagIcon = ShoppingBag;
   readonly packageIcon = Package;
   readonly layersIcon = Layers;
   readonly boxesIcon = Boxes;
   readonly truckIcon = Truck;
-
-  /**
-   * Die Zustaende als Liste statt als feste Auswahlfeld-Eintraege.
-   *
-   * Ein natives Auswahlfeld klappt eine Liste auf, die das Betriebssystem
-   * zeichnet - in seinen Farben, nicht in denen der Anwendung. Deshalb
-   * uebernimmt `app-custom-select`, und die Eintraege kommen von hier.
-   */
-  readonly kostenartOptionen: SelectOption<string>[] = [
-    { value: 'shipping', label: 'Versand' },
-    { value: 'travel', label: 'Fahrtkosten / Sprit' },
-    { value: 'packaging', label: 'Verpackungsmaterial' },
-    { value: 'transport', label: 'Spedition / Transport' },
-    { value: 'customs', label: 'Zoll' },
-    { value: 'import', label: 'Zoll / Importabgaben' },
-    { value: 'fee', label: 'Gebühren' },
-    { value: 'other', label: 'Sonstiges' },
-  ];
+  readonly checkIcon = CheckCircle2;
 
   /** Quellen und Lieferanten kommen aus den Stammdaten und aendern sich zur Laufzeit. */
   readonly quellenOptionen = computed<SelectOption<string | null>[]>(() => [
@@ -142,6 +142,8 @@ export class PurchaseCreateModalComponent {
 
   readonly isSubmitting = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
+  readonly persistedDraft = signal<Purchase | null>(null);
+  private persistedLineIdsByDraftId = new Map<string, string>();
 
   // Quick add states
   readonly isAddingSource = signal<boolean>(false);
@@ -149,9 +151,30 @@ export class PurchaseCreateModalComponent {
   readonly newSourceName = signal<string>('');
   readonly newSupplierName = signal<string>('');
 
-  // Additional costs list
-  readonly extraCosts = signal<ExtraCostEntry[]>([]);
+  /** Die Eingaben selbst leben im Kosteneditor; das Modal hält nur dessen aktuellen Entwurf. */
+  readonly costDrafts = signal<readonly PurchaseCostDraft[]>([]);
+  readonly initialCostDrafts = signal<readonly PurchaseCostDraft[]>([]);
+  readonly areAdditionalCostsValid = signal<boolean>(true);
   readonly purchaseLines = signal<readonly PurchaseLineDraft[]>([]);
+  readonly purchaseBasePrice = signal<number | null>(null);
+  readonly additionalCostsTotal = computed(() =>
+    this.costDrafts().reduce((sum, cost) => sum + cost.amount, 0),
+  );
+  readonly totalCosts = computed(() => {
+    const purchaseBasePrice = this.purchaseBasePrice();
+    return purchaseBasePrice === null
+      ? null
+      : Number((purchaseBasePrice + this.additionalCostsTotal()).toFixed(2));
+  });
+  readonly purchaseLineOptions = computed<SelectOption<string>[]>(() => {
+    const persistedLines = (this.persistedDraft() ?? this.purchase())?.purchase_lines ?? [];
+    if (persistedLines.length > 0) {
+      return persistedLines.map((line) => ({ value: line.id, label: line.title_snapshot }));
+    }
+    return this.purchaseLines().flatMap((line) =>
+      line.draftId ? [{ value: line.draftId, label: line.titleSnapshot }] : [],
+    );
+  });
 
   readonly form = new FormGroup({
     type: new FormControl<PurchaseType>('single', { nonNullable: true }),
@@ -165,9 +188,8 @@ export class PurchaseCreateModalComponent {
       nonNullable: true,
       validators: [Validators.required],
     }),
-    purchase_price: new FormControl<number>(0, {
-      nonNullable: true,
-      validators: [Validators.required, Validators.min(0)],
+    purchase_price: new FormControl<number | null>(null, {
+      validators: [Validators.min(0)],
     }),
     tracking_number: new FormControl<string>(''),
     tracking_carrier: new FormControl<TrackingCarrier | null>(null),
@@ -177,24 +199,6 @@ export class PurchaseCreateModalComponent {
     single_item_condition: new FormControl<ItemCondition>('used', { nonNullable: true }),
     single_item_expected_value: new FormControl<number | null>(null),
   });
-
-  addCostRow(): void {
-    this.extraCosts.update((costs) => [...costs, { type: 'shipping', amount: 0, description: '' }]);
-  }
-
-  removeCostRow(index: number): void {
-    this.extraCosts.update((costs) => costs.filter((_, i) => i !== index));
-  }
-
-  updateCostField(index: number, field: keyof ExtraCostEntry, value: string | number | null): void {
-    this.extraCosts.update((costs) =>
-      costs.map((cost, currentIndex) => {
-        if (currentIndex !== index) return cost;
-        if (field === 'amount') return { ...cost, amount: Number(value) || 0 };
-        return { ...cost, [field]: String(value ?? '') };
-      }),
-    );
-  }
 
   async saveNewSource(): Promise<void> {
     const name = this.newSourceName().trim();
@@ -259,6 +263,11 @@ export class PurchaseCreateModalComponent {
   private befuelltFuer: string | null = null;
 
   constructor() {
+    this.form.controls.type.valueChanges.subscribe(() => this.updatePurchasePriceEditability());
+    this.form.controls.purchase_price.valueChanges.subscribe((price) => {
+      this.purchaseBasePrice.set(price);
+    });
+    this.updatePurchasePriceEditability();
     effect(() => {
       const vorhandener = this.purchase();
       if (!vorhandener || this.befuelltFuer === vorhandener.id) return;
@@ -279,18 +288,65 @@ export class PurchaseCreateModalComponent {
 
       // Ohne die vorhandenen Zeilen waere das Speichern ein Loeschen: Der
       // Dialog schickt immer die vollstaendige Liste.
-      this.extraCosts.set(
-        (vorhandener.costs ?? []).map((k) => ({
-          type: k.type,
-          amount: Number(k.amount),
-          description: k.description ?? '',
-        })),
+      const existingCosts: readonly PurchaseCostDraft[] = (vorhandener.costs ?? []).map((cost) => ({
+        type: isPurchaseCostType(cost.type) ? cost.type : 'other',
+        amount: Number(cost.amount),
+        description: cost.description ?? '',
+        allocationMethod:
+          cost.allocation_method === 'direct'
+            ? 'direct'
+            : cost.allocation_method === 'quantity'
+              ? 'by_quantity'
+              : 'by_value',
+        targetPurchaseLineId: cost.target_purchase_line_id ?? null,
+      }));
+      this.initialCostDrafts.set(existingCosts);
+      this.costDrafts.set(existingCosts);
+      const existingLines: readonly PurchaseLineDraft[] = (vorhandener.purchase_lines ?? []).map(
+        (line) => ({
+          draftId: line.id,
+          catalogProductId: line.catalog_product_id ?? null,
+          titleSnapshot: line.title_snapshot,
+          lineKind: line.line_kind,
+          orderedQuantity: line.ordered_quantity,
+          condition: (line.condition_snapshot ?? 'used') as ItemCondition,
+          priceMode: line.price_mode ?? 'priced',
+          unitPurchasePrice: line.unit_purchase_price,
+          lineTotal: line.line_total,
+          estimatedMarketValue: line.estimated_market_value ?? null,
+        }),
       );
+      for (const line of existingLines) {
+        if (line.draftId) this.lineIdMap().set(line.draftId, line.draftId);
+      }
+      this.purchaseLines.set(existingLines);
     });
   }
 
   async onSubmit(): Promise<void> {
-    if (this.form.invalid) return;
+    await this.persistPurchase(false);
+  }
+
+  async onFinalize(): Promise<void> {
+    if (this.isSubmitting()) return;
+    await this.persistPurchase(true);
+  }
+
+  private async persistPurchase(finalizeAfterSave: boolean): Promise<void> {
+    if (this.isSubmitting()) return;
+    const purchaseLines = this.purchaseLines();
+    if (finalizeAfterSave && purchaseLines.length === 0) {
+      this.errorMessage.set('Bitte erfasse mindestens eine Einkaufsposition.');
+      return;
+    }
+    if (
+      this.form.controls.type.value !== 'mystery_pack' &&
+      !purchaseLines.every(isPricedPurchaseLineDraft)
+    ) {
+      this.errorMessage.set('Bitte erfasse alle Positionspreise vollständig.');
+      return;
+    }
+    if (this.form.invalid || !this.areAdditionalCostsValid()) return;
 
     this.isSubmitting.set(true);
     this.errorMessage.set(null);
@@ -309,18 +365,24 @@ export class PurchaseCreateModalComponent {
         (f.tracking_number ? this.trackingService.autoDetectCarrier(f.tracking_number) : null),
       original_url: f.original_url || null,
       notes: f.notes || null,
-      initial_costs: this.extraCosts().filter((c) => c.amount > 0),
+      initial_costs: this.costDrafts().filter((cost) => cost.amount > 0),
       single_item_condition: f.single_item_condition,
       single_item_expected_value: f.single_item_expected_value || undefined,
-      purchase_lines: this.purchaseLines(),
+      purchase_lines: purchaseLines,
     };
 
-    const vorhandener = this.purchase();
+    const vorhandener = this.persistedDraft() ?? this.purchase();
     let speicherergebnis: { error: Error | null };
     let anlegeergebnis: CreatePurchaseResult | null = null;
+    let aenderungsergebnis: Awaited<ReturnType<PurchaseService['updatePurchaseDraft']>> | null =
+      null;
     try {
       if (vorhandener) {
-        speicherergebnis = await this.speichereAenderung(vorhandener.id, payload);
+        aenderungsergebnis = await this.purchaseService.updatePurchaseDraft(
+          vorhandener.id,
+          payload,
+        );
+        speicherergebnis = { error: aenderungsergebnis.error };
       } else {
         anlegeergebnis = await this.purchaseService.createPurchase(payload);
         speicherergebnis = { error: anlegeergebnis.error };
@@ -328,10 +390,12 @@ export class PurchaseCreateModalComponent {
     } catch (ursache: unknown) {
       speicherergebnis = { error: this.alsError(ursache) };
     }
-    this.isSubmitting.set(false);
     const { error } = speicherergebnis;
 
     if (anlegeergebnis?.status === 'partial') {
+      this.isSubmitting.set(false);
+      this.persistedDraft.set(anlegeergebnis.data);
+      this.adoptPersistedLineIds(anlegeergebnis.data);
       const ungemeldeteProbleme = anlegeergebnis.problems.filter(
         (problem) => !problem.reportedBySyncStatus,
       );
@@ -341,12 +405,19 @@ export class PurchaseCreateModalComponent {
           ungemeldeteProbleme.map(beschreibePurchaseProblem).join('\n'),
         );
       }
+      if (finalizeAfterSave) {
+        this.errorMessage.set(
+          'Der Entwurf wurde gespeichert, ist aber noch unvollständig und wurde nicht abgeschlossen.',
+        );
+        return;
+      }
       this.created.emit();
       this.closed.emit();
       return;
     }
 
     if (error) {
+      this.isSubmitting.set(false);
       this.errorMessage.set(error.message);
       if (!anlegeergebnis?.reportedBySyncStatus) {
         this.meldeFehlerWennNichtSynchronisiert(
@@ -357,44 +428,117 @@ export class PurchaseCreateModalComponent {
         );
       }
     } else {
+      const gespeicherterEntwurf = aenderungsergebnis?.data ?? anlegeergebnis?.data ?? vorhandener;
+      if (gespeicherterEntwurf) {
+        this.persistedDraft.set(gespeicherterEntwurf);
+        this.adoptPersistedLineIds(gespeicherterEntwurf);
+      }
+      if (finalizeAfterSave && gespeicherterEntwurf) {
+        await this.finalizePersistedDraft(gespeicherterEntwurf);
+        return;
+      }
+      this.isSubmitting.set(false);
       this.toast.success(vorhandener ? 'Einkauf wurde gespeichert.' : 'Einkauf wurde angelegt.');
       this.created.emit();
       this.closed.emit();
     }
   }
 
-  onPurchaseLinesChanged(lines: readonly PurchaseLineDraft[]): void {
-    this.purchaseLines.set(lines);
-    const lineTotal = lines.reduce((total, line) => total + line.lineTotal, 0);
-    if (lineTotal > 0) this.form.controls.purchase_price.setValue(Number(lineTotal.toFixed(2)));
+  private async finalizePersistedDraft(purchase: Purchase): Promise<void> {
+    this.isSubmitting.set(true);
+    this.errorMessage.set(null);
+    let result: Awaited<ReturnType<PurchaseCostingService['finalizePurchase']>>;
+    try {
+      result = await this.purchaseCostingService.finalizePurchase(
+        purchase.workspace_id,
+        purchase.id,
+      );
+    } catch (cause: unknown) {
+      result = {
+        data: null,
+        error: this.alsError(cause),
+        reportedBySyncStatus: false,
+      };
+    }
+    this.isSubmitting.set(false);
+
+    if (result.error) {
+      this.errorMessage.set(result.error.message);
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Erfassung konnte nicht abgeschlossen werden.',
+        result.error,
+      );
+      return;
+    }
+
+    await this.purchaseService.refreshAfterFinalization(purchase.workspace_id, purchase.id);
+    this.persistedDraft.set(null);
+    this.toast.success('Erfassung wurde abgeschlossen.');
+    this.created.emit();
+    this.closed.emit();
   }
 
-  /**
-   * Uebernimmt die Aenderungen an einem vorhandenen Einkauf.
-   *
-   * Zwei Schritte, weil die Zusatzkosten in einer eigenen Tabelle stehen. Die
-   * Kosten kommen nur dran, wenn die Stammangaben durchgingen - sonst stuenden
-   * neue Kostenzeilen an einem Einkauf, dessen Aenderung gescheitert ist.
-   */
-  private async speichereAenderung(
-    id: string,
-    payload: CreatePurchasePayload,
-  ): Promise<{ error: Error | null }> {
-    const { error } = await this.purchaseService.updatePurchase(id, {
-      type: payload.type,
-      title: payload.title,
-      purchase_date: payload.purchase_date,
-      purchase_price: payload.purchase_price,
-      source_id: payload.source_id ?? null,
-      supplier_id: payload.supplier_id ?? null,
-      original_url: payload.original_url ?? null,
-      notes: payload.notes ?? null,
-      tracking_number: payload.tracking_number ?? null,
-      tracking_carrier: payload.tracking_carrier ?? null,
+  onPurchaseLinesChanged(lines: readonly PurchaseLineDraft[]): void {
+    const lineIds = this.lineIdMap();
+    const persistedLines = lines.map((line) => {
+      const persistedId = line.draftId ? lineIds.get(line.draftId) : undefined;
+      return persistedId ? { ...line, draftId: persistedId } : line;
     });
-    if (error) return { error };
+    this.purchaseLines.set(persistedLines);
+    this.updatePurchasePriceEditability();
+    if (this.form.controls.type.value === 'mystery_pack' || persistedLines.length === 0) return;
 
-    return this.purchaseService.ersetzeZusatzkosten(id, this.extraCosts());
+    if (persistedLines.some((line) => line.unitPurchasePrice === null || line.lineTotal === null)) {
+      this.form.controls.purchase_price.setValue(null);
+      return;
+    }
+    const lineTotal = persistedLines.reduce((total, line) => total + line.lineTotal!, 0);
+    this.form.controls.purchase_price.setValue(Number(lineTotal.toFixed(2)));
+  }
+
+  onCostsChanged(costs: readonly PurchaseCostDraft[]): void {
+    this.costDrafts.set(costs);
+  }
+
+  private updatePurchasePriceEditability(): void {
+    const purchasePrice = this.form.controls.purchase_price;
+    if (this.form.controls.type.value === 'mystery_pack') {
+      purchasePrice.enable({ emitEvent: false });
+      this.purchaseBasePrice.set(purchasePrice.value);
+      return;
+    }
+    purchasePrice.disable({ emitEvent: false });
+    this.purchaseBasePrice.set(purchasePrice.value);
+  }
+
+  private adoptPersistedLineIds(purchase: Purchase): void {
+    const persistedLines = purchase.purchase_lines ?? [];
+    const currentLines = this.purchaseLines();
+    if (persistedLines.length !== currentLines.length) return;
+
+    const lineIds = this.lineIdMap();
+    const rebasedLines = currentLines.map((line, index) => {
+      const persistedId = persistedLines[index].id;
+      if (line.draftId) lineIds.set(line.draftId, persistedId);
+      lineIds.set(persistedId, persistedId);
+      return { ...line, draftId: persistedId };
+    });
+    this.purchaseLines.set(rebasedLines);
+
+    const rebasedCosts = this.costDrafts().map((cost) => {
+      if (cost.allocationMethod !== 'direct' || !cost.targetPurchaseLineId) return cost;
+      return {
+        ...cost,
+        targetPurchaseLineId: lineIds.get(cost.targetPurchaseLineId) ?? cost.targetPurchaseLineId,
+      };
+    });
+    this.costDrafts.set(rebasedCosts);
+    this.initialCostDrafts.set(rebasedCosts);
+  }
+
+  private lineIdMap(): Map<string, string> {
+    this.persistedLineIdsByDraftId ??= new Map<string, string>();
+    return this.persistedLineIdsByDraftId;
   }
 
   private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {

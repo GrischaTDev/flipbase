@@ -1,7 +1,6 @@
 import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
-import { ProfitEngineService } from './profit-engine.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { InventoryService } from './inventory.service';
 import { SourcesService } from './sources.service';
@@ -10,7 +9,7 @@ import { WebhookService } from './webhook.service';
 import { SyncStatusService } from './sync-status.service';
 import { createLocalDemoId } from '../utils/client-identity';
 import { ReceivePurchaseLineInput, ReceivePurchaseResult, StockService } from './stock.service';
-import { MutationResult } from './catalog.service';
+import { MutationResult } from '../models/mutation-result.model';
 import {
   Purchase,
   PurchaseCost,
@@ -23,15 +22,31 @@ import {
   InboundTrackingStatus,
   TrackingMode,
 } from '../models/flipbase.models';
+import {
+  PurchaseCostAllocationMethod,
+  PurchaseLinePriceMode,
+} from '../models/purchase-costing.models';
 
 export interface CreatePurchaseLineInput {
+  readonly draftId?: string;
   readonly catalogProductId: string | null;
   readonly titleSnapshot: string;
   readonly lineKind: TrackingMode;
   readonly orderedQuantity: number;
-  readonly unitPurchasePrice: number;
-  readonly lineTotal: number;
+  readonly condition?: ItemCondition;
+  readonly priceMode?: PurchaseLinePriceMode;
+  readonly unitPurchasePrice: number | null;
+  readonly lineTotal: number | null;
+  readonly estimatedMarketValue?: number | null;
   readonly allocatedAdditionalCost?: number;
+}
+
+export interface CreatePurchaseCostInput {
+  readonly type: string;
+  readonly amount: number;
+  readonly description?: string;
+  readonly allocationMethod?: 'by_value' | 'by_quantity' | 'direct';
+  readonly targetPurchaseLineId?: string | null;
 }
 
 /**
@@ -51,7 +66,6 @@ export function toExactCents(value: number): number | null {
 export interface ReceiveIndividualPurchaseLineInput {
   readonly title: string;
   readonly condition: ItemCondition;
-  readonly allocatedPurchaseCost: number;
 }
 
 export interface ReceiveIndividualPurchaseResult {
@@ -66,7 +80,7 @@ export interface CreatePurchasePayload {
   type: PurchaseType;
   title: string;
   purchase_date: string;
-  purchase_price: number;
+  purchase_price: number | null;
   cost_allocation_mode?: CostAllocationMode;
   notes?: string | null;
   tracking_number?: string | null;
@@ -74,7 +88,7 @@ export interface CreatePurchasePayload {
   tracking_status?: InboundTrackingStatus | null;
   original_url?: string | null;
   items_count?: number;
-  initial_costs?: { type: string; amount: number; description?: string }[];
+  initial_costs?: readonly CreatePurchaseCostInput[];
   single_item_title?: string;
   single_item_category?: string;
   single_item_condition?: string;
@@ -84,6 +98,46 @@ export interface CreatePurchasePayload {
 
 export type PurchaseCreateProblemKind =
   'additional_costs' | 'purchase_lines' | 'inventory_item' | 'activity_log';
+
+export type PurchaseSaleHistoryState =
+  'idle' | 'loading' | 'recorded' | 'review_required' | 'none' | 'error';
+
+type ResolvedPurchaseSaleHistoryState = Extract<
+  PurchaseSaleHistoryState,
+  'recorded' | 'review_required' | 'none'
+>;
+
+interface PurchaseSaleHistoryOutcome {
+  readonly state: ResolvedPurchaseSaleHistoryState;
+  readonly reviewInventoryItemId: string | null;
+}
+
+interface PurchaseSaleHistoryRpcClient {
+  rpc(
+    name: 'get_purchase_sale_history',
+    args: Readonly<{ p_workspace_id: string; p_purchase_id: string }>,
+  ): Promise<{ data: unknown; error: unknown }>;
+}
+
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function parsePurchaseSaleHistoryOutcome(data: unknown): PurchaseSaleHistoryOutcome | null {
+  if (data === null || typeof data !== 'object' || Array.isArray(data)) return null;
+
+  const record = data as Readonly<Record<string, unknown>>;
+  const state = record['state'];
+  const reviewInventoryItemId = record['review_inventory_item_id'];
+  if (state !== 'recorded' && state !== 'review_required' && state !== 'none') return null;
+
+  if (state === 'review_required') {
+    if (typeof reviewInventoryItemId !== 'string' || !uuidPattern.test(reviewInventoryItemId)) {
+      return null;
+    }
+    return { state, reviewInventoryItemId };
+  }
+
+  return reviewInventoryItemId === null ? { state, reviewInventoryItemId: null } : null;
+}
 
 export interface PurchaseCreateProblem {
   readonly kind: PurchaseCreateProblemKind;
@@ -131,7 +185,6 @@ export class PurchaseService {
   private readonly supabase = inject(SupabaseService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
-  private readonly profitEngine = inject(ProfitEngineService);
   private readonly mockStore = inject(MockDataStoreService);
   private readonly webhookService = inject(WebhookService);
   private readonly stockService = inject(StockService);
@@ -150,7 +203,13 @@ export class PurchaseService {
   private readonly purchaseItemsFallback = signal<InventoryItem[]>([]);
   private readonly purchaseLinesRaw = signal<PurchaseLine[]>([]);
   private detailLoadRequestId = 0;
+  private saleHistoryLoadRequestId = 0;
+  private loadRequestId = 0;
   readonly isLoading = signal<boolean>(false);
+  readonly loadError = signal<Error | null>(null);
+  readonly loadedWorkspaceId = signal<string | null>(null);
+  readonly purchaseSaleHistoryState = signal<PurchaseSaleHistoryState>('idle');
+  readonly purchaseSaleReviewInventoryItemId = signal<string | null>(null);
 
   /**
    * Einkaufsliste mit abgeleiteter Artikelanzahl.
@@ -232,13 +291,15 @@ export class PurchaseService {
     try {
       effect(() => {
         const ws = this.workspaceService.currentWorkspace();
+        this.resetPurchaseDetail();
         if (ws) {
           this.loadPurchases(ws.id);
         } else {
+          this.loadRequestId += 1;
+          this.isLoading.set(false);
+          this.loadError.set(null);
+          this.loadedWorkspaceId.set(null);
           this.purchasesRaw.set([]);
-          this.selectedPurchaseRaw.set(null);
-          this.purchaseItemsFallback.set([]);
-          this.purchaseLinesRaw.set([]);
         }
       });
     } catch {
@@ -247,39 +308,45 @@ export class PurchaseService {
   }
 
   async loadPurchases(workspaceId: string): Promise<void> {
-    if (this.mockStore.isDemoMode()) {
-      const localPurchases = this.mockStore.getPurchases(workspaceId);
-      const localItems = this.mockStore.getItems(workspaceId);
-      const localPurchaseLines = this.mockStore.getPurchaseLines(workspaceId);
-      const localSources = this.mockStore.getSources();
-      const localSuppliers = this.mockStore.getSuppliers();
-
-      const enrichedLocal = localPurchases.map((p) => {
-        const matchingItems = localItems.filter((i) => i.purchase_id === p.id);
-        const matchingLines = localPurchaseLines.filter((line) => line.purchase_id === p.id);
-        const source =
-          p.source || (p.source_id ? localSources.find((s) => s.id === p.source_id) : undefined);
-        const supplier =
-          p.supplier ||
-          (p.supplier_id ? localSuppliers.find((s) => s.id === p.supplier_id) : undefined);
-        return {
-          ...p,
-          source,
-          supplier,
-          purchase_lines: matchingLines,
-          items_count: this.zaehleArtikel(
-            { ...p, purchase_lines: matchingLines },
-            matchingItems,
-            matchingLines,
-          ),
-        } as Purchase;
-      });
-      this.purchasesRaw.set(enrichedLocal);
-      return;
-    }
-
+    const requestId = ++this.loadRequestId;
     this.isLoading.set(true);
+    this.loadError.set(null);
+    this.loadedWorkspaceId.set(null);
+    this.purchasesRaw.set([]);
     try {
+      if (this.mockStore.isDemoMode()) {
+        const localPurchases = this.mockStore.getPurchases(workspaceId);
+        const localItems = this.mockStore.getItems(workspaceId);
+        const localPurchaseLines = this.mockStore.getPurchaseLines(workspaceId);
+        const localSources = this.mockStore.getSources();
+        const localSuppliers = this.mockStore.getSuppliers();
+
+        const enrichedLocal = localPurchases.map((p) => {
+          const matchingItems = localItems.filter((i) => i.purchase_id === p.id);
+          const matchingLines = localPurchaseLines.filter((line) => line.purchase_id === p.id);
+          const source =
+            p.source || (p.source_id ? localSources.find((s) => s.id === p.source_id) : undefined);
+          const supplier =
+            p.supplier ||
+            (p.supplier_id ? localSuppliers.find((s) => s.id === p.supplier_id) : undefined);
+          return {
+            ...p,
+            source,
+            supplier,
+            purchase_lines: matchingLines,
+            items_count: this.zaehleArtikel(
+              { ...p, purchase_lines: matchingLines },
+              matchingItems,
+              matchingLines,
+            ),
+          } as Purchase;
+        });
+        if (!this.isCurrentListLoad(requestId, workspaceId)) return;
+        this.purchasesRaw.set(enrichedLocal);
+        this.loadedWorkspaceId.set(workspaceId);
+        return;
+      }
+
       const { data, error } = await this.supabase.client
         .from('purchases')
         .select(
@@ -296,13 +363,14 @@ export class PurchaseService {
         .order('purchase_date', { ascending: false })
         .order('created_at', { ascending: false });
 
+      if (!this.isCurrentListLoad(requestId, workspaceId)) return;
+
       if (error) {
-        this.syncStatus.melde('Laden der Einkäufe', error);
-        this.purchasesRaw.set([]);
+        this.loadError.set(this.syncStatus.melde('Laden der Einkäufe', error));
       } else if (data) {
         const enriched = (data as unknown as Purchase[]).map((p) => {
           const costsSum = (p.costs || []).reduce((acc, cost) => acc + Number(cost.amount || 0), 0);
-          const totalCost = Number(p.purchase_price || 0) + costsSum;
+          const totalCost = p.purchase_price === null ? null : Number(p.purchase_price) + costsSum;
           return {
             ...p,
             items_count: this.zaehleArtikel(
@@ -310,36 +378,75 @@ export class PurchaseService {
               (p.items || []) as InventoryItem[],
               (p.purchase_lines || []) as PurchaseLine[],
             ),
-            total_purchase_cost: Number(totalCost.toFixed(2)),
+            total_purchase_cost: totalCost === null ? null : Number(totalCost.toFixed(2)),
           } as Purchase;
         });
         this.purchasesRaw.set(enriched);
+        this.loadedWorkspaceId.set(workspaceId);
       }
-    } catch (err) {
-      this.syncStatus.melde('Laden der Einkäufe', err);
-      this.purchasesRaw.set([]);
+    } catch (err: unknown) {
+      if (!this.isCurrentListLoad(requestId, workspaceId)) return;
+      this.loadError.set(this.syncStatus.melde('Laden der Einkäufe', err));
     } finally {
-      this.isLoading.set(false);
+      if (requestId === this.loadRequestId) this.isLoading.set(false);
     }
+  }
+
+  private isCurrentListLoad(requestId: number, workspaceId: string): boolean {
+    return (
+      requestId === this.loadRequestId &&
+      this.workspaceService.currentWorkspace()?.id === workspaceId
+    );
+  }
+
+  private resetPurchaseDetail(): void {
+    this.detailLoadRequestId += 1;
+    this.saleHistoryLoadRequestId += 1;
+    this.selectedPurchaseRaw.set(null);
+    this.purchaseItemsFallback.set([]);
+    this.purchaseLinesRaw.set([]);
+    this.purchaseSaleHistoryState.set('idle');
+    this.purchaseSaleReviewInventoryItemId.set(null);
+  }
+
+  private isCurrentDetailLoad(requestId: number, workspaceId: string): boolean {
+    return (
+      requestId === this.detailLoadRequestId &&
+      this.workspaceService.currentWorkspace()?.id === workspaceId
+    );
   }
 
   async getPurchaseById(id: string): Promise<Purchase | null> {
     const requestId = Number.isFinite(this.detailLoadRequestId) ? this.detailLoadRequestId + 1 : 1;
     this.detailLoadRequestId = requestId;
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    this.selectedPurchaseRaw.set(null);
+    this.purchaseItemsFallback.set([]);
+    this.purchaseLinesRaw.set([]);
+    if (!workspaceId) return null;
+    const saleHistoryLoad = workspaceId
+      ? this.loadPurchaseSaleHistory(workspaceId, id)
+      : Promise.resolve<PurchaseSaleHistoryState>('error');
     // Die lokale Abkürzung gilt nur im Demo-Modus. Für angemeldete Nutzer muss
     // die Datenbank gefragt werden: Die zugehörigen Artikel stehen seit der
     // Umstellung auf „Datenbank zuerst" nicht mehr im lokalen Spiegel, wodurch
     // die Einkaufs-Detailseite gar keine Artikel mehr anzeigte – und die
     // Kostenverteilung damit ins Leere lief.
     const existing = this.mockStore.isDemoMode()
-      ? this.purchases().find((p) => p.id === id) ||
-        this.mockStore.getPurchases().find((p) => p.id === id)
+      ? this.purchases().find((p) => p.id === id && p.workspace_id === workspaceId) ||
+        this.mockStore
+          .getPurchases(workspaceId)
+          .find((p) => p.id === id && p.workspace_id === workspaceId)
       : undefined;
     if (existing) {
-      const items = this.mockStore.getItems().filter((i) => i.purchase_id === id);
-      const lines = this.mockStore.getPurchaseLines().filter((line) => line.purchase_id === id);
-      const localSources = this.mockStore.getSources();
-      const localSuppliers = this.mockStore.getSuppliers();
+      const items = this.mockStore
+        .getItems(workspaceId)
+        .filter((i) => i.purchase_id === id && i.workspace_id === workspaceId);
+      const lines = this.mockStore
+        .getPurchaseLines(workspaceId)
+        .filter((line) => line.purchase_id === id && line.workspace_id === workspaceId);
+      const localSources = this.mockStore.getSources(workspaceId);
+      const localSuppliers = this.mockStore.getSuppliers(workspaceId);
       const source =
         existing.source ||
         (existing.source_id ? localSources.find((s) => s.id === existing.source_id) : undefined);
@@ -355,7 +462,8 @@ export class PurchaseService {
         purchase_lines: lines,
         items_count: this.zaehleArtikel({ ...existing, purchase_lines: lines }, items, lines),
       };
-      if (requestId !== this.detailLoadRequestId) return null;
+      await saleHistoryLoad;
+      if (!this.isCurrentDetailLoad(requestId, workspaceId)) return null;
       this.selectedPurchaseRaw.set(enriched);
       this.purchaseItemsFallback.set(items);
       this.purchaseLinesRaw.set(lines);
@@ -376,40 +484,57 @@ export class PurchaseService {
           purchase_lines!purchase_lines_purchase_id_fkey(*)
         `,
         )
+        .eq('workspace_id', workspaceId)
         .eq('id', id)
         .single();
 
-      if (requestId !== this.detailLoadRequestId) return null;
+      if (!this.isCurrentDetailLoad(requestId, workspaceId)) return null;
 
       if (error || !data) {
         if (error) this.syncStatus.melde('Abrufen des Einkaufs', error);
+        await saleHistoryLoad;
+        if (!this.isCurrentDetailLoad(requestId, workspaceId)) return null;
         return null;
       }
 
       const purchase = data as unknown as Purchase;
+      if (purchase.workspace_id !== workspaceId) {
+        await saleHistoryLoad;
+        return null;
+      }
+      const purchaseItemsForWorkspace = (purchase.items || []).filter(
+        (item) => item.workspace_id === workspaceId,
+      );
+      const purchaseLinesForWorkspace = (purchase.purchase_lines || []).filter(
+        (line) => line.workspace_id === workspaceId,
+      );
       const costsSum = (purchase.costs || []).reduce(
         (acc, cost) => acc + Number(cost.amount || 0),
         0,
       );
-      const totalCost = Number(purchase.purchase_price || 0) + costsSum;
+      const totalCost =
+        purchase.purchase_price === null ? null : Number(purchase.purchase_price) + costsSum;
 
       const enriched: Purchase = {
         ...purchase,
         type: purchase.type as PurchaseType,
+        items: purchaseItemsForWorkspace,
+        purchase_lines: purchaseLinesForWorkspace,
         items_count: this.zaehleArtikel(
           purchase,
-          purchase.items || [],
-          purchase.purchase_lines || [],
+          purchaseItemsForWorkspace,
+          purchaseLinesForWorkspace,
         ),
-        total_purchase_cost: Number(totalCost.toFixed(2)),
+        total_purchase_cost: totalCost === null ? null : Number(totalCost.toFixed(2)),
       };
 
+      await Promise.all([this.loadPurchaseLines(id, requestId), saleHistoryLoad]);
+      if (!this.isCurrentDetailLoad(requestId, workspaceId)) return null;
       this.selectedPurchaseRaw.set(enriched);
-      this.purchaseItemsFallback.set(purchase.items || []);
-      await this.loadPurchaseLines(id, requestId);
+      this.purchaseItemsFallback.set(purchaseItemsForWorkspace);
       return enriched;
     } catch (err) {
-      if (requestId === this.detailLoadRequestId) {
+      if (this.isCurrentDetailLoad(requestId, workspaceId)) {
         this.syncStatus.melde('GetPurchaseById', err);
       }
       return null;
@@ -420,20 +545,139 @@ export class PurchaseService {
     }
   }
 
+  /**
+   * Prüft unveränderliche Verkaufsbelege des Einkaufs. Der Zustand `none`
+   * wird ausschließlich nach einer erfolgreichen Serverantwort gesetzt;
+   * Ladefehler können deshalb niemals versehentlich das Wiederöffnen erlauben.
+   */
+  async loadPurchaseSaleHistory(
+    workspaceId: string,
+    purchaseId: string,
+  ): Promise<PurchaseSaleHistoryState> {
+    const requestId = Number.isFinite(this.saleHistoryLoadRequestId)
+      ? this.saleHistoryLoadRequestId + 1
+      : 1;
+    this.saleHistoryLoadRequestId = requestId;
+    this.purchaseSaleHistoryState.set('loading');
+    this.purchaseSaleReviewInventoryItemId.set(null);
+
+    let nextState: PurchaseSaleHistoryState;
+    let nextReviewInventoryItemId: string | null = null;
+    if (this.mockStore.isDemoMode()) {
+      const outcome = this.getLocalPurchaseSaleHistoryOutcome(workspaceId, purchaseId);
+      nextState = outcome.state;
+      nextReviewInventoryItemId = outcome.reviewInventoryItemId;
+    } else {
+      try {
+        const { data, error } = await (
+          this.supabase.client as unknown as PurchaseSaleHistoryRpcClient
+        ).rpc('get_purchase_sale_history', {
+          p_workspace_id: workspaceId,
+          p_purchase_id: purchaseId,
+        });
+        if (
+          requestId !== this.saleHistoryLoadRequestId ||
+          this.workspaceService.currentWorkspace()?.id !== workspaceId
+        ) {
+          return this.purchaseSaleHistoryState();
+        }
+        const outcome = error ? null : parsePurchaseSaleHistoryOutcome(data);
+        if (!outcome) {
+          this.syncStatus.melde(
+            'Prüfen des Einkaufs-Verkaufsverlaufs',
+            error ?? new Error('Die Antwort zum Verkaufsverlauf ist ungültig.'),
+          );
+          nextState = 'error';
+        } else {
+          nextState = outcome.state;
+          nextReviewInventoryItemId = outcome.reviewInventoryItemId;
+        }
+      } catch (error: unknown) {
+        if (
+          requestId !== this.saleHistoryLoadRequestId ||
+          this.workspaceService.currentWorkspace()?.id !== workspaceId
+        ) {
+          return this.purchaseSaleHistoryState();
+        }
+        this.syncStatus.melde('Prüfen des Einkaufs-Verkaufsverlaufs', error);
+        nextState = 'error';
+      }
+    }
+
+    if (
+      requestId !== this.saleHistoryLoadRequestId ||
+      this.workspaceService.currentWorkspace()?.id !== workspaceId
+    ) {
+      return this.purchaseSaleHistoryState();
+    }
+    this.purchaseSaleHistoryState.set(nextState);
+    this.purchaseSaleReviewInventoryItemId.set(nextReviewInventoryItemId);
+    return nextState;
+  }
+
+  private getLocalPurchaseSaleHistoryOutcome(
+    workspaceId: string,
+    purchaseId: string,
+  ): PurchaseSaleHistoryOutcome {
+    const items = this.mockStore
+      .getItems(workspaceId)
+      .filter((item) => item.purchase_id === purchaseId);
+    const itemIds = new Set(items.map((item) => item.id));
+    const lotIds = new Set(
+      this.mockStore
+        .getStockLots(workspaceId)
+        .filter((lot) => lot.purchase_id === purchaseId)
+        .map((lot) => lot.id),
+    );
+
+    const sales = this.mockStore.getSales(workspaceId);
+    const recordedItemIds = new Set(
+      sales.flatMap((sale) =>
+        (sale.lines ?? [])
+          .map((line) => line.inventory_item_id)
+          .filter((itemId): itemId is string => itemId !== null && itemId !== undefined),
+      ),
+    );
+    const reviewItem = items
+      .filter((item) => item.status === 'sold' && !recordedItemIds.has(item.id))
+      .sort((left, right) => left.id.localeCompare(right.id))[0];
+    if (reviewItem) {
+      return { state: 'review_required', reviewInventoryItemId: reviewItem.id };
+    }
+
+    const hasRecordedSale = sales.some(
+      (sale) =>
+        (sale.lines ?? []).some(
+          (line) =>
+            line.inventory_item_id !== null &&
+            line.inventory_item_id !== undefined &&
+            itemIds.has(line.inventory_item_id),
+        ) || (sale.lot_allocations ?? []).some((allocation) => lotIds.has(allocation.stock_lot_id)),
+    );
+    return {
+      state: hasRecordedSale ? 'recorded' : 'none',
+      reviewInventoryItemId: null,
+    };
+  }
+
   async loadPurchaseLines(purchaseId: string, detailRequestId?: number): Promise<void> {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     if (!workspaceId) {
-      if (detailRequestId === undefined || detailRequestId === this.detailLoadRequestId) {
+      if (detailRequestId === undefined) {
         this.purchaseLinesRaw.set([]);
       }
       return;
     }
+    const mayPublish = (): boolean =>
+      detailRequestId === undefined
+        ? this.workspaceService.currentWorkspace()?.id === workspaceId
+        : this.isCurrentDetailLoad(detailRequestId, workspaceId);
 
     if (this.mockStore.isDemoMode()) {
       const lines = this.mockStore
         .getPurchaseLines(workspaceId)
         .filter((line) => line.purchase_id === purchaseId);
-      if (detailRequestId === undefined || detailRequestId === this.detailLoadRequestId) {
+      if (mayPublish()) {
         this.purchaseLinesRaw.set(lines);
       }
       return;
@@ -447,16 +691,16 @@ export class PurchaseService {
         .eq('purchase_id', purchaseId)
         .order('created_at', { ascending: true });
       if (error) {
-        if (detailRequestId === undefined || detailRequestId === this.detailLoadRequestId) {
+        if (mayPublish()) {
           this.syncStatus.melde('Laden der Einkaufspositionen', error);
         }
         return;
       }
-      if (detailRequestId === undefined || detailRequestId === this.detailLoadRequestId) {
+      if (mayPublish()) {
         this.purchaseLinesRaw.set((data ?? []) as PurchaseLine[]);
       }
     } catch (error: unknown) {
-      if (detailRequestId === undefined || detailRequestId === this.detailLoadRequestId) {
+      if (mayPublish()) {
         this.syncStatus.melde('Laden der Einkaufspositionen', error);
       }
     }
@@ -474,7 +718,18 @@ export class PurchaseService {
       };
     }
 
-    const normalizedLines = this.normalizePurchaseLines(payload.purchase_lines ?? []);
+    const moneyError = this.validatePurchaseMoney(payload);
+    if (moneyError) {
+      return {
+        status: 'failed',
+        data: null,
+        error: moneyError,
+        reportedBySyncStatus: false,
+        problems: [],
+      };
+    }
+
+    const normalizedLines = this.normalizePurchaseLines(payload.purchase_lines ?? [], payload.type);
     if (normalizedLines.error) {
       return {
         status: 'failed',
@@ -488,15 +743,23 @@ export class PurchaseService {
     const mode: CostAllocationMode = payload.cost_allocation_mode || 'even';
     // Leerzeilen aus dem Formular sind keine Kosten und haetten sonst dauerhaft
     // mit 0 EUR in der Aufstellung des Einkaufs gestanden.
-    const kostenZeilen: PurchaseCost[] = (payload.initial_costs || [])
+    const kostenZeilen = (payload.initial_costs || [])
       .filter((c) => Number(c.amount) > 0)
       .map((c) => ({
         type: c.type,
         amount: Number(c.amount),
         description: c.description?.trim() || null,
+        allocation_method: this.toPersistedAllocationMethod(
+          payload.type === 'mystery_pack' ? 'by_quantity' : (c.allocationMethod ?? 'by_value'),
+        ),
+        target_purchase_line_id:
+          c.allocationMethod === 'direct' ? (c.targetPurchaseLineId ?? null) : null,
       }));
     const extraCostsSum = kostenZeilen.reduce((acc, c) => acc + c.amount, 0);
-    const totalCost = payload.purchase_price + extraCostsSum;
+    const totalCost =
+      payload.purchase_price === null
+        ? null
+        : Number((payload.purchase_price + extraCostsSum).toFixed(2));
 
     // Aus den geladenen Stammdaten, nicht aus dem lokalen Spiegel: Der ist im
     // angemeldeten Betrieb leer, wodurch die frische Kachel weder Quelle noch
@@ -536,11 +799,42 @@ export class PurchaseService {
     };
 
     if (this.mockStore.isDemoMode()) {
-      const lines = this.allocateLocalPurchaseCosts(
-        newPurchase,
-        this.createLocalPurchaseLines(ws.id, newPurchase.id, normalizedLines.data),
+      const createdLines = this.createLocalPurchaseLines(
+        ws.id,
+        newPurchase.id,
+        normalizedLines.data,
       );
-      const persistenceError = this.mockStore.savePurchaseWithLines(newPurchase, lines);
+      const lineIdsByDraftId = new Map<string, string>();
+      normalizedLines.data.forEach((line, index) => {
+        if (line.draftId) lineIdsByDraftId.set(line.draftId, createdLines[index].id);
+      });
+      const unknownDirectTarget = kostenZeilen.find(
+        (cost) =>
+          cost.allocation_method === 'direct' &&
+          (!cost.target_purchase_line_id || !lineIdsByDraftId.has(cost.target_purchase_line_id)),
+      );
+      if (unknownDirectTarget) {
+        return {
+          status: 'failed',
+          data: null,
+          error: new Error('Die direkte Kostenzuordnung verweist auf keine Einkaufsposition.'),
+          reportedBySyncStatus: false,
+          problems: [],
+        };
+      }
+      const persistedPurchase: Purchase = {
+        ...newPurchase,
+        costs: kostenZeilen.map((cost) => ({
+          ...cost,
+          target_purchase_line_id:
+            cost.allocation_method === 'direct' && cost.target_purchase_line_id
+              ? (lineIdsByDraftId.get(cost.target_purchase_line_id) ?? null)
+              : null,
+        })),
+      };
+      const lines = this.allocateLocalPurchaseCosts(persistedPurchase, createdLines);
+      const purchaseWithLines: Purchase = { ...persistedPurchase, purchase_lines: lines };
+      const persistenceError = this.mockStore.savePurchaseWithLines(purchaseWithLines, lines);
       if (persistenceError) {
         return {
           status: 'failed',
@@ -550,27 +844,27 @@ export class PurchaseService {
           problems: [],
         };
       }
-      this.purchasesRaw.update((list) => [newPurchase, ...list]);
-      if (this.selectedPurchase()?.id === newPurchase.id) {
+      this.purchasesRaw.update((list) => [purchaseWithLines, ...list]);
+      if (this.selectedPurchase()?.id === purchaseWithLines.id) {
         this.purchaseLinesRaw.update((current) => [...current, ...lines]);
       }
       const problems = await this.legeEinzelartikelAn(
-        newPurchase,
+        purchaseWithLines,
         payload,
         lines.find((line) => line.line_kind === 'individual')?.id,
       );
-      this.webhookService.sendPurchaseNotification(newPurchase);
+      this.webhookService.sendPurchaseNotification(purchaseWithLines);
       return problems.length > 0
         ? {
             status: 'partial',
-            data: newPurchase,
+            data: purchaseWithLines,
             error: null,
             reportedBySyncStatus: problems.some((problem) => problem.reportedBySyncStatus),
             problems,
           }
         : {
             status: 'success',
-            data: newPurchase,
+            data: purchaseWithLines,
             error: null,
             reportedBySyncStatus: false,
             problems: [],
@@ -594,20 +888,26 @@ export class PurchaseService {
           tracking_status:
             payload.tracking_status || (payload.tracking_number ? 'in_transit' : 'pending'),
           original_url: payload.original_url || null,
-          total_purchase_cost: totalCost,
         },
         p_expenses: kostenZeilen.map((cost) => ({
           type: cost.type,
           amount: cost.amount,
           description: cost.description,
+          allocation_method: cost.allocation_method,
+          target_purchase_line_ref:
+            cost.allocation_method === 'direct' ? cost.target_purchase_line_id : null,
         })),
         p_lines: normalizedLines.data.map((line) => ({
+          client_ref: line.draftId ?? null,
           catalog_product_id: line.catalogProductId,
           title_snapshot: line.titleSnapshot,
           line_kind: line.lineKind,
           ordered_quantity: line.orderedQuantity,
+          price_mode: line.priceMode ?? 'priced',
           unit_purchase_price: line.unitPurchasePrice,
           line_total: line.lineTotal,
+          condition_snapshot: line.condition ?? null,
+          estimated_market_value: line.estimatedMarketValue ?? null,
           allocated_additional_cost: line.allocatedAdditionalCost ?? 0,
         })),
       });
@@ -642,6 +942,7 @@ export class PurchaseService {
         costs,
         purchase_lines: lines,
         items_count: lines.reduce((count, line) => count + line.ordered_quantity, 0),
+        total_purchase_cost: dbPurchase.total_purchase_cost ?? newPurchase.total_purchase_cost,
       };
       this.mockStore.savePurchase(finalPurchase);
       this.purchasesRaw.update((list) => [
@@ -683,6 +984,138 @@ export class PurchaseService {
     }
   }
 
+  async updatePurchaseDraft(
+    purchaseId: string,
+    payload: CreatePurchasePayload,
+  ): Promise<MutationResult<Purchase>> {
+    const workspace = this.workspaceService.currentWorkspace();
+    if (!workspace) {
+      return {
+        data: null,
+        error: new Error('Kein aktiver Workspace'),
+        reportedBySyncStatus: false,
+      };
+    }
+
+    const moneyError = this.validatePurchaseMoney(payload);
+    if (moneyError) {
+      return { data: null, error: moneyError, reportedBySyncStatus: false };
+    }
+
+    const normalizedLines = this.normalizePurchaseLines(payload.purchase_lines ?? [], payload.type);
+    if (normalizedLines.error) {
+      return { data: null, error: normalizedLines.error, reportedBySyncStatus: false };
+    }
+
+    const mode: CostAllocationMode = payload.cost_allocation_mode || 'even';
+    const costs = (payload.initial_costs ?? [])
+      .filter((cost) => Number(cost.amount) > 0)
+      .map((cost) => ({
+        type: cost.type,
+        amount: Number(cost.amount),
+        description: cost.description?.trim() || null,
+        allocation_method: this.toPersistedAllocationMethod(
+          payload.type === 'mystery_pack' ? 'by_quantity' : (cost.allocationMethod ?? 'by_value'),
+        ),
+        target_purchase_line_ref:
+          cost.allocationMethod === 'direct' ? (cost.targetPurchaseLineId ?? null) : null,
+      }));
+    const source = payload.source_id
+      ? this.sourcesService.sources().find((entry) => entry.id === payload.source_id)
+      : undefined;
+    const supplier = payload.supplier_id
+      ? this.suppliersService.suppliers().find((entry) => entry.id === payload.supplier_id)
+      : undefined;
+
+    if (this.mockStore.isDemoMode()) {
+      return this.updateLocalPurchaseDraft(
+        workspace.id,
+        purchaseId,
+        payload,
+        normalizedLines.data,
+        costs,
+        source,
+        supplier,
+      );
+    }
+
+    try {
+      const { data, error } = await this.supabase.client.rpc('update_purchase_draft', {
+        p_workspace_id: workspace.id,
+        p_purchase_id: purchaseId,
+        p_purchase: {
+          source_id: payload.source_id || null,
+          supplier_id: payload.supplier_id || null,
+          type: payload.type,
+          title: payload.title.trim(),
+          purchase_date: payload.purchase_date,
+          purchase_price: payload.purchase_price,
+          cost_allocation_mode: mode,
+          notes: payload.notes?.trim() || null,
+          tracking_number: payload.tracking_number?.trim() || null,
+          tracking_carrier: payload.tracking_carrier || (payload.tracking_number ? 'dhl' : null),
+          tracking_status:
+            payload.tracking_status || (payload.tracking_number ? 'in_transit' : 'pending'),
+          original_url: payload.original_url || null,
+        },
+        p_expenses: costs,
+        p_lines: normalizedLines.data.map((line) => ({
+          client_ref: line.draftId ?? null,
+          catalog_product_id: line.catalogProductId,
+          title_snapshot: line.titleSnapshot,
+          line_kind: line.lineKind,
+          ordered_quantity: line.orderedQuantity,
+          price_mode: line.priceMode ?? 'priced',
+          unit_purchase_price: line.unitPurchasePrice,
+          line_total: line.lineTotal,
+          condition_snapshot: line.condition ?? null,
+          estimated_market_value: line.estimatedMarketValue ?? null,
+          allocated_additional_cost: line.allocatedAdditionalCost ?? 0,
+        })),
+      });
+      if (error || !data || typeof data !== 'object') {
+        const reported = this.syncStatus.melde(
+          'Speichern des Einkaufsentwurfs',
+          error ?? new Error('Der Einkaufsentwurf wurde nicht zurückgegeben.'),
+        );
+        return { data: null, error: reported, reportedBySyncStatus: true };
+      }
+
+      const response = data as unknown as Record<string, unknown>;
+      const dbPurchase = response['purchase'] as Purchase | undefined;
+      if (!dbPurchase?.id) throw new Error('Der Einkaufsentwurf wurde nicht zurückgegeben.');
+      const lines = Array.isArray(response['purchase_lines'])
+        ? (response['purchase_lines'] as PurchaseLine[])
+        : [];
+      const persistedCosts = Array.isArray(response['purchase_costs'])
+        ? (response['purchase_costs'] as PurchaseCost[])
+        : [];
+      const updatedPurchase: Purchase = {
+        ...dbPurchase,
+        source,
+        supplier,
+        costs: persistedCosts,
+        purchase_lines: lines,
+        items_count: lines.reduce((count, line) => count + line.ordered_quantity, 0),
+      };
+      this.mockStore.savePurchase(updatedPurchase);
+      this.purchasesRaw.update((current) =>
+        current.map((purchase) => (purchase.id === purchaseId ? updatedPurchase : purchase)),
+      );
+      if (this.selectedPurchase()?.id === purchaseId) {
+        this.selectedPurchaseRaw.set(updatedPurchase);
+        this.purchaseLinesRaw.set(lines);
+      }
+      return { data: updatedPurchase, error: null, reportedBySyncStatus: false };
+    } catch (cause: unknown) {
+      return {
+        data: null,
+        error: this.syncStatus.melde('Speichern des Einkaufsentwurfs', cause),
+        reportedBySyncStatus: true,
+      };
+    }
+  }
+
   async createPurchaseLines(
     purchaseId: string,
     inputs: readonly CreatePurchaseLineInput[],
@@ -712,6 +1145,9 @@ export class PurchaseService {
       received_quantity: 0,
       unit_purchase_price: line.unitPurchasePrice,
       line_total: line.lineTotal,
+      price_mode: line.priceMode ?? 'priced',
+      condition_snapshot: line.condition ?? null,
+      estimated_market_value: line.estimatedMarketValue ?? null,
       allocated_additional_cost: line.allocatedAdditionalCost ?? 0,
     }));
 
@@ -788,6 +1224,175 @@ export class PurchaseService {
     }
   }
 
+  private updateLocalPurchaseDraft(
+    workspaceId: string,
+    purchaseId: string,
+    payload: CreatePurchasePayload,
+    inputs: readonly CreatePurchaseLineInput[],
+    costs: readonly {
+      type: string;
+      amount: number;
+      description: string | null;
+      allocation_method: PurchaseCostAllocationMethod;
+      target_purchase_line_ref: string | null;
+    }[],
+    source: Purchase['source'],
+    supplier: Purchase['supplier'],
+  ): MutationResult<Purchase> {
+    const existingPurchase = this.mockStore
+      .getPurchases(workspaceId)
+      .find((purchase) => purchase.id === purchaseId);
+    if (!existingPurchase) {
+      return {
+        data: null,
+        error: new Error('Der Einkauf wurde nicht gefunden.'),
+        reportedBySyncStatus: false,
+      };
+    }
+    if (existingPurchase.entry_status === 'finalized') {
+      return {
+        data: null,
+        error: new Error('Nur ein nicht finalisierter Einkaufsentwurf kann bearbeitet werden.'),
+        reportedBySyncStatus: false,
+      };
+    }
+
+    const existingLines = this.mockStore
+      .getPurchaseLines(workspaceId)
+      .filter((line) => line.purchase_id === purchaseId);
+    const existingLinesById = new Map(existingLines.map((line) => [line.id, line]));
+    const inventoryItems = this.mockStore.getItems(workspaceId);
+    const stockLots = this.mockStore.getStockLots(workspaceId);
+    const lineIdsByRef = new Map<string, string>();
+    const unsafeStructuralChange = inputs.find((input) => {
+      const existingLine = input.draftId ? existingLinesById.get(input.draftId) : undefined;
+      if (!existingLine) return false;
+      const hasReceivedInventory =
+        existingLine.received_quantity > 0 ||
+        inventoryItems.some((item) => item.purchase_line_id === existingLine.id) ||
+        stockLots.some((lot) => lot.purchase_line_id === existingLine.id);
+      return (
+        hasReceivedInventory &&
+        (existingLine.line_kind !== input.lineKind ||
+          existingLine.ordered_quantity !== input.orderedQuantity ||
+          existingLine.catalog_product_id !== input.catalogProductId)
+      );
+    });
+    if (unsafeStructuralChange) {
+      return {
+        data: null,
+        error: new Error(
+          'Bereits erfasste Einkaufspositionen dürfen strukturell nicht verändert werden.',
+        ),
+        reportedBySyncStatus: false,
+      };
+    }
+    const updatedLines = inputs.map((input) => {
+      const existingLine = input.draftId ? existingLinesById.get(input.draftId) : undefined;
+      const line: PurchaseLine = {
+        ...(existingLine ?? this.createLocalPurchaseLines(workspaceId, purchaseId, [input])[0]),
+        catalog_product_id: input.catalogProductId,
+        title_snapshot: input.titleSnapshot,
+        line_kind: input.lineKind,
+        ordered_quantity: input.orderedQuantity,
+        unit_purchase_price: input.unitPurchasePrice,
+        line_total: input.lineTotal,
+        allocated_additional_cost: input.allocatedAdditionalCost ?? 0,
+        price_mode: input.priceMode ?? 'priced',
+        condition_snapshot: input.condition ?? null,
+        estimated_market_value: input.estimatedMarketValue ?? null,
+      };
+      if (input.draftId) lineIdsByRef.set(input.draftId, line.id);
+      lineIdsByRef.set(line.id, line.id);
+      return line;
+    });
+
+    const retainedLineIds = new Set(updatedLines.map((line) => line.id));
+    const removedReceivedLine = existingLines.find(
+      (line) =>
+        !retainedLineIds.has(line.id) &&
+        (line.received_quantity > 0 ||
+          inventoryItems.some((item) => item.purchase_line_id === line.id) ||
+          stockLots.some((lot) => lot.purchase_line_id === line.id)),
+    );
+    if (removedReceivedLine) {
+      return {
+        data: null,
+        error: new Error('Bereits erfasste Einkaufspositionen dürfen nicht entfernt werden.'),
+        reportedBySyncStatus: false,
+      };
+    }
+
+    const unknownDirectTarget = costs.find(
+      (cost) =>
+        cost.allocation_method === 'direct' &&
+        (!cost.target_purchase_line_ref || !lineIdsByRef.has(cost.target_purchase_line_ref)),
+    );
+    if (unknownDirectTarget) {
+      return {
+        data: null,
+        error: new Error('Die direkte Kostenzuordnung verweist auf keine Einkaufsposition.'),
+        reportedBySyncStatus: false,
+      };
+    }
+
+    const persistedCosts: PurchaseCost[] = costs.map((cost) => ({
+      type: cost.type,
+      amount: cost.amount,
+      description: cost.description,
+      allocation_method: cost.allocation_method,
+      target_purchase_line_id:
+        cost.allocation_method === 'direct' && cost.target_purchase_line_ref
+          ? (lineIdsByRef.get(cost.target_purchase_line_ref) ?? null)
+          : null,
+    }));
+    const totalAdditionalCosts = persistedCosts.reduce((sum, cost) => sum + cost.amount, 0);
+    const draftPurchase: Purchase = {
+      ...existingPurchase,
+      source_id: payload.source_id ?? null,
+      supplier_id: payload.supplier_id ?? null,
+      source,
+      supplier,
+      type: payload.type,
+      title: payload.title.trim(),
+      purchase_date: payload.purchase_date,
+      purchase_price: payload.purchase_price,
+      total_purchase_cost:
+        payload.purchase_price === null
+          ? null
+          : Number((payload.purchase_price + totalAdditionalCosts).toFixed(2)),
+      cost_allocation_mode: payload.cost_allocation_mode ?? 'even',
+      notes: payload.notes?.trim() || null,
+      tracking_number: payload.tracking_number?.trim() || null,
+      tracking_carrier:
+        payload.tracking_carrier || (payload.tracking_number?.trim() ? 'dhl' : null),
+      tracking_status:
+        payload.tracking_status || (payload.tracking_number?.trim() ? 'in_transit' : 'pending'),
+      original_url: payload.original_url || null,
+      items_count: updatedLines.reduce((sum, line) => sum + line.ordered_quantity, 0),
+      costs: persistedCosts,
+      updated_at: new Date().toISOString(),
+    };
+    const allocatedLines = this.allocateLocalPurchaseCosts(draftPurchase, updatedLines);
+    const persistedPurchase: Purchase = { ...draftPurchase, purchase_lines: allocatedLines };
+    const persistenceError = this.mockStore.savePurchaseWithLines(
+      persistedPurchase,
+      allocatedLines,
+    );
+    if (persistenceError) {
+      return { data: null, error: persistenceError, reportedBySyncStatus: false };
+    }
+
+    this.purchasesRaw.update((current) =>
+      current.map((purchase) => (purchase.id === purchaseId ? persistedPurchase : purchase)),
+    );
+    if (this.selectedPurchase()?.id === purchaseId) {
+      this.selectedPurchaseRaw.set(persistedPurchase);
+      this.purchaseLinesRaw.set(allocatedLines);
+    }
+    return { data: persistedPurchase, error: null, reportedBySyncStatus: false };
+  }
+
   private createLocalPurchaseLines(
     workspaceId: string,
     purchaseId: string,
@@ -805,6 +1410,9 @@ export class PurchaseService {
       unit_purchase_price: line.unitPurchasePrice,
       line_total: line.lineTotal,
       allocated_additional_cost: line.allocatedAdditionalCost ?? 0,
+      price_mode: line.priceMode ?? 'priced',
+      condition_snapshot: line.condition ?? null,
+      estimated_market_value: line.estimatedMarketValue ?? null,
     }));
   }
 
@@ -817,10 +1425,15 @@ export class PurchaseService {
     const totalCents = Math.round(
       (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0) * 100,
     );
-    const valueTotal = lines.reduce((sum, line) => sum + line.line_total, 0);
+    const pricedLines = lines.filter(
+      (line): line is PurchaseLine & { line_total: number } => line.line_total !== null,
+    );
+    const valueTotal = pricedLines.reduce((sum, line) => sum + line.line_total, 0);
     const weights = lines.map((line) =>
       purchase.cost_allocation_mode === 'value_weighted' && valueTotal > 0
-        ? line.line_total
+        ? line.line_total === null
+          ? 0
+          : line.line_total
         : line.ordered_quantity,
     );
     const weightTotal = weights.reduce((sum, weight) => sum + weight, 0);
@@ -842,7 +1455,10 @@ export class PurchaseService {
     }));
   }
 
-  private normalizePurchaseLines(inputs: readonly CreatePurchaseLineInput[]): {
+  private normalizePurchaseLines(
+    inputs: readonly CreatePurchaseLineInput[],
+    purchaseType?: PurchaseType,
+  ): {
     data: readonly CreatePurchaseLineInput[];
     error: Error | null;
   } {
@@ -850,8 +1466,17 @@ export class PurchaseService {
       ...line,
       titleSnapshot: line.titleSnapshot.trim(),
       orderedQuantity: Number(line.orderedQuantity),
-      unitPurchasePrice: Number(line.unitPurchasePrice),
-      lineTotal: Number(line.lineTotal),
+      priceMode: line.priceMode ?? 'priced',
+      unitPurchasePrice: line.unitPurchasePrice === null ? null : Number(line.unitPurchasePrice),
+      lineTotal: line.lineTotal === null ? null : Number(line.lineTotal),
+      estimatedMarketValue:
+        line.estimatedMarketValue === null || line.estimatedMarketValue === undefined
+          ? null
+          : Number(line.estimatedMarketValue),
+      allocatedAdditionalCost:
+        line.allocatedAdditionalCost === undefined
+          ? undefined
+          : Number(line.allocatedAdditionalCost),
     }));
     for (const line of lines) {
       if (
@@ -868,6 +1493,38 @@ export class PurchaseService {
         return { data: [], error: new Error('Einzelartikel haben immer die Menge eins.') };
       }
       if (
+        line.estimatedMarketValue !== null &&
+        (!Number.isFinite(line.estimatedMarketValue) ||
+          line.estimatedMarketValue < 0 ||
+          toExactCents(line.estimatedMarketValue) === null)
+      ) {
+        return { data: [], error: new Error('Der geschätzte Marktwert ist ungültig.') };
+      }
+      if (
+        line.allocatedAdditionalCost !== undefined &&
+        (!Number.isFinite(line.allocatedAdditionalCost) ||
+          line.allocatedAdditionalCost < 0 ||
+          toExactCents(line.allocatedAdditionalCost) === null)
+      ) {
+        return { data: [], error: new Error('Die manuelle Kostenzuordnung ist ungültig.') };
+      }
+      if (purchaseType === 'mystery_pack') {
+        if (
+          line.priceMode !== 'unpriced_mystery' ||
+          line.unitPurchasePrice !== null ||
+          line.lineTotal !== null
+        ) {
+          return {
+            data: [],
+            error: new Error('Mystery-Positionen dürfen keinen erfundenen Einkaufspreis haben.'),
+          };
+        }
+        continue;
+      }
+      if (
+        line.priceMode !== 'priced' ||
+        line.unitPurchasePrice === null ||
+        line.lineTotal === null ||
         !Number.isFinite(line.unitPurchasePrice) ||
         line.unitPurchasePrice < 0 ||
         !Number.isFinite(line.lineTotal) ||
@@ -891,6 +1548,38 @@ export class PurchaseService {
     return { data: lines, error: null };
   }
 
+  private validatePurchaseMoney(payload: CreatePurchasePayload): Error | null {
+    if (
+      payload.purchase_price !== null &&
+      (typeof payload.purchase_price !== 'number' ||
+        payload.purchase_price < 0 ||
+        toExactCents(payload.purchase_price) === null)
+    ) {
+      return new Error('Der Kaufpreis muss centgenau und darf nicht negativ sein.');
+    }
+
+    for (const cost of payload.initial_costs ?? []) {
+      if (
+        typeof cost.amount !== 'number' ||
+        !Number.isFinite(cost.amount) ||
+        cost.amount < 0 ||
+        (cost.amount > 0 && toExactCents(cost.amount) === null)
+      ) {
+        return new Error('Zusatzkosten müssen positive centgenaue Beträge sein.');
+      }
+    }
+
+    return null;
+  }
+
+  private toPersistedAllocationMethod(
+    method: NonNullable<CreatePurchaseCostInput['allocationMethod']>,
+  ): PurchaseCostAllocationMethod {
+    if (method === 'by_quantity') return 'quantity';
+    if (method === 'direct') return 'direct';
+    return 'value_weighted';
+  }
+
   /**
    * Schreibt die im Formular erfassten Zusatzkosten als eigene Zeilen.
    *
@@ -904,6 +1593,7 @@ export class PurchaseService {
    * Behelfskennung, und der Fremdschluessel zeigte ins Leere.
    */
   private async legeZusatzkostenAn(
+    workspaceId: string,
     purchaseId: string,
     zeilen: PurchaseCost[],
   ): Promise<{ error: Error | null; reportedBySyncStatus: boolean }> {
@@ -912,6 +1602,7 @@ export class PurchaseService {
     try {
       const { error } = await this.supabase.client.from('purchase_costs').insert(
         zeilen.map((z) => ({
+          workspace_id: workspaceId,
           purchase_id: purchaseId,
           type: z.type,
           amount: z.amount,
@@ -960,6 +1651,11 @@ export class PurchaseService {
     // ausgewähltem Typ „Einzelkauf“ doppelt im Bestand erscheinen.
     if (einkauf.type !== 'single' || (payload.purchase_lines?.length ?? 0) > 0) return [];
 
+    // Ein unbekannter Draft-Preis ist kein echter Nullpreis. Ein bepreister
+    // Draft-Artikel startet kostenneutral; die Finalisierung weist ihm die
+    // abgeleiteten Kosten atomar zu.
+    if (einkauf.purchase_price === null) return [];
+
     const ergebnis = await this.inventory.createItem({
       purchase_id: einkauf.id,
       purchase_line_id: purchaseLineId ?? null,
@@ -967,7 +1663,7 @@ export class PurchaseService {
       category: payload.single_item_category?.trim() || null,
       condition: (payload.single_item_condition as ItemCondition) || 'used',
       status: payload.tracking_number?.trim() ? 'needs_review' : 'received',
-      allocated_purchase_cost: einkauf.total_purchase_cost || einkauf.purchase_price,
+      allocated_purchase_cost: 0,
       expected_value: payload.single_item_expected_value ?? null,
     });
     if (ergebnis.error) {
@@ -1018,7 +1714,7 @@ export class PurchaseService {
       type?: PurchaseType;
       title?: string;
       purchase_date?: string;
-      purchase_price?: number;
+      purchase_price?: number | null;
       source_id?: string | null;
       supplier_id?: string | null;
       original_url?: string | null;
@@ -1121,12 +1817,16 @@ export class PurchaseService {
     purchaseId: string,
     kosten: { type: string; amount: number; description?: string | null }[],
   ): Promise<{ error: Error | null }> {
+    const purchase = this.purchasesRaw().find((entry) => entry.id === purchaseId);
+    if (!purchase) return { error: new Error('Der Einkauf wurde nicht gefunden.') };
+
     // Leerzeilen aus dem Formular sind keine Kosten. Sie wegzulassen ist
     // wichtiger als es aussieht: Eine Zeile mit 0 EUR haette sonst dauerhaft
     // in der Kostenaufstellung des Einkaufs gestanden.
     const zeilen: PurchaseCost[] = kosten
       .filter((k) => Number(k.amount) > 0)
       .map((k) => ({
+        workspace_id: purchase.workspace_id,
         purchase_id: purchaseId,
         type: k.type,
         amount: Number(k.amount),
@@ -1142,7 +1842,8 @@ export class PurchaseService {
     const anwenden = (p: Purchase): Purchase => ({
       ...p,
       costs: gespeicherteZeilen,
-      total_purchase_cost: Number((Number(p.purchase_price || 0) + summe).toFixed(2)),
+      total_purchase_cost:
+        p.purchase_price === null ? null : Number((Number(p.purchase_price) + summe).toFixed(2)),
       updated_at: new Date().toISOString(),
     });
 
@@ -1176,6 +1877,7 @@ export class PurchaseService {
           .from('purchase_costs')
           .insert(
             zeilen.map((z) => ({
+              workspace_id: purchase.workspace_id,
               purchase_id: purchaseId,
               type: z.type,
               amount: z.amount,
@@ -1192,22 +1894,6 @@ export class PurchaseService {
           ...zeile,
           amount: Number(zeile.amount),
         }));
-      }
-
-      const { error: summenFehler } = await this.supabase.client
-        .from('purchases')
-        .update({
-          total_purchase_cost: Number(
-            (
-              (this.purchasesRaw().find((p) => p.id === purchaseId)?.purchase_price ?? 0) + summe
-            ).toFixed(2),
-          ),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', purchaseId);
-
-      if (summenFehler) {
-        return { error: this.syncStatus.melde('Aendern der Zusatzkosten', summenFehler) };
       }
     } catch (e: unknown) {
       return { error: this.syncStatus.melde('Aendern der Zusatzkosten', e) };
@@ -1342,10 +2028,21 @@ export class PurchaseService {
           reportedBySyncStatus: false,
         };
       }
+      await this.refreshInventoryAfterMutation(workspaceId);
+      if (this.workspaceService.currentWorkspace()?.id !== workspaceId) {
+        return {
+          data: {
+            purchaseLine: result.purchaseLine,
+            inventoryItem: result.inventoryItem,
+            purchase: result.purchase,
+          },
+          error: null,
+          reportedBySyncStatus: false,
+        };
+      }
       this.purchaseLinesRaw.update((lines) =>
         lines.map((line) => (line.id === purchaseLineId ? result.purchaseLine! : line)),
       );
-      this.inventory.uebernehmeArtikelAenderungen([result.inventoryItem]);
       this.uebernehmeEinkaufLokal(result.purchase);
       return {
         data: {
@@ -1366,7 +2063,6 @@ export class PurchaseService {
         p_item: {
           title: input.title,
           condition: input.condition,
-          allocated_purchase_cost: input.allocatedPurchaseCost,
         },
       });
       if (error || !data) {
@@ -1387,10 +2083,17 @@ export class PurchaseService {
           reportedBySyncStatus: false,
         };
       }
+      await this.refreshInventoryAfterMutation(workspaceId);
+      if (this.workspaceService.currentWorkspace()?.id !== workspaceId) {
+        return {
+          data: { purchaseLine: confirmed, inventoryItem, purchase },
+          error: null,
+          reportedBySyncStatus: false,
+        };
+      }
       this.purchaseLinesRaw.update((lines) =>
         lines.map((line) => (line.id === purchaseLineId ? confirmed : line)),
       );
-      this.inventory.uebernehmeArtikelAenderungen([inventoryItem]);
       this.uebernehmeEinkaufLokal(purchase);
       return {
         data: { purchaseLine: confirmed, inventoryItem, purchase },
@@ -1400,6 +2103,36 @@ export class PurchaseService {
     } catch (error: unknown) {
       const reported = this.syncStatus.melde('Wareneingang für Einzelartikel buchen', error);
       return { data: null, error: reported, reportedBySyncStatus: true };
+    }
+  }
+
+  private async refreshInventoryAfterMutation(workspaceId: string): Promise<void> {
+    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+    await this.inventory.loadInventory(workspaceId);
+  }
+
+  /**
+   * Stellt nach einer bestätigten Finalisierung alle drei Anzeigequellen
+   * gemeinsam auf denselben Datenbankstand. Komponenten rufen damit nicht
+   * mehrere, leicht auseinanderlaufende Einzel-Refreshes auf.
+   */
+  async refreshAfterFinalization(workspaceId: string, purchaseId: string): Promise<void> {
+    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+    await Promise.all([
+      this.loadPurchases(workspaceId),
+      this.stockService.loadPositions(workspaceId),
+      this.inventory.loadInventory(workspaceId),
+    ]);
+    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+
+    const selected = this.selectedPurchaseRaw();
+    const refreshed = this.purchasesRaw().find(
+      (purchase) => purchase.id === purchaseId && purchase.workspace_id === workspaceId,
+    );
+    if (selected?.id === purchaseId && selected.workspace_id === workspaceId && refreshed) {
+      this.selectedPurchaseRaw.set(refreshed);
+      this.purchaseItemsFallback.set([]);
+      this.purchaseLinesRaw.set(refreshed.purchase_lines ?? []);
     }
   }
 
@@ -1436,6 +2169,9 @@ export class PurchaseService {
     amount: number,
     description?: string,
   ): Promise<{ error: Error | null }> {
+    const purchase = this.purchasesRaw().find((entry) => entry.id === purchaseId);
+    if (!purchase) return { error: new Error('Der Einkauf wurde nicht gefunden.') };
+
     let costId = `cost-${Date.now()}`;
 
     if (!this.mockStore.isDemoMode()) {
@@ -1443,6 +2179,7 @@ export class PurchaseService {
         const { data, error } = await this.supabase.client
           .from('purchase_costs')
           .insert({
+            workspace_id: purchase.workspace_id,
             purchase_id: purchaseId,
             type,
             amount,
@@ -1462,6 +2199,7 @@ export class PurchaseService {
 
     const neueKosten: PurchaseCost = {
       id: costId,
+      workspace_id: purchase.workspace_id,
       purchase_id: purchaseId,
       type,
       amount,
@@ -1470,9 +2208,10 @@ export class PurchaseService {
     const anwenden = (purchase: Purchase): Purchase => ({
       ...purchase,
       costs: [...(purchase.costs ?? []), neueKosten],
-      total_purchase_cost: Number(
-        ((purchase.total_purchase_cost || purchase.purchase_price) + amount).toFixed(2),
-      ),
+      total_purchase_cost:
+        purchase.purchase_price === null
+          ? null
+          : Number(((purchase.total_purchase_cost ?? purchase.purchase_price) + amount).toFixed(2)),
     });
 
     this.purchasesRaw.update((purchases) =>
@@ -1545,70 +2284,12 @@ export class PurchaseService {
   async redistributeCosts(
     purchaseId: string,
     mode: CostAllocationMode,
-    itemValues?: { id: string; expected_value: number }[],
+    _itemValues?: { id: string; expected_value: number }[],
   ): Promise<{ error: Error | null }> {
-    const purchase = this.selectedPurchase();
-    if (!purchase || purchase.id !== purchaseId) return { error: null };
-
-    const items = this.purchaseItems();
-    if (items.length === 0) return { error: null };
-
-    const totalCost = purchase.total_purchase_cost || purchase.purchase_price;
-
-    let updatedItems: InventoryItem[] = [];
-
-    // Die Verteilung rechnet in ganzen Cent und vergibt den Rest nach groesstem
-    // Anteil. So entspricht die Summe der zugeordneten Kosten exakt dem
-    // Einkaufspreis - Grundlage fuer das § 25a-Journal und den DATEV-Export.
-    if (mode === 'value_weighted') {
-      const erwarteteWerte = items.map((it) => {
-        const custom = itemValues?.find((v) => v.id === it.id);
-        return custom ? custom.expected_value : (it.expected_value ?? 0);
-      });
-      const anteile = this.profitEngine.allocateCosts(totalCost, erwarteteWerte);
-
-      updatedItems = items.map((it, index) => ({
-        ...it,
-        expected_value: erwarteteWerte[index],
-        allocated_purchase_cost: anteile[index],
-      }));
-    } else if (mode === 'even') {
-      const anteile = this.profitEngine.allocateCosts(
-        totalCost,
-        items.map(() => 1),
-      );
-      updatedItems = items.map((it, index) => ({
-        ...it,
-        allocated_purchase_cost: anteile[index],
-      }));
-    }
-
-    if (!this.mockStore.isDemoMode()) {
-      const modusErgebnis = await this.speichereVerteilungsmodus(purchaseId, mode);
-      if (modusErgebnis.error) return modusErgebnis;
-
-      try {
-        for (const it of updatedItems) {
-          const { error } = await this.supabase.client
-            .from('inventory_items')
-            .update({
-              allocated_purchase_cost: it.allocated_purchase_cost,
-              expected_value: it.expected_value,
-            })
-            .eq('id', it.id);
-
-          if (error) {
-            return { error: this.syncStatus.melde('Kostenverteilung', error) };
-          }
-        }
-      } catch (e: unknown) {
-        return { error: this.syncStatus.melde('Kostenverteilung', e) };
-      }
-    }
-
-    this.inventory.uebernehmeArtikelAenderungen(updatedItems);
-    this.uebernehmeVerteilungsmodusLokal(purchaseId, mode);
-    return { error: null };
+    // Im Entwurf ist der Modus nur eine Planungseingabe. Echte Artikel- und
+    // Loskosten schreibt ausschliesslich die atomare Einkaufsfinalisierung.
+    // Insbesondere darf der geschaetzte Marktwert keine Kosten gewichten.
+    return this.updateCostAllocationMode(purchaseId, mode);
   }
 
   async deletePurchaseCost(costId: string, purchaseId: string): Promise<{ error: Error | null }> {
@@ -1642,7 +2323,6 @@ export class PurchaseService {
       title: string;
       category?: string;
       condition: ItemCondition;
-      allocated_purchase_cost?: number;
       expected_value?: number;
       purchase_line_id?: string | null;
     },
@@ -1654,7 +2334,7 @@ export class PurchaseService {
       category: itemData.category || null,
       condition: itemData.condition,
       status: 'received',
-      allocated_purchase_cost: itemData.allocated_purchase_cost || 0,
+      allocated_purchase_cost: 0,
       expected_value: itemData.expected_value ?? null,
     });
   }

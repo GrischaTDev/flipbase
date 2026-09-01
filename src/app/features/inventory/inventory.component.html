@@ -8,11 +8,15 @@
         <span
           class="rounded-md border border-fb-line bg-fb-surface-alt px-2 py-0.5 font-mono text-[10px] font-bold text-fb-text-secondary"
         >
-          {{ filteredUnitCount() }} Stück
+          @if (inventoryPresentation().sourceState === 'known') {
+            {{ filteredUnitCount() }} Stück
+          } @else {
+            Wird geladen
+          }
         </span>
       </div>
       <p class="mt-0.5 text-xs text-fb-text-muted">
-        Mengenpositionen und Einzelstücke in einer gemeinsamen Inventaransicht.
+        Alle Artikel, Bestände, Kosten und Verkäufe in einer gemeinsamen Ansicht.
       </p>
     </div>
 
@@ -68,35 +72,43 @@
         <svg [lucideIcon]="boxesIcon" class="h-4 w-4" aria-hidden="true"></svg>
         <span>Gefilterter Bestand</span>
       </div>
-      <strong class="mt-1 block font-mono text-lg text-fb-text-primary"
-        >{{ filteredUnitCount() }} Stück</strong
-      >
+      <strong class="mt-1 block font-mono text-lg text-fb-text-primary">
+        @if (inventoryPresentation().sourceState === 'known') {
+          {{ filteredUnitCount() }} Stück
+        } @else {
+          Noch offen
+        }
+      </strong>
     </article>
     <article class="linear-surface rounded-xl p-3">
       <div class="flex items-center gap-2 text-xs text-fb-text-muted">
         <svg [lucideIcon]="coinsIcon" class="h-4 w-4" aria-hidden="true"></svg>
-        <span>Gebundenes Kapital</span>
+        <span>Bestandswert</span>
       </div>
       <strong class="mt-1 block font-mono text-lg text-fb-text-primary">
-        {{ totalTiedCapital() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        <app-cost-state [state]="filteredInventoryValue()" />
       </strong>
     </article>
     <article class="linear-surface rounded-xl p-3">
       <div class="flex items-center gap-2 text-xs text-fb-text-muted">
         <svg [lucideIcon]="tagIcon" class="h-4 w-4" aria-hidden="true"></svg>
-        <span>Erwarteter Wert</span>
+        <span>Geschätzter Marktwert</span>
       </div>
       <strong class="mt-1 block font-mono text-lg text-fb-text-primary">
-        {{ totalExpectedValue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        <app-cost-state [state]="totalExpectedValue()" />
       </strong>
     </article>
     <article class="linear-surface rounded-xl p-3">
       <div class="flex items-center gap-2 text-xs text-fb-text-muted">
         <svg [lucideIcon]="trendingIcon" class="h-4 w-4" aria-hidden="true"></svg>
-        <span>Gewinnpotenzial</span>
+        <span>Verkauft</span>
       </div>
-      <strong class="mt-1 block font-mono text-lg text-emerald-400">
-        {{ totalProfitPotential() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+      <strong class="mt-1 block font-mono text-lg text-fb-text-primary">
+        @if (inventoryPresentation().sourceState === 'known') {
+          {{ soldUnitCount() }} Stück
+        } @else {
+          Noch offen
+        }
       </strong>
     </article>
   </section>
@@ -158,7 +170,7 @@
 
     <div class="flex flex-wrap items-center justify-between gap-2">
       <p class="text-xs text-fb-text-muted">
-        Auswahl und Etikettendruck beziehen sich auf Einzelstücke.
+        Auswahl und Etikettendruck beziehen sich auf einzeln nachverfolgte Artikel.
       </p>
       <button
         type="button"
@@ -166,28 +178,30 @@
         class="linear-btn-secondary rounded-lg px-3 py-1.5 text-xs font-semibold"
         [attr.aria-pressed]="isAllSelected()"
       >
-        {{ isAllSelected() ? 'Auswahl aufheben' : 'Alle sichtbaren Einzelstücke auswählen' }}
+        {{ isAllSelected() ? 'Auswahl aufheben' : 'Alle sichtbaren Artikel auswählen' }}
       </button>
     </div>
   </section>
 
-  @if (stockService.isLoading()) {
+  @if (inventoryPresentation().sourceState === 'loading') {
     <p class="linear-surface rounded-xl px-4 py-3 text-sm text-fb-text-secondary" role="status">
-      Mengenbestand wird geladen…
+      Inventardaten werden vollständig geladen…
     </p>
-  } @else if (stockService.loadError(); as error) {
+  } @else if (inventoryPresentation().sourceState === 'error') {
     <div
       class="linear-surface flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-500/30 px-4 py-3"
       role="alert"
     >
       <div>
-        <p class="text-sm font-semibold text-rose-300">Mengenbestand konnte nicht geladen werden</p>
-        <p class="text-xs text-fb-text-muted">{{ error.message }}</p>
+        <p class="text-sm font-semibold text-rose-300">
+          Inventardaten konnten nicht vollständig geladen werden
+        </p>
+        <p class="text-xs text-fb-text-muted">Mengen und Geldwerte bleiben bis dahin offen.</p>
       </div>
       <button
         type="button"
-        (click)="reloadStock()"
-        class="linear-btn-secondary rounded-lg px-3 py-1.5 text-xs font-semibold"
+        (click)="reloadInventorySources()"
+        class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
       >
         Erneut laden
       </button>
@@ -195,10 +209,19 @@
   }
 
   <app-stock-position-list
-    [positions]="filteredStockPositions()"
-    [individualItems]="filteredItems()"
+    [presentationRows]="filteredPresentationRows()"
+    [positions]="stockService.positions()"
+    [individualItems]="inventoryService.items()"
     [lots]="stockService.lots()"
     [movements]="stockService.movements()"
+    [purchases]="purchaseService.purchases()"
+    [sales]="salesService.sales()"
+    [workspaceId]="workspaceService.currentWorkspace()?.id ?? ''"
+    [inventoryState]="inventorySourceState()"
+    [stockState]="stockSourceState()"
+    [stockWorkspaceId]="stockService.loadedWorkspaceId()"
+    [purchaseState]="purchaseSourceState()"
+    [salesState]="salesSourceState()"
     [selectedItemIds]="selectedItemIds()"
     (sell)="openSaleForStockPosition($event)"
     (sellIndividual)="openSaleForIndividualItem($event)"

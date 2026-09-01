@@ -1,0 +1,136 @@
+<section class="space-y-2" aria-labelledby="additional-costs-heading">
+  <div class="flex items-center justify-between gap-3">
+    <div>
+      <h3
+        id="additional-costs-heading"
+        class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+      >
+        Zusätzliche Kosten
+      </h3>
+      <p class="mt-0.5 text-[10px] text-fb-text-muted">
+        Versand, Fahrtkosten, Zoll und Gebühren werden getrennt vom Warenbetrag erfasst.
+      </p>
+    </div>
+    <button
+      type="button"
+      (click)="addCostRow()"
+      class="inline-flex shrink-0 cursor-pointer items-center gap-1 text-[11px] font-semibold text-emerald-400 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+    >
+      <svg [lucideIcon]="plusCircleIcon" aria-hidden="true" class="size-3.5"></svg>
+      <span>Kosten hinzufügen</span>
+    </button>
+  </div>
+
+  <div [formGroup]="form">
+    <div formArrayName="costRows" class="space-y-2">
+      @for (costRow of costRows.controls; track $index; let index = $index) {
+        <div
+          [formGroupName]="index"
+          class="space-y-2 rounded-lg border border-fb-line bg-fb-well p-2"
+        >
+          <div
+            class="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_6rem_minmax(0,1.4fr)_auto] sm:items-end"
+          >
+            <div class="min-w-0">
+              <span class="text-[10px] font-semibold text-fb-text-muted">Art</span>
+              <app-custom-select
+                ariaLabel="Kostenart"
+                class="mt-1 block"
+                [options]="costTypeOptions"
+                formControlName="type"
+                size="sm"
+              />
+            </div>
+
+            <div class="min-w-0">
+              <span class="text-[10px] font-semibold text-fb-text-muted">Betrag</span>
+              <app-number-input
+                class="mt-1 block"
+                formControlName="amount"
+                platzhalter="0,00 €"
+                beschriftung="Betrag der Zusatzkosten"
+                [schritt]="0.5"
+                [minimum]="0"
+                [alsBetrag]="true"
+              />
+            </div>
+
+            <label class="min-w-0 text-[10px] font-semibold text-fb-text-muted">
+              Beschreibung
+              <input
+                type="text"
+                formControlName="description"
+                placeholder="Optional"
+                class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+              />
+            </label>
+
+            <button
+              type="button"
+              (click)="removeCostRow(index)"
+              aria-label="Zusatzkosten löschen"
+              title="Zusatzkosten löschen"
+              class="inline-flex h-7 cursor-pointer items-center justify-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/10 px-2 text-[10px] font-semibold text-rose-400 transition hover:border-rose-400/60 hover:bg-rose-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60"
+            >
+              <svg [lucideIcon]="trashIcon" aria-hidden="true" class="size-3.5"></svg>
+              <span>Löschen</span>
+            </button>
+          </div>
+
+          @if (isMysteryPurchase()) {
+            <p class="text-[10px] text-fb-text-muted">
+              Verteilung:
+              <span class="font-semibold text-fb-text-secondary">Gleichmäßig pro Stück</span>
+            </p>
+          } @else {
+            <div class="border-t border-fb-line pt-2">
+              <button
+                type="button"
+                (click)="toggleAllocationDetails(index)"
+                [attr.aria-expanded]="isAllocationExpanded(index)"
+                class="cursor-pointer text-[10px] font-semibold text-indigo-300 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/60"
+              >
+                Verteilung ändern
+              </button>
+
+              @if (isAllocationExpanded(index)) {
+                <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <div>
+                    <span class="text-[10px] font-semibold text-fb-text-muted">Verteilung</span>
+                    <app-custom-select
+                      ariaLabel="Verteilung der Zusatzkosten"
+                      class="mt-1 block"
+                      [options]="allocationOptions"
+                      formControlName="allocationMethod"
+                      (valueChange)="onAllocationMethodChanged(index, $event)"
+                      size="sm"
+                    />
+                  </div>
+
+                  @if (costRow.controls.allocationMethod.value === 'direct') {
+                    <div>
+                      <span class="text-[10px] font-semibold text-fb-text-muted">Zielposition</span>
+                      <app-custom-select
+                        ariaLabel="Zielposition der Zusatzkosten"
+                        class="mt-1 block"
+                        [options]="purchaseLineOptions()"
+                        formControlName="targetPurchaseLineId"
+                        placeholder="Position wählen"
+                        size="sm"
+                      />
+                      @if (costRow.controls.targetPurchaseLineId.invalid) {
+                        <p class="mt-1 text-[10px] text-rose-400">
+                          Bitte wähle eine Zielposition aus.
+                        </p>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  </div>
+</section>

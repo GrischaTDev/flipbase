@@ -197,7 +197,16 @@
         <tbody class="divide-y divide-fb-line">
           @for (sale of filteredSales(); track sale.id) {
             @let ret = getReturnForSale(sale.id);
-            <tr class="hover:bg-fb-surface-alt transition group">
+            <tr
+              [id]="'sale-desktop-' + sale.id"
+              tabindex="-1"
+              [attr.data-sale-highlighted]="highlightedSaleId() === sale.id ? 'true' : null"
+              class="hover:bg-fb-surface-alt transition group outline-none"
+              [class.bg-indigo-500/15]="highlightedSaleId() === sale.id"
+              [class.ring-2]="highlightedSaleId() === sale.id"
+              [class.ring-inset]="highlightedSaleId() === sale.id"
+              [class.ring-indigo-400]="highlightedSaleId() === sale.id"
+            >
               <td class="py-3 px-4 font-semibold text-fb-text-primary group-last:rounded-bl-xl">
                 <div class="flex items-start gap-2">
                   <div class="space-y-0.5">
@@ -312,7 +321,15 @@
     <div class="space-y-2 md:hidden">
       @for (sale of filteredSales(); track sale.id) {
         @let ret = getReturnForSale(sale.id);
-        <div class="linear-card-interactive p-3.5 rounded-xl block space-y-2.5 font-mono">
+        <div
+          [id]="'sale-mobile-' + sale.id"
+          tabindex="-1"
+          [attr.data-sale-highlighted]="highlightedSaleId() === sale.id ? 'true' : null"
+          class="linear-card-interactive p-3.5 rounded-xl block space-y-2.5 font-mono outline-none"
+          [class.bg-indigo-500/15]="highlightedSaleId() === sale.id"
+          [class.ring-2]="highlightedSaleId() === sale.id"
+          [class.ring-indigo-400]="highlightedSaleId() === sale.id"
+        >
           <div class="flex items-start justify-between gap-2">
             <div>
               <div class="flex items-center gap-1.5">

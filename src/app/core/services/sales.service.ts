@@ -15,7 +15,7 @@ import {
   ShippingMode,
   StockMovement,
 } from '../models/flipbase.models';
-import { MutationResult } from './catalog.service';
+import { MutationResult } from '../models/mutation-result.model';
 import { StockService } from './stock.service';
 import { ReturnRecord } from '../models/return.models';
 import { createLocalDemoId } from '../utils/client-identity';
@@ -127,6 +127,9 @@ export class SalesService {
 
   readonly sales = signal<Sale[]>([]);
   readonly isLoading = signal<boolean>(false);
+  readonly loadError = signal<Error | null>(null);
+  readonly loadedWorkspaceId = signal<string | null>(null);
+  private loadRequestId = 0;
 
   constructor() {
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
@@ -140,6 +143,10 @@ export class SalesService {
         if (ws) {
           this.loadSales(ws.id);
         } else {
+          this.loadRequestId += 1;
+          this.isLoading.set(false);
+          this.loadError.set(null);
+          this.loadedWorkspaceId.set(null);
           this.sales.set([]);
         }
       });
@@ -149,14 +156,22 @@ export class SalesService {
   }
 
   async loadSales(workspaceId: string): Promise<void> {
-    if (this.mockStore.isDemoMode()) {
-      const localSales = this.mockStore.getSales(workspaceId).map((s) => this.enrichSaleMetrics(s));
-      this.sales.set(localSales);
-      return;
-    }
-
+    const requestId = ++this.loadRequestId;
     this.isLoading.set(true);
+    this.loadError.set(null);
+    this.loadedWorkspaceId.set(null);
+    this.sales.set([]);
     try {
+      if (this.mockStore.isDemoMode()) {
+        const localSales = this.mockStore
+          .getSales(workspaceId)
+          .map((s) => this.enrichSaleMetrics(s));
+        if (!this.isCurrentLoad(requestId, workspaceId)) return;
+        this.sales.set(localSales);
+        this.loadedWorkspaceId.set(workspaceId);
+        return;
+      }
+
       const { data, error } = await this.supabase.client
         .from('sales')
         .select(
@@ -179,19 +194,28 @@ export class SalesService {
         .order('sale_date', { ascending: false })
         .order('created_at', { ascending: false });
 
+      if (!this.isCurrentLoad(requestId, workspaceId)) return;
+
       if (error) {
-        this.syncStatus.melde('Laden der Verkäufe', error);
-        this.sales.set([]);
+        this.loadError.set(this.syncStatus.melde('Laden der Verkäufe', error));
       } else if (data) {
         const enriched = (data as unknown[]).map((sale) => this.mapLoadedSale(sale));
         this.sales.set(enriched);
+        this.loadedWorkspaceId.set(workspaceId);
       }
-    } catch (err) {
-      this.syncStatus.melde('Laden der Verkäufe', err);
-      this.sales.set([]);
+    } catch (err: unknown) {
+      if (!this.isCurrentLoad(requestId, workspaceId)) return;
+      this.loadError.set(this.syncStatus.melde('Laden der Verkäufe', err));
     } finally {
-      this.isLoading.set(false);
+      if (requestId === this.loadRequestId) this.isLoading.set(false);
     }
+  }
+
+  private isCurrentLoad(requestId: number, workspaceId: string): boolean {
+    return (
+      requestId === this.loadRequestId &&
+      this.workspaceService.currentWorkspace()?.id === workspaceId
+    );
   }
 
   public enrichSaleMetrics(raw: Sale): Sale {

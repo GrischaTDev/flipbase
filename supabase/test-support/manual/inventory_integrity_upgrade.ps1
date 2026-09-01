@@ -172,7 +172,7 @@ try {
     'cp', $fixturePath, "${containerName}:$containerFixturePath"
   ) -Description 'Kopieren der Legacy-Fixture'
   Invoke-CheckedCommand -Executable 'docker' -Arguments @(
-    'exec', $containerName, 'psql', '-X', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', 'postgres', '-f', $containerFixturePath
+    'exec', $containerName, 'psql', '-X', '-v', 'ON_ERROR_STOP=1', '-v', 'inventory_integrity_fixture=1', '-U', 'postgres', '-d', 'postgres', '-f', $containerFixturePath
   ) -Description 'Einspielen der Legacy-Fixture per psql'
 
   $beforeSnapshot = Capture-LegacySnapshot -OutputPath $beforeFile

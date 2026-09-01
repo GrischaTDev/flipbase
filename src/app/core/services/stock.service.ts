@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { PurchaseLine, StockLot, StockMovement, StockPosition } from '../models/flipbase.models';
-import { MutationResult } from './catalog.service';
+import { MutationResult } from '../models/mutation-result.model';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';

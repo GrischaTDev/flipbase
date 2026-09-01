@@ -136,6 +136,12 @@ begin
     raise exception 'appended open purchase line must set purchase status to partially_received, got %', v_receiving_status;
   end if;
 
+  delete from public.purchase_lines
+  where id = v_appended_line_id
+    and workspace_id = v_workspace_id;
+
+  perform public.finalize_purchase_costing(v_workspace_id, v_purchase_id);
+
   insert into public.purchases (id, workspace_id, type, title)
   values (v_individual_purchase_id, v_workspace_id, 'mystery_pack', 'individual receipt');
   insert into public.purchase_lines (

@@ -7,10 +7,10 @@ import {
   input,
   signal,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
   LucideArrowLeft as ArrowLeft,
@@ -52,16 +52,27 @@ import { ConfirmDialogService } from '../../../../shared/components/confirm-dial
 import { ItemCreateModalComponent } from '../../components/item-create-modal/item-create-modal.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
+import { SalesService } from '../../../../core/services/sales.service';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
+import {
+  CostStateComponent,
+  CostState,
+} from '../../../../shared/components/cost-state/cost-state.component';
+import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
+import {
+  buildInventoryPresentation,
+  InventorySourceState,
+} from '../../utils/inventory-presentation';
+import { editableItemStatusOptions } from '../../models/item-status-options';
 
-type ItemDetailBackLink =
-  | {
-      readonly commands: ['/purchases', string];
-      readonly label: 'Zurück zum Einkauf';
-    }
-  | {
-      readonly commands: ['/inventory'];
-      readonly label: 'Zurück zum Inventar';
-    };
+const purchaseReturnPath = /^\/purchases\/([A-Za-z0-9_-]+)$/;
+
+export function validatePurchaseReturnTo(value: string | null | undefined): string | null {
+  if (!value || value.includes('\\') || value.includes('?') || value.includes('#')) return null;
+  const match = purchaseReturnPath.exec(value);
+  if (!match || match[1] === '.' || match[1] === '..') return null;
+  return value;
+}
 
 @Component({
   selector: 'app-item-detail',
@@ -72,10 +83,11 @@ type ItemDetailBackLink =
     ReactiveFormsModule,
     CurrencyPipe,
     DatePipe,
-    TranslatePipe,
     LucideDynamicIcon,
     InventoryLabelModalComponent,
     CustomSelectComponent,
+    CostStateComponent,
+    ItemConditionLabelPipe,
   ],
   templateUrl: './item-detail.component.html',
   host: { class: 'block' },
@@ -102,29 +114,20 @@ export class ItemDetailComponent {
   ];
 
   readonly id = input.required<string>();
-  readonly fromPurchaseId = input<string | null>(null);
 
   private readonly dialog = inject(ConfirmDialogService);
   readonly inventoryService = inject(InventoryService);
   readonly mediaService = inject(MediaService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly toast = inject(ToastService);
+  readonly salesService = inject(SalesService);
+  private readonly workspaceService = inject(WorkspaceService);
 
   readonly currentItem = computed<InventoryItem | null>(() => {
     const item = this.inventoryService.selectedItem();
     return item?.id === this.id() ? item : null;
-  });
-
-  readonly backLink = computed<ItemDetailBackLink>(() => {
-    const item = this.currentItem();
-    const purchaseId = this.fromPurchaseId();
-    const isValidatedPurchase =
-      item?.id === this.id() && !!purchaseId && item.purchase_id === purchaseId;
-
-    return isValidatedPurchase
-      ? { commands: ['/purchases', purchaseId], label: 'Zurück zum Einkauf' }
-      : { commands: ['/inventory'], label: 'Zurück zum Inventar' };
   });
 
   readonly arrowLeftIcon = ArrowLeft;
@@ -157,6 +160,64 @@ export class ItemDetailComponent {
   readonly isUploading = signal<boolean>(false);
   readonly uploadError = signal<string | null>(null);
   readonly previewModalUrl = signal<string | null>(null);
+  private readonly queryParams = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
+  readonly backTarget = computed(() => {
+    const returnTo = validatePurchaseReturnTo(this.queryParams().get('returnTo'));
+    const item = this.currentItem();
+    return returnTo && item?.purchase_id && returnTo === `/purchases/${item.purchase_id}`
+      ? returnTo
+      : '/inventory';
+  });
+  readonly backLabel = computed(() =>
+    this.backTarget() === '/inventory' ? 'Zurück zum Inventar' : 'Zurück zum Einkauf',
+  );
+
+  readonly detailPresentation = computed(() => {
+    const item = this.inventoryService.selectedItem();
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (!item || !workspaceId || item.workspace_id !== workspaceId) return null;
+    const salesState: InventorySourceState = this.salesService.loadError()
+      ? 'error'
+      : this.salesService.loadedWorkspaceId() === workspaceId && !this.salesService.isLoading()
+        ? 'known'
+        : 'loading';
+    return (
+      buildInventoryPresentation({
+        workspaceId,
+        inventoryState: 'known',
+        stockState: 'known',
+        purchaseState: item.purchase ? 'known' : 'loading',
+        salesState,
+        individualItems: [item],
+        positions: [],
+        lots: [],
+        movements: [],
+        purchases: item.purchase ? [item.purchase] : [],
+        sales: this.salesService.sales(),
+      }).rows[0] ?? null
+    );
+  });
+
+  readonly additionalCostState = computed<CostState>(() => {
+    const item = this.inventoryService.selectedItem();
+    const row = this.detailPresentation();
+    if (!item || !row || row.costPerUnit.kind === 'open') return { kind: 'open' };
+    return {
+      kind: 'known',
+      amount: Number(
+        Math.max(0, row.costPerUnit.amount - Number(item.allocated_purchase_cost || 0)).toFixed(2),
+      ),
+    };
+  });
+
+  readonly purchaseCostShareState = computed<CostState>(() => {
+    const item = this.inventoryService.selectedItem();
+    const row = this.detailPresentation();
+    if (!item || !row || row.costPerUnit.kind === 'open') return { kind: 'open' };
+    return { kind: 'known', amount: Number(item.allocated_purchase_cost || 0) };
+  });
 
   readonly costForm = new FormGroup({
     type: new FormControl('repair', { nonNullable: true, validators: [Validators.required] }),
@@ -167,51 +228,7 @@ export class ItemDetailComponent {
     description: new FormControl(''),
   });
 
-  readonly statusOptions: SelectOption<ItemStatus>[] = [
-    {
-      value: 'received',
-      label: 'Auf Lager',
-      badgeClass: 'bg-blue-400',
-      colorClass: 'bg-blue-500/20 text-blue-300 border-blue-500/50 hover:bg-blue-500/30',
-    },
-    {
-      value: 'ready',
-      label: 'Bereit',
-      badgeClass: 'bg-amber-400',
-      colorClass: 'bg-amber-500/20 text-amber-300 border-amber-500/50 hover:bg-amber-500/30',
-    },
-    {
-      value: 'listed',
-      label: 'Gelistet',
-      badgeClass: 'bg-emerald-400',
-      colorClass:
-        'bg-emerald-500/20 text-emerald-300 border-emerald-500/50 hover:bg-emerald-500/30',
-    },
-    {
-      value: 'reserved',
-      label: 'Reserviert',
-      badgeClass: 'bg-slate-400',
-      colorClass: 'bg-slate-500/20 text-slate-200 border-slate-500/50 hover:bg-slate-500/30',
-    },
-    {
-      value: 'defective',
-      label: 'Defekt / Ersatzteil',
-      badgeClass: 'bg-rose-400',
-      colorClass: 'bg-rose-500/20 text-rose-300 border-rose-500/50 hover:bg-rose-500/30',
-    },
-    {
-      value: 'returned',
-      label: 'Retourniert',
-      badgeClass: 'bg-slate-400',
-      colorClass: 'bg-slate-500/20 text-slate-200 border-slate-500/50 hover:bg-slate-500/30',
-    },
-    {
-      value: 'archived',
-      label: 'Archiviert',
-      badgeClass: 'bg-slate-400',
-      colorClass: 'bg-slate-500/20 text-slate-200 border-slate-500/50 hover:bg-slate-500/30',
-    },
-  ];
+  readonly statusOptions: SelectOption<ItemStatus>[] = [...editableItemStatusOptions];
 
   constructor() {
     effect(() => {

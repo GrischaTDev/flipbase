@@ -10,23 +10,20 @@
     </a>
 
     <div class="flex items-center gap-2">
-      <button
-        type="button"
-        (click)="isEditModalOpen.set(true)"
-        class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
-      >
-        <svg [lucideIcon]="editIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
-        <span>Bearbeiten</span>
-      </button>
-
-      <button
-        type="button"
-        (click)="onDeletePurchase()"
-        class="p-1.5 rounded-lg text-fb-text-muted hover:text-rose-400 hover:bg-rose-500/10 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
-      >
-        <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
-        <span class="hidden sm:inline">Einkauf löschen</span>
-      </button>
+      @if (purchaseService.selectedPurchase(); as actionPurchase) {
+        <app-purchase-lifecycle-actions
+          [entryStatus]="actionPurchase.entry_status ?? 'draft'"
+          [saleHistoryState]="purchaseService.purchaseSaleHistoryState()"
+          [saleReviewInventoryItemId]="purchaseService.purchaseSaleReviewInventoryItemId()"
+          [submitting]="isLifecycleSubmitting()"
+          (editRequested)="isEditModalOpen.set(true)"
+          (deleteRequested)="onDeletePurchase()"
+          (finalizeRequested)="finalizePurchase()"
+          (reopenRequested)="reopenPurchase()"
+          (correctionRequested)="isCorrectionDialogOpen.set(true)"
+          (saleHistoryReloadRequested)="reloadPurchaseSaleHistory()"
+        />
+      }
     </div>
   </div>
 
@@ -55,7 +52,7 @@
                 class="px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold uppercase tracking-wider"
                 [class]="artStil().schild"
               >
-                {{ artStil().bezeichnung }}
+                {{ p.type | purchaseTypeLabel }}
               </span>
               <span class="text-[11px] text-fb-text-muted font-mono">
                 {{ p.purchase_date | date: 'dd.MM.yyyy' }}
@@ -136,7 +133,11 @@
           >Kaufpreis</span
         >
         <span class="text-xl font-bold text-fb-text-primary mt-1 block">
-          {{ p.purchase_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+          @if (p.purchase_price === null) {
+            Nicht erfasst
+          } @else {
+            {{ p.purchase_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+          }
         </span>
       </div>
 
@@ -145,11 +146,13 @@
           class="text-[10px] font-sans font-semibold uppercase tracking-wider text-fb-text-muted block"
           >Nebenkosten</span
         >
+        @let additionalCost = purchaseAdditionalCost(p);
         <span class="text-xl font-bold text-amber-400 mt-1 block">
-          {{
-            (p.total_purchase_cost || p.purchase_price) - p.purchase_price
-              | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-          }}
+          @if (additionalCost === null) {
+            Nicht erfasst
+          } @else {
+            {{ additionalCost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+          }
         </span>
       </div>
 
@@ -161,10 +164,13 @@
         <!-- Der Akzent, nicht das Gruen: Gesamtkosten sind der Betrag, auf
              den es ankommt - aber kein Ertrag. Gruen bleibt der Marge
              vorbehalten. -->
+        @let totalCost = purchaseTotalCost(p);
         <span class="text-xl font-bold text-indigo-400 mt-1 block">
-          {{
-            p.total_purchase_cost || p.purchase_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-          }}
+          @if (totalCost === null) {
+            Nicht erfasst
+          } @else {
+            {{ totalCost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+          }
         </span>
       </div>
 
@@ -180,7 +186,7 @@
       </div>
     </div>
 
-    <!-- Items & Interactive Cost Allocator Section -->
+    <!-- Einkaufspositionen und zugehöriger Bestand -->
     <div class="linear-surface rounded-2xl p-4 md:p-5 space-y-4 shadow-xl">
       <div
         class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-fb-border pb-3"
@@ -195,19 +201,8 @@
           </p>
         </div>
 
-        <div class="flex items-center gap-2">
-          <!-- Kostenallokator Studio Button -->
-          <button
-            type="button"
-            (click)="openAllocator()"
-            class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs cursor-pointer text-indigo-300 hover:text-fb-text-primary border-indigo-500/30 bg-indigo-500/10"
-            title="Paletten- & Konvolut-Kostenallokator öffnen"
-          >
-            <svg [lucideIcon]="chartIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
-            <span>Kostenallokator Studio</span>
-          </button>
-
-          @if (quantityPurchaseLines().length > 0) {
+        @if (p.entry_status !== 'finalized' && quantityPurchaseLines().length > 0) {
+          <div class="flex items-center gap-2">
             <button
               type="button"
               (click)="startReceivingLines()"
@@ -216,25 +211,30 @@
               <svg [lucideIcon]="checkIcon" class="size-3.5"></svg>
               <span>Wareneingang buchen</span>
             </button>
-          }
-        </div>
+          </div>
+        }
       </div>
 
-      <app-purchase-line-editor (linesChanged)="onPurchaseLineDraftsChanged($event)" />
-      @if (purchaseLineDrafts().length > 0) {
-        <div class="flex justify-end">
-          <button
-            type="button"
-            (click)="savePurchaseLines()"
-            [disabled]="isSavingPurchaseLines()"
-            class="linear-btn-primary cursor-pointer rounded-lg px-3.5 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {{ isSavingPurchaseLines() ? 'Speichere…' : 'Positionen speichern' }}
-          </button>
-        </div>
+      @if (p.entry_status !== 'finalized') {
+        <app-purchase-line-editor
+          [purchaseType]="p.type"
+          (linesChanged)="onPurchaseLineDraftsChanged($event)"
+        />
+        @if (purchaseLineDrafts().length > 0) {
+          <div class="flex justify-end">
+            <button
+              type="button"
+              (click)="savePurchaseLines()"
+              [disabled]="isSavingPurchaseLines()"
+              class="linear-btn-primary cursor-pointer rounded-lg px-3.5 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {{ isSavingPurchaseLines() ? 'Speichere…' : 'Positionen speichern' }}
+            </button>
+          </div>
+        }
       }
 
-      @if (isReceivingLines()) {
+      @if (p.entry_status !== 'finalized' && isReceivingLines()) {
         <section
           class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3"
           aria-labelledby="receipt-title"
@@ -290,126 +290,13 @@
         </section>
       }
 
-      @if (individualPurchaseLines().length > 0) {
-        <section class="space-y-2" aria-labelledby="individual-lines-title">
-          <h3
-            id="individual-lines-title"
-            class="text-xs font-bold uppercase tracking-wider text-fb-text-secondary"
-          >
-            Einzelstücke / Mystery-Inhalte
-          </h3>
-          @for (line of individualPurchaseLines(); track line.id) {
-            <div
-              class="flex flex-col gap-2 rounded-xl border border-fb-line bg-fb-well p-3 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div>
-                <p class="text-xs font-semibold text-fb-text-primary">{{ line.title_snapshot }}</p>
-                <p class="text-[11px] text-fb-text-muted">
-                  {{ line.line_total | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }} ·
-                  {{ line.received_quantity ? 'Erfasst' : 'Offen' }}
-                </p>
-              </div>
-              @if (!line.received_quantity) {
-                <button
-                  type="button"
-                  (click)="captureIndividualItem(line)"
-                  class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
-                >
-                  Artikel erfassen
-                </button>
-              }
-            </div>
-          }
-        </section>
-      }
-
-      <!-- Items List -->
-      @if (purchaseService.purchaseItems().length > 0) {
-        <div class="overflow-x-auto">
-          <table class="linear-table">
-            <thead
-              class="bg-fb-subtle text-fb-text-muted uppercase font-semibold text-[10px] tracking-wider"
-            >
-              <tr>
-                <th class="p-3 rounded-tl-xl border-b border-fb-border">Titel</th>
-                <th class="p-3 border-b border-fb-border">Zustand</th>
-                <th class="p-3 border-b border-fb-border">Status</th>
-                <th class="p-3 text-right border-b border-fb-border">Allokierter EK</th>
-                <th class="p-3 text-right border-b border-fb-border">Geschätzter Wert</th>
-                <th class="p-3 text-right border-b border-fb-border">Marge</th>
-                <th class="p-3 text-right rounded-tr-xl border-b border-fb-border">Aktionen</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-fb-border">
-              @for (item of purchaseService.purchaseItems(); track item.id) {
-                <tr class="hover:bg-fb-surface-hover transition group">
-                  <td class="p-3 font-semibold text-fb-text-primary group-last:rounded-bl-xl">
-                    <a
-                      [routerLink]="['/inventory', item.id]"
-                      [queryParams]="{ fromPurchaseId: p.id }"
-                      class="hover:text-indigo-400 transition"
-                    >
-                      {{ item.title }}
-                    </a>
-                  </td>
-
-                  <td class="p-3">
-                    <span
-                      class="px-2 py-0.5 rounded text-[10px] font-mono bg-fb-subtle text-fb-text-secondary border border-fb-border"
-                    >
-                      {{ 'INVENTORY.CONDITIONS.' + item.condition.toUpperCase() | translate }}
-                    </span>
-                  </td>
-
-                  <td class="p-3">
-                    <span
-                      class="px-2 py-0.5 rounded text-[10px] font-mono font-medium"
-                      [class.bg-emerald-500/15]="
-                        item.status === 'ready' || item.status === 'listed'
-                      "
-                      [class.text-emerald-400]="item.status === 'ready' || item.status === 'listed'"
-                      [class.bg-blue-500/15]="item.status === 'received'"
-                      [class.text-blue-400]="item.status === 'received'"
-                    >
-                      {{ 'INVENTORY.STATUSES.' + item.status.toUpperCase() | translate }}
-                    </span>
-                  </td>
-
-                  <td
-                    class="p-3 text-right font-mono font-bold text-fb-text-primary whitespace-nowrap"
-                  >
-                    {{ item.allocated_purchase_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  </td>
-
-                  <td class="p-3 text-right font-mono text-fb-text-secondary whitespace-nowrap">
-                    {{ item.expected_value || 0 | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  </td>
-
-                  <td class="p-3 text-right font-mono font-bold text-emerald-400 whitespace-nowrap">
-                    @if (item.expected_value) {
-                      +{{
-                        item.expected_value - item.allocated_purchase_cost
-                          | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                      }}
-                    } @else {
-                      -
-                    }
-                  </td>
-
-                  <td class="p-3 text-right group-last:rounded-br-xl">
-                    <a
-                      [routerLink]="['/inventory', item.id]"
-                      [queryParams]="{ fromPurchaseId: p.id }"
-                      class="text-indigo-400 hover:text-indigo-300 font-semibold text-xs"
-                    >
-                      Details &rarr;
-                    </a>
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
+      <!-- Verständliche, nach Einkaufsart getrennte Positionsdarstellung -->
+      @if (purchaseDetailRows().length > 0) {
+        <app-purchase-detail-table
+          [purchaseId]="p.id"
+          [rows]="purchaseDetailRows()"
+          (captureIndividual)="captureIndividualItemById($event)"
+        />
       } @else {
         <div class="p-8 text-center text-xs text-fb-text-muted space-y-2">
           <svg [lucideIcon]="boxesIcon" class="w-8 h-8 mx-auto text-fb-text-dimmed"></svg>
@@ -436,17 +323,23 @@
           </h2>
         </div>
 
-        <button
-          type="button"
-          (click)="isAddingCost.set(!isAddingCost())"
-          class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold text-xs cursor-pointer"
-        >
-          <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
-          <span>Kosten erfassen</span>
-        </button>
+        @if (p.entry_status !== 'finalized') {
+          <button
+            type="button"
+            (click)="isAddingCost.set(!isAddingCost())"
+            class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold text-xs cursor-pointer"
+          >
+            <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
+            <span>Kosten erfassen</span>
+          </button>
+        } @else {
+          <span class="text-[11px] text-fb-text-muted">
+            Änderungen erfolgen über „Erfassung wieder öffnen“ oder „Einkauf korrigieren“.
+          </span>
+        }
       </div>
 
-      @if (isAddingCost()) {
+      @if (p.entry_status !== 'finalized' && isAddingCost()) {
         <form
           [formGroup]="costForm"
           (ngSubmit)="onAddCost()"
@@ -569,7 +462,7 @@
                 <span class="font-mono font-bold text-fb-text-primary">
                   {{ cost.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </span>
-                @if (cost.id) {
+                @if (p.entry_status !== 'finalized' && cost.id) {
                   <button
                     type="button"
                     (click)="onDeleteCost(cost.id)"
@@ -804,195 +697,6 @@
     </div>
   }
 
-  <!-- Interactive Lot & Pallet Cost Allocator Modal -->
-  @if (isAllocatorOpen()) {
-    <div
-      class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-3 sm:p-6 animate-fade-in overflow-y-auto"
-      appModalDialog
-      schliesstBeiKlickAussen
-      dialogTitel="Kosten verteilen"
-      (dialogClose)="closeAllocator()"
-    >
-      <div
-        class="bg-fb-surface text-fb-text-secondary border border-fb-border rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl p-6 md:p-8 space-y-6 my-auto animate-modal-card"
-      >
-        <!-- Modal Header -->
-        <div class="flex items-start justify-between border-b border-fb-border pb-4">
-          <div>
-            <div class="flex items-center gap-2">
-              <svg [lucideIcon]="chartIcon" class="w-5 h-5 text-indigo-400"></svg>
-              <h2 class="text-lg font-black text-fb-text-primary">
-                Paletten- & Konvolut-Kostenallokator
-              </h2>
-            </div>
-            <p class="text-xs text-fb-text-muted mt-0.5">
-              Verteile den Gesamtkaufpreis mathematisch exakt auf alle Einzelpositionen.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            (click)="closeAllocator()"
-            class="p-1.5 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover cursor-pointer"
-          >
-            <svg [lucideIcon]="closeIcon" class="w-5 h-5"></svg>
-          </button>
-        </div>
-
-        <!-- Mode Selector -->
-        <div
-          class="flex items-center justify-between p-3 rounded-xl bg-fb-subtle border border-fb-border text-xs"
-        >
-          <span class="font-semibold text-fb-text-primary">Verteilungs-Strategie:</span>
-          <div class="flex items-center gap-2">
-            <button
-              type="button"
-              (click)="allocatorMode.set('value_weighted')"
-              class="px-3 py-1.5 rounded-lg font-bold transition cursor-pointer border"
-              [class.bg-indigo-600]="allocatorMode() === 'value_weighted'"
-              [class.text-fb-text-primary]="allocatorMode() === 'value_weighted'"
-              [class.border-indigo-500]="allocatorMode() === 'value_weighted'"
-              [class.bg-fb-surface]="allocatorMode() !== 'value_weighted'"
-              [class.text-fb-text-secondary]="allocatorMode() !== 'value_weighted'"
-              [class.border-fb-border]="allocatorMode() !== 'value_weighted'"
-            >
-              <div class="inline-flex items-center gap-1.5">
-                <svg [lucideIcon]="chartIcon" class="w-3.5 h-3.5"></svg>
-                <span>Wertgewichtet (nach Marktwert)</span>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              (click)="allocatorMode.set('even')"
-              class="px-3 py-1.5 rounded-lg font-bold transition cursor-pointer border"
-              [class.bg-indigo-600]="allocatorMode() === 'even'"
-              [class.text-fb-text-primary]="allocatorMode() === 'even'"
-              [class.border-indigo-500]="allocatorMode() === 'even'"
-              [class.bg-fb-surface]="allocatorMode() !== 'even'"
-              [class.text-fb-text-secondary]="allocatorMode() !== 'even'"
-              [class.border-fb-border]="allocatorMode() !== 'even'"
-            >
-              <div class="inline-flex items-center gap-1.5">
-                <svg [lucideIcon]="scaleIcon" class="w-3.5 h-3.5"></svg>
-                <span>Gleichmäßig (Kosten / Stück)</span>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        <!-- Live Cost Distribution Bar -->
-        <div class="space-y-1.5">
-          <div class="flex justify-between text-xs">
-            <span class="font-semibold text-fb-text-primary"
-              >Kostenaufteilung (100% Allokation):</span
-            >
-            <span class="font-mono font-bold text-indigo-400">
-              {{ totalSimulatedAllocatedCost() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-            </span>
-          </div>
-
-          <div
-            class="w-full h-3 rounded-full bg-fb-subtle overflow-hidden flex border border-fb-border"
-          >
-            @for (alloc of simulatedAllocations(); track alloc.item.id; let idx = $index) {
-              <div
-                class="h-full transition-all duration-300"
-                [style.width.%]="alloc.percent_of_total"
-                [style.background-color]="
-                  idx % 4 === 0
-                    ? 'var(--fb-chart-1)'
-                    : idx % 4 === 1
-                      ? 'var(--fb-chart-2)'
-                      : idx % 4 === 2
-                        ? 'var(--fb-chart-3)'
-                        : 'var(--fb-chart-4)'
-                "
-                [title]="alloc.item.title + ': ' + alloc.percent_of_total.toFixed(1) + '%'"
-              ></div>
-            }
-          </div>
-        </div>
-
-        <!-- Interactive Allocation Table -->
-        <div class="max-h-72 overflow-y-auto border border-fb-border rounded-xl">
-          <table class="w-full text-left text-xs">
-            <thead
-              class="bg-fb-subtle text-[10px] font-bold uppercase tracking-wider text-fb-text-muted border-b border-fb-border"
-            >
-              <tr>
-                <th class="p-3">Artikel</th>
-                <th class="p-3 text-right">Geschätzter Marktwert (€)</th>
-                <th class="p-3 text-right">Anteil (%)</th>
-                <th class="p-3 text-right">Allokierter EK (€)</th>
-                <th class="p-3 text-right">Proj. Gewinn</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-fb-border">
-              @for (alloc of simulatedAllocations(); track alloc.item.id) {
-                <tr class="hover:bg-fb-surface-hover transition">
-                  <td class="p-3 font-semibold text-fb-text-primary truncate max-w-[180px]">
-                    {{ alloc.item.title }}
-                  </td>
-
-                  <td class="p-3 text-right">
-                    <input
-                      type="number"
-                      step="1"
-                      [value]="alloc.expected_value"
-                      (input)="updateItemExpectedValue(alloc.item.id, +$any($event.target).value)"
-                      class="linear-input w-24 px-2 py-1 rounded-lg text-right font-mono font-bold text-xs"
-                    />
-                  </td>
-
-                  <td class="p-3 text-right font-mono font-semibold text-indigo-300">
-                    {{ alloc.percent_of_total.toFixed(1) }}%
-                  </td>
-
-                  <td class="p-3 text-right font-mono font-black text-fb-text-primary">
-                    {{ alloc.allocated_cost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  </td>
-
-                  <td class="p-3 text-right font-mono font-bold text-emerald-400">
-                    +{{
-                      alloc.expected_value - alloc.allocated_cost
-                        | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                    }}
-                  </td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Modal Footer Actions -->
-        <div class="flex items-center justify-between pt-2 border-t border-fb-border">
-          <button
-            type="button"
-            (click)="closeAllocator()"
-            class="linear-btn-secondary px-4 py-2.5 rounded-xl text-xs font-semibold cursor-pointer"
-          >
-            Abbrechen
-          </button>
-
-          <button
-            type="button"
-            (click)="applyAllocations()"
-            [disabled]="isApplyingAllocation()"
-            class="linear-btn-primary px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-lg shadow-indigo-500/25 disabled:opacity-50"
-          >
-            <svg [lucideIcon]="checkIcon" class="w-4 h-4"></svg>
-            <span>{{
-              isApplyingAllocation()
-                ? 'Wird gespeichert...'
-                : 'Kostenallokation auf Artikel anwenden'
-            }}</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  }
-
   <!-- Image Cropper & Resizer Studio Modal (Fixed 1:1) -->
   @if (isCropperOpen()) {
     <app-image-cropper-modal
@@ -1009,3 +713,11 @@
     ></app-purchase-create-modal>
   }
 </div>
+
+@if (isCorrectionDialogOpen() && purchaseService.selectedPurchase(); as purchaseToCorrect) {
+  <app-purchase-correction-dialog
+    [purchase]="purchaseToCorrect"
+    (closed)="isCorrectionDialogOpen.set(false)"
+    (corrected)="onCorrectionSaved()"
+  />
+}

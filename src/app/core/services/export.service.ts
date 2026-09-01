@@ -68,8 +68,8 @@ export class ExportService {
       p.type,
       this.escapeCsv(p.source?.name || 'Direktkauf'),
       this.escapeCsv(p.supplier?.name || ''),
-      p.purchase_price.toFixed(2),
-      (p.total_purchase_cost ?? p.purchase_price).toFixed(2),
+      p.purchase_price === null ? '' : p.purchase_price.toFixed(2),
+      p.purchase_price === null ? '' : (p.total_purchase_cost ?? p.purchase_price).toFixed(2),
       p.cost_allocation_mode,
       p.items_count || 1,
     ]);

@@ -124,12 +124,21 @@ export type StockMovementReason =
   | 'reservation'
   | 'reservation_release';
 
+import type {
+  PurchaseCostAllocationMethod,
+  PurchaseEntryStatus,
+  PurchaseLinePriceMode,
+} from './purchase-costing.models';
+
 export interface PurchaseCost {
   id?: string;
+  workspace_id?: string;
   purchase_id?: string;
   type: string;
   amount: number;
   description?: string | null;
+  allocation_method?: PurchaseCostAllocationMethod;
+  target_purchase_line_id?: string | null;
   created_at?: string;
 }
 
@@ -166,7 +175,7 @@ export interface Purchase {
   source_id?: string | null;
   supplier_id?: string | null;
   purchase_date: string;
-  purchase_price: number;
+  purchase_price: number | null;
   shipping_cost?: number;
   other_costs?: number;
   cost_allocation_mode: CostAllocationMode;
@@ -175,6 +184,9 @@ export interface Purchase {
   tracking_carrier?: TrackingCarrier | null;
   tracking_status?: InboundTrackingStatus | null;
   receiving_status?: PurchaseReceivingStatus;
+  entry_status?: PurchaseEntryStatus;
+  finalized_at?: string | null;
+  finalized_by?: string | null;
   estimated_delivery?: string | null;
   notes?: string | null;
   created_at?: string;
@@ -183,7 +195,7 @@ export interface Purchase {
   supplier?: Supplier;
   costs?: PurchaseCost[];
   items_count?: number;
-  total_purchase_cost?: number;
+  total_purchase_cost?: number | null;
   items?: InventoryItem[];
   purchase_lines?: PurchaseLine[];
 }
@@ -418,9 +430,13 @@ export interface PurchaseLine {
   line_kind: TrackingMode;
   ordered_quantity: number;
   received_quantity: number;
-  unit_purchase_price: number;
-  line_total: number;
+  unit_purchase_price: number | null;
+  line_total: number | null;
   allocated_additional_cost?: number;
+  price_mode?: PurchaseLinePriceMode;
+  condition_snapshot?: string | null;
+  estimated_market_value?: number | null;
+  allocated_total_cost?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -470,6 +486,7 @@ export interface SaleLineLotAllocation {
   quantity: number;
   unit_cost: number;
   allocated_cost?: number;
+  active_allocated_cost?: number | null;
   created_at?: string;
 }
 

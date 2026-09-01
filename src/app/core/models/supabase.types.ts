@@ -186,6 +186,53 @@ export type Database = {
           },
         ]
       }
+      business_events: {
+        Row: {
+          actor_id: string | null
+          changes: Json
+          correlation_id: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          event_type: string
+          id: string
+          reason: string | null
+          workspace_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          changes?: Json
+          correlation_id?: string
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          event_type: string
+          id?: string
+          reason?: string | null
+          workspace_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          changes?: Json
+          correlation_id?: string
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          event_type?: string
+          id?: string
+          reason?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_events_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       carrier_configs: {
         Row: {
           created_at: string
@@ -1052,28 +1099,37 @@ export type Database = {
       }
       purchase_costs: {
         Row: {
+          allocation_method: string
           amount: number
           created_at: string
           description: string | null
           id: string
           purchase_id: string
+          target_purchase_line_id: string | null
           type: string
+          workspace_id: string
         }
         Insert: {
-          amount?: number
+          allocation_method?: string
+          amount: number
           created_at?: string
           description?: string | null
           id?: string
           purchase_id: string
+          target_purchase_line_id?: string | null
           type: string
+          workspace_id: string
         }
         Update: {
+          allocation_method?: string
           amount?: number
           created_at?: string
           description?: string | null
           id?: string
           purchase_id?: string
+          target_purchase_line_id?: string | null
           type?: string
+          workspace_id?: string
         }
         Relationships: [
           {
@@ -1083,51 +1139,84 @@ export type Database = {
             referencedRelation: "purchases"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "purchase_costs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_costs_workspace_purchase_fkey"
+            columns: ["workspace_id", "purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "purchase_costs_workspace_target_purchase_line_fkey"
+            columns: ["workspace_id", "target_purchase_line_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_lines"
+            referencedColumns: ["workspace_id", "id"]
+          },
         ]
       }
       purchase_lines: {
         Row: {
           allocated_additional_cost: number
+          allocated_total_cost: number
           catalog_product_id: string | null
+          condition_snapshot: string | null
           created_at: string
+          estimated_market_value: number | null
           id: string
           line_kind: string
-          line_total: number
+          line_total: number | null
           ordered_quantity: number
+          price_mode: string
           purchase_id: string
           received_quantity: number
           title_snapshot: string
-          unit_purchase_price: number
+          unit_purchase_price: number | null
           updated_at: string
           workspace_id: string
         }
         Insert: {
           allocated_additional_cost?: number
+          allocated_total_cost?: number
           catalog_product_id?: string | null
+          condition_snapshot?: string | null
           created_at?: string
+          estimated_market_value?: number | null
           id?: string
           line_kind: string
-          line_total: number
+          line_total?: number | null
           ordered_quantity: number
+          price_mode?: string
           purchase_id: string
           received_quantity?: number
           title_snapshot: string
-          unit_purchase_price: number
+          unit_purchase_price?: number | null
           updated_at?: string
           workspace_id: string
         }
         Update: {
           allocated_additional_cost?: number
+          allocated_total_cost?: number
           catalog_product_id?: string | null
+          condition_snapshot?: string | null
           created_at?: string
+          estimated_market_value?: number | null
           id?: string
           line_kind?: string
-          line_total?: number
+          line_total?: number | null
           ordered_quantity?: number
+          price_mode?: string
           purchase_id?: string
           received_quantity?: number
           title_snapshot?: string
-          unit_purchase_price?: number
+          unit_purchase_price?: number | null
           updated_at?: string
           workspace_id?: string
         }
@@ -1173,17 +1262,20 @@ export type Database = {
         Row: {
           cost_allocation_mode: string
           created_at: string
+          entry_status: string
           estimated_delivery: string | null
+          finalized_at: string | null
+          finalized_by: string | null
           id: string
           notes: string | null
           original_url: string | null
           purchase_date: string
-          purchase_price: number
+          purchase_price: number | null
           receiving_status: string
           source_id: string | null
           supplier_id: string | null
           title: string
-          total_purchase_cost: number
+          total_purchase_cost: number | null
           tracking_carrier: string | null
           tracking_number: string | null
           tracking_status: string
@@ -1194,17 +1286,20 @@ export type Database = {
         Insert: {
           cost_allocation_mode?: string
           created_at?: string
+          entry_status?: string
           estimated_delivery?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
           id?: string
           notes?: string | null
           original_url?: string | null
           purchase_date?: string
-          purchase_price?: number
+          purchase_price?: number | null
           receiving_status?: string
           source_id?: string | null
           supplier_id?: string | null
           title: string
-          total_purchase_cost?: number
+          total_purchase_cost?: number | null
           tracking_carrier?: string | null
           tracking_number?: string | null
           tracking_status?: string
@@ -1215,17 +1310,20 @@ export type Database = {
         Update: {
           cost_allocation_mode?: string
           created_at?: string
+          entry_status?: string
           estimated_delivery?: string | null
+          finalized_at?: string | null
+          finalized_by?: string | null
           id?: string
           notes?: string | null
           original_url?: string | null
           purchase_date?: string
-          purchase_price?: number
+          purchase_price?: number | null
           receiving_status?: string
           source_id?: string | null
           supplier_id?: string | null
           title?: string
-          total_purchase_cost?: number
+          total_purchase_cost?: number | null
           tracking_carrier?: string | null
           tracking_number?: string | null
           tracking_status?: string
@@ -1235,25 +1333,25 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "purchases_source_id_fkey"
-            columns: ["source_id"]
-            isOneToOne: false
-            referencedRelation: "sources"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "purchases_supplier_id_fkey"
-            columns: ["supplier_id"]
-            isOneToOne: false
-            referencedRelation: "suppliers"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "purchases_workspace_id_fkey"
             columns: ["workspace_id"]
             isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_workspace_source_fkey"
+            columns: ["workspace_id", "source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "purchases_workspace_supplier_fkey"
+            columns: ["workspace_id", "supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["workspace_id", "id"]
           },
         ]
       }
@@ -1491,7 +1589,9 @@ export type Database = {
       }
       sale_line_lot_allocations: {
         Row: {
+          active_allocated_cost: number | null
           allocated_cost: number
+          consumption_sequence: number | null
           created_at: string
           id: string
           quantity: number
@@ -1501,7 +1601,9 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          active_allocated_cost?: number | null
           allocated_cost?: number
+          consumption_sequence?: number | null
           created_at?: string
           id?: string
           quantity: number
@@ -1511,7 +1613,9 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          active_allocated_cost?: number | null
           allocated_cost?: number
+          consumption_sequence?: number | null
           created_at?: string
           id?: string
           quantity?: number
@@ -2481,6 +2585,10 @@ export type Database = {
         Args: { p_lines: Json; p_purchase_id: string; p_workspace_id: string }
         Returns: Json
       }
+      allocate_integer_cents: {
+        Args: { p_total_cents: number; p_weights: number[] }
+        Returns: number[]
+      }
       book_bank_transaction: {
         Args: {
           p_booked_at: string
@@ -2511,6 +2619,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      build_purchase_costing_plan: {
+        Args: { p_purchase_id: string; p_workspace_id: string }
+        Returns: Json
       }
       bundle_shipping_orders: {
         Args: {
@@ -2563,6 +2675,17 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      correct_purchase_costing: {
+        Args: {
+          p_costs: Json
+          p_lines: Json
+          p_purchase_id: string
+          p_purchase_price: number
+          p_reason: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       create_or_get_invoice: {
         Args: {
           p_invoice: Json
@@ -2583,8 +2706,71 @@ export type Database = {
         Returns: Json
       }
       create_workspace: { Args: { p_name: string }; Returns: string }
+      finalize_purchase_costing: {
+        Args: { p_purchase_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      get_purchase_sale_history: {
+        Args: { p_purchase_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      get_purchase_sale_history_state: {
+        Args: { p_purchase_id: string; p_workspace_id: string }
+        Returns: string
+      }
+      has_purchase_recorded_sales: {
+        Args: { p_purchase_id: string; p_workspace_id: string }
+        Returns: boolean
+      }
       is_workspace_admin: { Args: { ws_id: string }; Returns: boolean }
       is_workspace_member: { Args: { ws_id: string }; Returns: boolean }
+      list_business_events: {
+        Args: {
+          p_cursor_created_at: string
+          p_cursor_id: string
+          p_filter: Json
+          p_page_size: number
+          p_workspace_id: string
+        }
+        Returns: {
+          actor_id: string
+          changes: Json
+          correlation_id: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          event_type: string
+          id: string
+          reason: string
+          workspace_id: string
+        }[]
+      }
+      list_entity_business_events: {
+        Args: {
+          p_cursor_created_at: string
+          p_cursor_id: string
+          p_entity_id: string
+          p_entity_type: string
+          p_page_size: number
+          p_workspace_id: string
+        }
+        Returns: {
+          actor_id: string
+          changes: Json
+          correlation_id: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          event_type: string
+          id: string
+          reason: string
+          workspace_id: string
+        }[]
+      }
+      migrate_purchase_costing_legacy: {
+        Args: { p_confirm: boolean; p_workspace_id: string }
+        Returns: Json
+      }
       place_store_order: {
         Args: {
           p_buyer_notes: string
@@ -2622,6 +2808,16 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      preview_purchase_costing_legacy: {
+        Args: { p_workspace_id: string }
+        Returns: {
+          classification: string
+          item_count: number
+          line_count: number
+          purchase_id: string
+          reason: string
+        }[]
       }
       receive_individual_purchase_line: {
         Args: {
@@ -2667,17 +2863,20 @@ export type Database = {
         Returns: {
           cost_allocation_mode: string
           created_at: string
+          entry_status: string
           estimated_delivery: string | null
+          finalized_at: string | null
+          finalized_by: string | null
           id: string
           notes: string | null
           original_url: string | null
           purchase_date: string
-          purchase_price: number
+          purchase_price: number | null
           receiving_status: string
           source_id: string | null
           supplier_id: string | null
           title: string
-          total_purchase_cost: number
+          total_purchase_cost: number | null
           tracking_carrier: string | null
           tracking_number: string | null
           tracking_status: string
@@ -2691,6 +2890,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      reopen_purchase_costing: {
+        Args: { p_purchase_id: string; p_workspace_id: string }
+        Returns: Json
       }
       replace_bank_transactions: {
         Args: { p_transactions: Json; p_workspace_id: string }
@@ -2740,6 +2943,16 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      update_purchase_draft: {
+        Args: {
+          p_expenses?: Json
+          p_lines?: Json
+          p_purchase: Json
+          p_purchase_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       validate_inventory_item_sale_integrity: {
         Args: { p_inventory_item_id: string }

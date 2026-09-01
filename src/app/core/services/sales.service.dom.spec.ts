@@ -336,7 +336,11 @@ describe('SalesService', () => {
     Object.assign(service, {
       sales: signal<Sale[]>([]),
       isLoading: signal(false),
+      loadError: signal<Error | null>(null),
+      loadedWorkspaceId: signal<string | null>(null),
+      loadRequestId: 0,
       mockStore: { isDemoMode: signal(false) },
+      workspaceService: { currentWorkspace: () => ({ id: 'workspace-1' }) },
       supabase: { client: { from: () => query } },
       syncStatus: { melde: vi.fn() },
       retryPendingFollowUps: vi.fn(async () => undefined),
