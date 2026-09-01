@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
   LucideSettings as Settings,
@@ -61,21 +60,19 @@ import {
 } from '../../shared/components/custom-select/custom-select.component';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-settings',
-  imports: [
-    ReactiveFormsModule,
-    TranslatePipe,
-    LucideDynamicIcon,
-    CustomCheckboxComponent,
-    CustomSelectComponent,
-  ],
+  imports: [ReactiveFormsModule, LucideDynamicIcon, CustomCheckboxComponent, CustomSelectComponent],
   templateUrl: './settings.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SettingsComponent {
+  private readonly route = inject(ActivatedRoute, { optional: true });
+  readonly section = (this.route?.snapshot.data['section'] ?? 'account') as
+    'account' | 'workspace' | 'team' | 'notifications' | 'store' | 'shipping' | 'app';
   /**
    * Vorgaben fuer die eigenen Auswahlfelder.
    *
@@ -119,7 +116,6 @@ export class SettingsComponent {
   readonly storeService = inject(StoreService);
   readonly fulfillmentService = inject(FulfillmentService);
   readonly webPushService = inject(WebPushService);
-  readonly translate = inject(TranslateService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
 

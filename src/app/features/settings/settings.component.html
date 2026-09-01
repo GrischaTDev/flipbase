@@ -1,26 +1,12 @@
 <div class="space-y-5 animate-fade-in">
-  <!-- Header -->
-  <div class="pb-1">
-    <div class="flex items-center gap-2">
-      <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">
-        {{ 'NAV.SETTINGS' | translate }} & Team
-      </h1>
-      <span
-        class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-fb-subtle text-fb-text-secondary border border-fb-border"
-      >
-        Workspace
-      </span>
-    </div>
-    <p class="text-xs text-fb-text-muted mt-0.5">
-      Workspace-Parameter, Discord/Telegram-Webhooks, Team-Rollen und Backups verwalten.
-    </p>
-  </div>
-
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+  <div class="grid grid-cols-1 gap-5">
     <!-- Left Column: Parameters & Team Management (7 cols) -->
-    <div class="lg:col-span-7 space-y-5">
+    <div class="space-y-5">
       <!-- Mein Konto -->
-      <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-fb-border">
+      <div
+        class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-fb-border"
+        [class.hidden]="section !== 'account'"
+      >
         <div class="flex items-center gap-2 pb-2 border-b border-fb-border">
           <svg [lucideIcon]="userIcon" class="w-4 h-4 text-indigo-400"></svg>
           <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
@@ -88,7 +74,10 @@
       </div>
 
       <!-- Multi-Workspace & Mandanten-Verwaltung -->
-      <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-fb-border">
+      <div
+        class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-fb-border"
+        [class.hidden]="section !== 'workspace'"
+      >
         <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
             <svg [lucideIcon]="buildingIcon" class="w-4 h-4 text-purple-400"></svg>
@@ -194,6 +183,7 @@
         [formGroup]="settingsForm"
         (ngSubmit)="onSaveSettings()"
         class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
+        [class.hidden]="section !== 'workspace'"
       >
         <div class="flex items-center gap-2 pb-2 border-b border-fb-border">
           <svg [lucideIcon]="slidersIcon" class="w-4 h-4 text-indigo-400"></svg>
@@ -284,7 +274,10 @@
       </form>
 
       <!-- 2. Team Members & Roles Management -->
-      <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
+      <div
+        class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
+        [class.hidden]="section !== 'team'"
+      >
         <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
             <svg [lucideIcon]="usersIcon" class="w-4 h-4 text-indigo-400"></svg>
@@ -398,11 +391,12 @@
       </div>
     </div>
 
-    <div class="lg:col-span-5 space-y-5">
+    <div class="space-y-5">
       <form
         [formGroup]="webhookForm"
         (ngSubmit)="onSaveWebhookConfig()"
         class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
+        [class.hidden]="section !== 'notifications'"
       >
         <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
@@ -555,6 +549,7 @@
         [formGroup]="paymentForm"
         (ngSubmit)="onSavePaymentConfig()"
         class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
+        [class.hidden]="section !== 'store'"
       >
         <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
@@ -704,6 +699,7 @@
         [formGroup]="carrierForm"
         (ngSubmit)="onSaveCarrierConfig()"
         class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
+        [class.hidden]="section !== 'shipping'"
       >
         <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
@@ -813,7 +809,10 @@
         </div>
       </form>
 
-      <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-fb-border">
+      <div
+        class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl border border-fb-border"
+        [class.hidden]="section !== 'notifications'"
+      >
         <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
             <svg [lucideIcon]="bellIcon" class="w-4 h-4 text-indigo-400"></svg>
@@ -944,7 +943,10 @@
         </div>
       </div>
 
-      <div class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl">
+      <div
+        class="linear-surface rounded-2xl p-5 space-y-4 shadow-xl"
+        [class.hidden]="section !== 'app'"
+      >
         <div class="flex items-center justify-between pb-2 border-b border-fb-border">
           <div class="flex items-center gap-2">
             <svg [lucideIcon]="smartphoneIcon" class="w-4 h-4 text-indigo-400"></svg>
@@ -1019,7 +1021,7 @@
       </div>
 
       <!-- Data Export Center -->
-      <div class="linear-surface rounded-2xl p-5 space-y-3 shadow-xl">
+      <div class="hidden">
         <div class="flex items-center gap-2 pb-2 border-b border-fb-border">
           <svg [lucideIcon]="csvIcon" class="w-4 h-4 text-emerald-400"></svg>
           <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">

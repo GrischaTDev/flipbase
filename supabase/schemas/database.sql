@@ -1017,6 +1017,7 @@ ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
 alter table public.sale_cost_entries enable row level security;
 revoke all on table public.sale_cost_entries from anon, public;
 revoke all on table public.sale_cost_entries from authenticated;
+grant select on table public.sale_cost_entries to authenticated;
 alter table public.catalog_products enable row level security;
 alter table public.purchase_lines enable row level security;
 alter table public.stock_lots enable row level security;
