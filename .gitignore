@@ -36,6 +36,7 @@ yarn-error.log
 .sass-cache/
 /connect.lock
 /coverage
+/coverage-critical
 /playwright-report/
 /test-results/
 /blob-report/

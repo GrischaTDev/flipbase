@@ -9,6 +9,7 @@ module.exports = tseslint.config(
     ignores: [
       'dist/**',
       'coverage/**',
+      'coverage-critical/**',
       '.angular/**',
       'node_modules/**',
       'supabase/**',
