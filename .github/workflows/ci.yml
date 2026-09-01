@@ -82,6 +82,27 @@ jobs:
       - name: Check types
         run: npm run typecheck
 
+      # Prueft die Workflow-Dateien selbst: Syntax, ungueltige Ausdruecke,
+      # kaputte Matrizen, unsichere Shell-Interpolation. Ersetzt rund 1200
+      # Zeilen selbstgeschriebener YAML-Zusicherungen, die dasselbe Ziel
+      # ungenauer und mit dauerndem Pflegeaufwand verfolgt haben.
+      #
+      # Fest auf eine Version genagelt und gegen die Pruefsumme der
+      # Veroeffentlichung abgeglichen - ein Download ohne Abgleich waere hier
+      # der einzige ungesicherte Schritt der ganzen Kette.
+      - name: Lint workflow files
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          archiv="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl --fail --silent --show-error --location \
+            --output "$archiv" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archiv}"
+          echo "$ACTIONLINT_SHA256  $archiv" | sha256sum --check --strict
+          tar -xzf "$archiv" actionlint
+          ./actionlint -color
+
       - name: Test workflow contracts
         run: npm run test:workflow
 
