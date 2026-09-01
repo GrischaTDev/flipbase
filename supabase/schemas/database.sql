@@ -8092,6 +8092,7 @@ declare
   v_sale_line_ids uuid[] := array[]::uuid[];
   v_stock_lot_ids uuid[] := array[]::uuid[];
   v_sale_state text;
+  v_business_event_id uuid;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -8710,8 +8711,63 @@ begin
     and workspace_id = p_workspace_id
   returning * into v_sale;
 
+  insert into public.business_events (
+    workspace_id,
+    entity_type,
+    entity_id,
+    event_type,
+    actor_id,
+    changes
+  ) values (
+    p_workspace_id,
+    'sale',
+    v_sale.id,
+    'sale_recorded',
+    (select auth.uid()),
+    pg_catalog.jsonb_build_object(
+      'financials', pg_catalog.jsonb_build_object(
+        'before', null,
+        'after', pg_catalog.jsonb_build_object(
+          'item_revenue', v_sale_total,
+          'buyer_shipping_revenue', v_shipping_revenue,
+          'total_revenue', v_sale.sale_price_total,
+          'cost_of_goods_sold', (
+            select coalesce(pg_catalog.sum(sale_line.cost_of_goods_sold), 0)
+            from public.sale_lines as sale_line
+            where sale_line.workspace_id = p_workspace_id
+              and sale_line.sale_id = v_sale.id
+          ),
+          'platform_fee', v_sale.platform_fee,
+          'seller_shipping_cost', v_sale.shipping_cost,
+          'additional_costs', coalesce((
+            select pg_catalog.jsonb_agg(
+              pg_catalog.jsonb_build_object(
+                'category', cost_entry.category,
+                'description', cost_entry.description,
+                'amount', cost_entry.amount
+              ) order by cost_entry.id
+            )
+            from public.sale_cost_entries as cost_entry
+            where cost_entry.workspace_id = p_workspace_id
+              and cost_entry.sale_id = v_sale.id
+          ), '[]'::jsonb)
+        )
+      ),
+      'sale', pg_catalog.jsonb_build_object(
+        'before', null,
+        'after', pg_catalog.jsonb_build_object(
+          'platform', v_sale.platform,
+          'sale_date', v_sale.sale_date,
+          'shipping_mode', v_sale.shipping_mode
+        )
+      )
+    )
+  )
+  returning id into v_business_event_id;
+
   return jsonb_build_object(
     'sale', to_jsonb(v_sale),
+    'business_event_id', v_business_event_id,
     'cost_entries', coalesce((
       select jsonb_agg(to_jsonb(cost_entry) order by cost_entry.id)
       from public.sale_cost_entries as cost_entry
@@ -8783,6 +8839,10 @@ declare
   v_remaining_refundable numeric;
   v_total_refund numeric;
   v_is_full_refund boolean;
+  v_previous_returned_at timestamptz;
+  v_correlation_id uuid := gen_random_uuid();
+  v_sale_event_id uuid;
+  v_return_event_id uuid;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -8927,6 +8987,7 @@ begin
 
   v_sale_total := coalesce(v_sale.sale_price_total, v_sale.sale_price, 0);
   v_current_refund := coalesce(v_sale.refund_amount, 0);
+  v_previous_returned_at := v_sale.returned_at;
 
   if v_sale_total::text in ('NaN', 'Infinity', '-Infinity')
     or v_current_refund::text in ('NaN', 'Infinity', '-Infinity')
@@ -9096,9 +9157,67 @@ begin
   )
   returning * into v_return;
 
+  insert into public.business_events (
+    workspace_id,
+    entity_type,
+    entity_id,
+    event_type,
+    actor_id,
+    reason,
+    changes,
+    correlation_id
+  ) values (
+    p_workspace_id,
+    'sale',
+    v_sale.id,
+    'sale_refund_updated',
+    (select auth.uid()),
+    p_reason,
+    pg_catalog.jsonb_build_object(
+      'refund_amount', pg_catalog.jsonb_build_object(
+        'before', v_current_refund,
+        'after', v_total_refund
+      ),
+      'returned_at', pg_catalog.jsonb_build_object(
+        'before', v_previous_returned_at,
+        'after', v_sale.returned_at
+      )
+    ),
+    v_correlation_id
+  )
+  returning id into v_sale_event_id;
+
+  insert into public.business_events (
+    workspace_id,
+    entity_type,
+    entity_id,
+    event_type,
+    actor_id,
+    reason,
+    changes,
+    correlation_id
+  ) values (
+    p_workspace_id,
+    'return',
+    v_return.id,
+    'sale_return_recorded',
+    (select auth.uid()),
+    p_reason,
+    pg_catalog.jsonb_build_object(
+      'sale_id', pg_catalog.jsonb_build_object('before', null, 'after', v_sale.id),
+      'refund_amount', pg_catalog.jsonb_build_object('before', null, 'after', p_refund_amount),
+      'is_full_refund', pg_catalog.jsonb_build_object('before', null, 'after', v_is_full_refund),
+      'restock_action', pg_catalog.jsonb_build_object('before', null, 'after', p_restock_action),
+      'restocked_quantity', pg_catalog.jsonb_build_object('before', null, 'after', v_restocked_quantity)
+    ),
+    v_correlation_id
+  )
+  returning id into v_return_event_id;
+
   return jsonb_build_object(
     'sale', to_jsonb(v_sale),
     'return', to_jsonb(v_return),
+    'business_event_ids', jsonb_build_array(v_sale_event_id, v_return_event_id),
     'sale_lines', coalesce((
       select jsonb_agg(to_jsonb(sale_line) order by sale_line.id)
       from public.sale_lines as sale_line
