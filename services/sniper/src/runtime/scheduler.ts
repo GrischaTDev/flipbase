@@ -52,9 +52,28 @@ export class QueryScheduler {
       failed: 0,
     };
 
+    // Rueckfallnetz: `dueQueries()` haengt an genau demselben Store wie
+    // `markPolled`/`saveNew` und kann ebenso an einem voruebergehenden
+    // Datenbankfehler scheitern. Dieser Aufruf sitzt aber vor der Schleife,
+    // also ausserhalb jedes try/catch dort drinnen - ohne eigene Absicherung
+    // wuerde ein Fehlschlag hier ungefangen aus runOnce() durchschlagen und
+    // den gesamten Durchlauf zum Absturz bringen, noch bevor ueberhaupt ein
+    // CycleReport entsteht. Ein eigener Log-Ereignisname (statt
+    // `cycle_failed`) haelt diesen Fall von einem einzelnen fehlgeschlagenen
+    // Abfrage-Poll unterscheidbar.
+    let dueQueries: SniperQuery[];
+    try {
+      dueQueries = await this.deps.queries.dueQueries(now);
+    } catch (error) {
+      this.deps.log.error('due_queries_failed', {
+        reason: error instanceof Error ? error.message : String(error),
+      });
+      return report;
+    }
+
     // Die aelteste Abfrage zuerst - das Budget entscheidet bei Knappheit nach
     // Wartezeit, nicht nach Paket.
-    for (const query of await this.deps.queries.dueQueries(now)) {
+    for (const query of dueQueries) {
       // `hasCapacity()` fragt hier nur um Erlaubnis - sie zaehlt selbst
       // nichts mit. Die tatsaechlichen HTTP-Anfragen, die ein einzelner
       // collect()-Aufruf ausloesen kann (Session-Aufwaermen, Wiederholungen
