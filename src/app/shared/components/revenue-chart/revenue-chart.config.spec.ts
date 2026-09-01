@@ -8,19 +8,38 @@ import {
 } from './revenue-chart.config';
 
 const points: readonly DashboardTimePoint[] = [
-  { date: '2026-08-27', label: '27.08.', revenue: 19.98, expenses: 24.95, realizedProfit: 9 },
-  { date: '2026-08-28', label: '28.08.', revenue: 0, expenses: 0, realizedProfit: -25 },
+  {
+    date: '2026-08-27',
+    label: '27.08.',
+    revenue: 19.98,
+    costOfGoodsSold: 9.98,
+    sellingCosts: 1,
+    resultAfterDirectCosts: 9,
+    expenses: 24.95,
+    realizedProfit: 9,
+  },
+  {
+    date: '2026-08-28',
+    label: '28.08.',
+    revenue: 0,
+    costOfGoodsSold: 20,
+    sellingCosts: 5,
+    resultAfterDirectCosts: -25,
+    expenses: 0,
+    realizedProfit: -25,
+  },
 ];
 
 describe('Revenue-Chart-Konfiguration', () => {
-  it('ordnet Beschriftungen und Werte unverändert den drei Fachreihen zu', () => {
+  it('ordnet Beschriftungen und Werte unverändert den vier Fachreihen zu', () => {
     const configuration = createRevenueChartConfiguration(points, 'dark', false);
 
     expect(configuration.data.labels).toEqual(['27.08.', '28.08.']);
     expect(configuration.data.datasets.map(({ label, data }) => ({ label, data }))).toEqual([
-      { label: 'Umsatz', data: [19.98, 0] },
-      { label: 'Ausgaben', data: [24.95, 0] },
-      { label: 'Realisierter Gewinn', data: [9, -25] },
+      { label: 'Verkaufserlös', data: [19.98, 0] },
+      { label: 'Wareneinsatz', data: [9.98, 20] },
+      { label: 'Verkaufskosten', data: [1, 5] },
+      { label: 'Ergebnis nach direkten Kosten', data: [9, -25] },
     ]);
   });
 
@@ -28,11 +47,22 @@ describe('Revenue-Chart-Konfiguration', () => {
     const configuration = createRevenueChartConfiguration(points, 'light', false);
 
     expect(REVENUE_CHART_SERIES).toEqual([
-      { key: 'revenue', label: 'Umsatz', pointStyle: 'circle', borderDash: [] },
-      { key: 'expenses', label: 'Ausgaben', pointStyle: 'rectRot', borderDash: [8, 4] },
+      { key: 'revenue', label: 'Verkaufserlös', pointStyle: 'circle', borderDash: [] },
       {
-        key: 'realizedProfit',
-        label: 'Realisierter Gewinn',
+        key: 'costOfGoodsSold',
+        label: 'Wareneinsatz',
+        pointStyle: 'rectRot',
+        borderDash: [8, 4],
+      },
+      {
+        key: 'sellingCosts',
+        label: 'Verkaufskosten',
+        pointStyle: 'rect',
+        borderDash: [5, 3],
+      },
+      {
+        key: 'resultAfterDirectCosts',
+        label: 'Ergebnis nach direkten Kosten',
         pointStyle: 'triangle',
         borderDash: [2, 3],
       },
@@ -45,6 +75,7 @@ describe('Revenue-Chart-Konfiguration', () => {
     ).toEqual([
       { pointStyle: 'circle', borderDash: [] },
       { pointStyle: 'rectRot', borderDash: [8, 4] },
+      { pointStyle: 'rect', borderDash: [5, 3] },
       { pointStyle: 'triangle', borderDash: [2, 3] },
     ]);
     for (const { pointHitRadius } of configuration.data.datasets) {
@@ -80,22 +111,23 @@ describe('Revenue-Chart-Konfiguration', () => {
       parsed: { x: 1, y: -25 },
       raw: -25,
       formattedValue: '-25',
-      dataset: configuration.data.datasets[2],
-      datasetIndex: 2,
+      dataset: configuration.data.datasets[3],
+      datasetIndex: 3,
       dataIndex: 1,
       element: {} as TooltipItem<'line'>['element'],
     } satisfies TooltipItem<'line'>;
     const label = configuration.options?.plugins?.tooltip?.callbacks?.label;
 
     expect(label).toBeTypeOf('function');
-    expect(label?.call({} as never, tooltipItem)).toBe('Realisierter Gewinn: -25,00 €');
+    expect(label?.call({} as never, tooltipItem)).toBe('Ergebnis nach direkten Kosten: -25,00 €');
   });
 
   it('liefert explizite und unterschiedliche Paletten für helles und dunkles Design', () => {
     expect(revenueChartPalette('light')).toEqual({
       revenue: '#1d4ed8',
-      expenses: '#b45309',
-      realizedProfit: '#047857',
+      costOfGoodsSold: '#b45309',
+      sellingCosts: '#7c3aed',
+      resultAfterDirectCosts: '#047857',
       ticks: '#596273',
       grid: '#e2e6ec',
       zeroLine: '#596273',
@@ -105,8 +137,9 @@ describe('Revenue-Chart-Konfiguration', () => {
     });
     expect(revenueChartPalette('dark')).toEqual({
       revenue: '#c4c4c4',
-      expenses: '#f89d13',
-      realizedProfit: '#57c776',
+      costOfGoodsSold: '#f89d13',
+      sellingCosts: '#a78bfa',
+      resultAfterDirectCosts: '#57c776',
       ticks: '#a8a8a8',
       grid: '#373737',
       zeroLine: '#a8a8a8',

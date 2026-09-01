@@ -14,6 +14,7 @@ import { InventoryService } from './inventory.service';
 import { PurchaseService } from './purchase.service';
 import { SalesService } from './sales.service';
 import { StockService } from './stock.service';
+import { calculateStoredSaleMetrics } from '../utils/sale-metrics';
 
 export type DashboardPlatform = 'all' | string;
 
@@ -33,7 +34,7 @@ interface DateWindow {
 /**
  * Eine reine Projektion der bereits bestaetigten Buchungen. Der Dienst nimmt
  * keine Buchung vor und berechnet den Gewinn ausschliesslich aus den
- * persistierten Verkaufspositionen (COGS) und Verkaufsnebenkosten.
+ * persistierten Verkaufspositionen (Wareneinsatz) und direkten Verkaufskosten.
  */
 @Injectable({ providedIn: 'root' })
 export class DashboardReportService {
@@ -84,7 +85,8 @@ export class DashboardReportService {
 
     const rows: DashboardSaleRow[] = [];
     let revenue = 0;
-    let realizedProfit = 0;
+    let resultAfterDirectCosts = 0;
+    let soldItems = 0;
     for (const sale of records.sales) {
       const date = this.calendarDate(sale.sale_date);
       if (
@@ -99,23 +101,40 @@ export class DashboardReportService {
       const row = this.saleRow(sale);
       rows.push(row);
       revenue += row.revenue;
-      realizedProfit += row.profit;
+      resultAfterDirectCosts += row.resultAfterDirectCosts ?? 0;
+      soldItems += row.quantity;
       this.addToPoint(pointByDate, this.bucketKey(date, window), {
         revenue: row.revenue,
-        realizedProfit: row.profit,
+        costOfGoodsSold: row.costOfGoodsSold ?? 0,
+        sellingCosts: row.sellingCosts,
+        resultAfterDirectCosts: row.resultAfterDirectCosts ?? 0,
       });
     }
+
+    const margins = rows
+      .map((row) => row.marginPercent)
+      .filter((margin): margin is number => margin !== null);
+    const roundedResult = this.money(resultAfterDirectCosts);
 
     return {
       expenses: this.money(expenses),
       revenue: this.money(revenue),
-      realizedProfit: this.money(realizedProfit),
+      realizedProfit: roundedResult,
+      resultAfterDirectCosts: roundedResult,
+      soldItems,
+      averageMarginPercent:
+        margins.length === 0
+          ? null
+          : this.money(margins.reduce((sum, margin) => sum + margin, 0) / margins.length),
       inventoryCostValue: this.inventoryCostValue(records),
       points: points.map((point) => ({
         ...point,
         revenue: this.money(point.revenue),
+        costOfGoodsSold: this.money(point.costOfGoodsSold),
+        sellingCosts: this.money(point.sellingCosts),
+        resultAfterDirectCosts: this.money(point.resultAfterDirectCosts),
         expenses: this.money(point.expenses),
-        realizedProfit: this.money(point.realizedProfit),
+        realizedProfit: this.money(point.resultAfterDirectCosts),
       })),
       rows: rows.sort((a, b) => b.date.localeCompare(a.date)),
     };
@@ -123,13 +142,7 @@ export class DashboardReportService {
 
   private saleRow(sale: Sale): DashboardSaleRow {
     const lines = sale.lines?.filter((line) => line.quantity > 0) ?? [];
-    const revenue = Math.max(0, this.saleRevenue(sale, lines) - this.number(sale.refund_amount));
-    const costOfGoodsSold = this.costOfGoodsSold(sale, lines);
-    const sellingCosts =
-      this.number(sale.platform_fee) +
-      this.number(sale.shipping_cost) +
-      this.number(sale.packaging_cost) +
-      this.number(sale.other_costs);
+    const metrics = calculateStoredSaleMetrics({ ...sale, lines });
 
     return {
       saleId: sale.id,
@@ -140,9 +153,12 @@ export class DashboardReportService {
           : (sale.inventory_item?.title ?? 'Artikel'),
       quantity: lines.length > 0 ? lines.reduce((sum, line) => sum + line.quantity, 0) : 1,
       platform: sale.platform,
-      revenue: this.money(revenue),
-      costOfGoodsSold: this.money(costOfGoodsSold),
-      profit: this.money(revenue - costOfGoodsSold - sellingCosts),
+      revenue: metrics.revenue,
+      costOfGoodsSold: metrics.costOfGoodsSold,
+      sellingCosts: metrics.sellingCosts,
+      resultAfterDirectCosts: metrics.resultAfterDirectCosts,
+      marginPercent: metrics.marginPercent,
+      profit: metrics.resultAfterDirectCosts,
     };
   }
 
@@ -215,6 +231,9 @@ export class DashboardReportService {
             ? new Intl.DateTimeFormat('de-DE', { month: 'short' }).format(cursor)
             : new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit' }).format(cursor),
         revenue: 0,
+        costOfGoodsSold: 0,
+        sellingCosts: 0,
+        resultAfterDirectCosts: 0,
         expenses: 0,
         realizedProfit: 0,
       });
@@ -227,13 +246,21 @@ export class DashboardReportService {
   private addToPoint(
     points: Map<string, DashboardTimePoint>,
     date: string,
-    amount: Partial<Pick<DashboardTimePoint, 'revenue' | 'expenses' | 'realizedProfit'>>,
+    amount: Partial<
+      Pick<
+        DashboardTimePoint,
+        'revenue' | 'costOfGoodsSold' | 'sellingCosts' | 'resultAfterDirectCosts' | 'expenses'
+      >
+    >,
   ): void {
     const point = points.get(date);
     if (!point) return;
     point.revenue += amount.revenue ?? 0;
+    point.costOfGoodsSold += amount.costOfGoodsSold ?? 0;
+    point.sellingCosts += amount.sellingCosts ?? 0;
+    point.resultAfterDirectCosts += amount.resultAfterDirectCosts ?? 0;
     point.expenses += amount.expenses ?? 0;
-    point.realizedProfit += amount.realizedProfit ?? 0;
+    point.realizedProfit = point.resultAfterDirectCosts;
   }
 
   private isSaleActiveAt(sale: Sale, end: Date): boolean {

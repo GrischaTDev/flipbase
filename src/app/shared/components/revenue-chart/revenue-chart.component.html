@@ -5,11 +5,10 @@
         id="revenue-chart-heading"
         class="text-xs font-bold uppercase tracking-[0.16em] text-fb-text-secondary"
       >
-        Zahlungsstrom im Zeitraum
+        Verkaufsergebnis im Zeitraum
       </h2>
       <p class="mt-1 text-[11px] text-fb-text-muted">
-        Ausgaben folgen dem Einkaufsdatum; Gewinn folgt ausschließlich bestätigten
-        Verkaufspositionen.
+        Verkaufserlös, Wareneinsatz und direkte Verkaufskosten folgen bestätigten Verkäufen.
       </p>
     </div>
     <ul
@@ -33,7 +32,7 @@
     <canvas
       #canvas
       role="img"
-      aria-label="Umsatz, Ausgaben und realisierter Gewinn im gewählten Zeitraum"
+      aria-label="Verkaufserlös, Wareneinsatz, Verkaufskosten und Ergebnis im gewählten Zeitraum"
       aria-describedby="revenue-chart-summary"
     ></canvas>
     <div
@@ -85,9 +84,10 @@
       <thead>
         <tr>
           <th scope="col">Zeitraum</th>
-          <th scope="col">Umsatz</th>
-          <th scope="col">Ausgaben</th>
-          <th scope="col">Realisierter Gewinn</th>
+          <th scope="col">Verkaufserlös</th>
+          <th scope="col">Wareneinsatz</th>
+          <th scope="col">Verkaufskosten</th>
+          <th scope="col">Ergebnis nach direkten Kosten</th>
         </tr>
       </thead>
       <tbody>
@@ -95,8 +95,9 @@
           <tr>
             <th scope="row">{{ point.label }}</th>
             <td>{{ point.revenue | number: '1.2-2' }} €</td>
-            <td>{{ point.expenses | number: '1.2-2' }} €</td>
-            <td>{{ point.realizedProfit | number: '1.2-2' }} €</td>
+            <td>{{ point.costOfGoodsSold | number: '1.2-2' }} €</td>
+            <td>{{ point.sellingCosts | number: '1.2-2' }} €</td>
+            <td>{{ point.resultAfterDirectCosts | number: '1.2-2' }} €</td>
           </tr>
         }
       </tbody>

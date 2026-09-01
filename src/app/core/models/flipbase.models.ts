@@ -391,7 +391,12 @@ export interface Sale {
   voided_by?: string | null;
   void_reason?: string | null;
   inventory_item?: InventoryItem;
-  net_profit?: number;
+  /** Ergebnis nach Wareneinsatz und direkt zurechenbaren Verkaufskosten. */
+  net_profit?: number | null;
+  /** Direkt zurechenbare Gebühren, Versand- und Zusatzkosten des Verkaufs. */
+  selling_costs?: number;
+  /** Ergebnis im Verhältnis zum Verkaufserlös. */
+  margin_percent?: number | null;
   roi?: number | null;
   holding_duration_days?: number;
   /** Persistierte Verkaufspositionen; Altverkäufe werden als eine Position abgebildet. */
@@ -527,7 +532,12 @@ export interface DashboardTimePoint {
   /** Kurze, im Diagramm sichtbare Beschriftung. */
   label: string;
   revenue: number;
+  costOfGoodsSold: number;
+  sellingCosts: number;
+  resultAfterDirectCosts: number;
+  /** Einkaufszahlungen bleiben vorübergehend für ältere Berichtsansichten verfügbar. */
   expenses: number;
+  /** @deprecated Verwende resultAfterDirectCosts. */
   realizedProfit: number;
 }
 
@@ -538,8 +548,12 @@ export interface DashboardSaleRow {
   quantity: number;
   platform: string;
   revenue: number;
-  costOfGoodsSold: number;
-  profit: number;
+  costOfGoodsSold: number | null;
+  sellingCosts: number;
+  resultAfterDirectCosts: number | null;
+  marginPercent: number | null;
+  /** @deprecated Verwende resultAfterDirectCosts. */
+  profit: number | null;
 }
 
 export interface DashboardReport {
@@ -547,8 +561,11 @@ export interface DashboardReport {
   expenses: number;
   /** Umsatz aus noch nicht retournierten, bestaetigten Verkaeufen. */
   revenue: number;
-  /** Umsatz minus COGS sowie Verkaufsnebenkosten; kein prognostizierter Wert. */
+  /** Verkaufserlös minus Wareneinsatz und direkte Verkaufskosten; kein Prognosewert. */
   realizedProfit: number;
+  resultAfterDirectCosts: number;
+  soldItems: number;
+  averageMarginPercent: number | null;
   /** Anschaffungswert der aktuell vorhandenen Ware. */
   inventoryCostValue: number;
   points: readonly DashboardTimePoint[];

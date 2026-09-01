@@ -4,8 +4,9 @@ import type { AppTheme } from '../../../core/services/theme.service';
 
 export interface RevenueChartPalette {
   readonly revenue: string;
-  readonly expenses: string;
-  readonly realizedProfit: string;
+  readonly costOfGoodsSold: string;
+  readonly sellingCosts: string;
+  readonly resultAfterDirectCosts: string;
   readonly ticks: string;
   readonly grid: string;
   readonly zeroLine: string;
@@ -15,16 +16,28 @@ export interface RevenueChartPalette {
 }
 
 export const REVENUE_CHART_SERIES: readonly {
-  readonly key: 'revenue' | 'expenses' | 'realizedProfit';
-  readonly label: 'Umsatz' | 'Ausgaben' | 'Realisierter Gewinn';
-  readonly pointStyle: 'circle' | 'rectRot' | 'triangle';
+  readonly key: 'revenue' | 'costOfGoodsSold' | 'sellingCosts' | 'resultAfterDirectCosts';
+  readonly label:
+    'Verkaufserlös' | 'Wareneinsatz' | 'Verkaufskosten' | 'Ergebnis nach direkten Kosten';
+  readonly pointStyle: 'circle' | 'rectRot' | 'rect' | 'triangle';
   readonly borderDash: readonly number[];
 }[] = [
-  { key: 'revenue', label: 'Umsatz', pointStyle: 'circle', borderDash: [] },
-  { key: 'expenses', label: 'Ausgaben', pointStyle: 'rectRot', borderDash: [8, 4] },
+  { key: 'revenue', label: 'Verkaufserlös', pointStyle: 'circle', borderDash: [] },
   {
-    key: 'realizedProfit',
-    label: 'Realisierter Gewinn',
+    key: 'costOfGoodsSold',
+    label: 'Wareneinsatz',
+    pointStyle: 'rectRot',
+    borderDash: [8, 4],
+  },
+  {
+    key: 'sellingCosts',
+    label: 'Verkaufskosten',
+    pointStyle: 'rect',
+    borderDash: [5, 3],
+  },
+  {
+    key: 'resultAfterDirectCosts',
+    label: 'Ergebnis nach direkten Kosten',
     pointStyle: 'triangle',
     borderDash: [2, 3],
   },
@@ -33,8 +46,9 @@ export const REVENUE_CHART_SERIES: readonly {
 const palettes: Record<AppTheme, RevenueChartPalette> = {
   light: {
     revenue: '#1d4ed8',
-    expenses: '#b45309',
-    realizedProfit: '#047857',
+    costOfGoodsSold: '#b45309',
+    sellingCosts: '#7c3aed',
+    resultAfterDirectCosts: '#047857',
     ticks: '#596273',
     grid: '#e2e6ec',
     zeroLine: '#596273',
@@ -44,8 +58,9 @@ const palettes: Record<AppTheme, RevenueChartPalette> = {
   },
   dark: {
     revenue: '#c4c4c4',
-    expenses: '#f89d13',
-    realizedProfit: '#57c776',
+    costOfGoodsSold: '#f89d13',
+    sellingCosts: '#a78bfa',
+    resultAfterDirectCosts: '#57c776',
     ticks: '#a8a8a8',
     grid: '#373737',
     zeroLine: '#a8a8a8',

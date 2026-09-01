@@ -8,7 +8,7 @@
         {{ 'NAV.SALES' | translate }} & Retouren
       </h1>
       <p class="text-xs text-fb-text-muted mt-0.5">
-        Realisierte Gewinne, Plattformgebühren, § 25a Rechnungen & Gutschriften-Abwicklung.
+        Verkaufserlöse, direkte Kosten, Margen, § 25a Rechnungen und Gutschriften.
       </p>
     </div>
 
@@ -38,29 +38,45 @@
   <!-- KPI Cards Grid -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
     <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[11px] font-semibold text-fb-text-muted block">Realisierter Gewinn</span>
-      <span class="text-2xl font-bold font-mono tracking-tight text-emerald-400 mt-2 block">
-        +{{ totalRealizedProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-      </span>
-      <span class="text-[10px] text-fb-text-muted mt-0.5 block">Netto nach allen Kosten</span>
-    </div>
-
-    <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[11px] font-semibold text-fb-text-muted block">Gesamtumsatz</span>
-      <span class="text-2xl font-bold font-mono tracking-tight text-fb-text-primary mt-2 block">
-        {{ totalRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+      <span class="text-[11px] font-semibold text-fb-text-muted block"
+        >Ergebnis nach direkten Kosten</span
+      >
+      <span
+        class="text-2xl font-bold font-mono tracking-tight mt-2 block"
+        [class.text-emerald-400]="totalRealizedProfit() >= 0"
+        [class.text-rose-400]="totalRealizedProfit() < 0"
+      >
+        {{ totalRealizedProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </span>
       <span class="text-[10px] text-fb-text-muted mt-0.5 block"
-        >{{ salesService.sales().length }} getätigte Verkäufe</span
+        >Verkaufserlös minus Wareneinsatz und Verkaufskosten</span
       >
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[11px] font-semibold text-fb-text-muted block">Durchschnittlicher ROI</span>
-      <span class="text-2xl font-bold font-mono tracking-tight text-indigo-400 mt-2 block">
-        {{ averageRoi() }} %
+      <span class="text-[11px] font-semibold text-fb-text-muted block">Verkaufserlös</span>
+      <span class="text-2xl font-bold font-mono tracking-tight text-fb-text-primary mt-2 block">
+        {{ totalRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </span>
-      <span class="text-[10px] text-fb-text-muted mt-0.5 block">Return on Investment</span>
+      <span class="text-[10px] text-fb-text-muted mt-0.5 block"
+        >{{ filteredSales().length }} gefilterte Verkäufe</span
+      >
+    </div>
+
+    <div class="linear-kpi p-4 rounded-xl">
+      <span class="text-[11px] font-semibold text-fb-text-muted block"
+        >Durchschnittliche Marge</span
+      >
+      <span class="text-2xl font-bold font-mono tracking-tight text-indigo-400 mt-2 block">
+        @if (averageMargin() === null) {
+          –
+        } @else {
+          {{ averageMargin() }} %
+        }
+      </span>
+      <span class="text-[10px] text-fb-text-muted mt-0.5 block"
+        >Nur Verkäufe mit belegbarem Wareneinsatz</span
+      >
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
@@ -180,12 +196,18 @@
             <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Plattform</th>
             <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Datum</th>
             <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
-              Verkaufspreis
+              Verkaufserlös
             </th>
             <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
-              Nettogewinn
+              Wareneinsatz
             </th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">ROI</th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+              Verkaufskosten
+            </th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+              Ergebnis nach direkten Kosten
+            </th>
+            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">Marge</th>
             <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">Haltedauer</th>
             <th
               class="py-2.5 px-4 font-semibold text-center w-28 rounded-tr-xl border-b border-fb-line"
@@ -197,6 +219,7 @@
         <tbody class="divide-y divide-fb-line">
           @for (sale of filteredSales(); track sale.id) {
             @let ret = getReturnForSale(sale.id);
+            @let metrics = saleMetrics(sale);
             <tr
               [id]="'sale-desktop-' + sale.id"
               tabindex="-1"
@@ -251,23 +274,39 @@
               </td>
 
               <td class="py-3 px-3 text-right font-mono font-semibold text-fb-text-secondary">
-                {{ sale.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                {{ metrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              </td>
+
+              <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
+                @if (metrics.costOfGoodsSold === null) {
+                  <span class="font-sans text-[11px] text-amber-300">Kosten noch offen</span>
+                } @else {
+                  {{ metrics.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                }
+              </td>
+
+              <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
+                {{ metrics.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
               </td>
 
               <td
                 class="py-3 px-3 text-right font-mono font-bold"
-                [class.text-emerald-400]="(sale.net_profit || 0) >= 0"
-                [class.text-rose-400]="(sale.net_profit || 0) < 0"
+                [class.text-emerald-400]="(metrics.resultAfterDirectCosts ?? 0) >= 0"
+                [class.text-rose-400]="(metrics.resultAfterDirectCosts ?? 0) < 0"
               >
-                +{{ sale.net_profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                @if (metrics.resultAfterDirectCosts === null) {
+                  <span class="font-sans text-[11px] text-amber-300">Kosten noch offen</span>
+                } @else {
+                  {{ metrics.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                }
               </td>
 
-              <td
-                class="py-3 px-3 text-right font-mono font-bold"
-                [class.text-emerald-400]="(sale.roi || 0) >= 0"
-                [class.text-rose-400]="(sale.roi || 0) < 0"
-              >
-                {{ sale.roi }} %
+              <td class="py-3 px-3 text-right font-mono font-bold text-fb-text-secondary">
+                @if (metrics.marginPercent === null) {
+                  –
+                } @else {
+                  {{ metrics.marginPercent }} %
+                }
               </td>
 
               <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
@@ -321,6 +360,7 @@
     <div class="space-y-2 md:hidden">
       @for (sale of filteredSales(); track sale.id) {
         @let ret = getReturnForSale(sale.id);
+        @let metrics = saleMetrics(sale);
         <div
           [id]="'sale-mobile-' + sale.id"
           tabindex="-1"
@@ -349,21 +389,34 @@
               </p>
             </div>
             <strong class="text-xs font-bold text-fb-text-primary">
-              {{ sale.sale_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+              {{ metrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
             </strong>
           </div>
 
           <div class="flex items-center justify-between text-xs pt-2 border-t border-fb-line">
             <div>
-              <span class="text-[10px] text-fb-text-muted font-sans block">Gewinn</span>
-              <strong class="text-emerald-400">
-                +{{ sale.net_profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-              </strong>
+              <span class="text-[10px] text-fb-text-muted font-sans block">Ergebnis</span>
+              @if (metrics.resultAfterDirectCosts === null) {
+                <strong class="font-sans text-amber-300">Kosten noch offen</strong>
+              } @else {
+                <strong
+                  [class.text-emerald-400]="metrics.resultAfterDirectCosts >= 0"
+                  [class.text-rose-400]="metrics.resultAfterDirectCosts < 0"
+                >
+                  {{ metrics.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                </strong>
+              }
             </div>
 
             <div>
-              <span class="text-[10px] text-fb-text-muted font-sans block">ROI</span>
-              <strong class="text-emerald-400"> {{ sale.roi }} % </strong>
+              <span class="text-[10px] text-fb-text-muted font-sans block">Marge</span>
+              <strong class="text-fb-text-secondary">
+                @if (metrics.marginPercent === null) {
+                  –
+                } @else {
+                  {{ metrics.marginPercent }} %
+                }
+              </strong>
             </div>
 
             <div class="text-right">
@@ -423,8 +476,7 @@
       </div>
       <h3 class="text-sm font-bold text-fb-text-secondary">Keine passenden Verkäufe gefunden</h3>
       <p class="text-xs text-fb-text-muted max-w-sm mx-auto mt-1 mb-4">
-        Erfasse deinen ersten Verkauf, um deine realisierten Gewinne und Margen sofort live zu
-        sehen.
+        Erfasse deinen ersten Verkauf, um Ergebnisse und Margen sofort live zu sehen.
       </p>
       <button
         type="button"

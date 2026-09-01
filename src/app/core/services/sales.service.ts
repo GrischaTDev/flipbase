@@ -20,6 +20,7 @@ import { StockService } from './stock.service';
 import { ReturnRecord } from '../models/return.models';
 import { createLocalDemoId } from '../utils/client-identity';
 import { INVENTORY_RECONCILIATION_AUDIT_REASONS } from '../models/inventory-reconciliation';
+import { calculateStoredSaleMetrics } from '../utils/sale-metrics';
 
 export interface CreateSalePayload {
   inventory_item_id: string;
@@ -220,34 +221,8 @@ export class SalesService {
 
   public enrichSaleMetrics(raw: Sale): Sale {
     const item = raw.inventory_item;
-    const persistedLines = raw.has_persisted_lines === false ? [] : (raw.lines ?? []);
-    const persistedLineTotal = persistedLines.reduce(
-      (sum: number, line: SaleLine) => sum + Number(line.line_total || 0),
-      0,
-    );
-    const shippingRevenue = Number(raw.shipping_revenue ?? 0);
-    const salePrice =
-      persistedLines.length > 0
-        ? Math.round((persistedLineTotal + shippingRevenue) * 100) / 100
-        : Number(raw.sale_price_total ?? raw.sale_price ?? 0);
-    const totalItemBasisCost =
-      persistedLines.length > 0
-        ? persistedLines.reduce(
-            (sum: number, line: SaleLine) => sum + Number(line.cost_of_goods_sold || 0),
-            0,
-          )
-        : Number(item?.allocated_purchase_cost || 0) +
-          (item?.costs || []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0);
-
-    const fee = Number(raw.platform_fee || 0);
-    const shipping = Number(raw.shipping_cost || 0);
-    const packaging = Number(raw.packaging_cost || 0);
-    const other = Number(raw.other_costs || 0);
-    const totalSaleCosts = fee + shipping + packaging + other;
-
-    const totalAllCosts = totalItemBasisCost + totalSaleCosts;
-    const netProfit = this.profitEngine.calculateProfit(salePrice, totalAllCosts);
-    const roi = this.profitEngine.calculateRoi(netProfit, totalAllCosts);
+    const metrics = calculateStoredSaleMetrics(raw);
+    const grossRevenue = Number((metrics.revenue + Number(raw.refund_amount ?? 0)).toFixed(2));
 
     let holdingDays = 0;
     const purchaseDate = item?.purchase?.purchase_date || item?.created_at;
@@ -257,10 +232,12 @@ export class SalesService {
 
     return {
       ...raw,
-      sale_price: salePrice,
-      sale_price_total: salePrice,
-      net_profit: netProfit,
-      roi: roi,
+      sale_price: grossRevenue,
+      sale_price_total: grossRevenue,
+      net_profit: metrics.resultAfterDirectCosts,
+      selling_costs: metrics.sellingCosts,
+      margin_percent: metrics.marginPercent,
+      roi: metrics.roiPercent,
       holding_duration_days: holdingDays,
     } as Sale;
   }

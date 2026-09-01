@@ -82,7 +82,7 @@ export class RevenueChartComponent {
   readonly keyboardPointDescription = computed(() => {
     const point = this.points()[this.keyboardPointIndex()];
     if (!point) return 'Keine Datenpunkte verfügbar';
-    return `${point.label}: Umsatz ${euroFormatter.format(point.revenue)}, Ausgaben ${euroFormatter.format(point.expenses)}, realisierter Gewinn ${euroFormatter.format(point.realizedProfit)}`;
+    return `${point.label}: Verkaufserlös ${euroFormatter.format(point.revenue)}, Wareneinsatz ${euroFormatter.format(point.costOfGoodsSold)}, Verkaufskosten ${euroFormatter.format(point.sellingCosts)}, Ergebnis nach direkten Kosten ${euroFormatter.format(point.resultAfterDirectCosts)}`;
   });
 
   constructor() {
@@ -197,9 +197,10 @@ export class RevenueChartComponent {
     this.activeTooltip.set({
       title: point.label,
       lines: [
-        `Umsatz: ${euroFormatter.format(point.revenue)}`,
-        `Ausgaben: ${euroFormatter.format(point.expenses)}`,
-        `Realisierter Gewinn: ${euroFormatter.format(point.realizedProfit)}`,
+        `Verkaufserlös: ${euroFormatter.format(point.revenue)}`,
+        `Wareneinsatz: ${euroFormatter.format(point.costOfGoodsSold)}`,
+        `Verkaufskosten: ${euroFormatter.format(point.sellingCosts)}`,
+        `Ergebnis nach direkten Kosten: ${euroFormatter.format(point.resultAfterDirectCosts)}`,
       ],
       left: horizontalInset + usableWidth * position,
       top: Math.max(80, height / 2),

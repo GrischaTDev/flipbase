@@ -50,6 +50,8 @@ import {
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { SaleMetrics } from '../../core/models/sale-metrics.models';
+import { calculateStoredSaleMetrics } from '../../core/utils/sale-metrics';
 
 const SALE_TARGET_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
 
@@ -189,22 +191,26 @@ export class SalesComponent {
 
   // KPI Calculations
   readonly totalRealizedProfit = computed(() => {
-    return this.salesService.sales().reduce((sum, s) => sum + (s.net_profit || 0), 0);
+    return this.filteredSales().reduce(
+      (sum, sale) => sum + (this.saleMetrics(sale).resultAfterDirectCosts ?? 0),
+      0,
+    );
   });
 
   readonly totalRevenue = computed(() => {
-    return this.salesService.sales().reduce((sum, s) => sum + (s.sale_price || 0), 0);
+    return this.filteredSales().reduce((sum, sale) => sum + this.saleMetrics(sale).revenue, 0);
   });
 
-  readonly averageRoi = computed(() => {
-    const list = this.salesService.sales();
-    if (list.length === 0) return 0;
-    const totalRoi = list.reduce((sum, s) => sum + (s.roi || 0), 0);
-    return Number((totalRoi / list.length).toFixed(1));
+  readonly averageMargin = computed(() => {
+    const margins = this.filteredSales()
+      .map((sale) => this.saleMetrics(sale).marginPercent)
+      .filter((margin): margin is number => margin !== null);
+    if (margins.length === 0) return null;
+    return Number((margins.reduce((sum, margin) => sum + margin, 0) / margins.length).toFixed(1));
   });
 
   readonly averageHoldingDays = computed(() => {
-    const list = this.salesService.sales();
+    const list = this.filteredSales();
     if (list.length === 0) return 0;
     const totalDays = list.reduce((sum, s) => sum + (s.holding_duration_days || 0), 0);
     return Math.round(totalDays / list.length);
@@ -300,6 +306,10 @@ export class SalesComponent {
 
   saleQuantity(sale: Sale): number {
     return sale.lines?.reduce((sum, line) => sum + line.quantity, 0) ?? 1;
+  }
+
+  saleMetrics(sale: Sale): SaleMetrics {
+    return calculateStoredSaleMetrics(sale);
   }
 
   saleTitle(sale: Sale): string {

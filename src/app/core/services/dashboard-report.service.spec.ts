@@ -84,6 +84,52 @@ describe('DashboardReportService', () => {
 
     expect(report.revenue).toBe(42.98);
     expect(report.realizedProfit).toBe(20.09);
+    expect(report.resultAfterDirectCosts).toBe(20.09);
+    expect(report.averageMarginPercent).toBe(46.74);
+    expect(report.soldItems).toBe(2);
+    expect(report.rows[0]).toMatchObject({
+      revenue: 42.98,
+      costOfGoodsSold: 10,
+      sellingCosts: 12.89,
+      resultAfterDirectCosts: 20.09,
+      marginPercent: 46.74,
+    });
+    expect(report.points.find((point) => point.date === '2026-08-27')).toMatchObject({
+      revenue: 42.98,
+      costOfGoodsSold: 10,
+      sellingCosts: 12.89,
+      resultAfterDirectCosts: 20.09,
+    });
+  });
+
+  it('zeigt einen nicht belegbaren Wareneinsatz offen und erfindet kein Ergebnis', () => {
+    const report = createService().createReportForRecords(
+      'last_7_days',
+      'all',
+      {
+        purchases: [],
+        sales: [
+          {
+            ...sale,
+            id: 'sale-without-cost-basis',
+            lines: [],
+            has_persisted_lines: false,
+            inventory_item: undefined,
+          },
+        ],
+        inventoryItems: [],
+        stockLots: [],
+      },
+      now,
+    );
+
+    expect(report.rows[0]).toMatchObject({
+      costOfGoodsSold: null,
+      resultAfterDirectCosts: null,
+      marginPercent: null,
+    });
+    expect(report.resultAfterDirectCosts).toBe(0);
+    expect(report.averageMarginPercent).toBeNull();
   });
 
   it('schließt unbekannte Draftkosten aus bestätigten Ausgaben aus und behält echte Nullpreise', () => {

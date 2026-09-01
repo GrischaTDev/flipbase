@@ -20,8 +20,26 @@ beforeAll(async () => {
 });
 
 const points: readonly DashboardTimePoint[] = [
-  { date: '2026-08-27', label: '27.08.', revenue: 19.98, expenses: 24.95, realizedProfit: 9 },
-  { date: '2026-08-28', label: '28.08.', revenue: 0, expenses: 0, realizedProfit: 0 },
+  {
+    date: '2026-08-27',
+    label: '27.08.',
+    revenue: 19.98,
+    costOfGoodsSold: 9.98,
+    sellingCosts: 1,
+    resultAfterDirectCosts: 9,
+    expenses: 24.95,
+    realizedProfit: 9,
+  },
+  {
+    date: '2026-08-28',
+    label: '28.08.',
+    revenue: 0,
+    costOfGoodsSold: 0,
+    sellingCosts: 0,
+    resultAfterDirectCosts: 0,
+    expenses: 0,
+    realizedProfit: 0,
+  },
 ];
 
 interface ChartDouble {
@@ -143,7 +161,16 @@ describe('RevenueChartComponent lifecycle', () => {
     const previousOptions = chart.options;
 
     chartPoints.set([
-      { date: '2026-08-29', label: '29.08.', revenue: 50, expenses: 12, realizedProfit: 38 },
+      {
+        date: '2026-08-29',
+        label: '29.08.',
+        revenue: 50,
+        costOfGoodsSold: 10,
+        sellingCosts: 2,
+        resultAfterDirectCosts: 38,
+        expenses: 12,
+        realizedProfit: 38,
+      },
     ]);
     fixture.detectChanges();
     await fixture.whenStable();
@@ -152,7 +179,7 @@ describe('RevenueChartComponent lifecycle', () => {
     expect(chart.data).not.toBe(previousData);
     expect(chart.options).not.toBe(previousOptions);
     expect(chart.data.labels).toEqual(['29.08.']);
-    expect(chart.data.datasets.map(({ data }) => data)).toEqual([[50], [12], [38]]);
+    expect(chart.data.datasets.map(({ data }) => data)).toEqual([[50], [10], [2], [38]]);
     expect(update).toHaveBeenCalledTimes(1);
     expect(update).toHaveBeenCalledWith(undefined);
   });
@@ -234,7 +261,10 @@ describe('RevenueChartComponent Barrierefreiheit', () => {
         tooltip: {
           opacity: 1,
           title: ['27.08.'],
-          body: [{ lines: ['Umsatz: 19,98 €'] }, { lines: ['Realisierter Gewinn: 9,00 €'] }],
+          body: [
+            { lines: ['Verkaufserlös: 19,98 €'] },
+            { lines: ['Ergebnis nach direkten Kosten: 9,00 €'] },
+          ],
           caretX: 120,
           caretY: 80,
         },
@@ -247,8 +277,8 @@ describe('RevenueChartComponent Barrierefreiheit', () => {
     expect(status.getAttribute('aria-live')).toBe('polite');
     expect(status.getAttribute('aria-atomic')).toBe('true');
     expect(status.textContent).toContain('27.08.');
-    expect(status.textContent).toContain('Umsatz: 19,98 €');
-    expect(status.textContent).toContain('Realisierter Gewinn: 9,00 €');
+    expect(status.textContent).toContain('Verkaufserlös: 19,98 €');
+    expect(status.textContent).toContain('Ergebnis nach direkten Kosten: 9,00 €');
     expect(status.style.left).toBe('128px');
     expect(status.style.top).toBe('88px');
 
@@ -275,7 +305,7 @@ describe('RevenueChartComponent Barrierefreiheit', () => {
     expect(canvas.hasAttribute('tabindex')).toBe(false);
     expect(canvas.getAttribute('role')).toBe('img');
     expect(canvas.getAttribute('aria-label')).toBe(
-      'Umsatz, Ausgaben und realisierter Gewinn im gewählten Zeitraum',
+      'Verkaufserlös, Wareneinsatz, Verkaufskosten und Ergebnis im gewählten Zeitraum',
     );
     expect(canvas.getAttribute('aria-describedby')).toBe('revenue-chart-summary');
     expect(canvas.parentElement?.classList.contains('relative')).toBe(true);
@@ -283,7 +313,7 @@ describe('RevenueChartComponent Barrierefreiheit', () => {
     expect(canvas.parentElement?.classList.contains('w-full')).toBe(true);
   });
 
-  it('zeigt alle drei Reihen in einer themereaktiven visuellen Legende', async () => {
+  it('zeigt alle vier Reihen in einer themereaktiven visuellen Legende', async () => {
     vi.spyOn(window, 'matchMedia').mockReturnValue(createMediaQueryDouble().mediaQueryList);
     const theme = signal<AppTheme>('light');
     const { chart } = createChartDouble();
@@ -298,18 +328,19 @@ describe('RevenueChartComponent Barrierefreiheit', () => {
 
     expect(legend).not.toBeNull();
     expect(host.querySelector('div[aria-label="Diagrammlegende"]')).toBeNull();
-    expect(legendEntries()).toHaveLength(3);
+    expect(legendEntries()).toHaveLength(4);
     expect(legendEntries().map((entry) => entry.textContent?.trim())).toEqual([
-      'Umsatz',
-      'Ausgaben',
-      'Realisierter Gewinn',
+      'Verkaufserlös',
+      'Wareneinsatz',
+      'Verkaufskosten',
+      'Ergebnis nach direkten Kosten',
     ]);
     expect(
       legendEntries().map(
         (entry) =>
           entry.querySelector<HTMLElement>('[data-chart-legend-indicator]')?.style.backgroundColor,
       ),
-    ).toEqual(['rgb(29, 78, 216)', 'rgb(180, 83, 9)', 'rgb(4, 120, 87)']);
+    ).toEqual(['rgb(29, 78, 216)', 'rgb(180, 83, 9)', 'rgb(124, 58, 237)', 'rgb(4, 120, 87)']);
 
     theme.set('dark');
     fixture.detectChanges();
@@ -320,7 +351,12 @@ describe('RevenueChartComponent Barrierefreiheit', () => {
         (entry) =>
           entry.querySelector<HTMLElement>('[data-chart-legend-indicator]')?.style.backgroundColor,
       ),
-    ).toEqual(['rgb(196, 196, 196)', 'rgb(248, 157, 19)', 'rgb(87, 199, 118)']);
+    ).toEqual([
+      'rgb(196, 196, 196)',
+      'rgb(248, 157, 19)',
+      'rgb(167, 139, 250)',
+      'rgb(87, 199, 118)',
+    ]);
   });
 
   it('enthaelt eine vollstaendige externe Datentabelle ohne interaktive Elemente', async () => {
@@ -345,9 +381,10 @@ describe('RevenueChartComponent Barrierefreiheit', () => {
       })),
     ).toEqual([
       { text: 'Zeitraum', scope: 'col' },
-      { text: 'Umsatz', scope: 'col' },
-      { text: 'Ausgaben', scope: 'col' },
-      { text: 'Realisierter Gewinn', scope: 'col' },
+      { text: 'Verkaufserlös', scope: 'col' },
+      { text: 'Wareneinsatz', scope: 'col' },
+      { text: 'Verkaufskosten', scope: 'col' },
+      { text: 'Ergebnis nach direkten Kosten', scope: 'col' },
     ]);
     expect(
       [...table.querySelectorAll<HTMLTableCellElement>('tbody th')].map((header) => ({
@@ -382,6 +419,9 @@ describe('RevenueChartComponent Barrierefreiheit', () => {
         date: '2026-08-30',
         label: '30.08.',
         revenue: 1234.5,
+        costOfGoodsSold: 10,
+        sellingCosts: 1.25,
+        resultAfterDirectCosts: 1223.25,
         expenses: 11.25,
         realizedProfit: 1223.25,
       },
@@ -389,6 +429,9 @@ describe('RevenueChartComponent Barrierefreiheit', () => {
         date: '2026-08-29',
         label: '29.08.',
         revenue: 50,
+        costOfGoodsSold: 70,
+        sellingCosts: 5.75,
+        resultAfterDirectCosts: -25.75,
         expenses: 75.75,
         realizedProfit: -25.75,
       },
@@ -406,8 +449,8 @@ describe('RevenueChartComponent Barrierefreiheit', () => {
         ),
       ),
     ).toEqual([
-      ['30.08.', '1.234,50 €', '11,25 €', '1.223,25 €'],
-      ['29.08.', '50,00 €', '75,75 €', '-25,75 €'],
+      ['30.08.', '1.234,50 €', '10,00 €', '1,25 €', '1.223,25 €'],
+      ['29.08.', '50,00 €', '70,00 €', '5,75 €', '-25,75 €'],
     ]);
 
     chartPoints.set([]);
@@ -441,7 +484,7 @@ describe('RevenueChartComponent Barrierefreiheit', () => {
     expect(navigator?.getAttribute('aria-valuemax')).toBe('2');
     expect(navigator?.getAttribute('aria-valuenow')).toBe('1');
     expect(navigator?.getAttribute('aria-valuetext')).toMatch(
-      /^27\.08\.: Umsatz 19,98\s€, Ausgaben 24,95\s€, realisierter Gewinn 9,00\s€$/,
+      /^27\.08\.: Verkaufserlös 19,98\s€, Wareneinsatz 9,98\s€, Verkaufskosten 1,00\s€, Ergebnis nach direkten Kosten 9,00\s€$/,
     );
     expect(navigator?.getAttribute('aria-describedby')).toBe(
       'revenue-chart-keyboard-help revenue-chart-summary',
@@ -454,11 +497,11 @@ describe('RevenueChartComponent Barrierefreiheit', () => {
     expect(document.activeElement).toBe(navigator);
     expect(navigator?.getAttribute('aria-valuenow')).toBe('2');
     expect(navigator?.getAttribute('aria-valuetext')).toMatch(
-      /^28\.08\.: Umsatz 0,00\s€, Ausgaben 0,00\s€, realisierter Gewinn 0,00\s€$/,
+      /^28\.08\.: Verkaufserlös 0,00\s€, Wareneinsatz 0,00\s€, Verkaufskosten 0,00\s€, Ergebnis nach direkten Kosten 0,00\s€$/,
     );
     const status = host.querySelector<HTMLElement>('[role="status"]');
     expect(status?.textContent).toContain('28.08.');
-    expect(status?.textContent).toMatch(/Umsatz: 0,00\s€/);
+    expect(status?.textContent).toMatch(/Verkaufserlös: 0,00\s€/);
 
     navigator?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
     fixture.detectChanges();

@@ -126,6 +126,50 @@ beforeEach(() => {
 });
 
 describe('SalesComponent – verlinkter Verkauf', () => {
+  it('verwendet im Verkaufsjournal klare Kennzahlen und keine ROI-Dominanz', async () => {
+    sales.set([linkedSale]);
+    loadedWorkspaceId.set(workspace.id);
+
+    const harness = await RouterTestingHarness.create('/sales');
+    const host = harness.routeNativeElement as HTMLElement;
+    const headers = [...host.querySelectorAll('thead th')].map((header) =>
+      header.textContent?.replace(/\s+/g, ' ').trim(),
+    );
+
+    expect(headers).toEqual([
+      'Verkaufter Artikel',
+      'Menge',
+      'Plattform',
+      'Datum',
+      'Verkaufserlös',
+      'Wareneinsatz',
+      'Verkaufskosten',
+      'Ergebnis nach direkten Kosten',
+      'Marge',
+      'Haltedauer',
+      'Aktionen',
+    ]);
+    expect(host.textContent).toContain('Durchschnittliche Marge');
+    expect(host.textContent).not.toContain('ROI');
+    expect(host.textContent).not.toContain('Nettogewinn');
+  });
+
+  it('kennzeichnet einen Altverkauf ohne belegbaren Wareneinsatz als offen', async () => {
+    sales.set([
+      {
+        ...linkedSale,
+        id: 'sale-without-cost-basis',
+        lines: [],
+        has_persisted_lines: false,
+        inventory_item: undefined,
+      },
+    ]);
+    loadedWorkspaceId.set(workspace.id);
+
+    const harness = await RouterTestingHarness.create('/sales');
+    expect(harness.routeNativeElement?.textContent).toContain('Kosten noch offen');
+  });
+
   it('navigiert vom Einkaufsdetail und markiert den Verkauf erst nach autoritativem Laden', async () => {
     const scrollIntoView = vi.fn();
     const focus = vi.fn();

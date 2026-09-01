@@ -646,7 +646,7 @@ describe('SalesService', () => {
     expect(returnResult.returnRecord?.credit_note_number).toBe('GS-2026-0001');
   });
 
-  it('berechnet Mengenverkaufs-Kennzahlen aus den persistierten COGS', () => {
+  it('berechnet Verkaufserlös, Verkaufskosten und Ergebnis aus dem gemeinsamen Kennzahlenvertrag', () => {
     const service = Object.create(SalesService.prototype) as SalesService;
     Object.assign(service, {
       profitEngine: {
@@ -658,7 +658,22 @@ describe('SalesService', () => {
 
     const enriched = service.enrichSaleMetrics({
       ...sale,
-      sale_price: 40,
+      sale_price: 42.98,
+      sale_price_total: 42.98,
+      shipping_revenue: 2.99,
+      platform_fee: 7.7,
+      shipping_cost: 5.19,
+      packaging_cost: 99,
+      other_costs: 99,
+      cost_entries: [
+        {
+          id: 'cost-1',
+          workspace_id: sale.workspace_id,
+          sale_id: sale.id,
+          category: 'packaging',
+          amount: 1.5,
+        },
+      ],
       inventory_item: {
         id: 'item-1',
         workspace_id: sale.workspace_id,
@@ -674,15 +689,18 @@ describe('SalesService', () => {
           sale_id: sale.id,
           title_snapshot: 'LED-Lampe',
           quantity: 2,
-          unit_sale_price: 20,
-          line_total: 40,
-          cost_of_goods_sold: 15,
+          unit_sale_price: 19.995,
+          line_total: 39.99,
+          cost_of_goods_sold: 10,
           tax_mode: 'diff_25a',
         },
       ],
     });
 
-    expect(enriched.net_profit).toBe(25);
-    expect(enriched.roi).toBeCloseTo(166.67, 2);
+    expect(enriched.sale_price).toBe(42.98);
+    expect(enriched.selling_costs).toBe(14.39);
+    expect(enriched.net_profit).toBe(18.59);
+    expect(enriched.margin_percent).toBe(43.25);
+    expect(enriched.roi).toBe(185.9);
   });
 });
