@@ -73,7 +73,7 @@ test('Pull Requests vergleichen ausschließlich mit der PR-Basis', async () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'supabase=true\n');
+    assert.equal(result.output, 'supabase=true\nsniper=false\n');
   });
 });
 
@@ -95,7 +95,7 @@ test('Pushes vergleichen ausschließlich mit github.event.before', async () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'supabase=true\n');
+    assert.equal(result.output, 'supabase=true\nsniper=false\n');
   });
 });
 
@@ -117,11 +117,11 @@ test('Null-SHA verwendet bei vorhandenem Vorgänger den direkten Parent', async 
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'supabase=true\n');
+    assert.equal(result.output, 'supabase=true\nsniper=false\n');
   });
 });
 
-test('erster Commit entscheidet ohne Vorgänger konservativ auf Supabase-Änderung', async () => {
+test('erster Commit entscheidet ohne Vorgänger für beide Bereiche konservativ', async () => {
   await withRepository(async (repository) => {
     const head = await commitFile(repository, 'README.md', 'first\n', 'first');
 
@@ -133,7 +133,9 @@ test('erster Commit entscheidet ohne Vorgänger konservativ auf Supabase-Änderu
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'supabase=true\n');
+    // Ohne Vergleichspunkt laesst sich nichts ausschliessen. Dann lieber alles
+    // laufen lassen als eine Pruefung stillschweigend ueberspringen.
+    assert.equal(result.output, 'supabase=true\nsniper=true\n');
   });
 });
 
@@ -166,7 +168,7 @@ test('Supabase-Diff setzt die Ausgabe auf true', async () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'supabase=true\n');
+    assert.equal(result.output, 'supabase=true\nsniper=false\n');
   });
 });
 
@@ -183,6 +185,30 @@ test('Diff außerhalb von Supabase setzt die Ausgabe auf false', async () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'supabase=false\n');
+    assert.equal(result.output, 'supabase=false\nsniper=false\n');
+  });
+});
+
+test('Diff unter services/sniper setzt ausschließlich die Sniper-Ausgabe', async () => {
+  await withRepository(async (repository) => {
+    const base = await commitFile(repository, 'services/sniper/src/config.ts', 'base\n', 'base');
+    const head = await commitFile(
+      repository,
+      'services/sniper/src/config.ts',
+      'changed\n',
+      'sniper',
+    );
+
+    const result = await runDetector(repository, {
+      EVENT_NAME: 'push',
+      PR_BASE_SHA: '',
+      PUSH_BEFORE_SHA: base,
+      HEAD_SHA: head,
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    // Ohne die Trennung liefe der Datenbankauftrag bei jeder Aenderung am
+    // Dienst mit - und der Dienstauftrag bei jeder Migration.
+    assert.equal(result.output, 'supabase=false\nsniper=true\n');
   });
 });

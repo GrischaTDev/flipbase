@@ -29,11 +29,12 @@ env:
 
 jobs:
   changes:
-    name: Detect database changes
+    name: Detect database and service changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       supabase: ${{ steps.filter.outputs.supabase }}
+      sniper: ${{ steps.filter.outputs.sniper }}
     steps:
       - name: Check out repository history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -205,6 +206,66 @@ jobs:
       - name: Stop local Supabase
         if: ${{ always() }}
         run: npx supabase stop --no-backup
+
+  sniper:
+    name: Sniper service
+    # Nur wenn sich der Dienst geaendert hat. Er liegt in einem eigenen
+    # Paket mit eigenen Abhaengigkeiten; ihn bei jedem Frontend-Push
+    # mitzubauen kostete rund zwei Minuten je Lauf fuer nichts.
+    if: ${{ needs.changes.outputs.sniper == 'true' }}
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/sniper
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: services/sniper/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check types
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      # Der Bau gehoert dazu, weil das Betriebsabbild dist/ startet: Node loest
+      # './config.js' nicht auf config.ts auf, ein Tippfehler im Importpfad
+      # faellt erst hier auf.
+      - name: Build
+        run: npm run build
+
+  # Uebersprungene Auftraege gelten bei GitHub als erfolgreich. Ohne dieses
+  # Gatter koennte ein fehlgeschlagener Dienstlauf unbemerkt durchgehen.
+  sniper-gate:
+    name: Sniper gate
+    if: ${{ always() }}
+    needs: [changes, sniper]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require the matching sniper result
+        env:
+          CHANGED: ${{ needs.changes.outputs.sniper }}
+          RESULT: ${{ needs.sniper.result }}
+        run: |
+          if [ "$CHANGED" = 'true' ]; then
+            test "$RESULT" = 'success'
+          else
+            test "$RESULT" = 'skipped'
+          fi
 
   database-gate:
     name: Database gate

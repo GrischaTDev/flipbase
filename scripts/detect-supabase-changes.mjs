@@ -34,12 +34,21 @@ async function directParent(repository, headSha) {
   }
 }
 
+/**
+ * Meldet, ob sich unterhalb der angegebenen Pfade etwas geaendert hat.
+ *
+ * `paths` ist vorbelegt, damit alle bestehenden Aufrufer unveraendert
+ * weiterlaufen; der Sniper-Auftrag reicht seinen eigenen Pfad herein. Ohne
+ * diese Trennung liefe jede Pruefung bei jedem Push mit, auch wenn nur ein
+ * Text im Frontend geaendert wurde.
+ */
 export async function detectSupabaseChanges({
   repository = process.cwd(),
   eventName,
   prBaseSha,
   pushBeforeSha,
   headSha,
+  paths = ['supabase/'],
 }) {
   if (!commitShaPattern.test(headSha ?? '') || !(await commitExists(repository, headSha))) {
     throw new Error(`HEAD-Commit ist nicht auflösbar: ${headSha ?? '<leer>'}`);
@@ -69,21 +78,25 @@ export async function detectSupabaseChanges({
     baseSha,
     headSha,
     '--',
-    'supabase/',
+    ...paths,
   ]);
   return stdout.trim().length > 0;
 }
 
 async function main() {
-  const changed = await detectSupabaseChanges({
+  const event = {
     eventName: process.env.EVENT_NAME,
     prBaseSha: process.env.PR_BASE_SHA,
     pushBeforeSha: process.env.PUSH_BEFORE_SHA,
     headSha: process.env.HEAD_SHA,
-  });
+  };
+
+  const supabase = await detectSupabaseChanges({ ...event, paths: ['supabase/'] });
+  const sniper = await detectSupabaseChanges({ ...event, paths: ['services/sniper/'] });
+
   const outputPath = process.env.GITHUB_OUTPUT;
   if (!outputPath) throw new Error('GITHUB_OUTPUT fehlt.');
-  await appendFile(outputPath, `supabase=${changed}\n`, 'utf8');
+  await appendFile(outputPath, `supabase=${supabase}\nsniper=${sniper}\n`, 'utf8');
 }
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
