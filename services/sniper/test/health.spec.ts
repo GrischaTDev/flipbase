@@ -65,7 +65,11 @@ describe('createHealthState', () => {
 
     // Port 0 laesst das Betriebssystem einen freien waehlen. Die Adresse steht
     // erst fest, wenn das Binden durch ist - deshalb auf 'listening' warten.
-    const blocker = startHealthServer(state, 0, () => {});
+    const blocker = startHealthServer(state, 0, (error) => {
+      // Der Blockierer selbst muss binden koennen - sonst prueft der Test
+      // etwas anderes, als er behauptet.
+      throw error;
+    });
     const port = await new Promise<number>((resolve) => {
       blocker.on('listening', () => resolve((blocker.address() as { port: number }).port));
     });
