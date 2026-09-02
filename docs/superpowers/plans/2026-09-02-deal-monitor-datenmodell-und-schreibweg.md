@@ -555,6 +555,12 @@ git commit -m "feat(sniper): add the hit list per subscription"
 
 Create `supabase/tests/deal_monitor_subscription_rpc.sql`:
 
+**Wichtig:** `is_workspace_member` liest `auth.uid()`. Als `postgres` ist das leer,
+die Funktion wuerde also immer `Kein Mitglied dieses Arbeitsbereichs` werfen. Der
+Test muss deshalb einen angemeldeten Nutzer vortaeuschen — genau wie
+`supabase/tests/rls_inventory_sales.test.sql` es tut: erst alle Daten anlegen,
+**danach** die Rolle wechseln.
+
 ```sql
 \set ON_ERROR_STOP on
 
@@ -562,23 +568,43 @@ begin;
 
 select plan(4);
 
+\set user_id '85000000-0000-4000-8000-000000000001'
+\set workspace_a '85000000-0000-4000-8000-000000000002'
+\set workspace_b '85000000-0000-4000-8000-000000000003'
+
+insert into auth.users (
+  id, aud, role, email, encrypted_password, raw_app_meta_data,
+  raw_user_meta_data, created_at, updated_at
+) values (
+  :'user_id'::uuid, 'authenticated', 'authenticated',
+  'sniper-rpc@example.test', 'not-used-by-this-test', '{}'::jsonb,
+  '{}'::jsonb, now(), now()
+);
+
+insert into public.workspaces (id, name) values
+  (:'workspace_a'::uuid, 'Sniper Testbereich A'),
+  (:'workspace_b'::uuid, 'Sniper Testbereich B');
+
+insert into public.workspace_members (workspace_id, user_id, role) values
+  (:'workspace_a'::uuid, :'user_id'::uuid, 'owner'),
+  (:'workspace_b'::uuid, :'user_id'::uuid, 'owner');
+
+-- Ab hier als angemeldeter Nutzer. Vorher nicht, sonst scheitern die Inserts.
+set local role authenticated;
+set local request.jwt.claim.sub = :'user_id';
+
 -- Zwei Arbeitsbereiche mit demselben Filter teilen sich eine Abfrage.
 do $$
 declare
-  workspace_a uuid := '84000000-0000-4000-8000-000000000001';
-  workspace_b uuid := '84000000-0000-4000-8000-000000000002';
   subscription_a uuid;
   subscription_b uuid;
   queries integer;
 begin
-  insert into public.workspaces (id, name) values
-    (workspace_a, 'Testbereich A'), (workspace_b, 'Testbereich B');
-
   subscription_a := public.create_sniper_subscription(
-    workspace_a, '  Nike   Air Max ', 53, null, 50, 30
+    '85000000-0000-4000-8000-000000000002'::uuid, '  Nike   Air Max ', 53, null, 50, 30
   );
   subscription_b := public.create_sniper_subscription(
-    workspace_b, 'nike air max', 53, null, 50, 25
+    '85000000-0000-4000-8000-000000000003'::uuid, 'nike air max', 53, null, 50, 25
   );
 
   select count(*) into queries
@@ -606,8 +632,8 @@ begin
   into schwellen
   from public.sniper_query_subscriptions
   where workspace_id in (
-    '84000000-0000-4000-8000-000000000001'::uuid,
-    '84000000-0000-4000-8000-000000000002'::uuid
+    '85000000-0000-4000-8000-000000000002'::uuid,
+    '85000000-0000-4000-8000-000000000003'::uuid
   );
 
   if schwellen <> array[25, 30]::numeric[] then
@@ -626,15 +652,15 @@ declare
   anzahl integer;
 begin
   erstes := public.create_sniper_subscription(
-    '84000000-0000-4000-8000-000000000001'::uuid, 'nike air max', 53, null, 50, 30
+    '85000000-0000-4000-8000-000000000002'::uuid, 'nike air max', 53, null, 50, 30
   );
   zweites := public.create_sniper_subscription(
-    '84000000-0000-4000-8000-000000000001'::uuid, 'nike air max', 53, null, 50, 40
+    '85000000-0000-4000-8000-000000000002'::uuid, 'nike air max', 53, null, 50, 40
   );
 
   select count(*) into anzahl
   from public.sniper_query_subscriptions
-  where workspace_id = '84000000-0000-4000-8000-000000000001'::uuid;
+  where workspace_id = '85000000-0000-4000-8000-000000000002'::uuid;
 
   if erstes <> zweites or anzahl <> 1 then
     raise exception 'Erwartet wurde ein einziges Abonnement, gefunden: % (% und %)', anzahl, erstes, zweites;
@@ -647,14 +673,15 @@ select pass('Derselbe Filter zweimal angelegt bleibt ein Abonnement');
 -- Nachlaufende Nullen duerfen den Schluessel nicht spalten.
 do $$
 declare
-  workspace_c uuid := '84000000-0000-4000-8000-000000000003';
   ignored uuid;
   queries integer;
 begin
-  insert into public.workspaces (id, name) values (workspace_c, 'Testbereich C');
-
-  ignored := public.create_sniper_subscription(workspace_c, 'adidas samba', null, null, 50.00, 30);
-  ignored := public.create_sniper_subscription(workspace_c, 'adidas samba', null, null, 50, 30);
+  ignored := public.create_sniper_subscription(
+    '85000000-0000-4000-8000-000000000003'::uuid, 'adidas samba', null, null, 50.00, 30
+  );
+  ignored := public.create_sniper_subscription(
+    '85000000-0000-4000-8000-000000000003'::uuid, 'adidas samba', null, null, 50, 30
+  );
 
   select count(*) into queries
   from public.sniper_queries
