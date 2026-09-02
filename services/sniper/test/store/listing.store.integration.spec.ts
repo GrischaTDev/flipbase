@@ -1,8 +1,9 @@
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { loadConfig } from '../../src/config.js';
 import { createSupabaseClient } from '../../src/store/supabase.js';
+import { removeTestRows } from './support/cleanup.js';
 import { ListingStore } from '../../src/store/listing.store.js';
 import type { MarketplaceListing } from '../../src/domain/listing.js';
 
@@ -31,6 +32,10 @@ function listing(externalId: string, overrides: Partial<MarketplaceListing> = {}
 }
 
 describe('ListingStore', () => {
+  afterAll(async () => {
+    await removeTestRows(client);
+  });
+
   let queryId: string;
   let store: ListingStore;
 

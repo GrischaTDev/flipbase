@@ -1,8 +1,9 @@
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it } from 'vitest';
 import { loadConfig } from '../../src/config.js';
 import { createSupabaseClient } from '../../src/store/supabase.js';
+import { removeTestRows } from './support/cleanup.js';
 import { QueryStore } from '../../src/store/query.store.js';
 
 const client = createSupabaseClient(loadConfig(process.env));
@@ -24,6 +25,10 @@ async function insertQuery(overrides: Record<string, unknown> = {}): Promise<str
 }
 
 describe('QueryStore', () => {
+  afterAll(async () => {
+    await removeTestRows(client);
+  });
+
   it('returns a query that has never been polled', async () => {
     const id = await insertQuery();
     const store = new QueryStore(client);
