@@ -22,6 +22,7 @@ create table if not exists public.sniper_queries (
     catalog_id integer,
     brand_id integer,
     price_to numeric(12, 2),
+    price_from numeric(12, 2),
     is_standard boolean not null default false,
     poll_interval_ms integer not null default 60000,
     is_seeded boolean not null default false,
@@ -81,6 +82,35 @@ comment on column public.sniper_listings.is_hidden is
 
 comment on column public.sniper_listings.image_urls is
     'Alle Bilder in der Reihenfolge des Katalogs. Ein einzelnes Foto zeigt Maengel oft nicht.';
+
+create table if not exists public.sniper_query_subscriptions (
+    id uuid primary key default gen_random_uuid(),
+    workspace_id uuid not null references public.workspaces (id) on delete cascade,
+    query_id uuid not null references public.sniper_queries (id) on delete cascade,
+    discount_threshold_percent numeric(5, 2) not null default 30
+        check (discount_threshold_percent > 0 and discount_threshold_percent < 100),
+    is_active boolean not null default true,
+    created_at timestamptz not null default now(),
+    unique (workspace_id, query_id)
+);
+
+comment on table public.sniper_query_subscriptions is
+    'Verbindet einen Arbeitsbereich mit einer geteilten Abfrage. Die Abfrage bleibt eine Zeile und wird einmal gepollt; sichtbar ist sie nur ihren Abonnenten.';
+
+comment on column public.sniper_query_subscriptions.discount_threshold_percent is
+    'Ab wie viel Prozent unter dem Gruppenmedian ein Fund zum Treffer wird. Gehoert an das Abonnement, nicht an die Abfrage: Zwei Arbeitsbereiche mit demselben Filter duerfen unterschiedlich streng sein.';
+
+alter table public.sniper_query_subscriptions enable row level security;
+
+create policy "Mitglieder duerfen eigene Abonnements lesen" on public.sniper_query_subscriptions
+    for select to authenticated
+    using (public.is_workspace_member(workspace_id));
+
+create index if not exists idx_sniper_query_subscriptions_workspace
+    on public.sniper_query_subscriptions (workspace_id);
+
+create index if not exists idx_sniper_query_subscriptions_query
+    on public.sniper_query_subscriptions (query_id);
 
 -- Beide Tabellen sind arbeitsbereichsuebergreifend: Angemeldete Nutzer duerfen
 -- ausschliesslich lesen. Geschrieben wird nur vom Dienst ueber den
