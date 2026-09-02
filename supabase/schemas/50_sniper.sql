@@ -7,12 +7,13 @@
 -- an anderer Stelle umgebaut. Getrennte Dateien halten die Unterschiede lesbar
 -- und verhindern, dass zwei Beitragende dieselbe 4600-Zeilen-Datei anfassen.
 --
--- Zur Reihenfolge: Schemadateien laufen lexikographisch. Solange database.sql
--- noch so heisst, laeuft diese Datei davor - das ist unkritisch, weil hier
--- nichts aus database.sql verwendet wird. Beide Tabellen sind bewusst
--- arbeitsbereichsuebergreifend und brauchen weder workspaces noch
--- is_workspace_member. Sobald database.sql in nummerierte Dateien zerlegt ist,
--- sortiert 50_ von allein an die richtige Stelle.
+-- Zur Reihenfolge: sniper_query_subscriptions verweist auf public.workspaces
+-- und nutzt public.is_workspace_member aus database.sql - diese Datei muss
+-- also nach database.sql geladen werden. Das ist kein Zufall der lexikografischen
+-- Sortierung mehr, sondern steht als feste Liste in schema_paths in
+-- supabase/config.toml. Wer eine neue Schemadatei anlegt, muss sie dort mit
+-- der richtigen Position eintragen - sonst wird sie beim db reset entweder
+-- gar nicht geladen oder in falscher Reihenfolge.
 
 create table if not exists public.sniper_queries (
     id uuid primary key default gen_random_uuid(),
@@ -139,8 +140,11 @@ revoke all on table public.sniper_queries from anon, public;
 revoke all on table public.sniper_queries from authenticated;
 revoke all on table public.sniper_listings from anon, public;
 revoke all on table public.sniper_listings from authenticated;
+revoke all on table public.sniper_query_subscriptions from anon, public;
+revoke all on table public.sniper_query_subscriptions from authenticated;
 
 grant select on table public.sniper_queries, public.sniper_listings to authenticated;
+grant select on table public.sniper_query_subscriptions to authenticated;
 
 create index if not exists idx_sniper_queries_due
     on public.sniper_queries (is_active, last_polled_at);

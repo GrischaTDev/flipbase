@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(4);
+select plan(6);
 
 -- Spalten von sniper_query_subscriptions
 do $$
@@ -94,6 +94,54 @@ end;
 $$;
 
 select pass('RLS ist aktiv und angemeldete Nutzer duerfen nur lesen');
+
+-- anon darf auf der Abonnement-Tabelle gar nichts.
+--
+-- Die Voreinstellung von Supabase vergibt an anon truncate, references,
+-- trigger und maintain. truncate umgeht RLS vollstaendig - eine nicht
+-- angemeldete Rolle darf das nicht behalten, und `supabase db diff`
+-- uebertraegt Rechte nicht aus dem Schema, es faellt also sonst niemandem auf.
+do $$
+declare
+  anon_rechte text[];
+begin
+  select array_agg(privilege_type order by privilege_type)
+  into anon_rechte
+  from information_schema.role_table_grants
+  where table_schema = 'public'
+    and table_name = 'sniper_query_subscriptions'
+    and grantee = 'anon';
+
+  if anon_rechte is not null then
+    raise exception 'anon haelt noch Rechte auf sniper_query_subscriptions: %', anon_rechte;
+  end if;
+end;
+$$;
+
+select pass('anon hat keinerlei Rechte auf der Abonnement-Tabelle');
+
+-- authenticated darf genau lesen - nicht mehr.
+--
+-- Diese Pruefung fehlte zuerst und haette den Fehler verdeckt: anon war
+-- sauber, authenticated behielt aber truncate, was RLS ebenso umgeht.
+do $$
+declare
+  rechte text[];
+begin
+  select array_agg(privilege_type order by privilege_type)
+  into rechte
+  from information_schema.role_table_grants
+  where table_schema = 'public'
+    and table_name = 'sniper_query_subscriptions'
+    and grantee = 'authenticated';
+
+  if rechte is distinct from array['SELECT'] then
+    raise exception 'authenticated soll genau SELECT haben, hat aber: %', rechte;
+  end if;
+end;
+$$;
+
+select pass('authenticated darf die Abonnement-Tabelle genau lesen');
 
 select * from finish();
 
