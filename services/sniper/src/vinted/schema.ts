@@ -7,9 +7,17 @@ const MoneySchema = z.object({
 
 /**
  * Bewusst nur die Felder, die wir wirklich verwenden. Unbekannte Felder laesst
- * Zod fallen; ein neues Vinted-Feld darf den Dienst nicht anhalten. Der
- * `user`-Block wird absichtlich nicht beschrieben - was nicht im Schema steht,
- * kann auch nicht versehentlich weiterverarbeitet werden.
+ * Zod fallen; ein neues Vinted-Feld darf den Dienst nicht anhalten.
+ *
+ * Der `user`-Block war frueher absichtlich nicht beschrieben. Am 02.09.2026
+ * wurde entschieden, Name und Profilbild aufzunehmen - die Herkunft eines
+ * Angebots entscheidet mit, ob es taugt. Beschrieben sind deshalb genau diese
+ * zwei Felder: `id` und `profile_url` bleiben draussen, damit sie gar nicht
+ * erst weiterverarbeitet werden koennen.
+ *
+ * Bewertung und Bewertungszahl liefert der Katalog nicht - die stehen nur auf
+ * der Detailseite eines Artikels. Sie zu holen lohnt erst fuer Treffer, die
+ * einen Filter ueberstanden haben, und gehoert damit in Etappe 2.
  */
 export const VintedItemSchema = z.object({
   id: z.union([z.number(), z.string()]),
@@ -20,6 +28,22 @@ export const VintedItemSchema = z.object({
   brand_title: z.string().nullish(),
   size_title: z.string().nullish(),
   status: z.string().nullish(),
+  /** Vinted zeigt Artikel im Katalog, bevor sie kaufbar sind. */
+  is_visible: z.boolean().nullish(),
+  user: z
+    .object({
+      login: z.string().nullish(),
+      photo: z.object({ url: z.string().nullish() }).nullish(),
+    })
+    .nullish(),
+  photos: z
+    .array(
+      z.object({
+        url: z.string().nullish(),
+        is_main: z.boolean().nullish(),
+      }),
+    )
+    .nullish(),
   photo: z
     .object({
       url: z.string().nullish(),

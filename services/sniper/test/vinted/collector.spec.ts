@@ -61,7 +61,11 @@ describe('VintedCollector', () => {
 
     expect(listings).toHaveLength(fixture.items.length);
     expect(listings[0]?.marketplace).toBe('vinted');
-    expect(JSON.stringify(listings)).not.toContain('seller_0');
+    expect(listings[0]?.seller.name).toBe('seller_0');
+    // Der Riegel gilt weiter fuer alles, was darueber hinausgeht: Die
+    // Profiladresse steht in der Antwort, darf den Sammler aber nicht verlassen.
+    expect(JSON.stringify(listings)).not.toContain('profile_url');
+    expect(JSON.stringify(listings)).not.toContain('/member/');
   });
 
   it('re-warms the session once on 401 and then succeeds', async () => {
