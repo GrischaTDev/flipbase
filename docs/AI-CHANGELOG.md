@@ -69,6 +69,7 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 4. **AGB & Datenschutz:** Zwei eigenständige modale Komponenten (`TermsModalComponent` und `PrivacyModalComponent`) mit `appModalDialog` erstellt und über die Links in der Registrierung klickbar angebunden (mit Platzhalter-Hinweis bis zum offiziellen Verkaufsstart).
 5. **E2E-Tests:** `e2e/demo-login.spec.ts` aktualisiert, um das Öffnen und Schließen der beiden Modals via Tastatur (Escape) zu prüfen.
 6. **Vollständige Lokalisierung (DE/EN):** Sämtliche verbliebenen deutschen Textfragmente (Slogan, Formular-Platzhalter, Validierungsmeldungen, Barrierefreiheits-Labels bei Theme- und Passwort-Umschaltern, Demo-Modus-Bereich sowie AGB- und Datenschutz-Texte) wurden vollständig in `TRANSLATIONS_DE` und `TRANSLATIONS_EN` extrahiert und in den Templates dynamisch angebunden.
+7. **Modernisierter Slogan:** Die bisherige sperrige Tagline _„Entscheidungs- und Finanzsystem für Reseller“_ wurde durch das treffendere, moderne Markenversprechen _„Das All-in-One Betriebssystem für Reseller“_ (EN: _„The All-in-One Operating System for Resellers“_) in `APP.TAGLINE` und `AUTH.TAGLINE` ersetzt.
 
 **Warum:** Einheitliches Markendesign auf den Auth-Seiten, barrierefreie Navigation und Vorbereitung der Pflicht-Rechtstexte.
 
