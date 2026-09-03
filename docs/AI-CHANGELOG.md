@@ -52,15 +52,18 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 **Art:** Feature
 
-**Betroffen:** `src/environments/environment.ts`, `src/environments/environment.development.ts`,
-`src/app/core/i18n/translations.ts`, `src/app/features/auth/login/*`,
+**Betroffen:** `.github/workflows/ci.yml`, `src/environments/environment.ts`,
+`src/environments/environment.development.ts`,
+`src/app/core/i18n/translations.ts`, `src/app/core/services/landing-hint-umgebung.spec.ts`,
+`src/app/features/auth/login/*`,
 `src/app/features/auth/register/*`,
 `src/app/features/auth/components/terms-modal/*` (neu),
 `src/app/features/auth/components/privacy-modal/*` (neu),
 `e2e/demo-login.spec.ts`
 
 **Was:**
-1. **Zurück zur Startseite:** Oben links auf der Anmelde- und Registrierungsseite wurde ein barrierefreier „← Zurück zur Startseite“-Button eingebaut (Ziel: `https://flipbase.de`).
+
+1. **Zurück zur Startseite:** Oben links auf der Anmelde- und Registrierungsseite wurde ein barrierefreier „← Zurück zur Startseite“-Button eingebaut (Ziel: `https://flipbase.de`). In `.github/workflows/ci.yml` wurde das Produktions-Environment-Template um `landingUrl` ergänzt und durch `landing-hint-umgebung.spec.ts` abgesichert.
 2. **Theme- & Sprachauswahl:** Oben rechts auf beiden Auth-Seiten wurden Theme-Toggle (Hell-/Dunkelmodus) und Sprachauswahl (DE/EN) integriert.
 3. **Marken-Styling:** Veraltete grüne Schaltflächen (`bg-emerald-700`) und Links wurden auf die Flipbase-Standardfarbe Gelb-Orange (`linear-btn-primary`, `text-amber-400`, `focus:ring-amber-500`) umgestellt.
 4. **AGB & Datenschutz:** Zwei eigenständige modale Komponenten (`TermsModalComponent` und `PrivacyModalComponent`) mit `appModalDialog` erstellt und über die Links in der Registrierung klickbar angebunden (mit Platzhalter-Hinweis bis zum offiziellen Verkaufsstart).

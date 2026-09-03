@@ -379,6 +379,7 @@ jobs:
              * signed in. Holds no token - just a flag.
              */
             landingHintCookieDomain: '.flipbase.de',
+            landingUrl: 'https://flipbase.de',
           };
           EOF
 

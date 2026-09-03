@@ -38,3 +38,23 @@ describe('Umgebungsfeld landingHintCookieDomain', () => {
     expect(lies('.github/workflows/ci.yml')).toMatch(/landingHintCookieDomain:\s*'\.flipbase\.de'/);
   });
 });
+
+describe('Umgebungsfeld landingUrl', () => {
+  it('steht in beiden Umgebungsdateien', () => {
+    expect(lies('src/environments/environment.ts')).toContain('landingUrl');
+    expect(lies('src/environments/environment.development.ts')).toContain('landingUrl');
+  });
+
+  it('verweist auf die Landingpage', () => {
+    expect(lies('src/environments/environment.development.ts')).toMatch(
+      /landingUrl:\s*'https:\/\/flipbase\.de'/,
+    );
+    expect(lies('src/environments/environment.ts')).toMatch(
+      /landingUrl:\s*'https:\/\/flipbase\.de'/,
+    );
+  });
+
+  it('die CI schreibt das Feld in das Abbild', () => {
+    expect(lies('.github/workflows/ci.yml')).toMatch(/landingUrl:\s*'https:\/\/flipbase\.de'/);
+  });
+});
