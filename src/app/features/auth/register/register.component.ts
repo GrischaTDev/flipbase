@@ -213,7 +213,7 @@ export class RegisterComponent {
     if (error) {
       this.errorMessage.set(error.message);
     } else {
-      this.successMessage.set('Registrierung erfolgreich! Du wirst weitergeleitet...');
+      this.successMessage.set(this.translate.instant('AUTH.SUCCESS_REGISTER'));
       setTimeout(() => {
         this.router.navigate(['/dashboard']);
       }, 1200);
