@@ -14,4 +14,8 @@ export const environment = {
    * Unterdomains. Leer bedeutet: kein Cookie, kein Hinweis.
    */
   landingHintCookieDomain: '.flipbase.de',
+  /**
+   * Adresse der oeffentlichen Landingpage (Startseite).
+   */
+  landingUrl: 'https://flipbase.de',
 };

@@ -1,4 +1,57 @@
-<div class="min-h-screen bg-fb-well flex items-center justify-center p-4 py-8">
+<div class="min-h-screen bg-fb-well flex items-center justify-center p-4 py-8 relative">
+  <!-- Zurück zur Startseite -->
+  <a
+    [href]="landingUrl"
+    class="absolute top-4 left-4 sm:top-6 sm:left-6 z-10 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-alt/80 transition focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+  >
+    <svg [lucideIcon]="arrowLeftIcon" class="w-4 h-4"></svg>
+    <span>{{ 'AUTH.BACK_TO_HOME' | translate }}</span>
+  </a>
+
+  <!-- Theme & Language Switcher (oben rechts) -->
+  <div class="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 flex items-center gap-2">
+    <!-- Design umschalten (hell / dunkel) -->
+    <button
+      type="button"
+      (click)="themeService.toggleTheme()"
+      class="p-2 rounded-xl border border-fb-border bg-fb-surface-alt text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface transition cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+      [attr.aria-label]="
+        themeService.isDark() ? 'Zu hellem Design wechseln' : 'Zu dunklem Design wechseln'
+      "
+      [title]="themeService.isDark() ? 'Helles Design' : 'Dunkles Design'"
+    >
+      <svg [lucideIcon]="themeService.isDark() ? sunIcon : moonIcon" class="w-4 h-4"></svg>
+    </button>
+
+    <!-- Language Toggle -->
+    <div
+      class="flex items-center border border-fb-border rounded-xl p-0.5 bg-fb-surface-alt text-xs font-semibold"
+    >
+      <button
+        type="button"
+        (click)="switchLanguage('de')"
+        class="px-2.5 py-1 rounded-lg transition cursor-pointer"
+        [class.bg-fb-border]="currentLanguage() === 'de'"
+        [class.shadow-xs]="currentLanguage() === 'de'"
+        [class.text-fb-text-primary]="currentLanguage() === 'de'"
+        [class.text-fb-text-muted]="currentLanguage() !== 'de'"
+      >
+        DE
+      </button>
+      <button
+        type="button"
+        (click)="switchLanguage('en')"
+        class="px-2.5 py-1 rounded-lg transition cursor-pointer"
+        [class.bg-fb-border]="currentLanguage() === 'en'"
+        [class.shadow-xs]="currentLanguage() === 'en'"
+        [class.text-fb-text-primary]="currentLanguage() === 'en'"
+        [class.text-fb-text-muted]="currentLanguage() !== 'en'"
+      >
+        EN
+      </button>
+    </div>
+  </div>
+
   <div
     class="max-w-md w-full bg-fb-surface-alt border border-fb-border rounded-3xl p-6 sm:p-8 shadow-2xl animate-fade-in"
   >
@@ -61,7 +114,7 @@
             formControlName="fullName"
             placeholder="Max Mustermann"
             autocomplete="name"
-            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition"
+            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition"
           />
         </div>
         @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
@@ -91,7 +144,7 @@
             formControlName="email"
             placeholder="deine.email@beispiel.de"
             autocomplete="email"
-            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition"
+            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition"
           />
         </div>
         @if (form.controls.email.touched && form.controls.email.invalid) {
@@ -121,7 +174,7 @@
             formControlName="password"
             placeholder="Mindestens 8 Zeichen"
             autocomplete="new-password"
-            class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition"
+            class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition"
           />
           <button
             type="button"
@@ -183,9 +236,9 @@
             formControlName="confirmPassword"
             placeholder="Passwort erneut eingeben"
             autocomplete="new-password"
-            class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500 transition"
+            class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition"
             [class.border-rose-500]="isPasswordMismatch"
-            [class.border-emerald-500]="isPasswordMatch"
+            [class.border-amber-500]="isPasswordMatch"
           />
           <button
             type="button"
@@ -204,7 +257,9 @@
           </p>
         }
         @if (isPasswordMatch) {
-          <p class="text-[11px] text-emerald-400 mt-1 pl-1 flex items-center gap-1">
+          <p
+            class="text-[11px] text-amber-500 dark:text-amber-400 mt-1 pl-1 flex items-center gap-1"
+          >
             <svg [lucideIcon]="checkIcon" class="w-3.5 h-3.5"></svg>
             <span>{{ 'AUTH.PASSWORD_MATCH_OK' | translate }}</span>
           </p>
@@ -222,13 +277,20 @@
           ></app-custom-checkbox>
           <span class="text-xs text-fb-text-muted leading-relaxed select-none">
             {{ 'AUTH.ACCEPT_TERMS' | translate }}
-            <span class="text-emerald-700 dark:text-emerald-400 underline font-semibold">
+            <button
+              type="button"
+              (click)="showTermsModal.set(true)"
+              class="text-amber-500 dark:text-amber-400 underline font-semibold hover:text-amber-300 cursor-pointer inline"
+            >
               {{ 'AUTH.TERMS_LINK' | translate }}
-            </span>
+            </button>
             {{ 'AUTH.AND' | translate }}
-            <span class="text-emerald-700 dark:text-emerald-400 underline font-semibold">{{
-              'AUTH.PRIVACY_LINK' | translate
-            }}</span
+            <button
+              type="button"
+              (click)="showPrivacyModal.set(true)"
+              class="text-amber-500 dark:text-amber-400 underline font-semibold hover:text-amber-300 cursor-pointer inline"
+            >
+              {{ 'AUTH.PRIVACY_LINK' | translate }}</button
             >.
           </span>
         </div>
@@ -243,7 +305,7 @@
       <button
         type="submit"
         [disabled]="form.invalid || isLoading()"
-        class="w-full mt-3 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-fb-on-accent font-bold text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 cursor-pointer"
+        class="linear-btn-primary w-full mt-3 py-3 rounded-xl font-bold text-sm shadow-lg shadow-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 cursor-pointer"
       >
         <svg [lucideIcon]="registerIcon" class="w-4 h-4"></svg>
         <span>{{
@@ -255,9 +317,20 @@
     <!-- Footer Switch to Login -->
     <div class="mt-6 text-center text-xs text-fb-text-muted border-t border-fb-border pt-4">
       {{ 'AUTH.HAVE_ACCOUNT' | translate }}
-      <a routerLink="/auth/login" class="text-emerald-400 font-semibold hover:underline ml-1">
+      <a
+        routerLink="/auth/login"
+        class="text-amber-500 dark:text-amber-400 font-semibold hover:underline ml-1"
+      >
         {{ 'AUTH.LOGIN' | translate }}
       </a>
     </div>
   </div>
+
+  <!-- Legal Modals -->
+  @if (showTermsModal()) {
+    <app-terms-modal (closed)="showTermsModal.set(false)"></app-terms-modal>
+  }
+  @if (showPrivacyModal()) {
+    <app-privacy-modal (closed)="showPrivacyModal.set(false)"></app-privacy-modal>
+  }
 </div>

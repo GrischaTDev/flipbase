@@ -42,6 +42,7 @@ export const TRANSLATIONS_DE = {
     LOGIN: 'Anmelden',
     REGISTER: 'Registrieren',
     LOGOUT: 'Abmelden',
+    BACK_TO_HOME: 'Zurück zur Startseite',
     EMAIL: 'E-Mail-Adresse',
     PASSWORD: 'Passwort',
     PASSWORD_CONFIRM: 'Passwort wiederholen',
@@ -62,6 +63,12 @@ export const TRANSLATIONS_DE = {
     PRIVACY_LINK: 'Datenschutzerklärung',
     ACCEPT_TERMS_ERROR: 'Bitte stimme den AGB und der Datenschutzerklärung zu.',
     ACCEPT_TERMS_ARIA: 'AGB und Datenschutzerklärung akzeptieren',
+    TERMS_TITLE: 'Allgemeine Geschäftsbedingungen',
+    PRIVACY_TITLE: 'Datenschutzerklärung',
+    TERMS_PLACEHOLDER:
+      'Die verbindlichen Allgemeinen Geschäftsbedingungen (AGB) für Flipbase werden hier vor dem offiziellen Start hinterlegt.',
+    PRIVACY_PLACEHOLDER:
+      'Die verbindliche Datenschutzerklärung für Flipbase wird hier vor dem offiziellen Start hinterlegt.',
     PASSWORD_STRENGTH_WEAK: 'Schwach',
     PASSWORD_STRENGTH_MEDIUM: 'Mittel',
     PASSWORD_STRENGTH_STRONG: 'Sehr sicher',
@@ -346,6 +353,7 @@ export const TRANSLATIONS_EN = {
     LOGIN: 'Sign In',
     REGISTER: 'Sign Up',
     LOGOUT: 'Sign Out',
+    BACK_TO_HOME: 'Back to Home',
     EMAIL: 'Email Address',
     PASSWORD: 'Password',
     PASSWORD_CONFIRM: 'Confirm Password',
@@ -366,6 +374,12 @@ export const TRANSLATIONS_EN = {
     PRIVACY_LINK: 'Privacy Policy',
     ACCEPT_TERMS_ERROR: 'Please accept the Terms and Conditions and the Privacy Policy.',
     ACCEPT_TERMS_ARIA: 'Accept the Terms and Conditions and the Privacy Policy',
+    TERMS_TITLE: 'Terms and Conditions',
+    PRIVACY_TITLE: 'Privacy Policy',
+    TERMS_PLACEHOLDER:
+      'The binding Terms and Conditions for Flipbase will be published here prior to official release.',
+    PRIVACY_PLACEHOLDER:
+      'The binding Privacy Policy for Flipbase will be published here prior to official release.',
     PASSWORD_STRENGTH_WEAK: 'Weak',
     PASSWORD_STRENGTH_MEDIUM: 'Medium',
     PASSWORD_STRENGTH_STRONG: 'Very strong',
