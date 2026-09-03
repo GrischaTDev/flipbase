@@ -11,7 +11,7 @@ export const TRANSLATIONS_DE = {
 
   APP: {
     TITLE: 'Flipbase',
-    TAGLINE: 'Entscheidungs- und Finanzsystem für Reseller',
+    TAGLINE: 'Das All-in-One Betriebssystem für Reseller',
   },
   NAV: {
     DASHBOARD: 'Dashboard',
@@ -69,7 +69,7 @@ export const TRANSLATIONS_DE = {
       'Die verbindlichen Allgemeinen Geschäftsbedingungen (AGB) für Flipbase werden hier vor dem offiziellen Start hinterlegt.',
     PRIVACY_PLACEHOLDER:
       'Die verbindliche Datenschutzerklärung für Flipbase wird hier vor dem offiziellen Start hinterlegt.',
-    TAGLINE: 'Entscheidungs- und Finanzsystem für Reseller',
+    TAGLINE: 'Das All-in-One Betriebssystem für Reseller',
     EMAIL_PLACEHOLDER: 'deine.email@beispiel.de',
     FULL_NAME_PLACEHOLDER: 'Max Mustermann',
     FULL_NAME_ERROR: 'Bitte gib deinen vollständigen Namen ein.',
@@ -347,7 +347,7 @@ export const TRANSLATIONS_EN = {
 
   APP: {
     TITLE: 'Flipbase',
-    TAGLINE: 'Decision & Financial System for Resellers',
+    TAGLINE: 'The All-in-One Operating System for Resellers',
   },
   NAV: {
     DASHBOARD: 'Dashboard',
@@ -405,7 +405,7 @@ export const TRANSLATIONS_EN = {
       'The binding Terms and Conditions for Flipbase will be published here prior to official release.',
     PRIVACY_PLACEHOLDER:
       'The binding Privacy Policy for Flipbase will be published here prior to official release.',
-    TAGLINE: 'Decision and financial system for resellers',
+    TAGLINE: 'The All-in-One Operating System for Resellers',
     EMAIL_PLACEHOLDER: 'your.email@example.com',
     FULL_NAME_PLACEHOLDER: 'John Doe',
     FULL_NAME_ERROR: 'Please enter your full name.',
