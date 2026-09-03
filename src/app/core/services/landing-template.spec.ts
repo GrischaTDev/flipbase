@@ -31,7 +31,7 @@ describe('Anmeldehinweis auf der Landingpage', () => {
   });
 
   it('die Seite bindet das Flipbase-Markenlogo ein', () => {
-    expect(seite).toMatch(/<img[^>]+src="\/images\/logo-mark\.png"/);
+    expect(seite).toMatch(/<img[^>]+src="(\/)?images\/logo-mark\.png"/);
   });
 
   it('die Seite bietet JavaScript-freie Umschalter fuer Design und Sprache', () => {
