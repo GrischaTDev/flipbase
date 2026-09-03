@@ -68,10 +68,11 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 3. **Marken-Styling:** Veraltete grüne Schaltflächen (`bg-emerald-700`) und Links wurden auf die Flipbase-Standardfarbe Gelb-Orange (`linear-btn-primary`, `text-amber-400`, `focus:ring-amber-500`) umgestellt.
 4. **AGB & Datenschutz:** Zwei eigenständige modale Komponenten (`TermsModalComponent` und `PrivacyModalComponent`) mit `appModalDialog` erstellt und über die Links in der Registrierung klickbar angebunden (mit Platzhalter-Hinweis bis zum offiziellen Verkaufsstart).
 5. **E2E-Tests:** `e2e/demo-login.spec.ts` aktualisiert, um das Öffnen und Schließen der beiden Modals via Tastatur (Escape) zu prüfen.
+6. **Vollständige Lokalisierung (DE/EN):** Sämtliche verbliebenen deutschen Textfragmente (Slogan, Formular-Platzhalter, Validierungsmeldungen, Barrierefreiheits-Labels bei Theme- und Passwort-Umschaltern, Demo-Modus-Bereich sowie AGB- und Datenschutz-Texte) wurden vollständig in `TRANSLATIONS_DE` und `TRANSLATIONS_EN` extrahiert und in den Templates dynamisch angebunden.
 
 **Warum:** Einheitliches Markendesign auf den Auth-Seiten, barrierefreie Navigation und Vorbereitung der Pflicht-Rechtstexte.
 
-**Verifiziert durch:** TypeScript Typecheck (`npm run typecheck`), ESLint (`npm run lint`), Prettier-Prüfung (`npm run format:check`) und alle Vitest-Testsuiten (1091 Tests bestanden).
+**Verifiziert durch:** TypeScript Typecheck (`npm run typecheck`), ESLint (`npm run lint`), Prettier-Prüfung (`npm run format:check`), Workflow-Tests (`npm run test:workflow`) und alle Vitest-Testsuiten (1094 Tests bestanden).
 
 ---
 

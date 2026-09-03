@@ -16,9 +16,9 @@
       (click)="themeService.toggleTheme()"
       class="p-2 rounded-xl border border-fb-border bg-fb-surface-alt text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface transition cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-amber-500"
       [attr.aria-label]="
-        themeService.isDark() ? 'Zu hellem Design wechseln' : 'Zu dunklem Design wechseln'
+        (themeService.isDark() ? 'COMMON.SWITCH_TO_LIGHT' : 'COMMON.SWITCH_TO_DARK') | translate
       "
-      [title]="themeService.isDark() ? 'Helles Design' : 'Dunkles Design'"
+      [title]="(themeService.isDark() ? 'COMMON.THEME_LIGHT' : 'COMMON.THEME_DARK') | translate"
     >
       <svg [lucideIcon]="themeService.isDark() ? sunIcon : moonIcon" class="w-4 h-4"></svg>
     </button>
@@ -66,7 +66,7 @@
         priority
       />
       <h1 class="text-2xl font-extrabold text-fb-text-primary tracking-tight">Flipbase</h1>
-      <p class="text-xs text-fb-text-muted mt-0.5">Entscheidungs- und Finanzsystem für Reseller</p>
+      <p class="text-xs text-fb-text-muted mt-0.5">{{ 'AUTH.TAGLINE' | translate }}</p>
       <h2 class="text-base font-bold text-fb-text-secondary mt-3">
         {{ 'AUTH.SIGN_UP_TITLE' | translate }}
       </h2>
@@ -112,14 +112,14 @@
             id="regFullName"
             type="text"
             formControlName="fullName"
-            placeholder="Max Mustermann"
+            [placeholder]="'AUTH.FULL_NAME_PLACEHOLDER' | translate"
             autocomplete="name"
             class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition"
           />
         </div>
         @if (form.controls.fullName.touched && form.controls.fullName.invalid) {
           <p class="text-[11px] text-rose-400 mt-1 pl-1">
-            Bitte gib deinen vollständigen Namen ein.
+            {{ 'AUTH.FULL_NAME_ERROR' | translate }}
           </p>
         }
       </div>
@@ -142,14 +142,14 @@
             id="regEmail"
             type="email"
             formControlName="email"
-            placeholder="deine.email@beispiel.de"
+            [placeholder]="'AUTH.EMAIL_PLACEHOLDER' | translate"
             autocomplete="email"
             class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition"
           />
         </div>
         @if (form.controls.email.touched && form.controls.email.invalid) {
           <p class="text-[11px] text-rose-400 mt-1 pl-1">
-            Bitte gib eine gültige E-Mail-Adresse ein.
+            {{ 'AUTH.EMAIL_ERROR' | translate }}
           </p>
         }
       </div>
@@ -172,7 +172,7 @@
             id="regPassword"
             [type]="showPassword() ? 'text' : 'password'"
             formControlName="password"
-            placeholder="Mindestens 8 Zeichen"
+            [placeholder]="'AUTH.PASSWORD_PLACEHOLDER' | translate"
             autocomplete="new-password"
             class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition"
           />
@@ -180,7 +180,9 @@
             type="button"
             (click)="toggleShowPassword()"
             class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-fb-text-muted hover:text-fb-text-primary cursor-pointer transition"
-            [attr.aria-label]="showPassword() ? 'Passwort verbergen' : 'Passwort anzeigen'"
+            [attr.aria-label]="
+              (showPassword() ? 'AUTH.PASSWORD_HIDE' : 'AUTH.PASSWORD_SHOW') | translate
+            "
           >
             <svg [lucideIcon]="showPassword() ? eyeOffIcon : eyeIcon" class="w-4 h-4"></svg>
           </button>
@@ -198,7 +200,7 @@
             <div
               class="flex items-center justify-between text-[10px] text-fb-text-muted font-medium"
             >
-              <span>Sicherheitsstufe:</span>
+              <span>{{ 'AUTH.PASSWORD_STRENGTH_LABEL' | translate }}</span>
               <span
                 [class.text-rose-400]="passwordStrength().score === 1"
                 [class.text-amber-400]="passwordStrength().score === 2"
@@ -211,7 +213,7 @@
         }
         @if (form.controls.password.touched && form.controls.password.invalid) {
           <p class="text-[11px] text-rose-400 mt-1 pl-1">
-            Das Passwort muss mindestens 8 Zeichen lang sein.
+            {{ 'AUTH.PASSWORD_LENGTH_ERROR' | translate }}
           </p>
         }
       </div>
@@ -234,7 +236,7 @@
             id="regConfirmPassword"
             [type]="showConfirmPassword() ? 'text' : 'password'"
             formControlName="confirmPassword"
-            placeholder="Passwort erneut eingeben"
+            [placeholder]="'AUTH.PASSWORD_CONFIRM_PLACEHOLDER' | translate"
             autocomplete="new-password"
             class="w-full pl-10 pr-10 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500 transition"
             [class.border-rose-500]="isPasswordMismatch"
@@ -244,7 +246,9 @@
             type="button"
             (click)="toggleShowConfirmPassword()"
             class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-fb-text-muted hover:text-fb-text-primary cursor-pointer transition"
-            [attr.aria-label]="showConfirmPassword() ? 'Passwort verbergen' : 'Passwort anzeigen'"
+            [attr.aria-label]="
+              (showConfirmPassword() ? 'AUTH.PASSWORD_HIDE' : 'AUTH.PASSWORD_SHOW') | translate
+            "
           >
             <svg [lucideIcon]="showConfirmPassword() ? eyeOffIcon : eyeIcon" class="w-4 h-4"></svg>
           </button>
