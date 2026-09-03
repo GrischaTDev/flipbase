@@ -13,4 +13,8 @@ export const environment = {
    * deshalb bleibt das Feld leer und der Dienst tut nichts.
    */
   landingHintCookieDomain: '',
+  /**
+   * Adresse der oeffentlichen Landingpage (Startseite).
+   */
+  landingUrl: 'https://flipbase.de',
 };

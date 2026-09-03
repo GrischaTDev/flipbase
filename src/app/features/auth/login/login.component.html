@@ -1,4 +1,57 @@
-<div class="min-h-screen bg-fb-well flex items-center justify-center p-4">
+<div class="min-h-screen bg-fb-well flex items-center justify-center p-4 relative">
+  <!-- Zurück zur Startseite -->
+  <a
+    [href]="landingUrl"
+    class="absolute top-4 left-4 sm:top-6 sm:left-6 z-10 inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs sm:text-sm font-medium text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-alt/80 transition focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+  >
+    <svg [lucideIcon]="arrowLeftIcon" class="w-4 h-4"></svg>
+    <span>{{ 'AUTH.BACK_TO_HOME' | translate }}</span>
+  </a>
+
+  <!-- Theme & Language Switcher (oben rechts) -->
+  <div class="absolute top-4 right-4 sm:top-6 sm:right-6 z-10 flex items-center gap-2">
+    <!-- Design umschalten (hell / dunkel) -->
+    <button
+      type="button"
+      (click)="themeService.toggleTheme()"
+      class="p-2 rounded-xl border border-fb-border bg-fb-surface-alt text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface transition cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+      [attr.aria-label]="
+        themeService.isDark() ? 'Zu hellem Design wechseln' : 'Zu dunklem Design wechseln'
+      "
+      [title]="themeService.isDark() ? 'Helles Design' : 'Dunkles Design'"
+    >
+      <svg [lucideIcon]="themeService.isDark() ? sunIcon : moonIcon" class="w-4 h-4"></svg>
+    </button>
+
+    <!-- Language Toggle -->
+    <div
+      class="flex items-center border border-fb-border rounded-xl p-0.5 bg-fb-surface-alt text-xs font-semibold"
+    >
+      <button
+        type="button"
+        (click)="switchLanguage('de')"
+        class="px-2.5 py-1 rounded-lg transition cursor-pointer"
+        [class.bg-fb-border]="currentLanguage() === 'de'"
+        [class.shadow-xs]="currentLanguage() === 'de'"
+        [class.text-fb-text-primary]="currentLanguage() === 'de'"
+        [class.text-fb-text-muted]="currentLanguage() !== 'de'"
+      >
+        DE
+      </button>
+      <button
+        type="button"
+        (click)="switchLanguage('en')"
+        class="px-2.5 py-1 rounded-lg transition cursor-pointer"
+        [class.bg-fb-border]="currentLanguage() === 'en'"
+        [class.shadow-xs]="currentLanguage() === 'en'"
+        [class.text-fb-text-primary]="currentLanguage() === 'en'"
+        [class.text-fb-text-muted]="currentLanguage() !== 'en'"
+      >
+        EN
+      </button>
+    </div>
+  </div>
+
   <div class="max-w-md w-full bg-fb-surface-alt border border-fb-border rounded-3xl p-8 shadow-2xl">
     <!-- Logo & Title -->
     <div class="text-center mb-8">
@@ -46,7 +99,7 @@
             type="email"
             formControlName="email"
             placeholder="deine.email@beispiel.de"
-            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500"
           />
         </div>
       </div>
@@ -69,7 +122,7 @@
             type="password"
             formControlName="password"
             placeholder="••••••••"
-            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+            class="w-full pl-10 pr-4 py-2.5 rounded-xl border border-fb-border bg-fb-well text-fb-text-primary placeholder-fb-text-dimmed text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500"
           />
         </div>
       </div>
@@ -77,7 +130,7 @@
       <button
         type="submit"
         [disabled]="form.invalid || isLoading()"
-        class="w-full mt-2 py-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-fb-on-accent font-bold text-sm shadow-lg shadow-emerald-500/20 disabled:opacity-50 transition flex items-center justify-center gap-2 cursor-pointer"
+        class="linear-btn-primary w-full mt-2 py-3 rounded-xl font-bold text-sm shadow-lg shadow-amber-500/20 disabled:opacity-50 transition flex items-center justify-center gap-2 cursor-pointer"
       >
         <svg [lucideIcon]="loginIcon" class="w-4 h-4"></svg>
         <span>{{
@@ -116,7 +169,10 @@
     <!-- Footer Switch to Register -->
     <div class="mt-6 text-center text-xs text-fb-text-muted">
       {{ 'AUTH.NO_ACCOUNT' | translate }}
-      <a routerLink="/auth/register" class="text-emerald-400 font-semibold hover:underline ml-1">
+      <a
+        routerLink="/auth/register"
+        class="text-amber-500 dark:text-amber-400 font-semibold hover:underline ml-1"
+      >
         {{ 'AUTH.REGISTER' | translate }}
       </a>
     </div>

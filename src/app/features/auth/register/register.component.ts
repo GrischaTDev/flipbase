@@ -9,7 +9,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
   LucideUserPlus as UserPlus,
@@ -22,10 +22,17 @@ import {
   LucideCheckCircle2 as CheckCircle2,
   LucideShieldCheck as ShieldCheck,
   LucideAlertCircle as AlertCircle,
+  LucideArrowLeft as ArrowLeft,
+  LucideSun as Sun,
+  LucideMoon as Moon,
 } from '@lucide/angular';
 import { AuthService } from '../../../core/services/auth.service';
+import { ThemeService } from '../../../core/services/theme.service';
 import { CustomCheckboxComponent } from '../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { NgOptimizedImage } from '@angular/common';
+import { environment } from '../../../../environments/environment';
+import { TermsModalComponent } from '../components/terms-modal/terms-modal.component';
+import { PrivacyModalComponent } from '../components/privacy-modal/privacy-modal.component';
 
 /** Validator to ensure password and confirmPassword match */
 const passwordMatchValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
@@ -44,6 +51,8 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
     LucideDynamicIcon,
     CustomCheckboxComponent,
     NgOptimizedImage,
+    TermsModalComponent,
+    PrivacyModalComponent,
   ],
   templateUrl: './register.component.html',
   host: { class: 'block' },
@@ -52,6 +61,8 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
 export class RegisterComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  readonly themeService = inject(ThemeService);
+  private readonly translate = inject(TranslateService);
 
   readonly registerIcon = UserPlus;
   readonly logoIcon = Sparkles;
@@ -63,6 +74,20 @@ export class RegisterComponent {
   readonly checkIcon = CheckCircle2;
   readonly shieldIcon = ShieldCheck;
   readonly alertIcon = AlertCircle;
+  readonly arrowLeftIcon = ArrowLeft;
+  readonly sunIcon = Sun;
+  readonly moonIcon = Moon;
+
+  readonly landingUrl = environment.landingUrl;
+  readonly currentLanguage = signal<string>(this.translate.currentLang() || 'de');
+
+  switchLanguage(lang: string): void {
+    this.currentLanguage.set(lang);
+    this.translate.use(lang);
+  }
+
+  readonly showTermsModal = signal<boolean>(false);
+  readonly showPrivacyModal = signal<boolean>(false);
 
   readonly isLoading = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);

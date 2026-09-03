@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
   LucideLogIn as LogIn,
@@ -9,9 +9,14 @@ import {
   LucideMail as Mail,
   LucideLock as Lock,
   LucideZap as Zap,
+  LucideArrowLeft as ArrowLeft,
+  LucideSun as Sun,
+  LucideMoon as Moon,
 } from '@lucide/angular';
 import { AuthService } from '../../../core/services/auth.service';
+import { ThemeService } from '../../../core/services/theme.service';
 import { NgOptimizedImage } from '@angular/common';
+import { environment } from '../../../../environments/environment';
 
 @Component({
   selector: 'app-login',
@@ -24,12 +29,25 @@ export class LoginComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  readonly themeService = inject(ThemeService);
+  private readonly translate = inject(TranslateService);
 
   readonly loginIcon = LogIn;
   readonly logoIcon = Sparkles;
   readonly mailIcon = Mail;
   readonly lockIcon = Lock;
   readonly zapIcon = Zap;
+  readonly arrowLeftIcon = ArrowLeft;
+  readonly sunIcon = Sun;
+  readonly moonIcon = Moon;
+
+  readonly landingUrl = environment.landingUrl;
+  readonly currentLanguage = signal<string>(this.translate.currentLang() || 'de');
+
+  switchLanguage(lang: string): void {
+    this.currentLanguage.set(lang);
+    this.translate.use(lang);
+  }
 
   readonly isLoading = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
