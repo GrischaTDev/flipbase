@@ -697,6 +697,10 @@
     </div>
   }
 
+  @if (purchaseService.selectedPurchase(); as historyPurchase) {
+    <app-record-history-container [entityType]="'purchase'" [entityId]="historyPurchase.id" />
+  }
+
   <!-- Image Cropper & Resizer Studio Modal (Fixed 1:1) -->
   @if (isCropperOpen()) {
     <app-image-cropper-modal

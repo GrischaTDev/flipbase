@@ -14,10 +14,13 @@ import { MediaService } from '../../../../core/services/media.service';
 import { SalesService } from '../../../../core/services/sales.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { BusinessEventService } from '../../../../core/services/business-event.service';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { RecordHistoryContainer } from '../../../audit/components/record-history/record-history.container';
+import { RecordHistoryComponent } from '../../../../shared/components/record-history/record-history.component';
 import { ItemDetailComponent } from './item-detail.component';
 
 interface AngularInputMetadata {
@@ -65,6 +68,14 @@ beforeAll(async () => {
     'triggerId',
   ]);
   registerSignalInputs(CostStateComponent, ['state']);
+  registerSignalInputs(RecordHistoryContainer, ['entityType', 'entityId', 'heading']);
+  registerSignalInputs(RecordHistoryComponent, [
+    'heading',
+    'events',
+    'loading',
+    'error',
+    'hasMore',
+  ]);
 });
 
 afterAll(() => {
@@ -163,6 +174,10 @@ beforeEach(async () => {
         },
       },
       { provide: WorkspaceService, useValue: { currentWorkspace: signal(workspace) } },
+      {
+        provide: BusinessEventService,
+        useValue: { listEntityEvents: vi.fn(() => new Promise(() => undefined)) },
+      },
       { provide: ConfirmDialogService, useValue: { frage: vi.fn(async () => false) } },
       { provide: SyncStatusService, useValue: { istZentralGemeldet: () => false } },
       { provide: ToastService, useValue: { success: vi.fn(), error: vi.fn(), warning: vi.fn() } },

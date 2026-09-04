@@ -29,6 +29,7 @@ import {
   LucideX as X,
   LucideCheckCircle2 as CheckCircle2,
   LucideAlertTriangle as AlertTriangle,
+  LucideHistory as History,
 } from '@lucide/angular';
 import { SalesService } from '../../core/services/sales.service';
 import { InvoiceService } from '../../core/services/invoice.service';
@@ -52,6 +53,8 @@ import {
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { SaleMetrics } from '../../core/models/sale-metrics.models';
 import { calculateStoredSaleMetrics } from '../../core/utils/sale-metrics';
+import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
+import { RecordHistoryContainer } from '../audit/components/record-history/record-history.container';
 
 const SALE_TARGET_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
 
@@ -72,6 +75,8 @@ function validatedSaleTargetId(value: string | null): string | null {
     SaleCreateModalComponent,
     InvoiceModalComponent,
     CustomSelectComponent,
+    ModalDialogDirective,
+    RecordHistoryContainer,
   ],
   templateUrl: './sales.component.html',
   host: { class: 'block' },
@@ -119,6 +124,7 @@ export class SalesComponent {
   readonly closeIcon = X;
   readonly checkIcon = CheckCircle2;
   readonly alertIcon = AlertTriangle;
+  readonly historyIcon = History;
 
   readonly isCreateModalOpen = signal<boolean>(false);
   readonly createSaleTarget = signal<SaleTarget | null>(null);
@@ -155,6 +161,7 @@ export class SalesComponent {
   // Return modal state
   readonly isReturnModalOpen = signal<boolean>(false);
   readonly selectedSaleForReturn = signal<Sale | null>(null);
+  readonly selectedSaleForHistory = signal<Sale | null>(null);
   readonly isProcessingReturn = signal<boolean>(false);
 
   readonly returnForm = new FormGroup({
@@ -338,6 +345,14 @@ export class SalesComponent {
   closeReturnModal(): void {
     this.isReturnModalOpen.set(false);
     this.selectedSaleForReturn.set(null);
+  }
+
+  openRecordHistory(sale: Sale): void {
+    this.selectedSaleForHistory.set(sale);
+  }
+
+  closeRecordHistory(): void {
+    this.selectedSaleForHistory.set(null);
   }
 
   onRefundModeChange(isFull: boolean): void {

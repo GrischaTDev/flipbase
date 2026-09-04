@@ -319,6 +319,16 @@
 
               <td class="py-3 px-4 text-center group-last:rounded-br-xl">
                 <div class="flex items-center justify-center gap-1.5">
+                  <button
+                    type="button"
+                    (click)="openRecordHistory(sale)"
+                    class="p-1.5 rounded-lg text-fb-text-muted hover:text-indigo-300 hover:bg-indigo-500/15 transition cursor-pointer"
+                    title="Änderungsverlauf ansehen"
+                    aria-label="Änderungsverlauf ansehen"
+                  >
+                    <svg [lucideIcon]="historyIcon" class="w-3.5 h-3.5"></svg>
+                  </button>
+
                   <!-- § 25a Invoice Button -->
                   <button
                     type="button"
@@ -435,6 +445,15 @@
           </div>
 
           <div class="pt-2 border-t border-fb-line flex justify-end gap-2">
+            <button
+              type="button"
+              (click)="openRecordHistory(sale)"
+              class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-fb-text-secondary"
+            >
+              <svg [lucideIcon]="historyIcon" class="w-3 h-3"></svg>
+              <span>Änderungsverlauf ansehen</span>
+            </button>
+
             <button
               type="button"
               (click)="openInvoiceForSale(sale)"
@@ -759,6 +778,37 @@
             </button>
           </div>
         </form>
+      </div>
+    </div>
+  }
+
+  @if (selectedSaleForHistory(); as sale) {
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-md sm:p-6"
+      appModalDialog
+      dialogTitel="Änderungsverlauf ansehen"
+      (dialogClose)="closeRecordHistory()"
+    >
+      <div
+        class="linear-surface my-auto w-full max-w-2xl rounded-2xl border border-fb-border shadow-2xl"
+      >
+        <div class="flex items-start justify-between gap-3 border-b border-fb-border p-5">
+          <div>
+            <h2 class="text-sm font-bold text-fb-text-primary">Änderungsverlauf ansehen</h2>
+            <p class="mt-0.5 text-[11px] text-fb-text-muted">{{ saleTitle(sale) }}</p>
+          </div>
+          <button
+            type="button"
+            (click)="closeRecordHistory()"
+            aria-label="Änderungsverlauf schließen"
+            class="rounded-xl p-1.5 text-fb-text-muted transition hover:text-fb-text-primary"
+          >
+            <svg [lucideIcon]="closeIcon" class="h-5 w-5"></svg>
+          </button>
+        </div>
+        <div class="max-h-[70vh] overflow-y-auto p-5">
+          <app-record-history-container [entityType]="'sale'" [entityId]="sale.id" />
+        </div>
       </div>
     </div>
   }

@@ -77,6 +77,7 @@ import { mapPurchaseDetailRows } from '../../utils/purchase-presentation';
 import { PurchaseTypeLabelPipe } from '../../../../shared/pipes/purchase-type-label.pipe';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { SalesService } from '../../../../core/services/sales.service';
+import { RecordHistoryContainer } from '../../../audit/components/record-history/record-history.container';
 
 @Component({
   selector: 'app-purchase-detail',
@@ -94,6 +95,7 @@ import { SalesService } from '../../../../core/services/sales.service';
     PurchaseLifecycleActionsComponent,
     PurchaseDetailTableComponent,
     PurchaseTypeLabelPipe,
+    RecordHistoryContainer,
   ],
   templateUrl: './purchase-detail.component.html',
   host: { class: 'block' },

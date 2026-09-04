@@ -64,6 +64,7 @@ import {
   InventorySourceState,
 } from '../../utils/inventory-presentation';
 import { editableItemStatusOptions } from '../../models/item-status-options';
+import { RecordHistoryContainer } from '../../../audit/components/record-history/record-history.container';
 
 const purchaseReturnPath = /^\/purchases\/([A-Za-z0-9_-]+)$/;
 
@@ -87,6 +88,7 @@ export function validatePurchaseReturnTo(value: string | null | undefined): stri
     InventoryLabelModalComponent,
     CustomSelectComponent,
     CostStateComponent,
+    RecordHistoryContainer,
     ItemConditionLabelPipe,
   ],
   templateUrl: './item-detail.component.html',
