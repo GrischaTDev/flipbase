@@ -35,9 +35,16 @@ export class StoreSettingsComponent {
   });
   readonly isLoadingWorkspaceConfig = signal(true);
   readonly isSavingPaymentConfig = signal(false);
+  private saveRequestId = 0;
+  private saveWorkspaceId: string | null = null;
   constructor() {
     effect(() => {
       const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
+      if (workspaceId !== this.saveWorkspaceId) {
+        this.saveWorkspaceId = workspaceId;
+        this.saveRequestId += 1;
+        this.isSavingPaymentConfig.set(false);
+      }
       if (!workspaceId || this.storeService.loadedWorkspaceId() !== workspaceId) {
         this.isLoadingWorkspaceConfig.set(workspaceId !== null);
         this.paymentForm.reset(
@@ -65,6 +72,7 @@ export class StoreSettingsComponent {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     if (!workspaceId || this.isLoadingWorkspaceConfig()) return;
     const value = this.paymentForm.getRawValue();
+    const requestId = ++this.saveRequestId;
     this.isSavingPaymentConfig.set(true);
     try {
       const result = await this.storeService.updatePaymentsConfig({
@@ -78,7 +86,7 @@ export class StoreSettingsComponent {
         bankAccountHolder: value.bankAccountHolder?.trim() || '',
         cashOnPickupEnabled: !!value.cashOnPickupEnabled,
       });
-      if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+      if (!this.isCurrentSave(requestId, workspaceId)) return;
       if (result.error || !result.data) {
         const error = result.error ?? new Error('Keine bestätigten Zahlungsmethoden.');
         if (!result.reportedBySyncStatus)
@@ -87,11 +95,18 @@ export class StoreSettingsComponent {
       }
       this.toast.success('Zahlungsmethoden wurden gespeichert.');
     } catch (reason: unknown) {
+      if (!this.isCurrentSave(requestId, workspaceId)) return;
       const error = reason instanceof Error ? reason : new Error('Unbekannter Fehler');
       if (!this.syncStatus.istZentralGemeldet(error))
         this.toast.error('Zahlungsmethoden konnten nicht gespeichert werden.', error.message);
     } finally {
-      this.isSavingPaymentConfig.set(false);
+      if (this.isCurrentSave(requestId, workspaceId)) this.isSavingPaymentConfig.set(false);
     }
+  }
+  private isCurrentSave(requestId: number, workspaceId: string): boolean {
+    return (
+      requestId === this.saveRequestId &&
+      this.workspaceService.currentWorkspace()?.id === workspaceId
+    );
   }
 }

@@ -1,7 +1,11 @@
 import '@angular/compiler';
-import { signal, ɵresolveComponentResources } from '@angular/core';
+import {
+  signal,
+  ɵresolveComponentResources,
+  ɵɵqueryAdvance,
+  ɵɵviewQuerySignal,
+} from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { readFile } from 'node:fs/promises';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -44,17 +48,22 @@ interface MutationResult {
 }
 
 /**
- * Der Vitest-Fallback sieht Signal-Inputs von Kindkomponenten ohne das
- * Angular-Build-Plugin nicht. Die beiden Snapshots begrenzen den notwendigen
- * Fallback auf diese isolierte Datei und stellen jedes Metadatum danach wieder her.
+ * Der Vitest-Fallback sieht Signal-Inputs, Model-Ausgänge und die Signal-ViewQuery
+ * von Kindkomponenten ohne das Angular-Build-Plugin nicht. Die Snapshots begrenzen
+ * die notwendige Bridge auf diese isolierte Datei und stellen jedes Metadatum danach
+ * wieder her.
  */
-interface AngularInputMetadata {
+interface AngularBindingMetadata {
   inputs: Record<string, unknown>;
   declaredInputs: Record<string, string>;
+  outputs: Record<string, string>;
 }
 
-let selectMetadataSnapshot: AngularInputMetadata | null = null;
-let checkboxMetadataSnapshot: AngularInputMetadata | null = null;
+type AngularViewQuery = (renderFlags: number, context: unknown) => void;
+
+let selectMetadataSnapshot: AngularBindingMetadata | null = null;
+let checkboxMetadataSnapshot: AngularBindingMetadata | null = null;
+let selectViewQuerySnapshot: AngularViewQuery | null | undefined;
 
 const resourceFiles: Readonly<Record<string, string>> = {
   'account-settings.component.html': './account-settings/account-settings.component.html',
@@ -83,11 +92,17 @@ beforeAll(async () => {
     return readFile(new URL(resource, import.meta.url), 'utf8');
   });
 
-  const selectMetadata = (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  const selectMetadata = (
+    CustomSelectComponent as unknown as {
+      ɵcmp: AngularBindingMetadata & { viewQuery: AngularViewQuery | null };
+    }
+  ).ɵcmp;
   selectMetadataSnapshot = {
     inputs: selectMetadata.inputs,
     declaredInputs: selectMetadata.declaredInputs,
+    outputs: selectMetadata.outputs,
   };
+  selectViewQuerySnapshot = selectMetadata.viewQuery;
   selectMetadata.inputs = {
     ...selectMetadata.inputs,
     options: ['options', 1, null],
@@ -114,12 +129,24 @@ beforeAll(async () => {
     ariaLabel: 'ariaLabel',
     triggerId: 'triggerId',
   };
+  selectMetadata.outputs = {
+    ...selectMetadata.outputs,
+    valueChange: 'value',
+  };
+  selectMetadata.viewQuery = (renderFlags, context) => {
+    const component = context as {
+      trigger: Parameters<typeof ɵɵviewQuerySignal>[0];
+    };
+    if (renderFlags & 1) ɵɵviewQuerySignal(component.trigger, ['trigger'], 5);
+    if (renderFlags & 2) ɵɵqueryAdvance();
+  };
 
-  const checkboxMetadata = (CustomCheckboxComponent as unknown as { ɵcmp: AngularInputMetadata })
+  const checkboxMetadata = (CustomCheckboxComponent as unknown as { ɵcmp: AngularBindingMetadata })
     .ɵcmp;
   checkboxMetadataSnapshot = {
     inputs: checkboxMetadata.inputs,
     declaredInputs: checkboxMetadata.declaredInputs,
+    outputs: checkboxMetadata.outputs,
   };
   checkboxMetadata.inputs = {
     ...checkboxMetadata.inputs,
@@ -143,19 +170,35 @@ beforeAll(async () => {
     ariaLabel: 'ariaLabel',
     id: 'id',
   };
+  checkboxMetadata.outputs = {
+    ...checkboxMetadata.outputs,
+    checkedChange: 'checked',
+  };
 });
 
 afterAll(() => {
   if (selectMetadataSnapshot) {
-    const metadata = (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    const metadata = (
+      CustomSelectComponent as unknown as {
+        ɵcmp: AngularBindingMetadata & { viewQuery: AngularViewQuery | null };
+      }
+    ).ɵcmp;
     metadata.inputs = selectMetadataSnapshot.inputs;
     metadata.declaredInputs = selectMetadataSnapshot.declaredInputs;
+    metadata.outputs = selectMetadataSnapshot.outputs;
+    metadata.viewQuery = selectViewQuerySnapshot ?? null;
     selectMetadataSnapshot = null;
+    selectViewQuerySnapshot = undefined;
   }
   if (checkboxMetadataSnapshot) {
-    const metadata = (CustomCheckboxComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    const metadata = (
+      CustomCheckboxComponent as unknown as {
+        ɵcmp: AngularBindingMetadata;
+      }
+    ).ɵcmp;
     metadata.inputs = checkboxMetadataSnapshot.inputs;
     metadata.declaredInputs = checkboxMetadataSnapshot.declaredInputs;
+    metadata.outputs = checkboxMetadataSnapshot.outputs;
     checkboxMetadataSnapshot = null;
   }
 });
@@ -241,12 +284,59 @@ function renderedButton<T>(fixture: ComponentFixture<T>, label: string): HTMLBut
   return button as HTMLButtonElement;
 }
 
+function renderedSubmitButton<T>(
+  fixture: ComponentFixture<T>,
+  formHeadingId: string,
+): HTMLButtonElement {
+  const button = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
+    `form[aria-labelledby="${formHeadingId}"] button[type="submit"]`,
+  );
+  expect(button, `Gerenderter Submit für „${formHeadingId}“ fehlt.`).not.toBeNull();
+  return button as HTMLButtonElement;
+}
+
 function renderedInput<T>(fixture: ComponentFixture<T>, formControlName: string): HTMLInputElement {
   const input = (fixture.nativeElement as HTMLElement).querySelector<HTMLInputElement>(
     `input[formcontrolname="${formControlName}"]`,
   );
   expect(input, `Gerendertes Feld „${formControlName}“ fehlt.`).not.toBeNull();
   return input as HTMLInputElement;
+}
+
+function renderedCheckbox<T>(fixture: ComponentFixture<T>, ariaLabel: string): HTMLButtonElement {
+  const checkbox = Array.from(
+    (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+      'button[role="checkbox"]',
+    ),
+  ).find((candidate) => candidate.getAttribute('aria-label') === ariaLabel);
+  expect(checkbox, `Gerenderter Schalter „${ariaLabel}“ fehlt.`).toBeDefined();
+  return checkbox as HTMLButtonElement;
+}
+
+async function selectRenderedOption<T>(
+  fixture: ComponentFixture<T>,
+  ariaLabel: string,
+  optionLabel: string,
+): Promise<void> {
+  const normalize = (text: string | null) => text?.replace(/\s+/g, ' ').trim() ?? '';
+  const trigger = Array.from(
+    (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+      'button[role="combobox"]',
+    ),
+  ).find((candidate) => candidate.getAttribute('aria-label') === ariaLabel);
+  expect(trigger, `Gerenderte Auswahl „${ariaLabel}“ fehlt.`).toBeDefined();
+
+  (trigger as HTMLButtonElement).click();
+  fixture.detectChanges();
+  const option = Array.from(
+    (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+      'button[role="option"]',
+    ),
+  ).find((candidate) => normalize(candidate.textContent) === optionLabel);
+  expect(option, `Gerenderte Option „${optionLabel}“ fehlt.`).toBeDefined();
+
+  (option as HTMLButtonElement).click();
+  await flushAsyncAction(fixture);
 }
 
 function enterValue(input: HTMLInputElement, value: string): void {
@@ -690,16 +780,7 @@ describe('Team-Einstellungen – echte Angular-Fixture', () => {
 
   it('bindet Rollenwechsel, bestätigtes Entfernen und Widerruf an die gerenderten Zeilen', async () => {
     const { fixture, memberService, dialog, toast } = await renderTeam({ confirmed: true });
-    const roleControlDebug = fixture.debugElement
-      .queryAll(By.directive(CustomSelectComponent))
-      .find(
-        (entry) =>
-          (entry.nativeElement as HTMLElement)
-            .querySelector('[role="combobox"]')
-            ?.getAttribute('aria-label') === 'Rolle von member-1@flipbase.de',
-      );
-    expect(roleControlDebug).toBeDefined();
-    await fixture.componentInstance.onUpdateRole('member-1', 'admin');
+    await selectRenderedOption(fixture, 'Rolle von member-1@flipbase.de', 'Administrator');
 
     const removeButton = (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>(
       '[aria-label="member-1@flipbase.de entfernen"]',
@@ -734,7 +815,7 @@ describe('Team-Einstellungen – echte Angular-Fixture', () => {
       confirmed: false,
     });
 
-    await fixture.componentInstance.onUpdateRole('member-1', 'admin');
+    await selectRenderedOption(fixture, 'Rolle von member-1@flipbase.de', 'Administrator');
     await fixture.componentInstance.onRemoveMember('member-1');
     await fixture.componentInstance.onCancelInvite('invite-1');
 
@@ -949,22 +1030,97 @@ describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
     expect(fixture.componentInstance.isSavingWebhookConfig()).toBe(false);
   });
 
-  it('ignoriert das Ergebnis eines laufenden Speicherns nach dem Workspace-Wechsel', async () => {
-    const pendingUpdate = deferred<MutationResult>();
-    const { fixture, currentWorkspace, webhookService, toast } = await renderNotifications();
-    webhookService.updateConfig.mockReturnValueOnce(pendingUpdate.promise);
+  it('lässt einen verspäteten A-Erfolg den laufenden B-Save nicht beenden', async () => {
+    const updateA = deferred<MutationResult>();
+    const updateB = deferred<MutationResult>();
+    const { fixture, currentWorkspace, config, loadedWorkspaceId, webhookService, toast } =
+      await renderNotifications();
+    webhookService.updateConfig
+      .mockReturnValueOnce(updateA.promise)
+      .mockReturnValueOnce(updateB.promise);
 
     renderedButton(fixture, 'Webhook-Einstellungen speichern').click();
     await Promise.resolve();
-    expect(webhookService.updateConfig).toHaveBeenCalledOnce();
     expect(fixture.componentInstance.isSavingWebhookConfig()).toBe(true);
 
     currentWorkspace.set(workspace('workspace-b', 'Workspace B'));
+    loadedWorkspaceId.set(null);
     flushEffects(fixture);
-    pendingUpdate.resolve({ data: {}, error: null, reportedBySyncStatus: false });
+    config.set(webhookConfig('telegram-b-secret'));
+    loadedWorkspaceId.set('workspace-b');
+    flushEffects(fixture);
+
+    const saveBButton = renderedSubmitButton(fixture, 'webhook-heading');
+    expect(saveBButton.disabled).toBe(false);
+    saveBButton.click();
+    await Promise.resolve();
+    expect(webhookService.updateConfig).toHaveBeenCalledTimes(2);
+    expect(fixture.componentInstance.isSavingWebhookConfig()).toBe(true);
+
+    updateA.resolve({ data: {}, error: null, reportedBySyncStatus: false });
     await flushAsyncAction(fixture);
 
     expect(toast.toasts()).toEqual([]);
+    expect(fixture.componentInstance.isSavingWebhookConfig()).toBe(true);
+
+    updateB.resolve({ data: {}, error: null, reportedBySyncStatus: false });
+    await flushAsyncAction(fixture);
+
+    expectOnlyToast(toast, 'success', 'Webhook-Konfiguration wurde gespeichert.');
+    expect(fixture.componentInstance.isSavingWebhookConfig()).toBe(false);
+  });
+
+  it('ignoriert eine verspätete A-Rejection und meldet nur die laufende B-Rejection', async () => {
+    const updateA = deferred<MutationResult>();
+    const updateB = deferred<MutationResult>();
+    const staleError = new Error('Workspace A ist offline');
+    const currentError = new Error('Workspace B ist offline');
+    const {
+      fixture,
+      currentWorkspace,
+      config,
+      loadedWorkspaceId,
+      webhookService,
+      syncStatus,
+      toast,
+    } = await renderNotifications();
+    webhookService.updateConfig
+      .mockReturnValueOnce(updateA.promise)
+      .mockReturnValueOnce(updateB.promise);
+
+    renderedButton(fixture, 'Webhook-Einstellungen speichern').click();
+    await Promise.resolve();
+    currentWorkspace.set(workspace('workspace-b', 'Workspace B'));
+    loadedWorkspaceId.set(null);
+    flushEffects(fixture);
+    config.set(webhookConfig('telegram-b-secret'));
+    loadedWorkspaceId.set('workspace-b');
+    flushEffects(fixture);
+
+    const saveBButton = renderedSubmitButton(fixture, 'webhook-heading');
+    expect(saveBButton.disabled).toBe(false);
+    saveBButton.click();
+    await Promise.resolve();
+    expect(webhookService.updateConfig).toHaveBeenCalledTimes(2);
+
+    updateA.reject(staleError);
+    await flushAsyncAction(fixture);
+
+    expect(syncStatus.istZentralGemeldet).not.toHaveBeenCalled();
+    expect(toast.toasts()).toEqual([]);
+    expect(fixture.componentInstance.isSavingWebhookConfig()).toBe(true);
+
+    updateB.reject(currentError);
+    await flushAsyncAction(fixture);
+
+    expect(syncStatus.istZentralGemeldet).toHaveBeenCalledOnce();
+    expect(syncStatus.istZentralGemeldet).toHaveBeenCalledWith(currentError);
+    expectOnlyToast(
+      toast,
+      'error',
+      'Webhook-Konfiguration konnte nicht gespeichert werden.',
+      currentError.message,
+    );
     expect(fixture.componentInstance.isSavingWebhookConfig()).toBe(false);
   });
 
@@ -1088,30 +1244,29 @@ describe('Benachrichtigungseinstellungen – echte Angular-Fixture', () => {
 
   it('rendert alle Push-Schalter mit eindeutigen Namen und bindet ihre Änderung', async () => {
     const { fixture, webPushService, toast } = await renderNotifications();
-    const expectedNames = [
-      'Neue Webshop-Bestellungen',
-      'Erstellte Versandetiketten',
-      'Margen- und Profit-Alarme',
-      'Benachrichtigungston',
-    ];
+    const toggles = [
+      ['Neue Webshop-Bestellungen', { notifyOnShopOrder: false }],
+      ['Erstellte Versandetiketten', { notifyOnFulfillment: true }],
+      ['Margen- und Profit-Alarme', { notifyOnMarginAlert: false }],
+      ['Benachrichtigungston', { soundEnabled: true }],
+    ] as const;
     const renderedNames = Array.from(
       (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="checkbox"]'),
     ).map((checkbox) => checkbox.getAttribute('aria-label'));
-    for (const expectedName of expectedNames) expect(renderedNames).toContain(expectedName);
+    for (const [ariaLabel] of toggles) expect(renderedNames).toContain(ariaLabel);
 
-    const shopOrderToggle = fixture.debugElement
-      .queryAll(By.directive(CustomCheckboxComponent))
-      .find(
-        (entry) =>
-          (entry.nativeElement as HTMLElement)
-            .querySelector('[role="checkbox"]')
-            ?.getAttribute('aria-label') === 'Neue Webshop-Bestellungen',
-      );
-    expect(shopOrderToggle).toBeDefined();
-    fixture.componentInstance.onTogglePushSetting('notifyOnShopOrder', false);
+    for (const [ariaLabel] of toggles) {
+      renderedCheckbox(fixture, ariaLabel).click();
+      fixture.detectChanges();
+    }
 
-    expect(webPushService.updateSettings).toHaveBeenCalledWith({ notifyOnShopOrder: false });
-    expectOnlyToast(toast, 'success', 'Benachrichtigungseinstellung wurde gespeichert.');
+    expect(webPushService.updateSettings).toHaveBeenCalledTimes(toggles.length);
+    toggles.forEach(([, value], index) => {
+      expect(webPushService.updateSettings).toHaveBeenNthCalledWith(index + 1, value);
+    });
+    expect(toast.toasts().map(({ title }) => title)).toEqual(
+      toggles.map(() => 'Benachrichtigungseinstellung wurde gespeichert.'),
+    );
   });
 });
 
@@ -1301,22 +1456,97 @@ describe('Shop-Einstellungen – echte Angular-Fixture', () => {
     );
   });
 
-  it('ignoriert das Ergebnis eines laufenden Speicherns nach dem Workspace-Wechsel', async () => {
-    const pendingUpdate = deferred<MutationResult>();
-    const { fixture, currentWorkspace, storeService, toast } = await renderStore();
-    storeService.updatePaymentsConfig.mockReturnValueOnce(pendingUpdate.promise);
+  it('lässt einen verspäteten A-Erfolg den laufenden B-Save nicht beenden', async () => {
+    const updateA = deferred<MutationResult>();
+    const updateB = deferred<MutationResult>();
+    const { fixture, currentWorkspace, storeSettings, loadedWorkspaceId, storeService, toast } =
+      await renderStore();
+    storeService.updatePaymentsConfig
+      .mockReturnValueOnce(updateA.promise)
+      .mockReturnValueOnce(updateB.promise);
 
     renderedButton(fixture, 'Zahlungsmethoden speichern').click();
     await Promise.resolve();
-    expect(storeService.updatePaymentsConfig).toHaveBeenCalledOnce();
     expect(fixture.componentInstance.isSavingPaymentConfig()).toBe(true);
 
     currentWorkspace.set(workspace('workspace-b', 'Workspace B'));
+    loadedWorkspaceId.set(null);
     flushEffects(fixture);
-    pendingUpdate.resolve({ data: {}, error: null, reportedBySyncStatus: false });
+    storeSettings.set({ payments: paymentConfig('pk_workspace_b') });
+    loadedWorkspaceId.set('workspace-b');
+    flushEffects(fixture);
+
+    const saveBButton = renderedSubmitButton(fixture, 'store-heading');
+    expect(saveBButton.disabled).toBe(false);
+    saveBButton.click();
+    await Promise.resolve();
+    expect(storeService.updatePaymentsConfig).toHaveBeenCalledTimes(2);
+    expect(fixture.componentInstance.isSavingPaymentConfig()).toBe(true);
+
+    updateA.resolve({ data: {}, error: null, reportedBySyncStatus: false });
     await flushAsyncAction(fixture);
 
     expect(toast.toasts()).toEqual([]);
+    expect(fixture.componentInstance.isSavingPaymentConfig()).toBe(true);
+
+    updateB.resolve({ data: {}, error: null, reportedBySyncStatus: false });
+    await flushAsyncAction(fixture);
+
+    expectOnlyToast(toast, 'success', 'Zahlungsmethoden wurden gespeichert.');
+    expect(fixture.componentInstance.isSavingPaymentConfig()).toBe(false);
+  });
+
+  it('ignoriert eine verspätete A-Rejection und meldet nur die laufende B-Rejection', async () => {
+    const updateA = deferred<MutationResult>();
+    const updateB = deferred<MutationResult>();
+    const staleError = new Error('Workspace A ist offline');
+    const currentError = new Error('Workspace B ist offline');
+    const {
+      fixture,
+      currentWorkspace,
+      storeSettings,
+      loadedWorkspaceId,
+      storeService,
+      syncStatus,
+      toast,
+    } = await renderStore();
+    storeService.updatePaymentsConfig
+      .mockReturnValueOnce(updateA.promise)
+      .mockReturnValueOnce(updateB.promise);
+
+    renderedButton(fixture, 'Zahlungsmethoden speichern').click();
+    await Promise.resolve();
+    currentWorkspace.set(workspace('workspace-b', 'Workspace B'));
+    loadedWorkspaceId.set(null);
+    flushEffects(fixture);
+    storeSettings.set({ payments: paymentConfig('pk_workspace_b') });
+    loadedWorkspaceId.set('workspace-b');
+    flushEffects(fixture);
+
+    const saveBButton = renderedSubmitButton(fixture, 'store-heading');
+    expect(saveBButton.disabled).toBe(false);
+    saveBButton.click();
+    await Promise.resolve();
+    expect(storeService.updatePaymentsConfig).toHaveBeenCalledTimes(2);
+
+    updateA.reject(staleError);
+    await flushAsyncAction(fixture);
+
+    expect(syncStatus.istZentralGemeldet).not.toHaveBeenCalled();
+    expect(toast.toasts()).toEqual([]);
+    expect(fixture.componentInstance.isSavingPaymentConfig()).toBe(true);
+
+    updateB.reject(currentError);
+    await flushAsyncAction(fixture);
+
+    expect(syncStatus.istZentralGemeldet).toHaveBeenCalledOnce();
+    expect(syncStatus.istZentralGemeldet).toHaveBeenCalledWith(currentError);
+    expectOnlyToast(
+      toast,
+      'error',
+      'Zahlungsmethoden konnten nicht gespeichert werden.',
+      currentError.message,
+    );
     expect(fixture.componentInstance.isSavingPaymentConfig()).toBe(false);
   });
 });
@@ -1498,29 +1728,106 @@ describe('Versandeinstellungen – echte Angular-Fixture', () => {
     );
   });
 
-  it('ignoriert das Ergebnis eines laufenden Speicherns nach dem Workspace-Wechsel', async () => {
-    const pendingUpdate = deferred<MutationResult>();
-    const { fixture, currentWorkspace, fulfillmentService, toast } = await renderShipping();
-    fulfillmentService.updateCarrierConfig.mockReturnValueOnce(pendingUpdate.promise);
+  it('lässt einen verspäteten A-Erfolg den laufenden B-Save nicht beenden', async () => {
+    const updateA = deferred<MutationResult>();
+    const updateB = deferred<MutationResult>();
+    const { fixture, currentWorkspace, config, loadedWorkspaceId, fulfillmentService, toast } =
+      await renderShipping();
+    fulfillmentService.updateCarrierConfig
+      .mockReturnValueOnce(updateA.promise)
+      .mockReturnValueOnce(updateB.promise);
 
     renderedButton(fixture, 'Carrier-Einstellungen speichern').click();
     await Promise.resolve();
-    expect(fulfillmentService.updateCarrierConfig).toHaveBeenCalledOnce();
     expect(fixture.componentInstance.isSavingCarrierConfig()).toBe(true);
 
     currentWorkspace.set(workspace('workspace-b', 'Workspace B'));
+    loadedWorkspaceId.set(null);
     flushEffects(fixture);
-    pendingUpdate.resolve({ data: {}, error: null, reportedBySyncStatus: false });
+    config.set(carrierConfig('dhl-b-secret'));
+    loadedWorkspaceId.set('workspace-b');
+    flushEffects(fixture);
+
+    const saveBButton = renderedSubmitButton(fixture, 'shipping-heading');
+    expect(saveBButton.disabled).toBe(false);
+    saveBButton.click();
+    await Promise.resolve();
+    expect(fulfillmentService.updateCarrierConfig).toHaveBeenCalledTimes(2);
+    expect(fixture.componentInstance.isSavingCarrierConfig()).toBe(true);
+
+    updateA.resolve({ data: {}, error: null, reportedBySyncStatus: false });
     await flushAsyncAction(fixture);
 
     expect(toast.toasts()).toEqual([]);
+    expect(fixture.componentInstance.isSavingCarrierConfig()).toBe(true);
+
+    updateB.resolve({ data: {}, error: null, reportedBySyncStatus: false });
+    await flushAsyncAction(fixture);
+
+    expectOnlyToast(toast, 'success', 'Versanddienstleister wurden gespeichert.');
+    expect(fixture.componentInstance.isSavingCarrierConfig()).toBe(false);
+  });
+
+  it('ignoriert eine verspätete A-Rejection und meldet nur die laufende B-Rejection', async () => {
+    const updateA = deferred<MutationResult>();
+    const updateB = deferred<MutationResult>();
+    const staleError = new Error('Workspace A ist offline');
+    const currentError = new Error('Workspace B ist offline');
+    const {
+      fixture,
+      currentWorkspace,
+      config,
+      loadedWorkspaceId,
+      fulfillmentService,
+      syncStatus,
+      toast,
+    } = await renderShipping();
+    fulfillmentService.updateCarrierConfig
+      .mockReturnValueOnce(updateA.promise)
+      .mockReturnValueOnce(updateB.promise);
+
+    renderedButton(fixture, 'Carrier-Einstellungen speichern').click();
+    await Promise.resolve();
+    currentWorkspace.set(workspace('workspace-b', 'Workspace B'));
+    loadedWorkspaceId.set(null);
+    flushEffects(fixture);
+    config.set(carrierConfig('dhl-b-secret'));
+    loadedWorkspaceId.set('workspace-b');
+    flushEffects(fixture);
+
+    const saveBButton = renderedSubmitButton(fixture, 'shipping-heading');
+    expect(saveBButton.disabled).toBe(false);
+    saveBButton.click();
+    await Promise.resolve();
+    expect(fulfillmentService.updateCarrierConfig).toHaveBeenCalledTimes(2);
+
+    updateA.reject(staleError);
+    await flushAsyncAction(fixture);
+
+    expect(syncStatus.istZentralGemeldet).not.toHaveBeenCalled();
+    expect(toast.toasts()).toEqual([]);
+    expect(fixture.componentInstance.isSavingCarrierConfig()).toBe(true);
+
+    updateB.reject(currentError);
+    await flushAsyncAction(fixture);
+
+    expect(syncStatus.istZentralGemeldet).toHaveBeenCalledOnce();
+    expect(syncStatus.istZentralGemeldet).toHaveBeenCalledWith(currentError);
+    expectOnlyToast(
+      toast,
+      'error',
+      'Versanddienstleister konnten nicht gespeichert werden.',
+      currentError.message,
+    );
     expect(fixture.componentInstance.isSavingCarrierConfig()).toBe(false);
   });
 });
 
-async function renderApp(options: { readonly installed?: boolean } = {}) {
+async function renderApp(
+  options: { readonly installed?: boolean; readonly online?: boolean } = {},
+) {
   const pwaService = {
-    isOnline: signal(true),
+    isOnline: signal(options.online ?? true),
     isInstalled: signal(options.installed ?? false),
     promptInstall: vi.fn(),
   };
@@ -1562,11 +1869,35 @@ describe('App-Einstellungen – echte Angular-Fixture', () => {
 
   it('bindet den gerenderten PWA-Installationsbutton an den Installationsdialog', async () => {
     const { fixture, pwaService, toast } = await renderApp();
+    const renderedText = (fixture.nativeElement as HTMLElement).textContent;
+
+    expect(renderedText).toContain('Online (Live-Sync)');
+    expect(renderedText).toContain('Im Web-Browser');
 
     renderedButton(fixture, 'Flipbase auf Smartphone / Desktop installieren').click();
     await flushAsyncAction(fixture);
 
     expect(pwaService.promptInstall).toHaveBeenCalledOnce();
+    expect(toast.toasts()).toEqual([]);
+  });
+
+  it('rendert eine installierte App offline ohne erneute Installationsaktion', async () => {
+    const { fixture, pwaService, toast } = await renderApp({ installed: true, online: false });
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.textContent).toContain('Offline-Cache aktiv');
+    expect(host.textContent).toContain('Installiert (Standalone)');
+    expect(host.textContent).toContain(
+      'Flipbase ist bereits als native App auf diesem Gerät installiert.',
+    );
+    expect(
+      Array.from(host.querySelectorAll<HTMLButtonElement>('button')).find(
+        (button) =>
+          button.textContent?.replace(/\s+/g, ' ').trim() ===
+          'Flipbase auf Smartphone / Desktop installieren',
+      ),
+    ).toBeUndefined();
+    expect(pwaService.promptInstall).not.toHaveBeenCalled();
     expect(toast.toasts()).toEqual([]);
   });
 });

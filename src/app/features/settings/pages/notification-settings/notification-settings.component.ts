@@ -40,9 +40,16 @@ export class NotificationSettingsComponent {
   readonly isSavingWebhookConfig = signal(false);
   readonly isTestingWebhook = signal(false);
   readonly isTestingPush = signal(false);
+  private saveRequestId = 0;
+  private saveWorkspaceId: string | null = null;
   constructor() {
     effect(() => {
       const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
+      if (workspaceId !== this.saveWorkspaceId) {
+        this.saveWorkspaceId = workspaceId;
+        this.saveRequestId += 1;
+        this.isSavingWebhookConfig.set(false);
+      }
       if (!workspaceId || this.webhookService.loadedWorkspaceId() !== workspaceId) {
         this.isLoadingWorkspaceConfig.set(workspaceId !== null);
         this.webhookForm.reset(
@@ -102,10 +109,11 @@ export class NotificationSettingsComponent {
   async onSaveWebhookConfig(): Promise<void> {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     if (!workspaceId || this.isLoadingWorkspaceConfig()) return;
+    const requestId = ++this.saveRequestId;
     this.isSavingWebhookConfig.set(true);
     try {
       const result = await this.saveWebhookConfig();
-      if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+      if (!this.isCurrentSave(requestId, workspaceId)) return;
       if (result.error || !result.data) {
         const error = result.error ?? new Error('Keine bestätigte Webhook-Konfiguration.');
         if (!result.reportedBySyncStatus)
@@ -114,11 +122,12 @@ export class NotificationSettingsComponent {
       }
       this.toast.success('Webhook-Konfiguration wurde gespeichert.');
     } catch (reason: unknown) {
+      if (!this.isCurrentSave(requestId, workspaceId)) return;
       const error = reason instanceof Error ? reason : new Error('Unbekannter Fehler');
       if (!this.syncStatus.istZentralGemeldet(error))
         this.toast.error('Webhook-Konfiguration konnte nicht gespeichert werden.', error.message);
     } finally {
-      this.isSavingWebhookConfig.set(false);
+      if (this.isCurrentSave(requestId, workspaceId)) this.isSavingWebhookConfig.set(false);
     }
   }
   async testWebhook(channel: 'discord' | 'telegram' | 'custom'): Promise<void> {
@@ -161,5 +170,11 @@ export class NotificationSettingsComponent {
       notifyOnPurchase: !!value.notifyOnPurchase,
       soundEnabled: !!value.soundEnabled,
     });
+  }
+  private isCurrentSave(requestId: number, workspaceId: string): boolean {
+    return (
+      requestId === this.saveRequestId &&
+      this.workspaceService.currentWorkspace()?.id === workspaceId
+    );
   }
 }

@@ -30,9 +30,16 @@ export class ShippingSettingsComponent {
   });
   readonly isLoadingWorkspaceConfig = signal(true);
   readonly isSavingCarrierConfig = signal(false);
+  private saveRequestId = 0;
+  private saveWorkspaceId: string | null = null;
   constructor() {
     effect(() => {
       const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
+      if (workspaceId !== this.saveWorkspaceId) {
+        this.saveWorkspaceId = workspaceId;
+        this.saveRequestId += 1;
+        this.isSavingCarrierConfig.set(false);
+      }
       if (!workspaceId || this.fulfillmentService.loadedWorkspaceId() !== workspaceId) {
         this.isLoadingWorkspaceConfig.set(workspaceId !== null);
         this.carrierForm.reset(
@@ -56,6 +63,7 @@ export class ShippingSettingsComponent {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     if (!workspaceId || this.isLoadingWorkspaceConfig()) return;
     const value = this.carrierForm.getRawValue();
+    const requestId = ++this.saveRequestId;
     this.isSavingCarrierConfig.set(true);
     try {
       const result = await this.fulfillmentService.updateCarrierConfig({
@@ -66,7 +74,7 @@ export class ShippingSettingsComponent {
         hermesClientId: value.hermesClientId?.trim() || '',
         hermesApiKey: value.hermesApiKey?.trim() || '',
       });
-      if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+      if (!this.isCurrentSave(requestId, workspaceId)) return;
       if (result.error || !result.data) {
         const error = result.error ?? new Error('Keine bestätigte Carrier-Konfiguration.');
         if (!result.reportedBySyncStatus)
@@ -75,11 +83,18 @@ export class ShippingSettingsComponent {
       }
       this.toast.success('Versanddienstleister wurden gespeichert.');
     } catch (reason: unknown) {
+      if (!this.isCurrentSave(requestId, workspaceId)) return;
       const error = reason instanceof Error ? reason : new Error('Unbekannter Fehler');
       if (!this.syncStatus.istZentralGemeldet(error))
         this.toast.error('Versanddienstleister konnten nicht gespeichert werden.', error.message);
     } finally {
-      this.isSavingCarrierConfig.set(false);
+      if (this.isCurrentSave(requestId, workspaceId)) this.isSavingCarrierConfig.set(false);
     }
+  }
+  private isCurrentSave(requestId: number, workspaceId: string): boolean {
+    return (
+      requestId === this.saveRequestId &&
+      this.workspaceService.currentWorkspace()?.id === workspaceId
+    );
   }
 }
