@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(5);
+select plan(6);
 
 \set user_id '85000000-0000-4000-8000-000000000001'
 \set workspace_a '85000000-0000-4000-8000-000000000002'
@@ -102,12 +102,16 @@ $$;
 
 select pass('Jedes Abonnement traegt seine eigene Schwelle');
 
--- Zweimal derselbe Filter im selben Arbeitsbereich legt nichts doppelt an.
+-- Zweimal derselbe Filter im selben Arbeitsbereich legt nichts doppelt an,
+-- und die zweite Schwelle 40 muss die erste Schwelle 30 tatsaechlich
+-- ueberschreiben - sonst besteht dieser Block bei jedem Verhalten von
+-- on conflict, auch bei do nothing.
 do $$
 declare
   erstes uuid;
   zweites uuid;
   anzahl integer;
+  schwelle numeric;
 begin
   erstes := public.create_sniper_subscription(
     '85000000-0000-4000-8000-000000000002'::uuid, 'nike air max', 53, null, 50, 30
@@ -123,10 +127,44 @@ begin
   if erstes <> zweites or anzahl <> 1 then
     raise exception 'Erwartet wurde ein einziges Abonnement, gefunden: % (% und %)', anzahl, erstes, zweites;
   end if;
+
+  select discount_threshold_percent into schwelle
+  from public.sniper_query_subscriptions
+  where id = zweites;
+
+  if schwelle <> 40 then
+    raise exception 'Erwartet wurde die neue Schwelle 40, gefunden: %', schwelle;
+  end if;
 end;
 $$;
 
-select pass('Derselbe Filter zweimal angelegt bleibt ein Abonnement');
+select pass('Derselbe Filter zweimal angelegt bleibt ein Abonnement, die neue Schwelle 40 gilt');
+
+-- Preise werden vor der Schluesselbildung gerundet: 50.567 und 50.566 speichern
+-- beide 50.57 und muessen sich eine einzige Abfrage teilen - sonst pollt der
+-- Dienst zweimal fuer denselben tatsaechlich gespeicherten Filter.
+do $$
+declare
+  queries integer;
+begin
+  perform public.create_sniper_subscription(
+    '85000000-0000-4000-8000-000000000002'::uuid, 'gerundete grenze', null, 50.567, null, 30
+  );
+  perform public.create_sniper_subscription(
+    '85000000-0000-4000-8000-000000000003'::uuid, 'gerundete grenze', null, 50.566, null, 30
+  );
+
+  select count(*) into queries
+  from public.sniper_queries
+  where search_text = 'gerundete grenze';
+
+  if queries <> 1 then
+    raise exception '50.567 und 50.566 haben % Abfragen erzeugt statt einer', queries;
+  end if;
+end;
+$$;
+
+select pass('50.567 und 50.566 runden auf denselben Abfrageschluessel');
 
 -- Nachlaufende Nullen duerfen den Schluessel nicht spalten.
 do $$
