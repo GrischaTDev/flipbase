@@ -48,6 +48,16 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Claude Opus 5 (Anthropic) – Trefferliste fuer den Deal-Monitor (Task 3)
+
+**Art:** Feature
+**Betroffen:** `supabase/schemas/50_sniper.sql`, `supabase/migrations/20260904160926_deal_monitor_hits.sql`, `supabase/migrations/20260904161027_restrict_hit_tables.sql`, `supabase/tests/deal_monitor_hits.sql`
+**Was:** Neue Tabelle `public.sniper_hits` angelegt (id, subscription_id, listing_id, reference_price, discount_percent, created_at, notified_at) mit Eindeutigkeit ueber (subscription_id, listing_id), RLS-Leserichtlinie fuer Abonnenten und einer von Hand geschriebenen Migration, die `authenticated` auf genau SELECT beschraenkt (`revoke all` statt nur insert/update/delete, damit truncate nicht wie bei Task 1 stehen bleibt).
+**Warum:** Gefaess fuer Task 2 des Deal-Monitors – gefuellt wird die Tabelle erst spaeter vom Dienst ueber den Service-Role-Schluessel. Test-zuerst: Testdatei mit 5 Pruefungen (Spalten, Eindeutigkeit, RLS, anon-Rechte, authenticated-Rechte) geschrieben, Fehlschlag bestaetigt, dann Schema/Migrationen ergaenzt.
+**Verifiziert durch:** `npm run test:db` (241/241, 9 Dateien, exit 0), Rechte zusaetzlich per Direktabfrage gegen die laufende Datenbank bestaetigt (anon: keine Zeile, authenticated: exakt {SELECT}), `npm run verify` (exit 0, inkl. Build).
+
+---
+
 ## 2026-09-04 – Gemini 3.8 Flash (Google) – Landingpage FAQ Akkordeon, Roadmap & Tracking-Bereinigung
 
 **Art:** UI | Feature | Doku

@@ -113,6 +113,47 @@ create index if not exists idx_sniper_query_subscriptions_workspace
 create index if not exists idx_sniper_query_subscriptions_query
     on public.sniper_query_subscriptions (query_id);
 
+create table if not exists public.sniper_hits (
+    id uuid primary key default gen_random_uuid(),
+    subscription_id uuid not null
+        references public.sniper_query_subscriptions (id) on delete cascade,
+    listing_id uuid not null references public.sniper_listings (id) on delete cascade,
+    reference_price numeric(12, 2) not null,
+    discount_percent numeric(5, 2) not null,
+    created_at timestamptz not null default now(),
+    notified_at timestamptz,
+    unique (subscription_id, listing_id)
+);
+
+comment on table public.sniper_hits is
+    'Ein Fund, der fuer ein bestimmtes Abonnement auffaellig guenstig war. Gehoert zum Abonnement und nicht zum Fund, weil die Schwelle je Abonnent verschieden ist.';
+
+comment on column public.sniper_hits.reference_price is
+    'Der Gruppenmedian zum Zeitpunkt der Bewertung. Festgehalten statt spaeter neu gerechnet - der Median verschiebt sich mit jedem neuen Fund, und ohne diesen Wert waere spaeter nicht nachvollziehbar, warum gemeldet wurde.';
+
+comment on column public.sniper_hits.notified_at is
+    'Wann zugestellt wurde. Verhindert Doppelmeldungen ueber Neustarts des Dienstes hinweg.';
+
+alter table public.sniper_hits enable row level security;
+
+create policy "Mitglieder duerfen eigene Treffer lesen" on public.sniper_hits
+    for select to authenticated
+    using (
+        exists (
+            select 1
+            from public.sniper_query_subscriptions as subscription
+            where subscription.id = public.sniper_hits.subscription_id
+              and public.is_workspace_member(subscription.workspace_id)
+        )
+    );
+
+create index if not exists idx_sniper_hits_subscription
+    on public.sniper_hits (subscription_id, created_at desc);
+
+create index if not exists idx_sniper_hits_pending_notification
+    on public.sniper_hits (created_at)
+    where notified_at is null;
+
 -- Beide Tabellen sind arbeitsbereichsuebergreifend: Angemeldete Nutzer duerfen
 -- ausschliesslich lesen. Geschrieben wird nur vom Dienst ueber den
 -- Service-Role-Schluessel, der RLS umgeht - deshalb gibt es hier bewusst keine
@@ -151,9 +192,12 @@ revoke all on table public.sniper_listings from anon, public;
 revoke all on table public.sniper_listings from authenticated;
 revoke all on table public.sniper_query_subscriptions from anon, public;
 revoke all on table public.sniper_query_subscriptions from authenticated;
+revoke all on table public.sniper_hits from anon, public;
+revoke all on table public.sniper_hits from authenticated;
 
 grant select on table public.sniper_queries, public.sniper_listings to authenticated;
 grant select on table public.sniper_query_subscriptions to authenticated;
+grant select on table public.sniper_hits to authenticated;
 
 create index if not exists idx_sniper_queries_due
     on public.sniper_queries (is_active, last_polled_at);
