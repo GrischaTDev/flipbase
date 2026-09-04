@@ -6,7 +6,7 @@
 **Betroffen:** Zweig `chore/streamline-release-pipeline`, GitHub-PR und CI
 **Was:** Auf ausdrücklichen Wunsch Push, PR und Merge vorbereitet. Aktuellen Master abgeglichen; keine zwischenzeitlichen Änderungen zu übernehmen.
 **Warum:** Die geprüfte CI-Vereinfachung integrieren. Der neue Datenbankweg bleibt bis zum dokumentierten Serverbootstrap deaktiviert.
-**Verifiziert durch:** Erneuter vollständiger lokaler Verify-Lauf und GitHub-Prüfungen vor dem Merge vorgesehen. Keine manuelle Produktionsmigration oder Serverinstallation.
+**Verifiziert durch:** Erneuter vollständiger lokaler Verify-Lauf erfolgreich. PR #18 deckte eine ungenutzte Shell-Schleifenvariable auf; auf den bewusst ungenutzten Namen `_` korrigiert. Die lokale actionlint-Prüfung hatte anders als GitHub kein ShellCheck verfügbar; Linux-Gegenprüfung folgt mit beiden Werkzeugen. Keine manuelle Produktionsmigration oder Serverinstallation.
 
 ## 2026-09-05 – Codex – Git-Rename-Erkennung abgesichert
 

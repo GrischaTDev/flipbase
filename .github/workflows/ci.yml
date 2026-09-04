@@ -115,7 +115,7 @@ jobs:
           docker network create release-test
           trap 'docker rm -fv release-db >/dev/null 2>&1; docker network rm release-test >/dev/null' EXIT
           docker run -d --name release-db --network release-test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=flipbase_release_test postgres:16-alpine
-          for attempt in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if docker exec release-db pg_isready -U postgres -d flipbase_release_test; then break; fi
             sleep 1
           done
