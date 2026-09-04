@@ -244,9 +244,48 @@ export class WorkspaceService {
     return { data: newWs, error: null };
   }
 
+  archiveWorkspace(workspaceId: string): Promise<{ error: Error | null }> {
+    return this.setArchiveState(workspaceId, 'archive_workspace');
+  }
+
+  restoreWorkspace(workspaceId: string): Promise<{ error: Error | null }> {
+    return this.setArchiveState(workspaceId, 'restore_workspace');
+  }
+
+  private async setArchiveState(
+    workspaceId: string,
+    operation: 'archive_workspace' | 'restore_workspace',
+  ): Promise<{ error: Error | null }> {
+    if (!this.supabase || this.auth?.isDemoMode() || !this.auth?.isAuthenticated()) {
+      return {
+        error: new Error('Archivieren und Wiederherstellen sind im Demo-Modus nicht verfügbar.'),
+      };
+    }
+    try {
+      const { data, error } = await this.supabase.client.rpc(operation, {
+        p_workspace_id: workspaceId,
+      });
+      if (error) return { error: new Error(error.message) };
+      if (!data || data.id !== workspaceId) {
+        return { error: new Error('Die Änderung wurde von der Datenbank nicht bestätigt.') };
+      }
+      const updated = data as Workspace;
+      this.workspaces.update((workspaces) =>
+        workspaces.map((workspace) => (workspace.id === workspaceId ? updated : workspace)),
+      );
+      if (this.currentWorkspace()?.id === workspaceId) this.currentWorkspace.set(updated);
+      return { error: null };
+    } catch (error) {
+      return {
+        error:
+          error instanceof Error ? error : new Error('Der Workspace konnte nicht geändert werden.'),
+      };
+    }
+  }
+
   async deleteWorkspace(
     workspaceId: string,
-  ): Promise<{ success: boolean; reportedBySyncStatus: boolean }> {
+  ): Promise<{ success: boolean; reportedBySyncStatus: boolean; retentionBlocked?: boolean }> {
     if (this.workspaces().length <= 1) {
       return { success: false, reportedBySyncStatus: false }; // Cannot delete only workspace
     }
@@ -265,7 +304,13 @@ export class WorkspaceService {
             error ??
               new Error('Die Löschung des Workspace wurde von der Datenbank nicht bestätigt.'),
           );
-          return { success: false, reportedBySyncStatus: true };
+          return {
+            success: false,
+            reportedBySyncStatus: true,
+            ...(error?.code === 'P0001' && error.message.includes('Geschäftsdaten')
+              ? { retentionBlocked: true }
+              : {}),
+          };
         }
       } catch (err) {
         this.syncStatus.melde('Löschen des Workspace', err);
@@ -310,7 +355,7 @@ export class WorkspaceService {
         .reduce((sum, i) => sum + (i.allocated_purchase_cost || 0), 0);
 
       const invested = wsPurchases.reduce(
-        (sum, p) => sum + (p.purchase_price || 0) + (p.shipping_cost || 0),
+        (sum, purchase) => sum + (this.purchaseCostPreview(purchase) ?? 0),
         0,
       );
       const revenue = wsSales.reduce((sum, s) => sum + (s.sale_price || 0), 0);
@@ -350,5 +395,18 @@ export class WorkspaceService {
       averageRoi: Number(averageRoi.toFixed(1)),
       workspaceSummaries: summaries,
     };
+  }
+
+  private purchaseCostPreview(purchase: Purchase): number | null {
+    if (purchase.purchase_price === null) return null;
+    if (purchase.total_purchase_cost !== undefined && purchase.total_purchase_cost !== null) {
+      return purchase.total_purchase_cost;
+    }
+    return (
+      purchase.purchase_price +
+      (purchase.shipping_cost || 0) +
+      (purchase.other_costs || 0) +
+      (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0)
+    );
   }
 }

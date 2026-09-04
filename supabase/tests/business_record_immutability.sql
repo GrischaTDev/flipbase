@@ -55,10 +55,12 @@ alter table public.inventory_items disable trigger inventory_item_sale_integrity
 alter table public.sale_lines disable trigger inventory_item_sale_integrity_on_sale_line;
 alter table public.sales disable trigger inventory_item_sale_integrity_on_sale;
 
-insert into public.purchases (id, workspace_id, type, title) values
-  ('83000000-0000-4000-8000-000000000010', :'business_workspace_id'::uuid, 'single', 'Purchase with item'),
-  ('83000000-0000-4000-8000-000000000011', :'purchase_workspace_id'::uuid, 'single', 'Workspace purchase'),
-  ('83000000-0000-4000-8000-000000000012', :'business_workspace_id'::uuid, 'lot', 'Store stock purchase');
+insert into public.purchases (
+  id, workspace_id, type, title, entry_status, finalized_at, finalized_by
+) values
+  ('83000000-0000-4000-8000-000000000010', :'business_workspace_id'::uuid, 'single', 'Purchase with item', 'draft', null, null),
+  ('83000000-0000-4000-8000-000000000011', :'purchase_workspace_id'::uuid, 'single', 'Workspace purchase', 'draft', null, null),
+  ('83000000-0000-4000-8000-000000000012', :'business_workspace_id'::uuid, 'lot', 'Store stock purchase', 'finalized', '2026-08-29T08:00:00Z', :'user_id'::uuid);
 
 insert into public.inventory_items (id, workspace_id, purchase_id, title, status) values
   ('83000000-0000-4000-8000-000000000020', :'business_workspace_id'::uuid, '83000000-0000-4000-8000-000000000010', 'Purchase child', 'ready'),

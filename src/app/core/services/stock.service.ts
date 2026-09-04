@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { PurchaseLine, StockLot, StockMovement, StockPosition } from '../models/flipbase.models';
-import { MutationResult } from './catalog.service';
+import { MutationResult } from '../models/mutation-result.model';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
@@ -57,7 +57,7 @@ export class StockService {
         this.supabase.client
           .from('stock_lots')
           .select(
-            '*, catalog_product:catalog_products!stock_lots_catalog_product_id_fkey(id, title, is_public_store)',
+            '*, purchase:purchases!stock_lots_purchase_id_fkey(*), catalog_product:catalog_products!stock_lots_catalog_product_id_fkey(id, title, is_public_store)',
           )
           .eq('workspace_id', workspaceId)
           .order('received_at', { ascending: true })

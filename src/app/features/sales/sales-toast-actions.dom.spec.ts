@@ -83,6 +83,7 @@ function erstelleKomponente() {
     invoiceService,
     selectedSaleForReturn: signal(verkauf),
     isReturnModalOpen: signal(true),
+    selectedSaleForHistory: signal<Sale | null>(null),
     isProcessingReturn: signal(false),
     isCreatingInvoice: signal(false),
     activeInvoice: signal(null),
@@ -104,6 +105,16 @@ function erstelleKomponente() {
 }
 
 describe('SalesComponent – Aktionsmeldungen', () => {
+  it('öffnet und schließt den Verlauf für genau den ausgewählten Verkauf', () => {
+    const { komponente } = erstelleKomponente();
+
+    komponente.openRecordHistory(verkauf);
+    expect(komponente.selectedSaleForHistory()).toEqual(verkauf);
+
+    komponente.closeRecordHistory();
+    expect(komponente.selectedSaleForHistory()).toBeNull();
+  });
+
   it('startet bei einem Doppelklick nur eine Rechnungserstellung', async () => {
     const { komponente, invoiceService } = erstelleKomponente();
     let resolve!: (value: {

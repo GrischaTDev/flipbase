@@ -7,8 +7,7 @@
         </p>
         <h1 class="mt-1 text-xl font-bold tracking-tight text-fb-text-primary">Ertrag im Blick</h1>
         <p class="mt-1 max-w-2xl text-xs text-fb-text-muted">
-          Einnahmen, tatsächliche Einkaufsausgaben und Gewinn aus bestätigten Verkäufen – ohne
-          Lagerwert und ROI zu vermischen.
+          Verkaufserlöse, Wareneinsatz und direkte Verkaufskosten aus bestätigten Verkäufen.
         </p>
       </div>
       <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -44,52 +43,84 @@
     </div>
   </header>
 
-  <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="Kennzahlen">
+  <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Kennzahlen">
     <div class="linear-kpi rounded-xl border border-blue-400/20 p-4">
       <div
         class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-fb-text-muted"
       >
-        <span>Einnahmen</span><svg [lucideIcon]="coinsIcon" class="h-4 w-4 text-blue-400"></svg>
+        <span>Verkaufserlöse</span
+        ><svg [lucideIcon]="coinsIcon" class="h-4 w-4 text-blue-400"></svg>
       </div>
       <p class="mt-3 font-mono text-2xl font-bold tracking-tight text-fb-text-primary">
         {{ report().revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </p>
       <p class="mt-1 text-[10px] text-fb-text-muted">Bestätigte Verkäufe im Zeitraum</p>
     </div>
-    <div class="linear-kpi rounded-xl border border-amber-400/20 p-4">
-      <div
-        class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-fb-text-muted"
-      >
-        <span>Ausgaben</span><svg [lucideIcon]="receiptIcon" class="h-4 w-4 text-amber-400"></svg>
-      </div>
-      <p class="mt-3 font-mono text-2xl font-bold tracking-tight text-fb-text-primary">
-        {{ report().expenses | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-      </p>
-      <p class="mt-1 text-[10px] text-fb-text-muted">Einkäufe nach Einkaufsdatum</p>
-    </div>
     <div class="linear-kpi rounded-xl border border-emerald-400/30 p-4">
       <div
         class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-fb-text-muted"
       >
-        <span>Realisierter Gewinn</span
+        <span>Ergebnis nach direkten Kosten</span
         ><svg [lucideIcon]="trendingIcon" class="h-4 w-4 text-emerald-400"></svg>
       </div>
-      <p class="mt-3 font-mono text-2xl font-bold tracking-tight text-emerald-400">
-        {{ report().realizedProfit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+      <p
+        class="mt-3 font-mono text-2xl font-bold tracking-tight"
+        [class.text-emerald-400]="(report().resultAfterDirectCosts ?? 0) >= 0"
+        [class.text-rose-400]="(report().resultAfterDirectCosts ?? 0) < 0"
+      >
+        @if (report().resultAfterDirectCosts === null) {
+          <span class="font-sans text-base text-amber-300">Kosten noch offen</span>
+        } @else {
+          {{ report().resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        }
       </p>
-      <p class="mt-1 text-[10px] text-fb-text-muted">Umsatz minus COGS und Verkaufsnebenkosten</p>
+      <p class="mt-1 text-[10px] text-fb-text-muted">
+        Nur vollständig belegte Verkäufe werden summiert
+      </p>
     </div>
     <div class="linear-kpi rounded-xl border border-fb-line p-4">
       <div
         class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-fb-text-muted"
       >
-        <span>Bestandswert</span
+        <span>Aktueller Bestandswert</span
         ><svg [lucideIcon]="boxesIcon" class="h-4 w-4 text-indigo-400"></svg>
       </div>
       <p class="mt-3 font-mono text-2xl font-bold tracking-tight text-fb-text-primary">
-        {{ report().inventoryCostValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        @if (report().inventoryCostValue === null) {
+          Unbekannt
+        } @else {
+          {{ report().inventoryCostValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+        }
       </p>
       <p class="mt-1 text-[10px] text-fb-text-muted">Anschaffungswert aktuell vorhandener Ware</p>
+    </div>
+    <div class="linear-kpi rounded-xl border border-fb-line p-4">
+      <div
+        class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-fb-text-muted"
+      >
+        <span>Verkaufte Artikel</span
+        ><svg [lucideIcon]="receiptIcon" class="h-4 w-4 text-amber-400"></svg>
+      </div>
+      <p class="mt-3 font-mono text-2xl font-bold tracking-tight text-fb-text-primary">
+        {{ report().soldItems }}
+      </p>
+      <p class="mt-1 text-[10px] text-fb-text-muted">Bestätigte Stückzahl im Zeitraum</p>
+    </div>
+    <div class="linear-kpi rounded-xl border border-fb-line p-4">
+      <div
+        class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-fb-text-muted"
+      >
+        <span>Durchschnittliche Marge</span
+        ><svg [lucideIcon]="trendingIcon" class="h-4 w-4 text-indigo-400"></svg>
+      </div>
+      <p class="mt-3 font-mono text-2xl font-bold tracking-tight text-fb-text-primary">
+        @if (report().averageMarginPercent === null) {
+          –
+        } @else {
+          {{ report().averageMarginPercent }} %
+        }
+      </p>
+      <p class="mt-1 text-[10px] text-fb-text-muted">Nur Verkäufe mit bekannten Kosten</p>
     </div>
   </section>
 
@@ -132,9 +163,11 @@
               <th scope="col" class="px-4 py-3">Artikel</th>
               <th scope="col" class="px-4 py-3 text-right">Menge</th>
               <th scope="col" class="px-4 py-3">Plattform</th>
-              <th scope="col" class="px-4 py-3 text-right">Einnahmen</th>
-              <th scope="col" class="px-4 py-3 text-right">COGS</th>
-              <th scope="col" class="px-4 py-3 text-right">Gewinn</th>
+              <th scope="col" class="px-4 py-3 text-right">Verkaufserlös</th>
+              <th scope="col" class="px-4 py-3 text-right">Wareneinsatz</th>
+              <th scope="col" class="px-4 py-3 text-right">Verkaufskosten</th>
+              <th scope="col" class="px-4 py-3 text-right">Ergebnis nach direkten Kosten</th>
+              <th scope="col" class="px-4 py-3 text-right">Marge</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-fb-line">
@@ -154,14 +187,32 @@
                   {{ row.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </td>
                 <td class="px-4 py-3 text-right font-mono text-fb-text-secondary">
-                  {{ row.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  @if (row.costOfGoodsSold === null) {
+                    <span class="font-sans text-[11px] text-amber-300">Kosten noch offen</span>
+                  } @else {
+                    {{ row.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  }
+                </td>
+                <td class="px-4 py-3 text-right font-mono text-fb-text-secondary">
+                  {{ row.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 </td>
                 <td
                   class="px-4 py-3 text-right font-mono font-bold"
-                  [class.text-emerald-400]="row.profit >= 0"
-                  [class.text-rose-400]="row.profit < 0"
+                  [class.text-emerald-400]="(row.resultAfterDirectCosts ?? 0) >= 0"
+                  [class.text-rose-400]="(row.resultAfterDirectCosts ?? 0) < 0"
                 >
-                  {{ row.profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  @if (row.resultAfterDirectCosts === null) {
+                    <span class="font-sans text-[11px] text-amber-300">Kosten noch offen</span>
+                  } @else {
+                    {{ row.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  }
+                </td>
+                <td class="px-4 py-3 text-right font-mono text-fb-text-secondary">
+                  @if (row.marginPercent === null) {
+                    –
+                  } @else {
+                    {{ row.marginPercent }} %
+                  }
                 </td>
               </tr>
             }
@@ -181,16 +232,22 @@
               </div>
               <p
                 class="font-mono font-bold"
-                [class.text-emerald-400]="row.profit >= 0"
-                [class.text-rose-400]="row.profit < 0"
+                [class.text-emerald-400]="(row.resultAfterDirectCosts ?? 0) >= 0"
+                [class.text-rose-400]="(row.resultAfterDirectCosts ?? 0) < 0"
               >
-                {{ row.profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                @if (row.resultAfterDirectCosts === null) {
+                  Kosten noch offen
+                } @else {
+                  {{ row.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                }
               </p>
             </div>
             <div class="flex justify-between text-[11px] text-fb-text-muted">
-              <span>Einnahmen {{ row.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</span
+              <span
+                >Verkaufserlös {{ row.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</span
               ><span
-                >COGS {{ row.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</span
+                >Verkaufskosten
+                {{ row.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</span
               >
             </div>
           </article>

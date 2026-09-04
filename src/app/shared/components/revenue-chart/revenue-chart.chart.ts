@@ -12,11 +12,11 @@ import type { ChartConfiguration } from 'chart.js';
 
 Chart.register(LineController, LineElement, PointElement, CategoryScale, LinearScale, Tooltip);
 
-export type RevenueLineChart = Chart<'line', number[], string>;
+export type RevenueLineChart = Chart<'line', (number | null)[], string>;
 
 export type RevenueChartFactory = (
   canvas: HTMLCanvasElement,
-  configuration: ChartConfiguration<'line', number[], string>,
+  configuration: ChartConfiguration<'line', (number | null)[], string>,
 ) => RevenueLineChart;
 
 const createRevenueLineChart: RevenueChartFactory = (canvas, configuration) =>

@@ -9,14 +9,15 @@ test('verkauft ein Einzelstück genau einmal aus dem gemeinsamen Inventar', asyn
   await page.goto('/inventory');
 
   const inventory = page.getByRole('table', {
-    name: 'Gemeinsame Inventartabelle mit Mengenpositionen und einzeln nachverfolgten Artikeln',
+    name: 'Inventartabelle mit Herkunft, Bestand, Kosten, Status und Verkaufsbezug',
   });
   const sellButton = page.getByRole('button', { name: `${saleItem} verkaufen` });
   await expect(sellButton).toBeVisible({ timeout: 10_000 });
-  await expect(inventory.getByText('Mengenposition', { exact: true }).first()).toBeVisible();
+  const inventoryRow = inventory.getByRole('row').filter({ hasText: saleItem });
   await expect(
-    page.getByRole('row', { name: new RegExp(`${saleItem}.*Einzelstück`) }),
+    inventoryRow.getByRole('checkbox', { name: `Artikel ${saleItem} auswählen` }),
   ).toBeVisible();
+  await expect(inventoryRow).toContainText('1 Stück insgesamt');
 
   await sellButton.click();
   await expect(page.getByRole('heading', { name: 'Verkauf erfassen' })).toBeVisible();

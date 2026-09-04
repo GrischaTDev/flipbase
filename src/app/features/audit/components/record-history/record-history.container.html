@@ -1,0 +1,9 @@
+<app-record-history
+  [heading]="heading()"
+  [events]="events()"
+  [loading]="loading()"
+  [error]="error()"
+  [hasMore]="nextCursor() !== null"
+  (retryRequested)="reload()"
+  (loadMoreRequested)="loadMore()"
+/>

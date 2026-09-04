@@ -94,6 +94,23 @@ describe('Webhook & Notification Service', () => {
     expect(webhookService.notifications()[0].title).toContain('Nintendo Switch OVP');
   });
 
+  it('meldet einen unbekannten Draft-Preis nicht als kostenlosen Einkauf', async () => {
+    const purchase: Purchase = {
+      id: 'p-unpriced',
+      workspace_id: 'ws-1',
+      type: 'single',
+      title: 'Noch unbepreist',
+      purchase_date: '2026-08-31',
+      purchase_price: null,
+      cost_allocation_mode: 'even',
+    };
+
+    await webhookService.sendPurchaseNotification(purchase);
+
+    expect(webhookService.notifications()[0].message).toContain('noch nicht erfasst');
+    expect(webhookService.notifications()[0].message).not.toContain('0,00');
+  });
+
   it('meldet eine aufgelöste Discord-HTTP-Fehlerantwort als Fehlschlag', async () => {
     webhookService.config.update((config) => ({
       ...config,

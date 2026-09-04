@@ -223,6 +223,34 @@ describe('BankReconciliationService', () => {
     expect(updatedOrder?.paymentStatus).toBe('paid');
   });
 
+  it('does not treat an unknown draft purchase price as a zero-priced bank match', () => {
+    mockPurchases.set([
+      {
+        id: 'purchase-without-price',
+        workspace_id: 'ws-1',
+        type: 'single',
+        title: 'Unbekannter Ankauf',
+        purchase_date: '2026-08-31',
+        purchase_price: null,
+        cost_allocation_mode: 'even',
+        entry_status: 'draft',
+      } as unknown as Purchase,
+    ]);
+    const transaction: BankTransaction = {
+      id: 'unknown-price-transaction',
+      bookingDate: '2026-08-31',
+      counterpartyName: 'Unbekannter Ankauf',
+      purpose: 'Unbekannter Ankauf',
+      amount: -0.01,
+      currency: 'EUR',
+      status: 'pending',
+    };
+
+    const result = service.runMatchingEngine(transaction);
+
+    expect(result.match?.targetType).not.toBe('purchase');
+  });
+
   describe('Speichern in der Datenbank', () => {
     /**
      * Der Kontenabgleich lag frueher nur im Browser-Speicher: Die Tabelle

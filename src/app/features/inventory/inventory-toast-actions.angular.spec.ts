@@ -4,9 +4,19 @@ import { Router } from '@angular/router';
 import { TestBed } from '@angular/core/testing';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { InventoryItem, ItemStatus } from '../../core/models/flipbase.models';
+import {
+  InventoryItem,
+  ItemStatus,
+  Purchase,
+  Sale,
+  StockLot,
+  StockMovement,
+  StockPosition,
+} from '../../core/models/flipbase.models';
 import { InventoryService } from '../../core/services/inventory.service';
 import { StockService } from '../../core/services/stock.service';
+import { PurchaseService } from '../../core/services/purchase.service';
+import { SalesService } from '../../core/services/sales.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
@@ -20,6 +30,7 @@ const artikel: InventoryItem = {
   title: 'Testartikel',
   condition: 'used',
   status: 'received',
+  sale_state: 'no_active_sale',
   is_public_store: false,
   allocated_purchase_cost: 10,
   created_at: '2026-08-24T10:00:00.000Z',
@@ -48,19 +59,110 @@ function klickEvent(): Event {
   } as unknown as Event;
 }
 
+function erstelleInventarAnsicht(input: {
+  items?: InventoryItem[];
+  positions?: StockPosition[];
+  lots?: StockLot[];
+  movements?: StockMovement[];
+  purchases?: Purchase[];
+  sales?: Sale[];
+  inventoryLoading?: boolean;
+}): InventoryComponent {
+  TestBed.resetTestingModule();
+  TestBed.configureTestingModule({
+    providers: [
+      provideZonelessChangeDetection(),
+      {
+        provide: InventoryService,
+        useValue: {
+          items: signal(input.items ?? []),
+          loadedWorkspaceId: signal(artikel.workspace_id),
+          isLoading: signal(input.inventoryLoading ?? false),
+          loadError: signal(null),
+          loadInventory: vi.fn(async () => undefined),
+        },
+      },
+      {
+        provide: StockService,
+        useValue: {
+          positions: signal(input.positions ?? []),
+          lots: signal(input.lots ?? []),
+          movements: signal(input.movements ?? []),
+          loadedWorkspaceId: signal(artikel.workspace_id),
+          isLoading: signal(false),
+          loadError: signal(null),
+          loadPositions: vi.fn(async () => undefined),
+        },
+      },
+      {
+        provide: PurchaseService,
+        useValue: {
+          purchases: signal(input.purchases ?? []),
+          loadedWorkspaceId: signal(artikel.workspace_id),
+          isLoading: signal(false),
+          loadError: signal(null),
+          loadPurchases: vi.fn(async () => undefined),
+        },
+      },
+      {
+        provide: SalesService,
+        useValue: {
+          sales: signal(input.sales ?? []),
+          loadedWorkspaceId: signal(artikel.workspace_id),
+          isLoading: signal(false),
+          loadError: signal(null),
+          loadSales: vi.fn(async () => undefined),
+        },
+      },
+      { provide: Router, useValue: { navigate: vi.fn() } },
+      { provide: ConfirmDialogService, useValue: { frage: vi.fn() } },
+      {
+        provide: WorkspaceService,
+        useValue: { currentWorkspace: signal({ id: artikel.workspace_id }) },
+      },
+      { provide: SyncStatusService, useValue: new SyncStatusService() },
+      { provide: ToastService, useValue: new ToastService() },
+    ],
+  });
+  return TestBed.runInInjectionContext(() => new InventoryComponent());
+}
+
 describe('InventoryComponent – Aktionsmeldungen', () => {
   it('verwendet eine gemeinsame Ansicht ohne Bestand- und Einzelstück-Tabs', () => {
     const template = readFileSync('src/app/features/inventory/inventory.component.html', 'utf8');
 
     expect(template).not.toContain('role="tablist"');
     expect(template).not.toContain('activeTab');
-    expect(template).toContain('[individualItems]="filteredItems()"');
-    expect(template).toContain('[positions]="filteredStockPositions()"');
+    expect(template).toContain('[presentationRows]="filteredPresentationRows()"');
     expect(template).toContain('Verkaufsstatus klären');
     expect(template).not.toContain('Altdaten prüfen');
+    expect(template).toContain('inventoryPresentation().sourceState');
+    expect(template).toContain('[state]="filteredInventoryValue()"');
   });
 
-  it('zählt im gefilterten Bestand nur zentral verkaufbare Einzelstücke', () => {
+  it('lädt bei Wiederholung alle Inventarquellen neu', async () => {
+    const loadInventory = vi.fn(async () => undefined);
+    const loadPositions = vi.fn(async () => undefined);
+    const loadPurchases = vi.fn(async () => undefined);
+    const loadSales = vi.fn(async () => undefined);
+    const komponente = Object.create(InventoryComponent.prototype) as InventoryComponent;
+    Object.assign(komponente, {
+      workspaceService: { currentWorkspace: signal({ id: artikel.workspace_id }) },
+      inventoryService: { loadInventory },
+      stockService: { loadPositions },
+      purchaseService: { loadPurchases },
+      salesService: { loadSales },
+    });
+
+    await komponente.reloadInventorySources();
+
+    expect(loadInventory).toHaveBeenCalledWith(artikel.workspace_id);
+    expect(loadPositions).toHaveBeenCalledWith(artikel.workspace_id);
+    expect(loadPurchases).toHaveBeenCalledWith(artikel.workspace_id);
+    expect(loadSales).toHaveBeenCalledWith(artikel.workspace_id);
+  });
+
+  it('zählt vorhandene und verkaufte Einheiten in der gemeinsamen Ansicht', () => {
     const items = signal<InventoryItem[]>([
       { ...artikel, id: 'ready', status: 'ready', sale_state: 'no_active_sale' },
       { ...artikel, id: 'listed', status: 'listed', sale_state: 'no_active_sale' },
@@ -89,7 +191,15 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
     TestBed.configureTestingModule({
       providers: [
         provideZonelessChangeDetection(),
-        { provide: InventoryService, useValue: { items } },
+        {
+          provide: InventoryService,
+          useValue: {
+            items,
+            loadedWorkspaceId: signal(artikel.workspace_id),
+            isLoading: signal(false),
+            loadError: signal(null),
+          },
+        },
         {
           provide: StockService,
           useValue: {
@@ -105,11 +215,75 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
               },
             ]),
             loadPositions: vi.fn(),
+            lots: signal([
+              {
+                id: 'sold-lot',
+                workspace_id: artikel.workspace_id,
+                purchase_id: 'sold-purchase',
+                purchase_line_id: 'sold-purchase-line',
+                catalog_product_id: 'catalog-sold',
+                received_quantity: 2,
+                remaining_quantity: 0,
+                unit_cost: 5,
+                received_at: '2026-08-01T10:00:00.000Z',
+                catalog_product: {
+                  id: 'catalog-sold',
+                  title: 'Ausverkaufte Demo-Tassen',
+                  is_public_store: false,
+                },
+              },
+            ]),
+            movements: signal([
+              {
+                id: 'sold-movement',
+                workspace_id: artikel.workspace_id,
+                stock_lot_id: 'sold-lot',
+                direction: 'out',
+                quantity: 2,
+                reason: 'sale',
+              },
+            ]),
+            loadedWorkspaceId: signal(artikel.workspace_id),
+            isLoading: signal(false),
+            loadError: signal(null),
+          },
+        },
+        {
+          provide: PurchaseService,
+          useValue: {
+            purchases: signal([
+              {
+                id: 'sold-purchase',
+                workspace_id: artikel.workspace_id,
+                type: 'single',
+                title: 'Tassen-Einkauf',
+                purchase_date: '2026-08-01',
+                purchase_price: 10,
+                cost_allocation_mode: 'manual',
+                entry_status: 'finalized',
+                finalized_at: '2026-08-01T12:00:00.000Z',
+              },
+            ]),
+            loadedWorkspaceId: signal(artikel.workspace_id),
+            isLoading: signal(false),
+            loadError: signal(null),
+          },
+        },
+        {
+          provide: SalesService,
+          useValue: {
+            sales: signal([]),
+            loadedWorkspaceId: signal(artikel.workspace_id),
+            isLoading: signal(false),
+            loadError: signal(null),
           },
         },
         { provide: Router, useValue: { navigate: vi.fn() } },
         { provide: ConfirmDialogService, useValue: { frage: vi.fn() } },
-        { provide: WorkspaceService, useValue: { currentWorkspace: signal(null) } },
+        {
+          provide: WorkspaceService,
+          useValue: { currentWorkspace: signal({ id: artikel.workspace_id }) },
+        },
         { provide: SyncStatusService, useValue: new SyncStatusService() },
         { provide: ToastService, useValue: new ToastService() },
       ],
@@ -117,7 +291,169 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
 
     const komponente = TestBed.runInInjectionContext(() => new InventoryComponent());
 
-    expect(komponente.filteredUnitCount()).toBe(7);
+    expect(komponente.filteredUnitCount()).toBe(14);
+    komponente.selectedStatus.set('sold');
+    expect(komponente.filteredPresentationRows()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'quantity:catalog-sold',
+          title: 'Ausverkaufte Demo-Tassen',
+        }),
+      ]),
+    );
+  });
+
+  it('berechnet den Bestandswert ausschließlich aus den sichtbaren Such- und Filterergebnissen', () => {
+    const komponente = erstelleInventarAnsicht({
+      items: [
+        {
+          ...artikel,
+          id: 'alpha',
+          title: 'Alpha-Tasse',
+          status: 'ready',
+          allocated_purchase_cost: 10,
+        },
+        {
+          ...artikel,
+          id: 'beta',
+          title: 'Beta-Teller',
+          status: 'listed',
+          allocated_purchase_cost: 20,
+        },
+        {
+          ...artikel,
+          id: 'open',
+          title: 'Offene Kosten',
+          status: 'ready',
+          allocated_purchase_cost: 0,
+        },
+      ],
+    });
+    const filteredValue = () =>
+      (
+        komponente as InventoryComponent & {
+          filteredInventoryValue?: () => { kind: string; amount?: number };
+        }
+      ).filteredInventoryValue?.();
+
+    komponente.searchQuery.set('Alpha');
+    expect(komponente.filteredPresentationRows().map((row) => row.id)).toEqual([
+      'individual:alpha',
+    ]);
+    expect(filteredValue()).toEqual({ kind: 'known', amount: 10 });
+
+    komponente.searchQuery.set('');
+    komponente.selectedStatus.set('listed');
+    expect(komponente.filteredPresentationRows().map((row) => row.id)).toEqual(['individual:beta']);
+    expect(filteredValue()).toEqual({ kind: 'known', amount: 20 });
+
+    komponente.selectedStatus.set('all');
+    komponente.searchQuery.set('Offene');
+    expect(filteredValue()).toEqual({ kind: 'open' });
+
+    const loading = erstelleInventarAnsicht({ inventoryLoading: true });
+    const loadingValue = (
+      loading as InventoryComponent & {
+        filteredInventoryValue?: () => { kind: string; amount?: number };
+      }
+    ).filteredInventoryValue?.();
+    expect(loadingValue).toEqual({ kind: 'open' });
+  });
+
+  it('filtert Mengenware anhand ihrer verfügbaren, reservierten und verkauften Mengen', () => {
+    const purchases: Purchase[] = [
+      {
+        id: 'purchase-filter',
+        workspace_id: artikel.workspace_id,
+        type: 'single',
+        title: 'Filter-Einkauf',
+        purchase_date: '2026-08-01',
+        purchase_price: 18,
+        cost_allocation_mode: 'manual',
+        entry_status: 'finalized',
+        finalized_at: '2026-08-01T12:00:00.000Z',
+      },
+    ];
+    const positions: StockPosition[] = [
+      {
+        catalog_product_id: 'fully-reserved',
+        title: 'Voll reserviert',
+        available_quantity: 0,
+        reserved_quantity: 2,
+        on_hand_quantity: 2,
+        oldest_available_unit_cost: 4,
+        is_public_store: false,
+      },
+      {
+        catalog_product_id: 'partly-sold',
+        title: 'Teilverkauft',
+        available_quantity: 2,
+        reserved_quantity: 0,
+        on_hand_quantity: 2,
+        oldest_available_unit_cost: 5,
+        is_public_store: false,
+      },
+    ];
+    const lots: StockLot[] = [
+      {
+        id: 'lot-reserved-filter',
+        workspace_id: artikel.workspace_id,
+        purchase_id: 'purchase-filter',
+        purchase_line_id: 'line-reserved-filter',
+        catalog_product_id: 'fully-reserved',
+        received_quantity: 2,
+        remaining_quantity: 2,
+        unit_cost: 4,
+        received_at: '2026-08-01T13:00:00.000Z',
+      },
+      {
+        id: 'lot-sold-filter',
+        workspace_id: artikel.workspace_id,
+        purchase_id: 'purchase-filter',
+        purchase_line_id: 'line-sold-filter',
+        catalog_product_id: 'partly-sold',
+        received_quantity: 3,
+        remaining_quantity: 2,
+        unit_cost: 5,
+        received_at: '2026-08-01T13:00:00.000Z',
+      },
+    ];
+    const movements: StockMovement[] = [
+      {
+        id: 'movement-reserved-filter',
+        workspace_id: artikel.workspace_id,
+        stock_lot_id: 'lot-reserved-filter',
+        direction: 'out',
+        quantity: 2,
+        reason: 'reservation',
+        created_at: '2026-08-02T10:00:00.000Z',
+      },
+      {
+        id: 'movement-sold-filter',
+        workspace_id: artikel.workspace_id,
+        stock_lot_id: 'lot-sold-filter',
+        direction: 'out',
+        quantity: 1,
+        reason: 'sale',
+        created_at: '2026-08-02T10:00:00.000Z',
+      },
+    ];
+    const komponente = erstelleInventarAnsicht({ positions, lots, movements, purchases });
+
+    komponente.selectedStatus.set('available');
+    expect(komponente.filteredPresentationRows().map((row) => row.id)).toEqual([
+      'quantity:partly-sold',
+    ]);
+
+    komponente.selectedStatus.set('sold');
+    expect(komponente.filteredPresentationRows().map((row) => row.id)).toEqual([
+      'quantity:partly-sold',
+    ]);
+
+    komponente.selectedStatus.set('reserved');
+    expect(komponente.filteredPresentationRows().map((row) => row.id)).toEqual([
+      'quantity:fully-reserved',
+    ]);
   });
 
   it('bestätigt einen erfolgreichen Statuswechsel', async () => {

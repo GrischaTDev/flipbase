@@ -5,14 +5,17 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const projectRoot = fileURLToPath(new URL('..', import.meta.url));
+const defaultFixtures = [
+  ['inventory_integrity_legacy.sql', 'inventory_integrity_legacy.sql.inc'],
+  ['purchase_costing_legacy.sql', 'purchase_costing_legacy.sql.inc'],
+];
+
 const defaultSourcePath = resolve(
   projectRoot,
-  'supabase/test-support/fixtures/inventory_integrity_legacy.sql',
+  'supabase/test-support/fixtures',
+  defaultFixtures[0][0],
 );
-const defaultTargetPath = resolve(
-  projectRoot,
-  'supabase/tests/.generated/inventory_integrity_legacy.sql.inc',
-);
+const defaultTargetPath = resolve(projectRoot, 'supabase/tests/.generated', defaultFixtures[0][1]);
 
 async function replaceAtomically(temporaryPath, targetPath) {
   const retryableCodes = new Set(['EACCES', 'EPERM']);
@@ -52,5 +55,16 @@ export async function prepareFixture({
   }
 }
 
+export async function prepareDbTests() {
+  await Promise.all(
+    defaultFixtures.map(([sourceName, targetName]) =>
+      prepareFixture({
+        sourcePath: resolve(projectRoot, 'supabase/test-support/fixtures', sourceName),
+        targetPath: resolve(projectRoot, 'supabase/tests/.generated', targetName),
+      }),
+    ),
+  );
+}
+
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;
-if (isMain) await prepareFixture();
+if (isMain) await prepareDbTests();

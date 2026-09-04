@@ -1,0 +1,91 @@
+<form
+  [formGroup]="paymentForm"
+  (ngSubmit)="onSavePaymentConfig()"
+  class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5 shadow-xl"
+  aria-labelledby="store-heading"
+>
+  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-fb-border pb-2">
+    <div class="flex items-center gap-2">
+      <svg [lucideIcon]="cardIcon" class="h-4 w-4 text-emerald-400" aria-hidden="true"></svg>
+      <h2
+        id="store-heading"
+        class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
+      >
+        Webshop & Zahlungs-Gateways
+      </h2>
+    </div>
+    <span
+      class="rounded border border-emerald-700/30 bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-fb-text-secondary"
+      >Stripe & PayPal</span
+    >
+  </div>
+  <p class="text-xs text-fb-text-muted">
+    Verwalte die Zahlungsmethoden für deinen öffentlichen Flipbase Online-Shop (/shop).
+  </p>
+  <fieldset class="space-y-3">
+    <legend class="sr-only">Zahlungsmethoden</legend>
+    <label
+      class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
+      >Stripe (Kreditkarte / Apple Pay)<input
+        type="checkbox"
+        formControlName="stripeEnabled"
+        class="h-5 w-5"
+    /></label>
+    @if (paymentForm.controls.stripeEnabled.value) {
+      <input
+        formControlName="stripePublishableKey"
+        placeholder="Stripe Publishable Key (pk_live_... / pk_test_...)"
+        class="linear-input min-h-11 w-full rounded-xl px-3 text-xs font-mono"
+      />
+    }
+    <label
+      class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
+      >PayPal Express<input type="checkbox" formControlName="paypalEnabled" class="h-5 w-5"
+    /></label>
+    @if (paymentForm.controls.paypalEnabled.value) {
+      <input
+        formControlName="paypalEmail"
+        placeholder="PayPal Händler-E-Mail"
+        class="linear-input min-h-11 w-full rounded-xl px-3 text-xs"
+      />
+    }
+    <label
+      class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
+      ><span class="flex items-center gap-2"
+        ><svg [lucideIcon]="bankIcon" class="h-4 w-4" aria-hidden="true"></svg>Banküberweisung (SEPA
+        Vorkasse)</span
+      ><input type="checkbox" formControlName="bankTransferEnabled" class="h-5 w-5"
+    /></label>
+    @if (paymentForm.controls.bankTransferEnabled.value) {
+      <div class="grid gap-2 sm:grid-cols-2">
+        <input
+          formControlName="bankName"
+          placeholder="Bankname"
+          class="linear-input min-h-11 rounded-xl px-3 text-xs"
+        /><input
+          formControlName="bankIban"
+          placeholder="IBAN (DE...)"
+          class="linear-input min-h-11 rounded-xl px-3 text-xs font-mono"
+        /><input
+          formControlName="bankBic"
+          placeholder="BIC / SWIFT"
+          class="linear-input min-h-11 rounded-xl px-3 text-xs font-mono"
+        /><input
+          formControlName="bankAccountHolder"
+          placeholder="Kontoinhaber"
+          class="linear-input min-h-11 rounded-xl px-3 text-xs"
+        />
+      </div>
+    }
+  </fieldset>
+  <div class="flex justify-end">
+    <button
+      type="submit"
+      [disabled]="isSavingPaymentConfig() || isLoadingWorkspaceConfig()"
+      class="linear-btn-primary inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-bold disabled:opacity-40"
+    >
+      <svg [lucideIcon]="saveIcon" class="h-4 w-4" aria-hidden="true"></svg
+      >{{ isSavingPaymentConfig() ? 'Speichere...' : 'Zahlungsmethoden speichern' }}
+    </button>
+  </div>
+</form>

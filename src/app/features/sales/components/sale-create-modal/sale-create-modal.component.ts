@@ -37,7 +37,7 @@ import {
 } from '../../../../core/services/sales.service';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { StockService } from '../../../../core/services/stock.service';
-import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
+import { calculateSaleMetrics } from '../../../../core/utils/sale-metrics';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import {
   CustomSelectComponent,
@@ -86,7 +86,6 @@ export class SaleCreateModalComponent {
   private readonly salesService = inject(SalesService);
   readonly inventoryService = inject(InventoryService);
   readonly stockService = inject(StockService);
-  private readonly profitEngine = inject(ProfitEngineService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef, { optional: true });
@@ -212,16 +211,21 @@ export class SaleCreateModalComponent {
     const raw = this.form.getRawValue();
     const costOfGoods = this.lines.controls.reduce((sum, line) => sum + this.lineCost(line), 0);
     const additionalCosts = this.additionalCostTotal();
-    const sellingCosts = Number((raw.platformFee + raw.shippingCost + additionalCosts).toFixed(2));
-    const totalCosts = Number((costOfGoods + sellingCosts).toFixed(2));
-    const profit = this.profitEngine.calculateProfit(this.grossRevenue(), totalCosts);
+    const metrics = calculateSaleMetrics({
+      itemRevenue: this.totalPrice(),
+      buyerShippingRevenue: raw.shippingRevenue,
+      costOfGoodsSold: costOfGoods,
+      platformFees: raw.platformFee,
+      sellerShippingCost: raw.shippingCost,
+      extraCosts: [{ amount: additionalCosts }],
+    });
+    const totalCosts = Number((costOfGoods + metrics.sellingCosts).toFixed(2));
     return {
       costOfGoods,
-      sellingCosts,
+      sellingCosts: metrics.sellingCosts,
       totalCosts,
-      profit,
-      margin: this.profitEngine.calculateMargin(profit, this.grossRevenue()),
-      roi: this.profitEngine.calculateRoi(profit, totalCosts),
+      profit: metrics.resultAfterDirectCosts ?? 0,
+      margin: metrics.marginPercent,
     };
   });
 

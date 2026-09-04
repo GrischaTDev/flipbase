@@ -650,6 +650,7 @@ export class BankReconciliationService {
       // Check Purchases (Wareneinkauf / Ankäufe)
       const purchases = this.purchaseService.purchases();
       for (const pur of purchases) {
+        if (pur.purchase_price === null) continue;
         const isExactCost = Math.abs(pur.purchase_price - absAmount) < 0.05;
         const batchNameLower = (pur.title || '').toLowerCase();
         const sellerLower = (pur.supplier?.name || pur.source?.name || '').toLowerCase();

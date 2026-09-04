@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS public.workspaces (
     min_roi_percent NUMERIC NOT NULL DEFAULT 30.0,
     min_profit_amount NUMERIC NOT NULL DEFAULT 15.0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    archived_at timestamptz
 );
 
 CREATE TABLE IF NOT EXISTS public.workspace_members (
@@ -46,7 +47,8 @@ CREATE TABLE IF NOT EXISTS public.sources (
     type TEXT NOT NULL DEFAULT 'online_marketplace',
     is_default BOOLEAN NOT NULL DEFAULT FALSE,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    unique (workspace_id, id)
 );
 
 CREATE TABLE IF NOT EXISTS public.suppliers (
@@ -59,7 +61,8 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
     -- Archivieren statt loeschen: Einkaeufe verweisen auf Lieferanten, und
     -- diese Verweise muessen nachvollziehbar bleiben. Ein archivierter
     -- Lieferant verschwindet nur aus den Auswahllisten.
-    is_active BOOLEAN NOT NULL DEFAULT TRUE
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    unique (workspace_id, id)
 );
 
 -- ==============================================================================
@@ -71,32 +74,76 @@ CREATE TABLE IF NOT EXISTS public.purchases (
     workspace_id UUID NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
     type TEXT NOT NULL CHECK (type IN ('single', 'mystery_pack', 'lot', 'pallet')),
     title TEXT NOT NULL,
-    source_id UUID REFERENCES public.sources(id) ON DELETE SET NULL,
-    supplier_id UUID REFERENCES public.suppliers(id) ON DELETE SET NULL,
+    source_id UUID,
+    supplier_id UUID,
     purchase_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    purchase_price NUMERIC NOT NULL DEFAULT 0.00,
+    purchase_price numeric
+        constraint purchases_purchase_price_check
+        check (
+          purchase_price is null
+          or (
+            purchase_price <> 'NaN'::numeric
+            and purchase_price >= 0
+            and scale(purchase_price) <= 2
+          )
+        ),
     cost_allocation_mode TEXT NOT NULL DEFAULT 'even' CHECK (cost_allocation_mode IN ('manual', 'even', 'value_weighted')),
     original_url TEXT,
     tracking_number TEXT,
     tracking_carrier TEXT,
     tracking_status TEXT NOT NULL DEFAULT 'pending',
     receiving_status text not null default 'received' check (receiving_status in ('draft', 'ordered', 'partially_received', 'received', 'archived')),
-    total_purchase_cost NUMERIC NOT NULL DEFAULT 0.00,
+    total_purchase_cost numeric,
     estimated_delivery TIMESTAMPTZ,
     notes TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    unique (workspace_id, id)
+    entry_status text not null default 'draft'
+        check (entry_status in ('draft', 'capturing', 'finalized')),
+    finalized_at timestamptz,
+    finalized_by uuid references auth.users(id) on delete restrict,
+    check (
+      (entry_status = 'finalized' and finalized_at is not null and finalized_by is not null)
+      or
+      (entry_status <> 'finalized' and finalized_at is null and finalized_by is null)
+    ),
+    unique (workspace_id, id),
+    constraint purchases_workspace_source_fkey
+        foreign key (workspace_id, source_id)
+        references public.sources(workspace_id, id)
+        on delete set null (source_id),
+    constraint purchases_workspace_supplier_fkey
+        foreign key (workspace_id, supplier_id)
+        references public.suppliers(workspace_id, id)
+        on delete set null (supplier_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.purchase_costs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     purchase_id UUID NOT NULL REFERENCES public.purchases(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
-    amount NUMERIC NOT NULL DEFAULT 0.00,
+    amount numeric not null
+        constraint purchase_costs_amount_check
+        check (
+          amount <> 'NaN'::numeric
+          and amount > 0
+          and scale(amount) <= 2
+        ),
     description TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    workspace_id uuid not null references public.workspaces(id) on delete cascade,
+    allocation_method text not null default 'value_weighted'
+        check (allocation_method in ('value_weighted', 'quantity', 'direct')),
+    target_purchase_line_id uuid,
+    check (
+      (allocation_method = 'direct' and target_purchase_line_id is not null)
+      or
+      (allocation_method <> 'direct' and target_purchase_line_id is null)
+    )
 );
+
+alter table public.purchase_costs add constraint purchase_costs_workspace_purchase_fkey
+    foreign key (workspace_id, purchase_id) references public.purchases(workspace_id, id) on delete cascade;
 
 -- ==============================================================================
 -- 4. INVENTORY ITEMS & ITEM COSTS & MEDIA
@@ -276,17 +323,45 @@ create table public.purchase_lines (
     catalog_product_id uuid references public.catalog_products(id) on delete restrict,
     title_snapshot text not null,
     line_kind text not null check (line_kind in ('quantity', 'individual')),
-    ordered_quantity integer not null check (ordered_quantity > 0 and ordered_quantity::numeric <> 'NaN'::numeric),
+    ordered_quantity integer not null,
     received_quantity integer not null default 0 check (received_quantity >= 0 and received_quantity <= ordered_quantity and received_quantity::numeric <> 'NaN'::numeric),
-    unit_purchase_price numeric not null check (unit_purchase_price <> 'NaN'::numeric and unit_purchase_price >= 0 and scale(unit_purchase_price) <= 2),
-    line_total numeric not null check (line_total <> 'NaN'::numeric and line_total >= 0 and scale(line_total) <= 2),
+    unit_purchase_price numeric check (unit_purchase_price is null or (unit_purchase_price <> 'NaN'::numeric and unit_purchase_price >= 0 and scale(unit_purchase_price) <= 2)),
+    line_total numeric check (line_total is null or (line_total <> 'NaN'::numeric and line_total >= 0 and scale(line_total) <= 2)),
     allocated_additional_cost numeric(12,2) not null default 0 check (allocated_additional_cost >= 0),
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
+    price_mode text not null default 'priced'
+        check (price_mode in ('priced', 'unpriced_mystery')),
+    condition_snapshot text,
+    estimated_market_value numeric(12,2)
+        check (estimated_market_value is null or estimated_market_value >= 0),
+    allocated_total_cost numeric(12,2) not null default 0
+        check (allocated_total_cost >= 0),
     check ((line_kind = 'quantity' and catalog_product_id is not null) or line_kind = 'individual'),
-    check (line_total = round(ordered_quantity * unit_purchase_price, 2)),
+    check (
+      (
+        price_mode = 'priced'
+        and unit_purchase_price is not null
+        and line_total is not null
+        and line_total = round(ordered_quantity * unit_purchase_price, 2)
+      )
+      or
+      (
+        price_mode = 'unpriced_mystery'
+        and unit_purchase_price is null
+        and line_total is null
+      )
+    ),
     unique (workspace_id, id)
 );
+
+alter table public.purchase_lines
+    add constraint purchase_lines_ordered_quantity_check
+    check (
+      ordered_quantity > 0
+      and ordered_quantity <= 100000
+      and ordered_quantity::numeric <> 'NaN'::numeric
+    ) not valid;
 
 alter table public.inventory_items
     add column if not exists purchase_line_id uuid references public.purchase_lines(id) on delete restrict;
@@ -299,11 +374,15 @@ create table public.stock_lots (
     catalog_product_id uuid not null references public.catalog_products(id) on delete restrict,
     received_quantity integer not null check (received_quantity > 0),
     remaining_quantity integer not null check (remaining_quantity >= 0 and remaining_quantity <= received_quantity),
-    unit_cost numeric(18,6) not null check (unit_cost >= 0),
+    unit_cost numeric(24,12) not null check (unit_cost >= 0),
     received_at timestamptz not null default now(),
     created_at timestamptz not null default now(),
     unique (workspace_id, id)
 );
+
+alter table public.stock_lots
+    add constraint stock_lots_received_at_finite_check
+    check (pg_catalog.isfinite(received_at)) not valid;
 
 create table public.sale_lines (
     id uuid primary key default gen_random_uuid(),
@@ -339,10 +418,24 @@ create table public.sale_line_lot_allocations (
     sale_line_id uuid not null references public.sale_lines(id) on delete restrict,
     stock_lot_id uuid not null references public.stock_lots(id) on delete restrict,
     quantity integer not null check (quantity > 0),
-    unit_cost numeric(18,6) not null check (unit_cost >= 0),
+    unit_cost numeric(24,12) not null check (unit_cost >= 0),
     allocated_cost numeric(12,2) not null default 0 check (allocated_cost >= 0),
     created_at timestamptz not null default now(),
-    unique (sale_line_id, stock_lot_id)
+    consumption_sequence bigint,
+    active_allocated_cost numeric(12,2),
+    constraint sale_line_lot_allocations_consumption_sequence_check
+      check (consumption_sequence is null or consumption_sequence > 0),
+    constraint sale_line_lot_allocations_active_allocated_cost_check
+      check (
+        active_allocated_cost is null
+        or (
+          active_allocated_cost >= 0
+          and active_allocated_cost <= allocated_cost
+        )
+      ),
+    unique (sale_line_id, stock_lot_id),
+    constraint sale_line_lot_allocations_lot_consumption_sequence_key
+      unique (stock_lot_id, consumption_sequence)
 );
 
 alter table public.inventory_items add constraint inventory_items_workspace_purchase_line_fkey
@@ -351,6 +444,8 @@ alter table public.purchase_lines add constraint purchase_lines_workspace_purcha
     foreign key (workspace_id, purchase_id) references public.purchases(workspace_id, id) on delete restrict;
 alter table public.purchase_lines add constraint purchase_lines_workspace_catalog_product_fkey
     foreign key (workspace_id, catalog_product_id) references public.catalog_products(workspace_id, id) on delete restrict;
+alter table public.purchase_costs add constraint purchase_costs_workspace_target_purchase_line_fkey
+    foreign key (workspace_id, target_purchase_line_id) references public.purchase_lines(workspace_id, id) on delete restrict;
 alter table public.stock_lots add constraint stock_lots_workspace_purchase_fkey
     foreign key (workspace_id, purchase_id) references public.purchases(workspace_id, id) on delete restrict;
 alter table public.stock_lots add constraint stock_lots_workspace_purchase_line_fkey
@@ -423,6 +518,10 @@ comment on table public.stock_movements is 'Unveraenderbare Bestandsbewegungen.'
 comment on table public.sale_lines is 'Verkaufspositionen mit Kosten-Snapshot.';
 comment on table public.sale_line_lot_allocations is 'Loszuordnungen mit Kosten-Snapshot.';
 comment on table public.sale_cost_entries is 'Strukturierte zusätzliche Verkaufskosten je Verkauf.';
+comment on column public.sale_line_lot_allocations.consumption_sequence is
+  'Unveränderliche fachliche Entnahmereihenfolge innerhalb eines Lagerloses; nullable für kontrolliert zu prüfende Altdaten.';
+comment on column public.sale_line_lot_allocations.active_allocated_cost is
+  'Kosten der fachlich nicht wieder eingelagerten Menge; historische COGS bleiben separat in allocated_cost erhalten.';
 
 create or replace view public.inventory_item_sale_states
 with (security_invoker = true)
@@ -533,6 +632,32 @@ create index inventory_reconciliation_events_workspace_id_idx
   on public.inventory_reconciliation_events(workspace_id);
 create index inventory_reconciliation_events_inventory_item_id_idx
   on public.inventory_reconciliation_events(inventory_item_id);
+
+create table public.business_events (
+    id uuid primary key default gen_random_uuid(),
+    workspace_id uuid not null references public.workspaces(id) on delete restrict,
+    entity_type text not null
+      check (entity_type in ('purchase', 'inventory_item', 'sale', 'return', 'export', 'workspace')),
+    entity_id uuid not null,
+    event_type text not null,
+    actor_id uuid references auth.users(id) on delete restrict,
+    reason text,
+    changes jsonb not null default '{}'::jsonb,
+    correlation_id uuid not null default gen_random_uuid(),
+    created_at timestamptz not null default now()
+);
+
+comment on table public.business_events is
+  'Unveraenderliches fachliches Journal fuer wirtschaftlich und steuerlich relevante Aenderungen.';
+comment on column public.business_events.changes is
+  'Enthaelt die fachlichen Vorher- und Nachherwerte eines Ereignisses.';
+comment on column public.business_events.correlation_id is
+  'Verbindet automatisch zusammengehoerende Ereignisse desselben Geschaeftsvorgangs.';
+
+create index business_events_workspace_created_id_idx
+  on public.business_events(workspace_id, created_at desc, id desc);
+create index business_events_entity_created_id_idx
+  on public.business_events(workspace_id, entity_type, entity_id, created_at desc, id desc);
 
 -- ==============================================================================
 -- 7. ACTIVITY LOGS
@@ -883,6 +1008,7 @@ ALTER TABLE public.purchases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.purchase_costs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
 alter table public.inventory_reconciliation_events enable row level security;
+alter table public.business_events enable row level security;
 ALTER TABLE public.item_costs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.item_media ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.market_research ENABLE ROW LEVEL SECURITY;
@@ -892,6 +1018,7 @@ ALTER TABLE public.sales ENABLE ROW LEVEL SECURITY;
 alter table public.sale_cost_entries enable row level security;
 revoke all on table public.sale_cost_entries from anon, public;
 revoke all on table public.sale_cost_entries from authenticated;
+grant select on table public.sale_cost_entries to authenticated;
 alter table public.catalog_products enable row level security;
 alter table public.purchase_lines enable row level security;
 alter table public.stock_lots enable row level security;
@@ -904,8 +1031,9 @@ revoke all on table public.catalog_products, public.purchase_lines, public.stock
 revoke all on table public.catalog_products, public.purchase_lines, public.stock_lots,
     public.stock_movements, public.sale_lines, public.sale_line_lot_allocations
     from authenticated;
-grant select, insert, update, delete on table public.catalog_products, public.purchase_lines
+grant select, insert, update, delete on table public.catalog_products
     to authenticated;
+grant select on table public.purchase_lines to authenticated;
 grant select on table public.stock_lots, public.stock_movements, public.sale_lines,
     public.sale_line_lot_allocations to authenticated;
 ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
@@ -961,6 +1089,285 @@ as $$
       and role in ('owner', 'admin')
   );
 $$;
+
+create or replace function public.prevent_business_event_mutation()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  raise exception using
+    errcode = 'P0001',
+    message = 'Fachliche Ereignisse sind unveränderbar.';
+end;
+$$;
+
+create trigger prevent_business_event_update_or_delete
+before update or delete on public.business_events
+for each row execute function public.prevent_business_event_mutation();
+
+create trigger prevent_business_event_truncate
+before truncate on public.business_events
+for each statement execute function public.prevent_business_event_mutation();
+
+create or replace function public.list_business_events(
+  p_workspace_id uuid,
+  p_filter jsonb,
+  p_cursor_created_at timestamptz,
+  p_cursor_id uuid,
+  p_page_size integer
+)
+returns table (
+  id uuid,
+  workspace_id uuid,
+  entity_type text,
+  entity_id uuid,
+  event_type text,
+  actor_id uuid,
+  reason text,
+  changes jsonb,
+  correlation_id uuid,
+  created_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor_id uuid := (select auth.uid());
+begin
+  if v_actor_id is null or p_workspace_id is null then
+    raise exception using
+      errcode = '42501',
+      message = 'Keine Berechtigung für den globalen Ereignisverlauf.';
+  end if;
+
+  if not exists (
+    select 1
+    from public.workspace_members as member
+    where member.workspace_id = p_workspace_id
+      and member.user_id = v_actor_id
+      and member.role in ('owner', 'admin', 'accountant')
+  ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Keine Berechtigung für den globalen Ereignisverlauf.';
+  end if;
+
+  if p_filter is null or jsonb_typeof(p_filter) <> 'object' then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Ereignisfilter muss ein JSON-Objekt sein.';
+  end if;
+
+  if p_page_size is null or p_page_size < 1 or p_page_size > 100 then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Seitengröße muss zwischen 1 und 100 liegen.';
+  end if;
+
+  if (p_cursor_created_at is null) <> (p_cursor_id is null) then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Ereigniscursor ist unvollständig.';
+  end if;
+
+  return query
+  select
+    event.id,
+    event.workspace_id,
+    event.entity_type,
+    event.entity_id,
+    event.event_type,
+    event.actor_id,
+    event.reason,
+    event.changes,
+    event.correlation_id,
+    event.created_at
+  from public.business_events as event
+  where event.workspace_id = p_workspace_id
+    and (
+      not (p_filter ? 'entity_type')
+      or event.entity_type = p_filter ->> 'entity_type'
+    )
+    and (
+      not (p_filter ? 'entity_id')
+      or event.entity_id = (p_filter ->> 'entity_id')::uuid
+    )
+    and (
+      not (p_filter ? 'event_type')
+      or event.event_type = p_filter ->> 'event_type'
+    )
+    and (
+      not (p_filter ? 'actor_id')
+      or event.actor_id = (p_filter ->> 'actor_id')::uuid
+    )
+    and (
+      not (p_filter ? 'from')
+      or event.created_at >= (p_filter ->> 'from')::timestamptz
+    )
+    and (
+      not (p_filter ? 'to')
+      or event.created_at <= (p_filter ->> 'to')::timestamptz
+    )
+    and (
+      p_cursor_created_at is null
+      or (event.created_at, event.id) < (p_cursor_created_at, p_cursor_id)
+    )
+  order by event.created_at desc, event.id desc
+  limit p_page_size;
+end;
+$$;
+
+alter function public.list_business_events(uuid, jsonb, timestamptz, uuid, integer)
+  owner to postgres;
+
+comment on function public.list_business_events(uuid, jsonb, timestamptz, uuid, integer) is
+  'Liefert den globalen Ereignisverlauf fuer privilegierte Workspace-Rollen per Keyset-Paginierung.';
+
+create or replace function public.list_entity_business_events(
+  p_workspace_id uuid,
+  p_entity_type text,
+  p_entity_id uuid,
+  p_cursor_created_at timestamptz,
+  p_cursor_id uuid,
+  p_page_size integer
+)
+returns table (
+  id uuid,
+  workspace_id uuid,
+  entity_type text,
+  entity_id uuid,
+  event_type text,
+  actor_id uuid,
+  reason text,
+  changes jsonb,
+  correlation_id uuid,
+  created_at timestamptz
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor_id uuid := (select auth.uid());
+  v_has_entity_access boolean := false;
+  v_privileged_role boolean := false;
+begin
+  if v_actor_id is null or p_workspace_id is null or p_entity_id is null then
+    raise exception using
+      errcode = '42501',
+      message = 'Keine Berechtigung für diesen Datensatzverlauf.';
+  end if;
+
+  select member.role in ('owner', 'admin', 'accountant')
+  into v_privileged_role
+  from public.workspace_members as member
+  where member.workspace_id = p_workspace_id
+    and member.user_id = v_actor_id;
+
+  if not found then
+    raise exception using
+      errcode = '42501',
+      message = 'Keine Berechtigung für diesen Datensatzverlauf.';
+  end if;
+
+  case p_entity_type
+    when 'purchase' then
+      select exists (
+        select 1
+        from public.purchases as purchase
+        where purchase.workspace_id = p_workspace_id
+          and purchase.id = p_entity_id
+      ) into v_has_entity_access;
+    when 'inventory_item' then
+      select exists (
+        select 1
+        from public.inventory_items as inventory_item
+        where inventory_item.workspace_id = p_workspace_id
+          and inventory_item.id = p_entity_id
+      ) into v_has_entity_access;
+    when 'sale' then
+      select exists (
+        select 1
+        from public.sales as sale
+        where sale.workspace_id = p_workspace_id
+          and sale.id = p_entity_id
+      ) into v_has_entity_access;
+    when 'return' then
+      select exists (
+        select 1
+        from public.returns as returned_sale
+        where returned_sale.workspace_id = p_workspace_id
+          and returned_sale.id = p_entity_id
+      ) into v_has_entity_access;
+    when 'export' then
+      if v_privileged_role then
+        select exists (
+          select 1
+          from public.business_events as event
+          where event.workspace_id = p_workspace_id
+            and event.entity_type = 'export'
+            and event.entity_id = p_entity_id
+        ) into v_has_entity_access;
+      end if;
+    else
+      raise exception using
+        errcode = '22023',
+        message = 'Unbekannter fachlicher Datensatztyp.';
+  end case;
+
+  if not v_has_entity_access then
+    raise exception using
+      errcode = '42501',
+      message = 'Keine Berechtigung für diesen Datensatzverlauf.';
+  end if;
+
+  if p_page_size is null or p_page_size < 1 or p_page_size > 100 then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Seitengröße muss zwischen 1 und 100 liegen.';
+  end if;
+
+  if (p_cursor_created_at is null) <> (p_cursor_id is null) then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Ereigniscursor ist unvollständig.';
+  end if;
+
+  return query
+  select
+    event.id,
+    event.workspace_id,
+    event.entity_type,
+    event.entity_id,
+    event.event_type,
+    event.actor_id,
+    event.reason,
+    event.changes,
+    event.correlation_id,
+    event.created_at
+  from public.business_events as event
+  where event.workspace_id = p_workspace_id
+    and event.entity_type = p_entity_type
+    and event.entity_id = p_entity_id
+    and (
+      p_cursor_created_at is null
+      or (event.created_at, event.id) < (p_cursor_created_at, p_cursor_id)
+    )
+  order by event.created_at desc, event.id desc
+  limit p_page_size;
+end;
+$$;
+
+alter function public.list_entity_business_events(uuid, text, uuid, timestamptz, uuid, integer)
+  owner to postgres;
+
+comment on function public.list_entity_business_events(uuid, text, uuid, timestamptz, uuid, integer) is
+  'Liefert nach einer typbezogenen Zugriffspruefung den Ereignisverlauf eines Datensatzes.';
 
 create or replace function public.create_workspace(p_name text)
 returns uuid
@@ -1029,8 +1436,11 @@ as $$
 begin
   if exists (select 1 from public.purchases where workspace_id = old.id)
     or exists (select 1 from public.inventory_items where workspace_id = old.id)
+    or exists (select 1 from public.stock_lots where workspace_id = old.id)
+    or exists (select 1 from public.stock_movements where workspace_id = old.id)
     or exists (select 1 from public.sales where workspace_id = old.id)
     or exists (select 1 from public.inventory_reconciliation_events where workspace_id = old.id)
+    or exists (select 1 from public.business_events where workspace_id = old.id)
     or exists (select 1 from public.activity_logs where workspace_id = old.id)
     or exists (select 1 from public.returns where workspace_id = old.id)
     or exists (select 1 from public.invoices where workspace_id = old.id)
@@ -1645,6 +2055,8 @@ create index if not exists idx_purchases_workspace_id
   on public.purchases (workspace_id);
 create index if not exists idx_purchase_costs_purchase_id
   on public.purchase_costs (purchase_id);
+create index if not exists idx_purchase_costs_workspace_target_purchase_line
+  on public.purchase_costs (workspace_id, target_purchase_line_id);
 create index if not exists idx_inventory_items_workspace_id
   on public.inventory_items (workspace_id);
 create index if not exists idx_inventory_items_purchase_id
@@ -1986,6 +2398,444 @@ $$;
 -- ATOMARER SHOP-CHECKOUT UND BANKABGLEICH
 -- ------------------------------------------------------------------------------
 
+create or replace function public.guard_purchase_costing_fields()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if current_user = 'postgres' then
+    return new;
+  end if;
+
+  if tg_op = 'INSERT' then
+    if new.entry_status <> 'draft'
+      or new.finalized_at is not null
+      or new.finalized_by is not null
+      or new.total_purchase_cost is not null then
+      raise exception using
+        errcode = '42501',
+        message = 'Finalisierungsstatus und abgeleitete Einkaufskosten dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+    end if;
+    return new;
+  end if;
+
+  if old.entry_status = 'finalized' then
+    raise exception using
+      errcode = '42501',
+      message = 'Finalisierte Einkaufsdaten dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+  end if;
+
+  if old.entry_status is distinct from new.entry_status
+    or old.finalized_at is distinct from new.finalized_at
+    or old.finalized_by is distinct from new.finalized_by
+    or old.total_purchase_cost is distinct from new.total_purchase_cost then
+    raise exception using
+      errcode = '42501',
+      message = 'Finalisierungsstatus und abgeleitete Einkaufskosten dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+  end if;
+
+  return new;
+end;
+$$;
+
+alter function public.guard_purchase_costing_fields()
+  owner to postgres;
+
+create trigger protect_purchase_costing_fields
+before insert or update on public.purchases
+for each row execute function public.guard_purchase_costing_fields();
+
+create or replace function public.guard_purchase_line_costing_fields()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_old_status text;
+  v_new_status text;
+  v_other_line_count integer := 0;
+  v_other_units bigint := 0;
+  v_max_purchase_lines constant integer := 1000;
+  v_max_purchase_units constant integer := 100000;
+begin
+  if tg_op <> 'DELETE' and new.ordered_quantity > v_max_purchase_units then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Menge ist auf 100.000 Einheiten je Position und Einkauf begrenzt.';
+  end if;
+
+  -- Trusted business RPCs validate the complete purchase once while holding its
+  -- advisory and row locks. Skipping their per-row trigger scans avoids O(n²).
+  if current_user = 'postgres' then
+    return coalesce(new, old);
+  end if;
+
+  if tg_op <> 'DELETE' then
+    perform pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended(new.purchase_id::text, 0)
+    );
+
+    select
+      pg_catalog.count(*)::integer,
+      coalesce(pg_catalog.sum(line.ordered_quantity), 0)
+    into v_other_line_count, v_other_units
+    from public.purchase_lines as line
+    where line.workspace_id = new.workspace_id
+      and line.purchase_id = new.purchase_id
+      and (new.id is null or line.id <> new.id);
+
+    if v_other_line_count + 1 > v_max_purchase_lines then
+      raise exception using
+        errcode = '22023',
+        message = 'Ein Einkauf ist auf 1.000 Positionen begrenzt.';
+    end if;
+
+    if v_other_units + new.ordered_quantity > v_max_purchase_units then
+      raise exception using
+        errcode = '22023',
+        message = 'Die Menge ist auf 100.000 Einheiten je Position und Einkauf begrenzt.';
+    end if;
+  end if;
+
+  if tg_op <> 'INSERT' then
+    select purchase.entry_status
+    into v_old_status
+    from public.purchases as purchase
+    where purchase.id = old.purchase_id
+      and purchase.workspace_id = old.workspace_id
+    for key share;
+  end if;
+
+  if tg_op <> 'DELETE' then
+    select purchase.entry_status
+    into v_new_status
+    from public.purchases as purchase
+    where purchase.id = new.purchase_id
+      and purchase.workspace_id = new.workspace_id
+    for key share;
+  end if;
+
+  if v_old_status = 'finalized' or v_new_status = 'finalized' then
+    raise exception using
+      errcode = '42501',
+      message = 'Finalisierte Einkaufspositionen dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+  end if;
+
+  if tg_op = 'INSERT' then
+    if new.allocated_additional_cost <> 0 or new.allocated_total_cost <> 0 then
+      raise exception using
+        errcode = '42501',
+        message = 'Abgeleitete Positionskosten dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+    end if;
+  elsif tg_op = 'UPDATE' and (
+    old.allocated_additional_cost is distinct from new.allocated_additional_cost
+    or old.allocated_total_cost is distinct from new.allocated_total_cost
+  ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Abgeleitete Positionskosten dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+  end if;
+
+  return coalesce(new, old);
+end;
+$$;
+
+alter function public.guard_purchase_line_costing_fields()
+  owner to postgres;
+
+create trigger protect_purchase_line_costing_fields
+before insert or update or delete on public.purchase_lines
+for each row execute function public.guard_purchase_line_costing_fields();
+
+create or replace function public.guard_purchase_cost_mutation()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_old_purchase_status text;
+  v_new_purchase_status text;
+begin
+  if current_user = 'postgres' then
+    return coalesce(new, old);
+  end if;
+
+  if tg_op <> 'INSERT' then
+    select purchase.entry_status
+    into v_old_purchase_status
+    from public.purchases as purchase
+    where purchase.id = old.purchase_id
+      and purchase.workspace_id = old.workspace_id
+    for key share;
+
+    if v_old_purchase_status = 'finalized' then
+      raise exception using
+        errcode = '42501',
+        message = 'Kosten finalisierter Einkäufe dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+    end if;
+  end if;
+
+  if tg_op <> 'DELETE' then
+    select purchase.entry_status
+    into v_new_purchase_status
+    from public.purchases as purchase
+    where purchase.id = new.purchase_id
+      and purchase.workspace_id = new.workspace_id
+    for key share;
+
+    if v_new_purchase_status = 'finalized' then
+      raise exception using
+        errcode = '42501',
+        message = 'Kosten finalisierter Einkäufe dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+    end if;
+  end if;
+
+  if tg_op = 'UPDATE' and (
+    old.workspace_id is distinct from new.workspace_id
+    or old.purchase_id is distinct from new.purchase_id
+  ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Kostenzeilen dürfen nicht auf einen anderen Einkauf verschoben werden.';
+  end if;
+
+  return coalesce(new, old);
+end;
+$$;
+
+alter function public.guard_purchase_cost_mutation()
+  owner to postgres;
+
+create trigger protect_purchase_cost_mutation
+before insert or update or delete on public.purchase_costs
+for each row execute function public.guard_purchase_cost_mutation();
+
+create or replace function public.guard_inventory_item_costing_fields()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+declare
+  v_purchase_status text;
+  v_old_purchase_capturing boolean := false;
+  v_new_purchase_capturing boolean := false;
+begin
+  if current_user = 'postgres' then
+    return coalesce(new, old);
+  end if;
+
+  if tg_op <> 'INSERT' and old.purchase_id is not null then
+    select purchase.entry_status
+    into v_purchase_status
+    from public.purchases as purchase
+    where purchase.id = old.purchase_id
+      and purchase.workspace_id = old.workspace_id
+    for key share;
+
+    if v_purchase_status = 'finalized' then
+      raise exception using
+        errcode = '42501',
+        message = 'Bestandsdaten finalisierter Einkäufe dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+    end if;
+    v_old_purchase_capturing := v_old_purchase_capturing
+      or v_purchase_status = 'capturing';
+  end if;
+
+  if tg_op <> 'INSERT' and old.purchase_line_id is not null then
+    select purchase.entry_status
+    into v_purchase_status
+    from public.purchase_lines as line
+    join public.purchases as purchase
+      on purchase.id = line.purchase_id
+      and purchase.workspace_id = line.workspace_id
+    where line.id = old.purchase_line_id
+      and line.workspace_id = old.workspace_id
+    for key share of purchase;
+
+    if v_purchase_status = 'finalized' then
+      raise exception using
+        errcode = '42501',
+        message = 'Bestandsdaten finalisierter Einkäufe dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+    end if;
+    v_old_purchase_capturing := v_old_purchase_capturing
+      or v_purchase_status = 'capturing';
+  end if;
+
+  if tg_op <> 'DELETE' and new.purchase_id is not null then
+    select purchase.entry_status
+    into v_purchase_status
+    from public.purchases as purchase
+    where purchase.id = new.purchase_id
+      and purchase.workspace_id = new.workspace_id
+    for key share;
+
+    if v_purchase_status = 'finalized' then
+      raise exception using
+        errcode = '42501',
+        message = 'Bestandsdaten finalisierter Einkäufe dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+    end if;
+    v_new_purchase_capturing := v_new_purchase_capturing
+      or v_purchase_status = 'capturing';
+  end if;
+
+  if tg_op <> 'DELETE' and new.purchase_line_id is not null then
+    select purchase.entry_status
+    into v_purchase_status
+    from public.purchase_lines as line
+    join public.purchases as purchase
+      on purchase.id = line.purchase_id
+      and purchase.workspace_id = line.workspace_id
+    where line.id = new.purchase_line_id
+      and line.workspace_id = new.workspace_id
+    for key share of purchase;
+
+    if v_purchase_status = 'finalized' then
+      raise exception using
+        errcode = '42501',
+        message = 'Bestandsdaten finalisierter Einkäufe dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+    end if;
+    v_new_purchase_capturing := v_new_purchase_capturing
+      or v_purchase_status = 'capturing';
+  end if;
+
+  if tg_op <> 'DELETE'
+    and (v_old_purchase_capturing or v_new_purchase_capturing)
+    and (
+      new.status in ('ready', 'listed')
+      or (
+        tg_op = 'UPDATE'
+        and (
+          old.purchase_id is distinct from new.purchase_id
+          or old.purchase_line_id is distinct from new.purchase_line_id
+        )
+      )
+    ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Bestand eines wieder geöffneten Einkaufs darf nicht verkaufsbereit gesetzt werden.';
+  end if;
+
+  if tg_op = 'INSERT'
+    and (new.purchase_id is not null or new.purchase_line_id is not null)
+    and new.allocated_purchase_cost <> 0 then
+    raise exception using
+      errcode = '42501',
+      message = 'Bestandskosten dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+  elsif tg_op = 'UPDATE'
+    and (
+      (
+        old.allocated_purchase_cost is distinct from new.allocated_purchase_cost
+        and (
+          old.purchase_id is not null
+          or old.purchase_line_id is not null
+          or new.purchase_id is not null
+          or new.purchase_line_id is not null
+        )
+      )
+      or (
+        (
+          old.purchase_id is distinct from new.purchase_id
+          or old.purchase_line_id is distinct from new.purchase_line_id
+        )
+        and (new.purchase_id is not null or new.purchase_line_id is not null)
+        and new.allocated_purchase_cost <> 0
+      )
+    ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Bestandskosten dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+  end if;
+
+  return coalesce(new, old);
+end;
+$$;
+
+alter function public.guard_inventory_item_costing_fields()
+  owner to postgres;
+
+create trigger protect_inventory_item_costing_fields
+before insert or update or delete on public.inventory_items
+for each row execute function public.guard_inventory_item_costing_fields();
+
+create or replace function public.guard_stock_lot_costing_fields()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if not pg_catalog.isfinite(new.received_at) then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Empfangszeitpunkt muss ein endlicher Zeitpunkt sein.';
+  end if;
+
+  if current_user = 'postgres' then
+    return new;
+  end if;
+
+  if (tg_op = 'INSERT' and new.unit_cost <> 0)
+    or (tg_op = 'UPDATE' and old.unit_cost is distinct from new.unit_cost) then
+    raise exception using
+      errcode = '42501',
+      message = 'Bestandskosten dürfen nur über eine geprüfte Business-Funktion geändert werden.';
+  end if;
+
+  return new;
+end;
+$$;
+
+alter function public.guard_stock_lot_costing_fields()
+  owner to postgres;
+
+create trigger protect_stock_lot_costing_fields
+before insert or update on public.stock_lots
+for each row execute function public.guard_stock_lot_costing_fields();
+
+create or replace function public.guard_sale_line_lot_allocation_sequence()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if old.consumption_sequence is not null and (
+    old.consumption_sequence is distinct from new.consumption_sequence
+    or old.stock_lot_id is distinct from new.stock_lot_id
+    or old.sale_line_id is distinct from new.sale_line_id
+  ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Eine vergebene Losentnahmereihenfolge ist unveränderlich.';
+  end if;
+
+  if old.consumption_sequence is null
+    and new.consumption_sequence is not null
+    and coalesce(
+      pg_catalog.current_setting('flipbase.allow_consumption_sequence_backfill', true),
+      'off'
+    ) <> 'on' then
+    raise exception using
+      errcode = '42501',
+      message = 'Eine historische Losentnahmereihenfolge darf nur kontrolliert nachgetragen werden.';
+  end if;
+
+  return new;
+end;
+$$;
+
+alter function public.guard_sale_line_lot_allocation_sequence()
+  owner to postgres;
+
+create trigger protect_sale_line_lot_allocation_sequence
+before update on public.sale_line_lot_allocations
+for each row execute function public.guard_sale_line_lot_allocation_sequence();
+
 create or replace function public.refresh_purchase_receiving_status(
   p_workspace_id uuid,
   p_purchase_id uuid
@@ -2048,6 +2898,3151 @@ after insert or update of ordered_quantity, received_quantity or delete
 on public.purchase_lines
 for each row execute function public.sync_purchase_receiving_status();
 
+create or replace function public.allocate_integer_cents(
+  p_total_cents bigint,
+  p_weights numeric[]
+)
+returns bigint[]
+language plpgsql
+immutable
+security invoker
+set search_path = ''
+as $$
+declare
+  v_weight_count integer;
+  v_weight_total numeric := 0;
+  v_floor_total bigint := 0;
+  v_remainder_count bigint := 0;
+  v_result bigint[];
+  v_weight numeric;
+  v_position integer;
+begin
+  if p_total_cents is null then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Gesamtbetrag in Cent ist erforderlich.';
+  end if;
+
+  if p_total_cents < 0 then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Gesamtbetrag in Cent darf nicht negativ sein.';
+  end if;
+
+  v_weight_count := pg_catalog.cardinality(p_weights);
+  if p_weights is null or v_weight_count = 0 then
+    raise exception using
+      errcode = '22023',
+      message = 'Mindestens ein Verteilungsgewicht ist erforderlich.';
+  end if;
+
+  for v_weight in
+    select weight.value
+    from pg_catalog.unnest(p_weights) as weight(value)
+  loop
+    if v_weight is null
+      or v_weight::text in ('NaN', 'Infinity', '-Infinity')
+      or v_weight < 0 then
+      raise exception using
+        errcode = '22023',
+        message = 'Verteilungsgewichte dürfen nicht negativ sein.';
+    end if;
+    v_weight_total := v_weight_total + v_weight;
+  end loop;
+
+  if p_total_cents > 0 and v_weight_total = 0 then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Summe der Verteilungsgewichte muss positiv sein.';
+  end if;
+
+  v_result := pg_catalog.array_fill(0::bigint, array[v_weight_count]);
+  if p_total_cents = 0 then
+    return v_result;
+  end if;
+
+  with exact_shares as (
+    select
+      weight.ordinality::integer as position,
+      p_total_cents::numeric * weight.value / v_weight_total as exact_cents
+    from pg_catalog.unnest(p_weights) with ordinality as weight(value, ordinality)
+  )
+  select
+    pg_catalog.array_agg(pg_catalog.floor(share.exact_cents)::bigint order by share.position),
+    pg_catalog.sum(pg_catalog.floor(share.exact_cents)::bigint)
+  into v_result, v_floor_total
+  from exact_shares as share;
+
+  v_remainder_count := p_total_cents - v_floor_total;
+  for v_position in
+    select share.position
+    from (
+      select
+        weight.ordinality::integer as position,
+        p_total_cents::numeric * weight.value / v_weight_total as exact_cents
+      from pg_catalog.unnest(p_weights) with ordinality as weight(value, ordinality)
+    ) as share
+    order by
+      share.exact_cents - pg_catalog.floor(share.exact_cents) desc,
+      share.position
+    limit v_remainder_count
+  loop
+    v_result[v_position] := v_result[v_position] + 1;
+  end loop;
+
+  return v_result;
+end;
+$$;
+
+alter function public.allocate_integer_cents(bigint, numeric[])
+  owner to postgres;
+
+comment on function public.allocate_integer_cents(bigint, numeric[]) is
+  'Verteilt ganze Cent per Largest Remainder; Gleichstände folgen stabil der Arrayposition.';
+
+create or replace function public.build_purchase_costing_plan(
+  p_workspace_id uuid,
+  p_purchase_id uuid
+)
+returns jsonb
+language plpgsql
+volatile
+security invoker
+set search_path = ''
+as $$
+declare
+  v_purchase public.purchases;
+  v_line public.purchase_lines;
+  v_cost record;
+  v_line_ids uuid[];
+  v_line_weights numeric[];
+  v_line_goods_shares bigint[];
+  v_line_additional_shares bigint[];
+  v_line_total_shares bigint[];
+  v_cost_shares bigint[];
+  v_cost_weights numeric[];
+  v_unit_goods_shares bigint[];
+  v_unit_additional_shares bigint[];
+  v_unit_total_shares bigint[];
+  v_global_unit_goods_shares bigint[];
+  v_global_unit_total_shares bigint[];
+  v_goods_cents bigint := 0;
+  v_additional_cents bigint := 0;
+  v_total_cents bigint := 0;
+  v_allocated_cents bigint := 0;
+  v_line_count integer := 0;
+  v_total_units bigint := 0;
+  v_max_line_units integer := 0;
+  v_max_purchase_lines constant integer := 1000;
+  v_max_purchase_units constant integer := 100000;
+  v_target_position integer := 0;
+  v_global_unit_position integer := 0;
+  v_lines jsonb := '[]'::jsonb;
+begin
+  if p_workspace_id is null or p_purchase_id is null then
+    raise exception using
+      errcode = '22023',
+      message = 'Workspace und Einkauf sind für die Kostenberechnung erforderlich.';
+  end if;
+
+  select purchase.*
+  into v_purchase
+  from public.purchases as purchase
+  where purchase.workspace_id = p_workspace_id
+    and purchase.id = p_purchase_id;
+
+  if not found then
+    raise exception using
+      errcode = 'P0002',
+      message = 'Der Einkauf wurde nicht gefunden.';
+  end if;
+
+  select
+    pg_catalog.count(*)::integer,
+    coalesce(pg_catalog.sum(line.ordered_quantity), 0),
+    coalesce(pg_catalog.max(line.ordered_quantity), 0)
+  into v_line_count, v_total_units, v_max_line_units
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id;
+
+  if v_line_count = 0 then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ohne Positionen kann nicht finalisiert werden.';
+  end if;
+
+  if v_line_count > v_max_purchase_lines then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ist auf 1.000 Positionen begrenzt.';
+  end if;
+
+  if v_max_line_units > v_max_purchase_units
+    or v_total_units > v_max_purchase_units then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Menge ist auf 100.000 Einheiten je Position und Einkauf begrenzt.';
+  end if;
+
+  select
+    pg_catalog.array_agg(line.id order by line.created_at, line.id),
+    pg_catalog.array_agg(line.ordered_quantity::numeric order by line.created_at, line.id)
+  into v_line_ids, v_line_weights
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id;
+
+  if v_purchase.purchase_price is not null and (
+    v_purchase.purchase_price::text in ('NaN', 'Infinity', '-Infinity')
+    or v_purchase.purchase_price < 0
+    or v_purchase.purchase_price <> pg_catalog.round(v_purchase.purchase_price, 2)
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Warenbetrag ist ungültig.';
+  end if;
+
+  if exists (
+    select 1
+    from public.purchase_costs as cost
+    where cost.workspace_id = p_workspace_id
+      and cost.purchase_id = p_purchase_id
+      and (
+        cost.amount::text in ('NaN', 'Infinity', '-Infinity')
+        or cost.amount < 0
+        or pg_catalog.scale(cost.amount) > 2
+      )
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Zusatzkosten müssen als nichtnegative ganze Cent erfasst sein.';
+  end if;
+
+  if exists (
+    select 1
+    from public.purchase_costs as cost
+    where cost.workspace_id = p_workspace_id
+      and cost.purchase_id = p_purchase_id
+      and cost.allocation_method = 'direct'
+      and not (cost.target_purchase_line_id = any(v_line_ids))
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Direkte Zusatzkosten müssen eine Position desselben Einkaufs referenzieren.';
+  end if;
+
+  select coalesce(pg_catalog.sum((cost.amount * 100)::bigint), 0)
+  into v_additional_cents
+  from public.purchase_costs as cost
+  where cost.workspace_id = p_workspace_id
+    and cost.purchase_id = p_purchase_id;
+
+  v_line_goods_shares := pg_catalog.array_fill(0::bigint, array[v_line_count]);
+  v_line_additional_shares := pg_catalog.array_fill(0::bigint, array[v_line_count]);
+
+  if v_purchase.type = 'mystery_pack' then
+    if exists (
+      select 1
+      from public.purchase_lines as line
+      where line.workspace_id = p_workspace_id
+        and line.purchase_id = p_purchase_id
+        and (
+          line.price_mode <> 'unpriced_mystery'
+          or line.unit_purchase_price is not null
+          or line.line_total is not null
+        )
+    ) then
+      raise exception using
+        errcode = '22023',
+        message = 'Mystery-Einkaufspositionen müssen vollständig unbepreist sein.';
+    end if;
+
+    if v_purchase.purchase_price is null then
+      raise exception using
+        errcode = '22023',
+        message = 'Mystery-Einkäufe benötigen einen ausdrücklich erfassten Warenbetrag.';
+    end if;
+
+    v_goods_cents := (v_purchase.purchase_price * 100)::bigint;
+    v_total_cents := v_goods_cents + v_additional_cents;
+    v_global_unit_goods_shares := public.allocate_integer_cents(
+      v_goods_cents,
+      pg_catalog.array_fill(1::numeric, array[v_total_units::integer])
+    );
+    v_global_unit_total_shares := public.allocate_integer_cents(
+      v_total_cents,
+      pg_catalog.array_fill(1::numeric, array[v_total_units::integer])
+    );
+
+    -- Mystery-Kosten bilden eine einzige stabile Einheitenfolge. Würden
+    -- Warenwert und jede Zusatzkostenzeile separat gerundet, könnten einzelne
+    -- Einheiten trotz gleicher Ausgangslage um mehrere Cent auseinanderliegen.
+    for v_line_position in 1..v_line_count loop
+      select line.*
+      into v_line
+      from public.purchase_lines as line
+      where line.workspace_id = p_workspace_id
+        and line.id = v_line_ids[v_line_position];
+
+      for v_item_position in 1..v_line.ordered_quantity loop
+        v_global_unit_position := v_global_unit_position + 1;
+        v_line_goods_shares[v_line_position] :=
+          v_line_goods_shares[v_line_position]
+          + v_global_unit_goods_shares[v_global_unit_position];
+        v_line_additional_shares[v_line_position] :=
+          v_line_additional_shares[v_line_position]
+          + v_global_unit_total_shares[v_global_unit_position]
+          - v_global_unit_goods_shares[v_global_unit_position];
+      end loop;
+    end loop;
+  else
+    if exists (
+      select 1
+      from public.purchase_lines as line
+      where line.workspace_id = p_workspace_id
+        and line.purchase_id = p_purchase_id
+        and (
+          line.price_mode <> 'priced'
+          or line.unit_purchase_price is null
+          or line.line_total is null
+        )
+    ) then
+      raise exception using
+        errcode = '22023',
+        message = 'Normale Einkaufspositionen müssen vollständig bepreist sein.';
+    end if;
+
+    select pg_catalog.sum((line.line_total * 100)::bigint)
+    into v_goods_cents
+    from public.purchase_lines as line
+    where line.workspace_id = p_workspace_id
+      and line.purchase_id = p_purchase_id;
+
+    if v_purchase.purchase_price is not null
+      and (v_purchase.purchase_price * 100)::bigint <> v_goods_cents then
+      raise exception using
+        errcode = '22023',
+        message = 'Der vorhandene Warenbetrag widerspricht der Summe der Einkaufspositionen.';
+    end if;
+
+    select pg_catalog.array_agg(
+      (line.line_total * 100)::bigint order by line.created_at, line.id
+    )
+    into v_line_goods_shares
+    from public.purchase_lines as line
+    where line.workspace_id = p_workspace_id
+      and line.purchase_id = p_purchase_id;
+
+    for v_cost in
+      select cost.*
+      from public.purchase_costs as cost
+      where cost.workspace_id = p_workspace_id
+        and cost.purchase_id = p_purchase_id
+      order by cost.created_at, cost.id
+    loop
+      if v_cost.allocation_method = 'direct' then
+        v_cost_shares := pg_catalog.array_fill(0::bigint, array[v_line_count]);
+        v_target_position := pg_catalog.array_position(
+          v_line_ids,
+          v_cost.target_purchase_line_id
+        );
+        v_cost_shares[v_target_position] := (v_cost.amount * 100)::bigint;
+      elsif v_cost.allocation_method = 'quantity' then
+        v_cost_shares := public.allocate_integer_cents(
+          (v_cost.amount * 100)::bigint,
+          v_line_weights
+        );
+      else
+        select pg_catalog.array_agg(
+          line.line_total order by line.created_at, line.id
+        )
+        into v_cost_weights
+        from public.purchase_lines as line
+        where line.workspace_id = p_workspace_id
+          and line.purchase_id = p_purchase_id;
+        v_cost_shares := public.allocate_integer_cents(
+          (v_cost.amount * 100)::bigint,
+          v_cost_weights
+        );
+      end if;
+
+      for v_line_position in 1..v_line_count loop
+        v_line_additional_shares[v_line_position] :=
+          v_line_additional_shares[v_line_position] + v_cost_shares[v_line_position];
+      end loop;
+    end loop;
+  end if;
+
+  v_total_cents := v_goods_cents + v_additional_cents;
+  v_line_total_shares := pg_catalog.array_fill(0::bigint, array[v_line_count]);
+
+  for v_line_position in 1..v_line_count loop
+    v_line_total_shares[v_line_position] :=
+      v_line_goods_shares[v_line_position]
+      + v_line_additional_shares[v_line_position];
+  end loop;
+
+  select pg_catalog.sum(share.value)
+  into v_allocated_cents
+  from pg_catalog.unnest(v_line_total_shares) as share(value);
+
+  if v_allocated_cents <> v_total_cents then
+    raise exception using
+      errcode = 'P0001',
+      message = 'Die Kostenverteilung stimmt nicht mit den Einkaufsgesamtkosten überein.';
+  end if;
+
+  v_global_unit_position := 0;
+  for v_line_position in 1..v_line_count loop
+    select line.*
+    into v_line
+    from public.purchase_lines as line
+    where line.workspace_id = p_workspace_id
+      and line.id = v_line_ids[v_line_position];
+
+    if v_purchase.type = 'mystery_pack' then
+      v_unit_total_shares := pg_catalog.array_fill(
+        0::bigint,
+        array[v_line.ordered_quantity]
+      );
+      for v_item_position in 1..v_line.ordered_quantity loop
+        v_global_unit_position := v_global_unit_position + 1;
+        v_unit_total_shares[v_item_position] :=
+          v_global_unit_total_shares[v_global_unit_position];
+      end loop;
+    else
+      v_unit_goods_shares := public.allocate_integer_cents(
+        v_line_goods_shares[v_line_position],
+        pg_catalog.array_fill(1::numeric, array[v_line.ordered_quantity])
+      );
+      v_unit_additional_shares := public.allocate_integer_cents(
+        v_line_additional_shares[v_line_position],
+        pg_catalog.array_fill(1::numeric, array[v_line.ordered_quantity])
+      );
+      v_unit_total_shares := pg_catalog.array_fill(
+        0::bigint,
+        array[v_line.ordered_quantity]
+      );
+      for v_item_position in 1..v_line.ordered_quantity loop
+        v_unit_total_shares[v_item_position] :=
+          v_unit_goods_shares[v_item_position]
+          + v_unit_additional_shares[v_item_position];
+      end loop;
+    end if;
+
+    v_lines := v_lines || pg_catalog.jsonb_build_array(
+      pg_catalog.jsonb_build_object(
+        'lineId', v_line.id,
+        'goodsCents', v_line_goods_shares[v_line_position],
+        'additionalCents', v_line_additional_shares[v_line_position],
+        'totalCents', v_line_total_shares[v_line_position],
+        'unitTotalCents', pg_catalog.to_jsonb(v_unit_total_shares)
+      )
+    );
+  end loop;
+
+  return pg_catalog.jsonb_build_object(
+    'goodsCents', v_goods_cents,
+    'additionalCents', v_additional_cents,
+    'totalCents', v_total_cents,
+    'allocatedCents', v_allocated_cents,
+    'lines', v_lines
+  );
+end;
+$$;
+
+alter function public.build_purchase_costing_plan(uuid, uuid)
+  owner to postgres;
+
+comment on function public.build_purchase_costing_plan(uuid, uuid) is
+  'Interner centgenauer Kostenplan für Finalisierung und Korrektur.';
+
+create or replace function public.finalize_purchase_costing(
+  p_workspace_id uuid,
+  p_purchase_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor_id uuid := (select auth.uid());
+  v_purchase public.purchases;
+  v_line public.purchase_lines;
+  v_existing_lot public.stock_lots;
+  v_cohort record;
+  v_costing_plan jsonb;
+  v_line_plan jsonb;
+  v_line_ids uuid[];
+  v_line_total_shares bigint[];
+  v_line_additional_shares bigint[];
+  v_unit_shares bigint[];
+  v_existing_item_ids uuid[];
+  v_goods_cents bigint := 0;
+  v_total_cents bigint := 0;
+  v_allocated_cents bigint := 0;
+  v_line_count integer := 0;
+  v_total_units bigint := 0;
+  v_max_line_units integer := 0;
+  v_max_purchase_lines constant integer := 1000;
+  v_max_purchase_units constant integer := 100000;
+  v_existing_count integer := 0;
+  v_existing_lot_quantity integer := 0;
+  v_movement_count integer := 0;
+  v_inventory_cents bigint := 0;
+  v_lot_total_cents bigint := 0;
+  v_unit_offset integer := 0;
+  v_suffix_position integer := 0;
+  v_stock_lot_id uuid;
+  v_event_id uuid;
+  v_finalized_at timestamptz := pg_catalog.clock_timestamp();
+  v_latest_received_at timestamptz;
+  v_next_received_at timestamptz;
+begin
+  if v_actor_id is null
+    or p_workspace_id is null
+    or p_purchase_id is null
+    or not exists (
+      select 1
+      from public.workspace_members as member
+      where member.workspace_id = p_workspace_id
+        and member.user_id = v_actor_id
+    ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_purchase_id::text, 0)
+  );
+
+  select purchase.*
+  into v_purchase
+  from public.purchases as purchase
+  where purchase.workspace_id = p_workspace_id
+    and purchase.id = p_purchase_id
+  for update;
+
+  if not found then
+    raise exception using
+      errcode = 'P0002',
+      message = 'Der Einkauf wurde nicht gefunden.';
+  end if;
+
+  if v_purchase.entry_status = 'finalized' then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Einkauf ist bereits finalisiert.';
+  end if;
+
+  select
+    pg_catalog.count(*)::integer,
+    coalesce(pg_catalog.sum(line.ordered_quantity), 0),
+    coalesce(pg_catalog.max(line.ordered_quantity), 0)
+  into v_line_count, v_total_units, v_max_line_units
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id;
+
+  if v_line_count = 0 then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ohne Positionen kann nicht finalisiert werden.';
+  end if;
+
+  if v_line_count > v_max_purchase_lines then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ist auf 1.000 Positionen begrenzt.';
+  end if;
+
+  if v_max_line_units > v_max_purchase_units
+    or v_total_units > v_max_purchase_units then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Menge ist auf 100.000 Einheiten je Position und Einkauf begrenzt.';
+  end if;
+
+  perform line.id
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id
+  order by line.created_at, line.id
+  for update;
+
+  perform cost.id
+  from public.purchase_costs as cost
+  where cost.workspace_id = p_workspace_id
+    and cost.purchase_id = p_purchase_id
+  order by cost.created_at, cost.id
+  for update;
+
+  select pg_catalog.array_agg(line.id order by line.created_at, line.id)
+  into v_line_ids
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id;
+
+  perform item.id
+  from public.inventory_items as item
+  left join public.purchase_lines as linked_line
+    on linked_line.id = item.purchase_line_id
+  where item.purchase_id = p_purchase_id
+    or linked_line.purchase_id = p_purchase_id
+  order by item.created_at, item.id
+  for update of item;
+
+  perform lot.id
+  from public.stock_lots as lot
+  left join public.purchase_lines as linked_line
+    on linked_line.id = lot.purchase_line_id
+  where lot.purchase_id = p_purchase_id
+    or linked_line.purchase_id = p_purchase_id
+  order by lot.received_at, lot.id
+  for update of lot;
+
+  if exists (
+    select 1
+    from public.stock_lots as lot
+    left join public.purchase_lines as linked_line
+      on linked_line.id = lot.purchase_line_id
+    where lot.workspace_id = p_workspace_id
+      and (
+        lot.purchase_id = p_purchase_id
+        or linked_line.purchase_id = p_purchase_id
+      )
+      and not pg_catalog.isfinite(lot.received_at)
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Historische Bestandslose mit nicht-endlichem Empfangszeitpunkt müssen vor der Finalisierung manuell geprüft werden.';
+  end if;
+
+  perform movement.id
+  from public.stock_movements as movement
+  join public.stock_lots as lot on lot.id = movement.stock_lot_id
+  left join public.purchase_lines as linked_line
+    on linked_line.id = lot.purchase_line_id
+  where lot.purchase_id = p_purchase_id
+    or linked_line.purchase_id = p_purchase_id
+  order by movement.created_at, movement.id
+  for update of movement;
+
+  if exists (
+    select 1
+    from public.inventory_items as item
+    left join public.purchase_lines as linked_line
+      on linked_line.id = item.purchase_line_id
+    where (
+        item.purchase_id = p_purchase_id
+        or linked_line.purchase_id = p_purchase_id
+      )
+      and (
+        item.workspace_id <> p_workspace_id
+        or item.purchase_id is distinct from p_purchase_id
+        or item.purchase_line_id is null
+        or linked_line.id is null
+        or linked_line.workspace_id <> p_workspace_id
+        or linked_line.purchase_id <> p_purchase_id
+        or linked_line.line_kind <> 'individual'
+      )
+  ) or exists (
+    select 1
+    from public.stock_lots as lot
+    left join public.purchase_lines as linked_line
+      on linked_line.id = lot.purchase_line_id
+    where (
+        lot.purchase_id = p_purchase_id
+        or linked_line.purchase_id = p_purchase_id
+      )
+      and (
+        lot.workspace_id <> p_workspace_id
+        or lot.purchase_id <> p_purchase_id
+        or linked_line.id is null
+        or linked_line.workspace_id <> p_workspace_id
+        or linked_line.purchase_id <> p_purchase_id
+        or linked_line.line_kind <> 'quantity'
+        or lot.catalog_product_id <> linked_line.catalog_product_id
+      )
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Der vorhandene Bestand ist nicht konsistent mit den Einkaufspositionen.';
+  end if;
+
+  if exists (
+    select 1
+    from public.stock_movements as movement
+    join public.stock_lots as lot on lot.id = movement.stock_lot_id
+    where lot.purchase_id = p_purchase_id
+      and (
+        movement.workspace_id <> p_workspace_id
+        or movement.direction <> 'in'
+        or movement.reason <> 'receipt'
+        or movement.sale_line_id is not null
+        or movement.quantity <> lot.received_quantity
+      )
+  ) or exists (
+    select 1
+    from public.stock_movements as movement
+    join public.stock_lots as lot on lot.id = movement.stock_lot_id
+    where lot.purchase_id = p_purchase_id
+    group by movement.stock_lot_id
+    having pg_catalog.count(*) > 1
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Vorhandene Receipt-Bewegungen müssen exakt zum Bestandslos passen.';
+  end if;
+
+  if exists (
+    select 1
+    from public.purchase_lines as line
+    where line.workspace_id = p_workspace_id
+      and line.purchase_id = p_purchase_id
+      and (
+        (
+          line.line_kind = 'individual'
+          and line.received_quantity <> (
+            select pg_catalog.count(*)::integer
+            from public.inventory_items as item
+            where item.workspace_id = p_workspace_id
+              and item.purchase_id = p_purchase_id
+              and item.purchase_line_id = line.id
+          )
+        )
+        or (
+          line.line_kind = 'quantity'
+          and line.received_quantity <> (
+            select coalesce(pg_catalog.sum(lot.received_quantity), 0)::integer
+            from public.stock_lots as lot
+            where lot.workspace_id = p_workspace_id
+              and lot.purchase_id = p_purchase_id
+              and lot.purchase_line_id = line.id
+          )
+        )
+      )
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Empfangsmengen und vorhandener Bestand stimmen vor der Finalisierung nicht überein.';
+  end if;
+
+  if exists (
+    select 1
+    from public.inventory_items as item
+    where item.workspace_id = p_workspace_id
+      and item.purchase_id = p_purchase_id
+      and item.status not in ('received', 'needs_review', 'researched', 'ready')
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Nur unbearbeitete Einzelstücke können finalisiert werden.';
+  end if;
+
+  if exists (
+    select 1
+    from public.stock_lots as lot
+    where lot.workspace_id = p_workspace_id
+      and lot.purchase_id = p_purchase_id
+      and (
+        lot.remaining_quantity <> lot.received_quantity
+        or exists (
+          select 1
+          from public.sale_line_lot_allocations as allocation
+          where allocation.workspace_id = p_workspace_id
+            and allocation.stock_lot_id = lot.id
+        )
+      )
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Bereits verwendete Bestandslose verhindern die Finalisierung.';
+  end if;
+
+  v_costing_plan := public.build_purchase_costing_plan(
+    p_workspace_id,
+    p_purchase_id
+  );
+  v_goods_cents := (v_costing_plan ->> 'goodsCents')::bigint;
+  v_total_cents := (v_costing_plan ->> 'totalCents')::bigint;
+  v_allocated_cents := (v_costing_plan ->> 'allocatedCents')::bigint;
+
+  select
+    pg_catalog.array_agg((line_plan.value ->> 'additionalCents')::bigint order by line_plan.ordinality),
+    pg_catalog.array_agg((line_plan.value ->> 'totalCents')::bigint order by line_plan.ordinality)
+  into v_line_additional_shares, v_line_total_shares
+  from pg_catalog.jsonb_array_elements(v_costing_plan -> 'lines')
+    with ordinality as line_plan(value, ordinality);
+
+  for v_line_position in 1..v_line_count loop
+    v_line_plan := v_costing_plan -> 'lines' -> (v_line_position - 1);
+
+    select line.*
+    into v_line
+    from public.purchase_lines as line
+    where line.workspace_id = p_workspace_id
+      and line.id = v_line_ids[v_line_position];
+
+    select pg_catalog.array_agg(unit_share.value::bigint order by unit_share.ordinality)
+    into v_unit_shares
+    from pg_catalog.jsonb_array_elements_text(v_line_plan -> 'unitTotalCents')
+      with ordinality as unit_share(value, ordinality);
+
+    if v_line.line_kind = 'individual' then
+      perform item.id
+      from public.inventory_items as item
+      where item.workspace_id = p_workspace_id
+        and item.purchase_line_id = v_line.id
+      order by item.created_at, item.id
+      for update;
+
+      if exists (
+        select 1
+        from public.inventory_items as item
+        where item.workspace_id = p_workspace_id
+          and item.purchase_line_id = v_line.id
+          and (
+            item.purchase_id is distinct from p_purchase_id
+            or item.status not in ('received', 'needs_review', 'researched', 'ready')
+          )
+      ) then
+        raise exception using
+          errcode = '22023',
+          message = 'Nur unbearbeitete Einzelstücke können finalisiert werden.';
+      end if;
+
+      select pg_catalog.array_agg(item.id order by item.created_at, item.id)
+      into v_existing_item_ids
+      from public.inventory_items as item
+      where item.workspace_id = p_workspace_id
+        and item.purchase_line_id = v_line.id;
+
+      v_existing_count := coalesce(pg_catalog.cardinality(v_existing_item_ids), 0);
+      if v_existing_count > v_line.ordered_quantity then
+        raise exception using
+          errcode = '22023',
+          message = 'Die Zahl erfasster Einzelstücke überschreitet die Positionsmenge.';
+      end if;
+
+      for v_item_position in 1..v_line.ordered_quantity loop
+        if v_item_position <= v_existing_count then
+          update public.inventory_items
+          set allocated_purchase_cost = v_unit_shares[v_item_position]::numeric / 100,
+              expected_value = coalesce(expected_value, v_line.estimated_market_value),
+              status = 'ready',
+              updated_at = v_finalized_at
+          where id = v_existing_item_ids[v_item_position]
+            and workspace_id = p_workspace_id;
+        else
+          insert into public.inventory_items (
+            workspace_id,
+            purchase_id,
+            purchase_line_id,
+            title,
+            condition,
+            status,
+            allocated_purchase_cost,
+            expected_value
+          ) values (
+            p_workspace_id,
+            p_purchase_id,
+            v_line.id,
+            v_line.title_snapshot,
+            case
+              when v_line.condition_snapshot in (
+                'new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective'
+              ) then v_line.condition_snapshot
+              else 'used'
+            end,
+            'ready',
+            v_unit_shares[v_item_position]::numeric / 100,
+            v_line.estimated_market_value
+          );
+        end if;
+      end loop;
+    else
+      perform lot.id
+      from public.stock_lots as lot
+      where lot.workspace_id = p_workspace_id
+        and lot.purchase_line_id = v_line.id
+      order by lot.received_at, lot.id
+      for update;
+
+      if exists (
+        select 1
+        from public.stock_lots as lot
+        where lot.workspace_id = p_workspace_id
+          and lot.purchase_line_id = v_line.id
+          and (
+            lot.purchase_id <> p_purchase_id
+            or lot.catalog_product_id <> v_line.catalog_product_id
+            or lot.remaining_quantity <> lot.received_quantity
+            or exists (
+              select 1
+              from public.stock_movements as movement
+              where movement.workspace_id = p_workspace_id
+                and movement.stock_lot_id = lot.id
+                and (
+                  movement.direction <> 'in'
+                  or movement.reason <> 'receipt'
+                )
+            )
+            or exists (
+              select 1
+              from public.sale_line_lot_allocations as allocation
+              where allocation.workspace_id = p_workspace_id
+                and allocation.stock_lot_id = lot.id
+            )
+          )
+      ) then
+        raise exception using
+          errcode = '22023',
+          message = 'Bereits verwendete Bestandslose verhindern die Finalisierung.';
+      end if;
+
+      select
+        pg_catalog.count(*)::integer,
+        coalesce(pg_catalog.sum(lot.received_quantity), 0)::integer
+      into v_existing_count, v_existing_lot_quantity
+      from public.stock_lots as lot
+      where lot.workspace_id = p_workspace_id
+        and lot.purchase_line_id = v_line.id;
+
+      if v_existing_lot_quantity > v_line.ordered_quantity then
+        raise exception using
+          errcode = '22023',
+          message = 'Die vorhandene Losmenge überschreitet die Positionsmenge.';
+      end if;
+
+      v_unit_offset := 0;
+      for v_existing_lot in
+        select lot.*
+        from public.stock_lots as lot
+        where lot.workspace_id = p_workspace_id
+          and lot.purchase_line_id = v_line.id
+        order by lot.received_at, lot.id
+        for update
+      loop
+        select coalesce(pg_catalog.sum(v_unit_shares[unit_position]), 0)::bigint
+        into v_lot_total_cents
+        from pg_catalog.generate_series(
+          v_unit_offset + 1,
+          v_unit_offset + v_existing_lot.received_quantity
+        ) as unit_position;
+
+        v_unit_offset := v_unit_offset + v_existing_lot.received_quantity;
+
+        update public.stock_lots
+        set unit_cost = (
+          v_lot_total_cents::numeric
+          / v_existing_lot.received_quantity
+          / 100
+        )
+        where id = v_existing_lot.id
+          and workspace_id = p_workspace_id;
+
+        if (
+          select pg_catalog.round(lot.unit_cost * lot.received_quantity, 2)
+          from public.stock_lots as lot
+          where lot.id = v_existing_lot.id
+            and lot.workspace_id = p_workspace_id
+        ) <> v_lot_total_cents::numeric / 100 then
+          raise exception using
+            errcode = '22023',
+            message = 'Die Loskosten lassen sich nicht centgenau speichern.';
+        end if;
+
+        select pg_catalog.count(*)::integer
+        into v_movement_count
+        from public.stock_movements as movement
+        where movement.workspace_id = p_workspace_id
+          and movement.stock_lot_id = v_existing_lot.id;
+
+        if v_movement_count > 1 then
+          raise exception using
+            errcode = '22023',
+            message = 'Ein Bestandslos besitzt mehrere Eingangsbewegungen und kann nicht automatisch umgebaut werden.';
+        end if;
+
+        if v_movement_count = 0 then
+          insert into public.stock_movements (
+            workspace_id,
+            stock_lot_id,
+            direction,
+            quantity,
+            reason
+          ) values (
+            p_workspace_id,
+            v_existing_lot.id,
+            'in',
+            v_existing_lot.received_quantity,
+            'receipt'
+          );
+        end if;
+      end loop;
+
+      if v_unit_offset < pg_catalog.cardinality(v_unit_shares) then
+        select pg_catalog.max(lot.received_at)
+        into v_latest_received_at
+        from public.stock_lots as lot
+        where lot.workspace_id = p_workspace_id
+          and lot.purchase_line_id = v_line.id;
+
+        if v_latest_received_at is null then
+          v_next_received_at := v_finalized_at;
+        elsif not pg_catalog.isfinite(v_latest_received_at)
+          or v_latest_received_at >= '294276-12-31 23:59:59.999999+00'::timestamptz then
+          raise exception using
+            errcode = '22023',
+            message = 'Für neue Bestandslose ist kein späterer endlicher Empfangszeitpunkt verfügbar.';
+        else
+          v_next_received_at := greatest(
+            v_finalized_at,
+            v_latest_received_at + interval '1 microsecond'
+          );
+        end if;
+      end if;
+
+      v_suffix_position := 0;
+
+      for v_cohort in
+        select
+          share.value as unit_cost_cents,
+          pg_catalog.count(*)::integer as quantity,
+          pg_catalog.min(share.ordinality) as first_position
+        from pg_catalog.unnest(v_unit_shares)
+          with ordinality as share(value, ordinality)
+        where share.ordinality > v_unit_offset
+        group by share.value
+        order by pg_catalog.min(share.ordinality)
+      loop
+        if v_suffix_position > 0 then
+          if not pg_catalog.isfinite(v_next_received_at)
+            or v_next_received_at >= '294276-12-31 23:59:59.999999+00'::timestamptz then
+            raise exception using
+              errcode = '22023',
+              message = 'Für neue Bestandslose ist kein späterer endlicher Empfangszeitpunkt verfügbar.';
+          end if;
+
+          v_next_received_at := v_next_received_at + interval '1 microsecond';
+        end if;
+
+        v_suffix_position := v_suffix_position + 1;
+
+        insert into public.stock_lots (
+          workspace_id,
+          purchase_id,
+          purchase_line_id,
+          catalog_product_id,
+          received_quantity,
+          remaining_quantity,
+          unit_cost,
+          received_at
+        ) values (
+          p_workspace_id,
+          p_purchase_id,
+          v_line.id,
+          v_line.catalog_product_id,
+          v_cohort.quantity,
+          v_cohort.quantity,
+          v_cohort.unit_cost_cents::numeric / 100,
+          v_next_received_at
+        ) returning id into v_stock_lot_id;
+
+        insert into public.stock_movements (
+          workspace_id,
+          stock_lot_id,
+          direction,
+          quantity,
+          reason
+        ) values (
+          p_workspace_id,
+          v_stock_lot_id,
+          'in',
+          v_cohort.quantity,
+          'receipt'
+        );
+      end loop;
+    end if;
+
+    update public.purchase_lines
+    set allocated_additional_cost =
+          v_line_additional_shares[v_line_position]::numeric / 100,
+        allocated_total_cost = v_line_total_shares[v_line_position]::numeric / 100,
+        received_quantity = ordered_quantity,
+        updated_at = v_finalized_at
+    where workspace_id = p_workspace_id
+      and id = v_line.id;
+  end loop;
+
+  if exists (
+    select 1
+    from public.inventory_items as item
+    left join public.purchase_lines as linked_line
+      on linked_line.id = item.purchase_line_id
+    where (
+        item.purchase_id = p_purchase_id
+        or linked_line.purchase_id = p_purchase_id
+      )
+      and (
+        item.workspace_id <> p_workspace_id
+        or item.purchase_id is distinct from p_purchase_id
+        or item.purchase_line_id is null
+        or linked_line.id is null
+        or linked_line.workspace_id <> p_workspace_id
+        or linked_line.purchase_id <> p_purchase_id
+        or linked_line.line_kind <> 'individual'
+      )
+  ) or exists (
+    select 1
+    from public.stock_lots as lot
+    left join public.purchase_lines as linked_line
+      on linked_line.id = lot.purchase_line_id
+    where (
+        lot.purchase_id = p_purchase_id
+        or linked_line.purchase_id = p_purchase_id
+      )
+      and (
+        lot.workspace_id <> p_workspace_id
+        or lot.purchase_id <> p_purchase_id
+        or linked_line.id is null
+        or linked_line.workspace_id <> p_workspace_id
+        or linked_line.purchase_id <> p_purchase_id
+        or linked_line.line_kind <> 'quantity'
+        or lot.catalog_product_id <> linked_line.catalog_product_id
+      )
+  ) then
+    raise exception using
+      errcode = 'P0001',
+      message = 'Der Bestand ist nach der Finalisierung strukturell inkonsistent.';
+  end if;
+
+  if exists (
+    select 1
+    from public.purchase_lines as line
+    where line.workspace_id = p_workspace_id
+      and line.purchase_id = p_purchase_id
+      and (
+        line.received_quantity <> line.ordered_quantity
+        or line.allocated_additional_cost > line.allocated_total_cost
+        or (
+          line.line_kind = 'individual'
+          and (
+            line.ordered_quantity <> (
+              select pg_catalog.count(*)::integer
+              from public.inventory_items as item
+              where item.workspace_id = p_workspace_id
+                and item.purchase_id = p_purchase_id
+                and item.purchase_line_id = line.id
+            )
+            or line.allocated_total_cost * 100 <> (
+              select coalesce(
+                pg_catalog.sum(item.allocated_purchase_cost * 100),
+                0
+              )
+              from public.inventory_items as item
+              where item.workspace_id = p_workspace_id
+                and item.purchase_id = p_purchase_id
+                and item.purchase_line_id = line.id
+            )
+          )
+        )
+        or (
+          line.line_kind = 'quantity'
+          and (
+            line.ordered_quantity <> (
+              select coalesce(pg_catalog.sum(lot.received_quantity), 0)::integer
+              from public.stock_lots as lot
+              where lot.workspace_id = p_workspace_id
+                and lot.purchase_id = p_purchase_id
+                and lot.purchase_line_id = line.id
+            )
+            or line.ordered_quantity <> (
+              select coalesce(pg_catalog.sum(lot.remaining_quantity), 0)::integer
+              from public.stock_lots as lot
+              where lot.workspace_id = p_workspace_id
+                and lot.purchase_id = p_purchase_id
+                and lot.purchase_line_id = line.id
+            )
+            or line.allocated_total_cost * 100 <> (
+              select coalesce(
+                pg_catalog.sum(
+                  (pg_catalog.round(lot.received_quantity * lot.unit_cost, 2) * 100)::bigint
+                ),
+                0
+              )
+              from public.stock_lots as lot
+              where lot.workspace_id = p_workspace_id
+                and lot.purchase_id = p_purchase_id
+                and lot.purchase_line_id = line.id
+            )
+          )
+        )
+      )
+  ) then
+    raise exception using
+      errcode = 'P0001',
+      message = 'Positionskosten und Bestand reconciliieren nach der Finalisierung nicht exakt.';
+  end if;
+
+  if exists (
+    select 1
+    from public.stock_lots as lot
+    where lot.workspace_id = p_workspace_id
+      and lot.purchase_id = p_purchase_id
+      and (
+        select pg_catalog.count(*)
+        from public.stock_movements as movement
+        where movement.workspace_id = p_workspace_id
+          and movement.stock_lot_id = lot.id
+          and movement.direction = 'in'
+          and movement.reason = 'receipt'
+          and movement.quantity = lot.received_quantity
+      ) <> 1
+  ) then
+    raise exception using
+      errcode = 'P0001',
+      message = 'Bestandslose und Receipt-Bewegungen reconciliieren nach der Finalisierung nicht exakt.';
+  end if;
+
+  select (
+    coalesce((
+      select pg_catalog.sum(item.allocated_purchase_cost * 100)
+      from public.inventory_items as item
+      where item.workspace_id = p_workspace_id
+        and item.purchase_id = p_purchase_id
+    ), 0)
+    + coalesce((
+      select pg_catalog.sum(
+        (pg_catalog.round(lot.received_quantity * lot.unit_cost, 2) * 100)::bigint
+      )
+      from public.stock_lots as lot
+      where lot.workspace_id = p_workspace_id
+        and lot.purchase_id = p_purchase_id
+    ), 0)
+  )::bigint
+  into v_inventory_cents;
+
+  if v_inventory_cents <> v_total_cents then
+    raise exception using
+      errcode = 'P0001',
+      message = 'Der gesamte Einkaufsbestand reconciliiert nicht mit den Einkaufsgesamtkosten.';
+  end if;
+
+  update public.purchases
+  set purchase_price = pg_catalog.round(v_goods_cents::numeric / 100, 2),
+      total_purchase_cost = v_total_cents::numeric / 100,
+      entry_status = 'finalized',
+      finalized_at = v_finalized_at,
+      finalized_by = v_actor_id,
+      updated_at = v_finalized_at
+  where workspace_id = p_workspace_id
+    and id = p_purchase_id;
+
+  insert into public.business_events (
+    workspace_id,
+    entity_type,
+    entity_id,
+    event_type,
+    actor_id,
+    changes
+  ) values (
+    p_workspace_id,
+    'purchase',
+    p_purchase_id,
+    'purchase_finalized',
+    v_actor_id,
+    pg_catalog.jsonb_build_object(
+      'purchase_price', pg_catalog.jsonb_build_object(
+        'before', v_purchase.purchase_price,
+        'after', v_goods_cents::numeric / 100
+      ),
+      'total_purchase_cost', pg_catalog.jsonb_build_object(
+        'before', v_purchase.total_purchase_cost,
+        'after', v_total_cents::numeric / 100
+      ),
+      'allocated_total_cost', pg_catalog.jsonb_build_object(
+        'before', 0,
+        'after', v_allocated_cents::numeric / 100
+      ),
+      'entry_status', pg_catalog.jsonb_build_object(
+        'before', v_purchase.entry_status,
+        'after', 'finalized'
+      )
+    )
+  ) returning id into v_event_id;
+
+  return pg_catalog.jsonb_build_object(
+    'purchaseId', p_purchase_id,
+    'totalPurchaseCost', v_total_cents::numeric / 100,
+    'allocatedTotalCost', v_allocated_cents::numeric / 100,
+    'entryStatus', 'finalized',
+    'eventId', v_event_id
+  );
+end;
+$$;
+
+alter function public.finalize_purchase_costing(uuid, uuid)
+  owner to postgres;
+
+comment on function public.finalize_purchase_costing(uuid, uuid) is
+  'Finalisiert Kosten, Bestand und fachliches Ereignis eines Einkaufs atomar und centgenau.';
+
+create or replace function public.get_purchase_sale_history_state(
+  p_workspace_id uuid,
+  p_purchase_id uuid
+)
+returns text
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if (select auth.uid()) is null
+    or p_workspace_id is null
+    or p_purchase_id is null
+    or not (select public.is_workspace_member(p_workspace_id)) then
+    raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+
+  if not exists (
+    select 1
+    from public.purchases as purchase
+    where purchase.workspace_id = p_workspace_id
+      and purchase.id = p_purchase_id
+  ) then
+    raise exception using errcode = 'P0002', message = 'Der Einkauf wurde nicht gefunden.';
+  end if;
+
+  if exists (
+    select 1
+    from public.inventory_items as item
+    left join public.purchase_lines as linked_line
+      on linked_line.workspace_id = item.workspace_id
+      and linked_line.id = item.purchase_line_id
+    where item.workspace_id = p_workspace_id
+      and (
+        item.purchase_id = p_purchase_id
+        or linked_line.purchase_id = p_purchase_id
+      )
+      and item.status = 'sold'
+      and not exists (
+        select 1
+        from public.sale_lines as sale_line
+        where sale_line.workspace_id = p_workspace_id
+          and sale_line.inventory_item_id = item.id
+      )
+  ) then
+    return 'review_required';
+  end if;
+
+  if exists (
+    select 1
+    from public.sale_lines as sale_line
+    join public.inventory_items as item
+      on item.workspace_id = sale_line.workspace_id
+      and item.id = sale_line.inventory_item_id
+    left join public.purchase_lines as linked_line
+      on linked_line.workspace_id = item.workspace_id
+      and linked_line.id = item.purchase_line_id
+    where sale_line.workspace_id = p_workspace_id
+      and (
+        item.purchase_id = p_purchase_id
+        or linked_line.purchase_id = p_purchase_id
+      )
+  ) or exists (
+    select 1
+    from public.sale_line_lot_allocations as allocation
+    join public.stock_lots as lot
+      on lot.workspace_id = allocation.workspace_id
+      and lot.id = allocation.stock_lot_id
+    left join public.purchase_lines as linked_line
+      on linked_line.workspace_id = lot.workspace_id
+      and linked_line.id = lot.purchase_line_id
+    where allocation.workspace_id = p_workspace_id
+      and (
+        lot.purchase_id = p_purchase_id
+        or linked_line.purchase_id = p_purchase_id
+      )
+  ) then
+    return 'recorded';
+  end if;
+
+  return 'none';
+end;
+$$;
+
+alter function public.get_purchase_sale_history_state(uuid, uuid)
+  owner to postgres;
+
+comment on function public.get_purchase_sale_history_state(uuid, uuid) is
+  'Unterscheidet echte Verkaufsbelege, prüfpflichtige Legacy-Statuswerte und Nichtverkäufe.';
+
+revoke execute on function public.get_purchase_sale_history_state(uuid, uuid)
+  from public, anon, authenticated, service_role;
+grant execute on function public.get_purchase_sale_history_state(uuid, uuid)
+  to authenticated;
+
+create or replace function public.get_purchase_sale_history(
+  p_workspace_id uuid,
+  p_purchase_id uuid
+)
+returns jsonb
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_state text;
+  v_review_inventory_item_id uuid;
+begin
+  v_state := public.get_purchase_sale_history_state(p_workspace_id, p_purchase_id);
+
+  if v_state = 'review_required' then
+    select item.id
+    into v_review_inventory_item_id
+    from public.inventory_items as item
+    left join public.purchase_lines as linked_line
+      on linked_line.workspace_id = item.workspace_id
+      and linked_line.id = item.purchase_line_id
+    where item.workspace_id = p_workspace_id
+      and (
+        item.purchase_id = p_purchase_id
+        or linked_line.purchase_id = p_purchase_id
+      )
+      and item.status = 'sold'
+      and not exists (
+        select 1
+        from public.sale_lines as sale_line
+        where sale_line.workspace_id = p_workspace_id
+          and sale_line.inventory_item_id = item.id
+      )
+    order by item.created_at, item.id
+    limit 1;
+
+    if v_review_inventory_item_id is null then
+      raise exception using
+        errcode = 'P0001',
+        message = 'Der prüfpflichtige Inventarartikel konnte nicht bestimmt werden.';
+    end if;
+  end if;
+
+  return pg_catalog.jsonb_build_object(
+    'state', v_state,
+    'review_inventory_item_id', v_review_inventory_item_id
+  );
+end;
+$$;
+
+alter function public.get_purchase_sale_history(uuid, uuid)
+  owner to postgres;
+
+comment on function public.get_purchase_sale_history(uuid, uuid) is
+  'Liefert den autoritativen Verkaufsverlauf und das nächste deterministische Inventar-Prüfziel atomar.';
+
+revoke execute on function public.get_purchase_sale_history(uuid, uuid)
+  from public, anon, authenticated, service_role;
+grant execute on function public.get_purchase_sale_history(uuid, uuid)
+  to authenticated;
+
+create or replace function public.has_purchase_recorded_sales(
+  p_workspace_id uuid,
+  p_purchase_id uuid
+)
+returns boolean
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  return public.get_purchase_sale_history_state(p_workspace_id, p_purchase_id) = 'recorded';
+end;
+$$;
+
+alter function public.has_purchase_recorded_sales(uuid, uuid)
+  owner to postgres;
+
+comment on function public.has_purchase_recorded_sales(uuid, uuid) is
+  'Prüft ausschließlich unveränderliche Einzel- und Mengenverkaufsbelege eines Einkaufs.';
+
+revoke execute on function public.has_purchase_recorded_sales(uuid, uuid)
+  from public, anon, authenticated, service_role;
+grant execute on function public.has_purchase_recorded_sales(uuid, uuid)
+  to authenticated;
+
+create or replace function public.reopen_purchase_costing(
+  p_workspace_id uuid,
+  p_purchase_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor_id uuid := (select auth.uid());
+  v_purchase public.purchases;
+  v_before_purchase jsonb;
+  v_after_purchase jsonb;
+  v_before_lines jsonb;
+  v_after_lines jsonb;
+  v_before_items jsonb;
+  v_after_items jsonb;
+  v_before_lots jsonb;
+  v_after_lots jsonb;
+  v_event_id uuid;
+  v_changed_at timestamptz := pg_catalog.clock_timestamp();
+  v_line_count integer := 0;
+  v_total_units bigint := 0;
+  v_max_line_units integer := 0;
+  v_max_purchase_lines constant integer := 1000;
+  v_max_purchase_units constant integer := 100000;
+  v_sale_history_state text;
+begin
+  if v_actor_id is null
+    or p_workspace_id is null
+    or p_purchase_id is null
+    or not exists (
+      select 1
+      from public.workspace_members as member
+      where member.workspace_id = p_workspace_id
+        and member.user_id = v_actor_id
+    ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_purchase_id::text, 0)
+  );
+
+  select purchase.*
+  into v_purchase
+  from public.purchases as purchase
+  where purchase.workspace_id = p_workspace_id
+    and purchase.id = p_purchase_id
+  for update;
+
+  if not found then
+    raise exception using
+      errcode = 'P0002',
+      message = 'Der Einkauf wurde nicht gefunden.';
+  end if;
+
+  if v_purchase.entry_status <> 'finalized' then
+    raise exception using
+      errcode = '22023',
+      message = 'Nur ein finalisierter Einkauf kann wieder geöffnet werden.';
+  end if;
+
+  select
+    pg_catalog.count(*)::integer,
+    coalesce(pg_catalog.sum(line.ordered_quantity), 0),
+    coalesce(pg_catalog.max(line.ordered_quantity), 0)
+  into v_line_count, v_total_units, v_max_line_units
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id;
+
+  if v_line_count > v_max_purchase_lines then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ist auf 1.000 Positionen begrenzt.';
+  end if;
+
+  if v_max_line_units > v_max_purchase_units
+    or v_total_units > v_max_purchase_units then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Menge ist auf 100.000 Einheiten je Position und Einkauf begrenzt.';
+  end if;
+
+  perform line.id
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id
+  order by line.created_at, line.id
+  for update;
+
+  perform cost.id
+  from public.purchase_costs as cost
+  where cost.workspace_id = p_workspace_id
+    and cost.purchase_id = p_purchase_id
+  order by cost.created_at, cost.id
+  for update;
+
+  perform item.id
+  from public.inventory_items as item
+  left join public.purchase_lines as linked_line
+    on linked_line.id = item.purchase_line_id
+  where item.workspace_id = p_workspace_id
+    and (
+      item.purchase_id = p_purchase_id
+      or linked_line.purchase_id = p_purchase_id
+    )
+  order by item.created_at, item.id
+  for update of item;
+
+  perform lot.id
+  from public.stock_lots as lot
+  left join public.purchase_lines as linked_line
+    on linked_line.id = lot.purchase_line_id
+  where lot.workspace_id = p_workspace_id
+    and (
+      lot.purchase_id = p_purchase_id
+      or linked_line.purchase_id = p_purchase_id
+    )
+  order by lot.received_at, lot.id
+  for update of lot;
+
+  perform sale_line.id
+  from public.sale_lines as sale_line
+  join public.inventory_items as item
+    on item.workspace_id = sale_line.workspace_id
+    and item.id = sale_line.inventory_item_id
+  left join public.purchase_lines as linked_line
+    on linked_line.id = item.purchase_line_id
+  where sale_line.workspace_id = p_workspace_id
+    and (
+      item.purchase_id = p_purchase_id
+      or linked_line.purchase_id = p_purchase_id
+    )
+  order by sale_line.created_at, sale_line.id
+  for update of sale_line;
+
+  perform allocation.id
+  from public.sale_line_lot_allocations as allocation
+  join public.stock_lots as lot
+    on lot.workspace_id = allocation.workspace_id
+    and lot.id = allocation.stock_lot_id
+  left join public.purchase_lines as linked_line
+    on linked_line.id = lot.purchase_line_id
+  where allocation.workspace_id = p_workspace_id
+    and (
+      lot.purchase_id = p_purchase_id
+      or linked_line.purchase_id = p_purchase_id
+    )
+  order by allocation.created_at, allocation.id
+  for update of allocation;
+
+  v_sale_history_state := public.get_purchase_sale_history_state(
+    p_workspace_id,
+    p_purchase_id
+  );
+
+  if v_sale_history_state = 'review_required' then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Verkaufsstatus ist unvollständig. Bitte Verkaufsdaten prüfen und nachpflegen.';
+  elsif v_sale_history_state = 'recorded' then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf mit Verkäufen kann nicht wieder geöffnet werden.';
+  elsif v_sale_history_state <> 'none' then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Verkaufsverlauf konnte nicht sicher geprüft werden.';
+  end if;
+
+  v_before_purchase := pg_catalog.jsonb_build_object(
+    'purchase_price', v_purchase.purchase_price,
+    'total_purchase_cost', v_purchase.total_purchase_cost,
+    'entry_status', v_purchase.entry_status,
+    'finalized_at', v_purchase.finalized_at,
+    'finalized_by', v_purchase.finalized_by
+  );
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', line.id,
+    'allocated_additional_cost', line.allocated_additional_cost,
+    'allocated_total_cost', line.allocated_total_cost
+  ) order by line.created_at, line.id), '[]'::jsonb)
+  into v_before_lines
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id;
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', item.id,
+    'status', item.status,
+    'allocated_purchase_cost', item.allocated_purchase_cost
+  ) order by item.created_at, item.id), '[]'::jsonb)
+  into v_before_items
+  from public.inventory_items as item
+  where item.workspace_id = p_workspace_id
+    and item.purchase_id = p_purchase_id;
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', lot.id,
+    'unit_cost', lot.unit_cost,
+    'received_quantity', lot.received_quantity,
+    'remaining_quantity', lot.remaining_quantity
+  ) order by lot.received_at, lot.id), '[]'::jsonb)
+  into v_before_lots
+  from public.stock_lots as lot
+  where lot.workspace_id = p_workspace_id
+    and lot.purchase_id = p_purchase_id;
+
+  update public.purchase_lines
+  set allocated_additional_cost = 0,
+      allocated_total_cost = 0,
+      updated_at = v_changed_at
+  where workspace_id = p_workspace_id
+    and purchase_id = p_purchase_id;
+
+  update public.inventory_items
+  set allocated_purchase_cost = 0,
+      status = case
+        when status in ('ready', 'listed') then 'received'
+        else status
+      end,
+      updated_at = v_changed_at
+  where workspace_id = p_workspace_id
+    and purchase_id = p_purchase_id;
+
+  update public.stock_lots
+  set unit_cost = 0
+  where workspace_id = p_workspace_id
+    and purchase_id = p_purchase_id;
+
+  update public.purchases
+  set purchase_price = case
+        when type = 'mystery_pack' then purchase_price
+        else null
+      end,
+      total_purchase_cost = null,
+      entry_status = 'capturing',
+      finalized_at = null,
+      finalized_by = null,
+      updated_at = v_changed_at
+  where workspace_id = p_workspace_id
+    and id = p_purchase_id
+  returning * into v_purchase;
+
+  v_after_purchase := pg_catalog.jsonb_build_object(
+    'purchase_price', v_purchase.purchase_price,
+    'total_purchase_cost', v_purchase.total_purchase_cost,
+    'entry_status', v_purchase.entry_status,
+    'finalized_at', v_purchase.finalized_at,
+    'finalized_by', v_purchase.finalized_by
+  );
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', line.id,
+    'allocated_additional_cost', line.allocated_additional_cost,
+    'allocated_total_cost', line.allocated_total_cost
+  ) order by line.created_at, line.id), '[]'::jsonb)
+  into v_after_lines
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id;
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', item.id,
+    'status', item.status,
+    'allocated_purchase_cost', item.allocated_purchase_cost
+  ) order by item.created_at, item.id), '[]'::jsonb)
+  into v_after_items
+  from public.inventory_items as item
+  where item.workspace_id = p_workspace_id
+    and item.purchase_id = p_purchase_id;
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', lot.id,
+    'unit_cost', lot.unit_cost,
+    'received_quantity', lot.received_quantity,
+    'remaining_quantity', lot.remaining_quantity
+  ) order by lot.received_at, lot.id), '[]'::jsonb)
+  into v_after_lots
+  from public.stock_lots as lot
+  where lot.workspace_id = p_workspace_id
+    and lot.purchase_id = p_purchase_id;
+
+  insert into public.business_events (
+    workspace_id,
+    entity_type,
+    entity_id,
+    event_type,
+    actor_id,
+    changes
+  ) values (
+    p_workspace_id,
+    'purchase',
+    p_purchase_id,
+    'purchase_reopened',
+    v_actor_id,
+    pg_catalog.jsonb_build_object(
+      'purchase', pg_catalog.jsonb_build_object(
+        'before', v_before_purchase,
+        'after', v_after_purchase
+      ),
+      'lines', pg_catalog.jsonb_build_object(
+        'before', v_before_lines,
+        'after', v_after_lines
+      ),
+      'inventory_items', pg_catalog.jsonb_build_object(
+        'before', v_before_items,
+        'after', v_after_items
+      ),
+      'stock_lots', pg_catalog.jsonb_build_object(
+        'before', v_before_lots,
+        'after', v_after_lots
+      )
+    )
+  ) returning id into v_event_id;
+
+  return pg_catalog.jsonb_build_object(
+    'purchaseId', p_purchase_id,
+    'totalPurchaseCost', null,
+    'allocatedTotalCost', 0,
+    'entryStatus', 'capturing',
+    'eventId', v_event_id
+  );
+end;
+$$;
+
+alter function public.reopen_purchase_costing(uuid, uuid)
+  owner to postgres;
+
+comment on function public.reopen_purchase_costing(uuid, uuid) is
+  'Öffnet einen unverkauften finalisierten Einkauf atomar und ohne Identitätsverlust wieder.';
+
+create or replace function public.correct_purchase_costing(
+  p_workspace_id uuid,
+  p_purchase_id uuid,
+  p_reason text,
+  p_purchase_price numeric,
+  p_lines jsonb,
+  p_costs jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor_id uuid := (select auth.uid());
+  v_purchase public.purchases;
+  v_existing_line public.purchase_lines;
+  v_line public.purchase_lines;
+  v_existing_cost public.purchase_costs;
+  v_lot public.stock_lots;
+  v_allocation public.sale_line_lot_allocations;
+  v_cohort record;
+  v_input_line jsonb;
+  v_input_cost jsonb;
+  v_costing_plan jsonb;
+  v_line_plan jsonb;
+  v_existing_line_ids uuid[] := array[]::uuid[];
+  v_input_line_ids uuid[] := array[]::uuid[];
+  v_input_cost_ids uuid[] := array[]::uuid[];
+  v_item_ids uuid[];
+  v_lot_ids uuid[];
+  v_sale_line_ids uuid[];
+  v_unit_shares bigint[];
+  v_lot_unit_shares bigint[];
+  v_line_id uuid;
+  v_cost_id uuid;
+  v_catalog_product_id uuid;
+  v_target_line_id uuid;
+  v_goods_cents bigint;
+  v_total_cents bigint;
+  v_allocated_cents bigint;
+  v_lot_total_cents bigint;
+  v_allocation_cost_cents bigint;
+  v_active_allocation_cost_cents bigint;
+  v_unit_offset integer;
+  v_active_unit_offset integer;
+  v_restocked_quantity integer;
+  v_active_quantity integer;
+  v_existing_count integer;
+  v_stock_lot_id uuid;
+  v_before_purchase jsonb;
+  v_after_purchase jsonb;
+  v_before_lines jsonb;
+  v_after_lines jsonb;
+  v_before_costs jsonb;
+  v_after_costs jsonb;
+  v_before_items jsonb;
+  v_after_items jsonb;
+  v_before_lots jsonb;
+  v_after_lots jsonb;
+  v_before_sale_lines jsonb;
+  v_after_sale_lines jsonb;
+  v_before_allocations jsonb;
+  v_after_allocations jsonb;
+  v_before_cogs numeric(18,2) := 0;
+  v_after_cogs numeric(18,2) := 0;
+  v_event_id uuid;
+  v_changed_at timestamptz := pg_catalog.clock_timestamp();
+  v_requested_unit_total numeric := 0;
+  v_requested_unit_max numeric := 0;
+  v_persisted_line_count integer := 0;
+  v_persisted_unit_total bigint := 0;
+  v_persisted_unit_max integer := 0;
+  v_max_purchase_lines constant integer := 1000;
+  v_max_purchase_units constant integer := 100000;
+  v_sale_history_state text;
+begin
+  if v_actor_id is null
+    or p_workspace_id is null
+    or p_purchase_id is null
+    or not exists (
+      select 1
+      from public.workspace_members as member
+      where member.workspace_id = p_workspace_id
+        and member.user_id = v_actor_id
+    ) then
+    raise exception using
+      errcode = '42501',
+      message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+
+  if nullif(pg_catalog.btrim(p_reason), '') is null then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein verständlicher Grund der Korrektur ist erforderlich.';
+  end if;
+
+  if pg_catalog.length(pg_catalog.btrim(p_reason)) > 1000 then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Grund der Korrektur ist zu lang.';
+  end if;
+
+  if p_lines is null
+    or pg_catalog.jsonb_typeof(p_lines) <> 'array'
+    or pg_catalog.jsonb_array_length(p_lines) = 0 then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Ersatz-Einkaufspositionen sind ungültig.';
+  end if;
+
+  if pg_catalog.jsonb_array_length(p_lines) > v_max_purchase_lines then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ist auf 1.000 Positionen begrenzt.';
+  end if;
+
+  select
+    coalesce(pg_catalog.max(candidate.quantity), 0),
+    coalesce(pg_catalog.sum(candidate.quantity), 0)
+  into v_requested_unit_max, v_requested_unit_total
+  from (
+    select case
+      when pg_catalog.jsonb_typeof(element.value) = 'object'
+        and pg_catalog.jsonb_typeof(element.value -> 'ordered_quantity') = 'number'
+        and element.value ->> 'ordered_quantity' ~ '^[1-9][0-9]*$'
+      then (element.value ->> 'ordered_quantity')::numeric
+      else null
+    end as quantity
+    from pg_catalog.jsonb_array_elements(p_lines) as element(value)
+  ) as candidate;
+
+  if v_requested_unit_max > v_max_purchase_units
+    or v_requested_unit_total > v_max_purchase_units then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Menge ist auf 100.000 Einheiten je Position und Einkauf begrenzt.';
+  end if;
+
+  if p_costs is null
+    or pg_catalog.jsonb_typeof(p_costs) <> 'array' then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Ersatz-Zusatzkosten sind ungültig.';
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_purchase_id::text, 0)
+  );
+
+  select purchase.*
+  into v_purchase
+  from public.purchases as purchase
+  where purchase.workspace_id = p_workspace_id
+    and purchase.id = p_purchase_id
+  for update;
+
+  if not found then
+    raise exception using
+      errcode = 'P0002',
+      message = 'Der Einkauf wurde nicht gefunden.';
+  end if;
+
+  if v_purchase.entry_status <> 'finalized' then
+    raise exception using
+      errcode = '22023',
+      message = 'Nur ein finalisierter Einkauf kann korrigiert werden.';
+  end if;
+
+  v_sale_history_state := public.get_purchase_sale_history_state(
+    p_workspace_id,
+    p_purchase_id
+  );
+  if v_sale_history_state = 'review_required' then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Verkaufsstatus ist unvollständig. Bitte Verkaufsdaten prüfen und nachpflegen.';
+  elsif v_sale_history_state = 'none' then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ohne Verkauf muss wieder geöffnet werden.';
+  elsif v_sale_history_state <> 'recorded' then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Verkaufsverlauf konnte nicht sicher geprüft werden.';
+  end if;
+
+  select
+    pg_catalog.count(*)::integer,
+    coalesce(pg_catalog.sum(line.ordered_quantity), 0),
+    coalesce(pg_catalog.max(line.ordered_quantity), 0)
+  into v_persisted_line_count, v_persisted_unit_total, v_persisted_unit_max
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id;
+
+  if v_persisted_line_count > v_max_purchase_lines then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ist auf 1.000 Positionen begrenzt.';
+  end if;
+
+  if v_persisted_unit_max > v_max_purchase_units
+    or v_persisted_unit_total > v_max_purchase_units then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Menge ist auf 100.000 Einheiten je Position und Einkauf begrenzt.';
+  end if;
+
+  if v_purchase.type = 'mystery_pack' then
+    if p_purchase_price is null
+      or p_purchase_price = 'NaN'::numeric
+      or p_purchase_price < 0
+      or pg_catalog.scale(p_purchase_price) > 2 then
+      raise exception using
+        errcode = '22023',
+        message = 'Der korrigierte Mystery-Kaufpreis ist ungültig.';
+    end if;
+  elsif p_purchase_price is not null then
+    raise exception using
+      errcode = '22023',
+      message = 'Normale Einkäufe leiten den Kaufpreis ausschließlich aus den Positionen ab.';
+  end if;
+
+  perform line.id
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id
+  order by line.created_at, line.id
+  for update;
+
+  perform cost.id
+  from public.purchase_costs as cost
+  where cost.workspace_id = p_workspace_id
+    and cost.purchase_id = p_purchase_id
+  order by cost.created_at, cost.id
+  for update;
+
+  perform item.id
+  from public.inventory_items as item
+  left join public.purchase_lines as linked_line
+    on linked_line.id = item.purchase_line_id
+  where item.workspace_id = p_workspace_id
+    and (
+      item.purchase_id = p_purchase_id
+      or linked_line.purchase_id = p_purchase_id
+    )
+  order by item.created_at, item.id
+  for update of item;
+
+  perform lot.id
+  from public.stock_lots as lot
+  left join public.purchase_lines as linked_line
+    on linked_line.id = lot.purchase_line_id
+  where lot.workspace_id = p_workspace_id
+    and (
+      lot.purchase_id = p_purchase_id
+      or linked_line.purchase_id = p_purchase_id
+    )
+  order by lot.received_at, lot.id
+  for update of lot;
+
+  perform allocation.id
+  from public.sale_line_lot_allocations as allocation
+  join public.stock_lots as lot
+    on lot.workspace_id = allocation.workspace_id
+    and lot.id = allocation.stock_lot_id
+  left join public.purchase_lines as linked_line
+    on linked_line.id = lot.purchase_line_id
+  where allocation.workspace_id = p_workspace_id
+    and (
+      lot.purchase_id = p_purchase_id
+      or linked_line.purchase_id = p_purchase_id
+    )
+  order by allocation.created_at, allocation.id
+  for update of allocation;
+
+  select pg_catalog.array_agg(affected.sale_line_id order by affected.sale_line_id)
+  into v_sale_line_ids
+  from (
+    select sale_line.id as sale_line_id
+    from public.sale_lines as sale_line
+    join public.inventory_items as item
+      on item.workspace_id = sale_line.workspace_id
+      and item.id = sale_line.inventory_item_id
+    left join public.purchase_lines as linked_line
+      on linked_line.id = item.purchase_line_id
+    where sale_line.workspace_id = p_workspace_id
+      and (
+        item.purchase_id = p_purchase_id
+        or linked_line.purchase_id = p_purchase_id
+      )
+    union
+    select allocation.sale_line_id
+    from public.sale_line_lot_allocations as allocation
+    join public.stock_lots as lot
+      on lot.workspace_id = allocation.workspace_id
+      and lot.id = allocation.stock_lot_id
+    left join public.purchase_lines as linked_line
+      on linked_line.id = lot.purchase_line_id
+    where allocation.workspace_id = p_workspace_id
+      and (
+        lot.purchase_id = p_purchase_id
+        or linked_line.purchase_id = p_purchase_id
+      )
+  ) as affected;
+
+  if coalesce(pg_catalog.cardinality(v_sale_line_ids), 0) = 0 then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ohne Verkauf muss wieder geöffnet werden.';
+  end if;
+
+  perform sale_line.id
+  from public.sale_lines as sale_line
+  where sale_line.workspace_id = p_workspace_id
+    and sale_line.id = any(v_sale_line_ids)
+  order by sale_line.created_at, sale_line.id
+  for update;
+
+  perform sale.id
+  from public.sales as sale
+  join public.sale_lines as sale_line
+    on sale_line.workspace_id = sale.workspace_id
+    and sale_line.sale_id = sale.id
+  where sale.workspace_id = p_workspace_id
+    and sale_line.id = any(v_sale_line_ids)
+  order by sale.created_at, sale.id
+  for update of sale;
+
+  if exists (
+    select 1
+    from public.sale_line_lot_allocations as allocation
+    join public.sale_lines as sale_line
+      on sale_line.workspace_id = allocation.workspace_id
+      and sale_line.id = allocation.sale_line_id
+    join public.sales as sale
+      on sale.workspace_id = sale_line.workspace_id
+      and sale.id = sale_line.sale_id
+    join public.stock_lots as lot
+      on lot.workspace_id = allocation.workspace_id
+      and lot.id = allocation.stock_lot_id
+    where allocation.workspace_id = p_workspace_id
+      and lot.purchase_id = p_purchase_id
+      and allocation.consumption_sequence is null
+    group by allocation.stock_lot_id, sale.created_at, allocation.created_at
+    having pg_catalog.count(*) > 1
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Die historische Losentnahmereihenfolge ist nicht eindeutig. Bitte vor der Korrektur manuell prüfen.';
+  end if;
+
+  if exists (
+    select 1
+    from public.inventory_items as item
+    left join public.purchase_lines as linked_line
+      on linked_line.id = item.purchase_line_id
+    where (
+        item.purchase_id = p_purchase_id
+        or linked_line.purchase_id = p_purchase_id
+      )
+      and (
+        item.workspace_id <> p_workspace_id
+        or item.purchase_id is distinct from p_purchase_id
+        or item.purchase_line_id is null
+        or linked_line.id is null
+        or linked_line.workspace_id <> p_workspace_id
+        or linked_line.purchase_id <> p_purchase_id
+        or linked_line.line_kind <> 'individual'
+      )
+  ) or exists (
+    select 1
+    from public.stock_lots as lot
+    left join public.purchase_lines as linked_line
+      on linked_line.id = lot.purchase_line_id
+    where (
+        lot.purchase_id = p_purchase_id
+        or linked_line.purchase_id = p_purchase_id
+      )
+      and (
+        lot.workspace_id <> p_workspace_id
+        or lot.purchase_id <> p_purchase_id
+        or linked_line.id is null
+        or linked_line.workspace_id <> p_workspace_id
+        or linked_line.purchase_id <> p_purchase_id
+        or linked_line.line_kind <> 'quantity'
+        or lot.catalog_product_id <> linked_line.catalog_product_id
+      )
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Der vorhandene Bestand ist nicht konsistent mit den Einkaufspositionen.';
+  end if;
+
+  select coalesce(pg_catalog.array_agg(line.id order by line.created_at, line.id), array[]::uuid[])
+  into v_existing_line_ids
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id;
+
+  v_before_purchase := pg_catalog.jsonb_build_object(
+    'purchase_price', v_purchase.purchase_price,
+    'total_purchase_cost', v_purchase.total_purchase_cost,
+    'entry_status', v_purchase.entry_status,
+    'finalized_at', v_purchase.finalized_at,
+    'finalized_by', v_purchase.finalized_by
+  );
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', line.id,
+    'title_snapshot', line.title_snapshot,
+    'line_kind', line.line_kind,
+    'ordered_quantity', line.ordered_quantity,
+    'price_mode', line.price_mode,
+    'unit_purchase_price', line.unit_purchase_price,
+    'line_total', line.line_total,
+    'condition_snapshot', line.condition_snapshot,
+    'estimated_market_value', line.estimated_market_value,
+    'allocated_additional_cost', line.allocated_additional_cost,
+    'allocated_total_cost', line.allocated_total_cost
+  ) order by line.created_at, line.id), '[]'::jsonb)
+  into v_before_lines
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id;
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', cost.id,
+    'type', cost.type,
+    'amount', cost.amount,
+    'description', cost.description,
+    'allocation_method', cost.allocation_method,
+    'target_purchase_line_id', cost.target_purchase_line_id
+  ) order by cost.created_at, cost.id), '[]'::jsonb)
+  into v_before_costs
+  from public.purchase_costs as cost
+  where cost.workspace_id = p_workspace_id
+    and cost.purchase_id = p_purchase_id;
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', item.id,
+    'purchase_line_id', item.purchase_line_id,
+    'status', item.status,
+    'allocated_purchase_cost', item.allocated_purchase_cost
+  ) order by item.created_at, item.id), '[]'::jsonb)
+  into v_before_items
+  from public.inventory_items as item
+  where item.workspace_id = p_workspace_id
+    and item.purchase_id = p_purchase_id;
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', lot.id,
+    'purchase_line_id', lot.purchase_line_id,
+    'received_quantity', lot.received_quantity,
+    'remaining_quantity', lot.remaining_quantity,
+    'unit_cost', lot.unit_cost
+  ) order by lot.received_at, lot.id), '[]'::jsonb)
+  into v_before_lots
+  from public.stock_lots as lot
+  where lot.workspace_id = p_workspace_id
+    and lot.purchase_id = p_purchase_id;
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', sale_line.id,
+    'sale_id', sale_line.sale_id,
+    'cost_of_goods_sold', sale_line.cost_of_goods_sold
+  ) order by sale_line.created_at, sale_line.id), '[]'::jsonb),
+    coalesce(pg_catalog.sum(sale_line.cost_of_goods_sold), 0)
+  into v_before_sale_lines, v_before_cogs
+  from public.sale_lines as sale_line
+  where sale_line.workspace_id = p_workspace_id
+    and sale_line.id = any(v_sale_line_ids);
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', allocation.id,
+    'sale_line_id', allocation.sale_line_id,
+    'stock_lot_id', allocation.stock_lot_id,
+    'quantity', allocation.quantity,
+    'unit_cost', allocation.unit_cost,
+    'allocated_cost', allocation.allocated_cost,
+    'active_allocated_cost', allocation.active_allocated_cost,
+    'consumption_sequence', allocation.consumption_sequence
+  ) order by allocation.created_at, allocation.id), '[]'::jsonb)
+  into v_before_allocations
+  from public.sale_line_lot_allocations as allocation
+  join public.stock_lots as lot
+    on lot.workspace_id = allocation.workspace_id
+    and lot.id = allocation.stock_lot_id
+  where allocation.workspace_id = p_workspace_id
+    and lot.purchase_id = p_purchase_id;
+
+  for v_input_line in
+    select element.value
+    from pg_catalog.jsonb_array_elements(p_lines) as element(value)
+  loop
+    if pg_catalog.jsonb_typeof(v_input_line) <> 'object'
+      or not (v_input_line ?& array[
+        'id', 'catalog_product_id', 'title_snapshot', 'line_kind',
+        'ordered_quantity', 'price_mode', 'unit_purchase_price', 'line_total',
+        'condition_snapshot', 'estimated_market_value'
+      ])
+      or v_input_line - array[
+        'id', 'catalog_product_id', 'title_snapshot', 'line_kind',
+        'ordered_quantity', 'price_mode', 'unit_purchase_price', 'line_total',
+        'condition_snapshot', 'estimated_market_value'
+      ]::text[] <> '{}'::jsonb
+      or pg_catalog.jsonb_typeof(v_input_line -> 'id') <> 'string'
+      or (v_input_line ->> 'id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      or pg_catalog.jsonb_typeof(v_input_line -> 'title_snapshot') <> 'string'
+      or nullif(pg_catalog.btrim(v_input_line ->> 'title_snapshot'), '') is null
+      or pg_catalog.jsonb_typeof(v_input_line -> 'line_kind') <> 'string'
+      or v_input_line ->> 'line_kind' not in ('quantity', 'individual')
+      or pg_catalog.jsonb_typeof(v_input_line -> 'ordered_quantity') <> 'number'
+      or (v_input_line ->> 'ordered_quantity') !~ '^[1-9][0-9]*$'
+      or pg_catalog.jsonb_typeof(v_input_line -> 'price_mode') <> 'string'
+      or v_input_line ->> 'price_mode' not in ('priced', 'unpriced_mystery')
+      or pg_catalog.jsonb_typeof(v_input_line -> 'catalog_product_id') not in ('null', 'string')
+      or (
+        pg_catalog.jsonb_typeof(v_input_line -> 'catalog_product_id') = 'string'
+        and (v_input_line ->> 'catalog_product_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      )
+      or pg_catalog.jsonb_typeof(v_input_line -> 'condition_snapshot') not in ('null', 'string')
+      or (
+        pg_catalog.jsonb_typeof(v_input_line -> 'condition_snapshot') = 'string'
+        and v_input_line ->> 'condition_snapshot' not in (
+          'new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective'
+        )
+      )
+      or pg_catalog.jsonb_typeof(v_input_line -> 'estimated_market_value') not in ('null', 'number')
+      or (
+        pg_catalog.jsonb_typeof(v_input_line -> 'estimated_market_value') = 'number'
+        and (
+          (v_input_line ->> 'estimated_market_value')::numeric < 0
+          or pg_catalog.scale((v_input_line ->> 'estimated_market_value')::numeric) > 2
+        )
+      ) then
+      raise exception using
+        errcode = '22023',
+        message = 'Die Ersatz-Einkaufspositionen sind ungültig.';
+    end if;
+
+    v_line_id := (v_input_line ->> 'id')::uuid;
+    if v_line_id = any(v_input_line_ids) then
+      raise exception using
+        errcode = '22023',
+        message = 'Die Ersatz-Einkaufspositionen sind ungültig.';
+    end if;
+    v_input_line_ids := pg_catalog.array_append(v_input_line_ids, v_line_id);
+
+    v_catalog_product_id := case
+      when pg_catalog.jsonb_typeof(v_input_line -> 'catalog_product_id') = 'null'
+        then null
+      else (v_input_line ->> 'catalog_product_id')::uuid
+    end;
+
+    if (v_input_line ->> 'line_kind' = 'quantity' and v_catalog_product_id is null)
+      or (v_input_line ->> 'line_kind' = 'individual' and v_catalog_product_id is not null)
+      or (
+        v_catalog_product_id is not null
+        and not exists (
+          select 1
+          from public.catalog_products as product
+          where product.workspace_id = p_workspace_id
+            and product.id = v_catalog_product_id
+            and product.tracking_mode = 'quantity'
+        )
+      ) then
+      raise exception using
+        errcode = '22023',
+        message = 'Die Ersatz-Einkaufspositionen sind ungültig.';
+    end if;
+
+    if v_purchase.type = 'mystery_pack' then
+      if v_input_line ->> 'price_mode' <> 'unpriced_mystery'
+        or pg_catalog.jsonb_typeof(v_input_line -> 'unit_purchase_price') <> 'null'
+        or pg_catalog.jsonb_typeof(v_input_line -> 'line_total') <> 'null' then
+        raise exception using
+          errcode = '22023',
+          message = 'Die Ersatz-Einkaufspositionen sind ungültig.';
+      end if;
+    elsif v_input_line ->> 'price_mode' <> 'priced'
+      or pg_catalog.jsonb_typeof(v_input_line -> 'unit_purchase_price') <> 'number'
+      or pg_catalog.jsonb_typeof(v_input_line -> 'line_total') <> 'number'
+      or (v_input_line ->> 'unit_purchase_price')::numeric < 0
+      or (v_input_line ->> 'line_total')::numeric < 0
+      or pg_catalog.scale((v_input_line ->> 'unit_purchase_price')::numeric) > 2
+      or pg_catalog.scale((v_input_line ->> 'line_total')::numeric) > 2
+      or (v_input_line ->> 'line_total')::numeric <>
+        pg_catalog.round(
+          (v_input_line ->> 'ordered_quantity')::integer
+          * (v_input_line ->> 'unit_purchase_price')::numeric,
+          2
+        ) then
+      raise exception using
+        errcode = '22023',
+        message = 'Die Ersatz-Einkaufspositionen sind ungültig.';
+    end if;
+
+    select line.*
+    into v_existing_line
+    from public.purchase_lines as line
+    where line.id = v_line_id
+    for update;
+
+    if found then
+      if v_existing_line.workspace_id <> p_workspace_id
+        or v_existing_line.purchase_id <> p_purchase_id
+        or v_existing_line.line_kind <> v_input_line ->> 'line_kind'
+        or v_existing_line.ordered_quantity <> (v_input_line ->> 'ordered_quantity')::integer
+        or v_existing_line.catalog_product_id is distinct from v_catalog_product_id then
+        raise exception using
+          errcode = '22023',
+          message = 'Die Ersatz-Einkaufspositionen sind ungültig.';
+      end if;
+
+      update public.purchase_lines
+      set title_snapshot = pg_catalog.btrim(v_input_line ->> 'title_snapshot'),
+          price_mode = v_input_line ->> 'price_mode',
+          unit_purchase_price = case
+            when pg_catalog.jsonb_typeof(v_input_line -> 'unit_purchase_price') = 'null'
+              then null
+            else (v_input_line ->> 'unit_purchase_price')::numeric
+          end,
+          line_total = case
+            when pg_catalog.jsonb_typeof(v_input_line -> 'line_total') = 'null'
+              then null
+            else (v_input_line ->> 'line_total')::numeric
+          end,
+          condition_snapshot = case
+            when pg_catalog.jsonb_typeof(v_input_line -> 'condition_snapshot') = 'null'
+              then null
+            else v_input_line ->> 'condition_snapshot'
+          end,
+          estimated_market_value = case
+            when pg_catalog.jsonb_typeof(v_input_line -> 'estimated_market_value') = 'null'
+              then null
+            else (v_input_line ->> 'estimated_market_value')::numeric
+          end,
+          updated_at = v_changed_at
+      where workspace_id = p_workspace_id
+        and id = v_line_id;
+    else
+      insert into public.purchase_lines (
+        id,
+        workspace_id,
+        purchase_id,
+        catalog_product_id,
+        title_snapshot,
+        line_kind,
+        ordered_quantity,
+        received_quantity,
+        unit_purchase_price,
+        line_total,
+        price_mode,
+        condition_snapshot,
+        estimated_market_value,
+        allocated_additional_cost,
+        allocated_total_cost,
+        created_at,
+        updated_at
+      ) values (
+        v_line_id,
+        p_workspace_id,
+        p_purchase_id,
+        v_catalog_product_id,
+        pg_catalog.btrim(v_input_line ->> 'title_snapshot'),
+        v_input_line ->> 'line_kind',
+        (v_input_line ->> 'ordered_quantity')::integer,
+        0,
+        case
+          when pg_catalog.jsonb_typeof(v_input_line -> 'unit_purchase_price') = 'null'
+            then null
+          else (v_input_line ->> 'unit_purchase_price')::numeric
+        end,
+        case
+          when pg_catalog.jsonb_typeof(v_input_line -> 'line_total') = 'null'
+            then null
+          else (v_input_line ->> 'line_total')::numeric
+        end,
+        v_input_line ->> 'price_mode',
+        case
+          when pg_catalog.jsonb_typeof(v_input_line -> 'condition_snapshot') = 'null'
+            then null
+          else v_input_line ->> 'condition_snapshot'
+        end,
+        case
+          when pg_catalog.jsonb_typeof(v_input_line -> 'estimated_market_value') = 'null'
+            then null
+          else (v_input_line ->> 'estimated_market_value')::numeric
+        end,
+        0,
+        0,
+        v_changed_at,
+        v_changed_at
+      );
+    end if;
+  end loop;
+
+  if exists (
+    select 1
+    from pg_catalog.unnest(v_existing_line_ids) as existing_line(id)
+    where not (existing_line.id = any(v_input_line_ids))
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Bestehende Einkaufspositionen dürfen bei einer Korrektur nicht entfernt werden.';
+  end if;
+
+  for v_input_cost in
+    select element.value
+    from pg_catalog.jsonb_array_elements(p_costs) as element(value)
+  loop
+    if pg_catalog.jsonb_typeof(v_input_cost) <> 'object'
+      or not (v_input_cost ?& array[
+        'id', 'type', 'amount', 'description', 'allocation_method',
+        'target_purchase_line_id'
+      ])
+      or v_input_cost - array[
+        'id', 'type', 'amount', 'description', 'allocation_method',
+        'target_purchase_line_id'
+      ]::text[] <> '{}'::jsonb
+      or pg_catalog.jsonb_typeof(v_input_cost -> 'id') <> 'string'
+      or (v_input_cost ->> 'id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      or pg_catalog.jsonb_typeof(v_input_cost -> 'type') <> 'string'
+      or nullif(pg_catalog.btrim(v_input_cost ->> 'type'), '') is null
+      or pg_catalog.jsonb_typeof(v_input_cost -> 'amount') <> 'number'
+      or (v_input_cost ->> 'amount')::numeric < 0
+      or pg_catalog.scale((v_input_cost ->> 'amount')::numeric) > 2
+      or pg_catalog.jsonb_typeof(v_input_cost -> 'description') not in ('null', 'string')
+      or pg_catalog.jsonb_typeof(v_input_cost -> 'allocation_method') <> 'string'
+      or v_input_cost ->> 'allocation_method' not in ('value_weighted', 'quantity', 'direct')
+      or pg_catalog.jsonb_typeof(v_input_cost -> 'target_purchase_line_id') not in ('null', 'string')
+      or (
+        pg_catalog.jsonb_typeof(v_input_cost -> 'target_purchase_line_id') = 'string'
+        and (v_input_cost ->> 'target_purchase_line_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+      ) then
+      raise exception using
+        errcode = '22023',
+        message = 'Die Ersatz-Zusatzkosten sind ungültig.';
+    end if;
+
+    v_cost_id := (v_input_cost ->> 'id')::uuid;
+    if v_cost_id = any(v_input_cost_ids) then
+      raise exception using
+        errcode = '22023',
+        message = 'Die Ersatz-Zusatzkosten sind ungültig.';
+    end if;
+    v_input_cost_ids := pg_catalog.array_append(v_input_cost_ids, v_cost_id);
+
+    v_target_line_id := case
+      when pg_catalog.jsonb_typeof(v_input_cost -> 'target_purchase_line_id') = 'null'
+        then null
+      else (v_input_cost ->> 'target_purchase_line_id')::uuid
+    end;
+
+    if (
+        v_input_cost ->> 'allocation_method' = 'direct'
+        and (
+          v_target_line_id is null
+          or not (v_target_line_id = any(v_input_line_ids))
+        )
+      ) or (
+        v_input_cost ->> 'allocation_method' <> 'direct'
+        and v_target_line_id is not null
+      ) then
+      raise exception using
+        errcode = '22023',
+        message = 'Die Ersatz-Zusatzkosten sind ungültig.';
+    end if;
+
+    select cost.*
+    into v_existing_cost
+    from public.purchase_costs as cost
+    where cost.id = v_cost_id
+    for update;
+
+    if found then
+      if v_existing_cost.workspace_id <> p_workspace_id
+        or v_existing_cost.purchase_id <> p_purchase_id then
+        raise exception using
+          errcode = '22023',
+          message = 'Die Ersatz-Zusatzkosten sind ungültig.';
+      end if;
+
+      update public.purchase_costs
+      set type = pg_catalog.btrim(v_input_cost ->> 'type'),
+          amount = (v_input_cost ->> 'amount')::numeric,
+          description = case
+            when pg_catalog.jsonb_typeof(v_input_cost -> 'description') = 'null'
+              then null
+            else nullif(pg_catalog.btrim(v_input_cost ->> 'description'), '')
+          end,
+          allocation_method = v_input_cost ->> 'allocation_method',
+          target_purchase_line_id = v_target_line_id
+      where workspace_id = p_workspace_id
+        and id = v_cost_id;
+    else
+      insert into public.purchase_costs (
+        id,
+        workspace_id,
+        purchase_id,
+        type,
+        amount,
+        description,
+        allocation_method,
+        target_purchase_line_id,
+        created_at
+      ) values (
+        v_cost_id,
+        p_workspace_id,
+        p_purchase_id,
+        pg_catalog.btrim(v_input_cost ->> 'type'),
+        (v_input_cost ->> 'amount')::numeric,
+        case
+          when pg_catalog.jsonb_typeof(v_input_cost -> 'description') = 'null'
+            then null
+          else nullif(pg_catalog.btrim(v_input_cost ->> 'description'), '')
+        end,
+        v_input_cost ->> 'allocation_method',
+        v_target_line_id,
+        v_changed_at
+      );
+    end if;
+  end loop;
+
+  delete from public.purchase_costs
+  where workspace_id = p_workspace_id
+    and purchase_id = p_purchase_id
+    and not (id = any(v_input_cost_ids));
+
+  update public.purchases
+  set purchase_price = case
+        when v_purchase.type = 'mystery_pack' then p_purchase_price
+        else null
+      end
+  where workspace_id = p_workspace_id
+    and id = p_purchase_id;
+
+  v_costing_plan := public.build_purchase_costing_plan(
+    p_workspace_id,
+    p_purchase_id
+  );
+  v_goods_cents := (v_costing_plan ->> 'goodsCents')::bigint;
+  v_total_cents := (v_costing_plan ->> 'totalCents')::bigint;
+  v_allocated_cents := (v_costing_plan ->> 'allocatedCents')::bigint;
+
+  for v_line_position in 1..pg_catalog.jsonb_array_length(v_costing_plan -> 'lines') loop
+    v_line_plan := v_costing_plan -> 'lines' -> (v_line_position - 1);
+    v_line_id := (v_line_plan ->> 'lineId')::uuid;
+
+    select line.*
+    into v_line
+    from public.purchase_lines as line
+    where line.workspace_id = p_workspace_id
+      and line.id = v_line_id;
+
+    select pg_catalog.array_agg(unit_share.value::bigint order by unit_share.ordinality)
+    into v_unit_shares
+    from pg_catalog.jsonb_array_elements_text(v_line_plan -> 'unitTotalCents')
+      with ordinality as unit_share(value, ordinality);
+
+    if v_line.line_kind = 'individual' then
+      select pg_catalog.array_agg(item.id order by item.created_at, item.id)
+      into v_item_ids
+      from public.inventory_items as item
+      where item.workspace_id = p_workspace_id
+        and item.purchase_id = p_purchase_id
+        and item.purchase_line_id = v_line.id;
+
+      v_existing_count := coalesce(pg_catalog.cardinality(v_item_ids), 0);
+      if v_line.id = any(v_existing_line_ids)
+        and v_existing_count <> v_line.ordered_quantity then
+        raise exception using
+          errcode = '22023',
+          message = 'Bestehende Einzelartikel passen nicht vollständig zur korrigierten Position.';
+      end if;
+
+      if not (v_line.id = any(v_existing_line_ids)) and v_existing_count <> 0 then
+        raise exception using
+          errcode = '22023',
+          message = 'Neue Einkaufspositionen dürfen keinen fremden Bestand übernehmen.';
+      end if;
+
+      for v_item_position in 1..v_line.ordered_quantity loop
+        if v_item_position <= v_existing_count then
+          update public.inventory_items
+          set allocated_purchase_cost = v_unit_shares[v_item_position]::numeric / 100,
+              updated_at = v_changed_at
+          where workspace_id = p_workspace_id
+            and id = v_item_ids[v_item_position];
+        else
+          insert into public.inventory_items (
+            workspace_id,
+            purchase_id,
+            purchase_line_id,
+            title,
+            condition,
+            status,
+            allocated_purchase_cost,
+            expected_value,
+            created_at,
+            updated_at
+          ) values (
+            p_workspace_id,
+            p_purchase_id,
+            v_line.id,
+            v_line.title_snapshot,
+            case
+              when v_line.condition_snapshot in (
+                'new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective'
+              ) then v_line.condition_snapshot
+              else 'used'
+            end,
+            'ready',
+            v_unit_shares[v_item_position]::numeric / 100,
+            v_line.estimated_market_value,
+            v_changed_at,
+            v_changed_at
+          );
+        end if;
+      end loop;
+    else
+      select pg_catalog.array_agg(lot.id order by lot.received_at, lot.id)
+      into v_lot_ids
+      from public.stock_lots as lot
+      where lot.workspace_id = p_workspace_id
+        and lot.purchase_id = p_purchase_id
+        and lot.purchase_line_id = v_line.id;
+
+      v_existing_count := coalesce(pg_catalog.cardinality(v_lot_ids), 0);
+      if v_line.id = any(v_existing_line_ids) then
+        if (
+          select coalesce(pg_catalog.sum(lot.received_quantity), 0)::integer
+          from public.stock_lots as lot
+          where lot.workspace_id = p_workspace_id
+            and lot.purchase_id = p_purchase_id
+            and lot.purchase_line_id = v_line.id
+        ) <> v_line.ordered_quantity then
+          raise exception using
+            errcode = '22023',
+            message = 'Bestehende Bestandslose passen nicht vollständig zur korrigierten Position.';
+        end if;
+
+        v_unit_offset := 0;
+        for v_lot in
+          select lot.*
+          from public.stock_lots as lot
+          where lot.workspace_id = p_workspace_id
+            and lot.purchase_id = p_purchase_id
+            and lot.purchase_line_id = v_line.id
+          order by lot.received_at, lot.id
+          for update
+        loop
+          select
+            pg_catalog.array_agg(v_unit_shares[unit_position] order by unit_position),
+            pg_catalog.sum(v_unit_shares[unit_position])
+          into v_lot_unit_shares, v_lot_total_cents
+          from pg_catalog.generate_series(
+            v_unit_offset + 1,
+            v_unit_offset + v_lot.received_quantity
+          ) as unit_position;
+          v_unit_offset := v_unit_offset + v_lot.received_quantity;
+
+          update public.stock_lots
+          set unit_cost = (
+            v_lot_total_cents::numeric
+            / v_lot.received_quantity
+            / 100
+          )
+          where workspace_id = p_workspace_id
+            and id = v_lot.id;
+
+          if (
+            select pg_catalog.round(lot.unit_cost * lot.received_quantity, 2)
+            from public.stock_lots as lot
+            where lot.workspace_id = p_workspace_id
+              and lot.id = v_lot.id
+          ) <> v_lot_total_cents::numeric / 100 then
+            raise exception using
+              errcode = '22023',
+              message = 'Die korrigierten Loskosten lassen sich nicht centgenau speichern.';
+          end if;
+
+          -- Historische COGS bleiben als vollständiger Snapshot erhalten. Für
+          -- die aktive Kostenfolge zählen dagegen nur Einheiten, die nicht
+          -- tatsächlich wieder in den Bestand gelangt sind. Eine vollständige
+          -- Wiedereinlagerung verbraucht deshalb keinen Rundungscent dauerhaft.
+          v_active_unit_offset := 0;
+          for v_allocation in
+            select allocation.*
+            from public.sale_line_lot_allocations as allocation
+            join public.sale_lines as allocated_sale_line
+              on allocated_sale_line.workspace_id = allocation.workspace_id
+              and allocated_sale_line.id = allocation.sale_line_id
+            join public.sales as allocated_sale
+              on allocated_sale.workspace_id = allocated_sale_line.workspace_id
+              and allocated_sale.id = allocated_sale_line.sale_id
+            where allocation.workspace_id = p_workspace_id
+              and allocation.stock_lot_id = v_lot.id
+            order by
+              case when allocation.consumption_sequence is null then 0 else 1 end,
+              case when allocation.consumption_sequence is null then allocated_sale.created_at end,
+              case when allocation.consumption_sequence is null then allocation.created_at end,
+              allocation.consumption_sequence
+            for update of allocation
+          loop
+            if v_allocation.quantity > v_lot.received_quantity then
+              raise exception using
+                errcode = '22023',
+                message = 'Eine historische Loszuordnung überschreitet die ursprüngliche Losmenge.';
+            end if;
+
+            select coalesce(pg_catalog.sum(
+              case
+                when movement.direction = 'in' and movement.reason = 'return'
+                  then movement.quantity
+                when movement.direction = 'out' and movement.reason = 'damage'
+                  then -movement.quantity
+                else 0
+              end
+            ), 0)::integer
+            into v_restocked_quantity
+            from public.stock_movements as movement
+            where movement.workspace_id = v_allocation.workspace_id
+              and movement.stock_lot_id = v_allocation.stock_lot_id
+              and movement.sale_line_id = v_allocation.sale_line_id;
+
+            if v_restocked_quantity < 0
+              or v_restocked_quantity > v_allocation.quantity then
+              raise exception using
+                errcode = '22023',
+                message = 'Die historische Retourenmenge des Lagerloses ist nicht konsistent.';
+            end if;
+
+            v_active_quantity := v_allocation.quantity - v_restocked_quantity;
+
+            if v_active_unit_offset + v_active_quantity > v_lot.received_quantity then
+              raise exception using
+                errcode = '22023',
+                message = 'Die aktive Losentnahmemenge überschreitet die ursprüngliche Losmenge.';
+            end if;
+
+            select pg_catalog.sum(
+              v_lot_unit_shares[
+                ((v_active_unit_offset + unit_position - 1) % v_lot.received_quantity) + 1
+              ]
+            )
+            into v_allocation_cost_cents
+            from pg_catalog.generate_series(1, v_allocation.quantity) as unit_position;
+
+            if v_active_quantity = 0 then
+              v_active_allocation_cost_cents := 0;
+            else
+              select pg_catalog.sum(
+                v_lot_unit_shares[v_active_unit_offset + unit_position]
+              )
+              into v_active_allocation_cost_cents
+              from pg_catalog.generate_series(1, v_active_quantity) as unit_position;
+            end if;
+
+            update public.sale_line_lot_allocations
+            set unit_cost = (
+                  v_allocation_cost_cents::numeric
+                  / quantity
+                  / 100
+                ),
+                allocated_cost = v_allocation_cost_cents::numeric / 100,
+                active_allocated_cost = v_active_allocation_cost_cents::numeric / 100
+            where workspace_id = p_workspace_id
+              and id = v_allocation.id;
+
+            v_active_unit_offset := v_active_unit_offset + v_active_quantity;
+          end loop;
+
+          if v_active_unit_offset + v_lot.remaining_quantity <> v_lot.received_quantity then
+            raise exception using
+              errcode = '22023',
+              message = 'Aktive Losentnahmen und aktueller Bestand sind nicht konsistent.';
+          end if;
+        end loop;
+      else
+        if v_existing_count <> 0 then
+          raise exception using
+            errcode = '22023',
+            message = 'Neue Einkaufspositionen dürfen keinen fremden Bestand übernehmen.';
+        end if;
+
+        for v_cohort in
+          select share.value as unit_cost_cents, pg_catalog.count(*)::integer as quantity
+          from pg_catalog.unnest(v_unit_shares) as share(value)
+          group by share.value
+          order by share.value desc
+        loop
+          insert into public.stock_lots (
+            workspace_id,
+            purchase_id,
+            purchase_line_id,
+            catalog_product_id,
+            received_quantity,
+            remaining_quantity,
+            unit_cost,
+            received_at,
+            created_at
+          ) values (
+            p_workspace_id,
+            p_purchase_id,
+            v_line.id,
+            v_line.catalog_product_id,
+            v_cohort.quantity,
+            v_cohort.quantity,
+            v_cohort.unit_cost_cents::numeric / 100,
+            v_changed_at,
+            v_changed_at
+          ) returning id into v_stock_lot_id;
+
+          insert into public.stock_movements (
+            workspace_id,
+            stock_lot_id,
+            direction,
+            quantity,
+            reason,
+            created_at
+          ) values (
+            p_workspace_id,
+            v_stock_lot_id,
+            'in',
+            v_cohort.quantity,
+            'receipt',
+            v_changed_at
+          );
+        end loop;
+      end if;
+    end if;
+
+    update public.purchase_lines
+    set allocated_additional_cost = (v_line_plan ->> 'additionalCents')::bigint::numeric / 100,
+        allocated_total_cost = (v_line_plan ->> 'totalCents')::bigint::numeric / 100,
+        received_quantity = ordered_quantity,
+        updated_at = v_changed_at
+    where workspace_id = p_workspace_id
+      and id = v_line.id;
+  end loop;
+
+  update public.sale_lines as sale_line
+  set cost_of_goods_sold = case
+        when sale_line.inventory_item_id is not null then (
+          select item.allocated_purchase_cost
+          from public.inventory_items as item
+          where item.workspace_id = sale_line.workspace_id
+            and item.id = sale_line.inventory_item_id
+        )
+        else (
+          select coalesce(pg_catalog.sum(allocation.allocated_cost), 0)
+          from public.sale_line_lot_allocations as allocation
+          where allocation.workspace_id = sale_line.workspace_id
+            and allocation.sale_line_id = sale_line.id
+        )
+      end
+  where sale_line.workspace_id = p_workspace_id
+    and sale_line.id = any(v_sale_line_ids);
+
+  update public.purchases
+  set purchase_price = pg_catalog.round(v_goods_cents::numeric / 100, 2),
+      total_purchase_cost = v_total_cents::numeric / 100,
+      updated_at = v_changed_at
+  where workspace_id = p_workspace_id
+    and id = p_purchase_id
+  returning * into v_purchase;
+
+  v_after_purchase := pg_catalog.jsonb_build_object(
+    'purchase_price', v_purchase.purchase_price,
+    'total_purchase_cost', v_purchase.total_purchase_cost,
+    'entry_status', v_purchase.entry_status,
+    'finalized_at', v_purchase.finalized_at,
+    'finalized_by', v_purchase.finalized_by
+  );
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', line.id,
+    'title_snapshot', line.title_snapshot,
+    'line_kind', line.line_kind,
+    'ordered_quantity', line.ordered_quantity,
+    'price_mode', line.price_mode,
+    'unit_purchase_price', line.unit_purchase_price,
+    'line_total', line.line_total,
+    'condition_snapshot', line.condition_snapshot,
+    'estimated_market_value', line.estimated_market_value,
+    'allocated_additional_cost', line.allocated_additional_cost,
+    'allocated_total_cost', line.allocated_total_cost
+  ) order by line.created_at, line.id), '[]'::jsonb)
+  into v_after_lines
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id;
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', cost.id,
+    'type', cost.type,
+    'amount', cost.amount,
+    'description', cost.description,
+    'allocation_method', cost.allocation_method,
+    'target_purchase_line_id', cost.target_purchase_line_id
+  ) order by cost.created_at, cost.id), '[]'::jsonb)
+  into v_after_costs
+  from public.purchase_costs as cost
+  where cost.workspace_id = p_workspace_id
+    and cost.purchase_id = p_purchase_id;
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', item.id,
+    'purchase_line_id', item.purchase_line_id,
+    'status', item.status,
+    'allocated_purchase_cost', item.allocated_purchase_cost
+  ) order by item.created_at, item.id), '[]'::jsonb)
+  into v_after_items
+  from public.inventory_items as item
+  where item.workspace_id = p_workspace_id
+    and item.purchase_id = p_purchase_id;
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', lot.id,
+    'purchase_line_id', lot.purchase_line_id,
+    'received_quantity', lot.received_quantity,
+    'remaining_quantity', lot.remaining_quantity,
+    'unit_cost', lot.unit_cost
+  ) order by lot.received_at, lot.id), '[]'::jsonb)
+  into v_after_lots
+  from public.stock_lots as lot
+  where lot.workspace_id = p_workspace_id
+    and lot.purchase_id = p_purchase_id;
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', sale_line.id,
+    'sale_id', sale_line.sale_id,
+    'cost_of_goods_sold', sale_line.cost_of_goods_sold
+  ) order by sale_line.created_at, sale_line.id), '[]'::jsonb),
+    coalesce(pg_catalog.sum(sale_line.cost_of_goods_sold), 0)
+  into v_after_sale_lines, v_after_cogs
+  from public.sale_lines as sale_line
+  where sale_line.workspace_id = p_workspace_id
+    and sale_line.id = any(v_sale_line_ids);
+
+  select coalesce(pg_catalog.jsonb_agg(pg_catalog.jsonb_build_object(
+    'id', allocation.id,
+    'sale_line_id', allocation.sale_line_id,
+    'stock_lot_id', allocation.stock_lot_id,
+    'quantity', allocation.quantity,
+    'unit_cost', allocation.unit_cost,
+    'allocated_cost', allocation.allocated_cost,
+    'active_allocated_cost', allocation.active_allocated_cost,
+    'consumption_sequence', allocation.consumption_sequence
+  ) order by allocation.created_at, allocation.id), '[]'::jsonb)
+  into v_after_allocations
+  from public.sale_line_lot_allocations as allocation
+  join public.stock_lots as lot
+    on lot.workspace_id = allocation.workspace_id
+    and lot.id = allocation.stock_lot_id
+  where allocation.workspace_id = p_workspace_id
+    and lot.purchase_id = p_purchase_id;
+
+  insert into public.business_events (
+    workspace_id,
+    entity_type,
+    entity_id,
+    event_type,
+    actor_id,
+    reason,
+    changes
+  ) values (
+    p_workspace_id,
+    'purchase',
+    p_purchase_id,
+    'purchase_corrected',
+    v_actor_id,
+    pg_catalog.btrim(p_reason),
+    pg_catalog.jsonb_build_object(
+      'purchase', pg_catalog.jsonb_build_object(
+        'before', v_before_purchase,
+        'after', v_after_purchase
+      ),
+      'lines', pg_catalog.jsonb_build_object(
+        'before', v_before_lines,
+        'after', v_after_lines
+      ),
+      'costs', pg_catalog.jsonb_build_object(
+        'before', v_before_costs,
+        'after', v_after_costs
+      ),
+      'inventory_items', pg_catalog.jsonb_build_object(
+        'before', v_before_items,
+        'after', v_after_items
+      ),
+      'stock_lots', pg_catalog.jsonb_build_object(
+        'before', v_before_lots,
+        'after', v_after_lots
+      ),
+      'sale_lines', pg_catalog.jsonb_build_object(
+        'before', v_before_sale_lines,
+        'after', v_after_sale_lines
+      ),
+      'lot_allocations', pg_catalog.jsonb_build_object(
+        'before', v_before_allocations,
+        'after', v_after_allocations
+      ),
+      'downstream_cogs', pg_catalog.jsonb_build_object(
+        'before', v_before_cogs,
+        'after', v_after_cogs
+      )
+    )
+  ) returning id into v_event_id;
+
+  return pg_catalog.jsonb_build_object(
+    'purchaseId', p_purchase_id,
+    'totalPurchaseCost', v_total_cents::numeric / 100,
+    'allocatedTotalCost', v_allocated_cents::numeric / 100,
+    'entryStatus', 'finalized',
+    'eventId', v_event_id
+  );
+end;
+$$;
+
+alter function public.correct_purchase_costing(uuid, uuid, text, numeric, jsonb, jsonb)
+  owner to postgres;
+
+comment on function public.correct_purchase_costing(uuid, uuid, text, numeric, jsonb, jsonb) is
+  'Korrigiert Eingaben, Bestandskosten und betroffenen Wareneinsatz atomar mit Begründung.';
+
 create or replace function public.create_purchase(
   p_workspace_id uuid,
   p_purchase jsonb,
@@ -2056,7 +6051,7 @@ create or replace function public.create_purchase(
 )
 returns jsonb
 language plpgsql
-security invoker
+security definer
 set search_path = ''
 as $$
 declare
@@ -2065,9 +6060,19 @@ declare
   v_line jsonb;
   v_line_id uuid;
   v_line_ids uuid[] := array[]::uuid[];
+  v_line_refs jsonb := '{}'::jsonb;
+  v_line_ref text;
+  v_target_line_id uuid;
+  v_source_id uuid;
+  v_supplier_id uuid;
+  v_purchase_type text;
   v_total_expense_cents bigint;
   v_manual_cents bigint;
   v_mode text;
+  v_requested_unit_total numeric := 0;
+  v_requested_unit_max numeric := 0;
+  v_max_purchase_lines constant integer := 1000;
+  v_max_purchase_units constant integer := 100000;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -2082,53 +6087,216 @@ begin
     raise exception using errcode = '22023', message = 'Die Einkaufsdaten sind ungültig.';
   end if;
 
+  if coalesce(pg_catalog.jsonb_typeof(p_purchase -> 'purchase_price'), 'null')
+      not in ('null', 'number')
+    or (
+      pg_catalog.jsonb_typeof(p_purchase -> 'purchase_price') = 'number'
+      and (
+        (p_purchase ->> 'purchase_price')::numeric < 0
+        or pg_catalog.scale((p_purchase ->> 'purchase_price')::numeric) > 2
+      )
+    ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Kaufpreis muss centgenau und darf nicht negativ sein.';
+  end if;
+
+  for v_expense in
+    select element.value
+    from pg_catalog.jsonb_array_elements(p_expenses) as element(value)
+  loop
+    if pg_catalog.jsonb_typeof(v_expense) <> 'object'
+      or pg_catalog.jsonb_typeof(v_expense -> 'amount') <> 'number'
+      or (v_expense ->> 'amount')::numeric <= 0
+      or pg_catalog.scale((v_expense ->> 'amount')::numeric) > 2 then
+      raise exception using
+        errcode = '22023',
+        message = 'Zusatzkosten müssen positive centgenaue Zahlen sein.';
+    end if;
+  end loop;
+
+  if pg_catalog.jsonb_array_length(p_lines) > v_max_purchase_lines then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ist auf 1.000 Positionen begrenzt.';
+  end if;
+
+  select
+    coalesce(pg_catalog.max(candidate.quantity), 0),
+    coalesce(pg_catalog.sum(candidate.quantity), 0)
+  into v_requested_unit_max, v_requested_unit_total
+  from (
+    select case
+      when pg_catalog.jsonb_typeof(element.value) = 'object'
+        and pg_catalog.jsonb_typeof(element.value -> 'ordered_quantity') = 'number'
+        and element.value ->> 'ordered_quantity' ~ '^[1-9][0-9]*$'
+      then (element.value ->> 'ordered_quantity')::numeric
+      else null
+    end as quantity
+    from pg_catalog.jsonb_array_elements(p_lines) as element(value)
+  ) as candidate;
+
+  if v_requested_unit_max > v_max_purchase_units
+    or v_requested_unit_total > v_max_purchase_units then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Menge ist auf 100.000 Einheiten je Position und Einkauf begrenzt.';
+  end if;
+
   v_mode := coalesce(nullif(p_purchase ->> 'cost_allocation_mode', ''), 'even');
   if v_mode not in ('manual', 'even', 'value_weighted') then
     raise exception using errcode = '22023', message = 'Die Kostenverteilung ist ungültig.';
   end if;
 
+  v_purchase_type := nullif(p_purchase ->> 'type', '');
+  if v_purchase_type not in ('single', 'mystery_pack', 'lot', 'pallet') then
+    raise exception using errcode = '22023', message = 'Die Einkaufsdaten sind ungültig.';
+  end if;
+
+  if coalesce(pg_catalog.jsonb_typeof(p_purchase -> 'source_id'), 'null') not in ('null', 'string')
+    or (
+      nullif(pg_catalog.btrim(p_purchase ->> 'source_id'), '') is not null
+      and (p_purchase ->> 'source_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Einkaufsquelle gehört nicht zu diesem Workspace.';
+  end if;
+  v_source_id := nullif(pg_catalog.btrim(p_purchase ->> 'source_id'), '')::uuid;
+  if v_source_id is not null and not exists (
+    select 1
+    from public.sources as source
+    where source.workspace_id = p_workspace_id
+      and source.id = v_source_id
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Einkaufsquelle gehört nicht zu diesem Workspace.';
+  end if;
+
+  if coalesce(pg_catalog.jsonb_typeof(p_purchase -> 'supplier_id'), 'null') not in ('null', 'string')
+    or (
+      nullif(pg_catalog.btrim(p_purchase ->> 'supplier_id'), '') is not null
+      and (p_purchase ->> 'supplier_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Lieferant gehört nicht zu diesem Workspace.';
+  end if;
+  v_supplier_id := nullif(pg_catalog.btrim(p_purchase ->> 'supplier_id'), '')::uuid;
+  if v_supplier_id is not null and not exists (
+    select 1
+    from public.suppliers as supplier
+    where supplier.workspace_id = p_workspace_id
+      and supplier.id = v_supplier_id
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Lieferant gehört nicht zu diesem Workspace.';
+  end if;
+
+  -- Validate the purchase-type contract before the purchase header is written.
+  for v_line in select value from pg_catalog.jsonb_array_elements(p_lines) loop
+    if v_line ? 'condition_snapshot'
+      and coalesce(pg_catalog.jsonb_typeof(v_line -> 'condition_snapshot'), 'null') <> 'null'
+      and (
+        pg_catalog.jsonb_typeof(v_line -> 'condition_snapshot') <> 'string'
+        or v_line ->> 'condition_snapshot' not in (
+          'new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective'
+        )
+      ) then
+      raise exception using
+        errcode = '22023',
+        message = 'Der Zustand einer Einkaufsposition ist ungültig.';
+    end if;
+
+    if coalesce(pg_catalog.jsonb_typeof(v_line -> 'estimated_market_value'), 'null')
+        not in ('null', 'number')
+      or (
+        pg_catalog.jsonb_typeof(v_line -> 'estimated_market_value') = 'number'
+        and (
+          (v_line ->> 'estimated_market_value')::numeric < 0
+          or pg_catalog.scale((v_line ->> 'estimated_market_value')::numeric) > 2
+        )
+      ) then
+      raise exception using
+        errcode = '22023',
+        message = 'Der geschätzte Marktwert muss centgenau und darf nicht negativ sein.';
+    end if;
+
+    if coalesce(pg_catalog.jsonb_typeof(v_line -> 'allocated_additional_cost'), 'null')
+        not in ('null', 'number')
+      or (
+        pg_catalog.jsonb_typeof(v_line -> 'allocated_additional_cost') = 'number'
+        and (
+          (v_line ->> 'allocated_additional_cost')::numeric < 0
+          or pg_catalog.scale((v_line ->> 'allocated_additional_cost')::numeric) > 2
+        )
+      ) then
+      raise exception using
+        errcode = '22023',
+        message = 'Die manuelle Kostenzuordnung muss centgenau und darf nicht negativ sein.';
+    end if;
+
+    if v_purchase_type = 'mystery_pack' then
+      if coalesce(nullif(v_line ->> 'price_mode', ''), 'priced') <> 'unpriced_mystery'
+        or coalesce(pg_catalog.jsonb_typeof(v_line -> 'unit_purchase_price'), 'null') <> 'null'
+        or coalesce(pg_catalog.jsonb_typeof(v_line -> 'line_total'), 'null') <> 'null' then
+        raise exception using
+          errcode = '22023',
+          message = 'Die Einkaufspositionen passen nicht zur Einkaufsart.';
+      end if;
+    elsif coalesce(nullif(v_line ->> 'price_mode', ''), 'priced') <> 'priced'
+      or pg_catalog.jsonb_typeof(v_line -> 'unit_purchase_price') is distinct from 'number'
+      or pg_catalog.jsonb_typeof(v_line -> 'line_total') is distinct from 'number'
+      or (v_line ->> 'unit_purchase_price')::numeric < 0
+      or (v_line ->> 'line_total')::numeric < 0
+      or pg_catalog.scale((v_line ->> 'unit_purchase_price')::numeric) > 2
+      or pg_catalog.scale((v_line ->> 'line_total')::numeric) > 2
+      or (v_line ->> 'line_total')::numeric <>
+        pg_catalog.round(
+          (v_line ->> 'ordered_quantity')::integer
+          * (v_line ->> 'unit_purchase_price')::numeric,
+          2
+        ) then
+      raise exception using
+        errcode = '22023',
+        message = 'Die Einkaufspositionen passen nicht zur Einkaufsart.';
+    end if;
+  end loop;
+
   insert into public.purchases (
     workspace_id, source_id, supplier_id, type, title, purchase_date,
     purchase_price, cost_allocation_mode, notes, tracking_number,
-    tracking_carrier, tracking_status, original_url, receiving_status,
-    total_purchase_cost
+    tracking_carrier, tracking_status, original_url, receiving_status
   ) values (
     p_workspace_id,
-    nullif(p_purchase ->> 'source_id', '')::uuid,
-    nullif(p_purchase ->> 'supplier_id', '')::uuid,
-    p_purchase ->> 'type',
+    v_source_id,
+    v_supplier_id,
+    v_purchase_type,
     btrim(p_purchase ->> 'title'),
     (p_purchase ->> 'purchase_date')::date,
-    coalesce((p_purchase ->> 'purchase_price')::numeric, 0),
+    (p_purchase ->> 'purchase_price')::numeric,
     v_mode,
     nullif(btrim(p_purchase ->> 'notes'), ''),
     nullif(btrim(p_purchase ->> 'tracking_number'), ''),
     nullif(p_purchase ->> 'tracking_carrier', ''),
     coalesce(nullif(p_purchase ->> 'tracking_status', ''), 'pending'),
     nullif(p_purchase ->> 'original_url', ''),
-    case when jsonb_array_length(p_lines) > 0 then 'ordered' else 'received' end,
-    coalesce((p_purchase ->> 'total_purchase_cost')::numeric,
-      coalesce((p_purchase ->> 'purchase_price')::numeric, 0))
+    case when jsonb_array_length(p_lines) > 0 then 'ordered' else 'received' end
   ) returning * into v_purchase;
 
-  for v_expense in select value from jsonb_array_elements(p_expenses) loop
-    if coalesce((v_expense ->> 'amount')::numeric, 0) <= 0 then
-      raise exception using errcode = '22023', message = 'Zusatzkosten müssen positiv sein.';
-    end if;
-    insert into public.purchase_costs (purchase_id, type, amount, description)
-    values (
-      v_purchase.id,
-      coalesce(nullif(btrim(v_expense ->> 'type'), ''), 'other'),
-      (v_expense ->> 'amount')::numeric,
-      nullif(btrim(v_expense ->> 'description'), '')
-    );
-  end loop;
-
   for v_line in select value from jsonb_array_elements(p_lines) loop
+    v_line_ref := nullif(pg_catalog.btrim(v_line ->> 'client_ref'), '');
+    if v_line_ref is not null and v_line_refs ? v_line_ref then
+      raise exception using errcode = '22023', message = 'Einkaufspositionen benötigen eindeutige Entwurfskennungen.';
+    end if;
+
     insert into public.purchase_lines (
       workspace_id, purchase_id, catalog_product_id, title_snapshot,
       line_kind, ordered_quantity, received_quantity, unit_purchase_price,
-      line_total, allocated_additional_cost
+      line_total, allocated_additional_cost, price_mode, condition_snapshot,
+      estimated_market_value
     ) values (
       p_workspace_id,
       v_purchase.id,
@@ -2142,9 +6310,45 @@ begin
       case when v_mode = 'manual'
         then coalesce((v_line ->> 'allocated_additional_cost')::numeric, 0)
         else 0
-      end
+      end,
+      coalesce(nullif(v_line ->> 'price_mode', ''), 'priced'),
+      nullif(v_line ->> 'condition_snapshot', ''),
+      (v_line ->> 'estimated_market_value')::numeric
     ) returning id into v_line_id;
     v_line_ids := array_append(v_line_ids, v_line_id);
+    if v_line_ref is not null then
+      v_line_refs := pg_catalog.jsonb_set(
+        v_line_refs,
+        array[v_line_ref],
+        pg_catalog.to_jsonb(v_line_id::text),
+        true
+      );
+    end if;
+  end loop;
+
+  for v_expense in select value from jsonb_array_elements(p_expenses) loop
+    if coalesce(nullif(v_expense ->> 'allocation_method', ''), 'value_weighted') = 'direct' then
+      v_line_ref := nullif(pg_catalog.btrim(v_expense ->> 'target_purchase_line_ref'), '');
+      if v_line_ref is null or not (v_line_refs ? v_line_ref) then
+        raise exception using errcode = '22023', message = 'Die direkte Kostenzuordnung verweist auf keine Einkaufsposition.';
+      end if;
+      v_target_line_id := (v_line_refs ->> v_line_ref)::uuid;
+    else
+      v_target_line_id := null;
+    end if;
+
+    insert into public.purchase_costs (
+      workspace_id, purchase_id, type, amount, description,
+      allocation_method, target_purchase_line_id
+    ) values (
+      p_workspace_id,
+      v_purchase.id,
+      coalesce(nullif(btrim(v_expense ->> 'type'), ''), 'other'),
+      (v_expense ->> 'amount')::numeric,
+      nullif(btrim(v_expense ->> 'description'), ''),
+      coalesce(nullif(v_expense ->> 'allocation_method', ''), 'value_weighted'),
+      v_target_line_id
+    );
   end loop;
 
   select coalesce(round(sum(cost.amount) * 100), 0)::bigint
@@ -2214,8 +6418,574 @@ begin
 end;
 $$;
 
-revoke all on function public.create_purchase(uuid, jsonb, jsonb, jsonb) from public;
+alter function public.create_purchase(uuid, jsonb, jsonb, jsonb)
+  owner to postgres;
+
+revoke all on function public.create_purchase(uuid, jsonb, jsonb, jsonb)
+  from public, anon, authenticated, service_role;
 grant execute on function public.create_purchase(uuid, jsonb, jsonb, jsonb) to authenticated;
+
+create or replace function public.update_purchase_draft(
+  p_workspace_id uuid,
+  p_purchase_id uuid,
+  p_purchase jsonb,
+  p_expenses jsonb default '[]'::jsonb,
+  p_lines jsonb default '[]'::jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_purchase public.purchases;
+  v_existing_line public.purchase_lines;
+  v_line jsonb;
+  v_expense jsonb;
+  v_line_id uuid;
+  v_line_ids uuid[] := array[]::uuid[];
+  v_line_refs jsonb := '{}'::jsonb;
+  v_line_ref text;
+  v_catalog_product_id uuid;
+  v_target_line_id uuid;
+  v_source_id uuid;
+  v_supplier_id uuid;
+  v_purchase_type text;
+  v_mode text;
+  v_total_expense_cents bigint;
+  v_manual_cents bigint;
+  v_requested_unit_total numeric := 0;
+  v_requested_unit_max numeric := 0;
+  v_max_purchase_lines constant integer := 1000;
+  v_max_purchase_units constant integer := 100000;
+begin
+  if (select auth.uid()) is null
+    or not (select public.is_workspace_member(p_workspace_id)) then
+    raise exception using errcode = '42501', message = 'Kein Zugriff auf diesen Workspace.';
+  end if;
+
+  if p_workspace_id is null
+    or p_purchase_id is null
+    or pg_catalog.jsonb_typeof(p_purchase) <> 'object'
+    or pg_catalog.jsonb_typeof(p_expenses) <> 'array'
+    or pg_catalog.jsonb_typeof(p_lines) <> 'array'
+    or nullif(pg_catalog.btrim(p_purchase ->> 'title'), '') is null then
+    raise exception using errcode = '22023', message = 'Die Einkaufsdaten sind ungültig.';
+  end if;
+
+  if coalesce(pg_catalog.jsonb_typeof(p_purchase -> 'purchase_price'), 'null')
+      not in ('null', 'number')
+    or (
+      pg_catalog.jsonb_typeof(p_purchase -> 'purchase_price') = 'number'
+      and (
+        (p_purchase ->> 'purchase_price')::numeric < 0
+        or pg_catalog.scale((p_purchase ->> 'purchase_price')::numeric) > 2
+      )
+    ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Kaufpreis muss centgenau und darf nicht negativ sein.';
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_purchase_id::text, 0)
+  );
+
+  select purchase.*
+  into v_purchase
+  from public.purchases as purchase
+  where purchase.workspace_id = p_workspace_id
+    and purchase.id = p_purchase_id
+  for update;
+
+  if not found then
+    raise exception using errcode = 'P0002', message = 'Der Einkauf wurde nicht gefunden.';
+  end if;
+
+  if v_purchase.entry_status = 'finalized' then
+    raise exception using
+      errcode = '22023',
+      message = 'Nur ein nicht finalisierter Einkaufsentwurf kann bearbeitet werden.';
+  end if;
+
+  if pg_catalog.jsonb_array_length(p_lines) > v_max_purchase_lines then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ist auf 1.000 Positionen begrenzt.';
+  end if;
+
+  select
+    coalesce(pg_catalog.max(candidate.quantity), 0),
+    coalesce(pg_catalog.sum(candidate.quantity), 0)
+  into v_requested_unit_max, v_requested_unit_total
+  from (
+    select case
+      when pg_catalog.jsonb_typeof(element.value) = 'object'
+        and pg_catalog.jsonb_typeof(element.value -> 'ordered_quantity') = 'number'
+        and element.value ->> 'ordered_quantity' ~ '^[1-9][0-9]*$'
+      then (element.value ->> 'ordered_quantity')::numeric
+      else null
+    end as quantity
+    from pg_catalog.jsonb_array_elements(p_lines) as element(value)
+  ) as candidate;
+
+  if v_requested_unit_max > v_max_purchase_units
+    or v_requested_unit_total > v_max_purchase_units then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Menge ist auf 100.000 Einheiten je Position und Einkauf begrenzt.';
+  end if;
+
+  v_purchase_type := nullif(p_purchase ->> 'type', '');
+  v_mode := coalesce(nullif(p_purchase ->> 'cost_allocation_mode', ''), 'even');
+  if v_purchase_type not in ('single', 'mystery_pack', 'lot', 'pallet')
+    or v_mode not in ('manual', 'even', 'value_weighted') then
+    raise exception using errcode = '22023', message = 'Die Einkaufsdaten sind ungültig.';
+  end if;
+
+  if coalesce(pg_catalog.jsonb_typeof(p_purchase -> 'source_id'), 'null') not in ('null', 'string')
+    or (
+      nullif(pg_catalog.btrim(p_purchase ->> 'source_id'), '') is not null
+      and (p_purchase ->> 'source_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Einkaufsquelle gehört nicht zu diesem Workspace.';
+  end if;
+  v_source_id := nullif(pg_catalog.btrim(p_purchase ->> 'source_id'), '')::uuid;
+  if v_source_id is not null and not exists (
+    select 1
+    from public.sources as source
+    where source.workspace_id = p_workspace_id
+      and source.id = v_source_id
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Einkaufsquelle gehört nicht zu diesem Workspace.';
+  end if;
+
+  if coalesce(pg_catalog.jsonb_typeof(p_purchase -> 'supplier_id'), 'null') not in ('null', 'string')
+    or (
+      nullif(pg_catalog.btrim(p_purchase ->> 'supplier_id'), '') is not null
+      and (p_purchase ->> 'supplier_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Lieferant gehört nicht zu diesem Workspace.';
+  end if;
+  v_supplier_id := nullif(pg_catalog.btrim(p_purchase ->> 'supplier_id'), '')::uuid;
+  if v_supplier_id is not null and not exists (
+    select 1
+    from public.suppliers as supplier
+    where supplier.workspace_id = p_workspace_id
+      and supplier.id = v_supplier_id
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Lieferant gehört nicht zu diesem Workspace.';
+  end if;
+
+  for v_line in
+    select element.value
+    from pg_catalog.jsonb_array_elements(p_lines) as element(value)
+  loop
+    v_line_ref := nullif(pg_catalog.btrim(v_line ->> 'client_ref'), '');
+    if pg_catalog.jsonb_typeof(v_line) <> 'object'
+      or v_line_ref is null
+      or v_line_refs ? v_line_ref
+      or pg_catalog.jsonb_typeof(v_line -> 'title_snapshot') <> 'string'
+      or nullif(pg_catalog.btrim(v_line ->> 'title_snapshot'), '') is null
+      or pg_catalog.jsonb_typeof(v_line -> 'line_kind') <> 'string'
+      or v_line ->> 'line_kind' not in ('quantity', 'individual')
+      or pg_catalog.jsonb_typeof(v_line -> 'ordered_quantity') <> 'number'
+      or (v_line ->> 'ordered_quantity') !~ '^[1-9][0-9]*$'
+      or coalesce(nullif(v_line ->> 'price_mode', ''), 'priced')
+        not in ('priced', 'unpriced_mystery')
+      or coalesce(pg_catalog.jsonb_typeof(v_line -> 'catalog_product_id'), 'null')
+        not in ('null', 'string')
+      or coalesce(pg_catalog.jsonb_typeof(v_line -> 'condition_snapshot'), 'null')
+        not in ('null', 'string')
+      or (
+        pg_catalog.jsonb_typeof(v_line -> 'condition_snapshot') = 'string'
+        and v_line ->> 'condition_snapshot' not in (
+          'new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective'
+        )
+      )
+      or coalesce(pg_catalog.jsonb_typeof(v_line -> 'estimated_market_value'), 'null')
+        not in ('null', 'number')
+      or (
+        pg_catalog.jsonb_typeof(v_line -> 'estimated_market_value') = 'number'
+        and (
+          (v_line ->> 'estimated_market_value')::numeric < 0
+          or pg_catalog.scale((v_line ->> 'estimated_market_value')::numeric) > 2
+        )
+      ) then
+      raise exception using errcode = '22023', message = 'Die Einkaufspositionen sind ungültig.';
+    end if;
+
+    if v_mode = 'manual' and (
+      coalesce(pg_catalog.jsonb_typeof(v_line -> 'allocated_additional_cost'), 'null')
+        not in ('null', 'number')
+      or (
+        pg_catalog.jsonb_typeof(v_line -> 'allocated_additional_cost') = 'number'
+        and (
+          (v_line ->> 'allocated_additional_cost')::numeric < 0
+          or pg_catalog.scale((v_line ->> 'allocated_additional_cost')::numeric) > 2
+        )
+      )
+    ) then
+      raise exception using
+        errcode = '22023',
+        message = 'Die manuelle Kostenzuordnung muss centgenau und darf nicht negativ sein.';
+    end if;
+
+    if v_purchase_type = 'mystery_pack' then
+      if coalesce(nullif(v_line ->> 'price_mode', ''), 'priced') <> 'unpriced_mystery'
+        or coalesce(pg_catalog.jsonb_typeof(v_line -> 'unit_purchase_price'), 'null') <> 'null'
+        or coalesce(pg_catalog.jsonb_typeof(v_line -> 'line_total'), 'null') <> 'null' then
+        raise exception using
+          errcode = '22023',
+          message = 'Die Einkaufspositionen passen nicht zur Einkaufsart.';
+      end if;
+    elsif coalesce(nullif(v_line ->> 'price_mode', ''), 'priced') <> 'priced'
+      or pg_catalog.jsonb_typeof(v_line -> 'unit_purchase_price') is distinct from 'number'
+      or pg_catalog.jsonb_typeof(v_line -> 'line_total') is distinct from 'number'
+      or (v_line ->> 'unit_purchase_price')::numeric < 0
+      or (v_line ->> 'line_total')::numeric < 0
+      or pg_catalog.scale((v_line ->> 'unit_purchase_price')::numeric) > 2
+      or pg_catalog.scale((v_line ->> 'line_total')::numeric) > 2
+      or (v_line ->> 'line_total')::numeric <>
+        pg_catalog.round(
+          (v_line ->> 'ordered_quantity')::integer
+          * (v_line ->> 'unit_purchase_price')::numeric,
+          2
+        ) then
+      raise exception using
+        errcode = '22023',
+        message = 'Die Einkaufspositionen passen nicht zur Einkaufsart.';
+    end if;
+
+    v_catalog_product_id := case
+      when coalesce(pg_catalog.jsonb_typeof(v_line -> 'catalog_product_id'), 'null') = 'null'
+        then null
+      else (v_line ->> 'catalog_product_id')::uuid
+    end;
+    if (v_line ->> 'line_kind' = 'quantity' and v_catalog_product_id is null)
+      or (v_line ->> 'line_kind' = 'individual' and v_catalog_product_id is not null)
+      or (
+        v_catalog_product_id is not null
+        and not exists (
+          select 1
+          from public.catalog_products as product
+          where product.workspace_id = p_workspace_id
+            and product.id = v_catalog_product_id
+            and product.tracking_mode = 'quantity'
+        )
+      ) then
+      raise exception using errcode = '22023', message = 'Die Einkaufspositionen sind ungültig.';
+    end if;
+
+    v_existing_line := null;
+    if v_line_ref ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' then
+      select line.*
+      into v_existing_line
+      from public.purchase_lines as line
+      where line.id = v_line_ref::uuid
+      for update;
+
+      if found and (
+        v_existing_line.workspace_id <> p_workspace_id
+        or v_existing_line.purchase_id <> p_purchase_id
+      ) then
+        raise exception using errcode = '22023', message = 'Die Einkaufspositionen sind ungültig.';
+      end if;
+    end if;
+
+    if v_existing_line.id is not null then
+      if (
+        v_existing_line.received_quantity > 0
+        or exists (
+          select 1
+          from public.inventory_items as item
+          where item.workspace_id = p_workspace_id
+            and item.purchase_line_id = v_existing_line.id
+        )
+        or exists (
+          select 1
+          from public.stock_lots as lot
+          where lot.workspace_id = p_workspace_id
+            and lot.purchase_line_id = v_existing_line.id
+        )
+      ) and (
+        v_existing_line.line_kind <> v_line ->> 'line_kind'
+        or v_existing_line.ordered_quantity <> (v_line ->> 'ordered_quantity')::integer
+        or v_existing_line.catalog_product_id is distinct from v_catalog_product_id
+      ) then
+        raise exception using
+          errcode = '22023',
+          message = 'Bereits erfasste Einkaufspositionen dürfen strukturell nicht verändert werden.';
+      end if;
+
+      update public.purchase_lines
+      set catalog_product_id = v_catalog_product_id,
+          title_snapshot = pg_catalog.btrim(v_line ->> 'title_snapshot'),
+          line_kind = v_line ->> 'line_kind',
+          ordered_quantity = (v_line ->> 'ordered_quantity')::integer,
+          price_mode = coalesce(nullif(v_line ->> 'price_mode', ''), 'priced'),
+          unit_purchase_price = case
+            when coalesce(pg_catalog.jsonb_typeof(v_line -> 'unit_purchase_price'), 'null') = 'null'
+              then null
+            else (v_line ->> 'unit_purchase_price')::numeric
+          end,
+          line_total = case
+            when coalesce(pg_catalog.jsonb_typeof(v_line -> 'line_total'), 'null') = 'null'
+              then null
+            else (v_line ->> 'line_total')::numeric
+          end,
+          allocated_additional_cost = case
+            when v_mode = 'manual'
+              then coalesce((v_line ->> 'allocated_additional_cost')::numeric, 0)
+            else 0
+          end,
+          condition_snapshot = case
+            when coalesce(pg_catalog.jsonb_typeof(v_line -> 'condition_snapshot'), 'null') = 'null'
+              then null
+            else v_line ->> 'condition_snapshot'
+          end,
+          estimated_market_value = case
+            when coalesce(pg_catalog.jsonb_typeof(v_line -> 'estimated_market_value'), 'null') = 'null'
+              then null
+            else (v_line ->> 'estimated_market_value')::numeric
+          end,
+          updated_at = pg_catalog.clock_timestamp()
+      where id = v_existing_line.id
+      returning id into v_line_id;
+    else
+      insert into public.purchase_lines (
+        workspace_id, purchase_id, catalog_product_id, title_snapshot,
+        line_kind, ordered_quantity, received_quantity, unit_purchase_price,
+        line_total, allocated_additional_cost, price_mode, condition_snapshot,
+        estimated_market_value
+      ) values (
+        p_workspace_id,
+        p_purchase_id,
+        v_catalog_product_id,
+        pg_catalog.btrim(v_line ->> 'title_snapshot'),
+        v_line ->> 'line_kind',
+        (v_line ->> 'ordered_quantity')::integer,
+        0,
+        case
+          when coalesce(pg_catalog.jsonb_typeof(v_line -> 'unit_purchase_price'), 'null') = 'null'
+            then null
+          else (v_line ->> 'unit_purchase_price')::numeric
+        end,
+        case
+          when coalesce(pg_catalog.jsonb_typeof(v_line -> 'line_total'), 'null') = 'null'
+            then null
+          else (v_line ->> 'line_total')::numeric
+        end,
+        case when v_mode = 'manual'
+          then coalesce((v_line ->> 'allocated_additional_cost')::numeric, 0)
+          else 0
+        end,
+        coalesce(nullif(v_line ->> 'price_mode', ''), 'priced'),
+        case
+          when coalesce(pg_catalog.jsonb_typeof(v_line -> 'condition_snapshot'), 'null') = 'null'
+            then null
+          else v_line ->> 'condition_snapshot'
+        end,
+        case
+          when coalesce(pg_catalog.jsonb_typeof(v_line -> 'estimated_market_value'), 'null') = 'null'
+            then null
+          else (v_line ->> 'estimated_market_value')::numeric
+        end
+      ) returning id into v_line_id;
+    end if;
+
+    v_line_ids := pg_catalog.array_append(v_line_ids, v_line_id);
+    v_line_refs := pg_catalog.jsonb_set(
+      v_line_refs,
+      array[v_line_ref],
+      pg_catalog.to_jsonb(v_line_id::text),
+      true
+    );
+  end loop;
+
+  if exists (
+    select 1
+    from public.purchase_lines as line
+    where line.workspace_id = p_workspace_id
+      and line.purchase_id = p_purchase_id
+      and line.id <> all(v_line_ids)
+      and (
+        line.received_quantity > 0
+        or exists (
+          select 1 from public.inventory_items as item
+          where item.workspace_id = p_workspace_id
+            and item.purchase_line_id = line.id
+        )
+        or exists (
+          select 1 from public.stock_lots as lot
+          where lot.workspace_id = p_workspace_id
+            and lot.purchase_line_id = line.id
+        )
+      )
+  ) then
+    raise exception using
+      errcode = '22023',
+      message = 'Bereits erfasste Einkaufspositionen dürfen nicht entfernt werden.';
+  end if;
+
+  delete from public.purchase_costs as cost
+  where cost.workspace_id = p_workspace_id
+    and cost.purchase_id = p_purchase_id;
+
+  delete from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id
+    and line.id <> all(v_line_ids);
+
+  for v_expense in
+    select element.value
+    from pg_catalog.jsonb_array_elements(p_expenses) as element(value)
+  loop
+    if pg_catalog.jsonb_typeof(v_expense) <> 'object'
+      or pg_catalog.jsonb_typeof(v_expense -> 'amount') <> 'number'
+      or (v_expense ->> 'amount')::numeric <= 0
+      or pg_catalog.scale((v_expense ->> 'amount')::numeric) > 2
+      or coalesce(nullif(v_expense ->> 'allocation_method', ''), 'value_weighted')
+        not in ('direct', 'quantity', 'value_weighted') then
+      raise exception using errcode = '22023', message = 'Zusatzkosten sind ungültig.';
+    end if;
+
+    if coalesce(nullif(v_expense ->> 'allocation_method', ''), 'value_weighted') = 'direct' then
+      v_line_ref := nullif(pg_catalog.btrim(v_expense ->> 'target_purchase_line_ref'), '');
+      if v_line_ref is null or not (v_line_refs ? v_line_ref) then
+        raise exception using
+          errcode = '22023',
+          message = 'Die direkte Kostenzuordnung verweist auf keine Einkaufsposition.';
+      end if;
+      v_target_line_id := (v_line_refs ->> v_line_ref)::uuid;
+    else
+      v_target_line_id := null;
+    end if;
+
+    insert into public.purchase_costs (
+      workspace_id, purchase_id, type, amount, description,
+      allocation_method, target_purchase_line_id
+    ) values (
+      p_workspace_id,
+      p_purchase_id,
+      coalesce(nullif(pg_catalog.btrim(v_expense ->> 'type'), ''), 'other'),
+      (v_expense ->> 'amount')::numeric,
+      nullif(pg_catalog.btrim(v_expense ->> 'description'), ''),
+      coalesce(nullif(v_expense ->> 'allocation_method', ''), 'value_weighted'),
+      v_target_line_id
+    );
+  end loop;
+
+  select coalesce(pg_catalog.round(pg_catalog.sum(cost.amount) * 100), 0)::bigint
+  into v_total_expense_cents
+  from public.purchase_costs as cost
+  where cost.workspace_id = p_workspace_id
+    and cost.purchase_id = p_purchase_id;
+
+  if pg_catalog.cardinality(v_line_ids) = 0 then
+    null;
+  elsif v_mode = 'manual' then
+    select coalesce(pg_catalog.round(pg_catalog.sum(line.allocated_additional_cost) * 100), 0)::bigint
+    into v_manual_cents
+    from public.purchase_lines as line
+    where line.id = any(v_line_ids);
+    if v_manual_cents <> v_total_expense_cents then
+      raise exception using
+        errcode = '22023',
+        message = 'Die manuelle Kostenverteilung stimmt nicht mit den Zusatzkosten überein.';
+    end if;
+  elsif v_total_expense_cents > 0 then
+    with weights as (
+      select
+        line.id,
+        ids.ordinality,
+        case
+          when v_mode = 'value_weighted' and totals.value_total > 0 then line.line_total
+          else line.ordered_quantity::numeric
+        end as weight
+      from pg_catalog.unnest(v_line_ids) with ordinality as ids(id, ordinality)
+      join public.purchase_lines as line on line.id = ids.id
+      cross join (
+        select pg_catalog.sum(candidate.line_total) as value_total
+        from public.purchase_lines as candidate
+        where candidate.id = any(v_line_ids)
+      ) as totals
+    ), shares as (
+      select
+        weights.*,
+        v_total_expense_cents::numeric * weight
+          / nullif(pg_catalog.sum(weight) over (), 0) as exact_cents
+      from weights
+    ), ranked as (
+      select
+        shares.*,
+        pg_catalog.floor(exact_cents)::bigint as floor_cents,
+        pg_catalog.row_number() over (
+          order by exact_cents - pg_catalog.floor(exact_cents) desc, ordinality
+        ) as remainder_rank,
+        v_total_expense_cents
+          - pg_catalog.sum(pg_catalog.floor(exact_cents)::bigint) over () as remainder_cents
+      from shares
+    )
+    update public.purchase_lines as line
+    set allocated_additional_cost = (
+      ranked.floor_cents
+        + case when ranked.remainder_rank <= ranked.remainder_cents then 1 else 0 end
+    )::numeric / 100
+    from ranked
+    where line.id = ranked.id;
+  end if;
+
+  update public.purchases
+  set source_id = v_source_id,
+      supplier_id = v_supplier_id,
+      type = v_purchase_type,
+      title = pg_catalog.btrim(p_purchase ->> 'title'),
+      purchase_date = (p_purchase ->> 'purchase_date')::date,
+      purchase_price = (p_purchase ->> 'purchase_price')::numeric,
+      cost_allocation_mode = v_mode,
+      notes = nullif(pg_catalog.btrim(p_purchase ->> 'notes'), ''),
+      tracking_number = nullif(pg_catalog.btrim(p_purchase ->> 'tracking_number'), ''),
+      tracking_carrier = nullif(p_purchase ->> 'tracking_carrier', ''),
+      tracking_status = coalesce(nullif(p_purchase ->> 'tracking_status', ''), 'pending'),
+      original_url = nullif(p_purchase ->> 'original_url', ''),
+      updated_at = pg_catalog.clock_timestamp()
+  where workspace_id = p_workspace_id
+    and id = p_purchase_id
+  returning * into v_purchase;
+
+  return pg_catalog.jsonb_build_object(
+    'purchase', pg_catalog.to_jsonb(v_purchase),
+    'purchase_costs', coalesce((
+      select pg_catalog.jsonb_agg(pg_catalog.to_jsonb(cost) order by cost.created_at, cost.id)
+      from public.purchase_costs as cost
+      where cost.workspace_id = p_workspace_id
+        and cost.purchase_id = p_purchase_id
+    ), '[]'::jsonb),
+    'purchase_lines', coalesce((
+      select pg_catalog.jsonb_agg(pg_catalog.to_jsonb(line) order by ids.ordinality)
+      from pg_catalog.unnest(v_line_ids) with ordinality as ids(id, ordinality)
+      join public.purchase_lines as line on line.id = ids.id
+    ), '[]'::jsonb)
+  );
+end;
+$$;
+
+alter function public.update_purchase_draft(uuid, uuid, jsonb, jsonb, jsonb)
+  owner to postgres;
+
+revoke all on function public.update_purchase_draft(uuid, uuid, jsonb, jsonb, jsonb)
+  from public, anon, authenticated, service_role;
+grant execute on function public.update_purchase_draft(uuid, uuid, jsonb, jsonb, jsonb)
+  to authenticated;
 
 create or replace function public.add_purchase_lines(
   p_workspace_id uuid,
@@ -2235,6 +7005,13 @@ declare
   v_all_line_ids uuid[];
   v_total_expense_cents bigint;
   v_manual_cents bigint;
+  v_requested_unit_total numeric := 0;
+  v_requested_unit_max numeric := 0;
+  v_existing_line_count integer := 0;
+  v_existing_unit_total bigint := 0;
+  v_existing_unit_max integer := 0;
+  v_max_purchase_lines constant integer := 1000;
+  v_max_purchase_units constant integer := 100000;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -2246,6 +7023,38 @@ begin
     raise exception using errcode = '22023', message = 'Die Einkaufspositionen sind ungültig.';
   end if;
 
+  if pg_catalog.jsonb_array_length(p_lines) > v_max_purchase_lines then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ist auf 1.000 Positionen begrenzt.';
+  end if;
+
+  select
+    coalesce(pg_catalog.max(candidate.quantity), 0),
+    coalesce(pg_catalog.sum(candidate.quantity), 0)
+  into v_requested_unit_max, v_requested_unit_total
+  from (
+    select case
+      when pg_catalog.jsonb_typeof(element.value) = 'object'
+        and pg_catalog.jsonb_typeof(element.value -> 'ordered_quantity') = 'number'
+        and element.value ->> 'ordered_quantity' ~ '^[1-9][0-9]*$'
+      then (element.value ->> 'ordered_quantity')::numeric
+      else null
+    end as quantity
+    from pg_catalog.jsonb_array_elements(p_lines) as element(value)
+  ) as candidate;
+
+  if v_requested_unit_max > v_max_purchase_units
+    or v_requested_unit_total > v_max_purchase_units then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Menge ist auf 100.000 Einheiten je Position und Einkauf begrenzt.';
+  end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_purchase_id::text, 0)
+  );
+
   select * into v_purchase
   from public.purchases
   where id = p_purchase_id and workspace_id = p_workspace_id
@@ -2253,6 +7062,33 @@ begin
   if not found then
     raise exception using errcode = 'P0002', message = 'Der Einkauf wurde nicht gefunden.';
   end if;
+  if v_purchase.entry_status = 'finalized' then
+    raise exception using errcode = '22023', message = 'Finalisierte Einkäufe können nicht erweitert werden.';
+  end if;
+
+  select
+    pg_catalog.count(*)::integer,
+    coalesce(pg_catalog.sum(line.ordered_quantity), 0),
+    coalesce(pg_catalog.max(line.ordered_quantity), 0)
+  into v_existing_line_count, v_existing_unit_total, v_existing_unit_max
+  from public.purchase_lines as line
+  where line.purchase_id = p_purchase_id
+    and line.workspace_id = p_workspace_id;
+
+  if v_existing_line_count + pg_catalog.jsonb_array_length(p_lines)
+      > v_max_purchase_lines then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ist auf 1.000 Positionen begrenzt.';
+  end if;
+
+  if v_existing_unit_max > v_max_purchase_units
+    or v_existing_unit_total + v_requested_unit_total > v_max_purchase_units then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Menge ist auf 100.000 Einheiten je Position und Einkauf begrenzt.';
+  end if;
+
   if exists (
     select 1 from public.purchase_lines
     where purchase_id = p_purchase_id and workspace_id = p_workspace_id
@@ -2353,7 +7189,11 @@ begin
 end;
 $$;
 
-revoke all on function public.add_purchase_lines(uuid, uuid, jsonb) from public;
+alter function public.add_purchase_lines(uuid, uuid, jsonb)
+  owner to postgres;
+
+revoke all on function public.add_purchase_lines(uuid, uuid, jsonb)
+  from public, anon, authenticated, service_role;
 grant execute on function public.add_purchase_lines(uuid, uuid, jsonb) to authenticated;
 
 create or replace function public.receive_purchase_lines(
@@ -2376,6 +7216,11 @@ declare
   v_received_at timestamptz;
   v_purchase_line_ids uuid[] := array[]::uuid[];
   v_stock_lot_ids uuid[] := array[]::uuid[];
+  v_line_count integer := 0;
+  v_total_units bigint := 0;
+  v_max_line_units integer := 0;
+  v_max_purchase_lines constant integer := 1000;
+  v_max_purchase_units constant integer := 100000;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -2389,6 +7234,44 @@ begin
     raise exception using errcode = '22023', message = 'Die Wareneingangsdaten sind ungültig.';
   end if;
 
+  if pg_catalog.jsonb_array_length(p_lines) > v_max_purchase_lines then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ist auf 1.000 Positionen begrenzt.';
+  end if;
+
+  for v_input_line in
+    select element.value
+    from pg_catalog.jsonb_array_elements(p_lines) as element(value)
+  loop
+    if pg_catalog.jsonb_typeof(v_input_line) <> 'object'
+      or pg_catalog.jsonb_typeof(v_input_line -> 'purchase_line_id') <> 'string'
+      or pg_catalog.jsonb_typeof(v_input_line -> 'received_quantity') <> 'number'
+      or (v_input_line ->> 'received_quantity') !~ '^[1-9][0-9]*$'
+      or pg_catalog.jsonb_typeof(v_input_line -> 'received_at') <> 'string' then
+      raise exception using errcode = '22023', message = 'Eine Wareneingangsposition ist ungültig.';
+    end if;
+
+    begin
+      v_received_at := (v_input_line ->> 'received_at')::timestamptz;
+    exception
+      when others then
+        raise exception using
+          errcode = '22023',
+          message = 'Eine Wareneingangsposition ist ungültig.';
+    end;
+
+    if not pg_catalog.isfinite(v_received_at) then
+      raise exception using
+        errcode = '22023',
+        message = 'Der Empfangszeitpunkt muss ein endlicher Zeitpunkt sein.';
+    end if;
+  end loop;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_purchase_id::text, 0)
+  );
+
   select * into v_purchase
   from public.purchases
   where id = p_purchase_id
@@ -2397,6 +7280,31 @@ begin
 
   if not found then
     raise exception using errcode = 'P0002', message = 'Der Einkauf wurde nicht gefunden.';
+  end if;
+  if v_purchase.entry_status = 'finalized' then
+    raise exception using errcode = '22023', message = 'Finalisierte Einkäufe können keinen weiteren Wareneingang erhalten.';
+  end if;
+
+  select
+    pg_catalog.count(*)::integer,
+    coalesce(pg_catalog.sum(line.ordered_quantity), 0),
+    coalesce(pg_catalog.max(line.ordered_quantity), 0)
+  into v_line_count, v_total_units, v_max_line_units
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id;
+
+  if v_line_count > v_max_purchase_lines then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ist auf 1.000 Positionen begrenzt.';
+  end if;
+
+  if v_max_line_units > v_max_purchase_units
+    or v_total_units > v_max_purchase_units then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Menge ist auf 100.000 Einheiten je Position und Einkauf begrenzt.';
   end if;
 
   for v_input_line in
@@ -2457,8 +7365,7 @@ begin
       v_purchase_line.catalog_product_id,
       v_received_quantity,
       v_received_quantity,
-      (v_purchase_line.line_total + v_purchase_line.allocated_additional_cost)
-        / v_purchase_line.ordered_quantity,
+      0,
       v_received_at
     )
     returning * into v_stock_lot;
@@ -2498,7 +7405,11 @@ begin
 end;
 $$;
 
-revoke all on function public.receive_purchase_lines(uuid, uuid, jsonb) from public;
+alter function public.receive_purchase_lines(uuid, uuid, jsonb)
+  owner to postgres;
+
+revoke all on function public.receive_purchase_lines(uuid, uuid, jsonb)
+  from public, anon, authenticated, service_role;
 grant execute on function public.receive_purchase_lines(uuid, uuid, jsonb) to authenticated;
 
 create or replace function public.receive_individual_purchase_line(
@@ -2518,6 +7429,11 @@ declare
   v_inventory_item public.inventory_items;
   v_title text;
   v_condition text;
+  v_line_count integer := 0;
+  v_total_units bigint := 0;
+  v_max_line_units integer := 0;
+  v_max_purchase_lines constant integer := 1000;
+  v_max_purchase_units constant integer := 100000;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -2528,16 +7444,18 @@ begin
     or p_purchase_id is null
     or p_purchase_line_id is null
     or jsonb_typeof(p_item) <> 'object'
-    or jsonb_typeof(p_item -> 'title') <> 'string'
-    or jsonb_typeof(p_item -> 'condition') <> 'string' then
+    or jsonb_typeof(p_item -> 'title') <> 'string' then
     raise exception using errcode = '22023', message = 'Die Einzelartikel-Wareneingangsdaten sind ungültig.';
   end if;
 
   v_title := btrim(p_item ->> 'title');
-  v_condition := p_item ->> 'condition';
-  if v_title = '' or v_condition not in ('new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective') then
+  if v_title = '' then
     raise exception using errcode = '22023', message = 'Die Einzelartikel-Wareneingangsdaten sind ungültig.';
   end if;
+
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(p_purchase_id::text, 0)
+  );
 
   select * into v_purchase
   from public.purchases
@@ -2546,6 +7464,31 @@ begin
   if not found then
     raise exception using errcode = 'P0002', message = 'Der Einkauf wurde nicht gefunden.';
   end if;
+  if v_purchase.entry_status = 'finalized' then
+    raise exception using errcode = '22023', message = 'Finalisierte Einkäufe können keinen weiteren Wareneingang erhalten.';
+  end if;
+
+  select
+    pg_catalog.count(*)::integer,
+    coalesce(pg_catalog.sum(line.ordered_quantity), 0),
+    coalesce(pg_catalog.max(line.ordered_quantity), 0)
+  into v_line_count, v_total_units, v_max_line_units
+  from public.purchase_lines as line
+  where line.workspace_id = p_workspace_id
+    and line.purchase_id = p_purchase_id;
+
+  if v_line_count > v_max_purchase_lines then
+    raise exception using
+      errcode = '22023',
+      message = 'Ein Einkauf ist auf 1.000 Positionen begrenzt.';
+  end if;
+
+  if v_max_line_units > v_max_purchase_units
+    or v_total_units > v_max_purchase_units then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Menge ist auf 100.000 Einheiten je Position und Einkauf begrenzt.';
+  end if;
 
   select * into v_purchase_line
   from public.purchase_lines
@@ -2553,20 +7496,38 @@ begin
     and workspace_id = p_workspace_id
     and purchase_id = p_purchase_id
   for update;
-  if not found or v_purchase_line.line_kind <> 'individual' or v_purchase_line.received_quantity <> 0 then
+  if not found
+    or v_purchase_line.line_kind <> 'individual'
+    or v_purchase_line.received_quantity >= v_purchase_line.ordered_quantity then
     raise exception using errcode = '22023', message = 'Die Einzelartikelposition ist nicht offen.';
   end if;
 
+  v_condition := case
+    when v_purchase_line.condition_snapshot in (
+      'new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective'
+    ) then v_purchase_line.condition_snapshot
+    else 'used'
+  end;
+
   insert into public.inventory_items (
-    workspace_id, purchase_id, purchase_line_id, title, condition, status, allocated_purchase_cost
+    workspace_id, purchase_id, purchase_line_id, title, condition, status,
+    allocated_purchase_cost, expected_value
   ) values (
-    p_workspace_id, p_purchase_id, p_purchase_line_id, v_title, v_condition, 'received', v_purchase_line.line_total
+    p_workspace_id, p_purchase_id, p_purchase_line_id, v_title, v_condition, 'received',
+    0, v_purchase_line.estimated_market_value
   ) returning * into v_inventory_item;
 
   update public.purchase_lines
-  set received_quantity = 1, updated_at = now()
-  where id = p_purchase_line_id and workspace_id = p_workspace_id
+  set received_quantity = received_quantity + 1, updated_at = now()
+  where id = p_purchase_line_id
+    and workspace_id = p_workspace_id
+    and purchase_id = p_purchase_id
+    and received_quantity < ordered_quantity
   returning * into v_purchase_line;
+
+  if not found then
+    raise exception using errcode = '22023', message = 'Die Einzelartikelposition ist nicht offen.';
+  end if;
 
   v_purchase := public.refresh_purchase_receiving_status(p_workspace_id, p_purchase_id);
   return jsonb_build_object(
@@ -2577,7 +7538,11 @@ begin
 end;
 $$;
 
-revoke all on function public.receive_individual_purchase_line(uuid, uuid, uuid, jsonb) from public;
+alter function public.receive_individual_purchase_line(uuid, uuid, uuid, jsonb)
+  owner to postgres;
+
+revoke all on function public.receive_individual_purchase_line(uuid, uuid, uuid, jsonb)
+  from public, anon, authenticated, service_role;
 grant execute on function public.receive_individual_purchase_line(uuid, uuid, uuid, jsonb) to authenticated;
 
 create or replace function public.protect_inventory_item_sold_status()
@@ -2910,6 +7875,7 @@ begin
     or nullif(trim(p_sale ->> 'platform'), '') is null
     or (p_sale ->> 'sale_date') !~ '^\d{4}-\d{2}-\d{2}$'
     or jsonb_typeof(p_sale -> 'unit_sale_price') <> 'number'
+    or (p_sale ->> 'unit_sale_price') !~ '^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$'
     or (p_sale ->> 'unit_sale_price')::numeric <= 0 then
     raise exception using errcode = '22023', message = 'Die Verkaufsdaten sind ungueltig.';
   end if;
@@ -3100,6 +8066,9 @@ declare
   v_catalog_product_id uuid;
   v_inventory_item_id uuid;
   v_header_inventory_item_id uuid;
+  v_source_purchase_id uuid;
+  v_source_purchase_status text;
+  v_locked_purchase_ids uuid[] := array[]::uuid[];
   v_quantity integer;
   v_unit_sale_price numeric(12, 2);
   v_line_total numeric(12, 2);
@@ -3108,6 +8077,13 @@ declare
   v_allocated_quantity integer;
   v_allocation_cost numeric(12,2);
   v_previously_allocated_cost numeric(12,2);
+  v_lot_total_cost numeric(12,2);
+  v_remaining_lot_cost numeric(12,2);
+  v_remaining_cost_cents bigint;
+  v_previously_active_quantity integer;
+  v_consumption_sequence bigint;
+  v_ambiguous_active_cost_count integer;
+  v_invalid_restocked_quantity_count integer;
   v_sale_total numeric(12, 2) := 0;
   v_shipping_revenue numeric(12,2) := 0;
   v_shipping_mode text;
@@ -3119,6 +8095,7 @@ declare
   v_sale_line_ids uuid[] := array[]::uuid[];
   v_stock_lot_ids uuid[] := array[]::uuid[];
   v_sale_state text;
+  v_business_event_id uuid;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -3216,6 +8193,7 @@ begin
       or jsonb_typeof(v_input_line -> 'quantity') <> 'number'
       or (v_input_line ->> 'quantity') !~ '^[1-9][0-9]*$'
       or jsonb_typeof(v_input_line -> 'unit_sale_price') <> 'number'
+      or (v_input_line ->> 'unit_sale_price') !~ '^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$'
       or (v_input_line ->> 'unit_sale_price')::numeric <= 0
       or num_nonnulls(
         nullif(trim(v_input_line ->> 'catalog_product_id'), ''),
@@ -3233,8 +8211,87 @@ begin
     end if;
   end loop;
 
-  -- Resolve unique UUIDs first and lock them in one stable order. This avoids
-  -- client-controlled lock ordering for multi-item sales.
+  -- Lock every currently relevant source purchase before any item or lot.
+  -- Reopen/correction use the same purchase-first order, and UUID sorting
+  -- prevents client-controlled deadlocks across mixed multi-line sales.
+  select coalesce(
+    pg_catalog.array_agg(source.purchase_id order by source.purchase_id),
+    array[]::uuid[]
+  )
+  into v_locked_purchase_ids
+  from (
+    select coalesce(item.purchase_id, linked_line.purchase_id) as purchase_id
+    from pg_catalog.jsonb_array_elements(p_lines) as element(value)
+    join public.inventory_items as item
+      on item.workspace_id = p_workspace_id
+      and item.id = (element.value ->> 'inventory_item_id')::uuid
+    left join public.purchase_lines as linked_line
+      on linked_line.workspace_id = item.workspace_id
+      and linked_line.id = item.purchase_line_id
+    where nullif(pg_catalog.btrim(element.value ->> 'inventory_item_id'), '') is not null
+
+    union
+
+    select lot.purchase_id
+    from pg_catalog.jsonb_array_elements(p_lines) as element(value)
+    join public.stock_lots as lot
+      on lot.workspace_id = p_workspace_id
+      and lot.catalog_product_id = (element.value ->> 'catalog_product_id')::uuid
+      and lot.remaining_quantity > 0
+    where nullif(pg_catalog.btrim(element.value ->> 'catalog_product_id'), '') is not null
+  ) as source
+  where source.purchase_id is not null;
+
+  if pg_catalog.cardinality(v_locked_purchase_ids) > 0 then
+    for v_purchase_position in 1..pg_catalog.cardinality(v_locked_purchase_ids) loop
+      perform purchase.id
+      from public.purchases as purchase
+      where purchase.workspace_id = p_workspace_id
+        and purchase.id = v_locked_purchase_ids[v_purchase_position]
+      for update;
+    end loop;
+  end if;
+
+  -- A draft lot can exist while goods are being received, but it must never
+  -- close an availability gap for a sale. Keep finalized inventory sellable
+  -- even when another draft of the same product exists.
+  for v_input_line in
+    select element.value
+    from pg_catalog.jsonb_array_elements(p_lines) as element(value)
+    where nullif(pg_catalog.btrim(element.value ->> 'catalog_product_id'), '') is not null
+  loop
+    v_catalog_product_id := (v_input_line ->> 'catalog_product_id')::uuid;
+    v_quantity := (v_input_line ->> 'quantity')::integer;
+
+    if coalesce((
+      select pg_catalog.sum(lot.remaining_quantity)
+      from public.stock_lots as lot
+      join public.purchases as purchase
+        on purchase.workspace_id = lot.workspace_id
+        and purchase.id = lot.purchase_id
+      where lot.workspace_id = p_workspace_id
+        and lot.catalog_product_id = v_catalog_product_id
+        and lot.remaining_quantity > 0
+        and purchase.entry_status = 'finalized'
+    ), 0) < v_quantity
+      and exists (
+        select 1
+        from public.stock_lots as lot
+        join public.purchases as purchase
+          on purchase.workspace_id = lot.workspace_id
+          and purchase.id = lot.purchase_id
+        where lot.workspace_id = p_workspace_id
+          and lot.catalog_product_id = v_catalog_product_id
+          and lot.remaining_quantity > 0
+          and purchase.entry_status is distinct from 'finalized'
+      ) then
+      raise exception using
+        errcode = '22023',
+        message = 'Bestand aus nicht finalisierten Einkäufen ist nicht verkaufbar.';
+    end if;
+  end loop;
+
+  -- Resolve unique UUIDs first and lock the items in one stable order.
   for v_inventory_item_id in
     select candidate.inventory_item_id
     from (
@@ -3252,6 +8309,35 @@ begin
 
     if not found then
       raise exception using errcode = 'P0002', message = 'Der Einzelartikel wurde nicht gefunden.';
+    end if;
+
+    v_source_purchase_id := v_inventory_item.purchase_id;
+    if v_source_purchase_id is null and v_inventory_item.purchase_line_id is not null then
+      select line.purchase_id
+      into v_source_purchase_id
+      from public.purchase_lines as line
+      where line.workspace_id = p_workspace_id
+        and line.id = v_inventory_item.purchase_line_id;
+    end if;
+
+    if v_source_purchase_id is not null then
+      if not (v_source_purchase_id = any(v_locked_purchase_ids)) then
+        raise exception using
+          errcode = '40001',
+          message = 'Die Einkaufszuordnung des Einzelartikels wurde parallel geändert.';
+      end if;
+
+      select purchase.entry_status
+      into v_source_purchase_status
+      from public.purchases as purchase
+      where purchase.workspace_id = p_workspace_id
+        and purchase.id = v_source_purchase_id;
+
+      if v_source_purchase_status is distinct from 'finalized' then
+        raise exception using
+          errcode = '22023',
+          message = 'Bestand aus nicht finalisierten Einkäufen ist nicht verkaufbar.';
+      end if;
     end if;
 
     select sale_state into v_sale_state
@@ -3285,7 +8371,8 @@ begin
     shipping_mode,
     external_order_id,
     external_listing_id,
-    buyer_notes
+    buyer_notes,
+    created_at
   ) values (
     p_workspace_id,
     v_header_inventory_item_id,
@@ -3301,7 +8388,8 @@ begin
     v_shipping_mode,
     nullif(trim(p_sale ->> 'external_order_id'), ''),
     nullif(trim(p_sale ->> 'external_listing_id'), ''),
-    nullif(trim(p_sale ->> 'buyer_notes'), '')
+    nullif(trim(p_sale ->> 'buyer_notes'), ''),
+    pg_catalog.clock_timestamp()
   )
   returning * into v_sale;
 
@@ -3325,6 +8413,7 @@ begin
       or jsonb_typeof(v_input_line -> 'quantity') <> 'number'
       or (v_input_line ->> 'quantity') !~ '^[1-9][0-9]*$'
       or jsonb_typeof(v_input_line -> 'unit_sale_price') <> 'number'
+      or (v_input_line ->> 'unit_sale_price') !~ '^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$'
       or (v_input_line ->> 'unit_sale_price')::numeric <= 0
       or num_nonnulls(
         nullif(v_input_line ->> 'catalog_product_id', ''),
@@ -3375,34 +8464,128 @@ begin
 
       v_remaining_quantity := v_quantity;
       for v_stock_lot in
-        select *
-        from public.stock_lots
-        where workspace_id = p_workspace_id
-          and catalog_product_id = v_catalog_product.id
-          and remaining_quantity > 0
-        order by received_at, id
-        for update
+        select lot.*
+        from public.stock_lots as lot
+        join public.purchases as purchase
+          on purchase.workspace_id = lot.workspace_id
+          and purchase.id = lot.purchase_id
+        where lot.workspace_id = p_workspace_id
+          and lot.catalog_product_id = v_catalog_product.id
+          and lot.remaining_quantity > 0
+          and purchase.id = any(v_locked_purchase_ids)
+          and purchase.entry_status = 'finalized'
+        order by lot.received_at, lot.id
+        for update of lot
       loop
         exit when v_remaining_quantity = 0;
 
         v_allocated_quantity := least(v_remaining_quantity, v_stock_lot.remaining_quantity);
 
-        select coalesce(sum(allocation.allocated_cost), 0)
-        into v_previously_allocated_cost
+        select
+          coalesce(pg_catalog.sum(coalesce(
+            allocation.active_allocated_cost,
+            case
+              when movement_state.restocked_quantity = allocation.quantity then 0
+              when movement_state.restocked_quantity = 0 then allocation.allocated_cost
+              else null
+            end
+          )), 0),
+          pg_catalog.count(*) filter (
+            where allocation.active_allocated_cost is null
+              and movement_state.restocked_quantity not in (0, allocation.quantity)
+          )::integer,
+          coalesce(pg_catalog.sum(
+            allocation.quantity - movement_state.restocked_quantity
+          ), 0)::integer,
+          pg_catalog.count(*) filter (
+            where movement_state.restocked_quantity < 0
+              or movement_state.restocked_quantity > allocation.quantity
+          )::integer
+        into
+          v_previously_allocated_cost,
+          v_ambiguous_active_cost_count,
+          v_previously_active_quantity,
+          v_invalid_restocked_quantity_count
         from public.sale_line_lot_allocations as allocation
+        left join lateral (
+          select coalesce(pg_catalog.sum(
+            case
+              when movement.direction = 'in' and movement.reason = 'return'
+                then movement.quantity
+              when movement.direction = 'out' and movement.reason = 'damage'
+                then -movement.quantity
+              else 0
+            end
+          ), 0)::integer as restocked_quantity
+          from public.stock_movements as movement
+          where movement.workspace_id = allocation.workspace_id
+            and movement.stock_lot_id = allocation.stock_lot_id
+            and movement.sale_line_id = allocation.sale_line_id
+        ) as movement_state on true
         where allocation.stock_lot_id = v_stock_lot.id;
 
-        v_allocation_cost := case
-          when v_allocated_quantity = v_stock_lot.remaining_quantity then
-            round(v_stock_lot.unit_cost * v_stock_lot.received_quantity, 2)
-              - v_previously_allocated_cost
-          else round(v_allocated_quantity * v_stock_lot.unit_cost, 2)
-        end;
+        if v_ambiguous_active_cost_count <> 0 then
+          raise exception using
+            errcode = '22023',
+            message = 'Die aktiven Kosten einer historischen Teilretoure müssen vor dem Verkauf geprüft werden.';
+        end if;
+
+        if v_invalid_restocked_quantity_count <> 0
+          or v_stock_lot.remaining_quantity + v_previously_active_quantity
+            <> v_stock_lot.received_quantity then
+          raise exception using
+            errcode = '22023',
+            message = 'Die aktiven Mengen eines historischen Loses müssen vor dem Verkauf geprüft werden.';
+        end if;
+
+        if v_stock_lot.unit_cost::text in ('NaN', 'Infinity', '-Infinity') then
+          raise exception using
+            errcode = '22023',
+            message = 'Die aktiven Kosten eines historischen Loses müssen vor dem Verkauf geprüft werden.';
+        end if;
+
+        -- A purchase-backed lot owns one exact cent pool. Repeated partial
+        -- sales consume the leading deterministic cents from the currently
+        -- remaining pool instead of rounding the average unit cost anew.
+        v_lot_total_cost := pg_catalog.round(
+          v_stock_lot.unit_cost * v_stock_lot.received_quantity,
+          2
+        );
+        v_remaining_lot_cost := v_lot_total_cost - v_previously_allocated_cost;
+
+        if v_remaining_lot_cost < 0
+          or v_remaining_lot_cost <> pg_catalog.round(v_remaining_lot_cost, 2) then
+          raise exception using
+            errcode = '22023',
+            message = 'Die aktiven Kosten eines historischen Loses müssen vor dem Verkauf geprüft werden.';
+        end if;
+
+        v_remaining_cost_cents := pg_catalog.round(v_remaining_lot_cost * 100)::bigint;
+        v_allocation_cost := (
+          v_allocated_quantity::bigint
+            * (v_remaining_cost_cents / v_stock_lot.remaining_quantity::bigint)
+          + least(
+              v_allocated_quantity::bigint,
+              pg_catalog.mod(
+                v_remaining_cost_cents,
+                v_stock_lot.remaining_quantity::bigint
+              )
+            )
+        )::numeric / 100;
 
         update public.stock_lots
         set remaining_quantity = remaining_quantity - v_allocated_quantity
         where id = v_stock_lot.id
           and workspace_id = p_workspace_id;
+
+        select greatest(
+          coalesce(pg_catalog.max(allocation.consumption_sequence), 0),
+          pg_catalog.count(*)
+        ) + 1
+        into v_consumption_sequence
+        from public.sale_line_lot_allocations as allocation
+        where allocation.workspace_id = p_workspace_id
+          and allocation.stock_lot_id = v_stock_lot.id;
 
         insert into public.sale_line_lot_allocations (
           workspace_id,
@@ -3410,13 +8593,17 @@ begin
           stock_lot_id,
           quantity,
           unit_cost,
-          allocated_cost
+          allocated_cost,
+          consumption_sequence,
+          active_allocated_cost
         ) values (
           p_workspace_id,
           v_sale_line.id,
           v_stock_lot.id,
           v_allocated_quantity,
           v_stock_lot.unit_cost,
+          v_allocation_cost,
+          v_consumption_sequence,
           v_allocation_cost
         );
 
@@ -3529,8 +8716,63 @@ begin
     and workspace_id = p_workspace_id
   returning * into v_sale;
 
+  insert into public.business_events (
+    workspace_id,
+    entity_type,
+    entity_id,
+    event_type,
+    actor_id,
+    changes
+  ) values (
+    p_workspace_id,
+    'sale',
+    v_sale.id,
+    'sale_recorded',
+    (select auth.uid()),
+    pg_catalog.jsonb_build_object(
+      'financials', pg_catalog.jsonb_build_object(
+        'before', null,
+        'after', pg_catalog.jsonb_build_object(
+          'item_revenue', v_sale_total,
+          'buyer_shipping_revenue', v_shipping_revenue,
+          'total_revenue', v_sale.sale_price_total,
+          'cost_of_goods_sold', (
+            select coalesce(pg_catalog.sum(sale_line.cost_of_goods_sold), 0)
+            from public.sale_lines as sale_line
+            where sale_line.workspace_id = p_workspace_id
+              and sale_line.sale_id = v_sale.id
+          ),
+          'platform_fee', v_sale.platform_fee,
+          'seller_shipping_cost', v_sale.shipping_cost,
+          'additional_costs', coalesce((
+            select pg_catalog.jsonb_agg(
+              pg_catalog.jsonb_build_object(
+                'category', cost_entry.category,
+                'description', cost_entry.description,
+                'amount', cost_entry.amount
+              ) order by cost_entry.id
+            )
+            from public.sale_cost_entries as cost_entry
+            where cost_entry.workspace_id = p_workspace_id
+              and cost_entry.sale_id = v_sale.id
+          ), '[]'::jsonb)
+        )
+      ),
+      'sale', pg_catalog.jsonb_build_object(
+        'before', null,
+        'after', pg_catalog.jsonb_build_object(
+          'platform', v_sale.platform,
+          'sale_date', v_sale.sale_date,
+          'shipping_mode', v_sale.shipping_mode
+        )
+      )
+    )
+  )
+  returning id into v_business_event_id;
+
   return jsonb_build_object(
     'sale', to_jsonb(v_sale),
+    'business_event_id', v_business_event_id,
     'cost_entries', coalesce((
       select jsonb_agg(to_jsonb(cost_entry) order by cost_entry.id)
       from public.sale_cost_entries as cost_entry
@@ -3593,10 +8835,19 @@ declare
   v_movement_id uuid;
   v_return public.returns;
   v_return_inventory_item_id uuid;
+  v_source_purchase_id uuid;
+  v_locked_purchase_ids uuid[] := array[]::uuid[];
+  v_fresh_purchase_ids uuid[] := array[]::uuid[];
   v_restocked_quantity integer := 0;
   v_sale_total numeric;
+  v_current_refund numeric;
+  v_remaining_refundable numeric;
   v_total_refund numeric;
   v_is_full_refund boolean;
+  v_previous_returned_at timestamptz;
+  v_correlation_id uuid := gen_random_uuid();
+  v_sale_event_id uuid;
+  v_return_event_id uuid;
 begin
   if (select auth.uid()) is null
     or not (select public.is_workspace_member(p_workspace_id)) then
@@ -3606,13 +8857,80 @@ begin
   if p_workspace_id is null
     or p_sale_id is null
     or p_refund_amount is null
-    or p_refund_amount < 0
     or p_restock is null
     or nullif(trim(p_reason), '') is null
     or p_restock_action is null
     or p_restock_action not in ('restock_ready', 'restock_repair', 'write_off', 'keep_with_buyer') then
     raise exception using errcode = '22023', message = 'Die Retourendaten sind ungültig.';
   end if;
+
+  if p_refund_amount::text in ('NaN', 'Infinity', '-Infinity')
+    or p_refund_amount < 0
+    or pg_catalog.scale(p_refund_amount) > 2 then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Erstattungsbetrag muss centgenau und nicht negativ sein.';
+  end if;
+
+  if (p_restock and p_restock_action not in ('restock_ready', 'restock_repair'))
+    or (not p_restock and p_restock_action not in ('write_off', 'keep_with_buyer')) then
+    raise exception using
+      errcode = '22023',
+      message = 'Wiedereinlagerung und Retourenaktion widersprechen sich.';
+  end if;
+
+  -- Cost correction and reopen serialize on purchase before touching lots or
+  -- sales. Resolve the immutable sale sources first and take the same sorted
+  -- advisory/row-lock prefix so neither path can hold sale while waiting lot.
+  select coalesce(
+    pg_catalog.array_agg(source.purchase_id order by source.purchase_id),
+    array[]::uuid[]
+  )
+  into v_locked_purchase_ids
+  from (
+    select lot.purchase_id
+    from public.sale_lines as sale_line
+    join public.sale_line_lot_allocations as allocation
+      on allocation.workspace_id = sale_line.workspace_id
+      and allocation.sale_line_id = sale_line.id
+    join public.stock_lots as lot
+      on lot.workspace_id = allocation.workspace_id
+      and lot.id = allocation.stock_lot_id
+    where sale_line.workspace_id = p_workspace_id
+      and sale_line.sale_id = p_sale_id
+
+    union
+
+    select coalesce(item.purchase_id, purchase_line.purchase_id) as purchase_id
+    from public.sale_lines as sale_line
+    join public.inventory_items as item
+      on item.workspace_id = sale_line.workspace_id
+      and item.id = sale_line.inventory_item_id
+    left join public.purchase_lines as purchase_line
+      on purchase_line.workspace_id = item.workspace_id
+      and purchase_line.id = item.purchase_line_id
+    where sale_line.workspace_id = p_workspace_id
+      and sale_line.sale_id = p_sale_id
+  ) as source
+  where source.purchase_id is not null;
+
+  foreach v_source_purchase_id in array v_locked_purchase_ids loop
+    perform pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended(v_source_purchase_id::text, 0)
+    );
+
+    perform purchase.id
+    from public.purchases as purchase
+    where purchase.workspace_id = p_workspace_id
+      and purchase.id = v_source_purchase_id
+    for update;
+
+    if not found then
+      raise exception using
+        errcode = '40001',
+        message = 'Die Einkaufszuordnung der Retoure wurde parallel geändert.';
+    end if;
+  end loop;
 
   select * into v_sale
   from public.sales
@@ -3622,6 +8940,44 @@ begin
 
   if not found then
     raise exception using errcode = 'P0002', message = 'Der Verkauf wurde nicht gefunden.';
+  end if;
+
+  select coalesce(
+    pg_catalog.array_agg(source.purchase_id order by source.purchase_id),
+    array[]::uuid[]
+  )
+  into v_fresh_purchase_ids
+  from (
+    select lot.purchase_id
+    from public.sale_lines as sale_line
+    join public.sale_line_lot_allocations as allocation
+      on allocation.workspace_id = sale_line.workspace_id
+      and allocation.sale_line_id = sale_line.id
+    join public.stock_lots as lot
+      on lot.workspace_id = allocation.workspace_id
+      and lot.id = allocation.stock_lot_id
+    where sale_line.workspace_id = p_workspace_id
+      and sale_line.sale_id = p_sale_id
+
+    union
+
+    select coalesce(item.purchase_id, purchase_line.purchase_id) as purchase_id
+    from public.sale_lines as sale_line
+    join public.inventory_items as item
+      on item.workspace_id = sale_line.workspace_id
+      and item.id = sale_line.inventory_item_id
+    left join public.purchase_lines as purchase_line
+      on purchase_line.workspace_id = item.workspace_id
+      and purchase_line.id = item.purchase_line_id
+    where sale_line.workspace_id = p_workspace_id
+      and sale_line.sale_id = p_sale_id
+  ) as source
+  where source.purchase_id is not null;
+
+  if v_fresh_purchase_ids is distinct from v_locked_purchase_ids then
+    raise exception using
+      errcode = '40001',
+      message = 'Die Einkaufszuordnung der Retoure wurde parallel geändert.';
   end if;
 
   if v_sale.returned_at is not null then
@@ -3635,8 +8991,28 @@ begin
   end if;
 
   v_sale_total := coalesce(v_sale.sale_price_total, v_sale.sale_price, 0);
-  v_total_refund := least(v_sale_total, coalesce(v_sale.refund_amount, 0) + p_refund_amount);
-  v_is_full_refund := v_total_refund >= v_sale_total;
+  v_current_refund := coalesce(v_sale.refund_amount, 0);
+  v_previous_returned_at := v_sale.returned_at;
+
+  if v_sale_total::text in ('NaN', 'Infinity', '-Infinity')
+    or v_current_refund::text in ('NaN', 'Infinity', '-Infinity')
+    or v_sale_total < 0
+    or v_current_refund < 0
+    or v_current_refund > v_sale_total then
+    raise exception using
+      errcode = '22023',
+      message = 'Der bisherige Erstattungsstand muss vor der Retoure geprüft werden.';
+  end if;
+
+  v_remaining_refundable := v_sale_total - v_current_refund;
+  if p_refund_amount > v_remaining_refundable then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Erstattungsbetrag überschreitet den noch offenen Verkaufsbetrag.';
+  end if;
+
+  v_total_refund := v_current_refund + p_refund_amount;
+  v_is_full_refund := v_total_refund = v_sale_total;
 
   if v_is_full_refund then
     select sale_line.inventory_item_id into v_return_inventory_item_id
@@ -3677,6 +9053,14 @@ begin
             and workspace_id = p_workspace_id;
           v_restocked_quantity := v_restocked_quantity + v_allocation.quantity;
         end if;
+
+        update public.sale_line_lot_allocations
+        set active_allocated_cost = case
+          when p_restock then 0
+          else allocated_cost
+        end
+        where workspace_id = p_workspace_id
+          and id = v_allocation.id;
 
         insert into public.stock_movements (
           workspace_id,
@@ -3778,9 +9162,67 @@ begin
   )
   returning * into v_return;
 
+  insert into public.business_events (
+    workspace_id,
+    entity_type,
+    entity_id,
+    event_type,
+    actor_id,
+    reason,
+    changes,
+    correlation_id
+  ) values (
+    p_workspace_id,
+    'sale',
+    v_sale.id,
+    'sale_refund_updated',
+    (select auth.uid()),
+    p_reason,
+    pg_catalog.jsonb_build_object(
+      'refund_amount', pg_catalog.jsonb_build_object(
+        'before', v_current_refund,
+        'after', v_total_refund
+      ),
+      'returned_at', pg_catalog.jsonb_build_object(
+        'before', v_previous_returned_at,
+        'after', v_sale.returned_at
+      )
+    ),
+    v_correlation_id
+  )
+  returning id into v_sale_event_id;
+
+  insert into public.business_events (
+    workspace_id,
+    entity_type,
+    entity_id,
+    event_type,
+    actor_id,
+    reason,
+    changes,
+    correlation_id
+  ) values (
+    p_workspace_id,
+    'return',
+    v_return.id,
+    'sale_return_recorded',
+    (select auth.uid()),
+    p_reason,
+    pg_catalog.jsonb_build_object(
+      'sale_id', pg_catalog.jsonb_build_object('before', null, 'after', v_sale.id),
+      'refund_amount', pg_catalog.jsonb_build_object('before', null, 'after', p_refund_amount),
+      'is_full_refund', pg_catalog.jsonb_build_object('before', null, 'after', v_is_full_refund),
+      'restock_action', pg_catalog.jsonb_build_object('before', null, 'after', p_restock_action),
+      'restocked_quantity', pg_catalog.jsonb_build_object('before', null, 'after', v_restocked_quantity)
+    ),
+    v_correlation_id
+  )
+  returning id into v_return_event_id;
+
   return jsonb_build_object(
     'sale', to_jsonb(v_sale),
     'return', to_jsonb(v_return),
+    'business_event_ids', jsonb_build_array(v_sale_event_id, v_return_event_id),
     'sale_lines', coalesce((
       select jsonb_agg(to_jsonb(sale_line) order by sale_line.id)
       from public.sale_lines as sale_line
@@ -4484,6 +9926,543 @@ comment on function public.create_or_get_invoice(uuid, uuid, uuid, jsonb, jsonb)
   'Erstellt Rechnung und Positionen atomar oder liefert den vorhandenen Beleg derselben Quelle.';
 
 -- ------------------------------------------------------------------------------
+-- KONTROLLIERTE PRUEFUNG UND REPARATUR HISTORISCHER EINKAUFSKOSTEN
+-- ------------------------------------------------------------------------------
+
+create or replace function public.preview_purchase_costing_legacy(
+  p_workspace_id uuid
+)
+returns table (
+  purchase_id uuid,
+  classification text,
+  reason text,
+  item_count bigint,
+  line_count bigint
+)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor_id uuid := (select auth.uid());
+  v_privileged boolean := false;
+begin
+  if v_actor_id is null or p_workspace_id is null then
+    raise exception using
+      errcode = '42501',
+      message = 'Keine Berechtigung für die Altdatenprüfung.';
+  end if;
+
+  select member.role in ('owner', 'admin', 'accountant')
+  into v_privileged
+  from public.workspace_members as member
+  where member.workspace_id = p_workspace_id
+    and member.user_id = v_actor_id;
+
+  if not found or not v_privileged then
+    raise exception using
+      errcode = '42501',
+      message = 'Keine Berechtigung für die Altdatenprüfung.';
+  end if;
+
+  return query
+  with candidates as (
+    select
+      purchase.id,
+      purchase.type,
+      purchase.purchase_price,
+      coalesce(item_totals.item_count, 0) as item_count,
+      coalesce(line_totals.line_count, 0) as line_count,
+      coalesce(line_totals.unit_count, 0) as unit_count,
+      coalesce(line_totals.max_line_quantity, 0) as max_line_quantity,
+      coalesce(lot_totals.lot_count, 0) as lot_count,
+      coalesce(lot_totals.invalid_timestamp_count, 0) as invalid_timestamp_count,
+      coalesce(lot_totals.ambiguous_allocation_count, 0) as ambiguous_allocation_count,
+      coalesce(item_totals.linked_line_count, 0) as linked_line_count,
+      coalesce(item_totals.sale_conflict_count, 0) as sale_conflict_count,
+      coalesce(item_totals.sale_line_count, 0) as sale_line_count,
+      coalesce(item_totals.unsupported_finalize_status_count, 0) as unsupported_finalize_status_count,
+      coalesce(cost_totals.invalid_cost_count, 0) as invalid_cost_count
+    from public.purchases as purchase
+    left join lateral (
+      select
+        pg_catalog.count(*) as item_count,
+        pg_catalog.count(*) filter (where item.purchase_line_id is not null) as linked_line_count,
+        pg_catalog.count(*) filter (
+          where item.status not in ('received', 'needs_review', 'researched', 'ready')
+        ) as unsupported_finalize_status_count,
+        (
+          select pg_catalog.count(*)
+          from public.sale_lines as sale_line
+          join public.inventory_items as sold_item
+            on sold_item.workspace_id = sale_line.workspace_id
+            and sold_item.id = sale_line.inventory_item_id
+          where sold_item.workspace_id = purchase.workspace_id
+            and sold_item.purchase_id = purchase.id
+        ) as sale_line_count,
+        pg_catalog.count(*) filter (
+          where (
+            item.status = 'sold'
+            and (
+              select pg_catalog.count(*)
+              from public.sale_lines as sale_line
+              join public.sales as sale
+                on sale.workspace_id = sale_line.workspace_id
+                and sale.id = sale_line.sale_id
+              where sale_line.workspace_id = item.workspace_id
+                and sale_line.inventory_item_id = item.id
+                and sale.voided_at is null
+                and sale.returned_at is null
+            ) <> 1
+          ) or (
+            item.status <> 'sold'
+            and exists (
+              select 1
+              from public.sale_lines as sale_line
+              join public.sales as sale
+                on sale.workspace_id = sale_line.workspace_id
+                and sale.id = sale_line.sale_id
+              where sale_line.workspace_id = item.workspace_id
+                and sale_line.inventory_item_id = item.id
+                and sale.voided_at is null
+                and sale.returned_at is null
+            )
+          )
+        ) as sale_conflict_count
+      from public.inventory_items as item
+      where item.workspace_id = purchase.workspace_id
+        and item.purchase_id = purchase.id
+    ) as item_totals on true
+    left join lateral (
+      select
+        pg_catalog.count(*) as line_count,
+        coalesce(pg_catalog.sum(line.ordered_quantity), 0) as unit_count,
+        coalesce(pg_catalog.max(line.ordered_quantity), 0) as max_line_quantity
+      from public.purchase_lines as line
+      where line.workspace_id = purchase.workspace_id
+        and line.purchase_id = purchase.id
+    ) as line_totals on true
+    left join lateral (
+      select
+        pg_catalog.count(*) as lot_count,
+        pg_catalog.count(*) filter (
+          where not pg_catalog.isfinite(lot.received_at)
+        ) as invalid_timestamp_count,
+        (
+          select pg_catalog.count(*)
+          from public.sale_line_lot_allocations as allocation
+          join public.stock_lots as allocation_lot
+            on allocation_lot.workspace_id = allocation.workspace_id
+            and allocation_lot.id = allocation.stock_lot_id
+          where allocation.workspace_id = purchase.workspace_id
+            and allocation_lot.purchase_id = purchase.id
+            and (
+              allocation.consumption_sequence is null
+              or allocation.active_allocated_cost is null
+              or exists (
+                select 1
+                from public.sale_line_lot_allocations as tied_allocation
+                where tied_allocation.workspace_id = allocation.workspace_id
+                  and tied_allocation.stock_lot_id = allocation.stock_lot_id
+                  and tied_allocation.id <> allocation.id
+                  and tied_allocation.created_at = allocation.created_at
+              )
+            )
+        ) as ambiguous_allocation_count
+      from public.stock_lots as lot
+      where lot.workspace_id = purchase.workspace_id
+        and lot.purchase_id = purchase.id
+    ) as lot_totals on true
+    left join lateral (
+      select pg_catalog.count(*) filter (
+        where cost.amount::text in ('NaN', 'Infinity', '-Infinity')
+          or cost.amount < 0
+          or pg_catalog.scale(cost.amount) > 2
+      ) as invalid_cost_count
+      from public.purchase_costs as cost
+      where cost.workspace_id = purchase.workspace_id
+        and cost.purchase_id = purchase.id
+    ) as cost_totals on true
+    where purchase.workspace_id = p_workspace_id
+      and purchase.entry_status <> 'finalized'
+  )
+  select
+    candidate.id,
+    case
+      when candidate.type <> 'mystery_pack' then 'manual_review'
+      when candidate.purchase_price is null
+        or candidate.purchase_price::text in ('NaN', 'Infinity', '-Infinity')
+        or candidate.purchase_price < 0
+        or pg_catalog.scale(candidate.purchase_price) > 2 then 'manual_review'
+      when candidate.line_count > 1000
+        or candidate.unit_count > 100000
+        or candidate.max_line_quantity > 100000 then 'manual_review'
+      when candidate.line_count > 0 then 'manual_review'
+      when candidate.item_count = 0 then 'items_missing'
+      when candidate.item_count > 1000 then 'manual_review'
+      when candidate.invalid_timestamp_count > 0 then 'manual_review'
+      when candidate.ambiguous_allocation_count > 0 then 'manual_review'
+      when candidate.lot_count > 0 then 'manual_review'
+      when candidate.linked_line_count > 0 then 'manual_review'
+      when candidate.sale_conflict_count > 0 then 'manual_review'
+      when candidate.sale_line_count = 0
+        and candidate.unsupported_finalize_status_count > 0 then 'manual_review'
+      when candidate.invalid_cost_count > 0 then 'manual_review'
+      else 'auto_repair'
+    end,
+    case
+      when candidate.type <> 'mystery_pack'
+        then 'Normaler Einkauf ohne verlässliche Einkaufspositionen.'
+      when candidate.purchase_price is null
+        or candidate.purchase_price::text in ('NaN', 'Infinity', '-Infinity')
+        or candidate.purchase_price < 0
+        or pg_catalog.scale(candidate.purchase_price) > 2
+        then 'Der Warenbetrag fehlt oder ist ungültig.'
+      when candidate.line_count > 1000
+        or candidate.unit_count > 100000
+        or candidate.max_line_quantity > 100000
+        then 'Der Einkauf überschreitet die sichere Positions- oder Mengengrenze.'
+      when candidate.line_count > 0
+        then 'Vorhandene Einkaufspositionen müssen manuell abgeglichen werden.'
+      when candidate.item_count = 0
+        then 'Für die Mystery Box sind noch keine Artikel erfasst.'
+      when candidate.item_count > 1000
+        then 'Der Einkauf überschreitet die sichere Grenze von 1.000 Positionen.'
+      when candidate.invalid_timestamp_count > 0
+        then 'Mindestens ein Empfangszeitpunkt ist ungültig.'
+      when candidate.ambiguous_allocation_count > 0
+        then 'Die historische Losentnahmereihenfolge ist nicht eindeutig.'
+      when candidate.lot_count > 0
+        then 'Historische Mengenlose benötigen eine manuelle Reihenfolgeprüfung.'
+      when candidate.linked_line_count > 0
+        then 'Vorhandene Artikelverknüpfungen sind unvollständig.'
+      when candidate.sale_conflict_count > 0
+        then 'Verkaufsstatus und Verkaufspositionen sind nicht eindeutig.'
+      when candidate.sale_line_count = 0
+        and candidate.unsupported_finalize_status_count > 0
+        then 'Der aktuelle Artikelstatus erlaubt keine automatische Kostenfinalisierung.'
+      when candidate.invalid_cost_count > 0
+        then 'Mindestens eine Zusatzkostenzeile ist ungültig.'
+      else 'Bekannte Mystery-Artikel können gleichmäßig und centgenau verteilt werden.'
+    end,
+    candidate.item_count,
+    candidate.line_count
+  from candidates as candidate
+  order by candidate.id;
+end;
+$$;
+
+alter function public.preview_purchase_costing_legacy(uuid)
+  owner to postgres;
+
+comment on function public.preview_purchase_costing_legacy(uuid) is
+  'Prüft historische Einkaufskosten workspacebezogen und ohne Schreibzugriff.';
+
+create or replace function public.migrate_purchase_costing_legacy(
+  p_workspace_id uuid,
+  p_confirm boolean
+)
+returns jsonb
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_actor_id uuid := (select auth.uid());
+  v_privileged boolean := false;
+  v_candidate record;
+  v_item public.inventory_items;
+  v_purchase public.purchases;
+  v_line_id uuid;
+  v_line_created_at timestamptz;
+  v_line_position integer;
+  v_lines jsonb;
+  v_costs jsonb;
+  v_original_item_statuses jsonb;
+  v_costing_result jsonb;
+  v_costing_event_id uuid;
+  v_costing_event_type text;
+  v_correlation_id uuid;
+  v_has_sales boolean;
+  v_repaired bigint := 0;
+  v_items_missing bigint := 0;
+  v_manual_review bigint := 0;
+begin
+  if v_actor_id is null or p_workspace_id is null then
+    raise exception using
+      errcode = '42501',
+      message = 'Keine Berechtigung für die Altdatenmigration.';
+  end if;
+
+  select member.role in ('owner', 'admin', 'accountant')
+  into v_privileged
+  from public.workspace_members as member
+  where member.workspace_id = p_workspace_id
+    and member.user_id = v_actor_id;
+
+  if not found or not v_privileged then
+    raise exception using
+      errcode = '42501',
+      message = 'Keine Berechtigung für die Altdatenmigration.';
+  end if;
+
+  if p_confirm is distinct from true then
+    raise exception using
+      errcode = '22023',
+      message = 'Die Altdatenmigration benötigt eine ausdrückliche Bestätigung.';
+  end if;
+
+  select
+    pg_catalog.count(*) filter (where preview.classification = 'items_missing'),
+    pg_catalog.count(*) filter (where preview.classification = 'manual_review')
+  into v_items_missing, v_manual_review
+  from public.preview_purchase_costing_legacy(p_workspace_id) as preview;
+
+  for v_candidate in
+    select preview.*
+    from public.preview_purchase_costing_legacy(p_workspace_id) as preview
+    where preview.classification = 'auto_repair'
+    order by preview.purchase_id
+  loop
+    perform pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended(v_candidate.purchase_id::text, 0)
+    );
+
+    select purchase.*
+    into v_purchase
+    from public.purchases as purchase
+    where purchase.workspace_id = p_workspace_id
+      and purchase.id = v_candidate.purchase_id
+    for update;
+
+    if not found or v_purchase.entry_status = 'finalized' then
+      continue;
+    end if;
+
+    if not exists (
+      select 1
+      from public.preview_purchase_costing_legacy(p_workspace_id) as preview
+      where preview.purchase_id = v_candidate.purchase_id
+        and preview.classification = 'auto_repair'
+    ) then
+      continue;
+    end if;
+
+    v_line_created_at := pg_catalog.clock_timestamp();
+    v_line_position := 0;
+
+    for v_item in
+      select item.*
+      from public.inventory_items as item
+      where item.workspace_id = p_workspace_id
+        and item.purchase_id = v_candidate.purchase_id
+      order by item.created_at, item.id
+      for update
+    loop
+      v_line_position := v_line_position + 1;
+      v_line_id := pg_catalog.gen_random_uuid();
+
+      insert into public.purchase_lines (
+        id,
+        workspace_id,
+        purchase_id,
+        catalog_product_id,
+        title_snapshot,
+        line_kind,
+        ordered_quantity,
+        received_quantity,
+        unit_purchase_price,
+        line_total,
+        allocated_additional_cost,
+        created_at,
+        updated_at,
+        price_mode,
+        condition_snapshot,
+        estimated_market_value,
+        allocated_total_cost
+      ) values (
+        v_line_id,
+        p_workspace_id,
+        v_candidate.purchase_id,
+        null,
+        v_item.title,
+        'individual',
+        1,
+        1,
+        null,
+        null,
+        0,
+        v_line_created_at + (v_line_position * interval '1 microsecond'),
+        v_line_created_at + (v_line_position * interval '1 microsecond'),
+        'unpriced_mystery',
+        v_item.condition,
+        v_item.expected_value,
+        0
+      );
+
+      update public.inventory_items
+      set purchase_line_id = v_line_id
+      where workspace_id = p_workspace_id
+        and id = v_item.id;
+    end loop;
+
+    select exists (
+      select 1
+      from public.sale_lines as sale_line
+      join public.inventory_items as item
+        on item.workspace_id = sale_line.workspace_id
+        and item.id = sale_line.inventory_item_id
+      where sale_line.workspace_id = p_workspace_id
+        and item.purchase_id = v_candidate.purchase_id
+    )
+    into v_has_sales;
+
+    if v_has_sales then
+      update public.purchases
+      set entry_status = 'finalized',
+          finalized_at = pg_catalog.clock_timestamp(),
+          finalized_by = v_actor_id,
+          total_purchase_cost = v_purchase.purchase_price + coalesce((
+            select pg_catalog.sum(cost.amount)
+            from public.purchase_costs as cost
+            where cost.workspace_id = p_workspace_id
+              and cost.purchase_id = v_candidate.purchase_id
+          ), 0),
+          updated_at = pg_catalog.clock_timestamp()
+      where workspace_id = p_workspace_id
+        and id = v_candidate.purchase_id;
+
+      select pg_catalog.jsonb_agg(
+        pg_catalog.jsonb_build_object(
+          'id', line.id,
+          'catalog_product_id', line.catalog_product_id,
+          'title_snapshot', line.title_snapshot,
+          'line_kind', line.line_kind,
+          'ordered_quantity', line.ordered_quantity,
+          'price_mode', line.price_mode,
+          'unit_purchase_price', line.unit_purchase_price,
+          'line_total', line.line_total,
+          'condition_snapshot', line.condition_snapshot,
+          'estimated_market_value', line.estimated_market_value
+        ) order by line.created_at, line.id
+      )
+      into v_lines
+      from public.purchase_lines as line
+      where line.workspace_id = p_workspace_id
+        and line.purchase_id = v_candidate.purchase_id;
+
+      select coalesce(pg_catalog.jsonb_agg(
+        pg_catalog.jsonb_build_object(
+          'id', cost.id,
+          'type', cost.type,
+          'amount', cost.amount,
+          'description', cost.description,
+          'allocation_method', cost.allocation_method,
+          'target_purchase_line_id', cost.target_purchase_line_id
+        ) order by cost.created_at, cost.id
+      ), '[]'::jsonb)
+      into v_costs
+      from public.purchase_costs as cost
+      where cost.workspace_id = p_workspace_id
+        and cost.purchase_id = v_candidate.purchase_id;
+
+      select public.correct_purchase_costing(
+        p_workspace_id,
+        v_candidate.purchase_id,
+        'Kontrollierte Übernahme historischer Mystery-Einkaufskosten.',
+        v_purchase.purchase_price,
+        v_lines,
+        v_costs
+      ) into v_costing_result;
+
+      v_costing_event_type := 'purchase_corrected';
+    else
+      select pg_catalog.jsonb_agg(
+        pg_catalog.jsonb_build_object(
+          'id', item.id,
+          'status', item.status
+        ) order by item.created_at, item.id
+      )
+      into v_original_item_statuses
+      from public.inventory_items as item
+      where item.workspace_id = p_workspace_id
+        and item.purchase_id = v_candidate.purchase_id;
+
+      select public.finalize_purchase_costing(
+        p_workspace_id,
+        v_candidate.purchase_id
+      ) into v_costing_result;
+
+      update public.inventory_items as item
+      set status = original_item.status
+      from pg_catalog.jsonb_to_recordset(v_original_item_statuses)
+        as original_item(id uuid, status text)
+      where item.workspace_id = p_workspace_id
+        and item.purchase_id = v_candidate.purchase_id
+        and item.id = original_item.id;
+
+      v_costing_event_type := 'purchase_finalized';
+    end if;
+
+    v_costing_event_id := (v_costing_result ->> 'eventId')::uuid;
+
+    select event.correlation_id
+    into strict v_correlation_id
+    from public.business_events as event
+    where event.workspace_id = p_workspace_id
+      and event.id = v_costing_event_id;
+
+    insert into public.business_events (
+      workspace_id,
+      entity_type,
+      entity_id,
+      event_type,
+      actor_id,
+      reason,
+      changes,
+      correlation_id
+    ) values (
+      p_workspace_id,
+      'purchase',
+      v_candidate.purchase_id,
+      'purchase_costing_legacy_migrated',
+      v_actor_id,
+      'Kontrollierte Übernahme historischer Mystery-Einkaufskosten.',
+      pg_catalog.jsonb_build_object(
+        'migration', pg_catalog.jsonb_build_object(
+          'before', null,
+          'after', pg_catalog.jsonb_build_object(
+            'classification', 'auto_repair',
+            'costing_event_id', v_costing_event_id,
+            'costing_event_type', v_costing_event_type,
+            'item_count', v_candidate.item_count,
+            'operational_statuses_preserved', true
+          )
+        )
+      ),
+      v_correlation_id
+    );
+
+    v_repaired := v_repaired + 1;
+  end loop;
+
+  return pg_catalog.jsonb_build_object(
+    'repaired', v_repaired,
+    'itemsMissing', v_items_missing,
+    'manualReview', v_manual_review
+  );
+end;
+$$;
+
+alter function public.migrate_purchase_costing_legacy(uuid, boolean)
+  owner to postgres;
+
+comment on function public.migrate_purchase_costing_legacy(uuid, boolean) is
+  'Repariert nur eindeutig klassifizierte Mystery-Altdaten nach ausdrücklicher Bestätigung.';
+
+-- ------------------------------------------------------------------------------
 -- PERMISSIONS & ROLES
 -- ------------------------------------------------------------------------------
 
@@ -4492,6 +10471,12 @@ grant usage on schema public to authenticated, service_role;
 grant select, insert, update, delete
   on all tables in schema public
   to authenticated;
+
+-- 50_sniper.sql wird vor dieser Datei geladen. Der pauschale Grant darf
+-- die dort ausdrücklich auf SELECT begrenzten Clientrechte nicht aufweiten.
+revoke insert, update, delete
+  on public.sniper_queries, public.sniper_listings
+  from authenticated;
 
 -- Buchungstabellen sind für Clients nur lesbar. Änderungen erfolgen
 -- ausschließlich über die validierten, transaktionalen RPC-Funktionen.
@@ -4517,6 +10502,15 @@ grant all
   on all tables in schema public
   to service_role;
 
+-- Einkaufspositionen sind für Anwendungsrollen ausschließlich über die
+-- atomaren Business-RPCs schreibbar. Direkte Lesezugriffe bleiben erhalten.
+revoke all privileges
+  on table public.purchase_lines
+  from anon, authenticated, service_role;
+grant select
+  on table public.purchase_lines
+  to authenticated, service_role;
+
 revoke all
   on public.inventory_item_sale_states
   from public, anon;
@@ -4534,6 +10528,69 @@ grant usage, select
 grant execute
   on all functions in schema public
   to authenticated, service_role;
+
+revoke execute on function public.allocate_integer_cents(bigint, numeric[])
+  from public, anon, authenticated, service_role;
+revoke execute on function public.build_purchase_costing_plan(uuid, uuid)
+  from public, anon, authenticated, service_role;
+revoke execute on function public.finalize_purchase_costing(uuid, uuid)
+  from public, anon, service_role;
+grant execute on function public.finalize_purchase_costing(uuid, uuid)
+  to authenticated;
+revoke execute on function public.reopen_purchase_costing(uuid, uuid)
+  from public, anon, service_role;
+grant execute on function public.reopen_purchase_costing(uuid, uuid)
+  to authenticated;
+revoke execute on function public.correct_purchase_costing(uuid, uuid, text, numeric, jsonb, jsonb)
+  from public, anon, service_role;
+grant execute on function public.correct_purchase_costing(uuid, uuid, text, numeric, jsonb, jsonb)
+  to authenticated;
+revoke execute on function public.preview_purchase_costing_legacy(uuid)
+  from public, anon, service_role;
+grant execute on function public.preview_purchase_costing_legacy(uuid)
+  to authenticated;
+revoke execute on function public.migrate_purchase_costing_legacy(uuid, boolean)
+  from public, anon, service_role;
+grant execute on function public.migrate_purchase_costing_legacy(uuid, boolean)
+  to authenticated;
+
+revoke execute on function public.create_purchase(uuid, jsonb, jsonb, jsonb)
+  from public, anon, service_role;
+revoke execute on function public.update_purchase_draft(uuid, uuid, jsonb, jsonb, jsonb)
+  from public, anon, service_role;
+grant execute on function public.update_purchase_draft(uuid, uuid, jsonb, jsonb, jsonb)
+  to authenticated;
+revoke execute on function public.has_purchase_recorded_sales(uuid, uuid)
+  from public, anon, service_role;
+grant execute on function public.has_purchase_recorded_sales(uuid, uuid)
+  to authenticated;
+revoke execute on function public.get_purchase_sale_history_state(uuid, uuid)
+  from public, anon, service_role;
+grant execute on function public.get_purchase_sale_history_state(uuid, uuid)
+  to authenticated;
+revoke execute on function public.get_purchase_sale_history(uuid, uuid)
+  from public, anon, service_role;
+grant execute on function public.get_purchase_sale_history(uuid, uuid)
+  to authenticated;
+revoke execute on function public.add_purchase_lines(uuid, uuid, jsonb)
+  from public, anon, service_role;
+revoke execute on function public.receive_purchase_lines(uuid, uuid, jsonb)
+  from public, anon, service_role;
+revoke execute on function public.receive_individual_purchase_line(uuid, uuid, uuid, jsonb)
+  from public, anon, service_role;
+
+revoke execute on function public.guard_purchase_costing_fields()
+  from public, anon, authenticated, service_role;
+revoke execute on function public.guard_purchase_line_costing_fields()
+  from public, anon, authenticated, service_role;
+revoke execute on function public.guard_purchase_cost_mutation()
+  from public, anon, authenticated, service_role;
+revoke execute on function public.guard_inventory_item_costing_fields()
+  from public, anon, authenticated, service_role;
+revoke execute on function public.guard_stock_lot_costing_fields()
+  from public, anon, authenticated, service_role;
+revoke execute on function public.guard_sale_line_lot_allocation_sequence()
+  from public, anon, authenticated, service_role;
 
 revoke execute on function public.protect_inventory_item_sold_status()
   from public, anon, authenticated, service_role;
@@ -4597,6 +10654,20 @@ grant execute on function public.replace_bank_transactions(uuid, jsonb)
 grant execute on function public.book_bank_transaction(uuid, uuid, timestamptz, uuid)
   to authenticated;
 grant execute on function public.create_or_get_invoice(uuid, uuid, uuid, jsonb, jsonb)
+  to authenticated;
+
+revoke all on table public.business_events
+  from public, anon, authenticated, service_role;
+
+revoke execute on function public.prevent_business_event_mutation()
+  from public, anon, authenticated, service_role;
+revoke execute on function public.list_business_events(uuid, jsonb, timestamptz, uuid, integer)
+  from public, anon, service_role;
+revoke execute on function public.list_entity_business_events(uuid, text, uuid, timestamptz, uuid, integer)
+  from public, anon, service_role;
+grant execute on function public.list_business_events(uuid, jsonb, timestamptz, uuid, integer)
+  to authenticated;
+grant execute on function public.list_entity_business_events(uuid, text, uuid, timestamptz, uuid, integer)
   to authenticated;
 
 alter default privileges in schema public

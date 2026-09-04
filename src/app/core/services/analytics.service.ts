@@ -118,6 +118,11 @@ export interface DayHeatmap {
 export class AnalyticsService {
   private readonly profitEngine = new ProfitEngineService();
 
+  private purchaseTotalCost(purchase: Purchase): number | undefined {
+    if (purchase.purchase_price === null) return undefined;
+    return purchase.total_purchase_cost ?? purchase.purchase_price;
+  }
+
   /**
    * Filters sales by the given time range relative to today.
    */
@@ -157,6 +162,8 @@ export class AnalyticsService {
 
     // 1. Aggregate purchases per source
     for (const p of purchases) {
+      const purchaseCost = this.purchaseTotalCost(p);
+      if (purchaseCost === undefined) continue;
       const sourceName = p.source?.name || 'Direktkauf';
       const entry = sourceMap.get(sourceName) || {
         name: sourceName,
@@ -169,7 +176,7 @@ export class AnalyticsService {
       };
 
       entry.purchasesCount += 1;
-      entry.invested += p.total_purchase_cost ?? p.purchase_price;
+      entry.invested += purchaseCost;
       sourceMap.set(sourceName, entry);
     }
 
@@ -299,9 +306,10 @@ export class AnalyticsService {
   ): MysteryPackStats[] {
     const mysteryPurchases = purchases.filter((p) => p.type === 'mystery_pack');
 
-    return mysteryPurchases.map((p) => {
+    return mysteryPurchases.flatMap((p): MysteryPackStats[] => {
       const packItems = items.filter((i) => i.purchase_id === p.id);
-      const totalCost = p.total_purchase_cost ?? p.purchase_price;
+      const totalCost = this.purchaseTotalCost(p);
+      if (totalCost === undefined) return [];
 
       const soldItems = packItems.filter((i) => i.status === 'sold');
       const openItems = packItems.filter((i) => i.status !== 'sold' && i.status !== 'archived');
@@ -316,17 +324,19 @@ export class AnalyticsService {
         0,
       );
 
-      return {
-        purchaseId: p.id,
-        title: p.title,
-        totalCost: Number(totalCost.toFixed(2)),
-        itemsCount: packItems.length,
-        soldCount: soldItems.length,
-        openCount: openItems.length,
-        revenue: Number(revenue.toFixed(2)),
-        realizedProfit: Number(realizedProfit.toFixed(2)),
-        remainingStockValue: Number(remainingStockValue.toFixed(2)),
-      };
+      return [
+        {
+          purchaseId: p.id,
+          title: p.title,
+          totalCost: Number(totalCost.toFixed(2)),
+          itemsCount: packItems.length,
+          soldCount: soldItems.length,
+          openCount: openItems.length,
+          revenue: Number(revenue.toFixed(2)),
+          realizedProfit: Number(realizedProfit.toFixed(2)),
+          remainingStockValue: Number(remainingStockValue.toFixed(2)),
+        },
+      ];
     });
   }
 
@@ -336,9 +346,10 @@ export class AnalyticsService {
   computePalletStats(purchases: Purchase[], items: InventoryItem[], sales: Sale[]): PalletStats[] {
     const pallets = purchases.filter((p) => p.type === 'pallet' || p.type === 'lot');
 
-    return pallets.map((p) => {
+    return pallets.flatMap((p): PalletStats[] => {
       const palletItems = items.filter((i) => i.purchase_id === p.id);
-      const totalInvest = p.total_purchase_cost ?? p.purchase_price;
+      const totalInvest = this.purchaseTotalCost(p);
+      if (totalInvest === undefined) return [];
 
       const soldItems = palletItems.filter((i) => i.status === 'sold');
       const openItems = palletItems.filter((i) => i.status !== 'sold' && i.status !== 'archived');
@@ -381,21 +392,23 @@ export class AnalyticsService {
         }
       }
 
-      return {
-        purchaseId: p.id,
-        title: p.title,
-        totalInvestment: Number(totalInvest.toFixed(2)),
-        itemsCount: palletItems.length,
-        soldCount: soldItems.length,
-        openCount: openItems.length,
-        defectCount: defectiveItems.length,
-        defectRate,
-        revenue: Number(revenue.toFixed(2)),
-        realizedProfit: Number(realizedProfit.toFixed(2)),
-        remainingStockValue: Number(remainingStockValue.toFixed(2)),
-        isBreakEven,
-        daysToBreakEven,
-      };
+      return [
+        {
+          purchaseId: p.id,
+          title: p.title,
+          totalInvestment: Number(totalInvest.toFixed(2)),
+          itemsCount: palletItems.length,
+          soldCount: soldItems.length,
+          openCount: openItems.length,
+          defectCount: defectiveItems.length,
+          defectRate,
+          revenue: Number(revenue.toFixed(2)),
+          realizedProfit: Number(realizedProfit.toFixed(2)),
+          remainingStockValue: Number(remainingStockValue.toFixed(2)),
+          isBreakEven,
+          daysToBreakEven,
+        },
+      ];
     });
   }
 
@@ -652,6 +665,8 @@ export class AnalyticsService {
     >();
 
     for (const p of purchases) {
+      const purchaseCost = this.purchaseTotalCost(p);
+      if (purchaseCost === undefined) continue;
       const monthKey = p.purchase_date.substring(0, 7); // 'YYYY-MM'
       const entry = monthMap.get(monthKey) || {
         invested: 0,
@@ -661,7 +676,7 @@ export class AnalyticsService {
         soldCount: 0,
       };
 
-      entry.invested += p.total_purchase_cost || p.purchase_price;
+      entry.invested += purchaseCost;
       entry.itemsCount += p.items_count || 1;
       monthMap.set(monthKey, entry);
     }

@@ -1,0 +1,104 @@
+<article
+  class="mx-auto max-w-5xl rounded-2xl bg-white p-5 text-slate-950 shadow-xl sm:p-8 print:max-w-none print:rounded-none print:p-0 print:shadow-none"
+>
+  <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between print:hidden">
+    <button
+      type="button"
+      (click)="back()"
+      class="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-indigo-500"
+    >
+      <svg [lucideIcon]="backIcon" class="h-4 w-4" aria-hidden="true"></svg>
+      Zurück
+    </button>
+    <button
+      type="button"
+      (click)="print()"
+      class="inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-bold text-white focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2"
+    >
+      <svg [lucideIcon]="printIcon" class="h-4 w-4" aria-hidden="true"></svg>
+      Drucken / als PDF speichern
+    </button>
+  </div>
+
+  <header class="border-b-2 border-slate-900 pb-5">
+    <p class="text-xs font-bold uppercase tracking-widest text-slate-500">Flipbase</p>
+    <h1 class="mt-1 text-2xl font-bold">Prüfprotokoll</h1>
+    <dl class="mt-4 grid gap-2 text-sm sm:grid-cols-2">
+      <div>
+        <dt class="font-semibold">Workspace</dt>
+        <dd>{{ workspace()?.name || '—' }}</dd>
+      </div>
+      <div>
+        <dt class="font-semibold">Workspace-ID</dt>
+        <dd class="break-all font-mono text-xs">{{ workspace()?.id || '—' }}</dd>
+      </div>
+      <div>
+        <dt class="font-semibold">Erstellt am</dt>
+        <dd>{{ generatedAt() | date: 'dd.MM.yyyy, HH:mm:ss' }}</dd>
+      </div>
+      <div>
+        <dt class="font-semibold">Zeitraum</dt>
+        <dd>{{ filters.from || 'Beginn' }} bis {{ filters.to || 'heute' }}</dd>
+      </div>
+    </dl>
+    <p class="mt-4 text-xs leading-relaxed text-slate-600">
+      Diese lesbare Druckansicht unterstützt die Dokumentation. Für eine maschinenlesbare Sicherung
+      nutze zusätzlich das ZIP-Datenarchiv.
+    </p>
+  </header>
+
+  @if (error()) {
+    <p role="alert" class="my-5 border border-amber-400 bg-amber-50 p-3 text-sm text-amber-950">
+      {{ error() }}
+    </p>
+  }
+  @if (isLoading()) {
+    <p role="status" class="my-6 text-sm text-slate-600">Vorgänge werden geladen …</p>
+  } @else if (events().length === 0) {
+    <p class="my-6 text-sm text-slate-600">Keine Vorgänge für diese Auswahl.</p>
+  } @else {
+    <ol class="mt-6 space-y-5">
+      @for (event of events(); track event.id) {
+        <li class="break-inside-avoid border-b border-slate-300 pb-5">
+          <div class="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 class="text-base font-bold">{{ event.label }}</h2>
+              <p class="font-mono text-xs text-slate-600">{{ event.eventType }}</p>
+            </div>
+            <time class="text-xs text-slate-600" [attr.datetime]="event.createdAt">{{
+              event.createdAt | date: 'dd.MM.yyyy, HH:mm:ss'
+            }}</time>
+          </div>
+          <dl class="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+            <div>
+              <dt class="font-semibold">Datensatz</dt>
+              <dd class="break-all font-mono">{{ event.entityReference }}</dd>
+            </div>
+            <div>
+              <dt class="font-semibold">Benutzer</dt>
+              <dd>{{ actorLabel(event.actorId) }}</dd>
+            </div>
+            <div>
+              <dt class="font-semibold">Ereignis-ID</dt>
+              <dd class="break-all font-mono">{{ event.id }}</dd>
+            </div>
+            @if (event.reason) {
+              <div>
+                <dt class="font-semibold">Grund</dt>
+                <dd>{{ event.reason }}</dd>
+              </div>
+            }
+          </dl>
+          <details class="mt-3 print:block" open>
+            <summary class="cursor-pointer text-xs font-semibold print:hidden">
+              Vorher-/Nachher-Werte
+            </summary>
+            <pre
+              class="mt-2 overflow-wrap-anywhere whitespace-pre-wrap rounded bg-slate-100 p-3 text-[10px]"
+              >{{ event.changes }}</pre>
+          </details>
+        </li>
+      }
+    </ol>
+  }
+</article>

@@ -16,9 +16,10 @@
 
 set -euo pipefail
 
-VERZEICHNIS="/opt/flipbase"
+VERZEICHNIS="${FLIPBASE_DEPLOY_DIR:-/opt/flipbase}"
 CONTAINER="flipbase-web"
 REGISTRY="ghcr.io"
+LANDING_DIRECTORY="${FLIPBASE_LANDING_DIR:-/opt/flipbase-landing}"
 
 BEFEHL="${SSH_ORIGINAL_COMMAND:-latest}"
 
@@ -68,8 +69,8 @@ for _ in $(seq 1 30); do
   zustand="$(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo fehlt)"
   if [ "$zustand" = "healthy" ]; then
     echo "$CONTAINER ist gesund."
-    if [ -d /opt/flipbase-landing ]; then
-      docker cp "$CONTAINER":/usr/share/nginx/landing/. /opt/flipbase-landing/ 2>/dev/null || true
+    if [ -d "$LANDING_DIRECTORY" ]; then
+      docker cp "$CONTAINER":/usr/share/nginx/landing/. "$LANDING_DIRECTORY"/
       echo "Landingpage synchronisiert."
     fi
     exit 0

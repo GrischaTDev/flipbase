@@ -1,5 +1,14 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import {
+  afterRenderEffect,
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  ElementRef,
+  inject,
+  signal,
+} from '@angular/core';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -20,6 +29,7 @@ import {
   LucideX as X,
   LucideCheckCircle2 as CheckCircle2,
   LucideAlertTriangle as AlertTriangle,
+  LucideHistory as History,
 } from '@lucide/angular';
 import { SalesService } from '../../core/services/sales.service';
 import { InvoiceService } from '../../core/services/invoice.service';
@@ -40,6 +50,18 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
+import { WorkspaceService } from '../../core/services/workspace.service';
+import { SaleMetrics } from '../../core/models/sale-metrics.models';
+import { calculateStoredSaleMetrics } from '../../core/utils/sale-metrics';
+import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
+import { RecordHistoryContainer } from '../audit/components/record-history/record-history.container';
+
+const SALE_TARGET_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
+
+function validatedSaleTargetId(value: string | null): string | null {
+  if (!value || !SALE_TARGET_ID_PATTERN.test(value)) return null;
+  return value;
+}
 
 @Component({
   selector: 'app-sales',
@@ -53,6 +75,8 @@ import {
     SaleCreateModalComponent,
     InvoiceModalComponent,
     CustomSelectComponent,
+    ModalDialogDirective,
+    RecordHistoryContainer,
   ],
   templateUrl: './sales.component.html',
   host: { class: 'block' },
@@ -78,6 +102,9 @@ export class SalesComponent {
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly workspaceService = inject(WorkspaceService);
   readonly salesService = inject(SalesService);
   readonly invoiceService = inject(InvoiceService);
   readonly returnService = inject(ReturnService);
@@ -97,6 +124,7 @@ export class SalesComponent {
   readonly closeIcon = X;
   readonly checkIcon = CheckCircle2;
   readonly alertIcon = AlertTriangle;
+  readonly historyIcon = History;
 
   readonly isCreateModalOpen = signal<boolean>(false);
   readonly createSaleTarget = signal<SaleTarget | null>(null);
@@ -104,10 +132,36 @@ export class SalesComponent {
   readonly selectedPlatform = signal<string>('all');
   readonly activeInvoice = signal<Invoice | null>(null);
   readonly isCreatingInvoice = signal(false);
+  private readonly queryParams = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
+  private lastFocusedSaleId: string | null = null;
+
+  readonly requestedSaleId = computed(() =>
+    validatedSaleTargetId(this.queryParams().get('saleId')),
+  );
+  readonly highlightedSaleId = computed(() => {
+    const saleId = this.requestedSaleId();
+    const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
+    if (
+      !saleId ||
+      !workspaceId ||
+      this.salesService.loadError() ||
+      this.salesService.loadedWorkspaceId() !== workspaceId
+    ) {
+      return null;
+    }
+    return this.salesService
+      .sales()
+      .some((sale) => sale.id === saleId && sale.workspace_id === workspaceId)
+      ? saleId
+      : null;
+  });
 
   // Return modal state
   readonly isReturnModalOpen = signal<boolean>(false);
   readonly selectedSaleForReturn = signal<Sale | null>(null);
+  readonly selectedSaleForHistory = signal<Sale | null>(null);
   readonly isProcessingReturn = signal<boolean>(false);
 
   readonly returnForm = new FormGroup({
@@ -144,22 +198,29 @@ export class SalesComponent {
 
   // KPI Calculations
   readonly totalRealizedProfit = computed(() => {
-    return this.salesService.sales().reduce((sum, s) => sum + (s.net_profit || 0), 0);
+    let total = 0;
+    for (const sale of this.filteredSales()) {
+      const result = this.saleMetrics(sale).resultAfterDirectCosts;
+      if (result === null) return null;
+      total += result;
+    }
+    return total;
   });
 
   readonly totalRevenue = computed(() => {
-    return this.salesService.sales().reduce((sum, s) => sum + (s.sale_price || 0), 0);
+    return this.filteredSales().reduce((sum, sale) => sum + this.saleMetrics(sale).revenue, 0);
   });
 
-  readonly averageRoi = computed(() => {
-    const list = this.salesService.sales();
-    if (list.length === 0) return 0;
-    const totalRoi = list.reduce((sum, s) => sum + (s.roi || 0), 0);
-    return Number((totalRoi / list.length).toFixed(1));
+  readonly averageMargin = computed(() => {
+    const margins = this.filteredSales()
+      .map((sale) => this.saleMetrics(sale).marginPercent)
+      .filter((margin): margin is number => margin !== null);
+    if (margins.length === 0) return null;
+    return Number((margins.reduce((sum, margin) => sum + margin, 0) / margins.length).toFixed(1));
   });
 
   readonly averageHoldingDays = computed(() => {
-    const list = this.salesService.sales();
+    const list = this.filteredSales();
     if (list.length === 0) return 0;
     const totalDays = list.reduce((sum, s) => sum + (s.holding_duration_days || 0), 0);
     return Math.round(totalDays / list.length);
@@ -174,12 +235,33 @@ export class SalesComponent {
 
   constructor() {
     const state = (this.router.getCurrentNavigation()?.extras.state ??
-      history.state) as Partial<SaleTargetRouteState>;
+      globalThis.history?.state ??
+      {}) as Partial<SaleTargetRouteState>;
     if (state.saleTarget) {
       this.createSaleTarget.set(state.saleTarget);
       this.legacySaleReconciliation.set(state.legacyReconciliation ?? null);
       this.isCreateModalOpen.set(true);
     }
+
+    afterRenderEffect({
+      write: () => {
+        const saleId = this.highlightedSaleId();
+        if (!saleId) {
+          this.lastFocusedSaleId = null;
+          return;
+        }
+        if (this.lastFocusedSaleId === saleId) return;
+
+        const desktop = globalThis.matchMedia?.('(min-width: 768px)').matches ?? true;
+        const prefix = desktop ? 'sale-desktop-' : 'sale-mobile-';
+        const target = this.host.nativeElement.querySelector<HTMLElement>(`#${prefix}${saleId}`);
+        if (!target) return;
+
+        target.focus({ preventScroll: true });
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        this.lastFocusedSaleId = saleId;
+      },
+    });
   }
 
   openCreateModal(): void {
@@ -236,6 +318,10 @@ export class SalesComponent {
     return sale.lines?.reduce((sum, line) => sum + line.quantity, 0) ?? 1;
   }
 
+  saleMetrics(sale: Sale): SaleMetrics {
+    return calculateStoredSaleMetrics(sale);
+  }
+
   saleTitle(sale: Sale): string {
     return (
       sale.lines?.map((line) => line.title_snapshot).join(', ') ||
@@ -259,6 +345,14 @@ export class SalesComponent {
   closeReturnModal(): void {
     this.isReturnModalOpen.set(false);
     this.selectedSaleForReturn.set(null);
+  }
+
+  openRecordHistory(sale: Sale): void {
+    this.selectedSaleForHistory.set(sale);
+  }
+
+  closeRecordHistory(): void {
+    this.selectedSaleForHistory.set(null);
   }
 
   onRefundModeChange(isFull: boolean): void {

@@ -15,11 +15,13 @@ import {
   ShippingMode,
   StockMovement,
 } from '../models/flipbase.models';
-import { MutationResult } from './catalog.service';
+import { MutationResult } from '../models/mutation-result.model';
 import { StockService } from './stock.service';
 import { ReturnRecord } from '../models/return.models';
 import { createLocalDemoId } from '../utils/client-identity';
 import { INVENTORY_RECONCILIATION_AUDIT_REASONS } from '../models/inventory-reconciliation';
+import { calculateStoredSaleMetrics } from '../utils/sale-metrics';
+import { saleCostBasisStatus } from '../utils/cost-basis';
 
 export interface CreateSalePayload {
   inventory_item_id: string;
@@ -127,6 +129,9 @@ export class SalesService {
 
   readonly sales = signal<Sale[]>([]);
   readonly isLoading = signal<boolean>(false);
+  readonly loadError = signal<Error | null>(null);
+  readonly loadedWorkspaceId = signal<string | null>(null);
+  private loadRequestId = 0;
 
   constructor() {
     // Hinweis: effect() benoetigt einen ChangeDetectionScheduler. Die
@@ -140,6 +145,10 @@ export class SalesService {
         if (ws) {
           this.loadSales(ws.id);
         } else {
+          this.loadRequestId += 1;
+          this.isLoading.set(false);
+          this.loadError.set(null);
+          this.loadedWorkspaceId.set(null);
           this.sales.set([]);
         }
       });
@@ -149,14 +158,22 @@ export class SalesService {
   }
 
   async loadSales(workspaceId: string): Promise<void> {
-    if (this.mockStore.isDemoMode()) {
-      const localSales = this.mockStore.getSales(workspaceId).map((s) => this.enrichSaleMetrics(s));
-      this.sales.set(localSales);
-      return;
-    }
-
+    const requestId = ++this.loadRequestId;
     this.isLoading.set(true);
+    this.loadError.set(null);
+    this.loadedWorkspaceId.set(null);
+    this.sales.set([]);
     try {
+      if (this.mockStore.isDemoMode()) {
+        const localSales = this.mockStore
+          .getSales(workspaceId)
+          .map((s) => this.enrichSaleMetrics(s));
+        if (!this.isCurrentLoad(requestId, workspaceId)) return;
+        this.sales.set(localSales);
+        this.loadedWorkspaceId.set(workspaceId);
+        return;
+      }
+
       const { data, error } = await this.supabase.client
         .from('sales')
         .select(
@@ -169,7 +186,8 @@ export class SalesService {
           ),
           sale_lines:sale_lines!sale_lines_sale_id_fkey(
             *,
-            lot_allocations:sale_line_lot_allocations!sale_line_lot_allocations_sale_line_id_fkey(*),
+            inventory_item:inventory_items!sale_lines_inventory_item_id_fkey(*, purchase:purchases(*), costs:item_costs(*)),
+            lot_allocations:sale_line_lot_allocations!sale_line_lot_allocations_sale_line_id_fkey(*, stock_lot:stock_lots!sale_line_lot_allocations_stock_lot_id_fkey(*, purchase:purchases!stock_lots_purchase_id_fkey(*))),
             stock_movements:stock_movements!stock_movements_sale_line_id_fkey(*)
           ),
           cost_entries:sale_cost_entries!sale_cost_entries_sale_id_fkey(*)
@@ -179,51 +197,44 @@ export class SalesService {
         .order('sale_date', { ascending: false })
         .order('created_at', { ascending: false });
 
+      if (!this.isCurrentLoad(requestId, workspaceId)) return;
+
       if (error) {
-        this.syncStatus.melde('Laden der Verkäufe', error);
-        this.sales.set([]);
+        this.loadError.set(this.syncStatus.melde('Laden der Verkäufe', error));
       } else if (data) {
         const enriched = (data as unknown[]).map((sale) => this.mapLoadedSale(sale));
         this.sales.set(enriched);
+        this.loadedWorkspaceId.set(workspaceId);
       }
-    } catch (err) {
-      this.syncStatus.melde('Laden der Verkäufe', err);
-      this.sales.set([]);
+    } catch (err: unknown) {
+      if (!this.isCurrentLoad(requestId, workspaceId)) return;
+      this.loadError.set(this.syncStatus.melde('Laden der Verkäufe', err));
     } finally {
-      this.isLoading.set(false);
+      if (requestId === this.loadRequestId) this.isLoading.set(false);
     }
+  }
+
+  private isCurrentLoad(requestId: number, workspaceId: string): boolean {
+    return (
+      requestId === this.loadRequestId &&
+      this.workspaceService.currentWorkspace()?.id === workspaceId
+    );
   }
 
   public enrichSaleMetrics(raw: Sale): Sale {
     const item = raw.inventory_item;
-    const persistedLines = raw.has_persisted_lines === false ? [] : (raw.lines ?? []);
-    const persistedLineTotal = persistedLines.reduce(
-      (sum: number, line: SaleLine) => sum + Number(line.line_total || 0),
-      0,
-    );
-    const shippingRevenue = Number(raw.shipping_revenue ?? 0);
-    const salePrice =
-      persistedLines.length > 0
-        ? Math.round((persistedLineTotal + shippingRevenue) * 100) / 100
-        : Number(raw.sale_price_total ?? raw.sale_price ?? 0);
-    const totalItemBasisCost =
-      persistedLines.length > 0
-        ? persistedLines.reduce(
-            (sum: number, line: SaleLine) => sum + Number(line.cost_of_goods_sold || 0),
-            0,
-          )
-        : Number(item?.allocated_purchase_cost || 0) +
-          (item?.costs || []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0);
-
-    const fee = Number(raw.platform_fee || 0);
-    const shipping = Number(raw.shipping_cost || 0);
-    const packaging = Number(raw.packaging_cost || 0);
-    const other = Number(raw.other_costs || 0);
-    const totalSaleCosts = fee + shipping + packaging + other;
-
-    const totalAllCosts = totalItemBasisCost + totalSaleCosts;
-    const netProfit = this.profitEngine.calculateProfit(salePrice, totalAllCosts);
-    const roi = this.profitEngine.calculateRoi(netProfit, totalAllCosts);
+    const records = this.mockStore.isDemoMode()
+      ? {
+          purchases: this.mockStore.getPurchases(raw.workspace_id),
+          inventoryItems: this.mockStore.getItems(raw.workspace_id),
+          stockLots: this.mockStore.getStockLots(raw.workspace_id),
+        }
+      : {
+          inventoryItems: this.inventoryService?.items?.(),
+          stockLots: this.stockService?.lots?.(),
+        };
+    const metrics = calculateStoredSaleMetrics(raw, records);
+    const grossRevenue = Number((metrics.revenue + Number(raw.refund_amount ?? 0)).toFixed(2));
 
     let holdingDays = 0;
     const purchaseDate = item?.purchase?.purchase_date || item?.created_at;
@@ -233,10 +244,13 @@ export class SalesService {
 
     return {
       ...raw,
-      sale_price: salePrice,
-      sale_price_total: salePrice,
-      net_profit: netProfit,
-      roi: roi,
+      cost_basis_status: saleCostBasisStatus(raw, records),
+      sale_price: grossRevenue,
+      sale_price_total: grossRevenue,
+      net_profit: metrics.resultAfterDirectCosts,
+      selling_costs: metrics.sellingCosts,
+      margin_percent: metrics.marginPercent,
+      roi: metrics.roiPercent,
       holding_duration_days: holdingDays,
     } as Sale;
   }

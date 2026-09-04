@@ -11,7 +11,6 @@ import {
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
   LucideIconInput,
@@ -26,12 +25,9 @@ import {
   LucideExternalLink as ExternalLink,
   LucideCoins as Coins,
   LucideReceipt as Receipt,
-  LucideScale as Scale,
   LucideSparkles as Sparkles,
   LucideSliders as Sliders,
   LucideCheckCircle2 as CheckCircle2,
-  LucidePieChart as PieChart,
-  LucideX as X,
   LucideRefreshCw as RefreshCw,
   LucideImage as Image,
   LucideCrop as Crop,
@@ -48,13 +44,11 @@ import {
   ImageCropperModalComponent,
   CroppedImageResult,
 } from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
-import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
-import { ProfitEngineService } from '../../../../core/services/profit-engine.service';
 import { LoggerService } from '../../../../core/services/logger.service';
 import {
-  CostAllocationMode,
   InboundTrackingStatus,
   ItemCondition,
+  Purchase,
   PurchaseType,
   TrackingCarrier,
 } from '../../../../core/models/flipbase.models';
@@ -68,27 +62,40 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { StockService } from '../../../../core/services/stock.service';
 import {
+  isPricedPurchaseLineDraft,
   PurchaseLineDraft,
   PurchaseLineEditorComponent,
 } from '../../components/purchase-line-editor/purchase-line-editor.component';
 import { PurchaseLine } from '../../../../core/models/flipbase.models';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { MockDataStoreService } from '../../../../core/services/mock-data-store.service';
+import { PurchaseCostingService } from '../../../../core/services/purchase-costing.service';
+import { PurchaseCorrectionDialogComponent } from '../../components/purchase-correction-dialog/purchase-correction-dialog.component';
+import { PurchaseLifecycleActionsComponent } from '../../components/purchase-lifecycle-actions/purchase-lifecycle-actions.component';
+import { PurchaseDetailTableComponent } from '../../components/purchase-detail-table/purchase-detail-table.component';
+import { mapPurchaseDetailRows } from '../../utils/purchase-presentation';
+import { PurchaseTypeLabelPipe } from '../../../../shared/pipes/purchase-type-label.pipe';
+import { InventoryService } from '../../../../core/services/inventory.service';
+import { SalesService } from '../../../../core/services/sales.service';
+import { RecordHistoryContainer } from '../../../audit/components/record-history/record-history.container';
 
 @Component({
   selector: 'app-purchase-detail',
   imports: [
     PurchaseCreateModalComponent,
-    ModalDialogDirective,
     RouterLink,
     ReactiveFormsModule,
     CurrencyPipe,
     DatePipe,
-    TranslatePipe,
     LucideDynamicIcon,
     ImageCropperModalComponent,
     CustomSelectComponent,
     PurchaseLineEditorComponent,
+    PurchaseCorrectionDialogComponent,
+    PurchaseLifecycleActionsComponent,
+    PurchaseDetailTableComponent,
+    PurchaseTypeLabelPipe,
+    RecordHistoryContainer,
   ],
   templateUrl: './purchase-detail.component.html',
   host: { class: 'block' },
@@ -136,6 +143,8 @@ export class PurchaseDetailComponent {
   private readonly dialog = inject(ConfirmDialogService);
   readonly purchaseService = inject(PurchaseService);
   readonly stockService = inject(StockService);
+  private readonly inventoryService = inject(InventoryService);
+  private readonly salesService = inject(SalesService);
 
   // Faellt auf eine eigene Instanz zurueck, damit Dienste auch ausserhalb
   // eines Injektionskontexts nutzbar bleiben - so erzeugen die Tests sie.
@@ -143,11 +152,11 @@ export class PurchaseDetailComponent {
   private readonly mediaService = inject(MediaService);
   private readonly router = inject(Router);
   readonly trackingService = inject(InboundTrackingService);
-  private readonly profitEngine = inject(ProfitEngineService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly workspaceService = inject(WorkspaceService);
   private readonly mockStore = inject(MockDataStoreService);
+  private readonly purchaseCostingService = inject(PurchaseCostingService);
 
   /** Fortschrittsstufen der Sendungsverfolgung – typisiert, damit der Zugriff auf statusConfig im Template typsicher bleibt. */
   readonly trackingSteps: readonly InboundTrackingStatus[] = [
@@ -178,29 +187,25 @@ export class PurchaseDetailComponent {
    */
   private readonly artStile: Record<
     PurchaseType,
-    { icon: LucideIconInput; bezeichnung: string; kachel: string; schild: string }
+    { icon: LucideIconInput; kachel: string; schild: string }
   > = {
     single: {
       icon: ShoppingBag,
-      bezeichnung: 'Einzelkauf',
       kachel: 'bg-fb-art-single/15 border-fb-art-single/30 text-fb-art-single',
       schild: 'bg-fb-art-single/10 border-fb-art-single/25 text-fb-art-single',
     },
     mystery_pack: {
       icon: Package,
-      bezeichnung: 'Mystery Box',
       kachel: 'bg-fb-art-mystery/15 border-fb-art-mystery/30 text-fb-art-mystery',
       schild: 'bg-fb-art-mystery/10 border-fb-art-mystery/25 text-fb-art-mystery',
     },
     lot: {
       icon: Layers,
-      bezeichnung: 'Konvolut',
       kachel: 'bg-fb-art-lot/15 border-fb-art-lot/30 text-fb-art-lot',
       schild: 'bg-fb-art-lot/10 border-fb-art-lot/25 text-fb-art-lot',
     },
     pallet: {
       icon: Boxes,
-      bezeichnung: 'Retouren-Palette',
       kachel: 'bg-fb-art-pallet/15 border-fb-art-pallet/30 text-fb-art-pallet',
       schild: 'bg-fb-art-pallet/10 border-fb-art-pallet/25 text-fb-art-pallet',
     },
@@ -216,12 +221,9 @@ export class PurchaseDetailComponent {
   readonly linkIcon = ExternalLink;
   readonly coinsIcon = Coins;
   readonly receiptIcon = Receipt;
-  readonly scaleIcon = Scale;
   readonly sparklesIcon = Sparkles;
   readonly slidersIcon = Sliders;
   readonly checkIcon = CheckCircle2;
-  readonly chartIcon = PieChart;
-  readonly closeIcon = X;
   readonly refreshIcon = RefreshCw;
   readonly imageIcon = Image;
   readonly cropIcon = Crop;
@@ -239,10 +241,25 @@ export class PurchaseDetailComponent {
   readonly receivingQuantities = signal<Record<string, number>>({});
   readonly purchaseLineDrafts = signal<readonly PurchaseLineDraft[]>([]);
   readonly purchaseLineEditor = viewChild(PurchaseLineEditorComponent);
-  readonly isAllocatorOpen = signal<boolean>(false);
   readonly isCropperOpen = signal<boolean>(false);
   readonly selectedImageFile = signal<File | null>(null);
   readonly selectedImageDataUrl = signal<string | null>(null);
+  readonly isLifecycleSubmitting = signal(false);
+  readonly isCorrectionDialogOpen = signal(false);
+
+  readonly hasRecordedPurchaseSale = computed(
+    () => this.purchaseService.purchaseSaleHistoryState() === 'recorded',
+  );
+  readonly canReopenPurchase = computed(
+    () =>
+      this.purchaseService.selectedPurchase()?.entry_status === 'finalized' &&
+      this.purchaseService.purchaseSaleHistoryState() === 'none',
+  );
+  readonly canCorrectPurchase = computed(
+    () =>
+      this.purchaseService.selectedPurchase()?.entry_status === 'finalized' &&
+      this.hasRecordedPurchaseSale(),
+  );
 
   // Tracking state
   readonly isEditingTracking = signal<boolean>(false);
@@ -277,10 +294,36 @@ export class PurchaseDetailComponent {
     return this.purchaseService.purchaseItems().length + quantityCount;
   });
 
-  // Lot Allocator interactive state
-  readonly allocatorMode = signal<CostAllocationMode>('value_weighted');
-  readonly editableExpectedValues = signal<Record<string, number>>({});
-  readonly isApplyingAllocation = signal<boolean>(false);
+  readonly purchaseDetailRows = computed(() => {
+    const purchase = this.purchaseService.selectedPurchase();
+    if (!purchase) return [];
+    const inventoryState =
+      this.inventoryService.loadedWorkspaceId() === purchase.workspace_id &&
+      this.inventoryService.istGeladen()
+        ? ('loaded' as const)
+        : this.inventoryService.loadError()
+          ? ('error' as const)
+          : ('loading' as const);
+    const stockState = this.stockService.loadError()
+      ? ('error' as const)
+      : this.stockService.loadedWorkspaceId() === purchase.workspace_id
+        ? ('loaded' as const)
+        : ('loading' as const);
+    const salesState = this.salesService.loadError()
+      ? ('error' as const)
+      : this.salesService.loadedWorkspaceId() === purchase.workspace_id
+        ? ('loaded' as const)
+        : ('loading' as const);
+    return mapPurchaseDetailRows(purchase, {
+      inventoryItems: this.purchaseService.purchaseItems(),
+      stockLots: this.stockService.lots(),
+      stockMovements: this.stockService.movements(),
+      sales: this.salesService.sales(),
+      inventoryState,
+      stockState,
+      salesState,
+    });
+  });
 
   readonly costForm = new FormGroup({
     type: new FormControl('shipping', { nonNullable: true, validators: [Validators.required] }),
@@ -300,35 +343,26 @@ export class PurchaseDetailComponent {
     expected_value: new FormControl<number | null>(null),
   });
 
-  readonly simulatedAllocations = computed(() => {
-    const purchase = this.purchaseService.selectedPurchase();
-    const items = this.purchaseService.purchaseItems();
-    if (!purchase || items.length === 0) return [];
-
-    const totalCost = purchase.total_purchase_cost || purchase.purchase_price;
-    const mode = this.allocatorMode();
-    const customValues = this.editableExpectedValues();
-
-    const erwarteteWerte = items.map((it) =>
-      customValues[it.id] !== undefined ? customValues[it.id] : (it.expected_value ?? 0),
+  purchaseTotalCost(purchase: Purchase): number | null {
+    if (purchase.purchase_price === null) return null;
+    if (purchase.total_purchase_cost !== undefined && purchase.total_purchase_cost !== null) {
+      return purchase.total_purchase_cost;
+    }
+    return Number(
+      (
+        purchase.purchase_price +
+        (purchase.shipping_cost || 0) +
+        (purchase.other_costs || 0) +
+        (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0)
+      ).toFixed(2),
     );
+  }
 
-    // Dieselbe Verteilung wie beim Speichern verwenden, damit die Vorschau
-    // nicht 99,99 € anzeigt, wo anschliessend 100,00 € gebucht werden.
-    const gewichte = mode === 'even' ? items.map(() => 1) : erwarteteWerte;
-    const anteile = this.profitEngine.allocateCosts(totalCost, gewichte);
-
-    return items.map((it, index) => ({
-      item: it,
-      expected_value: erwarteteWerte[index],
-      allocated_cost: anteile[index],
-      percent_of_total: totalCost > 0 ? (anteile[index] / totalCost) * 100 : 0,
-    }));
-  });
-
-  readonly totalSimulatedAllocatedCost = computed(() => {
-    return this.simulatedAllocations().reduce((sum, a) => sum + a.allocated_cost, 0);
-  });
+  purchaseAdditionalCost(purchase: Purchase): number | null {
+    const totalCost = this.purchaseTotalCost(purchase);
+    if (purchase.purchase_price === null || totalCost === null) return null;
+    return Number((totalCost - purchase.purchase_price).toFixed(2));
+  }
 
   constructor() {
     effect(() => {
@@ -336,90 +370,17 @@ export class PurchaseDetailComponent {
       const workspaceId = this.workspaceService.currentWorkspace()?.id;
       this.mockStore.isDemoMode();
       if (purchaseId && workspaceId) {
-        void this.purchaseService.getPurchaseById(purchaseId);
+        void Promise.all([
+          this.purchaseService.getPurchaseById(purchaseId),
+          this.stockService.loadPositions(workspaceId),
+        ]);
       }
     });
   }
 
-  openAllocator(): void {
-    const items = this.purchaseService.purchaseItems();
-    const currentValues: Record<string, number> = {};
-    for (const it of items) {
-      currentValues[it.id] = it.expected_value || 0;
-    }
-    this.editableExpectedValues.set(currentValues);
-    const p = this.purchaseService.selectedPurchase();
-    if (p) {
-      this.allocatorMode.set(p.cost_allocation_mode || 'value_weighted');
-    }
-    this.isAllocatorOpen.set(true);
-  }
-
-  closeAllocator(): void {
-    this.isAllocatorOpen.set(false);
-  }
-
-  updateItemExpectedValue(itemId: string, value: number): void {
-    this.editableExpectedValues.update((current) => ({
-      ...current,
-      [itemId]: Math.max(0, value),
-    }));
-  }
-
-  async applyAllocations(): Promise<void> {
-    const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase) return;
-
-    this.isApplyingAllocation.set(true);
-    const customValues = this.editableExpectedValues();
-    const itemValues = Object.entries(customValues).map(([id, expected_value]) => ({
-      id,
-      expected_value,
-    }));
-
-    let ergebnis: { error: Error | null };
-    try {
-      ergebnis = await this.purchaseService.redistributeCosts(
-        purchase.id,
-        this.allocatorMode(),
-        itemValues,
-      );
-    } catch (ursache: unknown) {
-      ergebnis = { error: this.alsError(ursache) };
-    }
-    this.isApplyingAllocation.set(false);
-    const { error } = ergebnis;
-    if (error) {
-      this.meldeFehlerWennNichtSynchronisiert('Kosten konnten nicht verteilt werden.', error);
-      return;
-    }
-    this.closeAllocator();
-    this.toast.success('Kosten wurden verteilt.');
-  }
-
-  async setAllocationMode(mode: CostAllocationMode): Promise<void> {
-    const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase) return;
-    let ergebnis: { error: Error | null };
-    try {
-      ergebnis = await this.purchaseService.updateCostAllocationMode(purchase.id, mode);
-    } catch (ursache: unknown) {
-      ergebnis = { error: this.alsError(ursache) };
-    }
-    const { error } = ergebnis;
-    if (error) {
-      this.meldeFehlerWennNichtSynchronisiert(
-        'Verteilmethode konnte nicht geändert werden.',
-        error,
-      );
-      return;
-    }
-    this.toast.success('Verteilmethode wurde geändert.');
-  }
-
   async onAddCost(): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase || this.costForm.invalid) return;
+    if (!purchase || purchase.entry_status === 'finalized' || this.costForm.invalid) return;
 
     const val = this.costForm.getRawValue();
     const { error } = await this.purchaseService.addPurchaseCost(
@@ -443,7 +404,7 @@ export class PurchaseDetailComponent {
 
   async onDeleteCost(costId: string): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase) return;
+    if (!purchase || purchase.entry_status === 'finalized') return;
     const { error } = await this.purchaseService.deletePurchaseCost(costId, purchase.id);
     if (error) {
       this.meldeFehlerWennNichtSynchronisiert('Nebenkosten konnten nicht gelöscht werden.', error);
@@ -470,7 +431,17 @@ export class PurchaseDetailComponent {
   async savePurchaseLines(): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
     const lines = this.purchaseLineDrafts();
-    if (!purchase || lines.length === 0 || this.isSavingPurchaseLines()) return;
+    if (
+      !purchase ||
+      purchase.entry_status === 'finalized' ||
+      lines.length === 0 ||
+      this.isSavingPurchaseLines()
+    )
+      return;
+    if (!lines.every(isPricedPurchaseLineDraft)) {
+      this.toast.error('Positionspreise fehlen.');
+      return;
+    }
 
     this.isSavingPurchaseLines.set(true);
     const result = await this.purchaseService.createPurchaseLines(purchase.id, lines);
@@ -490,6 +461,7 @@ export class PurchaseDetailComponent {
   }
 
   startReceivingLines(): void {
+    if (this.purchaseService.selectedPurchase()?.entry_status === 'finalized') return;
     const quantities = this.quantityPurchaseLines().reduce<Record<string, number>>(
       (result, line) => {
         result[line.id] = Math.max(0, line.ordered_quantity - line.received_quantity);
@@ -512,7 +484,13 @@ export class PurchaseDetailComponent {
     const purchase = this.purchaseService.selectedPurchase();
     const nowReceived = this.receivingQuantities()[line.id] ?? 0;
     const remaining = line.ordered_quantity - line.received_quantity;
-    if (!purchase || nowReceived < 1 || nowReceived > remaining) return;
+    if (
+      !purchase ||
+      purchase.entry_status === 'finalized' ||
+      nowReceived < 1 ||
+      nowReceived > remaining
+    )
+      return;
 
     const result = await this.purchaseService.receivePurchaseLines(purchase.id, [
       { purchaseLineId: line.id, receivedQuantity: nowReceived },
@@ -534,7 +512,12 @@ export class PurchaseDetailComponent {
 
   async captureIndividualItem(line: PurchaseLine): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase || line.received_quantity > 0) return;
+    if (
+      !purchase ||
+      purchase.entry_status === 'finalized' ||
+      line.received_quantity >= line.ordered_quantity
+    )
+      return;
 
     const receiptResult = await this.purchaseService.receiveIndividualPurchaseLine(
       purchase.id,
@@ -542,7 +525,6 @@ export class PurchaseDetailComponent {
       {
         title: line.title_snapshot,
         condition: 'used',
-        allocatedPurchaseCost: line.line_total,
       },
     );
     if (receiptResult.error) {
@@ -553,13 +535,17 @@ export class PurchaseDetailComponent {
       return;
     }
 
-    await this.purchaseService.getPurchaseById(purchase.id);
     this.toast.success('Einzelartikel wurde erfasst.');
+  }
+
+  captureIndividualItemById(lineId: string): void {
+    const line = this.individualPurchaseLines().find((candidate) => candidate.id === lineId);
+    if (line) void this.captureIndividualItem(line);
   }
 
   async onAddItem(): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase || this.itemForm.invalid) return;
+    if (!purchase || purchase.entry_status === 'finalized' || this.itemForm.invalid) return;
 
     const val = this.itemForm.getRawValue();
     const res = await this.purchaseService.addItemToPurchase(purchase.id, {
@@ -598,7 +584,7 @@ export class PurchaseDetailComponent {
 
   async onDeletePurchase(): Promise<void> {
     const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase) return;
+    if (!purchase || purchase.entry_status !== 'draft') return;
     const bestaetigt = await this.dialog.frage({
       titel: 'Einkauf löschen?',
       text: `„${purchase.title}“ wird gelöscht, zusammen mit allen zugeordneten Artikeln und Nebenkosten. Das lässt sich nicht rückgängig machen.`,
@@ -614,6 +600,84 @@ export class PurchaseDetailComponent {
       this.toast.success('Einkauf wurde gelöscht.');
       await this.router.navigate(['/purchases']);
     }
+  }
+
+  async reopenPurchase(): Promise<void> {
+    const purchase = this.purchaseService.selectedPurchase();
+    if (!purchase || !this.canReopenPurchase() || this.isLifecycleSubmitting()) return;
+
+    this.isLifecycleSubmitting.set(true);
+    let result: Awaited<ReturnType<PurchaseCostingService['reopenPurchase']>>;
+    try {
+      result = await this.purchaseCostingService.reopenPurchase(purchase.workspace_id, purchase.id);
+    } catch (cause: unknown) {
+      result = {
+        data: null,
+        error: this.alsError(cause),
+        reportedBySyncStatus: false,
+      };
+    }
+    this.isLifecycleSubmitting.set(false);
+    if (result.error) {
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Einkauf konnte nicht wieder geöffnet werden.',
+        result.error,
+      );
+      return;
+    }
+
+    await this.purchaseService.getPurchaseById(purchase.id);
+    this.toast.success('Einkauf wurde wieder geöffnet.');
+  }
+
+  async finalizePurchase(): Promise<void> {
+    const purchase = this.purchaseService.selectedPurchase();
+    if (!purchase || purchase.entry_status === 'finalized' || this.isLifecycleSubmitting()) {
+      return;
+    }
+
+    this.isLifecycleSubmitting.set(true);
+    let result: Awaited<ReturnType<PurchaseCostingService['finalizePurchase']>>;
+    try {
+      result = await this.purchaseCostingService.finalizePurchase(
+        purchase.workspace_id,
+        purchase.id,
+      );
+    } catch (cause: unknown) {
+      result = {
+        data: null,
+        error: this.alsError(cause),
+        reportedBySyncStatus: false,
+      };
+    }
+    this.isLifecycleSubmitting.set(false);
+    if (result.error) {
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Einkauf konnte nicht abgeschlossen werden.',
+        result.error,
+      );
+      return;
+    }
+
+    await this.purchaseService.refreshAfterFinalization(purchase.workspace_id, purchase.id);
+    this.toast.success('Erfassung wurde abgeschlossen.');
+  }
+
+  async reloadPurchaseSaleHistory(): Promise<void> {
+    const purchase = this.purchaseService.selectedPurchase();
+    if (!purchase || purchase.entry_status !== 'finalized' || this.isLifecycleSubmitting()) return;
+
+    this.isLifecycleSubmitting.set(true);
+    await this.purchaseService.loadPurchaseSaleHistory(purchase.workspace_id, purchase.id);
+    this.isLifecycleSubmitting.set(false);
+  }
+
+  async onCorrectionSaved(): Promise<void> {
+    const purchase = this.purchaseService.selectedPurchase();
+    if (!purchase) return;
+    this.isCorrectionDialogOpen.set(false);
+    await this.purchaseService.getPurchaseById(purchase.id);
+    this.toast.success('Einkauf wurde korrigiert.');
   }
 
   // -- Tracking Methods --

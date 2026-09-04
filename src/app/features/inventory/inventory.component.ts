@@ -8,7 +8,6 @@ import {
   ViewChild,
 } from '@angular/core';
 import { Router } from '@angular/router';
-import { CurrencyPipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
@@ -44,6 +43,13 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { StockPositionListComponent } from './components/stock-position-list/stock-position-list.component';
 import { SaleTargetRouteState } from '../../core/models/sale-target.models';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
+import { PurchaseService } from '../../core/services/purchase.service';
+import { SalesService } from '../../core/services/sales.service';
+import { buildInventoryPresentation, InventorySourceState } from './utils/inventory-presentation';
+import {
+  CostState,
+  CostStateComponent,
+} from '../../shared/components/cost-state/cost-state.component';
 
 type FilterPreset = string;
 
@@ -51,7 +57,6 @@ type FilterPreset = string;
   selector: 'app-inventory',
   imports: [
     BarcodeScannerComponent,
-    CurrencyPipe,
     TranslatePipe,
     LucideDynamicIcon,
     ItemCreateModalComponent,
@@ -59,6 +64,7 @@ type FilterPreset = string;
     InventoryLabelModalComponent,
     CustomSelectComponent,
     CustomSearchInputComponent,
+    CostStateComponent,
     StockPositionListComponent,
   ],
   templateUrl: './inventory.component.html',
@@ -68,9 +74,11 @@ type FilterPreset = string;
 export class InventoryComponent {
   readonly inventoryService = inject(InventoryService);
   readonly stockService = inject(StockService);
+  readonly purchaseService = inject(PurchaseService);
+  readonly salesService = inject(SalesService);
   private readonly router = inject(Router);
   private readonly dialog = inject(ConfirmDialogService);
-  private readonly workspaceService = inject(WorkspaceService);
+  readonly workspaceService = inject(WorkspaceService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly toast = inject(ToastService);
 
@@ -152,13 +160,20 @@ export class InventoryComponent {
     });
   }
 
-  reloadStock(): void {
+  async reloadInventorySources(): Promise<void> {
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
-    if (workspaceId) void this.stockService.loadPositions(workspaceId);
+    if (!workspaceId) return;
+    await Promise.all([
+      this.inventoryService.loadInventory(workspaceId),
+      this.stockService.loadPositions(workspaceId),
+      this.purchaseService.loadPurchases(workspaceId),
+      this.salesService.loadSales(workspaceId),
+    ]);
   }
 
   readonly filterStatusOptions: SelectOption<string>[] = [
     { value: 'all', label: 'Alle Status' },
+    { value: 'available', label: 'Verfügbar', badgeClass: 'bg-emerald-400' },
     { value: 'received', label: 'Auf Lager', badgeClass: 'bg-blue-400' },
     { value: 'needs_review', label: 'Prüfung nötig', badgeClass: 'bg-amber-400' },
     { value: 'researched', label: 'Recherchiert', badgeClass: 'bg-indigo-400' },
@@ -188,86 +203,130 @@ export class InventoryComponent {
         .filter((i) => i.is_public_store !== false && i.status !== 'sold').length,
   );
 
-  // Filtered Items Computed Signal
-  readonly filteredItems = computed(() => {
-    let list = this.inventoryService.items();
+  readonly inventorySourceState = computed<InventorySourceState>(() =>
+    this.sourceState(
+      this.inventoryService.loadedWorkspaceId(),
+      this.inventoryService.isLoading(),
+      this.inventoryService.loadError(),
+    ),
+  );
+  readonly stockSourceState = computed<InventorySourceState>(() =>
+    this.sourceState(
+      this.stockService.loadedWorkspaceId(),
+      this.stockService.isLoading(),
+      this.stockService.loadError(),
+    ),
+  );
+  readonly purchaseSourceState = computed<InventorySourceState>(() =>
+    this.sourceState(
+      this.purchaseService.loadedWorkspaceId(),
+      this.purchaseService.isLoading(),
+      this.purchaseService.loadError(),
+    ),
+  );
+  readonly salesSourceState = computed<InventorySourceState>(() =>
+    this.sourceState(
+      this.salesService.loadedWorkspaceId(),
+      this.salesService.isLoading(),
+      this.salesService.loadError(),
+    ),
+  );
+
+  readonly inventoryPresentation = computed(() =>
+    buildInventoryPresentation({
+      workspaceId: this.workspaceService.currentWorkspace()?.id ?? '',
+      inventoryState: this.inventorySourceState(),
+      stockState: this.stockSourceState(),
+      stockWorkspaceId: this.stockService.loadedWorkspaceId(),
+      purchaseState: this.purchaseSourceState(),
+      salesState: this.salesSourceState(),
+      individualItems: this.inventoryService.items(),
+      positions: this.stockService.positions(),
+      lots: this.stockService.lots(),
+      movements: this.stockService.movements(),
+      purchases: this.purchaseService.purchases(),
+      sales: this.salesService.sales(),
+    }),
+  );
+
+  readonly filteredPresentationRows = computed(() => {
     const query = this.searchQuery().toLowerCase().trim();
-
-    if (query) {
-      list = list.filter(
-        (item) =>
-          item.title.toLowerCase().includes(query) ||
-          (item.sku && item.sku.toLowerCase().includes(query)) ||
-          (item.ean && item.ean.toLowerCase().includes(query)) ||
-          (item.brand && item.brand.toLowerCase().includes(query)) ||
-          (item.model && item.model.toLowerCase().includes(query)),
-      );
-    }
-
+    const condition = this.selectedCondition();
+    const status = this.selectedStatus();
     const preset = this.activePreset();
-    switch (preset) {
-      case 'needs_research':
-        list = list.filter((item) =>
-          ['received', 'needs_review', 'researched'].includes(item.status),
-        );
-        break;
-      case 'unlisted':
-        list = list.filter((item) => item.status !== 'listed' && item.status !== 'sold');
-        break;
-      case 'high_margin':
-        list = list.filter((item) => (item.profit_potential ?? 0) >= 30);
-        break;
-      case 'defective':
-        list = list.filter((item) => item.status === 'defective');
-        break;
-      case 'store_public':
-        list = list.filter((item) => item.is_public_store !== false && item.status !== 'sold');
-        break;
-      case 'legacy_review':
-        list = list.filter((item) =>
-          [
+    return this.inventoryPresentation().rows.filter((row) => {
+      const item = row.inventoryItem;
+      if (
+        query &&
+        ![row.title, item?.sku, item?.ean, item?.brand, item?.model]
+          .filter((value): value is string => !!value)
+          .some((value) => value.toLowerCase().includes(query))
+      ) {
+        return false;
+      }
+      if (condition !== 'all' && row.condition !== condition) return false;
+      if (status === 'available' && row.quantity.available <= 0) return false;
+      if (status === 'sold' && row.quantity.sold <= 0) return false;
+      if (status === 'reserved' && row.quantity.reserved <= 0 && item?.status !== 'reserved') {
+        return false;
+      }
+      if (status !== 'all' && !['available', 'sold', 'reserved'].includes(status)) {
+        if (!item || item.status !== status) return false;
+      }
+      if (preset === 'all') return true;
+      if (!item) return false;
+      switch (preset) {
+        case 'needs_research':
+          return ['received', 'needs_review', 'researched'].includes(item.status);
+        case 'unlisted':
+          return item.status !== 'listed' && item.status !== 'sold';
+        case 'high_margin':
+          return (item.profit_potential ?? 0) >= 30;
+        case 'defective':
+          return item.status === 'defective';
+        case 'store_public':
+          return item.is_public_store !== false && item.status !== 'sold';
+        case 'legacy_review':
+          return [
             'legacy_sold_unverified',
             'legacy_sale_header_without_line',
             'sale_status_conflict',
             'multiple_active_sales',
-          ].includes(item.sale_state ?? ''),
-        );
-        break;
-    }
-
-    const cond = this.selectedCondition();
-    if (cond !== 'all') {
-      list = list.filter((item) => item.condition === cond);
-    }
-
-    const stat = this.selectedStatus();
-    if (stat !== 'all') {
-      list = list.filter((item) => item.status === stat);
-    }
-
-    return list;
+          ].includes(item.sale_state ?? '');
+        default:
+          return true;
+      }
+    });
   });
 
-  readonly filteredStockPositions = computed(() => {
-    if (
-      this.selectedCondition() !== 'all' ||
-      this.selectedStatus() !== 'all' ||
-      this.activePreset() !== 'all'
-    ) {
-      return [];
-    }
-    const query = this.searchQuery().toLowerCase().trim();
-    if (!query) return this.stockService.positions();
-    return this.stockService
-      .positions()
-      .filter((position) => position.title.toLowerCase().includes(query));
-  });
-
-  readonly filteredUnitCount = computed(
-    () =>
-      this.filteredStockPositions().reduce((sum, position) => sum + position.on_hand_quantity, 0) +
-      this.filteredItems().filter(isSellableInventoryItem).length,
+  readonly filteredItems = computed(() =>
+    this.filteredPresentationRows().flatMap((row) =>
+      row.inventoryItem ? [row.inventoryItem] : [],
+    ),
   );
+
+  readonly filteredUnitCount = computed(() =>
+    this.filteredPresentationRows().reduce((sum, row) => sum + row.quantity.total, 0),
+  );
+
+  readonly filteredInventoryValue = computed<CostState>(() => {
+    const rows = this.filteredPresentationRows();
+    if (
+      this.inventoryPresentation().sourceState !== 'known' ||
+      rows.some((row) => row.quantityState !== 'known' || row.inventoryValue.kind !== 'known')
+    ) {
+      return { kind: 'open' };
+    }
+    const valueInCents = rows.reduce(
+      (sum, row) =>
+        sum +
+        (row.inventoryValue.kind === 'known'
+          ? Math.round((row.inventoryValue.amount + Number.EPSILON) * 100)
+          : 0),
+      0,
+    );
+    return { kind: 'known', amount: valueInCents / 100 };
+  });
 
   async onChangeItemStatus(item: InventoryItem, newStatus: ItemStatus | null): Promise<void> {
     if (!newStatus || newStatus === item.status || isInventoryItemMutationLocked(item)) return;
@@ -296,20 +355,20 @@ export class InventoryComponent {
     );
   }
 
-  readonly totalTiedCapital = computed(() =>
-    this.filteredItems().reduce((sum, item) => sum + (item.allocated_purchase_cost || 0), 0),
+  readonly totalExpectedValue = computed<CostState>(() =>
+    this.inventoryPresentation().sourceState === 'known'
+      ? {
+          kind: 'known',
+          amount: this.filteredItems().reduce(
+            (sum, item) => sum + (Number(item.expected_value) || 0),
+            0,
+          ),
+        }
+      : { kind: 'open' },
   );
 
-  readonly totalExpectedValue = computed(() =>
-    this.filteredItems().reduce((sum, item) => sum + (Number(item.expected_value) || 0), 0),
-  );
-
-  readonly totalProfitPotential = computed(() =>
-    this.filteredItems().reduce(
-      (sum, item) =>
-        sum + Math.max(0, (Number(item.expected_value) || 0) - (item.allocated_purchase_cost || 0)),
-      0,
-    ),
+  readonly soldUnitCount = computed(() =>
+    this.filteredPresentationRows().reduce((sum, row) => sum + row.quantity.sold, 0),
   );
 
   readonly itemsToPrint = computed<InventoryItem[]>(() => {
@@ -429,5 +488,15 @@ export class InventoryComponent {
 
   private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {
     if (!this.syncStatus.istZentralGemeldet(error)) this.toast.error(title, error.message);
+  }
+
+  private sourceState(
+    loadedWorkspaceId: string | null,
+    loading: boolean,
+    error: Error | null,
+  ): InventorySourceState {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (error) return 'error';
+    return workspaceId && loadedWorkspaceId === workspaceId && !loading ? 'known' : 'loading';
   }
 }

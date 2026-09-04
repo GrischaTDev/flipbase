@@ -407,9 +407,12 @@ describe('CustomSelectComponent', () => {
   it('schließt mit Escape ohne Wertänderung und stellt den Triggerfokus wieder her', async () => {
     const fixture = createSelect({ value: 'ebay' });
     const onChange = vi.fn<(value: string | null) => void>();
+    const bubbled = vi.fn();
+    fixture.nativeElement.addEventListener('keydown', bubbled);
     fixture.componentInstance.registerOnChange(onChange);
     keydown(fixture, 'ArrowDown');
     optionElements(fixture)[0]?.focus();
+    bubbled.mockClear();
 
     keydown(fixture, 'Escape');
     await flushQueuedFocus(fixture);
@@ -417,6 +420,7 @@ describe('CustomSelectComponent', () => {
     expect(fixture.componentInstance.isOpen()).toBe(false);
     expect(fixture.componentInstance.value()).toBe('ebay');
     expect(onChange).not.toHaveBeenCalled();
+    expect(bubbled).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(triggerOf(fixture));
   });
 

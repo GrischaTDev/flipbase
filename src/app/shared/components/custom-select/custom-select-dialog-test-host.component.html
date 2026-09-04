@@ -1,0 +1,11 @@
+@if (dialogOpen()) {
+  <div
+    appModalDialog
+    dialogTitel="Auswahl im Dialog"
+    (dialogClose)="dialogOpen.set(false)"
+    class="fixed inset-0"
+  >
+    <div data-select-slot></div>
+    <button type="button" data-after-select>Weiter</button>
+  </div>
+}

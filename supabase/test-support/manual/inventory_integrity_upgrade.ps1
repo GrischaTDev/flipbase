@@ -13,8 +13,8 @@ if ($currentMigrations.Count -ne 1) {
 
 $currentMigration = $currentMigrations[0]
 $currentIndex = [Array]::IndexOf($migrationFiles, $currentMigration)
-if ($currentIndex -lt 1 -or $currentIndex -ne ($migrationFiles.Count - 1)) {
-  throw 'Die Inventar-Integritaetsmigration muss genau eine unmittelbare Vorgaengermigration besitzen und die neueste Migration sein.'
+if ($currentIndex -lt 1) {
+  throw 'Die Inventar-Integritaetsmigration muss eine unmittelbare Vorgaengermigration besitzen.'
 }
 
 $previousMigration = $migrationFiles[$currentIndex - 1]
@@ -172,7 +172,7 @@ try {
     'cp', $fixturePath, "${containerName}:$containerFixturePath"
   ) -Description 'Kopieren der Legacy-Fixture'
   Invoke-CheckedCommand -Executable 'docker' -Arguments @(
-    'exec', $containerName, 'psql', '-X', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', 'postgres', '-f', $containerFixturePath
+    'exec', $containerName, 'psql', '-X', '-v', 'ON_ERROR_STOP=1', '-v', 'inventory_integrity_fixture=1', '-U', 'postgres', '-d', 'postgres', '-f', $containerFixturePath
   ) -Description 'Einspielen der Legacy-Fixture per psql'
 
   $beforeSnapshot = Capture-LegacySnapshot -OutputPath $beforeFile

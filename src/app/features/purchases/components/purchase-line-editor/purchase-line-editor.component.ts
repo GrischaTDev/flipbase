@@ -4,6 +4,7 @@ import {
   computed,
   effect,
   inject,
+  input,
   output,
   signal,
   untracked,
@@ -11,31 +12,57 @@ import {
 import { FormArray, FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { CatalogService } from '../../../../core/services/catalog.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
-import { TrackingMode } from '../../../../core/models/flipbase.models';
+import { ItemCondition, PurchaseType, TrackingMode } from '../../../../core/models/flipbase.models';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
+import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
 
 export interface PurchaseLineDraft {
+  /** Stabile UI-ID, bis die Persistenz eine echte purchase_line-ID vergibt. */
+  readonly draftId?: string;
   readonly catalogProductId: string | null;
   readonly titleSnapshot: string;
   readonly lineKind: TrackingMode;
   readonly orderedQuantity: number;
+  readonly condition: ItemCondition;
+  readonly priceMode: 'priced' | 'unpriced_mystery';
+  readonly unitPurchasePrice: number | null;
+  readonly lineTotal: number | null;
+  readonly estimatedMarketValue: number | null;
+}
+
+export interface PricedPurchaseLineDraft extends PurchaseLineDraft {
+  readonly priceMode: 'priced';
   readonly unitPurchasePrice: number;
   readonly lineTotal: number;
 }
 
+export function isPricedPurchaseLineDraft(
+  line: PurchaseLineDraft,
+): line is PricedPurchaseLineDraft {
+  return line.priceMode === 'priced' && line.unitPurchasePrice !== null && line.lineTotal !== null;
+}
+
 interface PurchaseLineControls {
+  draftId: FormControl<string>;
   catalogProductId: FormControl<string | null>;
   titleSnapshot: FormControl<string>;
   lineKind: FormControl<TrackingMode>;
   orderedQuantity: FormControl<number>;
-  unitPurchasePrice: FormControl<number>;
-  lineTotal: FormControl<number>;
+  condition: FormControl<ItemCondition>;
+  priceMode: FormControl<'priced' | 'unpriced_mystery'>;
+  unitPurchasePrice: FormControl<number | null>;
+  lineTotal: FormControl<number | null>;
+  estimatedMarketValue: FormControl<number | null>;
 }
 
 type PriceField = 'unitPurchasePrice' | 'lineTotal';
 
 @Component({
   selector: 'app-purchase-line-editor',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, CustomSelectComponent, ItemConditionLabelPipe],
   templateUrl: './purchase-line-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -43,6 +70,7 @@ export class PurchaseLineEditorComponent {
   readonly catalogService = inject(CatalogService);
   private readonly workspaceService = inject(WorkspaceService);
 
+  readonly purchaseType = input.required<PurchaseType>();
   readonly lineRows = new FormArray<FormGroup<PurchaseLineControls>>([]);
   readonly linesChanged = output<readonly PurchaseLineDraft[]>();
   readonly isCreatingProduct = signal(false);
@@ -74,6 +102,19 @@ export class PurchaseLineEditorComponent {
           product.tracking_mode === 'quantity' && product.workspace_id === this.activeWorkspaceId(),
       ),
   );
+  readonly quantityProductOptions = computed<SelectOption<string>[]>(() => [
+    { value: '', label: 'Artikel wählen' },
+    ...this.quantityProducts().map((product) => ({ value: product.id, label: product.title })),
+  ]);
+  readonly isMysteryPurchase = computed(() => this.purchaseType() === 'mystery_pack');
+  readonly conditionOptions: SelectOption<ItemCondition>[] = [
+    { value: 'new', label: 'Neu' },
+    { value: 'like_new', label: 'Wie neu' },
+    { value: 'very_good', label: 'Sehr gut' },
+    { value: 'used', label: 'Gebraucht' },
+    { value: 'heavily_used', label: 'Stark gebraucht' },
+    { value: 'defective', label: 'Defekt / Ersatzteil' },
+  ];
 
   private lastRequestedWorkspaceId: string | null = null;
 
@@ -88,6 +129,9 @@ export class PurchaseLineEditorComponent {
       untracked(() => {
         void this.loadCatalogProducts();
       });
+    });
+    effect(() => {
+      this.configurePriceMode(this.purchaseType());
     });
   }
 
@@ -132,13 +176,40 @@ export class PurchaseLineEditorComponent {
     this.emitDrafts();
   }
 
+  updateTitleSnapshotFromEvent(index: number, event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    this.updateTitleSnapshot(index, target.value);
+  }
+
+  updateEstimatedMarketValue(index: number, event: Event): void {
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement)) return;
+    const value = target.valueAsNumber;
+    this.lineRows
+      .at(index)
+      .controls.estimatedMarketValue.setValue(Number.isFinite(value) ? value : null);
+    this.emitDrafts();
+  }
+
   recalculate(index: number, changedField: PriceField): void {
     const row = this.lineRows.at(index);
+    if (row.controls.priceMode.value === 'unpriced_mystery') {
+      row.controls.unitPurchasePrice.setValue(null, { emitEvent: false });
+      row.controls.lineTotal.setValue(null, { emitEvent: false });
+      this.emitDrafts();
+      return;
+    }
     const quantity = row.controls.orderedQuantity.value;
     if (!Number.isFinite(quantity) || quantity <= 0) return;
 
     if (changedField === 'unitPurchasePrice') {
       const unitPrice = row.controls.unitPurchasePrice.value;
+      if (unitPrice === null) {
+        row.controls.lineTotal.setValue(null, { emitEvent: false });
+        this.emitDrafts();
+        return;
+      }
       if (!Number.isFinite(unitPrice) || unitPrice < 0) return;
       row.controls.lineTotal.setValue(this.toMoney(quantity * unitPrice), { emitEvent: false });
       this.emitDrafts();
@@ -146,6 +217,11 @@ export class PurchaseLineEditorComponent {
     }
 
     const lineTotal = row.controls.lineTotal.value;
+    if (lineTotal === null) {
+      row.controls.unitPurchasePrice.setValue(null, { emitEvent: false });
+      this.emitDrafts();
+      return;
+    }
     if (!Number.isFinite(lineTotal) || lineTotal < 0) return;
     row.controls.unitPurchasePrice.setValue(this.toMoney(lineTotal / quantity), {
       emitEvent: false,
@@ -202,7 +278,9 @@ export class PurchaseLineEditorComponent {
   }
 
   private createLine(lineKind: TrackingMode): FormGroup<PurchaseLineControls> {
-    return new FormGroup<PurchaseLineControls>({
+    const isMysteryPurchase = this.isMysteryPurchase();
+    const row = new FormGroup<PurchaseLineControls>({
+      draftId: new FormControl(`draft-${crypto.randomUUID()}`, { nonNullable: true }),
       catalogProductId: new FormControl<string | null>(null, {
         validators: lineKind === 'quantity' ? [Validators.required] : [],
       }),
@@ -215,15 +293,47 @@ export class PurchaseLineEditorComponent {
         nonNullable: true,
         validators: [Validators.required, Validators.min(1)],
       }),
-      unitPurchasePrice: new FormControl(0, {
+      condition: new FormControl<ItemCondition>('used', { nonNullable: true }),
+      priceMode: new FormControl(isMysteryPurchase ? 'unpriced_mystery' : 'priced', {
         nonNullable: true,
-        validators: [Validators.required, Validators.min(0)],
       }),
-      lineTotal: new FormControl(0, {
-        nonNullable: true,
-        validators: [Validators.required, Validators.min(0)],
+      unitPurchasePrice: new FormControl<number | null>(null, {
+        validators: isMysteryPurchase ? [] : [Validators.required, Validators.min(0)],
+      }),
+      lineTotal: new FormControl<number | null>(null, {
+        validators: isMysteryPurchase ? [] : [Validators.required, Validators.min(0)],
+      }),
+      estimatedMarketValue: new FormControl<number | null>(null, {
+        validators: isMysteryPurchase ? [Validators.min(0)] : [],
       }),
     });
+    row.valueChanges.subscribe(() => this.emitDrafts());
+    return row;
+  }
+
+  private configurePriceMode(purchaseType: PurchaseType): void {
+    const isMysteryPurchase = purchaseType === 'mystery_pack';
+    for (const row of this.lineRows.controls) {
+      row.controls.priceMode.setValue(isMysteryPurchase ? 'unpriced_mystery' : 'priced', {
+        emitEvent: false,
+      });
+      row.controls.unitPurchasePrice.setValue(null, { emitEvent: false });
+      row.controls.lineTotal.setValue(null, { emitEvent: false });
+      row.controls.unitPurchasePrice.setValidators(
+        isMysteryPurchase ? [] : [Validators.required, Validators.min(0)],
+      );
+      row.controls.lineTotal.setValidators(
+        isMysteryPurchase ? [] : [Validators.required, Validators.min(0)],
+      );
+      row.controls.estimatedMarketValue.setValidators(isMysteryPurchase ? [Validators.min(0)] : []);
+      if (!isMysteryPurchase) {
+        row.controls.estimatedMarketValue.setValue(null, { emitEvent: false });
+      }
+      row.controls.unitPurchasePrice.updateValueAndValidity({ emitEvent: false });
+      row.controls.lineTotal.updateValueAndValidity({ emitEvent: false });
+      row.controls.estimatedMarketValue.updateValueAndValidity({ emitEvent: false });
+    }
+    if (this.lineRows.length > 0) this.emitDrafts();
   }
 
   private toMoney(value: number): number {
