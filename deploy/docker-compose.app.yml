@@ -9,7 +9,7 @@ services:
     # IMAGE_TAG bleibt im Normalfall leer und zeigt damit auf "latest", also
     # den letzten Stand von master. Fuer einen Rueckfall auf eine aeltere
     # Fassung wird der Wert gesetzt, siehe deploy/README.md.
-    image: ghcr.io/grischatdev/flipbase:${IMAGE_TAG:-latest}
+    image: ${FLIPBASE_IMAGE:-ghcr.io/grischatdev/flipbase:${IMAGE_TAG:-latest}}
     container_name: flipbase-web
     restart: unless-stopped
     # Kein ports-Abschnitt: erreichbar ausschliesslich ueber Caddy im selben Netz.

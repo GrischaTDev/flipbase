@@ -1,6 +1,9 @@
 # Serverkonfiguration
 
-Die Dateien in diesem Ordner sind **Abbilder dessen, was auf dem Server läuft**.
+Die Dateien in diesem Ordner beschreiben die vorgesehene Serverkonfiguration.
+Der installierte Stand kann älter sein. Der neue Migrationsweg ist vorbereitet,
+aber noch nicht installiert; Voraussetzungen und Freigaben stehen in
+[RELEASE-PIPELINE.md](RELEASE-PIPELINE.md).
 Sie liegen hier, damit die Einrichtung nachvollziehbar und wiederherstellbar
 ist – die nächtliche Sicherung erfasst Datenbank und Schlüssel, aber nicht die
 Konfiguration des Reverse Proxy.
@@ -13,9 +16,12 @@ seit der Einrichtung der Pipeline bei jedem Push auf `master` von allein aus.
 
 Bei jedem Push auf `master` läuft [`.github/workflows/ci.yml`](../.github/workflows/ci.yml):
 
-1. **Verify** – Format, Lint, Typen, Tests, Build. Schlägt einer fehl, endet es hier.
-2. **Publish image** – baut das Docker-Abbild und legt es in die GitHub
-   Container Registry, zweifach gekennzeichnet: `latest` und `sha-<kurz>`.
+1. **Required checks** – Format, Lint, Typen und alle ausgewählten Prüfungen.
+   PRs bauen Angular in Quality, master im Docker-Job. Ohne erfolgreiche
+   Gesamtfreigabe gibt es kein Deployment.
+2. **Publish image** – baut das Produktionsabbild, prüft HTTP und statische Dateien
+   und legt genau dieses Image als `sha-<kurz>` in die GitHub Container Registry.
+   Der vollständige Digest wird für den neuen Releaseweg weitergereicht.
 3. **Deploy** – meldet sich per SSH am Server an und startet
    `/opt/flipbase/deploy.sh`, das genau diese Kennzeichnung lädt, den Container
    austauscht und wartet, bis er sich gesund meldet. Danach verlangt die
@@ -38,14 +44,14 @@ Der Server baut also **nichts** mehr selbst. Er lädt ein fertiges Abbild.
 - **Ausgerollt wird die feste Kennzeichnung, nicht `latest`.** So geht genau
   das Abbild live, das dieser Lauf gebaut hat, auch wenn parallel ein zweiter
   Lauf etwas hochlädt.
-- **Migrationen laufen bewusst nicht mit.** Schemaänderungen automatisch bei
-  jedem Push auf die Produktivdatenbank loszulassen, ist ein anderes Kaliber
-  als ein Frontend auszutauschen. Das bleibt ein bewusster Schritt über
-  `apply-migrations.sh`.
+- **Migrationen brauchen eine geprüfte Freigabe.** Bis zum Serverbootstrap bleibt
+  der bisherige Abgleich aktiv. Danach führt der neue Runner ausschließlich
+  freigegebene Migrationen aus dem Release-Digest aus; Details einschließlich
+  Backup und getrenntem Altbestand in [RELEASE-PIPELINE.md](RELEASE-PIPELINE.md).
 - **Die Pipeline prüft aber, ob sie gelaufen sind.** Vor dem Ausliefern
   vergleicht sie die Dateien in `supabase/migrations/` mit dem, was die
   Datenbank als angewendet meldet, und **bricht ab**, wenn eine fehlt — samt
-  Namen und den beiden nötigen Befehlen. Grund: Am 21.08.2026 lag eine
+  Namen und Verweis auf den geprüften Bootstrapweg. Grund: Am 21.08.2026 lag eine
   Migration einen Tag lang unangewendet im Repository. Die Anwendung liefert
   sich selbst aus, Migrationen nicht — also können sie schlicht vergessen
   werden. Code, dessen Spalten in der Datenbank fehlen, soll gar nicht erst

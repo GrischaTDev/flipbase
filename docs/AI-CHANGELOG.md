@@ -1,5 +1,45 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Release-Pipeline zur Integration vorbereitet
+
+**Art:** Konfiguration | Test
+**Betroffen:** Zweig `chore/streamline-release-pipeline`, GitHub-PR und CI
+**Was:** Auf ausdrücklichen Wunsch Push, PR und Merge vorbereitet. Aktuellen Master abgeglichen; keine zwischenzeitlichen Änderungen zu übernehmen.
+**Warum:** Die geprüfte CI-Vereinfachung integrieren. Der neue Datenbankweg bleibt bis zum dokumentierten Serverbootstrap deaktiviert.
+**Verifiziert durch:** Erneuter vollständiger lokaler Verify-Lauf erfolgreich. PR #18 deckte eine ungenutzte Shell-Schleifenvariable auf; auf den bewusst ungenutzten Namen `_` korrigiert. Die lokale actionlint-Prüfung hatte anders als GitHub kein ShellCheck verfügbar; Linux-Gegenprüfung folgt mit beiden Werkzeugen. Keine manuelle Produktionsmigration oder Serverinstallation.
+
+## 2026-09-05 – Codex – Git-Rename-Erkennung abgesichert
+
+**Art:** Bugfix | Test
+**Betroffen:** `scripts/detect-supabase-changes.mjs`, zugehöriger Real-Git-Test
+**Was:** Die Pfaderkennung vergleicht Git-Diffs mit deaktivierter Rename-Kompression; ein Regressionstest prüft einen technischen Template-Pfad, der nach `docs/` verschoben wird.
+**Warum:** Der frühere Rename-Diff konnte nur den Dokumentationszielpfad liefern und dadurch die Anwendungsprüfungen überspringen.
+**Verifiziert durch:** RED reproduziert `application=false`; GREEN mit `--no-renames` ergibt `application=true`; 13 fokussierte Node-Tests, Prettier-Check und ESLint erfolgreich.
+
+## 2026-09-05 – Codex – Release-Pipeline vereinfacht
+
+**Art:** Konfiguration | Test
+**Betroffen:** GitHub Actions, Änderungserkennung, Freigabeprüfungen und Deployment
+**Was:** Umsetzung im eigenen Zweig `chore/streamline-release-pipeline`; Dokumentationsfilter, gemeinsame Freigabe und neu verteilte Testgruppen. Digestgebundener Releaseweg mit explizit freigegebenen Migrationen, strikter verschlüsselter Sicherung und gemeinsamem SQL-/Historienabschluss vorbereitet. Produktionsimage wird vor Veröffentlichung geprüft, separater Master-Build entfällt.
+**Warum:** Weniger unnötige CI-Arbeit und vollständiger, abgesicherter Veröffentlichungsweg.
+**Verifiziert durch:** Abschließendes `npm run verify` auf `aeba8ed` Exit 0 (1.472 Anwendungstests erfolgreich, fünf bestehende Skips; Landingpage 13; Workflow 31 erfolgreich, vier Windows/POSIX-Skips; Build erfolgreich). Linux-Shelltests und echte PostgreSQL-16-/17.6-Transaktionen erfolgreich; actionlint und unabhängige Aufgabenreviews ohne blockierende Befunde. Gesamtprüfung fand einen Rename-Auswahlfehler, der mit Regressionstest behoben und erfolgreich nachgeprüft wurde. Docker-Build und HTTP-/SHA-/JS-/CSS-Smoke mit lokaler Umgebung erfolgreich. Keine Serverinstallation, Registry-Veröffentlichung oder Produktionsänderung; Bootstrap, Restore-Nachweis und Freigabe des Altrückstands bleiben nötig.
+
+## 2026-09-05 – Codex – Actions-Ablauf bewertet
+
+**Art:** Analyse
+**Betroffen:** CI, nächtliche Prüfungen, Benchmark, Docker-Build und Browserkonfiguration
+**Was:** Laufzeiten von Lauf 33925055214 und vorhandene Optimierungen geprüft; Zusammenführung der Freigabeprüfungen, gezielte Pfadfilter, Wiederverwendung von Build-Ergebnissen und Messung der Angular-Suite empfohlen.
+**Warum:** Komplexität und Wartezeit reduzieren, ohne Datenintegritätsprüfungen zu entfernen.
+**Verifiziert durch:** Konfiguration gelesen und offizielle GitHub-Dokumentation abgeglichen. Keine Workflow- oder Produktionsänderungen.
+
+## 2026-09-05 – Codex – Automatische Datenbankupdates geprüft
+
+**Art:** Analyse
+**Betroffen:** `.github/workflows/ci.yml`, `deploy/README.md`
+**Was:** Bestätigt, dass das Deployment Migrationen nur auf Vollständigkeit prüft und sie ausdrücklich nicht selbst ausführt.
+**Warum:** Den Abbruch nach PR #17 und die fehlende Automatisierung erklären.
+**Verifiziert durch:** Workflow und Deployment-Dokumentation gelesen; keine Produktionsänderung vorgenommen.
+
 Dieses Projekt wird teilweise mit KI-Assistenten entwickelt. **Jede** von einer KI durchgeführte Änderung wird hier mit Namen und Modell des Assistenten dokumentiert.
 
 ## Regel für alle KI-Assistenten

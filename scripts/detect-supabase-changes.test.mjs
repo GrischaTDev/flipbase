@@ -1,10 +1,29 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { classifyChanges } from './detect-supabase-changes.mjs';
+
+test('Migrationsweg waehlt Datenbankpruefungen aus, reine UI-Aenderungen nicht', () => {
+  for (const path of [
+    'deploy/deploy.sh',
+    'deploy/apply-release-migrations.sh',
+    'deploy/migration-backup.sh',
+    'deploy/approved-migrations.sha256',
+    'deploy/docker-compose.app.yml',
+    'docker/Dockerfile',
+    '.dockerignore',
+    'scripts/deploy-script.test.mjs',
+    'scripts/release-migrations.test.mjs',
+    'scripts/migration-backup.test.mjs',
+  ]) {
+    assert.equal(classifyChanges([path]).supabase, true, path);
+  }
+  assert.equal(classifyChanges(['src/app/features/landing/landing.html']).supabase, false);
+});
 
 const detectorPath = fileURLToPath(new URL('./detect-supabase-changes.mjs', import.meta.url));
 const zeroSha = '0000000000000000000000000000000000000000';
@@ -73,7 +92,7 @@ test('Pull Requests vergleichen ausschließlich mit der PR-Basis', async () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'supabase=true\nsniper=false\n');
+    assert.equal(result.output, 'application=true\nsupabase=true\nsniper=false\n');
   });
 });
 
@@ -95,7 +114,7 @@ test('Pushes vergleichen ausschließlich mit github.event.before', async () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'supabase=true\nsniper=false\n');
+    assert.equal(result.output, 'application=true\nsupabase=true\nsniper=false\n');
   });
 });
 
@@ -117,7 +136,7 @@ test('Null-SHA verwendet bei vorhandenem Vorgänger den direkten Parent', async 
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'supabase=true\nsniper=false\n');
+    assert.equal(result.output, 'application=true\nsupabase=true\nsniper=false\n');
   });
 });
 
@@ -135,7 +154,7 @@ test('erster Commit entscheidet ohne Vorgänger für beide Bereiche konservativ'
     assert.equal(result.status, 0, result.stderr);
     // Ohne Vergleichspunkt laesst sich nichts ausschliessen. Dann lieber alles
     // laufen lassen als eine Pruefung stillschweigend ueberspringen.
-    assert.equal(result.output, 'supabase=true\nsniper=true\n');
+    assert.equal(result.output, 'application=true\nsupabase=true\nsniper=true\n');
   });
 });
 
@@ -168,7 +187,7 @@ test('Supabase-Diff setzt die Ausgabe auf true', async () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'supabase=true\nsniper=false\n');
+    assert.equal(result.output, 'application=true\nsupabase=true\nsniper=false\n');
   });
 });
 
@@ -185,7 +204,35 @@ test('Diff außerhalb von Supabase setzt die Ausgabe auf false', async () => {
     });
 
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(result.output, 'supabase=false\nsniper=false\n');
+    assert.equal(result.output, 'application=false\nsupabase=false\nsniper=false\n');
+  });
+});
+
+test('Technischer Pfad bleibt bei einem Rename nach docs anwendungsrelevant', async () => {
+  await withRepository(async (repository) => {
+    const base = await commitFile(
+      repository,
+      'src/app/features/example/example.component.html',
+      '<main>stable technical template</main>\n',
+      'technical template',
+    );
+    const sourcePath = join(repository, 'src/app/features/example/example.component.html');
+    const targetPath = join(repository, 'docs/example-template.md');
+    await mkdir(dirname(targetPath), { recursive: true });
+    await rename(sourcePath, targetPath);
+    git(repository, 'add', '-A');
+    git(repository, 'commit', '--quiet', '-m', 'move template to docs');
+    const head = git(repository, 'rev-parse', 'HEAD');
+
+    const result = await runDetector(repository, {
+      EVENT_NAME: 'push',
+      PR_BASE_SHA: '',
+      PUSH_BEFORE_SHA: base,
+      HEAD_SHA: head,
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.output, 'application=true\nsupabase=false\nsniper=false\n');
   });
 });
 
@@ -209,6 +256,62 @@ test('Diff unter services/sniper setzt ausschließlich die Sniper-Ausgabe', asyn
     assert.equal(result.status, 0, result.stderr);
     // Ohne die Trennung liefe der Datenbankauftrag bei jeder Aenderung am
     // Dienst mit - und der Dienstauftrag bei jeder Migration.
-    assert.equal(result.output, 'supabase=false\nsniper=true\n');
+    assert.equal(result.output, 'application=true\nsupabase=false\nsniper=true\n');
   });
+});
+
+test('bekannte Dokumentation unter docs und Root-Markdown überspringt die Anwendung', async () => {
+  await withRepository(async (repository) => {
+    const base = await commitFile(repository, 'README.md', 'base\n', 'base');
+    await commitFile(repository, 'docs/guide.md', 'guide\n', 'guide');
+    const head = await commitFile(repository, 'CONTRIBUTING.md', 'rules\n', 'rules');
+
+    const result = await runDetector(repository, {
+      EVENT_NAME: 'push',
+      PR_BASE_SHA: '',
+      PUSH_BEFORE_SHA: base,
+      HEAD_SHA: head,
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.output, 'application=false\nsupabase=false\nsniper=false\n');
+  });
+});
+
+test('AGENTS und unbekannte Pfade lösen die Anwendungsprüfung konservativ aus', async () => {
+  for (const path of ['AGENTS.md', 'notes/release.txt']) {
+    await withRepository(async (repository) => {
+      const base = await commitFile(repository, 'README.md', 'base\n', 'base');
+      const head = await commitFile(repository, path, 'changed\n', 'change');
+
+      const result = await runDetector(repository, {
+        EVENT_NAME: 'push',
+        PR_BASE_SHA: '',
+        PUSH_BEFORE_SHA: base,
+        HEAD_SHA: head,
+      });
+
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.output, 'application=true\nsupabase=false\nsniper=false\n');
+    });
+  }
+});
+
+test('gemeinsame Abhängigkeiten und CI-Werkzeuge lösen alle betroffenen Prüfungen aus', async () => {
+  for (const path of ['package-lock.json', '.github/workflows/ci.yml']) {
+    await withRepository(async (repository) => {
+      const base = await commitFile(repository, 'README.md', 'base\n', 'base');
+      const head = await commitFile(repository, path, 'changed\n', 'change');
+
+      const result = await runDetector(repository, {
+        EVENT_NAME: 'push',
+        PR_BASE_SHA: '',
+        PUSH_BEFORE_SHA: base,
+        HEAD_SHA: head,
+      });
+
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.output, 'application=true\nsupabase=true\nsniper=true\n');
+    });
+  }
 });

@@ -47,6 +47,9 @@ COPY docker/security-headers.conf /etc/nginx/security-headers.conf
 COPY --from=build /app/dist/flipbase/browser /usr/share/nginx/html
 # Statische Landingpage mitführen, damit das Ausroll-Skript sie synchronisieren kann
 COPY --from=build /app/landing /usr/share/nginx/landing
+# Migrationsdateien gehören zum Release, sind aber niemals öffentlich erreichbar.
+COPY supabase/migrations/*.sql /opt/flipbase/migrations/
+COPY deploy/approved-migrations.sha256 /opt/flipbase/migrations/approved.sha256
 
 # Port 80 freigeben
 EXPOSE 80
