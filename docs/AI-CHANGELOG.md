@@ -48,6 +48,24 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Gemini 3.8 Flash (Google) – CI-Stabilität: Timeout für Quality- und Unit-Jobs auf 10 Minuten erhöht
+
+**Art:** CI / Stabilität
+
+**Betroffen:** `.github/workflows/ci.yml`, `docs/AI-CHANGELOG.md`
+
+**Was:**
+
+- Timeout für `quality`- und `unit`-Jobs in `.github/workflows/ci.yml` von 5 Minuten auf 10 Minuten angehoben.
+
+**Warum:**
+
+- Beim Push/Merge auf `master` liefen `quality` und `unit angular 1/1` nach 5 Minuten in ein hartes Runner-Timeout, da `npm ci` bei Registry-Latenzen über 1 Minute brauchte und der Build bzw. die Angular-Komponententestsuite zusammen ~4:30 bis 5:15 Minuten in Anspruch nehmen.
+
+**Verifiziert durch:** `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:workflow` (21/21 grün) und `npm run test:audit`.
+
+---
+
 ## 2026-09-03 – Gemini 3.8 Flash (Google) – Landingpage-Modernisierung: Marken-Logo, CSS Dark-/Lightmode, Sprache DE/EN, Vinted Bot & erweitertes Feature-Showcase
 
 **Art:** Feature | Barrierefreiheit
