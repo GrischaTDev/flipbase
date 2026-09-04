@@ -9,38 +9,50 @@ export const SETTINGS_ROUTES: Routes = [
       { path: '', redirectTo: 'account', pathMatch: 'full' },
       {
         path: 'account',
-        loadComponent: () => import('./settings.component').then((m) => m.SettingsComponent),
-        data: { section: 'account' },
+        loadComponent: () =>
+          import('./pages/account-settings/account-settings.component').then(
+            (m) => m.AccountSettingsComponent,
+          ),
       },
       {
         path: 'workspace',
-        loadComponent: () => import('./settings.component').then((m) => m.SettingsComponent),
-        data: { section: 'workspace' },
+        loadComponent: () =>
+          import('./pages/workspace-settings/workspace-settings.component').then(
+            (m) => m.WorkspaceSettingsComponent,
+          ),
       },
       {
         path: 'team',
-        loadComponent: () => import('./settings.component').then((m) => m.SettingsComponent),
-        data: { section: 'team' },
+        loadComponent: () =>
+          import('./pages/team-settings/team-settings.component').then(
+            (m) => m.TeamSettingsComponent,
+          ),
       },
       {
         path: 'notifications',
-        loadComponent: () => import('./settings.component').then((m) => m.SettingsComponent),
-        data: { section: 'notifications' },
+        loadComponent: () =>
+          import('./pages/notification-settings/notification-settings.component').then(
+            (m) => m.NotificationSettingsComponent,
+          ),
       },
       {
         path: 'store',
-        loadComponent: () => import('./settings.component').then((m) => m.SettingsComponent),
-        data: { section: 'store' },
+        loadComponent: () =>
+          import('./pages/store-settings/store-settings.component').then(
+            (m) => m.StoreSettingsComponent,
+          ),
       },
       {
         path: 'shipping',
-        loadComponent: () => import('./settings.component').then((m) => m.SettingsComponent),
-        data: { section: 'shipping' },
+        loadComponent: () =>
+          import('./pages/shipping-settings/shipping-settings.component').then(
+            (m) => m.ShippingSettingsComponent,
+          ),
       },
       {
         path: 'app',
-        loadComponent: () => import('./settings.component').then((m) => m.SettingsComponent),
-        data: { section: 'app' },
+        loadComponent: () =>
+          import('./pages/app-settings/app-settings.component').then((m) => m.AppSettingsComponent),
       },
       {
         path: 'data',

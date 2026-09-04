@@ -1,0 +1,190 @@
+<div class="space-y-5">
+  <form
+    [formGroup]="webhookForm"
+    (ngSubmit)="onSaveWebhookConfig()"
+    class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5 shadow-xl"
+    aria-labelledby="webhook-heading"
+  >
+    <div class="flex flex-wrap items-center justify-between gap-2 border-b border-fb-border pb-2">
+      <div class="flex items-center gap-2">
+        <svg [lucideIcon]="bellIcon" class="h-4 w-4 text-emerald-400" aria-hidden="true"></svg>
+        <h2
+          id="webhook-heading"
+          class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
+        >
+          Webhooks & Benachrichtigungen
+        </h2>
+      </div>
+      <span
+        class="rounded border border-emerald-700/30 bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-fb-text-secondary"
+        >Discord / Telegram</span
+      >
+    </div>
+    <p class="text-xs text-fb-text-muted">
+      Erhalte sofortige Push-Nachrichten bei neuen Verkäufen mit Reingewinn, ROI und Plattform.
+    </p>
+    <fieldset class="space-y-3">
+      <legend class="sr-only">Webhook-Kanäle</legend>
+      <label
+        class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
+        >Discord Webhook<input type="checkbox" formControlName="discordEnabled" class="h-5 w-5"
+      /></label>
+      @if (webhookForm.controls.discordEnabled.value) {
+        <input
+          formControlName="discordWebhookUrl"
+          placeholder="https://discord.com/api/webhooks/..."
+          class="linear-input min-h-11 w-full rounded-xl px-3 text-xs"
+        /><button
+          type="button"
+          (click)="testWebhook('discord')"
+          [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
+          class="linear-btn-secondary min-h-11 rounded-xl px-3 text-xs"
+        >
+          Discord-Test senden
+        </button>
+      }
+      <label
+        class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
+        >Telegram Bot<input type="checkbox" formControlName="telegramEnabled" class="h-5 w-5"
+      /></label>
+      @if (webhookForm.controls.telegramEnabled.value) {
+        <input
+          formControlName="telegramBotToken"
+          placeholder="Telegram Bot Token"
+          class="linear-input min-h-11 w-full rounded-xl px-3 text-xs"
+        /><input
+          formControlName="telegramChatId"
+          placeholder="Chat-ID"
+          class="linear-input min-h-11 w-full rounded-xl px-3 text-xs"
+        /><button
+          type="button"
+          (click)="testWebhook('telegram')"
+          [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
+          class="linear-btn-secondary min-h-11 rounded-xl px-3 text-xs"
+        >
+          Telegram-Test senden
+        </button>
+      }
+      <label
+        class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
+        >Eigener Webhook<input
+          type="checkbox"
+          formControlName="customWebhookEnabled"
+          class="h-5 w-5"
+      /></label>
+      @if (webhookForm.controls.customWebhookEnabled.value) {
+        <input
+          formControlName="customWebhookUrl"
+          placeholder="Webhook-URL"
+          class="linear-input min-h-11 w-full rounded-xl px-3 text-xs"
+        /><button
+          type="button"
+          (click)="testWebhook('custom')"
+          [disabled]="isTestingWebhook() || isLoadingWorkspaceConfig()"
+          class="linear-btn-secondary min-h-11 rounded-xl px-3 text-xs"
+        >
+          Webhook testen
+        </button>
+      }
+    </fieldset>
+    <div class="space-y-2 rounded-xl border border-fb-border bg-fb-subtle p-3">
+      <app-custom-checkbox
+        formControlName="notifyOnSale"
+        label="Push bei jedem neuen Verkauf (mit Reingewinn & ROI)"
+        size="sm"
+      /><app-custom-checkbox
+        formControlName="notifyOnPurchase"
+        label="Push bei jedem neuen Einkauf / Palette"
+        size="sm"
+      /><app-custom-checkbox
+        formControlName="soundEnabled"
+        label="Kassen-Chime Sound bei Sales abspielen"
+        size="sm"
+      />
+    </div>
+    <div class="flex justify-end">
+      <button
+        type="submit"
+        [disabled]="isSavingWebhookConfig() || isLoadingWorkspaceConfig()"
+        class="linear-btn-primary min-h-11 rounded-xl px-4 text-xs font-bold disabled:opacity-40"
+      >
+        {{ isSavingWebhookConfig() ? 'Speichere...' : 'Webhook-Einstellungen speichern' }}
+      </button>
+    </div>
+  </form>
+  <section
+    class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5 shadow-xl"
+    aria-labelledby="push-heading"
+  >
+    <div class="flex items-center gap-2 border-b border-fb-border pb-2">
+      <svg [lucideIcon]="bellIcon" class="h-4 w-4 text-indigo-400" aria-hidden="true"></svg>
+      <h2 id="push-heading" class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
+        Web Push & Browser-Benachrichtigungen
+      </h2>
+    </div>
+    <p class="text-xs text-fb-text-muted">
+      Erhalte System-Benachrichtigungen direkt in deinem Browser oder auf dem Smartphone.
+    </p>
+    <div
+      class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fb-border bg-fb-subtle p-3"
+    >
+      <span class="text-xs text-fb-text-secondary">Status: {{ webPushService.permission() }}</span>
+      @if (webPushService.permission() !== 'granted') {
+        <button
+          type="button"
+          (click)="onRequestPushPermission()"
+          class="linear-btn-primary min-h-11 rounded-xl px-4 text-xs font-bold"
+        >
+          Push aktivieren
+        </button>
+      } @else {
+        <button
+          type="button"
+          (click)="onTestWebPush()"
+          [disabled]="isTestingPush()"
+          class="linear-btn-secondary min-h-11 rounded-xl px-4 text-xs font-bold disabled:opacity-40"
+        >
+          {{ isTestingPush() ? 'Wird gesendet...' : 'Test-Push senden' }}
+        </button>
+      }
+    </div>
+    <div class="space-y-3 rounded-xl border border-fb-border bg-fb-subtle p-3">
+      <div class="flex items-center justify-between gap-3 text-xs text-fb-text-secondary">
+        <span>Neue Webshop-Bestellungen</span
+        ><app-custom-checkbox
+          [checked]="webPushService.settings().notifyOnShopOrder"
+          ariaLabel="Neue Webshop-Bestellungen"
+          (checkedChange)="onTogglePushSetting('notifyOnShopOrder', $event)"
+          size="sm"
+        />
+      </div>
+      <div class="flex items-center justify-between gap-3 text-xs text-fb-text-secondary">
+        <span>Erstellte Versandetiketten</span
+        ><app-custom-checkbox
+          [checked]="webPushService.settings().notifyOnFulfillment"
+          ariaLabel="Erstellte Versandetiketten"
+          (checkedChange)="onTogglePushSetting('notifyOnFulfillment', $event)"
+          size="sm"
+        />
+      </div>
+      <div class="flex items-center justify-between gap-3 text-xs text-fb-text-secondary">
+        <span>Margen- & Profit-Alarme</span
+        ><app-custom-checkbox
+          [checked]="webPushService.settings().notifyOnMarginAlert"
+          ariaLabel="Margen- und Profit-Alarme"
+          (checkedChange)="onTogglePushSetting('notifyOnMarginAlert', $event)"
+          size="sm"
+        />
+      </div>
+      <div class="flex items-center justify-between gap-3 text-xs text-fb-text-secondary">
+        <span>Benachrichtigungston</span
+        ><app-custom-checkbox
+          [checked]="webPushService.settings().soundEnabled"
+          ariaLabel="Benachrichtigungston"
+          (checkedChange)="onTogglePushSetting('soundEnabled', $event)"
+          size="sm"
+        />
+      </div>
+    </div>
+  </section>
+</div>
