@@ -63,6 +63,7 @@ create table if not exists public.sniper_listings (
     photo_uploaded_at timestamptz,
     discovered_by_query_id uuid references public.sniper_queries (id) on delete set null,
     first_seen_at timestamptz not null default now(),
+    evaluated_at timestamptz,
     unique (marketplace, external_id)
 );
 
@@ -80,6 +81,9 @@ comment on column public.sniper_listings.item_updated_at is
 
 comment on column public.sniper_listings.is_hidden is
     'Vinted zeigt Artikel im Katalog, bevor sie kaufbar sind. Solange wahr, ist Zuschlagen sinnlos.';
+
+comment on column public.sniper_listings.evaluated_at is
+    'Zeitpunkt, zu dem dieses Angebot gegen die Abonnements geprueft wurde. Leer heisst ungeprueft. Der Einlese-Lauf setzt den Wert, ohne zu melden - damit bleibt der Bestand, den eine neue Abfrage vorfindet, dauerhaft stumm.';
 
 comment on column public.sniper_listings.image_urls is
     'Alle Bilder in der Reihenfolge des Katalogs. Ein einzelnes Foto zeigt Maengel oft nicht.';
@@ -204,6 +208,10 @@ create index if not exists idx_sniper_queries_due
 
 create index if not exists idx_sniper_listings_first_seen_at
     on public.sniper_listings (first_seen_at);
+
+create index if not exists idx_sniper_listings_unevaluated
+    on public.sniper_listings (discovered_by_query_id)
+    where evaluated_at is null;
 
 create index if not exists idx_sniper_listings_discovered_by_query_id
     on public.sniper_listings (discovered_by_query_id);
@@ -378,10 +386,31 @@ grant execute on function public.sniper_reference_price(uuid, text) to authentic
 -- gerechnet - er verschiebt sich mit jedem neuen Fund, und ohne den
 -- festgehaltenen Wert waere nicht mehr nachvollziehbar, warum gemeldet wurde.
 --
+-- Geprueft wird ausschliesslich, was `evaluated_at is null` hat. Das ist die
+-- eigentliche Geschaeftsregel und nicht bloss Sparsamkeit: Der Entwurf haelt
+-- fest, dass der Einlese-Lauf nur schreibt und nichts meldet. Lief die
+-- Bewertung ueber den ganzen Bestand, wuerde die erste Runde einer neuen
+-- Abfrage ihre rund 96 vorgefundenen - teils laengst verkauften - Angebote
+-- allesamt gegen ihren eigenen Median halten und den Melder zuschuetten. Mit
+-- `p_report_hits = false` hakt der Einlese-Lauf diesen Bestand stumm ab; er
+-- bleibt danach dauerhaft stumm, weil der Vermerk in der Zeile steht und
+-- nicht im Ablauf.
+--
+-- Nebenbei bleibt der Aufwand je Runde an der Zahl der neuen Angebote
+-- haengen statt an der Groesse der Tabelle.
+--
+-- Angebote ohne brauchbaren Massstab (zu wenige Vergleichswerte) bleiben
+-- ungeprueft und kommen in der naechsten Runde wieder dran - sonst verfiele
+-- ein Fund allein deshalb, weil er zu frueh kam.
+--
 -- `on conflict do nothing` macht wiederholte Laeufe folgenlos. Deshalb wirken
 -- Schwellenaenderungen auch nur nach vorn: Ein bereits gemeldeter Treffer
--- verschwindet nicht, wenn jemand strenger wird.
-create or replace function public.sniper_evaluate_hits(p_query_id uuid)
+-- verschwindet nicht, wenn jemand strenger wird. Aus demselben Grund sieht
+-- ein spaeter angelegtes Abonnement den Altbestand nicht.
+create or replace function public.sniper_evaluate_hits(
+    p_query_id uuid,
+    p_report_hits boolean default true
+)
 returns integer
 language plpgsql
 security definer
@@ -390,28 +419,40 @@ as $$
 declare
   v_created integer;
 begin
-  with kandidaten as (
+  with offen as (
+      select listing.id, listing.condition, listing.item_price
+      from public.sniper_listings as listing
+      where listing.discovered_by_query_id = p_query_id
+        and listing.evaluated_at is null
+  ),
+  -- Der Massstab haengt am Zustand, nicht am Abonnement. Einmal je Angebot
+  -- gerechnet statt einmal je Abonnement und Angebot.
+  bewertbar as (
+      select offen.id, offen.item_price, massstab.reference_price
+      from offen
+      cross join lateral public.sniper_reference_price(
+          p_query_id, offen.condition
+      ) as massstab
+      where massstab.reference_price is not null
+        and massstab.reference_price > 0
+  ),
+  kandidaten as (
       select
           subscription.id as subscription_id,
-          listing.id as listing_id,
-          massstab.reference_price,
+          bewertbar.id as listing_id,
+          bewertbar.reference_price,
           round(
-              (massstab.reference_price - listing.item_price)
-              / massstab.reference_price * 100,
+              (bewertbar.reference_price - bewertbar.item_price)
+              / bewertbar.reference_price * 100,
               2
           ) as discount_percent
       from public.sniper_query_subscriptions as subscription
-      join public.sniper_listings as listing
-        on listing.discovered_by_query_id = p_query_id
-      cross join lateral public.sniper_reference_price(
-          p_query_id, listing.condition
-      ) as massstab
-      where subscription.query_id = p_query_id
+      cross join bewertbar
+      where p_report_hits
+        and subscription.query_id = p_query_id
         and subscription.is_active
-        and massstab.reference_price is not null
-        and massstab.reference_price > 0
-        and listing.item_price
-            <= massstab.reference_price
+        and bewertbar.item_price
+            <= bewertbar.reference_price
                * (1 - subscription.discount_threshold_percent / 100)
   ),
   eingefuegt as (
@@ -421,6 +462,19 @@ begin
       from kandidaten
       on conflict (subscription_id, listing_id) do nothing
       returning 1
+  ),
+  -- Abgehakt wird, was wirklich beurteilt werden konnte. Der Einlese-Lauf
+  -- hakt dagegen alles ab: Dort ist das Nichtmelden die Absicht.
+  vermerkt as (
+      update public.sniper_listings as listing
+      set evaluated_at = now()
+      where listing.id in (
+          select offen.id
+          from offen
+          where not p_report_hits
+             or offen.id in (select bewertbar.id from bewertbar)
+      )
+      returning 1
   )
   select count(*)::integer into v_created from eingefuegt;
 
@@ -428,7 +482,7 @@ begin
 end;
 $$;
 
-comment on function public.sniper_evaluate_hits(uuid) is
-    'Legt fuer alle aktiven Abonnements einer Abfrage die fehlenden Treffer an und liefert deren Zahl. Wiederholte Laeufe sind folgenlos.';
+comment on function public.sniper_evaluate_hits(uuid, boolean) is
+    'Prueft die noch ungeprueften Angebote einer Abfrage gegen alle aktiven Abonnements, legt die fehlenden Treffer an und liefert deren Zahl. Mit p_report_hits = false werden die Angebote nur als geprueft vermerkt - so bleibt der Einlese-Lauf stumm.';
 
-revoke all on function public.sniper_evaluate_hits(uuid) from public, anon, authenticated;
+revoke all on function public.sniper_evaluate_hits(uuid, boolean) from public, anon, authenticated;

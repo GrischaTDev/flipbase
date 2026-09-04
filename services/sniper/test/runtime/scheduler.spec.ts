@@ -317,8 +317,26 @@ describe('QueryScheduler', () => {
 
     const report = await scheduler.runOnce(NOW);
 
-    expect(listings.evaluateHits).toHaveBeenCalledWith('q1');
+    expect(listings.evaluateHits).toHaveBeenCalledWith('q1', true);
     expect(report.newHits).toBe(2);
+  });
+
+  it('meldet im Einlese-Lauf nichts, hakt den Bestand aber ab', async () => {
+    // Die erste Runde einer Abfrage findet einen ganzen Bestand vor - teils
+    // wochenalt, teils laengst verkauft. Wuerde sie melden, kaeme mit dem
+    // Anlegen eines Filters sofort ein Schwall Falschmeldungen. Der Aufruf
+    // erfolgt trotzdem, damit der Bestand als geprueft vermerkt wird und auch
+    // in der naechsten Runde stumm bleibt.
+    const listings = {
+      saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
+      evaluateHits: vi.fn().mockResolvedValue(0),
+    };
+    const { scheduler } = build(makeQuery({ isSeeded: false }), { listings });
+
+    const report = await scheduler.runOnce(NOW);
+
+    expect(listings.evaluateHits).toHaveBeenCalledWith('q1', false);
+    expect(report.newHits).toBe(0);
   });
 
   it('laesst eine gescheiterte Bewertung den Durchgang nicht abbrechen', async () => {

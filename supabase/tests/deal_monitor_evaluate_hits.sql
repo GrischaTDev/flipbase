@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(4);
+select plan(7);
 
 \set query_id '87000000-0000-4000-8000-000000000001'
 \set workspace_a '87000000-0000-4000-8000-000000000002'
@@ -131,6 +131,13 @@ begin
   where workspace_id = '87000000-0000-4000-8000-000000000003'::uuid;
 
   delete from public.sniper_hits;
+
+  -- Ohne das Zuruecksetzen prueft dieser Test nichts mehr: Die Angebote sind
+  -- aus den Laeufen davor als geprueft vermerkt, es kaemen also auch bei
+  -- aktivem Abonnement null Treffer heraus.
+  update public.sniper_listings set evaluated_at = null
+  where discovered_by_query_id = '87000000-0000-4000-8000-000000000001'::uuid;
+
   perform public.sniper_evaluate_hits('87000000-0000-4000-8000-000000000001'::uuid);
 
   select count(*) into nachher from public.sniper_hits;
@@ -142,6 +149,137 @@ end;
 $$;
 
 select pass('Ein deaktiviertes Abonnement bekommt keine Treffer');
+
+-- Der Einlese-Lauf meldet nichts - und zwar dauerhaft.
+--
+-- Das ist die Regel aus dem Entwurf ("bei is_seeded = false: nur schreiben,
+-- nichts melden"). Sie muss in der Zeile stehen, nicht im Ablauf: Sonst holte
+-- die zweite Runde denselben Bestand nach und der Melder bekaeme beim Anlegen
+-- eines Filters sofort einen Schwall wochenalter Angebote.
+insert into public.sniper_queries (id, query_key, search_text, price_to)
+values ('87000000-0000-4000-8000-000000000004'::uuid, 'vinted|test|einlese', 'einlesetest', 500);
+
+insert into public.workspaces (id, name)
+values ('87000000-0000-4000-8000-000000000005'::uuid, 'Einlese Testbereich');
+
+insert into public.sniper_query_subscriptions
+  (workspace_id, query_id, discount_threshold_percent)
+values ('87000000-0000-4000-8000-000000000005'::uuid,
+        '87000000-0000-4000-8000-000000000004'::uuid, 20);
+
+insert into public.sniper_listings (
+  marketplace, external_id, title, url, item_price, total_price,
+  condition, discovered_by_query_id
+)
+select 'vinted', 'einlese-ref-' || i::text, 'Vergleichswert',
+       'https://example.test/einlese/' || i::text, 20, 20, 'Gut',
+       '87000000-0000-4000-8000-000000000004'::uuid
+from generate_series(1, 8) as i;
+
+insert into public.sniper_listings (
+  marketplace, external_id, title, url, item_price, total_price,
+  condition, discovered_by_query_id
+) values (
+  'vinted', 'einlese-schnaeppchen', 'Guenstiger Altbestand',
+  'https://example.test/einlese/schnaeppchen', 12, 12, 'Gut',
+  '87000000-0000-4000-8000-000000000004'::uuid
+);
+
+do $$
+declare
+  gemeldet integer;
+  offen integer;
+  spaeter integer;
+begin
+  gemeldet := public.sniper_evaluate_hits(
+    '87000000-0000-4000-8000-000000000004'::uuid, false
+  );
+
+  if gemeldet <> 0 then
+    raise exception 'Der Einlese-Lauf haette nichts melden duerfen: %', gemeldet;
+  end if;
+
+  select count(*) into offen
+  from public.sniper_listings
+  where discovered_by_query_id = '87000000-0000-4000-8000-000000000004'::uuid
+    and evaluated_at is null;
+
+  if offen <> 0 then
+    raise exception 'Der Einlese-Lauf haette den Bestand abhaken muessen, offen: %', offen;
+  end if;
+
+  -- Der entscheidende Teil: Auch der naechste, normale Lauf holt den
+  -- Altbestand nicht nach.
+  spaeter := public.sniper_evaluate_hits(
+    '87000000-0000-4000-8000-000000000004'::uuid
+  );
+
+  if spaeter <> 0 then
+    raise exception 'Der Altbestand wurde nachtraeglich doch gemeldet: %', spaeter;
+  end if;
+end;
+$$;
+
+select pass('Der Einlese-Lauf hakt den Bestand stumm ab und holt nichts nach');
+
+-- Ohne brauchbaren Massstab bleibt ein Angebot ungeprueft.
+--
+-- Sonst verfiele ein Fund allein deshalb, weil er kam, bevor genug
+-- Vergleichswerte da waren.
+insert into public.sniper_queries (id, query_key, search_text, price_to)
+values ('87000000-0000-4000-8000-000000000006'::uuid, 'vinted|test|duenn', 'duennetest', 500);
+
+insert into public.sniper_listings (
+  marketplace, external_id, title, url, item_price, total_price,
+  condition, discovered_by_query_id
+)
+select 'vinted', 'duenn-' || i::text, 'Zu wenige',
+       'https://example.test/duenn/' || i::text, 20, 20, 'Gut',
+       '87000000-0000-4000-8000-000000000006'::uuid
+from generate_series(1, 3) as i;
+
+do $$
+declare
+  vermerkt integer;
+begin
+  perform public.sniper_evaluate_hits('87000000-0000-4000-8000-000000000006'::uuid);
+
+  select count(*) into vermerkt
+  from public.sniper_listings
+  where discovered_by_query_id = '87000000-0000-4000-8000-000000000006'::uuid
+    and evaluated_at is not null;
+
+  if vermerkt <> 0 then
+    raise exception 'Ohne Massstab darf nichts abgehakt werden, abgehakt: %', vermerkt;
+  end if;
+end;
+$$;
+
+select pass('Ohne brauchbaren Massstab bleibt ein Angebot fuer die naechste Runde offen');
+
+-- Die Bewertung gehoert dem Dienst, nicht dem Browser.
+--
+-- Die Funktion laeuft mit security definer und schreibt in sniper_hits. Waere
+-- sie fuer anon oder authenticated ausfuehrbar, koennte jeder Angemeldete die
+-- Trefferbildung fremder Arbeitsbereiche ausloesen. Die Rechte sind auf dieser
+-- Datenbank am 04.09.2026 schon einmal von der lokalen abgewichen - deshalb
+-- steht das hier als Pruefung und nicht als Notiz.
+do $$
+declare
+  rolle text;
+begin
+  foreach rolle in array array['anon', 'authenticated']
+  loop
+    if has_function_privilege(
+      rolle, 'public.sniper_evaluate_hits(uuid, boolean)', 'execute'
+    ) then
+      raise exception '% darf die Trefferbildung nicht ausloesen', rolle;
+    end if;
+  end loop;
+end;
+$$;
+
+select pass('Weder anon noch authenticated duerfen die Trefferbildung ausloesen');
 
 select * from finish();
 

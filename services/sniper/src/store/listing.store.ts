@@ -72,10 +72,15 @@ export class ListingStore {
    * Gerechnet wird dort und nicht hier, damit die Oberflaeche spaeter dieselbe
    * Zahl sieht wie der Melder - und damit der Median in einer Abfrage entsteht
    * statt in einer Schleife im Dienst.
+   *
+   * `reportHits = false` haelt den Einlese-Lauf stumm: Die vorgefundenen
+   * Angebote werden nur als geprueft vermerkt, damit sie auch spaeter kein
+   * Fund mehr werden.
    */
-  async evaluateHits(queryId: string): Promise<number> {
+  async evaluateHits(queryId: string, reportHits = true): Promise<number> {
     const { data, error } = await this.client.rpc('sniper_evaluate_hits', {
       p_query_id: queryId,
+      p_report_hits: reportHits,
     });
 
     if (error) {

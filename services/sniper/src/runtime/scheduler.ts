@@ -22,7 +22,7 @@ export interface ListingStoreLike {
     listings: MarketplaceListing[],
     discoveredByQueryId: string,
   ): Promise<MarketplaceListing[]>;
-  evaluateHits(queryId: string): Promise<number>;
+  evaluateHits(queryId: string, reportHits: boolean): Promise<number>;
 }
 
 export interface CycleReport {
@@ -142,11 +142,16 @@ export class QueryScheduler {
     const created = await this.deps.listings.saveNew(listings, query.id);
     report.polled += 1;
 
+    // Der Einlese-Lauf meldet nichts. Er hakt den vorgefundenen Bestand nur
+    // als geprueft ab - sonst wuerde die erste Runde einer neuen Abfrage jedes
+    // vorhandene Angebot unter dem Median als Fund ausrufen.
+    //
     // Eine gescheiterte Bewertung darf den Fund nicht entwerten: Gespeichert
     // ist er, und die Abfrage gilt als gepollt. Sonst holte der naechste
-    // Durchgang dieselben Artikel noch einmal.
+    // Durchgang dieselben Artikel noch einmal. Ungeprueft Gebliebenes kommt
+    // von selbst wieder dran, weil der Vermerk in der Zeile fehlt.
     try {
-      report.newHits += await this.deps.listings.evaluateHits(query.id);
+      report.newHits += await this.deps.listings.evaluateHits(query.id, query.isSeeded);
     } catch (error) {
       this.deps.log.error('evaluate_hits_failed', {
         queryId: query.id,

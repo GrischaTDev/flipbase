@@ -48,6 +48,24 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-05 – Claude Opus 5 (Anthropic) – Trefferbildung nur noch fuer ungepruefte Angebote
+
+**Art:** Bugfix
+**Betroffen:** `supabase/schemas/50_sniper.sql`, `supabase/migrations/20260904221945_evaluate_hits_only_new_listings.sql`, `supabase/migrations/20260904222600_revoke_authenticated_on_evaluate_hits.sql`, `services/sniper/src/store/listing.store.ts`, `services/sniper/src/runtime/scheduler.ts`, `supabase/tests/deal_monitor_evaluate_hits.sql`, `supabase/tests/vinted_deal_monitor_schema.sql`, `services/sniper/test/`
+**Was:** `sniper_listings` bekommt `evaluated_at`. `sniper_evaluate_hits` prueft nur noch Angebote ohne diesen Vermerk und nimmt `p_report_hits`; der Einlese-Lauf ruft die Funktion mit `false` und hakt den vorgefundenen Bestand stumm ab. Angebote ohne brauchbaren Massstab bleiben offen und kommen wieder dran. Dazu eine handgeschriebene Migration, die `execute` fuer anon und authenticated entzieht.
+**Warum:** Die Bewertung lief ueber alle Angebote einer Abfrage und sass vor der Einlese-Weiche. Der Entwurf legt aber fest: „bei is_seeded = false: nur schreiben, nichts melden". Gemessen an einem Bestand von 96 Angeboten mit 40-Prozent-Schwelle haette die erste Runde einer neuen Abfrage **25 Treffer** ausgeworfen – wochenalte, teils verkaufte Angebote, die mit der Discord-Zustellung sofort herausgegangen waeren. Nebenbei hing der Aufwand je Runde an der Tabellengroesse statt an der Zahl neuer Funde. Der Rechteentzug war noetig, weil die Vorgaberechte des Projekts jeder neuen Funktion im Schema `public` automatisch `execute` an `authenticated` geben und `supabase db diff` nur `revoke ... from public` erzeugt – die Funktion laeuft mit `security definer` und schreibt in `sniper_hits`.
+**Verifiziert durch:** `supabase db reset` frisch eingespielt, danach `supabase test db` 263/263. Der neue Rechte-Test fiel beim ersten Lauf tatsaechlich durch (`authenticated=X` in der Rechteliste) und ist nach der Migration gruen. Dienst: `tsc --noEmit` 0, 78 Unit-Tests, 16 Integrationstests, `npm run build` 0. `npm run verify` Exitcode 0 (ohne Pipe gemessen). Messung am 96er-Bestand: Einlese-Lauf 0 Treffer, Folgelauf 0 – der alte Ablauf haette 25 gemeldet.
+
+## 2026-09-04 – Claude Opus 5 (Anthropic) – Dienst bewertet nach jedem Speichern
+
+**Art:** Feature
+**Betroffen:** `services/sniper/src/store/listing.store.ts`, `services/sniper/src/runtime/scheduler.ts`, `services/sniper/test/runtime/scheduler.spec.ts`, `services/sniper/test/store/listing.store.integration.spec.ts`, `services/sniper/test/health.spec.ts`
+**Was:** `ListingStore.evaluateHits(queryId)` ruft `public.sniper_evaluate_hits` per RPC auf. Der Taktgeber (`QueryScheduler`) ruft sie nach jedem `saveNew()`-Aufruf und zaehlt die neu entstandenen Treffer in `CycleReport.newHits`. Eine gescheiterte Bewertung faengt ein eigener try/catch ab: der Fund bleibt gespeichert, die Abfrage gilt weiter als gepollt, nur geloggt wird der Fehler - sonst holte der naechste Durchgang dieselben Artikel erneut bei Vinted.
+**Warum:** Die Datenbank konnte seit der letzten Sitzung aus Funden Treffer machen, aber nichts rief sie auf - der Sammeldienst speicherte und ging weiter. Letzte Aufgabe des Plans "Deal Monitor Trefferregel": Treffer entstehen jetzt bei jedem Durchgang (gesehen werden sie noch nicht - Oberflaeche und Discord-Zustellung sind eigene, offene Plaene).
+**Verifiziert durch:** Test zuerst: die beiden Tests aus dem Auftrag angefuegt, `npm test` zeigte den erwarteten Fehlschlag (`evaluateHits` nicht definiert), dann implementiert. `npx tsc --noEmit` deckte zusaetzlich 4 Fehler in `test/health.spec.ts` auf, die `npm test` nicht zeigte (Attrappe ohne `newHits`) - behoben. Danach im Dienstverzeichnis: `npx tsc --noEmit` 0 Fehler, `npm test` 77/77, `npm run test:integration` 14/14 gegen die laufende lokale Datenbank, `npm run build` 0 Fehler. Im Stammverzeichnis: `npm run test:db` 260/260, `npm run verify` Exitcode 0 (ohne Pipe gemessen). Manueller Nachweis gegen die lokale Datenbank ueber die echte `ListingStore`-Klasse: acht gleichwertige Vergleichswerte, ein kuenstlich guenstiger Fund, ein neuer Treffer mit `reference_price = 50` und `discount_percent = 40` in `sniper_hits`, ein wiederholter Aufruf folgenlos.
+
+---
+
 ## 2026-09-04 – Claude Opus 5 (Anthropic) – Trefferregel je Abonnement
 
 **Art:** Feature

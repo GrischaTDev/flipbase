@@ -1863,6 +1863,242 @@ export type Database = {
           },
         ]
       }
+      sniper_hits: {
+        Row: {
+          created_at: string
+          discount_percent: number
+          id: string
+          listing_id: string
+          notified_at: string | null
+          reference_price: number
+          subscription_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_percent: number
+          id?: string
+          listing_id: string
+          notified_at?: string | null
+          reference_price: number
+          subscription_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          listing_id?: string
+          notified_at?: string | null
+          reference_price?: number
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sniper_hits_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sniper_hits_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_query_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sniper_listings: {
+        Row: {
+          brand: string | null
+          condition: string | null
+          country_code: string | null
+          currency: string
+          description: string | null
+          discovered_by_query_id: string | null
+          evaluated_at: string | null
+          external_id: string
+          first_seen_at: string
+          id: string
+          image_urls: string[]
+          is_hidden: boolean
+          item_price: number
+          item_updated_at: string | null
+          marketplace: string
+          photo_uploaded_at: string | null
+          seller_avatar_url: string | null
+          seller_name: string | null
+          seller_rating: number | null
+          seller_review_count: number | null
+          size: string | null
+          title: string
+          total_price: number
+          url: string
+        }
+        Insert: {
+          brand?: string | null
+          condition?: string | null
+          country_code?: string | null
+          currency?: string
+          description?: string | null
+          discovered_by_query_id?: string | null
+          evaluated_at?: string | null
+          external_id: string
+          first_seen_at?: string
+          id?: string
+          image_urls?: string[]
+          is_hidden?: boolean
+          item_price: number
+          item_updated_at?: string | null
+          marketplace?: string
+          photo_uploaded_at?: string | null
+          seller_avatar_url?: string | null
+          seller_name?: string | null
+          seller_rating?: number | null
+          seller_review_count?: number | null
+          size?: string | null
+          title: string
+          total_price: number
+          url: string
+        }
+        Update: {
+          brand?: string | null
+          condition?: string | null
+          country_code?: string | null
+          currency?: string
+          description?: string | null
+          discovered_by_query_id?: string | null
+          evaluated_at?: string | null
+          external_id?: string
+          first_seen_at?: string
+          id?: string
+          image_urls?: string[]
+          is_hidden?: boolean
+          item_price?: number
+          item_updated_at?: string | null
+          marketplace?: string
+          photo_uploaded_at?: string | null
+          seller_avatar_url?: string | null
+          seller_name?: string | null
+          seller_rating?: number | null
+          seller_review_count?: number | null
+          size?: string | null
+          title?: string
+          total_price?: number
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sniper_listings_discovered_by_query_id_fkey"
+            columns: ["discovered_by_query_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_queries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sniper_queries: {
+        Row: {
+          brand_id: number | null
+          catalog_id: number | null
+          consecutive_failures: number
+          created_at: string
+          id: string
+          is_active: boolean
+          is_seeded: boolean
+          is_standard: boolean
+          last_polled_at: string | null
+          last_status: string
+          marketplace: string
+          poll_interval_ms: number
+          price_from: number | null
+          price_to: number | null
+          query_key: string
+          search_text: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id?: number | null
+          catalog_id?: number | null
+          consecutive_failures?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_seeded?: boolean
+          is_standard?: boolean
+          last_polled_at?: string | null
+          last_status?: string
+          marketplace?: string
+          poll_interval_ms?: number
+          price_from?: number | null
+          price_to?: number | null
+          query_key: string
+          search_text: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: number | null
+          catalog_id?: number | null
+          consecutive_failures?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_seeded?: boolean
+          is_standard?: boolean
+          last_polled_at?: string | null
+          last_status?: string
+          marketplace?: string
+          poll_interval_ms?: number
+          price_from?: number | null
+          price_to?: number | null
+          query_key?: string
+          search_text?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sniper_query_subscriptions: {
+        Row: {
+          created_at: string
+          discount_threshold_percent: number
+          id: string
+          is_active: boolean
+          query_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_threshold_percent?: number
+          id?: string
+          is_active?: boolean
+          query_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_threshold_percent?: number
+          id?: string
+          is_active?: boolean
+          query_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sniper_query_subscriptions_query_id_fkey"
+            columns: ["query_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_queries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sniper_query_subscriptions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sources: {
         Row: {
           created_at: string
@@ -2582,6 +2818,17 @@ export type Database = {
         }
         Returns: Json
       }
+      create_sniper_subscription: {
+        Args: {
+          p_brand_id: number
+          p_price_from: number
+          p_price_to: number
+          p_search_text: string
+          p_threshold?: number
+          p_workspace_id: string
+        }
+        Returns: string
+      }
       create_workspace: { Args: { p_name: string }; Returns: string }
       is_workspace_admin: { Args: { ws_id: string }; Returns: boolean }
       is_workspace_member: { Args: { ws_id: string }; Returns: boolean }
@@ -2704,6 +2951,18 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      sniper_evaluate_hits: {
+        Args: { p_query_id: string; p_report_hits?: boolean }
+        Returns: number
+      }
+      sniper_reference_price: {
+        Args: { p_condition: string; p_query_id: string }
+        Returns: {
+          reference_price: number
+          sample_size: number
+          unusable_reason: string
+        }[]
       }
       unbundle_shipping_order: {
         Args: { p_bundled_order_id: string; p_workspace_id: string }
