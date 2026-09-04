@@ -13,6 +13,11 @@ module.exports = tseslint.config(
       '.angular/**',
       'node_modules/**',
       'supabase/**',
+      // Arbeitsordner anderer Zweige. ESLint liest die .gitignore nicht von
+      // allein, lief also in fremde, halbfertige Staende hinein und liess
+      // `npm run verify` an Code scheitern, an dem gerade jemand anders
+      // arbeitet - fuer den Ausfuehrenden nicht als solcher erkennbar.
+      '.worktrees/**',
       // Erzeugt durch `supabase gen types` - Aenderungen hier waeren beim
       // naechsten Erzeugen wieder weg.
       'src/app/core/models/supabase.types.ts',

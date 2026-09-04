@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(6);
+select plan(9);
 
 -- Spalten von sniper_queries
 do $$
@@ -176,6 +176,82 @@ end;
 $$;
 
 select pass('Angemeldete duerfen lesen, aber nicht schreiben');
+
+-- anon darf auf keiner der beiden Tabellen irgendetwas.
+--
+-- deal_monitor_subscriptions.sql und deal_monitor_hits.sql pruefen das schon
+-- fuer ihre eigenen Tabellen; sniper_queries und sniper_listings hatten
+-- bislang keine solche Pruefung, obwohl dieser Zweig anon hier genau das
+-- truncate-Recht entzogen hat (20260902194744_restrict_sniper_tables.sql).
+-- Ohne diese Pruefung faellt ein zurueckkehrendes Recht niemandem auf.
+do $$
+declare
+  anon_rechte text[];
+begin
+  select array_agg(distinct privilege_type order by privilege_type)
+  into anon_rechte
+  from information_schema.role_table_grants
+  where table_schema = 'public'
+    and table_name in ('sniper_queries', 'sniper_listings')
+    and grantee = 'anon';
+
+  if anon_rechte is not null then
+    raise exception 'anon haelt noch Rechte auf sniper_queries/sniper_listings: %', anon_rechte;
+  end if;
+end;
+$$;
+
+select pass('anon hat keinerlei Rechte auf sniper_queries und sniper_listings');
+
+-- authenticated darf auf beiden Tabellen genau lesen - nicht mehr.
+do $$
+declare
+  tabelle text;
+  rechte text[];
+begin
+  foreach tabelle in array array['sniper_queries', 'sniper_listings']
+  loop
+    select array_agg(privilege_type order by privilege_type)
+    into rechte
+    from information_schema.role_table_grants
+    where table_schema = 'public'
+      and table_name = tabelle
+      and grantee = 'authenticated';
+
+    if rechte is distinct from array['SELECT'] then
+      raise exception 'authenticated soll auf % genau SELECT haben, hat aber: %', tabelle, rechte;
+    end if;
+  end loop;
+end;
+$$;
+
+select pass('authenticated darf sniper_queries und sniper_listings genau lesen');
+
+-- anon haelt auf keiner Sniper-Tabelle irgendein Recht.
+--
+-- Am 04.09.2026 auf der Produktionsdatenbank gemessen: dort hatte anon
+-- delete, insert, select und update auf sniper_queries und sniper_listings,
+-- lokal nichts davon. Erzeugte Rechte-Anweisungen bilden immer die Maschine
+-- ab, auf der sie entstanden - diese Pruefung faellt auf, sobald irgendeine
+-- Umgebung abweicht.
+do $$
+declare
+  offene text[];
+begin
+  select array_agg(table_name || '.' || privilege_type order by table_name, privilege_type)
+  into offene
+  from information_schema.role_table_grants
+  where table_schema = 'public'
+    and table_name like 'sniper%'
+    and grantee = 'anon';
+
+  if offene is not null then
+    raise exception 'anon haelt noch Rechte auf Sniper-Tabellen: %', offene;
+  end if;
+end;
+$$;
+
+select pass('anon hat auf keiner Sniper-Tabelle ein Recht');
 
 select * from finish();
 

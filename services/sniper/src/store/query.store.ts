@@ -10,6 +10,7 @@ interface QueryRow {
   catalog_id: number | null;
   brand_id: number | null;
   price_to: string | number | null;
+  price_from: string | number | null;
   poll_interval_ms: number;
   is_seeded: boolean;
   is_active: boolean;
@@ -19,7 +20,7 @@ interface QueryRow {
 }
 
 const COLUMNS =
-  'id, query_key, marketplace, search_text, catalog_id, brand_id, price_to, poll_interval_ms, is_seeded, is_active, last_polled_at, last_status, consecutive_failures';
+  'id, query_key, marketplace, search_text, catalog_id, brand_id, price_to, price_from, poll_interval_ms, is_seeded, is_active, last_polled_at, last_status, consecutive_failures';
 
 function toQuery(row: QueryRow): SniperQuery {
   return {
@@ -32,6 +33,7 @@ function toQuery(row: QueryRow): SniperQuery {
     // Postgres liefert numeric als Zeichenkette. Ohne diese Umwandlung landete
     // die Preisgrenze als "49.50" in der Vinted-Anfrage.
     priceTo: row.price_to === null ? null : Number(row.price_to),
+    priceFrom: row.price_from === null ? null : Number(row.price_from),
     pollIntervalMs: row.poll_interval_ms,
     isSeeded: row.is_seeded,
     isActive: row.is_active,
