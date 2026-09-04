@@ -22,8 +22,8 @@ create table if not exists public.sniper_queries (
     search_text text not null,
     catalog_id integer,
     brand_id integer,
-    price_to numeric(12, 2),
-    price_from numeric(12, 2),
+    price_to numeric(12, 2) check (price_to is null or price_to >= 0),
+    price_from numeric(12, 2) check (price_from is null or price_from >= 0),
     is_standard boolean not null default false,
     poll_interval_ms integer not null default 60000,
     is_seeded boolean not null default false,
@@ -238,8 +238,20 @@ begin
 
   v_search_text := lower(btrim(regexp_replace(p_search_text, '\s+', ' ', 'g')));
 
-  if v_search_text = '' then
+  if v_search_text is null or v_search_text = '' then
     raise exception 'Der Suchbegriff darf nicht leer sein';
+  end if;
+
+  -- Auf zwei Nachkommastellen runden, bevor der Schluessel gebildet wird: die
+  -- Spalten sind numeric(12,2), die Parameter aber unbeschraenkt. 50.567 und
+  -- 50.566 speichern beide 50.57 - ohne diese Rundung vor der Schluesselbildung
+  -- erzeugen sie zwei Abfragezeilen und damit zwei Vinted-Anfragen fuer
+  -- denselben gespeicherten Filter.
+  p_price_from := round(p_price_from, 2);
+  p_price_to := round(p_price_to, 2);
+
+  if p_price_from is not null and p_price_to is not null and p_price_from > p_price_to then
+    raise exception 'Die Preisuntergrenze darf nicht ueber der Preisobergrenze liegen';
   end if;
 
   -- trim_scale streicht nachlaufende Nullen: 50.00 und 50 muessen denselben
@@ -254,16 +266,27 @@ begin
     'price_to=' || coalesce(trim_scale(p_price_to)::text, '-')
   );
 
+  -- Eine stillgelegte Abfrage (drei Fehlschlaege in Folge, is_active = false)
+  -- kommt ohne diesen Zweig nie zurueck - do nothing liesse sie stillgelegt.
+  -- Wer den Filter neu anlegt, will ihn offensichtlich wieder laufen sehen.
   insert into public.sniper_queries (query_key, search_text, brand_id, price_from, price_to)
   values (v_query_key, v_search_text, p_brand_id, p_price_from, p_price_to)
-  on conflict (query_key) do nothing;
+  on conflict (query_key) do update
+    set is_active = true,
+        consecutive_failures = 0;
 
   select id into v_query_id from public.sniper_queries where query_key = v_query_key;
 
+  -- 30 Prozent ist ein Startwert, kein Naturgesetz: do update uebernimmt die
+  -- neue Schwelle und setzt das Abonnement wieder aktiv. Ohne diesen Zweig
+  -- gaebe es keinen Weg, eine einmal gesetzte Schwelle je zu aendern -
+  -- authenticated hat kein UPDATE-Recht auf der Tabelle.
   insert into public.sniper_query_subscriptions
     (workspace_id, query_id, discount_threshold_percent)
   values (p_workspace_id, v_query_id, p_threshold)
-  on conflict (workspace_id, query_id) do nothing;
+  on conflict (workspace_id, query_id) do update
+    set discount_threshold_percent = excluded.discount_threshold_percent,
+        is_active = true;
 
   select id into v_subscription_id
   from public.sniper_query_subscriptions
