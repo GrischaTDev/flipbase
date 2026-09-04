@@ -34,21 +34,13 @@ async function directParent(repository, headSha) {
   }
 }
 
-/**
- * Meldet, ob sich unterhalb der angegebenen Pfade etwas geaendert hat.
- *
- * `paths` ist vorbelegt, damit alle bestehenden Aufrufer unveraendert
- * weiterlaufen; der Sniper-Auftrag reicht seinen eigenen Pfad herein. Ohne
- * diese Trennung liefe jede Pruefung bei jedem Push mit, auch wenn nur ein
- * Text im Frontend geaendert wurde.
- */
-export async function detectSupabaseChanges({
+/** Ermittelt die geänderten Pfade für den von GitHub vorgegebenen Vergleich. */
+export async function detectChangedPaths({
   repository = process.cwd(),
   eventName,
   prBaseSha,
   pushBeforeSha,
   headSha,
-  paths = ['supabase/'],
 }) {
   if (!commitShaPattern.test(headSha ?? '') || !(await commitExists(repository, headSha))) {
     throw new Error(`HEAD-Commit ist nicht auflösbar: ${headSha ?? '<leer>'}`);
@@ -60,27 +52,58 @@ export async function detectSupabaseChanges({
   } else if (eventName === 'push') {
     baseSha = pushBeforeSha;
   } else {
-    return true;
+    return null;
   }
 
   if (!baseSha || baseSha === zeroSha) {
     baseSha = await directParent(repository, headSha);
-    if (!baseSha) return true;
+    if (!baseSha) return null;
   }
 
   if (!commitShaPattern.test(baseSha) || !(await commitExists(repository, baseSha))) {
     throw new Error(`Vergleichscommit ist nicht auflösbar: ${baseSha}`);
   }
 
-  const { stdout } = await git(repository, [
-    'diff',
-    '--name-only',
-    baseSha,
-    headSha,
-    '--',
-    ...paths,
-  ]);
-  return stdout.trim().length > 0;
+  const { stdout } = await git(repository, ['diff', '--name-only', baseSha, headSha]);
+  return stdout.split(/\r?\n/u).filter(Boolean);
+}
+
+const sharedValidationPaths = new Set([
+  '.github/workflows/ci.yml',
+  'package.json',
+  'package-lock.json',
+  'scripts/detect-supabase-changes.mjs',
+  'scripts/detect-supabase-changes.test.mjs',
+  'scripts/required-checks.mjs',
+  'scripts/required-checks.test.mjs',
+]);
+
+function isDocumentationOnly(path) {
+  return (
+    (path.startsWith('docs/') || (!path.includes('/') && path.endsWith('.md'))) &&
+    path !== 'AGENTS.md'
+  );
+}
+
+function selectsPath(path, prefix) {
+  return path.startsWith(prefix) || sharedValidationPaths.has(path);
+}
+
+export function classifyChanges(paths) {
+  if (paths === null) {
+    return { application: true, supabase: true, sniper: true };
+  }
+
+  return {
+    application: paths.some((path) => !isDocumentationOnly(path)),
+    supabase: paths.some(
+      (path) =>
+        selectsPath(path, 'supabase/') ||
+        path === 'scripts/db-test-fixture.test.mjs' ||
+        path === 'scripts/prepare-db-tests.mjs',
+    ),
+    sniper: paths.some((path) => selectsPath(path, 'services/sniper/')),
+  };
 }
 
 async function main() {
@@ -91,12 +114,15 @@ async function main() {
     headSha: process.env.HEAD_SHA,
   };
 
-  const supabase = await detectSupabaseChanges({ ...event, paths: ['supabase/'] });
-  const sniper = await detectSupabaseChanges({ ...event, paths: ['services/sniper/'] });
+  const changes = classifyChanges(await detectChangedPaths(event));
 
   const outputPath = process.env.GITHUB_OUTPUT;
   if (!outputPath) throw new Error('GITHUB_OUTPUT fehlt.');
-  await appendFile(outputPath, `supabase=${supabase}\nsniper=${sniper}\n`, 'utf8');
+  await appendFile(
+    outputPath,
+    `application=${changes.application}\nsupabase=${changes.supabase}\nsniper=${changes.sniper}\n`,
+    'utf8',
+  );
 }
 
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href;

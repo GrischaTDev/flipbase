@@ -1,0 +1,37 @@
+function requireValue(name, actual, expected) {
+  if (actual !== expected) {
+    throw new Error(`${name}: erwartet ${expected}, erhalten ${actual || '<leer>'}`);
+  }
+}
+
+function requireBoolean(name, value) {
+  if (value !== 'true' && value !== 'false') {
+    throw new Error(`${name}: ungültige Änderungsausgabe ${value || '<leer>'}`);
+  }
+  return value === 'true';
+}
+
+function requireConditional(name, changed, result) {
+  requireValue(name, result, changed ? 'success' : 'skipped');
+}
+
+try {
+  requireValue('Änderungserkennung', process.env.CHANGES_RESULT, 'success');
+  requireValue('Qualität', process.env.QUALITY_RESULT, 'success');
+
+  const applicationChanged = requireBoolean('Anwendung', process.env.APPLICATION_CHANGED);
+  const supabaseChanged = requireBoolean('Supabase', process.env.SUPABASE_CHANGED);
+  const sniperChanged = requireBoolean('Sniper', process.env.SNIPER_CHANGED);
+
+  requireConditional('Anwendungstests', applicationChanged, process.env.UNIT_RESULT);
+  requireConditional('Browser-Smoke-Test', applicationChanged, process.env.BROWSER_RESULT);
+  requireConditional('Datenbank', supabaseChanged, process.env.DATABASE_RESULT);
+  requireConditional('Sniper-Dienst', sniperChanged, process.env.SNIPER_RESULT);
+
+  const expectedImage =
+    process.env.EVENT_NAME === 'push' && applicationChanged ? 'success' : 'skipped';
+  requireValue('Produktionsabbild', process.env.IMAGE_RESULT, expectedImage);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : error);
+  process.exitCode = 1;
+}
