@@ -48,6 +48,20 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Codex (GPT-5; Umsetzung und Review mit GPT-5.6 Terra/Sol) – Einstellungsseiten aufteilen
+
+**Art:** Refactoring | Test
+
+**Betroffen:** Einstellungen, Unterseiten und zugehörige Verhaltenstests
+
+**Was:** Die sieben bisherigen Einstellungsbereiche in eigenständige Lazy-Loading-Seiten aufgeteilt und die globale Daten-/Protokollseite samt Archivierung erhalten. Die vollständigen gerenderten Verhaltenstests wiederhergestellt, veraltete asynchrone Speicherantworten zwischen Workspaces isoliert und verständliche Fallback-Meldungen ergänzt. Der abschließende Gesamt-Review hat zusätzlich die Mystery-Box-Centverteilung, die Vollständigkeit des Prüfarchivs, Einzelbeleg-PDF-Einstiege und Rollen, die Verkaufspreispräzision, lokale Datumsgrenzen sowie zwei kleinere Einkaufsformular-Inkonsistenzen korrigiert. Eine automatisch erzeugte Migration ersetzt ausschließlich die vier betroffenen Datenbankfunktionen. Kein Push oder Deployment.
+
+**Warum:** Die Navigation soll getrennte, wartbare Seiten laden, ohne bestehende Funktionen zu verlieren. Geldwerte müssen centgenau und nachvollziehbar bleiben; das Prüfarchiv muss die Geschäftsdatensätze rekonstruierbar enthalten.
+
+**Verifiziert durch:** Unabhängige Task- und Whole-Branch-Reviews ohne offenen Merge-Blocker; `npm run verify` Exitcode 0 mit 983 Node-, 130 DOM- und 359 Angular-Tests; Produktionsbuild erfolgreich; frische isolierte Datenbank mit 20 Dateien und 958 Prüfungen vollständig grün; sechs Chromium-E2E-Tests grün; alle acht Einstellungsbereiche auf Desktop/Mobil und Hell/Dunkel mit 32 bereichsbezogenen AXE-Prüfungen ohne Fund sowie ohne Konsolenfehler. Ein erster Datenbanklauf traf eine fremde veraltete Standardinstanz und wurde verworfen; der maßgebliche Lauf erfolgte auf einer frisch aufgebauten, danach entfernten Isolationsinstanz.
+
+---
+
 ## 2026-09-04 – Codex (GPT-5; Umsetzung und Reviews mit GPT-5.6 Terra/Sol) – Einzelverlauf und Workspace-Archivierung fortgesetzt
 
 **Art:** Feature | Test
