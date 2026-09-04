@@ -88,7 +88,7 @@ create table if not exists public.sniper_query_subscriptions (
     id uuid primary key default gen_random_uuid(),
     workspace_id uuid not null references public.workspaces (id) on delete cascade,
     query_id uuid not null references public.sniper_queries (id) on delete cascade,
-    discount_threshold_percent numeric(5, 2) not null default 30
+    discount_threshold_percent numeric(5, 2) not null default 40
         check (discount_threshold_percent > 0 and discount_threshold_percent < 100),
     is_active boolean not null default true,
     created_at timestamptz not null default now(),
@@ -219,7 +219,7 @@ create or replace function public.create_sniper_subscription(
     p_brand_id integer,
     p_price_from numeric,
     p_price_to numeric,
-    p_threshold numeric default 30
+    p_threshold numeric default 40
 )
 returns uuid
 language plpgsql

@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(7);
+select plan(8);
 
 -- Spalten von sniper_query_subscriptions
 do $$
@@ -183,6 +183,30 @@ end;
 $$;
 
 select pass('Abfragen sind nur fuer ihre Abonnenten sichtbar');
+
+-- Der Standardwert der Schwelle.
+--
+-- Bei 30 Prozent haetten am 04.09.2026 25 von 96 gesammelten Funden gemeldet -
+-- jeder vierte. Bei 40 sind es rund acht. Ein Melder, der staendig meldet,
+-- wird stummgeschaltet, und dann sieht auch das Wichtige niemand mehr.
+do $$
+declare
+  standard numeric;
+begin
+  select regexp_replace(column_default, '[^0-9.]', '', 'g')::numeric
+  into standard
+  from information_schema.columns
+  where table_schema = 'public'
+    and table_name = 'sniper_query_subscriptions'
+    and column_name = 'discount_threshold_percent';
+
+  if standard <> 40 then
+    raise exception 'Erwartet wurde der Standardwert 40, gefunden: %', standard;
+  end if;
+end;
+$$;
+
+select pass('Die Standardschwelle liegt bei 40 Prozent');
 
 select * from finish();
 
