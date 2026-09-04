@@ -48,6 +48,16 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Claude Opus 5 (Anthropic) – Preisuntergrenze im Sammeldienst (Task 5)
+
+**Art:** Feature
+**Betroffen:** `services/sniper/src/domain/query.ts`, `services/sniper/src/store/query.store.ts`, `services/sniper/src/vinted/collector.ts`, zugehoerige Testdateien
+**Was:** `buildQueryKey` bildet jetzt sechs statt fuenf Segmente (`price_from` vor `price_to`, wie schon in `create_sniper_subscription`), `SniperQuery`/`QueryKeyInput` um `priceFrom` erweitert, `QueryStore` liest `price_from` als Zahl aus Postgres, `VintedCollector` reicht sie als `price_from`-Parameter an Vinted weiter.
+**Warum:** Dienst und Datenbank muessen denselben Abfrageschluessel bilden - sonst legt derselbe Filter zweimal eine Vinted-Abfrage an, und eine gespeicherte Preisuntergrenze, die nie an Vinted geht, waere eine Luege in der Oberflaeche. Test-zuerst: Schluesseltest und Sammlertest aus dem Auftrag zuerst ergaenzt, Fehlschlag bestaetigt, dann implementiert.
+**Verifiziert durch:** `services/sniper`: `npx tsc --noEmit`, `npm test` (10 Dateien, 75 Tests), `npm run build`, `npm run test:integration` (2 Dateien, 13 Tests) - alle exit 0. `npm run verify` im Stammverzeichnis exit 0 (dom 9/97, angular 18/240, node 89/760).
+
+---
+
 ## 2026-09-04 – Claude Opus 5 (Anthropic) – Trefferliste fuer den Deal-Monitor (Task 3)
 
 **Art:** Feature
