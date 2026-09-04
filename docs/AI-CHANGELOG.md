@@ -48,6 +48,34 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Codex (GPT-5) – Parallele Optimierungen und Landingpage abgeglichen
+
+**Art:** Analyse
+
+**Betroffen:** `origin/master` bis `a2ccddb`, CI, Deployment, Auth, Landingpage und Warenwirtschafts-Branch
+
+**Was:** Remote-Referenzen aktualisiert und Änderungen seit der gemeinsamen Basis gelesen. Die beidseitig geänderten Pfade sind fünf inhaltlich identische Plan-/Spezifikationsdateien; direkte Anwendungscode-Überschneidungen sind nicht sichtbar. Die neue tägliche Coverage-Auswahl enthält die neue `sale-metrics.ts` noch nicht. Im aktuellen Deployment wird ein fehlgeschlagener Landingpage-Kopiervorgang durch `|| true` verdeckt; der Deploy-Job wartet nicht auf `sniper-gate`. Landingpage-Texte zu Beta-Freischaltung, Datenschutz und Deal-Sniper-Funktionen müssen gegen den tatsächlich verfügbaren Funktionsumfang geprüft werden.
+
+**Warum:** Fremde Optimierungen erhalten und den gemeinsamen Stand nach dem großen Umbau gezielt prüfen. Die Landingpage erhält anschließend eine gesonderte technische, inhaltliche und zugängliche Prüfung.
+
+**Verifiziert durch:** Git-Historie, Dateischnittmenge und gezielte Quellcode-Diffs. Keine Zusammenführung, keine Änderungen an fremden Zweigen, keine neuen Testläufe und kein Deployment. Der frühere grüne Prüflauf gilt nicht als Nachweis für den noch nicht integrierten Gesamtstand.
+
+---
+
+## 2026-09-04 – Codex (GPT-5) – Unterbrochenen Arbeitsstand geprüft
+
+**Art:** Analyse
+
+**Betroffen:** Branch `feature/purchase-inventory-overhaul`
+
+**Was:** Gespeicherten Branch, Arbeitsverzeichnis und letzte Commits geprüft. Der Stand endet bei `90b28be`; die zusätzliche unabhängige Abschlussprüfung wurde durch ein Nutzungslimit unterbrochen.
+
+**Warum:** Nach der Unterbrechung den tatsächlichen Fortschritt und die noch offene Abschlussprüfung nachvollziehbar benennen.
+
+**Verifiziert durch:** Git-Status vor diesem Protokolleintrag sauber; acht lokale Umbau-Commits vorhanden. Build und Tests in dieser Sitzung nicht erneut ausgeführt. Kein Push oder Deployment vorgenommen.
+
+---
+
 ## 2026-08-30 – Codex GPT-5.6 – Verkaufsversand und Rendite abgenommen
 
 **Art:** Analyse | Doku
