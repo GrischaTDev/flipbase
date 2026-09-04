@@ -46,4 +46,12 @@ Nach Start dieser Gesamtprüfung wurden noch die Digest-Unterstützung des insta
 
 Docker-Build aus `docker/Dockerfile` am Commit `4b03447` erfolgreich. Am daraus gestarteten lokalen Nginx-Container waren Startseite, Healthcheck, vollständige Build-SHA und sämtliche JS-/CSS-Dateien erfolgreich abrufbar. Migrationen lagen außerhalb des Webroots. Dies verwendete die lokale Umgebungskonfiguration, keine Produktionszugangsdaten; es war weder ein GHCR-Push noch ein Produktionsdeployment. Build-Log: `C:/Users/Grisc/AppData/Local/Temp/flipbase-pipeline-image.log`.
 
-Der neue Migrationspfad bleibt standardmäßig deaktiviert und die Freigabeliste leer. Aktivierung und Betriebsbedingungen stehen in [RELEASE-PIPELINE.md](../../../deploy/RELEASE-PIPELINE.md). Noch ausstehend: abschließende Gesamt-Codeprüfung. Keine Freigabe des Altrückstands oder Behauptung eines getesteten Produktions-Restores.
+Der neue Migrationspfad bleibt standardmäßig deaktiviert und die Freigabeliste leer. Aktivierung und Betriebsbedingungen stehen in [RELEASE-PIPELINE.md](../../../deploy/RELEASE-PIPELINE.md). Keine Freigabe des Altrückstands oder Behauptung eines getesteten Produktions-Restores.
+
+## Abschließendes Ergebnis
+
+Die Gesamt-Codeprüfung fand einen Auswahlfehler bei technischen Dateien, die nach `docs/` umbenannt werden. Er ist in `7793ad9` mit `--no-renames` und einem echten Git-Regressionstest behoben. Die gezielte Nachprüfung bestätigte den Fix ohne weitere wichtige Befunde. Der kosmetische Name `detect-supabase-changes.mjs` bleibt unverändert, um keine unnötige Umbenennung mitzuführen.
+
+Danach vollständiger Abschlusslauf auf `aeba8ed`: `npm run verify` Exit 0, Workflow-Verträge 31 erfolgreich und vier Windows/POSIX-Skips, Anwendung 1.472 erfolgreich und fünf bestehende Skips, Landingpage 13 erfolgreich, Produktionsbuild erfolgreich. Log: `C:/Users/Grisc/AppData/Local/Temp/flipbase-pipeline-final-verify.log`.
+
+Code bereit zur Integration, nicht veröffentlicht. Die eigenen temporären Docker-Testcontainer wurden entfernt; das lokale Testimage wurde behalten. Die Serverdateien und die Produktionsdatenbank sind unverändert. GitHub-Laufzeit und Registry-Push müssen im ersten tatsächlichen CI-Lauf geprüft werden.
