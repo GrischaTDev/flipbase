@@ -48,6 +48,25 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Gemini 3.8 Flash (Google) – Landingpage FAQ Akkordeon, Roadmap & Tracking-Bereinigung
+
+**Art:** UI | Feature | Doku
+
+**Betroffen:** `landing/index.html`, `landing/datenschutz/index.html`
+
+**Was:**
+
+1. **Tracking-Aussagen bereinigt:** Claims wie „0 Drittanbieter-Tracker / Kein Google Analytics“ entfernt, da zukünftiges Produkt-Tracking nach DSGVO-Standards geplant ist. Durch die Sicherheitskarte „Verschlüsselt & DSGVO-konform“ (TLS, Backups, europäischer Datenschutz) ersetzt. Entsprechende Klausel in `landing/datenschutz/index.html` aktualisiert.
+2. **Umfangreiches zentriertes FAQ-Akkordeon:** FAQ auf 10 praxisnahe Kernfragen erweitert (Differenzsteuer § 25a, Kleinunternehmer § 19, Vinted Sniper, Marktplätze, Bildoptimierer, DATEV, Sicherheit, Mobile/PWA, Beta-Ablauf). Header zentriert und native HTML5 `<details>`/`<summary>`-Akkordeon-Funktionalität mit rotierendem Chevron und sauberem Border-Focus integriert (0 JS, CSP-kompatibel).
+3. **Roadmap statt „Ehrlicher Stand“:** Den bisherigen Entwicklungsstand-Bereich in eine professionelle Produkt-Roadmap umgewandelt (`#roadmap`), inkl. klarer Status-Tags (Live, In Entwicklung, Geplant) und passenden Navigations- sowie Footer-Links.
+4. **Hero-Aktionen gestrafft:** Die redundanten Buttons „Bereits registriert? Zum Login →“ und „Funktionen entdecken ↓“ unter dem Beta-Anmeldeformular im Hero entfernt (Login ist prominent in der Navigationsleiste vorhanden).
+
+**Warum:** Nutzerfeedback zur Professionalisierung der Landingpage, Einbindung zukünftiger Tracking-Möglichkeiten, verbesserte Übersicht durch aufklappbares FAQ und Fokus auf die Beta-Konvertierung im Hero.
+
+**Verifiziert durch:** `npm run verify` (Prettier, Lint, Typen, 21 Workflow-Tests, 1001 Unit-Tests, Angular Build).
+
+---
+
 ## 2026-09-04 – Gemini 3.8 Flash (Google) – Landingpage Polish: Emojis zu SVG, Beta-Anfrage & Footer-Reduktion
 
 **Art:** UI | Refactoring

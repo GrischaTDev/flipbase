@@ -1032,33 +1032,95 @@
         border-color: var(--amber-border);
       }
 
-      /* ---------- FAQ ---------- */
+      .status-tag.geplant {
+        color: var(--ink-soft);
+        background: var(--surface-alt);
+        border-color: var(--line);
+      }
 
-      .faq-grid {
-        display: grid;
-        gap: 1rem;
-        max-width: 900px;
+      /* ---------- FAQ Accordion ---------- */
+
+      .faq-header-center {
+        text-align: center;
+        margin-left: auto;
+        margin-right: auto;
+        max-width: 680px;
+        margin-bottom: 3rem;
+      }
+
+      .faq-header-center .sektion-kicker {
+        text-align: center;
+      }
+
+      .faq-accordion {
+        max-width: 820px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.85rem;
       }
 
       .faq-item {
         background: var(--surface);
         border: 1px solid var(--line);
         border-radius: 14px;
-        padding: 1.5rem;
+        overflow: hidden;
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease;
       }
 
-      .faq-item h4 {
+      .faq-item[open] {
+        border-color: var(--amber-border);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+      }
+
+      .faq-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 1.25rem 1.5rem;
         font-size: 1.05rem;
         font-weight: 700;
         color: var(--ink);
-        margin: 0 0 0.5rem;
+        cursor: pointer;
+        user-select: none;
+        list-style: none;
+        transition: color 0.15s ease;
       }
 
-      .faq-item p {
-        margin: 0;
-        font-size: 0.9rem;
+      .faq-summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .faq-summary:hover {
+        color: var(--amber);
+      }
+
+      .faq-chevron {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+        color: var(--amber);
+        transition: transform 0.25s ease;
+      }
+
+      .faq-item[open] .faq-chevron {
+        transform: rotate(180deg);
+      }
+
+      .faq-body {
+        padding: 0 1.5rem 1.4rem;
+        font-size: 0.92rem;
         color: var(--ink-muted);
-        line-height: 1.6;
+        line-height: 1.65;
+        border-top: 1px solid transparent;
+      }
+
+      .faq-item[open] .faq-body {
+        border-top-color: var(--line);
+        padding-top: 1rem;
       }
 
       /* ---------- CTA Banner am Ende ---------- */
@@ -1251,7 +1313,7 @@
           <span class="lang-de">§ 25a DATEV</span>
           <span class="lang-en">§ 25a Tax & DATEV</span>
         </a>
-        <a href="#status" class="nav-link">
+        <a href="#roadmap" class="nav-link">
           <span class="lang-de">Roadmap</span>
           <span class="lang-en">Roadmap</span>
         </a>
@@ -1384,17 +1446,6 @@
               </button>
             </div>
           </form>
-
-          <div class="held-aktionen">
-            <a class="btn-secondary" href="https://app.flipbase.de" target="_blank">
-              <span class="lang-de">Bereits registriert? Zum Login →</span>
-              <span class="lang-en">Already registered? Log in →</span>
-            </a>
-            <a class="btn-secondary" href="#features">
-              <span class="lang-de">Funktionen entdecken ↓</span>
-              <span class="lang-en">Explore features ↓</span>
-            </a>
-          </div>
         </div>
 
         <!-- Rechter Beleg / Kassenzettel -->
@@ -1913,11 +1964,12 @@
           </h2>
           <p class="sektion-text">
             <span class="lang-de">
-              Kein Weiterverkauf von Einkaufsquellen, keine Werbetracker und Hosting auf deutscher
-              Infrastruktur.
+              Kein Weiterverkauf von Einkaufsquellen, strikte Datentrennung und Hosting auf
+              deutscher Infrastruktur.
             </span>
             <span class="lang-en">
-              No selling of sourcing data, zero ad trackers, and sovereign German server hosting.
+              No selling of sourcing data, strict database isolation, and sovereign German server
+              hosting.
             </span>
           </p>
         </div>
@@ -1997,17 +2049,17 @@
                   d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
                 ></path>
               </svg>
-              <span class="lang-de">0 Drittanbieter-Tracker</span>
-              <span class="lang-en">Zero 3rd-Party Trackers</span>
+              <span class="lang-de">Verschlüsselt &amp; DSGVO-konform</span>
+              <span class="lang-en">Encrypted &amp; GDPR Compliant</span>
             </h4>
             <p>
               <span class="lang-de">
-                Kein Google Analytics, keine Facebook-Pixel, keine Werbe-Cookies. Diese Landingpage
-                lädt 0 kB externes JavaScript.
+                Moderne TLS-Verschlüsselung, automatisierte Backups und strikte Beachtung
+                europäischer Datenschutz- und Sicherheitsstandards.
               </span>
               <span class="lang-en">
-                No Google Analytics, no Meta pixels, zero ad networks. This landing page loads 0 kB
-                of external JavaScript.
+                Modern TLS encryption across all connections, automated backups, and strict
+                compliance with European privacy standards.
               </span>
             </p>
           </div>
@@ -2042,34 +2094,33 @@
         </div>
       </section>
 
-      <!-- Ehrlicher Entwicklungsstand (Roadmap) -->
-      <section id="status">
+      <!-- Roadmap -->
+      <section id="roadmap">
         <div class="sektion-header">
           <span class="sektion-kicker">
-            <span class="lang-de">Transparenz</span>
-            <span class="lang-en">Transparency</span>
+            <span class="lang-de">Roadmap</span>
+            <span class="lang-en">Roadmap</span>
           </span>
           <h2 class="sektion-titel">
-            <span class="lang-de">Ehrlicher Stand der Entwicklung.</span>
-            <span class="lang-en">Honest product status.</span>
+            <span class="lang-de">Unsere Produkt-Roadmap.</span>
+            <span class="lang-en">Product Roadmap.</span>
           </h2>
+          <p class="sektion-text">
+            <span class="lang-de">
+              Wir entwickeln Flipbase praxisnah für die Reseller-Community. Hier siehst du, welche
+              Funktionen bereits live nutzbar sind und woran wir aktuell mit Hochdruck arbeiten:
+            </span>
+            <span class="lang-en">
+              We build Flipbase directly alongside the reselling community. Here is what is
+              currently live and what we are actively working on next:
+            </span>
+          </p>
         </div>
 
         <div class="status-box">
-          <p>
-            <span class="lang-de">
-              Flipbase entsteht aus der Praxis und wird täglich von echten Resellern im operativen
-              Betrieb genutzt und weiterentwickelt:
-            </span>
-            <span class="lang-en">
-              Flipbase is built directly from daily practice and constantly battle-tested by active
-              resellers:
-            </span>
-          </p>
-
           <ul class="status-liste">
             <li class="status-item">
-              <span class="status-tag fertig">Live &amp; Nutzbar</span>
+              <span class="status-tag fertig">Live</span>
               <span class="lang-de"
                 >Einkaufsbuchung, Mischkäufe, Nebenkostenverteilung &amp; Liegezeiten</span
               >
@@ -2078,7 +2129,7 @@
               >
             </li>
             <li class="status-item">
-              <span class="status-tag fertig">Live &amp; Nutzbar</span>
+              <span class="status-tag fertig">Live</span>
               <span class="lang-de"
                 >Bildoptimierer mit automatischem GPS-Schutz, Zuschnitten &amp; ZIP-Export</span
               >
@@ -2087,7 +2138,7 @@
               >
             </li>
             <li class="status-item">
-              <span class="status-tag fertig">Live &amp; Nutzbar</span>
+              <span class="status-tag fertig">Live</span>
               <span class="lang-de"
                 >Multi-Channel Listing Studio für Vinted, eBay und Kleinanzeigen</span
               >
@@ -2096,7 +2147,7 @@
               >
             </li>
             <li class="status-item">
-              <span class="status-tag fertig">Live &amp; Nutzbar</span>
+              <span class="status-tag fertig">Live</span>
               <span class="lang-de"
                 >Verkaufsabrechnung mit Portotrennung, § 25a Differenzsteuer &amp;
                 DATEV-Export</span
@@ -2106,7 +2157,7 @@
               >
             </li>
             <li class="status-item">
-              <span class="status-tag in-arbeit">In Erprobung</span>
+              <span class="status-tag in-arbeit">In Entwicklung</span>
               <span class="lang-de"
                 >Vinted Deal-Sniper Dienst zur automatisierten Schnäppchen-Erkennung</span
               >
@@ -2115,7 +2166,7 @@
               >
             </li>
             <li class="status-item">
-              <span class="status-tag in-arbeit">In Erprobung</span>
+              <span class="status-tag in-arbeit">In Entwicklung</span>
               <span class="lang-de"
                 >Direkte Versandlabel-Erzeugung (DHL &amp; Hermes Anbindung)</span
               >
@@ -2124,7 +2175,7 @@
               >
             </li>
             <li class="status-item">
-              <span class="status-tag in-arbeit">In Arbeit</span>
+              <span class="status-tag geplant">Geplant</span>
               <span class="lang-de"
                 >Eigener provisionsfreier Onlineshop mit direkter Zahlungsabwicklung</span
               >
@@ -2138,68 +2189,394 @@
 
       <!-- FAQ -->
       <section id="faq">
-        <div class="sektion-header">
+        <div class="sektion-header faq-header-center">
           <span class="sektion-kicker">FAQ</span>
           <h2 class="sektion-titel">
-            <span class="lang-de">Häufige Fragen.</span>
-            <span class="lang-en">Frequently asked questions.</span>
+            <span class="lang-de">Häufig gestellte Fragen.</span>
+            <span class="lang-en">Frequently Asked Questions.</span>
           </h2>
+          <p class="sektion-text">
+            <span class="lang-de">
+              Alles Wichtige zu Flipbase, zur Beta-Phase und zu unseren Funktionen auf einen Blick.
+            </span>
+            <span class="lang-en">
+              Everything you need to know about Flipbase, our Beta access, and features.
+            </span>
+          </p>
         </div>
 
-        <div class="faq-grid">
-          <div class="faq-item">
-            <h4>
-              <span class="lang-de">Für wen ist Flipbase gedacht?</span>
-              <span class="lang-en">Who is Flipbase built for?</span>
-            </h4>
-            <p>
-              <span class="lang-de">
-                Flipbase richtet sich an alle Reseller, Gebrauchtwarenhändler und Vintage-Stores –
-                vom ambitionierten Nebengewerbe auf Vinted/Kleinanzeigen bis zum hauptberuflichen
-                E-Commerce-Handel.
+        <div class="faq-accordion">
+          <!-- FAQ 1 -->
+          <details class="faq-item" open>
+            <summary class="faq-summary">
+              <span>
+                <span class="lang-de">Für wen ist Flipbase gedacht?</span>
+                <span class="lang-en">Who is Flipbase built for?</span>
               </span>
-              <span class="lang-en">
-                Flipbase is designed for resellers, vintage shops, and second-hand merchants – from
-                part-time side hustles on Vinted to full-time multi-channel businesses.
-              </span>
-            </p>
-          </div>
+              <svg
+                class="faq-chevron"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </summary>
+            <div class="faq-body">
+              <p>
+                <span class="lang-de">
+                  Flipbase richtet sich an alle gewerblichen Reseller, Vintage-Stores und
+                  Gebrauchtwarenhändler – vom ambitionierten Nebengewerbe auf Vinted und
+                  Kleinanzeigen bis zum hauptberuflichen Multi-Channel-Handel.
+                </span>
+                <span class="lang-en">
+                  Flipbase is built for commercial resellers, vintage shops, and second-hand
+                  merchants – from ambitious side hustles on Vinted and Kleinanzeigen to full-time
+                  multi-channel operations.
+                </span>
+              </p>
+            </div>
+          </details>
 
-          <div class="faq-item">
-            <h4>
-              <span class="lang-de">Funktioniert Flipbase auch für Kleinunternehmer (§ 19)?</span>
-              <span class="lang-en">Does it support the small business scheme (§ 19 UStG)?</span>
-            </h4>
-            <p>
-              <span class="lang-de">
-                Ja, absolut. Du kannst Flipbase als Kleinunternehmer nach § 19 UStG nutzen oder bei
-                Wachstum nahtlos auf die § 25a Differenzbesteuerung oder Regelbesteuerung umstellen.
+          <!-- FAQ 2 -->
+          <details class="faq-item">
+            <summary class="faq-summary">
+              <span>
+                <span class="lang-de"
+                  >Wie läuft der Beta-Zugang ab und ist die Teilnahme kostenlos?</span
+                >
+                <span class="lang-en">How does Beta access work and is it free?</span>
               </span>
-              <span class="lang-en">
-                Yes, completely. You can run Flipbase under the German small business regulation (§
-                19 UStG) or seamlessly switch to § 25a margin taxation as you grow.
-              </span>
-            </p>
-          </div>
+              <svg
+                class="faq-chevron"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </summary>
+            <div class="faq-body">
+              <p>
+                <span class="lang-de">
+                  Die Teilnahme an der aktuellen Beta-Phase 0.1 ist für alle freigeschalteten Nutzer
+                  vollständig kostenlos. Wir schalten Anfragen in regelmäßigen Wellen frei, um
+                  direktes Feedback aus der Praxis zu sammeln und die Plattform gemeinsam mit
+                  aktiven Resellern zu optimieren.
+                </span>
+                <span class="lang-en">
+                  Access to our Beta Phase 0.1 is completely free for invited users. We onboard
+                  users in rolling batches to gather real-world feedback and polish features
+                  directly with active resellers.
+                </span>
+              </p>
+            </div>
+          </details>
 
-          <div class="faq-item">
-            <h4>
-              <span class="lang-de">Wie funktioniert der Vinted Bot?</span>
-              <span class="lang-en">How does the Vinted Bot work?</span>
-            </h4>
-            <p>
-              <span class="lang-de">
-                Der Bot überwacht ausgewählte Kategorien und Marken auf Vinted im Hintergrund.
-                Sobald neue Inserate mit hoher Marge oder Preisfehlern eingestellt werden, wirst du
-                sofort benachrichtigt und kannst den Deal direkt in Flipbase übernehmen.
+          <!-- FAQ 3 -->
+          <details class="faq-item">
+            <summary class="faq-summary">
+              <span>
+                <span class="lang-de"
+                  >Unterstützt Flipbase die Kleinunternehmerregelung (§ 19 UStG)?</span
+                >
+                <span class="lang-en"
+                  >Does Flipbase support the small business scheme (§ 19 UStG)?</span
+                >
               </span>
-              <span class="lang-en">
-                The bot scans selected categories and brands in the background. As soon as
-                high-margin items or price drops are published, you get alerted and can import the
-                deal directly.
+              <svg
+                class="faq-chevron"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </summary>
+            <div class="faq-body">
+              <p>
+                <span class="lang-de">
+                  Ja, uneingeschränkt. Du kannst Flipbase als Kleinunternehmer nach § 19 UStG ohne
+                  Steuerausweis nutzen. Wächst dein Business oder wechselst du zur
+                  Differenzbesteuerung (§ 25a UStG) bzw. Regelbesteuerung, passt sich die Plattform
+                  nahtlos an.
+                </span>
+                <span class="lang-en">
+                  Yes, completely. You can operate under the German small business regulation (§ 19
+                  UStG) without tax display. If your volume grows or you switch to margin taxation
+                  (§ 25a UStG), the platform adapts seamlessly.
+                </span>
+              </p>
+            </div>
+          </details>
+
+          <!-- FAQ 4 -->
+          <details class="faq-item">
+            <summary class="faq-summary">
+              <span>
+                <span class="lang-de"
+                  >Wie hilft Flipbase bei der Differenzbesteuerung (§ 25a UStG)?</span
+                >
+                <span class="lang-en">How does Flipbase handle margin taxation (§ 25a UStG)?</span>
               </span>
-            </p>
-          </div>
+              <svg
+                class="faq-chevron"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </summary>
+            <div class="faq-body">
+              <p>
+                <span class="lang-de">
+                  Flipbase ermittelt die steuerpflichtige Marge automatisch aus Verkaufserlös
+                  abzüglich Einkaufs- und Portokosten. Die Steuer wird centgenau berechnet und auf
+                  Rechnungen ohne gesonderten Steuerausweis mit dem gesetzlichen Paragrafenhinweis
+                  ausgewiesen.
+                </span>
+                <span class="lang-en">
+                  Flipbase automatically calculates taxable margin by subtracting sourcing and
+                  shipping costs from the sale price. Margins are tracked to the cent and invoiced
+                  without separate tax display as legally mandated.
+                </span>
+              </p>
+            </div>
+          </details>
+
+          <!-- FAQ 5 -->
+          <details class="faq-item">
+            <summary class="faq-summary">
+              <span>
+                <span class="lang-de">Wie funktioniert der Vinted Deal-Sniper?</span>
+                <span class="lang-en">How does the Vinted Deal Sniper work?</span>
+              </span>
+              <svg
+                class="faq-chevron"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </summary>
+            <div class="faq-body">
+              <p>
+                <span class="lang-de">
+                  Der Deal-Sniper überwacht deine hinterlegten Suchfilter, Marken und Preisspannen
+                  auf Vinted im Hintergrund. Sobald lukrative Schnäppchen oder Preisfehler
+                  eingestellt werden, erhältst du sofort eine Benachrichtigung und kannst den Deal
+                  direkt als Einkauf importieren.
+                </span>
+                <span class="lang-en">
+                  The sniper monitors your custom search filters, brands, and price targets on
+                  Vinted. The moment high-margin deals or mispriced listings appear, you receive
+                  instant alerts and can import them with one click.
+                </span>
+              </p>
+            </div>
+          </details>
+
+          <!-- FAQ 6 -->
+          <details class="faq-item">
+            <summary class="faq-summary">
+              <span>
+                <span class="lang-de"
+                  >Welche Verkaufsplattformen und Marktplätze werden unterstützt?</span
+                >
+                <span class="lang-en">Which platforms and marketplaces are supported?</span>
+              </span>
+              <svg
+                class="faq-chevron"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </summary>
+            <div class="faq-body">
+              <p>
+                <span class="lang-de">
+                  Flipbase ist auf die wichtigsten Reselling-Kanäle fokussiert: Vinted, eBay und
+                  Kleinanzeigen. Du erstellst Titel, Beschreibung und Bilder im Multi-Channel
+                  Listing Studio einmalig und bereitest sie passgenau für jeden Marktplatz vor.
+                </span>
+                <span class="lang-en">
+                  Flipbase focuses on key reselling channels: Vinted, eBay, and Kleinanzeigen. You
+                  craft titles, descriptions, and photos once in the Multi-Channel Listing Studio
+                  and tailor them for each marketplace.
+                </span>
+              </p>
+            </div>
+          </details>
+
+          <!-- FAQ 7 -->
+          <details class="faq-item">
+            <summary class="faq-summary">
+              <span>
+                <span class="lang-de">Was leistet der integrierte Bildoptimierer?</span>
+                <span class="lang-en">What does the built-in Image Optimizer do?</span>
+              </span>
+              <svg
+                class="faq-chevron"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </summary>
+            <div class="faq-body">
+              <p>
+                <span class="lang-de">
+                  Der Bildoptimierer entfernt beim Upload automatisch alle sensiblen EXIF-Metadaten
+                  (wie GPS-Standortdaten und Kamerainformationen) zum Schutz deiner Privatsphäre,
+                  schneidet Fotos auf das optimale 3:4-Format zu und komprimiert sie für
+                  ultraschnelle Ladezeiten auf Marktplätzen.
+                </span>
+                <span class="lang-en">
+                  The optimizer automatically strips all sensitive EXIF metadata (like GPS location
+                  and device data) to safeguard your privacy, crops images to the optimal 3:4 ratio,
+                  and compresses them for fast loading on marketplaces.
+                </span>
+              </p>
+            </div>
+          </details>
+
+          <!-- FAQ 8 -->
+          <details class="faq-item">
+            <summary class="faq-summary">
+              <span>
+                <span class="lang-de"
+                  >Kann ich meine Daten an meinen Steuerberater übergeben (DATEV)?</span
+                >
+                <span class="lang-en">Can I export my data to my tax accountant (DATEV)?</span>
+              </span>
+              <svg
+                class="faq-chevron"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </summary>
+            <div class="faq-body">
+              <p>
+                <span class="lang-de">
+                  Ja. Flipbase bietet strukturierte CSV- und DATEV-kompatible Exporte für alle
+                  Einkäufe, Verkäufe und Buchungszeilen. Dein Steuerberater kann die Daten für
+                  Monats- oder Jahresabschlüsse direkt in seine Buchführungssoftware einlesen.
+                </span>
+                <span class="lang-en">
+                  Yes. Flipbase provides structured CSV and DATEV-compatible exports for all
+                  purchases, sales, and ledger entries, letting your accountant import everything
+                  without tedious manual entry.
+                </span>
+              </p>
+            </div>
+          </details>
+
+          <!-- FAQ 9 -->
+          <details class="faq-item">
+            <summary class="faq-summary">
+              <span>
+                <span class="lang-de"
+                  >Wo werden meine Daten gespeichert und wie sicher sind sie?</span
+                >
+                <span class="lang-en">Where is my data stored and how secure is it?</span>
+              </span>
+              <svg
+                class="faq-chevron"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </summary>
+            <div class="faq-body">
+              <p>
+                <span class="lang-de">
+                  Alle Daten liegen auf dedizierten Servern bei Hetzner in Deutschland (Nürnberg und
+                  Falkenstein). Durch PostgreSQL Row Level Security (RLS) ist auf Datenbankebene
+                  sichergestellt, dass ausschließlich du auf die Daten deines Workspaces zugreifen
+                  kannst.
+                </span>
+                <span class="lang-en">
+                  All data is hosted on dedicated servers at Hetzner in Germany. With PostgreSQL Row
+                  Level Security (RLS), your workspace data is strictly isolated and accessible only
+                  by you at the database level.
+                </span>
+              </p>
+            </div>
+          </details>
+
+          <!-- FAQ 10 -->
+          <details class="faq-item">
+            <summary class="faq-summary">
+              <span>
+                <span class="lang-de"
+                  >Funktioniert Flipbase auch mobil auf dem Smartphone beim Sourcing?</span
+                >
+                <span class="lang-en">Does Flipbase work on smartphones while sourcing?</span>
+              </span>
+              <svg
+                class="faq-chevron"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </summary>
+            <div class="faq-body">
+              <p>
+                <span class="lang-de">
+                  Ja. Flipbase ist als vollwertige Progressive Web App (PWA) gebaut. Du kannst die
+                  Anwendung direkt im Smartphone-Browser öffnen oder zum Startbildschirm hinzufügen
+                  – ideal, um beim Sourcing auf dem Flohmarkt Preise und Margen direkt zu prüfen.
+                </span>
+                <span class="lang-en">
+                  Yes. Flipbase is built as a Progressive Web App (PWA) running smoothly on phones,
+                  tablets, and desktops. You can add it directly to your home screen to check
+                  margins and inventory on the go at flea markets.
+                </span>
+              </p>
+            </div>
+          </details>
         </div>
       </section>
 
@@ -2311,6 +2688,18 @@
               <a href="#buchhaltung">
                 <span class="lang-de">§ 25a DATEV</span>
                 <span class="lang-en">Tax &amp; DATEV</span>
+              </a>
+            </li>
+            <li>
+              <a href="#roadmap">
+                <span class="lang-de">Roadmap</span>
+                <span class="lang-en">Roadmap</span>
+              </a>
+            </li>
+            <li>
+              <a href="#faq">
+                <span class="lang-de">FAQ</span>
+                <span class="lang-en">FAQ</span>
               </a>
             </li>
             <li>
