@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Git-Rename-Erkennung abgesichert
+
+**Art:** Bugfix | Test
+**Betroffen:** `scripts/detect-supabase-changes.mjs`, zugehöriger Real-Git-Test
+**Was:** Die Pfaderkennung vergleicht Git-Diffs mit deaktivierter Rename-Kompression; ein Regressionstest prüft einen technischen Template-Pfad, der nach `docs/` verschoben wird.
+**Warum:** Der frühere Rename-Diff konnte nur den Dokumentationszielpfad liefern und dadurch die Anwendungsprüfungen überspringen.
+**Verifiziert durch:** RED reproduziert `application=false`; GREEN mit `--no-renames` ergibt `application=true`; 13 fokussierte Node-Tests, Prettier-Check und ESLint erfolgreich.
+
 ## 2026-09-05 – Codex – Release-Pipeline vereinfacht
 
 **Art:** Konfiguration | Test

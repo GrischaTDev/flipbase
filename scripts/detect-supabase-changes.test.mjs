@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
@@ -205,6 +205,34 @@ test('Diff außerhalb von Supabase setzt die Ausgabe auf false', async () => {
 
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.output, 'application=false\nsupabase=false\nsniper=false\n');
+  });
+});
+
+test('Technischer Pfad bleibt bei einem Rename nach docs anwendungsrelevant', async () => {
+  await withRepository(async (repository) => {
+    const base = await commitFile(
+      repository,
+      'src/app/features/example/example.component.html',
+      '<main>stable technical template</main>\n',
+      'technical template',
+    );
+    const sourcePath = join(repository, 'src/app/features/example/example.component.html');
+    const targetPath = join(repository, 'docs/example-template.md');
+    await mkdir(dirname(targetPath), { recursive: true });
+    await rename(sourcePath, targetPath);
+    git(repository, 'add', '-A');
+    git(repository, 'commit', '--quiet', '-m', 'move template to docs');
+    const head = git(repository, 'rev-parse', 'HEAD');
+
+    const result = await runDetector(repository, {
+      EVENT_NAME: 'push',
+      PR_BASE_SHA: '',
+      PUSH_BEFORE_SHA: base,
+      HEAD_SHA: head,
+    });
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.output, 'application=true\nsupabase=false\nsniper=false\n');
   });
 });
 

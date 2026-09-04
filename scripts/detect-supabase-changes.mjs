@@ -64,7 +64,13 @@ export async function detectChangedPaths({
     throw new Error(`Vergleichscommit ist nicht auflösbar: ${baseSha}`);
   }
 
-  const { stdout } = await git(repository, ['diff', '--name-only', baseSha, headSha]);
+  const { stdout } = await git(repository, [
+    'diff',
+    '--name-only',
+    '--no-renames',
+    baseSha,
+    headSha,
+  ]);
   return stdout.split(/\r?\n/u).filter(Boolean);
 }
 
