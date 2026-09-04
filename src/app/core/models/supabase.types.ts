@@ -2671,6 +2671,7 @@ export type Database = {
       }
       workspaces: {
         Row: {
+          archived_at: string | null
           created_at: string
           currency: string
           id: string
@@ -2681,6 +2682,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          archived_at?: string | null
           created_at?: string
           currency?: string
           id?: string
@@ -2691,6 +2693,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          archived_at?: string | null
           created_at?: string
           currency?: string
           id?: string
@@ -2731,6 +2734,26 @@ export type Database = {
       allocate_integer_cents: {
         Args: { p_total_cents: number; p_weights: number[] }
         Returns: number[]
+      }
+      archive_workspace: {
+        Args: { p_workspace_id: string }
+        Returns: {
+          archived_at: string | null
+          created_at: string
+          currency: string
+          id: string
+          min_profit_amount: number
+          min_roi_percent: number
+          name: string
+          tax_mode: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "workspaces"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       book_bank_transaction: {
         Args: {
@@ -3054,6 +3077,46 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      restore_workspace: {
+        Args: { p_workspace_id: string }
+        Returns: {
+          archived_at: string | null
+          created_at: string
+          currency: string
+          id: string
+          min_profit_amount: number
+          min_roi_percent: number
+          name: string
+          tax_mode: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "workspaces"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_workspace_archive_state: {
+        Args: { p_archived: boolean; p_workspace_id: string }
+        Returns: {
+          archived_at: string | null
+          created_at: string
+          currency: string
+          id: string
+          min_profit_amount: number
+          min_roi_percent: number
+          name: string
+          tax_mode: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "workspaces"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       unbundle_shipping_order: {
         Args: { p_bundled_order_id: string; p_workspace_id: string }

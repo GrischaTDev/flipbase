@@ -1,6 +1,7 @@
 import { Json } from './supabase.types';
 
-export type BusinessEntityType = 'purchase' | 'inventory_item' | 'sale' | 'return' | 'export';
+export type BusinessEntityType =
+  'purchase' | 'inventory_item' | 'sale' | 'return' | 'export' | 'workspace';
 
 export interface BusinessEvent {
   readonly id: string;

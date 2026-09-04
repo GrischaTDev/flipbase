@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS public.workspaces (
     min_roi_percent NUMERIC NOT NULL DEFAULT 30.0,
     min_profit_amount NUMERIC NOT NULL DEFAULT 15.0,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    archived_at timestamptz
 );
 
 CREATE TABLE IF NOT EXISTS public.workspace_members (
@@ -636,7 +637,7 @@ create table public.business_events (
     id uuid primary key default gen_random_uuid(),
     workspace_id uuid not null references public.workspaces(id) on delete restrict,
     entity_type text not null
-      check (entity_type in ('purchase', 'inventory_item', 'sale', 'return', 'export')),
+      check (entity_type in ('purchase', 'inventory_item', 'sale', 'return', 'export', 'workspace')),
     entity_id uuid not null,
     event_type text not null,
     actor_id uuid references auth.users(id) on delete restrict,
@@ -1435,6 +1436,8 @@ as $$
 begin
   if exists (select 1 from public.purchases where workspace_id = old.id)
     or exists (select 1 from public.inventory_items where workspace_id = old.id)
+    or exists (select 1 from public.stock_lots where workspace_id = old.id)
+    or exists (select 1 from public.stock_movements where workspace_id = old.id)
     or exists (select 1 from public.sales where workspace_id = old.id)
     or exists (select 1 from public.inventory_reconciliation_events where workspace_id = old.id)
     or exists (select 1 from public.business_events where workspace_id = old.id)

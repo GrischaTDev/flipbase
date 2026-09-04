@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import {
   LucideDynamicIcon,
   LucideSettings as Settings,
@@ -103,6 +104,7 @@ export class SettingsComponent {
   ];
 
   private readonly dialog = inject(ConfirmDialogService);
+  private readonly router = inject(Router);
   readonly workspaceService = inject(WorkspaceService);
   readonly auth = inject(AuthService);
   readonly exportService = inject(ExportService);
@@ -543,26 +545,10 @@ export class SettingsComponent {
   }
 
   async onDeleteWorkspace(wsId: string): Promise<void> {
-    const bestaetigt = await this.dialog.frage({
-      titel: 'Workspace löschen?',
-      text: 'Der Workspace wird mit allen darin erfassten Daten gelöscht. Das lässt sich nicht rückgängig machen.',
-      bestaetigenText: 'Löschen',
-      gefahr: true,
+    await this.router.navigate(['/settings/data'], {
+      queryParams: { retentionWorkspace: wsId },
+      fragment: 'retention-heading',
     });
-    if (bestaetigt) {
-      const { success, reportedBySyncStatus } = await this.workspaceService.deleteWorkspace(wsId);
-      if (!success) {
-        if (!reportedBySyncStatus) {
-          this.toast.error(
-            'Workspace konnte nicht gelöscht werden.',
-            'Der einzige Workspace kann nicht gelöscht werden.',
-          );
-        }
-        return;
-      }
-
-      this.toast.success('Workspace wurde gelöscht.');
-    }
   }
 
   readonly isTestingPush = signal<boolean>(false);

@@ -145,6 +145,7 @@ describe('SettingsComponent', () => {
       const komponente = Object.create(SettingsComponent.prototype) as SettingsComponent;
 
       Object.assign(komponente, {
+        router: { navigate: vi.fn(async () => true) },
         dialog: { frage: vi.fn(async () => true) },
         toast,
         syncStatus: new SyncStatusService(),
@@ -322,15 +323,16 @@ describe('SettingsComponent', () => {
         erwarteEinzelnenToast(erfolg.toast, 'success', 'Workspace wurde erstellt.');
       });
 
-      it('bestätigt das Löschen eines Workspace erst nach bestätigtem Service-Erfolg', async () => {
+      it('führt vor dem Löschen zum Aufbewahrungsablauf für den angefragten Workspace', async () => {
         const erfolg = erstelleKomponente({ deleteSuccess: true });
+        const router = { navigate: vi.fn(async () => true) };
+        Object.assign(erfolg.komponente, { router });
         await erfolg.komponente.onDeleteWorkspace('workspace-2');
-        erwarteEinzelnenToast(erfolg.toast, 'success', 'Workspace wurde gelöscht.');
-
-        const fehler = erstelleKomponente({ deleteSuccess: false });
-        await fehler.komponente.onDeleteWorkspace('workspace-2');
-        erwarteEinzelnenToast(fehler.toast, 'error', 'Workspace konnte nicht gelöscht werden.');
-        expect(fehler.toast.toasts()[0].persistent).toBe(true);
+        expect(router.navigate).toHaveBeenCalledWith(['/settings/data'], {
+          queryParams: { retentionWorkspace: 'workspace-2' },
+          fragment: 'retention-heading',
+        });
+        expect(erfolg.toast.toasts()).toEqual([]);
       });
 
       it('erzeugt bei einem zentral gemeldeten Workspace-Löschfehler keinen zweiten Toast', async () => {

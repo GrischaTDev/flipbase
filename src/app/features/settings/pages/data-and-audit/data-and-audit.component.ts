@@ -40,6 +40,7 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { WorkspaceRetentionComponent } from './workspace-retention.component';
 
 export interface AuditFilterValue {
   readonly from: string;
@@ -56,6 +57,7 @@ const ENTITY_TYPES: readonly BusinessEntityType[] = [
   'sale',
   'return',
   'export',
+  'workspace',
 ];
 export function canExportAuditData(role: WorkspaceRole): boolean {
   return role === 'owner' || role === 'admin' || role === 'accountant';
@@ -97,7 +99,13 @@ export function toBusinessEventFilter(
 
 @Component({
   selector: 'app-data-and-audit',
-  imports: [ReactiveFormsModule, LucideDynamicIcon, CustomSelectComponent, DatePipe],
+  imports: [
+    ReactiveFormsModule,
+    LucideDynamicIcon,
+    CustomSelectComponent,
+    DatePipe,
+    WorkspaceRetentionComponent,
+  ],
   templateUrl: './data-and-audit.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block' },
@@ -137,6 +145,7 @@ export class DataAndAuditComponent {
     { value: 'sale', label: 'Verkauf' },
     { value: 'return', label: 'Retoure' },
     { value: 'export', label: 'Export' },
+    { value: 'workspace', label: 'Workspace' },
   ];
   readonly pageSizeOptions: readonly SelectOption<number>[] = [
     { value: 25, label: '25 Einträge' },

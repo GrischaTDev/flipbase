@@ -18,6 +18,7 @@ export interface Workspace {
   min_profit_amount: number;
   created_at?: string;
   updated_at?: string;
+  archived_at?: string | null;
 }
 
 export interface WorkspaceSummary {
