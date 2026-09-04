@@ -25,10 +25,11 @@
         --ink: #ffffff;
         --ink-soft: #e2e8f0;
         --ink-muted: #94a3b8;
-        --ink-dim: #64748b;
+        --ink-dim: #94a3b8;
 
         --amber: #f89d13;
         --amber-hover: #fbb040;
+        --on-amber: #111317;
         --amber-glow: rgba(248, 157, 19, 0.25);
         --amber-border: rgba(248, 157, 19, 0.4);
         --amber-bg: rgba(248, 157, 19, 0.12);
@@ -58,13 +59,14 @@
           --ink: #111827;
           --ink-soft: #374151;
           --ink-muted: #596273;
-          --ink-dim: #8d95a5;
+          --ink-dim: #596273;
 
-          --amber: #d97706;
-          --amber-hover: #b45309;
-          --amber-glow: rgba(217, 119, 6, 0.18);
-          --amber-border: rgba(217, 119, 6, 0.35);
-          --amber-bg: rgba(217, 119, 6, 0.08);
+          --amber: #a24807;
+          --amber-hover: #843b0b;
+          --on-amber: #ffffff;
+          --amber-glow: rgba(162, 72, 7, 0.18);
+          --amber-border: rgba(162, 72, 7, 0.35);
+          --amber-bg: rgba(162, 72, 7, 0.08);
 
           --profit: #047857;
           --profit-bg: rgba(4, 120, 87, 0.1);
@@ -88,13 +90,14 @@
         --ink: #111827;
         --ink-soft: #374151;
         --ink-muted: #596273;
-        --ink-dim: #8d95a5;
+        --ink-dim: #596273;
 
-        --amber: #d97706;
-        --amber-hover: #b45309;
-        --amber-glow: rgba(217, 119, 6, 0.18);
-        --amber-border: rgba(217, 119, 6, 0.35);
-        --amber-bg: rgba(217, 119, 6, 0.08);
+        --amber: #a24807;
+        --amber-hover: #843b0b;
+        --on-amber: #ffffff;
+        --amber-glow: rgba(162, 72, 7, 0.18);
+        --amber-border: rgba(162, 72, 7, 0.35);
+        --amber-bg: rgba(162, 72, 7, 0.08);
 
         --profit: #047857;
         --profit-bg: rgba(4, 120, 87, 0.1);
@@ -117,10 +120,11 @@
           --ink: #ffffff;
           --ink-soft: #e2e8f0;
           --ink-muted: #94a3b8;
-          --ink-dim: #64748b;
+          --ink-dim: #94a3b8;
 
           --amber: #f89d13;
           --amber-hover: #fbb040;
+          --on-amber: #111317;
           --amber-glow: rgba(248, 157, 19, 0.25);
           --amber-border: rgba(248, 157, 19, 0.4);
           --amber-bg: rgba(248, 157, 19, 0.12);
@@ -154,8 +158,7 @@
       li.lang-de,
       h1.lang-de,
       h2.lang-de,
-      h3.lang-de,
-      h4.lang-de {
+      h3.lang-de {
         display: block;
       }
 
@@ -177,8 +180,7 @@
       body:has(#lang-toggle:checked) li.lang-en,
       body:has(#lang-toggle:checked) h1.lang-en,
       body:has(#lang-toggle:checked) h2.lang-en,
-      body:has(#lang-toggle:checked) h3.lang-en,
-      body:has(#lang-toggle:checked) h4.lang-en {
+      body:has(#lang-toggle:checked) h3.lang-en {
         display: block !important;
       }
 
@@ -250,6 +252,7 @@
 
       header {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
         gap: 1.25rem;
@@ -336,6 +339,7 @@
         display: flex;
         align-items: center;
         gap: 0.75rem;
+        min-width: 0;
       }
 
       /* Theme & Lang Toggles */
@@ -427,12 +431,18 @@
         color: var(--amber);
       }
 
+      #theme-toggle:focus-visible ~ .kopf-aktionen label[for='theme-toggle'],
+      #lang-toggle:focus-visible ~ .kopf-aktionen label[for='lang-toggle'] {
+        outline: 2px solid var(--amber);
+        outline-offset: 3px;
+      }
+
       .kopf-cta {
         display: inline-flex;
         align-items: center;
         gap: 0.5rem;
         background: linear-gradient(180deg, var(--amber) 0%, var(--amber-hover) 100%);
-        color: #111317;
+        color: var(--on-amber);
         font-size: 0.85rem;
         font-weight: 700;
         padding: 0.55rem 1.15rem;
@@ -568,6 +578,19 @@
       }
 
       @media (max-width: 560px) {
+        header {
+          align-items: center;
+        }
+        .kopf-aktionen {
+          width: 100%;
+          justify-content: space-between;
+        }
+        .kopf-cta {
+          flex: 1;
+          min-width: 0;
+          justify-content: center;
+          text-align: center;
+        }
         .hero-beta-input-gruppe {
           flex-direction: column;
           gap: 0.65rem;
@@ -593,7 +616,7 @@
         align-items: center;
         gap: 0.6rem;
         background: linear-gradient(180deg, var(--amber) 0%, var(--amber-hover) 100%);
-        color: #111317;
+        color: var(--on-amber);
         font-size: 0.95rem;
         font-weight: 700;
         padding: 0.85rem 1.65rem;
@@ -951,7 +974,7 @@
         padding: 1.5rem;
       }
 
-      .tech-box h4 {
+      .tech-box h3 {
         font-size: 1.05rem;
         font-weight: 700;
         color: var(--ink);
@@ -1213,7 +1236,7 @@
         width: fit-content;
       }
 
-      .fuss-spalte h4 {
+      .fuss-spalte h2 {
         font-family: var(--mono);
         font-size: 0.7rem;
         font-weight: 700;
@@ -1264,20 +1287,6 @@
   </head>
 
   <body>
-    <!-- Versteckte Kontroll-Checkboxen für Theme & Sprache (CSS-gesteuert, 0 JS) -->
-    <input
-      type="checkbox"
-      id="theme-toggle"
-      class="sr-only"
-      aria-label="Design umschalten / Toggle theme"
-    />
-    <input
-      type="checkbox"
-      id="lang-toggle"
-      class="sr-only"
-      aria-label="Sprache umschalten / Switch language"
-    />
-
     <!-- Header -->
     <header>
       <div class="marke">
@@ -1320,6 +1329,20 @@
         <a href="#faq" class="nav-link">FAQ</a>
       </nav>
 
+      <!-- Versteckte Kontroll-Checkboxen für Theme & Sprache (CSS-gesteuert, 0 JS) -->
+      <input
+        type="checkbox"
+        id="theme-toggle"
+        class="sr-only"
+        aria-label="Design umschalten / Toggle theme"
+      />
+      <input
+        type="checkbox"
+        id="lang-toggle"
+        class="sr-only"
+        aria-label="Sprache umschalten / Switch language"
+      />
+
       <div class="kopf-aktionen">
         <!-- Theme & Language Toggles -->
         <div class="schalter-gruppe">
@@ -1328,8 +1351,6 @@
             for="theme-toggle"
             class="schalter-btn"
             title="Design wechseln (Hell/Dunkel) / Toggle theme"
-            role="button"
-            tabindex="0"
           >
             <!-- Mond-Icon (Dark) -->
             <svg
@@ -1370,8 +1391,6 @@
             for="lang-toggle"
             class="schalter-btn"
             title="Sprache wechseln (DE/EN) / Switch language"
-            role="button"
-            tabindex="0"
           >
             <span class="lang-state-de">DE</span>
             <span style="color: var(--line-strong); margin: 0 2px">/</span>
@@ -1400,8 +1419,8 @@
         <div>
           <div class="hero-badge">
             <span class="hero-badge-punkt"></span>
-            <span class="lang-de">Version 0.1 · Beta-Phase</span>
-            <span class="lang-en">Version 0.1 · Beta Phase</span>
+            <span class="lang-de">Beta</span>
+            <span class="lang-en">Beta</span>
           </div>
 
           <h1>
@@ -1415,11 +1434,11 @@
 
           <p class="unterzeile">
             <span class="lang-de">
-              Flipbase führt automatisierte Deal-Recherche, Multi-Channel-Verkauf, Bildoptimierung
-              mit GPS-Schutz und centgenaue Differenzbesteuerung (§ 25a) an einem Ort zusammen.
+              Flipbase führt geplante Deal-Recherche, Multi-Channel-Verkauf, Bildoptimierung mit
+              GPS-Schutz und centgenaue Differenzbesteuerung (§ 25a) an einem Ort zusammen.
             </span>
             <span class="lang-en">
-              Flipbase combines automated deal sniping, multi-channel sales, privacy-safe image
+              Flipbase combines planned deal discovery, multi-channel sales, privacy-safe image
               optimization, and penny-accurate margin taxation (§ 25a) in one workspace.
             </span>
           </p>
@@ -1441,8 +1460,8 @@
                 aria-label="E-Mail-Adresse für Beta-Zugang"
               />
               <button type="submit" class="btn-primary hero-beta-btn">
-                <span class="lang-de">Beta-Zugang anfragen →</span>
-                <span class="lang-en">Request Beta access →</span>
+                <span class="lang-de">Beta-Registrierung öffnen →</span>
+                <span class="lang-en">Open beta registration →</span>
               </button>
             </div>
           </form>
@@ -1635,11 +1654,11 @@
           </h2>
           <p class="sektion-text">
             <span class="lang-de">
-              Von der automatisierten Schnäppchenjagd über die Bestandsverwaltung bis zum
-              DATEV-Export für die Steuerberatung.
+              Von der geplanten Deal-Suche über die Bestandsverwaltung bis zum DATEV-Export für die
+              Steuerberatung.
             </span>
             <span class="lang-en">
-              From automated deal hunting to inventory management and export-ready DATEV tax files.
+              From planned deal discovery to inventory management and export-ready DATEV tax files.
             </span>
           </p>
         </div>
@@ -1672,28 +1691,14 @@
             </h3>
             <p>
               <span class="lang-de">
-                Automatisierte Marktbeobachtung: Der integrierte Sniper durchsucht Vinted nach
-                unterbewerteten Artikeln und Preisfehlern, noch bevor andere Reseller sie sehen.
+                Geplant ist, gespeicherte Suchfilter im Hintergrund zu prüfen und passende Treffer
+                für den späteren Import anzuzeigen.
               </span>
               <span class="lang-en">
-                Automated market scanning: The sniper monitors Vinted for underpriced items and
-                pricing errors before other resellers spot them.
+                The planned flow checks saved searches in the background and surfaces matching
+                listings for later import.
               </span>
             </p>
-            <ul class="feature-punkte">
-              <li>
-                <span class="lang-de">Echtzeit-Scans nach Suchfiltern &amp; Marken</span>
-                <span class="lang-en">Real-time scans by brand &amp; keyword</span>
-              </li>
-              <li>
-                <span class="lang-de">Sofortige Benachrichtigung bei Top-Deals</span>
-                <span class="lang-en">Instant alerts on high-margin deals</span>
-              </li>
-              <li>
-                <span class="lang-de">1-Klick-Übernahme in die Einkaufsliste</span>
-                <span class="lang-en">1-click transfer to purchase tracking</span>
-              </li>
-            </ul>
           </div>
 
           <!-- 02 Einkäufe & Bestände tracken -->
@@ -1959,24 +1964,22 @@
             <span class="lang-en">Security &amp; Privacy</span>
           </span>
           <h2 class="sektion-titel">
-            <span class="lang-de">Deine Unternehmensdaten gehören dir.</span>
-            <span class="lang-en">Your business data stays strictly yours.</span>
+            <span class="lang-de">Datenzugriff mit klaren Grenzen.</span>
+            <span class="lang-en">Data access with clear boundaries.</span>
           </h2>
           <p class="sektion-text">
             <span class="lang-de">
-              Kein Weiterverkauf von Einkaufsquellen, strikte Datentrennung und Hosting auf
-              deutscher Infrastruktur.
+              Flipbase begrenzt den Zugriff auf Workspace-Daten mit serverseitigen Regeln.
             </span>
             <span class="lang-en">
-              No selling of sourcing data, strict database isolation, and sovereign German server
-              hosting.
+              Flipbase limits access to workspace data with server-side rules.
             </span>
           </p>
         </div>
 
         <div class="tech-grid">
           <div class="tech-box">
-            <h4>
+            <h3>
               <svg
                 class="tech-box-icon"
                 viewBox="0 0 24 24"
@@ -1991,81 +1994,25 @@
                 <line x1="6" x2="6.01" y1="6" y2="6"></line>
                 <line x1="6" x2="6.01" y1="18" y2="18"></line>
               </svg>
-              <span class="lang-de">Serverstandort Deutschland</span>
-              <span class="lang-en">Hosted in Germany</span>
-            </h4>
+              <span class="lang-de">Workspace-getrennter Datenzugriff</span>
+              <span class="lang-en">Workspace-scoped data access</span>
+            </h3>
             <p>
               <span class="lang-de">
-                Gehostet bei Hetzner in Nürnberg und Falkenstein. Strenge europäische
-                DSGVO-Standards ohne US-Datentransfer.
+                Die Anwendung schützt Workspace-Daten mit serverseitigen Zugriffsregeln. Die
+                konkrete Betriebs- und Datenschutzkonfiguration wird vor dem öffentlichen Start
+                gesondert geprüft.
               </span>
               <span class="lang-en">
-                Hosted with Hetzner in Nuremberg &amp; Falkenstein. Strict European GDPR standards
-                without US cloud routing.
+                The application protects workspace data with server-side access rules. The
+                production privacy and hosting configuration is reviewed separately before public
+                launch.
               </span>
             </p>
           </div>
 
           <div class="tech-box">
-            <h4>
-              <svg
-                class="tech-box-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect>
-                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-              </svg>
-              <span>Row Level Security (RLS)</span>
-            </h4>
-            <p>
-              <span class="lang-de">
-                PostgreSQL mit strikter Zeilensicherheit: Jeder Nutzer kann technisch ausschließlich
-                die Daten seines eigenen Workspaces lesen und schreiben.
-              </span>
-              <span class="lang-en">
-                PostgreSQL with hardened Row Level Security: users are cryptographically isolated to
-                their own workspace.
-              </span>
-            </p>
-          </div>
-
-          <div class="tech-box">
-            <h4>
-              <svg
-                class="tech-box-icon"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path
-                  d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
-                ></path>
-              </svg>
-              <span class="lang-de">Verschlüsselt &amp; DSGVO-konform</span>
-              <span class="lang-en">Encrypted &amp; GDPR Compliant</span>
-            </h4>
-            <p>
-              <span class="lang-de">
-                Moderne TLS-Verschlüsselung, automatisierte Backups und strikte Beachtung
-                europäischer Datenschutz- und Sicherheitsstandards.
-              </span>
-              <span class="lang-en">
-                Modern TLS encryption across all connections, automated backups, and strict
-                compliance with European privacy standards.
-              </span>
-            </p>
-          </div>
-
-          <div class="tech-box">
-            <h4>
+            <h3>
               <svg
                 class="tech-box-icon"
                 viewBox="0 0 24 24"
@@ -2079,7 +2026,7 @@
                 <path d="M12 18h.01"></path>
               </svg>
               <span>Progressive Web App (PWA)</span>
-            </h4>
+            </h3>
             <p>
               <span class="lang-de">
                 Läuft flüssig im Browser am Desktop, Tablet und unterwegs auf dem Smartphone beim
@@ -2157,7 +2104,10 @@
               >
             </li>
             <li class="status-item">
-              <span class="status-tag in-arbeit">In Entwicklung</span>
+              <span class="status-tag in-arbeit">
+                <span class="lang-de">In Entwicklung</span>
+                <span class="lang-en">In development</span>
+              </span>
               <span class="lang-de"
                 >Vinted Deal-Sniper Dienst zur automatisierten Schnäppchen-Erkennung</span
               >
@@ -2265,15 +2215,13 @@
             <div class="faq-body">
               <p>
                 <span class="lang-de">
-                  Die Teilnahme an der aktuellen Beta-Phase 0.1 ist für alle freigeschalteten Nutzer
-                  vollständig kostenlos. Wir schalten Anfragen in regelmäßigen Wellen frei, um
-                  direktes Feedback aus der Praxis zu sammeln und die Plattform gemeinsam mit
-                  aktiven Resellern zu optimieren.
+                  Der Zugang ist derzeit als Beta verfügbar und die Teilnahme kostenlos. Du kannst
+                  die Registrierung direkt öffnen. Die Verfügbarkeit und der Funktionsumfang können
+                  sich während der Beta ändern.
                 </span>
                 <span class="lang-en">
-                  Access to our Beta Phase 0.1 is completely free for invited users. We onboard
-                  users in rolling batches to gather real-world feedback and polish features
-                  directly with active resellers.
+                  Access is currently available as a beta and participation is free. You can open
+                  registration directly. Availability and feature scope may change during the beta.
                 </span>
               </p>
             </div>
@@ -2379,15 +2327,12 @@
             <div class="faq-body">
               <p>
                 <span class="lang-de">
-                  Der Deal-Sniper überwacht deine hinterlegten Suchfilter, Marken und Preisspannen
-                  auf Vinted im Hintergrund. Sobald lukrative Schnäppchen oder Preisfehler
-                  eingestellt werden, erhältst du sofort eine Benachrichtigung und kannst den Deal
-                  direkt als Einkauf importieren.
+                  Geplant ist, gespeicherte Suchfilter im Hintergrund zu prüfen und passende Treffer
+                  für den späteren Import anzuzeigen.
                 </span>
                 <span class="lang-en">
-                  The sniper monitors your custom search filters, brands, and price targets on
-                  Vinted. The moment high-margin deals or mispriced listings appear, you receive
-                  instant alerts and can import them with one click.
+                  The planned flow checks saved searches in the background and surfaces matching
+                  listings for later import.
                 </span>
               </p>
             </div>
@@ -2527,15 +2472,14 @@
             <div class="faq-body">
               <p>
                 <span class="lang-de">
-                  Alle Daten liegen auf dedizierten Servern bei Hetzner in Deutschland (Nürnberg und
-                  Falkenstein). Durch PostgreSQL Row Level Security (RLS) ist auf Datenbankebene
-                  sichergestellt, dass ausschließlich du auf die Daten deines Workspaces zugreifen
-                  kannst.
+                  Die Anwendung schützt Workspace-Daten mit serverseitigen Zugriffsregeln. Die
+                  konkrete Betriebs- und Datenschutzkonfiguration wird vor dem öffentlichen Start
+                  gesondert geprüft.
                 </span>
                 <span class="lang-en">
-                  All data is hosted on dedicated servers at Hetzner in Germany. With PostgreSQL Row
-                  Level Security (RLS), your workspace data is strictly isolated and accessible only
-                  by you at the database level.
+                  The application protects workspace data with server-side access rules. The
+                  production privacy and hosting configuration is reviewed separately before public
+                  launch.
                 </span>
               </p>
             </div>
@@ -2585,21 +2529,19 @@
         <div class="banner-cta">
           <div class="hero-badge" style="margin: 0 auto 1.25rem; display: inline-flex">
             <span class="hero-badge-punkt"></span>
-            <span class="lang-de">Beta-Phase 0.1</span>
-            <span class="lang-en">Beta Phase 0.1</span>
+            <span class="lang-de">Beta</span>
+            <span class="lang-en">Beta</span>
           </div>
           <h2>
-            <span class="lang-de">Jetzt Beta-Zugang anfragen</span>
-            <span class="lang-en">Request your Beta access now</span>
+            <span class="lang-de">Beta-Registrierung öffnen</span>
+            <span class="lang-en">Open beta registration</span>
           </h2>
           <p>
             <span class="lang-de">
-              Trage deine E-Mail ein und frage deinen Zugang zur Flipbase Beta an. Wir schalten neue
-              Reseller schrittweise frei.
+              Trage deine E-Mail ein und fahre mit der Registrierung in der Flipbase-App fort.
             </span>
             <span class="lang-en">
-              Enter your email to request your access to the Flipbase Beta. We invite resellers in
-              rolling batches.
+              Enter your email and continue registration in the Flipbase app.
             </span>
           </p>
           <form
@@ -2620,8 +2562,8 @@
                 aria-label="E-Mail-Adresse für Beta-Zugang"
               />
               <button type="submit" class="btn-primary hero-beta-btn">
-                <span class="lang-de">Beta-Zugang anfragen →</span>
-                <span class="lang-en">Request Beta access →</span>
+                <span class="lang-de">Beta-Registrierung öffnen →</span>
+                <span class="lang-en">Open beta registration →</span>
               </button>
             </div>
           </form>
@@ -2655,16 +2597,16 @@
           </p>
           <div class="fuss-beta-badge">
             <span class="hero-badge-punkt"></span>
-            <span class="lang-de">Beta 0.1 aktiv</span>
-            <span class="lang-en">Beta 0.1 active</span>
+            <span class="lang-de">Beta aktiv</span>
+            <span class="lang-en">Beta active</span>
           </div>
         </div>
 
         <div class="fuss-spalte">
-          <h4>
+          <h2>
             <span class="lang-de">Produkt</span>
             <span class="lang-en">Product</span>
-          </h4>
+          </h2>
           <ul>
             <li>
               <a href="#features">
@@ -2712,10 +2654,10 @@
         </div>
 
         <div class="fuss-spalte">
-          <h4>
+          <h2>
             <span class="lang-de">Rechtliches</span>
             <span class="lang-en">Legal</span>
-          </h4>
+          </h2>
           <ul>
             <li>
               <a href="/impressum">
