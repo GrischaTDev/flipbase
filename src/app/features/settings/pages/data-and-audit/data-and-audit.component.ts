@@ -90,11 +90,33 @@ export function toBusinessEventFilter(
     ...(value.entityType ? { entityType: value.entityType } : {}),
     ...(value.eventType ? { eventType: value.eventType } : {}),
     ...(value.actorId ? { actorId: value.actorId } : {}),
-    ...(value.from ? { from: `${value.from}T00:00:00.000Z` } : {}),
-    ...(value.to ? { to: `${value.to}T23:59:59.999Z` } : {}),
+    ...(value.from ? { from: localDayBoundaryAsUtc(value.from, false) } : {}),
+    ...(value.to ? { to: localDayBoundaryAsUtc(value.to, true) } : {}),
     ...(cursor ? { cursor } : {}),
     pageSize: value.pageSize,
   };
+}
+
+function localDayBoundaryAsUtc(value: string, endOfDay: boolean): string {
+  const parts = value.split('-');
+  const year = Number(parts[0]);
+  const month = Number(parts[1]);
+  const day = Number(parts[2]);
+  const localStart = new Date(year, month - 1, day);
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day) ||
+    localStart.getFullYear() !== year ||
+    localStart.getMonth() !== month - 1 ||
+    localStart.getDate() !== day
+  ) {
+    throw new Error('Das Filterdatum ist ungültig.');
+  }
+  const timestamp = endOfDay
+    ? new Date(year, month - 1, day + 1).getTime() - 1
+    : localStart.getTime();
+  return new Date(timestamp).toISOString();
 }
 
 @Component({

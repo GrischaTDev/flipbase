@@ -102,6 +102,10 @@ export class PurchaseLineEditorComponent {
           product.tracking_mode === 'quantity' && product.workspace_id === this.activeWorkspaceId(),
       ),
   );
+  readonly quantityProductOptions = computed<SelectOption<string>[]>(() => [
+    { value: '', label: 'Artikel wählen' },
+    ...this.quantityProducts().map((product) => ({ value: product.id, label: product.title })),
+  ]);
   readonly isMysteryPurchase = computed(() => this.purchaseType() === 'mystery_pack');
   readonly conditionOptions: SelectOption<ItemCondition>[] = [
     { value: 'new', label: 'Neu' },
@@ -165,12 +169,6 @@ export class PurchaseLineEditorComponent {
     row.controls.catalogProductId.setValue(product?.id ?? null);
     if (product) row.controls.titleSnapshot.setValue(product.title);
     this.emitDrafts();
-  }
-
-  selectCatalogProductFromEvent(index: number, event: Event): void {
-    const target = event.target;
-    if (!(target instanceof HTMLSelectElement)) return;
-    this.selectCatalogProduct(index, target.value);
   }
 
   updateTitleSnapshot(index: number, titleSnapshot: string): void {

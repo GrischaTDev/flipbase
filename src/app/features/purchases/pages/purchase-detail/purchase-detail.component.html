@@ -11,6 +11,18 @@
 
     <div class="flex items-center gap-2">
       @if (purchaseService.selectedPurchase(); as actionPurchase) {
+        <a
+          data-purchase-audit-print-link
+          [routerLink]="['/settings/data/print']"
+          [queryParams]="{ entityType: 'purchase', entityId: actionPurchase.id }"
+          class="linear-btn-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-fb-text-secondary transition hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+          [attr.aria-label]="
+            'Prüfbeleg für ' + actionPurchase.title + ' drucken oder als PDF speichern'
+          "
+        >
+          <svg [lucideIcon]="receiptIcon" aria-hidden="true" class="w-3.5 h-3.5"></svg>
+          <span>Prüfbeleg</span>
+        </a>
         <app-purchase-lifecycle-actions
           [entryStatus]="actionPurchase.entry_status ?? 'draft'"
           [saleHistoryState]="purchaseService.purchaseSaleHistoryState()"

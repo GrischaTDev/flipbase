@@ -14,6 +14,9 @@ function snapshotFixture() {
     captured_at: '2026-09-04T16:00:00Z',
     snapshot: '1:3:',
     business_events: [],
+    sources: [],
+    suppliers: [],
+    catalog_products: [],
     purchases: [],
     purchase_lines: [],
     purchase_costs: [],
@@ -25,6 +28,10 @@ function snapshotFixture() {
     sale_lines: [],
     sale_cost_entries: [],
     sale_line_lot_allocations: [],
+    returns: [],
+    inventory_reconciliation_events: [],
+    invoices: [],
+    invoice_items: [],
   };
 }
 
@@ -68,7 +75,31 @@ describe('Audit-Snapshot-Vertrag', () => {
     });
     expect(result.manifest.createdAt).toBe('2026-09-04T16:00:00Z');
     expect(result.manifest.filters['snapshot']).toBe('1:3:');
-    expect(result.manifest.files).toHaveLength(13);
+    expect(result.manifest.files).toHaveLength(20);
+    expect(result.manifest.files.map((file) => file.name).sort()).toEqual(
+      [
+        'business-events.csv',
+        'business-events.json',
+        'catalog-products.csv',
+        'inventory-items.csv',
+        'inventory-reconciliation-events.csv',
+        'invoice-items.csv',
+        'invoices.csv',
+        'item-costs.csv',
+        'purchase-costs.csv',
+        'purchase-lines.csv',
+        'purchases.csv',
+        'returns.csv',
+        'sale-costs.csv',
+        'sale-line-lot-allocations.csv',
+        'sale-lines.csv',
+        'sales.csv',
+        'sources.csv',
+        'stock-lots.csv',
+        'stock-movements.csv',
+        'suppliers.csv',
+      ].sort(),
+    );
   });
   it('verwirft Antworten nach einem Workspace-Wechsel', async () => {
     const fixture = snapshotService(async () => {
@@ -125,6 +156,16 @@ describe('AuditExportService archive builder', () => {
     };
     const data: AuditArchiveData = {
       businessEvents: [event],
+      sources: [{ id: 'source-1', workspace_id: 'workspace-1', name: 'Flohmarkt' }],
+      suppliers: [{ id: 'supplier-1', workspace_id: 'workspace-1', name: 'Händler GmbH' }],
+      catalogProducts: [
+        {
+          id: 'catalog-1',
+          workspace_id: 'workspace-1',
+          title: 'LED-Lampe',
+          tracking_mode: 'quantity',
+        },
+      ],
       purchases: [{ id: 'purchase-1', workspace_id: 'workspace-1', title: '=IMPORTXML()' }],
       purchaseLines: [],
       purchaseCosts: [],
@@ -143,6 +184,41 @@ describe('AuditExportService archive builder', () => {
           quantity: 2,
           allocated_cost: 33.34,
           active_allocated_cost: 33.34,
+          consumption_sequence: 7,
+        },
+      ],
+      returns: [
+        {
+          id: 'return-1',
+          workspace_id: 'workspace-1',
+          sale_id: 'sale-1',
+          inventory_item_id: 'item-1',
+          credit_note_number: 'GS-1',
+        },
+      ],
+      inventoryReconciliationEvents: [
+        {
+          id: 'reconciliation-1',
+          workspace_id: 'workspace-1',
+          inventory_item_id: 'item-1',
+          actor_id: 'user-1',
+          event_type: 'restore_stock',
+        },
+      ],
+      invoices: [
+        {
+          id: 'invoice-1',
+          workspace_id: 'workspace-1',
+          sale_id: 'sale-1',
+          invoice_number: 'RE-1',
+        },
+      ],
+      invoiceItems: [
+        {
+          id: 'invoice-item-1',
+          invoice_id: 'invoice-1',
+          title: 'LED-Lampe',
+          quantity: 1,
         },
       ],
     };
@@ -159,18 +235,25 @@ describe('AuditExportService archive builder', () => {
       [
         'business-events.csv',
         'business-events.json',
+        'catalog-products.csv',
         'inventory-items.csv',
+        'inventory-reconciliation-events.csv',
+        'invoice-items.csv',
+        'invoices.csv',
         'item-costs.csv',
         'sale-line-lot-allocations.csv',
         'manifest.json',
         'purchase-costs.csv',
         'purchase-lines.csv',
         'purchases.csv',
+        'returns.csv',
         'sale-costs.csv',
         'sale-lines.csv',
         'sales.csv',
+        'sources.csv',
         'stock-lots.csv',
         'stock-movements.csv',
+        'suppliers.csv',
       ].sort(),
     );
     const manifest = JSON.parse(await zip.file('manifest.json')!.async('string'));
@@ -179,8 +262,8 @@ describe('AuditExportService archive builder', () => {
     const purchasesCsv = await zip.file('purchases.csv')!.async('string');
 
     expect(manifest).toMatchObject({
-      schemaVersion: '1.1.0',
-      exportVersion: '1.1.0',
+      schemaVersion: '1.2.0',
+      exportVersion: '1.2.0',
       workspaceId: 'workspace-1',
       filters: { entity_type: 'purchase' },
     });
@@ -194,8 +277,14 @@ describe('AuditExportService archive builder', () => {
     expect(await zip.file('item-costs.csv')!.async('string')).toContain(
       'item-cost-1;item-1;repair;12',
     );
-    expect(await zip.file('sale-line-lot-allocations.csv')!.async('string')).toContain(
-      '33.34;33.34',
+    const allocationsCsv = await zip.file('sale-line-lot-allocations.csv')!.async('string');
+    expect(allocationsCsv.split('\r\n')[0]).toContain('consumption_sequence');
+    expect(allocationsCsv).toContain('33.34;33.34;7');
+    expect(await zip.file('returns.csv')!.async('string')).toContain(
+      'return-1;workspace-1;sale-1;item-1',
+    );
+    expect(await zip.file('invoice-items.csv')!.async('string')).toContain(
+      'invoice-item-1;invoice-1',
     );
   });
 

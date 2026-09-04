@@ -1,13 +1,30 @@
 import '@angular/compiler';
-import { ɵresolveComponentResources, computed, signal } from '@angular/core';
+import {
+  ɵresolveComponentResources,
+  ɵɵqueryAdvance,
+  ɵɵviewQuerySignal,
+  computed,
+  signal,
+} from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { FormArray } from '@angular/forms';
 import { readFile } from 'node:fs/promises';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { CatalogProduct, PurchaseType, Workspace } from '../../../../core/models/flipbase.models';
 import { CatalogService } from '../../../../core/services/catalog.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { PurchaseLineEditorComponent } from './purchase-line-editor.component';
+
+interface AngularBindingMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+  outputs: Record<string, string>;
+  viewQuery: ((renderFlags: number, context: unknown) => void) | null;
+}
+
+let selectMetadataSnapshot: AngularBindingMetadata | null = null;
+
 beforeAll(async () => {
   await ɵresolveComponentResources(async (url) => {
     const resourceUrl = String(url);
@@ -25,6 +42,54 @@ beforeAll(async () => {
       );
     }
   });
+  const metadata = (CustomSelectComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+  selectMetadataSnapshot = {
+    inputs: metadata.inputs,
+    declaredInputs: metadata.declaredInputs,
+    outputs: metadata.outputs,
+    viewQuery: metadata.viewQuery,
+  };
+  metadata.inputs = {
+    ...metadata.inputs,
+    options: ['options', 1, null],
+    value: ['value', 1, null],
+    placeholder: ['placeholder', 1, null],
+    variant: ['variant', 1, null],
+    size: ['size', 1, null],
+    disabled: ['disabled', 1, null],
+    widthClass: ['widthClass', 1, null],
+    openDirection: ['openDirection', 1, null],
+    ariaLabel: ['ariaLabel', 1, null],
+    triggerId: ['triggerId', 1, null],
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    options: 'options',
+    value: 'value',
+    placeholder: 'placeholder',
+    variant: 'variant',
+    size: 'size',
+    disabled: 'disabled',
+    widthClass: 'widthClass',
+    openDirection: 'openDirection',
+    ariaLabel: 'ariaLabel',
+    triggerId: 'triggerId',
+  };
+  metadata.outputs = { ...metadata.outputs, valueChange: 'value' };
+  metadata.viewQuery = (renderFlags, context) => {
+    const component = context as { trigger: Parameters<typeof ɵɵviewQuerySignal>[0] };
+    if (renderFlags & 1) ɵɵviewQuerySignal(component.trigger, ['trigger'], 5);
+    if (renderFlags & 2) ɵɵqueryAdvance();
+  };
+});
+
+afterAll(() => {
+  if (!selectMetadataSnapshot) return;
+  const metadata = (CustomSelectComponent as unknown as { ɵcmp: AngularBindingMetadata }).ɵcmp;
+  metadata.inputs = selectMetadataSnapshot.inputs;
+  metadata.declaredInputs = selectMetadataSnapshot.declaredInputs;
+  metadata.outputs = selectMetadataSnapshot.outputs;
+  metadata.viewQuery = selectMetadataSnapshot.viewQuery;
 });
 
 const workspaceOne: Workspace = {
@@ -58,6 +123,69 @@ function erstelleEditor(purchaseType: PurchaseType = 'single') {
 }
 
 describe('PurchaseLineEditorComponent', () => {
+  it('rendert den Artikelstamm als barrierefreien CustomSelect und übernimmt die Auswahl', async () => {
+    TestBed.resetTestingModule();
+    const fixture = TestBed.configureTestingModule({
+      imports: [PurchaseLineEditorComponent, CustomSelectComponent],
+      providers: [
+        {
+          provide: CatalogService,
+          useValue: {
+            products: signal<CatalogProduct[]>([ledProduct]),
+            isLoading: signal(false),
+            loadError: signal<Error | null>(null),
+            loadedWorkspaceId: signal<string | null>(workspaceOne.id),
+            loadProducts: vi.fn(async () => undefined),
+            createProduct: vi.fn(),
+          },
+        },
+        {
+          provide: WorkspaceService,
+          useValue: { currentWorkspace: signal<Workspace | null>(workspaceOne) },
+        },
+      ],
+    }).createComponent(PurchaseLineEditorComponent);
+    Object.assign(fixture.componentInstance, { purchaseType: signal<PurchaseType>('single') });
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    Array.from(host.querySelectorAll<HTMLButtonElement>('button'))
+      .find((button) => button.textContent?.includes('Bestehenden Artikel wählen'))
+      ?.click();
+    fixture.detectChanges();
+    expect(host.querySelector('select')).toBeNull();
+    const trigger = host.querySelector<HTMLButtonElement>(
+      'app-custom-select button[aria-label="Artikelstamm für Position 1"]',
+    );
+    expect(trigger).not.toBeNull();
+
+    trigger?.click();
+    fixture.detectChanges();
+    const option = Array.from(host.querySelectorAll<HTMLButtonElement>('[role="option"]')).find(
+      (candidate) => candidate.textContent?.includes('LED-Lampe'),
+    );
+    option?.click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.lineRows.at(0).getRawValue()).toMatchObject({
+      catalogProductId: ledProduct.id,
+      titleSnapshot: ledProduct.title,
+    });
+
+    trigger?.click();
+    fixture.detectChanges();
+    const clearOption = Array.from(
+      host.querySelectorAll<HTMLButtonElement>('[role="option"]'),
+    ).find((candidate) => candidate.textContent?.includes('Artikel wählen'));
+    expect(clearOption).toBeDefined();
+    clearOption?.click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.lineRows.at(0).getRawValue()).toMatchObject({
+      catalogProductId: null,
+      titleSnapshot: ledProduct.title,
+    });
+  });
+
   it('lädt nach verspätetem Workspace und bei Wechsel jeden aktuellen Artikelstamm genau einmal', async () => {
     TestBed.resetTestingModule();
     const products = signal<CatalogProduct[]>([]);

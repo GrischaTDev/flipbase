@@ -346,7 +346,13 @@ export class PurchaseCreateModalComponent {
       this.errorMessage.set('Bitte erfasse alle Positionspreise vollständig.');
       return;
     }
-    if (this.form.invalid || !this.areAdditionalCostsValid()) return;
+    if (this.form.invalid) return;
+    if (!this.areAdditionalCostsValid()) {
+      this.errorMessage.set(
+        'Direkte Zusatzkosten benötigen eine gültige Zielposition, bevor du den Entwurf speichern kannst.',
+      );
+      return;
+    }
 
     this.isSubmitting.set(true);
     this.errorMessage.set(null);

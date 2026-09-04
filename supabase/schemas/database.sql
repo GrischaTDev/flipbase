@@ -3023,8 +3023,9 @@ declare
   v_cost_weights numeric[];
   v_unit_goods_shares bigint[];
   v_unit_additional_shares bigint[];
-  v_unit_component_shares bigint[];
   v_unit_total_shares bigint[];
+  v_global_unit_goods_shares bigint[];
+  v_global_unit_total_shares bigint[];
   v_goods_cents bigint := 0;
   v_additional_cents bigint := 0;
   v_total_cents bigint := 0;
@@ -3035,6 +3036,7 @@ declare
   v_max_purchase_lines constant integer := 1000;
   v_max_purchase_units constant integer := 100000;
   v_target_position integer := 0;
+  v_global_unit_position integer := 0;
   v_lines jsonb := '[]'::jsonb;
 begin
   if p_workspace_id is null or p_purchase_id is null then
@@ -3163,22 +3165,35 @@ begin
     end if;
 
     v_goods_cents := (v_purchase.purchase_price * 100)::bigint;
-    v_line_goods_shares := public.allocate_integer_cents(v_goods_cents, v_line_weights);
+    v_total_cents := v_goods_cents + v_additional_cents;
+    v_global_unit_goods_shares := public.allocate_integer_cents(
+      v_goods_cents,
+      pg_catalog.array_fill(1::numeric, array[v_total_units::integer])
+    );
+    v_global_unit_total_shares := public.allocate_integer_cents(
+      v_total_cents,
+      pg_catalog.array_fill(1::numeric, array[v_total_units::integer])
+    );
 
-    for v_cost in
-      select cost.*
-      from public.purchase_costs as cost
-      where cost.workspace_id = p_workspace_id
-        and cost.purchase_id = p_purchase_id
-      order by cost.created_at, cost.id
-    loop
-      v_cost_shares := public.allocate_integer_cents(
-        (v_cost.amount * 100)::bigint,
-        v_line_weights
-      );
-      for v_line_position in 1..v_line_count loop
+    -- Mystery-Kosten bilden eine einzige stabile Einheitenfolge. Würden
+    -- Warenwert und jede Zusatzkostenzeile separat gerundet, könnten einzelne
+    -- Einheiten trotz gleicher Ausgangslage um mehrere Cent auseinanderliegen.
+    for v_line_position in 1..v_line_count loop
+      select line.*
+      into v_line
+      from public.purchase_lines as line
+      where line.workspace_id = p_workspace_id
+        and line.id = v_line_ids[v_line_position];
+
+      for v_item_position in 1..v_line.ordered_quantity loop
+        v_global_unit_position := v_global_unit_position + 1;
+        v_line_goods_shares[v_line_position] :=
+          v_line_goods_shares[v_line_position]
+          + v_global_unit_goods_shares[v_global_unit_position];
         v_line_additional_shares[v_line_position] :=
-          v_line_additional_shares[v_line_position] + v_cost_shares[v_line_position];
+          v_line_additional_shares[v_line_position]
+          + v_global_unit_total_shares[v_global_unit_position]
+          - v_global_unit_goods_shares[v_global_unit_position];
       end loop;
     end loop;
   else
@@ -3278,6 +3293,7 @@ begin
       message = 'Die Kostenverteilung stimmt nicht mit den Einkaufsgesamtkosten überein.';
   end if;
 
+  v_global_unit_position := 0;
   for v_line_position in 1..v_line_count loop
     select line.*
     into v_line
@@ -3285,53 +3301,35 @@ begin
     where line.workspace_id = p_workspace_id
       and line.id = v_line_ids[v_line_position];
 
-    v_unit_goods_shares := public.allocate_integer_cents(
-      v_line_goods_shares[v_line_position],
-      pg_catalog.array_fill(1::numeric, array[v_line.ordered_quantity])
-    );
-    v_unit_additional_shares := pg_catalog.array_fill(
-      0::bigint,
-      array[v_line.ordered_quantity]
-    );
-
     if v_purchase.type = 'mystery_pack' then
-      for v_cost in
-        select cost.*
-        from public.purchase_costs as cost
-        where cost.workspace_id = p_workspace_id
-          and cost.purchase_id = p_purchase_id
-        order by cost.created_at, cost.id
-      loop
-        v_cost_shares := public.allocate_integer_cents(
-          (v_cost.amount * 100)::bigint,
-          v_line_weights
-        );
-        v_unit_component_shares := public.allocate_integer_cents(
-          v_cost_shares[v_line_position],
-          pg_catalog.array_fill(1::numeric, array[v_line.ordered_quantity])
-        );
-        for v_item_position in 1..v_line.ordered_quantity loop
-          v_unit_additional_shares[v_item_position] :=
-            v_unit_additional_shares[v_item_position]
-            + v_unit_component_shares[v_item_position];
-        end loop;
+      v_unit_total_shares := pg_catalog.array_fill(
+        0::bigint,
+        array[v_line.ordered_quantity]
+      );
+      for v_item_position in 1..v_line.ordered_quantity loop
+        v_global_unit_position := v_global_unit_position + 1;
+        v_unit_total_shares[v_item_position] :=
+          v_global_unit_total_shares[v_global_unit_position];
       end loop;
     else
+      v_unit_goods_shares := public.allocate_integer_cents(
+        v_line_goods_shares[v_line_position],
+        pg_catalog.array_fill(1::numeric, array[v_line.ordered_quantity])
+      );
       v_unit_additional_shares := public.allocate_integer_cents(
         v_line_additional_shares[v_line_position],
         pg_catalog.array_fill(1::numeric, array[v_line.ordered_quantity])
       );
+      v_unit_total_shares := pg_catalog.array_fill(
+        0::bigint,
+        array[v_line.ordered_quantity]
+      );
+      for v_item_position in 1..v_line.ordered_quantity loop
+        v_unit_total_shares[v_item_position] :=
+          v_unit_goods_shares[v_item_position]
+          + v_unit_additional_shares[v_item_position];
+      end loop;
     end if;
-
-    v_unit_total_shares := pg_catalog.array_fill(
-      0::bigint,
-      array[v_line.ordered_quantity]
-    );
-    for v_item_position in 1..v_line.ordered_quantity loop
-      v_unit_total_shares[v_item_position] :=
-        v_unit_goods_shares[v_item_position]
-        + v_unit_additional_shares[v_item_position];
-    end loop;
 
     v_lines := v_lines || pg_catalog.jsonb_build_array(
       pg_catalog.jsonb_build_object(
@@ -7877,6 +7875,7 @@ begin
     or nullif(trim(p_sale ->> 'platform'), '') is null
     or (p_sale ->> 'sale_date') !~ '^\d{4}-\d{2}-\d{2}$'
     or jsonb_typeof(p_sale -> 'unit_sale_price') <> 'number'
+    or (p_sale ->> 'unit_sale_price') !~ '^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$'
     or (p_sale ->> 'unit_sale_price')::numeric <= 0 then
     raise exception using errcode = '22023', message = 'Die Verkaufsdaten sind ungueltig.';
   end if;
@@ -8194,6 +8193,7 @@ begin
       or jsonb_typeof(v_input_line -> 'quantity') <> 'number'
       or (v_input_line ->> 'quantity') !~ '^[1-9][0-9]*$'
       or jsonb_typeof(v_input_line -> 'unit_sale_price') <> 'number'
+      or (v_input_line ->> 'unit_sale_price') !~ '^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$'
       or (v_input_line ->> 'unit_sale_price')::numeric <= 0
       or num_nonnulls(
         nullif(trim(v_input_line ->> 'catalog_product_id'), ''),
@@ -8413,6 +8413,7 @@ begin
       or jsonb_typeof(v_input_line -> 'quantity') <> 'number'
       or (v_input_line ->> 'quantity') !~ '^[1-9][0-9]*$'
       or jsonb_typeof(v_input_line -> 'unit_sale_price') <> 'number'
+      or (v_input_line ->> 'unit_sale_price') !~ '^(0|[1-9][0-9]*)(\.[0-9]{1,2})?$'
       or (v_input_line ->> 'unit_sale_price')::numeric <= 0
       or num_nonnulls(
         nullif(v_input_line ->> 'catalog_product_id', ''),

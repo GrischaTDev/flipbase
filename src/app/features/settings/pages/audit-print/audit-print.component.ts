@@ -97,7 +97,12 @@ export class AuditPrintComponent {
 
   private async load(workspaceId: string): Promise<void> {
     const sequence = ++this.loadSequence;
-    if (!canExportAuditData(this.memberService.currentUserRole())) {
+    const entityType = this.route.snapshot.queryParamMap.get(
+      'entityType',
+    ) as BusinessEntityType | null;
+    const entityId = this.route.snapshot.queryParamMap.get('entityId');
+    const isEntityPrint = !!entityType && !!entityId;
+    if (!isEntityPrint && !canExportAuditData(this.memberService.currentUserRole())) {
       this.error.set(
         'Für die globale Druckansicht ist eine Inhaber-, Admin- oder Buchhaltungsrolle erforderlich.',
       );
@@ -108,10 +113,6 @@ export class AuditPrintComponent {
     this.error.set(null);
     const collected: BusinessEvent[] = [];
     try {
-      const entityType = this.route.snapshot.queryParamMap.get(
-        'entityType',
-      ) as BusinessEntityType | null;
-      const entityId = this.route.snapshot.queryParamMap.get('entityId');
       let cursor: string | undefined;
       do {
         const page =

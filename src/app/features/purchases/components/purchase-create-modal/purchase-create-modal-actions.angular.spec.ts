@@ -528,6 +528,17 @@ describe('PurchaseCreateModalComponent – zentrale Aktionsmeldungen', () => {
     });
   });
 
+  it('erklärt eine ungültige Direktzuordnung und speichert keinen Entwurf stillschweigend', async () => {
+    const { komponente, purchaseService } = erstelleKomponente();
+    komponente.areAdditionalCostsValid.set(false);
+
+    await komponente.onSubmit();
+
+    expect(purchaseService.createPurchase).not.toHaveBeenCalled();
+    expect(komponente.errorMessage()).toContain('Direkte Zusatzkosten');
+    expect(komponente.errorMessage()).toContain('Zielposition');
+  });
+
   it('bietet neue Positions-Draft-IDs als direkte Zuordnungsziele an', () => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({

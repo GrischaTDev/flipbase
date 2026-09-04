@@ -13,6 +13,9 @@ import { WorkspaceService } from './workspace.service';
 
 type ArchiveRow = Readonly<Record<string, unknown>>;
 type ArchiveTableName =
+  | 'sources'
+  | 'suppliers'
+  | 'catalog_products'
   | 'purchases'
   | 'purchase_lines'
   | 'purchase_costs'
@@ -23,10 +26,17 @@ type ArchiveTableName =
   | 'sale_lines'
   | 'sale_cost_entries'
   | 'item_costs'
-  | 'sale_line_lot_allocations';
+  | 'sale_line_lot_allocations'
+  | 'returns'
+  | 'inventory_reconciliation_events'
+  | 'invoices'
+  | 'invoice_items';
 
 export interface AuditArchiveData {
   readonly businessEvents: readonly BusinessEvent[];
+  readonly sources: readonly ArchiveRow[];
+  readonly suppliers: readonly ArchiveRow[];
+  readonly catalogProducts: readonly ArchiveRow[];
   readonly purchases: readonly ArchiveRow[];
   readonly purchaseLines: readonly ArchiveRow[];
   readonly purchaseCosts: readonly ArchiveRow[];
@@ -38,6 +48,10 @@ export interface AuditArchiveData {
   readonly saleLines: readonly ArchiveRow[];
   readonly saleCosts: readonly ArchiveRow[];
   readonly saleLineLotAllocations: readonly ArchiveRow[];
+  readonly returns: readonly ArchiveRow[];
+  readonly inventoryReconciliationEvents: readonly ArchiveRow[];
+  readonly invoices: readonly ArchiveRow[];
+  readonly invoiceItems: readonly ArchiveRow[];
 }
 
 export interface AuditArchiveOptions {
@@ -58,6 +72,9 @@ export interface AuditArchiveRequest extends Omit<BusinessEventFilter, 'cursor'>
 }
 
 const ARCHIVE_TABLES = {
+  sources: 'sources',
+  suppliers: 'suppliers',
+  catalogProducts: 'catalog_products',
   purchases: 'purchases',
   purchaseLines: 'purchase_lines',
   purchaseCosts: 'purchase_costs',
@@ -69,9 +86,29 @@ const ARCHIVE_TABLES = {
   saleLines: 'sale_lines',
   saleCosts: 'sale_cost_entries',
   saleLineLotAllocations: 'sale_line_lot_allocations',
+  returns: 'returns',
+  inventoryReconciliationEvents: 'inventory_reconciliation_events',
+  invoices: 'invoices',
+  invoiceItems: 'invoice_items',
 } as const;
 
 const ARCHIVE_HEADERS = {
+  sources: ['id', 'workspace_id', 'name', 'type', 'is_default', 'is_active', 'created_at'],
+  suppliers: ['id', 'workspace_id', 'name', 'contact_info', 'notes', 'is_active', 'created_at'],
+  catalogProducts: [
+    'id',
+    'workspace_id',
+    'title',
+    'brand',
+    'model',
+    'ean',
+    'category',
+    'tracking_mode',
+    'is_public_store',
+    'listing_price',
+    'created_at',
+    'updated_at',
+  ],
   purchases: [
     'id',
     'cost_allocation_mode',
@@ -222,7 +259,66 @@ const ARCHIVE_HEADERS = {
     'unit_cost',
     'allocated_cost',
     'active_allocated_cost',
+    'consumption_sequence',
     'created_at',
+  ],
+  returns: [
+    'id',
+    'workspace_id',
+    'sale_id',
+    'inventory_item_id',
+    'credit_note_number',
+    'return_date',
+    'reason',
+    'refund_amount',
+    'is_full_refund',
+    'restock_action',
+    'buyer_name',
+    'notes',
+    'created_at',
+  ],
+  inventoryReconciliationEvents: [
+    'id',
+    'workspace_id',
+    'inventory_item_id',
+    'actor_id',
+    'event_type',
+    'previous_status',
+    'new_status',
+    'reason',
+    'created_at',
+  ],
+  invoices: [
+    'id',
+    'workspace_id',
+    'sale_id',
+    'store_order_id',
+    'invoice_number',
+    'order_number',
+    'invoice_date',
+    'delivery_date',
+    'seller',
+    'buyer',
+    'subtotal',
+    'shipping_cost',
+    'total',
+    'tax_mode',
+    'tax_clause',
+    'payment_method',
+    'payment_status',
+    'payment_due_date',
+    'notes',
+    'created_at',
+  ],
+  invoiceItems: [
+    'id',
+    'invoice_id',
+    'sku',
+    'title',
+    'condition',
+    'quantity',
+    'unit_price',
+    'total_price',
   ],
 } as const satisfies {
   [
@@ -310,6 +406,24 @@ export async function buildAuditArchive(
     ],
     ['business-events.json', { content: eventJson, rows: eventRows.length }],
     [
+      'sources.csv',
+      { content: rowsToCsv(data.sources, ARCHIVE_HEADERS.sources), rows: data.sources.length },
+    ],
+    [
+      'suppliers.csv',
+      {
+        content: rowsToCsv(data.suppliers, ARCHIVE_HEADERS.suppliers),
+        rows: data.suppliers.length,
+      },
+    ],
+    [
+      'catalog-products.csv',
+      {
+        content: rowsToCsv(data.catalogProducts, ARCHIVE_HEADERS.catalogProducts),
+        rows: data.catalogProducts.length,
+      },
+    ],
+    [
       'item-costs.csv',
       {
         content: rowsToCsv(data.itemCosts, ARCHIVE_HEADERS.itemCosts),
@@ -383,6 +497,31 @@ export async function buildAuditArchive(
         rows: data.saleCosts.length,
       },
     ],
+    [
+      'returns.csv',
+      { content: rowsToCsv(data.returns, ARCHIVE_HEADERS.returns), rows: data.returns.length },
+    ],
+    [
+      'inventory-reconciliation-events.csv',
+      {
+        content: rowsToCsv(
+          data.inventoryReconciliationEvents,
+          ARCHIVE_HEADERS.inventoryReconciliationEvents,
+        ),
+        rows: data.inventoryReconciliationEvents.length,
+      },
+    ],
+    [
+      'invoices.csv',
+      { content: rowsToCsv(data.invoices, ARCHIVE_HEADERS.invoices), rows: data.invoices.length },
+    ],
+    [
+      'invoice-items.csv',
+      {
+        content: rowsToCsv(data.invoiceItems, ARCHIVE_HEADERS.invoiceItems),
+        rows: data.invoiceItems.length,
+      },
+    ],
   ]);
   const manifestFiles = await Promise.all(
     Array.from(files, async ([name, file]) => ({
@@ -392,8 +531,8 @@ export async function buildAuditArchive(
     })),
   );
   const manifest: AuditExportManifest = {
-    schemaVersion: '1.1.0',
-    exportVersion: '1.1.0',
+    schemaVersion: '1.2.0',
+    exportVersion: '1.2.0',
     createdAt: options.createdAt,
     workspaceId: options.workspaceId,
     filters: options.filters,
@@ -462,6 +601,9 @@ export class AuditExportService {
     const archive = await buildAuditArchive(
       {
         businessEvents: events,
+        sources: collected.get('sources') ?? [],
+        suppliers: collected.get('suppliers') ?? [],
+        catalogProducts: collected.get('catalog_products') ?? [],
         purchases: collected.get('purchases') ?? [],
         purchaseLines: collected.get('purchase_lines') ?? [],
         purchaseCosts: collected.get('purchase_costs') ?? [],
@@ -473,6 +615,10 @@ export class AuditExportService {
         saleLines: collected.get('sale_lines') ?? [],
         saleCosts: collected.get('sale_cost_entries') ?? [],
         saleLineLotAllocations: collected.get('sale_line_lot_allocations') ?? [],
+        returns: collected.get('returns') ?? [],
+        inventoryReconciliationEvents: collected.get('inventory_reconciliation_events') ?? [],
+        invoices: collected.get('invoices') ?? [],
+        invoiceItems: collected.get('invoice_items') ?? [],
       },
       {
         workspaceId: request.workspaceId,

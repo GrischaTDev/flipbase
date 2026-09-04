@@ -37,14 +37,21 @@ begin
   -- STABLE hält auch diese einzelnen SELECTs im Snapshot des RPC-Aufrufs.
   -- Die Tabellenliste ist geschlossen; keine Bezeichner aus Client-Eingaben.
   foreach v_table in array array[
+    'sources', 'suppliers', 'catalog_products',
     'purchases', 'purchase_lines', 'purchase_costs', 'inventory_items',
     'stock_lots', 'stock_movements', 'sales', 'sale_lines',
-    'sale_cost_entries', 'sale_line_lot_allocations', 'item_costs', 'business_events'
+    'sale_cost_entries', 'sale_line_lot_allocations', 'returns',
+    'inventory_reconciliation_events', 'invoices', 'invoice_items',
+    'item_costs', 'business_events'
   ] loop
     if v_table = 'item_costs' then
       select count(*) into v_count from public.item_costs as cost
         join public.inventory_items as item on item.id = cost.inventory_item_id
         where item.workspace_id = p_workspace_id;
+    elsif v_table = 'invoice_items' then
+      select count(*) into v_count from public.invoice_items as item
+        join public.invoices as invoice on invoice.id = item.invoice_id
+        where invoice.workspace_id = p_workspace_id;
     else
       execute format('select count(*) from public.%I where workspace_id = $1', v_table)
         into v_count using p_workspace_id;
@@ -59,6 +66,11 @@ begin
         into v_rows from public.item_costs as cost
         join public.inventory_items as item on item.id = cost.inventory_item_id
         where item.workspace_id = p_workspace_id;
+    elsif v_table = 'invoice_items' then
+      select coalesce(jsonb_agg(to_jsonb(item) order by item.id), '[]'::jsonb)
+        into v_rows from public.invoice_items as item
+        join public.invoices as invoice on invoice.id = item.invoice_id
+        where invoice.workspace_id = p_workspace_id;
     elsif v_table = 'business_events' then
       select coalesce(jsonb_agg(to_jsonb(event) order by event.created_at, event.id), '[]'::jsonb)
         into v_rows from public.business_events as event

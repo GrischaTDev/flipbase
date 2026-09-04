@@ -112,24 +112,24 @@
 
           <div class="grid grid-cols-1 gap-2 sm:grid-cols-6">
             @if (row.controls.lineKind.value === 'quantity') {
-              <label
+              <div
                 class="sm:col-span-2 text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
               >
-                Artikelstamm
-                <select
-                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                <label [for]="'purchase-line-catalog-' + $index">Artikelstamm</label>
+                <app-custom-select
+                  class="mt-1 w-full normal-case"
+                  [triggerId]="'purchase-line-catalog-' + $index"
+                  [ariaLabel]="'Artikelstamm für Position ' + ($index + 1)"
+                  [options]="quantityProductOptions()"
                   [disabled]="catalogSelectionDisabled()"
-                  [value]="row.controls.catalogProductId.value ?? ''"
-                  (change)="selectCatalogProductFromEvent($index, $event)"
-                >
-                  <option value="">
-                    {{ catalogService.isLoading() ? 'Artikel werden geladen…' : 'Artikel wählen' }}
-                  </option>
-                  @for (product of quantityProducts(); track product.id) {
-                    <option [value]="product.id">{{ product.title }}</option>
-                  }
-                </select>
-              </label>
+                  [value]="row.controls.catalogProductId.value"
+                  [placeholder]="
+                    catalogService.isLoading() ? 'Artikel werden geladen…' : 'Artikel wählen'
+                  "
+                  (valueChange)="selectCatalogProduct($index, $event ?? '')"
+                  size="sm"
+                />
+              </div>
             } @else {
               <label
                 class="sm:col-span-2 text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"

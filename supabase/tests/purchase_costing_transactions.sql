@@ -1252,7 +1252,7 @@ select lives_ok(
     '93000000-0000-4000-8000-000000000011',
     '93000000-0000-4000-8000-000000000126'
   )$$,
-  'Mystery-Basispreis und Zusatzkosten werden komponentenweise verteilt'
+  'Mystery-Gesamtkosten werden einmal global auf alle Einheiten verteilt'
 );
 
 select results_eq(
@@ -1266,11 +1266,11 @@ select results_eq(
     order by line.created_at, line.id
   $$,
   $$values
-    (1, 0.01::numeric, 0.01::numeric, 1::bigint, 0.01::numeric),
-    (3, 0.01::numeric, 0.02::numeric, 3::bigint, 0.02::numeric),
-    (3, 0.01::numeric, 0.01::numeric, 3::bigint, 0.01::numeric)
+    (1, 0.00::numeric, 0.01::numeric, 1::bigint, 0.01::numeric),
+    (3, 0.03::numeric, 0.03::numeric, 3::bigint, 0.03::numeric),
+    (3, 0.00::numeric, 0.00::numeric, 3::bigint, 0.00::numeric)
   $$,
-  'Mengen 1/3/3 erhalten getrennte Komponenten ohne Zusatzkosten über Gesamtkosten'
+  'Mengen 1/3/3 bilden die eine globale Einheitenverteilung deterministisch ab'
 );
 
 select ok(
@@ -1291,8 +1291,12 @@ select ok(
     select sum(item.allocated_purchase_cost) = 0.04
     from public.inventory_items as item
     where item.purchase_id = '93000000-0000-4000-8000-000000000126'
+  ) and (
+    select max(item.allocated_purchase_cost) - min(item.allocated_purchase_cost) <= 0.01
+    from public.inventory_items as item
+    where item.purchase_id = '93000000-0000-4000-8000-000000000126'
   ),
-  'Mystery-Kopf, Lines und sämtliche Einheiten reconciliieren auf vier Cent'
+  'Mystery-Kopf, Lines und Einheiten reconciliieren exakt bei höchstens einem Cent Differenz'
 );
 
 select throws_ok(

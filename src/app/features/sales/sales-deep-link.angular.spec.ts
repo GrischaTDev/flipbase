@@ -154,6 +154,28 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     expect(host.textContent).not.toContain('Nettogewinn');
   });
 
+  it('verlinkt jede Verkaufszeile in Desktop- und Mobilansicht direkt zum Einzelbeleg', async () => {
+    sales.set([linkedSale]);
+    loadedWorkspaceId.set(workspace.id);
+
+    const harness = await RouterTestingHarness.create('/sales');
+    const links = Array.from(
+      harness.routeNativeElement?.querySelectorAll<HTMLAnchorElement>(
+        '[data-sale-audit-print-link]',
+      ) ?? [],
+    );
+
+    expect(links).toHaveLength(2);
+    expect(links.every((link) => link.textContent?.includes('Prüfbeleg'))).toBe(true);
+    expect(
+      links.every(
+        (link) =>
+          link.getAttribute('href') === '/settings/data/print?entityType=sale&entityId=sale-1',
+      ),
+    ).toBe(true);
+    expect(links.every((link) => link.getAttribute('aria-label')?.includes('Tasse'))).toBe(true);
+  });
+
   it('kennzeichnet einen Altverkauf ohne belegbaren Wareneinsatz als offen', async () => {
     sales.set([
       {
