@@ -150,8 +150,11 @@ export class QueryScheduler {
     // ist er, und die Abfrage gilt als gepollt. Sonst holte der naechste
     // Durchgang dieselben Artikel noch einmal. Ungeprueft Gebliebenes kommt
     // von selbst wieder dran, weil der Vermerk in der Zeile fehlt.
+    let evaluated = false;
+
     try {
       report.newHits += await this.deps.listings.evaluateHits(query.id, query.isSeeded);
+      evaluated = true;
     } catch (error) {
       this.deps.log.error('evaluate_hits_failed', {
         queryId: query.id,
@@ -162,7 +165,12 @@ export class QueryScheduler {
     if (query.isSeeded) {
       // Nur ausserhalb des Einlese-Laufs gelten neue Artikel als Fund.
       report.newListings += created.length;
-    } else {
+    } else if (evaluated) {
+      // Eingelesen ist die Abfrage erst, wenn der Bestand auch wirklich
+      // abgehakt wurde. Ein einziger Netzfehler an dieser Stelle wuerde sonst
+      // genuegen: Die Abfrage gilt als eingelesen, der Bestand traegt aber
+      // keinen Vermerk - und der naechste Durchgang meldete ihn vollstaendig.
+      // Ein wiederholter Einlese-Lauf kostet dagegen nichts, er ist stumm.
       await this.deps.queries.markSeeded(query.id);
       report.seeded += 1;
     }

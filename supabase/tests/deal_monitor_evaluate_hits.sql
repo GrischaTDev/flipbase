@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(7);
+select plan(8);
 
 \set query_id '87000000-0000-4000-8000-000000000001'
 \set workspace_a '87000000-0000-4000-8000-000000000002'
@@ -104,6 +104,13 @@ declare
   entstanden integer;
   gesamt integer;
 begin
+  -- Ohne das Zuruecksetzen prueft dieser Test nur noch den evaluated_at-Riegel:
+  -- Der Lauf davor hat alles abgehakt, `on conflict do nothing` kaeme nie zum
+  -- Zug. Die Klausel bleibt aber noetig - fuer parallele Laeufe und fuers
+  -- Wiedereinspielen von Hand.
+  update public.sniper_listings set evaluated_at = null
+  where discovered_by_query_id = '87000000-0000-4000-8000-000000000001'::uuid;
+
   entstanden := public.sniper_evaluate_hits('87000000-0000-4000-8000-000000000001'::uuid);
   select count(*) into gesamt from public.sniper_hits;
 
@@ -280,6 +287,51 @@ end;
 $$;
 
 select pass('Weder anon noch authenticated duerfen die Trefferbildung ausloesen');
+
+-- Ein pausiertes Abonnement darf den Zulauf nicht verbrennen.
+--
+-- Ohne aktiven Abonnenten wird gar nicht beurteilt. Wuerde trotzdem abgehakt,
+-- verloere ein Nutzer, der seinen Filter einen Tag abschaltet, jedes
+-- Schnaeppchen dieses Tages endgueltig - und create_sniper_subscription
+-- schaltet einen Filter beim erneuten Anlegen ausdruecklich wieder aktiv.
+do $$
+declare
+  offen integer;
+  danach integer;
+begin
+  -- Beide Abonnements dieser Abfrage sind an dieser Stelle inaktiv: Das
+  -- strenge wurde nie ausgeloest, das milde hat der Test davor abgeschaltet.
+  update public.sniper_query_subscriptions set is_active = false
+  where query_id = '87000000-0000-4000-8000-000000000001'::uuid;
+
+  update public.sniper_listings set evaluated_at = null
+  where discovered_by_query_id = '87000000-0000-4000-8000-000000000001'::uuid;
+
+  delete from public.sniper_hits;
+  perform public.sniper_evaluate_hits('87000000-0000-4000-8000-000000000001'::uuid);
+
+  select count(*) into offen
+  from public.sniper_listings
+  where discovered_by_query_id = '87000000-0000-4000-8000-000000000001'::uuid
+    and evaluated_at is not null;
+
+  if offen <> 0 then
+    raise exception 'Bei pausiertem Abonnement darf nichts abgehakt werden, abgehakt: %', offen;
+  end if;
+
+  -- Und nach dem Wiedereinschalten kommt der Zulauf auch wirklich an.
+  update public.sniper_query_subscriptions set is_active = true
+  where workspace_id = '87000000-0000-4000-8000-000000000003'::uuid;
+
+  danach := public.sniper_evaluate_hits('87000000-0000-4000-8000-000000000001'::uuid);
+
+  if danach <> 1 then
+    raise exception 'Nach dem Wiedereinschalten wurde der Fund nicht gemeldet: %', danach;
+  end if;
+end;
+$$;
+
+select pass('Ein pausiertes Abonnement verbrennt den Zulauf nicht');
 
 select * from finish();
 

@@ -48,6 +48,16 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-05 – Claude Opus 5 (Anthropic) – Schlusspruefung der Trefferregel: drei Betriebsfaelle behoben
+
+**Art:** Bugfix
+**Betroffen:** `supabase/schemas/50_sniper.sql`, `supabase/migrations/20260904224143_evaluate_hits_respect_paused_subscriptions.sql`, `supabase/migrations/20260904222600_revoke_role_grants_on_sniper_functions.sql`, `services/sniper/src/runtime/scheduler.ts`, `services/sniper/test/runtime/scheduler.spec.ts`, `supabase/tests/deal_monitor_evaluate_hits.sql`, `supabase/tests/deal_monitor_reference_price.sql`, `supabase/tests/deal_monitor_subscription_rpc.sql`, `docs/superpowers/plans/2026-09-04-deal-monitor-trefferregel.md`
+**Was:** (1) Der Taktgeber setzt `markSeeded` erst, wenn die Bewertung wirklich durchlief. (2) `sniper_evaluate_hits` hakt nichts mehr ab, solange kein Abonnement aktiv ist. (3) Der Massstab wird je Zustand gerechnet statt je Angebot. Dazu: Die Standardattrappen im Taktgeber-Test kannten `evaluateHits` nicht, der pgTAP-Test auf doppelte Treffer bestand aus dem falschen Grund, und die Rechte-Migration wurde auf `sniper_reference_price` und `create_sniper_subscription` ausgeweitet.
+**Warum:** Alle drei sind Betriebsfaelle, die eine Pruefung je Commit nicht sieht. Zu (1): Ein einziger Netzfehler beim Einlese-Lauf haette genuegt - die Abfrage gaelte als eingelesen, der Bestand truege aber keinen Vermerk, und der naechste Durchgang meldete ihn vollstaendig. Genau der Schwall, den der Vorgaengercommit verhindern sollte. Zu (2): Wer seinen Filter einen Tag pausiert, haette jedes Schnaeppchen dieses Tages endgueltig verloren, denn `create_sniper_subscription` schaltet ihn beim erneuten Anlegen wieder aktiv. Zu den Tests: Zwoelf Taktgeber-Tests liefen durch den Fehlerzweig, weil `evaluateHits` in der Attrappe fehlte und der Taktgeber den `TypeError` schluckt - der Test „laesst eine gescheiterte Bewertung den Durchgang nicht abbrechen" haette auch ohne Fehler bestanden.
+**Verifiziert durch:** `supabase db reset` frisch eingespielt, `supabase test db` 266/266. Rechte nach dem Wiedereinspielen ausgelesen: `sniper_evaluate_hits` weder fuer anon noch authenticated, `sniper_reference_price` und `create_sniper_subscription` nicht fuer anon. Dienst: `tsc --noEmit` 0 (fing eine Typluecke, die die Tests nicht zeigten), 79 Unit-, 16 Integrationstests, Bau 0. `npm run verify` Exitcode 0 ohne Pipe gemessen. Nachgestellt: pausiertes Abonnement meldet 0 und hakt 0 ab, nach dem Wiedereinschalten kommt der Fund an (1).
+
+**Offen, bewusst nicht behoben:** Der Vergleichspreis zaehlt nur Angebote mit `discovered_by_query_id = <diese Abfrage>`. Weil `saveNew` nach „erster Fund gewinnt" schreibt, nehmen zwei Abfragen mit demselben Suchbegriff und verschiedenen Preisgrenzen einander Vergleichsmaterial weg. Nachgestellt: Ein voellig durchschnittliches 35-Euro-Angebot wurde als 45 Prozent unter dem Massstab gemeldet, weil die erste Abfrage die guenstige Haelfte fuer sich gebucht hatte. Die Loesung beruehrt das Datenmodell (Zuordnungstabelle `sniper_listing_queries` oder Massstab ueber den Filter statt ueber den Finder) und gehoert deshalb in eine eigene Entscheidung vor der Discord-Zustellung.
+
 ## 2026-09-05 – Claude Opus 5 (Anthropic) – Trefferbildung nur noch fuer ungepruefte Angebote
 
 **Art:** Bugfix

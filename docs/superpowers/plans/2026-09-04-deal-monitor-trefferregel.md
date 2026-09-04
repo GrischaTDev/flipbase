@@ -1,5 +1,33 @@
 # Deal Monitor — Trefferregel Implementation Plan
 
+> **Stand 05.09.2026: abgearbeitet — und in zwei Punkten überholt.**
+> Der Plan bleibt als Begründung stehen, ist aber **keine gültige
+> Schnittstellenbeschreibung mehr.** Die Schlussprüfung des Zweigs hat zwei
+> Fehler gefunden, die er selbst nicht sah:
+>
+> 1. **`sniper_evaluate_hits` heißt jetzt `(p_query_id uuid, p_report_hits
+boolean default true)`**, und `sniper_listings` hat eine Spalte
+>    `evaluated_at`. Bewertet wird nur, was diesen Vermerk noch nicht trägt.
+>    Der Plan ließ die Bewertung über **alle** Angebote einer Abfrage laufen
+>    und vor der Einlese-Weiche — an einem Bestand von 96 Angeboten hätte die
+>    erste Runde einer neuen Abfrage 25 Treffer ausgeworfen. Der Entwurf
+>    verlangt das Gegenteil (`2026-08-30-vinted-deal-monitor-design.md`,
+>    Schritt 5: „bei is_seeded = false: nur schreiben, nichts melden").
+> 2. **`ListingStore.evaluateHits(queryId, reportHits = true)`** hat ein
+>    zweites Argument, und der Taktgeber setzt `markSeeded` erst, wenn die
+>    Bewertung wirklich durchlief.
+>
+> Wer hier weiterliest: Der gültige Stand steht in
+> `supabase/schemas/50_sniper.sql` und `services/sniper/src/`. Die Codeblöcke
+> unten nicht abschreiben.
+>
+> **Offen und bewusst nicht in diesem Zweig behoben:** Der Vergleichspreis
+> zählt nur Angebote mit `discovered_by_query_id = <diese Abfrage>`. Zwei
+> Abfragen mit demselben Suchbegriff und verschiedenen Preisgrenzen nehmen
+> einander deshalb Vergleichsmaterial weg und verzerren den Maßstab. Das
+> berührt das Datenmodell und gehört in eine eigene Entscheidung — siehe
+> AI-Changelog vom 05.09.2026.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ein auffällig günstiger Fund wird zum Treffer — selten genug, dass ein Treffer etwas bedeutet, und nachvollziehbar genug, dass man ihm glaubt.

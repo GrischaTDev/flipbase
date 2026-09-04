@@ -425,16 +425,26 @@ begin
       where listing.discovered_by_query_id = p_query_id
         and listing.evaluated_at is null
   ),
-  -- Der Massstab haengt am Zustand, nicht am Abonnement. Einmal je Angebot
-  -- gerechnet statt einmal je Abonnement und Angebot.
-  bewertbar as (
-      select offen.id, offen.item_price, massstab.reference_price
-      from offen
+  -- Der Massstab haengt am Zustand, nicht am einzelnen Angebot. Erst die
+  -- Zustaende sammeln, dann je Zustand einmal rechnen: Bei fuenfzig neuen
+  -- Angeboten sind das fuenf Fensterabfragen statt fuenfzig.
+  zustaende as (
+      select distinct offen.condition from offen
+  ),
+  massstaebe as (
+      select zustaende.condition, massstab.reference_price
+      from zustaende
       cross join lateral public.sniper_reference_price(
-          p_query_id, offen.condition
+          p_query_id, zustaende.condition
       ) as massstab
       where massstab.reference_price is not null
         and massstab.reference_price > 0
+  ),
+  bewertbar as (
+      select offen.id, offen.item_price, massstaebe.reference_price
+      from offen
+      join massstaebe
+        on massstaebe.condition is not distinct from offen.condition
   ),
   kandidaten as (
       select
@@ -465,6 +475,12 @@ begin
   ),
   -- Abgehakt wird, was wirklich beurteilt werden konnte. Der Einlese-Lauf
   -- hakt dagegen alles ab: Dort ist das Nichtmelden die Absicht.
+  --
+  -- Ohne aktiven Abonnenten wurde ueberhaupt nicht beurteilt. Wuerde hier
+  -- trotzdem abgehakt, verloere ein Nutzer, der seinen Filter einen Tag
+  -- pausiert, jedes Schnaeppchen dieses Tages endgueltig - und
+  -- create_sniper_subscription schaltet einen Filter beim erneuten Anlegen
+  -- ausdruecklich wieder aktiv.
   vermerkt as (
       update public.sniper_listings as listing
       set evaluated_at = now()
@@ -472,7 +488,15 @@ begin
           select offen.id
           from offen
           where not p_report_hits
-             or offen.id in (select bewertbar.id from bewertbar)
+             or (
+                 exists (
+                     select 1
+                     from public.sniper_query_subscriptions as subscription
+                     where subscription.query_id = p_query_id
+                       and subscription.is_active
+                 )
+                 and offen.id in (select bewertbar.id from bewertbar)
+             )
       )
       returning 1
   )

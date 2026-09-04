@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(4);
+select plan(5);
 
 \set query_id '86000000-0000-4000-8000-000000000001'
 
@@ -134,6 +134,26 @@ end;
 $$;
 
 select pass('Funde aelter als 14 Tage zaehlen nicht mit');
+
+-- Die Rechte muessen in jeder Umgebung gleich aussehen.
+--
+-- `supabase db diff` erzeugt fuer Funktionen nur `revoke ... from public` und
+-- laesst rollenbezogene Rechte stehen, die die Vorgaberechte automatisch
+-- vergeben. Ohne diese Pruefung faellt eine Abweichung erst auf, wenn jemand
+-- die Produktionsdatenbank von Hand ausliest.
+do $$
+begin
+  if has_function_privilege('anon', 'public.sniper_reference_price(uuid, text)', 'execute') then
+    raise exception 'anon darf sniper_reference_price nicht ausfuehren';
+  end if;
+
+  if not has_function_privilege('authenticated', 'public.sniper_reference_price(uuid, text)', 'execute') then
+    raise exception 'authenticated muss sniper_reference_price ausfuehren duerfen';
+  end if;
+end;
+$$;
+
+select pass('Nur Angemeldete duerfen den Massstab abfragen');
 
 select * from finish();
 
