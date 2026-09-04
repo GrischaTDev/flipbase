@@ -78,6 +78,19 @@ const sharedValidationPaths = new Set([
   'scripts/required-checks.test.mjs',
 ]);
 
+const migrationDeploymentPaths = new Set([
+  'deploy/deploy.sh',
+  'deploy/apply-release-migrations.sh',
+  'deploy/migration-backup.sh',
+  'deploy/approved-migrations.sha256',
+  'deploy/docker-compose.app.yml',
+  'docker/Dockerfile',
+  '.dockerignore',
+  'scripts/deploy-script.test.mjs',
+  'scripts/release-migrations.test.mjs',
+  'scripts/migration-backup.test.mjs',
+]);
+
 function isDocumentationOnly(path) {
   return (
     (path.startsWith('docs/') || (!path.includes('/') && path.endsWith('.md'))) &&
@@ -99,6 +112,7 @@ export function classifyChanges(paths) {
     supabase: paths.some(
       (path) =>
         selectsPath(path, 'supabase/') ||
+        migrationDeploymentPaths.has(path) ||
         path === 'scripts/db-test-fixture.test.mjs' ||
         path === 'scripts/prepare-db-tests.mjs',
     ),

@@ -109,6 +109,20 @@ jobs:
       - name: Test workflow contracts
         run: npm run test:workflow
 
+      - name: Test migration transactions in isolated PostgreSQL
+        if: ${{ needs.changes.outputs.supabase == 'true' }}
+        run: |
+          docker network create release-test
+          trap 'docker rm -fv release-db >/dev/null 2>&1; docker network rm release-test >/dev/null' EXIT
+          docker run -d --name release-db --network release-test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=flipbase_release_test postgres:16-alpine
+          for attempt in $(seq 1 30); do
+            if docker exec release-db pg_isready -U postgres -d flipbase_release_test; then break; fi
+            sleep 1
+          done
+          docker run --rm --network release-test -v "$PWD:/work:ro" -w /work \
+            -e PGHOST=release-db -e PGUSER=postgres -e PGPASSWORD=test -e PGDATABASE=flipbase_release_test \
+            node:22-alpine sh -ec 'apk add --no-cache bash postgresql-client util-linux >/dev/null; node --test scripts/release-migrations.test.mjs'
+
       - name: Audit test suite classification
         run: npm run test:audit
 
@@ -117,7 +131,7 @@ jobs:
         run: npm run test:landing
 
       - name: Build
-        if: ${{ needs.changes.outputs.application == 'true' }}
+        if: ${{ github.event_name == 'pull_request' && needs.changes.outputs.application == 'true' }}
         run: npm run build
 
   unit:
@@ -302,6 +316,7 @@ jobs:
       packages: write
     outputs:
       tag: ${{ steps.tag.outputs.value }}
+      digest: ${{ steps.publish.outputs.digest }}
       version: ${{ steps.gitversion.outputs.value }}
     steps:
       - name: Check out repository
@@ -372,12 +387,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build production image
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
           context: .
           file: docker/Dockerfile
-          push: true
+          load: true
           tags: ${{ env.IMAGE }}:${{ steps.tag.outputs.value }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -387,6 +402,37 @@ jobs:
             FLIPBASE_COMMIT=${{ github.sha }}
             FLIPBASE_COMMIT_DATE=${{ github.event.repository.updated_at }}
             FLIPBASE_VERSION=${{ steps.gitversion.outputs.value }}
+
+      # Gleicher Produktionsbau vor dem Push: nur HTTP und statische Dateien,
+      # keine Anmeldung oder Schreibzugriffe auf das Produktionsbackend.
+      - name: Smoke test production image
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          docker run -d --name release-smoke -p 127.0.0.1::80 "$IMAGE:$TAG"
+          trap 'docker rm -f release-smoke >/dev/null' EXIT
+          port=$(docker port release-smoke 80/tcp | cut -d: -f2)
+          node scripts/verify-public-deployment.mjs --base-url "http://127.0.0.1:$port" --expected-commit "$GITHUB_SHA"
+          docker exec release-smoke sh -ec '
+            for pattern in "*.js" "*.css"; do
+              files=$(find /usr/share/nginx/html -maxdepth 1 -name "$pattern" -type f)
+              test -n "$files"
+              for file in $files; do
+                wget -q -O /dev/null "http://127.0.0.1/$(basename "$file")"
+              done
+            done
+          '
+
+      - name: Publish checked image
+        id: publish
+        env:
+          TAG: ${{ steps.tag.outputs.value }}
+        run: |
+          docker push "$IMAGE:$TAG"
+          reference=$(docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:$TAG")
+          digest=${reference##*@}
+          [[ "$reference" == "$IMAGE@$digest" && "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
   required-checks:
     name: Required checks
@@ -463,6 +509,7 @@ jobs:
       # Applying them stays a deliberate act: letting every push loose on the
       # production schema is a different risk class than replacing a frontend.
       - name: Check that all migrations are applied
+        if: ${{ vars.RELEASE_MIGRATIONS_V1 != 'true' }}
         run: |
           angewendet="$(ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" migrationen)"
           fehlend=""
@@ -480,9 +527,8 @@ jobs:
             echo "Diese Migrationen liegen im Repository, sind aber nicht angewendet:"
             for f in $fehlend; do echo "  $f"; done
             echo ""
-            echo "Anwenden mit:"
-            echo "  scp supabase/migrations/<datei> $DEPLOY_USER@$DEPLOY_HOST:/opt/flipbase/migrations/"
-            echo "  ssh $DEPLOY_USER@$DEPLOY_HOST \"bash /opt/flipbase/apply-migrations.sh\""
+            echo "Serverbootstrap und geprueften Migrationsweg in deploy/RELEASE-PIPELINE.md beachten."
+            echo "Der alte apply-migrations.sh fuehrt SQL und Historie nicht atomar aus."
             exit 1
           fi
           echo "Alle Migrationen angewendet."
@@ -504,8 +550,14 @@ jobs:
       - name: Deploy the image and wait for the container to be healthy
         env:
           TAG: ${{ needs.image.outputs.tag }}
+          DIGEST: ${{ needs.image.outputs.digest }}
+          RELEASE_MIGRATIONS_V1: ${{ vars.RELEASE_MIGRATIONS_V1 }}
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ "$RELEASE_MIGRATIONS_V1" = true ]; then
+            [[ "$DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]
+            TAG="release-v1 $DIGEST"
+          fi
           printf '%s' "$REGISTRY_TOKEN" \
             | ssh -o BatchMode=yes "$DEPLOY_USER@$DEPLOY_HOST" "$TAG"
 

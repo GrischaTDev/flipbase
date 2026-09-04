@@ -21,7 +21,10 @@ ARCHITECTURE.md
 __screenshots__/
 
 # Supabase (lokaler Dev-Stack)
-supabase
+supabase/*
+!supabase/migrations/
+supabase/migrations/*
+!supabase/migrations/*.sql
 
 # Gemini / AI
 .gemini

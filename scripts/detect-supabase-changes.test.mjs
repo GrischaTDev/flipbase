@@ -5,6 +5,25 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { classifyChanges } from './detect-supabase-changes.mjs';
+
+test('Migrationsweg waehlt Datenbankpruefungen aus, reine UI-Aenderungen nicht', () => {
+  for (const path of [
+    'deploy/deploy.sh',
+    'deploy/apply-release-migrations.sh',
+    'deploy/migration-backup.sh',
+    'deploy/approved-migrations.sha256',
+    'deploy/docker-compose.app.yml',
+    'docker/Dockerfile',
+    '.dockerignore',
+    'scripts/deploy-script.test.mjs',
+    'scripts/release-migrations.test.mjs',
+    'scripts/migration-backup.test.mjs',
+  ]) {
+    assert.equal(classifyChanges([path]).supabase, true, path);
+  }
+  assert.equal(classifyChanges(['src/app/features/landing/landing.html']).supabase, false);
+});
 
 const detectorPath = fileURLToPath(new URL('./detect-supabase-changes.mjs', import.meta.url));
 const zeroSha = '0000000000000000000000000000000000000000';
