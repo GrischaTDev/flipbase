@@ -118,4 +118,13 @@ describe('ListingStore', () => {
   it('returns an empty array for an empty input without calling the database', async () => {
     expect(await store.saveNew([], queryId)).toEqual([]);
   });
+
+  it('meldet null Treffer, solange die Gruppe zu klein ist', async () => {
+    const externalId = randomUUID();
+    await store.saveNew([listing(externalId)], queryId);
+
+    // Ein einziger Fund liegt unter der Mindestzahl von acht - die Datenbank
+    // darf daraus keinen Massstab und damit keinen Treffer bilden.
+    expect(await store.evaluateHits(queryId)).toBe(0);
+  });
 });

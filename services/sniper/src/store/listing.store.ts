@@ -64,4 +64,24 @@ export class ListingStore {
     const createdIds = new Set((data ?? []).map((row) => row.external_id as string));
     return listings.filter((listing) => createdIds.has(listing.externalId));
   }
+
+  /**
+   * Laesst die Datenbank die Treffer fuer diese Abfrage bilden und liefert die
+   * Zahl der neu entstandenen.
+   *
+   * Gerechnet wird dort und nicht hier, damit die Oberflaeche spaeter dieselbe
+   * Zahl sieht wie der Melder - und damit der Median in einer Abfrage entsteht
+   * statt in einer Schleife im Dienst.
+   */
+  async evaluateHits(queryId: string): Promise<number> {
+    const { data, error } = await this.client.rpc('sniper_evaluate_hits', {
+      p_query_id: queryId,
+    });
+
+    if (error) {
+      throw new Error(`evaluating hits failed: ${error.message}`);
+    }
+
+    return typeof data === 'number' ? data : 0;
+  }
 }

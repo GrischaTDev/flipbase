@@ -22,6 +22,7 @@ export interface ListingStoreLike {
     listings: MarketplaceListing[],
     discoveredByQueryId: string,
   ): Promise<MarketplaceListing[]>;
+  evaluateHits(queryId: string): Promise<number>;
 }
 
 export interface CycleReport {
@@ -30,6 +31,7 @@ export interface CycleReport {
   newListings: number;
   seeded: number;
   failed: number;
+  newHits: number;
 }
 
 export interface SchedulerDeps {
@@ -50,6 +52,7 @@ export class QueryScheduler {
       newListings: 0,
       seeded: 0,
       failed: 0,
+      newHits: 0,
     };
 
     // Rueckfallnetz: `dueQueries()` haengt an genau demselben Store wie
@@ -119,6 +122,7 @@ export class QueryScheduler {
       seeded: report.seeded,
       failed: report.failed,
       skipped: report.skippedForBudget,
+      newHits: report.newHits,
       budget: this.deps.budget.usageRatio().toFixed(2),
     });
 
@@ -137,6 +141,18 @@ export class QueryScheduler {
 
     const created = await this.deps.listings.saveNew(listings, query.id);
     report.polled += 1;
+
+    // Eine gescheiterte Bewertung darf den Fund nicht entwerten: Gespeichert
+    // ist er, und die Abfrage gilt als gepollt. Sonst holte der naechste
+    // Durchgang dieselben Artikel noch einmal.
+    try {
+      report.newHits += await this.deps.listings.evaluateHits(query.id);
+    } catch (error) {
+      this.deps.log.error('evaluate_hits_failed', {
+        queryId: query.id,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
 
     if (query.isSeeded) {
       // Nur ausserhalb des Einlese-Laufs gelten neue Artikel als Fund.

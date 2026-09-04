@@ -299,11 +299,42 @@ describe('QueryScheduler', () => {
         newListings: 0,
         seeded: 0,
         failed: 0,
+        newHits: 0,
       });
       expect(collector.collect).not.toHaveBeenCalled();
       expect(log.error).toHaveBeenCalledWith('due_queries_failed', {
         reason: 'store unreachable',
       });
     });
+  });
+
+  it('bewertet nach dem Speichern und zaehlt die Treffer', async () => {
+    const listings = {
+      saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
+      evaluateHits: vi.fn().mockResolvedValue(2),
+    };
+    const { scheduler } = build(makeQuery(), { listings });
+
+    const report = await scheduler.runOnce(NOW);
+
+    expect(listings.evaluateHits).toHaveBeenCalledWith('q1');
+    expect(report.newHits).toBe(2);
+  });
+
+  it('laesst eine gescheiterte Bewertung den Durchgang nicht abbrechen', async () => {
+    // Ein Fund ist gespeichert, auch wenn die Bewertung scheitert. Wuerde der
+    // Fehler durchschlagen, bliebe die Abfrage als nicht gepollt stehen und der
+    // naechste Durchgang holte dieselben Artikel erneut.
+    const listings = {
+      saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
+      evaluateHits: vi.fn().mockRejectedValue(new Error('evaluation failed')),
+    };
+    const { scheduler, queries, log } = build(makeQuery(), { listings });
+
+    const report = await scheduler.runOnce(NOW);
+
+    expect(queries.markPolled).toHaveBeenCalledWith('q1', 'ok');
+    expect(report.newHits).toBe(0);
+    expect(log.error).toHaveBeenCalled();
   });
 });
