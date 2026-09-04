@@ -46,6 +46,7 @@ export class VintedCollector {
     if (query.catalogId !== null) url.searchParams.set('catalog_ids', String(query.catalogId));
     if (query.brandId !== null) url.searchParams.set('brand_ids', String(query.brandId));
     if (query.priceTo !== null) url.searchParams.set('price_to', String(query.priceTo));
+    if (query.priceFrom !== null) url.searchParams.set('price_from', String(query.priceFrom));
 
     const response = await this.request(url, await this.session.cookieHeader());
     const body: unknown = await response.json();

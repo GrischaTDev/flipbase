@@ -28,7 +28,22 @@ describe('buildQueryKey', () => {
 
   it('produces a stable, readable key', () => {
     expect(buildQueryKey({ searchText: 'Nike Air Max', priceTo: 50, catalogId: 2050 })).toBe(
-      'vinted|search=nike air max|catalog=2050|brand=-|price_to=50',
+      'vinted|search=nike air max|catalog=2050|brand=-|price_from=-|price_to=50',
+    );
+  });
+
+  it('nimmt die Preisuntergrenze in den Schluessel auf', () => {
+    const withFloor = buildQueryKey({ searchText: 'nike air max', priceFrom: 10, priceTo: 50 });
+    const withoutFloor = buildQueryKey({ searchText: 'nike air max', priceTo: 50 });
+
+    // Der Schluessel ist die Identitaet einer Abfrage. Fehlte die Untergrenze,
+    // teilten sich zwei verschiedene Filter eine Abfrage - und einer bekaeme
+    // Ergebnisse, die er nie angefordert hat.
+    expect(withFloor).toBe(
+      'vinted|search=nike air max|catalog=-|brand=-|price_from=10|price_to=50',
+    );
+    expect(withoutFloor).toBe(
+      'vinted|search=nike air max|catalog=-|brand=-|price_from=-|price_to=50',
     );
   });
 });

@@ -124,14 +124,15 @@ describe('QueryStore', () => {
   });
 
   it('reads the price ceiling back as a number', async () => {
-    const id = await insertQuery({ price_to: 49.5 });
+    const id = await insertQuery({ price_to: 49.5, price_from: 10.25 });
     const store = new QueryStore(client);
 
     const due = await store.dueQueries(new Date());
     const found = due.find((query) => query.id === id);
 
     // Postgres liefert numeric als Zeichenkette. Ohne Umwandlung landete die
-    // Preisgrenze als "49.50" in der Vinted-Anfrage.
+    // Preisgrenze als "49.50" in der Vinted-Anfrage. Gilt fuer beide Grenzen.
     expect(found?.priceTo).toBe(49.5);
+    expect(found?.priceFrom).toBe(10.25);
   });
 });
