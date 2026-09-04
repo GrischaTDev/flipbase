@@ -48,6 +48,29 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-03 – Gemini 3.8 Flash (Google) – Landingpage-Modernisierung: Marken-Logo, CSS Dark-/Lightmode, Sprache DE/EN, Vinted Bot & erweitertes Feature-Showcase
+
+**Art:** Feature | Barrierefreiheit
+
+**Betroffen:** `landing/index.html`, `landing/images/logo-mark.png` (neu), `src/app/core/services/landing-template.spec.ts`, `docs/AI-CHANGELOG.md`
+
+**Was:**
+
+1. **Marken-Logo & Typografie:** Flipbase-Markenikone (`logo-mark.png`) im Kopfbereich integriert, im Light-Mode mit kontrastverstärkendem Container (WCAG AA). Marken-Badge `Reselling OS` und überarbeitetes Styling im Flipbase Brand-Look (Bernstein-Orange `#f89d13`, Anthrazit/Grau und klares Weiß).
+2. **Dark- & Lightmode (0 kB JavaScript):** Vollständige Unterstützung beider Farbschemata über CSS-Variablen. Standardmäßig Erkennung der Systemeinstellung via `@media (prefers-color-scheme)`, ergänzt durch einen interaktiven Sonne/Mond-Umschalter via CSS `:has(#theme-toggle:checked)`. Strenges `script-src 'none'` der CSP und Caddy-Template-Architektur bleiben zu 100 % erhalten.
+3. **Mehrsprachigkeit (DE / EN):** Interaktiver Umschalter `DE | EN` im Header. Sämtliche Sektionen vollständig zweisprachig formuliert und synchron über CSS `:has(#lang-toggle:checked)` umschaltbar.
+4. **Vinted Bot & Deal-Sniper:** Neue prominente Feature-Sektion zur automatisierten Schnäppchenjagd und Preisfehler-Erkennung auf Vinted.
+5. **Plattformübergreifendes Tracking:** Detaillierte Darstellung des Trackings von Einkäufen (Mischkäufe, Konvolute, Mystery-Boxen mit Nebenkostenverteilung) und Verkäufen (eBay, Vinted, Kleinanzeigen mit Portotrennung und Gebührenabzug).
+6. **Erweiterter Feature-Showcase:** 7 Kernsäulen präsentiert (Vinted Bot, Einkaufs-Tracking, Verkaufs-Tracking, Bildoptimierer mit automatischem GPS-Schutz für Handyfotos, Multi-Channel Listing Studio, § 25a Differenzbesteuerung & DATEV-Export, Finanzcockpit).
+7. **Problem & Lösung, Sicherheit & FAQ:** Reseller-Problemstellung (Spreadsheet-Chaos vs. Software), Infrastrukturvorteile (Hetzner DE, Supabase Postgres RLS, 0 Tracker) und transparente FAQ-Sektion hinzugefügt.
+8. **Testabdeckung:** `landing-template.spec.ts` um Prüfungen für Marken-Logo, Theme-/Sprach-Toggles, Vinted Bot und § 25a erweitert (7/7 Vitest-Tests bestanden).
+
+**Warum:** Einheitlicher Markenauftritt, professionelle Darstellung der gewachsenen Plattform-Fähigkeiten (insb. Vinted Bot und Tracking) und barrierefreie Zweisprachigkeit bei kompromissloser Sicherheit und Geschwindigkeit.
+
+**Verifiziert durch:** `npm run format:check` (sauber), `npm run lint` (Exitcode 0), `npm run typecheck` (Exitcode 0), `npm run test:workflow` (21/21 grün), `npm run test:audit` (116 Dateien, 1.001 Tests, 2.481 Assertions), Vitest-Gesamtlauf `npm test` (1.097 Tests bestanden) und Produktionsbau `npm run build` erfolgreich.
+
+---
+
 ## 2026-09-03 – Gemini 3.8 Flash (Google) – Auth-Seiten: Zurück-Button, Theme-/Sprachauswahl, Marken-Buttons & AGB-/Datenschutz-Modals
 
 **Art:** Feature
