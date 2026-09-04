@@ -48,7 +48,7 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
-## 2026-09-04 – Codex (GPT-5) – Landingpage-Finalreview korrigiert
+## 2026-09-05 – Codex (GPT-5; Review mit GPT-5.6 Sol) – Landingpage-Finalreview korrigiert
 
 **Art:** Bugfix | Barrierefreiheit | Test | Doku
 
@@ -58,7 +58,7 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 **Warum:** Der erste Abschlusslauf prüfte Darstellung und Interaktion, aber nicht alle Sprachwechsel im DOM, jede Produktbehauptung und alle Wege zu aktivem oder entfernt geladenem Inhalt. Der statische Vertrag muss genau diese Rückfälle erkennen.
 
-**Verifiziert durch:** Vier getrennte RED-Läufe gegen den vorherigen Stand (Sprache/Screenreader-Namen, vollständiger Deal-Sniper-Status, vorsichtige Compliance-Texte und 15 aktive Ressourcenvarianten) sowie ein zusätzlicher RED-Nachweis für die beim Diff-Selbstreview gefundene absolute Beispielrechnungs-Copy, anschließend 13/13 statische Landingpage-Tests. Der Prettier-Check aller vier geänderten, versionierten Dateien und ESLint für den statischen Vertrag liefen jeweils mit Exitcode 0. Browser-/Caddy-Abnahme und `npm run verify` erfolgen nach diesem Commit durch den Controller und werden hier nicht vorzeitig als bestanden ausgewiesen.
+**Verifiziert durch:** Vier getrennte RED-Läufe gegen den vorherigen Stand (Sprache/Screenreader-Namen, vollständiger Deal-Sniper-Status, vorsichtige Compliance-Texte und 15 aktive Ressourcenvarianten) sowie ein zusätzlicher RED-Nachweis für die beim Diff-Selbstreview gefundene absolute Beispielrechnungs-Copy; unabhängiger finaler Review und Re-Review ohne offenen Critical-/Important-Befund; anschließend 13/13 statische Landingpage-Tests und `npm run verify` mit Exitcode 0. Die frisch aufgebaute Caddy-Abnahme bestand Deutsch/Englisch × Hell/Dunkel × Desktop/Mobil ohne Überlauf, AXE-, Konsolen-, Seiten- oder Assetfehler; Theme/Sprache per Leertaste, FAQ per Enter und beide im Browserkontext abgefangenen Registrierungs-GET-URLs wurden geprüft. Der exakt benannte temporäre QA-Container wurde danach automatisch entfernt.
 
 ## 2026-09-04 – Codex (GPT-5; Umsetzung und Review mit GPT-5.6 Sol) – Landingpage erste Korrekturrunde
 
