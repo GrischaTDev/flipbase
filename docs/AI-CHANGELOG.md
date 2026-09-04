@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Release-Pipeline zur Integration vorbereitet
+
+**Art:** Konfiguration | Test
+**Betroffen:** Zweig `chore/streamline-release-pipeline`, GitHub-PR und CI
+**Was:** Auf ausdrücklichen Wunsch Push, PR und Merge vorbereitet. Aktuellen Master abgeglichen; keine zwischenzeitlichen Änderungen zu übernehmen.
+**Warum:** Die geprüfte CI-Vereinfachung integrieren. Der neue Datenbankweg bleibt bis zum dokumentierten Serverbootstrap deaktiviert.
+**Verifiziert durch:** Erneuter vollständiger lokaler Verify-Lauf und GitHub-Prüfungen vor dem Merge vorgesehen. Keine manuelle Produktionsmigration oder Serverinstallation.
+
 ## 2026-09-05 – Codex – Git-Rename-Erkennung abgesichert
 
 **Art:** Bugfix | Test
