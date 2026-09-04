@@ -75,6 +75,10 @@ const euroFormatter = new Intl.NumberFormat('de-DE', {
   currency: 'EUR',
 });
 
+export function formatChartAmount(value: number | null): string {
+  return value === null ? 'unbekannt' : euroFormatter.format(value);
+}
+
 export function revenueChartPalette(theme: AppTheme): RevenueChartPalette {
   return palettes[theme];
 }
@@ -84,7 +88,7 @@ export function createRevenueChartConfiguration(
   theme: AppTheme,
   reducedMotion: boolean,
   showExternalTooltip?: (tooltip: TooltipModel<'line'>) => void,
-): ChartConfiguration<'line', number[], string> {
+): ChartConfiguration<'line', (number | null)[], string> {
   const palette = revenueChartPalette(theme);
 
   return {
@@ -125,7 +129,7 @@ export function createRevenueChartConfiguration(
           titleColor: palette.tooltipText,
           callbacks: {
             label: (tooltipItem) =>
-              `${tooltipItem.dataset.label}: ${euroFormatter.format(tooltipItem.parsed.y ?? 0)}`,
+              `${tooltipItem.dataset.label}: ${formatChartAmount(tooltipItem.parsed.y ?? null)}`,
           },
         },
       },

@@ -7,7 +7,7 @@ import baseConfig from './vitest.config';
  *
  * Die vollstaendige Abdeckung ueber alle drei Projekte braucht rund neun
  * Minuten und war damit der teuerste Posten im Zeitplan. Ihr eigentlicher
- * Wert liegt aber in den 95/90-Grenzen auf drei Dateien - und deren Tests
+ * Wert liegt aber in den 95/90-Grenzen auf den zentralen Geldpfaden - deren Tests
  * liegen samt und sonders im Node-Projekt, das in unter einer Minute durch
  * ist.
  *
@@ -20,6 +20,8 @@ const criticalFiles = [
   'src/app/core/services/tax-engine.service.ts',
   'src/app/core/models/inventory-sellability.ts',
   'src/app/core/utils/sale-metrics.ts',
+  'src/app/core/utils/cost-basis.ts',
+  'src/app/core/utils/lot-cost.ts',
 ];
 
 const strictThreshold = { statements: 95, branches: 90 };

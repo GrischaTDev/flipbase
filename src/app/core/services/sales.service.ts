@@ -21,6 +21,7 @@ import { ReturnRecord } from '../models/return.models';
 import { createLocalDemoId } from '../utils/client-identity';
 import { INVENTORY_RECONCILIATION_AUDIT_REASONS } from '../models/inventory-reconciliation';
 import { calculateStoredSaleMetrics } from '../utils/sale-metrics';
+import { saleCostBasisStatus } from '../utils/cost-basis';
 
 export interface CreateSalePayload {
   inventory_item_id: string;
@@ -185,7 +186,8 @@ export class SalesService {
           ),
           sale_lines:sale_lines!sale_lines_sale_id_fkey(
             *,
-            lot_allocations:sale_line_lot_allocations!sale_line_lot_allocations_sale_line_id_fkey(*),
+            inventory_item:inventory_items!sale_lines_inventory_item_id_fkey(*, purchase:purchases(*), costs:item_costs(*)),
+            lot_allocations:sale_line_lot_allocations!sale_line_lot_allocations_sale_line_id_fkey(*, stock_lot:stock_lots!sale_line_lot_allocations_stock_lot_id_fkey(*, purchase:purchases!stock_lots_purchase_id_fkey(*))),
             stock_movements:stock_movements!stock_movements_sale_line_id_fkey(*)
           ),
           cost_entries:sale_cost_entries!sale_cost_entries_sale_id_fkey(*)
@@ -221,7 +223,17 @@ export class SalesService {
 
   public enrichSaleMetrics(raw: Sale): Sale {
     const item = raw.inventory_item;
-    const metrics = calculateStoredSaleMetrics(raw);
+    const records = this.mockStore.isDemoMode()
+      ? {
+          purchases: this.mockStore.getPurchases(raw.workspace_id),
+          inventoryItems: this.mockStore.getItems(raw.workspace_id),
+          stockLots: this.mockStore.getStockLots(raw.workspace_id),
+        }
+      : {
+          inventoryItems: this.inventoryService?.items?.(),
+          stockLots: this.stockService?.lots?.(),
+        };
+    const metrics = calculateStoredSaleMetrics(raw, records);
     const grossRevenue = Number((metrics.revenue + Number(raw.refund_amount ?? 0)).toFixed(2));
 
     let holdingDays = 0;
@@ -232,6 +244,7 @@ export class SalesService {
 
     return {
       ...raw,
+      cost_basis_status: saleCostBasisStatus(raw, records),
       sale_price: grossRevenue,
       sale_price_total: grossRevenue,
       net_profit: metrics.resultAfterDirectCosts,

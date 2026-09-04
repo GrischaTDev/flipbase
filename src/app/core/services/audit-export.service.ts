@@ -6,7 +6,7 @@ import {
   BusinessEventFilter,
 } from '../models/business-event.models';
 import { Database } from '../models/supabase.types';
-import { BusinessEventService } from './business-event.service';
+import { mapBusinessEventLabel } from './business-event.service';
 import { MockDataStoreService } from './mock-data-store.service';
 import { SupabaseService } from './supabase.service';
 import { WorkspaceService } from './workspace.service';
@@ -21,7 +21,9 @@ type ArchiveTableName =
   | 'stock_movements'
   | 'sales'
   | 'sale_lines'
-  | 'sale_cost_entries';
+  | 'sale_cost_entries'
+  | 'item_costs'
+  | 'sale_line_lot_allocations';
 
 export interface AuditArchiveData {
   readonly businessEvents: readonly BusinessEvent[];
@@ -29,11 +31,13 @@ export interface AuditArchiveData {
   readonly purchaseLines: readonly ArchiveRow[];
   readonly purchaseCosts: readonly ArchiveRow[];
   readonly inventoryItems: readonly ArchiveRow[];
+  readonly itemCosts: readonly ArchiveRow[];
   readonly stockLots: readonly ArchiveRow[];
   readonly stockMovements: readonly ArchiveRow[];
   readonly sales: readonly ArchiveRow[];
   readonly saleLines: readonly ArchiveRow[];
   readonly saleCosts: readonly ArchiveRow[];
+  readonly saleLineLotAllocations: readonly ArchiveRow[];
 }
 
 export interface AuditArchiveOptions {
@@ -53,126 +57,178 @@ export interface AuditArchiveRequest extends Omit<BusinessEventFilter, 'cursor'>
   readonly onProgress?: (percent: number) => void;
 }
 
+const ARCHIVE_TABLES = {
+  purchases: 'purchases',
+  purchaseLines: 'purchase_lines',
+  purchaseCosts: 'purchase_costs',
+  inventoryItems: 'inventory_items',
+  itemCosts: 'item_costs',
+  stockLots: 'stock_lots',
+  stockMovements: 'stock_movements',
+  sales: 'sales',
+  saleLines: 'sale_lines',
+  saleCosts: 'sale_cost_entries',
+  saleLineLotAllocations: 'sale_line_lot_allocations',
+} as const;
+
 const ARCHIVE_HEADERS = {
   purchases: [
     'id',
-    'workspace_id',
-    'type',
-    'title',
-    'source_id',
-    'supplier_id',
-    'purchase_date',
-    'purchase_price',
-    'shipping_cost',
-    'other_costs',
     'cost_allocation_mode',
+    'created_at',
     'entry_status',
+    'estimated_delivery',
     'finalized_at',
     'finalized_by',
-    'created_at',
+    'notes',
+    'original_url',
+    'purchase_date',
+    'purchase_price',
+    'receiving_status',
+    'source_id',
+    'supplier_id',
+    'title',
+    'total_purchase_cost',
+    'tracking_carrier',
+    'tracking_number',
+    'tracking_status',
+    'type',
     'updated_at',
+    'workspace_id',
   ],
   purchaseLines: [
     'id',
-    'workspace_id',
-    'purchase_id',
+    'allocated_additional_cost',
+    'allocated_total_cost',
     'catalog_product_id',
-    'title_snapshot',
-    'line_kind',
-    'ordered_quantity',
-    'received_quantity',
-    'unit_purchase_price',
-    'line_total',
-    'price_mode',
     'condition_snapshot',
-    'estimated_market_value',
     'created_at',
+    'estimated_market_value',
+    'line_kind',
+    'line_total',
+    'ordered_quantity',
+    'price_mode',
+    'purchase_id',
+    'received_quantity',
+    'title_snapshot',
+    'unit_purchase_price',
     'updated_at',
+    'workspace_id',
   ],
   purchaseCosts: [
     'id',
-    'workspace_id',
-    'purchase_id',
-    'type',
-    'amount',
-    'description',
     'allocation_method',
-    'target_purchase_line_id',
+    'amount',
     'created_at',
+    'description',
+    'purchase_id',
+    'target_purchase_line_id',
+    'type',
+    'workspace_id',
   ],
   inventoryItems: [
     'id',
-    'workspace_id',
+    'allocated_purchase_cost',
+    'brand',
+    'category',
+    'condition',
+    'created_at',
+    'description',
+    'dimension_height_cm',
+    'dimension_length_cm',
+    'dimension_width_cm',
+    'ean',
+    'expected_value',
+    'is_public_store',
+    'model',
     'purchase_id',
     'purchase_line_id',
-    'title',
-    'condition',
-    'status',
-    'allocated_purchase_cost',
-    'expected_value',
     'sku',
-    'ean',
-    'created_at',
+    'status',
+    'tax_mode_override',
+    'title',
     'updated_at',
+    'weight_g',
+    'workspace_id',
   ],
+  itemCosts: ['id', 'inventory_item_id', 'type', 'amount', 'description', 'created_at'],
   stockLots: [
     'id',
-    'workspace_id',
+    'catalog_product_id',
+    'created_at',
     'purchase_id',
     'purchase_line_id',
-    'catalog_product_id',
+    'received_at',
     'received_quantity',
     'remaining_quantity',
     'unit_cost',
-    'received_at',
-    'created_at',
+    'workspace_id',
   ],
   stockMovements: [
     'id',
-    'workspace_id',
-    'stock_lot_id',
-    'sale_line_id',
+    'created_at',
     'direction',
     'quantity',
     'reason',
-    'created_at',
+    'sale_line_id',
+    'stock_lot_id',
+    'workspace_id',
   ],
   sales: [
     'id',
-    'workspace_id',
+    'buyer_notes',
+    'created_at',
+    'external_listing_id',
+    'external_order_id',
     'inventory_item_id',
+    'other_costs',
+    'packaging_cost',
     'platform',
+    'platform_fee',
+    'refund_amount',
+    'returned_at',
+    'sale_date',
     'sale_price',
     'sale_price_total',
-    'shipping_revenue',
-    'sale_date',
-    'platform_fee',
     'shipping_cost',
-    'packaging_cost',
-    'other_costs',
-    'returned_at',
-    'refund_amount',
+    'shipping_mode',
+    'shipping_revenue',
+    'void_reason',
     'voided_at',
     'voided_by',
-    'void_reason',
-    'created_at',
+    'workspace_id',
   ],
   saleLines: [
     'id',
-    'workspace_id',
-    'sale_id',
     'catalog_product_id',
-    'inventory_item_id',
-    'title_snapshot',
-    'quantity',
-    'unit_sale_price',
-    'line_total',
     'cost_of_goods_sold',
+    'created_at',
+    'inventory_item_id',
+    'line_total',
+    'quantity',
+    'sale_id',
     'tax_mode',
+    'title_snapshot',
+    'unit_sale_price',
+    'workspace_id',
+  ],
+  saleCosts: ['id', 'amount', 'category', 'created_at', 'description', 'sale_id', 'workspace_id'],
+  saleLineLotAllocations: [
+    'id',
+    'workspace_id',
+    'sale_line_id',
+    'stock_lot_id',
+    'quantity',
+    'unit_cost',
+    'allocated_cost',
+    'active_allocated_cost',
     'created_at',
   ],
-  saleCosts: ['id', 'workspace_id', 'sale_id', 'category', 'description', 'amount', 'created_at'],
-} as const;
+} as const satisfies {
+  [
+    K in keyof typeof ARCHIVE_TABLES
+  ]: readonly (keyof Database['public']['Tables'][(typeof ARCHIVE_TABLES)[K]]['Row'])[];
+};
 
 const BUSINESS_EVENT_HEADERS = [
   'id',
@@ -254,6 +310,20 @@ export async function buildAuditArchive(
     ],
     ['business-events.json', { content: eventJson, rows: eventRows.length }],
     [
+      'item-costs.csv',
+      {
+        content: rowsToCsv(data.itemCosts, ARCHIVE_HEADERS.itemCosts),
+        rows: data.itemCosts.length,
+      },
+    ],
+    [
+      'sale-line-lot-allocations.csv',
+      {
+        content: rowsToCsv(data.saleLineLotAllocations, ARCHIVE_HEADERS.saleLineLotAllocations),
+        rows: data.saleLineLotAllocations.length,
+      },
+    ],
+    [
       'purchases.csv',
       {
         content: rowsToCsv(data.purchases, ARCHIVE_HEADERS.purchases),
@@ -322,8 +392,8 @@ export async function buildAuditArchive(
     })),
   );
   const manifest: AuditExportManifest = {
-    schemaVersion: '1.0.0',
-    exportVersion: '1.0.0',
+    schemaVersion: '1.1.0',
+    exportVersion: '1.1.0',
     createdAt: options.createdAt,
     workspaceId: options.workspaceId,
     filters: options.filters,
@@ -342,7 +412,6 @@ export class AuditExportService {
   private readonly supabase = inject(SupabaseService);
   private readonly mockStore = inject(MockDataStoreService);
   private readonly workspaceService = inject(WorkspaceService);
-  private readonly businessEvents = inject(BusinessEventService);
 
   async createArchive(request: AuditArchiveRequest): Promise<AuditArchiveResult> {
     if (this.mockStore.isDemoMode()) {
@@ -353,27 +422,43 @@ export class AuditExportService {
     if (this.workspaceService.currentWorkspace()?.id !== request.workspaceId) {
       throw new Error('Ein Datenarchiv kann nur für den aktiven Workspace erstellt werden.');
     }
-    const events = await this.collectEvents(request);
-    request.onProgress?.(15);
-    const tables: readonly ArchiveTableName[] = [
-      'purchases',
-      'purchase_lines',
-      'purchase_costs',
-      'inventory_items',
-      'stock_lots',
-      'stock_movements',
-      'sales',
-      'sale_lines',
-      'sale_cost_entries',
-    ];
+    this.assertCurrentRequest(request);
+    const query = this.supabase.client.rpc('export_audit_snapshot', {
+      p_workspace_id: request.workspaceId,
+      p_filter: this.manifestFilters(request),
+    });
+    const { data, error } = await (request.signal ? query.abortSignal(request.signal) : query);
+    this.assertCurrentRequest(request);
+    if (error) throw new Error(`Das Prüfarchiv konnte nicht geladen werden: ${error.message}`);
+    if (!data || typeof data !== 'object' || Array.isArray(data))
+      throw new Error('Die Snapshot-Antwort ist unvollständig.');
+    const snapshot = data as Record<string, unknown>;
+    if (typeof snapshot['captured_at'] !== 'string' || typeof snapshot['snapshot'] !== 'string')
+      throw new Error('Der Snapshot-Nachweis fehlt.');
+    request.onProgress?.(60);
+    const tables = Object.values(ARCHIVE_TABLES);
     const collected = new Map<ArchiveTableName, readonly ArchiveRow[]>();
-    for (const [index, table] of tables.entries()) {
-      this.throwIfAborted(request.signal);
-      collected.set(table, await this.collectTable(table, request.workspaceId, request.signal));
-      request.onProgress?.(15 + Math.round(((index + 1) / tables.length) * 65));
+    for (const table of tables) {
+      collected.set(table, this.snapshotRows(snapshot, table));
     }
-    this.throwIfAborted(request.signal);
-    const createdAt = new Date().toISOString();
+    const events = this.snapshotRows(snapshot, 'business_events').map((value) => {
+      const event = value as Database['public']['Tables']['business_events']['Row'];
+      return {
+        id: event.id,
+        workspaceId: event.workspace_id,
+        entityType: event.entity_type as BusinessEvent['entityType'],
+        entityId: event.entity_id,
+        eventType: event.event_type,
+        eventLabel: mapBusinessEventLabel(event.event_type),
+        actorId: event.actor_id,
+        reason: event.reason,
+        changes: event.changes,
+        correlationId: event.correlation_id,
+        createdAt: event.created_at,
+      };
+    });
+    this.assertCurrentRequest(request);
+    const createdAt = snapshot['captured_at'];
     const archive = await buildAuditArchive(
       {
         businessEvents: events,
@@ -381,18 +466,21 @@ export class AuditExportService {
         purchaseLines: collected.get('purchase_lines') ?? [],
         purchaseCosts: collected.get('purchase_costs') ?? [],
         inventoryItems: collected.get('inventory_items') ?? [],
+        itemCosts: collected.get('item_costs') ?? [],
         stockLots: collected.get('stock_lots') ?? [],
         stockMovements: collected.get('stock_movements') ?? [],
         sales: collected.get('sales') ?? [],
         saleLines: collected.get('sale_lines') ?? [],
         saleCosts: collected.get('sale_cost_entries') ?? [],
+        saleLineLotAllocations: collected.get('sale_line_lot_allocations') ?? [],
       },
       {
         workspaceId: request.workspaceId,
         createdAt,
-        filters: this.manifestFilters(request),
+        filters: { ...this.manifestFilters(request), snapshot: snapshot['snapshot'] },
       },
     );
+    this.assertCurrentRequest(request);
     request.onProgress?.(100);
     return archive;
   }
@@ -410,37 +498,24 @@ export class AuditExportService {
     setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
-  private async collectEvents(request: AuditArchiveRequest): Promise<readonly BusinessEvent[]> {
-    const events: BusinessEvent[] = [];
-    let cursor: string | undefined;
-    do {
-      this.throwIfAborted(request.signal);
-      const page = await this.businessEvents.listEvents({ ...request, cursor, pageSize: 100 });
-      events.push(...page.events);
-      cursor = page.nextCursor ?? undefined;
-    } while (cursor);
-    return events;
+  private snapshotRows(snapshot: Record<string, unknown>, table: string): readonly ArchiveRow[] {
+    const rows = snapshot[table];
+    if (
+      !Array.isArray(rows) ||
+      rows.some((row) => !row || typeof row !== 'object' || Array.isArray(row))
+    ) {
+      throw new Error(`Die Snapshot-Daten aus ${table} sind unvollständig.`);
+    }
+    return rows as ArchiveRow[];
   }
 
-  private async collectTable(
-    table: ArchiveTableName,
-    workspaceId: string,
-    signal?: AbortSignal,
-  ): Promise<readonly ArchiveRow[]> {
-    const rows: ArchiveRow[] = [];
-    const pageSize = 500;
-    for (let offset = 0; ; offset += pageSize) {
-      this.throwIfAborted(signal);
-      const { data, error } = await this.supabase.client
-        .from(table as keyof Database['public']['Tables'])
-        .select('*')
-        .filter('workspace_id', 'eq', workspaceId)
-        .range(offset, offset + pageSize - 1);
-      if (error) throw new Error(`Die Archivdaten aus ${table} konnten nicht geladen werden.`);
-      const page = (data ?? []) as unknown as ArchiveRow[];
-      rows.push(...page);
-      if (page.length < pageSize) return rows;
-    }
+  private assertCurrentRequest(request: AuditArchiveRequest): void {
+    this.throwIfAborted(request.signal);
+    if (this.workspaceService.currentWorkspace()?.id !== request.workspaceId)
+      throw new DOMException(
+        'Der Workspace wurde gewechselt. Der Export wurde abgebrochen.',
+        'AbortError',
+      );
   }
 
   private manifestFilters(

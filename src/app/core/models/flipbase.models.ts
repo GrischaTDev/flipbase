@@ -363,6 +363,7 @@ export interface SaleCostEntry {
 }
 
 export interface Sale {
+  cost_basis_status?: 'known' | 'unknown';
   id: string;
   workspace_id: string;
   inventory_item_id?: string | null;
@@ -447,6 +448,7 @@ export interface PurchaseLine {
 }
 
 export interface StockLot {
+  purchase?: Purchase;
   id: string;
   workspace_id: string;
   purchase_id: string;
@@ -471,6 +473,8 @@ export interface StockMovement {
 }
 
 export interface SaleLine {
+  inventory_item?: InventoryItem;
+  lot_allocations?: SaleLineLotAllocation[];
   id: string;
   sale_id: string;
   catalog_product_id?: string | null;
@@ -484,6 +488,7 @@ export interface SaleLine {
 }
 
 export interface SaleLineLotAllocation {
+  stock_lot?: StockLot;
   id: string;
   workspace_id: string;
   sale_line_id: string;
@@ -532,13 +537,13 @@ export interface DashboardTimePoint {
   /** Kurze, im Diagramm sichtbare Beschriftung. */
   label: string;
   revenue: number;
-  costOfGoodsSold: number;
+  costOfGoodsSold: number | null;
   sellingCosts: number;
-  resultAfterDirectCosts: number;
+  resultAfterDirectCosts: number | null;
   /** Einkaufszahlungen bleiben vorübergehend für ältere Berichtsansichten verfügbar. */
   expenses: number;
   /** @deprecated Verwende resultAfterDirectCosts. */
-  realizedProfit: number;
+  realizedProfit: number | null;
 }
 
 export interface DashboardSaleRow {
@@ -567,7 +572,7 @@ export interface DashboardReport {
   soldItems: number;
   averageMarginPercent: number | null;
   /** Anschaffungswert der aktuell vorhandenen Ware. */
-  inventoryCostValue: number;
+  inventoryCostValue: number | null;
   points: readonly DashboardTimePoint[];
   rows: readonly DashboardSaleRow[];
 }

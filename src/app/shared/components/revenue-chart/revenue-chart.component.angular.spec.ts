@@ -128,6 +128,24 @@ afterEach(() => {
 });
 
 describe('RevenueChartComponent lifecycle', () => {
+  it('zeigt unbekannte Kosten in Tabelle und Tastaturdetails statt falscher Nullwerte', () => {
+    const chart = createChartDouble();
+    const fixture = createFixture(
+      signal<AppTheme>('light'),
+      () => chart.chart,
+      signal([
+        { ...points[0], costOfGoodsSold: null, resultAfterDirectCosts: null, realizedProfit: null },
+      ]),
+    );
+    expect(fixture.componentInstance.keyboardPointDescription()).toContain(
+      'Wareneinsatz unbekannt',
+    );
+    fixture.componentInstance.handleKeyboardFocus();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.activeTooltip()?.lines).toContain('Wareneinsatz: unbekannt');
+    expect(fixture.nativeElement.querySelector('tbody').textContent).toContain('unbekannt');
+    expect(fixture.componentInstance.configuration().data.datasets[1].data).toEqual([null]);
+  });
   it('erzeugt genau eine Chart-Instanz am echten Canvas ohne initiales Doppel-Update', async () => {
     const mediaQuery = createMediaQueryDouble();
     vi.spyOn(window, 'matchMedia').mockReturnValue(mediaQuery.mediaQueryList);

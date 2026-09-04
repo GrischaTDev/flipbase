@@ -30,6 +30,15 @@ const sale: Sale = {
   lines: [
     {
       id: 'line-1',
+      inventory_item: {
+        id: 'item-1',
+        workspace_id: 'workspace-1',
+        title: 'LED-Lampe',
+        status: 'sold',
+        condition: 'new',
+        allocated_purchase_cost: 9.98,
+        purchase: { ...receipt, entry_status: 'finalized' },
+      },
       sale_id: 'sale-1',
       catalog_product_id: 'lamp-1',
       title_snapshot: 'LED-Lampe',
@@ -47,6 +56,48 @@ function createService(): DashboardReportService {
 }
 
 describe('DashboardReportService', () => {
+  it('erhält nach zwei Entnahmen den exakten Restwert des korrigierten 100-Euro-Loses', () => {
+    const report = createService().createReportForRecords(
+      'last_7_days',
+      'all',
+      {
+        purchases: [{ ...receipt, entry_status: 'finalized', purchase_price: 100 }],
+        inventoryItems: [],
+        stockLots: [
+          {
+            id: 'lot-1',
+            workspace_id: 'workspace-1',
+            purchase_id: receipt.id,
+            purchase_line_id: 'purchase-line-1',
+            catalog_product_id: 'lamp-1',
+            received_quantity: 6,
+            remaining_quantity: 4,
+            unit_cost: 16.666667,
+            received_at: '2026-08-26',
+          },
+        ],
+        sales: [
+          {
+            ...sale,
+            lot_allocations: [
+              {
+                id: 'allocation-1',
+                workspace_id: 'workspace-1',
+                sale_line_id: 'line-1',
+                stock_lot_id: 'lot-1',
+                quantity: 2,
+                unit_cost: 16.67,
+                allocated_cost: 33.34,
+                active_allocated_cost: 33.34,
+              },
+            ],
+          },
+        ],
+      },
+      now,
+    );
+    expect(report.inventoryCostValue).toBe(66.66);
+  });
   it('trennt Einkaufs-Ausgaben sauber von COGS und realisiertem Gewinn', () => {
     const report = createService().createReportForRecords(
       'last_7_days',
@@ -129,6 +180,11 @@ describe('DashboardReportService', () => {
       marginPercent: null,
     });
     expect(report.resultAfterDirectCosts).toBeNull();
+    expect(report.points.find((point) => point.date === '2026-08-27')).toMatchObject({
+      costOfGoodsSold: null,
+      resultAfterDirectCosts: null,
+      realizedProfit: null,
+    });
     expect(report.averageMarginPercent).toBeNull();
   });
 

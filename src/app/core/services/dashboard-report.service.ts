@@ -15,6 +15,8 @@ import { PurchaseService } from './purchase.service';
 import { SalesService } from './sales.service';
 import { StockService } from './stock.service';
 import { calculateStoredSaleMetrics } from '../utils/sale-metrics';
+import { inventoryItemCost, purchaseForCost } from '../utils/cost-basis';
+import { lotCostResult } from '../utils/lot-cost';
 
 export type DashboardPlatform = 'all' | string;
 
@@ -99,7 +101,7 @@ export class DashboardReportService {
         continue;
       }
 
-      const row = this.saleRow(sale);
+      const row = this.saleRow(sale, records);
       rows.push(row);
       revenue += row.revenue;
       if (row.resultAfterDirectCosts === null) {
@@ -110,9 +112,9 @@ export class DashboardReportService {
       soldItems += row.quantity;
       this.addToPoint(pointByDate, this.bucketKey(date, window), {
         revenue: row.revenue,
-        costOfGoodsSold: row.costOfGoodsSold ?? 0,
+        costOfGoodsSold: row.costOfGoodsSold,
         sellingCosts: row.sellingCosts,
-        resultAfterDirectCosts: row.resultAfterDirectCosts ?? 0,
+        resultAfterDirectCosts: row.resultAfterDirectCosts,
       });
     }
 
@@ -135,19 +137,21 @@ export class DashboardReportService {
       points: points.map((point) => ({
         ...point,
         revenue: this.money(point.revenue),
-        costOfGoodsSold: this.money(point.costOfGoodsSold),
+        costOfGoodsSold: point.costOfGoodsSold === null ? null : this.money(point.costOfGoodsSold),
         sellingCosts: this.money(point.sellingCosts),
-        resultAfterDirectCosts: this.money(point.resultAfterDirectCosts),
+        resultAfterDirectCosts:
+          point.resultAfterDirectCosts === null ? null : this.money(point.resultAfterDirectCosts),
         expenses: this.money(point.expenses),
-        realizedProfit: this.money(point.resultAfterDirectCosts),
+        realizedProfit:
+          point.resultAfterDirectCosts === null ? null : this.money(point.resultAfterDirectCosts),
       })),
       rows: rows.sort((a, b) => b.date.localeCompare(a.date)),
     };
   }
 
-  private saleRow(sale: Sale): DashboardSaleRow {
+  private saleRow(sale: Sale, records: ReportRecords): DashboardSaleRow {
     const lines = sale.lines?.filter((line) => line.quantity > 0) ?? [];
-    const metrics = calculateStoredSaleMetrics({ ...sale, lines });
+    const metrics = calculateStoredSaleMetrics({ ...sale, lines }, records);
 
     return {
       saleId: sale.id,
@@ -197,18 +201,26 @@ export class DashboardReportService {
     );
   }
 
-  private inventoryCostValue(records: ReportRecords): number {
-    const lotValue = records.stockLots.reduce(
-      (sum, lot) => sum + this.number(lot.remaining_quantity) * this.number(lot.unit_cost),
-      0,
-    );
-    const individualValue = records.inventoryItems
-      .filter((item) => item.status !== 'sold' && item.status !== 'archived')
-      .reduce(
-        (sum, item) => sum + this.number(item.total_item_cost ?? item.allocated_purchase_cost),
-        0,
-      );
-    return this.money(lotValue + individualValue);
+  private inventoryCostValue(records: ReportRecords): number | null {
+    let total = 0;
+    for (const lot of records.stockLots.filter((lot) => lot.remaining_quantity > 0)) {
+      const value = lotCostResult(
+        lot,
+        purchaseForCost(lot, records),
+        records.sales,
+        'known',
+      ).remainingValueCents;
+      if (value === null) return null;
+      total += value;
+    }
+    for (const item of records.inventoryItems.filter(
+      (item) => item.status !== 'sold' && item.status !== 'archived',
+    )) {
+      const value = inventoryItemCost(item, purchaseForCost(item, records));
+      if (value === null) return null;
+      total += Math.round((value + Number.EPSILON) * 100);
+    }
+    return total / 100;
   }
 
   private windowFor(range: DashboardRange, now: Date): DateWindow {
@@ -261,9 +273,15 @@ export class DashboardReportService {
     const point = points.get(date);
     if (!point) return;
     point.revenue += amount.revenue ?? 0;
-    point.costOfGoodsSold += amount.costOfGoodsSold ?? 0;
+    point.costOfGoodsSold =
+      point.costOfGoodsSold === null || amount.costOfGoodsSold === null
+        ? null
+        : point.costOfGoodsSold + (amount.costOfGoodsSold ?? 0);
     point.sellingCosts += amount.sellingCosts ?? 0;
-    point.resultAfterDirectCosts += amount.resultAfterDirectCosts ?? 0;
+    point.resultAfterDirectCosts =
+      point.resultAfterDirectCosts === null || amount.resultAfterDirectCosts === null
+        ? null
+        : point.resultAfterDirectCosts + (amount.resultAfterDirectCosts ?? 0);
     point.expenses += amount.expenses ?? 0;
     point.realizedProfit = point.resultAfterDirectCosts;
   }

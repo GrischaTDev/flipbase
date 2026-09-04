@@ -210,6 +210,7 @@ export class MockDataStoreService {
     const demoPurchases: Purchase[] = [
       {
         id: 'pur-demo-1',
+        entry_status: 'finalized',
         workspace_id: DEMO_WS_ID,
         type: 'single',
         title: 'Sony PlayStation 5 Digital Edition (CFI-1116B)',
@@ -225,6 +226,7 @@ export class MockDataStoreService {
       },
       {
         id: 'pur-demo-2',
+        entry_status: 'finalized',
         workspace_id: DEMO_WS_ID,
         type: 'lot',
         title: 'Retro Gaming & Nintendo Konvolut (Mystery Box)',
@@ -241,6 +243,7 @@ export class MockDataStoreService {
       },
       {
         id: 'pur-demo-3',
+        entry_status: 'finalized',
         workspace_id: DEMO_WS_ID,
         type: 'lot',
         title: "Vintage Streetwear Kleidungspaket (Carhartt, Nike, Levi's)",
@@ -256,6 +259,7 @@ export class MockDataStoreService {
       },
       {
         id: 'pur-demo-4',
+        entry_status: 'finalized',
         workspace_id: DEMO_WS_ID,
         type: 'single',
         title: 'Canon EOS M50 Mark II Vlogging Kit',
@@ -271,6 +275,7 @@ export class MockDataStoreService {
       },
       {
         id: 'pur-demo-5',
+        entry_status: 'finalized',
         workspace_id: DEMO_WS_ID,
         type: 'lot',
         title: '5× USB-C Ladegerät 30 W Händlerposten',

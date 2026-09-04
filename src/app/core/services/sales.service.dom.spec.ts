@@ -351,7 +351,7 @@ describe('SalesService', () => {
     expect(selects).toHaveLength(1);
     expect(selects[0]).toContain('sale_lines:sale_lines!sale_lines_sale_id_fkey(');
     expect(selects[0]).toContain(
-      'lot_allocations:sale_line_lot_allocations!sale_line_lot_allocations_sale_line_id_fkey(*)',
+      'lot_allocations:sale_line_lot_allocations!sale_line_lot_allocations_sale_line_id_fkey(*, stock_lot:stock_lots!sale_line_lot_allocations_stock_lot_id_fkey(*, purchase:purchases!stock_lots_purchase_id_fkey(*)))',
     );
     expect(selects[0]).toContain(
       'stock_movements:stock_movements!stock_movements_sale_line_id_fkey(*)',
@@ -649,6 +649,7 @@ describe('SalesService', () => {
   it('berechnet Verkaufserlös, Verkaufskosten und Ergebnis aus dem gemeinsamen Kennzahlenvertrag', () => {
     const service = Object.create(SalesService.prototype) as SalesService;
     Object.assign(service, {
+      mockStore: { isDemoMode: () => false },
       profitEngine: {
         calculateProfit: (revenue: number, costs: number) => revenue - costs,
         calculateRoi: (profit: number, costs: number) => (costs === 0 ? 0 : (profit / costs) * 100),
@@ -681,11 +682,22 @@ describe('SalesService', () => {
         condition: 'new',
         status: 'sold',
         allocated_purchase_cost: 999,
+        purchase: {
+          id: 'purchase-1',
+          title: 'Einkauf',
+          workspace_id: sale.workspace_id,
+          type: 'single',
+          purchase_date: '2026-08-01',
+          purchase_price: 10,
+          cost_allocation_mode: 'even',
+          entry_status: 'finalized',
+        },
         costs: [],
       },
       lines: [
         {
           id: 'line-1',
+          inventory_item_id: 'item-1',
           sale_id: sale.id,
           title_snapshot: 'LED-Lampe',
           quantity: 2,

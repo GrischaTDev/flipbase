@@ -1,5 +1,11 @@
 import { SaleMetrics, SaleMetricsInput } from '../models/sale-metrics.models';
 import { Sale, SaleLine } from '../models/flipbase.models';
+import {
+  CostBasisRecords,
+  inventoryItemCost,
+  purchaseForCost,
+  saleCostBasisStatus,
+} from './cost-basis';
 
 function round(value: number, decimalPlaces: number): number {
   const factor = 10 ** decimalPlaces;
@@ -47,7 +53,10 @@ function lineTotal(lines: readonly SaleLine[], field: 'line_total' | 'cost_of_go
 }
 
 /** Übersetzt einen gespeicherten Verkauf einmalig in den gemeinsamen Kennzahlenvertrag. */
-export function calculateStoredSaleMetrics(sale: Sale): SaleMetrics {
+export function calculateStoredSaleMetrics(
+  sale: Sale,
+  records: CostBasisRecords = {},
+): SaleMetrics {
   const persistedLines = sale.has_persisted_lines === false ? [] : (sale.lines ?? []);
   const buyerShippingRevenue = Number(sale.shipping_revenue ?? 0);
   const grossFallback = Number(sale.sale_price_total ?? sale.sale_price ?? 0);
@@ -57,17 +66,15 @@ export function calculateStoredSaleMetrics(sale: Sale): SaleMetrics {
       : grossFallback - buyerShippingRevenue;
 
   let costOfGoodsSold: number | null = null;
-  if (persistedLines.length > 0) {
+  if (saleCostBasisStatus(sale, records) === 'known' && persistedLines.length > 0) {
     costOfGoodsSold = lineTotal(persistedLines, 'cost_of_goods_sold');
-  } else if (sale.inventory_item) {
-    costOfGoodsSold =
-      sale.inventory_item.total_item_cost !== undefined
-        ? Number(sale.inventory_item.total_item_cost)
-        : Number(sale.inventory_item.allocated_purchase_cost) +
-          (sale.inventory_item.costs ?? []).reduce(
-            (sum, cost) => sum + Number(cost.amount ?? 0),
-            0,
-          );
+  } else if (persistedLines.length === 0) {
+    const item =
+      sale.inventory_item ??
+      records.inventoryItems?.find(
+        (item) => item.id === sale.inventory_item_id && item.workspace_id === sale.workspace_id,
+      );
+    if (item) costOfGoodsSold = inventoryItemCost(item, purchaseForCost(item, records));
   }
 
   const extraCosts = sale.cost_entries?.length

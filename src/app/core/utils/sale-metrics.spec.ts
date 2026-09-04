@@ -125,6 +125,49 @@ describe('calculateSaleMetrics', () => {
 });
 
 describe('calculateStoredSaleMetrics', () => {
+  const knownItem = {
+    id: 'item-1',
+    allocated_purchase_cost: 10,
+    purchase: { entry_status: 'finalized', purchase_price: 10 },
+  } as NonNullable<Sale['inventory_item']>;
+  it.each(['draft', 'needs_review'] as const)(
+    'behandelt gespeicherte Nullkosten bei %s nicht als gültig',
+    (entry_status) => {
+      const inventory_item = {
+        allocated_purchase_cost: 0,
+        purchase: { entry_status, purchase_price: null },
+      } as Sale['inventory_item'];
+      expect(
+        calculateStoredSaleMetrics({
+          ...persistedSale,
+          inventory_item,
+          lines: [{ ...persistedSale.lines![0], inventory_item, cost_of_goods_sold: 0 }],
+        }).costOfGoodsSold,
+      ).toBeNull();
+      expect(
+        calculateStoredSaleMetrics({ ...persistedSale, inventory_item, has_persisted_lines: false })
+          .costOfGoodsSold,
+      ).toBeNull();
+    },
+  );
+
+  it('erhält finalisierte echte Nullkosten und lehnt fehlende Herkunft ab', () => {
+    const inventory_item = {
+      allocated_purchase_cost: 0,
+      purchase: { entry_status: 'finalized', purchase_price: 0 },
+    } as Sale['inventory_item'];
+    expect(
+      calculateStoredSaleMetrics({ ...persistedSale, inventory_item, has_persisted_lines: false })
+        .costOfGoodsSold,
+    ).toBe(0);
+    expect(
+      calculateStoredSaleMetrics({
+        ...persistedSale,
+        inventory_item: { allocated_purchase_cost: 0 } as Sale['inventory_item'],
+        has_persisted_lines: false,
+      }).costOfGoodsSold,
+    ).toBeNull();
+  });
   const persistedSale: Sale = {
     id: 'sale-1',
     workspace_id: 'workspace-1',
@@ -142,6 +185,8 @@ describe('calculateStoredSaleMetrics', () => {
     lines: [
       {
         id: 'line-1',
+        inventory_item_id: 'item-1',
+        inventory_item: knownItem,
         sale_id: 'sale-1',
         title_snapshot: 'Nackenkissen',
         quantity: 1,
@@ -187,7 +232,7 @@ describe('calculateStoredSaleMetrics', () => {
         cost_entries: [],
         packaging_cost: 0.5,
         other_costs: 1,
-        inventory_item: { allocated_purchase_cost: 10 } as Sale['inventory_item'],
+        inventory_item: knownItem,
       }),
     ).toMatchObject({
       revenue: 42.98,
@@ -223,10 +268,42 @@ describe('calculateStoredSaleMetrics', () => {
         packaging_cost: 0,
         other_costs: 0,
         inventory_item: {
+          ...knownItem,
           allocated_purchase_cost: 10,
           costs: [{ type: 'repair', amount: 2 }],
         } as Sale['inventory_item'],
       }),
     ).toMatchObject({ costOfGoodsSold: 12, resultAfterDirectCosts: 18.09 });
+  });
+
+  it('erhält bei sparsamen Altverkäufen den Verkaufspreis und die gespeicherten Gesamtkosten', () => {
+    expect(
+      calculateStoredSaleMetrics({
+        ...persistedSale,
+        has_persisted_lines: false,
+        lines: undefined,
+        sale_price_total: undefined,
+        sale_price: 100,
+        shipping_revenue: undefined,
+        platform_fee: undefined as unknown as number,
+        shipping_cost: undefined as unknown as number,
+        packaging_cost: undefined as unknown as number,
+        other_costs: undefined as unknown as number,
+        refund_amount: undefined,
+        cost_entries: undefined,
+        inventory_item: {
+          ...knownItem,
+          allocated_purchase_cost: 10,
+          total_item_cost: 40,
+        } as Sale['inventory_item'],
+      }),
+    ).toEqual({
+      revenue: 100,
+      costOfGoodsSold: 40,
+      sellingCosts: 0,
+      resultAfterDirectCosts: 60,
+      marginPercent: 60,
+      roiPercent: 150,
+    });
   });
 });

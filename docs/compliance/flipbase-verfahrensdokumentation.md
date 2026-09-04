@@ -1,6 +1,6 @@
 # Flipbase-Verfahrensdokumentation für Geschäftsdaten
 
-Stand: 1. September 2026
+Stand: 4. September 2026
 
 Dieses Dokument beschreibt den derzeit im Quellcode umgesetzten Ablauf. Es unterstützt die interne Dokumentation und ersetzt keine steuerliche oder rechtliche Beratung. Ob die beschriebenen Verfahren für einen konkreten Betrieb ausreichen, muss anhand der tatsächlichen Nutzung, Zuständigkeiten und gesetzlichen Anforderungen beurteilt werden.
 
@@ -14,7 +14,7 @@ Workspace-Rollen trennen den Zugriff:
 - `accountant` darf das globale Prüfprotokoll und Datenarchive lesen, aber keine operativen Buchungen ändern.
 - `member`, `fulfillment` und `readonly` erhalten kein globales Prüfprotokoll. Datensatzbezogene Verläufe können über die rollenprüfende Datenbankfunktion freigegeben werden, wenn der konkrete Datensatz im Workspace zugänglich ist.
 
-Die Berechtigung wird serverseitig in `list_business_events` und `list_entity_business_events` geprüft. Die Oberfläche blendet globale Exportfunktionen zusätzlich rollenabhängig aus; diese Anzeigeprüfung ist kein Ersatz für die serverseitige Prüfung.
+Die Berechtigung wird serverseitig in `list_business_events`, `list_entity_business_events` und `export_audit_snapshot` geprüft. Die Oberfläche blendet globale Exportfunktionen zusätzlich rollenabhängig aus; diese Anzeigeprüfung ist kein Ersatz für die serverseitige Prüfung.
 
 ## Entwürfe, Abschluss und Korrekturen
 
@@ -51,12 +51,16 @@ Das Archiv heißt `flipbase-audit-<UTC-Zeitstempel>.zip` und enthält:
 - `manifest.json`
 - `business-events.csv` und `business-events.json`
 - `purchases.csv`, `purchase-lines.csv` und `purchase-costs.csv`
-- `inventory-items.csv`, `stock-lots.csv` und `stock-movements.csv`
-- `sales.csv`, `sale-lines.csv` und `sale-costs.csv`
+- `inventory-items.csv`, `item-costs.csv`, `stock-lots.csv` und `stock-movements.csv`
+- `sales.csv`, `sale-lines.csv`, `sale-costs.csv` und `sale-line-lot-allocations.csv`
 
 Das Manifest nennt Schema- und Exportversion, Erstellungszeit, Workspace-ID, angewandte Journalfilter, Zeilenzahlen und – falls die Browser-Kryptografie verfügbar ist – SHA-256-Prüfsummen der enthaltenen Datendateien. CSV-Spaltennamen sind stabile englische Maschinenbezeichnungen. Kennungen und Fremdschlüssel bleiben enthalten. Vorher-/Nachher-Payloads bleiben vollständig in JSON erhalten. CSV-Zellen mit möglichen Tabellenformeln werden beim Export neutralisiert.
 
-Der Export lädt Tabellen und Journal seitenweise. Ein abgebrochener oder fehlgeschlagener Lauf erzeugt keinen als vollständig gemeldeten Download. Objekt-URLs werden nach dem Download wieder freigegeben. Das Archiv enthält bewusst keine Zahlungs-, Webhook-, API- oder Geräte-Konfigurationen.
+Der Export lädt die zwölf Datenmengen gemeinsam über `export_audit_snapshot`. Die schreibfreie PostgreSQL-Funktion ist `STABLE`: Alle ihre Abfragen sehen denselben Datenbank-Snapshot des aufrufenden Statements, auch bei gleichzeitigen Buchungen oder direkten Änderungen. Das Manifest enthält dessen Kennung und Erfassungszeit. Nur das Journal wird durch die gewählten Journalfilter eingeschränkt; die übrigen Archivtabellen enthalten alle Datensätze des Workspace und sämtliche Tabellenspalten. Artikelkosten ohne eigene Workspace-Spalte werden über den zugehörigen Inventarartikel zugeordnet.
+
+Ab mehr als 100.000 Datensätzen insgesamt oder mehr als 50 MiB JSON bricht der Server ausdrücklich ab; es gibt kein still gekürztes Teilarchiv. Die Zeilengrenze zählt auch Ereignisse außerhalb des Journalfilters. Der Export ist nicht gestreamt: Datenbank und Browser benötigen zusätzlichen Arbeitsspeicher für JSON, CSV und ZIP. Zeitlimits oder verfügbarer Speicher können deshalb bereits unter diesen Obergrenzen einen Export verhindern. Größere Bestände benötigen einen gesonderten betrieblichen Datenbankexport.
+
+Ein abgebrochener oder fehlgeschlagener Lauf sowie ein erkannter Workspace-Wechsel erzeugen keinen als vollständig gemeldeten Download. Objekt-URLs werden nach dem Download wieder freigegeben. Das Archiv enthält bewusst keine Zahlungs-, Webhook-, API- oder Geräte-Konfigurationen.
 
 ## Aufbewahrung, Löschung und Sicherung
 

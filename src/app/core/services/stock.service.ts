@@ -57,7 +57,7 @@ export class StockService {
         this.supabase.client
           .from('stock_lots')
           .select(
-            '*, catalog_product:catalog_products!stock_lots_catalog_product_id_fkey(id, title, is_public_store)',
+            '*, purchase:purchases!stock_lots_purchase_id_fkey(*), catalog_product:catalog_products!stock_lots_catalog_product_id_fkey(id, title, is_public_store)',
           )
           .eq('workspace_id', workspaceId)
           .order('received_at', { ascending: true })

@@ -95,9 +95,21 @@
           <tr>
             <th scope="row">{{ point.label }}</th>
             <td>{{ point.revenue | number: '1.2-2' }} €</td>
-            <td>{{ point.costOfGoodsSold | number: '1.2-2' }} €</td>
+            <td>
+              @if (point.costOfGoodsSold === null) {
+                unbekannt
+              } @else {
+                {{ point.costOfGoodsSold | number: '1.2-2' }} €
+              }
+            </td>
             <td>{{ point.sellingCosts | number: '1.2-2' }} €</td>
-            <td>{{ point.resultAfterDirectCosts | number: '1.2-2' }} €</td>
+            <td>
+              @if (point.resultAfterDirectCosts === null) {
+                unbekannt
+              } @else {
+                {{ point.resultAfterDirectCosts | number: '1.2-2' }} €
+              }
+            </td>
           </tr>
         }
       </tbody>

@@ -48,6 +48,20 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Codex (GPT-5; Reviews und Umsetzung mit GPT-5.6 Sol/Terra) – Kostenbasis und Prüfarchiv abgesichert
+
+**Art:** Bugfix | Test | Dokumentation
+
+**Betroffen:** Kostenberechnung, Dashboard, Prüfarchiv, Supabase-Schema, Deployment-Prüfungen
+
+**Was:** Sechs bestätigte Review-Bereiche korrigiert: unbekannte Kosten, exakter Restwert, Diagrammlücken, gemeinsamer Archiv-Snapshot, vollständige Kostenexporte und deklarative Rechte. Aktuelle Einkaufsdaten gehen älteren eingebetteten Beziehungen vor. Vorhandene Exportrechte der Buchhaltung erhalten. Migration automatisch in einem isolierten lokalen Projekt erzeugt und geprüft. Fremde Arbeitszweige und Änderungen bleiben unberührt.
+
+**Warum:** Keine scheinbaren Gewinne aus fehlenden Nullkosten und kein aus mehreren Zeitständen zusammengesetztes Prüfarchiv. Die zusätzlichen Kostendateien sichern die Nachvollziehbarkeit. Das Archiv bricht oberhalb von 100.000 Datensätzen oder 50 MiB JSON ausdrücklich ab.
+
+**Verifiziert durch:** Finales `npm run verify` mit Exitcode 0, 1.404 Anwendungstests bestanden (fünf bestehende übersprungen), sechs Browsertests bestanden, 864 Datenbank-Assertions bestanden. Kritische Abdeckung aller sechs ausgewählten Dateien über unveränderten 95/90-Grenzen. Sniper-Typprüfung und 73 Tests bestanden. Kein Push und kein Deployment. Offene ursprüngliche Settings-Aufgaben und Landingpage-Befunde im Abschlussbericht `docs/superpowers/reports/2026-09-04-overhaul-integration-result.md` dokumentiert.
+
+---
+
 ## 2026-09-04 – Codex (GPT-5) – Master in den Warenwirtschaftsumbau integriert
 
 **Art:** Integration | Analyse | Test

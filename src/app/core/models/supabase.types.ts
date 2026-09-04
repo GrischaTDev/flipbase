@@ -1967,6 +1967,149 @@ export type Database = {
           },
         ]
       }
+      sniper_listings: {
+        Row: {
+          brand: string | null
+          condition: string | null
+          country_code: string | null
+          currency: string
+          description: string | null
+          discovered_by_query_id: string | null
+          external_id: string
+          first_seen_at: string
+          id: string
+          image_urls: string[]
+          is_hidden: boolean
+          item_price: number
+          item_updated_at: string | null
+          marketplace: string
+          photo_uploaded_at: string | null
+          seller_avatar_url: string | null
+          seller_name: string | null
+          seller_rating: number | null
+          seller_review_count: number | null
+          size: string | null
+          title: string
+          total_price: number
+          url: string
+        }
+        Insert: {
+          brand?: string | null
+          condition?: string | null
+          country_code?: string | null
+          currency?: string
+          description?: string | null
+          discovered_by_query_id?: string | null
+          external_id: string
+          first_seen_at?: string
+          id?: string
+          image_urls?: string[]
+          is_hidden?: boolean
+          item_price: number
+          item_updated_at?: string | null
+          marketplace?: string
+          photo_uploaded_at?: string | null
+          seller_avatar_url?: string | null
+          seller_name?: string | null
+          seller_rating?: number | null
+          seller_review_count?: number | null
+          size?: string | null
+          title: string
+          total_price: number
+          url: string
+        }
+        Update: {
+          brand?: string | null
+          condition?: string | null
+          country_code?: string | null
+          currency?: string
+          description?: string | null
+          discovered_by_query_id?: string | null
+          external_id?: string
+          first_seen_at?: string
+          id?: string
+          image_urls?: string[]
+          is_hidden?: boolean
+          item_price?: number
+          item_updated_at?: string | null
+          marketplace?: string
+          photo_uploaded_at?: string | null
+          seller_avatar_url?: string | null
+          seller_name?: string | null
+          seller_rating?: number | null
+          seller_review_count?: number | null
+          size?: string | null
+          title?: string
+          total_price?: number
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sniper_listings_discovered_by_query_id_fkey"
+            columns: ["discovered_by_query_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_queries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sniper_queries: {
+        Row: {
+          brand_id: number | null
+          catalog_id: number | null
+          consecutive_failures: number
+          created_at: string
+          id: string
+          is_active: boolean
+          is_seeded: boolean
+          is_standard: boolean
+          last_polled_at: string | null
+          last_status: string
+          marketplace: string
+          poll_interval_ms: number
+          price_to: number | null
+          query_key: string
+          search_text: string
+          updated_at: string
+        }
+        Insert: {
+          brand_id?: number | null
+          catalog_id?: number | null
+          consecutive_failures?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_seeded?: boolean
+          is_standard?: boolean
+          last_polled_at?: string | null
+          last_status?: string
+          marketplace?: string
+          poll_interval_ms?: number
+          price_to?: number | null
+          query_key: string
+          search_text: string
+          updated_at?: string
+        }
+        Update: {
+          brand_id?: number | null
+          catalog_id?: number | null
+          consecutive_failures?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          is_seeded?: boolean
+          is_standard?: boolean
+          last_polled_at?: string | null
+          last_status?: string
+          marketplace?: string
+          poll_interval_ms?: number
+          price_to?: number | null
+          query_key?: string
+          search_text?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       sources: {
         Row: {
           created_at: string
@@ -2706,6 +2849,10 @@ export type Database = {
         Returns: Json
       }
       create_workspace: { Args: { p_name: string }; Returns: string }
+      export_audit_snapshot: {
+        Args: { p_filter?: Json; p_workspace_id: string }
+        Returns: Json
+      }
       finalize_purchase_costing: {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: Json

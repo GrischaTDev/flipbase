@@ -19,6 +19,7 @@ import { REVENUE_CHART_FACTORY, RevenueLineChart } from './revenue-chart.chart';
 import {
   REVENUE_CHART_SERIES,
   createRevenueChartConfiguration,
+  formatChartAmount,
   revenueChartPalette,
 } from './revenue-chart.config';
 
@@ -28,11 +29,6 @@ interface VisibleRevenueTooltip {
   readonly left: number;
   readonly top: number;
 }
-
-const euroFormatter = new Intl.NumberFormat('de-DE', {
-  style: 'currency',
-  currency: 'EUR',
-});
 
 /** Zahlungsstrom-Diagramm mit vollstaendiger tabellarischer Alternative. */
 @Component({
@@ -53,7 +49,7 @@ export class RevenueChartComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly prefersReducedMotion = signal(false);
   private chartInstance?: RevenueLineChart;
-  private renderedConfiguration?: ChartConfiguration<'line', number[], string>;
+  private renderedConfiguration?: ChartConfiguration<'line', (number | null)[], string>;
   private motionMediaQuery?: MediaQueryList;
 
   readonly configuration = computed(() =>
@@ -82,7 +78,7 @@ export class RevenueChartComponent {
   readonly keyboardPointDescription = computed(() => {
     const point = this.points()[this.keyboardPointIndex()];
     if (!point) return 'Keine Datenpunkte verfügbar';
-    return `${point.label}: Verkaufserlös ${euroFormatter.format(point.revenue)}, Wareneinsatz ${euroFormatter.format(point.costOfGoodsSold)}, Verkaufskosten ${euroFormatter.format(point.sellingCosts)}, Ergebnis nach direkten Kosten ${euroFormatter.format(point.resultAfterDirectCosts)}`;
+    return `${point.label}: Verkaufserlös ${formatChartAmount(point.revenue)}, Wareneinsatz ${formatChartAmount(point.costOfGoodsSold)}, Verkaufskosten ${formatChartAmount(point.sellingCosts)}, Ergebnis nach direkten Kosten ${formatChartAmount(point.resultAfterDirectCosts)}`;
   });
 
   constructor() {
@@ -165,7 +161,12 @@ export class RevenueChartComponent {
     }
 
     const title = tooltip.title[0];
-    const lines = tooltip.body.flatMap((entry) => entry.lines);
+    const point = this.points()[tooltip.dataPoints?.[0]?.dataIndex ?? -1];
+    const lines = point
+      ? REVENUE_CHART_SERIES.map(
+          (series) => `${series.label}: ${formatChartAmount(point[series.key])}`,
+        )
+      : tooltip.body.flatMap((entry) => entry.lines);
     if (!title || lines.length === 0) {
       this.activeTooltip.set(null);
       return;
@@ -197,10 +198,10 @@ export class RevenueChartComponent {
     this.activeTooltip.set({
       title: point.label,
       lines: [
-        `Verkaufserlös: ${euroFormatter.format(point.revenue)}`,
-        `Wareneinsatz: ${euroFormatter.format(point.costOfGoodsSold)}`,
-        `Verkaufskosten: ${euroFormatter.format(point.sellingCosts)}`,
-        `Ergebnis nach direkten Kosten: ${euroFormatter.format(point.resultAfterDirectCosts)}`,
+        `Verkaufserlös: ${formatChartAmount(point.revenue)}`,
+        `Wareneinsatz: ${formatChartAmount(point.costOfGoodsSold)}`,
+        `Verkaufskosten: ${formatChartAmount(point.sellingCosts)}`,
+        `Ergebnis nach direkten Kosten: ${formatChartAmount(point.resultAfterDirectCosts)}`,
       ],
       left: horizontalInset + usableWidth * position,
       top: Math.max(80, height / 2),
