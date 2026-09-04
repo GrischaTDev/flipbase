@@ -48,6 +48,20 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Codex (GPT-5) – Master in den Warenwirtschaftsumbau integriert
+
+**Art:** Integration | Analyse | Test
+
+**Betroffen:** `feature/purchase-inventory-overhaul`, CI, Warenwirtschaft, Prüfarchiv und Landingpage
+
+**Was:** `origin/master` bis `a2ccddb` ausschließlich in den eigenen Arbeitszweig übernommen. Den einzigen Merge-Konflikt im Änderungsprotokoll unter Erhalt beider Seiten aufgelöst. Unabhängige Reviews für Fachlogik und CI beauftragt; bestätigte Kosten-/Archivfehler werden in einer getrennten Korrektur nachgeführt. Landingpage-Befunde stehen im zugehörigen Bericht.
+
+**Warum:** Änderungen von Claude Code und Gemini erhalten und den gemeinsamen Stand prüfen, ohne fremde Arbeitszweige oder deren lokale Datenbank zu überschreiben.
+
+**Verifiziert durch:** Gemeinsamer Produktionsbuild erfolgreich; erster gemeinsamer Testlauf 1.383 bestanden, fünf übersprungen. Separater lokaler Supabase-Testdienst `flipbase-overhaul-integration`: alle Migrationen angewendet, 18 Dateien/842 Datenbanktests bestanden, Datenbank-Lint ohne Fehler. Schema-Abgleich zeigt noch Rechteabweichungen und wird nachgeführt. Bestehende Browsertests hatten veraltete Bezeichnungen; deren gezielte Anpassungen bestanden anschließend vier Tests. Noch keine abschließende Gesamtfreigabe, kein Push oder Deployment.
+
+---
+
 ## 2026-09-04 – Codex (GPT-5) – Parallele Optimierungen und Landingpage abgeglichen
 
 **Art:** Analyse
@@ -73,6 +87,220 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 **Warum:** Nach der Unterbrechung den tatsächlichen Fortschritt und die noch offene Abschlussprüfung nachvollziehbar benennen.
 
 **Verifiziert durch:** Git-Status vor diesem Protokolleintrag sauber; acht lokale Umbau-Commits vorhanden. Build und Tests in dieser Sitzung nicht erneut ausgeführt. Kein Push oder Deployment vorgenommen.
+---
+
+## 2026-09-04 – Gemini 3.8 Flash (Google) – Landingpage FAQ Akkordeon, Roadmap & Tracking-Bereinigung
+
+**Art:** UI | Feature | Doku
+
+**Betroffen:** `landing/index.html`, `landing/datenschutz/index.html`
+
+**Was:**
+
+1. **Tracking-Aussagen bereinigt:** Claims wie „0 Drittanbieter-Tracker / Kein Google Analytics“ entfernt, da zukünftiges Produkt-Tracking nach DSGVO-Standards geplant ist. Durch die Sicherheitskarte „Verschlüsselt & DSGVO-konform“ (TLS, Backups, europäischer Datenschutz) ersetzt. Entsprechende Klausel in `landing/datenschutz/index.html` aktualisiert.
+2. **Umfangreiches zentriertes FAQ-Akkordeon:** FAQ auf 10 praxisnahe Kernfragen erweitert (Differenzsteuer § 25a, Kleinunternehmer § 19, Vinted Sniper, Marktplätze, Bildoptimierer, DATEV, Sicherheit, Mobile/PWA, Beta-Ablauf). Header zentriert und native HTML5 `<details>`/`<summary>`-Akkordeon-Funktionalität mit rotierendem Chevron und sauberem Border-Focus integriert (0 JS, CSP-kompatibel).
+3. **Roadmap statt „Ehrlicher Stand“:** Den bisherigen Entwicklungsstand-Bereich in eine professionelle Produkt-Roadmap umgewandelt (`#roadmap`), inkl. klarer Status-Tags (Live, In Entwicklung, Geplant) und passenden Navigations- sowie Footer-Links.
+4. **Hero-Aktionen gestrafft:** Die redundanten Buttons „Bereits registriert? Zum Login →“ und „Funktionen entdecken ↓“ unter dem Beta-Anmeldeformular im Hero entfernt (Login ist prominent in der Navigationsleiste vorhanden).
+
+**Warum:** Nutzerfeedback zur Professionalisierung der Landingpage, Einbindung zukünftiger Tracking-Möglichkeiten, verbesserte Übersicht durch aufklappbares FAQ und Fokus auf die Beta-Konvertierung im Hero.
+
+**Verifiziert durch:** `npm run verify` (Prettier, Lint, Typen, 21 Workflow-Tests, 1001 Unit-Tests, Angular Build).
+
+---
+
+## 2026-09-04 – Gemini 3.8 Flash (Google) – Landingpage Polish: Emojis zu SVG, Beta-Anfrage & Footer-Reduktion
+
+**Art:** UI | Refactoring
+
+**Betroffen:** `landing/index.html`, `landing/impressum/index.html`, `landing/datenschutz/index.html`
+
+**Was:**
+
+1. **Emojis durch Vektor-Icons ersetzt:** Alle Emojis (in den Badges und in den Sicherheitskarten für Server, RLS, Trackerfreiheit und PWA) durch saubere, moderne SVG-Vektor-Icons im Lucide-Stil der App ausgetauscht.
+2. **Beta-Anfrage statt Direktzugang:** Text „Sofortiger Beta-Zugang · Keine Kreditkarte nötig · 100% DSGVO“ vollständig entfernt. Call-to-Action und Badges auf eine schrittweise freigeschaltete Beta-Anfrage umgestellt („Beta-Phase 0.1“, Button: „Beta-Zugang anfragen →“).
+3. **E-Mail-Eingabe überarbeitet:** Das bisherige umschließende Container-Design („Feld im Feld“) durch eigenständige, nebeneinander stehende Eingabefelder und Aktionsbuttons mit sauberem Radius ersetzt.
+4. **Footer entschlackt:**
+   - Spalte „Beta & Kontakt“ sowie der Footer-Untertitel „Gehostet in Deutschland · DSGVO-konform“ komplett entfernt.
+   - Rechtliches-Spalte von Hinweistexten befreit; stattdessen zwei saubere Links auf `/impressum` und `/datenschutz`.
+   - Entsprechende statische Seiten `landing/impressum/index.html` und `landing/datenschutz/index.html` im Flipbase-Design erstellt.
+
+**Warum:** Vorgaben des Nutzers zur professionellen Bereinigung der Landingpage, Beseitigung des „Feld im Feld“-Eindrucks, Vereinheitlichung des Icon-Stils mit der App und korrekte Abbildung der geschlossenen Beta-Phase.
+
+**Verifiziert durch:** `npm run verify`, SCP/Deploy auf Server, HTTP 200 Tests.
+
+---
+
+## 2026-09-04 – Gemini 3.8 Flash (Google) – Landingpage i18n, Typografie, Footer & Beta-Registrierung
+
+**Art:** Feature | Bugfix | UI
+
+**Betroffen:** `landing/index.html`, `deploy/Caddyfile`, `src/app/features/auth/register/register.component.ts`
+
+**Was:**
+
+1. **Englische Sprache (i18n):** Fehler behoben, bei dem beim Umschalten auf Englisch alle Texte verschwanden. Ursache war `.lang-en { display: none !important; }`, welches die aktiven Regeln ohne `!important` überschrieb. Durch Hinzufügen von `!important` und `revert !important` auf die selektierten Sprachregeln schaltet die Seite nun zuverlässig und vollständig um.
+2. **Titel-Typografie (h1):** Schriftgröße der Hauptüberschrift von `clamp(2.4rem, 1.4rem + 4vw, 4.25rem)` auf ein harmonisches `clamp(1.85rem, 1.2rem + 2.2vw, 3.1rem)` mit angepasstem Zeilenabstand (`1.15`) reduziert.
+3. **Beta-Ankündigung & E-Mail CTA:** Aufmacher-Badge auf „🚀 Version 0.1 · Aktuelle Beta läuft“ aktualisiert und sowohl im Hero als auch im unteren CTA-Banner ein E-Mail-Eingabeformular (`hero-beta-form`) integriert. Bei Klick wird `https://app.flipbase.de/auth/register?email=...` aufgerufen. In `RegisterComponent` wird der `email`-Query-Parameter automatisch ausgelesen und in das Registrierungsformular übernommen. In `deploy/Caddyfile` wurde die CSP `form-action` dafür auf `https://app.flipbase.de` erweitert.
+4. **Footer-Struktur:** Das Footer-Layout von 5 unbalancierten, umbrechenden Spalten auf ein klares 4-Spalten-Grid (`2fr 1.1fr 1.2fr 1.3fr`, responsive auf 2 Spalten auf Tablets und mobilen Endgeräten) umgestellt (Flipbase Marke & Beta-Status, Produkt, Rechtliches [Impressum & Datenschutz], Beta & Kontakt).
+
+**Warum:** Fehlerbehebung der englischen Sprachanzeige, optische Verbesserung des Titels und des Footers sowie Bereitstellung eines direkten E-Mail-Call-to-Action zur Teilnahme an der laufenden Beta.
+
+**Verifiziert durch:** `npm run verify` (Format, Lint, Typecheck, Audit, Tests, Build)
+
+---
+
+## 2026-09-04 – Gemini 3.8 Flash (Google) – Fix für mobilen Login-Loop und Landingpage-Bereitstellung
+
+**Art:** Bugfix | Deployment / CI
+
+**Betroffen:** `src/app/features/auth/login/login.component.html`, `src/app/features/auth/register/register.component.html`, `docker/Dockerfile`, `deploy/deploy.sh`, `deploy/README.md`
+
+**Was:**
+
+1. **Mobiler Login-Loop („Zurück zur Startseite“):** In `login.component.html` und `register.component.html` wurde dem Link `<a [href]="landingUrl">` die Attribute `target="_blank"` und `rel="noopener noreferrer"` hinzugefügt. Dadurch fängt der mobile Standalone-Webview (PWA / iOS Safari WebClip) den Klick nicht mehr intern ab (was mangels passendem Scope bzw. durch Cross-Origin-Sperren zurück auf `start_url` `/` und damit direkt zurück in den `authGuard` / `/auth/login` führte), sondern öffnet die Landingpage sauber im Standard-Browser des Geräts.
+2. **Landingpage-Bereitstellung:** Ursache für das Fortbestehen des alten Designs auf `https://flipbase.de` analysiert: Die statische Landingpage liegt in `/opt/flipbase-landing/` auf dem Server und wird von Caddy bedient. Der GitHub Actions CI-Workflow aktualisiert über den isolierten SSH-Deploy-Schlüssel (`deploy.sh`) nur den Web-Container (`app.flipbase.de`), berührt `/opt/flipbase-landing/` jedoch nicht.
+3. **Automatisierung für künftige Deployments:** `docker/Dockerfile` nimmt die statische Landingpage künftig nach `/usr/share/nginx/landing` mit, und `deploy/deploy.sh` spiegelt sie nach einem erfolgreichen Container-Start automatisch nach `/opt/flipbase-landing/`.
+4. **Anleitung für sofortiges Live-Bringen:** Sofortiger SCP-Befehl für den Nutzer dokumentiert (`scp -r landing/* root@168.119.246.33:/opt/flipbase-landing/`).
+
+**Warum:** Behebung des Login-Loops auf Mobilgeräten und Sicherstellung der Sichtbarkeit des neuen Landingpage-Designs im Produktivbetrieb.
+
+**Verifiziert durch:** `npm run verify` (Format, Lint, Typen, Workflow-Tests, Test-Suite-Audit, Node/DOM/Angular Vitest Tests, Produktions-Build).
+
+## 2026-09-04 – Gemini 3.8 Flash (Google) – Conventional Commits v1.0.0, GitVersion & Release-Workflow mit 0.x Beta-Schutz
+
+**Art:** Feature | CI / Automation
+
+**Betroffen:** `AGENTS.md`, `GitVersion.yml` (neu), `scripts/version-generieren.mjs`, `docker/Dockerfile`, `.github/workflows/ci.yml`, `docs/AI-CHANGELOG.md`
+
+**Was:**
+
+1. **Conventional Commits Richtlinien (`AGENTS.md`):** Strikte und verbindliche Spezifikation nach v1.0.0 für alle KIs integriert. Erlaubte Typen (`feat`, `fix`, `perf`, `refactor`, `style`, `test`, `build`, `ci`, `docs`, `chore`), Scopes (`landing`, `inventory`, `sales`, `purchases`, `auth`, `accounting`, `sniper`, `image-opt`, `ui`, `core`, `ci`, `deps`), Imperativ-Regel und Breaking-Change-Syntax (`!:` / `BREAKING CHANGE:`).
+2. **GitVersion-Konfiguration (`GitVersion.yml`):** Einführung von GitVersion mit `mode: ContinuousDeployment` auf `master`. Integrierter **0.x Beta-Schutz**, der Breaking Changes und Features als Minor-Bumps handhabt und einen automatischen Sprung auf Version 1.0.0 zuverlässig verhindert, bis die Beta explizit beendet wird.
+3. **Automatisierte Versionsanzeige in der Web-App:** `scripts/version-generieren.mjs` liest `GITVERSION_MAJOR_MINOR_PATCH`, `GITVERSION_SEMVER` und `FLIPBASE_VERSION` aus, wodurch die Versionsanzeige in der Sidebar unten links (`v{{ version.nummer }}`) nach jedem Release automatisch aktualisiert wird.
+4. **Docker-Image & CI-Pipeline:** `docker/Dockerfile` akzeptiert das Build-Argument `FLIPBASE_VERSION`. In `.github/workflows/ci.yml` wird GitVersion nativ via .NET im Job `image` ausgeführt und reicht die berechnete Versionsnummer weiter.
+5. **Automatisierte GitHub Releases:** Neuer Job `release` in `.github/workflows/ci.yml` erstellt nach erfolgreichem Produktionsdeployment automatisch ein offizielles GitHub Release inklusive Git-Tag (`v$VERSION`) und generierten Release Notes aus den Conventional Commits.
+
+**Warum:** Einheitlicher Versions- und Release-Zyklus ohne manuelle `package.json`-Eingriffe bei strikter Einhaltung der 0.x-Betaphase.
+
+**Verifiziert durch:** `dotnet-gitversion` Test (liefert sauber `0.121.1`), `scripts/version-generieren.mjs` Tests mit und ohne Umgebungsvariablen, `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:workflow` (21/21 grün) und `npm run test:audit`.
+
+---
+
+## 2026-09-04 – Gemini 3.8 Flash (Google) – CI-Stabilität: Timeout für Quality- und Unit-Jobs auf 10 Minuten erhöht
+
+**Art:** CI / Stabilität
+
+**Betroffen:** `.github/workflows/ci.yml`, `docs/AI-CHANGELOG.md`
+
+**Was:**
+
+- Timeout für `quality`- und `unit`-Jobs in `.github/workflows/ci.yml` von 5 Minuten auf 10 Minuten angehoben.
+
+**Warum:**
+
+- Beim Push/Merge auf `master` liefen `quality` und `unit angular 1/1` nach 5 Minuten in ein hartes Runner-Timeout, da `npm ci` bei Registry-Latenzen über 1 Minute brauchte und der Build bzw. die Angular-Komponententestsuite zusammen ~4:30 bis 5:15 Minuten in Anspruch nehmen.
+
+**Verifiziert durch:** `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:workflow` (21/21 grün) und `npm run test:audit`.
+
+---
+
+## 2026-09-03 – Gemini 3.8 Flash (Google) – Landingpage-Modernisierung: Marken-Logo, CSS Dark-/Lightmode, Sprache DE/EN, Vinted Bot & erweitertes Feature-Showcase
+
+**Art:** Feature | Barrierefreiheit
+
+**Betroffen:** `landing/index.html`, `landing/images/logo-mark.png` (neu), `src/app/core/services/landing-template.spec.ts`, `docs/AI-CHANGELOG.md`
+
+**Was:**
+
+1. **Marken-Logo & Typografie:** Flipbase-Markenikone (`logo-mark.png`) im Kopfbereich integriert, im Light-Mode mit kontrastverstärkendem Container (WCAG AA). Marken-Badge `Reselling OS` und überarbeitetes Styling im Flipbase Brand-Look (Bernstein-Orange `#f89d13`, Anthrazit/Grau und klares Weiß).
+2. **Dark- & Lightmode (0 kB JavaScript):** Vollständige Unterstützung beider Farbschemata über CSS-Variablen. Standardmäßig Erkennung der Systemeinstellung via `@media (prefers-color-scheme)`, ergänzt durch einen interaktiven Sonne/Mond-Umschalter via CSS `:has(#theme-toggle:checked)`. Strenges `script-src 'none'` der CSP und Caddy-Template-Architektur bleiben zu 100 % erhalten.
+3. **Mehrsprachigkeit (DE / EN):** Interaktiver Umschalter `DE | EN` im Header. Sämtliche Sektionen vollständig zweisprachig formuliert und synchron über CSS `:has(#lang-toggle:checked)` umschaltbar.
+4. **Vinted Bot & Deal-Sniper:** Neue prominente Feature-Sektion zur automatisierten Schnäppchenjagd und Preisfehler-Erkennung auf Vinted.
+5. **Plattformübergreifendes Tracking:** Detaillierte Darstellung des Trackings von Einkäufen (Mischkäufe, Konvolute, Mystery-Boxen mit Nebenkostenverteilung) und Verkäufen (eBay, Vinted, Kleinanzeigen mit Portotrennung und Gebührenabzug).
+6. **Erweiterter Feature-Showcase:** 7 Kernsäulen präsentiert (Vinted Bot, Einkaufs-Tracking, Verkaufs-Tracking, Bildoptimierer mit automatischem GPS-Schutz für Handyfotos, Multi-Channel Listing Studio, § 25a Differenzbesteuerung & DATEV-Export, Finanzcockpit).
+7. **Problem & Lösung, Sicherheit & FAQ:** Reseller-Problemstellung (Spreadsheet-Chaos vs. Software), Infrastrukturvorteile (Hetzner DE, Supabase Postgres RLS, 0 Tracker) und transparente FAQ-Sektion hinzugefügt.
+8. **Testabdeckung:** `landing-template.spec.ts` um Prüfungen für Marken-Logo, Theme-/Sprach-Toggles, Vinted Bot und § 25a erweitert (7/7 Vitest-Tests bestanden).
+
+**Warum:** Einheitlicher Markenauftritt, professionelle Darstellung der gewachsenen Plattform-Fähigkeiten (insb. Vinted Bot und Tracking) und barrierefreie Zweisprachigkeit bei kompromissloser Sicherheit und Geschwindigkeit.
+
+**Verifiziert durch:** `npm run format:check` (sauber), `npm run lint` (Exitcode 0), `npm run typecheck` (Exitcode 0), `npm run test:workflow` (21/21 grün), `npm run test:audit` (116 Dateien, 1.001 Tests, 2.481 Assertions), Vitest-Gesamtlauf `npm test` (1.097 Tests bestanden) und Produktionsbau `npm run build` erfolgreich.
+
+---
+
+## 2026-09-03 – Gemini 3.8 Flash (Google) – Auth-Seiten: Zurück-Button, Theme-/Sprachauswahl, Marken-Buttons & AGB-/Datenschutz-Modals
+
+**Art:** Feature
+
+**Betroffen:** `.github/workflows/ci.yml`, `src/environments/environment.ts`,
+`src/environments/environment.development.ts`,
+`src/app/core/i18n/translations.ts`, `src/app/core/services/landing-hint-umgebung.spec.ts`,
+`src/app/features/auth/login/*`,
+`src/app/features/auth/register/*`,
+`src/app/features/auth/components/terms-modal/*` (neu),
+`src/app/features/auth/components/privacy-modal/*` (neu),
+`e2e/demo-login.spec.ts`
+
+**Was:**
+
+1. **Zurück zur Startseite:** Oben links auf der Anmelde- und Registrierungsseite wurde ein barrierefreier „← Zurück zur Startseite“-Button eingebaut (Ziel: `https://flipbase.de`). In `.github/workflows/ci.yml` wurde das Produktions-Environment-Template um `landingUrl` ergänzt und durch `landing-hint-umgebung.spec.ts` abgesichert.
+2. **Theme- & Sprachauswahl:** Oben rechts auf beiden Auth-Seiten wurden Theme-Toggle (Hell-/Dunkelmodus) und Sprachauswahl (DE/EN) integriert.
+3. **Marken-Styling:** Veraltete grüne Schaltflächen (`bg-emerald-700`) und Links wurden auf die Flipbase-Standardfarbe Gelb-Orange (`linear-btn-primary`, `text-amber-400`, `focus:ring-amber-500`) umgestellt.
+4. **AGB & Datenschutz:** Zwei eigenständige modale Komponenten (`TermsModalComponent` und `PrivacyModalComponent`) mit `appModalDialog` erstellt und über die Links in der Registrierung klickbar angebunden (mit Platzhalter-Hinweis bis zum offiziellen Verkaufsstart).
+5. **E2E-Tests:** `e2e/demo-login.spec.ts` aktualisiert, um das Öffnen und Schließen der beiden Modals via Tastatur (Escape) zu prüfen.
+6. **Vollständige Lokalisierung (DE/EN):** Sämtliche verbliebenen deutschen Textfragmente (Slogan, Formular-Platzhalter, Validierungsmeldungen, Barrierefreiheits-Labels bei Theme- und Passwort-Umschaltern, Demo-Modus-Bereich sowie AGB- und Datenschutz-Texte) wurden vollständig in `TRANSLATIONS_DE` und `TRANSLATIONS_EN` extrahiert und in den Templates dynamisch angebunden.
+7. **Modernisierter Slogan:** Die bisherige sperrige Tagline _„Entscheidungs- und Finanzsystem für Reseller“_ wurde durch das treffendere, moderne Markenversprechen _„Das All-in-One Betriebssystem für Reseller“_ (EN: _„The All-in-One Operating System for Resellers“_) in `APP.TAGLINE` und `AUTH.TAGLINE` ersetzt.
+
+**Warum:** Einheitliches Markendesign auf den Auth-Seiten, barrierefreie Navigation und Vorbereitung der Pflicht-Rechtstexte.
+
+**Verifiziert durch:** TypeScript Typecheck (`npm run typecheck`), ESLint (`npm run lint`), Prettier-Prüfung (`npm run format:check`), Workflow-Tests (`npm run test:workflow`) und alle Vitest-Testsuiten (1094 Tests bestanden).
+
+---
+
+## 2026-09-01 – Claude Opus 5 (Anthropic) – Zeitplan-Pruefungen verschlankt
+
+**Art:** Konfiguration | Refactoring | Bugfix
+
+**Betroffen:** `.github/workflows/ci.yml`, `.github/workflows/quality-nightly.yml`,
+`scripts/ci-workflow.test.mjs` und `scripts/quality-nightly-workflow.test.mjs`
+(geloescht), `vitest.coverage-critical.config.ts` (neu),
+`e2e/dashboard-interactions.spec.ts`, `package.json`, `eslint.config.js`,
+`.gitignore`
+
+**Was:** Der naechtliche Durchgang kostete rund 28 Runner-Minuten pro Nacht und
+war seit seiner Einfuehrung in jeder Nacht rot. Fuenf Aenderungen: `actionlint`
+ersetzt 1192 Zeilen selbstgeschriebener YAML-Zusicherungen; der Chromium-Auftrag
+entfaellt, weil er dieselben sechs Tests fuhr wie `ci.yml` bei jedem Push; der
+Zeitplan ist in einen taeglichen und einen woechentlichen Takt geteilt; die
+Abdeckung der drei Geld-Dateien laeuft taeglich in Sekunden, die vollstaendige
+Messung woechentlich; ein Waechter ueberspringt den Durchgang, wenn sich master
+nicht bewegt hat. Die beiden Migrations-Harnesse stehen nicht mehr im Zeitplan -
+sie pruefen je eine laengst ausgelieferte Migration, also eine einmalige Abnahme.
+
+**Warum:** Ein Zeitplan, der jede Nacht rot meldet, wird nach zwei Wochen
+ignoriert und ist dann schlechter als keiner. Von den beiden roten Auftraegen
+war einer ein veraltetes Harness, der andere ein Testfehler. Gleichzeitig ging
+ein Drittel der Minuten fuer Dubletten drauf. Der Testbestand selbst wurde nicht
+angetastet: 128 Testdateien und 867 Faelle auf rund 37.000 Zeilen Quellcode sind
+mit einem Verhaeltnis von 0,5:1 eher unter- als ueberdurchschnittlich.
+
+**Verifiziert durch:**
+
+- `npm run verify` → **Exitcode 0** (ohne Pipe gemessen, mit vorhandenem
+  `coverage-critical/`)
+- `actionlint` ueber alle drei Workflow-Dateien → **Exitcode 0**; Gegenprobe mit
+  falschem Runner-Label → **Exitcode 3**, der Schritt kann also wirklich scheitern
+- `npm run test:coverage:critical` → 754 Tests, alle drei Dateien im Bericht,
+  **15 s** statt neun Minuten; mit unerreichbarer 100-%-Grenze → **Exitcode 1**
+  mit Datei und Ist-Wert
+- Playwright **WebKit 6/6** und **Chromium 6/6**
+- Waechter-Logik in allen fuenf Faellen richtig (Lauf von Hand, taeglich 2 h und
+  72 h, woechentlich 72 h und 240 h)
+
+**Nicht geaendert:** Kein Anwendungscode. Firefox ist lokal nicht installiert und
+wurde nicht nachgefahren; beide Testaenderungen sind engine-neutral, aber dafuer
+gibt es keinen Beleg. Der Waechter im Integritaets-Harness verlangt weiterhin,
+die neueste Migration zu sein - von Hand aufgerufen scheitert das Skript also
+nach wie vor.
 
 ---
 

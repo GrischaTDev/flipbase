@@ -29,11 +29,12 @@ env:
 
 jobs:
   changes:
-    name: Detect database changes
+    name: Detect database and service changes
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       supabase: ${{ steps.filter.outputs.supabase }}
+      sniper: ${{ steps.filter.outputs.sniper }}
     steps:
       - name: Check out repository history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -53,7 +54,7 @@ jobs:
   quality:
     name: Quality
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -82,6 +83,27 @@ jobs:
       - name: Check types
         run: npm run typecheck
 
+      # Prueft die Workflow-Dateien selbst: Syntax, ungueltige Ausdruecke,
+      # kaputte Matrizen, unsichere Shell-Interpolation. Ersetzt rund 1200
+      # Zeilen selbstgeschriebener YAML-Zusicherungen, die dasselbe Ziel
+      # ungenauer und mit dauerndem Pflegeaufwand verfolgt haben.
+      #
+      # Fest auf eine Version genagelt und gegen die Pruefsumme der
+      # Veroeffentlichung abgeglichen - ein Download ohne Abgleich waere hier
+      # der einzige ungesicherte Schritt der ganzen Kette.
+      - name: Lint workflow files
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          archiv="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl --fail --silent --show-error --location \
+            --output "$archiv" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${archiv}"
+          echo "$ACTIONLINT_SHA256  $archiv" | sha256sum --check --strict
+          tar -xzf "$archiv" actionlint
+          ./actionlint -color
+
       - name: Test workflow contracts
         run: npm run test:workflow
 
@@ -94,7 +116,7 @@ jobs:
   unit:
     name: Unit ${{ matrix.suite }} ${{ matrix.shard }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -185,6 +207,66 @@ jobs:
         if: ${{ always() }}
         run: npx supabase stop --no-backup
 
+  sniper:
+    name: Sniper service
+    # Nur wenn sich der Dienst geaendert hat. Er liegt in einem eigenen
+    # Paket mit eigenen Abhaengigkeiten; ihn bei jedem Frontend-Push
+    # mitzubauen kostete rund zwei Minuten je Lauf fuer nichts.
+    if: ${{ needs.changes.outputs.sniper == 'true' }}
+    needs: changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: services/sniper
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: services/sniper/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check types
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      # Der Bau gehoert dazu, weil das Betriebsabbild dist/ startet: Node loest
+      # './config.js' nicht auf config.ts auf, ein Tippfehler im Importpfad
+      # faellt erst hier auf.
+      - name: Build
+        run: npm run build
+
+  # Uebersprungene Auftraege gelten bei GitHub als erfolgreich. Ohne dieses
+  # Gatter koennte ein fehlgeschlagener Dienstlauf unbemerkt durchgehen.
+  sniper-gate:
+    name: Sniper gate
+    if: ${{ always() }}
+    needs: [changes, sniper]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require the matching sniper result
+        env:
+          CHANGED: ${{ needs.changes.outputs.sniper }}
+          RESULT: ${{ needs.sniper.result }}
+        run: |
+          if [ "$CHANGED" = 'true' ]; then
+            test "$RESULT" = 'success'
+          else
+            test "$RESULT" = 'skipped'
+          fi
+
   database-gate:
     name: Database gate
     if: ${{ always() }}
@@ -253,11 +335,23 @@ jobs:
       packages: write
     outputs:
       tag: ${{ steps.tag.outputs.value }}
+      version: ${{ steps.gitversion.outputs.value }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Install GitVersion
+        run: dotnet tool install --global GitVersion.Tool --version 6.*
+
+      - name: Determine version
+        id: gitversion
+        run: |
+          VERSION=$(dotnet-gitversion /config GitVersion.yml /showvariable MajorMinorPatch)
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "GitVersion version: $VERSION"
 
       # Every build gets its own immutable tag. That tag is what makes a
       # rollback a one-liner instead of a rebuild.
@@ -297,6 +391,7 @@ jobs:
              * signed in. Holds no token - just a flag.
              */
             landingHintCookieDomain: '.flipbase.de',
+            landingUrl: 'https://flipbase.de',
           };
           EOF
 
@@ -324,11 +419,12 @@ jobs:
           build-args: |
             FLIPBASE_COMMIT=${{ github.sha }}
             FLIPBASE_COMMIT_DATE=${{ github.event.repository.updated_at }}
+            FLIPBASE_VERSION=${{ steps.gitversion.outputs.value }}
 
   deploy:
     name: Deploy to production
-    needs: [quality, test-gate, database-gate, browser-smoke, image]
-    if: ${{ github.event_name == 'push' && always() && needs.quality.result == 'success' && needs.test-gate.result == 'success' && needs.database-gate.result == 'success' && needs.browser-smoke.result == 'success' && needs.image.result == 'success' }}
+    needs: [quality, test-gate, database-gate, sniper-gate, browser-smoke, image]
+    if: ${{ github.event_name == 'push' && always() && needs.quality.result == 'success' && needs.test-gate.result == 'success' && needs.database-gate.result == 'success' && needs.sniper-gate.result == 'success' && needs.browser-smoke.result == 'success' && needs.image.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Read access to the package, so the server can be handed a token that is
@@ -427,3 +523,37 @@ jobs:
         env:
           EXPECTED_COMMIT: ${{ github.sha }}
         run: node scripts/verify-public-deployment.mjs --base-url https://app.flipbase.de --expected-commit "$EXPECTED_COMMIT"
+
+  release:
+    name: Create GitHub Release
+    needs: [deploy, image]
+    if: ${{ github.event_name == 'push' && always() && needs.deploy.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Create release with release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.image.outputs.version }}
+        run: |
+          if [ -z "$VERSION" ]; then
+            echo "Keine Versionsnummer ermittelt - überspringe Release." >&2
+            exit 0
+          fi
+          TAG="v$VERSION"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG existiert bereits - überspringe."
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --generate-notes \
+              --target "$GITHUB_SHA"
+            echo "Release $TAG erfolgreich erstellt."
+          fi

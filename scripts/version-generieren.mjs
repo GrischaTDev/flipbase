@@ -35,6 +35,13 @@ function ausGit(befehl, ersatz) {
 }
 
 const paket = JSON.parse(readFileSync(join(wurzel, 'package.json'), 'utf8'));
+const nummer =
+  (
+    process.env.GITVERSION_MAJOR_MINOR_PATCH ||
+    process.env.GITVERSION_SEMVER ||
+    process.env.FLIPBASE_VERSION ||
+    ''
+  ).trim() || paket.version;
 const commit =
   (process.env.FLIPBASE_COMMIT || '').trim().slice(0, 7) ||
   ausGit('git rev-parse --short HEAD', 'unbekannt');
@@ -47,8 +54,8 @@ const inhalt = `/**
  * Die Datei steht in .gitignore und entsteht bei jedem Build neu.
  */
 export const VERSION = {
-  /** Aus package.json - wird bei einer Veroeffentlichung hochgezaehlt. */
-  nummer: '${paket.version}',
+  /** Berechnete Version von GitVersion oder Fallback aus package.json. */
+  nummer: '${nummer}',
   /** Kurz-Hash des Commits, auf dem dieser Stand gebaut wurde. */
   commit: '${commit}',
   /** Datum dieses Commits (ISO 8601). */
@@ -59,4 +66,4 @@ export const VERSION = {
 const ziel = join(wurzel, 'src', 'app', 'core', 'version.ts');
 mkdirSync(dirname(ziel), { recursive: true });
 writeFileSync(ziel, inhalt, 'utf8');
-console.log(`Version geschrieben: v${paket.version} (${commit}, ${stand})`);
+console.log(`Version geschrieben: v${nummer} (${commit}, ${stand})`);

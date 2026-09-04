@@ -36,7 +36,10 @@ yarn-error.log
 .sass-cache/
 /connect.lock
 /coverage
+/coverage-critical
 /playwright-report/
+# Artefakte der Playwright-MCP-Sitzungen (Seitenabzuege). Rein lokal.
+/.playwright-mcp/
 /test-results/
 /blob-report/
 /libpeerconnection.log

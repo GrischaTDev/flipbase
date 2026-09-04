@@ -18,8 +18,10 @@ COPY . .
 # trotzdem durch.
 ARG FLIPBASE_COMMIT=""
 ARG FLIPBASE_COMMIT_DATE=""
+ARG FLIPBASE_VERSION=""
 ENV FLIPBASE_COMMIT=$FLIPBASE_COMMIT
 ENV FLIPBASE_COMMIT_DATE=$FLIPBASE_COMMIT_DATE
+ENV FLIPBASE_VERSION=$FLIPBASE_VERSION
 
 # `npm run build` statt `npx ng build`: Nur so laeuft der prebuild-Haken mit,
 # der src/app/core/version.ts erzeugt. Diese Datei steht in .gitignore und
@@ -43,6 +45,8 @@ COPY docker/security-headers.conf /etc/nginx/security-headers.conf
 
 # Build-Artefakte aus Stage 1 holen
 COPY --from=build /app/dist/flipbase/browser /usr/share/nginx/html
+# Statische Landingpage mitführen, damit das Ausroll-Skript sie synchronisieren kann
+COPY --from=build /app/landing /usr/share/nginx/landing
 
 # Port 80 freigeben
 EXPOSE 80

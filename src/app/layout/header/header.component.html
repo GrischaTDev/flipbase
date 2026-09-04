@@ -214,9 +214,9 @@
       (click)="themeService.toggleTheme()"
       class="p-1.5 rounded-lg border border-fb-border bg-fb-surface text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
       [attr.aria-label]="
-        themeService.isDark() ? 'Zu hellem Design wechseln' : 'Zu dunklem Design wechseln'
+        (themeService.isDark() ? 'COMMON.SWITCH_TO_LIGHT' : 'COMMON.SWITCH_TO_DARK') | translate
       "
-      [title]="themeService.isDark() ? 'Helles Design' : 'Dunkles Design'"
+      [title]="(themeService.isDark() ? 'COMMON.THEME_LIGHT' : 'COMMON.THEME_DARK') | translate"
     >
       <svg [lucideIcon]="themeService.isDark() ? SunIcon : MoonIcon" class="w-4 h-4"></svg>
     </button>

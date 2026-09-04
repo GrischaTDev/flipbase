@@ -1,0 +1,49 @@
+# GitVersion configuration for Flipbase
+# https://gitversion.net/docs/reference/configuration
+
+assembly-file-versioning-format: '{Major}.{Minor}.{Patch}{PreReleaseLabelWithDash}'
+assembly-versioning-format: '{Major}.{Minor}.{Patch}{PreReleaseLabelWithDash}'
+assembly-informational-format: '{Major}.{Minor}.{Patch}{PreReleaseLabelWithDash}'
+
+strategies:
+  - MergeMessage
+  - TaggedCommit
+  - VersionInBranchName
+  - Mainline
+  - ConfiguredNextVersion
+
+increment: Inherit
+semantic-version-format: Strict
+update-build-number: true
+next-version: 0.1.0
+
+# Conventional Commits: https://www.conventionalcommits.org/en/v1.0.0/
+commit-message-incrementing: Enabled
+no-bump-message: '\+semver:\s?(none|skip)'
+version-in-branch-pattern: '(?<version>[vV]?\d+(\.\d+)?(\.\d+)?).*'
+
+# BETA-SCHUTZ: Solange Flipbase sich in der Beta (0.x) befindet,
+# fuehren Breaking Changes zu einem Minor-Bump (0.1 -> 0.2), NICHT zu 1.0.0.
+# Erst ein explizites '+semver: release-1.0' oder ein Tag 'v1.0.0' fuehrt zum Major-Bump auf 1.0.0.
+major-version-bump-message: '\+semver:\s?(release-1\.0|v1\.0)'
+minor-version-bump-message: '(\+semver:\s?(feature|minor|breaking|major))|((build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\([\w\s-,/\\]*\))?(!:|:.*\n\n((.+\n)+\n)?BREAKING CHANGE:\s.+))|((feat)(\([\w\s-,/\\]*\))?:)'
+patch-version-bump-message: '(\+semver:\s?(fix|patch))|((fix|perf|build|chore|ci|docs|style|refactor|test|revert)(\([\w\s-,/\\]*\))?:)'
+
+merge-message-formats: {}
+
+branches:
+  master:
+    regex: ^master$
+    mode: ContinuousDeployment
+    is-main-branch: true
+    increment: Patch
+    source-branches: []
+    label: ''
+  '*':
+    regex: ^(?<BranchName>.+)$
+    increment: None
+    mode: ContinuousDelivery
+    is-main-branch: false
+    source-branches: [master]
+    label: '{BranchName}'
+    commit-message-incrementing: Disabled

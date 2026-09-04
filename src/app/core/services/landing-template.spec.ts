@@ -29,4 +29,18 @@ describe('Anmeldehinweis auf der Landingpage', () => {
     expect(seite).not.toContain('<script');
     expect(caddyfile).toContain("script-src 'none'");
   });
+
+  it('die Seite bindet das Flipbase-Markenlogo ein', () => {
+    expect(seite).toMatch(/<img[^>]+src="(\/)?images\/logo-mark\.png"/);
+  });
+
+  it('die Seite bietet JavaScript-freie Umschalter fuer Design und Sprache', () => {
+    expect(seite).toContain('id="theme-toggle"');
+    expect(seite).toContain('id="lang-toggle"');
+  });
+
+  it('die Seite stellt Vinted Bot und § 25a Differenzbesteuerung vor', () => {
+    expect(seite).toContain('Vinted Bot');
+    expect(seite).toContain('§ 25a');
+  });
 });
