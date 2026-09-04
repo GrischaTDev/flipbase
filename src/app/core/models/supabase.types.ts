@@ -1967,6 +1967,51 @@ export type Database = {
           },
         ]
       }
+      sniper_hits: {
+        Row: {
+          created_at: string
+          discount_percent: number
+          id: string
+          listing_id: string
+          notified_at: string | null
+          reference_price: number
+          subscription_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_percent: number
+          id?: string
+          listing_id: string
+          notified_at?: string | null
+          reference_price: number
+          subscription_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_percent?: number
+          id?: string
+          listing_id?: string
+          notified_at?: string | null
+          reference_price?: number
+          subscription_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sniper_hits_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sniper_hits_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_query_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sniper_listings: {
         Row: {
           brand: string | null
@@ -2067,6 +2112,7 @@ export type Database = {
           last_status: string
           marketplace: string
           poll_interval_ms: number
+          price_from: number | null
           price_to: number | null
           query_key: string
           search_text: string
@@ -2085,6 +2131,7 @@ export type Database = {
           last_status?: string
           marketplace?: string
           poll_interval_ms?: number
+          price_from?: number | null
           price_to?: number | null
           query_key: string
           search_text: string
@@ -2103,12 +2150,55 @@ export type Database = {
           last_status?: string
           marketplace?: string
           poll_interval_ms?: number
+          price_from?: number | null
           price_to?: number | null
           query_key?: string
           search_text?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      sniper_query_subscriptions: {
+        Row: {
+          created_at: string
+          discount_threshold_percent: number
+          id: string
+          is_active: boolean
+          query_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_threshold_percent?: number
+          id?: string
+          is_active?: boolean
+          query_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_threshold_percent?: number
+          id?: string
+          is_active?: boolean
+          query_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sniper_query_subscriptions_query_id_fkey"
+            columns: ["query_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_queries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sniper_query_subscriptions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sources: {
         Row: {
@@ -2870,6 +2960,17 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      create_sniper_subscription: {
+        Args: {
+          p_brand_id: number
+          p_price_from: number
+          p_price_to: number
+          p_search_text: string
+          p_threshold?: number
+          p_workspace_id: string
+        }
+        Returns: string
       }
       create_workspace: { Args: { p_name: string }; Returns: string }
       export_audit_snapshot: {

@@ -33,8 +33,9 @@ parallel laufende Jobs bestimmen die Gesamtdauer. Nach dem ersten echten Lauf ve
 ## Freigabe einer neuen Migration
 
 Das Release enthält SQL unter `/opt/flipbase/migrations`, außerhalb des Nginx-Webroots.
-Die Liste `deploy/approved-migrations.sha256` ist absichtlich zunächst **leer**.
-Sie ist kein Antrag auf pauschale Freigabe der 22 ausstehenden Altupdates.
+Die Liste `deploy/approved-migrations.sha256` enthält ausschließlich die geprüfte
+Rechtekorrektur `20260904234857_reconcile_anonymous_release_permissions.sql`.
+Sie ist keine pauschale Freigabe der 22 ausstehenden Altupdates.
 
 Neue ungefährliche Änderungen werden im normalen Code-Review freigegeben. Nach
 Prüfung genau dieser unveränderten Datei ihren SHA256 samt **Basename** eintragen:
@@ -131,7 +132,28 @@ Bei Auslagerungsfehler bleibt die verschlüsselte lokale Kopie erhalten, das Rel
 Die bestehende nächtliche Aufbewahrung entfernt auch alte Release-Sicherungen nach 14 Tagen.
 
 Eine erfolgreiche Verschlüsselung oder Übertragung beweist **keine** Wiederherstellbarkeit.
-In dieser Sitzung wurde keine Produktionssicherung entschlüsselt oder wiederhergestellt.
+Am 05.09.2026 wurde eine frische verschlüsselte Produktionssicherung einschließlich
+Rollen auf demselben Host in PostgreSQL 17.6 mit `--network none`, ohne veröffentlichte
+Ports und ohne Produktionsvolumes wiederhergestellt. PostgreSQL verlangt dabei
+den ursprünglichen Bootstrap-Rollennamen `supabase_admin`; dessen bereits durch
+`initdb` erfolgte Rollenerstellung wird genau einmal im Dump ausgelassen. Alle
+Rollenattribute und Mitgliedschaften werden wiederhergestellt. Der Eigentümer
+der vorhandenen Datenbank `postgres` wird nachweislich wie auf der Quelle auf
+`postgres` gesetzt. Die Wiederherstellung bricht bei jedem weiteren SQL-Fehler ab.
+
+Die Probe spielte anschließend alle 22 Altupdates und die zusätzliche Rechtekorrektur
+ein. Alle 24 SQL-Testdateien bestanden (986 Assertions); geprüfte Geschäftszahlen
+und Mengen blieben unverändert. Nur für Test-Fixtures erhielt `postgres` auf der
+Kopie das Recht zum Setzen von `session_replication_role`; produktive Rollenrechte
+werden dafür nicht erweitert. Ein Vorher-/Nachhervergleich im Altdaten-Test wurde
+auf denselben Workspace eingegrenzt, damit fremde bestehende Verkäufe nicht allein
+durch den Rollenwechsel einen Fehlalarm auslösen.
+
+Wichtig: Bestehendes Self-Hosting hat anonyme Standardfreigaben, die frische CLI-
+Datenbanken nicht mehr besitzen. Deshalb wurde die Korrektur mit dem historischen
+Freigabeverhalten generiert und am echten Wiederherstellungsstand geprüft. Sie
+entzieht nur direkte `anon`-Rechte im Anwendungsschema `public` und entsprechende
+Defaults des Migrationsbenutzers `postgres`; fachliche Daten bleiben unverändert.
 Der Abzug enthält sensible Nutzerdaten und Rollen; Schlüssel und Abzug getrennt schützen.
 Wiederherstellung verliert gegebenenfalls Änderungen seit dem Sicherungszeitpunkt und
 braucht einen abgestimmten Stillstand. Storage/DB müssen beim Restore zusammenpassen.

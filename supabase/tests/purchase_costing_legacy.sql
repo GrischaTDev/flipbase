@@ -23,9 +23,9 @@ select has_function(
 
 create temporary table legacy_counts_before as
 select
-  (select pg_catalog.count(*) from public.purchase_lines) as purchase_lines,
+  (select pg_catalog.count(*) from public.purchase_lines where workspace_id = :'legacy_workspace_id') as purchase_lines,
   (select pg_catalog.count(*) from public.business_events where workspace_id = :'legacy_workspace_id') as business_events,
-  (select pg_catalog.md5(pg_catalog.string_agg(pg_catalog.to_jsonb(sale)::text, '' order by sale.id)) from public.sales as sale) as sales_hash;
+  (select pg_catalog.md5(pg_catalog.string_agg(pg_catalog.to_jsonb(sale)::text, '' order by sale.id)) from public.sales as sale where workspace_id = :'legacy_workspace_id') as sales_hash;
 grant select on legacy_counts_before to authenticated;
 
 set local role authenticated;
@@ -44,7 +44,7 @@ select results_eq(
 );
 
 select is(
-  (select pg_catalog.count(*) from public.purchase_lines),
+  (select pg_catalog.count(*) from public.purchase_lines where workspace_id = :'legacy_workspace_id'),
   (select purchase_lines from legacy_counts_before),
   'Vorschau schreibt keine Einkaufspositionen'
 );
@@ -57,7 +57,7 @@ select is(
   'Vorschau schreibt keine Ereignisse'
 );
 select is(
-  (select pg_catalog.md5(pg_catalog.string_agg(pg_catalog.to_jsonb(sale)::text, '' order by sale.id)) from public.sales as sale),
+  (select pg_catalog.md5(pg_catalog.string_agg(pg_catalog.to_jsonb(sale)::text, '' order by sale.id)) from public.sales as sale where workspace_id = :'legacy_workspace_id'),
   (select sales_hash from legacy_counts_before),
   'Vorschau verändert keine Verkaufsdaten'
 );

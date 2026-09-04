@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Produktionsbootstrap und Rechteabgleich
+
+**Art:** Betrieb | Bugfix | Test
+**Betroffen:** Eigener Zweig `fix/reconcile-release-permissions`, isolierte Wiederherstellungsdatenbank auf dem Produktionshost, deklarative DB-Rechte.
+**Was:** Verschlüsseltes Vollbackup lokal und extern erstellt, einschließlich Rollen in abgeschottetem PostgreSQL 17.6 wiederhergestellt und alle 22 fehlenden Migrationen dort erfolgreich angewendet. Eine separat generierte Rechtekorrektur entfernt vererbte anonyme Rechte des bestehenden Self-Hosting-Servers. Deklarative Reihenfolge korrigiert und Datenbanktypen vollständig neu erzeugt (einschließlich bereits integrierter Sniper-Tabellen). Produktive Datenbank zum Zeitpunkt dieser Codefreigabe noch unverändert.
+**Warum:** Deployment erst nach nachgewiesenem Restore und realistischem Upgrade freigeben. Bestehende Migrationen bleiben unverändert.
+**Verifiziert durch:** Zweite frische Wiederherstellung mit anschließendem Upgrade von 53 auf 76 Versionen; alle 24 SQL-Dateien mit 986 Assertions erfolgreich. Neuer Regressionstest zunächst mit fünf reproduzierten Rechtefehlern, anschließend vollständig grün. Geschäftskennzahlen/Mengen unverändert; zusätzliche ACL-Katalogprüfung ohne direkte anon-Grants in public. Unabhängiges Review ohne blockierende Befunde. Vollständiges `npm run verify` erfolgreich; erneuter Abschlusslauf nach Typgenerierung erfolgt vor Push.
+
+## 2026-09-05 – Codex – Erneuten Produktionsabbruch geprüft
+
+**Art:** Analyse
+**Betroffen:** GitHub Actions Lauf `33929320610`
+**Was:** Fehlgeschlagenen Deploy-Schritt geprüft: weiterhin dieselben 22 nicht angewendeten Migrationen. Neue Automatik noch nicht aktiviert.
+**Warum:** Ursache des erneuten Abbruchs erklären und fehlende Serveraktivierung von abgeschlossenem PR/Merge unterscheiden.
+**Verifiziert durch:** Abgeschlossenes GitHub-Fehlerlog gelesen. Keine Server- oder Produktionsänderung.
+
 ## 2026-09-05 – Codex – Release-Pipeline zur Integration vorbereitet
 
 **Art:** Konfiguration | Test

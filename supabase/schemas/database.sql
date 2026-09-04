@@ -10472,11 +10472,8 @@ grant select, insert, update, delete
   on all tables in schema public
   to authenticated;
 
--- 50_sniper.sql wird vor dieser Datei geladen. Der pauschale Grant darf
--- die dort ausdrücklich auf SELECT begrenzten Clientrechte nicht aufweiten.
-revoke insert, update, delete
-  on public.sniper_queries, public.sniper_listings
-  from authenticated;
+-- 50_sniper.sql wird nach dieser Datei geladen und setzt die eigenen
+-- eingeschränkten Grants. Seine Tabellen existieren an dieser Stelle noch nicht.
 
 -- Buchungstabellen sind für Clients nur lesbar. Änderungen erfolgen
 -- ausschließlich über die validierten, transaktionalen RPC-Funktionen.
