@@ -50,12 +50,20 @@ select pass('sniper_queries kennt eine Preisuntergrenze');
 -- Ein Arbeitsbereich abonniert eine Abfrage hoechstens einmal.
 do $$
 begin
+  -- Ausdruecklich auf die Spalten pruefen, nicht nur auf "irgendein
+  -- Zwei-Spalten-Constraint": Ein versehentlich falsch gesetzter Schluessel
+  -- kaeme sonst durch, und die Geschaeftsregel waere trotz gruenem Test weg.
   if not exists (
     select 1
-    from pg_constraint
-    where conrelid = 'public.sniper_query_subscriptions'::regclass
-      and contype = 'u'
-      and array_length(conkey, 1) = 2
+    from pg_constraint as constraint_row
+    cross join lateral unnest(constraint_row.conkey) as key(attnum)
+    join pg_attribute as column_info
+      on column_info.attrelid = constraint_row.conrelid
+     and column_info.attnum = key.attnum
+    where constraint_row.conrelid = 'public.sniper_query_subscriptions'::regclass
+      and constraint_row.contype = 'u'
+    group by constraint_row.oid
+    having array_agg(column_info.attname::text order by column_info.attname) = array['query_id', 'workspace_id']
   ) then
     raise exception 'Eindeutigkeit ueber workspace_id und query_id fehlt';
   end if;

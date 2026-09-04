@@ -34,11 +34,21 @@ select pass('sniper_hits besitzt alle benoetigten Spalten');
 -- Derselbe Fund wird je Abonnement hoechstens einmal gemeldet.
 do $$
 begin
+  -- Ausdruecklich auf die Spalten pruefen, nicht nur auf "irgendein
+  -- Zwei-Spalten-Constraint": Ein versehentlich falsch gesetzter Schluessel
+  -- kaeme sonst durch, und die Geschaeftsregel waere trotz gruenem Test weg.
   if not exists (
-    select 1 from pg_constraint
-    where conrelid = 'public.sniper_hits'::regclass
-      and contype = 'u'
-      and array_length(conkey, 1) = 2
+    select 1
+    from pg_constraint as constraint_row
+    cross join lateral unnest(constraint_row.conkey) as key(attnum)
+    join pg_attribute as column_info
+      on column_info.attrelid = constraint_row.conrelid
+     and column_info.attnum = key.attnum
+    where constraint_row.conrelid = 'public.sniper_hits'::regclass
+      and constraint_row.contype = 'u'
+    group by constraint_row.oid
+    having array_agg(column_info.attname::text order by column_info.attname)
+      = array['listing_id', 'subscription_id']
   ) then
     raise exception 'Eindeutigkeit ueber subscription_id und listing_id fehlt';
   end if;
