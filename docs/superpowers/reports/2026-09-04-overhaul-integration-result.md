@@ -39,11 +39,17 @@ Die unabhängige Nachprüfung der sechs korrigierten Befunde fand keine verbleib
 - Das Archiv ist auf insgesamt 100.000 Datensätze und 50 MiB JSON begrenzt. Darüber entsteht eine ausdrückliche Fehlermeldung, kein unvollständiges Archiv. Es ist kein vollständiges Infrastrukturbackup. Die Größengrenze ersetzt keinen Lasttest.
 - Kein angemeldeter Browser-End-to-End-Test des Archivdownloads durchgeführt; Rechte und Datenumfang sind auf Datenbank- und Serviceebene geprüft. Keine pauschale rechtliche oder WCAG-Freigabe.
 
-## Noch offen vor Abschluss des gesamten Umbaus
+## Nachtrag: Änderungsverlauf und Archivierung abgeschlossen
+
+Die unten ursprünglich offenen Punkte 2 und 3 sind inzwischen in `6f27a68` und `029ee41` umgesetzt und unabhängig geprüft. Der Änderungsverlauf erscheint direkt an Einkauf, Artikel und Verkauf. Inhaber können Arbeitsbereiche archivieren und wiederherstellen; Lesen und Export bleiben möglich, operative Änderungen sind serverseitig gesperrt. Details und Tabellenumfang stehen in [Workspace-Archivierung](../../workspace-retention.md).
+
+Der Abschlusslauf auf `029ee41` besteht `npm run verify` einschließlich 1.428 Anwendungstests und Produktionsbuild, 952 Datenbankprüfungen und sechs Chromium-Tests. Zwei echte parallele Datenbanksitzungen bestätigen den Schutz gegen gleichzeitige Buchung und Archivierung. Beide Aufgabenreviews sind ohne kritische oder wichtige Befunde freigegeben. Die neuen Ansichten wurden lokal im Demo-Modus auf Desktop und Mobil geprüft; ein angemeldeter Inhaber-Browsertest bleibt als ergänzende Testlücke offen. Rechte und Schreibschutz sind durch Datenbanktests belegt. Keine Produktionsänderung ausgeführt.
+
+## Ursprünglich offene Punkte und aktueller Stand
 
 1. Einstellungsinhalte vollständig in getrennte Seiten aufteilen; derzeit existiert die Navigation, aber noch eine gemeinsame große Komponente.
-2. Änderungsverlauf direkt an Einkauf, Inventarartikel und Verkauf einbinden; das globale Journal ist vorhanden.
-3. Arbeitsbereiche archivieren und wiederherstellen; die geplanten Funktionen fehlen noch.
+2. Erledigt: Änderungsverlauf direkt an Einkauf, Inventarartikel und Verkauf einbinden.
+3. Erledigt: Arbeitsbereiche archivieren und wiederherstellen.
 4. Landingpage korrigieren: mobile Überbreite, Kontraste, widersprüchliche Funktionsversprechen, Beta-/Registrierungsablauf und Rechtstexte. Details im [Landingpage-Bericht](2026-09-04-landing-integration-review.md).
 
 Ein grüner Integrationslauf bedeutet deshalb nicht, dass sämtliche Aufgaben des ursprünglichen Gesamtplans erledigt sind oder die Anwendung bereits live ist.

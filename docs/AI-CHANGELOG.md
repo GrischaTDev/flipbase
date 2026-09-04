@@ -48,6 +48,20 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Codex (GPT-5; Umsetzung und Reviews mit GPT-5.6 Terra/Sol) – Einzelverlauf und Workspace-Archivierung fortgesetzt
+
+**Art:** Feature | Test
+
+**Betroffen:** Lokaler Änderungsverlauf, Workspace-Lebenszyklus und Aufbewahrungsansicht
+
+**Was:** Änderungsverlauf direkt an Einkauf, Artikel und Verkauf ergänzt (`6f27a68`). Eine gemeinsame Darstellung bleibt datenfrei; ein Feature-Container verwendet den bestehenden Abfrageservice. Arbeitsbereiche lassen sich durch ihren Inhaber archivieren und wiederherstellen (`029ee41`); Geschäftsdaten bleiben lesbar und exportierbar, operative Änderungen werden serverseitig gesperrt. Der Löschablauf bietet zuerst einen Export an und verweist bei vorhandenen Geschäftsdaten auf Archivierung. Beide automatisch erzeugten Migrationen einschließlich der Rechtekorrektur gehören zusammen. Bestehende Routen, globale Exporte und vorherige Integrationskorrekturen bleiben erhalten. Settings-Aufteilung und Landingpage gehören weiterhin zu getrennten Folgeschritten.
+
+**Warum:** Verlauf direkt am betroffenen Datensatz verfügbar machen und Geschäftsdaten beim Archivieren lesbar erhalten, ohne neue Buchungen zuzulassen.
+
+**Verifiziert durch:** Abschließendes `npm run verify` auf `029ee41` mit Exitcode 0: 1.428 Anwendungstests bestanden (971 Node, 130 DOM, 327 Angular; fünf bestehende Tests übersprungen), Formatierung, Lint, Typprüfung, Workflowprüfungen und Produktionsbuild bestanden. Getrennte lokale Datenbank `flipbase-settings-retention`: 952 Prüfungen in 20 Dateien bestanden; Schema-Abgleich leer und Advisors ohne Befund. Zwei echte parallele Datenbanksitzungen bestätigen die gegenseitige Sperre zwischen Buchung und Archivierung. Alle sechs Chromium-Tests bestanden. Zusätzliche Demo-Browserprüfungen auf Desktop und Mobil: Verlauf, Einkaufs-Rücknavigation, Verkaufsdialog mit Escape/Fokusrückgabe, richtiges Workspace-Ziel und reaktive URL-Navigation; AXE für die neuen Ansichten ohne Befunde, keine Konsolenfehler. Befüllte Verläufe und Inhaberaktionen sind durch Komponenten-/Datenbanktests, nicht durch einen angemeldeten Browser-End-to-End-Test belegt. Die vorhandene mobile Überbreite der Verkaufsliste bleibt als separater Befund offen. Beide unabhängigen Aufgabenreviews freigegeben, keine kritischen oder wichtigen Befunde. Der ergänzende angemeldete Inhaber-Browsertest bleibt als kleinere Testlücke dokumentiert. Kein Push oder Deployment.
+
+---
+
 ## 2026-09-04 – Codex (GPT-5; Reviews und Umsetzung mit GPT-5.6 Sol/Terra) – Kostenbasis und Prüfarchiv abgesichert
 
 **Art:** Bugfix | Test | Dokumentation
