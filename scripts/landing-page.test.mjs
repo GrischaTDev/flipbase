@@ -30,6 +30,30 @@ async function assertFileExists(filePath, reference) {
   assert.ok(fileStats.isFile(), `${reference} must exist as a file`);
 }
 
+async function assertLocalAsset(reference, baseDirectory, visitedStylesheets = new Set()) {
+  if (/^(?:data:|#)/iu.test(reference)) return;
+  assert.equal(isRemoteResource(reference), false, `${reference} must stay local`);
+
+  const pathReference = reference.split(/[?#]/u, 1)[0];
+  if (!pathReference) return;
+  const assetPath = pathReference.startsWith('/')
+    ? path.resolve(landingDirectory, pathReference.slice(1))
+    : path.resolve(baseDirectory, pathReference);
+  const relativePath = path.relative(landingDirectory, assetPath);
+  assert.ok(
+    relativePath && !relativePath.startsWith(`..${path.sep}`) && !path.isAbsolute(relativePath),
+    `${reference} must stay inside landing/`,
+  );
+  await assertFileExists(assetPath, reference);
+
+  if (path.extname(assetPath).toLowerCase() !== '.css' || visitedStylesheets.has(assetPath)) return;
+  visitedStylesheets.add(assetPath);
+  const stylesheet = await readFile(assetPath, 'utf8');
+  for (const nestedReference of cssResourceReferences(stylesheet)) {
+    await assertLocalAsset(nestedReference, path.dirname(assetPath), visitedStylesheets);
+  }
+}
+
 function extractElement(source, tagName) {
   const match = source.match(
     new RegExp(`<${escapeRegExp(tagName)}\\b[^>]*>([\\s\\S]*?)<\\/${escapeRegExp(tagName)}>`, 'iu'),
@@ -49,6 +73,172 @@ function attribute(tag, name) {
     new RegExp(`\\b${escapeRegExp(name)}\\s*=\\s*(?:"([^"]*)"|'([^']*)')`, 'iu'),
   );
   return match?.[1] ?? match?.[2];
+}
+
+function startTagsWithClass(source, className) {
+  return [...source.matchAll(/<[a-z][^>]*>/giu)]
+    .map(([tag]) => tag)
+    .filter((tag) => attribute(tag, 'class')?.split(/\s+/u).includes(className));
+}
+
+function elementById(source, id) {
+  const match = source.match(
+    new RegExp(
+      `<([a-z][\\w:-]*)\\b(?=[^>]*\\bid=["']${escapeRegExp(id)}["'])[^>]*>([\\s\\S]*?)<\\/\\1>`,
+      'iu',
+    ),
+  );
+  assert.ok(match, `Expected element #${id}`);
+  return { startTag: match[0].slice(0, match[0].indexOf('>') + 1), content: match[2] };
+}
+
+function labelElementFor(source, id) {
+  const match = source.match(
+    new RegExp(
+      `<label\\b(?=[^>]*\\bfor=["']${escapeRegExp(id)}["'])[^>]*>([\\s\\S]*?)<\\/label>`,
+      'iu',
+    ),
+  );
+  assert.ok(match, `Expected label for #${id}`);
+  return { startTag: match[0].slice(0, match[0].indexOf('>') + 1), content: match[1] };
+}
+
+function assertLanguagePair(fragment, germanText, englishText) {
+  const normalizedFragment = fragment.replace(/\s+/gu, ' ');
+  assert.match(
+    normalizedFragment,
+    new RegExp(`<span\\s+class=["']lang-de["']>${escapeRegExp(germanText)}<\\/span>`, 'u'),
+  );
+  assert.match(
+    normalizedFragment,
+    new RegExp(
+      `<span\\s+class=["']lang-en["']\\s+lang=["']en["']>${escapeRegExp(englishText)}<\\/span>`,
+      'u',
+    ),
+  );
+}
+
+const resourceAttributesByElement = new Map([
+  ['a', ['ping']],
+  ['audio', ['src']],
+  ['base', ['href']],
+  ['body', ['background']],
+  ['embed', ['src']],
+  ['feimage', ['href', 'xlink:href']],
+  ['iframe', ['src']],
+  ['image', ['href', 'xlink:href']],
+  ['img', ['src', 'srcset']],
+  ['input', ['src']],
+  ['link', ['href', 'imagesrcset']],
+  ['object', ['codebase', 'data']],
+  ['script', ['src']],
+  ['source', ['src', 'srcset']],
+  ['table', ['background']],
+  ['td', ['background']],
+  ['th', ['background']],
+  ['track', ['src']],
+  ['use', ['href', 'xlink:href']],
+  ['video', ['poster', 'src']],
+]);
+
+const urlAttributes = new Set([
+  'action',
+  'background',
+  'cite',
+  'codebase',
+  'data',
+  'formaction',
+  'href',
+  'imagesrcset',
+  'ping',
+  'poster',
+  'src',
+  'srcset',
+  'xlink:href',
+]);
+
+function parseAttributes(tag) {
+  const tagNameMatch = tag.match(/^<\s*([a-z][\w:-]*)/iu);
+  assert.ok(tagNameMatch, `Expected an HTML start tag, received ${tag}`);
+  const attributes = new Map();
+  const source = tag.slice(tagNameMatch[0].length, -1);
+  for (const match of source.matchAll(
+    /([^\s"'<>/=]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/gu,
+  )) {
+    attributes.set(match[1].toLowerCase(), match[2] ?? match[3] ?? match[4] ?? '');
+  }
+  return { tagName: tagNameMatch[1].toLowerCase(), attributes };
+}
+
+function srcsetReferences(value) {
+  return [...value.matchAll(/(?:^|,)\s*((?:data:[^\s]+|[^\s,]+))/giu)].map(
+    ([, reference]) => reference,
+  );
+}
+
+function cssResourceReferences(source) {
+  const withoutComments = source.replace(/\/\*[\s\S]*?\*\//gu, '');
+  const references = [];
+  for (const match of withoutComments.matchAll(
+    /url\(\s*(?:"([^"]*)"|'([^']*)'|([^)'"\s][^)]*))\s*\)/giu,
+  )) {
+    references.push((match[1] ?? match[2] ?? match[3]).trim());
+  }
+  for (const match of withoutComments.matchAll(/@import\s+(?:"([^"]+)"|'([^']+)')/giu)) {
+    references.push((match[1] ?? match[2]).trim());
+  }
+  return references;
+}
+
+function htmlResourceReferences(source) {
+  const references = [];
+  for (const [startTag] of source.matchAll(/<[a-z][^>]*>/giu)) {
+    const { tagName, attributes } = parseAttributes(startTag);
+    for (const name of resourceAttributesByElement.get(tagName) ?? []) {
+      const value = attributes.get(name);
+      if (value === undefined) continue;
+      references.push(...(name.endsWith('srcset') ? srcsetReferences(value) : [value]));
+    }
+    for (const value of attributes.values()) {
+      if (/url\(/iu.test(value)) references.push(...cssResourceReferences(value));
+    }
+  }
+  for (const [, stylesheet] of source.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/giu)) {
+    references.push(...cssResourceReferences(stylesheet));
+  }
+  return references;
+}
+
+function isJavascriptUrl(value) {
+  return /^[\u0000-\u0020]*javascript\s*:/iu.test(value);
+}
+
+function isRemoteResource(value) {
+  const reference = value.trim();
+  if (/^(?:data:|#)/iu.test(reference)) return false;
+  return /^(?:[a-z][a-z\d+.-]*:|\/\/)/iu.test(reference);
+}
+
+function findStaticPageThreats(source) {
+  const threats = [];
+  for (const [startTag] of source.matchAll(/<[a-z][^>]*>/giu)) {
+    const { tagName, attributes } = parseAttributes(startTag);
+    if (tagName === 'script') threats.push('script element');
+    if (tagName === 'iframe' && attributes.has('srcdoc')) threats.push('iframe srcdoc');
+
+    for (const [name, value] of attributes) {
+      if (/^on/iu.test(name)) threats.push(`event handler ${name}`);
+      if (urlAttributes.has(name)) {
+        const references = name.endsWith('srcset') ? srcsetReferences(value) : [value];
+        if (references.some(isJavascriptUrl)) threats.push(`javascript URL in ${name}`);
+      }
+    }
+  }
+
+  for (const reference of htmlResourceReferences(source)) {
+    if (isRemoteResource(reference)) threats.push(`remote resource ${reference}`);
+  }
+  return threats;
 }
 
 function inputById(source, id) {
@@ -210,6 +400,142 @@ test('remains script-free and keeps native toggles inside the header landmark', 
   }
 });
 
+test('declares English passages and gives localized controls static screen-reader names', () => {
+  assert.match(html, /<html\s+lang="de">/iu);
+
+  const unswitchedDocumentText = [];
+  if (extractElement(html, 'title').trim() !== 'Flipbase') {
+    unswitchedDocumentText.push('document title');
+  }
+  for (const logo of extractStartTags(html, 'img').filter(
+    (image) => attribute(image, 'src') === 'images/logo-mark.png',
+  )) {
+    if (attribute(logo, 'alt') !== '') unswitchedDocumentText.push('repeated logo alternative');
+  }
+  assert.deepEqual(
+    unswitchedDocumentText,
+    [],
+    'Unswitched browser and assistive text must remain language-neutral',
+  );
+
+  const englishPassages = startTagsWithClass(html, 'lang-en');
+  assert.ok(englishPassages.length > 0, 'Expected English language variants');
+  for (const passage of englishPassages) {
+    assert.equal(attribute(passage, 'lang'), 'en', `${passage} must declare lang="en"`);
+  }
+
+  const navigation = startTagsWithClass(html, 'navigation')[0];
+  assert.ok(navigation, 'Expected the main navigation landmark');
+  const navigationLabelId = attribute(navigation, 'aria-labelledby');
+  assert.ok(navigationLabelId, 'The main navigation must use a switchable accessible name');
+  assertLanguagePair(
+    elementById(html, navigationLabelId).content,
+    'Hauptnavigation',
+    'Main navigation',
+  );
+
+  for (const control of [
+    {
+      id: 'theme-toggle',
+      germanText: 'Design umschalten',
+      englishText: 'Toggle theme',
+    },
+    {
+      id: 'lang-toggle',
+      germanText: 'Sprache umschalten',
+      englishText: 'Switch language',
+    },
+  ]) {
+    const input = inputById(html, control.id);
+    const labelId = attribute(input, 'aria-labelledby');
+    assert.ok(labelId, `#${control.id} must use a switchable accessible name`);
+    assertLanguagePair(elementById(html, labelId).content, control.germanText, control.englishText);
+    assert.equal(attribute(input, 'aria-label'), undefined);
+    assert.equal(attribute(labelFor(html, control.id), 'title'), undefined);
+  }
+
+  const emailInputs = extractStartTags(html, 'input').filter(
+    (input) => attribute(input, 'type') === 'email',
+  );
+  assert.equal(emailInputs.length, 2);
+  for (const input of emailInputs) {
+    const id = attribute(input, 'id');
+    assert.ok(id, 'Every email field must have an id for its accessible label');
+    assert.equal(attribute(input, 'aria-label'), undefined);
+    assertLanguagePair(
+      labelElementFor(html, id).content,
+      'E-Mail-Adresse für die Beta-Registrierung',
+      'Email address for beta registration',
+    );
+  }
+
+  for (const expectedPair of [
+    ['✕ Der alte Weg', '✕ The old way'],
+    ['✓ Die Flipbase-Lösung', '✓ The Flipbase solution'],
+    ['✕ Das Sicherheitsrisiko', '✕ The security risk'],
+    ['✓ Der Flipbase-Schutz', '✓ Flipbase protection'],
+    ['In Entwicklung', 'In development'],
+    ['Geplant', 'Planned'],
+    ['© 2026 Flipbase. Alle Rechte vorbehalten.', '© 2026 Flipbase. All rights reserved.'],
+  ]) {
+    assertLanguagePair(html, expectedPair[0], expectedPair[1]);
+  }
+
+  assert.equal(
+    matches(html, /<span\b[^>]*class="status-tag [^"]+"[^>]*>/giu),
+    matches(
+      normalizedHtml,
+      /<span\b[^>]*class="status-tag [^"]+"[^>]*> <span class="lang-de">[^<]+<\/span> <span class="lang-en" lang="en">[^<]+<\/span> <\/span>/giu,
+    ),
+    'Every roadmap status must switch languages, including repeated values',
+  );
+
+  for (const className of ['marke-badge', 'feature-badge']) {
+    for (const badge of startTagsWithClass(html, className)) {
+      if (attribute(badge, 'class')?.split(/\s+/u).includes('localized-badge')) continue;
+      assert.equal(
+        attribute(badge, 'lang'),
+        'en',
+        `${className} English copy must declare lang="en"`,
+      );
+    }
+  }
+});
+
+test('rejects active content and remote resource-loading variants', () => {
+  const hostileVariants = [
+    ['inline CSS @import', '<style>@import "https://tracker.example/style.css";</style>'],
+    ['inline CSS url()', '<style>.hero { background: url(//tracker.example/pixel.png); }</style>'],
+    ['style attribute url()', '<div style="background:url(https://tracker.example/pixel)"></div>'],
+    ['video resources', '<video src="https://tracker.example/movie.mp4"></video>'],
+    ['video posters', '<video poster="https://tracker.example/poster.jpg"></video>'],
+    ['audio resources', '<audio src="https://tracker.example/audio.mp3"></audio>'],
+    ['responsive sources', '<source srcset="https://tracker.example/image.webp 1x" />'],
+    ['embedded frames', '<iframe src="https://tracker.example/frame"></iframe>'],
+    ['embedded objects', '<object data="https://tracker.example/file.pdf"></object>'],
+    ['embedded media', '<embed src="https://tracker.example/file.pdf" />'],
+    ['media tracks', '<track src="https://tracker.example/subtitles.vtt" />'],
+    ['image inputs', '<input type="image" src="https://tracker.example/button.png" />'],
+    ['SVG image references', '<svg><image href="https://tracker.example/vector.svg" /></svg>'],
+    ['javascript URLs', '<a href=" javascript:alert(1)">Open</a>'],
+    ['event handlers', '<button onclick="alert(1)">Open</button>'],
+  ];
+
+  const undetected = hostileVariants
+    .filter(([, fixture]) => findStaticPageThreats(fixture).length === 0)
+    .map(([name]) => name);
+  assert.deepEqual(undetected, []);
+
+  assert.deepEqual(
+    findStaticPageThreats(
+      '{{if .Cookie "flipbase_angemeldet"}}<a href="https://app.flipbase.de">App</a>{{ end }}' +
+        '<style>.icon { background: url(data:image/svg+xml,%3Csvg%3E); }</style>',
+    ),
+    [],
+    'Caddy templates, navigation URLs and embedded data resources must remain allowed',
+  );
+});
+
 test('keeps local landing assets and the Caddy login template intact', async () => {
   assert.match(html, /<meta\s+name="robots"\s+content="noindex, nofollow"\s*\/?>/iu);
   assert.match(
@@ -235,40 +561,13 @@ test('keeps local landing assets and the Caddy login template intact', async () 
     assert.match(faqItem, /<div\b[^>]*class="faq-body"[^>]*>/iu);
   }
 
-  const assetReferences = new Set(
-    [...html.matchAll(/<(?:img|link)\b[^>]*\b(?:src|href)="([^"]+)"[^>]*>/giu)].map(
-      ([, reference]) => reference,
-    ),
-  );
+  assert.deepEqual(findStaticPageThreats(html), [], 'The landing document must stay passive');
+
+  const assetReferences = new Set(htmlResourceReferences(html));
   assert.ok(assetReferences.size > 0, 'Expected landing assets to be referenced');
 
   for (const reference of assetReferences) {
-    assert.doesNotMatch(reference, /^(?:[a-z]+:|\/\/)/iu, `${reference} must stay local`);
-    const assetPath = path.resolve(landingDirectory, reference);
-    assert.ok(
-      assetPath.startsWith(`${landingDirectory}${path.sep}`),
-      `${reference} must stay inside landing/`,
-    );
-    await assertFileExists(assetPath, reference);
-
-    if (path.extname(assetPath) === '.css') {
-      const stylesheet = await readFile(assetPath, 'utf8');
-      for (const [, nestedReference] of stylesheet.matchAll(/url\(["']?([^"')]+)["']?\)/giu)) {
-        assert.doesNotMatch(
-          nestedReference,
-          /^(?:[a-z]+:|\/\/)/iu,
-          `${nestedReference} must stay local`,
-        );
-        const nestedAssetPath = nestedReference.startsWith('/')
-          ? path.resolve(landingDirectory, nestedReference.slice(1))
-          : path.resolve(path.dirname(assetPath), nestedReference);
-        assert.ok(
-          nestedAssetPath.startsWith(`${landingDirectory}${path.sep}`),
-          `${nestedReference} must stay inside landing/`,
-        );
-        await assertFileExists(nestedAssetPath, nestedReference);
-      }
-    }
+    await assertLocalAsset(reference, landingDirectory);
   }
 });
 
@@ -369,13 +668,55 @@ test('describes direct beta registration without invitation or fixed-version wor
 });
 
 test('marks Deal Sniper behavior as planned in German and English', () => {
+  const expectedPlannedCopy = [
+    ['Vinted Bot (geplant)', 2],
+    ['Vinted Bot (planned)', 2],
+    ['Vinted Deal-Sniper (geplant)', 1],
+    ['Vinted Deal Sniper (planned)', 1],
+    ['Geplanter Vinted Deal-Sniper für gespeicherte Suchfilter', 1],
+    ['Planned Vinted Deal Sniper for saved searches', 1],
+    ['Was ist für den Vinted Deal-Sniper geplant?', 1],
+    ['What is planned for the Vinted Deal Sniper?', 1],
+  ];
+  for (const [phrase, count] of expectedPlannedCopy) {
+    assert.equal(matches(normalizedHtml, new RegExp(escapeRegExp(phrase), 'gu')), count, phrase);
+  }
+
+  const descriptionTag = extractStartTags(html, 'meta').find(
+    (tag) => attribute(tag, 'name') === 'description',
+  );
+  assert.ok(descriptionTag, 'Expected a meta description');
+  assert.doesNotMatch(
+    attribute(descriptionTag, 'content'),
+    /(?:Vinted Bot|Deal[- ]Sniper|deal sniping)/iu,
+    'The static German meta description must omit the unreleased feature',
+  );
+
+  const localizedPassages = [
+    ...html.matchAll(/<span\b[^>]*class="lang-(?:de|en)"[^>]*>([\s\S]*?)<\/span>/giu),
+  ].map(([, content]) =>
+    content
+      .replace(/<[^>]+>/gu, '')
+      .replace(/\s+/gu, ' ')
+      .trim(),
+  );
+  for (const passage of localizedPassages.filter((text) =>
+    /(?:Vinted (?:Bot|Deal[- ]Sniper|sniper)|Deal-(?:Suche|Recherche)|deal discovery)/iu.test(text),
+  )) {
+    assert.match(
+      passage,
+      /(?:geplant\p{L}*|planned|in Entwicklung|in development)/iu,
+      `Unreleased Deal Sniper mention must carry its status: ${passage}`,
+    );
+  }
+
   assert.match(
     normalizedHtml,
-    /Von der geplanten Deal-Suche über die Bestandsverwaltung bis zum DATEV-Export für die Steuerberatung\./u,
+    /Von der geplanten Deal-Suche über die Bestandsverwaltung bis zu DATEV-kompatiblen Buchungsdaten\./u,
   );
   assert.match(
     normalizedHtml,
-    /From planned deal discovery to inventory management and export-ready DATEV tax files\./u,
+    /From planned deal discovery to inventory management and DATEV-compatible accounting exports\./u,
   );
   assert.equal(
     matches(
@@ -408,12 +749,23 @@ test('marks Deal Sniper behavior as planned in German and English', () => {
     'erhältst du sofort eine Benachrichtigung',
     'receive instant alerts',
     'import them with one click',
+    'Flipbase führt Vinted Bot,',
+    '>Vinted Bot<',
+    'Artikel 1 (Vinted Sniped)',
+    '>Vinted Bot &amp; Deal-Sniper<',
+    '>Vinted Bot &amp; Deal Sniper<',
+    'Vinted Deal-Sniper Dienst zur automatisierten Schnäppchen-Erkennung',
+    'Vinted Deal Sniper service for automated underpriced deal alerts',
+    'Wie funktioniert der Vinted Deal-Sniper?',
+    'How does the Vinted Deal Sniper work?',
+    'Bestand, Vinted Bot und Differenzbesteuerung',
+    'inventory, Vinted sniper, and margin tax',
   ]) {
     assert.doesNotMatch(normalizedHtml, new RegExp(escapeRegExp(phrase), 'iu'));
   }
 });
 
-test('limits privacy and infrastructure copy to implemented access rules', () => {
+test('limits privacy, infrastructure and accounting copy to technically bounded claims', () => {
   assert.match(normalizedHtml, /Workspace-getrennter Datenzugriff/u);
   assert.match(normalizedHtml, /Workspace-scoped data access/u);
   assert.equal(
@@ -430,6 +782,27 @@ test('limits privacy and infrastructure copy to implemented access rules', () =>
     ),
     2,
   );
+
+  for (const phrase of [
+    'Steuerliche Einordnung und Vollständigkeit sind vor der Nutzung zu prüfen.',
+    'Tax treatment and completeness must be reviewed before use.',
+    'rechnerische Unterstützung bei der Differenzbesteuerung (§ 25a)',
+    'calculation support for margin taxation (§ 25a)',
+    'Beispielrechnung aus erfassten Werten: Einkaufspreis, Nebenkosten, Gebühren und eine rechnerische 19/119-Aufteilung der Beispielmarge werden nachvollziehbar dargestellt.',
+    'Example calculation from recorded values: purchase price, ancillary costs, fees, and a calculated 19/119 split of the example margin are shown transparently.',
+    'Rechnerische 19/119-Aufteilung erfasster Margen',
+    'Calculated 19/119 split of recorded margins',
+    'Verknüpfung von Belegen und Buchungsvorgängen',
+    'Links between receipts and booking records',
+    'Welche Einstellung im Einzelfall passt, muss fachlich geprüft werden.',
+    'The appropriate setting for each case must be reviewed by a qualified adviser.',
+    'Ob § 25a anwendbar ist und welche Rechnungsangaben erforderlich sind, muss im Einzelfall geprüft werden.',
+    'Whether § 25a applies and which invoice details are required must be reviewed for each case.',
+    'Die Daten können zur Prüfung und weiteren Verarbeitung an die Steuerberatung übergeben werden.',
+    'The data can be passed to a tax adviser for review and further processing.',
+  ]) {
+    assert.match(normalizedHtml, new RegExp(escapeRegExp(phrase), 'u'));
+  }
 
   for (const phrase of [
     'DSGVO-konform',
@@ -450,6 +823,27 @@ test('limits privacy and infrastructure copy to implemented access rules', () =>
     'sovereign German server hosting',
     'Serverstandort Deutschland',
     'Hosted in Germany',
+    'compliant audit logs',
+    'Compliant 19/119 margin calculation',
+    'Betriebsprüfungssichere',
+    'Audit-proof',
+    'Ja, uneingeschränkt',
+    'Yes, completely',
+    'passt sich die Plattform nahtlos an',
+    'the platform adapts seamlessly',
+    'als gesetzlich vorgeschrieben',
+    'as legally mandated',
+    'Gesetzliches Wareneingangs- und Ausgangsbuch',
+    'ready-to-import DATEV files',
+    'import everything without tedious manual entry',
+    'Tax Ready',
+    'Centgenaue Abrechnung',
+    'Penny-accurate calculation',
+    'geht lückenlos auf',
+    'splits perfectly',
+    'centgenaue Differenzbesteuerung',
+    'penny-accurate margin taxation',
+    'export-ready DATEV tax files',
   ]) {
     assert.doesNotMatch(normalizedHtml, new RegExp(escapeRegExp(phrase), 'iu'));
   }

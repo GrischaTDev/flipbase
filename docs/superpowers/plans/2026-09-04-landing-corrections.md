@@ -10,6 +10,12 @@
 
 **Spec:** `docs/superpowers/reports/2026-09-04-landing-integration-review.md`
 
+**Statushinweis nach Finalreview:** Die Haken in Tasks 1–4 dokumentieren die erste Runde bis
+`b538c17`. Ein späterer Review fand weitere Sprach-, Produkttext-, Compliance- und
+Ressourcenvertragslücken. Diese erste Abnahme war daher nicht vollständig; Task 5 beschreibt die
+maßgebliche Korrektur. Der dort geänderte Quellstand benötigt anschließend erneut den
+Controller-Review sowie die produktionsnahe Browser-/Caddy- und Gesamtprüfung.
+
 ## Global Constraints
 
 - Preserve the FAQ accordion, language/theme controls, logo, form email prefill, and the visual direction integrated from Gemini.
@@ -235,5 +241,50 @@ Save one desktop-light and one mobile-dark screenshot outside the repository. Ru
 git add landing/index.html scripts/landing-page.test.mjs package.json docs/AI-CHANGELOG.md docs/superpowers/plans/2026-09-04-landing-corrections.md
 git commit -m "fix(landing): align mobile layout and product claims"
 ```
+
+### Task 5: Close final review gaps
+
+**Files:**
+
+- Modify: `landing/index.html`
+- Modify: `scripts/landing-page.test.mjs`
+- Modify: `docs/AI-CHANGELOG.md`
+- Modify: this plan and ignored SDD progress/reports
+
+**Interfaces:**
+
+- Consumes: final review of `review-50017a2..b538c17.diff`.
+- Produces: statically checkable language metadata and accessible names, consistently planned
+  Deal-Sniper copy, bounded accounting claims, and a broader passive-resource contract.
+
+- [x] **Step 1: Capture four focused RED results**
+
+Run the language/accessibility, Deal-Sniper, compliance, and resource-hardening tests separately
+against `b538c17`. Each test must fail for its intended missing behavior before changing the page.
+
+- [x] **Step 2: Complete language switching and static accessible names**
+
+Keep `<html lang="de">` as the default. Mark every English content variant with `lang="en"`, make
+previously fixed German comparison/status/copyright text switch in pairs, and give navigation,
+toggles, and both email fields language-switching DOM labels. Preserve the CSS-only controls.
+
+- [x] **Step 3: Bound every Deal-Sniper and accounting statement**
+
+Remove the unreleased feature from the static German meta description. Mark each remaining visible
+mention in navigation, feature card, roadmap, FAQ, and footer as planned in both languages. Replace
+absolute tax, audit, receipt-link and DATEV promises with descriptions of recorded inputs and
+exports plus an explicit need for case-specific review.
+
+- [x] **Step 4: Harden the passive resource contract without dependencies**
+
+Inspect inline and linked CSS resources, common resource-loading elements, `javascript:` URL
+attributes and `on*` event handlers. Normal external navigation, the existing Caddy template, local
+files, fragment references and embedded `data:` resources remain allowed as applicable.
+
+- [x] **Step 5: Verify the owned source scope and update truthful records**
+
+Run `npm run test:landing`, Prettier checks for all owned files, ESLint for the static test, and
+inspect the final diff. Record the original RED failures, final command results, remaining
+controller-owned validation, and the final commit in the SDD ledger/report.
 
 No push, PR, production deployment, account creation, or external form submission is part of this plan.

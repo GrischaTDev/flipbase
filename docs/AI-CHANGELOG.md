@@ -48,17 +48,29 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
-## 2026-09-04 – Codex (GPT-5; Umsetzung und Review mit GPT-5.6 Sol) – Landingpage konsolidiert
+## 2026-09-04 – Codex (GPT-5) – Landingpage-Finalreview korrigiert
+
+**Art:** Bugfix | Barrierefreiheit | Test | Doku
+
+**Betroffen:** `landing/index.html`, `scripts/landing-page.test.mjs`, Landingpage-Plan und SDD-Nachweise
+
+**Was:** Die im finalen Review gefundenen Lücken der ersten Landingpage-Runde geschlossen. Englische Varianten tragen nun eine englische Sprachauszeichnung; bisher fest deutsche Vergleichs-, Status-, Formular- und Copyright-Texte sowie die statischen Namen wichtiger Bedienelemente wechseln mit der Seitensprache. Alle sichtbaren Deal-Sniper-Erwähnungen kennzeichnen die Funktion als geplant oder entfallen. Absolute Steuer-, DATEV- und Prüfungszusagen wurden durch technisch begrenzte Beschreibungen mit ausdrücklichem Prüfvorbehalt ersetzt. Der passive Ressourcenvertrag erfasst zusätzlich CSS-Imports und -URLs, weitere ressourcenladende Elemente, `javascript:`-URLs und Ereignisattribute, erlaubt aber weiterhin den Caddy-Zweig, normale Navigationsziele und eingebettete `data:`-Ressourcen.
+
+**Warum:** Der erste Abschlusslauf prüfte Darstellung und Interaktion, aber nicht alle Sprachwechsel im DOM, jede Produktbehauptung und alle Wege zu aktivem oder entfernt geladenem Inhalt. Der statische Vertrag muss genau diese Rückfälle erkennen.
+
+**Verifiziert durch:** Vier getrennte RED-Läufe gegen den vorherigen Stand (Sprache/Screenreader-Namen, vollständiger Deal-Sniper-Status, vorsichtige Compliance-Texte und 15 aktive Ressourcenvarianten) sowie ein zusätzlicher RED-Nachweis für die beim Diff-Selbstreview gefundene absolute Beispielrechnungs-Copy, anschließend 13/13 statische Landingpage-Tests. Der Prettier-Check aller vier geänderten, versionierten Dateien und ESLint für den statischen Vertrag liefen jeweils mit Exitcode 0. Browser-/Caddy-Abnahme und `npm run verify` erfolgen nach diesem Commit durch den Controller und werden hier nicht vorzeitig als bestanden ausgewiesen.
+
+## 2026-09-04 – Codex (GPT-5; Umsetzung und Review mit GPT-5.6 Sol) – Landingpage erste Korrekturrunde
 
 **Art:** Bugfix | Barrierefreiheit | Test
 
 **Betroffen:** `landing/index.html`, Landingpage-Vertrag und vollständige Prüfkette
 
-**Was:** Die zweisprachige Landingpage auf direkte Beta-Registrierung ausgerichtet, den Deal-Sniper eindeutig als geplant gekennzeichnet und nicht belegte Infrastruktur-, Datenschutz- und Compliance-Versprechen durch eine begrenzte Beschreibung der tatsächlich implementierten Zugriffsregeln ersetzt. Native Sprach-/Theme-Schalter in die Kopfzeile verschoben, sichtbaren Tastaturfokus, korrekte Überschriften, AA-Kontrast und eine überlauffreie mobile Kopfzeile umgesetzt. Einen schnellen statischen Landingpage-Vertrag in `npm run verify` aufgenommen. Keine Skripte, Abhängigkeiten, Tracker oder externen Ressourcen ergänzt.
+**Was:** Die zweisprachige Landingpage zunächst auf direkte Beta-Registrierung ausgerichtet, mehrere Deal-Sniper- und Compliance-Texte begrenzt sowie Tastaturfokus, Überschriften, Kontrast und mobile Kopfzeile korrigiert. Einen ersten statischen Landingpage-Vertrag in `npm run verify` aufgenommen. Ein späterer finaler Review fand noch offene Sprachmetadaten, nicht umgeschaltete Texte, weitere Produkt- und Rechtsbehauptungen sowie Lücken im Ressourcenvertrag; diese Runde war daher kein vollständiger Abschluss.
 
 **Warum:** Sichtbare Aussagen müssen zum aktuellen Produktverhalten passen; die Seite muss auf kleinen Displays und per Tastatur zuverlässig nutzbar sein, ohne unbelegte rechtliche oder betriebliche Zusagen.
 
-**Verifiziert durch:** Unabhängiger Task-Review und Re-Review ohne offenen Befund; 11/11 statische Landingpage-Tests; `npm run verify` Exitcode 0 einschließlich vollständiger Anwendungstests und Produktionsbuild; produktionsnaher Caddy-Lauf für Deutsch/Englisch, Hell/Dunkel und 1440 × 1000/390 × 844 ohne horizontalen Überlauf, AXE-, Konsolen-, Seiten- oder Assetfehler. Theme/Sprache per Leertaste, FAQ per Enter und beide abgefangenen GET-Registrierungs-URLs mit synthetischer E-Mail geprüft. Der temporäre QA-Container wurde danach automatisch entfernt.
+**Verifiziert durch:** Der damalige Stand bestand 11/11 statische Landingpage-Tests, `npm run verify` und den produktionsnahen Caddy-Lauf für Deutsch/Englisch, Hell/Dunkel und 1440 × 1000/390 × 844. Diese Prüfungen fanden die später gemeldeten semantischen und inhaltlichen Lücken nicht; sie gelten deshalb nur als historischer Nachweis der ersten Runde, nicht als finale Freigabe.
 
 ## 2026-09-04 – Codex (GPT-5; Umsetzung und Review mit GPT-5.6 Terra/Sol) – Einstellungsseiten aufteilen
 
