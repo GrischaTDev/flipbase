@@ -55,6 +55,7 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 **Betroffen:** `src/app/features/auth/login/login.component.html`, `src/app/features/auth/register/register.component.html`, `docker/Dockerfile`, `deploy/deploy.sh`, `deploy/README.md`
 
 **Was:**
+
 1. **Mobiler Login-Loop („Zurück zur Startseite“):** In `login.component.html` und `register.component.html` wurde dem Link `<a [href]="landingUrl">` die Attribute `target="_blank"` und `rel="noopener noreferrer"` hinzugefügt. Dadurch fängt der mobile Standalone-Webview (PWA / iOS Safari WebClip) den Klick nicht mehr intern ab (was mangels passendem Scope bzw. durch Cross-Origin-Sperren zurück auf `start_url` `/` und damit direkt zurück in den `authGuard` / `/auth/login` führte), sondern öffnet die Landingpage sauber im Standard-Browser des Geräts.
 2. **Landingpage-Bereitstellung:** Ursache für das Fortbestehen des alten Designs auf `https://flipbase.de` analysiert: Die statische Landingpage liegt in `/opt/flipbase-landing/` auf dem Server und wird von Caddy bedient. Der GitHub Actions CI-Workflow aktualisiert über den isolierten SSH-Deploy-Schlüssel (`deploy.sh`) nur den Web-Container (`app.flipbase.de`), berührt `/opt/flipbase-landing/` jedoch nicht.
 3. **Automatisierung für künftige Deployments:** `docker/Dockerfile` nimmt die statische Landingpage künftig nach `/usr/share/nginx/landing` mit, und `deploy/deploy.sh` spiegelt sie nach einem erfolgreichen Container-Start automatisch nach `/opt/flipbase-landing/`.
