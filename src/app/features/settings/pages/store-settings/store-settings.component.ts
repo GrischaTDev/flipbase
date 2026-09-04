@@ -80,11 +80,9 @@ export class StoreSettingsComponent {
       });
       if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
       if (result.error || !result.data) {
+        const error = result.error ?? new Error('Keine bestätigten Zahlungsmethoden.');
         if (!result.reportedBySyncStatus)
-          this.toast.error(
-            'Zahlungsmethoden konnten nicht gespeichert werden.',
-            result.error?.message,
-          );
+          this.toast.error('Zahlungsmethoden konnten nicht gespeichert werden.', error.message);
         return;
       }
       this.toast.success('Zahlungsmethoden wurden gespeichert.');

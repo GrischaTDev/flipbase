@@ -107,11 +107,9 @@ export class NotificationSettingsComponent {
       const result = await this.saveWebhookConfig();
       if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
       if (result.error || !result.data) {
+        const error = result.error ?? new Error('Keine bestätigte Webhook-Konfiguration.');
         if (!result.reportedBySyncStatus)
-          this.toast.error(
-            'Webhook-Konfiguration konnte nicht gespeichert werden.',
-            result.error?.message,
-          );
+          this.toast.error('Webhook-Konfiguration konnte nicht gespeichert werden.', error.message);
         return;
       }
       this.toast.success('Webhook-Konfiguration wurde gespeichert.');
