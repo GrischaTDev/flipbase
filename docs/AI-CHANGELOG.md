@@ -1,5 +1,29 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Release-Pipeline vereinfacht
+
+**Art:** Konfiguration | Test
+**Betroffen:** GitHub Actions, Änderungserkennung, Freigabeprüfungen und Deployment
+**Was:** Umsetzung im eigenen Zweig `chore/streamline-release-pipeline`; Dokumentationsfilter, gemeinsame Freigabe und neu verteilte Testgruppen. Digestgebundener Releaseweg mit explizit freigegebenen Migrationen, strikter verschlüsselter Sicherung und gemeinsamem SQL-/Historienabschluss vorbereitet. Produktionsimage wird vor Veröffentlichung geprüft, separater Master-Build entfällt.
+**Warum:** Weniger unnötige CI-Arbeit und vollständiger, abgesicherter Veröffentlichungsweg.
+**Verifiziert durch:** `npm run verify` Exit 0 (1.472 Anwendungstests erfolgreich, fünf bestehende Skips; Landingpage 13; Workflow 29 erfolgreich, vier Windows/POSIX-Skips; Build erfolgreich). Nachfolgende Compose-/Pfadänderungen gezielt nachgeprüft. Linux-Shelltests und echte PostgreSQL-16-/17.6-Transaktionen erfolgreich; actionlint und unabhängige Aufgabenreviews ohne blockierende Befunde. Docker-Build und HTTP-/SHA-/JS-/CSS-Smoke mit lokaler Umgebung erfolgreich. Keine Serverinstallation, Registry-Veröffentlichung oder Produktionsänderung; Bootstrap, Restore-Nachweis und Freigabe des Altrückstands bleiben nötig.
+
+## 2026-09-05 – Codex – Actions-Ablauf bewertet
+
+**Art:** Analyse
+**Betroffen:** CI, nächtliche Prüfungen, Benchmark, Docker-Build und Browserkonfiguration
+**Was:** Laufzeiten von Lauf 33925055214 und vorhandene Optimierungen geprüft; Zusammenführung der Freigabeprüfungen, gezielte Pfadfilter, Wiederverwendung von Build-Ergebnissen und Messung der Angular-Suite empfohlen.
+**Warum:** Komplexität und Wartezeit reduzieren, ohne Datenintegritätsprüfungen zu entfernen.
+**Verifiziert durch:** Konfiguration gelesen und offizielle GitHub-Dokumentation abgeglichen. Keine Workflow- oder Produktionsänderungen.
+
+## 2026-09-05 – Codex – Automatische Datenbankupdates geprüft
+
+**Art:** Analyse
+**Betroffen:** `.github/workflows/ci.yml`, `deploy/README.md`
+**Was:** Bestätigt, dass das Deployment Migrationen nur auf Vollständigkeit prüft und sie ausdrücklich nicht selbst ausführt.
+**Warum:** Den Abbruch nach PR #17 und die fehlende Automatisierung erklären.
+**Verifiziert durch:** Workflow und Deployment-Dokumentation gelesen; keine Produktionsänderung vorgenommen.
+
 Dieses Projekt wird teilweise mit KI-Assistenten entwickelt. **Jede** von einer KI durchgeführte Änderung wird hier mit Namen und Modell des Assistenten dokumentiert.
 
 ## Regel für alle KI-Assistenten
