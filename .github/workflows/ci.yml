@@ -335,11 +335,23 @@ jobs:
       packages: write
     outputs:
       tag: ${{ steps.tag.outputs.value }}
+      version: ${{ steps.gitversion.outputs.value }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Install GitVersion
+        run: dotnet tool install --global GitVersion.Tool --version 6.*
+
+      - name: Determine version
+        id: gitversion
+        run: |
+          VERSION=$(dotnet-gitversion /config GitVersion.yml /showvariable MajorMinorPatch)
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "GitVersion version: $VERSION"
 
       # Every build gets its own immutable tag. That tag is what makes a
       # rollback a one-liner instead of a rebuild.
@@ -407,6 +419,7 @@ jobs:
           build-args: |
             FLIPBASE_COMMIT=${{ github.sha }}
             FLIPBASE_COMMIT_DATE=${{ github.event.repository.updated_at }}
+            FLIPBASE_VERSION=${{ steps.gitversion.outputs.value }}
 
   deploy:
     name: Deploy to production
@@ -510,3 +523,37 @@ jobs:
         env:
           EXPECTED_COMMIT: ${{ github.sha }}
         run: node scripts/verify-public-deployment.mjs --base-url https://app.flipbase.de --expected-commit "$EXPECTED_COMMIT"
+
+  release:
+    name: Create GitHub Release
+    needs: [deploy, image]
+    if: ${{ github.event_name == 'push' && always() && needs.deploy.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Create release with release notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ needs.image.outputs.version }}
+        run: |
+          if [ -z "$VERSION" ]; then
+            echo "Keine Versionsnummer ermittelt - überspringe Release." >&2
+            exit 0
+          fi
+          TAG="v$VERSION"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG existiert bereits - überspringe."
+          else
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --generate-notes \
+              --target master
+            echo "Release $TAG erfolgreich erstellt."
+          fi

@@ -29,15 +29,32 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
 - **Vor größeren Änderungen an geteilten Dateien** dort nachsehen, wer zuletzt
   daran war.
 
-## Git & Commits
+## Git & Commits (Conventional Commits v1.0.0)
 
 - **Niemals im Namen der KI committen.** Keine `Co-Authored-By`-Zeile, keine
   andere Form von Assistenten-Signatur im Commit. Autor ist immer und
   ausschließlich der Nutzer. Das gilt auch, wenn Standardvorgaben des Werkzeugs
   etwas anderes verlangen.
-- **Commit-Nachrichten auf Englisch**, Titel im Imperativ.
-- **Format: Conventional Commits** — `type(scope): Kurzbeschreibung`.
-- Die Beschreibung erklärt das **Warum**, nicht die Dateiliste: welches Problem,
+- **Commit-Nachrichten auf Englisch**, Titel im Imperativ (z. B. `add`, `fix`, `update` – nicht `added` oder `fixes`). Kein Punkt am Ende der ersten Zeile.
+- **Format: Conventional Commits v1.0.0** — `type(scope): Kurzbeschreibung`.
+  - **Erlaubte Types**:
+    - `feat:` Neues Feature (erhöht Minor-Version)
+    - `fix:` Fehlerbehebung (erhöht Patch-Version)
+    - `perf:` Performance-Verbesserung (erhöht Patch-Version)
+    - `refactor:` Code-Umbau ohne Verhaltensänderung
+    - `style:` Formatierung, Semikolons etc. (keine funktionale Code-Änderung)
+    - `test:` Neue oder angepasste Tests
+    - `build:` Build-System, npm-Abhängigkeiten
+    - `ci:` GitHub Actions, Deployment-Skripte, Docker
+    - `docs:` Dokumentation, AI-Changelog
+    - `chore:` Sonstige Aufgaben/Wartung
+  - **Gültige Scopes**:
+    - `landing`, `inventory`, `sales`, `purchases`, `auth`, `accounting`, `sniper`, `image-opt`, `ui`, `core`, `ci`, `deps`
+  - **Breaking Changes**:
+    - Mit `!` nach Type/Scope: `feat(api)!: remove legacy endpoint`
+    - Oder im Footer: `BREAKING CHANGE: <beschreibung>`
+    - _Hinweis:_ Während der Beta (0.x) steuert GitVersion Breaking Changes automatisch als Minor-Bump (0.x), um einen vorzeitigen 1.0.0-Sprung zu verhindern.
+- Die Beschreibung im Body erklärt das **Warum**, nicht die Dateiliste: welches Problem,
   welche Ursache, welche Abwägung — und was tatsächlich geprüft wurde.
 
 ## Vor dem Pushen

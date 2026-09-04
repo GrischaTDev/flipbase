@@ -48,6 +48,26 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Gemini 3.8 Flash (Google) – Conventional Commits v1.0.0, GitVersion & Release-Workflow mit 0.x Beta-Schutz
+
+**Art:** Feature | CI / Automation
+
+**Betroffen:** `AGENTS.md`, `GitVersion.yml` (neu), `scripts/version-generieren.mjs`, `docker/Dockerfile`, `.github/workflows/ci.yml`, `docs/AI-CHANGELOG.md`
+
+**Was:**
+
+1. **Conventional Commits Richtlinien (`AGENTS.md`):** Strikte und verbindliche Spezifikation nach v1.0.0 für alle KIs integriert. Erlaubte Typen (`feat`, `fix`, `perf`, `refactor`, `style`, `test`, `build`, `ci`, `docs`, `chore`), Scopes (`landing`, `inventory`, `sales`, `purchases`, `auth`, `accounting`, `sniper`, `image-opt`, `ui`, `core`, `ci`, `deps`), Imperativ-Regel und Breaking-Change-Syntax (`!:` / `BREAKING CHANGE:`).
+2. **GitVersion-Konfiguration (`GitVersion.yml`):** Einführung von GitVersion mit `mode: ContinuousDeployment` auf `master`. Integrierter **0.x Beta-Schutz**, der Breaking Changes und Features als Minor-Bumps handhabt und einen automatischen Sprung auf Version 1.0.0 zuverlässig verhindert, bis die Beta explizit beendet wird.
+3. **Automatisierte Versionsanzeige in der Web-App:** `scripts/version-generieren.mjs` liest `GITVERSION_MAJOR_MINOR_PATCH`, `GITVERSION_SEMVER` und `FLIPBASE_VERSION` aus, wodurch die Versionsanzeige in der Sidebar unten links (`v{{ version.nummer }}`) nach jedem Release automatisch aktualisiert wird.
+4. **Docker-Image & CI-Pipeline:** `docker/Dockerfile` akzeptiert das Build-Argument `FLIPBASE_VERSION`. In `.github/workflows/ci.yml` wird GitVersion nativ via .NET im Job `image` ausgeführt und reicht die berechnete Versionsnummer weiter.
+5. **Automatisierte GitHub Releases:** Neuer Job `release` in `.github/workflows/ci.yml` erstellt nach erfolgreichem Produktionsdeployment automatisch ein offizielles GitHub Release inklusive Git-Tag (`v$VERSION`) und generierten Release Notes aus den Conventional Commits.
+
+**Warum:** Einheitlicher Versions- und Release-Zyklus ohne manuelle `package.json`-Eingriffe bei strikter Einhaltung der 0.x-Betaphase.
+
+**Verifiziert durch:** `dotnet-gitversion` Test (liefert sauber `0.121.1`), `scripts/version-generieren.mjs` Tests mit und ohne Umgebungsvariablen, `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:workflow` (21/21 grün) und `npm run test:audit`.
+
+---
+
 ## 2026-09-04 – Gemini 3.8 Flash (Google) – CI-Stabilität: Timeout für Quality- und Unit-Jobs auf 10 Minuten erhöht
 
 **Art:** CI / Stabilität
