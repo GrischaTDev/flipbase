@@ -369,3 +369,66 @@ comment on function public.sniper_reference_price(uuid, text) is
 -- eng, und eine soll nicht ausscheren.
 revoke all on function public.sniper_reference_price(uuid, text) from public, anon;
 grant execute on function public.sniper_reference_price(uuid, text) to authenticated;
+
+-- Legt fuer eine Abfrage die fehlenden Treffer an und liefert ihre Zahl.
+--
+-- Bewertet wird je Abonnement, weil die Schwelle dort haengt: derselbe Fund
+-- kann fuer einen Arbeitsbereich ein Treffer sein und fuer den naechsten
+-- nicht. Der Massstab wird am Treffer festgehalten statt spaeter neu
+-- gerechnet - er verschiebt sich mit jedem neuen Fund, und ohne den
+-- festgehaltenen Wert waere nicht mehr nachvollziehbar, warum gemeldet wurde.
+--
+-- `on conflict do nothing` macht wiederholte Laeufe folgenlos. Deshalb wirken
+-- Schwellenaenderungen auch nur nach vorn: Ein bereits gemeldeter Treffer
+-- verschwindet nicht, wenn jemand strenger wird.
+create or replace function public.sniper_evaluate_hits(p_query_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_created integer;
+begin
+  with kandidaten as (
+      select
+          subscription.id as subscription_id,
+          listing.id as listing_id,
+          massstab.reference_price,
+          round(
+              (massstab.reference_price - listing.item_price)
+              / massstab.reference_price * 100,
+              2
+          ) as discount_percent
+      from public.sniper_query_subscriptions as subscription
+      join public.sniper_listings as listing
+        on listing.discovered_by_query_id = p_query_id
+      cross join lateral public.sniper_reference_price(
+          p_query_id, listing.condition
+      ) as massstab
+      where subscription.query_id = p_query_id
+        and subscription.is_active
+        and massstab.reference_price is not null
+        and massstab.reference_price > 0
+        and listing.item_price
+            <= massstab.reference_price
+               * (1 - subscription.discount_threshold_percent / 100)
+  ),
+  eingefuegt as (
+      insert into public.sniper_hits
+          (subscription_id, listing_id, reference_price, discount_percent)
+      select subscription_id, listing_id, reference_price, discount_percent
+      from kandidaten
+      on conflict (subscription_id, listing_id) do nothing
+      returning 1
+  )
+  select count(*)::integer into v_created from eingefuegt;
+
+  return v_created;
+end;
+$$;
+
+comment on function public.sniper_evaluate_hits(uuid) is
+    'Legt fuer alle aktiven Abonnements einer Abfrage die fehlenden Treffer an und liefert deren Zahl. Wiederholte Laeufe sind folgenlos.';
+
+revoke all on function public.sniper_evaluate_hits(uuid) from public, anon, authenticated;
