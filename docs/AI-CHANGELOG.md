@@ -48,6 +48,16 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Claude Opus 5 (Anthropic) – Trefferregel je Abonnement
+
+**Art:** Feature
+**Betroffen:** `supabase/schemas/50_sniper.sql`, `supabase/migrations/20260904214229_sniper_evaluate_hits.sql` (neu), `supabase/tests/deal_monitor_evaluate_hits.sql` (neu)
+**Was:** Neue `security definer`-Funktion `sniper_evaluate_hits(query_id)`. Sie bewertet je aktivem Abonnement einer Abfrage, ob ein gefundenes Angebot unter dem Massstab aus `sniper_reference_price` liegt und die Schwelle des jeweiligen Abonnements unterschreitet, und legt fehlende Zeilen in `sniper_hits` an. Massstab und Abstand werden am Treffer festgehalten statt spaeter neu gerechnet. `on conflict (subscription_id, listing_id) do nothing` macht wiederholte Laeufe folgenlos, deaktivierte Abonnements bleiben aussen vor.
+**Warum:** Derselbe Fund kann fuer einen Arbeitsbereich ein Treffer sein und fuer den naechsten nicht, weil die Schwelle am Abonnement haengt - Bewertung muss also je Abonnement laufen, nicht je Abfrage. Ohne den festgehaltenen Massstab waere spaeter nicht mehr nachvollziehbar, warum ein Treffer gemeldet wurde, sobald sich der Median mit neuen Funden verschiebt.
+**Verifiziert durch:** Test zuerst (pgTAP, `plan(4)`): Fehlschlag `function ... does not exist` bestaetigt, dann Funktion ergaenzt. Migration per `npx supabase db diff -f sniper_evaluate_hits` erzeugt; der Abgleich revoke'te `EXECUTE` nur von `PUBLIC`, nicht von `authenticated` - Supabase vergibt neuen Funktionen per Voreinstellung ein zusaetzliches explizites `EXECUTE` an `authenticated`, das ein reines `PUBLIC`-Revoke nicht zieht. Von Hand um `anon, authenticated` ergaenzt und nach erneutem `db reset` gegenverifiziert: `information_schema.role_routine_grants` zeigt nur `postgres` und `service_role`, `has_function_privilege('authenticated', ...)` und `('anon', ...)` liefern beide `false`. `npm run test:db` → 12 Dateien, 260 Tests, alle gruen, exit 0. `npm run verify` exit 0, ohne Pipe gemessen.
+
+---
+
 ## 2026-09-04 – Claude Opus 5 (Anthropic) – Schlussprüfung des Deal-Monitor-Zweigs behoben
 
 **Art:** Bugfix | Sicherheit | Test | Doku
