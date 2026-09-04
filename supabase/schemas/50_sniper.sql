@@ -298,3 +298,74 @@ $$;
 
 revoke all on function public.create_sniper_subscription(uuid, text, integer, numeric, numeric, numeric) from public, anon;
 grant execute on function public.create_sniper_subscription(uuid, text, integer, numeric, numeric, numeric) to authenticated;
+
+-- Der Vergleichsmassstab einer Gruppe: der Median der Artikelpreise derselben
+-- Abfrage im selben Zustand, ueber ein gleitendes Fenster.
+--
+-- Zwei Schutzregeln, beide aus echten Daten hergeleitet (04.09.2026, 96 Funde):
+--
+-- Mindestzahl: Unter acht Vergleichswerten ist ein Median Zufall - ein
+-- einzelner Ausreisser verschiebt ihn stark.
+--
+-- Anschlagserkennung: Klebt mehr als ein Drittel der Gruppe an der
+-- Preisobergrenze der Abfrage, schneidet die Grenze in die Verteilung und der
+-- Median ist wertlos. Gemessen lag die abgeschnittene Gruppe bei 67 Prozent,
+-- die naechsthoechste gesunde bei 16 - ein Drittel trifft die Luecke.
+--
+-- Ohne die zweite Regel bliebe das Werkzeug genau in der Kategorie stumm, in
+-- der die echten Schnaeppchen stecken.
+create or replace function public.sniper_reference_price(
+    p_query_id uuid,
+    p_condition text
+)
+returns table (reference_price numeric, sample_size integer, unusable_reason text)
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+    with fenster as (
+        select listing.item_price
+        from public.sniper_listings as listing
+        where listing.discovered_by_query_id = p_query_id
+          and listing.condition is not distinct from p_condition
+          and listing.first_seen_at >= now() - interval '14 days'
+    ),
+    grenze as (
+        select price_to from public.sniper_queries where id = p_query_id
+    ),
+    kennzahlen as (
+        select
+            count(*)::integer as n,
+            percentile_cont(0.5) within group (order by item_price)::numeric(12, 2) as median,
+            count(*) filter (
+                where (select price_to from grenze) is not null
+                  and item_price >= (select price_to from grenze)
+            )::integer as am_limit
+        from fenster
+    )
+    select
+        case
+            when n < 8 then null
+            when am_limit::numeric / greatest(n, 1) > 1.0 / 3.0 then null
+            else median
+        end,
+        n,
+        case
+            when n < 8 then 'too_few'
+            when am_limit::numeric / greatest(n, 1) > 1.0 / 3.0 then 'at_price_ceiling'
+            else null
+        end
+    from kennzahlen;
+$$;
+
+comment on function public.sniper_reference_price(uuid, text) is
+    'Median der Artikelpreise einer Abfrage im selben Zustand ueber 14 Tage. Liefert null mit Begruendung, wenn die Gruppe zu klein ist oder am Preislimit klebt.';
+
+-- Postgres macht Funktionen standardmaessig fuer PUBLIC ausfuehrbar, womit auch
+-- anon sie aufrufen koennte. Gefaehrlich waere das hier nicht - die Funktion
+-- laeuft als Aufrufer, und anon hat keine Leserechte auf sniper_listings -
+-- aber die uebrigen Funktionen dieses Projekts ziehen die Rechte ausdruecklich
+-- eng, und eine soll nicht ausscheren.
+revoke all on function public.sniper_reference_price(uuid, text) from public, anon;
+grant execute on function public.sniper_reference_price(uuid, text) to authenticated;
