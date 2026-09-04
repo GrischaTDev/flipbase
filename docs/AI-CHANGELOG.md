@@ -48,6 +48,25 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Gemini 3.8 Flash (Google) – Landingpage i18n, Typografie, Footer & Beta-Registrierung
+
+**Art:** Feature | Bugfix | UI
+
+**Betroffen:** `landing/index.html`, `deploy/Caddyfile`, `src/app/features/auth/register/register.component.ts`
+
+**Was:**
+
+1. **Englische Sprache (i18n):** Fehler behoben, bei dem beim Umschalten auf Englisch alle Texte verschwanden. Ursache war `.lang-en { display: none !important; }`, welches die aktiven Regeln ohne `!important` überschrieb. Durch Hinzufügen von `!important` und `revert !important` auf die selektierten Sprachregeln schaltet die Seite nun zuverlässig und vollständig um.
+2. **Titel-Typografie (h1):** Schriftgröße der Hauptüberschrift von `clamp(2.4rem, 1.4rem + 4vw, 4.25rem)` auf ein harmonisches `clamp(1.85rem, 1.2rem + 2.2vw, 3.1rem)` mit angepasstem Zeilenabstand (`1.15`) reduziert.
+3. **Beta-Ankündigung & E-Mail CTA:** Aufmacher-Badge auf „🚀 Version 0.1 · Aktuelle Beta läuft“ aktualisiert und sowohl im Hero als auch im unteren CTA-Banner ein E-Mail-Eingabeformular (`hero-beta-form`) integriert. Bei Klick wird `https://app.flipbase.de/auth/register?email=...` aufgerufen. In `RegisterComponent` wird der `email`-Query-Parameter automatisch ausgelesen und in das Registrierungsformular übernommen. In `deploy/Caddyfile` wurde die CSP `form-action` dafür auf `https://app.flipbase.de` erweitert.
+4. **Footer-Struktur:** Das Footer-Layout von 5 unbalancierten, umbrechenden Spalten auf ein klares 4-Spalten-Grid (`2fr 1.1fr 1.2fr 1.3fr`, responsive auf 2 Spalten auf Tablets und mobilen Endgeräten) umgestellt (Flipbase Marke & Beta-Status, Produkt, Rechtliches [Impressum & Datenschutz], Beta & Kontakt).
+
+**Warum:** Fehlerbehebung der englischen Sprachanzeige, optische Verbesserung des Titels und des Footers sowie Bereitstellung eines direkten E-Mail-Call-to-Action zur Teilnahme an der laufenden Beta.
+
+**Verifiziert durch:** `npm run verify` (Format, Lint, Typecheck, Audit, Tests, Build)
+
+---
+
 ## 2026-09-04 – Gemini 3.8 Flash (Google) – Fix für mobilen Login-Loop und Landingpage-Bereitstellung
 
 **Art:** Bugfix | Deployment / CI

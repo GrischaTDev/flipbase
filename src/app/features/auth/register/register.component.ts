@@ -8,7 +8,7 @@ import {
   ValidatorFn,
   Validators,
 } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
@@ -61,6 +61,7 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
 export class RegisterComponent {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly route = inject(ActivatedRoute);
   readonly themeService = inject(ThemeService);
   private readonly translate = inject(TranslateService);
 
@@ -102,7 +103,7 @@ export class RegisterComponent {
         nonNullable: true,
         validators: [Validators.required, Validators.minLength(2)],
       }),
-      email: new FormControl('', {
+      email: new FormControl(this.route.snapshot.queryParamMap.get('email') ?? '', {
         nonNullable: true,
         validators: [Validators.required, Validators.email],
       }),

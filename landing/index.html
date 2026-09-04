@@ -140,7 +140,7 @@
         display: none !important;
       }
       .lang-de {
-        display: contents;
+        display: revert;
       }
       span.lang-de,
       b.lang-de,
@@ -151,7 +151,11 @@
       div.lang-de,
       p.lang-de,
       section.lang-de,
-      li.lang-de {
+      li.lang-de,
+      h1.lang-de,
+      h2.lang-de,
+      h3.lang-de,
+      h4.lang-de {
         display: block;
       }
 
@@ -159,19 +163,23 @@
         display: none !important;
       }
       body:has(#lang-toggle:checked) .lang-en {
-        display: contents;
+        display: revert !important;
       }
       body:has(#lang-toggle:checked) span.lang-en,
       body:has(#lang-toggle:checked) b.lang-en,
       body:has(#lang-toggle:checked) em.lang-en,
       body:has(#lang-toggle:checked) a.lang-en {
-        display: inline;
+        display: inline !important;
       }
       body:has(#lang-toggle:checked) div.lang-en,
       body:has(#lang-toggle:checked) p.lang-en,
       body:has(#lang-toggle:checked) section.lang-en,
-      body:has(#lang-toggle:checked) li.lang-en {
-        display: block;
+      body:has(#lang-toggle:checked) li.lang-en,
+      body:has(#lang-toggle:checked) h1.lang-en,
+      body:has(#lang-toggle:checked) h2.lang-en,
+      body:has(#lang-toggle:checked) h3.lang-en,
+      body:has(#lang-toggle:checked) h4.lang-en {
+        display: block !important;
       }
 
       *,
@@ -486,12 +494,12 @@
       }
 
       h1 {
-        font-size: clamp(2.4rem, 1.4rem + 4vw, 4.25rem);
-        line-height: 1.05;
-        letter-spacing: -0.04em;
+        font-size: clamp(1.85rem, 1.2rem + 2.2vw, 3.1rem);
+        line-height: 1.15;
+        letter-spacing: -0.035em;
         font-weight: 800;
         color: var(--ink);
-        margin: 0 0 1.5rem;
+        margin: 0 0 1.25rem;
       }
 
       h1 em {
@@ -500,11 +508,84 @@
       }
 
       .unterzeile {
-        font-size: clamp(1.05rem, 0.95rem + 0.3vw, 1.25rem);
+        font-size: clamp(1rem, 0.92rem + 0.25vw, 1.15rem);
         line-height: 1.6;
         color: var(--ink-muted);
-        margin: 0 0 2.25rem;
-        max-width: 36ch;
+        margin: 0 0 1.75rem;
+        max-width: 44ch;
+      }
+
+      .hero-beta-form {
+        margin: 0 0 1.5rem;
+        max-width: 500px;
+        width: 100%;
+      }
+
+      .hero-beta-input-gruppe {
+        display: flex;
+        align-items: center;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 5px 6px 5px 14px;
+        gap: 0.5rem;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+        transition:
+          border-color 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+
+      .hero-beta-input-gruppe:focus-within {
+        border-color: var(--amber);
+        box-shadow: 0 0 0 3px var(--amber-glow);
+      }
+
+      .hero-beta-input {
+        flex: 1;
+        min-width: 0;
+        background: transparent;
+        border: none;
+        color: var(--ink);
+        font-family: var(--sans);
+        font-size: 0.92rem;
+        outline: none;
+      }
+
+      .hero-beta-input::placeholder {
+        color: var(--ink-dim);
+      }
+
+      .hero-beta-btn {
+        padding: 0.72rem 1.35rem;
+        font-size: 0.88rem;
+        white-space: nowrap;
+        border: none;
+        cursor: pointer;
+      }
+
+      .hero-beta-hinweis {
+        margin: 0.65rem 0 0;
+        font-size: 0.8rem;
+        color: var(--ink-muted);
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+      }
+
+      @media (max-width: 540px) {
+        .hero-beta-input-gruppe {
+          flex-direction: column;
+          padding: 8px;
+          border-radius: 14px;
+        }
+        .hero-beta-input {
+          width: 100%;
+          padding: 8px 6px;
+        }
+        .hero-beta-btn {
+          width: 100%;
+          justify-content: center;
+        }
       }
 
       .held-aktionen {
@@ -1017,14 +1098,26 @@
         margin: 0 auto;
         padding: clamp(3rem, 6vw, 4.5rem) var(--rand) 2.5rem;
         display: grid;
-        grid-template-columns: 1.5fr repeat(auto-fit, minmax(200px, 1fr));
-        gap: 3rem;
+        grid-template-columns: 2fr 1.1fr 1.2fr 1.3fr;
+        gap: 2.5rem;
       }
 
-      @media (max-width: 768px) {
+      @media (max-width: 960px) {
         .fuss-inhalt {
-          grid-template-columns: 1fr;
-          gap: 2.5rem;
+          grid-template-columns: 1fr 1fr;
+          gap: 2.5rem 1.5rem;
+        }
+      }
+
+      @media (max-width: 580px) {
+        .fuss-inhalt {
+          grid-template-columns: 1fr 1fr;
+          gap: 2rem 1rem;
+        }
+
+        .fuss-marke,
+        .fuss-spalte-breit {
+          grid-column: 1 / -1;
         }
       }
 
@@ -1039,6 +1132,21 @@
         font-size: 0.88rem;
         color: var(--ink-muted);
         max-width: 32ch;
+        line-height: 1.5;
+      }
+
+      .fuss-beta-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: var(--surface);
+        border: 1px solid var(--amber-border);
+        border-radius: 9999px;
+        padding: 0.3rem 0.75rem;
+        font-size: 0.76rem;
+        color: var(--amber);
+        font-family: var(--mono);
+        width: fit-content;
       }
 
       .fuss-spalte h4 {
@@ -1069,10 +1177,22 @@
         color: var(--amber);
       }
 
-      .fuss-platzhalter {
+      .fuss-text {
+        font-size: 0.85rem;
+        color: var(--ink-muted);
+        line-height: 1.5;
+        margin: 0;
+      }
+
+      .fuss-kontakt-link {
         font-family: var(--mono);
-        font-size: 0.82rem;
+        font-size: 0.85rem;
         color: var(--amber);
+        word-break: break-all;
+      }
+
+      .fuss-kontakt-link:hover {
+        text-decoration: underline;
       }
 
       .fuss-unten {
@@ -1235,8 +1355,8 @@
         <div>
           <div class="hero-badge">
             <span class="hero-badge-punkt"></span>
-            <span class="lang-de">NEU: Vinted Deal-Sniper &amp; § 25a DATEV-Export</span>
-            <span class="lang-en">NEW: Vinted Deal Sniper &amp; § 25a DATEV Export</span>
+            <span class="lang-de">🚀 Version 0.1 · Aktuelle Beta läuft</span>
+            <span class="lang-en">🚀 Version 0.1 · Live Beta running</span>
           </div>
 
           <h1>
@@ -1259,11 +1379,41 @@
             </span>
           </p>
 
+          <form
+            class="hero-beta-form"
+            action="https://app.flipbase.de/auth/register"
+            method="GET"
+            target="_blank"
+          >
+            <div class="hero-beta-input-gruppe">
+              <input
+                type="email"
+                name="email"
+                class="hero-beta-input"
+                placeholder="name@example.com"
+                required
+                autocomplete="email"
+                aria-label="E-Mail-Adresse für Beta-Zugang"
+              />
+              <button type="submit" class="btn-primary hero-beta-btn">
+                <span class="lang-de">Für Beta anmelden →</span>
+                <span class="lang-en">Join Beta →</span>
+              </button>
+            </div>
+            <p class="hero-beta-hinweis">
+              <span class="lang-de"
+                >🔒 Sofortiger Beta-Zugang · Keine Kreditkarte nötig · 100% DSGVO</span
+              >
+              <span class="lang-en"
+                >🔒 Instant Beta access · No credit card required · 100% GDPR</span
+              >
+            </p>
+          </form>
+
           <div class="held-aktionen">
-            <a class="btn-primary" href="https://app.flipbase.de">
-              <span class="lang-de">Jetzt starten</span>
-              <span class="lang-en">Get started</span>
-              <span>→</span>
+            <a class="btn-secondary" href="https://app.flipbase.de" target="_blank">
+              <span class="lang-de">Bereits registriert? Zum Login →</span>
+              <span class="lang-en">Already registered? Log in →</span>
             </a>
             <a class="btn-secondary" href="#features">
               <span class="lang-de">Funktionen entdecken ↓</span>
@@ -2020,25 +2170,56 @@
       <!-- CTA Banner -->
       <section>
         <div class="banner-cta">
+          <div class="hero-badge" style="margin: 0 auto 1.25rem; display: inline-flex">
+            <span class="hero-badge-punkt"></span>
+            <span class="lang-de">🚀 Aktuelle Beta 0.1 jetzt geöffnet</span>
+            <span class="lang-en">🚀 Live Beta 0.1 now open</span>
+          </div>
           <h2>
             <span class="lang-de">Bereit, dein Reselling zu professionalisieren?</span>
             <span class="lang-en">Ready to scale your reselling business?</span>
           </h2>
           <p>
             <span class="lang-de">
-              Starte jetzt mit Flipbase und behalte Einkauf, Vinted-Deals, Bestände und Buchhaltung
-              an einem einzigen Ort im Griff.
+              Trage deine E-Mail ein und sichere dir sofortigen Zugriff auf die Flipbase Beta –
+              inklusive Vinted Deal-Sniper, Bildoptimierer und centgenauer DATEV § 25a Buchhaltung.
             </span>
             <span class="lang-en">
-              Start with Flipbase today and manage your sourcing, Vinted deals, inventory, and
-              bookkeeping in one single system.
+              Enter your email to get instant access to the Flipbase Beta – including Vinted Deal
+              Sniper, Image Optimizer, and penny-accurate DATEV § 25a accounting.
             </span>
           </p>
-          <a class="btn-primary" href="https://app.flipbase.de">
-            <span class="lang-de">Jetzt kostenlos ausprobieren</span>
-            <span class="lang-en">Get started for free</span>
-            <span>→</span>
-          </a>
+          <form
+            class="hero-beta-form"
+            style="margin: 0 auto 1.25rem"
+            action="https://app.flipbase.de/auth/register"
+            method="GET"
+            target="_blank"
+          >
+            <div class="hero-beta-input-gruppe">
+              <input
+                type="email"
+                name="email"
+                class="hero-beta-input"
+                placeholder="name@example.com"
+                required
+                autocomplete="email"
+                aria-label="E-Mail-Adresse für Beta-Zugang"
+              />
+              <button type="submit" class="btn-primary hero-beta-btn">
+                <span class="lang-de">Kostenlos für Beta anmelden →</span>
+                <span class="lang-en">Join Beta for free →</span>
+              </button>
+            </div>
+            <p class="hero-beta-hinweis" style="justify-content: center">
+              <span class="lang-de"
+                >🔒 Sofortiger Beta-Zugang · Keine Kreditkarte nötig · 100% DSGVO</span
+              >
+              <span class="lang-en"
+                >🔒 Instant Beta access · No credit card required · 100% GDPR</span
+              >
+            </p>
+          </form>
         </div>
       </section>
     </main>
@@ -2067,6 +2248,11 @@
               and margin tax.</span
             >
           </p>
+          <div class="fuss-beta-badge">
+            <span class="hero-badge-punkt"></span>
+            <span class="lang-de">Beta 0.1 aktiv</span>
+            <span class="lang-en">Beta 0.1 active</span>
+          </div>
         </div>
 
         <div class="fuss-spalte">
@@ -2100,9 +2286,9 @@
               </a>
             </li>
             <li>
-              <a href="https://app.flipbase.de">
-                <span class="lang-de">Anmelden</span>
-                <span class="lang-en">Sign in</span>
+              <a href="https://app.flipbase.de" target="_blank">
+                <span class="lang-de">Login →</span>
+                <span class="lang-en">Login →</span>
               </a>
             </li>
           </ul>
@@ -2110,34 +2296,60 @@
 
         <div class="fuss-spalte">
           <h4>
-            <span class="lang-de">Kontakt</span>
-            <span class="lang-en">Contact</span>
+            <span class="lang-de">Rechtliches</span>
+            <span class="lang-en">Legal</span>
           </h4>
-          <p class="fuss-platzhalter">[E-Mail-Adresse]</p>
+          <ul>
+            <li>
+              <span style="font-size: 0.8rem; font-weight: 600; color: var(--ink-soft)">
+                <span class="lang-de">Impressum</span>
+                <span class="lang-en">Imprint</span>
+              </span>
+              <p class="fuss-text">Flipbase GbR i.G.<br />Deutschland</p>
+            </li>
+            <li style="margin-top: 0.5rem">
+              <span style="font-size: 0.8rem; font-weight: 600; color: var(--ink-soft)">
+                <span class="lang-de">Datenschutz</span>
+                <span class="lang-en">Privacy</span>
+              </span>
+              <p class="fuss-text">
+                <span class="lang-de"
+                  >100% DSGVO-konform. Nur lokale Assets, keine Drittanbieter-Tracker.</span
+                >
+                <span class="lang-en"
+                  >100% GDPR-compliant. Local assets only, zero third-party trackers.</span
+                >
+              </p>
+            </li>
+          </ul>
         </div>
 
-        <div class="fuss-spalte">
-          <h4>Impressum</h4>
-          <p class="fuss-platzhalter">[Name]</p>
-          <p class="fuss-platzhalter">[Straße und Hausnummer]</p>
-          <p class="fuss-platzhalter">[PLZ und Ort]</p>
-        </div>
-
-        <div class="fuss-spalte">
+        <div class="fuss-spalte fuss-spalte-breit">
           <h4>
-            <span class="lang-de">Datenschutz</span>
-            <span class="lang-en">Privacy</span>
+            <span class="lang-de">Beta &amp; Kontakt</span>
+            <span class="lang-en">Beta &amp; Contact</span>
           </h4>
-          <p style="font-size: 0.85rem; color: var(--ink-muted); line-height: 1.5">
-            <span class="lang-de">
-              Diese Seite lädt ausschließlich eigene Dateien und bindet keine fremden Tracker ein.
-              Das einzige Cookie merkt sich rein deinen Anmeldestatus (Wert: 1).
-            </span>
-            <span class="lang-en">
-              This site strictly loads local assets without external trackers. A single session
-              cookie only stores your login flag (value: 1).
-            </span>
+          <p class="fuss-text" style="margin-bottom: 0.5rem">
+            <span class="lang-de">Feedback, Fragen oder Wünsche zur laufenden Beta:</span>
+            <span class="lang-en">Feedback, questions, or ideas for our live beta:</span>
           </p>
+          <a href="mailto:beta@flipbase.de" class="fuss-kontakt-link">beta@flipbase.de</a>
+          <div style="margin-top: 1rem">
+            <a
+              href="https://app.flipbase.de/auth/register"
+              class="btn-primary"
+              style="
+                padding: 0.5rem 1rem;
+                font-size: 0.8rem;
+                display: inline-flex;
+                width: fit-content;
+              "
+              target="_blank"
+            >
+              <span class="lang-de">Jetzt Beta beitreten →</span>
+              <span class="lang-en">Join Beta now →</span>
+            </a>
+          </div>
         </div>
       </div>
 
