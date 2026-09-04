@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Impressum · Flipbase</title>
+    <meta name="robots" content="noindex, follow" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="stylesheet" href="/fonts/fonts.css" />
+    <style>
+      :root {
+        --sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+        --mono: 'JetBrains Mono', monospace;
+        --bg: #090a0d;
+        --surface: #111317;
+        --surface-alt: #16181f;
+        --ink: #f0f2f5;
+        --ink-muted: #8a919e;
+        --ink-dim: #5a616e;
+        --line: #222630;
+        --amber: #f59e0b;
+        --amber-hover: #d97706;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #f8fafc;
+          --surface: #ffffff;
+          --surface-alt: #f1f5f9;
+          --ink: #0f172a;
+          --ink-muted: #475569;
+          --ink-dim: #94a3b8;
+          --line: #e2e8f0;
+        }
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: var(--sans);
+        background: var(--bg);
+        color: var(--ink);
+        line-height: 1.65;
+        font-size: 0.95rem;
+      }
+      header {
+        border-bottom: 1px solid var(--line);
+        padding: 1.25rem 1.5rem;
+        background: var(--surface);
+      }
+      .header-inner {
+        max-width: 860px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.65rem;
+        text-decoration: none;
+        color: var(--ink);
+        font-weight: 800;
+        font-size: 1.15rem;
+      }
+      .back-link {
+        font-size: 0.88rem;
+        color: var(--amber);
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .back-link:hover {
+        text-decoration: underline;
+      }
+      main {
+        max-width: 860px;
+        margin: 2.5rem auto 4rem;
+        padding: 0 1.5rem;
+      }
+      h1 {
+        font-size: clamp(1.8rem, 1.4rem + 1.5vw, 2.5rem);
+        font-weight: 800;
+        margin: 0 0 1.5rem;
+        color: var(--ink);
+      }
+      h2 {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin: 2rem 0 0.75rem;
+        color: var(--ink);
+      }
+      p {
+        margin: 0 0 1rem;
+        color: var(--ink-muted);
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 1.75rem;
+        margin-bottom: 1.5rem;
+      }
+      footer {
+        border-top: 1px solid var(--line);
+        padding: 2rem 1.5rem;
+        text-align: center;
+        font-size: 0.82rem;
+        color: var(--ink-dim);
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-inner">
+        <a href="/" class="brand">
+          <img src="/images/logo-mark.png" alt="Flipbase Logo" width="28" height="28" />
+          <span>Flipbase</span>
+        </a>
+        <a href="/" class="back-link">← Zurück zur Startseite</a>
+      </div>
+    </header>
+
+    <main>
+      <h1>Impressum</h1>
+
+      <div class="card">
+        <h2>Angaben gemäß § 5 DDG</h2>
+        <p>
+          Flipbase GbR i.G.<br />
+          Deutschland
+        </p>
+
+        <h2>Kontakt</h2>
+        <p>
+          E-Mail:
+          <a href="mailto:kontakt@flipbase.de" style="color: var(--amber)">kontakt@flipbase.de</a>
+        </p>
+
+        <h2>Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV</h2>
+        <p>
+          Flipbase GbR i.G.<br />
+          Deutschland
+        </p>
+
+        <h2>EU-Streitschlichtung</h2>
+        <p>
+          Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:
+          <a
+            href="https://ec.europa.eu/consumers/odr"
+            target="_blank"
+            rel="noopener noreferrer"
+            style="color: var(--amber)"
+            >https://ec.europa.eu/consumers/odr</a
+          >.<br />
+          Unsere E-Mail-Adresse finden Sie oben im Impressum.
+        </p>
+
+        <h2>Verbraucherstreitbeilegung / Universalschlichtungsstelle</h2>
+        <p>
+          Wir sind nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer
+          Verbraucherschlichtungsstelle teilzunehmen.
+        </p>
+      </div>
+    </main>
+
+    <footer>
+      <div>© 2026 Flipbase. Alle Rechte vorbehalten.</div>
+    </footer>
+  </body>
+</html>

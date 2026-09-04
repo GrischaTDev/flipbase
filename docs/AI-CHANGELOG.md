@@ -48,6 +48,28 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Gemini 3.8 Flash (Google) – Landingpage Polish: Emojis zu SVG, Beta-Anfrage & Footer-Reduktion
+
+**Art:** UI | Refactoring
+
+**Betroffen:** `landing/index.html`, `landing/impressum/index.html`, `landing/datenschutz/index.html`
+
+**Was:**
+
+1. **Emojis durch Vektor-Icons ersetzt:** Alle Emojis (in den Badges und in den Sicherheitskarten für Server, RLS, Trackerfreiheit und PWA) durch saubere, moderne SVG-Vektor-Icons im Lucide-Stil der App ausgetauscht.
+2. **Beta-Anfrage statt Direktzugang:** Text „Sofortiger Beta-Zugang · Keine Kreditkarte nötig · 100% DSGVO“ vollständig entfernt. Call-to-Action und Badges auf eine schrittweise freigeschaltete Beta-Anfrage umgestellt („Beta-Phase 0.1“, Button: „Beta-Zugang anfragen →“).
+3. **E-Mail-Eingabe überarbeitet:** Das bisherige umschließende Container-Design („Feld im Feld“) durch eigenständige, nebeneinander stehende Eingabefelder und Aktionsbuttons mit sauberem Radius ersetzt.
+4. **Footer entschlackt:**
+   - Spalte „Beta & Kontakt“ sowie der Footer-Untertitel „Gehostet in Deutschland · DSGVO-konform“ komplett entfernt.
+   - Rechtliches-Spalte von Hinweistexten befreit; stattdessen zwei saubere Links auf `/impressum` und `/datenschutz`.
+   - Entsprechende statische Seiten `landing/impressum/index.html` und `landing/datenschutz/index.html` im Flipbase-Design erstellt.
+
+**Warum:** Vorgaben des Nutzers zur professionellen Bereinigung der Landingpage, Beseitigung des „Feld im Feld“-Eindrucks, Vereinheitlichung des Icon-Stils mit der App und korrekte Abbildung der geschlossenen Beta-Phase.
+
+**Verifiziert durch:** `npm run verify`, SCP/Deploy auf Server, HTTP 200 Tests.
+
+---
+
 ## 2026-09-04 – Gemini 3.8 Flash (Google) – Landingpage i18n, Typografie, Footer & Beta-Registrierung
 
 **Art:** Feature | Bugfix | UI
