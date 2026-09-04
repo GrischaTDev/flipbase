@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(6);
+select plan(7);
 
 \set user_id '85000000-0000-4000-8000-000000000001'
 \set workspace_a '85000000-0000-4000-8000-000000000002'
@@ -222,6 +222,44 @@ end;
 $$;
 
 select pass('Sichtbarkeit von sniper_queries folgt der Mitgliedschaft, nicht nur dem Vorhandensein');
+
+-- Unsinnige Preisspannen werden abgelehnt.
+--
+-- Ohne diese Pruefung liesse sich ein Filter "von 50 bis 10" anlegen, der bei
+-- Vinted nie etwas finden kann - und ein negativer Preis ebenso. Beides fiel
+-- erst bei einer Handprobe in der Schlusspruefung auf; hier steht es fest.
+do $$
+declare
+  verdreht_abgelehnt boolean := false;
+  negativ_abgelehnt boolean := false;
+begin
+  begin
+    perform public.create_sniper_subscription(
+      '85000000-0000-4000-8000-000000000002'::uuid, 'preisprobe verdreht', null, 50, 10, 30
+    );
+  exception when others then
+    verdreht_abgelehnt := true;
+  end;
+
+  begin
+    perform public.create_sniper_subscription(
+      '85000000-0000-4000-8000-000000000002'::uuid, 'preisprobe negativ', null, -5, 50, 30
+    );
+  exception when others then
+    negativ_abgelehnt := true;
+  end;
+
+  if not verdreht_abgelehnt then
+    raise exception 'Eine verdrehte Preisspanne (von 50 bis 10) wurde angenommen';
+  end if;
+
+  if not negativ_abgelehnt then
+    raise exception 'Ein negativer Preis wurde angenommen';
+  end if;
+end;
+$$;
+
+select pass('Verdrehte und negative Preisspannen werden abgelehnt');
 
 select * from finish();
 
