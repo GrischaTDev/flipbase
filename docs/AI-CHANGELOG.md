@@ -48,6 +48,76 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Claude Opus 5 (Anthropic) – Schlussprüfung des Deal-Monitor-Zweigs behoben
+
+**Art:** Bugfix | Sicherheit | Test | Doku
+**Betroffen:** `supabase/schemas/50_sniper.sql`, `supabase/migrations/20260904182349_harden_sniper_subscription_rpc.sql` (neu), `supabase/migrations/20260904183000_backfill_legacy_sniper_query_keys.sql` (neu), `supabase/tests/vinted_deal_monitor_schema.sql`, `supabase/tests/deal_monitor_subscription_rpc.sql`, `docs/AI-CHANGELOG.md`
+**Was:** Neun Befunde einer Schlussprüfung des ganzen Zweigs vor dem Zusammenführen behoben, alle in `create_sniper_subscription` und den Sniper-Tabellen: (1) `p_price_from`/`p_price_to` werden jetzt vor der Schlüsselbildung auf zwei Nachkommastellen gerundet, damit z. B. `50.567` und `50.566` dieselbe Abfrage teilen statt zwei anzulegen; (2) `check`-Bedingungen verbieten negative Preise, eine vertauschte Preisspanne wirft jetzt eine eigene Ausnahme; (3) `on conflict (workspace_id, query_id) do update` übernimmt die neue Schwelle und setzt das Abonnement aktiv – vorher gab es keinen Weg, eine einmal gesetzte Schwelle zu ändern; (4) `on conflict (query_key) do update` setzt eine stillgelegte Abfrage (`is_active`, `consecutive_failures`) beim Neuanlegen zurück; (5) `v_search_text = ''` prüft jetzt auch auf `null`; (6) neue, von Hand geschriebene Migration zieht alte fünfteilige `query_key`-Werte auf das neue sechsteilige Format nach (auf leeren Datenbanken folgenlos); (7) `vinted_deal_monitor_schema.sql` prüft jetzt wie die anderen Sniper-Testdateien, dass `anon` auf `sniper_queries`/`sniper_listings` keinerlei Rechte hat und `authenticated` genau `SELECT`; (8) der Testblock zur doppelten Anlage prüft jetzt tatsächlich, dass die zweite Schwelle (40) übernommen wird, plus ein neuer Block für die Rundung aus (1); (9) vier fehlende Sitzungen im Changelog nachgetragen (Abonnement-Tabelle/`price_from`, Sichtbarkeit auf Abonnenten umgestellt, Anlegefunktion, ESLint-Fix für fremde Arbeitsordner).
+**Warum:** Die Prüfung fand reale Lücken, auch wenn die Produktionsdatenbank aktuell null Zeilen in `sniper_queries`/`sniper_listings` hält (geprüft) – die Korrekturen sind vorsorglich, nicht rettend. Ohne Rundung hätte der Abonnement-Mechanismus genau das Doppelpollen erzeugt, das er verhindern soll. Ohne einen Weg, die Schwelle zu ändern, wäre die in der Spezifikation zugesagte Nachjustierbarkeit eine Lüge in der Oberfläche gewesen. Eine stillgelegte Abfrage ohne Weg zurück hätte einen neu angelegten Filter stumm bleiben lassen.
+**Verifiziert durch:** Migration per `npx supabase db diff -f harden_sniper_subscription_rpc` erzeugt, Nachfüll-Migration von Hand geschrieben; `npx supabase db reset --local` exit 0 (alle Migrationen inkl. beider neuer angewendet); `npm run test:db` – 10 Dateien, 249 Tests, alle grün, exit 0; zusätzlich per `psql` gegen die laufende Datenbank direkt geprüft: vertauschte Preisspanne wirft "Die Preisuntergrenze darf nicht ueber der Preisobergrenze liegen", negativer Preis verletzt den neuen `check`, eine stillgelegte Abfrage (`is_active=false, consecutive_failures=5`) kommt beim Neuanlegen auf `is_active=true, consecutive_failures=0` zurück; `npm run verify` im Stammverzeichnis exit 0, ohne Pipe gemessen (Format, Lint, Typecheck, 21/21 Workflow-Tests, Suite-Audit, dom 9/9 Dateien/97 Tests, angular 18/18/240, node 89/89/760, Produktionsbau).
+
+---
+
+## 2026-09-04 – Claude Opus 5 (Anthropic) – Anlegefunktion fuer geteilte Abfragen
+
+**Art:** Feature
+**Betroffen:** `supabase/schemas/50_sniper.sql`, `supabase/migrations/20260904175250_create_sniper_subscription.sql`, `supabase/tests/deal_monitor_subscription_rpc.sql`
+**Was:** `authenticated` darf `sniper_queries` und `sniper_query_subscriptions` nur lesen, es gab also keinen Weg, ueber die Oberflaeche einen Filter anzulegen. Neue `security definer`-Funktion `create_sniper_subscription(workspace_id, search_text, brand_id, price_from, price_to, threshold)`: bildet denselben `query_key`, den der Dienst und `services/sniper/src/domain/query.ts` bilden, legt die geteilte Abfrage per `on conflict (query_key) do nothing` an oder verwendet die vorhandene, und haengt darunter das Abonnement mit eigener Schwelle an.
+**Warum:** Zwei Arbeitsbereiche mit demselben Filter sollen sich eine Abfrage teilen, aber je eigene Schwelle behalten - das muss serverseitig erzwungen werden, sonst legt ein UI-Bug zwei Abfragen fuer denselben Filter an und verdoppelt das Pollen. Test-zuerst mit pgTAP: gleicher normalisierter Filter aus zwei Arbeitsbereichen ergibt eine `sniper_queries`-Zeile mit zwei Abonnements und unabhaengigen Schwellen; zweimaliger Aufruf fuer denselben Arbeitsbereich/Filter ist ein No-op; 50.00 und 50 hashen ueber `trim_scale` auf denselben Schluessel. Zusaetzlich eine Verhaltenspruefung statt nur Metadatenpruefung fuer die Task-2-Leserichtlinie: probeweise durch ein unkorreliertes `using (true)` ersetzt, bestaetigt, dass die neue Zusicherung dann tatsaechlich scheitert, danach zurueckgesetzt.
+**Verifiziert durch:** `npm run test:db` gruen, `npm run verify` exit 0.
+
+---
+
+## 2026-09-04 – Claude Opus 5 (Anthropic) – ESLint lintet keine fremden Arbeitsordner mehr (fix(ci))
+
+**Art:** Bugfix | CI
+**Betroffen:** ESLint-Flat-Config (Ignorierliste fuer `.worktrees/`)
+**Was:** `npm run verify` schlug an `ARCHIVE_TABLES` fehl - "assigned but only used as a type" - in einer Datei, die auf diesem Zweig niemand angefasst hat. Sie lag unter `.worktrees/purchase-costing-foundation/`, der Arbeitskopie eines Zweigs, den ein anderer Assistent parallel bearbeitet. Git und Prettier ignorieren dieses Verzeichnis bereits, ESLints Flat-Config liest `.gitignore` aber nicht und lief direkt hinein.
+**Warum:** Dieses Repository haelt mit Absicht mehrere Arbeitsordner gleichzeitig offen (Parallelbetrieb mehrerer Assistenten). Der Fehler wirkte zufaellig - er erschien und verschwand je nachdem, in welchem Zwischenstand die Datei eines Kollegen gerade war - und zeigte auf Code, den der jeweilige Lauf gar nicht reparieren konnte. Die Lösung gehoert deshalb in die geteilte Konfiguration statt in eine lokale Einstellung.
+**Verifiziert durch:** `eslint` exit 0, `npm run verify` exit 0, ohne Pipe gemessen.
+
+---
+
+## 2026-09-04 – Claude Opus 5 (Anthropic) – Sichtbarkeit von Abfragen auf Abonnenten umgestellt
+
+**Art:** Feature | Sicherheit
+**Betroffen:** `supabase/schemas/50_sniper.sql`, `supabase/migrations/20260904155929_scope_sniper_queries_to_subscribers.sql`, `supabase/tests/deal_monitor_subscriptions.sql`
+**Was:** Die Leserichtlinie fuer `sniper_queries` erlaubte bislang jedem angemeldeten Nutzer alle Zeilen (`using (true)`). Ersetzt durch eine Richtlinie, die nur Zeilen zeigt, fuer die eine `sniper_query_subscriptions`-Zeile des eigenen Arbeitsbereichs existiert.
+**Warum:** Welche Filter ein Arbeitsbereich beobachtet, ist seine Einkaufsstrategie und geht andere Arbeitsbereiche nichts an - eine geteilte Abfrage darf zwar gemeinsam gepollt werden, aber nicht fuer jeden sichtbar sein, der nicht abonniert hat.
+**Verifiziert durch:** `npm run test:db` gruen, `npm run verify` exit 0.
+
+---
+
+## 2026-09-02 – Claude Opus 5 (Anthropic) – Abonnement-Tabelle und Preisuntergrenze (Etappe 2)
+
+**Art:** Feature
+**Betroffen:** `supabase/config.toml`, `supabase/schemas/50_sniper.sql`, `supabase/migrations/20260902213813_deal_monitor_subscriptions.sql`, `supabase/migrations/20260902213821_restrict_subscription_tables.sql`, `supabase/tests/deal_monitor_subscriptions.sql`
+**Was:** Neue Tabelle `public.sniper_query_subscriptions` (workspace_id, query_id, discount_threshold_percent, is_active, Eindeutigkeit ueber workspace_id+query_id) verbindet einen Arbeitsbereich mit einer geteilten Abfrage, ohne dass andere Arbeitsbereiche sie sehen. `sniper_queries` bekommt die Spalte `price_from`. Dabei kam ein latenter Sortierfehler zum Vorschein: `config.toml` las `schema_paths` alphabetisch glob-sortiert, wodurch `50_sniper.sql` (jetzt mit Fremdschluessel auf `workspaces`) vor `database.sql` geladen wurde und `supabase db diff` brach. Behoben durch eine explizite Liste in `schema_paths` statt einer Aenderung an einer der Schemadateien.
+**Warum:** Etappe 2 braucht einen Filter je Arbeitsbereich, ohne dass andere Arbeitsbereiche ihn sehen. `supabase db diff` uebertraegt keine Tabellenrechte aus dem deklarativen Schema, deshalb entzieht eine von Hand geschriebene Folgemigration `authenticated` insert/update/delete auf der neuen Tabelle, nach dem Vorbild von `20260902194744_restrict_sniper_tables.sql`. Test-zuerst: der pgTAP-Test wurde geschrieben und der erwartete Fehlschlag ("missing required columns") bestaetigt, bevor die Schemaaenderung folgte.
+**Verifiziert durch:** `npm run test:db` (8 Dateien, davor 7, alle gruen), Rechte zusaetzlich per psql bestaetigt (`authenticated` haelt nur REFERENCES, SELECT, TRIGGER, TRUNCATE), `npm run verify` exit 0.
+
+---
+
+## 2026-09-04 – Claude Opus 5 (Anthropic) – Preisuntergrenze im Sammeldienst (Task 5)
+
+**Art:** Feature
+**Betroffen:** `services/sniper/src/domain/query.ts`, `services/sniper/src/store/query.store.ts`, `services/sniper/src/vinted/collector.ts`, zugehoerige Testdateien
+**Was:** `buildQueryKey` bildet jetzt sechs statt fuenf Segmente (`price_from` vor `price_to`, wie schon in `create_sniper_subscription`), `SniperQuery`/`QueryKeyInput` um `priceFrom` erweitert, `QueryStore` liest `price_from` als Zahl aus Postgres, `VintedCollector` reicht sie als `price_from`-Parameter an Vinted weiter.
+**Warum:** Dienst und Datenbank muessen denselben Abfrageschluessel bilden - sonst legt derselbe Filter zweimal eine Vinted-Abfrage an, und eine gespeicherte Preisuntergrenze, die nie an Vinted geht, waere eine Luege in der Oberflaeche. Test-zuerst: Schluesseltest und Sammlertest aus dem Auftrag zuerst ergaenzt, Fehlschlag bestaetigt, dann implementiert.
+**Verifiziert durch:** `services/sniper`: `npx tsc --noEmit`, `npm test` (10 Dateien, 75 Tests), `npm run build`, `npm run test:integration` (2 Dateien, 13 Tests) - alle exit 0. `npm run verify` im Stammverzeichnis exit 0 (dom 9/97, angular 18/240, node 89/760).
+
+---
+
+## 2026-09-04 – Claude Opus 5 (Anthropic) – Trefferliste fuer den Deal-Monitor (Task 3)
+
+**Art:** Feature
+**Betroffen:** `supabase/schemas/50_sniper.sql`, `supabase/migrations/20260904160926_deal_monitor_hits.sql`, `supabase/migrations/20260904161027_restrict_hit_tables.sql`, `supabase/tests/deal_monitor_hits.sql`
+**Was:** Neue Tabelle `public.sniper_hits` angelegt (id, subscription_id, listing_id, reference_price, discount_percent, created_at, notified_at) mit Eindeutigkeit ueber (subscription_id, listing_id), RLS-Leserichtlinie fuer Abonnenten und einer von Hand geschriebenen Migration, die `authenticated` auf genau SELECT beschraenkt (`revoke all` statt nur insert/update/delete, damit truncate nicht wie bei Task 1 stehen bleibt).
+**Warum:** Gefaess fuer Task 2 des Deal-Monitors – gefuellt wird die Tabelle erst spaeter vom Dienst ueber den Service-Role-Schluessel. Test-zuerst: Testdatei mit 5 Pruefungen (Spalten, Eindeutigkeit, RLS, anon-Rechte, authenticated-Rechte) geschrieben, Fehlschlag bestaetigt, dann Schema/Migrationen ergaenzt.
+**Verifiziert durch:** `npm run test:db` (241/241, 9 Dateien, exit 0), Rechte zusaetzlich per Direktabfrage gegen die laufende Datenbank bestaetigt (anon: keine Zeile, authenticated: exakt {SELECT}), `npm run verify` (exit 0, inkl. Build).
+
+---
+
 ## 2026-09-04 – Gemini 3.8 Flash (Google) – Landingpage FAQ Akkordeon, Roadmap & Tracking-Bereinigung
 
 **Art:** UI | Feature | Doku

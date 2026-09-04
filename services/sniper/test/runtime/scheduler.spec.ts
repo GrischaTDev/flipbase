@@ -10,12 +10,13 @@ const NOW = new Date('2026-08-30T10:00:00.000Z');
 function makeQuery(overrides: Partial<SniperQuery> = {}): SniperQuery {
   return {
     id: 'q1',
-    queryKey: 'vinted|search=nike|catalog=-|brand=-|price_to=-',
+    queryKey: 'vinted|search=nike|catalog=-|brand=-|price_from=-|price_to=-',
     marketplace: 'vinted',
     searchText: 'nike',
     catalogId: null,
     brandId: null,
     priceTo: null,
+    priceFrom: null,
     pollIntervalMs: 60000,
     isSeeded: true,
     isActive: true,

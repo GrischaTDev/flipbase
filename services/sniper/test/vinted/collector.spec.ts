@@ -7,12 +7,13 @@ import type { SniperQuery } from '../../src/domain/query.js';
 
 const query: SniperQuery = {
   id: 'q1',
-  queryKey: 'vinted|search=nike air max|catalog=-|brand=-|price_to=50',
+  queryKey: 'vinted|search=nike air max|catalog=-|brand=-|price_from=-|price_to=50',
   marketplace: 'vinted',
   searchText: 'nike air max',
   catalogId: null,
   brandId: null,
   priceTo: 50,
+  priceFrom: null,
   pollIntervalMs: 60000,
   isSeeded: true,
   isActive: true,
@@ -144,5 +145,14 @@ describe('VintedCollector', () => {
       .mockResolvedValueOnce(Response.json({ items: [{ nope: true }] }));
 
     await expect(build(fetchFn).collect(query)).rejects.toThrow();
+  });
+
+  it('reicht die Preisuntergrenze an Vinted weiter', async () => {
+    const fetchFn = vi.fn().mockResolvedValueOnce(homepage()).mockResolvedValueOnce(catalog());
+
+    await build(fetchFn).collect({ ...query, priceFrom: 10 });
+
+    const url = new URL(fetchFn.mock.calls[1]![0] as string);
+    expect(url.searchParams.get('price_from')).toBe('10');
   });
 });

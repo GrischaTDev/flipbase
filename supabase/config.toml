@@ -61,7 +61,10 @@ max_client_conn = 100
 enabled = true
 # Specifies an ordered list of schema files, directories, or glob patterns that describe your database.
 # Supports paths relative to supabase directory: "./schemas/*.sql", "./database".
-schema_paths = ["./schemas/*.sql"]
+# Feste Liste statt Platzhalter: Eine neue Schemadatei wird nur eingelesen, wenn sie
+# hier eingetragen wird. Die Reihenfolge bildet Abhaengigkeiten ab (z.B. braucht
+# 50_sniper.sql Tabellen und Funktionen aus database.sql und muss deshalb danach stehen).
+schema_paths = ["./schemas/database.sql", "./schemas/50_sniper.sql"]
 
 [db.seed]
 # If enabled, seeds the database after migrations during a db reset.

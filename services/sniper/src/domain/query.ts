@@ -5,6 +5,7 @@ export interface QueryKeyInput {
   catalogId?: number | null;
   brandId?: number | null;
   priceTo?: number | null;
+  priceFrom?: number | null;
 }
 
 export interface SniperQuery {
@@ -15,6 +16,7 @@ export interface SniperQuery {
   catalogId: number | null;
   brandId: number | null;
   priceTo: number | null;
+  priceFrom: number | null;
   pollIntervalMs: number;
   isSeeded: boolean;
   isActive: boolean;
@@ -43,6 +45,7 @@ export function buildQueryKey(input: QueryKeyInput): string {
     `search=${searchText}`,
     `catalog=${part(input.catalogId)}`,
     `brand=${part(input.brandId)}`,
+    `price_from=${part(input.priceFrom)}`,
     `price_to=${part(input.priceTo)}`,
   ].join('|');
 }
