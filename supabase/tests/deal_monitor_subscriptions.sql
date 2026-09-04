@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(6);
+select plan(7);
 
 -- Spalten von sniper_query_subscriptions
 do $$
@@ -142,6 +142,39 @@ end;
 $$;
 
 select pass('authenticated darf die Abonnement-Tabelle genau lesen');
+
+-- Abfragen sind nur fuer Abonnenten sichtbar.
+do $$
+declare
+  offene_policy text;
+begin
+  select policyname
+  into offene_policy
+  from pg_policies
+  where schemaname = 'public'
+    and tablename = 'sniper_queries'
+    and cmd = 'SELECT'
+    and 'authenticated' = any(roles)
+    and qual = 'true';
+
+  if offene_policy is not null then
+    raise exception 'sniper_queries ist fuer alle Angemeldeten lesbar: %', offene_policy;
+  end if;
+
+  if not exists (
+    select 1 from pg_policies
+    where schemaname = 'public'
+      and tablename = 'sniper_queries'
+      and cmd = 'SELECT'
+      and 'authenticated' = any(roles)
+      and qual like '%sniper_query_subscriptions%'
+  ) then
+    raise exception 'Keine Leserichtlinie auf sniper_queries, die an Abonnements haengt';
+  end if;
+end;
+$$;
+
+select pass('Abfragen sind nur fuer ihre Abonnenten sichtbar');
 
 select * from finish();
 

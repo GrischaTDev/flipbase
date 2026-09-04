@@ -120,9 +120,18 @@ create index if not exists idx_sniper_query_subscriptions_query
 alter table public.sniper_queries enable row level security;
 alter table public.sniper_listings enable row level security;
 
-create policy "Angemeldete duerfen Abfragen lesen" on public.sniper_queries
+-- Eine Abfrage ist nur fuer die Arbeitsbereiche sichtbar, die sie abonniert
+-- haben. Welche Filter jemand beobachtet, ist seine Einkaufsstrategie.
+create policy "Abonnenten duerfen ihre Abfragen lesen" on public.sniper_queries
     for select to authenticated
-    using (true);
+    using (
+        exists (
+            select 1
+            from public.sniper_query_subscriptions as subscription
+            where subscription.query_id = public.sniper_queries.id
+              and public.is_workspace_member(subscription.workspace_id)
+        )
+    );
 
 create policy "Angemeldete duerfen Angebote lesen" on public.sniper_listings
     for select to authenticated
