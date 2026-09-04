@@ -68,6 +68,10 @@ for _ in $(seq 1 30); do
   zustand="$(docker inspect -f '{{.State.Health.Status}}' "$CONTAINER" 2>/dev/null || echo fehlt)"
   if [ "$zustand" = "healthy" ]; then
     echo "$CONTAINER ist gesund."
+    if [ -d /opt/flipbase-landing ]; then
+      docker cp "$CONTAINER":/usr/share/nginx/landing/. /opt/flipbase-landing/ 2>/dev/null || true
+      echo "Landingpage synchronisiert."
+    fi
     exit 0
   fi
   sleep 2

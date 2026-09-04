@@ -110,6 +110,12 @@ einem passenden Caddyfile ausgerollt werden. Beim Ausrollen zuerst das
 Caddyfile neu laden, danach erst die Seite kopieren – das gilt auch beim
 Rückfall auf eine ältere Caddyfile-Fassung.
 
+_Hinweis zur Automatisierung:_ `deploy.sh` spiegelt die im Web-Container
+enthaltene Landingpage nach einem erfolgreichen Container-Start automatisch nach
+`/opt/flipbase-landing/`. Für eine sofortige manuelle Aktualisierung (oder solange
+das aktualisierte `deploy.sh` noch nicht auf dem Server liegt) genügt:
+`scp -r landing/* root@<server>:/opt/flipbase-landing/`.
+
 ## Warum eigene Zusatzdateien
 
 Das offizielle Supabase-Paket bringt `docker-compose.yml` und seine Varianten
