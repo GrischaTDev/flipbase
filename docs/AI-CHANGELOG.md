@@ -48,6 +48,18 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-04 – Codex (GPT-5; Umsetzung und Review mit GPT-5.6 Sol) – Landingpage konsolidiert
+
+**Art:** Bugfix | Barrierefreiheit | Test
+
+**Betroffen:** `landing/index.html`, Landingpage-Vertrag und vollständige Prüfkette
+
+**Was:** Die zweisprachige Landingpage auf direkte Beta-Registrierung ausgerichtet, den Deal-Sniper eindeutig als geplant gekennzeichnet und nicht belegte Infrastruktur-, Datenschutz- und Compliance-Versprechen durch eine begrenzte Beschreibung der tatsächlich implementierten Zugriffsregeln ersetzt. Native Sprach-/Theme-Schalter in die Kopfzeile verschoben, sichtbaren Tastaturfokus, korrekte Überschriften, AA-Kontrast und eine überlauffreie mobile Kopfzeile umgesetzt. Einen schnellen statischen Landingpage-Vertrag in `npm run verify` aufgenommen. Keine Skripte, Abhängigkeiten, Tracker oder externen Ressourcen ergänzt.
+
+**Warum:** Sichtbare Aussagen müssen zum aktuellen Produktverhalten passen; die Seite muss auf kleinen Displays und per Tastatur zuverlässig nutzbar sein, ohne unbelegte rechtliche oder betriebliche Zusagen.
+
+**Verifiziert durch:** Unabhängiger Task-Review und Re-Review ohne offenen Befund; 11/11 statische Landingpage-Tests; `npm run verify` Exitcode 0 einschließlich vollständiger Anwendungstests und Produktionsbuild; produktionsnaher Caddy-Lauf für Deutsch/Englisch, Hell/Dunkel und 1440 × 1000/390 × 844 ohne horizontalen Überlauf, AXE-, Konsolen-, Seiten- oder Assetfehler. Theme/Sprache per Leertaste, FAQ per Enter und beide abgefangenen GET-Registrierungs-URLs mit synthetischer E-Mail geprüft. Der temporäre QA-Container wurde danach automatisch entfernt.
+
 ## 2026-09-04 – Codex (GPT-5; Umsetzung und Review mit GPT-5.6 Terra/Sol) – Einstellungsseiten aufteilen
 
 **Art:** Refactoring | Test
