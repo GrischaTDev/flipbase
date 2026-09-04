@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(8);
+select plan(9);
 
 -- Spalten von sniper_queries
 do $$
@@ -226,6 +226,32 @@ end;
 $$;
 
 select pass('authenticated darf sniper_queries und sniper_listings genau lesen');
+
+-- anon haelt auf keiner Sniper-Tabelle irgendein Recht.
+--
+-- Am 04.09.2026 auf der Produktionsdatenbank gemessen: dort hatte anon
+-- delete, insert, select und update auf sniper_queries und sniper_listings,
+-- lokal nichts davon. Erzeugte Rechte-Anweisungen bilden immer die Maschine
+-- ab, auf der sie entstanden - diese Pruefung faellt auf, sobald irgendeine
+-- Umgebung abweicht.
+do $$
+declare
+  offene text[];
+begin
+  select array_agg(table_name || '.' || privilege_type order by table_name, privilege_type)
+  into offene
+  from information_schema.role_table_grants
+  where table_schema = 'public'
+    and table_name like 'sniper%'
+    and grantee = 'anon';
+
+  if offene is not null then
+    raise exception 'anon haelt noch Rechte auf Sniper-Tabellen: %', offene;
+  end if;
+end;
+$$;
+
+select pass('anon hat auf keiner Sniper-Tabelle ein Recht');
 
 select * from finish();
 
