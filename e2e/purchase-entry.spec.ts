@@ -54,3 +54,26 @@ test('allows an empty mystery box with a price and additional costs as draft', a
   await expect(page.getByRole('button', { name: 'Als Entwurf speichern' })).toBeEnabled();
   await expect(page.getByRole('region', { name: 'Kostenübersicht' })).toContainText('110,00');
 });
+
+test('centers the purchase editing dialog card', async ({ page }) => {
+  await startDemoMode(page);
+  await page.goto('/purchases/new');
+  await page.locator('#purchaseTitle').fill('Dialog-Zentrierung');
+  await page.getByRole('button', { name: 'Einzelstück hinzufügen', exact: true }).click();
+  await page.getByLabel('Bezeichnung').fill('Testartikel');
+  await page.getByLabel('Stückpreis').fill('10');
+  await page.getByRole('button', { name: 'Als Entwurf speichern', exact: true }).click();
+  await page.locator('[data-purchase-row]').filter({ hasText: 'Dialog-Zentrierung' }).click();
+  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+
+  const dialogBox = await page.getByRole('dialog').boundingBox();
+  const cardBox = await page
+    .locator('[role="dialog"] app-purchase-entry-form .linear-surface')
+    .boundingBox();
+  expect(dialogBox).not.toBeNull();
+  expect(cardBox).not.toBeNull();
+  expect(
+    Math.abs(cardBox!.x + cardBox!.width / 2 - (dialogBox!.x + dialogBox!.width / 2)),
+  ).toBeLessThanOrEqual(2);
+  expect(cardBox!.width).toBeLessThanOrEqual(672);
+});

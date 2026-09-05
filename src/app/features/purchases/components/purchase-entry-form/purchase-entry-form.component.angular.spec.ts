@@ -817,6 +817,40 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     );
   });
 
+  it('markiert eine bewusst gewählte Einkaufsart als ungespeicherte Änderung', () => {
+    const { komponente } = erstelleKomponente();
+
+    komponente.selectPurchaseType('mystery_pack');
+
+    expect(komponente.form.controls.type.dirty).toBe(true);
+    expect(komponente.hasUnsavedChanges()).toBe(true);
+  });
+
+  it('berücksichtigt unfertige Schnellanlage-Eingaben und blockiert paralleles Einkaufsspeichern', async () => {
+    const { komponente, purchaseService } = erstelleKomponente();
+    Object.assign(komponente, {
+      lineEditor: () => ({
+        hasUnsavedChanges: () => true,
+        isSavingProduct: () => true,
+      }),
+    });
+
+    expect(komponente.hasUnsavedChanges()).toBe(true);
+    expect(komponente.isSaving()).toBe(true);
+    await komponente.onSubmit();
+    expect(purchaseService.createPurchase).not.toHaveBeenCalled();
+  });
+
+  it('berücksichtigt ungespeicherte Quellen- und Lieferantennamen', () => {
+    const { komponente } = erstelleKomponente();
+    komponente.newSourceName.set('Neue Quelle');
+    expect(komponente.hasUnsavedChanges()).toBe(true);
+
+    komponente.newSourceName.set('');
+    komponente.newSupplierName.set('Neuer Lieferant');
+    expect(komponente.hasUnsavedChanges()).toBe(true);
+  });
+
   it('sendet eine nach dem Bepreisen wieder geleerte Position nicht an den Einkaufsdienst', async () => {
     const { komponente, purchaseService } = erstelleKomponente();
     komponente.onPurchaseLinesChanged([

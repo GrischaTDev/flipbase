@@ -21,7 +21,7 @@ export class PurchaseCreateComponent {
   }
 
   isSaving(): boolean {
-    return this.entryForm()?.isSubmitting() ?? false;
+    return this.entryForm()?.isSaving() ?? false;
   }
 
   onBeforeUnload(event: BeforeUnloadEvent): void {

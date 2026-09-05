@@ -288,6 +288,10 @@ export class PurchaseLineEditorComponent {
     this.isCreatingProduct.set(false);
   }
 
+  hasUnsavedChanges(): boolean {
+    return this.productForm.dirty || this.productForm.controls.title.value.trim().length > 0;
+  }
+
   private createLine(lineKind: TrackingMode): FormGroup<PurchaseLineControls> {
     const isMysteryPurchase = this.isMysteryPurchase();
     const row = new FormGroup<PurchaseLineControls>({

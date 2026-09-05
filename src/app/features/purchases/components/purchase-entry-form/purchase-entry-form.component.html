@@ -1,4 +1,8 @@
-<div class="w-full">
+<div
+  class="w-full"
+  [class.mx-auto]="presentation() === 'dialog'"
+  [class.max-w-2xl]="presentation() === 'dialog'"
+>
   <div
     class="flex w-full flex-col overflow-hidden"
     [class.linear-surface]="presentation() === 'dialog'"
@@ -85,7 +89,7 @@
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 type="button"
-                (click)="form.patchValue({ type: 'single' })"
+                (click)="selectPurchaseType('single')"
                 class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
                 [class.border-amber-500]="form.get('type')?.value === 'single'"
                 [class.bg-amber-500/15]="form.get('type')?.value === 'single'"
@@ -94,14 +98,17 @@
               >
                 <svg [lucideIcon]="bagIcon" class="w-3.5 h-3.5 text-amber-500"></svg>
                 <span class="text-xs font-bold text-fb-text-primary">Normaler Einkauf</span>
-                <span class="text-[10px] text-fb-text-muted"
+                <span
+                  class="text-[10px]"
+                  [class.text-fb-text-primary]="form.controls.type.value === 'single'"
+                  [class.text-fb-text-muted]="form.controls.type.value !== 'single'"
                   >Eine oder mehrere Artikelpositionen</span
                 >
               </button>
 
               <button
                 type="button"
-                (click)="form.patchValue({ type: 'mystery_pack' })"
+                (click)="selectPurchaseType('mystery_pack')"
                 class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
                 [class.border-amber-500]="form.get('type')?.value === 'mystery_pack'"
                 [class.bg-amber-500/15]="form.get('type')?.value === 'mystery_pack'"
@@ -110,12 +117,17 @@
               >
                 <svg [lucideIcon]="packageIcon" class="w-3.5 h-3.5 text-amber-500"></svg>
                 <span class="text-xs font-bold text-fb-text-primary">Mystery Box</span>
-                <span class="text-[10px] text-fb-text-muted">Mehrere Artikel</span>
+                <span
+                  class="text-[10px]"
+                  [class.text-fb-text-primary]="form.controls.type.value === 'mystery_pack'"
+                  [class.text-fb-text-muted]="form.controls.type.value !== 'mystery_pack'"
+                  >Mehrere Artikel</span
+                >
               </button>
 
               <button
                 type="button"
-                (click)="form.patchValue({ type: 'lot' })"
+                (click)="selectPurchaseType('lot')"
                 class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
                 [class.border-amber-500]="form.get('type')?.value === 'lot'"
                 [class.bg-amber-500/15]="form.get('type')?.value === 'lot'"
@@ -124,12 +136,17 @@
               >
                 <svg [lucideIcon]="layersIcon" class="w-3.5 h-3.5 text-amber-500"></svg>
                 <span class="text-xs font-bold text-fb-text-primary">Konvolut</span>
-                <span class="text-[10px] text-fb-text-muted">Mehrere unterschiedliche Artikel</span>
+                <span
+                  class="text-[10px]"
+                  [class.text-fb-text-primary]="form.controls.type.value === 'lot'"
+                  [class.text-fb-text-muted]="form.controls.type.value !== 'lot'"
+                  >Mehrere unterschiedliche Artikel</span
+                >
               </button>
 
               <button
                 type="button"
-                (click)="form.patchValue({ type: 'pallet' })"
+                (click)="selectPurchaseType('pallet')"
                 class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
                 [class.border-amber-500]="form.get('type')?.value === 'pallet'"
                 [class.bg-amber-500/15]="form.get('type')?.value === 'pallet'"
@@ -138,7 +155,12 @@
               >
                 <svg [lucideIcon]="boxesIcon" class="w-3.5 h-3.5 text-amber-500"></svg>
                 <span class="text-xs font-bold text-fb-text-primary">Palette</span>
-                <span class="text-[10px] text-fb-text-muted">Retourenpalette</span>
+                <span
+                  class="text-[10px]"
+                  [class.text-fb-text-primary]="form.controls.type.value === 'pallet'"
+                  [class.text-fb-text-muted]="form.controls.type.value !== 'pallet'"
+                  >Retourenpalette</span
+                >
               </button>
             </div>
           </div>
@@ -509,7 +531,7 @@
           @if (!istBearbeitung()) {
             <button
               type="submit"
-              [disabled]="form.invalid || !areAdditionalCostsValid() || isSubmitting()"
+              [disabled]="form.invalid || !areAdditionalCostsValid() || isSaving()"
               [attr.aria-describedby]="
                 !areAdditionalCostsValid() ? 'purchase-cost-allocation-error' : null
               "
@@ -520,7 +542,7 @@
             <button
               type="button"
               (click)="onFinalize()"
-              [disabled]="form.invalid || !areAdditionalCostsValid() || isSubmitting()"
+              [disabled]="form.invalid || !areAdditionalCostsValid() || isSaving()"
               [attr.aria-describedby]="
                 !areAdditionalCostsValid() ? 'purchase-cost-allocation-error' : null
               "
@@ -532,7 +554,7 @@
           } @else {
             <button
               type="submit"
-              [disabled]="form.invalid || !areAdditionalCostsValid() || isSubmitting()"
+              [disabled]="form.invalid || !areAdditionalCostsValid() || isSaving()"
               [attr.aria-describedby]="
                 !areAdditionalCostsValid() ? 'purchase-cost-allocation-error' : null
               "
@@ -545,7 +567,7 @@
               <button
                 type="button"
                 (click)="onFinalize()"
-                [disabled]="form.invalid || !areAdditionalCostsValid() || isSubmitting()"
+                [disabled]="form.invalid || !areAdditionalCostsValid() || isSaving()"
                 [attr.aria-describedby]="
                   !areAdditionalCostsValid() ? 'purchase-cost-allocation-error' : null
                 "

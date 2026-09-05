@@ -53,3 +53,18 @@
   sequenziellen Account-Skript war beim Fehlschlag der Titelwert leer, während Kosteneditor und
   Mystery-Daten gültig waren. Der isolierte Browser-Regressionsfall besteht; dies belegt einen
   Ablauf-/Wartefehler im QA-Skript statt einer Mystery-Validierungsregel.
+- Das echte Account-QA bestätigte nach explizitem Warten auf die zweite neue Seite den leeren
+  Mystery-Entwurf mit Warenpreis 100 Euro, Zusatzkosten 10 Euro und UI-Gesamt 110 Euro. Der
+  materialisierte Gesamtwert bleibt bei Entwürfen erwartungsgemäß bis zur Finalisierung offen.
+- Der Dialoginhalt begrenzt und zentriert sich nun als kompletter Formularcontainer. Ein
+  Bounding-Box-Browsertest schützt gegen die frühere Linksbündigkeit.
+- Der ausgewählte Typ zeigt seinen Untertext mit Primärkontrast; damit liegt er in Dark Mode nicht
+  mehr knapp unter WCAG AA.
+- Typwahl, unfertige Quellen-/Lieferantennamen und die Schnellanlage eines Katalogartikels zählen
+  zum ungespeicherten Zustand. Während die Kataloganlage läuft, blockiert die Seitennavigation.
+  Parallel dazu sind auch die Einkaufsaktionen deaktiviert, damit die anschließend erzeugte
+  Artikelposition nicht durch vorzeitiges Speichern verloren geht.
+
+Abschlussprüfung der letzten Befunde: 35 fokussierte Angular-Tests, der gezielte
+Dialog-Bounding-Box-Test, ESLint, Prettier und Produktions-Build bestanden. Die vollständige Suite
+wurde entsprechend der Aufgabenaufteilung nicht erneut ausgeführt.

@@ -7,6 +7,7 @@ import {
   input,
   output,
   signal,
+  viewChild,
 } from '@angular/core';
 import { CurrencyPipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -95,6 +96,7 @@ export class PurchaseEntryFormComponent {
   readonly sourcesService = inject(SourcesService);
   readonly suppliersService = inject(SuppliersService);
   readonly trackingService = inject(InboundTrackingService);
+  readonly lineEditor = viewChild(PurchaseLineEditorComponent);
 
   readonly closed = output<void>();
   readonly created = output<void>();
@@ -326,6 +328,7 @@ export class PurchaseEntryFormComponent {
   }
 
   async onSubmit(): Promise<void> {
+    if (this.isSaving()) return;
     await this.persistPurchase(false);
   }
 
@@ -334,18 +337,35 @@ export class PurchaseEntryFormComponent {
     return (
       this.isSubmitting() ||
       this.form.dirty ||
+      this.newSourceName().trim().length > 0 ||
+      this.newSupplierName().trim().length > 0 ||
+      (typeof this.lineEditor === 'function' &&
+        (this.lineEditor()?.hasUnsavedChanges() ?? false)) ||
       this.purchaseLines().length > 0 ||
       this.costDrafts().length > 0
     );
   }
 
+  isSaving(): boolean {
+    return (
+      this.isSubmitting() ||
+      (typeof this.lineEditor === 'function' && (this.lineEditor()?.isSavingProduct() ?? false))
+    );
+  }
+
+  selectPurchaseType(type: PurchaseType): void {
+    if (this.form.controls.type.value === type) return;
+    this.form.controls.type.setValue(type);
+    this.form.controls.type.markAsDirty();
+  }
+
   async onFinalize(): Promise<void> {
-    if (this.isSubmitting()) return;
+    if (this.isSaving()) return;
     await this.persistPurchase(true);
   }
 
   private async persistPurchase(finalizeAfterSave: boolean): Promise<void> {
-    if (this.isSubmitting()) return;
+    if (this.isSaving()) return;
     const purchaseLines = this.purchaseLines();
     if (finalizeAfterSave && purchaseLines.length === 0) {
       this.errorMessage.set('Bitte erfasse mindestens eine Einkaufsposition.');
