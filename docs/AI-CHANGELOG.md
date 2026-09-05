@@ -11,7 +11,7 @@
 - Gemeinsame Selects erhalten wieder einen sichtbaren Polaris-nahen Fokus-Ring und sind über feste Trigger-IDs sauber mit den Formularlabels verbunden.
 - Date-Picker mit eindeutigem Input-/Dialog-Ziel, `aria-expanded`/`aria-controls`, Roving-Tabindex, Pfeiltasten, Home/End, PageUp/PageDown, Enter, Escape und Fokus-Rückgabe erweitert; ungültige Kalendertage werden verworfen.
 - Einkaufstypen und Erstattungsarten als zugängliche Radio-Gruppen ausgezeichnet; mobile Bottom-Navigation, Sidebar, Header- und Workspace-Dropdowns semantisch verknüpft.
-- Globalen Admin-Inhaltsbereich auf eine kontrollierte Maximalbreite begrenzt und die Polaris-nahe Tabellenkopfdichte beibehalten.
+- Admin-Inhaltsbereich fluid belassen, damit breite Datenansichten weiterhin den verfügbaren Bildschirm ausnutzen; die Polaris-nahe Tabellenkopfdichte bleibt erhalten.
 
 **Prüfung:** `npm run typecheck`, `npm run lint`, `npm run test:angular` (466 Tests erfolgreich, 5 übersprungen), gezielte Date-Picker-/Shared-Component-Tests (5 erfolgreich), `npm run build`, gezielter Prettier-Check und `git diff --check`. Zusätzlich Browser-Check auf `/sales` und `/purchases/new` inklusive Spaltenmenü, Date-Picker und Pfeiltasten-Navigation erfolgreich.
 
