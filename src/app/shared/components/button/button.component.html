@@ -3,6 +3,7 @@
   [disabled]="effectiveDisabled()"
   [class]="buttonClasses()"
   [attr.aria-label]="ariaLabel() || null"
+  [attr.title]="title() || null"
   [attr.aria-busy]="loading() ? 'true' : null"
   (click)="handleClick($event)"
 >

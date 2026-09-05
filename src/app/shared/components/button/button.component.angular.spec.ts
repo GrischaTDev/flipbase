@@ -37,6 +37,7 @@ describe('ButtonComponent', () => {
       fullWidth: ['fullWidth', 1, null],
       type: ['type', 1, null],
       ariaLabel: ['ariaLabel', 1, null],
+      title: ['title', 1, null],
     };
     metadata.declaredInputs = {
       ...metadata.declaredInputs,
@@ -49,6 +50,7 @@ describe('ButtonComponent', () => {
       fullWidth: 'fullWidth',
       type: 'type',
       ariaLabel: 'ariaLabel',
+      title: 'title',
     };
 
     TestBed.resetTestingModule();

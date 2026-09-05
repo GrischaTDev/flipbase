@@ -66,6 +66,8 @@ import { TablePreferencesService } from '../../core/services/table-preferences.s
 import { SalesColumnId, SalesSortField } from '../../core/config/table-defaults.config';
 import { TableSortState } from '../../core/models/table-preferences.models';
 
+import { TableColumnPickerComponent } from '../../shared/components/table-column-picker/table-column-picker.component';
+
 const SALE_TARGET_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
 
 function validatedSaleTargetId(value: string | null): string | null {
@@ -93,6 +95,7 @@ function validatedSaleTargetId(value: string | null): string | null {
     CardComponent,
     CustomSearchInputComponent,
     TableColumnMenuComponent,
+    TableColumnPickerComponent,
   ],
   templateUrl: './sales.component.html',
   host: { class: 'block' },
@@ -142,8 +145,6 @@ export class SalesComponent {
   readonly invoiceService = inject(InvoiceService);
   readonly returnService = inject(ReturnService);
 
-  private readonly tablePreferencesService = inject(TablePreferencesService);
-
   readonly trendingIcon = TrendingUp;
   readonly coinsIcon = Coins;
   readonly dollarIcon = DollarSign;
@@ -170,32 +171,42 @@ export class SalesComponent {
   readonly isCreatingInvoice = signal(false);
 
   readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
-  readonly salesTableConfig = this.tablePreferencesService.getTableConfig<
-    SalesColumnId,
-    SalesSortField
-  >('sales');
+
+  readonly salesTableConfig = this.tablePreferences.getTableConfig<SalesColumnId, SalesSortField>(
+    'sales',
+  );
   readonly tablePrefs = computed(() =>
-    this.tablePreferencesService.getTablePreferences<SalesColumnId, SalesSortField>(
+    this.tablePreferences.getTablePreferences<SalesColumnId, SalesSortField>(
       'sales',
       this.workspaceId(),
     )(),
   );
 
-  isColumnVisible(colId: SalesColumnId): boolean {
+  isColumnVisible(colId: SalesColumnId | string): boolean {
+    const aliasMap: Record<string, string> = {
+      cost_of_goods_sold: 'cost',
+      sale_date: 'date',
+      profit: 'result',
+      holding_days: 'holding',
+    };
+    const pickerId = aliasMap[colId] || colId;
+    if (!this.visibleColumns().includes(pickerId)) {
+      return false;
+    }
     const col = this.tablePrefs().columns.find((c) => c.id === colId);
     return col?.visible ?? true;
   }
 
   toggleColumnVisibility(colId: SalesColumnId): void {
-    this.tablePreferencesService.toggleColumnVisibility('sales', colId, this.workspaceId());
+    this.tablePreferences.toggleColumnVisibility('sales', colId, this.workspaceId());
   }
 
   onSortChanged(sort: TableSortState<SalesSortField>): void {
-    this.tablePreferencesService.setSort('sales', sort, this.workspaceId());
+    this.tablePreferences.setSort('sales', sort, this.workspaceId());
   }
 
   onColumnsReordered(event: { previousIndex: number; currentIndex: number }): void {
-    this.tablePreferencesService.reorderColumns(
+    this.tablePreferences.reorderColumns(
       'sales',
       event.previousIndex,
       event.currentIndex,
@@ -204,7 +215,7 @@ export class SalesComponent {
   }
 
   resetTablePreferences(): void {
-    this.tablePreferencesService.resetToDefaults('sales', this.workspaceId());
+    this.tablePreferences.resetToDefaults('sales', this.workspaceId());
   }
 
   private readonly queryParams = toSignal(this.route.queryParamMap, {

@@ -177,6 +177,12 @@
             [clearable]="true"
           />
         </div>
+        <app-table-column-picker
+          [definitions]="tableColumns()"
+          [selected]="visibleColumns()"
+          [saveError]="tablePreferences.saveError()"
+          (selectedChange)="tablePreferences.setVisibleColumns('sales', $event)"
+        />
         <app-table-column-menu
           [columns]="tablePrefs().columns"
           [sortOptions]="salesTableConfig.sortOptions"

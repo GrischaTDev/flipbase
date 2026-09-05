@@ -28,6 +28,7 @@ export class ButtonComponent {
   readonly fullWidth = input<boolean>(false);
   readonly type = input<'button' | 'submit' | 'reset'>('button');
   readonly ariaLabel = input<string>('');
+  readonly title = input<string>('');
 
   readonly clicked = output<MouseEvent>();
 
