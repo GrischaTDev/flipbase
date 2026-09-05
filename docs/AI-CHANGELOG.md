@@ -1,5 +1,42 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Vereinfachten Release-Ablauf veröffentlichen
+
+**Art:** Release
+**Betroffen:** Zweig `ci/reuse-verified-pr-checks`, PR und Produktionsworkflow.
+**Was:** Auf Nutzerauftrag über PR und Merge veröffentlichen. Gezielte lokale Workflow-Prüfungen statt erneutem vollständigem Anwendungstestlauf; danach echte PR-Nachweiserzeugung und Wiederverwendung im Master-Lauf kontrollieren. Keine neuen SQL-Migrationen und kein Serverbootstrap erforderlich.
+**Verifiziert durch:** Unabhängige Reviews, Docker-Paketierung aller 78 Migrationen und echte PostgreSQL-Transaktionsprüfungen aus der Umsetzung liegen vor. Vor Push gezielt nachprüfen; nach Merge Image/Deployment sowie öffentlich ausgelieferte Version prüfen. Bei fehlerhaftem Deployment oder falscher öffentlicher Version keinen Erfolg melden; bisherigen Image-Stand für Rückfall festhalten.
+
+## 2026-09-05 – Codex – Automatische Migrationspakete statt manueller Prüfsummen
+
+**Art:** CI | Release-Ablauf | Tests
+**Betroffen:** Eigener Zweig `ci/reuse-verified-pr-checks`, Docker-Bau, frühe CI-Prüfung, Arbeitsregeln und Release-Dokumentation.
+**Was:** Nach ausdrücklicher Zustimmung die manuelle Prüfsummenliste entfernt. Ein Paketierer kopiert alle SQL-Dateien unverändert und erstellt die passende Integritätsliste im selben Build. Bestehender Server-Runner bleibt kompatibel und unverändert. Früher Git-Vergleich erkennt Schema-Dateiänderungen ohne neue Migration sowie bearbeitete/gelöschte alte Migrationen. Paketierung prüft Namen, Versionen, leere Dateien und Unterordner. SQL-Review/Merge ist jetzt die inhaltliche Freigabe; kein selbstgebauter SQL-Sicherheitsparser und keine Behauptung vollständigen Schemaabgleichs.
+**Warum:** Die separate manuelle Freigabe konnte trotz grünem PR vergessen werden und erst auf Produktion abbrechen. Backup, Transaktion von SQL plus Historie, Prüfsummenvergleich und öffentlicher Deployment-Check bleiben erhalten.
+**Verifiziert durch:** Neue Verhaltenstests zunächst rot, danach grün. Reviewer fand verschachtelte SQL-Dateien als konkreten Auslassungsfall; beide Regressionen zuerst reproduziert und dann behoben, Nachreview ohne offene Befunde. Workflow-Suite abschließend 43 erfolgreich, vier Windows-Ausnahmen zusätzlich in Linux/PostgreSQL 16 erfolgreich ausgeführt: automatisches Paket mit unverändertem Runner, SQL-/Historien-Rollback, Wiederholung, Backup- und Deployment-Fehler. Gezieltes ESLint, Actionlint und Formatprüfung erfolgreich. Finaler Docker-Bau erfolgreich; im Image alle 78 SQL-Dateien und Prüfsummen bestätigt, HTTP-/Health-/Commit-Check am lokalen Container grün. Temporäre Testcontainer und Testnetz entfernt; keine Produktionsdaten oder Serverdateien verändert, kein Push. Echte GitHub-Wiederverwendung und Rollout erst nach Veröffentlichung zu bestätigen.
+
+## 2026-09-05 – Codex – Wiederkehrende Migrationsfreigabe als Fehlerquelle eingegrenzt
+
+**Art:** Analyse | Release-Ablauf
+**Betroffen:** `docker/Dockerfile`, `deploy/apply-release-migrations.sh`, bestehender CI-Umbau.
+**Was:** Migrationen werden bereits im Image ausgeliefert und vor dem Frontend automatisch mit Backup angewendet. Zusätzlich manuell gepflegte Prüfsummen können dennoch erst auf Produktion als fehlend auffallen. Vorschlag zur Abstimmung: SQL-Review im PR beibehalten, technische Prüfsummen automatisch erzeugen, fehlende Migrationsdateien vor Merge erkennen. Transaktionsannahmen und Umgang mit riskanten SQL-Änderungen müssen dabei erhalten bleiben; keine pauschale Sicherheitszusage durch Prüfsummen.
+**Verifiziert durch:** Docker-Packaging, produktiver Runner-Code und vorhandene Transaktionstests gelesen. Noch keine Änderung am Migrationsfreigabeweg oder Produktionsdaten; nach dem Planungs-Skill erst kurzen Entwurf bestätigen lassen. Test-Wiederverwendung aus vorheriger Sitzung weiterhin lokal fertig, noch unveröffentlicht.
+
+## 2026-09-05 – Codex – Doppelte Prüfungen nach PR-Merge reduzieren
+
+**Art:** CI | Teststrategie
+**Betroffen:** Eigener Zweig `ci/reuse-verified-pr-checks`, CI-Workflow, Prüfskripte und lokale Arbeitsregeln.
+**Was:** Erfolgreiche PR-Prüfungen werden automatisch an Git-Dateibaum und Prüfumfang gebunden. Ein normaler Merge desselben Inhalts überspringt die zweite Qualitäts-/Testkette; Produktionsbau, Image-Smoke, Backup/Migrationen und öffentliche Prüfung bleiben unverändert. Fehlende, abgelaufene oder unpassende Nachweise führen zu regulären Tests, nicht zu einer manuellen Sperre. Lokal gezielte Prüfungen statt obligatorischem Komplettlauf vor jedem Branch-Push.
+**Warum:** Derselbe Stand lief zuletzt lokal, im PR und nach Merge durch vollständige Tests. Keine Anwendungstests löschen, sondern doppelte Ausführung vermeiden. Bestehende Migrationsfreigaben werden in dieser begrenzten Änderung nicht entfernt.
+**Verifiziert durch:** Neue Regressionen zunächst rot, anschließend Wiederverwendung und sicherer Rückfall bei abweichendem Inhalt, Prüfumfang, Herkunft, Ereignis und API-Ausfall geprüft. Workflow-Suite: 36 erfolgreich, vier bestehende Windows/POSIX-Skips. Actionlint 1.7.12, gezieltes ESLint und Formatprüfung erfolgreich. Unabhängiges Review ohne offene Befunde; Prüfer bestätigt zusätzlich zehn gezielte Tests. CLI mit echtem letztem GitHub-PR ausschließlich lesend geprüft: ohne alten Nachweis regulärer Rückfall. Tatsächliche Artefaktübernahme beim ersten neuen PR-/Merge-Lauf noch zu bestätigen. Kein Push oder Deployment dieses Umbaus.
+
+## 2026-09-05 – Codex – Kostenprüfung erfolgreich live verifiziert
+
+**Art:** Release-Abschluss
+**Betroffen:** PR #22 und #23, Produktionslauf `33954710786`.
+**Was:** Folge-PR nach vollständigem lokalem Verify und unabhängiger Prüfsummenprüfung gemergt. Regulärer Produktionsworkflow einschließlich Deployment und GitHub Release erfolgreich. Keine Geschäftsdatenreparatur ausgelöst; Kostenübernahme bleibt eine ausdrückliche Bestätigung im Einkauf.
+**Verifiziert durch:** Öffentliche `deployment.json` liefert Merge-Commit `bc9ec8bc1d424dfb580ab6736fce252542a57f3c`; Startseite und `/healthz` jeweils HTTP 200. Produktionshistorie enthält 78 Migrationen einschließlich `20260905074121` und `20260905074747`. Beide neuen RPC-Signaturen sind für `authenticated` ausführbar, für `anon` und `service_role` gesperrt. Abschlussnachweis lokal ergänzt, kein weiterer Deployment-Push nur für diesen Eintrag.
+
 ## 2026-09-05 – Codex – Fehlende Migrationsfreigabe nachgereicht
 
 **Art:** Release-Korrektur

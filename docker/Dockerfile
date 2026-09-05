@@ -12,6 +12,10 @@ RUN npm ci --ignore-scripts
 # Quellcode kopieren & produktions-Build erstellen
 COPY . .
 
+# SQL und Integritätsliste entstehen zusammen aus demselben Dateistand.
+# Keine zweite, von Hand gepflegte Freigabeliste pro Migration.
+RUN node scripts/package-migrations.mjs supabase/migrations /app/release-migrations
+
 # Der Commit kommt von aussen herein: `.git` steht in .dockerignore, und das
 # soll es auch, damit das Abbild keine Historie mitschleppt. Ohne diese
 # Angaben traegt die Versionsanzeige einen Platzhalter - der Build laeuft
@@ -48,8 +52,7 @@ COPY --from=build /app/dist/flipbase/browser /usr/share/nginx/html
 # Statische Landingpage mitführen, damit das Ausroll-Skript sie synchronisieren kann
 COPY --from=build /app/landing /usr/share/nginx/landing
 # Migrationsdateien gehören zum Release, sind aber niemals öffentlich erreichbar.
-COPY supabase/migrations/*.sql /opt/flipbase/migrations/
-COPY deploy/approved-migrations.sha256 /opt/flipbase/migrations/approved.sha256
+COPY --from=build /app/release-migrations /opt/flipbase/migrations/
 
 # Port 80 freigeben
 EXPOSE 80
