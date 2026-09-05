@@ -388,6 +388,15 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# Ohne diesen Abschnitt gilt die Voreinstellung verify_jwt = true, und die
+# Funktion braucht dann einen Supabase-Anmeldeschluessel im Authorization-Header.
+# Ein anonymer Besucher der Landing Page hat keinen - das Formular waere in
+# Produktion wirkungslos. Der Endpunkt ist absichtlich oeffentlich: er prueft
+# selbst Herkunft (CORS-Origin), Einwilligung, Eingaben und Drosselung, bevor er
+# etwas schreibt.
+[functions.beta-application]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54357

@@ -223,7 +223,10 @@ function findStaticPageThreats(source) {
   const threats = [];
   for (const [startTag] of source.matchAll(/<[a-z][^>]*>/giu)) {
     const { tagName, attributes } = parseAttributes(startTag);
-    if (tagName === 'script') threats.push('script element');
+    // Ein eingebettetes Skript ohne fremde Quelle ist seit der Bewerbungs-
+    // anbindung erlaubt (siehe "allows exactly one inline script..."); nur ein
+    // extern geladenes Skript zaehlt als Bedrohung.
+    if (tagName === 'script' && attributes.has('src')) threats.push('script element with src');
     if (tagName === 'iframe' && attributes.has('srcdoc')) threats.push('iframe srcdoc');
 
     for (const [name, value] of attributes) {
@@ -362,25 +365,37 @@ test('runs the landing contract immediately before the production build', () => 
   assert.equal(verifySteps[landingStep + 1], 'npm run build');
 });
 
-test('keeps both email forms on the direct GET registration flow', () => {
+test('keeps both application forms as real submissions with an accessible status line', () => {
   const forms = [...html.matchAll(/<form\b[^>]*>[\s\S]*?<\/form>/giu)].map(([form]) => form);
 
   assert.equal(forms.length, 2);
-  for (const form of forms) {
+  for (const [index, form] of forms.entries()) {
+    const praefix = index === 0 ? 'hero' : 'zweit';
     const startTag = extractStartTags(form, 'form')[0];
-    assert.equal(attribute(startTag, 'action'), 'https://app.flipbase.de/auth/register');
-    assert.equal(attribute(startTag, 'method')?.toLowerCase(), 'get');
+    assert.equal(attribute(startTag, 'id'), `${praefix}-bewerbung-form`);
+    assert.equal(attribute(startTag, 'action'), undefined);
+    assert.equal(attribute(startTag, 'method'), undefined);
 
     const emailInput = extractStartTags(form, 'input').find(
       (tag) => attribute(tag, 'name') === 'email',
     );
-    assert.ok(emailInput, 'Each registration form must prefill the email query parameter');
+    assert.ok(emailInput, 'Each application form must collect an email address');
     assert.equal(attribute(emailInput, 'type'), 'email');
+
+    const meldung = elementById(form, `${praefix}-bewerbung-meldung`);
+    assert.equal(attribute(meldung.startTag, 'role'), 'status');
+    assert.equal(attribute(meldung.startTag, 'aria-live'), 'polite');
   }
 });
 
-test('remains script-free and keeps native toggles inside the header landmark', () => {
-  assert.doesNotMatch(html, /<script\b/iu);
+test('allows exactly one inline script that keeps native toggles CSS-only', () => {
+  // Das Formular muss die Bewerbung als JSON senden und die Antwort lesen -
+  // das kann ein natives HTML-Formular nicht. Deshalb ist genau ein
+  // eingebettetes Skript erlaubt (keine fremde Quelle, kein <script src>).
+  // Die Design- und Sprachumschaltung bleiben davon unberuehrt: sie laufen
+  // weiterhin rein ueber CSS und native Checkboxen.
+  assert.ok(matches(html, /<script\b/giu) <= 1, 'At most one inline script is allowed');
+  assert.doesNotMatch(html, /<script\b[^>]*\bsrc\s*=/iu, 'No externally loaded script is allowed');
 
   const header = extractElement(html, 'header');
   for (const id of ['theme-toggle', 'lang-toggle']) {
@@ -464,9 +479,45 @@ test('declares English passages and gives localized controls static screen-reade
     assert.equal(attribute(input, 'aria-label'), undefined);
     assertLanguagePair(
       labelElementFor(html, id).content,
-      'E-Mail-Adresse für die Beta-Registrierung',
-      'Email address for beta registration',
+      'E-Mail-Adresse für die Beta-Bewerbung',
+      'Email address for the beta application',
     );
+  }
+
+  // Vor- und Nachname: je zwei Felder, damit der Betreiber eine Bewerbung
+  // einer Person zuordnen kann.
+  for (const feld of [
+    {
+      teil: 'vorname',
+      germanText: 'Vorname',
+      englishText: 'First name',
+    },
+    {
+      teil: 'nachname',
+      germanText: 'Nachname',
+      englishText: 'Last name',
+    },
+  ]) {
+    const felder = extractStartTags(html, 'input').filter((input) =>
+      (attribute(input, 'id') ?? '').includes(feld.teil),
+    );
+    assert.equal(felder.length, 2, `Expected two ${feld.teil} fields`);
+    for (const input of felder) {
+      const id = attribute(input, 'id');
+      assert.equal(attribute(input, 'required'), '');
+      assertLanguagePair(labelElementFor(html, id).content, feld.germanText, feld.englishText);
+    }
+  }
+
+  // Ohne Einwilligung darf keine Bewerbung abgeschickt werden.
+  const einwilligungen = extractStartTags(html, 'input').filter(
+    (input) =>
+      attribute(input, 'type') === 'checkbox' &&
+      (attribute(input, 'id') ?? '').includes('einwilligung'),
+  );
+  assert.equal(einwilligungen.length, 2);
+  for (const input of einwilligungen) {
+    assert.equal(attribute(input, 'required'), '');
   }
 
   for (const expectedPair of [
@@ -639,8 +690,8 @@ test('keeps accent text and button text readable in every CSS-controlled theme',
 });
 
 test('describes direct beta registration without invitation or fixed-version wording', () => {
-  assert.equal(matches(normalizedHtml, />Beta-Registrierung öffnen →</gu), 2);
-  assert.equal(matches(normalizedHtml, />Open beta registration →</gu), 2);
+  assert.equal(matches(normalizedHtml, />Für die Beta bewerben →</gu), 2);
+  assert.equal(matches(normalizedHtml, />Apply for the beta →</gu), 2);
   assert.match(
     normalizedHtml,
     /Trage deine E-Mail ein und fahre mit der Registrierung in der Flipbase-App fort\./u,
