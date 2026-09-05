@@ -2,12 +2,13 @@
 
 <div class="min-h-screen bg-fb-bg text-fb-text-primary flex flex-col md:flex-row antialiased">
   <!-- Desktop & Mobile Sidebar -->
-  <app-sidebar [isOpen]="isSidebarOpen()" (closed)="closeSidebar()"></app-sidebar>
+  <app-sidebar id="app-sidebar" [isOpen]="isSidebarOpen()" (closed)="closeSidebar()"></app-sidebar>
 
   <!-- Main Content Area -->
   <div class="flex-1 flex flex-col min-w-0 pb-16 md:pb-0 bg-fb-bg">
     <!-- Header -->
     <app-header
+      [isSidebarOpen]="isSidebarOpen()"
       (toggleSidebar)="toggleSidebar()"
       (openCreateWorkspace)="openCreateWorkspace()"
     ></app-header>
@@ -40,14 +41,14 @@
     <main
       id="hauptinhalt"
       tabindex="-1"
-      class="flex-1 min-w-0 p-4 md:p-5 w-full mx-auto animate-fade-in"
+      class="flex-1 min-w-0 w-full mx-auto p-4 md:p-5 animate-fade-in"
     >
       <router-outlet></router-outlet>
     </main>
   </div>
 
   <!-- Mobile Bottom Navigation -->
-  <app-bottom-nav (toggleMenu)="toggleSidebar()"></app-bottom-nav>
+  <app-bottom-nav [isMenuOpen]="isSidebarOpen()" (toggleMenu)="toggleSidebar()"></app-bottom-nav>
 
   <!-- Rueckfragen und Hinweise der ganzen Anwendung. Steht genau einmal hier;
        jede Stelle, die etwas fragen will, ruft den ConfirmDialogService. -->

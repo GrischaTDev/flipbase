@@ -84,12 +84,15 @@
       </div>
       <div class="overflow-x-auto">
         <table class="linear-table w-full text-xs">
+          <caption class="sr-only">
+            CSV-Vorschau der Artikelstammdaten
+          </caption>
           <thead>
             <tr>
-              <th class="px-3 py-2 text-left">Titel</th>
-              <th class="px-3 py-2 text-left">EAN</th>
-              <th class="px-3 py-2 text-left">Nachverfolgung</th>
-              <th class="px-3 py-2 text-left">Prüfung</th>
+              <th scope="col" class="px-3 py-2 text-left">Titel</th>
+              <th scope="col" class="px-3 py-2 text-left">EAN</th>
+              <th scope="col" class="px-3 py-2 text-left">Nachverfolgung</th>
+              <th scope="col" class="px-3 py-2 text-left">Prüfung</th>
             </tr>
           </thead>
           <tbody>
@@ -137,22 +140,27 @@
           [style.min-width.px]="260 + (visibleColumns().length - 1) * 105"
           class="linear-table"
         >
-          <thead
-            class="bg-fb-well text-[10px] font-semibold uppercase tracking-wider text-fb-text-secondary"
-          >
+          <caption class="sr-only">
+            Artikelstamm
+          </caption>
+          <thead class="bg-fb-surface text-[13px] font-semibold text-fb-text-secondary">
             <tr>
-              <th class="border-b border-fb-line px-4 py-2.5 text-left">Artikel</th>
+              <th scope="col" class="border-b border-fb-line px-4 py-2.5 text-left">Artikel</th>
               @if (visibleColumns().includes('ean')) {
-                <th class="border-b border-fb-line px-3 py-2.5 text-left">EAN</th>
+                <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">EAN</th>
               }
               @if (visibleColumns().includes('tracking')) {
-                <th class="border-b border-fb-line px-3 py-2.5 text-left">Nachverfolgung</th>
+                <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">
+                  Nachverfolgung
+                </th>
               }
               @if (visibleColumns().includes('available')) {
-                <th class="border-b border-fb-line px-3 py-2.5 text-right">Verfügbar</th>
+                <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
+                  Verfügbar
+                </th>
               }
               @if (visibleColumns().includes('store')) {
-                <th class="border-b border-fb-line px-4 py-2.5 text-right">Webshop</th>
+                <th scope="col" class="border-b border-fb-line px-4 py-2.5 text-right">Webshop</th>
               }
             </tr>
           </thead>
@@ -208,18 +216,33 @@
             <div class="flex items-start justify-between gap-3">
               <div>
                 <h2 class="text-sm font-semibold text-fb-text-primary">{{ product.title }}</h2>
-                <p class="mt-0.5 font-mono text-[10px] text-fb-text-muted">
-                  EAN {{ product.ean || '—' }}
-                </p>
+                @if (visibleColumns().includes('ean')) {
+                  <p class="mt-0.5 font-mono text-[10px] text-fb-text-muted">
+                    EAN {{ product.ean || '—' }}
+                  </p>
+                }
               </div>
-              <span class="font-mono text-xs font-bold text-emerald-400"
-                >{{ availableStock(product) }} Stück</span
-              >
+              @if (visibleColumns().includes('available')) {
+                <span class="font-mono text-xs font-bold text-emerald-400"
+                  >{{ availableStock(product) }} Stück</span
+                >
+              }
             </div>
-            <p class="mt-2 text-[11px] text-fb-text-secondary">
-              {{ product.tracking_mode === 'quantity' ? 'Mengenartikel' : 'Einzelstück' }} ·
-              {{ product.is_public_store ? 'Im Webshop' : 'Nur intern' }}
-            </p>
+            @if (visibleColumns().includes('tracking') || visibleColumns().includes('store')) {
+              <p class="mt-2 text-[11px] text-fb-text-secondary">
+                @if (visibleColumns().includes('tracking')) {
+                  <span>{{
+                    product.tracking_mode === 'quantity' ? 'Mengenartikel' : 'Einzelstück'
+                  }}</span>
+                }
+                @if (visibleColumns().includes('tracking') && visibleColumns().includes('store')) {
+                  <span aria-hidden="true"> · </span>
+                }
+                @if (visibleColumns().includes('store')) {
+                  <span>{{ product.is_public_store ? 'Im Webshop' : 'Nur intern' }}</span>
+                }
+              </p>
+            }
           </article>
         }
       </div>

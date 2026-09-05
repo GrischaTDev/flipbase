@@ -14,3 +14,14 @@
   font-display: swap;
   src: url('/fonts/inter-variable-italic-4.1.woff2') format('woff2');
 }
+
+/* JetBrains Mono — lokale Code-Schrift für Werte, IDs und technische Angaben. */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src:
+    url('/fonts/jetbrains-mono-400-latin-ext-ba1653.woff2') format('woff2'),
+    url('/fonts/jetbrains-mono-400-latin-480c06.woff2') format('woff2');
+}

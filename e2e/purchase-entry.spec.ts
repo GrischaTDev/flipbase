@@ -45,7 +45,7 @@ test('allows an empty mystery box with a price and additional costs as draft', a
   await startDemoMode(page);
   await page.goto('/purchases/new');
   await page.locator('#purchaseTitle').fill('Mystery Entwurf');
-  await page.getByRole('button', { name: /Mystery Box/ }).click();
+  await page.getByRole('radio', { name: /Mystery Box/ }).click();
   await page.locator('#purchasePrice').fill('100');
   await page.getByRole('button', { name: 'Kosten hinzufügen', exact: true }).click();
   await page.getByRole('spinbutton', { name: 'Betrag der Zusatzkosten' }).fill('10');

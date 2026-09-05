@@ -25,7 +25,7 @@
   <!-- KPI Cards Grid -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
     <div class="linear-kpi p-4 rounded-xl" data-testid="sales-result-kpi">
-      <span class="text-[11px] font-semibold text-fb-text-muted block"
+      <span class="text-[13px] font-semibold text-fb-text-muted block"
         >Ergebnis nach direkten Kosten</span
       >
       <span
@@ -39,23 +39,23 @@
           {{ totalRealizedProfit() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
         }
       </span>
-      <span class="text-[10px] text-fb-text-muted mt-0.5 block"
+      <span class="text-xs text-fb-text-muted mt-0.5 block"
         >Nur vollständig belegte Verkäufe werden summiert</span
       >
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[11px] font-semibold text-fb-text-muted block">Verkaufserlös</span>
+      <span class="text-[13px] font-semibold text-fb-text-muted block">Verkaufserlös</span>
       <span class="text-xl font-semibold font-mono tracking-tight text-fb-text-primary mt-2 block">
         {{ totalRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </span>
-      <span class="text-[10px] text-fb-text-muted mt-0.5 block"
+      <span class="text-xs text-fb-text-muted mt-0.5 block"
         >{{ filteredSales().length }} gefilterte Verkäufe</span
       >
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[11px] font-semibold text-fb-text-muted block"
+      <span class="text-[13px] font-semibold text-fb-text-muted block"
         >Durchschnittliche Marge</span
       >
       <span class="text-xl font-semibold font-mono tracking-tight text-indigo-400 mt-2 block">
@@ -65,17 +65,17 @@
           {{ averageMargin() }} %
         }
       </span>
-      <span class="text-[10px] text-fb-text-muted mt-0.5 block"
+      <span class="text-xs text-fb-text-muted mt-0.5 block"
         >Nur Verkäufe mit belegbarem Wareneinsatz</span
       >
     </div>
 
     <div class="linear-kpi p-4 rounded-xl">
-      <span class="text-[11px] font-semibold text-fb-text-muted block">Ø Haltedauer</span>
+      <span class="text-[13px] font-semibold text-fb-text-muted block">Ø Haltedauer</span>
       <span class="text-xl font-semibold font-mono tracking-tight text-fb-text-primary mt-2 block">
         {{ averageHoldingDays() }} Tage
       </span>
-      <span class="text-[10px] text-fb-text-muted mt-0.5 block">Vom Einkauf bis Verkauf</span>
+      <span class="text-xs text-fb-text-muted mt-0.5 block">Vom Einkauf bis Verkauf</span>
     </div>
   </div>
 
@@ -86,16 +86,16 @@
       class="p-2.5 sm:p-3 border-b border-[var(--fb-border)] flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[var(--fb-bg-surface)]"
     >
       <!-- Left: View Tabs -->
-      <div class="flex items-center gap-1 overflow-x-auto text-xs no-scrollbar">
+      <div class="flex items-center gap-1 overflow-x-auto text-[13px] no-scrollbar">
         <button
           type="button"
           (click)="selectedPlatform.set('all')"
           class="px-3 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap"
           [class.bg-[var(--fb-bg-surface-hover)]]="selectedPlatform() === 'all'"
-          [class.text-fb-text]="selectedPlatform() === 'all'"
+          [class.text-fb-text-primary]="selectedPlatform() === 'all'"
           [class.font-semibold]="selectedPlatform() === 'all'"
           [class.text-fb-text-muted]="selectedPlatform() !== 'all'"
-          [class.hover:text-fb-text]="selectedPlatform() !== 'all'"
+          [class.hover:text-fb-text-primary]="selectedPlatform() !== 'all'"
         >
           Alle ({{ salesService.sales().length }})
         </button>
@@ -108,7 +108,7 @@
           [class.text-rose-400]="selectedPlatform() === 'returned'"
           [class.font-semibold]="selectedPlatform() === 'returned'"
           [class.text-fb-text-muted]="selectedPlatform() !== 'returned'"
-          [class.hover:text-fb-text]="selectedPlatform() !== 'returned'"
+          [class.hover:text-fb-text-primary]="selectedPlatform() !== 'returned'"
         >
           <svg [lucideIcon]="returnIcon" class="w-3.5 h-3.5 text-rose-400" aria-hidden="true"></svg>
           <span>Retouren ({{ returnedSalesCount() }})</span>
@@ -119,10 +119,10 @@
           (click)="selectedPlatform.set('kleinanzeigen')"
           class="px-3 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap"
           [class.bg-[var(--fb-bg-surface-hover)]]="selectedPlatform() === 'kleinanzeigen'"
-          [class.text-fb-text]="selectedPlatform() === 'kleinanzeigen'"
+          [class.text-fb-text-primary]="selectedPlatform() === 'kleinanzeigen'"
           [class.font-semibold]="selectedPlatform() === 'kleinanzeigen'"
           [class.text-fb-text-muted]="selectedPlatform() !== 'kleinanzeigen'"
-          [class.hover:text-fb-text]="selectedPlatform() !== 'kleinanzeigen'"
+          [class.hover:text-fb-text-primary]="selectedPlatform() !== 'kleinanzeigen'"
         >
           Kleinanzeigen
         </button>
@@ -132,10 +132,10 @@
           (click)="selectedPlatform.set('ebay')"
           class="px-3 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap"
           [class.bg-[var(--fb-bg-surface-hover)]]="selectedPlatform() === 'ebay'"
-          [class.text-fb-text]="selectedPlatform() === 'ebay'"
+          [class.text-fb-text-primary]="selectedPlatform() === 'ebay'"
           [class.font-semibold]="selectedPlatform() === 'ebay'"
           [class.text-fb-text-muted]="selectedPlatform() !== 'ebay'"
-          [class.hover:text-fb-text]="selectedPlatform() !== 'ebay'"
+          [class.hover:text-fb-text-primary]="selectedPlatform() !== 'ebay'"
         >
           eBay
         </button>
@@ -145,10 +145,10 @@
           (click)="selectedPlatform.set('vinted')"
           class="px-3 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap"
           [class.bg-[var(--fb-bg-surface-hover)]]="selectedPlatform() === 'vinted'"
-          [class.text-fb-text]="selectedPlatform() === 'vinted'"
+          [class.text-fb-text-primary]="selectedPlatform() === 'vinted'"
           [class.font-semibold]="selectedPlatform() === 'vinted'"
           [class.text-fb-text-muted]="selectedPlatform() !== 'vinted'"
-          [class.hover:text-fb-text]="selectedPlatform() !== 'vinted'"
+          [class.hover:text-fb-text-primary]="selectedPlatform() !== 'vinted'"
         >
           Vinted
         </button>
@@ -158,10 +158,10 @@
           (click)="selectedPlatform.set('custom_store')"
           class="px-3 py-1.5 rounded-lg font-medium transition cursor-pointer whitespace-nowrap"
           [class.bg-[var(--fb-bg-surface-hover)]]="selectedPlatform() === 'custom_store'"
-          [class.text-fb-text]="selectedPlatform() === 'custom_store'"
+          [class.text-fb-text-primary]="selectedPlatform() === 'custom_store'"
           [class.font-semibold]="selectedPlatform() === 'custom_store'"
           [class.text-fb-text-muted]="selectedPlatform() !== 'custom_store'"
-          [class.hover:text-fb-text]="selectedPlatform() !== 'custom_store'"
+          [class.hover:text-fb-text-primary]="selectedPlatform() !== 'custom_store'"
         >
           Webshop
         </button>
@@ -177,12 +177,6 @@
             [clearable]="true"
           />
         </div>
-        <app-table-column-picker
-          [definitions]="tableColumns()"
-          [selected]="visibleColumns()"
-          [saveError]="tablePreferences.saveError()"
-          (selectedChange)="tablePreferences.setVisibleColumns('sales', $event)"
-        />
         <app-table-column-menu
           [columns]="tablePrefs().columns"
           [sortOptions]="salesTableConfig.sortOptions"
@@ -199,41 +193,77 @@
     @if (filteredSales().length > 0) {
       <div class="relative overflow-x-auto hidden md:block">
         <table class="linear-table min-w-[1000px] w-full text-left">
-          <thead
-            class="bg-fb-well text-fb-text-secondary uppercase font-semibold text-[10px] tracking-wider"
-          >
+          <thead class="bg-fb-surface text-fb-text-secondary font-semibold text-[13px]">
             <tr>
               @if (isColumnVisible('title')) {
-                <th class="min-w-60 py-2.5 px-4 font-semibold border-b border-fb-line">
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('title')"
+                  class="min-w-60 py-2.5 px-4 font-semibold border-b border-fb-line"
+                >
                   Verkaufter Artikel
                 </th>
               }
               @if (isColumnVisible('quantity')) {
-                <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">Menge</th>
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('quantity')"
+                  class="py-2.5 px-3 font-semibold text-right border-b border-fb-line"
+                >
+                  Menge
+                </th>
               }
               @if (isColumnVisible('platform')) {
-                <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Plattform</th>
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('platform')"
+                  class="py-2.5 px-3 font-semibold border-b border-fb-line"
+                >
+                  Plattform
+                </th>
               }
               @if (isColumnVisible('sale_date')) {
-                <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Datum</th>
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('sale_date')"
+                  class="py-2.5 px-3 font-semibold border-b border-fb-line"
+                >
+                  Datum
+                </th>
               }
               @if (isColumnVisible('revenue')) {
-                <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('revenue')"
+                  class="py-2.5 px-3 font-semibold text-right border-b border-fb-line"
+                >
                   Verkaufserlös
                 </th>
               }
               @if (isColumnVisible('cost_of_goods_sold')) {
-                <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('cost_of_goods_sold')"
+                  class="py-2.5 px-3 font-semibold text-right border-b border-fb-line"
+                >
                   Wareneinsatz
                 </th>
               }
               @if (isColumnVisible('selling_costs')) {
-                <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('selling_costs')"
+                  class="py-2.5 px-3 font-semibold text-right border-b border-fb-line"
+                >
                   Verkaufskosten
                 </th>
               }
               @if (isColumnVisible('profit')) {
-                <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('profit')"
+                  class="py-2.5 px-3 font-semibold text-right border-b border-fb-line"
+                >
                   <abbr
                     title="Verkaufserlös abzüglich Wareneinsatz und Verkaufskosten"
                     class="no-underline"
@@ -242,15 +272,29 @@
                 </th>
               }
               @if (isColumnVisible('margin')) {
-                <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">Marge</th>
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('margin')"
+                  class="py-2.5 px-3 font-semibold text-right border-b border-fb-line"
+                >
+                  Marge
+                </th>
               }
               @if (isColumnVisible('holding_days')) {
-                <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('holding_days')"
+                  class="py-2.5 px-3 font-semibold text-right border-b border-fb-line"
+                >
                   Haltedauer
                 </th>
               }
               @if (isColumnVisible('actions')) {
-                <th class="py-2.5 px-4 font-semibold text-center w-28 border-b border-fb-line">
+                <th
+                  scope="col"
+                  [attr.aria-sort]="ariaSort('actions')"
+                  class="py-2.5 px-4 font-semibold text-center w-28 border-b border-fb-line"
+                >
                   Aktionen
                 </th>
               }
@@ -660,6 +704,7 @@
             </label>
             <app-custom-select
               ariaLabel="Grund der Rückabwicklung"
+              triggerId="sales-return-reason"
               [options]="retourengrundOptionen"
               formControlName="reason"
             />
@@ -668,14 +713,20 @@
           <!-- 2. Refund Amount (Full vs Partial) -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <span class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
+              <span id="sales-refund-mode-label" class="text-xs font-semibold text-fb-text-muted">
                 Erstattungsbetrag (€)
               </span>
-              <div class="flex items-center gap-2">
+              <div
+                class="flex items-center gap-2"
+                role="radiogroup"
+                aria-labelledby="sales-refund-mode-label"
+              >
                 <button
                   type="button"
+                  role="radio"
+                  [attr.aria-checked]="returnForm.get('isFullRefund')?.value"
                   (click)="onRefundModeChange(true)"
-                  class="px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer"
+                  class="px-2 py-1 rounded text-xs font-bold border transition cursor-pointer"
                   [class.bg-indigo-600]="returnForm.get('isFullRefund')?.value"
                   [class.text-fb-text-primary]="returnForm.get('isFullRefund')?.value"
                   [class.border-indigo-500]="returnForm.get('isFullRefund')?.value"
@@ -690,8 +741,10 @@
 
                 <button
                   type="button"
+                  role="radio"
+                  [attr.aria-checked]="!returnForm.get('isFullRefund')?.value"
                   (click)="onRefundModeChange(false)"
-                  class="px-2 py-0.5 rounded text-[10px] font-bold border transition cursor-pointer"
+                  class="px-2 py-1 rounded text-xs font-bold border transition cursor-pointer"
                   [class.bg-indigo-600]="!returnForm.get('isFullRefund')?.value"
                   [class.text-fb-text-primary]="!returnForm.get('isFullRefund')?.value"
                   [class.border-indigo-500]="!returnForm.get('isFullRefund')?.value"
@@ -705,7 +758,9 @@
             </div>
 
             <div class="relative">
+              <label for="sales-refund-amount" class="sr-only">Erstattungsbetrag in Euro</label>
               <input
+                id="sales-refund-amount"
                 type="number"
                 step="0.5"
                 formControlName="refundAmount"

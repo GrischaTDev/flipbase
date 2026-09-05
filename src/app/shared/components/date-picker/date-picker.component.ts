@@ -2,12 +2,15 @@ import {
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  Injector,
+  afterNextRender,
   computed,
   forwardRef,
   inject,
   input,
   model,
   signal,
+  viewChild,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import {
@@ -55,6 +58,11 @@ export interface DayItem {
 })
 export class DatePickerComponent implements ControlValueAccessor {
   private readonly elementRef = inject(ElementRef);
+  private readonly injector = inject(Injector);
+  private readonly trigger = viewChild<ElementRef<HTMLButtonElement>>('calendarTrigger');
+  private readonly calendarGrid = viewChild<ElementRef<HTMLElement>>('calendarGrid');
+  private static nextInstanceId = 0;
+  private readonly instanceId = ++DatePickerComponent.nextInstanceId;
 
   /** Date as ISO string (YYYY-MM-DD) */
   readonly value = model<string | null>(null);
@@ -72,12 +80,17 @@ export class DatePickerComponent implements ControlValueAccessor {
   readonly isOpen = signal<boolean>(false);
   readonly isAccessorDisabled = signal<boolean>(false);
   readonly displayedMonth = signal<Date>(new Date());
+  readonly focusedDate = signal<string | null>(null);
 
   // Backward-compatible signal aliases
   readonly istOffen = this.isOpen;
   readonly angezeigterMonat = this.displayedMonth;
 
   readonly effectiveId = computed(() => this.id() || this.feldId());
+  readonly resolvedInputId = computed(
+    () => this.effectiveId() || `fb-date-picker-${this.instanceId}`,
+  );
+  readonly calendarId = computed(() => `${this.resolvedInputId()}-calendar`);
   readonly effectivePlaceholder = computed(() => this.placeholder() || this.platzhalter());
   readonly effectiveDisabled = computed(() => this.disabled() || this.isAccessorDisabled());
   readonly effectiveAriaLabel = computed(() => this.ariaLabel());
@@ -162,14 +175,26 @@ export class DatePickerComponent implements ControlValueAccessor {
   toggle(event: MouseEvent): void {
     event.stopPropagation();
     if (this.effectiveDisabled()) return;
-    this.isOpen.update((o) => !o);
+    const nextOpen = !this.isOpen();
+    this.isOpen.set(nextOpen);
+    if (nextOpen) {
+      this.focusedDate.set(this.value() || this.toIso(new Date()));
+      this.focusFocusedDateAfterRender();
+    } else {
+      this.onTouched();
+    }
   }
   schalteUm(event: MouseEvent): void {
     this.toggle(event);
   }
 
-  close(): void {
+  close(restoreFocus = true): void {
+    if (!this.isOpen()) return;
     this.isOpen.set(false);
+    this.onTouched();
+    if (restoreFocus) {
+      queueMicrotask(() => this.trigger()?.nativeElement.focus());
+    }
   }
   schliesse(): void {
     this.close();
@@ -179,6 +204,11 @@ export class DatePickerComponent implements ControlValueAccessor {
     const d = new Date(this.displayedMonth());
     d.setMonth(d.getMonth() + step);
     this.displayedMonth.set(d);
+    const focus = this.focusedDate() ? this.fromIso(this.focusedDate() as string) : null;
+    this.focusedDate.set(
+      this.toIso(new Date(d.getFullYear(), d.getMonth(), focus?.getDate() ?? 1)),
+    );
+    this.focusFocusedDateAfterRender();
   }
   blaettere(step: number): void {
     this.navigateMonth(step);
@@ -186,6 +216,7 @@ export class DatePickerComponent implements ControlValueAccessor {
 
   selectDate(date: string): void {
     this.value.set(date);
+    this.focusedDate.set(date || null);
     this.onChange(date);
     this.close();
   }
@@ -211,6 +242,87 @@ export class DatePickerComponent implements ControlValueAccessor {
   }
   beiKlickAusserhalb(event: MouseEvent): void {
     this.onClickOutside(event);
+  }
+
+  onTriggerKeydown(event: KeyboardEvent): void {
+    if (this.effectiveDisabled()) return;
+    if (event.key === 'Enter' || event.key === ' ' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      if (!this.isOpen()) {
+        this.isOpen.set(true);
+        this.focusedDate.set(this.value() || this.toIso(new Date()));
+        this.focusFocusedDateAfterRender();
+      }
+    }
+  }
+
+  onCalendarKeydown(event: KeyboardEvent, date: string): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      this.close();
+      return;
+    }
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      this.selectDate(date);
+      return;
+    }
+
+    const current = this.fromIso(date);
+    if (!current) return;
+
+    let next: Date;
+    switch (event.key) {
+      case 'ArrowLeft':
+        next = this.addDays(current, -1);
+        break;
+      case 'ArrowRight':
+        next = this.addDays(current, 1);
+        break;
+      case 'ArrowUp':
+        next = this.addDays(current, -7);
+        break;
+      case 'ArrowDown':
+        next = this.addDays(current, 7);
+        break;
+      case 'Home':
+        next = this.addDays(current, -((current.getDay() + 6) % 7));
+        break;
+      case 'End':
+        next = this.addDays(current, 6 - ((current.getDay() + 6) % 7));
+        break;
+      case 'PageUp':
+        next = this.addMonths(current, -1);
+        break;
+      case 'PageDown':
+        next = this.addMonths(current, 1);
+        break;
+      default:
+        return;
+    }
+
+    event.preventDefault();
+    const iso = this.toIso(next);
+    this.focusedDate.set(iso);
+    if (
+      next.getMonth() !== this.displayedMonth().getMonth() ||
+      next.getFullYear() !== this.displayedMonth().getFullYear()
+    ) {
+      this.displayedMonth.set(new Date(next.getFullYear(), next.getMonth(), 1));
+    }
+    this.focusFocusedDateAfterRender();
+  }
+
+  dateAriaLabel(date: string): string {
+    const parsed = this.fromIso(date);
+    return parsed
+      ? parsed.toLocaleDateString('de-DE', {
+          weekday: 'long',
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+        })
+      : date;
   }
 
   onInput(event: Event): void {
@@ -242,6 +354,12 @@ export class DatePickerComponent implements ControlValueAccessor {
       }
     }
   }
+
+  onBlur(event: Event): void {
+    this.onInput(event);
+    this.onTouched();
+  }
+
   beiEingabe(event: Event): void {
     this.onInput(event);
   }
@@ -259,7 +377,41 @@ export class DatePickerComponent implements ControlValueAccessor {
   private fromIso(iso: string): Date | null {
     const parts = iso.split('-').map(Number);
     if (parts.length !== 3 || parts.some(isNaN)) return null;
-    return new Date(parts[0], parts[1] - 1, parts[2]);
+    const date = new Date(parts[0], parts[1] - 1, parts[2]);
+    return date.getFullYear() === parts[0] &&
+      date.getMonth() === parts[1] - 1 &&
+      date.getDate() === parts[2]
+      ? date
+      : null;
+  }
+
+  private addDays(date: Date, amount: number): Date {
+    const next = new Date(date);
+    next.setDate(next.getDate() + amount);
+    return next;
+  }
+
+  private addMonths(date: Date, amount: number): Date {
+    const next = new Date(date);
+    next.setDate(1);
+    next.setMonth(next.getMonth() + amount);
+    return next;
+  }
+
+  private focusFocusedDateAfterRender(): void {
+    afterNextRender(
+      {
+        mixedReadWrite: () => {
+          const grid = this.calendarGrid()?.nativeElement;
+          const targetDate = this.focusedDate() || this.days()[0]?.date;
+          const button = targetDate
+            ? grid?.querySelector<HTMLButtonElement>(`[data-date="${targetDate}"]`)
+            : null;
+          button?.focus();
+        },
+      },
+      { injector: this.injector },
+    );
   }
   private ausIso(iso: string): Date | null {
     return this.fromIso(iso);

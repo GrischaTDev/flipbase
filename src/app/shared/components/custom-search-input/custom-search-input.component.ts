@@ -43,6 +43,22 @@ export class CustomSearchInputComponent implements ControlValueAccessor {
 
   readonly isDisabled = signal<boolean>(false);
 
+  protected readonly inputClasses = computed(() => {
+    const sizeClasses = {
+      sm: 'h-8 text-[13px]',
+      md: 'h-9 text-[13px]',
+      lg: 'h-11 text-sm',
+    } as const;
+
+    return [
+      'linear-input w-full rounded-md border-fb-border bg-fb-subtle font-medium',
+      'placeholder-fb-text-dimmed text-fb-text-primary transition-colors',
+      'focus:border-fb-primary focus:outline-none focus:ring-2 focus:ring-fb-primary/20',
+      sizeClasses[this.size()],
+      'pl-9',
+    ].join(' ');
+  });
+
   private onChange: (value: string) => void = () => undefined;
   private onTouched: () => void = () => undefined;
 

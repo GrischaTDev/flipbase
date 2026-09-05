@@ -227,6 +227,7 @@
             </span>
             <app-custom-select
               ariaLabel="Zustand"
+              triggerId="itemCondition"
               formControlName="condition"
               [options]="conditionOptions"
             ></app-custom-select>
@@ -240,6 +241,7 @@
             </span>
             <app-custom-select
               ariaLabel="Status"
+              triggerId="itemStatus"
               formControlName="status"
               [options]="statusOptions"
             ></app-custom-select>
@@ -335,6 +337,7 @@
           </label>
           <app-custom-select
             ariaLabel="Zugehöriger Einkauf"
+            triggerId="itemPurchaseSelect"
             [options]="einkaufsOptionen()"
             formControlName="purchase_id"
             size="sm"

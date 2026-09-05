@@ -66,8 +66,6 @@ import { TablePreferencesService } from '../../core/services/table-preferences.s
 import { SalesColumnId, SalesSortField } from '../../core/config/table-defaults.config';
 import { TableSortState } from '../../core/models/table-preferences.models';
 
-import { TableColumnPickerComponent } from '../../shared/components/table-column-picker/table-column-picker.component';
-
 const SALE_TARGET_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
 
 function validatedSaleTargetId(value: string | null): string | null {
@@ -95,7 +93,6 @@ function validatedSaleTargetId(value: string | null): string | null {
     CardComponent,
     CustomSearchInputComponent,
     TableColumnMenuComponent,
-    TableColumnPickerComponent,
   ],
   templateUrl: './sales.component.html',
   host: { class: 'block' },
@@ -203,6 +200,14 @@ export class SalesComponent {
 
   onSortChanged(sort: TableSortState<SalesSortField>): void {
     this.tablePreferences.setSort('sales', sort, this.workspaceId());
+  }
+
+  ariaSort(field: string): 'ascending' | 'descending' | null {
+    const sort = this.tablePrefs().sort;
+    if (sort.field !== field) {
+      return null;
+    }
+    return sort.direction === 'asc' ? 'ascending' : 'descending';
   }
 
   onColumnsReordered(event: { previousIndex: number; currentIndex: number }): void {

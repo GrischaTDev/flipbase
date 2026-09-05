@@ -84,7 +84,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
    * nicht - die Auswahlfelder waren dadurch hoeher als ihre Nachbarn.
    */
   readonly groessenKlasse = computed(() =>
-    this.size() === 'sm' ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-2 text-xs',
+    this.size() === 'sm' ? 'min-h-9 px-2.5 py-1.5 text-[13px]' : 'min-h-10 px-3 py-2 text-[13px]',
   );
 
   readonly isOpen = signal<boolean>(false);

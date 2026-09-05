@@ -10,9 +10,12 @@
 
 <!-- Helles Anthrazit Sidebar Container -->
 <aside
-  class="fixed top-0 bottom-0 left-0 z-50 w-60 bg-fb-sidebar border-r border-fb-border-subtle text-fb-text-secondary flex flex-col transition-transform duration-200 ease-out md:translate-x-0 md:static md:z-auto select-none shadow-xl md:shadow-none"
+  aria-label="Hauptnavigation"
+  class="fixed top-0 bottom-0 left-0 z-50 w-60 bg-fb-sidebar border-r border-fb-border-subtle text-fb-text-secondary flex flex-col transition-transform duration-200 ease-out md:translate-x-0 md:static md:z-auto md:visible select-none shadow-xl md:shadow-none"
   [class.translate-x-0]="isOpen()"
   [class.-translate-x-full]="!isOpen()"
+  [class.visible]="isOpen()"
+  [class.invisible]="!isOpen()"
 >
   <!-- Brand Logo Header -->
   <div class="h-14 flex items-center justify-between px-4 border-b border-fb-border-subtle">
@@ -33,7 +36,7 @@
       <div class="flex items-center gap-1.5">
         <span class="tracking-tight font-bold text-sm text-fb-text-primary">Flipbase</span>
         <span
-          class="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold tracking-wide uppercase bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
+          class="px-1.5 py-0.5 rounded text-[11px] font-mono font-bold tracking-wide uppercase bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
         >
           OS
         </span>
@@ -51,8 +54,8 @@
   </div>
 
   <!-- Navigation Links -->
-  <nav class="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5">
-    <div class="px-2 pb-1.5 pt-1 text-[11px] font-medium text-fb-text-muted">Übersicht</div>
+  <nav aria-label="Bereiche" class="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5">
+    <div class="px-2 pb-1.5 pt-1 text-xs font-semibold text-fb-text-muted">Übersicht</div>
 
     @for (item of navItems.slice(0, 2); track item.path) {
       <a
@@ -69,7 +72,7 @@
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
         @if (item.baustelle) {
           <span
-            class="ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0"
+            class="ml-auto px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0"
             title="Noch nicht einsatzbereit – Zahlungen und Rechtstexte sind Platzhalter"
           >
             Demo
@@ -78,7 +81,7 @@
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-[11px] font-medium text-fb-text-muted">
+    <div class="px-2 pb-1.5 pt-4 text-xs font-semibold text-fb-text-muted">
       Warenwirtschaft & Store
     </div>
 
@@ -97,7 +100,7 @@
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
         @if (item.baustelle) {
           <span
-            class="ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0"
+            class="ml-auto px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0"
             title="Noch nicht einsatzbereit – Zahlungen und Rechtstexte sind Platzhalter"
           >
             Demo
@@ -106,9 +109,7 @@
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-[11px] font-medium text-fb-text-muted">
-      Werkzeuge & Ertrag
-    </div>
+    <div class="px-2 pb-1.5 pt-4 text-xs font-semibold text-fb-text-muted">Werkzeuge & Ertrag</div>
 
     @for (item of navItems.slice(6, 11); track item.path) {
       <a
@@ -125,7 +126,7 @@
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
         @if (item.baustelle) {
           <span
-            class="ml-auto px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0"
+            class="ml-auto px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0"
             title="Noch nicht einsatzbereit – Zahlungen und Rechtstexte sind Platzhalter"
           >
             Demo
@@ -134,7 +135,7 @@
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-[11px] font-medium text-fb-text-muted">System & Daten</div>
+    <div class="px-2 pb-1.5 pt-4 text-xs font-semibold text-fb-text-muted">System & Daten</div>
 
     @for (item of navItems.slice(11); track item.path) {
       <a
@@ -153,9 +154,7 @@
     }
 
     @if (isOperator()) {
-      <div
-        class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-fb-text-muted"
-      >
+      <div class="px-2 pb-1.5 pt-4 text-xs font-semibold text-fb-text-muted">
         {{ 'NAV.OPERATIONS' | translate }}
       </div>
 
@@ -163,7 +162,7 @@
         [routerLink]="operatorItem.path"
         routerLinkActive="bg-indigo-500/15 text-fb-text-primary font-semibold border-indigo-500/40"
         (click)="closed.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
       >
         <svg
           [lucideIcon]="operatorItem.icon"
@@ -188,7 +187,7 @@
       <button
         type="button"
         (click)="pwaService.promptInstall()"
-        class="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-fb-primary text-fb-on-accent text-[11px] font-bold hover:bg-fb-primary-hover transition cursor-pointer shadow-xs"
+        class="w-full inline-flex items-center justify-center gap-1.5 px-2.5 py-2 rounded-md bg-fb-primary text-fb-on-accent text-[13px] font-semibold hover:bg-fb-primary-hover transition-colors cursor-pointer shadow-xs"
         title="Flipbase als App auf deinem Gerät installieren"
       >
         <svg [lucideIcon]="smartphoneIcon" class="w-3.5 h-3.5"></svg>
@@ -199,7 +198,7 @@
     <div class="text-xs flex items-center justify-between">
       <div class="flex items-center gap-1.5">
         <span class="w-1.5 h-1.5 rounded-full bg-fb-primary animate-pulse"></span>
-        <span class="text-[11px] text-fb-text-muted font-medium">Flipbase Core</span>
+        <span class="text-xs text-fb-text-muted font-medium">Flipbase Core</span>
       </div>
       <!--
         Nur die Nummer, nicht das Commit-Kurzzeichen: In der Leiste zaehlt,
@@ -208,7 +207,7 @@
         wenn doch einmal jemand genau wissen muss, worauf er schaut.
       -->
       <span
-        class="px-1.5 py-0.2 rounded bg-fb-surface text-fb-text-secondary border border-fb-border font-mono text-[10px]"
+        class="px-1.5 py-0.5 rounded bg-fb-surface text-fb-text-secondary border border-fb-border font-mono text-xs"
         [title]="'Stand ' + version.stand + ' · Commit ' + version.commit"
       >
         v{{ version.nummer }}

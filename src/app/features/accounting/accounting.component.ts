@@ -262,6 +262,14 @@ export class AccountingComponent {
     this.tablePreferencesService.setSort('accounting', sort, this.workspaceId());
   }
 
+  ariaSort(field: string): 'ascending' | 'descending' | null {
+    const sort = this.tablePrefs().sort;
+    if (sort.field !== field) {
+      return null;
+    }
+    return sort.direction === 'asc' ? 'ascending' : 'descending';
+  }
+
   onColumnsReordered(event: { previousIndex: number; currentIndex: number }): void {
     this.tablePreferencesService.reorderColumns(
       'accounting',

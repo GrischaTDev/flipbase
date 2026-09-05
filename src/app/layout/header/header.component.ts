@@ -3,6 +3,7 @@ import {
   Component,
   ElementRef,
   inject,
+  input,
   output,
   signal,
   viewChild,
@@ -52,6 +53,7 @@ import { SyncStatusService } from '../../core/services/sync-status.service';
   },
 })
 export class HeaderComponent {
+  readonly isSidebarOpen = input<boolean>(false);
   readonly auth = inject(AuthService);
   readonly workspaceService = inject(WorkspaceService);
   readonly memberService = inject(WorkspaceMemberService);

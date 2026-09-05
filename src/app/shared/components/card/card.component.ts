@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input } from '@angular/co
 
 export type CardVariant = 'surface' | 'kpi' | 'subtle';
 export type CardPadding = 'none' | 'sm' | 'md' | 'lg';
-export type CardRounded = 'xl' | '2xl';
+export type CardRounded = 'md' | 'lg' | 'xl';
 
 @Component({
   selector: 'app-card',
@@ -18,12 +18,17 @@ export class CardComponent {
   readonly subtitle = input<string>('');
   readonly variant = input<CardVariant>('surface');
   readonly padding = input<CardPadding>('md');
-  readonly rounded = input<CardRounded>('xl');
+  readonly rounded = input<CardRounded>('lg');
 
   protected readonly cardClasses = computed(() => {
     const base = 'flex flex-col border transition-colors overflow-hidden';
 
-    const roundedClass = this.rounded() === '2xl' ? 'rounded-2xl' : 'rounded-xl';
+    const roundedClass =
+      this.rounded() === 'xl'
+        ? 'rounded-xl'
+        : this.rounded() === 'md'
+          ? 'rounded-md'
+          : 'rounded-lg';
 
     const variantClasses: Record<CardVariant, string> = {
       surface: 'linear-surface bg-fb-surface border-fb-border shadow-sm',

@@ -7,7 +7,7 @@
       <h2 id="inventory-table-title" class="text-sm font-semibold text-fb-text-primary">
         Inventar
       </h2>
-      <p class="mt-0.5 text-[11px] text-fb-text-muted">
+      <p class="mt-0.5 text-xs text-fb-text-muted">
         Alle vorhandenen und verkauften Artikel in einer Ansicht
       </p>
     </div>
@@ -20,9 +20,7 @@
         <caption class="sr-only">
           Inventartabelle mit Herkunft, Bestand, Kosten, Status und Verkaufsbezug
         </caption>
-        <thead
-          class="bg-fb-well text-[10px] font-semibold uppercase tracking-wider text-fb-text-secondary"
-        >
+        <thead class="bg-fb-surface text-[13px] font-semibold text-fb-text-secondary">
           <tr>
             <th scope="col" class="w-12 border-b border-fb-line px-3 py-2.5 text-center">
               Auswahl
@@ -91,7 +89,7 @@
                     class="font-semibold text-fb-text-primary transition hover:text-emerald-400"
                     >{{ row.title }}</a
                   >
-                  <p class="mt-0.5 text-[10px] text-fb-text-muted">
+                  <p class="mt-0.5 text-xs text-fb-text-muted">
                     {{ item.brand || item.category || 'Keine Kategorie' }}
                   </p>
                 } @else {
@@ -103,7 +101,7 @@
                       [attr.data-stock-origin-toggle]="row.actionId"
                       [attr.aria-expanded]="areLotsOpen(row.actionId)"
                       [attr.aria-controls]="'stock-origins-' + row.actionId"
-                      class="mt-1 inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-indigo-300 transition hover:text-indigo-200"
+                      class="mt-1 inline-flex cursor-pointer items-center gap-1 text-xs font-semibold text-indigo-300 transition hover:text-indigo-200"
                     >
                       <svg
                         [lucideIcon]="areLotsOpen(row.actionId) ? chevronUpIcon : chevronDownIcon"
@@ -131,7 +129,7 @@
                       <p class="font-mono text-xs font-semibold text-fb-text-primary">
                         {{ row.quantity.total }} Stück insgesamt
                       </p>
-                      <p class="mt-0.5 text-[10px] text-fb-text-muted">
+                      <p class="mt-0.5 text-xs text-fb-text-muted">
                         {{ row.quantity.available }} verfügbar ·
                         {{ row.quantity.reserved }} reserviert · {{ row.quantity.sold }} verkauft
                       </p>
@@ -170,7 +168,7 @@
                       data-item-status-badge
                       [attr.data-sold-badge]="row.status.kind === 'sold' ? '' : null"
                       [attr.data-integrity-conflict]="row.status.kind === 'conflict' ? '' : null"
-                      class="inline-flex min-h-7 items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold text-fb-text-primary"
+                      class="inline-flex min-h-7 items-center rounded-full border px-2.5 py-1 text-xs font-semibold text-fb-text-primary"
                       [class.border-purple-500/40]="row.status.kind === 'sold'"
                       [class.bg-purple-500/15]="row.status.kind === 'sold'"
                       [class.border-amber-500/40]="row.status.kind === 'review'"
@@ -189,7 +187,7 @@
                           data-restore-stock
                           type="button"
                           (click)="emitRestoreLegacy(row.inventoryItem!)"
-                          class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-[10px] font-semibold"
+                          class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-xs font-semibold"
                         >
                           Artikel ist noch vorhanden
                         </button>
@@ -197,7 +195,7 @@
                           data-reconcile-sale
                           type="button"
                           (click)="reconcileSale.emit(row.inventoryItem!)"
-                          class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-[10px] font-semibold"
+                          class="linear-btn-secondary cursor-pointer rounded-lg px-2 py-1 text-xs font-semibold"
                         >
                           Verkauf nachtragen
                         </button>
@@ -261,7 +259,7 @@
                             >{{ sale.saleDate | date: 'dd.MM.yyyy' }} · {{ sale.revenueLabel }}
                             {{ sale.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}</a
                           >
-                          <p class="text-[10px] text-fb-text-muted">
+                          <p class="text-xs text-fb-text-muted">
                             {{ sale.stateLabel }}
                             @if (sale.directResult !== null) {
                               · Ergebnis
@@ -368,9 +366,7 @@
                     class="space-y-2"
                     aria-label="Herkunft und Kosten"
                   >
-                    <div
-                      class="grid grid-cols-4 gap-3 text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
-                    >
+                    <div class="grid grid-cols-4 gap-3 text-xs font-semibold text-fb-text-muted">
                       <span>Herkunft</span><span>Wareneingang</span
                       ><span class="text-right">Restmenge</span
                       ><span class="text-right">Kosten pro Stück</span>
@@ -431,7 +427,7 @@
         <caption class="sr-only">
           vollständige Bewegungshistorie aller Wareneingänge
         </caption>
-        <thead class="bg-fb-well text-[10px] uppercase tracking-wider text-fb-text-secondary">
+        <thead class="bg-fb-surface text-[13px] text-fb-text-secondary">
           <tr>
             <th scope="col" class="px-3 py-2 text-left">Datum</th>
             <th scope="col" class="px-3 py-2 text-left">Artikel</th>

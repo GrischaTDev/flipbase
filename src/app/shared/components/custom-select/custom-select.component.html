@@ -16,7 +16,7 @@
       [attr.aria-controls]="isOpen() ? listboxId() : null"
       [attr.aria-activedescendant]="activeDescendantId()"
       [attr.aria-disabled]="effectiveDisabled()"
-      class="inline-flex items-center justify-between gap-1.5 px-3 py-1 rounded-full text-xs font-bold border transition cursor-pointer shadow-sm outline-none select-none max-w-full"
+      class="inline-flex min-h-9 items-center justify-between gap-1.5 rounded-full border px-3 py-1 text-[13px] font-semibold transition cursor-pointer shadow-sm outline-none select-none max-w-full focus-visible:ring-2 focus-visible:ring-fb-primary/50 focus-visible:border-fb-primary"
       [class.opacity-50]="effectiveDisabled()"
       [class.cursor-not-allowed]="effectiveDisabled()"
       [class]="
@@ -47,7 +47,7 @@
       [attr.aria-controls]="isOpen() ? listboxId() : null"
       [attr.aria-activedescendant]="activeDescendantId()"
       [attr.aria-disabled]="effectiveDisabled()"
-      class="linear-input w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition select-none text-fb-text-secondary"
+      class="linear-input w-full flex min-h-9 items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-[13px] font-medium cursor-pointer transition-colors select-none text-fb-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50 focus-visible:border-fb-primary"
       [class.opacity-50]="effectiveDisabled()"
       [class.cursor-not-allowed]="effectiveDisabled()"
       [class.border-fb-primary]="isOpen()"
@@ -76,7 +76,7 @@
       [attr.aria-controls]="isOpen() ? listboxId() : null"
       [attr.aria-activedescendant]="activeDescendantId()"
       [attr.aria-disabled]="effectiveDisabled()"
-      class="linear-input w-full flex items-center justify-between gap-2 rounded-lg font-medium cursor-pointer transition select-none text-fb-text-primary"
+      class="linear-input w-full flex items-center justify-between gap-2 rounded-md font-medium cursor-pointer transition-colors select-none text-fb-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/50 focus-visible:border-fb-primary"
       [class]="groessenKlasse()"
       [class.opacity-50]="effectiveDisabled()"
       [class.cursor-not-allowed]="effectiveDisabled()"
@@ -103,7 +103,7 @@
     <div
       role="listbox"
       [id]="listboxId()"
-      class="custom-select-menu absolute z-50 min-w-[160px] max-w-[320px] w-full rounded-xl bg-fb-well border border-fb-line shadow-2xl ring-1 ring-white/5 py-1.5 max-h-60 overflow-y-auto outline-none animate-in fade-in zoom-in-95 duration-100"
+      class="custom-select-menu fb-popover-enter absolute z-50 min-w-[160px] max-w-[320px] w-full rounded-lg bg-fb-surface border border-fb-border shadow-lg py-1.5 max-h-60 overflow-y-auto outline-none"
       [class.bottom-full]="isDropUp()"
       [class.mb-1.5]="isDropUp()"
       [class.top-full]="!isDropUp()"
@@ -124,11 +124,11 @@
             [id]="optionId(index)"
             [attr.aria-selected]="isSelected"
             [attr.aria-disabled]="effectiveDisabled()"
-            class="w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-left transition cursor-pointer select-none"
+            class="w-full flex min-h-9 items-center justify-between gap-2 rounded-md px-2.5 py-2 text-[13px] font-medium text-left transition-colors cursor-pointer select-none"
             [class.ring-1]="isActive"
-            [class.ring-indigo-400/60]="isActive"
-            [class.bg-indigo-600/20]="isSelected"
-            [class.text-indigo-300]="isSelected"
+            [class.ring-fb-primary/50]="isActive"
+            [class.bg-fb-primary-subtle]="isSelected"
+            [class.text-fb-primary]="isSelected"
             [class.font-bold]="isSelected"
             [class.text-fb-text-secondary]="!isSelected"
             [class.hover:bg-fb-surface-alt]="!isSelected"
@@ -142,7 +142,7 @@
             </div>
 
             @if (isSelected) {
-              <svg [lucideIcon]="checkIcon" class="w-3.5 h-3.5 text-indigo-400 shrink-0"></svg>
+              <svg [lucideIcon]="checkIcon" class="w-3.5 h-3.5 text-fb-primary shrink-0"></svg>
             }
           </button>
         }
