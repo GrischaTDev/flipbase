@@ -10,6 +10,17 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-05-admin-workflow-refresh.md`, Paket 1.
 
+## Umsetzungsstand
+
+- [x] Task 1 umgesetzt; separate Prüfung und Dark-Mode-Korrektur abgeschlossen.
+- [x] Task 2 umgesetzt; persönliche Filter einschließlich echter lokaler Anmeldung in zwei Browsersitzungen geprüft.
+- [x] Gemeinsame responsive Prüfung: 24 Ansichten, acht Axe-Prüfungen ohne Befund.
+- [x] Abschlussreview-Befunde zu Aktionskontrast und Abmelden während wartender Speicherung korrigiert und durch Regressionstests abgesichert.
+- [x] Letzte Nachprüfung und Abschlussdokumentation: beide Abschlussbefunde behoben, gezielte Nachprüfung freigegeben; final 1.496 Tests und acht Browserprüfungen erfolgreich, Produktionsbau erfolgreich.
+- [ ] Veröffentlichung (nicht beauftragt; vor einem Push vollständiges `npm run verify`).
+
+Die folgenden Abschnitte dokumentieren das ursprüngliche Task-Briefing. Erweiterungen gegenüber dessen knapper Dateiliste: Dashboard-HTML für den Speicherfehlerhinweis sowie vorhandene Komponententests für die neue Zustandsquelle. Keine Datenbankmigration, neuen Abhängigkeiten oder Änderungen an Shop/Landingpage.
+
 ## Global Constraints
 
 - Dark-Mode-Hintergründe, Shop und Landingpage unverändert.

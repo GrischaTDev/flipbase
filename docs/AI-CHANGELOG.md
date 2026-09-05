@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Admin-Akzente und persönliche Filter lokal abgeschlossen
+
+**Stand:** `feat/admin-preferences`, Implementierung bis `a3b0d27`; nicht gepusht oder veröffentlicht. Paket 1 vollständig umgesetzt. Einkaufsseite, gemeinsame Chronik, Archivierungsablauf und EAN-Erfassung gehören zu späteren Paketen.
+**Abschlussprüfung:** Finale vollständige `npm test`-Suite: Node 989, DOM 135, Angular 372 bestanden, fünf bestehende Angular-Tests übersprungen. Produktionsbau erfolgreich. Acht gezielte Chromium-Tests für Akzente, Dark-Navigation, responsive Breiten, Dashboard-Filter und Chartinteraktion erfolgreich. Bestehende Runner-Warnung zu gleichzeitigem NO_COLOR/FORCE_COLOR unverändert. Lokale Konto-QA mit zwei getrennten Browserkontexten bestätigte Speicherung, Neuladen, Erhalt fremder Metadaten und einer Plattform ohne Verkäufe; keine Laufzeitfehler. 24 Ansichten bei 390/1440/2560px in Hell/Dunkel ohne Seitenüberlauf; acht Axe-Prüfungen der Hauptinhalte ohne Befund. Keine echten Geräte oder anderen Browser-Engines geprüft.
+**Reviews:** Einzelreviews freigegeben. Abschlussreview fand dunkle Schrift auf brauner Aktionsfläche (2,83:1) und einen rekursiven Speicherneustart bei Abmeldung vor dem Auth-Effekt. Beide mit roten Regressionstests reproduziert, korrigiert und im gezielten Abschlussreview freigegeben. Betroffene Aktionsflächen sind nun hellgelb mit dunkler Schrift; die Warteschlange startet nur im weiterhin gültigen Benutzerkontext erneut.
+**Planentscheidungen:** Zusätzlich zum knappen Dateiverzeichnis Dashboard-HTML für den geforderten Speicherfehlerhinweis und vorhandene Komponententests für die neue Zustandsquelle angepasst. Falls diese Erweiterungen unnötig wären, beträfe die Rücknahme nur Template bzw. Tests; keine Datenmigration. Keine weiteren abweichenden Entscheidungen oder verworfenen Reviewbefunde.
+**Lokale Prüfartefakte:** Screenshots und Testprotokolle unter `C:/Users/Grisc/AppData/Local/Temp/`; zwei klar benannte lokale QA-Konten erzeugt, keine Produktionskonten verändert. Temporäre Agentenbriefings und Reviewpakete nach Übertragung der Ergebnisse aus dem eigenen ignorierten Planordner entfernt; Arbeitszweig und Code bleiben erhalten. Vor einem später autorisierten Push ist `npm run verify` erforderlich.
+
+## 2026-09-05 – Codex – Persönliche Dashboard-Filter gespeichert
+
+**Art:** UI- und Auth-Metadaten-Umsetzung im Zweig `feat/admin-preferences`, Task 2.
+**Was:** Dashboard-Zeitraum und Plattform starten standardmäßig mit dem laufenden Jahr und bleiben im Demo-Modus lokal sowie bei angemeldeten Konten in einem eigenen Auth-Metadatenfeld erhalten. Schreibvorgänge laufen nacheinander und fassen schnelle Zwischenstände zusammen; Konto- und Abmeldewechsel schützen vor verspäteten Antworten. Unbekannte gespeicherte Plattformen bleiben auswählbar und zeigen null Treffer. Metadaten dienen nicht der Rechteprüfung; keine Datenbank-, RLS- oder Abhängigkeitsänderung.
+**Prüfung:** Parser, Service und Dashboard-Integration testgetrieben mit gezielten roten und grünen Läufen; Demo-Browsertest für Navigation und Neuladen erfolgreich. Lokale Supabase-QA mit einem Testkonto bestätigte Speicherung, Erhalt fremder Metadaten, Neuladen und eine zweite getrennte Browsersitzung ohne Seitenfehler. Produktionskonto und Deployment unberührt.
+
+## 2026-09-05 – Codex – Helle Admin-Akzente an Markenfarben angeglichen
+
+**Art:** UI-Umsetzung im Zweig `feat/admin-preferences`, Task 1.
+**Was:** Nur die helle `.fb-admin`-Palette verwendet nun Orange/Gelb für Primäraktionen und einen dunklen Braunton für Textakzente und Fokus. Aktive Sidebarflächen nutzen den dezenten Markenakzent mit dunklem Text und Icon. Dunkles Admin-Design, Shop, Anmeldung, Landingpage sowie Diagramm- und Statusbedeutungen wurden nicht verändert. Zwei vorhandene Kombinationen aus orange umgebogenem Indigo-Hintergrund und weißer Schrift erhalten im hellen Admin die dunkle Akzentschrift.
+**Prüfung:** Neuer Playwright-Test schlug zunächst mit Weiß statt `rgb(26, 26, 26)` fehl und lief nach Umsetzung grün. Ein Review fand danach die unbeabsichtigt entfernte aktive Dark-Sidebarfläche; eigener Regressionstest zunächst rot bei transparentem Hintergrund, nach Wiederherstellung der vorherigen Klassen und des dunklen Markenrahmens grün. Zusammen mit den Admin-Layouttests 4/4 Chromium-Tests erfolgreich; Axe WCAG 2/2.1 A/AA auf `/purchases` ohne Befund; gezielte Prettier-/ESLint-Prüfung und Produktionsbau erfolgreich. Keine echte Geräte- oder Mehrbrowserprüfung in dieser Sitzung.
+
 ## 2026-09-05 – Codex – Umsetzung in eigenständige Pakete aufgeteilt
 
 **Art:** Umsetzungsplanung nach Nutzerfreigabe, noch keine Funktionsänderung.
