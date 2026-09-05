@@ -190,65 +190,25 @@ Deno.serve(async (anfrage: Request) => {
       .filter(Boolean)
       .pop() ?? 'unbekannt';
   const streuwert = await herkunftsStreuwert(adresse, PFEFFER);
-  const seit = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  // Zaehlen und Eintragen laufen in einem einzigen, in der Datenbank
+  // serialisierten Schritt. Getrennt gefragt sahen zwei gleichzeitige Anfragen
+  // denselben Stand und kamen beide durch; die Grenze liess sich so um einige
+  // Anfragen ueberschreiten. Die Funktion raeumt zugleich die Zaehlversuche
+  // auf, die aelter als 24 Stunden sind - deshalb braucht es hier weder eine
+  // eigene Zaehlung noch ein eigenes Aufraeumen mehr.
+  const { data: erlaubt, error: drosselfehler } = await dienst.rpc('beta_application_attempt', {
+    p_origin_hash: streuwert,
+    p_max_per_origin: HOECHSTZAHL_JE_STUNDE,
+    p_max_total: HOECHSTZAHL_GESAMT_JE_STUNDE,
+  });
 
-  // Gesamtgrenze ueber alle Herkuenfte hinweg, siehe Kommentar bei
-  // HOECHSTZAHL_GESAMT_JE_STUNDE: haengt an keiner Kopfzeile und greift daher
-  // auch bei gefaelschtem oder fehlendem x-forwarded-for.
-  const { count: gesamtzahl, error: gesamtzaehlfehler } = await dienst
-    .from('beta_application_attempts')
-    .select('id', { count: 'exact', head: true })
-    .gte('created_at', seit);
-
-  if (gesamtzaehlfehler) {
-    console.error('beta-application: Gesamtzaehlung fehlgeschlagen:', gesamtzaehlfehler.message);
+  if (drosselfehler) {
+    console.error('beta-application: Drosselung fehlgeschlagen:', drosselfehler.message);
     return antwort({ error: 'internal' }, 500, herkunft);
   }
-  if ((gesamtzahl ?? 0) >= HOECHSTZAHL_GESAMT_JE_STUNDE) {
+
+  if (erlaubt !== true) {
     return antwort({ error: 'too_many_requests' }, 429, herkunft);
-  }
-
-  const { count, error: zaehlfehler } = await dienst
-    .from('beta_application_attempts')
-    .select('id', { count: 'exact', head: true })
-    .eq('origin_hash', streuwert)
-    .gte('created_at', seit);
-
-  if (zaehlfehler) {
-    console.error('beta-application: Herkunftszaehlung fehlgeschlagen:', zaehlfehler.message);
-    return antwort({ error: 'internal' }, 500, herkunft);
-  }
-  if ((count ?? 0) >= HOECHSTZAHL_JE_STUNDE) {
-    return antwort({ error: 'too_many_requests' }, 429, herkunft);
-  }
-
-  // Schlaegt dieser Eintrag fehl, zaehlt der Versuch nicht mit und die
-  // Drosselung wird lautlos schwaecher - deshalb wird das Ergebnis wie bei
-  // jeder anderen Abfrage in dieser Datei geprueft.
-  const { error: zaehleintragfehler } = await dienst
-    .from('beta_application_attempts')
-    .insert({ origin_hash: streuwert });
-
-  if (zaehleintragfehler) {
-    console.error('beta-application: Zaehleintrag fehlgeschlagen:', zaehleintragfehler.message);
-    return antwort({ error: 'internal' }, 500, herkunft);
-  }
-
-  // Raeumt Zaehlversuche auf, die aelter als das Zeitfenster sind - ohne
-  // eigenen Scheduler, denn dieser Endpunkt wird oft genug aufgerufen, um die
-  // Tabelle so klein zu halten. Anders als bei den Zaehlabfragen oben darf ein
-  // Fehler hier eine gueltige Bewerbung nicht abweisen: Misslingt das
-  // Aufraeumen, bleiben ein paar alte Streuwerte laenger stehen - das ist
-  // hoechstens ein spaeter aufgeraeumter Datensatz, kein falsches Ergebnis.
-  // Deshalb nur protokollieren und weitermachen, nicht wie oben mit Status 500
-  // abweisen.
-  const { error: aufraeumfehler } = await dienst
-    .from('beta_application_attempts')
-    .delete()
-    .lt('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
-
-  if (aufraeumfehler) {
-    console.error('beta-application: Aufraeumen fehlgeschlagen:', aufraeumfehler.message);
   }
 
   const { error: schreibfehler } = await dienst.from('beta_applications').insert({

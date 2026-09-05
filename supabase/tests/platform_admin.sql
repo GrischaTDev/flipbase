@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(11);
+select plan(14);
 
 -- Spalten von beta_applications
 do $$
@@ -137,6 +137,21 @@ begin
 
   if not has_function_privilege('authenticated', 'public.is_platform_operator()', 'execute') then
     raise exception 'authenticated muss is_platform_operator ausfuehren duerfen';
+  end if;
+
+  -- Der Drosselungsriegel gehoert allein dem Dienstschluessel. Waere er
+  -- aufrufbar, koennte jeder das Kontingent selbst leerlaufen lassen und damit
+  -- echte Bewerbungen aussperren.
+  if has_function_privilege(
+    'anon', 'public.beta_application_attempt(text, integer, integer)', 'execute'
+  ) then
+    raise exception 'anon darf den Drosselungsriegel nicht ausfuehren';
+  end if;
+
+  if has_function_privilege(
+    'authenticated', 'public.beta_application_attempt(text, integer, integer)', 'execute'
+  ) then
+    raise exception 'authenticated darf den Drosselungsriegel nicht ausfuehren';
   end if;
 end;
 $$;
@@ -331,6 +346,93 @@ $$;
 reset role;
 
 select pass('Auf platform_operators sieht ein Betreiber genau den eigenen Eintrag, nicht die anderen');
+
+-- Der Riegel laesst die erlaubte Zahl durch und weist danach ab.
+do $$
+declare
+  i integer;
+  erlaubt boolean;
+begin
+  for i in 1..3 loop
+    erlaubt := public.beta_application_attempt('riegel-a', 3, 100);
+    if not erlaubt then
+      raise exception 'Versuch % haette durchgehen muessen', i;
+    end if;
+  end loop;
+
+  erlaubt := public.beta_application_attempt('riegel-a', 3, 100);
+  if erlaubt then
+    raise exception 'Der vierte Versuch haette abgewiesen werden muessen';
+  end if;
+
+  -- Eine andere Herkunft hat ihr eigenes Kontingent.
+  erlaubt := public.beta_application_attempt('riegel-b', 3, 100);
+  if not erlaubt then
+    raise exception 'Eine andere Herkunft haette ihr eigenes Kontingent haben muessen';
+  end if;
+end;
+$$;
+
+select pass('Die Drosselung je Herkunft laesst genau die erlaubte Zahl durch');
+
+-- Die Gesamtgrenze greift auch ueber verschiedene Herkuenfte hinweg.
+--
+-- Das ist der Teil, der ohne jede Angabe des Aufrufers auskommt: Ein Bot kann
+-- den Herkunftskopf frei waehlen, aber nicht an dieser Grenze vorbei.
+do $$
+declare
+  erlaubt boolean;
+begin
+  delete from public.beta_application_attempts;
+
+  erlaubt := public.beta_application_attempt('gesamt-1', 100, 2);
+  if not erlaubt then raise exception 'Erster Versuch haette durchgehen muessen'; end if;
+
+  erlaubt := public.beta_application_attempt('gesamt-2', 100, 2);
+  if not erlaubt then raise exception 'Zweiter Versuch haette durchgehen muessen'; end if;
+
+  erlaubt := public.beta_application_attempt('gesamt-3', 100, 2);
+  if erlaubt then
+    raise exception 'Die Gesamtgrenze haette den dritten Versuch abweisen muessen';
+  end if;
+end;
+$$;
+
+select pass('Die Gesamtgrenze greift ueber verschiedene Herkuenfte hinweg');
+
+-- Alte Zaehlversuche verschwinden beim Aufruf.
+--
+-- Der Tabellenkommentar verspricht 24 Stunden. Es gibt keinen Scheduler, der
+-- das erledigt - dieser Aufruf ist die einzige Gelegenheit dazu, und ohne ihn
+-- waere das Versprechen unwahr.
+do $$
+declare
+  uebrig integer;
+begin
+  delete from public.beta_application_attempts;
+
+  insert into public.beta_application_attempts (origin_hash, created_at)
+  values ('uralt', now() - interval '30 hours');
+
+  perform public.beta_application_attempt('frisch', 100, 100);
+
+  select count(*) into uebrig
+  from public.beta_application_attempts where origin_hash = 'uralt';
+
+  if uebrig <> 0 then
+    raise exception 'Der alte Zaehlversuch haette entfernt werden muessen';
+  end if;
+
+  select count(*) into uebrig
+  from public.beta_application_attempts where origin_hash = 'frisch';
+
+  if uebrig <> 1 then
+    raise exception 'Der frische Zaehlversuch haette stehen bleiben muessen';
+  end if;
+end;
+$$;
+
+select pass('Zaehlversuche aelter als 24 Stunden werden beim Aufruf entfernt');
 
 select * from finish();
 
