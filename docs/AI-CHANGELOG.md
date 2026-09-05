@@ -1,5 +1,12 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Typografie und Dialogkorrekturen veröffentlichen
+
+**Art:** Release
+**Betroffen:** Eigener Zweig `style/inter-typography`, Anwendung und Landingpage.
+**Was:** Auf ausdrücklichen Nutzerauftrag per PR und Merge veröffentlichen. Aktuellen Master einschließlich bereits veröffentlichter Deal-Monitor-Änderungen konfliktfrei übernommen; fremde Zweige unverändert. Keine zusätzlichen Datenbankmigrationen in diesem PR. Deployment-Checkliste und unabhängiges Code-Review vor Merge verwenden.
+**Prüfung und Rückfall:** Gezielter Build, Browser-, Dialog- und Landingpage-Testlauf nach Integration; vollständige verbindliche CI im PR. Vorher öffentlich ausgelieferter Commit `88de7103cf3f0ac53bc9ee1cd5ca38f0347ba24b`. Bei fehlerhaftem Healthcheck, fehlenden Schriftdateien oder falschem öffentlichen Commit keinen Live-Erfolg melden und regulären Deployment-Rückfall prüfen. Nach Merge Produktionslauf und beide öffentlich ausgelieferten Schriftdateien kontrollieren.
+
 ## 2026-09-05 – Codex – Mobile Kopfzeile und Modal-Hintergrund korrigiert
 
 **Art:** Fehlerbehebung | Layout | Dialogbedienung
