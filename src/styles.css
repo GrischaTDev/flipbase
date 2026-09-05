@@ -596,6 +596,7 @@ html:not(.dark) .fb-admin .linear-btn-primary:hover {
 }
 
 html:not(.dark) .fb-admin .bg-indigo-600.text-white {
+  background-color: var(--fb-primary);
   color: var(--fb-text-on-accent);
 }
 
