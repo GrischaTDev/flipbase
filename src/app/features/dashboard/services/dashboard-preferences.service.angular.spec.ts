@@ -165,6 +165,31 @@ describe('DashboardPreferencesService', () => {
     expect(updateUser).toHaveBeenCalledTimes(1);
   });
 
+  it('does not restart a queued write after sign-out before the auth effect runs', async () => {
+    currentUser.set(user('a'));
+    const first = deferred<{ data: { user: User }; error: null }>();
+    updateUser.mockReturnValueOnce(first.promise);
+    const service = TestBed.inject(DashboardPreferencesService);
+    await settle();
+    service.setRange('today');
+    await settle();
+    service.setPlatform('ebay');
+
+    currentUser.set(null);
+    const restart = vi.fn();
+    (
+      service as unknown as {
+        saveQueuedPreferences: (userId: string, generation: number) => Promise<void>;
+      }
+    ).saveQueuedPreferences = restart;
+    first.resolve({ data: { user: user('a') }, error: null });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(restart).not.toHaveBeenCalled();
+    TestBed.flushEffects();
+  });
+
   it('exposes returned and thrown save errors without rolling back the selection', async () => {
     currentUser.set(user('a'));
     updateUser

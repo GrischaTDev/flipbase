@@ -133,7 +133,11 @@ export class DashboardPreferencesService {
     } finally {
       this.saving = false;
       if (this.queuedPreferences && this.activeUserId && this.activeUserId !== 'demo') {
-        void this.saveQueuedPreferences(this.activeUserId, this.generation);
+        const activeUserId = this.activeUserId;
+        const generation = this.generation;
+        if (this.isCurrentUser(activeUserId, generation)) {
+          void this.saveQueuedPreferences(activeUserId, generation);
+        }
       }
     }
   }
