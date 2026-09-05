@@ -609,6 +609,10 @@ html:not(.dark) .fb-admin app-sidebar nav a[aria-current='page'] svg {
   color: var(--fb-text-primary);
 }
 
+html.dark .fb-admin app-sidebar nav a[aria-current='page'] {
+  border-color: rgb(248 157 19 / 40%);
+}
+
 html:not(.dark) .fb-admin [data-purchase-row] > svg,
 html:not(.dark) .fb-admin [data-purchase-row] > [aria-hidden='true'] svg {
   color: var(--fb-text-muted);
