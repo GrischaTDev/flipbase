@@ -107,6 +107,21 @@ function erstelleDienst() {
 }
 
 describe('PurchaseService – fachliche Positionsanzahl', () => {
+  it.each(['list', 'detail'] as const)(
+    'wählt für %s die eindeutige Workspace-Beziehung der Zusatzkosten',
+    async (view) => {
+      const { service, purchaseSelects } = erstelleDienst();
+
+      if (view === 'list') await service.loadPurchases(workspace.id);
+      else await service.getPurchaseById(purchase.id);
+
+      expect(purchaseSelects).toHaveLength(1);
+      expect(purchaseSelects[0]).toContain(
+        'costs:purchase_costs!purchase_costs_workspace_purchase_fkey(*)',
+      );
+    },
+  );
+
   it('zeigt eine vollständig eingebuchte Mengenposition in Übersicht und Detail weiterhin als fünf', async () => {
     const { service, purchasesRaw, purchaseSelects } = erstelleDienst();
 
