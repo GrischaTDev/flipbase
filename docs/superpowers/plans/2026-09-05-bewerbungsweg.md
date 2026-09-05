@@ -103,6 +103,27 @@ create policy "Eigenen Betreibereintrag lesen" on public.platform_operators
     for select to authenticated
     using (user_id = (select auth.uid()));
 
+-- Ist der angemeldete Nutzer Betreiber?
+--
+-- security definer, weil die Funktion in Policies anderer Tabellen benutzt
+-- wird und dort an der eigenen RLS von platform_operators haengen bliebe.
+create or replace function public.is_platform_operator()
+returns boolean
+language sql
+security definer
+stable
+set search_path = ''
+as $$
+    select exists (
+        select 1
+        from public.platform_operators as operator
+        where operator.user_id = (select auth.uid())
+    );
+$$;
+
+comment on function public.is_platform_operator() is
+    'Wahr, wenn der angemeldete Nutzer in platform_operators steht. security definer, damit die Funktion in Policies anderer Tabellen benutzbar ist.';
+
 -- Bewerbungen fuer die Beta.
 --
 -- Eine Bewerbung ist kein Konto: Sie kommt von jemandem, den es im System noch
@@ -191,27 +212,6 @@ create index if not exists idx_beta_application_attempts_window
 alter table public.beta_application_attempts enable row level security;
 
 -- Absichtlich keine Policy: Nur der Dienstschluessel schreibt und liest hier.
-
--- Ist der angemeldete Nutzer Betreiber?
---
--- security definer, weil die Funktion in Policies anderer Tabellen benutzt
--- wird und dort an der eigenen RLS von platform_operators haengen bliebe.
-create or replace function public.is_platform_operator()
-returns boolean
-language sql
-security definer
-stable
-set search_path = ''
-as $$
-    select exists (
-        select 1
-        from public.platform_operators as operator
-        where operator.user_id = (select auth.uid())
-    );
-$$;
-
-comment on function public.is_platform_operator() is
-    'Wahr, wenn der angemeldete Nutzer in platform_operators steht. security definer, damit die Funktion in Policies anderer Tabellen benutzbar ist.';
 
 revoke all on table public.platform_operators from anon, public;
 revoke all on table public.platform_operators from authenticated;
