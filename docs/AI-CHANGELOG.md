@@ -1,9 +1,37 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Umsetzung in eigenständige Pakete aufgeteilt
+
+**Art:** Umsetzungsplanung nach Nutzerfreigabe, noch keine Funktionsänderung.
+**Dokumente:** `docs/superpowers/specs/2026-09-05-admin-workflow-refresh.md` hält die freigegebene Gesamtrichtung fest; `docs/superpowers/plans/2026-09-05-admin-preferences.md` beschreibt das erste eigenständig prüfbare Paket (gelbe Akzente, persönliche Dashboard-Filter). Weitere Pakete: Einkaufsseite, gemeinsame Chronik, Archivierung/Tabellenspalten, EAN/Import.
+**Entscheidung:** Persönliche Filter als nicht sicherheitsrelevante Auth-Metadaten, Demo lokal; keine neuen Tabellen für Paket 1. Zustandswechsel und fehlgeschlagene Speicherung ausdrücklich testen. Chronik benötigt eigene Prüfung bestehender Ereignis-/Kommentarrechte und ist noch nicht implementiert. Planungsskill verlangt Auswahl der Ausführungsform vor Planabarbeitung; vorhandene Arbeitskopie und fremde Änderungen erhalten.
+
+## 2026-09-05 – Codex – EAN-Kameraerfassung und Produktdatenquellen geprüft
+
+**Art:** Technische Auskunft / Recherche, keine Implementierung.
+**Befund:** BarcodeScannerComponent nutzt ausschließlich nativen BarcodeDetector ohne Decoder-Fallback; Browserunterstützung eingeschränkt. BarcodeLookupService enthält fünf feste Beispieldatensätze mit Schätzpreisen und fragt danach Open Food Facts ab; keine umfassende allgemeine Produktdatenbank. Vorschlag: optionales EAN/GTIN-Feld, manuelle Eingabe und Kamera, Format-/Prüfzifferprüfung, eigene Artikelsuche vor optionaler externer Datenanreicherung, keine automatische Neuanlage oder ungeprüfte Preisübernahme. GS1 bietet Identitäts-/Basisdaten; API-Zugang über lokale GS1-Organisation abklären. Scanner-Bibliothek und Datenanbieter sind getrennte Entscheidungen, keine Abhängigkeit installiert.
+**Quellen:** https://developer.mozilla.org/en-US/docs/Web/API/BarcodeDetector, https://github.com/zxing-js/browser, https://www.gs1.org/services/verified-by-gs1, https://openfoodfacts.github.io/openfoodfacts-server/api/.
+
+## 2026-09-05 – Codex – Einzelstücke archivieren und Chronik erklären
+
+**Art:** Nutzerfrage / Entwurf, keine Funktionsänderung.
+**Was:** Für verkaufte Einzelstücke Archivierung statt alltäglicher Anzeige vorgeschlagen, ohne Einkauf, Verkauf und Bestandsbewegungen zu entfernen. Nachkaufbare Artikel können bei null Bestand aktiv bleiben. Produktbeschreibung und tatsächlicher Bestand unterscheiden; Neuanlage darf keinen unbelegten Bestand erzeugen. Chronik als lesbare Ansicht belegter Änderungsereignisse, nicht als automatische Rechtskonformitätsgarantie. CSV-Import mit Vorschau/Prüfung und Barcode-Suche als spätere Erfassungshilfen aufnehmen; unbekannter Barcode liefert nicht automatisch verlässliche Produktdaten.
+**Quellen:** https://help.shopify.com/de/manual/products/add-update-products sowie §§ 146/147 AO. Bestehender Code enthält bereits `archived` als Artikelstatus; keine Aussage getroffen, dass der gewünschte vollständige Archivierungsablauf bereits umgesetzt sei.
+
+## 2026-09-05 – Codex – Akzentfarbe, persönliche Ansichten und Einkaufsablauf eingegrenzt
+
+**Art:** Recherche und Entwurfsabstimmung, noch keine Umsetzung.
+**Anlass:** Nutzer wünscht Logo-Gelb statt Lila im hellen Admin, Dashboard initial dieses Jahr und dauerhaft persönliche Filter sowie Shopify-orientierte Erfassungsseiten und kompakte Tabellen mit wählbaren Spalten. Screenshots als Gestaltungsreferenz, nicht als Anweisung oder vollständiges Datenmodell verwendet.
+**Befund:** Dashboard initialisiert Zeitraum mit `month` ohne Speicherung. Offizielle Shopify-Hilfe trennt Lieferantenbestellung von Wareneingang/Inventartransfer; vorhandenes Produkt bedeutet nicht vorhandene Stückzahl. Öffentliche Shopify-Produkttaxonomie steht unter MIT-Lizenz. Für Flipbase vorgeschlagen: Einkäufe als verständlicher Oberbegriff behalten, Artikel direkt beim Einkauf anlegen/auswählen, Mystery-Box-Inhalt weiterhin später erfassen, Verkauf und Bestandsabgang gemeinsam buchen. Keine Pflichtfelder für Lieferstandorte, Zahlungsziele oder Shop-Metafelder ohne konkreten Bedarf. Filter/Spalten als persönliche Ansichten konzipieren, nicht global für alle Nutzer.
+**Quellen:** https://help.shopify.com/de/manual/products/inventory/purchase-orders/creating-purchase-orders, https://help.shopify.com/de/manual/products/inventory/purchase-orders/viewing-purchase-orders, https://help.shopify.com/de/manual/products/inventory/purchase-orders/creating-inventory-transfers, https://github.com/Shopify/product-taxonomy.
+**Vorgehen:** Design-System- und Brainstorming-Skill: kleine Farb-/Filteranpassung vom größeren Ablaufumbau trennen; Entwurf vor Umsetzung abstimmen. Keine Datenbank- oder Produktionsänderung.
+
 ## 2026-09-05 – Codex – Neutrales Verwaltungsdesign veröffentlichen
 
 **Art:** Release auf ausdrücklichen Nutzerauftrag.
 **Umfang:** Zweig `style/neutral-admin-design`, nur Verwaltungsdesign und Layouttests; keine Datenbankmigrationen. Vorheriger Produktionsstand `873c0b8`. Unabhängige Review-Befunde im vorherigen Umsetzungseintrag dokumentiert und korrigiert. Vor Push verbindliches `npm run verify`, danach PR-Prüfungen, Merge und Produktionslauf prüfen. Abbruch-/Rückfallkriterien: fehlgeschlagener Healthcheck, falscher ausgelieferter Commit oder fehlende Frontend-Dateien. Keine erfolgreiche Veröffentlichung behaupten, bevor Produktionslauf und öffentliche Antwort bestätigt sind.
+
+**Abschluss:** `npm run verify` erfolgreich nach Anpassung der erwarteten kurzen Ergebnisüberschrift einschließlich Test der erhaltenen Erklärung. PR #26 nach erfolgreichem Lauf `33972570453` gemergt. Produktionslauf `33972742843` vollständig erfolgreich, erfolgreiche PR-Tests wiederverwendet. Öffentlicher Healthcheck und Commit `2ac3950e294e8f7616515cfa205d9f908581c216` bestätigt. Abschluss lokal dokumentiert, kein zusätzlicher Produktionslauf nur für diesen Nachweis.
 
 ## 2026-09-05 – Codex – Helle Verwaltungsoberfläche beruhigt und Datenansichten verbreitert
 
