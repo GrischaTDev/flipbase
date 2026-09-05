@@ -9,7 +9,9 @@ E2E-Vertrag (`Spalten`) entsprach.
 **Korrektur:** Die sichtbare Kurzbezeichnung bleibt als zugänglicher Name
 erhalten; die ausführlichere Erklärung bleibt im Tooltip. Dadurch bleibt das
 Bedienelement verständlich und bestehende Tastatur-/Screenreader-Abfragen
-finden denselben Knopf wieder.
+finden denselben Knopf wieder. Die E2E-Verträge wurden außerdem an die bewusst
+semantische Radio-Gruppe des Einkaufstyps und die nun korrekt lokal eingebundene
+JetBrains-Mono-Schrift angepasst.
 
 ## 2026-09-06 – Codex – Polaris-Nachlauf für Tabellen-, Formular- und Navigationszugänglichkeit
 
