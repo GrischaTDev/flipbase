@@ -221,6 +221,15 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-05 – Claude Opus 5 (Anthropic) – Entwurf: Betreiberbereich und Beta-Zugänge
+
+**Art:** Doku
+**Betroffen:** `docs/superpowers/specs/2026-09-05-betreiberbereich-und-beta-zugaenge-design.md`
+**Was:** Entwurf für einen Betreiberbereich, über den Beta-Zugänge vergeben, befristet und entzogen werden. Umfasst Bewerbungsweg über die Landing Page, Lizenz je Arbeitsbereich, Sperre als Nur-Lesen, Betreiberrolle mit bewusst engem Einblick, und die E-Mail-Grundlage. Zerfällt in vier Pläne.
+**Warum:** Die Oberfläche des Deal Monitors war geplant, wurde aber zurückgestellt: Ohne steuerbaren Zugang gibt es keine Beta, und ohne Beta niemanden, der die Oberfläche benutzt. Beim Aufnehmen des Bestands kamen mehrere offene Flanken zusammen — die Registrierung unter `/auth/register` ist offen, `enable_confirmations = false`, die „Beta anmelden"-Formulare der Landing Page speichern nichts, sondern leiten nur in die offene Registrierung weiter, und `flipbase.de` hat weder MX- noch SPF- noch DMARC-Eintrag, kann also keine Mail empfangen und niemanden zum Senden berechtigen. Der Punkt „echter SMTP-Versand" steht seit dem Sanierungsplan vom 19.08.2026 offen.
+**Entscheidungen mit Begründung:** Betreiberbereich **in** Flipbase statt eigener App — die Befugnis liegt ohnehin in der Datenbank, eine zweite Auslieferungskette kostet Wochen und schützt nichts, was RLS nicht schon schützt; der Bereich wird nur so geschnitten, dass ein späterer Umzug ein Verschieben bleibt. Sperre als Nur-Lesen statt Zugangsstopp — niemand soll von seinen eigenen Geschäftszahlen ausgesperrt werden; das ist die teurere Variante, wird aber machbar, weil 144 Schreib-Policies fast alle über denselben Helfer laufen und mechanisch auf einen lizenzbewussten Helfer umgestellt werden können, abgesichert durch einen Wächtertest über `pg_policies`. Kein eigener Mailserver — nicht wegen der Kosten, sondern weil eine frische Hetzner-IP keinen Ruf hat und das Versagen unsichtbar ist. Betreiber bekommt **keinen** Lesezugriff auf Geschäftsdaten, nur Zahlen aus einer eigenen Funktion.
+**Verifiziert durch:** Reiner Entwurf, kein Code. Alle Befunde am 05.09.2026 am Bestand geprüft: Policy-Zahlen aus `supabase/schemas/database.sql`, Auth-Einstellungen aus `supabase/config.toml`, Formularziele aus `landing/index.html`, DNS-Einträge per Abfrage gegen 1.1.1.1.
+
 ## 2026-09-05 – Claude Opus 5 (Anthropic) – Handgepflegte Freigabeliste wieder entfernt
 
 **Art:** Integration
