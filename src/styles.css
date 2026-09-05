@@ -550,6 +550,81 @@ html.dark {
 /* interaction-cursors:end */
 
 /* UI-Hilfsklassen, gebunden an die zentralen Variablen */
+/* Verwaltungsdesign: lokale Variablen lassen Shop, Login und Landingpage unverändert. */
+html:not(.dark) .fb-admin {
+  --fb-c-amber-200: #92400e;
+  --fb-bg-app: #f1f1f1;
+  --fb-bg-sidebar: #ebebeb;
+  --fb-bg-header: #f1f1f1;
+  --fb-bg-surface: #ffffff;
+  --fb-bg-surface-hover: #ededed;
+  --fb-bg-subtle: #fafafa;
+  --fb-bg-surface-alt: #f7f7f7;
+  --fb-bg-well: #f7f7f7;
+  --fb-border: #dedede;
+  --fb-border-subtle: #e3e3e3;
+  --fb-border-hover: #b5b5b5;
+  --fb-line: #e5e5e5;
+  --fb-line-strong: #cccccc;
+  --fb-text-primary: #303030;
+  --fb-text-secondary: #454545;
+  --fb-text-muted: #616161;
+  --fb-text-dimmed: #707070;
+  --fb-primary: #303030;
+  --fb-primary-hover: #454545;
+  --fb-primary-subtle: rgb(0 0 0 / 5%);
+  --fb-primary-border: rgb(0 0 0 / 15%);
+  --fb-shadow-sm: 0 1px 2px rgb(0 0 0 / 4%);
+  --fb-shadow-md: 0 1px 2px rgb(0 0 0 / 7%);
+  --fb-shadow-lg: 0 2px 5px rgb(0 0 0 / 9%);
+}
+
+html:not(.dark) .fb-admin :is(.linear-card, .linear-card-interactive, .linear-kpi) {
+  background: var(--fb-bg-surface);
+}
+
+html:not(.dark) .fb-admin .linear-btn-primary:hover {
+  background: var(--fb-primary-hover);
+}
+
+html:not(.dark) .fb-admin app-sidebar nav a[aria-current='page'] {
+  background-color: #fafafa;
+  border-color: transparent;
+}
+
+html:not(.dark) .fb-admin app-sidebar nav a[aria-current='page'] svg {
+  color: var(--fb-text-secondary);
+}
+
+html:not(.dark) .fb-admin [data-purchase-row] > svg,
+html:not(.dark) .fb-admin [data-purchase-row] > [aria-hidden='true'] svg {
+  color: var(--fb-text-muted);
+}
+
+/* Dichte und Lesbarkeit gelten in beiden Modi, Farben bleiben tokenbasiert. */
+.fb-admin .linear-table {
+  font-size: 0.8125rem;
+}
+
+.fb-admin .linear-table thead {
+  font-size: 0.75rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.fb-admin .linear-table th {
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.fb-admin .linear-table td:not(:first-child) {
+  font-variant-numeric: tabular-nums;
+}
+
+.fb-admin .linear-table td.text-right {
+  white-space: nowrap;
+}
+
 .linear-surface {
   background-color: var(--fb-bg-surface);
   border: 1px solid var(--fb-border);

@@ -4,7 +4,7 @@
     class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-fb-line"
   >
     <div>
-      <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">
+      <h1 class="text-lg font-semibold tracking-tight text-fb-text-primary">
         {{ 'NAV.SALES' | translate }} & Retouren
       </h1>
       <p class="text-xs text-fb-text-muted mt-0.5">
@@ -42,7 +42,7 @@
         >Ergebnis nach direkten Kosten</span
       >
       <span
-        class="text-2xl font-bold font-mono tracking-tight mt-2 block"
+        class="text-xl font-semibold font-mono tracking-tight mt-2 block"
         [class.text-emerald-400]="(totalRealizedProfit() ?? 0) >= 0"
         [class.text-rose-400]="(totalRealizedProfit() ?? 0) < 0"
       >
@@ -59,7 +59,7 @@
 
     <div class="linear-kpi p-4 rounded-xl">
       <span class="text-[11px] font-semibold text-fb-text-muted block">Verkaufserlös</span>
-      <span class="text-2xl font-bold font-mono tracking-tight text-fb-text-primary mt-2 block">
+      <span class="text-xl font-semibold font-mono tracking-tight text-fb-text-primary mt-2 block">
         {{ totalRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </span>
       <span class="text-[10px] text-fb-text-muted mt-0.5 block"
@@ -71,7 +71,7 @@
       <span class="text-[11px] font-semibold text-fb-text-muted block"
         >Durchschnittliche Marge</span
       >
-      <span class="text-2xl font-bold font-mono tracking-tight text-indigo-400 mt-2 block">
+      <span class="text-xl font-semibold font-mono tracking-tight text-indigo-400 mt-2 block">
         @if (averageMargin() === null) {
           –
         } @else {
@@ -85,7 +85,7 @@
 
     <div class="linear-kpi p-4 rounded-xl">
       <span class="text-[11px] font-semibold text-fb-text-muted block">Ø Haltedauer</span>
-      <span class="text-2xl font-bold font-mono tracking-tight text-fb-text-primary mt-2 block">
+      <span class="text-xl font-semibold font-mono tracking-tight text-fb-text-primary mt-2 block">
         {{ averageHoldingDays() }} Tage
       </span>
       <span class="text-[10px] text-fb-text-muted mt-0.5 block">Vom Einkauf bis Verkauf</span>
@@ -187,13 +187,13 @@
 
   <!-- Sales Table (Desktop) -->
   @if (filteredSales().length > 0) {
-    <div class="linear-surface rounded-xl overflow-hidden hidden md:block">
-      <table class="linear-table">
+    <div class="linear-surface relative rounded-xl overflow-x-auto hidden md:block">
+      <table class="linear-table min-w-[1200px]">
         <thead
           class="bg-fb-well text-fb-text-secondary uppercase font-semibold text-[10px] tracking-wider"
         >
           <tr>
-            <th class="py-2.5 px-4 font-semibold rounded-tl-xl border-b border-fb-line">
+            <th class="min-w-60 py-2.5 px-4 font-semibold rounded-tl-xl border-b border-fb-line">
               Verkaufter Artikel
             </th>
             <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">Menge</th>
@@ -209,7 +209,11 @@
               Verkaufskosten
             </th>
             <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
-              Ergebnis nach direkten Kosten
+              <abbr
+                title="Verkaufserlös abzüglich Wareneinsatz und Verkaufskosten"
+                class="no-underline"
+                >Ergebnis</abbr
+              >
             </th>
             <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">Marge</th>
             <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">Haltedauer</th>

@@ -52,16 +52,15 @@
 
   <!-- Navigation Links -->
   <nav class="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5">
-    <div class="px-2 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
-      Übersicht
-    </div>
+    <div class="px-2 pb-1.5 pt-1 text-[11px] font-medium text-fb-text-muted">Übersicht</div>
 
     @for (item of navItems.slice(0, 2); track item.path) {
       <a
         [routerLink]="item.path"
+        ariaCurrentWhenActive="page"
         routerLinkActive="bg-indigo-500/15 text-fb-text-primary font-semibold border-indigo-500/40"
         (click)="closed.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
       >
         <svg
           [lucideIcon]="item.icon"
@@ -79,16 +78,17 @@
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
+    <div class="px-2 pb-1.5 pt-4 text-[11px] font-medium text-fb-text-muted">
       Warenwirtschaft & Store
     </div>
 
     @for (item of navItems.slice(2, 6); track item.path) {
       <a
         [routerLink]="item.path"
+        ariaCurrentWhenActive="page"
         routerLinkActive="bg-indigo-500/15 text-fb-text-primary font-semibold border-indigo-500/40"
         (click)="closed.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
       >
         <svg
           [lucideIcon]="item.icon"
@@ -106,16 +106,17 @@
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
+    <div class="px-2 pb-1.5 pt-4 text-[11px] font-medium text-fb-text-muted">
       Werkzeuge & Ertrag
     </div>
 
     @for (item of navItems.slice(6, 11); track item.path) {
       <a
         [routerLink]="item.path"
+        ariaCurrentWhenActive="page"
         routerLinkActive="bg-indigo-500/15 text-fb-text-primary font-semibold border-indigo-500/40"
         (click)="closed.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
       >
         <svg
           [lucideIcon]="item.icon"
@@ -133,16 +134,15 @@
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
-      System & Daten
-    </div>
+    <div class="px-2 pb-1.5 pt-4 text-[11px] font-medium text-fb-text-muted">System & Daten</div>
 
     @for (item of navItems.slice(11); track item.path) {
       <a
         [routerLink]="item.path"
+        ariaCurrentWhenActive="page"
         routerLinkActive="bg-indigo-500/15 text-fb-text-primary font-semibold border-indigo-500/40"
         (click)="closed.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
       >
         <svg
           [lucideIcon]="item.icon"

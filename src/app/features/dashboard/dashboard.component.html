@@ -1,11 +1,11 @@
-<div class="space-y-5 animate-fade-in">
+<div class="space-y-4 animate-fade-in">
   <header class="linear-surface rounded-xl border border-fb-line px-5 py-4">
     <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
       <div>
-        <p class="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-emerald-400">
-          Übersicht / Finanzcockpit
-        </p>
-        <h1 class="mt-1 text-xl font-bold tracking-tight text-fb-text-primary">Ertrag im Blick</h1>
+        <p class="text-xs font-medium text-fb-text-muted">Übersicht</p>
+        <h1 class="mt-1 text-lg font-semibold tracking-tight text-fb-text-primary">
+          Ertrag im Blick
+        </h1>
         <p class="mt-1 max-w-2xl text-xs text-fb-text-muted">
           Verkaufserlöse, Wareneinsatz und direkte Verkaufskosten aus bestätigten Verkäufen.
         </p>
@@ -24,7 +24,7 @@
               [class.bg-fb-surface]="range() === option.value"
               [class.text-fb-text-primary]="range() === option.value"
               [class.shadow-sm]="range() === option.value"
-              class="rounded-md px-2.5 py-1.5 text-[11px] font-semibold text-fb-text-muted transition hover:text-fb-text-primary cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
+              class="rounded-md px-2.5 py-1.5 text-[13px] font-medium text-fb-text-muted transition hover:text-fb-text-primary cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
             >
               {{ option.label }}
             </button>
@@ -44,27 +44,23 @@
   </header>
 
   <section class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5" aria-label="Kennzahlen">
-    <div class="linear-kpi rounded-xl border border-blue-400/20 p-4">
-      <div
-        class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-fb-text-muted"
-      >
+    <div class="linear-kpi rounded-xl border border-fb-line p-4">
+      <div class="flex items-center justify-between text-[13px] font-medium text-fb-text-muted">
         <span>Verkaufserlöse</span
-        ><svg [lucideIcon]="coinsIcon" class="h-4 w-4 text-blue-400"></svg>
+        ><svg [lucideIcon]="coinsIcon" class="h-4 w-4 text-fb-text-muted"></svg>
       </div>
-      <p class="mt-3 font-mono text-2xl font-bold tracking-tight text-fb-text-primary">
+      <p class="mt-2 font-mono text-xl font-semibold tracking-tight text-fb-text-primary">
         {{ report().revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
       </p>
-      <p class="mt-1 text-[10px] text-fb-text-muted">Bestätigte Verkäufe im Zeitraum</p>
+      <p class="mt-1 text-xs text-fb-text-muted">Bestätigte Verkäufe im Zeitraum</p>
     </div>
-    <div class="linear-kpi rounded-xl border border-emerald-400/30 p-4">
-      <div
-        class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-fb-text-muted"
-      >
+    <div class="linear-kpi rounded-xl border border-fb-line p-4">
+      <div class="flex items-center justify-between text-[13px] font-medium text-fb-text-muted">
         <span>Ergebnis nach direkten Kosten</span
-        ><svg [lucideIcon]="trendingIcon" class="h-4 w-4 text-emerald-400"></svg>
+        ><svg [lucideIcon]="trendingIcon" class="h-4 w-4 text-fb-text-muted"></svg>
       </div>
       <p
-        class="mt-3 font-mono text-2xl font-bold tracking-tight"
+        class="mt-2 font-mono text-xl font-semibold tracking-tight"
         [class.text-emerald-400]="(report().resultAfterDirectCosts ?? 0) >= 0"
         [class.text-rose-400]="(report().resultAfterDirectCosts ?? 0) < 0"
       >
@@ -74,53 +70,47 @@
           {{ report().resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
         }
       </p>
-      <p class="mt-1 text-[10px] text-fb-text-muted">
+      <p class="mt-1 text-xs text-fb-text-muted">
         Nur vollständig belegte Verkäufe werden summiert
       </p>
     </div>
     <div class="linear-kpi rounded-xl border border-fb-line p-4">
-      <div
-        class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-fb-text-muted"
-      >
+      <div class="flex items-center justify-between text-[13px] font-medium text-fb-text-muted">
         <span>Aktueller Bestandswert</span
-        ><svg [lucideIcon]="boxesIcon" class="h-4 w-4 text-indigo-400"></svg>
+        ><svg [lucideIcon]="boxesIcon" class="h-4 w-4 text-fb-text-muted"></svg>
       </div>
-      <p class="mt-3 font-mono text-2xl font-bold tracking-tight text-fb-text-primary">
+      <p class="mt-2 font-mono text-xl font-semibold tracking-tight text-fb-text-primary">
         @if (report().inventoryCostValue === null) {
           Unbekannt
         } @else {
           {{ report().inventoryCostValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
         }
       </p>
-      <p class="mt-1 text-[10px] text-fb-text-muted">Anschaffungswert aktuell vorhandener Ware</p>
+      <p class="mt-1 text-xs text-fb-text-muted">Anschaffungswert aktuell vorhandener Ware</p>
     </div>
     <div class="linear-kpi rounded-xl border border-fb-line p-4">
-      <div
-        class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-fb-text-muted"
-      >
+      <div class="flex items-center justify-between text-[13px] font-medium text-fb-text-muted">
         <span>Verkaufte Artikel</span
-        ><svg [lucideIcon]="receiptIcon" class="h-4 w-4 text-amber-400"></svg>
+        ><svg [lucideIcon]="receiptIcon" class="h-4 w-4 text-fb-text-muted"></svg>
       </div>
-      <p class="mt-3 font-mono text-2xl font-bold tracking-tight text-fb-text-primary">
+      <p class="mt-2 font-mono text-xl font-semibold tracking-tight text-fb-text-primary">
         {{ report().soldItems }}
       </p>
-      <p class="mt-1 text-[10px] text-fb-text-muted">Bestätigte Stückzahl im Zeitraum</p>
+      <p class="mt-1 text-xs text-fb-text-muted">Bestätigte Stückzahl im Zeitraum</p>
     </div>
     <div class="linear-kpi rounded-xl border border-fb-line p-4">
-      <div
-        class="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-fb-text-muted"
-      >
+      <div class="flex items-center justify-between text-[13px] font-medium text-fb-text-muted">
         <span>Durchschnittliche Marge</span
-        ><svg [lucideIcon]="trendingIcon" class="h-4 w-4 text-indigo-400"></svg>
+        ><svg [lucideIcon]="trendingIcon" class="h-4 w-4 text-fb-text-muted"></svg>
       </div>
-      <p class="mt-3 font-mono text-2xl font-bold tracking-tight text-fb-text-primary">
+      <p class="mt-2 font-mono text-xl font-semibold tracking-tight text-fb-text-primary">
         @if (report().averageMarginPercent === null) {
           –
         } @else {
           {{ report().averageMarginPercent }} %
         }
       </p>
-      <p class="mt-1 text-[10px] text-fb-text-muted">Nur Verkäufe mit bekannten Kosten</p>
+      <p class="mt-1 text-xs text-fb-text-muted">Nur Verkäufe mit bekannten Kosten</p>
     </div>
   </section>
 
@@ -154,7 +144,7 @@
     </div>
     @if (report().rows.length > 0) {
       <div class="hidden overflow-x-auto md:block">
-        <table class="w-full min-w-[760px] text-left text-xs">
+        <table class="linear-table w-full min-w-[760px]">
           <thead
             class="bg-fb-well/60 text-[10px] font-bold uppercase tracking-wider text-fb-text-muted"
           >
