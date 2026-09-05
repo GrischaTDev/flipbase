@@ -38,8 +38,8 @@ export class BetaApplicationsComponent implements OnInit {
     this.error.set(null);
     try {
       this.applications.set(await this.service.list());
-    } catch (fehler) {
-      this.error.set(fehler instanceof Error ? fehler.message : String(fehler));
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
       this.loading.set(false);
     }
@@ -51,16 +51,16 @@ export class BetaApplicationsComponent implements OnInit {
    * Ein geleertes Feld, ein Wert unter eins oder ueber 3650 laesst den
    * zuletzt gueltigen Wert stehen, statt ihn stillschweigend auf 0 zu setzen.
    */
-  onGrantedDaysChange(rohwert: string): void {
-    const wert = Number(rohwert);
-    const istBrauchbar =
-      rohwert.trim() !== '' &&
-      Number.isFinite(wert) &&
-      wert >= MIN_GRANTED_DAYS &&
-      wert <= MAX_GRANTED_DAYS;
+  onGrantedDaysChange(rawValue: string): void {
+    const value = Number(rawValue);
+    const isUsable =
+      rawValue.trim() !== '' &&
+      Number.isFinite(value) &&
+      value >= MIN_GRANTED_DAYS &&
+      value <= MAX_GRANTED_DAYS;
 
-    if (istBrauchbar) {
-      this.grantedDays.set(Math.trunc(wert));
+    if (isUsable) {
+      this.grantedDays.set(Math.trunc(value));
     }
   }
 
@@ -87,8 +87,8 @@ export class BetaApplicationsComponent implements OnInit {
         note.trim() || null,
       );
       await this.load();
-    } catch (fehler) {
-      this.error.set(fehler instanceof Error ? fehler.message : String(fehler));
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
       this.decidingId.set(null);
     }

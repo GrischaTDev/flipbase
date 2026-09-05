@@ -21,18 +21,18 @@ import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
  * enthaelt nur die Produktionsherkuenfte dieser Funktion; wer lokal
  * entwickelt, setzt BETA_APPLICATION_ALLOWED_ORIGINS deshalb ausdruecklich.
  */
-const ERLAUBTE_HERKUENFTE = new Set(
+const BETA_ALLOWED_ORIGINS = new Set(
   (
     Deno.env.get('BETA_APPLICATION_ALLOWED_ORIGINS') ??
     'https://flipbase.de,https://www.flipbase.de'
   )
     .split(',')
-    .map((herkunft) => herkunft.trim())
+    .map((origin) => origin.trim())
     .filter(Boolean),
 );
 
 /** Hoechstzahl Bewerbungen je Herkunft und Stunde. */
-const HOECHSTZAHL_JE_STUNDE = 5;
+const MAX_PER_ORIGIN_PER_HOUR = 5;
 
 /**
  * Hoechstzahl aller Bewerbungsversuche je Stunde, herkunftsunabhaengig.
@@ -52,35 +52,35 @@ const HOECHSTZAHL_JE_STUNDE = 5;
  * bleibt es dauerhaft. Die einzige Alternative ohne diesen Nachteil - eine
  * verlaesslich echte Kopfzeile - existiert hier nicht, siehe oben.
  */
-const HOECHSTZAHL_GESAMT_JE_STUNDE = 60;
+const MAX_TOTAL_PER_HOUR = 60;
 
 /**
  * Pfeffer fuer den Streuwert der Herkunft.
  *
- * Fehlt oder leert sich diese Variable, faellt herkunftsStreuwert sonst still
- * auf ungesalzenes SHA-256 ueber die IP-Adresse zurueck - der IPv4-Raum ist
+ * Fehlt oder leert sich diese Variable, faellt hashOrigin sonst still auf
+ * ungesalzenes SHA-256 ueber die IP-Adresse zurueck - der IPv4-Raum ist
  * vollstaendig vorab berechenbar, der Streuwert damit zurueckrechenbar. Wird
  * einmal beim Start gelesen; eine fehlende Variable weist die Funktion pro
  * Anfrage sichtbar mit Status 500 ab, statt unbemerkt ungeschuetzt zu laufen.
  */
-const PFEFFER = Deno.env.get('BETA_APPLICATION_PEPPER');
+const PEPPER = Deno.env.get('BETA_APPLICATION_PEPPER');
 
-function corsKopf(herkunft: string | null): Record<string, string> {
-  const kopf: Record<string, string> = {
+function corsHeaders(origin: string | null): Record<string, string> {
+  const headers: Record<string, string> = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     Vary: 'Origin',
   };
-  if (herkunft && ERLAUBTE_HERKUENFTE.has(herkunft)) {
-    kopf['Access-Control-Allow-Origin'] = herkunft;
+  if (origin && BETA_ALLOWED_ORIGINS.has(origin)) {
+    headers['Access-Control-Allow-Origin'] = origin;
   }
-  return kopf;
+  return headers;
 }
 
-function antwort(daten: unknown, status: number, herkunft: string | null): Response {
-  return new Response(JSON.stringify(daten), {
+function respond(data: unknown, status: number, origin: string | null): Response {
+  return new Response(JSON.stringify(data), {
     status,
-    headers: { ...corsKopf(herkunft), 'Content-Type': 'application/json' },
+    headers: { ...corsHeaders(origin), 'Content-Type': 'application/json' },
   });
 }
 
@@ -95,123 +95,128 @@ function antwort(daten: unknown, status: number, herkunft: string | null): Respo
  * schon vorher und weist mit Status 500 ab, statt hier still auf einen leeren
  * Wert auszuweichen.
  */
-async function herkunftsStreuwert(adresse: string, pfeffer: string): Promise<string> {
-  const rohdaten = new TextEncoder().encode(`${pfeffer}:${adresse}`);
-  const streuwert = await crypto.subtle.digest('SHA-256', rohdaten);
-  return Array.from(new Uint8Array(streuwert))
+async function hashOrigin(address: string, pepper: string): Promise<string> {
+  const rawData = new TextEncoder().encode(`${pepper}:${address}`);
+  const digest = await crypto.subtle.digest('SHA-256', rawData);
+  return Array.from(new Uint8Array(digest))
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('');
 }
 
-function istText(wert: unknown, hoechstlaenge: number): wert is string {
-  return typeof wert === 'string' && wert.trim().length > 0 && wert.trim().length <= hoechstlaenge;
+function isText(value: unknown, maxLength: number): value is string {
+  return typeof value === 'string' && value.trim().length > 0 && value.trim().length <= maxLength;
 }
 
-const EMAIL_MUSTER = /^[^@\s]+@[^@\s]+\.[^@\s]+$/u;
+const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/u;
 
-Deno.serve(async (anfrage: Request) => {
-  const herkunft = anfrage.headers.get('origin');
+Deno.serve(async (request: Request) => {
+  const origin = request.headers.get('origin');
 
-  if (anfrage.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: corsKopf(herkunft) });
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders(origin) });
   }
 
-  if (anfrage.method !== 'POST') {
-    return antwort({ error: 'method_not_allowed' }, 405, herkunft);
+  if (request.method !== 'POST') {
+    return respond({ error: 'method_not_allowed' }, 405, origin);
   }
 
-  if (!herkunft || !ERLAUBTE_HERKUENFTE.has(herkunft)) {
-    return antwort({ error: 'origin_not_allowed' }, 403, herkunft);
+  if (!origin || !BETA_ALLOWED_ORIGINS.has(origin)) {
+    return respond({ error: 'origin_not_allowed' }, 403, origin);
   }
 
-  if (!PFEFFER) {
+  if (!PEPPER) {
     console.error(
       'beta-application: BETA_APPLICATION_PEPPER fehlt oder ist leer - Bewerbungen werden abgelehnt.',
     );
-    return antwort({ error: 'internal' }, 500, herkunft);
+    return respond({ error: 'internal' }, 500, origin);
   }
 
-  let rohRumpf: unknown;
+  let rawBody: unknown;
   try {
-    rohRumpf = await anfrage.json();
+    rawBody = await request.json();
   } catch {
-    return antwort({ error: 'invalid_body' }, 400, herkunft);
+    return respond({ error: 'invalid_body' }, 400, origin);
   }
 
-  // anfrage.json() liefert fuer den gueltigen Rumpf "null" den Wert null,
+  // request.json() liefert fuer den gueltigen Rumpf "null" den Wert null,
   // ohne zu werfen. Ohne diese Pruefung wuerde die Destrukturierung darunter
   // ausserhalb des try/catch werfen, und Deno wuerde mit einer generischen
   // 500 ohne CORS-Kopfzeilen antworten - im Browser nicht von einem
   // CORS-Fehler zu unterscheiden.
-  if (typeof rohRumpf !== 'object' || rohRumpf === null) {
-    return antwort({ error: 'invalid_body' }, 400, herkunft);
+  if (typeof rawBody !== 'object' || rawBody === null) {
+    return respond({ error: 'invalid_body' }, 400, origin);
   }
-  const rumpf = rohRumpf as Record<string, unknown>;
+  const body = rawBody as Record<string, unknown>;
 
-  const { firstName, lastName, email, consent } = rumpf;
+  const { firstName, lastName, email, consent } = body;
 
   if (consent !== true) {
-    return antwort({ error: 'consent_required' }, 400, herkunft);
+    return respond({ error: 'consent_required' }, 400, origin);
   }
-  if (!istText(firstName, 100) || !istText(lastName, 100)) {
-    return antwort({ error: 'name_invalid' }, 400, herkunft);
+  if (!isText(firstName, 100) || !isText(lastName, 100)) {
+    return respond({ error: 'name_invalid' }, 400, origin);
   }
-  if (!istText(email, 320) || !EMAIL_MUSTER.test(email.trim())) {
-    return antwort({ error: 'email_invalid' }, 400, herkunft);
+  if (!isText(email, 320) || !EMAIL_PATTERN.test(email.trim())) {
+    return respond({ error: 'email_invalid' }, 400, origin);
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
-  const dienstschluessel = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
   // createClient('', '') wirft "supabaseUrl is required" ausserhalb jedes
   // try/catch - Deno antwortet dann mit einer generischen 500 ohne
   // CORS-Kopfzeilen, im Browser nicht von einem CORS-Fehler zu unterscheiden.
   // Genau das wird oben beim Pfeffer schon vermieden; dieselbe Fehlerklasse
   // wird hier ebenso abgefangen.
-  if (!supabaseUrl || !dienstschluessel) {
+  if (!supabaseUrl || !serviceRoleKey) {
     console.error(
       'beta-application: SUPABASE_URL oder SUPABASE_SERVICE_ROLE_KEY fehlt oder ist leer.',
     );
-    return antwort({ error: 'internal' }, 500, herkunft);
+    return respond({ error: 'internal' }, 500, origin);
   }
 
-  const dienst = createClient(supabaseUrl, dienstschluessel, { auth: { persistSession: false } });
+  const serviceClient = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false },
+  });
 
   // Der letzte Eintrag der Kette stammt vom naechstgelegenen Proxy und laesst
   // sich vom Aufrufer nicht faelschen. Der erste Eintrag dagegen wird vom
   // Aufrufer selbst gesetzt - ein Bot koennte ihn bei jeder Anfrage neu waehlen
   // und so bei der Drosselung je Herkunft immer ein frisches Kontingent
   // bekommen.
-  const adresse =
-    anfrage.headers
+  const address =
+    request.headers
       .get('x-forwarded-for')
       ?.split(',')
-      .map((teil) => teil.trim())
+      .map((part) => part.trim())
       .filter(Boolean)
       .pop() ?? 'unbekannt';
-  const streuwert = await herkunftsStreuwert(adresse, PFEFFER);
+  const originHash = await hashOrigin(address, PEPPER);
   // Zaehlen und Eintragen laufen in einem einzigen, in der Datenbank
   // serialisierten Schritt. Getrennt gefragt sahen zwei gleichzeitige Anfragen
   // denselben Stand und kamen beide durch; die Grenze liess sich so um einige
   // Anfragen ueberschreiten. Die Funktion raeumt zugleich die Zaehlversuche
   // auf, die aelter als 24 Stunden sind - deshalb braucht es hier weder eine
   // eigene Zaehlung noch ein eigenes Aufraeumen mehr.
-  const { data: erlaubt, error: drosselfehler } = await dienst.rpc('beta_application_attempt', {
-    p_origin_hash: streuwert,
-    p_max_per_origin: HOECHSTZAHL_JE_STUNDE,
-    p_max_total: HOECHSTZAHL_GESAMT_JE_STUNDE,
-  });
+  const { data: allowed, error: throttleError } = await serviceClient.rpc(
+    'beta_application_attempt',
+    {
+      p_origin_hash: originHash,
+      p_max_per_origin: MAX_PER_ORIGIN_PER_HOUR,
+      p_max_total: MAX_TOTAL_PER_HOUR,
+    },
+  );
 
-  if (drosselfehler) {
-    console.error('beta-application: Drosselung fehlgeschlagen:', drosselfehler.message);
-    return antwort({ error: 'internal' }, 500, herkunft);
+  if (throttleError) {
+    console.error('beta-application: Drosselung fehlgeschlagen:', throttleError.message);
+    return respond({ error: 'internal' }, 500, origin);
   }
 
-  if (erlaubt !== true) {
-    return antwort({ error: 'too_many_requests' }, 429, herkunft);
+  if (allowed !== true) {
+    return respond({ error: 'too_many_requests' }, 429, origin);
   }
 
-  const { error: schreibfehler } = await dienst.from('beta_applications').insert({
+  const { error: insertError } = await serviceClient.from('beta_applications').insert({
     first_name: firstName.trim(),
     last_name: lastName.trim(),
     email: email.trim(),
@@ -220,10 +225,10 @@ Deno.serve(async (anfrage: Request) => {
 
   // Eine bereits vorhandene Adresse wird wie ein Erfolg beantwortet. Sonst
   // liesse sich ueber das Formular herausfinden, wer sich beworben hat.
-  if (schreibfehler && schreibfehler.code !== '23505') {
-    console.error('beta-application: Schreiben fehlgeschlagen:', schreibfehler.message);
-    return antwort({ error: 'internal' }, 500, herkunft);
+  if (insertError && insertError.code !== '23505') {
+    console.error('beta-application: Schreiben fehlgeschlagen:', insertError.message);
+    return respond({ error: 'internal' }, 500, origin);
   }
 
-  return antwort({ ok: true }, 200, herkunft);
+  return respond({ ok: true }, 200, origin);
 });

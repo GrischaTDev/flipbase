@@ -27,9 +27,9 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_seit timestamptz := now() - interval '1 hour';
-  v_je_herkunft integer;
-  v_gesamt integer;
+  v_since timestamptz := now() - interval '1 hour';
+  v_per_origin integer;
+  v_total integer;
 begin
   -- Feste Kennzahl, weil der Riegel als Ganzes serialisiert wird. Sie ist frei
   -- gewaehlt und muss nur im Projekt eindeutig bleiben.
@@ -41,20 +41,20 @@ begin
   delete from public.beta_application_attempts
   where created_at < now() - interval '24 hours';
 
-  select count(*) into v_gesamt
+  select count(*) into v_total
   from public.beta_application_attempts
-  where created_at >= v_seit;
+  where created_at >= v_since;
 
-  if v_gesamt >= p_max_total then
+  if v_total >= p_max_total then
     return false;
   end if;
 
-  select count(*) into v_je_herkunft
+  select count(*) into v_per_origin
   from public.beta_application_attempts
   where origin_hash = p_origin_hash
-    and created_at >= v_seit;
+    and created_at >= v_since;
 
-  if v_je_herkunft >= p_max_per_origin then
+  if v_per_origin >= p_max_per_origin then
     return false;
   end if;
 

@@ -90,10 +90,10 @@ describe('Anmeldehinweis auf der Landingpage', () => {
     // connect-src, ist das Formular wieder lautlos tot: der Browser
     // blockiert den fetch-Aufruf ohne sichtbare Fehlermeldung fuer den
     // Besucher, nur eine CSP-Verletzung in der Konsole.
-    const endpunktMatch = seite.match(/ENDPUNKT\s*=\s*['"]([^'"]+)['"]/u);
+    const endpunktMatch = seite.match(/ENDPOINT\s*=\s*['"]([^'"]+)['"]/u);
     expect(
       endpunktMatch,
-      'landing/index.html sollte die ENDPUNKT-Konstante fuer den fetch-Aufruf definieren',
+      'landing/index.html sollte die ENDPOINT-Konstante fuer den fetch-Aufruf definieren',
     ).not.toBeNull();
 
     const endpunktUrsprung = new URL(endpunktMatch![1]).origin;

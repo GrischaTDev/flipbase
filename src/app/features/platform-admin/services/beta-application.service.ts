@@ -20,15 +20,15 @@ export class BetaApplicationService {
 
     if (error) throw new Error(error.message);
 
-    return (data ?? []).map((zeile) => ({
-      id: zeile.id as string,
-      firstName: zeile.first_name as string,
-      lastName: zeile.last_name as string,
-      email: zeile.email as string,
-      status: zeile.status as BetaApplicationStatus,
-      grantedDays: (zeile.granted_days as number | null) ?? null,
-      decisionNote: (zeile.decision_note as string | null) ?? null,
-      createdAt: zeile.created_at as string,
+    return (data ?? []).map((row) => ({
+      id: row.id as string,
+      firstName: row.first_name as string,
+      lastName: row.last_name as string,
+      email: row.email as string,
+      status: row.status as BetaApplicationStatus,
+      grantedDays: (row.granted_days as number | null) ?? null,
+      decisionNote: (row.decision_note as string | null) ?? null,
+      createdAt: row.created_at as string,
     }));
   }
 

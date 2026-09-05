@@ -3,14 +3,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BetaApplicationService } from './beta-application.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
 
-function serviceMit(client: unknown): BetaApplicationService {
+function serviceWith(client: unknown): BetaApplicationService {
   TestBed.configureTestingModule({
     providers: [{ provide: SupabaseService, useValue: { client } }],
   });
   return TestBed.inject(BetaApplicationService);
 }
 
-const zeile = {
+const row = {
   id: 'a1',
   first_name: 'Anna',
   last_name: 'Beispiel',
@@ -21,11 +21,11 @@ const zeile = {
   created_at: '2026-09-05T08:00:00.000Z',
 };
 
-function serviceMitListe(antwort: { data: unknown; error: unknown }) {
-  const order = vi.fn().mockResolvedValue(antwort);
+function serviceWithList(response: { data: unknown; error: unknown }) {
+  const order = vi.fn().mockResolvedValue(response);
   const select = vi.fn().mockReturnValue({ order });
   const from = vi.fn().mockReturnValue({ select });
-  return { service: serviceMit({ from }), from, order };
+  return { service: serviceWith({ from }), from, order };
 }
 
 describe('BetaApplicationService', () => {
@@ -34,12 +34,12 @@ describe('BetaApplicationService', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   it('wandelt die Datenbankzeilen in das Modell um', async () => {
-    const { service, from } = serviceMitListe({ data: [zeile], error: null });
+    const { service, from } = serviceWithList({ data: [row], error: null });
 
-    const bewerbungen = await service.list();
+    const applications = await service.list();
 
     expect(from).toHaveBeenCalledWith('beta_applications');
-    expect(bewerbungen).toEqual([
+    expect(applications).toEqual([
       {
         id: 'a1',
         firstName: 'Anna',
@@ -56,7 +56,7 @@ describe('BetaApplicationService', () => {
   it('meldet einen Fehler statt einer leeren Liste', async () => {
     // Eine leere Liste sieht aus wie "keine Bewerbungen" und wuerde eine
     // gestoerte Verbindung als Ruhe ausgeben.
-    const { service } = serviceMitListe({ data: null, error: { message: 'weg' } });
+    const { service } = serviceWithList({ data: null, error: { message: 'weg' } });
 
     await expect(service.list()).rejects.toThrow('weg');
   });
@@ -65,7 +65,7 @@ describe('BetaApplicationService', () => {
     const eq = vi.fn().mockResolvedValue({ error: null });
     const update = vi.fn().mockReturnValue({ eq });
     const from = vi.fn().mockReturnValue({ update });
-    const service = serviceMit({ from });
+    const service = serviceWith({ from });
 
     await service.decide('a1', 'accepted', 180, 'passt');
 

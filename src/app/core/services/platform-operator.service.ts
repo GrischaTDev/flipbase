@@ -11,10 +11,10 @@ import { SupabaseService } from './supabase.service';
 @Injectable({ providedIn: 'root' })
 export class PlatformOperatorService {
   private readonly supabase = inject(SupabaseService);
-  private pruefung: Promise<boolean> | null = null;
+  private check: Promise<boolean> | null = null;
 
   /**
-   * Nutzerkennung, fuer die `pruefung` gilt - `null` bedeutet "keine Sitzung".
+   * Nutzerkennung, fuer die `check` gilt - `null` bedeutet "keine Sitzung".
    *
    * Ohne diese Bindung ueberlebte die Antwort einen Nutzerwechsel: Ein
    * Abmelden laeuft als reine Navigation ohne Neuladen, der Dienst bliebe
@@ -23,49 +23,49 @@ export class PlatformOperatorService {
    * prueft `isOperator()` bei jedem Aufruf selbst, ob die zwischengespeicherte
    * Antwort noch zur aktuellen Sitzung gehoert.
    */
-  private geprueftFuer: string | null = null;
+  private checkedFor: string | null = null;
 
   readonly operator = signal(false);
 
   async isOperator(): Promise<boolean> {
-    const nutzerId = await this.aktuelleNutzerId();
+    const userId = await this.currentUserId();
 
-    if (this.pruefung && this.geprueftFuer === nutzerId) {
-      return this.pruefung;
+    if (this.check && this.checkedFor === userId) {
+      return this.check;
     }
 
-    this.geprueftFuer = nutzerId;
+    this.checkedFor = userId;
 
-    if (!nutzerId) {
+    if (!userId) {
       // Ohne Sitzung gibt es niemanden, der Betreiber sein koennte.
-      this.pruefung = Promise.resolve(false);
+      this.check = Promise.resolve(false);
       this.operator.set(false);
-      return this.pruefung;
+      return this.check;
     }
 
-    this.pruefung = this.frage();
-    return this.pruefung;
+    this.check = this.query();
+    return this.check;
   }
 
-  private async aktuelleNutzerId(): Promise<string | null> {
+  private async currentUserId(): Promise<string | null> {
     const { data } = await this.supabase.client.auth.getSession();
     return data.session?.user.id ?? null;
   }
 
-  private async frage(): Promise<boolean> {
+  private async query(): Promise<boolean> {
     try {
       const { data, error } = await this.supabase.client.rpc('is_platform_operator');
-      const istBetreiber = !error && data === true;
-      this.operator.set(istBetreiber);
-      return istBetreiber;
+      const isOperator = !error && data === true;
+      this.operator.set(isOperator);
+      return isOperator;
     } catch {
       // Eine abgelehnte Promise statt eines error-Objekts wuerde sonst
-      // dauerhaft in `pruefung` haengen bleiben: Jede kuenftige Navigation
+      // dauerhaft in `check` haengen bleiben: Jede kuenftige Navigation
       // nach /admin fuer denselben Nutzer wirft dann fuer den Rest der
       // Sitzung, ohne dass je neu gefragt wird. Deshalb wird der
       // Zwischenspeicher hier zurueckgesetzt, damit der naechste Aufruf neu
       // fragt.
-      this.pruefung = null;
+      this.check = null;
       this.operator.set(false);
       return false;
     }
