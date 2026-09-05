@@ -12,6 +12,20 @@ import { SupabaseService } from './supabase.service';
 import { SyncStatusService } from './sync-status.service';
 
 type BusinessEntityType = BusinessEvent['entityType'];
+export interface PurchaseCostRepairPreview {
+  readonly purchaseId: string;
+  readonly fingerprint: string;
+  readonly classification: string;
+  readonly reason: string;
+  readonly purchasePrice: number | null;
+  readonly costs: readonly {
+    id: string;
+    type: string;
+    amount: number;
+    description: string | null;
+  }[];
+  readonly items: readonly { id: string; title: string; status: string }[];
+}
 type PurchaseLineKind = 'quantity' | 'individual';
 type PurchaseItemCondition =
   'new' | 'like_new' | 'very_good' | 'used' | 'heavily_used' | 'defective';
@@ -61,6 +75,102 @@ export class PurchaseCostingService {
   private readonly supabase = inject(SupabaseService);
   private readonly syncStatus = inject(SyncStatusService);
   private readonly mockStore = inject(MockDataStoreService);
+
+  async previewCostRepair(
+    workspaceId: string,
+    purchaseId: string,
+  ): Promise<MutationResult<PurchaseCostRepairPreview>> {
+    const operation = 'Prüfen der Einkaufskosten';
+    if (this.mockStore.isDemoMode()) return this.demoFailure(operation);
+    try {
+      const { data, error } = await this.rpcClient().rpc('preview_purchase_cost_repair', {
+        p_workspace_id: workspaceId,
+        p_purchase_id: purchaseId,
+      });
+      if (error) return this.failure(operation, error);
+      if (
+        !this.isRecord(data) ||
+        data['purchaseId'] !== purchaseId ||
+        typeof data['fingerprint'] !== 'string' ||
+        !data['fingerprint'] ||
+        typeof data['classification'] !== 'string' ||
+        typeof data['reason'] !== 'string' ||
+        (data['purchasePrice'] !== null && !this.isFiniteNumber(data['purchasePrice'])) ||
+        !Array.isArray(data['costs']) ||
+        !Array.isArray(data['items'])
+      ) {
+        throw new Error('Die Kostenvorschau ist unvollständig. Bitte erneut laden.');
+      }
+      const costs = data['costs'].map((row: unknown) => {
+        if (
+          !this.isRecord(row) ||
+          typeof row['id'] !== 'string' ||
+          typeof row['type'] !== 'string' ||
+          !this.isFiniteNumber(row['amount']) ||
+          (row['description'] !== null && typeof row['description'] !== 'string')
+        ) {
+          throw new Error('Die Zusatzkosten sind unvollständig.');
+        }
+        return {
+          id: row['id'],
+          type: row['type'],
+          amount: row['amount'],
+          description: row['description'],
+        };
+      });
+      const items = data['items'].map((row: unknown) => {
+        if (
+          !this.isRecord(row) ||
+          typeof row['id'] !== 'string' ||
+          typeof row['title'] !== 'string' ||
+          typeof row['status'] !== 'string'
+        ) {
+          throw new Error('Die Artikelliste ist unvollständig.');
+        }
+        return { id: row['id'], title: row['title'], status: row['status'] };
+      });
+      return {
+        data: {
+          purchaseId,
+          fingerprint: data['fingerprint'],
+          classification: data['classification'],
+          reason: data['reason'],
+          purchasePrice: data['purchasePrice'],
+          costs,
+          items,
+        },
+        error: null,
+        reportedBySyncStatus: false,
+      };
+    } catch (error: unknown) {
+      return this.failure(operation, error);
+    }
+  }
+
+  async repairPurchaseCosts(
+    workspaceId: string,
+    purchaseId: string,
+    fingerprint: string,
+  ): Promise<MutationResult<true>> {
+    const operation = 'Übernehmen der Einkaufskosten';
+    if (!workspaceId || !purchaseId || !fingerprint)
+      return this.failure(operation, new Error('Bitte zuerst diesen Einkauf prüfen.'));
+    if (this.mockStore.isDemoMode()) return this.demoFailure(operation);
+    try {
+      const { data, error } = await this.rpcClient().rpc('migrate_purchase_costing_legacy', {
+        p_workspace_id: workspaceId,
+        p_purchase_id: purchaseId,
+        p_expected_fingerprint: fingerprint,
+        p_confirm: true,
+      });
+      if (error) return this.failure(operation, error);
+      if (!this.isRecord(data) || data['repaired'] !== 1)
+        throw new Error('Der Einkauf konnte nicht übernommen werden. Bitte erneut prüfen.');
+      return { data: true, error: null, reportedBySyncStatus: false };
+    } catch (error: unknown) {
+      return this.failure(operation, error);
+    }
+  }
 
   async finalizePurchase(
     workspaceId: string,

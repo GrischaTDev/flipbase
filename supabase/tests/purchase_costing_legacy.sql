@@ -13,7 +13,7 @@ select has_function(
 select has_function(
   'public',
   'migrate_purchase_costing_legacy',
-  array['uuid', 'boolean'],
+  array['uuid', 'boolean', 'uuid', 'text'],
   'bestätigte Legacy-Kostenmigration ist vorhanden'
 );
 
@@ -285,11 +285,11 @@ select is(
 );
 select ok(
   has_function_privilege('authenticated', 'public.preview_purchase_costing_legacy(uuid)', 'execute')
-  and has_function_privilege('authenticated', 'public.migrate_purchase_costing_legacy(uuid,boolean)', 'execute')
+  and has_function_privilege('authenticated', 'public.migrate_purchase_costing_legacy(uuid,boolean,uuid,text)', 'execute')
   and not has_function_privilege('anon', 'public.preview_purchase_costing_legacy(uuid)', 'execute')
-  and not has_function_privilege('anon', 'public.migrate_purchase_costing_legacy(uuid,boolean)', 'execute')
+  and not has_function_privilege('anon', 'public.migrate_purchase_costing_legacy(uuid,boolean,uuid,text)', 'execute')
   and not has_function_privilege('service_role', 'public.preview_purchase_costing_legacy(uuid)', 'execute')
-  and not has_function_privilege('service_role', 'public.migrate_purchase_costing_legacy(uuid,boolean)', 'execute'),
+  and not has_function_privilege('service_role', 'public.migrate_purchase_costing_legacy(uuid,boolean,uuid,text)', 'execute'),
   'nur authenticated darf die gehärteten Legacy-RPCs aufrufen'
 );
 select ok(

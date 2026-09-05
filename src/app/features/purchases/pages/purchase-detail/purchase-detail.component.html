@@ -40,6 +40,9 @@
   </div>
 
   @if (purchaseService.selectedPurchase(); as p) {
+    @if (p.entry_status !== 'finalized') {
+      <app-purchase-cost-repair [purchase]="p" (saved)="refreshCostRepair()" />
+    }
     <!--
       Kopfzeile des Einkaufs.
 

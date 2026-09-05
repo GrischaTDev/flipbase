@@ -1,5 +1,45 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Einzelkauf-Kostenprüfung zur Veröffentlichung freigegeben
+
+**Art:** Release
+**Betroffen:** Zweig `fix/reconcile-historical-purchase-costs`, PR und Produktionsworkflow.
+**Was:** Auf ausdrücklichen Nutzerwunsch Veröffentlichung über PR/Merge vorbereiten. Hauptzweig unverändert bei `caed736`. Zwei erzeugte Migrationen stellen Vorschau, Einzelkauf-Begrenzung und eingeschränkte Ausführungsrechte bereit; keine automatische Übernahme von Geschäftsdaten.
+**Verifiziert durch:** Vorheriger isolierter Neuaufbau mit 994 Datenbankprüfungen und unabhängiges Review abgeschlossen. Gesamtprüfung wird unmittelbar vor Push erneut ausgeführt. Anschließend CI, Migrationen, veröffentlichte Version und Erreichbarkeit prüfen. Bei fehlgeschlagener Migration oder ungesunder Anwendung keinen Erfolg melden; bestehende Geschäftsdaten nicht als Behelf ändern.
+
+## 2026-09-05 – Codex – Gezielte Übernahme historischer Einkaufskosten
+
+**Art:** Bugfix | Oberfläche | Datenbank | Test
+**Betroffen:** Eigener Zweig `fix/reconcile-historical-purchase-costs`, Einkaufsdetail, Kosten-RPCs und Dashboard.
+**Was:** Lesende Einzelkauf-Vorschau mit Kaufpreis, Zusatzkosten, Artikeln und Fingerabdruck ergänzt. Übernahme verlangt ausdrückliche Bestätigung der vollständigen Artikelliste; nur der gewählte geeignete Mystery-Einkauf wird verarbeitet. Geänderte Daten werden unter Sperren erneut geprüft. Bestehende Korrektur-/Protokollierungslogik bleibt erhalten, unklare Fälle werden nicht automatisch verteilt. Nach Erfolg Einkauf, Inventar und Verkäufe neu laden. Normale Alt-Einkäufe ohne belegbare Positionen bleiben ausdrücklich manuell zu klären.
+**Warum:** Offene Einkaufskosten sollen ohne Löschen oder Neuanlegen bestehender Verkäufe übernommen werden können. Fehlende Dashboard-Umsätze waren nicht durch offene Kosten begründet; Standardzeitraum ist der aktuelle Monat.
+**Verifiziert durch:** Isolierte lokale Datenbank `flipbase-cost-repair` statt Änderung der parallel genutzten Datenbank (82 Migrationen). Neue SQL-Prüfung zunächst rot; abschließend kompletter Neuaufbau aus 78 Migrationen und alle 25 SQL-Dateien mit 994 Assertions grün. Service- und Oberflächentests einschließlich Bestätigungssperre und verspäteter Antworten. Gerenderte Ansicht mit AXE ohne Farbkontrastprüfung unter jsdom getestet. Migration mit pg-delta erzeugt; erste migra-Ausgabe wegen ausgelassener Rechte und unbeteiligter Ansicht nur außerhalb des Repositories zur Prüfung behalten. Produktions-Standardrechte ausschließlich lesend geprüft; geerbtes service_role-Recht lokal reproduziert, Regression zunächst rot und mit zusätzlich erzeugter Rechtekorrektur grün. Typen neu erzeugt, unabhängiges Review ohne verbleibenden belegten Fehler, abschließendes `npm run verify` erfolgreich. Keine Produktionsdaten geändert, kein Push oder Deployment.
+
+## 2026-09-05 – Codex – Dashboard-Zeitraum geklärt, Kostenkorrektur noch offen
+
+**Art:** Diagnose | Teilkorrektur | Test
+**Betroffen:** Eigener Zweig `fix/reconcile-historical-purchase-costs`, Dashboard-Leerzustand.
+**Was:** Die Vermutung, dass offene Einkaufskosten Verkäufe aus dem Dashboard entfernen, trifft auf die aktuelle Berechnung nicht zu. Standard ist der aktuelle Monat. Ein neuer Oberflächentest mit echter Berichtsberechnung reproduziert Augustverkäufe außerhalb der Septemberansicht und prüft den neuen Jahreswechselknopf einschließlich Umsatz bei unbekannten Kosten. Zeitraumlabels und Leerzustand verdeutlicht.
+**Warum:** Fehlende Kosten nicht mit fehlenden Verkäufen verwechseln. Die bisherige Altdatenübernahme ist eine Workspace-Sammelkorrektur, kein sicherer Einzelkauf-Korrekturdialog.
+**Verifiziert durch:** Neuer Test zunächst rot, anschließend acht Dashboard- und zwölf Berichtstests grün. Typprüfung erfolgreich. Keine Geschäftsdatenänderung, kein Push oder Deployment.
+**Offen:** Docker-Engine nicht erreichbar; Nutzer um Start gebeten. Kostenkorrektur noch nicht implementiert. Nächster Schritt: gezielte Einzelkauf-Vorschau mit Preis, Zusatzkosten, vollständiger Artikelliste und Änderungsprüfung; bestätigte Übernahme nur dieses Einkaufs, atomar und dokumentiert. Unklare normale Einkäufe nicht automatisch verteilen. Datenbankmigration generieren, Typen erneuern und Altdaten-/Workspace-/Paralleländerungsfälle testen; erst danach Oberfläche anbinden und vollständig verifizieren.
+
+## 2026-09-05 – Codex – Einkaufserfassung mit Anbieterabläufen abgeglichen
+
+**Art:** Recherche | Empfehlung
+**Betroffen:** Bedienablauf für normale Einkäufe und Mystery Boxen.
+**Was:** Offizielle Shopify-Dokumentation zu Einkaufsbestellungen und verknüpftem Wareneingang geprüft. Produkt, Einkauf und Bestand bleiben getrennte Datensätze; vorhandene Einkaufspositionen werden in den Wareneingang übernommen. Empfehlung für Flipbase: Artikel direkt beim Einkauf erfassen und bei bestätigtem Empfang automatisch in den Bestand übernehmen.
+**Warum:** Doppelte Benutzereingaben vermeiden, ohne bestellte und tatsächlich empfangene Ware gleichzusetzen. Mystery-Inhalte werden weiterhin beim Auspacken ergänzt.
+**Verifiziert durch:** Offizielle Shopify-Hilfeseiten gelesen; keine Implementierung und keine Geschäftsdatenänderung.
+
+## 2026-09-05 – Codex – Offene Kosten bei Altverkäufen eingeordnet
+
+**Art:** Analyse
+**Betroffen:** Verkaufskennzahlen, Kostenbasisprüfung, Altdatenübernahme.
+**Was:** Die Anzeige verlangt eine nachvollziehbare Kostenbasis mit abgeschlossenem Ursprungseinkauf; vorhandene Verkaufsgebühren allein reichen nicht. Verkaufsabfragen laden die Ursprungseinkäufe mit. Die Datenbankfunktionen zur Vorschau und bestätigten Übernahme alter Einkaufskosten sind im Frontend bislang nicht angebunden.
+**Warum:** Die Meldung bezeichnet unbekannte Einkaufskosten, keine offene Rechnung. Bestehende Einkäufe sollen nicht gelöscht oder als kostenlos behandelt werden.
+**Verifiziert durch:** Lokale Kennzahlenberechnung, Verkaufsabfragen, Einkaufsaktionen und SQL-Vorschau gelesen; keine individuellen Produktionsdatensätze geprüft und keine Geschäftsdaten verändert.
+
 ## 2026-09-05 – Codex – Eindeutige Zusatzkosten-Beziehung beim Laden
 
 **Art:** Bugfix | Test
