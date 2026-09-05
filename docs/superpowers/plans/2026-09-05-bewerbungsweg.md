@@ -660,17 +660,20 @@ Deno.serve(async (anfrage: Request) => {
 
 - [ ] **Step 2: Funktion lokal starten**
 
-In einem zweiten Terminal:
+In einem zweiten Terminal. Der Port stammt aus `supabase/config.toml`
+(`api.port`), nicht aus der Supabase-Voreinstellung 54321. Die CLI ab 2.114
+nimmt bei `functions serve` keinen Funktionsnamen mehr entgegen und bedient
+alle Funktionen unter ihrem eigenen Pfad:
 
 ```bash
-npx supabase functions serve beta-application --no-verify-jwt
+npx supabase functions serve --no-verify-jwt
 ```
 
 - [ ] **Step 3: Gültige Bewerbung prüfen**
 
 ```bash
 curl -s -o /tmp/ok.json -w "%{http_code}\n" -X POST \
-  http://127.0.0.1:54321/functions/v1/beta-application \
+  http://127.0.0.1:54351/functions/v1/beta-application \
   -H 'Content-Type: application/json' -H 'Origin: http://localhost:4200' \
   -d '{"firstName":"Anna","lastName":"Beispiel","email":"anna@example.test","consent":true}'
 cat /tmp/ok.json
@@ -683,19 +686,19 @@ Erwartung: `200` und `{"ok":true}`.
 ```bash
 # Fremde Herkunft
 curl -s -o /dev/null -w "fremd: %{http_code}\n" -X POST \
-  http://127.0.0.1:54321/functions/v1/beta-application \
+  http://127.0.0.1:54351/functions/v1/beta-application \
   -H 'Content-Type: application/json' -H 'Origin: https://boese.example' \
   -d '{"firstName":"A","lastName":"B","email":"a@b.test","consent":true}'
 
 # Ohne Einwilligung
 curl -s -o /dev/null -w "ohne Einwilligung: %{http_code}\n" -X POST \
-  http://127.0.0.1:54321/functions/v1/beta-application \
+  http://127.0.0.1:54351/functions/v1/beta-application \
   -H 'Content-Type: application/json' -H 'Origin: http://localhost:4200' \
   -d '{"firstName":"A","lastName":"B","email":"a@b.test","consent":false}'
 
 # Kaputte Adresse
 curl -s -o /dev/null -w "Adresse kaputt: %{http_code}\n" -X POST \
-  http://127.0.0.1:54321/functions/v1/beta-application \
+  http://127.0.0.1:54351/functions/v1/beta-application \
   -H 'Content-Type: application/json' -H 'Origin: http://localhost:4200' \
   -d '{"firstName":"A","lastName":"B","email":"keine-adresse","consent":true}'
 ```
@@ -707,7 +710,7 @@ Erwartung: `fremd: 403`, `ohne Einwilligung: 400`, `Adresse kaputt: 400`.
 ```bash
 for i in 1 2 3 4 5 6 7; do
   curl -s -o /dev/null -w "$i: %{http_code}\n" -X POST \
-    http://127.0.0.1:54321/functions/v1/beta-application \
+    http://127.0.0.1:54351/functions/v1/beta-application \
     -H 'Content-Type: application/json' -H 'Origin: http://localhost:4200' \
     -d "{\"firstName\":\"A\",\"lastName\":\"B\",\"email\":\"drossel$i@example.test\",\"consent\":true}"
 done
