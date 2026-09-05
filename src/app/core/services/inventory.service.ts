@@ -122,6 +122,20 @@ export class InventoryService {
 
   readonly items = signal<InventoryItem[]>([]);
   readonly selectedItem = signal<InventoryItem | null>(null);
+
+  applyArchiveMetadata(
+    workspaceId: string,
+    itemId: string,
+    metadata: Pick<InventoryItem, 'archived_at' | 'archived_by'>,
+  ): void {
+    if (this.workspaceService.currentWorkspace()?.id !== workspaceId) return;
+    const apply = (item: InventoryItem): InventoryItem =>
+      item.id === itemId && item.workspace_id === workspaceId
+        ? { ...item, archived_at: metadata.archived_at, archived_by: metadata.archived_by }
+        : item;
+    this.items.update((items) => items.map(apply));
+    this.selectedItem.update((item) => (item ? apply(item) : null));
+  }
   readonly itemCosts = signal<ItemCost[]>([]);
   readonly activityLogs = signal<ActivityLog[]>([]);
   readonly isLoading = signal<boolean>(false);

@@ -1,5 +1,233 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Antigravity – Shopify Polaris IndexTable & Dynamische Spaltenverwaltung (Spaltenmenü-Popover)
+
+**Stand:** Zweig `feature/ui-polaris-standardization`. Tabellenmodernisierung nach dem Shopify Polaris IndexTable-Standard mit integrierten Filtern und dem 3-Balken `[ ||| ]` Spalten- und Sortier-Popover.
+**Was:**
+
+- Kerninfrastruktur für Tabelleneinstellungen (`TablePreferencesService` & `src/app/core/config/table-defaults.config.ts`):
+  - Reaktive Signale für Spaltensichtbarkeit, Reihenfolge und Sortierung mit automatischer `localStorage`-Persistenz je Arbeitsbereich.
+  - Standardkonfigurationen für die Kern-Tabellen (`sales`, `inventory`, `purchases`, `accounting`) mit Schema-Drift-Schutz.
+  - Umfassende Unit-Tests in `table-preferences.service.angular.spec.ts` (8/8 bestanden).
+- Shared Polaris Spaltenmenü-Komponente (`TableColumnMenuComponent`, `app-table-column-menu`):
+  - Popover-Menü mit dem charakteristischen 3-Balken-Icon `[ ||| ]` nach Shopify-Vorbild.
+  - Sortierbereich mit Richtungsumkehr (`asc`/`desc`) und Dropdown zur Auswahl des aktiven Sortierfelds.
+  - Spaltenliste mit Sperrsymbolen für feste Spalten, Tastatur- und Drag-and-Drop-Reihenfolge sowie Umschalten der Sichtbarkeit per Augen-Icon (`Eye`/`EyeOff`).
+  - Barrierefreiheit (WCAG AA): Tastatursteuerung (ESC schließt, Click-Outside-Erkennung, ARIA-Expanded/Controls).
+  - Unit-Tests in `table-column-menu.component.angular.spec.ts` (7/7 bestanden).
+- Modernisierung der Kern-Tabellen:
+  - `SalesComponent` (Verkäufe): IndexTable-Toolbar mit Filter-Pills, Schnellsuche und Spalten-Popover. Dynamische Ausblendung von 8 optionalen Spalten (`quantity`, `platform`, `sale_date`, `cost_of_goods_sold`, `selling_costs`, `profit`, `margin`, `holding_days`) und dynamische Sortierung.
+  - `StockPositionListComponent` (Inventar): Spalten-Popover im Kopfbereich, dynamische Spalteneinblendung für Zustand, Bestand, Status, Herkunft, EK, Bestandswert und Verkaufswert sowie dynamischer `colspan` für aufgeklappte Chargen/Lots.
+  - `AccountingComponent` (Buchhaltung): Spalten-Popover in der Transaktions-Toolbar, dynamische Spalten für Verwendungszweck, Betrag, Zuordnung und Status sowie dynamische Sortierung der Bankumsätze.
+    **Prüfung:**
+- `npm run typecheck`: Erfolgreich (0 Fehler).
+- `npm run lint`: Erfolgreich (0 Fehler, 0 Warnungen).
+- `npm run test:angular`: 44 Testdateien, 418 Tests erfolgreich (0 Fehler).
+- `npm run build`: Produktionsbau erfolgreich (0 Fehler, 0 Warnungen).
+
+## 2026-09-05 – Antigravity – UI-Standardisierung & Shared Components nach Shopify Polaris
+
+**Stand:** Zweig `feature/ui-polaris-standardization`. Token-basierte Standardisierung und Ausbau der Shared-Komponenten-Bibliothek für eine einheitliche UI nach Vorbild von Shopify Polaris.
+**Was:**
+
+- `@shopify/polaris-tokens` und `@shopify/polaris-icons` als Entwicklungspakete installiert.
+- Neue barrierefreie Shared-Komponenten gemäß Angular 22 & Tailwind CSS erstellt:
+  - `ButtonComponent` (`app-button`): Varianten (primary, primary-dark, secondary, destructive, ghost, plain), Größen, Ladezustand, Icon-Slotting, Tastaturbedienbarkeit.
+  - `BadgeComponent` (`app-badge`): Polaris-Töne (neutral, info, success, caution, critical), Punkt-Indikator, Monospace-/Großbuchstaben-Modi.
+  - `CardComponent` (`app-card`): Container mit Header, Action-Slots, konfigurierbaren Polstern und Footer. Landmark-Kollisionen behoben (`data-card-header` statt redundanten `header`-Tags).
+  - `PageHeaderComponent` (`app-page-header`): Titel, Untertitel, Breadcrumb-/Zurück-Navigation, Badges und Aktionsleiste.
+  - `TextFieldComponent` (`app-text-field`): ControlValueAccessor für reaktive Formulare, Präfix-/Suffix-Slots, Hilfetexte, Validierungsanzeige und Mehrzeilenmodus.
+  - `TwoColumnLayoutComponent` (`app-two-column-layout`): 2/3 operative Hauptspalte und 1/3 Sidebar-Metadatenbereich (sowie 7-5 Ratio) mit responsivem Umbruch.
+  - `ModalShellComponent` (`app-modal-shell`): Barrierefreier modaler Container mit Fokus-Falle, Header, Schließen-Schaltfläche und Footer.
+- Subagenten-Audit & Qualitätssicherung:
+  - Projektions-Selektor in `TwoColumnLayoutComponent` erweitert (`[main], [main-content]` und `[sidebar], [sidebar-content]`).
+  - Barrierefreiheit (WCAG AA): Dekorative Icons mit `aria-hidden="true"` versehen, `aria-label` auf TextFields und DatePicker ergänzt, Label-Verknüpfung in Verkaufs-Modal korrigiert.
+  - `DatePickerComponent`: Template auf kanonische englische Bezeichner umgestellt, ARIA-Attribute für Tage und Monate hinzugefügt.
+- Feature-Seiten modernisiert:
+  - `PurchasesComponent` & `PurchaseDetailComponent`: Vollständige Umstellung auf Polaris Page-Header, Two-Column-Layout (2/3 Positionen & Nebenkosten, 1/3 Einkaufsdetails & Sendungsverfolgung), Cards, Badges und Buttons.
+  - `InventoryComponent` & `ItemDetailComponent`: Umstellung auf `PageHeaderComponent`, `TwoColumnLayoutComponent` (7-5 Ratio), `BadgeComponent` und `CardComponent`.
+  - `SalesComponent`: Integration von `PageHeaderComponent`, `BadgeComponent` und `ButtonComponent`.
+    **Prüfung:**
+- `npm run typecheck`: Erfolgreich ohne Fehler (0 Errors).
+- `npm run lint`: Erfolgreich ohne Fehler oder Warnungen (0 Errors, 0 Warnings).
+- `npm run test:angular`: Alle 42 Testdateien (401 Tests) einschließlich struktureller AXE-Checks erfolgreich bestanden.
+- `npm run build`: Erfolgreicher Produktionsbau mit 0 Fehlern und 0 Warnungen.
+
+## 2026-09-05 – Codex – Veröffentlichungsprüfung für Erfassungspaket abgeschlossen
+
+**Auftrag:** Der Nutzer beauftragt Push und Merge des bereits umgesetzten Einkaufs-/Inventarpakets mit Chronik, Archivierung sowie EAN-/CSV-Erfassung.
+
+**Korrekturen vor Veröffentlichung:** Die direkte Sales-Deep-Link-Testumgebung erhält den optionalen Sitzungsstatus-Hook und importiert die im Tabellen-Template verwendete Kostenanzeige explizit. Lokale `.superpowers`-Planartefakte werden von ESLint ausgeschlossen, damit generierte Fremdtypen den Anwendungslauf nicht blockieren.
+
+**Prüfung:** `npm run verify` erfolgreich mit Exitcode 0: Prettier, ESLint, Typprüfung, Workflow-Verträge, Test-Audit, 994 Node-, 135 DOM- und 409 Angular-Tests, Landing-Verträge und Produktionsbau. Der Branch ist vor dem Push sauber zu committen; PR- und Produktionsprüfungen bleiben der nächste Freigabeschritt.
+
+## 2026-09-05 – Codex – EAN-/GTIN-Erfassung und CSV-Vorschau lokal abgeschlossen
+
+**Auftrag:** Offene Erfassungspunkte des Verwaltungsumbaus umsetzen, ohne Produktion zu veröffentlichen. EAN/GTIN soll optional und als Zeichenkette erhalten bleiben; Kamera, eigener Artikelstamm und CSV dürfen keine ungeprüften Preise oder Bestände erzeugen.
+
+**Umsetzung:** GTIN-8/12/13/14 werden mit Prüfziffer validiert und führende Nullen bleiben erhalten. Die Kamera nutzt zuerst `BarcodeDetector` und bei fehlender Browserunterstützung einen ZXing-Fallback; Start/Stop-Rennen, verspätete Decoderantworten und Mehrfachauslösung sind abgesichert. Ein Barcode findet nur einen passenden Artikel im aktuellen Workspace-Artikelstamm; unbekannte Codes werden nicht mit erfundenen Produkt- oder Preisangaben angereichert. Einkaufspositionen speichern EAN-Snapshots über einen geschützten RPC; die Datenbank validiert neue Werte und übernimmt sie beim Wareneingang in den Bestand. Katalog- und Einkaufs-CSV werden vor dem Speichern geprüft und angezeigt. Der Katalogimport legt nur Artikelstammdaten an; der Einkaufsimport erzeugt normale Mengenpositionen bei eindeutiger Artikelstamm-Zuordnung und sonst nachvollziehbare Einzelpositionen, ohne die bestehende Kostenlogik zu umgehen. CSV unterstützt UTF-8-BOM, Komma/Semikolon, Anführungszeichen, Dezimalkomma und klare Fehlermeldungen.
+
+**Prüfung:** `npm run typecheck`, Produktionsbau, gezielte Angular-Prüfungen (55 Tests), GTIN-/CSV-Prüfungen (5 Tests) und geänderte-Dateien-ESLint erfolgreich. Migration lokal in Docker angewendet; EAN-Validierung, führende Nullen und automatische Übernahme vom Einkaufsbeleg in den Bestand transaktional geprüft. Vollständiges Repository-Lint bleibt wegen bereits vorhandener generierter `.superpowers`-Typdateien rot; der DB-Gesamtlauf meldet weiterhin, dass die getrennten Chronik-/Archiv-Fixtures in dessen Testdatenbank nicht installiert sind. Keine unabhängige Agentenprüfung möglich, da alle verfügbaren Agenten wegen des Nutzungslimits abgewiesen wurden. Kein Push, PR, Merge oder Deployment.
+
+## 2026-09-05 – Codex – Verbleibende Verwaltungsabläufe umsetzen
+
+**Auftrag:** Nutzer beauftragt sämtliche restlichen freigegebenen Punkte: gemeinsame Chronik mit Kommentaren, Archivierung und persönliche Tabellenspalten, optionale EAN/Kamera und CSV-Vorschau/Import. Fortsetzung im eigenen sauberen Worktree auf `feat/purchase-entry-page`, ohne Veröffentlichung. Vorhandene Buchungs- und Exportverträge erhalten; neue Rechte/Migrationen gesondert testen. Umsetzung paketweise mit Subagent-Driven-Development, Datenzugriffe nach Supabase-Skill. Details in den jeweiligen Plänen; keine erneute Entwurfsfreigabe für bereits bestätigte Richtung nötig.
+
+**Zwischenprüfung Chronik:** Lokale Konto-QA auf 127.0.0.1:4200 mit lokaler Supabase-Instanz: Kommentar am abgeschlossenen Einkauf gespeichert, Formular geleert, nach Reload genau einmal sichtbar neben Buchungsereignis; Einkaufszeile unverändert. Kommentar in Verkaufschronik ebenfalls nach Schließen/Reload wieder sichtbar. 390/1440/2560 px ohne seitlichen Überlauf, Chronik-Axe WCAG A/AA ohne Befund, keine Laufzeitfehler. Bestehender Kontrastfehler am Einkaufstyp-Badge außerhalb Chronik für Folgepaket aufgenommen. Browser plugin not available, daher vorhandenes Playwright. Noch kein Gesamtabschluss/keine Veröffentlichung.
+
+**Chronik-Aufgabenabnahme:** `2ce6bf4` implementiert, `a430c3e` ergänzt nach unabhängiger Prüfung echte Integrationstests für Einkauf/Verkauf und alten Bestand-/Exportpfad. Gezielte Nachprüfung akzeptiert, keine neuen wichtigen Befunde. 232 Datenbankprüfungen einschließlich Retention/Unveränderbarkeit/Audit-Export grün; neue Migration lokal isoliert erzeugt und geprüft, keine fremden Migrationseinträge repariert. Abschließende Gesamtprüfung berücksichtigt zwei kleine offene Punkte: SQL/JS-Unicode-Leerraum und bestehende Runner-Farbwarnung. Archiv/Spalten und Barcode/CSV laufen anschließend weiter.
+
+**Zwischenprüfung Archiv/Spalten:** Lokale Konto-QA mit zwei echten Einzelstücken à 10 €, davon eines für 20 € verkauft: Archivieren/Wiederherstellen behält Verkaufszeile und Kosten unverändert. Nach erneutem Archivieren und echter lokaler Retoure mit Bestandsrücknahme erscheint das Stück trotz historischer Archiv-Metadaten aktiv. Persönlich ausgeblendete Zustandsspalte bleibt nach Reload verborgen. Hauptbereiche von Inventar und Einkaufsdetail bestehen Axe; blasser Verkaufsbadge zuvor mit Verhältnis 1,13:1 gefunden und durch ursprünglichen Implementierer korrigiert, identischer Test danach grün. Keine Laufzeitfehler, mobile Einkaufsansicht ohne seitlichen Überlauf. Aufgabenreview noch ausstehend.
+
+## 2026-09-05 – Codex – Eigene Einkaufs-Erfassungsseite umsetzen
+
+**Auftrag:** Fortsetzung des freigegebenen Pakets 2 auf `feat/purchase-entry-page`, eigener vorhandener Worktree. Neue Einkäufe auf eigener Seite; vorhandenes Formular und Speicherprüfungen gemeinsam weiterverwenden. Kostenübersicht rechts, direkte Artikelerfassung, Schutz ungespeicherter Eingaben. Bestehende Detailbearbeitung und Flohmarkt-Schnellerfassung erhalten; keine Datenbank- oder Produktionsänderung.
+**Vorprüfung:** 41 bestehende Angular-Tests für Einkaufsformular/Artikeleditor grün. Bestehende create_purchase/finalize_purchase_costing-Verträge geprüft; Supabase-Changelog und offizielle RPC-Dokumentation ohne erforderliche Änderung für diesen UI-Umbau. Planung und Umsetzung mit Subagent-Driven-Development; unabhängige Reviews und lokale Browser-/Kontoprüfung vorgesehen. Browser plugin not available, daher vorhandenes Playwright.
+
+**Umsetzung:** Neue Route `/purchases/new` vor der Detailroute. Ein gemeinsames Formular besitzt weiterhin die bestehende Speicher- und Wiederholungslogik; neue Erfassung als Seite mit Kostenübersicht rechts, vorhandene Bearbeitung weiterhin als Dialog. Artikelauswahl und direkte Neuanlage bleiben im Einkauf, ohne verschachteltes Formular. Reine Typwechsel und Eingaben in der Artikelschnellerfassung werden beim Verlassen berücksichtigt; laufende Speicherung wird geschützt. Keine Datenbank-, Abhängigkeits-, Shop- oder Landingpageänderung.
+
+**Prüfung und Korrekturen:** Unabhängige Aufgaben- und Abschlussprüfung fanden fehlendes Seitenlayout, unbenannten Schließen-Button, doppelte Navigation, unvollständigen Verlassenschutz und verrutschte Dialogzentrierung; diese wurden zur Korrektur zurückgegeben. Lokale Konto-QA bestätigt normalen Einkauf mit 2 × 10 € plus 5 € Versand, endgültig gespeichert mit 25 €; leere Mystery Box als Entwurf mit 100 € plus 10 € Versand, nach erneutem Öffnen korrekt 110 €. Der rohe Aufteilungswert eines Entwurfs ist nicht dessen angezeigte Kostensumme. Früherer QA-Abbruch durch fehlendes Warten auf den zweiten Seitenwechsel korrigiert. Zehn Browseransichten von 390 bis 2560 px in Hell/Dunkel ohne seitlichen Überlauf, zwei Axe-Prüfungen des Hauptinhalts ohne Befund, keine Laufzeitfehler. Dialog zusätzlich geöffnet, Werte und Zentrierung geprüft. Testdaten ausschließlich in lokaler Supabase-Instanz; lokale QA-Konten bleiben erhalten. Keine echte Mobilgeräte- oder Mehrbrowserprüfung.
+
+**Abgrenzung:** Chronik mit Kommentaren, Archivierungsablauf, persönliche Tabellenspalten sowie EAN/Kamera/CSV sind weiterhin spätere Pakete. Noch keine Veröffentlichung dieses Einkaufsseiten-Pakets.
+
+**Abschluss:** Umsetzung bis `02756a4`, erneute unabhängige Schlussprüfung ohne offene blockierende Befunde. Alle genannten Korrekturen einschließlich Dark-Kontrast umgesetzt; keine ungeprüften Abweichungen akzeptiert. Finale vollständige Tests: 989 Node-, 135 DOM- und 381 Angular-Tests erfolgreich, fünf bestehende Angular-Tests übersprungen. Fünf gezielte Chromium-Tests und Produktionsbau erfolgreich. Bestehende Runner-Warnung zu gleichzeitigem NO_COLOR/FORCE_COLOR unverändert. Lokaler Zweig bleibt erhalten; kein Push/PR/Deployment in diesem Auftrag. Aufräumen des exakt geprüften eigenen temporären Review-Ordners wurde von der Ausführungsrichtlinie blockiert; nicht umgangen, Unterlagen bleiben erhalten. Fremde Arbeitsstände unverändert.
+
+> > > > > > > origin/master
+
+## 2026-09-05 – Codex – Admin-Einstellungen veröffentlichen
+
+**Auftrag:** Nutzer autorisiert Push und Merge von `feat/admin-preferences`. Aktuellen `origin/master` konfliktfrei in den eigenen Zweig übernommen; keine fremden Arbeitskopien verändert. Keine Datenbank- oder Abhängigkeitsänderung. Bereits erfolgte unabhängige Reviews samt Korrekturen bleiben dokumentiert.
+**Freigabeweg:** Vollständiges `npm run verify`, englischer PR, grüne Pflichtprüfungen, Merge-Commit und Produktionslauf einschließlich öffentlicher Commit-Prüfung. Vorheriger Produktionsstand `2ac3950e294e8f7616515cfa205d9f908581c216`. Bei fehlgeschlagenem Healthcheck, falschem ausgeliefertem Commit oder fehlenden Frontend-Dateien keine erfolgreiche Veröffentlichung melden; Fehler untersuchen und gegebenenfalls kontrollierte Rücknahme auf den vorherigen Stand abstimmen. Keine Prüfungen umgehen.
+
+**Abschluss:** `npm run verify` erfolgreich (Exitcode 0). PR #27 nach erfolgreichem PR-Lauf `33977344122` per Merge-Commit `98e117589cb6597e5fc196d86d47f3d785271cc2` integriert. Produktionslauf `33977621037` erfolgreich: PR-Prüfungen wiederverwendet, Image-Smoke und Veröffentlichung erfolgreich, Deployment einschließlich öffentlicher Prüfung erfolgreich. Zusätzliche lokale Abfrage von Startseite, Healthcheck und Deployment-Metadaten bestätigt genau diesen öffentlich ausgelieferten Commit. Abschlussnachweis nur lokal gespeichert, kein zweiter Produktionslauf dafür ausgelöst.
+
+## 2026-09-05 – Codex – Admin-Akzente und persönliche Filter lokal abgeschlossen
+
+**Stand:** `feat/admin-preferences`, Implementierung bis `a3b0d27`; nicht gepusht oder veröffentlicht. Paket 1 vollständig umgesetzt. Einkaufsseite, gemeinsame Chronik, Archivierungsablauf und EAN-Erfassung gehören zu späteren Paketen.
+**Abschlussprüfung:** Finale vollständige `npm test`-Suite: Node 989, DOM 135, Angular 372 bestanden, fünf bestehende Angular-Tests übersprungen. Produktionsbau erfolgreich. Acht gezielte Chromium-Tests für Akzente, Dark-Navigation, responsive Breiten, Dashboard-Filter und Chartinteraktion erfolgreich. Bestehende Runner-Warnung zu gleichzeitigem NO_COLOR/FORCE_COLOR unverändert. Lokale Konto-QA mit zwei getrennten Browserkontexten bestätigte Speicherung, Neuladen, Erhalt fremder Metadaten und einer Plattform ohne Verkäufe; keine Laufzeitfehler. 24 Ansichten bei 390/1440/2560px in Hell/Dunkel ohne Seitenüberlauf; acht Axe-Prüfungen der Hauptinhalte ohne Befund. Keine echten Geräte oder anderen Browser-Engines geprüft.
+**Reviews:** Einzelreviews freigegeben. Abschlussreview fand dunkle Schrift auf brauner Aktionsfläche (2,83:1) und einen rekursiven Speicherneustart bei Abmeldung vor dem Auth-Effekt. Beide mit roten Regressionstests reproduziert, korrigiert und im gezielten Abschlussreview freigegeben. Betroffene Aktionsflächen sind nun hellgelb mit dunkler Schrift; die Warteschlange startet nur im weiterhin gültigen Benutzerkontext erneut.
+**Planentscheidungen:** Zusätzlich zum knappen Dateiverzeichnis Dashboard-HTML für den geforderten Speicherfehlerhinweis und vorhandene Komponententests für die neue Zustandsquelle angepasst. Falls diese Erweiterungen unnötig wären, beträfe die Rücknahme nur Template bzw. Tests; keine Datenmigration. Keine weiteren abweichenden Entscheidungen oder verworfenen Reviewbefunde.
+**Lokale Prüfartefakte:** Screenshots und Testprotokolle unter `C:/Users/Grisc/AppData/Local/Temp/`; zwei klar benannte lokale QA-Konten erzeugt, keine Produktionskonten verändert. Das Aufräumen temporärer Agentenbriefings und Reviewpakete wurde von der Ausführungsrichtlinie abgewiesen; sie bleiben im ignorierten Planordner erhalten. Arbeitszweig und Code bleiben ebenfalls erhalten. Vor einem später autorisierten Push ist `npm run verify` erforderlich.
+
+## 2026-09-05 – Codex – Persönliche Dashboard-Filter gespeichert
+
+**Art:** UI- und Auth-Metadaten-Umsetzung im Zweig `feat/admin-preferences`, Task 2.
+**Was:** Dashboard-Zeitraum und Plattform starten standardmäßig mit dem laufenden Jahr und bleiben im Demo-Modus lokal sowie bei angemeldeten Konten in einem eigenen Auth-Metadatenfeld erhalten. Schreibvorgänge laufen nacheinander und fassen schnelle Zwischenstände zusammen; Konto- und Abmeldewechsel schützen vor verspäteten Antworten. Unbekannte gespeicherte Plattformen bleiben auswählbar und zeigen null Treffer. Metadaten dienen nicht der Rechteprüfung; keine Datenbank-, RLS- oder Abhängigkeitsänderung.
+**Prüfung:** Parser, Service und Dashboard-Integration testgetrieben mit gezielten roten und grünen Läufen; Demo-Browsertest für Navigation und Neuladen erfolgreich. Lokale Supabase-QA mit einem Testkonto bestätigte Speicherung, Erhalt fremder Metadaten, Neuladen und eine zweite getrennte Browsersitzung ohne Seitenfehler. Produktionskonto und Deployment unberührt.
+
+## 2026-09-05 – Codex – Helle Admin-Akzente an Markenfarben angeglichen
+
+**Art:** UI-Umsetzung im Zweig `feat/admin-preferences`, Task 1.
+**Was:** Nur die helle `.fb-admin`-Palette verwendet nun Orange/Gelb für Primäraktionen und einen dunklen Braunton für Textakzente und Fokus. Aktive Sidebarflächen nutzen den dezenten Markenakzent mit dunklem Text und Icon. Dunkles Admin-Design, Shop, Anmeldung, Landingpage sowie Diagramm- und Statusbedeutungen wurden nicht verändert. Zwei vorhandene Kombinationen aus orange umgebogenem Indigo-Hintergrund und weißer Schrift erhalten im hellen Admin die dunkle Akzentschrift.
+**Prüfung:** Neuer Playwright-Test schlug zunächst mit Weiß statt `rgb(26, 26, 26)` fehl und lief nach Umsetzung grün. Ein Review fand danach die unbeabsichtigt entfernte aktive Dark-Sidebarfläche; eigener Regressionstest zunächst rot bei transparentem Hintergrund, nach Wiederherstellung der vorherigen Klassen und des dunklen Markenrahmens grün. Zusammen mit den Admin-Layouttests 4/4 Chromium-Tests erfolgreich; Axe WCAG 2/2.1 A/AA auf `/purchases` ohne Befund; gezielte Prettier-/ESLint-Prüfung und Produktionsbau erfolgreich. Keine echte Geräte- oder Mehrbrowserprüfung in dieser Sitzung.
+
+## 2026-09-05 – Codex – Umsetzung in eigenständige Pakete aufgeteilt
+
+**Art:** Umsetzungsplanung nach Nutzerfreigabe, noch keine Funktionsänderung.
+**Dokumente:** `docs/superpowers/specs/2026-09-05-admin-workflow-refresh.md` hält die freigegebene Gesamtrichtung fest; `docs/superpowers/plans/2026-09-05-admin-preferences.md` beschreibt das erste eigenständig prüfbare Paket (gelbe Akzente, persönliche Dashboard-Filter). Weitere Pakete: Einkaufsseite, gemeinsame Chronik, Archivierung/Tabellenspalten, EAN/Import.
+**Entscheidung:** Persönliche Filter als nicht sicherheitsrelevante Auth-Metadaten, Demo lokal; keine neuen Tabellen für Paket 1. Zustandswechsel und fehlgeschlagene Speicherung ausdrücklich testen. Chronik benötigt eigene Prüfung bestehender Ereignis-/Kommentarrechte und ist noch nicht implementiert. Planungsskill verlangt Auswahl der Ausführungsform vor Planabarbeitung; vorhandene Arbeitskopie und fremde Änderungen erhalten.
+
+## 2026-09-05 – Codex – EAN-Kameraerfassung und Produktdatenquellen geprüft
+
+**Art:** Technische Auskunft / Recherche, keine Implementierung.
+**Befund:** BarcodeScannerComponent nutzt ausschließlich nativen BarcodeDetector ohne Decoder-Fallback; Browserunterstützung eingeschränkt. BarcodeLookupService enthält fünf feste Beispieldatensätze mit Schätzpreisen und fragt danach Open Food Facts ab; keine umfassende allgemeine Produktdatenbank. Vorschlag: optionales EAN/GTIN-Feld, manuelle Eingabe und Kamera, Format-/Prüfzifferprüfung, eigene Artikelsuche vor optionaler externer Datenanreicherung, keine automatische Neuanlage oder ungeprüfte Preisübernahme. GS1 bietet Identitäts-/Basisdaten; API-Zugang über lokale GS1-Organisation abklären. Scanner-Bibliothek und Datenanbieter sind getrennte Entscheidungen, keine Abhängigkeit installiert.
+**Quellen:** https://developer.mozilla.org/en-US/docs/Web/API/BarcodeDetector, https://github.com/zxing-js/browser, https://www.gs1.org/services/verified-by-gs1, https://openfoodfacts.github.io/openfoodfacts-server/api/.
+
+## 2026-09-05 – Codex – Einzelstücke archivieren und Chronik erklären
+
+**Art:** Nutzerfrage / Entwurf, keine Funktionsänderung.
+**Was:** Für verkaufte Einzelstücke Archivierung statt alltäglicher Anzeige vorgeschlagen, ohne Einkauf, Verkauf und Bestandsbewegungen zu entfernen. Nachkaufbare Artikel können bei null Bestand aktiv bleiben. Produktbeschreibung und tatsächlicher Bestand unterscheiden; Neuanlage darf keinen unbelegten Bestand erzeugen. Chronik als lesbare Ansicht belegter Änderungsereignisse, nicht als automatische Rechtskonformitätsgarantie. CSV-Import mit Vorschau/Prüfung und Barcode-Suche als spätere Erfassungshilfen aufnehmen; unbekannter Barcode liefert nicht automatisch verlässliche Produktdaten.
+**Quellen:** https://help.shopify.com/de/manual/products/add-update-products sowie §§ 146/147 AO. Bestehender Code enthält bereits `archived` als Artikelstatus; keine Aussage getroffen, dass der gewünschte vollständige Archivierungsablauf bereits umgesetzt sei.
+
+## 2026-09-05 – Codex – Akzentfarbe, persönliche Ansichten und Einkaufsablauf eingegrenzt
+
+**Art:** Recherche und Entwurfsabstimmung, noch keine Umsetzung.
+**Anlass:** Nutzer wünscht Logo-Gelb statt Lila im hellen Admin, Dashboard initial dieses Jahr und dauerhaft persönliche Filter sowie Shopify-orientierte Erfassungsseiten und kompakte Tabellen mit wählbaren Spalten. Screenshots als Gestaltungsreferenz, nicht als Anweisung oder vollständiges Datenmodell verwendet.
+**Befund:** Dashboard initialisiert Zeitraum mit `month` ohne Speicherung. Offizielle Shopify-Hilfe trennt Lieferantenbestellung von Wareneingang/Inventartransfer; vorhandenes Produkt bedeutet nicht vorhandene Stückzahl. Öffentliche Shopify-Produkttaxonomie steht unter MIT-Lizenz. Für Flipbase vorgeschlagen: Einkäufe als verständlicher Oberbegriff behalten, Artikel direkt beim Einkauf anlegen/auswählen, Mystery-Box-Inhalt weiterhin später erfassen, Verkauf und Bestandsabgang gemeinsam buchen. Keine Pflichtfelder für Lieferstandorte, Zahlungsziele oder Shop-Metafelder ohne konkreten Bedarf. Filter/Spalten als persönliche Ansichten konzipieren, nicht global für alle Nutzer.
+**Quellen:** https://help.shopify.com/de/manual/products/inventory/purchase-orders/creating-purchase-orders, https://help.shopify.com/de/manual/products/inventory/purchase-orders/viewing-purchase-orders, https://help.shopify.com/de/manual/products/inventory/purchase-orders/creating-inventory-transfers, https://github.com/Shopify/product-taxonomy.
+**Vorgehen:** Design-System- und Brainstorming-Skill: kleine Farb-/Filteranpassung vom größeren Ablaufumbau trennen; Entwurf vor Umsetzung abstimmen. Keine Datenbank- oder Produktionsänderung.
+
+## 2026-09-05 – Codex – Neutrales Verwaltungsdesign veröffentlichen
+
+**Art:** Release auf ausdrücklichen Nutzerauftrag.
+**Umfang:** Zweig `style/neutral-admin-design`, nur Verwaltungsdesign und Layouttests; keine Datenbankmigrationen. Vorheriger Produktionsstand `873c0b8`. Unabhängige Review-Befunde im vorherigen Umsetzungseintrag dokumentiert und korrigiert. Vor Push verbindliches `npm run verify`, danach PR-Prüfungen, Merge und Produktionslauf prüfen. Abbruch-/Rückfallkriterien: fehlgeschlagener Healthcheck, falscher ausgelieferter Commit oder fehlende Frontend-Dateien. Keine erfolgreiche Veröffentlichung behaupten, bevor Produktionslauf und öffentliche Antwort bestätigt sind.
+
+**Abschluss:** `npm run verify` erfolgreich nach Anpassung der erwarteten kurzen Ergebnisüberschrift einschließlich Test der erhaltenen Erklärung. PR #26 nach erfolgreichem Lauf `33972570453` gemergt. Produktionslauf `33972742843` vollständig erfolgreich, erfolgreiche PR-Tests wiederverwendet. Öffentlicher Healthcheck und Commit `2ac3950e294e8f7616515cfa205d9f908581c216` bestätigt. Abschluss lokal dokumentiert, kein zusätzlicher Produktionslauf nur für diesen Nachweis.
+
+## 2026-09-05 – Codex – Helle Verwaltungsoberfläche beruhigt und Datenansichten verbreitert
+
+**Art:** UI-Umsetzung | Eigener Zweig `style/neutral-admin-design`, noch nicht veröffentlicht.
+**Was:** Nach Nutzerfreigabe neutrale helle Flächen, dunkelgraue Schrift und zurückhaltende Primäraktionen ausschließlich unter `.fb-admin` eingeführt. Sidebar kräftiger, Cards ohne helle Verläufe, Kennzahlen kleiner, Tabellenköpfe ohne Großbuchstaben und mit stabilen Zahlen-/Kostenspalten. Einkäufe kompakter mit weniger verschachtelten Kästen. Datenansichten nutzen die verfügbare Breite; Einstellungen und Deal-Rechner bleiben begrenzt. Ursprüngliche dunkle Hintergrundpalette sowie Shop/Landingpage unverändert. Keine Geschäftslogik, Kostenbuchung oder Datenbank geändert; Ultrawide-Spezialmodus zurückgestellt.
+**Prüfung:** Neuer Breitentest zunächst am bisherigen 1280px-Limit fehlgeschlagen, nach Anpassung erfolgreich. Browser-Demo auf Dashboard, Einkäufen, Inventar und Verkäufen in Hell/Dunkel bei 390, 1440 und 2560px kontrolliert; keine Laufzeitfehler. Axe WCAG-A/AA-Prüfung der vier Hauptinhalte in beiden Modi ohne Befunde nach Korrektur zweier gelber Hinweistexte. Browser plugin not available: vorhandenes Playwright für lokale Prüfung verwendet; keine Produktionsdaten benutzt. Bestehende 12 Browserprüfungen einschließlich Dialogsperre, Verkauf, Navigation, Chart und Inter erfolgreich, Produktionsbau erfolgreich. Zusätzlicher Test für 390/768/1024/1100/1280px erfolgreich.
+**Review:** Unabhängiges Read-only-Review fand zu frühen Desktopumbruch der Einkaufszeilen sowie unbegrenzten Deal-Rechner; beides korrigiert. Erweiterter Browsertest fand außerdem herausragenden unsichtbaren Screenreader-Text in der horizontal scrollenden Verkaufstabelle; relativer Container hält ihn innerhalb des Scrollbereichs. Design-System-Skill führte zu lokal begrenzten Variablen statt globaler Änderungen an Shop/Dark Mode.
+
+## 2026-09-05 – Codex – Offizielle Shopify-Designgrundlagen recherchiert
+
+**Art:** Recherche | Designvorbereitung
+**Quellen:** https://shopify.dev/docs/apps/design/visual-design, https://shopify.dev/docs/apps/design/layout, https://shopify.dev/docs/api/app-home/latest/web-components und https://github.com/Shopify/polaris-react-archive.
+**Befund:** Shopify dokumentiert Polaris als Designsystem für Admin-Oberflächen. Aktuelle App-Komponenten sind Web Components; frühere React-Implementierung ist als deprecated archiviert. Dokumentierte Vorgaben: neutrale lesbare Textfarben, mindestens 13px für normalen/bedienbaren Text, 12px für kleinere Erläuterungen, 4px-Abstandsraster, volle Breite für datenreiche Listen, aufgabengerechte konsistente Dichte und zurückhaltende Tabellenaktionen. Keine Behauptung über den kompletten internen Framework-Stack des angemeldeten Shopify-Admins; Recherche erfolgte in offiziellen öffentlichen Quellen, nicht in einem Nutzerkonto.
+**Ableitung:** Gestaltung in vorhandenen Angular-/Tailwind-Shared-Komponenten umsetzen statt Shopify-App-Bibliothek ungeprüft einzubauen. Tabellen verbreitern, Formulare begrenzen, neutrale Palette und kompakte konsistente Typohierarchie vorschlagen. Kein Frameworkwechsel, keine Installation oder Codeänderung.
+
+## 2026-09-05 – Codex – Ruhigere Verwaltungsoberfläche anhand Shopify-Referenzen eingegrenzt
+
+**Art:** Designanalyse | Noch keine Umsetzung
+**Betroffen:** Zentrale Designvariablen, Shared-Oberflächen, Sidebar, Seitenbreite sowie Dashboard-, Inventar- und Verkaufstabellen.
+**Was:** Neun Nutzerscreenshots als visuelle Referenz betrachtet; keine exakten Shopify-Farbwerte aus Screenshots behauptet. Nutzer wünscht weichere neutrale Hintergründe, dezenteren Text, kräftigere Menüschrift, kompaktere Cards/Tabellen/Kennzahlen, weniger überflüssige Erklärtexte und volle Breite für Datenansichten. Bestehendes Shell-Limit `max-w-7xl` und blaugraue Text-/Flächentokens als konkrete Ansatzpunkte identifiziert. Vorschlag: zentrale Gestaltung anpassen, Datenansichten flexibel verbreitern, Formulare und Lesetexte sinnvoll begrenzen; keine fachlichen Hinweise pauschal löschen. Helles Verwaltungsdesign als Referenzumfang, Dark Mode kompatibel halten, Shop und Landingpage nicht ungefragt umgestalten.
+**Später:** Spezieller Ultrawide-Modus mit anderer Informationsanordnung auf sehr breiten Bildschirmen ist ausdrücklich zurückgestellt. Schwelle anhand CSS-Viewport statt physischer Monitorauflösung festlegen. Kein solcher Modus in dieser Anpassung.
+**Verifiziert durch:** Design-System- und Brainstorming-Skill, Screenshots und zentrale CSS-/Layout-/Tabellenstellen gelesen. Kurzen Designvorschlag vor Umsetzung gemäß Planungs-Skill zur Bestätigung stellen. Keine Oberflächenänderung oder Veröffentlichung in dieser Sitzung.
+
+## 2026-09-05 – Codex – Segoe-UI-Rückfall nach Schriftwechsel untersucht
+
+**Art:** Diagnose | Browsercache
+**Betroffen:** Öffentliche Schriftdefinition `/fonts/fonts.css` auf Anwendung und Landingpage.
+**Befund:** Nutzer sieht Segoe UI trotz Inter an erster Stelle der Schriftliste. Live-Header der unverändert benannten fonts.css ist `public, max-age=31536000, immutable`. Ein wiederkehrender Browser kann daher die alte Definition ohne Inter behalten, während das neue Haupt-CSS bereits Inter verlangt. Frischer Chromium-Browser bestätigt über CDP `CSS.getPlatformFontsForNode` tatsächlich gerenderte `Inter Variable` an Überschriften von Login und Landingpage. Das bloße Vorhandensein der Fontdateien beim Release genügte nicht als Prüfung bestehender Browsercaches.
+**Abgrenzung:** Nutzerbrowser nicht direkt untersucht; Cache als durch Konfiguration gestützte Ursache, nicht als aus dessen Browserlog bewiesener Einzelbefund. Soforthilfe vollständiges Neuladen; dauerhafte Abhilfe versionierter Name/Build-Hash der Schriftdefinition. In dieser Diagnosesitzung keine Produktionsdateien oder Konfiguration geändert und nichts veröffentlicht.
+
+## 2026-09-05 – Codex – Typografie und Dialogkorrekturen live bestätigt
+
+**Art:** Release-Abschluss
+**Betroffen:** PR #25, PR-Lauf `33960974002`, Produktionslauf `33961125801`.
+**Was:** Alle verpflichtenden PR-Prüfungen erfolgreich, anschließend gemergt. Unabhängiges Nachreview der Warenkorb-/Dialogkorrekturen ohne offene Befunde. Produktion hat erfolgreiche PR-Tests übernommen; Imagebau, Pflichtcheck, Deployment und GitHub Release erfolgreich.
+**Verifiziert durch:** Öffentliche Anwendung liefert Commit `873c0b8df355a9d269b92fb2cd008546f63ba108`; `/healthz` HTTP 200. Normale und kursive Inter-Datei auf Anwendung und Landingpage jeweils HTTP 200 und SHA-256 identisch zu lokalen freigegebenen Dateien; beide öffentlichen Font-Stylesheets verweisen auf Inter. Keine Geschäftsdaten verändert. Angemeldete Nutzerabläufe lokal im Demo-Browser geprüft, nicht mit einem Produktionskonto. Abschlussnachweis lokal ergänzt, kein zusätzlicher Deployment-Push nur für diesen Eintrag.
+
+## 2026-09-05 – Codex – Typografie und Dialogkorrekturen veröffentlichen
+
+**Art:** Release
+**Betroffen:** Eigener Zweig `style/inter-typography`, Anwendung und Landingpage.
+**Was:** Auf ausdrücklichen Nutzerauftrag per PR und Merge veröffentlichen. Aktuellen Master einschließlich bereits veröffentlichter Deal-Monitor-Änderungen konfliktfrei übernommen; fremde Zweige unverändert. Keine zusätzlichen Datenbankmigrationen in diesem PR. Deployment-Checkliste und unabhängiges Code-Review vor Merge verwenden.
+**Prüfung und Rückfall:** Gezielter Build, Browser-, Dialog- und Landingpage-Testlauf nach Integration; vollständige verbindliche CI im PR. Vorher öffentlich ausgelieferter Commit `88de7103cf3f0ac53bc9ee1cd5ca38f0347ba24b`. Bei fehlerhaftem Healthcheck, fehlenden Schriftdateien oder falschem öffentlichen Commit keinen Live-Erfolg melden und regulären Deployment-Rückfall prüfen. Nach Merge Produktionslauf und beide öffentlich ausgelieferten Schriftdateien kontrollieren.
+
+**Review-Korrektur:** Unabhängige Prüfung fand Warenkorbinhalt außerhalb seines Dialog-Backdrops sowie zwei noch nicht nachgerüstete Dialoge (Flohmarkt und Retoure). Warenkorb in gemeinsamen Dialog eingeschlossen; beide übrigen Dialoge an zentrale Direktive angebunden. Neue Warenkorb-/Flohmarkt-Browsertests zunächst fehlgeschlagen, nach Korrektur alle vier Layout-/Overlay-Tests erfolgreich. Produktionsbau nach Template-Korrekturen erneut erfolgreich.
+
+## 2026-09-05 – Codex – Mobile Kopfzeile und Modal-Hintergrund korrigiert
+
+**Art:** Fehlerbehebung | Layout | Dialogbedienung
+**Betroffen:** Eigener Zweig `style/inter-typography`, Header, zentrale Modal-Direktive, globale Animationen.
+**Was:** Auf Nutzerauftrag den echten App-Überlauf durch nicht schrumpfende Workspace-/Aktionsgruppen behoben. Kopfzeile passt ihre Gruppen und den gekürzten Workspace-Namen an die verfügbare Breite an. Animierte Vorfahren offener Dialoge erzeugen keine störende Ebene mehr. Gemeinsame Modal-Direktive sperrt Geschwister entlang des Dialogpfads mit `inert`; oberster Dialog steuert Tastaturbedienung, Hintergrund und Scrollsperre werden beim Schließen wiederhergestellt, auch bei mehreren Dialogen. Kopfzeile bleibt hinter dem abgedunkelten Hintergrund sichtbar, aber unbedienbar, entsprechend WAI-ARIA-Dialogmuster (https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/).
+**Korrektur des vorherigen Befunds:** Landingpage-Überlauf in der einfachen lokalen Vorschau entstand durch unverarbeitet sichtbaren Caddy-Vorlagentext und doppelte Anmeldelinks. Nach Auflösen des Gast-Zweigs auf 390px kein Überlauf; keine zusätzliche Landingpage-Layoutänderung erforderlich.
+**Verifiziert durch:** Debugging- und Frontend-Test-Skills genutzt; Browser-Plugin nicht verfügbar, vorhandenes Playwright als Ersatz. Beide neuen Browser-Regressionen zunächst fehlgeschlagen (422px statt 320px sowie fehlende Hintergrundsperre), nach Korrektur erfolgreich. Sieben Browser-Tests einschließlich Demo-Verkauf, Rechtshinweisen, Dashboardbedienung und Headerbreiten 320/390/768/1440px erfolgreich. Integrationstest mit echter Angular-Direktive für zwei Dialoge und Wiederherstellung erfolgreich. Produktionsbau, gezieltes ESLint, Formatierung und Diff-Prüfung erfolgreich. Lokale Screenshots von Dialog und mobiler Kopfzeile geprüft, keine JavaScript-Seitenfehler bei Desktop-/Mobilprüfung. Keine vollständige Prüfung jeder Feature-/Browserkombination, keine Geschäftsdatenänderung, kein Push oder Deployment.
+
+## 2026-09-05 – Codex – Inter über alle Oberflächen lokal eingebunden
+
+**Art:** UI | Typografie
+**Betroffen:** Eigener Zweig `style/inter-typography`, Anwendung, Diagramm, Landingpage, Impressum und Datenschutz.
+**Was:** Nach Bestätigung des gesamten Umfangs offizielle stabile Inter 4.1 (https://github.com/rsms/inter/releases/tag/v4.1) als variable normale und kursive WOFF2 einschließlich unveränderter SIL-OFL-Lizenz lokal eingebunden. Standardschrift und bisherige Zahlen-Schriftwerte vereinheitlicht, Chart.js-Beschriftung angepasst, App-Preload aktualisiert. Keine Schriftanfragen an externe Anbieter, keine neue npm-Abhängigkeit, keine Änderung der Größen oder Geschäftsdaten. Alte Fontdateien bleiben ungenutzt erhalten; extern exportiertes eBay-HTML behält seine portable Arial-Schrift.
+**Verifiziert durch:** Schrift-Browsertest zuerst mit fehlender Inter rot, danach grün; fünf Playwright-Tests für Schrift, Anmeldung, Rechtshinweise, Dashboardfilter und Diagrammbedienung erfolgreich. Neun Diagramm-Konfigurationstests, 13 Landingpage-Vertragstests, gezieltes ESLint und Produktionsbau erfolgreich. Frontend-Test-Skill mangels Browser-Plugin mit vorhandenem Playwright umgesetzt. Desktop-/Mobilansichten von Demo-Dashboard, Landingpage und Rechtstexten lokal geprüft, keine JavaScript-Seitenfehler. QA-Bilder außerhalb des Repository unter `C:/Users/Grisc/AppData/Local/Temp/flipbase-inter-qa/`. Bestehender horizontaler Überlauf auf Mobilgeräten separat festgestellt: App 422px, Landingpage etwa 523px bei 390px Bildschirmbreite; Gegenprobe mit ursprünglichen Schriftdefinitionen ebenfalls 422px beziehungsweise 521px. Kein allgemeines Mobil-Layout-Redesign vorgenommen. Produktionsbau bietet keinen Demo-Einstieg; interaktive Sichtprüfung daher am lokalen Entwicklungsserver. Kein Push oder Deployment.
+
+## 2026-09-05 – Codex – Lokalen Wechsel auf Inter eingegrenzt
+
+**Art:** Analyse | Typografie
+**Betroffen:** Standardschrift der Anwendung und mögliche Angleichung der Landingpage.
+**Was:** Nutzer-Screenshot zeigt Inter. Bestehende Anwendung und Landingpage verwenden lokal gehostete Plus Jakarta Sans; Anwendung bindet sie über zentralen Tailwind-Schriftwert und Preload ein. Vorschlag: lokale variable Inter als Standardschrift, bestehende Größen/Layout zunächst erhalten, Lade- und Darstellungsprüfung. Umfang Anwendung versus zusätzliche Landingpage vor Umsetzung abstimmen.
+**Verifiziert durch:** `src/styles.css`, `src/index.html`, lokale Schriftdateien und Landingpage-Schriftwerte gelesen. Noch keine Schriftdateien oder Oberflächen verändert; kurze Abstimmung gemäß Planungs-Skill.
+
+## 2026-09-05 – Codex – Vereinfachter Release-Ablauf live bestätigt
+
+**Art:** Release-Abschluss
+**Betroffen:** PR #24, PR-Lauf `33957947701`, Produktionslauf `33958142408`.
+**Was:** PR nach erfolgreichen Prüfungen gemergt. Nachweis-Artefakt `verified-tree-v1-c077689e0d4cdee591ab638af65c31e3d2feba39-111` vorhanden. Produktionslauf hat Qualität, vier Unit-Teiljobs, Browser-, Datenbank- und Diensttests nicht erneut ausgeführt. Image, Pflichtcheck, Deployment und Release erfolgreich.
+**Verifiziert durch:** Öffentlich ausgelieferter Commit `bb923b77d95373d9833b38733243f0928c5bb257`, HTTP-/Health-/SHA-Prüfung erfolgreich. Alle 78 Prüfsummen im laufenden Produktionscontainer mit Exitcode 0 geprüft; Datenbankhistorie unverändert 78 Migrationen. Keine Geschäftsdatenkorrektur ausgelöst. Produktions-Imagejob 3m42s, Deployment 19s; der Imagebau bleibt daher der wesentliche Zeitanteil, keine pauschale Gesamtzeitersparnis behauptet. Abschlussnachweis lokal ergänzt, kein weiterer Deployment-Push nur für dieses Protokoll.
+
 ## 2026-09-05 – Codex – Vereinfachten Release-Ablauf veröffentlichen
 
 **Art:** Release

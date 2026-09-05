@@ -1,30 +1,33 @@
 <div class="space-y-5 animate-fade-in">
-  <!-- Back Button & Action Bar -->
-  <div class="flex items-center justify-between pb-1">
-    <a
-      routerLink="/purchases"
-      class="inline-flex items-center gap-1.5 text-xs font-semibold text-fb-text-muted hover:text-fb-text-primary transition"
+  @if (purchaseService.selectedPurchase(); as p) {
+    <!-- Shopify Polaris Page Header -->
+    <app-page-header
+      [title]="p.title"
+      backLink="/purchases"
+      backLabel="Zurück zur Einkaufsübersicht"
     >
-      <svg [lucideIcon]="arrowLeftIcon" class="w-3.5 h-3.5"></svg>
-      <span>Zurück zur Einkaufsübersicht</span>
-    </a>
+      <div header-badge class="flex items-center gap-1.5">
+        <app-badge [tone]="getEntryStatusTone(p.entry_status)">
+          {{ getEntryStatusLabel(p.entry_status) }}
+        </app-badge>
+        <app-badge tone="neutral" [uppercase]="true">
+          {{ p.type | purchaseTypeLabel }}
+        </app-badge>
+      </div>
 
-    <div class="flex items-center gap-2">
-      @if (purchaseService.selectedPurchase(); as actionPurchase) {
+      <div header-actions class="flex items-center gap-2">
         <a
           data-purchase-audit-print-link
           [routerLink]="['/settings/data/print']"
-          [queryParams]="{ entityType: 'purchase', entityId: actionPurchase.id }"
+          [queryParams]="{ entityType: 'purchase', entityId: p.id }"
           class="linear-btn-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-fb-text-secondary transition hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
-          [attr.aria-label]="
-            'Prüfbeleg für ' + actionPurchase.title + ' drucken oder als PDF speichern'
-          "
+          [attr.aria-label]="'Prüfbeleg für ' + p.title + ' drucken oder als PDF speichern'"
         >
           <svg [lucideIcon]="receiptIcon" aria-hidden="true" class="w-3.5 h-3.5"></svg>
           <span>Prüfbeleg</span>
         </a>
         <app-purchase-lifecycle-actions
-          [entryStatus]="actionPurchase.entry_status ?? 'draft'"
+          [entryStatus]="p.entry_status ?? 'draft'"
           [saleHistoryState]="purchaseService.purchaseSaleHistoryState()"
           [saleReviewInventoryItemId]="purchaseService.purchaseSaleReviewInventoryItemId()"
           [submitting]="isLifecycleSubmitting()"
@@ -35,110 +38,12 @@
           (correctionRequested)="isCorrectionDialogOpen.set(true)"
           (saleHistoryReloadRequested)="reloadPurchaseSaleHistory()"
         />
-      }
-    </div>
-  </div>
+      </div>
+    </app-page-header>
 
-  @if (purchaseService.selectedPurchase(); as p) {
     @if (p.entry_status !== 'finalized') {
       <app-purchase-cost-repair [purchase]="p" (saved)="refreshCostRepair()" />
     }
-    <!--
-      Kopfzeile des Einkaufs.
-
-      Eine Zeile statt vier: Symbol und Art links, Herkunft rechts auf
-      derselben Hoehe. Vorher standen Quelle und Lieferant als Pillen unter dem
-      Titel, waehrend rechts daneben die halbe Breite leer blieb.
-    -->
-    <div class="linear-surface rounded-2xl px-4 py-3.5 shadow-xl">
-      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:gap-6">
-        <!-- Art, Datum, Titel -->
-        <div class="flex items-center gap-3 min-w-0 flex-1">
-          <div
-            class="w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 shadow-sm"
-            [class]="artStil().kachel"
-          >
-            <svg [lucideIcon]="artStil().icon" class="w-[18px] h-[18px]"></svg>
-          </div>
-
-          <div class="min-w-0">
-            <div class="flex items-center gap-2">
-              <span
-                class="px-1.5 py-0.5 rounded border text-[10px] font-mono font-bold uppercase tracking-wider"
-                [class]="artStil().schild"
-              >
-                {{ p.type | purchaseTypeLabel }}
-              </span>
-              <span class="text-[11px] text-fb-text-muted font-mono">
-                {{ p.purchase_date | date: 'dd.MM.yyyy' }}
-              </span>
-            </div>
-            <!--
-              Erst ab lg gekuerzt: Dort steht die Herkunft daneben und nimmt
-              Platz weg. Auf dem Handy darf der Titel umbrechen - er ist die
-              Hauptinformation der Seite und wurde vorher abgeschnitten.
-            -->
-            <h1
-              class="text-base font-bold text-fb-text-primary mt-0.5 lg:truncate"
-              [title]="p.title"
-            >
-              {{ p.title }}
-            </h1>
-          </div>
-        </div>
-
-        <!--
-          Herkunft: nutzt die Breite, die vorher leer stand.
-
-          Als Plaketten und nicht als blosse Beschriftung - auf der grossen
-          Flaeche des Kopfes gingen die zwei kleinen Werte sonst unter. Die
-          Umrandung gibt ihnen eine Kante, an der das Auge haengenbleibt.
-        -->
-        @if (p.source || p.supplier) {
-          <dl class="flex flex-wrap items-center gap-2 shrink-0 min-w-0">
-            @if (p.source) {
-              <div
-                class="px-2.5 py-1 rounded-lg bg-fb-subtle border border-fb-border flex items-center gap-1.5 min-w-0"
-              >
-                <dt class="text-[11px] text-fb-text-muted shrink-0">Quelle:</dt>
-                <dd class="text-xs font-bold text-fb-text-primary truncate">{{ p.source.name }}</dd>
-              </div>
-            }
-
-            @if (p.supplier) {
-              <div
-                class="px-2.5 py-1 rounded-lg bg-fb-subtle border border-fb-border flex items-center gap-1.5 min-w-0"
-              >
-                <dt class="text-[11px] text-fb-text-muted shrink-0">Lieferant:</dt>
-                <dd class="text-xs font-bold text-fb-text-primary truncate">
-                  {{ p.supplier.name }}
-                </dd>
-              </div>
-            }
-          </dl>
-        }
-
-        @if (p.original_url) {
-          <a
-            [href]="p.original_url"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="linear-btn-secondary inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold shrink-0"
-          >
-            <span>Original-Angebot</span>
-            <svg [lucideIcon]="linkIcon" class="w-3.5 h-3.5"></svg>
-          </a>
-        }
-      </div>
-
-      @if (p.notes) {
-        <p
-          class="text-xs text-fb-text-secondary mt-3 pl-3 border-l-2 border-fb-border leading-relaxed"
-        >
-          {{ p.notes }}
-        </p>
-      }
-    </div>
 
     <!-- Financial KPI Summary for this Purchase -->
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
@@ -201,519 +106,599 @@
       </div>
     </div>
 
-    <!-- Einkaufspositionen und zugehöriger Bestand -->
-    <div class="linear-surface rounded-2xl p-4 md:p-5 space-y-4 shadow-xl">
-      <div
-        class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-fb-border pb-3"
-      >
-        <div>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-            Einkaufspositionen &amp; Inventar
-          </h2>
-          <p class="text-[11px] text-fb-text-muted">
-            Mengenartikel werden als gemeinsame Wareneingänge gebucht, Einzelstücke als
-            Inventarartikel.
-          </p>
-        </div>
+    <!-- Polaris Two-Column Layout (2/3 Main operative data, 1/3 Sidebar metadata) -->
+    <app-two-column-layout ratio="2-1">
+      <!-- Main Column (2/3) -->
+      <div main class="space-y-5">
+        <!-- Einkaufspositionen und zugehöriger Bestand -->
+        <app-card>
+          <div
+            card-header
+            class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full border-b border-fb-border pb-3"
+          >
+            <div>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
+                Einkaufspositionen &amp; Inventar
+              </h2>
+              <p class="text-[11px] text-fb-text-muted mt-0.5">
+                Mengenartikel werden als gemeinsame Wareneingänge gebucht, Einzelstücke als
+                Inventarartikel.
+              </p>
+            </div>
 
-        @if (p.entry_status !== 'finalized' && quantityPurchaseLines().length > 0) {
-          <div class="flex items-center gap-2">
-            <button
-              type="button"
-              (click)="startReceivingLines()"
-              class="linear-btn-primary inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold shadow-md shadow-indigo-500/20 cursor-pointer"
-            >
-              <svg [lucideIcon]="checkIcon" class="size-3.5"></svg>
-              <span>Wareneingang buchen</span>
-            </button>
-          </div>
-        }
-      </div>
-
-      @if (p.entry_status !== 'finalized') {
-        <app-purchase-line-editor
-          [purchaseType]="p.type"
-          (linesChanged)="onPurchaseLineDraftsChanged($event)"
-        />
-        @if (purchaseLineDrafts().length > 0) {
-          <div class="flex justify-end">
-            <button
-              type="button"
-              (click)="savePurchaseLines()"
-              [disabled]="isSavingPurchaseLines()"
-              class="linear-btn-primary cursor-pointer rounded-lg px-3.5 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {{ isSavingPurchaseLines() ? 'Speichere…' : 'Positionen speichern' }}
-            </button>
-          </div>
-        }
-      }
-
-      @if (p.entry_status !== 'finalized' && isReceivingLines()) {
-        <section
-          class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3"
-          aria-labelledby="receipt-title"
-        >
-          <div class="mb-2 flex items-center justify-between gap-2">
-            <h3 id="receipt-title" class="text-xs font-bold text-emerald-300">
-              Wareneingang buchen
-            </h3>
-            <button
-              type="button"
-              (click)="isReceivingLines.set(false)"
-              class="cursor-pointer text-xs font-semibold text-fb-text-muted hover:text-fb-text-primary"
-            >
-              Schließen
-            </button>
-          </div>
-          <div class="space-y-2">
-            @for (line of quantityPurchaseLines(); track line.id) {
-              <div
-                class="grid grid-cols-1 items-end gap-2 rounded-lg border border-fb-line bg-fb-well p-2 sm:grid-cols-[minmax(0,1fr)_5rem_6rem_6rem_auto]"
-              >
-                <span class="text-xs font-semibold text-fb-text-primary">{{
-                  line.title_snapshot
-                }}</span>
-                <span class="text-[11px] text-fb-text-muted"
-                  >Bestellt: {{ line.ordered_quantity }}</span
+            @if (p.entry_status !== 'finalized' && quantityPurchaseLines().length > 0) {
+              <div class="flex items-center gap-2">
+                <app-button
+                  variant="primary"
+                  size="slim"
+                  [icon]="checkIcon"
+                  (clicked)="startReceivingLines()"
                 >
-                <span class="text-[11px] text-fb-text-muted"
-                  >Eingegangen: {{ line.received_quantity }}</span
-                >
-                <label class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
-                  >Jetzt eingang
-                  <input
-                    type="number"
-                    min="0"
-                    [max]="line.ordered_quantity - line.received_quantity"
-                    [value]="receivingQuantities()[line.id]"
-                    (input)="updateReceivingQuantity(line.id, $any($event.target).valueAsNumber)"
-                    class="linear-input mt-1 w-full rounded-lg px-2 py-1.5 text-xs"
-                  />
-                </label>
-                <button
-                  type="button"
-                  (click)="receivePurchaseLine(line)"
-                  [disabled]="receivingQuantities()[line.id] < 1"
-                  class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Buchen
-                </button>
+                  Wareneingang buchen
+                </app-button>
               </div>
             }
           </div>
-        </section>
-      }
 
-      <!-- Verständliche, nach Einkaufsart getrennte Positionsdarstellung -->
-      @if (purchaseDetailRows().length > 0) {
-        <app-purchase-detail-table
-          [purchaseId]="p.id"
-          [rows]="purchaseDetailRows()"
-          (captureIndividual)="captureIndividualItemById($event)"
-        />
-      } @else {
-        <div class="p-8 text-center text-xs text-fb-text-muted space-y-2">
-          <svg [lucideIcon]="boxesIcon" class="w-8 h-8 mx-auto text-fb-text-dimmed"></svg>
-          <p class="font-semibold text-fb-text-primary">Noch keine Artikel erfasst</p>
-          <p class="text-[11px]">
-            Klicke auf "Artikel erfassen", um die Einzelpositionen dieses Einkaufs anzulegen.
-          </p>
-        </div>
-      }
-    </div>
-
-    <!--
-      Nebenkosten stehen bewusst unter der Artikelliste: Sie werden meist erst
-      nachgetragen, wenn die Ware da ist und ausgepackt wurde. Oben stand der
-      Block als leere Karte zwischen den Kennzahlen und den Artikeln, um die es
-      eigentlich geht.
-    -->
-    <div class="linear-surface rounded-2xl p-4 md:p-5 space-y-4 shadow-xl">
-      <div class="flex items-center justify-between border-b border-fb-border pb-3">
-        <div class="flex items-center gap-2">
-          <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-amber-400"></svg>
-          <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-            Nebenkosten (Versand, Fahrt, Gebühren)
-          </h2>
-        </div>
-
-        @if (p.entry_status !== 'finalized') {
-          <button
-            type="button"
-            (click)="isAddingCost.set(!isAddingCost())"
-            class="linear-btn-secondary inline-flex items-center gap-1.5 px-3 py-1 rounded-lg font-semibold text-xs cursor-pointer"
-          >
-            <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
-            <span>Kosten erfassen</span>
-          </button>
-        } @else {
-          <span class="text-[11px] text-fb-text-muted">
-            Änderungen erfolgen über „Erfassung wieder öffnen“ oder „Einkauf korrigieren“.
-          </span>
-        }
-      </div>
-
-      @if (p.entry_status !== 'finalized' && isAddingCost()) {
-        <form
-          [formGroup]="costForm"
-          (ngSubmit)="onAddCost()"
-          class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-3 animate-fade-in"
-        >
-          <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">
-            Nebenkosten zum Einkauf buchen
-          </span>
-
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-            <div>
-              <label
-                for="costTypeSelect"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-              >
-                Kostenart
-              </label>
-              <app-custom-select
-                ariaLabel="Kostenart"
-                [options]="kostenartOptionen"
-                formControlName="type"
-                size="sm"
+          <div class="space-y-4">
+            @if (p.entry_status !== 'finalized') {
+              <app-purchase-line-editor
+                [purchaseType]="p.type"
+                (linesChanged)="onPurchaseLineDraftsChanged($event)"
               />
-            </div>
+              @if (purchaseLineDrafts().length > 0) {
+                <div class="flex justify-end">
+                  <app-button
+                    variant="primary"
+                    size="md"
+                    [disabled]="isSavingPurchaseLines()"
+                    [loading]="isSavingPurchaseLines()"
+                    (clicked)="savePurchaseLines()"
+                  >
+                    {{ isSavingPurchaseLines() ? 'Speichere…' : 'Positionen speichern' }}
+                  </app-button>
+                </div>
+              }
+            }
 
-            <div>
-              <label
-                for="costAmountInput"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+            @if (p.entry_status !== 'finalized' && isReceivingLines()) {
+              <section
+                class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5"
+                aria-labelledby="receipt-title"
               >
-                Betrag (€)
-              </label>
-              <input
-                id="costAmountInput"
-                type="number"
-                step="0.01"
-                formControlName="amount"
-                placeholder="z.B. 5.99 €"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
-              />
-            </div>
-
-            <div>
-              <label
-                for="costDescInput"
-                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
-              >
-                Beschreibung (optional)
-              </label>
-              <input
-                id="costDescInput"
-                type="text"
-                formControlName="description"
-                placeholder="z.B. DHL Paketmarke"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
-              />
-            </div>
-          </div>
-
-          <div class="flex justify-end gap-2 pt-1">
-            <button
-              type="button"
-              (click)="isAddingCost.set(false)"
-              class="linear-btn-secondary px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
-            >
-              Abbrechen
-            </button>
-            <button
-              type="submit"
-              [disabled]="costForm.invalid"
-              class="linear-btn-primary px-3.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 cursor-pointer"
-            >
-              Kosten buchen
-            </button>
-          </div>
-        </form>
-      }
-
-      @if (p.costs && p.costs.length > 0) {
-        <div class="space-y-1.5">
-          @for (cost of p.costs; track cost.id) {
-            <div
-              class="p-2.5 rounded-xl bg-fb-subtle border border-fb-border flex items-center justify-between text-xs"
-            >
-              <div class="flex items-center gap-2">
-                <span
-                  class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-400 border border-amber-500/30 uppercase"
-                >
-                  @switch (cost.type) {
-                    @case ('shipping') {
-                      Versand
-                    }
-                    @case ('travel') {
-                      Fahrtkosten
-                    }
-                    @case ('packaging') {
-                      Verpackung
-                    }
-                    @case ('transport') {
-                      Transport
-                    }
-                    @case ('customs') {
-                      Zoll
-                    }
-                    @case ('import') {
-                      Importabgaben
-                    }
-                    @case ('fee') {
-                      Gebühren
-                    }
-                    @default {
-                      Sonstiges
-                    }
-                  }
-                </span>
-                <span class="text-fb-text-secondary">{{ cost.description || 'Nebenkosten' }}</span>
-              </div>
-
-              <div class="flex items-center gap-3">
-                <span class="font-mono font-bold text-fb-text-primary">
-                  {{ cost.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                </span>
-                @if (p.entry_status !== 'finalized' && cost.id) {
+                <div class="mb-2 flex items-center justify-between gap-2">
+                  <h3 id="receipt-title" class="text-xs font-bold text-emerald-300">
+                    Wareneingang buchen
+                  </h3>
                   <button
                     type="button"
-                    (click)="onDeleteCost(cost.id)"
-                    class="text-fb-text-muted hover:text-rose-400 p-1 transition cursor-pointer"
+                    (click)="isReceivingLines.set(false)"
+                    class="cursor-pointer text-xs font-semibold text-fb-text-muted hover:text-fb-text-primary"
                   >
-                    <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
+                    Schließen
                   </button>
+                </div>
+                <div class="space-y-2">
+                  @for (line of quantityPurchaseLines(); track line.id) {
+                    <div
+                      class="grid grid-cols-1 items-end gap-2 rounded-lg border border-fb-line bg-fb-well p-2.5 sm:grid-cols-[minmax(0,1fr)_5rem_6rem_6rem_auto]"
+                    >
+                      <span class="text-xs font-semibold text-fb-text-primary">{{
+                        line.title_snapshot
+                      }}</span>
+                      <span class="text-[11px] text-fb-text-muted">
+                        Bestellt: {{ line.ordered_quantity }}
+                      </span>
+                      <span class="text-[11px] text-fb-text-muted">
+                        Eingegangen: {{ line.received_quantity }}
+                      </span>
+                      <label
+                        class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+                      >
+                        Jetzt eingang
+                        <input
+                          type="number"
+                          min="0"
+                          [max]="line.ordered_quantity - line.received_quantity"
+                          [value]="receivingQuantities()[line.id]"
+                          (input)="
+                            updateReceivingQuantity(line.id, $any($event.target).valueAsNumber)
+                          "
+                          class="linear-input mt-1 w-full rounded-lg px-2 py-1.5 text-xs"
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        (click)="receivePurchaseLine(line)"
+                        [disabled]="receivingQuantities()[line.id] < 1"
+                        class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Buchen
+                      </button>
+                    </div>
+                  }
+                </div>
+              </section>
+            }
+
+            <!-- Positionsdarstellung -->
+            @if (purchaseDetailRows().length > 0) {
+              <div class="mb-3 flex justify-end">
+                <app-table-column-picker
+                  [definitions]="tableColumns()"
+                  [selected]="visibleColumns()"
+                  [saveError]="tablePreferences.saveError()"
+                  (selectedChange)="setPurchaseVisibleColumns($event)"
+                />
+              </div>
+              <app-purchase-detail-table
+                [visibleColumns]="visibleColumns()"
+                [purchaseId]="p.id"
+                [rows]="purchaseDetailRows()"
+                (captureIndividual)="captureIndividualItemById($event)"
+              />
+            } @else {
+              <div class="p-8 text-center text-xs text-fb-text-muted space-y-2">
+                <svg [lucideIcon]="boxesIcon" class="w-8 h-8 mx-auto text-fb-text-dimmed"></svg>
+                <p class="font-semibold text-fb-text-primary">Noch keine Artikel erfasst</p>
+                <p class="text-[11px]">
+                  Klicke auf "Artikel erfassen", um die Einzelpositionen dieses Einkaufs anzulegen.
+                </p>
+              </div>
+            }
+          </div>
+        </app-card>
+
+        <!-- Nebenkosten -->
+        <app-card>
+          <div
+            card-header
+            class="flex items-center justify-between w-full border-b border-fb-border pb-3"
+          >
+            <div class="flex items-center gap-2">
+              <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-amber-400"></svg>
+              <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
+                Nebenkosten (Versand, Fahrt, Gebühren)
+              </h2>
+            </div>
+
+            @if (p.entry_status !== 'finalized') {
+              <app-button
+                variant="secondary"
+                size="slim"
+                [icon]="plusIcon"
+                (clicked)="isAddingCost.set(!isAddingCost())"
+              >
+                Kosten erfassen
+              </app-button>
+            } @else {
+              <span class="text-[11px] text-fb-text-muted">
+                Änderungen über „Erfassung wieder öffnen“.
+              </span>
+            }
+          </div>
+
+          <div class="space-y-4">
+            @if (p.entry_status !== 'finalized' && isAddingCost()) {
+              <form
+                [formGroup]="costForm"
+                (ngSubmit)="onAddCost()"
+                class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-3 animate-fade-in"
+              >
+                <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">
+                  Nebenkosten zum Einkauf buchen
+                </span>
+
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div>
+                    <label
+                      for="costTypeSelect"
+                      class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+                    >
+                      Kostenart
+                    </label>
+                    <app-custom-select
+                      ariaLabel="Kostenart"
+                      [options]="kostenartOptionen"
+                      formControlName="type"
+                      size="sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      for="costAmountInput"
+                      class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+                    >
+                      Betrag (€)
+                    </label>
+                    <input
+                      id="costAmountInput"
+                      type="number"
+                      step="0.01"
+                      formControlName="amount"
+                      placeholder="z.B. 5.99 €"
+                      class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      for="costDescInput"
+                      class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+                    >
+                      Beschreibung (optional)
+                    </label>
+                    <input
+                      id="costDescInput"
+                      type="text"
+                      formControlName="description"
+                      placeholder="z.B. DHL Paketmarke"
+                      class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
+                    />
+                  </div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-1">
+                  <app-button variant="secondary" size="slim" (clicked)="isAddingCost.set(false)">
+                    Abbrechen
+                  </app-button>
+                  <button
+                    type="submit"
+                    [disabled]="costForm.invalid"
+                    class="linear-btn-primary px-3.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 cursor-pointer"
+                  >
+                    Kosten buchen
+                  </button>
+                </div>
+              </form>
+            }
+
+            @if (p.costs && p.costs.length > 0) {
+              <div class="space-y-1.5">
+                @for (cost of p.costs; track cost.id) {
+                  <div
+                    class="p-2.5 rounded-xl bg-fb-subtle border border-fb-border flex items-center justify-between text-xs"
+                  >
+                    <div class="flex items-center gap-2">
+                      <span
+                        class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-400 border border-amber-500/30 uppercase"
+                      >
+                        @switch (cost.type) {
+                          @case ('shipping') {
+                            Versand
+                          }
+                          @case ('travel') {
+                            Fahrtkosten
+                          }
+                          @case ('packaging') {
+                            Verpackung
+                          }
+                          @case ('transport') {
+                            Transport
+                          }
+                          @case ('customs') {
+                            Zoll
+                          }
+                          @case ('import') {
+                            Importabgaben
+                          }
+                          @case ('fee') {
+                            Gebühren
+                          }
+                          @default {
+                            Sonstiges
+                          }
+                        }
+                      </span>
+                      <span class="text-fb-text-secondary">{{
+                        cost.description || 'Nebenkosten'
+                      }}</span>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                      <span class="font-mono font-bold text-fb-text-primary">
+                        {{ cost.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                      </span>
+                      @if (p.entry_status !== 'finalized' && cost.id) {
+                        <button
+                          type="button"
+                          (click)="onDeleteCost(cost.id)"
+                          class="text-fb-text-muted hover:text-rose-400 p-1 transition cursor-pointer"
+                          aria-label="Kosten löschen"
+                        >
+                          <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
+                        </button>
+                      }
+                    </div>
+                  </div>
                 }
               </div>
-            </div>
-          }
-        </div>
-      } @else {
-        <p class="text-xs text-fb-text-muted">Keine gesonderten Nebenkosten erfasst.</p>
-      }
-    </div>
-
-    <!-- Inbound Sendungsverfolgung -->
-    <div class="linear-surface rounded-2xl p-4 md:p-5 space-y-3 shadow-xl">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-2 min-w-0">
-          <div
-            class="w-7 h-7 rounded-lg bg-indigo-600/15 border border-indigo-500/30 flex items-center justify-center shrink-0"
-          >
-            <svg [lucideIcon]="truckIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
+            } @else {
+              <p class="text-xs text-fb-text-muted">Keine gesonderten Nebenkosten erfasst.</p>
+            }
           </div>
-          <div class="min-w-0">
-            <h2 class="text-xs font-bold text-fb-text-primary uppercase tracking-wider">
-              Sendungsverfolgung
+        </app-card>
+      </div>
+
+      <!-- Sidebar Column (1/3) -->
+      <div sidebar class="space-y-5">
+        <!-- Einkaufsdetails & Herkunft -->
+        <app-card>
+          <div card-header class="flex items-center justify-between w-full">
+            <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
+              Einkaufsdetails
             </h2>
+            <span class="text-[11px] text-fb-text-muted font-mono">
+              {{ p.purchase_date | date: 'dd.MM.yyyy' }}
+            </span>
+          </div>
+
+          <div class="space-y-3">
+            <dl class="space-y-2.5">
+              @if (p.source) {
+                <div
+                  class="flex items-center justify-between text-xs py-1 border-b border-fb-border"
+                >
+                  <dt class="text-fb-text-muted">Quelle</dt>
+                  <dd class="font-semibold text-fb-text-primary">{{ p.source.name }}</dd>
+                </div>
+              }
+
+              @if (p.supplier) {
+                <div
+                  class="flex items-center justify-between text-xs py-1 border-b border-fb-border"
+                >
+                  <dt class="text-fb-text-muted">Lieferant</dt>
+                  <dd class="font-semibold text-fb-text-primary">{{ p.supplier.name }}</dd>
+                </div>
+              }
+
+              @if (p.original_url) {
+                <div class="pt-1">
+                  <a
+                    [href]="p.original_url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="linear-btn-secondary inline-flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg text-xs font-semibold"
+                  >
+                    <span>Original-Angebot</span>
+                    <svg [lucideIcon]="linkIcon" class="w-3.5 h-3.5"></svg>
+                  </a>
+                </div>
+              }
+            </dl>
+
+            @if (p.notes) {
+              <div class="pt-2 border-t border-fb-border">
+                <span
+                  class="text-[10px] uppercase font-semibold text-fb-text-muted tracking-wider block mb-1"
+                >
+                  Notizen
+                </span>
+                <p
+                  class="text-xs text-fb-text-secondary leading-relaxed bg-fb-subtle p-2.5 rounded-lg border border-fb-border"
+                >
+                  {{ p.notes }}
+                </p>
+              </div>
+            }
+          </div>
+        </app-card>
+
+        <!-- Inbound Sendungsverfolgung -->
+        <app-card>
+          <div card-header class="flex items-center justify-between w-full">
+            <div class="flex items-center gap-2">
+              <div
+                class="w-6 h-6 rounded-md bg-indigo-600/15 border border-indigo-500/30 flex items-center justify-center shrink-0"
+              >
+                <svg [lucideIcon]="truckIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
+              </div>
+              <h2 class="text-xs font-bold text-fb-text-primary uppercase tracking-wider">
+                Sendungsverfolgung
+              </h2>
+            </div>
+
+            @if (!isEditingTracking() && trackingInfo(); as kurzinfo) {
+              <span
+                class="px-2 py-0.5 rounded text-[10px] font-bold border"
+                [class]="trackingService.statusConfig[kurzinfo.status].badgeClass"
+              >
+                {{ kurzinfo.status_label }}
+              </span>
+            }
+          </div>
+
+          <div class="space-y-3">
             @if (!isEditingTracking() && trackingInfo(); as kurzinfo) {
               <p class="text-[10px] text-fb-text-muted truncate font-mono">
                 {{ kurzinfo.carrier_name }} · {{ kurzinfo.tracking_number }}
               </p>
-            } @else {
+            } @else if (!isEditingTracking()) {
               <p class="text-[10px] text-fb-text-muted">DHL · DPD · Hermes · UPS · GLS</p>
             }
-          </div>
-        </div>
 
-        <div class="flex items-center gap-2 shrink-0">
-          @if (!isEditingTracking() && trackingInfo(); as kurzinfo) {
-            <span
-              class="px-2 py-0.5 rounded text-[10px] font-bold border"
-              [class]="trackingService.statusConfig[kurzinfo.status].badgeClass"
-            >
-              {{ kurzinfo.status_label }}
-            </span>
-          }
+            @if (!isEditingTracking()) {
+              <div class="flex items-center justify-between">
+                <button
+                  type="button"
+                  (click)="startEditTracking()"
+                  class="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
+                >
+                  {{ trackingInfo() ? 'Ändern' : '+ Sendungsnr. hinzufügen' }}
+                </button>
 
-          @if (!isEditingTracking()) {
-            <button
-              type="button"
-              (click)="startEditTracking()"
-              class="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
-            >
-              {{ trackingInfo() ? 'Ändern' : '+ Sendungsnr. hinzufügen' }}
-            </button>
-          }
+                @if (trackingInfo()) {
+                  <button
+                    type="button"
+                    (click)="toggleTrackingDetails()"
+                    [attr.aria-expanded]="isTrackingExpanded()"
+                    aria-controls="sendungsverfolgung-details"
+                    [attr.aria-label]="
+                      isTrackingExpanded()
+                        ? 'Details der Sendungsverfolgung einklappen'
+                        : 'Details der Sendungsverfolgung ausklappen'
+                    "
+                    class="p-1 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
+                  >
+                    <svg
+                      [lucideIcon]="isTrackingExpanded() ? chevronUpIcon : chevronDownIcon"
+                      class="w-4 h-4"
+                    ></svg>
+                  </button>
+                }
+              </div>
+            }
 
-          @if (!isEditingTracking() && trackingInfo()) {
-            <button
-              type="button"
-              (click)="toggleTrackingDetails()"
-              [attr.aria-expanded]="isTrackingExpanded()"
-              aria-controls="sendungsverfolgung-details"
-              [attr.aria-label]="
-                isTrackingExpanded()
-                  ? 'Details der Sendungsverfolgung einklappen'
-                  : 'Details der Sendungsverfolgung ausklappen'
-              "
-              class="p-1 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
-            >
-              <svg
-                [lucideIcon]="isTrackingExpanded() ? chevronUpIcon : chevronDownIcon"
-                class="w-4 h-4"
-              ></svg>
-            </button>
-          }
-        </div>
-      </div>
+            <!-- Edit Mode -->
+            @if (isEditingTracking()) {
+              <div class="space-y-2">
+                <div class="space-y-2">
+                  <input
+                    type="text"
+                    [value]="trackingNumberDraft()"
+                    (input)="onTrackingDraftInput($event)"
+                    placeholder="Sendungsnummer einfügen..."
+                    aria-label="Sendungsnummer"
+                    class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono text-fb-text-primary"
+                  />
+                  <app-custom-select
+                    ariaLabel="Versanddienstleister"
+                    [options]="dienstleisterOptionen()"
+                    [value]="trackingCarrierDraft()"
+                    (valueChange)="trackingCarrierDraft.set($event)"
+                    size="sm"
+                  />
+                </div>
 
-      <!-- Edit Mode -->
-      @if (isEditingTracking()) {
-        <div class="space-y-2">
-          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
-            <div class="sm:col-span-8">
-              <input
-                type="text"
-                [value]="trackingNumberDraft()"
-                (input)="onTrackingDraftInput($event)"
-                placeholder="Sendungsnummer einfügen..."
-                aria-label="Sendungsnummer"
-                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono text-fb-text-primary"
-              />
-            </div>
-            <div class="sm:col-span-4">
-              <app-custom-select
-                ariaLabel="Versanddienstleister"
-                [options]="dienstleisterOptionen()"
-                [value]="trackingCarrierDraft()"
-                (valueChange)="trackingCarrierDraft.set($event)"
-                size="sm"
-              />
-            </div>
-          </div>
+                @if (trackingCarrierDraft()) {
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] text-fb-text-muted">Erkannt als:</span>
+                    <span
+                      class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border"
+                      [class]="trackingService.carrierMetas[trackingCarrierDraft()!].badgeClass"
+                    >
+                      {{ trackingService.carrierMetas[trackingCarrierDraft()!].name }}
+                    </span>
+                  </div>
+                }
 
-          @if (trackingCarrierDraft()) {
-            <div class="flex items-center gap-1.5">
-              <span class="text-[10px] text-fb-text-muted">Erkannt als:</span>
-              <span
-                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border"
-                [class]="trackingService.carrierMetas[trackingCarrierDraft()!].badgeClass"
+                <div class="flex justify-end gap-2 pt-1">
+                  <app-button variant="secondary" size="slim" (clicked)="cancelEditTracking()">
+                    Abbrechen
+                  </app-button>
+                  <app-button variant="primary" size="slim" (clicked)="saveTracking()">
+                    Speichern
+                  </app-button>
+                </div>
+              </div>
+            }
+
+            <!-- Display Mode -->
+            @if (!isEditingTracking() && trackingInfo()) {
+              @let info = trackingInfo()!;
+
+              <!-- Fortschrittsbalken -->
+              <div
+                class="flex items-center gap-1 py-1"
+                role="img"
+                [attr.aria-label]="'Sendungsstatus: ' + info.status_label"
               >
-                {{ trackingService.carrierMetas[trackingCarrierDraft()!].name }}
-              </span>
-            </div>
-          }
+                @for (step of trackingSteps; track step) {
+                  <div
+                    class="h-1 flex-1 rounded-full transition-colors"
+                    [class.bg-emerald-500]="
+                      trackingService.statusConfig[info.status].step >=
+                      trackingService.statusConfig[step].step
+                    "
+                    [class.bg-fb-line]="
+                      trackingService.statusConfig[info.status].step <
+                      trackingService.statusConfig[step].step
+                    "
+                  ></div>
+                }
+              </div>
 
-          <div class="flex justify-end gap-2">
-            <button
-              type="button"
-              (click)="cancelEditTracking()"
-              class="linear-btn-secondary px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer"
-            >
-              Abbrechen
-            </button>
-            <button
-              type="button"
-              (click)="saveTracking()"
-              class="linear-btn-primary px-3 py-1 rounded-lg text-xs font-semibold cursor-pointer"
-            >
-              Speichern
-            </button>
-          </div>
-        </div>
-      }
-
-      <!-- Display Mode -->
-      @if (!isEditingTracking() && trackingInfo()) {
-        @let info = trackingInfo()!;
-
-        <!-- Fortschrittsbalken – bleiben auch im eingeklappten Zustand sichtbar -->
-        <div
-          class="flex items-center gap-1"
-          role="img"
-          [attr.aria-label]="'Sendungsstatus: ' + info.status_label"
-        >
-          @for (step of trackingSteps; track step) {
-            <div
-              class="h-1 flex-1 rounded-full transition-colors"
-              [class.bg-emerald-500]="
-                trackingService.statusConfig[info.status].step >=
-                trackingService.statusConfig[step].step
-              "
-              [class.bg-fb-line]="
-                trackingService.statusConfig[info.status].step <
-                trackingService.statusConfig[step].step
-              "
-            ></div>
-          }
-        </div>
-
-        <div id="sendungsverfolgung-details" class="space-y-3" [hidden]="!isTrackingExpanded()">
-          <!-- Sendungsnummer & Zusteller -->
-          <div
-            class="flex items-center justify-between p-2.5 rounded-lg bg-fb-well border border-fb-line"
-          >
-            <div class="flex items-center gap-2 min-w-0">
-              <span
-                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border shrink-0"
-                [class]="trackingService.carrierMetas[info.carrier].badgeClass"
+              <div
+                id="sendungsverfolgung-details"
+                class="space-y-3"
+                [hidden]="!isTrackingExpanded()"
               >
-                {{ info.carrier_name }}
-              </span>
-              <span class="font-mono text-xs text-fb-text-secondary truncate">{{
-                info.tracking_number
-              }}</span>
-            </div>
-            <button
-              type="button"
-              (click)="copyTrackingNumber()"
-              class="p-1 rounded text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-line/50 transition cursor-pointer shrink-0"
-              [title]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
-              [attr.aria-label]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
-            >
-              <svg
-                [lucideIcon]="trackingCopied() ? checkSmallIcon : copyIcon"
-                class="w-3 h-3"
-              ></svg>
-            </button>
-          </div>
+                <div
+                  class="flex items-center justify-between p-2 rounded-lg bg-fb-well border border-fb-line"
+                >
+                  <div class="flex items-center gap-2 min-w-0">
+                    <span
+                      class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border shrink-0"
+                      [class]="trackingService.carrierMetas[info.carrier].badgeClass"
+                    >
+                      {{ info.carrier_name }}
+                    </span>
+                    <span class="font-mono text-xs text-fb-text-secondary truncate">
+                      {{ info.tracking_number }}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    (click)="copyTrackingNumber()"
+                    class="p-1 rounded text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-line/50 transition cursor-pointer shrink-0"
+                    [title]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
+                    [attr.aria-label]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
+                  >
+                    <svg
+                      [lucideIcon]="trackingCopied() ? checkSmallIcon : copyIcon"
+                      class="w-3 h-3"
+                    ></svg>
+                  </button>
+                </div>
 
-          <!-- Hinweis auf die Herkunft des Status -->
-          <p class="text-[10px] text-fb-text-muted leading-relaxed">
-            Der Status wird von dir gepflegt. Eine Abfrage beim Zusteller ist noch nicht angebunden
-            – den aktuellen Stand siehst du über den Link unten.
-          </p>
+                <p class="text-[10px] text-fb-text-muted leading-relaxed">
+                  Der Status wird manuell gepflegt. Live-Status über den Tracking-Link.
+                </p>
 
-          <!-- Action Buttons -->
-          <div class="flex flex-wrap items-center gap-2 pt-1">
-            <button
-              type="button"
-              (click)="openTrackingPortal()"
-              class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-fb-well border border-fb-line-strong text-fb-text-secondary hover:border-indigo-500 hover:text-indigo-300 transition cursor-pointer"
-            >
-              <svg [lucideIcon]="linkIcon" class="w-3 h-3"></svg>
-              <span>Bei {{ info.carrier_name }} verfolgen</span>
-            </button>
+                <div class="flex flex-col gap-2 pt-1">
+                  <button
+                    type="button"
+                    (click)="openTrackingPortal()"
+                    class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-fb-well border border-fb-line-strong text-fb-text-secondary hover:border-indigo-500 hover:text-indigo-300 transition cursor-pointer"
+                  >
+                    <svg [lucideIcon]="linkIcon" class="w-3 h-3"></svg>
+                    <span>Bei {{ info.carrier_name }} verfolgen</span>
+                  </button>
 
-            @if (info.status !== 'delivered') {
-              <button
-                type="button"
-                (click)="markDeliveredAndSync()"
-                [disabled]="isMarkingDelivered()"
-                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-emerald-600/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-600/25 hover:border-emerald-400 transition cursor-pointer disabled:opacity-40"
-              >
-                <svg [lucideIcon]="checkIcon" class="w-3 h-3"></svg>
-                <span>{{
-                  isMarkingDelivered() ? 'Speichere...' : 'Als zugestellt eintragen'
-                }}</span>
-              </button>
+                  @if (info.status !== 'delivered') {
+                    <button
+                      type="button"
+                      (click)="markDeliveredAndSync()"
+                      [disabled]="isMarkingDelivered()"
+                      class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-600/25 hover:border-emerald-400 transition cursor-pointer disabled:opacity-40"
+                    >
+                      <svg [lucideIcon]="checkIcon" class="w-3 h-3"></svg>
+                      <span>{{
+                        isMarkingDelivered() ? 'Speichere...' : 'Als zugestellt eintragen'
+                      }}</span>
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+
+            @if (!isEditingTracking() && !trackingInfo()) {
+              <p class="text-xs text-fb-text-muted">Noch keine Sendungsnummer hinterlegt.</p>
             }
           </div>
-        </div>
-      }
+        </app-card>
 
-      <!-- Empty State (no tracking) -->
-      @if (!isEditingTracking() && !trackingInfo()) {
-        <p class="text-xs text-fb-text-muted">Noch keine Sendungsnummer hinterlegt.</p>
-      }
-    </div>
-  }
-
-  @if (purchaseService.selectedPurchase(); as historyPurchase) {
-    <app-record-history-container [entityType]="'purchase'" [entityId]="historyPurchase.id" />
+        <!-- Historie -->
+        <app-card>
+          <h2 card-header class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
+            Historie
+          </h2>
+          <app-record-history-container [entityType]="'purchase'" [entityId]="p.id" />
+        </app-card>
+      </div>
+    </app-two-column-layout>
   }
 
   <!-- Image Cropper & Resizer Studio Modal (Fixed 1:1) -->

@@ -1,3 +1,6 @@
+import { TablePreferencesService } from '../../../../core/services/table-preferences.service';
+import { TableColumnOption } from '../../../../core/models/table-preferences';
+import { TableColumnPickerComponent } from '../../../../shared/components/table-column-picker/table-column-picker.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -79,10 +82,16 @@ import { InventoryService } from '../../../../core/services/inventory.service';
 import { SalesService } from '../../../../core/services/sales.service';
 import { RecordHistoryContainer } from '../../../audit/components/record-history/record-history.container';
 import { PurchaseCostRepairComponent } from '../../components/purchase-cost-repair/purchase-cost-repair.component';
+import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
+import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 
 @Component({
   selector: 'app-purchase-detail',
   imports: [
+    TableColumnPickerComponent,
     PurchaseCreateModalComponent,
     RouterLink,
     ReactiveFormsModule,
@@ -98,12 +107,82 @@ import { PurchaseCostRepairComponent } from '../../components/purchase-cost-repa
     PurchaseTypeLabelPipe,
     RecordHistoryContainer,
     PurchaseCostRepairComponent,
+    PageHeaderComponent,
+    BadgeComponent,
+    ButtonComponent,
+    CardComponent,
+    TwoColumnLayoutComponent,
   ],
   templateUrl: './purchase-detail.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseDetailComponent {
+  getEntryStatusTone(
+    status?: string | null,
+  ): 'neutral' | 'info' | 'success' | 'caution' | 'critical' {
+    switch (status) {
+      case 'draft':
+        return 'caution';
+      case 'finalized':
+        return 'success';
+      case 'reopened':
+        return 'info';
+      case 'cancelled':
+        return 'critical';
+      default:
+        return 'neutral';
+    }
+  }
+
+  getEntryStatusLabel(status?: string | null): string {
+    switch (status) {
+      case 'draft':
+        return 'Entwurf';
+      case 'finalized':
+        return 'Abgeschlossen';
+      case 'reopened':
+        return 'Wiedereröffnet';
+      case 'cancelled':
+        return 'Storniert';
+      default:
+        return status ?? 'Unbekannt';
+    }
+  }
+
+  readonly tablePreferences = inject(TablePreferencesService);
+  private readonly allTableColumns: readonly TableColumnOption[] = [
+    { id: 'title', label: 'Artikel und Aktionen', required: true },
+    { id: 'quantity', label: 'Menge' },
+    { id: 'condition', label: 'Zustand' },
+    { id: 'estimated', label: 'Geschätzter Marktwert' },
+    { id: 'allocated', label: 'Kostenanteil pro Stück' },
+    { id: 'unit_price', label: 'Einkaufspreis pro Stück' },
+    { id: 'additional', label: 'Zusätzlicher Kostenanteil' },
+    { id: 'total_cost', label: 'Gesamtkosten pro Stück' },
+    { id: 'available', label: 'Verfügbar' },
+    { id: 'sold', label: 'Verkauft' },
+  ];
+  readonly tableColumns = computed<readonly TableColumnOption[]>(() =>
+    this.allTableColumns.filter((column) =>
+      this.purchaseDetailRows()[0]?.kind === 'mystery'
+        ? !['unit_price', 'additional', 'total_cost'].includes(column.id)
+        : !['condition', 'estimated', 'allocated'].includes(column.id),
+    ),
+  );
+  readonly visibleColumns = computed(() =>
+    this.tablePreferences
+      .visibleColumns('purchase_articles', this.allTableColumns)
+      .filter((id) => this.tableColumns().some((column) => column.id === id)),
+  );
+  setPurchaseVisibleColumns(selected: readonly string[]): void {
+    const currentIds = new Set(this.tableColumns().map((column) => column.id));
+    const otherColumns = this.tablePreferences
+      .visibleColumns('purchase_articles', this.allTableColumns)
+      .filter((id) => !currentIds.has(id));
+    this.tablePreferences.setVisibleColumns('purchase_articles', [...otherColumns, ...selected]);
+  }
+
   /**
    * Vorgaben fuer die eigenen Auswahlfelder.
    *
@@ -194,7 +273,7 @@ export class PurchaseDetailComponent {
     single: {
       icon: ShoppingBag,
       kachel: 'bg-fb-art-single/15 border-fb-art-single/30 text-fb-art-single',
-      schild: 'bg-fb-art-single/10 border-fb-art-single/25 text-fb-art-single',
+      schild: 'bg-fb-art-single/10 border-fb-art-single/25 text-fb-text-primary',
     },
     mystery_pack: {
       icon: Package,

@@ -45,6 +45,9 @@ import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog
 import { LoggerService } from '../../../../core/services/logger.service';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
+import { CatalogService } from '../../../../core/services/catalog.service';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
+import { normalizeGtin } from '../../../../shared/utils/gtin';
 
 interface MehrfachAnlageErgebnis {
   readonly status: 'success' | 'partial' | 'failed';
@@ -93,6 +96,8 @@ export class ItemCreateModalComponent {
   readonly purchaseService = inject(PurchaseService);
   readonly aiService = inject(AiAssistantService);
   readonly barcodeLookup = inject(BarcodeLookupService);
+  readonly catalogService = inject(CatalogService);
+  private readonly workspaceService = inject(WorkspaceService);
   private readonly toast = inject(ToastService);
   private readonly syncStatus = inject(SyncStatusService);
 
@@ -161,7 +166,15 @@ export class ItemCreateModalComponent {
     }),
     status: new FormControl<ItemStatus>('received', { nonNullable: true }),
     sku: new FormControl(''),
-    ean: new FormControl(''),
+    ean: new FormControl('', {
+      nonNullable: true,
+      validators: [
+        (control) => {
+          const value = control.value.trim();
+          return value && !normalizeGtin(value) ? { invalidGtin: true } : null;
+        },
+      ],
+    }),
     description: new FormControl(''),
     condition_notes: new FormControl(''),
     allocated_purchase_cost: new FormControl<number>(0, {
@@ -218,9 +231,32 @@ export class ItemCreateModalComponent {
 
   async onBarcodeScanned(ean: string): Promise<void> {
     this.isScanningBarcode.set(false);
-    this.form.patchValue({ ean });
+    const normalized = normalizeGtin(ean);
+    if (!normalized) {
+      this.errorMessage.set(
+        'Keine gültige EAN/GTIN erkannt. Bitte 8, 12, 13 oder 14 Ziffern eingeben.',
+      );
+      return;
+    }
+    this.errorMessage.set(null);
+    this.form.patchValue({ ean: normalized });
 
-    const info = await this.barcodeLookup.lookupByEan(ean);
+    const workspaceId = this.workspaceService.currentWorkspace()?.id;
+    if (workspaceId) await this.catalogService.loadProducts(workspaceId);
+    const matches = this.catalogService.products().filter((product) => product.ean === normalized);
+    if (matches.length === 1) {
+      const product = matches[0];
+      const current = this.form.getRawValue();
+      this.form.patchValue({
+        title: current.title.trim() ? current.title : product.title,
+        brand: current.brand?.trim() ? current.brand : (product.brand ?? ''),
+        model: current.model?.trim() ? current.model : (product.model ?? ''),
+        category: current.category?.trim() ? current.category : (product.category ?? ''),
+      });
+      return;
+    }
+
+    const info = await this.barcodeLookup.lookupByEan(normalized);
     if (info) {
       this.form.patchValue({
         title: info.title || this.form.get('title')?.value,
@@ -293,7 +329,7 @@ export class ItemCreateModalComponent {
       condition: val.condition,
       status: val.status,
       sku: val.sku?.trim() || undefined,
-      ean: val.ean?.trim() || undefined,
+      ean: normalizeGtin(val.ean) ?? undefined,
       description: val.description?.trim() || undefined,
       allocated_purchase_cost: val.allocated_purchase_cost,
       expected_value: val.expected_value || undefined,

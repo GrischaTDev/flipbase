@@ -31,6 +31,7 @@ export interface CreatePurchaseLineInput {
   readonly draftId?: string;
   readonly catalogProductId: string | null;
   readonly titleSnapshot: string;
+  readonly ean?: string | null;
   readonly lineKind: TrackingMode;
   readonly orderedQuantity: number;
   readonly condition?: ItemCondition;
@@ -901,6 +902,7 @@ export class PurchaseService {
           client_ref: line.draftId ?? null,
           catalog_product_id: line.catalogProductId,
           title_snapshot: line.titleSnapshot,
+          ean_snapshot: line.ean ?? null,
           line_kind: line.lineKind,
           ordered_quantity: line.orderedQuantity,
           price_mode: line.priceMode ?? 'priced',
@@ -931,6 +933,28 @@ export class PurchaseService {
       const lines = Array.isArray(response['purchase_lines'])
         ? (response['purchase_lines'] as PurchaseLine[])
         : [];
+      const eanUpdates = lines.flatMap((line, index) => {
+        const ean = normalizedLines.data[index]?.ean;
+        return ean === undefined ? [] : [{ id: line.id, ean: ean ?? null }];
+      });
+      const eanError = await this.persistPurchaseLineEans(ws.id, eanUpdates);
+      if (eanError) {
+        const reported = this.syncStatus.melde('Speichern der EAN/GTIN', eanError);
+        return {
+          status: 'failed',
+          data: null,
+          error: reported,
+          reportedBySyncStatus: true,
+          problems: [],
+        };
+      }
+      const persistedLines = lines.map((line, index) => ({
+        ...line,
+        ean_snapshot:
+          normalizedLines.data[index]?.ean === undefined
+            ? (line.ean_snapshot ?? null)
+            : (normalizedLines.data[index]?.ean ?? null),
+      }));
       const costs = Array.isArray(response['purchase_costs'])
         ? (response['purchase_costs'] as PurchaseCost[])
         : [];
@@ -940,8 +964,8 @@ export class PurchaseService {
         source,
         supplier,
         costs,
-        purchase_lines: lines,
-        items_count: lines.reduce((count, line) => count + line.ordered_quantity, 0),
+        purchase_lines: persistedLines,
+        items_count: persistedLines.reduce((count, line) => count + line.ordered_quantity, 0),
         total_purchase_cost: dbPurchase.total_purchase_cost ?? newPurchase.total_purchase_cost,
       };
       this.mockStore.savePurchase(finalPurchase);
@@ -949,7 +973,8 @@ export class PurchaseService {
         finalPurchase,
         ...list.filter((purchase) => purchase.id !== finalPurchase.id),
       ]);
-      if (this.selectedPurchase()?.id === finalPurchase.id) this.purchaseLinesRaw.set(lines);
+      if (this.selectedPurchase()?.id === finalPurchase.id)
+        this.purchaseLinesRaw.set(persistedLines);
 
       const problems = await this.legeEinzelartikelAn(
         finalPurchase,
@@ -1063,6 +1088,7 @@ export class PurchaseService {
           client_ref: line.draftId ?? null,
           catalog_product_id: line.catalogProductId,
           title_snapshot: line.titleSnapshot,
+          ean_snapshot: line.ean ?? null,
           line_kind: line.lineKind,
           ordered_quantity: line.orderedQuantity,
           price_mode: line.priceMode ?? 'priced',
@@ -1087,6 +1113,22 @@ export class PurchaseService {
       const lines = Array.isArray(response['purchase_lines'])
         ? (response['purchase_lines'] as PurchaseLine[])
         : [];
+      const eanUpdates = lines.flatMap((line, index) => {
+        const ean = normalizedLines.data[index]?.ean;
+        return ean === undefined ? [] : [{ id: line.id, ean: ean ?? null }];
+      });
+      const eanError = await this.persistPurchaseLineEans(workspace.id, eanUpdates);
+      if (eanError) {
+        const reported = this.syncStatus.melde('Speichern der EAN/GTIN', eanError);
+        return { data: null, error: reported, reportedBySyncStatus: true };
+      }
+      const persistedLines = lines.map((line, index) => ({
+        ...line,
+        ean_snapshot:
+          normalizedLines.data[index]?.ean === undefined
+            ? (line.ean_snapshot ?? null)
+            : (normalizedLines.data[index]?.ean ?? null),
+      }));
       const persistedCosts = Array.isArray(response['purchase_costs'])
         ? (response['purchase_costs'] as PurchaseCost[])
         : [];
@@ -1095,8 +1137,8 @@ export class PurchaseService {
         source,
         supplier,
         costs: persistedCosts,
-        purchase_lines: lines,
-        items_count: lines.reduce((count, line) => count + line.ordered_quantity, 0),
+        purchase_lines: persistedLines,
+        items_count: persistedLines.reduce((count, line) => count + line.ordered_quantity, 0),
       };
       this.mockStore.savePurchase(updatedPurchase);
       this.purchasesRaw.update((current) =>
@@ -1104,7 +1146,7 @@ export class PurchaseService {
       );
       if (this.selectedPurchase()?.id === purchaseId) {
         this.selectedPurchaseRaw.set(updatedPurchase);
-        this.purchaseLinesRaw.set(lines);
+        this.purchaseLinesRaw.set(persistedLines);
       }
       return { data: updatedPurchase, error: null, reportedBySyncStatus: false };
     } catch (cause: unknown) {
@@ -1140,6 +1182,7 @@ export class PurchaseService {
     const rows = normalized.data.map((line) => ({
       catalog_product_id: line.catalogProductId,
       title_snapshot: line.titleSnapshot,
+      ean_snapshot: line.ean ?? null,
       line_kind: line.lineKind,
       ordered_quantity: line.orderedQuantity,
       received_quantity: 0,
@@ -1214,10 +1257,26 @@ export class PurchaseService {
       const lines = Array.isArray(response['purchase_lines'])
         ? (response['purchase_lines'] as PurchaseLine[])
         : [];
-      if (this.selectedPurchase()?.id === purchaseId) {
-        this.purchaseLinesRaw.update((current) => [...current, ...lines]);
+      const eanUpdates = lines.flatMap((line, index) => {
+        const ean = normalized.data[index]?.ean;
+        return ean === undefined ? [] : [{ id: line.id, ean: ean ?? null }];
+      });
+      const eanError = await this.persistPurchaseLineEans(workspaceId, eanUpdates);
+      if (eanError) {
+        const reported = this.syncStatus.melde('Speichern der EAN/GTIN', eanError);
+        return { data: null, error: reported, reportedBySyncStatus: true };
       }
-      return { data: lines, error: null, reportedBySyncStatus: false };
+      const persistedLines = lines.map((line, index) => ({
+        ...line,
+        ean_snapshot:
+          normalized.data[index]?.ean === undefined
+            ? (line.ean_snapshot ?? null)
+            : (normalized.data[index]?.ean ?? null),
+      }));
+      if (this.selectedPurchase()?.id === purchaseId) {
+        this.purchaseLinesRaw.update((current) => [...current, ...persistedLines]);
+      }
+      return { data: persistedLines, error: null, reportedBySyncStatus: false };
     } catch (error: unknown) {
       const reported = this.syncStatus.melde('Speichern der Einkaufspositionen', error);
       return { data: null, error: reported, reportedBySyncStatus: true };
@@ -1293,6 +1352,7 @@ export class PurchaseService {
         ...(existingLine ?? this.createLocalPurchaseLines(workspaceId, purchaseId, [input])[0]),
         catalog_product_id: input.catalogProductId,
         title_snapshot: input.titleSnapshot,
+        ean_snapshot: input.ean ?? null,
         line_kind: input.lineKind,
         ordered_quantity: input.orderedQuantity,
         unit_purchase_price: input.unitPurchasePrice,
@@ -1404,6 +1464,7 @@ export class PurchaseService {
       purchase_id: purchaseId,
       catalog_product_id: line.catalogProductId,
       title_snapshot: line.titleSnapshot,
+      ean_snapshot: line.ean ?? null,
       line_kind: line.lineKind,
       ordered_quantity: line.orderedQuantity,
       received_quantity: 0,
@@ -1455,6 +1516,24 @@ export class PurchaseService {
     }));
   }
 
+  private async persistPurchaseLineEans(
+    workspaceId: string,
+    lines: readonly { readonly id: string; readonly ean: string | null }[],
+  ): Promise<Error | null> {
+    if (lines.length === 0) return null;
+    try {
+      const { error } = await this.supabase.client.rpc('set_purchase_line_eans', {
+        p_workspace_id: workspaceId,
+        p_lines: lines.map((line) => ({ id: line.id, ean: line.ean })),
+      });
+      return error ?? null;
+    } catch (cause: unknown) {
+      return cause instanceof Error
+        ? cause
+        : new Error('Die EAN/GTIN konnte nicht gespeichert werden.');
+    }
+  }
+
   private normalizePurchaseLines(
     inputs: readonly CreatePurchaseLineInput[],
     purchaseType?: PurchaseType,
@@ -1465,6 +1544,7 @@ export class PurchaseService {
     const lines = inputs.map((line) => ({
       ...line,
       titleSnapshot: line.titleSnapshot.trim(),
+      ean: line.ean === undefined ? undefined : line.ean?.trim() || null,
       orderedQuantity: Number(line.orderedQuantity),
       priceMode: line.priceMode ?? 'priced',
       unitPurchasePrice: line.unitPurchasePrice === null ? null : Number(line.unitPurchasePrice),

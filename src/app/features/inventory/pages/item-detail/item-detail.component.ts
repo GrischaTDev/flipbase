@@ -66,6 +66,11 @@ import {
 import { editableItemStatusOptions } from '../../models/item-status-options';
 import { RecordHistoryContainer } from '../../../audit/components/record-history/record-history.container';
 
+import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+
 const purchaseReturnPath = /^\/purchases\/([A-Za-z0-9_-]+)$/;
 
 export function validatePurchaseReturnTo(value: string | null | undefined): string | null {
@@ -90,6 +95,10 @@ export function validatePurchaseReturnTo(value: string | null | undefined): stri
     CostStateComponent,
     RecordHistoryContainer,
     ItemConditionLabelPipe,
+    PageHeaderComponent,
+    TwoColumnLayoutComponent,
+    CardComponent,
+    BadgeComponent,
   ],
   templateUrl: './item-detail.component.html',
   host: { class: 'block' },

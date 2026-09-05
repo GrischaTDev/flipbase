@@ -8,14 +8,22 @@
         Zentrale Artikeldefinitionen für Mengenartikel und Einzelstücke.
       </p>
     </div>
-    <button
-      type="button"
-      (click)="isCreateOpen.set(true)"
-      class="linear-btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
-    >
-      <svg [lucideIcon]="plusIcon" class="h-3.5 w-3.5"></svg>
-      Artikel anlegen
-    </button>
+    <div class="flex flex-wrap gap-2">
+      <label
+        class="linear-btn-secondary inline-flex cursor-pointer items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
+      >
+        CSV importieren
+        <input type="file" accept=".csv,text/csv" class="sr-only" (change)="previewCsv($event)" />
+      </label>
+      <button
+        type="button"
+        (click)="isCreateOpen.set(true)"
+        class="linear-btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
+      >
+        <svg [lucideIcon]="plusIcon" class="h-3.5 w-3.5"></svg>
+        Artikel anlegen
+      </button>
+    </div>
   </header>
 
   <div class="linear-surface rounded-xl p-3">
@@ -35,6 +43,73 @@
     </label>
   </div>
 
+  <div class="mb-3 flex justify-end">
+    <app-table-column-picker
+      [definitions]="tableColumns()"
+      [selected]="visibleColumns()"
+      [saveError]="tablePreferences.saveError()"
+      (selectedChange)="tablePreferences.setVisibleColumns('catalog', $event)"
+    />
+  </div>
+  @if (csvError(); as error) {
+    <div
+      class="linear-surface rounded-xl border border-rose-500/30 p-3 text-sm text-rose-300"
+      role="alert"
+    >
+      {{ error }}
+    </div>
+  }
+  @if (csvRows().length) {
+    <section
+      class="linear-surface space-y-3 rounded-xl p-4"
+      aria-labelledby="catalog-csv-preview-title"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 id="catalog-csv-preview-title" class="text-sm font-semibold text-fb-text-primary">
+            CSV-Vorschau
+          </h2>
+          <p class="text-xs text-fb-text-muted">
+            Es werden nur Artikelstammdaten angelegt – kein Bestand.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="linear-btn-primary rounded-lg px-3 py-1.5 text-xs font-semibold"
+          [disabled]="isImportingCsv() || csvHasErrors()"
+          (click)="importCsv()"
+        >
+          {{ isImportingCsv() ? 'Import läuft…' : 'Import bestätigen' }}
+        </button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="linear-table w-full text-xs">
+          <thead>
+            <tr>
+              <th class="px-3 py-2 text-left">Titel</th>
+              <th class="px-3 py-2 text-left">EAN</th>
+              <th class="px-3 py-2 text-left">Nachverfolgung</th>
+              <th class="px-3 py-2 text-left">Prüfung</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of csvRows(); track $index) {
+              <tr>
+                <td class="px-3 py-2">{{ row.title || '—' }}</td>
+                <td class="px-3 py-2 font-mono">{{ row.ean || '—' }}</td>
+                <td class="px-3 py-2">
+                  {{ row.trackingMode === 'individual' ? 'Einzelstück' : 'Mengenartikel' }}
+                </td>
+                <td class="px-3 py-2" [class.text-rose-300]="row.error">
+                  {{ row.error || 'Bereit' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
   @if (isLoading()) {
     <div class="linear-surface rounded-xl px-5 py-10 text-center" role="status">
       <p class="text-sm font-semibold text-fb-text-secondary">Artikelstamm wird geladen…</p>
@@ -58,16 +133,27 @@
   } @else if (filteredProducts().length > 0) {
     <div class="linear-surface overflow-hidden rounded-xl">
       <div class="hidden overflow-x-auto md:block">
-        <table class="linear-table min-w-full">
+        <table
+          [style.min-width.px]="260 + (visibleColumns().length - 1) * 105"
+          class="linear-table"
+        >
           <thead
             class="bg-fb-well text-[10px] font-semibold uppercase tracking-wider text-fb-text-secondary"
           >
             <tr>
               <th class="border-b border-fb-line px-4 py-2.5 text-left">Artikel</th>
-              <th class="border-b border-fb-line px-3 py-2.5 text-left">EAN</th>
-              <th class="border-b border-fb-line px-3 py-2.5 text-left">Nachverfolgung</th>
-              <th class="border-b border-fb-line px-3 py-2.5 text-right">Verfügbar</th>
-              <th class="border-b border-fb-line px-4 py-2.5 text-right">Webshop</th>
+              @if (visibleColumns().includes('ean')) {
+                <th class="border-b border-fb-line px-3 py-2.5 text-left">EAN</th>
+              }
+              @if (visibleColumns().includes('tracking')) {
+                <th class="border-b border-fb-line px-3 py-2.5 text-left">Nachverfolgung</th>
+              }
+              @if (visibleColumns().includes('available')) {
+                <th class="border-b border-fb-line px-3 py-2.5 text-right">Verfügbar</th>
+              }
+              @if (visibleColumns().includes('store')) {
+                <th class="border-b border-fb-line px-4 py-2.5 text-right">Webshop</th>
+              }
             </tr>
           </thead>
           <tbody class="divide-y divide-fb-line">
@@ -81,28 +167,36 @@
                     </p>
                   }
                 </td>
-                <td class="px-3 py-3 font-mono text-xs text-fb-text-secondary">
-                  {{ product.ean || '—' }}
-                </td>
-                <td class="px-3 py-3">
-                  <span
-                    class="rounded border border-fb-line bg-fb-well px-2 py-0.5 text-[10px] font-semibold text-fb-text-secondary"
-                    >{{
-                      product.tracking_mode === 'quantity' ? 'Mengenartikel' : 'Einzelstück'
-                    }}</span
-                  >
-                </td>
-                <td class="px-3 py-3 text-right font-mono font-bold text-emerald-400">
-                  {{ availableStock(product) }} Stück
-                </td>
-                <td class="px-4 py-3 text-right">
-                  <span
-                    class="text-xs font-semibold"
-                    [class.text-emerald-400]="product.is_public_store"
-                    [class.text-fb-text-muted]="!product.is_public_store"
-                    >{{ product.is_public_store ? 'Öffentlich' : 'Intern' }}</span
-                  >
-                </td>
+                @if (visibleColumns().includes('ean')) {
+                  <td class="px-3 py-3 font-mono text-xs text-fb-text-secondary">
+                    {{ product.ean || '—' }}
+                  </td>
+                }
+                @if (visibleColumns().includes('tracking')) {
+                  <td class="px-3 py-3">
+                    <span
+                      class="rounded border border-fb-line bg-fb-well px-2 py-0.5 text-[10px] font-semibold text-fb-text-secondary"
+                      >{{
+                        product.tracking_mode === 'quantity' ? 'Mengenartikel' : 'Einzelstück'
+                      }}</span
+                    >
+                  </td>
+                }
+                @if (visibleColumns().includes('available')) {
+                  <td class="px-3 py-3 text-right font-mono font-bold text-emerald-400">
+                    {{ availableStock(product) }} Stück
+                  </td>
+                }
+                @if (visibleColumns().includes('store')) {
+                  <td class="px-4 py-3 text-right">
+                    <span
+                      class="text-xs font-semibold"
+                      [class.text-emerald-400]="product.is_public_store"
+                      [class.text-fb-text-muted]="!product.is_public_store"
+                      >{{ product.is_public_store ? 'Öffentlich' : 'Intern' }}</span
+                    >
+                  </td>
+                }
               </tr>
             }
           </tbody>
@@ -178,10 +272,17 @@
           <label class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >EAN<input
               formControlName="ean"
+              (blur)="productForm.controls.ean.markAsTouched()"
               type="text"
               inputmode="numeric"
               class="linear-input mt-1 w-full rounded-lg px-3 py-2 text-xs"
-          /></label>
+            />
+            @if (productForm.controls.ean.invalid && productForm.controls.ean.touched) {
+              <span class="mt-1 block normal-case text-rose-300" role="alert"
+                >Ungültige EAN/GTIN.</span
+              >
+            }
+          </label>
           <label class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >Nachverfolgung<select
               formControlName="trackingMode"

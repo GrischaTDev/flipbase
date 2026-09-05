@@ -369,9 +369,8 @@ html.dark {
   wirken damit sofort - beim Umschalten wie beim Aendern eines Wertes.
 */
 @theme inline {
-  --font-sans:
-    'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: var(--font-sans);
 
   /* Eigene Design-Tokens */
   --color-fb-bg: var(--fb-bg-app);
@@ -551,6 +550,99 @@ html.dark {
 /* interaction-cursors:end */
 
 /* UI-Hilfsklassen, gebunden an die zentralen Variablen */
+/* Verwaltungsdesign: lokale Variablen lassen Shop, Login und Landingpage unverändert. */
+html:not(.dark) .fb-admin {
+  --fb-c-amber-200: #92400e;
+  --fb-bg-app: #f1f1f1;
+  --fb-bg-sidebar: #ebebeb;
+  --fb-bg-header: #f1f1f1;
+  --fb-bg-surface: #ffffff;
+  --fb-bg-surface-hover: #ededed;
+  --fb-bg-subtle: #fafafa;
+  --fb-bg-surface-alt: #f7f7f7;
+  --fb-bg-well: #f7f7f7;
+  --fb-border: #dedede;
+  --fb-border-subtle: #e3e3e3;
+  --fb-border-hover: #b5b5b5;
+  --fb-line: #e5e5e5;
+  --fb-line-strong: #cccccc;
+  --fb-text-primary: #303030;
+  --fb-text-secondary: #454545;
+  --fb-text-muted: #616161;
+  --fb-text-dimmed: #707070;
+  --fb-primary: #f89d13;
+  --fb-primary-hover: #fbb040;
+  --fb-text-on-accent: #1a1a1a;
+  --fb-primary-subtle: rgb(248 157 19 / 12%);
+  --fb-primary-border: rgb(138 86 6 / 35%);
+  --fb-border-focus: #8a5606;
+  --fb-c-indigo-200: #8a5606;
+  --fb-c-indigo-300: #8a5606;
+  --fb-c-indigo-400: #8a5606;
+  --fb-c-indigo-500: #f89d13;
+  --fb-c-indigo-600: #8a5606;
+  --fb-c-indigo-950: #1a1207;
+  --fb-shadow-sm: 0 1px 2px rgb(0 0 0 / 4%);
+  --fb-shadow-md: 0 1px 2px rgb(0 0 0 / 7%);
+  --fb-shadow-lg: 0 2px 5px rgb(0 0 0 / 9%);
+}
+
+html:not(.dark) .fb-admin :is(.linear-card, .linear-card-interactive, .linear-kpi) {
+  background: var(--fb-bg-surface);
+}
+
+html:not(.dark) .fb-admin .linear-btn-primary:hover {
+  background: var(--fb-primary-hover);
+}
+
+html:not(.dark) .fb-admin .bg-indigo-600.text-white {
+  background-color: var(--fb-primary);
+  color: var(--fb-text-on-accent);
+}
+
+html:not(.dark) .fb-admin app-sidebar nav a[aria-current='page'] {
+  background-color: var(--fb-primary-subtle);
+  border-color: var(--fb-primary-border);
+  color: var(--fb-text-primary);
+}
+
+html:not(.dark) .fb-admin app-sidebar nav a[aria-current='page'] svg {
+  color: var(--fb-text-primary);
+}
+
+html.dark .fb-admin app-sidebar nav a[aria-current='page'] {
+  border-color: rgb(248 157 19 / 40%);
+}
+
+html:not(.dark) .fb-admin [data-purchase-row] > svg,
+html:not(.dark) .fb-admin [data-purchase-row] > [aria-hidden='true'] svg {
+  color: var(--fb-text-muted);
+}
+
+/* Dichte und Lesbarkeit gelten in beiden Modi, Farben bleiben tokenbasiert. */
+.fb-admin .linear-table {
+  font-size: 0.8125rem;
+}
+
+.fb-admin .linear-table thead {
+  font-size: 0.75rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.fb-admin .linear-table th {
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.fb-admin .linear-table td:not(:first-child) {
+  font-variant-numeric: tabular-nums;
+}
+
+.fb-admin .linear-table td.text-right {
+  white-space: nowrap;
+}
+
 .linear-surface {
   background-color: var(--fb-bg-surface);
   border: 1px solid var(--fb-border);
@@ -827,6 +919,12 @@ html:not(.dark) select.linear-input {
 
 .animate-fade-in {
   animation: fadeIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Ein Dialog darf nicht in der Ebene einer übergeordneten Animation bleiben. */
+.animate-fade-in:has([appModalDialog]),
+.animate-modal-card:has([appModalDialog]) {
+  animation: none;
 }
 
 .animate-modal-card {

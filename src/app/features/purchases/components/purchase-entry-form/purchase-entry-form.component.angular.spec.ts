@@ -11,7 +11,7 @@ import { PurchaseService } from '../../../../core/services/purchase.service';
 import { SourcesService } from '../../../../core/services/sources.service';
 import { SuppliersService } from '../../../../core/services/suppliers.service';
 import { PurchaseCostDraft } from '../purchase-cost-editor/purchase-cost-editor.component';
-import { PurchaseCreateModalComponent } from './purchase-create-modal.component';
+import { PurchaseEntryFormComponent } from './purchase-entry-form.component';
 
 beforeAll(() => TestBed.resetTestingModule());
 
@@ -107,8 +107,8 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     ),
   };
   const komponente = Object.create(
-    PurchaseCreateModalComponent.prototype,
-  ) as PurchaseCreateModalComponent;
+    PurchaseEntryFormComponent.prototype,
+  ) as PurchaseEntryFormComponent;
 
   Object.assign(komponente, {
     purchase: () => vorhandener,
@@ -170,7 +170,7 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
   };
 }
 
-describe('PurchaseCreateModalComponent – zentrale Aktionsmeldungen', () => {
+describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
@@ -551,7 +551,7 @@ describe('PurchaseCreateModalComponent – zentrale Aktionsmeldungen', () => {
         SyncStatusService,
       ],
     });
-    const komponente = TestBed.runInInjectionContext(() => new PurchaseCreateModalComponent());
+    const komponente = TestBed.runInInjectionContext(() => new PurchaseEntryFormComponent());
 
     komponente.onPurchaseLinesChanged([
       {
@@ -788,6 +788,67 @@ describe('PurchaseCreateModalComponent – zentrale Aktionsmeldungen', () => {
         ],
       }),
     );
+  });
+
+  it('speichert eine leere Mystery Box mit Kopfpreis und Zusatzkosten als Entwurf', async () => {
+    const { komponente, purchaseService } = erstelleKomponente();
+    komponente.form.controls.type.setValue('mystery_pack');
+    komponente.form.controls.purchase_price.setValue(100);
+    komponente.onCostsChanged([
+      {
+        type: 'shipping',
+        amount: 10,
+        description: '',
+        allocationMethod: 'by_value',
+        targetPurchaseLineId: null,
+      },
+    ]);
+
+    expect(komponente.form.valid).toBe(true);
+    await komponente.onSubmit();
+
+    expect(purchaseService.createPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'mystery_pack',
+        purchase_price: 100,
+        initial_costs: [expect.objectContaining({ amount: 10 })],
+        purchase_lines: [],
+      }),
+    );
+  });
+
+  it('markiert eine bewusst gewählte Einkaufsart als ungespeicherte Änderung', () => {
+    const { komponente } = erstelleKomponente();
+
+    komponente.selectPurchaseType('mystery_pack');
+
+    expect(komponente.form.controls.type.dirty).toBe(true);
+    expect(komponente.hasUnsavedChanges()).toBe(true);
+  });
+
+  it('berücksichtigt unfertige Schnellanlage-Eingaben und blockiert paralleles Einkaufsspeichern', async () => {
+    const { komponente, purchaseService } = erstelleKomponente();
+    Object.assign(komponente, {
+      lineEditor: () => ({
+        hasUnsavedChanges: () => true,
+        isSavingProduct: () => true,
+      }),
+    });
+
+    expect(komponente.hasUnsavedChanges()).toBe(true);
+    expect(komponente.isSaving()).toBe(true);
+    await komponente.onSubmit();
+    expect(purchaseService.createPurchase).not.toHaveBeenCalled();
+  });
+
+  it('berücksichtigt ungespeicherte Quellen- und Lieferantennamen', () => {
+    const { komponente } = erstelleKomponente();
+    komponente.newSourceName.set('Neue Quelle');
+    expect(komponente.hasUnsavedChanges()).toBe(true);
+
+    komponente.newSourceName.set('');
+    komponente.newSupplierName.set('Neuer Lieferant');
+    expect(komponente.hasUnsavedChanges()).toBe(true);
   });
 
   it('sendet eine nach dem Bepreisen wieder geleerte Position nicht an den Einkaufsdienst', async () => {

@@ -67,6 +67,9 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
   private mediaStream: MediaStream | null = null;
   private animationFrameId: number | null = null;
   private barcodeDetector: BarcodeDetector | null = null;
+  private fallbackControls: { stop: () => void } | null = null;
+  private completionTimer: ReturnType<typeof setTimeout> | null = null;
+  private scanGeneration = 0;
 
   async ngOnInit(): Promise<void> {
     await this.initBarcodeDetector();
@@ -91,6 +94,7 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
 
   async startCamera(): Promise<void> {
     this.stopCamera();
+    const generation = this.scanGeneration;
     this.errorMessage.set(null);
     this.isScanning.set(true);
 
@@ -108,12 +112,22 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
         audio: false,
       });
 
+      if (generation !== this.scanGeneration) {
+        this.mediaStream.getTracks().forEach((track) => track.stop());
+        this.mediaStream = null;
+        return;
+      }
+
       const video = this.videoRef()?.nativeElement;
       if (video) {
         video.srcObject = this.mediaStream;
         await video.play();
         this.checkTorchSupport();
-        this.startDetectionLoop();
+        if (this.barcodeDetector) {
+          this.startDetectionLoop(generation);
+        } else {
+          await this.startDecoderFallback(video, generation);
+        }
       }
     } catch (err: unknown) {
       this.isScanning.set(false);
@@ -161,12 +175,13 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
     this.startCamera();
   }
 
-  private startDetectionLoop(): void {
+  private startDetectionLoop(generation: number): void {
     const video = this.videoRef()?.nativeElement;
     const barcodeDetector = this.barcodeDetector;
     if (!video || !barcodeDetector) return;
 
     const detect = async () => {
+      if (generation !== this.scanGeneration) return;
       if (!this.isScanning() || !video || video.readyState < 2) {
         this.animationFrameId = requestAnimationFrame(detect);
         return;
@@ -191,14 +206,37 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
     this.animationFrameId = requestAnimationFrame(detect);
   }
 
-  private handleSuccessfulScan(code: string): void {
+  private async startDecoderFallback(video: HTMLVideoElement, generation: number): Promise<void> {
+    try {
+      const { BrowserMultiFormatReader } = await import('@zxing/browser');
+      if (generation !== this.scanGeneration || !this.isScanning()) return;
+      const reader = new BrowserMultiFormatReader();
+      this.fallbackControls = await reader.decodeFromVideoElement(video, (result) => {
+        if (generation !== this.scanGeneration || !result) return;
+        const value = result.getText()?.trim();
+        if (value) this.handleSuccessfulScan(value, generation);
+      });
+    } catch (error: unknown) {
+      if (generation !== this.scanGeneration) return;
+      this.logger.warn('Barcode decoder fallback failed', error);
+      this.errorMessage.set(
+        'Automatische Erkennung nicht verfügbar. Nutze bitte die manuelle Barcode-Eingabe.',
+      );
+    }
+  }
+
+  private handleSuccessfulScan(code: string, generation = this.scanGeneration): void {
+    if (generation !== this.scanGeneration || !this.isScanning()) return;
     this.scannedResult.set(code);
     if ('vibrate' in navigator) {
       navigator.vibrate([40, 30, 40]);
     }
     this.stopCamera();
+    const completionGeneration = this.scanGeneration;
 
-    setTimeout(() => {
+    this.completionTimer = setTimeout(() => {
+      this.completionTimer = null;
+      if (completionGeneration !== this.scanGeneration) return;
       this.detected.emit(code);
       this.closed.emit();
     }, 400);
@@ -212,6 +250,7 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
   }
 
   stopCamera(): void {
+    this.scanGeneration += 1;
     this.isScanning.set(false);
     if (this.animationFrameId) {
       cancelAnimationFrame(this.animationFrameId);
@@ -220,6 +259,12 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach((t) => t.stop());
       this.mediaStream = null;
+    }
+    this.fallbackControls?.stop();
+    this.fallbackControls = null;
+    if (this.completionTimer) {
+      clearTimeout(this.completionTimer);
+      this.completionTimer = null;
     }
   }
 }

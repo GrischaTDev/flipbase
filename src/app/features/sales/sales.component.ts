@@ -1,3 +1,4 @@
+import { TableColumnOption } from '../../core/models/table-preferences';
 import {
   afterRenderEffect,
   ChangeDetectionStrategy,
@@ -55,6 +56,17 @@ import { SaleMetrics } from '../../core/models/sale-metrics.models';
 import { calculateStoredSaleMetrics } from '../../core/utils/sale-metrics';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import { RecordHistoryContainer } from '../audit/components/record-history/record-history.container';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { ButtonComponent } from '../../shared/components/button/button.component';
+import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { CardComponent } from '../../shared/components/card/card.component';
+import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
+import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
+import { TablePreferencesService } from '../../core/services/table-preferences.service';
+import { SalesColumnId, SalesSortField } from '../../core/config/table-defaults.config';
+import { TableSortState } from '../../core/models/table-preferences.models';
+
+import { TableColumnPickerComponent } from '../../shared/components/table-column-picker/table-column-picker.component';
 
 const SALE_TARGET_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
 
@@ -77,12 +89,36 @@ function validatedSaleTargetId(value: string | null): string | null {
     CustomSelectComponent,
     ModalDialogDirective,
     RecordHistoryContainer,
+    PageHeaderComponent,
+    ButtonComponent,
+    BadgeComponent,
+    CardComponent,
+    CustomSearchInputComponent,
+    TableColumnMenuComponent,
+    TableColumnPickerComponent,
   ],
   templateUrl: './sales.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SalesComponent {
+  readonly tablePreferences = inject(TablePreferencesService);
+  readonly tableColumns = computed<readonly TableColumnOption[]>(() => [
+    { id: 'title', label: 'Verkaufter Artikel', required: true },
+    { id: 'quantity', label: 'Menge' },
+    { id: 'platform', label: 'Plattform' },
+    { id: 'date', label: 'Datum' },
+    { id: 'revenue', label: 'Verkaufserlös' },
+    { id: 'cost', label: 'Wareneinsatz' },
+    { id: 'selling_costs', label: 'Verkaufskosten' },
+    { id: 'result', label: 'Ergebnis' },
+    { id: 'margin', label: 'Marge' },
+    { id: 'holding', label: 'Haltedauer' },
+    { id: 'actions', label: 'Aktionen', required: true },
+  ]);
+  readonly visibleColumns = computed(() =>
+    this.tablePreferences.visibleColumns('sales', this.tableColumns()),
+  );
   /**
    * Vorgaben fuer das eigene Auswahlfeld.
    *
@@ -130,8 +166,58 @@ export class SalesComponent {
   readonly createSaleTarget = signal<SaleTarget | null>(null);
   readonly legacySaleReconciliation = signal<LegacySaleReconciliation | null>(null);
   readonly selectedPlatform = signal<string>('all');
+  readonly searchQuery = signal<string>('');
   readonly activeInvoice = signal<Invoice | null>(null);
   readonly isCreatingInvoice = signal(false);
+
+  readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
+
+  readonly salesTableConfig = this.tablePreferences.getTableConfig<SalesColumnId, SalesSortField>(
+    'sales',
+  );
+  readonly tablePrefs = computed(() =>
+    this.tablePreferences.getTablePreferences<SalesColumnId, SalesSortField>(
+      'sales',
+      this.workspaceId(),
+    )(),
+  );
+
+  isColumnVisible(colId: SalesColumnId | string): boolean {
+    const aliasMap: Record<string, string> = {
+      cost_of_goods_sold: 'cost',
+      sale_date: 'date',
+      profit: 'result',
+      holding_days: 'holding',
+    };
+    const pickerId = aliasMap[colId] || colId;
+    if (!this.visibleColumns().includes(pickerId)) {
+      return false;
+    }
+    const col = this.tablePrefs().columns.find((c) => c.id === colId);
+    return col?.visible ?? true;
+  }
+
+  toggleColumnVisibility(colId: SalesColumnId): void {
+    this.tablePreferences.toggleColumnVisibility('sales', colId, this.workspaceId());
+  }
+
+  onSortChanged(sort: TableSortState<SalesSortField>): void {
+    this.tablePreferences.setSort('sales', sort, this.workspaceId());
+  }
+
+  onColumnsReordered(event: { previousIndex: number; currentIndex: number }): void {
+    this.tablePreferences.reorderColumns(
+      'sales',
+      event.previousIndex,
+      event.currentIndex,
+      this.workspaceId(),
+    );
+  }
+
+  resetTablePreferences(): void {
+    this.tablePreferences.resetToDefaults('sales', this.workspaceId());
+  }
+
   private readonly queryParams = toSignal(this.route.queryParamMap, {
     initialValue: this.route.snapshot.queryParamMap,
   });
@@ -184,16 +270,57 @@ export class SalesComponent {
   readonly filteredSales = computed(() => {
     const list = this.salesService.sales();
     const plat = this.selectedPlatform();
-    if (plat === 'all') return list;
-    if (plat === 'returned') {
+    let result: Sale[];
+
+    if (plat === 'all') {
+      result = [...list];
+    } else if (plat === 'returned') {
       const returnSaleIds = new Set(this.returnService.returns().map((r) => r.sale_id));
-      return list.filter(
+      result = list.filter(
         (sale) =>
           (sale.returned_at !== null && sale.returned_at !== undefined) ||
           returnSaleIds.has(sale.id),
       );
+    } else {
+      result = list.filter((s) => s.platform === plat);
     }
-    return list.filter((s) => s.platform === plat);
+
+    const query = this.searchQuery().trim().toLowerCase();
+    if (query) {
+      result = result.filter((s) => {
+        const title = this.saleTitle(s).toLowerCase();
+        const platform = s.platform.toLowerCase();
+        return title.includes(query) || platform.includes(query);
+      });
+    }
+
+    const sort = this.tablePrefs().sort;
+    return result.sort((a, b) => {
+      let cmp = 0;
+      switch (sort.field) {
+        case 'sale_date':
+          cmp = new Date(a.sale_date).getTime() - new Date(b.sale_date).getTime();
+          break;
+        case 'revenue':
+          cmp = this.saleMetrics(a).revenue - this.saleMetrics(b).revenue;
+          break;
+        case 'profit':
+          cmp =
+            (this.saleMetrics(a).resultAfterDirectCosts ?? 0) -
+            (this.saleMetrics(b).resultAfterDirectCosts ?? 0);
+          break;
+        case 'margin':
+          cmp = (this.saleMetrics(a).marginPercent ?? 0) - (this.saleMetrics(b).marginPercent ?? 0);
+          break;
+        case 'title':
+          cmp = this.saleTitle(a).localeCompare(this.saleTitle(b), 'de');
+          break;
+        case 'holding_days':
+          cmp = (a.holding_duration_days || 0) - (b.holding_duration_days || 0);
+          break;
+      }
+      return sort.direction === 'asc' ? cmp : -cmp;
+    });
   });
 
   // KPI Calculations

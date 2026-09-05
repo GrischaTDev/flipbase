@@ -1,6 +1,7 @@
 import { Routes } from '@angular/router';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
 import { operatorGuard } from './core/guards/operator.guard';
+import { purchaseEntryGuard } from './features/purchases/guards/purchase-entry.guard';
 
 export const routes: Routes = [
   // Kundenansicht des Shops.
@@ -88,6 +89,14 @@ export const routes: Routes = [
         path: 'purchases',
         loadComponent: () =>
           import('./features/purchases/purchases.component').then((m) => m.PurchasesComponent),
+      },
+      {
+        path: 'purchases/new',
+        canDeactivate: [purchaseEntryGuard],
+        loadComponent: () =>
+          import('./features/purchases/pages/purchase-create/purchase-create.component').then(
+            (m) => m.PurchaseCreateComponent,
+          ),
       },
       {
         path: 'purchases/:id',

@@ -10,6 +10,7 @@ test('filtert das Dashboard über den Shared Select und zeigt den Chart-Tooltip'
   await page.clock.setFixedTime(new Date('2026-08-30T12:00:00+02:00'));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await startDemoMode(page);
+  await page.getByRole('button', { name: 'Dieser Monat' }).click();
 
   const platform = page.getByRole('combobox', { name: 'Plattform filtern' });
   await platform.click();
@@ -60,6 +61,7 @@ test('erkundet die Diagrammdaten vollstaendig mit der Tastatur', async ({ page }
   await page.clock.setFixedTime(new Date('2026-08-30T12:00:00+02:00'));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await startDemoMode(page);
+  await page.getByRole('button', { name: 'Dieser Monat' }).click();
 
   const navigator = page.getByRole('slider', {
     name: 'Datenpunkt im Zahlungsstrom-Diagramm auswählen',
@@ -87,4 +89,33 @@ test('erkundet die Diagrammdaten vollstaendig mit der Tastatur', async ({ page }
 
   await navigator.press('Escape');
   await expect(tooltip).toHaveCount(0);
+});
+
+test('behält persönliche Demo-Filter bei Navigation und Neuladen', async ({ page }) => {
+  await startDemoMode(page);
+
+  await expect(page.getByRole('button', { name: 'Dieses Jahr' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await page.getByRole('button', { name: '7 Tage' }).click();
+  const platform = page.getByRole('combobox', { name: 'Plattform filtern' });
+  await platform.click();
+  await page.getByRole('option', { name: 'ebay' }).click();
+
+  await page.getByRole('link', { name: 'Einkäufe' }).first().click();
+  await expect(page).toHaveURL(/\/purchases$/);
+  await page.getByRole('link', { name: 'Dashboard' }).first().click();
+  await expect(page.getByRole('button', { name: '7 Tage' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('combobox', { name: 'Plattform filtern' })).toHaveText('ebay');
+
+  await page.reload();
+  await expect(page.getByRole('button', { name: '7 Tage' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(page.getByRole('combobox', { name: 'Plattform filtern' })).toHaveText('ebay');
 });

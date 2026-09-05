@@ -15,6 +15,8 @@ import { SalesService } from '../../core/services/sales.service';
 import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { RevenueChartComponent } from '../../shared/components/revenue-chart/revenue-chart.component';
 import { DashboardComponent } from './dashboard.component';
+import { DashboardPreferences } from './models/dashboard-preferences';
+import { DashboardPreferencesService } from './services/dashboard-preferences.service';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -46,6 +48,10 @@ const emptyReport: DashboardReport = {
 
 const sales = signal<Sale[]>([]);
 const createReport = vi.fn(() => emptyReport);
+const preferences = signal<DashboardPreferences>({ range: 'year', platform: 'all' });
+const saveError = signal<string | null>(null);
+const setRange = vi.fn();
+const setPlatform = vi.fn();
 let customSelectInputMetadataSnapshot: AngularInputMetadata | null = null;
 let revenueChartInputMetadataSnapshot: AngularInputMetadata | null = null;
 let customSelectValueChangeDescriptor: PropertyDescriptor | undefined;
@@ -135,6 +141,14 @@ beforeEach(() => {
 
   sales.set([]);
   createReport.mockClear();
+  preferences.set({ range: 'year', platform: 'all' });
+  saveError.set(null);
+  setRange
+    .mockReset()
+    .mockImplementation((range) => preferences.update((current) => ({ ...current, range })));
+  setPlatform
+    .mockReset()
+    .mockImplementation((platform) => preferences.update((current) => ({ ...current, platform })));
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     imports: [DashboardComponent],
@@ -142,6 +156,10 @@ beforeEach(() => {
       provideRouter([]),
       { provide: SalesService, useValue: { sales } },
       { provide: DashboardReportService, useValue: { createReport } },
+      {
+        provide: DashboardPreferencesService,
+        useValue: { preferences, saveError, setRange, setPlatform },
+      },
     ],
   });
 });
@@ -208,6 +226,7 @@ function createDashboard() {
 
 describe('DashboardComponent', () => {
   it('macht Augustverkäufe mit offenen Kosten aus der leeren Septemberansicht erreichbar', () => {
+    preferences.set({ range: 'month', platform: 'all' });
     const historicalSale: Sale = {
       id: 'historical-sale',
       workspace_id: 'workspace-1',
@@ -351,22 +370,22 @@ describe('DashboardComponent', () => {
     fixture.detectChanges();
 
     expect(component.platform()).toBe('vinted');
-    expect(createReport).toHaveBeenLastCalledWith('month', 'vinted');
+    expect(setPlatform).toHaveBeenCalledWith('vinted');
   });
 
-  it('setzt eine nicht mehr vorhandene Plattformauswahl auf alle Plattformen zurück', async () => {
+  it('behält eine gespeicherte Plattform auch ohne aktuelle Verkäufe als Option', async () => {
+    preferences.set({ range: 'year', platform: 'vinted' });
     sales.set([sale('ebay'), sale('vinted')]);
     const fixture = createDashboard();
     const component = fixture.componentInstance;
 
-    component.setPlatform('vinted');
-    fixture.detectChanges();
     sales.set([sale('ebay')]);
     await fixture.whenStable();
     fixture.detectChanges();
 
-    expect(component.platform()).toBe('all');
-    expect(createReport).toHaveBeenLastCalledWith('month', 'all');
+    expect(component.platform()).toBe('vinted');
+    expect(component.platformSelectOptions()).toContainEqual({ value: 'vinted', label: 'vinted' });
+    expect(createReport).toHaveBeenLastCalledWith('year', 'vinted');
   });
 
   it('normalisiert eine leere Plattformauswahl auf alle Plattformen', () => {
@@ -376,8 +395,18 @@ describe('DashboardComponent', () => {
     component.setPlatform(null);
     fixture.detectChanges();
 
-    expect(component.platform()).toBe('all');
-    expect(createReport).toHaveBeenLastCalledWith('month', 'all');
+    expect(setPlatform).toHaveBeenCalledWith('all');
+  });
+
+  it('zeigt einen Speicherfehler einmal als Statushinweis', () => {
+    saveError.set('Die Dashboard-Auswahl konnte nicht gespeichert werden.');
+    const fixture = createDashboard();
+    const hints = (fixture.nativeElement as HTMLElement).querySelectorAll(
+      '[data-dashboard-save-error]',
+    );
+
+    expect(hints).toHaveLength(1);
+    expect(hints[0]?.getAttribute('role')).toBe('status');
   });
 
   it('rendert die Zeitraumwahl als gedrückte Gruppe und besteht AXE im Header', async () => {

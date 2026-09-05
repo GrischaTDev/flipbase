@@ -106,6 +106,7 @@ export function createRevenueChartConfiguration(
       })),
     },
     options: {
+      font: { family: 'Inter, system-ui, sans-serif' },
       responsive: true,
       maintainAspectRatio: false,
       animation: reducedMotion ? false : { duration: 250 },

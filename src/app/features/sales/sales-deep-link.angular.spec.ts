@@ -15,6 +15,7 @@ import { SalesService } from '../../core/services/sales.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
+import { CostStateComponent } from '../../shared/components/cost-state/cost-state.component';
 import { PurchaseDetailTableComponent } from '../purchases/components/purchase-detail-table/purchase-detail-table.component';
 import type { PurchaseDetailRow } from '../purchases/models/purchase-presentation.models';
 import { SalesComponent } from './sales.component';
@@ -97,7 +98,7 @@ beforeEach(() => {
   loadError = signal<Error | null>(null);
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
-    imports: [SalesComponent, PurchaseDetailTableComponent],
+    imports: [SalesComponent, PurchaseDetailTableComponent, CostStateComponent],
     providers: [
       provideRouter([{ path: 'sales', component: SalesComponent }]),
       provideTranslateService({ lang: 'de' }),
@@ -120,7 +121,13 @@ beforeEach(() => {
         provide: ToastService,
         useValue: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
       },
-      { provide: SyncStatusService, useValue: { istZentralGemeldet: () => false } },
+      {
+        provide: SyncStatusService,
+        useValue: {
+          istZentralGemeldet: () => false,
+          beiSitzungsverdacht: () => undefined,
+        },
+      },
     ],
   });
 });
@@ -144,11 +151,14 @@ describe('SalesComponent – verlinkter Verkauf', () => {
       'Verkaufserlös',
       'Wareneinsatz',
       'Verkaufskosten',
-      'Ergebnis nach direkten Kosten',
+      'Ergebnis',
       'Marge',
       'Haltedauer',
       'Aktionen',
     ]);
+    expect(host.querySelector('thead abbr')?.getAttribute('title')).toBe(
+      'Verkaufserlös abzüglich Wareneinsatz und Verkaufskosten',
+    );
     expect(host.textContent).toContain('Durchschnittliche Marge');
     expect(host.textContent).not.toContain('ROI');
     expect(host.textContent).not.toContain('Nettogewinn');
@@ -281,5 +291,25 @@ describe('SalesComponent – verlinkter Verkauf', () => {
 
     await vi.waitFor(() => expect(focus).toHaveBeenCalledTimes(2));
     expect((focus.mock.instances[1] as HTMLElement).id).toBe('sale-desktop-sale-1');
+  });
+
+  it('passt sichtbare Spalten dynamisch an wenn eine Spalte ausgeblendet wird', async () => {
+    sales.set([linkedSale]);
+    loadedWorkspaceId.set(workspace.id);
+
+    const harness = await RouterTestingHarness.create();
+    const comp = await harness.navigateByUrl('/sales', SalesComponent);
+
+    expect(comp.isColumnVisible('quantity')).toBe(true);
+    comp.toggleColumnVisibility('quantity');
+    harness.detectChanges();
+
+    expect(comp.isColumnVisible('quantity')).toBe(false);
+
+    const host = harness.routeNativeElement as HTMLElement;
+    const headers = [...host.querySelectorAll('thead th')].map((header) =>
+      header.textContent?.replace(/\s+/g, ' ').trim(),
+    );
+    expect(headers).not.toContain('Menge');
   });
 });
