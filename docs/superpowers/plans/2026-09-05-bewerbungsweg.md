@@ -1102,6 +1102,33 @@ git commit -m "feat(auth): turn the landing beta fields into a real application 
 
 Der Body erklärt, dass die Felder bisher nur in die offene Registrierung weitergeleitet haben und nichts gespeichert wurde.
 
+### Nachtrag zu Task 3: was der Plan nicht wusste
+
+Bei der Umsetzung kamen drei Dinge ans Licht, die hier fehlten:
+
+1. **Die Landing Page war bewusst skriptfrei.** Design- und Sprachumschaltung
+   laufen über reines CSS, und ein Test verbot jedes `<script>`. Der Betreiber
+   hat entschieden, das eine Formularskript zuzulassen. Der Test verbietet jetzt
+   gezielt nur noch fremde Skripte (`src`), nicht mehr pauschal jedes.
+2. **Die Content-Security-Policy hätte das Skript in Produktion blockiert.**
+   `deploy/Caddyfile` setzte `script-src 'none'`, und `connect-src` fehlte ganz.
+   Das Formular wäre live wirkungslos gewesen, ohne sichtbaren Fehler. Gelöst
+   über `script-src 'sha256-…'` — nur genau dieses Skript, kein `'unsafe-inline'`
+   — plus `connect-src` für die Funktion und `form-action 'none'`. Ein Test
+   rechnet die Prüfsumme aus dem Skript nach und schlägt fehl, sobald jemand das
+   Skript ändert, ohne sie nachzuziehen.
+3. **`verify_jwt = false`** musste für die Funktion gesetzt werden. Ohne den
+   Abschnitt `[functions.beta-application]` in `supabase/config.toml` verlangt
+   das Gateway einen Anmeldeschlüssel, den ein anonymer Besucher nicht hat.
+
+Dazu zwei Fehler im geplanten Skript: Die Rückmeldung entschied ihre Sprache
+über `document.documentElement.lang`, das hier immer `"de"` ist — sie gibt jetzt
+beide Fassungen aus und lässt das vorhandene CSS entscheiden. Und ohne
+Zeitgrenze blieb der Absendeknopf bei ausbleibender Antwort dauerhaft gesperrt.
+
+Maßgeblich ist der Stand in `landing/index.html`, `deploy/Caddyfile` und
+`src/app/core/services/landing-template.spec.ts`, nicht die Codeblöcke oben.
+
 ---
 
 ### Task 4: Betreiberbereich mit Bewerbungsliste
