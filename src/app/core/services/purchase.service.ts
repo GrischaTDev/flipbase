@@ -354,7 +354,7 @@ export class PurchaseService {
           *,
           source:sources(*),
           supplier:suppliers(*),
-          costs:purchase_costs(*),
+          costs:purchase_costs!purchase_costs_workspace_purchase_fkey(*),
           items:inventory_items(id, purchase_id, purchase_line_id, title, status, allocated_purchase_cost, expected_value),
           purchase_lines!purchase_lines_purchase_id_fkey(*)
         `,
@@ -479,7 +479,7 @@ export class PurchaseService {
           *,
           source:sources(*),
           supplier:suppliers(*),
-          costs:purchase_costs(*),
+          costs:purchase_costs!purchase_costs_workspace_purchase_fkey(*),
           items:inventory_items(*),
           purchase_lines!purchase_lines_purchase_id_fkey(*)
         `,

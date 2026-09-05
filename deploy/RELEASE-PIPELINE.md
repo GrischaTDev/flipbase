@@ -1,9 +1,22 @@
 # Kontrollierte Release-Pipeline
 
-Stand 05.09.2026: Die Dateien sind vorbereitet, **nicht auf dem Server installiert**.
-`RELEASE_MIGRATIONS_V1` ist noch nicht gesetzt. Solange die Repository-Variable
-nicht genau `true` ist, bleibt der bisherige Migrationsabgleich vor dem Deployment
-aktiv. Ein alter Server lehnt `release-v1` ab; das ist kein Grund, den Check zu umgehen.
+Stand 05.09.2026: Die Deployment-Dateien sind auf dem Server installiert und die
+alten Dateien unter `/opt/flipbase/release-bootstrap-20260905/original` gesichert.
+Der alte Migrationshelfer wurde wiederherstellbar außer Betrieb genommen.
+**Produktionsmigration und Deployment sind abgeschlossen.**
+PR #19 ist gemergt; Produktionslauf `33931627849`, Versuch 3, ist vollständig
+erfolgreich. Produktiv sind 76 Migrationen registriert. Die 23 Updates wurden
+nach frischer lokaler und externer Sicherung gemeinsam in einer Transaktion
+eingespielt; die geprüften Geschäftszahlen blieben unverändert.
+`RELEASE_MIGRATIONS_V1=true` ist aktiviert und der neue Weg tatsächlich in der
+Action geprüft. Öffentlich wird Commit `6bfaefb33ffb6fd4d3ba32f2edb6e95cf10fb744`
+aus dem gesunden Image-Digest
+`sha256:fb29dd9782a27a83f8e7272ad2a9198ca4b859ad2847f2febcd0b0fb5e14d95c` ausgeliefert.
+Die vier isolierten Wiederherstellungscontainer wurden entfernt; verschlüsselte
+Sicherungen, geschützte Betriebsprotokolle und gesicherte Serverdateien bleiben erhalten.
+
+Die nachstehenden Bootstrap-Schritte dokumentieren die Voraussetzungen und wurden
+auf diesem Server erfüllt. Ein unvorbereiteter Server darf den Check nicht umgehen.
 
 ## Ablauf und Bauzeit
 

@@ -1,5 +1,37 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Eindeutige Zusatzkosten-Beziehung beim Laden
+
+**Art:** Bugfix | Test
+**Betroffen:** `purchase.service.ts`, Übersicht und Einzelansicht, eigener Zweig `fix/disambiguate-purchase-cost-queries`.
+**Was:** Beide Zusatzkosten-Einbettungen wählen ausdrücklich `purchase_costs_workspace_purchase_fkey`. Zwei Regressionstests prüfen die tatsächlich an den Client übergebenen Abfragen. Betriebsnachweise des vorherigen Deployments werden mit dokumentiert.
+**Warum:** Nach Einführung der zusätzlichen Workspace-Beziehung kann PostgREST die unqualifizierte Einbettung nicht mehr eindeutig auflösen.
+**Verifiziert durch:** Beide neuen Tests zunächst rot, nach Korrektur alle drei fokussierten Tests grün. Echte produktive REST-API ausschließlich mit `limit=0` geprüft: alte Einbettung HTTP 300/PGRST201; korrigierte Übersicht und Detail jeweils HTTP 200 mit leerem Ergebnis. Keine Datenbank-, Rechte- oder Geschäftsdatenänderung. Vollständiger Verify-Lauf vor Push.
+
+## 2026-09-05 – Codex – Mehrdeutige Einkaufsabfrage diagnostiziert
+
+**Art:** Analyse
+**Betroffen:** `purchase.service.ts`, Einkaufsübersicht und Einkaufsdetail.
+**Was:** Gemeldeten Ladefehler auf beide unqualifizierten `costs:purchase_costs(*)`-Einbettungen zurückgeführt. Produktiv bestehen sowohl `purchase_costs_purchase_id_fkey` als auch die neue Workspace-Beziehung `purchase_costs_workspace_purchase_fkey`.
+**Warum:** Nach dem Upgrade kann PostgREST ohne ausdrücklichen Beziehungshinweis nicht zwischen beiden Beziehungen wählen. Die bestehenden Prüfungen haben die echte REST-Einbettung nicht erfasst.
+**Verifiziert durch:** Beide Serviceabfragen und produktive FK-Definitionen lesend geprüft; offizielles Supabase-Verfahren für mehrdeutige Beziehungen abgeglichen. Noch keine Korrektur oder erneute Veröffentlichung.
+
+## 2026-09-05 – Codex – Produktionsmigration und Release abgeschlossen
+
+**Art:** Betrieb | Verifikation
+**Betroffen:** Produktionsdatenbank, Deploymentweg, PR #19 und Actions-Lauf `33931627849`.
+**Was:** Nach frischem verschlüsseltem Backup auf beiden Servern alle 23 ausstehenden Migrationen einschließlich Rechtekorrektur gemeinsam und mit ihren Historieneinträgen atomar eingespielt. Geschäftskennzahlen innerhalb derselben Transaktion auf Gleichheit geprüft. `RELEASE_MIGRATIONS_V1=true` aktiviert. Nach dem ersten erfolgreichen Rollout den kurzen Deployjob erneut ausgeführt, weil der laufende Workflow die zuvor gelesene Variable noch nicht übernommen hatte. Versuch 3 bestätigt den neuen Digest-/Migrationsweg. Vier isolierte Restore-Container entfernt; Sicherungen und geschützte Betriebsprotokolle erhalten.
+**Warum:** Nicht nur das Frontend ausliefern, sondern den automatischen Datenbankweg tatsächlich produktiv verifizieren.
+**Verifiziert durch:** Actions vollständig erfolgreich; produktiv 76 Versionen und keine direkten anon-Grants in public. Webcontainer gesund, Digest `sha256:fb29dd9782a27a83f8e7272ad2a9198ca4b859ad2847f2febcd0b0fb5e14d95c`. Öffentliche Startseite, Healthcheck und vollständige Commit-SHA `6bfaefb33ffb6fd4d3ba32f2edb6e95cf10fb744` erfolgreich nachgeprüft. Abschließende Betriebsdokumentation lokal; kein weiterer Codepush dafür.
+
+## 2026-09-05 – Codex – Missverstandene Statusmeldung und Fortsetzung
+
+**Art:** Betrieb
+**Betroffen:** PR #19, Produktionslauf `33931627849`, Serverbootstrap.
+**Was:** Nach erfolgreicher vollständiger Prüfung PR #19 gemergt (`6bfaefb33ffb6fd4d3ba32f2edb6e95cf10fb744`). Serverhelfer installiert und alte Dateien gesichert. Die Meldung „deploy nicht“ wurde irrtümlich als Stop-Anweisung verstanden und der laufende Produktionsworkflow zum Abbruch angewiesen. Nutzer stellte unmittelbar klar, dass die Action gemeint war, nicht ein Stopp; die Auslieferung wird fortgesetzt. Zu diesem Zeitpunkt kein produktiver Migrationslauf und keine Aktivierung von `RELEASE_MIGRATIONS_V1`.
+**Warum:** Missverständnis ausdrücklich berichtigen und den tatsächlichen Ablauf nachvollziehbar festhalten.
+**Verifiziert durch:** Produktionsdatenbank weiterhin 53 Versionen, Webcontainer weiterhin `sha-08c4d73`, Zustand `healthy`. Restore-Tests, isolierte Testcontainer und verschlüsselte Sicherungen bleiben für die Fortsetzung erhalten. Diese Statusdokumentation wird nicht gepusht.
+
 ## 2026-09-05 – Codex – Produktionsbootstrap und Rechteabgleich
 
 **Art:** Betrieb | Bugfix | Test
