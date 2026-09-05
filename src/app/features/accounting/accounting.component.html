@@ -124,6 +124,7 @@
                 (click)="onResetBankStatement()"
                 class="text-xs text-fb-text-muted hover:text-rose-400 p-2 transition cursor-pointer"
                 title="Kontoauszug zurücksetzen"
+                aria-label="Kontoauszug zurücksetzen"
               >
                 <svg [lucideIcon]="trashIcon" class="w-4 h-4"></svg>
               </button>
@@ -276,30 +277,43 @@
         <div class="card overflow-hidden">
           <div class="overflow-x-auto">
             <table class="w-full text-left text-xs border-collapse">
+              <caption class="sr-only">
+                Banktransaktionen
+              </caption>
               <thead>
                 <tr
-                  class="border-b border-fb-border/40 bg-fb-subtle text-fb-text-muted font-medium text-[11px] uppercase tracking-wider"
+                  class="border-b border-fb-line bg-fb-surface text-fb-text-secondary font-semibold text-[13px]"
                 >
                   @if (isColumnVisible('booking_date')) {
-                    <th class="py-2.5 px-4">Datum</th>
+                    <th scope="col" [attr.aria-sort]="ariaSort('booking_date')" class="py-2.5 px-4">
+                      Datum
+                    </th>
                   }
                   @if (isColumnVisible('counterparty')) {
-                    <th class="py-2.5 px-4">Auftraggeber / Empfänger</th>
+                    <th scope="col" [attr.aria-sort]="ariaSort('counterparty')" class="py-2.5 px-4">
+                      Auftraggeber / Empfänger
+                    </th>
                   }
                   @if (isColumnVisible('purpose')) {
-                    <th class="py-2.5 px-4">Verwendungszweck</th>
+                    <th scope="col" class="py-2.5 px-4">Verwendungszweck</th>
                   }
                   @if (isColumnVisible('amount')) {
-                    <th class="py-2.5 px-4 text-right">Betrag</th>
+                    <th
+                      scope="col"
+                      [attr.aria-sort]="ariaSort('amount')"
+                      class="py-2.5 px-4 text-right"
+                    >
+                      Betrag
+                    </th>
                   }
                   @if (isColumnVisible('match')) {
-                    <th class="py-2.5 px-4">Zugeordnetes Objekt / Match</th>
+                    <th scope="col" class="py-2.5 px-4">Zugeordnetes Objekt / Match</th>
                   }
                   @if (isColumnVisible('status')) {
-                    <th class="py-2.5 px-4 text-center">Status</th>
+                    <th scope="col" class="py-2.5 px-4 text-center">Status</th>
                   }
                   @if (isColumnVisible('actions')) {
-                    <th class="py-2.5 px-4 text-right">Aktionen</th>
+                    <th scope="col" class="py-2.5 px-4 text-right">Aktionen</th>
                   }
                 </tr>
               </thead>
@@ -452,6 +466,7 @@
                               (click)="onIgnoreTransaction(tx.id)"
                               class="text-fb-text-muted hover:text-fb-text-primary p-1 transition cursor-pointer"
                               title="Ignorieren"
+                              aria-label="Transaktion ignorieren"
                             >
                               <svg [lucideIcon]="closeIcon" class="w-3.5 h-3.5"></svg>
                             </button>
@@ -590,18 +605,21 @@
 
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs border-collapse">
+            <caption class="sr-only">
+              Steuerjournal
+            </caption>
             <thead>
               <tr
-                class="border-b border-fb-border/40 bg-fb-subtle text-fb-text-muted font-medium text-[11px] uppercase tracking-wider"
+                class="border-b border-fb-line bg-fb-surface text-fb-text-secondary font-semibold text-[13px]"
               >
-                <th class="py-2.5 px-4">Verkaufsdatum</th>
-                <th class="py-2.5 px-4">Artikel / SKU</th>
-                <th class="py-2.5 px-4">Plattform</th>
-                <th class="py-2.5 px-4 text-right">Verkaufspreis</th>
-                <th class="py-2.5 px-4 text-right">Einkaufspreis</th>
-                <th class="py-2.5 px-4 text-right">Marge (Brutto)</th>
-                <th class="py-2.5 px-4 text-right">USt (19%)</th>
-                <th class="py-2.5 px-4 text-center">Rechnung</th>
+                <th scope="col" class="py-2.5 px-4">Verkaufsdatum</th>
+                <th scope="col" class="py-2.5 px-4">Artikel / SKU</th>
+                <th scope="col" class="py-2.5 px-4">Plattform</th>
+                <th scope="col" class="py-2.5 px-4 text-right">Verkaufspreis</th>
+                <th scope="col" class="py-2.5 px-4 text-right">Einkaufspreis</th>
+                <th scope="col" class="py-2.5 px-4 text-right">Marge (Brutto)</th>
+                <th scope="col" class="py-2.5 px-4 text-right">USt (19%)</th>
+                <th scope="col" class="py-2.5 px-4 text-center">Rechnung</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-border/30">
@@ -647,6 +665,7 @@
                       (click)="openInvoiceModal(row)"
                       class="text-fb-text-muted hover:text-fb-text-primary p-1 transition cursor-pointer"
                       title="Rechnung anzeigen"
+                      aria-label="Rechnung anzeigen"
                     >
                       <svg [lucideIcon]="fileIcon" class="w-4 h-4"></svg>
                     </button>

@@ -2,7 +2,7 @@
   @if (label()) {
     <label
       [for]="fieldId()"
-      class="block text-xs font-semibold text-fb-text-primary"
+      class="block text-[13px] font-semibold text-fb-text-primary"
       [class.sr-only]="labelHidden()"
     >
       {{ label() }}
@@ -15,7 +15,7 @@
         <svg [lucideIcon]="pIcon" class="w-4 h-4" aria-hidden="true"></svg>
       </div>
     } @else if (prefix()) {
-      <span class="absolute left-3 text-xs text-fb-text-muted font-medium pointer-events-none">
+      <span class="absolute left-3 text-[13px] text-fb-text-muted font-medium pointer-events-none">
         {{ prefix() }}
       </span>
     }
@@ -65,19 +65,19 @@
         <svg [lucideIcon]="clearIcon" class="w-3.5 h-3.5" aria-hidden="true"></svg>
       </button>
     } @else if (suffix()) {
-      <span class="absolute right-3 text-xs text-fb-text-muted font-medium pointer-events-none">
+      <span class="absolute right-3 text-[13px] text-fb-text-muted font-medium pointer-events-none">
         {{ suffix() }}
       </span>
     }
   </div>
 
   @if (error()) {
-    <p [id]="fieldId() + '-error'" class="flex items-center gap-1.5 text-[11px] text-rose-400">
+    <p [id]="fieldId() + '-error'" class="flex items-center gap-1.5 text-xs text-rose-400">
       <svg [lucideIcon]="errorIcon" class="w-3.5 h-3.5 shrink-0" aria-hidden="true"></svg>
       <span>{{ error() }}</span>
     </p>
   } @else if (helpText()) {
-    <p [id]="fieldId() + '-help'" class="text-[11px] text-fb-text-muted leading-relaxed">
+    <p [id]="fieldId() + '-help'" class="text-xs text-fb-text-muted leading-relaxed">
       {{ helpText() }}
     </p>
   }

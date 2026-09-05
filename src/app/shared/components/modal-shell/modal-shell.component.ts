@@ -30,7 +30,7 @@ export class ModalShellComponent {
 
   protected readonly cardClasses = computed(() => {
     const base =
-      'linear-surface my-auto flex max-h-[90vh] w-full flex-col overflow-hidden rounded-2xl border border-fb-border shadow-2xl animate-modal-card';
+      'linear-surface my-auto flex max-h-[90vh] w-full flex-col overflow-hidden rounded-lg border border-fb-border shadow-lg animate-modal-card';
 
     const sizeClasses: Record<ModalSize, string> = {
       sm: 'max-w-md',

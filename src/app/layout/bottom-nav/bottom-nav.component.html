@@ -4,7 +4,8 @@
   <a
     routerLink="/dashboard"
     routerLinkActive="text-indigo-400 font-semibold"
-    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-[10px] w-14 py-1 hover:text-fb-text-primary transition"
+    ariaCurrentWhenActive="page"
+    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
   >
     <svg [lucideIcon]="DashboardIcon" class="w-4 h-4"></svg>
     <span>Dashboard</span>
@@ -13,7 +14,8 @@
   <a
     routerLink="/purchases"
     routerLinkActive="text-indigo-400 font-semibold"
-    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-[10px] w-14 py-1 hover:text-fb-text-primary transition"
+    ariaCurrentWhenActive="page"
+    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
   >
     <svg [lucideIcon]="PurchasesIcon" class="w-4 h-4"></svg>
     <span>Einkauf</span>
@@ -22,7 +24,8 @@
   <a
     routerLink="/inventory"
     routerLinkActive="text-indigo-400 font-semibold"
-    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-[10px] w-14 py-1 hover:text-fb-text-primary transition"
+    ariaCurrentWhenActive="page"
+    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
   >
     <svg [lucideIcon]="InventoryIcon" class="w-4 h-4"></svg>
     <span>Inventar</span>
@@ -31,7 +34,8 @@
   <a
     routerLink="/sales"
     routerLinkActive="text-indigo-400 font-semibold"
-    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-[10px] w-14 py-1 hover:text-fb-text-primary transition"
+    ariaCurrentWhenActive="page"
+    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition"
   >
     <svg [lucideIcon]="SalesIcon" class="w-4 h-4"></svg>
     <span>Verkauf</span>
@@ -40,7 +44,9 @@
   <button
     type="button"
     (click)="toggleMenu.emit()"
-    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-[10px] w-14 py-1 hover:text-fb-text-primary transition cursor-pointer"
+    [attr.aria-expanded]="isMenuOpen()"
+    aria-controls="app-sidebar"
+    class="flex flex-col items-center justify-center gap-1 text-fb-text-muted text-xs w-14 py-1 hover:text-fb-text-primary transition cursor-pointer"
   >
     <svg [lucideIcon]="MenuIcon" class="w-4 h-4"></svg>
     <span>Menü</span>

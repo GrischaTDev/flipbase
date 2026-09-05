@@ -81,4 +81,24 @@ describe('DatePickerComponent', () => {
     component.schliesse();
     expect(component.istOffen()).toBe(false);
   });
+
+  it('supports roving keyboard navigation inside the calendar', () => {
+    component.writeValue('2026-09-05');
+    component.toggle(new MouseEvent('click'));
+
+    const event = new KeyboardEvent('keydown', { key: 'ArrowRight', cancelable: true });
+    component.onCalendarKeydown(event, '2026-09-05');
+
+    expect(component.focusedDate()).toBe('2026-09-06');
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('rejects impossible calendar dates while parsing input', () => {
+    component.writeValue('2026-09-05');
+    const input = fixture.nativeElement.querySelector('input') as HTMLInputElement;
+    input.value = '31.02.2026';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect(component.value()).toBe('2026-09-05');
+  });
 });

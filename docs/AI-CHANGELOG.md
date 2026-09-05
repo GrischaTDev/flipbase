@@ -1,5 +1,63 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Codex – Polaris-Nachlauf für Tabellen-, Formular- und Navigationszugänglichkeit
+
+**Branch:** `codex/polaris-admin-ui`.
+
+**Umsetzung:**
+
+- Tabellenköpfe in Verkäufen, Buchhaltung, Artikelstamm und Einkaufsdetails mit `scope="col"`, beschreibenden Captions und Sortierzustand (`aria-sort`) ergänzt.
+- Mobile Artikelkarten berücksichtigen jetzt die gewählten sichtbaren Spalten; icon-only Aktionen in der Buchhaltung haben eigene zugängliche Beschriftungen.
+- Gemeinsame Selects erhalten wieder einen sichtbaren Polaris-nahen Fokus-Ring und sind über feste Trigger-IDs sauber mit den Formularlabels verbunden.
+- Date-Picker mit eindeutigem Input-/Dialog-Ziel, `aria-expanded`/`aria-controls`, Roving-Tabindex, Pfeiltasten, Home/End, PageUp/PageDown, Enter, Escape und Fokus-Rückgabe erweitert; ungültige Kalendertage werden verworfen.
+- Einkaufstypen und Erstattungsarten als zugängliche Radio-Gruppen ausgezeichnet; mobile Bottom-Navigation, Sidebar, Header- und Workspace-Dropdowns semantisch verknüpft.
+- Globalen Admin-Inhaltsbereich auf eine kontrollierte Maximalbreite begrenzt und die Polaris-nahe Tabellenkopfdichte beibehalten.
+
+**Prüfung:** `npm run typecheck`, `npm run lint`, `npm run test:angular` (466 Tests erfolgreich, 5 übersprungen), gezielte Date-Picker-/Shared-Component-Tests (5 erfolgreich), `npm run build`, gezielter Prettier-Check und `git diff --check`. Zusätzlich Browser-Check auf `/sales` und `/purchases/new` inklusive Spaltenmenü, Date-Picker und Pfeiltasten-Navigation erfolgreich.
+
+## 2026-09-06 – Codex – Polaris-nahe Tabellen- und Navigationsoberfläche umgesetzt
+
+**Anlass:** Die wichtigsten Verwaltungsflächen sollen näher an Shopify-Admin/Polaris liegen, ohne Flipbase-Orange, eigene Marke oder eigene Icons aufzugeben.
+
+**Branch:** `codex/polaris-admin-ui`.
+
+**Umsetzung:**
+
+- Sales-Tabelle auf ein einheitliches Spaltenmenü mit Sortierung, Sichtbarkeit, Reihenfolge, gesperrten Spalten und Tastaturbedienung konsolidiert; den doppelten alten Picker aus der Verkaufsseite entfernt.
+- Popover mit eindeutiger ARIA-Verknüpfung, Fokus auf das Sortierfeld, Fokus-Rückgabe beim Schließen und eigener dezenter Einblendung (`opacity`, leichte Verschiebung und Skalierung, 160 ms) ergänzt.
+- Tabellenköpfe, Zeilen-Hover, Formulare, Buttons, Karten und Sidebar auf ruhigere Polaris-nahe Größen, Abstände, Ränder und Zustände normalisiert. Verläufe und undefinierte UI-Tokens in den betroffenen Flächen entfernt.
+- Flipbase-Orange als gezielten Primärakzent beibehalten; JetBrains Mono lokal für Code-/Monospace-Inhalte eingebunden.
+
+**Prüfung:** `npm run typecheck`, `npm run lint`, `npm run format:check`, `npm run test:angular` (466 Tests erfolgreich, 5 übersprungen), gezielte Shared-Component-Tests (16 Tests erfolgreich), `npm run build` und visueller Check der Sales-Seite inklusive Popover-Animation erfolgreich.
+
+## 2026-09-06 – Codex – Polaris-Lizenz und Flipbase-Markenakzent geprüft
+
+**Anlass:** Prüfung, ob Flipbase Polaris kostenlos und ohne weitere Einschränkungen verwenden kann, sowie Einordnung des gewünschten Flipbase-Oranges.
+
+**Befund:** Das aktuelle `LICENSE.md` der installierten Pakete `@shopify/polaris-tokens` und `@shopify/polaris-icons` gewährt die Nutzung zwar kostenfrei, enthält aber eine zusätzliche Einschränkung: Die Rechte gelten für Anwendungen, die Shopify-Software oder -Dienste integrieren bzw. mit ihnen zusammenarbeiten. Für eigenständige Anwendungen ohne direkte Einbettung in Shopify wird eine visuell deutlich unterschiedliche Gestaltung verlangt. Eine pauschale Aussage „kostenlos und uneingeschränkt“ ist daher nicht belastbar.
+
+**Gestaltung:** Das Flipbase-Orange kann als eigener Markenakzent erhalten bleiben. Polaris sollte weiterhin die Struktur, Abstände, Typografie, Komponentenlogik und Zustände vorgeben; Orange wird gezielt für Marke, primäre Aktionen und passende Statusrollen verwendet und nicht als Ersatz für die gesamte neutrale Farbpalette.
+
+**Abgrenzung:** Keine Anwendungscodeänderung. Für die konkrete Veröffentlichung und Lizenzbewertung ist bei einer eigenständigen Flipbase-Anwendung eine rechtliche Prüfung erforderlich.
+
+## 2026-09-05 – Codex – Shopify-Docs-/Polaris-Abgleich und UI-Prüfung
+
+**Auftrag:** Die aktuelle Oberfläche von `shopify.dev/docs` sowie die zugrunde liegenden Shopify-Polaris-Grundsätze mit dem Projektstand vergleichen und die zuletzt eingetragene UI-Standardisierung fachlich bewerten.
+
+**Recherche:** Die öffentlich ausgelieferte Shopify-Dokumentationsseite wurde direkt im Browser und über die offiziellen Shopify-Dokumente geprüft. Erfasst wurden Schriftfamilien, Größenhierarchie, Abstände, Responsive-Layout, CSS-Aufteilung, Farben, Komponentenrollen und Tabellen-/Popover-Verhalten. Im Projekt wurden `package.json`, `src/styles.css`, die lokalen Fonts, der Shell-Aufbau, die neuen Shared Components und die betroffenen Tabellen-Templates geprüft.
+
+**Wesentliche Befunde:**
+
+- `shopify.dev/docs` nutzt Inter für die Oberfläche und JetBrains Mono für Code, eine 4-Pixel-basierte Abstandsskala, CSS-Module/Chunks pro Oberfläche sowie eine klare Hierarchie ab 13 Pixeln für normale Inhalte und Interaktionen.
+- Das Projekt hat Polaris-Tokens und -Icons installiert, verwendet sie im Anwendungscode aber nicht. Die sichtbare Oberfläche basiert weiterhin auf eigenen `fb-*`-Tokens, `linear-*`-Klassen und Lucide-Icons.
+- Die lokale Monospace-Konfiguration zeigt auf Inter (`--font-mono: var(--font-sans)`); JetBrains Mono ist nicht lokal eingebunden.
+- Mehrere aktuelle Texte und interaktive Elemente sind 9–12 Pixel groß. Das unterschreitet die von Shopify dokumentierte Mindestgröße für normale Inhalte und Interaktionen.
+- Der aktuelle Primärakzent ist Orange, während die moderne Polaris-Admin-Grundfarbe neutral dunkel ist. Abgerundete XL/2XL-Flächen, Farbverläufe und starke Schatten weichen ebenfalls vom Polaris-/Docs-Eindruck ab.
+- Im neuen Spaltenmenü werden nicht definierte Variablen/Klassen (`--fb-bg-card`, `text-fb-text`) verwendet. Im Verkaufs-Template sind zugleich `app-table-column-picker` und `app-table-column-menu` enthalten; im laufenden UI war nur der Picker sichtbar.
+- Das Spaltenmenü stellt Fokus-Rückgabe bei Escape bereit, aber nicht beim Click-Outside; außerdem fehlen am Dialog eine belastbare Fokusinitialisierung und eine vollständige Beziehung zwischen Trigger und Dialog. Die Button-Abstraktion erzwingt für Icon-only-Nutzung kein zugängliches Label.
+
+**Abgrenzung:** Keine Anwendungscodeänderung. Nur dieser Protokolleintrag wurde ergänzt.
+
 ## 2026-09-05 – Antigravity – Shopify Polaris IndexTable & Dynamische Spaltenverwaltung (Spaltenmenü-Popover)
 
 **Stand:** Zweig `feature/ui-polaris-standardization`. Tabellenmodernisierung nach dem Shopify Polaris IndexTable-Standard mit integrierten Filtern und dem 3-Balken `[ ||| ]` Spalten- und Sortier-Popover.

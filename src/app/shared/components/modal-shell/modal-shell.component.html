@@ -1,5 +1,5 @@
 <div
-  class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-md sm:p-6 animate-fade-in"
+  class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/45 p-3 backdrop-blur-sm sm:p-6 animate-fade-in"
   appModalDialog
   [dialogTitel]="title()"
   [schliesstBeiKlickAussen]="closeOnBackdrop()"
@@ -7,21 +7,21 @@
 >
   <div [class]="cardClasses()">
     <header
-      class="flex items-center justify-between border-b border-fb-border bg-fb-subtle px-5 py-4 shrink-0"
+      class="flex min-h-14 items-center justify-between border-b border-fb-line bg-fb-surface px-5 py-3.5 shrink-0"
     >
       <div class="flex items-center gap-3 min-w-0">
         @if (icon(); as ic) {
           <div
-            class="flex h-9 w-9 items-center justify-center rounded-xl border shrink-0"
+            class="flex h-9 w-9 items-center justify-center rounded-md border shrink-0"
             [class]="iconToneClasses()"
           >
             <svg [lucideIcon]="ic" class="h-4 w-4" aria-hidden="true"></svg>
           </div>
         }
         <div class="min-w-0">
-          <h2 class="text-sm font-bold text-fb-text-primary truncate">{{ title() }}</h2>
+          <h2 class="text-base font-semibold text-fb-text-primary truncate">{{ title() }}</h2>
           @if (subtitle()) {
-            <p class="text-[11px] text-fb-text-muted truncate mt-0.5">{{ subtitle() }}</p>
+            <p class="text-[13px] text-fb-text-muted truncate mt-0.5">{{ subtitle() }}</p>
           }
         </div>
       </div>
@@ -31,7 +31,7 @@
         <button
           type="button"
           (click)="closed.emit()"
-          class="cursor-pointer rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-surface-hover hover:text-fb-text-primary"
+          class="flex min-h-8 min-w-8 items-center justify-center cursor-pointer rounded-md text-fb-text-muted transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
           aria-label="Dialog schließen"
         >
           <svg [lucideIcon]="closeIcon" class="h-4 w-4" aria-hidden="true"></svg>
@@ -39,13 +39,13 @@
       </div>
     </header>
 
-    <div class="flex-1 overflow-y-auto p-5 space-y-4">
+    <div class="flex-1 overflow-y-auto p-5 space-y-5">
       <ng-content />
     </div>
 
     @if (hasFooter()) {
       <footer
-        class="flex items-center justify-end gap-2.5 border-t border-fb-border bg-fb-subtle px-5 py-3 shrink-0"
+        class="flex min-h-14 items-center justify-end gap-2.5 border-t border-fb-line bg-fb-surface px-5 py-3 shrink-0"
       >
         <ng-content select="[modal-footer]" />
       </footer>

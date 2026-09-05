@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import {
   LucideDynamicIcon,
@@ -17,6 +17,7 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BottomNavComponent {
+  readonly isMenuOpen = input<boolean>(false);
   readonly toggleMenu = output<void>();
 
   readonly DashboardIcon = LayoutDashboard;

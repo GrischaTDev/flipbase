@@ -40,7 +40,7 @@ export class ButtonComponent {
     const base =
       'inline-flex items-center justify-center font-medium transition select-none cursor-pointer ' +
       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary ' +
-      'disabled:cursor-not-allowed disabled:opacity-40 active:scale-[0.98]';
+      'disabled:cursor-not-allowed disabled:opacity-40 active:scale-[0.99]';
 
     const width = this.fullWidth() ? 'w-full' : '';
 
@@ -59,9 +59,9 @@ export class ButtonComponent {
     };
 
     const sizeStyles: Record<ButtonSize, string> = {
-      slim: 'px-2.5 py-1 text-xs rounded-lg gap-1.5 min-h-[28px]',
-      md: 'px-3.5 py-1.5 text-xs rounded-xl gap-2 min-h-[34px]',
-      lg: 'px-4 py-2.5 text-sm rounded-xl gap-2.5 min-h-[44px]',
+      slim: 'px-2.5 py-1 text-[13px] rounded-md gap-1.5 min-h-8',
+      md: 'px-3.5 py-1.5 text-[13px] rounded-md gap-2 min-h-9',
+      lg: 'px-4 py-2.5 text-sm rounded-lg gap-2.5 min-h-11',
     };
 
     return [base, width, variantStyles[this.variant()], sizeStyles[this.size()]]

@@ -1,7 +1,9 @@
 import {
+  afterNextRender,
   ChangeDetectionStrategy,
   Component,
   ElementRef,
+  Injector,
   computed,
   inject,
   input,
@@ -28,6 +30,8 @@ import {
   TableSortState,
 } from '../../../core/models/table-preferences.models';
 
+let nextMenuId = 0;
+
 @Component({
   selector: 'app-table-column-menu',
   imports: [LucideDynamicIcon],
@@ -45,7 +49,12 @@ export class TableColumnMenuComponent<
   TSortField extends string = string,
 > {
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly injector = inject(Injector);
   private readonly triggerBtn = viewChild<ElementRef<HTMLButtonElement>>('triggerBtn');
+  private readonly panel = viewChild<ElementRef<HTMLDivElement>>('panel');
+
+  readonly panelId = `table-column-menu-${++nextMenuId}`;
+  readonly headingId = `${this.panelId}-heading`;
 
   protected readonly icons = {
     columns: Columns3,
@@ -83,7 +92,18 @@ export class TableColumnMenuComponent<
   );
 
   toggleOpen(): void {
-    this.isOpen.update((v) => !v);
+    const nextIsOpen = !this.isOpen();
+    this.isOpen.set(nextIsOpen);
+    if (nextIsOpen) {
+      afterNextRender(
+        {
+          mixedReadWrite: () => {
+            this.panel()?.nativeElement.querySelector<HTMLElement>('[data-popover-focus]')?.focus();
+          },
+        },
+        { injector: this.injector },
+      );
+    }
   }
 
   close(): void {
@@ -97,7 +117,7 @@ export class TableColumnMenuComponent<
     if (!this.isOpen()) return;
     const target = event.target as Node | null;
     if (target && !this.elementRef.nativeElement.contains(target)) {
-      this.isOpen.set(false);
+      this.close();
     }
   }
 
@@ -142,6 +162,10 @@ export class TableColumnMenuComponent<
     if (fromIndex !== null && fromIndex !== targetIndex) {
       this.columnsReordered.emit({ previousIndex: fromIndex, currentIndex: targetIndex });
     }
+    this.draggedIndex.set(null);
+  }
+
+  onDragEnd(): void {
     this.draggedIndex.set(null);
   }
 }
