@@ -35,3 +35,21 @@
 - Die vollständige Suite wurde bewusst nicht erneut ausgeführt; die Abschlussprüfung gehört dem
   Controller. Die gezielten Regressionstests decken die verschobene Persistenzlogik ab.
 - `docs/AI-CHANGELOG.md` wurde nicht von diesem Task bearbeitet; der Controller besitzt diese Datei.
+
+## Nachbesserung nach Browser-QA
+
+- Die Seitenansicht verwendet keinen Modalrahmen und keine Schließen-Schaltfläche mehr. Ab `xl`
+  stehen Hauptformular und kompakte, haftende Kostenübersicht nebeneinander; darunter werden sie
+  ohne zweiten Formular-DOM gestapelt. Der Bearbeitungsdialog behält seinen Rahmen.
+- Die Schließen-Schaltfläche des Dialogs hat nun einen zugänglichen Namen. Der Controller prüfte
+  zehn helle/dunkle Ansichten ohne Überlauf sowie AXE ohne Befund.
+- Einkaufstypen verwenden neutrale Flächen und einen gemeinsamen gelben Auswahlakzent.
+- Eine laufende Speicherung kann nicht mehr durch Bestätigung verlassen werden. Pristine,
+  abgebrochene und bestätigte Navigation sind zusätzlich im Browser abgesichert.
+- Die Seite reagiert nur noch auf `closed`; die aufeinanderfolgenden Erfolgsereignisse verursachen
+  dadurch keine doppelte Navigation.
+- Der Mystery-Regressionsfall prüft im echten Browser: Titel bleibt beim Typwechsel erhalten,
+  `100 + 10` ergibt `110`, und der Entwurf ist ohne Inhaltszeilen speicherbar. Im bereitgestellten
+  sequenziellen Account-Skript war beim Fehlschlag der Titelwert leer, während Kosteneditor und
+  Mystery-Daten gültig waren. Der isolierte Browser-Regressionsfall besteht; dies belegt einen
+  Ablauf-/Wartefehler im QA-Skript statt einer Mystery-Validierungsregel.

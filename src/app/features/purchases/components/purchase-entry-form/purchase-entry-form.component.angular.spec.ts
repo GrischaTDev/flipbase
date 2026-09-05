@@ -790,6 +790,33 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     );
   });
 
+  it('speichert eine leere Mystery Box mit Kopfpreis und Zusatzkosten als Entwurf', async () => {
+    const { komponente, purchaseService } = erstelleKomponente();
+    komponente.form.controls.type.setValue('mystery_pack');
+    komponente.form.controls.purchase_price.setValue(100);
+    komponente.onCostsChanged([
+      {
+        type: 'shipping',
+        amount: 10,
+        description: '',
+        allocationMethod: 'by_value',
+        targetPurchaseLineId: null,
+      },
+    ]);
+
+    expect(komponente.form.valid).toBe(true);
+    await komponente.onSubmit();
+
+    expect(purchaseService.createPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'mystery_pack',
+        purchase_price: 100,
+        initial_costs: [expect.objectContaining({ amount: 10 })],
+        purchase_lines: [],
+      }),
+    );
+  });
+
   it('sendet eine nach dem Bepreisen wieder geleerte Position nicht an den Einkaufsdienst', async () => {
     const { komponente, purchaseService } = erstelleKomponente();
     komponente.onPurchaseLinesChanged([

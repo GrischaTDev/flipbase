@@ -20,6 +20,10 @@ export class PurchaseCreateComponent {
     return this.entryForm()?.hasUnsavedChanges() ?? false;
   }
 
+  isSaving(): boolean {
+    return this.entryForm()?.isSubmitting() ?? false;
+  }
+
   onBeforeUnload(event: BeforeUnloadEvent): void {
     if (!this.hasUnsavedChanges()) return;
     event.preventDefault();

@@ -10,3 +10,47 @@ test('opens purchase entry as a dedicated page', async ({ page }) => {
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('region', { name: 'Kostenübersicht' })).toBeVisible();
 });
+
+test('leaves a pristine entry page without prompting', async ({ page }) => {
+  await startDemoMode(page);
+  await page.goto('/purchases/new');
+  let prompts = 0;
+  page.on('dialog', async (dialog) => {
+    prompts += 1;
+    await dialog.dismiss();
+  });
+
+  await page.getByRole('link', { name: 'Zurück zu Einkäufen' }).click();
+
+  await expect(page).toHaveURL(/\/purchases$/);
+  expect(prompts).toBe(0);
+});
+
+test('keeps edits after cancelling navigation and leaves after confirmation', async ({ page }) => {
+  await startDemoMode(page);
+  await page.goto('/purchases/new');
+  await page.locator('#purchaseTitle').fill('Nicht verwerfen');
+
+  page.once('dialog', (dialog) => dialog.dismiss());
+  await page.getByRole('link', { name: 'Zurück zu Einkäufen' }).click();
+  await expect(page).toHaveURL(/\/purchases\/new$/);
+  await expect(page.locator('#purchaseTitle')).toHaveValue('Nicht verwerfen');
+
+  page.once('dialog', (dialog) => dialog.accept());
+  await page.getByRole('link', { name: 'Zurück zu Einkäufen' }).click();
+  await expect(page).toHaveURL(/\/purchases$/);
+});
+
+test('allows an empty mystery box with a price and additional costs as draft', async ({ page }) => {
+  await startDemoMode(page);
+  await page.goto('/purchases/new');
+  await page.locator('#purchaseTitle').fill('Mystery Entwurf');
+  await page.getByRole('button', { name: /Mystery Box/ }).click();
+  await page.locator('#purchasePrice').fill('100');
+  await page.getByRole('button', { name: 'Kosten hinzufügen', exact: true }).click();
+  await page.getByRole('spinbutton', { name: 'Betrag der Zusatzkosten' }).fill('10');
+
+  await expect(page.locator('#purchaseTitle')).toHaveValue('Mystery Entwurf');
+  await expect(page.getByRole('button', { name: 'Als Entwurf speichern' })).toBeEnabled();
+  await expect(page.getByRole('region', { name: 'Kostenübersicht' })).toContainText('110,00');
+});
