@@ -140,7 +140,18 @@ Ausrollen zusammengehören:
    fehl, wenn sie auseinanderlaufen – er repariert aber nichts. Dasselbe gilt für
    die Adresse, die das Skript aufruft: Sie muss von `connect-src` gedeckt sein.
 3. **Die Edge Function rollt keine Pipeline aus.** `beta-application` muss von
-   Hand ausgerollt werden, und sie braucht zwei Umgebungsvariablen:
+   Hand nach `/opt/supabase/volumes/functions/beta-application/` kopiert werden,
+   danach `docker compose up -d --force-recreate functions`.
+
+   Die beiden Variablen unten gehören in `/opt/supabase/.env` **und** müssen an
+   den Container durchgereicht werden: Der `environment:`-Block des Dienstes
+   `functions` in der mitgelieferten `docker-compose.yml` zählt die Variablen
+   einzeln auf, eine neue Zeile in der `.env` allein erreicht ihn also nicht.
+   Dafür gibt es `deploy/docker-compose.beta-application.yml`; sie gehört nach
+   `/opt/supabase/` und in die Liste `COMPOSE_FILE` in `/opt/supabase/.env`.
+
+   Ohne die Durchreichung antwortet die Funktion mit **500 statt 400** – der
+   fehlende Pfeffer wird absichtlich laut, nicht still.
 
    | Variable                           | Wozu                                                                                                                                                                                                                      |
    | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -1,0 +1,19 @@
+# Reicht die beiden Variablen der Beta-Bewerbungsfunktion an den Funktionsdienst
+# durch.
+#
+# Eigene Datei, weil das offizielle Supabase-Paket seine `docker-compose.yml`
+# beim Aktualisieren ueberschreibt. Der dortige `environment:`-Block des Dienstes
+# `functions` zaehlt die Variablen einzeln auf; eine neue Zeile in der `.env`
+# allein erreicht den Container also nicht.
+#
+# Ohne diese Durchreichung verweigert `beta-application` absichtlich den Dienst
+# und antwortet mit 500 - der fehlende Pfeffer wuerde sonst zu ungesalzenen
+# Streuwerten fuehren, und das soll nicht unbemerkt passieren.
+#
+# Auf dem Server gehoert die Datei nach /opt/supabase/ und in die Liste
+# COMPOSE_FILE in /opt/supabase/.env.
+services:
+  functions:
+    environment:
+      BETA_APPLICATION_PEPPER: ${BETA_APPLICATION_PEPPER}
+      BETA_APPLICATION_ALLOWED_ORIGINS: ${BETA_APPLICATION_ALLOWED_ORIGINS}
