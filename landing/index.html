@@ -531,12 +531,6 @@
         width: 100%;
       }
 
-      .hero-beta-input-gruppe {
-        display: flex;
-        align-items: stretch;
-        gap: 0.65rem;
-      }
-
       .hero-beta-feld {
         display: flex;
         flex-direction: column;
@@ -631,10 +625,6 @@
           min-width: 0;
           justify-content: center;
           text-align: center;
-        }
-        .hero-beta-input-gruppe {
-          flex-direction: column;
-          gap: 0.65rem;
         }
         .hero-beta-input {
           width: 100%;
@@ -2869,8 +2859,25 @@
         };
 
         function melde(feld, art) {
-          var sprache = document.documentElement.lang === 'en' ? 'en' : 'de';
-          feld.textContent = TEXTE[art][sprache];
+          // <html lang> ist statisch "de" - die Sprachumschaltung laeuft rein
+          // ueber CSS (body:has(#lang-toggle:checked)), nicht ueber dieses
+          // Attribut. Ein Skript-seitiger Sprachentscheid wuerde deshalb immer
+          // "de" treffen, egal welche Sprache sichtbar ist. Darum wie der Rest
+          // der Seite: beide Fassungen ausgeben und das vorhandene CSS die
+          // passende anzeigen lassen.
+          // Erst leeren, dann per createElement/textContent (kein innerHTML)
+          // neu aufbauen - und komplett ersetzen statt nur den Text zu aendern,
+          // damit die Live-Region (role="status", aria-live="polite") die
+          // Aenderung zuverlaessig ansagt.
+          feld.textContent = '';
+          var de = document.createElement('span');
+          de.className = 'lang-de';
+          de.textContent = TEXTE[art].de;
+          var en = document.createElement('span');
+          en.className = 'lang-en';
+          en.lang = 'en';
+          en.textContent = TEXTE[art].en;
+          feld.append(de, en);
         }
 
         ['hero', 'zweit'].forEach(function (praefix) {
@@ -2880,16 +2887,28 @@
 
           formular.addEventListener('submit', function (ereignis) {
             ereignis.preventDefault();
+            var knopf = formular.querySelector('button[type="submit"]');
+            // Schon gesperrt: ein zweites, bereits in der Warteschlange
+            // stehendes submit-Ereignis darf nicht nochmal senden.
+            if (knopf.disabled) return;
             if (!formular.checkValidity()) {
               formular.reportValidity();
               return;
             }
-            var knopf = formular.querySelector('button[type="submit"]');
             knopf.disabled = true;
+
+            // Ohne Zeitgrenze wuerde ein ausbleibender Server den Knopf fuer
+            // immer gesperrt lassen (weder then, noch catch, noch finally
+            // feuert). Nach 15 Sekunden abbrechen; der Abbruch landet im catch.
+            var abbruch = new AbortController();
+            var zeitgeber = setTimeout(function () {
+              abbruch.abort();
+            }, 15000);
 
             fetch(ENDPUNKT, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
+              signal: abbruch.signal,
               body: JSON.stringify({
                 firstName: document.getElementById(praefix + '-bewerbung-vorname').value,
                 lastName: document.getElementById(praefix + '-bewerbung-nachname').value,
@@ -2909,6 +2928,7 @@
                 melde(meldung, 'fehler');
               })
               .finally(function () {
+                clearTimeout(zeitgeber);
                 knopf.disabled = false;
               });
           });

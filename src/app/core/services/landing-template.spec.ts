@@ -82,6 +82,15 @@ describe('Anmeldehinweis auf der Landingpage', () => {
     ).toBe(berechnetePruefsumme);
   });
 
+  it('form-action ist "none" - kein Formular hat mehr ein action-Attribut', () => {
+    // Alle Formulare senden per fetch aus dem eingebetteten Skript. Ein
+    // festes Ziel wie "https://app.flipbase.de" waere hier eine leere
+    // Zusage: liefe das Skript einmal nicht, wuerde ein natives Absenden
+    // sonst blind dorthin gehen und die Eingaben verlieren. 'none' ist
+    // strenger, nicht laxer, und macht dieses stille Datenleck unmoeglich.
+    expect(caddyfile).toMatch(/form-action\s+'none'\s*;/u);
+  });
+
   it('die Seite bindet das Flipbase-Markenlogo ein', () => {
     expect(seite).toMatch(/<img[^>]+src="(\/)?images\/logo-mark\.png"/);
   });
