@@ -30,7 +30,7 @@
       <!-- Standard Einkauf erfassen -->
       <button
         type="button"
-        (click)="openCreateModal()"
+        routerLink="/purchases/new"
         class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs cursor-pointer select-none shadow-lg shadow-indigo-500/20"
       >
         <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5 stroke-[2.5]"></svg>
@@ -268,21 +268,13 @@
       </p>
       <button
         type="button"
-        (click)="openCreateModal()"
+        routerLink="/purchases/new"
         class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs transition cursor-pointer"
       >
         <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
-        <span>Einkauf erfassen</span>
+        <span>Neuer Einkauf</span>
       </button>
     </div>
-  }
-
-  <!-- Standard Create Modal -->
-  @if (isCreateModalOpen()) {
-    <app-purchase-create-modal
-      (closed)="closeCreateModal()"
-      (created)="closeCreateModal()"
-    ></app-purchase-create-modal>
   }
 
   <!-- Flohmarkt-Schnellerfassungs & Bargeld-Modal -->

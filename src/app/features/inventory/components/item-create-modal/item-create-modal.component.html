@@ -256,9 +256,13 @@
               id="itemEan"
               type="text"
               formControlName="ean"
+              (blur)="form.controls.ean.markAsTouched()"
               placeholder="z.B. 4005317316719"
               class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono"
             />
+            @if (form.controls.ean.invalid && form.controls.ean.touched) {
+              <p class="mt-1 text-xs text-rose-300" role="alert">Ungültige EAN/GTIN.</p>
+            }
           </div>
         </div>
 

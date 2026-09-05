@@ -3,12 +3,13 @@ import { BusinessEntityType, BusinessEvent } from '../../../../core/models/busin
 import { BusinessEventService } from '../../../../core/services/business-event.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { RecordHistoryComponent } from '../../../../shared/components/record-history/record-history.component';
+import { RecordTimelineComponent } from '../record-timeline/record-timeline.component';
 
 const PAGE_SIZE = 20;
 
 @Component({
   selector: 'app-record-history-container',
-  imports: [RecordHistoryComponent],
+  imports: [RecordHistoryComponent, RecordTimelineComponent],
   templateUrl: './record-history.container.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -31,6 +32,7 @@ export class RecordHistoryContainer {
       const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
       const entityType = this.entityType();
       const entityId = this.entityId();
+      if (entityType === 'purchase' || entityType === 'sale') return;
       this.startOver(workspaceId, entityType, entityId);
     });
   }

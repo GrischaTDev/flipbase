@@ -427,6 +427,8 @@ export type Database = {
       inventory_items: {
         Row: {
           allocated_purchase_cost: number
+          archived_at: string | null
+          archived_by: string | null
           brand: string | null
           category: string | null
           condition: string
@@ -452,6 +454,8 @@ export type Database = {
         }
         Insert: {
           allocated_purchase_cost?: number
+          archived_at?: string | null
+          archived_by?: string | null
           brand?: string | null
           category?: string | null
           condition?: string
@@ -477,6 +481,8 @@ export type Database = {
         }
         Update: {
           allocated_purchase_cost?: number
+          archived_at?: string | null
+          archived_by?: string | null
           brand?: string | null
           category?: string | null
           condition?: string
@@ -1169,6 +1175,7 @@ export type Database = {
           catalog_product_id: string | null
           condition_snapshot: string | null
           created_at: string
+          ean_snapshot: string | null
           estimated_market_value: number | null
           id: string
           line_kind: string
@@ -1188,6 +1195,7 @@ export type Database = {
           catalog_product_id?: string | null
           condition_snapshot?: string | null
           created_at?: string
+          ean_snapshot?: string | null
           estimated_market_value?: number | null
           id?: string
           line_kind: string
@@ -1207,6 +1215,7 @@ export type Database = {
           catalog_product_id?: string | null
           condition_snapshot?: string | null
           created_at?: string
+          ean_snapshot?: string | null
           estimated_market_value?: number | null
           id?: string
           line_kind?: string
@@ -1352,6 +1361,65 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "suppliers"
             referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      record_comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          purchase_id: string | null
+          sale_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          purchase_id?: string | null
+          sale_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          purchase_id?: string | null
+          sale_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "record_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_comments_purchase_fkey"
+            columns: ["workspace_id", "purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "record_comments_sale_fkey"
+            columns: ["workspace_id", "sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "record_comments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3019,6 +3087,29 @@ export type Database = {
           workspace_id: string
         }[]
       }
+      list_record_timeline: {
+        Args: {
+          p_cursor_created_at?: string
+          p_cursor_id?: string
+          p_cursor_kind?: string
+          p_entity_id: string
+          p_entity_type: string
+          p_page_size?: number
+          p_workspace_id: string
+        }
+        Returns: {
+          actor_id: string
+          actor_name: string
+          body: string
+          changes: Json
+          correlation_id: string
+          created_at: string
+          event_type: string
+          id: string
+          kind: string
+          reason: string
+        }[]
+      }
       list_entity_business_events: {
         Args: {
           p_cursor_created_at: string
@@ -3210,6 +3301,46 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      set_inventory_item_archived: {
+        Args: { p_archived: boolean; p_item_id: string; p_workspace_id: string }
+        Returns: {
+          allocated_purchase_cost: number
+          archived_at: string | null
+          archived_by: string | null
+          brand: string | null
+          category: string | null
+          condition: string
+          created_at: string
+          description: string | null
+          dimension_height_cm: number | null
+          dimension_length_cm: number | null
+          dimension_width_cm: number | null
+          ean: string | null
+          expected_value: number | null
+          id: string
+          is_public_store: boolean
+          model: string | null
+          purchase_id: string | null
+          purchase_line_id: string | null
+          sku: string | null
+          status: string
+          tax_mode_override: string | null
+          title: string
+          updated_at: string
+          weight_g: number | null
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "inventory_items"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_purchase_line_eans: {
+        Args: { p_lines: Json; p_workspace_id: string }
+        Returns: undefined
       }
       set_workspace_archive_state: {
         Args: { p_archived: boolean; p_workspace_id: string }
@@ -3428,4 +3559,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

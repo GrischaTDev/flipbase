@@ -149,7 +149,7 @@ describe('PurchaseLineEditorComponent', () => {
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     Array.from(host.querySelectorAll<HTMLButtonElement>('button'))
-      .find((button) => button.textContent?.includes('Bestehenden Artikel wählen'))
+      .find((button) => button.textContent?.includes('Vorhandenen Artikel wählen'))
       ?.click();
     fixture.detectChanges();
     expect(host.querySelector('select')).toBeNull();

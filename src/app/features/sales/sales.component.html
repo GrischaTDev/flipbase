@@ -185,10 +185,18 @@
     </button>
   </div>
 
+  <div class="mb-3 flex justify-end">
+    <app-table-column-picker
+      [definitions]="tableColumns()"
+      [selected]="visibleColumns()"
+      [saveError]="tablePreferences.saveError()"
+      (selectedChange)="tablePreferences.setVisibleColumns('sales', $event)"
+    />
+  </div>
   <!-- Sales Table (Desktop) -->
   @if (filteredSales().length > 0) {
     <div class="linear-surface relative rounded-xl overflow-x-auto hidden md:block">
-      <table class="linear-table min-w-[1200px]">
+      <table [style.min-width.px]="360 + (visibleColumns().length - 2) * 105" class="linear-table">
         <thead
           class="bg-fb-well text-fb-text-secondary uppercase font-semibold text-[10px] tracking-wider"
         >
@@ -196,27 +204,47 @@
             <th class="min-w-60 py-2.5 px-4 font-semibold rounded-tl-xl border-b border-fb-line">
               Verkaufter Artikel
             </th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">Menge</th>
-            <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Plattform</th>
-            <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Datum</th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
-              Verkaufserlös
-            </th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
-              Wareneinsatz
-            </th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
-              Verkaufskosten
-            </th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
-              <abbr
-                title="Verkaufserlös abzüglich Wareneinsatz und Verkaufskosten"
-                class="no-underline"
-                >Ergebnis</abbr
-              >
-            </th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">Marge</th>
-            <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">Haltedauer</th>
+            @if (visibleColumns().includes('quantity')) {
+              <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">Menge</th>
+            }
+            @if (visibleColumns().includes('platform')) {
+              <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Plattform</th>
+            }
+            @if (visibleColumns().includes('date')) {
+              <th class="py-2.5 px-3 font-semibold border-b border-fb-line">Datum</th>
+            }
+            @if (visibleColumns().includes('revenue')) {
+              <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+                Verkaufserlös
+              </th>
+            }
+            @if (visibleColumns().includes('cost')) {
+              <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+                Wareneinsatz
+              </th>
+            }
+            @if (visibleColumns().includes('selling_costs')) {
+              <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+                Verkaufskosten
+              </th>
+            }
+            @if (visibleColumns().includes('result')) {
+              <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+                <abbr
+                  title="Verkaufserlös abzüglich Wareneinsatz und Verkaufskosten"
+                  class="no-underline"
+                  >Ergebnis</abbr
+                >
+              </th>
+            }
+            @if (visibleColumns().includes('margin')) {
+              <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">Marge</th>
+            }
+            @if (visibleColumns().includes('holding')) {
+              <th class="py-2.5 px-3 font-semibold text-right border-b border-fb-line">
+                Haltedauer
+              </th>
+            }
             <th
               class="py-2.5 px-4 font-semibold text-center w-28 rounded-tr-xl border-b border-fb-line"
             >
@@ -265,61 +293,81 @@
                 </div>
               </td>
 
-              <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
-                {{ saleQuantity(sale) }}
-              </td>
+              @if (visibleColumns().includes('quantity')) {
+                <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
+                  {{ saleQuantity(sale) }}
+                </td>
+              }
 
-              <td class="py-3 px-3">
-                <span
-                  class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-fb-well text-fb-text-secondary border border-fb-line"
+              @if (visibleColumns().includes('platform')) {
+                <td class="py-3 px-3">
+                  <span
+                    class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-fb-well text-fb-text-secondary border border-fb-line"
+                  >
+                    {{ sale.platform }}
+                  </span>
+                </td>
+              }
+
+              @if (visibleColumns().includes('date')) {
+                <td class="py-3 px-3 text-fb-text-muted font-mono text-[11px]">
+                  {{ sale.sale_date | date: 'dd.MM.yyyy' }}
+                </td>
+              }
+
+              @if (visibleColumns().includes('revenue')) {
+                <td class="py-3 px-3 text-right font-mono font-semibold text-fb-text-secondary">
+                  {{ metrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                </td>
+              }
+
+              @if (visibleColumns().includes('cost')) {
+                <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
+                  @if (metrics.costOfGoodsSold === null) {
+                    <span class="font-sans text-[11px] text-amber-300">Kosten noch offen</span>
+                  } @else {
+                    {{ metrics.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  }
+                </td>
+              }
+
+              @if (visibleColumns().includes('selling_costs')) {
+                <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
+                  {{ metrics.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                </td>
+              }
+
+              @if (visibleColumns().includes('result')) {
+                <td
+                  class="py-3 px-3 text-right font-mono font-bold"
+                  [class.text-emerald-400]="(metrics.resultAfterDirectCosts ?? 0) >= 0"
+                  [class.text-rose-400]="(metrics.resultAfterDirectCosts ?? 0) < 0"
                 >
-                  {{ sale.platform }}
-                </span>
-              </td>
+                  @if (metrics.resultAfterDirectCosts === null) {
+                    <span class="font-sans text-[11px] text-amber-300">Kosten noch offen</span>
+                  } @else {
+                    {{
+                      metrics.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                    }}
+                  }
+                </td>
+              }
 
-              <td class="py-3 px-3 text-fb-text-muted font-mono text-[11px]">
-                {{ sale.sale_date | date: 'dd.MM.yyyy' }}
-              </td>
+              @if (visibleColumns().includes('margin')) {
+                <td class="py-3 px-3 text-right font-mono font-bold text-fb-text-secondary">
+                  @if (metrics.marginPercent === null) {
+                    –
+                  } @else {
+                    {{ metrics.marginPercent }} %
+                  }
+                </td>
+              }
 
-              <td class="py-3 px-3 text-right font-mono font-semibold text-fb-text-secondary">
-                {{ metrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-              </td>
-
-              <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
-                @if (metrics.costOfGoodsSold === null) {
-                  <span class="font-sans text-[11px] text-amber-300">Kosten noch offen</span>
-                } @else {
-                  {{ metrics.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                }
-              </td>
-
-              <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
-                {{ metrics.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-              </td>
-
-              <td
-                class="py-3 px-3 text-right font-mono font-bold"
-                [class.text-emerald-400]="(metrics.resultAfterDirectCosts ?? 0) >= 0"
-                [class.text-rose-400]="(metrics.resultAfterDirectCosts ?? 0) < 0"
-              >
-                @if (metrics.resultAfterDirectCosts === null) {
-                  <span class="font-sans text-[11px] text-amber-300">Kosten noch offen</span>
-                } @else {
-                  {{ metrics.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                }
-              </td>
-
-              <td class="py-3 px-3 text-right font-mono font-bold text-fb-text-secondary">
-                @if (metrics.marginPercent === null) {
-                  –
-                } @else {
-                  {{ metrics.marginPercent }} %
-                }
-              </td>
-
-              <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
-                {{ sale.holding_duration_days }} Tage
-              </td>
+              @if (visibleColumns().includes('holding')) {
+                <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
+                  {{ sale.holding_duration_days }} Tage
+                </td>
+              }
 
               <td class="py-3 px-4 text-center group-last:rounded-br-xl">
                 <div class="flex items-center justify-center gap-1.5">
@@ -340,8 +388,8 @@
                     type="button"
                     (click)="openRecordHistory(sale)"
                     class="p-1.5 rounded-lg text-fb-text-muted hover:text-indigo-300 hover:bg-indigo-500/15 transition cursor-pointer"
-                    title="Änderungsverlauf ansehen"
-                    aria-label="Änderungsverlauf ansehen"
+                    title="Chronik ansehen"
+                    aria-label="Chronik ansehen"
                   >
                     <svg [lucideIcon]="historyIcon" class="w-3.5 h-3.5"></svg>
                   </button>
@@ -480,7 +528,7 @@
               class="linear-btn-secondary px-2.5 py-1 rounded text-[11px] font-sans flex items-center gap-1 text-fb-text-secondary"
             >
               <svg [lucideIcon]="historyIcon" class="w-3 h-3"></svg>
-              <span>Änderungsverlauf ansehen</span>
+              <span>Chronik ansehen</span>
             </button>
 
             <button
@@ -818,7 +866,7 @@
     <div
       class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/80 p-3 backdrop-blur-md sm:p-6"
       appModalDialog
-      dialogTitel="Änderungsverlauf ansehen"
+      dialogTitel="Chronik ansehen"
       (dialogClose)="closeRecordHistory()"
     >
       <div
@@ -826,13 +874,13 @@
       >
         <div class="flex items-start justify-between gap-3 border-b border-fb-border p-5">
           <div>
-            <h2 class="text-sm font-bold text-fb-text-primary">Änderungsverlauf ansehen</h2>
+            <h2 class="text-sm font-bold text-fb-text-primary">Chronik ansehen</h2>
             <p class="mt-0.5 text-[11px] text-fb-text-muted">{{ saleTitle(sale) }}</p>
           </div>
           <button
             type="button"
             (click)="closeRecordHistory()"
-            aria-label="Änderungsverlauf schließen"
+            aria-label="Chronik schließen"
             class="rounded-xl p-1.5 text-fb-text-muted transition hover:text-fb-text-primary"
           >
             <svg [lucideIcon]="closeIcon" class="h-5 w-5"></svg>

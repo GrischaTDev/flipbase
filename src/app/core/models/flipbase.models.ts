@@ -273,6 +273,8 @@ export interface InventoryItem {
   sale_state?: InventoryItemSaleState;
   active_sale_count?: number;
   active_sale_id?: string | null;
+  readonly archived_at?: string | null;
+  readonly archived_by?: string | null;
   purchase?: Purchase;
   costs?: ItemCost[];
   media?: ItemMedia[];
@@ -434,6 +436,7 @@ export interface PurchaseLine {
   purchase_id: string;
   catalog_product_id?: string | null;
   title_snapshot: string;
+  ean_snapshot?: string | null;
   line_kind: TrackingMode;
   ordered_quantity: number;
   received_quantity: number;
