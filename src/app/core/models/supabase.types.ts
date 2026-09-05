@@ -206,6 +206,7 @@ export type Database = {
       }
       beta_applications: {
         Row: {
+          consent_at: string
           created_at: string
           decided_at: string | null
           decided_by: string | null
@@ -218,6 +219,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          consent_at?: string
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
@@ -230,6 +232,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          consent_at?: string
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null

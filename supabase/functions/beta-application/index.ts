@@ -10,13 +10,22 @@ import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 /**
  * Herkuenfte, die diese Funktion aufrufen duerfen.
  *
- * Die eingebaute Liste enthaelt nur die Produktionsherkuenfte. In Produktion
- * wird ALLOWED_ORIGINS nirgends gesetzt, also greift genau diese Liste - stuende
- * localhost darin, waere die Produktionsvorgabe ab Werk offen fuer lokale
- * Entwicklung. Wer lokal arbeitet, setzt ALLOWED_ORIGINS deshalb ausdruecklich.
+ * Eigene Variable statt der von marketplace-search mitbenutzten
+ * ALLOWED_ORIGINS: Selbst gehostetes Supabase gibt allen Edge Functions eine
+ * gemeinsame Umgebung, es gibt keine Variable je Funktion. marketplace-search
+ * wird aus der laufenden App aufgerufen und braucht in Produktion
+ * ALLOWED_ORIGINS=...,https://app.flipbase.de. Laese diese Funktion dieselbe
+ * Variable, wuerde sie die Landing Page mit demselben Wert abweisen - der
+ * Browser meldete das als CORS-Fehler, der Besucher saehe nur "Das hat nicht
+ * geklappt", und in der Datenbank stuende nichts. Die eingebaute Vorgabe
+ * enthaelt nur die Produktionsherkuenfte dieser Funktion; wer lokal
+ * entwickelt, setzt BETA_APPLICATION_ALLOWED_ORIGINS deshalb ausdruecklich.
  */
 const ERLAUBTE_HERKUENFTE = new Set(
-  (Deno.env.get('ALLOWED_ORIGINS') ?? 'https://flipbase.de,https://www.flipbase.de')
+  (
+    Deno.env.get('BETA_APPLICATION_ALLOWED_ORIGINS') ??
+    'https://flipbase.de,https://www.flipbase.de'
+  )
     .split(',')
     .map((herkunft) => herkunft.trim())
     .filter(Boolean),
@@ -151,11 +160,22 @@ Deno.serve(async (anfrage: Request) => {
     return antwort({ error: 'email_invalid' }, 400, herkunft);
   }
 
-  const dienst = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    { auth: { persistSession: false } },
-  );
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const dienstschluessel = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+  // createClient('', '') wirft "supabaseUrl is required" ausserhalb jedes
+  // try/catch - Deno antwortet dann mit einer generischen 500 ohne
+  // CORS-Kopfzeilen, im Browser nicht von einem CORS-Fehler zu unterscheiden.
+  // Genau das wird oben beim Pfeffer schon vermieden; dieselbe Fehlerklasse
+  // wird hier ebenso abgefangen.
+  if (!supabaseUrl || !dienstschluessel) {
+    console.error(
+      'beta-application: SUPABASE_URL oder SUPABASE_SERVICE_ROLE_KEY fehlt oder ist leer.',
+    );
+    return antwort({ error: 'internal' }, 500, herkunft);
+  }
+
+  const dienst = createClient(supabaseUrl, dienstschluessel, { auth: { persistSession: false } });
 
   // Der letzte Eintrag der Kette stammt vom naechstgelegenen Proxy und laesst
   // sich vom Aufrufer nicht faelschen. Der erste Eintrag dagegen wird vom
@@ -235,6 +255,7 @@ Deno.serve(async (anfrage: Request) => {
     first_name: firstName.trim(),
     last_name: lastName.trim(),
     email: email.trim(),
+    consent_at: new Date().toISOString(),
   });
 
   // Eine bereits vorhandene Adresse wird wie ein Erfolg beantwortet. Sonst

@@ -67,7 +67,8 @@ create table if not exists public.beta_applications (
     decision_note text,
     decided_by uuid references auth.users (id) on delete set null,
     decided_at timestamptz,
-    created_at timestamptz not null default now()
+    created_at timestamptz not null default now(),
+    consent_at timestamptz not null default now()
 );
 
 comment on table public.beta_applications is
@@ -75,6 +76,9 @@ comment on table public.beta_applications is
 
 comment on column public.beta_applications.granted_days is
     'Bewilligte Laufzeit in Tagen. Steht hier und nicht in einer Einladungstabelle, weil sie zwischen Freigabe und Registrierung ueberleben muss - Supabase verwaltet den Einladungslink, aber nichts Fachliches dazu.';
+
+comment on column public.beta_applications.consent_at is
+    'Zeitpunkt der Einwilligung, ausdruecklich von der Edge Function beta-application gesetzt (Nachweispflicht nach Art. 7 Abs. 1 DSGVO). Der Wortlaut der Einwilligung selbst wird nicht zusaetzlich gespeichert - er steht in der Versionsgeschichte von landing/index.html.';
 
 -- Dieselbe Adresse bewirbt sich nur einmal. Ohne diesen Riegel fuellt ein
 -- Doppelklick die Liste mit Dubletten, und eine abgelehnte Bewerbung taucht

@@ -76,4 +76,27 @@ describe('PlatformOperatorService', () => {
     await expect(service.isOperator()).resolves.toBe(false);
     expect(rpc).not.toHaveBeenCalled();
   });
+
+  it('fragt nach einem Netzaussetzer erneut, statt die Sitzung dauerhaft zu sperren', async () => {
+    // Wirft der rpc-Aufruf (statt ein error-Objekt zu liefern), durfte die
+    // abgelehnte Promise vorher dauerhaft zwischengespeichert werden - jede
+    // Navigation nach /admin fuer den Rest der Sitzung waere dann ohne
+    // Neuversuch fehlgeschlagen.
+    const rpc = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Netzaussetzer'))
+      .mockResolvedValueOnce({ data: true, error: null });
+    const getSession = vi.fn().mockResolvedValue({ data: { session: { user: { id: 'u1' } } } });
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: SupabaseService, useValue: { client: { rpc, auth: { getSession } } } },
+      ],
+    });
+    const service = TestBed.inject(PlatformOperatorService);
+
+    await expect(service.isOperator()).resolves.toBe(false);
+    await expect(service.isOperator()).resolves.toBe(true);
+
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
 });

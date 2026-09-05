@@ -82,6 +82,42 @@ describe('Anmeldehinweis auf der Landingpage', () => {
     ).toBe(berechnetePruefsumme);
   });
 
+  it('die Adresse, die das Formular per fetch aufruft, ist von connect-src gedeckt', () => {
+    // Der Test oben haelt nur die sha256-Pruefsumme des Skripts gegen das
+    // Caddyfile - das sagt nichts darueber, ob die Adresse, die das Skript
+    // aufruft, ueberhaupt von connect-src gedeckt ist. Zieht der Endpunkt
+    // einmal um und jemand denkt an die Pruefsumme, aber nicht an
+    // connect-src, ist das Formular wieder lautlos tot: der Browser
+    // blockiert den fetch-Aufruf ohne sichtbare Fehlermeldung fuer den
+    // Besucher, nur eine CSP-Verletzung in der Konsole.
+    const endpunktMatch = seite.match(/ENDPUNKT\s*=\s*['"]([^'"]+)['"]/u);
+    expect(
+      endpunktMatch,
+      'landing/index.html sollte die ENDPUNKT-Konstante fuer den fetch-Aufruf definieren',
+    ).not.toBeNull();
+
+    const endpunktUrsprung = new URL(endpunktMatch![1]).origin;
+
+    // Der Kommentar ueber der Kopfzeile erwaehnt "connect-src" ebenfalls in
+    // Prosa - eine Suche ueber das ganze Caddyfile faende also den falschen
+    // Treffer. Die tatsaechliche Direktive steckt im Wert der
+    // Content-Security-Policy-Kopfzeile, deshalb wird zuerst dieser Wert
+    // isoliert und erst darin nach connect-src gesucht.
+    const cspMatch = caddyfile.match(/Content-Security-Policy\s+"([^"]+)"/u);
+    expect(
+      cspMatch,
+      'Caddyfile muss eine Content-Security-Policy-Kopfzeile enthalten',
+    ).not.toBeNull();
+
+    const connectSrcMatch = cspMatch![1].match(/connect-src\s+([^;]+);/u);
+    expect(connectSrcMatch, 'Caddyfile muss eine connect-src-Direktive enthalten').not.toBeNull();
+
+    expect(
+      connectSrcMatch![1],
+      `connect-src muss ${endpunktUrsprung} enthalten, sonst blockiert der Browser den fetch-Aufruf lautlos`,
+    ).toContain(endpunktUrsprung);
+  });
+
   it('form-action ist "none" - kein Formular hat mehr ein action-Attribut', () => {
     // Alle Formulare senden per fetch aus dem eingebetteten Skript. Ein
     // festes Ziel wie "https://app.flipbase.de" waere hier eine leere

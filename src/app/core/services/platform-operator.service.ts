@@ -53,9 +53,21 @@ export class PlatformOperatorService {
   }
 
   private async frage(): Promise<boolean> {
-    const { data, error } = await this.supabase.client.rpc('is_platform_operator');
-    const istBetreiber = !error && data === true;
-    this.operator.set(istBetreiber);
-    return istBetreiber;
+    try {
+      const { data, error } = await this.supabase.client.rpc('is_platform_operator');
+      const istBetreiber = !error && data === true;
+      this.operator.set(istBetreiber);
+      return istBetreiber;
+    } catch {
+      // Eine abgelehnte Promise statt eines error-Objekts wuerde sonst
+      // dauerhaft in `pruefung` haengen bleiben: Jede kuenftige Navigation
+      // nach /admin fuer denselben Nutzer wirft dann fuer den Rest der
+      // Sitzung, ohne dass je neu gefragt wird. Deshalb wird der
+      // Zwischenspeicher hier zurueckgesetzt, damit der naechste Aufruf neu
+      // fragt.
+      this.pruefung = null;
+      this.operator.set(false);
+      return false;
+    }
   }
 }
