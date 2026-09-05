@@ -570,10 +570,18 @@ html:not(.dark) .fb-admin {
   --fb-text-secondary: #454545;
   --fb-text-muted: #616161;
   --fb-text-dimmed: #707070;
-  --fb-primary: #303030;
-  --fb-primary-hover: #454545;
-  --fb-primary-subtle: rgb(0 0 0 / 5%);
-  --fb-primary-border: rgb(0 0 0 / 15%);
+  --fb-primary: #f89d13;
+  --fb-primary-hover: #fbb040;
+  --fb-text-on-accent: #1a1a1a;
+  --fb-primary-subtle: rgb(248 157 19 / 12%);
+  --fb-primary-border: rgb(138 86 6 / 35%);
+  --fb-border-focus: #8a5606;
+  --fb-c-indigo-200: #8a5606;
+  --fb-c-indigo-300: #8a5606;
+  --fb-c-indigo-400: #8a5606;
+  --fb-c-indigo-500: #f89d13;
+  --fb-c-indigo-600: #8a5606;
+  --fb-c-indigo-950: #1a1207;
   --fb-shadow-sm: 0 1px 2px rgb(0 0 0 / 4%);
   --fb-shadow-md: 0 1px 2px rgb(0 0 0 / 7%);
   --fb-shadow-lg: 0 2px 5px rgb(0 0 0 / 9%);
@@ -587,13 +595,18 @@ html:not(.dark) .fb-admin .linear-btn-primary:hover {
   background: var(--fb-primary-hover);
 }
 
+html:not(.dark) .fb-admin .bg-indigo-600.text-white {
+  color: var(--fb-text-on-accent);
+}
+
 html:not(.dark) .fb-admin app-sidebar nav a[aria-current='page'] {
-  background-color: #fafafa;
-  border-color: transparent;
+  background-color: var(--fb-primary-subtle);
+  border-color: var(--fb-primary-border);
+  color: var(--fb-text-primary);
 }
 
 html:not(.dark) .fb-admin app-sidebar nav a[aria-current='page'] svg {
-  color: var(--fb-text-secondary);
+  color: var(--fb-text-primary);
 }
 
 html:not(.dark) .fb-admin [data-purchase-row] > svg,
