@@ -1,9 +1,62 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Admin-Einstellungen veröffentlichen
+
+**Auftrag:** Nutzer autorisiert Push und Merge von `feat/admin-preferences`. Aktuellen `origin/master` konfliktfrei in den eigenen Zweig übernommen; keine fremden Arbeitskopien verändert. Keine Datenbank- oder Abhängigkeitsänderung. Bereits erfolgte unabhängige Reviews samt Korrekturen bleiben dokumentiert.
+**Freigabeweg:** Vollständiges `npm run verify`, englischer PR, grüne Pflichtprüfungen, Merge-Commit und Produktionslauf einschließlich öffentlicher Commit-Prüfung. Vorheriger Produktionsstand `2ac3950e294e8f7616515cfa205d9f908581c216`. Bei fehlgeschlagenem Healthcheck, falschem ausgeliefertem Commit oder fehlenden Frontend-Dateien keine erfolgreiche Veröffentlichung melden; Fehler untersuchen und gegebenenfalls kontrollierte Rücknahme auf den vorherigen Stand abstimmen. Keine Prüfungen umgehen.
+
+## 2026-09-05 – Codex – Admin-Akzente und persönliche Filter lokal abgeschlossen
+
+**Stand:** `feat/admin-preferences`, Implementierung bis `a3b0d27`; nicht gepusht oder veröffentlicht. Paket 1 vollständig umgesetzt. Einkaufsseite, gemeinsame Chronik, Archivierungsablauf und EAN-Erfassung gehören zu späteren Paketen.
+**Abschlussprüfung:** Finale vollständige `npm test`-Suite: Node 989, DOM 135, Angular 372 bestanden, fünf bestehende Angular-Tests übersprungen. Produktionsbau erfolgreich. Acht gezielte Chromium-Tests für Akzente, Dark-Navigation, responsive Breiten, Dashboard-Filter und Chartinteraktion erfolgreich. Bestehende Runner-Warnung zu gleichzeitigem NO_COLOR/FORCE_COLOR unverändert. Lokale Konto-QA mit zwei getrennten Browserkontexten bestätigte Speicherung, Neuladen, Erhalt fremder Metadaten und einer Plattform ohne Verkäufe; keine Laufzeitfehler. 24 Ansichten bei 390/1440/2560px in Hell/Dunkel ohne Seitenüberlauf; acht Axe-Prüfungen der Hauptinhalte ohne Befund. Keine echten Geräte oder anderen Browser-Engines geprüft.
+**Reviews:** Einzelreviews freigegeben. Abschlussreview fand dunkle Schrift auf brauner Aktionsfläche (2,83:1) und einen rekursiven Speicherneustart bei Abmeldung vor dem Auth-Effekt. Beide mit roten Regressionstests reproduziert, korrigiert und im gezielten Abschlussreview freigegeben. Betroffene Aktionsflächen sind nun hellgelb mit dunkler Schrift; die Warteschlange startet nur im weiterhin gültigen Benutzerkontext erneut.
+**Planentscheidungen:** Zusätzlich zum knappen Dateiverzeichnis Dashboard-HTML für den geforderten Speicherfehlerhinweis und vorhandene Komponententests für die neue Zustandsquelle angepasst. Falls diese Erweiterungen unnötig wären, beträfe die Rücknahme nur Template bzw. Tests; keine Datenmigration. Keine weiteren abweichenden Entscheidungen oder verworfenen Reviewbefunde.
+**Lokale Prüfartefakte:** Screenshots und Testprotokolle unter `C:/Users/Grisc/AppData/Local/Temp/`; zwei klar benannte lokale QA-Konten erzeugt, keine Produktionskonten verändert. Das Aufräumen temporärer Agentenbriefings und Reviewpakete wurde von der Ausführungsrichtlinie abgewiesen; sie bleiben im ignorierten Planordner erhalten. Arbeitszweig und Code bleiben ebenfalls erhalten. Vor einem später autorisierten Push ist `npm run verify` erforderlich.
+
+## 2026-09-05 – Codex – Persönliche Dashboard-Filter gespeichert
+
+**Art:** UI- und Auth-Metadaten-Umsetzung im Zweig `feat/admin-preferences`, Task 2.
+**Was:** Dashboard-Zeitraum und Plattform starten standardmäßig mit dem laufenden Jahr und bleiben im Demo-Modus lokal sowie bei angemeldeten Konten in einem eigenen Auth-Metadatenfeld erhalten. Schreibvorgänge laufen nacheinander und fassen schnelle Zwischenstände zusammen; Konto- und Abmeldewechsel schützen vor verspäteten Antworten. Unbekannte gespeicherte Plattformen bleiben auswählbar und zeigen null Treffer. Metadaten dienen nicht der Rechteprüfung; keine Datenbank-, RLS- oder Abhängigkeitsänderung.
+**Prüfung:** Parser, Service und Dashboard-Integration testgetrieben mit gezielten roten und grünen Läufen; Demo-Browsertest für Navigation und Neuladen erfolgreich. Lokale Supabase-QA mit einem Testkonto bestätigte Speicherung, Erhalt fremder Metadaten, Neuladen und eine zweite getrennte Browsersitzung ohne Seitenfehler. Produktionskonto und Deployment unberührt.
+
+## 2026-09-05 – Codex – Helle Admin-Akzente an Markenfarben angeglichen
+
+**Art:** UI-Umsetzung im Zweig `feat/admin-preferences`, Task 1.
+**Was:** Nur die helle `.fb-admin`-Palette verwendet nun Orange/Gelb für Primäraktionen und einen dunklen Braunton für Textakzente und Fokus. Aktive Sidebarflächen nutzen den dezenten Markenakzent mit dunklem Text und Icon. Dunkles Admin-Design, Shop, Anmeldung, Landingpage sowie Diagramm- und Statusbedeutungen wurden nicht verändert. Zwei vorhandene Kombinationen aus orange umgebogenem Indigo-Hintergrund und weißer Schrift erhalten im hellen Admin die dunkle Akzentschrift.
+**Prüfung:** Neuer Playwright-Test schlug zunächst mit Weiß statt `rgb(26, 26, 26)` fehl und lief nach Umsetzung grün. Ein Review fand danach die unbeabsichtigt entfernte aktive Dark-Sidebarfläche; eigener Regressionstest zunächst rot bei transparentem Hintergrund, nach Wiederherstellung der vorherigen Klassen und des dunklen Markenrahmens grün. Zusammen mit den Admin-Layouttests 4/4 Chromium-Tests erfolgreich; Axe WCAG 2/2.1 A/AA auf `/purchases` ohne Befund; gezielte Prettier-/ESLint-Prüfung und Produktionsbau erfolgreich. Keine echte Geräte- oder Mehrbrowserprüfung in dieser Sitzung.
+
+## 2026-09-05 – Codex – Umsetzung in eigenständige Pakete aufgeteilt
+
+**Art:** Umsetzungsplanung nach Nutzerfreigabe, noch keine Funktionsänderung.
+**Dokumente:** `docs/superpowers/specs/2026-09-05-admin-workflow-refresh.md` hält die freigegebene Gesamtrichtung fest; `docs/superpowers/plans/2026-09-05-admin-preferences.md` beschreibt das erste eigenständig prüfbare Paket (gelbe Akzente, persönliche Dashboard-Filter). Weitere Pakete: Einkaufsseite, gemeinsame Chronik, Archivierung/Tabellenspalten, EAN/Import.
+**Entscheidung:** Persönliche Filter als nicht sicherheitsrelevante Auth-Metadaten, Demo lokal; keine neuen Tabellen für Paket 1. Zustandswechsel und fehlgeschlagene Speicherung ausdrücklich testen. Chronik benötigt eigene Prüfung bestehender Ereignis-/Kommentarrechte und ist noch nicht implementiert. Planungsskill verlangt Auswahl der Ausführungsform vor Planabarbeitung; vorhandene Arbeitskopie und fremde Änderungen erhalten.
+
+## 2026-09-05 – Codex – EAN-Kameraerfassung und Produktdatenquellen geprüft
+
+**Art:** Technische Auskunft / Recherche, keine Implementierung.
+**Befund:** BarcodeScannerComponent nutzt ausschließlich nativen BarcodeDetector ohne Decoder-Fallback; Browserunterstützung eingeschränkt. BarcodeLookupService enthält fünf feste Beispieldatensätze mit Schätzpreisen und fragt danach Open Food Facts ab; keine umfassende allgemeine Produktdatenbank. Vorschlag: optionales EAN/GTIN-Feld, manuelle Eingabe und Kamera, Format-/Prüfzifferprüfung, eigene Artikelsuche vor optionaler externer Datenanreicherung, keine automatische Neuanlage oder ungeprüfte Preisübernahme. GS1 bietet Identitäts-/Basisdaten; API-Zugang über lokale GS1-Organisation abklären. Scanner-Bibliothek und Datenanbieter sind getrennte Entscheidungen, keine Abhängigkeit installiert.
+**Quellen:** https://developer.mozilla.org/en-US/docs/Web/API/BarcodeDetector, https://github.com/zxing-js/browser, https://www.gs1.org/services/verified-by-gs1, https://openfoodfacts.github.io/openfoodfacts-server/api/.
+
+## 2026-09-05 – Codex – Einzelstücke archivieren und Chronik erklären
+
+**Art:** Nutzerfrage / Entwurf, keine Funktionsänderung.
+**Was:** Für verkaufte Einzelstücke Archivierung statt alltäglicher Anzeige vorgeschlagen, ohne Einkauf, Verkauf und Bestandsbewegungen zu entfernen. Nachkaufbare Artikel können bei null Bestand aktiv bleiben. Produktbeschreibung und tatsächlicher Bestand unterscheiden; Neuanlage darf keinen unbelegten Bestand erzeugen. Chronik als lesbare Ansicht belegter Änderungsereignisse, nicht als automatische Rechtskonformitätsgarantie. CSV-Import mit Vorschau/Prüfung und Barcode-Suche als spätere Erfassungshilfen aufnehmen; unbekannter Barcode liefert nicht automatisch verlässliche Produktdaten.
+**Quellen:** https://help.shopify.com/de/manual/products/add-update-products sowie §§ 146/147 AO. Bestehender Code enthält bereits `archived` als Artikelstatus; keine Aussage getroffen, dass der gewünschte vollständige Archivierungsablauf bereits umgesetzt sei.
+
+## 2026-09-05 – Codex – Akzentfarbe, persönliche Ansichten und Einkaufsablauf eingegrenzt
+
+**Art:** Recherche und Entwurfsabstimmung, noch keine Umsetzung.
+**Anlass:** Nutzer wünscht Logo-Gelb statt Lila im hellen Admin, Dashboard initial dieses Jahr und dauerhaft persönliche Filter sowie Shopify-orientierte Erfassungsseiten und kompakte Tabellen mit wählbaren Spalten. Screenshots als Gestaltungsreferenz, nicht als Anweisung oder vollständiges Datenmodell verwendet.
+**Befund:** Dashboard initialisiert Zeitraum mit `month` ohne Speicherung. Offizielle Shopify-Hilfe trennt Lieferantenbestellung von Wareneingang/Inventartransfer; vorhandenes Produkt bedeutet nicht vorhandene Stückzahl. Öffentliche Shopify-Produkttaxonomie steht unter MIT-Lizenz. Für Flipbase vorgeschlagen: Einkäufe als verständlicher Oberbegriff behalten, Artikel direkt beim Einkauf anlegen/auswählen, Mystery-Box-Inhalt weiterhin später erfassen, Verkauf und Bestandsabgang gemeinsam buchen. Keine Pflichtfelder für Lieferstandorte, Zahlungsziele oder Shop-Metafelder ohne konkreten Bedarf. Filter/Spalten als persönliche Ansichten konzipieren, nicht global für alle Nutzer.
+**Quellen:** https://help.shopify.com/de/manual/products/inventory/purchase-orders/creating-purchase-orders, https://help.shopify.com/de/manual/products/inventory/purchase-orders/viewing-purchase-orders, https://help.shopify.com/de/manual/products/inventory/purchase-orders/creating-inventory-transfers, https://github.com/Shopify/product-taxonomy.
+**Vorgehen:** Design-System- und Brainstorming-Skill: kleine Farb-/Filteranpassung vom größeren Ablaufumbau trennen; Entwurf vor Umsetzung abstimmen. Keine Datenbank- oder Produktionsänderung.
+
 ## 2026-09-05 – Codex – Neutrales Verwaltungsdesign veröffentlichen
 
 **Art:** Release auf ausdrücklichen Nutzerauftrag.
 **Umfang:** Zweig `style/neutral-admin-design`, nur Verwaltungsdesign und Layouttests; keine Datenbankmigrationen. Vorheriger Produktionsstand `873c0b8`. Unabhängige Review-Befunde im vorherigen Umsetzungseintrag dokumentiert und korrigiert. Vor Push verbindliches `npm run verify`, danach PR-Prüfungen, Merge und Produktionslauf prüfen. Abbruch-/Rückfallkriterien: fehlgeschlagener Healthcheck, falscher ausgelieferter Commit oder fehlende Frontend-Dateien. Keine erfolgreiche Veröffentlichung behaupten, bevor Produktionslauf und öffentliche Antwort bestätigt sind.
+
+**Abschluss:** `npm run verify` erfolgreich nach Anpassung der erwarteten kurzen Ergebnisüberschrift einschließlich Test der erhaltenen Erklärung. PR #26 nach erfolgreichem Lauf `33972570453` gemergt. Produktionslauf `33972742843` vollständig erfolgreich, erfolgreiche PR-Tests wiederverwendet. Öffentlicher Healthcheck und Commit `2ac3950e294e8f7616515cfa205d9f908581c216` bestätigt. Abschluss lokal dokumentiert, kein zusätzlicher Produktionslauf nur für diesen Nachweis.
 
 ## 2026-09-05 – Codex – Helle Verwaltungsoberfläche beruhigt und Datenansichten verbreitert
 
