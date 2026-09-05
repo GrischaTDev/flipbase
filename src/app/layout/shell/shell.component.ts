@@ -20,7 +20,7 @@ import { MockDataStoreService } from '../../core/services/mock-data-store.servic
     ConfirmDialogComponent,
   ],
   templateUrl: './shell.component.html',
-  host: { class: 'block' },
+  host: { class: 'fb-admin block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ShellComponent {

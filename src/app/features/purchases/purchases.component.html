@@ -3,7 +3,7 @@
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-1">
     <div>
       <div class="flex items-center gap-2">
-        <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">
+        <h1 class="text-lg font-semibold tracking-tight text-fb-text-primary">
           {{ 'PURCHASES.TITLE' | translate }}
         </h1>
         <span
@@ -12,9 +12,7 @@
           {{ filteredPurchases().length }} Einkäufe
         </span>
       </div>
-      <p class="text-xs text-fb-text-muted mt-0.5">
-        Normale Einkäufe, Mystery Boxen, Paletten & Flohmarkt-Schnellerfassung.
-      </p>
+      <p class="text-xs text-fb-text-muted mt-0.5">Einkäufe und enthaltene Artikel verwalten.</p>
     </div>
 
     <div class="flex items-center gap-2">
@@ -22,10 +20,10 @@
       <button
         type="button"
         (click)="openFleaMarketModal()"
-        class="linear-btn-secondary px-3.5 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 cursor-pointer text-amber-300 border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 shadow-sm"
+        class="linear-btn-secondary px-3.5 py-1.5 rounded-lg font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-sm"
         title="Offlinefähige Schnellerfassung für Flohmärkte & Haushaltsauflösungen"
       >
-        <svg [lucideIcon]="zapIcon" class="w-3.5 h-3.5 text-amber-400"></svg>
+        <svg [lucideIcon]="zapIcon" class="w-3.5 h-3.5 text-fb-text-muted"></svg>
         <span>Flohmarkt-Schnellerfassung</span>
       </button>
 
@@ -161,10 +159,10 @@
           [routerLink]="['/purchases', row.id]"
           data-purchase-row
           [attr.data-purchase-row]="row.id"
-          class="linear-card-interactive group grid cursor-pointer grid-cols-1 gap-4 rounded-xl p-4 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-fb-bg lg:grid-cols-[5rem_minmax(0,1fr)_minmax(30rem,1.35fr)_auto] lg:items-center"
+          class="linear-card-interactive group grid cursor-pointer grid-cols-1 gap-3 rounded-xl p-3 text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-fb-bg xl:grid-cols-[3rem_minmax(12rem,1fr)_minmax(34rem,1.6fr)_auto] xl:items-center"
         >
           <div
-            class="flex size-16 items-center justify-center overflow-hidden rounded-xl border border-fb-line bg-fb-well text-fb-text-secondary lg:size-20"
+            class="flex size-12 items-center justify-center overflow-hidden rounded-lg border border-fb-line bg-fb-well text-fb-text-secondary"
             aria-hidden="true"
           >
             @switch (row.type) {
@@ -213,27 +211,27 @@
             </div>
           </div>
 
-          <dl class="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div class="rounded-lg border border-fb-line bg-fb-well px-3 py-2">
-              <dt class="text-[10px] text-fb-text-muted">Status</dt>
+          <dl class="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-[1.2fr_1fr_0.8fr_1.5fr]">
+            <div class="min-w-0">
+              <dt class="text-xs text-fb-text-muted">Status</dt>
               <dd class="mt-0.5 font-sans font-semibold text-fb-text-primary">
                 {{ row.purchaseStatus }}
               </dd>
             </div>
-            <div class="rounded-lg border border-fb-line bg-fb-well px-3 py-2">
-              <dt class="text-[10px] text-fb-text-muted">Gesamtkosten</dt>
+            <div class="min-w-0">
+              <dt class="text-xs text-fb-text-muted">Gesamtkosten</dt>
               <dd class="mt-0.5 font-mono font-bold">
                 <app-cost-state [state]="row.totalCost" />
               </dd>
             </div>
-            <div class="rounded-lg border border-fb-line bg-fb-well px-3 py-2">
-              <dt class="text-[10px] text-fb-text-muted">Stück</dt>
+            <div class="min-w-0">
+              <dt class="text-xs text-fb-text-muted">Stück</dt>
               <dd class="mt-0.5 font-mono font-bold text-fb-text-primary">
                 {{ row.totalUnits }} gesamt
               </dd>
             </div>
-            <div class="rounded-lg border border-fb-line bg-fb-well px-3 py-2">
-              <dt class="text-[10px] text-fb-text-muted">Bestand</dt>
+            <div class="min-w-0">
+              <dt class="text-xs text-fb-text-muted">Bestand</dt>
               <dd class="mt-0.5 font-mono font-bold text-fb-text-primary">
                 @if (row.quantityState === 'error') {
                   Bestandsdaten konnten nicht geladen werden

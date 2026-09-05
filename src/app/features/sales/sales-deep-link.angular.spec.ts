@@ -144,11 +144,14 @@ describe('SalesComponent – verlinkter Verkauf', () => {
       'Verkaufserlös',
       'Wareneinsatz',
       'Verkaufskosten',
-      'Ergebnis nach direkten Kosten',
+      'Ergebnis',
       'Marge',
       'Haltedauer',
       'Aktionen',
     ]);
+    expect(host.querySelector('thead abbr')?.getAttribute('title')).toBe(
+      'Verkaufserlös abzüglich Wareneinsatz und Verkaufskosten',
+    );
     expect(host.textContent).toContain('Durchschnittliche Marge');
     expect(host.textContent).not.toContain('ROI');
     expect(host.textContent).not.toContain('Nettogewinn');

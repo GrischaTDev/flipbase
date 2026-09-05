@@ -1,5 +1,46 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Neutrales Verwaltungsdesign veröffentlichen
+
+**Art:** Release auf ausdrücklichen Nutzerauftrag.
+**Umfang:** Zweig `style/neutral-admin-design`, nur Verwaltungsdesign und Layouttests; keine Datenbankmigrationen. Vorheriger Produktionsstand `873c0b8`. Unabhängige Review-Befunde im vorherigen Umsetzungseintrag dokumentiert und korrigiert. Vor Push verbindliches `npm run verify`, danach PR-Prüfungen, Merge und Produktionslauf prüfen. Abbruch-/Rückfallkriterien: fehlgeschlagener Healthcheck, falscher ausgelieferter Commit oder fehlende Frontend-Dateien. Keine erfolgreiche Veröffentlichung behaupten, bevor Produktionslauf und öffentliche Antwort bestätigt sind.
+
+## 2026-09-05 – Codex – Helle Verwaltungsoberfläche beruhigt und Datenansichten verbreitert
+
+**Art:** UI-Umsetzung | Eigener Zweig `style/neutral-admin-design`, noch nicht veröffentlicht.
+**Was:** Nach Nutzerfreigabe neutrale helle Flächen, dunkelgraue Schrift und zurückhaltende Primäraktionen ausschließlich unter `.fb-admin` eingeführt. Sidebar kräftiger, Cards ohne helle Verläufe, Kennzahlen kleiner, Tabellenköpfe ohne Großbuchstaben und mit stabilen Zahlen-/Kostenspalten. Einkäufe kompakter mit weniger verschachtelten Kästen. Datenansichten nutzen die verfügbare Breite; Einstellungen und Deal-Rechner bleiben begrenzt. Ursprüngliche dunkle Hintergrundpalette sowie Shop/Landingpage unverändert. Keine Geschäftslogik, Kostenbuchung oder Datenbank geändert; Ultrawide-Spezialmodus zurückgestellt.
+**Prüfung:** Neuer Breitentest zunächst am bisherigen 1280px-Limit fehlgeschlagen, nach Anpassung erfolgreich. Browser-Demo auf Dashboard, Einkäufen, Inventar und Verkäufen in Hell/Dunkel bei 390, 1440 und 2560px kontrolliert; keine Laufzeitfehler. Axe WCAG-A/AA-Prüfung der vier Hauptinhalte in beiden Modi ohne Befunde nach Korrektur zweier gelber Hinweistexte. Browser plugin not available: vorhandenes Playwright für lokale Prüfung verwendet; keine Produktionsdaten benutzt. Bestehende 12 Browserprüfungen einschließlich Dialogsperre, Verkauf, Navigation, Chart und Inter erfolgreich, Produktionsbau erfolgreich. Zusätzlicher Test für 390/768/1024/1100/1280px erfolgreich.
+**Review:** Unabhängiges Read-only-Review fand zu frühen Desktopumbruch der Einkaufszeilen sowie unbegrenzten Deal-Rechner; beides korrigiert. Erweiterter Browsertest fand außerdem herausragenden unsichtbaren Screenreader-Text in der horizontal scrollenden Verkaufstabelle; relativer Container hält ihn innerhalb des Scrollbereichs. Design-System-Skill führte zu lokal begrenzten Variablen statt globaler Änderungen an Shop/Dark Mode.
+
+## 2026-09-05 – Codex – Offizielle Shopify-Designgrundlagen recherchiert
+
+**Art:** Recherche | Designvorbereitung
+**Quellen:** https://shopify.dev/docs/apps/design/visual-design, https://shopify.dev/docs/apps/design/layout, https://shopify.dev/docs/api/app-home/latest/web-components und https://github.com/Shopify/polaris-react-archive.
+**Befund:** Shopify dokumentiert Polaris als Designsystem für Admin-Oberflächen. Aktuelle App-Komponenten sind Web Components; frühere React-Implementierung ist als deprecated archiviert. Dokumentierte Vorgaben: neutrale lesbare Textfarben, mindestens 13px für normalen/bedienbaren Text, 12px für kleinere Erläuterungen, 4px-Abstandsraster, volle Breite für datenreiche Listen, aufgabengerechte konsistente Dichte und zurückhaltende Tabellenaktionen. Keine Behauptung über den kompletten internen Framework-Stack des angemeldeten Shopify-Admins; Recherche erfolgte in offiziellen öffentlichen Quellen, nicht in einem Nutzerkonto.
+**Ableitung:** Gestaltung in vorhandenen Angular-/Tailwind-Shared-Komponenten umsetzen statt Shopify-App-Bibliothek ungeprüft einzubauen. Tabellen verbreitern, Formulare begrenzen, neutrale Palette und kompakte konsistente Typohierarchie vorschlagen. Kein Frameworkwechsel, keine Installation oder Codeänderung.
+
+## 2026-09-05 – Codex – Ruhigere Verwaltungsoberfläche anhand Shopify-Referenzen eingegrenzt
+
+**Art:** Designanalyse | Noch keine Umsetzung
+**Betroffen:** Zentrale Designvariablen, Shared-Oberflächen, Sidebar, Seitenbreite sowie Dashboard-, Inventar- und Verkaufstabellen.
+**Was:** Neun Nutzerscreenshots als visuelle Referenz betrachtet; keine exakten Shopify-Farbwerte aus Screenshots behauptet. Nutzer wünscht weichere neutrale Hintergründe, dezenteren Text, kräftigere Menüschrift, kompaktere Cards/Tabellen/Kennzahlen, weniger überflüssige Erklärtexte und volle Breite für Datenansichten. Bestehendes Shell-Limit `max-w-7xl` und blaugraue Text-/Flächentokens als konkrete Ansatzpunkte identifiziert. Vorschlag: zentrale Gestaltung anpassen, Datenansichten flexibel verbreitern, Formulare und Lesetexte sinnvoll begrenzen; keine fachlichen Hinweise pauschal löschen. Helles Verwaltungsdesign als Referenzumfang, Dark Mode kompatibel halten, Shop und Landingpage nicht ungefragt umgestalten.
+**Später:** Spezieller Ultrawide-Modus mit anderer Informationsanordnung auf sehr breiten Bildschirmen ist ausdrücklich zurückgestellt. Schwelle anhand CSS-Viewport statt physischer Monitorauflösung festlegen. Kein solcher Modus in dieser Anpassung.
+**Verifiziert durch:** Design-System- und Brainstorming-Skill, Screenshots und zentrale CSS-/Layout-/Tabellenstellen gelesen. Kurzen Designvorschlag vor Umsetzung gemäß Planungs-Skill zur Bestätigung stellen. Keine Oberflächenänderung oder Veröffentlichung in dieser Sitzung.
+
+## 2026-09-05 – Codex – Segoe-UI-Rückfall nach Schriftwechsel untersucht
+
+**Art:** Diagnose | Browsercache
+**Betroffen:** Öffentliche Schriftdefinition `/fonts/fonts.css` auf Anwendung und Landingpage.
+**Befund:** Nutzer sieht Segoe UI trotz Inter an erster Stelle der Schriftliste. Live-Header der unverändert benannten fonts.css ist `public, max-age=31536000, immutable`. Ein wiederkehrender Browser kann daher die alte Definition ohne Inter behalten, während das neue Haupt-CSS bereits Inter verlangt. Frischer Chromium-Browser bestätigt über CDP `CSS.getPlatformFontsForNode` tatsächlich gerenderte `Inter Variable` an Überschriften von Login und Landingpage. Das bloße Vorhandensein der Fontdateien beim Release genügte nicht als Prüfung bestehender Browsercaches.
+**Abgrenzung:** Nutzerbrowser nicht direkt untersucht; Cache als durch Konfiguration gestützte Ursache, nicht als aus dessen Browserlog bewiesener Einzelbefund. Soforthilfe vollständiges Neuladen; dauerhafte Abhilfe versionierter Name/Build-Hash der Schriftdefinition. In dieser Diagnosesitzung keine Produktionsdateien oder Konfiguration geändert und nichts veröffentlicht.
+
+## 2026-09-05 – Codex – Typografie und Dialogkorrekturen live bestätigt
+
+**Art:** Release-Abschluss
+**Betroffen:** PR #25, PR-Lauf `33960974002`, Produktionslauf `33961125801`.
+**Was:** Alle verpflichtenden PR-Prüfungen erfolgreich, anschließend gemergt. Unabhängiges Nachreview der Warenkorb-/Dialogkorrekturen ohne offene Befunde. Produktion hat erfolgreiche PR-Tests übernommen; Imagebau, Pflichtcheck, Deployment und GitHub Release erfolgreich.
+**Verifiziert durch:** Öffentliche Anwendung liefert Commit `873c0b8df355a9d269b92fb2cd008546f63ba108`; `/healthz` HTTP 200. Normale und kursive Inter-Datei auf Anwendung und Landingpage jeweils HTTP 200 und SHA-256 identisch zu lokalen freigegebenen Dateien; beide öffentlichen Font-Stylesheets verweisen auf Inter. Keine Geschäftsdaten verändert. Angemeldete Nutzerabläufe lokal im Demo-Browser geprüft, nicht mit einem Produktionskonto. Abschlussnachweis lokal ergänzt, kein zusätzlicher Deployment-Push nur für diesen Eintrag.
+
 ## 2026-09-05 – Codex – Typografie und Dialogkorrekturen veröffentlichen
 
 **Art:** Release
