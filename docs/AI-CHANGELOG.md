@@ -7,6 +7,8 @@
 **Was:** Auf ausdrücklichen Nutzerauftrag per PR und Merge veröffentlichen. Aktuellen Master einschließlich bereits veröffentlichter Deal-Monitor-Änderungen konfliktfrei übernommen; fremde Zweige unverändert. Keine zusätzlichen Datenbankmigrationen in diesem PR. Deployment-Checkliste und unabhängiges Code-Review vor Merge verwenden.
 **Prüfung und Rückfall:** Gezielter Build, Browser-, Dialog- und Landingpage-Testlauf nach Integration; vollständige verbindliche CI im PR. Vorher öffentlich ausgelieferter Commit `88de7103cf3f0ac53bc9ee1cd5ca38f0347ba24b`. Bei fehlerhaftem Healthcheck, fehlenden Schriftdateien oder falschem öffentlichen Commit keinen Live-Erfolg melden und regulären Deployment-Rückfall prüfen. Nach Merge Produktionslauf und beide öffentlich ausgelieferten Schriftdateien kontrollieren.
 
+**Review-Korrektur:** Unabhängige Prüfung fand Warenkorbinhalt außerhalb seines Dialog-Backdrops sowie zwei noch nicht nachgerüstete Dialoge (Flohmarkt und Retoure). Warenkorb in gemeinsamen Dialog eingeschlossen; beide übrigen Dialoge an zentrale Direktive angebunden. Neue Warenkorb-/Flohmarkt-Browsertests zunächst fehlgeschlagen, nach Korrektur alle vier Layout-/Overlay-Tests erfolgreich. Produktionsbau nach Template-Korrekturen erneut erfolgreich.
+
 ## 2026-09-05 – Codex – Mobile Kopfzeile und Modal-Hintergrund korrigiert
 
 **Art:** Fehlerbehebung | Layout | Dialogbedienung

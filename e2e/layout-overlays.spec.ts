@@ -1,6 +1,27 @@
 import { expect, test } from '@playwright/test';
 import { startDemoMode } from './support/demo';
 
+test('hält den Warenkorbinhalt innerhalb des bedienbaren Dialogs', async ({ page }) => {
+  await startDemoMode(page);
+  await page.goto('/shop');
+  await page.getByRole('button', { name: 'Warenkorb', exact: true }).click();
+  const cart = page.getByRole('dialog', { name: 'Warenkorb' });
+  await expect(cart.getByRole('heading', { name: 'Dein Warenkorb', exact: true })).toBeVisible();
+  await cart.locator('button').first().click();
+  await expect(cart).toBeHidden();
+});
+
+test('sperrt den Header auch bei der Flohmarkt-Schnellerfassung', async ({ page }) => {
+  await startDemoMode(page);
+  await page.goto('/purchases');
+  await page.getByRole('button', { name: 'Flohmarkt-Schnellerfassung' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Flohmarkt-Schnellerfassung' });
+  await expect(dialog).toBeVisible();
+  expect(await page.locator('app-header').evaluate((el) => !!el.closest('[inert]'))).toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+});
+
 test('hält die Kopfzeile auch auf schmalen Bildschirmen im sichtbaren Bereich', async ({
   page,
 }) => {
