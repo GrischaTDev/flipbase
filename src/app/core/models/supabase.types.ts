@@ -1355,6 +1355,65 @@ export type Database = {
           },
         ]
       }
+      record_comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          purchase_id: string | null
+          sale_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          purchase_id?: string | null
+          sale_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          purchase_id?: string | null
+          sale_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "record_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "record_comments_purchase_fkey"
+            columns: ["workspace_id", "purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "record_comments_sale_fkey"
+            columns: ["workspace_id", "sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["workspace_id", "id"]
+          },
+          {
+            foreignKeyName: "record_comments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       research_comparables: {
         Row: {
           condition: string | null
@@ -3017,6 +3076,29 @@ export type Database = {
           id: string
           reason: string
           workspace_id: string
+        }[]
+      }
+      list_record_timeline: {
+        Args: {
+          p_cursor_created_at?: string
+          p_cursor_id?: string
+          p_cursor_kind?: string
+          p_entity_id: string
+          p_entity_type: string
+          p_page_size?: number
+          p_workspace_id: string
+        }
+        Returns: {
+          actor_id: string
+          actor_name: string
+          body: string
+          changes: Json
+          correlation_id: string
+          created_at: string
+          event_type: string
+          id: string
+          kind: string
+          reason: string
         }[]
       }
       list_entity_business_events: {

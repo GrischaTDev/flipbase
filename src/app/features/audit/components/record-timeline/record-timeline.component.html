@@ -1,0 +1,163 @@
+<section class="linear-surface min-w-0 space-y-5 rounded-xl p-4 sm:p-5" aria-label="Chronik">
+  <div class="border-b border-fb-line pb-3">
+    <h2 class="text-sm font-semibold text-fb-text-primary">Chronik</h2>
+    <p class="mt-1 text-xs text-fb-text-secondary">Nur für Mitglieder dieses Workspace sichtbar</p>
+  </div>
+  @if (archived()) {
+    <p class="text-sm text-fb-text-secondary">
+      Dieser Workspace ist archiviert. Die Chronik bleibt lesbar.
+    </p>
+  } @else {
+    <div class="space-y-2">
+      <label
+        [for]="'record-comment-' + entityId()"
+        class="block text-xs font-semibold text-fb-text-primary"
+        >Kommentar schreiben</label
+      >
+      <textarea
+        [id]="'record-comment-' + entityId()"
+        [value]="draft()"
+        (input)="updateDraft($event)"
+        [disabled]="posting()"
+        rows="3"
+        [attr.aria-describedby]="'record-comment-count-' + entityId()"
+        [attr.aria-invalid]="characterCount() > 5000"
+        class="w-full resize-y rounded-lg border border-fb-line bg-fb-well p-3 text-sm text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-accent disabled:opacity-60"
+      ></textarea>
+      <div class="flex items-center justify-between gap-3">
+        <p [id]="'record-comment-count-' + entityId()" class="text-xs text-fb-text-secondary">
+          {{ characterCount() }} / 5000 Zeichen
+        </p>
+        <button
+          type="button"
+          (click)="post()"
+          [disabled]="!canSubmit()"
+          class="linear-btn-primary rounded-lg px-4 py-2 text-xs font-semibold disabled:opacity-50"
+        >
+          {{ posting() ? 'Wird gepostet…' : 'Posten' }}
+        </button>
+      </div>
+      @if (postError()) {
+        <p class="text-sm text-fb-text-primary" role="alert">{{ postError() }}</p>
+      }
+    </div>
+  }
+  @if (loadError()) {
+    <div
+      role="alert"
+      class="rounded-lg border border-fb-line bg-fb-well p-3 text-sm text-fb-text-primary"
+    >
+      <p>{{ loadError() }}</p>
+      <button
+        type="button"
+        (click)="entries().length && nextCursor() ? loadMore() : reload()"
+        [disabled]="loading() || posting()"
+        class="linear-btn-secondary mt-2 rounded-md px-3 py-1.5 text-xs"
+      >
+        Erneut laden
+      </button>
+    </div>
+  }
+  @if (loading() && entries().length === 0) {
+    <p role="status" class="text-sm text-fb-text-secondary">Chronik wird geladen…</p>
+  } @else if (entries().length === 0 && !loadError()) {
+    <p class="text-sm text-fb-text-secondary">
+      Noch keine Einträge. Halte eine Rückfrage oder Absprache als Kommentar fest.
+    </p>
+  }
+  <div class="space-y-5" aria-live="polite" aria-relevant="additions">
+    @for (group of groups(); track group.day) {
+      <div>
+        <h3 class="mb-3 text-xs font-semibold text-fb-text-secondary">{{ group.day }}</h3>
+        <ol
+          class="ml-1 space-y-3 border-l border-fb-line pl-4"
+          [attr.aria-label]="'Chronik am ' + group.day"
+        >
+          @for (entry of group.entries; track entry.kind + ':' + entry.id) {
+            <li
+              [attr.data-timeline-kind]="entry.kind"
+              [attr.data-timeline-id]="entry.id"
+              class="min-w-0"
+            >
+              @if (entry.kind === 'comment') {
+                <article class="rounded-lg border border-fb-line bg-fb-well p-3">
+                  <div
+                    class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-xs"
+                  >
+                    <p class="font-semibold text-fb-text-primary">
+                      {{ entry.actorName }}
+                      <span class="font-normal text-fb-text-secondary">· Kommentar</span>
+                    </p>
+                    <time
+                      [attr.datetime]="entry.createdAt"
+                      [title]="exactTime(entry.createdAt)"
+                      [attr.aria-label]="exactTime(entry.createdAt)"
+                      class="text-fb-text-secondary"
+                      >{{ relativeTime(entry.createdAt) }}</time
+                    >
+                  </div>
+                  <p
+                    class="mt-2 whitespace-pre-wrap break-words text-sm text-fb-text-primary [overflow-wrap:anywhere]"
+                  >
+                    {{ entry.body }}
+                  </p>
+                </article>
+              } @else if (entry.event; as event) {
+                <div class="py-1 text-xs">
+                  <p class="font-semibold text-fb-text-primary">{{ event.eventLabel }}</p>
+                  <p class="mt-1 text-fb-text-secondary">
+                    {{ entry.actorName }} ·
+                    <time
+                      [attr.datetime]="entry.createdAt"
+                      [title]="exactTime(entry.createdAt)"
+                      [attr.aria-label]="exactTime(entry.createdAt)"
+                      >{{ relativeTime(entry.createdAt) }}</time
+                    >
+                  </p>
+                  @if (event.reason) {
+                    <p class="mt-1 break-words text-fb-text-primary">{{ event.reason }}</p>
+                  }
+                  @if (details(entry).length) {
+                    <button
+                      type="button"
+                      (click)="toggleDetails(entry.id)"
+                      [attr.aria-expanded]="expandedId() === entry.id"
+                      [attr.aria-controls]="'timeline-details-' + entry.id"
+                      class="linear-btn-secondary mt-2 rounded-md px-2.5 py-1.5"
+                    >
+                      {{ expandedId() === entry.id ? 'Details ausblenden' : 'Details ansehen' }}
+                    </button>
+                    @if (expandedId() === entry.id) {
+                      <dl
+                        [id]="'timeline-details-' + entry.id"
+                        class="mt-2 space-y-2 rounded-lg bg-fb-well p-3 [overflow-wrap:anywhere]"
+                      >
+                        @for (detail of details(entry); track $index) {
+                          <div class="grid gap-1 sm:grid-cols-3">
+                            <dt class="font-semibold text-fb-text-secondary">{{ detail.label }}</dt>
+                            <dd class="text-fb-text-secondary">Vorher: {{ detail.before }}</dd>
+                            <dd class="text-fb-text-primary">Nachher: {{ detail.after }}</dd>
+                          </div>
+                        }
+                      </dl>
+                    }
+                  }
+                </div>
+              }
+            </li>
+          }
+        </ol>
+      </div>
+    }
+  </div>
+  @if (nextCursor()) {
+    <button
+      type="button"
+      (click)="loadMore()"
+      [disabled]="loading() || posting()"
+      class="linear-btn-secondary w-full rounded-lg px-3 py-2 text-xs font-semibold disabled:opacity-50"
+    >
+      {{ loading() ? 'Weitere Einträge werden geladen…' : 'Weitere Einträge laden' }}
+    </button>
+  }
+</section>

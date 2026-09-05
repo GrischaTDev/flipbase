@@ -21,6 +21,7 @@ import type { ReceivePurchaseLineInput } from './stock.service';
 import { createLocalDemoId } from '../utils/client-identity';
 import { isSellableInventoryItem } from '../models/inventory-sellability';
 import type { PurchaseCostingResult } from '../models/purchase-costing.models';
+import type { DemoRecordComment } from '../models/record-comment.models';
 
 const DEMO_WS_ID = 'ws-1';
 
@@ -37,6 +38,7 @@ const STORAGE_KEY_PURCHASE_LINES = 'flipbase_local_purchase_lines';
 const STORAGE_KEY_STOCK_LOTS = 'flipbase_local_stock_lots';
 const STORAGE_KEY_STOCK_MOVEMENTS = 'flipbase_local_stock_movements';
 const STORAGE_KEY_RECEIPT_JOURNAL = 'flipbase_local_individual_receipt_journal';
+const STORAGE_KEY_RECORD_COMMENTS = 'flipbase_local_record_comments';
 
 interface AtomicStorageChange {
   readonly key: string;
@@ -81,6 +83,34 @@ export class MockDataStoreService {
    * "0 Artikel", obwohl gerade ein Artikel erfasst worden war.
    */
   readonly isDemoMode = signal<boolean>(false);
+
+  getRecordComments(
+    workspaceId: string,
+    entityType: DemoRecordComment['entityType'],
+    entityId: string,
+  ): DemoRecordComment[] {
+    return this.getWorkspaceRecords<DemoRecordComment>(
+      STORAGE_KEY_RECORD_COMMENTS,
+      workspaceId,
+    ).filter((comment) => comment.entityType === entityType && comment.entityId === entityId);
+  }
+
+  addRecordComment(comment: DemoRecordComment): void {
+    if (!this.isDemoMode()) throw new Error('Lokale Kommentare sind nur im Demo-Modus verfügbar.');
+    const error = this.saveRecordsAtomically([
+      {
+        key: STORAGE_KEY_RECORD_COMMENTS,
+        records: [
+          ...this.getWorkspaceRecords<DemoRecordComment>(STORAGE_KEY_RECORD_COMMENTS),
+          comment,
+        ],
+      },
+    ]);
+    if (error)
+      throw new Error(
+        'Der Kommentar konnte lokal nicht gespeichert werden. Dein Text bleibt erhalten.',
+      );
+  }
 
   readonly demoWorkspace: Workspace = {
     id: DEMO_WS_ID,
