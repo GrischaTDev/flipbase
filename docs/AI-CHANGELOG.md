@@ -1,5 +1,93 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Eindeutige Zusatzkosten-Beziehung beim Laden
+
+**Art:** Bugfix | Test
+**Betroffen:** `purchase.service.ts`, Übersicht und Einzelansicht, eigener Zweig `fix/disambiguate-purchase-cost-queries`.
+**Was:** Beide Zusatzkosten-Einbettungen wählen ausdrücklich `purchase_costs_workspace_purchase_fkey`. Zwei Regressionstests prüfen die tatsächlich an den Client übergebenen Abfragen. Betriebsnachweise des vorherigen Deployments werden mit dokumentiert.
+**Warum:** Nach Einführung der zusätzlichen Workspace-Beziehung kann PostgREST die unqualifizierte Einbettung nicht mehr eindeutig auflösen.
+**Verifiziert durch:** Beide neuen Tests zunächst rot, nach Korrektur alle drei fokussierten Tests grün. Echte produktive REST-API ausschließlich mit `limit=0` geprüft: alte Einbettung HTTP 300/PGRST201; korrigierte Übersicht und Detail jeweils HTTP 200 mit leerem Ergebnis. Keine Datenbank-, Rechte- oder Geschäftsdatenänderung. Vollständiger Verify-Lauf vor Push.
+
+## 2026-09-05 – Codex – Mehrdeutige Einkaufsabfrage diagnostiziert
+
+**Art:** Analyse
+**Betroffen:** `purchase.service.ts`, Einkaufsübersicht und Einkaufsdetail.
+**Was:** Gemeldeten Ladefehler auf beide unqualifizierten `costs:purchase_costs(*)`-Einbettungen zurückgeführt. Produktiv bestehen sowohl `purchase_costs_purchase_id_fkey` als auch die neue Workspace-Beziehung `purchase_costs_workspace_purchase_fkey`.
+**Warum:** Nach dem Upgrade kann PostgREST ohne ausdrücklichen Beziehungshinweis nicht zwischen beiden Beziehungen wählen. Die bestehenden Prüfungen haben die echte REST-Einbettung nicht erfasst.
+**Verifiziert durch:** Beide Serviceabfragen und produktive FK-Definitionen lesend geprüft; offizielles Supabase-Verfahren für mehrdeutige Beziehungen abgeglichen. Noch keine Korrektur oder erneute Veröffentlichung.
+
+## 2026-09-05 – Codex – Produktionsmigration und Release abgeschlossen
+
+**Art:** Betrieb | Verifikation
+**Betroffen:** Produktionsdatenbank, Deploymentweg, PR #19 und Actions-Lauf `33931627849`.
+**Was:** Nach frischem verschlüsseltem Backup auf beiden Servern alle 23 ausstehenden Migrationen einschließlich Rechtekorrektur gemeinsam und mit ihren Historieneinträgen atomar eingespielt. Geschäftskennzahlen innerhalb derselben Transaktion auf Gleichheit geprüft. `RELEASE_MIGRATIONS_V1=true` aktiviert. Nach dem ersten erfolgreichen Rollout den kurzen Deployjob erneut ausgeführt, weil der laufende Workflow die zuvor gelesene Variable noch nicht übernommen hatte. Versuch 3 bestätigt den neuen Digest-/Migrationsweg. Vier isolierte Restore-Container entfernt; Sicherungen und geschützte Betriebsprotokolle erhalten.
+**Warum:** Nicht nur das Frontend ausliefern, sondern den automatischen Datenbankweg tatsächlich produktiv verifizieren.
+**Verifiziert durch:** Actions vollständig erfolgreich; produktiv 76 Versionen und keine direkten anon-Grants in public. Webcontainer gesund, Digest `sha256:fb29dd9782a27a83f8e7272ad2a9198ca4b859ad2847f2febcd0b0fb5e14d95c`. Öffentliche Startseite, Healthcheck und vollständige Commit-SHA `6bfaefb33ffb6fd4d3ba32f2edb6e95cf10fb744` erfolgreich nachgeprüft. Abschließende Betriebsdokumentation lokal; kein weiterer Codepush dafür.
+
+## 2026-09-05 – Codex – Missverstandene Statusmeldung und Fortsetzung
+
+**Art:** Betrieb
+**Betroffen:** PR #19, Produktionslauf `33931627849`, Serverbootstrap.
+**Was:** Nach erfolgreicher vollständiger Prüfung PR #19 gemergt (`6bfaefb33ffb6fd4d3ba32f2edb6e95cf10fb744`). Serverhelfer installiert und alte Dateien gesichert. Die Meldung „deploy nicht“ wurde irrtümlich als Stop-Anweisung verstanden und der laufende Produktionsworkflow zum Abbruch angewiesen. Nutzer stellte unmittelbar klar, dass die Action gemeint war, nicht ein Stopp; die Auslieferung wird fortgesetzt. Zu diesem Zeitpunkt kein produktiver Migrationslauf und keine Aktivierung von `RELEASE_MIGRATIONS_V1`.
+**Warum:** Missverständnis ausdrücklich berichtigen und den tatsächlichen Ablauf nachvollziehbar festhalten.
+**Verifiziert durch:** Produktionsdatenbank weiterhin 53 Versionen, Webcontainer weiterhin `sha-08c4d73`, Zustand `healthy`. Restore-Tests, isolierte Testcontainer und verschlüsselte Sicherungen bleiben für die Fortsetzung erhalten. Diese Statusdokumentation wird nicht gepusht.
+
+## 2026-09-05 – Codex – Produktionsbootstrap und Rechteabgleich
+
+**Art:** Betrieb | Bugfix | Test
+**Betroffen:** Eigener Zweig `fix/reconcile-release-permissions`, isolierte Wiederherstellungsdatenbank auf dem Produktionshost, deklarative DB-Rechte.
+**Was:** Verschlüsseltes Vollbackup lokal und extern erstellt, einschließlich Rollen in abgeschottetem PostgreSQL 17.6 wiederhergestellt und alle 22 fehlenden Migrationen dort erfolgreich angewendet. Eine separat generierte Rechtekorrektur entfernt vererbte anonyme Rechte des bestehenden Self-Hosting-Servers. Deklarative Reihenfolge korrigiert und Datenbanktypen vollständig neu erzeugt (einschließlich bereits integrierter Sniper-Tabellen). Produktive Datenbank zum Zeitpunkt dieser Codefreigabe noch unverändert.
+**Warum:** Deployment erst nach nachgewiesenem Restore und realistischem Upgrade freigeben. Bestehende Migrationen bleiben unverändert.
+**Verifiziert durch:** Zweite frische Wiederherstellung mit anschließendem Upgrade von 53 auf 76 Versionen; alle 24 SQL-Dateien mit 986 Assertions erfolgreich. Neuer Regressionstest zunächst mit fünf reproduzierten Rechtefehlern, anschließend vollständig grün. Geschäftskennzahlen/Mengen unverändert; zusätzliche ACL-Katalogprüfung ohne direkte anon-Grants in public. Unabhängiges Review ohne blockierende Befunde. Vollständiges `npm run verify` erfolgreich; erneuter Abschlusslauf nach Typgenerierung erfolgt vor Push.
+
+## 2026-09-05 – Codex – Erneuten Produktionsabbruch geprüft
+
+**Art:** Analyse
+**Betroffen:** GitHub Actions Lauf `33929320610`
+**Was:** Fehlgeschlagenen Deploy-Schritt geprüft: weiterhin dieselben 22 nicht angewendeten Migrationen. Neue Automatik noch nicht aktiviert.
+**Warum:** Ursache des erneuten Abbruchs erklären und fehlende Serveraktivierung von abgeschlossenem PR/Merge unterscheiden.
+**Verifiziert durch:** Abgeschlossenes GitHub-Fehlerlog gelesen. Keine Server- oder Produktionsänderung.
+
+## 2026-09-05 – Codex – Release-Pipeline zur Integration vorbereitet
+
+**Art:** Konfiguration | Test
+**Betroffen:** Zweig `chore/streamline-release-pipeline`, GitHub-PR und CI
+**Was:** Auf ausdrücklichen Wunsch Push, PR und Merge vorbereitet. Aktuellen Master abgeglichen; keine zwischenzeitlichen Änderungen zu übernehmen.
+**Warum:** Die geprüfte CI-Vereinfachung integrieren. Der neue Datenbankweg bleibt bis zum dokumentierten Serverbootstrap deaktiviert.
+**Verifiziert durch:** Erneuter vollständiger lokaler Verify-Lauf erfolgreich. PR #18 deckte eine ungenutzte Shell-Schleifenvariable auf; auf den bewusst ungenutzten Namen `_` korrigiert. Die lokale actionlint-Prüfung hatte anders als GitHub kein ShellCheck verfügbar; Linux-Gegenprüfung folgt mit beiden Werkzeugen. Keine manuelle Produktionsmigration oder Serverinstallation.
+
+## 2026-09-05 – Codex – Git-Rename-Erkennung abgesichert
+
+**Art:** Bugfix | Test
+**Betroffen:** `scripts/detect-supabase-changes.mjs`, zugehöriger Real-Git-Test
+**Was:** Die Pfaderkennung vergleicht Git-Diffs mit deaktivierter Rename-Kompression; ein Regressionstest prüft einen technischen Template-Pfad, der nach `docs/` verschoben wird.
+**Warum:** Der frühere Rename-Diff konnte nur den Dokumentationszielpfad liefern und dadurch die Anwendungsprüfungen überspringen.
+**Verifiziert durch:** RED reproduziert `application=false`; GREEN mit `--no-renames` ergibt `application=true`; 13 fokussierte Node-Tests, Prettier-Check und ESLint erfolgreich.
+
+## 2026-09-05 – Codex – Release-Pipeline vereinfacht
+
+**Art:** Konfiguration | Test
+**Betroffen:** GitHub Actions, Änderungserkennung, Freigabeprüfungen und Deployment
+**Was:** Umsetzung im eigenen Zweig `chore/streamline-release-pipeline`; Dokumentationsfilter, gemeinsame Freigabe und neu verteilte Testgruppen. Digestgebundener Releaseweg mit explizit freigegebenen Migrationen, strikter verschlüsselter Sicherung und gemeinsamem SQL-/Historienabschluss vorbereitet. Produktionsimage wird vor Veröffentlichung geprüft, separater Master-Build entfällt.
+**Warum:** Weniger unnötige CI-Arbeit und vollständiger, abgesicherter Veröffentlichungsweg.
+**Verifiziert durch:** Abschließendes `npm run verify` auf `aeba8ed` Exit 0 (1.472 Anwendungstests erfolgreich, fünf bestehende Skips; Landingpage 13; Workflow 31 erfolgreich, vier Windows/POSIX-Skips; Build erfolgreich). Linux-Shelltests und echte PostgreSQL-16-/17.6-Transaktionen erfolgreich; actionlint und unabhängige Aufgabenreviews ohne blockierende Befunde. Gesamtprüfung fand einen Rename-Auswahlfehler, der mit Regressionstest behoben und erfolgreich nachgeprüft wurde. Docker-Build und HTTP-/SHA-/JS-/CSS-Smoke mit lokaler Umgebung erfolgreich. Keine Serverinstallation, Registry-Veröffentlichung oder Produktionsänderung; Bootstrap, Restore-Nachweis und Freigabe des Altrückstands bleiben nötig.
+
+## 2026-09-05 – Codex – Actions-Ablauf bewertet
+
+**Art:** Analyse
+**Betroffen:** CI, nächtliche Prüfungen, Benchmark, Docker-Build und Browserkonfiguration
+**Was:** Laufzeiten von Lauf 33925055214 und vorhandene Optimierungen geprüft; Zusammenführung der Freigabeprüfungen, gezielte Pfadfilter, Wiederverwendung von Build-Ergebnissen und Messung der Angular-Suite empfohlen.
+**Warum:** Komplexität und Wartezeit reduzieren, ohne Datenintegritätsprüfungen zu entfernen.
+**Verifiziert durch:** Konfiguration gelesen und offizielle GitHub-Dokumentation abgeglichen. Keine Workflow- oder Produktionsänderungen.
+
+## 2026-09-05 – Codex – Automatische Datenbankupdates geprüft
+
+**Art:** Analyse
+**Betroffen:** `.github/workflows/ci.yml`, `deploy/README.md`
+**Was:** Bestätigt, dass das Deployment Migrationen nur auf Vollständigkeit prüft und sie ausdrücklich nicht selbst ausführt.
+**Warum:** Den Abbruch nach PR #17 und die fehlende Automatisierung erklären.
+**Verifiziert durch:** Workflow und Deployment-Dokumentation gelesen; keine Produktionsänderung vorgenommen.
+
 Dieses Projekt wird teilweise mit KI-Assistenten entwickelt. **Jede** von einer KI durchgeführte Änderung wird hier mit Namen und Modell des Assistenten dokumentiert.
 
 ## Regel für alle KI-Assistenten
@@ -48,6 +136,14 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-05 – Claude Opus 5 (Anthropic) – Trefferregel auf den neuen Release-Weg gehoben
+
+**Art:** Integration
+**Betroffen:** `deploy/approved-migrations.sha256`, `docs/AI-CHANGELOG.md`, `src/app/core/models/supabase.types.ts`
+**Was:** master (Warenwirtschafts-Umbau, 253 Dateien) in den Zweig geholt, die beiden Konflikte aufgeloest - Changelog beide Bloecke, Typdatei nach dem Einspielen neu erzeugt statt von Hand zusammengefuehrt. Die drei Sniper-Migrationen mit SHA256 in die Freigabeliste eingetragen.
+**Warum:** Ohne Freigabeeintrag bricht `apply-release-migrations.sh` mit „Nicht freigegebene Migration" ab, und die Trefferregel kaeme nie in die Produktion. Die Freigabe bestaetigt fuer alle drei Dateien: vollstaendig transaktionales SQL, keine eigenen `begin`/`commit`, keine psql-Metabefehle, kein Zugriff auf `supabase_migrations`, nichts Nichttransaktionales. Das `drop function` in `20260904221945` trifft nur die einarmige Vorgaengerfassung, die im selben Schritt ersetzt wird - keine Daten. Die Zeitstempel liegen vor der bereits eingespielten `20260904234857`; der Runner geht nach Historie, nicht nach Reihenfolge, und holt sie deshalb nach. Nebenbei: Der PR loeste keinen CI-Lauf aus, solange er konfliktbehaftet war - GitHub bildet dann keinen Merge-Stand.
+**Verifiziert durch:** Nach dem Merge frisches `supabase db reset`, `npm run test:db` **1001/1001** ueber 26 Dateien (nicht `supabase test db` direkt - der ueberspringt `pretest:db` und laesst erzeugte Include-Dateien fehlen). Rechte danach ausgelesen: masters Release-Rechte-Migration laeuft zeitlich nach meinen und hat sie nicht ueberschrieben - `sniper_evaluate_hits` weiterhin weder fuer anon noch authenticated. `sha256sum -c` gegen alle vier Eintraege OK. Dienst: Typpruefung 0, 79 Unit-, 16 Integrationstests, Bau 0. `npm run verify` Exitcode 0 ohne Pipe gemessen.
+
 ## 2026-09-05 – Claude Opus 5 (Anthropic) – Schlusspruefung der Trefferregel: drei Betriebsfaelle behoben
 
 **Art:** Bugfix
@@ -85,6 +181,124 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 **Verifiziert durch:** Test zuerst (pgTAP, `plan(4)`): Fehlschlag `function ... does not exist` bestaetigt, dann Funktion ergaenzt. Migration per `npx supabase db diff -f sniper_evaluate_hits` erzeugt; der Abgleich revoke'te `EXECUTE` nur von `PUBLIC`, nicht von `authenticated` - Supabase vergibt neuen Funktionen per Voreinstellung ein zusaetzliches explizites `EXECUTE` an `authenticated`, das ein reines `PUBLIC`-Revoke nicht zieht. Von Hand um `anon, authenticated` ergaenzt und nach erneutem `db reset` gegenverifiziert: `information_schema.role_routine_grants` zeigt nur `postgres` und `service_role`, `has_function_privilege('authenticated', ...)` und `('anon', ...)` liefern beide `false`. `npm run test:db` → 12 Dateien, 260 Tests, alle gruen, exit 0. `npm run verify` exit 0, ohne Pipe gemessen.
 
 ---
+
+## 2026-09-05 – Codex (GPT-6) – PR und Zusammenführung vorbereitet
+
+**Art:** Integration | Test
+
+**Betroffen:** Warenwirtschaftsumbau und aktueller Master
+
+**Was:** Auf ausdrücklichen Wunsch PR und Merge vorbereitet; aktuelle Deal-Monitor-Änderungen übernommen und beide Protokollstände erhalten.
+
+**Warum:** Den vollständigen gemeinsamen Stand vor der Veröffentlichung prüfen.
+
+**Verifiziert durch:** Abschließender lokaler Verify-Lauf und GitHub-Prüfungen folgen auf dem integrierten Stand.
+
+## 2026-09-05 – Codex (GPT-5; Review mit GPT-5.6 Sol) – Landingpage-Finalreview korrigiert
+
+**Art:** Bugfix | Barrierefreiheit | Test | Doku
+
+**Betroffen:** `landing/index.html`, `scripts/landing-page.test.mjs`, Landingpage-Plan und SDD-Nachweise
+
+**Was:** Die im finalen Review gefundenen Lücken der ersten Landingpage-Runde geschlossen. Englische Varianten tragen nun eine englische Sprachauszeichnung; bisher fest deutsche Vergleichs-, Status-, Formular- und Copyright-Texte sowie die statischen Namen wichtiger Bedienelemente wechseln mit der Seitensprache. Alle sichtbaren Deal-Sniper-Erwähnungen kennzeichnen die Funktion als geplant oder entfallen. Absolute Steuer-, DATEV- und Prüfungszusagen wurden durch technisch begrenzte Beschreibungen mit ausdrücklichem Prüfvorbehalt ersetzt. Der passive Ressourcenvertrag erfasst zusätzlich CSS-Imports und -URLs, weitere ressourcenladende Elemente, `javascript:`-URLs und Ereignisattribute, erlaubt aber weiterhin den Caddy-Zweig, normale Navigationsziele und eingebettete `data:`-Ressourcen.
+
+**Warum:** Der erste Abschlusslauf prüfte Darstellung und Interaktion, aber nicht alle Sprachwechsel im DOM, jede Produktbehauptung und alle Wege zu aktivem oder entfernt geladenem Inhalt. Der statische Vertrag muss genau diese Rückfälle erkennen.
+
+**Verifiziert durch:** Vier getrennte RED-Läufe gegen den vorherigen Stand (Sprache/Screenreader-Namen, vollständiger Deal-Sniper-Status, vorsichtige Compliance-Texte und 15 aktive Ressourcenvarianten) sowie ein zusätzlicher RED-Nachweis für die beim Diff-Selbstreview gefundene absolute Beispielrechnungs-Copy; unabhängiger finaler Review und Re-Review ohne offenen Critical-/Important-Befund; anschließend 13/13 statische Landingpage-Tests und `npm run verify` mit Exitcode 0. Die frisch aufgebaute Caddy-Abnahme bestand Deutsch/Englisch × Hell/Dunkel × Desktop/Mobil ohne Überlauf, AXE-, Konsolen-, Seiten- oder Assetfehler; Theme/Sprache per Leertaste, FAQ per Enter und beide im Browserkontext abgefangenen Registrierungs-GET-URLs wurden geprüft. Der exakt benannte temporäre QA-Container wurde danach automatisch entfernt.
+
+## 2026-09-04 – Codex (GPT-5; Umsetzung und Review mit GPT-5.6 Sol) – Landingpage erste Korrekturrunde
+
+**Art:** Bugfix | Barrierefreiheit | Test
+
+**Betroffen:** `landing/index.html`, Landingpage-Vertrag und vollständige Prüfkette
+
+**Was:** Die zweisprachige Landingpage zunächst auf direkte Beta-Registrierung ausgerichtet, mehrere Deal-Sniper- und Compliance-Texte begrenzt sowie Tastaturfokus, Überschriften, Kontrast und mobile Kopfzeile korrigiert. Einen ersten statischen Landingpage-Vertrag in `npm run verify` aufgenommen. Ein späterer finaler Review fand noch offene Sprachmetadaten, nicht umgeschaltete Texte, weitere Produkt- und Rechtsbehauptungen sowie Lücken im Ressourcenvertrag; diese Runde war daher kein vollständiger Abschluss.
+
+**Warum:** Sichtbare Aussagen müssen zum aktuellen Produktverhalten passen; die Seite muss auf kleinen Displays und per Tastatur zuverlässig nutzbar sein, ohne unbelegte rechtliche oder betriebliche Zusagen.
+
+**Verifiziert durch:** Der damalige Stand bestand 11/11 statische Landingpage-Tests, `npm run verify` und den produktionsnahen Caddy-Lauf für Deutsch/Englisch, Hell/Dunkel und 1440 × 1000/390 × 844. Diese Prüfungen fanden die später gemeldeten semantischen und inhaltlichen Lücken nicht; sie gelten deshalb nur als historischer Nachweis der ersten Runde, nicht als finale Freigabe.
+
+## 2026-09-04 – Codex (GPT-5; Umsetzung und Review mit GPT-5.6 Terra/Sol) – Einstellungsseiten aufteilen
+
+**Art:** Refactoring | Test
+
+**Betroffen:** Einstellungen, Unterseiten und zugehörige Verhaltenstests
+
+**Was:** Die sieben bisherigen Einstellungsbereiche in eigenständige Lazy-Loading-Seiten aufgeteilt und die globale Daten-/Protokollseite samt Archivierung erhalten. Die vollständigen gerenderten Verhaltenstests wiederhergestellt, veraltete asynchrone Speicherantworten zwischen Workspaces isoliert und verständliche Fallback-Meldungen ergänzt. Der abschließende Gesamt-Review hat zusätzlich die Mystery-Box-Centverteilung, die Vollständigkeit des Prüfarchivs, Einzelbeleg-PDF-Einstiege und Rollen, die Verkaufspreispräzision, lokale Datumsgrenzen sowie zwei kleinere Einkaufsformular-Inkonsistenzen korrigiert. Eine automatisch erzeugte Migration ersetzt ausschließlich die vier betroffenen Datenbankfunktionen. Kein Push oder Deployment.
+
+**Warum:** Die Navigation soll getrennte, wartbare Seiten laden, ohne bestehende Funktionen zu verlieren. Geldwerte müssen centgenau und nachvollziehbar bleiben; das Prüfarchiv muss die Geschäftsdatensätze rekonstruierbar enthalten.
+
+**Verifiziert durch:** Unabhängige Task- und Whole-Branch-Reviews ohne offenen Merge-Blocker; `npm run verify` Exitcode 0 mit 983 Node-, 130 DOM- und 359 Angular-Tests; Produktionsbuild erfolgreich; frische isolierte Datenbank mit 20 Dateien und 958 Prüfungen vollständig grün; sechs Chromium-E2E-Tests grün; alle acht Einstellungsbereiche auf Desktop/Mobil und Hell/Dunkel mit 32 bereichsbezogenen AXE-Prüfungen ohne Fund sowie ohne Konsolenfehler. Ein erster Datenbanklauf traf eine fremde veraltete Standardinstanz und wurde verworfen; der maßgebliche Lauf erfolgte auf einer frisch aufgebauten, danach entfernten Isolationsinstanz.
+
+---
+
+## 2026-09-04 – Codex (GPT-5; Umsetzung und Reviews mit GPT-5.6 Terra/Sol) – Einzelverlauf und Workspace-Archivierung fortgesetzt
+
+**Art:** Feature | Test
+
+**Betroffen:** Lokaler Änderungsverlauf, Workspace-Lebenszyklus und Aufbewahrungsansicht
+
+**Was:** Änderungsverlauf direkt an Einkauf, Artikel und Verkauf ergänzt (`6f27a68`). Eine gemeinsame Darstellung bleibt datenfrei; ein Feature-Container verwendet den bestehenden Abfrageservice. Arbeitsbereiche lassen sich durch ihren Inhaber archivieren und wiederherstellen (`029ee41`); Geschäftsdaten bleiben lesbar und exportierbar, operative Änderungen werden serverseitig gesperrt. Der Löschablauf bietet zuerst einen Export an und verweist bei vorhandenen Geschäftsdaten auf Archivierung. Beide automatisch erzeugten Migrationen einschließlich der Rechtekorrektur gehören zusammen. Bestehende Routen, globale Exporte und vorherige Integrationskorrekturen bleiben erhalten. Settings-Aufteilung und Landingpage gehören weiterhin zu getrennten Folgeschritten.
+
+**Warum:** Verlauf direkt am betroffenen Datensatz verfügbar machen und Geschäftsdaten beim Archivieren lesbar erhalten, ohne neue Buchungen zuzulassen.
+
+**Verifiziert durch:** Abschließendes `npm run verify` auf `029ee41` mit Exitcode 0: 1.428 Anwendungstests bestanden (971 Node, 130 DOM, 327 Angular; fünf bestehende Tests übersprungen), Formatierung, Lint, Typprüfung, Workflowprüfungen und Produktionsbuild bestanden. Getrennte lokale Datenbank `flipbase-settings-retention`: 952 Prüfungen in 20 Dateien bestanden; Schema-Abgleich leer und Advisors ohne Befund. Zwei echte parallele Datenbanksitzungen bestätigen die gegenseitige Sperre zwischen Buchung und Archivierung. Alle sechs Chromium-Tests bestanden. Zusätzliche Demo-Browserprüfungen auf Desktop und Mobil: Verlauf, Einkaufs-Rücknavigation, Verkaufsdialog mit Escape/Fokusrückgabe, richtiges Workspace-Ziel und reaktive URL-Navigation; AXE für die neuen Ansichten ohne Befunde, keine Konsolenfehler. Befüllte Verläufe und Inhaberaktionen sind durch Komponenten-/Datenbanktests, nicht durch einen angemeldeten Browser-End-to-End-Test belegt. Die vorhandene mobile Überbreite der Verkaufsliste bleibt als separater Befund offen. Beide unabhängigen Aufgabenreviews freigegeben, keine kritischen oder wichtigen Befunde. Der ergänzende angemeldete Inhaber-Browsertest bleibt als kleinere Testlücke dokumentiert. Kein Push oder Deployment.
+
+---
+
+## 2026-09-04 – Codex (GPT-5; Reviews und Umsetzung mit GPT-5.6 Sol/Terra) – Kostenbasis und Prüfarchiv abgesichert
+
+**Art:** Bugfix | Test | Dokumentation
+
+**Betroffen:** Kostenberechnung, Dashboard, Prüfarchiv, Supabase-Schema, Deployment-Prüfungen
+
+**Was:** Sechs bestätigte Review-Bereiche korrigiert: unbekannte Kosten, exakter Restwert, Diagrammlücken, gemeinsamer Archiv-Snapshot, vollständige Kostenexporte und deklarative Rechte. Aktuelle Einkaufsdaten gehen älteren eingebetteten Beziehungen vor. Vorhandene Exportrechte der Buchhaltung erhalten. Migration automatisch in einem isolierten lokalen Projekt erzeugt und geprüft. Fremde Arbeitszweige und Änderungen bleiben unberührt.
+
+**Warum:** Keine scheinbaren Gewinne aus fehlenden Nullkosten und kein aus mehreren Zeitständen zusammengesetztes Prüfarchiv. Die zusätzlichen Kostendateien sichern die Nachvollziehbarkeit. Das Archiv bricht oberhalb von 100.000 Datensätzen oder 50 MiB JSON ausdrücklich ab.
+
+**Verifiziert durch:** Finales `npm run verify` mit Exitcode 0, 1.404 Anwendungstests bestanden (fünf bestehende übersprungen), sechs Browsertests bestanden, 864 Datenbank-Assertions bestanden. Kritische Abdeckung aller sechs ausgewählten Dateien über unveränderten 95/90-Grenzen. Sniper-Typprüfung und 73 Tests bestanden. Kein Push und kein Deployment. Offene ursprüngliche Settings-Aufgaben und Landingpage-Befunde im Abschlussbericht `docs/superpowers/reports/2026-09-04-overhaul-integration-result.md` dokumentiert.
+
+---
+
+## 2026-09-04 – Codex (GPT-5) – Master in den Warenwirtschaftsumbau integriert
+
+**Art:** Integration | Analyse | Test
+
+**Betroffen:** `feature/purchase-inventory-overhaul`, CI, Warenwirtschaft, Prüfarchiv und Landingpage
+
+**Was:** `origin/master` bis `a2ccddb` ausschließlich in den eigenen Arbeitszweig übernommen. Den einzigen Merge-Konflikt im Änderungsprotokoll unter Erhalt beider Seiten aufgelöst. Unabhängige Reviews für Fachlogik und CI beauftragt; bestätigte Kosten-/Archivfehler werden in einer getrennten Korrektur nachgeführt. Landingpage-Befunde stehen im zugehörigen Bericht.
+
+**Warum:** Änderungen von Claude Code und Gemini erhalten und den gemeinsamen Stand prüfen, ohne fremde Arbeitszweige oder deren lokale Datenbank zu überschreiben.
+
+**Verifiziert durch:** Gemeinsamer Produktionsbuild erfolgreich; erster gemeinsamer Testlauf 1.383 bestanden, fünf übersprungen. Separater lokaler Supabase-Testdienst `flipbase-overhaul-integration`: alle Migrationen angewendet, 18 Dateien/842 Datenbanktests bestanden, Datenbank-Lint ohne Fehler. Schema-Abgleich zeigt noch Rechteabweichungen und wird nachgeführt. Bestehende Browsertests hatten veraltete Bezeichnungen; deren gezielte Anpassungen bestanden anschließend vier Tests. Noch keine abschließende Gesamtfreigabe, kein Push oder Deployment.
+
+---
+
+## 2026-09-04 – Codex (GPT-5) – Parallele Optimierungen und Landingpage abgeglichen
+
+**Art:** Analyse
+
+**Betroffen:** `origin/master` bis `a2ccddb`, CI, Deployment, Auth, Landingpage und Warenwirtschafts-Branch
+
+**Was:** Remote-Referenzen aktualisiert und Änderungen seit der gemeinsamen Basis gelesen. Die beidseitig geänderten Pfade sind fünf inhaltlich identische Plan-/Spezifikationsdateien; direkte Anwendungscode-Überschneidungen sind nicht sichtbar. Die neue tägliche Coverage-Auswahl enthält die neue `sale-metrics.ts` noch nicht. Im aktuellen Deployment wird ein fehlgeschlagener Landingpage-Kopiervorgang durch `|| true` verdeckt; der Deploy-Job wartet nicht auf `sniper-gate`. Landingpage-Texte zu Beta-Freischaltung, Datenschutz und Deal-Sniper-Funktionen müssen gegen den tatsächlich verfügbaren Funktionsumfang geprüft werden.
+
+**Warum:** Fremde Optimierungen erhalten und den gemeinsamen Stand nach dem großen Umbau gezielt prüfen. Die Landingpage erhält anschließend eine gesonderte technische, inhaltliche und zugängliche Prüfung.
+
+**Verifiziert durch:** Git-Historie, Dateischnittmenge und gezielte Quellcode-Diffs. Keine Zusammenführung, keine Änderungen an fremden Zweigen, keine neuen Testläufe und kein Deployment. Der frühere grüne Prüflauf gilt nicht als Nachweis für den noch nicht integrierten Gesamtstand.
+
+---
+
+## 2026-09-04 – Codex (GPT-5) – Unterbrochenen Arbeitsstand geprüft
+
+**Art:** Analyse
+
+**Betroffen:** Branch `feature/purchase-inventory-overhaul`
+
+**Was:** Gespeicherten Branch, Arbeitsverzeichnis und letzte Commits geprüft. Der Stand endet bei `90b28be`; die zusätzliche unabhängige Abschlussprüfung wurde durch ein Nutzungslimit unterbrochen.
+
+**Warum:** Nach der Unterbrechung den tatsächlichen Fortschritt und die noch offene Abschlussprüfung nachvollziehbar benennen.
+
+**Verifiziert durch:** Git-Status vor diesem Protokolleintrag sauber; acht lokale Umbau-Commits vorhanden. Build und Tests in dieser Sitzung nicht erneut ausgeführt. Kein Push oder Deployment vorgenommen.
 
 ## 2026-09-04 – Claude Opus 5 (Anthropic) – Schlussprüfung des Deal-Monitor-Zweigs behoben
 

@@ -1,3 +1,5 @@
+\if :{?inventory_integrity_fixture}
+
 \set main_workspace_id '82000000-0000-4000-8000-000000000001'
 \set foreign_workspace_id '82000000-0000-4000-8000-000000000002'
 \set main_user_id '82000000-0000-4000-8000-000000000003'
@@ -102,3 +104,13 @@ insert into public.sale_lines (
   ('82000000-0000-4000-8000-000000000023', :'main_workspace_id'::uuid, '82000000-0000-4000-8000-000000000013', :'multiple_item_id'::uuid, 'Multiple active sales', 1, 30, 30, 12, 'diff_25a'),
   ('82000000-0000-4000-8000-000000000024', :'main_workspace_id'::uuid, '82000000-0000-4000-8000-000000000014', :'multiple_item_id'::uuid, 'Multiple active sales', 1, 30, 30, 12, 'diff_25a'),
   ('82000000-0000-4000-8000-000000000025', :'main_workspace_id'::uuid, '82000000-0000-4000-8000-000000000015', :'available_item_id'::uuid, 'Returned sale', 1, 15, 15, 6, 'diff_25a');
+
+\else
+
+begin;
+select plan(1);
+select pass('inventory integrity legacy fixture is include-only');
+select * from finish();
+rollback;
+
+\endif

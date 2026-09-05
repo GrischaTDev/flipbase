@@ -140,8 +140,19 @@ begin
   from public.stock_lots
   where purchase_line_id = v_first_line_id;
 
-  if round(v_unit_cost * 3, 2) <> 30.04 then
-    raise exception 'stock-lot unit cost excludes allocated expenses: %', v_unit_cost;
+  if v_unit_cost <> 0 then
+    raise exception 'draft receipt persisted costs before finalization: %', v_unit_cost;
+  end if;
+
+  perform public.finalize_purchase_costing(v_workspace_id, v_purchase_id);
+
+  select id, unit_cost
+  into v_first_lot_id, v_unit_cost
+  from public.stock_lots
+  where purchase_line_id = v_first_line_id;
+
+  if round(v_unit_cost * 3, 2) <> 30.03 then
+    raise exception 'finalized stock-lot unit cost excludes allocated expenses: %', v_unit_cost;
   end if;
 
   for v_sale_index in 1..3 loop
@@ -160,7 +171,7 @@ begin
   select sum(cost_of_goods_sold) into v_cogs
   from public.sale_lines
   where catalog_product_id = '81000000-0000-4000-8000-000000000003';
-  if v_cogs <> 30.04 then
+  if v_cogs <> 30.03 then
     raise exception 'split FIFO COGS loses allocated expense cents: %', v_cogs;
   end if;
 

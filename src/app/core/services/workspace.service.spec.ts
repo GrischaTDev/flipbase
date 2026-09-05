@@ -8,6 +8,71 @@ import { AuthService } from './auth.service';
 import { SyncStatusService } from './sync-status.service';
 
 describe('Multi-Workspace & Holding Consolidation Service', () => {
+  describe('Archiv-Lebenszyklus', () => {
+    function setup(rpc: ReturnType<typeof vi.fn>) {
+      const injector = Injector.create({
+        providers: [
+          { provide: SupabaseService, useValue: { client: { rpc } } },
+          {
+            provide: AuthService,
+            useValue: { isAuthenticated: () => true, isDemoMode: () => false },
+          },
+        ],
+      });
+      const workspaceService = runInInjectionContext(injector, () => new WorkspaceService());
+      const first: Workspace = { id: 'a', name: 'A', min_roi_percent: 0, min_profit_amount: 0 };
+      const second: Workspace = { ...first, id: 'b', name: 'B' };
+      workspaceService.workspaces.set([first, second]);
+      workspaceService.currentWorkspace.set(first);
+      return { workspaceService, first, second };
+    }
+
+    it('wartet auf Serverbestätigung und verändert bei spätem Ergebnis nicht den gewählten Workspace', async () => {
+      let resolve!: (value: unknown) => void;
+      const rpc = vi.fn(
+        () =>
+          new Promise((done) => {
+            resolve = done;
+          }),
+      );
+      const { workspaceService, first, second } = setup(rpc);
+      const pending = workspaceService.archiveWorkspace('a');
+      expect(workspaceService.currentWorkspace()?.archived_at).toBeUndefined();
+      workspaceService.setCurrentWorkspace(second);
+      resolve({ data: { ...first, archived_at: '2026-09-04T12:00:00Z' }, error: null });
+      expect((await pending).error).toBeNull();
+      expect(workspaceService.currentWorkspace()?.id).toBe('b');
+      expect(workspaceService.workspaces()[0].archived_at).toBe('2026-09-04T12:00:00Z');
+      expect(rpc).toHaveBeenCalledWith('archive_workspace', { p_workspace_id: 'a' });
+    });
+
+    it('behält den Archivstatus bei einer abgelehnten Wiederherstellung', async () => {
+      const { workspaceService, first } = setup(
+        vi.fn().mockResolvedValue({ data: null, error: { message: 'Keine Berechtigung' } }),
+      );
+      workspaceService.currentWorkspace.set({ ...first, archived_at: '2026-09-04T12:00:00Z' });
+      expect((await workspaceService.restoreWorkspace('a')).error?.message).toContain(
+        'Keine Berechtigung',
+      );
+      expect(workspaceService.currentWorkspace()?.archived_at).toBeTruthy();
+    });
+
+    it('übernimmt ausschließlich bestätigte Daten des angefragten Workspace', async () => {
+      const { workspaceService } = setup(
+        vi.fn().mockResolvedValue({ data: { id: 'b', archived_at: null }, error: null }),
+      );
+      expect((await workspaceService.restoreWorkspace('a')).error).toBeInstanceOf(Error);
+      expect(workspaceService.currentWorkspace()?.id).toBe('a');
+    });
+
+    it('meldet im Demo-Modus ausdrücklich keine Server-Archivierung', async () => {
+      const injector = Injector.create({ providers: [] });
+      const demo = runInInjectionContext(injector, () => new WorkspaceService());
+      await demo.loadWorkspaces();
+      expect((await demo.archiveWorkspace('ws-1')).error?.message).toContain('Demo');
+      expect(demo.currentWorkspace()?.archived_at).toBeUndefined();
+    });
+  });
   let service: WorkspaceService;
 
   beforeEach(async () => {
@@ -111,7 +176,7 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
 
     const result = await produktivService.deleteWorkspace(zweiterWorkspace.id);
 
-    expect(result).toEqual({ success: false, reportedBySyncStatus: true });
+    expect(result).toEqual({ success: false, reportedBySyncStatus: true, retentionBlocked: true });
     expect(produktivService.workspaces()).toEqual([ersterWorkspace, zweiterWorkspace]);
     expect(produktivService.currentWorkspace()).toEqual(zweiterWorkspace);
     expect(syncStatus.fehler()).toHaveLength(1);
@@ -217,5 +282,54 @@ describe('Multi-Workspace & Holding Consolidation Service', () => {
     expect(holding.totalRevenue).toBeGreaterThanOrEqual(200);
     expect(holding.totalNetProfit).toBeGreaterThanOrEqual(80);
     expect(holding.workspaceSummaries.length).toBe(holding.workspacesCount);
+  });
+
+  it('zählt unbekannte Draftkosten nicht als bestätigtes investiertes Kapital', () => {
+    const workspace = service.workspaces()[0]!;
+    service.workspaces.set([workspace]);
+
+    const holding = service.getConsolidatedHoldingSummary(
+      [],
+      [
+        {
+          id: 'purchase-known',
+          workspace_id: workspace.id,
+          type: 'single',
+          title: 'Bekannter Einkauf',
+          purchase_date: '2026-08-30',
+          purchase_price: 10,
+          total_purchase_cost: null,
+          shipping_cost: 2,
+          other_costs: 3,
+          costs: [{ type: 'travel', amount: 4 }],
+          cost_allocation_mode: 'even',
+        },
+        {
+          id: 'purchase-unknown',
+          workspace_id: workspace.id,
+          type: 'single',
+          title: 'Unbekannter Draft',
+          purchase_date: '2026-08-31',
+          purchase_price: null,
+          total_purchase_cost: null,
+          shipping_cost: 5,
+          cost_allocation_mode: 'even',
+        },
+        {
+          id: 'purchase-free',
+          workspace_id: workspace.id,
+          type: 'single',
+          title: 'Kostenlos mit Versand',
+          purchase_date: '2026-08-31',
+          purchase_price: 0,
+          total_purchase_cost: null,
+          shipping_cost: 2,
+          cost_allocation_mode: 'even',
+        },
+      ],
+      [],
+    );
+
+    expect(holding.totalCapitalInvested).toBe(21);
   });
 });

@@ -1,4 +1,11 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -34,6 +41,11 @@ import { InboundTrackingService } from '../../core/services/inbound-tracking.ser
 import { PurchaseCreateModalComponent } from './components/purchase-create-modal/purchase-create-modal.component';
 import { PurchaseType } from '../../core/models/flipbase.models';
 import { ToastService } from '../../shared/components/toast/toast.service';
+import { InventoryService } from '../../core/services/inventory.service';
+import { StockService } from '../../core/services/stock.service';
+import { WorkspaceService } from '../../core/services/workspace.service';
+import { CostStateComponent } from '../../shared/components/cost-state/cost-state.component';
+import { mapPurchaseListRow } from './utils/purchase-presentation';
 
 @Component({
   selector: 'app-purchases',
@@ -45,6 +57,7 @@ import { ToastService } from '../../shared/components/toast/toast.service';
     TranslatePipe,
     LucideDynamicIcon,
     PurchaseCreateModalComponent,
+    CostStateComponent,
   ],
   templateUrl: './purchases.component.html',
   host: { class: 'block' },
@@ -55,6 +68,10 @@ export class PurchasesComponent {
   readonly offlineSyncService = inject(OfflineSyncService);
   readonly trackingService = inject(InboundTrackingService);
   private readonly toast = inject(ToastService);
+  private readonly inventoryService = inject(InventoryService);
+  private readonly stockService = inject(StockService);
+  private readonly workspaceService = inject(WorkspaceService);
+  private requestedStockWorkspaceId = '';
 
   readonly bagIcon = ShoppingBag;
   readonly plusIcon = Plus;
@@ -117,6 +134,43 @@ export class PurchasesComponent {
     if (tab === 'all') return list;
     return list.filter((p) => p.type === tab);
   });
+
+  readonly purchaseRows = computed(() => {
+    const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
+    const inventoryState =
+      workspaceId !== null &&
+      this.inventoryService.loadedWorkspaceId() === workspaceId &&
+      this.inventoryService.istGeladen()
+        ? ('loaded' as const)
+        : this.inventoryService.loadError()
+          ? ('error' as const)
+          : ('loading' as const);
+    const stockState = this.stockService.loadError()
+      ? ('error' as const)
+      : workspaceId !== null && this.stockService.loadedWorkspaceId() === workspaceId
+        ? ('loaded' as const)
+        : ('loading' as const);
+    return this.filteredPurchases().map((purchase) =>
+      mapPurchaseListRow(purchase, {
+        inventoryItems: inventoryState === 'loaded' ? this.inventoryService.items() : [],
+        stockLots: this.stockService.lots(),
+        stockMovements: this.stockService.movements(),
+        sales: [],
+        inventoryState,
+        stockState,
+        salesState: 'loaded',
+      }),
+    );
+  });
+
+  constructor() {
+    effect(() => {
+      const workspaceId = this.workspaceService.currentWorkspace()?.id;
+      if (!workspaceId || workspaceId === this.requestedStockWorkspaceId) return;
+      this.requestedStockWorkspaceId = workspaceId;
+      void this.stockService.loadPositions(workspaceId);
+    });
+  }
 
   openCreateModal(): void {
     this.isCreateModalOpen.set(true);

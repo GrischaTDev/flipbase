@@ -62,25 +62,25 @@
 /settings/data/print
 ```
 
-- [ ] **Step 1: Write the failing route test**
+- [x] **Step 1: Write the failing route test**
 
 Assert `/settings` redirects to `/settings/account`, every section is lazy-loaded below one shell, unknown settings children redirect safely, and `data/print` remains inside the authenticated settings route tree.
 
-- [ ] **Step 2: Run the route test and verify failure**
+- [x] **Step 2: Run the route test and verify failure**
 
 Run: `npx vitest run src/app/features/settings/settings.routes.spec.ts`
 Expected: FAIL because settings is currently one component route.
 
-- [ ] **Step 3: Implement the lazy route tree**
+- [x] **Step 3: Implement the lazy route tree**
 
 Change the top-level settings route to `loadChildren`. Use explicit `loadComponent` entries and one child redirect. Do not move auth responsibility out of the authenticated shell.
 
-- [ ] **Step 4: Run the route test and typecheck**
+- [x] **Step 4: Run the route test and typecheck**
 
 Run: `npx vitest run src/app/features/settings/settings.routes.spec.ts && npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/app.routes.ts src/app/features/settings/settings.routes.ts src/app/features/settings/settings.routes.spec.ts
@@ -107,25 +107,25 @@ export interface SettingsNavigationItem {
 }
 ```
 
-- [ ] **Step 1: Write failing shell tests**
+- [x] **Step 1: Write failing shell tests**
 
 Assert the desktop sidebar links have active state and keyboard focus, the mobile view uses `CustomSelectComponent`, selecting a section navigates, the current child title is exposed to assistive technology, and a `RouterOutlet` renders the page.
 
-- [ ] **Step 2: Run the shell test and verify failure**
+- [x] **Step 2: Run the shell test and verify failure**
 
 Run: `npx vitest run src/app/features/settings/settings-shell/settings-shell.component.spec.ts`
 Expected: FAIL because the shell does not exist.
 
-- [ ] **Step 3: Implement one navigation source**
+- [x] **Step 3: Implement one navigation source**
 
 Derive sidebar links and mobile options from the same readonly array. Labels: `Konto`, `Workspace`, `Team & Rollen`, `Benachrichtigungen`, `Shop & Zahlungen`, `Versand`, `App & Geräte`, and `Daten & Protokolle`. Use `aria-current="page"` and do not nest interactive controls.
 
-- [ ] **Step 4: Run tests and typecheck**
+- [x] **Step 4: Run tests and typecheck**
 
 Run: `npx vitest run src/app/features/settings/settings-shell/settings-shell.component.spec.ts && npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/features/settings/settings-shell src/app/features/settings/settings.routes.ts
@@ -158,32 +158,32 @@ git commit -m "Add responsive settings navigation shell"
 - Modify: `src/app/features/settings/settings-workspace-config.spec.ts`
 - Modify: `src/app/core/services/settings-persistence-actions.spec.ts`
 
-- [ ] **Step 1: Create a behavior inventory test before moving code**
+- [x] **Step 1: Create a behavior inventory test before moving code**
 
 Turn every current settings heading and primary action into a parity assertion: profile update, workspace update/create/switch, member invite/role/remove, notification/webhook configuration and test, store/payment configuration, shipping/carrier configuration, PWA/push actions, eBay/app configuration, and existing data exports.
 
-- [ ] **Step 2: Run the parity test against the route design and verify failure**
+- [x] **Step 2: Run the parity test against the route design and verify failure**
 
 Run: `npx vitest run src/app/features/settings/pages/settings-pages.spec.ts src/app/features/settings/settings-toast-actions.spec.ts src/app/features/settings/settings-workspace-config.spec.ts src/app/core/services/settings-persistence-actions.spec.ts`
 Expected: FAIL because focused pages are absent.
 
-- [ ] **Step 3: Move one responsibility at a time**
+- [x] **Step 3: Move one responsibility at a time**
 
 Move templates, forms, signals, and injected services to the relevant page. Keep persistence in existing core services. Use small feature-local helper components only where a page remains too large. Do not copy the same effect or save handler into multiple pages.
 
-- [ ] **Step 4: Remove the old component only after parity passes**
+- [x] **Step 4: Remove the old component only after parity passes**
 
 Search for imports and route references first:
 
 Run: `rg -n "SettingsComponent|settings\.component" src/app`
 Expected before deletion: only old component/tests; expected after deletion: no runtime reference.
 
-- [ ] **Step 5: Run settings tests and typecheck**
+- [x] **Step 5: Run settings tests and typecheck**
 
 Run: `npx vitest run src/app/features/settings src/app/core/services/settings-persistence-actions.spec.ts && npm run typecheck`
 Expected: PASS with every previous action reachable from exactly one new section.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/app/features/settings src/app/core/services/settings-persistence-actions.spec.ts
@@ -219,25 +219,25 @@ export interface BusinessEventPage {
 }
 ```
 
-- [ ] **Step 1: Write failing service tests**
+- [x] **Step 1: Write failing service tests**
 
 Mock the typed Supabase client. Assert current workspace is mandatory, allowed page size is bounded, filters are passed to the role-checked `list_business_events` RPC, ordering is deterministic by `(created_at desc, id desc)`, cursor pagination cannot skip equal timestamps, and another workspace's entity cannot be queried. Assert local history calls `list_entity_business_events` instead of the global RPC. Cover owner/admin/accountant global access and a normal member's denied global request.
 
-- [ ] **Step 2: Run the service test and verify failure**
+- [x] **Step 2: Run the service test and verify failure**
 
 Run: `npx vitest run src/app/core/services/business-event.service.spec.ts`
 Expected: FAIL because the service does not exist.
 
-- [ ] **Step 3: Implement the read-only query boundary**
+- [x] **Step 3: Implement the read-only query boundary**
 
 Expose Signals for loading/error only if shared consumers need them; otherwise return typed results. Never select `business_events` directly. Translate known event types into plain German presentation labels in a pure mapper, while preserving raw event types for export.
 
-- [ ] **Step 4: Run tests and typecheck**
+- [x] **Step 4: Run tests and typecheck**
 
 Run: `npx vitest run src/app/core/services/business-event.service.spec.ts && npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/core/models/business-event.models.ts src/app/core/services/business-event.service.ts src/app/core/services/business-event.service.spec.ts
@@ -267,25 +267,25 @@ readonly entityId = input.required<string>();
 readonly heading = input('Änderungsverlauf');
 ```
 
-- [ ] **Step 1: Write failing component tests**
+- [x] **Step 1: Write failing component tests**
 
 Assert loading, empty, error/retry, paged load-more, actor/time/event label, and expandable before/after details. Assert raw JSON is not dumped by default and fields containing secrets are redacted by the mapper.
 
-- [ ] **Step 2: Run the component test and verify failure**
+- [x] **Step 2: Run the component test and verify failure**
 
 Run: `npx vitest run src/app/shared/components/record-history/record-history.component.spec.ts`
 Expected: FAIL because the component does not exist.
 
-- [ ] **Step 3: Implement and embed the timeline**
+- [x] **Step 3: Implement and embed the timeline**
 
 Use semantic ordered-list markup and buttons for expandable detail. Add it below the operational content on purchase and item detail. Because there is no dedicated sale-detail page yet, add `Änderungsverlauf ansehen` to each sale row and open the same component in an accessible dialog for that sale. Show `Zuletzt geändert am …` wherever a latest event exists.
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 4: Run focused tests**
 
 Run: `npx vitest run src/app/shared/components/record-history src/app/features/purchases/pages/purchase-detail src/app/features/inventory/pages/item-detail src/app/features/sales`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/app/shared/components/record-history src/app/features/purchases/pages/purchase-detail src/app/features/inventory/pages/item-detail src/app/features/sales
@@ -305,20 +305,20 @@ git commit -m "Add contextual record history"
 - Modify: `supabase/schemas/database.sql`
 - Create: `supabase/tests/workspace_retention.sql`
 
-- [ ] **Step 1: Write failing audit-page tests**
+- [x] **Step 1: Write failing audit-page tests**
 
 Assert sections `Prüfprotokoll`, `Export & Archiv`, and `Aufbewahrung & Löschung`. Assert filters for Zeitraum, Benutzer, Datensatzart, Vorgangstyp, and Änderungsart; paged results; clear empty/error states; and actions `Datenarchiv herunterladen` and `Druckansicht / PDF`. Assert export controls are available to owner, admin, and accountant, while a normal member receives only entity-local history where otherwise authorized.
 
-- [ ] **Step 2: Run the page test and verify failure**
+- [x] **Step 2: Run the page test and verify failure**
 
 Run: `npx vitest run src/app/features/settings/pages/data-and-audit/data-and-audit.component.spec.ts`
 Expected: FAIL because the page does not exist.
 
-- [ ] **Step 3: Implement URL-backed filters**
+- [x] **Step 3: Implement URL-backed filters**
 
 Reflect filter state in query parameters so a view can be restored after navigation. Validate dates and limit ranges. Load only the active page and do not fetch the entire audit history into browser memory.
 
-- [ ] **Step 4: Add careful explanatory copy**
+- [x] **Step 4: Add careful explanatory copy**
 
 Use: `Das Prüfprotokoll dokumentiert abgeschlossene und steuerlich relevante Änderungen. Entwürfe erscheinen erst nach dem Abschließen.` Explain the conservative ten-year application retention for relevant records and direct users to professional legal/tax advice for their concrete duties.
 
@@ -326,12 +326,12 @@ Preserve and extend the database guard that rejects hard deletion of a workspace
 
 In `workspace_retention.sql`, assert business events also block hard deletion, only the owner can archive/restore, archived workspaces reject new purchase/sale/stock writes, existing records remain readable/exportable to allowed roles, and another workspace remains unaffected.
 
-- [ ] **Step 5: Run tests and typecheck**
+- [x] **Step 5: Run tests and typecheck**
 
 Run: `npx supabase test db supabase/tests/workspace_retention.sql && npx vitest run src/app/features/settings/pages/data-and-audit/data-and-audit.component.spec.ts src/app/core/services/workspace.service.spec.ts && npm run typecheck`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/app/features/settings/pages/data-and-audit src/app/features/settings/settings.routes.ts src/app/core/services/workspace.service.ts src/app/core/services/workspace.service.spec.ts supabase/schemas/database.sql supabase/tests/workspace_retention.sql
@@ -369,29 +369,29 @@ flipbase-audit-YYYY-MM-DDTHH-mm-ssZ.zip
 └── sale-costs.csv
 ```
 
-- [ ] **Step 1: Write failing archive tests**
+- [x] **Step 1: Write failing archive tests**
 
 Use deterministic fixture data and fake time. Assert UTF-8 CSV with stable English machine headers, ISO-8601 timestamps, IDs/foreign keys, escaped spreadsheet-formula prefixes, JSON preservation of before/after payloads, schema/export version in `manifest.json`, applied filters, row counts, workspace ID, and SHA-256 checksum entries where the browser API is available.
 
-- [ ] **Step 2: Run export tests and verify failure**
+- [x] **Step 2: Run export tests and verify failure**
 
 Run: `npx vitest run src/app/core/services/audit-export.service.spec.ts`
 Expected: FAIL because the service does not exist.
 
-- [ ] **Step 3: Implement bounded, paged export collection**
+- [x] **Step 3: Implement bounded, paged export collection**
 
 Use existing JSZip. Fetch pages through services, report progress, allow cancellation, and fail with a visible message rather than producing an incomplete archive. Do not log payload contents. Revoke generated object URLs after download.
 
-- [ ] **Step 4: Build the printable report**
+- [x] **Step 4: Build the printable report**
 
 Render organization/workspace, filter range, export creation time, event summaries, and selected before/after detail in semantic HTML. Support a global filtered report and a single-record report selected by `entityType` and `entityId`; expose the latter from purchase detail and each sale row. `Drucken / als PDF speichern` calls `window.print()` only from a user action. Add print-only Tailwind-compatible global utility rules only if existing print styling cannot cover page breaks.
 
-- [ ] **Step 5: Run export and print tests**
+- [x] **Step 5: Run export and print tests**
 
 Run: `npx vitest run src/app/core/services/audit-export.service.spec.ts src/app/features/settings/pages/audit-print/audit-print.component.spec.ts src/app/features/settings/pages/data-and-audit/data-and-audit.component.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/app/core/services/audit-export.service.ts src/app/core/services/audit-export.service.spec.ts src/app/features/settings/pages/audit-print src/app/features/settings/pages/data-and-audit src/app/features/settings/settings.routes.ts
@@ -405,20 +405,20 @@ git commit -m "Add audit archive and printable report exports"
 - Create: `docs/compliance/flipbase-verfahrensdokumentation.md`
 - Modify: `README.md` only to link the document if an operator-documentation section already exists.
 
-- [ ] **Step 1: Write the operational document**
+- [x] **Step 1: Write the operational document**
 
 Document in plain German: record types and owners; draft versus finalized states; purchase and sale correction paths; immutable event generation; allocation formulas and cent rounding; export formats; role/access controls; backups and restore test cadence; retention/deletion decisions; software-release traceability; legacy migration procedure; and known boundaries requiring tax/legal advice.
 
-- [ ] **Step 2: Verify every statement against implementation**
+- [x] **Step 2: Verify every statement against implementation**
 
 Run targeted searches for named RPCs, tables, routes, and labels. Do not document a control that does not exist. Link the approved design spec and implementation plans.
 
-- [ ] **Step 3: Check for accidental promises or vague placeholders**
+- [x] **Step 3: Check for accidental promises or vague placeholders**
 
 Run: `rg -n "garantiert|rechtssicher|TBD|TODO|spaeter ergaenzen" docs/compliance/flipbase-verfahrensdokumentation.md`
 Expected: no unconditional compliance promise and no placeholder.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add docs/compliance/flipbase-verfahrensdokumentation.md README.md
@@ -431,25 +431,25 @@ git commit -m "Document accounting data procedures"
 
 - Modify only if a regression is found in files already named above.
 
-- [ ] **Step 1: Run focused settings and audit tests**
+- [x] **Step 1: Run focused settings and audit tests**
 
 Run: `npx vitest run src/app/features/settings src/app/shared/components/record-history src/app/core/services/business-event.service.spec.ts src/app/core/services/audit-export.service.spec.ts src/app/core/services/settings-persistence-actions.spec.ts`
 Expected: PASS.
 
-- [ ] **Step 2: Run static checks and build**
+- [x] **Step 2: Run static checks and build**
 
 Run: `npm run format:check && npm run lint && npm run typecheck && npm run build`
 Expected: PASS.
 
-- [ ] **Step 3: Manually verify role and export behavior**
+- [x] **Step 3: Manually verify role and export behavior**
 
 As an authorized admin/accounting role: navigate every settings section on desktop and mobile, filter the global audit log, open a purchase's local history, create a printable report, download the ZIP, inspect manifest/CSV/JSON relations, and confirm values match the UI. As a restricted role: verify workspace-isolated reads and disabled/hidden export actions according to the implemented policy.
 
-- [ ] **Step 4: Run an accessibility smoke test**
+- [x] **Step 4: Run an accessibility smoke test**
 
 Check keyboard-only navigation, visible focus, select usage, headings/landmarks, table headers, modal focus, and AXE on the shell, data page, and print page. Resolve every serious/critical violation.
 
-- [ ] **Step 5: Commit any verification-only fixes**
+- [x] **Step 5: Commit any verification-only fixes**
 
 ```bash
 git add src/app/features/settings src/app/shared/components/record-history src/app/core/services docs/compliance

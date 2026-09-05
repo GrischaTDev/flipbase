@@ -809,9 +809,10 @@ describe('SaleCreateModalComponent', () => {
         expect(host.textContent).toContain('Verkaufskosten');
         expect(host.textContent).toContain('Zusätzliche Kosten');
         expect(host.textContent).toContain('Notiz');
-        expect(host.textContent).toContain('Kapitalrendite');
-        expect(host.textContent).toContain('Gewinn ÷ eingesetztes Kapital × 100');
-        expect(host.textContent).toContain('Gewinnmarge');
+        expect(host.textContent).toContain('Ergebnis nach direkten Kosten');
+        expect(host.textContent).toContain('Marge');
+        expect(host.textContent).not.toContain('Kapitalrendite');
+        expect(host.textContent).not.toContain('Gewinn ÷ eingesetztes Kapital × 100');
         expect(host.textContent).toContain('–');
         expect(host.querySelector('details')).toBeNull();
         expect(host.querySelector('label[for="shipping-revenue"]')).not.toBeNull();

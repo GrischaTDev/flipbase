@@ -20,6 +20,7 @@ import {
 import type { ReceivePurchaseLineInput } from './stock.service';
 import { createLocalDemoId } from '../utils/client-identity';
 import { isSellableInventoryItem } from '../models/inventory-sellability';
+import type { PurchaseCostingResult } from '../models/purchase-costing.models';
 
 const DEMO_WS_ID = 'ws-1';
 
@@ -209,6 +210,7 @@ export class MockDataStoreService {
     const demoPurchases: Purchase[] = [
       {
         id: 'pur-demo-1',
+        entry_status: 'finalized',
         workspace_id: DEMO_WS_ID,
         type: 'single',
         title: 'Sony PlayStation 5 Digital Edition (CFI-1116B)',
@@ -224,6 +226,7 @@ export class MockDataStoreService {
       },
       {
         id: 'pur-demo-2',
+        entry_status: 'finalized',
         workspace_id: DEMO_WS_ID,
         type: 'lot',
         title: 'Retro Gaming & Nintendo Konvolut (Mystery Box)',
@@ -240,6 +243,7 @@ export class MockDataStoreService {
       },
       {
         id: 'pur-demo-3',
+        entry_status: 'finalized',
         workspace_id: DEMO_WS_ID,
         type: 'lot',
         title: "Vintage Streetwear Kleidungspaket (Carhartt, Nike, Levi's)",
@@ -255,6 +259,7 @@ export class MockDataStoreService {
       },
       {
         id: 'pur-demo-4',
+        entry_status: 'finalized',
         workspace_id: DEMO_WS_ID,
         type: 'single',
         title: 'Canon EOS M50 Mark II Vlogging Kit',
@@ -270,6 +275,7 @@ export class MockDataStoreService {
       },
       {
         id: 'pur-demo-5',
+        entry_status: 'finalized',
         workspace_id: DEMO_WS_ID,
         type: 'lot',
         title: '5× USB-C Ladegerät 30 W Händlerposten',
@@ -592,7 +598,7 @@ export class MockDataStoreService {
   }
 
   /**
-   * Speichert einen neuen Demo-Einkauf gemeinsam mit seinen ersten Positionen.
+   * Speichert einen Demo-Einkauf gemeinsam mit seiner vollständigen Positionsliste.
    * Der Journal-gestützte Schreibvorgang stellt bei Speicherfehlern den
    * vorherigen Zustand wieder her, damit kein positionsloser Einkauf entsteht.
    */
@@ -600,7 +606,9 @@ export class MockDataStoreService {
     if (!this.isDemoMode()) return new Error('Der Demo-Modus ist nicht aktiv.');
 
     const purchases = this.upsertRecord(this.getPurchases(), purchase);
-    let purchaseLines = this.getPurchaseLines();
+    let purchaseLines = this.getPurchaseLines().filter(
+      (line) => line.purchase_id !== purchase.id || line.workspace_id !== purchase.workspace_id,
+    );
     for (const line of lines) purchaseLines = this.upsertRecord(purchaseLines, line);
 
     return this.saveRecordsAtomically([
@@ -640,6 +648,13 @@ export class MockDataStoreService {
           error: new Error('Die Einkaufsposition wurde nicht gefunden.'),
         };
       }
+      if (line.line_total === null) {
+        return {
+          purchaseLines: [],
+          stockLots: [],
+          error: new Error('Unbepreiste Einkaufspositionen können nicht eingebucht werden.'),
+        };
+      }
       if (
         !Number.isInteger(input.receivedQuantity) ||
         input.receivedQuantity <= 0 ||
@@ -663,8 +678,7 @@ export class MockDataStoreService {
         catalog_product_id: line.catalog_product_id,
         received_quantity: input.receivedQuantity,
         remaining_quantity: input.receivedQuantity,
-        unit_cost:
-          (line.line_total + Number(line.allocated_additional_cost ?? 0)) / line.ordered_quantity,
+        unit_cost: 0,
         received_at: input.receivedAt ?? new Date().toISOString(),
       };
       const index = allLines.findIndex((entry) => entry.id === line.id);
@@ -708,7 +722,7 @@ export class MockDataStoreService {
         line.workspace_id === workspaceId &&
         line.purchase_id === purchaseId &&
         line.line_kind === 'individual' &&
-        line.received_quantity === 0,
+        line.received_quantity < line.ordered_quantity,
     );
     const purchase = this.getPurchases(workspaceId).find((entry) => entry.id === purchaseId);
     if (index < 0 || !purchase) {
@@ -720,16 +734,30 @@ export class MockDataStoreService {
       };
     }
 
-    const purchaseLine = { ...lines[index], received_quantity: 1 };
+    const line = lines[index];
+    const validConditions = new Set<ItemCondition>([
+      'new',
+      'like_new',
+      'very_good',
+      'used',
+      'heavily_used',
+      'defective',
+    ]);
+    const condition =
+      line.condition_snapshot && validConditions.has(line.condition_snapshot as ItemCondition)
+        ? (line.condition_snapshot as ItemCondition)
+        : 'used';
+    const purchaseLine = { ...line, received_quantity: line.received_quantity + 1 };
     const inventoryItem: InventoryItem = {
       id: this.newId('item'),
       workspace_id: workspaceId,
       purchase_id: purchaseId,
       purchase_line_id: purchaseLineId,
       title: input.title.trim(),
-      condition: input.condition,
+      condition,
       status: 'received',
-      allocated_purchase_cost: purchaseLine.line_total,
+      allocated_purchase_cost: 0,
+      expected_value: line.estimated_market_value ?? null,
       created_at: new Date().toISOString(),
     };
     lines[index] = purchaseLine;
@@ -771,6 +799,161 @@ export class MockDataStoreService {
       };
     }
     return { purchaseLine, inventoryItem, purchase: updatedPurchase, error: null };
+  }
+
+  finalizePurchaseCosting(
+    workspaceId: string,
+    purchaseId: string,
+  ): { data: PurchaseCostingResult | null; error: Error | null } {
+    const purchase = this.getPurchases(workspaceId).find((entry) => entry.id === purchaseId);
+    const lines = this.getPurchaseLines(workspaceId).filter(
+      (line) => line.purchase_id === purchaseId,
+    );
+    if (!purchase || lines.length === 0 || purchase.entry_status === 'finalized') {
+      return { data: null, error: new Error('Der Demo-Einkauf kann nicht finalisiert werden.') };
+    }
+    if (purchase.type !== 'mystery_pack') {
+      return {
+        data: null,
+        error: new Error('In der Demo können aktuell nur Mystery Boxen abgeschlossen werden.'),
+      };
+    }
+    if (lines.some((line) => line.line_kind !== 'individual')) {
+      return {
+        data: null,
+        error: new Error('Mengenpositionen können im Demo-Modus noch nicht finalisiert werden.'),
+      };
+    }
+    if (purchase.purchase_price === null || !Number.isFinite(purchase.purchase_price)) {
+      return { data: null, error: new Error('Die Gesamtkosten des Einkaufs sind noch offen.') };
+    }
+
+    const totalCents = Math.round(
+      (purchase.purchase_price +
+        (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0)) *
+        100,
+    );
+    const additionalTotalCents = Math.round(
+      (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0) * 100,
+    );
+    const totalUnits = lines.reduce((sum, line) => sum + line.ordered_quantity, 0);
+    if (totalUnits <= 0) {
+      return { data: null, error: new Error('Die Mystery Box enthält noch keine Stücke.') };
+    }
+    const baseUnitCents = Math.floor(totalCents / totalUnits);
+    let remainingCents = totalCents - baseUnitCents * totalUnits;
+    const additionalBaseUnitCents = Math.floor(additionalTotalCents / totalUnits);
+    let remainingAdditionalCents = additionalTotalCents - additionalBaseUnitCents * totalUnits;
+    const allocatedTotalCentsByLine = new Map<string, number>();
+    const allocatedAdditionalCentsByLine = new Map<string, number>();
+    const allItems = this.getItems();
+    const updatedPurchaseItems: InventoryItem[] = [];
+
+    for (const line of lines) {
+      let lineAllocatedCents = 0;
+      let lineAdditionalCents = 0;
+      const existingItems = allItems
+        .filter(
+          (item) =>
+            item.workspace_id === workspaceId &&
+            item.purchase_id === purchaseId &&
+            item.purchase_line_id === line.id,
+        )
+        .sort(
+          (left, right) =>
+            (left.created_at ?? '').localeCompare(right.created_at ?? '') ||
+            left.id.localeCompare(right.id),
+        );
+      if (existingItems.length > line.ordered_quantity) {
+        return {
+          data: null,
+          error: new Error('Die Zahl erfasster Einzelstücke überschreitet die Positionsmenge.'),
+        };
+      }
+      const condition: ItemCondition =
+        line.condition_snapshot === 'new' ||
+        line.condition_snapshot === 'like_new' ||
+        line.condition_snapshot === 'very_good' ||
+        line.condition_snapshot === 'used' ||
+        line.condition_snapshot === 'heavily_used' ||
+        line.condition_snapshot === 'defective'
+          ? line.condition_snapshot
+          : 'used';
+      for (let position = 0; position < line.ordered_quantity; position += 1) {
+        const existing = existingItems[position];
+        const allocatedCents = baseUnitCents + (remainingCents > 0 ? 1 : 0);
+        if (remainingCents > 0) remainingCents -= 1;
+        const allocatedAdditionalCents =
+          additionalBaseUnitCents + (remainingAdditionalCents > 0 ? 1 : 0);
+        if (remainingAdditionalCents > 0) remainingAdditionalCents -= 1;
+        lineAllocatedCents += allocatedCents;
+        lineAdditionalCents += allocatedAdditionalCents;
+        updatedPurchaseItems.push({
+          ...(existing ?? {
+            id: this.newId('item'),
+            workspace_id: workspaceId,
+            purchase_id: purchaseId,
+            purchase_line_id: line.id,
+            title: line.title_snapshot,
+            condition,
+          }),
+          status: 'ready',
+          sale_state: 'no_active_sale',
+          active_sale_count: 0,
+          active_sale_id: null,
+          allocated_purchase_cost: allocatedCents / 100,
+          expected_value: existing?.expected_value ?? line.estimated_market_value ?? null,
+          updated_at: new Date().toISOString(),
+        });
+      }
+      allocatedTotalCentsByLine.set(line.id, lineAllocatedCents);
+      allocatedAdditionalCentsByLine.set(line.id, lineAdditionalCents);
+    }
+
+    const purchaseItemIds = new Set(updatedPurchaseItems.map((item) => item.id));
+    const updatedItems = [
+      ...updatedPurchaseItems,
+      ...allItems.filter((item) => !purchaseItemIds.has(item.id)),
+    ];
+    const updatedLines = this.getPurchaseLines().map((line) =>
+      line.workspace_id === workspaceId && line.purchase_id === purchaseId
+        ? {
+            ...line,
+            received_quantity: line.ordered_quantity,
+            allocated_additional_cost: (allocatedAdditionalCentsByLine.get(line.id) ?? 0) / 100,
+            allocated_total_cost: (allocatedTotalCentsByLine.get(line.id) ?? 0) / 100,
+          }
+        : line,
+    );
+    const finalizedAt = new Date().toISOString();
+    const updatedPurchase: Purchase = {
+      ...purchase,
+      entry_status: 'finalized',
+      receiving_status: 'received',
+      finalized_at: finalizedAt,
+      total_purchase_cost: totalCents / 100,
+      updated_at: finalizedAt,
+    };
+    const updatedPurchases = this.getPurchases().map((entry) =>
+      entry.id === purchaseId && entry.workspace_id === workspaceId ? updatedPurchase : entry,
+    );
+    const persistenceError = this.saveRecordsAtomically([
+      { key: STORAGE_KEY_ITEMS, records: updatedItems },
+      { key: STORAGE_KEY_PURCHASE_LINES, records: updatedLines },
+      { key: STORAGE_KEY_PURCHASES, records: updatedPurchases },
+    ]);
+    if (persistenceError) return { data: null, error: persistenceError };
+
+    return {
+      data: {
+        purchaseId,
+        totalPurchaseCost: totalCents / 100,
+        allocatedTotalCost: totalCents / 100,
+        entryStatus: 'finalized',
+        eventId: createLocalDemoId('event'),
+      },
+      error: null,
+    };
   }
 
   bookSaleAtomically(

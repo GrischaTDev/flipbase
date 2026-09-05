@@ -1,0 +1,87 @@
+@if (entryStatus() !== 'finalized') {
+  <button
+    type="button"
+    (click)="editRequested.emit()"
+    class="linear-btn-secondary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+  >
+    Bearbeiten
+  </button>
+  <button
+    type="button"
+    data-finalize-purchase
+    (click)="finalizeRequested.emit()"
+    [disabled]="submitting()"
+    class="linear-btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+  >
+    {{ submitting() ? 'Schließe ab...' : 'Erfassung abschließen' }}
+  </button>
+  @if (entryStatus() === 'draft') {
+    <button
+      type="button"
+      data-delete-purchase
+      (click)="deleteRequested.emit()"
+      [disabled]="submitting()"
+      class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg p-1.5 text-xs font-semibold text-fb-text-muted transition hover:bg-rose-500/10 hover:text-rose-400 disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      Einkauf löschen
+    </button>
+  }
+} @else {
+  @switch (saleHistoryState()) {
+    @case ('none') {
+      <button
+        type="button"
+        data-reopen-purchase
+        (click)="reopenRequested.emit()"
+        [disabled]="submitting()"
+        class="linear-btn-secondary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Erfassung wieder öffnen
+      </button>
+    }
+    @case ('recorded') {
+      <button
+        type="button"
+        data-correct-purchase
+        (click)="correctionRequested.emit()"
+        [disabled]="submitting()"
+        class="linear-btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Einkauf korrigieren
+      </button>
+    }
+    @case ('review_required') {
+      <div role="alert" class="flex flex-wrap items-center gap-2 text-xs text-amber-300">
+        <span>Verkaufsdaten prüfen und nachpflegen, bevor du den Einkauf bearbeitest.</span>
+        @if (saleReviewInventoryItemId(); as inventoryItemId) {
+          <a
+            [routerLink]="['/inventory', inventoryItemId]"
+            data-review-purchase-item
+            class="linear-btn-secondary inline-flex cursor-pointer items-center rounded-lg px-3 py-1.5 font-semibold"
+          >
+            Artikel prüfen
+          </a>
+        }
+      </div>
+    }
+    @case ('error') {
+      <span role="alert" class="text-xs text-amber-300">
+        Verkaufsverlauf konnte nicht geprüft werden.
+      </span>
+      <button
+        type="button"
+        data-retry-sale-history
+        (click)="saleHistoryReloadRequested.emit()"
+        [disabled]="submitting()"
+        class="linear-btn-secondary inline-flex cursor-pointer items-center rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        Erneut prüfen
+      </button>
+    }
+    @default {
+      <span role="status" aria-live="polite" class="text-xs text-fb-text-muted">
+        Verkaufsverlauf wird geprüft...
+      </span>
+    }
+  }
+}

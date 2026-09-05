@@ -18,6 +18,7 @@ export interface Workspace {
   min_profit_amount: number;
   created_at?: string;
   updated_at?: string;
+  archived_at?: string | null;
 }
 
 export interface WorkspaceSummary {
@@ -124,12 +125,21 @@ export type StockMovementReason =
   | 'reservation'
   | 'reservation_release';
 
+import type {
+  PurchaseCostAllocationMethod,
+  PurchaseEntryStatus,
+  PurchaseLinePriceMode,
+} from './purchase-costing.models';
+
 export interface PurchaseCost {
   id?: string;
+  workspace_id?: string;
   purchase_id?: string;
   type: string;
   amount: number;
   description?: string | null;
+  allocation_method?: PurchaseCostAllocationMethod;
+  target_purchase_line_id?: string | null;
   created_at?: string;
 }
 
@@ -166,7 +176,7 @@ export interface Purchase {
   source_id?: string | null;
   supplier_id?: string | null;
   purchase_date: string;
-  purchase_price: number;
+  purchase_price: number | null;
   shipping_cost?: number;
   other_costs?: number;
   cost_allocation_mode: CostAllocationMode;
@@ -175,6 +185,9 @@ export interface Purchase {
   tracking_carrier?: TrackingCarrier | null;
   tracking_status?: InboundTrackingStatus | null;
   receiving_status?: PurchaseReceivingStatus;
+  entry_status?: PurchaseEntryStatus;
+  finalized_at?: string | null;
+  finalized_by?: string | null;
   estimated_delivery?: string | null;
   notes?: string | null;
   created_at?: string;
@@ -183,7 +196,7 @@ export interface Purchase {
   supplier?: Supplier;
   costs?: PurchaseCost[];
   items_count?: number;
-  total_purchase_cost?: number;
+  total_purchase_cost?: number | null;
   items?: InventoryItem[];
   purchase_lines?: PurchaseLine[];
 }
@@ -351,6 +364,7 @@ export interface SaleCostEntry {
 }
 
 export interface Sale {
+  cost_basis_status?: 'known' | 'unknown';
   id: string;
   workspace_id: string;
   inventory_item_id?: string | null;
@@ -379,7 +393,12 @@ export interface Sale {
   voided_by?: string | null;
   void_reason?: string | null;
   inventory_item?: InventoryItem;
-  net_profit?: number;
+  /** Ergebnis nach Wareneinsatz und direkt zurechenbaren Verkaufskosten. */
+  net_profit?: number | null;
+  /** Direkt zurechenbare Gebühren, Versand- und Zusatzkosten des Verkaufs. */
+  selling_costs?: number;
+  /** Ergebnis im Verhältnis zum Verkaufserlös. */
+  margin_percent?: number | null;
   roi?: number | null;
   holding_duration_days?: number;
   /** Persistierte Verkaufspositionen; Altverkäufe werden als eine Position abgebildet. */
@@ -418,14 +437,19 @@ export interface PurchaseLine {
   line_kind: TrackingMode;
   ordered_quantity: number;
   received_quantity: number;
-  unit_purchase_price: number;
-  line_total: number;
+  unit_purchase_price: number | null;
+  line_total: number | null;
   allocated_additional_cost?: number;
+  price_mode?: PurchaseLinePriceMode;
+  condition_snapshot?: string | null;
+  estimated_market_value?: number | null;
+  allocated_total_cost?: number;
   created_at?: string;
   updated_at?: string;
 }
 
 export interface StockLot {
+  purchase?: Purchase;
   id: string;
   workspace_id: string;
   purchase_id: string;
@@ -450,6 +474,8 @@ export interface StockMovement {
 }
 
 export interface SaleLine {
+  inventory_item?: InventoryItem;
+  lot_allocations?: SaleLineLotAllocation[];
   id: string;
   sale_id: string;
   catalog_product_id?: string | null;
@@ -463,6 +489,7 @@ export interface SaleLine {
 }
 
 export interface SaleLineLotAllocation {
+  stock_lot?: StockLot;
   id: string;
   workspace_id: string;
   sale_line_id: string;
@@ -470,6 +497,7 @@ export interface SaleLineLotAllocation {
   quantity: number;
   unit_cost: number;
   allocated_cost?: number;
+  active_allocated_cost?: number | null;
   created_at?: string;
 }
 
@@ -510,8 +538,13 @@ export interface DashboardTimePoint {
   /** Kurze, im Diagramm sichtbare Beschriftung. */
   label: string;
   revenue: number;
+  costOfGoodsSold: number | null;
+  sellingCosts: number;
+  resultAfterDirectCosts: number | null;
+  /** Einkaufszahlungen bleiben vorübergehend für ältere Berichtsansichten verfügbar. */
   expenses: number;
-  realizedProfit: number;
+  /** @deprecated Verwende resultAfterDirectCosts. */
+  realizedProfit: number | null;
 }
 
 export interface DashboardSaleRow {
@@ -521,8 +554,12 @@ export interface DashboardSaleRow {
   quantity: number;
   platform: string;
   revenue: number;
-  costOfGoodsSold: number;
-  profit: number;
+  costOfGoodsSold: number | null;
+  sellingCosts: number;
+  resultAfterDirectCosts: number | null;
+  marginPercent: number | null;
+  /** @deprecated Verwende resultAfterDirectCosts. */
+  profit: number | null;
 }
 
 export interface DashboardReport {
@@ -530,10 +567,13 @@ export interface DashboardReport {
   expenses: number;
   /** Umsatz aus noch nicht retournierten, bestaetigten Verkaeufen. */
   revenue: number;
-  /** Umsatz minus COGS sowie Verkaufsnebenkosten; kein prognostizierter Wert. */
-  realizedProfit: number;
+  /** Verkaufserlös minus Wareneinsatz und direkte Verkaufskosten; kein Prognosewert. */
+  realizedProfit: number | null;
+  resultAfterDirectCosts: number | null;
+  soldItems: number;
+  averageMarginPercent: number | null;
   /** Anschaffungswert der aktuell vorhandenen Ware. */
-  inventoryCostValue: number;
+  inventoryCostValue: number | null;
   points: readonly DashboardTimePoint[];
   rows: readonly DashboardSaleRow[];
 }

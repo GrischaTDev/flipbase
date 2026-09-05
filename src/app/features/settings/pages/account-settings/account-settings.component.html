@@ -1,0 +1,53 @@
+<section
+  class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5 shadow-xl"
+  aria-labelledby="account-heading"
+>
+  <div class="flex items-center gap-2 border-b border-fb-border pb-2">
+    <svg [lucideIcon]="userIcon" class="h-4 w-4 text-indigo-400" aria-hidden="true"></svg>
+    <h2
+      id="account-heading"
+      class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
+    >
+      Mein Konto
+    </h2>
+  </div>
+  <form [formGroup]="profileForm" (ngSubmit)="onSaveProfile()" class="space-y-3">
+    <label for="profile-name" class="block text-xs font-semibold text-fb-text-secondary"
+      >Angezeigter Name<input
+        id="profile-name"
+        formControlName="fullName"
+        class="linear-input mt-1 w-full rounded-xl px-3 py-2 text-xs"
+    /></label>
+    <div>
+      <span class="text-xs font-semibold text-fb-text-secondary">E-Mail-Adresse</span>
+      <p class="font-mono text-xs text-fb-text-secondary">{{ auth.currentUser()?.email || '—' }}</p>
+      <p class="mt-1 text-xs text-fb-text-muted">
+        Die Adresse gehört zur Anmeldung und lässt sich hier nicht ändern.
+      </p>
+    </div>
+    <div class="flex justify-end">
+      <button
+        type="submit"
+        [disabled]="profileForm.invalid || isSavingProfile()"
+        class="linear-btn-primary min-h-11 rounded-xl px-4 text-xs font-bold disabled:opacity-40"
+      >
+        {{ isSavingProfile() ? 'Speichere...' : 'Namen speichern' }}
+      </button>
+    </div>
+  </form>
+  <div class="space-y-2 border-t border-fb-border pt-3">
+    <p class="text-xs text-fb-text-muted">
+      Gerät verloren oder auf einem fremden Rechner angemeldet geblieben? Damit werden sofort alle
+      Sitzungen beendet.
+    </p>
+    <button
+      type="button"
+      (click)="onSignOutEverywhere()"
+      [disabled]="isSigningOutEverywhere()"
+      class="inline-flex min-h-11 items-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 text-xs font-bold text-rose-300 disabled:opacity-40"
+    >
+      <svg [lucideIcon]="logoutIcon" class="h-4 w-4" aria-hidden="true"></svg
+      >{{ isSigningOutEverywhere() ? 'Melde ab...' : 'Von allen Geräten abmelden' }}
+    </button>
+  </div>
+</section>

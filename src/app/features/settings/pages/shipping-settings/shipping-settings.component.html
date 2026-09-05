@@ -1,0 +1,69 @@
+<form
+  [formGroup]="carrierForm"
+  (ngSubmit)="onSaveCarrierConfig()"
+  class="linear-surface space-y-4 rounded-2xl border border-fb-border p-5 shadow-xl"
+  aria-labelledby="shipping-heading"
+>
+  <div class="flex flex-wrap items-center justify-between gap-2 border-b border-fb-border pb-2">
+    <div class="flex items-center gap-2">
+      <svg [lucideIcon]="truckIcon" class="h-4 w-4 text-amber-500" aria-hidden="true"></svg>
+      <h2
+        id="shipping-heading"
+        class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
+      >
+        Carrier-APIs & Packtisch
+      </h2>
+    </div>
+    <span
+      class="rounded border border-amber-800/30 bg-amber-500/15 px-2 py-0.5 text-xs font-semibold text-fb-text-secondary"
+      >DHL & Hermes</span
+    >
+  </div>
+  <p class="text-xs text-fb-text-muted">
+    Hinterlege Zugangsdaten für automatischen Versandmarken-Kauf und Tracking-Generierung.
+  </p>
+  <fieldset class="space-y-3">
+    <legend class="sr-only">Versanddienstleister</legend>
+    <label
+      class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
+      >DHL Geschäftskundenversand (GKP)<input
+        type="checkbox"
+        formControlName="dhlEnabled"
+        class="h-5 w-5"
+    /></label>
+    @if (carrierForm.controls.dhlEnabled.value) {
+      <input
+        formControlName="dhlEkp"
+        placeholder="DHL EKP (Kundennr.)"
+        class="linear-input min-h-11 w-full rounded-xl px-3 text-xs font-mono"
+      />
+      <p class="text-xs text-fb-text-muted">
+        Der DHL-Zugangsschlüssel wird bewusst nicht im Browser gespeichert.
+      </p>
+    }
+    <label
+      class="flex items-center justify-between rounded-xl border border-fb-border bg-fb-subtle p-3 text-xs font-semibold text-fb-text-primary"
+      >Hermes Versand-API<input type="checkbox" formControlName="hermesEnabled" class="h-5 w-5"
+    /></label>
+    @if (carrierForm.controls.hermesEnabled.value) {
+      <input
+        formControlName="hermesClientId"
+        placeholder="Hermes Client-ID / Account-ID"
+        class="linear-input min-h-11 w-full rounded-xl px-3 text-xs font-mono"
+      />
+      <p class="text-xs text-fb-text-muted">
+        Der Hermes-Zugangsschlüssel wird bewusst nicht im Browser gespeichert.
+      </p>
+    }
+  </fieldset>
+  <div class="flex justify-end">
+    <button
+      type="submit"
+      [disabled]="isSavingCarrierConfig() || isLoadingWorkspaceConfig()"
+      class="linear-btn-primary inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-xs font-bold disabled:opacity-40"
+    >
+      <svg [lucideIcon]="saveIcon" class="h-4 w-4" aria-hidden="true"></svg
+      >{{ isSavingCarrierConfig() ? 'Speichere...' : 'Carrier-Einstellungen speichern' }}
+    </button>
+  </div>
+</form>

@@ -145,6 +145,35 @@ describe('Analytics & Break-Even Engine (Phase 5)', () => {
     expect(cohorts[0].isProfitable).toBe(true);
   });
 
+  it('schliesst unbekannte Draft-Preise aus Kostenanalysen aus, behält aber echte Nullpreise', () => {
+    const base: Purchase = {
+      id: 'unknown',
+      workspace_id: 'ws-1',
+      type: 'pallet',
+      title: 'Noch unbepreist',
+      purchase_date: '2026-08-31',
+      purchase_price: null,
+      total_purchase_cost: null,
+      cost_allocation_mode: 'even',
+    };
+    const free: Purchase = {
+      ...base,
+      id: 'free',
+      title: 'Kostenlos',
+      purchase_price: 0,
+      total_purchase_cost: 0,
+    };
+
+    const pallets = analyticsService.computePalletStats([base, free], [], []);
+    const sources = analyticsService.computeSourcePerformance([base, free], []);
+    const cohorts = analyticsService.computeMonthlyCohorts([base, free], []);
+
+    expect(pallets.map((entry) => entry.purchaseId)).toEqual(['free']);
+    expect(pallets[0].totalInvestment).toBe(0);
+    expect(sources).toMatchObject([{ purchasesCount: 1, invested: 0 }]);
+    expect(cohorts).toMatchObject([{ itemsCount: 1, invested: 0 }]);
+  });
+
   it('should calculate Pallet Break-Even Status and Days to Break-Even (Chapter 30)', () => {
     const mockPurchase: Purchase = {
       id: 'pallet-1',

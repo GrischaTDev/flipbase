@@ -29,7 +29,10 @@ declare
   v_packaging_cost numeric(12, 2);
   v_other_costs numeric(12, 2);
   v_cost_entry_count integer;
+  v_business_event_count integer;
+  v_business_event_correlation_count integer;
   v_return_result jsonb;
+  v_return_id uuid;
   v_store_order_id uuid := gen_random_uuid();
   v_pickup_order_id uuid := gen_random_uuid();
   v_store_sale_id uuid;
@@ -136,6 +139,12 @@ begin
     raise exception 'appended open purchase line must set purchase status to partially_received, got %', v_receiving_status;
   end if;
 
+  delete from public.purchase_lines
+  where id = v_appended_line_id
+    and workspace_id = v_workspace_id;
+
+  perform public.finalize_purchase_costing(v_workspace_id, v_purchase_id);
+
   insert into public.purchases (id, workspace_id, type, title)
   values (v_individual_purchase_id, v_workspace_id, 'mystery_pack', 'individual receipt');
   insert into public.purchase_lines (
@@ -239,6 +248,22 @@ begin
     raise exception 'sale did not persist separated shipping revenue and expenses';
   end if;
 
+  if not exists (
+    select 1
+    from public.business_events as event
+    where event.workspace_id = v_workspace_id
+      and event.entity_type = 'sale'
+      and event.entity_id = v_sale_id
+      and event.event_type = 'sale_recorded'
+      and event.actor_id = v_user_id
+      and event.changes #>> '{financials,after,item_revenue}' = '39.99'
+      and event.changes #>> '{financials,after,buyer_shipping_revenue}' = '2.99'
+      and event.changes #>> '{financials,after,total_revenue}' = '42.98'
+      and event.changes #>> '{financials,after,cost_of_goods_sold}' = '4.99'
+  ) then
+    raise exception 'sale creation did not append its complete business event';
+  end if;
+
   begin
     perform public.record_sale(
       v_workspace_id,
@@ -333,6 +358,7 @@ begin
     'restock_ready',
     'Test buyer'
   ) into v_return_result;
+  v_return_id := (v_return_result -> 'return' ->> 'id')::uuid;
 
   select remaining_quantity
   into v_remaining_quantity
@@ -355,6 +381,32 @@ begin
       and credit_note_number = v_return_result -> 'return' ->> 'credit_note_number'
   ) then
     raise exception 'expected atomic return metadata to be persisted';
+  end if;
+
+  select count(*), count(distinct event.correlation_id)
+  into v_business_event_count, v_business_event_correlation_count
+  from public.business_events as event
+  where event.workspace_id = v_workspace_id
+    and event.event_type in ('sale_refund_updated', 'sale_return_recorded')
+    and event.entity_id in (v_sale_id, v_return_id);
+
+  if v_business_event_count <> 2 or v_business_event_correlation_count <> 1 then
+    raise exception 'return did not append two correlated business events';
+  end if;
+
+  if not exists (
+    select 1
+    from public.business_events as event
+    where event.workspace_id = v_workspace_id
+      and event.entity_type = 'return'
+      and event.entity_id = v_return_id
+      and event.event_type = 'sale_return_recorded'
+      and event.actor_id = v_user_id
+      and event.reason = 'customer return'
+      and event.changes #>> '{refund_amount,after}' = '42.98'
+      and event.changes #>> '{restock_action,after}' = 'restock_ready'
+  ) then
+    raise exception 'return event did not retain the financial and stock decision';
   end if;
 
   begin

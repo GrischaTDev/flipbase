@@ -72,14 +72,14 @@
           }}</strong>
         </div>
         <div>
-          <span class="block text-[10px] font-semibold uppercase text-fb-text-muted">Gewinn</span
+          <span class="block text-[10px] font-semibold uppercase text-fb-text-muted"
+            >Ergebnis nach direkten Kosten</span
           ><strong class="text-sm text-emerald-400">{{
             liveMetrics().profit | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
           }}</strong>
         </div>
         <div>
-          <span class="block text-[10px] font-semibold uppercase text-fb-text-muted"
-            >Gewinnmarge</span
+          <span class="block text-[10px] font-semibold uppercase text-fb-text-muted">Marge</span
           ><strong class="text-sm text-emerald-400">
             @if (liveMetrics().margin === null) {
               –
@@ -87,20 +87,6 @@
               {{ liveMetrics().margin }} %
             }
           </strong>
-        </div>
-        <div>
-          <span class="block text-[10px] font-semibold uppercase text-fb-text-muted"
-            >Kapitalrendite</span
-          ><strong class="text-sm text-emerald-400">
-            @if (liveMetrics().roi === null) {
-              –
-            } @else {
-              {{ liveMetrics().roi }} %
-            }
-          </strong>
-          <p class="mt-1 text-[10px] text-fb-text-muted" id="capital-return-help">
-            Gewinn ÷ eingesetztes Kapital × 100
-          </p>
         </div>
       </section>
       <section>

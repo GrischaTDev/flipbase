@@ -116,8 +116,8 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   });
 
   private readonly reconcileActiveIndex = effect(() => {
-    const options = this.options();
     if (!this.isOpen()) return;
+    const options = this.options();
 
     const currentIndex = this.activeIndex();
     if (options.length === 0) {
@@ -278,6 +278,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
       this.setActiveIndex(this.options().length - 1);
     } else if (event.key === 'Escape') {
       event.preventDefault();
+      event.stopPropagation();
       this.closeDropdown();
     }
   }

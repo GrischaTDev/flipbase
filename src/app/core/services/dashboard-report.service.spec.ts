@@ -30,6 +30,15 @@ const sale: Sale = {
   lines: [
     {
       id: 'line-1',
+      inventory_item: {
+        id: 'item-1',
+        workspace_id: 'workspace-1',
+        title: 'LED-Lampe',
+        status: 'sold',
+        condition: 'new',
+        allocated_purchase_cost: 9.98,
+        purchase: { ...receipt, entry_status: 'finalized' },
+      },
       sale_id: 'sale-1',
       catalog_product_id: 'lamp-1',
       title_snapshot: 'LED-Lampe',
@@ -47,6 +56,48 @@ function createService(): DashboardReportService {
 }
 
 describe('DashboardReportService', () => {
+  it('erhält nach zwei Entnahmen den exakten Restwert des korrigierten 100-Euro-Loses', () => {
+    const report = createService().createReportForRecords(
+      'last_7_days',
+      'all',
+      {
+        purchases: [{ ...receipt, entry_status: 'finalized', purchase_price: 100 }],
+        inventoryItems: [],
+        stockLots: [
+          {
+            id: 'lot-1',
+            workspace_id: 'workspace-1',
+            purchase_id: receipt.id,
+            purchase_line_id: 'purchase-line-1',
+            catalog_product_id: 'lamp-1',
+            received_quantity: 6,
+            remaining_quantity: 4,
+            unit_cost: 16.666667,
+            received_at: '2026-08-26',
+          },
+        ],
+        sales: [
+          {
+            ...sale,
+            lot_allocations: [
+              {
+                id: 'allocation-1',
+                workspace_id: 'workspace-1',
+                sale_line_id: 'line-1',
+                stock_lot_id: 'lot-1',
+                quantity: 2,
+                unit_cost: 16.67,
+                allocated_cost: 33.34,
+                active_allocated_cost: 33.34,
+              },
+            ],
+          },
+        ],
+      },
+      now,
+    );
+    expect(report.inventoryCostValue).toBe(66.66);
+  });
   it('trennt Einkaufs-Ausgaben sauber von COGS und realisiertem Gewinn', () => {
     const report = createService().createReportForRecords(
       'last_7_days',
@@ -84,6 +135,101 @@ describe('DashboardReportService', () => {
 
     expect(report.revenue).toBe(42.98);
     expect(report.realizedProfit).toBe(20.09);
+    expect(report.resultAfterDirectCosts).toBe(20.09);
+    expect(report.averageMarginPercent).toBe(46.74);
+    expect(report.soldItems).toBe(2);
+    expect(report.rows[0]).toMatchObject({
+      revenue: 42.98,
+      costOfGoodsSold: 10,
+      sellingCosts: 12.89,
+      resultAfterDirectCosts: 20.09,
+      marginPercent: 46.74,
+    });
+    expect(report.points.find((point) => point.date === '2026-08-27')).toMatchObject({
+      revenue: 42.98,
+      costOfGoodsSold: 10,
+      sellingCosts: 12.89,
+      resultAfterDirectCosts: 20.09,
+    });
+  });
+
+  it('zeigt einen nicht belegbaren Wareneinsatz offen und erfindet kein Ergebnis', () => {
+    const report = createService().createReportForRecords(
+      'last_7_days',
+      'all',
+      {
+        purchases: [],
+        sales: [
+          {
+            ...sale,
+            id: 'sale-without-cost-basis',
+            lines: [],
+            has_persisted_lines: false,
+            inventory_item: undefined,
+          },
+        ],
+        inventoryItems: [],
+        stockLots: [],
+      },
+      now,
+    );
+
+    expect(report.rows[0]).toMatchObject({
+      costOfGoodsSold: null,
+      resultAfterDirectCosts: null,
+      marginPercent: null,
+    });
+    expect(report.resultAfterDirectCosts).toBeNull();
+    expect(report.points.find((point) => point.date === '2026-08-27')).toMatchObject({
+      costOfGoodsSold: null,
+      resultAfterDirectCosts: null,
+      realizedProfit: null,
+    });
+    expect(report.averageMarginPercent).toBeNull();
+  });
+
+  it('schließt unbekannte Draftkosten aus bestätigten Ausgaben aus und behält echte Nullpreise', () => {
+    const report = createService().createReportForRecords(
+      'last_7_days',
+      'all',
+      {
+        purchases: [
+          receipt,
+          {
+            ...receipt,
+            id: 'purchase-unknown',
+            purchase_price: null,
+            total_purchase_cost: null,
+            shipping_cost: 5,
+            other_costs: 7,
+          },
+          {
+            ...receipt,
+            id: 'purchase-free',
+            purchase_price: 0,
+            total_purchase_cost: null,
+            shipping_cost: 2,
+            other_costs: 0,
+          },
+          {
+            ...receipt,
+            id: 'purchase-priced-draft',
+            purchase_price: 10,
+            total_purchase_cost: null,
+            shipping_cost: 1,
+            other_costs: 2,
+            costs: [{ type: 'travel', amount: 3 }],
+          },
+        ],
+        sales: [],
+        inventoryItems: [],
+        stockLots: [],
+      },
+      now,
+    );
+
+    expect(report.expenses).toBe(42.95);
+    expect(report.points.find((point) => point.date === '2026-08-26')?.expenses).toBe(42.95);
   });
 
   it.each([

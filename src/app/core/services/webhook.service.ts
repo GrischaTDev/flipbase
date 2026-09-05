@@ -546,12 +546,16 @@ export class WebhookService {
     const cfg = this.config();
     if (!cfg.notifyOnPurchase) return;
 
-    const cost = euro(purchase.total_purchase_cost || purchase.purchase_price);
+    const totalCost =
+      purchase.purchase_price === null
+        ? undefined
+        : (purchase.total_purchase_cost ?? purchase.purchase_price);
+    const cost = totalCost === undefined ? 'noch nicht erfasst' : `${euro(totalCost)} €`;
 
     this.addNotification({
       type: 'purchase',
       title: `Neuer Einkauf: ${purchase.title}`,
-      message: `Einkaufskosten: ${cost} € (${EINKAUFSART_BEZEICHNUNG[purchase.type]}).`,
+      message: `Einkaufskosten: ${cost} (${EINKAUFSART_BEZEICHNUNG[purchase.type]}).`,
       // Auf den Einkauf selbst, nicht auf die Liste: Zu einer Meldung ueber
       // einen bestimmten Einkauf gehoert dieser Einkauf. Vorher landete man auf
       // der Uebersicht und musste ihn dort suchen - und wer schon dort stand,

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ExportService } from './export.service';
-import { Sale } from '../models/flipbase.models';
+import { Purchase, Sale } from '../models/flipbase.models';
 
 describe('ExportService (Phase 10: CSV & JSON Backup)', () => {
   let exportService: ExportService;
@@ -51,5 +51,44 @@ describe('ExportService (Phase 10: CSV & JSON Backup)', () => {
     expect(csv).toContain('35.50');
     expect(csv).toContain('90.00');
     expect(csv).toContain('"Barzahlung bei Abholung; netter Kontakt"');
+  });
+
+  it('exports an unknown draft purchase price as an empty value instead of a real zero price', () => {
+    const draftPurchase = {
+      id: 'purchase-draft',
+      workspace_id: 'ws-1',
+      type: 'single',
+      title: 'Noch nicht bepreist',
+      purchase_date: '2026-08-31',
+      purchase_price: null,
+      cost_allocation_mode: 'even',
+      entry_status: 'draft',
+      items_count: 1,
+    } as unknown as Purchase;
+
+    const csv = exportService.generatePurchasesCsv([draftPurchase]);
+    const row = csv.split('\r\n')[1];
+
+    expect(row).toBe('2026-08-31;Noch nicht bepreist;single;Direktkauf;;;;even;1');
+    expect(row).not.toContain('0.00');
+  });
+
+  it('keeps an explicitly free purchase distinguishable from an unknown price in exports', () => {
+    const freePurchase: Purchase = {
+      id: 'purchase-free',
+      workspace_id: 'ws-1',
+      type: 'single',
+      title: 'Kostenlos',
+      purchase_date: '2026-08-31',
+      purchase_price: 0,
+      total_purchase_cost: 0,
+      cost_allocation_mode: 'even',
+      entry_status: 'draft',
+      items_count: 1,
+    };
+
+    const row = exportService.generatePurchasesCsv([freePurchase]).split('\r\n')[1];
+
+    expect(row).toBe('2026-08-31;Kostenlos;single;Direktkauf;;0.00;0.00;even;1');
   });
 });

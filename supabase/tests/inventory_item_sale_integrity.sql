@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(63);
+select plan(67);
 
 \set move_source_item_id '82000000-0000-4000-8000-000000000030'
 \set move_target_item_id '82000000-0000-4000-8000-000000000031'
@@ -19,7 +19,9 @@ alter table public.sales disable trigger inventory_item_sale_integrity_on_sale;
 
 -- Only supabase/tests is mounted into the pg_prove container. The npm pretest
 -- hook copies the canonical support fixture here with a non-test extension.
+\set inventory_integrity_fixture 1
 \ir .generated/inventory_integrity_legacy.sql.inc
+\unset inventory_integrity_fixture
 
 alter table public.inventory_items enable trigger protect_inventory_item_sold_status;
 alter table public.inventory_items enable trigger inventory_item_sale_integrity_on_insert;
@@ -183,6 +185,60 @@ select throws_ok('select pg_temp.commit_sale_line_move_checks_new()', '23514', n
 
 set local role authenticated;
 set local request.jwt.claim.sub = :'main_user_id';
+
+savepoint reject_record_sale_fraction;
+select throws_ok(
+  format(
+    'select public.record_sale(%L, %L::jsonb, %L::jsonb)',
+    :'main_workspace_id',
+    '{"platform":"direct","sale_date":"2026-08-29"}',
+    '[{"inventory_item_id":"82000000-0000-4000-8000-000000000032","quantity":1,"unit_sale_price":0.004}]'
+  ),
+  '22023', 'Eine Verkaufsposition ist ungültig.',
+  'record_sale lehnt auch einen Betrag unter einem Cent mit mehr als zwei Nachkommastellen ab'
+);
+rollback to savepoint reject_record_sale_fraction;
+
+select throws_ok(
+  format(
+    'select public.record_sale(%L, %L::jsonb, %L::jsonb)',
+    :'main_workspace_id',
+    '{"platform":"direct","sale_date":"2026-08-29"}',
+    '[{"inventory_item_id":"82000000-0000-4000-8000-000000000032","quantity":1,"unit_sale_price":1.001}]'
+  ),
+  '22023', 'Eine Verkaufsposition ist ungültig.',
+  'record_sale lehnt weitere Teilcentbeträge statt stiller Rundung ab'
+);
+rollback to savepoint reject_record_sale_fraction;
+release savepoint reject_record_sale_fraction;
+
+savepoint reject_legacy_sale_fraction;
+select throws_ok(
+  format(
+    'select public.record_legacy_inventory_sale(%L, %L, %L::jsonb, %L)',
+    :'main_workspace_id',
+    :'legacy_record_item_id',
+    '{"platform":"direct","sale_date":"2026-08-29","unit_sale_price":0.004}',
+    'Teilcentprüfung'
+  ),
+  '22023', 'Die Verkaufsdaten sind ungueltig.',
+  'record_legacy_inventory_sale lehnt auch einen Betrag unter einem Cent mit Teilcent ab'
+);
+rollback to savepoint reject_legacy_sale_fraction;
+
+select throws_ok(
+  format(
+    'select public.record_legacy_inventory_sale(%L, %L, %L::jsonb, %L)',
+    :'main_workspace_id',
+    :'legacy_record_item_id',
+    '{"platform":"direct","sale_date":"2026-08-29","unit_sale_price":1.001}',
+    'Teilcentprüfung'
+  ),
+  '22023', 'Die Verkaufsdaten sind ungueltig.',
+  'record_legacy_inventory_sale lehnt weitere Teilcentbeträge statt stiller Rundung ab'
+);
+rollback to savepoint reject_legacy_sale_fraction;
+release savepoint reject_legacy_sale_fraction;
 
 select throws_ok(
   format(

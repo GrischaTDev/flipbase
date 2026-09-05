@@ -14,8 +14,10 @@ test('kehrt vom Einkaufsartikel zum selben Demo-Einkauf zurück', async ({ page 
   const itemRow = page
     .getByRole('row')
     .filter({ hasText: 'Nintendo Game Boy Color (Lila Transparent)' });
-  await itemRow.getByRole('link', { name: 'Details →' }).click();
-  await expect(page).toHaveURL(/\/inventory\/item-demo-2\?fromPurchaseId=pur-demo-2$/);
+  await itemRow
+    .getByRole('link', { name: 'Artikel 1 von Nintendo Game Boy Color (Lila Transparent) öffnen' })
+    .click();
+  await expect(page).toHaveURL(/\/inventory\/item-demo-2\?returnTo=%2Fpurchases%2Fpur-demo-2$/);
 
   await page.getByRole('link', { name: 'Zurück zum Einkauf' }).click();
   await expect(page).toHaveURL(/\/purchases\/pur-demo-2$/);

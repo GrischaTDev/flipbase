@@ -36,6 +36,9 @@ const emptyReport: DashboardReport = {
   expenses: 0,
   revenue: 0,
   realizedProfit: 0,
+  resultAfterDirectCosts: 0,
+  soldItems: 0,
+  averageMarginPercent: null,
   inventoryCostValue: 0,
   points: [],
   rows: [],
@@ -204,6 +207,64 @@ function createDashboard() {
 }
 
 describe('DashboardComponent', () => {
+  it('verwendet für Karten und Verkaufsjournal dieselben verständlichen Kennzahlen', () => {
+    createReport.mockReturnValueOnce({
+      ...emptyReport,
+      revenue: 42.98,
+      realizedProfit: 20.09,
+      resultAfterDirectCosts: 20.09,
+      soldItems: 2,
+      averageMarginPercent: 46.74,
+      inventoryCostValue: 16.67,
+      rows: [
+        {
+          saleId: 'sale-1',
+          date: '2026-08-30',
+          articles: 'Nackenkissen',
+          quantity: 2,
+          platform: 'ebay',
+          revenue: 42.98,
+          costOfGoodsSold: 10,
+          sellingCosts: 12.89,
+          resultAfterDirectCosts: 20.09,
+          marginPercent: 46.74,
+          profit: 20.09,
+        },
+      ],
+    });
+
+    const fixture = createDashboard();
+    const host = fixture.nativeElement as HTMLElement;
+    const text = host.textContent ?? '';
+    const journal = host.querySelector('#sales-table-heading')?.closest('section');
+    const headers = [...(journal?.querySelectorAll('thead th') ?? [])].map((header) =>
+      header.textContent?.replace(/\s+/g, ' ').trim(),
+    );
+
+    for (const label of [
+      'Verkaufserlöse',
+      'Ergebnis nach direkten Kosten',
+      'Aktueller Bestandswert',
+      'Verkaufte Artikel',
+      'Durchschnittliche Marge',
+    ]) {
+      expect(text).toContain(label);
+    }
+    expect(headers).toEqual([
+      'Datum',
+      'Artikel',
+      'Menge',
+      'Plattform',
+      'Verkaufserlös',
+      'Wareneinsatz',
+      'Verkaufskosten',
+      'Ergebnis nach direkten Kosten',
+      'Marge',
+    ]);
+    expect(text).not.toContain('COGS');
+    expect(text).not.toContain('Realisierter Gewinn');
+  });
+
   it('isoliert den Chart-Lifecycle im Dashboard-Header-Test ohne Angular-Laufzeitfehler', async () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
 

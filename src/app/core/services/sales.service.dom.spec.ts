@@ -336,7 +336,11 @@ describe('SalesService', () => {
     Object.assign(service, {
       sales: signal<Sale[]>([]),
       isLoading: signal(false),
+      loadError: signal<Error | null>(null),
+      loadedWorkspaceId: signal<string | null>(null),
+      loadRequestId: 0,
       mockStore: { isDemoMode: signal(false) },
+      workspaceService: { currentWorkspace: () => ({ id: 'workspace-1' }) },
       supabase: { client: { from: () => query } },
       syncStatus: { melde: vi.fn() },
       retryPendingFollowUps: vi.fn(async () => undefined),
@@ -347,7 +351,7 @@ describe('SalesService', () => {
     expect(selects).toHaveLength(1);
     expect(selects[0]).toContain('sale_lines:sale_lines!sale_lines_sale_id_fkey(');
     expect(selects[0]).toContain(
-      'lot_allocations:sale_line_lot_allocations!sale_line_lot_allocations_sale_line_id_fkey(*)',
+      'lot_allocations:sale_line_lot_allocations!sale_line_lot_allocations_sale_line_id_fkey(*, stock_lot:stock_lots!sale_line_lot_allocations_stock_lot_id_fkey(*, purchase:purchases!stock_lots_purchase_id_fkey(*)))',
     );
     expect(selects[0]).toContain(
       'stock_movements:stock_movements!stock_movements_sale_line_id_fkey(*)',
@@ -642,9 +646,10 @@ describe('SalesService', () => {
     expect(returnResult.returnRecord?.credit_note_number).toBe('GS-2026-0001');
   });
 
-  it('berechnet Mengenverkaufs-Kennzahlen aus den persistierten COGS', () => {
+  it('berechnet Verkaufserlös, Verkaufskosten und Ergebnis aus dem gemeinsamen Kennzahlenvertrag', () => {
     const service = Object.create(SalesService.prototype) as SalesService;
     Object.assign(service, {
+      mockStore: { isDemoMode: () => false },
       profitEngine: {
         calculateProfit: (revenue: number, costs: number) => revenue - costs,
         calculateRoi: (profit: number, costs: number) => (costs === 0 ? 0 : (profit / costs) * 100),
@@ -654,7 +659,22 @@ describe('SalesService', () => {
 
     const enriched = service.enrichSaleMetrics({
       ...sale,
-      sale_price: 40,
+      sale_price: 42.98,
+      sale_price_total: 42.98,
+      shipping_revenue: 2.99,
+      platform_fee: 7.7,
+      shipping_cost: 5.19,
+      packaging_cost: 99,
+      other_costs: 99,
+      cost_entries: [
+        {
+          id: 'cost-1',
+          workspace_id: sale.workspace_id,
+          sale_id: sale.id,
+          category: 'packaging',
+          amount: 1.5,
+        },
+      ],
       inventory_item: {
         id: 'item-1',
         workspace_id: sale.workspace_id,
@@ -662,23 +682,37 @@ describe('SalesService', () => {
         condition: 'new',
         status: 'sold',
         allocated_purchase_cost: 999,
+        purchase: {
+          id: 'purchase-1',
+          title: 'Einkauf',
+          workspace_id: sale.workspace_id,
+          type: 'single',
+          purchase_date: '2026-08-01',
+          purchase_price: 10,
+          cost_allocation_mode: 'even',
+          entry_status: 'finalized',
+        },
         costs: [],
       },
       lines: [
         {
           id: 'line-1',
+          inventory_item_id: 'item-1',
           sale_id: sale.id,
           title_snapshot: 'LED-Lampe',
           quantity: 2,
-          unit_sale_price: 20,
-          line_total: 40,
-          cost_of_goods_sold: 15,
+          unit_sale_price: 19.995,
+          line_total: 39.99,
+          cost_of_goods_sold: 10,
           tax_mode: 'diff_25a',
         },
       ],
     });
 
-    expect(enriched.net_profit).toBe(25);
-    expect(enriched.roi).toBeCloseTo(166.67, 2);
+    expect(enriched.sale_price).toBe(42.98);
+    expect(enriched.selling_costs).toBe(14.39);
+    expect(enriched.net_profit).toBe(18.59);
+    expect(enriched.margin_percent).toBe(43.25);
+    expect(enriched.roi).toBe(185.9);
   });
 });

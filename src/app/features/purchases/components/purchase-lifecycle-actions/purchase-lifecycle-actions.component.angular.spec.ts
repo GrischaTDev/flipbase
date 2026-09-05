@@ -1,0 +1,115 @@
+import '@angular/compiler';
+import { ɵresolveComponentResources, signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { readFile } from 'node:fs/promises';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { PurchaseLifecycleActionsComponent } from './purchase-lifecycle-actions.component';
+
+beforeAll(async () => {
+  await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
+});
+
+afterEach(() => TestBed.resetTestingModule());
+
+function render(
+  entryStatus: 'draft' | 'capturing' | 'finalized',
+  saleHistoryState: 'idle' | 'loading' | 'recorded' | 'review_required' | 'none' | 'error' = 'idle',
+  saleReviewInventoryItemId: string | null = null,
+) {
+  TestBed.resetTestingModule();
+  const fixture = TestBed.configureTestingModule({
+    imports: [PurchaseLifecycleActionsComponent],
+    providers: [provideRouter([])],
+  }).createComponent(PurchaseLifecycleActionsComponent);
+  Object.assign(fixture.componentInstance, {
+    entryStatus: signal(entryStatus),
+    saleHistoryState: signal(saleHistoryState),
+    saleReviewInventoryItemId: signal(saleReviewInventoryItemId),
+  });
+  fixture.detectChanges();
+  return fixture;
+}
+
+describe('PurchaseLifecycleActionsComponent', () => {
+  it.each(['draft', 'capturing'] as const)(
+    'bietet für einen gespeicherten %s-Entwurf das Abschließen an',
+    (entryStatus) => {
+      const fixture = render(entryStatus);
+      const host = fixture.nativeElement as HTMLElement;
+
+      expect(host.querySelector('[data-finalize-purchase]')).not.toBeNull();
+      expect(host.textContent).toContain('Erfassung abschließen');
+      expect(host.querySelector('[data-delete-purchase]') !== null).toBe(entryStatus === 'draft');
+    },
+  );
+
+  it('zeigt Wiederöffnen ausschließlich nach autoritativ bestätigtem Nichtverkauf', () => {
+    for (const state of ['idle', 'loading', 'recorded', 'error'] as const) {
+      const fixture = render('finalized', state);
+      expect(
+        (fixture.nativeElement as HTMLElement).querySelector('[data-reopen-purchase]'),
+      ).toBeNull();
+      fixture.destroy();
+    }
+
+    const confirmed = render('finalized', 'none');
+    expect(
+      (confirmed.nativeElement as HTMLElement).querySelector('[data-reopen-purchase]'),
+    ).not.toBeNull();
+  });
+
+  it('zeigt bei historischem Verkauf die Korrektur und bei Ladefehler einen Retry', () => {
+    const recorded = render('finalized', 'recorded');
+    expect(
+      (recorded.nativeElement as HTMLElement).querySelector('[data-correct-purchase]'),
+    ).not.toBeNull();
+
+    const failed = render('finalized', 'error');
+    const retry = (failed.nativeElement as HTMLElement).querySelector(
+      '[data-retry-sale-history]',
+    ) as HTMLButtonElement;
+    expect(retry).not.toBeNull();
+    expect((failed.nativeElement as HTMLElement).textContent).toContain(
+      'Verkaufsverlauf konnte nicht geprüft werden',
+    );
+  });
+
+  it('zeigt für unvollständige Legacy-Verkaufsdaten nur den klaren Prüfpfad', () => {
+    const fixture = render('finalized', 'review_required', 'item-review');
+    const host = fixture.nativeElement as HTMLElement;
+    const link = host.querySelector<HTMLAnchorElement>('[data-review-purchase-item]');
+
+    expect(host.querySelector('[data-reopen-purchase]')).toBeNull();
+    expect(host.querySelector('[data-correct-purchase]')).toBeNull();
+    expect(link?.getAttribute('href')).toBe('/inventory/item-review');
+    expect(link?.textContent).toContain('Artikel prüfen');
+    expect(host.textContent).toContain('Verkaufsdaten prüfen und nachpflegen');
+  });
+
+  it('zeigt ohne autoritatives Artikelziel keine navigierbare Prüfaktion', () => {
+    const fixture = render('finalized', 'review_required');
+    const host = fixture.nativeElement as HTMLElement;
+
+    expect(host.querySelector('[data-review-purchase-item]')).toBeNull();
+    expect(host.querySelector('a')).toBeNull();
+  });
+
+  it('reicht die gerenderten Lifecycle-Aktionen als Events weiter', () => {
+    const draft = render('draft');
+    const finalize = vi.fn();
+    draft.componentInstance.finalizeRequested.subscribe(finalize);
+    (draft.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[data-finalize-purchase]')
+      ?.click();
+    expect(finalize).toHaveBeenCalledOnce();
+
+    const error = render('finalized', 'error');
+    const retry = vi.fn();
+    error.componentInstance.saleHistoryReloadRequested.subscribe(retry);
+    (error.nativeElement as HTMLElement)
+      .querySelector<HTMLButtonElement>('[data-retry-sale-history]')
+      ?.click();
+    expect(retry).toHaveBeenCalledOnce();
+  });
+});

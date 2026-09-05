@@ -1,0 +1,391 @@
+import type {
+  InventoryItem,
+  Purchase,
+  PurchaseLine,
+  Sale,
+  StockLot,
+  StockMovement,
+} from '../../../core/models/flipbase.models';
+import type { CostState } from '../../../shared/components/cost-state/cost-state.component';
+import { ItemConditionLabelPipe } from '../../../shared/pipes/item-condition-label.pipe';
+import { PurchaseTypeLabelPipe } from '../../../shared/pipes/purchase-type-label.pipe';
+import type {
+  PurchaseDetailRow,
+  PurchaseListRow,
+  PurchaseStatusLabel,
+  PresentationLoadState,
+  RecordedSalePresentation,
+} from '../models/purchase-presentation.models';
+
+export interface PurchasePresentationContext {
+  readonly inventoryItems: readonly InventoryItem[];
+  readonly stockLots: readonly StockLot[];
+  readonly stockMovements: readonly StockMovement[];
+  readonly sales: readonly Sale[];
+  readonly inventoryState: PresentationLoadState;
+  readonly stockState: PresentationLoadState;
+  readonly salesState: PresentationLoadState;
+}
+
+const purchaseTypeLabels = new PurchaseTypeLabelPipe();
+const conditionLabels = new ItemConditionLabelPipe();
+
+const availableIndividualStatuses = new Set<InventoryItem['status']>([
+  'received',
+  'researched',
+  'ready',
+  'listed',
+  'returned',
+]);
+
+function money(amount: number | null | undefined): CostState {
+  return amount === null || amount === undefined || !Number.isFinite(amount)
+    ? { kind: 'open' }
+    : { kind: 'known', amount: Number(amount) };
+}
+
+function purchaseLines(purchase: Purchase): readonly PurchaseLine[] {
+  return purchase.purchase_lines ?? [];
+}
+
+function purchaseItems(
+  purchase: Purchase,
+  context: PurchasePresentationContext,
+): readonly InventoryItem[] {
+  const authoritative = context.inventoryItems.filter((item) => item.purchase_id === purchase.id);
+  return authoritative.length > 0 ? authoritative : (purchase.items ?? []);
+}
+
+function isRecordedSale(item: InventoryItem): boolean {
+  return item.sale_state === 'sold';
+}
+
+function isAvailableIndividual(item: InventoryItem): boolean {
+  return item.sale_state === 'no_active_sale' && availableIndividualStatuses.has(item.status);
+}
+
+function getLineItems(
+  line: PurchaseLine,
+  items: readonly InventoryItem[],
+): readonly InventoryItem[] {
+  return items.filter((item) => item.purchase_line_id === line.id);
+}
+
+function finiteOrNull(value: number | null | undefined): number | null {
+  return value !== null && value !== undefined && Number.isFinite(value) ? Number(value) : null;
+}
+
+function recordedSales(
+  purchase: Purchase,
+  items: readonly InventoryItem[],
+  lots: readonly StockLot[],
+  context: PurchasePresentationContext,
+): readonly RecordedSalePresentation[] | null {
+  if (context.salesState !== 'loaded') return null;
+  const itemIds = new Set(items.map((item) => item.id));
+  const lotIds = new Set(lots.map((lot) => lot.id));
+  const result = new Map<string, RecordedSalePresentation>();
+
+  for (const sale of context.sales) {
+    if (sale.workspace_id !== purchase.workspace_id || sale.has_persisted_lines === false) continue;
+    const matchesItem = (sale.lines ?? []).some(
+      (line) => !!line.inventory_item_id && itemIds.has(line.inventory_item_id),
+    );
+    const matchesLot =
+      (sale.lot_allocations ?? []).some((allocation) => lotIds.has(allocation.stock_lot_id)) ||
+      (sale.stock_movements ?? []).some((movement) => lotIds.has(movement.stock_lot_id));
+    if (!matchesItem && !matchesLot) continue;
+    const status: RecordedSalePresentation['status'] = sale.voided_at
+      ? 'voided'
+      : sale.returned_at
+        ? 'returned'
+        : 'active';
+    result.set(sale.id, {
+      id: sale.id,
+      status,
+      revenue: status === 'active' ? finiteOrNull(sale.sale_price_total ?? sale.sale_price) : null,
+      directResult: status === 'active' ? finiteOrNull(sale.net_profit) : null,
+    });
+  }
+  return [...result.values()];
+}
+
+function getPurchaseLots(
+  purchaseId: string,
+  context: PurchasePresentationContext,
+): readonly StockLot[] {
+  return context.stockLots.filter((lot) => lot.purchase_id === purchaseId);
+}
+
+function getLotSoldUnits(lots: readonly StockLot[], movements: readonly StockMovement[]): number {
+  const lotIds = new Set(lots.map((lot) => lot.id));
+  let sold = 0;
+  for (const movement of movements) {
+    if (!lotIds.has(movement.stock_lot_id)) continue;
+    if (movement.reason === 'sale' && movement.direction === 'out') sold += movement.quantity;
+    if (movement.reason === 'return' && movement.direction === 'in') sold -= movement.quantity;
+  }
+  return Math.max(0, sold);
+}
+
+function getPurchaseStatus(
+  purchase: Purchase,
+  items: readonly InventoryItem[],
+): PurchaseStatusLabel {
+  const receivingStatus = purchase.receiving_status as string | undefined;
+  if (receivingStatus === 'archived') return 'Archiviert';
+  if (receivingStatus === 'cancelled' || receivingStatus === 'canceled') return 'Storniert';
+
+  const lines = purchaseLines(purchase);
+  const isUnresolvedNormalLegacy =
+    purchase.type === 'single' &&
+    purchase.entry_status !== 'finalized' &&
+    lines.length === 0 &&
+    items.length > 0;
+  if (isUnresolvedNormalLegacy) return 'Prüfung erforderlich';
+
+  if (purchase.entry_status === 'finalized') return 'Erfassung abgeschlossen';
+  if (receivingStatus === 'ordered') return 'Bestellt';
+  if (receivingStatus === 'partially_received' || receivingStatus === 'received') {
+    return purchase.type === 'mystery_pack' ? 'Inhalt erfassen' : 'Eingetroffen';
+  }
+  if (purchase.entry_status === 'capturing') {
+    return purchase.type === 'mystery_pack' ? 'Inhalt erfassen' : 'Eingetroffen';
+  }
+  return 'Entwurf';
+}
+
+function totalPurchaseCost(purchase: Purchase): number | null {
+  if (purchase.total_purchase_cost !== undefined) return purchase.total_purchase_cost;
+  if (purchase.purchase_price === null || !Number.isFinite(purchase.purchase_price)) return null;
+  return Number(
+    (
+      purchase.purchase_price +
+      (purchase.shipping_cost ?? 0) +
+      (purchase.other_costs ?? 0) +
+      (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount), 0)
+    ).toFixed(2),
+  );
+}
+
+function getAllocationOpen(
+  purchase: Purchase,
+  items: readonly InventoryItem[],
+  total: number | null,
+): boolean {
+  if (total === null || total === undefined || !Number.isFinite(total)) return true;
+
+  const lines = purchaseLines(purchase);
+  const allocated =
+    lines.length > 0
+      ? lines.reduce((sum, line) => sum + (line.allocated_total_cost ?? Number.NaN), 0)
+      : items.reduce((sum, item) => sum + item.allocated_purchase_cost, 0);
+  if (!Number.isFinite(allocated)) return true;
+  return Math.abs(allocated - total) >= 0.005;
+}
+
+function summarizeQuantities(
+  purchase: Purchase,
+  items: readonly InventoryItem[],
+  context: PurchasePresentationContext,
+): Pick<PurchaseListRow, 'totalUnits' | 'availableUnits' | 'soldUnits' | 'quantityState'> {
+  const lines = purchaseLines(purchase);
+  const representedLineIds = new Set(lines.map((line) => line.id));
+  const legacyItems = items.filter(
+    (item) => !item.purchase_line_id || !representedLineIds.has(item.purchase_line_id),
+  );
+  const totalUnits =
+    lines.reduce((sum, line) => sum + line.ordered_quantity, 0) + legacyItems.length;
+
+  const needsInventory =
+    legacyItems.length > 0 || lines.some((line) => line.line_kind === 'individual');
+  const needsStock = lines.some((line) => line.line_kind === 'quantity');
+  const requiredStates = [
+    ...(needsInventory ? [context.inventoryState] : []),
+    ...(needsStock ? [context.stockState] : []),
+  ];
+  const quantityState: PresentationLoadState = requiredStates.includes('error')
+    ? 'error'
+    : requiredStates.includes('loading')
+      ? 'loading'
+      : 'loaded';
+
+  let availableUnits = legacyItems.filter(isAvailableIndividual).length;
+  let soldUnits = legacyItems.filter(isRecordedSale).length;
+  const lots = getPurchaseLots(purchase.id, context);
+
+  for (const line of lines) {
+    if (line.line_kind === 'individual') {
+      const lineItems = getLineItems(line, items);
+      availableUnits += lineItems.filter(isAvailableIndividual).length;
+      soldUnits += lineItems.filter(isRecordedSale).length;
+      continue;
+    }
+
+    if (context.stockState !== 'loaded') continue;
+    const lineLots = lots.filter((lot) => lot.purchase_line_id === line.id);
+    availableUnits += lineLots.reduce((sum, lot) => sum + lot.remaining_quantity, 0);
+    soldUnits += getLotSoldUnits(lineLots, context.stockMovements);
+  }
+
+  return {
+    totalUnits,
+    availableUnits: quantityState === 'loaded' ? availableUnits : null,
+    soldUnits: quantityState === 'loaded' ? soldUnits : null,
+    quantityState,
+  };
+}
+
+export function mapPurchaseListRow(
+  purchase: Purchase,
+  context: PurchasePresentationContext,
+): PurchaseListRow {
+  const items = purchaseItems(purchase, context);
+  const totalCost = totalPurchaseCost(purchase);
+  return {
+    id: purchase.id,
+    title: purchase.title || purchase.supplier?.name || purchase.source?.name || 'Einkauf',
+    type: purchase.type,
+    typeLabel: purchaseTypeLabels.transform(purchase.type),
+    purchaseDate: purchase.purchase_date,
+    supplierLabel: purchase.supplier?.name || purchase.source?.name || 'Keine Herkunft angegeben',
+    purchaseStatus: getPurchaseStatus(purchase, items),
+    allocationOpen: getAllocationOpen(purchase, items, totalCost),
+    totalCost: money(totalCost),
+    ...summarizeQuantities(purchase, items, context),
+  };
+}
+
+function safePerUnit(total: number | null | undefined, quantity: number): CostState {
+  return total === null || total === undefined || !Number.isFinite(total) || quantity <= 0
+    ? { kind: 'open' }
+    : money(Number((total / quantity).toFixed(2)));
+}
+
+export function mapPurchaseDetailRows(
+  purchase: Purchase,
+  context: PurchasePresentationContext,
+): readonly PurchaseDetailRow[] {
+  const items = purchaseItems(purchase, context);
+  const lots = getPurchaseLots(purchase.id, context);
+  const lines = purchaseLines(purchase);
+  const lineRows = lines.map((line): PurchaseDetailRow => {
+    const lineItems = getLineItems(line, items);
+    const lineLots = lots.filter((lot) => lot.purchase_line_id === line.id);
+    const inventoryItemId = lineItems.length === 1 ? lineItems[0].id : null;
+    const inventoryItemLinks = lineItems.map((item, index) => ({
+      id: item.id,
+      label: `Artikel ${index + 1}`,
+    }));
+    const quantityState =
+      line.line_kind === 'individual' ? context.inventoryState : context.stockState;
+    const quantities =
+      quantityState !== 'loaded'
+        ? { availableUnits: null, soldUnits: null, quantityState }
+        : line.line_kind === 'individual'
+          ? {
+              availableUnits: lineItems.filter(isAvailableIndividual).length,
+              soldUnits: lineItems.filter(isRecordedSale).length,
+              quantityState,
+            }
+          : {
+              availableUnits: lineLots.reduce((sum, lot) => sum + lot.remaining_quantity, 0),
+              soldUnits: getLotSoldUnits(lineLots, context.stockMovements),
+              quantityState,
+            };
+    const sales = recordedSales(purchase, lineItems, lineLots, context);
+    const captureRemaining =
+      line.line_kind === 'individual'
+        ? Math.max(0, line.ordered_quantity - Math.max(line.received_quantity, lineItems.length))
+        : 0;
+
+    if (purchase.type === 'mystery_pack') {
+      const condition = line.condition_snapshot;
+      return {
+        kind: 'mystery',
+        id: line.id,
+        title: line.title_snapshot,
+        quantity: line.ordered_quantity,
+        inventoryItemId,
+        inventoryItemLinks,
+        recordedSales: sales,
+        salesState: context.salesState,
+        captureRemaining,
+        condition:
+          condition && conditionLabels.transform(condition as InventoryItem['condition'])
+            ? (condition as InventoryItem['condition'])
+            : null,
+        estimatedMarketValue: line.estimated_market_value ?? null,
+        allocatedCostPerUnit: safePerUnit(line.allocated_total_cost, line.ordered_quantity),
+        ...quantities,
+      };
+    }
+
+    return {
+      kind: 'normal',
+      id: line.id,
+      title: line.title_snapshot,
+      quantity: line.ordered_quantity,
+      inventoryItemId,
+      inventoryItemLinks,
+      recordedSales: sales,
+      salesState: context.salesState,
+      captureRemaining,
+      unitPurchasePrice: money(line.unit_purchase_price),
+      additionalCostPerUnit: safePerUnit(line.allocated_additional_cost, line.ordered_quantity),
+      totalCostPerUnit: safePerUnit(line.allocated_total_cost, line.ordered_quantity),
+      ...quantities,
+    };
+  });
+
+  const representedLineIds = new Set(lines.map((line) => line.id));
+  const legacyRows = items
+    .filter((item) => !item.purchase_line_id || !representedLineIds.has(item.purchase_line_id))
+    .map((item): PurchaseDetailRow => {
+      const quantities = {
+        availableUnits:
+          context.inventoryState === 'loaded' ? (isAvailableIndividual(item) ? 1 : 0) : null,
+        soldUnits: context.inventoryState === 'loaded' ? (isRecordedSale(item) ? 1 : 0) : null,
+        quantityState: context.inventoryState,
+      };
+      const sales = recordedSales(purchase, [item], [], context);
+      const allocatedCost =
+        item.allocated_purchase_cost > 0 || purchase.total_purchase_cost === 0
+          ? money(item.allocated_purchase_cost)
+          : ({ kind: 'open' } as const);
+      if (purchase.type === 'mystery_pack') {
+        return {
+          kind: 'mystery',
+          id: item.id,
+          title: item.title,
+          quantity: 1,
+          inventoryItemId: item.id,
+          inventoryItemLinks: [{ id: item.id, label: 'Artikel 1' }],
+          recordedSales: sales,
+          salesState: context.salesState,
+          captureRemaining: 0,
+          condition: item.condition,
+          estimatedMarketValue: item.expected_value ?? null,
+          allocatedCostPerUnit: allocatedCost,
+          ...quantities,
+        };
+      }
+      return {
+        kind: 'normal',
+        id: item.id,
+        title: item.title,
+        quantity: 1,
+        inventoryItemId: item.id,
+        inventoryItemLinks: [{ id: item.id, label: 'Artikel 1' }],
+        recordedSales: sales,
+        salesState: context.salesState,
+        captureRemaining: 0,
+        unitPurchasePrice: { kind: 'open' },
+        additionalCostPerUnit: { kind: 'open' },
+        totalCostPerUnit: allocatedCost,
+        ...quantities,
+      };
+    });
+
+  return [...lineRows, ...legacyRows];
+}
