@@ -1,5 +1,43 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Typografie und Dialogkorrekturen veröffentlichen
+
+**Art:** Release
+**Betroffen:** Eigener Zweig `style/inter-typography`, Anwendung und Landingpage.
+**Was:** Auf ausdrücklichen Nutzerauftrag per PR und Merge veröffentlichen. Aktuellen Master einschließlich bereits veröffentlichter Deal-Monitor-Änderungen konfliktfrei übernommen; fremde Zweige unverändert. Keine zusätzlichen Datenbankmigrationen in diesem PR. Deployment-Checkliste und unabhängiges Code-Review vor Merge verwenden.
+**Prüfung und Rückfall:** Gezielter Build, Browser-, Dialog- und Landingpage-Testlauf nach Integration; vollständige verbindliche CI im PR. Vorher öffentlich ausgelieferter Commit `88de7103cf3f0ac53bc9ee1cd5ca38f0347ba24b`. Bei fehlerhaftem Healthcheck, fehlenden Schriftdateien oder falschem öffentlichen Commit keinen Live-Erfolg melden und regulären Deployment-Rückfall prüfen. Nach Merge Produktionslauf und beide öffentlich ausgelieferten Schriftdateien kontrollieren.
+
+**Review-Korrektur:** Unabhängige Prüfung fand Warenkorbinhalt außerhalb seines Dialog-Backdrops sowie zwei noch nicht nachgerüstete Dialoge (Flohmarkt und Retoure). Warenkorb in gemeinsamen Dialog eingeschlossen; beide übrigen Dialoge an zentrale Direktive angebunden. Neue Warenkorb-/Flohmarkt-Browsertests zunächst fehlgeschlagen, nach Korrektur alle vier Layout-/Overlay-Tests erfolgreich. Produktionsbau nach Template-Korrekturen erneut erfolgreich.
+
+## 2026-09-05 – Codex – Mobile Kopfzeile und Modal-Hintergrund korrigiert
+
+**Art:** Fehlerbehebung | Layout | Dialogbedienung
+**Betroffen:** Eigener Zweig `style/inter-typography`, Header, zentrale Modal-Direktive, globale Animationen.
+**Was:** Auf Nutzerauftrag den echten App-Überlauf durch nicht schrumpfende Workspace-/Aktionsgruppen behoben. Kopfzeile passt ihre Gruppen und den gekürzten Workspace-Namen an die verfügbare Breite an. Animierte Vorfahren offener Dialoge erzeugen keine störende Ebene mehr. Gemeinsame Modal-Direktive sperrt Geschwister entlang des Dialogpfads mit `inert`; oberster Dialog steuert Tastaturbedienung, Hintergrund und Scrollsperre werden beim Schließen wiederhergestellt, auch bei mehreren Dialogen. Kopfzeile bleibt hinter dem abgedunkelten Hintergrund sichtbar, aber unbedienbar, entsprechend WAI-ARIA-Dialogmuster (https://www.w3.org/WAI/ARIA/apg/patterns/dialog-modal/).
+**Korrektur des vorherigen Befunds:** Landingpage-Überlauf in der einfachen lokalen Vorschau entstand durch unverarbeitet sichtbaren Caddy-Vorlagentext und doppelte Anmeldelinks. Nach Auflösen des Gast-Zweigs auf 390px kein Überlauf; keine zusätzliche Landingpage-Layoutänderung erforderlich.
+**Verifiziert durch:** Debugging- und Frontend-Test-Skills genutzt; Browser-Plugin nicht verfügbar, vorhandenes Playwright als Ersatz. Beide neuen Browser-Regressionen zunächst fehlgeschlagen (422px statt 320px sowie fehlende Hintergrundsperre), nach Korrektur erfolgreich. Sieben Browser-Tests einschließlich Demo-Verkauf, Rechtshinweisen, Dashboardbedienung und Headerbreiten 320/390/768/1440px erfolgreich. Integrationstest mit echter Angular-Direktive für zwei Dialoge und Wiederherstellung erfolgreich. Produktionsbau, gezieltes ESLint, Formatierung und Diff-Prüfung erfolgreich. Lokale Screenshots von Dialog und mobiler Kopfzeile geprüft, keine JavaScript-Seitenfehler bei Desktop-/Mobilprüfung. Keine vollständige Prüfung jeder Feature-/Browserkombination, keine Geschäftsdatenänderung, kein Push oder Deployment.
+
+## 2026-09-05 – Codex – Inter über alle Oberflächen lokal eingebunden
+
+**Art:** UI | Typografie
+**Betroffen:** Eigener Zweig `style/inter-typography`, Anwendung, Diagramm, Landingpage, Impressum und Datenschutz.
+**Was:** Nach Bestätigung des gesamten Umfangs offizielle stabile Inter 4.1 (https://github.com/rsms/inter/releases/tag/v4.1) als variable normale und kursive WOFF2 einschließlich unveränderter SIL-OFL-Lizenz lokal eingebunden. Standardschrift und bisherige Zahlen-Schriftwerte vereinheitlicht, Chart.js-Beschriftung angepasst, App-Preload aktualisiert. Keine Schriftanfragen an externe Anbieter, keine neue npm-Abhängigkeit, keine Änderung der Größen oder Geschäftsdaten. Alte Fontdateien bleiben ungenutzt erhalten; extern exportiertes eBay-HTML behält seine portable Arial-Schrift.
+**Verifiziert durch:** Schrift-Browsertest zuerst mit fehlender Inter rot, danach grün; fünf Playwright-Tests für Schrift, Anmeldung, Rechtshinweise, Dashboardfilter und Diagrammbedienung erfolgreich. Neun Diagramm-Konfigurationstests, 13 Landingpage-Vertragstests, gezieltes ESLint und Produktionsbau erfolgreich. Frontend-Test-Skill mangels Browser-Plugin mit vorhandenem Playwright umgesetzt. Desktop-/Mobilansichten von Demo-Dashboard, Landingpage und Rechtstexten lokal geprüft, keine JavaScript-Seitenfehler. QA-Bilder außerhalb des Repository unter `C:/Users/Grisc/AppData/Local/Temp/flipbase-inter-qa/`. Bestehender horizontaler Überlauf auf Mobilgeräten separat festgestellt: App 422px, Landingpage etwa 523px bei 390px Bildschirmbreite; Gegenprobe mit ursprünglichen Schriftdefinitionen ebenfalls 422px beziehungsweise 521px. Kein allgemeines Mobil-Layout-Redesign vorgenommen. Produktionsbau bietet keinen Demo-Einstieg; interaktive Sichtprüfung daher am lokalen Entwicklungsserver. Kein Push oder Deployment.
+
+## 2026-09-05 – Codex – Lokalen Wechsel auf Inter eingegrenzt
+
+**Art:** Analyse | Typografie
+**Betroffen:** Standardschrift der Anwendung und mögliche Angleichung der Landingpage.
+**Was:** Nutzer-Screenshot zeigt Inter. Bestehende Anwendung und Landingpage verwenden lokal gehostete Plus Jakarta Sans; Anwendung bindet sie über zentralen Tailwind-Schriftwert und Preload ein. Vorschlag: lokale variable Inter als Standardschrift, bestehende Größen/Layout zunächst erhalten, Lade- und Darstellungsprüfung. Umfang Anwendung versus zusätzliche Landingpage vor Umsetzung abstimmen.
+**Verifiziert durch:** `src/styles.css`, `src/index.html`, lokale Schriftdateien und Landingpage-Schriftwerte gelesen. Noch keine Schriftdateien oder Oberflächen verändert; kurze Abstimmung gemäß Planungs-Skill.
+
+## 2026-09-05 – Codex – Vereinfachter Release-Ablauf live bestätigt
+
+**Art:** Release-Abschluss
+**Betroffen:** PR #24, PR-Lauf `33957947701`, Produktionslauf `33958142408`.
+**Was:** PR nach erfolgreichen Prüfungen gemergt. Nachweis-Artefakt `verified-tree-v1-c077689e0d4cdee591ab638af65c31e3d2feba39-111` vorhanden. Produktionslauf hat Qualität, vier Unit-Teiljobs, Browser-, Datenbank- und Diensttests nicht erneut ausgeführt. Image, Pflichtcheck, Deployment und Release erfolgreich.
+**Verifiziert durch:** Öffentlich ausgelieferter Commit `bb923b77d95373d9833b38733243f0928c5bb257`, HTTP-/Health-/SHA-Prüfung erfolgreich. Alle 78 Prüfsummen im laufenden Produktionscontainer mit Exitcode 0 geprüft; Datenbankhistorie unverändert 78 Migrationen. Keine Geschäftsdatenkorrektur ausgelöst. Produktions-Imagejob 3m42s, Deployment 19s; der Imagebau bleibt daher der wesentliche Zeitanteil, keine pauschale Gesamtzeitersparnis behauptet. Abschlussnachweis lokal ergänzt, kein weiterer Deployment-Push nur für dieses Protokoll.
+
 ## 2026-09-05 – Codex – Vereinfachten Release-Ablauf veröffentlichen
 
 **Art:** Release

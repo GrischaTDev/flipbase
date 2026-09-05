@@ -552,6 +552,9 @@
     @let sale = selectedSaleForReturn();
     <div
       class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto"
+      appModalDialog
+      dialogTitel="Retoure & Gutschrift erfassen"
+      (dialogClose)="closeReturnModal()"
     >
       <div
         class="linear-surface rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl border border-fb-border my-auto animate-modal-card"

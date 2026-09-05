@@ -46,6 +46,7 @@ import { StockService } from '../../core/services/stock.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { CostStateComponent } from '../../shared/components/cost-state/cost-state.component';
 import { mapPurchaseListRow } from './utils/purchase-presentation';
+import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 
 @Component({
   selector: 'app-purchases',
@@ -58,6 +59,7 @@ import { mapPurchaseListRow } from './utils/purchase-presentation';
     LucideDynamicIcon,
     PurchaseCreateModalComponent,
     CostStateComponent,
+    ModalDialogDirective,
   ],
   templateUrl: './purchases.component.html',
   host: { class: 'block' },

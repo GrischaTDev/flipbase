@@ -1,25 +1,25 @@
 <header
-  class="h-14 border-b border-fb-border-subtle bg-fb-header/95 backdrop-blur-md px-4 md:px-6 flex items-center justify-between sticky top-0 z-30 select-none shadow-xs"
+  class="min-h-14 border-b border-fb-border-subtle bg-fb-header/95 backdrop-blur-md px-3 py-2 md:px-6 flex flex-wrap items-center justify-between gap-2 sticky top-0 z-30 select-none shadow-xs"
 >
   <!-- Left: Mobile Toggle & Workspace Switcher -->
-  <div class="flex items-center gap-2.5">
+  <div class="flex min-w-0 flex-1 items-center gap-2.5">
     <button
       type="button"
       (click)="toggleSidebar.emit()"
-      class="p-1.5 rounded-md text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover md:hidden cursor-pointer"
+      class="shrink-0 p-1.5 rounded-md text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover md:hidden cursor-pointer"
       aria-label="Toggle navigation"
     >
       <svg [lucideIcon]="MenuIcon" class="w-4 h-4"></svg>
     </button>
 
     <!-- Workspace Selector Dropdown -->
-    <div class="relative" #workspaceContainer>
+    <div class="relative min-w-0" #workspaceContainer>
       <button
         type="button"
         (click)="toggleWorkspaceDropdown()"
-        class="flex items-center gap-2 px-2.5 py-1 rounded-md border border-fb-border bg-fb-surface text-xs font-medium text-fb-text-primary hover:bg-fb-surface-hover hover:border-fb-border-hover transition shadow-xs cursor-pointer"
+        class="flex max-w-full items-center gap-2 px-2.5 py-1 rounded-md border border-fb-border bg-fb-surface text-xs font-medium text-fb-text-primary hover:bg-fb-surface-hover hover:border-fb-border-hover transition shadow-xs cursor-pointer"
       >
-        <svg [lucideIcon]="LayersIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
+        <svg [lucideIcon]="LayersIcon" class="shrink-0 w-3.5 h-3.5 text-indigo-400"></svg>
         <span class="max-w-[120px] md:max-w-[180px] truncate font-semibold">
           {{ workspaceService.currentWorkspace()?.name || ('WORKSPACE.MY_WORKSPACE' | translate) }}
         </span>
@@ -65,7 +65,7 @@
   </div>
 
   <!-- Right: Notification Bell, Language Switcher & Profile -->
-  <div class="flex items-center gap-2">
+  <div class="flex shrink-0 flex-wrap items-center justify-end gap-1 sm:gap-2">
     <!-- Offline Indicator -->
     @if (!pwaService.isOnline()) {
       <span

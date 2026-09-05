@@ -58,6 +58,9 @@ import {
   },
 })
 export class ModalDialogDirective implements OnDestroy {
+  private static readonly activeDialogs: ModalDialogDirective[] = [];
+  private static readonly backgroundLocks = new Map<HTMLElement, boolean>();
+  private static originalOverflow = '';
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /** Bezeichnung des Dialogs für Screenreader. */
@@ -77,19 +80,50 @@ export class ModalDialogDirective implements OnDestroy {
   /** Element, das vor dem Öffnen den Fokus hatte. */
   private readonly zuvorFokussiert = (document.activeElement as HTMLElement) ?? null;
 
-  /** Vorheriger Wert von `overflow`, für die Wiederherstellung. */
-  private readonly vorherigesOverflow = document.body.style.overflow;
-
   constructor() {
+    if (ModalDialogDirective.activeDialogs.length === 0) {
+      ModalDialogDirective.originalOverflow = document.body.style.overflow;
+    }
+    ModalDialogDirective.activeDialogs.push(this);
     document.body.style.overflow = 'hidden';
-    afterNextRender(() => this.fokussiereErstesElement());
+    afterNextRender(() => {
+      ModalDialogDirective.refreshBackground();
+      this.fokussiereErstesElement();
+    });
   }
 
   ngOnDestroy(): void {
-    document.body.style.overflow = this.vorherigesOverflow;
+    const wasTopDialog = this.isTopDialog();
+    const dialogs = ModalDialogDirective.activeDialogs;
+    dialogs.splice(dialogs.indexOf(this), 1);
+    ModalDialogDirective.refreshBackground();
+    if (dialogs.length === 0) document.body.style.overflow = ModalDialogDirective.originalOverflow;
     // Fokus dorthin zurückgeben, wo er herkam – sonst springt er an den
     // Seitenanfang und der Nutzer verliert die Orientierung.
-    this.zuvorFokussiert?.focus?.();
+    if (wasTopDialog) this.zuvorFokussiert?.focus?.();
+  }
+
+  /** Nur Geschwister entlang des Dialogpfads sperren, niemals den Dialog selbst. */
+  private static refreshBackground(): void {
+    for (const [element, wasInert] of this.backgroundLocks) element.inert = wasInert;
+    this.backgroundLocks.clear();
+    const active = this.activeDialogs.at(-1);
+    if (!active) return;
+    let branch: HTMLElement = active.host.nativeElement;
+    while (branch.parentElement) {
+      for (const sibling of Array.from(branch.parentElement.children)) {
+        if (!(sibling instanceof HTMLElement) || sibling === branch) continue;
+        const locks = ModalDialogDirective.backgroundLocks;
+        locks.set(sibling, sibling.inert);
+        sibling.inert = true;
+      }
+      branch = branch.parentElement;
+      if (branch === document.body) break;
+    }
+  }
+
+  private isTopDialog(): boolean {
+    return ModalDialogDirective.activeDialogs.at(-1) === this;
   }
 
   /**
@@ -104,6 +138,7 @@ export class ModalDialogDirective implements OnDestroy {
   }
 
   protected onEscape(event: Event): void {
+    if (!this.isTopDialog()) return;
     if (!this.schliesstMitEscape()) return;
     event.stopPropagation();
     this.dialogClose.emit();
@@ -111,6 +146,7 @@ export class ModalDialogDirective implements OnDestroy {
 
   /** Hält den Tastaturfokus innerhalb des Dialogs. */
   protected onTab(event: Event): void {
+    if (!this.isTopDialog()) return;
     const tastatur = event as KeyboardEvent;
     const elemente = this.fokussierbareElemente();
     if (elemente.length === 0) return;

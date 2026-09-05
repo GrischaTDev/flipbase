@@ -292,6 +292,9 @@
     @let wallet = offlineSyncService.cashWallet();
     <div
       class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-md animate-fade-in overflow-y-auto"
+      appModalDialog
+      dialogTitel="Flohmarkt-Schnellerfassung"
+      (dialogClose)="closeFleaMarketModal()"
     >
       <div
         class="linear-surface rounded-2xl w-full max-w-2xl max-h-[92vh] flex flex-col shadow-2xl border border-fb-border overflow-hidden my-auto animate-modal-card"
