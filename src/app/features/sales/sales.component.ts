@@ -1,3 +1,4 @@
+import { TableColumnOption } from '../../core/models/table-preferences';
 import {
   afterRenderEffect,
   ChangeDetectionStrategy,
