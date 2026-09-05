@@ -5,6 +5,8 @@
 **Auftrag:** Nutzer autorisiert Push und Merge von `feat/admin-preferences`. Aktuellen `origin/master` konfliktfrei in den eigenen Zweig übernommen; keine fremden Arbeitskopien verändert. Keine Datenbank- oder Abhängigkeitsänderung. Bereits erfolgte unabhängige Reviews samt Korrekturen bleiben dokumentiert.
 **Freigabeweg:** Vollständiges `npm run verify`, englischer PR, grüne Pflichtprüfungen, Merge-Commit und Produktionslauf einschließlich öffentlicher Commit-Prüfung. Vorheriger Produktionsstand `2ac3950e294e8f7616515cfa205d9f908581c216`. Bei fehlgeschlagenem Healthcheck, falschem ausgeliefertem Commit oder fehlenden Frontend-Dateien keine erfolgreiche Veröffentlichung melden; Fehler untersuchen und gegebenenfalls kontrollierte Rücknahme auf den vorherigen Stand abstimmen. Keine Prüfungen umgehen.
 
+**Abschluss:** `npm run verify` erfolgreich (Exitcode 0). PR #27 nach erfolgreichem PR-Lauf `33977344122` per Merge-Commit `98e117589cb6597e5fc196d86d47f3d785271cc2` integriert. Produktionslauf `33977621037` erfolgreich: PR-Prüfungen wiederverwendet, Image-Smoke und Veröffentlichung erfolgreich, Deployment einschließlich öffentlicher Prüfung erfolgreich. Zusätzliche lokale Abfrage von Startseite, Healthcheck und Deployment-Metadaten bestätigt genau diesen öffentlich ausgelieferten Commit. Abschlussnachweis nur lokal gespeichert, kein zweiter Produktionslauf dafür ausgelöst.
+
 ## 2026-09-05 – Codex – Admin-Akzente und persönliche Filter lokal abgeschlossen
 
 **Stand:** `feat/admin-preferences`, Implementierung bis `a3b0d27`; nicht gepusht oder veröffentlicht. Paket 1 vollständig umgesetzt. Einkaufsseite, gemeinsame Chronik, Archivierungsablauf und EAN-Erfassung gehören zu späteren Paketen.
