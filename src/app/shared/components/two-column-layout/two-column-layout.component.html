@@ -1,0 +1,9 @@
+<div [class]="containerClasses()">
+  <div [class]="mainClasses()">
+    <ng-content select="[main], [main-content]" />
+  </div>
+
+  <aside [class]="sidebarClasses()" aria-label="Zusatzinformationen und Metadaten">
+    <ng-content select="[sidebar], [sidebar-content]" />
+  </aside>
+</div>

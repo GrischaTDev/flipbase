@@ -1,5 +1,58 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Antigravity – Shopify Polaris IndexTable & Dynamische Spaltenverwaltung (Spaltenmenü-Popover)
+
+**Stand:** Zweig `feature/ui-polaris-standardization`. Tabellenmodernisierung nach dem Shopify Polaris IndexTable-Standard mit integrierten Filtern und dem 3-Balken `[ ||| ]` Spalten- und Sortier-Popover.
+**Was:**
+
+- Kerninfrastruktur für Tabelleneinstellungen (`TablePreferencesService` & `src/app/core/config/table-defaults.config.ts`):
+  - Reaktive Signale für Spaltensichtbarkeit, Reihenfolge und Sortierung mit automatischer `localStorage`-Persistenz je Arbeitsbereich.
+  - Standardkonfigurationen für die Kern-Tabellen (`sales`, `inventory`, `purchases`, `accounting`) mit Schema-Drift-Schutz.
+  - Umfassende Unit-Tests in `table-preferences.service.angular.spec.ts` (8/8 bestanden).
+- Shared Polaris Spaltenmenü-Komponente (`TableColumnMenuComponent`, `app-table-column-menu`):
+  - Popover-Menü mit dem charakteristischen 3-Balken-Icon `[ ||| ]` nach Shopify-Vorbild.
+  - Sortierbereich mit Richtungsumkehr (`asc`/`desc`) und Dropdown zur Auswahl des aktiven Sortierfelds.
+  - Spaltenliste mit Sperrsymbolen für feste Spalten, Tastatur- und Drag-and-Drop-Reihenfolge sowie Umschalten der Sichtbarkeit per Augen-Icon (`Eye`/`EyeOff`).
+  - Barrierefreiheit (WCAG AA): Tastatursteuerung (ESC schließt, Click-Outside-Erkennung, ARIA-Expanded/Controls).
+  - Unit-Tests in `table-column-menu.component.angular.spec.ts` (7/7 bestanden).
+- Modernisierung der Kern-Tabellen:
+  - `SalesComponent` (Verkäufe): IndexTable-Toolbar mit Filter-Pills, Schnellsuche und Spalten-Popover. Dynamische Ausblendung von 8 optionalen Spalten (`quantity`, `platform`, `sale_date`, `cost_of_goods_sold`, `selling_costs`, `profit`, `margin`, `holding_days`) und dynamische Sortierung.
+  - `StockPositionListComponent` (Inventar): Spalten-Popover im Kopfbereich, dynamische Spalteneinblendung für Zustand, Bestand, Status, Herkunft, EK, Bestandswert und Verkaufswert sowie dynamischer `colspan` für aufgeklappte Chargen/Lots.
+  - `AccountingComponent` (Buchhaltung): Spalten-Popover in der Transaktions-Toolbar, dynamische Spalten für Verwendungszweck, Betrag, Zuordnung und Status sowie dynamische Sortierung der Bankumsätze.
+    **Prüfung:**
+- `npm run typecheck`: Erfolgreich (0 Fehler).
+- `npm run lint`: Erfolgreich (0 Fehler, 0 Warnungen).
+- `npm run test:angular`: 44 Testdateien, 418 Tests erfolgreich (0 Fehler).
+- `npm run build`: Produktionsbau erfolgreich (0 Fehler, 0 Warnungen).
+
+## 2026-09-05 – Antigravity – UI-Standardisierung & Shared Components nach Shopify Polaris
+
+**Stand:** Zweig `feature/ui-polaris-standardization`. Token-basierte Standardisierung und Ausbau der Shared-Komponenten-Bibliothek für eine einheitliche UI nach Vorbild von Shopify Polaris.
+**Was:**
+
+- `@shopify/polaris-tokens` und `@shopify/polaris-icons` als Entwicklungspakete installiert.
+- Neue barrierefreie Shared-Komponenten gemäß Angular 22 & Tailwind CSS erstellt:
+  - `ButtonComponent` (`app-button`): Varianten (primary, primary-dark, secondary, destructive, ghost, plain), Größen, Ladezustand, Icon-Slotting, Tastaturbedienbarkeit.
+  - `BadgeComponent` (`app-badge`): Polaris-Töne (neutral, info, success, caution, critical), Punkt-Indikator, Monospace-/Großbuchstaben-Modi.
+  - `CardComponent` (`app-card`): Container mit Header, Action-Slots, konfigurierbaren Polstern und Footer. Landmark-Kollisionen behoben (`data-card-header` statt redundanten `header`-Tags).
+  - `PageHeaderComponent` (`app-page-header`): Titel, Untertitel, Breadcrumb-/Zurück-Navigation, Badges und Aktionsleiste.
+  - `TextFieldComponent` (`app-text-field`): ControlValueAccessor für reaktive Formulare, Präfix-/Suffix-Slots, Hilfetexte, Validierungsanzeige und Mehrzeilenmodus.
+  - `TwoColumnLayoutComponent` (`app-two-column-layout`): 2/3 operative Hauptspalte und 1/3 Sidebar-Metadatenbereich (sowie 7-5 Ratio) mit responsivem Umbruch.
+  - `ModalShellComponent` (`app-modal-shell`): Barrierefreier modaler Container mit Fokus-Falle, Header, Schließen-Schaltfläche und Footer.
+- Subagenten-Audit & Qualitätssicherung:
+  - Projektions-Selektor in `TwoColumnLayoutComponent` erweitert (`[main], [main-content]` und `[sidebar], [sidebar-content]`).
+  - Barrierefreiheit (WCAG AA): Dekorative Icons mit `aria-hidden="true"` versehen, `aria-label` auf TextFields und DatePicker ergänzt, Label-Verknüpfung in Verkaufs-Modal korrigiert.
+  - `DatePickerComponent`: Template auf kanonische englische Bezeichner umgestellt, ARIA-Attribute für Tage und Monate hinzugefügt.
+- Feature-Seiten modernisiert:
+  - `PurchasesComponent` & `PurchaseDetailComponent`: Vollständige Umstellung auf Polaris Page-Header, Two-Column-Layout (2/3 Positionen & Nebenkosten, 1/3 Einkaufsdetails & Sendungsverfolgung), Cards, Badges und Buttons.
+  - `InventoryComponent` & `ItemDetailComponent`: Umstellung auf `PageHeaderComponent`, `TwoColumnLayoutComponent` (7-5 Ratio), `BadgeComponent` und `CardComponent`.
+  - `SalesComponent`: Integration von `PageHeaderComponent`, `BadgeComponent` und `ButtonComponent`.
+    **Prüfung:**
+- `npm run typecheck`: Erfolgreich ohne Fehler (0 Errors).
+- `npm run lint`: Erfolgreich ohne Fehler oder Warnungen (0 Errors, 0 Warnings).
+- `npm run test:angular`: Alle 42 Testdateien (401 Tests) einschließlich struktureller AXE-Checks erfolgreich bestanden.
+- `npm run build`: Erfolgreicher Produktionsbau mit 0 Fehlern und 0 Warnungen.
+
 ## 2026-09-05 – Codex – Veröffentlichungsprüfung für Erfassungspaket abgeschlossen
 
 **Auftrag:** Der Nutzer beauftragt Push und Merge des bereits umgesetzten Einkaufs-/Inventarpakets mit Chronik, Archivierung sowie EAN-/CSV-Erfassung.
@@ -38,6 +91,8 @@
 **Abgrenzung:** Chronik mit Kommentaren, Archivierungsablauf, persönliche Tabellenspalten sowie EAN/Kamera/CSV sind weiterhin spätere Pakete. Noch keine Veröffentlichung dieses Einkaufsseiten-Pakets.
 
 **Abschluss:** Umsetzung bis `02756a4`, erneute unabhängige Schlussprüfung ohne offene blockierende Befunde. Alle genannten Korrekturen einschließlich Dark-Kontrast umgesetzt; keine ungeprüften Abweichungen akzeptiert. Finale vollständige Tests: 989 Node-, 135 DOM- und 381 Angular-Tests erfolgreich, fünf bestehende Angular-Tests übersprungen. Fünf gezielte Chromium-Tests und Produktionsbau erfolgreich. Bestehende Runner-Warnung zu gleichzeitigem NO_COLOR/FORCE_COLOR unverändert. Lokaler Zweig bleibt erhalten; kein Push/PR/Deployment in diesem Auftrag. Aufräumen des exakt geprüften eigenen temporären Review-Ordners wurde von der Ausführungsrichtlinie blockiert; nicht umgangen, Unterlagen bleiben erhalten. Fremde Arbeitsstände unverändert.
+
+> > > > > > > origin/master
 
 ## 2026-09-05 – Codex – Admin-Einstellungen veröffentlichen
 

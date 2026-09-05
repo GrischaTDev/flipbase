@@ -292,4 +292,24 @@ describe('SalesComponent – verlinkter Verkauf', () => {
     await vi.waitFor(() => expect(focus).toHaveBeenCalledTimes(2));
     expect((focus.mock.instances[1] as HTMLElement).id).toBe('sale-desktop-sale-1');
   });
+
+  it('passt sichtbare Spalten dynamisch an wenn eine Spalte ausgeblendet wird', async () => {
+    sales.set([linkedSale]);
+    loadedWorkspaceId.set(workspace.id);
+
+    const harness = await RouterTestingHarness.create();
+    const comp = await harness.navigateByUrl('/sales', SalesComponent);
+
+    expect(comp.isColumnVisible('quantity')).toBe(true);
+    comp.toggleColumnVisibility('quantity');
+    harness.detectChanges();
+
+    expect(comp.isColumnVisible('quantity')).toBe(false);
+
+    const host = harness.routeNativeElement as HTMLElement;
+    const headers = [...host.querySelectorAll('thead th')].map((header) =>
+      header.textContent?.replace(/\s+/g, ' ').trim(),
+    );
+    expect(headers).not.toContain('Menge');
+  });
 });

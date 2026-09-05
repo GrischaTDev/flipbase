@@ -82,6 +82,11 @@ import { InventoryService } from '../../../../core/services/inventory.service';
 import { SalesService } from '../../../../core/services/sales.service';
 import { RecordHistoryContainer } from '../../../audit/components/record-history/record-history.container';
 import { PurchaseCostRepairComponent } from '../../components/purchase-cost-repair/purchase-cost-repair.component';
+import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
+import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 
 @Component({
   selector: 'app-purchase-detail',
@@ -102,12 +107,49 @@ import { PurchaseCostRepairComponent } from '../../components/purchase-cost-repa
     PurchaseTypeLabelPipe,
     RecordHistoryContainer,
     PurchaseCostRepairComponent,
+    PageHeaderComponent,
+    BadgeComponent,
+    ButtonComponent,
+    CardComponent,
+    TwoColumnLayoutComponent,
   ],
   templateUrl: './purchase-detail.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseDetailComponent {
+  getEntryStatusTone(
+    status?: string | null,
+  ): 'neutral' | 'info' | 'success' | 'caution' | 'critical' {
+    switch (status) {
+      case 'draft':
+        return 'caution';
+      case 'finalized':
+        return 'success';
+      case 'reopened':
+        return 'info';
+      case 'cancelled':
+        return 'critical';
+      default:
+        return 'neutral';
+    }
+  }
+
+  getEntryStatusLabel(status?: string | null): string {
+    switch (status) {
+      case 'draft':
+        return 'Entwurf';
+      case 'finalized':
+        return 'Abgeschlossen';
+      case 'reopened':
+        return 'Wiedereröffnet';
+      case 'cancelled':
+        return 'Storniert';
+      default:
+        return status ?? 'Unbekannt';
+    }
+  }
+
   readonly tablePreferences = inject(TablePreferencesService);
   private readonly allTableColumns: readonly TableColumnOption[] = [
     { id: 'title', label: 'Artikel und Aktionen', required: true },
@@ -140,6 +182,7 @@ export class PurchaseDetailComponent {
       .filter((id) => !currentIds.has(id));
     this.tablePreferences.setVisibleColumns('purchase_articles', [...otherColumns, ...selected]);
   }
+
   /**
    * Vorgaben fuer die eigenen Auswahlfelder.
    *

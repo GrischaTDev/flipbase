@@ -1,0 +1,50 @@
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+
+export type CardVariant = 'surface' | 'kpi' | 'subtle';
+export type CardPadding = 'none' | 'sm' | 'md' | 'lg';
+export type CardRounded = 'xl' | '2xl';
+
+@Component({
+  selector: 'app-card',
+  templateUrl: './card.component.html',
+  styleUrl: './card.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '[class]': 'cardClasses()',
+  },
+})
+export class CardComponent {
+  readonly title = input<string>('');
+  readonly subtitle = input<string>('');
+  readonly variant = input<CardVariant>('surface');
+  readonly padding = input<CardPadding>('md');
+  readonly rounded = input<CardRounded>('xl');
+
+  protected readonly cardClasses = computed(() => {
+    const base = 'flex flex-col border transition-colors overflow-hidden';
+
+    const roundedClass = this.rounded() === '2xl' ? 'rounded-2xl' : 'rounded-xl';
+
+    const variantClasses: Record<CardVariant, string> = {
+      surface: 'linear-surface bg-fb-surface border-fb-border shadow-sm',
+      kpi: 'linear-kpi bg-fb-surface border-fb-border shadow-sm',
+      subtle: 'bg-fb-subtle border-fb-border-subtle',
+    };
+
+    return [base, roundedClass, variantClasses[this.variant()]].join(' ');
+  });
+
+  protected readonly contentPaddingClass = computed(() => {
+    switch (this.padding()) {
+      case 'none':
+        return 'p-0';
+      case 'sm':
+        return 'p-3';
+      case 'lg':
+        return 'p-6';
+      case 'md':
+      default:
+        return 'p-4 md:p-5';
+    }
+  });
+}

@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from './auth.service';
 import { SupabaseService } from './supabase.service';
 import { TablePreferencesService } from './table-preferences.service';
+import { SALES_TABLE_CONFIG } from '../config/table-defaults.config';
+import { StoredTablePreferences } from '../models/table-preferences.models';
 
 const definitions = [
   { id: 'title', label: 'Artikel', required: true },
@@ -25,7 +27,7 @@ const settle = async () => {
   await Promise.resolve();
 };
 
-describe('TablePreferencesService', () => {
+describe('TablePreferencesService – Column Picker & Auth Sync (Codex)', () => {
   const currentUser = signal<User | null>(null);
   const isDemoMode = signal(false);
   const getUser = vi.fn();
@@ -44,6 +46,7 @@ describe('TablePreferencesService', () => {
     });
   });
   afterEach(() => TestBed.resetTestingModule());
+
   it('defaults to all columns and restores only known IDs while retaining required columns', () => {
     currentUser.set(user('a', { inventory: ['unknown'], sales: 'invalid' }));
     const service = TestBed.inject(TablePreferencesService);
@@ -52,6 +55,7 @@ describe('TablePreferencesService', () => {
     service.reset('inventory');
     expect(service.visibleColumns('inventory', definitions)).toEqual(['title', 'cost']);
   });
+
   it('persists independent table selections and writes only the versioned key', async () => {
     const service = TestBed.inject(TablePreferencesService);
     service.setVisibleColumns('inventory', ['title']);
@@ -73,6 +77,7 @@ describe('TablePreferencesService', () => {
       TestBed.inject(TablePreferencesService).visibleColumns('inventory', definitions),
     ).toEqual(['title']);
   });
+
   it('coalesces writes and discards queued selections on a user switch', async () => {
     let finish!: (value: unknown) => void;
     updateUser.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
@@ -91,6 +96,7 @@ describe('TablePreferencesService', () => {
     });
     expect(service.saveError()).toBeNull();
   });
+
   it('ignores late refresh and keeps a local choice after a failed save', async () => {
     let finish!: (value: unknown) => void;
     getUser.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
@@ -102,6 +108,7 @@ describe('TablePreferencesService', () => {
     expect(service.visibleColumns('inventory', definitions)).toEqual(['title']);
     expect(service.saveError()).toContain('offline');
   });
+
   it('does not restart a queued write after logout before effects run', async () => {
     let finish!: (value: unknown) => void;
     updateUser.mockReturnValueOnce(new Promise((resolve) => (finish = resolve)));
@@ -114,6 +121,7 @@ describe('TablePreferencesService', () => {
     expect(updateUser).toHaveBeenCalledTimes(1);
     expect(service.visibleColumns('inventory', definitions)).toEqual(['title', 'cost']);
   });
+
   it('stores demo selections separately without writing auth metadata', () => {
     isDemoMode.set(true);
     const service = TestBed.inject(TablePreferencesService);
@@ -122,5 +130,127 @@ describe('TablePreferencesService', () => {
       inventory: [],
     });
     expect(updateUser).not.toHaveBeenCalled();
+  });
+});
+
+describe('TablePreferencesService – Polaris Table Preferences & Reordering', () => {
+  let service: TablePreferencesService;
+  const testWorkspaceId = 'test-ws-123';
+
+  beforeEach(() => {
+    localStorage.clear();
+    TestBed.configureTestingModule({
+      providers: [
+        {
+          provide: AuthService,
+          useValue: { currentUser: signal(null), isDemoMode: signal(true) },
+        },
+        {
+          provide: SupabaseService,
+          useValue: { client: { auth: { getUser: vi.fn(), updateUser: vi.fn() } } },
+        },
+      ],
+    });
+    service = TestBed.inject(TablePreferencesService);
+  });
+
+  afterEach(() => {
+    localStorage.clear();
+    TestBed.resetTestingModule();
+  });
+
+  it('should return default preferences when nothing is stored', () => {
+    const prefs = service.getTablePreferences('sales', testWorkspaceId)();
+    expect(prefs.columns.length).toBe(SALES_TABLE_CONFIG.defaultColumns.length);
+    expect(prefs.sort).toEqual(SALES_TABLE_CONFIG.defaultSort);
+
+    const titleCol = prefs.columns.find((c) => c.id === 'title');
+    expect(titleCol?.visible).toBe(true);
+
+    const qtyCol = prefs.columns.find((c) => c.id === 'quantity');
+    expect(qtyCol?.visible).toBe(true);
+  });
+
+  it('should toggle column visibility and persist to localStorage', () => {
+    // Toggle quantity from true to false
+    service.toggleColumnVisibility('sales', 'quantity', testWorkspaceId);
+
+    const updated = service.getTablePreferences('sales', testWorkspaceId)();
+    const qtyCol = updated.columns.find((c) => c.id === 'quantity');
+    expect(qtyCol?.visible).toBe(false);
+
+    // Verify localStorage
+    const key = `flipbase:table_prefs:${testWorkspaceId}:sales`;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}') as StoredTablePreferences;
+    const storedQty = stored.columns.find((c) => c.id === 'quantity');
+    expect(storedQty?.visible).toBe(false);
+  });
+
+  it('should not hide locked columns', () => {
+    // Title is locked
+    service.toggleColumnVisibility('sales', 'title', testWorkspaceId);
+
+    const prefs = service.getTablePreferences('sales', testWorkspaceId)();
+    const titleCol = prefs.columns.find((c) => c.id === 'title');
+    expect(titleCol?.visible).toBe(true);
+  });
+
+  it('should update and persist sort state', () => {
+    service.setSort('sales', { field: 'revenue', direction: 'asc' }, testWorkspaceId);
+
+    const prefs = service.getTablePreferences('sales', testWorkspaceId)();
+    expect(prefs.sort).toEqual({ field: 'revenue', direction: 'asc' });
+
+    const key = `flipbase:table_prefs:${testWorkspaceId}:sales`;
+    const stored = JSON.parse(localStorage.getItem(key) || '{}') as StoredTablePreferences;
+    expect(stored.sort).toEqual({ field: 'revenue', direction: 'asc' });
+  });
+
+  it('should reorder columns properly', () => {
+    const original = service.getTablePreferences('sales', testWorkspaceId)();
+    const firstColId = original.columns[0].id;
+    const secondColId = original.columns[1].id;
+
+    service.reorderColumns('sales', 0, 1, testWorkspaceId);
+
+    const updated = service.getTablePreferences('sales', testWorkspaceId)();
+    expect(updated.columns[0].id).toBe(secondColId);
+    expect(updated.columns[1].id).toBe(firstColId);
+  });
+
+  it('should reset preferences to defaults', () => {
+    service.toggleColumnVisibility('sales', 'quantity', testWorkspaceId);
+    service.setSort('sales', { field: 'revenue', direction: 'asc' }, testWorkspaceId);
+
+    service.resetToDefaults('sales', testWorkspaceId);
+
+    const prefs = service.getTablePreferences('sales', testWorkspaceId)();
+    expect(prefs.columns.find((c) => c.id === 'quantity')?.visible).toBe(true);
+    expect(prefs.sort).toEqual(SALES_TABLE_CONFIG.defaultSort);
+
+    const key = `flipbase:table_prefs:${testWorkspaceId}:sales`;
+    expect(localStorage.getItem(key)).toBeNull();
+  });
+
+  it('should handle corrupted localStorage gracefully', () => {
+    const key = `flipbase:table_prefs:${testWorkspaceId}:sales`;
+    localStorage.setItem(key, '{ invalid json');
+
+    const prefs = service.getTablePreferences('sales', testWorkspaceId)();
+    expect(prefs.columns.length).toBe(SALES_TABLE_CONFIG.defaultColumns.length);
+  });
+
+  it('should reconcile schema drift when columns are added to default config', () => {
+    const key = `flipbase:table_prefs:${testWorkspaceId}:sales`;
+    // Simulate stored prefs missing some columns
+    const stored: StoredTablePreferences = {
+      version: 1,
+      columns: [{ id: 'title', visible: true, order: 0 }],
+      sort: { field: 'sale_date', direction: 'desc' },
+    };
+    localStorage.setItem(key, JSON.stringify(stored));
+
+    const prefs = service.getTablePreferences('sales', testWorkspaceId)();
+    expect(prefs.columns.length).toBe(SALES_TABLE_CONFIG.defaultColumns.length);
   });
 });

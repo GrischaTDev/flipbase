@@ -97,7 +97,7 @@
           <div class="flex flex-wrap items-center justify-center gap-2.5 pt-1">
             <label
               for="bankFileInput"
-              class="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer shadow-xs"
+              class="linear-btn-primary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer shadow-xs rounded-lg"
             >
               <svg [lucideIcon]="uploadIcon" class="w-3.5 h-3.5"></svg>
               <span>Datei auswählen</span>
@@ -111,7 +111,7 @@
               <button
                 type="button"
                 (click)="onLoadDemoStatement()"
-                class="btn-secondary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer"
+                class="linear-btn-secondary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer rounded-lg"
               >
                 <svg [lucideIcon]="sparklesIcon" class="w-3.5 h-3.5 text-fb-profit"></svg>
                 <span>Demo-Kontoauszug laden</span>
@@ -239,7 +239,7 @@
             </button>
           </div>
 
-          <!-- Search & Batch Book Button -->
+          <!-- Search, Column Menu & Batch Book Button -->
           <div class="flex items-center gap-2">
             <div class="w-40 sm:w-52">
               <app-custom-search-input
@@ -249,11 +249,21 @@
               ></app-custom-search-input>
             </div>
 
+            <app-table-column-menu
+              [columns]="tablePrefs().columns"
+              [sortOptions]="accountingTableConfig.sortOptions"
+              [currentSort]="tablePrefs().sort"
+              (columnVisibilityToggled)="toggleColumnVisibility($event)"
+              (columnsReordered)="onColumnsReordered($event)"
+              (sortChanged)="onSortChanged($event)"
+              (resetRequested)="resetTablePreferences()"
+            />
+
             @if (sum.matchedCount > 0) {
               <button
                 type="button"
                 (click)="onBookAllExactMatches()"
-                class="btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs"
+                class="linear-btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs rounded-lg"
               >
                 <svg [lucideIcon]="checkCheckIcon" class="w-3.5 h-3.5"></svg>
                 <span>Alle Treffer buchen ({{ sum.matchedCount }})</span>
@@ -270,157 +280,185 @@
                 <tr
                   class="border-b border-fb-border/40 bg-fb-subtle text-fb-text-muted font-medium text-[11px] uppercase tracking-wider"
                 >
-                  <th class="py-2.5 px-4">Datum</th>
-                  <th class="py-2.5 px-4">Auftraggeber / Empfänger</th>
-                  <th class="py-2.5 px-4">Verwendungszweck</th>
-                  <th class="py-2.5 px-4 text-right">Betrag</th>
-                  <th class="py-2.5 px-4">Zugeordnetes Objekt / Match</th>
-                  <th class="py-2.5 px-4 text-center">Status</th>
-                  <th class="py-2.5 px-4 text-right">Aktionen</th>
+                  @if (isColumnVisible('booking_date')) {
+                    <th class="py-2.5 px-4">Datum</th>
+                  }
+                  @if (isColumnVisible('counterparty')) {
+                    <th class="py-2.5 px-4">Auftraggeber / Empfänger</th>
+                  }
+                  @if (isColumnVisible('purpose')) {
+                    <th class="py-2.5 px-4">Verwendungszweck</th>
+                  }
+                  @if (isColumnVisible('amount')) {
+                    <th class="py-2.5 px-4 text-right">Betrag</th>
+                  }
+                  @if (isColumnVisible('match')) {
+                    <th class="py-2.5 px-4">Zugeordnetes Objekt / Match</th>
+                  }
+                  @if (isColumnVisible('status')) {
+                    <th class="py-2.5 px-4 text-center">Status</th>
+                  }
+                  @if (isColumnVisible('actions')) {
+                    <th class="py-2.5 px-4 text-right">Aktionen</th>
+                  }
                 </tr>
               </thead>
               <tbody class="divide-y divide-border/30">
                 @for (tx of filteredBankTransactions(); track tx.id) {
                   <tr class="hover:bg-fb-subtle/40 transition">
                     <!-- Date -->
-                    <td
-                      class="py-3 px-4 font-mono text-fb-text-muted text-[11px] whitespace-nowrap"
-                    >
-                      {{ tx.bookingDate | date: 'dd.MM.yyyy' }}
-                    </td>
+                    @if (isColumnVisible('booking_date')) {
+                      <td
+                        class="py-3 px-4 font-mono text-fb-text-muted text-[11px] whitespace-nowrap"
+                      >
+                        {{ tx.bookingDate | date: 'dd.MM.yyyy' }}
+                      </td>
+                    }
 
                     <!-- Counterparty -->
-                    <td class="py-3 px-4">
-                      <strong class="text-fb-text-primary block font-medium">{{
-                        tx.counterpartyName
-                      }}</strong>
-                      @if (tx.counterpartyIban) {
-                        <span class="font-mono text-[10px] text-fb-text-muted block">{{
-                          tx.counterpartyIban
-                        }}</span>
-                      }
-                    </td>
+                    @if (isColumnVisible('counterparty')) {
+                      <td class="py-3 px-4">
+                        <strong class="text-fb-text-primary block font-medium">{{
+                          tx.counterpartyName
+                        }}</strong>
+                        @if (tx.counterpartyIban) {
+                          <span class="font-mono text-[10px] text-fb-text-muted block">{{
+                            tx.counterpartyIban
+                          }}</span>
+                        }
+                      </td>
+                    }
 
                     <!-- Purpose -->
-                    <td class="py-3 px-4 max-w-xs">
-                      <p class="text-fb-text-muted text-[11px] line-clamp-2" [title]="tx.purpose">
-                        {{ tx.purpose }}
-                      </p>
-                    </td>
+                    @if (isColumnVisible('purpose')) {
+                      <td class="py-3 px-4 max-w-xs">
+                        <p class="text-fb-text-muted text-[11px] line-clamp-2" [title]="tx.purpose">
+                          {{ tx.purpose }}
+                        </p>
+                      </td>
+                    }
 
                     <!-- Amount -->
-                    <td class="py-3 px-4 text-right whitespace-nowrap">
-                      <span
-                        class="font-mono font-bold text-xs"
-                        [class.text-fb-profit]="tx.amount > 0"
-                        [class.text-rose-400]="tx.amount < 0"
-                      >
-                        {{ tx.amount > 0 ? '+' : ''
-                        }}{{ tx.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                      </span>
-                    </td>
+                    @if (isColumnVisible('amount')) {
+                      <td class="py-3 px-4 text-right whitespace-nowrap">
+                        <span
+                          class="font-mono font-bold text-xs"
+                          [class.text-fb-profit]="tx.amount > 0"
+                          [class.text-rose-400]="tx.amount < 0"
+                        >
+                          {{ tx.amount > 0 ? '+' : ''
+                          }}{{ tx.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                        </span>
+                      </td>
+                    }
 
                     <!-- Matched Target & Confidence -->
-                    <td class="py-3 px-4">
-                      @if (tx.match; as m) {
-                        <div class="space-y-1">
-                          <div class="flex items-center gap-1.5">
-                            <span
-                              class="px-1.5 py-0.2 rounded text-[10px] font-bold font-mono border"
-                              [class.bg-fb-profit/15]="m.confidence >= 95"
-                              [class.border-fb-profit/40]="m.confidence >= 95"
-                              [class.text-fb-profit]="m.confidence >= 95"
-                              [class.bg-blue-500/15]="m.confidence >= 80 && m.confidence < 95"
-                              [class.border-blue-500/40]="m.confidence >= 80 && m.confidence < 95"
-                              [class.text-blue-400]="m.confidence >= 80 && m.confidence < 95"
-                              [class.bg-amber-500/15]="m.confidence < 80"
-                              [class.border-amber-500/40]="m.confidence < 80"
-                              [class.text-amber-400]="m.confidence < 80"
-                            >
-                              {{ m.confidence }}% Match
-                            </span>
-                            <strong class="text-fb-text-primary text-[11px]">{{
-                              m.targetReference
-                            }}</strong>
+                    @if (isColumnVisible('match')) {
+                      <td class="py-3 px-4">
+                        @if (tx.match; as m) {
+                          <div class="space-y-1">
+                            <div class="flex items-center gap-1.5">
+                              <span
+                                class="px-1.5 py-0.2 rounded text-[10px] font-bold font-mono border"
+                                [class.bg-fb-profit/15]="m.confidence >= 95"
+                                [class.border-fb-profit/40]="m.confidence >= 95"
+                                [class.text-fb-profit]="m.confidence >= 95"
+                                [class.bg-blue-500/15]="m.confidence >= 80 && m.confidence < 95"
+                                [class.border-blue-500/40]="m.confidence >= 80 && m.confidence < 95"
+                                [class.text-blue-400]="m.confidence >= 80 && m.confidence < 95"
+                                [class.bg-amber-500/15]="m.confidence < 80"
+                                [class.border-amber-500/40]="m.confidence < 80"
+                                [class.text-amber-400]="m.confidence < 80"
+                              >
+                                {{ m.confidence }}% Match
+                              </span>
+                              <strong class="text-fb-text-primary text-[11px]">{{
+                                m.targetReference
+                              }}</strong>
+                            </div>
+                            <span class="text-[10px] text-fb-text-muted block line-clamp-1">{{
+                              m.reason
+                            }}</span>
                           </div>
-                          <span class="text-[10px] text-fb-text-muted block line-clamp-1">{{
-                            m.reason
-                          }}</span>
-                        </div>
-                      } @else {
-                        <span class="text-fb-text-muted text-[11px] italic"
-                          >Kein automatischer Treffer</span
-                        >
-                      }
-                    </td>
+                        } @else {
+                          <span class="text-fb-text-muted text-[11px] italic"
+                            >Kein automatischer Treffer</span
+                          >
+                        }
+                      </td>
+                    }
 
                     <!-- Status Badge -->
-                    <td class="py-3 px-4 text-center whitespace-nowrap">
-                      @if (tx.status === 'booked') {
-                        <span
-                          class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-fb-profit/15 text-fb-profit border border-fb-profit/30"
-                        >
-                          Gebucht
-                        </span>
-                      } @else if (tx.status === 'matched') {
-                        <span
-                          class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30"
-                        >
-                          Bereit
-                        </span>
-                      } @else if (tx.status === 'ignored') {
-                        <span
-                          class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-fb-surface-alt text-fb-text-muted"
-                        >
-                          Ignoriert
-                        </span>
-                      } @else {
-                        <span
-                          class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30"
-                        >
-                          Offen
-                        </span>
-                      }
-                    </td>
+                    @if (isColumnVisible('status')) {
+                      <td class="py-3 px-4 text-center whitespace-nowrap">
+                        @if (tx.status === 'booked') {
+                          <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-fb-profit/15 text-fb-profit border border-fb-profit/30"
+                          >
+                            Gebucht
+                          </span>
+                        } @else if (tx.status === 'matched') {
+                          <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30"
+                          >
+                            Bereit
+                          </span>
+                        } @else if (tx.status === 'ignored') {
+                          <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-fb-surface-alt text-fb-text-muted"
+                          >
+                            Ignoriert
+                          </span>
+                        } @else {
+                          <span
+                            class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-500/15 text-amber-400 border border-amber-500/30"
+                          >
+                            Offen
+                          </span>
+                        }
+                      </td>
+                    }
 
                     <!-- Action Buttons -->
-                    <td class="py-3 px-4 text-right whitespace-nowrap">
-                      <div class="flex items-center justify-end gap-1.5">
-                        @if (tx.status === 'matched') {
-                          <button
-                            type="button"
-                            (click)="onBookTransaction(tx.id)"
-                            class="btn-primary text-[11px] py-1 px-2.5 flex items-center gap-1 cursor-pointer"
-                            title="Buchung bestätigen & abgleichen"
-                          >
-                            <svg [lucideIcon]="checkSingleIcon" class="w-3 h-3"></svg>
-                            <span>Buchen</span>
-                          </button>
-                        }
+                    @if (isColumnVisible('actions')) {
+                      <td class="py-3 px-4 text-right whitespace-nowrap">
+                        <div class="flex items-center justify-end gap-1.5">
+                          @if (tx.status === 'matched') {
+                            <button
+                              type="button"
+                              (click)="onBookTransaction(tx.id)"
+                              class="linear-btn-primary text-[11px] py-1 px-2.5 flex items-center gap-1 cursor-pointer rounded-lg"
+                              title="Buchung bestätigen & abgleichen"
+                            >
+                              <svg [lucideIcon]="checkSingleIcon" class="w-3 h-3"></svg>
+                              <span>Buchen</span>
+                            </button>
+                          }
 
-                        @if (tx.status === 'pending') {
-                          <button
-                            type="button"
-                            (click)="openManualAssign(tx)"
-                            class="btn-secondary text-[11px] py-1 px-2 cursor-pointer"
-                            title="Manuell zuordnen"
-                          >
-                            Zuweisen
-                          </button>
-                        }
+                          @if (tx.status === 'pending') {
+                            <button
+                              type="button"
+                              (click)="openManualAssign(tx)"
+                              class="linear-btn-secondary text-[11px] py-1 px-2 cursor-pointer rounded-lg"
+                              title="Manuell zuordnen"
+                            >
+                              Zuweisen
+                            </button>
+                          }
 
-                        @if (tx.status !== 'booked') {
-                          <button
-                            type="button"
-                            (click)="onIgnoreTransaction(tx.id)"
-                            class="text-fb-text-muted hover:text-fb-text-primary p-1 transition cursor-pointer"
-                            title="Ignorieren"
-                          >
-                            <svg [lucideIcon]="closeIcon" class="w-3.5 h-3.5"></svg>
-                          </button>
-                        }
-                      </div>
-                    </td>
+                          @if (tx.status !== 'booked') {
+                            <button
+                              type="button"
+                              (click)="onIgnoreTransaction(tx.id)"
+                              class="text-fb-text-muted hover:text-fb-text-primary p-1 transition cursor-pointer"
+                              title="Ignorieren"
+                            >
+                              <svg [lucideIcon]="closeIcon" class="w-3.5 h-3.5"></svg>
+                            </button>
+                          }
+                        </div>
+                      </td>
+                    }
                   </tr>
                 }
               </tbody>
@@ -467,7 +505,7 @@
             <button
               type="button"
               (click)="onDownloadDatev()"
-              class="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              class="linear-btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-2xs rounded-lg"
             >
               <svg [lucideIcon]="downloadIcon" class="w-3.5 h-3.5 text-fb-profit"></svg>
               <span>DATEV EXTF CSV</span>
@@ -476,7 +514,7 @@
             <button
               type="button"
               (click)="onDownloadDiffTaxJournal()"
-              class="btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              class="linear-btn-secondary text-xs py-1.5 px-3 flex items-center gap-1.5 cursor-pointer shadow-2xs rounded-lg"
             >
               <svg [lucideIcon]="spreadsheetIcon" class="w-3.5 h-3.5"></svg>
               <span>§ 25a Journal</span>
@@ -485,7 +523,7 @@
             <button
               type="button"
               (click)="openTaxAdvisorModal()"
-              class="btn-primary text-xs py-1.5 px-3.5 flex items-center gap-1.5 cursor-pointer shadow-xs"
+              class="linear-btn-primary text-xs py-1.5 px-3.5 flex items-center gap-1.5 cursor-pointer shadow-xs rounded-lg"
             >
               <svg [lucideIcon]="mailIcon" class="w-3.5 h-3.5"></svg>
               <span>Berichtspaket vorbereiten</span>
@@ -753,14 +791,14 @@
             <button
               type="button"
               (click)="closeTaxAdvisorModal()"
-              class="btn-secondary text-xs py-2 px-4 cursor-pointer"
+              class="linear-btn-secondary text-xs py-2 px-4 cursor-pointer rounded-lg"
             >
               Abbrechen
             </button>
             <button
               type="submit"
               [disabled]="advisorForm.invalid"
-              class="btn-primary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer"
+              class="linear-btn-primary text-xs py-2 px-4 flex items-center gap-1.5 cursor-pointer rounded-lg"
             >
               <svg [lucideIcon]="sendIcon" class="w-3.5 h-3.5"></svg>
               <span>Exportpaket vorbereiten</span>

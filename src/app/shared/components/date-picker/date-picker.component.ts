@@ -17,7 +17,13 @@ import {
   LucideChevronRight as ChevronRight,
 } from '@lucide/angular';
 
-interface Tag {
+export interface DayItem {
+  date: string;
+  dayNumber: number;
+  isOutside: boolean;
+  isToday: boolean;
+  isSelected: boolean;
+  // Backward-compatible properties
   datum: string;
   zahl: number;
   ausserhalb: boolean;
@@ -26,26 +32,17 @@ interface Tag {
 }
 
 /**
- * Datumsauswahl im Design der Anwendung.
- *
- * Das Fenster, das ein `input[type=date]` beim Anklicken oeffnet, zeichnet
- * der Browser selbst. Es laesst sich von einer Seite aus nicht gestalten -
- * weder Farben noch Schrift noch Abstaende. In einer dunklen Oberflaeche
- * steht dort ein weisser Kasten aus einer anderen Welt.
- *
- * Diese Komponente ersetzt ihn vollstaendig: ein Textfeld, das das Datum in
- * gewohnter Schreibweise zeigt, und ein selbst gezeichneter Monatskalender.
- * Nach aussen verhaelt sie sich wie ein Formularfeld und liefert wie zuvor
- * einen ISO-Wert (JJJJ-MM-TT), damit an den Diensten nichts zu aendern war.
+ * Modern DatePicker component following Shopify Polaris design principles.
  */
 @Component({
   selector: 'app-date-picker',
   imports: [LucideDynamicIcon],
   templateUrl: './date-picker.component.html',
+  styleUrl: './date-picker.component.scss',
   host: {
     class: 'block relative',
-    '(document:click)': 'beiKlickAusserhalb($event)',
-    '(document:keydown.escape)': 'schliesse()',
+    '(document:click)': 'onClickOutside($event)',
+    '(document:keydown.escape)': 'close()',
   },
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
@@ -59,164 +56,221 @@ interface Tag {
 export class DatePickerComponent implements ControlValueAccessor {
   private readonly elementRef = inject(ElementRef);
 
-  /** Datum als ISO-Zeichenkette (JJJJ-MM-TT) - dasselbe Format wie zuvor. */
+  /** Date as ISO string (YYYY-MM-DD) */
   readonly value = model<string | null>(null);
+
+  // Canonical English Inputs
+  readonly id = input<string>('');
+  readonly placeholder = input<string>('');
+  readonly disabled = input<boolean>(false);
+  readonly ariaLabel = input<string>('');
+
+  // Backward-compatible German Inputs
   readonly feldId = input<string>('');
   readonly platzhalter = input<string>('TT.MM.JJJJ');
 
-  readonly istOffen = signal<boolean>(false);
-  readonly deaktiviert = signal<boolean>(false);
-  /** Der Monat, der gerade im Kalender steht - unabhaengig vom gewaehlten Tag. */
-  readonly angezeigterMonat = signal<Date>(new Date());
+  readonly isOpen = signal<boolean>(false);
+  readonly isAccessorDisabled = signal<boolean>(false);
+  readonly displayedMonth = signal<Date>(new Date());
 
-  readonly wochentage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  // Backward-compatible signal aliases
+  readonly istOffen = this.isOpen;
+  readonly angezeigterMonat = this.displayedMonth;
 
-  readonly monatsName = computed(() =>
-    this.angezeigterMonat().toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }),
+  readonly effectiveId = computed(() => this.id() || this.feldId());
+  readonly effectivePlaceholder = computed(() => this.placeholder() || this.platzhalter());
+  readonly effectiveDisabled = computed(() => this.disabled() || this.isAccessorDisabled());
+  readonly effectiveAriaLabel = computed(() => this.ariaLabel());
+
+  readonly weekdays = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  readonly wochentage = this.weekdays;
+
+  readonly monthName = computed(() =>
+    this.displayedMonth().toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }),
   );
+  readonly monatsName = this.monthName;
 
-  readonly anzeige = computed(() => {
-    const wert = this.value();
-    if (!wert) return '';
-    const d = this.ausIso(wert);
-    // Mit fuehrenden Nullen: Ohne die Angaben liefert der Browser 1.2.2026
-    // statt 01.02.2026, und die Feldbreite springt beim Blaettern.
+  readonly displayValue = computed(() => {
+    const val = this.value();
+    if (!val) return '';
+    const d = this.fromIso(val);
     return d
       ? d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
       : '';
   });
+  readonly anzeige = this.displayValue;
 
-  /**
-   * Die Tage des Rasters - immer sechs volle Wochen.
-   *
-   * Feste Zeilenzahl, damit der Kalender beim Blaettern nicht in der Hoehe
-   * springt. Die Woche beginnt am Montag, wie hierzulande ueblich.
-   */
-  readonly tage = computed<Tag[]>(() => {
-    const monat = this.angezeigterMonat();
-    const erster = new Date(monat.getFullYear(), monat.getMonth(), 1);
-    const versatz = (erster.getDay() + 6) % 7;
-    const start = new Date(erster);
-    start.setDate(erster.getDate() - versatz);
+  readonly days = computed<DayItem[]>(() => {
+    const month = this.displayedMonth();
+    const firstDay = new Date(month.getFullYear(), month.getMonth(), 1);
+    const offset = (firstDay.getDay() + 6) % 7;
+    const start = new Date(firstDay);
+    start.setDate(firstDay.getDate() - offset);
 
-    const heute = this.alsIso(new Date());
-    const gewaehlt = this.value();
-    const liste: Tag[] = [];
+    const today = this.toIso(new Date());
+    const selected = this.value();
+    const list: DayItem[] = [];
 
     for (let i = 0; i < 42; i++) {
       const d = new Date(start);
       d.setDate(start.getDate() + i);
-      const iso = this.alsIso(d);
-      liste.push({
+      const iso = this.toIso(d);
+      const isOutside = d.getMonth() !== month.getMonth();
+      const isToday = iso === today;
+      const isSelected = iso === selected;
+
+      list.push({
+        date: iso,
+        dayNumber: d.getDate(),
+        isOutside,
+        isToday,
+        isSelected,
         datum: iso,
         zahl: d.getDate(),
-        ausserhalb: d.getMonth() !== monat.getMonth(),
-        heute: iso === heute,
-        gewaehlt: iso === gewaehlt,
+        ausserhalb: isOutside,
+        heute: isToday,
+        gewaehlt: isSelected,
       });
     }
-    return liste;
+    return list;
   });
+  readonly tage = this.days;
 
-  private beiAenderung: (wert: string | null) => void = () => undefined;
-  private beiBeruehrung: () => void = () => undefined;
+  private onChange: (value: string | null) => void = () => undefined;
+  private onTouched: () => void = () => undefined;
 
-  writeValue(wert: string | null): void {
-    this.value.set(wert);
-    const d = wert ? this.ausIso(wert) : null;
-    if (d) this.angezeigterMonat.set(new Date(d.getFullYear(), d.getMonth(), 1));
+  writeValue(val: string | null): void {
+    this.value.set(val);
+    if (val) {
+      const d = this.fromIso(val);
+      if (d) this.displayedMonth.set(d);
+    }
   }
 
-  registerOnChange(fn: (wert: string | null) => void): void {
-    this.beiAenderung = fn;
+  registerOnChange(fn: (value: string | null) => void): void {
+    this.onChange = fn;
   }
 
   registerOnTouched(fn: () => void): void {
-    this.beiBeruehrung = fn;
+    this.onTouched = fn;
   }
 
-  setDisabledState(gesperrt: boolean): void {
-    this.deaktiviert.set(gesperrt);
+  setDisabledState(isDisabled: boolean): void {
+    this.isAccessorDisabled.set(isDisabled);
   }
 
-  schalteUm(ereignis: Event): void {
-    ereignis.stopPropagation();
-    if (this.deaktiviert()) return;
-    if (!this.istOffen()) {
-      const d = this.value() ? this.ausIso(this.value()!) : new Date();
-      if (d) this.angezeigterMonat.set(new Date(d.getFullYear(), d.getMonth(), 1));
-    }
-    this.istOffen.update((offen) => !offen);
+  toggle(event: MouseEvent): void {
+    event.stopPropagation();
+    if (this.effectiveDisabled()) return;
+    this.isOpen.update((o) => !o);
+  }
+  schalteUm(event: MouseEvent): void {
+    this.toggle(event);
   }
 
+  close(): void {
+    this.isOpen.set(false);
+  }
   schliesse(): void {
-    if (this.istOffen()) {
-      this.istOffen.set(false);
-      this.beiBeruehrung();
+    this.close();
+  }
+
+  navigateMonth(step: number): void {
+    const d = new Date(this.displayedMonth());
+    d.setMonth(d.getMonth() + step);
+    this.displayedMonth.set(d);
+  }
+  blaettere(step: number): void {
+    this.navigateMonth(step);
+  }
+
+  selectDate(date: string): void {
+    this.value.set(date);
+    this.onChange(date);
+    this.close();
+  }
+  waehle(date: string): void {
+    this.selectDate(date);
+  }
+
+  selectToday(): void {
+    const today = this.toIso(new Date());
+    this.selectDate(today);
+    this.displayedMonth.set(new Date());
+  }
+  waehleHeute(): void {
+    this.selectToday();
+  }
+
+  onClickOutside(event: MouseEvent): void {
+    if (!this.isOpen()) return;
+    const target = event.target as Node | null;
+    if (target && !this.elementRef.nativeElement.contains(target)) {
+      this.close();
     }
   }
-
-  beiKlickAusserhalb(ereignis: MouseEvent): void {
-    if (!this.elementRef.nativeElement.contains(ereignis.target as Node)) this.schliesse();
+  beiKlickAusserhalb(event: MouseEvent): void {
+    this.onClickOutside(event);
   }
 
-  blaettere(monate: number): void {
-    const m = this.angezeigterMonat();
-    this.angezeigterMonat.set(new Date(m.getFullYear(), m.getMonth() + monate, 1));
-  }
-
-  waehle(tag: Tag): void {
-    this.value.set(tag.datum);
-    this.beiAenderung(tag.datum);
-    this.schliesse();
-  }
-
-  waehleHeute(): void {
-    const heute = this.alsIso(new Date());
-    this.value.set(heute);
-    this.beiAenderung(heute);
-    this.schliesse();
-  }
-
-  /**
-   * Wandelt eine Eingabe von Hand in ein Datum.
-   *
-   * Nimmt 1.2.2026 genauso wie 01.02.2026 - wer tippt, soll nicht auch noch
-   * fuehrende Nullen setzen muessen.
-   */
-  beiEingabe(ereignis: Event): void {
-    const roh = (ereignis.target as HTMLInputElement).value.trim();
-    if (!roh) {
+  onInput(event: Event): void {
+    const text = (event.target as HTMLInputElement).value.trim();
+    if (!text) {
       this.value.set(null);
-      this.beiAenderung(null);
+      this.onChange(null);
       return;
     }
-    const teile = roh.split('.');
-    if (teile.length !== 3) return;
-    const [t, m, j] = teile.map((x) => Number(x));
-    if (!t || !m || !j) return;
-    const d = new Date(j, m - 1, t);
-    if (d.getDate() !== t || d.getMonth() !== m - 1) return;
-    const iso = this.alsIso(d);
-    this.value.set(iso);
-    this.beiAenderung(iso);
-    this.angezeigterMonat.set(new Date(d.getFullYear(), d.getMonth(), 1));
+    const parts = text.split(/[./-]/);
+    if (parts.length === 3) {
+      let day = parts[0];
+      let month = parts[1];
+      let year = parts[2];
+      if (day.length === 4) {
+        const tmp = day;
+        day = year;
+        year = tmp;
+      }
+      if (year.length === 2) year = '20' + year;
+      day = day.padStart(2, '0');
+      month = month.padStart(2, '0');
+      const iso = `${year}-${month}-${day}`;
+      const d = this.fromIso(iso);
+      if (d && !isNaN(d.getTime())) {
+        this.value.set(iso);
+        this.displayedMonth.set(d);
+        this.onChange(iso);
+      }
+    }
+  }
+  beiEingabe(event: Event): void {
+    this.onInput(event);
   }
 
-  /** Ortszeit, nicht UTC: `toISOString()` haette je nach Zeitzone den Vortag geliefert. */
+  private toIso(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
   private alsIso(d: Date): string {
-    const monat = String(d.getMonth() + 1).padStart(2, '0');
-    const tag = String(d.getDate()).padStart(2, '0');
-    return `${d.getFullYear()}-${monat}-${tag}`;
+    return this.toIso(d);
   }
 
-  private ausIso(wert: string): Date | null {
-    const treffer = /^(\d{4})-(\d{2})-(\d{2})$/.exec(wert);
-    if (!treffer) return null;
-    return new Date(Number(treffer[1]), Number(treffer[2]) - 1, Number(treffer[3]));
+  private fromIso(iso: string): Date | null {
+    const parts = iso.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(isNaN)) return null;
+    return new Date(parts[0], parts[1] - 1, parts[2]);
+  }
+  private ausIso(iso: string): Date | null {
+    return this.fromIso(iso);
   }
 
-  protected readonly kalenderIcon = Calendar;
-  protected readonly zurueckIcon = ChevronLeft;
-  protected readonly weiterIcon = ChevronRight;
+  protected readonly calendarIcon = Calendar;
+  protected readonly prevIcon = ChevronLeft;
+  protected readonly nextIcon = ChevronRight;
+
+  // Backward-compatible icon aliases
+  protected readonly kalenderIcon = this.calendarIcon;
+  protected readonly zurueckIcon = this.prevIcon;
+  protected readonly weiterIcon = this.nextIcon;
 }
