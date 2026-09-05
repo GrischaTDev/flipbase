@@ -1,0 +1,45 @@
+<button
+  #trigger
+  type="button"
+  class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-2 text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-accent"
+  [attr.aria-expanded]="isOpen()"
+  [attr.aria-controls]="panelId"
+  (click)="isOpen.set(!isOpen())"
+>
+  Spalten
+</button>
+@if (isOpen()) {
+  <fieldset
+    [id]="panelId"
+    class="absolute right-0 z-50 mt-2 max-h-96 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl border border-fb-line bg-fb-surface p-3 text-fb-text-primary shadow-xl"
+  >
+    <legend class="sr-only">Sichtbare Spalten</legend>
+    @for (column of definitions(); track column.id) {
+      <label
+        class="flex min-h-9 cursor-pointer items-center gap-2 rounded px-2 py-1 text-xs hover:bg-fb-well"
+      >
+        <input
+          type="checkbox"
+          class="h-4 w-4 accent-current focus-visible:ring-2 focus-visible:ring-fb-accent"
+          [checked]="column.required || selected().includes(column.id)"
+          [disabled]="column.required"
+          (change)="toggleColumn(column)"
+        />
+        {{ column.label }}
+        @if (column.required) {
+          <span class="text-fb-text-secondary">(fest)</span>
+        }
+      </label>
+    }
+    <button
+      type="button"
+      class="linear-btn-secondary mt-2 w-full rounded-lg px-2 py-2 text-xs"
+      (click)="showAll()"
+    >
+      Alle Spalten
+    </button>
+  </fieldset>
+}
+@if (saveError(); as error) {
+  <p role="alert" class="mt-1 max-w-xs text-xs text-fb-text-secondary">{{ error }}</p>
+}

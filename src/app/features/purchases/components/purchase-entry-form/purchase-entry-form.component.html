@@ -1,0 +1,585 @@
+<div
+  class="w-full"
+  [class.mx-auto]="presentation() === 'dialog'"
+  [class.max-w-2xl]="presentation() === 'dialog'"
+>
+  <div
+    class="flex w-full flex-col overflow-hidden"
+    [class.linear-surface]="presentation() === 'dialog'"
+    [class.rounded-2xl]="presentation() === 'dialog'"
+    [class.border]="presentation() === 'dialog'"
+    [class.border-fb-line]="presentation() === 'dialog'"
+    [class.shadow-2xl]="presentation() === 'dialog'"
+    [class.max-w-2xl]="presentation() === 'dialog'"
+    [class.max-h-[90vh]]="presentation() === 'dialog'"
+    [class.my-auto]="presentation() === 'dialog'"
+    [class.animate-modal-card]="presentation() === 'dialog'"
+  >
+    <div
+      class="flex shrink-0 items-center justify-between"
+      [class.border-b]="presentation() === 'dialog'"
+      [class.border-fb-line]="presentation() === 'dialog'"
+      [class.bg-fb-well]="presentation() === 'dialog'"
+      [class.p-5]="presentation() === 'dialog'"
+      [class.pb-4]="presentation() === 'page'"
+    >
+      <div class="flex items-center gap-2.5">
+        <div
+          class="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center justify-center"
+        >
+          <svg [lucideIcon]="bagIcon" class="w-4 h-4"></svg>
+        </div>
+        <div>
+          <h2 class="text-sm font-bold text-fb-text-primary">
+            {{ istBearbeitung() ? 'Einkauf bearbeiten' : 'Einkauf erfassen' }}
+          </h2>
+          <p class="text-[11px] text-fb-text-muted">
+            Normaler Einkauf, Mystery Box oder größerer Warenposten mit Zusatzkosten
+          </p>
+        </div>
+      </div>
+
+      @if (presentation() === 'dialog') {
+        <button
+          type="button"
+          (click)="closed.emit()"
+          aria-label="Dialog schließen"
+          class="p-1.5 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-line transition cursor-pointer"
+        >
+          <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
+        </button>
+      }
+    </div>
+
+    <div
+      class="flex-1 space-y-4"
+      [class.p-5]="presentation() === 'dialog'"
+      [class.overflow-y-auto]="presentation() === 'dialog'"
+    >
+      @if (errorMessage()) {
+        <div class="p-3 rounded-lg bg-rose-500/15 border border-rose-500/30 text-rose-400 text-xs">
+          {{ errorMessage() }}
+        </div>
+      }
+
+      <form
+        [formGroup]="form"
+        (ngSubmit)="onSubmit()"
+        [class]="
+          presentation() === 'page'
+            ? 'grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_18rem]'
+            : 'space-y-4'
+        "
+      >
+        <div
+          class="space-y-4"
+          [class.linear-surface]="presentation() === 'page'"
+          [class.rounded-xl]="presentation() === 'page'"
+          [class.border]="presentation() === 'page'"
+          [class.border-fb-line]="presentation() === 'page'"
+          [class.p-4]="presentation() === 'page'"
+        >
+          <!-- 1. Einkaufstyp Selector -->
+          <div>
+            <span
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1.5"
+            >
+              Einkaufstyp
+            </span>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button
+                type="button"
+                (click)="selectPurchaseType('single')"
+                class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
+                [class.border-amber-500]="form.get('type')?.value === 'single'"
+                [class.bg-amber-500/15]="form.get('type')?.value === 'single'"
+                [class.border-fb-line]="form.get('type')?.value !== 'single'"
+                [class.bg-fb-well]="form.get('type')?.value !== 'single'"
+              >
+                <svg [lucideIcon]="bagIcon" class="w-3.5 h-3.5 text-amber-500"></svg>
+                <span class="text-xs font-bold text-fb-text-primary">Normaler Einkauf</span>
+                <span
+                  class="text-[10px]"
+                  [class.text-fb-text-primary]="form.controls.type.value === 'single'"
+                  [class.text-fb-text-muted]="form.controls.type.value !== 'single'"
+                  >Eine oder mehrere Artikelpositionen</span
+                >
+              </button>
+
+              <button
+                type="button"
+                (click)="selectPurchaseType('mystery_pack')"
+                class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
+                [class.border-amber-500]="form.get('type')?.value === 'mystery_pack'"
+                [class.bg-amber-500/15]="form.get('type')?.value === 'mystery_pack'"
+                [class.border-fb-line]="form.get('type')?.value !== 'mystery_pack'"
+                [class.bg-fb-well]="form.get('type')?.value !== 'mystery_pack'"
+              >
+                <svg [lucideIcon]="packageIcon" class="w-3.5 h-3.5 text-amber-500"></svg>
+                <span class="text-xs font-bold text-fb-text-primary">Mystery Box</span>
+                <span
+                  class="text-[10px]"
+                  [class.text-fb-text-primary]="form.controls.type.value === 'mystery_pack'"
+                  [class.text-fb-text-muted]="form.controls.type.value !== 'mystery_pack'"
+                  >Mehrere Artikel</span
+                >
+              </button>
+
+              <button
+                type="button"
+                (click)="selectPurchaseType('lot')"
+                class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
+                [class.border-amber-500]="form.get('type')?.value === 'lot'"
+                [class.bg-amber-500/15]="form.get('type')?.value === 'lot'"
+                [class.border-fb-line]="form.get('type')?.value !== 'lot'"
+                [class.bg-fb-well]="form.get('type')?.value !== 'lot'"
+              >
+                <svg [lucideIcon]="layersIcon" class="w-3.5 h-3.5 text-amber-500"></svg>
+                <span class="text-xs font-bold text-fb-text-primary">Konvolut</span>
+                <span
+                  class="text-[10px]"
+                  [class.text-fb-text-primary]="form.controls.type.value === 'lot'"
+                  [class.text-fb-text-muted]="form.controls.type.value !== 'lot'"
+                  >Mehrere unterschiedliche Artikel</span
+                >
+              </button>
+
+              <button
+                type="button"
+                (click)="selectPurchaseType('pallet')"
+                class="p-2.5 rounded-lg border text-left transition flex flex-col gap-0.5 cursor-pointer"
+                [class.border-amber-500]="form.get('type')?.value === 'pallet'"
+                [class.bg-amber-500/15]="form.get('type')?.value === 'pallet'"
+                [class.border-fb-line]="form.get('type')?.value !== 'pallet'"
+                [class.bg-fb-well]="form.get('type')?.value !== 'pallet'"
+              >
+                <svg [lucideIcon]="boxesIcon" class="w-3.5 h-3.5 text-amber-500"></svg>
+                <span class="text-xs font-bold text-fb-text-primary">Palette</span>
+                <span
+                  class="text-[10px]"
+                  [class.text-fb-text-primary]="form.controls.type.value === 'pallet'"
+                  [class.text-fb-text-muted]="form.controls.type.value !== 'pallet'"
+                  >Retourenpalette</span
+                >
+              </button>
+            </div>
+          </div>
+
+          <!-- 2. Titel / Bezeichnung -->
+          <div>
+            <label
+              for="purchaseTitle"
+              class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+            >
+              Titel / Beschreibung
+            </label>
+            <input
+              id="purchaseTitle"
+              type="text"
+              formControlName="title"
+              placeholder="z.B. Cube Acid Mountainbike oder Mystery Pack 5kg Technik"
+              class="linear-input w-full px-3 py-1.5 rounded-lg text-xs"
+            />
+          </div>
+
+          <!-- 3. Kaufpreis & Datum -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label
+                for="purchasePrice"
+                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+              >
+                Einkaufspreis (€)
+              </label>
+              <app-number-input
+                feldId="purchasePrice"
+                formControlName="purchase_price"
+                [schritt]="1"
+                [minimum]="0"
+                [alsBetrag]="true"
+              />
+            </div>
+
+            <div>
+              <label
+                for="purchaseDate"
+                class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+              >
+                Kaufdatum
+              </label>
+              <app-date-picker feldId="purchaseDate" formControlName="purchase_date" />
+            </div>
+          </div>
+
+          @if (!istBearbeitung()) {
+            <app-purchase-line-editor
+              [purchaseType]="form.controls.type.value"
+              (linesChanged)="onPurchaseLinesChanged($event)"
+            />
+          }
+
+          <!-- 4. Einkaufsquelle & Lieferant mit Schnellanlage -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label
+                  for="purchaseSource"
+                  class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+                >
+                  Einkaufsquelle
+                </label>
+                <button
+                  type="button"
+                  (click)="isAddingSource.set(!isAddingSource())"
+                  [attr.aria-label]="
+                    isAddingSource()
+                      ? 'Eingabe für neue Quelle schließen'
+                      : 'Neue Quelle hinzufügen'
+                  "
+                  [attr.aria-expanded]="isAddingSource()"
+                  [title]="
+                    isAddingSource()
+                      ? 'Eingabe für neue Quelle schließen'
+                      : 'Neue Quelle hinzufügen'
+                  "
+                  class="flex size-6 cursor-pointer items-center justify-center rounded-md border border-fb-line bg-fb-well text-fb-text-muted transition hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+                  [class.border-emerald-500/50]="isAddingSource()"
+                  [class.bg-emerald-500/10]="isAddingSource()"
+                  [class.text-emerald-400]="isAddingSource()"
+                >
+                  <svg
+                    [lucideIcon]="plusIcon"
+                    aria-hidden="true"
+                    class="size-3.5 transition-transform"
+                    [class.rotate-45]="isAddingSource()"
+                  ></svg>
+                </button>
+              </div>
+
+              @if (isAddingSource()) {
+                <div class="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    [value]="newSourceName()"
+                    (input)="newSourceName.set($any($event.target).value)"
+                    placeholder="Neue Quelle..."
+                    class="linear-input flex-1 px-2.5 py-1 rounded-md text-xs"
+                  />
+                  <button
+                    type="button"
+                    (click)="saveNewSource()"
+                    class="linear-btn-primary cursor-pointer px-2.5 py-1 rounded-md text-xs font-semibold"
+                  >
+                    OK
+                  </button>
+                </div>
+              }
+
+              <app-custom-select
+                ariaLabel="Bezugsquelle"
+                [options]="quellenOptionen()"
+                formControlName="source_id"
+                size="sm"
+                placeholder="-- Quelle wählen --"
+              />
+              <p class="text-[10px] text-fb-text-muted mt-1 leading-relaxed">
+                <strong class="text-fb-text-secondary">Wo</strong> gekauft: der Kanal, z. B.
+                Kleinanzeigen oder Flohmarkt. Die Auswertung zeigt dir später, welcher Kanal die
+                beste Marge bringt.
+              </p>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <label
+                  for="purchaseSupplier"
+                  class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
+                >
+                  Lieferant / Verkäufer
+                </label>
+                <button
+                  type="button"
+                  (click)="isAddingSupplier.set(!isAddingSupplier())"
+                  [attr.aria-label]="
+                    isAddingSupplier()
+                      ? 'Eingabe für neuen Lieferanten schließen'
+                      : 'Neuen Lieferanten hinzufügen'
+                  "
+                  [attr.aria-expanded]="isAddingSupplier()"
+                  [title]="
+                    isAddingSupplier()
+                      ? 'Eingabe für neuen Lieferanten schließen'
+                      : 'Neuen Lieferanten hinzufügen'
+                  "
+                  class="flex size-6 cursor-pointer items-center justify-center rounded-md border border-fb-line bg-fb-well text-fb-text-muted transition hover:border-emerald-500/50 hover:bg-emerald-500/10 hover:text-emerald-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+                  [class.border-emerald-500/50]="isAddingSupplier()"
+                  [class.bg-emerald-500/10]="isAddingSupplier()"
+                  [class.text-emerald-400]="isAddingSupplier()"
+                >
+                  <svg
+                    [lucideIcon]="plusIcon"
+                    aria-hidden="true"
+                    class="size-3.5 transition-transform"
+                    [class.rotate-45]="isAddingSupplier()"
+                  ></svg>
+                </button>
+              </div>
+
+              @if (isAddingSupplier()) {
+                <div class="flex gap-2 mb-2">
+                  <input
+                    type="text"
+                    [value]="newSupplierName()"
+                    (input)="newSupplierName.set($any($event.target).value)"
+                    placeholder="Neuer Verkäufer..."
+                    class="linear-input flex-1 px-2.5 py-1 rounded-md text-xs"
+                  />
+                  <button
+                    type="button"
+                    (click)="saveNewSupplier()"
+                    class="linear-btn-primary cursor-pointer px-2.5 py-1 rounded-md text-xs font-semibold"
+                  >
+                    OK
+                  </button>
+                </div>
+              }
+
+              <app-custom-select
+                ariaLabel="Lieferant"
+                [options]="lieferantenOptionen()"
+                formControlName="supplier_id"
+                size="sm"
+                placeholder="-- Optional: Lieferant wählen --"
+              />
+              <p class="text-[10px] text-fb-text-muted mt-1 leading-relaxed">
+                <strong class="text-fb-text-secondary">Bei wem</strong> gekauft: die Person oder
+                Firma. Lohnt sich, wenn du dort wieder kaufst oder reklamieren willst – auf dem
+                Flohmarkt darf das Feld leer bleiben.
+              </p>
+            </div>
+          </div>
+
+          <!-- 5. Single Item Specific Fields -->
+          <!--
+          Nur beim Anlegen: Zustand und Marktwert gehoeren zum Artikel, nicht
+          zum Einkauf. Beim Bearbeiten standen hier die Vorgabewerte statt der
+          echten Angaben, und gespeichert wurde ohnehin nichts davon - der
+          Artikel wird im Inventar gepflegt.
+        -->
+          @if (
+            form.get('type')?.value === 'single' &&
+            !istBearbeitung() &&
+            purchaseLines().length === 0
+          ) {
+            <div class="p-3.5 rounded-xl bg-fb-well border border-fb-line space-y-2.5">
+              <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-wider block">
+                Angaben zum Artikel
+              </span>
+              <p class="text-[10px] text-fb-text-muted leading-relaxed">
+                Ohne Einkaufsposition wird aus diesem Einkauf ein einzelner Inventarartikel. Für
+                mehrere oder mengenbasierte Artikel nutze oben die Einkaufspositionen.
+              </p>
+
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label
+                    for="singleCondition"
+                    class="block text-[10px] font-semibold text-fb-text-muted mb-1"
+                  >
+                    Zustand
+                  </label>
+                  <app-custom-select
+                    ariaLabel="Zustand"
+                    [options]="zustandsOptionen"
+                    formControlName="single_item_condition"
+                    size="sm"
+                    placeholder="Zustand wählen"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    for="singleExpectedVal"
+                    class="block text-[10px] font-semibold text-fb-text-muted mb-1"
+                  >
+                    Geschätzter Marktwert (€)
+                  </label>
+                  <app-number-input
+                    feldId="singleExpectedVal"
+                    formControlName="single_item_expected_value"
+                    platzhalter="z.B. 70 €"
+                    [schritt]="5"
+                    [minimum]="0"
+                    [alsBetrag]="true"
+                  />
+                </div>
+              </div>
+            </div>
+          }
+
+          <app-purchase-cost-editor
+            [purchaseType]="form.controls.type.value"
+            [initialCosts]="initialCostDrafts()"
+            [purchaseLineOptions]="purchaseLineOptions()"
+            (costsChanged)="onCostsChanged($event)"
+            (validityChanged)="areAdditionalCostsValid.set($event)"
+          />
+        </div>
+
+        <section
+          aria-label="Kostenübersicht"
+          class="grid grid-cols-1 gap-3 rounded-xl border border-fb-line bg-fb-well p-4 text-xs sm:grid-cols-3 xl:sticky xl:top-4 xl:grid-cols-1"
+        >
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
+              Einkauf
+            </p>
+            <p class="mt-1 font-mono font-bold text-fb-text-primary">
+              @if (purchaseBasePrice() !== null) {
+                {{ purchaseBasePrice()! | currency: 'EUR' : 'symbol' : '1.2-2' : 'de-DE' }}
+              } @else {
+                –
+              }
+            </p>
+          </div>
+          <div>
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
+              Zusätzliche Kosten
+            </p>
+            <p class="mt-1 font-mono font-bold text-fb-text-primary">
+              {{ additionalCostsTotal() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de-DE' }}
+            </p>
+          </div>
+          <div
+            class="border-t border-fb-line pt-3 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0 xl:border-l-0 xl:border-t xl:pl-0 xl:pt-3"
+          >
+            <p class="text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+              Gesamtkosten
+            </p>
+            <p class="mt-1 font-mono font-bold text-emerald-300">
+              @if (totalCosts() !== null) {
+                {{ totalCosts()! | currency: 'EUR' : 'symbol' : '1.2-2' : 'de-DE' }}
+              } @else {
+                –
+              }
+            </p>
+          </div>
+        </section>
+
+        <!-- Inbound Sendungsverfolgung (Tracking) -->
+        <div class="space-y-2.5 rounded-xl border border-fb-line bg-fb-well p-3 xl:col-start-1">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-1.5 text-xs font-semibold text-fb-text-secondary">
+              <svg [lucideIcon]="truckIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
+              <span>Sendungsverfolgung (DHL, DPD, Hermes, UPS, GLS)</span>
+            </div>
+            @if (form.controls.tracking_carrier.value) {
+              <span
+                class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border"
+                [class]="
+                  trackingService.carrierMetas[form.controls.tracking_carrier.value].badgeClass
+                "
+              >
+                {{ trackingService.carrierMetas[form.controls.tracking_carrier.value].name }}
+              </span>
+            }
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+            <div class="sm:col-span-8">
+              <input
+                type="text"
+                formControlName="tracking_number"
+                (input)="onTrackingNumberInput($event)"
+                placeholder="Sendungsnummer eingeben oder einfügen..."
+                class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono text-fb-text-primary"
+              />
+            </div>
+            <div class="sm:col-span-4">
+              <app-custom-select
+                ariaLabel="Versanddienstleister"
+                [options]="dienstleisterOptionen()"
+                formControlName="tracking_carrier"
+                size="sm"
+                placeholder="Auto-Erkennung"
+              />
+            </div>
+          </div>
+        </div>
+
+        @if (!areAdditionalCostsValid()) {
+          <p
+            id="purchase-cost-allocation-error"
+            role="status"
+            class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
+          >
+            Direkte Zusatzkosten benötigen eine gültige Zielposition, bevor du den Entwurf speichern
+            kannst.
+          </p>
+        }
+
+        <!-- Actions -->
+        <div class="flex justify-end gap-2.5 border-t border-fb-line pt-3 xl:col-span-2">
+          <button
+            type="button"
+            (click)="closed.emit()"
+            class="linear-btn-secondary px-4 py-1.5 rounded-lg text-xs font-semibold cursor-pointer"
+          >
+            Abbrechen
+          </button>
+
+          @if (!istBearbeitung()) {
+            <button
+              type="submit"
+              [disabled]="form.invalid || !areAdditionalCostsValid() || isSaving()"
+              [attr.aria-describedby]="
+                !areAdditionalCostsValid() ? 'purchase-cost-allocation-error' : null
+              "
+              class="linear-btn-secondary px-4 py-1.5 rounded-lg font-semibold text-xs transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Als Entwurf speichern
+            </button>
+            <button
+              type="button"
+              (click)="onFinalize()"
+              [disabled]="form.invalid || !areAdditionalCostsValid() || isSaving()"
+              [attr.aria-describedby]="
+                !areAdditionalCostsValid() ? 'purchase-cost-allocation-error' : null
+              "
+              class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <svg [lucideIcon]="checkIcon" class="w-3.5 h-3.5"></svg>
+              <span>{{ isSubmitting() ? 'Schließe ab...' : 'Erfassung abschließen' }}</span>
+            </button>
+          } @else {
+            <button
+              type="submit"
+              [disabled]="form.invalid || !areAdditionalCostsValid() || isSaving()"
+              [attr.aria-describedby]="
+                !areAdditionalCostsValid() ? 'purchase-cost-allocation-error' : null
+              "
+              class="linear-btn-secondary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
+              <span>{{ isSubmitting() ? 'Speichere...' : 'Änderungen speichern' }}</span>
+            </button>
+            @if (purchase()?.entry_status !== 'finalized') {
+              <button
+                type="button"
+                (click)="onFinalize()"
+                [disabled]="form.invalid || !areAdditionalCostsValid() || isSaving()"
+                [attr.aria-describedby]="
+                  !areAdditionalCostsValid() ? 'purchase-cost-allocation-error' : null
+                "
+                class="linear-btn-primary px-4 py-1.5 rounded-lg font-semibold text-xs transition flex items-center gap-1.5 cursor-pointer disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <svg [lucideIcon]="checkIcon" class="w-3.5 h-3.5"></svg>
+                <span>{{ isSubmitting() ? 'Schließe ab...' : 'Erfassung abschließen' }}</span>
+              </button>
+            }
+          }
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

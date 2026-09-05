@@ -1,9 +1,14 @@
-<app-record-history
-  [heading]="heading()"
-  [events]="events()"
-  [loading]="loading()"
-  [error]="error()"
-  [hasMore]="nextCursor() !== null"
-  (retryRequested)="reload()"
-  (loadMoreRequested)="loadMore()"
-/>
+@let type = entityType();
+@if (type === 'purchase' || type === 'sale') {
+  <app-record-timeline [entityType]="type" [entityId]="entityId()" />
+} @else {
+  <app-record-history
+    [heading]="heading()"
+    [events]="events()"
+    [loading]="loading()"
+    [error]="error()"
+    [hasMore]="nextCursor() !== null"
+    (retryRequested)="reload()"
+    (loadMoreRequested)="loadMore()"
+  />
+}

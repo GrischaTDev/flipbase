@@ -1,4 +1,4 @@
-import { Injectable, signal, WritableSignal, Signal } from '@angular/core';
+import { Injectable, effect, inject, signal, Signal, WritableSignal } from '@angular/core';
 import {
   ColumnDefinition,
   StoredTablePreferences,
@@ -12,7 +12,15 @@ import {
   PURCHASES_TABLE_CONFIG,
   SALES_TABLE_CONFIG,
 } from '../config/table-defaults.config';
+import {
+  TableColumnOption,
+  TablePreferences,
+  parseTablePreferences,
+} from '../models/table-preferences';
+import { AuthService } from './auth.service';
+import { SupabaseService } from './supabase.service';
 
+const demoStorageKey = 'flipbase_demo_table_preferences_v1';
 const CURRENT_PREFERENCES_VERSION = 1;
 
 export interface TableState<TColumnId extends string = string, TSortField extends string = string> {
@@ -24,6 +32,17 @@ export interface TableState<TColumnId extends string = string, TSortField extend
   providedIn: 'root',
 })
 export class TablePreferencesService {
+  private readonly auth = inject(AuthService);
+  private readonly supabase = inject(SupabaseService);
+  private readonly preferences = signal<TablePreferences>({});
+  private readonly error = signal<string | null>(null);
+  readonly saveError = this.error.asReadonly();
+  private activeUserId: string | null = null;
+  private generation = 0;
+  private editRevision = 0;
+  private queued: TablePreferences | null = null;
+  private saving = false;
+
   private readonly tableRegistry: Record<TableId, TableConfig> = {
     sales: SALES_TABLE_CONFIG,
     inventory: INVENTORY_TABLE_CONFIG,
@@ -33,9 +52,34 @@ export class TablePreferencesService {
 
   private readonly stateSignals = new Map<string, WritableSignal<TableState>>();
 
-  /**
-   * Returns a reactive Signal of the preferences (columns and sort) for a given table and workspace.
-   */
+  constructor() {
+    this.synchronizeContext();
+    effect(() => this.synchronizeContext());
+  }
+
+  // --- Column Picker / Preferences Methods (Codex API) ---
+
+  visibleColumns(tableId: string, definitions: readonly TableColumnOption[]): readonly string[] {
+    const saved = this.preferences()[tableId];
+    return definitions
+      .filter((column) => column.required || !saved || saved.includes(column.id))
+      .map((column) => column.id);
+  }
+
+  setVisibleColumns(tableId: string, columnIds: readonly string[]): void {
+    this.synchronizeContext();
+    this.update({ ...this.preferences(), [tableId]: [...new Set(columnIds)] });
+  }
+
+  reset(tableId: string): void {
+    this.synchronizeContext();
+    const next = { ...this.preferences() };
+    delete next[tableId];
+    this.update(next);
+  }
+
+  // --- Polaris IndexTable Preferences Methods (Antigravity API) ---
+
   getTablePreferences<TColumnId extends string, TSortField extends string>(
     tableId: TableId,
     workspaceId = 'default',
@@ -48,10 +92,6 @@ export class TablePreferencesService {
     return this.stateSignals.get(key)!.asReadonly() as Signal<TableState<TColumnId, TSortField>>;
   }
 
-  /**
-   * Toggles the visibility of a column in the specified table.
-   * Locked columns cannot be hidden.
-   */
   toggleColumnVisibility<TColumnId extends string>(
     tableId: TableId,
     columnId: TColumnId,
@@ -71,9 +111,6 @@ export class TablePreferencesService {
     });
   }
 
-  /**
-   * Updates the sort state (field and direction) for a table.
-   */
   setSort<TSortField extends string>(
     tableId: TableId,
     sort: TableSortState<TSortField>,
@@ -87,9 +124,6 @@ export class TablePreferencesService {
     });
   }
 
-  /**
-   * Reorders columns in a table (e.g. via drag & drop or keyboard).
-   */
   reorderColumns(
     tableId: TableId,
     fromIndex: number,
@@ -99,23 +133,25 @@ export class TablePreferencesService {
     const sig = this.getOrInitSignal(tableId, workspaceId);
 
     sig.update((prev) => {
-      const sorted = [...prev.columns].sort((a, b) => a.order - b.order);
-      if (fromIndex < 0 || fromIndex >= sorted.length || toIndex < 0 || toIndex >= sorted.length) {
+      const columns = [...prev.columns];
+      if (
+        fromIndex < 0 ||
+        fromIndex >= columns.length ||
+        toIndex < 0 ||
+        toIndex >= columns.length
+      ) {
         return prev;
       }
 
-      const [moved] = sorted.splice(fromIndex, 1);
-      sorted.splice(toIndex, 0, moved);
+      const [moved] = columns.splice(fromIndex, 1);
+      columns.splice(toIndex, 0, moved);
 
-      const updatedColumns = sorted.map((col, idx) => ({ ...col, order: idx }));
-      this.savePreferences(tableId, workspaceId, updatedColumns, prev.sort);
-      return { ...prev, columns: updatedColumns };
+      const reordered = columns.map((col, idx) => ({ ...col, order: idx }));
+      this.savePreferences(tableId, workspaceId, reordered, prev.sort);
+      return { ...prev, columns: reordered };
     });
   }
 
-  /**
-   * Resets table column visibility, order, and sorting to the default configuration.
-   */
   resetToDefaults(tableId: TableId, workspaceId = 'default'): void {
     const config = this.tableRegistry[tableId];
     if (!config) return;
@@ -123,7 +159,7 @@ export class TablePreferencesService {
     try {
       localStorage.removeItem(this.getStorageKey(tableId, workspaceId));
     } catch {
-      // Ignore storage errors in restricted contexts
+      // Ignore storage errors
     }
 
     const sig = this.getOrInitSignal(tableId, workspaceId);
@@ -133,9 +169,6 @@ export class TablePreferencesService {
     });
   }
 
-  /**
-   * Returns the configuration (default columns, sort options) for a given table.
-   */
   getTableConfig<TColumnId extends string, TSortField extends string>(
     tableId: TableId,
   ): TableConfig<TColumnId, TSortField> {
@@ -205,14 +238,12 @@ export class TablePreferencesService {
           });
           storedMap.delete(defCol.id);
         } else {
-          // New column introduced in code
           mergedColumns.push({ ...defCol });
         }
       }
 
       mergedColumns.sort((a, b) => a.order - b.order);
 
-      // Validate sort field
       const isValidSortField = config.sortOptions.some((s) => s.value === parsed.sort?.field);
       const validSort: TableSortState<TSortField> = isValidSortField
         ? parsed.sort
@@ -238,7 +269,105 @@ export class TablePreferencesService {
       };
       localStorage.setItem(this.getStorageKey(tableId, workspaceId), JSON.stringify(payload));
     } catch {
-      // Ignore quota/security errors
+      // Ignore storage errors
+    }
+  }
+
+  private update(preferences: TablePreferences): void {
+    this.preferences.set(preferences);
+    this.error.set(null);
+    this.editRevision++;
+    if (this.auth.isDemoMode()) {
+      try {
+        localStorage.setItem(demoStorageKey, JSON.stringify(preferences));
+      } catch {
+        this.error.set('Die Spaltenauswahl konnte lokal nicht gespeichert werden.');
+      }
+      return;
+    }
+    const userId = this.auth.currentUser()?.id;
+    if (!userId || userId !== this.activeUserId) return;
+    this.queued = preferences;
+    void this.saveQueued(userId, this.generation);
+  }
+
+  private synchronizeContext(): void {
+    const demo = this.auth.isDemoMode();
+    const user = this.auth.currentUser();
+    const id = demo ? 'demo' : (user?.id ?? null);
+    if (this.activeUserId === id) return;
+    this.activeUserId = id;
+    this.generation++;
+    this.editRevision = 0;
+    this.queued = null;
+    this.error.set(null);
+    if (demo) {
+      try {
+        this.preferences.set(
+          parseTablePreferences(JSON.parse(localStorage.getItem(demoStorageKey) ?? 'null')),
+        );
+      } catch {
+        this.preferences.set({});
+      }
+    } else {
+      this.preferences.set(parseTablePreferences(user?.user_metadata?.['table_preferences_v1']));
+      if (id) void this.refresh(id, this.generation, this.editRevision);
+    }
+  }
+
+  private isCurrent(userId: string, generation: number): boolean {
+    return (
+      this.generation === generation &&
+      this.activeUserId === userId &&
+      this.auth.currentUser()?.id === userId &&
+      !this.auth.isDemoMode()
+    );
+  }
+
+  private async refresh(userId: string, generation: number, revision: number): Promise<void> {
+    try {
+      const { data, error } = await this.supabase.client.auth.getUser();
+      if (
+        !error &&
+        data.user?.id === userId &&
+        this.isCurrent(userId, generation) &&
+        this.editRevision === revision
+      ) {
+        this.preferences.set(
+          parseTablePreferences(data.user.user_metadata?.['table_preferences_v1']),
+        );
+      }
+    } catch {
+      /* Bereits geladene Auswahl bleibt bei Netzwerkfehlern nutzbar. */
+    }
+  }
+
+  private async saveQueued(userId: string, generation: number): Promise<void> {
+    if (this.saving) return;
+    this.saving = true;
+    try {
+      while (this.queued && this.isCurrent(userId, generation)) {
+        const next = this.queued;
+        this.queued = null;
+        try {
+          const { error } = await this.supabase.client.auth.updateUser({
+            data: { table_preferences_v1: next },
+          });
+          if (!this.isCurrent(userId, generation)) return;
+          this.error.set(
+            error ? `Die Spaltenauswahl konnte nicht gespeichert werden: ${error.message}` : null,
+          );
+        } catch (error: unknown) {
+          if (!this.isCurrent(userId, generation)) return;
+          this.error.set(
+            `Die Spaltenauswahl konnte nicht gespeichert werden: ${error instanceof Error ? error.message : 'Netzwerkfehler'}`,
+          );
+        }
+      }
+    } finally {
+      this.saving = false;
+      if (this.queued && this.activeUserId && this.isCurrent(this.activeUserId, this.generation))
+        void this.saveQueued(this.activeUserId, this.generation);
     }
   }
 }

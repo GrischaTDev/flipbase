@@ -3,27 +3,20 @@
     class="linear-surface overflow-hidden rounded-xl"
     aria-labelledby="inventory-table-title"
   >
-    <div class="border-b border-fb-line px-4 py-3 flex items-center justify-between gap-3">
-      <div>
-        <h2 id="inventory-table-title" class="text-sm font-semibold text-fb-text-primary">
-          Inventar
-        </h2>
-        <p class="mt-0.5 text-[11px] text-fb-text-muted">
-          Alle vorhandenen und verkauften Artikel in einer Ansicht
-        </p>
-      </div>
-      <app-table-column-menu
-        [columns]="tablePrefs().columns"
-        [sortOptions]="tableConfig.sortOptions"
-        [currentSort]="tablePrefs().sort"
-        (columnVisibilityToggled)="toggleColumnVisibility($event)"
-        (columnsReordered)="onColumnsReordered($event)"
-        (sortChanged)="onSortChanged($event)"
-        (resetRequested)="resetTablePreferences()"
-      />
+    <div class="border-b border-fb-line px-4 py-3">
+      <h2 id="inventory-table-title" class="text-sm font-semibold text-fb-text-primary">
+        Inventar
+      </h2>
+      <p class="mt-0.5 text-[11px] text-fb-text-muted">
+        Alle vorhandenen und verkauften Artikel in einer Ansicht
+      </p>
     </div>
     <div class="overflow-x-auto">
-      <table data-unified-inventory-table class="linear-table min-w-[1180px] w-full">
+      <table
+        [style.min-width.px]="440 + (visibleColumns().length - 3) * 105"
+        data-unified-inventory-table
+        class="linear-table w-full"
+      >
         <caption class="sr-only">
           Inventartabelle mit Herkunft, Bestand, Kosten, Status und Verkaufsbezug
         </caption>
@@ -31,46 +24,40 @@
           class="bg-fb-well text-[10px] font-semibold uppercase tracking-wider text-fb-text-secondary"
         >
           <tr>
-            @if (isColumnVisible('selection')) {
-              <th scope="col" class="w-12 border-b border-fb-line px-3 py-2.5 text-center">
-                Auswahl
-              </th>
-            }
-            @if (isColumnVisible('title')) {
-              <th scope="col" class="min-w-60 border-b border-fb-line px-3 py-2.5 text-left">
-                Artikel
-              </th>
-            }
-            @if (isColumnVisible('condition')) {
+            <th scope="col" class="w-12 border-b border-fb-line px-3 py-2.5 text-center">
+              Auswahl
+            </th>
+            <th scope="col" class="min-w-60 border-b border-fb-line px-3 py-2.5 text-left">
+              Artikel
+            </th>
+            @if (visibleColumns().includes('condition')) {
               <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Zustand</th>
             }
-            @if (isColumnVisible('quantity')) {
+            @if (visibleColumns().includes('quantity')) {
               <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Bestand</th>
             }
-            @if (isColumnVisible('status')) {
+            @if (visibleColumns().includes('status')) {
               <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Status</th>
             }
-            @if (isColumnVisible('origin')) {
+            @if (visibleColumns().includes('origin')) {
               <th scope="col" class="min-w-44 border-b border-fb-line px-3 py-2.5 text-left">
                 Herkunft
               </th>
             }
-            @if (isColumnVisible('cost_unit')) {
+            @if (visibleColumns().includes('unit_cost')) {
               <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
                 Kosten pro Stück
               </th>
             }
-            @if (isColumnVisible('cost_total')) {
+            @if (visibleColumns().includes('inventory_value')) {
               <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
                 Bestandswert
               </th>
             }
-            @if (isColumnVisible('expected_value')) {
+            @if (visibleColumns().includes('sale')) {
               <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-left">Verkauf</th>
             }
-            @if (isColumnVisible('actions')) {
-              <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">Aktionen</th>
-            }
+            <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">Aktionen</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-fb-line">
@@ -81,60 +68,54 @@
               class="align-top transition hover:bg-fb-surface-alt"
               [class.bg-indigo-500/5]="row.inventoryItem && isItemSelected(row.inventoryItem.id)"
             >
-              @if (isColumnVisible('selection')) {
-                <td class="px-3 py-3 text-center">
-                  @if (row.inventoryItem; as item) {
-                    <div data-item-select class="flex justify-center">
-                      <input
-                        type="checkbox"
-                        [checked]="isItemSelected(item.id)"
-                        (change)="selectionChanged.emit(item.id)"
-                        [attr.aria-label]="'Artikel ' + item.title + ' auswählen'"
-                        class="h-4 w-4 cursor-pointer rounded border-fb-border bg-fb-well text-emerald-600 focus:ring-2 focus:ring-emerald-400"
-                      />
-                    </div>
-                  } @else {
-                    <span aria-hidden="true">—</span>
-                  }
-                </td>
-              }
-
-              @if (isColumnVisible('title')) {
-                <td class="px-3 py-3">
-                  @if (row.inventoryItem; as item) {
-                    <a
-                      data-item-details
-                      [routerLink]="['/inventory', item.id]"
-                      class="font-semibold text-fb-text-primary transition hover:text-emerald-400"
-                      >{{ row.title }}</a
+              <td class="px-3 py-3 text-center">
+                @if (row.inventoryItem; as item) {
+                  <div data-item-select class="flex justify-center">
+                    <input
+                      type="checkbox"
+                      [checked]="isItemSelected(item.id)"
+                      (change)="selectionChanged.emit(item.id)"
+                      [attr.aria-label]="'Artikel ' + item.title + ' auswählen'"
+                      class="h-4 w-4 cursor-pointer rounded border-fb-border bg-fb-well text-emerald-600 focus:ring-2 focus:ring-emerald-400"
+                    />
+                  </div>
+                } @else {
+                  <span aria-hidden="true">—</span>
+                }
+              </td>
+              <td class="px-3 py-3">
+                @if (row.inventoryItem; as item) {
+                  <a
+                    data-item-details
+                    [routerLink]="['/inventory', item.id]"
+                    class="font-semibold text-fb-text-primary transition hover:text-emerald-400"
+                    >{{ row.title }}</a
+                  >
+                  <p class="mt-0.5 text-[10px] text-fb-text-muted">
+                    {{ item.brand || item.category || 'Keine Kategorie' }}
+                  </p>
+                } @else {
+                  <p class="font-semibold text-fb-text-primary">{{ row.title }}</p>
+                  @if (row.lots.length > 0) {
+                    <button
+                      type="button"
+                      (click)="toggleLots(row.actionId)"
+                      [attr.data-stock-origin-toggle]="row.actionId"
+                      [attr.aria-expanded]="areLotsOpen(row.actionId)"
+                      [attr.aria-controls]="'stock-origins-' + row.actionId"
+                      class="mt-1 inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-indigo-300 transition hover:text-indigo-200"
                     >
-                    <p class="mt-0.5 text-[10px] text-fb-text-muted">
-                      {{ item.brand || item.category || 'Keine Kategorie' }}
-                    </p>
-                  } @else {
-                    <p class="font-semibold text-fb-text-primary">{{ row.title }}</p>
-                    @if (row.lots.length > 0) {
-                      <button
-                        type="button"
-                        (click)="toggleLots(row.actionId)"
-                        [attr.data-stock-origin-toggle]="row.actionId"
-                        [attr.aria-expanded]="areLotsOpen(row.actionId)"
-                        [attr.aria-controls]="'stock-origins-' + row.actionId"
-                        class="mt-1 inline-flex cursor-pointer items-center gap-1 text-[11px] font-semibold text-indigo-300 transition hover:text-indigo-200"
-                      >
-                        <svg
-                          [lucideIcon]="areLotsOpen(row.actionId) ? chevronUpIcon : chevronDownIcon"
-                          class="h-3.5 w-3.5"
-                          aria-hidden="true"
-                        ></svg>
-                        Herkunft und Kosten aufschlüsseln
-                      </button>
-                    }
+                      <svg
+                        [lucideIcon]="areLotsOpen(row.actionId) ? chevronUpIcon : chevronDownIcon"
+                        class="h-3.5 w-3.5"
+                        aria-hidden="true"
+                      ></svg>
+                      Herkunft und Kosten aufschlüsseln
+                    </button>
                   }
-                </td>
-              }
-
-              @if (isColumnVisible('condition')) {
+                }
+              </td>
+              @if (visibleColumns().includes('condition')) {
                 <td class="px-3 py-3 text-xs text-fb-text-secondary">
                   @if (row.condition) {
                     {{ row.condition | itemConditionLabel }}
@@ -143,8 +124,7 @@
                   }
                 </td>
               }
-
-              @if (isColumnVisible('quantity')) {
+              @if (visibleColumns().includes('quantity')) {
                 <td class="px-3 py-3">
                   @switch (row.quantityState) {
                     @case ('known') {
@@ -172,8 +152,7 @@
                   }
                 </td>
               }
-
-              @if (isColumnVisible('status')) {
+              @if (visibleColumns().includes('status')) {
                 <td class="px-3 py-3">
                   @if (row.status.kind === 'editable' && row.inventoryItem; as item) {
                     <div data-item-status>
@@ -191,19 +170,15 @@
                       data-item-status-badge
                       [attr.data-sold-badge]="row.status.kind === 'sold' ? '' : null"
                       [attr.data-integrity-conflict]="row.status.kind === 'conflict' ? '' : null"
-                      class="inline-flex min-h-7 items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold"
+                      class="inline-flex min-h-7 items-center rounded-full border px-2.5 py-1 text-[10px] font-semibold text-fb-text-primary"
                       [class.border-purple-500/40]="row.status.kind === 'sold'"
                       [class.bg-purple-500/15]="row.status.kind === 'sold'"
-                      [class.text-purple-200]="row.status.kind === 'sold'"
                       [class.border-amber-500/40]="row.status.kind === 'review'"
                       [class.bg-amber-500/15]="row.status.kind === 'review'"
-                      [class.text-amber-200]="row.status.kind === 'review'"
                       [class.border-rose-500/40]="row.status.kind === 'conflict'"
                       [class.bg-rose-500/15]="row.status.kind === 'conflict'"
-                      [class.text-rose-300]="row.status.kind === 'conflict'"
                       [class.border-emerald-500/30]="row.status.kind === 'available'"
                       [class.bg-emerald-500/15]="row.status.kind === 'available'"
-                      [class.text-emerald-300]="row.status.kind === 'available'"
                       >{{ row.status.label }}</span
                     >
                   }
@@ -231,8 +206,7 @@
                   }
                 </td>
               }
-
-              @if (isColumnVisible('origin')) {
+              @if (visibleColumns().includes('origin')) {
                 <td class="px-3 py-3 text-xs text-fb-text-secondary">
                   @switch (row.originState) {
                     @case ('known') {
@@ -257,20 +231,17 @@
                   }
                 </td>
               }
-
-              @if (isColumnVisible('cost_unit')) {
+              @if (visibleColumns().includes('unit_cost')) {
                 <td class="px-3 py-3 text-right font-mono text-xs">
                   <app-cost-state [state]="row.costPerUnit" />
                 </td>
               }
-
-              @if (isColumnVisible('cost_total')) {
+              @if (visibleColumns().includes('inventory_value')) {
                 <td class="px-3 py-3 text-right font-mono text-xs">
                   <app-cost-state [state]="row.inventoryValue" />
                 </td>
               }
-
-              @if (isColumnVisible('expected_value')) {
+              @if (visibleColumns().includes('sale')) {
                 <td class="px-3 py-3 text-xs">
                   @switch (row.salesState) {
                     @case ('loading') {
@@ -307,63 +278,60 @@
                   }
                 </td>
               }
-
-              @if (isColumnVisible('actions')) {
-                <td class="px-3 py-3 text-right">
-                  <div class="flex items-center justify-end gap-1.5">
-                    @if (row.inventoryItem; as item) {
+              <td class="px-3 py-3 text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  @if (row.inventoryItem; as item) {
+                    @if (
+                      item.archived_at ||
+                      (item.sale_state === 'sold' && item.active_sale_count === 1)
+                    ) {
                       <button
-                        data-item-label
                         type="button"
-                        (click)="labelIndividual.emit(item)"
-                        class="cursor-pointer rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-indigo-300"
-                        [attr.aria-label]="'Etikett für ' + row.title + ' drucken'"
+                        data-item-archive
+                        (click)="archiveItem.emit(item)"
+                        [disabled]="archivePendingIds().has(item.id)"
+                        class="linear-btn-secondary cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-semibold disabled:opacity-50"
                       >
-                        <svg [lucideIcon]="printerIcon" class="h-4 w-4" aria-hidden="true"></svg>
+                        {{ item.archived_at ? 'Aus Archiv holen' : 'Archivieren' }}
                       </button>
-                      <a
-                        data-item-details
-                        [routerLink]="['/inventory', item.id]"
-                        class="rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-fb-text-primary"
-                        [attr.aria-label]="'Details für ' + row.title + ' öffnen'"
-                        ><svg [lucideIcon]="arrowRightIcon" class="h-4 w-4" aria-hidden="true"></svg
-                      ></a>
-                      @if (row.canMutate) {
-                        <button
-                          data-item-store-toggle
-                          type="button"
-                          (click)="emitStoreToggle(item)"
-                          class="cursor-pointer rounded-lg p-1.5 transition hover:bg-fb-line"
-                          [attr.aria-label]="row.title + ' Webshop-Freigabe ändern'"
-                        >
-                          <svg
-                            [lucideIcon]="storeIcon"
-                            class="h-4 w-4 text-fb-text-muted"
-                            aria-hidden="true"
-                          ></svg>
-                        </button>
-                      }
-                      @if (row.canSell) {
-                        <button
-                          data-item-sell
-                          type="button"
-                          (click)="emitIndividualSale(item)"
-                          class="linear-btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
-                          [attr.aria-label]="row.title + ' verkaufen'"
-                        >
-                          <svg
-                            [lucideIcon]="shoppingCartIcon"
-                            class="h-3.5 w-3.5"
-                            aria-hidden="true"
-                          ></svg
-                          >Verkaufen
-                        </button>
-                      }
-                    } @else if (row.canSell) {
+                    }
+                    <button
+                      data-item-label
+                      type="button"
+                      (click)="labelIndividual.emit(item)"
+                      class="cursor-pointer rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-indigo-300"
+                      [attr.aria-label]="'Etikett für ' + row.title + ' drucken'"
+                    >
+                      <svg [lucideIcon]="printerIcon" class="h-4 w-4" aria-hidden="true"></svg>
+                    </button>
+                    <a
+                      data-item-details
+                      [routerLink]="['/inventory', item.id]"
+                      class="rounded-lg p-1.5 text-fb-text-muted transition hover:bg-fb-line hover:text-fb-text-primary"
+                      [attr.aria-label]="'Details für ' + row.title + ' öffnen'"
+                      ><svg [lucideIcon]="arrowRightIcon" class="h-4 w-4" aria-hidden="true"></svg
+                    ></a>
+                    @if (row.canMutate) {
                       <button
+                        data-item-store-toggle
                         type="button"
-                        (click)="sell.emit(stockPosition(row))"
-                        class="linear-btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                        (click)="emitStoreToggle(item)"
+                        class="cursor-pointer rounded-lg p-1.5 transition hover:bg-fb-line"
+                        [attr.aria-label]="row.title + ' Webshop-Freigabe ändern'"
+                      >
+                        <svg
+                          [lucideIcon]="storeIcon"
+                          class="h-4 w-4 text-fb-text-muted"
+                          aria-hidden="true"
+                        ></svg>
+                      </button>
+                    }
+                    @if (row.canSell) {
+                      <button
+                        data-item-sell
+                        type="button"
+                        (click)="emitIndividualSale(item)"
+                        class="linear-btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
                         [attr.aria-label]="row.title + ' verkaufen'"
                       >
                         <svg
@@ -374,13 +342,27 @@
                         >Verkaufen
                       </button>
                     }
-                  </div>
-                </td>
-              }
+                  } @else if (row.canSell) {
+                    <button
+                      type="button"
+                      (click)="sell.emit(stockPosition(row))"
+                      class="linear-btn-primary inline-flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                      [attr.aria-label]="row.title + ' verkaufen'"
+                    >
+                      <svg
+                        [lucideIcon]="shoppingCartIcon"
+                        class="h-3.5 w-3.5"
+                        aria-hidden="true"
+                      ></svg
+                      >Verkaufen
+                    </button>
+                  }
+                </div>
+              </td>
             </tr>
             @if (row.trackingMode === 'quantity' && areLotsOpen(row.actionId)) {
               <tr>
-                <td [attr.colspan]="visibleColumnCount()" class="bg-fb-well px-5 py-3">
+                <td [attr.colspan]="visibleColumns().length" class="bg-fb-well px-5 py-3">
                   <div
                     [id]="'stock-origins-' + row.actionId"
                     class="space-y-2"

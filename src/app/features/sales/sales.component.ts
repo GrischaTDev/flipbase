@@ -98,6 +98,23 @@ function validatedSaleTargetId(value: string | null): string | null {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SalesComponent {
+  readonly tablePreferences = inject(TablePreferencesService);
+  readonly tableColumns = computed<readonly TableColumnOption[]>(() => [
+    { id: 'title', label: 'Verkaufter Artikel', required: true },
+    { id: 'quantity', label: 'Menge' },
+    { id: 'platform', label: 'Plattform' },
+    { id: 'date', label: 'Datum' },
+    { id: 'revenue', label: 'Verkaufserlös' },
+    { id: 'cost', label: 'Wareneinsatz' },
+    { id: 'selling_costs', label: 'Verkaufskosten' },
+    { id: 'result', label: 'Ergebnis' },
+    { id: 'margin', label: 'Marge' },
+    { id: 'holding', label: 'Haltedauer' },
+    { id: 'actions', label: 'Aktionen', required: true },
+  ]);
+  readonly visibleColumns = computed(() =>
+    this.tablePreferences.visibleColumns('sales', this.tableColumns()),
+  );
   /**
    * Vorgaben fuer das eigene Auswahlfeld.
    *

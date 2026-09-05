@@ -21,9 +21,14 @@
       </app-button>
 
       <!-- Standard Einkauf erfassen -->
-      <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreateModal()">
-        {{ 'PURCHASES.NEW_PURCHASE' | translate }}
-      </app-button>
+      <button
+        type="button"
+        routerLink="/purchases/new"
+        class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs cursor-pointer select-none shadow-lg shadow-indigo-500/20"
+      >
+        <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5 stroke-[2.5]" aria-hidden="true"></svg>
+        <span>{{ 'PURCHASES.NEW_PURCHASE' | translate }}</span>
+      </button>
     </div>
   </app-page-header>
 
@@ -249,21 +254,13 @@
       </p>
       <button
         type="button"
-        (click)="openCreateModal()"
+        routerLink="/purchases/new"
         class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs transition cursor-pointer"
       >
         <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
-        <span>Einkauf erfassen</span>
+        <span>Neuer Einkauf</span>
       </button>
     </div>
-  }
-
-  <!-- Standard Create Modal -->
-  @if (isCreateModalOpen()) {
-    <app-purchase-create-modal
-      (closed)="closeCreateModal()"
-      (created)="closeCreateModal()"
-    ></app-purchase-create-modal>
   }
 
   <!-- Flohmarkt-Schnellerfassungs & Bargeld-Modal -->

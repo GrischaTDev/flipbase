@@ -5,10 +5,11 @@
         id="purchase-line-editor-title"
         class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
       >
-        Einkaufspositionen
+        Artikel
       </h3>
       <p class="text-[11px] text-fb-text-muted">
-        Mengenartikel bleiben eine Position; Einzelstücke werden separat erfasst.
+        Artikel starten mit Menge eins. Mengenartikel bleiben eine Position; Einzelstücke werden
+        separat erfasst.
       </p>
     </div>
     <div class="flex flex-wrap gap-2">
@@ -18,24 +19,33 @@
         [disabled]="catalogSelectionDisabled()"
         class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-wait disabled:opacity-50"
       >
-        Bestehenden Artikel wählen
+        Vorhandenen Artikel wählen
       </button>
       <button
         type="button"
         (click)="isCreatingProduct.set(!isCreatingProduct())"
         class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
       >
-        Neuen Bestandsartikel anlegen
+        Neuen Artikel anlegen
       </button>
       <button
         type="button"
         (click)="addIndividualLine()"
         class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
       >
-        Einzelstück / Mystery-Inhalt
+        Einzelstück hinzufügen
       </button>
+      <label
+        class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
+      >
+        CSV importieren
+        <input type="file" accept=".csv,text/csv" class="sr-only" (change)="importCsv($event)" />
+      </label>
     </div>
   </div>
+  @if (importError(); as error) {
+    <p class="text-xs text-rose-300" role="alert">{{ error }}</p>
+  }
 
   @if (catalogService.isLoading()) {
     <p class="text-xs text-fb-text-muted" role="status">Artikelstamm wird geladen…</p>
@@ -56,11 +66,7 @@
   }
 
   @if (isCreatingProduct()) {
-    <form
-      [formGroup]="productForm"
-      (ngSubmit)="createCatalogProduct()"
-      class="rounded-xl border border-fb-line bg-fb-well p-3"
-    >
+    <div [formGroup]="productForm" class="rounded-xl border border-fb-line bg-fb-well p-3">
       <label
         for="newCatalogProductTitle"
         class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
@@ -76,7 +82,8 @@
           placeholder="z. B. LED-Lampe"
         />
         <button
-          type="submit"
+          type="button"
+          (click)="createCatalogProduct()"
           [disabled]="productForm.invalid || isSavingProduct()"
           class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -86,7 +93,7 @@
       @if (productError()) {
         <p class="mt-2 text-xs text-rose-400" role="alert">{{ productError() }}</p>
       }
-    </form>
+    </div>
   }
 
   @if (lineRows.length > 0) {
@@ -143,6 +150,20 @@
                   placeholder="z. B. Mystery-Fundstück"
                 />
               </label>
+              <label class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
+                EAN / GTIN (optional)
+                <input
+                  type="text"
+                  formControlName="ean"
+                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                  placeholder="z. B. 036000291452"
+                />
+                @if (row.controls.ean.invalid && row.controls.ean.touched) {
+                  <span class="mt-1 block normal-case text-rose-300" role="alert"
+                    >Ungültige EAN/GTIN.</span
+                  >
+                }
+              </label>
             }
 
             <label class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
@@ -186,7 +207,7 @@
               </label>
             } @else {
               <label class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
-                Einkaufspreis pro Stück
+                Stückpreis
                 <input
                   type="number"
                   min="0"

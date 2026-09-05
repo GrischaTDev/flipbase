@@ -223,7 +223,16 @@
 
             <!-- Positionsdarstellung -->
             @if (purchaseDetailRows().length > 0) {
+              <div class="mb-3 flex justify-end">
+                <app-table-column-picker
+                  [definitions]="tableColumns()"
+                  [selected]="visibleColumns()"
+                  [saveError]="tablePreferences.saveError()"
+                  (selectedChange)="setPurchaseVisibleColumns($event)"
+                />
+              </div>
               <app-purchase-detail-table
+                [visibleColumns]="visibleColumns()"
                 [purchaseId]="p.id"
                 [rows]="purchaseDetailRows()"
                 (captureIndividual)="captureIndividualItemById($event)"

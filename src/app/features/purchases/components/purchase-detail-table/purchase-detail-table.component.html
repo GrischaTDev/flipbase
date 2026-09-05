@@ -1,23 +1,41 @@
 @if (rows().length > 0) {
   <div data-purchase-detail-table class="overflow-x-auto">
-    <table class="linear-table min-w-[56rem]">
+    <table [style.min-width.px]="260 + (visibleColumns().length - 1) * 105" class="linear-table">
       <thead
         class="bg-fb-subtle text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
       >
         <tr>
           <th class="rounded-tl-xl border-b border-fb-border p-3">Artikel</th>
-          <th class="border-b border-fb-border p-3 text-right">Menge</th>
-          @if (isMystery()) {
-            <th class="border-b border-fb-border p-3">Zustand</th>
-            <th class="border-b border-fb-border p-3 text-right">Geschätzter Marktwert</th>
-            <th class="border-b border-fb-border p-3 text-right">Kostenanteil pro Stück</th>
-          } @else {
-            <th class="border-b border-fb-border p-3 text-right">Einkaufspreis pro Stück</th>
-            <th class="border-b border-fb-border p-3 text-right">Zusätzlicher Kostenanteil</th>
-            <th class="border-b border-fb-border p-3 text-right">Gesamtkosten pro Stück</th>
+          @if (visibleColumns().includes('quantity')) {
+            <th class="border-b border-fb-border p-3 text-right">Menge</th>
           }
-          <th class="border-b border-fb-border p-3 text-right">Verfügbar</th>
-          <th class="rounded-tr-xl border-b border-fb-border p-3 text-right">Verkauft</th>
+          @if (isMystery()) {
+            @if (visibleColumns().includes('condition')) {
+              <th class="border-b border-fb-border p-3">Zustand</th>
+            }
+            @if (visibleColumns().includes('estimated')) {
+              <th class="border-b border-fb-border p-3 text-right">Geschätzter Marktwert</th>
+            }
+            @if (visibleColumns().includes('allocated')) {
+              <th class="border-b border-fb-border p-3 text-right">Kostenanteil pro Stück</th>
+            }
+          } @else {
+            @if (visibleColumns().includes('unit_price')) {
+              <th class="border-b border-fb-border p-3 text-right">Einkaufspreis pro Stück</th>
+            }
+            @if (visibleColumns().includes('additional')) {
+              <th class="border-b border-fb-border p-3 text-right">Zusätzlicher Kostenanteil</th>
+            }
+            @if (visibleColumns().includes('total_cost')) {
+              <th class="border-b border-fb-border p-3 text-right">Gesamtkosten pro Stück</th>
+            }
+          }
+          @if (visibleColumns().includes('available')) {
+            <th class="border-b border-fb-border p-3 text-right">Verfügbar</th>
+          }
+          @if (visibleColumns().includes('sold')) {
+            <th class="rounded-tr-xl border-b border-fb-border p-3 text-right">Verkauft</th>
+          }
         </tr>
       </thead>
       <tbody class="divide-y divide-fb-border">
@@ -110,50 +128,68 @@
                 }
               </div>
             </td>
-            <td class="p-3 text-right font-mono text-fb-text-primary">{{ row.quantity }}</td>
+            @if (visibleColumns().includes('quantity')) {
+              <td class="p-3 text-right font-mono text-fb-text-primary">{{ row.quantity }}</td>
+            }
             @if (row.kind === 'mystery') {
-              <td class="p-3 text-fb-text-secondary">
-                {{ row.condition | itemConditionLabel }}
-              </td>
-              <td class="p-3 text-right font-mono text-fb-text-secondary">
-                @if (row.estimatedMarketValue === null) {
-                  Nicht angegeben
+              @if (visibleColumns().includes('condition')) {
+                <td class="p-3 text-fb-text-secondary">
+                  {{ row.condition | itemConditionLabel }}
+                </td>
+              }
+              @if (visibleColumns().includes('estimated')) {
+                <td class="p-3 text-right font-mono text-fb-text-secondary">
+                  @if (row.estimatedMarketValue === null) {
+                    Nicht angegeben
+                  } @else {
+                    {{ row.estimatedMarketValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  }
+                </td>
+              }
+              @if (visibleColumns().includes('allocated')) {
+                <td class="p-3 text-right font-mono font-bold">
+                  <app-cost-state [state]="row.allocatedCostPerUnit" />
+                </td>
+              }
+            } @else {
+              @if (visibleColumns().includes('unit_price')) {
+                <td class="p-3 text-right font-mono font-bold">
+                  <app-cost-state [state]="row.unitPurchasePrice" />
+                </td>
+              }
+              @if (visibleColumns().includes('additional')) {
+                <td class="p-3 text-right font-mono font-bold">
+                  <app-cost-state [state]="row.additionalCostPerUnit" />
+                </td>
+              }
+              @if (visibleColumns().includes('total_cost')) {
+                <td class="p-3 text-right font-mono font-bold">
+                  <app-cost-state [state]="row.totalCostPerUnit" />
+                </td>
+              }
+            }
+            @if (visibleColumns().includes('available')) {
+              <td class="p-3 text-right font-mono font-bold text-fb-text-primary">
+                @if (row.quantityState === 'error') {
+                  Bestandsdaten konnten nicht geladen werden
+                } @else if (row.quantityState === 'loading') {
+                  Wird geladen …
                 } @else {
-                  {{ row.estimatedMarketValue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                  {{ row.availableUnits }}
                 }
               </td>
-              <td class="p-3 text-right font-mono font-bold">
-                <app-cost-state [state]="row.allocatedCostPerUnit" />
-              </td>
-            } @else {
-              <td class="p-3 text-right font-mono font-bold">
-                <app-cost-state [state]="row.unitPurchasePrice" />
-              </td>
-              <td class="p-3 text-right font-mono font-bold">
-                <app-cost-state [state]="row.additionalCostPerUnit" />
-              </td>
-              <td class="p-3 text-right font-mono font-bold">
-                <app-cost-state [state]="row.totalCostPerUnit" />
+            }
+            @if (visibleColumns().includes('sold')) {
+              <td class="p-3 text-right font-mono font-bold text-fb-text-primary">
+                @if (row.quantityState === 'error') {
+                  Bestandsdaten konnten nicht geladen werden
+                } @else if (row.quantityState === 'loading') {
+                  Wird geladen …
+                } @else {
+                  {{ row.soldUnits }}
+                }
               </td>
             }
-            <td class="p-3 text-right font-mono font-bold text-fb-text-primary">
-              @if (row.quantityState === 'error') {
-                Bestandsdaten konnten nicht geladen werden
-              } @else if (row.quantityState === 'loading') {
-                Wird geladen …
-              } @else {
-                {{ row.availableUnits }}
-              }
-            </td>
-            <td class="p-3 text-right font-mono font-bold text-fb-text-primary">
-              @if (row.quantityState === 'error') {
-                Bestandsdaten konnten nicht geladen werden
-              } @else if (row.quantityState === 'loading') {
-                Wird geladen …
-              } @else {
-                {{ row.soldUnits }}
-              }
-            </td>
           </tr>
         }
       </tbody>
