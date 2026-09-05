@@ -11,6 +11,7 @@ function runChecker(overrides = {}) {
     env: {
       ...process.env,
       EVENT_NAME: 'push',
+      TESTS_REUSED: 'false',
       CHANGES_RESULT: 'success',
       APPLICATION_CHANGED: 'true',
       SUPABASE_CHANGED: 'true',
@@ -29,6 +30,27 @@ function runChecker(overrides = {}) {
 test('akzeptiert einen vollständigen erfolgreichen Push', () => {
   const result = runChecker();
   assert.equal(result.status, 0, result.stderr);
+});
+
+test('akzeptiert wiederverwendete PR-Prüfungen nur beim Push mit erfolgreichem Image', () => {
+  const reused = {
+    TESTS_REUSED: 'true',
+    QUALITY_RESULT: 'skipped',
+    UNIT_RESULT: 'skipped',
+    DATABASE_RESULT: 'skipped',
+    SNIPER_RESULT: 'skipped',
+    BROWSER_RESULT: 'skipped',
+  };
+  assert.equal(runChecker(reused).status, 0);
+  for (const overrides of [
+    { EVENT_NAME: 'pull_request' },
+    { CHANGES_RESULT: 'failure' },
+    { IMAGE_RESULT: 'failure' },
+    { TESTS_REUSED: '' },
+    { QUALITY_RESULT: 'cancelled' },
+  ]) {
+    assert.notEqual(runChecker({ ...reused, ...overrides }).status, 0);
+  }
 });
 
 test('akzeptiert dokumentationsreine Änderungen nur mit übersprungenen Anwendungsjobs', () => {

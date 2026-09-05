@@ -57,8 +57,8 @@ export class DashboardComponent {
   readonly rangeOptions: readonly RangeOption[] = [
     { value: 'today', label: 'Heute' },
     { value: 'last_7_days', label: '7 Tage' },
-    { value: 'month', label: 'Monat' },
-    { value: 'year', label: 'Jahr' },
+    { value: 'month', label: 'Dieser Monat' },
+    { value: 'year', label: 'Dieses Jahr' },
   ];
 
   readonly platformSelectOptions = computed<readonly SelectOption<DashboardPlatform>[]>(() => [

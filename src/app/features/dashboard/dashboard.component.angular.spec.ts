@@ -207,6 +207,50 @@ function createDashboard() {
 }
 
 describe('DashboardComponent', () => {
+  it('macht Augustverkäufe mit offenen Kosten aus der leeren Septemberansicht erreichbar', () => {
+    const historicalSale: Sale = {
+      id: 'historical-sale',
+      workspace_id: 'workspace-1',
+      platform: 'ebay',
+      sale_date: '2026-08-30',
+      sale_price: 42.98,
+      platform_fee: 7.7,
+      shipping_cost: 5.19,
+      packaging_cost: 0,
+      other_costs: 0,
+      lines: [],
+      has_persisted_lines: false,
+    };
+    sales.set([historicalSale]);
+    const service = Object.create(DashboardReportService.prototype) as DashboardReportService;
+    createReport.mockImplementation((...args: unknown[]) =>
+      service.createReportForRecords(
+        args[0] as 'month' | 'year',
+        args[1] as string,
+        { purchases: [], inventoryItems: [], stockLots: [], sales: [historicalSale] },
+        new Date(2026, 8, 5),
+      ),
+    );
+    try {
+      const fixture = createDashboard();
+      const host = fixture.nativeElement as HTMLElement;
+      expect(fixture.componentInstance.report().rows).toHaveLength(0);
+      const button = host.querySelector<HTMLButtonElement>('[data-expand-sales-period]');
+      expect(button).not.toBeNull();
+      button!.click();
+      fixture.detectChanges();
+      expect(fixture.componentInstance.report()).toMatchObject({
+        revenue: 42.98,
+        soldItems: 1,
+        resultAfterDirectCosts: null,
+      });
+      expect(fixture.componentInstance.report().rows).toHaveLength(1);
+      expect(host.textContent).toContain('Kosten noch offen');
+    } finally {
+      createReport.mockImplementation(() => emptyReport);
+    }
+  });
+
   it('verwendet für Karten und Verkaufsjournal dieselben verständlichen Kennzahlen', () => {
     createReport.mockReturnValueOnce({
       ...emptyReport,

@@ -38,6 +38,49 @@ function createService(options?: {
 }
 
 describe('PurchaseCostingService', () => {
+  it('weist eine Vorschau für einen anderen Einkauf zurück', async () => {
+    const { service } = createService({
+      rpc: async () => ({
+        data: {
+          purchaseId: 'other',
+          fingerprint: 'hash',
+          classification: 'auto_repair',
+          reason: 'Bereit',
+          purchasePrice: 100,
+          costs: [],
+          items: [],
+        },
+        error: null,
+      }),
+    });
+    expect((await service.previewCostRepair('workspace-1', 'purchase-1')).error).not.toBeNull();
+  });
+
+  it('übernimmt nur den geprüften Einzelkauf mit seinem Fingerabdruck', async () => {
+    const { service, rpc } = createService({
+      rpc: async () => ({
+        data: { repaired: 1, itemsMissing: 0, manualReview: 0 },
+        error: null,
+      }),
+    });
+    const result = await service.repairPurchaseCosts('workspace-1', 'purchase-1', 'checked-state');
+    expect(result.error).toBeNull();
+    expect(result.data).toBe(true);
+    expect(rpc).toHaveBeenCalledWith('migrate_purchase_costing_legacy', {
+      p_workspace_id: 'workspace-1',
+      p_purchase_id: 'purchase-1',
+      p_expected_fingerprint: 'checked-state',
+      p_confirm: true,
+    });
+  });
+
+  it('sendet bei fehlender Einzelkauf-Bestätigung keine Sammelkorrektur', async () => {
+    const { service, rpc } = createService();
+    const result = await service.repairPurchaseCosts('workspace-1', '', '');
+    expect(result.error).not.toBeNull();
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
   it('finalisiert einen Einkauf mit dem exakten RPC-Vertrag', async () => {
     const { service, rpc } = createService();
 

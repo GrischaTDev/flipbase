@@ -59,16 +59,36 @@ An diesem Projekt arbeiten mehrere KI-Assistenten, teils gleichzeitig.
 
 ## Vor dem Pushen
 
-- **`npm run verify`** ausführen. Es fährt die CI-Kette: Format, Lint, Typen,
-  Workflow-Tests, Suite-Audit, alle Tests, Bau.
+- **Vor einem Branch-Push gezielt prüfen:** betroffene Tests ausführen und
+  geänderte Dateien formatieren/linten. Bei Angular-/Template-Änderungen auch
+  den Bau prüfen, bei Datenbankänderungen die passenden Datenbanktests.
+  Die vollständige verbindliche Prüfung läuft einmal im PR; nicht bei jedem
+  Push zusätzlich die gesamte lokale Suite wiederholen.
+- **`npm run verify`** bleibt für umfangreiche Integrationen, Fehlersuche und
+  ausdrücklich gewünschte Gesamtprüfungen verfügbar. Es fährt Format, Lint,
+  Typen, Workflow-Tests, Suite-Audit, alle Anwendungstests und den Bau.
 - **Den Exitcode nicht durch eine Pipe messen.** `npm run verify | tail -20`
   meldet den Code von `tail` und sieht auch dann grün aus, wenn ESLint Fehler
   wirft. Richtig: `npm run verify > log 2>&1; echo $?`.
 - `npm run typecheck` allein genügt nicht — `tsc` prüft **keine
   Angular-Vorlagen**. Eine Bindung an einen nicht existierenden Eingang kommt
   durch Typprüfung und Tests und fällt erst beim Bau auf.
-- **Ein Push auf `master` löst sofort ein Produktions-Deployment aus.** Der
-  lokale Lauf ist die letzte Gelegenheit, einen Fehler zu bemerken.
+- **Über einen grünen PR mit Merge-Commit veröffentlichen.** Nach dem Merge
+  verwendet CI erfolgreiche PR-Prüfungen nur bei identischem Git-Dateistand
+  und ausreichendem Prüfumfang erneut. Fehlt dieser Nachweis, laufen die
+  Prüfungen automatisch. Direkte Pushes auf `master` nicht als Abkürzung nutzen.
+- Der Produktionsbau, Image-Smoke, sichere Migrationen und die Prüfung der
+  öffentlich ausgelieferten Version bleiben vor beziehungsweise nach Deployment aktiv.
+- **Migrationen gehören zum selben PR wie die Schemaänderung.** Die frühe
+  CI-Prüfung erkennt Schema-Dateiänderungen ohne neue Migration und Änderungen
+  bereits vorhandener Migrationen. Sie ersetzt keinen inhaltlichen Schemaabgleich.
+- **Keine Prüfsummen von Hand pflegen.** Der Docker-Bau erzeugt das vollständige
+  SQL-Paket einschließlich Integritätsliste automatisch. Review/Merge der SQL-Dateien
+  ist die Freigabe; nach Merge läuft Backup → Migrationen → Anwendung → öffentlicher Check.
+- **SQL-Review bleibt erforderlich:** normale Release-Migrationen müssen vollständig
+  transaktional sein, ohne eigene Transaktionssteuerung, psql-Befehle oder externe
+  Seiteneffekte. Riskante oder nichttransaktionale Schritte vor dem Merge gesondert
+  planen und ausführen; sie dürfen nicht versehentlich in den automatischen Lauf geraten.
 
 ## Ordnerstruktur (feature-basiert)
 
