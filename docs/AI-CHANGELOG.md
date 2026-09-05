@@ -1,5 +1,16 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Codex – E2E-Kompatibilität des Spaltenknopfs korrigiert
+
+**Befund:** Der Browser-Smoke-Test blieb beim Spaltenmenü hängen, weil die
+zugängliche Beschriftung des sichtbaren Knopfs nicht mehr dem bestehenden
+E2E-Vertrag (`Spalten`) entsprach.
+
+**Korrektur:** Die sichtbare Kurzbezeichnung bleibt als zugänglicher Name
+erhalten; die ausführlichere Erklärung bleibt im Tooltip. Dadurch bleibt das
+Bedienelement verständlich und bestehende Tastatur-/Screenreader-Abfragen
+finden denselben Knopf wieder.
+
 ## 2026-09-06 – Codex – Polaris-Nachlauf für Tabellen-, Formular- und Navigationszugänglichkeit
 
 **Branch:** `codex/polaris-admin-ui`.

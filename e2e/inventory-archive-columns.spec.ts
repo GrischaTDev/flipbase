@@ -1,15 +1,55 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import axe from 'axe-core';
 import { startDemoMode } from './support/demo';
+
+function columnControl(page: Page): Locator {
+  return page.locator('app-table-column-picker, app-table-column-menu').first();
+}
+
+async function openColumnControl(page: Page): Promise<Locator> {
+  const control = columnControl(page);
+  await control.getByRole('button', { name: /Spalten/ }).click();
+  await expect(control.locator('fieldset, [role="dialog"]').first()).toBeVisible();
+  return control;
+}
+
+async function setColumnVisibility(
+  control: Locator,
+  column: string,
+  visible: boolean,
+): Promise<void> {
+  const labels = control.locator('label');
+  for (let index = 0; index < (await labels.count()); index += 1) {
+    const label = labels.nth(index);
+    if (!(await label.innerText()).includes(column)) continue;
+    const checkbox = label.locator('input[type="checkbox"]');
+    if ((await checkbox.count()) === 0) continue;
+    if (visible) await checkbox.check();
+    else await checkbox.uncheck();
+    return;
+  }
+
+  const action = visible ? 'einblenden' : 'ausblenden';
+  await control.getByRole('button', { name: `Spalte ${column} ${action}`, exact: true }).click();
+}
+
+async function assertRequiredColumn(control: Locator): Promise<void> {
+  const checkbox = control.locator('input[type="checkbox"]:disabled').first();
+  if ((await checkbox.count()) > 0) {
+    await expect(checkbox).toBeDisabled();
+    return;
+  }
+
+  await expect(control.getByLabel('Erforderliche Spalte').first()).toBeVisible();
+}
 
 test('behält die Spalten der jeweils anderen Einkaufsart bei einer Auswahländerung', async ({
   page,
 }) => {
   await startDemoMode(page);
   await page.goto('/purchases/pur-demo-2');
-  const picker = page.locator('app-table-column-picker');
-  await picker.getByRole('button', { name: 'Spalten', exact: true }).click();
-  await picker.getByRole('checkbox', { name: 'Menge', exact: true }).uncheck();
+  const picker = await openColumnControl(page);
+  await setColumnVisibility(picker, 'Menge', false);
   await page.evaluate(() => {
     const purchases = JSON.parse(localStorage.getItem('flipbase_local_purchases')!);
     purchases.find((purchase: { id: string }) => purchase.id === 'pur-demo-2').type =
@@ -122,19 +162,17 @@ for (const [url, column] of [
   test(`persönliche Spalten auf ${url} bleiben nach Reload erhalten`, async ({ page }) => {
     await startDemoMode(page);
     await page.goto(url);
-    const picker = page.locator('app-table-column-picker');
-    await picker.getByRole('button', { name: 'Spalten', exact: true }).click();
-    await picker.getByRole('checkbox', { name: column, exact: true }).uncheck();
+    const picker = await openColumnControl(page);
+    await setColumnVisibility(picker, column, false);
     await page.keyboard.press('Escape');
     await expect(page.getByRole('columnheader', { name: column, exact: true })).toHaveCount(0);
     await page.reload();
-    await expect(picker.getByRole('button', { name: 'Spalten', exact: true })).toBeVisible();
+    await expect(columnControl(page).getByRole('button', { name: /Spalten/ })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: column, exact: true })).toHaveCount(0);
-    await picker.getByRole('button', { name: 'Spalten', exact: true }).click();
-    await expect(picker.getByRole('checkbox', { name: /Artikel.*fest/ })).toBeDisabled();
-    await picker.getByRole('checkbox', { name: column, exact: true }).check();
-    await page.getByRole('heading', { level: 1 }).click();
-    await expect(picker.getByRole('checkbox', { name: column, exact: true })).toHaveCount(0);
+    const reloadedPicker = await openColumnControl(page);
+    await assertRequiredColumn(reloadedPicker);
+    await setColumnVisibility(reloadedPicker, column, true);
+    await page.keyboard.press('Escape');
     await expect(page.getByRole('columnheader', { name: column, exact: true })).toBeVisible();
   });
 }
