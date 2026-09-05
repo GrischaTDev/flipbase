@@ -172,6 +172,8 @@ CREATE TABLE IF NOT EXISTS public.inventory_items (
     dimension_height_cm NUMERIC,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    archived_at timestamptz,
+    archived_by uuid references auth.users(id) on delete restrict,
     unique (workspace_id, id)
 );
 

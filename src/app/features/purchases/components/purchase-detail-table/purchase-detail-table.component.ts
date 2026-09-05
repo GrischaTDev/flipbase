@@ -12,6 +12,18 @@ import type { PurchaseDetailRow } from '../../models/purchase-presentation.model
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PurchaseDetailTableComponent {
+  readonly visibleColumns = input<readonly string[]>([
+    'title',
+    'quantity',
+    'condition',
+    'estimated',
+    'allocated',
+    'unit_price',
+    'additional',
+    'total_cost',
+    'available',
+    'sold',
+  ]);
   readonly purchaseId = input.required<string>();
   readonly rows = input.required<readonly PurchaseDetailRow[]>();
   readonly captureIndividual = output<string>();

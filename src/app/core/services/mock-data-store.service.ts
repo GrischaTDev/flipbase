@@ -1501,6 +1501,49 @@ export class MockDataStoreService {
     } catch {}
   }
 
+  setItemArchived(
+    workspaceId: string,
+    itemId: string,
+    archived: boolean,
+    actorId: string,
+  ): Pick<InventoryItem, 'archived_at' | 'archived_by'> {
+    if (!this.isDemoMode()) throw new Error('Nur im Demomodus verfügbar.');
+    const items = this.getItems();
+    const item = items.find((value) => value.id === itemId && value.workspace_id === workspaceId);
+    if (!item) throw new Error('Artikel nicht gefunden.');
+    const activeSales = this.getSales(workspaceId).filter(
+      (sale) =>
+        !sale.returned_at &&
+        !sale.voided_at &&
+        (sale.inventory_item_id === itemId ||
+          sale.lines?.some((line) => line.inventory_item_id === itemId)),
+    );
+    if (
+      archived &&
+      (item.status !== 'sold' ||
+        activeSales.length !== 1 ||
+        !activeSales[0].lines?.some((line) => line.inventory_item_id === itemId))
+    )
+      throw new Error('Nur eindeutig verkaufte Einzelartikel können archiviert werden.');
+    const metadata = {
+      archived_at: archived ? (item.archived_at ?? new Date().toISOString()) : null,
+      archived_by: archived ? (item.archived_by ?? actorId) : null,
+    };
+    const storage = getStorage();
+    if (!storage) throw new Error('Der Demospeicher ist nicht verfügbar.');
+    storage.setItem(
+      STORAGE_KEY_ITEMS,
+      JSON.stringify(
+        items.map((value) =>
+          value.id === itemId && value.workspace_id === workspaceId
+            ? { ...value, ...metadata }
+            : value,
+        ),
+      ),
+    );
+    return metadata;
+  }
+
   setItems(workspaceId: string, items: InventoryItem[]): void {
     try {
       const other = this.getItems().filter((i) => i.workspace_id && i.workspace_id !== workspaceId);

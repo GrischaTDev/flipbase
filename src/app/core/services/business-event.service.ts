@@ -26,6 +26,8 @@ const EVENT_LABELS: Readonly<Record<string, string>> = {
   purchase_costing_legacy_migrated: 'Altdaten des Einkaufs übernommen',
   inventory_received: 'Bestand erfasst',
   inventory_corrected: 'Bestand korrigiert',
+  inventory_item_archived: 'Artikel archiviert',
+  inventory_item_restored: 'Artikel aus Archiv geholt',
   sale_finalized: 'Verkauf abgeschlossen',
   sale_recorded: 'Verkauf erfasst',
   sale_refund_updated: 'Erstattung aktualisiert',

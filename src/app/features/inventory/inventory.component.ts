@@ -1,3 +1,10 @@
+import { TablePreferencesService } from '../../core/services/table-preferences.service';
+import {
+  InventoryArchiveService,
+  isArchivedInventoryItem,
+} from './services/inventory-archive.service';
+import { TableColumnOption } from '../../core/models/table-preferences';
+import { TableColumnPickerComponent } from '../../shared/components/table-column-picker/table-column-picker.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -56,6 +63,7 @@ type FilterPreset = string;
 @Component({
   selector: 'app-inventory',
   imports: [
+    TableColumnPickerComponent,
     BarcodeScannerComponent,
     TranslatePipe,
     LucideDynamicIcon,
@@ -72,6 +80,46 @@ type FilterPreset = string;
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InventoryComponent {
+  readonly archiveService = inject(InventoryArchiveService);
+  readonly archiveView = signal<'active' | 'archive' | 'all'>('active');
+
+  async onArchiveItem(item: InventoryItem): Promise<void> {
+    if (this.archiveService.pendingIds().has(item.id)) return;
+    const archived = !item.archived_at;
+    const confirmed = await this.dialog.frage({
+      titel: archived ? 'Artikel archivieren?' : 'Aus Archiv holen?',
+      text: `„${item.title}“ ${archived ? 'wird archiviert' : 'wird wieder in der aktiven Ansicht angezeigt'}. Der Verkauf und alle Buchungen bleiben erhalten.`,
+      bestaetigenText: archived ? 'Archivieren' : 'Aus Archiv holen',
+    });
+    if (!confirmed) return;
+    try {
+      await this.archiveService.setArchived(item.workspace_id, item.id, archived);
+      this.toast.success(
+        archived ? 'Artikel wurde archiviert.' : 'Artikel wurde aus dem Archiv geholt.',
+      );
+    } catch (error: unknown) {
+      this.toast.error(
+        'Archivaktion konnte nicht gespeichert werden.',
+        error instanceof Error ? error.message : 'Unbekannter Fehler',
+      );
+    }
+  }
+  readonly tablePreferences = inject(TablePreferencesService);
+  readonly tableColumns = computed<readonly TableColumnOption[]>(() => [
+    { id: 'selection', label: 'Auswahl', required: true },
+    { id: 'title', label: 'Artikel', required: true },
+    { id: 'condition', label: 'Zustand' },
+    { id: 'quantity', label: 'Bestand' },
+    { id: 'status', label: 'Status' },
+    { id: 'origin', label: 'Herkunft' },
+    { id: 'unit_cost', label: 'Kosten pro Stück' },
+    { id: 'inventory_value', label: 'Bestandswert' },
+    { id: 'sale', label: 'Verkauf' },
+    { id: 'actions', label: 'Aktionen', required: true },
+  ]);
+  readonly visibleColumns = computed(() =>
+    this.tablePreferences.visibleColumns('inventory', this.tableColumns()),
+  );
   readonly inventoryService = inject(InventoryService);
   readonly stockService = inject(StockService);
   readonly purchaseService = inject(PurchaseService);
@@ -256,6 +304,9 @@ export class InventoryComponent {
     const preset = this.activePreset();
     return this.inventoryPresentation().rows.filter((row) => {
       const item = row.inventoryItem;
+      const archived = !!item && isArchivedInventoryItem(item);
+      if (this.archiveView() === 'active' && archived) return false;
+      if (this.archiveView() === 'archive' && !archived) return false;
       if (
         query &&
         ![row.title, item?.sku, item?.ean, item?.brand, item?.model]

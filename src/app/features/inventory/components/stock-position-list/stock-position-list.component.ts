@@ -53,6 +53,20 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StockPositionListComponent {
+  readonly archivePendingIds = input<ReadonlySet<string>>(new Set());
+  readonly archiveItem = output<InventoryItem>();
+  readonly visibleColumns = input<readonly string[]>([
+    'selection',
+    'title',
+    'condition',
+    'quantity',
+    'status',
+    'origin',
+    'unit_cost',
+    'inventory_value',
+    'sale',
+    'actions',
+  ]);
   readonly presentationRows = input<readonly InventoryPresentationRow[] | null>(null);
   readonly positions = input.required<readonly StockPosition[]>();
   readonly lots = input<readonly StockLot[]>([]);

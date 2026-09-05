@@ -70,6 +70,34 @@ function verzoegerteAntwort<T>() {
   return { promise, resolve };
 }
 
+describe('Archivmetadaten im geladenen Inventar', () => {
+  it('aktualisiert Liste und Detail ohne Buchungsdaten anzutasten und ignoriert fremde Workspaces', () => {
+    const { dienst } = injiziereDienst({});
+    const sold: InventoryItem = {
+      ...gespeicherterArtikel,
+      status: 'sold',
+      sale_state: 'sold',
+      allocated_purchase_cost: 12,
+    };
+    dienst.items.set([sold]);
+    dienst.selectedItem.set(sold);
+    dienst.applyArchiveMetadata('fremd', sold.id, { archived_at: 'wrong', archived_by: 'wrong' });
+    expect(dienst.items()).toEqual([sold]);
+    dienst.applyArchiveMetadata(workspace.id, sold.id, {
+      archived_at: '2026-09-05T12:00:00Z',
+      archived_by: 'actor',
+    });
+    expect(dienst.items()[0]).toEqual({
+      ...sold,
+      archived_at: '2026-09-05T12:00:00Z',
+      archived_by: 'actor',
+    });
+    expect(dienst.selectedItem()).toEqual(dienst.items()[0]);
+    dienst.applyArchiveMetadata(workspace.id, sold.id, { archived_at: null, archived_by: null });
+    expect(dienst.selectedItem()).toEqual({ ...sold, archived_at: null, archived_by: null });
+  });
+});
+
 function erstelleDienst(artikelAntwort: SupabaseAntwort) {
   const aufrufe: { tabelle: string; payload: unknown }[] = [];
 

@@ -1,3 +1,6 @@
+import { TablePreferencesService } from '../../core/services/table-preferences.service';
+import { TableColumnOption } from '../../core/models/table-preferences';
+import { TableColumnPickerComponent } from '../../shared/components/table-column-picker/table-column-picker.component';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -28,12 +31,28 @@ import { ModalDialogDirective } from '../../shared/directives/modal-dialog.direc
 
 @Component({
   selector: 'app-catalog',
-  imports: [ReactiveFormsModule, LucideDynamicIcon, ModalDialogDirective],
+  imports: [
+    TableColumnPickerComponent,
+    ReactiveFormsModule,
+    LucideDynamicIcon,
+    ModalDialogDirective,
+  ],
   templateUrl: './catalog.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CatalogComponent {
+  readonly tablePreferences = inject(TablePreferencesService);
+  readonly tableColumns = computed<readonly TableColumnOption[]>(() => [
+    { id: 'title', label: 'Artikel', required: true },
+    { id: 'ean', label: 'EAN' },
+    { id: 'tracking', label: 'Nachverfolgung' },
+    { id: 'available', label: 'Verfügbar' },
+    { id: 'store', label: 'Webshop' },
+  ]);
+  readonly visibleColumns = computed(() =>
+    this.tablePreferences.visibleColumns('catalog', this.tableColumns()),
+  );
   readonly catalogService = inject(CatalogService);
   readonly stockService = inject(StockService);
   private readonly workspaceService = inject(WorkspaceService);

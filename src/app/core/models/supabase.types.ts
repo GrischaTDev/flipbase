@@ -427,6 +427,8 @@ export type Database = {
       inventory_items: {
         Row: {
           allocated_purchase_cost: number
+          archived_at: string | null
+          archived_by: string | null
           brand: string | null
           category: string | null
           condition: string
@@ -452,6 +454,8 @@ export type Database = {
         }
         Insert: {
           allocated_purchase_cost?: number
+          archived_at?: string | null
+          archived_by?: string | null
           brand?: string | null
           category?: string | null
           condition?: string
@@ -477,6 +481,8 @@ export type Database = {
         }
         Update: {
           allocated_purchase_cost?: number
+          archived_at?: string | null
+          archived_by?: string | null
           brand?: string | null
           category?: string | null
           condition?: string
@@ -3289,6 +3295,42 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "workspaces"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      set_inventory_item_archived: {
+        Args: { p_archived: boolean; p_item_id: string; p_workspace_id: string }
+        Returns: {
+          allocated_purchase_cost: number
+          archived_at: string | null
+          archived_by: string | null
+          brand: string | null
+          category: string | null
+          condition: string
+          created_at: string
+          description: string | null
+          dimension_height_cm: number | null
+          dimension_length_cm: number | null
+          dimension_width_cm: number | null
+          ean: string | null
+          expected_value: number | null
+          id: string
+          is_public_store: boolean
+          model: string | null
+          purchase_id: string | null
+          purchase_line_id: string | null
+          sku: string | null
+          status: string
+          tax_mode_override: string | null
+          title: string
+          updated_at: string
+          weight_g: number | null
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "inventory_items"
           isOneToOne: true
           isSetofReturn: false
         }

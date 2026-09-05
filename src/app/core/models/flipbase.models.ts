@@ -273,6 +273,8 @@ export interface InventoryItem {
   sale_state?: InventoryItemSaleState;
   active_sale_count?: number;
   active_sale_id?: string | null;
+  readonly archived_at?: string | null;
+  readonly archived_by?: string | null;
   purchase?: Purchase;
   costs?: ItemCost[];
   media?: ItemMedia[];
