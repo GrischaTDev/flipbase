@@ -553,6 +553,15 @@ const HOECHSTZAHL_JE_STUNDE = 5;
  * braucht keinerlei Kopfzeile und greift deshalb auch dann noch, wenn die
  * Kette gefaelscht oder ganz weggelassen wird - sie ist die einzige Schranke,
  * die nicht von Angaben des Aufrufers abhaengt.
+ *
+ * Das hat einen Preis: Wer zwoelf frei erfundene x-forwarded-for-Werte mit je
+ * fuenf Bewerbungen schickt, schoepft die 60 aus und sperrt damit fuer den
+ * Rest der Stunde auch echte Interessenten aus - unabhaengig von deren
+ * Herkunft. Das wird bewusst in Kauf genommen: Eine blockierte Stunde ist
+ * voruebergehend und faellt auf (die Tabelle fuellt sich sichtbar schnell);
+ * eine ohne Gesamtgrenze vollgeschriebene Bewerbungsliste faellt nicht auf und
+ * bleibt es dauerhaft. Die einzige Alternative ohne diesen Nachteil - eine
+ * verlaesslich echte Kopfzeile - existiert hier nicht, siehe oben.
  */
 const HOECHSTZAHL_GESAMT_JE_STUNDE = 60;
 
@@ -723,6 +732,23 @@ Deno.serve(async (anfrage: Request) => {
   if (zaehleintragfehler) {
     console.error('beta-application: Zaehleintrag fehlgeschlagen:', zaehleintragfehler.message);
     return antwort({ error: 'internal' }, 500, herkunft);
+  }
+
+  // Raeumt Zaehlversuche auf, die aelter als das Zeitfenster sind - ohne
+  // eigenen Scheduler, denn dieser Endpunkt wird oft genug aufgerufen, um die
+  // Tabelle so klein zu halten. Anders als bei den Zaehlabfragen oben darf ein
+  // Fehler hier eine gueltige Bewerbung nicht abweisen: Misslingt das
+  // Aufraeumen, bleiben ein paar alte Streuwerte laenger stehen - das ist
+  // hoechstens ein spaeter aufgeraeumter Datensatz, kein falsches Ergebnis.
+  // Deshalb nur protokollieren und weitermachen, nicht wie oben mit Status 500
+  // abweisen.
+  const { error: aufraeumfehler } = await dienst
+    .from('beta_application_attempts')
+    .delete()
+    .lt('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+
+  if (aufraeumfehler) {
+    console.error('beta-application: Aufraeumen fehlgeschlagen:', aufraeumfehler.message);
   }
 
   const { error: schreibfehler } = await dienst.from('beta_applications').insert({
