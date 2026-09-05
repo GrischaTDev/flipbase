@@ -221,6 +221,15 @@ Bis dahin gilt: **Neues immer englisch benennen, Bestand nicht nebenbei anfassen
 
 ---
 
+## 2026-09-05 – Claude Opus 5 (Anthropic) – Bewerbungsweg für Beta-Zugänge gebaut
+
+**Art:** Feature
+**Betroffen:** `supabase/schemas/96_platform_admin.sql`, drei Migrationen, `supabase/tests/platform_admin.sql`, `supabase/functions/beta-application/`, `supabase/config.toml`, `landing/index.html`, `deploy/Caddyfile`, `scripts/landing-page.test.mjs`, `src/app/core/services/platform-operator.service.ts`, `src/app/core/guards/operator.guard.ts`, `src/app/features/platform-admin/`, `src/app/app.routes.ts`, `src/app/layout/sidebar/`
+**Was:** Ein Interessent bewirbt sich über die Landing Page, der Betreiber sieht die Bewerbung unter `/admin` und entscheidet darüber. Vier Tasks: Betreiberrolle und Bewerbungstabelle mit RLS, Edge Function als einziger Schreibweg, Bewerbungsformular, Betreiberbereich.
+**Warum:** Die Oberfläche des Deal Monitors war geplant, wurde aber zurückgestellt — ohne steuerbaren Zugang gibt es keine Beta. Die Registrierung unter `/auth/register` ist offen, `enable_confirmations = false`, und die „Beta anmelden"-Formulare der Landing Page speicherten nichts, sondern leiteten nur in genau diese offene Registrierung weiter.
+**Was die Prüfungen gefunden haben:** Der Pfeffer für den Streuwert der Herkunft fiel still auf leer zurück und war nirgends gesetzt — in Produktion wäre es ungesalzenes SHA-256 über die IP-Adresse gewesen, vollständig zurückrechenbar. Die Drosselung las den ersten, vom Aufrufer selbst setzbaren Eintrag aus `x-forwarded-for`; ein Bot hätte je Anfrage ein frisches Kontingent gehabt. Beides ist behoben, dazu kam eine Gesamtgrenze, die ohne Angaben des Aufrufers auskommt. Die Content-Security-Policy hätte das neue Formularskript in Produktion blockiert (`script-src 'none'`, kein `connect-src`) — das Formular wäre wirkungslos gewesen, ohne sichtbaren Fehler; jetzt über die sha256-Prüfsumme des Skripts erlaubt, kein `'unsafe-inline'`, und ein Test rechnet die Prüfsumme nach. Die Rückmeldung des Formulars wäre immer deutsch geblieben, weil `document.documentElement.lang` hier statisch ist. Und `db diff` hat zum dritten Mal in diesem Projekt die Rechte-Anweisungen nicht mitgenommen.
+**Verifiziert durch:** `npm run test:db` 1023/1023, `npm run test:landing` 13/13, `npm run verify` Exitcode 0 ohne Pipe gemessen. Rechte nach frischem `db reset` zurückgelesen. An der Datenbank nachgestellt: Ein Betreiber sieht die Bewerbungen, ein anderer Angemeldeter sieht null, und der Trigger stempelt den richtigen Entscheider samt Zeitpunkt. Die Edge Function gegen den lokalen Stack gemessen: gültig 200, fremde Herkunft 403, fehlende Einwilligung 400, Drosselung 429, ohne Pfeffer 500 ohne neue Zeile.
+
 ## 2026-09-05 – Claude Opus 5 (Anthropic) – Entwurf: Betreiberbereich und Beta-Zugänge
 
 **Art:** Doku

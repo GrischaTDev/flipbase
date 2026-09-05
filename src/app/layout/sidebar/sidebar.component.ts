@@ -21,7 +21,9 @@ import {
   LucideTruck as Truck,
   LucideSmartphone as Smartphone,
   LucideImage as ImageIcon,
+  LucideShieldCheck as ShieldCheck,
 } from '@lucide/angular';
+import { PlatformOperatorService } from '../../core/services/platform-operator.service';
 import { PwaService } from '../../core/services/pwa.service';
 import { VERSION } from '../../core/version';
 import { NgOptimizedImage } from '@angular/common';
@@ -63,6 +65,31 @@ export class SidebarComponent {
    * Geraet erreichbar: am Rechner dauerhaft, auf dem Handy ueber das Menue.
    */
   readonly pwaService = inject(PwaService);
+
+  private readonly operatorService = inject(PlatformOperatorService);
+
+  /**
+   * Der Betreiberpunkt erscheint nur fuer Betreiber.
+   *
+   * Das ist Bedienbarkeit, keine Sicherheit: Die Befugnis liegt in den
+   * RLS-Regeln. Bis die Antwort aus der Datenbank da ist, bleibt der Punkt
+   * verborgen - der Fehlerfall ist "nicht anzeigen".
+   */
+  readonly isOperator = this.operatorService.operator;
+
+  readonly operatorItem: NavItem = {
+    path: '/admin',
+    labelKey: 'NAV.PLATFORM_ADMIN',
+    label: 'Betreiber',
+    icon: ShieldCheck,
+  };
+
+  constructor() {
+    // Die Antwort kommt aus der Datenbank und setzt das Signal. Ohne diesen
+    // Anstoss bliebe der Punkt fuer immer verborgen: Der Waechter fragt erst
+    // beim Aufruf von /admin, und dorthin kaeme man ohne den Punkt nicht.
+    void this.operatorService.isOperator();
+  }
 
   /** Aus Git und package.json erzeugt, siehe scripts/version-generieren.mjs. */
   readonly version = VERSION;

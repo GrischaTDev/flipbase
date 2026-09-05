@@ -1,0 +1,78 @@
+<section class="p-6">
+  <h1 class="text-2xl font-semibold mb-1">Bewerbungen</h1>
+  <p class="text-sm opacity-70 mb-6">
+    Bewerbungen um einen Beta-Zugang. Angenommene Bewerbungen bekommen ihre Einladung im nächsten
+    Schritt.
+  </p>
+
+  @if (error(); as meldung) {
+    <p class="mb-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-300" role="alert">{{ meldung }}</p>
+  }
+
+  <label class="mb-6 flex items-center gap-2 text-sm">
+    <span>Laufzeit bei Annahme (Tage)</span>
+    <input
+      type="number"
+      min="1"
+      max="3650"
+      class="w-24 rounded-lg border border-white/10 bg-transparent px-2 py-1"
+      [value]="grantedDays()"
+      (change)="grantedDays.set(+$any($event.target).value)"
+    />
+  </label>
+
+  @if (loading()) {
+    <p class="text-sm opacity-70">Wird geladen …</p>
+  } @else if (applications().length === 0) {
+    <p class="text-sm opacity-70">Es liegt noch keine Bewerbung vor.</p>
+  } @else {
+    <table class="w-full text-left text-sm">
+      <thead class="opacity-70">
+        <tr>
+          <th class="py-2">Name</th>
+          <th class="py-2">E-Mail</th>
+          <th class="py-2">Eingang</th>
+          <th class="py-2">Status</th>
+          <th class="py-2"></th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (application of applications(); track application.id) {
+          <tr class="border-t border-white/10">
+            <td class="py-2">{{ application.firstName }} {{ application.lastName }}</td>
+            <td class="py-2">{{ application.email }}</td>
+            <td class="py-2">{{ application.createdAt | date: 'dd.MM.yyyy' }}</td>
+            <td class="py-2">{{ application.status }}</td>
+            <td class="py-2 text-right">
+              @if (application.status === 'open') {
+                <!-- Die Notiz wird ueber einen Vorlagenverweis gelesen, statt je
+                     Zeile ein Signal zu halten: Sie wird genau einmal gebraucht,
+                     im Moment des Klicks. -->
+                <input
+                  #note
+                  type="text"
+                  maxlength="500"
+                  placeholder="Notiz (optional)"
+                  aria-label="Notiz zur Entscheidung"
+                  class="mr-2 w-48 rounded-lg border border-white/10 bg-transparent px-2 py-1"
+                />
+                <button
+                  type="button"
+                  class="mr-2 underline"
+                  (click)="accept(application, note.value)"
+                >
+                  Annehmen
+                </button>
+                <button type="button" class="underline" (click)="reject(application, note.value)">
+                  Ablehnen
+                </button>
+              } @else if (application.decisionNote) {
+                <span class="opacity-70">{{ application.decisionNote }}</span>
+              }
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+</section>

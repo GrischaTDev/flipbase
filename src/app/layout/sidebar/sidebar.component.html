@@ -151,6 +151,29 @@
         <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
+
+    @if (isOperator()) {
+      <div
+        class="px-2 pb-1.5 pt-4 text-[10px] font-bold uppercase tracking-wider text-fb-text-muted"
+      >
+        Betrieb
+      </div>
+
+      <a
+        [routerLink]="operatorItem.path"
+        routerLinkActive="bg-indigo-500/15 text-fb-text-primary font-semibold border-indigo-500/40"
+        (click)="closed.emit()"
+        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+      >
+        <svg
+          [lucideIcon]="operatorItem.icon"
+          class="w-3.5 h-3.5 text-fb-text-muted group-hover:text-fb-text-primary group-[.font-semibold]:text-indigo-400 shrink-0"
+        ></svg>
+        <span class="truncate">{{
+          (operatorItem.labelKey | translate) || operatorItem.label
+        }}</span>
+      </a>
+    }
   </nav>
 
   <!-- Fusszeile: Installation und Version -->
