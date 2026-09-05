@@ -186,6 +186,63 @@ export type Database = {
           },
         ]
       }
+      beta_application_attempts: {
+        Row: {
+          created_at: string
+          id: number
+          origin_hash: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          origin_hash: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          origin_hash?: string
+        }
+        Relationships: []
+      }
+      beta_applications: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          email: string
+          first_name: string
+          granted_days: number | null
+          id: string
+          last_name: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          email: string
+          first_name: string
+          granted_days?: number | null
+          id?: string
+          last_name: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          email?: string
+          first_name?: string
+          granted_days?: number | null
+          id?: string
+          last_name?: string
+          status?: string
+        }
+        Relationships: []
+      }
       business_events: {
         Row: {
           actor_id: string | null
@@ -981,6 +1038,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      platform_operators: {
+        Row: {
+          created_at: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       price_tracked_items: {
         Row: {
@@ -2996,6 +3071,7 @@ export type Database = {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: boolean
       }
+      is_platform_operator: { Args: never; Returns: boolean }
       is_workspace_admin: { Args: { ws_id: string }; Returns: boolean }
       is_workspace_member: { Args: { ws_id: string }; Returns: boolean }
       list_business_events: {
