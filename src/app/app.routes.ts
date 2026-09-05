@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
+import { operatorGuard } from './core/guards/operator.guard';
 import { purchaseEntryGuard } from './features/purchases/guards/purchase-entry.guard';
 
 export const routes: Routes = [
@@ -176,6 +177,21 @@ export const routes: Routes = [
         path: 'settings',
         loadChildren: () =>
           import('./features/settings/settings.routes').then((m) => m.SETTINGS_ROUTES),
+      },
+      // Betreiberbereich fuer die Beta-Bewerbungen.
+      //
+      // Bewusst innerhalb der Shell: Der Menuepunkt steht in der Seitenleiste,
+      // und eine Seite ohne Seitenleiste liesse den Betreiber ohne Weg zurueck
+      // stehen. Der spaetere Umzug in eine eigene Anwendung bleibt trotzdem ein
+      // Verschieben - der Bereich selbst haengt an nichts aus der Shell, er
+      // importiert nur aus core/ und shared/.
+      {
+        path: 'admin',
+        canActivate: [operatorGuard],
+        loadChildren: () =>
+          import('./features/platform-admin/platform-admin.routes').then(
+            (m) => m.platformAdminRoutes,
+          ),
       },
       {
         path: '',

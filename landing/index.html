@@ -531,10 +531,54 @@
         width: 100%;
       }
 
-      .hero-beta-input-gruppe {
+      .hero-beta-feld {
         display: flex;
-        align-items: stretch;
-        gap: 0.65rem;
+        flex-direction: column;
+        gap: 0.4rem;
+        margin: 0 0 0.75rem;
+      }
+
+      .hero-beta-feld label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--ink-muted);
+      }
+
+      .hero-beta-einwilligung {
+        display: flex;
+        align-items: flex-start;
+        gap: 0.6rem;
+        margin: 0 0 1rem;
+      }
+
+      .hero-beta-einwilligung input[type='checkbox'] {
+        flex-shrink: 0;
+        width: 1.05rem;
+        height: 1.05rem;
+        margin-top: 0.2rem;
+        accent-color: var(--amber);
+      }
+
+      .hero-beta-einwilligung label {
+        font-size: 0.85rem;
+        line-height: 1.5;
+        color: var(--ink-muted);
+      }
+
+      .hero-beta-einwilligung label a {
+        color: var(--amber);
+        text-decoration: underline;
+      }
+
+      .hero-beta-einwilligung label a:hover {
+        color: var(--amber-hover);
+      }
+
+      .hero-beta-meldung {
+        margin: 0.65rem 0 0;
+        min-height: 1.2em;
+        font-size: 0.85rem;
+        color: var(--ink-muted);
       }
 
       .hero-beta-input {
@@ -590,10 +634,6 @@
           min-width: 0;
           justify-content: center;
           text-align: center;
-        }
-        .hero-beta-input-gruppe {
-          flex-direction: column;
-          gap: 0.65rem;
         }
         .hero-beta-input {
           width: 100%;
@@ -1442,31 +1482,76 @@
             </span>
           </p>
 
-          <form
-            class="hero-beta-form"
-            action="https://app.flipbase.de/auth/register"
-            method="GET"
-            target="_blank"
-          >
-            <div class="hero-beta-input-gruppe">
-              <label class="sr-only" for="hero-registration-email">
-                <span class="lang-de">E-Mail-Adresse für die Beta-Registrierung</span>
-                <span class="lang-en" lang="en">Email address for beta registration</span>
+          <form class="hero-beta-form" id="hero-bewerbung-form" novalidate>
+            <div class="hero-beta-feld">
+              <label for="hero-bewerbung-vorname">
+                <span class="lang-de">Vorname</span>
+                <span class="lang-en" lang="en">First name</span>
               </label>
               <input
-                id="hero-registration-email"
+                id="hero-bewerbung-vorname"
+                type="text"
+                name="firstName"
+                class="hero-beta-input"
+                maxlength="100"
+                required=""
+                autocomplete="given-name"
+              />
+            </div>
+            <div class="hero-beta-feld">
+              <label for="hero-bewerbung-nachname">
+                <span class="lang-de">Nachname</span>
+                <span class="lang-en" lang="en">Last name</span>
+              </label>
+              <input
+                id="hero-bewerbung-nachname"
+                type="text"
+                name="lastName"
+                class="hero-beta-input"
+                maxlength="100"
+                required=""
+                autocomplete="family-name"
+              />
+            </div>
+            <div class="hero-beta-feld">
+              <label for="hero-bewerbung-email">
+                <span class="lang-de">E-Mail-Adresse für die Beta-Bewerbung</span>
+                <span class="lang-en" lang="en">Email address for the beta application</span>
+              </label>
+              <input
+                id="hero-bewerbung-email"
                 type="email"
                 name="email"
                 class="hero-beta-input"
                 placeholder="name@example.com"
-                required
+                required=""
                 autocomplete="email"
               />
-              <button type="submit" class="btn-primary hero-beta-btn">
-                <span class="lang-de">Beta-Registrierung öffnen →</span>
-                <span class="lang-en" lang="en">Open beta registration →</span>
-              </button>
             </div>
+            <div class="hero-beta-einwilligung">
+              <input id="hero-bewerbung-einwilligung" type="checkbox" name="consent" required="" />
+              <label for="hero-bewerbung-einwilligung">
+                <span class="lang-de"
+                  >Ich bin einverstanden, dass meine Angaben gemäß der
+                  <a href="/datenschutz">Datenschutzerklärung</a> zur Bearbeitung der Bewerbung
+                  gespeichert werden.</span
+                >
+                <span class="lang-en" lang="en"
+                  >I agree that my details may be stored to process this application, as described
+                  in the <a href="/datenschutz">privacy policy</a>.</span
+                >
+              </label>
+            </div>
+            <button type="submit" class="btn-primary hero-beta-btn">
+              <span class="lang-de">Für die Beta bewerben →</span>
+              <span class="lang-en" lang="en">Apply for the beta →</span>
+            </button>
+            <p
+              class="hero-beta-meldung"
+              id="hero-bewerbung-meldung"
+              role="status"
+              aria-live="polite"
+            ></p>
           </form>
         </div>
 
@@ -2255,12 +2340,14 @@
               <p>
                 <span class="lang-de">
                   Der Zugang ist derzeit als Beta verfügbar und die Teilnahme kostenlos. Du kannst
-                  die Registrierung direkt öffnen. Die Verfügbarkeit und der Funktionsumfang können
-                  sich während der Beta ändern.
+                  dich direkt über das Formular auf dieser Seite bewerben; wer angenommen wird,
+                  bekommt eine Einladung per E-Mail. Die Verfügbarkeit und der Funktionsumfang
+                  können sich während der Beta ändern.
                 </span>
                 <span class="lang-en" lang="en">
-                  Access is currently available as a beta and participation is free. You can open
-                  registration directly. Availability and feature scope may change during the beta.
+                  Access is currently available as a beta and participation is free. You can apply
+                  directly using the form on this page; if you're accepted, you'll get an invitation
+                  by email. Availability and feature scope may change during the beta.
                 </span>
               </p>
             </div>
@@ -2579,43 +2666,89 @@
             <span class="lang-en" lang="en">Beta</span>
           </div>
           <h2>
-            <span class="lang-de">Beta-Registrierung öffnen</span>
-            <span class="lang-en" lang="en">Open beta registration</span>
+            <span class="lang-de">Für die Beta bewerben</span>
+            <span class="lang-en" lang="en">Apply for the beta</span>
           </h2>
           <p>
             <span class="lang-de">
-              Trage deine E-Mail ein und fahre mit der Registrierung in der Flipbase-App fort.
+              Schick uns deine Bewerbung. Wir sehen uns jede Bewerbung an und wer dabei ist, bekommt
+              eine Einladung per E-Mail.
             </span>
             <span class="lang-en" lang="en">
-              Enter your email and continue registration in the Flipbase app.
+              Send us your application. We look at every application, and if you're in, you'll get
+              an invitation by email.
             </span>
           </p>
-          <form
-            class="hero-beta-form"
-            style="margin: 0 auto"
-            action="https://app.flipbase.de/auth/register"
-            method="GET"
-            target="_blank"
-          >
-            <div class="hero-beta-input-gruppe">
-              <label class="sr-only" for="cta-registration-email">
-                <span class="lang-de">E-Mail-Adresse für die Beta-Registrierung</span>
-                <span class="lang-en" lang="en">Email address for beta registration</span>
+          <form class="hero-beta-form" style="margin: 0 auto" id="zweit-bewerbung-form" novalidate>
+            <div class="hero-beta-feld">
+              <label for="zweit-bewerbung-vorname">
+                <span class="lang-de">Vorname</span>
+                <span class="lang-en" lang="en">First name</span>
               </label>
               <input
-                id="cta-registration-email"
+                id="zweit-bewerbung-vorname"
+                type="text"
+                name="firstName"
+                class="hero-beta-input"
+                maxlength="100"
+                required=""
+                autocomplete="given-name"
+              />
+            </div>
+            <div class="hero-beta-feld">
+              <label for="zweit-bewerbung-nachname">
+                <span class="lang-de">Nachname</span>
+                <span class="lang-en" lang="en">Last name</span>
+              </label>
+              <input
+                id="zweit-bewerbung-nachname"
+                type="text"
+                name="lastName"
+                class="hero-beta-input"
+                maxlength="100"
+                required=""
+                autocomplete="family-name"
+              />
+            </div>
+            <div class="hero-beta-feld">
+              <label for="zweit-bewerbung-email">
+                <span class="lang-de">E-Mail-Adresse für die Beta-Bewerbung</span>
+                <span class="lang-en" lang="en">Email address for the beta application</span>
+              </label>
+              <input
+                id="zweit-bewerbung-email"
                 type="email"
                 name="email"
                 class="hero-beta-input"
                 placeholder="name@example.com"
-                required
+                required=""
                 autocomplete="email"
               />
-              <button type="submit" class="btn-primary hero-beta-btn">
-                <span class="lang-de">Beta-Registrierung öffnen →</span>
-                <span class="lang-en" lang="en">Open beta registration →</span>
-              </button>
             </div>
+            <div class="hero-beta-einwilligung">
+              <input id="zweit-bewerbung-einwilligung" type="checkbox" name="consent" required="" />
+              <label for="zweit-bewerbung-einwilligung">
+                <span class="lang-de"
+                  >Ich bin einverstanden, dass meine Angaben gemäß der
+                  <a href="/datenschutz">Datenschutzerklärung</a> zur Bearbeitung der Bewerbung
+                  gespeichert werden.</span
+                >
+                <span class="lang-en" lang="en"
+                  >I agree that my details may be stored to process this application, as described
+                  in the <a href="/datenschutz">privacy policy</a>.</span
+                >
+              </label>
+            </div>
+            <button type="submit" class="btn-primary hero-beta-btn">
+              <span class="lang-de">Für die Beta bewerben →</span>
+              <span class="lang-en" lang="en">Apply for the beta →</span>
+            </button>
+            <p
+              class="hero-beta-meldung"
+              id="zweit-bewerbung-meldung"
+              role="status"
+              aria-live="polite"
+            ></p>
           </form>
         </div>
       </section>
@@ -2726,5 +2859,98 @@
         </div>
       </div>
     </footer>
+
+    <script>
+      (function () {
+        var ENDPOINT = 'https://api.flipbase.de/functions/v1/beta-application';
+        var TEXTS = {
+          ok: { de: 'Danke! Wir melden uns.', en: 'Thank you! We will be in touch.' },
+          error: {
+            de: 'Das hat nicht geklappt. Bitte später erneut versuchen.',
+            en: 'That did not work. Please try again later.',
+          },
+          throttled: {
+            de: 'Zu viele Versuche. Bitte in einer Stunde erneut versuchen.',
+            en: 'Too many attempts. Please try again in an hour.',
+          },
+        };
+
+        function announce(field, kind) {
+          // <html lang> ist statisch "de" - die Sprachumschaltung laeuft rein
+          // ueber CSS (body:has(#lang-toggle:checked)), nicht ueber dieses
+          // Attribut. Ein Skript-seitiger Sprachentscheid wuerde deshalb immer
+          // "de" treffen, egal welche Sprache sichtbar ist. Darum wie der Rest
+          // der Seite: beide Fassungen ausgeben und das vorhandene CSS die
+          // passende anzeigen lassen.
+          // Erst leeren, dann per createElement/textContent (kein innerHTML)
+          // neu aufbauen - und komplett ersetzen statt nur den Text zu aendern,
+          // damit die Live-Region (role="status", aria-live="polite") die
+          // Aenderung zuverlaessig ansagt.
+          field.textContent = '';
+          var de = document.createElement('span');
+          de.className = 'lang-de';
+          de.textContent = TEXTS[kind].de;
+          var en = document.createElement('span');
+          en.className = 'lang-en';
+          en.lang = 'en';
+          en.textContent = TEXTS[kind].en;
+          field.append(de, en);
+        }
+
+        ['hero', 'zweit'].forEach(function (prefix) {
+          var form = document.getElementById(prefix + '-bewerbung-form');
+          if (!form) return;
+          var message = document.getElementById(prefix + '-bewerbung-meldung');
+
+          form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            var button = form.querySelector('button[type="submit"]');
+            // Schon gesperrt: ein zweites, bereits in der Warteschlange
+            // stehendes submit-Ereignis darf nicht nochmal senden.
+            if (button.disabled) return;
+            if (!form.checkValidity()) {
+              form.reportValidity();
+              return;
+            }
+            button.disabled = true;
+
+            // Ohne Zeitgrenze wuerde ein ausbleibender Server den Knopf fuer
+            // immer gesperrt lassen (weder then, noch catch, noch finally
+            // feuert). Nach 15 Sekunden abbrechen; der Abbruch landet im catch.
+            var controller = new AbortController();
+            var timer = setTimeout(function () {
+              controller.abort();
+            }, 15000);
+
+            fetch(ENDPOINT, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal: controller.signal,
+              body: JSON.stringify({
+                firstName: document.getElementById(prefix + '-bewerbung-vorname').value,
+                lastName: document.getElementById(prefix + '-bewerbung-nachname').value,
+                email: document.getElementById(prefix + '-bewerbung-email').value,
+                consent: document.getElementById(prefix + '-bewerbung-einwilligung').checked,
+              }),
+            })
+              .then(function (response) {
+                if (response.ok) {
+                  announce(message, 'ok');
+                  form.reset();
+                } else {
+                  announce(message, response.status === 429 ? 'throttled' : 'error');
+                }
+              })
+              .catch(function () {
+                announce(message, 'error');
+              })
+              .finally(function () {
+                clearTimeout(timer);
+                button.disabled = false;
+              });
+          });
+        });
+      })();
+    </script>
   </body>
 </html>

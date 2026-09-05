@@ -186,6 +186,66 @@ export type Database = {
           },
         ]
       }
+      beta_application_attempts: {
+        Row: {
+          created_at: string
+          id: number
+          origin_hash: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          origin_hash: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          origin_hash?: string
+        }
+        Relationships: []
+      }
+      beta_applications: {
+        Row: {
+          consent_at: string
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          email: string
+          first_name: string
+          granted_days: number | null
+          id: string
+          last_name: string
+          status: string
+        }
+        Insert: {
+          consent_at?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          email: string
+          first_name: string
+          granted_days?: number | null
+          id?: string
+          last_name: string
+          status?: string
+        }
+        Update: {
+          consent_at?: string
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          email?: string
+          first_name?: string
+          granted_days?: number | null
+          id?: string
+          last_name?: string
+          status?: string
+        }
+        Relationships: []
+      }
       business_events: {
         Row: {
           actor_id: string | null
@@ -987,6 +1047,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      platform_operators: {
+        Row: {
+          created_at: string
+          note: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          note?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          note?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       price_tracked_items: {
         Row: {
@@ -3064,6 +3142,8 @@ export type Database = {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: boolean
       }
+      is_platform_operator: { Args: never; Returns: boolean }
+      is_valid_gtin: { Args: { p_value: string }; Returns: boolean }
       is_workspace_admin: { Args: { ws_id: string }; Returns: boolean }
       is_workspace_member: { Args: { ws_id: string }; Returns: boolean }
       list_business_events: {
@@ -3071,6 +3151,28 @@ export type Database = {
           p_cursor_created_at: string
           p_cursor_id: string
           p_filter: Json
+          p_page_size: number
+          p_workspace_id: string
+        }
+        Returns: {
+          actor_id: string
+          changes: Json
+          correlation_id: string
+          created_at: string
+          entity_id: string
+          entity_type: string
+          event_type: string
+          id: string
+          reason: string
+          workspace_id: string
+        }[]
+      }
+      list_entity_business_events: {
+        Args: {
+          p_cursor_created_at: string
+          p_cursor_id: string
+          p_entity_id: string
+          p_entity_type: string
           p_page_size: number
           p_workspace_id: string
         }
@@ -3108,28 +3210,6 @@ export type Database = {
           id: string
           kind: string
           reason: string
-        }[]
-      }
-      list_entity_business_events: {
-        Args: {
-          p_cursor_created_at: string
-          p_cursor_id: string
-          p_entity_id: string
-          p_entity_type: string
-          p_page_size: number
-          p_workspace_id: string
-        }
-        Returns: {
-          actor_id: string
-          changes: Json
-          correlation_id: string
-          created_at: string
-          entity_id: string
-          entity_type: string
-          event_type: string
-          id: string
-          reason: string
-          workspace_id: string
         }[]
       }
       migrate_purchase_costing_legacy: {
@@ -3559,3 +3639,4 @@ export const Constants = {
     Enums: {},
   },
 } as const
+
