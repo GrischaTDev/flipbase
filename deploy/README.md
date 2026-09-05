@@ -122,6 +122,34 @@ enthaltene Landingpage nach einem erfolgreichen Container-Start automatisch nach
 das aktualisierte `deploy.sh` noch nicht auf dem Server liegt) genügt:
 `scp -r landing/* root@<server>:/opt/flipbase-landing/`.
 
+### Beta-Bewerbungsformular
+
+Die Landingpage enthält seit dem Bewerbungsweg **ein eingebettetes Skript**. Es
+ist das einzige der ganzen Seite, und die Content-Security-Policy im Caddyfile
+erlaubt es über seine **sha256-Prüfsumme**. Daraus folgen drei Dinge, die beim
+Ausrollen zusammengehören:
+
+1. **Zuerst das Caddyfile neu laden, dann die Seite.** Das gilt hier schärfer als
+   oben: Liefert Caddy noch die alte Richtlinie mit `script-src 'none'`, blockiert
+   der Browser das Skript. Das Formular tut dann **gar nichts** – kein natives
+   Absenden, weil `form-action 'none'` gesetzt ist – und es erscheint keine
+   Fehlermeldung. `deploy.sh` spiegelt die Seite automatisch, das Caddyfile nicht;
+   ohne diesen Schritt steht die neue Seite also live vor ihrer Richtlinie.
+2. **Wer das Skript ändert, muss die Prüfsumme neu berechnen.** Ein Test hält
+   beide zusammen (`src/app/core/services/landing-template.spec.ts`) und schlägt
+   fehl, wenn sie auseinanderlaufen – er repariert aber nichts. Dasselbe gilt für
+   die Adresse, die das Skript aufruft: Sie muss von `connect-src` gedeckt sein.
+3. **Die Edge Function rollt keine Pipeline aus.** `beta-application` muss von
+   Hand ausgerollt werden, und sie braucht zwei Umgebungsvariablen:
+
+   | Variable                           | Wozu                                                                                                                                                                                                                      |
+   | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | `BETA_APPLICATION_PEPPER`          | Serverschlüssel für den Streuwert der Herkunft. **Fehlt er, verweigert die Funktion den Dienst** – absichtlich, denn ohne ihn wäre der Streuwert ungesalzenes SHA-256 über die IP-Adresse und vollständig zurückrechenbar |
+   | `BETA_APPLICATION_ALLOWED_ORIGINS` | Kommaliste der erlaubten Herkünfte. Bewusst **nicht** `ALLOWED_ORIGINS` – die liest bereits `marketplace-search`, und alle Edge Functions teilen sich beim Selbsthosten eine Umgebung                                     |
+
+   Der Pfeffer ist ein Zugangsschlüssel: Wer ihn kennt, kann Streuwerte
+   nachrechnen. Er gehört in die Servergeheimnisse, nicht ins Projekt.
+
 ## Warum eigene Zusatzdateien
 
 Das offizielle Supabase-Paket bringt `docker-compose.yml` und seine Varianten
