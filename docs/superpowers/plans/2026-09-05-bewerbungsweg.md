@@ -527,12 +527,16 @@ Erstelle `supabase/functions/beta-application/index.ts`:
 
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4';
 
-/** Herkuenfte, die diese Funktion aufrufen duerfen. */
+/**
+ * Herkuenfte, die diese Funktion aufrufen duerfen.
+ *
+ * Die eingebaute Liste enthaelt nur die Produktionsherkuenfte. In Produktion
+ * wird ALLOWED_ORIGINS nirgends gesetzt, also greift genau diese Liste - stuende
+ * localhost darin, waere die Produktionsvorgabe ab Werk offen fuer lokale
+ * Entwicklung. Wer lokal arbeitet, setzt ALLOWED_ORIGINS deshalb ausdruecklich.
+ */
 const ERLAUBTE_HERKUENFTE = new Set(
-  (
-    Deno.env.get('ALLOWED_ORIGINS') ??
-    'https://flipbase.de,https://www.flipbase.de,http://localhost:4200'
-  )
+  (Deno.env.get('ALLOWED_ORIGINS') ?? 'https://flipbase.de,https://www.flipbase.de')
     .split(',')
     .map((herkunft) => herkunft.trim())
     .filter(Boolean),
@@ -540,6 +544,28 @@ const ERLAUBTE_HERKUENFTE = new Set(
 
 /** Hoechstzahl Bewerbungen je Herkunft und Stunde. */
 const HOECHSTZAHL_JE_STUNDE = 5;
+
+/**
+ * Hoechstzahl aller Bewerbungsversuche je Stunde, herkunftsunabhaengig.
+ *
+ * Die Drosselung je Herkunft haengt an x-forwarded-for - einer Angabe, die der
+ * Aufrufer selbst setzt und bei jeder Anfrage neu waehlen kann. Diese Grenze
+ * braucht keinerlei Kopfzeile und greift deshalb auch dann noch, wenn die
+ * Kette gefaelscht oder ganz weggelassen wird - sie ist die einzige Schranke,
+ * die nicht von Angaben des Aufrufers abhaengt.
+ */
+const HOECHSTZAHL_GESAMT_JE_STUNDE = 60;
+
+/**
+ * Pfeffer fuer den Streuwert der Herkunft.
+ *
+ * Fehlt oder leert sich diese Variable, faellt herkunftsStreuwert sonst still
+ * auf ungesalzenes SHA-256 ueber die IP-Adresse zurueck - der IPv4-Raum ist
+ * vollstaendig vorab berechenbar, der Streuwert damit zurueckrechenbar. Wird
+ * einmal beim Start gelesen; eine fehlende Variable weist die Funktion pro
+ * Anfrage sichtbar mit Status 500 ab, statt unbemerkt ungeschuetzt zu laufen.
+ */
+const PFEFFER = Deno.env.get('BETA_APPLICATION_PEPPER');
 
 function corsKopf(herkunft: string | null): Record<string, string> {
   const kopf: Record<string, string> = {
@@ -566,10 +592,12 @@ function antwort(daten: unknown, status: number, herkunft: string | null): Respo
  * Zum Zaehlen genuegt die Wiedererkennung. Eine Tabelle voller IP-Adressen von
  * Interessenten waere Personenbezug ohne Zweck, deshalb wird gestreut - mit
  * einem Serverschluessel, damit der Wert nicht durch Ausprobieren aller
- * IP-Adressen zurueckgerechnet werden kann.
+ * IP-Adressen zurueckgerechnet werden kann. Der Pfeffer ist deshalb ein
+ * Pflichtparameter: Der Aufrufer prueft eine fehlende oder leere Variable
+ * schon vorher und weist mit Status 500 ab, statt hier still auf einen leeren
+ * Wert auszuweichen.
  */
-async function herkunftsStreuwert(adresse: string): Promise<string> {
-  const pfeffer = Deno.env.get('BETA_APPLICATION_PEPPER') ?? '';
+async function herkunftsStreuwert(adresse: string, pfeffer: string): Promise<string> {
   const rohdaten = new TextEncoder().encode(`${pfeffer}:${adresse}`);
   const streuwert = await crypto.subtle.digest('SHA-256', rohdaten);
   return Array.from(new Uint8Array(streuwert))
@@ -598,12 +626,29 @@ Deno.serve(async (anfrage: Request) => {
     return antwort({ error: 'origin_not_allowed' }, 403, herkunft);
   }
 
-  let rumpf: Record<string, unknown>;
+  if (!PFEFFER) {
+    console.error(
+      'beta-application: BETA_APPLICATION_PEPPER fehlt oder ist leer - Bewerbungen werden abgelehnt.',
+    );
+    return antwort({ error: 'internal' }, 500, herkunft);
+  }
+
+  let rohRumpf: unknown;
   try {
-    rumpf = (await anfrage.json()) as Record<string, unknown>;
+    rohRumpf = await anfrage.json();
   } catch {
     return antwort({ error: 'invalid_body' }, 400, herkunft);
   }
+
+  // anfrage.json() liefert fuer den gueltigen Rumpf "null" den Wert null,
+  // ohne zu werfen. Ohne diese Pruefung wuerde die Destrukturierung darunter
+  // ausserhalb des try/catch werfen, und Deno wuerde mit einer generischen
+  // 500 ohne CORS-Kopfzeilen antworten - im Browser nicht von einem
+  // CORS-Fehler zu unterscheiden.
+  if (typeof rohRumpf !== 'object' || rohRumpf === null) {
+    return antwort({ error: 'invalid_body' }, 400, herkunft);
+  }
+  const rumpf = rohRumpf as Record<string, unknown>;
 
   const { firstName, lastName, email, consent } = rumpf;
 
@@ -623,9 +668,36 @@ Deno.serve(async (anfrage: Request) => {
     { auth: { persistSession: false } },
   );
 
-  const adresse = anfrage.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unbekannt';
-  const streuwert = await herkunftsStreuwert(adresse);
+  // Der letzte Eintrag der Kette stammt vom naechstgelegenen Proxy und laesst
+  // sich vom Aufrufer nicht faelschen. Der erste Eintrag dagegen wird vom
+  // Aufrufer selbst gesetzt - ein Bot koennte ihn bei jeder Anfrage neu waehlen
+  // und so bei der Drosselung je Herkunft immer ein frisches Kontingent
+  // bekommen.
+  const adresse =
+    anfrage.headers
+      .get('x-forwarded-for')
+      ?.split(',')
+      .map((teil) => teil.trim())
+      .filter(Boolean)
+      .pop() ?? 'unbekannt';
+  const streuwert = await herkunftsStreuwert(adresse, PFEFFER);
   const seit = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+  // Gesamtgrenze ueber alle Herkuenfte hinweg, siehe Kommentar bei
+  // HOECHSTZAHL_GESAMT_JE_STUNDE: haengt an keiner Kopfzeile und greift daher
+  // auch bei gefaelschtem oder fehlendem x-forwarded-for.
+  const { count: gesamtzahl, error: gesamtzaehlfehler } = await dienst
+    .from('beta_application_attempts')
+    .select('id', { count: 'exact', head: true })
+    .gte('created_at', seit);
+
+  if (gesamtzaehlfehler) {
+    console.error('beta-application: Gesamtzaehlung fehlgeschlagen:', gesamtzaehlfehler.message);
+    return antwort({ error: 'internal' }, 500, herkunft);
+  }
+  if ((gesamtzahl ?? 0) >= HOECHSTZAHL_GESAMT_JE_STUNDE) {
+    return antwort({ error: 'too_many_requests' }, 429, herkunft);
+  }
 
   const { count, error: zaehlfehler } = await dienst
     .from('beta_application_attempts')
@@ -634,13 +706,24 @@ Deno.serve(async (anfrage: Request) => {
     .gte('created_at', seit);
 
   if (zaehlfehler) {
+    console.error('beta-application: Herkunftszaehlung fehlgeschlagen:', zaehlfehler.message);
     return antwort({ error: 'internal' }, 500, herkunft);
   }
   if ((count ?? 0) >= HOECHSTZAHL_JE_STUNDE) {
     return antwort({ error: 'too_many_requests' }, 429, herkunft);
   }
 
-  await dienst.from('beta_application_attempts').insert({ origin_hash: streuwert });
+  // Schlaegt dieser Eintrag fehl, zaehlt der Versuch nicht mit und die
+  // Drosselung wird lautlos schwaecher - deshalb wird das Ergebnis wie bei
+  // jeder anderen Abfrage in dieser Datei geprueft.
+  const { error: zaehleintragfehler } = await dienst
+    .from('beta_application_attempts')
+    .insert({ origin_hash: streuwert });
+
+  if (zaehleintragfehler) {
+    console.error('beta-application: Zaehleintrag fehlgeschlagen:', zaehleintragfehler.message);
+    return antwort({ error: 'internal' }, 500, herkunft);
+  }
 
   const { error: schreibfehler } = await dienst.from('beta_applications').insert({
     first_name: firstName.trim(),
@@ -651,6 +734,7 @@ Deno.serve(async (anfrage: Request) => {
   // Eine bereits vorhandene Adresse wird wie ein Erfolg beantwortet. Sonst
   // liesse sich ueber das Formular herausfinden, wer sich beworben hat.
   if (schreibfehler && schreibfehler.code !== '23505') {
+    console.error('beta-application: Schreiben fehlgeschlagen:', schreibfehler.message);
     return antwort({ error: 'internal' }, 500, herkunft);
   }
 
@@ -1688,3 +1772,16 @@ npm run verify > /tmp/final-verify.log 2>&1; echo $?
 ```
 
 Alle drei müssen 0 melden. Danach die Rechte ein letztes Mal aus der frisch eingespielten Datenbank zurücklesen (Befehl aus Task 1, Schritt 8) — **nur dann sind sie aussagekräftig**.
+
+## Voraussetzungen für den Betrieb
+
+Die Edge Function verweigert den Dienst, wenn diese beiden Umgebungsvariablen
+fehlen oder leer sind — absichtlich, weil sie sonst unbemerkt ungeschützt liefe:
+
+| Variable                  | Zweck                                                                                                                                                 |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BETA_APPLICATION_PEPPER` | Serverschlüssel für den Streuwert der Herkunft. Ohne ihn wäre der Wert ungesalzenes SHA-256 über die IP-Adresse und damit vollständig zurückrechenbar |
+| `ALLOWED_ORIGINS`         | Kommaliste der erlaubten Herkünfte. Die eingebaute Vorgabe enthält nur die Produktionsadressen; wer lokal entwickelt, setzt sie ausdrücklich          |
+
+Beide gehören in die Servergeheimnisse, nicht ins Projekt. Der Pfeffer ist ein
+Zugangsschlüssel: Wer ihn kennt, kann Streuwerte nachrechnen.
