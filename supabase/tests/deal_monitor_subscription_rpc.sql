@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(7);
+select plan(8);
 
 \set user_id '85000000-0000-4000-8000-000000000001'
 \set workspace_a '85000000-0000-4000-8000-000000000002'
@@ -260,6 +260,26 @@ end;
 $$;
 
 select pass('Verdrehte und negative Preisspannen werden abgelehnt');
+
+-- Die Rechte muessen in jeder Umgebung gleich aussehen.
+--
+-- `supabase db diff` erzeugt fuer Funktionen nur `revoke ... from public` und
+-- laesst rollenbezogene Rechte stehen, die die Vorgaberechte automatisch
+-- vergeben. Ohne diese Pruefung faellt eine Abweichung erst auf, wenn jemand
+-- die Produktionsdatenbank von Hand ausliest.
+do $$
+begin
+  if has_function_privilege('anon', 'public.create_sniper_subscription(uuid, text, integer, numeric, numeric, numeric)', 'execute') then
+    raise exception 'anon darf create_sniper_subscription nicht ausfuehren';
+  end if;
+
+  if not has_function_privilege('authenticated', 'public.create_sniper_subscription(uuid, text, integer, numeric, numeric, numeric)', 'execute') then
+    raise exception 'authenticated muss create_sniper_subscription ausfuehren duerfen';
+  end if;
+end;
+$$;
+
+select pass('Nur Angemeldete duerfen ein Abonnement anlegen');
 
 select * from finish();
 

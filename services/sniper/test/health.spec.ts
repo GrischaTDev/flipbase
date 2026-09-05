@@ -7,6 +7,7 @@ const report = {
   newListings: 3,
   seeded: 0,
   failed: 0,
+  newHits: 0,
 };
 
 describe('createHealthState', () => {

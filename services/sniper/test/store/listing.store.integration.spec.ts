@@ -118,4 +118,49 @@ describe('ListingStore', () => {
   it('returns an empty array for an empty input without calling the database', async () => {
     expect(await store.saveNew([], queryId)).toEqual([]);
   });
+
+  it('meldet null Treffer, solange die Gruppe zu klein ist', async () => {
+    const externalId = randomUUID();
+    await store.saveNew([listing(externalId)], queryId);
+
+    // Ein einziger Fund liegt unter der Mindestzahl von acht - die Datenbank
+    // darf daraus keinen Massstab und damit keinen Treffer bilden.
+    expect(await store.evaluateHits(queryId)).toBe(0);
+  });
+
+  it('laesst ein unbewertbares Angebot fuer die naechste Runde offen', async () => {
+    const externalId = randomUUID();
+    await store.saveNew([listing(externalId)], queryId);
+
+    await store.evaluateHits(queryId);
+
+    const { data } = await client
+      .from('sniper_listings')
+      .select('evaluated_at')
+      .eq('external_id', externalId)
+      .single();
+
+    // Ohne Massstab wurde nicht geurteilt - also darf auch nichts abgehakt
+    // sein. Sonst verfiele ein Fund allein deshalb, weil er kam, bevor genug
+    // Vergleichswerte da waren.
+    expect(data!.evaluated_at).toBeNull();
+  });
+
+  it('hakt den Bestand im Einlese-Lauf ab, ohne zu melden', async () => {
+    const externalId = randomUUID();
+    await store.saveNew([listing(externalId)], queryId);
+
+    expect(await store.evaluateHits(queryId, false)).toBe(0);
+
+    const { data } = await client
+      .from('sniper_listings')
+      .select('evaluated_at')
+      .eq('external_id', externalId)
+      .single();
+
+    // Der Einlese-Lauf vermerkt ausdruecklich auch das, was er nicht beurteilen
+    // konnte: Der vorgefundene Bestand soll dauerhaft stumm bleiben und nicht
+    // in einer spaeteren Runde nachtraeglich zum Fund werden.
+    expect(data!.evaluated_at).not.toBeNull();
+  });
 });

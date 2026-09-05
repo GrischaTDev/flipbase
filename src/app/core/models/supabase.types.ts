@@ -2020,6 +2020,7 @@ export type Database = {
           currency: string
           description: string | null
           discovered_by_query_id: string | null
+          evaluated_at: string | null
           external_id: string
           first_seen_at: string
           id: string
@@ -2045,6 +2046,7 @@ export type Database = {
           currency?: string
           description?: string | null
           discovered_by_query_id?: string | null
+          evaluated_at?: string | null
           external_id: string
           first_seen_at?: string
           id?: string
@@ -2070,6 +2072,7 @@ export type Database = {
           currency?: string
           description?: string | null
           discovered_by_query_id?: string | null
+          evaluated_at?: string | null
           external_id?: string
           first_seen_at?: string
           id?: string
@@ -3227,6 +3230,18 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      sniper_evaluate_hits: {
+        Args: { p_query_id: string; p_report_hits?: boolean }
+        Returns: number
+      }
+      sniper_reference_price: {
+        Args: { p_condition: string; p_query_id: string }
+        Returns: {
+          reference_price: number
+          sample_size: number
+          unusable_reason: string
+        }[]
       }
       unbundle_shipping_order: {
         Args: { p_bundled_order_id: string; p_workspace_id: string }

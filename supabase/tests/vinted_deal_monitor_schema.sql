@@ -40,7 +40,8 @@ declare
     'image_urls', 'item_price', 'total_price', 'currency', 'brand', 'size',
     'condition', 'country_code', 'seller_name', 'seller_avatar_url',
     'seller_rating', 'seller_review_count', 'is_hidden', 'item_updated_at',
-    'photo_uploaded_at', 'discovered_by_query_id', 'first_seen_at'
+    'photo_uploaded_at', 'discovered_by_query_id', 'first_seen_at',
+    'evaluated_at'
   ];
   missing_columns text[];
 begin

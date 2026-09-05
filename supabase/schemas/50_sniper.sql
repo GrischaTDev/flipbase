@@ -63,6 +63,7 @@ create table if not exists public.sniper_listings (
     photo_uploaded_at timestamptz,
     discovered_by_query_id uuid references public.sniper_queries (id) on delete set null,
     first_seen_at timestamptz not null default now(),
+    evaluated_at timestamptz,
     unique (marketplace, external_id)
 );
 
@@ -81,6 +82,9 @@ comment on column public.sniper_listings.item_updated_at is
 comment on column public.sniper_listings.is_hidden is
     'Vinted zeigt Artikel im Katalog, bevor sie kaufbar sind. Solange wahr, ist Zuschlagen sinnlos.';
 
+comment on column public.sniper_listings.evaluated_at is
+    'Zeitpunkt, zu dem dieses Angebot gegen die Abonnements geprueft wurde. Leer heisst ungeprueft. Der Einlese-Lauf setzt den Wert, ohne zu melden - damit bleibt der Bestand, den eine neue Abfrage vorfindet, dauerhaft stumm.';
+
 comment on column public.sniper_listings.image_urls is
     'Alle Bilder in der Reihenfolge des Katalogs. Ein einzelnes Foto zeigt Maengel oft nicht.';
 
@@ -88,7 +92,7 @@ create table if not exists public.sniper_query_subscriptions (
     id uuid primary key default gen_random_uuid(),
     workspace_id uuid not null references public.workspaces (id) on delete cascade,
     query_id uuid not null references public.sniper_queries (id) on delete cascade,
-    discount_threshold_percent numeric(5, 2) not null default 30
+    discount_threshold_percent numeric(5, 2) not null default 40
         check (discount_threshold_percent > 0 and discount_threshold_percent < 100),
     is_active boolean not null default true,
     created_at timestamptz not null default now(),
@@ -205,6 +209,10 @@ create index if not exists idx_sniper_queries_due
 create index if not exists idx_sniper_listings_first_seen_at
     on public.sniper_listings (first_seen_at);
 
+create index if not exists idx_sniper_listings_unevaluated
+    on public.sniper_listings (discovered_by_query_id)
+    where evaluated_at is null;
+
 create index if not exists idx_sniper_listings_discovered_by_query_id
     on public.sniper_listings (discovered_by_query_id);
 
@@ -219,7 +227,7 @@ create or replace function public.create_sniper_subscription(
     p_brand_id integer,
     p_price_from numeric,
     p_price_to numeric,
-    p_threshold numeric default 30
+    p_threshold numeric default 40
 )
 returns uuid
 language plpgsql
@@ -298,3 +306,207 @@ $$;
 
 revoke all on function public.create_sniper_subscription(uuid, text, integer, numeric, numeric, numeric) from public, anon;
 grant execute on function public.create_sniper_subscription(uuid, text, integer, numeric, numeric, numeric) to authenticated;
+
+-- Der Vergleichsmassstab einer Gruppe: der Median der Artikelpreise derselben
+-- Abfrage im selben Zustand, ueber ein gleitendes Fenster.
+--
+-- Zwei Schutzregeln, beide aus echten Daten hergeleitet (04.09.2026, 96 Funde):
+--
+-- Mindestzahl: Unter acht Vergleichswerten ist ein Median Zufall - ein
+-- einzelner Ausreisser verschiebt ihn stark.
+--
+-- Anschlagserkennung: Klebt mehr als ein Drittel der Gruppe an der
+-- Preisobergrenze der Abfrage, schneidet die Grenze in die Verteilung und der
+-- Median ist wertlos. Gemessen lag die abgeschnittene Gruppe bei 67 Prozent,
+-- die naechsthoechste gesunde bei 16 - ein Drittel trifft die Luecke.
+--
+-- Ohne die zweite Regel bliebe das Werkzeug genau in der Kategorie stumm, in
+-- der die echten Schnaeppchen stecken.
+create or replace function public.sniper_reference_price(
+    p_query_id uuid,
+    p_condition text
+)
+returns table (reference_price numeric, sample_size integer, unusable_reason text)
+language sql
+stable
+security invoker
+set search_path = ''
+as $$
+    with fenster as (
+        select listing.item_price
+        from public.sniper_listings as listing
+        where listing.discovered_by_query_id = p_query_id
+          and listing.condition is not distinct from p_condition
+          and listing.first_seen_at >= now() - interval '14 days'
+    ),
+    grenze as (
+        select price_to from public.sniper_queries where id = p_query_id
+    ),
+    kennzahlen as (
+        select
+            count(*)::integer as n,
+            percentile_cont(0.5) within group (order by item_price)::numeric(12, 2) as median,
+            count(*) filter (
+                where (select price_to from grenze) is not null
+                  and item_price >= (select price_to from grenze)
+            )::integer as am_limit
+        from fenster
+    )
+    select
+        case
+            when n < 8 then null
+            when am_limit::numeric / greatest(n, 1) > 1.0 / 3.0 then null
+            else median
+        end,
+        n,
+        case
+            when n < 8 then 'too_few'
+            when am_limit::numeric / greatest(n, 1) > 1.0 / 3.0 then 'at_price_ceiling'
+            else null
+        end
+    from kennzahlen;
+$$;
+
+comment on function public.sniper_reference_price(uuid, text) is
+    'Median der Artikelpreise einer Abfrage im selben Zustand ueber 14 Tage. Liefert null mit Begruendung, wenn die Gruppe zu klein ist oder am Preislimit klebt.';
+
+-- Postgres macht Funktionen standardmaessig fuer PUBLIC ausfuehrbar, womit auch
+-- anon sie aufrufen koennte. Gefaehrlich waere das hier nicht - die Funktion
+-- laeuft als Aufrufer, und anon hat keine Leserechte auf sniper_listings -
+-- aber die uebrigen Funktionen dieses Projekts ziehen die Rechte ausdruecklich
+-- eng, und eine soll nicht ausscheren.
+revoke all on function public.sniper_reference_price(uuid, text) from public, anon;
+grant execute on function public.sniper_reference_price(uuid, text) to authenticated;
+
+-- Legt fuer eine Abfrage die fehlenden Treffer an und liefert ihre Zahl.
+--
+-- Bewertet wird je Abonnement, weil die Schwelle dort haengt: derselbe Fund
+-- kann fuer einen Arbeitsbereich ein Treffer sein und fuer den naechsten
+-- nicht. Der Massstab wird am Treffer festgehalten statt spaeter neu
+-- gerechnet - er verschiebt sich mit jedem neuen Fund, und ohne den
+-- festgehaltenen Wert waere nicht mehr nachvollziehbar, warum gemeldet wurde.
+--
+-- Geprueft wird ausschliesslich, was `evaluated_at is null` hat. Das ist die
+-- eigentliche Geschaeftsregel und nicht bloss Sparsamkeit: Der Entwurf haelt
+-- fest, dass der Einlese-Lauf nur schreibt und nichts meldet. Lief die
+-- Bewertung ueber den ganzen Bestand, wuerde die erste Runde einer neuen
+-- Abfrage ihre rund 96 vorgefundenen - teils laengst verkauften - Angebote
+-- allesamt gegen ihren eigenen Median halten und den Melder zuschuetten. Mit
+-- `p_report_hits = false` hakt der Einlese-Lauf diesen Bestand stumm ab; er
+-- bleibt danach dauerhaft stumm, weil der Vermerk in der Zeile steht und
+-- nicht im Ablauf.
+--
+-- Nebenbei bleibt der Aufwand je Runde an der Zahl der neuen Angebote
+-- haengen statt an der Groesse der Tabelle.
+--
+-- Angebote ohne brauchbaren Massstab (zu wenige Vergleichswerte) bleiben
+-- ungeprueft und kommen in der naechsten Runde wieder dran - sonst verfiele
+-- ein Fund allein deshalb, weil er zu frueh kam.
+--
+-- `on conflict do nothing` macht wiederholte Laeufe folgenlos. Deshalb wirken
+-- Schwellenaenderungen auch nur nach vorn: Ein bereits gemeldeter Treffer
+-- verschwindet nicht, wenn jemand strenger wird. Aus demselben Grund sieht
+-- ein spaeter angelegtes Abonnement den Altbestand nicht.
+create or replace function public.sniper_evaluate_hits(
+    p_query_id uuid,
+    p_report_hits boolean default true
+)
+returns integer
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_created integer;
+begin
+  with offen as (
+      select listing.id, listing.condition, listing.item_price
+      from public.sniper_listings as listing
+      where listing.discovered_by_query_id = p_query_id
+        and listing.evaluated_at is null
+  ),
+  -- Der Massstab haengt am Zustand, nicht am einzelnen Angebot. Erst die
+  -- Zustaende sammeln, dann je Zustand einmal rechnen: Bei fuenfzig neuen
+  -- Angeboten sind das fuenf Fensterabfragen statt fuenfzig.
+  zustaende as (
+      select distinct offen.condition from offen
+  ),
+  massstaebe as (
+      select zustaende.condition, massstab.reference_price
+      from zustaende
+      cross join lateral public.sniper_reference_price(
+          p_query_id, zustaende.condition
+      ) as massstab
+      where massstab.reference_price is not null
+        and massstab.reference_price > 0
+  ),
+  bewertbar as (
+      select offen.id, offen.item_price, massstaebe.reference_price
+      from offen
+      join massstaebe
+        on massstaebe.condition is not distinct from offen.condition
+  ),
+  kandidaten as (
+      select
+          subscription.id as subscription_id,
+          bewertbar.id as listing_id,
+          bewertbar.reference_price,
+          round(
+              (bewertbar.reference_price - bewertbar.item_price)
+              / bewertbar.reference_price * 100,
+              2
+          ) as discount_percent
+      from public.sniper_query_subscriptions as subscription
+      cross join bewertbar
+      where p_report_hits
+        and subscription.query_id = p_query_id
+        and subscription.is_active
+        and bewertbar.item_price
+            <= bewertbar.reference_price
+               * (1 - subscription.discount_threshold_percent / 100)
+  ),
+  eingefuegt as (
+      insert into public.sniper_hits
+          (subscription_id, listing_id, reference_price, discount_percent)
+      select subscription_id, listing_id, reference_price, discount_percent
+      from kandidaten
+      on conflict (subscription_id, listing_id) do nothing
+      returning 1
+  ),
+  -- Abgehakt wird, was wirklich beurteilt werden konnte. Der Einlese-Lauf
+  -- hakt dagegen alles ab: Dort ist das Nichtmelden die Absicht.
+  --
+  -- Ohne aktiven Abonnenten wurde ueberhaupt nicht beurteilt. Wuerde hier
+  -- trotzdem abgehakt, verloere ein Nutzer, der seinen Filter einen Tag
+  -- pausiert, jedes Schnaeppchen dieses Tages endgueltig - und
+  -- create_sniper_subscription schaltet einen Filter beim erneuten Anlegen
+  -- ausdruecklich wieder aktiv.
+  vermerkt as (
+      update public.sniper_listings as listing
+      set evaluated_at = now()
+      where listing.id in (
+          select offen.id
+          from offen
+          where not p_report_hits
+             or (
+                 exists (
+                     select 1
+                     from public.sniper_query_subscriptions as subscription
+                     where subscription.query_id = p_query_id
+                       and subscription.is_active
+                 )
+                 and offen.id in (select bewertbar.id from bewertbar)
+             )
+      )
+      returning 1
+  )
+  select count(*)::integer into v_created from eingefuegt;
+
+  return v_created;
+end;
+$$;
+
+comment on function public.sniper_evaluate_hits(uuid, boolean) is
+    'Prueft die noch ungeprueften Angebote einer Abfrage gegen alle aktiven Abonnements, legt die fehlenden Treffer an und liefert deren Zahl. Mit p_report_hits = false werden die Angebote nur als geprueft vermerkt - so bleibt der Einlese-Lauf stumm.';
+
+revoke all on function public.sniper_evaluate_hits(uuid, boolean) from public, anon, authenticated;
