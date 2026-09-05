@@ -13,7 +13,7 @@ beforeAll(async () => {
   await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
 });
 
-const bewerbung = {
+const application = {
   id: 'a1',
   firstName: 'Anna',
   lastName: 'Beispiel',
@@ -29,7 +29,7 @@ describe('BetaApplicationsComponent', () => {
   let decide: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    list = vi.fn().mockResolvedValue([bewerbung]);
+    list = vi.fn().mockResolvedValue([application]);
     decide = vi.fn().mockResolvedValue(undefined);
 
     await TestBed.configureTestingModule({

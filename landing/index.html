@@ -2862,20 +2862,20 @@
 
     <script>
       (function () {
-        var ENDPUNKT = 'https://api.flipbase.de/functions/v1/beta-application';
-        var TEXTE = {
+        var ENDPOINT = 'https://api.flipbase.de/functions/v1/beta-application';
+        var TEXTS = {
           ok: { de: 'Danke! Wir melden uns.', en: 'Thank you! We will be in touch.' },
-          fehler: {
+          error: {
             de: 'Das hat nicht geklappt. Bitte später erneut versuchen.',
             en: 'That did not work. Please try again later.',
           },
-          drossel: {
+          throttled: {
             de: 'Zu viele Versuche. Bitte in einer Stunde erneut versuchen.',
             en: 'Too many attempts. Please try again in an hour.',
           },
         };
 
-        function melde(feld, art) {
+        function announce(field, kind) {
           // <html lang> ist statisch "de" - die Sprachumschaltung laeuft rein
           // ueber CSS (body:has(#lang-toggle:checked)), nicht ueber dieses
           // Attribut. Ein Skript-seitiger Sprachentscheid wuerde deshalb immer
@@ -2886,67 +2886,67 @@
           // neu aufbauen - und komplett ersetzen statt nur den Text zu aendern,
           // damit die Live-Region (role="status", aria-live="polite") die
           // Aenderung zuverlaessig ansagt.
-          feld.textContent = '';
+          field.textContent = '';
           var de = document.createElement('span');
           de.className = 'lang-de';
-          de.textContent = TEXTE[art].de;
+          de.textContent = TEXTS[kind].de;
           var en = document.createElement('span');
           en.className = 'lang-en';
           en.lang = 'en';
-          en.textContent = TEXTE[art].en;
-          feld.append(de, en);
+          en.textContent = TEXTS[kind].en;
+          field.append(de, en);
         }
 
-        ['hero', 'zweit'].forEach(function (praefix) {
-          var formular = document.getElementById(praefix + '-bewerbung-form');
-          if (!formular) return;
-          var meldung = document.getElementById(praefix + '-bewerbung-meldung');
+        ['hero', 'zweit'].forEach(function (prefix) {
+          var form = document.getElementById(prefix + '-bewerbung-form');
+          if (!form) return;
+          var message = document.getElementById(prefix + '-bewerbung-meldung');
 
-          formular.addEventListener('submit', function (ereignis) {
-            ereignis.preventDefault();
-            var knopf = formular.querySelector('button[type="submit"]');
+          form.addEventListener('submit', function (event) {
+            event.preventDefault();
+            var button = form.querySelector('button[type="submit"]');
             // Schon gesperrt: ein zweites, bereits in der Warteschlange
             // stehendes submit-Ereignis darf nicht nochmal senden.
-            if (knopf.disabled) return;
-            if (!formular.checkValidity()) {
-              formular.reportValidity();
+            if (button.disabled) return;
+            if (!form.checkValidity()) {
+              form.reportValidity();
               return;
             }
-            knopf.disabled = true;
+            button.disabled = true;
 
             // Ohne Zeitgrenze wuerde ein ausbleibender Server den Knopf fuer
             // immer gesperrt lassen (weder then, noch catch, noch finally
             // feuert). Nach 15 Sekunden abbrechen; der Abbruch landet im catch.
-            var abbruch = new AbortController();
-            var zeitgeber = setTimeout(function () {
-              abbruch.abort();
+            var controller = new AbortController();
+            var timer = setTimeout(function () {
+              controller.abort();
             }, 15000);
 
-            fetch(ENDPUNKT, {
+            fetch(ENDPOINT, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              signal: abbruch.signal,
+              signal: controller.signal,
               body: JSON.stringify({
-                firstName: document.getElementById(praefix + '-bewerbung-vorname').value,
-                lastName: document.getElementById(praefix + '-bewerbung-nachname').value,
-                email: document.getElementById(praefix + '-bewerbung-email').value,
-                consent: document.getElementById(praefix + '-bewerbung-einwilligung').checked,
+                firstName: document.getElementById(prefix + '-bewerbung-vorname').value,
+                lastName: document.getElementById(prefix + '-bewerbung-nachname').value,
+                email: document.getElementById(prefix + '-bewerbung-email').value,
+                consent: document.getElementById(prefix + '-bewerbung-einwilligung').checked,
               }),
             })
-              .then(function (antwort) {
-                if (antwort.ok) {
-                  melde(meldung, 'ok');
-                  formular.reset();
+              .then(function (response) {
+                if (response.ok) {
+                  announce(message, 'ok');
+                  form.reset();
                 } else {
-                  melde(meldung, antwort.status === 429 ? 'drossel' : 'fehler');
+                  announce(message, response.status === 429 ? 'throttled' : 'error');
                 }
               })
               .catch(function () {
-                melde(meldung, 'fehler');
+                announce(message, 'error');
               })
               .finally(function () {
-                clearTimeout(zeitgeber);
-                knopf.disabled = false;
+                clearTimeout(timer);
+                button.disabled = false;
               });
           });
         });

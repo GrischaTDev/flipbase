@@ -3,10 +3,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { PlatformOperatorService } from './platform-operator.service';
 import { SupabaseService } from './supabase.service';
 
-function serviceMit(antwort: { data: unknown; error: unknown }, nutzerId: string | null = 'u1') {
-  const rpc = vi.fn().mockResolvedValue(antwort);
+function serviceWith(response: { data: unknown; error: unknown }, userId: string | null = 'u1') {
+  const rpc = vi.fn().mockResolvedValue(response);
   const getSession = vi.fn().mockResolvedValue({
-    data: { session: nutzerId ? { user: { id: nutzerId } } : null },
+    data: { session: userId ? { user: { id: userId } } : null },
   });
   TestBed.configureTestingModule({
     providers: [{ provide: SupabaseService, useValue: { client: { rpc, auth: { getSession } } } }],
@@ -22,7 +22,7 @@ describe('PlatformOperatorService', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   it('meldet Betreiber, wenn die Datenbank wahr liefert', async () => {
-    const { service, rpc } = serviceMit({ data: true, error: null });
+    const { service, rpc } = serviceWith({ data: true, error: null });
 
     await expect(service.isOperator()).resolves.toBe(true);
     expect(rpc).toHaveBeenCalledWith('is_platform_operator');
@@ -31,7 +31,7 @@ describe('PlatformOperatorService', () => {
   it('meldet im Fehlerfall keinen Betreiber', async () => {
     // Eine gescheiterte Abfrage darf niemanden zum Betreiber machen. Der
     // Fehlerfall ist die Sperre, nicht die Freigabe.
-    const { service } = serviceMit({ data: null, error: { message: 'weg' } });
+    const { service } = serviceWith({ data: null, error: { message: 'weg' } });
 
     await expect(service.isOperator()).resolves.toBe(false);
   });
@@ -39,7 +39,7 @@ describe('PlatformOperatorService', () => {
   it('fragt die Datenbank nur einmal fuer denselben Nutzer', async () => {
     // Der Wächter und die Seitenleiste fragen beide. Ohne Zwischenspeicher
     // liefe je Navigation eine Abfrage mehr.
-    const { service, rpc } = serviceMit({ data: true, error: null });
+    const { service, rpc } = serviceWith({ data: true, error: null });
 
     await service.isOperator();
     await service.isOperator();
@@ -71,7 +71,7 @@ describe('PlatformOperatorService', () => {
   });
 
   it('liefert false ohne Sitzung, ohne die Datenbank zu fragen', async () => {
-    const { service, rpc } = serviceMit({ data: true, error: null }, null);
+    const { service, rpc } = serviceWith({ data: true, error: null }, null);
 
     await expect(service.isOperator()).resolves.toBe(false);
     expect(rpc).not.toHaveBeenCalled();
