@@ -78,6 +78,7 @@ import { PurchaseTypeLabelPipe } from '../../../../shared/pipes/purchase-type-la
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { SalesService } from '../../../../core/services/sales.service';
 import { RecordHistoryContainer } from '../../../audit/components/record-history/record-history.container';
+import { PurchaseCostRepairComponent } from '../../components/purchase-cost-repair/purchase-cost-repair.component';
 
 @Component({
   selector: 'app-purchase-detail',
@@ -96,6 +97,7 @@ import { RecordHistoryContainer } from '../../../audit/components/record-history
     PurchaseDetailTableComponent,
     PurchaseTypeLabelPipe,
     RecordHistoryContainer,
+    PurchaseCostRepairComponent,
   ],
   templateUrl: './purchase-detail.component.html',
   host: { class: 'block' },
@@ -661,6 +663,15 @@ export class PurchaseDetailComponent {
 
     await this.purchaseService.refreshAfterFinalization(purchase.workspace_id, purchase.id);
     this.toast.success('Erfassung wurde abgeschlossen.');
+  }
+
+  async refreshCostRepair(): Promise<void> {
+    const purchase = this.purchaseService.selectedPurchase();
+    if (!purchase || this.workspaceService.currentWorkspace()?.id !== purchase.workspace_id) return;
+    await Promise.all([
+      this.purchaseService.refreshAfterFinalization(purchase.workspace_id, purchase.id),
+      this.salesService.loadSales(purchase.workspace_id),
+    ]);
   }
 
   async reloadPurchaseSaleHistory(): Promise<void> {

@@ -3039,7 +3039,12 @@ export type Database = {
         }[]
       }
       migrate_purchase_costing_legacy: {
-        Args: { p_confirm: boolean; p_workspace_id: string }
+        Args: {
+          p_confirm: boolean
+          p_expected_fingerprint?: string
+          p_purchase_id?: string
+          p_workspace_id: string
+        }
         Returns: Json
       }
       place_store_order: {
@@ -3079,6 +3084,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      preview_purchase_cost_repair: {
+        Args: { p_purchase_id: string; p_workspace_id: string }
+        Returns: Json
       }
       preview_purchase_costing_legacy: {
         Args: { p_workspace_id: string }

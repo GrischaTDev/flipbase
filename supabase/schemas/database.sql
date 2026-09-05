@@ -10161,7 +10161,9 @@ comment on function public.preview_purchase_costing_legacy(uuid) is
 
 create or replace function public.migrate_purchase_costing_legacy(
   p_workspace_id uuid,
-  p_confirm boolean
+  p_confirm boolean,
+  p_purchase_id uuid default null,
+  p_expected_fingerprint text default null
 )
 returns jsonb
 language plpgsql
@@ -10214,16 +10216,43 @@ begin
       message = 'Die Altdatenmigration benötigt eine ausdrückliche Bestätigung.';
   end if;
 
+  if p_purchase_id is not null then
+    perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_purchase_id::text, 0));
+    perform 1 from public.purchases
+    where workspace_id = p_workspace_id and id = p_purchase_id for update;
+    perform 1 from public.inventory_items
+    where workspace_id = p_workspace_id and purchase_id = p_purchase_id order by id for update;
+    perform 1 from public.purchase_costs
+    where workspace_id = p_workspace_id and purchase_id = p_purchase_id order by id for update;
+    perform 1 from public.sale_lines l
+    join public.inventory_items i on i.id = l.inventory_item_id and i.workspace_id = l.workspace_id
+    where i.workspace_id = p_workspace_id and i.purchase_id = p_purchase_id
+    order by l.id for update of l;
+    perform 1 from public.sales s
+    where s.workspace_id = p_workspace_id and exists (
+      select 1 from public.sale_lines l
+      join public.inventory_items i on i.id = l.inventory_item_id and i.workspace_id = l.workspace_id
+      where l.sale_id = s.id and i.workspace_id = p_workspace_id and i.purchase_id = p_purchase_id
+    ) order by s.id for update;
+    if p_expected_fingerprint is null or
+      (public.preview_purchase_cost_repair(p_workspace_id, p_purchase_id) ->> 'fingerprint')
+      is distinct from p_expected_fingerprint then
+      raise exception using errcode = '40001', message = 'Der Einkauf wurde inzwischen geändert. Bitte erneut prüfen.';
+    end if;
+  end if;
+
   select
     pg_catalog.count(*) filter (where preview.classification = 'items_missing'),
     pg_catalog.count(*) filter (where preview.classification = 'manual_review')
   into v_items_missing, v_manual_review
-  from public.preview_purchase_costing_legacy(p_workspace_id) as preview;
+  from public.preview_purchase_costing_legacy(p_workspace_id) as preview
+  where p_purchase_id is null or preview.purchase_id = p_purchase_id;
 
   for v_candidate in
     select preview.*
     from public.preview_purchase_costing_legacy(p_workspace_id) as preview
     where preview.classification = 'auto_repair'
+      and (p_purchase_id is null or preview.purchase_id = p_purchase_id)
     order by preview.purchase_id
   loop
     perform pg_catalog.pg_advisory_xact_lock(
@@ -10456,10 +10485,10 @@ begin
 end;
 $$;
 
-alter function public.migrate_purchase_costing_legacy(uuid, boolean)
+alter function public.migrate_purchase_costing_legacy(uuid, boolean, uuid, text)
   owner to postgres;
 
-comment on function public.migrate_purchase_costing_legacy(uuid, boolean) is
+comment on function public.migrate_purchase_costing_legacy(uuid, boolean, uuid, text) is
   'Repariert nur eindeutig klassifizierte Mystery-Altdaten nach ausdrücklicher Bestätigung.';
 
 -- ------------------------------------------------------------------------------
@@ -10546,9 +10575,9 @@ revoke execute on function public.preview_purchase_costing_legacy(uuid)
   from public, anon, service_role;
 grant execute on function public.preview_purchase_costing_legacy(uuid)
   to authenticated;
-revoke execute on function public.migrate_purchase_costing_legacy(uuid, boolean)
+revoke execute on function public.migrate_purchase_costing_legacy(uuid, boolean, uuid, text)
   from public, anon, service_role;
-grant execute on function public.migrate_purchase_costing_legacy(uuid, boolean)
+grant execute on function public.migrate_purchase_costing_legacy(uuid, boolean, uuid, text)
   to authenticated;
 
 revoke execute on function public.create_purchase(uuid, jsonb, jsonb, jsonb)
