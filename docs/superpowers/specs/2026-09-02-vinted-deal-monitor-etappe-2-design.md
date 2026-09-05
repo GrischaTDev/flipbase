@@ -44,7 +44,7 @@ Die Lösung ist keine Kopie je Arbeitsbereich, sondern eine Zuordnung.
 | ---------------------------- | ---------------------------------------------------------------------- |
 | `workspace_id`               | wem das Abonnement gehört                                              |
 | `query_id`                   | auf welche geteilte Abfrage es zeigt                                   |
-| `discount_threshold_percent` | ab wie viel Prozent unter dem Median ein Treffer entsteht, Standard 30 |
+| `discount_threshold_percent` | ab wie viel Prozent unter dem Median ein Treffer entsteht, Standard 40 |
 | `is_active`, `created_at`    |                                                                        |
 
 Die Schwelle gehört an das Abonnement, nicht an die Abfrage: Zwei Nutzer mit
@@ -155,7 +155,15 @@ aber **immer** zehn Prozent — auch wenn gerade nichts Gutes dabei ist. Die
 Prozentmarke darf tagelang schweigen, und das ist richtig: An manchen Tagen gibt es
 kein Schnäppchen.
 
-30 Prozent ist ein Startwert, kein Naturgesetz. Nach einigen Wochen echter Daten
+**Nachtrag vom 04.09.2026:** Der Startwert liegt bei **40 Prozent**, nicht bei 30.
+An 96 frisch gesammelten Funden gemessen haetten bei 30 Prozent **25 davon**
+gemeldet - jeder vierte. Das ist kein Melder mehr, sondern ein Strom, und ein
+Strom wird stummgeschaltet. Bei 40 Prozent sind es rund acht. Die Tabelle mit den
+Tukey-Werten oben bezieht sich noch auf die 30-Prozent-Marke; sie bleibt stehen,
+weil ihr Punkt ein anderer ist - das Ausreisserverfahren kann hier gar nicht
+ausloesen, unabhaengig von der Schwelle.
+
+Der Startwert ist kein Naturgesetz. Nach einigen Wochen echter Daten
 lässt er sich je Abonnement nachjustieren.
 
 ### Zwei Schutzregeln

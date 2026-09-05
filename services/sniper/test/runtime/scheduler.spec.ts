@@ -58,7 +58,10 @@ function buildMany(
   overrides: {
     queries?: Partial<Record<'markPolled' | 'markSeeded' | 'deactivate', ReturnType<typeof vi.fn>>>;
     collector?: { collect: ReturnType<typeof vi.fn> };
-    listings?: { saveNew: ReturnType<typeof vi.fn> };
+    listings?: {
+      saveNew: ReturnType<typeof vi.fn>;
+      evaluateHits?: ReturnType<typeof vi.fn>;
+    };
   } = {},
 ) {
   const queryStore = {
@@ -71,7 +74,11 @@ function buildMany(
   const collector = overrides.collector ?? {
     collect: vi.fn().mockResolvedValue([makeListing('a')]),
   };
-  const listings = overrides.listings ?? { saveNew: vi.fn().mockResolvedValue([makeListing('a')]) };
+  const listings = {
+    saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
+    evaluateHits: vi.fn().mockResolvedValue(0),
+    ...overrides.listings,
+  };
   const log = { info: vi.fn(), error: vi.fn() };
   const budget = new RequestBudget(10, () => NOW.getTime());
 
@@ -94,7 +101,11 @@ function build(query: SniperQuery, overrides: Record<string, unknown> = {}) {
     deactivate: vi.fn().mockResolvedValue(undefined),
   };
   const collector = { collect: vi.fn().mockResolvedValue([makeListing('a'), makeListing('b')]) };
-  const listings = { saveNew: vi.fn().mockResolvedValue([makeListing('a')]) };
+  const listings = {
+    saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
+    evaluateHits: vi.fn().mockResolvedValue(0),
+    ...(overrides.listings as Record<string, unknown> | undefined),
+  };
   const log = { info: vi.fn(), error: vi.fn() };
   const budget = new RequestBudget(10, () => NOW.getTime());
 
@@ -299,11 +310,81 @@ describe('QueryScheduler', () => {
         newListings: 0,
         seeded: 0,
         failed: 0,
+        newHits: 0,
       });
       expect(collector.collect).not.toHaveBeenCalled();
       expect(log.error).toHaveBeenCalledWith('due_queries_failed', {
         reason: 'store unreachable',
       });
     });
+  });
+
+  it('bewertet nach dem Speichern und zaehlt die Treffer', async () => {
+    const listings = {
+      saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
+      evaluateHits: vi.fn().mockResolvedValue(2),
+    };
+    const { scheduler } = build(makeQuery(), { listings });
+
+    const report = await scheduler.runOnce(NOW);
+
+    expect(listings.evaluateHits).toHaveBeenCalledWith('q1', true);
+    expect(report.newHits).toBe(2);
+  });
+
+  it('meldet im Einlese-Lauf nichts, hakt den Bestand aber ab', async () => {
+    // Die erste Runde einer Abfrage findet einen ganzen Bestand vor - teils
+    // wochenalt, teils laengst verkauft. Wuerde sie melden, kaeme mit dem
+    // Anlegen eines Filters sofort ein Schwall Falschmeldungen. Der Aufruf
+    // erfolgt trotzdem, damit der Bestand als geprueft vermerkt wird und auch
+    // in der naechsten Runde stumm bleibt.
+    const listings = {
+      saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
+      evaluateHits: vi.fn().mockResolvedValue(0),
+    };
+    const { scheduler } = build(makeQuery({ isSeeded: false }), { listings });
+
+    const report = await scheduler.runOnce(NOW);
+
+    expect(listings.evaluateHits).toHaveBeenCalledWith('q1', false);
+    expect(report.newHits).toBe(0);
+  });
+
+  it('laesst eine gescheiterte Bewertung den Durchgang nicht abbrechen', async () => {
+    // Ein Fund ist gespeichert, auch wenn die Bewertung scheitert. Wuerde der
+    // Fehler durchschlagen, bliebe die Abfrage als nicht gepollt stehen und der
+    // naechste Durchgang holte dieselben Artikel erneut.
+    const listings = {
+      saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
+      evaluateHits: vi.fn().mockRejectedValue(new Error('evaluation failed')),
+    };
+    const { scheduler, queries, log } = build(makeQuery(), { listings });
+
+    const report = await scheduler.runOnce(NOW);
+
+    expect(queries.markPolled).toHaveBeenCalledWith('q1', 'ok');
+    expect(report.newHits).toBe(0);
+    expect(log.error).toHaveBeenCalledWith('evaluate_hits_failed', {
+      queryId: 'q1',
+      reason: 'evaluation failed',
+    });
+  });
+
+  it('gilt nicht als eingelesen, wenn die Bewertung scheitert', async () => {
+    // Sonst genuegt ein einziger Netzfehler: Die Abfrage waere eingelesen, der
+    // vorgefundene Bestand truege aber keinen Vermerk - und der naechste
+    // Durchgang meldete ihn vollstaendig. Genau der Schwall, den der
+    // Einlese-Lauf verhindern soll.
+    const listings = {
+      saveNew: vi.fn().mockResolvedValue([makeListing('a')]),
+      evaluateHits: vi.fn().mockRejectedValue(new Error('evaluation failed')),
+    };
+    const { scheduler, queries } = build(makeQuery({ isSeeded: false }), { listings });
+
+    const report = await scheduler.runOnce(NOW);
+
+    expect(queries.markSeeded).not.toHaveBeenCalled();
+    expect(report.seeded).toBe(0);
+    expect(queries.markPolled).toHaveBeenCalledWith('q1', 'ok');
   });
 });

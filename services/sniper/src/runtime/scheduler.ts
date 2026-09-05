@@ -22,6 +22,7 @@ export interface ListingStoreLike {
     listings: MarketplaceListing[],
     discoveredByQueryId: string,
   ): Promise<MarketplaceListing[]>;
+  evaluateHits(queryId: string, reportHits: boolean): Promise<number>;
 }
 
 export interface CycleReport {
@@ -30,6 +31,7 @@ export interface CycleReport {
   newListings: number;
   seeded: number;
   failed: number;
+  newHits: number;
 }
 
 export interface SchedulerDeps {
@@ -50,6 +52,7 @@ export class QueryScheduler {
       newListings: 0,
       seeded: 0,
       failed: 0,
+      newHits: 0,
     };
 
     // Rueckfallnetz: `dueQueries()` haengt an genau demselben Store wie
@@ -119,6 +122,7 @@ export class QueryScheduler {
       seeded: report.seeded,
       failed: report.failed,
       skipped: report.skippedForBudget,
+      newHits: report.newHits,
       budget: this.deps.budget.usageRatio().toFixed(2),
     });
 
@@ -138,10 +142,35 @@ export class QueryScheduler {
     const created = await this.deps.listings.saveNew(listings, query.id);
     report.polled += 1;
 
+    // Der Einlese-Lauf meldet nichts. Er hakt den vorgefundenen Bestand nur
+    // als geprueft ab - sonst wuerde die erste Runde einer neuen Abfrage jedes
+    // vorhandene Angebot unter dem Median als Fund ausrufen.
+    //
+    // Eine gescheiterte Bewertung darf den Fund nicht entwerten: Gespeichert
+    // ist er, und die Abfrage gilt als gepollt. Sonst holte der naechste
+    // Durchgang dieselben Artikel noch einmal. Ungeprueft Gebliebenes kommt
+    // von selbst wieder dran, weil der Vermerk in der Zeile fehlt.
+    let evaluated = false;
+
+    try {
+      report.newHits += await this.deps.listings.evaluateHits(query.id, query.isSeeded);
+      evaluated = true;
+    } catch (error) {
+      this.deps.log.error('evaluate_hits_failed', {
+        queryId: query.id,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
+
     if (query.isSeeded) {
       // Nur ausserhalb des Einlese-Laufs gelten neue Artikel als Fund.
       report.newListings += created.length;
-    } else {
+    } else if (evaluated) {
+      // Eingelesen ist die Abfrage erst, wenn der Bestand auch wirklich
+      // abgehakt wurde. Ein einziger Netzfehler an dieser Stelle wuerde sonst
+      // genuegen: Die Abfrage gilt als eingelesen, der Bestand traegt aber
+      // keinen Vermerk - und der naechste Durchgang meldete ihn vollstaendig.
+      // Ein wiederholter Einlese-Lauf kostet dagegen nichts, er ist stumm.
       await this.deps.queries.markSeeded(query.id);
       report.seeded += 1;
     }
