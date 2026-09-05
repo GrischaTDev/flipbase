@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, computed, input, output, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import {
@@ -30,6 +38,13 @@ import {
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
 import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
+import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
+import { TablePreferencesService } from '../../../../core/services/table-preferences.service';
+import {
+  InventoryColumnId,
+  InventorySortField,
+} from '../../../../core/config/table-defaults.config';
+import { TableSortState } from '../../../../core/models/table-preferences.models';
 import type { InventoryPresentationRow } from '../../models/inventory-presentation.models';
 import { editableItemStatusOptions } from '../../models/item-status-options';
 import {
@@ -47,12 +62,14 @@ import {
     CustomSelectComponent,
     CostStateComponent,
     ItemConditionLabelPipe,
+    TableColumnMenuComponent,
   ],
   templateUrl: './stock-position-list.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StockPositionListComponent {
+  private readonly tablePreferencesService = inject(TablePreferencesService);
   readonly presentationRows = input<readonly InventoryPresentationRow[] | null>(null);
   readonly positions = input.required<readonly StockPosition[]>();
   readonly lots = input<readonly StockLot[]>([]);
@@ -86,6 +103,50 @@ export class StockPositionListComponent {
   readonly openPositionIds = signal<ReadonlySet<string>>(new Set());
 
   readonly statusOptions: SelectOption<ItemStatus>[] = [...editableItemStatusOptions];
+
+  readonly tableConfig = this.tablePreferencesService.getTableConfig<
+    InventoryColumnId,
+    InventorySortField
+  >('inventory');
+  readonly tablePrefs = computed(() =>
+    this.tablePreferencesService.getTablePreferences<InventoryColumnId, InventorySortField>(
+      'inventory',
+      this.workspaceId() || 'default',
+    )(),
+  );
+  readonly visibleColumnCount = computed(
+    () => this.tablePrefs().columns.filter((c) => c.visible).length,
+  );
+
+  isColumnVisible(colId: InventoryColumnId): boolean {
+    const col = this.tablePrefs().columns.find((c) => c.id === colId);
+    return col?.visible ?? true;
+  }
+
+  toggleColumnVisibility(colId: InventoryColumnId): void {
+    this.tablePreferencesService.toggleColumnVisibility(
+      'inventory',
+      colId,
+      this.workspaceId() || 'default',
+    );
+  }
+
+  onSortChanged(sort: TableSortState<InventorySortField>): void {
+    this.tablePreferencesService.setSort('inventory', sort, this.workspaceId() || 'default');
+  }
+
+  onColumnsReordered(event: { previousIndex: number; currentIndex: number }): void {
+    this.tablePreferencesService.reorderColumns(
+      'inventory',
+      event.previousIndex,
+      event.currentIndex,
+      this.workspaceId() || 'default',
+    );
+  }
+
+  resetTablePreferences(): void {
+    this.tablePreferencesService.resetToDefaults('inventory', this.workspaceId() || 'default');
+  }
 
   readonly presentation = computed(() =>
     buildInventoryPresentation({

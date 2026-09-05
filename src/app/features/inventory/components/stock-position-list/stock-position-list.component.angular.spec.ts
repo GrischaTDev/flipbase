@@ -21,6 +21,7 @@ import {
 import { StockPositionListComponent } from './stock-position-list.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
+import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -55,12 +56,17 @@ beforeAll(async () => {
       'src/app/shared/components/custom-select/custom-select.component.html',
     './custom-select.component.scss':
       'src/app/shared/components/custom-select/custom-select.component.scss',
+    './table-column-menu.component.html':
+      'src/app/shared/components/table-column-menu/table-column-menu.component.html',
+    './table-column-menu.component.scss':
+      'src/app/shared/components/table-column-menu/table-column-menu.component.scss',
   };
   await ɵresolveComponentResources((url) => {
     const resource = resources[url];
     if (!resource) throw new Error(`Unbekannte Test-Ressource: ${url}`);
     return readFile(resolve(resource), 'utf8');
   });
+  registerSignalInputs(TableColumnMenuComponent, ['columns', 'sortOptions', 'currentSort']);
   registerSignalInputs(CustomSelectComponent, [
     'options',
     'value',
@@ -599,5 +605,21 @@ describe('StockPositionListComponent', () => {
       'vollständige Bewegungshistorie',
     );
     expect(history.querySelector('caption')?.textContent).not.toContain('Lose');
+  });
+
+  it('toggles column visibility when a column is hidden', () => {
+    const fixture = createList([], [einzelstueck]);
+    const component = fixture.componentInstance;
+
+    expect(component.isColumnVisible('condition')).toBe(true);
+
+    component.toggleColumnVisibility('condition');
+    fixture.detectChanges();
+
+    expect(component.isColumnVisible('condition')).toBe(false);
+    const headers = [...fixture.nativeElement.querySelectorAll('thead th')].map((th: unknown) =>
+      (th as HTMLElement).textContent?.trim(),
+    );
+    expect(headers).not.toContain('Zustand');
   });
 });

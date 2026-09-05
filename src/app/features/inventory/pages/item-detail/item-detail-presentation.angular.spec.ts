@@ -21,6 +21,10 @@ import { CostStateComponent } from '../../../../shared/components/cost-state/cos
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { RecordHistoryContainer } from '../../../audit/components/record-history/record-history.container';
 import { RecordHistoryComponent } from '../../../../shared/components/record-history/record-history.component';
+import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ItemDetailComponent } from './item-detail.component';
 
 interface AngularInputMetadata {
@@ -75,6 +79,18 @@ beforeAll(async () => {
     'loading',
     'error',
     'hasMore',
+  ]);
+  registerSignalInputs(PageHeaderComponent, ['title', 'subtitle', 'backLink', 'backLabel']);
+  registerSignalInputs(TwoColumnLayoutComponent, ['ratio']);
+  registerSignalInputs(CardComponent, ['title', 'subtitle', 'variant', 'padding', 'rounded']);
+  registerSignalInputs(BadgeComponent, [
+    'tone',
+    'size',
+    'dot',
+    'pulse',
+    'icon',
+    'mono',
+    'uppercase',
   ]);
 });
 

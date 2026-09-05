@@ -1,0 +1,30 @@
+@if (title() || subtitle()) {
+  <div
+    data-card-header
+    class="flex items-center justify-between border-b border-fb-line px-4 py-3 md:px-5 md:py-3.5"
+  >
+    <div class="min-w-0">
+      @if (title()) {
+        <h2 class="text-sm font-bold text-fb-text-primary truncate">{{ title() }}</h2>
+      }
+      @if (subtitle()) {
+        <p class="text-[11px] text-fb-text-muted truncate mt-0.5">{{ subtitle() }}</p>
+      }
+    </div>
+    <div class="flex items-center gap-2 shrink-0">
+      <ng-content select="[card-header-actions]" />
+    </div>
+  </div>
+} @else {
+  <div class="empty:hidden border-b border-fb-line px-4 py-3 md:px-5 md:py-3.5">
+    <ng-content select="[card-header]" />
+  </div>
+}
+
+<div class="flex-1" [class]="contentPaddingClass()">
+  <ng-content />
+</div>
+
+<div class="empty:hidden border-t border-fb-line bg-fb-subtle/50 px-4 py-3 md:px-5">
+  <ng-content select="[card-footer]" />
+</div>

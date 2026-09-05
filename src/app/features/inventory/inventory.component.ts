@@ -51,6 +51,10 @@ import {
   CostStateComponent,
 } from '../../shared/components/cost-state/cost-state.component';
 
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { ButtonComponent } from '../../shared/components/button/button.component';
+
 type FilterPreset = string;
 
 @Component({
@@ -66,6 +70,9 @@ type FilterPreset = string;
     CustomSearchInputComponent,
     CostStateComponent,
     StockPositionListComponent,
+    PageHeaderComponent,
+    BadgeComponent,
+    ButtonComponent,
   ],
   templateUrl: './inventory.component.html',
   host: { class: 'block' },

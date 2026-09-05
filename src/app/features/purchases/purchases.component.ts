@@ -48,6 +48,10 @@ import { CostStateComponent } from '../../shared/components/cost-state/cost-stat
 import { mapPurchaseListRow } from './utils/purchase-presentation';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { ButtonComponent } from '../../shared/components/button/button.component';
+
 @Component({
   selector: 'app-purchases',
   imports: [
@@ -60,6 +64,9 @@ import { ModalDialogDirective } from '../../shared/directives/modal-dialog.direc
     PurchaseCreateModalComponent,
     CostStateComponent,
     ModalDialogDirective,
+    PageHeaderComponent,
+    BadgeComponent,
+    ButtonComponent,
   ],
   templateUrl: './purchases.component.html',
   host: { class: 'block' },

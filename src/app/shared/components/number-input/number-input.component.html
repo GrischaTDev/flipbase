@@ -1,53 +1,48 @@
 <div class="relative flex items-center">
   <input
     type="number"
-    [id]="feldId()"
+    [id]="effectiveId()"
     [value]="value()"
-    [step]="schritt()"
-    [min]="minimum()"
-    [max]="maximum()"
-    [placeholder]="platzhalter()"
-    [attr.aria-label]="beschriftung() || null"
-    [disabled]="deaktiviert()"
-    (input)="onEingabe($event)"
-    (blur)="onVerlassen()"
-    class="linear-input w-full rounded-lg px-2.5 py-1.5 pr-16 text-xs"
-    [class.font-mono]="alsBetrag()"
-    [class.font-bold]="alsBetrag()"
+    [step]="effectiveStep()"
+    [min]="effectiveMin()"
+    [max]="effectiveMax()"
+    [placeholder]="effectivePlaceholder()"
+    [attr.aria-label]="effectiveAriaLabel() || null"
+    [disabled]="effectiveDisabled()"
+    (input)="handleInput($event)"
+    (blur)="handleBlur()"
+    class="linear-input w-full rounded-xl px-2.5 py-1.5 pr-16 text-xs transition-colors"
+    [class.font-mono]="effectiveAsCurrency()"
+    [class.font-bold]="effectiveAsCurrency()"
   />
 
-  @if (einheit()) {
+  @if (effectiveUnit()) {
     <span class="pointer-events-none absolute right-16 text-[10px] text-fb-text-dimmed">
-      {{ einheit() }}
+      {{ effectiveUnit() }}
     </span>
   }
 
-  <!--
-    Die beiden Schaltflaechen sitzen im Feld, nicht daneben: So bleibt die
-    Breite gleich, egal ob ein Feld zaehlbar ist oder nicht, und Formulare
-    behalten ihr Raster.
-  -->
   <div class="absolute right-1 flex items-center gap-0.5">
     <button
       type="button"
       tabindex="-1"
-      [disabled]="deaktiviert() || amMinimum()"
-      (click)="zaehleRunter()"
-      class="flex size-6 items-center justify-center rounded-md border border-fb-line bg-fb-well text-fb-text-muted transition hover:border-fb-primary/50 hover:bg-fb-primary/10 hover:text-fb-primary disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-fb-line disabled:hover:bg-fb-well disabled:hover:text-fb-text-muted cursor-pointer"
-      [attr.aria-label]="'Wert verringern'"
+      [disabled]="effectiveDisabled() || isAtMin()"
+      (click)="decrement()"
+      class="flex size-6 items-center justify-center rounded-lg border border-fb-line bg-fb-well text-fb-text-muted transition hover:border-fb-primary/50 hover:bg-fb-primary/10 hover:text-fb-primary disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-fb-line disabled:hover:bg-fb-well disabled:hover:text-fb-text-muted cursor-pointer"
+      aria-label="Wert verringern"
     >
-      <svg [lucideIcon]="minusIcon" class="size-3"></svg>
+      <svg [lucideIcon]="minusIcon" class="size-3" aria-hidden="true"></svg>
     </button>
 
     <button
       type="button"
       tabindex="-1"
-      [disabled]="deaktiviert() || amMaximum()"
-      (click)="zaehleHoch()"
-      class="flex size-6 items-center justify-center rounded-md border border-fb-line bg-fb-well text-fb-text-muted transition hover:border-fb-primary/50 hover:bg-fb-primary/10 hover:text-fb-primary disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-fb-line disabled:hover:bg-fb-well disabled:hover:text-fb-text-muted cursor-pointer"
-      [attr.aria-label]="'Wert erhöhen'"
+      [disabled]="effectiveDisabled() || isAtMax()"
+      (click)="increment()"
+      class="flex size-6 items-center justify-center rounded-lg border border-fb-line bg-fb-well text-fb-text-muted transition hover:border-fb-primary/50 hover:bg-fb-primary/10 hover:text-fb-primary disabled:cursor-not-allowed disabled:opacity-35 disabled:hover:border-fb-line disabled:hover:bg-fb-well disabled:hover:text-fb-text-muted cursor-pointer"
+      aria-label="Wert erhöhen"
     >
-      <svg [lucideIcon]="plusIcon" class="size-3"></svg>
+      <svg [lucideIcon]="plusIcon" class="size-3" aria-hidden="true"></svg>
     </button>
   </div>
 </div>

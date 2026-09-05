@@ -1,61 +1,36 @@
 <div class="space-y-5 animate-fade-in">
-  <header class="flex flex-col gap-3 pb-1 sm:flex-row sm:items-center sm:justify-between">
-    <div>
-      <div class="flex items-center gap-2">
-        <h1 class="text-lg font-semibold tracking-tight text-fb-text-primary">
-          {{ 'INVENTORY.TITLE' | translate }}
-        </h1>
-        <span
-          class="rounded-md border border-fb-line bg-fb-surface-alt px-2 py-0.5 font-mono text-[10px] font-bold text-fb-text-secondary"
-        >
-          @if (inventoryPresentation().sourceState === 'known') {
-            {{ filteredUnitCount() }} Stück
-          } @else {
-            Wird geladen
-          }
-        </span>
-      </div>
-      <p class="mt-0.5 text-xs text-fb-text-muted">
-        Alle Artikel, Bestände, Kosten und Verkäufe in einer gemeinsamen Ansicht.
-      </p>
-    </div>
+  <app-page-header
+    [title]="'INVENTORY.TITLE' | translate"
+    subtitle="Alle Artikel, Bestände, Kosten und Verkäufe in einer gemeinsamen Ansicht."
+  >
+    <app-badge header-badge tone="neutral" [mono]="true">
+      @if (inventoryPresentation().sourceState === 'known') {
+        {{ filteredUnitCount() }} Stück
+      } @else {
+        Wird geladen
+      }
+    </app-badge>
 
-    <div class="flex flex-wrap items-center gap-2">
-      <button
-        type="button"
-        (click)="isScanningLabel.set(true)"
-        class="linear-btn-secondary inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-fb-text-secondary shadow-sm hover:text-fb-text-primary"
+    <div header-actions class="flex flex-wrap items-center gap-2">
+      <app-button
+        variant="secondary"
+        size="md"
+        [icon]="barcodeIcon"
+        (clicked)="isScanningLabel.set(true)"
       >
-        <svg [lucideIcon]="barcodeIcon" class="h-3.5 w-3.5 text-blue-400" aria-hidden="true"></svg>
-        <span>Etikett scannen</span>
-      </button>
-      <button
-        type="button"
-        (click)="openLabelModal()"
-        class="linear-btn-secondary inline-flex cursor-pointer items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-fb-text-secondary shadow-sm hover:text-fb-text-primary"
-      >
-        <svg
-          [lucideIcon]="printerIcon"
-          class="h-3.5 w-3.5 text-indigo-400"
-          aria-hidden="true"
-        ></svg>
-        <span>
-          Etiketten drucken
-          @if (selectedItemIds().size > 0) {
-            ({{ selectedItemIds().size }})
-          }
-        </span>
-      </button>
-      <button
-        type="button"
-        (click)="openCreateModal()"
-        class="linear-btn-primary inline-flex cursor-pointer items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-bold shadow-md shadow-indigo-500/20"
-      >
-        <svg [lucideIcon]="plusIcon" class="h-3.5 w-3.5 stroke-[2.5]" aria-hidden="true"></svg>
-        <span>{{ 'INVENTORY.NEW_ITEM' | translate }}</span>
-      </button>
+        Etikett scannen
+      </app-button>
+      <app-button variant="secondary" size="md" [icon]="printerIcon" (clicked)="openLabelModal()">
+        Etiketten drucken
+        @if (selectedItemIds().size > 0) {
+          ({{ selectedItemIds().size }})
+        }
+      </app-button>
+      <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreateModal()">
+        {{ 'INVENTORY.NEW_ITEM' | translate }}
+      </app-button>
     </div>
-  </header>
+  </app-page-header>
 
   @if (scanMeldung(); as message) {
     <p

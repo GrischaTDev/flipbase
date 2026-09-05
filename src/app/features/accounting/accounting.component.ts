@@ -51,6 +51,10 @@ import {
   CustomSelectComponent,
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
+import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
+import { TablePreferencesService } from '../../core/services/table-preferences.service';
+import { AccountingColumnId, AccountingSortField } from '../../core/config/table-defaults.config';
+import { TableSortState } from '../../core/models/table-preferences.models';
 
 export type AccountingTab = 'tax_journal' | 'bank_reconciliation';
 export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
@@ -65,12 +69,14 @@ export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
     LucideDynamicIcon,
     CustomSearchInputComponent,
     CustomSelectComponent,
+    TableColumnMenuComponent,
   ],
   templateUrl: './accounting.component.html',
   styleUrl: './accounting.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AccountingComponent {
+  private readonly tablePreferencesService = inject(TablePreferencesService);
   /**
    * Vorgaben fuer die eigenen Auswahlfelder.
    *
@@ -231,13 +237,51 @@ export class AccountingComponent {
     );
   });
 
+  readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
+  readonly accountingTableConfig = this.tablePreferencesService.getTableConfig<
+    AccountingColumnId,
+    AccountingSortField
+  >('accounting');
+  readonly tablePrefs = computed(() =>
+    this.tablePreferencesService.getTablePreferences<AccountingColumnId, AccountingSortField>(
+      'accounting',
+      this.workspaceId(),
+    )(),
+  );
+
+  isColumnVisible(colId: AccountingColumnId): boolean {
+    const col = this.tablePrefs().columns.find((c) => c.id === colId);
+    return col?.visible ?? true;
+  }
+
+  toggleColumnVisibility(colId: AccountingColumnId): void {
+    this.tablePreferencesService.toggleColumnVisibility('accounting', colId, this.workspaceId());
+  }
+
+  onSortChanged(sort: TableSortState<AccountingSortField>): void {
+    this.tablePreferencesService.setSort('accounting', sort, this.workspaceId());
+  }
+
+  onColumnsReordered(event: { previousIndex: number; currentIndex: number }): void {
+    this.tablePreferencesService.reorderColumns(
+      'accounting',
+      event.previousIndex,
+      event.currentIndex,
+      this.workspaceId(),
+    );
+  }
+
+  resetTablePreferences(): void {
+    this.tablePreferencesService.resetToDefaults('accounting', this.workspaceId());
+  }
+
   // Filtered Bank Transactions
   readonly filteredBankTransactions = computed<BankTransaction[]>(() => {
     const all = this.bankService.transactions();
     const filter = this.bankTxFilter();
     const q = this.bankSearchQuery().toLowerCase().trim();
 
-    return all.filter((tx) => {
+    const filtered = all.filter((tx) => {
       // Status filter
       if (filter === 'matched' && tx.status !== 'matched') return false;
       if (filter === 'pending' && tx.status !== 'pending') return false;
@@ -252,6 +296,23 @@ export class AccountingComponent {
       }
 
       return true;
+    });
+
+    const sort = this.tablePrefs().sort;
+    return filtered.sort((a, b) => {
+      let cmp = 0;
+      switch (sort.field) {
+        case 'booking_date':
+          cmp = new Date(a.bookingDate).getTime() - new Date(b.bookingDate).getTime();
+          break;
+        case 'amount':
+          cmp = a.amount - b.amount;
+          break;
+        case 'counterparty':
+          cmp = a.counterpartyName.localeCompare(b.counterpartyName, 'de');
+          break;
+      }
+      return sort.direction === 'asc' ? cmp : -cmp;
     });
   });
 

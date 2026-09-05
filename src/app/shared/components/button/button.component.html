@@ -1,0 +1,27 @@
+<button
+  [type]="type()"
+  [disabled]="effectiveDisabled()"
+  [class]="buttonClasses()"
+  [attr.aria-label]="ariaLabel() || null"
+  [attr.aria-busy]="loading() ? 'true' : null"
+  (click)="handleClick($event)"
+>
+  @if (loading()) {
+    <svg
+      [lucideIcon]="spinnerIcon"
+      [class]="iconClasses()"
+      class="animate-spin"
+      aria-hidden="true"
+    ></svg>
+  } @else if (icon() && iconPosition() === 'start') {
+    <svg [lucideIcon]="icon()!" [class]="iconClasses()" aria-hidden="true"></svg>
+  }
+
+  <span class="truncate">
+    <ng-content />
+  </span>
+
+  @if (!loading() && icon() && iconPosition() === 'end') {
+    <svg [lucideIcon]="icon()!" [class]="iconClasses()" aria-hidden="true"></svg>
+  }
+</button>
