@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Fehlende Migrationsfreigabe nachgereicht
+
+**Art:** Release-Korrektur
+**Betroffen:** PR #22, Produktionslauf `33954054466`, `deploy/approved-migrations.sha256`.
+**Was:** Nach erfolgreichen PR-Prüfungen gemergt; Deployment vor Änderungen durch fehlende Prüfsummenfreigabe angehalten. Beide unveränderten, unabhängig geprüften und mit 994 SQL-Assertions getesteten Migrationen in die Freigabeliste aufnehmen. Sie enthalten transaktionale Funktionsdefinitionen/Rechteänderungen, keine Transaktionssteuerung, psql-Befehle oder externen Seiteneffekte. Keine Sperre entfernt und kein SQL manuell in Produktion ausgeführt.
+**Warum:** Die Freigabeliste wurde im ersten Release versehentlich nicht ergänzt. Der vorgesehene automatische Weg soll nur die exakt geprüften SQL-Dateien ausführen.
+**Verifiziert durch:** Fehlerlog gelesen; LF-Dateien und SHA-256-Werte geprüft. Gesamtprüfung vor erneutem Push. Neuer kleiner PR statt Änderung des bereits gebauten Images.
+
 ## 2026-09-05 – Codex – Einzelkauf-Kostenprüfung zur Veröffentlichung freigegeben
 
 **Art:** Release
