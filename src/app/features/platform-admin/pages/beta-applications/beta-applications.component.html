@@ -35,6 +35,7 @@
           <th class="py-2">E-Mail</th>
           <th class="py-2">Eingang</th>
           <th class="py-2">Status</th>
+          <th class="py-2">Laufzeit</th>
           <th class="py-2"><span class="sr-only">Aktion</span></th>
         </tr>
       </thead>
@@ -45,7 +46,24 @@
             <td class="py-2">{{ bewerberName }}</td>
             <td class="py-2">{{ application.email }}</td>
             <td class="py-2">{{ application.createdAt | date: 'dd.MM.yyyy' }}</td>
-            <td class="py-2">{{ application.status }}</td>
+            <td class="py-2">
+              @switch (application.status) {
+                @case ('open') {
+                  offen
+                }
+                @case ('accepted') {
+                  angenommen
+                }
+                @case ('rejected') {
+                  abgelehnt
+                }
+              }
+            </td>
+            <td class="py-2">
+              @if (application.grantedDays !== null) {
+                {{ application.grantedDays }} Tage
+              }
+            </td>
             <td class="py-2 text-right">
               @if (application.status === 'open') {
                 <!-- Die Notiz wird ueber einen Vorlagenverweis gelesen, statt je

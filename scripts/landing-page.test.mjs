@@ -689,14 +689,25 @@ test('keeps accent text and button text readable in every CSS-controlled theme',
   }
 });
 
-test('describes direct beta registration without invitation or fixed-version wording', () => {
+test('describes the beta application review flow without open-registration or fixed-version wording', () => {
   assert.equal(matches(normalizedHtml, />Für die Beta bewerben →</gu), 2);
   assert.equal(matches(normalizedHtml, />Apply for the beta →</gu), 2);
   assert.match(
     normalizedHtml,
-    /Trage deine E-Mail ein und fahre mit der Registrierung in der Flipbase-App fort\./u,
+    /Schick uns deine Bewerbung\. Wir sehen uns jede Bewerbung an und wer dabei ist, bekommt eine Einladung per E-Mail\./u,
   );
-  assert.match(normalizedHtml, /Enter your email and continue registration in the Flipbase app\./u);
+  assert.match(
+    normalizedHtml,
+    /Send us your application\. We look at every application, and if you're in, you'll get an invitation by email\./u,
+  );
+  assert.match(
+    normalizedHtml,
+    /Du kannst dich direkt über das Formular auf dieser Seite bewerben; wer angenommen wird, bekommt eine Einladung per E-Mail\./u,
+  );
+  assert.match(
+    normalizedHtml,
+    /You can apply directly using the form on this page; if you're accepted, you'll get an invitation by email\./u,
+  );
   assert.match(
     normalizedHtml,
     /Die Verfügbarkeit und der Funktionsumfang können sich während der Beta ändern\./u,
@@ -704,6 +715,12 @@ test('describes direct beta registration without invitation or fixed-version wor
   assert.match(normalizedHtml, /Availability and feature scope may change during the beta\./u);
 
   for (const phrase of [
+    'Beta-Registrierung öffnen',
+    'Open beta registration',
+    'Trage deine E-Mail ein und fahre mit der Registrierung',
+    'continue registration in the Flipbase app',
+    'Registrierung direkt öffnen',
+    'open registration directly',
     'Beta-Zugang anfragen',
     'Request Beta access',
     'Beta-Phase 0.1',
@@ -713,6 +730,10 @@ test('describes direct beta registration without invitation or fixed-version wor
     'regelmäßigen Wellen',
     'rolling batches',
     'invited users',
+    '48 Stunden',
+    '48 hours',
+    'innerhalb von',
+    'within 24 hours',
   ]) {
     assert.doesNotMatch(normalizedHtml, new RegExp(escapeRegExp(phrase), 'iu'));
   }
