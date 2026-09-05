@@ -17,14 +17,16 @@
       max="3650"
       class="w-24 rounded-lg border border-white/10 bg-transparent px-2 py-1"
       [value]="grantedDays()"
-      (change)="grantedDays.set(+$any($event.target).value)"
+      (change)="onGrantedDaysChange($any($event.target).value)"
     />
   </label>
 
   @if (loading()) {
     <p class="text-sm opacity-70">Wird geladen …</p>
   } @else if (applications().length === 0) {
-    <p class="text-sm opacity-70">Es liegt noch keine Bewerbung vor.</p>
+    @if (!error()) {
+      <p class="text-sm opacity-70">Es liegt noch keine Bewerbung vor.</p>
+    }
   } @else {
     <table class="w-full text-left text-sm">
       <thead class="opacity-70">
@@ -38,8 +40,9 @@
       </thead>
       <tbody>
         @for (application of applications(); track application.id) {
+          @let bewerberName = application.firstName + ' ' + application.lastName;
           <tr class="border-t border-white/10">
-            <td class="py-2">{{ application.firstName }} {{ application.lastName }}</td>
+            <td class="py-2">{{ bewerberName }}</td>
             <td class="py-2">{{ application.email }}</td>
             <td class="py-2">{{ application.createdAt | date: 'dd.MM.yyyy' }}</td>
             <td class="py-2">{{ application.status }}</td>
@@ -53,17 +56,25 @@
                   type="text"
                   maxlength="500"
                   placeholder="Notiz (optional)"
-                  aria-label="Notiz zur Entscheidung"
+                  [attr.aria-label]="'Notiz zur Entscheidung über ' + bewerberName"
                   class="mr-2 w-48 rounded-lg border border-white/10 bg-transparent px-2 py-1"
                 />
                 <button
                   type="button"
-                  class="mr-2 underline"
+                  class="mr-2 underline disabled:opacity-50 disabled:cursor-not-allowed"
+                  [attr.aria-label]="'Bewerbung von ' + bewerberName + ' annehmen'"
+                  [disabled]="decidingId() === application.id"
                   (click)="accept(application, note.value)"
                 >
                   Annehmen
                 </button>
-                <button type="button" class="underline" (click)="reject(application, note.value)">
+                <button
+                  type="button"
+                  class="underline disabled:opacity-50 disabled:cursor-not-allowed"
+                  [attr.aria-label]="'Bewerbung von ' + bewerberName + ' ablehnen'"
+                  [disabled]="decidingId() === application.id"
+                  (click)="reject(application, note.value)"
+                >
                   Ablehnen
                 </button>
               } @else if (application.decisionNote) {

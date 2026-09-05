@@ -30,6 +30,7 @@ export const TRANSLATIONS_DE = {
     ANALYTICS: 'Analytics',
     SETTINGS: 'Einstellungen',
     CLOSE_MENU: 'Menü schließen',
+    PLATFORM_ADMIN: 'Betreiber',
   },
   PLATFORMS: {
     EBAY: 'eBay',
@@ -366,6 +367,7 @@ export const TRANSLATIONS_EN = {
     ANALYTICS: 'Analytics',
     SETTINGS: 'Settings',
     CLOSE_MENU: 'Close menu',
+    PLATFORM_ADMIN: 'Operator',
   },
   PLATFORMS: {
     EBAY: 'eBay',

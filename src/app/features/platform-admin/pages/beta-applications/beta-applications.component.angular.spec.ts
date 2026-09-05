@@ -51,12 +51,27 @@ describe('BetaApplicationsComponent', () => {
   });
 
   it('nimmt eine Bewerbung mit der eingestellten Laufzeit an', async () => {
+    // Der Test fuellt das Notizfeld im DOM und klickt den Knopf, statt
+    // `accept()` direkt aufzurufen: Waere die Bindung im Template kaputt -
+    // falsches Argument, Tippfehler bei `note.value` - bliebe ein direkter
+    // Methodenaufruf gruen, obwohl die Anwendung selbst nichts mehr taete.
     const fixture = TestBed.createComponent(BetaApplicationsComponent);
     fixture.detectChanges();
     await fixture.whenStable();
     fixture.detectChanges();
 
-    await fixture.componentInstance.accept(bewerbung, '  passt  ');
+    const noteInput: HTMLInputElement = fixture.nativeElement.querySelector(
+      'input[aria-label="Notiz zur Entscheidung über Anna Beispiel"]',
+    );
+    noteInput.value = '  passt  ';
+    noteInput.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+
+    const acceptButton: HTMLButtonElement = fixture.nativeElement.querySelector(
+      'button[aria-label="Bewerbung von Anna Beispiel annehmen"]',
+    );
+    acceptButton.click();
+    await fixture.whenStable();
 
     // Die Notiz wird beschnitten; eine leere Notiz wird zu null, damit in der
     // Datenbank nicht zwischen "nichts gesagt" und "Leerzeichen" unterschieden
@@ -72,5 +87,6 @@ describe('BetaApplicationsComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('keine Verbindung');
+    expect(fixture.nativeElement.textContent).not.toContain('Es liegt noch keine Bewerbung vor');
   });
 });

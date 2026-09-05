@@ -3,6 +3,9 @@ import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@ang
 import { BetaApplicationService } from '../../services/beta-application.service';
 import { BetaApplication, DEFAULT_GRANTED_DAYS } from '../../models/beta-application.model';
 
+const MIN_GRANTED_DAYS = 1;
+const MAX_GRANTED_DAYS = 3650;
+
 @Component({
   selector: 'app-beta-applications',
   imports: [DatePipe],
@@ -16,6 +19,15 @@ export class BetaApplicationsComponent implements OnInit {
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly grantedDays = signal(DEFAULT_GRANTED_DAYS);
+
+  /**
+   * Kennung der Bewerbung, ueber die gerade entschieden wird.
+   *
+   * Haelt waehrend der laufenden Anfrage die Knoepfe genau dieser Zeile
+   * gesperrt. Ohne das liesse sich per Doppelklick dieselbe Entscheidung
+   * zweimal abschicken.
+   */
+  readonly decidingId = signal<string | null>(null);
 
   ngOnInit(): void {
     void this.load();
@@ -33,6 +45,25 @@ export class BetaApplicationsComponent implements OnInit {
     }
   }
 
+  /**
+   * Uebernimmt die Laufzeit nur, wenn sie brauchbar ist.
+   *
+   * Ein geleertes Feld, ein Wert unter eins oder ueber 3650 laesst den
+   * zuletzt gueltigen Wert stehen, statt ihn stillschweigend auf 0 zu setzen.
+   */
+  onGrantedDaysChange(rohwert: string): void {
+    const wert = Number(rohwert);
+    const istBrauchbar =
+      rohwert.trim() !== '' &&
+      Number.isFinite(wert) &&
+      wert >= MIN_GRANTED_DAYS &&
+      wert <= MAX_GRANTED_DAYS;
+
+    if (istBrauchbar) {
+      this.grantedDays.set(Math.trunc(wert));
+    }
+  }
+
   async accept(application: BetaApplication, note: string): Promise<void> {
     await this.decide(application, 'accepted', note);
   }
@@ -47,6 +78,7 @@ export class BetaApplicationsComponent implements OnInit {
     note: string,
   ): Promise<void> {
     this.error.set(null);
+    this.decidingId.set(application.id);
     try {
       await this.service.decide(
         application.id,
@@ -57,6 +89,8 @@ export class BetaApplicationsComponent implements OnInit {
       await this.load();
     } catch (fehler) {
       this.error.set(fehler instanceof Error ? fehler.message : String(fehler));
+    } finally {
+      this.decidingId.set(null);
     }
   }
 }
