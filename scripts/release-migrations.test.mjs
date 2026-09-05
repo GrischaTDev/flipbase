@@ -37,8 +37,8 @@ test(
       { mode: 0o755 },
     );
     const env = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FLIPBASE_DEPLOY_DIR: root };
-    function run(extra = {}) {
-      return spawnSync('bash', [script, migrations], {
+    function run(extra = {}, directory = migrations) {
+      return spawnSync('bash', [script, directory], {
         env: { ...env, ...extra },
         encoding: 'utf8',
       });
@@ -58,8 +58,16 @@ test(
         'create schema supabase_migrations; create table supabase_migrations.schema_migrations(version text primary key, statements text[], name text);',
       );
       writeFileSync(join(migrations, 'approved.sha256'), '');
-      migration('20260905000001', 'create table public.release_fixture(id integer);\n');
-      let result = run();
+      migration('20260905000001', 'create table public.release_fixture(id integer);\n', false);
+      assert.notEqual(run().status, 0, 'Fehlende Integritätsliste sperrt weiterhin');
+      const packaged = join(root, 'packaged');
+      const packaging = spawnSync(
+        process.execPath,
+        [resolve('scripts/package-migrations.mjs'), migrations, packaged],
+        { encoding: 'utf8' },
+      );
+      assert.equal(packaging.status, 0, packaging.stderr);
+      let result = run({}, packaged);
       assert.equal(result.status, 0, result.stderr);
       assert.equal(
         query('select version from supabase_migrations.schema_migrations'),

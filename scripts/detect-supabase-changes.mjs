@@ -82,13 +82,18 @@ const sharedValidationPaths = new Set([
   'scripts/detect-supabase-changes.test.mjs',
   'scripts/required-checks.mjs',
   'scripts/required-checks.test.mjs',
+  'scripts/reuse-pr-checks.mjs',
+  'scripts/reuse-pr-checks.test.mjs',
 ]);
 
 const migrationDeploymentPaths = new Set([
   'deploy/deploy.sh',
   'deploy/apply-release-migrations.sh',
   'deploy/migration-backup.sh',
-  'deploy/approved-migrations.sha256',
+  'scripts/package-migrations.mjs',
+  'scripts/package-migrations.test.mjs',
+  'scripts/check-migration-changes.mjs',
+  'scripts/check-migration-changes.test.mjs',
   'deploy/docker-compose.app.yml',
   'docker/Dockerfile',
   '.dockerignore',

@@ -1,5 +1,9 @@
 # Kontrollierte Release-Pipeline
 
+Aktueller CI-Ablauf: [Einmal prüfen, anschließend veröffentlichen](../docs/development/ci-validation.md).
+Die folgenden Versions-/Bootstrap-Nachweise dokumentieren den damaligen Stand,
+nicht die jeweils neueste produktive Commit-ID.
+
 Stand 05.09.2026: Die Deployment-Dateien sind auf dem Server installiert und die
 alten Dateien unter `/opt/flipbase/release-bootstrap-20260905/original` gesichert.
 Der alte Migrationshelfer wurde wiederherstellbar außer Betrieb genommen.
@@ -43,38 +47,42 @@ Angular-Kompilierung spart voraussichtlich deren bisherige Laufzeit. Netto-CI-Ze
 und Minutenersparnis sind **noch nicht gemessen**: Image-Laden und Smoke kommen hinzu,
 parallel laufende Jobs bestimmen die Gesamtdauer. Nach dem ersten echten Lauf vergleichen.
 
-## Freigabe einer neuen Migration
+## Automatische Paketierung und Freigabe im PR
 
 Das Release enthält SQL unter `/opt/flipbase/migrations`, außerhalb des Nginx-Webroots.
-Die Liste `deploy/approved-migrations.sha256` enthält ausschließlich die geprüfte
-Rechtekorrektur `20260904234857_reconcile_anonymous_release_permissions.sql`.
-Sie ist keine pauschale Freigabe der 22 ausstehenden Altupdates.
+`scripts/package-migrations.mjs` kopiert beim Docker-Bau sämtliche SQL-Dateien
+unverändert in ein neues Paket und erzeugt SHA-256-Prüfsummen daraus. SQL und Liste
+werden gemeinsam aus derselben Build-Stufe ins Image kopiert. Die handgepflegte
+Datei `deploy/approved-migrations.sha256` entfällt. Der Paketname `approved.sha256`
+bleibt für den vorhandenen Server-Runner erhalten; es ist jetzt eine technische
+Integritätsliste, keine gesonderte manuelle SQL-Freigabe.
 
-Neue ungefährliche Änderungen werden im normalen Code-Review freigegeben. Nach
-Prüfung genau dieser unveränderten Datei ihren SHA256 samt **Basename** eintragen:
+Die frühe CI-Prüfung erkennt Änderungen an Schema-Dateien ohne neue Migration,
+Änderungen/Löschungen bestehender Migrationen, ungültige Namen, leere Dateien und
+doppelte Versionen. Sie beweist nicht, dass jede Schemaänderung vollständig in SQL
+übertragen wurde. Das bleibt Aufgabe von Review und Datenbanktests. Auch reine
+Kommentaränderungen an Schema-SQL werden von dieser konservativen Dateiprüfung erfasst.
 
-```bash
-cd supabase/migrations
-sha256sum 20260905000000_example.sql
-```
-
-Die Ausgabezeile kommt in `deploy/approved-migrations.sha256`. Pro Datei genau ein
-Eintrag; keine Pfade, Kommentare oder Wildcards. Datei und Freigabe werden zusammen
-reviewt. Nach erfolgreichem Review und Merge ist keine weitere manuelle
-Produktionsarbeit pro solcher Migration nötig.
-
-Die Freigabe bestätigt ausdrücklich: vollständig transaktionales SQL, keine eigenen
+**Der Review/Merge der SQL-Dateien ist die inhaltliche Freigabe.** Vor Merge prüfen:
+vollständig transaktionales SQL, keine eigenen
 `begin`/`commit`/`rollback`, keine psql-Metabefehle, keine Änderungen an
 `supabase_migrations`, keine externen Seiteneffekte und keine nichttransaktionalen
 Operationen wie `create index concurrently`. Keine Löschung, verlustbehaftete
 Typumwandlung oder Datenumschreibung ohne gesonderte Planung. Der Runner ersetzt
 diese inhaltliche Prüfung nicht durch einen selbstgebauten SQL-Parser.
 
-Solche riskanten oder nichttransaktionalen Änderungen bleiben außerhalb dieser
-Liste: eigener geprüfter Ablauf mit Wartungsfenster, Backup/Restoreplan,
+Solche riskanten oder nichttransaktionalen Änderungen dürfen nicht als ausstehende
+normale Release-Migration gemergt werden: eigener geprüfter Ablauf mit Wartungsfenster, Backup/Restoreplan,
 Kompatibilitätsprüfung und nachgewiesener Historienregistrierung. Bei Fehlern nicht
 blind die Historie nachtragen oder denselben nichttransaktionalen Schritt wiederholen.
 Bestehende Migrationsdateien niemals nachträglich verändern.
+
+Der Server prüft weiterhin die Prüfsummen, sichert vor ausstehenden Migrationen,
+schreibt jeweils SQL und Historie in einer Transaktion und startet das neue
+Frontend erst nach erfolgreicher Anwendung. Bereits registrierte Migrationen
+werden nicht wiederholt. Ein neuer/unvorbereiteter Server braucht weiterhin den
+geprüften Bootstrap; die automatische Liste ist keine Erlaubnis, einen unbekannten
+alten Migrationsrückstand ungeprüft einzuspielen.
 
 ## Einmaliger Serverbootstrap durch den Betreiber
 

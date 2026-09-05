@@ -30,18 +30,31 @@ env:
 jobs:
   changes:
     name: Detect relevant changes
+    permissions:
+      contents: read
+      actions: read
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       application: ${{ steps.filter.outputs.application }}
       supabase: ${{ steps.filter.outputs.supabase }}
       sniper: ${{ steps.filter.outputs.sniper }}
+      tests_reused: ${{ steps.reuse.outputs.tests_reused }}
+      receipt_name: ${{ steps.reuse.outputs.receipt_name }}
     steps:
       - name: Check out repository history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Check migration completeness before validation
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          node scripts/check-migration-changes.mjs "$BASE_SHA" "$HEAD_SHA"
+          node scripts/package-migrations.mjs supabase/migrations "$RUNNER_TEMP/release-migrations"
 
       - name: Detect application, database and service changes
         id: filter
@@ -52,9 +65,20 @@ jobs:
           HEAD_SHA: ${{ github.sha }}
         run: node scripts/detect-supabase-changes.mjs
 
+      - name: Reuse successful checks for the merged tree
+        id: reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          APPLICATION_CHANGED: ${{ steps.filter.outputs.application }}
+          SUPABASE_CHANGED: ${{ steps.filter.outputs.supabase }}
+          SNIPER_CHANGED: ${{ steps.filter.outputs.sniper }}
+        run: node scripts/reuse-pr-checks.mjs
+
   quality:
     name: Quality
     needs: changes
+    if: ${{ needs.changes.outputs.tests_reused != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -136,7 +160,7 @@ jobs:
 
   unit:
     name: Unit ${{ matrix.suite }} ${{ matrix.shard }}
-    if: ${{ needs.changes.outputs.application == 'true' }}
+    if: ${{ needs.changes.outputs.application == 'true' && needs.changes.outputs.tests_reused != 'true' }}
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -196,7 +220,7 @@ jobs:
 
   database:
     name: Database
-    if: ${{ needs.changes.outputs.supabase == 'true' }}
+    if: ${{ needs.changes.outputs.supabase == 'true' && needs.changes.outputs.tests_reused != 'true' }}
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -231,7 +255,7 @@ jobs:
     # Nur wenn sich der Dienst geaendert hat. Er liegt in einem eigenen
     # Paket mit eigenen Abhaengigkeiten; ihn bei jedem Frontend-Push
     # mitzubauen kostete rund zwei Minuten je Lauf fuer nichts.
-    if: ${{ needs.changes.outputs.sniper == 'true' }}
+    if: ${{ needs.changes.outputs.sniper == 'true' && needs.changes.outputs.tests_reused != 'true' }}
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -268,7 +292,7 @@ jobs:
 
   browser-smoke:
     name: Browser smoke
-    if: ${{ needs.changes.outputs.application == 'true' }}
+    if: ${{ needs.changes.outputs.application == 'true' && needs.changes.outputs.tests_reused != 'true' }}
     needs: changes
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -450,6 +474,7 @@ jobs:
         env:
           EVENT_NAME: ${{ github.event_name }}
           CHANGES_RESULT: ${{ needs.changes.result }}
+          TESTS_REUSED: ${{ needs.changes.outputs.tests_reused }}
           APPLICATION_CHANGED: ${{ needs.changes.outputs.application }}
           SUPABASE_CHANGED: ${{ needs.changes.outputs.supabase }}
           SNIPER_CHANGED: ${{ needs.changes.outputs.sniper }}
@@ -460,6 +485,17 @@ jobs:
           BROWSER_RESULT: ${{ needs.browser-smoke.result }}
           IMAGE_RESULT: ${{ needs.image.result }}
         run: node scripts/required-checks.mjs
+
+      # Erst nach erfolgreicher Sammelprüfung. Der Name bindet den Nachweis an
+      # den unveränderten Git-Dateibaum und den tatsächlich geprüften Umfang.
+      - name: Record successful PR checks
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ needs.changes.outputs.receipt_name }}
+          path: package.json
+          retention-days: 14
+          if-no-files-found: error
 
   deploy:
     name: Deploy to production
