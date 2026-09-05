@@ -38,7 +38,6 @@ import {
 import { beschreibePurchaseProblem, PurchaseService } from '../../core/services/purchase.service';
 import { OfflineSyncService } from '../../core/services/offline-sync.service';
 import { InboundTrackingService } from '../../core/services/inbound-tracking.service';
-import { PurchaseCreateModalComponent } from './components/purchase-create-modal/purchase-create-modal.component';
 import { PurchaseType } from '../../core/models/flipbase.models';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { InventoryService } from '../../core/services/inventory.service';
@@ -57,7 +56,6 @@ import { ModalDialogDirective } from '../../shared/directives/modal-dialog.direc
     DatePipe,
     TranslatePipe,
     LucideDynamicIcon,
-    PurchaseCreateModalComponent,
     CostStateComponent,
     ModalDialogDirective,
   ],
@@ -98,7 +96,6 @@ export class PurchasesComponent {
   readonly wifiIcon = Wifi;
   readonly wifiOffIcon = WifiOff;
 
-  readonly isCreateModalOpen = signal<boolean>(false);
   readonly isFleaMarketModalOpen = signal<boolean>(false);
   readonly activeTab = signal<'all' | PurchaseType>('all');
 
@@ -172,14 +169,6 @@ export class PurchasesComponent {
       this.requestedStockWorkspaceId = workspaceId;
       void this.stockService.loadPositions(workspaceId);
     });
-  }
-
-  openCreateModal(): void {
-    this.isCreateModalOpen.set(true);
-  }
-
-  closeCreateModal(): void {
-    this.isCreateModalOpen.set(false);
   }
 
   openFleaMarketModal(): void {

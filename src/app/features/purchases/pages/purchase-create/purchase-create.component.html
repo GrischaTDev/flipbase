@@ -1,0 +1,16 @@
+<main class="mx-auto w-full max-w-7xl space-y-4 px-3 py-4 sm:px-6 sm:py-6">
+  <nav aria-label="Einkaufserfassung">
+    <a
+      routerLink="/purchases"
+      class="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-semibold text-fb-text-secondary transition hover:bg-fb-well hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-400"
+    >
+      ← Zurück zu Einkäufen
+    </a>
+  </nav>
+
+  <app-purchase-entry-form
+    presentation="page"
+    (closed)="returnToPurchases()"
+    (created)="returnToPurchases()"
+  />
+</main>

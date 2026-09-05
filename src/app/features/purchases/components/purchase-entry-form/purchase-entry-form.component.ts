@@ -1,0 +1,572 @@
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  output,
+  signal,
+} from '@angular/core';
+import { CurrencyPipe } from '@angular/common';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import {
+  LucideDynamicIcon,
+  LucideX as X,
+  LucidePlus as Plus,
+  LucideShoppingBag as ShoppingBag,
+  LucidePackage as Package,
+  LucideLayers as Layers,
+  LucideBoxes as Boxes,
+  LucideTruck as Truck,
+  LucideCheckCircle2 as CheckCircle2,
+} from '@lucide/angular';
+import {
+  beschreibePurchaseProblem,
+  CreatePurchasePayload,
+  CreatePurchaseResult,
+  PurchaseService,
+} from '../../../../core/services/purchase.service';
+import { SourcesService } from '../../../../core/services/sources.service';
+import { SuppliersService } from '../../../../core/services/suppliers.service';
+import { InboundTrackingService } from '../../../../core/services/inbound-tracking.service';
+import {
+  PurchaseType,
+  ItemCondition,
+  TrackingCarrier,
+} from '../../../../core/models/flipbase.models';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
+import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
+import { Purchase } from '../../../../core/models/flipbase.models';
+import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { SyncStatusService } from '../../../../core/services/sync-status.service';
+import { PurchaseCostingService } from '../../../../core/services/purchase-costing.service';
+import {
+  isPricedPurchaseLineDraft,
+  PurchaseLineDraft,
+  PurchaseLineEditorComponent,
+} from '../purchase-line-editor/purchase-line-editor.component';
+import {
+  PurchaseCostDraft,
+  PurchaseCostEditorComponent,
+  PurchaseCostType,
+} from '../purchase-cost-editor/purchase-cost-editor.component';
+
+const purchaseCostTypes = new Set<PurchaseCostType>([
+  'shipping',
+  'travel',
+  'packaging',
+  'transport',
+  'customs',
+  'import',
+  'fee',
+  'other',
+]);
+
+function isPurchaseCostType(value: string): value is PurchaseCostType {
+  return purchaseCostTypes.has(value as PurchaseCostType);
+}
+
+@Component({
+  selector: 'app-purchase-entry-form',
+  imports: [
+    ReactiveFormsModule,
+    LucideDynamicIcon,
+    NumberInputComponent,
+    CustomSelectComponent,
+    DatePickerComponent,
+    PurchaseLineEditorComponent,
+    PurchaseCostEditorComponent,
+    CurrencyPipe,
+  ],
+  templateUrl: './purchase-entry-form.component.html',
+  host: { class: 'contents' },
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class PurchaseEntryFormComponent {
+  private readonly purchaseService = inject(PurchaseService);
+  private readonly toast = inject(ToastService);
+  private readonly syncStatus = inject(SyncStatusService);
+  private readonly purchaseCostingService = inject(PurchaseCostingService);
+  readonly sourcesService = inject(SourcesService);
+  readonly suppliersService = inject(SuppliersService);
+  readonly trackingService = inject(InboundTrackingService);
+
+  readonly closed = output<void>();
+  readonly created = output<void>();
+
+  /** Der zu bearbeitende Einkauf - fehlt er, wird ein neuer angelegt. */
+  readonly purchase = input<Purchase | null>(null);
+  readonly presentation = input<'dialog' | 'page'>('dialog');
+
+  readonly istBearbeitung = computed(() => this.purchase() !== null);
+
+  readonly closeIcon = X;
+  readonly plusIcon = Plus;
+  readonly bagIcon = ShoppingBag;
+  readonly packageIcon = Package;
+  readonly layersIcon = Layers;
+  readonly boxesIcon = Boxes;
+  readonly truckIcon = Truck;
+  readonly checkIcon = CheckCircle2;
+
+  /** Quellen und Lieferanten kommen aus den Stammdaten und aendern sich zur Laufzeit. */
+  readonly quellenOptionen = computed<SelectOption<string | null>[]>(() => [
+    { value: null, label: '-- Quelle wählen --' },
+    ...this.sourcesService.sources().map((q) => ({ value: q.id, label: q.name })),
+  ]);
+
+  readonly lieferantenOptionen = computed<SelectOption<string | null>[]>(() => [
+    { value: null, label: '-- Optional: Lieferant wählen --' },
+    ...this.suppliersService.suppliers().map((l) => ({ value: l.id, label: l.name })),
+  ]);
+
+  readonly dienstleisterOptionen = computed<SelectOption<string | null>[]>(() => [
+    { value: null, label: 'Auto-Erkennung' },
+    ...this.trackingService.carrierOptions.map((c) => ({ value: c.value, label: c.label })),
+  ]);
+
+  readonly zustandsOptionen: SelectOption<string>[] = [
+    { value: 'new', label: 'Neu / OVP' },
+    { value: 'like_new', label: 'Wie neu' },
+    { value: 'very_good', label: 'Sehr gut' },
+    { value: 'used', label: 'Gebraucht' },
+    { value: 'heavily_used', label: 'Stark gebraucht' },
+    { value: 'defective', label: 'Defekt / Ersatzteil' },
+  ];
+
+  readonly isSubmitting = signal<boolean>(false);
+  readonly errorMessage = signal<string | null>(null);
+  readonly persistedDraft = signal<Purchase | null>(null);
+  private readonly completed = signal(false);
+  private persistedLineIdsByDraftId = new Map<string, string>();
+
+  // Quick add states
+  readonly isAddingSource = signal<boolean>(false);
+  readonly isAddingSupplier = signal<boolean>(false);
+  readonly newSourceName = signal<string>('');
+  readonly newSupplierName = signal<string>('');
+
+  /** Die Eingaben selbst leben im Kosteneditor; das Modal hält nur dessen aktuellen Entwurf. */
+  readonly costDrafts = signal<readonly PurchaseCostDraft[]>([]);
+  readonly initialCostDrafts = signal<readonly PurchaseCostDraft[]>([]);
+  readonly areAdditionalCostsValid = signal<boolean>(true);
+  readonly purchaseLines = signal<readonly PurchaseLineDraft[]>([]);
+  readonly purchaseBasePrice = signal<number | null>(null);
+  readonly additionalCostsTotal = computed(() =>
+    this.costDrafts().reduce((sum, cost) => sum + cost.amount, 0),
+  );
+  readonly totalCosts = computed(() => {
+    const purchaseBasePrice = this.purchaseBasePrice();
+    return purchaseBasePrice === null
+      ? null
+      : Number((purchaseBasePrice + this.additionalCostsTotal()).toFixed(2));
+  });
+  readonly purchaseLineOptions = computed<SelectOption<string>[]>(() => {
+    const persistedLines = (this.persistedDraft() ?? this.purchase())?.purchase_lines ?? [];
+    if (persistedLines.length > 0) {
+      return persistedLines.map((line) => ({ value: line.id, label: line.title_snapshot }));
+    }
+    return this.purchaseLines().flatMap((line) =>
+      line.draftId ? [{ value: line.draftId, label: line.titleSnapshot }] : [],
+    );
+  });
+
+  readonly form = new FormGroup({
+    type: new FormControl<PurchaseType>('single', { nonNullable: true }),
+    title: new FormControl('', {
+      nonNullable: true,
+      validators: [Validators.required, Validators.minLength(2)],
+    }),
+    source_id: new FormControl<string | null>(null),
+    supplier_id: new FormControl<string | null>(null),
+    purchase_date: new FormControl<string>(new Date().toISOString().split('T')[0], {
+      nonNullable: true,
+      validators: [Validators.required],
+    }),
+    purchase_price: new FormControl<number | null>(null, {
+      validators: [Validators.min(0)],
+    }),
+    tracking_number: new FormControl<string>(''),
+    tracking_carrier: new FormControl<TrackingCarrier | null>(null),
+    original_url: new FormControl<string>(''),
+    notes: new FormControl<string>(''),
+    // Single item specific fields
+    single_item_condition: new FormControl<ItemCondition>('used', { nonNullable: true }),
+    single_item_expected_value: new FormControl<number | null>(null),
+  });
+
+  async saveNewSource(): Promise<void> {
+    const name = this.newSourceName().trim();
+    if (!name) return;
+    let ergebnis: Awaited<ReturnType<SourcesService['createSource']>>;
+    try {
+      ergebnis = await this.sourcesService.createSource(name);
+    } catch (ursache: unknown) {
+      ergebnis = { data: null, error: this.alsError(ursache) };
+    }
+    const { data, error } = ergebnis;
+    if (error || !data) {
+      const ursache = error ?? new Error('Die Quelle wurde nicht zurückgegeben.');
+      this.errorMessage.set(ursache.message);
+      this.meldeFehlerWennNichtSynchronisiert('Quelle konnte nicht angelegt werden.', ursache);
+      return;
+    }
+    this.form.patchValue({ source_id: data.id });
+    this.form.markAsDirty();
+    this.newSourceName.set('');
+    this.isAddingSource.set(false);
+    this.toast.success('Quelle wurde angelegt.');
+  }
+
+  async saveNewSupplier(): Promise<void> {
+    const name = this.newSupplierName().trim();
+    if (!name) return;
+    let ergebnis: Awaited<ReturnType<SuppliersService['createSupplier']>>;
+    try {
+      ergebnis = await this.suppliersService.createSupplier(name);
+    } catch (ursache: unknown) {
+      ergebnis = { data: null, error: this.alsError(ursache) };
+    }
+    const { data, error } = ergebnis;
+    if (error || !data) {
+      const ursache = error ?? new Error('Der Lieferant wurde nicht zurückgegeben.');
+      this.errorMessage.set(ursache.message);
+      this.meldeFehlerWennNichtSynchronisiert('Lieferant konnte nicht angelegt werden.', ursache);
+      return;
+    }
+    this.form.patchValue({ supplier_id: data.id });
+    this.form.markAsDirty();
+    this.newSupplierName.set('');
+    this.isAddingSupplier.set(false);
+    this.toast.success('Lieferant wurde angelegt.');
+  }
+
+  onTrackingNumberInput(event: Event): void {
+    const val = (event.target as HTMLInputElement).value;
+    if (val && val.trim()) {
+      const detected = this.trackingService.autoDetectCarrier(val);
+      this.form.patchValue({ tracking_carrier: detected });
+    }
+  }
+
+  /**
+   * Der Einkauf, dessen Angaben bereits im Formular stehen.
+   *
+   * Bewusst kein Signal: Der Einkauf kommt als abgeleiteter Wert herein und
+   * wird neu berechnet, sobald sich anderswo etwas am Bestand aendert. Ohne
+   * diese Bremse haette jede solche Neuberechnung das Formular
+   * zurueckgesetzt - mitten im Tippen.
+   */
+  private befuelltFuer: string | null = null;
+
+  constructor() {
+    this.form.controls.type.valueChanges.subscribe(() => this.updatePurchasePriceEditability());
+    this.form.controls.purchase_price.valueChanges.subscribe((price) => {
+      this.purchaseBasePrice.set(price);
+    });
+    this.updatePurchasePriceEditability();
+    effect(() => {
+      const vorhandener = this.purchase();
+      if (!vorhandener || this.befuelltFuer === vorhandener.id) return;
+      this.befuelltFuer = vorhandener.id;
+
+      this.form.patchValue({
+        type: vorhandener.type,
+        title: vorhandener.title,
+        source_id: vorhandener.source_id ?? null,
+        supplier_id: vorhandener.supplier_id ?? null,
+        purchase_date: vorhandener.purchase_date,
+        purchase_price: vorhandener.purchase_price,
+        original_url: vorhandener.original_url ?? '',
+        notes: vorhandener.notes ?? '',
+        tracking_number: vorhandener.tracking_number ?? '',
+        tracking_carrier: vorhandener.tracking_carrier ?? null,
+      });
+
+      // Ohne die vorhandenen Zeilen waere das Speichern ein Loeschen: Der
+      // Dialog schickt immer die vollstaendige Liste.
+      const existingCosts: readonly PurchaseCostDraft[] = (vorhandener.costs ?? []).map((cost) => ({
+        type: isPurchaseCostType(cost.type) ? cost.type : 'other',
+        amount: Number(cost.amount),
+        description: cost.description ?? '',
+        allocationMethod:
+          cost.allocation_method === 'direct'
+            ? 'direct'
+            : cost.allocation_method === 'quantity'
+              ? 'by_quantity'
+              : 'by_value',
+        targetPurchaseLineId: cost.target_purchase_line_id ?? null,
+      }));
+      this.initialCostDrafts.set(existingCosts);
+      this.costDrafts.set(existingCosts);
+      const existingLines: readonly PurchaseLineDraft[] = (vorhandener.purchase_lines ?? []).map(
+        (line) => ({
+          draftId: line.id,
+          catalogProductId: line.catalog_product_id ?? null,
+          titleSnapshot: line.title_snapshot,
+          lineKind: line.line_kind,
+          orderedQuantity: line.ordered_quantity,
+          condition: (line.condition_snapshot ?? 'used') as ItemCondition,
+          priceMode: line.price_mode ?? 'priced',
+          unitPurchasePrice: line.unit_purchase_price,
+          lineTotal: line.line_total,
+          estimatedMarketValue: line.estimated_market_value ?? null,
+        }),
+      );
+      for (const line of existingLines) {
+        if (line.draftId) this.lineIdMap().set(line.draftId, line.draftId);
+      }
+      this.purchaseLines.set(existingLines);
+    });
+  }
+
+  async onSubmit(): Promise<void> {
+    await this.persistPurchase(false);
+  }
+
+  hasUnsavedChanges(): boolean {
+    if (this.completed?.()) return false;
+    return (
+      this.isSubmitting() ||
+      this.form.dirty ||
+      this.purchaseLines().length > 0 ||
+      this.costDrafts().length > 0
+    );
+  }
+
+  async onFinalize(): Promise<void> {
+    if (this.isSubmitting()) return;
+    await this.persistPurchase(true);
+  }
+
+  private async persistPurchase(finalizeAfterSave: boolean): Promise<void> {
+    if (this.isSubmitting()) return;
+    const purchaseLines = this.purchaseLines();
+    if (finalizeAfterSave && purchaseLines.length === 0) {
+      this.errorMessage.set('Bitte erfasse mindestens eine Einkaufsposition.');
+      return;
+    }
+    if (
+      this.form.controls.type.value !== 'mystery_pack' &&
+      !purchaseLines.every(isPricedPurchaseLineDraft)
+    ) {
+      this.errorMessage.set('Bitte erfasse alle Positionspreise vollständig.');
+      return;
+    }
+    if (this.form.invalid) return;
+    if (!this.areAdditionalCostsValid()) {
+      this.errorMessage.set(
+        'Direkte Zusatzkosten benötigen eine gültige Zielposition, bevor du den Entwurf speichern kannst.',
+      );
+      return;
+    }
+
+    this.isSubmitting.set(true);
+    this.errorMessage.set(null);
+
+    const f = this.form.getRawValue();
+    const payload: CreatePurchasePayload = {
+      type: f.type,
+      title: f.title,
+      source_id: f.source_id,
+      supplier_id: f.supplier_id,
+      purchase_date: f.purchase_date,
+      purchase_price: f.purchase_price,
+      tracking_number: f.tracking_number?.trim() || null,
+      tracking_carrier:
+        f.tracking_carrier ||
+        (f.tracking_number ? this.trackingService.autoDetectCarrier(f.tracking_number) : null),
+      original_url: f.original_url || null,
+      notes: f.notes || null,
+      initial_costs: this.costDrafts().filter((cost) => cost.amount > 0),
+      single_item_condition: f.single_item_condition,
+      single_item_expected_value: f.single_item_expected_value || undefined,
+      purchase_lines: purchaseLines,
+    };
+
+    const vorhandener = this.persistedDraft() ?? this.purchase();
+    let speicherergebnis: { error: Error | null };
+    let anlegeergebnis: CreatePurchaseResult | null = null;
+    let aenderungsergebnis: Awaited<ReturnType<PurchaseService['updatePurchaseDraft']>> | null =
+      null;
+    try {
+      if (vorhandener) {
+        aenderungsergebnis = await this.purchaseService.updatePurchaseDraft(
+          vorhandener.id,
+          payload,
+        );
+        speicherergebnis = { error: aenderungsergebnis.error };
+      } else {
+        anlegeergebnis = await this.purchaseService.createPurchase(payload);
+        speicherergebnis = { error: anlegeergebnis.error };
+      }
+    } catch (ursache: unknown) {
+      speicherergebnis = { error: this.alsError(ursache) };
+    }
+    const { error } = speicherergebnis;
+
+    if (anlegeergebnis?.status === 'partial') {
+      this.isSubmitting.set(false);
+      this.persistedDraft.set(anlegeergebnis.data);
+      this.adoptPersistedLineIds(anlegeergebnis.data);
+      const ungemeldeteProbleme = anlegeergebnis.problems.filter(
+        (problem) => !problem.reportedBySyncStatus,
+      );
+      if (ungemeldeteProbleme.length > 0) {
+        this.toast.warning(
+          'Einkauf wurde angelegt, aber nicht vollständig.',
+          ungemeldeteProbleme.map(beschreibePurchaseProblem).join('\n'),
+        );
+      }
+      if (finalizeAfterSave) {
+        this.errorMessage.set(
+          'Der Entwurf wurde gespeichert, ist aber noch unvollständig und wurde nicht abgeschlossen.',
+        );
+        return;
+      }
+      this.completed?.set(true);
+      this.created.emit();
+      this.closed.emit();
+      return;
+    }
+
+    if (error) {
+      this.isSubmitting.set(false);
+      this.errorMessage.set(error.message);
+      if (!anlegeergebnis?.reportedBySyncStatus) {
+        this.meldeFehlerWennNichtSynchronisiert(
+          vorhandener
+            ? 'Einkauf konnte nicht gespeichert werden.'
+            : 'Einkauf konnte nicht angelegt werden.',
+          error,
+        );
+      }
+    } else {
+      const gespeicherterEntwurf = aenderungsergebnis?.data ?? anlegeergebnis?.data ?? vorhandener;
+      if (gespeicherterEntwurf) {
+        this.persistedDraft.set(gespeicherterEntwurf);
+        this.adoptPersistedLineIds(gespeicherterEntwurf);
+      }
+      if (finalizeAfterSave && gespeicherterEntwurf) {
+        await this.finalizePersistedDraft(gespeicherterEntwurf);
+        return;
+      }
+      this.isSubmitting.set(false);
+      this.toast.success(vorhandener ? 'Einkauf wurde gespeichert.' : 'Einkauf wurde angelegt.');
+      this.completed?.set(true);
+      this.created.emit();
+      this.closed.emit();
+    }
+  }
+
+  private async finalizePersistedDraft(purchase: Purchase): Promise<void> {
+    this.isSubmitting.set(true);
+    this.errorMessage.set(null);
+    let result: Awaited<ReturnType<PurchaseCostingService['finalizePurchase']>>;
+    try {
+      result = await this.purchaseCostingService.finalizePurchase(
+        purchase.workspace_id,
+        purchase.id,
+      );
+    } catch (cause: unknown) {
+      result = {
+        data: null,
+        error: this.alsError(cause),
+        reportedBySyncStatus: false,
+      };
+    }
+    this.isSubmitting.set(false);
+
+    if (result.error) {
+      this.errorMessage.set(result.error.message);
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Erfassung konnte nicht abgeschlossen werden.',
+        result.error,
+      );
+      return;
+    }
+
+    await this.purchaseService.refreshAfterFinalization(purchase.workspace_id, purchase.id);
+    this.persistedDraft.set(null);
+    this.completed?.set(true);
+    this.toast.success('Erfassung wurde abgeschlossen.');
+    this.created.emit();
+    this.closed.emit();
+  }
+
+  onPurchaseLinesChanged(lines: readonly PurchaseLineDraft[]): void {
+    const lineIds = this.lineIdMap();
+    const persistedLines = lines.map((line) => {
+      const persistedId = line.draftId ? lineIds.get(line.draftId) : undefined;
+      return persistedId ? { ...line, draftId: persistedId } : line;
+    });
+    this.purchaseLines.set(persistedLines);
+    this.updatePurchasePriceEditability();
+    if (this.form.controls.type.value === 'mystery_pack' || persistedLines.length === 0) return;
+
+    if (persistedLines.some((line) => line.unitPurchasePrice === null || line.lineTotal === null)) {
+      this.form.controls.purchase_price.setValue(null);
+      return;
+    }
+    const lineTotal = persistedLines.reduce((total, line) => total + line.lineTotal!, 0);
+    this.form.controls.purchase_price.setValue(Number(lineTotal.toFixed(2)));
+  }
+
+  onCostsChanged(costs: readonly PurchaseCostDraft[]): void {
+    this.costDrafts.set(costs);
+  }
+
+  private updatePurchasePriceEditability(): void {
+    const purchasePrice = this.form.controls.purchase_price;
+    if (this.form.controls.type.value === 'mystery_pack') {
+      purchasePrice.enable({ emitEvent: false });
+      this.purchaseBasePrice.set(purchasePrice.value);
+      return;
+    }
+    purchasePrice.disable({ emitEvent: false });
+    this.purchaseBasePrice.set(purchasePrice.value);
+  }
+
+  private adoptPersistedLineIds(purchase: Purchase): void {
+    const persistedLines = purchase.purchase_lines ?? [];
+    const currentLines = this.purchaseLines();
+    if (persistedLines.length !== currentLines.length) return;
+
+    const lineIds = this.lineIdMap();
+    const rebasedLines = currentLines.map((line, index) => {
+      const persistedId = persistedLines[index].id;
+      if (line.draftId) lineIds.set(line.draftId, persistedId);
+      lineIds.set(persistedId, persistedId);
+      return { ...line, draftId: persistedId };
+    });
+    this.purchaseLines.set(rebasedLines);
+
+    const rebasedCosts = this.costDrafts().map((cost) => {
+      if (cost.allocationMethod !== 'direct' || !cost.targetPurchaseLineId) return cost;
+      return {
+        ...cost,
+        targetPurchaseLineId: lineIds.get(cost.targetPurchaseLineId) ?? cost.targetPurchaseLineId,
+      };
+    });
+    this.costDrafts.set(rebasedCosts);
+    this.initialCostDrafts.set(rebasedCosts);
+  }
+
+  private lineIdMap(): Map<string, string> {
+    this.persistedLineIdsByDraftId ??= new Map<string, string>();
+    return this.persistedLineIdsByDraftId;
+  }
+
+  private meldeFehlerWennNichtSynchronisiert(title: string, error: Error): void {
+    if (!this.syncStatus.istZentralGemeldet(error)) this.toast.error(title, error.message);
+  }
+
+  private alsError(ursache: unknown): Error {
+    return ursache instanceof Error ? ursache : new Error('Die Aktion ist fehlgeschlagen.');
+  }
+}

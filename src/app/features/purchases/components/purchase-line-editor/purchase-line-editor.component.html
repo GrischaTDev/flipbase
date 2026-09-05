@@ -5,10 +5,11 @@
         id="purchase-line-editor-title"
         class="text-xs font-bold uppercase tracking-wider text-fb-text-primary"
       >
-        Einkaufspositionen
+        Artikel
       </h3>
       <p class="text-[11px] text-fb-text-muted">
-        Mengenartikel bleiben eine Position; Einzelstücke werden separat erfasst.
+        Artikel starten mit Menge eins. Mengenartikel bleiben eine Position; Einzelstücke werden
+        separat erfasst.
       </p>
     </div>
     <div class="flex flex-wrap gap-2">
@@ -18,21 +19,21 @@
         [disabled]="catalogSelectionDisabled()"
         class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-wait disabled:opacity-50"
       >
-        Bestehenden Artikel wählen
+        Vorhandenen Artikel wählen
       </button>
       <button
         type="button"
         (click)="isCreatingProduct.set(!isCreatingProduct())"
         class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
       >
-        Neuen Bestandsartikel anlegen
+        Neuen Artikel anlegen
       </button>
       <button
         type="button"
         (click)="addIndividualLine()"
         class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
       >
-        Einzelstück / Mystery-Inhalt
+        Einzelstück hinzufügen
       </button>
     </div>
   </div>
@@ -56,11 +57,7 @@
   }
 
   @if (isCreatingProduct()) {
-    <form
-      [formGroup]="productForm"
-      (ngSubmit)="createCatalogProduct()"
-      class="rounded-xl border border-fb-line bg-fb-well p-3"
-    >
+    <div [formGroup]="productForm" class="rounded-xl border border-fb-line bg-fb-well p-3">
       <label
         for="newCatalogProductTitle"
         class="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
@@ -76,7 +73,8 @@
           placeholder="z. B. LED-Lampe"
         />
         <button
-          type="submit"
+          type="button"
+          (click)="createCatalogProduct()"
           [disabled]="productForm.invalid || isSavingProduct()"
           class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -86,7 +84,7 @@
       @if (productError()) {
         <p class="mt-2 text-xs text-rose-400" role="alert">{{ productError() }}</p>
       }
-    </form>
+    </div>
   }
 
   @if (lineRows.length > 0) {
@@ -186,7 +184,7 @@
               </label>
             } @else {
               <label class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
-                Einkaufspreis pro Stück
+                Stückpreis
                 <input
                   type="number"
                   min="0"

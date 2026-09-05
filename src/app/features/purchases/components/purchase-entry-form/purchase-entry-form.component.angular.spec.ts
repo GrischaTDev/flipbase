@@ -11,7 +11,7 @@ import { PurchaseService } from '../../../../core/services/purchase.service';
 import { SourcesService } from '../../../../core/services/sources.service';
 import { SuppliersService } from '../../../../core/services/suppliers.service';
 import { PurchaseCostDraft } from '../purchase-cost-editor/purchase-cost-editor.component';
-import { PurchaseCreateModalComponent } from './purchase-create-modal.component';
+import { PurchaseEntryFormComponent } from './purchase-entry-form.component';
 
 beforeAll(() => TestBed.resetTestingModule());
 
@@ -107,8 +107,8 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     ),
   };
   const komponente = Object.create(
-    PurchaseCreateModalComponent.prototype,
-  ) as PurchaseCreateModalComponent;
+    PurchaseEntryFormComponent.prototype,
+  ) as PurchaseEntryFormComponent;
 
   Object.assign(komponente, {
     purchase: () => vorhandener,
@@ -170,7 +170,7 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
   };
 }
 
-describe('PurchaseCreateModalComponent – zentrale Aktionsmeldungen', () => {
+describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
@@ -551,7 +551,7 @@ describe('PurchaseCreateModalComponent – zentrale Aktionsmeldungen', () => {
         SyncStatusService,
       ],
     });
-    const komponente = TestBed.runInInjectionContext(() => new PurchaseCreateModalComponent());
+    const komponente = TestBed.runInInjectionContext(() => new PurchaseEntryFormComponent());
 
     komponente.onPurchaseLinesChanged([
       {

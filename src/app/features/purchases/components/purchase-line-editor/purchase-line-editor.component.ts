@@ -248,7 +248,7 @@ export class PurchaseLineEditorComponent {
   }
 
   async createCatalogProduct(): Promise<void> {
-    if (this.productForm.invalid) return;
+    if (this.productForm.invalid || this.isSavingProduct()) return;
     const workspaceId = this.workspaceService.currentWorkspace()?.id;
     if (!workspaceId) {
       this.productError.set('Kein aktiver Workspace ausgewählt.');
@@ -257,12 +257,23 @@ export class PurchaseLineEditorComponent {
 
     this.isSavingProduct.set(true);
     this.productError.set(null);
-    const result = await this.catalogService.createProduct({
-      workspaceId,
-      title: this.productForm.controls.title.value,
-      trackingMode: 'quantity',
-    });
-    this.isSavingProduct.set(false);
+    let result: Awaited<ReturnType<CatalogService['createProduct']>>;
+    try {
+      result = await this.catalogService.createProduct({
+        workspaceId,
+        title: this.productForm.controls.title.value,
+        trackingMode: 'quantity',
+      });
+    } catch (cause: unknown) {
+      result = {
+        data: null,
+        error:
+          cause instanceof Error ? cause : new Error('Der Artikel konnte nicht angelegt werden.'),
+        reportedBySyncStatus: false,
+      };
+    } finally {
+      this.isSavingProduct.set(false);
+    }
 
     if (result.error || !result.data) {
       this.productError.set(
