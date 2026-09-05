@@ -18,6 +18,9 @@ module.exports = tseslint.config(
       // `npm run verify` an Code scheitern, an dem gerade jemand anders
       // arbeitet - fuer den Ausfuehrenden nicht als solcher erkennbar.
       '.worktrees/**',
+      // Arbeitsnotizen aus lokalen Planungszweigen enthalten generierte
+      // Supabase-Typen und gehoeren nicht zum Anwendungscode.
+      '.superpowers/**',
       // Erzeugt durch `supabase gen types` - Aenderungen hier waeren beim
       // naechsten Erzeugen wieder weg.
       'src/app/core/models/supabase.types.ts',

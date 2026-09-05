@@ -15,6 +15,7 @@ import { SalesService } from '../../core/services/sales.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
+import { CostStateComponent } from '../../shared/components/cost-state/cost-state.component';
 import { PurchaseDetailTableComponent } from '../purchases/components/purchase-detail-table/purchase-detail-table.component';
 import type { PurchaseDetailRow } from '../purchases/models/purchase-presentation.models';
 import { SalesComponent } from './sales.component';
@@ -97,7 +98,7 @@ beforeEach(() => {
   loadError = signal<Error | null>(null);
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
-    imports: [SalesComponent, PurchaseDetailTableComponent],
+    imports: [SalesComponent, PurchaseDetailTableComponent, CostStateComponent],
     providers: [
       provideRouter([{ path: 'sales', component: SalesComponent }]),
       provideTranslateService({ lang: 'de' }),
@@ -120,7 +121,13 @@ beforeEach(() => {
         provide: ToastService,
         useValue: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
       },
-      { provide: SyncStatusService, useValue: { istZentralGemeldet: () => false } },
+      {
+        provide: SyncStatusService,
+        useValue: {
+          istZentralGemeldet: () => false,
+          beiSitzungsverdacht: () => undefined,
+        },
+      },
     ],
   });
 });

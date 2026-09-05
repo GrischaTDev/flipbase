@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-05 – Codex – Veröffentlichungsprüfung für Erfassungspaket abgeschlossen
+
+**Auftrag:** Der Nutzer beauftragt Push und Merge des bereits umgesetzten Einkaufs-/Inventarpakets mit Chronik, Archivierung sowie EAN-/CSV-Erfassung.
+
+**Korrekturen vor Veröffentlichung:** Die direkte Sales-Deep-Link-Testumgebung erhält den optionalen Sitzungsstatus-Hook und importiert die im Tabellen-Template verwendete Kostenanzeige explizit. Lokale `.superpowers`-Planartefakte werden von ESLint ausgeschlossen, damit generierte Fremdtypen den Anwendungslauf nicht blockieren.
+
+**Prüfung:** `npm run verify` erfolgreich mit Exitcode 0: Prettier, ESLint, Typprüfung, Workflow-Verträge, Test-Audit, 994 Node-, 135 DOM- und 409 Angular-Tests, Landing-Verträge und Produktionsbau. Der Branch ist vor dem Push sauber zu committen; PR- und Produktionsprüfungen bleiben der nächste Freigabeschritt.
+
 ## 2026-09-05 – Codex – EAN-/GTIN-Erfassung und CSV-Vorschau lokal abgeschlossen
 
 **Auftrag:** Offene Erfassungspunkte des Verwaltungsumbaus umsetzen, ohne Produktion zu veröffentlichen. EAN/GTIN soll optional und als Zeichenkette erhalten bleiben; Kamera, eigener Artikelstamm und CSV dürfen keine ungeprüften Preise oder Bestände erzeugen.
