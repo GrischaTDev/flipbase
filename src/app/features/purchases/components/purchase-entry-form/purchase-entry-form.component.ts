@@ -311,6 +311,7 @@ export class PurchaseEntryFormComponent {
           draftId: line.id,
           catalogProductId: line.catalog_product_id ?? null,
           titleSnapshot: line.title_snapshot,
+          ean: line.ean_snapshot ?? null,
           lineKind: line.line_kind,
           orderedQuantity: line.ordered_quantity,
           condition: (line.condition_snapshot ?? 'used') as ItemCondition,

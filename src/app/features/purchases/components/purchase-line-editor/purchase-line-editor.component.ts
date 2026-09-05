@@ -18,12 +18,15 @@ import {
   SelectOption,
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
+import { parseCsv } from '../../../../shared/utils/csv';
+import { normalizeGtin } from '../../../../shared/utils/gtin';
 
 export interface PurchaseLineDraft {
   /** Stabile UI-ID, bis die Persistenz eine echte purchase_line-ID vergibt. */
   readonly draftId?: string;
   readonly catalogProductId: string | null;
   readonly titleSnapshot: string;
+  readonly ean?: string | null;
   readonly lineKind: TrackingMode;
   readonly orderedQuantity: number;
   readonly condition: ItemCondition;
@@ -49,6 +52,7 @@ interface PurchaseLineControls {
   draftId: FormControl<string>;
   catalogProductId: FormControl<string | null>;
   titleSnapshot: FormControl<string>;
+  ean: FormControl<string | null>;
   lineKind: FormControl<TrackingMode>;
   orderedQuantity: FormControl<number>;
   condition: FormControl<ItemCondition>;
@@ -77,6 +81,7 @@ export class PurchaseLineEditorComponent {
   readonly isSavingProduct = signal(false);
   readonly productError = signal<string | null>(null);
   readonly catalogContextError = signal<string | null>(null);
+  readonly importError = signal<string | null>(null);
   readonly catalogLoadError = computed(
     () => this.catalogContextError() ?? this.catalogService.loadError()?.message ?? null,
   );
@@ -180,6 +185,80 @@ export class PurchaseLineEditorComponent {
     const target = event.target;
     if (!(target instanceof HTMLInputElement)) return;
     this.updateTitleSnapshot(index, target.value);
+  }
+
+  async importCsv(event: Event): Promise<void> {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || !input.files?.[0]) return;
+    this.importError.set(null);
+    try {
+      const parsed = parseCsv(await input.files[0].text());
+      if (!parsed.headers.includes('title')) throw new Error('CSV benötigt die Spalte „title“.');
+      const pendingLines: FormGroup<PurchaseLineControls>[] = [];
+      for (const row of parsed.rows) {
+        const title = row['title']?.trim() ?? '';
+        const rawEan = row['ean']?.trim() ?? '';
+        const ean = rawEan ? normalizeGtin(rawEan) : null;
+        if (!title) throw new Error('Jede Einkaufsposition benötigt einen Titel.');
+        if (rawEan && !ean) throw new Error(`Ungültige EAN/GTIN für „${title}“.`);
+        const quantity = Number((row['quantity'] ?? '1').replace(',', '.'));
+        if (!Number.isInteger(quantity) || quantity < 1) {
+          throw new Error(`Menge für „${title}“ fehlt oder ist ungültig.`);
+        }
+        const condition = row['condition']?.trim() || 'used';
+        if (
+          !['new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective'].includes(condition)
+        ) {
+          throw new Error(`Zustand für „${title}“ ist ungültig.`);
+        }
+        const amount =
+          this.purchaseType() === 'mystery_pack'
+            ? null
+            : Number((row['unit_purchase_price'] ?? '').replace(',', '.'));
+        if (amount !== null && (!Number.isFinite(amount) || amount < 0)) {
+          throw new Error(`Stückpreis für „${title}“ fehlt oder ist ungültig.`);
+        }
+        const matchingProduct = this.quantityProducts().find(
+          (product) =>
+            (ean && product.ean === ean) ||
+            (!ean &&
+              product.title.trim().toLocaleLowerCase('de') === title.toLocaleLowerCase('de')),
+        );
+        if (matchingProduct && this.purchaseType() !== 'mystery_pack') {
+          const line = this.createLine('quantity');
+          line.controls.catalogProductId.setValue(matchingProduct.id, { emitEvent: false });
+          line.controls.titleSnapshot.setValue(matchingProduct.title, { emitEvent: false });
+          line.controls.ean.setValue(ean ?? matchingProduct.ean ?? null, { emitEvent: false });
+          line.controls.orderedQuantity.setValue(quantity, { emitEvent: false });
+          line.controls.condition.setValue(condition as ItemCondition, { emitEvent: false });
+          line.controls.unitPurchasePrice.setValue(amount, { emitEvent: false });
+          line.controls.lineTotal.setValue(this.toMoney(quantity * (amount ?? 0)), {
+            emitEvent: false,
+          });
+          pendingLines.push(line);
+        } else {
+          for (let copy = 0; copy < quantity; copy += 1) {
+            const line = this.createLine('individual');
+            line.controls.titleSnapshot.setValue(title, { emitEvent: false });
+            line.controls.ean.setValue(ean, { emitEvent: false });
+            line.controls.condition.setValue(condition as ItemCondition, { emitEvent: false });
+            if (amount !== null) {
+              line.controls.unitPurchasePrice.setValue(amount, { emitEvent: false });
+              line.controls.lineTotal.setValue(amount, { emitEvent: false });
+            }
+            pendingLines.push(line);
+          }
+        }
+      }
+      pendingLines.forEach((line) => this.lineRows.push(line));
+      this.emitDrafts();
+    } catch (error: unknown) {
+      this.importError.set(
+        error instanceof Error ? error.message : 'CSV konnte nicht importiert werden.',
+      );
+    } finally {
+      input.value = '';
+    }
   }
 
   updateEstimatedMarketValue(index: number, event: Event): void {
@@ -302,6 +381,14 @@ export class PurchaseLineEditorComponent {
       titleSnapshot: new FormControl('', {
         nonNullable: true,
         validators: [Validators.required, Validators.minLength(2)],
+      }),
+      ean: new FormControl<string | null>(null, {
+        validators: [
+          (control) => {
+            const value = control.value?.trim() ?? '';
+            return value && !normalizeGtin(value) ? { invalidGtin: true } : null;
+          },
+        ],
       }),
       lineKind: new FormControl<TrackingMode>(lineKind, { nonNullable: true }),
       orderedQuantity: new FormControl(lineKind === 'individual' ? 1 : 1, {

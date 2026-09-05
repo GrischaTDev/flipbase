@@ -436,6 +436,7 @@ export interface PurchaseLine {
   purchase_id: string;
   catalog_product_id?: string | null;
   title_snapshot: string;
+  ean_snapshot?: string | null;
   line_kind: TrackingMode;
   ordered_quantity: number;
   received_quantity: number;

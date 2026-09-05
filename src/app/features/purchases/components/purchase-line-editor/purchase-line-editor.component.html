@@ -35,8 +35,17 @@
       >
         Einzelstück hinzufügen
       </button>
+      <label
+        class="linear-btn-secondary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold"
+      >
+        CSV importieren
+        <input type="file" accept=".csv,text/csv" class="sr-only" (change)="importCsv($event)" />
+      </label>
     </div>
   </div>
+  @if (importError(); as error) {
+    <p class="text-xs text-rose-300" role="alert">{{ error }}</p>
+  }
 
   @if (catalogService.isLoading()) {
     <p class="text-xs text-fb-text-muted" role="status">Artikelstamm wird geladen…</p>
@@ -140,6 +149,20 @@
                   class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
                   placeholder="z. B. Mystery-Fundstück"
                 />
+              </label>
+              <label class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted">
+                EAN / GTIN (optional)
+                <input
+                  type="text"
+                  formControlName="ean"
+                  class="linear-input mt-1 w-full rounded-lg px-2.5 py-1.5 text-xs"
+                  placeholder="z. B. 036000291452"
+                />
+                @if (row.controls.ean.invalid && row.controls.ean.touched) {
+                  <span class="mt-1 block normal-case text-rose-300" role="alert"
+                    >Ungültige EAN/GTIN.</span
+                  >
+                }
               </label>
             }
 

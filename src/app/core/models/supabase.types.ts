@@ -1175,6 +1175,7 @@ export type Database = {
           catalog_product_id: string | null
           condition_snapshot: string | null
           created_at: string
+          ean_snapshot: string | null
           estimated_market_value: number | null
           id: string
           line_kind: string
@@ -1194,6 +1195,7 @@ export type Database = {
           catalog_product_id?: string | null
           condition_snapshot?: string | null
           created_at?: string
+          ean_snapshot?: string | null
           estimated_market_value?: number | null
           id?: string
           line_kind: string
@@ -1213,6 +1215,7 @@ export type Database = {
           catalog_product_id?: string | null
           condition_snapshot?: string | null
           created_at?: string
+          ean_snapshot?: string | null
           estimated_market_value?: number | null
           id?: string
           line_kind?: string
@@ -3335,6 +3338,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      set_purchase_line_eans: {
+        Args: { p_lines: Json; p_workspace_id: string }
+        Returns: undefined
+      }
       set_workspace_archive_state: {
         Args: { p_archived: boolean; p_workspace_id: string }
         Returns: {
@@ -3552,4 +3559,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

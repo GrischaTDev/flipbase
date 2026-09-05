@@ -8,14 +8,22 @@
         Zentrale Artikeldefinitionen für Mengenartikel und Einzelstücke.
       </p>
     </div>
-    <button
-      type="button"
-      (click)="isCreateOpen.set(true)"
-      class="linear-btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
-    >
-      <svg [lucideIcon]="plusIcon" class="h-3.5 w-3.5"></svg>
-      Artikel anlegen
-    </button>
+    <div class="flex flex-wrap gap-2">
+      <label
+        class="linear-btn-secondary inline-flex cursor-pointer items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
+      >
+        CSV importieren
+        <input type="file" accept=".csv,text/csv" class="sr-only" (change)="previewCsv($event)" />
+      </label>
+      <button
+        type="button"
+        (click)="isCreateOpen.set(true)"
+        class="linear-btn-primary inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
+      >
+        <svg [lucideIcon]="plusIcon" class="h-3.5 w-3.5"></svg>
+        Artikel anlegen
+      </button>
+    </div>
   </header>
 
   <div class="linear-surface rounded-xl p-3">
@@ -43,6 +51,65 @@
       (selectedChange)="tablePreferences.setVisibleColumns('catalog', $event)"
     />
   </div>
+  @if (csvError(); as error) {
+    <div
+      class="linear-surface rounded-xl border border-rose-500/30 p-3 text-sm text-rose-300"
+      role="alert"
+    >
+      {{ error }}
+    </div>
+  }
+  @if (csvRows().length) {
+    <section
+      class="linear-surface space-y-3 rounded-xl p-4"
+      aria-labelledby="catalog-csv-preview-title"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 id="catalog-csv-preview-title" class="text-sm font-semibold text-fb-text-primary">
+            CSV-Vorschau
+          </h2>
+          <p class="text-xs text-fb-text-muted">
+            Es werden nur Artikelstammdaten angelegt – kein Bestand.
+          </p>
+        </div>
+        <button
+          type="button"
+          class="linear-btn-primary rounded-lg px-3 py-1.5 text-xs font-semibold"
+          [disabled]="isImportingCsv() || csvHasErrors()"
+          (click)="importCsv()"
+        >
+          {{ isImportingCsv() ? 'Import läuft…' : 'Import bestätigen' }}
+        </button>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="linear-table w-full text-xs">
+          <thead>
+            <tr>
+              <th class="px-3 py-2 text-left">Titel</th>
+              <th class="px-3 py-2 text-left">EAN</th>
+              <th class="px-3 py-2 text-left">Nachverfolgung</th>
+              <th class="px-3 py-2 text-left">Prüfung</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of csvRows(); track $index) {
+              <tr>
+                <td class="px-3 py-2">{{ row.title || '—' }}</td>
+                <td class="px-3 py-2 font-mono">{{ row.ean || '—' }}</td>
+                <td class="px-3 py-2">
+                  {{ row.trackingMode === 'individual' ? 'Einzelstück' : 'Mengenartikel' }}
+                </td>
+                <td class="px-3 py-2" [class.text-rose-300]="row.error">
+                  {{ row.error || 'Bereit' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
   @if (isLoading()) {
     <div class="linear-surface rounded-xl px-5 py-10 text-center" role="status">
       <p class="text-sm font-semibold text-fb-text-secondary">Artikelstamm wird geladen…</p>
@@ -205,10 +272,17 @@
           <label class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >EAN<input
               formControlName="ean"
+              (blur)="productForm.controls.ean.markAsTouched()"
               type="text"
               inputmode="numeric"
               class="linear-input mt-1 w-full rounded-lg px-3 py-2 text-xs"
-          /></label>
+            />
+            @if (productForm.controls.ean.invalid && productForm.controls.ean.touched) {
+              <span class="mt-1 block normal-case text-rose-300" role="alert"
+                >Ungültige EAN/GTIN.</span
+              >
+            }
+          </label>
           <label class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
             >Nachverfolgung<select
               formControlName="trackingMode"

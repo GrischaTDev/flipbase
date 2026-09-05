@@ -339,6 +339,7 @@ create table public.purchase_lines (
         check (estimated_market_value is null or estimated_market_value >= 0),
     allocated_total_cost numeric(12,2) not null default 0
         check (allocated_total_cost >= 0),
+    ean_snapshot text,
     check ((line_kind = 'quantity' and catalog_product_id is not null) or line_kind = 'individual'),
     check (
       (
@@ -3734,6 +3735,7 @@ begin
         if v_item_position <= v_existing_count then
           update public.inventory_items
           set allocated_purchase_cost = v_unit_shares[v_item_position]::numeric / 100,
+              ean = coalesce(v_line.ean_snapshot, ean),
               expected_value = coalesce(expected_value, v_line.estimated_market_value),
               status = 'ready',
               updated_at = v_finalized_at
@@ -3745,6 +3747,7 @@ begin
             purchase_id,
             purchase_line_id,
             title,
+            ean,
             condition,
             status,
             allocated_purchase_cost,
@@ -3754,6 +3757,7 @@ begin
             p_purchase_id,
             v_line.id,
             v_line.title_snapshot,
+            v_line.ean_snapshot,
             case
               when v_line.condition_snapshot in (
                 'new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective'
@@ -5335,6 +5339,11 @@ begin
 
       update public.purchase_lines
       set title_snapshot = pg_catalog.btrim(v_input_line ->> 'title_snapshot'),
+          ean_snapshot = case
+            when v_input_line ? 'ean_snapshot'
+              then nullif(pg_catalog.btrim(v_input_line ->> 'ean_snapshot'), '')
+            else ean_snapshot
+          end,
           price_mode = v_input_line ->> 'price_mode',
           unit_purchase_price = case
             when pg_catalog.jsonb_typeof(v_input_line -> 'unit_purchase_price') = 'null'
@@ -5366,6 +5375,7 @@ begin
         purchase_id,
         catalog_product_id,
         title_snapshot,
+        ean_snapshot,
         line_kind,
         ordered_quantity,
         received_quantity,
@@ -5384,6 +5394,7 @@ begin
         p_purchase_id,
         v_catalog_product_id,
         pg_catalog.btrim(v_input_line ->> 'title_snapshot'),
+        nullif(pg_catalog.btrim(v_input_line ->> 'ean_snapshot'), ''),
         v_input_line ->> 'line_kind',
         (v_input_line ->> 'ordered_quantity')::integer,
         0,
@@ -5605,6 +5616,7 @@ begin
         if v_item_position <= v_existing_count then
           update public.inventory_items
           set allocated_purchase_cost = v_unit_shares[v_item_position]::numeric / 100,
+              ean = coalesce(v_line.ean_snapshot, ean),
               updated_at = v_changed_at
           where workspace_id = p_workspace_id
             and id = v_item_ids[v_item_position];
@@ -5614,6 +5626,7 @@ begin
             purchase_id,
             purchase_line_id,
             title,
+            ean,
             condition,
             status,
             allocated_purchase_cost,
@@ -5625,6 +5638,7 @@ begin
             p_purchase_id,
             v_line.id,
             v_line.title_snapshot,
+            v_line.ean_snapshot,
             case
               when v_line.condition_snapshot in (
                 'new', 'like_new', 'very_good', 'used', 'heavily_used', 'defective'
@@ -6296,6 +6310,7 @@ begin
 
     insert into public.purchase_lines (
       workspace_id, purchase_id, catalog_product_id, title_snapshot,
+      ean_snapshot,
       line_kind, ordered_quantity, received_quantity, unit_purchase_price,
       line_total, allocated_additional_cost, price_mode, condition_snapshot,
       estimated_market_value
@@ -6304,6 +6319,7 @@ begin
       v_purchase.id,
       nullif(v_line ->> 'catalog_product_id', '')::uuid,
       btrim(v_line ->> 'title_snapshot'),
+      nullif(btrim(v_line ->> 'ean_snapshot'), ''),
       v_line ->> 'line_kind',
       (v_line ->> 'ordered_quantity')::integer,
       0,
@@ -6731,6 +6747,11 @@ begin
       update public.purchase_lines
       set catalog_product_id = v_catalog_product_id,
           title_snapshot = pg_catalog.btrim(v_line ->> 'title_snapshot'),
+          ean_snapshot = case
+            when v_line ? 'ean_snapshot'
+              then nullif(pg_catalog.btrim(v_line ->> 'ean_snapshot'), '')
+            else v_existing_line.ean_snapshot
+          end,
           line_kind = v_line ->> 'line_kind',
           ordered_quantity = (v_line ->> 'ordered_quantity')::integer,
           price_mode = coalesce(nullif(v_line ->> 'price_mode', ''), 'priced'),
@@ -6765,6 +6786,7 @@ begin
     else
       insert into public.purchase_lines (
         workspace_id, purchase_id, catalog_product_id, title_snapshot,
+        ean_snapshot,
         line_kind, ordered_quantity, received_quantity, unit_purchase_price,
         line_total, allocated_additional_cost, price_mode, condition_snapshot,
         estimated_market_value
@@ -6773,6 +6795,7 @@ begin
         p_purchase_id,
         v_catalog_product_id,
         pg_catalog.btrim(v_line ->> 'title_snapshot'),
+        nullif(pg_catalog.btrim(v_line ->> 'ean_snapshot'), ''),
         v_line ->> 'line_kind',
         (v_line ->> 'ordered_quantity')::integer,
         0,
@@ -7102,6 +7125,7 @@ begin
   for v_line in select value from jsonb_array_elements(p_lines) loop
     insert into public.purchase_lines (
       workspace_id, purchase_id, catalog_product_id, title_snapshot,
+      ean_snapshot,
       line_kind, ordered_quantity, received_quantity, unit_purchase_price,
       line_total, allocated_additional_cost
     ) values (
@@ -7109,6 +7133,7 @@ begin
       p_purchase_id,
       nullif(v_line ->> 'catalog_product_id', '')::uuid,
       btrim(v_line ->> 'title_snapshot'),
+      nullif(btrim(v_line ->> 'ean_snapshot'), ''),
       v_line ->> 'line_kind',
       (v_line ->> 'ordered_quantity')::integer,
       0,
@@ -7512,10 +7537,10 @@ begin
   end;
 
   insert into public.inventory_items (
-    workspace_id, purchase_id, purchase_line_id, title, condition, status,
+    workspace_id, purchase_id, purchase_line_id, title, ean, condition, status,
     allocated_purchase_cost, expected_value
   ) values (
-    p_workspace_id, p_purchase_id, p_purchase_line_id, v_title, v_condition, 'received',
+    p_workspace_id, p_purchase_id, p_purchase_line_id, v_title, v_purchase_line.ean_snapshot, v_condition, 'received',
     0, v_purchase_line.estimated_market_value
   ) returning * into v_inventory_item;
 
@@ -10312,7 +10337,8 @@ begin
         price_mode,
         condition_snapshot,
         estimated_market_value,
-        allocated_total_cost
+        allocated_total_cost,
+        ean_snapshot
       ) values (
         v_line_id,
         p_workspace_id,
@@ -10330,7 +10356,8 @@ begin
         'unpriced_mystery',
         v_item.condition,
         v_item.expected_value,
-        0
+        0,
+        v_item.ean
       );
 
       update public.inventory_items

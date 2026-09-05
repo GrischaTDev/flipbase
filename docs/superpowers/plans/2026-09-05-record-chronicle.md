@@ -7,6 +7,8 @@
 **Tech Stack:** Angular 22, Tailwind, vorhandenes Supabase/Postgres und pgTAP.
 **Spec:** docs/superpowers/specs/2026-09-05-admin-workflow-refresh.md, Paket 3, ausdrücklich zur Umsetzung freigegeben.
 
+**Abnahme 2026-09-05:** Implementiert in `2ce6bf4`, Integrationstest-Nachbesserung `a430c3e`. Aufgabenprüfung und gezielte Nachprüfung bestanden; lokale Konto-QA Einkauf/Verkauf inklusive Reload und unveränderter Einkaufsdaten, 390/1440/2560 px, Chronik-Axe ohne Befund. Gesamtprüfung folgt nach Paketen 4/5. Zwei kleine Punkte für Abschlussprüfung festgehalten: Unicode-Leerraumdefinition zwischen SQL/JS angleichen und bestehende Test-Runner-Farbwarnung vermeiden. Kein Push/Deployment.
+
 ## Global Constraints
 
 - Deutsche Oberfläche, englische neue Bezeichner/Commits, keine KI-Signatur, kein codex-Branchpräfix.
