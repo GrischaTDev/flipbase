@@ -1,14 +1,13 @@
 <section class="space-y-4">
-  <header
-    class="flex flex-col gap-3 border-b border-fb-line pb-3 sm:flex-row sm:items-center sm:justify-between"
+  <app-page-header
+    title="Bewerbungen"
+    [icon]="adminIcon"
+    subtitle="Bewerbungen um einen Beta-Zugang verwalten und Entscheidungen dokumentieren."
   >
-    <div>
-      <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">Bewerbungen</h1>
-      <p class="mt-0.5 text-xs text-fb-text-muted">
-        Bewerbungen um einen Beta-Zugang verwalten und Entscheidungen dokumentieren.
-      </p>
-    </div>
-    <label class="flex items-center gap-2 text-xs font-semibold text-fb-text-secondary">
+    <label
+      header-actions
+      class="flex items-center gap-2 text-xs font-medium text-fb-text-secondary"
+    >
       Laufzeit bei Annahme
       <span class="sr-only">in Tagen</span>
       <input
@@ -21,7 +20,7 @@
       />
       Tage
     </label>
-  </header>
+  </app-page-header>
 
   @if (error(); as meldung) {
     <p
@@ -69,10 +68,12 @@
           [columns]="tablePrefs().columns"
           [sortOptions]="betaTableConfig.sortOptions"
           [currentSort]="tablePrefs().sort"
+          [viewModified]="viewModified()"
           (columnVisibilityToggled)="toggleColumnVisibility($event)"
           (columnsReordered)="onColumnsReordered($event)"
           (sortChanged)="onSortChanged($event)"
           (resetRequested)="resetTablePreferences()"
+          (viewResetRequested)="resetView()"
         />
       </div>
     </div>
@@ -104,16 +105,37 @@
               @for (column of orderedVisibleColumns(); track column.id) {
                 @switch (column.id) {
                   @case ('applicant') {
-                    <th scope="col" class="min-w-48">Name</th>
+                    <th scope="col" [attr.aria-sort]="ariaSort('applicant')" class="min-w-48">
+                      <app-table-sort-header
+                        label="Name"
+                        sortField="applicant"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
+                    </th>
                   }
                   @case ('email') {
                     <th scope="col" class="min-w-56">E-Mail</th>
                   }
                   @case ('created_at') {
-                    <th scope="col">Eingang</th>
+                    <th scope="col" [attr.aria-sort]="ariaSort('created_at')">
+                      <app-table-sort-header
+                        label="Eingang"
+                        sortField="created_at"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
+                    </th>
                   }
                   @case ('status') {
-                    <th scope="col">Status</th>
+                    <th scope="col" [attr.aria-sort]="ariaSort('status')">
+                      <app-table-sort-header
+                        label="Status"
+                        sortField="status"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
+                    </th>
                   }
                   @case ('granted_days') {
                     <th scope="col" class="text-right">Laufzeit</th>

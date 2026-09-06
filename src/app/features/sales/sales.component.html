@@ -2,6 +2,7 @@
   <!-- Page Header -->
   <app-page-header
     [title]="('NAV.SALES' | translate) + ' & Retouren'"
+    [icon]="trendingIcon"
     subtitle="Verkaufserlöse, direkte Kosten, Margen, § 25a Rechnungen und Gutschriften."
   >
     <div header-actions class="flex items-center gap-2">
@@ -182,10 +183,12 @@
             [columns]="tablePrefs().columns"
             [sortOptions]="salesTableConfig.sortOptions"
             [currentSort]="tablePrefs().sort"
+            [viewModified]="viewModified()"
             (columnVisibilityToggled)="toggleColumnVisibility($event)"
             (columnsReordered)="onColumnsReordered($event)"
             (sortChanged)="onSortChanged($event)"
             (resetRequested)="resetTablePreferences()"
+            (viewResetRequested)="resetView()"
           />
         </div>
       </div>
@@ -200,55 +203,53 @@
               @for (column of orderedVisibleColumns(); track column.id) {
                 @switch (column.id) {
                   @case ('title') {
-                    <th
-                      scope="col"
-                      [attr.aria-sort]="ariaSort('title')"
-                      class="min-w-60 border-b border-fb-line px-4 py-2.5 font-semibold"
-                    >
-                      Verkaufter Artikel
+                    <th scope="col" [attr.aria-sort]="ariaSort('title')" class="min-w-60">
+                      <app-table-sort-header
+                        label="Verkaufter Artikel"
+                        sortField="title"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
                     </th>
                   }
                   @case ('quantity') {
                     <th
                       scope="col"
-                      [attr.aria-sort]="ariaSort('quantity')"
-                      class="border-b border-fb-line px-3 py-2.5 text-right font-semibold"
+                      class="border-b border-fb-line px-3 py-2.5 text-right font-[450]"
                     >
                       Menge
                     </th>
                   }
                   @case ('platform') {
-                    <th
-                      scope="col"
-                      [attr.aria-sort]="ariaSort('platform')"
-                      class="border-b border-fb-line px-3 py-2.5 font-semibold"
-                    >
+                    <th scope="col" class="border-b border-fb-line px-3 py-2.5 font-[450]">
                       Plattform
                     </th>
                   }
                   @case ('sale_date') {
-                    <th
-                      scope="col"
-                      [attr.aria-sort]="ariaSort('sale_date')"
-                      class="border-b border-fb-line px-3 py-2.5 font-semibold"
-                    >
-                      Datum
+                    <th scope="col" [attr.aria-sort]="ariaSort('sale_date')">
+                      <app-table-sort-header
+                        label="Datum"
+                        sortField="sale_date"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
                     </th>
                   }
                   @case ('revenue') {
-                    <th
-                      scope="col"
-                      [attr.aria-sort]="ariaSort('revenue')"
-                      class="border-b border-fb-line px-3 py-2.5 text-right font-semibold"
-                    >
-                      Verkaufserlös
+                    <th scope="col" [attr.aria-sort]="ariaSort('revenue')">
+                      <app-table-sort-header
+                        label="Verkaufserlös"
+                        sortField="revenue"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                        align="right"
+                      />
                     </th>
                   }
                   @case ('cost_of_goods_sold') {
                     <th
                       scope="col"
-                      [attr.aria-sort]="ariaSort('cost_of_goods_sold')"
-                      class="border-b border-fb-line px-3 py-2.5 text-right font-semibold"
+                      class="border-b border-fb-line px-3 py-2.5 text-right font-[450]"
                     >
                       Wareneinsatz
                     </th>
@@ -256,48 +257,49 @@
                   @case ('selling_costs') {
                     <th
                       scope="col"
-                      [attr.aria-sort]="ariaSort('selling_costs')"
-                      class="border-b border-fb-line px-3 py-2.5 text-right font-semibold"
+                      class="border-b border-fb-line px-3 py-2.5 text-right font-[450]"
                     >
                       Verkaufskosten
                     </th>
                   }
                   @case ('profit') {
-                    <th
-                      scope="col"
-                      [attr.aria-sort]="ariaSort('profit')"
-                      class="border-b border-fb-line px-3 py-2.5 text-right font-semibold"
-                    >
-                      <abbr
-                        title="Verkaufserlös abzüglich Wareneinsatz und Verkaufskosten"
-                        class="no-underline"
-                        >Ergebnis</abbr
-                      >
+                    <th scope="col" [attr.aria-sort]="ariaSort('profit')">
+                      <app-table-sort-header
+                        label="Ergebnis"
+                        sortField="profit"
+                        [currentSort]="tablePrefs().sort"
+                        description="Verkaufserlös abzüglich Wareneinsatz und Verkaufskosten"
+                        (sortChanged)="onSortChanged($event)"
+                        align="right"
+                      />
                     </th>
                   }
                   @case ('margin') {
-                    <th
-                      scope="col"
-                      [attr.aria-sort]="ariaSort('margin')"
-                      class="border-b border-fb-line px-3 py-2.5 text-right font-semibold"
-                    >
-                      Marge
+                    <th scope="col" [attr.aria-sort]="ariaSort('margin')">
+                      <app-table-sort-header
+                        label="Marge"
+                        sortField="margin"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                        align="right"
+                      />
                     </th>
                   }
                   @case ('holding_days') {
-                    <th
-                      scope="col"
-                      [attr.aria-sort]="ariaSort('holding_days')"
-                      class="border-b border-fb-line px-3 py-2.5 text-right font-semibold"
-                    >
-                      Haltedauer
+                    <th scope="col" [attr.aria-sort]="ariaSort('holding_days')">
+                      <app-table-sort-header
+                        label="Haltedauer"
+                        sortField="holding_days"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                        align="right"
+                      />
                     </th>
                   }
                   @case ('actions') {
                     <th
                       scope="col"
-                      [attr.aria-sort]="ariaSort('actions')"
-                      class="w-28 border-b border-fb-line px-4 py-2.5 text-center font-semibold"
+                      class="w-28 border-b border-fb-line px-4 py-2.5 text-center font-[450]"
                     >
                       Aktionen
                     </th>

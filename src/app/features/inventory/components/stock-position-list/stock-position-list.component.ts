@@ -35,6 +35,7 @@ import {
 import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
 import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
 import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
+import { TableSortHeaderComponent } from '../../../../shared/components/table-sort-header/table-sort-header.component';
 import {
   ColumnDefinition,
   SortFieldOption,
@@ -58,6 +59,7 @@ import {
     CostStateComponent,
     ItemConditionLabelPipe,
     TableColumnMenuComponent,
+    TableSortHeaderComponent,
   ],
   templateUrl: './stock-position-list.component.html',
   host: { class: 'block' },
@@ -66,11 +68,16 @@ import {
 export class StockPositionListComponent {
   readonly tableColumns = input<readonly ColumnDefinition<InventoryColumnId>[]>([]);
   readonly sortOptions = input<readonly SortFieldOption<InventorySortField>[]>([]);
-  readonly currentSort = input<TableSortState<InventorySortField> | null>(null);
+  readonly currentSort = input<TableSortState<InventorySortField>>({
+    field: 'updated_at',
+    direction: 'desc',
+  });
   readonly columnVisibilityToggled = output<InventoryColumnId>();
   readonly columnsReordered = output<{ previousIndex: number; currentIndex: number }>();
   readonly sortChanged = output<TableSortState<InventorySortField>>();
   readonly resetRequested = output<void>();
+  readonly viewModified = input(false);
+  readonly viewResetRequested = output<void>();
   readonly archivePendingIds = input<ReadonlySet<string>>(new Set());
   readonly archiveItem = output<InventoryItem>();
   readonly visibleColumns = input<readonly string[]>([
@@ -145,6 +152,12 @@ export class StockPositionListComponent {
     }
     return this.visibleColumns() as readonly InventoryColumnId[];
   });
+
+  ariaSort(field: string): 'ascending' | 'descending' | null {
+    const sort = this.currentSort();
+    if (!sort || sort.field !== field) return null;
+    return sort.direction === 'asc' ? 'ascending' : 'descending';
+  }
 
   readonly movementRows = computed(() => {
     const lotById = new Map(this.lots().map((lot) => [lot.id, lot]));

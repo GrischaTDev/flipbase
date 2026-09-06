@@ -183,7 +183,7 @@ test('hält das Spaltenmenü auf kleinen Bildschirmen vollständig im Viewport',
   await page.goto('/sales');
 
   const control = await openColumnControl(page);
-  const panel = control.locator('[role="dialog"]');
+  const panel = control.getByRole('dialog', { name: 'Spalten', exact: true });
   const panelBox = await panel.boundingBox();
   const viewport = page.viewportSize();
 
@@ -195,7 +195,7 @@ test('hält das Spaltenmenü auf kleinen Bildschirmen vollständig im Viewport',
   expect(panelBox!.y + panelBox!.height).toBeLessThanOrEqual(viewport!.height);
 
   await panel.getByRole('button', { name: 'Sortierfeld' }).click();
-  const sortList = panel.getByRole('listbox');
+  const sortList = control.locator('[data-sort-menu]');
   await expect(sortList).toBeVisible();
   const sortBox = await sortList.boundingBox();
   expect(sortBox).not.toBeNull();

@@ -1,14 +1,10 @@
 <div class="space-y-4 animate-fade-in">
-  <header
-    class="flex flex-col gap-3 border-b border-fb-line pb-3 sm:flex-row sm:items-center sm:justify-between"
+  <app-page-header
+    title="Artikelstamm"
+    [icon]="bookOpenIcon"
+    subtitle="Zentrale Artikeldefinitionen für Mengenartikel und Einzelstücke."
   >
-    <div>
-      <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">Artikelstamm</h1>
-      <p class="mt-0.5 text-xs text-fb-text-muted">
-        Zentrale Artikeldefinitionen für Mengenartikel und Einzelstücke.
-      </p>
-    </div>
-    <div class="flex flex-wrap gap-2">
+    <div header-actions class="flex flex-wrap gap-2">
       <label
         class="linear-btn-secondary inline-flex cursor-pointer items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
       >
@@ -24,7 +20,7 @@
         Artikel anlegen
       </button>
     </div>
-  </header>
+  </app-page-header>
 
   <div class="linear-surface relative overflow-visible rounded-xl">
     <div class="flex flex-wrap items-center gap-2 p-2">
@@ -47,10 +43,12 @@
           [columns]="tablePrefs().columns"
           [sortOptions]="catalogTableConfig.sortOptions"
           [currentSort]="tablePrefs().sort"
+          [viewModified]="viewModified()"
           (columnVisibilityToggled)="toggleColumnVisibility($event)"
           (columnsReordered)="onColumnsReordered($event)"
           (sortChanged)="onSortChanged($event)"
           (resetRequested)="resetTablePreferences()"
+          (viewResetRequested)="resetView()"
         />
       </div>
     </div>
@@ -152,8 +150,17 @@
               @for (column of orderedVisibleColumns(); track column.id) {
                 @switch (column.id) {
                   @case ('title') {
-                    <th scope="col" class="border-b border-fb-line px-4 py-2.5 text-left">
-                      Artikel
+                    <th
+                      scope="col"
+                      [attr.aria-sort]="ariaSort('title')"
+                      class="border-b border-fb-line px-4 py-2.5 text-left"
+                    >
+                      <app-table-sort-header
+                        label="Artikel"
+                        sortField="title"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
                     </th>
                   }
                   @case ('ean') {
@@ -165,8 +172,18 @@
                     </th>
                   }
                   @case ('available') {
-                    <th scope="col" class="border-b border-fb-line px-3 py-2.5 text-right">
-                      Verfügbar
+                    <th
+                      scope="col"
+                      [attr.aria-sort]="ariaSort('available')"
+                      class="border-b border-fb-line px-3 py-2.5 text-right"
+                    >
+                      <app-table-sort-header
+                        label="Verfügbar"
+                        sortField="available"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                        align="right"
+                      />
                     </th>
                   }
                   @case ('store') {

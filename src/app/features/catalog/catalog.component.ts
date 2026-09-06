@@ -1,7 +1,11 @@
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
 import { CatalogColumnId, CatalogSortField } from '../../core/config/table-defaults.config';
 import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
-import { TableSortState } from '../../core/models/table-preferences.models';
+import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
+import {
+  tableStateDiffersFromDefaults,
+  TableSortState,
+} from '../../core/models/table-preferences.models';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -23,6 +27,7 @@ import {
   LucidePlus as Plus,
   LucideSearch as Search,
   LucideX as X,
+  LucideBookOpen as BookOpen,
 } from '@lucide/angular';
 import { CatalogProduct, TrackingMode } from '../../core/models/flipbase.models';
 import { CatalogService } from '../../core/services/catalog.service';
@@ -31,6 +36,7 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import { parseCsv } from '../../shared/utils/csv';
 import { normalizeGtin } from '../../shared/utils/gtin';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 interface CatalogImportRow {
   readonly title: string;
@@ -42,7 +48,14 @@ interface CatalogImportRow {
 
 @Component({
   selector: 'app-catalog',
-  imports: [TableColumnMenuComponent, ReactiveFormsModule, LucideDynamicIcon, ModalDialogDirective],
+  imports: [
+    TableColumnMenuComponent,
+    TableSortHeaderComponent,
+    ReactiveFormsModule,
+    LucideDynamicIcon,
+    ModalDialogDirective,
+    PageHeaderComponent,
+  ],
   templateUrl: './catalog.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -75,7 +88,13 @@ export class CatalogComponent {
   readonly plusIcon = Plus;
   readonly searchIcon = Search;
   readonly closeIcon = X;
+  readonly bookOpenIcon = BookOpen;
   readonly searchQuery = signal('');
+  readonly viewModified = computed(
+    () =>
+      this.searchQuery().trim() !== '' ||
+      tableStateDiffersFromDefaults(this.tablePrefs(), this.catalogTableConfig),
+  );
   readonly isCreateOpen = signal(false);
   readonly isSaving = signal(false);
   readonly saveError = signal<string | null>(null);
@@ -156,6 +175,17 @@ export class CatalogComponent {
 
   resetTablePreferences(): void {
     this.tablePreferences.resetToDefaults('catalog', this.workspaceId());
+  }
+
+  resetView(): void {
+    this.searchQuery.set('');
+    this.resetTablePreferences();
+  }
+
+  ariaSort(field: string): 'ascending' | 'descending' | null {
+    const sort = this.tablePrefs().sort;
+    if (sort.field !== field) return null;
+    return sort.direction === 'asc' ? 'ascending' : 'descending';
   }
 
   readonly stockByProduct = computed(

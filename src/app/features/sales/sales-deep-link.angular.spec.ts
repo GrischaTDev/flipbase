@@ -7,7 +7,7 @@ import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { provideTranslateService } from '@ngx-translate/core';
 import { glob, readFile } from 'node:fs/promises';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Sale } from '../../core/models/flipbase.models';
 import { InvoiceService } from '../../core/services/invoice.service';
 import { ReturnService } from '../../core/services/return.service';
@@ -16,6 +16,40 @@ import { SyncStatusService } from '../../core/services/sync-status.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { CostStateComponent } from '../../shared/components/cost-state/cost-state.component';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
+import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
+
+interface AngularInputMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+}
+
+const inputMetadataSnapshots = new Map<unknown, AngularInputMetadata>();
+
+function registerSignalInputs(component: unknown, inputNames: readonly string[]): void {
+  const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  inputMetadataSnapshots.set(component, {
+    inputs: metadata.inputs,
+    declaredInputs: metadata.declaredInputs,
+  });
+  metadata.inputs = {
+    ...metadata.inputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, [name, 1, null]])),
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, name])),
+  };
+}
+
+afterAll(() => {
+  for (const [component, snapshot] of inputMetadataSnapshots) {
+    const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    metadata.inputs = snapshot.inputs;
+    metadata.declaredInputs = snapshot.declaredInputs;
+  }
+});
 import { PurchaseDetailTableComponent } from '../purchases/components/purchase-detail-table/purchase-detail-table.component';
 import type { PurchaseDetailRow } from '../purchases/models/purchase-presentation.models';
 import { SalesComponent } from './sales.component';
@@ -29,6 +63,19 @@ beforeAll(async () => {
     if (matches.length !== 1) throw new Error(`Test-Ressource nicht eindeutig: ${url}`);
     return readFile(matches[0], 'utf8');
   });
+  registerSignalInputs(PageHeaderComponent, ['icon']);
+  registerSignalInputs(TableColumnMenuComponent, [
+    'columns',
+    'sortOptions',
+    'currentSort',
+    'viewModified',
+  ]);
+  registerSignalInputs(TableSortHeaderComponent, [
+    'label',
+    'sortField',
+    'currentSort',
+    'description',
+  ]);
 });
 
 const workspace = { id: 'workspace-1' };
@@ -98,7 +145,14 @@ beforeEach(() => {
   loadError = signal<Error | null>(null);
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
-    imports: [SalesComponent, PurchaseDetailTableComponent, CostStateComponent],
+    imports: [
+      SalesComponent,
+      PurchaseDetailTableComponent,
+      CostStateComponent,
+      PageHeaderComponent,
+      TableColumnMenuComponent,
+      TableSortHeaderComponent,
+    ],
     providers: [
       provideRouter([{ path: 'sales', component: SalesComponent }]),
       provideTranslateService({ lang: 'de' }),

@@ -2,6 +2,7 @@
   <!-- Header & Actions -->
   <app-page-header
     [title]="'PURCHASES.TITLE' | translate"
+    [icon]="bagIcon"
     subtitle="Einkäufe und enthaltene Artikel verwalten."
   >
     <app-badge header-badge tone="neutral" [mono]="true">
@@ -110,10 +111,12 @@
             [columns]="tablePrefs().columns"
             [sortOptions]="purchasesTableConfig.sortOptions"
             [currentSort]="tablePrefs().sort"
+            [viewModified]="viewModified()"
             (columnVisibilityToggled)="toggleColumnVisibility($event)"
             (columnsReordered)="onColumnsReordered($event)"
             (sortChanged)="onSortChanged($event)"
             (resetRequested)="resetTablePreferences()"
+            (viewResetRequested)="resetView()"
           />
         </div>
       </div>
@@ -131,16 +134,38 @@
                     <th scope="col" class="w-24">Typ</th>
                   }
                   @case ('title') {
-                    <th scope="col" class="min-w-64">Einkauf und Lieferant</th>
+                    <th scope="col" class="min-w-64" [attr.aria-sort]="ariaSort('title')">
+                      <app-table-sort-header
+                        label="Einkauf und Lieferant"
+                        sortField="title"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
+                    </th>
                   }
                   @case ('purchase_date') {
-                    <th scope="col">Kaufdatum</th>
+                    <th scope="col" [attr.aria-sort]="ariaSort('purchase_date')">
+                      <app-table-sort-header
+                        label="Kaufdatum"
+                        sortField="purchase_date"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
+                    </th>
                   }
                   @case ('status') {
                     <th scope="col">Status</th>
                   }
                   @case ('total_cost') {
-                    <th scope="col" class="text-right">Gesamtkosten</th>
+                    <th scope="col" [attr.aria-sort]="ariaSort('total_cost')">
+                      <app-table-sort-header
+                        label="Gesamtkosten"
+                        sortField="total_cost"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                        align="right"
+                      />
+                    </th>
                   }
                   @case ('units') {
                     <th scope="col" class="text-right">Stückzahl und Bestand</th>

@@ -22,6 +22,7 @@ import { StockPositionListComponent } from './stock-position-list.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
 import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
+import { TableSortHeaderComponent } from '../../../../shared/components/table-sort-header/table-sort-header.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -60,6 +61,8 @@ beforeAll(async () => {
       'src/app/shared/components/table-column-menu/table-column-menu.component.html',
     './table-column-menu.component.scss':
       'src/app/shared/components/table-column-menu/table-column-menu.component.scss',
+    './table-sort-header.component.html':
+      'src/app/shared/components/table-sort-header/table-sort-header.component.html',
   };
   await ɵresolveComponentResources((url) => {
     const resource = resources[url];
@@ -79,6 +82,18 @@ beforeAll(async () => {
     'triggerId',
   ]);
   registerSignalInputs(CostStateComponent, ['state']);
+  registerSignalInputs(TableColumnMenuComponent, [
+    'columns',
+    'sortOptions',
+    'currentSort',
+    'viewModified',
+  ]);
+  registerSignalInputs(TableSortHeaderComponent, [
+    'label',
+    'sortField',
+    'currentSort',
+    'description',
+  ]);
 });
 afterAll(() => {
   for (const [component, snapshot] of inputMetadataSnapshots) {
@@ -95,6 +110,7 @@ beforeEach(async () => {
       CustomSelectComponent,
       CostStateComponent,
       TableColumnMenuComponent,
+      TableSortHeaderComponent,
     ],
     providers: [provideRouter([])],
   });
