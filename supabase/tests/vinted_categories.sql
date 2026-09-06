@@ -30,7 +30,7 @@ $$;
 
 select pass('vinted_categories hat alle erwarteten Spalten');
 
--- Spalten von vinted_category_sync
+-- Spalten von vinted_category_syncs
 do $$
 declare
   required_columns text[] := array[
@@ -44,17 +44,17 @@ begin
   where not exists (
     select 1 from information_schema.columns as column_info
     where column_info.table_schema = 'public'
-      and column_info.table_name = 'vinted_category_sync'
+      and column_info.table_name = 'vinted_category_syncs'
       and column_info.column_name = required.column_name
   );
 
   if missing_columns is not null then
-    raise exception 'Fehlende Spalten in vinted_category_sync: %', missing_columns;
+    raise exception 'Fehlende Spalten in vinted_category_syncs: %', missing_columns;
   end if;
 end;
 $$;
 
-select pass('vinted_category_sync hat alle erwarteten Spalten');
+select pass('vinted_category_syncs hat alle erwarteten Spalten');
 
 -- RLS ist auf beiden Tabellen aktiv
 select is(
@@ -64,22 +64,22 @@ select is(
 );
 
 select is(
-  (select relrowsecurity from pg_class where oid = 'public.vinted_category_sync'::regclass),
+  (select relrowsecurity from pg_class where oid = 'public.vinted_category_syncs'::regclass),
   true,
-  'vinted_category_sync hat RLS aktiviert'
+  'vinted_category_syncs hat RLS aktiviert'
 );
 
 -- Genau eine Zeile im Auffrischungsstand, und sie laesst sich nicht vermehren
 select is(
-  (select count(*)::integer from public.vinted_category_sync),
+  (select count(*)::integer from public.vinted_category_syncs),
   1,
-  'vinted_category_sync enthaelt genau eine Zeile'
+  'vinted_category_syncs enthaelt genau eine Zeile'
 );
 
 do $$
 begin
   begin
-    insert into public.vinted_category_sync (id) values (2);
+    insert into public.vinted_category_syncs (id) values (2);
     raise exception 'Eine zweite Zeile haette abgelehnt werden muessen';
   exception
     when check_violation then
@@ -88,7 +88,7 @@ begin
 end;
 $$;
 
-select pass('vinted_category_sync laesst keine zweite Zeile zu');
+select pass('vinted_category_syncs laesst keine zweite Zeile zu');
 
 -- Anonyme duerfen nicht einmal lesen - kein Tabellenrecht, keine Policy
 set local role anon;
@@ -101,7 +101,7 @@ select throws_ok(
 );
 
 select throws_ok(
-  'select count(*) from public.vinted_category_sync',
+  'select count(*) from public.vinted_category_syncs',
   '42501',
   null,
   'anon darf den Auffrischungsstand nicht einmal lesen'

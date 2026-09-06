@@ -11,7 +11,7 @@ Datenbanktests; Einlesen (Parser, Dienst) und Oberfläche sind spätere
 Aufgaben.
 
 **Umsetzung:** `public.vinted_categories` (flacher Baum, Vinted-eigene ids,
-Elternverweis auf sich selbst) und `public.vinted_category_sync` (genau
+Elternverweis auf sich selbst) und `public.vinted_category_syncs` (genau
 eine Zeile, per Check auf `id = 1` erzwungen) mit RLS: Lesen für jeden
 Angemeldeten, Schreiben ausschließlich mit Dienstschlüssel durch den
 Sniper, Auffrischung anfordern nur für die Administration
@@ -48,7 +48,7 @@ denied` ab, bevor RLS überhaupt greift, statt eine leere Ergebnismenge
 Auftrag erwartet), danach grün - `All tests successful.`, 32 Testdateien,
 1105 Einzelprüfungen, davon 9 neu in `vinted_categories.sql`. Typen neu
 erzeugt (`npx supabase gen types typescript --local`); `vinted_categories`
-und `vinted_category_sync` darin geprüft. Voller Bericht mit TDD-Nachweis:
+und `vinted_category_syncs` darin geprüft. Voller Bericht mit TDD-Nachweis:
 `.superpowers/sdd/task-1-report.md`.
 
 ## 2026-09-06 – Claude – Zeitlimit der vollständigen Deckungsmessung angehoben

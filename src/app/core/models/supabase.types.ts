@@ -2845,7 +2845,7 @@ export type Database = {
           },
         ]
       }
-      vinted_category_sync: {
+      vinted_category_syncs: {
         Row: {
           category_count: number
           id: number

@@ -4,7 +4,7 @@
 
 **Ziel:** Der vollständige Vinted-Kategoriebaum liegt in der eigenen Datenbank, wird vom Sniper-Dienst aufgefrischt und ist in der Administration einsehbar.
 
-**Architektur:** Der Baum steht im HTML der Vinted-Startseite in einem Next.js-Flight-Block unter dem Schlüssel `catalogTree`. Ein Parser im Sniper-Dienst liest ihn dort heraus, flacht ihn auf und schreibt ihn in `public.vinted_categories`. Eine Einzeilentabelle `public.vinted_category_sync` hält fest, wann zuletzt gelesen wurde, ob jemand eine Auffrischung angefordert hat und was zuletzt schiefging. Die Angular-Seite in der Administration zeigt diesen Stand und kann eine Auffrischung anfordern.
+**Architektur:** Der Baum steht im HTML der Vinted-Startseite in einem Next.js-Flight-Block unter dem Schlüssel `catalogTree`. Ein Parser im Sniper-Dienst liest ihn dort heraus, flacht ihn auf und schreibt ihn in `public.vinted_categories`. Eine Einzeilentabelle `public.vinted_category_syncs` hält fest, wann zuletzt gelesen wurde, ob jemand eine Auffrischung angefordert hat und was zuletzt schiefging. Die Angular-Seite in der Administration zeigt diesen Stand und kann eine Auffrischung anfordern.
 
 **Tech-Stack:** Postgres/Supabase (Schemadateien plus erzeugte Migrationen, pgTAP), TypeScript im Dienst `services/sniper/` (vitest), Angular 22 mit Signals und Tailwind im Hauptprojekt.
 
@@ -33,7 +33,7 @@
 **Schnittstellen:**
 
 - Verbraucht: `public.is_platform_operator()` aus `supabase/schemas/99_platform_admin.sql`
-- Erzeugt: Tabelle `public.vinted_categories` (Spalten `id`, `parent_id`, `title`, `slug`, `path`, `is_leaf`, `updated_at`), Tabelle `public.vinted_category_sync` (Spalten `id`, `refreshed_at`, `requested_at`, `last_attempt_at`, `category_count`, `last_error`)
+- Erzeugt: Tabelle `public.vinted_categories` (Spalten `id`, `parent_id`, `title`, `slug`, `path`, `is_leaf`, `updated_at`), Tabelle `public.vinted_category_syncs` (Spalten `id`, `refreshed_at`, `requested_at`, `last_attempt_at`, `category_count`, `last_error`)
 
 **Achtung zur Ladereihenfolge:** Die Policies dieser Datei rufen `public.is_platform_operator()` auf, und die Funktion entsteht erst in `99_platform_admin.sql`. Die Datei muss deshalb **danach** geladen werden. Daher die Nummer **100** — Dateinummer und Ladeposition stimmen so überein, und niemand muss später raten, warum eine 51 am Ende steht.
 
@@ -74,7 +74,7 @@ $$;
 
 select pass('vinted_categories hat alle erwarteten Spalten');
 
--- Spalten von vinted_category_sync
+-- Spalten von vinted_category_syncs
 do $$
 declare
   required_columns text[] := array[
@@ -88,17 +88,17 @@ begin
   where not exists (
     select 1 from information_schema.columns as column_info
     where column_info.table_schema = 'public'
-      and column_info.table_name = 'vinted_category_sync'
+      and column_info.table_name = 'vinted_category_syncs'
       and column_info.column_name = required.column_name
   );
 
   if missing_columns is not null then
-    raise exception 'Fehlende Spalten in vinted_category_sync: %', missing_columns;
+    raise exception 'Fehlende Spalten in vinted_category_syncs: %', missing_columns;
   end if;
 end;
 $$;
 
-select pass('vinted_category_sync hat alle erwarteten Spalten');
+select pass('vinted_category_syncs hat alle erwarteten Spalten');
 
 -- RLS ist auf beiden Tabellen aktiv
 select is(
@@ -108,22 +108,22 @@ select is(
 );
 
 select is(
-  (select relrowsecurity from pg_class where oid = 'public.vinted_category_sync'::regclass),
+  (select relrowsecurity from pg_class where oid = 'public.vinted_category_syncs'::regclass),
   true,
-  'vinted_category_sync hat RLS aktiviert'
+  'vinted_category_syncs hat RLS aktiviert'
 );
 
 -- Genau eine Zeile im Auffrischungsstand, und sie laesst sich nicht vermehren
 select is(
-  (select count(*)::integer from public.vinted_category_sync),
+  (select count(*)::integer from public.vinted_category_syncs),
   1,
-  'vinted_category_sync enthaelt genau eine Zeile'
+  'vinted_category_syncs enthaelt genau eine Zeile'
 );
 
 do $$
 begin
   begin
-    insert into public.vinted_category_sync (id) values (2);
+    insert into public.vinted_category_syncs (id) values (2);
     raise exception 'Eine zweite Zeile haette abgelehnt werden muessen';
   exception
     when check_violation then
@@ -132,7 +132,7 @@ begin
 end;
 $$;
 
-select pass('vinted_category_sync laesst keine zweite Zeile zu');
+select pass('vinted_category_syncs laesst keine zweite Zeile zu');
 
 -- Anonyme duerfen nichts sehen
 set local role anon;
@@ -144,7 +144,7 @@ select is(
 );
 
 select is(
-  (select count(*)::integer from public.vinted_category_sync),
+  (select count(*)::integer from public.vinted_category_syncs),
   0,
   'anon sieht den Auffrischungsstand nicht'
 );
@@ -233,7 +233,7 @@ create index if not exists idx_vinted_categories_leaf
 
 -- Auffrischungsstand. Genau eine Zeile - die Pruefung auf id = 1 ist der
 -- einfachste Weg, das zu erzwingen, ohne einen Trigger zu schreiben.
-create table if not exists public.vinted_category_sync (
+create table if not exists public.vinted_category_syncs (
     id integer primary key default 1 check (id = 1),
     refreshed_at timestamptz,
     requested_at timestamptz,
@@ -242,24 +242,24 @@ create table if not exists public.vinted_category_sync (
     last_error text
 );
 
-comment on table public.vinted_category_sync is
+comment on table public.vinted_category_syncs is
     'Wann der Kategoriebaum zuletzt eingelesen wurde, ob eine Auffrischung angefordert ist und was zuletzt schiefging. Genau eine Zeile.';
 
-comment on column public.vinted_category_sync.requested_at is
+comment on column public.vinted_category_syncs.requested_at is
     'Von der Administration gesetzt. Liegt der Wert nach refreshed_at, liest der Dienst beim naechsten Takt neu ein. Bewusst ueber die Datenbank statt ueber einen Endpunkt: Der Dienst hat keinen offenen Eingang, und ein Feld genuegt.';
 
-insert into public.vinted_category_sync (id) values (1)
+insert into public.vinted_category_syncs (id) values (1)
 on conflict (id) do nothing;
 
-alter table public.vinted_category_sync enable row level security;
+alter table public.vinted_category_syncs enable row level security;
 
-create policy "Angemeldete lesen den Auffrischungsstand" on public.vinted_category_sync
+create policy "Angemeldete lesen den Auffrischungsstand" on public.vinted_category_syncs
     for select to authenticated
     using (true);
 
 -- Anfordern darf nur die Administration. Die Spaltenrechte weiter unten
 -- begrenzen zusaetzlich, welches Feld ueberhaupt geschrieben werden kann.
-create policy "Administration fordert Auffrischung an" on public.vinted_category_sync
+create policy "Administration fordert Auffrischung an" on public.vinted_category_syncs
     for update to authenticated
     using (public.is_platform_operator())
     with check (public.is_platform_operator());
@@ -267,13 +267,13 @@ create policy "Administration fordert Auffrischung an" on public.vinted_category
 revoke all on table public.vinted_categories from anon, authenticated;
 grant select on table public.vinted_categories to authenticated;
 
-revoke all on table public.vinted_category_sync from anon, authenticated;
-grant select on table public.vinted_category_sync to authenticated;
+revoke all on table public.vinted_category_syncs from anon, authenticated;
+grant select on table public.vinted_category_syncs to authenticated;
 
 -- Nur dieses eine Feld ist von aussen schreibbar. refreshed_at, category_count
 -- und last_error setzt allein der Dienst - waeren sie schreibbar, koennte die
 -- Oberflaeche einen Stand behaupten, den es nie gab.
-grant update (requested_at) on table public.vinted_category_sync to authenticated;
+grant update (requested_at) on table public.vinted_category_syncs to authenticated;
 ```
 
 - [ ] **Schritt 4: Schemadatei in die Ladereihenfolge eintragen**
@@ -298,14 +298,14 @@ npx supabase stop
 npx supabase db diff -f vinted_categories
 ```
 
-Danach die erzeugte Datei unter `supabase/migrations/` **öffnen und lesen**. Erwartet: `create table public.vinted_categories`, `create table public.vinted_category_sync`, beide `alter table ... enable row level security`, vier Policies, die `grant`/`revoke`-Zeilen und das `insert` der Einzelzeile. Fehlt etwas davon, ist der Abgleich unvollständig — dann die fehlenden Anweisungen von Hand in dieselbe Migrationsdatei nachtragen und im Kopfkommentar vermerken, warum.
+Danach die erzeugte Datei unter `supabase/migrations/` **öffnen und lesen**. Erwartet: `create table public.vinted_categories`, `create table public.vinted_category_syncs`, beide `alter table ... enable row level security`, vier Policies, die `grant`/`revoke`-Zeilen und das `insert` der Einzelzeile. Fehlt etwas davon, ist der Abgleich unvollständig — dann die fehlenden Anweisungen von Hand in dieselbe Migrationsdatei nachtragen und im Kopfkommentar vermerken, warum.
 
 Kopfkommentar der Migration ergänzen:
 
 ```sql
 -- Zweck: Kategoriebaum von Vinted speicherbar machen.
 -- Betroffen: neue Tabellen public.vinted_categories und
--- public.vinted_category_sync samt RLS, Policies und Spaltenrechten.
+-- public.vinted_category_syncs samt RLS, Policies und Spaltenrechten.
 -- Nicht destruktiv: legt nur an.
 ```
 
@@ -337,7 +337,7 @@ npm run typecheck
 ```
 
 Erwartet: erste Zeile `export type Json =`, Typprüfung ohne Fehler, und
-`vinted_categories` sowie `vinted_category_sync` tauchen in der Datei auf.
+`vinted_categories` sowie `vinted_category_syncs` tauchen in der Datei auf.
 
 - [ ] **Schritt 8: Commit**
 
@@ -783,7 +783,7 @@ describe('CategoryStore', () => {
   beforeEach(async () => {
     await client.from('vinted_categories').delete().gte('id', 0);
     await client
-      .from('vinted_category_sync')
+      .from('vinted_category_syncs')
       .update({ refreshed_at: null, requested_at: null, category_count: 0, last_error: null })
       .eq('id', 1);
   });
@@ -829,7 +829,7 @@ describe('CategoryStore', () => {
     expect(data).toHaveLength(2);
 
     const { data: sync } = await client
-      .from('vinted_category_sync')
+      .from('vinted_category_syncs')
       .select('last_error, refreshed_at')
       .eq('id', 1)
       .single();
@@ -874,7 +874,7 @@ export class CategoryStore {
 
   async readSyncState(): Promise<CategorySyncState> {
     const { data, error } = await this.client
-      .from('vinted_category_sync')
+      .from('vinted_category_syncs')
       .select('refreshed_at, requested_at')
       .eq('id', 1)
       .single();
@@ -924,7 +924,7 @@ export class CategoryStore {
 
   async markRefreshed(count: number, at: Date): Promise<void> {
     const { error } = await this.client
-      .from('vinted_category_sync')
+      .from('vinted_category_syncs')
       .update({
         refreshed_at: at.toISOString(),
         last_attempt_at: at.toISOString(),
@@ -938,7 +938,7 @@ export class CategoryStore {
 
   async markFailed(reason: string, at: Date): Promise<void> {
     const { error } = await this.client
-      .from('vinted_category_sync')
+      .from('vinted_category_syncs')
       .update({ last_attempt_at: at.toISOString(), last_error: reason })
       .eq('id', 1);
 
@@ -1451,7 +1451,7 @@ export class VintedCategoryService {
 
   async readStatus(): Promise<CategorySyncStatus> {
     const { data, error } = await this.supabase.client
-      .from('vinted_category_sync')
+      .from('vinted_category_syncs')
       .select('refreshed_at, requested_at, last_attempt_at, category_count, last_error')
       .eq('id', 1)
       .single();
@@ -1469,7 +1469,7 @@ export class VintedCategoryService {
 
   async requestRefresh(): Promise<void> {
     const { error } = await this.supabase.client
-      .from('vinted_category_sync')
+      .from('vinted_category_syncs')
       .update({ requested_at: new Date().toISOString() })
       .eq('id', 1);
 

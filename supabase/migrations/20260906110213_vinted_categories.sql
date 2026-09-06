@@ -1,6 +1,6 @@
 -- Zweck: Kategoriebaum von Vinted speicherbar machen.
 -- Betroffen: neue Tabellen public.vinted_categories und
--- public.vinted_category_sync samt RLS, Policies und Spaltenrechten.
+-- public.vinted_category_syncs samt RLS, Policies und Spaltenrechten.
 -- Nicht destruktiv: legt nur an.
 --
 -- Der Abgleich (`npx supabase db diff -f vinted_categories`) hat zusaetzlich
@@ -22,7 +22,7 @@
 -- von Hand nachgetragen: `revoke all` auf beiden neuen Tabellen (bei einer
 -- neu angelegten Tabelle ohne vorherige Rechte ein No-Op, der Diff-Vergleich
 -- erzeugt daher keine Anweisung dafuer) und das `insert` der Einzelzeile in
--- vinted_category_sync (Daten-, keine Schemaaenderung, wird von einem reinen
+-- vinted_category_syncs (Daten-, keine Schemaaenderung, wird von einem reinen
 -- Schema-Diff nicht erkannt).
 --
 -- Anon bekommt hier bewusst weder Policy noch Tabellenrecht. Ein frueherer
@@ -74,7 +74,7 @@ CREATE POLICY "Angemeldete lesen Kategorien" ON public.vinted_categories
   TO authenticated
   USING (true);
 
-CREATE TABLE public.vinted_category_sync (
+CREATE TABLE public.vinted_category_syncs (
   id              integer                  DEFAULT 1 NOT NULL,
   refreshed_at    timestamp with time zone,
   requested_at    timestamp with time zone,
@@ -83,38 +83,38 @@ CREATE TABLE public.vinted_category_sync (
   last_error      text
 );
 
-COMMENT ON TABLE public.vinted_category_sync IS 'Wann der Kategoriebaum zuletzt eingelesen wurde, ob eine Auffrischung angefordert ist und was zuletzt schiefging. Genau eine Zeile.';
+COMMENT ON TABLE public.vinted_category_syncs IS 'Wann der Kategoriebaum zuletzt eingelesen wurde, ob eine Auffrischung angefordert ist und was zuletzt schiefging. Genau eine Zeile.';
 
-COMMENT ON COLUMN public.vinted_category_sync.requested_at IS 'Von der Administration gesetzt. Liegt der Wert nach refreshed_at, liest der Dienst beim naechsten Takt neu ein. Bewusst ueber die Datenbank statt ueber einen Endpunkt: Der Dienst hat keinen offenen Eingang, und ein Feld genuegt.';
+COMMENT ON COLUMN public.vinted_category_syncs.requested_at IS 'Von der Administration gesetzt. Liegt der Wert nach refreshed_at, liest der Dienst beim naechsten Takt neu ein. Bewusst ueber die Datenbank statt ueber einen Endpunkt: Der Dienst hat keinen offenen Eingang, und ein Feld genuegt.';
 
-ALTER TABLE public.vinted_category_sync
+ALTER TABLE public.vinted_category_syncs
   ENABLE ROW LEVEL SECURITY;
 
-ALTER TABLE public.vinted_category_sync
-  ADD CONSTRAINT vinted_category_sync_id_check CHECK (id = 1);
+ALTER TABLE public.vinted_category_syncs
+  ADD CONSTRAINT vinted_category_syncs_id_check CHECK (id = 1);
 
-ALTER TABLE public.vinted_category_sync
-  ADD CONSTRAINT vinted_category_sync_pkey PRIMARY KEY (id);
+ALTER TABLE public.vinted_category_syncs
+  ADD CONSTRAINT vinted_category_syncs_pkey PRIMARY KEY (id);
 
 -- Muss nach der Primaerschluessel-Anlage stehen, sonst fehlt ON CONFLICT (id)
 -- das Ziel dafuer (SQLSTATE 42P10).
-INSERT INTO public.vinted_category_sync (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+INSERT INTO public.vinted_category_syncs (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 
-REVOKE ALL ON TABLE public.vinted_category_sync FROM anon, authenticated;
+REVOKE ALL ON TABLE public.vinted_category_syncs FROM anon, authenticated;
 
-GRANT SELECT ON public.vinted_category_sync TO authenticated;
+GRANT SELECT ON public.vinted_category_syncs TO authenticated;
 
-GRANT UPDATE (requested_at) ON public.vinted_category_sync TO authenticated;
+GRANT UPDATE (requested_at) ON public.vinted_category_syncs TO authenticated;
 
-GRANT ALL ON public.vinted_category_sync TO service_role;
+GRANT ALL ON public.vinted_category_syncs TO service_role;
 
-CREATE POLICY "Administration fordert Auffrischung an" ON public.vinted_category_sync
+CREATE POLICY "Administration fordert Auffrischung an" ON public.vinted_category_syncs
   FOR UPDATE
   TO authenticated
   USING (public.is_platform_operator())
   WITH CHECK (public.is_platform_operator());
 
-CREATE POLICY "Angemeldete lesen den Auffrischungsstand" ON public.vinted_category_sync
+CREATE POLICY "Angemeldete lesen den Auffrischungsstand" ON public.vinted_category_syncs
   FOR SELECT
   TO authenticated
   USING (true);

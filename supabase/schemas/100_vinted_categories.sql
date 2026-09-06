@@ -49,7 +49,7 @@ create index if not exists idx_vinted_categories_leaf
 
 -- Auffrischungsstand. Genau eine Zeile - die Pruefung auf id = 1 ist der
 -- einfachste Weg, das zu erzwingen, ohne einen Trigger zu schreiben.
-create table if not exists public.vinted_category_sync (
+create table if not exists public.vinted_category_syncs (
     id integer primary key default 1 check (id = 1),
     refreshed_at timestamptz,
     requested_at timestamptz,
@@ -58,24 +58,24 @@ create table if not exists public.vinted_category_sync (
     last_error text
 );
 
-comment on table public.vinted_category_sync is
+comment on table public.vinted_category_syncs is
     'Wann der Kategoriebaum zuletzt eingelesen wurde, ob eine Auffrischung angefordert ist und was zuletzt schiefging. Genau eine Zeile.';
 
-comment on column public.vinted_category_sync.requested_at is
+comment on column public.vinted_category_syncs.requested_at is
     'Von der Administration gesetzt. Liegt der Wert nach refreshed_at, liest der Dienst beim naechsten Takt neu ein. Bewusst ueber die Datenbank statt ueber einen Endpunkt: Der Dienst hat keinen offenen Eingang, und ein Feld genuegt.';
 
-insert into public.vinted_category_sync (id) values (1)
+insert into public.vinted_category_syncs (id) values (1)
 on conflict (id) do nothing;
 
-alter table public.vinted_category_sync enable row level security;
+alter table public.vinted_category_syncs enable row level security;
 
-create policy "Angemeldete lesen den Auffrischungsstand" on public.vinted_category_sync
+create policy "Angemeldete lesen den Auffrischungsstand" on public.vinted_category_syncs
     for select to authenticated
     using (true);
 
 -- Anfordern darf nur die Administration. Die Spaltenrechte weiter unten
 -- begrenzen zusaetzlich, welches Feld ueberhaupt geschrieben werden kann.
-create policy "Administration fordert Auffrischung an" on public.vinted_category_sync
+create policy "Administration fordert Auffrischung an" on public.vinted_category_syncs
     for update to authenticated
     using (public.is_platform_operator())
     with check (public.is_platform_operator());
@@ -90,10 +90,10 @@ create policy "Administration fordert Auffrischung an" on public.vinted_category
 revoke all on table public.vinted_categories from anon, authenticated;
 grant select on table public.vinted_categories to authenticated;
 
-revoke all on table public.vinted_category_sync from anon, authenticated;
-grant select on table public.vinted_category_sync to authenticated;
+revoke all on table public.vinted_category_syncs from anon, authenticated;
+grant select on table public.vinted_category_syncs to authenticated;
 
 -- Nur dieses eine Feld ist von aussen schreibbar. refreshed_at, category_count
 -- und last_error setzt allein der Dienst - waeren sie schreibbar, koennte die
 -- Oberflaeche einen Stand behaupten, den es nie gab.
-grant update (requested_at) on table public.vinted_category_sync to authenticated;
+grant update (requested_at) on table public.vinted_category_syncs to authenticated;

@@ -171,7 +171,7 @@ Spalten: `id` (die Vinted-Nummer, keine eigene), `parent_id`, `title`, `slug`,
 RLS: lesen dürfen alle Angemeldeten, schreiben nur der Dienst.
 
 Der Stand des ganzen Baums steht **nicht** an jeder Zeile, sondern in einer
-eigenen Einzeilentabelle `vinted_category_sync`: wann zuletzt gelesen wurde, ob
+eigenen Einzeilentabelle `vinted_category_syncs`: wann zuletzt gelesen wurde, ob
 jemand eine Auffrischung angefordert hat, was zuletzt schiefging. Ein Zeitpunkt
 je Kategorie beantwortete die eigentliche Frage nicht — „wie alt ist meine
 Liste" gilt für den Baum, nicht für einzelne Knoten. Über diese Tabelle stößt
