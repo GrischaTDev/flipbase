@@ -1,4 +1,3 @@
-import { TableColumnOption } from '../../core/models/table-preferences';
 import {
   afterRenderEffect,
   ChangeDetectionStrategy,
@@ -100,22 +99,6 @@ function validatedSaleTargetId(value: string | null): string | null {
 })
 export class SalesComponent {
   readonly tablePreferences = inject(TablePreferencesService);
-  readonly tableColumns = computed<readonly TableColumnOption[]>(() => [
-    { id: 'title', label: 'Verkaufter Artikel', required: true },
-    { id: 'quantity', label: 'Menge' },
-    { id: 'platform', label: 'Plattform' },
-    { id: 'date', label: 'Datum' },
-    { id: 'revenue', label: 'Verkaufserlös' },
-    { id: 'cost', label: 'Wareneinsatz' },
-    { id: 'selling_costs', label: 'Verkaufskosten' },
-    { id: 'result', label: 'Ergebnis' },
-    { id: 'margin', label: 'Marge' },
-    { id: 'holding', label: 'Haltedauer' },
-    { id: 'actions', label: 'Aktionen', required: true },
-  ]);
-  readonly visibleColumns = computed(() =>
-    this.tablePreferences.visibleColumns('sales', this.tableColumns()),
-  );
   /**
    * Vorgaben fuer das eigene Auswahlfeld.
    *
@@ -178,18 +161,11 @@ export class SalesComponent {
       this.workspaceId(),
     )(),
   );
+  readonly orderedVisibleColumns = computed(() =>
+    this.tablePrefs().columns.filter((column) => column.visible),
+  );
 
   isColumnVisible(colId: SalesColumnId | string): boolean {
-    const aliasMap: Record<string, string> = {
-      cost_of_goods_sold: 'cost',
-      sale_date: 'date',
-      profit: 'result',
-      holding_days: 'holding',
-    };
-    const pickerId = aliasMap[colId] || colId;
-    if (!this.visibleColumns().includes(pickerId)) {
-      return false;
-    }
     const col = this.tablePrefs().columns.find((c) => c.id === colId);
     return col?.visible ?? true;
   }

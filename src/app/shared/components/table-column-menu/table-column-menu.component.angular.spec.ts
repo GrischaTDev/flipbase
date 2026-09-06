@@ -120,6 +120,41 @@ describe('TableColumnMenuComponent', () => {
     expect(emittedSort).toEqual({ field: 'date', direction: 'asc' });
   });
 
+  it('should use the custom sort listbox and emit the selected field', () => {
+    component.toggleOpen();
+    fixture.detectChanges();
+
+    let emittedSort: TableSortState<string> | undefined;
+    component.sortChanged.subscribe((sort) => {
+      emittedSort = sort;
+    });
+
+    const sortFieldButton = fixture.nativeElement.querySelector(
+      '[aria-label="Sortierfeld"]',
+    ) as HTMLButtonElement;
+    sortFieldButton.click();
+    fixture.detectChanges();
+
+    const priceOption = Array.from(fixture.nativeElement.querySelectorAll('[role="option"]')).find(
+      (option: unknown) => (option as HTMLElement).textContent?.includes('Preis'),
+    ) as HTMLButtonElement | undefined;
+    expect(priceOption).toBeTruthy();
+    priceOption?.click();
+
+    expect(emittedSort).toEqual({ field: 'price', direction: 'desc' });
+    expect(component.isSortMenuOpen()).toBe(false);
+  });
+
+  it('should render the panel as a viewport overlay', () => {
+    component.toggleOpen();
+    fixture.detectChanges();
+
+    const dialog = fixture.nativeElement.querySelector('[role="dialog"]') as HTMLElement;
+    expect(dialog.classList.contains('fixed')).toBe(true);
+    expect(dialog.classList.contains('overflow-y-auto')).toBe(true);
+    expect(dialog.style.maxHeight).toBeTruthy();
+  });
+
   it('should emit columnVisibilityToggled when an optional column is clicked', () => {
     component.toggleOpen();
     fixture.detectChanges();

@@ -23,6 +23,8 @@ let nextPickerId = 0;
     class: 'relative block',
     '(document:click)': 'onOutsideClick($event)',
     '(keydown.escape)': 'close($event)',
+    '(window:resize)': 'onViewportChange()',
+    '(window:scroll)': 'onViewportChange()',
   },
 })
 export class TableColumnPickerComponent {
@@ -35,6 +37,8 @@ export class TableColumnPickerComponent {
   readonly saveError = input<string | null>(null);
   readonly selectedChange = output<readonly string[]>();
   readonly isOpen = signal(false);
+  readonly panelPosition = signal({ top: 8, left: 8 });
+  readonly panelPlacement = signal<'above' | 'below'>('below');
   readonly panelId = `table-columns-${++nextPickerId}`;
   readonly headingId = `${this.panelId}-heading`;
   readonly columnsIcon = LucideColumns3;
@@ -46,6 +50,10 @@ export class TableColumnPickerComponent {
       afterNextRender(
         {
           mixedReadWrite: () => {
+            this.positionPanel();
+            if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
+              window.requestAnimationFrame(() => this.positionPanel());
+            }
             this.panel()?.nativeElement.querySelector<HTMLInputElement>('input')?.focus();
           },
         },
@@ -74,6 +82,40 @@ export class TableColumnPickerComponent {
     event.stopPropagation();
     this.isOpen.set(false);
     this.trigger()?.nativeElement.focus();
+  }
+
+  onViewportChange(): void {
+    if (this.isOpen()) this.positionPanel();
+  }
+
+  private positionPanel(): void {
+    const trigger = this.trigger()?.nativeElement;
+    const panel = this.panel()?.nativeElement;
+    if (!trigger || !panel) return;
+
+    const triggerBox = trigger.getBoundingClientRect();
+    const panelBox = panel.getBoundingClientRect();
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+    const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+    const edge = 8;
+    const gap = 8;
+    const width = panelBox.width || 288;
+    const height = panelBox.height || 320;
+    const belowTop = triggerBox.bottom + gap;
+    const aboveTop = triggerBox.top - height - gap;
+    const top =
+      belowTop + height <= viewportHeight - edge || aboveTop < edge
+        ? Math.min(belowTop, viewportHeight - height - edge)
+        : aboveTop;
+    const placement =
+      belowTop + height <= viewportHeight - edge || aboveTop < edge ? 'below' : 'above';
+    const left = Math.min(
+      Math.max(edge, triggerBox.right - width),
+      Math.max(edge, viewportWidth - width - edge),
+    );
+
+    this.panelPosition.set({ top: Math.max(edge, top), left });
+    this.panelPlacement.set(placement);
   }
   onOutsideClick(event: Event): void {
     if (event.target instanceof Node && !this.element.nativeElement.contains(event.target)) {

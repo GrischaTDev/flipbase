@@ -8,6 +8,8 @@ import {
 } from '../models/table-preferences.models';
 import {
   ACCOUNTING_TABLE_CONFIG,
+  BETA_APPLICATIONS_TABLE_CONFIG,
+  CATALOG_TABLE_CONFIG,
   INVENTORY_TABLE_CONFIG,
   PURCHASES_TABLE_CONFIG,
   SALES_TABLE_CONFIG,
@@ -48,6 +50,8 @@ export class TablePreferencesService {
     inventory: INVENTORY_TABLE_CONFIG,
     purchases: PURCHASES_TABLE_CONFIG,
     accounting: ACCOUNTING_TABLE_CONFIG,
+    catalog: CATALOG_TABLE_CONFIG,
+    beta_applications: BETA_APPLICATIONS_TABLE_CONFIG,
   };
 
   private readonly stateSignals = new Map<string, WritableSignal<TableState>>();

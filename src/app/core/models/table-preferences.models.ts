@@ -1,4 +1,5 @@
-export type TableId = 'sales' | 'inventory' | 'purchases' | 'accounting';
+export type TableId =
+  'sales' | 'inventory' | 'purchases' | 'accounting' | 'catalog' | 'beta_applications';
 
 export type SortDirection = 'asc' | 'desc';
 

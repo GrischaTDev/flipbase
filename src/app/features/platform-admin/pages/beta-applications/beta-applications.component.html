@@ -1,107 +1,224 @@
-<section class="p-6">
-  <h1 class="text-2xl font-semibold mb-1">Bewerbungen</h1>
-  <p class="text-sm opacity-70 mb-6">
-    Bewerbungen um einen Beta-Zugang. Angenommene Bewerbungen bekommen ihre Einladung im nächsten
-    Schritt.
-  </p>
+<section class="space-y-4">
+  <header
+    class="flex flex-col gap-3 border-b border-fb-line pb-3 sm:flex-row sm:items-center sm:justify-between"
+  >
+    <div>
+      <h1 class="text-xl font-bold tracking-tight text-fb-text-primary">Bewerbungen</h1>
+      <p class="mt-0.5 text-xs text-fb-text-muted">
+        Bewerbungen um einen Beta-Zugang verwalten und Entscheidungen dokumentieren.
+      </p>
+    </div>
+    <label class="flex items-center gap-2 text-xs font-semibold text-fb-text-secondary">
+      Laufzeit bei Annahme
+      <span class="sr-only">in Tagen</span>
+      <input
+        type="number"
+        min="1"
+        max="3650"
+        class="linear-input w-24 rounded-md px-2.5 py-2 text-[13px]"
+        [value]="grantedDays()"
+        (change)="onGrantedDaysChange($any($event.target).value)"
+      />
+      Tage
+    </label>
+  </header>
 
   @if (error(); as meldung) {
-    <p class="mb-4 rounded-lg bg-red-500/10 p-3 text-sm text-red-300" role="alert">{{ meldung }}</p>
+    <p
+      class="rounded-lg border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-700"
+      role="alert"
+    >
+      {{ meldung }}
+    </p>
   }
 
-  <label class="mb-6 flex items-center gap-2 text-sm">
-    <span>Laufzeit bei Annahme (Tage)</span>
-    <input
-      type="number"
-      min="1"
-      max="3650"
-      class="w-24 rounded-lg border border-white/10 bg-transparent px-2 py-1"
-      [value]="grantedDays()"
-      (change)="onGrantedDaysChange($any($event.target).value)"
-    />
-  </label>
-
-  @if (loading()) {
-    <p class="text-sm opacity-70">Wird geladen …</p>
-  } @else if (applications().length === 0) {
-    @if (!error()) {
-      <p class="text-sm opacity-70">Es liegt noch keine Bewerbung vor.</p>
-    }
-  } @else {
-    <table class="w-full text-left text-sm">
-      <thead class="opacity-70">
-        <tr>
-          <th class="py-2">Name</th>
-          <th class="py-2">E-Mail</th>
-          <th class="py-2">Eingang</th>
-          <th class="py-2">Status</th>
-          <th class="py-2">Laufzeit</th>
-          <th class="py-2"><span class="sr-only">Aktion</span></th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (application of applications(); track application.id) {
-          @let bewerberName = application.firstName + ' ' + application.lastName;
-          <tr class="border-t border-white/10">
-            <td class="py-2">{{ bewerberName }}</td>
-            <td class="py-2">{{ application.email }}</td>
-            <td class="py-2">{{ application.createdAt | date: 'dd.MM.yyyy' }}</td>
-            <td class="py-2">
-              @switch (application.status) {
-                @case ('open') {
-                  offen
-                }
-                @case ('accepted') {
-                  angenommen
-                }
-                @case ('rejected') {
-                  abgelehnt
-                }
-              }
-            </td>
-            <td class="py-2">
-              @if (application.grantedDays !== null) {
-                {{ application.grantedDays }} Tage
-              }
-            </td>
-            <td class="py-2 text-right">
-              @if (application.status === 'open') {
-                <!-- Die Notiz wird ueber einen Vorlagenverweis gelesen, statt je
-                     Zeile ein Signal zu halten: Sie wird genau einmal gebraucht,
-                     im Moment des Klicks. -->
-                <input
-                  #note
-                  type="text"
-                  maxlength="500"
-                  placeholder="Notiz (optional)"
-                  [attr.aria-label]="'Notiz zur Entscheidung über ' + bewerberName"
-                  class="mr-2 w-48 rounded-lg border border-white/10 bg-transparent px-2 py-1"
-                />
-                <button
-                  type="button"
-                  class="mr-2 underline disabled:opacity-50 disabled:cursor-not-allowed"
-                  [attr.aria-label]="'Bewerbung von ' + bewerberName + ' annehmen'"
-                  [disabled]="decidingId() === application.id"
-                  (click)="accept(application, note.value)"
-                >
-                  Annehmen
-                </button>
-                <button
-                  type="button"
-                  class="underline disabled:opacity-50 disabled:cursor-not-allowed"
-                  [attr.aria-label]="'Bewerbung von ' + bewerberName + ' ablehnen'"
-                  [disabled]="decidingId() === application.id"
-                  (click)="reject(application, note.value)"
-                >
-                  Ablehnen
-                </button>
-              } @else if (application.decisionNote) {
-                <span class="opacity-70">{{ application.decisionNote }}</span>
-              }
-            </td>
-          </tr>
+  <div class="linear-surface relative overflow-visible rounded-xl">
+    <div class="flex flex-wrap items-center gap-2 border-b border-fb-line p-2">
+      <div
+        class="flex items-center gap-1 overflow-x-auto text-xs"
+        role="group"
+        aria-label="Bewerbungsstatus filtern"
+      >
+        @for (filter of betaStatusFilters; track filter.value) {
+          <button
+            type="button"
+            class="cursor-pointer whitespace-nowrap rounded-md px-2.5 py-1.5 font-semibold transition"
+            [class.bg-fb-line]="statusFilter() === filter.value"
+            [class.text-fb-text-primary]="statusFilter() === filter.value"
+            [class.text-fb-text-secondary]="statusFilter() !== filter.value"
+            [class.hover:bg-fb-surface-hover]="statusFilter() !== filter.value"
+            [attr.aria-pressed]="statusFilter() === filter.value"
+            (click)="statusFilter.set(filter.value)"
+          >
+            {{ filter.label }}
+          </button>
         }
-      </tbody>
-    </table>
-  }
+      </div>
+      <label class="relative min-w-56 flex-1">
+        <span class="sr-only">Bewerbungen durchsuchen</span>
+        <input
+          [value]="searchQuery()"
+          (input)="searchQuery.set($any($event.target).value)"
+          type="search"
+          placeholder="Suchen und filtern …"
+          class="linear-input w-full rounded-md py-2 pl-3 pr-3 text-[13px]"
+        />
+      </label>
+      <div class="border-l border-fb-line pl-2">
+        <app-table-column-menu
+          [columns]="tablePrefs().columns"
+          [sortOptions]="betaTableConfig.sortOptions"
+          [currentSort]="tablePrefs().sort"
+          (columnVisibilityToggled)="toggleColumnVisibility($event)"
+          (columnsReordered)="onColumnsReordered($event)"
+          (sortChanged)="onSortChanged($event)"
+          (resetRequested)="resetTablePreferences()"
+        />
+      </div>
+    </div>
+
+    @if (loading()) {
+      <div class="px-5 py-10 text-center" role="status">
+        <p class="text-sm font-semibold text-fb-text-secondary">Bewerbungen werden geladen …</p>
+      </div>
+    } @else if (filteredApplications().length === 0) {
+      <div class="px-5 py-10 text-center">
+        @if (!error()) {
+          <p class="text-sm font-semibold text-fb-text-secondary">
+            {{
+              applications().length === 0
+                ? 'Es liegt noch keine Bewerbung vor.'
+                : 'Keine Bewerbung gefunden.'
+            }}
+          </p>
+        }
+      </div>
+    } @else {
+      <div class="overflow-x-auto">
+        <table data-beta-applications-table class="linear-table min-w-[900px]">
+          <caption class="sr-only">
+            Bewerbungen für die Beta-Phase
+          </caption>
+          <thead>
+            <tr>
+              @for (column of orderedVisibleColumns(); track column.id) {
+                @switch (column.id) {
+                  @case ('applicant') {
+                    <th scope="col" class="min-w-48">Name</th>
+                  }
+                  @case ('email') {
+                    <th scope="col" class="min-w-56">E-Mail</th>
+                  }
+                  @case ('created_at') {
+                    <th scope="col">Eingang</th>
+                  }
+                  @case ('status') {
+                    <th scope="col">Status</th>
+                  }
+                  @case ('granted_days') {
+                    <th scope="col" class="text-right">Laufzeit</th>
+                  }
+                  @case ('decision_note') {
+                    <th scope="col" class="min-w-56">Notiz</th>
+                  }
+                  @case ('actions') {
+                    <th scope="col" class="min-w-80 text-right">Aktionen</th>
+                  }
+                }
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (application of filteredApplications(); track application.id) {
+              @let bewerberName = applicantName(application);
+              <tr class="transition hover:bg-fb-surface-hover">
+                @for (column of orderedVisibleColumns(); track column.id) {
+                  @switch (column.id) {
+                    @case ('applicant') {
+                      <td class="font-semibold text-fb-text-primary">{{ bewerberName }}</td>
+                    }
+                    @case ('email') {
+                      <td class="text-fb-text-secondary">{{ application.email }}</td>
+                    }
+                    @case ('created_at') {
+                      <td>
+                        <time [attr.datetime]="application.createdAt">{{
+                          application.createdAt | date: 'dd.MM.yyyy'
+                        }}</time>
+                      </td>
+                    }
+                    @case ('status') {
+                      <td>
+                        <span
+                          class="inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold"
+                          [class.border-amber-500/40]="application.status === 'open'"
+                          [class.bg-amber-500/10]="application.status === 'open'"
+                          [class.text-amber-800]="application.status === 'open'"
+                          [class.border-emerald-500/40]="application.status === 'accepted'"
+                          [class.bg-emerald-500/10]="application.status === 'accepted'"
+                          [class.text-emerald-800]="application.status === 'accepted'"
+                          [class.border-fb-line]="application.status === 'rejected'"
+                          [class.text-fb-text-secondary]="application.status === 'rejected'"
+                        >
+                          {{ statusLabel(application.status) }}
+                        </span>
+                      </td>
+                    }
+                    @case ('granted_days') {
+                      <td class="text-right font-mono">
+                        {{
+                          application.grantedDays === null ? '—' : application.grantedDays + ' Tage'
+                        }}
+                      </td>
+                    }
+                    @case ('decision_note') {
+                      <td class="max-w-72 truncate text-fb-text-secondary">
+                        {{ application.decisionNote || '—' }}
+                      </td>
+                    }
+                    @case ('actions') {
+                      <td class="text-right">
+                        @if (application.status === 'open') {
+                          <div class="flex flex-wrap items-center justify-end gap-2">
+                            <input
+                              #note
+                              type="text"
+                              maxlength="500"
+                              placeholder="Notiz (optional)"
+                              [attr.aria-label]="'Notiz zur Entscheidung über ' + bewerberName"
+                              class="linear-input w-48 rounded-md px-2.5 py-2 text-[13px]"
+                            />
+                            <button
+                              type="button"
+                              class="linear-btn-primary rounded-md px-2.5 py-2 text-xs font-semibold"
+                              [disabled]="decidingId() === application.id"
+                              [attr.aria-label]="'Bewerbung von ' + bewerberName + ' annehmen'"
+                              (click)="accept(application, note.value)"
+                            >
+                              Annehmen
+                            </button>
+                            <button
+                              type="button"
+                              class="linear-btn-secondary rounded-md px-2.5 py-2 text-xs font-semibold"
+                              [disabled]="decidingId() === application.id"
+                              [attr.aria-label]="'Bewerbung von ' + bewerberName + ' ablehnen'"
+                              (click)="reject(application, note.value)"
+                            >
+                              Ablehnen
+                            </button>
+                          </div>
+                        } @else {
+                          <span class="text-xs text-fb-text-muted">Entscheidung gespeichert</span>
+                        }
+                      </td>
+                    }
+                  }
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
 </section>

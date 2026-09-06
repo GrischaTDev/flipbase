@@ -176,3 +176,46 @@ for (const [url, column] of [
     await expect(page.getByRole('columnheader', { name: column, exact: true })).toBeVisible();
   });
 }
+
+test('hält das Spaltenmenü auf kleinen Bildschirmen vollständig im Viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await startDemoMode(page);
+  await page.goto('/sales');
+
+  const control = await openColumnControl(page);
+  const panel = control.locator('[role="dialog"]');
+  const panelBox = await panel.boundingBox();
+  const viewport = page.viewportSize();
+
+  expect(panelBox).not.toBeNull();
+  expect(viewport).not.toBeNull();
+  expect(panelBox!.x).toBeGreaterThanOrEqual(0);
+  expect(panelBox!.y).toBeGreaterThanOrEqual(0);
+  expect(panelBox!.x + panelBox!.width).toBeLessThanOrEqual(viewport!.width);
+  expect(panelBox!.y + panelBox!.height).toBeLessThanOrEqual(viewport!.height);
+
+  await panel.getByRole('button', { name: 'Sortierfeld' }).click();
+  const sortList = panel.getByRole('listbox');
+  await expect(sortList).toBeVisible();
+  const sortBox = await sortList.boundingBox();
+  expect(sortBox).not.toBeNull();
+  expect(sortBox!.x).toBeGreaterThanOrEqual(0);
+  expect(sortBox!.x + sortBox!.width).toBeLessThanOrEqual(viewport!.width);
+});
+
+test('rendert eine verschobene Verkaufsspalte in derselben Reihenfolge wie das Menü', async ({
+  page,
+}) => {
+  await startDemoMode(page);
+  await page.goto('/sales');
+
+  const control = await openColumnControl(page);
+  await control
+    .getByRole('button', { name: 'Spalte Menge nach oben verschieben', exact: true })
+    .evaluate((button) => (button as HTMLButtonElement).click());
+  await page.keyboard.press('Escape');
+
+  const headers = await page.locator('table thead th').allTextContents();
+  expect(headers[0].trim()).toBe('Menge');
+  expect(headers[1].trim()).toBe('Verkaufter Artikel');
+});

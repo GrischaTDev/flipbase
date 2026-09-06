@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { startDemoMode } from './support/demo';
 
-test('lädt Inter lokal auch für Bedienelemente und Kennzahlen', async ({ page }) => {
+test('setzt Inter als globale Anwendungsschrift', async ({ page }) => {
   const fontRequests: string[] = [];
   page.on('request', (request) => {
     if (request.resourceType() === 'font') fontRequests.push(request.url());
@@ -22,7 +22,52 @@ test('lädt Inter lokal auch für Bedienelemente und Kennzahlen', async ({ page 
     'font-family',
     /^"?Inter"?,/,
   );
-  await expect(page.locator('.font-mono').first()).toHaveCSS('font-family', /^"?JetBrains Mono"?,/);
+  await expect(page.locator('.font-mono').first()).toHaveCSS('font-family', /^"?Inter"?,/);
+
+  for (const route of [
+    '/dashboard',
+    '/sales',
+    '/purchases',
+    '/inventory',
+    '/catalog',
+    '/accounting',
+  ]) {
+    await page.goto(route);
+    await expect(page.locator('main')).toBeVisible();
+    const nonInterElements = await page.evaluate(() => {
+      const isVisible = (element: HTMLElement): boolean => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return (
+          style.display !== 'none' &&
+          style.visibility !== 'hidden' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+
+      return Array.from(document.querySelectorAll<HTMLElement>('body *'))
+        .filter((element) => element.textContent?.trim() && isVisible(element))
+        .map((element) => ({
+          element: element.tagName.toLowerCase(),
+          fontFamily: getComputedStyle(element).fontFamily,
+        }))
+        .filter(({ fontFamily }) => !/^"?Inter"?,/.test(fontFamily));
+    });
+    expect(nonInterElements, `Nicht-Inter-Elemente auf ${route}`).toEqual([]);
+  }
+
+  await page.evaluate(() => {
+    const fixture = document.createElement('div');
+    fixture.dataset.typographyFixture = 'true';
+    fixture.innerHTML = '<code>code</code><pre>pre</pre><kbd>kbd</kbd><samp>samp</samp>';
+    document.body.append(fixture);
+  });
+  const nativeTextElements = page.locator('[data-typography-fixture] :is(code, pre, kbd, samp)');
+  await expect(nativeTextElements).toHaveCount(4);
+  for (let index = 0; index < 4; index += 1) {
+    await expect(nativeTextElements.nth(index)).toHaveCSS('font-family', /^"?Inter"?,/);
+  }
   expect(fontRequests.some((url) => url.endsWith('/fonts/inter-variable-4.1.woff2'))).toBe(true);
   expect(fontRequests.every((url) => new URL(url).origin === new URL(page.url()).origin)).toBe(
     true,

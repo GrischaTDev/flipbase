@@ -21,6 +21,7 @@ import {
 import { StockPositionListComponent } from './stock-position-list.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
+import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -55,6 +56,10 @@ beforeAll(async () => {
       'src/app/shared/components/custom-select/custom-select.component.html',
     './custom-select.component.scss':
       'src/app/shared/components/custom-select/custom-select.component.scss',
+    './table-column-menu.component.html':
+      'src/app/shared/components/table-column-menu/table-column-menu.component.html',
+    './table-column-menu.component.scss':
+      'src/app/shared/components/table-column-menu/table-column-menu.component.scss',
   };
   await ɵresolveComponentResources((url) => {
     const resource = resources[url];
@@ -85,7 +90,12 @@ afterAll(() => {
 beforeEach(async () => {
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
-    imports: [StockPositionListComponent, CustomSelectComponent, CostStateComponent],
+    imports: [
+      StockPositionListComponent,
+      CustomSelectComponent,
+      CostStateComponent,
+      TableColumnMenuComponent,
+    ],
     providers: [provideRouter([])],
   });
   await TestBed.compileComponents();

@@ -1,5 +1,69 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Codex – E2E-Selektor nach Tabellenaktion eindeutig gemacht
+
+**Befund:** Der GitHub-Browser-Smoke meldete nach der Tabellenüberarbeitung
+einen Strict-Mode-Fehler, weil Titel-Link und Icon-Aktion desselben Einkaufs
+denselben zugänglichen Namen enthielten.
+
+**Korrektur:** Der Navigationstest verwendet jetzt das eindeutige
+`data-purchase-row`-Merkmal für den Demo-Einkauf. Die zwei bewusst vorhandenen
+Bedienelemente bleiben unverändert.
+
+**Prüfung:** Der Fehler wurde im CI-Job `Browser smoke` reproduziert und die
+gezielte Korrektur lokal geprüft. Die Änderung erfolgt ausschließlich im
+isolierten Worktree `codex/polaris-table-system`.
+
+## 2026-09-06 – Codex – Inter als einzige Anwendungsschrift festgelegt
+
+**Ergebnis:** Die globale Tailwind-Schriftvariable `font-mono` verweist jetzt
+ebenfalls auf Inter. Dadurch nutzen auch bestehende Kennzahlen, Zahlen,
+technische Werte, Tabellenzellen und Formulare dieselbe Schrift wie die übrige
+Oberfläche. Die lokalen Font-Dateien enthalten nur noch Inter; ungenutzte
+JetBrains-Mono- und Plus-Jakarta-Sans-Dateien wurden entfernt.
+
+**Prüfung:** Der Typografie-E2E-Test prüft die sichtbare `font-mono`-Klasse,
+die semantischen Elemente `code`, `pre`, `kbd` und `samp` sowie sichtbare
+Text-Elemente auf den zentralen Verwaltungsrouten explizit auf Inter.
+Typecheck, Lint, Prettier, Angular-Suite (470 bestanden, 5 übersprungen),
+Produktionsbau sowie die 9 relevanten Playwright-Tests liefen erfolgreich. Die
+Änderung wurde ausschließlich im isolierten Worktree
+`codex/polaris-table-system` vorgenommen; fremde Branches und Worktrees wurden
+nicht verändert.
+
+## 2026-09-06 – Codex – Tabellen- und Spaltenmenü-Überarbeitung umgesetzt
+
+**Ergebnis:** Das Spalten-/Sortiermenü ist jetzt ein viewport-begrenztes,
+collision-aware Overlay mit eigener Sortierauswahl, Fokus-Rückgabe,
+Tastatur-Reorder und passendem Animationsursprung für die Position ober- oder
+unterhalb des Auslösers. Die Flipbase-orange Akzentfarbe bleibt erhalten.
+
+**Betroffene Bereiche:** Verkäufe, Einkäufe, Inventar, Artikelstamm,
+Buchhaltung und Betreiber-Beta-Bewerbungen verwenden die gemeinsame
+Tabellenpräferenz- und Menülogik. Header und Zellen werden aus derselben
+geordneten Spaltenliste gerendert; die Inventarfilter und Archivtabs sitzen in
+der gemeinsamen Tabellen-Toolbar. Die Beta-Seite erhielt außerdem eine
+semantische, responsive Tabelle mit Suche, Statusfiltern und Zuständen.
+
+**Prüfung:** Typecheck, Lint, Prettier, Angular-Suite (470 bestanden, 5
+übersprungen), Produktionsbau und die relevante Playwright-Suite (8/8)
+erfolgreich. Der zusätzliche unabhängige Review fand keine
+blockerrelevanten Befunde. Geprüft wurde ausschließlich im isolierten
+Worktree `codex/polaris-table-system`; kein fremder Branch wurde verändert.
+
+## 2026-09-06 – Codex – Tabellen- und Spaltenmenü-Audit gestartet
+
+**Anlass:** Die Tabellen in Verkäufen, Einkäufen, Inventar, Artikelstamm und
+Betreiber/Beta-Bewerbungen sollen ein einheitliches, Shopify-Polaris-nahes
+Muster erhalten. Das bestehende Spaltenmenü wird in der Verkaufstabelle
+abgeschnitten; weitere Bereiche verwenden abweichende Picker und Toolbars.
+
+**Vorgehen:** Die Überarbeitung läuft ausschließlich im isolierten Worktree
+`codex/polaris-table-system`. Die angehängten Screenshots dienen als visuelle
+Referenz. Shopify-Dokumentation und drei getrennte Code-Audits werden gegen die
+aktuelle Codebasis geprüft; nach der Umsetzung folgt eine zusätzliche
+unabhängige Gegenprüfung des gesamten Diffs.
+
 ## 2026-09-06 – Claude – Zeitlimit der vollständigen Deckungsmessung angehoben
 
 **Richtigstellung:** Im ersten Eintrag von heute steht, der Auftrag „Full

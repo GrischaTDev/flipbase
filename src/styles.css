@@ -370,7 +370,8 @@ html.dark {
 */
 @theme inline {
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  /* Inter ist die einzige Anwendungsschrift - auch für Zahlen und technische Werte. */
+  --font-mono: var(--font-sans);
 
   /* Eigene Design-Tokens */
   --color-fb-bg: var(--fb-bg-app);
@@ -463,6 +464,11 @@ html.dark {
     padding: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Tailwind Preflight setzt semantische Textcontainer sonst auf ui-monospace. */
+  :where(code, pre, kbd, samp) {
+    font-family: var(--font-sans);
   }
 
   /* Sichtbarer Fokusrahmen fuer die Tastaturbedienung (WCAG 2.4.7).
