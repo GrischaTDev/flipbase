@@ -11,7 +11,6 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import type { InventoryItem, Purchase } from '../../core/models/flipbase.models';
 import { InventoryService } from '../../core/services/inventory.service';
 import { InboundTrackingService } from '../../core/services/inbound-tracking.service';
-import { OfflineSyncService } from '../../core/services/offline-sync.service';
 import { PurchaseService } from '../../core/services/purchase.service';
 import { StockService } from '../../core/services/stock.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
@@ -124,6 +123,8 @@ const purchases: Purchase[] = [
   },
 ];
 
+const purchaseState = signal(purchases);
+
 const inventoryItem: InventoryItem = {
   id: 'item-1',
   workspace_id: workspaceId,
@@ -137,6 +138,8 @@ const inventoryItem: InventoryItem = {
 };
 
 beforeEach(() => {
+  localStorage.clear();
+  purchaseState.set(purchases);
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     imports: [
@@ -150,7 +153,7 @@ beforeEach(() => {
       provideTranslateService({ lang: 'de' }),
       {
         provide: PurchaseService,
-        useValue: { purchases: signal(purchases) },
+        useValue: { purchases: purchaseState },
       },
       {
         provide: InventoryService,
@@ -175,17 +178,6 @@ beforeEach(() => {
       {
         provide: WorkspaceService,
         useValue: { currentWorkspace: signal({ id: workspaceId }) },
-      },
-      {
-        provide: OfflineSyncService,
-        useValue: {
-          cashWallet: signal({ startCash: 0, currentCash: 0, locationName: '' }),
-          pendingCount: signal(0),
-          pendingEntries: signal([]),
-          potentialProfitEstimate: signal(0),
-          isOnline: signal(true),
-          isSyncing: signal(false),
-        },
       },
       {
         provide: InboundTrackingService,
@@ -251,6 +243,71 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
 
     expect(fixture.componentInstance.searchQuery()).toBe('');
     expect(host.querySelectorAll('[data-purchase-table-row]')).toHaveLength(2);
+  });
+
+  it('kombiniert Nummernsuche, Status und Verkäufer-ID und setzt die gesamte Ansicht zurück', () => {
+    const list = purchaseState;
+    list.set([
+      {
+        ...purchases[0],
+        record_number: 'EK-104',
+        supplier_reference: 'Rechnung-777',
+        supplier_id: 'seller-a',
+        supplier: { id: 'seller-a', workspace_id: workspaceId, name: 'Alex' },
+      },
+      {
+        ...purchases[0],
+        id: 'other',
+        record_number: 'EK-105',
+        supplier_id: 'seller-b',
+        supplier: { id: 'seller-b', workspace_id: workspaceId, name: 'Alex' },
+      },
+      { ...purchases[0], id: 'archive', receiving_status: 'archived' },
+    ]);
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    const component = fixture.componentInstance;
+    expect(component.purchaseRows()).toHaveLength(2);
+    expect((fixture.nativeElement as HTMLElement).textContent).not.toContain('Normale Einkäufe');
+    component.activeStatus.set('received');
+    component.searchQuery.set('EK-104');
+    component.sellerId.set('seller-a');
+    fixture.detectChanges();
+    expect(component.purchaseRows().map((row) => row.reference)).toEqual(['EK-104']);
+    component.searchQuery.set('Rechnung-777');
+    expect(component.purchaseRows().map((row) => row.reference)).toEqual(['EK-104']);
+    component.sellerId.set('seller-b');
+    expect(component.purchaseRows()).toHaveLength(0);
+    component.resetView();
+    fixture.detectChanges();
+    expect(component.purchaseRows()).toHaveLength(2);
+    expect(component.viewModified()).toBe(false);
+    component.activeStatus.set('archived');
+    expect(component.purchaseRows().map((row) => row.id)).toEqual(['archive']);
+    list.set(purchases);
+  });
+
+  it('stellt gespeicherte Suchfilter wieder her und speichert deren Rücksetzung', () => {
+    localStorage.setItem(
+      `flipbase_purchase_filters_v2_${workspaceId}`,
+      JSON.stringify({
+        status: 'ordered',
+        query: 'keine Treffer',
+        sellerId: 'supplier-1',
+        activeTab: 'mystery_pack',
+      }),
+    );
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.activeStatus()).toBe('ordered');
+    expect(fixture.componentInstance.searchQuery()).toBe('keine Treffer');
+    fixture.componentInstance.resetView();
+    fixture.detectChanges();
+    const stored = JSON.parse(
+      localStorage.getItem(`flipbase_purchase_filters_v2_${workspaceId}`) ?? '{}',
+    );
+    expect(stored).toEqual({ status: 'all', query: '', sellerId: '' });
+    expect(fixture.componentInstance.purchaseRows()).toHaveLength(2);
   });
 
   it('besteht für die neue Einkaufsliste den strukturellen AXE-Check', async () => {

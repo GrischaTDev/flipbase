@@ -112,6 +112,7 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
 
   Object.assign(komponente, {
     purchase: () => vorhandener,
+    requestId: 'test-request-id',
     purchaseService,
     purchaseCostingService,
     sourcesService,
@@ -135,6 +136,10 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
     purchaseLines: signal([]),
     form: new FormGroup({
       type: new FormControl<PurchaseType>('single', { nonNullable: true }),
+      content_status: new FormControl('known', { nonNullable: true }),
+      pricing_mode: new FormControl('individual', { nonNullable: true }),
+      supplier_reference: new FormControl('', { nonNullable: true }),
+      discount_amount: new FormControl(0, { nonNullable: true }),
       title: new FormControl('Konsole', {
         nonNullable: true,
         validators: [Validators.required, Validators.minLength(2)],
@@ -173,6 +178,31 @@ function erstelleKomponente(vorhandener: Purchase | null = null) {
 describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
+
+  it('speichert einen leeren Einkauf ohne Titel oder Verkaeufer nur als Entwurf', async () => {
+    const { komponente, purchaseService, purchaseCostingService } = erstelleKomponente();
+    komponente.form.controls.title.clearValidators();
+    komponente.form.patchValue({
+      title: '',
+      supplier_id: null,
+      pricing_mode: 'total',
+      content_status: 'unknown',
+      purchase_price: 300,
+    });
+    await komponente.onSubmit();
+    expect(purchaseService.createPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: '',
+        supplier_id: null,
+        purchase_price: 300,
+        purchase_lines: [],
+        content_status: 'unknown',
+        pricing_mode: 'total',
+        request_id: 'test-request-id',
+      }),
+    );
+    expect(purchaseCostingService.finalizePurchase).not.toHaveBeenCalled();
+  });
 
   it('schließt die Erfassung erst über die atomare Finalisierung ab', async () => {
     const { komponente, purchaseService, purchaseCostingService, created, closed } =
@@ -722,6 +752,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
   it('bewahrt den manuellen Mystery-Kopfpreis bei Marktwertänderungen', () => {
     const { komponente } = erstelleKomponente();
     komponente.form.controls.type.setValue('mystery_pack');
+    komponente.form.controls.pricing_mode.setValue('total');
     komponente.form.controls.purchase_price.setValue(60);
 
     komponente.onPurchaseLinesChanged([
@@ -758,6 +789,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
   it('speichert unbepreiste Mystery-Zeilen mit dem manuellen Kopfpreis', async () => {
     const { komponente, purchaseService } = erstelleKomponente();
     komponente.form.controls.type.setValue('mystery_pack');
+    komponente.form.controls.pricing_mode.setValue('total');
     komponente.form.controls.purchase_price.setValue(45);
     komponente.onPurchaseLinesChanged([
       {
@@ -793,6 +825,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
   it('speichert eine leere Mystery Box mit Kopfpreis und Zusatzkosten als Entwurf', async () => {
     const { komponente, purchaseService } = erstelleKomponente();
     komponente.form.controls.type.setValue('mystery_pack');
+    komponente.form.controls.pricing_mode.setValue('total');
     komponente.form.controls.purchase_price.setValue(100);
     komponente.onCostsChanged([
       {
@@ -851,7 +884,7 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
     expect(komponente.hasUnsavedChanges()).toBe(true);
   });
 
-  it('sendet eine nach dem Bepreisen wieder geleerte Position nicht an den Einkaufsdienst', async () => {
+  it('speichert eine nach dem Bepreisen wieder geleerte Position als offenen Entwurf', async () => {
     const { komponente, purchaseService } = erstelleKomponente();
     komponente.onPurchaseLinesChanged([
       {
@@ -882,8 +915,8 @@ describe('PurchaseEntryFormComponent – zentrale Aktionsmeldungen', () => {
 
     await komponente.onSubmit();
 
-    expect(purchaseService.createPurchase).not.toHaveBeenCalled();
-    expect(komponente.errorMessage()).toContain('Positionspreise');
+    expect(purchaseService.createPurchase).toHaveBeenCalledOnce();
+    expect(komponente.errorMessage()).toBeNull();
   });
 
   it('bestätigt das Speichern eines vorhandenen Einkaufs', async () => {

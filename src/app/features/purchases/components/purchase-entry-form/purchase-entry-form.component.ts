@@ -9,10 +9,11 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { PurchaseSellerDialogComponent } from '../purchase-seller-dialog/purchase-seller-dialog.component';
+import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import { CurrencyPipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
-  LucideDynamicIcon,
   LucideX as X,
   LucidePlus as Plus,
   LucideShoppingBag as ShoppingBag,
@@ -47,7 +48,6 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { PurchaseCostingService } from '../../../../core/services/purchase-costing.service';
 import {
-  isPricedPurchaseLineDraft,
   PurchaseLineDraft,
   PurchaseLineEditorComponent,
 } from '../purchase-line-editor/purchase-line-editor.component';
@@ -76,13 +76,14 @@ function isPurchaseCostType(value: string): value is PurchaseCostType {
   selector: 'app-purchase-entry-form',
   imports: [
     ReactiveFormsModule,
-    LucideDynamicIcon,
     NumberInputComponent,
     CustomSelectComponent,
     DatePickerComponent,
     PurchaseLineEditorComponent,
     PurchaseCostEditorComponent,
     CurrencyPipe,
+    PurchaseSellerDialogComponent,
+    ModalDialogDirective,
   ],
   templateUrl: './purchase-entry-form.component.html',
   host: { class: 'contents' },
@@ -97,6 +98,7 @@ export class PurchaseEntryFormComponent {
   readonly suppliersService = inject(SuppliersService);
   readonly trackingService = inject(InboundTrackingService);
   readonly lineEditor = viewChild(PurchaseLineEditorComponent);
+  readonly sellerDialog = viewChild(PurchaseSellerDialogComponent);
 
   readonly closed = output<void>();
   readonly created = output<void>();
@@ -141,6 +143,18 @@ export class PurchaseEntryFormComponent {
     { value: 'defective', label: 'Defekt / Ersatzteil' },
   ];
 
+  readonly sellerDialogOpen = signal(false);
+  readonly costDialogOpen = signal(false);
+  readonly requestId = crypto.randomUUID();
+  readonly pricingMode = signal<'individual' | 'total'>('total');
+  readonly discountAmount = signal(0);
+  readonly assignedCosts = computed(() =>
+    this.purchaseLines().reduce((total, line) => total + (line.lineTotal ?? 0), 0),
+  );
+  readonly unassignedCosts = computed(() =>
+    Math.max(0, (this.purchaseBasePrice() ?? 0) - this.discountAmount() - this.assignedCosts()),
+  );
+
   readonly isSubmitting = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
   readonly persistedDraft = signal<Purchase | null>(null);
@@ -166,7 +180,9 @@ export class PurchaseEntryFormComponent {
     const purchaseBasePrice = this.purchaseBasePrice();
     return purchaseBasePrice === null
       ? null
-      : Number((purchaseBasePrice + this.additionalCostsTotal()).toFixed(2));
+      : Number(
+          (purchaseBasePrice - this.discountAmount() + this.additionalCostsTotal()).toFixed(2),
+        );
   });
   readonly purchaseLineOptions = computed<SelectOption<string>[]>(() => {
     const persistedLines = (this.persistedDraft() ?? this.purchase())?.purchase_lines ?? [];
@@ -182,8 +198,12 @@ export class PurchaseEntryFormComponent {
     type: new FormControl<PurchaseType>('single', { nonNullable: true }),
     title: new FormControl('', {
       nonNullable: true,
-      validators: [Validators.required, Validators.minLength(2)],
+      validators: [],
     }),
+    content_status: new FormControl<'known' | 'unknown'>('unknown', { nonNullable: true }),
+    pricing_mode: new FormControl<'individual' | 'total'>('total', { nonNullable: true }),
+    supplier_reference: new FormControl('', { nonNullable: true }),
+    discount_amount: new FormControl(0, { nonNullable: true, validators: [Validators.min(0)] }),
     source_id: new FormControl<string | null>(null),
     supplier_id: new FormControl<string | null>(null),
     purchase_date: new FormControl<string>(new Date().toISOString().split('T')[0], {
@@ -267,7 +287,14 @@ export class PurchaseEntryFormComponent {
   private befuelltFuer: string | null = null;
 
   constructor() {
-    this.form.controls.type.valueChanges.subscribe(() => this.updatePurchasePriceEditability());
+    this.form.controls.pricing_mode.valueChanges.subscribe((mode) => {
+      this.pricingMode.set(mode);
+      this.updatePurchasePriceEditability();
+      if (mode === 'individual') this.onPurchaseLinesChanged(this.purchaseLines());
+    });
+    this.form.controls.discount_amount.valueChanges.subscribe((amount) =>
+      this.discountAmount.set(amount),
+    );
     this.form.controls.purchase_price.valueChanges.subscribe((price) => {
       this.purchaseBasePrice.set(price);
     });
@@ -279,6 +306,12 @@ export class PurchaseEntryFormComponent {
 
       this.form.patchValue({
         type: vorhandener.type,
+        content_status: vorhandener.content_status ?? 'known',
+        pricing_mode:
+          vorhandener.pricing_mode ??
+          (vorhandener.type === 'mystery_pack' ? 'total' : 'individual'),
+        supplier_reference: vorhandener.supplier_reference ?? '',
+        discount_amount: vorhandener.discount_amount ?? 0,
         title: vorhandener.title,
         source_id: vorhandener.source_id ?? null,
         supplier_id: vorhandener.supplier_id ?? null,
@@ -337,6 +370,7 @@ export class PurchaseEntryFormComponent {
     if (this.completed?.()) return false;
     return (
       this.isSubmitting() ||
+      (typeof this.sellerDialog === 'function' && (this.sellerDialog()?.form.dirty ?? false)) ||
       this.form.dirty ||
       this.newSourceName().trim().length > 0 ||
       this.newSupplierName().trim().length > 0 ||
@@ -372,13 +406,6 @@ export class PurchaseEntryFormComponent {
       this.errorMessage.set('Bitte erfasse mindestens eine Einkaufsposition.');
       return;
     }
-    if (
-      this.form.controls.type.value !== 'mystery_pack' &&
-      !purchaseLines.every(isPricedPurchaseLineDraft)
-    ) {
-      this.errorMessage.set('Bitte erfasse alle Positionspreise vollständig.');
-      return;
-    }
     if (this.form.invalid) return;
     if (!this.areAdditionalCostsValid()) {
       this.errorMessage.set(
@@ -393,6 +420,11 @@ export class PurchaseEntryFormComponent {
     const f = this.form.getRawValue();
     const payload: CreatePurchasePayload = {
       type: f.type,
+      request_id: this.requestId,
+      content_status: f.content_status,
+      pricing_mode: f.pricing_mode,
+      supplier_reference: f.supplier_reference.trim() || null,
+      discount_amount: f.discount_amount,
       title: f.title,
       source_id: f.source_id,
       supplier_id: f.supplier_id,
@@ -528,7 +560,7 @@ export class PurchaseEntryFormComponent {
     });
     this.purchaseLines.set(persistedLines);
     this.updatePurchasePriceEditability();
-    if (this.form.controls.type.value === 'mystery_pack' || persistedLines.length === 0) return;
+    if (this.form.controls.pricing_mode.value === 'total' || persistedLines.length === 0) return;
 
     if (persistedLines.some((line) => line.unitPurchasePrice === null || line.lineTotal === null)) {
       this.form.controls.purchase_price.setValue(null);
@@ -544,7 +576,7 @@ export class PurchaseEntryFormComponent {
 
   private updatePurchasePriceEditability(): void {
     const purchasePrice = this.form.controls.purchase_price;
-    if (this.form.controls.type.value === 'mystery_pack') {
+    if (this.form.controls.pricing_mode.value === 'total' || this.purchaseLines().length === 0) {
       purchasePrice.enable({ emitEvent: false });
       this.purchaseBasePrice.set(purchasePrice.value);
       return;

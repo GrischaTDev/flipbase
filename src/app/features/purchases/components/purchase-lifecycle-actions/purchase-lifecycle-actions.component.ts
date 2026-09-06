@@ -12,6 +12,11 @@ import { PurchaseSaleHistoryState } from '../../../../core/services/purchase.ser
 })
 export class PurchaseLifecycleActionsComponent {
   readonly entryStatus = input.required<PurchaseEntryStatus>();
+  readonly receivingStatus = input<
+    'draft' | 'ordered' | 'partially_received' | 'received' | 'archived'
+  >('draft');
+  readonly shipmentStatus = input<'not_shipped' | 'in_transit' | 'arrived'>('not_shipped');
+  readonly contentStatus = input<'known' | 'unknown'>('known');
   readonly saleHistoryState = input.required<PurchaseSaleHistoryState>();
   readonly saleReviewInventoryItemId = input<string | null>(null);
   readonly submitting = input(false);
@@ -22,4 +27,8 @@ export class PurchaseLifecycleActionsComponent {
   readonly reopenRequested = output<void>();
   readonly correctionRequested = output<void>();
   readonly saleHistoryReloadRequested = output<void>();
+  readonly orderedRequested = output<void>();
+  readonly transitRequested = output<void>();
+  readonly arrivedRequested = output<void>();
+  readonly captureContentRequested = output<void>();
 }

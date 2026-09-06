@@ -159,6 +159,29 @@ describe('TablePreferencesService – Polaris Table Preferences & Reordering', (
     TestBed.resetTestingModule();
   });
 
+  it('entfernt alte Einkaufstyp-Spalten dauerhaft und erhält persönliche Einstellungen', () => {
+    localStorage.setItem(
+      `flipbase:table_prefs:${testWorkspaceId}:purchases`,
+      JSON.stringify({
+        version: 1,
+        columns: [
+          { id: 'type', visible: true, order: 0 },
+          { id: 'title', visible: true, order: 1 },
+          { id: 'units', visible: false, order: 2 },
+        ],
+        sort: { field: 'title', direction: 'asc' },
+      }),
+    );
+    const state = service.getTablePreferences('purchases', testWorkspaceId)();
+    expect(state.columns.some((column) => column.id === 'type')).toBe(false);
+    expect(state.columns.find((column) => column.id === 'units')?.visible).toBe(false);
+    expect(state.sort).toEqual({ field: 'title', direction: 'asc' });
+    const stored = JSON.parse(
+      localStorage.getItem(`flipbase:table_prefs:${testWorkspaceId}:purchases`) ?? '{}',
+    );
+    expect(stored.columns.some((column: { id: string }) => column.id === 'type')).toBe(false);
+  });
+
   it('should return default preferences when nothing is stored', () => {
     const prefs = service.getTablePreferences('sales', testWorkspaceId)();
     expect(prefs.columns.length).toBe(SALES_TABLE_CONFIG.defaultColumns.length);

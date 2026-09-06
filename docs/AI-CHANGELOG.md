@@ -1,5 +1,63 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-07 – Codex – Shopify-nahen Einkaufsablauf und Nummernkreise umgesetzt
+
+**Auftrag/Ergebnis:** Den abgestimmten Umbau für Einkäufe vollständig umsetzen. Die Übersicht filtert jetzt nach Status und Verkäufer, durchsucht auch Vorgangsnummern und externe Referenzen und verwendet die gemeinsame Tabellenbedienung. Flohmarktmodus und Schnellerfassung wurden entfernt; vorhandene lokale Altdaten können unverändert als Sicherung exportiert werden.
+
+**Erfassung und Status:** Neue Einkäufe entstehen als leere Entwürfe auf einer zentrierten, zweispaltigen Arbeitsseite. Verkäufer können als Privatperson oder Unternehmen mit strukturierten Kontaktdaten angelegt werden. Bekannter beziehungsweise unbekannter Inhalt und Einzel- beziehungsweise Gesamtpreis sind getrennte Entscheidungen. Katalogauswahl, CSV-Import, Kamera- und Hardware-Barcodescanner, Rabatte und getrennte Nebenkosten sind eingebunden. Der Status läuft ohne zusätzliche Transferseite über Entwurf, bestellt, unterwegs und angekommen; „unterwegs“ verlangt Dienstleister und Sendungsnummer. Bestand entsteht erst beim ausdrücklich ausgelösten Wareneingang.
+
+**Nummern und Gestaltung:** Konfigurierbare Nummernkreise für Einkäufe und Verkäufe wurden als eigener Einstellungstab ergänzt. Die Datenbank vergibt Nummern je Workspace atomar, bewahrt bereits vergebene Nummern und belegt Altdaten deterministisch. Einkaufs- und Verkaufsansichten zeigen und durchsuchen diese Nummern. Einkaufserfassung und Detailseite verwenden normale Schreibweise, neutrale Karten und Beträge, das bestehende Logo-Gelb `#fcc601` für primäre Aktionen sowie die Shopify-nahe Aufteilung mit Arbeitsbereich links, Kosten und Details rechts und Chronik unter dem Arbeitsbereich.
+
+**Prüfung:** `npm run verify` vollständig erfolgreich: 993 Node-, 138 DOM-, 511 Angular- und 13 Landing-Prüfungen, dazu Workflow- und Suite-Audit sowie Produktionsbau. Isolierter Supabase-Reset und alle 33 SQL-Dateien mit 1.132 Prüfungen erfolgreich. Sechs gezielte Playwright-Abläufe der Einkaufserfassung bestanden; Desktop-Referenz bei 1.440 × 1.000 Pixeln visuell geprüft. Einen dabei gefundenen beschädigten Umlaut im Untertitel korrigiert.
+
+---
+
+## 2026-09-06 – Codex – Tabellenfilter und Ansichts-Rücksetzung konkretisiert
+
+**Auftrag/Ergebnis:** Einkaufsart-Reiter durch Statusdropdown, breite Suche und strukturierte Verkäuferfilter ersetzen. Gemeinsame Tabellenanordnung und sichtbare Textaktion „Ansicht zurücksetzen“ im Einkaufsfolgeplan und in der visuellen Abnahme festgehalten. Codeprüfung bestätigt bestehende Typfilter und bereits vorhandenen, bedingt sichtbaren Rücksetztext im gemeinsamen Spaltenmenü. Der konkret beobachtete Dashboard-Iconfall bleibt zu prüfen; Aktualisieren und Rücksetzen nicht gleichsetzen. Nur Dokumentation geändert, Dokumentationsdiff geprüft.
+
+---
+
+## 2026-09-06 – Codex – Shopify-Zugriff bestätigt und visuelle Abnahme konkretisiert
+
+**Auftrag/Ergebnis:** Inventar, Einkaufsübersicht, Erfassungsseite und gespeicherten Entwurf im angemeldeten In-App-Browser erneut geöffnet. Seitenstruktur/Beschriftungen geprüft und aktuelle Layout-/Visual-Design-Docs gelesen. `docs/design/purchase-reference-acceptance.md` dokumentiert Quelle und Grenzen sowie verbindliche Abnahme für Layout, Typografie, Karten, Felder, Buttons, Dropdowns, Dialoge, Chronik und Bewegung. Frühere CSS-Messungen ausdrücklich von heutiger Strukturprüfung getrennt. Keine Shopdaten oder Anwendung geändert; Dokumentationsdiff geprüft.
+
+---
+
+## 2026-09-06 – Codex – Konfigurierbare Nummernkreise als gemeinsame Einstellung geplant
+
+**Nutzerkorrektur:** Feste Einkaufsnummern durch konfigurierbare Formate je Vorgangsart ersetzen. Neuer Plan `docs/superpowers/plans/2026-09-06-numbering-settings-plan.md`, Einkaufsfolgeplan angepasst. Eigener Einstellungstab, getrennte Workspace-Zähler, Vorschau, Jahresoption, Mindeststellen, historische Stabilität und sichere Vergabe beschrieben. Einstellungsstruktur und vorhandene Nummerierungsbezeichner gesucht; umfassende Prüfung aller Vergabestellen bleibt erster Arbeitsschritt. Nur Dokumentation geändert und Diff geprüft.
+
+---
+
+## 2026-09-06 – Codex – Automatische Einkaufsnummer in den Folgeplan aufgenommen
+
+**Auftrag/Ergebnis:** Fortlaufende kurze Einkaufsreferenz ergänzt. Vorgeschlagen: `#PO1` aufwärts je Workspace, Vergabe beim ersten Speichern als Entwurf, stabil bei Änderungen, Beschreibung optional, externe Verkäuferreferenz separat. Atomare Vergabe, Altdatenbelegung und Parallelitätsprüfungen im Kernumfang dokumentiert. Im gelesenen `Purchase`-Modell fehlt bislang eine solche Nummer.
+
+**Prüfung:** Nur Plan und Changelog geändert; Dokumentationsdiff geprüft. Keine Datenbank- oder Anwendungsänderung.
+
+---
+
+## 2026-09-06 – Codex – Typografie und Farbdisziplin im Einkaufsplan präzisiert
+
+**Auftrag/Ergebnis:** Normale Schreibweise statt dekorativer Versalien, neutrale einheitliche Flächen und referenzgetreue Shopify-Aufteilung in `docs/design/admin-ui-guidelines.md` und Einkaufsfolgeplan verbindlich ergänzt. Bestehendes Logo-Gelb bleibt. Konkrete Abweichungen in Einkaufsdetails, Kosteneditor, Korrekturdialog und Badge-Aufrufern durch Quellcodesuche bestätigt; Anwendung noch nicht geändert.
+
+**Browser/Prüfung:** Verfügbarer In-App-Browser hatte keine Tabs; Shopify-Referenz neu geöffnet. Anmeldung und aktuelle CSS-Werte in dieser Sitzung noch nicht bestätigt. Dokumentationsdiff auf Formatfehler geprüft.
+
+---
+
+## 2026-09-06 – Codex – Einkaufsfolgeplan anhand Shopify-Bestellerfassung konkretisiert
+
+**Auftrag:** Vorgehen für lieferantenorientierte Einkäufe mit späterer Artikelaufnahme, Katalogauswahl, direkter Neuanlage, CSV und Scanner planen.
+
+**Ergebnis:** Neuer Vorgehensplan unter `docs/superpowers/plans/2026-09-06-purchase-workflow-delivery-plan.md`. Screenshot und offizielle Shopify-Hilfe mit vorhandenen Modellen, Positionseditor und Servicevalidierung abgeglichen. Katalogauswahl, Einzelanlage und CSV existieren bereits; unbekannte Preise sind bislang an Mystery gebunden. Fachregeln, tatsächliche RPC-/Schema-Prüfung, Kernoberfläche und Import/Scanner als getrennte Arbeitspakete festgehalten. Empfehlungen sind als noch zu entscheidende Regeln gekennzeichnet.
+
+**Prüfung:** Plan gegen Nutzeranforderungen und gelesenen Code geprüft; keine Anwendungs- oder Datenbankänderung. Eigener Worktree `codex/purchase-workflow-plan` auf Master `371f054`.
+
+**Ergänzung:** Sieben weitere Screenshots und neue Nutzerfestlegungen eingearbeitet: vollständiger Flohmarkt-Rückbau, Privat-/Firmenverkäufer, Scanner im Kernumfang, separate Kostenkarte, Chronik mit Kommentaren und Statusführung ohne Transferseite/Versandziel. Paketankunft, Artikelaufnahme und Kostenzuordnung getrennt beschrieben. Bestehende Flohmarkt-Aufrufer und Lieferantenservice geprüft. Keine Änderung an Funktionen oder gespeicherten Daten in diesem Planungsschritt.
+
+---
+
 ## 2026-09-06 – Codex – Shopify-nahe Tabellen und Erfassungsseiten umgesetzt
 
 **Auftrag:** Den abgestimmten Korrekturplan auf dem aktuellen Master umsetzen, ohne den parallel bearbeiteten Claude-Zweig zu verändern.

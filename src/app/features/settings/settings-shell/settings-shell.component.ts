@@ -9,6 +9,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   LucideBell,
+  LucideHash,
   LucideBuilding2,
   LucideDatabase,
   LucideDynamicIcon,
@@ -40,6 +41,12 @@ export const SETTINGS_NAVIGATION: readonly SettingsNavigationItem[] = [
     label: 'Workspace',
     description: 'Mandanten und Vorgaben',
     icon: LucideBuilding2,
+  },
+  {
+    path: 'numbering',
+    label: 'Nummernkreise',
+    description: 'Formate und Zähler',
+    icon: LucideHash,
   },
   { path: 'team', label: 'Team & Rollen', description: 'Zugriffe verwalten', icon: LucideUsers },
   {

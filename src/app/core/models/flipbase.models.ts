@@ -80,6 +80,17 @@ export interface Source {
 }
 
 export interface Supplier {
+  seller_type?: 'private' | 'business' | null;
+  contact_person?: string | null;
+  country?: string | null;
+  street?: string | null;
+  address_extra?: string | null;
+  postal_code?: string | null;
+  city?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  profile_url?: string | null;
+  website?: string | null;
   id: string;
   workspace_id: string;
   name: string;
@@ -168,6 +179,16 @@ export interface InboundTrackingInfo {
 }
 
 export interface Purchase {
+  record_number?: string | null;
+  numbering_series_id?: number | null;
+  numbering_version?: number | null;
+  numbered_at?: string | null;
+  request_id?: string | null;
+  content_status?: 'known' | 'unknown';
+  pricing_mode?: 'individual' | 'total' | null;
+  shipment_status?: 'not_shipped' | 'in_transit' | 'arrived';
+  supplier_reference?: string | null;
+  discount_amount?: number;
   id: string;
   workspace_id: string;
   type: PurchaseType;
@@ -366,6 +387,10 @@ export interface SaleCostEntry {
 }
 
 export interface Sale {
+  record_number?: string | null;
+  numbering_series_id?: number | null;
+  numbering_version?: number | null;
+  numbered_at?: string | null;
   cost_basis_status?: 'known' | 'unknown';
   id: string;
   workspace_id: string;

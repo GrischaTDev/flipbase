@@ -152,7 +152,7 @@ describe('PurchaseService – bestätigte Tracking- und Verteiländerungen', () 
 
     Object.assign(service, {
       purchases: signal<Purchase[]>([einkauf]),
-      updatePurchaseTracking: vi.fn(async () => ({ data: null, error: trackingError })),
+      updatePurchase: vi.fn(async () => ({ error: trackingError })),
       inventory: {
         items: signal<InventoryItem[]>([artikel]),
         updateItemStatus,

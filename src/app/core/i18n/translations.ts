@@ -315,16 +315,6 @@ export const TRANSLATIONS_DE = {
     TAX_FREE_NOTE: 'Differenzbesteuerung nach § 25a UStG, versandkostenfrei ab 50 €',
     FREE_SHIPPING: 'Kostenloser Versand',
   },
-  OFFLINE: {
-    TITLE: 'Flohmarkt-Schnellerfassung',
-    CASH_WALLET: 'Bargeld-Tracker',
-    START_CASH: 'Start-Bargeld',
-    SPENT_CASH: 'Ausgegeben',
-    REMAINING_CASH: 'Rest im Geldbeutel',
-    OFFLINE_MODE: 'Offline-Modus aktiv',
-    SYNC_NOW: 'Jetzt synchronisieren',
-    QUEUED_ITEMS: 'Wartende Einkäufe',
-  },
   DASHBOARD: {
     REALIZED_PROFIT: 'Realisierter Gewinn',
     REVENUE: 'Gesamtumsatz',
@@ -650,16 +640,6 @@ export const TRANSLATIONS_EN = {
     EMPTY_CART: 'Your shopping cart is empty',
     TAX_FREE_NOTE: 'Margin scheme according to § 25a UStG, free shipping over 50 €',
     FREE_SHIPPING: 'Free Shipping',
-  },
-  OFFLINE: {
-    TITLE: 'Flea Market Rapid Entry',
-    CASH_WALLET: 'Cash Wallet Tracker',
-    START_CASH: 'Starting Cash',
-    SPENT_CASH: 'Spent',
-    REMAINING_CASH: 'Remaining Cash',
-    OFFLINE_MODE: 'Offline Mode Active',
-    SYNC_NOW: 'Sync Now',
-    QUEUED_ITEMS: 'Queued Purchases',
   },
   DASHBOARD: {
     REALIZED_PROFIT: 'Realized Profit',

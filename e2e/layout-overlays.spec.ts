@@ -11,15 +11,13 @@ test('hält den Warenkorbinhalt innerhalb des bedienbaren Dialogs', async ({ pag
   await expect(cart).toBeHidden();
 });
 
-test('sperrt den Header auch bei der Flohmarkt-Schnellerfassung', async ({ page }) => {
+test('zeigt den regulären Einkaufseinstieg ohne Schnellerfassung', async ({ page }) => {
   await startDemoMode(page);
   await page.goto('/purchases');
-  await page.getByRole('button', { name: 'Flohmarkt-Schnellerfassung' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Flohmarkt-Schnellerfassung' });
-  await expect(dialog).toBeVisible();
-  expect(await page.locator('app-header').evaluate((el) => !!el.closest('[inert]'))).toBe(true);
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Flohmarkt-Schnellerfassung' })).toHaveCount(0);
+  await expect(
+    page.getByRole('button', { name: 'Neuer Einkauf', exact: true }).first(),
+  ).toBeVisible();
 });
 
 test('hält die Kopfzeile auch auf schmalen Bildschirmen im sichtbaren Bereich', async ({

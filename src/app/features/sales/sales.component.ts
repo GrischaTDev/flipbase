@@ -277,7 +277,14 @@ export class SalesComponent {
       result = result.filter((s) => {
         const title = this.saleTitle(s).toLowerCase();
         const platform = s.platform.toLowerCase();
-        return title.includes(query) || platform.includes(query);
+        const recordNumber = s.record_number?.toLowerCase() ?? '';
+        const externalOrderId = s.external_order_id?.toLowerCase() ?? '';
+        return (
+          title.includes(query) ||
+          platform.includes(query) ||
+          recordNumber.includes(query) ||
+          externalOrderId.includes(query)
+        );
       });
     }
 

@@ -253,6 +253,13 @@ export class TablePreferencesService {
         ? parsed.sort
         : { ...config.defaultSort };
 
+      // Entfernte Einkaufstyp-Spalte dauerhaft aus Altpräferenzen entfernen;
+      // übrige Sichtbarkeit und Reihenfolge bleiben bestehen.
+      if (tableId === 'purchases' && parsed.columns.some((column) => column.id === 'type')) {
+        const migratedColumns = mergedColumns.map((column, order) => ({ ...column, order }));
+        this.savePreferences(tableId, workspaceId, migratedColumns, validSort);
+        return { columns: migratedColumns, sort: validSort };
+      }
       return { columns: mergedColumns, sort: validSort };
     } catch {
       return { columns: [...config.defaultColumns], sort: { ...config.defaultSort } };

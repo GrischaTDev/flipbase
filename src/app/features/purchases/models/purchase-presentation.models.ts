@@ -4,6 +4,9 @@ import type { ItemCondition, PurchaseType } from '../../../core/models/flipbase.
 export type PurchaseStatusLabel =
   | 'Entwurf'
   | 'Bestellt'
+  | 'Unterwegs'
+  | 'Angekommen'
+  | 'Teillieferung'
   | 'Eingetroffen'
   | 'Inhalt erfassen'
   | 'Erfassung abgeschlossen'
@@ -26,6 +29,9 @@ export interface InventoryItemLinkPresentation {
 }
 
 export interface PurchaseListRow {
+  readonly reference: string;
+  readonly supplierReference: string;
+  readonly captureStatus: string;
   readonly id: string;
   readonly title: string;
   readonly type: PurchaseType;

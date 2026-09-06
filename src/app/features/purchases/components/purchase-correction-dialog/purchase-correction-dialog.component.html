@@ -5,7 +5,7 @@
   (dialogClose)="closed.emit()"
 >
   <section
-    class="linear-surface my-auto flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-fb-line shadow-2xl"
+    class="linear-surface my-auto flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-fb-line shadow-xl"
   >
     <header class="flex items-center justify-between border-b border-fb-line bg-fb-well p-5">
       <div>
@@ -69,10 +69,7 @@
       }
 
       <section formArrayName="lines" aria-labelledby="correctionLinesTitle" class="space-y-3">
-        <h3
-          id="correctionLinesTitle"
-          class="text-xs font-bold uppercase tracking-wider text-fb-text-muted"
-        >
+        <h3 id="correctionLinesTitle" class="text-sm font-semibold text-fb-text-primary">
           Einkaufspositionen
         </h3>
         @for (row of lineRows.controls; track row.controls.id.value; let index = $index) {
@@ -127,10 +124,7 @@
       </section>
 
       <section formArrayName="costs" aria-labelledby="correctionCostsTitle" class="space-y-3">
-        <h3
-          id="correctionCostsTitle"
-          class="text-xs font-bold uppercase tracking-wider text-fb-text-muted"
-        >
+        <h3 id="correctionCostsTitle" class="text-sm font-semibold text-fb-text-primary">
           Zusätzliche Einkaufskosten
         </h3>
         @for (row of costRows.controls; track row.controls.id.value; let index = $index) {

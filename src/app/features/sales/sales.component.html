@@ -317,6 +317,11 @@
                       <td class="px-4 py-3 font-semibold text-fb-text-primary">
                         <div class="flex items-start gap-2">
                           <div class="space-y-0.5">
+                            @if (sale.record_number) {
+                              <span class="block text-[11px] font-semibold text-fb-text-muted">
+                                {{ sale.record_number }}
+                              </span>
+                            }
                             @if (sale.lines?.length) {
                               @for (line of sale.lines; track line.id) {
                                 <span class="block text-xs text-fb-text-primary">{{
@@ -497,6 +502,11 @@
           >
             <div class="flex items-start justify-between gap-2">
               <div>
+                @if (sale.record_number) {
+                  <p class="text-[11px] font-semibold text-fb-text-muted">
+                    {{ sale.record_number }}
+                  </p>
+                }
                 <div class="flex items-center gap-1.5">
                   <h3 class="text-xs font-semibold text-fb-text-primary line-clamp-1 font-sans">
                     {{ saleTitle(sale) }}

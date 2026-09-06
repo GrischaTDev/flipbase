@@ -13,6 +13,7 @@ describe('SETTINGS_ROUTES', () => {
       '',
       'account',
       'workspace',
+      'numbering',
       'team',
       'notifications',
       'store',
@@ -30,7 +31,7 @@ describe('SETTINGS_ROUTES', () => {
     const children = SETTINGS_ROUTES[0].children ?? [];
     const contentRoutes = children.filter((route) => route.loadComponent);
 
-    expect(contentRoutes).toHaveLength(9);
+    expect(contentRoutes).toHaveLength(10);
     expect(contentRoutes.every((route) => typeof route.loadComponent === 'function')).toBe(true);
     expect(contentRoutes.find((route) => route.path === 'data/print')).toBeDefined();
   });
