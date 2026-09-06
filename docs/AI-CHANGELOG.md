@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Codex – E2E-Selektor nach Tabellenaktion eindeutig gemacht
+
+**Befund:** Der GitHub-Browser-Smoke meldete nach der Tabellenüberarbeitung
+einen Strict-Mode-Fehler, weil Titel-Link und Icon-Aktion desselben Einkaufs
+denselben zugänglichen Namen enthielten.
+
+**Korrektur:** Der Navigationstest verwendet jetzt das eindeutige
+`data-purchase-row`-Merkmal für den Demo-Einkauf. Die zwei bewusst vorhandenen
+Bedienelemente bleiben unverändert.
+
+**Prüfung:** Der Fehler wurde im CI-Job `Browser smoke` reproduziert und die
+gezielte Korrektur lokal geprüft. Die Änderung erfolgt ausschließlich im
+isolierten Worktree `codex/polaris-table-system`.
+
 ## 2026-09-06 – Codex – Inter als einzige Anwendungsschrift festgelegt
 
 **Ergebnis:** Die globale Tailwind-Schriftvariable `font-mono` verweist jetzt
