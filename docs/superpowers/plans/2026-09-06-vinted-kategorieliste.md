@@ -1541,7 +1541,7 @@ git commit -m "feat(sniper): read the category tree and its refresh state in the
 **Schnittstellen:**
 
 - Verbraucht: `VintedCategoryService`, `CategorySyncStatus` aus Task 5
-- Erzeugt: Route `categories` unterhalb von `/platform-admin`
+- Erzeugt: Route `categories` unterhalb von `/admin`
 
 - [ ] **Schritt 1: Test schreiben**
 
@@ -1815,7 +1815,7 @@ export const platformAdminRoutes: Routes = [
 
 Ändern: `src/app/layout/sidebar/sidebar.component.ts` — `label: 'Betreiber'` wird zu `label: 'Administration'`; der Kommentar „Der Betreiberpunkt erscheint nur fuer Betreiber." wird zu „Der Punkt Administration erscheint nur fuer Betreiber der Plattform.".
 
-**Die Route `/platform-admin` bleibt unverändert.** Ein Pfadwechsel bräche gespeicherte Verweise ohne Gegenwert.
+**Die Route `/admin` bleibt unverändert.** Ein Pfadwechsel bräche gespeicherte Verweise ohne Gegenwert. (Nur der Ordner heißt `platform-admin`.)
 
 Prüfen, dass kein sichtbarer Text mehr „Betreiber" sagt:
 
@@ -1835,7 +1835,7 @@ Erwartet: alles grün. Der Bau ist hier Pflicht — `tsc` prüft keine Angular-V
 
 - [ ] **Schritt 9: Im Browser nachsehen**
 
-Dienst starten und `/platform-admin/categories` aufrufen. Erwartet: Zahl der Kategorien, Zeitpunkt des letzten Einlesens, Knopf „Neu einlesen". Nach dem Klick erscheint der Hinweis auf den nächsten Takt.
+Dienst starten und `/admin/categories` aufrufen (nur der Ordner heißt `platform-admin`). Erwartet: Zahl der Kategorien, Zeitpunkt des letzten Einlesens, Knopf „Neu einlesen". Nach dem Klick erscheint der Hinweis auf den nächsten Takt.
 
 - [ ] **Schritt 10: Changelog und Commit**
 

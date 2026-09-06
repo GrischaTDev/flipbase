@@ -245,7 +245,8 @@ unbrauchbar.
 
 ## Oberfläche: Administration
 
-Drei Seiten unter `/platform-admin`, im Menü künftig **Administration**.
+Drei Seiten unter `/admin`, im Menü künftig **Administration**. (Nur der
+Ordner heißt `platform-admin`; die Route heißt `/admin`.)
 
 **1. Sammelaufträge.** Die Liste dessen, was der Bot abgrast: Kategorie (als
 lesbarer Pfad), Preisgrenzen, Takt, Zustand der letzten Abfrage, Zahl der Funde
@@ -297,7 +298,7 @@ Der Code heißt bereits durchgehend englisch (`platform-admin`,
 | `src/app/layout/header/header.component.html` | Kommentar                     |
 | `src/app/app.routes.ts`                       | zwei Kommentare               |
 
-Die Route `/platform-admin` bleibt, wie sie ist. Ein Pfadwechsel bräche
+Die Route `/admin` bleibt, wie sie ist. Ein Pfadwechsel bräche
 gespeicherte Verweise ohne Gegenwert.
 
 ## Bewusst nicht dabei
