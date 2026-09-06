@@ -68,8 +68,15 @@ export class CategoryStore {
 
       // Vor der Rekursion eintragen: Ein Kreis in den Eingabedaten (A verweist
       // auf B, B auf A) liefe sonst bis zum Ueberlauf des Aufrufstapels. So
-      // bricht er bei der bereits besuchten Kategorie ab und die
-      // Fremdschluesselpruefung der Datenbank meldet den eigentlichen Fehler.
+      // bricht er bei der bereits besuchten Kategorie ab.
+      //
+      // Die Tiefe, die dabei herauskommt, haengt von der Reihenfolge der
+      // Aufrufe ab und ist willkuerlich - und anders als bei einem fehlenden
+      // Elternteil faengt die Datenbank das nicht auf: Liegen beide Zeilen im
+      // selben Schreibblock, sind am Ende der Anweisung beide vorhanden und die
+      // Fremdschluesselpruefung ist zufrieden. Ein Kreis wuerde also still
+      // gespeichert. Vinted liefert einen Baum, keinen Graphen; kaeme dort je
+      // ein Kreis an, braeuchte es eine eigene Pruefung vor dem Schreiben.
       depthCache.set(category.id, 0);
 
       let depth = 0;
