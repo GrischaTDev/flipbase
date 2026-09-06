@@ -1,5 +1,45 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Claude – Task 3, Review-Nachlauf: Markieren-und-Nachräumen statt Erst-Leeren
+
+**Auftrag:** Drei zusammenhängende Review-Befunde an `CategoryStore.replaceAll` beheben
+(Zweig `feat/deal-monitor-collection-and-ui`): (1) die Methode leerte die Tabelle vor dem
+Schreiben, obwohl der Kopfkommentar „ein Fehlschlag löscht nichts" verspricht; (2) der
+Integrationstest dazu prüfte nur `markFailed`, nie das eigentliche Löschverhalten; (3) die
+Sortierung „Eltern vor Kindern" zählte die Tiefe aus `path.split(' > ').length` statt aus der
+Elternkette — fragil und durch einen Titel mit „>" verfälschbar.
+
+**Umsetzung:** `services/sniper/src/store/category.store.ts` schreibt jetzt
+markieren-und-nachräumen: ein Zeitstempel pro Lauf, `upsert` in 500er-Blöcken mit diesem
+Zeitstempel auf `updated_at`, und erst danach ein `delete` aller Zeilen mit älterem
+`updated_at` (das sind die von Vinted entfernten Kategorien; `parent_id` kaskadiert bewusst).
+Bricht das Schreiben ab, läuft das Löschen nie. Die Sortierung läuft jetzt über eine aus
+`parentId` aufgebaute Tiefe (Wurzeln zuerst), nicht mehr über den Anzeigetext `path`.
+`services/sniper/test/store/category.store.integration.spec.ts` bekam die tatsächlich fehlenden
+Fälle: ein echter Fremdschlüsselfehler mitten im Schreiben lässt den alten Baum unverändert
+stehen; umgekehrte Eingabereihenfolge (Kind vor Elternteil) gelingt trotzdem; ein Titel mit „>"
+verfälscht die Reihenfolge nicht. Der bestehende `markFailed`-Test blieb inhaltlich unverändert,
+nur umbenannt, damit der Name nicht mehr suggeriert, er prüfe `replaceAll`.
+
+**Befunde:**
+
+- `npx supabase start` scheiterte wie vom Auftrag als bekanntes Risiko benannt: Windows hat
+  auf diesem Rechner den Portbereich 54257–54356 (und weitere direkt anschließende Bereiche)
+  dynamisch als Ausschluss reserviert, darin liegt der komplette Sniper-Portblock
+  54350–54359. `netsh interface ipv4 show excludedportrange protocol=tcp` bestätigt das.
+  Der Auftrag verlangt ausdrücklich, `supabase/config.toml` dafür nicht zu verändern und den
+  Zustand stattdessen als BLOCKED zu melden — anders als beim vorherigen, ähnlichen Fall in
+  Task 1 wurde hier also _kein_ temporärer Portwechsel versucht. Die beiden Integrationstest-Läufe
+  (vor und nach dem Commit) aus dem Prüfauftrag konnten deshalb nicht ausgeführt werden.
+
+**Verifiziert durch:** `npx vitest run test/runtime/category-refresh.spec.ts` (5/5 grün),
+`npx tsc --noEmit` in `services/sniper` (keine Ausgabe) und `npm run typecheck` im
+Projektstamm (keine Ausgabe), jeweils vor und erneut nach dem Commit gemessen. Die
+Integrationstests selbst sind BLOCKED (siehe oben). Voller Bericht mit allen Kommandos und
+tatsächlicher Ausgabe: `.superpowers/sdd/task-3-report.md`.
+
+---
+
 ## 2026-09-06 – Claude – Task 1: Tabellen für Vinted-Kategorien und Auffrischungsstand
 
 **Auftrag:** Erste Grundlage für den künftigen Vinted-Deal-Monitor: den

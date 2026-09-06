@@ -12,7 +12,10 @@ import type { VintedCategory } from '../vinted/categories.js';
  * auf, ohne je Funde zu liefern.
  *
  * Ein Fehlschlag loescht nichts. Der letzte gute Stand bleibt benutzbar, und
- * die Administration sieht am Fehlertext, dass er alt ist.
+ * die Administration sieht am Fehlertext, dass er alt ist. Deshalb schreibt
+ * `replaceAll` markieren-und-nachraeumen statt erst-leeren-dann-schreiben:
+ * Bricht das Schreiben mitten in einem Block ab, ist noch keine Zeile geloescht
+ * worden - der alte Baum steht unveraendert weiter.
  */
 export class CategoryStore {
   constructor(private readonly client: SupabaseClient) {}
@@ -33,19 +36,44 @@ export class CategoryStore {
   }
 
   async replaceAll(categories: VintedCategory[]): Promise<void> {
-    // Erst leeren, dann schreiben. Die Eltern stehen im selben Schwung wie die
-    // Kinder - deshalb muss der Fremdschluessel aufschiebbar sein oder die
-    // Reihenfolge stimmen. Sortiert nach Tiefe des Pfades kommt jeder Elternteil
-    // vor seinen Kindern.
-    const { error: deleteError } = await this.client
-      .from('vinted_categories')
-      .delete()
-      .gte('id', 0);
-    if (deleteError) throw new Error(deleteError.message);
+    // Markieren und nachraeumen statt erst-leeren-dann-schreiben: Ein
+    // Zeitstempel fuer den ganzen Lauf wird auf jede geschriebene Zeile
+    // gesetzt. Erst wenn wirklich alle Bloecke durch sind, verschwinden die
+    // Zeilen, die dieser Lauf nicht angefasst hat - das sind genau die
+    // Kategorien, die Vinted nicht mehr liefert. Bricht das Schreiben
+    // vorher ab (Zeitueberschreitung, Fremdschluesselverletzung, ...),
+    // laeuft das Aufraeumen nie und der alte Baum bleibt vollstaendig
+    // stehen, so wie es der Kopfkommentar verspricht.
+    const runAt = new Date().toISOString();
 
-    const ordered = [...categories].sort(
-      (left, right) => left.path.split(' > ').length - right.path.split(' > ').length,
-    );
+    // Die Eltern stehen im selben Schwung wie die Kinder - deshalb muss die
+    // Reihenfolge stimmen, damit der Fremdschluessel auf dieselbe Tabelle
+    // nicht anschlaegt. Die Tiefe kommt aus der Elternkette (parentId), nicht
+    // aus dem Anzeigetext `path`: Ein Kategorietitel, der selbst " > "
+    // enthaelt, wuerde die aus dem Pfad gezaehlte Tiefe verfaelschen und die
+    // Reihenfolge kaputt machen.
+    const byId = new Map(categories.map((category) => [category.id, category] as const));
+    const depthCache = new Map<number, number>();
+
+    const depthOf = (category: VintedCategory): number => {
+      const cached = depthCache.get(category.id);
+      if (cached !== undefined) return cached;
+
+      let depth = 0;
+      if (category.parentId !== null) {
+        const parent = byId.get(category.parentId);
+        // Ein Elternteil, der im selben Lauf nicht mitkommt, ist ein Fehler
+        // in den Eingabedaten (siehe Test dazu). depthOf gibt hier trotzdem
+        // einen Wert zurueck, statt abzustuerzen - die Fremdschluesselpruefung
+        // der Datenbank soll den Fehler melden, nicht diese Sortierung.
+        depth = parent ? 1 + depthOf(parent) : 1;
+      }
+
+      depthCache.set(category.id, depth);
+      return depth;
+    };
+
+    const ordered = [...categories].sort((left, right) => depthOf(left) - depthOf(right));
 
     const rows = ordered.map((category) => ({
       id: category.id,
@@ -54,7 +82,7 @@ export class CategoryStore {
       slug: category.slug,
       path: category.path,
       is_leaf: category.isLeaf,
-      updated_at: new Date().toISOString(),
+      updated_at: runAt,
     }));
 
     // In Blöcken schreiben: Rund 2900 Zeilen in einem Rutsch sprengen die
@@ -62,9 +90,19 @@ export class CategoryStore {
     for (let start = 0; start < rows.length; start += 500) {
       const { error } = await this.client
         .from('vinted_categories')
-        .insert(rows.slice(start, start + 500));
+        .upsert(rows.slice(start, start + 500), { onConflict: 'id' });
       if (error) throw new Error(error.message);
     }
+
+    // Nachraeumen: Alles, was dieser Lauf nicht angefasst hat, ist bei
+    // Vinted verschwunden. parent_id hat `on delete cascade` - verschwindet
+    // ein Elternteil, gehen seine Kinder mit. Das ist richtig so: Liefert
+    // Vinted den Elternteil nicht mehr, liefert es die Kinder auch nicht mehr.
+    const { error: deleteError } = await this.client
+      .from('vinted_categories')
+      .delete()
+      .lt('updated_at', runAt);
+    if (deleteError) throw new Error(deleteError.message);
   }
 
   async markRefreshed(count: number, at: Date): Promise<void> {
