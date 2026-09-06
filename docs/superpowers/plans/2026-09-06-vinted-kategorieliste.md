@@ -367,30 +367,36 @@ Anlegen: `services/sniper/test/fixtures/vinted-homepage.html`
 
 Ein verkleinerter Ausschnitt im echten Format. Die Anführungszeichen im Flight-Block sind escaped, genau wie bei Vinted — daran scheitert ein naiver Parser, deshalb muss das Fixture es nachbilden:
 
-```html
+```text
 <!doctype html>
 <html>
   <body>
     <script>
-      self.__next_f.push([1, 'irrelevanter Block ohne Baum\n']);
+      self.__next_f.push([1,"irrelevanter Block ohne Baum\n"])
     </script>
     <script>
-      self.__next_f.push([
-        1,
-        'd4:["$","$Ldc",null,{"catalogTree":[{"id":1904,"title":"Damen","url":"/catalog/1904-women","catalogs":[{"id":16,"title":"Schuhe","url":"/catalog/16-shoes","catalogs":[{"id":1049,"title":"Stiefel","url":"/catalog/1049-boots"},{"id":2955,"title":"Ballerinas","url":"/catalog/2955-ballerinas"}]}]},{"id":5,"title":"Herren","url":"/catalog/5-men","catalogs":[{"id":76,"title":"Tops & T-Shirts","url":"/catalog/76-tops-and-t-shirts"}]}]}]\n',
-      ]);
+      self.__next_f.push([1,"d4:[\"$\",\"$Ldc\",null,{\"catalogTree\":[{\"id\":1904,\"title\":\"Damen\",\"url\":\"/catalog/1904-women\",\"catalogs\":[{\"id\":16,\"title\":\"Schuhe\",\"url\":\"/catalog/16-shoes\",\"catalogs\":[{\"id\":1049,\"title\":\"Stiefel\",\"url\":\"/catalog/1049-boots\"},{\"id\":2955,\"title\":\"Ballerinas\",\"url\":\"/catalog/2955-ballerinas\"}]}]},{\"id\":5,\"title\":\"Herren\",\"url\":\"/catalog/5-men\",\"catalogs\":[{\"id\":76,\"title\":\"Tops & T-Shirts\",\"url\":\"/catalog/76-tops-and-t-shirts\"}]}]}]\n"])
     </script>
   </body>
 </html>
 ```
 
-**Wichtig:** Die Datei muss die Escapes wörtlich enthalten (`\"` als Backslash gefolgt von Anführungszeichen). Nach dem Anlegen prüfen:
+**Wichtig:** Die Datei muss die Escapes wörtlich enthalten — im Flight-Block
+steht `\"` als Backslash gefolgt von Anführungszeichen, nicht als einfaches
+Anführungszeichen. Der Block oben ist deshalb als `text` ausgezeichnet und nicht
+als `html`: Ein Formatierer würde ihn sonst umschreiben und dabei genau diese
+Escapes zerstören. **Schreibe die Datei mit dem Write-Werkzeug, nicht über ein
+Bash-Heredoc** — die Shell frisst die Backslashes.
+
+Nach dem Anlegen beides prüfen, Anwesenheit und Escapes:
 
 ```bash
 grep -c 'catalogTree' services/sniper/test/fixtures/vinted-homepage.html
+grep -c '\\"' services/sniper/test/fixtures/vinted-homepage.html
 ```
 
-Erwartet: `1`.
+Erwartet: jeweils `1`. Ein Fixture ohne Escapes prüft den Parser nicht, sondern
+täuscht ihn — es sieht aus wie echtes Vinted-HTML, ist aber trivial zu lesen.
 
 - [ ] **Schritt 2: Test schreiben**
 
