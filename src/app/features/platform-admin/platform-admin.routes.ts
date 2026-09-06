@@ -9,4 +9,11 @@ export const platformAdminRoutes: Routes = [
         (m) => m.BetaApplicationsComponent,
       ),
   },
+  {
+    path: 'categories',
+    loadComponent: () =>
+      import('./pages/vinted-categories/vinted-categories.component').then(
+        (m) => m.VintedCategoriesComponent,
+      ),
+  },
 ];

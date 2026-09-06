@@ -1,5 +1,38 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Claude – Task 6: Kategorieliste in der Administration, „Betreiber" wird „Administration"
+
+**Auftrag:** Letzte Aufgabe des Pakets (Zweig `feat/deal-monitor-collection-and-ui`): eine
+Seite, auf der man sieht, wie frisch der in Task 1 gespeicherte Kategoriebaum ist, und ein
+erneutes Einlesen anfordern kann — dazu die Umbenennung des Menüpunkts „Betreiber" zu
+„Administration".
+
+**Umsetzung:** Neue Seite `src/app/features/platform-admin/pages/vinted-categories/` (Standalone
+Component, `ChangeDetectionStrategy.OnPush`, `inject()`, Signals) zeigt Kategorienzahl,
+Zeitpunkt des letzten Einlesens und einen etwaigen letzten Fehler; ein Knopf „Neu einlesen" ruft
+`VintedCategoryService.requestRefresh()`. Der Hinweistext sagt bewusst „angefordert", nicht
+„aufgefrischt" — der Knopf setzt nur `requested_at` in der Datenbank, der Sniper liest es erst
+beim nächsten Takt. Route `categories` unter `platform-admin.routes.ts` ergänzt. Die im
+Planentwurf genannten Tailwind-Klassen `text-fb-text` und `bg-fb-accent` gibt es in
+`src/styles.css` nicht; verwendet wurden die tatsächlich vorhandenen Entsprechungen
+`text-fb-text-primary` und `bg-fb-primary`/`text-fb-on-accent` (dasselbe Muster wie der
+Primärknopf in `sidebar.component.html`). `PLATFORM_ADMIN: 'Betreiber'` in `translations.ts`
+und `label: 'Betreiber'` in `sidebar.component.ts` wurden zu „Administration"; der Kommentar
+darüber wurde zu „Der Punkt Administration erscheint nur fuer Betreiber der Plattform.". Die
+Route `/admin` (Ladepfad von `platform-admin.routes.ts`) blieb unverändert. „Betreiber" als
+Fachbegriff für die Rolle blieb stehen, wo er das ist: `platform-operator.service.ts` samt Test,
+Kommentare in `webhook.models.ts`, `header.component.ts/.html` und `app.routes.ts`.
+
+**Verifiziert durch:** TDD — Test zuerst rot (`Failed to resolve import
+"./vinted-categories.component"`), nach Komponente und Vorlage grün (4/4). Danach
+`npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:angular` (477/477,
+5 übersprungen) und `npm run build` — alle grün, jeweils vor und erneut nach dem Commit
+gemessen. Schritt 9 (Browser-Kontrolle unter `/platform-admin/categories`) blieb offen: die
+lokale Datenbank lässt sich auf diesem Rechner wegen von Windows gesperrter Supabase-Standardports
+nicht ohne Weiteres starten. Voller Bericht: `.superpowers/sdd/task-6-report.md`.
+
+---
+
 ## 2026-09-06 – Claude – Task 3, Review-Nachlauf: Markieren-und-Nachräumen statt Erst-Leeren
 
 **Auftrag:** Drei zusammenhängende Review-Befunde an `CategoryStore.replaceAll` beheben
