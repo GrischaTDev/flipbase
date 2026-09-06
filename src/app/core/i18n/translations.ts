@@ -368,7 +368,7 @@ export const TRANSLATIONS_EN = {
     ANALYTICS: 'Analytics',
     SETTINGS: 'Settings',
     CLOSE_MENU: 'Close menu',
-    PLATFORM_ADMIN: 'Operator',
+    PLATFORM_ADMIN: 'Administration',
     OPERATIONS: 'Operations',
   },
   PLATFORMS: {

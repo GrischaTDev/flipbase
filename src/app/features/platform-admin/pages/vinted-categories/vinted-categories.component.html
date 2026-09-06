@@ -58,11 +58,15 @@
         }
       </button>
 
-      @if (requested()) {
-        <p class="text-sm text-fb-text-muted">
+      <!-- Die Meldung erscheint erst nach dem Knopfdruck. Ohne Live-Bereich
+           erfaehrt niemand, der einen Screenreader benutzt, dass die
+           Anforderung angekommen ist - der Knopf sagt danach ja wieder
+           dasselbe wie vorher. -->
+      <p class="text-sm text-fb-text-muted" role="status" aria-live="polite">
+        @if (requested()) {
           Angefordert. Der Dienst liest beim nächsten Takt neu ein.
-        </p>
-      }
+        }
+      </p>
     </div>
   }
 </section>
