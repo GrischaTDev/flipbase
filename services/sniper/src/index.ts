@@ -5,7 +5,9 @@ import { createHealthState, startHealthServer } from './health.js';
 import { createLogger } from './log.js';
 import { RequestBudget } from './runtime/budget.js';
 import { countingFetch } from './runtime/counting-fetch.js';
+import { refreshCategoriesIfDue } from './runtime/refresh-categories.js';
 import { QueryScheduler } from './runtime/scheduler.js';
+import { CategoryStore } from './store/category.store.js';
 import { ListingStore } from './store/listing.store.js';
 import { QueryStore } from './store/query.store.js';
 import { createSupabaseClient } from './store/supabase.js';
@@ -27,6 +29,7 @@ const session = new VintedSession(sessionOptions, counted);
 
 const health = createHealthState(() => budget.usageRatio());
 const queries = new QueryStore(client);
+const categories = new CategoryStore(client);
 
 const scheduler = new QueryScheduler({
   queries: {
@@ -72,6 +75,27 @@ log.info('started', {
 while (!controller.signal.aborted) {
   try {
     const now = new Date();
+
+    // Vor dem Sammeln, nicht danach: Faellt das Einlesen aus, soll das Sammeln
+    // trotzdem laufen - und die Kategorien sind fuer den naechsten Takt aktuell.
+    // Das Abholen der Startseite geht ueber dieselbe gezaehlte fetch-Funktion
+    // wie alles andere, sonst zaehlt es nicht gegen das Budget.
+    await refreshCategoriesIfDue(
+      {
+        store: categories,
+        fetchHomepage: async () => {
+          const response = await counted(config.vintedBaseUrl, {
+            headers: { Accept: 'text/html,application/xhtml+xml', 'User-Agent': config.userAgent },
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.text();
+        },
+        maxAgeMs: config.categoryMaxAgeMs,
+        log,
+      },
+      now,
+    );
+
     const report = await scheduler.runOnce(now);
     health.recordCycle(report, now);
   } catch (error) {
