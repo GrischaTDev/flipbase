@@ -15,9 +15,13 @@ test('nutzt breite Bildschirme für Datenansichten ohne seitlichen Seitenüberla
   }
 });
 
-test('hält Datenansichten auch zwischen Mobil- und Desktoplayout im Fenster', async ({ page }) => {
-  await startDemoMode(page);
-  for (const width of [390, 768, 1024, 1100, 1280]) {
+// Eine Prüfung je Breite statt aller fünf in einem Test: Zwanzig Seitenaufrufe
+// hintereinander sprengen in Firefox das 30-Sekunden-Limit eines Tests, und
+// beim Abbruch war nicht erkennbar, welche Breite klemmt. Getrennt läuft jede
+// Breite in ihrem eigenen Zeitfenster und benennt sich im Fehlerfall selbst.
+for (const width of [390, 768, 1024, 1100, 1280]) {
+  test(`hält Datenansichten bei ${width}px im Fenster`, async ({ page }) => {
+    await startDemoMode(page);
     await page.setViewportSize({ width, height: 900 });
     for (const route of ['/dashboard', '/purchases', '/inventory', '/sales']) {
       await page.goto(route);
@@ -28,5 +32,5 @@ test('hält Datenansichten auch zwischen Mobil- und Desktoplayout im Fenster', a
         })
         .toBe(width);
     }
-  }
-});
+  });
+}

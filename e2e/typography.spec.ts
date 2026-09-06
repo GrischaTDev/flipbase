@@ -12,10 +12,13 @@ test('lädt Inter lokal auch für Bedienelemente und Kennzahlen', async ({ page 
     return faces.length;
   });
   expect(loaded).toBeGreaterThan(0);
-  await expect(page.locator('body')).toHaveCSS('font-family', /^Inter,/);
+  // Dieselbe Schriftliste, zwei Schreibweisen: Chromium und WebKit geben
+  // `Inter, …` ohne Anführungszeichen zurück, Firefox `"Inter", …` mit.
+  // Deshalb ist das Anführungszeichen hier ausdrücklich freigestellt.
+  await expect(page.locator('body')).toHaveCSS('font-family', /^"?Inter"?,/);
   await expect(page.getByRole('combobox', { name: 'Plattform filtern' })).toHaveCSS(
     'font-family',
-    /^Inter,/,
+    /^"?Inter"?,/,
   );
   await expect(page.locator('.font-mono').first()).toHaveCSS('font-family', /^"JetBrains Mono",/);
   expect(fontRequests.some((url) => url.endsWith('/fonts/inter-variable-4.1.woff2'))).toBe(true);

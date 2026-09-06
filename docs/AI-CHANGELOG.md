@@ -1,5 +1,51 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Claude – Nächtliche Vollprüfung wieder aussagekräftig gemacht
+
+**Anlass:** Der wöchentliche Nachtlauf auf `master` war am 06.09.2026 zweimal rot
+(Läufe `34012225615` und `34015325180`). Betroffen waren die Firefox-Rauchprobe
+und die vollständige Datenbankprüfung. Die Wochenaufträge laufen nur sonntags,
+deshalb fiel beides erst jetzt auf.
+
+**Befunde:**
+
+- `e2e/typography.spec.ts` prüfte die Schriftliste mit `/^Inter,/`. Chromium und
+  WebKit liefern `Inter, …` ohne Anführungszeichen, Firefox `"Inter", …` mit.
+  Dieselbe Schrift, nur eine andere Schreibweise der Engine — kein Fehler der
+  Seite.
+- `e2e/admin-layout.spec.ts` lud fünf Fensterbreiten mal vier Seiten in **einem**
+  Test. Zwanzig Seitenaufrufe hintereinander sprengen in Firefox das
+  30-Sekunden-Limit eines Tests; beim Abbruch war zudem nicht erkennbar, welche
+  Breite klemmt.
+- Die Nebenläufigkeitsprobe `inventory_double_sale.ps1` scheiterte auf dem
+  Linux-Runner sofort mit „The parameter '-WindowStyle' is not supported for the
+  cmdlet 'Start-Process' on this edition of PowerShell". Der Schalter existiert
+  nur in der Windows-Ausgabe. Der Auftrag „Full coverage" wurde daraufhin nur
+  mitabgebrochen, er hatte keinen eigenen Fehler. Die vielen
+  `toomanyrequests`-Meldungen beim Hochfahren von Supabase waren ein
+  Nebengeräusch — der Start ist trotzdem durchgelaufen.
+
+**Korrektur:** Die Schriftprüfung lässt das Anführungszeichen ausdrücklich offen.
+Die Layoutprüfung läuft als eine Prüfung je Breite, damit jede ihr eigenes
+Zeitfenster hat und sich im Fehlerfall selbst benennt. Im Harness wird
+`-WindowStyle Hidden` nur noch unter Windows gesetzt — dort verhindert es weiter
+aufblitzende Konsolenfenster, unter Linux fällt es weg.
+
+**Prüfung:** Vor der Korrektur schlug `typography.spec.ts` lokal in Firefox mit
+genau der Meldung aus der CI fehl. Danach beide Dateien in Firefox (7 Tests) und
+Chromium (7 Tests) grün; die lokale WebKit-Ausgabe unter Windows meldet an
+denselben Stellen auch auf unverändertem Stand einen 6-Pixel-Unterschied durch
+die Bildlaufleiste und taugt hier nicht als Signal. Dazu `npm run format:check`,
+`npm run lint`, `npm run typecheck`, `npm run test:audit` und
+`npm run test:workflow` grün, das PowerShell-Skript ohne Parserfehler und die
+Aufrufform mit Auslassungstabelle ohne `-WindowStyle` in einer eigenen Probe
+bestätigt. Der Linux-Lauf selbst ist lokal nicht nachstellbar (kein Docker,
+keine Linux-PowerShell) — den Nachweis führt erst der Nachtlauf.
+
+**Offen:** Fünf weitere Skripte unter `supabase/test-support/manual/` tragen
+denselben Windows-Schalter. Sie laufen nicht in der CI und wurden bewusst nicht
+mitgeändert.
+
 ## 2026-09-06 – Codex – E2E-Kompatibilität des Spaltenknopfs korrigiert
 
 **Befund:** Der Browser-Smoke-Test blieb beim Spaltenmenü hängen, weil die

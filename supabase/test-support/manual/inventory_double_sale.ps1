@@ -33,11 +33,27 @@ function Invoke-PsqlFile {
   )
 
   $arguments = @('exec', '-i', $containerName, 'psql', '-X', '-v', 'ON_ERROR_STOP=1', '-U', 'postgres', '-d', 'postgres')
-  if ($AsProcess) {
-    return Start-Process -FilePath 'docker' -ArgumentList $arguments -RedirectStandardInput $InputFile -RedirectStandardOutput $OutputFile -RedirectStandardError $ErrorFile -WindowStyle Hidden -PassThru
+  $startParameters = @{
+    FilePath                = 'docker'
+    ArgumentList            = $arguments
+    RedirectStandardInput   = $InputFile
+    RedirectStandardOutput  = $OutputFile
+    RedirectStandardError   = $ErrorFile
+    PassThru                = $true
   }
 
-  $process = Start-Process -FilePath 'docker' -ArgumentList $arguments -RedirectStandardInput $InputFile -RedirectStandardOutput $OutputFile -RedirectStandardError $ErrorFile -WindowStyle Hidden -PassThru -Wait
+  # `-WindowStyle` gibt es nur in der Windows-Ausgabe von PowerShell; unter
+  # Linux bricht Start-Process damit sofort ab. Auf Windows bleibt es drin,
+  # damit beim Lauf von Hand keine Konsolenfenster aufblitzen.
+  if ($IsWindows) {
+    $startParameters['WindowStyle'] = 'Hidden'
+  }
+
+  if ($AsProcess) {
+    return Start-Process @startParameters
+  }
+
+  $process = Start-Process @startParameters -Wait
   if ($process.ExitCode -ne 0) {
     throw (Get-Content -Raw -LiteralPath $ErrorFile)
   }
