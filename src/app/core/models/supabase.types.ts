@@ -1,3 +1,4 @@
+Connecting to db 5432
 export type Json =
   | string
   | number
@@ -2807,6 +2808,71 @@ export type Database = {
           },
         ]
       }
+      vinted_categories: {
+        Row: {
+          id: number
+          is_leaf: boolean
+          parent_id: number | null
+          path: string
+          slug: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          id: number
+          is_leaf?: boolean
+          parent_id?: number | null
+          path: string
+          slug: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          is_leaf?: boolean
+          parent_id?: number | null
+          path?: string
+          slug?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinted_categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "vinted_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vinted_category_sync: {
+        Row: {
+          category_count: number
+          id: number
+          last_attempt_at: string | null
+          last_error: string | null
+          refreshed_at: string | null
+          requested_at: string | null
+        }
+        Insert: {
+          category_count?: number
+          id?: number
+          last_attempt_at?: string | null
+          last_error?: string | null
+          refreshed_at?: string | null
+          requested_at?: string | null
+        }
+        Update: {
+          category_count?: number
+          id?: number
+          last_attempt_at?: string | null
+          last_error?: string | null
+          refreshed_at?: string | null
+          requested_at?: string | null
+        }
+        Relationships: []
+      }
       webhook_configs: {
         Row: {
           created_at: string
@@ -2993,6 +3059,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      beta_application_attempt: {
+        Args: {
+          p_max_per_origin: number
+          p_max_total: number
+          p_origin_hash: string
+        }
+        Returns: boolean
       }
       book_bank_transaction: {
         Args: {
