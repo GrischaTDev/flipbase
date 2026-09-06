@@ -50,6 +50,110 @@ Referenz. Shopify-Dokumentation und drei getrennte Code-Audits werden gegen die
 aktuelle Codebasis geprüft; nach der Umsetzung folgt eine zusätzliche
 unabhängige Gegenprüfung des gesamten Diffs.
 
+## 2026-09-06 – Claude – Zeitlimit der vollständigen Deckungsmessung angehoben
+
+**Richtigstellung:** Im ersten Eintrag von heute steht, der Auftrag „Full
+coverage" sei „nur mitabgebrochen" worden und habe keinen eigenen Fehler gehabt.
+Das war falsch. Er lief in sein **eigenes** Zeitlimit von 15 Minuten.
+
+**Beleg:** Drei gemessene Läufe der vollständigen Messung: `34020596308` 11:45
+grün, `34015325180` 15:17 abgebrochen, `34021482927` 15:16 abgebrochen. Kein
+einziger roter Test darin — die Messung liegt schlicht auf der Grenze und
+kippt je nach Runner darüber.
+
+**Korrektur:** Das Limit dieses einen Auftrags steht jetzt auf 25 Minuten. Es
+bleibt bewusst endlich, damit ein echter Hänger nicht ewig läuft. Der überholte
+Kommentar „rund neun Minuten" am täglichen Auftrag wurde mitgezogen.
+
+**Prüfung:** `npm run test:workflow` (43 Tests) und der Prettier-Check der
+Workflow-Datei grün. Ob 25 Minuten reichen, zeigt der nächste vollständige Lauf.
+
+## 2026-09-06 – Claude – Nachlauf zum Nachtlauf: WebKit und das Aufräumen der Datenbankprobe
+
+**Anlass:** Der von Hand ausgelöste Vollauf auf dem Zweig
+(`34020596308`) brachte Firefox, Node-Stress und beide Deckungsmessungen grün
+und legte dabei zwei Dinge frei, die vorher unter den früheren Fehlern lagen.
+
+**Befunde:**
+
+- **WebKit war schon vor dieser Arbeit rot**, nur unbemerkt: Der tägliche
+  WebKit-Auftrag lief zuletzt am 05.09. um 04:34 grün, der Polaris-Umbau kam
+  erst um 23:55 dazu. Acht Tests fielen aus, darunter zwei, die hier gar nicht
+  angefasst wurden. Zwei Ursachen: `JetBrains Mono` liefert WebKit ohne
+  Anführungszeichen, Chromium mit — die eben korrigierte Prüfung deckte nur
+  `Inter` ab. Und WebKit blendet auf diesen Seiten eine klassische
+  Bildlaufleiste ein; die Layoutprüfungen verglichen `scrollWidth` mit der
+  eingestellten Fensterbreite und lagen dadurch um sechs Pixel daneben.
+- **Die Nebenläufigkeitsprobe selbst ist grün** — im Protokoll steht
+  „RPC-Concurrency-Harness grün". Der Lauf scheiterte erst danach beim
+  Aufräumen: Der Verkauf schreibt Ereignisse ins Prüfprotokoll,
+  `business_events.workspace_id` hängt mit `on delete restrict` am
+  Arbeitsbereich, und der Auslöser
+  `prevent_workspace_with_business_data_deletion` verbietet zusätzlich das
+  Löschen von Arbeitsbereichen mit Geschäftsdaten. Das Skript stammt aus der
+  Zeit davor.
+
+**Korrektur:** Die Schriftprüfung stellt das Anführungszeichen für beide
+Schriften frei. Die drei Layoutprüfungen messen jetzt den seitlichen Überlauf
+(`scrollWidth - clientWidth`, erwartet null) statt der Gleichheit mit der
+Fensterbreite — das ist genau die Absicht der Tests und unabhängig davon, ob
+eine Engine eine Bildlaufleiste einblendet. Die Datenbankprobe räumt nur noch
+die Geschäftsdaten ab und lässt Arbeitsbereich, Mitgliedschaft und Testnutzer
+stehen; das Anlegen ist dafür wiederholbar (`on conflict do nothing`). Der
+Schutz vor dem Löschen von Belegen bleibt unangetastet.
+
+**Prüfung:** Lokal alle drei betroffenen Dateien in WebKit (11 Tests), Firefox
+und Chromium (22 Tests) grün — dieselben acht Tests, die in der CI und lokal
+unter WebKit fielen. Dazu `format:check`, `lint`, `typecheck` und der
+Parser-Check des PowerShell-Skripts. Das Aufräumen der Datenbank ist lokal
+weiterhin nicht nachstellbar; den Nachweis führt der nächste Lauf auf dem Zweig.
+
+## 2026-09-06 – Claude – Nächtliche Vollprüfung wieder aussagekräftig gemacht
+
+**Anlass:** Der wöchentliche Nachtlauf auf `master` war am 06.09.2026 zweimal rot
+(Läufe `34012225615` und `34015325180`). Betroffen waren die Firefox-Rauchprobe
+und die vollständige Datenbankprüfung. Die Wochenaufträge laufen nur sonntags,
+deshalb fiel beides erst jetzt auf.
+
+**Befunde:**
+
+- `e2e/typography.spec.ts` prüfte die Schriftliste mit `/^Inter,/`. Chromium und
+  WebKit liefern `Inter, …` ohne Anführungszeichen, Firefox `"Inter", …` mit.
+  Dieselbe Schrift, nur eine andere Schreibweise der Engine — kein Fehler der
+  Seite.
+- `e2e/admin-layout.spec.ts` lud fünf Fensterbreiten mal vier Seiten in **einem**
+  Test. Zwanzig Seitenaufrufe hintereinander sprengen in Firefox das
+  30-Sekunden-Limit eines Tests; beim Abbruch war zudem nicht erkennbar, welche
+  Breite klemmt.
+- Die Nebenläufigkeitsprobe `inventory_double_sale.ps1` scheiterte auf dem
+  Linux-Runner sofort mit „The parameter '-WindowStyle' is not supported for the
+  cmdlet 'Start-Process' on this edition of PowerShell". Der Schalter existiert
+  nur in der Windows-Ausgabe. Der Auftrag „Full coverage" wurde daraufhin nur
+  mitabgebrochen, er hatte keinen eigenen Fehler. Die vielen
+  `toomanyrequests`-Meldungen beim Hochfahren von Supabase waren ein
+  Nebengeräusch — der Start ist trotzdem durchgelaufen.
+
+**Korrektur:** Die Schriftprüfung lässt das Anführungszeichen ausdrücklich offen.
+Die Layoutprüfung läuft als eine Prüfung je Breite, damit jede ihr eigenes
+Zeitfenster hat und sich im Fehlerfall selbst benennt. Im Harness wird
+`-WindowStyle Hidden` nur noch unter Windows gesetzt — dort verhindert es weiter
+aufblitzende Konsolenfenster, unter Linux fällt es weg.
+
+**Prüfung:** Vor der Korrektur schlug `typography.spec.ts` lokal in Firefox mit
+genau der Meldung aus der CI fehl. Danach beide Dateien in Firefox (7 Tests) und
+Chromium (7 Tests) grün; die lokale WebKit-Ausgabe unter Windows meldet an
+denselben Stellen auch auf unverändertem Stand einen 6-Pixel-Unterschied durch
+die Bildlaufleiste und taugt hier nicht als Signal. Dazu `npm run format:check`,
+`npm run lint`, `npm run typecheck`, `npm run test:audit` und
+`npm run test:workflow` grün, das PowerShell-Skript ohne Parserfehler und die
+Aufrufform mit Auslassungstabelle ohne `-WindowStyle` in einer eigenen Probe
+bestätigt. Der Linux-Lauf selbst ist lokal nicht nachstellbar (kein Docker,
+keine Linux-PowerShell) — den Nachweis führt erst der Nachtlauf.
+
+**Offen:** Fünf weitere Skripte unter `supabase/test-support/manual/` tragen
+denselben Windows-Schalter. Sie laufen nicht in der CI und wurden bewusst nicht
+mitgeändert.
+
 ## 2026-09-06 – Codex – E2E-Kompatibilität des Spaltenknopfs korrigiert
 
 **Befund:** Der Browser-Smoke-Test blieb beim Spaltenmenü hängen, weil die

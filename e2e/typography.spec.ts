@@ -12,12 +12,17 @@ test('setzt Inter als globale Anwendungsschrift', async ({ page }) => {
     return faces.length;
   });
   expect(loaded).toBeGreaterThan(0);
-  await expect(page.locator('body')).toHaveCSS('font-family', /^Inter,/);
+  // Dieselbe Schriftliste, unterschiedlich geschrieben: Jede Engine setzt die
+  // Anführungszeichen um Schriftnamen nach eigener Regel. Firefox meldet
+  // `"Inter", …`, Chromium und WebKit `Inter, …`; bei `JetBrains Mono` quotet
+  // Chromium, WebKit nicht. Das sagt nichts über die Seite aus, deshalb sind
+  // die Anführungszeichen unten überall freigestellt.
+  await expect(page.locator('body')).toHaveCSS('font-family', /^"?Inter"?,/);
   await expect(page.getByRole('combobox', { name: 'Plattform filtern' })).toHaveCSS(
     'font-family',
-    /^Inter,/,
+    /^"?Inter"?,/,
   );
-  await expect(page.locator('.font-mono').first()).toHaveCSS('font-family', /^Inter,/);
+  await expect(page.locator('.font-mono').first()).toHaveCSS('font-family', /^"?Inter"?,/);
 
   for (const route of [
     '/dashboard',
@@ -47,7 +52,7 @@ test('setzt Inter als globale Anwendungsschrift', async ({ page }) => {
           element: element.tagName.toLowerCase(),
           fontFamily: getComputedStyle(element).fontFamily,
         }))
-        .filter(({ fontFamily }) => !fontFamily.startsWith('Inter,'));
+        .filter(({ fontFamily }) => !/^"?Inter"?,/.test(fontFamily));
     });
     expect(nonInterElements, `Nicht-Inter-Elemente auf ${route}`).toEqual([]);
   }
@@ -61,7 +66,7 @@ test('setzt Inter als globale Anwendungsschrift', async ({ page }) => {
   const nativeTextElements = page.locator('[data-typography-fixture] :is(code, pre, kbd, samp)');
   await expect(nativeTextElements).toHaveCount(4);
   for (let index = 0; index < 4; index += 1) {
-    await expect(nativeTextElements.nth(index)).toHaveCSS('font-family', /^Inter,/);
+    await expect(nativeTextElements.nth(index)).toHaveCSS('font-family', /^"?Inter"?,/);
   }
   expect(fontRequests.some((url) => url.endsWith('/fonts/inter-variable-4.1.woff2'))).toBe(true);
   expect(fontRequests.every((url) => new URL(url).origin === new URL(page.url()).origin)).toBe(
