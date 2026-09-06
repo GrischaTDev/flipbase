@@ -52,12 +52,14 @@ describe('TableColumnMenuComponent', () => {
       columns: ['columns', 1, null],
       sortOptions: ['sortOptions', 1, null],
       currentSort: ['currentSort', 1, null],
+      viewModified: ['viewModified', 1, null],
     };
     metadata.declaredInputs = {
       ...metadata.declaredInputs,
       columns: 'columns',
       sortOptions: 'sortOptions',
       currentSort: 'currentSort',
+      viewModified: 'viewModified',
     };
 
     TestBed.resetTestingModule();
@@ -107,7 +109,7 @@ describe('TableColumnMenuComponent', () => {
     expect(component.isOpen()).toBe(false);
   });
 
-  it('should toggle sort direction when direction button is clicked', () => {
+  it('should emit a direction selected from the sort menu', () => {
     component.toggleOpen();
     fixture.detectChanges();
 
@@ -116,8 +118,76 @@ describe('TableColumnMenuComponent', () => {
       emittedSort = sort;
     });
 
-    component.toggleSortDirection();
+    component.selectSortDirection('asc');
     expect(emittedSort).toEqual({ field: 'date', direction: 'asc' });
+  });
+
+  it('should use the custom sort listbox and emit the selected field', () => {
+    component.toggleOpen();
+    fixture.detectChanges();
+
+    let emittedSort: TableSortState<string> | undefined;
+    component.sortChanged.subscribe((sort) => {
+      emittedSort = sort;
+    });
+
+    const sortFieldButton = fixture.nativeElement.querySelector(
+      '[aria-label="Sortierfeld"]',
+    ) as HTMLButtonElement;
+    sortFieldButton.click();
+    fixture.detectChanges();
+
+    const priceOption = Array.from(fixture.nativeElement.querySelectorAll('[role="option"]')).find(
+      (option: unknown) => (option as HTMLElement).textContent?.includes('Preis'),
+    ) as HTMLButtonElement | undefined;
+    expect(priceOption).toBeTruthy();
+    priceOption?.click();
+
+    expect(emittedSort).toEqual({ field: 'price', direction: 'desc' });
+    expect(component.isSortMenuOpen()).toBe(false);
+  });
+
+  it('should keep the sort control inline and the direction choices in the sort popover', () => {
+    component.toggleOpen();
+    fixture.detectChanges();
+
+    const dialog = fixture.nativeElement.querySelector('[role="dialog"]') as HTMLElement;
+    expect(dialog.querySelector('[data-sort-trigger]')).toBeTruthy();
+    expect(dialog.querySelector('[data-popover-focus]')).toBeTruthy();
+    expect(dialog.querySelector('.linear-input')).toBeNull();
+    expect(dialog.querySelector('[title*="Aufsteigend"]')).toBeNull();
+
+    (dialog.querySelector('[data-sort-trigger]') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-sort-menu]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelectorAll('[role="listbox"]')).toHaveLength(2);
+    expect(fixture.nativeElement.querySelectorAll('[role="option"]')).toHaveLength(4);
+    expect(fixture.nativeElement.textContent).toContain('A-Z');
+    expect(fixture.nativeElement.textContent).toContain('Z-A');
+  });
+
+  it('should show and emit the adjacent view reset action only for a modified view', () => {
+    expect(fixture.nativeElement.querySelector('[data-view-reset]')).toBeNull();
+
+    fixture.componentRef.setInput('viewModified', true);
+    fixture.detectChanges();
+    const reset = fixture.nativeElement.querySelector('[data-view-reset]') as HTMLButtonElement;
+    expect(reset).toBeTruthy();
+
+    let emitted = false;
+    component.viewResetRequested.subscribe(() => (emitted = true));
+    reset.click();
+    expect(emitted).toBe(true);
+  });
+
+  it('should render the panel as a viewport overlay', () => {
+    component.toggleOpen();
+    fixture.detectChanges();
+
+    const dialog = fixture.nativeElement.querySelector('[role="dialog"]') as HTMLElement;
+    expect(dialog.classList.contains('fixed')).toBe(true);
+    expect(dialog.classList.contains('overflow-y-auto')).toBe(true);
+    expect(dialog.style.maxHeight).toBeTruthy();
   });
 
   it('should emit columnVisibilityToggled when an optional column is clicked', () => {

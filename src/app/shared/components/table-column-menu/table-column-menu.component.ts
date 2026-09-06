@@ -20,8 +20,8 @@ import {
   LucideLock as Lock,
   LucideRotateCcw as RotateCcw,
   LucideColumns3 as Columns3,
-  LucideArrowUp as ArrowUp,
-  LucideArrowDown as ArrowDown,
+  LucideChevronDown as ChevronDown,
+  LucideCheck as Check,
 } from '@lucide/angular';
 import {
   ColumnDefinition,
@@ -42,6 +42,8 @@ let nextMenuId = 0;
     class: 'relative inline-block',
     '(document:click)': 'onDocumentClick($event)',
     '(keydown.escape)': 'onEscapePressed()',
+    '(window:resize)': 'onViewportChange()',
+    '(window:scroll)': 'onViewportChange()',
   },
 })
 export class TableColumnMenuComponent<
@@ -51,10 +53,13 @@ export class TableColumnMenuComponent<
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private readonly triggerBtn = viewChild<ElementRef<HTMLButtonElement>>('triggerBtn');
+  private readonly sortTriggerBtn = viewChild<ElementRef<HTMLButtonElement>>('sortTriggerBtn');
   private readonly panel = viewChild<ElementRef<HTMLDivElement>>('panel');
+  private readonly sortMenu = viewChild<ElementRef<HTMLDivElement>>('sortMenu');
 
   readonly panelId = `table-column-menu-${++nextMenuId}`;
   readonly headingId = `${this.panelId}-heading`;
+  readonly sortMenuId = `${this.panelId}-sort-fields`;
 
   protected readonly icons = {
     columns: Columns3,
@@ -64,23 +69,33 @@ export class TableColumnMenuComponent<
     drag: GripVertical,
     lock: Lock,
     reset: RotateCcw,
-    asc: ArrowUp,
-    desc: ArrowDown,
+    chevron: ChevronDown,
+    check: Check,
   };
 
   // Inputs
   readonly columns = input.required<readonly ColumnDefinition<TColumnId>[]>();
   readonly sortOptions = input.required<readonly SortFieldOption<TSortField>[]>();
   readonly currentSort = input.required<TableSortState<TSortField>>();
+  readonly viewModified = input(false);
 
   // Outputs
   readonly columnVisibilityToggled = output<TColumnId>();
   readonly columnsReordered = output<{ previousIndex: number; currentIndex: number }>();
   readonly sortChanged = output<TableSortState<TSortField>>();
   readonly resetRequested = output<void>();
+  readonly viewResetRequested = output<void>();
 
   // State
   readonly isOpen = signal<boolean>(false);
+  readonly isSortMenuOpen = signal<boolean>(false);
+  readonly panelPosition = signal({ top: 8, left: 8 });
+  readonly panelPlacement = signal<'above' | 'below'>('below');
+  readonly panelMaxHeight = signal(828);
+  readonly sortMenuPosition = signal({ top: 8, left: 8 });
+  readonly sortMenuPlacement = signal<'above' | 'below'>('below');
+  readonly sortMenuMaxHeight = signal(480);
+  readonly sortDirections: readonly SortDirection[] = ['asc', 'desc'];
   protected readonly draggedIndex = signal<number | null>(null);
 
   protected readonly sortedColumns = computed(() =>
@@ -94,10 +109,18 @@ export class TableColumnMenuComponent<
   toggleOpen(): void {
     const nextIsOpen = !this.isOpen();
     this.isOpen.set(nextIsOpen);
+    if (!nextIsOpen) this.isSortMenuOpen.set(false);
     if (nextIsOpen) {
       afterNextRender(
         {
           mixedReadWrite: () => {
+            this.positionPanel();
+            if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
+              window.requestAnimationFrame(() => {
+                this.positionPanel();
+                this.positionSortMenu();
+              });
+            }
             this.panel()?.nativeElement.querySelector<HTMLElement>('[data-popover-focus]')?.focus();
           },
         },
@@ -109,6 +132,7 @@ export class TableColumnMenuComponent<
   close(): void {
     if (this.isOpen()) {
       this.isOpen.set(false);
+      this.isSortMenuOpen.set(false);
       this.triggerBtn()?.nativeElement.focus();
     }
   }
@@ -122,23 +146,103 @@ export class TableColumnMenuComponent<
   }
 
   onEscapePressed(): void {
+    if (this.isSortMenuOpen()) {
+      this.isSortMenuOpen.set(false);
+      return;
+    }
     this.close();
   }
 
-  toggleSortDirection(): void {
-    const nextDir: SortDirection = this.currentSort().direction === 'asc' ? 'desc' : 'asc';
-    this.sortChanged.emit({
-      field: this.currentSort().field,
-      direction: nextDir,
-    });
+  toggleSortMenu(): void {
+    this.isSortMenuOpen.update((isOpen) => !isOpen);
+    if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
+      window.requestAnimationFrame(() => {
+        this.positionPanel();
+        this.positionSortMenu();
+      });
+    }
   }
 
-  onSortFieldChange(event: Event): void {
-    const field = (event.target as HTMLSelectElement).value as TSortField;
-    this.sortChanged.emit({
-      field,
-      direction: this.currentSort().direction,
+  selectSortField(field: TSortField): void {
+    this.sortChanged.emit({ field, direction: this.currentSort().direction });
+    this.isSortMenuOpen.set(false);
+  }
+
+  selectSortDirection(direction: SortDirection): void {
+    this.sortChanged.emit({ field: this.currentSort().field, direction });
+    this.isSortMenuOpen.set(false);
+  }
+
+  onViewportChange(): void {
+    if (!this.isOpen()) return;
+    this.positionPanel();
+    if (this.isSortMenuOpen()) this.positionSortMenu();
+  }
+
+  private positionPanel(): void {
+    const trigger = this.triggerBtn()?.nativeElement;
+    const panel = this.panel()?.nativeElement;
+    if (!trigger || !panel) return;
+
+    const triggerBox = trigger.getBoundingClientRect();
+    const panelBox = panel.getBoundingClientRect();
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+    const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+    const edge = 8;
+    const gap = 8;
+    const width = panelBox.width || 320;
+    const height = panelBox.height || 480;
+
+    const belowTop = triggerBox.bottom + gap;
+    const aboveTop = triggerBox.top - height - gap;
+    const top =
+      belowTop + height <= viewportHeight - edge || aboveTop < edge
+        ? Math.min(belowTop, viewportHeight - height - edge)
+        : aboveTop;
+    const placement =
+      belowTop + height <= viewportHeight - edge || aboveTop < edge ? 'below' : 'above';
+    const rightAlignedLeft = triggerBox.right - width;
+    const left = Math.min(
+      Math.max(edge, rightAlignedLeft),
+      Math.max(edge, viewportWidth - width - edge),
+    );
+
+    const safeTop = Math.max(edge, top);
+    this.panelPosition.set({
+      top: safeTop,
+      left,
     });
+    this.panelPlacement.set(placement);
+    this.panelMaxHeight.set(Math.max(180, viewportHeight - safeTop - edge));
+  }
+
+  private positionSortMenu(): void {
+    const trigger = this.sortTriggerBtn()?.nativeElement;
+    const menu = this.sortMenu()?.nativeElement;
+    if (!trigger || !menu) return;
+
+    const triggerBox = trigger.getBoundingClientRect();
+    const menuBox = menu.getBoundingClientRect();
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+    const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+    const edge = 8;
+    const gap = 4;
+    const width = menuBox.width || 224;
+    const maxHeight = Math.max(96, viewportHeight - edge * 2);
+    const contentHeight = menu.scrollHeight || menuBox.height || 300;
+    const height = Math.min(contentHeight, maxHeight);
+    this.sortMenuMaxHeight.set(maxHeight);
+    const belowTop = triggerBox.bottom + gap;
+    const aboveTop = triggerBox.top - height - gap;
+    const opensBelow = belowTop + height <= viewportHeight - edge || aboveTop < edge;
+    const top = opensBelow ? Math.min(belowTop, viewportHeight - height - edge) : aboveTop;
+    const left = Math.min(
+      Math.max(edge, triggerBox.right - width),
+      Math.max(edge, viewportWidth - width - edge),
+    );
+
+    this.sortMenuPosition.set({ top: Math.max(edge, top), left });
+    this.sortMenuPlacement.set(opensBelow ? 'below' : 'above');
   }
 
   moveColumnKeyboard(index: number, direction: 'up' | 'down', event: Event): void {

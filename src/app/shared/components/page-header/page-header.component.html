@@ -14,8 +14,15 @@
 
   <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 min-w-0">
     <div class="min-w-0 space-y-1">
-      <div class="flex items-center gap-2.5 flex-wrap min-w-0">
-        <h1 class="text-xl md:text-2xl font-bold tracking-tight text-fb-text-primary truncate">
+      <div class="flex items-center gap-2 flex-wrap min-w-0">
+        @if (icon(); as pageIcon) {
+          <svg
+            [lucideIcon]="pageIcon"
+            class="h-5 w-5 shrink-0 text-fb-text-secondary"
+            aria-hidden="true"
+          ></svg>
+        }
+        <h1 class="text-xl leading-7 font-[450] tracking-tight text-fb-text-primary truncate">
           {{ title() }}
         </h1>
         <ng-content select="[header-badge]" />

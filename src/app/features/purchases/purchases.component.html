@@ -2,6 +2,7 @@
   <!-- Header & Actions -->
   <app-page-header
     [title]="'PURCHASES.TITLE' | translate"
+    [icon]="bagIcon"
     subtitle="Einkäufe und enthaltene Artikel verwalten."
   >
     <app-badge header-badge tone="neutral" [mono]="true">
@@ -66,177 +67,199 @@
     </div>
   }
 
-  <!-- Type Filter Tabs -->
-  <div class="linear-surface rounded-xl p-1.5 flex items-center gap-1 overflow-x-auto text-xs">
-    <button
-      type="button"
-      (click)="activeTab.set('all')"
-      class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-fb-line]="activeTab() === 'all'"
-      [class.text-fb-text-primary]="activeTab() === 'all'"
-      [class.border]="activeTab() === 'all'"
-      [class.border-fb-line-strong]="activeTab() === 'all'"
-      [class.text-fb-text-secondary]="activeTab() !== 'all'"
-      [class.hover:bg-fb-surface-alt]="activeTab() !== 'all'"
-      [class.hover:text-fb-text-primary]="activeTab() !== 'all'"
-    >
-      Alle Einkäufe ({{ purchaseService.purchases().length }})
-    </button>
-
-    <button
-      type="button"
-      (click)="activeTab.set('single')"
-      class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-fb-line]="activeTab() === 'single'"
-      [class.text-fb-text-primary]="activeTab() === 'single'"
-      [class.border]="activeTab() === 'single'"
-      [class.border-fb-line-strong]="activeTab() === 'single'"
-      [class.text-fb-text-secondary]="activeTab() !== 'single'"
-      [class.hover:bg-fb-surface-alt]="activeTab() !== 'single'"
-      [class.hover:text-fb-text-primary]="activeTab() !== 'single'"
-    >
-      Normale Einkäufe
-    </button>
-
-    <button
-      type="button"
-      (click)="activeTab.set('mystery_pack')"
-      class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-fb-line]="activeTab() === 'mystery_pack'"
-      [class.text-fb-text-primary]="activeTab() === 'mystery_pack'"
-      [class.border]="activeTab() === 'mystery_pack'"
-      [class.border-fb-line-strong]="activeTab() === 'mystery_pack'"
-      [class.text-fb-text-secondary]="activeTab() !== 'mystery_pack'"
-      [class.hover:bg-fb-surface-alt]="activeTab() !== 'mystery_pack'"
-      [class.hover:text-fb-text-primary]="activeTab() !== 'mystery_pack'"
-    >
-      Mystery Boxen
-    </button>
-
-    <button
-      type="button"
-      (click)="activeTab.set('lot')"
-      class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-fb-line]="activeTab() === 'lot'"
-      [class.text-fb-text-primary]="activeTab() === 'lot'"
-      [class.border]="activeTab() === 'lot'"
-      [class.border-fb-line-strong]="activeTab() === 'lot'"
-      [class.text-fb-text-secondary]="activeTab() !== 'lot'"
-      [class.hover:bg-fb-surface-alt]="activeTab() !== 'lot'"
-      [class.hover:text-fb-text-primary]="activeTab() !== 'lot'"
-    >
-      Konvolute
-    </button>
-
-    <button
-      type="button"
-      (click)="activeTab.set('pallet')"
-      class="px-3 py-1 rounded-md font-semibold transition cursor-pointer"
-      [class.bg-fb-line]="activeTab() === 'pallet'"
-      [class.text-fb-text-primary]="activeTab() === 'pallet'"
-      [class.border]="activeTab() === 'pallet'"
-      [class.border-fb-line-strong]="activeTab() === 'pallet'"
-      [class.text-fb-text-secondary]="activeTab() !== 'pallet'"
-      [class.hover:bg-fb-surface-alt]="activeTab() !== 'pallet'"
-      [class.hover:text-fb-text-primary]="activeTab() !== 'pallet'"
-    >
-      Paletten
-    </button>
-  </div>
-
-  <!-- Breite Einkaufsliste -->
+  <!-- Polaris-nahe Einkaufstabelle -->
   @if (purchaseRows().length > 0) {
-    <div data-purchase-list class="flex flex-col gap-3">
-      @for (row of purchaseRows(); track row.id) {
-        <a
-          [routerLink]="['/purchases', row.id]"
-          data-purchase-row
-          [attr.data-purchase-row]="row.id"
-          class="linear-card-interactive group grid cursor-pointer grid-cols-1 gap-3 rounded-xl p-3 text-[13px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 focus-visible:ring-offset-fb-bg xl:grid-cols-[3rem_minmax(12rem,1fr)_minmax(34rem,1.6fr)_auto] xl:items-center"
-        >
-          <div
-            class="flex size-12 items-center justify-center overflow-hidden rounded-lg border border-fb-line bg-fb-well text-fb-text-secondary"
-            aria-hidden="true"
-          >
-            @switch (row.type) {
-              @case ('mystery_pack') {
-                <svg [lucideIcon]="giftIcon" class="size-8 text-fb-art-mystery"></svg>
-              }
-              @case ('lot') {
-                <svg [lucideIcon]="boxesIcon" class="size-8 text-fb-art-lot"></svg>
-              }
-              @case ('pallet') {
-                <svg [lucideIcon]="layersIcon" class="size-8 text-fb-art-pallet"></svg>
-              }
-              @default {
-                <svg [lucideIcon]="tagIcon" class="size-8 text-fb-art-single"></svg>
-              }
-            }
-          </div>
-
-          <div class="min-w-0 space-y-1.5">
-            <div class="flex flex-wrap items-center gap-1.5">
-              <app-badge tone="neutral" [uppercase]="true">
-                {{ row.typeLabel }}
-              </app-badge>
-              @if (row.allocationOpen) {
-                <app-badge data-allocation-open tone="caution"> Kostenaufteilung offen </app-badge>
-              }
-            </div>
-            <h2
-              class="truncate font-sans text-sm font-semibold text-fb-text-primary transition group-hover:text-indigo-400"
+    <div data-purchase-list class="linear-surface relative overflow-visible rounded-xl">
+      <div class="flex flex-wrap items-center gap-2 border-b border-fb-line p-2">
+        <div class="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-xs">
+          @for (tab of purchaseTabs; track tab.value) {
+            <button
+              type="button"
+              (click)="activeTab.set(tab.value)"
+              class="cursor-pointer whitespace-nowrap rounded-md px-2.5 py-1.5 font-semibold transition"
+              [class.bg-fb-line]="activeTab() === tab.value"
+              [class.text-fb-text-primary]="activeTab() === tab.value"
+              [class.text-fb-text-secondary]="activeTab() !== tab.value"
+              [class.hover:bg-fb-surface-alt]="activeTab() !== tab.value"
+              [attr.aria-pressed]="activeTab() === tab.value"
             >
-              {{ row.title }}
-            </h2>
-            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-fb-text-muted">
-              <span>{{ row.supplierLabel }}</span>
-              <span aria-hidden="true">·</span>
-              <time [attr.datetime]="row.purchaseDate">{{
-                row.purchaseDate | date: 'dd.MM.yyyy'
-              }}</time>
-            </div>
-          </div>
-
-          <dl class="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-[1.2fr_1fr_0.8fr_1.5fr]">
-            <div class="min-w-0">
-              <dt class="text-xs text-fb-text-muted">Status</dt>
-              <dd class="mt-0.5 font-sans font-semibold text-fb-text-primary">
-                {{ row.purchaseStatus }}
-              </dd>
-            </div>
-            <div class="min-w-0">
-              <dt class="text-xs text-fb-text-muted">Gesamtkosten</dt>
-              <dd class="mt-0.5 font-mono font-bold">
-                <app-cost-state [state]="row.totalCost" />
-              </dd>
-            </div>
-            <div class="min-w-0">
-              <dt class="text-xs text-fb-text-muted">Stück</dt>
-              <dd class="mt-0.5 font-mono font-bold text-fb-text-primary">
-                {{ row.totalUnits }} gesamt
-              </dd>
-            </div>
-            <div class="min-w-0">
-              <dt class="text-xs text-fb-text-muted">Bestand</dt>
-              <dd class="mt-0.5 font-mono font-bold text-fb-text-primary">
-                @if (row.quantityState === 'error') {
-                  Bestandsdaten konnten nicht geladen werden
-                } @else if (row.quantityState === 'loading') {
-                  Wird geladen …
-                } @else {
-                  {{ row.availableUnits }} verfügbar · {{ row.soldUnits }} verkauft
-                }
-              </dd>
-            </div>
-          </dl>
-
+              {{
+                tab.value === 'all'
+                  ? tab.label + ' (' + purchaseService.purchases().length + ')'
+                  : tab.label
+              }}
+            </button>
+          }
+        </div>
+        <label class="relative w-full sm:w-56">
+          <span class="sr-only">Einkäufe durchsuchen</span>
           <svg
-            [lucideIcon]="arrowRightIcon"
-            class="size-5 text-indigo-400 transition group-hover:translate-x-1"
+            [lucideIcon]="searchIcon"
+            class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-fb-text-muted"
             aria-hidden="true"
           ></svg>
-        </a>
-      }
+          <input
+            [value]="searchQuery()"
+            (input)="searchQuery.set($any($event.target).value)"
+            type="search"
+            placeholder="Suchen und filtern …"
+            class="linear-input w-full rounded-md py-2 pl-9 pr-3 text-[13px]"
+          />
+        </label>
+        <div class="border-l border-fb-line pl-2">
+          <app-table-column-menu
+            [columns]="tablePrefs().columns"
+            [sortOptions]="purchasesTableConfig.sortOptions"
+            [currentSort]="tablePrefs().sort"
+            [viewModified]="viewModified()"
+            (columnVisibilityToggled)="toggleColumnVisibility($event)"
+            (columnsReordered)="onColumnsReordered($event)"
+            (sortChanged)="onSortChanged($event)"
+            (resetRequested)="resetTablePreferences()"
+            (viewResetRequested)="resetView()"
+          />
+        </div>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table data-purchase-table class="linear-table min-w-[760px]">
+          <caption class="sr-only">
+            Einkaufstabelle
+          </caption>
+          <thead>
+            <tr>
+              @for (column of orderedVisibleColumns(); track column.id) {
+                @switch (column.id) {
+                  @case ('type') {
+                    <th scope="col" class="w-24">Typ</th>
+                  }
+                  @case ('title') {
+                    <th scope="col" class="min-w-64" [attr.aria-sort]="ariaSort('title')">
+                      <app-table-sort-header
+                        label="Einkauf und Lieferant"
+                        sortField="title"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
+                    </th>
+                  }
+                  @case ('purchase_date') {
+                    <th scope="col" [attr.aria-sort]="ariaSort('purchase_date')">
+                      <app-table-sort-header
+                        label="Kaufdatum"
+                        sortField="purchase_date"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                      />
+                    </th>
+                  }
+                  @case ('status') {
+                    <th scope="col">Status</th>
+                  }
+                  @case ('total_cost') {
+                    <th scope="col" [attr.aria-sort]="ariaSort('total_cost')">
+                      <app-table-sort-header
+                        label="Gesamtkosten"
+                        sortField="total_cost"
+                        [currentSort]="tablePrefs().sort"
+                        (sortChanged)="onSortChanged($event)"
+                        align="right"
+                      />
+                    </th>
+                  }
+                  @case ('units') {
+                    <th scope="col" class="text-right">Stückzahl und Bestand</th>
+                  }
+                  @case ('actions') {
+                    <th scope="col" class="w-16 text-right">Aktionen</th>
+                  }
+                }
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of purchaseRows(); track row.id) {
+              <tr data-purchase-table-row class="transition hover:bg-fb-surface-hover">
+                @for (column of orderedVisibleColumns(); track column.id) {
+                  @switch (column.id) {
+                    @case ('type') {
+                      <td>
+                        <app-badge tone="neutral" [uppercase]="true">{{ row.typeLabel }}</app-badge>
+                      </td>
+                    }
+                    @case ('title') {
+                      <td>
+                        <a
+                          [routerLink]="['/purchases', row.id]"
+                          data-purchase-row
+                          [attr.data-purchase-row]="row.id"
+                          class="font-semibold text-fb-text-primary transition hover:text-fb-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
+                        >
+                          {{ row.title }}
+                        </a>
+                        <p class="mt-0.5 text-xs text-fb-text-muted">{{ row.supplierLabel }}</p>
+                      </td>
+                    }
+                    @case ('purchase_date') {
+                      <td>
+                        <time [attr.datetime]="row.purchaseDate">{{
+                          row.purchaseDate | date: 'dd.MM.yyyy'
+                        }}</time>
+                      </td>
+                    }
+                    @case ('status') {
+                      <td>
+                        <span class="font-semibold text-fb-text-primary">{{
+                          row.purchaseStatus
+                        }}</span>
+                        @if (row.allocationOpen) {
+                          <span data-allocation-open class="mt-1 block text-xs text-amber-700"
+                            >Kostenaufteilung offen</span
+                          >
+                        }
+                      </td>
+                    }
+                    @case ('total_cost') {
+                      <td class="text-right font-mono font-semibold">
+                        <app-cost-state [state]="row.totalCost" />
+                      </td>
+                    }
+                    @case ('units') {
+                      <td class="text-right font-mono text-xs">
+                        {{ row.totalUnits }} gesamt
+                        <span class="mt-0.5 block text-fb-text-muted">
+                          @if (row.quantityState === 'error') {
+                            Nicht verfügbar
+                          } @else if (row.quantityState === 'loading') {
+                            Wird geladen …
+                          } @else {
+                            {{ row.availableUnits }} verfügbar · {{ row.soldUnits }} verkauft
+                          }
+                        </span>
+                      </td>
+                    }
+                    @case ('actions') {
+                      <td class="text-right">
+                        <a
+                          [routerLink]="['/purchases', row.id]"
+                          [attr.aria-label]="row.title + ' öffnen'"
+                          class="inline-flex rounded-md p-2 text-fb-text-muted transition hover:bg-fb-surface-hover hover:text-fb-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
+                        >
+                          <svg
+                            [lucideIcon]="arrowRightIcon"
+                            class="size-4"
+                            aria-hidden="true"
+                          ></svg>
+                        </a>
+                      </td>
+                    }
+                  }
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
     </div>
   } @else {
     <!-- Empty State -->

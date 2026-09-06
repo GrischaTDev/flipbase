@@ -34,6 +34,7 @@ import {
   LucideGift as Gift,
   LucideStore as Store,
   LucideTruck as Truck,
+  LucideSearch as Search,
 } from '@lucide/angular';
 import { beschreibePurchaseProblem, PurchaseService } from '../../core/services/purchase.service';
 import { OfflineSyncService } from '../../core/services/offline-sync.service';
@@ -45,7 +46,16 @@ import { StockService } from '../../core/services/stock.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { CostStateComponent } from '../../shared/components/cost-state/cost-state.component';
 import { mapPurchaseListRow } from './utils/purchase-presentation';
+import type { PurchaseListRow } from './models/purchase-presentation.models';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
+import { PurchasesColumnId, PurchasesSortField } from '../../core/config/table-defaults.config';
+import {
+  tableStateDiffersFromDefaults,
+  TableSortState,
+} from '../../core/models/table-preferences.models';
+import { TablePreferencesService } from '../../core/services/table-preferences.service';
+import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
+import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
@@ -65,6 +75,8 @@ import { ButtonComponent } from '../../shared/components/button/button.component
     PageHeaderComponent,
     BadgeComponent,
     ButtonComponent,
+    TableColumnMenuComponent,
+    TableSortHeaderComponent,
   ],
   templateUrl: './purchases.component.html',
   host: { class: 'block' },
@@ -78,6 +90,7 @@ export class PurchasesComponent {
   private readonly inventoryService = inject(InventoryService);
   private readonly stockService = inject(StockService);
   private readonly workspaceService = inject(WorkspaceService);
+  readonly tablePreferences = inject(TablePreferencesService);
   private requestedStockWorkspaceId = '';
 
   readonly bagIcon = ShoppingBag;
@@ -102,9 +115,49 @@ export class PurchasesComponent {
   readonly coinsIcon = Coins;
   readonly wifiIcon = Wifi;
   readonly wifiOffIcon = WifiOff;
+  readonly searchIcon = Search;
 
   readonly isFleaMarketModalOpen = signal<boolean>(false);
   readonly activeTab = signal<'all' | PurchaseType>('all');
+  readonly purchaseTabs = [
+    { value: 'all' as const, label: 'Alle Einkäufe' },
+    { value: 'single' as const, label: 'Normale Einkäufe' },
+    { value: 'mystery_pack' as const, label: 'Mystery Boxen' },
+    { value: 'lot' as const, label: 'Konvolute' },
+    { value: 'pallet' as const, label: 'Paletten' },
+  ];
+  readonly searchQuery = signal('');
+  readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
+  readonly purchasesTableConfig = this.tablePreferences.getTableConfig<
+    PurchasesColumnId,
+    PurchasesSortField
+  >('purchases');
+  readonly tablePrefs = computed(() =>
+    this.tablePreferences.getTablePreferences<PurchasesColumnId, PurchasesSortField>(
+      'purchases',
+      this.workspaceId(),
+    )(),
+  );
+  readonly visibleColumns = computed(() =>
+    this.tablePrefs()
+      .columns.filter((column) => column.visible)
+      .map((column) => column.id),
+  );
+  readonly orderedVisibleColumns = computed(() =>
+    this.tablePrefs().columns.filter((column) => column.visible),
+  );
+  readonly viewModified = computed(
+    () =>
+      this.activeTab() !== 'all' ||
+      this.searchQuery().trim() !== '' ||
+      tableStateDiffersFromDefaults(this.tablePrefs(), this.purchasesTableConfig),
+  );
+
+  ariaSort(field: string): 'ascending' | 'descending' | null {
+    const sort = this.tablePrefs().sort;
+    if (sort.field !== field) return null;
+    return sort.direction === 'asc' ? 'ascending' : 'descending';
+  }
 
   readonly rapidForm = new FormGroup({
     title: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -156,7 +209,7 @@ export class PurchasesComponent {
       : workspaceId !== null && this.stockService.loadedWorkspaceId() === workspaceId
         ? ('loaded' as const)
         : ('loading' as const);
-    return this.filteredPurchases().map((purchase) =>
+    const rows = this.filteredPurchases().map((purchase) =>
       mapPurchaseListRow(purchase, {
         inventoryItems: inventoryState === 'loaded' ? this.inventoryService.items() : [],
         stockLots: this.stockService.lots(),
@@ -167,7 +220,57 @@ export class PurchasesComponent {
         salesState: 'loaded',
       }),
     );
+    const query = this.searchQuery().trim().toLocaleLowerCase('de');
+    const filtered = query
+      ? rows.filter((row) =>
+          [row.title, row.supplierLabel, row.typeLabel, row.purchaseStatus]
+            .join(' ')
+            .toLocaleLowerCase('de')
+            .includes(query),
+        )
+      : rows;
+    const sort = this.tablePrefs().sort;
+    return [...filtered].sort((left, right) => {
+      const comparison =
+        sort.field === 'title'
+          ? left.title.localeCompare(right.title, 'de', { sensitivity: 'base' })
+          : sort.field === 'total_cost'
+            ? this.costValue(left.totalCost) - this.costValue(right.totalCost)
+            : left.purchaseDate.localeCompare(right.purchaseDate);
+      return sort.direction === 'asc' ? comparison : -comparison;
+    });
   });
+
+  toggleColumnVisibility(columnId: PurchasesColumnId): void {
+    this.tablePreferences.toggleColumnVisibility('purchases', columnId, this.workspaceId());
+  }
+
+  onColumnsReordered(event: { previousIndex: number; currentIndex: number }): void {
+    this.tablePreferences.reorderColumns(
+      'purchases',
+      event.previousIndex,
+      event.currentIndex,
+      this.workspaceId(),
+    );
+  }
+
+  onSortChanged(sort: TableSortState<PurchasesSortField>): void {
+    this.tablePreferences.setSort('purchases', sort, this.workspaceId());
+  }
+
+  resetTablePreferences(): void {
+    this.tablePreferences.resetToDefaults('purchases', this.workspaceId());
+  }
+
+  resetView(): void {
+    this.activeTab.set('all');
+    this.searchQuery.set('');
+    this.resetTablePreferences();
+  }
+
+  private costValue(state: PurchaseListRow['totalCost']): number {
+    return state.kind === 'known' ? state.amount : 0;
+  }
 
   constructor() {
     effect(() => {

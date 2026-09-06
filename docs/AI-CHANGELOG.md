@@ -1,5 +1,28 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Codex – Übernahme und Abschlussprüfung von Paket 1
+
+**Auftrag:** Den von Claude übergebenen Zweig `feat/deal-monitor-collection-and-ui`
+prüfen und den Abschluss einschließlich Pull Request übernehmen.
+
+**Umsetzung:** Die 26 vorhandenen Commits mit Plan und Übergabe abgeglichen,
+Auffrischungsregel, Anfragebudget, Parser, Speicherung, Datenbankrechte und
+Administrationsseite geprüft. Den inzwischen zwölf Commits neueren `master`
+zusammengeführt; einziger Konflikt war dieses Protokoll. Beide Seiten bleiben
+vollständig erhalten. Keine fachlichen Änderungen bei dieser Übernahme.
+
+**Verifiziert durch:** 23 Angular-Tests der Administration, 104 Sniper-Tests,
+Sniper-Typprüfung und Angular-Bau vor der Zusammenführung erfolgreich.
+Die Prüfung des zusammengeführten Stands und die PR-Ergebnisse werden im PR
+festgehalten. Die im Übergabebericht genannten 1108 Datenbankprüfungen und
+23 Dienst-Integrationstests stammen aus Claudes Lauf, nicht aus dieser Sitzung.
+
+**Offen:** Keine Browserkontrolle mit Betreiberkonto; kein lokaler
+Supabase-Stack dieses Projekts aktiv. Paket 2 bis 4 sind separate Folgearbeiten.
+Der Pull Request dient der vollständigen CI-Prüfung vor Merge und Deployment.
+
+---
+
 ## 2026-09-06 – Claude – Nachbesserung der Gesamtprüfung am Kategoriezweig
 
 **Auftrag:** Letzter Durchgang vor dem Merge des Zweigs
@@ -298,6 +321,128 @@ Auftrag erwartet), danach grün - `All tests successful.`, 32 Testdateien,
 erzeugt (`npx supabase gen types typescript --local`); `vinted_categories`
 und `vinted_category_syncs` darin geprüft. Voller Bericht mit TDD-Nachweis:
 `.superpowers/sdd/task-1-report.md`.
+
+## 2026-09-06 – Codex – Primäre Admin-Akzente auf Logo-Gelb korrigiert
+
+**Ergebnis:** Die primären Verwaltungsaktionen wie „Neuer Einkauf“ und
+„Verkauf erfassen“ verwenden wieder das Logo-Gelb `#fcc601` mit dunkler,
+kontraststarker Schrift. Das gilt in hellen und dunklen Admin-Ansichten. Die
+aktiven Sidebar-Zustände und alle Demo-Badges verwenden nun dieselben
+semantischen Marken-Token. Warnungen und Finanzstatus bleiben orange bzw.
+ihren jeweiligen Statusfarben zugeordnet.
+
+**Prüfung:** Die Änderung erfolgt ausschließlich im isolierten Worktree
+`codex/polaris-primary-brand-yellow`. Playwright-Prüfungen für beide Themes,
+Sidebar und Demo-Badge sowie Typecheck, Lint, Format, Angular-Suite und Build
+wurden vor dem Push ausgeführt. Der unabhängige Gegencheck hat zusätzlich die
+Dark-Theme-Absicherung des Druckbuttons, die explizite Prüfung von
+„Verkauf erfassen“ und robuste Badge-Assertions eingefordert; diese Punkte sind
+ergänzt und erneut per Playwright geprüft.
+
+## 2026-09-06 – Codex – Sidebar nach Polaris-Dichte und Marken-Gelb ausgerichtet
+
+**Ergebnis:** Die Verwaltungssidebar ist jetzt schmaler (224 statt 240 Pixel),
+kompakter auf dem 4-Pixel-Raster aufgebaut und nutzt kleinere, ruhigere
+Navigationsabstände. Der aktive Menüpunkt wird über einen eigenen
+Navigationstoken mit dem Logo-Gelb hervorgehoben; die globale orange
+Aktionsfarbe bleibt für Aktionen und Status erhalten. Das bisherige
+Indigo-Hover-Schema und die fehleranfällige `group-[.font-semibold]`-Iconlogik
+wurden entfernt.
+
+**Grundlage:** Shopify empfiehlt für Admin-Navigation kurze, gut scannbare
+Labels, konsistente Dichte und eine klare Unterscheidung zwischen inaktiven
+und aktiven Icons. Die helle Navigation nutzt für WCAG-Kontrast eine dunklere
+Goldausprägung, während die dunkle Navigation das Logo-Gelb direkt verwendet.
+
+**Prüfung:** Die Änderung läuft ausschließlich im isolierten Worktree
+`codex/polaris-sidebar-yellow`; eine gezielte Sidebar-E2E-Prüfung und die
+betroffenen Angular-, Typ-, Lint-, Format- und Build-Prüfungen folgen vor dem
+Push.
+
+**Review-Nacharbeit:** Der unabhängige Gegencheck hat zusätzlich die
+viewportgebundene Desktop-Sidebar, den gelben aktiven Zustand der mobilen
+Navigation, die 44-Pixel-Touchflächen im mobilen Drawer und den
+Kontrast des hellen OS-Badges eingefordert. Diese Punkte sind im selben
+Branch ergänzt und werden erneut automatisiert geprüft.
+
+## 2026-09-06 – Codex – Sortierauswahl und Tabellenzustände nachgeschärft
+
+**Ergebnis:** Der unabhängige Gegencheck fand mehrere Nacharbeiten, die vor dem
+Abschluss behoben wurden: Das Sortier-Untermenü ist jetzt ebenfalls
+viewport-begrenzt und scrollbar, der Fokus landet beim Öffnen im Menü, und
+Sortierfeld sowie Sortierrichtung werden als getrennte Listboxen ausgezeichnet.
+Die Einkaufs-Header melden nun `aria-sort`; eine aktive Inventar-Auswahl gilt
+als geänderte Ansicht; Sortierfeldbezeichnungen enthalten keine fest eingebaute
+Richtung mehr.
+
+**Prüfung:** Der responsive Playwright-Test prüft die horizontalen und
+vertikalen Grenzen beider Overlays. Typecheck, Lint, gezielte Angular-Tests und
+die drei Tabellen-E2E-Tests liefen erfolgreich. Die Arbeit erfolgte
+ausschließlich im isolierten Worktree `codex/polaris-sort-controls`.
+
+## 2026-09-06 – Codex – E2E-Selektor nach Tabellenaktion eindeutig gemacht
+
+**Befund:** Der GitHub-Browser-Smoke meldete nach der Tabellenüberarbeitung
+einen Strict-Mode-Fehler, weil Titel-Link und Icon-Aktion desselben Einkaufs
+denselben zugänglichen Namen enthielten.
+
+**Korrektur:** Der Navigationstest verwendet jetzt das eindeutige
+`data-purchase-row`-Merkmal für den Demo-Einkauf. Die zwei bewusst vorhandenen
+Bedienelemente bleiben unverändert.
+
+**Prüfung:** Der Fehler wurde im CI-Job `Browser smoke` reproduziert und die
+gezielte Korrektur lokal geprüft. Die Änderung erfolgt ausschließlich im
+isolierten Worktree `codex/polaris-table-system`.
+
+## 2026-09-06 – Codex – Inter als einzige Anwendungsschrift festgelegt
+
+**Ergebnis:** Die globale Tailwind-Schriftvariable `font-mono` verweist jetzt
+ebenfalls auf Inter. Dadurch nutzen auch bestehende Kennzahlen, Zahlen,
+technische Werte, Tabellenzellen und Formulare dieselbe Schrift wie die übrige
+Oberfläche. Die lokalen Font-Dateien enthalten nur noch Inter; ungenutzte
+JetBrains-Mono- und Plus-Jakarta-Sans-Dateien wurden entfernt.
+
+**Prüfung:** Der Typografie-E2E-Test prüft die sichtbare `font-mono`-Klasse,
+die semantischen Elemente `code`, `pre`, `kbd` und `samp` sowie sichtbare
+Text-Elemente auf den zentralen Verwaltungsrouten explizit auf Inter.
+Typecheck, Lint, Prettier, Angular-Suite (470 bestanden, 5 übersprungen),
+Produktionsbau sowie die 9 relevanten Playwright-Tests liefen erfolgreich. Die
+Änderung wurde ausschließlich im isolierten Worktree
+`codex/polaris-table-system` vorgenommen; fremde Branches und Worktrees wurden
+nicht verändert.
+
+## 2026-09-06 – Codex – Tabellen- und Spaltenmenü-Überarbeitung umgesetzt
+
+**Ergebnis:** Das Spalten-/Sortiermenü ist jetzt ein viewport-begrenztes,
+collision-aware Overlay mit eigener Sortierauswahl, Fokus-Rückgabe,
+Tastatur-Reorder und passendem Animationsursprung für die Position ober- oder
+unterhalb des Auslösers. Die Flipbase-orange Akzentfarbe bleibt erhalten.
+
+**Betroffene Bereiche:** Verkäufe, Einkäufe, Inventar, Artikelstamm,
+Buchhaltung und Betreiber-Beta-Bewerbungen verwenden die gemeinsame
+Tabellenpräferenz- und Menülogik. Header und Zellen werden aus derselben
+geordneten Spaltenliste gerendert; die Inventarfilter und Archivtabs sitzen in
+der gemeinsamen Tabellen-Toolbar. Die Beta-Seite erhielt außerdem eine
+semantische, responsive Tabelle mit Suche, Statusfiltern und Zuständen.
+
+**Prüfung:** Typecheck, Lint, Prettier, Angular-Suite (470 bestanden, 5
+übersprungen), Produktionsbau und die relevante Playwright-Suite (8/8)
+erfolgreich. Der zusätzliche unabhängige Review fand keine
+blockerrelevanten Befunde. Geprüft wurde ausschließlich im isolierten
+Worktree `codex/polaris-table-system`; kein fremder Branch wurde verändert.
+
+## 2026-09-06 – Codex – Tabellen- und Spaltenmenü-Audit gestartet
+
+**Anlass:** Die Tabellen in Verkäufen, Einkäufen, Inventar, Artikelstamm und
+Betreiber/Beta-Bewerbungen sollen ein einheitliches, Shopify-Polaris-nahes
+Muster erhalten. Das bestehende Spaltenmenü wird in der Verkaufstabelle
+abgeschnitten; weitere Bereiche verwenden abweichende Picker und Toolbars.
+
+**Vorgehen:** Die Überarbeitung läuft ausschließlich im isolierten Worktree
+`codex/polaris-table-system`. Die angehängten Screenshots dienen als visuelle
+Referenz. Shopify-Dokumentation und drei getrennte Code-Audits werden gegen die
+aktuelle Codebasis geprüft; nach der Umsetzung folgt eine zusätzliche
+unabhängige Gegenprüfung des gesamten Diffs.
 
 ## 2026-09-06 – Claude – Zeitlimit der vollständigen Deckungsmessung angehoben
 

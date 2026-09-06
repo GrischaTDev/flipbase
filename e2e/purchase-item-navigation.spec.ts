@@ -6,9 +6,7 @@ test('kehrt vom Einkaufsartikel zum selben Demo-Einkauf zurück', async ({ page 
   await startDemoMode(page);
   await page.goto('/purchases');
 
-  await page
-    .getByRole('link', { name: /Retro Gaming & Nintendo Konvolut \(Mystery Box\)/ })
-    .click();
+  await page.locator('[data-purchase-row="pur-demo-2"]').click();
   await expect(page).toHaveURL(/\/purchases\/pur-demo-2$/);
 
   const itemRow = page

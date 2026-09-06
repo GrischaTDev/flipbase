@@ -11,14 +11,14 @@
 <!-- Helles Anthrazit Sidebar Container -->
 <aside
   aria-label="Hauptnavigation"
-  class="fixed top-0 bottom-0 left-0 z-50 w-60 bg-fb-sidebar border-r border-fb-border-subtle text-fb-text-secondary flex flex-col transition-transform duration-200 ease-out md:translate-x-0 md:static md:z-auto md:visible select-none shadow-xl md:shadow-none"
+  class="fixed top-0 bottom-0 left-0 z-50 w-56 bg-fb-sidebar border-r border-fb-border-subtle text-fb-text-secondary flex flex-col font-sans transition-transform duration-200 ease-out md:translate-x-0 md:static md:z-auto md:h-dvh md:max-h-dvh md:shrink-0 md:visible select-none shadow-xl md:shadow-none"
   [class.translate-x-0]="isOpen()"
   [class.-translate-x-full]="!isOpen()"
   [class.visible]="isOpen()"
   [class.invisible]="!isOpen()"
 >
   <!-- Brand Logo Header -->
-  <div class="h-14 flex items-center justify-between px-4 border-b border-fb-border-subtle">
+  <div class="h-12 flex items-center justify-between px-3 border-b border-fb-border-subtle">
     <div class="flex items-center gap-2.5">
       <!--
         Das Zeichen bringt seinen eigenen dunklen Grund mit und steht deshalb
@@ -36,7 +36,7 @@
       <div class="flex items-center gap-1.5">
         <span class="tracking-tight font-bold text-sm text-fb-text-primary">Flipbase</span>
         <span
-          class="px-1.5 py-0.5 rounded text-[11px] font-mono font-bold tracking-wide uppercase bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
+          class="px-1.5 py-0.5 rounded text-[11px] font-semibold tracking-[0.08em] uppercase bg-fb-nav-subtle text-fb-nav-badge border border-fb-nav-border"
         >
           OS
         </span>
@@ -54,25 +54,25 @@
   </div>
 
   <!-- Navigation Links -->
-  <nav aria-label="Bereiche" class="flex-1 overflow-y-auto px-2.5 py-3 space-y-0.5">
-    <div class="px-2 pb-1.5 pt-1 text-xs font-semibold text-fb-text-muted">Übersicht</div>
+  <nav aria-label="Bereiche" class="flex-1 min-h-0 overflow-y-auto px-2 py-2 space-y-0.5">
+    <div class="px-2 pb-1 pt-1 text-xs font-semibold text-fb-text-muted">Übersicht</div>
 
     @for (item of navItems.slice(0, 2); track item.path) {
       <a
         [routerLink]="item.path"
         ariaCurrentWhenActive="page"
-        routerLinkActive="bg-indigo-500/15 text-fb-text-primary font-semibold border-indigo-500/40"
+        routerLinkActive="font-semibold"
         (click)="closed.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+        class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
       >
         <svg
           [lucideIcon]="item.icon"
-          class="w-3.5 h-3.5 text-fb-text-muted group-hover:text-fb-text-primary group-[.font-semibold]:text-fb-text-primary shrink-0"
+          class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
         ></svg>
-        <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
+        <span class="min-w-0 break-words">{{ (item.labelKey | translate) || item.label }}</span>
         @if (item.baustelle) {
           <span
-            class="ml-auto px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0"
+            class="ml-auto px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide bg-fb-nav-subtle text-fb-nav-badge border border-fb-nav-border shrink-0"
             title="Noch nicht einsatzbereit – Zahlungen und Rechtstexte sind Platzhalter"
           >
             Demo
@@ -81,7 +81,7 @@
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-xs font-semibold text-fb-text-muted">
+    <div class="px-2 pb-1 pt-3 text-xs font-semibold text-fb-text-muted">
       Warenwirtschaft & Store
     </div>
 
@@ -89,18 +89,18 @@
       <a
         [routerLink]="item.path"
         ariaCurrentWhenActive="page"
-        routerLinkActive="bg-indigo-500/15 text-fb-text-primary font-semibold border-indigo-500/40"
+        routerLinkActive="font-semibold"
         (click)="closed.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+        class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
       >
         <svg
           [lucideIcon]="item.icon"
-          class="w-3.5 h-3.5 text-fb-text-muted group-hover:text-fb-text-primary group-[.font-semibold]:text-fb-text-primary shrink-0"
+          class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
         ></svg>
-        <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
+        <span class="min-w-0 break-words">{{ (item.labelKey | translate) || item.label }}</span>
         @if (item.baustelle) {
           <span
-            class="ml-auto px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0"
+            class="ml-auto px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide bg-fb-nav-subtle text-fb-nav-badge border border-fb-nav-border shrink-0"
             title="Noch nicht einsatzbereit – Zahlungen und Rechtstexte sind Platzhalter"
           >
             Demo
@@ -109,24 +109,24 @@
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-xs font-semibold text-fb-text-muted">Werkzeuge & Ertrag</div>
+    <div class="px-2 pb-1 pt-3 text-xs font-semibold text-fb-text-muted">Werkzeuge & Ertrag</div>
 
     @for (item of navItems.slice(6, 11); track item.path) {
       <a
         [routerLink]="item.path"
         ariaCurrentWhenActive="page"
-        routerLinkActive="bg-indigo-500/15 text-fb-text-primary font-semibold border-indigo-500/40"
+        routerLinkActive="font-semibold"
         (click)="closed.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+        class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
       >
         <svg
           [lucideIcon]="item.icon"
-          class="w-3.5 h-3.5 text-fb-text-muted group-hover:text-fb-text-primary group-[.font-semibold]:text-fb-text-primary shrink-0"
+          class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
         ></svg>
-        <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
+        <span class="min-w-0 break-words">{{ (item.labelKey | translate) || item.label }}</span>
         @if (item.baustelle) {
           <span
-            class="ml-auto px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide bg-amber-500/15 text-amber-300 border border-amber-500/30 shrink-0"
+            class="ml-auto px-1.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide bg-fb-nav-subtle text-fb-nav-badge border border-fb-nav-border shrink-0"
             title="Noch nicht einsatzbereit – Zahlungen und Rechtstexte sind Platzhalter"
           >
             Demo
@@ -135,40 +135,41 @@
       </a>
     }
 
-    <div class="px-2 pb-1.5 pt-4 text-xs font-semibold text-fb-text-muted">System & Daten</div>
+    <div class="px-2 pb-1 pt-3 text-xs font-semibold text-fb-text-muted">System & Daten</div>
 
     @for (item of navItems.slice(11); track item.path) {
       <a
         [routerLink]="item.path"
         ariaCurrentWhenActive="page"
-        routerLinkActive="bg-indigo-500/15 text-fb-text-primary font-semibold border-indigo-500/40"
+        routerLinkActive="font-semibold"
         (click)="closed.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+        class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] font-medium text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
       >
         <svg
           [lucideIcon]="item.icon"
-          class="w-3.5 h-3.5 text-fb-text-muted group-hover:text-fb-text-primary group-[.font-semibold]:text-fb-text-primary shrink-0"
+          class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
         ></svg>
-        <span class="truncate">{{ (item.labelKey | translate) || item.label }}</span>
+        <span class="min-w-0 break-words">{{ (item.labelKey | translate) || item.label }}</span>
       </a>
     }
 
     @if (isOperator()) {
-      <div class="px-2 pb-1.5 pt-4 text-xs font-semibold text-fb-text-muted">
+      <div class="px-2 pb-1 pt-3 text-xs font-semibold text-fb-text-muted">
         {{ 'NAV.OPERATIONS' | translate }}
       </div>
 
       <a
         [routerLink]="operatorItem.path"
-        routerLinkActive="bg-indigo-500/15 text-fb-text-primary font-semibold border-indigo-500/40"
+        ariaCurrentWhenActive="page"
+        routerLinkActive="font-semibold"
         (click)="closed.emit()"
-        class="flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-[13px] text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
+        class="flex items-center gap-2 px-2 py-1 leading-5 rounded-md text-[13px] text-fb-text-secondary hover:text-fb-text-primary hover:bg-fb-surface-hover transition group border border-transparent"
       >
         <svg
           [lucideIcon]="operatorItem.icon"
-          class="w-3.5 h-3.5 text-fb-text-muted group-hover:text-fb-text-primary group-[.font-semibold]:text-indigo-400 shrink-0"
+          class="w-4 h-4 text-fb-text-muted group-hover:text-fb-text-primary shrink-0"
         ></svg>
-        <span class="truncate">{{
+        <span class="min-w-0 break-words">{{
           (operatorItem.labelKey | translate) || operatorItem.label
         }}</span>
       </a>

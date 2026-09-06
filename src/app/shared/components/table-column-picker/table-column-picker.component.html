@@ -17,7 +17,11 @@
     #panel
     [id]="panelId"
     [attr.aria-labelledby]="headingId"
-    class="fb-popover-enter absolute right-0 z-50 max-h-96 w-72 max-w-[calc(100vw-2rem)] origin-top-right overflow-y-auto rounded-lg border border-fb-border bg-fb-surface p-1.5 text-fb-text-primary shadow-lg"
+    [style.top.px]="panelPosition().top"
+    [style.left.px]="panelPosition().left"
+    class="fb-popover-enter fixed z-[70] max-h-[calc(100vh-1rem)] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-fb-border bg-fb-surface p-1.5 text-fb-text-primary shadow-xl"
+    [class.origin-top-right]="panelPlacement() === 'below'"
+    [class.origin-bottom-right]="panelPlacement() === 'above'"
   >
     <legend [id]="headingId" class="px-2.5 pb-1 pt-1.5 text-[13px] font-semibold">
       Sichtbare Spalten

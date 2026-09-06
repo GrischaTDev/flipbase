@@ -45,7 +45,7 @@ export class ButtonComponent {
     const width = this.fullWidth() ? 'w-full' : '';
 
     const variantStyles: Record<ButtonVariant, string> = {
-      primary: 'linear-btn-primary font-semibold text-white shadow-sm',
+      primary: 'linear-btn-primary font-semibold text-fb-on-accent shadow-sm',
       'primary-dark':
         'bg-[#202223] hover:bg-[#1a1a1a] text-white border border-black/20 shadow-sm font-semibold',
       secondary:

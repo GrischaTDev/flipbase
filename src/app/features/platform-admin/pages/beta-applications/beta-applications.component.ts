@@ -1,24 +1,104 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  OnInit,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { BetaApplicationService } from '../../services/beta-application.service';
 import { BetaApplication, DEFAULT_GRANTED_DAYS } from '../../models/beta-application.model';
+import {
+  BetaApplicationsColumnId,
+  BetaApplicationsSortField,
+} from '../../../../core/config/table-defaults.config';
+import {
+  tableStateDiffersFromDefaults,
+  TableSortState,
+} from '../../../../core/models/table-preferences.models';
+import { TablePreferencesService } from '../../../../core/services/table-preferences.service';
+import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
+import { TableSortHeaderComponent } from '../../../../shared/components/table-sort-header/table-sort-header.component';
+import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { LucideShieldCheck as ShieldCheck } from '@lucide/angular';
 
 const MIN_GRANTED_DAYS = 1;
 const MAX_GRANTED_DAYS = 3650;
 
 @Component({
   selector: 'app-beta-applications',
-  imports: [DatePipe],
+  imports: [DatePipe, TableColumnMenuComponent, TableSortHeaderComponent, PageHeaderComponent],
   templateUrl: './beta-applications.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BetaApplicationsComponent implements OnInit {
   private readonly service = inject(BetaApplicationService);
+  readonly tablePreferences = inject(TablePreferencesService);
 
   readonly applications = signal<readonly BetaApplication[]>([]);
   readonly loading = signal(false);
   readonly error = signal<string | null>(null);
   readonly grantedDays = signal(DEFAULT_GRANTED_DAYS);
+  readonly searchQuery = signal('');
+  readonly statusFilter = signal<'all' | BetaApplication['status']>('all');
+  readonly adminIcon = ShieldCheck;
+  readonly betaStatusFilters = [
+    { value: 'all' as const, label: 'Alle' },
+    { value: 'open' as const, label: 'Offen' },
+    { value: 'accepted' as const, label: 'Angenommen' },
+    { value: 'rejected' as const, label: 'Abgelehnt' },
+  ];
+  readonly betaTableConfig = this.tablePreferences.getTableConfig<
+    BetaApplicationsColumnId,
+    BetaApplicationsSortField
+  >('beta_applications');
+  readonly tablePrefs = computed(() =>
+    this.tablePreferences.getTablePreferences<BetaApplicationsColumnId, BetaApplicationsSortField>(
+      'beta_applications',
+      'default',
+    )(),
+  );
+  readonly visibleColumns = computed(() =>
+    this.tablePrefs()
+      .columns.filter((column) => column.visible)
+      .map((column) => column.id),
+  );
+  readonly orderedVisibleColumns = computed(() =>
+    this.tablePrefs().columns.filter((column) => column.visible),
+  );
+  readonly viewModified = computed(
+    () =>
+      this.searchQuery().trim() !== '' ||
+      this.statusFilter() !== 'all' ||
+      tableStateDiffersFromDefaults(this.tablePrefs(), this.betaTableConfig),
+  );
+  readonly filteredApplications = computed(() => {
+    const query = this.searchQuery().trim().toLocaleLowerCase('de');
+    const filtered = query
+      ? this.applications().filter((application) =>
+          [this.applicantName(application), application.email, this.statusLabel(application.status)]
+            .join(' ')
+            .toLocaleLowerCase('de')
+            .includes(query),
+        )
+      : [...this.applications()];
+    const status = this.statusFilter();
+    const statusFiltered =
+      status === 'all' ? filtered : filtered.filter((item) => item.status === status);
+    const sort = this.tablePrefs().sort;
+    return statusFiltered.sort((left, right) => {
+      const comparison =
+        sort.field === 'applicant'
+          ? this.applicantName(left).localeCompare(this.applicantName(right), 'de', {
+              sensitivity: 'base',
+            })
+          : sort.field === 'status'
+            ? this.statusLabel(left.status).localeCompare(this.statusLabel(right.status), 'de')
+            : left.createdAt.localeCompare(right.createdAt);
+      return sort.direction === 'asc' ? comparison : -comparison;
+    });
+  });
 
   /**
    * Kennung der Bewerbung, ueber die gerade entschieden wird.
@@ -31,6 +111,47 @@ export class BetaApplicationsComponent implements OnInit {
 
   ngOnInit(): void {
     void this.load();
+  }
+
+  applicantName(application: BetaApplication): string {
+    return `${application.firstName} ${application.lastName}`.trim();
+  }
+
+  statusLabel(status: BetaApplication['status']): string {
+    return status === 'open' ? 'Offen' : status === 'accepted' ? 'Angenommen' : 'Abgelehnt';
+  }
+
+  toggleColumnVisibility(columnId: BetaApplicationsColumnId): void {
+    this.tablePreferences.toggleColumnVisibility('beta_applications', columnId, 'default');
+  }
+
+  onColumnsReordered(event: { previousIndex: number; currentIndex: number }): void {
+    this.tablePreferences.reorderColumns(
+      'beta_applications',
+      event.previousIndex,
+      event.currentIndex,
+      'default',
+    );
+  }
+
+  onSortChanged(sort: TableSortState<BetaApplicationsSortField>): void {
+    this.tablePreferences.setSort('beta_applications', sort, 'default');
+  }
+
+  resetTablePreferences(): void {
+    this.tablePreferences.resetToDefaults('beta_applications', 'default');
+  }
+
+  resetView(): void {
+    this.searchQuery.set('');
+    this.statusFilter.set('all');
+    this.resetTablePreferences();
+  }
+
+  ariaSort(field: string): 'ascending' | 'descending' | null {
+    const sort = this.tablePrefs().sort;
+    if (sort.field !== field) return null;
+    return sort.direction === 'asc' ? 'ascending' : 'descending';
   }
 
   async load(): Promise<void> {

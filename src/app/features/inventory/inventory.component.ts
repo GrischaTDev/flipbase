@@ -3,8 +3,11 @@ import {
   InventoryArchiveService,
   isArchivedInventoryItem,
 } from './services/inventory-archive.service';
-import { TableColumnOption } from '../../core/models/table-preferences';
-import { TableColumnPickerComponent } from '../../shared/components/table-column-picker/table-column-picker.component';
+import { InventoryColumnId, InventorySortField } from '../../core/config/table-defaults.config';
+import {
+  tableStateDiffersFromDefaults,
+  TableSortState,
+} from '../../core/models/table-preferences.models';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -67,7 +70,6 @@ type FilterPreset = string;
 @Component({
   selector: 'app-inventory',
   imports: [
-    TableColumnPickerComponent,
     BarcodeScannerComponent,
     TranslatePipe,
     LucideDynamicIcon,
@@ -112,20 +114,21 @@ export class InventoryComponent {
     }
   }
   readonly tablePreferences = inject(TablePreferencesService);
-  readonly tableColumns = computed<readonly TableColumnOption[]>(() => [
-    { id: 'selection', label: 'Auswahl', required: true },
-    { id: 'title', label: 'Artikel', required: true },
-    { id: 'condition', label: 'Zustand' },
-    { id: 'quantity', label: 'Bestand' },
-    { id: 'status', label: 'Status' },
-    { id: 'origin', label: 'Herkunft' },
-    { id: 'unit_cost', label: 'Kosten pro Stück' },
-    { id: 'inventory_value', label: 'Bestandswert' },
-    { id: 'sale', label: 'Verkauf' },
-    { id: 'actions', label: 'Aktionen', required: true },
-  ]);
+  readonly inventoryTableConfig = this.tablePreferences.getTableConfig<
+    InventoryColumnId,
+    InventorySortField
+  >('inventory');
+  readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
+  readonly tablePrefs = computed(() =>
+    this.tablePreferences.getTablePreferences<InventoryColumnId, InventorySortField>(
+      'inventory',
+      this.workspaceId(),
+    )(),
+  );
   readonly visibleColumns = computed(() =>
-    this.tablePreferences.visibleColumns('inventory', this.tableColumns()),
+    this.tablePrefs()
+      .columns.filter((column) => column.visible)
+      .map((column) => column.id),
   );
   readonly inventoryService = inject(InventoryService);
   readonly stockService = inject(StockService);
@@ -183,6 +186,16 @@ export class InventoryComponent {
   readonly selectedStatus = signal<string>('all');
   readonly activePreset = signal<FilterPreset>('all');
   readonly selectedItemIds = signal<Set<string>>(new Set());
+  readonly viewModified = computed(
+    () =>
+      this.archiveView() !== 'active' ||
+      this.activePreset() !== 'all' ||
+      this.selectedCondition() !== 'all' ||
+      this.selectedStatus() !== 'all' ||
+      this.searchQuery().trim() !== '' ||
+      this.selectedItemIds().size > 0 ||
+      tableStateDiffersFromDefaults(this.tablePrefs(), this.inventoryTableConfig),
+  );
 
   constructor() {
     effect(() => {
@@ -309,7 +322,7 @@ export class InventoryComponent {
     const condition = this.selectedCondition();
     const status = this.selectedStatus();
     const preset = this.activePreset();
-    return this.inventoryPresentation().rows.filter((row) => {
+    const filtered = this.inventoryPresentation().rows.filter((row) => {
       const item = row.inventoryItem;
       const archived = !!item && isArchivedInventoryItem(item);
       if (this.archiveView() === 'active' && archived) return false;
@@ -355,7 +368,56 @@ export class InventoryComponent {
           return true;
       }
     });
+    const sort = this.tablePrefs().sort;
+    return [...filtered].sort((left, right) => {
+      const comparison =
+        sort.field === 'title'
+          ? left.title.localeCompare(right.title, 'de', { sensitivity: 'base' })
+          : sort.field === 'quantity'
+            ? left.quantity.total - right.quantity.total
+            : sort.field === 'unit_cost'
+              ? this.costValue(left.costPerUnit) - this.costValue(right.costPerUnit)
+              : sort.field === 'inventory_value'
+                ? this.costValue(left.inventoryValue) - this.costValue(right.inventoryValue)
+                : left.id.localeCompare(right.id);
+      return sort.direction === 'asc' ? comparison : -comparison;
+    });
   });
+
+  toggleColumnVisibility(columnId: InventoryColumnId): void {
+    this.tablePreferences.toggleColumnVisibility('inventory', columnId, this.workspaceId());
+  }
+
+  onColumnsReordered(event: { previousIndex: number; currentIndex: number }): void {
+    this.tablePreferences.reorderColumns(
+      'inventory',
+      event.previousIndex,
+      event.currentIndex,
+      this.workspaceId(),
+    );
+  }
+
+  onSortChanged(sort: TableSortState<InventorySortField>): void {
+    this.tablePreferences.setSort('inventory', sort, this.workspaceId());
+  }
+
+  resetTablePreferences(): void {
+    this.tablePreferences.resetToDefaults('inventory', this.workspaceId());
+  }
+
+  resetView(): void {
+    this.archiveView.set('active');
+    this.activePreset.set('all');
+    this.selectedCondition.set('all');
+    this.selectedStatus.set('all');
+    this.searchQuery.set('');
+    this.selectedItemIds.set(new Set());
+    this.resetTablePreferences();
+  }
+
+  private costValue(state: CostState): number {
+    return state.kind === 'known' ? state.amount : 0;
+  }
 
   readonly filteredItems = computed(() =>
     this.filteredPresentationRows().flatMap((row) =>

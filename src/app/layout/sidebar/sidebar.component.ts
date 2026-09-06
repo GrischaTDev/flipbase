@@ -103,7 +103,7 @@ export class SidebarComponent {
     {
       path: '/shop',
       labelKey: 'NAV.STORE',
-      label: 'Mein Online-Shop',
+      label: 'Online-Shop',
       icon: Store,
       // Zahlungen, Impressum und Rechtstexte sind Platzhalter. Der Shop zieht
       // spaeter ohnehin auf eine eigene Domain um.

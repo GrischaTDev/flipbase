@@ -1,4 +1,3 @@
-import { TableColumnOption } from '../../core/models/table-preferences';
 import {
   afterRenderEffect,
   ChangeDetectionStrategy,
@@ -62,9 +61,13 @@ import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { CardComponent } from '../../shared/components/card/card.component';
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
+import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
 import { SalesColumnId, SalesSortField } from '../../core/config/table-defaults.config';
-import { TableSortState } from '../../core/models/table-preferences.models';
+import {
+  tableStateDiffersFromDefaults,
+  TableSortState,
+} from '../../core/models/table-preferences.models';
 
 const SALE_TARGET_ID_PATTERN = /^[a-zA-Z0-9_-]{1,128}$/;
 
@@ -93,6 +96,7 @@ function validatedSaleTargetId(value: string | null): string | null {
     CardComponent,
     CustomSearchInputComponent,
     TableColumnMenuComponent,
+    TableSortHeaderComponent,
   ],
   templateUrl: './sales.component.html',
   host: { class: 'block' },
@@ -100,22 +104,6 @@ function validatedSaleTargetId(value: string | null): string | null {
 })
 export class SalesComponent {
   readonly tablePreferences = inject(TablePreferencesService);
-  readonly tableColumns = computed<readonly TableColumnOption[]>(() => [
-    { id: 'title', label: 'Verkaufter Artikel', required: true },
-    { id: 'quantity', label: 'Menge' },
-    { id: 'platform', label: 'Plattform' },
-    { id: 'date', label: 'Datum' },
-    { id: 'revenue', label: 'Verkaufserlös' },
-    { id: 'cost', label: 'Wareneinsatz' },
-    { id: 'selling_costs', label: 'Verkaufskosten' },
-    { id: 'result', label: 'Ergebnis' },
-    { id: 'margin', label: 'Marge' },
-    { id: 'holding', label: 'Haltedauer' },
-    { id: 'actions', label: 'Aktionen', required: true },
-  ]);
-  readonly visibleColumns = computed(() =>
-    this.tablePreferences.visibleColumns('sales', this.tableColumns()),
-  );
   /**
    * Vorgaben fuer das eigene Auswahlfeld.
    *
@@ -178,18 +166,17 @@ export class SalesComponent {
       this.workspaceId(),
     )(),
   );
+  readonly orderedVisibleColumns = computed(() =>
+    this.tablePrefs().columns.filter((column) => column.visible),
+  );
+  readonly viewModified = computed(
+    () =>
+      this.selectedPlatform() !== 'all' ||
+      this.searchQuery().trim() !== '' ||
+      tableStateDiffersFromDefaults(this.tablePrefs(), this.salesTableConfig),
+  );
 
   isColumnVisible(colId: SalesColumnId | string): boolean {
-    const aliasMap: Record<string, string> = {
-      cost_of_goods_sold: 'cost',
-      sale_date: 'date',
-      profit: 'result',
-      holding_days: 'holding',
-    };
-    const pickerId = aliasMap[colId] || colId;
-    if (!this.visibleColumns().includes(pickerId)) {
-      return false;
-    }
     const col = this.tablePrefs().columns.find((c) => c.id === colId);
     return col?.visible ?? true;
   }
@@ -221,6 +208,12 @@ export class SalesComponent {
 
   resetTablePreferences(): void {
     this.tablePreferences.resetToDefaults('sales', this.workspaceId());
+  }
+
+  resetView(): void {
+    this.selectedPlatform.set('all');
+    this.searchQuery.set('');
+    this.resetTablePreferences();
   }
 
   private readonly queryParams = toSignal(this.route.queryParamMap, {

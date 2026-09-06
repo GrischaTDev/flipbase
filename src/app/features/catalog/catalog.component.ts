@@ -1,6 +1,11 @@
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
-import { TableColumnOption } from '../../core/models/table-preferences';
-import { TableColumnPickerComponent } from '../../shared/components/table-column-picker/table-column-picker.component';
+import { CatalogColumnId, CatalogSortField } from '../../core/config/table-defaults.config';
+import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
+import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
+import {
+  tableStateDiffersFromDefaults,
+  TableSortState,
+} from '../../core/models/table-preferences.models';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -22,6 +27,7 @@ import {
   LucidePlus as Plus,
   LucideSearch as Search,
   LucideX as X,
+  LucideBookOpen as BookOpen,
 } from '@lucide/angular';
 import { CatalogProduct, TrackingMode } from '../../core/models/flipbase.models';
 import { CatalogService } from '../../core/services/catalog.service';
@@ -30,6 +36,7 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import { parseCsv } from '../../shared/utils/csv';
 import { normalizeGtin } from '../../shared/utils/gtin';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 
 interface CatalogImportRow {
   readonly title: string;
@@ -42,10 +49,12 @@ interface CatalogImportRow {
 @Component({
   selector: 'app-catalog',
   imports: [
-    TableColumnPickerComponent,
+    TableColumnMenuComponent,
+    TableSortHeaderComponent,
     ReactiveFormsModule,
     LucideDynamicIcon,
     ModalDialogDirective,
+    PageHeaderComponent,
   ],
   templateUrl: './catalog.component.html',
   host: { class: 'block' },
@@ -53,24 +62,39 @@ interface CatalogImportRow {
 })
 export class CatalogComponent {
   readonly tablePreferences = inject(TablePreferencesService);
-  readonly tableColumns = computed<readonly TableColumnOption[]>(() => [
-    { id: 'title', label: 'Artikel', required: true },
-    { id: 'ean', label: 'EAN' },
-    { id: 'tracking', label: 'Nachverfolgung' },
-    { id: 'available', label: 'Verfügbar' },
-    { id: 'store', label: 'Webshop' },
-  ]);
-  readonly visibleColumns = computed(() =>
-    this.tablePreferences.visibleColumns('catalog', this.tableColumns()),
-  );
   readonly catalogService = inject(CatalogService);
   readonly stockService = inject(StockService);
   private readonly workspaceService = inject(WorkspaceService);
+  readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
+  readonly catalogTableConfig = this.tablePreferences.getTableConfig<
+    CatalogColumnId,
+    CatalogSortField
+  >('catalog');
+  readonly tablePrefs = computed(() =>
+    this.tablePreferences.getTablePreferences<CatalogColumnId, CatalogSortField>(
+      'catalog',
+      this.workspaceId(),
+    )(),
+  );
+  readonly visibleColumns = computed(() =>
+    this.tablePrefs()
+      .columns.filter((column) => column.visible)
+      .map((column) => column.id),
+  );
+  readonly orderedVisibleColumns = computed(() =>
+    this.tablePrefs().columns.filter((column) => column.visible),
+  );
 
   readonly plusIcon = Plus;
   readonly searchIcon = Search;
   readonly closeIcon = X;
+  readonly bookOpenIcon = BookOpen;
   readonly searchQuery = signal('');
+  readonly viewModified = computed(
+    () =>
+      this.searchQuery().trim() !== '' ||
+      tableStateDiffersFromDefaults(this.tablePrefs(), this.catalogTableConfig),
+  );
   readonly isCreateOpen = signal(false);
   readonly isSaving = signal(false);
   readonly saveError = signal<string | null>(null);
@@ -113,15 +137,56 @@ export class CatalogComponent {
 
   readonly filteredProducts = computed(() => {
     const query = this.searchQuery().trim().toLocaleLowerCase('de');
-    if (!query) return this.catalogService.products();
-    return this.catalogService
-      .products()
-      .filter((product) =>
-        [product.title, product.ean, product.brand, product.model]
-          .filter((value): value is string => Boolean(value))
-          .some((value) => value.toLocaleLowerCase('de').includes(query)),
-      );
+    const products = !query
+      ? [...this.catalogService.products()]
+      : this.catalogService
+          .products()
+          .filter((product) =>
+            [product.title, product.ean, product.brand, product.model]
+              .filter((value): value is string => Boolean(value))
+              .some((value) => value.toLocaleLowerCase('de').includes(query)),
+          );
+    const sort = this.tablePrefs().sort;
+    return products.sort((left, right) => {
+      const comparison =
+        sort.field === 'available'
+          ? this.availableStock(left) - this.availableStock(right)
+          : left.title.localeCompare(right.title, 'de', { sensitivity: 'base' });
+      return sort.direction === 'asc' ? comparison : -comparison;
+    });
   });
+
+  toggleColumnVisibility(columnId: CatalogColumnId): void {
+    this.tablePreferences.toggleColumnVisibility('catalog', columnId, this.workspaceId());
+  }
+
+  onColumnsReordered(event: { previousIndex: number; currentIndex: number }): void {
+    this.tablePreferences.reorderColumns(
+      'catalog',
+      event.previousIndex,
+      event.currentIndex,
+      this.workspaceId(),
+    );
+  }
+
+  onSortChanged(sort: TableSortState<CatalogSortField>): void {
+    this.tablePreferences.setSort('catalog', sort, this.workspaceId());
+  }
+
+  resetTablePreferences(): void {
+    this.tablePreferences.resetToDefaults('catalog', this.workspaceId());
+  }
+
+  resetView(): void {
+    this.searchQuery.set('');
+    this.resetTablePreferences();
+  }
+
+  ariaSort(field: string): 'ascending' | 'descending' | null {
+    const sort = this.tablePrefs().sort;
+    if (sort.field !== field) return null;
+    return sort.direction === 'asc' ? 'ascending' : 'descending';
+  }
 
   readonly stockByProduct = computed(
     () =>

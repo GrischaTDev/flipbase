@@ -7,7 +7,7 @@ import { provideRouter } from '@angular/router';
 import { provideTranslateService } from '@ngx-translate/core';
 import { glob, readFile } from 'node:fs/promises';
 import axe from 'axe-core';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { InventoryItem, Purchase } from '../../core/models/flipbase.models';
 import { InventoryService } from '../../core/services/inventory.service';
 import { InboundTrackingService } from '../../core/services/inbound-tracking.service';
@@ -16,6 +16,40 @@ import { PurchaseService } from '../../core/services/purchase.service';
 import { StockService } from '../../core/services/stock.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { PurchasesComponent } from './purchases.component';
+import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
+import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
+import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
+
+interface AngularInputMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+}
+
+const inputMetadataSnapshots = new Map<unknown, AngularInputMetadata>();
+
+function registerSignalInputs(component: unknown, inputNames: readonly string[]): void {
+  const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  inputMetadataSnapshots.set(component, {
+    inputs: metadata.inputs,
+    declaredInputs: metadata.declaredInputs,
+  });
+  metadata.inputs = {
+    ...metadata.inputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, [name, 1, null]])),
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, name])),
+  };
+}
+
+afterAll(() => {
+  for (const [component, snapshot] of inputMetadataSnapshots) {
+    const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+    metadata.inputs = snapshot.inputs;
+    metadata.declaredInputs = snapshot.declaredInputs;
+  }
+});
 
 beforeAll(async () => {
   registerLocaleData(localeDe);
@@ -28,6 +62,19 @@ beforeAll(async () => {
     }
     return readFile(matches[0], 'utf8');
   });
+  registerSignalInputs(PageHeaderComponent, ['icon']);
+  registerSignalInputs(TableColumnMenuComponent, [
+    'columns',
+    'sortOptions',
+    'currentSort',
+    'viewModified',
+  ]);
+  registerSignalInputs(TableSortHeaderComponent, [
+    'label',
+    'sortField',
+    'currentSort',
+    'description',
+  ]);
 });
 
 const workspaceId = 'workspace-1';
@@ -92,7 +139,12 @@ const inventoryItem: InventoryItem = {
 beforeEach(() => {
   TestBed.resetTestingModule();
   TestBed.configureTestingModule({
-    imports: [PurchasesComponent],
+    imports: [
+      PurchasesComponent,
+      PageHeaderComponent,
+      TableColumnMenuComponent,
+      TableSortHeaderComponent,
+    ],
     providers: [
       provideRouter([]),
       provideTranslateService({ lang: 'de' }),
@@ -144,36 +196,36 @@ beforeEach(() => {
 });
 
 describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
-  it('rendert genau einen breiten, per Tastatur erreichbaren Eintrag pro Einkauf', () => {
+  it('rendert eine semantische Tabelle mit einem Eintrag pro Einkauf', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     const list = host.querySelector('[data-purchase-list]');
-    const rows = Array.from(host.querySelectorAll<HTMLAnchorElement>('[data-purchase-row]'));
+    const rows = Array.from(
+      host.querySelectorAll<HTMLTableRowElement>('[data-purchase-table-row]'),
+    );
+    const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('[data-purchase-row]'));
 
     expect(list).not.toBeNull();
     expect(rows).toHaveLength(2);
-    expect(list?.className).not.toContain('lg:grid-cols-3');
-    expect(rows.map((row) => row.getAttribute('href'))).toEqual([
-      '/purchases/purchase-normal',
+    expect(links.map((row) => row.getAttribute('href'))).toEqual([
       '/purchases/purchase-mystery',
+      '/purchases/purchase-normal',
     ]);
-    expect(
-      rows.every((row) => row.querySelector('a, button, input, select, textarea') === null),
-    ).toBe(true);
-    expect(rows.every((row) => !row.hasAttribute('aria-label'))).toBe(true);
-    expect(rows[0].textContent).toContain('Erfassung abgeschlossen');
-    expect(rows[0].textContent).toContain('1 verfügbar');
-    expect(rows[1].textContent).toContain('Inhalt erfassen');
-    expect(rows[1].textContent).toContain('Kosten noch offen');
+    const normalRow = host.querySelector('[data-purchase-row="purchase-normal"]')?.closest('tr');
+    const mysteryRow = host.querySelector('[data-purchase-row="purchase-mystery"]')?.closest('tr');
+    expect(normalRow?.textContent).toContain('Erfassung abgeschlossen');
+    expect(normalRow?.textContent).toContain('1 verfügbar');
+    expect(mysteryRow?.textContent).toContain('Inhalt erfassen');
+    expect(mysteryRow?.textContent).toContain('Kosten noch offen');
   });
 
   it('zeigt offene Kostenverteilung als eigenes Badge', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
-    const mystery = (fixture.nativeElement as HTMLElement).querySelector(
-      '[data-purchase-row="purchase-mystery"]',
-    );
+    const mystery = (fixture.nativeElement as HTMLElement)
+      .querySelector('[data-purchase-row="purchase-mystery"]')
+      ?.closest('tr');
 
     expect(mystery?.querySelector('[data-allocation-open]')?.textContent).toContain(
       'Kostenaufteilung offen',

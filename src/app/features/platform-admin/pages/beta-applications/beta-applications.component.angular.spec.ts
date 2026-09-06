@@ -2,15 +2,69 @@ import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { readFile } from 'node:fs/promises';
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { resolve } from 'node:path';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BetaApplicationsComponent } from './beta-applications.component';
 import { BetaApplicationService } from '../../services/beta-application.service';
+import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
+import { TableSortHeaderComponent } from '../../../../shared/components/table-sort-header/table-sort-header.component';
+import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+
+interface AngularInputMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+}
+
+const inputMetadataSnapshots = new Map<unknown, AngularInputMetadata>();
+
+function registerSignalInputs(component: unknown, inputNames: readonly string[]): void {
+  const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  inputMetadataSnapshots.set(component, {
+    inputs: metadata.inputs,
+    declaredInputs: metadata.declaredInputs,
+  });
+  metadata.inputs = {
+    ...metadata.inputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, [name, 1, null]])),
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, name])),
+  };
+}
 
 // Ohne JIT-Vorlagenaufloesung meldet TestBed "Component is not resolved" fuer
 // jede Komponente mit externem templateUrl - so laeuft auch jeder andere
 // Komponententest in diesem Projekt (siehe cost-state.component.angular.spec.ts).
 beforeAll(async () => {
-  await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
+  const resources: Record<string, string> = {
+    './beta-applications.component.html':
+      'src/app/features/platform-admin/pages/beta-applications/beta-applications.component.html',
+    './table-column-menu.component.html':
+      'src/app/shared/components/table-column-menu/table-column-menu.component.html',
+    './table-column-menu.component.scss':
+      'src/app/shared/components/table-column-menu/table-column-menu.component.scss',
+    './table-sort-header.component.html':
+      'src/app/shared/components/table-sort-header/table-sort-header.component.html',
+    './page-header.component.html':
+      'src/app/shared/components/page-header/page-header.component.html',
+    './page-header.component.scss':
+      'src/app/shared/components/page-header/page-header.component.scss',
+  };
+  await ɵresolveComponentResources((url) => readFile(resolve(resources[url] ?? url), 'utf8'));
+  registerSignalInputs(PageHeaderComponent, ['icon']);
+  registerSignalInputs(TableColumnMenuComponent, [
+    'columns',
+    'sortOptions',
+    'currentSort',
+    'viewModified',
+  ]);
+  registerSignalInputs(TableSortHeaderComponent, [
+    'label',
+    'sortField',
+    'currentSort',
+    'description',
+  ]);
 });
 
 const application = {
@@ -33,12 +87,25 @@ describe('BetaApplicationsComponent', () => {
     decide = vi.fn().mockResolvedValue(undefined);
 
     await TestBed.configureTestingModule({
-      imports: [BetaApplicationsComponent],
+      imports: [
+        BetaApplicationsComponent,
+        TableColumnMenuComponent,
+        TableSortHeaderComponent,
+        PageHeaderComponent,
+      ],
       providers: [{ provide: BetaApplicationService, useValue: { list, decide } }],
     }).compileComponents();
   });
 
   afterEach(() => TestBed.resetTestingModule());
+
+  afterAll(() => {
+    for (const [component, snapshot] of inputMetadataSnapshots) {
+      const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
+      metadata.inputs = snapshot.inputs;
+      metadata.declaredInputs = snapshot.declaredInputs;
+    }
+  });
 
   it('zeigt die geladenen Bewerbungen', async () => {
     const fixture = TestBed.createComponent(BetaApplicationsComponent);

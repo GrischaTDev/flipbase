@@ -49,18 +49,18 @@ export const SALES_TABLE_CONFIG: TableConfig<SalesColumnId, SalesSortField> = {
 // ==========================================
 export type InventoryColumnId =
   | 'selection'
-  | 'thumbnail'
   | 'title'
   | 'condition'
   | 'quantity'
   | 'status'
   | 'origin'
-  | 'cost_unit'
-  | 'cost_total'
-  | 'expected_value'
+  | 'unit_cost'
+  | 'inventory_value'
+  | 'sale'
   | 'actions';
 
-export type InventorySortField = 'updated_at' | 'title' | 'quantity' | 'cost_unit' | 'cost_total';
+export type InventorySortField =
+  'updated_at' | 'title' | 'quantity' | 'unit_cost' | 'inventory_value';
 
 export const INVENTORY_TABLE_CONFIG: TableConfig<InventoryColumnId, InventorySortField> = {
   defaultColumns: [
@@ -70,23 +70,45 @@ export const INVENTORY_TABLE_CONFIG: TableConfig<InventoryColumnId, InventorySor
     { id: 'quantity', label: 'Bestand', visible: true, order: 3 },
     { id: 'status', label: 'Status', visible: true, order: 4 },
     { id: 'origin', label: 'Herkunft', visible: true, order: 5 },
-    { id: 'cost_unit', label: 'Kosten pro Stück', visible: true, order: 6 },
-    { id: 'cost_total', label: 'Bestandswert', visible: true, order: 7 },
-    { id: 'expected_value', label: 'Verkauf', visible: true, order: 8 },
+    { id: 'unit_cost', label: 'Kosten pro Stück', visible: true, order: 6 },
+    { id: 'inventory_value', label: 'Bestandswert', visible: true, order: 7 },
+    { id: 'sale', label: 'Verkauf', visible: true, order: 8 },
     { id: 'actions', label: 'Aktionen', visible: true, order: 9, locked: true },
   ],
   defaultSort: { field: 'updated_at', direction: 'desc' },
   sortOptions: [
     { value: 'updated_at', label: 'Zuletzt aktualisiert' },
-    { value: 'title', label: 'Titel (A-Z)' },
+    { value: 'title', label: 'Titel' },
     { value: 'quantity', label: 'Bestandsmenge' },
-    { value: 'cost_unit', label: 'Kosten pro Stück' },
-    { value: 'cost_total', label: 'Bestandswert' },
+    { value: 'unit_cost', label: 'Kosten pro Stück' },
+    { value: 'inventory_value', label: 'Bestandswert' },
   ],
 };
 
 // ==========================================
-// 3. Einkäufe (Purchases)
+// 3. Artikelstamm (Catalog)
+// ==========================================
+export type CatalogColumnId = 'title' | 'ean' | 'tracking' | 'available' | 'store';
+
+export type CatalogSortField = 'title' | 'available';
+
+export const CATALOG_TABLE_CONFIG: TableConfig<CatalogColumnId, CatalogSortField> = {
+  defaultColumns: [
+    { id: 'title', label: 'Artikel', visible: true, order: 0, locked: true },
+    { id: 'ean', label: 'EAN', visible: true, order: 1 },
+    { id: 'tracking', label: 'Nachverfolgung', visible: true, order: 2 },
+    { id: 'available', label: 'Verfügbar', visible: true, order: 3 },
+    { id: 'store', label: 'Webshop', visible: true, order: 4 },
+  ],
+  defaultSort: { field: 'title', direction: 'asc' },
+  sortOptions: [
+    { value: 'title', label: 'Titel' },
+    { value: 'available', label: 'Verfügbarer Bestand' },
+  ],
+};
+
+// ==========================================
+// 4. Einkäufe (Purchases)
 // ==========================================
 export type PurchasesColumnId =
   'type' | 'title' | 'purchase_date' | 'status' | 'total_cost' | 'units' | 'actions';
@@ -112,7 +134,7 @@ export const PURCHASES_TABLE_CONFIG: TableConfig<PurchasesColumnId, PurchasesSor
 };
 
 // ==========================================
-// 4. Buchhaltung (Accounting / Bank Transactions)
+// 5. Buchhaltung (Accounting / Bank Transactions)
 // ==========================================
 export type AccountingColumnId =
   'booking_date' | 'counterparty' | 'purpose' | 'amount' | 'match' | 'status' | 'actions';
@@ -140,5 +162,34 @@ export const ACCOUNTING_TABLE_CONFIG: TableConfig<AccountingColumnId, Accounting
     { value: 'booking_date', label: 'Buchungsdatum' },
     { value: 'amount', label: 'Betrag' },
     { value: 'counterparty', label: 'Auftraggeber' },
+  ],
+};
+
+// ==========================================
+// 6. Betreiber-Beta-Bewerbungen
+// ==========================================
+export type BetaApplicationsColumnId =
+  'applicant' | 'email' | 'created_at' | 'status' | 'granted_days' | 'decision_note' | 'actions';
+
+export type BetaApplicationsSortField = 'created_at' | 'applicant' | 'status';
+
+export const BETA_APPLICATIONS_TABLE_CONFIG: TableConfig<
+  BetaApplicationsColumnId,
+  BetaApplicationsSortField
+> = {
+  defaultColumns: [
+    { id: 'applicant', label: 'Name', visible: true, order: 0, locked: true },
+    { id: 'email', label: 'E-Mail', visible: true, order: 1 },
+    { id: 'created_at', label: 'Eingang', visible: true, order: 2 },
+    { id: 'status', label: 'Status', visible: true, order: 3 },
+    { id: 'granted_days', label: 'Laufzeit', visible: true, order: 4 },
+    { id: 'decision_note', label: 'Notiz', visible: true, order: 5 },
+    { id: 'actions', label: 'Aktionen', visible: true, order: 6, locked: true },
+  ],
+  defaultSort: { field: 'created_at', direction: 'desc' },
+  sortOptions: [
+    { value: 'created_at', label: 'Eingangsdatum' },
+    { value: 'applicant', label: 'Name' },
+    { value: 'status', label: 'Status' },
   ],
 };

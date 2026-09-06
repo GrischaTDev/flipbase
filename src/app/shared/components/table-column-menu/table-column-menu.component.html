@@ -1,95 +1,85 @@
-<!-- Trigger Button -->
-<button
-  #triggerBtn
-  type="button"
-  (click)="toggleOpen()"
-  [attr.aria-expanded]="isOpen()"
-  [attr.aria-controls]="panelId"
-  aria-haspopup="dialog"
-  aria-label="Spalten und Sortierung anpassen"
-  title="Spalten und Sortierung anpassen"
-  class="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-fb-border bg-fb-surface px-2 text-fb-text-secondary shadow-xs transition-colors duration-150 hover:border-fb-border-hover hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary cursor-pointer"
->
-  <svg [lucideIcon]="icons.columns" class="h-4 w-4" aria-hidden="true"></svg>
-</button>
+<div class="inline-flex items-center gap-1.5">
+  @if (viewModified()) {
+    <button
+      type="button"
+      data-view-reset
+      (click)="viewResetRequested.emit()"
+      class="inline-flex min-h-8 cursor-pointer items-center rounded-md px-2 text-[12px] font-medium text-fb-text-secondary transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
+    >
+      Ansicht zurücksetzen
+    </button>
+  }
 
-<!-- Popover Dialog -->
+  <button
+    #triggerBtn
+    type="button"
+    (click)="toggleOpen()"
+    [attr.aria-expanded]="isOpen()"
+    [attr.aria-controls]="panelId"
+    aria-haspopup="dialog"
+    aria-label="Spalten und Sortierung anpassen"
+    title="Spalten und Sortierung anpassen"
+    class="inline-flex min-h-8 min-w-8 cursor-pointer items-center justify-center rounded-md border border-fb-border bg-fb-surface px-1.5 text-fb-text-secondary shadow-xs transition-colors duration-150 hover:border-fb-border-hover hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+  >
+    <svg [lucideIcon]="icons.columns" class="h-4 w-4" aria-hidden="true"></svg>
+  </button>
+</div>
+
 @if (isOpen()) {
   <div
     #panel
     [id]="panelId"
     role="dialog"
     [attr.aria-labelledby]="headingId"
-    class="fb-popover-enter absolute right-0 top-full z-50 mt-2 w-80 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border border-fb-border bg-fb-surface p-1.5 text-fb-text-primary shadow-lg"
+    [style.top.px]="panelPosition().top"
+    [style.left.px]="panelPosition().left"
+    [style.max-height.px]="panelMaxHeight()"
+    class="fb-popover-enter fixed z-[70] w-72 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-fb-border bg-fb-surface text-fb-text-primary shadow-xl"
+    [class.origin-top-right]="panelPlacement() === 'below'"
+    [class.origin-bottom-right]="panelPlacement() === 'above'"
   >
-    <div class="flex items-center justify-between gap-3 border-b border-fb-line px-2.5 py-2">
-      <h2 [id]="headingId" class="text-[13px] font-semibold text-fb-text-primary">
-        Tabelleneinstellungen
-      </h2>
-      <span class="text-xs tabular-nums text-fb-text-muted">
-        {{ visibleCount() }}/{{ columns().length }} sichtbar
-      </span>
-    </div>
-
-    <!-- Section 1: Sortierung -->
-    <div class="space-y-2 px-2.5 py-2.5">
-      <div class="flex items-center gap-1.5 text-xs font-semibold text-fb-text-secondary">
-        <svg [lucideIcon]="icons.sort" class="w-3.5 h-3.5" aria-hidden="true"></svg>
-        <span>Sortieren nach</span>
-      </div>
-
-      <div class="flex items-center gap-2">
-        <select
-          [value]="currentSort().field"
-          (change)="onSortFieldChange($event)"
-          aria-label="Sortierfeld"
-          data-popover-focus
-          class="linear-input min-h-9 flex-1 rounded-md border-fb-border bg-fb-surface px-2.5 py-1.5 text-[13px] text-fb-text-primary transition-colors cursor-pointer"
-        >
+    <div class="flex items-center gap-2 border-b border-fb-line px-3 py-2">
+      <svg
+        [lucideIcon]="icons.sort"
+        class="h-3.5 w-3.5 shrink-0 text-fb-text-muted"
+        aria-hidden="true"
+      ></svg>
+      <span class="text-[13px] font-[450] text-fb-text-secondary">Sortieren nach</span>
+      <button
+        #sortTriggerBtn
+        type="button"
+        data-sort-trigger
+        aria-label="Sortierfeld"
+        aria-haspopup="listbox"
+        [attr.aria-expanded]="isSortMenuOpen()"
+        [attr.aria-controls]="sortMenuId"
+        data-popover-focus
+        class="ml-auto inline-flex min-h-8 max-w-44 cursor-pointer items-center gap-1 rounded-md px-2 text-[13px] font-medium text-fb-text-primary transition-colors hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-fb-primary"
+        (click)="toggleSortMenu()"
+      >
+        <span class="truncate">
           @for (option of sortOptions(); track option.value) {
-            <option [value]="option.value">{{ option.label }}</option>
+            @if (option.value === currentSort().field) {
+              {{ option.label }}
+            }
           }
-        </select>
-
-        <button
-          type="button"
-          (click)="toggleSortDirection()"
-          [attr.aria-label]="
-            currentSort().direction === 'asc' ? 'Richtung: Aufsteigend' : 'Richtung: Absteigend'
-          "
-          [title]="
-            currentSort().direction === 'asc'
-              ? 'Aufsteigend (Klick für Absteigend)'
-              : 'Absteigend (Klick für Aufsteigend)'
-          "
-          class="inline-flex min-h-9 min-w-9 items-center justify-center rounded-md border border-fb-border bg-fb-surface text-fb-text-secondary transition-colors hover:border-fb-border-hover hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary cursor-pointer"
-        >
-          <svg
-            [lucideIcon]="currentSort().direction === 'asc' ? icons.asc : icons.desc"
-            class="w-3.5 h-3.5"
-            aria-hidden="true"
-          ></svg>
-        </button>
-      </div>
+        </span>
+        <svg [lucideIcon]="icons.chevron" class="h-3.5 w-3.5 shrink-0" aria-hidden="true"></svg>
+      </button>
     </div>
 
-    <!-- Divider -->
-    <div class="border-t border-fb-line"></div>
-
-    <!-- Section 2: Spalten Header -->
-    <div class="flex items-center justify-between px-2.5 pb-1 pt-2.5">
-      <span class="text-xs font-semibold text-fb-text-secondary"> Sichtbare Spalten </span>
+    <div class="flex items-center justify-between border-b border-fb-line px-3 py-2.5">
+      <h2 [id]="headingId" class="text-[13px] font-medium text-fb-text-primary">Spalten</h2>
       <button
         type="button"
         (click)="resetRequested.emit(); close()"
-        class="rounded px-1.5 py-1 text-xs font-medium text-fb-primary transition-colors hover:bg-fb-primary-subtle focus-visible:outline-2 focus-visible:outline-fb-primary cursor-pointer"
+        class="cursor-pointer rounded px-1.5 py-1 text-[12px] font-medium text-fb-text-secondary transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
       >
         Standard
       </button>
     </div>
 
-    <!-- Section 3: Spalten-Liste -->
-    <ul class="max-h-72 overflow-y-auto px-1.5 pb-1 pr-0.5 list-none m-0" role="list">
+    <ul class="m-0 list-none px-1.5 py-1.5" role="list" aria-label="Sichtbare Spalten">
       @for (col of sortedColumns(); track col.id; let i = $index) {
         <li
           draggable="true"
@@ -97,27 +87,24 @@
           (dragover)="onDragOver($event)"
           (drop)="onDrop(i)"
           (dragend)="onDragEnd()"
-          class="group flex min-h-9 items-center justify-between rounded-md px-2 py-1 transition-colors duration-150 hover:bg-fb-surface-hover select-none"
+          class="group flex min-h-8 select-none items-center justify-between rounded-md px-2 py-1 transition-colors duration-150 hover:bg-fb-surface-hover"
           [class.opacity-50]="!col.visible"
           [class.bg-fb-surface-hover]="draggedIndex() === i"
         >
-          <!-- Drag handle & Name -->
-          <div class="flex items-center gap-2 min-w-0 flex-1">
+          <div class="flex min-w-0 flex-1 items-center gap-1.5">
             <span
               class="cursor-grab text-fb-text-dimmed transition-colors group-hover:text-fb-text-muted active:cursor-grabbing"
               title="Ziehen zum Neuanordnen"
               aria-hidden="true"
             >
-              <svg [lucideIcon]="icons.drag" class="w-3.5 h-3.5"></svg>
+              <svg [lucideIcon]="icons.drag" class="h-3.5 w-3.5"></svg>
             </span>
-            <span class="text-[13px] font-medium text-fb-text-primary truncate">
-              {{ col.label }}
-            </span>
+            <span class="truncate text-[13px] font-[450] text-fb-text-primary">{{
+              col.label
+            }}</span>
           </div>
 
-          <!-- Actions / Status -->
-          <div class="flex items-center gap-1 shrink-0 ml-2">
-            <!-- Keyboard reorder shortcuts for a11y -->
+          <div class="ml-2 flex shrink-0 items-center gap-1">
             <button
               type="button"
               (click)="moveColumnKeyboard(i, 'up', $event)"
@@ -139,11 +126,11 @@
 
             @if (col.locked) {
               <span
-                class="p-1 text-fb-text-muted/40 cursor-not-allowed"
+                class="cursor-not-allowed p-1 text-fb-text-muted/40"
                 title="Erforderliche Spalte"
                 aria-label="Erforderliche Spalte"
               >
-                <svg [lucideIcon]="icons.lock" class="w-3.5 h-3.5" aria-hidden="true"></svg>
+                <svg [lucideIcon]="icons.lock" class="h-3.5 w-3.5" aria-hidden="true"></svg>
               </span>
             } @else {
               <button
@@ -155,7 +142,7 @@
                     : 'Spalte ' + col.label + ' einblenden'
                 "
                 [title]="col.visible ? 'Ausblenden' : 'Einblenden'"
-                class="rounded p-1 text-fb-text-muted transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary cursor-pointer"
+                class="cursor-pointer rounded p-1 text-fb-text-muted transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
               >
                 <svg
                   [lucideIcon]="col.visible ? icons.eye : icons.eyeOff"
@@ -168,5 +155,63 @@
         </li>
       }
     </ul>
+  </div>
+}
+
+@if (isSortMenuOpen()) {
+  <div
+    #sortMenu
+    [id]="sortMenuId"
+    role="dialog"
+    aria-label="Sortierung auswählen"
+    [style.top.px]="sortMenuPosition().top"
+    [style.left.px]="sortMenuPosition().left"
+    [style.max-height.px]="sortMenuMaxHeight()"
+    data-sort-menu
+    class="fb-popover-enter fixed z-[80] w-60 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-fb-border bg-fb-surface p-1.5 text-fb-text-primary shadow-xl"
+    [class.origin-top-right]="sortMenuPlacement() === 'below'"
+    [class.origin-bottom-right]="sortMenuPlacement() === 'above'"
+  >
+    <div role="listbox" aria-label="Sortierfeld">
+      @for (option of sortOptions(); track option.value) {
+        <button
+          type="button"
+          role="option"
+          [attr.aria-selected]="option.value === currentSort().field"
+          class="flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-[450] text-fb-text-primary transition-colors hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-fb-primary"
+          [class.bg-fb-surface-hover]="option.value === currentSort().field"
+          (click)="selectSortField(option.value)"
+        >
+          <span class="flex h-4 w-4 shrink-0 items-center justify-center">
+            @if (option.value === currentSort().field) {
+              <svg [lucideIcon]="icons.check" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+            }
+          </span>
+          <span class="truncate">{{ option.label }}</span>
+        </button>
+      }
+    </div>
+
+    <div class="my-1.5 border-t border-fb-line"></div>
+
+    <div role="listbox" aria-label="Sortierrichtung">
+      @for (direction of sortDirections; track direction) {
+        <button
+          type="button"
+          role="option"
+          [attr.aria-selected]="currentSort().direction === direction"
+          class="flex min-h-8 w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-left text-[13px] font-[450] text-fb-text-primary transition-colors hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-fb-primary"
+          [class.bg-fb-surface-hover]="currentSort().direction === direction"
+          (click)="selectSortDirection(direction)"
+        >
+          <span class="flex h-4 w-4 shrink-0 items-center justify-center">
+            @if (currentSort().direction === direction) {
+              <svg [lucideIcon]="icons.check" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+            }
+          </span>
+          <span>{{ direction === 'asc' ? 'A-Z' : 'Z-A' }}</span>
+        </button>
+      }
+    </div>
   </div>
 }
