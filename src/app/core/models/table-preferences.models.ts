@@ -2,6 +2,7 @@ export type TableId =
   'sales' | 'inventory' | 'purchases' | 'accounting' | 'catalog' | 'beta_applications';
 
 export type SortDirection = 'asc' | 'desc';
+export type SortValueKind = 'text' | 'number' | 'date';
 
 export interface ColumnDefinition<TColumnId extends string = string> {
   readonly id: TColumnId;
@@ -15,6 +16,7 @@ export interface ColumnDefinition<TColumnId extends string = string> {
 export interface SortFieldOption<TSortField extends string = string> {
   readonly value: TSortField;
   readonly label: string;
+  readonly kind: SortValueKind;
 }
 
 export interface TableSortState<TSortField extends string = string> {

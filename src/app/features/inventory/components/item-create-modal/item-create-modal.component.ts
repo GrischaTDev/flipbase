@@ -8,6 +8,7 @@ import {
   output,
   signal,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   LucideDynamicIcon,
@@ -60,6 +61,7 @@ interface MehrfachAnlageErgebnis {
   selector: 'app-item-create-modal',
   imports: [
     ModalDialogDirective,
+    NgTemplateOutlet,
     ReactiveFormsModule,
     LucideDynamicIcon,
     BarcodeScannerComponent,
@@ -129,6 +131,7 @@ export class ItemCreateModalComponent {
    * anderen laengst da ist.
    */
   readonly item = input<InventoryItem | null>(null);
+  readonly presentation = input<'dialog' | 'page'>('dialog');
 
   readonly istBearbeitung = computed(() => this.item() !== null);
 
@@ -194,6 +197,14 @@ export class ItemCreateModalComponent {
       validators: [Validators.required, Validators.min(1), Validators.max(200)],
     }),
   });
+
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty;
+  }
+
+  isSaving(): boolean {
+    return this.isSubmitting();
+  }
 
   async onAiAutofill(): Promise<void> {
     const rawTitle = this.form.get('title')?.value;

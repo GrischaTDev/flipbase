@@ -1,13 +1,5 @@
-<section class="linear-surface overflow-visible rounded-xl" aria-labelledby="inventory-table-title">
-  <div class="flex flex-wrap items-center justify-between gap-3 border-b border-fb-line px-4 py-3">
-    <div>
-      <h2 id="inventory-table-title" class="text-sm font-semibold text-fb-text-primary">
-        Inventar
-      </h2>
-      <p class="mt-0.5 text-xs text-fb-text-muted">
-        Alle vorhandenen und verkauften Artikel in einer Ansicht
-      </p>
-    </div>
+<section class="linear-surface overflow-visible rounded-xl" aria-label="Inventartabelle">
+  <div class="flex flex-wrap items-center justify-end gap-3 border-b border-fb-line px-4 py-2">
     <div class="flex flex-wrap items-center justify-end gap-2">
       <ng-content select="[table-toolbar-leading]"></ng-content>
       @if (tableColumns().length > 0 && currentSort(); as sort) {

@@ -1,0 +1,12 @@
+<app-entry-page-layout
+  title="Verkauf erfassen"
+  subtitle="Positionen, Preise und direkte Kosten in einem Arbeitsgang erfassen."
+  backLabel="Zurück zu Verkäufen"
+  (cancelled)="returnToSales()"
+>
+  <app-sale-create-modal
+    [saleTarget]="routeState.saleTarget ?? null"
+    [legacyReconciliation]="routeState.legacyReconciliation ?? null"
+    (closed)="returnToSales()"
+  />
+</app-entry-page-layout>

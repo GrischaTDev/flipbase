@@ -1,19 +1,13 @@
 import { CanDeactivateFn } from '@angular/router';
+import { canLeaveUnsavedEntry, UnsavedEntryPage } from '../../../shared/guards/unsaved-entry.guard';
 
-export interface PurchaseEntryNavigationState {
-  hasUnsavedChanges(): boolean;
-  isSaving(): boolean;
-}
+export type PurchaseEntryNavigationState = UnsavedEntryPage;
 
 export function canLeavePurchaseEntry(
   component: PurchaseEntryNavigationState,
   confirmLeave: (message: string) => boolean = (message) => window.confirm(message),
 ): boolean {
-  if (component.isSaving()) return false;
-  return (
-    !component.hasUnsavedChanges() ||
-    confirmLeave('Ungespeicherte Änderungen verwerfen und Seite verlassen?')
-  );
+  return canLeaveUnsavedEntry(component, confirmLeave);
 }
 
 export const purchaseEntryGuard: CanDeactivateFn<PurchaseEntryNavigationState> = (component) =>

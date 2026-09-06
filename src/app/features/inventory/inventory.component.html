@@ -27,7 +27,7 @@
           ({{ selectedItemIds().size }})
         }
       </app-button>
-      <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreateModal()">
+      <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreatePage()">
         {{ 'INVENTORY.NEW_ITEM' | translate }}
       </app-button>
     </div>
@@ -258,14 +258,6 @@
       </button>
     </div>
   </app-stock-position-list>
-
-  @if (isCreateModalOpen()) {
-    <app-item-create-modal
-      #createModal
-      (closed)="closeCreateModal()"
-      (created)="closeCreateModal()"
-    ></app-item-create-modal>
-  }
 
   @if (isAiScannerOpen()) {
     <app-ai-photo-scanner-modal

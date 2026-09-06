@@ -247,7 +247,7 @@ describe('ItemDetailComponent', () => {
 
         legacyActions.openLegacySaleReconciliation();
 
-        expect(navigate).toHaveBeenCalledWith(['/sales'], {
+        expect(navigate).toHaveBeenCalledWith(['/sales/new'], {
           state: {
             legacyReconciliation: {
               kind: 'legacy_sold_unverified',
@@ -258,6 +258,7 @@ describe('ItemDetailComponent', () => {
               inventoryItemId: artikel.id,
               title: artikel.title,
             },
+            returnUrl: `/inventory/${artikel.id}`,
           },
         });
       });

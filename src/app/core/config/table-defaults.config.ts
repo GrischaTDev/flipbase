@@ -35,12 +35,12 @@ export const SALES_TABLE_CONFIG: TableConfig<SalesColumnId, SalesSortField> = {
   ],
   defaultSort: { field: 'sale_date', direction: 'desc' },
   sortOptions: [
-    { value: 'sale_date', label: 'Verkaufsdatum' },
-    { value: 'revenue', label: 'Verkaufserlös' },
-    { value: 'profit', label: 'Ergebnis' },
-    { value: 'margin', label: 'Marge' },
-    { value: 'title', label: 'Artikelname' },
-    { value: 'holding_days', label: 'Haltedauer' },
+    { value: 'sale_date', label: 'Verkaufsdatum', kind: 'date' },
+    { value: 'revenue', label: 'Verkaufserlös', kind: 'number' },
+    { value: 'profit', label: 'Ergebnis', kind: 'number' },
+    { value: 'margin', label: 'Marge', kind: 'number' },
+    { value: 'title', label: 'Artikelname', kind: 'text' },
+    { value: 'holding_days', label: 'Haltedauer', kind: 'number' },
   ],
 };
 
@@ -77,11 +77,11 @@ export const INVENTORY_TABLE_CONFIG: TableConfig<InventoryColumnId, InventorySor
   ],
   defaultSort: { field: 'updated_at', direction: 'desc' },
   sortOptions: [
-    { value: 'updated_at', label: 'Zuletzt aktualisiert' },
-    { value: 'title', label: 'Titel' },
-    { value: 'quantity', label: 'Bestandsmenge' },
-    { value: 'unit_cost', label: 'Kosten pro Stück' },
-    { value: 'inventory_value', label: 'Bestandswert' },
+    { value: 'updated_at', label: 'Zuletzt aktualisiert', kind: 'date' },
+    { value: 'title', label: 'Titel', kind: 'text' },
+    { value: 'quantity', label: 'Bestandsmenge', kind: 'number' },
+    { value: 'unit_cost', label: 'Kosten pro Stück', kind: 'number' },
+    { value: 'inventory_value', label: 'Bestandswert', kind: 'number' },
   ],
 };
 
@@ -102,8 +102,8 @@ export const CATALOG_TABLE_CONFIG: TableConfig<CatalogColumnId, CatalogSortField
   ],
   defaultSort: { field: 'title', direction: 'asc' },
   sortOptions: [
-    { value: 'title', label: 'Titel' },
-    { value: 'available', label: 'Verfügbarer Bestand' },
+    { value: 'title', label: 'Titel', kind: 'text' },
+    { value: 'available', label: 'Verfügbarer Bestand', kind: 'number' },
   ],
 };
 
@@ -127,9 +127,9 @@ export const PURCHASES_TABLE_CONFIG: TableConfig<PurchasesColumnId, PurchasesSor
   ],
   defaultSort: { field: 'purchase_date', direction: 'desc' },
   sortOptions: [
-    { value: 'purchase_date', label: 'Kaufdatum' },
-    { value: 'total_cost', label: 'Gesamtkosten' },
-    { value: 'title', label: 'Titel' },
+    { value: 'purchase_date', label: 'Kaufdatum', kind: 'date' },
+    { value: 'total_cost', label: 'Gesamtkosten', kind: 'number' },
+    { value: 'title', label: 'Titel', kind: 'text' },
   ],
 };
 
@@ -159,9 +159,9 @@ export const ACCOUNTING_TABLE_CONFIG: TableConfig<AccountingColumnId, Accounting
   ],
   defaultSort: { field: 'booking_date', direction: 'desc' },
   sortOptions: [
-    { value: 'booking_date', label: 'Buchungsdatum' },
-    { value: 'amount', label: 'Betrag' },
-    { value: 'counterparty', label: 'Auftraggeber' },
+    { value: 'booking_date', label: 'Buchungsdatum', kind: 'date' },
+    { value: 'amount', label: 'Betrag', kind: 'number' },
+    { value: 'counterparty', label: 'Auftraggeber', kind: 'text' },
   ],
 };
 
@@ -188,8 +188,8 @@ export const BETA_APPLICATIONS_TABLE_CONFIG: TableConfig<
   ],
   defaultSort: { field: 'created_at', direction: 'desc' },
   sortOptions: [
-    { value: 'created_at', label: 'Eingangsdatum' },
-    { value: 'applicant', label: 'Name' },
-    { value: 'status', label: 'Status' },
+    { value: 'created_at', label: 'Eingangsdatum', kind: 'date' },
+    { value: 'applicant', label: 'Name', kind: 'text' },
+    { value: 'status', label: 'Status', kind: 'text' },
   ],
 };

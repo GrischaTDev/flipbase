@@ -1,0 +1,23 @@
+<div class="mx-auto w-full max-w-[1200px] space-y-4 pb-8 animate-fade-in">
+  <header class="flex min-h-10 items-start gap-3">
+    <button
+      type="button"
+      (click)="cancelled.emit()"
+      class="mt-0.5 inline-flex h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-fb-text-secondary hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+      [attr.aria-label]="backLabel()"
+    >
+      <svg [lucideIcon]="backIcon" class="h-4 w-4" aria-hidden="true"></svg>
+    </button>
+    <div class="min-w-0 flex-1">
+      <h1 class="text-lg font-semibold leading-6 text-fb-text-primary">{{ title() }}</h1>
+      @if (subtitle()) {
+        <p class="mt-0.5 text-[13px] leading-5 text-fb-text-muted">{{ subtitle() }}</p>
+      }
+    </div>
+    <div class="shrink-0">
+      <ng-content select="[entry-header-actions]" />
+    </div>
+  </header>
+
+  <ng-content />
+</div>

@@ -25,12 +25,12 @@ export class BadgeComponent {
 
   protected readonly badgeClasses = computed(() => {
     const base =
-      'inline-flex items-center font-semibold rounded-full border transition-colors select-none';
+      'inline-flex items-center font-semibold rounded-lg border-0 transition-colors select-none';
 
     const sizeClass =
       this.size() === 'md'
-        ? 'px-2.5 py-1 text-xs gap-1.5 leading-normal'
-        : 'px-2 py-0.5 text-[10px] gap-1 leading-normal';
+        ? 'h-6 px-2.5 text-xs gap-1.5 leading-4'
+        : 'h-5 px-2 text-xs gap-1 leading-4';
 
     const toneClasses: Record<BadgeTone, string> = {
       neutral: 'bg-fb-subtle text-fb-text-secondary border-fb-border',

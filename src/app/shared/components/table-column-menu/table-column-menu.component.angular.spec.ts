@@ -32,8 +32,8 @@ describe('TableColumnMenuComponent', () => {
   ];
 
   const mockSortOptions: SortFieldOption<string>[] = [
-    { value: 'date', label: 'Datum' },
-    { value: 'price', label: 'Preis' },
+    { value: 'date', label: 'Datum', kind: 'date' },
+    { value: 'price', label: 'Preis', kind: 'number' },
   ];
 
   const mockSort: TableSortState<string> = {
@@ -162,8 +162,8 @@ describe('TableColumnMenuComponent', () => {
     expect(fixture.nativeElement.querySelector('[data-sort-menu]')).toBeTruthy();
     expect(fixture.nativeElement.querySelectorAll('[role="listbox"]')).toHaveLength(2);
     expect(fixture.nativeElement.querySelectorAll('[role="option"]')).toHaveLength(4);
-    expect(fixture.nativeElement.textContent).toContain('A-Z');
-    expect(fixture.nativeElement.textContent).toContain('Z-A');
+    expect(fixture.nativeElement.textContent).toContain('Älteste zuerst');
+    expect(fixture.nativeElement.textContent).toContain('Neueste zuerst');
   });
 
   it('should show and emit the adjacent view reset action only for a modified view', () => {

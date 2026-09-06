@@ -38,7 +38,6 @@ import {
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { StockService } from '../../../../core/services/stock.service';
 import { calculateSaleMetrics } from '../../../../core/utils/sale-metrics';
-import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -64,7 +63,6 @@ type ShippingFormMode = ShippingMode | 'unknown';
 @Component({
   selector: 'app-sale-create-modal',
   imports: [
-    ModalDialogDirective,
     ReactiveFormsModule,
     CurrencyPipe,
     LucideDynamicIcon,
@@ -82,6 +80,14 @@ export class SaleCreateModalComponent {
   readonly sale = input<Sale | null>(null);
   readonly closed = output<void>();
   readonly created = output<void>();
+
+  hasUnsavedChanges(): boolean {
+    return this.form.dirty && !this.isPersisted();
+  }
+
+  isSaving(): boolean {
+    return this.isSubmitting();
+  }
 
   private readonly salesService = inject(SalesService);
   readonly inventoryService = inject(InventoryService);

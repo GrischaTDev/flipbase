@@ -6,22 +6,11 @@
     subtitle="Verkaufserlöse, direkte Kosten, Margen, § 25a Rechnungen und Gutschriften."
   >
     <div header-actions class="flex items-center gap-2">
-      <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreateModal()">
+      <app-button variant="primary" size="md" [icon]="plusIcon" (clicked)="openCreatePage()">
         Verkauf erfassen
       </app-button>
     </div>
   </app-page-header>
-
-  <div
-    role="note"
-    class="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200"
-  >
-    <svg [lucideIcon]="alertIcon" class="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true"></svg>
-    <p>
-      Gebuchte Verkäufe bleiben unverändert erhalten. Tatsächlich zurückgekehrte Ware wird über
-      „Retoure erfassen“ gebucht; Erfassungsfehler benötigen einen dokumentierten Korrekturvorgang.
-    </p>
-  </div>
 
   <!-- KPI Cards Grid -->
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -641,7 +630,7 @@
         </p>
         <button
           type="button"
-          (click)="openCreateModal()"
+          (click)="openCreatePage()"
           class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs transition cursor-pointer"
         >
           <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
@@ -650,16 +639,6 @@
       </div>
     }
   </app-card>
-
-  <!-- Modal Create -->
-  @if (isCreateModalOpen()) {
-    <app-sale-create-modal
-      [saleTarget]="createSaleTarget()"
-      [legacyReconciliation]="legacySaleReconciliation()"
-      (closed)="closeCreateModal()"
-      (created)="closeCreateModal()"
-    ></app-sale-create-modal>
-  }
 
   <!-- ↩️ Retouren- & Gutschriften-Modal -->
   @if (isReturnModalOpen()) {

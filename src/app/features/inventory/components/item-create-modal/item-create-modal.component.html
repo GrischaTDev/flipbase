@@ -1,43 +1,61 @@
-<div
-  class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 z-50 overflow-y-auto animate-fade-in"
-  appModalDialog
-  [dialogTitel]="istBearbeitung() ? 'Artikel bearbeiten' : 'Neuen Artikel anlegen'"
-  (dialogClose)="closed.emit()"
->
+@if (presentation() === 'dialog') {
   <div
-    class="linear-surface rounded-2xl shadow-2xl max-w-xl w-full max-h-[90vh] flex flex-col border border-fb-border overflow-hidden my-auto animate-modal-card"
+    class="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/50 p-3 animate-fade-in sm:p-6"
+    appModalDialog
+    [dialogTitel]="istBearbeitung() ? 'Artikel bearbeiten' : 'Neuen Artikel anlegen'"
+    (dialogClose)="closed.emit()"
   >
-    <div
-      class="flex items-center justify-between p-5 border-b border-fb-border bg-fb-subtle shrink-0"
-    >
-      <div class="flex items-center gap-2.5">
-        <div
-          class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
-        >
-          <svg [lucideIcon]="boxesIcon" class="w-4 h-4"></svg>
-        </div>
-        <div>
-          <h2 class="text-sm font-bold text-fb-text-primary">
-            {{ istBearbeitung() ? 'Artikel bearbeiten' : 'Neuen Inventar-Artikel anlegen' }}
-          </h2>
-          <p class="text-[11px] text-fb-text-muted">
-            {{
-              istBearbeitung()
-                ? 'Angaben ändern – Zustand, Marktwert und Beschreibung'
-                : 'Artikel erfassen mit Zustand & Kostenanteil'
-            }}
-          </p>
-        </div>
-      </div>
+    <ng-container [ngTemplateOutlet]="itemForm" />
+  </div>
+} @else {
+  <ng-container [ngTemplateOutlet]="itemForm" />
+}
 
-      <button
-        type="button"
-        (click)="closed.emit()"
-        class="p-1.5 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
+<ng-template #itemForm>
+  <div
+    class="linear-surface flex w-full flex-col overflow-hidden rounded-2xl"
+    [class.max-w-xl]="presentation() === 'dialog'"
+    [class.max-w-3xl]="presentation() === 'page'"
+    [class.mx-auto]="presentation() === 'page'"
+    [class.max-h-[90vh]]="presentation() === 'dialog'"
+    [class.my-auto]="presentation() === 'dialog'"
+    [class.shadow-2xl]="presentation() === 'dialog'"
+    [class.animate-modal-card]="presentation() === 'dialog'"
+  >
+    @if (presentation() === 'dialog') {
+      <div
+        class="flex shrink-0 items-center justify-between border-b border-fb-border bg-fb-subtle p-5"
       >
-        <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
-      </button>
-    </div>
+        <div class="flex items-center gap-2.5">
+          <div
+            class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center"
+          >
+            <svg [lucideIcon]="boxesIcon" class="w-4 h-4"></svg>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-fb-text-primary">
+              {{ istBearbeitung() ? 'Artikel bearbeiten' : 'Neuen Inventar-Artikel anlegen' }}
+            </h2>
+            <p class="text-[11px] text-fb-text-muted">
+              {{
+                istBearbeitung()
+                  ? 'Angaben ändern – Zustand, Marktwert und Beschreibung'
+                  : 'Artikel erfassen mit Zustand & Kostenanteil'
+              }}
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          (click)="closed.emit()"
+          aria-label="Dialog schließen"
+          class="p-1.5 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
+        >
+          <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
+        </button>
+      </div>
+    }
 
     <div class="p-5 overflow-y-auto flex-1 space-y-4">
       @if (errorMessage()) {
@@ -393,4 +411,4 @@
       (imageReady)="onImageCropped($event)"
     ></app-image-cropper-modal>
   }
-</div>
+</ng-template>

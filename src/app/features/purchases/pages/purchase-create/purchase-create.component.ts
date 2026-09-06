@@ -1,10 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, viewChild } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
+import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { PurchaseEntryFormComponent } from '../../components/purchase-entry-form/purchase-entry-form.component';
 
 @Component({
   selector: 'app-purchase-create',
-  imports: [RouterLink, PurchaseEntryFormComponent],
+  imports: [EntryPageLayoutComponent, PurchaseEntryFormComponent],
   templateUrl: './purchase-create.component.html',
   host: {
     class: 'block',

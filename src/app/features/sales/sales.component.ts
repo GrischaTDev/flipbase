@@ -28,24 +28,18 @@ import {
   LucideReceipt as Receipt,
   LucideX as X,
   LucideCheckCircle2 as CheckCircle2,
-  LucideAlertTriangle as AlertTriangle,
   LucideHistory as History,
 } from '@lucide/angular';
 import { SalesService } from '../../core/services/sales.service';
 import { InvoiceService } from '../../core/services/invoice.service';
 import { ReturnService } from '../../core/services/return.service';
-import { SaleCreateModalComponent } from './components/sale-create-modal/sale-create-modal.component';
 import { InvoiceModalComponent } from '../../shared/components/invoice-modal/invoice-modal.component';
 import { Sale } from '../../core/models/flipbase.models';
 import { Invoice } from '../../core/models/invoice.models';
 import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/return.models';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../core/services/sync-status.service';
-import {
-  LegacySaleReconciliation,
-  SaleTarget,
-  SaleTargetRouteState,
-} from '../../core/models/sale-target.models';
+import { SaleTargetRouteState } from '../../core/models/sale-target.models';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -85,7 +79,6 @@ function validatedSaleTargetId(value: string | null): string | null {
     DatePipe,
     TranslatePipe,
     LucideDynamicIcon,
-    SaleCreateModalComponent,
     InvoiceModalComponent,
     CustomSelectComponent,
     ModalDialogDirective,
@@ -144,12 +137,8 @@ export class SalesComponent {
   readonly receiptIcon = Receipt;
   readonly closeIcon = X;
   readonly checkIcon = CheckCircle2;
-  readonly alertIcon = AlertTriangle;
   readonly historyIcon = History;
 
-  readonly isCreateModalOpen = signal<boolean>(false);
-  readonly createSaleTarget = signal<SaleTarget | null>(null);
-  readonly legacySaleReconciliation = signal<LegacySaleReconciliation | null>(null);
   readonly selectedPlatform = signal<string>('all');
   readonly searchQuery = signal<string>('');
   readonly activeInvoice = signal<Invoice | null>(null);
@@ -363,9 +352,7 @@ export class SalesComponent {
       globalThis.history?.state ??
       {}) as Partial<SaleTargetRouteState>;
     if (state.saleTarget) {
-      this.createSaleTarget.set(state.saleTarget);
-      this.legacySaleReconciliation.set(state.legacyReconciliation ?? null);
-      this.isCreateModalOpen.set(true);
+      void this.router.navigate(['/sales/new'], { state, replaceUrl: true });
     }
 
     afterRenderEffect({
@@ -389,16 +376,8 @@ export class SalesComponent {
     });
   }
 
-  openCreateModal(): void {
-    this.createSaleTarget.set(null);
-    this.legacySaleReconciliation.set(null);
-    this.isCreateModalOpen.set(true);
-  }
-
-  closeCreateModal(): void {
-    this.isCreateModalOpen.set(false);
-    this.createSaleTarget.set(null);
-    this.legacySaleReconciliation.set(null);
+  openCreatePage(): void {
+    void this.router.navigate(['/sales/new']);
   }
 
   async openInvoiceForSale(sale: Sale): Promise<void> {

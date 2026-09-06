@@ -31,8 +31,8 @@ export class CardComponent {
           : 'rounded-lg';
 
     const variantClasses: Record<CardVariant, string> = {
-      surface: 'linear-surface bg-fb-surface border-fb-border shadow-sm',
-      kpi: 'linear-kpi bg-fb-surface border-fb-border shadow-sm',
+      surface: 'linear-surface bg-fb-surface shadow-sm',
+      kpi: 'linear-kpi bg-fb-surface shadow-sm',
       subtle: 'bg-fb-subtle border-fb-border-subtle',
     };
 
@@ -46,10 +46,10 @@ export class CardComponent {
       case 'sm':
         return 'p-3';
       case 'lg':
-        return 'p-6';
+        return 'p-5';
       case 'md':
       default:
-        return 'p-4 md:p-5';
+        return 'p-4';
     }
   });
 }

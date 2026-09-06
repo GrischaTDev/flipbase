@@ -15,7 +15,6 @@ import {
   effect,
   inject,
   signal,
-  ViewChild,
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -31,7 +30,6 @@ import {
   LucideStore as Store,
 } from '@lucide/angular';
 import { InventoryService } from '../../core/services/inventory.service';
-import { ItemCreateModalComponent } from './components/item-create-modal/item-create-modal.component';
 import { AiPhotoScannerModalComponent } from '../../shared/components/ai-photo-scanner-modal/ai-photo-scanner-modal.component';
 import { InventoryLabelModalComponent } from '../../shared/components/inventory-label-modal/inventory-label-modal.component';
 import { AiVisualScanResult } from '../../core/services/ai-assistant.service';
@@ -73,7 +71,6 @@ type FilterPreset = string;
     BarcodeScannerComponent,
     TranslatePipe,
     LucideDynamicIcon,
-    ItemCreateModalComponent,
     AiPhotoScannerModalComponent,
     InventoryLabelModalComponent,
     CustomSelectComponent,
@@ -140,8 +137,6 @@ export class InventoryComponent {
   private readonly syncStatus = inject(SyncStatusService);
   private readonly toast = inject(ToastService);
 
-  @ViewChild('createModal') createModal?: ItemCreateModalComponent;
-
   readonly boxesIcon = Boxes;
   readonly plusIcon = Plus;
   readonly tagIcon = Tag;
@@ -150,8 +145,6 @@ export class InventoryComponent {
   readonly barcodeIcon = Barcode;
   readonly printerIcon = Printer;
   readonly storeIcon = Store;
-
-  readonly isCreateModalOpen = signal<boolean>(false);
 
   /** Scanner zum Auffinden eines Artikels ueber sein gedrucktes Etikett. */
   readonly isScanningLabel = signal<boolean>(false);
@@ -212,8 +205,9 @@ export class InventoryComponent {
         title: position.title,
         availableQuantity: position.available_quantity,
       },
+      returnUrl: '/inventory',
     };
-    void this.router.navigate(['/sales'], {
+    void this.router.navigate(['/sales/new'], {
       state,
     });
   }
@@ -222,8 +216,9 @@ export class InventoryComponent {
     if (!isSellableInventoryItem(item)) return;
     const state: SaleTargetRouteState = {
       saleTarget: { kind: 'inventory_item', inventoryItemId: item.id, title: item.title },
+      returnUrl: '/inventory',
     };
-    void this.router.navigate(['/sales'], {
+    void this.router.navigate(['/sales/new'], {
       state,
     });
   }
@@ -539,8 +534,9 @@ export class InventoryComponent {
         inventoryItemId: item.id,
       },
       saleTarget: { kind: 'inventory_item', inventoryItemId: item.id, title: item.title },
+      returnUrl: '/inventory',
     };
-    void this.router.navigate(['/sales'], {
+    void this.router.navigate(['/sales/new'], {
       state,
     });
   }
@@ -569,12 +565,8 @@ export class InventoryComponent {
     return count > 0 && count < total;
   });
 
-  openCreateModal(): void {
-    this.isCreateModalOpen.set(true);
-  }
-
-  closeCreateModal(): void {
-    this.isCreateModalOpen.set(false);
+  openCreatePage(): void {
+    void this.router.navigate(['/inventory/new']);
   }
 
   openLabelModal(): void {
@@ -587,14 +579,7 @@ export class InventoryComponent {
 
   onAiProductDetected(res: AiVisualScanResult): void {
     this.isAiScannerOpen.set(false);
-    this.isCreateModalOpen.set(true);
-
-    // Give modal a tick to render and prefill
-    setTimeout(() => {
-      if (this.createModal) {
-        this.createModal.prefillWithAiResult(res);
-      }
-    }, 50);
+    void this.router.navigate(['/inventory/new'], { state: { aiResult: res } });
   }
 
   setPreset(preset: string): void {

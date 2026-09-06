@@ -1,5 +1,115 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Codex – Shopify-nahe Tabellen und Erfassungsseiten umgesetzt
+
+**Auftrag:** Den abgestimmten Korrekturplan auf dem aktuellen Master umsetzen, ohne den parallel bearbeiteten Claude-Zweig zu verändern.
+
+**Gestaltung:** Gemessene Shopify-Werte für Arbeitskarten, Tabellenköpfe, Felder, Buttons, Badges, Dialoge, Popover-Schatten und Bewegung in die gemeinsamen Flipbase-Bausteine übernommen. Das belegte Logo-Gelb `#fcc601` bleibt die primäre Adminfarbe. Doppelte Inventarüberschrift und dauerhaften Verkaufshinweis entfernt; Steuerjournal-Spalte in „Besteuerungsart“ umbenannt. Berichtstabellen in Accounting, Analytics und Daten/Audit verwenden ebenfalls die gemeinsame Tabellendarstellung.
+
+**Arbeitsabläufe:** Verkauf und neue Inventarartikel laufen über eigene Routen `sales/new` und `inventory/new`. Zusammen mit `purchases/new` verwenden sie einen zentrierten Seitenrahmen; Verkauf und Einkauf ordnen Arbeitsdaten und Zusammenfassung auf breiten Ansichten nebeneinander an. Scanner, Bildzuschnitt, Teilanlage, Verkaufs-Vorbelegung und fachliche Serviceaufrufe bleiben erhalten. Ein gemeinsamer Verlassensschutz verhindert Datenverlust und Doppelaktionen während des Speicherns. Verkaufsvorbelegungen kehren in den aufrufenden Inventarkontext zurück.
+
+**Tabellenbedienung:** Die Einkaufstoolbar bleibt bei null Treffern sichtbar und bietet „Suche und Filter löschen“. Sortierrichtungen unterscheiden Text, Datum und Zahlen; das Sortiermenü fokussiert die aktive Auswahl, unterstützt Pfeiltasten, Escape und Fokusrückgabe. Ungenutzte Shopify-Icon-/Tokenpakete samt indirekter Abhängigkeit entfernt; Flipbase nutzt weiter Lucide und eigenen Angular-/Tailwind-Code.
+
+**Prüfung:** Lokale Browserabnahme in Hell auf Verkauf, Artikel, Einkauf, Inventar, Nulltreffer und Sortiermenü. 101 gezielte Angular-Tests grün. 9 Kern-E2E-Abläufe sowie 32 Layout-, Tabellen-, Theme-, Persistenz- und Typografieprüfungen ausgeführt; zwei veraltete Modal-/A–Z-Erwartungen auf das neue Soll angepasst und anschließend die betroffenen 7 Prüfungen grün wiederholt. Drei Erfassungsseiten bei 390 px ohne horizontalen Überlauf und ohne automatisierte AXE-WCAG-AA-Verstöße. Nach dem Abgleich mit dem aktuellen Master `npm run verify` vollständig grün: Format, ESLint, Typen, 43 Workflow-Tests, Suite-Audit, 998 Node-, 135 DOM-, 500 Angular- und 13 Landing-Tests sowie Produktionsbau. 42 gezielte Chromium-E2E-Tests bestanden. Der erste GitHub-Browser-Smoke-Test zeigte unter Linux wegen breiterer Schriftmetriken 2 px Überlauf in der Einkaufs-Kopfzeile; die Aktionen umbrechen nun bei Platzmangel und die sechs Layout-Prüfungen sind lokal grün. Keine Datenbankänderung; Arbeit ausschließlich im Worktree `codex/polaris-design-audit`.
+
+**Bewusst zurückgestellt:** Der fachliche Einkaufsumbau mit Lieferant als Ausgangspunkt, Gesamtbetrag, späterer Artikelerfassung und Kostenverteilung bleibt im separaten Folgeplan. Der technische Einkaufstyp und die sichtbare Typauswahl wurden deshalb noch nicht entfernt.
+
+---
+
+## 2026-09-06 – Codex – Gesamtplan für Erfassungsseiten und späteren Einkaufsumbau
+
+**Auftrag:** Die vereinbarte Reihenfolge als konkreten Plan dokumentieren: Grundgestaltung und zentrierte Erfassungsseiten zuerst, fachlicher Einkaufsumbau danach.
+
+**Dokumentation:** Bestehenden Designplan um Phase A/B, Verkaufsübersicht plus Verkaufsanlage als ersten Referenzablauf, Entfernung des dauerhaften Verkaufshinweises und Paket 5a für Erfassungsseiten ergänzt. Tatsächliche Modal-Komponenten, vorhandene Einkaufsseite, Routen, Serviceverträge und Tests gelesen. Neue Einkaufs-Folgeplanung mit Lieferant, Gesamtbetrag, späterer Artikelerfassung, Kostenverteilung, Altbeständen und Entscheidungspunkten. Spezifikation entsprechend aktualisiert.
+
+**Prüfung/Umfang:** Dokumentation im eigenen Worktree, Format- und Diffprüfung. Keine Anwendungscode- oder Datenbankänderung, kein Commit/Push. Fachliche Verteilungsregeln nicht erfunden; vollständiger technischer Migrationsplan folgt erst nach deren Klärung.
+
+---
+
+## 2026-09-06 – Codex – Angemeldeten Shopify Admin live untersucht
+
+**Auftrag:** Nach Anmeldung unterschiedliche Seiten und Elemente durchgehen und die tatsächliche Gestaltung als Grundlage des Korrekturplans dokumentieren.
+
+**Ergebnis:** Neues `docs/design/shopify-admin-live-reference.md` mit 22 protokollierten Seiten/Seitentypen, DOM-/Shadow-DOM-Messungen, Screenshots im Browser und Bedienproben. Inventar, Produkte, Kollektionen, Einkaufsbestellungen, Transfers, Details, Formulare, leere Zustände, Auswahl, Filter, Sortier-/Spaltenmenüs, Export-/Auswahldialog, Kalender, Dashboard und Einstellungen geprüft. Arbeitskarte/Popover 12 px, Feld/Button/Badge 8 px, Checkbox 4 px, Dialog 16 px, Startseiten-Empfehlungskarte 24 px. Unterschiedliche Dialoggenerationen und Konflikt zwischen öffentlicher Schriftgrößenrichtlinie und internem Admin ausdrücklich dokumentiert.
+
+**Grenzen:** Keine vollständige Mobile-/Zoom-/Reduced-Motion- oder Interaktionsmatrix; keine gefüllte Verkaufsbestellliste verfügbar. CSS-Übergangsdauer nicht als vollständig geprüften Animationsablauf ausgegeben. Suchzustand und Auswahl zurückgesetzt, leeren Entwurf ohne Speichern verlassen. Keine Shopdaten, Einstellungen oder gespeicherten Ansichten geändert.
+
+**Dateien/Prüfung:** Live-Referenz neu, Designrichtlinien, Spezifikation und Plan verknüpft/aktualisiert. Nur Dokumentation im eigenen Worktree `codex/polaris-design-audit`; Format- und Diffprüfung. Kein Anwendungscode geändert, kein Commit/Push; Claudes Branch unverändert.
+
+---
+
+## 2026-09-06 – Codex – Logo-Gelb belegt und Designrichtlinien vertieft
+
+**Auftrag:** Helles Logo-Gelb gegen Originaldateien und Historie prüfen,
+Shopify-Designrichtlinien dokumentieren, Referenztreue einschließlich Radien
+präzisieren und Steuer/DATEV auf Tabellenumfang begrenzen.
+
+**Befund:** Das seit `1e659bc` unveränderte Logo-Symbol enthält `#fcc601`
+tatsächlich; Verlauf und Skalierung erzeugen benachbarte Farbtöne. Der aktuelle
+Master verwendet diesen Wert für primäre Adminaktionen, aber `#e5b201` beim
+Hover. Frühere Styles nutzten Orange `#f89d13`; ein durchgehend historischer
+gelber Buttonstandard ist nicht belegt. Globale Admin-Regeln überschreiben
+mehrere Card-Radiusvarianten mit 8 px.
+
+**Dokumentation:** Neue `docs/design/admin-ui-guidelines.md` mit Quellen für
+Struktur, Navigation, Layout, visuelles Design, Tabellen, Formulare, Feedback,
+Inhalte, Dashboard, Onboarding, Marketing, Accessibility und Komponenten.
+Messvertrag für Radien/Styles/Zustände ergänzt. Nutzerziel möglichst 1:1 bei
+eigener Marke festgehalten; Originalpaketlizenzen bleiben separat. Plan und
+Spezifikation angepasst, kurzer verbindlicher Verweis in `AGENTS.md` ergänzt.
+
+**Browser:** Codex sieht nur seinen Browser mit noch offener Anmeldung.
+Zusätzlich vorhandenes Browser-Use-CLI geprüft: Python-3.14-Startproblem durch
+einen prozesslokalen Event-Loop umgangen, keine Installation verändert.
+`--connect state` findet keinen Chrome mit aktiviertem Entwicklerzugang.
+Keine Browserprofile, Cookies oder Anmeldedaten kopiert, keine Einstellung
+geändert. Native Computersteuerung ist in dieser Sitzung nicht freigeschaltet.
+
+**Prüfung:** PNG-Pixelzählung, Git-Historie, Codelektüre und offizielle
+Dokumentationsquellen. Nur Dokumentation geändert; Format- und Diffprüfung.
+Keine Anwendungscodeänderung, kein Push; Claudes Branch unverändert.
+
+---
+
+## 2026-09-06 – Codex – Shopify-/Polaris-Bestandsaufnahme und Korrekturplan
+
+**Auftrag:** Die letzten UI-Änderungen prüfen, offizielle Shopify-Dokumentation
+recherchieren und ein Zielbild samt Umsetzungsreihenfolge vorlegen. Ausschließlich
+Analyse und Planung, keine Anwendungscodeänderung.
+
+**Basis:** Aktueller `origin/master` nach Fetch, Commit `04def2e`, in eigenem
+Worktree `.worktrees/polaris-design-audit`, Branch `codex/polaris-design-audit`.
+Claudes laufender Branch `feat/deal-monitor-collection-and-ui` wurde nur gelesen.
+
+**Befunde:** Polaris-Tokens und -Icons installiert, aber nicht im Anwendungscode
+eingebunden; eingeschränkte Lizenz beider installierter Pakete bestätigt. Die
+neuere Shopify-Dokumentation beschreibt Web Components und Index-Table-Muster;
+Polaris React ist archiviert. Gemeinsame Spaltenlogik vorhanden, Toolbar- und
+Ergebnisdarstellung weiterhin mehrfach implementiert. In der lokalen Demo
+reproduziert: Einkaufssuche ohne Treffer entfernt die Such-/Filterleiste;
+Sortier-Untermenü fokussiert keine Auswahl und reagiert am Trigger nicht auf
+Pfeil nach unten; Datumssortierung wird als A–Z/Z–A bezeichnet. Das Steuerjournal
+zeigt Besteuerungsarten unter der Überschrift „Plattform“. Inventarfilter stehen
+weiterhin in einer separaten Karte. Designwerte und Motion benötigen eine
+gemeinsame, überprüfbare Definition.
+
+**Ergebnis:** Spezifikation in
+`docs/superpowers/specs/2026-09-06-polaris-design-audit.md`; gestufter Plan in
+`docs/superpowers/plans/2026-09-06-polaris-design-consolidation.md`. Erst Fehler
+und Grundbausteine, dann vollständige Inventar-Referenz, übrige Tabellen,
+Steuer/DATEV und restliche Oberfläche. Lucide und eigene Angular-/Tailwind-
+Bausteine empfohlen, keine ungeprüfte Übernahme von Shopify-Code oder Assets.
+
+**Prüfung und Grenzen:** Entwicklungsbau und lokale Browserprüfung des genannten
+Master-Stands, offizielle Quellen, lokale Paketlizenzen, gezielte Codelektüre.
+Dokumente mit Prettier und `git diff --check` geprüft. Keine vollständige
+Testsuite oder AXE-/WCAG-Abnahme. Shopify-Admin ist im verfügbaren Browser noch
+nicht angemeldet; keine internen Admin-CSS-Messungen behauptet. Für die Vorschau
+wurden vorhandene Abhängigkeiten per ignorierter Junction verwendet und die
+reguläre ignorierte Versionsdatei erzeugt. Keine Datenbankänderung, kein Push.
+
+---
+
 ## 2026-09-06 – Codex – Übernahme und Abschlussprüfung von Paket 1
 
 **Auftrag:** Den von Claude übergebenen Zweig `feat/deal-monitor-collection-and-ui`

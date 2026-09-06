@@ -215,7 +215,7 @@ describe('SalesComponent – Aktionsmeldungen', () => {
     expect(root.querySelector('button[title="Retoure / Gutschrift erfassen"]')).not.toBeNull();
     expect(root.querySelector('button[title="Verkauf bearbeiten"]')).toBeNull();
     expect(root.querySelector('button[title="Verkauf stornieren"]')).toBeNull();
-    expect(root.body.textContent).toContain('dokumentierten Korrekturvorgang');
+    expect(root.body.textContent).not.toContain('Gebuchte Verkäufe bleiben unverändert erhalten');
   });
 
   it('bucht bei zwei sofort parallelen Retourenaufrufen nur einmal', async () => {
