@@ -414,12 +414,9 @@
           </div>
         </app-card>
 
-        <section aria-labelledby="purchase-history-heading" class="space-y-2">
-          <h2 id="purchase-history-heading" class="px-1 text-sm font-semibold text-fb-text-primary">
-            Chronik
-          </h2>
+        <div class="space-y-2">
           <app-record-history-container [entityType]="'purchase'" [entityId]="p.id" />
-        </section>
+        </div>
       </div>
 
       <!-- Sidebar Column (1/3) -->
