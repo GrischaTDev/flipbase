@@ -90,19 +90,21 @@ $$;
 
 select pass('vinted_category_sync laesst keine zweite Zeile zu');
 
--- Anonyme duerfen nichts sehen
+-- Anonyme duerfen nicht einmal lesen - kein Tabellenrecht, keine Policy
 set local role anon;
 
-select is(
-  (select count(*)::integer from public.vinted_categories),
-  0,
-  'anon sieht keine Kategorien'
+select throws_ok(
+  'select count(*) from public.vinted_categories',
+  '42501',
+  null,
+  'anon darf die Kategorien nicht einmal lesen'
 );
 
-select is(
-  (select count(*)::integer from public.vinted_category_sync),
-  0,
-  'anon sieht den Auffrischungsstand nicht'
+select throws_ok(
+  'select count(*) from public.vinted_category_sync',
+  '42501',
+  null,
+  'anon darf den Auffrischungsstand nicht einmal lesen'
 );
 
 reset role;

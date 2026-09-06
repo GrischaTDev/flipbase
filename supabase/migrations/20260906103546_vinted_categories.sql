@@ -25,14 +25,14 @@
 -- vinted_category_sync (Daten-, keine Schemaaenderung, wird von einem reinen
 -- Schema-Diff nicht erkannt).
 --
--- Abweichung von der urspruenglichen Schemavorlage: `grant select ... to anon`
--- auf beiden Tabellen kam nachtraeglich dazu. Ohne dieses Recht bricht eine
--- Abfrage als anon schon an der Zugriffsrechte-Pruefung mit "permission
--- denied" ab, bevor RLS ueberhaupt greift - der pgTAP-Test in
--- supabase/tests/vinted_categories.sql erwartet aber ein glattes
--- Ergebnis von null Zeilen. Der eigentliche Schutz kommt weiterhin aus der
--- fehlenden anon-Policy: Ohne sie liefert RLS an anon in jedem Fall null
--- Zeilen, das blosse select-Recht aendert daran nichts.
+-- Anon bekommt hier bewusst weder Policy noch Tabellenrecht. Ein frueherer
+-- Stand dieser Migration hatte anon zusaetzlich ein blosses select-Recht
+-- eingeraeumt, damit ein pgTAP-Test bequem null Zeilen sehen konnte. Das
+-- dreht die Entscheidung aus 20260904190823_revoke_anon_on_sniper_tables.sql
+-- zurueck, die anon genau dieses Tabellenrecht auf den Sniper-Tabellen
+-- ausdruecklich entzogen hat: RLS ist die erste Schutzschicht, das
+-- Tabellenrecht die zweite. Hier gilt dieselbe Entscheidung von Anfang an -
+-- der Test erwartet jetzt den Rechtefehler statt eines gelockerten Rechts.
 
 CREATE TABLE public.vinted_categories (
   id         integer                  NOT NULL,
@@ -62,8 +62,6 @@ ALTER TABLE public.vinted_categories
 REVOKE ALL ON TABLE public.vinted_categories FROM anon, authenticated;
 
 GRANT SELECT ON public.vinted_categories TO authenticated;
-
-GRANT SELECT ON public.vinted_categories TO anon;
 
 GRANT ALL ON public.vinted_categories TO service_role;
 
@@ -105,8 +103,6 @@ INSERT INTO public.vinted_category_sync (id) VALUES (1) ON CONFLICT (id) DO NOTH
 REVOKE ALL ON TABLE public.vinted_category_sync FROM anon, authenticated;
 
 GRANT SELECT ON public.vinted_category_sync TO authenticated;
-
-GRANT SELECT ON public.vinted_category_sync TO anon;
 
 GRANT UPDATE (requested_at) ON public.vinted_category_sync TO authenticated;
 

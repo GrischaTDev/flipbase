@@ -80,18 +80,18 @@ create policy "Administration fordert Auffrischung an" on public.vinted_category
     using (public.is_platform_operator())
     with check (public.is_platform_operator());
 
--- Anon bekommt hier absichtlich ein blosses select-Recht. Ohne dieses Recht
--- bricht eine Abfrage als anon schon an der Zugriffsrechte-Pruefung mit
--- "permission denied" ab, bevor RLS ueberhaupt greift - der eigentliche
--- Schutz kommt aus der fehlenden anon-Policy oben: Ohne sie liefert RLS an
--- anon in jedem Fall null Zeilen.
+-- Anon bekommt hier bewusst weder Policy noch Tabellenrecht. RLS ist die
+-- erste Schutzschicht, das Tabellenrecht die zweite - am 04.09.2026 wurde in
+-- 20260904190823_revoke_anon_on_sniper_tables.sql genau diese zweite Schicht
+-- fuer die Sniper-Tabellen nachtraeglich geschlossen. Hier gilt dieselbe
+-- Entscheidung von Anfang an: eine Abfrage als anon bricht schon an der
+-- Zugriffsrechte-Pruefung mit "permission denied" ab, bevor RLS ueberhaupt
+-- greift.
 revoke all on table public.vinted_categories from anon, authenticated;
 grant select on table public.vinted_categories to authenticated;
-grant select on table public.vinted_categories to anon;
 
 revoke all on table public.vinted_category_sync from anon, authenticated;
 grant select on table public.vinted_category_sync to authenticated;
-grant select on table public.vinted_category_sync to anon;
 
 -- Nur dieses eine Feld ist von aussen schreibbar. refreshed_at, category_count
 -- und last_error setzt allein der Dienst - waeren sie schreibbar, koennte die
