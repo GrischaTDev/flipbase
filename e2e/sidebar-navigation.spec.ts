@@ -17,6 +17,13 @@ test('hält die Sidebar kompakt und hebt den aktiven Bereich in Logo-Gelb hervor
   await expect(activeLink).toHaveCSS('background-color', 'rgba(252, 198, 1, 0.14)');
   await expect(activeIcon).toHaveCSS('color', 'rgb(161, 98, 7)');
 
+  const demoBadge = sidebar.locator('span', { hasText: 'Demo' });
+  await expect(demoBadge).toHaveCount(1);
+  for (const badge of await demoBadge.all()) {
+    await expect(badge).toHaveCSS('background-color', 'rgba(252, 198, 1, 0.14)');
+    await expect(badge).toHaveCSS('color', 'rgb(113, 63, 18)');
+  }
+
   const sidebarWidth = await sidebar.evaluate((element) => element.getBoundingClientRect().width);
   expect(sidebarWidth).toBe(224);
 
@@ -59,6 +66,13 @@ test('verwendet im dunklen Design das helle Logo-Gelb für den aktiven Menüpunk
 
   const activeIcon = page.locator('app-sidebar a[aria-current="page"] svg').first();
   await expect(activeIcon).toHaveCSS('color', 'rgb(252, 198, 1)');
+
+  const demoBadge = page.locator('app-sidebar span', { hasText: 'Demo' });
+  await expect(demoBadge).toHaveCount(1);
+  for (const badge of await demoBadge.all()) {
+    await expect(badge).toHaveCSS('background-color', 'rgba(252, 198, 1, 0.14)');
+    await expect(badge).toHaveCSS('color', 'rgb(252, 198, 1)');
+  }
 });
 
 test('übernimmt den gelben aktiven Zustand auch in der mobilen Navigation', async ({ page }) => {

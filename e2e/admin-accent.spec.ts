@@ -1,14 +1,45 @@
 import { expect, test } from '@playwright/test';
 import { startDemoMode } from './support/demo';
 
-test('zeigt den primaeren Einkaufsknopf mit lesbarer Schrift auf dem Markenakzent', async ({
-  page,
-}) => {
+test('zeigt den primaeren Einkaufsknopf in Logo-Gelb mit lesbarer Schrift', async ({ page }) => {
   await startDemoMode(page);
   await page.goto('/purchases');
 
   const button = page.getByRole('button', { name: 'Neuer Einkauf' });
   await expect(button).toBeVisible();
+  await expect(button).toHaveCSS('background-color', 'rgb(252, 198, 1)');
+  await expect(button).toHaveCSS('color', 'rgb(26, 26, 26)');
+});
+
+test('zeigt primaere Admin-Aktionen auch im dunklen Design in Logo-Gelb', async ({ page }) => {
+  await startDemoMode(page);
+  await page.evaluate(() => localStorage.setItem('flipbase_theme', 'dark'));
+  await page.goto('/purchases');
+
+  const button = page.getByRole('button', { name: 'Neuer Einkauf' });
+  await expect(button).toBeVisible();
+  await expect(button).toHaveCSS('background-color', 'rgb(252, 198, 1)');
+  await expect(button).toHaveCSS('color', 'rgb(26, 26, 26)');
+});
+
+test('zeigt Verkauf erfassen im hellen Admin in Logo-Gelb', async ({ page }) => {
+  await startDemoMode(page);
+  await page.goto('/sales');
+
+  const button = page.getByRole('button', { name: 'Verkauf erfassen' }).first();
+  await expect(button).toBeVisible();
+  await expect(button).toHaveCSS('background-color', 'rgb(252, 198, 1)');
+  await expect(button).toHaveCSS('color', 'rgb(26, 26, 26)');
+});
+
+test('zeigt Verkauf erfassen im dunklen Admin in Logo-Gelb', async ({ page }) => {
+  await startDemoMode(page);
+  await page.evaluate(() => localStorage.setItem('flipbase_theme', 'dark'));
+  await page.goto('/sales');
+
+  const button = page.getByRole('button', { name: 'Verkauf erfassen' }).first();
+  await expect(button).toBeVisible();
+  await expect(button).toHaveCSS('background-color', 'rgb(252, 198, 1)');
   await expect(button).toHaveCSS('color', 'rgb(26, 26, 26)');
 });
 
@@ -25,7 +56,9 @@ test('behält im dunklen Admin die aktive Sidebarfläche mit Hintergrund und Rah
   await expect(activeLink).not.toHaveCSS('border-color', 'rgba(0, 0, 0, 0)');
 });
 
-test('hält umgebogene Indigo-Aktionsflächen im hellen Admin kontrastreich', async ({ page }) => {
+test('hält umgebogene Indigo-Aktionsflächen im hellen Admin gelb und kontrastreich', async ({
+  page,
+}) => {
   await startDemoMode(page);
   await page.goto('/purchases');
 
@@ -38,6 +71,6 @@ test('hält umgebogene Indigo-Aktionsflächen im hellen Admin kontrastreich', as
   await probe;
 
   const accent = page.locator('[data-accent-contrast-probe]');
-  await expect(accent).toHaveCSS('background-color', 'rgb(248, 157, 19)');
+  await expect(accent).toHaveCSS('background-color', 'rgb(252, 198, 1)');
   await expect(accent).toHaveCSS('color', 'rgb(26, 26, 26)');
 });
