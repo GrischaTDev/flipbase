@@ -52,9 +52,13 @@ import {
   SelectOption,
 } from '../../shared/components/custom-select/custom-select.component';
 import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
+import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
 import { AccountingColumnId, AccountingSortField } from '../../core/config/table-defaults.config';
-import { TableSortState } from '../../core/models/table-preferences.models';
+import {
+  tableStateDiffersFromDefaults,
+  TableSortState,
+} from '../../core/models/table-preferences.models';
 
 export type AccountingTab = 'tax_journal' | 'bank_reconciliation';
 export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
@@ -70,6 +74,7 @@ export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
     CustomSearchInputComponent,
     CustomSelectComponent,
     TableColumnMenuComponent,
+    TableSortHeaderComponent,
   ],
   templateUrl: './accounting.component.html',
   styleUrl: './accounting.component.scss',
@@ -251,6 +256,12 @@ export class AccountingComponent {
   readonly orderedVisibleColumns = computed(() =>
     this.tablePrefs().columns.filter((column) => column.visible),
   );
+  readonly viewModified = computed(
+    () =>
+      this.bankTxFilter() !== 'all' ||
+      this.bankSearchQuery().trim() !== '' ||
+      tableStateDiffersFromDefaults(this.tablePrefs(), this.accountingTableConfig),
+  );
 
   isColumnVisible(colId: AccountingColumnId): boolean {
     const col = this.tablePrefs().columns.find((c) => c.id === colId);
@@ -284,6 +295,12 @@ export class AccountingComponent {
 
   resetTablePreferences(): void {
     this.tablePreferencesService.resetToDefaults('accounting', this.workspaceId());
+  }
+
+  resetView(): void {
+    this.bankTxFilter.set('all');
+    this.bankSearchQuery.set('');
+    this.resetTablePreferences();
   }
 
   // Filtered Bank Transactions

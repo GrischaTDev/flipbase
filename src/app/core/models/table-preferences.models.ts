@@ -46,3 +46,31 @@ export interface TableConfig<
   readonly defaultSort: TableSortState<TSortField>;
   readonly sortOptions: readonly SortFieldOption<TSortField>[];
 }
+
+export function tableStateDiffersFromDefaults<TColumnId extends string, TSortField extends string>(
+  state: TableStateLike<TColumnId, TSortField>,
+  config: TableConfig<TColumnId, TSortField>,
+): boolean {
+  if (
+    state.sort.field !== config.defaultSort.field ||
+    state.sort.direction !== config.defaultSort.direction
+  ) {
+    return true;
+  }
+
+  if (state.columns.length !== config.defaultColumns.length) return true;
+
+  return state.columns.some((column) => {
+    const defaultColumn = config.defaultColumns.find((candidate) => candidate.id === column.id);
+    return (
+      !defaultColumn ||
+      column.visible !== defaultColumn.visible ||
+      column.order !== defaultColumn.order
+    );
+  });
+}
+
+export type TableStateLike<
+  TColumnId extends string = string,
+  TSortField extends string = string,
+> = Pick<StoredTablePreferences<TColumnId, TSortField>, 'columns' | 'sort'>;

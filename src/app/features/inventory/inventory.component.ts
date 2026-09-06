@@ -4,7 +4,10 @@ import {
   isArchivedInventoryItem,
 } from './services/inventory-archive.service';
 import { InventoryColumnId, InventorySortField } from '../../core/config/table-defaults.config';
-import { TableSortState } from '../../core/models/table-preferences.models';
+import {
+  tableStateDiffersFromDefaults,
+  TableSortState,
+} from '../../core/models/table-preferences.models';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -183,6 +186,16 @@ export class InventoryComponent {
   readonly selectedStatus = signal<string>('all');
   readonly activePreset = signal<FilterPreset>('all');
   readonly selectedItemIds = signal<Set<string>>(new Set());
+  readonly viewModified = computed(
+    () =>
+      this.archiveView() !== 'active' ||
+      this.activePreset() !== 'all' ||
+      this.selectedCondition() !== 'all' ||
+      this.selectedStatus() !== 'all' ||
+      this.searchQuery().trim() !== '' ||
+      this.selectedItemIds().size > 0 ||
+      tableStateDiffersFromDefaults(this.tablePrefs(), this.inventoryTableConfig),
+  );
 
   constructor() {
     effect(() => {
@@ -390,6 +403,16 @@ export class InventoryComponent {
 
   resetTablePreferences(): void {
     this.tablePreferences.resetToDefaults('inventory', this.workspaceId());
+  }
+
+  resetView(): void {
+    this.archiveView.set('active');
+    this.activePreset.set('all');
+    this.selectedCondition.set('all');
+    this.selectedStatus.set('all');
+    this.searchQuery.set('');
+    this.selectedItemIds.set(new Set());
+    this.resetTablePreferences();
   }
 
   private costValue(state: CostState): number {

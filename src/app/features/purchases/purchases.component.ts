@@ -49,9 +49,13 @@ import { mapPurchaseListRow } from './utils/purchase-presentation';
 import type { PurchaseListRow } from './models/purchase-presentation.models';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import { PurchasesColumnId, PurchasesSortField } from '../../core/config/table-defaults.config';
-import { TableSortState } from '../../core/models/table-preferences.models';
+import {
+  tableStateDiffersFromDefaults,
+  TableSortState,
+} from '../../core/models/table-preferences.models';
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
 import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
+import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
 
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { BadgeComponent } from '../../shared/components/badge/badge.component';
@@ -72,6 +76,7 @@ import { ButtonComponent } from '../../shared/components/button/button.component
     BadgeComponent,
     ButtonComponent,
     TableColumnMenuComponent,
+    TableSortHeaderComponent,
   ],
   templateUrl: './purchases.component.html',
   host: { class: 'block' },
@@ -141,6 +146,18 @@ export class PurchasesComponent {
   readonly orderedVisibleColumns = computed(() =>
     this.tablePrefs().columns.filter((column) => column.visible),
   );
+  readonly viewModified = computed(
+    () =>
+      this.activeTab() !== 'all' ||
+      this.searchQuery().trim() !== '' ||
+      tableStateDiffersFromDefaults(this.tablePrefs(), this.purchasesTableConfig),
+  );
+
+  ariaSort(field: string): 'ascending' | 'descending' | null {
+    const sort = this.tablePrefs().sort;
+    if (sort.field !== field) return null;
+    return sort.direction === 'asc' ? 'ascending' : 'descending';
+  }
 
   readonly rapidForm = new FormGroup({
     title: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
@@ -243,6 +260,12 @@ export class PurchasesComponent {
 
   resetTablePreferences(): void {
     this.tablePreferences.resetToDefaults('purchases', this.workspaceId());
+  }
+
+  resetView(): void {
+    this.activeTab.set('all');
+    this.searchQuery.set('');
+    this.resetTablePreferences();
   }
 
   private costValue(state: PurchaseListRow['totalCost']): number {

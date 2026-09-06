@@ -745,7 +745,7 @@ html:not(.dark) .fb-admin [data-purchase-row] > [aria-hidden='true'] svg {
   padding: 0.625rem 1rem;
   color: var(--fb-text-secondary);
   white-space: nowrap;
-  font-weight: 600;
+  font-weight: 450;
   border-bottom: 1px solid var(--fb-line);
 }
 

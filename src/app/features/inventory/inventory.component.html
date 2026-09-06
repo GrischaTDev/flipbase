@@ -1,6 +1,7 @@
 <div class="space-y-5 animate-fade-in">
   <app-page-header
     [title]="'INVENTORY.TITLE' | translate"
+    [icon]="boxesIcon"
     subtitle="Alle Artikel, Bestände, Kosten und Verkäufe in einer gemeinsamen Ansicht."
   >
     <app-badge header-badge tone="neutral" [mono]="true">
@@ -191,6 +192,8 @@
     (columnsReordered)="onColumnsReordered($event)"
     (sortChanged)="onSortChanged($event)"
     (resetRequested)="resetTablePreferences()"
+    [viewModified]="viewModified()"
+    (viewResetRequested)="resetView()"
     [archivePendingIds]="archiveService.pendingIds()"
     (archiveItem)="onArchiveItem($event)"
     [visibleColumns]="visibleColumns()"

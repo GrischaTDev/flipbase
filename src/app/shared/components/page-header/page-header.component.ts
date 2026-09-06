@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { LucideArrowLeft, LucideDynamicIcon } from '@lucide/angular';
+import { LucideArrowLeft, LucideDynamicIcon, LucideIconInput } from '@lucide/angular';
 
 @Component({
   selector: 'app-page-header',
@@ -15,6 +15,7 @@ import { LucideArrowLeft, LucideDynamicIcon } from '@lucide/angular';
 export class PageHeaderComponent {
   readonly title = input<string>('');
   readonly subtitle = input<string>('');
+  readonly icon = input<LucideIconInput | null>(null);
   readonly backLink = input<string | readonly unknown[] | null>(null);
   readonly backLabel = input<string>('Zurück');
 

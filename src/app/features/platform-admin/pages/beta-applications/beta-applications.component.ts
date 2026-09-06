@@ -13,16 +13,22 @@ import {
   BetaApplicationsColumnId,
   BetaApplicationsSortField,
 } from '../../../../core/config/table-defaults.config';
-import { TableSortState } from '../../../../core/models/table-preferences.models';
+import {
+  tableStateDiffersFromDefaults,
+  TableSortState,
+} from '../../../../core/models/table-preferences.models';
 import { TablePreferencesService } from '../../../../core/services/table-preferences.service';
 import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
+import { TableSortHeaderComponent } from '../../../../shared/components/table-sort-header/table-sort-header.component';
+import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
+import { LucideShieldCheck as ShieldCheck } from '@lucide/angular';
 
 const MIN_GRANTED_DAYS = 1;
 const MAX_GRANTED_DAYS = 3650;
 
 @Component({
   selector: 'app-beta-applications',
-  imports: [DatePipe, TableColumnMenuComponent],
+  imports: [DatePipe, TableColumnMenuComponent, TableSortHeaderComponent, PageHeaderComponent],
   templateUrl: './beta-applications.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -36,6 +42,7 @@ export class BetaApplicationsComponent implements OnInit {
   readonly grantedDays = signal(DEFAULT_GRANTED_DAYS);
   readonly searchQuery = signal('');
   readonly statusFilter = signal<'all' | BetaApplication['status']>('all');
+  readonly adminIcon = ShieldCheck;
   readonly betaStatusFilters = [
     { value: 'all' as const, label: 'Alle' },
     { value: 'open' as const, label: 'Offen' },
@@ -59,6 +66,12 @@ export class BetaApplicationsComponent implements OnInit {
   );
   readonly orderedVisibleColumns = computed(() =>
     this.tablePrefs().columns.filter((column) => column.visible),
+  );
+  readonly viewModified = computed(
+    () =>
+      this.searchQuery().trim() !== '' ||
+      this.statusFilter() !== 'all' ||
+      tableStateDiffersFromDefaults(this.tablePrefs(), this.betaTableConfig),
   );
   readonly filteredApplications = computed(() => {
     const query = this.searchQuery().trim().toLocaleLowerCase('de');
@@ -127,6 +140,18 @@ export class BetaApplicationsComponent implements OnInit {
 
   resetTablePreferences(): void {
     this.tablePreferences.resetToDefaults('beta_applications', 'default');
+  }
+
+  resetView(): void {
+    this.searchQuery.set('');
+    this.statusFilter.set('all');
+    this.resetTablePreferences();
+  }
+
+  ariaSort(field: string): 'ascending' | 'descending' | null {
+    const sort = this.tablePrefs().sort;
+    if (sort.field !== field) return null;
+    return sort.direction === 'asc' ? 'ascending' : 'descending';
   }
 
   async load(): Promise<void> {

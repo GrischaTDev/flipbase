@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Codex – Sortierauswahl und Tabellenzustände nachgeschärft
+
+**Ergebnis:** Der unabhängige Gegencheck fand mehrere Nacharbeiten, die vor dem
+Abschluss behoben wurden: Das Sortier-Untermenü ist jetzt ebenfalls
+viewport-begrenzt und scrollbar, der Fokus landet beim Öffnen im Menü, und
+Sortierfeld sowie Sortierrichtung werden als getrennte Listboxen ausgezeichnet.
+Die Einkaufs-Header melden nun `aria-sort`; eine aktive Inventar-Auswahl gilt
+als geänderte Ansicht; Sortierfeldbezeichnungen enthalten keine fest eingebaute
+Richtung mehr.
+
+**Prüfung:** Der responsive Playwright-Test prüft die horizontalen und
+vertikalen Grenzen beider Overlays. Typecheck, Lint, gezielte Angular-Tests und
+die drei Tabellen-E2E-Tests liefen erfolgreich. Die Arbeit erfolgte
+ausschließlich im isolierten Worktree `codex/polaris-sort-controls`.
+
 ## 2026-09-06 – Codex – E2E-Selektor nach Tabellenaktion eindeutig gemacht
 
 **Befund:** Der GitHub-Browser-Smoke meldete nach der Tabellenüberarbeitung

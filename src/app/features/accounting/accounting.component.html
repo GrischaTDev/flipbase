@@ -4,8 +4,10 @@
     class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-fb-border/40 pb-4"
   >
     <div>
-      <h1 class="text-xl font-bold tracking-tight text-fb-text-primary flex items-center gap-2">
-        <svg [lucideIcon]="cardIcon" class="w-5 h-5 text-fb-profit"></svg>
+      <h1
+        class="flex items-center gap-2 text-xl leading-7 font-[450] tracking-tight text-fb-text-primary"
+      >
+        <svg [lucideIcon]="receiptIcon" class="h-5 w-5 shrink-0 text-fb-text-secondary"></svg>
         <span>Finanzen, Steuern & Bankabgleich</span>
       </h1>
       <p class="text-xs text-fb-text-muted mt-0.5">
@@ -255,10 +257,12 @@
                 [columns]="tablePrefs().columns"
                 [sortOptions]="accountingTableConfig.sortOptions"
                 [currentSort]="tablePrefs().sort"
+                [viewModified]="viewModified()"
                 (columnVisibilityToggled)="toggleColumnVisibility($event)"
                 (columnsReordered)="onColumnsReordered($event)"
                 (sortChanged)="onSortChanged($event)"
                 (resetRequested)="resetTablePreferences()"
+                (viewResetRequested)="resetView()"
               />
             </div>
 
@@ -294,7 +298,12 @@
                           [attr.aria-sort]="ariaSort('booking_date')"
                           class="px-4 py-2.5"
                         >
-                          Datum
+                          <app-table-sort-header
+                            label="Datum"
+                            sortField="booking_date"
+                            [currentSort]="tablePrefs().sort"
+                            (sortChanged)="onSortChanged($event)"
+                          />
                         </th>
                       }
                       @case ('counterparty') {
@@ -303,7 +312,12 @@
                           [attr.aria-sort]="ariaSort('counterparty')"
                           class="px-4 py-2.5"
                         >
-                          Auftraggeber / Empfänger
+                          <app-table-sort-header
+                            label="Auftraggeber / Empfänger"
+                            sortField="counterparty"
+                            [currentSort]="tablePrefs().sort"
+                            (sortChanged)="onSortChanged($event)"
+                          />
                         </th>
                       }
                       @case ('purpose') {
@@ -315,7 +329,13 @@
                           [attr.aria-sort]="ariaSort('amount')"
                           class="px-4 py-2.5 text-right"
                         >
-                          Betrag
+                          <app-table-sort-header
+                            label="Betrag"
+                            sortField="amount"
+                            [currentSort]="tablePrefs().sort"
+                            (sortChanged)="onSortChanged($event)"
+                            align="right"
+                          />
                         </th>
                       }
                       @case ('match') {

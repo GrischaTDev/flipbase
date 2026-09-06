@@ -78,7 +78,7 @@ export const INVENTORY_TABLE_CONFIG: TableConfig<InventoryColumnId, InventorySor
   defaultSort: { field: 'updated_at', direction: 'desc' },
   sortOptions: [
     { value: 'updated_at', label: 'Zuletzt aktualisiert' },
-    { value: 'title', label: 'Titel (A-Z)' },
+    { value: 'title', label: 'Titel' },
     { value: 'quantity', label: 'Bestandsmenge' },
     { value: 'unit_cost', label: 'Kosten pro Stück' },
     { value: 'inventory_value', label: 'Bestandswert' },
@@ -102,7 +102,7 @@ export const CATALOG_TABLE_CONFIG: TableConfig<CatalogColumnId, CatalogSortField
   ],
   defaultSort: { field: 'title', direction: 'asc' },
   sortOptions: [
-    { value: 'title', label: 'Titel (A-Z)' },
+    { value: 'title', label: 'Titel' },
     { value: 'available', label: 'Verfügbarer Bestand' },
   ],
 };

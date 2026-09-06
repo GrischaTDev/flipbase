@@ -1,0 +1,28 @@
+<button
+  type="button"
+  [attr.data-table-sort-field]="sortField()"
+  [attr.aria-label]="'Nach ' + label() + ' sortieren'"
+  class="group inline-flex min-h-8 w-full cursor-pointer items-center gap-1 rounded-md px-1 py-1 text-left text-[13px] font-[450] text-fb-text-secondary transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
+  [class.justify-center]="align() === 'center'"
+  [class.justify-end]="align() === 'right'"
+  (click)="sort()"
+>
+  @if (description(); as text) {
+    <abbr [title]="text" class="truncate no-underline">{{ label() }}</abbr>
+  } @else {
+    <span class="truncate">{{ label() }}</span>
+  }
+  @if (isActive()) {
+    <svg
+      [lucideIcon]="activeDirection()"
+      class="h-3.5 w-3.5 shrink-0 text-fb-text-primary"
+      aria-hidden="true"
+    ></svg>
+  } @else {
+    <svg
+      [lucideIcon]="inactiveDirection"
+      class="h-3.5 w-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-60"
+      aria-hidden="true"
+    ></svg>
+  }
+</button>
