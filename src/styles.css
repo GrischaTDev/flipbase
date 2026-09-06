@@ -10,8 +10,9 @@
      html.dark  → dunkles Design
      @theme     → verbindet die Variablen mit den Tailwind-Klassen
 
-   Wichtig: Die Werte unter html.dark sind exakt die bisherigen Farben.
-   Das dunkle Design sieht also unveraendert aus.
+   Wichtig: Die Werte unter html.dark sind exakt die bisherigen Flaechen- und
+   Textfarben. Das dunkle Design bleibt erhalten; die Navigation bekommt
+   zusaetzlich den gelben Markenakzent.
 
    Der oeffentliche Shop (/shop) hat ein eigenes, dauerhaft helles
    Kundendesign und wird ueber .fb-palette-fixed vom Umschalter ausgenommen.
@@ -48,6 +49,16 @@
   --fb-primary-hover: #4338ca;
   --fb-primary-subtle: rgba(79, 70, 229, 0.1);
   --fb-primary-border: rgba(79, 70, 229, 0.25);
+
+  /* Marken-Gelb fuer Navigation. Auf hellem Grund ist die dunklere
+     Auspraegung noetig, damit aktive Icons und Fokusrahmen lesbar bleiben. */
+  --fb-brand-yellow: #fcc601;
+  --fb-brand-yellow-rgb: 252 198 1;
+  --fb-nav-accent: #a16207;
+  --fb-nav-accent-rgb: 161 98 7;
+  --fb-nav-badge-text: #713f12;
+  --fb-nav-accent-subtle: rgb(var(--fb-brand-yellow-rgb) / 14%);
+  --fb-nav-accent-border: rgb(var(--fb-nav-accent-rgb) / 30%);
 
   /* 5. Finanz- & Statusfarben */
   --fb-profit: #047857;
@@ -155,10 +166,11 @@
 
 html.dark {
   /* --------------------------------------------------------------------
-     PALETTE: Grau mit einem Akzent
+     PALETTE: Grau mit Aktions- und Navigationsakzent
 
-     Zwei Farben tragen das dunkle Design:
-       #F89D13  das Orange - der einzige Akzent
+     Orange bleibt der Aktionsakzent, Logo-Gelb markiert die Navigation.
+       #F89D13  Aktionen und Status
+       #FCC601  aktiver Navigationspunkt und Logo
        #505050  das Grau der Vorlage - hier der Rahmen bei Mauszeiger
 
      Alle Flaechen sind reine Graustufen ohne jeden Farbstich und nur in der
@@ -220,6 +232,12 @@ html.dark {
   --fb-primary-hover: #fbb040;
   --fb-primary-subtle: rgba(248, 157, 19, 0.15);
   --fb-primary-border: rgba(248, 157, 19, 0.35);
+
+  /* Im dunklen Design kann das helle Logo-Gelb direkt als Iconfarbe dienen. */
+  --fb-nav-accent: var(--fb-brand-yellow);
+  --fb-nav-accent-rgb: var(--fb-brand-yellow-rgb);
+  --fb-nav-badge-text: var(--fb-brand-yellow);
+  --fb-nav-accent-border: rgb(var(--fb-nav-accent-rgb) / 34%);
 
   /* 5. Finanz- & Statusfarben */
   --fb-profit: #57c776;
@@ -398,6 +416,10 @@ html.dark {
   --color-fb-primary: var(--fb-primary);
   --color-fb-primary-hover: var(--fb-primary-hover);
   --color-fb-profit: var(--fb-profit);
+  --color-fb-nav-accent: var(--fb-nav-accent);
+  --color-fb-nav-subtle: var(--fb-nav-accent-subtle);
+  --color-fb-nav-border: var(--fb-nav-accent-border);
+  --color-fb-nav-badge: var(--fb-nav-badge-text);
 
   /* Die Akzentfarben von Tailwind werden auf themenabhaengige Variablen
      umgebogen. Dadurch passen sich rund 480 bereits vorhandene Klassen wie
@@ -606,17 +628,23 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
   color: var(--fb-text-on-accent);
 }
 
-html:not(.dark) .fb-admin app-sidebar nav a[aria-current='page'] {
-  background-color: var(--fb-primary-subtle);
-  border-color: var(--fb-primary-border);
+/* Der aktive Zustand bleibt in beiden Designs gleich aufgebaut: gelb
+   getoentes Feld, dezenter Rahmen, gelbes Icon. */
+.fb-admin app-sidebar nav a[aria-current='page'] {
+  background-color: var(--fb-nav-accent-subtle);
+  border-color: var(--fb-nav-accent-border);
   color: var(--fb-text-primary);
 }
 
-html:not(.dark) .fb-admin app-sidebar nav a[aria-current='page'] svg {
-  color: var(--fb-text-primary);
+.fb-admin app-sidebar nav a[aria-current='page'] > svg {
+  color: var(--fb-nav-accent);
 }
 
-/* Navigation: ruhig, lesbar und mit derselben Dichte wie der Shopify-Admin. */
+.fb-admin app-bottom-nav a[aria-current='page'] {
+  color: var(--fb-nav-accent);
+}
+
+/* Navigation: schmal, ruhig und auf dem 4-Pixel-Raster des Shopify-Admins. */
 .fb-admin app-sidebar nav {
   gap: 0.125rem;
 }
@@ -628,12 +656,20 @@ html:not(.dark) .fb-admin app-sidebar nav a[aria-current='page'] svg {
 }
 
 .fb-admin app-sidebar nav a {
-  min-height: 2.25rem;
+  min-height: 2rem;
   border-radius: 0.375rem;
   transition:
     background-color 150ms ease,
     border-color 150ms ease,
     color 150ms ease;
+}
+
+/* Im mobilen Drawer bleiben die Beruehrungsflaechen gross genug; nur auf
+   Desktop gilt die kompakte 32-Pixel-Dichte. */
+@media (max-width: 767px) {
+  .fb-admin app-sidebar nav a {
+    min-height: 2.75rem;
+  }
 }
 
 .fb-admin app-sidebar nav a > svg {
@@ -715,10 +751,6 @@ html:not(.dark) .fb-admin app-sidebar nav a[aria-current='page'] svg {
 
 .fb-admin table:not(.linear-table) tbody tr:hover {
   background-color: var(--fb-bg-surface-hover);
-}
-
-html.dark .fb-admin app-sidebar nav a[aria-current='page'] {
-  border-color: rgb(248 157 19 / 40%);
 }
 
 html:not(.dark) .fb-admin [data-purchase-row] > svg,
