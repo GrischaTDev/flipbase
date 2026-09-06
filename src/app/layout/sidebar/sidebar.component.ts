@@ -69,7 +69,7 @@ export class SidebarComponent {
   private readonly operatorService = inject(PlatformOperatorService);
 
   /**
-   * Der Betreiberpunkt erscheint nur fuer Betreiber.
+   * Der Punkt Administration erscheint nur fuer Betreiber der Plattform.
    *
    * Das ist Bedienbarkeit, keine Sicherheit: Die Befugnis liegt in den
    * RLS-Regeln. Bis die Antwort aus der Datenbank da ist, bleibt der Punkt
@@ -80,7 +80,7 @@ export class SidebarComponent {
   readonly operatorItem: NavItem = {
     path: '/admin',
     labelKey: 'NAV.PLATFORM_ADMIN',
-    label: 'Betreiber',
+    label: 'Administration',
     icon: ShieldCheck,
   };
 

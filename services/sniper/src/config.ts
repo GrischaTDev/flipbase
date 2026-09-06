@@ -8,6 +8,7 @@ const EnvSchema = z.object({
   SNIPER_TICK_INTERVAL_MS: z.coerce.number().int().min(1000).default(5000),
   SNIPER_USER_AGENT: z.string().min(1).default('Mozilla/5.0 (compatible; FlipbaseSniper/0.1)'),
   SNIPER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(8080),
+  SNIPER_CATEGORY_MAX_AGE_MS: z.coerce.number().int().min(60_000).default(86_400_000),
 });
 
 export interface SnipeConfig {
@@ -18,6 +19,7 @@ export interface SnipeConfig {
   tickIntervalMs: number;
   userAgent: string;
   healthPort: number;
+  categoryMaxAgeMs: number;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv): SnipeConfig {
@@ -31,5 +33,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): SnipeConfig {
     tickIntervalMs: parsed.SNIPER_TICK_INTERVAL_MS,
     userAgent: parsed.SNIPER_USER_AGENT,
     healthPort: parsed.SNIPER_HEALTH_PORT,
+    categoryMaxAgeMs: parsed.SNIPER_CATEGORY_MAX_AGE_MS,
   };
 }

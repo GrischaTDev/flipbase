@@ -17,3 +17,11 @@ package-lock.json
 deploy/Caddyfile
 deploy/backup.sh
 deploy/*.yml
+
+# Abbilder fremder Antworten. Sie muessen zeichengenau so bleiben, wie die
+# Gegenstelle sie liefert. Beim Vinted-Fixture steckt der Kategoriebaum in
+# einem JS-String-Literal mit escapten Anfuehrungszeichen (\"); ein Formatierer
+# schreibt sie in einfache Anfuehrungszeichen um und zerstoert damit genau die
+# Stelle, an der ein naiver Parser scheitern soll. Das Fixture pruefte danach
+# nichts mehr, sondern taeuschte den Parser.
+services/sniper/test/fixtures/

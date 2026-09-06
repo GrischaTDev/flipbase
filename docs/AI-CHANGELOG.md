@@ -110,6 +110,328 @@ reguläre ignorierte Versionsdatei erzeugt. Keine Datenbankänderung, kein Push.
 
 ---
 
+## 2026-09-06 – Codex – Übernahme und Abschlussprüfung von Paket 1
+
+**Auftrag:** Den von Claude übergebenen Zweig `feat/deal-monitor-collection-and-ui`
+prüfen und den Abschluss einschließlich Pull Request übernehmen.
+
+**Umsetzung:** Die 26 vorhandenen Commits mit Plan und Übergabe abgeglichen,
+Auffrischungsregel, Anfragebudget, Parser, Speicherung, Datenbankrechte und
+Administrationsseite geprüft. Den inzwischen zwölf Commits neueren `master`
+zusammengeführt; einziger Konflikt war dieses Protokoll. Beide Seiten bleiben
+vollständig erhalten. Keine fachlichen Änderungen bei dieser Übernahme.
+
+**Verifiziert durch:** 23 Angular-Tests der Administration, 104 Sniper-Tests,
+Sniper-Typprüfung und Angular-Bau vor der Zusammenführung erfolgreich.
+Die Prüfung des zusammengeführten Stands und die PR-Ergebnisse werden im PR
+festgehalten. Die im Übergabebericht genannten 1108 Datenbankprüfungen und
+23 Dienst-Integrationstests stammen aus Claudes Lauf, nicht aus dieser Sitzung.
+
+**Offen:** Keine Browserkontrolle mit Betreiberkonto; kein lokaler
+Supabase-Stack dieses Projekts aktiv. Paket 2 bis 4 sind separate Folgearbeiten.
+Der Pull Request dient der vollständigen CI-Prüfung vor Merge und Deployment.
+
+---
+
+## 2026-09-06 – Claude – Nachbesserung der Gesamtprüfung am Kategoriezweig
+
+**Auftrag:** Letzter Durchgang vor dem Merge des Zweigs
+`feat/deal-monitor-collection-and-ui`. Eine Gesamtprüfung der sechs fertigen Aufgaben hatte
+sieben Befunde ergeben, einen davon als kritisch eingestuft.
+
+**Umsetzung:** Fünf Änderungen, je ein Commit.
+
+1. _Kritisch — Dauerfeuer nach einem Fehlschlag._ `markFailed` schreibt nur `last_attempt_at`,
+   nie `refreshed_at`; `isRefreshDue` kannte diesen Wert nicht. Nach jedem gescheiterten Einlesen
+   war die Auffrischung bei jedem Takt wieder fällig — bei 5 Sekunden Takt zwölf Anfragen je
+   Minute gegen die Vinted-Startseite, dauerhaft. `readSyncState` liest den Wert jetzt mit, und
+   `isRefreshDue` wartet nach einem Fehlschlag `FAILED_REFRESH_RETRY_MS` (15 Minuten, fester
+   Abstand). Eine Anforderung aus der Administration greift weiterhin sofort, aber nur, bis der
+   Dienst sie versucht hat — sonst bliebe sie nach einem Fehlschlag für immer offen und triebe
+   dasselbe Dauerfeuer. Zusätzlich fragt die Auffrischung jetzt das Anfragebudget
+   (`hasCapacity()`), bevor sie die Startseite holt. Die Frage sitzt in `refreshCategoriesIfDue`
+   hinter einer eingehängten Funktion statt in `index.ts` — genau so, wie der Taktgeber sein
+   Budget als Abhängigkeit bekommt. `index.ts` bleibt reine Verdrahtung, und der Riegel ist
+   dadurch von einem Test erreichbar.
+2. _`requested_at` kam aus dem Browser._ Neuer Trigger `stamp_vinted_category_request` auf
+   `public.vinted_category_syncs` stempelt den Wert mit `now()` — dasselbe Muster wie
+   `stamp_beta_application_decision`. Er stempelt nur, wenn `requested_at` wirklich einen neuen,
+   nicht leeren Wert bekommt: Der Dienst schreibt in dieselbe Zeile, und ein Mitstempeln setzte
+   nach jedem Lauf eine neue Anforderung ab. Das Spaltenrecht blieb unangetastet.
+3. _`listLeaves()` schnitt still ab._ PostgREST kürzt auf `max_rows` (1000) bei rund 2500
+   Blättern — ohne Fehler. Es wird jetzt geblättert, bis eine leere Seite kommt, der Versatz
+   wächst um die tatsächlich gelieferte Zeilenzahl, und `id` kam als zweiter Sortierschlüssel
+   dazu, weil `path` nicht eindeutig ist. `isLeaf` ist aus dem Angular-Modell entfernt: Es war
+   immer `true` und las sich im aufrufenden Code wie eine Prüfung, die keine ist.
+4. _Die Seite war nicht erreichbar._ Neuer Rahmen
+   `src/app/features/platform-admin/platform-admin-shell/` mit einer Unternavigation
+   („Bewerbungen", „Kategorieliste"), gebaut wie die Unternavigation der Einstellungen:
+   `routerLinkActive` für die Auszeichnung, dieselbe Direktive für `aria-current="page"`.
+   Die Punkte stehen in einer Liste, damit Paket 2 seine zwei Seiten mit je einer Zeile ergänzt.
+5. _Zwei Felder fehlten in der Anzeige._ Die Kategorieseite zeigt jetzt den letzten Versuch als
+   eigene Kennzahl und im Fehlerkasten, und eine offene Anforderung als eigenen Hinweis aus dem
+   geladenen Stand — der überlebt damit einen Seitenwechsel, anders als das lokale Signal.
+
+Dazu: Die vier fehlenden Protokolleinträge (Aufgaben 2 bis 5) sind unten nachgetragen, und die
+Pfadangabe `/platform-admin/categories` in Plan und Entwurf ist auf die tatsächliche Route
+`/admin/categories` berichtigt — nur der Ordner heißt `platform-admin`.
+
+**Verifiziert durch:** Zu jeder Änderung eine Gegenprobe, also Code absichtlich falsch gemacht
+und den Test rot gesehen: Rückzug entfernt → 6 Tests rot; Budgetriegel entfernt → 1 Test rot;
+Trigger gelöscht, unbedingt stempelnd, ohne Null-Riegel → je ein anderer pgTAP-Fall rot;
+Blätterschleife auf eine Anfrage zurückgebaut → 2 Tests rot; `aria-current` fest verdrahtet →
+1 Test rot; offener Hinweis entfernt, jeder Zeitstempel als offen gewertet, Kachel entfernt →
+je ein anderer Test rot. Anschließend jeweils zurückgenommen und grün gemessen. Die erwarteten
+Zeitangaben in den Komponententests werden mit `formatDate` berechnet statt hingeschrieben; ein
+festes „15:00" wäre in Berlin grün und auf einem UTC-Läufer rot. Gegengeprüft mit `TZ=UTC`.
+
+**Befunde:**
+
+- `npx supabase start` scheitert auf diesem Rechner weiterhin an von Windows gesperrten
+  Standardports. Gearbeitet wurde mit vorübergehend verschobenen Ports (54xxx → 64xxx) in
+  `supabase/config.toml` und `services/sniper/.env`; beide Dateien sind danach zurückgesetzt
+  worden, die Verschiebung ist in keinem Commit.
+- `supabase db diff` erzeugte wie schon bei Aufgabe 1 zusätzlich Neudeklarationen von zehn
+  unbeteiligten Funktionen (nur Groß-/Kleinschreibung, Einrückung, `$$` statt `$function$`).
+  Sie wurden wie dort aus der Migration entfernt; das steht im Kopfkommentar der Migration.
+- Eine Browserkontrolle der Oberfläche fand nicht statt. Belegt sind die Änderungen durch
+  Komponententests samt axe-Lauf und den Bau.
+
+---
+
+## 2026-09-06 – Claude – Task 6: Kategorieliste in der Administration, „Betreiber" wird „Administration"
+
+**Auftrag:** Letzte Aufgabe des Pakets (Zweig `feat/deal-monitor-collection-and-ui`): eine
+Seite, auf der man sieht, wie frisch der in Task 1 gespeicherte Kategoriebaum ist, und ein
+erneutes Einlesen anfordern kann — dazu die Umbenennung des Menüpunkts „Betreiber" zu
+„Administration".
+
+**Umsetzung:** Neue Seite `src/app/features/platform-admin/pages/vinted-categories/` (Standalone
+Component, `ChangeDetectionStrategy.OnPush`, `inject()`, Signals) zeigt Kategorienzahl,
+Zeitpunkt des letzten Einlesens und einen etwaigen letzten Fehler; ein Knopf „Neu einlesen" ruft
+`VintedCategoryService.requestRefresh()`. Der Hinweistext sagt bewusst „angefordert", nicht
+„aufgefrischt" — der Knopf setzt nur `requested_at` in der Datenbank, der Sniper liest es erst
+beim nächsten Takt. Route `categories` unter `platform-admin.routes.ts` ergänzt. Die im
+Planentwurf genannten Tailwind-Klassen `text-fb-text` und `bg-fb-accent` gibt es in
+`src/styles.css` nicht; verwendet wurden die tatsächlich vorhandenen Entsprechungen
+`text-fb-text-primary` und `bg-fb-primary`/`text-fb-on-accent` (dasselbe Muster wie der
+Primärknopf in `sidebar.component.html`). `PLATFORM_ADMIN: 'Betreiber'` in `translations.ts`
+und `label: 'Betreiber'` in `sidebar.component.ts` wurden zu „Administration"; der Kommentar
+darüber wurde zu „Der Punkt Administration erscheint nur fuer Betreiber der Plattform.". Die
+Route `/admin` (Ladepfad von `platform-admin.routes.ts`) blieb unverändert. „Betreiber" als
+Fachbegriff für die Rolle blieb stehen, wo er das ist: `platform-operator.service.ts` samt Test,
+Kommentare in `webhook.models.ts`, `header.component.ts/.html` und `app.routes.ts`.
+
+**Verifiziert durch:** TDD — Test zuerst rot (`Failed to resolve import
+"./vinted-categories.component"`), nach Komponente und Vorlage grün (4/4). Danach
+`npm run format:check`, `npm run lint`, `npm run typecheck`, `npm run test:angular` (477/477,
+5 übersprungen) und `npm run build` — alle grün, jeweils vor und erneut nach dem Commit
+gemessen. Schritt 9 (Browser-Kontrolle unter `/platform-admin/categories`) blieb offen: die
+lokale Datenbank lässt sich auf diesem Rechner wegen von Windows gesperrter Supabase-Standardports
+nicht ohne Weiteres starten. Voller Bericht: `.superpowers/sdd/task-6-report.md`.
+
+---
+
+## 2026-09-06 – Claude – Task 5: Kategoriebaum und Auffrischungsstand im Angular-Dienst
+
+**Auftrag:** Vorletzte Aufgabe des Pakets (Zweig `feat/deal-monitor-collection-and-ui`): einen
+Angular-Dienst, über den die Oberfläche den in Task 1 gespeicherten Kategoriebaum und seinen
+Auffrischungsstand lesen und ein erneutes Einlesen anfordern kann.
+
+**Umsetzung:** Neu angelegt
+`src/app/features/platform-admin/models/vinted-category.model.ts` (`VintedCategory`,
+`CategorySyncStatus`) und `src/app/features/platform-admin/services/vinted-category.service.ts`.
+`listLeaves()` liefert nur Blattkategorien nach Pfad sortiert — eine Zwischenkategorie wäre als
+Sammelauftrag zu breit. `readStatus()` liest die einzige Zeile aus `vinted_category_syncs`.
+`requestRefresh()` schreibt genau ein Feld, `requested_at`; alles andere setzt der Dienst mit
+Dienstschlüssel, und die Spaltenrechte aus Task 1 lassen es auch gar nicht anders zu. Kein
+`createClient` im Feature-Dienst — der Zugang kommt wie überall aus `SupabaseService`.
+
+**Nachlauf im selben Zweig** (`86437ab`): Die Tests prüften nur, dass die Zeilen der Attrappe ins
+Modell umgewandelt werden. Sie wären auch mit der falschen Tabelle, fehlenden Spalten oder ohne
+Filter auf die einzige Zeile grün geblieben — die Attrappe antwortet ja unabhängig davon. Beide
+Fälle prüfen jetzt Tabelle, Spalten und Filter, und ein abgelehnter Auffrischungswunsch kam dazu.
+
+**Verifiziert durch:** TDD, Test zuerst rot. Danach `npx vitest run --project=angular` für den
+Dienst grün. Der Nachlauf wurde durch Gegenprobe belegt: Dienst auf eine falsche Tabelle gezeigt,
+die beiden Tests fallen dort um und sind nach dem Zurücknehmen wieder grün.
+
+---
+
+## 2026-09-06 – Claude – Task 4: Auffrischung in die Taktschleife des Dienstes hängen
+
+**Auftrag:** Aufgabe 4 des Pakets: Die Bausteine aus Task 3 (`isRefreshDue`, `CategoryStore`)
+existierten, aber niemand rief sie auf. Ohne diesen Schritt wird der Kategoriebaum nie
+eingelesen, und dem geplanten kategoriebasierten Sammeln fehlt die Grundlage.
+
+**Umsetzung:** Neu `services/sniper/src/runtime/refresh-categories.ts` mit
+`refreshCategoriesIfDue()`. Die Funktion wirft nie: Ein gescheitertes Abholen oder Auswerten wird
+über `markFailed` festgehalten, und der Takt läuft weiter — ein alter Kategoriebaum darf das
+Sammeln der Angebote nicht anhalten. Aufgerufen wird sie in `services/sniper/src/index.ts` vor
+`scheduler.runOnce()`, mit derselben gezählten fetch-Funktion wie der Rest des Dienstes, damit die
+Anfrage an die Startseite gegen das Anfragebudget zählt. Neue Einstellung
+`SNIPER_CATEGORY_MAX_AGE_MS` in `config.ts` und `.env.example`.
+
+**Nachlauf im selben Zweig** (`ab3eb2c`): Der Kommentar zum Kreis-Riegel in `category.store.ts`
+behauptete, die Fremdschlüsselprüfung der Datenbank melde den eigentlichen Fehler. Das stimmt für
+einen Kreis nicht — liegen beide Zeilen im selben Schreibblock, sind am Ende der Anweisung beide
+da und die Prüfung ist zufrieden. Der Kommentar sagt jetzt, was tatsächlich passiert: Ein Kreis
+würde still gespeichert, Vinted liefert aber einen Baum.
+
+**Verifiziert durch:** `refresh-categories.spec.ts` deckt die vier Wege ab (jung genug, fällig,
+Auswertung gescheitert, Abholen gescheitert), jeweils gegen die aufgezeichnete Startseite als
+Vorlage; `config.spec.ts` deckt die neue Schranke ab. Volle Suite (94 Tests), Typprüfung, Lint,
+Prettier und Bau grün.
+
+---
+
+## 2026-09-06 – Claude – Task 3, Review-Nachlauf: Markieren-und-Nachräumen statt Erst-Leeren
+
+**Auftrag:** Drei zusammenhängende Review-Befunde an `CategoryStore.replaceAll` beheben
+(Zweig `feat/deal-monitor-collection-and-ui`): (1) die Methode leerte die Tabelle vor dem
+Schreiben, obwohl der Kopfkommentar „ein Fehlschlag löscht nichts" verspricht; (2) der
+Integrationstest dazu prüfte nur `markFailed`, nie das eigentliche Löschverhalten; (3) die
+Sortierung „Eltern vor Kindern" zählte die Tiefe aus `path.split(' > ').length` statt aus der
+Elternkette — fragil und durch einen Titel mit „>" verfälschbar.
+
+**Umsetzung:** `services/sniper/src/store/category.store.ts` schreibt jetzt
+markieren-und-nachräumen: ein Zeitstempel pro Lauf, `upsert` in 500er-Blöcken mit diesem
+Zeitstempel auf `updated_at`, und erst danach ein `delete` aller Zeilen mit älterem
+`updated_at` (das sind die von Vinted entfernten Kategorien; `parent_id` kaskadiert bewusst).
+Bricht das Schreiben ab, läuft das Löschen nie. Die Sortierung läuft jetzt über eine aus
+`parentId` aufgebaute Tiefe (Wurzeln zuerst), nicht mehr über den Anzeigetext `path`.
+`services/sniper/test/store/category.store.integration.spec.ts` bekam die tatsächlich fehlenden
+Fälle: ein echter Fremdschlüsselfehler mitten im Schreiben lässt den alten Baum unverändert
+stehen; umgekehrte Eingabereihenfolge (Kind vor Elternteil) gelingt trotzdem; ein Titel mit „>"
+verfälscht die Reihenfolge nicht. Der bestehende `markFailed`-Test blieb inhaltlich unverändert,
+nur umbenannt, damit der Name nicht mehr suggeriert, er prüfe `replaceAll`.
+
+**Befunde:**
+
+- `npx supabase start` scheiterte wie vom Auftrag als bekanntes Risiko benannt: Windows hat
+  auf diesem Rechner den Portbereich 54257–54356 (und weitere direkt anschließende Bereiche)
+  dynamisch als Ausschluss reserviert, darin liegt der komplette Sniper-Portblock
+  54350–54359. `netsh interface ipv4 show excludedportrange protocol=tcp` bestätigt das.
+  Der Auftrag verlangt ausdrücklich, `supabase/config.toml` dafür nicht zu verändern und den
+  Zustand stattdessen als BLOCKED zu melden — anders als beim vorherigen, ähnlichen Fall in
+  Task 1 wurde hier also _kein_ temporärer Portwechsel versucht. Die beiden Integrationstest-Läufe
+  (vor und nach dem Commit) aus dem Prüfauftrag konnten deshalb nicht ausgeführt werden.
+
+**Verifiziert durch:** `npx vitest run test/runtime/category-refresh.spec.ts` (5/5 grün),
+`npx tsc --noEmit` in `services/sniper` (keine Ausgabe) und `npm run typecheck` im
+Projektstamm (keine Ausgabe), jeweils vor und erneut nach dem Commit gemessen. Die
+Integrationstests selbst sind BLOCKED (siehe oben). Voller Bericht mit allen Kommandos und
+tatsächlicher Ausgabe: `.superpowers/sdd/task-3-report.md`.
+
+---
+
+## 2026-09-06 – Claude – Task 3: Kategoriebaum speichern und Fälligkeit entscheiden
+
+**Auftrag:** Aufgabe 3 des Pakets: den in Task 2 geparsten Baum in die Tabellen aus Task 1
+schreiben und festlegen, wann neu eingelesen wird.
+
+**Umsetzung:** Neu `services/sniper/src/store/category.store.ts` mit `CategoryStore`
+(`readSyncState`, `replaceAll`, `markRefreshed`, `markFailed`) und
+`services/sniper/src/runtime/category-refresh.ts` mit `isRefreshDue`. `replaceAll` ersetzt
+vollständig statt zusammenzuführen: Eine Kategorie, die Vinted entfernt hat, soll auch bei uns
+verschwinden — sonst tauchte sie später im Kategoriewähler auf, ohne je Funde zu liefern.
+Geschrieben wird in Blöcken zu 500 Zeilen, weil rund 2900 Zeilen in einem Rutsch die Anfragegröße
+von PostgREST sprengen; die Eltern stehen dabei vor den Kindern, damit der Fremdschlüssel auf
+dieselbe Tabelle nicht anschlägt. Die Fälligkeit steht bewusst in TypeScript und nicht in SQL —
+dieselbe Entscheidung wie bei der Fälligkeit einer Abfrage in `query.store.ts`, so bleibt die
+Regel ohne Datenbank prüfbar.
+
+**Verifiziert durch:** TDD. `category-refresh.spec.ts` deckt die Regel ohne Datenbank ab;
+`category.store.integration.spec.ts` schreibt gegen eine lokale Supabase-Instanz. Die
+Portverschiebung, die zum Start der lokalen Datenbank auf diesem Rechner nötig ist, ist in keinem
+Commit gelandet. Die unmittelbar folgende Prüfung fand drei Schwächen in genau diesem Stand; sie
+sind im Eintrag „Task 3, Review-Nachlauf" oben beschrieben.
+
+---
+
+## 2026-09-06 – Claude – Task 2: Kategoriebaum aus dem HTML der Vinted-Startseite lesen
+
+**Auftrag:** Aufgabe 2 des Pakets: den Vinted-Kategoriebaum überhaupt erst beschaffen.
+
+**Umsetzung:** Vinted bietet keinen Endpunkt für die Kategorieliste — `/api/v2/catalogs` und
+`/api/v2/catalog/initializers` antworten beide mit 404. Der vollständige Baum steht dagegen im
+HTML der Startseite, in einem Next.js-Flight-Block unter `catalogTree`. Neu
+`services/sniper/src/vinted/categories.ts`: Der Parser packt dieses Zeichenketten-Literal aus und
+flacht den Baum ab (Nummer, Elternteil, Titel, Slug, lesbarer Pfad, Blatt ja/nein). Gegen die
+Live-Seite gemessen: 2920 Kategorien, 9 Wurzeln, 2500 Blätter.
+
+**Nachlauf im selben Zweig:** Zwei Korrekturen an derselben Aufgabe.
+
+- `b21ec80`: Die Testvorlage bildet einen Flight-Block nach, in dem der Baum als JS-Zeichenkette
+  mit maskierten Anführungszeichen steht. Prettier schrieb diese Maskierung in einfache
+  Anführungszeichen um — und nahm der Vorlage damit genau die Hürde, für die es sie gibt: Danach
+  sieht sie weiter wie Vinted-HTML aus, aber jeder naive Leser kommt durch. Genau das war
+  passiert: Die Tests waren vor dem Commit grün und im Commit rot. Das Vorlagenverzeichnis steht
+  jetzt in `.prettierignore`, die Maskierung ist wiederhergestellt, und der Plan richtet die
+  Ausnahme ein, bevor die Vorlage geschrieben wird.
+- `cab919c`: Ein Test behauptete, Referenzblöcke abzudecken, konnte das aber nicht — die Vorlage
+  stellte den Referenzblock hinter den Baum, und die Suche bricht beim ersten Treffer ab. Er
+  wiederholte damit nur den ersten Test mit schwächerer Zusicherung. Geblieben ist der Fall, der
+  die Übergehung wirklich durchläuft: Referenz **vor** dem Baum. Auch die Begründung im Kommentar
+  wurde berichtigt.
+
+**Verifiziert durch:** `services/sniper/test/vinted/categories.spec.ts` gegen die aufgezeichnete
+Startseite; die Zahlen zusätzlich gegen die Live-Seite abgeglichen. Die Lehre aus `b21ec80` —
+**nach** dem Commit messen, nicht davor — steht seither in den Anweisungen dieses Zweigs.
+
+---
+
+## 2026-09-06 – Claude – Task 1: Tabellen für Vinted-Kategorien und Auffrischungsstand
+
+**Auftrag:** Erste Grundlage für den künftigen Vinted-Deal-Monitor: den
+Kategoriebaum von Vinted speicherbar machen, weil Vinted dafür keinen
+eigenen Endpunkt anbietet (`/api/v2/catalogs` und
+`/api/v2/catalog/initializers` antworten mit 404 - der Baum steht nur im
+HTML der Startseite). Nur die zwei Tabellen samt Rechten, Migration und
+Datenbanktests; Einlesen (Parser, Dienst) und Oberfläche sind spätere
+Aufgaben.
+
+**Umsetzung:** `public.vinted_categories` (flacher Baum, Vinted-eigene ids,
+Elternverweis auf sich selbst) und `public.vinted_category_syncs` (genau
+eine Zeile, per Check auf `id = 1` erzwungen) mit RLS: Lesen für jeden
+Angemeldeten, Schreiben ausschließlich mit Dienstschlüssel durch den
+Sniper, Auffrischung anfordern nur für die Administration
+(`public.is_platform_operator()`, mit Spaltenrecht nur auf
+`requested_at`). Neue Datei `supabase/schemas/100_vinted_categories.sql`
+steht bewusst nach `99_platform_admin.sql` in der Ladereihenfolge, weil
+ihre Policies dessen Funktion aufrufen.
+
+**Befunde:**
+
+- Der automatische Migrationsabgleich (`npx supabase db diff`) hat
+  zusätzlich Neudeklarationen von zehn bereits bestehenden, unabhängigen
+  Funktionen erzeugt (Purchase-Costing und Barcode-Validierung). Eine
+  Stichprobe zeigt keinen inhaltlichen Unterschied zur Schemadatei - nur
+  Formatierung. Aus der Migration entfernt, damit sie wirklich nur die
+  zwei neuen Tabellen anlegt; die zugrunde liegende Abweichung zwischen
+  Schemadateien und angewandten Migrationen bei diesen zehn Funktionen ist
+  unabhängig von dieser Aufgabe und bleibt unangetastet.
+- Der wörtlich vorgegebene Test fragt als Rolle `anon` `select count(*)`
+  ab und erwartet `0`. Mit der ebenfalls wörtlich vorgegebenen Schemadatei
+  (kein Tabellenrecht für `anon`) bricht diese Abfrage mit `permission
+denied` ab, bevor RLS überhaupt greift, statt eine leere Ergebnismenge
+  zu liefern. Ergänzt: `grant select ... to anon` auf beiden Tabellen -
+  die weiterhin fehlende `anon`-Policy sorgt dafür, dass RLS trotzdem in
+  jedem Fall null Zeilen liefert.
+- Lokale Portkollision beim Aufsetzen: Windows hatte den benötigten
+  Portbereich als dynamischen Ausschluss reserviert (vermutlich
+  Hyper-V/WSL2, mehrere parallel laufende Supabase-Projekte auf diesem
+  Rechner). Nur temporär für die lokalen Testläufe auf einen freien
+  Portbereich ausgewichen; `supabase/config.toml` ist am Ende unverändert
+  bis auf die gewünschte `schema_paths`-Ergänzung.
+
+**Prüfung:** `npm run test:db` vor der Umsetzung rot (Tabelle fehlt, wie im
+Auftrag erwartet), danach grün - `All tests successful.`, 32 Testdateien,
+1105 Einzelprüfungen, davon 9 neu in `vinted_categories.sql`. Typen neu
+erzeugt (`npx supabase gen types typescript --local`); `vinted_categories`
+und `vinted_category_syncs` darin geprüft. Voller Bericht mit TDD-Nachweis:
+`.superpowers/sdd/task-1-report.md`.
+
 ## 2026-09-06 – Codex – Primäre Admin-Akzente auf Logo-Gelb korrigiert
 
 **Ergebnis:** Die primären Verwaltungsaktionen wie „Neuer Einkauf“ und

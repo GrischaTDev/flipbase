@@ -30,7 +30,7 @@ export const TRANSLATIONS_DE = {
     ANALYTICS: 'Analytics',
     SETTINGS: 'Einstellungen',
     CLOSE_MENU: 'Menü schließen',
-    PLATFORM_ADMIN: 'Betreiber',
+    PLATFORM_ADMIN: 'Administration',
     OPERATIONS: 'Betrieb',
   },
   PLATFORMS: {
@@ -368,7 +368,7 @@ export const TRANSLATIONS_EN = {
     ANALYTICS: 'Analytics',
     SETTINGS: 'Settings',
     CLOSE_MENU: 'Close menu',
-    PLATFORM_ADMIN: 'Operator',
+    PLATFORM_ADMIN: 'Administration',
     OPERATIONS: 'Operations',
   },
   PLATFORMS: {
