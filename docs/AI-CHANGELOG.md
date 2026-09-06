@@ -1,5 +1,31 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Codex – Sidebar nach Polaris-Dichte und Marken-Gelb ausgerichtet
+
+**Ergebnis:** Die Verwaltungssidebar ist jetzt schmaler (224 statt 240 Pixel),
+kompakter auf dem 4-Pixel-Raster aufgebaut und nutzt kleinere, ruhigere
+Navigationsabstände. Der aktive Menüpunkt wird über einen eigenen
+Navigationstoken mit dem Logo-Gelb hervorgehoben; die globale orange
+Aktionsfarbe bleibt für Aktionen und Status erhalten. Das bisherige
+Indigo-Hover-Schema und die fehleranfällige `group-[.font-semibold]`-Iconlogik
+wurden entfernt.
+
+**Grundlage:** Shopify empfiehlt für Admin-Navigation kurze, gut scannbare
+Labels, konsistente Dichte und eine klare Unterscheidung zwischen inaktiven
+und aktiven Icons. Die helle Navigation nutzt für WCAG-Kontrast eine dunklere
+Goldausprägung, während die dunkle Navigation das Logo-Gelb direkt verwendet.
+
+**Prüfung:** Die Änderung läuft ausschließlich im isolierten Worktree
+`codex/polaris-sidebar-yellow`; eine gezielte Sidebar-E2E-Prüfung und die
+betroffenen Angular-, Typ-, Lint-, Format- und Build-Prüfungen folgen vor dem
+Push.
+
+**Review-Nacharbeit:** Der unabhängige Gegencheck hat zusätzlich die
+viewportgebundene Desktop-Sidebar, den gelben aktiven Zustand der mobilen
+Navigation, die 44-Pixel-Touchflächen im mobilen Drawer und den
+Kontrast des hellen OS-Badges eingefordert. Diese Punkte sind im selben
+Branch ergänzt und werden erneut automatisiert geprüft.
+
 ## 2026-09-06 – Codex – Sortierauswahl und Tabellenzustände nachgeschärft
 
 **Ergebnis:** Der unabhängige Gegencheck fand mehrere Nacharbeiten, die vor dem
