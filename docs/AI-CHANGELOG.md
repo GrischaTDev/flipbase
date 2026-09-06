@@ -1,5 +1,56 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Claude – Task 1: Tabellen für Vinted-Kategorien und Auffrischungsstand
+
+**Auftrag:** Erste Grundlage für den künftigen Vinted-Deal-Monitor: den
+Kategoriebaum von Vinted speicherbar machen, weil Vinted dafür keinen
+eigenen Endpunkt anbietet (`/api/v2/catalogs` und
+`/api/v2/catalog/initializers` antworten mit 404 - der Baum steht nur im
+HTML der Startseite). Nur die zwei Tabellen samt Rechten, Migration und
+Datenbanktests; Einlesen (Parser, Dienst) und Oberfläche sind spätere
+Aufgaben.
+
+**Umsetzung:** `public.vinted_categories` (flacher Baum, Vinted-eigene ids,
+Elternverweis auf sich selbst) und `public.vinted_category_sync` (genau
+eine Zeile, per Check auf `id = 1` erzwungen) mit RLS: Lesen für jeden
+Angemeldeten, Schreiben ausschließlich mit Dienstschlüssel durch den
+Sniper, Auffrischung anfordern nur für die Administration
+(`public.is_platform_operator()`, mit Spaltenrecht nur auf
+`requested_at`). Neue Datei `supabase/schemas/100_vinted_categories.sql`
+steht bewusst nach `99_platform_admin.sql` in der Ladereihenfolge, weil
+ihre Policies dessen Funktion aufrufen.
+
+**Befunde:**
+
+- Der automatische Migrationsabgleich (`npx supabase db diff`) hat
+  zusätzlich Neudeklarationen von zehn bereits bestehenden, unabhängigen
+  Funktionen erzeugt (Purchase-Costing und Barcode-Validierung). Eine
+  Stichprobe zeigt keinen inhaltlichen Unterschied zur Schemadatei - nur
+  Formatierung. Aus der Migration entfernt, damit sie wirklich nur die
+  zwei neuen Tabellen anlegt; die zugrunde liegende Abweichung zwischen
+  Schemadateien und angewandten Migrationen bei diesen zehn Funktionen ist
+  unabhängig von dieser Aufgabe und bleibt unangetastet.
+- Der wörtlich vorgegebene Test fragt als Rolle `anon` `select count(*)`
+  ab und erwartet `0`. Mit der ebenfalls wörtlich vorgegebenen Schemadatei
+  (kein Tabellenrecht für `anon`) bricht diese Abfrage mit `permission
+denied` ab, bevor RLS überhaupt greift, statt eine leere Ergebnismenge
+  zu liefern. Ergänzt: `grant select ... to anon` auf beiden Tabellen -
+  die weiterhin fehlende `anon`-Policy sorgt dafür, dass RLS trotzdem in
+  jedem Fall null Zeilen liefert.
+- Lokale Portkollision beim Aufsetzen: Windows hatte den benötigten
+  Portbereich als dynamischen Ausschluss reserviert (vermutlich
+  Hyper-V/WSL2, mehrere parallel laufende Supabase-Projekte auf diesem
+  Rechner). Nur temporär für die lokalen Testläufe auf einen freien
+  Portbereich ausgewichen; `supabase/config.toml` ist am Ende unverändert
+  bis auf die gewünschte `schema_paths`-Ergänzung.
+
+**Prüfung:** `npm run test:db` vor der Umsetzung rot (Tabelle fehlt, wie im
+Auftrag erwartet), danach grün - `All tests successful.`, 32 Testdateien,
+1105 Einzelprüfungen, davon 9 neu in `vinted_categories.sql`. Typen neu
+erzeugt (`npx supabase gen types typescript --local`); `vinted_categories`
+und `vinted_category_sync` darin geprüft. Voller Bericht mit TDD-Nachweis:
+`.superpowers/sdd/task-1-report.md`.
+
 ## 2026-09-06 – Claude – Zeitlimit der vollständigen Deckungsmessung angehoben
 
 **Richtigstellung:** Im ersten Eintrag von heute steht, der Auftrag „Full
