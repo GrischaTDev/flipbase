@@ -167,8 +167,16 @@ hängt die Bedienoberfläche an einem HTML-Format, das Vinted jederzeit ändern
 kann.
 
 Spalten: `id` (die Vinted-Nummer, keine eigene), `parent_id`, `title`, `slug`,
-`path` (lesbarer Pfad wie „Damen > Schuhe > Stiefel"), `is_leaf`,
-`refreshed_at`. RLS: lesen dürfen alle Angemeldeten, schreiben nur der Dienst.
+`path` (lesbarer Pfad wie „Damen > Schuhe > Stiefel"), `is_leaf`, `updated_at`.
+RLS: lesen dürfen alle Angemeldeten, schreiben nur der Dienst.
+
+Der Stand des ganzen Baums steht **nicht** an jeder Zeile, sondern in einer
+eigenen Einzeilentabelle `vinted_category_sync`: wann zuletzt gelesen wurde, ob
+jemand eine Auffrischung angefordert hat, was zuletzt schiefging. Ein Zeitpunkt
+je Kategorie beantwortete die eigentliche Frage nicht — „wie alt ist meine
+Liste" gilt für den Baum, nicht für einzelne Knoten. Über diese Tabelle stößt
+die Administration das erneute Einlesen an: Sie setzt ein Feld, der Dienst sieht
+es beim nächsten Takt. Der Dienst braucht dafür keinen offenen Eingang.
 
 Ein Auffrischungslauf liest den Baum neu ein und meldet Abweichungen. Bricht das
 Parsen, bleibt die gespeicherte Liste gültig und die Oberfläche funktioniert
@@ -317,8 +325,11 @@ Nacheinander umzusetzen und einzeln abzunehmen:
 3. **Trefferregel** — neue Gruppe mit Rückfall, `reference_scope` am Treffer,
    Anpassung von `sniper_evaluate_hits`. Der Teil, der über Nutzen oder
    Rauschen entscheidet.
-4. **Nutzeroberfläche** — Merkzettel und Treffer im Arbeitsbereich, dazu die
-   Umbenennung auf Administration.
+4. **Nutzeroberfläche** — Merkzettel und Treffer im Arbeitsbereich.
+
+Die Umbenennung von „Betreiber" auf „Administration" wandert in Paket 1: Dort
+entsteht ohnehin die erste neue Seite in diesem Bereich, und es wäre seltsam,
+sie unter einem Namen anzulegen, der bald ein anderer ist.
 
 Teil 1 und 2 gehören zusammen; Teil 3 ist der wertvollste; Teil 4 ist der
 sichtbarste.
