@@ -1,5 +1,45 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Claude – Nachlauf zum Nachtlauf: WebKit und das Aufräumen der Datenbankprobe
+
+**Anlass:** Der von Hand ausgelöste Vollauf auf dem Zweig
+(`34020596308`) brachte Firefox, Node-Stress und beide Deckungsmessungen grün
+und legte dabei zwei Dinge frei, die vorher unter den früheren Fehlern lagen.
+
+**Befunde:**
+
+- **WebKit war schon vor dieser Arbeit rot**, nur unbemerkt: Der tägliche
+  WebKit-Auftrag lief zuletzt am 05.09. um 04:34 grün, der Polaris-Umbau kam
+  erst um 23:55 dazu. Acht Tests fielen aus, darunter zwei, die hier gar nicht
+  angefasst wurden. Zwei Ursachen: `JetBrains Mono` liefert WebKit ohne
+  Anführungszeichen, Chromium mit — die eben korrigierte Prüfung deckte nur
+  `Inter` ab. Und WebKit blendet auf diesen Seiten eine klassische
+  Bildlaufleiste ein; die Layoutprüfungen verglichen `scrollWidth` mit der
+  eingestellten Fensterbreite und lagen dadurch um sechs Pixel daneben.
+- **Die Nebenläufigkeitsprobe selbst ist grün** — im Protokoll steht
+  „RPC-Concurrency-Harness grün". Der Lauf scheiterte erst danach beim
+  Aufräumen: Der Verkauf schreibt Ereignisse ins Prüfprotokoll,
+  `business_events.workspace_id` hängt mit `on delete restrict` am
+  Arbeitsbereich, und der Auslöser
+  `prevent_workspace_with_business_data_deletion` verbietet zusätzlich das
+  Löschen von Arbeitsbereichen mit Geschäftsdaten. Das Skript stammt aus der
+  Zeit davor.
+
+**Korrektur:** Die Schriftprüfung stellt das Anführungszeichen für beide
+Schriften frei. Die drei Layoutprüfungen messen jetzt den seitlichen Überlauf
+(`scrollWidth - clientWidth`, erwartet null) statt der Gleichheit mit der
+Fensterbreite — das ist genau die Absicht der Tests und unabhängig davon, ob
+eine Engine eine Bildlaufleiste einblendet. Die Datenbankprobe räumt nur noch
+die Geschäftsdaten ab und lässt Arbeitsbereich, Mitgliedschaft und Testnutzer
+stehen; das Anlegen ist dafür wiederholbar (`on conflict do nothing`). Der
+Schutz vor dem Löschen von Belegen bleibt unangetastet.
+
+**Prüfung:** Lokal alle drei betroffenen Dateien in WebKit (11 Tests), Firefox
+und Chromium (22 Tests) grün — dieselben acht Tests, die in der CI und lokal
+unter WebKit fielen. Dazu `format:check`, `lint`, `typecheck` und der
+Parser-Check des PowerShell-Skripts. Das Aufräumen der Datenbank ist lokal
+weiterhin nicht nachstellbar; den Nachweis führt der nächste Lauf auf dem Zweig.
+
 ## 2026-09-06 – Claude – Nächtliche Vollprüfung wieder aussagekräftig gemacht
 
 **Anlass:** Der wöchentliche Nachtlauf auf `master` war am 06.09.2026 zweimal rot

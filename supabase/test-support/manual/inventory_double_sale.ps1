@@ -120,6 +120,16 @@ function Start-InteractiveSession {
   return $process
 }
 
+# Räumt die Geschäftsdaten des Testarbeitsbereichs ab, lässt den Arbeitsbereich
+# selbst mitsamt Mitgliedschaft und Testnutzer aber stehen.
+#
+# Der Arbeitsbereich wurde früher mitgelöscht. Das geht nicht mehr: Der Verkauf
+# schreibt Ereignisse ins Prüfprotokoll, `business_events.workspace_id` hängt
+# mit `on delete restrict` am Arbeitsbereich, und zusätzlich verbietet der
+# Auslöser `prevent_workspace_with_business_data_deletion` das Löschen von
+# Arbeitsbereichen mit Geschäftsdaten. Beides ist so gewollt — Belege und
+# Buchungen sollen erhalten bleiben. Deshalb legt das Skript den Arbeitsbereich
+# nur einmal an und benutzt ihn danach wieder.
 function Invoke-TestCleanup {
   $cleanupFile = Join-Path $resolvedTempDirectory 'cleanup.sql'
   $cleanupOutput = Join-Path $resolvedTempDirectory 'cleanup.out'
@@ -137,9 +147,6 @@ delete from public.shipping_orders where workspace_id = '$workspaceId';
 delete from public.sale_lines where workspace_id = '$workspaceId';
 delete from public.sales where workspace_id = '$workspaceId';
 delete from public.inventory_items where workspace_id = '$workspaceId';
-delete from public.workspace_members where workspace_id = '$workspaceId';
-delete from public.workspaces where id = '$workspaceId';
-delete from auth.users where id = '$userId';
 commit;
 "@ | Set-Content -LiteralPath $cleanupFile -Encoding utf8
   Invoke-PsqlFile -InputFile $cleanupFile -OutputFile $cleanupOutput -ErrorFile $cleanupError
@@ -163,13 +170,16 @@ insert into auth.users (
 ) values (
   '$userId', 'authenticated', 'authenticated', 'inventory-concurrency@example.test',
   'not-used-by-this-test', '{}'::jsonb, '{}'::jsonb, now(), now()
-);
+)
+on conflict (id) do nothing;
 insert into public.profiles (id, email)
 values ('$userId', 'inventory-concurrency@example.test')
 on conflict (id) do nothing;
-insert into public.workspaces (id, name) values ('$workspaceId', 'inventory concurrency test');
+insert into public.workspaces (id, name) values ('$workspaceId', 'inventory concurrency test')
+on conflict (id) do nothing;
 insert into public.workspace_members (workspace_id, user_id, role)
-values ('$workspaceId', '$userId', 'owner');
+values ('$workspaceId', '$userId', 'owner')
+on conflict do nothing;
 insert into public.inventory_items (id, workspace_id, title, status)
 values
   ('$itemAId', '$workspaceId', 'Concurrent item A', 'ready'),

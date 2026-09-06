@@ -1,6 +1,18 @@
 import { expect, test } from '@playwright/test';
 import { startDemoMode } from './support/demo';
 
+/**
+ * Wie viele Pixel die Seite breiter ist als der Platz, den sie hat. Null heißt:
+ * kein seitlicher Überlauf.
+ *
+ * Bewusst gegen `clientWidth` und nicht gegen die eingestellte Fensterbreite:
+ * WebKit blendet auf diesen Seiten eine klassische Bildlaufleiste ein und
+ * nimmt damit sechs Pixel weg. Gegen die Fensterbreite gemessen sähe das wie
+ * ein Layoutfehler aus, obwohl nichts seitlich hinausragt.
+ */
+const horizontalOverflow = () =>
+  document.documentElement.scrollWidth - document.documentElement.clientWidth;
+
 test('nutzt breite Bildschirme für Datenansichten ohne seitlichen Seitenüberlauf', async ({
   page,
 }) => {
@@ -11,7 +23,7 @@ test('nutzt breite Bildschirme für Datenansichten ohne seitlichen Seitenüberla
     await expect(page.locator('main h1')).toBeVisible();
     const bounds = await page.locator('#hauptinhalt').boundingBox();
     expect(bounds!.width).toBeGreaterThan(2200);
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(2560);
+    expect(await page.evaluate(horizontalOverflow)).toBe(0);
   }
 });
 
@@ -27,10 +39,10 @@ for (const width of [390, 768, 1024, 1100, 1280]) {
       await page.goto(route);
       await expect(page.locator('main h1')).toBeVisible();
       await expect
-        .poll(() => page.evaluate(() => document.documentElement.scrollWidth), {
+        .poll(() => page.evaluate(horizontalOverflow), {
           message: `${route}: ${width}px`,
         })
-        .toBe(width);
+        .toBe(0);
     }
   });
 }
