@@ -54,6 +54,20 @@ export class VintedCategoryService {
     };
   }
 
+  /**
+   * Fordert ein erneutes Einlesen an.
+   *
+   * Der mitgeschickte Zeitstempel ist gleichgueltig: Ein Trigger auf
+   * `vinted_category_syncs` ersetzt ihn durch `now()` der Datenbank. Er steht
+   * hier nur, weil PostgREST einen Wert fuer die Spalte braucht.
+   *
+   * Und das ist wichtig so. Der Dienst vergleicht `requested_at` gegen
+   * `refreshed_at`, das er aus seiner eigenen Uhr schreibt. Kaeme der eine
+   * Wert aus dem Browser und der andere vom Server, entschiede der Gangfehler
+   * zwischen beiden Uhren mit: Geht die Uhr des Betreibers vor, gaelte die
+   * Anforderung stundenlang als offen und der Dienst liest bei jedem Takt neu
+   * ein. Eine gemeinsame Uhr hat den Streit gar nicht erst.
+   */
   async requestRefresh(): Promise<void> {
     const { error } = await this.supabase.client
       .from('vinted_category_syncs')

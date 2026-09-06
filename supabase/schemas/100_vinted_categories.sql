@@ -97,3 +97,38 @@ grant select on table public.vinted_category_syncs to authenticated;
 -- und last_error setzt allein der Dienst - waeren sie schreibbar, koennte die
 -- Oberflaeche einen Stand behaupten, den es nie gab.
 grant update (requested_at) on table public.vinted_category_syncs to authenticated;
+
+-- Die Anforderung wird gestempelt, nicht uebermittelt.
+--
+-- Dasselbe Muster wie stamp_beta_application_decision() in
+-- 99_platform_admin.sql und aus demselben Grund: Der Zeitstempel kaeme sonst
+-- von einer fremden Uhr. Setzt der Browser des Betreibers requested_at und
+-- geht seine Uhr vor, liegt der Wert stundenlang hinter dem refreshed_at,
+-- das der Dienst aus seiner eigenen Uhr schreibt - die Anforderung gilt
+-- solange als offen, und der Dienst liest bei jedem Takt neu ein. now() in
+-- der Datenbank ist die einzige Uhr, die beide Seiten teilen.
+--
+-- Gestempelt wird nur, wenn requested_at wirklich einen neuen Wert bekommt.
+-- Der Dienst schreibt mit Dienstschluessel refreshed_at, last_attempt_at,
+-- category_count und last_error in dieselbe Zeile; stempelte der Trigger
+-- dabei mit, setzte jeder eigene Lauf eine neue Anforderung ab und der Dienst
+-- liefe im Kreis. Ein ausdrueckliches null bleibt null - so laesst sich eine
+-- Anforderung auch wieder zuruecknehmen.
+create or replace function public.stamp_vinted_category_request()
+returns trigger
+language plpgsql
+security invoker
+set search_path = ''
+as $$
+begin
+  if new.requested_at is not null and new.requested_at is distinct from old.requested_at then
+    new.requested_at := now();
+  end if;
+  return new;
+end;
+$$;
+
+create trigger stamp_vinted_category_request
+    before update on public.vinted_category_syncs
+    for each row
+    execute function public.stamp_vinted_category_request();

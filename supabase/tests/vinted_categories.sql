@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(9);
+select plan(12);
 
 -- Spalten von vinted_categories
 do $$
@@ -121,6 +121,89 @@ select is(
   'vinted_categories',
   'parent_id verweist auf vinted_categories'
 );
+
+-- Die Anforderung wird gestempelt, nicht uebermittelt.
+--
+-- Ohne den Trigger stuende hier der uebergebene Wert aus dem Jahr 2099 - eine
+-- vorgehende Uhr im Browser des Betreibers liesse die Anforderung so lange als
+-- offen gelten, und der Dienst laese bei jedem Takt neu ein.
+do $$
+declare
+  gestempelt timestamptz;
+begin
+  update public.vinted_category_syncs
+  set requested_at = '2099-01-01T00:00:00+00:00'::timestamptz
+  where id = 1;
+
+  select requested_at into gestempelt
+  from public.vinted_category_syncs where id = 1;
+
+  if gestempelt is null or gestempelt > now() or gestempelt < now() - interval '1 minute' then
+    raise exception 'Der Trigger haette requested_at auf now() setzen muessen, steht aber auf %', gestempelt;
+  end if;
+end;
+$$;
+
+select pass('requested_at wird von der Datenbank gestempelt, nicht vom Aufrufer');
+
+-- Ein Lauf des Dienstes darf keine neue Anforderung ausloesen.
+--
+-- Der Dienst schreibt refreshed_at, last_attempt_at, category_count und
+-- last_error in dieselbe Zeile. Stempelte der Trigger dabei mit, waere nach
+-- jedem Lauf sofort wieder eine Anforderung offen und der Dienst liefe im
+-- Kreis - genau der Dauerlauf, den diese Aufgabe abstellt.
+do $$
+declare
+  vorher constant timestamptz := '2020-01-01T00:00:00+00:00';
+  nachher timestamptz;
+begin
+  -- Der Ausgangswert wird bei abgeschaltetem Trigger gesetzt, und zwar
+  -- ausdruecklich nicht auf now(): Innerhalb einer Transaktion liefert now()
+  -- immer denselben Wert. Ein gestempeltes now() waere von einem von Hand
+  -- gesetzten now() nicht zu unterscheiden, und der Test koennte gar nicht
+  -- fehlschlagen.
+  alter table public.vinted_category_syncs disable trigger stamp_vinted_category_request;
+
+  update public.vinted_category_syncs set requested_at = vorher where id = 1;
+
+  alter table public.vinted_category_syncs enable trigger stamp_vinted_category_request;
+
+  update public.vinted_category_syncs
+  set refreshed_at = now(), last_attempt_at = now(), category_count = 2920, last_error = null
+  where id = 1;
+
+  select requested_at into nachher
+  from public.vinted_category_syncs where id = 1;
+
+  if nachher is distinct from vorher then
+    raise exception 'Ein Lauf des Dienstes hat requested_at veraendert: % statt %', nachher, vorher;
+  end if;
+end;
+$$;
+
+select pass('Ein Lauf des Dienstes stempelt keine neue Anforderung');
+
+-- Eine Anforderung laesst sich zuruecknehmen.
+--
+-- Ein ausdrueckliches null bleibt null. Sonst liesse sich der Stand nie
+-- zuruecksetzen - auch nicht im Aufraeumen der Integrationstests des Dienstes.
+do $$
+declare
+  danach timestamptz;
+begin
+  update public.vinted_category_syncs set requested_at = now() where id = 1;
+  update public.vinted_category_syncs set requested_at = null where id = 1;
+
+  select requested_at into danach
+  from public.vinted_category_syncs where id = 1;
+
+  if danach is not null then
+    raise exception 'requested_at haette sich auf null zuruecksetzen lassen muessen, steht aber auf %', danach;
+  end if;
+end;
+$$;
+
+select pass('Eine Anforderung laesst sich wieder zuruecknehmen');
 
 select * from finish();
 
