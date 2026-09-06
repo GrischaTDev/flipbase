@@ -611,8 +611,13 @@ html:not(.dark) .fb-admin {
   --fb-c-indigo-600: #8a5606;
   --fb-c-indigo-950: #1a1207;
   --fb-shadow-sm: 0 1px 2px rgb(0 0 0 / 4%);
-  --fb-shadow-md: 0 1px 2px rgb(0 0 0 / 7%);
-  --fb-shadow-lg: 0 2px 5px rgb(0 0 0 / 9%);
+  --fb-shadow-md:
+    0 5px 5px -2.5px rgb(0 0 0 / 3%), 0 3px 3px -1.5px rgb(0 0 0 / 2%),
+    0 2px 2px -1px rgb(0 0 0 / 2%), 0 1px 1px -0.5px rgb(0 0 0 / 3%), 0 0.5px 0.5px rgb(0 0 0 / 4%),
+    0 0 0 1px rgb(0 0 0 / 6%);
+  --fb-shadow-lg:
+    0 8px 24px -8px rgb(0 0 0 / 28%), 0 8px 16px -4px rgb(0 0 0 / 5%), 0 3px 6px rgb(0 0 0 / 5%),
+    0 2px 4px rgb(0 0 0 / 5%), 0 1px 2px rgb(0 0 0 / 5%), 0 0 0 1px rgb(0 0 0 / 6%);
 }
 
 /* Auch das dunkle Verwaltungsdesign nutzt fuer Primaeraktionen das helle
@@ -667,8 +672,8 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
 }
 
 .fb-admin app-sidebar nav a {
-  min-height: 2rem;
-  border-radius: 0.375rem;
+  min-height: 1.75rem;
+  border-radius: 0.5rem;
   transition:
     background-color 150ms ease,
     border-color 150ms ease,
@@ -700,20 +705,16 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
   line-height: 1.25rem;
 }
 
-.fb-admin :is(.linear-surface, .linear-card, .linear-card-interactive, .linear-kpi, .card) {
-  border-radius: 0.5rem;
-}
-
 .fb-admin :is(.linear-btn-primary, .linear-btn-secondary) {
-  min-height: 2.25rem;
-  border-radius: 0.375rem;
+  min-height: 1.75rem;
+  border-radius: 0.5rem;
   font-size: 0.8125rem;
   line-height: 1.25rem;
 }
 
 .fb-admin .linear-input {
-  min-height: 2.25rem;
-  border-radius: 0.375rem;
+  min-height: 2rem;
+  border-radius: 0.5rem;
   font-size: 0.8125rem;
   line-height: 1.25rem;
 }
@@ -777,18 +778,18 @@ html:not(.dark) .fb-admin [data-purchase-row] > [aria-hidden='true'] svg {
 }
 
 .fb-admin .linear-table thead {
-  background-color: var(--fb-bg-surface);
-  font-size: 0.8125rem;
+  background-color: var(--fb-bg-well);
+  font-size: 0.75rem;
   text-transform: none;
   letter-spacing: normal;
 }
 
 .fb-admin .linear-table th {
-  height: 2.75rem;
-  padding: 0.625rem 1rem;
+  height: 2.25rem;
+  padding: 0.375rem 0.75rem;
   color: var(--fb-text-secondary);
   white-space: nowrap;
-  font-weight: 450;
+  font-weight: 550;
   border-bottom: 1px solid var(--fb-line);
 }
 
@@ -817,19 +818,22 @@ html:not(.dark) .fb-admin [data-purchase-row] > [aria-hidden='true'] svg {
 
 .linear-surface {
   background-color: var(--fb-bg-surface);
-  border: 1px solid var(--fb-border);
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
   box-shadow: var(--fb-shadow-md);
 }
 
 .linear-card {
   background: var(--fb-bg-surface);
-  border: 1px solid var(--fb-border);
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
   box-shadow: var(--fb-shadow-md);
 }
 
 .linear-card-interactive {
   background: var(--fb-bg-surface);
-  border: 1px solid var(--fb-border);
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
   box-shadow: var(--fb-shadow-md);
   transition:
     background-color 150ms ease,
@@ -845,7 +849,8 @@ html:not(.dark) .fb-admin [data-purchase-row] > [aria-hidden='true'] svg {
 
 .linear-kpi {
   background: var(--fb-bg-surface);
-  border: 1px solid var(--fb-border);
+  border: 1px solid transparent;
+  border-radius: 0.75rem;
   box-shadow: var(--fb-shadow-md);
   position: relative;
   overflow: hidden;
@@ -1106,7 +1111,7 @@ html:not(.dark) select.linear-input {
 }
 
 .animate-modal-card {
-  animation: modalCardPop 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: modalCardPop 0.25s cubic-bezier(0.19, 0.91, 0.38, 1) forwards;
 }
 
 @keyframes fbPopoverIn {
@@ -1121,7 +1126,7 @@ html:not(.dark) select.linear-input {
 }
 
 .fb-popover-enter {
-  animation: fbPopoverIn 0.16s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation: fbPopoverIn 0.25s cubic-bezier(0.19, 0.91, 0.38, 1) both;
   transform-origin: top right;
 }
 

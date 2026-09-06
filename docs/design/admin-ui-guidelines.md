@@ -1,0 +1,146 @@
+# Verbindliche Gestaltungsgrundlage der Verwaltungsoberfläche
+
+Stand: 6. September 2026. Diese Dokumentation ergänzt die Projektregeln; sie beschreibt den Zielstandard, nicht den bereits vollständig umgesetzten Zustand.
+
+**Live-Referenz verfügbar:** Der angemeldete Admin wurde inzwischen über zahlreiche Seiten und Komponentenfamilien geprüft. [Messprotokoll mit Seitendeckung, CSS-Werten und offenen Zuständen](shopify-admin-live-reference.md). Diese konkreten Messungen haben Vorrang vor früheren vorläufigen Größenannahmen.
+
+## Auftrag und Rangfolge
+
+Der Nutzer möchte das sichtbare Shopify-Admin-Design möglichst **1:1** treffen: Formen, Radien, Abstände, Typografie, Schatten, Dichte, Zustände und Bewegungen. Eine bloß lose Inspiration oder pauschales „kompakter machen“ genügt nicht. Flipbase-Logo und das helle Logo-Gelb bleiben erhalten; eigene Icons und Angular-Implementierung sind zulässig. Shopify-Originalpakete und Assets werden nicht ohne passende Nutzungsgrundlage übernommen. Selbst geschriebener Code ist keine automatische rechtliche Freigabe einer identischen Produktdarstellung; diese Frage bleibt vom technischen Messauftrag getrennt.
+
+Rangfolge bei Gestaltungsentscheidungen:
+
+1. Ausdrückliche Nutzerentscheidungen: Logo-Gelb; hohe Referenztreue; Steuer/DATEV vorerst nur als Tabelle.
+2. Geprüfte Messung des aktuellen Shopify-Admins für die entsprechende Komponentenrolle und den entsprechenden Zustand.
+3. Aktuelle offizielle Designrichtlinien und Komponentenbeschreibung, mit Version und Quelle.
+4. Als solche bezeichnete vorläufige Vorschläge. Sie sind keine verbindlichen Shopify-Maße.
+
+Barrierefreiheit und korrekte Fachabläufe bleiben verbindlich. Ein Konflikt wird dokumentiert und gelöst, nicht durch unbemerkte Designänderung übergangen. Ohne gemessene Referenz darf niemand behaupten, eine Oberfläche sei pixelgenau abgeglichen.
+
+## Markenfarbe: nachgewiesener Stand
+
+| Gegenstand                 | Beleg                                                                                                                                              | Konsequenz                                                                                                                                  |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Ursprüngliches Logo-Symbol | Seit Commit `1e659bc` vom 22.08.2026 unverändert; `public/images/logo-mark.png` und `logo-mark-192.png`                                            | Diese Bilddateien sind die konkrete Farbreferenz                                                                                            |
+| Helles Gelb                | RGB `252, 198, 1` = `#FCC601` ist im 96-px-Symbol 189-mal als nahezu vollständig deckender Pixel vorhanden                                         | `--fb-brand-yellow: #fcc601` ist ein tatsächlich im Logo vorkommender Referenzton                                                           |
+| Verlauf und Skalierung     | Benachbarte häufige Töne sind `#FCC501`, `#FCC701`, `#FCC801`; auch Orange ist enthalten. Die 192-px-Version hat eine andere Häufigkeitsverteilung | Keine Behauptung, das gesamte Logo habe exakt eine Farbe. Kein Mittelwert über Gelb und Orange zur Buttonfarbe machen                       |
+| Frühere Buttons            | `e603458` vom 22.08.2026 setzt den dunklen Aktionsakzent auf `#F89D13`; damals auch Verlaufsbuttons. Heller Basisakzent war Indigo                 | „Früher war alles exakt dasselbe Gelb“ ist durch diese Historie nicht belegt                                                                |
+| Gelbe Navigation           | `238eba6` fügt am 06.09.2026 `#FCC601` als Markentoken ein                                                                                         | Markentoken zentral weiterverwenden                                                                                                         |
+| Gelbe Admin-Buttons        | `399a5e0`, in Master `04def2e`, bindet primäre Adminaktionen in beiden Themes daran                                                                | Normalzustand ist dort bereits das gemessene Gelb; der laufende ältere Feature-Branch ist kein zuverlässiger Beleg für den aktuellen Master |
+| Hover                      | Aktueller Master verwendet `#E5B201`                                                                                                               | Dokumentierter dunklerer Zustand, keine nachgewiesene ursprüngliche Logo-Festlegung. Bei Referenzabnahme gesondert prüfen                   |
+
+Messverfahren: PNG als RGBA lesen; Pixel mit Alpha >245, Rot >220, Grün >150 und Blau <100 zählen; Originaldateien unverändert lassen. `logo-640.png` ist eine andere Darstellung mit Wortmarke/Verlauf und darf nicht als pauschaler Farbdurchschnitt verwendet werden.
+
+**Regel:** Normale primäre Buttons benutzen das helle `#FCC601` mit dunkler Schrift. Kein Wechsel zu Orange, Goldbraun, einem Tailwind-Standardgelb oder einem geschätzten Farbwert. Hover, Pressed, Disabled und Fokus sind eigene Zustände; sie dürfen den Basiston nicht ersetzen. Transparenz, Gradienten und farbige Schatten sind Teil der Farbabnahme, weil sie den sichtbaren Eindruck verändern. Bestehende Statusfarben nicht über denselben Markentoken umdefinieren.
+
+## Quellen und dokumentierte Übertragung
+
+Die folgenden Abschnitte decken die aufgerufenen Hauptkapitel der App Design Guidelines ab. Sie sind eine thematische Arbeitsgrundlage für Flipbase, keine vollständige Kopie aller Shopify-API- und Unterseiten. Detail-APIs werden vor der jeweiligen Umsetzung nachgeschlagen. Der aktuelle Admin-Zustand muss zusätzlich gemessen werden.
+
+### Ziele und Grundprinzipien
+
+Vorhersehbare Bedienung, kurze Wege zur Aufgabe, mobile Nutzbarkeit und Zugänglichkeit für unterschiedliche Nutzer sind die Leitziele. Gestaltung soll Arbeitsabläufe erleichtern und auf allen Seiten dieselben Erwartungen erfüllen. Für Flipbase heißt das: gleiche Aktion, gleiche Darstellung und gleiche Rückmeldung. Ein grüner Build ersetzt keine visuelle Abnahme. [App Design Guidelines](https://shopify.dev/docs/apps/design)
+
+### Seitenaufbau und Navigation
+
+Globale Navigation, Seitentitel und inhaltliche Aktionen haben getrennte Aufgaben. Detailseiten bieten einen Rückweg. Vollflächige Arbeitsbereiche passen zu aufwendigen Editoren; beim Verlassen mit ungespeicherten Änderungen muss der Nutzer entscheiden können. Keine unnötigen Bestätigungen bei unverändertem Inhalt. Die Shopify-eigene Einbettungs- und Extension-Technik wird nicht in Flipbase nachgebaut. [App structure](https://shopify.dev/docs/apps/design/app-structure)
+
+Menüeinträge kurz, substantivisch und nach Aufgaben geordnet benennen. Aktive Seite klar kennzeichnen. Tabs verändern den Inhalt unter sich, bleiben an ihrer Position und brechen nicht in mehrere Zeilen um. Hauptnavigation nicht als zweite Linkliste im Seiteninhalt wiederholen. Headeraktionen beziehen sich auf die aktuelle Seite. Shopify-spezifische App-nav-Grenzen wie die Behandlung ab sieben Einträgen sind keine allgemeine Vorgabe für Flipbases gesamte Sidebar. [Navigation](https://shopify.dev/docs/apps/design/navigation)
+
+### Layout und Dichte
+
+Abstände folgen einem 4-px-Raster. Datenreiche Listen nutzen die verfügbare Breite. Formulare und Einstellungen brauchen eine lesbare, aufgabenbezogene Breite. Unterschiedliche Dichte innerhalb derselben Arbeitsfläche vermeiden. Karten bündeln Zusammengehöriges; höchstens eine visuell primäre Aktion je Karte. Aktionen in Tabellen bleiben zurückhaltend. Einfache Berichtstabellen und verwaltbare Datensammlungen sind unterschiedliche Muster. [Layout](https://shopify.dev/docs/apps/design/layout)
+
+**Flipbase-Abnahme:** Tabellenkopf plus Kinder gemeinsam messen. Eine Zielhöhe am `th` reicht nicht, wenn Sortierbutton und Padding die tatsächliche Zeile höher machen. Fachlich notwendige zweite Zeilen und offene Details ausdrücklich gestalten. Scrollbereiche dürfen Popover nicht abschneiden.
+
+### Visuelle Hierarchie, Schrift, Farbe und Icons
+
+Normaler Text und beschriftete Interaktionen mindestens 13 px; ergänzende kleine Texte mindestens 12 px. Seitentitel muss als Hauptüberschrift erkennbar sein. Neutrale Textfarben dominieren. Status benötigt Text oder Symbol zusätzlich zur Farbe. Finanz- und Warnfarben erfüllen fachliche Aufgaben. Einheitlicher Einsatz von Icons in wiederkehrenden Listen. [Visual design](https://shopify.dev/docs/apps/design/visual-design)
+
+Flipbase behält lokal eingebundenes Inter und Lucide. Die Markenfarbe ist eine ausdrücklich festgelegte Abweichung von Shopifys Aktionspalette. Anordnung, Geometrie und Zustände sollen dennoch anhand der Referenz übereinstimmen. Keine neue Schrift oder Bibliothek als spontane Geschmacksentscheidung.
+
+### Karten, Ecken und Ebenen
+
+Shopifys aktuelle `Section` organisiert zusammengehörige Inhalte; Gestaltung und Überschriften passen sich dem Verschachtelungskontext an. Deshalb ist ein einzelner pauschaler Radius für alle Flächen keine belastbare Ableitung. [Section](https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/section)
+
+Nachgewiesenes Flipbase-Problem: `src/styles.css` setzt bei `.fb-admin :is(.linear-surface, .linear-card, .linear-card-interactive, .linear-kpi, .card)` `border-radius: 0.5rem`. `CardComponent` bietet gleichzeitig `rounded-md/lg/xl`. Insbesondere Surface-/KPI-Varianten werden damit unabhängig vom gewünschten Radius auf 8 px überschrieben. Andere Varianten und Popover können abweichen.
+
+**Regeln:** Radius getrennt für Karte, Tabellencontainer, verschachtelten Bereich, Feld, Button, Badge, Menü und Dialog dokumentieren. Außen- und Innenecken, Clipping, Trennlinien und Schatten gemeinsam erfassen. Kein globales 8-/12-/16-px-Rezept ohne Messung. Nach der Festlegung müssen Varianten im Komponentenvertrag nachvollziehbar sein; globale Overrides dürfen sie nicht aushebeln.
+
+### Tabellen und Listen
+
+Das Index-Table-Muster kombiniert Suche, Filter, Sortierung und bei passenden Aufgaben Mehrfachaktionen. Für größere Datenmengen wird eine Seitennavigation gebraucht. Titel/Link, Auswahl und Nebenaktion müssen unterscheidbar bedienbar sein. Hover-Aktionen erhalten auch Tastatur-/Touchzugang. [Index table](https://shopify.dev/docs/api/app-home/latest/patterns/compositions/index-table)
+
+Tabellen können auf schmalen Bildschirmen in priorisierte Listen übergehen. Währungen und Zahlen werden passend ausgerichtet. Datenladezustand und Seitennavigation sind Teil des Komponentenverhaltens. [Table](https://shopify.dev/docs/api/app-home/latest/web-components/layout-and-structure/table)
+
+Zusätzlicher Flipbase-Vertrag: Suche und Filter bleiben bei null Treffern sichtbar. „Keine Treffer“, „Noch keine Daten“, „Lädt“ und „Fehler“ sind getrennte Zustände. Ausgeblendete Spalten ändern keinen Export. Datumssortierung heißt Älteste/Neueste, numerische Sortierung Kleinste/Größte, Textsortierung A–Z/Z–A. Unbekannte Beträge werden nicht als null dargestellt. Persönliche Ansichten müssen Konto- und Workspacewechsel berücksichtigen.
+
+### Buttons und Eingaben
+
+Primäre, sekundäre und weitere Aktionsvarianten vermitteln unterschiedliche Wichtigkeit. Laden verhindert doppelte Auslösung. Navigationslinks und auslösende Aktionen bleiben semantisch unterscheidbar. [Button](https://shopify.dev/docs/api/app-home/latest/web-components/actions/button)
+
+Für Flipbase wird je Variante Normal, Hover, Pressed, Focus-visible, Disabled und Loading geprüft. Icon-only-Buttons benötigen einen zugänglichen Namen. Buttonhöhe, Iconmaß, Abstand zum Text, Rand und Schatten zusammen dokumentieren. Kein pauschales Skalieren aller Buttons beim Drücken ohne Referenzprüfung.
+
+### Formulare und Speichern
+
+Lange Formulare in benannte Abschnitte aufteilen; bei mehr als fünf Eingaben strukturiert gruppieren. Bedingte Eingaben erst zeigen, wenn relevant. Umfangreiche Bearbeitung gehört auf eine eigene Seite, nicht in ein überfülltes Modal. Shopify verwendet eine kontextbezogene Speichernleiste statt stiller automatischer Speicherung großer Formulare. [Forms](https://shopify.dev/docs/apps/design/user-experience/forms)
+
+Flipbase überträgt dieses Bedienmuster mit Angular: Änderungen sichtbar machen, Speichern/Verwerfen anbieten und Datenverlust beim Verlassen behandeln. Vorhandene bewusst automatische Einzelaktionen bleiben als gesonderte Interaktion dokumentiert. Reactive Forms und bestehende Validierungsregeln erhalten.
+
+### Rückmeldungen und Fehler
+
+Banner für anhaltende bzw. übergreifende Informationen, Inline-Meldungen direkt am Problem und kurze Toasts für unkritische Aktionsbestätigung verwenden. Toasts unten mittig und sehr kurz halten; Fehlermeldungen nicht ausschließlich kurz aufblitzen lassen. Warnungen sparsam einsetzen. Fehler erklären das Problem und einen nächsten Schritt. Feldfehler unter dem Feld anzeigen, üblicherweise nach Fokuswechsel oder Absenden statt während jeder Eingabe. Karten-/Dialogfehler gehören an den Anfang des betroffenen Bereichs. Weggeklickte Hinweise nicht ständig erneut anzeigen. [Alerts](https://shopify.dev/docs/apps/design/user-experience/alerts)
+
+Flipbase unterscheidet angefordert, läuft und abgeschlossen. Ein gestarteter Hintergrundauftrag ist noch kein Erfolg. Bestands-/Kostenwarnungen verschwinden nicht aus ästhetischen Gründen. Kein allgemeines Modal nur zum Anzeigen eines gewöhnlichen Feldfehlers.
+
+### Sprache und Inhalt
+
+Kurze verständliche Sätze, scannbare Überschriften und konsistente Begriffe verwenden. Dopplungen von Titel, Beschreibung und Navigation vermeiden. Ton an Situation anpassen: Fehlermeldungen sachlich und hilfreich. [Content](https://shopify.dev/docs/apps/design/content)
+
+Flipbase-Begriffe im Alltag der Anwender halten: Einkauf, Artikel, Bestand, Verkauf und Kosten. Nicht „Request dispatched“ oder interne Datenbankbegriffe anzeigen. Beispiel: „Aktualisierung angefordert“ statt „Kategorien aktualisiert“, solange der Auftrag noch nicht abgeschlossen ist. Screenreader-Namen genauso sorgfältig formulieren wie sichtbare Texte.
+
+### Startseite und Einführung
+
+Die Startseite liefert täglich relevante Kennzahlen, Status und nächste Aktionen. Hilfe ist auffindbar, aber behindert die Arbeit nicht. [App Home page](https://shopify.dev/docs/apps/design/user-experience/app-home-page)
+
+Einführung kurz und zielgerichtet halten; nur notwendige Angaben verlangen, Fortschritt verständlich zeigen und nicht notwendige Schritte überspringbar machen. Shopify empfiehlt höchstens fünf Schritte. [Onboarding](https://shopify.dev/docs/apps/design/user-experience/onboarding)
+
+Für Flipbase: Dashboard auf Handlungsbedarf und verlässliche Kennzahlen konzentrieren. Keine neue Onboarding-Funktion als Nebenaufgabe des Tabellenumbaus hinzufügen.
+
+### Marketing und Spezialbereiche
+
+Marke zurückhaltend einsetzen; Werbung darf die Arbeit nicht unterbrechen. Promotion ist ausblendbar und nachrangig, beispielsweise unten auf der Startseite oder auf einer separaten Seite. [Marketing](https://shopify.dev/docs/apps/design/user-experience/marketing)
+
+Das Kapitel Subscription apps beschreibt Abonnement-Kaufoptionen für Shopify-Kunden, einschließlich klarer Preise und Anpassung an das Storefront-Theme. Das ist keine Vorgabe, Flipbase um Abonnements zu erweitern. Aktuell nicht Teil des UI-Auftrags. [Subscription apps](https://shopify.dev/docs/apps/design/user-experience/subscription-apps)
+
+### Zugänglichkeit und Bewegung
+
+Native Struktur für Überschriften, Links, Buttons, Navigation und Tabellen verwenden. Sichtbarer Tastaturfokus, Zoom, Skip-Link, eindeutige Labels und Fehlerzuordnung gehören zum Standard. Nicht allein von Hover abhängen. Dynamische Rückmeldungen sind auch ohne Sicht verständlich. Modals erhalten Fokus und begrenzen ihn während der Öffnung; Escape und Fokus-Rückgabe funktionieren. Navigation ist kein ARIA-Menü. [Accessibility](https://shopify.dev/docs/apps/build/accessibility)
+
+Flipbase prüft AXE und zusätzlich manuell Tastatur, Kontrast, Fokus, Touch und reduzierte Bewegung. Navigation-Dropdown, Listbox, Radio-Gruppe, nichtmodales Popover und Modal haben unterschiedliche Tastaturverträge; nicht überall denselben Fokusmechanismus einsetzen. Alle Bewegungen brauchen definierte Dauer, Kurve, Richtung, Ein-/Ausblendung und Reduced-motion-Verhalten. Exakte Shopify-Bewegungswerte sind bis zur Live-Messung offen.
+
+## Messprotokoll für den Shopify-Admin
+
+Je Element festhalten: Datum, Route, Viewport, Browserzoom, Theme, Komponentenrolle, Zustand und Screenshot-Ausschnitt. Nur nichtinhaltliche Gestaltungsdaten dokumentieren; keine Kundendaten oder vollständigen internen CSS-Bundles ins Repo übernehmen.
+
+| Messgruppe  | Zu erfassen                                                                         |
+| ----------- | ----------------------------------------------------------------------------------- |
+| Geometrie   | Breite/Höhe, min/max, Padding je Seite, Gap, Margin, Borderbreite                   |
+| Ecken       | Alle vier berechneten Radien, äußere/innere Container, Overflow/Clipping            |
+| Oberfläche  | Hintergrund, Verlauf, Borderfarbe, Box-Shadow und Pseudoelemente                    |
+| Typografie  | Familie, Größe, Gewicht, Zeilenhöhe, Buchstabenabstand, Zahlenformat                |
+| Zustände    | Normal, Hover, Pressed, Fokus, Disabled, Loading, ausgewählt                        |
+| Bewegung    | Transition-/Animationsname, Dauer, Delay, Kurve, Transform-Origin, Öffnen/Schließen |
+| Platzierung | Anker, Abstand, Öffnungsrichtung, Verhalten an Fensterrändern und beim Scrollen     |
+| Responsiv   | Toolbarumbruch, Tabellen-/Listenwechsel, Spaltenpriorität, Touchflächen             |
+
+**Gemessen:** Inventar, Spalten-/Sortiermenü, Filter-/Suchmodus, Produktauswahl, Arbeitskarten, Detailseiten, Felder, Dialoge und weitere Seitenfamilien. Arbeitskarten/Popover 12 px, Felder/Buttons/Badges 8 px, Checkbox 4 px, normale Dialoge 16 px; Startseiten-Empfehlungskarten separat 24 px. Kontext, Schatten, Bewegung und Grenzen stehen im [Live-Messprotokoll](shopify-admin-live-reference.md). Noch offen sind insbesondere vollständige Zustandsmatrix, Mobile, Zoom und Reduced Motion.
+
+## Pflege und Abnahme
+
+- Neue/geänderte Komponente verweist auf die passende Regel und gegebenenfalls ihren gemessenen Referenzzustand.
+- Abweichungen dokumentieren: Nutzerentscheidung, fachliche Notwendigkeit oder Zugänglichkeit. Keine unaufgeforderte Änderung des Markengelbs.
+- Rollenbezogene Themevariablen zentral, Komponentenlayout in Tailwind-HTML. Neue visuelle Sonderfälle zunächst gegen existierende Bausteine prüfen.
+- Für jede relevante Komponente Desktop/Mobil, hell/dunkel, Tastatur und Reduced-motion vergleichen. Screenshots prüfen und nicht automatisch als neue Wahrheit übernehmen.
+- Steuer & DATEV: aktuell ausschließlich Tabelle, zugehörige Spaltenbedienung und Tabellenfehler. Gesamte Seite, Kennzahlen, Exportablauf und Steuerberaterdialog bleiben zurückgestellt.
+- Diese Datei und der Messstand werden bei Referenzänderungen aktualisiert. Ein alter npm-Tokenwert ist kein Beweis für das aktuelle Shopify-Admin-Design.

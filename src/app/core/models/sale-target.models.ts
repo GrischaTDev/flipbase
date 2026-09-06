@@ -25,4 +25,5 @@ export interface LegacySaleReconciliation {
 export interface SaleTargetRouteState {
   readonly saleTarget: SaleTarget;
   readonly legacyReconciliation?: LegacySaleReconciliation;
+  readonly returnUrl?: string;
 }

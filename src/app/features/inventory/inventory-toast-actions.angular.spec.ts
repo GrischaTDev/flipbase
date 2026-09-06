@@ -128,6 +128,16 @@ function erstelleInventarAnsicht(input: {
 }
 
 describe('InventoryComponent – Aktionsmeldungen', () => {
+  it('öffnet die Artikelanlage als eigene Seite', () => {
+    const navigate = vi.fn();
+    const komponente = Object.create(InventoryComponent.prototype) as InventoryComponent;
+    Object.assign(komponente, { router: { navigate } });
+
+    komponente.openCreatePage();
+
+    expect(navigate).toHaveBeenCalledWith(['/inventory/new']);
+  });
+
   it('verwendet eine gemeinsame Ansicht ohne Bestand- und Einzelstück-Tabs', () => {
     const template = readFileSync('src/app/features/inventory/inventory.component.html', 'utf8');
 
@@ -582,7 +592,7 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
 
     komponente.openLegacySaleReconciliation(legacy);
 
-    expect(navigate).toHaveBeenCalledWith(['/sales'], {
+    expect(navigate).toHaveBeenCalledWith(['/sales/new'], {
       state: {
         legacyReconciliation: {
           kind: 'legacy_sold_unverified',
@@ -593,6 +603,7 @@ describe('InventoryComponent – Aktionsmeldungen', () => {
           inventoryItemId: legacy.id,
           title: legacy.title,
         },
+        returnUrl: '/inventory',
       },
     });
   });

@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
+import { unsavedEntryGuard } from './shared/guards/unsaved-entry.guard';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
 import { operatorGuard } from './core/guards/operator.guard';
-import { purchaseEntryGuard } from './features/purchases/guards/purchase-entry.guard';
 
 export const routes: Routes = [
   // Kundenansicht des Shops.
@@ -92,7 +92,7 @@ export const routes: Routes = [
       },
       {
         path: 'purchases/new',
-        canDeactivate: [purchaseEntryGuard],
+        canDeactivate: [unsavedEntryGuard],
         loadComponent: () =>
           import('./features/purchases/pages/purchase-create/purchase-create.component').then(
             (m) => m.PurchaseCreateComponent,
@@ -109,6 +109,14 @@ export const routes: Routes = [
         path: 'inventory',
         loadComponent: () =>
           import('./features/inventory/inventory.component').then((m) => m.InventoryComponent),
+      },
+      {
+        path: 'inventory/new',
+        canDeactivate: [unsavedEntryGuard],
+        loadComponent: () =>
+          import('./features/inventory/pages/item-create/item-create.component').then(
+            (m) => m.ItemCreateComponent,
+          ),
       },
       {
         path: 'inventory/:id',
@@ -144,6 +152,14 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/image-optimizer/image-optimizer.component').then(
             (m) => m.ImageOptimizerComponent,
+          ),
+      },
+      {
+        path: 'sales/new',
+        canDeactivate: [unsavedEntryGuard],
+        loadComponent: () =>
+          import('./features/sales/pages/sale-create/sale-create.component').then(
+            (m) => m.SaleCreateComponent,
           ),
       },
       {

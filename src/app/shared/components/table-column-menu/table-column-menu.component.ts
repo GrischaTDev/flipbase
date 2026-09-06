@@ -106,6 +106,17 @@ export class TableColumnMenuComponent<
     () => this.columns().filter((col) => col.visible).length,
   );
 
+  protected readonly currentSortOption = computed(() =>
+    this.sortOptions().find((option) => option.value === this.currentSort().field),
+  );
+
+  protected sortDirectionLabel(direction: SortDirection): string {
+    const kind = this.currentSortOption()?.kind ?? 'text';
+    if (kind === 'date') return direction === 'asc' ? 'Älteste zuerst' : 'Neueste zuerst';
+    if (kind === 'number') return direction === 'asc' ? 'Kleinste zuerst' : 'Größte zuerst';
+    return direction === 'asc' ? 'A–Z' : 'Z–A';
+  }
+
   toggleOpen(): void {
     const nextIsOpen = !this.isOpen();
     this.isOpen.set(nextIsOpen);
@@ -148,17 +159,24 @@ export class TableColumnMenuComponent<
   onEscapePressed(): void {
     if (this.isSortMenuOpen()) {
       this.isSortMenuOpen.set(false);
+      this.sortTriggerBtn()?.nativeElement.focus();
       return;
     }
     this.close();
   }
 
   toggleSortMenu(): void {
-    this.isSortMenuOpen.update((isOpen) => !isOpen);
+    const opens = !this.isSortMenuOpen();
+    this.isSortMenuOpen.set(opens);
     if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
       window.requestAnimationFrame(() => {
         this.positionPanel();
         this.positionSortMenu();
+        if (opens) {
+          this.sortMenu()
+            ?.nativeElement.querySelector<HTMLElement>('[role="option"][aria-selected="true"]')
+            ?.focus();
+        }
       });
     }
   }
@@ -166,11 +184,25 @@ export class TableColumnMenuComponent<
   selectSortField(field: TSortField): void {
     this.sortChanged.emit({ field, direction: this.currentSort().direction });
     this.isSortMenuOpen.set(false);
+    this.sortTriggerBtn()?.nativeElement.focus();
   }
 
   selectSortDirection(direction: SortDirection): void {
     this.sortChanged.emit({ field: this.currentSort().field, direction });
     this.isSortMenuOpen.set(false);
+    this.sortTriggerBtn()?.nativeElement.focus();
+  }
+
+  moveSortOptionFocus(event: Event, step: -1 | 1): void {
+    event.preventDefault();
+    const options = Array.from(
+      this.sortMenu()?.nativeElement.querySelectorAll<HTMLButtonElement>('[role="option"]') ?? [],
+    );
+    if (options.length === 0) return;
+    const currentIndex = options.indexOf(document.activeElement as HTMLButtonElement);
+    const nextIndex =
+      currentIndex < 0 ? 0 : (currentIndex + step + options.length) % options.length;
+    options[nextIndex].focus();
   }
 
   onViewportChange(): void {

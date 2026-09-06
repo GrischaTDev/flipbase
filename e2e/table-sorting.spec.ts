@@ -18,10 +18,13 @@ test('zeigt die Sortierung inline und sortiert Sales über den Tabellenkopf', as
   const sortMenu = menu.locator('[data-sort-menu]');
   await expect(sortMenu).toBeVisible();
   await expect(sortMenu.getByRole('option', { name: 'Artikelname' })).toBeVisible();
-  await expect(sortMenu.getByRole('option', { name: 'A-Z' })).toBeVisible();
-  await expect(sortMenu.getByRole('option', { name: 'Z-A' })).toBeVisible();
+  await expect(sortMenu.getByRole('option', { name: 'Älteste zuerst' })).toBeVisible();
+  await expect(sortMenu.getByRole('option', { name: 'Neueste zuerst' })).toBeVisible();
 
   await sortMenu.getByRole('option', { name: 'Artikelname' }).click();
+  await panel.locator('[data-sort-trigger]').click();
+  await expect(sortMenu.getByRole('option', { name: 'A–Z' })).toBeVisible();
+  await expect(sortMenu.getByRole('option', { name: 'Z–A' })).toBeVisible();
   await page.keyboard.press('Escape');
 
   const titleHeader = page.locator('th:has([data-table-sort-field="title"])');

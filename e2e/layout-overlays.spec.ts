@@ -46,35 +46,21 @@ test('hält die Kopfzeile auch auf schmalen Bildschirmen im sichtbaren Bereich',
   }
 });
 
-test('deckt beim Verkauf den Header ab und sperrt den Hintergrund bis zum Schließen', async ({
-  page,
-}) => {
+test('öffnet den Verkauf als Seite und hält globale Navigation erreichbar', async ({ page }) => {
   await startDemoMode(page);
   await page.goto('/inventory');
   await page
     .getByRole('button', { name: 'Super Nintendo SNES Original Controller verkaufen' })
     .click();
-  const dialog = page.getByRole('dialog', { name: 'Verkauf erfassen' });
-  await expect(dialog).toBeVisible();
-  await expect
-    .poll(() =>
-      page.evaluate(() => !!document.elementFromPoint(500, 20)?.closest('[appModalDialog]')),
-    )
-    .toBe(true);
+  await expect(page).toHaveURL(/\/sales\/new$/);
+  await expect(page.getByRole('heading', { name: 'Verkauf erfassen' })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   const header = page.locator('app-header');
-  expect(await header.evaluate((el) => !!el.closest('[inert]'))).toBe(true);
-  await page
-    .locator('app-header button')
-    .last()
-    .evaluate((el) => el.focus());
-  expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
-  await page.keyboard.press('Tab');
-  expect(await dialog.evaluate((el) => el.contains(document.activeElement))).toBe(true);
-  await page.keyboard.press('Escape');
-  await expect(dialog).toBeHidden();
   expect(await header.evaluate((el) => !!el.closest('[inert]'))).toBe(false);
   await page.getByRole('button', { name: 'EN', exact: true }).click();
   await expect(page.getByRole('button', { name: 'EN', exact: true })).toHaveClass(
     /text-fb-text-primary/,
   );
+  await page.getByRole('button', { name: 'Zurück zu Verkäufen' }).click();
+  await expect(page).toHaveURL(/\/inventory$/);
 });

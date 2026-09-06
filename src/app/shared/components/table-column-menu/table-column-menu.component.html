@@ -168,6 +168,8 @@
     [style.left.px]="sortMenuPosition().left"
     [style.max-height.px]="sortMenuMaxHeight()"
     data-sort-menu
+    (keydown.arrowDown)="moveSortOptionFocus($event, 1)"
+    (keydown.arrowUp)="moveSortOptionFocus($event, -1)"
     class="fb-popover-enter fixed z-[80] w-60 max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-fb-border bg-fb-surface p-1.5 text-fb-text-primary shadow-xl"
     [class.origin-top-right]="sortMenuPlacement() === 'below'"
     [class.origin-bottom-right]="sortMenuPlacement() === 'above'"
@@ -209,7 +211,7 @@
               <svg [lucideIcon]="icons.check" class="h-3.5 w-3.5" aria-hidden="true"></svg>
             }
           </span>
-          <span>{{ direction === 'asc' ? 'A-Z' : 'Z-A' }}</span>
+          <span>{{ sortDirectionLabel(direction) }}</span>
         </button>
       }
     </div>

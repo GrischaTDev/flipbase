@@ -136,6 +136,15 @@ Statische Dateien: `public/images/` (bevorzugt `.svg`/`.webp`), `public/i18n/`,
 
 ## Styling
 
+- Vor UI-Änderungen `docs/design/admin-ui-guidelines.md` lesen. Dort stehen
+  Shopify-Quellen, der Messvertrag und die verbindlichen Nutzerentscheidungen.
+- Das helle Logo-Gelb `#fcc601` bleibt der primäre Markenakzent. Nicht ungefragt
+  durch Orange, Goldbraun oder ein anderes Gelb ersetzen.
+- Radien, Schatten, Dichte und Bewegung anhand der dokumentierten Referenz
+  umsetzen. Ungeprüfte Schätzwerte nicht als Shopify-Originalwerte ausgeben.
+- Steuer & DATEV vorerst nur auf Tabellenebene angleichen; die übrige Seite
+  bleibt aus diesem Designumbau ausgeklammert.
+
 - Tailwind-Klassen direkt im HTML. Eigene CSS-/SCSS-Dateien vermeiden.
 - SCSS nur, wenn es nicht anders geht (komplexe Animationen) oder das HTML durch
   zu viele Klassen unlesbar würde.

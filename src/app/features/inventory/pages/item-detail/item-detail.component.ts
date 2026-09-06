@@ -441,8 +441,9 @@ export class ItemDetailComponent {
         inventoryItemId: item.id,
       },
       saleTarget: { kind: 'inventory_item', inventoryItemId: item.id, title: item.title },
+      returnUrl: `/inventory/${item.id}`,
     };
-    void this.router.navigate(['/sales'], {
+    void this.router.navigate(['/sales/new'], {
       state,
     });
   }

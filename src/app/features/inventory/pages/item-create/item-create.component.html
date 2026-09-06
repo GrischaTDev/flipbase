@@ -1,0 +1,12 @@
+<app-entry-page-layout
+  title="Artikel anlegen"
+  subtitle="Produktdaten, Zustand und Einkaufswert übersichtlich erfassen"
+  backLabel="Zurück zum Inventar"
+  (cancelled)="returnToInventory()"
+>
+  <app-item-create-modal
+    presentation="page"
+    (closed)="returnToInventory()"
+    (created)="itemCreated()"
+  />
+</app-entry-page-layout>

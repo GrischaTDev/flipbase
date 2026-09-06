@@ -1,6 +1,19 @@
 import { expect, test } from '@playwright/test';
 import { startDemoMode } from './support/demo';
 
+test('keeps purchase search available when no rows match', async ({ page }) => {
+  await startDemoMode(page);
+  await page.goto('/purchases');
+  const search = page.getByRole('searchbox', { name: 'Einkäufe durchsuchen' });
+
+  await search.fill('zzznichtvorhanden');
+
+  await expect(search).toBeVisible();
+  await expect(page.getByText('Keine passenden Einkäufe', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: 'Suche und Filter löschen', exact: true }).click();
+  await expect(page.locator('[data-purchase-row]').first()).toBeVisible();
+});
+
 test('opens purchase entry as a dedicated page', async ({ page }) => {
   await startDemoMode(page);
   await page.goto('/purchases');
@@ -20,7 +33,7 @@ test('leaves a pristine entry page without prompting', async ({ page }) => {
     await dialog.dismiss();
   });
 
-  await page.getByRole('link', { name: 'Zurück zu Einkäufen' }).click();
+  await page.getByRole('button', { name: 'Zurück zu Einkäufen' }).click();
 
   await expect(page).toHaveURL(/\/purchases$/);
   expect(prompts).toBe(0);
@@ -32,12 +45,12 @@ test('keeps edits after cancelling navigation and leaves after confirmation', as
   await page.locator('#purchaseTitle').fill('Nicht verwerfen');
 
   page.once('dialog', (dialog) => dialog.dismiss());
-  await page.getByRole('link', { name: 'Zurück zu Einkäufen' }).click();
+  await page.getByRole('button', { name: 'Zurück zu Einkäufen' }).click();
   await expect(page).toHaveURL(/\/purchases\/new$/);
   await expect(page.locator('#purchaseTitle')).toHaveValue('Nicht verwerfen');
 
   page.once('dialog', (dialog) => dialog.accept());
-  await page.getByRole('link', { name: 'Zurück zu Einkäufen' }).click();
+  await page.getByRole('button', { name: 'Zurück zu Einkäufen' }).click();
   await expect(page).toHaveURL(/\/purchases$/);
 });
 

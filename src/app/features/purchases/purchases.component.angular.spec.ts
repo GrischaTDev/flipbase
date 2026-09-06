@@ -232,6 +232,27 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     );
   });
 
+  it('behält Suche und Rücksetzung bei einer Suche ohne Treffer sichtbar', () => {
+    const fixture = TestBed.createComponent(PurchasesComponent);
+    fixture.detectChanges();
+    fixture.componentInstance.searchQuery.set('zzznichtvorhanden');
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const search = host.querySelector<HTMLInputElement>('input[type="search"]');
+    const reset = host.querySelector<HTMLButtonElement>('[data-reset-purchase-view]');
+
+    expect(search).not.toBeNull();
+    expect(search?.value).toBe('zzznichtvorhanden');
+    expect(host.textContent).toContain('Keine passenden Einkäufe');
+
+    reset?.click();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.searchQuery()).toBe('');
+    expect(host.querySelectorAll('[data-purchase-table-row]')).toHaveLength(2);
+  });
+
   it('besteht für die neue Einkaufsliste den strukturellen AXE-Check', async () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();

@@ -15,31 +15,26 @@
     [class.my-auto]="presentation() === 'dialog'"
     [class.animate-modal-card]="presentation() === 'dialog'"
   >
-    <div
-      class="flex shrink-0 items-center justify-between"
-      [class.border-b]="presentation() === 'dialog'"
-      [class.border-fb-line]="presentation() === 'dialog'"
-      [class.bg-fb-well]="presentation() === 'dialog'"
-      [class.p-5]="presentation() === 'dialog'"
-      [class.pb-4]="presentation() === 'page'"
-    >
-      <div class="flex items-center gap-2.5">
-        <div
-          class="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center justify-center"
-        >
-          <svg [lucideIcon]="bagIcon" class="w-4 h-4"></svg>
+    @if (presentation() === 'dialog') {
+      <div
+        class="flex shrink-0 items-center justify-between border-b border-fb-line bg-fb-well p-5"
+      >
+        <div class="flex items-center gap-2.5">
+          <div
+            class="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-500 flex items-center justify-center"
+          >
+            <svg [lucideIcon]="bagIcon" class="w-4 h-4"></svg>
+          </div>
+          <div>
+            <h2 class="text-sm font-bold text-fb-text-primary">
+              {{ istBearbeitung() ? 'Einkauf bearbeiten' : 'Einkauf erfassen' }}
+            </h2>
+            <p class="text-[11px] text-fb-text-muted">
+              Normaler Einkauf, Mystery Box oder größerer Warenposten mit Zusatzkosten
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 class="text-sm font-bold text-fb-text-primary">
-            {{ istBearbeitung() ? 'Einkauf bearbeiten' : 'Einkauf erfassen' }}
-          </h2>
-          <p class="text-[11px] text-fb-text-muted">
-            Normaler Einkauf, Mystery Box oder größerer Warenposten mit Zusatzkosten
-          </p>
-        </div>
-      </div>
 
-      @if (presentation() === 'dialog') {
         <button
           type="button"
           (click)="closed.emit()"
@@ -48,8 +43,8 @@
         >
           <svg [lucideIcon]="closeIcon" class="w-4 h-4"></svg>
         </button>
-      }
-    </div>
+      </div>
+    }
 
     <div
       class="flex-1 space-y-4"

@@ -22,14 +22,9 @@
       </app-button>
 
       <!-- Standard Einkauf erfassen -->
-      <button
-        type="button"
-        routerLink="/purchases/new"
-        class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs cursor-pointer select-none shadow-lg shadow-indigo-500/20"
-      >
-        <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5 stroke-[2.5]" aria-hidden="true"></svg>
-        <span>{{ 'PURCHASES.NEW_PURCHASE' | translate }}</span>
-      </button>
+      <app-button variant="primary" size="md" [icon]="plusIcon" routerLink="/purchases/new">
+        {{ 'PURCHASES.NEW_PURCHASE' | translate }}
+      </app-button>
     </div>
   </app-page-header>
 
@@ -68,59 +63,59 @@
   }
 
   <!-- Polaris-nahe Einkaufstabelle -->
-  @if (purchaseRows().length > 0) {
-    <div data-purchase-list class="linear-surface relative overflow-visible rounded-xl">
-      <div class="flex flex-wrap items-center gap-2 border-b border-fb-line p-2">
-        <div class="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-xs">
-          @for (tab of purchaseTabs; track tab.value) {
-            <button
-              type="button"
-              (click)="activeTab.set(tab.value)"
-              class="cursor-pointer whitespace-nowrap rounded-md px-2.5 py-1.5 font-semibold transition"
-              [class.bg-fb-line]="activeTab() === tab.value"
-              [class.text-fb-text-primary]="activeTab() === tab.value"
-              [class.text-fb-text-secondary]="activeTab() !== tab.value"
-              [class.hover:bg-fb-surface-alt]="activeTab() !== tab.value"
-              [attr.aria-pressed]="activeTab() === tab.value"
-            >
-              {{
-                tab.value === 'all'
-                  ? tab.label + ' (' + purchaseService.purchases().length + ')'
-                  : tab.label
-              }}
-            </button>
-          }
-        </div>
-        <label class="relative w-full sm:w-56">
-          <span class="sr-only">Einkäufe durchsuchen</span>
-          <svg
-            [lucideIcon]="searchIcon"
-            class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-fb-text-muted"
-            aria-hidden="true"
-          ></svg>
-          <input
-            [value]="searchQuery()"
-            (input)="searchQuery.set($any($event.target).value)"
-            type="search"
-            placeholder="Suchen und filtern …"
-            class="linear-input w-full rounded-md py-2 pl-9 pr-3 text-[13px]"
-          />
-        </label>
-        <div class="border-l border-fb-line pl-2">
-          <app-table-column-menu
-            [columns]="tablePrefs().columns"
-            [sortOptions]="purchasesTableConfig.sortOptions"
-            [currentSort]="tablePrefs().sort"
-            [viewModified]="viewModified()"
-            (columnVisibilityToggled)="toggleColumnVisibility($event)"
-            (columnsReordered)="onColumnsReordered($event)"
-            (sortChanged)="onSortChanged($event)"
-            (resetRequested)="resetTablePreferences()"
-            (viewResetRequested)="resetView()"
-          />
-        </div>
+  <div data-purchase-list class="linear-surface relative overflow-visible rounded-xl">
+    <div class="flex flex-wrap items-center gap-2 border-b border-fb-line p-2">
+      <div class="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-xs">
+        @for (tab of purchaseTabs; track tab.value) {
+          <button
+            type="button"
+            (click)="activeTab.set(tab.value)"
+            class="cursor-pointer whitespace-nowrap rounded-md px-2.5 py-1.5 font-semibold transition"
+            [class.bg-fb-line]="activeTab() === tab.value"
+            [class.text-fb-text-primary]="activeTab() === tab.value"
+            [class.text-fb-text-secondary]="activeTab() !== tab.value"
+            [class.hover:bg-fb-surface-alt]="activeTab() !== tab.value"
+            [attr.aria-pressed]="activeTab() === tab.value"
+          >
+            {{
+              tab.value === 'all'
+                ? tab.label + ' (' + purchaseService.purchases().length + ')'
+                : tab.label
+            }}
+          </button>
+        }
       </div>
+      <label class="relative w-full sm:w-56">
+        <span class="sr-only">Einkäufe durchsuchen</span>
+        <svg
+          [lucideIcon]="searchIcon"
+          class="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-fb-text-muted"
+          aria-hidden="true"
+        ></svg>
+        <input
+          [value]="searchQuery()"
+          (input)="searchQuery.set($any($event.target).value)"
+          type="search"
+          placeholder="Suchen und filtern …"
+          class="linear-input w-full rounded-md py-2 pl-9 pr-3 text-[13px]"
+        />
+      </label>
+      <div class="border-l border-fb-line pl-2">
+        <app-table-column-menu
+          [columns]="tablePrefs().columns"
+          [sortOptions]="purchasesTableConfig.sortOptions"
+          [currentSort]="tablePrefs().sort"
+          [viewModified]="viewModified()"
+          (columnVisibilityToggled)="toggleColumnVisibility($event)"
+          (columnsReordered)="onColumnsReordered($event)"
+          (sortChanged)="onSortChanged($event)"
+          (resetRequested)="resetTablePreferences()"
+          (viewResetRequested)="resetView()"
+        />
+      </div>
+    </div>
 
+    @if (purchaseRows().length > 0) {
       <div class="overflow-x-auto">
         <table data-purchase-table class="linear-table min-w-[760px]">
           <caption class="sr-only">
@@ -260,31 +255,43 @@
           </tbody>
         </table>
       </div>
-    </div>
-  } @else {
-    <!-- Empty State -->
-    <div class="linear-surface rounded-xl p-10 text-center">
-      <div
-        class="w-10 h-10 rounded-lg bg-fb-well border border-fb-line text-fb-text-muted mx-auto flex items-center justify-center mb-3"
-      >
-        <svg [lucideIcon]="bagIcon" class="w-5 h-5"></svg>
+    } @else {
+      <div class="p-10 text-center">
+        <div
+          class="w-10 h-10 rounded-lg bg-fb-well border border-fb-line text-fb-text-muted mx-auto flex items-center justify-center mb-3"
+        >
+          <svg [lucideIcon]="bagIcon" class="w-5 h-5"></svg>
+        </div>
+        @if (viewModified()) {
+          <h3 class="text-sm font-bold text-fb-text-secondary">Keine passenden Einkäufe</h3>
+          <p class="mx-auto mb-4 mt-1 max-w-sm text-xs text-fb-text-muted">
+            Ändere den Suchbegriff oder setze die aktuelle Ansicht zurück.
+          </p>
+          <button
+            data-reset-purchase-view
+            type="button"
+            (click)="resetView()"
+            class="linear-btn-secondary inline-flex cursor-pointer items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
+          >
+            Suche und Filter löschen
+          </button>
+        } @else {
+          <h3 class="text-sm font-bold text-fb-text-secondary">Noch keine Einkäufe</h3>
+          <p class="mx-auto mb-4 mt-1 max-w-sm text-xs text-fb-text-muted">
+            Erfasse deinen ersten Einkauf, um ihn hier zu verwalten.
+          </p>
+          <button
+            type="button"
+            routerLink="/purchases/new"
+            class="linear-btn-primary inline-flex cursor-pointer items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
+          >
+            <svg [lucideIcon]="plusIcon" class="h-3.5 w-3.5" aria-hidden="true"></svg>
+            <span>Neuer Einkauf</span>
+          </button>
+        }
       </div>
-      <h3 class="text-sm font-bold text-fb-text-secondary">
-        Noch keine Einkäufe in dieser Kategorie
-      </h3>
-      <p class="text-xs text-fb-text-muted max-w-sm mx-auto mt-1 mb-4">
-        Erfasse deinen ersten Einkauf aus Kleinanzeigen, eBay oder Flohmärkten.
-      </p>
-      <button
-        type="button"
-        routerLink="/purchases/new"
-        class="linear-btn-primary inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg font-semibold text-xs transition cursor-pointer"
-      >
-        <svg [lucideIcon]="plusIcon" class="w-3.5 h-3.5"></svg>
-        <span>Neuer Einkauf</span>
-      </button>
-    </div>
-  }
+    }
+  </div>
 
   <!-- Flohmarkt-Schnellerfassungs & Bargeld-Modal -->
   @if (isFleaMarketModalOpen()) {
