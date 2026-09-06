@@ -25,7 +25,13 @@ describe('CategoryStore', () => {
     await client.from('vinted_categories').delete().gte('id', 0);
     await client
       .from('vinted_category_syncs')
-      .update({ refreshed_at: null, requested_at: null, category_count: 0, last_error: null })
+      .update({
+        refreshed_at: null,
+        requested_at: null,
+        last_attempt_at: null,
+        category_count: 0,
+        last_error: null,
+      })
       .eq('id', 1);
   });
 
@@ -227,5 +233,14 @@ describe('CategoryStore', () => {
 
     expect(sync?.last_error).toBe('Kein catalogTree im HTML gefunden');
     expect(sync?.refreshed_at).toBe('2026-09-06T12:00:00+00:00');
+
+    // Genau dieser Zustand treibt den Rueckzug: `markFailed` ruehrt
+    // `refreshed_at` nicht an, der juengere Versuchszeitpunkt ist das einzige
+    // Zeichen des Fehlschlags. Liest `readSyncState` ihn nicht mit, waere die
+    // Auffrischung bei jedem Takt wieder faellig - deshalb wird er hier
+    // ausdruecklich zurueckgelesen und nicht nur geschrieben.
+    const state = await store.readSyncState();
+    expect(state.refreshedAt).toBe('2026-09-06T12:00:00+00:00');
+    expect(state.lastAttemptAt).toBe('2026-09-06T13:00:00+00:00');
   });
 });

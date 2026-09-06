@@ -12,6 +12,19 @@ export interface CategoryStoreLike {
 export interface RefreshDeps {
   store: CategoryStoreLike;
   fetchHomepage: () => Promise<string>;
+  /**
+   * Fragt das Anfragebudget um Erlaubnis - dieselbe reine Frage, die auch der
+   * Taktgeber in scheduler.ts vor jeder Abfrage stellt (siehe den Kommentar
+   * dort): Sie zaehlt selbst nichts mit, gezaehlt wird auf der Transportebene
+   * in countingFetch.
+   *
+   * Ohne diese Frage waere das Abholen der Startseite die einzige ausgehende
+   * Anfrage, die nicht verweigert werden kann: Sie zaehlt zwar mit, laesst
+   * sich aber nicht bremsen - und drueckte damit das Budget der eigentlichen
+   * Sammelabfragen auf null. Der Dienst haemmerte die Startseite und stellte
+   * zugleich seine Arbeit ein.
+   */
+  hasCapacity: () => boolean;
   maxAgeMs: number;
   log: Logger;
 }
@@ -27,6 +40,10 @@ export async function refreshCategoriesIfDue(
   deps: RefreshDeps,
   now: Date,
 ): Promise<'skipped' | 'refreshed' | 'failed'> {
+  // Vor allem anderen, noch vor dem Lesen des Auffrischungsstands: Ist im
+  // Fenster kein Platz, waere selbst die Datenbankabfrage vergeblich.
+  if (!deps.hasCapacity()) return 'skipped';
+
   let state: CategorySyncState;
 
   try {

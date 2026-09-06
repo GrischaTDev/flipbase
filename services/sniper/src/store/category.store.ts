@@ -30,7 +30,7 @@ export class CategoryStore {
   async readSyncState(): Promise<CategorySyncState> {
     const { data, error } = await this.client
       .from('vinted_category_syncs')
-      .select('refreshed_at, requested_at')
+      .select('refreshed_at, requested_at, last_attempt_at')
       .eq('id', 1)
       .single();
 
@@ -39,6 +39,10 @@ export class CategoryStore {
     return {
       refreshedAt: (data?.['refreshed_at'] as string | null) ?? null,
       requestedAt: (data?.['requested_at'] as string | null) ?? null,
+      // Wird fuer den Rueckzug nach einem Fehlschlag gebraucht: `markFailed`
+      // ruehrt `refreshed_at` nicht an, ohne diesen Wert waere die
+      // Auffrischung nach jedem Fehlschlag sofort wieder faellig.
+      lastAttemptAt: (data?.['last_attempt_at'] as string | null) ?? null,
     };
   }
 

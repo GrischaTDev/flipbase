@@ -79,10 +79,14 @@ while (!controller.signal.aborted) {
     // Vor dem Sammeln, nicht danach: Faellt das Einlesen aus, soll das Sammeln
     // trotzdem laufen - und die Kategorien sind fuer den naechsten Takt aktuell.
     // Das Abholen der Startseite geht ueber dieselbe gezaehlte fetch-Funktion
-    // wie alles andere, sonst zaehlt es nicht gegen das Budget.
+    // wie alles andere, sonst zaehlt es nicht gegen das Budget - und es fragt
+    // vorher mit `hasCapacity()` um Erlaubnis, genau wie der Taktgeber vor
+    // jeder Abfrage. Nur mitzaehlen ohne fragen hiesse: Diese eine Anfrage
+    // laesst sich nie verweigern, verbraucht aber das Budget der anderen.
     await refreshCategoriesIfDue(
       {
         store: categories,
+        hasCapacity: () => budget.hasCapacity(),
         fetchHomepage: async () => {
           const response = await counted(config.vintedBaseUrl, {
             headers: { Accept: 'text/html,application/xhtml+xml', 'User-Agent': config.userAgent },

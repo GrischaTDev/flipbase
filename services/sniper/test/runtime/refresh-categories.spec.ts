@@ -20,11 +20,15 @@ function storeStub(state: CategorySyncState) {
 
 describe('refreshCategoriesIfDue', () => {
   it('tut nichts, solange der Stand jung genug ist', async () => {
-    const store = storeStub({ refreshedAt: '2026-09-06T06:00:00.000Z', requestedAt: null });
+    const store = storeStub({
+      refreshedAt: '2026-09-06T06:00:00.000Z',
+      requestedAt: null,
+      lastAttemptAt: '2026-09-06T06:00:00.000Z',
+    });
     const fetchHomepage = vi.fn(async () => html);
 
     const result = await refreshCategoriesIfDue(
-      { store, fetchHomepage, maxAgeMs: DAY_MS, log },
+      { store, fetchHomepage, hasCapacity: () => true, maxAgeMs: DAY_MS, log },
       now,
     );
 
@@ -34,11 +38,11 @@ describe('refreshCategoriesIfDue', () => {
   });
 
   it('liest ein und haelt den Stand fest, wenn faellig', async () => {
-    const store = storeStub({ refreshedAt: null, requestedAt: null });
+    const store = storeStub({ refreshedAt: null, requestedAt: null, lastAttemptAt: null });
     const fetchHomepage = vi.fn(async () => html);
 
     const result = await refreshCategoriesIfDue(
-      { store, fetchHomepage, maxAgeMs: DAY_MS, log },
+      { store, fetchHomepage, hasCapacity: () => true, maxAgeMs: DAY_MS, log },
       now,
     );
 
@@ -49,11 +53,11 @@ describe('refreshCategoriesIfDue', () => {
   });
 
   it('haelt einen Fehlschlag fest und wirft nicht', async () => {
-    const store = storeStub({ refreshedAt: null, requestedAt: null });
+    const store = storeStub({ refreshedAt: null, requestedAt: null, lastAttemptAt: null });
     const fetchHomepage = vi.fn(async () => '<html><body>nichts</body></html>');
 
     const result = await refreshCategoriesIfDue(
-      { store, fetchHomepage, maxAgeMs: DAY_MS, log },
+      { store, fetchHomepage, hasCapacity: () => true, maxAgeMs: DAY_MS, log },
       now,
     );
 
@@ -63,18 +67,73 @@ describe('refreshCategoriesIfDue', () => {
   });
 
   it('schreibt nichts, wenn schon das Abholen scheitert', async () => {
-    const store = storeStub({ refreshedAt: null, requestedAt: null });
+    const store = storeStub({ refreshedAt: null, requestedAt: null, lastAttemptAt: null });
     const fetchHomepage = vi.fn(async () => {
       throw new Error('HTTP 503');
     });
 
     const result = await refreshCategoriesIfDue(
-      { store, fetchHomepage, maxAgeMs: DAY_MS, log },
+      { store, fetchHomepage, hasCapacity: () => true, maxAgeMs: DAY_MS, log },
       now,
     );
 
     expect(result).toBe('failed');
     expect(store.replaceAll).not.toHaveBeenCalled();
     expect(store.markFailed).toHaveBeenCalledWith('HTTP 503', now);
+  });
+
+  // Das Abholen der Startseite ist die einzige ausgehende Anfrage des Dienstes,
+  // die nicht aus dem Taktgeber kommt. Ohne diese Frage ans Budget zaehlte sie
+  // zwar mit, liesse sich aber nie verweigern - und nahm damit den
+  // Sammelabfragen den Platz weg. Der Fall ist bewusst faellig gestellt: Ohne
+  // die Pruefung wuerde hier eingelesen.
+  it('fragt gar nicht erst ab, wenn im Anfragebudget kein Platz ist', async () => {
+    const store = storeStub({ refreshedAt: null, requestedAt: null, lastAttemptAt: null });
+    const fetchHomepage = vi.fn(async () => html);
+
+    const result = await refreshCategoriesIfDue(
+      { store, fetchHomepage, hasCapacity: () => false, maxAgeMs: DAY_MS, log },
+      now,
+    );
+
+    expect(result).toBe('skipped');
+    expect(store.readSyncState).not.toHaveBeenCalled();
+    expect(fetchHomepage).not.toHaveBeenCalled();
+    expect(store.replaceAll).not.toHaveBeenCalled();
+  });
+
+  // Ohne diesen Fall bliebe der Test oben auch dann gruen, wenn `hasCapacity`
+  // gar nicht gefragt, sondern schlicht nie eingelesen wuerde.
+  it('liest ein, wenn im Anfragebudget Platz ist', async () => {
+    const store = storeStub({ refreshedAt: null, requestedAt: null, lastAttemptAt: null });
+    const fetchHomepage = vi.fn(async () => html);
+
+    const result = await refreshCategoriesIfDue(
+      { store, fetchHomepage, hasCapacity: () => true, maxAgeMs: DAY_MS, log },
+      now,
+    );
+
+    expect(result).toBe('refreshed');
+    expect(fetchHomepage).toHaveBeenCalledOnce();
+  });
+
+  // Der Rueckzug wirkt bis hier durch: `markFailed` schreibt nur
+  // `last_attempt_at`. Steht dort ein junger Versuch, darf der naechste Takt
+  // die Startseite nicht erneut holen.
+  it('holt die Startseite nicht erneut, solange die Wartezeit nach einem Fehlschlag laeuft', async () => {
+    const store = storeStub({
+      refreshedAt: null,
+      requestedAt: null,
+      lastAttemptAt: '2026-09-06T11:55:00.000Z',
+    });
+    const fetchHomepage = vi.fn(async () => html);
+
+    const result = await refreshCategoriesIfDue(
+      { store, fetchHomepage, hasCapacity: () => true, maxAgeMs: DAY_MS, log },
+      now,
+    );
+
+    expect(result).toBe('skipped');
+    expect(fetchHomepage).not.toHaveBeenCalled();
   });
 });
