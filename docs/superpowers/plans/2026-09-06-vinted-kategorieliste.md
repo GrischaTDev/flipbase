@@ -321,10 +321,23 @@ Erwartet: `All tests successful.` — darin die neun Prüfungen aus `vinted_cate
 - [ ] **Schritt 7: Typen neu erzeugen**
 
 ```bash
-npx supabase gen types typescript --local > src/app/core/models/supabase.types.ts
+npx supabase gen types typescript --local | sed '/^Connecting to db/d' > src/app/core/models/supabase.types.ts
 ```
 
-Erwartet: `vinted_categories` und `vinted_category_sync` tauchen in der Datei auf.
+Das `sed` ist kein Schmuck: Die Supabase-CLI schreibt ihre Statuszeile
+`Connecting to db 5432` auf dieselbe Ausgabe wie die Typen. Ohne das Filtern
+steht sie als erste Zeile in der `.ts`-Datei, und `npm run typecheck` bricht mit
+`TS1434: Unexpected keyword or identifier` ab.
+
+Danach prüfen:
+
+```bash
+head -1 src/app/core/models/supabase.types.ts
+npm run typecheck
+```
+
+Erwartet: erste Zeile `export type Json =`, Typprüfung ohne Fehler, und
+`vinted_categories` sowie `vinted_category_sync` tauchen in der Datei auf.
 
 - [ ] **Schritt 8: Commit**
 
