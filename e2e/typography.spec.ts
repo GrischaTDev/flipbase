@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { startDemoMode } from './support/demo';
 
-test('verwendet Inter lokal in allen sichtbaren Anwendungselementen', async ({ page }) => {
+test('setzt Inter als globale Anwendungsschrift', async ({ page }) => {
   const fontRequests: string[] = [];
   page.on('request', (request) => {
     if (request.resourceType() === 'font') fontRequests.push(request.url());
@@ -18,6 +18,39 @@ test('verwendet Inter lokal in allen sichtbaren Anwendungselementen', async ({ p
     /^Inter,/,
   );
   await expect(page.locator('.font-mono').first()).toHaveCSS('font-family', /^Inter,/);
+
+  for (const route of [
+    '/dashboard',
+    '/sales',
+    '/purchases',
+    '/inventory',
+    '/catalog',
+    '/accounting',
+  ]) {
+    await page.goto(route);
+    await expect(page.locator('main')).toBeVisible();
+    const nonInterElements = await page.evaluate(() => {
+      const isVisible = (element: HTMLElement): boolean => {
+        const style = getComputedStyle(element);
+        const rect = element.getBoundingClientRect();
+        return (
+          style.display !== 'none' &&
+          style.visibility !== 'hidden' &&
+          rect.width > 0 &&
+          rect.height > 0
+        );
+      };
+
+      return Array.from(document.querySelectorAll<HTMLElement>('body *'))
+        .filter((element) => element.textContent?.trim() && isVisible(element))
+        .map((element) => ({
+          element: element.tagName.toLowerCase(),
+          fontFamily: getComputedStyle(element).fontFamily,
+        }))
+        .filter(({ fontFamily }) => !fontFamily.startsWith('Inter,'));
+    });
+    expect(nonInterElements, `Nicht-Inter-Elemente auf ${route}`).toEqual([]);
+  }
 
   await page.evaluate(() => {
     const fixture = document.createElement('div');

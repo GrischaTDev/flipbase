@@ -8,8 +8,9 @@ technische Werte, Tabellenzellen und Formulare dieselbe Schrift wie die übrige
 Oberfläche. Die lokalen Font-Dateien enthalten nur noch Inter; ungenutzte
 JetBrains-Mono- und Plus-Jakarta-Sans-Dateien wurden entfernt.
 
-**Prüfung:** Der Typografie-E2E-Test prüft die sichtbare `font-mono`-Klasse und
-die semantischen Elemente `code`, `pre`, `kbd` und `samp` explizit auf Inter.
+**Prüfung:** Der Typografie-E2E-Test prüft die sichtbare `font-mono`-Klasse,
+die semantischen Elemente `code`, `pre`, `kbd` und `samp` sowie sichtbare
+Text-Elemente auf den zentralen Verwaltungsrouten explizit auf Inter.
 Typecheck, Lint, Prettier, Angular-Suite (470 bestanden, 5 übersprungen),
 Produktionsbau sowie die 9 relevanten Playwright-Tests liefen erfolgreich. Die
 Änderung wurde ausschließlich im isolierten Worktree
