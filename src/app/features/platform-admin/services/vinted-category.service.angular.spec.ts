@@ -7,6 +7,12 @@ function clientStub(overrides: Record<string, unknown>) {
   return { client: overrides } as unknown as SupabaseService;
 }
 
+/** Was PostgREST auf eine Seitenanfrage antwortet: Zeilen oder ein Fehler. */
+interface PageResult {
+  data: readonly Record<string, unknown>[] | null;
+  error: { message: string } | null;
+}
+
 describe('VintedCategoryService', () => {
   let service: VintedCategoryService;
 
@@ -27,7 +33,7 @@ describe('VintedCategoryService', () => {
    * die uebergebenen Seiten.
    */
   function pagedClient(pages: readonly Record<string, unknown>[][]) {
-    const range = vi.fn(async (_from: number, _to: number) => ({
+    const range = vi.fn(async (_from: number, _to: number): Promise<PageResult> => ({
       data: pages[range.mock.calls.length - 1] ?? [],
       error: null,
     }));
