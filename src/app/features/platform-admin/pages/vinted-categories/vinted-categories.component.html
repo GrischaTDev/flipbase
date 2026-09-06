@@ -14,7 +14,7 @@
   }
 
   @if (status(); as state) {
-    <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <dl class="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <div class="rounded-md border border-fb-line p-4">
         <dt class="text-sm text-fb-text-muted">Kategorien</dt>
         <dd class="mt-1 text-2xl font-semibold text-fb-text-primary">{{ state.categoryCount }}</dd>
@@ -30,11 +30,32 @@
           }
         </dd>
       </div>
+
+      <!-- Der letzte Versuch steht bewusst neben dem letzten Erfolg. Nur so
+           ist "der Dienst hat es versucht und ist gescheitert" von "der Dienst
+           laeuft gar nicht mehr" zu unterscheiden - im zweiten Fall bleibt
+           auch dieser Zeitpunkt stehen und altert sichtbar mit. -->
+      <div class="rounded-md border border-fb-line p-4">
+        <dt class="text-sm text-fb-text-muted">Letzter Versuch</dt>
+        <dd class="mt-1 text-sm text-fb-text-primary">
+          @if (state.lastAttemptAt) {
+            {{ state.lastAttemptAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr
+          } @else {
+            Noch kein Versuch
+          }
+        </dd>
+      </div>
     </dl>
 
     @if (state.lastError; as failure) {
       <div class="rounded-md border border-amber-300 bg-amber-50 p-4">
-        <p class="text-sm font-medium text-amber-900">Der letzte Versuch ist gescheitert</p>
+        <p class="text-sm font-medium text-amber-900">
+          @if (state.lastAttemptAt) {
+            Der Versuch am {{ state.lastAttemptAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr ist gescheitert
+          } @else {
+            Der letzte Versuch ist gescheitert
+          }
+        </p>
         <p class="mt-1 text-sm text-amber-800">{{ failure }}</p>
         <p class="mt-2 text-sm text-amber-800">
           Die gespeicherte Liste bleibt gültig und benutzbar. Scheitert es wiederholt, hat Vinted
@@ -58,12 +79,22 @@
         }
       </button>
 
-      <!-- Die Meldung erscheint erst nach dem Knopfdruck. Ohne Live-Bereich
-           erfaehrt niemand, der einen Screenreader benutzt, dass die
-           Anforderung angekommen ist - der Knopf sagt danach ja wieder
-           dasselbe wie vorher. -->
+      <!-- Ohne Live-Bereich erfaehrt niemand, der einen Screenreader benutzt,
+           dass die Anforderung angekommen ist - der Knopf sagt danach ja
+           wieder dasselbe wie vorher. Der Absatz steht deshalb dauerhaft da
+           und wechselt nur seinen Inhalt; ein erst spaeter eingefuegter
+           Live-Bereich wird nicht zuverlaessig vorgelesen.
+
+           Der erste Fall haengt am geladenen Stand, nicht am Knopfdruck: So
+           steht der Hinweis nach einem Seitenwechsel immer noch da, solange
+           der Dienst die Anforderung nicht abgearbeitet hat. Der zweite Fall
+           ueberbrueckt nur den Augenblick, in dem der Knopf gedrueckt, der
+           Stand aber noch nicht neu geladen ist. -->
       <p class="text-sm text-fb-text-muted" role="status" aria-live="polite">
-        @if (requested()) {
+        @if (pendingRequest(); as requestedAt) {
+          Auffrischung angefordert am {{ requestedAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr. Der Dienst
+          liest sie beim nächsten Takt ein.
+        } @else if (requested()) {
           Angefordert. Der Dienst liest beim nächsten Takt neu ein.
         }
       </p>

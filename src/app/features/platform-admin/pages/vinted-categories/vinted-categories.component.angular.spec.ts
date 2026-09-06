@@ -1,4 +1,5 @@
 import '@angular/compiler';
+import { formatDate } from '@angular/common';
 import { ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { readFile } from 'node:fs/promises';
@@ -13,6 +14,18 @@ import { CategorySyncStatus } from '../../models/vinted-category.model';
 beforeAll(async () => {
   await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
 });
+
+/**
+ * Erwartete Anzeige eines Zeitpunkts.
+ *
+ * Bewusst berechnet statt fest hingeschrieben: Die DatePipe rechnet in die
+ * Zeitzone des laufenden Rechners um. Ein fest eingetragenes "15:00" waere in
+ * Berlin gruen und auf einem CI-Laeufer in UTC rot - der Test pruefte dann die
+ * Zeitzone und nicht die Anzeige.
+ */
+function shown(iso: string): string {
+  return formatDate(iso, 'dd.MM.yyyy, HH:mm', 'en-US');
+}
 
 const status: CategorySyncStatus = {
   refreshedAt: '2026-09-06T12:00:00+00:00',
@@ -84,5 +97,58 @@ describe('VintedCategoriesComponent', () => {
     const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
 
     expect(text).toContain('Noch nie eingelesen');
+  });
+
+  // Ohne diesen Zeitpunkt ist "der Dienst hat es um 13:00 versucht und ist
+  // gescheitert" nicht von "der Dienst laeuft gar nicht mehr" zu
+  // unterscheiden.
+  it('zeigt, wann der Dienst es zuletzt versucht hat', async () => {
+    await build({
+      ...status,
+      refreshedAt: '2026-09-06T10:00:00+00:00',
+      lastAttemptAt: '2026-09-06T13:00:00+00:00',
+      lastError: 'Kein catalogTree im HTML gefunden',
+    });
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+
+    expect(text).toContain('Letzter Versuch');
+    // Zweimal derselbe Zeitpunkt: einmal als Kennzahl, einmal im Fehlerkasten.
+    expect(text.split(shown('2026-09-06T13:00:00+00:00'))).toHaveLength(3);
+  });
+
+  // Der eigentliche Befund: Der Hinweis hing allein am lokalen Signal und war
+  // nach einem Seitenwechsel weg. Hier wird die Seite frisch aufgebaut, ohne
+  // dass je ein Knopf gedrueckt wurde.
+  it('zeigt eine offene Anforderung auch ohne vorherigen Knopfdruck', async () => {
+    await build({
+      ...status,
+      refreshedAt: '2026-09-06T10:00:00+00:00',
+      lastAttemptAt: '2026-09-06T10:00:00+00:00',
+      requestedAt: '2026-09-06T11:00:00+00:00',
+    });
+
+    const live = (fixture.nativeElement as HTMLElement).querySelector('[role="status"]');
+
+    expect(live?.textContent).toContain(
+      `Auffrischung angefordert am ${shown('2026-09-06T11:00:00+00:00')} Uhr`,
+    );
+  });
+
+  // Die Gegenrichtung: Hat der Dienst die Anforderung abgearbeitet, ist sie
+  // nicht mehr offen. Ohne diesen Fall bliebe der Test oben auch dann gruen,
+  // wenn jeder gesetzte Zeitstempel als offene Anforderung gaelte.
+  it('zeigt keine offene Anforderung, wenn der Dienst sie schon versucht hat', async () => {
+    await build({
+      ...status,
+      refreshedAt: '2026-09-06T10:00:00+00:00',
+      requestedAt: '2026-09-06T11:00:00+00:00',
+      lastAttemptAt: '2026-09-06T11:30:00+00:00',
+      lastError: 'HTTP 503',
+    });
+
+    const live = (fixture.nativeElement as HTMLElement).querySelector('[role="status"]');
+
+    expect(live?.textContent).not.toContain('Auffrischung angefordert');
   });
 });
