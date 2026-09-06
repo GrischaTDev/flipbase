@@ -598,12 +598,12 @@ html:not(.dark) .fb-admin {
   --fb-text-secondary: #616161;
   --fb-text-muted: #616161;
   --fb-text-dimmed: #707070;
-  --fb-primary: #f89d13;
-  --fb-primary-hover: #fbb040;
+  --fb-primary: var(--fb-brand-yellow);
+  --fb-primary-hover: #e5b201;
   --fb-text-on-accent: #1a1a1a;
-  --fb-primary-subtle: rgb(248 157 19 / 12%);
+  --fb-primary-subtle: rgb(var(--fb-brand-yellow-rgb) / 12%);
   --fb-primary-border: rgb(138 86 6 / 35%);
-  --fb-border-focus: #8a5606;
+  --fb-border-focus: var(--fb-nav-accent);
   --fb-c-indigo-200: #8a5606;
   --fb-c-indigo-300: #8a5606;
   --fb-c-indigo-400: #8a5606;
@@ -613,6 +613,17 @@ html:not(.dark) .fb-admin {
   --fb-shadow-sm: 0 1px 2px rgb(0 0 0 / 4%);
   --fb-shadow-md: 0 1px 2px rgb(0 0 0 / 7%);
   --fb-shadow-lg: 0 2px 5px rgb(0 0 0 / 9%);
+}
+
+/* Auch das dunkle Verwaltungsdesign nutzt fuer Primaeraktionen das helle
+   Logo-Gelb. Warnungen und Statusfarben bleiben davon getrennt. */
+html.dark .fb-admin {
+  --fb-primary: var(--fb-brand-yellow);
+  --fb-primary-hover: #e5b201;
+  --fb-text-on-accent: #1a1a1a;
+  --fb-primary-subtle: rgb(var(--fb-brand-yellow-rgb) / 15%);
+  --fb-primary-border: rgb(var(--fb-brand-yellow-rgb) / 35%);
+  --fb-border-focus: var(--fb-brand-yellow);
 }
 
 html:not(.dark) .fb-admin :is(.linear-card, .linear-card-interactive, .linear-kpi) {

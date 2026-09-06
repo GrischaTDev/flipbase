@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Codex – Primäre Admin-Akzente auf Logo-Gelb korrigiert
+
+**Ergebnis:** Die primären Verwaltungsaktionen wie „Neuer Einkauf“ und
+„Verkauf erfassen“ verwenden wieder das Logo-Gelb `#fcc601` mit dunkler,
+kontraststarker Schrift. Das gilt in hellen und dunklen Admin-Ansichten. Die
+aktiven Sidebar-Zustände und alle Demo-Badges verwenden nun dieselben
+semantischen Marken-Token. Warnungen und Finanzstatus bleiben orange bzw.
+ihren jeweiligen Statusfarben zugeordnet.
+
+**Prüfung:** Die Änderung erfolgt ausschließlich im isolierten Worktree
+`codex/polaris-primary-brand-yellow`. Playwright-Prüfungen für beide Themes,
+Sidebar und Demo-Badge sowie Typecheck, Lint, Format, Angular-Suite und Build
+wurden vor dem Push ausgeführt. Der unabhängige Gegencheck hat zusätzlich die
+Dark-Theme-Absicherung des Druckbuttons, die explizite Prüfung von
+„Verkauf erfassen“ und robuste Badge-Assertions eingefordert; diese Punkte sind
+ergänzt und erneut per Playwright geprüft.
+
 ## 2026-09-06 – Codex – Sidebar nach Polaris-Dichte und Marken-Gelb ausgerichtet
 
 **Ergebnis:** Die Verwaltungssidebar ist jetzt schmaler (224 statt 240 Pixel),
