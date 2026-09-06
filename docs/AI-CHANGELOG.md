@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Claude – Zeitlimit der vollständigen Deckungsmessung angehoben
+
+**Richtigstellung:** Im ersten Eintrag von heute steht, der Auftrag „Full
+coverage" sei „nur mitabgebrochen" worden und habe keinen eigenen Fehler gehabt.
+Das war falsch. Er lief in sein **eigenes** Zeitlimit von 15 Minuten.
+
+**Beleg:** Drei gemessene Läufe der vollständigen Messung: `34020596308` 11:45
+grün, `34015325180` 15:17 abgebrochen, `34021482927` 15:16 abgebrochen. Kein
+einziger roter Test darin — die Messung liegt schlicht auf der Grenze und
+kippt je nach Runner darüber.
+
+**Korrektur:** Das Limit dieses einen Auftrags steht jetzt auf 25 Minuten. Es
+bleibt bewusst endlich, damit ein echter Hänger nicht ewig läuft. Der überholte
+Kommentar „rund neun Minuten" am täglichen Auftrag wurde mitgezogen.
+
+**Prüfung:** `npm run test:workflow` (43 Tests) und der Prettier-Check der
+Workflow-Datei grün. Ob 25 Minuten reichen, zeigt der nächste vollständige Lauf.
+
 ## 2026-09-06 – Claude – Nachlauf zum Nachtlauf: WebKit und das Aufräumen der Datenbankprobe
 
 **Anlass:** Der von Hand ausgelöste Vollauf auf dem Zweig

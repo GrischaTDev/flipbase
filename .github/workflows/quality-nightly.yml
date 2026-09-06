@@ -72,8 +72,8 @@ jobs:
     name: Coverage of the money paths
     # Taeglich. Misst nur die drei Dateien mit den 95/90-Grenzen - Steuer,
     # Gewinn und Verkaeuflichkeit. Deren Tests liegen alle im Node-Projekt
-    # und sind in Sekunden durch, waehrend die vollstaendige Messung ueber
-    # alle drei Projekte rund neun Minuten braucht.
+    # und sind in einer Minute durch, waehrend die vollstaendige Messung ueber
+    # alle drei Projekte inzwischen ueber eine Viertelstunde braucht.
     needs: gate
     if: ${{ needs.gate.outputs.run == 'true' && github.event.schedule != '17 1 * * 0' }}
     runs-on: ubuntu-latest
@@ -99,10 +99,16 @@ jobs:
     # Woechentlich. Hier greifen zusaetzlich die globalen Untergrenzen ueber
     # alle Dateien - die fangen ab, wenn ein groesserer Bereich ohne Tests
     # dazukommt, und dafuer reicht ein Blick pro Woche.
+    #
+    # 25 Minuten, weil 15 zu knapp geworden sind: Gemessene Laeufe brauchen
+    # zwischen 11:45 und ueber 15 Minuten, je nach Runner. Am 06.09.2026 sind
+    # zwei Laeufe genau daran gescheitert - ohne einen einzigen roten Test,
+    # nur am Zeitlimit. Die Grenze bleibt bewusst endlich, damit ein echter
+    # Haenger nicht ewig laeuft.
     needs: gate
     if: ${{ needs.gate.outputs.run == 'true' && github.event.schedule != '17 0 * * *' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
