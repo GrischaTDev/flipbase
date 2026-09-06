@@ -29,7 +29,14 @@ test('hält die Kopfzeile auch auf schmalen Bildschirmen im sichtbaren Bereich',
   await startDemoMode(page);
   for (const width of [320, 390, 768, 1440]) {
     await page.setViewportSize({ width, height: 844 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width);
+    // Gegen den verfügbaren Platz gemessen, nicht gegen die Fensterbreite:
+    // WebKit nimmt sich für die Bildlaufleiste sechs Pixel, was sonst wie ein
+    // seitlicher Überlauf aussieht.
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      ),
+    ).toBe(0);
     const controls = page.locator('app-header header button:visible');
     for (const control of await controls.all()) {
       const bounds = await control.boundingBox();
