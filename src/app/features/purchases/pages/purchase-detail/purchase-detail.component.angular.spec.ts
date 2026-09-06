@@ -86,6 +86,7 @@ describe('PurchaseDetailComponent', () => {
           data: einkauf as Purchase | null,
           error: null as Error | null,
         })),
+        setPurchaseWorkflowStatus: vi.fn(async () => ({ error: null as Error | null })),
         markPurchaseDeliveredAndSyncItems: vi.fn(async () => ({
           updatedCount: 1,
           error: null as Error | null,
@@ -179,8 +180,7 @@ describe('PurchaseDetailComponent', () => {
         expect(erfolg.toast.toasts()[0].title).toBe('Sendungsverfolgung wurde gespeichert.');
 
         const fehler = erstelleKomponente();
-        fehler.purchaseService.updatePurchaseTracking.mockResolvedValue({
-          data: null,
+        fehler.purchaseService.setPurchaseWorkflowStatus.mockResolvedValue({
           error: new Error('Einkauf nicht gefunden'),
         });
         await fehler.komponente.saveTracking();
@@ -194,7 +194,7 @@ describe('PurchaseDetailComponent', () => {
 
       it('behält die Tracking-Bearbeitung bei einer geworfenen Ausnahme geöffnet', async () => {
         const { komponente, toast, purchaseService } = erstelleKomponente();
-        purchaseService.updatePurchaseTracking.mockRejectedValue(
+        purchaseService.setPurchaseWorkflowStatus.mockRejectedValue(
           new Error('Dienst nicht erreichbar'),
         );
 

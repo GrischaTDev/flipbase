@@ -84,12 +84,18 @@ describe('purchase presentation mapper', () => {
   it.each([
     ['Entwurf', { entry_status: 'draft', receiving_status: 'draft', purchase_lines: [] }],
     ['Bestellt', { entry_status: 'capturing', receiving_status: 'ordered' }],
-    ['Eingetroffen', { entry_status: 'capturing', receiving_status: 'received' }],
+    ['Unterwegs', { receiving_status: 'ordered', shipment_status: 'in_transit' }],
+    ['Teillieferung', { receiving_status: 'partially_received', shipment_status: 'arrived' }],
     [
-      'Inhalt erfassen',
+      'Angekommen',
+      { receiving_status: 'ordered', shipment_status: 'arrived', content_status: 'unknown' },
+    ],
+    ['Angekommen', { entry_status: 'capturing', receiving_status: 'received' }],
+    [
+      'Angekommen',
       { type: 'mystery_pack', entry_status: 'capturing', receiving_status: 'received' },
     ],
-    ['Erfassung abgeschlossen', { entry_status: 'finalized', receiving_status: 'received' }],
+    ['Angekommen', { entry_status: 'finalized', receiving_status: 'received' }],
     ['Archiviert', { receiving_status: 'archived' }],
     ['Storniert', { receiving_status: 'cancelled' }],
   ] as const)('bildet den Einkaufsstatus %s unabhängig vom Artikelverkauf ab', (want, patch) => {
@@ -100,6 +106,16 @@ describe('purchase presentation mapper', () => {
     } as Purchase;
 
     expect(mapPurchaseListRow(purchase, context()).purchaseStatus).toBe(want);
+  });
+
+  it('hält Einkaufsnummer und externe Verkäuferreferenz getrennt', () => {
+    const row = mapPurchaseListRow(
+      { ...basePurchase, record_number: '2026-123', supplier_reference: 'Verkäufer-456' },
+      context(),
+    );
+    expect(row.reference).toBe('2026-123');
+    expect(row.supplierReference).toBe('Verkäufer-456');
+    expect(row.title).toBe(basePurchase.title);
   });
 
   it('markiert einen ungeklärten normalen Altkauf zur Prüfung', () => {
@@ -113,7 +129,7 @@ describe('purchase presentation mapper', () => {
     };
 
     expect(
-      mapPurchaseListRow(purchase, context({ inventoryItems: [legacyItem] })).purchaseStatus,
+      mapPurchaseListRow(purchase, context({ inventoryItems: [legacyItem] })).captureStatus,
     ).toBe('Prüfung erforderlich');
   });
 
@@ -133,7 +149,8 @@ describe('purchase presentation mapper', () => {
       context({ inventoryItems: [available, sold, unclear] }),
     );
 
-    expect(row.purchaseStatus).toBe('Erfassung abgeschlossen');
+    expect(row.purchaseStatus).toBe('Angekommen');
+    expect(row.captureStatus).toBe('Erfassung abgeschlossen');
     expect(row.totalUnits).toBe(2);
     expect(row.availableUnits).toBe(1);
     expect(row.soldUnits).toBe(1);

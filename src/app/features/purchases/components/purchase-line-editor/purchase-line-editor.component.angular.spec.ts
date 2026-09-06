@@ -28,6 +28,19 @@ let selectMetadataSnapshot: AngularBindingMetadata | null = null;
 beforeAll(async () => {
   await ɵresolveComponentResources(async (url) => {
     const resourceUrl = String(url);
+    for (const component of ['barcode-scanner']) {
+      if (resourceUrl.includes(component + '.component.'))
+        return readFile(
+          'src/app/shared/components/' + component + '/' + resourceUrl.split('/').at(-1),
+          'utf8',
+        );
+    }
+    if (resourceUrl.includes('purchase-product-picker.component.'))
+      return readFile(
+        'src/app/features/purchases/components/purchase-product-picker/' +
+          resourceUrl.split('/').at(-1),
+        'utf8',
+      );
     if (!url || resourceUrl === 'undefined' || resourceUrl.endsWith('/undefined')) return '';
     if (resourceUrl.includes('custom-select.component.')) {
       const fileName = resourceUrl.split('/').at(-1);
@@ -115,6 +128,7 @@ function erstelleEditor(purchaseType: PurchaseType = 'single') {
   ) as PurchaseLineEditorComponent;
   Object.assign(editor, {
     lineRows: new FormArray([]),
+    lineCount: signal(0),
     linesChanged,
     purchaseType: signal(purchaseType),
     isMysteryPurchase: computed(() => purchaseType === 'mystery_pack'),
@@ -123,6 +137,28 @@ function erstelleEditor(purchaseType: PurchaseType = 'single') {
 }
 
 describe('PurchaseLineEditorComponent', () => {
+  it('verarbeitet einen Scan nur einmal und erfindet keinen Nullpreis', () => {
+    const { editor } = erstelleEditor();
+    Object.assign(editor, {
+      cameraOpen: signal(false),
+      pickerOpen: signal(false),
+      scannerMessage: signal(null),
+      catalogSelectionDisabled: () => false,
+      availableProducts: () => [{ ...ledProduct, ean: '4006381333931' }],
+      scanControl: { value: '', setValue: vi.fn() },
+      lastScan: { value: '', at: 0 },
+    });
+    editor.scanBarcode('4006381333931');
+    editor.scanBarcode('4006381333931');
+    expect(editor.getDrafts()).toHaveLength(1);
+    expect(editor.getDrafts()[0]).toMatchObject({
+      catalogProductId: ledProduct.id,
+      unitPurchasePrice: null,
+      lineTotal: null,
+      priceMode: 'unpriced_mystery',
+    });
+  });
+
   it('rendert den Artikelstamm als barrierefreien CustomSelect und übernimmt die Auswahl', async () => {
     TestBed.resetTestingModule();
     const fixture = TestBed.configureTestingModule({
@@ -148,9 +184,8 @@ describe('PurchaseLineEditorComponent', () => {
     Object.assign(fixture.componentInstance, { purchaseType: signal<PurchaseType>('single') });
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
-    Array.from(host.querySelectorAll<HTMLButtonElement>('button'))
-      .find((button) => button.textContent?.includes('Vorhandenen Artikel wählen'))
-      ?.click();
+    fixture.componentInstance.addQuantityLine();
+    fixture.changeDetectorRef.markForCheck();
     fixture.detectChanges();
     expect(host.querySelector('select')).toBeNull();
     const trigger = host.querySelector<HTMLButtonElement>(
@@ -487,7 +522,7 @@ describe('PurchaseLineEditorComponent', () => {
 
     expect(editor.getDrafts()).toEqual([
       expect.objectContaining({
-        priceMode: 'priced',
+        priceMode: 'unpriced_mystery',
         unitPurchasePrice: null,
         lineTotal: null,
         estimatedMarketValue: null,

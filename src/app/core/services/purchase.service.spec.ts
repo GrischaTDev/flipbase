@@ -155,7 +155,7 @@ describe('PurchaseService', () => {
 
         Object.assign(service, {
           purchases: signal<Purchase[]>([einkauf]),
-          updatePurchaseTracking: vi.fn(async () => ({ data: null, error: trackingError })),
+          updatePurchase: vi.fn(async () => ({ error: trackingError })),
           inventory: {
             items: signal<InventoryItem[]>([artikel]),
             updateItemStatus,
@@ -525,7 +525,7 @@ describe('PurchaseService', () => {
         });
       });
 
-      it('liefert den gespeicherten Einkauf mit einem typisierten Activity-Teilproblem zurück', async () => {
+      it('legt bei einem positionslosen Entwurf noch keinen Inventarartikel an', async () => {
         const aufrufe: { tabelle: string; payload: unknown }[] = [];
         const client = {
           rpc: async () => ({
@@ -566,20 +566,13 @@ describe('PurchaseService', () => {
         });
 
         expect(ergebnis).toMatchObject({
-          status: 'partial',
+          status: 'success',
           data: { id: gespeicherterEinkauf.id },
           error: null,
-          problems: [
-            {
-              kind: 'activity_log',
-              reportedBySyncStatus: true,
-              error: expect.any(Error),
-            },
-          ],
+          problems: [],
         });
-        expect(aufrufe.map(({ tabelle }) => tabelle)).toEqual(['inventory_items', 'activity_logs']);
-        expect(aufrufe[1].payload).toMatchObject({ inventory_item_id: gespeicherterArtikel.id });
-        expect(syncStatus.hatFehler()).toBe(true);
+        expect(aufrufe).toEqual([]);
+        expect(syncStatus.hatFehler()).toBe(false);
       });
 
       it('rollt bei fehlgeschlagenen Zusatzkosten den gesamten Einkauf zurück', async () => {
@@ -734,7 +727,7 @@ describe('PurchaseService', () => {
         expect(detail).toMatchObject({
           id: purchaseId,
           items_count: 5,
-          receiving_status: 'ordered',
+          receiving_status: 'draft',
         });
         expect(purchaseLinesRaw()).toMatchObject([
           {
@@ -812,7 +805,7 @@ describe('PurchaseService', () => {
         expect(purchaseLinesRaw()).toEqual([]);
       });
 
-      it('legt einen positionslosen Demo-Einzelkauf weiterhin als Inventarartikel an', async () => {
+      it('legt für einen positionslosen Demo-Entwurf noch keinen Inventarartikel an', async () => {
         const store = erstelleStore();
         const { service, inventoryCreateItem } = erstelleDienst(store);
 
@@ -825,13 +818,7 @@ describe('PurchaseService', () => {
         });
 
         expect(result).toMatchObject({ status: 'success', error: null });
-        expect(inventoryCreateItem).toHaveBeenCalledWith(
-          expect.objectContaining({
-            purchase_id: result.data!.id,
-            title: 'Einzelstück',
-            allocated_purchase_cost: 0,
-          }),
-        );
+        expect(inventoryCreateItem).not.toHaveBeenCalled();
       });
 
       it('trennt zwei Demo-Einkäufe samt Positionen auch in derselben Millisekunde', async () => {

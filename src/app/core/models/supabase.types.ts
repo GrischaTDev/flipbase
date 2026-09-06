@@ -992,6 +992,184 @@ export type Database = {
           },
         ]
       }
+      number_assignments: {
+        Row: {
+          assigned_at: string
+          entity_id: string
+          entity_type: string
+          format_snapshot: Json
+          id: number
+          record_number: string
+          series_id: number
+          series_version: number
+          workspace_id: string
+        }
+        Insert: {
+          assigned_at: string
+          entity_id: string
+          entity_type: string
+          format_snapshot: Json
+          id?: never
+          record_number: string
+          series_id: number
+          series_version: number
+          workspace_id: string
+        }
+        Update: {
+          assigned_at?: string
+          entity_id?: string
+          entity_type?: string
+          format_snapshot?: Json
+          id?: never
+          record_number?: string
+          series_id?: number
+          series_version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "number_assignments_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "number_series"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "number_assignments_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      number_series: {
+        Row: {
+          entity_type: string
+          id: number
+          include_year: boolean
+          label: string
+          minimum_digits: number
+          prefix: string
+          reset_yearly: boolean
+          separator: string
+          start_value: number
+          updated_at: string
+          updated_by: string | null
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          entity_type: string
+          id?: never
+          include_year?: boolean
+          label: string
+          minimum_digits?: number
+          prefix: string
+          reset_yearly?: boolean
+          separator?: string
+          start_value?: number
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          entity_type?: string
+          id?: never
+          include_year?: boolean
+          label?: string
+          minimum_digits?: number
+          prefix?: string
+          reset_yearly?: boolean
+          separator?: string
+          start_value?: number
+          updated_at?: string
+          updated_by?: string | null
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "number_series_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      number_series_changes: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          configuration: Json
+          id: number
+          series_id: number
+          workspace_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          configuration: Json
+          id?: never
+          series_id: number
+          workspace_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          configuration?: Json
+          id?: never
+          series_id?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "number_series_changes_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "number_series"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "number_series_changes_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      number_series_counters: {
+        Row: {
+          id: number
+          last_value: number
+          period: number
+          series_id: number
+        }
+        Insert: {
+          id?: never
+          last_value: number
+          period: number
+          series_id: number
+        }
+        Update: {
+          id?: never
+          last_value?: number
+          period?: number
+          series_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "number_series_counters_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "number_series"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       offline_purchase_entries: {
         Row: {
           captured_at: string
@@ -1347,20 +1525,30 @@ export type Database = {
       }
       purchases: {
         Row: {
+          content_status: string
           cost_allocation_mode: string
           created_at: string
+          discount_amount: number
           entry_status: string
           estimated_delivery: string | null
           finalized_at: string | null
           finalized_by: string | null
           id: string
           notes: string | null
+          numbered_at: string | null
+          numbering_series_id: number | null
+          numbering_version: number | null
           original_url: string | null
+          pricing_mode: string | null
           purchase_date: string
           purchase_price: number | null
           receiving_status: string
+          record_number: string | null
+          request_id: string | null
+          shipment_status: string
           source_id: string | null
           supplier_id: string | null
+          supplier_reference: string | null
           title: string
           total_purchase_cost: number | null
           tracking_carrier: string | null
@@ -1371,20 +1559,30 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          content_status?: string
           cost_allocation_mode?: string
           created_at?: string
+          discount_amount?: number
           entry_status?: string
           estimated_delivery?: string | null
           finalized_at?: string | null
           finalized_by?: string | null
           id?: string
           notes?: string | null
+          numbered_at?: string | null
+          numbering_series_id?: number | null
+          numbering_version?: number | null
           original_url?: string | null
+          pricing_mode?: string | null
           purchase_date?: string
           purchase_price?: number | null
           receiving_status?: string
+          record_number?: string | null
+          request_id?: string | null
+          shipment_status?: string
           source_id?: string | null
           supplier_id?: string | null
+          supplier_reference?: string | null
           title: string
           total_purchase_cost?: number | null
           tracking_carrier?: string | null
@@ -1395,20 +1593,30 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          content_status?: string
           cost_allocation_mode?: string
           created_at?: string
+          discount_amount?: number
           entry_status?: string
           estimated_delivery?: string | null
           finalized_at?: string | null
           finalized_by?: string | null
           id?: string
           notes?: string | null
+          numbered_at?: string | null
+          numbering_series_id?: number | null
+          numbering_version?: number | null
           original_url?: string | null
+          pricing_mode?: string | null
           purchase_date?: string
           purchase_price?: number | null
           receiving_status?: string
+          record_number?: string | null
+          request_id?: string | null
+          shipment_status?: string
           source_id?: string | null
           supplier_id?: string | null
+          supplier_reference?: string | null
           title?: string
           total_purchase_cost?: number | null
           tracking_carrier?: string | null
@@ -1419,6 +1627,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "purchases_numbering_series_id_fkey"
+            columns: ["numbering_series_id"]
+            isOneToOne: false
+            referencedRelation: "number_series"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "purchases_workspace_id_fkey"
             columns: ["workspace_id"]
@@ -1925,10 +2140,14 @@ export type Database = {
           external_order_id: string | null
           id: string
           inventory_item_id: string | null
+          numbered_at: string | null
+          numbering_series_id: number | null
+          numbering_version: number | null
           other_costs: number
           packaging_cost: number
           platform: string
           platform_fee: number
+          record_number: string | null
           refund_amount: number | null
           returned_at: string | null
           sale_date: string
@@ -1949,10 +2168,14 @@ export type Database = {
           external_order_id?: string | null
           id?: string
           inventory_item_id?: string | null
+          numbered_at?: string | null
+          numbering_series_id?: number | null
+          numbering_version?: number | null
           other_costs?: number
           packaging_cost?: number
           platform: string
           platform_fee?: number
+          record_number?: string | null
           refund_amount?: number | null
           returned_at?: string | null
           sale_date?: string
@@ -1973,10 +2196,14 @@ export type Database = {
           external_order_id?: string | null
           id?: string
           inventory_item_id?: string | null
+          numbered_at?: string | null
+          numbering_series_id?: number | null
+          numbering_version?: number | null
           other_costs?: number
           packaging_cost?: number
           platform?: string
           platform_fee?: number
+          record_number?: string | null
           refund_amount?: number | null
           returned_at?: string | null
           sale_date?: string
@@ -2003,6 +2230,13 @@ export type Database = {
             columns: ["inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_numbering_series_id_fkey"
+            columns: ["numbering_series_id"]
+            isOneToOne: false
+            referencedRelation: "number_series"
             referencedColumns: ["id"]
           },
           {
@@ -2715,30 +2949,63 @@ export type Database = {
       }
       suppliers: {
         Row: {
+          address_extra: string | null
+          city: string | null
           contact_info: string | null
+          contact_person: string | null
+          country: string | null
           created_at: string
+          email: string | null
           id: string
           is_active: boolean
           name: string
           notes: string | null
+          phone: string | null
+          postal_code: string | null
+          profile_url: string | null
+          seller_type: string | null
+          street: string | null
+          website: string | null
           workspace_id: string
         }
         Insert: {
+          address_extra?: string | null
+          city?: string | null
           contact_info?: string | null
+          contact_person?: string | null
+          country?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           is_active?: boolean
           name: string
           notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          profile_url?: string | null
+          seller_type?: string | null
+          street?: string | null
+          website?: string | null
           workspace_id: string
         }
         Update: {
+          address_extra?: string | null
+          city?: string | null
           contact_info?: string | null
+          contact_person?: string | null
+          country?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           is_active?: boolean
           name?: string
           notes?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          profile_url?: string | null
+          seller_type?: string | null
+          street?: string | null
+          website?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -2982,6 +3249,7 @@ export type Database = {
           min_profit_amount: number
           min_roi_percent: number
           name: string
+          numbering_timezone: string
           tax_mode: string
           updated_at: string
         }
@@ -2993,6 +3261,7 @@ export type Database = {
           min_profit_amount?: number
           min_roi_percent?: number
           name: string
+          numbering_timezone?: string
           tax_mode?: string
           updated_at?: string
         }
@@ -3004,6 +3273,7 @@ export type Database = {
           min_profit_amount?: number
           min_roi_percent?: number
           name?: string
+          numbering_timezone?: string
           tax_mode?: string
           updated_at?: string
         }
@@ -3049,6 +3319,7 @@ export type Database = {
           min_profit_amount: number
           min_roi_percent: number
           name: string
+          numbering_timezone: string
           tax_mode: string
           updated_at: string
         }
@@ -3203,6 +3474,17 @@ export type Database = {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: Json
       }
+      format_record_number: {
+        Args: {
+          p_minimum_digits: number
+          p_prefix: string
+          p_separator: string
+          p_sequence: number
+          p_year: number
+        }
+        Returns: string
+      }
+      get_number_settings: { Args: { p_workspace_id: string }; Returns: Json }
       get_purchase_sale_history: {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: Json
@@ -3388,20 +3670,30 @@ export type Database = {
       refresh_purchase_receiving_status: {
         Args: { p_purchase_id: string; p_workspace_id: string }
         Returns: {
+          content_status: string
           cost_allocation_mode: string
           created_at: string
+          discount_amount: number
           entry_status: string
           estimated_delivery: string | null
           finalized_at: string | null
           finalized_by: string | null
           id: string
           notes: string | null
+          numbered_at: string | null
+          numbering_series_id: number | null
+          numbering_version: number | null
           original_url: string | null
+          pricing_mode: string | null
           purchase_date: string
           purchase_price: number | null
           receiving_status: string
+          record_number: string | null
+          request_id: string | null
+          shipment_status: string
           source_id: string | null
           supplier_id: string | null
+          supplier_reference: string | null
           title: string
           total_purchase_cost: number | null
           tracking_carrier: string | null
@@ -3445,12 +3737,42 @@ export type Database = {
           min_profit_amount: number
           min_roi_percent: number
           name: string
+          numbering_timezone: string
           tax_mode: string
           updated_at: string
         }
         SetofOptions: {
           from: "*"
           to: "workspaces"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      save_number_series: {
+        Args: {
+          p_configuration: Json
+          p_entity_type: string
+          p_expected_version?: number
+          p_workspace_id: string
+        }
+        Returns: {
+          entity_type: string
+          id: number
+          include_year: boolean
+          label: string
+          minimum_digits: number
+          prefix: string
+          reset_yearly: boolean
+          separator: string
+          start_value: number
+          updated_at: string
+          updated_by: string | null
+          version: number
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "number_series"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -3505,6 +3827,7 @@ export type Database = {
           min_profit_amount: number
           min_roi_percent: number
           name: string
+          numbering_timezone: string
           tax_mode: string
           updated_at: string
         }

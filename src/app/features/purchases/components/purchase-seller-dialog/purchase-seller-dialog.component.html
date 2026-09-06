@@ -1,0 +1,94 @@
+<div
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+  appModalDialog
+  dialogTitel="Verkäufer erstellen"
+  [schliesstMitEscape]="!saving()"
+  (dialogClose)="closed.emit()"
+>
+  <section
+    class="flex max-h-[85dvh] w-full max-w-xl flex-col rounded-xl border border-fb-line bg-fb-surface shadow-xl"
+  >
+    <header class="flex items-center justify-between border-b border-fb-line p-4">
+      <h2 class="text-base font-semibold">Verkäufer erstellen</h2>
+      <button
+        type="button"
+        class="linear-btn-secondary rounded-lg px-3 py-1.5 text-sm"
+        [disabled]="saving()"
+        (click)="closed.emit()"
+      >
+        Schließen
+      </button>
+    </header>
+    <div class="space-y-4 overflow-y-auto p-4" [formGroup]="form">
+      <label class="block text-sm"
+        >Art<select
+          formControlName="seller_type"
+          class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+        >
+          <option value="private">Privatperson</option>
+          <option value="business">Unternehmen</option>
+        </select></label
+      >
+      <label class="block text-sm"
+        >{{ form.controls.seller_type.value === 'business' ? 'Firmenname' : 'Name oder Profilname'
+        }}<input
+          formControlName="name"
+          class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+          required
+      /></label>
+      @if (form.controls.seller_type.value === 'business') {
+        <label class="block text-sm"
+          >Kontaktperson (optional)<input
+            formControlName="contact_person"
+            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+        /></label>
+      }
+      <p class="text-xs text-fb-text-muted">Alle weiteren Angaben sind optional.</p>
+      <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        @for (field of contactFields; track field.key) {
+          <label class="block text-sm"
+            >{{ field.label
+            }}<input
+              [formControlName]="field.key"
+              [type]="field.key === 'email' ? 'email' : field.key === 'phone' ? 'tel' : 'text'"
+              class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+          /></label>
+        }
+      </div>
+      @if (form.controls.seller_type.value === 'business') {
+        <label class="block text-sm"
+          >Website<input
+            formControlName="website"
+            class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+        /></label>
+      }
+      <label class="block text-sm"
+        >Notiz<textarea
+          formControlName="notes"
+          rows="3"
+          class="linear-input mt-1 w-full rounded-lg px-3 py-2"
+        ></textarea>
+      </label>
+      @if (error()) {
+        <p role="alert" class="text-sm text-fb-text-primary">{{ error() }}</p>
+      }
+    </div>
+    <footer class="flex justify-end gap-2 border-t border-fb-line p-4">
+      <button
+        type="button"
+        class="linear-btn-secondary rounded-lg px-3 py-2 text-sm"
+        [disabled]="saving()"
+        (click)="closed.emit()"
+      >
+        Abbrechen</button
+      ><button
+        type="button"
+        class="linear-btn-primary rounded-lg px-3 py-2 text-sm disabled:opacity-50"
+        [disabled]="saving() || form.invalid"
+        (click)="save()"
+      >
+        {{ saving() ? 'Speichere…' : 'Verkäufer erstellen' }}
+      </button>
+    </footer>
+  </section>
+</div>

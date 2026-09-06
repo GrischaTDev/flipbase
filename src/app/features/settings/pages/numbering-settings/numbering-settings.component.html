@@ -1,0 +1,181 @@
+<section class="space-y-4" aria-labelledby="numbering-heading">
+  <div>
+    <h2 id="numbering-heading" class="text-lg font-semibold text-fb-text-primary">Nummernkreise</h2>
+    <p class="mt-1 text-sm text-fb-text-secondary">
+      Eigene Formate für Einkaufs- und Verkaufsnummern. Externe Bestellnummern und Rechnungsnummern
+      bleiben getrennt.
+    </p>
+  </div>
+  <div class="flex gap-2" role="group" aria-label="Vorgangsart">
+    <button
+      type="button"
+      class="rounded-lg border border-fb-border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2"
+      [attr.aria-pressed]="entity() === 'purchase'"
+      [class.bg-fb-subtle]="entity() === 'purchase'"
+      [disabled]="isSaving()"
+      (click)="selectEntity('purchase')"
+    >
+      Einkäufe
+    </button>
+    <button
+      type="button"
+      class="rounded-lg border border-fb-border px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2"
+      [attr.aria-pressed]="entity() === 'sale'"
+      [class.bg-fb-subtle]="entity() === 'sale'"
+      [disabled]="isSaving()"
+      (click)="selectEntity('sale')"
+    >
+      Verkäufe
+    </button>
+  </div>
+  @if (error()) {
+    <p role="alert" class="text-sm text-red-700">{{ error() }}</p>
+  }
+  @if (success()) {
+    <p role="status" class="text-sm text-fb-text-primary">{{ success() }}</p>
+  }
+  @if (isLoading()) {
+    <p role="status" class="text-sm text-fb-text-secondary">Nummernkreise werden geladen …</p>
+  } @else {
+    @if (!canEdit()) {
+      <p class="text-sm text-fb-text-secondary">
+        Nur Administratoren und Workspace-Inhaber können Nummernkreise ändern.
+      </p>
+      <button
+        type="button"
+        class="rounded-lg border border-fb-border px-3 py-2 text-sm"
+        (click)="load()"
+      >
+        Erneut laden
+      </button>
+    }
+    <form
+      [formGroup]="form"
+      (ngSubmit)="save()"
+      class="linear-surface space-y-4 rounded-lg border border-fb-border p-4"
+    >
+      <fieldset [disabled]="!canEdit() || isSaving()" class="grid gap-4 sm:grid-cols-2">
+        <legend class="mb-3 text-sm font-semibold text-fb-text-primary">Format und Zählung</legend>
+        <label class="text-sm text-fb-text-primary"
+          >Bezeichnung
+          <input
+            formControlName="label"
+            maxlength="80"
+            required
+            class="linear-input mt-1 min-h-9 w-full rounded-lg px-3 text-sm"
+          />
+        </label>
+        <label class="text-sm text-fb-text-primary"
+          >Präfix
+          <input
+            formControlName="prefix"
+            maxlength="30"
+            class="linear-input mt-1 min-h-9 w-full rounded-lg px-3 text-sm"
+          />
+        </label>
+        <label class="text-sm text-fb-text-primary"
+          >Trennzeichen
+          <select
+            formControlName="separator"
+            class="linear-input mt-1 min-h-9 w-full rounded-lg px-3 text-sm"
+          >
+            <option value=" ">Leerzeichen</option>
+            <option value="-">Bindestrich</option>
+            <option value="/">Schrägstrich</option>
+            <option value=".">Punkt</option>
+            <option value="">Keines</option>
+          </select>
+        </label>
+        <label class="text-sm text-fb-text-primary"
+          >Mindestanzahl Ziffern
+          <input
+            type="number"
+            formControlName="minimum_digits"
+            min="1"
+            max="12"
+            step="1"
+            required
+            class="linear-input mt-1 min-h-9 w-full rounded-lg px-3 text-sm"
+          />
+        </label>
+        <label class="text-sm text-fb-text-primary"
+          >Anfangswert
+          <input
+            type="number"
+            formControlName="start_value"
+            min="1"
+            max="999999999999"
+            step="1"
+            required
+            aria-describedby="start-value-hint"
+            class="linear-input mt-1 min-h-9 w-full rounded-lg px-3 text-sm"
+          />
+          <span id="start-value-hint" class="mt-1 block text-xs text-fb-text-secondary"
+            >Bereits erreichte Zählstände werden nicht zurückgesetzt.</span
+          >
+        </label>
+        <label class="text-sm text-fb-text-primary"
+          >Workspace-Zeitzone
+          <input
+            formControlName="timezone"
+            required
+            placeholder="Europe/Berlin"
+            aria-describedby="timezone-hint"
+            class="linear-input mt-1 min-h-9 w-full rounded-lg px-3 text-sm"
+          />
+          <span id="timezone-hint" class="mt-1 block text-xs text-fb-text-secondary"
+            >Gilt für beide Nummernkreise, z. B. Europe/Berlin oder UTC.</span
+          >
+        </label>
+        <label class="flex items-center gap-2 text-sm"
+          ><input type="checkbox" formControlName="include_year" />Vierstelliges Jahr
+          anzeigen</label
+        >
+        <label class="flex items-center gap-2 text-sm"
+          ><input type="checkbox" formControlName="reset_yearly" />Zähler jährlich neu
+          beginnen</label
+        >
+      </fieldset>
+      @if (invalidReset()) {
+        <p role="alert" class="text-sm text-red-700">
+          Für einen jährlichen Neustart muss das Jahr in der Nummer stehen.
+        </p>
+      }
+      <div class="rounded-lg border border-fb-border bg-fb-subtle p-3" aria-live="polite">
+        <h3 class="text-sm font-semibold text-fb-text-primary">Formatvorschau</h3>
+        <p class="mt-2 font-mono text-sm text-fb-text-primary">
+          {{ previews().join(' · ') || 'Bitte gültige Zahlen und eine gültige Zeitzone eingeben.' }}
+        </p>
+        <p class="mt-1 text-xs text-fb-text-secondary">
+          Beispiele ab Anfangswert, keine Reservierung. Die nächste tatsächliche Nummer
+          berücksichtigt den bisherigen Zählstand.
+        </p>
+      </div>
+      <p class="text-sm text-fb-text-secondary">
+        Nummern entstehen beim ersten erfolgreichen Speichern. Änderungen gelten für künftige
+        Vorgänge; ältere Nummern bleiben erhalten. Keine Zusage lückenloser Belegnummerierung.
+      </p>
+      @if (canEdit()) {
+        <div class="flex items-center gap-2 border-t border-fb-border pt-4">
+          <button
+            type="submit"
+            class="rounded-lg bg-[#fcc601] px-3 py-2 text-sm font-semibold text-black focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-50"
+            [disabled]="
+              isSaving() || !dirty() || form.invalid || invalidReset() || !previews().length
+            "
+          >
+            {{ isSaving() ? 'Speichert …' : 'Speichern' }}
+          </button>
+          <button
+            type="button"
+            class="rounded-lg border border-fb-border px-3 py-2 text-sm disabled:opacity-50"
+            [disabled]="isSaving() || !dirty()"
+            (click)="discard()"
+          >
+            Verwerfen
+          </button>
+        </div>
+      }
+    </form>
+  }
+</section>

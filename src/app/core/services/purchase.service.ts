@@ -76,12 +76,18 @@ export interface ReceiveIndividualPurchaseResult {
 }
 
 export interface CreatePurchasePayload {
+  request_id?: string;
   source_id?: string | null;
   supplier_id?: string | null;
   type: PurchaseType;
   title: string;
   purchase_date: string;
   purchase_price: number | null;
+  discount_amount?: number;
+  content_status?: 'known' | 'unknown';
+  pricing_mode?: 'individual' | 'total';
+  shipment_status?: 'not_shipped' | 'in_transit' | 'arrived';
+  supplier_reference?: string | null;
   cost_allocation_mode?: CostAllocationMode;
   notes?: string | null;
   tracking_number?: string | null;
@@ -730,7 +736,10 @@ export class PurchaseService {
       };
     }
 
-    const normalizedLines = this.normalizePurchaseLines(payload.purchase_lines ?? [], payload.type);
+    const normalizedLines = this.normalizePurchaseLines(
+      payload.purchase_lines ?? [],
+      payload.pricing_mode ?? (payload.type === 'mystery_pack' ? 'total' : 'individual'),
+    );
     if (normalizedLines.error) {
       return {
         status: 'failed',
@@ -751,7 +760,7 @@ export class PurchaseService {
         amount: Number(c.amount),
         description: c.description?.trim() || null,
         allocation_method: this.toPersistedAllocationMethod(
-          payload.type === 'mystery_pack' ? 'by_quantity' : (c.allocationMethod ?? 'by_value'),
+          payload.pricing_mode === 'total' ? 'by_quantity' : (c.allocationMethod ?? 'by_value'),
         ),
         target_purchase_line_id:
           c.allocationMethod === 'direct' ? (c.targetPurchaseLineId ?? null) : null,
@@ -760,7 +769,9 @@ export class PurchaseService {
     const totalCost =
       payload.purchase_price === null
         ? null
-        : Number((payload.purchase_price + extraCostsSum).toFixed(2));
+        : Number(
+            (payload.purchase_price - (payload.discount_amount ?? 0) + extraCostsSum).toFixed(2),
+          );
 
     // Aus den geladenen Stammdaten, nicht aus dem lokalen Spiegel: Der ist im
     // angemeldeten Betrieb leer, wodurch die frische Kachel weder Quelle noch
@@ -783,6 +794,12 @@ export class PurchaseService {
       title: payload.title.trim(),
       purchase_date: payload.purchase_date,
       purchase_price: payload.purchase_price,
+      discount_amount: payload.discount_amount ?? 0,
+      content_status: payload.content_status ?? 'known',
+      pricing_mode: payload.pricing_mode ?? null,
+      shipment_status: payload.shipment_status ?? 'not_shipped',
+      supplier_reference: payload.supplier_reference?.trim() || null,
+      request_id: payload.request_id ?? null,
       total_purchase_cost: totalCost,
       cost_allocation_mode: mode,
       notes: payload.notes || null,
@@ -790,7 +807,7 @@ export class PurchaseService {
       tracking_carrier: payload.tracking_carrier || (payload.tracking_number ? 'dhl' : null),
       tracking_status: payload.tracking_status || (payload.tracking_number ? 'in_transit' : null),
       original_url: payload.original_url || null,
-      receiving_status: normalizedLines.data.length > 0 ? 'ordered' : 'received',
+      receiving_status: 'draft',
       items_count:
         normalizedLines.data.reduce((count, line) => count + line.orderedQuantity, 0) ||
         payload.items_count ||
@@ -849,11 +866,7 @@ export class PurchaseService {
       if (this.selectedPurchase()?.id === purchaseWithLines.id) {
         this.purchaseLinesRaw.update((current) => [...current, ...lines]);
       }
-      const problems = await this.legeEinzelartikelAn(
-        purchaseWithLines,
-        payload,
-        lines.find((line) => line.line_kind === 'individual')?.id,
-      );
+      const problems: PurchaseCreateProblem[] = [];
       this.webhookService.sendPurchaseNotification(purchaseWithLines);
       return problems.length > 0
         ? {
@@ -876,12 +889,19 @@ export class PurchaseService {
       const { data, error } = await this.supabase.client.rpc('create_purchase', {
         p_workspace_id: ws.id,
         p_purchase: {
+          request_id: payload.request_id ?? null,
           source_id: payload.source_id || null,
           supplier_id: payload.supplier_id || null,
           type: payload.type,
           title: payload.title.trim(),
           purchase_date: payload.purchase_date,
           purchase_price: payload.purchase_price,
+          discount_amount: payload.discount_amount ?? 0,
+          content_status: payload.content_status ?? 'known',
+          pricing_mode:
+            payload.pricing_mode ?? (payload.type === 'mystery_pack' ? 'total' : 'individual'),
+          shipment_status: payload.shipment_status ?? 'not_shipped',
+          supplier_reference: payload.supplier_reference?.trim() || null,
           cost_allocation_mode: mode,
           notes: payload.notes?.trim() || null,
           tracking_number: payload.tracking_number?.trim() || null,
@@ -976,11 +996,7 @@ export class PurchaseService {
       if (this.selectedPurchase()?.id === finalPurchase.id)
         this.purchaseLinesRaw.set(persistedLines);
 
-      const problems = await this.legeEinzelartikelAn(
-        finalPurchase,
-        payload,
-        lines.find((line) => line.line_kind === 'individual')?.id,
-      );
+      const problems: PurchaseCreateProblem[] = [];
       this.webhookService.sendPurchaseNotification(finalPurchase);
       return problems.length > 0
         ? {
@@ -1027,7 +1043,10 @@ export class PurchaseService {
       return { data: null, error: moneyError, reportedBySyncStatus: false };
     }
 
-    const normalizedLines = this.normalizePurchaseLines(payload.purchase_lines ?? [], payload.type);
+    const normalizedLines = this.normalizePurchaseLines(
+      payload.purchase_lines ?? [],
+      payload.pricing_mode ?? (payload.type === 'mystery_pack' ? 'total' : 'individual'),
+    );
     if (normalizedLines.error) {
       return { data: null, error: normalizedLines.error, reportedBySyncStatus: false };
     }
@@ -1040,7 +1059,7 @@ export class PurchaseService {
         amount: Number(cost.amount),
         description: cost.description?.trim() || null,
         allocation_method: this.toPersistedAllocationMethod(
-          payload.type === 'mystery_pack' ? 'by_quantity' : (cost.allocationMethod ?? 'by_value'),
+          payload.pricing_mode === 'total' ? 'by_quantity' : (cost.allocationMethod ?? 'by_value'),
         ),
         target_purchase_line_ref:
           cost.allocationMethod === 'direct' ? (cost.targetPurchaseLineId ?? null) : null,
@@ -1075,6 +1094,12 @@ export class PurchaseService {
           title: payload.title.trim(),
           purchase_date: payload.purchase_date,
           purchase_price: payload.purchase_price,
+          discount_amount: payload.discount_amount ?? 0,
+          content_status: payload.content_status ?? 'known',
+          pricing_mode:
+            payload.pricing_mode ?? (payload.type === 'mystery_pack' ? 'total' : 'individual'),
+          shipment_status: payload.shipment_status ?? 'not_shipped',
+          supplier_reference: payload.supplier_reference?.trim() || null,
           cost_allocation_mode: mode,
           notes: payload.notes?.trim() || null,
           tracking_number: payload.tracking_number?.trim() || null,
@@ -1171,7 +1196,11 @@ export class PurchaseService {
       };
     }
 
-    const normalized = this.normalizePurchaseLines(inputs);
+    const normalized = this.normalizePurchaseLines(
+      inputs,
+      this.selectedPurchase()?.pricing_mode ??
+        (this.selectedPurchase()?.type === 'mystery_pack' ? 'total' : 'individual'),
+    );
     if (normalized.error) {
       return { data: null, error: normalized.error, reportedBySyncStatus: false };
     }
@@ -1417,10 +1446,24 @@ export class PurchaseService {
       title: payload.title.trim(),
       purchase_date: payload.purchase_date,
       purchase_price: payload.purchase_price,
+      discount_amount: payload.discount_amount ?? 0,
+      content_status: payload.content_status ?? existingPurchase.content_status ?? 'known',
+      pricing_mode:
+        payload.pricing_mode ??
+        existingPurchase.pricing_mode ??
+        (payload.type === 'mystery_pack' ? 'total' : 'individual'),
+      shipment_status: payload.shipment_status ?? existingPurchase.shipment_status ?? 'not_shipped',
+      supplier_reference: payload.supplier_reference?.trim() || null,
       total_purchase_cost:
         payload.purchase_price === null
           ? null
-          : Number((payload.purchase_price + totalAdditionalCosts).toFixed(2)),
+          : Number(
+              (
+                payload.purchase_price -
+                (payload.discount_amount ?? 0) +
+                totalAdditionalCosts
+              ).toFixed(2),
+            ),
       cost_allocation_mode: payload.cost_allocation_mode ?? 'even',
       notes: payload.notes?.trim() || null,
       tracking_number: payload.tracking_number?.trim() || null,
@@ -1536,7 +1579,7 @@ export class PurchaseService {
 
   private normalizePurchaseLines(
     inputs: readonly CreatePurchaseLineInput[],
-    purchaseType?: PurchaseType,
+    pricingMode: 'individual' | 'total' = 'individual',
   ): {
     data: readonly CreatePurchaseLineInput[];
     error: Error | null;
@@ -1588,7 +1631,7 @@ export class PurchaseService {
       ) {
         return { data: [], error: new Error('Die manuelle Kostenzuordnung ist ungültig.') };
       }
-      if (purchaseType === 'mystery_pack') {
+      if (pricingMode === 'total') {
         if (
           line.priceMode !== 'unpriced_mystery' ||
           line.unitPurchasePrice !== null ||
@@ -1596,7 +1639,9 @@ export class PurchaseService {
         ) {
           return {
             data: [],
-            error: new Error('Mystery-Positionen dürfen keinen erfundenen Einkaufspreis haben.'),
+            error: new Error(
+              'Positionen eines Gesamtkaufs dürfen keinen erfundenen Einzelpreis haben.',
+            ),
           };
         }
         continue;
@@ -1636,6 +1681,18 @@ export class PurchaseService {
         toExactCents(payload.purchase_price) === null)
     ) {
       return new Error('Der Kaufpreis muss centgenau und darf nicht negativ sein.');
+    }
+
+    if (
+      payload.discount_amount !== undefined &&
+      (!Number.isFinite(payload.discount_amount) ||
+        payload.discount_amount < 0 ||
+        toExactCents(payload.discount_amount) === null ||
+        (payload.purchase_price !== null && payload.discount_amount > payload.purchase_price))
+    ) {
+      return new Error(
+        'Der Rabatt muss centgenau sein und darf den Warenbetrag nicht übersteigen.',
+      );
     }
 
     for (const cost of payload.initial_costs ?? []) {
@@ -1801,6 +1858,11 @@ export class PurchaseService {
       notes?: string | null;
       tracking_number?: string | null;
       tracking_carrier?: TrackingCarrier | null;
+      receiving_status?: Purchase['receiving_status'];
+      shipment_status?: Purchase['shipment_status'];
+      content_status?: Purchase['content_status'];
+      supplier_reference?: string | null;
+      discount_amount?: number;
     },
   ): Promise<{ error: Error | null }> {
     const quelle = updates.source_id
@@ -1865,6 +1927,11 @@ export class PurchaseService {
           // als Rest einer geloeschten Sendung stehen.
           tracking_carrier: sendungsStatus === 'pending' ? null : updates.tracking_carrier,
           tracking_status: sendungsStatus,
+          receiving_status: updates.receiving_status,
+          shipment_status: updates.shipment_status,
+          content_status: updates.content_status,
+          supplier_reference: updates.supplier_reference,
+          discount_amount: updates.discount_amount,
           updated_at: new Date().toISOString(),
         })
         .eq('id', purchaseId);
@@ -1878,6 +1945,29 @@ export class PurchaseService {
 
     lokalAnwenden();
     return { error: null };
+  }
+
+  async setPurchaseWorkflowStatus(
+    purchaseId: string,
+    status: 'ordered' | 'in_transit' | 'arrived',
+    tracking?: { number: string; carrier: TrackingCarrier },
+  ): Promise<{ error: Error | null }> {
+    const purchase = this.purchases().find((entry) => entry.id === purchaseId);
+    if (!purchase) return { error: new Error('Der Einkauf wurde nicht gefunden.') };
+
+    if (status === 'in_transit' && (!tracking?.number.trim() || !tracking.carrier)) {
+      return {
+        error: new Error('Für „Unterwegs“ werden Sendungsnummer und Dienstleister benötigt.'),
+      };
+    }
+
+    return this.updatePurchase(purchaseId, {
+      receiving_status: status === 'ordered' || status === 'in_transit' ? 'ordered' : undefined,
+      shipment_status:
+        status === 'ordered' ? 'not_shipped' : status === 'in_transit' ? 'in_transit' : 'arrived',
+      tracking_number: status === 'in_transit' ? tracking?.number.trim() : purchase.tracking_number,
+      tracking_carrier: status === 'in_transit' ? tracking?.carrier : purchase.tracking_carrier,
+    });
   }
 
   /**
@@ -2041,31 +2131,16 @@ export class PurchaseService {
     const existing = this.purchases().find((p) => p.id === purchaseId);
     if (!existing) return { updatedCount: 0, error: new Error('Einkauf nicht gefunden') };
 
-    // 1. Update purchase tracking status to delivered
-    const { error: trackingError } = await this.updatePurchaseTracking(
-      purchaseId,
-      existing.tracking_number || null,
-      existing.tracking_carrier,
-      'delivered',
-    );
-    if (trackingError) return { updatedCount: 0, error: trackingError };
+    const { error } = await this.updatePurchase(purchaseId, {
+      shipment_status: 'arrived',
+      tracking_number: existing.tracking_number,
+      tracking_carrier: existing.tracking_carrier,
+    });
+    if (error) return { updatedCount: 0, error };
 
-    // 2. Alle zugehoerigen Artikel auf "eingetroffen" setzen. Die Liste kommt
-    // aus dem Inventardienst, der sie auch in der Datenbank nachzieht - frueher
-    // stand hier der lokale Spiegel, der angemeldet leer ist: Es wurde nichts
-    // aktualisiert und die Artikeltabelle der Detailseite lief anschliessend leer.
-    const zugehoerige = this.inventory
-      .items()
-      .filter((i) => i.purchase_id === purchaseId && (i.status === 'needs_review' || !i.status));
-    let updatedCount = 0;
-
-    for (const item of zugehoerige) {
-      const { error } = await this.inventory.updateItemStatus(item.id, 'received');
-      if (error) return { updatedCount, error };
-      updatedCount++;
-    }
-
-    return { updatedCount, error: null };
+    // Eine Zustellung bestätigt nur die Paketankunft. Bestand entsteht weiterhin
+    // ausschließlich über den ausdrücklich ausgelösten Wareneingang.
+    return { updatedCount: 0, error: null };
   }
 
   /**

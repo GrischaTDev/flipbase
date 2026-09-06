@@ -77,7 +77,6 @@ import { PurchaseCorrectionDialogComponent } from '../../components/purchase-cor
 import { PurchaseLifecycleActionsComponent } from '../../components/purchase-lifecycle-actions/purchase-lifecycle-actions.component';
 import { PurchaseDetailTableComponent } from '../../components/purchase-detail-table/purchase-detail-table.component';
 import { mapPurchaseDetailRows } from '../../utils/purchase-presentation';
-import { PurchaseTypeLabelPipe } from '../../../../shared/pipes/purchase-type-label.pipe';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { SalesService } from '../../../../core/services/sales.service';
 import { RecordHistoryContainer } from '../../../audit/components/record-history/record-history.container';
@@ -104,7 +103,6 @@ import { TwoColumnLayoutComponent } from '../../../../shared/components/two-colu
     PurchaseCorrectionDialogComponent,
     PurchaseLifecycleActionsComponent,
     PurchaseDetailTableComponent,
-    PurchaseTypeLabelPipe,
     RecordHistoryContainer,
     PurchaseCostRepairComponent,
     PageHeaderComponent,
@@ -771,6 +769,33 @@ export class PurchaseDetailComponent {
   }
 
   // -- Tracking Methods --
+  async markAsOrdered(): Promise<void> {
+    await this.applyWorkflowStatus('ordered', 'Der Einkauf wurde als bestellt markiert.');
+  }
+
+  async markAsArrived(): Promise<void> {
+    await this.applyWorkflowStatus('arrived', 'Die Paketankunft wurde bestätigt.');
+  }
+
+  private async applyWorkflowStatus(
+    status: 'ordered' | 'arrived',
+    successMessage: string,
+  ): Promise<void> {
+    const purchase = this.purchaseService.selectedPurchase();
+    if (!purchase || this.isLifecycleSubmitting()) return;
+    this.isLifecycleSubmitting.set(true);
+    const { error } = await this.purchaseService.setPurchaseWorkflowStatus(purchase.id, status);
+    this.isLifecycleSubmitting.set(false);
+    if (error) {
+      this.meldeFehlerWennNichtSynchronisiert(
+        'Der Einkaufsstatus konnte nicht geändert werden.',
+        error,
+      );
+      return;
+    }
+    this.toast.success(successMessage);
+  }
+
   startEditTracking(): void {
     const p = this.purchaseService.selectedPurchase();
     this.trackingNumberDraft.set(p?.tracking_number || '');
@@ -792,12 +817,14 @@ export class PurchaseDetailComponent {
     const num = this.trackingNumberDraft().trim();
     let ergebnis: { error: Error | null };
     try {
-      ergebnis = await this.purchaseService.updatePurchaseTracking(
-        p.id,
-        num || null,
-        this.trackingCarrierDraft(),
-        num ? 'in_transit' : null,
-      );
+      const carrier = this.trackingCarrierDraft();
+      ergebnis =
+        num && carrier
+          ? await this.purchaseService.setPurchaseWorkflowStatus(p.id, 'in_transit', {
+              number: num,
+              carrier,
+            })
+          : { error: new Error('Sendungsnummer und Dienstleister werden benötigt.') };
     } catch (ursache: unknown) {
       ergebnis = { error: this.alsError(ursache) };
     }

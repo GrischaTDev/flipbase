@@ -16,6 +16,11 @@ function render(
   entryStatus: 'draft' | 'capturing' | 'finalized',
   saleHistoryState: 'idle' | 'loading' | 'recorded' | 'review_required' | 'none' | 'error' = 'idle',
   saleReviewInventoryItemId: string | null = null,
+  workflow: {
+    receiving: 'draft' | 'ordered' | 'partially_received' | 'received' | 'archived';
+    shipment: 'not_shipped' | 'in_transit' | 'arrived';
+    content: 'known' | 'unknown';
+  } = { receiving: 'received', shipment: 'arrived', content: 'known' },
 ) {
   TestBed.resetTestingModule();
   const fixture = TestBed.configureTestingModule({
@@ -26,6 +31,9 @@ function render(
     entryStatus: signal(entryStatus),
     saleHistoryState: signal(saleHistoryState),
     saleReviewInventoryItemId: signal(saleReviewInventoryItemId),
+    receivingStatus: signal(workflow.receiving),
+    shipmentStatus: signal(workflow.shipment),
+    contentStatus: signal(workflow.content),
   });
   fixture.detectChanges();
   return fixture;
@@ -111,5 +119,23 @@ describe('PurchaseLifecycleActionsComponent', () => {
       .querySelector<HTMLButtonElement>('[data-retry-sale-history]')
       ?.click();
     expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it('führt einen neuen Einkauf über bestellt und angekommen zur Inhaltserfassung', () => {
+    const draft = render('draft', 'idle', null, {
+      receiving: 'draft',
+      shipment: 'not_shipped',
+      content: 'unknown',
+    });
+    expect(draft.nativeElement.querySelector('[data-mark-ordered]')).not.toBeNull();
+    expect(draft.nativeElement.querySelector('[data-finalize-purchase]')).toBeNull();
+
+    const arrived = render('draft', 'idle', null, {
+      receiving: 'ordered',
+      shipment: 'arrived',
+      content: 'unknown',
+    });
+    expect(arrived.nativeElement.querySelector('[data-capture-content]')).not.toBeNull();
+    expect(arrived.nativeElement.querySelector('[data-finalize-purchase]')).toBeNull();
   });
 });

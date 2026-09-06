@@ -5,41 +5,21 @@ import {
   effect,
   inject,
   signal,
+  untracked,
 } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { CurrencyPipe, DatePipe } from '@angular/common';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
+import { DatePipe } from '@angular/common';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
   LucideDynamicIcon,
   LucideShoppingBag as ShoppingBag,
   LucidePlus as Plus,
-  LucidePackage as Package,
-  LucideLayers as Layers,
-  LucideBoxes as Boxes,
   LucideArrowRight as ArrowRight,
-  LucideExternalLink as ExternalLink,
-  LucideZap as Zap,
-  LucideWallet as Wallet,
-  LucideMapPin as MapPin,
-  LucideSparkles as Sparkles,
-  LucideTrash2 as Trash2,
-  LucideCamera as Camera,
-  LucideRefreshCw as RefreshCw,
-  LucideX as X,
-  LucideCoins as Coins,
-  LucideWifi as Wifi,
-  LucideWifiOff as WifiOff,
-  LucideTag as Tag,
-  LucideGift as Gift,
-  LucideStore as Store,
-  LucideTruck as Truck,
   LucideSearch as Search,
 } from '@lucide/angular';
-import { beschreibePurchaseProblem, PurchaseService } from '../../core/services/purchase.service';
-import { OfflineSyncService } from '../../core/services/offline-sync.service';
-import { InboundTrackingService } from '../../core/services/inbound-tracking.service';
-import { PurchaseType } from '../../core/models/flipbase.models';
+import { PurchaseService } from '../../core/services/purchase.service';
+import { LegacyPurchaseRecoveryService } from './services/legacy-purchase-recovery.service';
+import type { Purchase } from '../../core/models/flipbase.models';
 import { ToastService } from '../../shared/components/toast/toast.service';
 import { InventoryService } from '../../core/services/inventory.service';
 import { StockService } from '../../core/services/stock.service';
@@ -47,7 +27,6 @@ import { WorkspaceService } from '../../core/services/workspace.service';
 import { CostStateComponent } from '../../shared/components/cost-state/cost-state.component';
 import { mapPurchaseListRow } from './utils/purchase-presentation';
 import type { PurchaseListRow } from './models/purchase-presentation.models';
-import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
 import { PurchasesColumnId, PurchasesSortField } from '../../core/config/table-defaults.config';
 import {
   tableStateDiffersFromDefaults,
@@ -65,13 +44,10 @@ import { ButtonComponent } from '../../shared/components/button/button.component
   selector: 'app-purchases',
   imports: [
     RouterLink,
-    ReactiveFormsModule,
-    CurrencyPipe,
     DatePipe,
     TranslatePipe,
     LucideDynamicIcon,
     CostStateComponent,
-    ModalDialogDirective,
     PageHeaderComponent,
     BadgeComponent,
     ButtonComponent,
@@ -84,9 +60,9 @@ import { ButtonComponent } from '../../shared/components/button/button.component
 })
 export class PurchasesComponent {
   readonly purchaseService = inject(PurchaseService);
-  readonly offlineSyncService = inject(OfflineSyncService);
-  readonly trackingService = inject(InboundTrackingService);
+  readonly recovery = inject(LegacyPurchaseRecoveryService);
   private readonly toast = inject(ToastService);
+  private readonly router = inject(Router);
   private readonly inventoryService = inject(InventoryService);
   private readonly stockService = inject(StockService);
   private readonly workspaceService = inject(WorkspaceService);
@@ -95,37 +71,32 @@ export class PurchasesComponent {
 
   readonly bagIcon = ShoppingBag;
   readonly plusIcon = Plus;
-  readonly packageIcon = Package;
-  readonly layersIcon = Layers;
-  readonly boxesIcon = Boxes;
   readonly arrowRightIcon = ArrowRight;
-  readonly truckIcon = Truck;
-  readonly linkIcon = ExternalLink;
-  readonly zapIcon = Zap;
-  readonly walletIcon = Wallet;
-  readonly tagIcon = Tag;
-  readonly giftIcon = Gift;
-  readonly storeIcon = Store;
-  readonly pinIcon = MapPin;
-  readonly sparklesIcon = Sparkles;
-  readonly trashIcon = Trash2;
-  readonly cameraIcon = Camera;
-  readonly refreshIcon = RefreshCw;
-  readonly closeIcon = X;
-  readonly coinsIcon = Coins;
-  readonly wifiIcon = Wifi;
-  readonly wifiOffIcon = WifiOff;
   readonly searchIcon = Search;
-
-  readonly isFleaMarketModalOpen = signal<boolean>(false);
-  readonly activeTab = signal<'all' | PurchaseType>('all');
-  readonly purchaseTabs = [
-    { value: 'all' as const, label: 'Alle Einkäufe' },
-    { value: 'single' as const, label: 'Normale Einkäufe' },
-    { value: 'mystery_pack' as const, label: 'Mystery Boxen' },
-    { value: 'lot' as const, label: 'Konvolute' },
-    { value: 'pallet' as const, label: 'Paletten' },
+  readonly activeStatus = signal('all');
+  readonly sellerId = signal('');
+  readonly statusOptions = [
+    { value: 'all', label: 'Alle' },
+    { value: 'draft', label: 'Entwurf' },
+    { value: 'ordered', label: 'Bestellt' },
+    { value: 'in_transit', label: 'Unterwegs' },
+    { value: 'partially_received', label: 'Teillieferung' },
+    { value: 'received', label: 'Angekommen' },
+    { value: 'archived', label: 'Archiv' },
   ];
+  readonly sellerOptions = computed(() => {
+    const sellers = new Map<string, string>();
+    for (const purchase of this.purchaseService.purchases()) {
+      const id = purchase.supplier_id ?? purchase.supplier?.id;
+      if (id) sellers.set(id, purchase.supplier?.name ?? 'Unbekannter Verkäufer');
+    }
+    return [...sellers]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'de'));
+  });
+  readonly selectedSeller = computed(() =>
+    this.sellerOptions().find((seller) => seller.id === this.sellerId()),
+  );
   readonly searchQuery = signal('');
   readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
   readonly purchasesTableConfig = this.tablePreferences.getTableConfig<
@@ -148,7 +119,8 @@ export class PurchasesComponent {
   );
   readonly viewModified = computed(
     () =>
-      this.activeTab() !== 'all' ||
+      this.activeStatus() !== 'all' ||
+      this.sellerId() !== '' ||
       this.searchQuery().trim() !== '' ||
       tableStateDiffersFromDefaults(this.tablePrefs(), this.purchasesTableConfig),
   );
@@ -159,40 +131,38 @@ export class PurchasesComponent {
     return sort.direction === 'asc' ? 'ascending' : 'descending';
   }
 
-  readonly rapidForm = new FormGroup({
-    title: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
-    purchasePrice: new FormControl<number>(10, {
-      nonNullable: true,
-      validators: [Validators.required, Validators.min(0.5)],
-    }),
-    estimatedResalePrice: new FormControl<number>(25, {
-      nonNullable: true,
-      validators: [Validators.required, Validators.min(1)],
-    }),
-    locationName: new FormControl(this.offlineSyncService.cashWallet().locationName, {
-      nonNullable: true,
-    }),
-    condition: new FormControl('Gebraucht', { nonNullable: true }),
-    notes: new FormControl(''),
-  });
-
-  readonly walletConfigForm = new FormGroup({
-    startCash: new FormControl<number>(this.offlineSyncService.cashWallet().startCash, {
-      nonNullable: true,
-    }),
-    locationName: new FormControl(this.offlineSyncService.cashWallet().locationName, {
-      nonNullable: true,
-    }),
-  });
-
-  readonly isEditingWallet = signal<boolean>(false);
-
   readonly filteredPurchases = computed(() => {
-    const list = this.purchaseService.purchases();
-    const tab = this.activeTab();
-    if (tab === 'all') return list;
-    return list.filter((p) => p.type === tab);
+    const status = this.activeStatus();
+    return this.purchaseService.purchases().filter((purchase) => {
+      const archived = purchase.receiving_status === 'archived';
+      if (status === 'archived') return archived && this.matchesSeller(purchase);
+      if (archived || !this.matchesSeller(purchase)) return false;
+      if (status === 'all') return true;
+      if (status === 'in_transit')
+        return (
+          purchase.shipment_status === 'in_transit' &&
+          purchase.receiving_status !== 'received' &&
+          purchase.receiving_status !== 'partially_received'
+        );
+      if (status === 'received')
+        return (
+          purchase.receiving_status === 'received' ||
+          (purchase.shipment_status === 'arrived' &&
+            purchase.receiving_status !== 'partially_received')
+        );
+      if (status === 'ordered')
+        return (
+          purchase.receiving_status === 'ordered' &&
+          purchase.shipment_status !== 'in_transit' &&
+          purchase.shipment_status !== 'arrived'
+        );
+      return (purchase.receiving_status ?? 'draft') === status;
+    });
   });
+
+  private matchesSeller(purchase: Purchase): boolean {
+    return !this.sellerId() || (purchase.supplier_id ?? purchase.supplier?.id) === this.sellerId();
+  }
 
   readonly purchaseRows = computed(() => {
     const workspaceId = this.workspaceService.currentWorkspace()?.id ?? null;
@@ -223,7 +193,7 @@ export class PurchasesComponent {
     const query = this.searchQuery().trim().toLocaleLowerCase('de');
     const filtered = query
       ? rows.filter((row) =>
-          [row.title, row.supplierLabel, row.typeLabel, row.purchaseStatus]
+          [row.reference, row.title, row.supplierLabel, row.supplierReference]
             .join(' ')
             .toLocaleLowerCase('de')
             .includes(query),
@@ -263,7 +233,8 @@ export class PurchasesComponent {
   }
 
   resetView(): void {
-    this.activeTab.set('all');
+    this.activeStatus.set('all');
+    this.sellerId.set('');
     this.searchQuery.set('');
     this.resetTablePreferences();
   }
@@ -274,6 +245,44 @@ export class PurchasesComponent {
 
   constructor() {
     effect(() => {
+      const workspaceId = this.workspaceId();
+      untracked(() => {
+        this.activeStatus.set('all');
+        this.searchQuery.set('');
+        this.sellerId.set('');
+        try {
+          const stored: unknown = JSON.parse(
+            localStorage.getItem(`flipbase_purchase_filters_v2_${workspaceId}`) ?? 'null',
+          );
+          if (stored && typeof stored === 'object') {
+            const filters = stored as Record<string, unknown>;
+            if (
+              typeof filters['status'] === 'string' &&
+              this.statusOptions.some((option) => option.value === filters['status'])
+            )
+              this.activeStatus.set(filters['status']);
+            if (typeof filters['query'] === 'string') this.searchQuery.set(filters['query']);
+            if (typeof filters['sellerId'] === 'string') this.sellerId.set(filters['sellerId']);
+          }
+        } catch {
+          /* Bei unlesbaren Einstellungen mit der vollständigen Ansicht starten. */
+        }
+      });
+    });
+    effect(() => {
+      const key = `flipbase_purchase_filters_v2_${this.workspaceId()}`;
+      const value = JSON.stringify({
+        status: this.activeStatus(),
+        query: this.searchQuery(),
+        sellerId: this.sellerId(),
+      });
+      try {
+        localStorage.setItem(key, value);
+      } catch {
+        /* Die Ansicht bleibt ohne lokalen Speicher bedienbar. */
+      }
+    });
+    effect(() => {
       const workspaceId = this.workspaceService.currentWorkspace()?.id;
       if (!workspaceId || workspaceId === this.requestedStockWorkspaceId) return;
       this.requestedStockWorkspaceId = workspaceId;
@@ -281,125 +290,21 @@ export class PurchasesComponent {
     });
   }
 
-  openFleaMarketModal(): void {
-    this.rapidForm.patchValue({
-      locationName: this.offlineSyncService.cashWallet().locationName,
-    });
-    this.isFleaMarketModalOpen.set(true);
-  }
-
-  closeFleaMarketModal(): void {
-    this.isFleaMarketModalOpen.set(false);
-  }
-
-  onPriceChange(price: number): void {
-    const calculatedResale = Number((price * 2.2).toFixed(2));
-    this.rapidForm.patchValue({
-      purchasePrice: price,
-      estimatedResalePrice: calculatedResale,
-    });
-  }
-
-  onAddQuickAmount(add: number): void {
-    const current = this.rapidForm.get('purchasePrice')?.value || 0;
-    const newPrice = current + add;
-    this.onPriceChange(newPrice);
-  }
-
-  onSubmitRapidPurchase(): void {
-    if (this.rapidForm.invalid) return;
-    const val = this.rapidForm.getRawValue();
-
-    try {
-      this.offlineSyncService.recordRapidPurchase({
-        title: val.title.trim(),
-        purchasePrice: val.purchasePrice,
-        estimatedResalePrice: val.estimatedResalePrice,
-        locationName: val.locationName.trim() || undefined,
-        condition: val.condition,
-        notes: val.notes?.trim() || undefined,
-      });
-    } catch (error: unknown) {
-      this.toast.error(
-        'Einkauf konnte nicht lokal vorgemerkt werden.',
-        this.beschreibeFehler(error),
-      );
+  openPurchase(event: MouseEvent, id: string): void {
+    if (event.target instanceof Element && event.target.closest('a, button, input, select')) return;
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey)
       return;
-    }
-
-    // Reset for next rapid entry while keeping location
-    this.rapidForm.patchValue({
-      title: '',
-      purchasePrice: 10,
-      estimatedResalePrice: 22,
-      notes: '',
-    });
-    this.toast.success('Einkauf wurde lokal vorgemerkt.');
+    void this.router.navigate(['/purchases', id]);
   }
 
-  onSaveWalletConfig(): void {
-    const val = this.walletConfigForm.getRawValue();
+  exportLegacyPurchases(): void {
     try {
-      this.offlineSyncService.startCashSession(val.startCash, val.locationName);
-    } catch (error: unknown) {
+      this.recovery.exportBackup();
+      this.toast.success('Die Sicherungsdatei wurde zum Herunterladen bereitgestellt.');
+    } catch {
       this.toast.error(
-        'Wallet-Konfiguration konnte nicht gespeichert werden.',
-        this.beschreibeFehler(error),
-      );
-      return;
-    }
-    this.isEditingWallet.set(false);
-    this.toast.success('Wallet-Konfiguration wurde gespeichert.');
-  }
-
-  async onSyncNow(): Promise<void> {
-    try {
-      const ergebnis = await this.offlineSyncService.syncToCloud();
-      if (ergebnis.error) {
-        if (!ergebnis.reportedBySyncStatus) {
-          this.toast.error(
-            'Offline-Daten konnten nicht synchronisiert werden.',
-            ergebnis.error.message,
-          );
-        }
-        return;
-      }
-      if (ergebnis.problems.length > 0) {
-        const ungemeldeteProbleme = ergebnis.problems.filter(
-          (problem) => !problem.reportedBySyncStatus,
-        );
-        if (ungemeldeteProbleme.length > 0) {
-          this.toast.warning(
-            'Offline-Daten wurden mit Einschränkungen synchronisiert.',
-            ungemeldeteProbleme.map(beschreibePurchaseProblem).join('\n'),
-          );
-        }
-        return;
-      }
-      this.toast.success('Offline-Daten wurden synchronisiert.');
-    } catch (error: unknown) {
-      this.toast.error(
-        'Offline-Daten konnten nicht synchronisiert werden.',
-        this.beschreibeFehler(error),
+        'Die Sicherung konnte nicht erstellt werden. Die lokalen Daten bleiben erhalten.',
       );
     }
-  }
-
-  onDeletePending(id: string): void {
-    try {
-      this.offlineSyncService.deletePendingEntry(id);
-      this.toast.success('Vorgemerkter Einkauf wurde entfernt.');
-    } catch (error: unknown) {
-      this.toast.error(
-        'Vorgemerkter Einkauf konnte nicht entfernt werden.',
-        this.beschreibeFehler(error),
-      );
-    }
-  }
-
-  private beschreibeFehler(error: unknown): string {
-    return error instanceof Error
-      ? error.message
-      : 'Bitte versuche es erneut. Wenn der Fehler bestehen bleibt, prüfe den lokalen Speicher.';
   }
 }

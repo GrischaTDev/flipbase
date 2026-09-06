@@ -62,7 +62,18 @@ CREATE TABLE IF NOT EXISTS public.suppliers (
     -- diese Verweise muessen nachvollziehbar bleiben. Ein archivierter
     -- Lieferant verschwindet nur aus den Auswahllisten.
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    unique (workspace_id, id)
+    unique (workspace_id, id),
+    seller_type text check (seller_type in ('private', 'business')),
+    contact_person text,
+    country text,
+    street text,
+    address_extra text,
+    postal_code text,
+    city text,
+    email text,
+    phone text,
+    profile_url text,
+    website text
 );
 
 -- ==============================================================================
@@ -115,7 +126,14 @@ CREATE TABLE IF NOT EXISTS public.purchases (
     constraint purchases_workspace_supplier_fkey
         foreign key (workspace_id, supplier_id)
         references public.suppliers(workspace_id, id)
-        on delete set null (supplier_id)
+        on delete set null (supplier_id),
+    content_status text not null default 'known' check (content_status in ('known', 'unknown')),
+    pricing_mode text check (pricing_mode in ('individual', 'total')),
+    shipment_status text not null default 'not_shipped' check (shipment_status in ('not_shipped', 'in_transit', 'arrived')),
+    supplier_reference text,
+    request_id uuid,
+    discount_amount numeric not null default 0 check (discount_amount >= 0 and discount_amount <> 'NaN'::numeric and scale(discount_amount) <= 2),
+    unique (workspace_id, request_id)
 );
 
 CREATE TABLE IF NOT EXISTS public.purchase_costs (
@@ -2853,6 +2871,7 @@ declare
 begin
   update public.purchases
   set receiving_status = case
+        when receiving_status = 'draft' then 'draft'
         when exists (
           select 1 from public.purchase_lines
           where workspace_id = p_workspace_id
@@ -3020,6 +3039,7 @@ declare
   v_line_ids uuid[];
   v_line_weights numeric[];
   v_line_goods_shares bigint[];
+  v_discount_shares bigint[];
   v_line_additional_shares bigint[];
   v_line_total_shares bigint[];
   v_cost_shares bigint[];
@@ -3031,6 +3051,7 @@ declare
   v_global_unit_total_shares bigint[];
   v_goods_cents bigint := 0;
   v_additional_cents bigint := 0;
+  v_discount_cents bigint := 0;
   v_total_cents bigint := 0;
   v_allocated_cents bigint := 0;
   v_line_count integer := 0;
@@ -3058,6 +3079,20 @@ begin
     raise exception using
       errcode = 'P0002',
       message = 'Der Einkauf wurde nicht gefunden.';
+  end if;
+
+  if v_purchase.content_status = 'unknown' then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Inhalt muss vor dem Abschluss vollständig erfasst sein.';
+  end if;
+
+  v_discount_cents := (coalesce(v_purchase.discount_amount, 0) * 100)::bigint;
+  if v_purchase.purchase_price is not null
+    and v_discount_cents > (v_purchase.purchase_price * 100)::bigint then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Rabatt darf den Warenbetrag nicht übersteigen.';
   end if;
 
   select
@@ -3144,7 +3179,7 @@ begin
   v_line_goods_shares := pg_catalog.array_fill(0::bigint, array[v_line_count]);
   v_line_additional_shares := pg_catalog.array_fill(0::bigint, array[v_line_count]);
 
-  if v_purchase.type = 'mystery_pack' then
+  if coalesce(v_purchase.pricing_mode, case when v_purchase.type = 'mystery_pack' then 'total' else 'individual' end) = 'total' then
     if exists (
       select 1
       from public.purchase_lines as line
@@ -3167,7 +3202,7 @@ begin
         message = 'Mystery-Einkäufe benötigen einen ausdrücklich erfassten Warenbetrag.';
     end if;
 
-    v_goods_cents := (v_purchase.purchase_price * 100)::bigint;
+    v_goods_cents := (v_purchase.purchase_price * 100)::bigint - v_discount_cents;
     v_total_cents := v_goods_cents + v_additional_cents;
     v_global_unit_goods_shares := public.allocate_integer_cents(
       v_goods_cents,
@@ -3237,6 +3272,13 @@ begin
     where line.workspace_id = p_workspace_id
       and line.purchase_id = p_purchase_id;
 
+    v_discount_shares := public.allocate_integer_cents(v_discount_cents, v_line_goods_shares);
+    for v_line_position in 1..v_line_count loop
+      v_line_goods_shares[v_line_position] :=
+        v_line_goods_shares[v_line_position] - v_discount_shares[v_line_position];
+    end loop;
+    v_goods_cents := v_goods_cents - v_discount_cents;
+
     for v_cost in
       select cost.*
       from public.purchase_costs as cost
@@ -3304,7 +3346,7 @@ begin
     where line.workspace_id = p_workspace_id
       and line.id = v_line_ids[v_line_position];
 
-    if v_purchase.type = 'mystery_pack' then
+    if coalesce(v_purchase.pricing_mode, case when v_purchase.type = 'mystery_pack' then 'total' else 'individual' end) = 'total' then
       v_unit_total_shares := pg_catalog.array_fill(
         0::bigint,
         array[v_line.ordered_quantity]
@@ -3439,6 +3481,18 @@ begin
     raise exception using
       errcode = '22023',
       message = 'Der Einkauf ist bereits finalisiert.';
+  end if;
+
+  if v_purchase.request_id is not null and v_purchase.shipment_status <> 'arrived' then
+    raise exception using
+      errcode = '22023',
+      message = 'Vor dem Abschluss muss die Ankunft bestätigt sein.';
+  end if;
+
+  if v_purchase.content_status = 'unknown' then
+    raise exception using
+      errcode = '22023',
+      message = 'Der Inhalt muss vor dem Abschluss vollständig erfasst sein.';
   end if;
 
   select
@@ -4930,7 +4984,7 @@ begin
       message = 'Die Menge ist auf 100.000 Einheiten je Position und Einkauf begrenzt.';
   end if;
 
-  if v_purchase.type = 'mystery_pack' then
+  if coalesce(v_purchase.pricing_mode, case when v_purchase.type = 'mystery_pack' then 'total' else 'individual' end) = 'total' then
     if p_purchase_price is null
       or p_purchase_price = 'NaN'::numeric
       or p_purchase_price < 0
@@ -5294,7 +5348,7 @@ begin
         message = 'Die Ersatz-Einkaufspositionen sind ungültig.';
     end if;
 
-    if v_purchase.type = 'mystery_pack' then
+    if coalesce(v_purchase.pricing_mode, case when v_purchase.type = 'mystery_pack' then 'total' else 'individual' end) = 'total' then
       if v_input_line ->> 'price_mode' <> 'unpriced_mystery'
         or pg_catalog.jsonb_typeof(v_input_line -> 'unit_purchase_price') <> 'null'
         or pg_catalog.jsonb_typeof(v_input_line -> 'line_total') <> 'null' then
@@ -5561,7 +5615,7 @@ begin
 
   update public.purchases
   set purchase_price = case
-        when v_purchase.type = 'mystery_pack' then p_purchase_price
+        when coalesce(v_purchase.pricing_mode, case when v_purchase.type = 'mystery_pack' then 'total' else 'individual' end) = 'total' then p_purchase_price
         else null
       end
   where workspace_id = p_workspace_id
@@ -6098,9 +6152,21 @@ begin
   if p_workspace_id is null
     or jsonb_typeof(p_purchase) <> 'object'
     or jsonb_typeof(p_expenses) <> 'array'
-    or jsonb_typeof(p_lines) <> 'array'
-    or nullif(btrim(p_purchase ->> 'title'), '') is null then
+    or jsonb_typeof(p_lines) <> 'array' then
     raise exception using errcode = '22023', message = 'Die Einkaufsdaten sind ungültig.';
+  end if;
+
+  if nullif(p_purchase ->> 'request_id', '') is not null then
+    perform pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_workspace_id::text || ':' || (p_purchase ->> 'request_id'), 0));
+    select * into v_purchase from public.purchases
+    where workspace_id = p_workspace_id and request_id = (p_purchase ->> 'request_id')::uuid;
+    if found then
+      return jsonb_build_object(
+        'purchase', to_jsonb(v_purchase),
+        'purchase_lines', coalesce((select jsonb_agg(line order by line.created_at, line.id) from public.purchase_lines line where line.purchase_id = v_purchase.id), '[]'::jsonb),
+        'purchase_costs', coalesce((select jsonb_agg(cost) from public.purchase_costs cost where cost.purchase_id = v_purchase.id), '[]'::jsonb)
+      );
+    end if;
   end if;
 
   if coalesce(pg_catalog.jsonb_typeof(p_purchase -> 'purchase_price'), 'null')
@@ -6254,7 +6320,7 @@ begin
         message = 'Die manuelle Kostenzuordnung muss centgenau und darf nicht negativ sein.';
     end if;
 
-    if v_purchase_type = 'mystery_pack' then
+    if coalesce(p_purchase ->> 'pricing_mode', case when v_purchase_type = 'mystery_pack' then 'total' else 'individual' end) = 'total' then
       if coalesce(nullif(v_line ->> 'price_mode', ''), 'priced') <> 'unpriced_mystery'
         or coalesce(pg_catalog.jsonb_typeof(v_line -> 'unit_purchase_price'), 'null') <> 'null'
         or coalesce(pg_catalog.jsonb_typeof(v_line -> 'line_total'), 'null') <> 'null' then
@@ -6284,13 +6350,14 @@ begin
   insert into public.purchases (
     workspace_id, source_id, supplier_id, type, title, purchase_date,
     purchase_price, cost_allocation_mode, notes, tracking_number,
-    tracking_carrier, tracking_status, original_url, receiving_status
+    tracking_carrier, tracking_status, original_url, receiving_status,
+    content_status, pricing_mode, supplier_reference, request_id, discount_amount
   ) values (
     p_workspace_id,
     v_source_id,
     v_supplier_id,
     v_purchase_type,
-    btrim(p_purchase ->> 'title'),
+    coalesce(btrim(p_purchase ->> 'title'), ''),
     (p_purchase ->> 'purchase_date')::date,
     (p_purchase ->> 'purchase_price')::numeric,
     v_mode,
@@ -6299,7 +6366,12 @@ begin
     nullif(p_purchase ->> 'tracking_carrier', ''),
     coalesce(nullif(p_purchase ->> 'tracking_status', ''), 'pending'),
     nullif(p_purchase ->> 'original_url', ''),
-    case when jsonb_array_length(p_lines) > 0 then 'ordered' else 'received' end
+    'draft',
+    coalesce(p_purchase ->> 'content_status', 'known'),
+    p_purchase ->> 'pricing_mode',
+    nullif(btrim(p_purchase ->> 'supplier_reference'), ''),
+    nullif(p_purchase ->> 'request_id', '')::uuid,
+    coalesce((p_purchase ->> 'discount_amount')::numeric, 0)
   ) returning * into v_purchase;
 
   for v_line in select value from jsonb_array_elements(p_lines) loop
@@ -6374,7 +6446,7 @@ begin
   from public.purchase_costs as cost
   where cost.purchase_id = v_purchase.id;
 
-  if cardinality(v_line_ids) = 0 then
+  if cardinality(v_line_ids) = 0 or v_purchase.content_status = 'unknown' then
     null;
   elsif v_mode = 'manual' then
     select coalesce(round(sum(line.allocated_additional_cost) * 100), 0)::bigint
@@ -6486,8 +6558,7 @@ begin
     or p_purchase_id is null
     or pg_catalog.jsonb_typeof(p_purchase) <> 'object'
     or pg_catalog.jsonb_typeof(p_expenses) <> 'array'
-    or pg_catalog.jsonb_typeof(p_lines) <> 'array'
-    or nullif(pg_catalog.btrim(p_purchase ->> 'title'), '') is null then
+    or pg_catalog.jsonb_typeof(p_lines) <> 'array' then
     raise exception using errcode = '22023', message = 'Die Einkaufsdaten sind ungültig.';
   end if;
 
@@ -6657,7 +6728,7 @@ begin
         message = 'Die manuelle Kostenzuordnung muss centgenau und darf nicht negativ sein.';
     end if;
 
-    if v_purchase_type = 'mystery_pack' then
+    if coalesce(p_purchase ->> 'pricing_mode', case when v_purchase_type = 'mystery_pack' then 'total' else 'individual' end) = 'total' then
       if coalesce(nullif(v_line ->> 'price_mode', ''), 'priced') <> 'unpriced_mystery'
         or coalesce(pg_catalog.jsonb_typeof(v_line -> 'unit_purchase_price'), 'null') <> 'null'
         or coalesce(pg_catalog.jsonb_typeof(v_line -> 'line_total'), 'null') <> 'null' then
@@ -6972,8 +7043,12 @@ begin
   update public.purchases
   set source_id = v_source_id,
       supplier_id = v_supplier_id,
+      content_status = coalesce(p_purchase ->> 'content_status', v_purchase.content_status),
+      pricing_mode = coalesce(p_purchase ->> 'pricing_mode', v_purchase.pricing_mode),
+      supplier_reference = nullif(btrim(p_purchase ->> 'supplier_reference'), ''),
+      discount_amount = coalesce((p_purchase ->> 'discount_amount')::numeric, 0),
       type = v_purchase_type,
-      title = pg_catalog.btrim(p_purchase ->> 'title'),
+      title = coalesce(pg_catalog.btrim(p_purchase ->> 'title'), ''),
       purchase_date = (p_purchase ->> 'purchase_date')::date,
       purchase_price = (p_purchase ->> 'purchase_price')::numeric,
       cost_allocation_mode = v_mode,

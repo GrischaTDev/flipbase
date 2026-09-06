@@ -567,7 +567,7 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
     });
   });
 
-  it('liefert den gespeicherten Einkauf mit einem typisierten Activity-Teilproblem zurück', async () => {
+  it('legt bei einem positionslosen Entwurf noch keinen Inventarartikel an', async () => {
     const aufrufe: { tabelle: string; payload: unknown }[] = [];
     const client = {
       rpc: async () => ({
@@ -608,20 +608,13 @@ describe('PurchaseService – abhängige Schreibvorgänge beim Anlegen', () => {
     });
 
     expect(ergebnis).toMatchObject({
-      status: 'partial',
+      status: 'success',
       data: { id: gespeicherterEinkauf.id },
       error: null,
-      problems: [
-        {
-          kind: 'activity_log',
-          reportedBySyncStatus: true,
-          error: expect.any(Error),
-        },
-      ],
+      problems: [],
     });
-    expect(aufrufe.map(({ tabelle }) => tabelle)).toEqual(['inventory_items', 'activity_logs']);
-    expect(aufrufe[1].payload).toMatchObject({ inventory_item_id: gespeicherterArtikel.id });
-    expect(syncStatus.hatFehler()).toBe(true);
+    expect(aufrufe).toEqual([]);
+    expect(syncStatus.hatFehler()).toBe(false);
   });
 
   it('rollt bei fehlgeschlagenen Zusatzkosten den gesamten Einkauf zurück', async () => {

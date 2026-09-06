@@ -17,6 +17,16 @@ Rangfolge bei Gestaltungsentscheidungen:
 
 Barrierefreiheit und korrekte Fachabläufe bleiben verbindlich. Ein Konflikt wird dokumentiert und gelöst, nicht durch unbemerkte Designänderung übergangen. Ohne gemessene Referenz darf niemand behaupten, eine Oberfläche sei pixelgenau abgeglichen.
 
+## Verbindliche Präzisierung: Schreibweise und Farbdisziplin
+
+Nutzerfestlegung vom 06.09.2026: Seiten-, Karten-, Abschnitts- und Tabellenüberschriften sowie Feldbeschriftungen verwenden normale deutsche Groß-/Kleinschreibung. Keine dekorative Versalschrift durch `uppercase`, keine künstlich gesperrten Überschriften durch `tracking-wider`/`tracking-widest`. Fachliche Kürzel wie SKU, EAN, EUR und DATEV bleiben korrekt geschrieben; Eingaben, Marken und Kennungen werden nicht pauschal kleingeschrieben. Auch Badges erhalten keine automatische Versalschrift.
+
+Neutrale Hintergründe, weiße beziehungsweise themegerechte Karten, dezente Rahmen und einheitliche Textfarben dominieren. Farbe kennzeichnet Bedeutung: Statusbadges, erforderliche Hinweise, Fehler und die bestehenden primären Markenaktionen. Keine dekorativ wechselnden Indigo-, Violett-, Grün- oder Orangeflächen an Karten, Titeln, Icons oder normalen Beträgen. Statusfarben zentral und in allen Bereichen mit derselben Bedeutung verwenden; Text/Symbol ergänzt die Farbe. Das ausdrücklich festgelegte Logo-Gelb `#fcc601` bleibt bestehen.
+
+Einkaufserfassung und -details folgen der sichtbaren Shopify-Referenz in Anordnung und Proportionen: zentrierter Seitenbereich, breite Positionskarte links, schmalere Kosten-/Detailkarten rechts, Chronik unter dem Arbeitsbereich. Eigene Verkäufer-, Paket- und Kostenfunktionen in diese Struktur integrieren. Visuelle Abnahme bei vergleichbarer Fenstergröße gegen Referenz einschließlich Feldern, Dialogen, Tabellen, Leerzuständen, Radien, Schatten und Bewegung; gemessene Abweichungen dokumentieren.
+
+Offene Bestandskorrekturen betreffen unter anderem Einkaufsdetails, Kosteneditor, Korrekturdialog und explizite Großschreibungsoptionen der Badges. Eine globale CSS-Übersteuerung ersetzt die gezielte Korrektur der Templates und Oberflächentexte nicht.
+
 ## Markenfarbe: nachgewiesener Stand
 
 | Gegenstand                 | Beleg                                                                                                                                              | Konsequenz                                                                                                                                  |

@@ -842,10 +842,22 @@ export class MockDataStoreService {
     if (!purchase || lines.length === 0 || purchase.entry_status === 'finalized') {
       return { data: null, error: new Error('Der Demo-Einkauf kann nicht finalisiert werden.') };
     }
-    if (purchase.type !== 'mystery_pack') {
+    if (purchase.content_status === 'unknown') {
+      return {
+        data: null,
+        error: new Error('Der Inhalt muss vor dem Abschluss vollständig erfasst werden.'),
+      };
+    }
+    if (!purchase.content_status && purchase.type !== 'mystery_pack') {
       return {
         data: null,
         error: new Error('In der Demo können aktuell nur Mystery Boxen abgeschlossen werden.'),
+      };
+    }
+    if (purchase.request_id && purchase.shipment_status !== 'arrived') {
+      return {
+        data: null,
+        error: new Error('Der Einkauf muss vor dem Abschluss als angekommen markiert sein.'),
       };
     }
     if (lines.some((line) => line.line_kind !== 'individual')) {
@@ -859,7 +871,8 @@ export class MockDataStoreService {
     }
 
     const totalCents = Math.round(
-      (purchase.purchase_price +
+      (purchase.purchase_price -
+        Number(purchase.discount_amount ?? 0) +
         (purchase.costs ?? []).reduce((sum, cost) => sum + Number(cost.amount || 0), 0)) *
         100,
     );
@@ -868,7 +881,7 @@ export class MockDataStoreService {
     );
     const totalUnits = lines.reduce((sum, line) => sum + line.ordered_quantity, 0);
     if (totalUnits <= 0) {
-      return { data: null, error: new Error('Die Mystery Box enthält noch keine Stücke.') };
+      return { data: null, error: new Error('Der Einkauf enthält noch keine Stücke.') };
     }
     const baseUnitCents = Math.floor(totalCents / totalUnits);
     let remainingCents = totalCents - baseUnitCents * totalUnits;

@@ -1,14 +1,13 @@
 <div class="inline-flex items-center gap-1.5">
-  @if (viewModified()) {
-    <button
-      type="button"
-      data-view-reset
-      (click)="viewResetRequested.emit()"
-      class="inline-flex min-h-8 cursor-pointer items-center rounded-md px-2 text-[12px] font-medium text-fb-text-secondary transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
-    >
-      Ansicht zurücksetzen
-    </button>
-  }
+  <button
+    type="button"
+    data-view-reset
+    [disabled]="!viewModified()"
+    (click)="viewResetRequested.emit()"
+    class="disabled:cursor-default disabled:opacity-50 inline-flex min-h-8 cursor-pointer items-center rounded-md px-2 text-[12px] font-medium text-fb-text-secondary transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
+  >
+    Ansicht zurücksetzen
+  </button>
 
   <button
     #triggerBtn

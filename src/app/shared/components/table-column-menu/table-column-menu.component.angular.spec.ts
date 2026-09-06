@@ -88,13 +88,13 @@ describe('TableColumnMenuComponent', () => {
   });
 
   it('should render trigger button with aria-expanded="false" initially', () => {
-    const btn: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    const btn: HTMLButtonElement = fixture.nativeElement.querySelector('button[aria-expanded]');
     expect(btn).toBeTruthy();
     expect(btn.getAttribute('aria-expanded')).toBe('false');
   });
 
   it('should toggle popover on click', () => {
-    const btn: HTMLButtonElement = fixture.nativeElement.querySelector('button');
+    const btn: HTMLButtonElement = fixture.nativeElement.querySelector('button[aria-expanded]');
     btn.click();
     fixture.detectChanges();
 
@@ -167,7 +167,9 @@ describe('TableColumnMenuComponent', () => {
   });
 
   it('should show and emit the adjacent view reset action only for a modified view', () => {
-    expect(fixture.nativeElement.querySelector('[data-view-reset]')).toBeNull();
+    expect(
+      (fixture.nativeElement.querySelector('[data-view-reset]') as HTMLButtonElement).disabled,
+    ).toBe(true);
 
     fixture.componentRef.setInput('viewModified', true);
     fixture.detectChanges();

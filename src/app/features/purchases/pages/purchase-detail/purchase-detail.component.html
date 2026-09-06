@@ -2,16 +2,13 @@
   @if (purchaseService.selectedPurchase(); as p) {
     <!-- Shopify Polaris Page Header -->
     <app-page-header
-      [title]="p.title"
+      [title]="p.record_number || p.title || 'Einkauf'"
       backLink="/purchases"
       backLabel="Zurück zur Einkaufsübersicht"
     >
       <div header-badge class="flex items-center gap-1.5">
         <app-badge [tone]="getEntryStatusTone(p.entry_status)">
           {{ getEntryStatusLabel(p.entry_status) }}
-        </app-badge>
-        <app-badge tone="neutral" [uppercase]="true">
-          {{ p.type | purchaseTypeLabel }}
         </app-badge>
       </div>
 
@@ -20,14 +17,21 @@
           data-purchase-audit-print-link
           [routerLink]="['/settings/data/print']"
           [queryParams]="{ entityType: 'purchase', entityId: p.id }"
-          class="linear-btn-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-fb-text-secondary transition hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
-          [attr.aria-label]="'Prüfbeleg für ' + p.title + ' drucken oder als PDF speichern'"
+          class="linear-btn-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-fb-text-secondary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-focus"
+          [attr.aria-label]="
+            'Prüfbeleg für ' +
+            (p.record_number || p.title || 'Einkauf') +
+            ' drucken oder als PDF speichern'
+          "
         >
           <svg [lucideIcon]="receiptIcon" aria-hidden="true" class="w-3.5 h-3.5"></svg>
           <span>Prüfbeleg</span>
         </a>
         <app-purchase-lifecycle-actions
           [entryStatus]="p.entry_status ?? 'draft'"
+          [receivingStatus]="p.receiving_status ?? 'draft'"
+          [shipmentStatus]="p.shipment_status ?? 'not_shipped'"
+          [contentStatus]="p.content_status ?? (p.type === 'mystery_pack' ? 'unknown' : 'known')"
           [saleHistoryState]="purchaseService.purchaseSaleHistoryState()"
           [saleReviewInventoryItemId]="purchaseService.purchaseSaleReviewInventoryItemId()"
           [submitting]="isLifecycleSubmitting()"
@@ -37,6 +41,10 @@
           (reopenRequested)="reopenPurchase()"
           (correctionRequested)="isCorrectionDialogOpen.set(true)"
           (saleHistoryReloadRequested)="reloadPurchaseSaleHistory()"
+          (orderedRequested)="markAsOrdered()"
+          (transitRequested)="startEditTracking()"
+          (arrivedRequested)="markAsArrived()"
+          (captureContentRequested)="isEditModalOpen.set(true)"
         />
       </div>
     </app-page-header>
@@ -46,12 +54,9 @@
     }
 
     <!-- Financial KPI Summary for this Purchase -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
-      <div class="linear-kpi p-4 rounded-2xl">
-        <span
-          class="text-[10px] font-sans font-semibold uppercase tracking-wider text-fb-text-muted block"
-          >Kaufpreis</span
-        >
+    <div class="grid grid-cols-2 gap-3 font-mono sm:grid-cols-4">
+      <div class="linear-kpi rounded-xl p-4">
+        <span class="block font-sans text-[13px] font-medium text-fb-text-muted">Kaufpreis</span>
         <span class="text-xl font-bold text-fb-text-primary mt-1 block">
           @if (p.purchase_price === null) {
             Nicht erfasst
@@ -61,13 +66,10 @@
         </span>
       </div>
 
-      <div class="linear-kpi p-4 rounded-2xl">
-        <span
-          class="text-[10px] font-sans font-semibold uppercase tracking-wider text-fb-text-muted block"
-          >Nebenkosten</span
-        >
+      <div class="linear-kpi rounded-xl p-4">
+        <span class="block font-sans text-[13px] font-medium text-fb-text-muted">Nebenkosten</span>
         @let additionalCost = purchaseAdditionalCost(p);
-        <span class="text-xl font-bold text-amber-400 mt-1 block">
+        <span class="mt-1 block text-xl font-semibold text-fb-text-primary">
           @if (additionalCost === null) {
             Nicht erfasst
           } @else {
@@ -76,16 +78,13 @@
         </span>
       </div>
 
-      <div class="linear-kpi p-4 rounded-2xl">
-        <span
-          class="text-[10px] font-sans font-semibold uppercase tracking-wider text-fb-text-muted block"
-          >Gesamtkosten</span
-        >
+      <div class="linear-kpi rounded-xl p-4">
+        <span class="block font-sans text-[13px] font-medium text-fb-text-muted">Gesamtkosten</span>
         <!-- Der Akzent, nicht das Gruen: Gesamtkosten sind der Betrag, auf
              den es ankommt - aber kein Ertrag. Gruen bleibt der Marge
              vorbehalten. -->
         @let totalCost = purchaseTotalCost(p);
-        <span class="text-xl font-bold text-indigo-400 mt-1 block">
+        <span class="mt-1 block text-xl font-semibold text-fb-text-primary">
           @if (totalCost === null) {
             Nicht erfasst
           } @else {
@@ -94,11 +93,8 @@
         </span>
       </div>
 
-      <div class="linear-kpi p-4 rounded-2xl">
-        <span
-          class="text-[10px] font-sans font-semibold uppercase tracking-wider text-fb-text-muted block"
-          >Artikel</span
-        >
+      <div class="linear-kpi rounded-xl p-4">
+        <span class="block font-sans text-[13px] font-medium text-fb-text-muted">Artikel</span>
         <!-- Eine Stueckzahl ist weder Ertrag noch Handlung und bleibt neutral. -->
         <span class="text-xl font-bold text-fb-text-primary mt-1 block">
           {{ visibleItemCount() }} Posten
@@ -117,7 +113,7 @@
             class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full border-b border-fb-border pb-3"
           >
             <div>
-              <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
+              <h2 class="text-sm font-semibold text-fb-text-primary">
                 Einkaufspositionen &amp; Inventar
               </h2>
               <p class="text-[11px] text-fb-text-muted mt-0.5">
@@ -192,9 +188,7 @@
                       <span class="text-[11px] text-fb-text-muted">
                         Eingegangen: {{ line.received_quantity }}
                       </span>
-                      <label
-                        class="text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
-                      >
+                      <label class="text-xs font-medium text-fb-text-muted">
                         Jetzt eingang
                         <input
                           type="number"
@@ -256,8 +250,8 @@
             class="flex items-center justify-between w-full border-b border-fb-border pb-3"
           >
             <div class="flex items-center gap-2">
-              <svg [lucideIcon]="coinsIcon" class="w-4 h-4 text-amber-400"></svg>
-              <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
+              <svg [lucideIcon]="coinsIcon" class="h-4 w-4 text-fb-text-muted"></svg>
+              <h2 class="text-sm font-semibold text-fb-text-primary">
                 Nebenkosten (Versand, Fahrt, Gebühren)
               </h2>
             </div>
@@ -285,7 +279,7 @@
                 (ngSubmit)="onAddCost()"
                 class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-3 animate-fade-in"
               >
-                <span class="text-xs font-bold uppercase tracking-wider text-indigo-400">
+                <span class="text-sm font-semibold text-fb-text-primary">
                   Nebenkosten zum Einkauf buchen
                 </span>
 
@@ -293,7 +287,7 @@
                   <div>
                     <label
                       for="costTypeSelect"
-                      class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+                      class="mb-1 block text-xs font-medium text-fb-text-muted"
                     >
                       Kostenart
                     </label>
@@ -308,7 +302,7 @@
                   <div>
                     <label
                       for="costAmountInput"
-                      class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+                      class="mb-1 block text-xs font-medium text-fb-text-muted"
                     >
                       Betrag (€)
                     </label>
@@ -325,7 +319,7 @@
                   <div>
                     <label
                       for="costDescInput"
-                      class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted mb-1"
+                      class="mb-1 block text-xs font-medium text-fb-text-muted"
                     >
                       Beschreibung (optional)
                     </label>
@@ -362,7 +356,7 @@
                   >
                     <div class="flex items-center gap-2">
                       <span
-                        class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-400 border border-amber-500/30 uppercase"
+                        class="rounded bg-fb-surface-hover px-2 py-0.5 text-[11px] font-medium text-fb-text-secondary"
                       >
                         @switch (cost.type) {
                           @case ('shipping') {
@@ -419,6 +413,13 @@
             }
           </div>
         </app-card>
+
+        <section aria-labelledby="purchase-history-heading" class="space-y-2">
+          <h2 id="purchase-history-heading" class="px-1 text-sm font-semibold text-fb-text-primary">
+            Chronik
+          </h2>
+          <app-record-history-container [entityType]="'purchase'" [entityId]="p.id" />
+        </section>
       </div>
 
       <!-- Sidebar Column (1/3) -->
@@ -426,9 +427,7 @@
         <!-- Einkaufsdetails & Herkunft -->
         <app-card>
           <div card-header class="flex items-center justify-between w-full">
-            <h2 class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-              Einkaufsdetails
-            </h2>
+            <h2 class="text-sm font-semibold text-fb-text-primary">Einkaufsdetails</h2>
             <span class="text-[11px] text-fb-text-muted font-mono">
               {{ p.purchase_date | date: 'dd.MM.yyyy' }}
             </span>
@@ -471,11 +470,7 @@
 
             @if (p.notes) {
               <div class="pt-2 border-t border-fb-border">
-                <span
-                  class="text-[10px] uppercase font-semibold text-fb-text-muted tracking-wider block mb-1"
-                >
-                  Notizen
-                </span>
+                <span class="mb-1 block text-xs font-medium text-fb-text-muted"> Notizen </span>
                 <p
                   class="text-xs text-fb-text-secondary leading-relaxed bg-fb-subtle p-2.5 rounded-lg border border-fb-border"
                 >
@@ -491,13 +486,11 @@
           <div card-header class="flex items-center justify-between w-full">
             <div class="flex items-center gap-2">
               <div
-                class="w-6 h-6 rounded-md bg-indigo-600/15 border border-indigo-500/30 flex items-center justify-center shrink-0"
+                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-fb-surface-hover"
               >
-                <svg [lucideIcon]="truckIcon" class="w-3.5 h-3.5 text-indigo-400"></svg>
+                <svg [lucideIcon]="truckIcon" class="h-3.5 w-3.5 text-fb-text-muted"></svg>
               </div>
-              <h2 class="text-xs font-bold text-fb-text-primary uppercase tracking-wider">
-                Sendungsverfolgung
-              </h2>
+              <h2 class="text-sm font-semibold text-fb-text-primary">Sendungsverfolgung</h2>
             </div>
 
             @if (!isEditingTracking() && trackingInfo(); as kurzinfo) {
@@ -524,7 +517,7 @@
                 <button
                   type="button"
                   (click)="startEditTracking()"
-                  class="text-[11px] text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer"
+                  class="cursor-pointer text-[11px] font-semibold text-fb-text-secondary hover:text-fb-text-primary"
                 >
                   {{ trackingInfo() ? 'Ändern' : '+ Sendungsnr. hinzufügen' }}
                 </button>
@@ -576,7 +569,7 @@
                   <div class="flex items-center gap-1.5">
                     <span class="text-[10px] text-fb-text-muted">Erkannt als:</span>
                     <span
-                      class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border"
+                      class="rounded border px-2 py-0.5 text-[10px] font-mono font-semibold"
                       [class]="trackingService.carrierMetas[trackingCarrierDraft()!].badgeClass"
                     >
                       {{ trackingService.carrierMetas[trackingCarrierDraft()!].name }}
@@ -630,7 +623,7 @@
                 >
                   <div class="flex items-center gap-2 min-w-0">
                     <span
-                      class="px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase border shrink-0"
+                      class="shrink-0 rounded border px-2 py-0.5 text-[10px] font-mono font-semibold"
                       [class]="trackingService.carrierMetas[info.carrier].badgeClass"
                     >
                       {{ info.carrier_name }}
@@ -661,7 +654,7 @@
                   <button
                     type="button"
                     (click)="openTrackingPortal()"
-                    class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-fb-well border border-fb-line-strong text-fb-text-secondary hover:border-indigo-500 hover:text-indigo-300 transition cursor-pointer"
+                    class="linear-btn-secondary inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
                   >
                     <svg [lucideIcon]="linkIcon" class="w-3 h-3"></svg>
                     <span>Bei {{ info.carrier_name }} verfolgen</span>
@@ -672,7 +665,7 @@
                       type="button"
                       (click)="markDeliveredAndSync()"
                       [disabled]="isMarkingDelivered()"
-                      class="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-600/25 hover:border-emerald-400 transition cursor-pointer disabled:opacity-40"
+                      class="linear-btn-primary inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
                     >
                       <svg [lucideIcon]="checkIcon" class="w-3 h-3"></svg>
                       <span>{{
@@ -688,14 +681,6 @@
               <p class="text-xs text-fb-text-muted">Noch keine Sendungsnummer hinterlegt.</p>
             }
           </div>
-        </app-card>
-
-        <!-- Historie -->
-        <app-card>
-          <h2 card-header class="text-xs font-bold uppercase tracking-wider text-fb-text-primary">
-            Historie
-          </h2>
-          <app-record-history-container [entityType]="'purchase'" [entityId]="p.id" />
         </app-card>
       </div>
     </app-two-column-layout>

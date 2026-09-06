@@ -136,22 +136,11 @@ function getPurchaseStatus(
   if (receivingStatus === 'archived') return 'Archiviert';
   if (receivingStatus === 'cancelled' || receivingStatus === 'canceled') return 'Storniert';
 
-  const lines = purchaseLines(purchase);
-  const isUnresolvedNormalLegacy =
-    purchase.type === 'single' &&
-    purchase.entry_status !== 'finalized' &&
-    lines.length === 0 &&
-    items.length > 0;
-  if (isUnresolvedNormalLegacy) return 'Prüfung erforderlich';
-
-  if (purchase.entry_status === 'finalized') return 'Erfassung abgeschlossen';
+  if (receivingStatus === 'partially_received') return 'Teillieferung';
+  if (receivingStatus === 'received' || purchase.shipment_status === 'arrived') return 'Angekommen';
+  if (purchase.shipment_status === 'in_transit') return 'Unterwegs';
   if (receivingStatus === 'ordered') return 'Bestellt';
-  if (receivingStatus === 'partially_received' || receivingStatus === 'received') {
-    return purchase.type === 'mystery_pack' ? 'Inhalt erfassen' : 'Eingetroffen';
-  }
-  if (purchase.entry_status === 'capturing') {
-    return purchase.type === 'mystery_pack' ? 'Inhalt erfassen' : 'Eingetroffen';
-  }
+  if (purchase.entry_status === 'capturing' || items.length > 0) return 'Prüfung erforderlich';
   return 'Entwurf';
 }
 
@@ -243,12 +232,22 @@ export function mapPurchaseListRow(
   const items = purchaseItems(purchase, context);
   const totalCost = totalPurchaseCost(purchase);
   return {
+    reference: purchase.record_number || purchase.title || 'Einkauf',
+    supplierReference: purchase.supplier_reference ?? '',
+    captureStatus:
+      purchase.entry_status === 'finalized'
+        ? 'Erfassung abgeschlossen'
+        : purchase.type === 'single' && purchaseLines(purchase).length === 0 && items.length > 0
+          ? 'Prüfung erforderlich'
+          : purchase.content_status === 'unknown' || purchase.type === 'mystery_pack'
+            ? 'Inhalt erfassen'
+            : 'Erfassung offen',
     id: purchase.id,
     title: purchase.title || purchase.supplier?.name || purchase.source?.name || 'Einkauf',
     type: purchase.type,
     typeLabel: purchaseTypeLabels.transform(purchase.type),
     purchaseDate: purchase.purchase_date,
-    supplierLabel: purchase.supplier?.name || purchase.source?.name || 'Keine Herkunft angegeben',
+    supplierLabel: purchase.supplier?.name || 'Kein Verkäufer',
     purchaseStatus: getPurchaseStatus(purchase, items),
     allocationOpen: getAllocationOpen(purchase, items, totalCost),
     totalCost: money(totalCost),

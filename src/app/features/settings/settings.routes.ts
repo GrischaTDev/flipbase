@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { unsavedEntryGuard } from '../../shared/guards/unsaved-entry.guard';
 
 export const SETTINGS_ROUTES: Routes = [
   {
@@ -19,6 +20,14 @@ export const SETTINGS_ROUTES: Routes = [
         loadComponent: () =>
           import('./pages/workspace-settings/workspace-settings.component').then(
             (m) => m.WorkspaceSettingsComponent,
+          ),
+      },
+      {
+        path: 'numbering',
+        canDeactivate: [unsavedEntryGuard],
+        loadComponent: () =>
+          import('./pages/numbering-settings/numbering-settings.component').then(
+            (m) => m.NumberingSettingsComponent,
           ),
       },
       {

@@ -246,7 +246,7 @@ describe('PurchaseService – Demo-Einkauf mit Startpositionen', () => {
     expect(purchasesRaw()).toMatchObject([{ id: purchaseId, items_count: 5 }]);
 
     const detail = await service.getPurchaseById(purchaseId);
-    expect(detail).toMatchObject({ id: purchaseId, items_count: 5, receiving_status: 'ordered' });
+    expect(detail).toMatchObject({ id: purchaseId, items_count: 5, receiving_status: 'draft' });
     expect(purchaseLinesRaw()).toMatchObject([
       {
         purchase_id: purchaseId,
@@ -324,7 +324,7 @@ describe('PurchaseService – Demo-Einkauf mit Startpositionen', () => {
     expect(purchaseLinesRaw()).toEqual([]);
   });
 
-  it('legt einen positionslosen Demo-Einzelkauf weiterhin als Inventarartikel an', async () => {
+  it('legt für einen positionslosen Demo-Entwurf noch keinen Inventarartikel an', async () => {
     const store = erstelleStore();
     const { service, inventoryCreateItem } = erstelleDienst(store);
 
@@ -337,13 +337,7 @@ describe('PurchaseService – Demo-Einkauf mit Startpositionen', () => {
     });
 
     expect(result).toMatchObject({ status: 'success', error: null });
-    expect(inventoryCreateItem).toHaveBeenCalledWith(
-      expect.objectContaining({
-        purchase_id: result.data!.id,
-        title: 'Einzelstück',
-        allocated_purchase_cost: 0,
-      }),
-    );
+    expect(inventoryCreateItem).not.toHaveBeenCalled();
   });
 
   it('trennt zwei Demo-Einkäufe samt Positionen auch in derselben Millisekunde', async () => {

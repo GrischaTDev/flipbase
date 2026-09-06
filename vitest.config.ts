@@ -74,7 +74,6 @@ export default defineConfig({
         'src/app/core/models/bank-reconciliation.models.ts',
         'src/app/core/models/fulfillment.models.ts',
         'src/app/core/models/invoice.models.ts',
-        'src/app/core/models/offline-sourcing.models.ts',
         'src/app/core/models/price-tracker.models.ts',
         'src/app/core/models/return.models.ts',
         'src/app/core/models/sale-target.models.ts',

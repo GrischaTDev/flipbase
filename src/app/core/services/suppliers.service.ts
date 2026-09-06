@@ -88,12 +88,29 @@ export class SuppliersService {
     name: string,
     contactInfo?: string,
     notes?: string,
+    details: Partial<
+      Pick<
+        Supplier,
+        | 'seller_type'
+        | 'contact_person'
+        | 'country'
+        | 'street'
+        | 'address_extra'
+        | 'postal_code'
+        | 'city'
+        | 'email'
+        | 'phone'
+        | 'profile_url'
+        | 'website'
+      >
+    > = {},
   ): Promise<{ data: Supplier | null; error: Error | null }> {
     const ws = this.workspaceService.currentWorkspace();
     if (!ws) return { data: null, error: new Error('Kein aktiver Workspace ausgewählt') };
 
     const newSup: Supplier = {
-      id: `sup-${Date.now()}`,
+      ...details,
+      id: crypto.randomUUID(),
       workspace_id: ws.id,
       name: name.trim(),
       contact_info: contactInfo?.trim() || null,
@@ -111,6 +128,7 @@ export class SuppliersService {
       const { data: dbSup, error: dbError } = await this.supabase.client
         .from('suppliers')
         .insert({
+          ...details,
           workspace_id: ws.id,
           name: name.trim(),
           contact_info: contactInfo?.trim() || null,
