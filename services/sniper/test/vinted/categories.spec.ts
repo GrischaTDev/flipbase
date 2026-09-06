@@ -45,4 +45,29 @@ describe('parseCategoryTree', () => {
 
     expect(() => parseCategoryTree(empty)).toThrow('Der catalogTree ist leer');
   });
+
+  // Auf der echten Startseite kommt der Schluessel mehrfach vor: einmal mit dem
+  // ausgeschriebenen Baum, danach als Verweis der Form "$d4:props:catalogTree".
+  // Das Fixture bildet beides ab. Ohne diesen Test waere nur behauptet, dass
+  // der Parser ueber Verweise hinweggeht statt an ihnen haengenzubleiben.
+  it('geht ueber Verweisbloecke hinweg und nimmt den ausgeschriebenen Baum', () => {
+    expect(html).toContain('$d4:props:catalogTree');
+
+    const categories = parseCategoryTree(html);
+
+    expect(categories).toHaveLength(6);
+  });
+
+  it('nimmt den ausgeschriebenen Baum auch, wenn ein Verweis vor ihm steht', () => {
+    const referenceFirst = [
+      'self.__next_f.push([1,"db:[\\"$\\",{\\"catalogTree\\":\\"$d4:props:catalogTree\\"}]\\n"])',
+      'self.__next_f.push([1,"d4:[\\"$\\",{\\"catalogTree\\":[{\\"id\\":5,\\"title\\":\\"Herren\\",\\"url\\":\\"/catalog/5-men\\"}]}]\\n"])',
+    ].join('\n');
+
+    const categories = parseCategoryTree(referenceFirst);
+
+    expect(categories).toEqual([
+      { id: 5, parentId: null, title: 'Herren', slug: '5-men', path: 'Herren', isLeaf: true },
+    ]);
+  });
 });

@@ -355,6 +355,7 @@ git commit -m "feat(sniper): store the Vinted category tree"
 - Anlegen: `services/sniper/src/vinted/categories.ts`
 - Anlegen: `services/sniper/test/fixtures/vinted-homepage.html`
 - Anlegen: `services/sniper/test/vinted/categories.spec.ts`
+- Aendern: `.prettierignore`
 
 **Schnittstellen:**
 
@@ -397,6 +398,31 @@ grep -c '\\"' services/sniper/test/fixtures/vinted-homepage.html
 
 Erwartet: jeweils `1`. Ein Fixture ohne Escapes prüft den Parser nicht, sondern
 täuscht ihn — es sieht aus wie echtes Vinted-HTML, ist aber trivial zu lesen.
+
+- [ ] **Schritt 1b: Fixture vor dem Formatierer schuetzen**
+
+Aendern: `.prettierignore` — am Ende ergaenzen:
+
+```text
+# Abbilder fremder Antworten. Sie muessen zeichengenau so bleiben, wie die
+# Gegenstelle sie liefert. Beim Vinted-Fixture steckt der Kategoriebaum in
+# einem JS-String-Literal mit escapten Anfuehrungszeichen (\"); ein Formatierer
+# schreibt sie in einfache Anfuehrungszeichen um und zerstoert damit genau die
+# Stelle, an der ein naiver Parser scheitern soll.
+services/sniper/test/fixtures/
+```
+
+**Dieser Schritt ist nicht optional und darf nicht ans Ende geschoben werden.**
+Ohne ihn formatiert der naechste Prettier-Lauf das Fixture um, die Escapes
+verschwinden, und die Tests werden rot, nachdem sie schon einmal gruen waren.
+Danach kontrollieren:
+
+```bash
+npm run format:check
+```
+
+Erwartet: `All matched files use Prettier code style!` — und das Fixture bleibt
+unveraendert.
 
 - [ ] **Schritt 2: Test schreiben**
 
