@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Codex – Inter als einzige Anwendungsschrift festgelegt
+
+**Ergebnis:** Die globale Tailwind-Schriftvariable `font-mono` verweist jetzt
+ebenfalls auf Inter. Dadurch nutzen auch bestehende Kennzahlen, Zahlen,
+technische Werte, Tabellenzellen und Formulare dieselbe Schrift wie die übrige
+Oberfläche. Die lokalen Font-Dateien enthalten nur noch Inter; ungenutzte
+JetBrains-Mono- und Plus-Jakarta-Sans-Dateien wurden entfernt.
+
+**Prüfung:** Der Typografie-E2E-Test prüft die sichtbare `font-mono`-Klasse und
+die semantischen Elemente `code`, `pre`, `kbd` und `samp` explizit auf Inter.
+Typecheck, Lint, Prettier, Angular-Suite (470 bestanden, 5 übersprungen),
+Produktionsbau sowie die 9 relevanten Playwright-Tests liefen erfolgreich. Die
+Änderung wurde ausschließlich im isolierten Worktree
+`codex/polaris-table-system` vorgenommen; fremde Branches und Worktrees wurden
+nicht verändert.
+
 ## 2026-09-06 – Codex – Tabellen- und Spaltenmenü-Überarbeitung umgesetzt
 
 **Ergebnis:** Das Spalten-/Sortiermenü ist jetzt ein viewport-begrenztes,
