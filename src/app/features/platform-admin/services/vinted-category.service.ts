@@ -3,6 +3,12 @@ import { SupabaseService } from '../../../core/services/supabase.service';
 import { CategorySyncStatus, VintedCategory } from '../models/vinted-category.model';
 
 /**
+ * Zeilen je Anfrage. Hoeher als `max_rows` in supabase/config.toml zu gehen
+ * bringt nichts - PostgREST kuerzt trotzdem auf diesen Wert.
+ */
+const PAGE_SIZE = 1000;
+
+/**
  * Liest den Kategoriebaum und seinen Auffrischungsstand.
  *
  * Geschrieben wird hier nur ein einziges Feld: `requested_at`. Alles andere
@@ -17,23 +23,52 @@ export class VintedCategoryService {
   /**
    * Nur Blaetter: Eine Zwischenkategorie als Sammelauftrag waere zu breit, und
    * der Waehler soll gar nicht erst dazu einladen.
+   *
+   * Wird geblaettert, weil PostgREST jede Antwort auf `max_rows` aus
+   * supabase/config.toml kuerzt - derzeit 1000 Zeilen, bei rund 2500
+   * Blattkategorien. Und zwar **ohne Fehler**: Wer nicht blaettert, bekommt
+   * eine gueltig aussehende, stillschweigend unvollstaendige Liste, und dem
+   * Kategoriewaehler fehlte ein Teil des Baums, ohne dass es jemandem auffiele.
+   *
+   * Abgebrochen wird erst bei einer leeren Seite, und der Versatz waechst um
+   * die tatsaechlich gelieferte Zeilenzahl. Eine volle Seite als Abbruch-
+   * kriterium zu nehmen waere derselbe Fehler eine Ebene hoeher: Sinkt
+   * `max_rows` einmal unter die hier angefragte Seitengroesse, kaeme schon die
+   * erste Seite unvollstaendig zurueck und der Lauf endete zu frueh.
+   *
+   * Sortiert wird zusaetzlich nach `id`. `path` allein ist nicht eindeutig -
+   * ohne einen eindeutigen zweiten Schluessel darf die Datenbank Zeilen mit
+   * gleichem Pfad zwischen zwei Seiten unterschiedlich anordnen, und dann
+   * taucht eine doppelt auf, waehrend eine andere ganz fehlt.
    */
   async listLeaves(): Promise<VintedCategory[]> {
-    const { data, error } = await this.supabase.client
-      .from('vinted_categories')
-      .select('id, parent_id, title, path, is_leaf')
-      .eq('is_leaf', true)
-      .order('path', { ascending: true });
+    const leaves: VintedCategory[] = [];
 
-    if (error) throw new Error(error.message);
+    for (let offset = 0; ;) {
+      const { data, error } = await this.supabase.client
+        .from('vinted_categories')
+        .select('id, parent_id, title, path')
+        .eq('is_leaf', true)
+        .order('path', { ascending: true })
+        .order('id', { ascending: true })
+        .range(offset, offset + PAGE_SIZE - 1);
 
-    return (data ?? []).map((row) => ({
-      id: row.id as number,
-      parentId: (row.parent_id as number | null) ?? null,
-      title: row.title as string,
-      path: row.path as string,
-      isLeaf: row.is_leaf as boolean,
-    }));
+      if (error) throw new Error(error.message);
+
+      const page = data ?? [];
+      if (page.length === 0) return leaves;
+
+      for (const row of page) {
+        leaves.push({
+          id: row.id as number,
+          parentId: (row.parent_id as number | null) ?? null,
+          title: row.title as string,
+          path: row.path as string,
+        });
+      }
+
+      offset += page.length;
+    }
   }
 
   async readStatus(): Promise<CategorySyncStatus> {
