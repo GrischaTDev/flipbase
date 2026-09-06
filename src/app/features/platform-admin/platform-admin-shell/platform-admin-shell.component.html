@@ -1,0 +1,19 @@
+<nav aria-label="Bereiche der Administration" class="border-b border-fb-border px-6 pt-6">
+  <ul class="-mb-px flex flex-wrap gap-1">
+    @for (item of navigation; track item.path) {
+      <li>
+        <a
+          [routerLink]="['/admin', item.path]"
+          routerLinkActive="border-indigo-500 text-fb-text-primary"
+          #activeLink="routerLinkActive"
+          [attr.aria-current]="activeLink.isActive ? 'page' : null"
+          class="flex min-h-11 items-center rounded-t-lg border-b-2 border-transparent px-4 py-2 text-sm font-semibold text-fb-text-secondary transition outline-none hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:ring-2 focus-visible:ring-indigo-400"
+        >
+          {{ item.label }}
+        </a>
+      </li>
+    }
+  </ul>
+</nav>
+
+<router-outlet />
