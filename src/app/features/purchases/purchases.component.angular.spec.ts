@@ -144,36 +144,36 @@ beforeEach(() => {
 });
 
 describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
-  it('rendert genau einen breiten, per Tastatur erreichbaren Eintrag pro Einkauf', () => {
+  it('rendert eine semantische Tabelle mit einem Eintrag pro Einkauf', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
     const host = fixture.nativeElement as HTMLElement;
     const list = host.querySelector('[data-purchase-list]');
-    const rows = Array.from(host.querySelectorAll<HTMLAnchorElement>('[data-purchase-row]'));
+    const rows = Array.from(
+      host.querySelectorAll<HTMLTableRowElement>('[data-purchase-table-row]'),
+    );
+    const links = Array.from(host.querySelectorAll<HTMLAnchorElement>('[data-purchase-row]'));
 
     expect(list).not.toBeNull();
     expect(rows).toHaveLength(2);
-    expect(list?.className).not.toContain('lg:grid-cols-3');
-    expect(rows.map((row) => row.getAttribute('href'))).toEqual([
-      '/purchases/purchase-normal',
+    expect(links.map((row) => row.getAttribute('href'))).toEqual([
       '/purchases/purchase-mystery',
+      '/purchases/purchase-normal',
     ]);
-    expect(
-      rows.every((row) => row.querySelector('a, button, input, select, textarea') === null),
-    ).toBe(true);
-    expect(rows.every((row) => !row.hasAttribute('aria-label'))).toBe(true);
-    expect(rows[0].textContent).toContain('Erfassung abgeschlossen');
-    expect(rows[0].textContent).toContain('1 verfügbar');
-    expect(rows[1].textContent).toContain('Inhalt erfassen');
-    expect(rows[1].textContent).toContain('Kosten noch offen');
+    const normalRow = host.querySelector('[data-purchase-row="purchase-normal"]')?.closest('tr');
+    const mysteryRow = host.querySelector('[data-purchase-row="purchase-mystery"]')?.closest('tr');
+    expect(normalRow?.textContent).toContain('Erfassung abgeschlossen');
+    expect(normalRow?.textContent).toContain('1 verfügbar');
+    expect(mysteryRow?.textContent).toContain('Inhalt erfassen');
+    expect(mysteryRow?.textContent).toContain('Kosten noch offen');
   });
 
   it('zeigt offene Kostenverteilung als eigenes Badge', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
-    const mystery = (fixture.nativeElement as HTMLElement).querySelector(
-      '[data-purchase-row="purchase-mystery"]',
-    );
+    const mystery = (fixture.nativeElement as HTMLElement)
+      .querySelector('[data-purchase-row="purchase-mystery"]')
+      ?.closest('tr');
 
     expect(mystery?.querySelector('[data-allocation-open]')?.textContent).toContain(
       'Kostenaufteilung offen',

@@ -2,15 +2,25 @@ import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BetaApplicationsComponent } from './beta-applications.component';
 import { BetaApplicationService } from '../../services/beta-application.service';
+import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
 
 // Ohne JIT-Vorlagenaufloesung meldet TestBed "Component is not resolved" fuer
 // jede Komponente mit externem templateUrl - so laeuft auch jeder andere
 // Komponententest in diesem Projekt (siehe cost-state.component.angular.spec.ts).
 beforeAll(async () => {
-  await ɵresolveComponentResources((url) => readFile(new URL(url, import.meta.url), 'utf8'));
+  const resources: Record<string, string> = {
+    './beta-applications.component.html':
+      'src/app/features/platform-admin/pages/beta-applications/beta-applications.component.html',
+    './table-column-menu.component.html':
+      'src/app/shared/components/table-column-menu/table-column-menu.component.html',
+    './table-column-menu.component.scss':
+      'src/app/shared/components/table-column-menu/table-column-menu.component.scss',
+  };
+  await ɵresolveComponentResources((url) => readFile(resolve(resources[url] ?? url), 'utf8'));
 });
 
 const application = {
@@ -33,7 +43,7 @@ describe('BetaApplicationsComponent', () => {
     decide = vi.fn().mockResolvedValue(undefined);
 
     await TestBed.configureTestingModule({
-      imports: [BetaApplicationsComponent],
+      imports: [BetaApplicationsComponent, TableColumnMenuComponent],
       providers: [{ provide: BetaApplicationService, useValue: { list, decide } }],
     }).compileComponents();
   });

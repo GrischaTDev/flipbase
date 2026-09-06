@@ -1,5 +1,38 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-06 – Codex – Tabellen- und Spaltenmenü-Überarbeitung umgesetzt
+
+**Ergebnis:** Das Spalten-/Sortiermenü ist jetzt ein viewport-begrenztes,
+collision-aware Overlay mit eigener Sortierauswahl, Fokus-Rückgabe,
+Tastatur-Reorder und passendem Animationsursprung für die Position ober- oder
+unterhalb des Auslösers. Die Flipbase-orange Akzentfarbe bleibt erhalten.
+
+**Betroffene Bereiche:** Verkäufe, Einkäufe, Inventar, Artikelstamm,
+Buchhaltung und Betreiber-Beta-Bewerbungen verwenden die gemeinsame
+Tabellenpräferenz- und Menülogik. Header und Zellen werden aus derselben
+geordneten Spaltenliste gerendert; die Inventarfilter und Archivtabs sitzen in
+der gemeinsamen Tabellen-Toolbar. Die Beta-Seite erhielt außerdem eine
+semantische, responsive Tabelle mit Suche, Statusfiltern und Zuständen.
+
+**Prüfung:** Typecheck, Lint, Prettier, Angular-Suite (470 bestanden, 5
+übersprungen), Produktionsbau und die relevante Playwright-Suite (8/8)
+erfolgreich. Der zusätzliche unabhängige Review fand keine
+blockerrelevanten Befunde. Geprüft wurde ausschließlich im isolierten
+Worktree `codex/polaris-table-system`; kein fremder Branch wurde verändert.
+
+## 2026-09-06 – Codex – Tabellen- und Spaltenmenü-Audit gestartet
+
+**Anlass:** Die Tabellen in Verkäufen, Einkäufen, Inventar, Artikelstamm und
+Betreiber/Beta-Bewerbungen sollen ein einheitliches, Shopify-Polaris-nahes
+Muster erhalten. Das bestehende Spaltenmenü wird in der Verkaufstabelle
+abgeschnitten; weitere Bereiche verwenden abweichende Picker und Toolbars.
+
+**Vorgehen:** Die Überarbeitung läuft ausschließlich im isolierten Worktree
+`codex/polaris-table-system`. Die angehängten Screenshots dienen als visuelle
+Referenz. Shopify-Dokumentation und drei getrennte Code-Audits werden gegen die
+aktuelle Codebasis geprüft; nach der Umsetzung folgt eine zusätzliche
+unabhängige Gegenprüfung des gesamten Diffs.
+
 ## 2026-09-06 – Codex – E2E-Kompatibilität des Spaltenknopfs korrigiert
 
 **Befund:** Der Browser-Smoke-Test blieb beim Spaltenmenü hängen, weil die

@@ -1,6 +1,7 @@
 import { TablePreferencesService } from '../../core/services/table-preferences.service';
-import { TableColumnOption } from '../../core/models/table-preferences';
-import { TableColumnPickerComponent } from '../../shared/components/table-column-picker/table-column-picker.component';
+import { CatalogColumnId, CatalogSortField } from '../../core/config/table-defaults.config';
+import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
+import { TableSortState } from '../../core/models/table-preferences.models';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -41,31 +42,35 @@ interface CatalogImportRow {
 
 @Component({
   selector: 'app-catalog',
-  imports: [
-    TableColumnPickerComponent,
-    ReactiveFormsModule,
-    LucideDynamicIcon,
-    ModalDialogDirective,
-  ],
+  imports: [TableColumnMenuComponent, ReactiveFormsModule, LucideDynamicIcon, ModalDialogDirective],
   templateUrl: './catalog.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class CatalogComponent {
   readonly tablePreferences = inject(TablePreferencesService);
-  readonly tableColumns = computed<readonly TableColumnOption[]>(() => [
-    { id: 'title', label: 'Artikel', required: true },
-    { id: 'ean', label: 'EAN' },
-    { id: 'tracking', label: 'Nachverfolgung' },
-    { id: 'available', label: 'Verfügbar' },
-    { id: 'store', label: 'Webshop' },
-  ]);
-  readonly visibleColumns = computed(() =>
-    this.tablePreferences.visibleColumns('catalog', this.tableColumns()),
-  );
   readonly catalogService = inject(CatalogService);
   readonly stockService = inject(StockService);
   private readonly workspaceService = inject(WorkspaceService);
+  readonly workspaceId = computed(() => this.workspaceService.currentWorkspace()?.id ?? 'default');
+  readonly catalogTableConfig = this.tablePreferences.getTableConfig<
+    CatalogColumnId,
+    CatalogSortField
+  >('catalog');
+  readonly tablePrefs = computed(() =>
+    this.tablePreferences.getTablePreferences<CatalogColumnId, CatalogSortField>(
+      'catalog',
+      this.workspaceId(),
+    )(),
+  );
+  readonly visibleColumns = computed(() =>
+    this.tablePrefs()
+      .columns.filter((column) => column.visible)
+      .map((column) => column.id),
+  );
+  readonly orderedVisibleColumns = computed(() =>
+    this.tablePrefs().columns.filter((column) => column.visible),
+  );
 
   readonly plusIcon = Plus;
   readonly searchIcon = Search;
@@ -113,15 +118,45 @@ export class CatalogComponent {
 
   readonly filteredProducts = computed(() => {
     const query = this.searchQuery().trim().toLocaleLowerCase('de');
-    if (!query) return this.catalogService.products();
-    return this.catalogService
-      .products()
-      .filter((product) =>
-        [product.title, product.ean, product.brand, product.model]
-          .filter((value): value is string => Boolean(value))
-          .some((value) => value.toLocaleLowerCase('de').includes(query)),
-      );
+    const products = !query
+      ? [...this.catalogService.products()]
+      : this.catalogService
+          .products()
+          .filter((product) =>
+            [product.title, product.ean, product.brand, product.model]
+              .filter((value): value is string => Boolean(value))
+              .some((value) => value.toLocaleLowerCase('de').includes(query)),
+          );
+    const sort = this.tablePrefs().sort;
+    return products.sort((left, right) => {
+      const comparison =
+        sort.field === 'available'
+          ? this.availableStock(left) - this.availableStock(right)
+          : left.title.localeCompare(right.title, 'de', { sensitivity: 'base' });
+      return sort.direction === 'asc' ? comparison : -comparison;
+    });
   });
+
+  toggleColumnVisibility(columnId: CatalogColumnId): void {
+    this.tablePreferences.toggleColumnVisibility('catalog', columnId, this.workspaceId());
+  }
+
+  onColumnsReordered(event: { previousIndex: number; currentIndex: number }): void {
+    this.tablePreferences.reorderColumns(
+      'catalog',
+      event.previousIndex,
+      event.currentIndex,
+      this.workspaceId(),
+    );
+  }
+
+  onSortChanged(sort: TableSortState<CatalogSortField>): void {
+    this.tablePreferences.setSort('catalog', sort, this.workspaceId());
+  }
+
+  resetTablePreferences(): void {
+    this.tablePreferences.resetToDefaults('catalog', this.workspaceId());
+  }
 
   readonly stockByProduct = computed(
     () =>

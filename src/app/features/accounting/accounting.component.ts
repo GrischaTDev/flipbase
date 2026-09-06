@@ -248,6 +248,9 @@ export class AccountingComponent {
       this.workspaceId(),
     )(),
   );
+  readonly orderedVisibleColumns = computed(() =>
+    this.tablePrefs().columns.filter((column) => column.visible),
+  );
 
   isColumnVisible(colId: AccountingColumnId): boolean {
     const col = this.tablePrefs().columns.find((c) => c.id === colId);

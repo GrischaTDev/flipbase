@@ -22,6 +22,7 @@ import {
   LucideColumns3 as Columns3,
   LucideArrowUp as ArrowUp,
   LucideArrowDown as ArrowDown,
+  LucideChevronDown as ChevronDown,
 } from '@lucide/angular';
 import {
   ColumnDefinition,
@@ -42,6 +43,8 @@ let nextMenuId = 0;
     class: 'relative inline-block',
     '(document:click)': 'onDocumentClick($event)',
     '(keydown.escape)': 'onEscapePressed()',
+    '(window:resize)': 'onViewportChange()',
+    '(window:scroll)': 'onViewportChange()',
   },
 })
 export class TableColumnMenuComponent<
@@ -66,6 +69,7 @@ export class TableColumnMenuComponent<
     reset: RotateCcw,
     asc: ArrowUp,
     desc: ArrowDown,
+    chevron: ChevronDown,
   };
 
   // Inputs
@@ -81,6 +85,10 @@ export class TableColumnMenuComponent<
 
   // State
   readonly isOpen = signal<boolean>(false);
+  readonly isSortMenuOpen = signal<boolean>(false);
+  readonly panelPosition = signal({ top: 8, left: 8 });
+  readonly panelPlacement = signal<'above' | 'below'>('below');
+  readonly panelMaxHeight = signal(828);
   protected readonly draggedIndex = signal<number | null>(null);
 
   protected readonly sortedColumns = computed(() =>
@@ -98,6 +106,10 @@ export class TableColumnMenuComponent<
       afterNextRender(
         {
           mixedReadWrite: () => {
+            this.positionPanel();
+            if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
+              window.requestAnimationFrame(() => this.positionPanel());
+            }
             this.panel()?.nativeElement.querySelector<HTMLElement>('[data-popover-focus]')?.focus();
           },
         },
@@ -109,6 +121,7 @@ export class TableColumnMenuComponent<
   close(): void {
     if (this.isOpen()) {
       this.isOpen.set(false);
+      this.isSortMenuOpen.set(false);
       this.triggerBtn()?.nativeElement.focus();
     }
   }
@@ -122,7 +135,64 @@ export class TableColumnMenuComponent<
   }
 
   onEscapePressed(): void {
+    if (this.isSortMenuOpen()) {
+      this.isSortMenuOpen.set(false);
+      return;
+    }
     this.close();
+  }
+
+  toggleSortMenu(): void {
+    this.isSortMenuOpen.update((isOpen) => !isOpen);
+    if (typeof window !== 'undefined' && 'requestAnimationFrame' in window) {
+      window.requestAnimationFrame(() => this.positionPanel());
+    }
+  }
+
+  selectSortField(field: TSortField): void {
+    this.sortChanged.emit({ field, direction: this.currentSort().direction });
+    this.isSortMenuOpen.set(false);
+  }
+
+  onViewportChange(): void {
+    if (this.isOpen()) this.positionPanel();
+  }
+
+  private positionPanel(): void {
+    const trigger = this.triggerBtn()?.nativeElement;
+    const panel = this.panel()?.nativeElement;
+    if (!trigger || !panel) return;
+
+    const triggerBox = trigger.getBoundingClientRect();
+    const panelBox = panel.getBoundingClientRect();
+    const viewportWidth = document.documentElement.clientWidth || window.innerWidth;
+    const viewportHeight = document.documentElement.clientHeight || window.innerHeight;
+    const edge = 8;
+    const gap = 8;
+    const width = panelBox.width || 320;
+    const height = panelBox.height || 480;
+
+    const belowTop = triggerBox.bottom + gap;
+    const aboveTop = triggerBox.top - height - gap;
+    const top =
+      belowTop + height <= viewportHeight - edge || aboveTop < edge
+        ? Math.min(belowTop, viewportHeight - height - edge)
+        : aboveTop;
+    const placement =
+      belowTop + height <= viewportHeight - edge || aboveTop < edge ? 'below' : 'above';
+    const rightAlignedLeft = triggerBox.right - width;
+    const left = Math.min(
+      Math.max(edge, rightAlignedLeft),
+      Math.max(edge, viewportWidth - width - edge),
+    );
+
+    const safeTop = Math.max(edge, top);
+    this.panelPosition.set({
+      top: safeTop,
+      left,
+    });
+    this.panelPlacement.set(placement);
+    this.panelMaxHeight.set(Math.max(180, viewportHeight - safeTop - edge));
   }
 
   toggleSortDirection(): void {
@@ -130,14 +200,6 @@ export class TableColumnMenuComponent<
     this.sortChanged.emit({
       field: this.currentSort().field,
       direction: nextDir,
-    });
-  }
-
-  onSortFieldChange(event: Event): void {
-    const field = (event.target as HTMLSelectElement).value as TSortField;
-    this.sortChanged.emit({
-      field,
-      direction: this.currentSort().direction,
     });
   }
 

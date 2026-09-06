@@ -177,15 +177,17 @@
             [clearable]="true"
           />
         </div>
-        <app-table-column-menu
-          [columns]="tablePrefs().columns"
-          [sortOptions]="salesTableConfig.sortOptions"
-          [currentSort]="tablePrefs().sort"
-          (columnVisibilityToggled)="toggleColumnVisibility($event)"
-          (columnsReordered)="onColumnsReordered($event)"
-          (sortChanged)="onSortChanged($event)"
-          (resetRequested)="resetTablePreferences()"
-        />
+        <div class="border-l border-fb-line pl-2">
+          <app-table-column-menu
+            [columns]="tablePrefs().columns"
+            [sortOptions]="salesTableConfig.sortOptions"
+            [currentSort]="tablePrefs().sort"
+            (columnVisibilityToggled)="toggleColumnVisibility($event)"
+            (columnsReordered)="onColumnsReordered($event)"
+            (sortChanged)="onSortChanged($event)"
+            (resetRequested)="resetTablePreferences()"
+          />
+        </div>
       </div>
     </div>
 
@@ -195,108 +197,112 @@
         <table class="linear-table min-w-[1000px] w-full text-left">
           <thead class="bg-fb-surface text-fb-text-secondary font-semibold text-[13px]">
             <tr>
-              @if (isColumnVisible('title')) {
-                <th
-                  scope="col"
-                  [attr.aria-sort]="ariaSort('title')"
-                  class="min-w-60 py-2.5 px-4 font-semibold border-b border-fb-line"
-                >
-                  Verkaufter Artikel
-                </th>
-              }
-              @if (isColumnVisible('quantity')) {
-                <th
-                  scope="col"
-                  [attr.aria-sort]="ariaSort('quantity')"
-                  class="py-2.5 px-3 font-semibold text-right border-b border-fb-line"
-                >
-                  Menge
-                </th>
-              }
-              @if (isColumnVisible('platform')) {
-                <th
-                  scope="col"
-                  [attr.aria-sort]="ariaSort('platform')"
-                  class="py-2.5 px-3 font-semibold border-b border-fb-line"
-                >
-                  Plattform
-                </th>
-              }
-              @if (isColumnVisible('sale_date')) {
-                <th
-                  scope="col"
-                  [attr.aria-sort]="ariaSort('sale_date')"
-                  class="py-2.5 px-3 font-semibold border-b border-fb-line"
-                >
-                  Datum
-                </th>
-              }
-              @if (isColumnVisible('revenue')) {
-                <th
-                  scope="col"
-                  [attr.aria-sort]="ariaSort('revenue')"
-                  class="py-2.5 px-3 font-semibold text-right border-b border-fb-line"
-                >
-                  Verkaufserlös
-                </th>
-              }
-              @if (isColumnVisible('cost_of_goods_sold')) {
-                <th
-                  scope="col"
-                  [attr.aria-sort]="ariaSort('cost_of_goods_sold')"
-                  class="py-2.5 px-3 font-semibold text-right border-b border-fb-line"
-                >
-                  Wareneinsatz
-                </th>
-              }
-              @if (isColumnVisible('selling_costs')) {
-                <th
-                  scope="col"
-                  [attr.aria-sort]="ariaSort('selling_costs')"
-                  class="py-2.5 px-3 font-semibold text-right border-b border-fb-line"
-                >
-                  Verkaufskosten
-                </th>
-              }
-              @if (isColumnVisible('profit')) {
-                <th
-                  scope="col"
-                  [attr.aria-sort]="ariaSort('profit')"
-                  class="py-2.5 px-3 font-semibold text-right border-b border-fb-line"
-                >
-                  <abbr
-                    title="Verkaufserlös abzüglich Wareneinsatz und Verkaufskosten"
-                    class="no-underline"
-                    >Ergebnis</abbr
-                  >
-                </th>
-              }
-              @if (isColumnVisible('margin')) {
-                <th
-                  scope="col"
-                  [attr.aria-sort]="ariaSort('margin')"
-                  class="py-2.5 px-3 font-semibold text-right border-b border-fb-line"
-                >
-                  Marge
-                </th>
-              }
-              @if (isColumnVisible('holding_days')) {
-                <th
-                  scope="col"
-                  [attr.aria-sort]="ariaSort('holding_days')"
-                  class="py-2.5 px-3 font-semibold text-right border-b border-fb-line"
-                >
-                  Haltedauer
-                </th>
-              }
-              @if (isColumnVisible('actions')) {
-                <th
-                  scope="col"
-                  [attr.aria-sort]="ariaSort('actions')"
-                  class="py-2.5 px-4 font-semibold text-center w-28 border-b border-fb-line"
-                >
-                  Aktionen
-                </th>
+              @for (column of orderedVisibleColumns(); track column.id) {
+                @switch (column.id) {
+                  @case ('title') {
+                    <th
+                      scope="col"
+                      [attr.aria-sort]="ariaSort('title')"
+                      class="min-w-60 border-b border-fb-line px-4 py-2.5 font-semibold"
+                    >
+                      Verkaufter Artikel
+                    </th>
+                  }
+                  @case ('quantity') {
+                    <th
+                      scope="col"
+                      [attr.aria-sort]="ariaSort('quantity')"
+                      class="border-b border-fb-line px-3 py-2.5 text-right font-semibold"
+                    >
+                      Menge
+                    </th>
+                  }
+                  @case ('platform') {
+                    <th
+                      scope="col"
+                      [attr.aria-sort]="ariaSort('platform')"
+                      class="border-b border-fb-line px-3 py-2.5 font-semibold"
+                    >
+                      Plattform
+                    </th>
+                  }
+                  @case ('sale_date') {
+                    <th
+                      scope="col"
+                      [attr.aria-sort]="ariaSort('sale_date')"
+                      class="border-b border-fb-line px-3 py-2.5 font-semibold"
+                    >
+                      Datum
+                    </th>
+                  }
+                  @case ('revenue') {
+                    <th
+                      scope="col"
+                      [attr.aria-sort]="ariaSort('revenue')"
+                      class="border-b border-fb-line px-3 py-2.5 text-right font-semibold"
+                    >
+                      Verkaufserlös
+                    </th>
+                  }
+                  @case ('cost_of_goods_sold') {
+                    <th
+                      scope="col"
+                      [attr.aria-sort]="ariaSort('cost_of_goods_sold')"
+                      class="border-b border-fb-line px-3 py-2.5 text-right font-semibold"
+                    >
+                      Wareneinsatz
+                    </th>
+                  }
+                  @case ('selling_costs') {
+                    <th
+                      scope="col"
+                      [attr.aria-sort]="ariaSort('selling_costs')"
+                      class="border-b border-fb-line px-3 py-2.5 text-right font-semibold"
+                    >
+                      Verkaufskosten
+                    </th>
+                  }
+                  @case ('profit') {
+                    <th
+                      scope="col"
+                      [attr.aria-sort]="ariaSort('profit')"
+                      class="border-b border-fb-line px-3 py-2.5 text-right font-semibold"
+                    >
+                      <abbr
+                        title="Verkaufserlös abzüglich Wareneinsatz und Verkaufskosten"
+                        class="no-underline"
+                        >Ergebnis</abbr
+                      >
+                    </th>
+                  }
+                  @case ('margin') {
+                    <th
+                      scope="col"
+                      [attr.aria-sort]="ariaSort('margin')"
+                      class="border-b border-fb-line px-3 py-2.5 text-right font-semibold"
+                    >
+                      Marge
+                    </th>
+                  }
+                  @case ('holding_days') {
+                    <th
+                      scope="col"
+                      [attr.aria-sort]="ariaSort('holding_days')"
+                      class="border-b border-fb-line px-3 py-2.5 text-right font-semibold"
+                    >
+                      Haltedauer
+                    </th>
+                  }
+                  @case ('actions') {
+                    <th
+                      scope="col"
+                      [attr.aria-sort]="ariaSort('actions')"
+                      class="w-28 border-b border-fb-line px-4 py-2.5 text-center font-semibold"
+                    >
+                      Aktionen
+                    </th>
+                  }
+                }
               }
             </tr>
           </thead>
@@ -314,170 +320,169 @@
                 [class.ring-inset]="highlightedSaleId() === sale.id"
                 [class.ring-indigo-400]="highlightedSaleId() === sale.id"
               >
-                @if (isColumnVisible('title')) {
-                  <td class="py-3 px-4 font-semibold text-fb-text-primary">
-                    <div class="flex items-start gap-2">
-                      <div class="space-y-0.5">
-                        @if (sale.lines?.length) {
-                          @for (line of sale.lines; track line.id) {
-                            <span class="block text-xs text-fb-text-primary">{{
-                              line.title_snapshot
-                            }}</span>
+                @for (column of orderedVisibleColumns(); track column.id) {
+                  @switch (column.id) {
+                    @case ('title') {
+                      <td class="px-4 py-3 font-semibold text-fb-text-primary">
+                        <div class="flex items-start gap-2">
+                          <div class="space-y-0.5">
+                            @if (sale.lines?.length) {
+                              @for (line of sale.lines; track line.id) {
+                                <span class="block text-xs text-fb-text-primary">{{
+                                  line.title_snapshot
+                                }}</span>
+                              }
+                            } @else {
+                              <a
+                                [routerLink]="['/inventory', sale.inventory_item_id]"
+                                class="transition hover:text-emerald-400"
+                                >{{ sale.inventory_item?.title || 'Artikel' }}</a
+                              >
+                            }
+                          </div>
+                          @if (sale.returned_at || ret) {
+                            <app-badge tone="critical" [mono]="true"> RETOURNIERT </app-badge>
                           }
-                        } @else {
-                          <a
-                            [routerLink]="['/inventory', sale.inventory_item_id]"
-                            class="hover:text-emerald-400 transition"
-                            >{{ sale.inventory_item?.title || 'Artikel' }}</a
+                        </div>
+                      </td>
+                    }
+                    @case ('quantity') {
+                      <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
+                        {{ saleQuantity(sale) }}
+                      </td>
+                    }
+                    @case ('platform') {
+                      <td class="px-3 py-3">
+                        <app-badge tone="neutral" [uppercase]="true" [mono]="true">
+                          {{ sale.platform }}
+                        </app-badge>
+                      </td>
+                    }
+                    @case ('sale_date') {
+                      <td class="px-3 py-3 font-mono text-[11px] text-fb-text-muted">
+                        {{ sale.sale_date | date: 'dd.MM.yyyy' }}
+                      </td>
+                    }
+                    @case ('revenue') {
+                      <td
+                        class="px-3 py-3 text-right font-mono font-semibold text-fb-text-secondary"
+                      >
+                        {{ metrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                      </td>
+                    }
+                    @case ('cost_of_goods_sold') {
+                      <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
+                        @if (metrics.costOfGoodsSold === null) {
+                          <span class="font-sans text-[11px] text-amber-300"
+                            >Kosten noch offen</span
                           >
+                        } @else {
+                          {{
+                            metrics.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                          }}
                         }
-                      </div>
-                      @if (sale.returned_at || ret) {
-                        <app-badge tone="critical" [mono]="true"> RETOURNIERT </app-badge>
-                      }
-                    </div>
-                  </td>
-                }
-
-                @if (isColumnVisible('quantity')) {
-                  <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
-                    {{ saleQuantity(sale) }}
-                  </td>
-                }
-
-                @if (isColumnVisible('platform')) {
-                  <td class="py-3 px-3">
-                    <app-badge tone="neutral" [uppercase]="true" [mono]="true">
-                      {{ sale.platform }}
-                    </app-badge>
-                  </td>
-                }
-
-                @if (isColumnVisible('sale_date')) {
-                  <td class="py-3 px-3 text-fb-text-muted font-mono text-[11px]">
-                    {{ sale.sale_date | date: 'dd.MM.yyyy' }}
-                  </td>
-                }
-
-                @if (isColumnVisible('revenue')) {
-                  <td class="py-3 px-3 text-right font-mono font-semibold text-fb-text-secondary">
-                    {{ metrics.revenue | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  </td>
-                }
-
-                @if (isColumnVisible('cost_of_goods_sold')) {
-                  <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
-                    @if (metrics.costOfGoodsSold === null) {
-                      <span class="font-sans text-[11px] text-amber-300">Kosten noch offen</span>
-                    } @else {
-                      {{ metrics.costOfGoodsSold | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                      </td>
                     }
-                  </td>
-                }
-
-                @if (isColumnVisible('selling_costs')) {
-                  <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
-                    {{ metrics.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                  </td>
-                }
-
-                @if (isColumnVisible('profit')) {
-                  <td
-                    class="py-3 px-3 text-right font-mono font-bold"
-                    [class.text-emerald-400]="(metrics.resultAfterDirectCosts ?? 0) >= 0"
-                    [class.text-rose-400]="(metrics.resultAfterDirectCosts ?? 0) < 0"
-                  >
-                    @if (metrics.resultAfterDirectCosts === null) {
-                      <span class="font-sans text-[11px] text-amber-300">Kosten noch offen</span>
-                    } @else {
-                      {{
-                        metrics.resultAfterDirectCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                      }}
+                    @case ('selling_costs') {
+                      <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
+                        {{ metrics.sellingCosts | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                      </td>
                     }
-                  </td>
-                }
-
-                @if (isColumnVisible('margin')) {
-                  <td class="py-3 px-3 text-right font-mono font-bold text-fb-text-secondary">
-                    @if (metrics.marginPercent === null) {
-                      –
-                    } @else {
-                      {{ metrics.marginPercent }} %
+                    @case ('profit') {
+                      <td
+                        class="px-3 py-3 text-right font-mono font-bold"
+                        [class.text-emerald-400]="(metrics.resultAfterDirectCosts ?? 0) >= 0"
+                        [class.text-rose-400]="(metrics.resultAfterDirectCosts ?? 0) < 0"
+                      >
+                        @if (metrics.resultAfterDirectCosts === null) {
+                          <span class="font-sans text-[11px] text-amber-300"
+                            >Kosten noch offen</span
+                          >
+                        } @else {
+                          {{
+                            metrics.resultAfterDirectCosts
+                              | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                          }}
+                        }
+                      </td>
                     }
-                  </td>
-                }
-
-                @if (isColumnVisible('holding_days')) {
-                  <td class="py-3 px-3 text-right font-mono text-fb-text-secondary">
-                    {{ sale.holding_duration_days }} Tage
-                  </td>
-                }
-
-                @if (isColumnVisible('actions')) {
-                  <td class="py-3 px-4 text-center">
-                    <div class="flex items-center justify-center gap-1.5">
-                      <a
-                        data-sale-audit-print-link
-                        [routerLink]="['/settings/data/print']"
-                        [queryParams]="{ entityType: 'sale', entityId: sale.id }"
-                        [attr.aria-label]="
-                          'Prüfbeleg für ' + saleTitle(sale) + ' drucken oder als PDF speichern'
-                        "
-                        class="p-1.5 rounded-lg text-fb-text-muted hover:text-emerald-300 hover:bg-emerald-500/15 transition"
-                        title="Prüfbeleg drucken oder als PDF speichern"
-                      >
-                        <svg
-                          [lucideIcon]="receiptIcon"
-                          aria-hidden="true"
-                          class="w-3.5 h-3.5"
-                        ></svg>
-                        <span class="sr-only">Prüfbeleg drucken</span>
-                      </a>
-                      <button
-                        type="button"
-                        (click)="openRecordHistory(sale)"
-                        class="p-1.5 rounded-lg text-fb-text-muted hover:text-indigo-300 hover:bg-indigo-500/15 transition cursor-pointer"
-                        title="Chronik ansehen"
-                        aria-label="Chronik ansehen"
-                      >
-                        <svg [lucideIcon]="historyIcon" class="w-3.5 h-3.5"></svg>
-                      </button>
-
-                      <!-- § 25a Invoice Button -->
-                      <button
-                        type="button"
-                        (click)="openInvoiceForSale(sale)"
-                        [disabled]="isCreatingInvoice()"
-                        [attr.aria-busy]="isCreatingInvoice()"
-                        [attr.aria-disabled]="isCreatingInvoice()"
-                        class="p-1.5 rounded-lg text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/15 transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                        title="§ 25a Differenzbesteuerungs-Rechnung anzeigen"
-                      >
-                        <svg [lucideIcon]="fileIcon" class="w-3.5 h-3.5"></svg>
-                      </button>
-
-                      <!-- Return / Credit Note Button -->
-                      @if (ret) {
-                        <button
-                          type="button"
-                          (click)="openCreditNoteForSale(sale)"
-                          class="p-1.5 rounded-lg text-amber-400 hover:text-amber-300 hover:bg-amber-500/15 transition cursor-pointer"
-                          title="Gutschriftsbeleg anzeigen ({{ ret.credit_note_number }})"
-                        >
-                          <svg [lucideIcon]="receiptIcon" class="w-3.5 h-3.5"></svg>
-                        </button>
-                      } @else if (!sale.returned_at) {
-                        <button
-                          type="button"
-                          (click)="openReturnModal(sale)"
-                          class="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-500/15 transition cursor-pointer"
-                          title="Retoure / Gutschrift erfassen"
-                        >
-                          <svg [lucideIcon]="returnIcon" class="w-3.5 h-3.5"></svg>
-                        </button>
-                      }
-                    </div>
-                  </td>
+                    @case ('margin') {
+                      <td class="px-3 py-3 text-right font-mono font-bold text-fb-text-secondary">
+                        @if (metrics.marginPercent === null) {
+                          –
+                        } @else {
+                          {{ metrics.marginPercent }} %
+                        }
+                      </td>
+                    }
+                    @case ('holding_days') {
+                      <td class="px-3 py-3 text-right font-mono text-fb-text-secondary">
+                        {{ sale.holding_duration_days }} Tage
+                      </td>
+                    }
+                    @case ('actions') {
+                      <td class="px-4 py-3 text-center">
+                        <div class="flex items-center justify-center gap-1.5">
+                          <a
+                            data-sale-audit-print-link
+                            [routerLink]="['/settings/data/print']"
+                            [queryParams]="{ entityType: 'sale', entityId: sale.id }"
+                            [attr.aria-label]="
+                              'Prüfbeleg für ' + saleTitle(sale) + ' drucken oder als PDF speichern'
+                            "
+                            class="rounded-lg p-1.5 text-fb-text-muted transition hover:bg-emerald-500/15 hover:text-emerald-300"
+                            title="Prüfbeleg drucken oder als PDF speichern"
+                          >
+                            <svg
+                              [lucideIcon]="receiptIcon"
+                              aria-hidden="true"
+                              class="h-3.5 w-3.5"
+                            ></svg>
+                            <span class="sr-only">Prüfbeleg drucken</span>
+                          </a>
+                          <button
+                            type="button"
+                            (click)="openRecordHistory(sale)"
+                            class="cursor-pointer rounded-lg p-1.5 text-fb-text-muted transition hover:bg-indigo-500/15 hover:text-indigo-300"
+                            title="Chronik ansehen"
+                            aria-label="Chronik ansehen"
+                          >
+                            <svg [lucideIcon]="historyIcon" class="h-3.5 w-3.5"></svg>
+                          </button>
+                          <button
+                            type="button"
+                            (click)="openInvoiceForSale(sale)"
+                            [disabled]="isCreatingInvoice()"
+                            [attr.aria-busy]="isCreatingInvoice()"
+                            [attr.aria-disabled]="isCreatingInvoice()"
+                            class="cursor-pointer rounded-lg p-1.5 text-indigo-400 transition hover:bg-indigo-500/15 hover:text-indigo-300 disabled:cursor-not-allowed disabled:opacity-50"
+                            title="§ 25a Differenzbesteuerungs-Rechnung anzeigen"
+                          >
+                            <svg [lucideIcon]="fileIcon" class="h-3.5 w-3.5"></svg>
+                          </button>
+                          @if (ret) {
+                            <button
+                              type="button"
+                              (click)="openCreditNoteForSale(sale)"
+                              class="cursor-pointer rounded-lg p-1.5 text-amber-400 transition hover:bg-amber-500/15 hover:text-amber-300"
+                              title="Gutschriftsbeleg anzeigen ({{ ret.credit_note_number }})"
+                            >
+                              <svg [lucideIcon]="receiptIcon" class="h-3.5 w-3.5"></svg>
+                            </button>
+                          } @else if (!sale.returned_at) {
+                            <button
+                              type="button"
+                              (click)="openReturnModal(sale)"
+                              class="cursor-pointer rounded-lg p-1.5 text-rose-400 transition hover:bg-rose-500/15 hover:text-rose-300"
+                              title="Retoure / Gutschrift erfassen"
+                            >
+                              <svg [lucideIcon]="returnIcon" class="h-3.5 w-3.5"></svg>
+                            </button>
+                          }
+                        </div>
+                      </td>
+                    }
+                  }
                 }
               </tr>
             }

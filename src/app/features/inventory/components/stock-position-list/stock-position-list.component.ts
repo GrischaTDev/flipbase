@@ -20,6 +20,10 @@ import {
   StockMovement,
   StockPosition,
 } from '../../../../core/models/flipbase.models';
+import type {
+  InventoryColumnId,
+  InventorySortField,
+} from '../../../../core/config/table-defaults.config';
 import {
   isInventoryItemMutationLocked,
   isSellableInventoryItem,
@@ -30,6 +34,12 @@ import {
 } from '../../../../shared/components/custom-select/custom-select.component';
 import { CostStateComponent } from '../../../../shared/components/cost-state/cost-state.component';
 import { ItemConditionLabelPipe } from '../../../../shared/pipes/item-condition-label.pipe';
+import { TableColumnMenuComponent } from '../../../../shared/components/table-column-menu/table-column-menu.component';
+import {
+  ColumnDefinition,
+  SortFieldOption,
+  TableSortState,
+} from '../../../../core/models/table-preferences.models';
 import type { InventoryPresentationRow } from '../../models/inventory-presentation.models';
 import { editableItemStatusOptions } from '../../models/item-status-options';
 import {
@@ -47,12 +57,20 @@ import {
     CustomSelectComponent,
     CostStateComponent,
     ItemConditionLabelPipe,
+    TableColumnMenuComponent,
   ],
   templateUrl: './stock-position-list.component.html',
   host: { class: 'block' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class StockPositionListComponent {
+  readonly tableColumns = input<readonly ColumnDefinition<InventoryColumnId>[]>([]);
+  readonly sortOptions = input<readonly SortFieldOption<InventorySortField>[]>([]);
+  readonly currentSort = input<TableSortState<InventorySortField> | null>(null);
+  readonly columnVisibilityToggled = output<InventoryColumnId>();
+  readonly columnsReordered = output<{ previousIndex: number; currentIndex: number }>();
+  readonly sortChanged = output<TableSortState<InventorySortField>>();
+  readonly resetRequested = output<void>();
   readonly archivePendingIds = input<ReadonlySet<string>>(new Set());
   readonly archiveItem = output<InventoryItem>();
   readonly visibleColumns = input<readonly string[]>([
@@ -119,6 +137,14 @@ export class StockPositionListComponent {
   );
 
   readonly rows = computed(() => this.presentationRows() ?? this.presentation().rows);
+
+  readonly orderedVisibleColumns = computed<readonly InventoryColumnId[]>(() => {
+    const configured = this.tableColumns();
+    if (configured.length > 0) {
+      return configured.filter((column) => column.visible).map((column) => column.id);
+    }
+    return this.visibleColumns() as readonly InventoryColumnId[];
+  });
 
   readonly movementRows = computed(() => {
     const lotById = new Map(this.lots().map((lot) => [lot.id, lot]));
