@@ -71,9 +71,20 @@ describe('VintedCategoryService', () => {
     }));
     const eq = vi.fn(() => ({ single }));
     const select = vi.fn(() => ({ eq }));
-    configure(clientStub({ from: vi.fn(() => ({ select })) }));
+    const from = vi.fn(() => ({ select }));
+    configure(clientStub({ from }));
 
     const status = await service.readStatus();
+
+    // Nicht nur die Umwandlung pruefen: Ohne diese drei Zusicherungen bliebe
+    // der Test auch dann gruen, wenn die falsche Tabelle abgefragt, eine
+    // Spalte vergessen oder der Filter auf die einzige Zeile weggelassen
+    // wuerde - die Attrappe antwortet ja unabhaengig davon.
+    expect(from).toHaveBeenCalledWith('vinted_category_syncs');
+    expect(select).toHaveBeenCalledWith(
+      'refreshed_at, requested_at, last_attempt_at, category_count, last_error',
+    );
+    expect(eq).toHaveBeenCalledWith('id', 1);
 
     expect(status.categoryCount).toBe(2920);
     expect(status.refreshedAt).toBe('2026-09-06T12:00:00+00:00');
@@ -82,12 +93,23 @@ describe('VintedCategoryService', () => {
 
   it('fordert eine Auffrischung an, indem es nur requested_at setzt', async () => {
     const eq = vi.fn(async () => ({ error: null }));
-    const update = vi.fn(() => ({ eq }));
-    configure(clientStub({ from: vi.fn(() => ({ update })) }));
+    const update = vi.fn((_payload: Record<string, unknown>) => ({ eq }));
+    const from = vi.fn(() => ({ update }));
+    configure(clientStub({ from }));
 
     await service.requestRefresh();
 
-    expect(Object.keys(update.mock.calls[0]?.[0] as object)).toEqual(['requested_at']);
+    expect(from).toHaveBeenCalledWith('vinted_category_syncs');
+    // Genau ein Feld: Auf allen anderen Spalten hat ein angemeldetes Konto
+    // kein Schreibrecht, die Datenbank wuerde den Aufruf ablehnen.
+    expect(Object.keys(update.mock.calls[0][0])).toEqual(['requested_at']);
     expect(eq).toHaveBeenCalledWith('id', 1);
+  });
+
+  it('meldet einen abgelehnten Auffrischungswunsch als Fehler weiter', async () => {
+    const eq = vi.fn(async () => ({ error: { message: 'keine Rechte' } }));
+    configure(clientStub({ from: vi.fn(() => ({ update: vi.fn(() => ({ eq })) })) }));
+
+    await expect(service.requestRefresh()).rejects.toThrow('keine Rechte');
   });
 });
