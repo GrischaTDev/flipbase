@@ -151,6 +151,63 @@ describe('CategoryStore', () => {
     ]);
   });
 
+  // Die beiden Tests darueber weisen nach, dass am Ende das Richtige in der
+  // Tabelle steht - aber nicht, dass die Sortierung daran beteiligt war. Bei
+  // wenigen Zeilen liegen Elternteil und Kind im selben Schreibblock, und
+  // Postgres prueft Fremdschluessel erst am Ende einer Anweisung. Die
+  // Reihenfolge innerhalb eines Blocks ist deshalb gleichgueltig.
+  //
+  // Wirksam wird die Sortierung erst ueber Blockgrenzen hinweg. Dieser Test
+  // erzeugt darum mehr Kategorien, als in einen Block passen, und setzt Kind
+  // und Elternteil so, dass eine Sortierung nach Pfadsegmenten sie in die
+  // falschen Bloecke legen wuerde:
+  //
+  //   Kind      path 'Sale'                (1 Segment)  -> waere im ersten Block
+  //   Elternteil path 'Eins > Zwei > Drei' (3 Segmente)  -> waere im letzten
+  //
+  // Nach der Elternkette sortiert steht der Elternteil dagegen ganz vorn.
+  it('sortiert nach der Elternkette und nicht nach der Tiefe des Pfadtexts', async () => {
+    const filler: VintedCategory[] = Array.from({ length: 600 }, (_, index) => ({
+      id: 200_000 + index,
+      parentId: null,
+      title: `Fueller ${index}`,
+      slug: `${200_000 + index}-filler`,
+      path: `Eins > Zwei ${index}`,
+      isLeaf: true,
+    }));
+
+    const child: VintedCategory = {
+      id: 77,
+      parentId: 1904,
+      title: 'Sale',
+      slug: '77-sale',
+      path: 'Sale',
+      isLeaf: true,
+    };
+
+    const parent: VintedCategory = {
+      id: 1904,
+      parentId: null,
+      title: 'Damen',
+      slug: '1904-women',
+      path: 'Eins > Zwei > Drei',
+      isLeaf: false,
+    };
+
+    await expect(store.replaceAll([child, ...filler, parent])).resolves.not.toThrow();
+
+    const { data } = await client
+      .from('vinted_categories')
+      .select('id, parent_id')
+      .in('id', [77, 1904])
+      .order('id');
+
+    expect(data).toEqual([
+      { id: 77, parent_id: 1904 },
+      { id: 1904, parent_id: null },
+    ]);
+  });
+
   it('markFailed haelt einen Fehlschlag im Auffrischungsstand fest, ohne die Kategorietabelle anzuruehren', async () => {
     await store.replaceAll(categories);
     await store.markRefreshed(categories.length, new Date('2026-09-06T12:00:00.000Z'));

@@ -16,6 +16,13 @@ import type { VintedCategory } from '../vinted/categories.js';
  * `replaceAll` markieren-und-nachraeumen statt erst-leeren-dann-schreiben:
  * Bricht das Schreiben mitten in einem Block ab, ist noch keine Zeile geloescht
  * worden - der alte Baum steht unveraendert weiter.
+ *
+ * Diese Zusicherung gilt fuer **einen** Lauf zur Zeit. Liefen zwei
+ * `replaceAll` gleichzeitig, koennte das Nachraeumen des schnelleren die
+ * Zeilen des langsameren wegwerfen - beide waeren erfolgreich, das Ergebnis
+ * trotzdem unvollstaendig. Der Dienst ruft die Auffrischung aus seiner einen
+ * Taktschleife auf, also tritt das nicht ein; wer den Aufruf einmal
+ * nebenlaeufig macht, muss ihn vorher serialisieren.
  */
 export class CategoryStore {
   constructor(private readonly client: SupabaseClient) {}
@@ -58,6 +65,12 @@ export class CategoryStore {
     const depthOf = (category: VintedCategory): number => {
       const cached = depthCache.get(category.id);
       if (cached !== undefined) return cached;
+
+      // Vor der Rekursion eintragen: Ein Kreis in den Eingabedaten (A verweist
+      // auf B, B auf A) liefe sonst bis zum Ueberlauf des Aufrufstapels. So
+      // bricht er bei der bereits besuchten Kategorie ab und die
+      // Fremdschluesselpruefung der Datenbank meldet den eigentlichen Fehler.
+      depthCache.set(category.id, 0);
 
       let depth = 0;
       if (category.parentId !== null) {
