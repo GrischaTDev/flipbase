@@ -17,9 +17,11 @@ import {
   RecordTimelineEntry,
 } from '../../models/record-timeline.models';
 import { RecordTimelineService } from '../../services/record-timeline.service';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 
 @Component({
   selector: 'app-record-timeline',
+  imports: [ButtonComponent],
   templateUrl: './record-timeline.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -44,12 +46,11 @@ export class RecordTimelineComponent {
     () => canSubmitComment(this.draft()) && !this.posting() && !this.loading() && !this.archived(),
   );
   readonly characterCount = computed(() => Array.from(this.draft().trim()).length);
+  readonly currentUserInitial = computed(() => this.actorInitial(this.auth.userName?.() ?? 'Du'));
   readonly groups = computed(() => {
     const groups: { day: string; entries: RecordTimelineEntry[] }[] = [];
     for (const entry of this.entries()) {
-      const day = new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' }).format(
-        new Date(entry.createdAt),
-      );
+      const day = this.dayLabel(entry.createdAt);
       let group = groups.at(-1);
       if (group?.day !== day) {
         group = { day, entries: [] };
@@ -135,6 +136,19 @@ export class RecordTimelineComponent {
     if (Math.abs(seconds) < 3600) return relative.format(Math.round(seconds / 60), 'minute');
     if (Math.abs(seconds) < 86400) return relative.format(Math.round(seconds / 3600), 'hour');
     return relative.format(Math.round(seconds / 86400), 'day');
+  }
+  actorInitial(name: string): string {
+    return Array.from(name.trim())[0]?.toLocaleUpperCase('de-DE') ?? '?';
+  }
+  private dayLabel(value: string): string {
+    const day = new Date(value);
+    const today = new Date();
+    const dayKey = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
+    const todayKey = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const differenceInDays = Math.round((todayKey - dayKey) / 86_400_000);
+    if (differenceInDays === 0) return 'Heute';
+    if (differenceInDays === 1) return 'Gestern';
+    return new Intl.DateTimeFormat('de-DE', { dateStyle: 'full' }).format(day);
   }
   private async load(cursor: string | undefined): Promise<void> {
     const scope = this.scope();

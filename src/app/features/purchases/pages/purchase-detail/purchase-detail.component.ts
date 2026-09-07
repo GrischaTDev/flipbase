@@ -56,7 +56,6 @@ import {
   TrackingCarrier,
 } from '../../../../core/models/flipbase.models';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
-import { PurchaseCreateModalComponent } from '../../components/purchase-create-modal/purchase-create-modal.component';
 import {
   CustomSelectComponent,
   SelectOption,
@@ -91,7 +90,6 @@ import { TwoColumnLayoutComponent } from '../../../../shared/components/two-colu
   selector: 'app-purchase-detail',
   imports: [
     TableColumnPickerComponent,
-    PurchaseCreateModalComponent,
     RouterLink,
     ReactiveFormsModule,
     CurrencyPipe,
@@ -313,7 +311,6 @@ export class PurchaseDetailComponent {
   readonly chevronUpIcon = ChevronUp;
 
   readonly isAddingCost = signal<boolean>(false);
-  readonly isEditModalOpen = signal<boolean>(false);
   readonly isAddingItem = signal<boolean>(false);
   readonly isSavingPurchaseLines = signal<boolean>(false);
   readonly isReceivingLines = signal<boolean>(false);
@@ -325,6 +322,10 @@ export class PurchaseDetailComponent {
   readonly selectedImageDataUrl = signal<string | null>(null);
   readonly isLifecycleSubmitting = signal(false);
   readonly isCorrectionDialogOpen = signal(false);
+
+  editPurchase(purchaseId: string): void {
+    void this.router.navigate(['/purchases', purchaseId, 'edit']);
+  }
 
   readonly hasRecordedPurchaseSale = computed(
     () => this.purchaseService.purchaseSaleHistoryState() === 'recorded',

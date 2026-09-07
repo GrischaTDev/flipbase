@@ -108,7 +108,6 @@ export class PurchaseEntryFormComponent {
 
   /** Der zu bearbeitende Einkauf - fehlt er, wird ein neuer angelegt. */
   readonly purchase = input<Purchase | null>(null);
-  readonly presentation = input<'dialog' | 'page'>('dialog');
 
   readonly istBearbeitung = computed(() => this.purchase() !== null);
 
@@ -398,6 +397,10 @@ export class PurchaseEntryFormComponent {
       this.isSubmitting() ||
       (typeof this.lineEditor === 'function' && (this.lineEditor()?.isSavingProduct() ?? false))
     );
+  }
+
+  canSaveDraft(): boolean {
+    return this.form.valid && this.areAdditionalCostsValid() && !this.isSaving();
   }
 
   selectPurchaseType(type: PurchaseType): void {

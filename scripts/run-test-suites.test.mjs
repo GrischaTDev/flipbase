@@ -73,6 +73,23 @@ async function waitForFileChange(path, previousContent, timeoutMs = 750) {
   throw new Error(`Heartbeat wurde innerhalb von ${timeoutMs} ms nicht fortgeführt.`);
 }
 
+async function waitForFileToSettle(path, quietMs = 100, timeoutMs = 750) {
+  const deadline = Date.now() + timeoutMs;
+  let content = await readFile(path, 'utf8');
+  let lastChange = Date.now();
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const nextContent = await readFile(path, 'utf8');
+    if (nextContent !== content) {
+      content = nextContent;
+      lastChange = Date.now();
+    } else if (Date.now() - lastChange >= quietMs) {
+      return content;
+    }
+  }
+  throw new Error(`Heartbeat wurde innerhalb von ${timeoutMs} ms nicht stabil.`);
+}
+
 test('führt unabhängige Testgruppen parallel aus und beschriftet ihre Ausgaben', async () => {
   const barrierDirectory = await mkdtemp(join(tmpdir(), 'flipbase-runner-barrier-'));
   const stdout = new PassThrough();
@@ -168,7 +185,7 @@ test('beendet bei einem Timeout den vollständigen Prozessbaum', async () => {
     } else {
       assert.match(readStderr(), /erzwungene Prozessbaum-Beendigung/);
     }
-    const heartbeatAfterExit = await readFile(heartbeatPath, 'utf8');
+    const heartbeatAfterExit = await waitForFileToSettle(heartbeatPath);
     await new Promise((resolve) => setTimeout(resolve, 150));
     assert.equal(await readFile(heartbeatPath, 'utf8'), heartbeatAfterExit);
   } finally {
