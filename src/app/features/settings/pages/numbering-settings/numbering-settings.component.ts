@@ -17,15 +17,26 @@ import {
   NumberSeries,
   previewNumberSeries,
 } from '../../models/numbering.models';
+import {
+  CustomSelectComponent,
+  SelectOption,
+} from '../../../../shared/components/custom-select/custom-select.component';
 
 @Component({
   selector: 'app-numbering-settings',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, CustomSelectComponent],
   templateUrl: './numbering-settings.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block', '(window:beforeunload)': 'beforeUnload($event)' },
 })
 export class NumberingSettingsComponent {
+  readonly separatorOptions: readonly SelectOption<string>[] = [
+    { value: ' ', label: 'Leerzeichen' },
+    { value: '-', label: 'Bindestrich' },
+    { value: '/', label: 'Schrägstrich' },
+    { value: '.', label: 'Punkt' },
+    { value: '', label: 'Keines' },
+  ];
   private readonly workspace = inject(WorkspaceService);
   private readonly numbering = inject(NumberingService);
   private readonly destroyRef = inject(DestroyRef);

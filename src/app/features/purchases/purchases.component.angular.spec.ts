@@ -18,6 +18,11 @@ import { PurchasesComponent } from './purchases.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { TableColumnMenuComponent } from '../../shared/components/table-column-menu/table-column-menu.component';
 import { TableSortHeaderComponent } from '../../shared/components/table-sort-header/table-sort-header.component';
+import { BadgeComponent } from '../../shared/components/badge/badge.component';
+import { ButtonComponent } from '../../shared/components/button/button.component';
+import { CostStateComponent } from '../../shared/components/cost-state/cost-state.component';
+import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
+import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 
 interface AngularInputMetadata {
   inputs: Record<string, unknown>;
@@ -73,6 +78,23 @@ beforeAll(async () => {
     'sortField',
     'currentSort',
     'description',
+  ]);
+  registerSignalInputs(BadgeComponent, ['tone', 'marker', 'mono']);
+  registerSignalInputs(ButtonComponent, ['icon']);
+  registerSignalInputs(CostStateComponent, ['state']);
+  registerSignalInputs(CustomSearchInputComponent, [
+    'value',
+    'placeholder',
+    'ariaLabel',
+    'variant',
+    'size',
+  ]);
+  registerSignalInputs(CustomSelectComponent, [
+    'options',
+    'value',
+    'variant',
+    'widthClass',
+    'ariaLabel',
   ]);
 });
 
@@ -212,16 +234,18 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     expect(mysteryRow?.textContent).toContain('Kosten noch offen');
   });
 
-  it('zeigt offene Kostenverteilung als eigenes Badge', () => {
+  it('zeigt weder Kostenstatus- noch Aktionsspalte und nutzt gemeinsame Status-Badges', () => {
     const fixture = TestBed.createComponent(PurchasesComponent);
     fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
     const mystery = (fixture.nativeElement as HTMLElement)
       .querySelector('[data-purchase-row="purchase-mystery"]')
       ?.closest('tr');
 
-    expect(mystery?.querySelector('[data-allocation-open]')?.textContent).toContain(
-      'Kostenaufteilung offen',
-    );
+    expect(host.textContent).not.toContain('Kostenstatus');
+    expect(host.textContent).not.toContain('Aktionen');
+    expect(mystery?.querySelector('[data-allocation-open]')).toBeNull();
+    expect(mystery?.querySelector('app-badge [data-badge-marker]')).not.toBeNull();
   });
 
   it('behält Suche und Rücksetzung bei einer Suche ohne Treffer sichtbar', () => {
@@ -231,7 +255,7 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     fixture.detectChanges();
 
     const host = fixture.nativeElement as HTMLElement;
-    const search = host.querySelector<HTMLInputElement>('input[type="search"]');
+    const search = host.querySelector<HTMLInputElement>('app-custom-search-input input');
     const reset = host.querySelector<HTMLButtonElement>('[data-reset-purchase-view]');
 
     expect(search).not.toBeNull();
@@ -245,7 +269,7 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     expect(host.querySelectorAll('[data-purchase-table-row]')).toHaveLength(2);
   });
 
-  it('kombiniert Nummernsuche, Status und Verkäufer-ID und setzt die gesamte Ansicht zurück', () => {
+  it('kombiniert Nummernsuche, Status und Verkäufer-ID und trennt Filter- von Layout-Rücksetzung', () => {
     const list = purchaseState;
     list.set([
       {
@@ -278,7 +302,7 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     expect(component.purchaseRows().map((row) => row.reference)).toEqual(['EK-104']);
     component.sellerId.set('seller-b');
     expect(component.purchaseRows()).toHaveLength(0);
-    component.resetView();
+    component.clearFilters();
     fixture.detectChanges();
     expect(component.purchaseRows()).toHaveLength(2);
     expect(component.viewModified()).toBe(false);
@@ -301,7 +325,7 @@ describe('PurchasesComponent – responsive Einkaufsübersicht', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.activeStatus()).toBe('ordered');
     expect(fixture.componentInstance.searchQuery()).toBe('keine Treffer');
-    fixture.componentInstance.resetView();
+    fixture.componentInstance.clearFilters();
     fixture.detectChanges();
     const stored = JSON.parse(
       localStorage.getItem(`flipbase_purchase_filters_v2_${workspaceId}`) ?? '{}',

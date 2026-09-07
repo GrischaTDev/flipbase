@@ -34,48 +34,35 @@
 
   <!-- Polaris-nahe Einkaufstabelle -->
   <div data-purchase-list class="linear-surface relative overflow-visible rounded-xl">
-    <div class="flex flex-wrap items-center gap-2 border-b border-fb-line p-2">
-      <label class="shrink-0">
-        <span class="sr-only">Einkaufsstatus</span>
-        <select
-          class="linear-input h-8 rounded-lg px-2 text-[13px]"
-          [value]="activeStatus()"
-          (change)="activeStatus.set($any($event.target).value)"
-        >
-          @for (status of statusOptions; track status.value) {
-            <option [value]="status.value">{{ status.label }}</option>
-          }
-        </select>
-      </label>
-      <label class="relative min-w-40 flex-1">
-        <span class="sr-only">Einkäufe durchsuchen</span>
-        <svg
-          [lucideIcon]="searchIcon"
-          class="pointer-events-none absolute left-3 top-2 h-4 w-4 text-fb-text-muted"
-          aria-hidden="true"
-        ></svg>
-        <input
-          [value]="searchQuery()"
-          (input)="searchQuery.set($any($event.target).value)"
-          type="search"
-          placeholder="Suchen und filtern …"
-          class="linear-input w-full h-8 rounded-lg py-1 pl-9 pr-3 text-[13px]"
-        />
-      </label>
-      <label>
-        <span class="sr-only">Verkäufer ist</span>
-        <select
-          class="linear-input h-8 max-w-52 rounded-lg px-2 text-[13px]"
-          [value]="sellerId()"
-          (change)="sellerId.set($any($event.target).value)"
-        >
-          <option value="">Verkäufer ist …</option>
-          @for (seller of sellerOptions(); track seller.id) {
-            <option [value]="seller.id">{{ seller.name }} · {{ seller.id.slice(-6) }}</option>
-          }
-        </select>
-      </label>
-      <div class="border-l border-fb-line pl-2">
+    <app-table-toolbar>
+      <app-custom-select
+        table-view
+        variant="toolbar"
+        widthClass="w-auto"
+        ariaLabel="Einkaufsstatus"
+        [options]="statusOptions"
+        [value]="activeStatus()"
+        (valueChange)="activeStatus.set($event ?? 'all')"
+      />
+      <app-custom-search-input
+        table-search
+        variant="toolbar"
+        size="sm"
+        placeholder="Suchen und filtern …"
+        ariaLabel="Einkäufe durchsuchen"
+        [value]="searchQuery()"
+        (valueChange)="searchQuery.set($event)"
+      />
+      <app-custom-select
+        table-filters
+        variant="toolbar"
+        widthClass="max-w-52"
+        ariaLabel="Verkäufer ist"
+        [options]="sellerSelectOptions()"
+        [value]="sellerId()"
+        (valueChange)="sellerId.set($event ?? '')"
+      />
+      <div table-settings>
         <app-table-column-menu
           [columns]="tablePrefs().columns"
           [sortOptions]="purchasesTableConfig.sortOptions"
@@ -84,11 +71,10 @@
           (columnVisibilityToggled)="toggleColumnVisibility($event)"
           (columnsReordered)="onColumnsReordered($event)"
           (sortChanged)="onSortChanged($event)"
-          (resetRequested)="resetTablePreferences()"
           (viewResetRequested)="resetView()"
         />
       </div>
-    </div>
+    </app-table-toolbar>
 
     @if (selectedSeller(); as seller) {
       <div class="border-b border-fb-line px-3 py-2">
@@ -116,7 +102,7 @@
                   @case ('title') {
                     <th scope="col" class="min-w-64" [attr.aria-sort]="ariaSort('title')">
                       <app-table-sort-header
-                        label="Einkauf / Referenz"
+                        label="Einkauf"
                         sortField="title"
                         [currentSort]="tablePrefs().sort"
                         (sortChanged)="onSortChanged($event)"
@@ -128,9 +114,6 @@
                   }
                   @case ('capture') {
                     <th scope="col">Erfassung</th>
-                  }
-                  @case ('cost_status') {
-                    <th scope="col">Kostenstatus</th>
                   }
                   @case ('purchase_date') {
                     <th scope="col" [attr.aria-sort]="ariaSort('purchase_date')">
@@ -158,9 +141,6 @@
                   }
                   @case ('units') {
                     <th scope="col" class="text-right">Stückzahl und Bestand</th>
-                  }
-                  @case ('actions') {
-                    <th scope="col" class="w-16 text-right">Aktionen</th>
                   }
                 }
               }
@@ -194,15 +174,6 @@
                     @case ('capture') {
                       <td>{{ row.captureStatus }}</td>
                     }
-                    @case ('cost_status') {
-                      <td>
-                        @if (row.allocationOpen) {
-                          <span data-allocation-open>Kostenaufteilung offen</span>
-                        } @else {
-                          Zugeordnet
-                        }
-                      </td>
-                    }
                     @case ('purchase_date') {
                       <td>
                         <time [attr.datetime]="row.purchaseDate">{{
@@ -212,9 +183,9 @@
                     }
                     @case ('status') {
                       <td>
-                        <span class="font-semibold text-fb-text-primary">{{
-                          row.purchaseStatus
-                        }}</span>
+                        <app-badge [tone]="row.purchaseStatusTone" marker="square">
+                          {{ row.purchaseStatus }}
+                        </app-badge>
                       </td>
                     }
                     @case ('total_cost') {
@@ -242,21 +213,6 @@
                         </span>
                       </td>
                     }
-                    @case ('actions') {
-                      <td class="text-right">
-                        <a
-                          [routerLink]="['/purchases', row.id]"
-                          [attr.aria-label]="row.title + ' öffnen'"
-                          class="inline-flex rounded-md p-2 text-fb-text-muted transition hover:bg-fb-surface-hover hover:text-fb-primary focus-visible:outline-2 focus-visible:outline-fb-primary"
-                        >
-                          <svg
-                            [lucideIcon]="arrowRightIcon"
-                            class="size-4"
-                            aria-hidden="true"
-                          ></svg>
-                        </a>
-                      </td>
-                    }
                   }
                 }
               </tr>
@@ -271,7 +227,7 @@
         >
           <svg [lucideIcon]="bagIcon" class="w-5 h-5"></svg>
         </div>
-        @if (viewModified()) {
+        @if (activeStatus() !== 'all' || sellerId() !== '' || searchQuery().trim() !== '') {
           <h3 class="text-sm font-bold text-fb-text-secondary">Keine passenden Einkäufe</h3>
           <p class="mx-auto mb-4 mt-1 max-w-sm text-xs text-fb-text-muted">
             Ändere den Suchbegriff oder setze die aktuelle Ansicht zurück.
@@ -279,7 +235,7 @@
           <button
             data-reset-purchase-view
             type="button"
-            (click)="resetView()"
+            (click)="clearFilters()"
             class="linear-btn-secondary inline-flex cursor-pointer items-center gap-2 rounded-lg px-3.5 py-1.5 text-xs font-semibold"
           >
             Suche und Filter löschen

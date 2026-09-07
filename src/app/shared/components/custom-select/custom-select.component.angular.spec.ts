@@ -75,7 +75,7 @@ afterEach(() => {
 function createSelect(
   config: {
     value?: string | null;
-    variant?: 'default' | 'pill' | 'filter';
+    variant?: 'default' | 'pill' | 'filter' | 'toolbar';
     disabled?: boolean;
     triggerId?: string;
     options?: readonly SelectOption<string>[];

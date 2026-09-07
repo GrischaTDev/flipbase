@@ -142,6 +142,14 @@ export class PurchaseEntryFormComponent {
     { value: 'heavily_used', label: 'Stark gebraucht' },
     { value: 'defective', label: 'Defekt / Ersatzteil' },
   ];
+  readonly contentStatusOptions: readonly SelectOption<string>[] = [
+    { value: 'unknown', label: 'Noch nicht vollständig bekannt' },
+    { value: 'known', label: 'Vollständig bekannt' },
+  ];
+  readonly pricingModeOptions: readonly SelectOption<string>[] = [
+    { value: 'total', label: 'Gesamtkaufpreis / Paketpreis' },
+    { value: 'individual', label: 'Einzelpreise' },
+  ];
 
   readonly sellerDialogOpen = signal(false);
   readonly costDialogOpen = signal(false);

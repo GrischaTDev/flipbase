@@ -50,23 +50,22 @@
           </div>
         </div>
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <label class="block text-sm"
-            >Inhalt<select
+          <div>
+            <span class="mb-1 block text-sm">Inhalt</span>
+            <app-custom-select
               formControlName="content_status"
-              class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-            >
-              <option value="unknown">Noch nicht vollständig bekannt</option>
-              <option value="known">Vollständig bekannt</option>
-            </select></label
-          ><label class="block text-sm"
-            >Preise<select
+              ariaLabel="Inhalt"
+              [options]="contentStatusOptions"
+            />
+          </div>
+          <div>
+            <span class="mb-1 block text-sm">Preise</span>
+            <app-custom-select
               formControlName="pricing_mode"
-              class="linear-input mt-1 w-full rounded-lg px-3 py-2"
-            >
-              <option value="total">Gesamtkaufpreis / Paketpreis</option>
-              <option value="individual">Einzelpreise</option>
-            </select></label
-          >
+              ariaLabel="Preise"
+              [options]="pricingModeOptions"
+            />
+          </div>
         </div>
       </section>
       <section class="rounded-xl border border-fb-line bg-fb-surface p-4 shadow-sm">

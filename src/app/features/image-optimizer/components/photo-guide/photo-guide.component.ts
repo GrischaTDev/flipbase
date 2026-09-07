@@ -19,10 +19,11 @@ import {
   LucideX as X,
 } from '@lucide/angular';
 import { PhotoGuideTab, PhotoGuideState } from '../../services/photo-guide-state';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 
 @Component({
   selector: 'app-photo-guide',
-  imports: [LucideDynamicIcon],
+  imports: [LucideDynamicIcon, BadgeComponent],
   templateUrl: './photo-guide.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })

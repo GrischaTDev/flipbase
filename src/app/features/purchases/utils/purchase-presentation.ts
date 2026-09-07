@@ -13,6 +13,7 @@ import type {
   PurchaseDetailRow,
   PurchaseListRow,
   PurchaseStatusLabel,
+  PurchaseStatusTone,
   PresentationLoadState,
   RecordedSalePresentation,
 } from '../models/purchase-presentation.models';
@@ -144,6 +145,15 @@ function getPurchaseStatus(
   return 'Entwurf';
 }
 
+function getPurchaseStatusTone(status: PurchaseStatusLabel): PurchaseStatusTone {
+  if (status === 'Storniert') return 'critical';
+  if (status === 'Angekommen' || status === 'Eingetroffen' || status === 'Erfassung abgeschlossen')
+    return 'success';
+  if (status === 'Unterwegs') return 'info';
+  if (status === 'Teillieferung' || status === 'Prüfung erforderlich') return 'caution';
+  return 'neutral';
+}
+
 function totalPurchaseCost(purchase: Purchase): number | null {
   if (purchase.total_purchase_cost !== undefined) return purchase.total_purchase_cost;
   if (purchase.purchase_price === null || !Number.isFinite(purchase.purchase_price)) return null;
@@ -231,6 +241,7 @@ export function mapPurchaseListRow(
 ): PurchaseListRow {
   const items = purchaseItems(purchase, context);
   const totalCost = totalPurchaseCost(purchase);
+  const purchaseStatus = getPurchaseStatus(purchase, items);
   return {
     reference: purchase.record_number || purchase.title || 'Einkauf',
     supplierReference: purchase.supplier_reference ?? '',
@@ -248,7 +259,8 @@ export function mapPurchaseListRow(
     typeLabel: purchaseTypeLabels.transform(purchase.type),
     purchaseDate: purchase.purchase_date,
     supplierLabel: purchase.supplier?.name || 'Kein Verkäufer',
-    purchaseStatus: getPurchaseStatus(purchase, items),
+    purchaseStatus,
+    purchaseStatusTone: getPurchaseStatusTone(purchaseStatus),
     allocationOpen: getAllocationOpen(purchase, items, totalCost),
     totalCost: money(totalCost),
     ...summarizeQuantities(purchase, items, context),

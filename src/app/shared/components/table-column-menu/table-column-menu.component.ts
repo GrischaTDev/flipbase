@@ -18,7 +18,7 @@ import {
   LucideEyeOff as EyeOff,
   LucideGripVertical as GripVertical,
   LucideLock as Lock,
-  LucideRotateCcw as RotateCcw,
+  LucideRefreshCcw as RefreshCcw,
   LucideColumns3 as Columns3,
   LucideChevronDown as ChevronDown,
   LucideCheck as Check,
@@ -68,7 +68,7 @@ export class TableColumnMenuComponent<
     eyeOff: EyeOff,
     drag: GripVertical,
     lock: Lock,
-    reset: RotateCcw,
+    reset: RefreshCcw,
     chevron: ChevronDown,
     check: Check,
   };
@@ -83,7 +83,6 @@ export class TableColumnMenuComponent<
   readonly columnVisibilityToggled = output<TColumnId>();
   readonly columnsReordered = output<{ previousIndex: number; currentIndex: number }>();
   readonly sortChanged = output<TableSortState<TSortField>>();
-  readonly resetRequested = output<void>();
   readonly viewResetRequested = output<void>();
 
   // State
@@ -138,6 +137,16 @@ export class TableColumnMenuComponent<
         { injector: this.injector },
       );
     }
+  }
+
+  resetView(): void {
+    this.viewResetRequested.emit();
+    afterNextRender(
+      {
+        mixedReadWrite: () => this.triggerBtn()?.nativeElement.focus(),
+      },
+      { injector: this.injector },
+    );
   }
 
   close(): void {

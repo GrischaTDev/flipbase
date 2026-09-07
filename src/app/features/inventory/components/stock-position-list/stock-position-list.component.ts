@@ -75,7 +75,6 @@ export class StockPositionListComponent {
   readonly columnVisibilityToggled = output<InventoryColumnId>();
   readonly columnsReordered = output<{ previousIndex: number; currentIndex: number }>();
   readonly sortChanged = output<TableSortState<InventorySortField>>();
-  readonly resetRequested = output<void>();
   readonly viewModified = input(false);
   readonly viewResetRequested = output<void>();
   readonly archivePendingIds = input<ReadonlySet<string>>(new Set());

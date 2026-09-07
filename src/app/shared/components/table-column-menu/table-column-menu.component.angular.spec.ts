@@ -167,14 +167,14 @@ describe('TableColumnMenuComponent', () => {
   });
 
   it('should show and emit the adjacent view reset action only for a modified view', () => {
-    expect(
-      (fixture.nativeElement.querySelector('[data-view-reset]') as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(fixture.nativeElement.querySelector('[data-view-reset]')).toBeNull();
 
     fixture.componentRef.setInput('viewModified', true);
     fixture.detectChanges();
     const reset = fixture.nativeElement.querySelector('[data-view-reset]') as HTMLButtonElement;
     expect(reset).toBeTruthy();
+    expect(reset.getAttribute('aria-label')).toBe('Ansicht zurücksetzen');
+    expect(reset.textContent?.trim()).toBe('');
 
     let emitted = false;
     component.viewResetRequested.subscribe(() => (emitted = true));
@@ -214,22 +214,15 @@ describe('TableColumnMenuComponent', () => {
     expect(toggledCol).toBe('price');
   });
 
-  it('should emit resetRequested when standard button is clicked', () => {
+  it('should not expose a second reset action inside the column panel', () => {
     component.toggleOpen();
     fixture.detectChanges();
-
-    let resetEmitted = false;
-    component.resetRequested.subscribe(() => {
-      resetEmitted = true;
-    });
 
     const standardBtn = Array.from(fixture.nativeElement.querySelectorAll('button')).find(
       (b: unknown) => (b as HTMLElement).textContent?.trim() === 'Standard',
     ) as HTMLButtonElement | undefined;
 
-    expect(standardBtn).toBeTruthy();
-    standardBtn?.click();
-    expect(resetEmitted).toBe(true);
+    expect(standardBtn).toBeUndefined();
   });
 
   it('should close popover on escape key', () => {

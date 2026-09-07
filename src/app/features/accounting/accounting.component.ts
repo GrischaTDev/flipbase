@@ -43,6 +43,7 @@ import { MonthlyTaxReport } from '../../core/models/accounting.models';
 import { BankTransaction } from '../../core/models/bank-reconciliation.models';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { ToastService } from '../../shared/components/toast/toast.service';
+import { BadgeComponent } from '../../shared/components/badge/badge.component';
 
 import { CustomSearchInputComponent } from '../../shared/components/custom-search-input/custom-search-input.component';
 import { ModalDialogDirective } from '../../shared/directives/modal-dialog.directive';
@@ -75,6 +76,7 @@ export type BankTxFilter = 'all' | 'matched' | 'pending' | 'booked' | 'ignored';
     CustomSelectComponent,
     TableColumnMenuComponent,
     TableSortHeaderComponent,
+    BadgeComponent,
   ],
   templateUrl: './accounting.component.html',
   styleUrl: './accounting.component.scss',

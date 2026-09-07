@@ -47,7 +47,6 @@
           (columnVisibilityToggled)="toggleColumnVisibility($event)"
           (columnsReordered)="onColumnsReordered($event)"
           (sortChanged)="onSortChanged($event)"
-          (resetRequested)="resetTablePreferences()"
           (viewResetRequested)="resetView()"
         />
       </div>
@@ -343,15 +342,13 @@
               >
             }
           </label>
-          <label class="block text-[10px] font-semibold uppercase tracking-wider text-fb-text-muted"
-            >Nachverfolgung<select
-              formControlName="trackingMode"
-              class="linear-input mt-1 w-full rounded-lg px-3 py-2 text-xs"
-            >
-              <option value="quantity">Mengenartikel</option>
-              <option value="individual">Einzelstück</option>
-            </select></label
-          >
+          <span class="block text-[10px] font-semibold text-fb-text-muted">Nachverfolgung</span>
+          <app-custom-select
+            formControlName="trackingMode"
+            size="sm"
+            ariaLabel="Nachverfolgung"
+            [options]="trackingModeOptions"
+          />
           <label class="flex items-center gap-2 text-xs text-fb-text-secondary"
             ><input
               formControlName="isPublicStore"
