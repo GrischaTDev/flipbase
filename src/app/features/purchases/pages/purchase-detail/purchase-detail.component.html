@@ -7,36 +7,39 @@
       (cancelled)="returnToPurchases()"
     >
       <div entry-header-badge class="flex items-center gap-1.5">
-        <app-badge [tone]="getEntryStatusTone(p.entry_status)">
-          {{ getEntryStatusLabel(p.entry_status) }}
+        <app-badge [tone]="getEntryStatusTone(p.entry_status ?? 'draft')">
+          {{ getEntryStatusLabel(p.entry_status ?? 'draft') }}
         </app-badge>
       </div>
 
       <div entry-header-actions class="flex flex-wrap items-center justify-end gap-2">
         @if (isEditing()) {
-          <app-button [disabled]="isSaving()" (clicked)="discardEdits()">Verwerfen</app-button>
+          <app-button size="slim" [disabled]="isSaving()" (clicked)="discardEdits()"
+            >Verwerfen</app-button
+          >
           <app-button
             variant="primary"
+            size="slim"
             [loading]="isSaving()"
             [disabled]="!entryForm()?.canSaveDraft()"
             (clicked)="saveDraft()"
             >Änderungen speichern</app-button
           >
         } @else {
-          <a
+          <app-button
             data-purchase-audit-print-link
-            [routerLink]="['/settings/data/print']"
+            link="/settings/data/print"
+            size="slim"
+            [icon]="receiptIcon"
             [queryParams]="{ entityType: 'purchase', entityId: p.id }"
-            class="linear-btn-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-fb-text-secondary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-focus"
-            [attr.aria-label]="
+            [ariaLabel]="
               'Prüfbeleg für ' +
               (p.record_number || p.title || 'Einkauf') +
               ' drucken oder als PDF speichern'
             "
           >
-            <svg [lucideIcon]="receiptIcon" aria-hidden="true" class="w-3.5 h-3.5"></svg>
-            <span>Prüfbeleg</span>
-          </a>
+            Prüfbeleg
+          </app-button>
           <app-purchase-lifecycle-actions
             [entryStatus]="p.entry_status ?? 'draft'"
             [receivingStatus]="p.receiving_status ?? 'draft'"
@@ -235,17 +238,6 @@
 
           <!-- Sidebar Column (1/3) -->
           <div sidebar class="space-y-4" data-testid="purchase-entry-sidebar">
-            @if (
-              p.entry_status !== 'finalized' &&
-              (!p.pricing_mode || p.shipping_cost || p.other_costs)
-            ) {
-              <details class="text-[13px]">
-                <summary class="cursor-pointer text-fb-text-muted">
-                  Kostenangaben aus Altbestand prüfen
-                </summary>
-                <app-purchase-cost-repair [purchase]="p" (saved)="refreshCostRepair()" />
-              </details>
-            }
             <app-purchase-cost-summary
               [goodsAmount]="p.purchase_price"
               [discountAmount]="p.discount_amount ?? 0"

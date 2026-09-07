@@ -12,6 +12,13 @@
 }
 
 .custom-select-menu {
+  &[popover] {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    max-width: none;
+  }
+
   scrollbar-width: thin;
   scrollbar-color: var(--fb-line) transparent;
 

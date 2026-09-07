@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
   Injector,
   afterNextRender,
@@ -62,7 +63,11 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   private readonly elementRef = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   private readonly trigger = viewChild.required<ElementRef<HTMLButtonElement>>('trigger');
+  private readonly panel = viewChild<ElementRef<HTMLElement>>('panel');
+  private readonly destroyRef = inject(DestroyRef);
   private readonly instanceId = ++nextCustomSelectId;
+  protected readonly supportsPopover = typeof HTMLElement.prototype.showPopover === 'function';
+  protected readonly panelPosition = signal({ left: 0, top: 0, width: 160, maxHeight: 240 });
 
   readonly options = input.required<readonly SelectOption<T>[]>();
   readonly value = model<T | null>(null);
@@ -146,6 +151,23 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
     return this.options().find((opt) => opt.value === val) || null;
   });
 
+  constructor() {
+    // Scrollen der Liste ist erlaubt; bei bewegtem Anker schließen, statt ein losgelöstes Menü zu zeigen.
+    const onScroll = (event: Event) => {
+      if (this.panel()?.nativeElement.contains(event.target as Node)) return;
+      if (this.isOpen()) this.closeDropdown(false);
+    };
+    const onResize = () => {
+      if (this.isOpen()) this.closeDropdown(false);
+    };
+    document.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onResize);
+    this.destroyRef.onDestroy(() => {
+      document.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', onResize);
+    });
+  }
+
   // ControlValueAccessor methods
   writeValue(obj: T | null): void {
     this.value.set(obj);
@@ -190,6 +212,39 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
     this.setActiveIndex(selectedIndex >= 0 ? selectedIndex : fallbackIndex);
     this.isOpen.set(true);
     this.onTouched();
+    if (this.supportsPopover) {
+      afterNextRender(
+        () => {
+          const panel = this.panel()?.nativeElement;
+          if (!this.isOpen() || !panel) return;
+          // Die native oberste Ebene entkommt Overflow und Transform der Modal-Vorfahren.
+          panel.showPopover();
+          const rect = this.trigger().nativeElement.getBoundingClientRect();
+          const margin = 8;
+          const gap = 6;
+          const width = Math.min(Math.max(rect.width, 160), window.innerWidth - margin * 2);
+          const available = this.isDropUp()
+            ? rect.top - gap - margin
+            : window.innerHeight - rect.bottom - gap - margin;
+          const maxHeight = Math.max(0, Math.min(240, available));
+          const height = Math.min(panel.offsetHeight, maxHeight);
+          this.panelPosition.set({
+            left: Math.max(
+              margin,
+              Math.min(
+                this.variant() === 'pill' ? rect.right - width : rect.left,
+                window.innerWidth - width - margin,
+              ),
+            ),
+            top: this.isDropUp() ? Math.max(margin, rect.top - gap - height) : rect.bottom + gap,
+            width,
+            maxHeight,
+          });
+          this.scrollActiveOptionIntoViewAfterRender();
+        },
+        { injector: this.injector },
+      );
+    }
   }
 
   closeDropdown(restoreFocus = true): void {

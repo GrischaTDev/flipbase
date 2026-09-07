@@ -705,11 +705,17 @@ html:not(.dark) .fb-admin .bg-indigo-600.text-white {
   line-height: 1.25rem;
 }
 
-.fb-admin :is(.linear-btn-primary, .linear-btn-secondary) {
+.fb-admin :is(.linear-btn-primary, .linear-btn-secondary):not(.fb-button) {
   min-height: 1.75rem;
   border-radius: 0.5rem;
   font-size: 0.8125rem;
   line-height: 1.25rem;
+}
+
+/* Die gemeinsame Komponente steuert ihre Geometrie; gemessene Adminbuttons
+   haben keinen animierten Zustandswechsel. */
+.fb-admin .fb-button {
+  transition: none;
 }
 
 .fb-admin .linear-input {

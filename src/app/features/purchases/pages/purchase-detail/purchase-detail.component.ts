@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import {
   LucideDynamicIcon,
@@ -81,7 +81,6 @@ import { mapPurchaseDetailRows } from '../../utils/purchase-presentation';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { SalesService } from '../../../../core/services/sales.service';
 import { RecordHistoryContainer } from '../../../audit/components/record-history/record-history.container';
-import { PurchaseCostRepairComponent } from '../../components/purchase-cost-repair/purchase-cost-repair.component';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { PurchaseEntryFormComponent } from '../../components/purchase-entry-form/purchase-entry-form.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -96,7 +95,6 @@ import { PurchaseCostSummaryComponent } from '../../components/purchase-cost-sum
   selector: 'app-purchase-detail',
   imports: [
     TableColumnPickerComponent,
-    RouterLink,
     ReactiveFormsModule,
     DatePipe,
     LucideDynamicIcon,
@@ -106,7 +104,6 @@ import { PurchaseCostSummaryComponent } from '../../components/purchase-cost-sum
     PurchaseLifecycleActionsComponent,
     PurchaseDetailTableComponent,
     RecordHistoryContainer,
-    PurchaseCostRepairComponent,
     EntryPageLayoutComponent,
     PurchaseEntryFormComponent,
     BadgeComponent,
@@ -846,15 +843,6 @@ export class PurchaseDetailComponent {
 
     await this.purchaseService.refreshAfterFinalization(purchase.workspace_id, purchase.id);
     this.toast.success('Erfassung wurde abgeschlossen.');
-  }
-
-  async refreshCostRepair(): Promise<void> {
-    const purchase = this.purchaseService.selectedPurchase();
-    if (!purchase || this.workspaceService.currentWorkspace()?.id !== purchase.workspace_id) return;
-    await Promise.all([
-      this.purchaseService.refreshAfterFinalization(purchase.workspace_id, purchase.id),
-      this.salesService.loadSales(purchase.workspace_id),
-    ]);
   }
 
   async reloadPurchaseSaleHistory(): Promise<void> {
