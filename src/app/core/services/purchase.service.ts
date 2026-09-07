@@ -377,7 +377,10 @@ export class PurchaseService {
       } else if (data) {
         const enriched = (data as unknown as Purchase[]).map((p) => {
           const costsSum = (p.costs || []).reduce((acc, cost) => acc + Number(cost.amount || 0), 0);
-          const totalCost = p.purchase_price === null ? null : Number(p.purchase_price) + costsSum;
+          const totalCost =
+            p.purchase_price === null
+              ? null
+              : Number(p.purchase_price) - Number(p.discount_amount ?? 0) + costsSum;
           return {
             ...p,
             items_count: this.zaehleArtikel(
@@ -520,7 +523,9 @@ export class PurchaseService {
         0,
       );
       const totalCost =
-        purchase.purchase_price === null ? null : Number(purchase.purchase_price) + costsSum;
+        purchase.purchase_price === null
+          ? null
+          : Number(purchase.purchase_price) - Number(purchase.discount_amount ?? 0) + costsSum;
 
       const enriched: Purchase = {
         ...purchase,

@@ -10,20 +10,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { PurchaseSellerDialogComponent } from '../purchase-seller-dialog/purchase-seller-dialog.component';
-import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
-import { CurrencyPipe } from '@angular/common';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import {
-  LucideX as X,
-  LucidePlus as Plus,
-  LucideShoppingBag as ShoppingBag,
-  LucidePackage as Package,
-  LucideLayers as Layers,
-  LucideBoxes as Boxes,
-  LucideTruck as Truck,
-  LucideCheckCircle2 as CheckCircle2,
-  LucidePencil as Pencil,
-} from '@lucide/angular';
 import {
   beschreibePurchaseProblem,
   CreatePurchasePayload,
@@ -54,10 +41,15 @@ import {
 } from '../purchase-line-editor/purchase-line-editor.component';
 import {
   PurchaseCostDraft,
-  PurchaseCostEditorComponent,
+  PurchaseCostOverviewValue,
   PurchaseCostType,
-} from '../purchase-cost-editor/purchase-cost-editor.component';
+} from '../purchase-cost-editor/purchase-cost-adjustments';
+import { PurchaseCostOverviewDialogComponent } from '../purchase-cost-overview-dialog/purchase-cost-overview-dialog.component';
+import { PurchaseCostSummaryComponent } from '../purchase-cost-summary/purchase-cost-summary.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
+import { CardComponent } from '../../../../shared/components/card/card.component';
+import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 
 const purchaseCostTypes = new Set<PurchaseCostType>([
   'shipping',
@@ -74,6 +66,48 @@ function isPurchaseCostType(value: string): value is PurchaseCostType {
   return purchaseCostTypes.has(value as PurchaseCostType);
 }
 
+function purchaseLinesEqual(
+  left: readonly PurchaseLineDraft[],
+  right: readonly PurchaseLineDraft[],
+): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((line, index) => {
+    const other = right[index];
+    return (
+      other !== undefined &&
+      line.draftId === other.draftId &&
+      line.catalogProductId === other.catalogProductId &&
+      line.titleSnapshot === other.titleSnapshot &&
+      line.ean === other.ean &&
+      line.lineKind === other.lineKind &&
+      line.orderedQuantity === other.orderedQuantity &&
+      line.condition === other.condition &&
+      line.priceMode === other.priceMode &&
+      line.unitPurchasePrice === other.unitPurchasePrice &&
+      line.lineTotal === other.lineTotal &&
+      line.estimatedMarketValue === other.estimatedMarketValue
+    );
+  });
+}
+
+function purchaseCostsEqual(
+  left: readonly PurchaseCostDraft[],
+  right: readonly PurchaseCostDraft[],
+): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((cost, index) => {
+    const other = right[index];
+    return (
+      other !== undefined &&
+      cost.type === other.type &&
+      cost.amount === other.amount &&
+      cost.description === other.description &&
+      cost.allocationMethod === other.allocationMethod &&
+      cost.targetPurchaseLineId === other.targetPurchaseLineId
+    );
+  });
+}
+
 @Component({
   selector: 'app-purchase-entry-form',
   imports: [
@@ -82,11 +116,13 @@ function isPurchaseCostType(value: string): value is PurchaseCostType {
     CustomSelectComponent,
     DatePickerComponent,
     PurchaseLineEditorComponent,
-    PurchaseCostEditorComponent,
-    CurrencyPipe,
+    PurchaseCostOverviewDialogComponent,
+    PurchaseCostSummaryComponent,
     PurchaseSellerDialogComponent,
-    ModalDialogDirective,
     ButtonComponent,
+    CardComponent,
+    TextFieldComponent,
+    TwoColumnLayoutComponent,
   ],
   templateUrl: './purchase-entry-form.component.html',
   host: { class: 'contents' },
@@ -102,6 +138,7 @@ export class PurchaseEntryFormComponent {
   readonly trackingService = inject(InboundTrackingService);
   readonly lineEditor = viewChild(PurchaseLineEditorComponent);
   readonly sellerDialog = viewChild(PurchaseSellerDialogComponent);
+  readonly costOverviewDialog = viewChild(PurchaseCostOverviewDialogComponent);
 
   readonly closed = output<void>();
   readonly created = output<void>();
@@ -110,16 +147,6 @@ export class PurchaseEntryFormComponent {
   readonly purchase = input<Purchase | null>(null);
 
   readonly istBearbeitung = computed(() => this.purchase() !== null);
-
-  readonly closeIcon = X;
-  readonly plusIcon = Plus;
-  readonly bagIcon = ShoppingBag;
-  readonly packageIcon = Package;
-  readonly layersIcon = Layers;
-  readonly boxesIcon = Boxes;
-  readonly truckIcon = Truck;
-  readonly checkIcon = CheckCircle2;
-  readonly editIcon = Pencil;
 
   /** Quellen und Lieferanten kommen aus den Stammdaten und aendern sich zur Laufzeit. */
   readonly quellenOptionen = computed<SelectOption<string | null>[]>(() => [
@@ -159,12 +186,6 @@ export class PurchaseEntryFormComponent {
   readonly requestId = crypto.randomUUID();
   readonly pricingMode = signal<'individual' | 'total'>('total');
   readonly discountAmount = signal(0);
-  readonly assignedCosts = computed(() =>
-    this.purchaseLines().reduce((total, line) => total + (line.lineTotal ?? 0), 0),
-  );
-  readonly unassignedCosts = computed(() =>
-    Math.max(0, (this.purchaseBasePrice() ?? 0) - this.discountAmount() - this.assignedCosts()),
-  );
 
   readonly isSubmitting = signal<boolean>(false);
   readonly errorMessage = signal<string | null>(null);
@@ -183,6 +204,8 @@ export class PurchaseEntryFormComponent {
   readonly initialCostDrafts = signal<readonly PurchaseCostDraft[]>([]);
   readonly areAdditionalCostsValid = signal<boolean>(true);
   readonly purchaseLines = signal<readonly PurchaseLineDraft[]>([]);
+  private readonly baselinePurchaseLines = signal<readonly PurchaseLineDraft[]>([]);
+  private readonly baselineCostDrafts = signal<readonly PurchaseCostDraft[]>([]);
   readonly purchaseBasePrice = signal<number | null>(null);
   readonly additionalCostsTotal = computed(() =>
     this.costDrafts().reduce((sum, cost) => sum + cost.amount, 0),
@@ -196,10 +219,6 @@ export class PurchaseEntryFormComponent {
         );
   });
   readonly purchaseLineOptions = computed<SelectOption<string>[]>(() => {
-    const persistedLines = (this.persistedDraft() ?? this.purchase())?.purchase_lines ?? [];
-    if (persistedLines.length > 0) {
-      return persistedLines.map((line) => ({ value: line.id, label: line.title_snapshot }));
-    }
     return this.purchaseLines().flatMap((line) =>
       line.draftId ? [{ value: line.draftId, label: line.titleSnapshot }] : [],
     );
@@ -350,6 +369,7 @@ export class PurchaseEntryFormComponent {
       }));
       this.initialCostDrafts.set(existingCosts);
       this.costDrafts.set(existingCosts);
+      this.baselineCostDrafts.set(existingCosts);
       const existingLines: readonly PurchaseLineDraft[] = (vorhandener.purchase_lines ?? []).map(
         (line) => ({
           draftId: line.id,
@@ -369,6 +389,9 @@ export class PurchaseEntryFormComponent {
         if (line.draftId) this.lineIdMap().set(line.draftId, line.draftId);
       }
       this.purchaseLines.set(existingLines);
+      this.baselinePurchaseLines.set(existingLines);
+      this.updateAdditionalCostsValidity();
+      this.updatePurchasePriceEditability();
     });
   }
 
@@ -382,13 +405,14 @@ export class PurchaseEntryFormComponent {
     return (
       this.isSubmitting() ||
       (typeof this.sellerDialog === 'function' && (this.sellerDialog()?.form.dirty ?? false)) ||
+      (this.costOverviewDialog()?.hasUnsavedChanges() ?? false) ||
       this.form.dirty ||
       this.newSourceName().trim().length > 0 ||
       this.newSupplierName().trim().length > 0 ||
       (typeof this.lineEditor === 'function' &&
         (this.lineEditor()?.hasUnsavedChanges() ?? false)) ||
-      this.purchaseLines().length > 0 ||
-      this.costDrafts().length > 0
+      !purchaseLinesEqual(this.purchaseLines(), this.baselinePurchaseLines()) ||
+      !purchaseCostsEqual(this.costDrafts(), this.baselineCostDrafts())
     );
   }
 
@@ -407,6 +431,20 @@ export class PurchaseEntryFormComponent {
     if (this.form.controls.type.value === type) return;
     this.form.controls.type.setValue(type);
     this.form.controls.type.markAsDirty();
+  }
+
+  openCostEditor(): void {
+    this.initialCostDrafts.set(this.costDrafts());
+    this.costDialogOpen.set(true);
+  }
+
+  onCostOverviewSaved(value: PurchaseCostOverviewValue): void {
+    this.form.controls.discount_amount.setValue(value.discountAmount);
+    this.form.controls.discount_amount.markAsDirty();
+    this.costDrafts.set(value.costs);
+    this.initialCostDrafts.set(value.costs);
+    this.updateAdditionalCostsValidity();
+    this.costDialogOpen.set(false);
   }
 
   async onFinalize(): Promise<void> {
@@ -433,11 +471,15 @@ export class PurchaseEntryFormComponent {
     this.errorMessage.set(null);
 
     const f = this.form.getRawValue();
+    const vorhandener = this.persistedDraft() ?? this.purchase();
     const payload: CreatePurchasePayload = {
       type: f.type,
       request_id: this.requestId,
       content_status: f.content_status,
       pricing_mode: f.pricing_mode,
+      shipment_status: vorhandener?.shipment_status,
+      tracking_status: vorhandener?.tracking_status,
+      cost_allocation_mode: vorhandener?.cost_allocation_mode,
       supplier_reference: f.supplier_reference.trim() || null,
       discount_amount: f.discount_amount,
       title: f.title,
@@ -457,7 +499,6 @@ export class PurchaseEntryFormComponent {
       purchase_lines: purchaseLines,
     };
 
-    const vorhandener = this.persistedDraft() ?? this.purchase();
     let speicherergebnis: { error: Error | null };
     let anlegeergebnis: CreatePurchaseResult | null = null;
     let aenderungsergebnis: Awaited<ReturnType<PurchaseService['updatePurchaseDraft']>> | null =
@@ -519,6 +560,7 @@ export class PurchaseEntryFormComponent {
       if (gespeicherterEntwurf) {
         this.persistedDraft.set(gespeicherterEntwurf);
         this.adoptPersistedLineIds(gespeicherterEntwurf);
+        this.capturePersistedBaseline();
       }
       if (finalizeAfterSave && gespeicherterEntwurf) {
         await this.finalizePersistedDraft(gespeicherterEntwurf);
@@ -574,6 +616,7 @@ export class PurchaseEntryFormComponent {
       return persistedId ? { ...line, draftId: persistedId } : line;
     });
     this.purchaseLines.set(persistedLines);
+    this.updateAdditionalCostsValidity();
     this.updatePurchasePriceEditability();
     if (this.form.controls.pricing_mode.value === 'total' || persistedLines.length === 0) return;
 
@@ -581,12 +624,32 @@ export class PurchaseEntryFormComponent {
       this.form.controls.purchase_price.setValue(null);
       return;
     }
-    const lineTotal = persistedLines.reduce((total, line) => total + line.lineTotal!, 0);
+    const lineTotal = persistedLines.reduce((total, line) => total + (line.lineTotal ?? 0), 0);
     this.form.controls.purchase_price.setValue(Number(lineTotal.toFixed(2)));
   }
 
   onCostsChanged(costs: readonly PurchaseCostDraft[]): void {
     this.costDrafts.set(costs);
+    this.updateAdditionalCostsValidity();
+  }
+
+  private updateAdditionalCostsValidity(): void {
+    const availableLineIds = new Set(
+      this.purchaseLines().flatMap((line) => (line.draftId ? [line.draftId] : [])),
+    );
+    this.areAdditionalCostsValid.set(
+      this.costDrafts().every(
+        (cost) =>
+          cost.allocationMethod !== 'direct' ||
+          (cost.targetPurchaseLineId !== null && availableLineIds.has(cost.targetPurchaseLineId)),
+      ),
+    );
+  }
+
+  private capturePersistedBaseline(): void {
+    this.baselinePurchaseLines.set(this.purchaseLines());
+    this.baselineCostDrafts.set(this.costDrafts());
+    this.form.markAsPristine();
   }
 
   private updatePurchasePriceEditability(): void {

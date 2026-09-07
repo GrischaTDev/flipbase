@@ -5,6 +5,11 @@ import { fileURLToPath } from 'node:url';
 const nativeSelectPattern = /<select\b/giu;
 const localStatusPillPattern =
   /<span\b[^>]*class\s*=\s*"[^"]*(?:rounded-full|rounded-lg|rounded-md)[^"]*px-[^"]*(?:bg-(?:amber|blue|emerald|rose)-|text-(?:amber|blue|emerald|rose)-)[^"]*"[^>]*>/giu;
+const blackPrimaryVariantPattern =
+  /<app-button\b[^>]*\bvariant\s*=\s*["']primary-dark["'][^>]*>/giu;
+const purchaseWorkspacePath =
+  /\/purchases\/(?:components|pages)\/(?:purchase-entry-form|purchase-line-editor|purchase-cost-editor|purchase-cost-summary|purchase-cost-overview-dialog|purchase-create|purchase-detail|purchase-edit)\//u;
+const nativeWorkspaceControlPattern = /<(?:button|input|textarea)\b[^>]*>/giu;
 
 function lineAt(source, offset) {
   return source.slice(0, offset).split(/\r?\n/u).length;
@@ -17,6 +22,21 @@ export function findAdminSharedUiViolations(path, source) {
   }
   for (const match of source.matchAll(localStatusPillPattern)) {
     violations.push({ rule: 'local-status-pill', line: lineAt(source, match.index) });
+  }
+  for (const match of source.matchAll(blackPrimaryVariantPattern)) {
+    violations.push({ rule: 'black-primary-variant', line: lineAt(source, match.index) });
+  }
+  if (purchaseWorkspacePath.test(path.replaceAll('\\', '/'))) {
+    for (const match of source.matchAll(nativeWorkspaceControlPattern)) {
+      const tag = match[0];
+      const hiddenFileTransport =
+        /\btype=["']file["']/u.test(tag) &&
+        /\bclass=["'][^"']*\b(?:hidden|sr-only)\b/u.test(tag) &&
+        /\bdata-shared-ui-exception=["']native-file-picker["']/u.test(tag);
+      if (!hiddenFileTransport) {
+        violations.push({ rule: 'native-workspace-control', line: lineAt(source, match.index) });
+      }
+    }
   }
   return violations.sort(
     (left, right) => left.line - right.line || left.rule.localeCompare(right.rule),

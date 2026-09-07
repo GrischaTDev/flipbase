@@ -1,5 +1,13 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { startDemoMode } from './support/demo';
+
+async function visibleBox(locator: Locator) {
+  await expect(locator).toBeVisible();
+  const box = await locator.boundingBox();
+  expect(box).not.toBeNull();
+  if (!box) throw new Error('Das geprüfte Element besitzt keine sichtbare Größe.');
+  return box;
+}
 
 test('keeps purchase search available when no rows match', async ({ page }) => {
   await startDemoMode(page);
@@ -33,15 +41,12 @@ test('aligns the purchase heading with its content and uses an edit icon action'
   const heading = page.getByRole('heading', { name: 'Einkauf erstellen', exact: true });
   const content = page.locator('app-purchase-entry-form form');
   const saveButton = page.getByRole('button', { name: 'Entwurf speichern', exact: true });
-  const headingBox = await heading.boundingBox();
-  const contentBox = await content.boundingBox();
-  const saveButtonBox = await saveButton.boundingBox();
+  const headingBox = await visibleBox(heading);
+  const contentBox = await visibleBox(content);
+  const saveButtonBox = await visibleBox(saveButton);
 
-  expect(headingBox).not.toBeNull();
-  expect(contentBox).not.toBeNull();
-  expect(saveButtonBox).not.toBeNull();
-  expect(headingBox?.x).toBe(contentBox?.x + 44);
-  expect(saveButtonBox!.y).toBeLessThan(contentBox!.y);
+  expect(headingBox.x).toBe(contentBox.x + 44);
+  expect(saveButtonBox.y).toBeLessThan(contentBox.y);
   await expect(page.getByRole('button', { name: 'Abbrechen', exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Kosten bearbeiten', exact: true })).toBeVisible();
   await expect(
@@ -80,29 +85,52 @@ test('keeps edits after cancelling navigation and leaves after confirmation', as
   await expect(page).toHaveURL(/\/purchases$/);
 });
 
-test('allows an empty purchase with unknown contents, a price and additional costs as draft', async ({
-  page,
-}) => {
+test('applies cost adjustments only when the management dialog is saved', async ({ page }) => {
   await startDemoMode(page);
   await page.goto('/purchases/new');
   await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Paket-Entwurf');
   await page.locator('input#purchase-base-price').fill('100');
+  const costSummary = page.getByRole('region', { name: 'Kostenübersicht' });
+
   await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
-  await page.getByRole('button', { name: 'Kosten hinzufügen', exact: true }).click();
-  await page.getByRole('spinbutton', { name: 'Betrag der Zusatzkosten' }).fill('10');
+  let dialog = page.getByRole('dialog', { name: 'Kostenübersicht verwalten' });
+  await expect(dialog).toBeVisible();
+  await expect(
+    dialog.getByText('Anpassung', { exact: true }).filter({ visible: true }),
+  ).toBeVisible();
+  await expect(dialog.getByText('Betrag', { exact: true }).filter({ visible: true })).toBeVisible();
+  const adjustment = dialog.getByRole('combobox', { name: 'Anpassung 1', exact: true });
+  await expect(adjustment).toContainText('Auswählen');
+  await adjustment.click();
+  await expect(dialog.getByRole('option')).toHaveCount(10);
+  await dialog.getByRole('option', { name: 'Versandkosten', exact: true }).click();
+  await dialog.getByRole('spinbutton', { name: 'Betrag 1', exact: true }).fill('10');
+
+  await expect(costSummary).toContainText('100,00');
+  await expect(costSummary).not.toContainText('110,00');
+  await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(costSummary).not.toContainText('110,00');
+
+  await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
+  dialog = page.getByRole('dialog', { name: 'Kostenübersicht verwalten' });
+  await dialog.getByRole('combobox', { name: 'Anpassung 1', exact: true }).click();
+  await dialog.getByRole('option', { name: 'Versandkosten', exact: true }).click();
+  await dialog.getByRole('spinbutton', { name: 'Betrag 1', exact: true }).fill('10');
+  await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
 
   await expect(page.getByRole('textbox', { name: 'Beschreibung (optional)' })).toHaveValue(
     'Paket-Entwurf',
   );
   await expect(page.getByRole('button', { name: 'Entwurf speichern' })).toBeEnabled();
-  await expect(page.getByRole('region', { name: 'Kostenübersicht' })).toContainText('110,00');
+  await expect(costSummary).toContainText('110,00');
 });
 
-test('uses the same page layout for purchase editing and places history below the work area', async ({
-  page,
-}) => {
+test('keeps create, detail and inline editing in the same centered workspace', async ({ page }) => {
   await startDemoMode(page);
   await page.goto('/purchases/new');
+  const createWorkspace = page.getByTestId('purchase-entry-workspace');
+  const createWorkspaceBox = await visibleBox(createWorkspace);
   await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Dialog-Zentrierung');
   await page.getByRole('button', { name: 'Neues Einzelstück erfassen', exact: true }).click();
   await page.getByLabel('Bezeichnung').fill('Testartikel');
@@ -112,22 +140,41 @@ test('uses the same page layout for purchase editing and places history below th
     .filter({ hasText: 'Dialog-Zentrierung' })
     .click();
 
-  const workArea = page.locator('app-two-column-layout');
-  const history = page.locator('app-record-history-container');
-  const workAreaBox = await workArea.boundingBox();
-  const historyBox = await history.boundingBox();
-  expect(workAreaBox).not.toBeNull();
-  expect(historyBox).not.toBeNull();
-  expect(historyBox!.y).toBeGreaterThanOrEqual(workAreaBox!.y + workAreaBox!.height);
+  await expect(page).toHaveURL(/\/purchases\/[^/]+$/);
+  const detailUrl = page.url();
+  const detailWorkspace = page.getByTestId('purchase-entry-workspace');
+  const detailWorkspaceBox = await visibleBox(detailWorkspace);
+  expect(detailWorkspaceBox.x).toBeCloseTo(createWorkspaceBox.x, 0);
+  expect(detailWorkspaceBox.width).toBeCloseTo(createWorkspaceBox.width, 0);
+
+  const main = page.getByTestId('purchase-entry-main');
+  const timeline = page.getByTestId('purchase-entry-timeline');
+  await expect(main.getByTestId('purchase-entry-timeline')).toHaveCount(1);
+  const mainBox = await visibleBox(main);
+  const timelineBox = await visibleBox(timeline);
+  const lastMainCardBox = await visibleBox(main.locator('app-card').last());
+  expect(timelineBox.x).toBeCloseTo(mainBox.x, 0);
+  expect(timelineBox.width).toBeCloseTo(mainBox.width, 0);
+  expect(timelineBox.width).toBeLessThan(detailWorkspaceBox.width);
+  expect(timelineBox.y).toBeGreaterThanOrEqual(lastMainCardBox.y + lastMainCardBox.height);
+
+  const detailHeading = page.getByRole('heading', { level: 1 });
+  const detailTitle = (await detailHeading.textContent())?.trim() ?? '';
+  expect(detailTitle).toBe('Dialog-Zentrierung');
 
   await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
 
   await expect(page.getByRole('dialog')).toHaveCount(0);
-  await expect(
-    page.getByRole('heading', { name: 'Einkauf bearbeiten', exact: true }),
-  ).toBeVisible();
+  await expect(page).toHaveURL(detailUrl);
+  await expect(detailHeading).toHaveText(detailTitle);
+  await expect(page.getByRole('heading', { name: 'Einkauf bearbeiten', exact: true })).toHaveCount(
+    0,
+  );
   await expect(
     page.getByRole('button', { name: 'Änderungen speichern', exact: true }),
   ).toBeVisible();
   await expect(page.getByRole('button', { name: 'Abbrechen', exact: true })).toHaveCount(0);
+  const editWorkspaceBox = await visibleBox(page.getByTestId('purchase-entry-workspace'));
+  expect(editWorkspaceBox.x).toBeCloseTo(detailWorkspaceBox.x, 0);
+  expect(editWorkspaceBox.width).toBeCloseTo(detailWorkspaceBox.width, 0);
 });

@@ -197,6 +197,26 @@ describe('purchase presentation mapper', () => {
     expect(row.allocationOpen).toBe(false);
   });
 
+  it('zieht im Listen-Fallback einen Rabatt vom Warenbetrag ab', () => {
+    const row = mapPurchaseListRow(
+      {
+        ...basePurchase,
+        total_purchase_cost: undefined,
+        purchase_price: 123.45,
+        discount_amount: 23.46,
+        costs: [
+          { type: 'shipping', amount: 5.55 },
+          { type: 'customs', amount: 1.11 },
+        ],
+        purchase_lines: [{ ...normalLine, allocated_total_cost: 106.65 }],
+      },
+      context(),
+    );
+
+    expect(row.totalCost).toEqual({ kind: 'known', amount: 106.65 });
+    expect(row.allocationOpen).toBe(false);
+  });
+
   it('verwendet für Mengenartikel bestellte Einheiten, Bestandslose und Verkaufsbewegungen', () => {
     const quantityLine: PurchaseLine = {
       ...normalLine,

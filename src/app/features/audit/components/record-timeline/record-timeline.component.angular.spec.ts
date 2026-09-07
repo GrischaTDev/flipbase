@@ -130,6 +130,11 @@ describe('RecordTimelineComponent', () => {
     expect(initialElement.querySelector('[data-timeline-visibility-note]')?.textContent).toContain(
       'Nur du und andere Mitarbeiter können Kommentare sehen',
     );
+    const postButton = initialElement.querySelector(
+      'app-button button',
+    ) as HTMLButtonElement | null;
+    expect(postButton?.classList).toContain('linear-btn-primary');
+    expect(postButton?.className).not.toContain('bg-[#202223]');
     component.entries.set([
       { ...comment, body: '<img src=x onerror=alert(1)>' },
       {

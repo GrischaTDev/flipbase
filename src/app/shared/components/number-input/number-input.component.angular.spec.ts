@@ -38,6 +38,7 @@ describe('NumberInputComponent', () => {
       ariaLabel: ['ariaLabel', 1, null],
       asCurrency: ['asCurrency', 1, null],
       disabled: ['disabled', 1, null],
+      showStepper: ['showStepper', 1, null],
       platzhalter: ['platzhalter', 1, null],
       schritt: ['schritt', 1, null],
       minimum: ['minimum', 1, null],
@@ -59,6 +60,7 @@ describe('NumberInputComponent', () => {
       ariaLabel: 'ariaLabel',
       asCurrency: 'asCurrency',
       disabled: 'disabled',
+      showStepper: 'showStepper',
       platzhalter: 'platzhalter',
       schritt: 'schritt',
       minimum: 'minimum',
@@ -89,6 +91,18 @@ describe('NumberInputComponent', () => {
 
   it('should create successfully', () => {
     expect(component).toBeTruthy();
+  });
+
+  it('supports a plain amount field without increment buttons while retaining input changes', () => {
+    fixture.componentRef.setInput('showStepper', false);
+    fixture.detectChanges();
+    const host: HTMLElement = fixture.nativeElement;
+    expect(host.querySelectorAll('button').length).toBe(0);
+    const input = host.querySelector('input');
+    if (!input) throw new Error('Number field missing');
+    input.value = '12.34';
+    input.dispatchEvent(new Event('input'));
+    expect(component.value()).toBe(12.34);
   });
 
   it('should increment value by step', () => {

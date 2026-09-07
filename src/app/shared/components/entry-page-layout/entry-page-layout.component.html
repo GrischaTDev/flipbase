@@ -8,8 +8,9 @@
     >
       <svg [lucideIcon]="backIcon" class="h-4 w-4" aria-hidden="true"></svg>
     </button>
-    <div class="min-w-0">
+    <div class="flex min-w-0 flex-wrap items-center gap-2">
       <h1 class="text-lg font-semibold leading-6 text-fb-text-primary">{{ title() }}</h1>
+      <ng-content select="[entry-header-badge]" />
     </div>
     <div class="shrink-0">
       <ng-content select="[entry-header-actions]" />

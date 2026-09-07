@@ -1,684 +1,497 @@
-<div class="space-y-5 animate-fade-in">
-  @if (purchaseService.selectedPurchase(); as p) {
+<div>
+  @if (purchase(); as p) {
     <!-- Shopify Polaris Page Header -->
-    <app-page-header
+    <app-entry-page-layout
       [title]="p.record_number || p.title || 'Einkauf'"
-      backLink="/purchases"
       backLabel="Zurück zur Einkaufsübersicht"
+      (cancelled)="returnToPurchases()"
     >
-      <div header-badge class="flex items-center gap-1.5">
+      <div entry-header-badge class="flex items-center gap-1.5">
         <app-badge [tone]="getEntryStatusTone(p.entry_status)">
           {{ getEntryStatusLabel(p.entry_status) }}
         </app-badge>
       </div>
 
-      <div header-actions class="flex items-center gap-2">
-        <a
-          data-purchase-audit-print-link
-          [routerLink]="['/settings/data/print']"
-          [queryParams]="{ entityType: 'purchase', entityId: p.id }"
-          class="linear-btn-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-fb-text-secondary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-focus"
-          [attr.aria-label]="
-            'Prüfbeleg für ' +
-            (p.record_number || p.title || 'Einkauf') +
-            ' drucken oder als PDF speichern'
-          "
-        >
-          <svg [lucideIcon]="receiptIcon" aria-hidden="true" class="w-3.5 h-3.5"></svg>
-          <span>Prüfbeleg</span>
-        </a>
-        <app-purchase-lifecycle-actions
-          [entryStatus]="p.entry_status ?? 'draft'"
-          [receivingStatus]="p.receiving_status ?? 'draft'"
-          [shipmentStatus]="p.shipment_status ?? 'not_shipped'"
-          [contentStatus]="p.content_status ?? (p.type === 'mystery_pack' ? 'unknown' : 'known')"
-          [saleHistoryState]="purchaseService.purchaseSaleHistoryState()"
-          [saleReviewInventoryItemId]="purchaseService.purchaseSaleReviewInventoryItemId()"
-          [submitting]="isLifecycleSubmitting()"
-          (editRequested)="editPurchase(p.id)"
-          (deleteRequested)="onDeletePurchase()"
-          (finalizeRequested)="finalizePurchase()"
-          (reopenRequested)="reopenPurchase()"
-          (correctionRequested)="isCorrectionDialogOpen.set(true)"
-          (saleHistoryReloadRequested)="reloadPurchaseSaleHistory()"
-          (orderedRequested)="markAsOrdered()"
-          (transitRequested)="startEditTracking()"
-          (arrivedRequested)="markAsArrived()"
-          (captureContentRequested)="editPurchase(p.id)"
-        />
-      </div>
-    </app-page-header>
-
-    @if (p.entry_status !== 'finalized') {
-      <app-purchase-cost-repair [purchase]="p" (saved)="refreshCostRepair()" />
-    }
-
-    <!-- Financial KPI Summary for this Purchase -->
-    <div class="grid grid-cols-2 gap-3 font-mono sm:grid-cols-4">
-      <div class="linear-kpi rounded-xl p-4">
-        <span class="block font-sans text-[13px] font-medium text-fb-text-muted">Kaufpreis</span>
-        <span class="text-xl font-bold text-fb-text-primary mt-1 block">
-          @if (p.purchase_price === null) {
-            Nicht erfasst
-          } @else {
-            {{ p.purchase_price | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-          }
-        </span>
-      </div>
-
-      <div class="linear-kpi rounded-xl p-4">
-        <span class="block font-sans text-[13px] font-medium text-fb-text-muted">Nebenkosten</span>
-        @let additionalCost = purchaseAdditionalCost(p);
-        <span class="mt-1 block text-xl font-semibold text-fb-text-primary">
-          @if (additionalCost === null) {
-            Nicht erfasst
-          } @else {
-            {{ additionalCost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-          }
-        </span>
-      </div>
-
-      <div class="linear-kpi rounded-xl p-4">
-        <span class="block font-sans text-[13px] font-medium text-fb-text-muted">Gesamtkosten</span>
-        <!-- Der Akzent, nicht das Gruen: Gesamtkosten sind der Betrag, auf
-             den es ankommt - aber kein Ertrag. Gruen bleibt der Marge
-             vorbehalten. -->
-        @let totalCost = purchaseTotalCost(p);
-        <span class="mt-1 block text-xl font-semibold text-fb-text-primary">
-          @if (totalCost === null) {
-            Nicht erfasst
-          } @else {
-            {{ totalCost | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-          }
-        </span>
-      </div>
-
-      <div class="linear-kpi rounded-xl p-4">
-        <span class="block font-sans text-[13px] font-medium text-fb-text-muted">Artikel</span>
-        <!-- Eine Stueckzahl ist weder Ertrag noch Handlung und bleibt neutral. -->
-        <span class="text-xl font-bold text-fb-text-primary mt-1 block">
-          {{ visibleItemCount() }} Posten
-        </span>
-      </div>
-    </div>
-
-    <!-- Polaris Two-Column Layout (2/3 Main operative data, 1/3 Sidebar metadata) -->
-    <app-two-column-layout ratio="2-1">
-      <!-- Main Column (2/3) -->
-      <div main class="space-y-5">
-        <!-- Einkaufspositionen und zugehöriger Bestand -->
-        <app-card>
-          <div
-            card-header
-            class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 w-full border-b border-fb-border pb-3"
+      <div entry-header-actions class="flex flex-wrap items-center justify-end gap-2">
+        @if (isEditing()) {
+          <app-button [disabled]="isSaving()" (clicked)="discardEdits()">Verwerfen</app-button>
+          <app-button
+            variant="primary"
+            [loading]="isSaving()"
+            [disabled]="!entryForm()?.canSaveDraft()"
+            (clicked)="saveDraft()"
+            >Änderungen speichern</app-button
           >
-            <div>
-              <h2 class="text-sm font-semibold text-fb-text-primary">
-                Einkaufspositionen &amp; Inventar
-              </h2>
-              <p class="text-[11px] text-fb-text-muted mt-0.5">
-                Mengenartikel werden als gemeinsame Wareneingänge gebucht, Einzelstücke als
-                Inventarartikel.
+        } @else {
+          <a
+            data-purchase-audit-print-link
+            [routerLink]="['/settings/data/print']"
+            [queryParams]="{ entityType: 'purchase', entityId: p.id }"
+            class="linear-btn-secondary inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-fb-text-secondary transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-focus"
+            [attr.aria-label]="
+              'Prüfbeleg für ' +
+              (p.record_number || p.title || 'Einkauf') +
+              ' drucken oder als PDF speichern'
+            "
+          >
+            <svg [lucideIcon]="receiptIcon" aria-hidden="true" class="w-3.5 h-3.5"></svg>
+            <span>Prüfbeleg</span>
+          </a>
+          <app-purchase-lifecycle-actions
+            [entryStatus]="p.entry_status ?? 'draft'"
+            [receivingStatus]="p.receiving_status ?? 'draft'"
+            [shipmentStatus]="p.shipment_status ?? 'not_shipped'"
+            [contentStatus]="p.content_status ?? (p.type === 'mystery_pack' ? 'unknown' : 'known')"
+            [saleHistoryState]="purchaseService.purchaseSaleHistoryState()"
+            [saleReviewInventoryItemId]="purchaseService.purchaseSaleReviewInventoryItemId()"
+            [submitting]="isLifecycleSubmitting()"
+            (editRequested)="editPurchase(p.id)"
+            (deleteRequested)="onDeletePurchase()"
+            (finalizeRequested)="finalizePurchase()"
+            (reopenRequested)="reopenPurchase()"
+            (correctionRequested)="isCorrectionDialogOpen.set(true)"
+            (saleHistoryReloadRequested)="reloadPurchaseSaleHistory()"
+            (orderedRequested)="markAsOrdered()"
+            (transitRequested)="startEditTracking()"
+            (arrivedRequested)="markAsArrived()"
+            (captureContentRequested)="editPurchase(p.id)"
+          />
+        }
+      </div>
+      @if (isEditing()) {
+        <app-purchase-entry-form [purchase]="editingPurchase()" (created)="finishEditing()">
+          <app-record-history-container entry-timeline entityType="purchase" [entityId]="p.id" />
+          @if (p.tracking_number) {
+            <app-card entry-sidebar-extra>
+              <h2 card-header class="text-sm font-semibold">Sendungsverfolgung</h2>
+              <p class="text-[13px]">{{ p.tracking_number }}</p>
+              <p class="mt-2 text-xs text-fb-text-muted">
+                Sendungsdaten werden nach dem Speichern separat verwaltet.
               </p>
-            </div>
-
-            @if (p.entry_status !== 'finalized' && quantityPurchaseLines().length > 0) {
-              <div class="flex items-center gap-2">
+            </app-card>
+          }
+        </app-purchase-entry-form>
+      } @else {
+        <!-- Polaris Two-Column Layout (2/3 Main operative data, 1/3 Sidebar metadata) -->
+        <app-two-column-layout ratio="2-1" data-testid="purchase-entry-workspace">
+          <!-- Main Column (2/3) -->
+          <div main class="space-y-4" data-testid="purchase-entry-main">
+            <app-card title="Verkäufer und Einkauf">
+              @if (p.entry_status !== 'finalized') {
                 <app-button
-                  variant="primary"
-                  size="slim"
-                  [icon]="checkIcon"
-                  (clicked)="startReceivingLines()"
-                >
-                  Wareneingang buchen
-                </app-button>
+                  card-header-actions
+                  variant="ghost"
+                  [icon]="editIcon"
+                  [iconOnly]="true"
+                  ariaLabel="Verkäufer und Einkauf bearbeiten"
+                  (clicked)="editPurchase(p.id)"
+                />
+              }
+              <dl class="grid grid-cols-1 gap-4 text-[13px] sm:grid-cols-2">
+                <div>
+                  <dt class="text-fb-text-muted">Verkäufer</dt>
+                  <dd class="mt-1">{{ p.supplier?.name || 'Nicht angegeben' }}</dd>
+                </div>
+                <div>
+                  <dt class="text-fb-text-muted">Einkaufsdatum</dt>
+                  <dd class="mt-1">{{ p.purchase_date | date: 'dd.MM.yyyy' }}</dd>
+                </div>
+                <div>
+                  <dt class="text-fb-text-muted">Quelle</dt>
+                  <dd class="mt-1">{{ p.source?.name || 'Nicht angegeben' }}</dd>
+                </div>
+                <div>
+                  <dt class="text-fb-text-muted">Inhalt</dt>
+                  <dd class="mt-1">
+                    {{
+                      (p.content_status ?? (p.type === 'mystery_pack' ? 'unknown' : 'known')) ===
+                      'known'
+                        ? 'Bekannt'
+                        : 'Noch unbekannt'
+                    }}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-fb-text-muted">Preisführung</dt>
+                  <dd class="mt-1">
+                    {{ p.pricing_mode === 'individual' ? 'Einzelpreise' : 'Gesamtpreis' }}
+                  </dd>
+                </div>
+              </dl>
+            </app-card>
+            <!-- Einkaufspositionen und zugehöriger Bestand -->
+            <app-card title="Artikel" rounded="xl">
+              <div card-header-actions>
+                @if (p.entry_status !== 'finalized' && quantityPurchaseLines().length > 0) {
+                  <div class="flex items-center gap-2">
+                    <app-button
+                      variant="primary"
+                      size="slim"
+                      [icon]="checkIcon"
+                      (clicked)="startReceivingLines()"
+                    >
+                      Wareneingang buchen
+                    </app-button>
+                  </div>
+                }
               </div>
-            }
+
+              <div class="space-y-4">
+                @if (p.entry_status !== 'finalized') {
+                  <app-button variant="plain" [icon]="editIcon" (clicked)="editPurchase(p.id)"
+                    >Artikel bearbeiten</app-button
+                  >
+                }
+
+                @if (p.entry_status !== 'finalized' && isReceivingLines()) {
+                  <section
+                    class="space-y-3 border-t border-fb-border pt-4"
+                    aria-labelledby="receipt-title"
+                  >
+                    <div class="mb-2 flex items-center justify-between gap-2">
+                      <h3 id="receipt-title" class="text-sm font-semibold text-fb-text-primary">
+                        Wareneingang buchen
+                      </h3>
+                      <app-button variant="plain" (clicked)="isReceivingLines.set(false)">
+                        Schließen
+                      </app-button>
+                    </div>
+                    <div class="space-y-2">
+                      @for (line of quantityPurchaseLines(); track line.id) {
+                        <div
+                          class="grid grid-cols-1 items-end gap-2 rounded-lg border border-fb-line bg-fb-well p-2.5 sm:grid-cols-[minmax(0,1fr)_5rem_6rem_6rem_auto]"
+                        >
+                          <span class="text-xs font-semibold text-fb-text-primary">{{
+                            line.title_snapshot
+                          }}</span>
+                          <span class="text-[11px] text-fb-text-muted">
+                            Bestellt: {{ line.ordered_quantity }}
+                          </span>
+                          <span class="text-[11px] text-fb-text-muted">
+                            Eingegangen: {{ line.received_quantity }}
+                          </span>
+                          <label
+                            [attr.for]="'receive-' + line.id"
+                            class="text-xs font-medium text-fb-text-muted"
+                          >
+                            Jetzt eingegangen
+                            <app-number-input
+                              [id]="'receive-' + line.id"
+                              [min]="0"
+                              [max]="line.ordered_quantity - line.received_quantity"
+                              [value]="receivingQuantities()[line.id]"
+                              [ariaLabel]="'Wareneingang für ' + line.title_snapshot"
+                              (valueChange)="updateReceivingQuantity(line.id, $event ?? 0)"
+                            />
+                          </label>
+                          <app-button
+                            variant="primary"
+                            (clicked)="receivePurchaseLine(line)"
+                            [disabled]="receivingQuantities()[line.id] < 1"
+                          >
+                            Buchen
+                          </app-button>
+                        </div>
+                      }
+                    </div>
+                  </section>
+                }
+
+                <!-- Positionsdarstellung -->
+                @if (purchaseDetailRows().length > 0) {
+                  <div class="mb-3 flex justify-end">
+                    <app-table-column-picker
+                      [definitions]="tableColumns()"
+                      [selected]="visibleColumns()"
+                      [saveError]="tablePreferences.saveError()"
+                      (selectedChange)="setPurchaseVisibleColumns($event)"
+                    />
+                  </div>
+                  <app-purchase-detail-table
+                    [visibleColumns]="visibleColumns()"
+                    [purchaseId]="p.id"
+                    [rows]="purchaseDetailRows()"
+                    (captureIndividual)="captureIndividualItemById($event)"
+                  />
+                } @else {
+                  <div class="p-8 text-center text-xs text-fb-text-muted space-y-2">
+                    <svg [lucideIcon]="boxesIcon" class="w-8 h-8 mx-auto text-fb-text-dimmed"></svg>
+                    <p class="font-semibold text-fb-text-primary">Noch keine Artikel erfasst</p>
+                    <p class="text-[11px]">
+                      Klicke auf "Artikel erfassen", um die Einzelpositionen dieses Einkaufs
+                      anzulegen.
+                    </p>
+                  </div>
+                }
+              </div>
+            </app-card>
+
+            <app-record-history-container
+              data-testid="purchase-entry-timeline"
+              entityType="purchase"
+              [entityId]="p.id"
+            />
           </div>
 
-          <div class="space-y-4">
-            @if (p.entry_status !== 'finalized') {
-              <app-purchase-line-editor
-                [purchaseType]="p.type"
-                (linesChanged)="onPurchaseLineDraftsChanged($event)"
-              />
-              @if (purchaseLineDrafts().length > 0) {
-                <div class="flex justify-end">
-                  <app-button
-                    variant="primary"
-                    size="md"
-                    [disabled]="isSavingPurchaseLines()"
-                    [loading]="isSavingPurchaseLines()"
-                    (clicked)="savePurchaseLines()"
-                  >
-                    {{ isSavingPurchaseLines() ? 'Speichere…' : 'Positionen speichern' }}
-                  </app-button>
-                </div>
-              }
+          <!-- Sidebar Column (1/3) -->
+          <div sidebar class="space-y-4" data-testid="purchase-entry-sidebar">
+            @if (
+              p.entry_status !== 'finalized' &&
+              (!p.pricing_mode || p.shipping_cost || p.other_costs)
+            ) {
+              <details class="text-[13px]">
+                <summary class="cursor-pointer text-fb-text-muted">
+                  Kostenangaben aus Altbestand prüfen
+                </summary>
+                <app-purchase-cost-repair [purchase]="p" (saved)="refreshCostRepair()" />
+              </details>
             }
+            <app-purchase-cost-summary
+              [goodsAmount]="p.purchase_price"
+              [discountAmount]="p.discount_amount ?? 0"
+              [costs]="p.costs ?? []"
+              [totalAmount]="purchaseTotalCost(p)"
+              [legacyShippingAmount]="p.shipping_cost ?? 0"
+              [legacyOtherCostsAmount]="p.other_costs ?? 0"
+              [editable]="p.entry_status !== 'finalized'"
+              (editRequested)="editCosts(p.id)"
+            />
+            <!-- Einkaufsdetails & Herkunft -->
+            <app-card title="Einkaufsdetails">
+              @if (p.entry_status !== 'finalized') {
+                <app-button
+                  card-header-actions
+                  variant="ghost"
+                  [icon]="editIcon"
+                  [iconOnly]="true"
+                  ariaLabel="Einkaufsdetails bearbeiten"
+                  (clicked)="editPurchase(p.id)"
+                />
+              }
 
-            @if (p.entry_status !== 'finalized' && isReceivingLines()) {
-              <section
-                class="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3.5"
-                aria-labelledby="receipt-title"
-              >
-                <div class="mb-2 flex items-center justify-between gap-2">
-                  <h3 id="receipt-title" class="text-xs font-bold text-emerald-300">
-                    Wareneingang buchen
-                  </h3>
-                  <button
-                    type="button"
-                    (click)="isReceivingLines.set(false)"
-                    class="cursor-pointer text-xs font-semibold text-fb-text-muted hover:text-fb-text-primary"
-                  >
-                    Schließen
-                  </button>
-                </div>
-                <div class="space-y-2">
-                  @for (line of quantityPurchaseLines(); track line.id) {
-                    <div
-                      class="grid grid-cols-1 items-end gap-2 rounded-lg border border-fb-line bg-fb-well p-2.5 sm:grid-cols-[minmax(0,1fr)_5rem_6rem_6rem_auto]"
-                    >
-                      <span class="text-xs font-semibold text-fb-text-primary">{{
-                        line.title_snapshot
-                      }}</span>
-                      <span class="text-[11px] text-fb-text-muted">
-                        Bestellt: {{ line.ordered_quantity }}
-                      </span>
-                      <span class="text-[11px] text-fb-text-muted">
-                        Eingegangen: {{ line.received_quantity }}
-                      </span>
-                      <label class="text-xs font-medium text-fb-text-muted">
-                        Jetzt eingang
-                        <input
-                          type="number"
-                          min="0"
-                          [max]="line.ordered_quantity - line.received_quantity"
-                          [value]="receivingQuantities()[line.id]"
-                          (input)="
-                            updateReceivingQuantity(line.id, $any($event.target).valueAsNumber)
-                          "
-                          class="linear-input mt-1 w-full rounded-lg px-2 py-1.5 text-xs"
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        (click)="receivePurchaseLine(line)"
-                        [disabled]="receivingQuantities()[line.id] < 1"
-                        class="linear-btn-primary cursor-pointer rounded-lg px-3 py-1.5 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+              <div class="space-y-3">
+                <dl class="space-y-2.5 text-[13px]">
+                  <div>
+                    <dt class="text-fb-text-muted">Beschreibung</dt>
+                    <dd class="mt-1">{{ p.title || 'Nicht angegeben' }}</dd>
+                  </div>
+                  <div>
+                    <dt class="text-fb-text-muted">Referenz des Verkäufers</dt>
+                    <dd class="mt-1">{{ p.supplier_reference || 'Nicht angegeben' }}</dd>
+                  </div>
+                  @if (p.original_url) {
+                    <div class="pt-1">
+                      <a
+                        [href]="p.original_url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="linear-btn-secondary inline-flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg text-xs font-semibold"
                       >
-                        Buchen
-                      </button>
+                        <span>Original-Angebot</span>
+                        <svg [lucideIcon]="linkIcon" class="w-3.5 h-3.5"></svg>
+                      </a>
                     </div>
                   }
-                </div>
-              </section>
-            }
+                </dl>
 
-            <!-- Positionsdarstellung -->
-            @if (purchaseDetailRows().length > 0) {
-              <div class="mb-3 flex justify-end">
-                <app-table-column-picker
-                  [definitions]="tableColumns()"
-                  [selected]="visibleColumns()"
-                  [saveError]="tablePreferences.saveError()"
-                  (selectedChange)="setPurchaseVisibleColumns($event)"
-                />
+                @if (p.notes) {
+                  <div class="pt-2 border-t border-fb-border">
+                    <span class="mb-1 block text-xs font-medium text-fb-text-muted"> Notizen </span>
+                    <p
+                      class="text-xs text-fb-text-secondary leading-relaxed bg-fb-subtle p-2.5 rounded-lg border border-fb-border"
+                    >
+                      {{ p.notes }}
+                    </p>
+                  </div>
+                }
               </div>
-              <app-purchase-detail-table
-                [visibleColumns]="visibleColumns()"
-                [purchaseId]="p.id"
-                [rows]="purchaseDetailRows()"
-                (captureIndividual)="captureIndividualItemById($event)"
-              />
-            } @else {
-              <div class="p-8 text-center text-xs text-fb-text-muted space-y-2">
-                <svg [lucideIcon]="boxesIcon" class="w-8 h-8 mx-auto text-fb-text-dimmed"></svg>
-                <p class="font-semibold text-fb-text-primary">Noch keine Artikel erfasst</p>
-                <p class="text-[11px]">
-                  Klicke auf "Artikel erfassen", um die Einzelpositionen dieses Einkaufs anzulegen.
-                </p>
-              </div>
-            }
-          </div>
-        </app-card>
+            </app-card>
 
-        <!-- Nebenkosten -->
-        <app-card>
-          <div
-            card-header
-            class="flex items-center justify-between w-full border-b border-fb-border pb-3"
-          >
-            <div class="flex items-center gap-2">
-              <svg [lucideIcon]="coinsIcon" class="h-4 w-4 text-fb-text-muted"></svg>
-              <h2 class="text-sm font-semibold text-fb-text-primary">
-                Nebenkosten (Versand, Fahrt, Gebühren)
-              </h2>
-            </div>
-
-            @if (p.entry_status !== 'finalized') {
-              <app-button
-                variant="secondary"
-                size="slim"
-                [icon]="plusIcon"
-                (clicked)="isAddingCost.set(!isAddingCost())"
-              >
-                Kosten erfassen
-              </app-button>
-            } @else {
-              <span class="text-[11px] text-fb-text-muted">
-                Änderungen über „Erfassung wieder öffnen“.
-              </span>
-            }
-          </div>
-
-          <div class="space-y-4">
-            @if (p.entry_status !== 'finalized' && isAddingCost()) {
-              <form
-                [formGroup]="costForm"
-                (ngSubmit)="onAddCost()"
-                class="p-3.5 rounded-xl bg-fb-subtle border border-fb-border space-y-3 animate-fade-in"
-              >
-                <span class="text-sm font-semibold text-fb-text-primary">
-                  Nebenkosten zum Einkauf buchen
-                </span>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  <div>
-                    <label
-                      for="costTypeSelect"
-                      class="mb-1 block text-xs font-medium text-fb-text-muted"
-                    >
-                      Kostenart
-                    </label>
-                    <app-custom-select
-                      ariaLabel="Kostenart"
-                      [options]="kostenartOptionen"
-                      formControlName="type"
-                      size="sm"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      for="costAmountInput"
-                      class="mb-1 block text-xs font-medium text-fb-text-muted"
-                    >
-                      Betrag (€)
-                    </label>
-                    <input
-                      id="costAmountInput"
-                      type="number"
-                      step="0.01"
-                      formControlName="amount"
-                      placeholder="z.B. 5.99 €"
-                      class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono font-semibold"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      for="costDescInput"
-                      class="mb-1 block text-xs font-medium text-fb-text-muted"
-                    >
-                      Beschreibung (optional)
-                    </label>
-                    <input
-                      id="costDescInput"
-                      type="text"
-                      formControlName="description"
-                      placeholder="z.B. DHL Paketmarke"
-                      class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div class="flex justify-end gap-2 pt-1">
-                  <app-button variant="secondary" size="slim" (clicked)="isAddingCost.set(false)">
-                    Abbrechen
-                  </app-button>
-                  <button
-                    type="submit"
-                    [disabled]="costForm.invalid"
-                    class="linear-btn-primary px-3.5 py-1.5 rounded-lg text-xs font-semibold disabled:opacity-40 cursor-pointer"
-                  >
-                    Kosten buchen
-                  </button>
-                </div>
-              </form>
-            }
-
-            @if (p.costs && p.costs.length > 0) {
-              <div class="space-y-1.5">
-                @for (cost of p.costs; track cost.id) {
+            <!-- Inbound Sendungsverfolgung -->
+            <app-card>
+              <div card-header class="flex items-center justify-between w-full">
+                <div class="flex items-center gap-2">
                   <div
-                    class="p-2.5 rounded-xl bg-fb-subtle border border-fb-border flex items-center justify-between text-xs"
+                    class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-fb-surface-hover"
                   >
-                    <div class="flex items-center gap-2">
-                      <span
-                        class="rounded bg-fb-surface-hover px-2 py-0.5 text-[11px] font-medium text-fb-text-secondary"
+                    <svg [lucideIcon]="truckIcon" class="h-3.5 w-3.5 text-fb-text-muted"></svg>
+                  </div>
+                  <h2 class="text-sm font-semibold text-fb-text-primary">Sendungsverfolgung</h2>
+                </div>
+
+                @if (!isEditingTracking() && trackingInfo(); as kurzinfo) {
+                  <app-badge [tone]="kurzinfo.status === 'delivered' ? 'success' : 'info'">
+                    {{ kurzinfo.status_label }}
+                  </app-badge>
+                }
+              </div>
+
+              <div class="space-y-3">
+                @if (!isEditingTracking() && trackingInfo(); as kurzinfo) {
+                  <p class="text-[10px] text-fb-text-muted truncate font-mono">
+                    {{ kurzinfo.carrier_name }} · {{ kurzinfo.tracking_number }}
+                  </p>
+                } @else if (!isEditingTracking()) {
+                  <p class="text-[10px] text-fb-text-muted">DHL · DPD · Hermes · UPS · GLS</p>
+                }
+
+                @if (!isEditingTracking()) {
+                  <div class="flex items-center justify-between">
+                    <app-button variant="plain" (clicked)="startEditTracking()">
+                      {{ trackingInfo() ? 'Ändern' : '+ Sendungsnr. hinzufügen' }}
+                    </app-button>
+
+                    @if (trackingInfo()) {
+                      <app-button
+                        variant="ghost"
+                        type="button"
+                        (clicked)="toggleTrackingDetails()"
+                        [ariaExpanded]="isTrackingExpanded()"
+                        ariaControls="sendungsverfolgung-details"
+                        [ariaLabel]="
+                          isTrackingExpanded()
+                            ? 'Details der Sendungsverfolgung einklappen'
+                            : 'Details der Sendungsverfolgung ausklappen'
+                        "
                       >
-                        @switch (cost.type) {
-                          @case ('shipping') {
-                            Versand
-                          }
-                          @case ('travel') {
-                            Fahrtkosten
-                          }
-                          @case ('packaging') {
-                            Verpackung
-                          }
-                          @case ('transport') {
-                            Transport
-                          }
-                          @case ('customs') {
-                            Zoll
-                          }
-                          @case ('import') {
-                            Importabgaben
-                          }
-                          @case ('fee') {
-                            Gebühren
-                          }
-                          @default {
-                            Sonstiges
-                          }
-                        }
-                      </span>
-                      <span class="text-fb-text-secondary">{{
-                        cost.description || 'Nebenkosten'
-                      }}</span>
+                        <svg
+                          [lucideIcon]="isTrackingExpanded() ? chevronUpIcon : chevronDownIcon"
+                          class="w-4 h-4"
+                        ></svg>
+                      </app-button>
+                    }
+                  </div>
+                }
+
+                <!-- Edit Mode -->
+                @if (isEditingTracking()) {
+                  <div class="space-y-2">
+                    <div class="space-y-2">
+                      <app-text-field
+                        [formControl]="trackingNumberControl"
+                        placeholder="Sendungsnummer einfügen..."
+                        ariaLabel="Sendungsnummer"
+                      />
+                      <app-custom-select
+                        ariaLabel="Versanddienstleister"
+                        [options]="dienstleisterOptionen()"
+                        [value]="trackingCarrierDraft()"
+                        (valueChange)="trackingCarrierDraft.set($event)"
+                        size="sm"
+                      />
                     </div>
 
-                    <div class="flex items-center gap-3">
-                      <span class="font-mono font-bold text-fb-text-primary">
-                        {{ cost.amount | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
-                      </span>
-                      @if (p.entry_status !== 'finalized' && cost.id) {
-                        <button
+                    @if (trackingCarrierDraft(); as carrier) {
+                      <div class="flex items-center gap-1.5">
+                        <span class="text-[10px] text-fb-text-muted">Erkannt als:</span>
+                        <app-badge>{{ trackingService.carrierMetas[carrier].name }}</app-badge>
+                      </div>
+                    }
+
+                    <div class="flex justify-end gap-2 pt-1">
+                      <app-button variant="secondary" size="slim" (clicked)="cancelEditTracking()">
+                        Abbrechen
+                      </app-button>
+                      <app-button variant="primary" size="slim" (clicked)="saveTracking()">
+                        Speichern
+                      </app-button>
+                    </div>
+                  </div>
+                }
+
+                <!-- Display Mode -->
+                @if (!isEditingTracking() && trackingInfo(); as info) {
+                  <!-- Fortschrittsbalken -->
+                  <div
+                    class="flex items-center gap-1 py-1"
+                    role="img"
+                    [attr.aria-label]="'Sendungsstatus: ' + info.status_label"
+                  >
+                    @for (step of trackingSteps; track step) {
+                      <div
+                        class="h-1 flex-1 rounded-full transition-colors"
+                        [class.bg-emerald-500]="
+                          trackingService.statusConfig[info.status].step >=
+                          trackingService.statusConfig[step].step
+                        "
+                        [class.bg-fb-line]="
+                          trackingService.statusConfig[info.status].step <
+                          trackingService.statusConfig[step].step
+                        "
+                      ></div>
+                    }
+                  </div>
+
+                  <div
+                    id="sendungsverfolgung-details"
+                    class="space-y-3"
+                    [hidden]="!isTrackingExpanded()"
+                  >
+                    <div
+                      class="flex items-center justify-between p-2 rounded-lg bg-fb-well border border-fb-line"
+                    >
+                      <div class="flex items-center gap-2 min-w-0">
+                        <app-badge>
+                          {{ info.carrier_name }}
+                        </app-badge>
+                        <span class="font-mono text-xs text-fb-text-secondary truncate">
+                          {{ info.tracking_number }}
+                        </span>
+                      </div>
+                      <app-button
+                        variant="ghost"
+                        type="button"
+                        (clicked)="copyTrackingNumber()"
+                        [title]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
+                        [ariaLabel]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
+                      >
+                        <svg
+                          [lucideIcon]="trackingCopied() ? checkSmallIcon : copyIcon"
+                          class="w-3 h-3"
+                        ></svg>
+                      </app-button>
+                    </div>
+
+                    <p class="text-[10px] text-fb-text-muted leading-relaxed">
+                      Der Status wird manuell gepflegt. Live-Status über den Tracking-Link.
+                    </p>
+
+                    <div class="flex flex-col gap-2 pt-1">
+                      <app-button
+                        variant="secondary"
+                        type="button"
+                        (clicked)="openTrackingPortal()"
+                      >
+                        <svg [lucideIcon]="linkIcon" class="w-3 h-3"></svg>
+                        <span>Bei {{ info.carrier_name }} verfolgen</span>
+                      </app-button>
+
+                      @if (info.status !== 'delivered') {
+                        <app-button
+                          variant="primary"
                           type="button"
-                          (click)="onDeleteCost(cost.id)"
-                          class="text-fb-text-muted hover:text-rose-400 p-1 transition cursor-pointer"
-                          aria-label="Kosten löschen"
+                          (clicked)="markDeliveredAndSync()"
+                          [disabled]="isMarkingDelivered()"
                         >
-                          <svg [lucideIcon]="trashIcon" class="w-3.5 h-3.5"></svg>
-                        </button>
+                          <svg [lucideIcon]="checkIcon" class="w-3 h-3"></svg>
+                          <span>{{
+                            isMarkingDelivered() ? 'Speichere...' : 'Als zugestellt eintragen'
+                          }}</span>
+                        </app-button>
                       }
                     </div>
                   </div>
                 }
-              </div>
-            } @else {
-              <p class="text-xs text-fb-text-muted">Keine gesonderten Nebenkosten erfasst.</p>
-            }
-          </div>
-        </app-card>
-      </div>
 
-      <!-- Sidebar Column (1/3) -->
-      <div sidebar class="space-y-5">
-        <!-- Einkaufsdetails & Herkunft -->
-        <app-card>
-          <div card-header class="flex items-center justify-between w-full">
-            <h2 class="text-sm font-semibold text-fb-text-primary">Einkaufsdetails</h2>
-            <span class="text-[11px] text-fb-text-muted font-mono">
-              {{ p.purchase_date | date: 'dd.MM.yyyy' }}
-            </span>
-          </div>
-
-          <div class="space-y-3">
-            <dl class="space-y-2.5">
-              @if (p.source) {
-                <div
-                  class="flex items-center justify-between text-xs py-1 border-b border-fb-border"
-                >
-                  <dt class="text-fb-text-muted">Quelle</dt>
-                  <dd class="font-semibold text-fb-text-primary">{{ p.source.name }}</dd>
-                </div>
-              }
-
-              @if (p.supplier) {
-                <div
-                  class="flex items-center justify-between text-xs py-1 border-b border-fb-border"
-                >
-                  <dt class="text-fb-text-muted">Lieferant</dt>
-                  <dd class="font-semibold text-fb-text-primary">{{ p.supplier.name }}</dd>
-                </div>
-              }
-
-              @if (p.original_url) {
-                <div class="pt-1">
-                  <a
-                    [href]="p.original_url"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="linear-btn-secondary inline-flex items-center justify-center gap-1.5 w-full py-1.5 rounded-lg text-xs font-semibold"
-                  >
-                    <span>Original-Angebot</span>
-                    <svg [lucideIcon]="linkIcon" class="w-3.5 h-3.5"></svg>
-                  </a>
-                </div>
-              }
-            </dl>
-
-            @if (p.notes) {
-              <div class="pt-2 border-t border-fb-border">
-                <span class="mb-1 block text-xs font-medium text-fb-text-muted"> Notizen </span>
-                <p
-                  class="text-xs text-fb-text-secondary leading-relaxed bg-fb-subtle p-2.5 rounded-lg border border-fb-border"
-                >
-                  {{ p.notes }}
-                </p>
-              </div>
-            }
-          </div>
-        </app-card>
-
-        <!-- Inbound Sendungsverfolgung -->
-        <app-card>
-          <div card-header class="flex items-center justify-between w-full">
-            <div class="flex items-center gap-2">
-              <div
-                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-fb-surface-hover"
-              >
-                <svg [lucideIcon]="truckIcon" class="h-3.5 w-3.5 text-fb-text-muted"></svg>
-              </div>
-              <h2 class="text-sm font-semibold text-fb-text-primary">Sendungsverfolgung</h2>
-            </div>
-
-            @if (!isEditingTracking() && trackingInfo(); as kurzinfo) {
-              <span
-                class="px-2 py-0.5 rounded text-[10px] font-bold border"
-                [class]="trackingService.statusConfig[kurzinfo.status].badgeClass"
-              >
-                {{ kurzinfo.status_label }}
-              </span>
-            }
-          </div>
-
-          <div class="space-y-3">
-            @if (!isEditingTracking() && trackingInfo(); as kurzinfo) {
-              <p class="text-[10px] text-fb-text-muted truncate font-mono">
-                {{ kurzinfo.carrier_name }} · {{ kurzinfo.tracking_number }}
-              </p>
-            } @else if (!isEditingTracking()) {
-              <p class="text-[10px] text-fb-text-muted">DHL · DPD · Hermes · UPS · GLS</p>
-            }
-
-            @if (!isEditingTracking()) {
-              <div class="flex items-center justify-between">
-                <button
-                  type="button"
-                  (click)="startEditTracking()"
-                  class="cursor-pointer text-[11px] font-semibold text-fb-text-secondary hover:text-fb-text-primary"
-                >
-                  {{ trackingInfo() ? 'Ändern' : '+ Sendungsnr. hinzufügen' }}
-                </button>
-
-                @if (trackingInfo()) {
-                  <button
-                    type="button"
-                    (click)="toggleTrackingDetails()"
-                    [attr.aria-expanded]="isTrackingExpanded()"
-                    aria-controls="sendungsverfolgung-details"
-                    [attr.aria-label]="
-                      isTrackingExpanded()
-                        ? 'Details der Sendungsverfolgung einklappen'
-                        : 'Details der Sendungsverfolgung ausklappen'
-                    "
-                    class="p-1 rounded-lg text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-surface-hover transition cursor-pointer"
-                  >
-                    <svg
-                      [lucideIcon]="isTrackingExpanded() ? chevronUpIcon : chevronDownIcon"
-                      class="w-4 h-4"
-                    ></svg>
-                  </button>
+                @if (!isEditingTracking() && !trackingInfo()) {
+                  <p class="text-xs text-fb-text-muted">Noch keine Sendungsnummer hinterlegt.</p>
                 }
               </div>
-            }
-
-            <!-- Edit Mode -->
-            @if (isEditingTracking()) {
-              <div class="space-y-2">
-                <div class="space-y-2">
-                  <input
-                    type="text"
-                    [value]="trackingNumberDraft()"
-                    (input)="onTrackingDraftInput($event)"
-                    placeholder="Sendungsnummer einfügen..."
-                    aria-label="Sendungsnummer"
-                    class="linear-input w-full px-2.5 py-1.5 rounded-lg text-xs font-mono text-fb-text-primary"
-                  />
-                  <app-custom-select
-                    ariaLabel="Versanddienstleister"
-                    [options]="dienstleisterOptionen()"
-                    [value]="trackingCarrierDraft()"
-                    (valueChange)="trackingCarrierDraft.set($event)"
-                    size="sm"
-                  />
-                </div>
-
-                @if (trackingCarrierDraft()) {
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] text-fb-text-muted">Erkannt als:</span>
-                    <span
-                      class="rounded border px-2 py-0.5 text-[10px] font-mono font-semibold"
-                      [class]="trackingService.carrierMetas[trackingCarrierDraft()!].badgeClass"
-                    >
-                      {{ trackingService.carrierMetas[trackingCarrierDraft()!].name }}
-                    </span>
-                  </div>
-                }
-
-                <div class="flex justify-end gap-2 pt-1">
-                  <app-button variant="secondary" size="slim" (clicked)="cancelEditTracking()">
-                    Abbrechen
-                  </app-button>
-                  <app-button variant="primary" size="slim" (clicked)="saveTracking()">
-                    Speichern
-                  </app-button>
-                </div>
-              </div>
-            }
-
-            <!-- Display Mode -->
-            @if (!isEditingTracking() && trackingInfo()) {
-              @let info = trackingInfo()!;
-
-              <!-- Fortschrittsbalken -->
-              <div
-                class="flex items-center gap-1 py-1"
-                role="img"
-                [attr.aria-label]="'Sendungsstatus: ' + info.status_label"
-              >
-                @for (step of trackingSteps; track step) {
-                  <div
-                    class="h-1 flex-1 rounded-full transition-colors"
-                    [class.bg-emerald-500]="
-                      trackingService.statusConfig[info.status].step >=
-                      trackingService.statusConfig[step].step
-                    "
-                    [class.bg-fb-line]="
-                      trackingService.statusConfig[info.status].step <
-                      trackingService.statusConfig[step].step
-                    "
-                  ></div>
-                }
-              </div>
-
-              <div
-                id="sendungsverfolgung-details"
-                class="space-y-3"
-                [hidden]="!isTrackingExpanded()"
-              >
-                <div
-                  class="flex items-center justify-between p-2 rounded-lg bg-fb-well border border-fb-line"
-                >
-                  <div class="flex items-center gap-2 min-w-0">
-                    <span
-                      class="shrink-0 rounded border px-2 py-0.5 text-[10px] font-mono font-semibold"
-                      [class]="trackingService.carrierMetas[info.carrier].badgeClass"
-                    >
-                      {{ info.carrier_name }}
-                    </span>
-                    <span class="font-mono text-xs text-fb-text-secondary truncate">
-                      {{ info.tracking_number }}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    (click)="copyTrackingNumber()"
-                    class="p-1 rounded text-fb-text-muted hover:text-fb-text-primary hover:bg-fb-line/50 transition cursor-pointer shrink-0"
-                    [title]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
-                    [attr.aria-label]="trackingCopied() ? 'Kopiert!' : 'Sendungsnummer kopieren'"
-                  >
-                    <svg
-                      [lucideIcon]="trackingCopied() ? checkSmallIcon : copyIcon"
-                      class="w-3 h-3"
-                    ></svg>
-                  </button>
-                </div>
-
-                <p class="text-[10px] text-fb-text-muted leading-relaxed">
-                  Der Status wird manuell gepflegt. Live-Status über den Tracking-Link.
-                </p>
-
-                <div class="flex flex-col gap-2 pt-1">
-                  <button
-                    type="button"
-                    (click)="openTrackingPortal()"
-                    class="linear-btn-secondary inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
-                  >
-                    <svg [lucideIcon]="linkIcon" class="w-3 h-3"></svg>
-                    <span>Bei {{ info.carrier_name }} verfolgen</span>
-                  </button>
-
-                  @if (info.status !== 'delivered') {
-                    <button
-                      type="button"
-                      (click)="markDeliveredAndSync()"
-                      [disabled]="isMarkingDelivered()"
-                      class="linear-btn-primary inline-flex cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
-                    >
-                      <svg [lucideIcon]="checkIcon" class="w-3 h-3"></svg>
-                      <span>{{
-                        isMarkingDelivered() ? 'Speichere...' : 'Als zugestellt eintragen'
-                      }}</span>
-                    </button>
-                  }
-                </div>
-              </div>
-            }
-
-            @if (!isEditingTracking() && !trackingInfo()) {
-              <p class="text-xs text-fb-text-muted">Noch keine Sendungsnummer hinterlegt.</p>
-            }
+            </app-card>
           </div>
-        </app-card>
-      </div>
-    </app-two-column-layout>
-
-    <app-record-history-container [entityType]="'purchase'" [entityId]="p.id" />
+        </app-two-column-layout>
+      }
+    </app-entry-page-layout>
   }
 
   <!-- Image Cropper & Resizer Studio Modal (Fixed 1:1) -->

@@ -1,0 +1,133 @@
+import { SelectOption } from '../../../../shared/components/custom-select/custom-select.component';
+
+export type PurchaseCostType =
+  'shipping' | 'travel' | 'packaging' | 'transport' | 'customs' | 'import' | 'fee' | 'other';
+
+export interface PurchaseCostDraft {
+  readonly type: PurchaseCostType;
+  readonly amount: number;
+  readonly description: string;
+  readonly allocationMethod: 'by_value' | 'by_quantity' | 'direct';
+  readonly targetPurchaseLineId: string | null;
+}
+
+export type PurchaseCostAdjustment =
+  | 'shipping'
+  | 'customs_fee'
+  | 'discount'
+  | 'foreign_transaction_fee'
+  | 'freight'
+  | 'insurance'
+  | 'expedite_fee'
+  | 'surcharge'
+  | 'duties'
+  | 'other';
+
+export interface PurchaseCostAdjustmentRow {
+  readonly adjustment: PurchaseCostAdjustment | null;
+  readonly amount: number | null;
+  readonly allocationMethod: PurchaseCostDraft['allocationMethod'];
+  readonly targetPurchaseLineId: string | null;
+  readonly sourceCost: PurchaseCostDraft | null;
+}
+
+export interface PurchaseCostOverviewValue {
+  readonly discountAmount: number;
+  readonly costs: readonly PurchaseCostDraft[];
+}
+
+export const PURCHASE_COST_ADJUSTMENT_OPTIONS: readonly SelectOption<PurchaseCostAdjustment>[] = [
+  { value: 'shipping', label: 'Versandkosten' },
+  { value: 'customs_fee', label: 'Zollgebühren' },
+  { value: 'discount', label: 'Rabatt' },
+  { value: 'foreign_transaction_fee', label: 'Auslandstransaktionsgebühr' },
+  { value: 'freight', label: 'Frachtgebühr' },
+  { value: 'insurance', label: 'Versicherung' },
+  { value: 'expedite_fee', label: 'Eilgebühr' },
+  { value: 'surcharge', label: 'Zuschlag' },
+  { value: 'duties', label: 'Zölle' },
+  { value: 'other', label: 'Sonstiges' },
+];
+
+const newCostDefaults: Readonly<
+  Record<
+    Exclude<PurchaseCostAdjustment, 'discount'>,
+    Pick<PurchaseCostDraft, 'type' | 'description'>
+  >
+> = {
+  shipping: { type: 'shipping', description: 'Versandkosten' },
+  customs_fee: { type: 'customs', description: 'Zollgebühren' },
+  foreign_transaction_fee: { type: 'fee', description: 'Auslandstransaktionsgebühr' },
+  freight: { type: 'transport', description: 'Frachtgebühr' },
+  insurance: { type: 'fee', description: 'Versicherung' },
+  expedite_fee: { type: 'fee', description: 'Eilgebühr' },
+  surcharge: { type: 'fee', description: 'Zuschlag' },
+  duties: { type: 'customs', description: 'Zölle' },
+  other: { type: 'other', description: 'Sonstiges' },
+};
+
+export function createPurchaseCostAdjustmentRows(
+  costs: readonly PurchaseCostDraft[],
+  discountAmount: number,
+): readonly PurchaseCostAdjustmentRow[] {
+  const rows: PurchaseCostAdjustmentRow[] = costs.map((cost) => ({
+    adjustment: adjustmentForCost(cost),
+    amount: cost.amount,
+    allocationMethod: cost.allocationMethod,
+    targetPurchaseLineId: cost.targetPurchaseLineId,
+    sourceCost: cost,
+  }));
+  if (discountAmount > 0) {
+    rows.push({
+      adjustment: 'discount',
+      amount: discountAmount,
+      allocationMethod: 'by_value',
+      targetPurchaseLineId: null,
+      sourceCost: null,
+    });
+  }
+  return rows;
+}
+
+export function serializePurchaseCostAdjustmentRows(
+  rows: readonly PurchaseCostAdjustmentRow[],
+): PurchaseCostOverviewValue {
+  let discountAmount = 0;
+  const costs: PurchaseCostDraft[] = [];
+
+  for (const row of rows) {
+    if (row.adjustment === null || row.amount === null || row.amount <= 0) continue;
+    if (row.adjustment === 'discount') {
+      discountAmount += row.amount;
+      continue;
+    }
+
+    const sourceCost = row.sourceCost;
+    const defaults =
+      sourceCost && adjustmentForCost(sourceCost) === row.adjustment
+        ? sourceCost
+        : newCostDefaults[row.adjustment];
+    costs.push({
+      type: defaults.type,
+      amount: row.amount,
+      description: defaults.description,
+      allocationMethod: row.allocationMethod,
+      targetPurchaseLineId: row.allocationMethod === 'direct' ? row.targetPurchaseLineId : null,
+    });
+  }
+
+  return { discountAmount, costs };
+}
+
+function adjustmentForCost(cost: PurchaseCostDraft): Exclude<PurchaseCostAdjustment, 'discount'> {
+  const description = cost.description.trim().toLocaleLowerCase('de-DE');
+  if (cost.type === 'shipping') return 'shipping';
+  if (description === 'zollgebühren') return 'customs_fee';
+  if (description === 'auslandstransaktionsgebühr') return 'foreign_transaction_fee';
+  if (cost.type === 'transport' || description === 'frachtgebühr') return 'freight';
+  if (description === 'versicherung') return 'insurance';
+  if (description === 'eilgebühr') return 'expedite_fee';
+  if (description === 'zuschlag') return 'surcharge';
+  if (cost.type === 'customs' || cost.type === 'import' || description === 'zölle') return 'duties';
+  return 'other';
+}

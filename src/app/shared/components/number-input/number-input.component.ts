@@ -48,6 +48,7 @@ export class NumberInputComponent implements ControlValueAccessor {
   readonly ariaLabel = input<string>('');
   readonly asCurrency = input<boolean>(false);
   readonly disabled = input<boolean>(false);
+  readonly showStepper = input(true);
 
   // Backward-compatible German Inputs (legacy aliases)
   readonly platzhalter = input<string>('');
