@@ -63,18 +63,16 @@ test('hält beide Tabellen-Popover auf schmalen Bildschirmen im Viewport', async
   expect(sortBox!.y + sortBox!.height).toBeLessThanOrEqual(viewport!.height);
 });
 
-test('zeigt Reset bei einer veränderten Ansicht und deaktiviert ihn nach dem Zurücksetzen', async ({
-  page,
-}) => {
+test('zeigt Reset nur bei einer veränderten Ansicht', async ({ page }) => {
   await startDemoMode(page);
   await page.goto('/sales');
 
   await expect(page.getByRole('heading', { name: /Verkäufe/ })).toBeVisible();
   const menu = page.locator('app-table-column-menu').first();
-  await page.getByRole('textbox', { name: 'Suche' }).fill('Tasse');
+  await page.getByRole('searchbox', { name: 'Suche' }).fill('Tasse');
   const reset = menu.getByRole('button', { name: 'Ansicht zurücksetzen', exact: true });
   await expect(reset).toBeVisible();
   await reset.click();
-  await expect(page.getByRole('textbox', { name: 'Suche' })).toHaveValue('');
-  await expect(reset).toBeDisabled();
+  await expect(page.getByRole('searchbox', { name: 'Suche' })).toHaveValue('');
+  await expect(reset).toBeHidden();
 });
