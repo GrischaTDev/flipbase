@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { PurchaseEntryFormComponent } from '../../components/purchase-entry-form/purchase-entry-form.component';
 
 @Component({
   selector: 'app-purchase-create',
-  imports: [EntryPageLayoutComponent, PurchaseEntryFormComponent],
+  imports: [EntryPageLayoutComponent, ButtonComponent, PurchaseEntryFormComponent],
   templateUrl: './purchase-create.component.html',
   host: {
     class: 'block',
@@ -23,6 +24,14 @@ export class PurchaseCreateComponent {
 
   isSaving(): boolean {
     return this.entryForm()?.isSaving() ?? false;
+  }
+
+  canSaveDraft(): boolean {
+    return this.entryForm()?.canSaveDraft() ?? false;
+  }
+
+  saveDraft(): void {
+    void this.entryForm()?.onSubmit();
   }
 
   onBeforeUnload(event: BeforeUnloadEvent): void {

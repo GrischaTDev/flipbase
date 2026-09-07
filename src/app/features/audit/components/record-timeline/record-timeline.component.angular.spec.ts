@@ -2,25 +2,61 @@ import '@angular/compiler';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { readFile } from 'node:fs/promises';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RecordTimelineComponent } from './record-timeline.component';
 import { RecordTimelineEntry, RecordTimelinePage } from '../../models/record-timeline.models';
 import { RecordTimelineService } from '../../services/record-timeline.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
+
+interface AngularInputMetadata {
+  inputs: Record<string, unknown>;
+  declaredInputs: Record<string, string>;
+}
+
+let buttonInputMetadata: AngularInputMetadata | null = null;
 
 beforeAll(async () => {
-  await ɵresolveComponentResources((url) =>
-    readFile(
-      new URL(
-        url === './record-history.component.html'
-          ? '../../../../shared/components/record-history/record-history.component.html'
-          : url,
-        import.meta.url,
-      ),
-      'utf8',
-    ),
-  );
+  await ɵresolveComponentResources((url) => {
+    const sharedResource = new Map([
+      [
+        './record-history.component.html',
+        '../../../../shared/components/record-history/record-history.component.html',
+      ],
+      ['./button.component.html', '../../../../shared/components/button/button.component.html'],
+      ['./button.component.scss', '../../../../shared/components/button/button.component.scss'],
+    ]).get(url);
+    return readFile(new URL(sharedResource ?? url, import.meta.url), 'utf8');
+  });
+  const metadata = (ButtonComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  buttonInputMetadata = {
+    inputs: metadata.inputs,
+    declaredInputs: metadata.declaredInputs,
+  };
+  const inputNames = [
+    'variant',
+    'size',
+    'loading',
+    'disabled',
+    'fullWidth',
+    'ariaExpanded',
+    'ariaControls',
+  ];
+  metadata.inputs = {
+    ...metadata.inputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, [name, 1, null]])),
+  };
+  metadata.declaredInputs = {
+    ...metadata.declaredInputs,
+    ...Object.fromEntries(inputNames.map((name) => [name, name])),
+  };
+});
+afterAll(() => {
+  if (!buttonInputMetadata) return;
+  const metadata = (ButtonComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
+  metadata.inputs = buttonInputMetadata.inputs;
+  metadata.declaredInputs = buttonInputMetadata.declaredInputs;
 });
 afterEach(() => TestBed.resetTestingModule());
 
@@ -86,6 +122,14 @@ describe('RecordTimelineComponent', () => {
     timeline.detectChanges();
     await timeline.whenStable();
     const component = timeline.componentInstance;
+    const initialElement = timeline.nativeElement as HTMLElement;
+    expect(initialElement.querySelector(':scope > section > h2')?.textContent).toContain('Chronik');
+    expect(initialElement.querySelector('textarea')?.placeholder).toBe(
+      'Hinterlasse einen Kommentar …',
+    );
+    expect(initialElement.querySelector('[data-timeline-visibility-note]')?.textContent).toContain(
+      'Nur du und andere Mitarbeiter können Kommentare sehen',
+    );
     component.entries.set([
       { ...comment, body: '<img src=x onerror=alert(1)>' },
       {
@@ -114,10 +158,11 @@ describe('RecordTimelineComponent', () => {
     expect(element.querySelector('article')?.textContent).toContain('<img src=x onerror=alert(1)>');
     expect(element.querySelector('article img')).toBeNull();
     expect(element.querySelector('time')?.getAttribute('title')).toContain('2026');
-    const button = element.querySelector<HTMLButtonElement>('button[aria-expanded]')!;
-    button.click();
+    component.toggleDetails('event');
     timeline.detectChanges();
-    expect(button.getAttribute('aria-expanded')).toBe('true');
+    expect(element.querySelector('button[aria-expanded]')?.getAttribute('aria-expanded')).toBe(
+      'true',
+    );
     expect(element.querySelector('dl')?.textContent).toContain('Einkaufspreis');
     expect(element.querySelector('dl')?.textContent).toContain('Nachher: 12');
   });

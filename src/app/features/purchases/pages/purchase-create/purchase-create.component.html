@@ -4,5 +4,14 @@
   backLabel="Zurück zu Einkäufen"
   (cancelled)="returnToPurchases()"
 >
-  <app-purchase-entry-form presentation="page" (closed)="returnToPurchases()" />
+  <app-button
+    entry-header-actions
+    variant="primary-dark"
+    [loading]="isSaving()"
+    [disabled]="!canSaveDraft()"
+    (clicked)="saveDraft()"
+  >
+    Entwurf speichern
+  </app-button>
+  <app-purchase-entry-form (closed)="returnToPurchases()" />
 </app-entry-page-layout>

@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-07 – Codex – Einkaufsseite, feste Sidebar und Chronik vereinheitlicht
+
+**Auftrag/Ergebnis:** Die Einkaufserfassung besitzt keine untere Aktionsleiste mehr. „Entwurf speichern“ steht als gemeinsamer Button oben rechts neben der Seitenüberschrift; der vorhandene Zurück-Pfeil übernimmt das Verlassen der Seite. Die mobile Kopfzeile verteilt Überschrift, Aktion und Untertitel ohne den zuvor abgeschnittenen Text. Die Bearbeitung eines vorhandenen Einkaufs öffnet nicht länger einen anders proportionierten Dialog, sondern dieselbe breite Arbeitsseite wie die Neuanlage. Nach dem Speichern wird der Datensatz neu geladen.
+
+**Layout und gemeinsame Bausteine:** Die Desktop-Sidebar ist fest an den Viewport gebunden; nur ihre Navigation scrollt intern, während der Seiteninhalt unabhängig läuft. Die gemeinsame Chronik für Einkäufe und Verkäufe liegt nun unterhalb des vollständigen zweispaltigen Arbeitsbereichs. Ihr Shopify-naher Aufbau trennt Überschrift, Kommentar-Composer, Sichtbarkeitshinweis, Kommentar-Karten und Systemereignisse. Aktionen verwenden den vorhandenen Shared-Button; nicht unterstützte Anhangs- oder Erwähnungsfunktionen wurden nicht vorgetäuscht.
+
+**Prüfung:** Die neuen Browser-Verträge wurden zunächst gegen den alten Stand rot ausgeführt: untere Speicheraktion, mitscrollende Sidebar, Chronik innerhalb der linken Spalte und Bearbeitungsdialog. Nach der Umsetzung bestanden 52 gezielte Angular-Tests und alle 11 betroffenen Einkaufs-/Sidebar-Browserabläufe. TypeScript-Prüfung, gezieltes ESLint, gemeinsame UI-Architekturprüfung und Produktionsbau waren erfolgreich. Die mobile Neu- und Bearbeitungserfassung sowie die Chronik wurden in der lokalen Demo visuell geprüft. Keine Backend- oder Datenbankänderung.
+
+**Abschlussprüfung:** Die parallele Gesamtsuite deckte eine verbleibende Zeitabhängigkeit im Windows-Prozessbaumtest auf: Nach dem erfolgreichen Beenden konnte ein bereits gestarteter asynchroner Heartbeat-Schreibvorgang noch abschließen. Der Test wartet nun zunächst auf eine kurze stabile Dateiphase und prüft erst danach erneut auf weitere Änderungen; ein tatsächlich weiterlaufender 25-ms-Heartbeat besteht diese Prüfung weiterhin nicht. Die produktive Runner-Logik blieb unverändert. Danach bestand die parallele Gesamtsuite mit 995 Node-, 138 DOM- und 516 Angular-Tests.
+
 ## 2026-09-07 – Codex – Einkaufsübersicht und Erfassung nachgeschärft
 
 **Auftrag/Ergebnis:** Die Bezeichnung steht in einer eigenen Tabellenspalte und wird nicht mehr unter der Einkaufsnummer wiederholt. Einkaufsnummern erhalten in der Darstellung ein führendes `#`; fehlt eine Nummer, erscheint ein neutraler Strich statt eines Titel-Duplikats. Die Spalten „Erfassung“ sowie die alte Bestandsdarstellung wurden entfernt und durch „Erhalten“ mit Mengenstand und aufklappbarer Positionsvorschau ersetzt. „Gesamtkosten“ heißt in der Tabelle jetzt „Gesamt“ und ist einschließlich Beträgen rechtsbündig. Der Verkäuferfilter ist breiter.

@@ -99,6 +99,14 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'purchases/:id/edit',
+        canDeactivate: [unsavedEntryGuard],
+        loadComponent: () =>
+          import('./features/purchases/pages/purchase-edit/purchase-edit.component').then(
+            (m) => m.PurchaseEditComponent,
+          ),
+      },
+      {
         path: 'purchases/:id',
         loadComponent: () =>
           import('./features/purchases/pages/purchase-detail/purchase-detail.component').then(

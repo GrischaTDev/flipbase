@@ -35,7 +35,7 @@
           [saleHistoryState]="purchaseService.purchaseSaleHistoryState()"
           [saleReviewInventoryItemId]="purchaseService.purchaseSaleReviewInventoryItemId()"
           [submitting]="isLifecycleSubmitting()"
-          (editRequested)="isEditModalOpen.set(true)"
+          (editRequested)="editPurchase(p.id)"
           (deleteRequested)="onDeletePurchase()"
           (finalizeRequested)="finalizePurchase()"
           (reopenRequested)="reopenPurchase()"
@@ -44,7 +44,7 @@
           (orderedRequested)="markAsOrdered()"
           (transitRequested)="startEditTracking()"
           (arrivedRequested)="markAsArrived()"
-          (captureContentRequested)="isEditModalOpen.set(true)"
+          (captureContentRequested)="editPurchase(p.id)"
         />
       </div>
     </app-page-header>
@@ -413,10 +413,6 @@
             }
           </div>
         </app-card>
-
-        <div class="space-y-2">
-          <app-record-history-container [entityType]="'purchase'" [entityId]="p.id" />
-        </div>
       </div>
 
       <!-- Sidebar Column (1/3) -->
@@ -681,6 +677,8 @@
         </app-card>
       </div>
     </app-two-column-layout>
+
+    <app-record-history-container [entityType]="'purchase'" [entityId]="p.id" />
   }
 
   <!-- Image Cropper & Resizer Studio Modal (Fixed 1:1) -->
@@ -689,14 +687,6 @@
       (closed)="isCropperOpen.set(false)"
       (imageReady)="onImageCropped($event)"
     ></app-image-cropper-modal>
-  }
-
-  @if (isEditModalOpen() && purchaseService.selectedPurchase(); as einkauf) {
-    <app-purchase-create-modal
-      [purchase]="einkauf"
-      (closed)="isEditModalOpen.set(false)"
-      (created)="isEditModalOpen.set(false)"
-    ></app-purchase-create-modal>
   }
 </div>
 
