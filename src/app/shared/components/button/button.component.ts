@@ -25,10 +25,14 @@ export class ButtonComponent {
   readonly disabled = input<boolean>(false);
   readonly icon = input<LucideIconInput | null>(null);
   readonly iconPosition = input<'start' | 'end'>('start');
+  readonly iconOnly = input<boolean>(false);
   readonly fullWidth = input<boolean>(false);
   readonly type = input<'button' | 'submit' | 'reset'>('button');
   readonly ariaLabel = input<string>('');
   readonly title = input<string>('');
+  readonly ariaExpanded = input<boolean | null>(null);
+  readonly ariaControls = input<string>('');
+  readonly ariaHaspopup = input<'dialog' | 'menu' | 'listbox' | null>(null);
 
   readonly clicked = output<MouseEvent>();
 
@@ -58,11 +62,17 @@ export class ButtonComponent {
         'bg-transparent text-fb-text-secondary hover:text-fb-text-primary p-0 border-0 underline-offset-4 hover:underline',
     };
 
-    const sizeStyles: Record<ButtonSize, string> = {
-      slim: 'h-7 px-2 text-xs rounded-lg gap-1.5',
-      md: 'h-8 px-3 text-[13px] rounded-lg gap-2',
-      lg: 'h-9 px-4 text-[13px] rounded-lg gap-2',
-    };
+    const sizeStyles: Record<ButtonSize, string> = this.iconOnly()
+      ? {
+          slim: 'h-7 w-7 px-0 text-xs rounded-lg gap-0',
+          md: 'h-8 w-8 px-0 text-[13px] rounded-lg gap-0',
+          lg: 'h-9 w-9 px-0 text-[13px] rounded-lg gap-0',
+        }
+      : {
+          slim: 'h-7 px-2 text-xs rounded-lg gap-1.5',
+          md: 'h-8 px-3 text-[13px] rounded-lg gap-2',
+          lg: 'h-9 px-4 text-[13px] rounded-lg gap-2',
+        };
 
     return [base, width, variantStyles[this.variant()], sizeStyles[this.size()]]
       .filter(Boolean)

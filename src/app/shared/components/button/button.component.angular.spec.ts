@@ -34,6 +34,7 @@ describe('ButtonComponent', () => {
       disabled: ['disabled', 1, null],
       icon: ['icon', 1, null],
       iconPosition: ['iconPosition', 1, null],
+      iconOnly: ['iconOnly', 1, null],
       fullWidth: ['fullWidth', 1, null],
       type: ['type', 1, null],
       ariaLabel: ['ariaLabel', 1, null],
@@ -47,6 +48,7 @@ describe('ButtonComponent', () => {
       disabled: 'disabled',
       icon: 'icon',
       iconPosition: 'iconPosition',
+      iconOnly: 'iconOnly',
       fullWidth: 'fullWidth',
       type: 'type',
       ariaLabel: 'ariaLabel',
@@ -103,5 +105,18 @@ describe('ButtonComponent', () => {
     const btn: HTMLButtonElement = fixture.nativeElement.querySelector('button');
     btn.click();
     expect(emitted).toBe(true);
+  });
+
+  it('renders a slim icon-only action as a square button', () => {
+    fixture.componentRef.setInput('size', 'slim');
+    fixture.componentRef.setInput('iconOnly', true);
+    fixture.componentRef.setInput('ariaLabel', 'Kosten bearbeiten');
+    fixture.detectChanges();
+
+    const button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+    expect(button.classList).toContain('h-7');
+    expect(button.classList).toContain('w-7');
+    expect(button.classList).toContain('px-0');
+    expect(button.getAttribute('aria-label')).toBe('Kosten bearbeiten');
   });
 });

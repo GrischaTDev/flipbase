@@ -1,7 +1,7 @@
 <form
   [formGroup]="form"
   (ngSubmit)="onSubmit()"
-  class="mx-auto w-full max-w-[1100px] space-y-4 text-fb-text-primary"
+  class="mx-auto w-full space-y-4 text-fb-text-primary"
 >
   @if (errorMessage()) {
     <p role="alert" class="rounded-xl border border-fb-line bg-fb-surface p-4 text-sm">
@@ -84,13 +84,15 @@
       >
         <div class="flex items-center justify-between">
           <h2 id="purchase-cost-title" class="text-sm font-semibold">Kostenübersicht</h2>
-          <button
-            type="button"
-            class="text-sm underline underline-offset-2"
-            (click)="initialCostDrafts.set(costDrafts()); costDialogOpen.set(true)"
-          >
-            Bearbeiten
-          </button>
+          <app-button
+            variant="ghost"
+            size="slim"
+            [icon]="editIcon"
+            [iconOnly]="true"
+            ariaLabel="Kosten bearbeiten"
+            title="Kosten bearbeiten"
+            (clicked)="initialCostDrafts.set(costDrafts()); costDialogOpen.set(true)"
+          />
         </div>
         <label for="purchase-base-price" class="block text-sm"
           >Kaufbetrag ohne Nebenkosten<app-number-input

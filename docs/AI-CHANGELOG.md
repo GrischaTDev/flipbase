@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-07 – Codex – Einkaufsübersicht und Erfassung nachgeschärft
+
+**Auftrag/Ergebnis:** Die Bezeichnung steht in einer eigenen Tabellenspalte und wird nicht mehr unter der Einkaufsnummer wiederholt. Einkaufsnummern erhalten in der Darstellung ein führendes `#`; fehlt eine Nummer, erscheint ein neutraler Strich statt eines Titel-Duplikats. Die Spalten „Erfassung“ sowie die alte Bestandsdarstellung wurden entfernt und durch „Erhalten“ mit Mengenstand und aufklappbarer Positionsvorschau ersetzt. „Gesamtkosten“ heißt in der Tabelle jetzt „Gesamt“ und ist einschließlich Beträgen rechtsbündig. Der Verkäuferfilter ist breiter.
+
+**Gemeinsame Bausteine:** Der vorhandene Shared-Button unterstützt jetzt zugängliche reine Icon-Buttons sowie die ARIA-Zustände für aufklappbare Inhalte. Die Kostenkarte verwendet diesen Baustein für das Stift-Icon. Die Positionsvorschau kombiniert ausschließlich gemeinsame Button- und Badge-Bausteine; der gemeinsame Toolbar-Select respektiert nun die vom Aufrufer vorgegebene Breite.
+
+**Erfassungsseite und Prüfung:** Kopfzeile, Zurück-Pfeil und zweispaltiger Inhalt verwenden dieselbe Inhaltsbreite. Gezielte Angular-, Darstellungs- und Node-Tests sowie Produktionsbau erfolgreich; die lokale Demo bei Desktopbreite visuell gegen die geöffnete Shopify-Referenz kontrolliert. Keine Backend- oder Datenbankänderung.
+
+**PR-Nachprüfung:** Der Browser-Smoke von PR #41 fand zwei veraltete Selektoren, die noch den entfernten Text „Bearbeiten“ beziehungsweise die früher unter der Einkaufsnummer stehende Bezeichnung erwarteten. Die Tests verwenden jetzt den zugänglichen Namen des Icon-Buttons und die eigene Bezeichnungszelle. Dabei wurde außerdem die Dialogbreite separat auf den vorhandenen 5xl-Container begrenzt, ohne die breite Erfassungsseite erneut einzuengen. Alle sieben Einkaufs-E2E-Abläufe und der Produktionsbau waren anschließend lokal erfolgreich.
+
 ## 2026-09-07 – Codex – Gemeinsame Shopify-nahe Tabellenbausteine umgesetzt
 
 **Auftrag/Ergebnis:** Neun Nutzer-Screenshots und konkrete Nacharbeiten gegen Einkaufstabelle, Spaltenpräferenzen, Badge-Baustein und Nummernvorschau geprüft. Neuer Plan `docs/superpowers/plans/2026-09-07-admin-table-consistency.md`: rahmenlose Ansichts-/Suchbedienung, bedingtes Rücksetzicon, Entfernung von Kostenstatus/Aktionen, gemeinsame Badges und anschließende Übertragung auf weitere Tabellen. Fachbezeichnung „Einkauf“ anschließend bestätigt. Wiederkehrende sichtbare Grundelemente müssen verbindlich über bestehende oder erweiterte Shared-Komponenten laufen; ein neues Paket 0 inventarisiert Abweichungen, legt den Komponenten-Katalog fest und plant eine automatische Prüfung gegen neue lokale Select-/Statusnachbauten. Empfehlungen für Erhalten-Vorschau und konfigurierbares `#` ausdrücklich von festen Vorgaben getrennt. Ältere Textlink-Vorgabe in der Einkaufsabnahme als überholt markiert.

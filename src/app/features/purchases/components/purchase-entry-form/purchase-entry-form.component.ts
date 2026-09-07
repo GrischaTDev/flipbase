@@ -22,6 +22,7 @@ import {
   LucideBoxes as Boxes,
   LucideTruck as Truck,
   LucideCheckCircle2 as CheckCircle2,
+  LucidePencil as Pencil,
 } from '@lucide/angular';
 import {
   beschreibePurchaseProblem,
@@ -56,6 +57,7 @@ import {
   PurchaseCostEditorComponent,
   PurchaseCostType,
 } from '../purchase-cost-editor/purchase-cost-editor.component';
+import { ButtonComponent } from '../../../../shared/components/button/button.component';
 
 const purchaseCostTypes = new Set<PurchaseCostType>([
   'shipping',
@@ -84,6 +86,7 @@ function isPurchaseCostType(value: string): value is PurchaseCostType {
     CurrencyPipe,
     PurchaseSellerDialogComponent,
     ModalDialogDirective,
+    ButtonComponent,
   ],
   templateUrl: './purchase-entry-form.component.html',
   host: { class: 'contents' },
@@ -117,6 +120,7 @@ export class PurchaseEntryFormComponent {
   readonly boxesIcon = Boxes;
   readonly truckIcon = Truck;
   readonly checkIcon = CheckCircle2;
+  readonly editIcon = Pencil;
 
   /** Quellen und Lieferanten kommen aus den Stammdaten und aendern sich zur Laufzeit. */
   readonly quellenOptionen = computed<SelectOption<string | null>[]>(() => [

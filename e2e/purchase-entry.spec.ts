@@ -24,6 +24,26 @@ test('opens purchase entry as a dedicated page', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Kostenübersicht' })).toBeVisible();
 });
 
+test('aligns the purchase heading with its content and uses an edit icon action', async ({
+  page,
+}) => {
+  await startDemoMode(page);
+  await page.goto('/purchases/new');
+
+  const heading = page.getByRole('heading', { name: 'Einkauf erstellen', exact: true });
+  const content = page.locator('app-purchase-entry-form form');
+  const headingBox = await heading.boundingBox();
+  const contentBox = await content.boundingBox();
+
+  expect(headingBox).not.toBeNull();
+  expect(contentBox).not.toBeNull();
+  expect(headingBox?.x).toBe(contentBox?.x + 44);
+  await expect(page.getByRole('button', { name: 'Kosten bearbeiten', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Kostenübersicht' }).getByText('Bearbeiten', { exact: true }),
+  ).toHaveCount(0);
+});
+
 test('leaves a pristine entry page without prompting', async ({ page }) => {
   await startDemoMode(page);
   await page.goto('/purchases/new');
@@ -62,7 +82,7 @@ test('allows an empty purchase with unknown contents, a price and additional cos
   await page.goto('/purchases/new');
   await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Paket-Entwurf');
   await page.locator('input#purchase-base-price').fill('100');
-  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
   await page.getByRole('button', { name: 'Kosten hinzufügen', exact: true }).click();
   await page.getByRole('spinbutton', { name: 'Betrag der Zusatzkosten' }).fill('10');
 
@@ -80,7 +100,10 @@ test('centers the purchase editing dialog card', async ({ page }) => {
   await page.getByRole('button', { name: 'Neues Einzelstück erfassen', exact: true }).click();
   await page.getByLabel('Bezeichnung').fill('Testartikel');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-  await page.locator('[data-purchase-row]').filter({ hasText: 'Dialog-Zentrierung' }).click();
+  await page
+    .locator('[data-purchase-description]')
+    .filter({ hasText: 'Dialog-Zentrierung' })
+    .click();
   await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
 
   const dialogBox = await page.getByRole('dialog').boundingBox();
