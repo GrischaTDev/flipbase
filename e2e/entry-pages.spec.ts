@@ -39,6 +39,15 @@ test('keeps the new entry pages free of automated WCAG AA violations', async ({ 
     await page.goto(path);
     await expect(page.locator('main h1')).toBeVisible();
     await page.addScriptTag({ content: axe.source });
+    // Kontrast am fertig eingeblendeten Inhalt prüfen, nicht an einem Zwischenbild der Fade-Animation.
+    await page.locator('main').evaluate(async (main) => {
+      await Promise.all(
+        main
+          .getAnimations({ subtree: true })
+          .filter((animation) => animation.effect?.getComputedTiming().iterations !== Infinity)
+          .map((animation) => animation.finished.catch(() => undefined)),
+      );
+    });
     const accessibility = await page.evaluate(async () =>
       (window as Window & { axe: typeof axe }).axe.run(document.body, {
         runOnly: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'],

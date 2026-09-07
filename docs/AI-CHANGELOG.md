@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-09-08 – Codex – UI-Korrekturen zur Veröffentlichung vorbereiten
+
+**Auftrag:** Die freigegebenen Dialog-, Button-, Chronik- und Kopfzeilenkorrekturen auf `codex/purchase-ui-polish` committen, pushen und über einen grünen PR mit Merge-Commit nach `master` übernehmen. Betroffene Prüfungen vor dem Push erneut ausführen. `debug.log` und lokale Diagnose-Testartefakte bleiben außerhalb des Commits. Keine Daten- oder Schemaänderung.
+
+## 2026-09-08 – Codex – Einkaufsdialog und Aktionsdichte korrigieren
+
+**Auftrag:** Abgeschnittenes Kosten-Dropdown, uneinheitliche Kopfaktionen, nicht zentrierte Nummer/Status/Zurück-Zeile und zu große Chronik korrigieren. Den ausdrücklich nicht mehr gewünschten Altbestands-Reparaturablauf aus der Einkaufsoberfläche entfernen, ohne Geschäftsdaten oder Schema zu löschen. Arbeit auf `codex/purchase-ui-polish`; lokale `debug.log` bleibt unangetastet.
+
+**Ursache und Umsetzung:** Das absolut positionierte Select-Menü wurde vom scrollenden Modal-Inhalt abgeschnitten; `z-index` konnte diese Grenze nicht überwinden. Die Shared-Auswahl verwendet auf unterstützten Browsern die native Popover-Ebene, bleibt dabei im Dialog-DOM und behält Fokus- und Tastaturverhalten. Neue Browserprüfungen kontrollieren echte Treffbarkeit über dem Footer, Auswahl, Escape, erneutes Öffnen und kleine Fenster statt nur DOM-Sichtbarkeit. Zwei Agents korrigierten gemeinsame Button-/Chronikdichte und Kopfaktionen/Altbestandsbereinigung. Desktop-Standardbuttons messen 28 px, Touchziele mindestens 44 px, der Chronik-Composer 102 statt 138 px. Prüfbeleg verwendet die Shared-Komponente als semantischen Link. Titel, Badge und Zurück-Aktion sind innerhalb eines Pixels zentriert; die Primäraktion steht rechts. Der Badge nutzt bei fehlendem technischem Status denselben Entwurfsstandard wie die Lifecycle-Aktionen. Vier verwaiste Reparatur-UI-/Testdateien entfernt (über Git wiederherstellbar), Datenbankfunktionen und Geschäftsdaten bleiben unverändert.
+
+**Prüfung:** 156 Angular-Tests, 29 Browserabläufe und vier Architekturtests erfolgreich. Formatierung, ESLint und Typprüfung erfolgreich; abschließender Build geprüft. Visuelle Stichproben auf localhost:4200 in Chromium bei 1440 × 900 und 390 × 844, zusätzliche Geometrieprüfung bei 390 × 600 und Touchprüfung. Keine Konsolen-/Laufzeitfehler in der visuellen Abnahme. Browser-Plugin mit eigenem Browser-Skill nicht verfügbar; vorhandener Playwright-Ablauf verwendet. Screenshots liegen außerhalb des Repositorys im Aufgaben-Artefaktordner. AXE wartet auf abgeschlossene endliche Einblendanimationen; der Modal-Abbruchtest wartet auf Dialogentfernung und Fokus-Rückgabe, bevor er in den zuvor gesperrten Hintergrund schreibt. Keine künstlichen Wartezeiten und keine unterdrückten AXE-Regeln. Safari/Firefox und alte Browser ohne Popover-Unterstützung nicht visuell geprüft. Noch nicht veröffentlicht.
+
 ## 2026-09-07 – Codex – Einkaufsumbau zur Veröffentlichung vorbereiten
 
 **Auftrag:** Den freigegebenen Einkaufsumbau committen, auf GitHub pushen und nach erfolgreichen PR-Prüfungen mit Merge-Commit nach `master` übernehmen. Vor dem Push werden betroffene Tests, Formatierung, Lint und Build erneut geprüft; die vollständige Integrationsprüfung erfolgt im PR. Die lokale `debug.log` gehört nicht zur Veröffentlichung. Keine Datenlöschung oder Schemaänderung.

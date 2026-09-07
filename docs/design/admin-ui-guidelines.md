@@ -41,6 +41,12 @@ Präzisierung vom 07.09.2026: Erstellen, Ansicht und Bearbeiten verwenden densel
 
 Die Kostenübersicht verwendet eine gemeinsame fachliche Komposition aus Shared-Elementen. „Kostenübersicht verwalten“ enthält flache Zeilen mit Anpassungsart, Betrag und Entfernen sowie „Anpassung hinzufügen“. Rabatt ist eine Anpassungszeile, kein zusätzliches dauerhaftes Sonderfeld und keine positive Kostenbuchung. Dialogänderungen bleiben bis „Speichern“ vorläufig; „Abbrechen“, Schließen und Escape verwerfen sie. Primäre Speichern-/Posten-Aktionen bleiben gelb; eine schwarze Primärvariante ist nicht vorgesehen und wird automatisiert beanstandet.
 
+Präzisierung vom 08.09.2026: Auswahlmenüs müssen über dem Modal-Inhalt und dessen Footer sichtbar und anklickbar bleiben. Die Shared-Auswahl nutzt dafür die native oberste Popover-Ebene ([Browservertrag](https://developer.mozilla.org/en-US/docs/Web/HTML/Reference/Global_attributes/popover)); ein höherer `z-index` innerhalb eines abschneidenden Containers genügt nicht. Escape schließt zuerst die Auswahl, nicht den Dialog; der Fokus bleibt am Auslöser. Bei Scrollen des Ankers oder Fenstergrößenänderung schließt die Auswahl. Tests prüfen die tatsächliche Treffbarkeit per Hit-Test und nicht allein DOM-Sichtbarkeit.
+
+Kopfaktionen verwenden gemeinsame Größen und erkennbare sekundäre Flächen; die Hauptaktion steht ganz rechts. Zurück-Pfeil, Nummer und Status sind vertikal zentriert. Der Altbestands-Kostenreparaturablauf entfällt auf ausdrücklichen Nutzerwunsch; dies ist keine Freigabe zum Löschen von Geschäftsdaten.
+
+Shared-Buttons: Standard und schmal 28 px Höhe, große Variante 32 px; Schrift bewusst mindestens 13 px bei 16 px Zeilenhöhe. Die Desktophöhe folgt dem Live-Messprotokoll, die Mindestschrift bleibt eine Zugänglichkeitsentscheidung. Auf Geräten mit grobem Zeiger sind Ziele mindestens 44 × 44 px. Interne Navigationsaktionen können dieselbe Komponente als semantischen Link verwenden. Globale Adminregeln überschreiben diese Größen nicht. Die Chronik behält ihren Aufbau mit einer 32-px-Kommentarfläche und rund 102 px Composerhöhe; diese Verdichtung ist eine Nutzeranpassung, kein behauptetes Originalmaß der Shopify-Chronik.
+
 Offene Bestandskorrekturen betreffen unter anderem Einkaufsdetails, Kosteneditor, Korrekturdialog und explizite Großschreibungsoptionen der Badges. Eine globale CSS-Übersteuerung ersetzt die gezielte Korrektur der Templates und Oberflächentexte nicht.
 
 ## Markenfarbe: nachgewiesener Stand

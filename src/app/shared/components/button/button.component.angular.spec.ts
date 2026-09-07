@@ -1,6 +1,7 @@
 import '@angular/compiler';
 import { ɵresolveComponentResources } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { readFile } from 'node:fs/promises';
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ButtonComponent } from './button.component';
@@ -39,6 +40,8 @@ describe('ButtonComponent', () => {
       type: ['type', 1, null],
       ariaLabel: ['ariaLabel', 1, null],
       title: ['title', 1, null],
+      link: ['link', 1, null],
+      queryParams: ['queryParams', 1, null],
     };
     metadata.declaredInputs = {
       ...metadata.declaredInputs,
@@ -53,11 +56,14 @@ describe('ButtonComponent', () => {
       type: 'type',
       ariaLabel: 'ariaLabel',
       title: 'title',
+      link: 'link',
+      queryParams: 'queryParams',
     };
 
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       imports: [ButtonComponent],
+      providers: [provideRouter([])],
     });
 
     fixture = TestBed.createComponent(ButtonComponent);
@@ -118,5 +124,30 @@ describe('ButtonComponent', () => {
     expect(button.classList).toContain('w-7');
     expect(button.classList).toContain('px-0');
     expect(button.getAttribute('aria-label')).toBe('Kosten bearbeiten');
+  });
+
+  it('renders navigation as a native link with query parameters', () => {
+    fixture.componentRef.setInput('link', '/audit');
+    fixture.componentRef.setInput('queryParams', { purchaseId: 'purchase-1' });
+    fixture.detectChanges();
+
+    const link = fixture.nativeElement.querySelector('a') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('/audit?purchaseId=purchase-1');
+    expect(fixture.nativeElement.querySelector('button')).toBeNull();
+  });
+
+  it('prevents navigation and click output while a linked action is loading', () => {
+    fixture.componentRef.setInput('link', '/audit');
+    fixture.componentRef.setInput('loading', true);
+    fixture.detectChanges();
+    let emitted = false;
+    component.clicked.subscribe(() => (emitted = true));
+
+    const link = fixture.nativeElement.querySelector('a') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBeNull();
+    expect(link.getAttribute('aria-disabled')).toBe('true');
+    expect(link.getAttribute('tabindex')).toBe('-1');
+    link.click();
+    expect(emitted).toBe(false);
   });
 });
