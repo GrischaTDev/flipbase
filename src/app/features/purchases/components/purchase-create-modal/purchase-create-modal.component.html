@@ -4,10 +4,12 @@
   [dialogTitel]="purchase() ? 'Einkauf bearbeiten' : 'Neuen Einkauf erfassen'"
   (dialogClose)="closed.emit()"
 >
-  <app-purchase-entry-form
-    [purchase]="purchase()"
-    presentation="dialog"
-    (closed)="closed.emit()"
-    (created)="created.emit()"
-  />
+  <div class="w-full max-w-5xl">
+    <app-purchase-entry-form
+      [purchase]="purchase()"
+      presentation="dialog"
+      (closed)="closed.emit()"
+      (created)="created.emit()"
+    />
+  </div>
 </div>

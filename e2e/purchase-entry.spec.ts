@@ -82,7 +82,7 @@ test('allows an empty purchase with unknown contents, a price and additional cos
   await page.goto('/purchases/new');
   await page.getByRole('textbox', { name: 'Beschreibung (optional)' }).fill('Paket-Entwurf');
   await page.locator('input#purchase-base-price').fill('100');
-  await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+  await page.getByRole('button', { name: 'Kosten bearbeiten', exact: true }).click();
   await page.getByRole('button', { name: 'Kosten hinzufügen', exact: true }).click();
   await page.getByRole('spinbutton', { name: 'Betrag der Zusatzkosten' }).fill('10');
 
@@ -100,7 +100,10 @@ test('centers the purchase editing dialog card', async ({ page }) => {
   await page.getByRole('button', { name: 'Neues Einzelstück erfassen', exact: true }).click();
   await page.getByLabel('Bezeichnung').fill('Testartikel');
   await page.getByRole('button', { name: 'Entwurf speichern', exact: true }).click();
-  await page.locator('[data-purchase-row]').filter({ hasText: 'Dialog-Zentrierung' }).click();
+  await page
+    .locator('[data-purchase-description]')
+    .filter({ hasText: 'Dialog-Zentrierung' })
+    .click();
   await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
 
   const dialogBox = await page.getByRole('dialog').boundingBox();
